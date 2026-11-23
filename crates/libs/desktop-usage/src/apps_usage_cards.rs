@@ -1,4 +1,4 @@
-//! Shared snapshot and manual refresh for supplier and bound-account cards.
+//! Shared snapshot and manual refresh for supplier and authorization cards.
 
 use std::collections::{HashMap, HashSet};
 
@@ -16,8 +16,8 @@ use desktop_settings_account::types::{Connection, Scope as AuthScope};
 #[cfg(not(target_arch = "wasm32"))]
 use {
     crate::refresh::{read_snapshot, refresh_one},
-    gateway_app_auth::{AgentAppsAuthCredentials, AgentAppsAuthReadError},
-    vw_api_apps_usage::apps_usage::UsageQueryKind,
+    gateway_app_auth::{AgentAppsAuthCredentials, AgentAppsAuthReadError, GatewayAppAuthClient},
+    vw_api_apps_usage::apps_usage::{UsageQueryKind, UsageSnapshot},
 };
 #[path = "apps_usage_cards/view.rs"]
 mod view;
@@ -29,11 +29,16 @@ pub enum Target {
 }
 
 impl Target {
+    pub(super) fn is_codex_account(&self) -> bool {
+        matches!(self, Self::Account(AuthService::CodexOauth, _))
+    }
+
     fn includes(&self, selection: &UsageSnapshotQuery) -> bool {
         match self {
             Self::Provider(app, id) => selection.app_id == *app && selection.provider_id == *id,
             Self::Account(service, id) => {
-                binding_app(*service) == Some(selection.app_id)
+                (*service == AuthService::CodexOauth) == selection.provider_id.is_empty()
+                    && binding_app(*service) == Some(selection.app_id)
                     && selection.account_id.as_ref() == Some(id)
             }
         }
@@ -64,6 +69,7 @@ pub struct Scope {
 pub enum Failure {
     Denied,
     Unsupported,
+    GatewayUpgradeRequired,
     Changed,
     Reauth,
     Unavailable,
@@ -76,6 +82,7 @@ impl Failure {
         match self {
             Self::Denied => "当前连接没有额度权限",
             Self::Unsupported => "当前环境暂不支持此额度查询",
+            Self::GatewayUpgradeRequired => "当前网关版本缺少 Codex 额度接口，请更新网关",
             Self::Changed => "供应商或绑定账号已变化，请重新读取",
             Self::Reauth => "账号需要重新授权",
             Self::Unavailable => "额度服务暂不可用",
@@ -177,7 +184,10 @@ impl Cards {
     pub fn refreshing(&self, scope: &Scope) -> bool {
         self.scope.as_ref() == Some(scope)
             && (self.batch_pending.is_some()
-                || self.entries.values().any(|entry| entry.refreshing.is_some()))
+                || self.entries.iter().any(|(target, entry)| {
+                    entry.refreshing.is_some()
+                        || target.is_codex_account() && entry.pending.is_some()
+                }))
     }
 
     pub fn apply_updates(&mut self, scope: &Scope, updates: &[CardSnapshot]) {
@@ -268,6 +278,38 @@ pub async fn read(
     target: &Target,
     refresh: Option<&str>,
 ) -> CardResult {
+    if let Target::Account(AuthService::CodexOauth, account) = target {
+        if context.connection.is_none() {
+            return Err(Failure::Denied);
+        }
+        let result = GatewayAppAuthClient::new(client.transport().clone())
+            .codex_account_quota(&context.host, account)
+            .await
+            .map_err(|error| match error {
+                AgentAppsAuthReadError::Http { status: 404 | 405, error: None } => {
+                    Failure::GatewayUpgradeRequired
+                }
+                error => auth_failure(error),
+            })?;
+        let kind = UsageQueryKind::OfficialSubscription;
+        return Ok(vec![CardSnapshot::new(
+            UsageSnapshotQuery {
+                project_id: context.project.clone(),
+                target_host_id: context.host.clone(),
+                app_id: AppId::Codex,
+                // An account-only result has no supplier to link or refresh.
+                provider_id: String::new(),
+                account_id: Some(account.clone()),
+                kind: Some(kind),
+            },
+            Ok(UsageSnapshotResponse {
+                capabilities: vec![kind],
+                snapshot: Some(UsageSnapshot { result, stale: false, refresh_failure: None }),
+            }),
+            None,
+        )]);
+    }
+
     let (app, service, provider, account) = match target {
         Target::Provider(app, provider) => (*app, binding_service(*app), Some(provider), None),
         Target::Account(service, account) => (
@@ -292,14 +334,7 @@ pub async fn read(
                 &credentials,
             )
             .await
-            .map_err(|error| match error {
-                AgentAppsAuthReadError::Http { status, error } => {
-                    Failure::gateway(status, error.map(|error| error.code))
-                }
-                AgentAppsAuthReadError::InvalidPrincipalToken => Failure::Denied,
-                AgentAppsAuthReadError::Decode => Failure::InvalidResponse,
-                AgentAppsAuthReadError::Transport => Failure::Unavailable,
-            })?;
+            .map_err(auth_failure)?;
         for binding in bindings {
             if binding.service != service
                 || account.is_some_and(|account| account != &binding.account_id)
@@ -350,6 +385,18 @@ pub async fn read(
     Ok(result)
 }
 
+
+#[cfg(not(target_arch = "wasm32"))]
+fn auth_failure(error: AgentAppsAuthReadError) -> Failure {
+    match error {
+        AgentAppsAuthReadError::Http { status, error } => {
+            Failure::gateway(status, error.map(|error| error.code))
+        }
+        AgentAppsAuthReadError::InvalidPrincipalToken => Failure::Denied,
+        AgentAppsAuthReadError::Decode => Failure::InvalidResponse,
+        AgentAppsAuthReadError::Transport => Failure::Unavailable,
+    }
+}
 
 #[cfg(target_arch = "wasm32")]
 pub async fn read(

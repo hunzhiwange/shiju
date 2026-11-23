@@ -2,10 +2,11 @@
 
 use super::GatewayAppAuthClient;
 use gateway_http::apply_request_context;
-use reqwest::header::CACHE_CONTROL;
+use reqwest::{Method, header::CACHE_CONTROL};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use vw_api_app_auth::{AuthAccount, AuthError, AuthService, AuthStatus};
+use vw_api_apps_usage::apps_usage::UsageQueryResult;
 
 /// Legacy call-site fields retained for source compatibility. Requests use the
 /// active Gateway endpoint authentication; these fields are ignored.
@@ -69,10 +70,11 @@ impl GatewayAppAuthClient {
         &self,
         host_id: &str,
         service: AuthService,
-        credentials: &AgentAppsAuthCredentials<'_>,
+        _credentials: &AgentAppsAuthCredentials<'_>,
     ) -> Result<Vec<AuthAccount>, AgentAppsAuthReadError> {
-        let response: AccountsResponse =
-            self.agent_apps_auth_read("accounts", host_id, service, None, credentials).await?;
+        let response: AccountsResponse = self
+            .agent_apps_auth_read(Method::GET, "accounts", host_id, service, None)
+            .await?;
         Ok(response.accounts)
     }
 
@@ -81,9 +83,9 @@ impl GatewayAppAuthClient {
         &self,
         host_id: &str,
         service: AuthService,
-        credentials: &AgentAppsAuthCredentials<'_>,
+        _credentials: &AgentAppsAuthCredentials<'_>,
     ) -> Result<AuthStatus, AgentAppsAuthReadError> {
-        self.agent_apps_auth_read("status", host_id, service, None, credentials).await
+        self.agent_apps_auth_read(Method::GET, "status", host_id, service, None).await
     }
 
     /// List visible supplier bindings, optionally filtering by a scoped account ID.
@@ -92,31 +94,52 @@ impl GatewayAppAuthClient {
         host_id: &str,
         service: AuthService,
         account_id: Option<&str>,
-        credentials: &AgentAppsAuthCredentials<'_>,
+        _credentials: &AgentAppsAuthCredentials<'_>,
     ) -> Result<Vec<AgentAppsAuthBinding>, AgentAppsAuthReadError> {
         let response: BindingsResponse = self
-            .agent_apps_auth_read("bindings", host_id, service, account_id, credentials)
+            .agent_apps_auth_read(Method::GET, "bindings", host_id, service, account_id)
             .await?;
         Ok(response.bindings)
     }
 
+    /// Refresh official quota for a managed Codex account.
+    pub async fn codex_account_quota(
+        &self,
+        host_id: &str,
+        account_id: &str,
+    ) -> Result<UsageQueryResult, AgentAppsAuthReadError> {
+        self.agent_apps_auth_read(
+            Method::POST,
+            "codex-quota",
+            host_id,
+            AuthService::CodexOauth,
+            Some(account_id),
+        )
+        .await
+    }
+
     async fn agent_apps_auth_read<T: DeserializeOwned>(
         &self,
+        method: Method,
         resource: &str,
         host_id: &str,
         service: AuthService,
         account_id: Option<&str>,
-        credentials: &AgentAppsAuthCredentials<'_>,
     ) -> Result<T, AgentAppsAuthReadError> {
-
         // Use the active Gateway tenant and optional skey.
         let context = self.transport.endpoint().clone();
         // Retain the configured Gateway authentication.
+        let refresh = method == Method::POST;
         let request = self.transport.dynamic_host_client()
-            .get(format!("{}/v1/agent-apps/auth/{resource}", context.base_url()))
+            .request(method, format!("{}/v1/agent-apps/auth/{resource}", context.base_url()))
             .query(&ScopeQuery { host_id, service, account_id })
             .header(CACHE_CONTROL, "no-cache, no-store");
-        let _ = credentials;
+        // A quota refresh may need both an OAuth exchange and an official usage request.
+        let request = if refresh {
+            request.timeout(std::time::Duration::from_secs(50))
+        } else {
+            request
+        };
         let response = apply_request_context(request, &context)
             .send()
             .await

@@ -19,6 +19,12 @@ use axum::{
     routing::{delete, get, put},
 };
 use serde::{Deserialize, Serialize};
+#[cfg(target_os = "macos")]
+use codex_quota::{CodexQuota, query_codex_quota};
+
+#[cfg(target_os = "macos")]
+#[path = "agent_apps_auth_read/codex_quota.rs"]
+mod codex_quota;
 use std::{path::PathBuf, sync::Arc};
 #[cfg(target_os = "macos")]
 use vw_agent_apps::{
@@ -91,7 +97,18 @@ pub fn router_with_runtime(
     runtime: Arc<Runtime>,
 ) -> Router {
     let _ = (password, username, basic_auth);
-    Router::new()
+    let router = Router::new();
+    #[cfg(target_os = "macos")]
+    let router = router.route(
+        "/v1/agent-apps/auth/codex-quota",
+        axum::routing::post(query_codex_quota).layer(Extension(Arc::new(CodexQuota::default()))),
+    );
+    #[cfg(not(target_os = "macos"))]
+    let router = router.route(
+        "/v1/agent-apps/auth/codex-quota",
+        axum::routing::post(|| async { ReadError(AuthErrorCode::Unsupported) }),
+    );
+    router
         .merge(routes(runtime.clone()))
         .merge(super::agent_apps_auth_logout::routes(runtime))
         .route("/v1/agent-apps/auth/accounts", get(read).layer(Extension(Resource::Accounts)))

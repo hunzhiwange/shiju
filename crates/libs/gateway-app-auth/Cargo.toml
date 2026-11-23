@@ -6,6 +6,7 @@ license = "MIT"
 
 [dependencies]
 vw-api-app-auth = { path = "../api-app-auth" }
+vw-api-apps-usage = { path = "../api-apps-usage" }
 gateway-http = { path = "../gateway-http" }
 serde = { version = "1", features = ["derive"] }
 

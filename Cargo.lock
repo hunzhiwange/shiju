@@ -9589,6 +9589,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vw-api-app-auth",
+ "vw-api-apps-usage",
  "vw-api-transport",
 ]
 

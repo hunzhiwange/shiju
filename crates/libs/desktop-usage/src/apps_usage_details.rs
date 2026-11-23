@@ -76,11 +76,26 @@ pub fn view(
     body.into()
 }
 
-fn subscription_rows(
-    mut body: Column<'static, Message>,
+pub(super) fn account_subscription<M: 'static>(
     subscription: &UsageSubscription,
     now: &DateTime<impl TimeZone>,
-) -> Column<'static, Message> {
+) -> Element<'static, M> {
+    let body = subscription_rows(column![].spacing(5), subscription, now);
+    if subscription.windows.is_empty()
+        && subscription.credits_balance.is_none()
+        && subscription.reset_credits.is_none()
+    {
+        body.push(line("暂无额度明细".into())).into()
+    } else {
+        body.into()
+    }
+}
+
+fn subscription_rows<M: 'static>(
+    mut body: Column<'static, M>,
+    subscription: &UsageSubscription,
+    now: &DateTime<impl TimeZone>,
+) -> Column<'static, M> {
     if let Some(tier) = &subscription.rate_limit_tier {
         body = body.push(line(format!("限额档位 · {tier}")));
     }
@@ -115,14 +130,20 @@ fn subscription_rows(
     body
 }
 
-fn window_rows(
-    mut body: Column<'static, Message>,
+fn window_rows<M: 'static>(
+    mut body: Column<'static, M>,
     windows: &[UsageQuotaWindow],
     now: &DateTime<impl TimeZone>,
-) -> Column<'static, Message> {
+) -> Column<'static, M> {
     for tier in tier_lines(windows, QuotaDisplay::Remaining) {
         let window = tier.window;
-        let mut values = vec![window.plan_label.as_deref().unwrap_or(&window.name).into()];
+        let name = window.plan_label.as_deref().unwrap_or(match window.name.as_str() {
+            "five_hour" => "5 小时",
+            "seven_day" => "每周",
+            "30_day" => "30 天",
+            name => name,
+        });
+        let mut values = vec![name.into()];
         let unit = window.unit.as_deref();
         if let Some(percent) = tier.bar_percent() {
             values.push(format!("剩余 {percent:.0}%"));
@@ -190,7 +211,7 @@ pub fn script_package_line(package: &UsageScriptPackage) -> Element<'static, Mes
     line(values.join(" · "))
 }
 
-fn line(value: String) -> Element<'static, Message> {
+fn line<M: 'static>(value: String) -> Element<'static, M> {
     text(value)
         .size(13)
         .style(settings_muted_text_style)

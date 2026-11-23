@@ -36,7 +36,6 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
 
     let state = &app.apps_catalog;
     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
-    let selected = state.expanded;
     let body: Element<'_, Message> = match state.third_party_page {
         ThirdPartyPage::Settings(tab) => return workspace(app, settings_page::view(app, tab)),
         ThirdPartyPage::AppsCatalog => {
@@ -89,15 +88,8 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             content = content.push(super::third_party_resources::authorization(app));
             return workspace(app, container(content).padding(24).into());
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        ThirdPartyPage::Usage => match selected {
-            Some(id) => super::third_party_resources::usage(app, id),
-            None => text("请先选择应用，再查看用量与额度").into(),
-        },
         #[cfg(target_arch = "wasm32")]
-        ThirdPartyPage::Authorization | ThirdPartyPage::Usage => {
-            text("此平台不支持授权与用量管理").into()
-        }
+        ThirdPartyPage::Authorization => text("此平台不支持授权管理").into(),
     };
     let mut workspace = column![].spacing(16);
     if state.third_party_page != ThirdPartyPage::Sessions {
@@ -282,7 +274,7 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                 }
                 _ => None,
             };
-            let mut tools = vec![
+            let tools = vec![
                 ("查看会话", message(AppsCatalogMessage::Navigate(ThirdPartyPage::Sessions))),
                 (
                     "配置目录",
@@ -293,11 +285,6 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                 ("安装与升级", select(Tab::Configuration)),
                 ("侧栏应用设置", system_settings_apps::domain_event(Action::PreferencesOpen)),
             ];
-            #[cfg(not(target_arch = "wasm32"))]
-            tools.insert(
-                1,
-                ("查看用量", message(AppsCatalogMessage::Navigate(ThirdPartyPage::Usage))),
-            );
             let can_launch =
                 desktop_settings_apps::system_settings_apps::presentation::preferred(agent)
                     .is_some_and(|installation| {
@@ -473,7 +460,6 @@ fn sidebar(app: &App) -> Element<'_, Message> {
             ThirdPartyPage::Prompts => Icon::Box,
             ThirdPartyPage::Sessions => Icon::Clock,
             ThirdPartyPage::Authorization => Icon::ShieldLock,
-            ThirdPartyPage::Usage => Icon::Speedometer2,
         };
         resources = resources.push(sidebar_action(
             navigation_icon(icon),
@@ -601,16 +587,7 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
     if app.usage_center.open {
         app.usage_center.close();
     }
-    let provider_scope = if page == ThirdPartyPage::Usage && has_inline_providers(app) {
-        app.app_providers.scope.take()
-    } else {
-        None
-    };
     invalidate(app);
-    if provider_scope.is_some() {
-        app.app_providers.scope = provider_scope;
-        app.app_providers.aggregation = None;
-    }
     app.apps_catalog.third_party_page = page;
     use crate::app::message::settings;
     match page {
@@ -955,7 +932,7 @@ pub(crate) fn standalone(app: &App) -> Element<'_, Message> {
         &app.app_providers,
         provider_help(app),
         base,
-        !has_inline_providers(app) && app.apps_catalog.third_party_page != ThirdPartyPage::Usage,
+        !has_inline_providers(app),
     );
     if crate::app::message::agent_apps_high_availability::can_show(app) {
         base =

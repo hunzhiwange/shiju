@@ -100,7 +100,7 @@ fn toolbar<U: Clone + 'static>(
         .style(rounded_action_btn_style)
         .padding([8, 12])
         .on_press_maybe(idle.then_some(Event::Refresh)),
-        button(text(if batch_pending { "正在刷新额度…" } else { "刷新全部额度" }).size(13))
+        button(text(if batch_pending { "正在刷新额度…" } else { "刷新供应商额度" }).size(13))
             .style(rounded_action_btn_style)
             .padding([8, 12])
             .on_press_maybe(can_refresh_usage.then_some(Event::RefreshUsage)),

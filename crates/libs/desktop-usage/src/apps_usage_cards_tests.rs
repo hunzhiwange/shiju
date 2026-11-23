@@ -1,4 +1,4 @@
-use gateway_endpoint::GatewayEndpoint;
+use gateway_endpoint::{GatewayAuth, GatewayEndpoint};
 use super::*;
 use std::{
     io::{Read, Write},
@@ -36,7 +36,8 @@ fn context() -> QueryContext {
 
 pub(super) fn gateway() -> (TcpListener, GatewayClient) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let endpoint = GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port());
+    let endpoint = GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())
+        .with_auth(GatewayAuth { skey: Some("fixture-token".into()) });
     (listener, GatewayClient::new(endpoint).unwrap())
 }
 
@@ -55,7 +56,7 @@ pub(super) fn request(
     let header = String::from_utf8(header).unwrap();
     assert!(header.starts_with(expected), "{header}");
     let lower = header.to_ascii_lowercase();
-    assert!(lower.contains("x-agent-apps-token: fixture-token\r\n"));
+    assert!(lower.contains("authorization: bearer fixture-token\r\n"));
     let len = lower
         .lines()
         .find_map(|line| {
@@ -88,14 +89,23 @@ fn assert_snapshot_selection(header: &str) {
 async fn usage_usage_cards_returns_expected_result() {
     let (listener, client) = gateway();
     let server = std::thread::spawn(move || {
-        for account_view in [false, true] {
-            let (mut stream, header, _) = request(&listener, "GET /v1/agent-apps/auth/bindings?");
-            assert_eq!(header.contains("account_id=account-a"), account_view);
-            respond(&mut stream, "200 OK", BINDING);
-            let (mut stream, header, _) = request(&listener, "GET /v1/apps/usage/snapshot?");
-            assert_snapshot_selection(&header);
-            respond(&mut stream, "200 OK", SNAPSHOT);
+        let (mut stream, header, _) = request(&listener, "GET /v1/agent-apps/auth/bindings?");
+        assert!(!header.contains("account_id="));
+        respond(&mut stream, "200 OK", BINDING);
+        let (mut stream, header, _) = request(&listener, "GET /v1/apps/usage/snapshot?");
+        assert_snapshot_selection(&header);
+        respond(&mut stream, "200 OK", SNAPSHOT);
+
+        let (mut stream, header, _) = request(&listener, "POST /v1/agent-apps/auth/codex-quota?");
+        for parameter in ["host_id=local", "service=codex_oauth", "account_id=account-a"] {
+            assert!(header.contains(parameter));
         }
+        assert!(!header.contains("provider"));
+        let response: serde_json::Value = serde_json::from_str(SNAPSHOT).unwrap();
+        respond(&mut stream, "200 OK", &response["snapshot"]["result"].to_string());
+
+        let (mut stream, _, _) = request(&listener, "POST /v1/agent-apps/auth/codex-quota?");
+        respond(&mut stream, "404 Not Found", "");
     });
     let context = context();
     let provider =
@@ -110,9 +120,18 @@ async fn usage_usage_cards_returns_expected_result() {
     )
     .await
     .unwrap();
-    assert!(provider[0].matches(&account[0]));
+    assert!(account[0].provider().is_empty());
+    assert!(!provider[0].matches(&account[0]));
     assert_eq!(provider[0].snapshot, account[0].snapshot);
     assert_eq!(view::summary(&account[0].snapshot), ["官方额度", "Pro", "5 小时 · 剩余 75%"]);
+    let missing_route = read(
+        &client,
+        &context,
+        &Target::Account(AuthService::CodexOauth, "account-a".into()),
+        None,
+    )
+    .await;
+    assert!(matches!(missing_route, Err(Failure::GatewayUpgradeRequired)));
     server.join().unwrap();
 }
 
@@ -162,7 +181,7 @@ async fn usage_usage_cards_refreshes_empty_snapshot_after_gateway_completion() {
         respond(&mut stream, "200 OK", SNAPSHOT);
     });
     let context = context();
-    let target = Target::Account(AuthService::CodexOauth, "account-a".into());
+    let target = Target::Provider(AppId::Codex, "provider-a".into());
     let empty = read(&client, &context, &target, None).await.unwrap();
     assert_eq!(view::summary(&empty[0].snapshot), ["暂无额度快照"]);
     let refreshed = read(&client, &context, &target, Some("provider-a")).await.unwrap();
@@ -238,10 +257,16 @@ fn usage_usage_events_updates_only_linked_card_snapshots() {
     };
     let empty =
         CardSnapshot::new(selection.clone(), Ok(serde_json::from_str(EMPTY).unwrap()), None);
-    for (cards, target) in [(&mut account_cards, &account), (&mut provider_cards, &provider)] {
-        let ticket = cards.begin(target.clone());
-        assert!(cards.finish(target, ticket, Ok(vec![empty.clone()])));
-    }
+    let ticket = provider_cards.begin(provider.clone());
+    assert!(provider_cards.finish(&provider, ticket, Ok(vec![empty.clone()])));
+    let direct = CardSnapshot::new(
+        UsageSnapshotQuery { provider_id: String::new(), ..selection.clone() },
+        Ok(serde_json::from_str(EMPTY).unwrap()),
+        None,
+    );
+    let ticket = account_cards.begin(account.clone());
+    assert!(account_cards.finish(&account, ticket, Ok(vec![direct])));
+    let account_pending = account_cards.begin(account.clone());
     let rebound = CardSnapshot::new(
         UsageSnapshotQuery { account_id: Some("account-b".into()), ..selection.clone() },
         Ok(serde_json::from_str(EMPTY).unwrap()),
@@ -259,10 +284,11 @@ fn usage_usage_events_updates_only_linked_card_snapshots() {
     account_cards.apply_updates(&scope, std::slice::from_ref(&updated));
     provider_cards.apply_updates(&provider_scope, std::slice::from_ref(&updated));
     assert!(!provider_cards.finish(&provider, pending, Ok(vec![empty])));
-    for (cards, target) in [(&account_cards, &account), (&provider_cards, &provider)] {
-        let items = cards.entries[target].result.as_ref().unwrap().as_ref().unwrap();
-        assert_eq!(view::summary(&items[0].snapshot), ["官方额度", "Pro", "5 小时 · 剩余 75%"]);
-    }
+    let items = provider_cards.entries[&provider].result.as_ref().unwrap().as_ref().unwrap();
+    assert_eq!(view::summary(&items[0].snapshot), ["官方额度", "Pro", "5 小时 · 剩余 75%"]);
+    assert_eq!(account_cards.entries[&account].pending, Some(account_pending));
+    let items = account_cards.entries[&account].result.as_ref().unwrap().as_ref().unwrap();
+    assert_eq!(view::summary(&items[0].snapshot), ["暂无额度快照"]);
     let items = account_cards.entries[&other_account].result.as_ref().unwrap().as_ref().unwrap();
     assert_eq!(view::summary(&items[0].snapshot), ["暂无额度快照"]);
 

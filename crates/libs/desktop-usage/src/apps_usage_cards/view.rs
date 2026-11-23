@@ -39,7 +39,8 @@ pub fn account_view<'a>(
 fn view<'a>(scope: Option<&Scope>, cards: &'a Cards, target: Target) -> Element<'a, Message> {
     let entry =
         cards.entries.get(&target).filter(|_| scope.is_some() && cards.scope.as_ref() == scope);
-    let busy = entry.is_some_and(|entry| entry.refreshing.is_some())
+    let codex = target.is_codex_account();
+    let busy = entry.is_some_and(|entry| entry.pending.is_some())
         || scope.is_some_and(|scope| cards.batch_pending(scope));
     let request = |label: &'static str, event, enabled: bool| {
         button(text(label).size(13))
@@ -47,10 +48,17 @@ fn view<'a>(scope: Option<&Scope>, cards: &'a Cards, target: Target) -> Element<
             .style(rounded_action_btn_style)
             .on_press_maybe(enabled.then_some(Message::Event(event)))
     };
-    let mut header =
-        row![text("额度").size(13), request("读取额度", Event::Read(target.clone()), !busy)]
-            .spacing(8)
-            .align_y(Alignment::Center);
+    let label = if codex && entry.is_some_and(|entry| entry.result.is_some()) {
+        "刷新额度"
+    } else {
+        "读取额度"
+    };
+    let mut header = row![
+        text("额度").size(13),
+        request(label, Event::Read(target.clone()), scope.is_some() && !busy),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
     if let Target::Provider(_, id) = &target {
         header =
             header.push(request("刷新额度", Event::Refresh(target.clone(), id.clone()), !busy));
@@ -67,8 +75,12 @@ fn view<'a>(scope: Option<&Scope>, cards: &'a Cards, target: Target) -> Element<
     }
     let mut body = column![header].spacing(5);
     if entry.is_some_and(|entry| entry.pending.is_some()) {
-        body =
-            body.push(line(if busy { "正在刷新额度…" } else { "正在读取额度…" }));
+        let refreshing = if codex {
+            label == "刷新额度"
+        } else {
+            entry.is_some_and(|entry| entry.refreshing.is_some())
+        };
+        body = body.push(line(if refreshing { "正在刷新额度…" } else { "正在读取额度…" }));
     }
     match entry.and_then(|entry| entry.result.as_ref().map(|result| (entry, result))) {
         Some((_, Err(error))) => body = body.push(line(error.label())),
@@ -78,7 +90,7 @@ fn view<'a>(scope: Option<&Scope>, cards: &'a Cards, target: Target) -> Element<
         Some((card, Ok(entries))) => {
             let now = Local::now();
             for entry in entries {
-                if matches!(target, Target::Account(..)) {
+                if !codex && matches!(target, Target::Account(..)) {
                     body = body.push(
                         row![
                             text(entry.provider()).size(13),
@@ -94,6 +106,16 @@ fn view<'a>(scope: Option<&Scope>, cards: &'a Cards, target: Target) -> Element<
                 }
                 if let Some(error) = entry.refresh_failure {
                     body = body.push(line(error.label()));
+                }
+                if codex
+                    && let Ok(response) = &entry.snapshot
+                    && let Some(snapshot) = &response.snapshot
+                    && let UsageQueryOutcome::Success {
+                        data: UsageQueryData::OfficialSubscription(subscription),
+                    } = &snapshot.result.outcome
+                {
+                    body = body.push(apps_usage_details::account_subscription(subscription, &now));
+                    continue;
                 }
                 for value in summary(&entry.snapshot) {
                     body = body.push(line(value));

@@ -155,7 +155,7 @@ pub fn read_linked_providers(app: &mut Input<'_>, app_id: AppId) -> Task<Event> 
         .chain(auth_cards.batch_result.as_ref())
         .filter_map(|result| result.as_ref().ok())
         .flatten()
-        .filter(|item| item.selection.app_id == app_id && item.snapshot.is_ok())
+        .filter(|item| !item.provider().is_empty() && item.selection.app_id == app_id && item.snapshot.is_ok())
         .map(|item| item.provider().to_owned())
         .collect();
     let cards = &app.app_providers.usage;

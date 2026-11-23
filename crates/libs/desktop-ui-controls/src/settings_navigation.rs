@@ -268,7 +268,6 @@ pub enum ThirdPartyPage {
     Sessions,
     Prompts,
     Authorization,
-    Usage,
     Settings(ThirdPartySettingsTab),
 }
 
@@ -283,6 +282,5 @@ impl ThirdPartyPage {
     pub const ALL: &'static [(Self, &'static str)] = &[
         (Self::AppsCatalog, "应用"), (Self::Agents, "智能体管理"), (Self::Mcp, "MCP"), (Self::Skills, "Skills"),
         (Self::Prompts, "提示词"), (Self::Sessions, "会话"), (Self::Authorization, "授权中心"),
-        (Self::Usage, "用量与额度"),
     ];
 }

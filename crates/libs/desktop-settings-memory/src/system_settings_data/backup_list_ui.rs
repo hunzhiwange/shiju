@@ -41,6 +41,19 @@ use desktop_ui_controls::system_settings_common::*;
 use iced::{Element, Length};
 use iced::widget::{button, column, container, row, scrollable, text};
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct BackupInterval(u32);
+
+impl std::fmt::Display for BackupInterval {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            0 => f.write_str("禁用"),
+            168 => f.write_str("7 天"),
+            hours => write!(f, "{hours} 小时"),
+        }
+    }
+}
+
 fn action<'a, E: Clone + 'static>(label: &'a str, event: Event, enabled: bool) -> Element<'a, OverlayEvent<E>> {
     button(text(label)).padding([8, 14]).style(rounded_action_btn_style)
         .on_press_maybe(enabled.then_some(message(event))).into()
@@ -60,12 +73,20 @@ pub fn view<'a, E: Clone + 'static>(
     }
     let enabled = !state.busy;
     let editable = enabled && state.pending.is_none();
+    let interval = state.interval.parse().ok().map(BackupInterval);
+    let interval_select = settings_select(
+        [0, 6, 12, 24, 48, 168].map(BackupInterval),
+        interval,
+        |value| message(Event::Interval(value.0.to_string())),
+    )
+    .width(Length::Fill)
+    .placeholder("选择备份间隔")
+    .disabled(!editable);
     let mut body = column![
         row![
             column![
-                text("自动备份间隔（小时）").size(14),
-                settings_text_input("0 关闭", state.interval)
-                    .on_input_maybe(editable.then_some(|v| message(Event::Interval(v)))),
+                text("自动备份间隔").size(14),
+                interval_select,
             ].spacing(6).width(Length::Fill),
             column![
                 text("备份保留数量").size(14),
@@ -73,10 +94,10 @@ pub fn view<'a, E: Clone + 'static>(
                     .on_input_maybe(editable.then_some(|v| message(Event::Retain(v)))),
             ].spacing(6).width(Length::Fill),
         ].spacing(12),
-        action("保存策略", Event::SavePolicy, editable && !state.retain.is_empty()),
+        action("保存策略", Event::SavePolicy, editable && interval.is_some() && !state.retain.is_empty()),
         settings_divider(),
         row![
-            text("本地备份").size(16).width(Length::Fill),
+            text("偏好设置备份").size(16).width(Length::Fill),
             action(if enabled { "刷新" } else { "处理中…" }, Event::Refresh, editable),
             recovery.map(OverlayEvent::External),
             button(text("立即备份").size(SETTINGS_CONTROL_TEXT_SIZE))

@@ -189,9 +189,17 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
                     match action {
                         Event::Create => {
                             let request = CreateDataBackupRequest { target, name, kind: DataArtifactKind::LocalRollback,
-                                categories: vec![DataCategory::Providers, DataCategory::Mcp, DataCategory::Skills, DataCategory::Rules, DataCategory::Profiles, DataCategory::Preferences, DataCategory::Usage],
+                                categories: vec![DataCategory::Preferences],
                                 idempotency_key: format!("desktop-backup-{}-{generation}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos()) };
-                            if gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_create(&request, Some(&token)).await.map_err(|e| e.to_string())?.is_none() { return Err("未创建备份；请刷新列表核对".into()); }
+                            let backup = gateway_app_data::GatewayAppDataClient::new(client.transport().clone())
+                                .data_backup_create(&request, Some(&token)).await.map_err(|error| match error {
+                                    gateway_app_data::DataBackupError::Http { status: 501, .. } =>
+                                        "当前网关不支持偏好设置备份".to_owned(),
+                                    error => error.to_string(),
+                                })?;
+                            if backup.is_none() {
+                                return Err("未创建备份；请刷新列表核对".into());
+                            }
                         }
                         Event::Confirm => match pending {
                             Some(Pending::Rename(row)) => { gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_rename(&RenameDataBackupRequest { target, backup_id: row.backup_id, expected_revision: row.revision, name }, Some(&token)).await.map_err(|e| e.to_string())?; }

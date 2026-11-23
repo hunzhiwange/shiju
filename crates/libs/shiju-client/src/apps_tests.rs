@@ -1,5 +1,5 @@
 //! 验证始居应用列表、安装状态和请求响应转换行为。
-//! 目录、安装、绑定和凭据流程共用伪网关，重点检查所有权、就绪状态与密钥脱敏。
+//! 目录、安装、绑定和凭据流程共用伪网关，重点检查所有权、运行地址与密钥脱敏。
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -90,20 +90,14 @@ fn ok(items: serde_json::Value) -> FixtureResponse {
     }
 }
 
-fn installed_app(
-    installation_id: &str,
-    reconcile_status: &str,
-    runtime_status: &str,
-    runtime_url: &str,
-) -> serde_json::Value {
+fn installed_app(installation_id: &str, runtime_url: &str) -> serde_json::Value {
     serde_json::json!({
         "installationId": installation_id,
         "appId": "knowledge-assistant",
         "title": "知识助手",
         "version": "1.2.3",
         "origin": "catalog",
-        "reconcileStatus": reconcile_status,
-        "runtimeStatus": runtime_status,
+        "reconcileStatus": "ready",
         "runtimeUrl": runtime_url,
         "installedAt": "2026-07-30T09:30:00+08:00",
         "updatedAt": "2026-07-30T09:31:00+08:00"
@@ -186,23 +180,14 @@ async fn shiju_apps_adapter_maps_catalog_and_installed_lists() {
         "canUse": true,
         "canManage": true
     }]);
-    let detail = installed_app(
-        INSTALLATION_ID,
-        "ready",
-        "ready",
-        &format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/"),
-    );
-    let mut summary = detail.clone();
-    let fields = summary.as_object_mut().expect("installed app object");
-    fields.remove("reconcileStatus");
-    fields.remove("runtimeStatus");
-    fields.remove("runtimeUrl");
-    let installed = serde_json::json!([summary]);
+    let runtime_url = format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/");
+    let detail = installed_app(INSTALLATION_ID, &runtime_url);
+    let installed = serde_json::json!([installed_app(INSTALLATION_ID, "")]);
     let (app_base, iam_base, requests) = fixture(vec![
         ok(catalog),
         ok(installed.clone()),
         ok(installed),
-        ok(detail),
+        FixtureResponse { status: 200, headers: Vec::new(), body: detail.to_string() },
         FixtureResponse {
             status: 200,
             headers: Vec::new(),
@@ -236,7 +221,7 @@ async fn shiju_apps_adapter_maps_catalog_and_installed_lists() {
             .runtime_set_cookie
             .starts_with("app_runtime_session=fixture-runtime-session-secret;")
     );
-    assert_eq!(launch.runtime_url, format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/"));
+    assert_eq!(launch.runtime_url, runtime_url);
     assert!(!format!("{launch:?}").contains("fixture-runtime-session-secret"));
 
     let requests = requests.join().expect("join fixture");
@@ -281,7 +266,7 @@ async fn assert_prepare_rejected(app: serde_json::Value, installation_id: &str) 
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn shiju_app_prepare_launch_validates_owned_ready_runtime() {
+async fn shiju_app_prepare_launch_validates_owned_runtime_url() {
     let (app_base, iam_base, requests) = fixture(Vec::new());
     let client = ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
     for invalid_id in ["", "lowercase", "ABC-123", &"A".repeat(65)] {
@@ -294,33 +279,18 @@ async fn shiju_app_prepare_launch_validates_owned_ready_runtime() {
     assert!(requests.join().expect("join fixture").is_empty());
 
     assert_prepare_rejected(
-        installed_app(
-            INSTALLATION_ID,
-            "ready",
-            "ready",
-            &format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/"),
-        ),
+        installed_app(INSTALLATION_ID, &format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/")),
         "OTHER123",
     )
     .await;
-    for (reconcile, runtime, url) in [
-        ("pending", "ready", format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/")),
-        ("ready", "stopped", format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/")),
-        ("ready", "ready", format!("http://app.shiju.cloud/app/{INSTALLATION_ID}/")),
-        ("ready", "ready", format!("https://evil.example/app/{INSTALLATION_ID}/")),
-        ("ready", "ready", "https://app.shiju.cloud/app/OTHER123/".to_string()),
-        (
-            "ready",
-            "ready",
-            format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/?session=private"),
-        ),
-        ("ready", "ready", format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/#private")),
+    for url in [
+        format!("http://app.shiju.cloud/app/{INSTALLATION_ID}/"),
+        format!("https://evil.example/app/{INSTALLATION_ID}/"),
+        "https://app.shiju.cloud/app/OTHER123/".to_string(),
+        format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/?session=private"),
+        format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/#private"),
     ] {
-        assert_prepare_rejected(
-            installed_app(INSTALLATION_ID, reconcile, runtime, &url),
-            INSTALLATION_ID,
-        )
-        .await;
+        assert_prepare_rejected(installed_app(INSTALLATION_ID, &url), INSTALLATION_ID).await;
     }
 }
 
@@ -505,8 +475,6 @@ async fn shiju_app_prepare_launch_rejects_unconfigured_binding() {
     let (app_base, iam_base, requests) = fixture(vec![
         ok(serde_json::json!([installed_app(
             INSTALLATION_ID,
-            "ready",
-            "ready",
             &format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/")
         )])),
         FixtureResponse {

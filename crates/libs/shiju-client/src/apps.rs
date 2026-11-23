@@ -357,20 +357,19 @@ impl ShijuAppClient {
             .ok_or_else(|| {
                 ShijuAppError::invalid_input("SHIJU application installation is not owned")
             })?;
-        let app = if app.reconcile_status.is_empty()
-            || app.runtime_status.is_empty()
-            || (app.runtime_ready() && app.runtime_url.is_empty())
-        {
+        // 平台已移除 runtimeStatus，Web 版以平台返回的 runtimeUrl 作为启动入口。
+        let app = if app.runtime_url.trim().is_empty() {
             self.installation_detail(credential, installation_id).await.map_err(|_| {
                 ShijuAppError::upstream("SHIJU launch failed to load installation detail")
             })?
         } else {
             app
         };
-        if !app.runtime_ready() {
-            return Err(ShijuAppError::invalid_input("SHIJU application runtime is not ready"));
+        let runtime_url = app.runtime_url.trim();
+        if runtime_url.is_empty() {
+            return Err(ShijuAppError::invalid_input("SHIJU application runtime URL is missing"));
         }
-        validate_runtime_url(&app.runtime_url, installation_id)?;
+        validate_runtime_url(runtime_url, installation_id)?;
 
         let binding = self.api_key_binding(credential, installation_id).await.map_err(|_| {
             ShijuAppError::upstream("SHIJU launch failed to read the application API key binding")
@@ -385,7 +384,7 @@ impl ShijuAppClient {
         Ok(ShijuAppLaunchDto {
             installation_id: app.installation_id,
             name: app.name,
-            runtime_url: app.runtime_url,
+            runtime_url: runtime_url.to_owned(),
             runtime_set_cookie,
         })
     }

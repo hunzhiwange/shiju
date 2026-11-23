@@ -156,6 +156,7 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
             app.state.installing_agent = Some(agent.clone());
             app.state.install_expanded.insert(agent.clone());
             app.state.install_reports.remove(&agent);
+            app.state.copied_install_reports.remove(&agent);
             let instructions = load_install_instructions(app, agent.clone());
             let client = app.client.clone();
             let install = Task::perform(
@@ -532,6 +533,23 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
                 Err(error) => {
                     app.state.save_error = Some(error);
                 }
+            }
+            Task::none()
+        }
+        AcpMessage::CopyInstallReport { agent, content } => {
+            let copied_at = std::time::Instant::now();
+            app.state.copied_install_reports.insert(agent.clone(), copied_at);
+            Task::batch([
+                iced::clipboard::write(content),
+                Task::done(Message::After(
+                    Duration::from_secs(2),
+                    AcpMessage::ClearCopiedInstallReport { agent, copied_at },
+                )),
+            ])
+        }
+        AcpMessage::ClearCopiedInstallReport { agent, copied_at } => {
+            if app.state.copied_install_reports.get(&agent) == Some(&copied_at) {
+                app.state.copied_install_reports.remove(&agent);
             }
             Task::none()
         }

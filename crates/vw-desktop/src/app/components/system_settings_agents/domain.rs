@@ -53,6 +53,9 @@ pub(in crate::app::components) fn event(event: Event) -> Message {
             LocalAcp::NewAgentCommandChanged(v0) => AcpMessage::NewAgentCommandChanged(v0),
             LocalAcp::AddAgent => AcpMessage::AddAgent,
             LocalAcp::CopyCommand { agent, command } => AcpMessage::CopyCommand { agent, command },
+            LocalAcp::CopyInstallReport { agent, content } => {
+                AcpMessage::CopyInstallReport { agent, content }
+            }
             LocalAcp::SetEnabled { agent, enabled } => AcpMessage::SetEnabled { agent, enabled },
         })),
     }

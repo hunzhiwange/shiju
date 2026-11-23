@@ -53,6 +53,8 @@ pub enum AcpMessage {
         command: String,
     },
     ClearCopiedCommand(String),
+    CopyInstallReport { agent: String, content: String },
+    ClearCopiedInstallReport { agent: String, copied_at: std::time::Instant },
     SetEnabled {
         agent: String,
         enabled: bool,

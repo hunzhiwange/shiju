@@ -291,7 +291,14 @@ fn installation_section<'a>(input: Input<'a>, agent: &str, builtin: bool) -> Ele
             "安装失败"
         };
         let copy = if report.success { "复制安装输出" } else { "复制安装错误" };
-        section = section.push(install_text_block(tr(status), tr(copy), transcript));
+        let copy_label = if state.copied_install_reports.contains_key(agent) {
+            tr("已复制")
+        } else {
+            tr(copy)
+        };
+        section = section.push(install_text_block(tr(status), copy_label, transcript, |content| {
+            Event::Acp(AcpMessage::CopyInstallReport { agent: agent.into(), content })
+        }));
     }
     match instructions {
         Some(Ok(info)) if !info.commands.is_empty() => {
@@ -308,6 +315,7 @@ fn installation_section<'a>(input: Input<'a>, agent: &str, builtin: bool) -> Ele
                     tr("官方 CLI 安装"),
                     tr("复制安装命令"),
                     command.clone(),
+                    Event::CopyText,
                 ));
             }
         }
@@ -335,6 +343,7 @@ fn install_text_block<'a>(
     label: impl Into<String>,
     copy_label: &'static str,
     content: String,
+    copy_event: impl FnOnce(String) -> Event,
 ) -> Element<'a, Event> {
     let output = scrollable(
         container(text(content.clone()).size(12).width(Length::Fill))
@@ -352,7 +361,7 @@ fn install_text_block<'a>(
             button(text(copy_label).size(12))
                 .padding([5, 10])
                 .style(rounded_action_btn_style)
-                .on_press(Event::CopyText(content)),
+                .on_press(copy_event(content)),
         ].spacing(8).align_y(Alignment::Center),
         container(output).max_height(220).width(Length::Fill),
     ].spacing(8)).into()

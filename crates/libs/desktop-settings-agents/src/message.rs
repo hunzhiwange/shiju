@@ -143,6 +143,7 @@ pub enum AcpMessage {
     NewAgentCommandChanged(String),
     AddAgent,
     CopyCommand { agent: String, command: String },
+    CopyInstallReport { agent: String, content: String },
     SetEnabled { agent: String, enabled: bool },
 }
 #[derive(Debug, Clone)]

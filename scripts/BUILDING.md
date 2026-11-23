@@ -27,6 +27,11 @@ the current binary; after rebuilding Relax, restart `cargo dev-gateway`,
 Remove `local.json` to restore the pinned unpatched version. A configured invalid
 path fails explicitly.
 
+With a local Relax build that supports `RELAX_AUTO_RESTART`, `cargo dev-desktop`
+automatically relaunches the desktop after a source edit that requires it.
+Use `RELAX_AUTO_RESTART=0 cargo dev-desktop` to keep manual relaunches.
+Relaunching can reset in-memory desktop state.
+
 The entry detects the environment interface from the selected Relax source tree.
 Use `RELAX_*` settings; the pinned older runner receives the corresponding
 `MAKEPAD_RUN_*` names. Legacy shell settings remain accepted; `RELAX_*` takes

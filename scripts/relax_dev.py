@@ -267,6 +267,8 @@ def main(argv):
         if argv[0] == 'gateway' or len(argv) > 1:
             args += ['--'] + (['gateway'] if argv[0] == 'gateway' else []) + argv[1:]
     env, prefix = relax_environment(tool)
+    if argv[0] == 'desktop' and prefix == 'RELAX_':
+        env.setdefault('RELAX_AUTO_RESTART', '1')
     if argv[0] == 'desktop' and platform.system() == 'Darwin':
         env['SHIJU_RELAX_DESKTOP'] = '1'
     if argv[0] == 'gateway':

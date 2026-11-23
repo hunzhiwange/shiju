@@ -42,7 +42,7 @@ pub(super) fn view(app: &App, tab: Tab) -> Element<'_, Message> {
         (Icon::Sliders, "设置")
     };
     let heading = row![
-        container(icon_svg(icon, 18.0))
+        container(desktop_ui_controls::icons::icon_svg(icon, 18.0))
             .center_x(36)
             .center_y(36)
             .style(settings_content_panel_style),

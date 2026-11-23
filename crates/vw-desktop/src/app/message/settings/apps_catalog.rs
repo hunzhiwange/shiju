@@ -11,7 +11,6 @@ pub enum AppsCatalogMessage {
     AgentWorkspaceTab(desktop_apps_ui::catalog_state::AgentWorkspaceTab),
     ToggleAgentProviderSearch,
     SelectPromptApp(vw_api_app_identity::AppId),
-    SelectDeviceSync(desktop_apps_ui::catalog_state::DeviceSyncMethod, bool),
     Navigate(desktop_ui_controls::settings_navigation::ThirdPartyPage),
     McpWorkspace(crate::app::components::third_party_settings::mcp_workspace::Event),
     ThirdPartyMcp(desktop_settings_mcp::third_party::Message),
@@ -163,9 +162,6 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
                     }),
             };
             return Task::batch([load, open]);
-        }
-        AppsCatalogMessage::SelectDeviceSync(method, inline) => {
-            return crate::app::components::system_settings_device_sync::select(app, method, inline);
         }
         AppsCatalogMessage::Navigate(page) => return crate::app::components::third_party_settings::navigate(app, page),
         AppsCatalogMessage::McpWorkspace(event) => return crate::app::components::third_party_settings::mcp_workspace::update(app, event),

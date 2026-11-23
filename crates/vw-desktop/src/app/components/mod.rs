@@ -492,7 +492,6 @@ pub(crate) mod external_sessions;
 pub(crate) mod system_settings_data;
 
 
-pub(crate) mod system_settings_device_sync;
 
 #[cfg(all(test, not(target_arch="wasm32")))]
 #[path="install_cli_modal_tests.rs"]

@@ -9,7 +9,6 @@ use std::net::SocketAddr;
 use gateway_types::ApiError;
 use gateway_types::ServeOptions;
 use axum::Router;
-use device_sync::lifecycle::SyncLifecycle;
 
 /// 启动 Gateway 服务并等待其结束。
 ///
@@ -24,15 +23,15 @@ use device_sync::lifecycle::SyncLifecycle;
 /// # 错误处理
 ///
 /// 绑定失败、服务任务 panic 或 Axum 服务运行失败都会转换为 `ApiError`。
-pub async fn serve(opts: ServeOptions, router: Router, sync: SyncLifecycle) -> Result<SocketAddr, ApiError> {
-    serve_until(opts, router, sync, shutdown_signal()).await
+pub async fn serve(opts: ServeOptions, router: Router) -> Result<SocketAddr, ApiError> {
+    serve_until(opts, router, shutdown_signal()).await
 }
 
-pub async fn serve_until<F>(opts: ServeOptions, router: Router, sync: SyncLifecycle, shutdown: F) -> Result<SocketAddr, ApiError>
+pub async fn serve_until<F>(opts: ServeOptions, router: Router, shutdown: F) -> Result<SocketAddr, ApiError>
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    let (addr, handle) = start_until(opts, router, sync, shutdown).await?;
+    let (addr, handle) = start_until(opts, router, shutdown).await?;
     let res = handle.await.map_err(|e| ApiError::internal(e.to_string()))?;
     res?;
     Ok(addr)
@@ -54,15 +53,13 @@ where
 pub async fn start(
     opts: ServeOptions,
     router: Router,
-    sync: SyncLifecycle,
 ) -> Result<(SocketAddr, tokio::task::JoinHandle<Result<(), ApiError>>), ApiError> {
-    start_until(opts, router, sync, shutdown_signal()).await
+    start_until(opts, router, shutdown_signal()).await
 }
 
 pub async fn start_until<F>(
     opts: ServeOptions,
     router: Router,
-    sync: SyncLifecycle,
     shutdown: F,
 ) -> Result<(SocketAddr, tokio::task::JoinHandle<Result<(), ApiError>>), ApiError>
 where
@@ -76,7 +73,6 @@ where
             .with_graceful_shutdown(shutdown)
             .await
             .map_err(|e| ApiError::internal(e.to_string()));
-        sync.shutdown().await.map_err(|_| ApiError::internal("device sync shutdown failed"))?;
         result
     });
     Ok((addr, handle))

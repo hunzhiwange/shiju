@@ -269,15 +269,17 @@ async fn ui_refresh_23_layout_and_interaction() {
         drop(ui);
 
         app.gateway_settings.active_tab = GatewaySettingsTab::Skeys;
+        app.gateway_settings.show_add_skey_modal = true;
         app.gateway_settings.new_skey_calendar_open = true;
         snapshot(
-            view(&app),
+            view_overlays(&app, view(&app)),
             &mut renderer,
             &theme,
             Size::new(width, 720),
             &format!("calendar-{suffix}"),
         );
         app.gateway_settings.new_skey_calendar_open = false;
+        app.gateway_settings.show_add_skey_modal = false;
 
         app.gateway_settings.pending_service_command_confirmation = Some("stop".into());
         snapshot(
@@ -303,9 +305,18 @@ async fn ui_refresh_23_layout_and_interaction() {
     app.gateway_settings.active_tab = GatewaySettingsTab::Skeys;
     let size = Size::new(640, 720);
     let mut ui = scene(view(&app), &mut renderer, size);
+    let add = geometry(&mut ui, &renderer)
+        .label(connection_text(app.desktop_locale, "新增 skey"))
+        .center();
+    assert!(matches!(
+        click(&mut ui, &mut renderer, add).as_slice(),
+        [Message::Gateway(GatewayMessage::OpenAddSkeyModal)]
+    ));
+    drop(ui);
+    app.gateway_settings.show_add_skey_modal = true;
+    let mut ui = scene(view_overlays(&app, view(&app)), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     let generate = positions.label(connection_text(app.desktop_locale, "生成 skey"));
-    assert_centered(positions.input(DRAFT_NAME), generate);
     let generate = generate.center();
     assert!(matches!(
         click(&mut ui, &mut renderer, generate).as_slice(),
@@ -313,7 +324,7 @@ async fn ui_refresh_23_layout_and_interaction() {
     ));
     drop(ui);
     app.gateway_settings.new_skey_calendar_open = true;
-    let mut ui = scene(view(&app), &mut renderer, size);
+    let mut ui = scene(view_overlays(&app, view(&app)), &mut renderer, size);
     capture(
         &mut ui,
         &mut renderer,
@@ -322,8 +333,9 @@ async fn ui_refresh_23_layout_and_interaction() {
         "calendar-open",
         mouse::Cursor::Unavailable,
     );
+    let name = geometry(&mut ui, &renderer).input(DRAFT_NAME).center();
     assert!(matches!(
-        click(&mut ui, &mut renderer, generate).as_slice(),
+        click(&mut ui, &mut renderer, name).as_slice(),
         [Message::Gateway(GatewayMessage::NewSkeyCalendarClosed)]
     ));
     drop(ui);
@@ -475,7 +487,8 @@ async fn ui_refresh_23_preserves_values_and_disabled_states() {
 
     app.gateway_settings.active_tab = GatewaySettingsTab::Skeys;
     let size = Size::new(640, 720);
-    let mut ui = scene(view(&app), &mut renderer, size);
+    app.gateway_settings.show_add_skey_modal = true;
+    let mut ui = scene(view_overlays(&app, view(&app)), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     positions.label(&error);
     assert_within(positions.input(DRAFT_NAME), size.width);
@@ -489,6 +502,7 @@ async fn ui_refresh_23_preserves_values_and_disabled_states() {
     );
     drop(ui);
 
+    app.gateway_settings.show_add_skey_modal = false;
     app.gateway_settings.pending_service_command_confirmation = Some("stop".into());
     let mut ui = scene(view_overlays(&app, view(&app)), &mut renderer, Size::new(420, 520));
     let positions = geometry(&mut ui, &renderer);
@@ -672,7 +686,13 @@ async fn help_rollout_18_renders_contextual_help() {
         drop(shell);
 
         app.gateway_settings.active_tab = GatewaySettingsTab::Skeys;
-        let mut skeys = Scene::new(&app, &mut renderer, "gateway-skey", view(&app));
+        app.gateway_settings.show_add_skey_modal = true;
+        let mut skeys = Scene::new(
+            &app,
+            &mut renderer,
+            "gateway-skey",
+            view_overlays(&app, view(&app)),
+        );
         skeys.help(t("skey 名称"), t("用于列表展示和识别该 skey。"));
         skeys.label(t("可手写 YYYY-MM-DD，也可点日历选择；为空表示永不过期。"));
         let generate = skeys.label(t("生成 skey")).center();

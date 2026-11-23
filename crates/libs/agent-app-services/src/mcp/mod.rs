@@ -17,8 +17,6 @@ pub mod binding;
 #[cfg(target_os = "macos")]
 pub mod bulk;
 #[cfg(target_os = "macos")]
-pub mod data_migration;
-#[cfg(target_os = "macos")]
 pub mod import;
 #[cfg(target_os = "macos")]
 pub mod resync;
@@ -28,8 +26,6 @@ pub mod profile_slot;
 pub use binding::McpBindingTarget;
 #[cfg(target_os = "macos")]
 pub use import::{McpImportEntry, McpImportOutcome, McpImportReport, McpImportSource};
-#[cfg(target_os = "macos")]
-pub use data_migration::{McpMigration, McpMigrationCommit};
 #[cfg(target_os = "macos")]
 pub use resync::{McpResyncResult, McpResyncTargetResult, McpResyncTask, resync_targets};
 #[cfg(all(test, target_os = "macos"))]
@@ -44,8 +40,6 @@ mod catalog_delete_tests;
 mod catalog_update_tests;
 #[cfg(test)]
 mod credentials_tests;
-#[cfg(all(test, target_os = "macos"))]
-mod data_migration_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod import_tests;
 #[cfg(all(test, target_os = "macos"))]

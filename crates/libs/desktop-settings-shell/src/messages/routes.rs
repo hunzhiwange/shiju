@@ -1,12 +1,8 @@
 use super::*;
 /// Exhaustive domain destination selected before host effect assembly.
 pub enum SettingsRoute<SettingsTab, SearchTarget, AppsCatalog, AppProviders> {
-    DeviceSyncWebdav(desktop_settings_memory::device_sync_webdav::Event),
-    DeviceSyncS3(desktop_settings_memory::device_sync_s3::Event),
-    MigrationPreview(desktop_settings_memory::system_settings_data::migration_preview_ui::Event),
     DataBackups(desktop_settings_memory::data_management::backup_list_ui::Event),
     DataRecovery(desktop_settings_memory::data_management::recovery_ui::Event),
-    DataExport(desktop_settings_memory::data_management::export_ui::Event),
     BackupInventory(desktop_settings_memory::backup_inventory::Event),
     #[cfg(not(target_arch = "wasm32"))]
     ComputerControl(desktop_settings_security::computer_control_update::Event),
@@ -82,12 +78,8 @@ impl<SettingsTab, SearchTarget, AppsCatalog, AppProviders>
 {
     pub fn route(self) -> SettingsRoute<SettingsTab, SearchTarget, AppsCatalog, AppProviders> {
         match self {
-            SettingsMessage::DeviceSyncWebdav(event)  => SettingsRoute::DeviceSyncWebdav(event),
-            SettingsMessage::DeviceSyncS3(event)  => SettingsRoute::DeviceSyncS3(event),
-            SettingsMessage::MigrationPreview(event)  => SettingsRoute::MigrationPreview(event),
             SettingsMessage::DataBackups(event)  => SettingsRoute::DataBackups(event),
             SettingsMessage::DataRecovery(event)  => SettingsRoute::DataRecovery(event),
-            SettingsMessage::DataExport(event)  => SettingsRoute::DataExport(event),
             SettingsMessage::BackupInventory(event)  => SettingsRoute::BackupInventory(event),
             #[cfg(not(target_arch = "wasm32"))]
     SettingsMessage::ComputerControl(event) => SettingsRoute::ComputerControl(event),

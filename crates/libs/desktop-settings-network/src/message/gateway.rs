@@ -147,6 +147,7 @@ fn add_skey(app: &mut GatewaySettingsState) -> Effect {
     app.new_skey_user_id_input.clear();
     app.new_skey_expires_at_input.clear();
     app.new_skey_calendar_open = false;
+    app.show_add_skey_modal = false;
     app.last_created_skey = Some(skey);
     app.last_created_skey_copied = false;
     app.save_error = None;
@@ -221,6 +222,20 @@ pub fn update(app: &mut GatewaySettingsState, message: SettingsMessage) -> Effec
         GatewayMessage::PortChanged(value) => app.port = value.clamp(1, u16::MAX),
         GatewayMessage::HostChanged(value) => app.host_input = value,
         GatewayMessage::AuthEnabledToggled(value) => app.auth_enabled = value,
+        GatewayMessage::OpenAddSkeyModal => {
+            app.show_add_skey_modal = true;
+            return Effect::None;
+        }
+        GatewayMessage::CloseAddSkeyModal => {
+            app.show_add_skey_modal = false;
+            app.new_skey_name_input.clear();
+            app.new_skey_user_id_input.clear();
+            app.new_skey_expires_at_input.clear();
+            app.new_skey_calendar_month.clear();
+            app.new_skey_calendar_open = false;
+            app.save_error = None;
+            return Effect::None;
+        }
         GatewayMessage::NewSkeyNameChanged(value) | GatewayMessage::NewSkeyChanged(value) => {
             app.new_skey_name_input = value;
             return Effect::None;

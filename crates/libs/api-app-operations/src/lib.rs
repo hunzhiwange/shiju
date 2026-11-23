@@ -10,5 +10,3 @@ pub use prompts::*;
 
 #[cfg(test)]
 mod actions_tests;
-#[cfg(test)]
-mod data_management_tests;

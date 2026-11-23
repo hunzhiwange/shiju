@@ -1,5 +1,4 @@
-//! Memory, storage, backup and device synchronization settings.
-pub mod system_settings_device_sync;
+//! Memory, storage and backup settings.
 pub mod state;
 pub mod messages;
 pub mod fields;
@@ -22,8 +21,6 @@ mod system_settings_storage_tests;
 pub mod app_init;
 
 pub mod data_management;
-pub mod device_sync_s3;
-pub mod device_sync_webdav;
 pub mod memory_update;
 pub mod storage_update;
 #[cfg(test)]

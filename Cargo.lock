@@ -836,8 +836,6 @@ dependencies = [
  "agent-util",
  "anyhow",
  "app-access-service",
- "app-data-format",
- "app-data-projection",
  "app-diagnostics-runtime",
  "app-operations",
  "app-project-profiles",
@@ -860,7 +858,6 @@ dependencies = [
  "config-channel-services",
  "config-gateway",
  "config-runtime-paths",
- "device-sync",
  "futures-util",
  "gateway-aggregation",
  "gateway-cron",
@@ -2166,7 +2163,6 @@ name = "app-data-backup"
 version = "0.7.9"
 dependencies = [
  "app-config-paths",
- "app-data-format",
  "app-usage-store",
  "libc",
  "rusqlite",
@@ -2181,30 +2177,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "app-data-format"
-version = "0.7.9"
-dependencies = [
- "libc",
- "reqwest 0.13.4",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "tempfile",
- "uuid",
- "vw-api-app-identity",
- "vw-api-app-provider-base",
- "vw-api-transport",
-]
-
-[[package]]
 name = "app-data-management"
 version = "0.7.9"
 dependencies = [
  "app-auth",
  "app-data-backup",
- "app-data-format",
- "app-data-projection",
  "app-usage-store",
  "rusqlite",
  "serde_json",
@@ -2212,54 +2189,6 @@ dependencies = [
  "vw-api-app-operations",
  "vw-api-task",
  "vw-api-transport",
-]
-
-[[package]]
-name = "app-data-projection"
-version = "0.7.9"
-dependencies = [
- "app-catalog",
- "app-data-format",
- "app-mcp-catalog",
- "app-prompts",
- "app-providers",
- "app-skills",
- "app-usage-store",
- "hex",
- "libc",
- "rusqlite",
- "rust_decimal",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "tempfile",
- "toml 0.9.12+spec-1.1.0",
- "uuid",
- "vw-api-app-identity",
- "vw-api-app-operations",
- "vw-api-app-provider-base",
- "vw-api-app-provider-edit",
- "vw-api-app-provider-profiles",
- "vw-api-mcp-management",
- "vw-api-project-profiles",
- "vw-api-transport",
- "vw-api-usage",
-]
-
-[[package]]
-name = "app-device-sync"
-version = "0.7.9"
-dependencies = [
- "app-config-paths",
- "app-skills",
- "app-sync-core",
- "chrono",
- "hex",
- "libc",
- "reqwest 0.13.4",
- "sha2 0.11.0",
- "tempfile",
- "tokio",
 ]
 
 [[package]]
@@ -3029,22 +2958,6 @@ dependencies = [
  "vw-api-app-identity",
  "vw-api-app-provider-environment",
  "vw-api-transport",
- "zip",
-]
-
-[[package]]
-name = "app-sync-core"
-version = "0.7.9"
-dependencies = [
- "chrono",
- "hex",
- "hmac 0.13.0",
- "libc",
- "reqwest 0.13.4",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "tempfile",
  "zip",
 ]
 
@@ -7685,6 +7598,7 @@ dependencies = [
 name = "desktop-settings-memory"
 version = "0.7.9"
 dependencies = [
+ "chrono",
  "config-aggregate",
  "config-memory",
  "config-ui",
@@ -7696,7 +7610,6 @@ dependencies = [
  "desktop-settings-providers",
  "desktop-ui-controls",
  "gateway-app-data",
- "gateway-device-sync",
  "gateway-http",
  "iced",
  "iced_runtime",
@@ -7708,7 +7621,6 @@ dependencies = [
  "tokio",
  "vw-api-app-identity",
  "vw-api-app-operations",
- "vw-api-device-sync",
  "vw-api-project-profiles",
  "vw-api-transport",
  "vw-gateway-client",
@@ -8462,31 +8374,6 @@ name = "deunicode"
 version = "1.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abd57806937c9cc163efc8ea3910e00a62e2aeb0b8119f1793a978088f8f6b04"
-
-[[package]]
-name = "device-sync"
-version = "0.7.9"
-dependencies = [
- "agent-app-services",
- "agent-database",
- "anyhow",
- "app-settings-store",
- "chrono",
- "hex",
- "secret-store",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "tokio",
- "tokio-util",
- "uuid",
- "vw-agent-apps",
- "vw-api-app-identity",
- "vw-api-app-operations",
- "vw-api-device-sync",
- "vw-api-mcp-management",
- "vw-api-transport",
-]
 
 [[package]]
 name = "dialoguer"
@@ -9900,7 +9787,6 @@ dependencies = [
  "gateway-aggregation",
  "gateway-app-failover",
  "gateway-app-providers",
- "gateway-device-sync",
  "gateway-endpoint",
  "gateway-http",
  "gateway-mcp",
@@ -10176,32 +10062,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "vw-api-file",
- "vw-api-transport",
-]
-
-[[package]]
-name = "gateway-device-sync"
-version = "0.7.9"
-dependencies = [
- "agent-app-services",
- "agent-database",
- "agent-paths",
- "app-access-service",
- "app-settings-store",
- "axum",
- "device-sync",
- "gateway-http",
- "hex",
- "reqwest 0.13.4",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "tokio",
- "tokio-util",
- "vw-agent-apps",
- "vw-api-app-identity",
- "vw-api-app-operations",
- "vw-api-device-sync",
  "vw-api-transport",
 ]
 
@@ -10817,8 +10677,6 @@ dependencies = [
  "agent-files",
  "agent-project",
  "anyhow",
- "app-data-format",
- "app-data-projection",
  "app-operations",
  "app-project-profiles",
  "app-settings-store",
@@ -22520,7 +22378,6 @@ dependencies = [
  "cron",
  "crossterm 0.29.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "desktop-release",
- "device-sync",
  "dialoguer",
  "directories 5.0.1",
  "display-format",
@@ -22553,7 +22410,6 @@ dependencies = [
  "gateway-cron",
  "gateway-desktop",
  "gateway-desktop-settings",
- "gateway-device-sync",
  "gateway-dynamic-tools",
  "gateway-endpoint",
  "gateway-external-sessions",
@@ -22788,7 +22644,6 @@ dependencies = [
  "vw-api-chat",
  "vw-api-chat-identity",
  "vw-api-computer-control",
- "vw-api-device-sync",
  "vw-api-external-session",
  "vw-api-file",
  "vw-api-git",
@@ -22843,10 +22698,7 @@ dependencies = [
  "app-auth",
  "app-availability",
  "app-data-backup",
- "app-data-format",
  "app-data-management",
- "app-data-projection",
- "app-device-sync",
  "app-diagnostics",
  "app-icons",
  "app-launch",
@@ -23090,15 +22942,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vw-api-device-sync"
-version = "0.7.9"
-dependencies = [
- "serde",
- "vw-api-app-operations",
- "vw-api-transport",
-]
-
-[[package]]
 name = "vw-api-external-session"
 version = "0.7.9"
 dependencies = [
@@ -23324,7 +23167,6 @@ dependencies = [
  "vw-api-chat",
  "vw-api-chat-identity",
  "vw-api-computer-control",
- "vw-api-device-sync",
  "vw-api-external-session",
  "vw-api-file",
  "vw-api-git",
@@ -23580,7 +23422,6 @@ dependencies = [
  "gateway-config",
  "gateway-cron",
  "gateway-desktop-settings",
- "gateway-device-sync",
  "gateway-endpoint",
  "gateway-external-session",
  "gateway-files",
@@ -23709,7 +23550,6 @@ dependencies = [
  "vw-api-apps-usage",
  "vw-api-chat-identity",
  "vw-api-computer-control",
- "vw-api-device-sync",
  "vw-api-external-session",
  "vw-api-file",
  "vw-api-git",
@@ -23773,7 +23613,6 @@ dependencies = [
  "gateway-config",
  "gateway-cron",
  "gateway-desktop-settings",
- "gateway-device-sync",
  "gateway-endpoint",
  "gateway-external-session",
  "gateway-files",
@@ -23839,7 +23678,6 @@ dependencies = [
  "vw-api-apps-usage",
  "vw-api-chat-identity",
  "vw-api-computer-control",
- "vw-api-device-sync",
  "vw-api-external-session",
  "vw-api-file",
  "vw-api-git",

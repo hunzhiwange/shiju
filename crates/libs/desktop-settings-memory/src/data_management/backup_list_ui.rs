@@ -1,5 +1,5 @@
 //! Executor-owned backup maintenance; stale responses never cross catalog identities.
-use super::export_ui::Identity;
+use super::identity::Identity;
 use iced::Task;
 use gateway_app_data::{DataBackupPolicy, DataBackupLocation, DataBackupLocationDeletion, DeleteDataBackupLocationRequest};
 use {
@@ -13,7 +13,7 @@ pub enum Event {
     Open, Close, Principal(String), Name(String), Interval(String), Retain(String),
     Reveal(String), Revealed(Identity, u64, Result<String, String>),
     Cleanup(String), Cleaned(Identity, u64, Result<DataBackupLocationDeletion, String>),
-    Refresh, Create, Rename(DataBackupSummary), Delete(DataBackupSummary), Cancel, Confirm, SavePolicy,
+    ToggleLocations, Refresh, Create, Rename(DataBackupSummary), Delete(DataBackupSummary), Cancel, Confirm, SavePolicy,
     Loaded(Identity, u64, Result<Snapshot, String>),
     Changed(Identity, u64, Result<(), String>),
 }
@@ -28,6 +28,7 @@ pub enum Pending { Cleanup(String), Rename(DataBackupSummary), Delete(DataBackup
 #[derive(Clone, Default)]
 pub struct State {
     pub open: bool,
+    pub show_locations: bool,
     pub busy: bool,
     pub principal: String,
     pub name: String,
@@ -54,8 +55,8 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
     };
     if matches!(event, Event::Open) {
         if state.open && state.identity.as_ref() == Some(&current) { return Task::none(); }
-        *state = State { open: true, identity: Some(current), generation: state.generation.wrapping_add(1), ..Default::default() };
-        return Task::none();
+        *state = State { open: true, identity: Some(current.clone()), generation: state.generation.wrapping_add(1), ..Default::default() };
+        return update(state, Some(current), client, token, Event::Refresh);
     }
     if !state.open || state.identity.as_ref() != Some(&current) { return Task::none(); }
     match event {
@@ -123,6 +124,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
         }
         _ if state.busy => return Task::none(),
         Event::Close => state.open = false,
+        Event::ToggleLocations => state.show_locations = !state.show_locations,
         Event::Principal(value) => {
             state.principal = value; state.cleanup_result = None;
             state.rows.clear(); state.locations.clear(); state.pending = None;
@@ -150,13 +152,16 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
                 };
                 Some(DataBackupPolicy { interval_hours, retain_count })
             } else { None };
-            if matches!(action, Event::Create) && state.name.trim().is_empty() { return notify_error("请填写备份名称"); }
             if matches!(action, Event::Confirm) && (state.pending.is_none() || (matches!(state.pending, Some(Pending::Rename(_))) && state.name.trim().is_empty())) { return Task::none(); }
             if let Some(Pending::Cleanup(id)) = &state.pending {
                 if matches!(action, Event::Confirm) && !state.locations.iter().any(|location| location.id == *id && crate::system_settings_data::locations::can_cleanup(location)) { return Task::none(); }
             }
             let pending = state.pending.clone();
-            let name = state.name.trim().to_owned();
+            let name = if matches!(action, Event::Create) {
+                format!("backup-{}", chrono::Local::now().format("%Y-%m-%d_%H-%M-%S-%3f"))
+            } else {
+                state.name.trim().to_owned()
+            };
             state.busy = true;
             state.generation = state.generation.wrapping_add(1);
             let generation = state.generation;

@@ -205,14 +205,8 @@ fn update_config_panel(
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     use desktop_settings_shell::messages::SettingsRoute;
     match message.route() {
-        SettingsRoute::DeviceSyncWebdav(event) => device_sync_webdav::update(app, event),
-        SettingsRoute::DeviceSyncS3(event) => device_sync_s3::update(app, event),
-        SettingsRoute::MigrationPreview(event) => {
-            crate::app::components::system_settings_data::migration_preview_ui::update(app, event)
-        }
         SettingsRoute::DataBackups(event) => data_management::backup_list_ui::update(app, event),
         SettingsRoute::DataRecovery(event) => data_management::recovery_ui::update(app, event),
-        SettingsRoute::DataExport(event) => data_management::export_ui::update(app, event),
         SettingsRoute::BackupInventory(event) => backup_inventory::update(app, event),
         #[cfg(not(target_arch = "wasm32"))]
         SettingsRoute::ComputerControl(event) => computer_control::update(app, event),
@@ -355,10 +349,7 @@ pub(crate) mod prompts;
 
 pub(crate) mod data_management;
 
-pub(crate) mod device_sync_preview;
 
-pub(crate) mod device_sync_s3;
-pub(crate) mod device_sync_webdav;
 
 #[cfg(test)]
 pub(crate) use cron::validate_delivery as validate_cron_delivery;

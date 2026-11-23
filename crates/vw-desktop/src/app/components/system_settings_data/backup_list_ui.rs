@@ -9,6 +9,7 @@ fn message(event: domain::Event) -> Message {
         domain::Event::Name(v0) => crate::app::message::settings::data_management::backup_list_ui::Event::Name(v0),
         domain::Event::Interval(v0) => crate::app::message::settings::data_management::backup_list_ui::Event::Interval(v0),
         domain::Event::Retain(v0) => crate::app::message::settings::data_management::backup_list_ui::Event::Retain(v0),
+        domain::Event::ToggleLocations => crate::app::message::settings::data_management::backup_list_ui::Event::ToggleLocations,
         domain::Event::Refresh => crate::app::message::settings::data_management::backup_list_ui::Event::Refresh,
         domain::Event::Create => crate::app::message::settings::data_management::backup_list_ui::Event::Create,
         domain::Event::SavePolicy => crate::app::message::settings::data_management::backup_list_ui::Event::SavePolicy,
@@ -19,11 +20,13 @@ fn message(event: domain::Event) -> Message {
     })
 }
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
-    domain::view(crate::app::message::settings::data_management::export_ui::identity(app).is_some()).map(message)
-}
-pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
-    if !crate::app::message::settings::data_management::backup_list_ui::visible(app) { return base; }
+    let available = crate::app::message::settings::data_management::identity::identity(app).is_some();
+    let visible = crate::app::message::settings::data_management::backup_list_ui::visible(app);
     let state = &app.apps_catalog.data_backups;
-    let state = domain::ViewState { busy: state.busy, principal: &state.principal, name: &state.name, interval: &state.interval, retain: &state.retain, pending: state.pending.as_ref().map(|p| match p { desktop_settings_memory::data_management::backup_list_ui::Pending::Cleanup(id) => domain::Pending::Cleanup(id), desktop_settings_memory::data_management::backup_list_ui::Pending::Rename(row) => domain::Pending::Rename(&row.name), desktop_settings_memory::data_management::backup_list_ui::Pending::Delete(row) => domain::Pending::Delete(&row.name) }), rows: &state.rows };
-    domain::overlay(state, true, base, super::locations_ui::view(app)).map(|event| match event { domain::OverlayEvent::Local(event) => message(event), domain::OverlayEvent::External(message) => message })
+    let state = domain::ViewState { busy: state.busy, show_locations: state.show_locations, principal: &state.principal, name: &state.name, interval: &state.interval, retain: &state.retain, pending: state.pending.as_ref().map(|p| match p { desktop_settings_memory::data_management::backup_list_ui::Pending::Cleanup(id) => domain::Pending::Cleanup(id), desktop_settings_memory::data_management::backup_list_ui::Pending::Rename(row) => domain::Pending::Rename(&row.name), desktop_settings_memory::data_management::backup_list_ui::Pending::Delete(row) => domain::Pending::Delete(&row.name) }), rows: &state.rows };
+    domain::view(state, visible, available, super::recovery_ui::view(app), super::locations_ui::view(app), |id|
+        crate::app::message::settings::data_management::recovery_ui::message(
+            desktop_settings_memory::data_management::recovery_ui::Event::OpenBackup(id)
+        )
+    ).map(|event| match event { domain::OverlayEvent::Local(event) => message(event), domain::OverlayEvent::External(message) => message })
 }

@@ -8,13 +8,12 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+chrono = "0.4"
 config-aggregate = { path = "../config-aggregate" }
 iced = { version = "0.14", features = ["advanced"] }
 desktop-ui-controls = { path = "../desktop-ui-controls" }
-gateway-device-sync = { path = "../gateway-device-sync" }
 vw-api-transport = { path = "../api-transport" }
 vw-api-app-operations = { path = "../api-app-operations" }
-vw-api-device-sync = { path = "../api-device-sync" }
 vw-api-app-identity = { path = "../api-app-identity" }
 vw-api-project-profiles = { path = "../api-project-profiles" }
 tokio = { version = "1", features = ["time"] }

@@ -78,6 +78,7 @@ pub fn build_gateway_settings(
         },
         auth_enabled: gateway_cfg.auth_enabled,
         skeys: gateway_cfg.skeys,
+        show_add_skey_modal: false,
         new_skey_name_input: String::new(),
         new_skey_user_id_input: String::new(),
         new_skey_expires_at_input: String::new(),

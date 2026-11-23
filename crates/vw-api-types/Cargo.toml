@@ -18,7 +18,6 @@ vw-api-voice = { path = "../libs/api-voice" }
 vw-api-apps-usage = { path = "../libs/api-apps-usage" }
 vw-api-usage = { path = "../libs/api-usage" }
 vw-api-external-session = { path = "../libs/api-external-session" }
-vw-api-device-sync = { path = "../libs/api-device-sync" }
 vw-api-app-skills = { path = "../libs/api-app-skills" }
 vw-api-app-failover = { path = "../libs/api-app-failover" }
 vw-api-app-diagnostics = { path = "../libs/api-app-diagnostics" }

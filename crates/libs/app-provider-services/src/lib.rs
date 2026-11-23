@@ -804,9 +804,6 @@ impl AppProviderStore {
     }
 }
 
-#[cfg(target_os = "macos")]
-mod data_import;
-
 /// Authenticated project publication supplied by the gateway composition layer.
 /// Implementations retain project grants, routing and durable publication ownership.
 #[cfg(target_os = "macos")]

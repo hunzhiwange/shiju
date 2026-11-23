@@ -181,8 +181,8 @@ mod ports {
     use gateway_types::{ServeOptions, ApiError};
     use std::{future::Future, net::SocketAddr};
     fn router() -> axum::Router { axum::Router::new() }
-    pub async fn serve(opts: ServeOptions) -> Result<SocketAddr, ApiError> { crate::runtime::serve(opts, router(), Default::default()).await }
-    pub async fn start(opts: ServeOptions) -> Result<(SocketAddr, tokio::task::JoinHandle<Result<(), ApiError>>), ApiError> { crate::runtime::start(opts, router(), Default::default()).await }
-    pub async fn start_until<F: Future<Output = ()> + Send + 'static>(opts: ServeOptions, shutdown: F) -> Result<(SocketAddr, tokio::task::JoinHandle<Result<(), ApiError>>), ApiError> { crate::runtime::start_until(opts, router(), Default::default(), shutdown).await }
-    pub async fn serve_until<F: Future<Output = ()> + Send + 'static>(opts: ServeOptions, shutdown: F) -> Result<SocketAddr, ApiError> { crate::runtime::serve_until(opts, router(), Default::default(), shutdown).await }
+    pub async fn serve(opts: ServeOptions) -> Result<SocketAddr, ApiError> { crate::runtime::serve(opts, router()).await }
+    pub async fn start(opts: ServeOptions) -> Result<(SocketAddr, tokio::task::JoinHandle<Result<(), ApiError>>), ApiError> { crate::runtime::start(opts, router()).await }
+    pub async fn start_until<F: Future<Output = ()> + Send + 'static>(opts: ServeOptions, shutdown: F) -> Result<(SocketAddr, tokio::task::JoinHandle<Result<(), ApiError>>), ApiError> { crate::runtime::start_until(opts, router(), shutdown).await }
+    pub async fn serve_until<F: Future<Output = ()> + Send + 'static>(opts: ServeOptions, shutdown: F) -> Result<SocketAddr, ApiError> { crate::runtime::serve_until(opts, router(), shutdown).await }
 }

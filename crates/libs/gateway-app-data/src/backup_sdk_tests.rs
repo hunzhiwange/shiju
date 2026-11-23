@@ -25,7 +25,7 @@ async fn cc_data_38_backup_sdk_decodes_protected_conflict() {
     };
     assert_eq!(
         server.client().data_backup_delete(&input, Some("grant")).await.unwrap_err(),
-        DataMigrationError::Http { status: 409, error: None }
+        DataBackupError::Http { status: 409, error: None }
     );
     let request = server.take_request();
     assert_eq!(request.path, "/v1/agent-apps/data/backups/delete");

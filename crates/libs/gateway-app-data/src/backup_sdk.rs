@@ -1,6 +1,6 @@
 //! Executor-owned backups. IDs travel in JSON, never as paths or URL segments.
 use crate::GatewayAppDataClient;
-use super::DataMigrationError;
+use super::DataBackupError;
 use serde::{Deserialize, Serialize};
 use vw_api_app_operations::data_management::*;
 
@@ -116,88 +116,88 @@ impl GatewayAppDataClient {
         &self,
         input: &CreateDataBackupRequest,
         token: Option<&str>,
-    ) -> Result<Option<DataBackupSummary>, DataMigrationError> {
-        self.data_migration_json("backups/create", input, token).await
+    ) -> Result<Option<DataBackupSummary>, DataBackupError> {
+        self.backup_json("backups/create", input, token).await
     }
     pub async fn data_backup_list(
         &self,
         input: &ListDataBackupsRequest,
         token: Option<&str>,
-    ) -> Result<Vec<DataBackupSummary>, DataMigrationError> {
-        self.data_migration_json("backups/list", input, token).await
+    ) -> Result<Vec<DataBackupSummary>, DataBackupError> {
+        self.backup_json("backups/list", input, token).await
     }
     pub async fn data_backup_rename(
         &self,
         input: &RenameDataBackupRequest,
         token: Option<&str>,
-    ) -> Result<DataBackupSummary, DataMigrationError> {
-        self.data_migration_json("backups/rename", input, token).await
+    ) -> Result<DataBackupSummary, DataBackupError> {
+        self.backup_json("backups/rename", input, token).await
     }
     /// HTTP 409 is a conflict; the API does not distinguish protection from stale revision.
     pub async fn data_backup_delete(
         &self,
         input: &DeleteDataBackupRequest,
         token: Option<&str>,
-    ) -> Result<(), DataMigrationError> {
-        self.data_migration_json("backups/delete", input, token).await
+    ) -> Result<(), DataBackupError> {
+        self.backup_json("backups/delete", input, token).await
     }
     pub async fn data_backup_restore_preview(
         &self,
         input: &PreviewDataBackupRequest,
         token: Option<&str>,
-    ) -> Result<DataBackupPreview, DataMigrationError> {
-        self.data_migration_json("backups/restore/preview", input, token).await
+    ) -> Result<DataBackupPreview, DataBackupError> {
+        self.backup_json("backups/restore/preview", input, token).await
     }
     pub async fn data_backup_restore(
         &self,
         input: &RestoreDataBackupRequest,
         token: Option<&str>,
-    ) -> Result<DataRestoreProgress, DataMigrationError> {
-        self.data_migration_json("backups/restore", input, token).await
+    ) -> Result<DataRestoreProgress, DataBackupError> {
+        self.backup_json("backups/restore", input, token).await
     }
     pub async fn data_backup_restore_operation(
         &self,
         input: &GetDataOperationRequest,
         token: Option<&str>,
-    ) -> Result<DataRestoreProgress, DataMigrationError> {
-        self.data_migration_json("backups/restore/get", input, token).await
+    ) -> Result<DataRestoreProgress, DataBackupError> {
+        self.backup_json("backups/restore/get", input, token).await
     }
     pub async fn data_backup_diagnose(
         &self,
         input: &ListDataBackupsRequest,
         token: Option<&str>,
-    ) -> Result<DataRecoveryDiagnosis, DataMigrationError> {
-        self.data_migration_json("backups/diagnose", input, token).await
+    ) -> Result<DataRecoveryDiagnosis, DataBackupError> {
+        self.backup_json("backups/diagnose", input, token).await
     }
     pub async fn data_backup_locations(
         &self,
         input: &ListDataBackupsRequest,
         token: Option<&str>,
-    ) -> Result<Vec<DataBackupLocation>, DataMigrationError> {
-        self.data_migration_json("locations/list", input, token).await
+    ) -> Result<Vec<DataBackupLocation>, DataBackupError> {
+        self.backup_json("locations/list", input, token).await
     }
     /// A successful HTTP response can still contain undeleted items.
     pub async fn data_backup_delete_location(
         &self,
         input: &DeleteDataBackupLocationRequest,
         token: Option<&str>,
-    ) -> Result<DataBackupLocationDeletion, DataMigrationError> {
-        self.data_migration_json("locations/delete", input, token).await
+    ) -> Result<DataBackupLocationDeletion, DataBackupError> {
+        self.backup_json("locations/delete", input, token).await
     }
     pub async fn data_backup_policy(
         &self,
         target: &DataManagementTarget,
         token: Option<&str>,
-    ) -> Result<DataBackupPolicy, DataMigrationError> {
-        self.data_migration_json("policy", &PolicyRequest { target, settings: None }, token).await
+    ) -> Result<DataBackupPolicy, DataBackupError> {
+        self.backup_json("policy", &PolicyRequest { target, settings: None }, token).await
     }
     pub async fn data_backup_set_policy(
         &self,
         target: &DataManagementTarget,
         settings: &DataBackupPolicy,
         token: Option<&str>,
-    ) -> Result<DataBackupPolicy, DataMigrationError> {
-        self.data_migration_json(
+    ) -> Result<DataBackupPolicy, DataBackupError> {
+        self.backup_json(
             "policy",
             &PolicyRequest { target, settings: Some(settings) },
             token,
@@ -207,7 +207,7 @@ impl GatewayAppDataClient {
 }
 
 impl GatewayAppDataClient {
-    pub async fn data_backup_location_path(&self, target: &DataManagementTarget, category_id: &str, token: Option<&str>) -> Result<String, DataMigrationError> {
-        self.data_migration_json("locations/resolve", &serde_json::json!({"target": target, "categoryId": category_id}), token).await
+    pub async fn data_backup_location_path(&self, target: &DataManagementTarget, category_id: &str, token: Option<&str>) -> Result<String, DataBackupError> {
+        self.backup_json("locations/resolve", &serde_json::json!({"target": target, "categoryId": category_id}), token).await
     }
 }

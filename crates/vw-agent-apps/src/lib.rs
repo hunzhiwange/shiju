@@ -3,7 +3,6 @@
 
 pub use app_icons as icons;
 
-pub use app_device_sync as device_sync;
 
 pub use app_operations as apps;
 

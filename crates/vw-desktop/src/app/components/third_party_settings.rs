@@ -619,6 +619,10 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
         ThirdPartyPage::Prompts => settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded),
         ThirdPartyPage::Settings(tab) => {
             let load = settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded);
+            if tab == ThirdPartySettingsTab::Data && !app.apps_catalog.host.is_empty() {
+                use settings::data_management::backup_list_ui;
+                return Task::batch([load, backup_list_ui::update(app, backup_list_ui::Event::Open)]);
+            }
             if tab != ThirdPartySettingsTab::Routing {
                 return load;
             }
@@ -921,12 +925,7 @@ pub(crate) fn overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<
         app.apps_catalog.third_party_page,
         ThirdPartyPage::Settings(ThirdPartySettingsTab::Data)
     ) {
-        let base = super::system_settings_data::backup_list_ui::overlay(app, base);
-        let base = super::system_settings_data::recovery_ui::overlay(app, base);
-        super::system_settings_data::migration_preview_ui::overlay(
-            app,
-            super::system_settings_data::export_ui::overlay(app, base),
-        )
+        super::system_settings_data::recovery_ui::overlay(app, base)
     } else {
         base
     }

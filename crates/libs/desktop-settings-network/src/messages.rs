@@ -32,6 +32,8 @@ pub enum GatewayMessage {
     PortChanged(u16),
     HostChanged(String),
     AuthEnabledToggled(bool),
+    OpenAddSkeyModal,
+    CloseAddSkeyModal,
     NewSkeyNameChanged(String),
     NewSkeyUserIdChanged(String),
     NewSkeyChanged(String),

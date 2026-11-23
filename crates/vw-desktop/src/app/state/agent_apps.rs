@@ -3,12 +3,8 @@ use super::AgentAppsContext;
 use crate::app::components::system_settings_apps::catalog::CatalogRow;
 
 pub(crate) type AppsCatalogState = desktop_apps_ui::catalog_state::AppsCatalogState<
-    crate::app::message::settings::device_sync_webdav::State,
-    crate::app::message::settings::device_sync_s3::State,
-    crate::app::components::system_settings_data::migration_preview_ui::State,
     crate::app::message::settings::data_management::backup_list_ui::State,
     crate::app::message::settings::data_management::recovery_ui::State,
-    crate::app::message::settings::data_management::export_ui::State,
     crate::app::message::settings::backup_inventory::State,
     crate::app::components::external_sessions::State,
     super::project_profiles::State,

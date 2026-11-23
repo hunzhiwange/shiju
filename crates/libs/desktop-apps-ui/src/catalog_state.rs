@@ -1,19 +1,5 @@
 //! Catalog data; cross-domain panels are supplied by the desktop composition.
 use crate::AgentAppsContext;
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DeviceSyncMethod {
-    WebDav,
-    S3,
-}
-
-impl std::fmt::Display for DeviceSyncMethod {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::WebDav => "WebDAV",
-            Self::S3 => "S3 兼容存储",
-        })
-    }
-}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum AgentWorkspaceTab {
@@ -26,12 +12,8 @@ pub enum AgentWorkspaceTab {
 
 #[derive(Clone)]
 pub struct AppsCatalogState<
-    DeviceSyncWebdav,
-    DeviceSyncS3,
-    MigrationPreview,
     DataBackups,
     Recovery,
-    DataExport,
     Backups,
     ExternalSessions,
     ProjectProfiles,
@@ -53,14 +35,8 @@ pub struct AppsCatalogState<
     ThirdPartyMcpScope,
     Row
 > {
-    pub device_sync_webdav: DeviceSyncWebdav,
-    pub device_sync_s3: DeviceSyncS3,
-    pub device_sync_inline: Option<DeviceSyncMethod>,
-    pub device_sync_dialog: Option<DeviceSyncMethod>,
-    pub migration_preview: MigrationPreview,
     pub data_backups: DataBackups,
     pub recovery: Recovery,
-    pub data_export: DataExport,
     pub backups: Backups,
     pub external_sessions: ExternalSessions,
     pub project_profiles: ProjectProfiles,
@@ -106,12 +82,8 @@ pub struct AppsCatalogState<
 }
 // Credentials must never enter App/Message debug output.
 impl<
-    DeviceSyncWebdav,
-    DeviceSyncS3,
-    MigrationPreview,
     DataBackups,
     Recovery,
-    DataExport,
     Backups,
     ExternalSessions,
     ProjectProfiles,
@@ -133,12 +105,8 @@ impl<
     ThirdPartyMcpScope,
     Row
 > std::fmt::Debug for AppsCatalogState<
-    DeviceSyncWebdav,
-    DeviceSyncS3,
-    MigrationPreview,
     DataBackups,
     Recovery,
-    DataExport,
     Backups,
     ExternalSessions,
     ProjectProfiles,
@@ -165,12 +133,8 @@ impl<
     }
 }
 impl<
-    DeviceSyncWebdav: Default,
-    DeviceSyncS3: Default,
-    MigrationPreview: Default,
     DataBackups: Default,
     Recovery: Default,
-    DataExport: Default,
     Backups: Default,
     ExternalSessions: Default,
     ProjectProfiles: Default,
@@ -192,12 +156,8 @@ impl<
     ThirdPartyMcpScope: Default,
     Row
 > Default for AppsCatalogState<
-    DeviceSyncWebdav,
-    DeviceSyncS3,
-    MigrationPreview,
     DataBackups,
     Recovery,
-    DataExport,
     Backups,
     ExternalSessions,
     ProjectProfiles,
@@ -220,14 +180,8 @@ impl<
     Row
 > {
     fn default() -> Self { Self {
-        device_sync_webdav: Default::default(),
-        device_sync_s3: Default::default(),
-        device_sync_inline: None,
-        device_sync_dialog: None,
-        migration_preview: Default::default(),
         data_backups: Default::default(),
         recovery: Default::default(),
-        data_export: Default::default(),
         backups: Default::default(),
         external_sessions: Default::default(),
         project_profiles: Default::default(),

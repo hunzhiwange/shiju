@@ -81,12 +81,8 @@ pub use desktop_settings_appearance::general_message::GeneralSettingsMessage;
 /// 系统设置页顶层消息。
 #[derive(Debug, Clone)]
 pub enum SettingsMessage<SettingsTab, SearchTarget, AppsCatalog, AppProviders> {
-    MigrationPreview(desktop_settings_memory::system_settings_data::migration_preview_ui::Event),
     DataBackups(desktop_settings_memory::data_management::backup_list_ui::Event),
     DataRecovery(desktop_settings_memory::data_management::recovery_ui::Event),
-    DataExport(desktop_settings_memory::data_management::export_ui::Event),
-    DeviceSyncWebdav(desktop_settings_memory::device_sync_webdav::Event),
-    DeviceSyncS3(desktop_settings_memory::device_sync_s3::Event),
     BackupInventory(desktop_settings_memory::backup_inventory::Event),
     #[cfg(not(target_arch = "wasm32"))]
     ComputerControl(desktop_settings_security::computer_control_update::Event),

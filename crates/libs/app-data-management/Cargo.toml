@@ -8,7 +8,6 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-app-data-format = { path = "../app-data-format" }
 vw-api-app-operations = { path = "../api-app-operations" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -17,7 +16,6 @@ app-auth = { path = "../app-auth" }
 vw-api-task = { path = "../api-task" }
 
 [dev-dependencies]
-app-data-projection = { path = "../app-data-projection" }
 app-usage-store = { path = "../app-usage-store" }
 rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }

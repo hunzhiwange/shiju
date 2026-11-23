@@ -3,7 +3,6 @@ pub mod provider_mode_host;
 pub mod provider_publication_host;
 pub mod record_resync;
 pub mod snapshot_host;
-pub mod receive_projection;
 mod snapshot_bindings;
 pub mod agent_apps_high_availability;
 mod error;

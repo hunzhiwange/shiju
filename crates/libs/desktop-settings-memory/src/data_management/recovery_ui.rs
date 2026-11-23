@@ -1,5 +1,5 @@
 //! Recovery is always previewed; only explicit confirmation submits a write.
-use super::export_ui::Identity;
+use super::identity::Identity;
 use iced::Task;
 use gateway_app_data::{DataBackupPreview, PreviewDataBackupRequest, DataRecoveryDiagnosis, DataTargetHealth, DataBackupRestoreStatus, DataRestoreProgress};
 use {
@@ -17,13 +17,14 @@ pub struct State {
     pub progress: Option<DataRestoreProgress>,
     pub submitted: bool,
     pub error: Option<String>,
+    selected_backup: Option<String>,
     identity: Option<Identity>,
     generation: u64,
 }
 #[derive(Debug, Clone)]
 pub enum Event {
     Feedback(bool, String),
-    Open, Close, Principal(String), Diagnose, Preview(String), Confirm, Refresh,
+    Open, OpenBackup(String), Close, Principal(String), Diagnose, Preview(String), Confirm, Refresh,
     Diagnosed(Identity, u64, Result<DataRecoveryDiagnosis, ()>),
     Previewed(Identity, u64, Result<DataBackupPreview, ()>),
     Restored(Identity, u64, Result<DataRestoreProgress, ()>),
@@ -36,7 +37,21 @@ pub fn visible(state: &State, current: Option<&Identity>) -> bool {
 }
 pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_gateway_client::GatewayClient>, token: String, event: Event) -> Task<Output> {
     let Some(current) = current else { *state = State::default(); return Task::none(); };
-    if matches!(event, Event::Open) {
+    if matches!(event, Event::Open | Event::OpenBackup(_)) {
+        if let Event::OpenBackup(id) = event {
+            if state.identity.as_ref() == Some(&current) && (state.busy || (state.submitted && state.progress.is_none())) {
+                state.open = true;
+                return Task::none();
+            }
+            *state = State {
+                open: true,
+                selected_backup: Some(id),
+                identity: Some(current.clone()),
+                generation: state.generation.wrapping_add(1),
+                ..Default::default()
+            };
+            return update(state, Some(current), client, token, Event::Diagnose);
+        }
         if state.open && state.identity.as_ref() == Some(&current) { return Task::none(); }
         *state = State { open: true, identity: Some(current), generation: state.generation.wrapping_add(1), ..Default::default() };
         return Task::none();
@@ -50,6 +65,19 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
         Event::Diagnosed(id, generation, result) if id == current && generation == state.generation && state.busy => {
             state.busy = false;
             match result { Ok(value) => state.diagnosis = Some(value), Err(()) => state.error = Some("诊断失败，请检查网关连接后重试。".into()) }
+            if let Some(id) = state.selected_backup.take() {
+                if state.diagnosis.as_ref().is_some_and(|diagnosis|
+                    diagnosis.target_health != DataTargetHealth::VersionUnsupported &&
+                    diagnosis.backups.iter().any(|backup|
+                        backup.id == id && backup.restore_status == DataBackupRestoreStatus::RequiresOwnerValidation
+                    )
+                ) {
+                    return update(state, Some(current), client, token, Event::Preview(id));
+                }
+                if state.diagnosis.is_some() {
+                    state.error = Some("此备份当前无法恢复。".into());
+                }
+            }
             return Task::none();
         }
         Event::Previewed(id, generation, result) if id == current && generation == state.generation && state.busy => {

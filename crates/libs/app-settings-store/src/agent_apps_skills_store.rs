@@ -162,10 +162,6 @@ pub struct SkillInstallsState {
     pub copy_bindings: std::collections::BTreeMap<String, app_skills::copy_deploy::CopyBinding>,
     pub skills: Vec<app_skills::local_install::LocalSkill>,
     #[serde(default)]
-    pub migration_snapshot: Option<vw_agent_apps::data_management::safety_snapshot::SafetySnapshotReceipt>,
-    #[serde(default)]
-    pub migrated: std::collections::BTreeMap<String, vw_agent_apps::data_management::skills::MigratedSkill>,
-    #[serde(default)]
     pub update_metadata: std::collections::BTreeMap<String, app_skills::update_apply::SkillUpdateMetadata>,
     #[serde(default)]
     pub repo_sources: std::collections::BTreeMap<String, app_skills::repo_install::RepoSkillSource>,
@@ -713,7 +709,7 @@ impl SkillInstallsStore {
         let state: SkillInstallsState = match payload {
             Some(payload) => serde_json::from_str(payload).context("invalid installed skill state")?,
             None => SkillInstallsState {
-                schema_version: 1, version: 0, ssot_root: root.to_owned(), skills: Vec::new(), migration_snapshot: None, migrated: Default::default(),
+                schema_version: 1, version: 0, ssot_root: root.to_owned(), skills: Vec::new(),
                 storage_mode: default_storage_mode(),
                 copy_bindings: std::collections::BTreeMap::new(),
                 update_metadata: std::collections::BTreeMap::new(),
@@ -1409,7 +1405,3 @@ impl SkillInstallsStore {
         })
     }
 }
-
-#[cfg(target_os = "macos")]
-#[path = "agent_apps_skill_migration.rs"]
-mod migration;

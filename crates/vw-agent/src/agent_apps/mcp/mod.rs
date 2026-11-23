@@ -5,9 +5,9 @@ pub use agent_app_services::mcp::{credentials, McpCatalogStore, McpRevocation, S
 pub use agent_app_services::mcp::{connection_runtime, probe_jobs_host, McpExecutionConnection};
 #[cfg(target_os = "macos")]
 pub use agent_app_services::mcp::{
-    binding, bulk, data_migration, import, profile_slot, resync, probe_host,
+    binding, bulk, import, profile_slot, resync, probe_host,
     McpBindingTarget, McpImportEntry, McpImportOutcome, McpImportReport, McpImportSource,
-    McpMigration, McpMigrationCommit, McpResyncResult, McpResyncTargetResult, McpResyncTask,
+    McpResyncResult, McpResyncTargetResult, McpResyncTask,
     resync_targets,
 };
 

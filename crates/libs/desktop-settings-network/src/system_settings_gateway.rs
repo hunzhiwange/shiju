@@ -4,7 +4,7 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use desktop_ui_controls::system_settings_common::*;
-use crate::help::{settings_hover_help_label, settings_page_heading_with_help, settings_group_heading_with_help, settings_flexible_row_with_help, HelpRenderer};
+use crate::help::{settings_page_heading_with_help, settings_group_heading_with_help, settings_flexible_row_with_help, HelpRenderer};
 use desktop_i18n::I18n;
 use desktop_i18n::settings_models::connection_text::text as connection_text;
 use desktop_i18n::settings_models::messages::render as owned_text;
@@ -229,58 +229,6 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
         },
     );
 
-    let skeys_section = settings_group_card(
-        column![
-            skey_field(
-                settings_hover_help_label(app.render_help,
-                    i18n,
-                    theme,
-                    connection_text(app.desktop_locale, "skey 名称"),
-                    settings_field_label(connection_text(app.desktop_locale, "skey 名称")),
-                    connection_text(app.desktop_locale, "用于列表展示和识别该 skey。"),
-                )
-                .wrap(),
-                "",
-                row![
-                    settings_text_input(
-                        connection_text(app.desktop_locale, "例如 iPhone / CI Runner"),
-                        &s.new_skey_name_input
-                    )
-                    .on_input(|value| Message::Gateway(
-                        GatewayMessage::NewSkeyNameChanged(value)
-                    ))
-                    .width(Length::Fill),
-                    button(text(connection_text(app.desktop_locale, "生成 skey")).size(13))
-                        .padding([10, 14])
-                        .on_press(Message::Gateway(
-                            GatewayMessage::AddSkey
-                        ))
-                        .style(primary_action_btn_style),
-                ]
-                .spacing(12)
-                .align_y(Alignment::Center)
-            ),
-            settings_divider(),
-            skey_field(
-                settings_field_label(connection_text(app.desktop_locale, "用户 ID")),
-                connection_text(app.desktop_locale, "此 skey 绑定的用户 ID，留空使用 0。"),
-                settings_text_input("0", &s.new_skey_user_id_input)
-                    .on_input(|value| Message::Gateway(GatewayMessage::NewSkeyUserIdChanged(value)))
-                    .width(Length::Fill),
-            ),
-            settings_divider(),
-            skey_field(
-                settings_field_label(connection_text(app.desktop_locale, "过期日期")),
-                connection_text(
-                    app.desktop_locale,
-                    "可手写 YYYY-MM-DD，也可点日历选择；为空表示永不过期。"
-                ),
-                skey_date_picker(app)
-            )
-        ]
-        .spacing(0),
-    );
-
     let last_created_skey_panel = s.last_created_skey.as_ref().map(|raw_skey| {
         let copy_label = if s.last_created_skey_copied {
             "✓"
@@ -451,7 +399,7 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
         },
     );
 
-    let mut skey_management = column![skeys_section].spacing(16).width(Length::Fill);
+    let mut skey_management = column![].spacing(16).width(Length::Fill);
     if let Some(panel) = last_created_skey_panel {
         skey_management = skey_management.push(panel);
     }
@@ -531,15 +479,25 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
     .into();
 
     let skeys_content: Element<'a, Message> = column![
-        settings_group_heading_with_help(app.render_help,
-            i18n,
-            theme,
-            connection_text(app.desktop_locale, "skey 管理"),
-            connection_text(
-                app.desktop_locale,
-                "维护 gateway.skeys 列表。原始 skey 不保存，仅保存哈希、脱敏 skey、名称和过期时间。"
-            ),
-        ),
+        row![
+            container(settings_group_heading_with_help(
+                app.render_help,
+                i18n,
+                theme,
+                connection_text(app.desktop_locale, "skey 管理"),
+                connection_text(
+                    app.desktop_locale,
+                    "维护 gateway.skeys 列表。原始 skey 不保存，仅保存哈希、脱敏 skey、名称和过期时间。",
+                ),
+            ))
+            .width(Length::Fill),
+            button(text(connection_text(app.desktop_locale, "新增 skey")).size(13))
+                .padding([9, 14])
+                .style(primary_action_btn_style)
+                .on_press(Message::Gateway(GatewayMessage::OpenAddSkeyModal)),
+        ]
+        .spacing(12)
+        .align_y(Alignment::Center),
         skey_management,
     ]
     .spacing(16)
@@ -573,11 +531,68 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
     .spacing(16)
     .width(Length::Fill);
 
-    if let Some(error) = s.save_error.as_ref() {
+    if let Some(error) = s.save_error.as_ref().filter(|_| !s.show_add_skey_modal) {
         content = content.push(settings_error_banner(error.display(app.desktop_locale)));
     }
 
     content.push(active_content).into()
+}
+
+fn add_skey_modal<'a>(app: View<'a>, dialog: Element<'a, Message>) -> Element<'a, Message> {
+    let s = app.gateway_settings;
+    let label = |key: &'static str| connection_text(app.desktop_locale, key);
+    let close = Message::Gateway(GatewayMessage::CloseAddSkeyModal);
+    let header = settings_modal_header(
+        text(label("新增 skey")).size(18),
+        settings_close_button(close.clone()),
+    );
+    let mut fields = column![
+        settings_flexible_row_with_help(
+            app.render_help,
+            I18n::new(app.desktop_locale),
+            app.app_theme,
+            label("skey 名称"),
+            label("用于列表展示和识别该 skey。"),
+            460.0,
+            settings_text_input(label("例如 iPhone / CI Runner"), &s.new_skey_name_input)
+                .on_input(|value| Message::Gateway(GatewayMessage::NewSkeyNameChanged(value)))
+                .width(Length::Fill),
+        ),
+        settings_divider(),
+        field_row(
+            label("用户 ID"),
+            label("此 skey 绑定的用户 ID，留空使用 0。"),
+            settings_text_input("0", &s.new_skey_user_id_input)
+                .on_input(|value| Message::Gateway(GatewayMessage::NewSkeyUserIdChanged(value)))
+                .width(Length::Fill),
+        ),
+        settings_divider(),
+        field_row(
+            label("过期日期"),
+            label("可手写 YYYY-MM-DD，也可点日历选择；为空表示永不过期。"),
+            skey_date_picker(app),
+        ),
+    ];
+    if let Some(error) = s.save_error.as_ref() {
+        fields = fields.push(settings_error_banner(error.display(app.desktop_locale)));
+    }
+    let actions = row![
+        Space::new().width(Length::Fill),
+        button(text(label("取消")).size(13))
+            .padding([9, 14])
+            .style(rounded_action_btn_style)
+            .on_press(close.clone()),
+        button(text(label("生成 skey")).size(13))
+            .padding([9, 14])
+            .style(primary_action_btn_style)
+            .on_press(Message::Gateway(GatewayMessage::AddSkey)),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
+    let card = settings_modal_layout(header, fields, Some(actions.into()))
+        .width(640)
+        .height(400);
+    settings_modal_overlay(Some(dialog), close, container(card).padding(12))
 }
 
 /// 构建或处理 `view_overlays` 对应的界面片段与交互数据。
@@ -644,6 +659,10 @@ fn view_overlays<'a>(app: View<'a>, dialog: Element<'a, Message>) -> Element<'a,
         return settings_modal_overlay(Some(dialog), cancel_message, container(card).padding(12));
     }
 
+    if s.show_add_skey_modal {
+        return add_skey_modal(app, dialog);
+    }
+
     if !s.show_help_modal {
         return dialog;
     }
@@ -666,7 +685,13 @@ mod system_settings_gateway_tests;
 
 /// 返回覆盖层；宿主在已有页面上组合，页面消息无需反向映射。
 pub fn overlay<'a>(app: View<'a>) -> Option<Element<'a, Message>> {
-    if !(app.gateway_settings.pending_service_command_confirmation.is_some() || app.gateway_settings.show_help_modal) { return None; }
+    let s = app.gateway_settings;
+    if !(s.pending_service_command_confirmation.is_some()
+        || s.show_help_modal
+        || s.show_add_skey_modal)
+    {
+        return None;
+    }
     Some(view_overlays(app, iced::widget::Space::new().width(Length::Fill).height(Length::Fill).into()))
 }
 

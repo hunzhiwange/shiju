@@ -24,7 +24,6 @@ workflow-core = { path = "../libs/workflow-core" }
 workflow-video-edit = { path = "../libs/workflow-video-edit" }
 workflow-template-contract = { path = "../libs/workflow-template-contract" }
 task-scheduler-core = { path = "../libs/task-scheduler-core" }
-device-sync = { path = "../libs/device-sync" }
 gateway-agent-app = { path = "../libs/gateway-agent-app" }
 session-engine = { path = "../libs/session-engine" }
 agent-loop = { path = "../libs/agent-loop" }
@@ -104,7 +103,6 @@ vw-api-apps-usage = { path = "../libs/api-apps-usage" }
 vw-api-usage = { path = "../libs/api-usage" }
 gateway-app-skills = { path = "../libs/gateway-app-skills" }
 vw-api-external-session = { path = "../libs/api-external-session" }
-vw-api-device-sync = { path = "../libs/api-device-sync" }
 vw-api-app-skills = { path = "../libs/api-app-skills" }
 vw-api-app-failover = { path = "../libs/api-app-failover" }
 vw-api-app-diagnostics = { path = "../libs/api-app-diagnostics" }
@@ -340,7 +338,6 @@ agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usag
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 gateway-skill-market = { path = "../libs/gateway-skill-market", features = ["server"] }
-gateway-device-sync = { path = "../libs/gateway-device-sync" }
 channel-wecom = { path = "../libs/channel-wecom" }
 channel-dingtalk = { path = "../libs/channel-dingtalk" }
 gateway-model = { path = "../libs/gateway-model" }

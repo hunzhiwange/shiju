@@ -39,7 +39,6 @@ gateway-aggregation-codex = { path = "../libs/gateway-aggregation-codex" }
 gateway-aggregation-desktop = { path = "../libs/gateway-aggregation-desktop" }
 gateway-aggregation = { path = "../libs/gateway-aggregation" }
 gateway-aggregation-omo = { path = "../libs/gateway-aggregation-omo" }
-gateway-device-sync = { path = "../libs/gateway-device-sync" }
 gateway-usage-read = { path = "../libs/gateway-usage-read" }
 gateway-usage-scan = { path = "../libs/gateway-usage-scan" }
 gateway-usage-price = { path = "../libs/gateway-usage-price" }
@@ -61,7 +60,6 @@ gateway-app-skills = { path = "../libs/gateway-app-skills" }
 gateway-app-prompts = { path = "../libs/gateway-app-prompts" }
 gateway-app-prompt-resources = { path = "../libs/gateway-app-prompt-resources" }
 vw-api-external-session = { path = "../libs/api-external-session" }
-vw-api-device-sync = { path = "../libs/api-device-sync" }
 gateway-app-data = { path = "../libs/gateway-app-data" }
 vw-api-app-skills = { path = "../libs/api-app-skills" }
 vw-api-app-failover = { path = "../libs/api-app-failover" }

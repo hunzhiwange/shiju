@@ -13,7 +13,7 @@ fn message(event: domain::Event) -> Message {
     })
 }
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
-    domain::view(crate::app::message::settings::data_management::export_ui::identity(app).is_some()).map(message)
+    domain::view(crate::app::message::settings::data_management::identity::identity(app).is_some()).map(message)
 }
 pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     if !crate::app::message::settings::data_management::recovery_ui::visible(app) { return base; }

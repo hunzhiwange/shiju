@@ -3,13 +3,8 @@ use axum::{Extension, Router};
 
 pub(crate) fn router() -> Router {
     let router = Router::new()
-        .merge(super::device_sync_probe::router())
         .merge(super::backup_inventory::router())
-        .merge(super::device_sync_config::router())
-        .merge(super::device_sync_jobs::router())
-        .merge(super::device_sync_tasks::router())
         .merge(super::agent_apps_data::backup_crud_api::router())
-        .merge(super::agent_apps_data::migration_read_api::router())
         .merge(read::router())
         .merge(super::external_sessions::router())
         .merge(super::project_profiles::router())
@@ -85,10 +80,6 @@ mod preferences;
 
 mod launch;
 
-
-
-
-
 #[cfg(all(test, unix))]
 mod local_access_tests;
 
@@ -115,10 +106,6 @@ pub(crate) use usage_refresh::{init as init_usage_refresh, run as run_usage_refr
 
 mod usage_read;
 
-
-
-
-
 #[cfg(target_os = "macos")]
 mod apps_usage_refresh;
 
@@ -129,7 +116,6 @@ mod usage_native;
 
 #[cfg(target_os = "macos")]
 mod apps_usage_script;
-
 
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use gateway_agent_apps::host_context::authorize_mcp_catalog_read;
@@ -232,27 +218,9 @@ pub(super) use access::authorize_external_history_maintenance;
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::periodic_data_backup_targets;
 
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::{authenticate_data_migration, authorize_data_migration};
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_device_sync_upload;
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_device_sync_config;
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_device_sync_probe;
-
 #[cfg(target_os = "macos")]
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::data_location_roots;
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_data_export;
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_device_sync_download;
 
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::usage_scan_targets;

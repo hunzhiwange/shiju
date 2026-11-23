@@ -42,23 +42,28 @@ struct Principal {
 #[serde(deny_unknown_fields)]
 struct Grant {
     #[serde(default)]
-    device_sync_probe: Vec<vw_api_transport::ProjectId>,
+    #[serde(rename = "device_sync_probe")]
+    _legacy_device_sync_probe: Option<serde::de::IgnoredAny>,
     #[serde(default)]
-    device_sync_config: Vec<vw_api_transport::ProjectId>,
-    /// Explicit authority to export portable data to the configured remote.
+    #[serde(rename = "device_sync_config")]
+    _legacy_device_sync_config: Option<serde::de::IgnoredAny>,
     #[serde(default)]
-    device_sync_upload: Vec<vw_api_transport::ProjectId>,
+    #[serde(rename = "device_sync_upload")]
+    _legacy_device_sync_upload: Option<serde::de::IgnoredAny>,
     #[serde(default)]
-    device_sync_download: Vec<vw_api_transport::ProjectId>,
+    #[serde(rename = "device_sync_download")]
+    _legacy_device_sync_download: Option<serde::de::IgnoredAny>,
     #[serde(default)]
-    data_migration_read: Vec<vw_api_transport::ProjectId>,
+    #[serde(rename = "data_migration_read")]
+    _legacy_data_migration_read: Option<serde::de::IgnoredAny>,
     /// Explicit background authority; API backup grants alone do not schedule work.
     #[serde(default)]
     periodic_data_backups: Vec<PeriodicDataBackupPermit>,
     #[serde(default)]
     data_backups: Vec<vw_api_transport::ProjectId>,
     #[serde(default)]
-    data_export: Vec<vw_api_transport::ProjectId>,
+    #[serde(rename = "data_export")]
+    _legacy_data_export: Option<serde::de::IgnoredAny>,
     #[serde(default)]
     external_sessions_read: Vec<ExternalHistoryPermit>,
     #[serde(default)]
@@ -592,6 +597,10 @@ struct NativeLoginOwner {
     principal: String,
 }
 
+fn discard_legacy_field<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<(), D::Error> {
+    serde::de::IgnoredAny::deserialize(deserializer).map(|_| ())
+}
+
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Host {
@@ -600,11 +609,12 @@ pub struct Host {
     pub data_backup_root: Option<PathBuf>,
     #[serde(default)]
     data_location_roots: Option<[PathBuf; 3]>,
-    /// Explicit source references; never populated from desktop paths.
     #[serde(default)]
-    pub data_migration_sources: std::collections::BTreeMap<String, PathBuf>,
+    #[serde(rename = "data_migration_sources", deserialize_with = "discard_legacy_field")]
+    pub(crate) _legacy_data_migration_sources: (),
     #[serde(default)]
-    pub data_migration_root: Option<PathBuf>,
+    #[serde(rename = "data_migration_root", deserialize_with = "discard_legacy_field")]
+    pub(crate) _legacy_data_migration_root: (),
     #[serde(default)]
     external_session_instances: Vec<ExternalHistoryInstance>,
     pub id: String,
@@ -716,13 +726,7 @@ pub fn authorize_identity_launch(
 #[derive(Clone, Copy)]
 enum Capability<'a> {
     UsageLedgerRead(&'a vw_api_transport::ProjectId),
-    DeviceSyncProbe(&'a vw_api_transport::ProjectId),
-    DeviceSyncUpload(&'a vw_api_transport::ProjectId),
-    DeviceSyncDownload(&'a vw_api_transport::ProjectId),
-    DataMigrationRead(&'a vw_api_transport::ProjectId),
-    DeviceSyncConfig(&'a vw_api_transport::ProjectId),
     DataBackups(&'a vw_api_transport::ProjectId),
-    DataExport(&'a vw_api_transport::ProjectId),
     ExternalHistory(&'a vw_api_transport::ProjectId),
     ExternalHistoryMaintenance(&'a vw_api_transport::ProjectId),
     ExternalHistoryDelete(&'a vw_api_transport::ProjectId),
@@ -2084,67 +2088,6 @@ pub fn periodic_data_backup_targets(
     Ok(targets)
 }
 
-/// Authenticate before consuming or decoding a migration body. Policy reads are
-/// authentication IO only; source and target storage must remain untouched.
-pub fn authenticate_data_migration(
-    path: Option<&Path>, headers: &HeaderMap, tenant: &TenantScope,
-) -> Result<(), StatusCode> {
-    let _ = (path, headers, tenant);
-    // Gateway authentication runs before the migration handler consumes its body.
-    Ok(())
-}
-
-pub fn authorize_data_migration(
-    path: Option<&Path>, headers: &HeaderMap,
-    target: &vw_api_app_operations::DataManagementTarget,
-    source_id: Option<&str>,
-) -> Result<Option<(PathBuf, PathBuf)>, StatusCode> {
-    let a = authorize_scoped(path, headers, target.scope.tenant_scope(), &target.target_host_id,
-        None, Capability::DataMigrationRead(target.scope.project_id()))?;
-    if a.principal != target.principal_id { return Err(StatusCode::FORBIDDEN); }
-    source_id.map(|id| {
-        let selected = a.host.data_migration_sources.get(id).ok_or(StatusCode::FORBIDDEN)?;
-        let root = a.host.data_migration_root.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-        if !root.is_absolute() || !selected.is_absolute() { return Err(StatusCode::SERVICE_UNAVAILABLE); }
-        Ok((root.clone(), selected.clone()))
-    }).transpose()
-}
-
-/// Explicit export grant, complete principal binding and local host ownership.
-pub fn authorize_device_sync_upload(
-    path: Option<&Path>, headers: &HeaderMap,
-    target: &vw_api_app_operations::DataManagementTarget,
-) -> Result<(PathBuf, PathBuf), StatusCode> {
-    let a = authorize_scoped(path, headers, target.scope.tenant_scope(),
-        &target.target_host_id, None, Capability::DeviceSyncUpload(target.scope.project_id()))?;
-    if a.principal != target.principal_id { return Err(StatusCode::FORBIDDEN); }
-    let credentials = a.host.credential_root.filter(|p| p.is_absolute())
-        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let skills = a.host.skills_root.filter(|p| p.is_absolute())
-        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    Ok((credentials, skills))
-}
-
-/// Device-sync settings require an explicit host/project grant, independent of backups.
-pub fn authorize_device_sync_config(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope, host: &str,
-) -> Result<String, StatusCode> {
-    vw_agent_apps::providers::validate_identity(host).map_err(|_| StatusCode::BAD_REQUEST)?;
-    let authorized = authorize_scoped(path, headers, project.tenant_scope(), host, None,
-        Capability::DeviceSyncConfig(project.project_id()))?;
-    Ok(authorized.principal)
-}
-
-/// Explicit permission to send draft credentials from this local execution host.
-pub fn authorize_device_sync_probe(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope, host: &str,
-) -> Result<PathBuf, StatusCode> {
-    vw_agent_apps::providers::validate_identity(host).map_err(|_| StatusCode::BAD_REQUEST)?;
-    let a = authorize_scoped(path, headers, project.tenant_scope(), host, None,
-        Capability::DeviceSyncProbe(project.project_id()))?;
-    a.host.credential_root.filter(|p| p.is_absolute()).ok_or(StatusCode::SERVICE_UNAVAILABLE)
-}
-
 #[cfg(target_os = "macos")]
 pub fn data_location_roots(path: Option<&Path>, headers: &HeaderMap, target: &vw_api_app_operations::DataManagementTarget) -> Result<(PathBuf,PathBuf,PathBuf),StatusCode> {
     let a=authorize_scoped(path,headers,target.scope.tenant_scope(),&target.target_host_id,None,Capability::DataBackups(target.scope.project_id()))?;
@@ -2152,26 +2095,6 @@ pub fn data_location_roots(path: Option<&Path>, headers: &HeaderMap, target: &vw
     let [app,device,environment]=a.host.data_location_roots.ok_or(StatusCode::NOT_IMPLEMENTED)?;
     if ![&app,&device,&environment].iter().all(|p|p.is_absolute()) { return Err(StatusCode::SERVICE_UNAVAILABLE); }
     Ok((app,device,environment))
-}
-
-pub fn authorize_data_export(path: Option<&Path>, headers: &HeaderMap, target: &vw_api_app_operations::DataManagementTarget) -> Result<(),StatusCode> {
-    let a=authorize_scoped(path,headers,target.scope.tenant_scope(),&target.target_host_id,None,Capability::DataExport(target.scope.project_id()))?;
-    if a.principal!=target.principal_id { return Err(StatusCode::FORBIDDEN); }
-    Ok(())
-}
-
-/// Download authority is independent from export authority. Recovery stays host-local.
-pub fn authorize_device_sync_download(
-    path: Option<&Path>, headers: &HeaderMap,
-    target: &vw_api_app_operations::DataManagementTarget,
-) -> Result<(PathBuf, PathBuf, PathBuf), StatusCode> {
-    let a = authorize_scoped(path, headers, target.scope.tenant_scope(),
-        &target.target_host_id, None, Capability::DeviceSyncDownload(target.scope.project_id()))?;
-    if a.principal != target.principal_id { return Err(StatusCode::FORBIDDEN); }
-    let credentials = a.host.credential_root.filter(|p| p.is_absolute()).ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let skills = a.host.skills_root.filter(|p| p.is_absolute()).ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let recovery = a.host.data_backup_root.filter(|p| p.is_absolute()).ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    Ok((credentials, skills, recovery))
 }
 
 /// Enumerate native sources on the gateway's local machine, without an access file.

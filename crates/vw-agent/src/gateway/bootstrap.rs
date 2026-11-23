@@ -36,14 +36,12 @@ pub(crate) async fn run_gateway_until(
     config: Config,
     shutdown: impl std::future::Future<Output = Result<()>>,
 ) -> Result<()> {
-    let sync = crate::device_sync::lifecycle::SyncLifecycle::default();
     let result = crate::app_routing::gateway_owner::run_with_routing(
         // The gateway startup future contains large config and router state.
-        async |routing| Box::pin(serve_gateway(host, port, config, sync.clone(), routing)).await,
+        async |routing| Box::pin(serve_gateway(host, port, config, routing)).await,
         shutdown,
     )
     .await;
-    sync.shutdown().await.map_err(|_| anyhow::anyhow!("device sync shutdown failed"))?;
     result
 }
 
@@ -52,7 +50,6 @@ async fn serve_gateway(
     host: &str,
     port: u16,
     mut config: Config,
-    sync: crate::device_sync::lifecycle::SyncLifecycle,
     #[cfg_attr(not(target_os = "macos"), allow(unused_variables))] routing: &Arc<
         crate::app_routing::RoutingListener,
     >,
@@ -213,8 +210,7 @@ async fn serve_gateway(
         .merge(super::router::management_auth_router()
             .layer(from_fn_with_state(state.clone(), skey_auth_middleware)))
         .layer(cors)
-        .layer(axum::Extension(database))
-        .layer(axum::Extension(sync));
+        .layer(axum::Extension(database));
 
     let app = if addr.ip().is_loopback() && tunnel.is_none() {
         app.layer(axum::Extension(api::handlers::session::employee_account::LocalEmployeeGateway))

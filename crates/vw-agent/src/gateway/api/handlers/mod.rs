@@ -431,13 +431,8 @@ mod backup_inventory;
 
 pub(crate) use gateway_agent_apps::agent_apps_data as agent_apps_data;
 
-pub(crate) mod device_sync_jobs;
-mod device_sync_projection;
 
-mod device_sync_config;
 
-mod device_sync_probe;
 
-mod device_sync_tasks;
 
 pub(crate) mod usage;

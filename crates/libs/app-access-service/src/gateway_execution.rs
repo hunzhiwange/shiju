@@ -21,7 +21,6 @@ pub(super) fn gateway_host(tenant: &TenantScope) -> Result<Host, StatusCode> {
     for directory in [
         &root,
         &root.join("backups"),
-        &root.join("migration"),
         &paths.config.join("apps"),
         &skills_root,
     ] {
@@ -73,8 +72,8 @@ pub(super) fn gateway_host(tenant: &TenantScope) -> Result<Host, StatusCode> {
         credential_root: Some(root.clone()),
         data_backup_root: Some(root.join("backups")),
         data_location_roots: Some([paths.config.clone(), paths.data.clone(), paths.state.clone()]),
-        data_migration_root: Some(root.join("migration")),
-        data_migration_sources: Default::default(),
+        _legacy_data_migration_root: (),
+        _legacy_data_migration_sources: (),
         external_session_instances: native_instances(&home),
         skills_root: Some(skills_root),
         skill_install_files: Default::default(),

@@ -508,14 +508,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     #[cfg(target_os = "macos")]
     let dialog = crate::app::provider_link_preview::overlay(dialog);
     #[cfg(target_os = "macos")]
-    let dialog = super::system_settings_data::backup_list_ui::overlay(app, dialog);
-    #[cfg(target_os = "macos")]
     let dialog = crate::app::mcp_link_preview::overlay(app, dialog);
     #[cfg(target_os = "macos")]
     let dialog = crate::app::skill_link_preview::overlay(app, dialog);
     #[cfg(target_os = "macos")]
     let dialog = crate::app::prompt_link_preview::overlay(app, dialog);
-    super::system_settings_device_sync::overlay(app, dialog)
+    dialog
 }
 
 pub(super) use desktop_settings_shell::SELECT_FOCUS_SCOPE;

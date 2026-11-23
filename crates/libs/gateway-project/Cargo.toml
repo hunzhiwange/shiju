@@ -20,8 +20,6 @@ git-discovery = { path = "../git-discovery" }
 app-settings-store = { path = "../app-settings-store" }
 app-project-profiles = { path = "../app-project-profiles" }
 app-operations = { path = "../app-operations" }
-app-data-format = { path = "../app-data-format" }
-app-data-projection = { path = "../app-data-projection" }
 vw-api-project-profiles = { path = "../api-project-profiles" }
 vw-api-app-provider-environment = { path = "../api-app-provider-environment" }
 vw-agent-apps = { path = "../../vw-agent-apps" }

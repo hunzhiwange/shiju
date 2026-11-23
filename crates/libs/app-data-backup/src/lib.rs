@@ -1,6 +1,4 @@
-//! Host-local backup files, snapshots and portable exports.
-#[cfg(target_os = "macos")]
-use app_data_format::portable_policy;
+//! Host-local backup files and safety snapshots.
 
 #[cfg(target_os = "macos")]
 pub mod backup_create;
@@ -20,12 +18,6 @@ mod backup_list_tests;
 pub mod backup_rename;
 #[cfg(all(test, target_os = "macos"))]
 mod backup_rename_tests;
-#[cfg(target_os = "macos")]
-pub mod export;
-#[cfg(target_os = "macos")]
-mod export_files;
-#[cfg(all(test, target_os = "macos"))]
-mod export_tests;
 #[cfg(target_os = "macos")]
 pub mod location_delete;
 #[cfg(all(test, target_os = "macos"))]

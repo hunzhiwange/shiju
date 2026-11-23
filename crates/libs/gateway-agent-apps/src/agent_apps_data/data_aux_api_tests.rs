@@ -75,22 +75,6 @@ impl Fixture {
     }
 }
 #[tokio::test]
-async fn cc_data_36_export_api_returns_downloadable_package() {
-    if isolated_test() {
-        return;
-    }
-    let f=Fixture::new().await;
-    let r=f.call("export",json!({"target":f.target,"selections":[{"category":"preferences","entries":{"kind":"all"}}],"format":"native_package","idempotencyKey":"fixture"})).await;
-    assert_eq!(r.status(),200);
-    let handle:Value=r.json().await.unwrap();
-    let r=f.call("export/download",json!({"target":f.target,"transferId":handle["transferId"]})).await;
-    assert_eq!(r.status(),200);
-    let bytes=r.bytes().await.unwrap();
-    let digest: [u8;32]=Sha256::digest(&bytes).into();
-    let records=vw_agent_apps::data_management::export::verify_portable_package(&bytes,&digest).unwrap();
-    assert_eq!(records[0].items[0]["appOrder"],json!(["codex"]));
-}
-#[tokio::test]
 async fn cc_data_36_aux_api_rejects_arbitrary_category_path() {
     if isolated_test() {
         return;

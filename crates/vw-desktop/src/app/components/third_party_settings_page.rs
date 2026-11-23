@@ -4,7 +4,6 @@ use crate::app::{
     components::{
         agent_apps_high_availability_policy, app_routing, openclaw_defaults, openclaw_env,
         openclaw_model, openclaw_tools, system_settings_apps, system_settings_data as data,
-        system_settings_device_sync,
     },
     i18n::I18n,
     message::{ViewMessage, settings::AppsCatalogMessage},
@@ -36,10 +35,10 @@ pub(super) fn view(app: &App, tab: Tab) -> Element<'_, Message> {
             },
         ),
     );
-    let (icon, title) = if tab == Tab::Routing {
-        (Icon::Bezier, "本地路由")
-    } else {
-        (Icon::Sliders, "设置")
+    let (icon, title) = match tab {
+        Tab::Routing => (Icon::Bezier, "本地路由"),
+        Tab::Data => (Icon::HddNetwork, "数据"),
+        Tab::Applications => (Icon::Sliders, "设置"),
     };
     let heading = row![
         container(desktop_ui_controls::icons::icon_svg(icon, 18.0))
@@ -308,34 +307,17 @@ fn routing_app_name(id: AppId) -> &'static str {
 
 fn data_settings(app: &App) -> Element<'_, Message> {
     column![
-        settings_panel(
+        text("备份与恢复").size(18),
+        settings_group_card(
             column![
-                settings_group_heading(
-                    "导入与导出",
-                    "迁入前预览授权来源，或导出可迁移的脱敏配置。"
-                ),
-                row![data::migration_preview_ui::entry(), data::export_ui::view(app)]
-                    .spacing(8)
-                    .wrap(),
-            ]
-            .spacing(12)
-        ),
-        settings_panel(
-            column![
-                settings_group_heading(
-                    "备份与恢复",
-                    "设置自动备份策略，管理备份与恢复。"
-                ),
-                row![data::backup_list_ui::view(app), data::recovery_ui::view(app)]
-                    .spacing(8)
-                    .wrap(),
+                data::backup_list_ui::view(app),
                 settings_divider(),
                 crate::app::message::settings::backup_inventory::view(app),
             ]
-            .spacing(12)
-        ),
-        system_settings_device_sync::inline(app),
+            .spacing(14)
+        )
+        .padding([16, 20]),
     ]
-    .spacing(16)
+    .spacing(12)
     .into()
 }

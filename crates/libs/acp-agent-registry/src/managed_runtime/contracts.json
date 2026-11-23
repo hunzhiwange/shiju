@@ -226,6 +226,7 @@
       "tools/mcp_tool.py": "703923450ccbb18a6736015c90423599b25d65b9038bc50a707ff8eb38c918d0",
       "acp_adapter/server.py": "402d2f5ae4041889d970e338eaa34a4c31cf4b394335ce31b79bfc55dbb9dff7"
     },
+    "wheel_url": "https://files.pythonhosted.org/packages/e5/30/c85be8290e9565dc3c7a9720e93f3e59e09b1b163487be4946c3aa848f80/hermes_agent-0.19.0-py3-none-any.whl",
     "wheel_sha256": "bd0bac012aee38a60894781f4597dc29ee7bedb3448540249921f10d3bef327f"
   },
   "goose": {

@@ -620,15 +620,17 @@ if contract.get('layout') == 'python':
     uv = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else shutil.which('uv') or str(Path.home() / '.local/bin/uv')
     run([uv, 'venv', '--python', '3.12', '--relocatable', str(runtime)])
     python = runtime / 'bin/python'
-    if agent == 'vibe':
-        wheel_url = contract['wheel_url']
-    else:
-        with urllib.request.urlopen('https://pypi.org/pypi/hermes-agent/0.19.0/json', timeout=30) as response:
-            release = json.load(response)
-        wheel_url = next(row['url'] for row in release['urls'] if row['digests']['sha256'] == contract['wheel_sha256'])
+    wheel_url = contract['wheel_url']
     wheel = assets / wheel_url.rsplit('/', 1)[1]
-    with urllib.request.urlopen(wheel_url, timeout=60) as response, wheel.open('wb') as output:
-        copy_download(response, output)
+    if agent == 'hermes':
+        print('SHIJU_DOWNLOAD {"downloaded":0,"total":null,"bytes_per_second":0}', flush=True)
+        run(['/usr/bin/curl', '--disable', '--fail', '--silent', '--show-error', '--location',
+             '--proto', '=https', '--proto-redir', '=https', '--retry', '2',
+             '--max-time', '120', '--output', str(wheel), wheel_url])
+        print('SHIJU_DOWNLOAD null', flush=True)
+    else:
+        with urllib.request.urlopen(wheel_url, timeout=60) as response, wheel.open('wb') as output:
+            copy_download(response, output)
     if digest(wheel) != contract['wheel_sha256']:
         raise RuntimeError('Pinned Python wheel checksum mismatch')
     package = str(wheel) + ('[acp,cli,mcp]' if agent == 'hermes' else '')

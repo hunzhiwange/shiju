@@ -132,29 +132,31 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
             Task::done(message.clone()).chain(crate::app::message::after(std::time::Duration::from_millis(24), message))
         }
         Effect::Load(path) => {
-            let scope = project_path.clone();
-            let load_path = path.clone();
-            Task::perform(
-                async move { domain::load_preview_text_content(crate::app::gateway_client(), scope, load_path).await },
-                move |result| Message::PreviewIoFinished {
-                    project_path: project_path.clone(),
+            let project_path = project_path.clone();
+            Task::future(async move {
+                let result = domain::load_preview_text_content(
+                    crate::app::gateway_client(), project_path.clone(), path.clone(),
+                ).await;
+                Message::PreviewIoFinished {
+                    project_path,
                     message: match result {
-                        Ok((content, truncated)) => PreviewMessage::OpenLoaded { path: path.clone(), content, truncated },
-                        Err(error) => PreviewMessage::OpenFailed { path: path.clone(), error },
+                        Ok((content, truncated)) => PreviewMessage::OpenLoaded { path, content, truncated },
+                        Err(error) => PreviewMessage::OpenFailed { path, error },
                     },
-                },
-            )
+                }
+            })
         }
         Effect::Save { path, content, notify } => {
-            let scope = project_path.clone();
-            let save_path = path.clone(); let save_content = content.clone();
-            Task::perform(
-                async move { domain::persist_preview_file(crate::app::gateway_client(), scope, save_path, save_content).await },
-                move |result| Message::PreviewIoFinished {
-                    project_path: project_path.clone(),
-                    message: PreviewMessage::SaveFileFinished { path: path.clone(), content: content.clone(), notify, result },
-                },
-            )
+            let project_path = project_path.clone();
+            Task::future(async move {
+                let result = domain::persist_preview_file(
+                    crate::app::gateway_client(), project_path.clone(), path.clone(), content.clone(),
+                ).await;
+                Message::PreviewIoFinished {
+                    project_path,
+                    message: PreviewMessage::SaveFileFinished { path, content, notify, result },
+                }
+            })
         }
     });
     if let Some(mode) = auto_save_mode { tasks.push(crate::app::config::update_system_settings_config_async(move |system| system.preview_auto_save = mode)); }

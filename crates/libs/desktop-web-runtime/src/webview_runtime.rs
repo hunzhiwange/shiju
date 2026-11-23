@@ -364,15 +364,22 @@ fn webview_helper_candidates_from(current_exe: Option<&Path>) -> Vec<PathBuf> {
     if let Some(path) = current_exe.and_then(Path::parent) {
         candidates.push(path.join(WEBVIEW_HELPER_NAME));
     }
-    if let Some(target_dir) = current_exe.and_then(|path| {
-        path.ancestors().find(|ancestor| ancestor.file_name().is_some_and(|name| name == "target"))
-    }) && let Some(root) = target_dir.parent()
-    {
-        candidates.push(root.join("target").join("release").join(WEBVIEW_HELPER_NAME));
-        candidates.push(root.join("target").join("debug").join(WEBVIEW_HELPER_NAME));
+    if let Some(root) = current_exe.and_then(|path| {
+        path.ancestors()
+            .find(|dir| dir.ends_with("target") || dir.ends_with("target-dir"))?
+            .parent()
+    }) {
+        // Relax 从 target/rust-slot-* 运行，原生辅助程序按 Cargo 配置产出到 target-dir。
+        for profile_dir in
+            ["target-dir/debug", "target-dir/release", "target/release", "target/debug"]
+        {
+            let candidate = root.join(profile_dir).join(WEBVIEW_HELPER_NAME);
+            if !candidates.contains(&candidate) {
+                candidates.push(candidate);
+            }
+        }
     }
     candidates.push(PathBuf::from(WEBVIEW_HELPER_NAME));
-    candidates.dedup();
     candidates
 }
 

@@ -1,11 +1,13 @@
 //! 工作区浏览器运行时的测试，覆盖子进程生命周期、导航协议和窗口边界。
 //! 临时控制器验证启动失败、关闭及离开浏览器表面时不会发送错误命令。
 use std::io;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use super::{
-    BrowserProcess, WebviewBounds, WorkBrowserController, WorkBrowserEvent, WorkBrowserLayout,
-    WorkBrowserSurface, parse_webview_event, work_browser_bounds, work_browser_surface_visible,
+    BrowserProcess, WEBVIEW_HELPER_NAME, WebviewBounds, WorkBrowserController, WorkBrowserEvent,
+    WorkBrowserLayout, WorkBrowserSurface, parse_webview_event, webview_helper_candidates_from,
+    work_browser_bounds, work_browser_surface_visible,
 };
 
 #[derive(Default)]
@@ -221,4 +223,22 @@ fn work_browser_controller_reports_launch_failure_without_child() {
 
     assert!(error.contains("vw-webview"));
     assert!(!controller.has_running_child());
+}
+
+#[test]
+fn webview_helper_candidates_find_cargo_builds_from_relax_runner() {
+    let workspace = Path::new("/workspace");
+    let runner = workspace.join("target/rust-slot-19/relax/exe/run-id/run/shi-ju");
+
+    assert_eq!(
+        webview_helper_candidates_from(Some(&runner)),
+        [
+            runner.with_file_name(WEBVIEW_HELPER_NAME),
+            workspace.join("target-dir/debug").join(WEBVIEW_HELPER_NAME),
+            workspace.join("target-dir/release").join(WEBVIEW_HELPER_NAME),
+            workspace.join("target/release").join(WEBVIEW_HELPER_NAME),
+            workspace.join("target/debug").join(WEBVIEW_HELPER_NAME),
+            PathBuf::from(WEBVIEW_HELPER_NAME),
+        ],
+    );
 }

@@ -33,7 +33,7 @@ pub(crate) const ACP_ORDER: &[&str] = &[
 ];
 
 pub(crate) const EMPLOYEE_ACP_HINT: &str =
-    "网关内置，无需安装。启用后，请从数字员工页面选择员工发起会话。";
+    "网关内置，无需安装。发起会话时请选择私有或共享员工。会话使用智能体原生模型。";
 
 pub fn acp_title(agent: &str) -> &'static str {
     built_in_agent_display_name(agent).unwrap_or("自定义 ACP")

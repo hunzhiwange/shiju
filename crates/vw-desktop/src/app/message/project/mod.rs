@@ -19,6 +19,8 @@ pub(crate) use helpers::{
 pub(crate) use session::{
     cache_external_session, open_existing_checkout, open_project_session, open_session_draft,
 };
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use session::open_employee_session_draft;
 
 pub use desktop_workspace::project_message::message::{
     FileTreeAction, LoadedProjectInfo, PreparedSessionOpenSource,

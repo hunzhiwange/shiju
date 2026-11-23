@@ -65,7 +65,11 @@ pub fn employee_agent_stream(
     credential: gateway_shiju_account::ShijuCredential,
     target: Option<crate::session::agent::EmployeeTarget>,
 ) -> AgentBoxStream<StreamMessage> {
-    gateway_agent_stream(req.clone(), config, endpoint, Some((credential, target)))
+    let mut request = req.clone();
+    request.model = None;
+    request.reasoning_effort = None;
+    request.acp_model_source = vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal;
+    gateway_agent_stream(request, config, endpoint, Some((credential, target)))
 }
 
 #[cfg(not(target_arch = "wasm32"))]

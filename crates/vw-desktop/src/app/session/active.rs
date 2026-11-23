@@ -38,14 +38,27 @@ impl App {
 
     /// 移走离开会话的稳定聊天工作集；容量拒绝时保留原始消息缓存作冷恢复后备。
     pub(crate) fn stash_active_session_view(&mut self) {
+        let files = std::mem::take(&mut self.session_state.files);
         let Some(session_id) = self.session_state.active_session_id.clone() else {
+            let runtime = self.current_session_runtime_mut();
+            if !files.is_empty() || !runtime.input_editor.text().is_empty() {
+                runtime
+                    .parked_input_files
+                    .get_or_insert_with(Vec::new)
+                    .extend(files);
+            }
             return;
         };
 
+        self.get_session_runtime_mut(&session_id).parked_input_files = Some(files);
         self.close_session_transient_ui();
         let has_cold_chat_fallback = self.session_state.session_chat_cache.contains_key(&session_id);
+        let needs_local_history = self.current_session_runtime_ref().is_some_and(|runtime| {
+            runtime.request_lifecycle.is_requesting
+                || (runtime.is_employee_chat() && runtime.draft.is_some())
+        });
         if cache::needs_cold_fallback(
-            self.get_session_runtime(&session_id).request_lifecycle.is_requesting,
+            needs_local_history,
             has_cold_chat_fallback,
         ) {
             self.store_session_chat_snapshot(

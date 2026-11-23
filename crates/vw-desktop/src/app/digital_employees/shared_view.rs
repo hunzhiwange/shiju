@@ -436,11 +436,11 @@ fn publish(employee: &SharedEmployee) -> (&'static str, Tone) {
     }
 }
 
-fn kind_title(employee: &SharedEmployee) -> &'static str {
+pub(super) fn kind_title(employee: &SharedEmployee) -> &'static str {
     if employee.manager() { "任务主管" } else { "执行员工" }
 }
 
-fn runtime_status(employee: &SharedEmployee, show_publish: bool) -> Item<'_> {
+pub(super) fn runtime_badge(employee: &SharedEmployee) -> (&str, Tone) {
     let name = employee.runtime_status.as_deref();
     let (fallback, tone) = match name {
         Some("on_duty") => ("在岗", Tone::Green),
@@ -468,6 +468,11 @@ fn runtime_status(employee: &SharedEmployee, show_publish: bool) -> Item<'_> {
             .filter(|value| !value.trim().is_empty())
             .unwrap_or(fallback)
     };
+    (title, tone)
+}
+
+fn runtime_status(employee: &SharedEmployee, show_publish: bool) -> Item<'_> {
+    let (title, tone) = runtime_badge(employee);
     let mut statuses = row![status_label(title, tone)].spacing(10).align_y(Alignment::Center);
     if employee.occupancy.as_ref().is_some_and(|occupancy| occupancy.busy) {
         statuses = statuses.push(status_label("占用中", Tone::Warning));

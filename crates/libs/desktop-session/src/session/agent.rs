@@ -58,6 +58,9 @@ pub struct SessionRuntimeState<RenderState> {
     pub request_lifecycle: crate::message::chat::request::RequestLifecycle,
     pub draft: Option<SessionDraft>,
     pub employee_target: Option<EmployeeTarget>,
+    /// Product display name, independent of the immutable employee identifier.
+    pub employee_display_name: Option<String>,
+    pub employee_portrait: Option<iced::widget::image::Handle>,
     /// Gateway authority: None is a regular session; false is an unstarted fork.
     pub fork_execution_started: Option<bool>,
     /// Lock a submitted fork until a fresh gateway read, including cancellation/errors.
@@ -84,6 +87,8 @@ pub struct SessionRuntimeState<RenderState> {
     pub stream_render_state: RenderState,
     /// 输入编辑器内容
     pub input_editor: text_editor::Content,
+    /// Attachments parked while another session owns the composer.
+    pub parked_input_files: Option<Vec<String>>,
     /// 当前选择的模型标识符
     pub model: String,
     /// 是否自动选择模型
@@ -158,6 +163,8 @@ impl<RenderState: Default> SessionRuntimeState<RenderState> {
             request_lifecycle: Default::default(),
             draft: None,
             employee_target: None,
+            employee_display_name: None,
+            employee_portrait: None,
             fork_execution_started: None,
             fork_request_submitted: false,
             fork_agent_selected: false,
@@ -173,6 +180,7 @@ impl<RenderState: Default> SessionRuntimeState<RenderState> {
             stream_tail_state: StreamTailState::default(),
             stream_render_state: RenderState::default(),
             input_editor: text_editor::Content::new(),
+            parked_input_files: None,
             model,
             auto_model,
             restore_model_from_history: false,
@@ -250,11 +258,20 @@ impl<R> SessionRuntimeState<R> {
     pub fn clear_employee_chat(&mut self) {
         if self.is_employee_chat() {
             self.employee_target = None;
+            self.employee_display_name = None;
+            self.employee_portrait = None;
             self.agent = None;
             self.agent_label = None;
             self.acp_agent = None;
             self.acp_model_source = Default::default();
         }
+    }
+
+    pub fn employee_chat_label(&self) -> Option<String> {
+        self.is_employee_chat().then(|| {
+            self.employee_display_name.as_deref()
+                .map_or_else(|| "数字员工".to_owned(), |name| format!("数字员工 · {name}"))
+        })
     }
 
     pub fn open_draft(&mut self, project_path: String, directory: String) {

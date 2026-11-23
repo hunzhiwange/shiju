@@ -125,7 +125,14 @@ pub fn selected_context_card<'a, Message: Clone + 'a>(
             .into()
 }
 
-pub fn session_tool_tab_toggle<'a, Message: Clone + 'a>(tab: SessionToolSelectorTab, highlight: bool, agent_label: String, acp_agent: Option<&str>, on_press: Message) -> Element<'a, Message> {
+pub fn session_tool_tab_toggle<'a, Message: Clone + 'a>(
+    tab: SessionToolSelectorTab,
+    highlight: bool,
+    agent_label: String,
+    acp_agent: Option<&str>,
+    portrait: Option<iced::widget::image::Handle>,
+    on_press: Message,
+) -> Element<'a, Message> {
     let icon: Element<'_, Message> =
         icon_svg(session_tool_tab_icon(tab), styles::BOTTOM_BAR_ICON_SIZE)
             .style(move |theme: &Theme, _| iced::widget::svg::Style {
@@ -134,7 +141,11 @@ pub fn session_tool_tab_toggle<'a, Message: Clone + 'a>(tab: SessionToolSelector
             .into();
     if tab == SessionToolSelectorTab::Agent {
         let label = agent_label;
-        let icon = acp_agent.map(|backend| icons::acp_agent_icon(backend, styles::BOTTOM_BAR_ICON_SIZE)).unwrap_or(icon);
+        let icon = if let Some(portrait) = portrait {
+            iced::widget::image(portrait).width(18).height(18).into()
+        } else {
+            acp_agent.map(|backend| icons::acp_agent_icon(backend, styles::BOTTOM_BAR_ICON_SIZE)).unwrap_or(icon)
+        };
         button(
             row![icon, text(label).size(styles::BOTTOM_BAR_LABEL_SIZE)]
                 .spacing(6)

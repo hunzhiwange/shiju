@@ -11,18 +11,22 @@ pub(in crate::app::views::project) fn status_for_session(app: &App, id: &str) ->
  runtime.is_some_and(|r| r.has_unseen_success),
  )
 }
-/// Build sidebar-only rows for local drafts whose first request is in flight.
+/// Build sidebar-only rows for running drafts and unpublished employee sessions.
 pub(in crate::app::views::project) fn running_draft_sessions(
     app: &App,
 ) -> impl Iterator<Item = (&str, Info)> {
     app.session_state.session_runtime_states.iter().filter_map(move |(id, runtime)| {
         let draft = runtime.draft.as_ref()?;
-        if !runtime.request_lifecycle.is_requesting {
+        if id == crate::app::session::EMPTY_SESSION_ID
+            || !(runtime.request_lifecycle.is_requesting || runtime.is_employee_chat())
+        {
             return None;
         }
         let info = domain::running_draft_session(
             id, &draft.directory,
-            runtime.request_lifecycle.active_agent_request.as_ref().map(|request| request.query.as_str()),
+            runtime.request_lifecycle.active_agent_request.as_ref()
+                .map(|request| request.query.as_str())
+                .or(runtime.agent_label.as_deref()),
             runtime.request_lifecycle.request_started_ms, app.general_settings.desktop_locale,
         );
         Some((draft.project_path.as_str(), info))
@@ -35,11 +39,13 @@ pub(in crate::app::views::project) fn row_input(app: &App, id: &str, title: &str
     let metadata = app.session_ui_projection.hover_details.get(id);
     let workspace_kind = metadata.and_then(|details| details.primary_workspace);
     let binding = metadata.and_then(|details| details.agent.as_ref());
-    let request = app.session_state.session_runtime_states
-        .get(id)
+    let runtime = app.session_state.session_runtime_states.get(id);
+    let request = runtime
         .filter(|runtime| runtime.request_lifecycle.is_requesting)
         .and_then(|runtime| runtime.request_lifecycle.active_agent_request.as_deref());
-    let agent = if let Some(request) = request {
+    let agent = if let Some(label) = runtime.and_then(|runtime| runtime.employee_chat_label()) {
+        label
+    } else if let Some(request) = request {
         domain::agent_description(
             i18n,
             request.agent.as_deref(),

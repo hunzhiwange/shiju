@@ -585,6 +585,10 @@ fn check_agent_installation(app: &App, backend: String, query: Option<String>) -
 }
 
 fn send_current_session_input(app: &mut App) -> Task<Message> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if crate::app::digital_employees::chat_picker::is_open(app) {
+        return app.show_warning_toast("请先选择要对话的数字员工");
+    }
     let runtime = app.current_session_runtime();
     if let Some(backend) = runtime.acp_agent.clone().filter(|_| !runtime.is_employee_chat()) {
         return check_agent_installation(app, backend, Some(runtime.input_editor.text()));
@@ -911,8 +915,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::SessionAgentSelected(agent) => {
             app.session_state.input_popovers.recommended_prompt = false;
-            if app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_employee_chat()) {
-                return app.show_warning_toast("数字员工会话使用选定的员工");
+            #[cfg(not(target_arch = "wasm32"))]
+            if crate::app::digital_employees::chat_picker::employee_locked(app) {
+                return app.show_warning_toast("会话开始后不能更换数字员工");
             }
             if app.current_session_has_started() {
                 return app.show_localized_toast(
@@ -935,6 +940,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     vec![],
                 );
             };
+            #[cfg(not(target_arch = "wasm32"))]
+            if key == desktop_session::session::agent::EMPLOYEE_CHAT_PROFILE {
+                return crate::app::digital_employees::chat_picker::open(app);
+            }
             let full_access = match &entry.runtime {
                 config_agent_profile::AgentRuntime::Native => {
                     app.session_state.last_llm_full_access.unwrap_or(entry.defaults.full_access)
@@ -953,6 +962,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 _ => None,
             };
             let runtime = app.current_session_runtime_mut();
+            runtime.clear_employee_chat();
             desktop_session::message::chat::preferences::select_agent(
                 runtime,
                 normalized_agent,
@@ -1463,7 +1473,18 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message> {
     use desktop_session::message::chat::lifecycle::{StartGate, gate_start};
+    #[cfg(not(target_arch = "wasm32"))]
+    if crate::app::digital_employees::chat_picker::is_open(app) {
+        return app.show_warning_toast("请先选择要对话的数字员工");
+    }
     let employee_chat = app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_employee_chat());
+    #[cfg(not(target_arch = "wasm32"))]
+    if employee_chat && app.current_session_runtime_ref().is_some_and(|runtime| {
+        runtime.employee_target.is_none()
+            && (app.session_state.active_session_id.is_none() || runtime.draft.is_some())
+    }) {
+        return app.show_warning_toast("请先选择要对话的数字员工");
+    }
     #[cfg(not(target_arch = "wasm32"))]
     if employee_chat && crate::app::digital_employees::chat::credential(app, &crate::app::config::gateway_client_endpoint()).is_none() {
         return app.show_error_toast("当前识矩账号无法访问该数字员工会话");

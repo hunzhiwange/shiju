@@ -79,6 +79,9 @@ async fn check_entry(kind: &str) {
     let project_path = home.path().to_string_lossy().into_owned();
     app.navigation_tabs.project_path = Some(project_path.clone());
     app.workspace_state.project_id = Some("fixture-project".into());
+    app.current_session_runtime_mut().input_editor =
+        iced::widget::text_editor::Content::with_text("普通会话未发送");
+    app.session_state.files = vec!["/tmp/ordinary-draft.txt".into()];
 
     let event = if kind == "private" {
         app.digital_employees.page = Page::Assistants;
@@ -113,6 +116,13 @@ async fn check_entry(kind: &str) {
     let response = output(app.update(Message::DigitalEmployees(event))).await;
     let _ = app.update(response);
     assert_eq!(app.current_session_runtime().agent_label.as_deref(), Some("测试员工"));
+    assert_eq!(app.current_session_runtime().employee_chat_label().as_deref(), Some("数字员工 · 测试员工"));
+    assert!(app.current_session_runtime().employee_portrait.is_some());
+    assert!(app.session_state.files.is_empty());
+    assert!(app.current_session_runtime().input_editor.text().trim().is_empty());
+    let blank = app.get_session_runtime(crate::app::session::EMPTY_SESSION_ID);
+    assert_eq!(blank.input_editor.text().trim(), "普通会话未发送");
+    assert_eq!(blank.parked_input_files.unwrap(), ["/tmp/ordinary-draft.txt"]);
 
     app.chat_view.active_session_view_state.base_ready = true;
     app.workspace_state.project_id = Some("fixture-project".into());
@@ -121,8 +131,22 @@ async fn check_entry(kind: &str) {
     let _ = app.update(Message::Chat(ChatMessage::SendPressed));
     let runtime = app.current_session_runtime();
     let request = runtime.request_lifecycle.active_agent_request.expect("employee chat request");
+    let selection = chat::Selection {
+        target: runtime.employee_target.clone().expect("employee target"),
+        name: "测试员工".into(),
+        portrait: runtime.employee_portrait.clone(),
+    };
+    let _ = super::open_draft(&mut app, selection);
+    let second_session = app.session_state.active_session_id.clone().expect("second employee draft");
+    assert_ne!(second_session, request.session);
+    assert!(app.get_session_runtime(&request.session).request_lifecycle.is_requesting);
+    let _ = app.update(Message::Project(ProjectMessage::OpenProjectSessionPressed(
+        project_path.clone(),
+        request.session.clone(),
+    )));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some(request.session.as_str()));
     let endpoint = crate::app::config::gateway_client_endpoint();
-    let credential = chat::credential(&app, &endpoint).expect("matched account");
+    let credential = chat::credential(&app, &endpoint).expect("verified SHIJU account on a default local gateway");
     let mut stream = desktop_session::agent_stream::employee_agent_stream(
         &request,
         crate::app::config::config_access(),
@@ -194,6 +218,9 @@ async fn check_entry(kind: &str) {
         project_path.clone(),
         project_path.clone(),
     );
+    assert_eq!(app.current_session_runtime().input_editor.text().trim(), "普通会话未发送");
+    assert_eq!(app.session_state.files, ["/tmp/ordinary-draft.txt"]);
+    app.session_state.files.clear();
     app.session_state.session_runtime_states.remove(&request.session);
     app.session_state.session_chat_cache.remove(&request.session);
     app.session_state.session_chat_message_id_cache.remove(&request.session);
@@ -232,6 +259,17 @@ async fn check_entry(kind: &str) {
     assert_eq!(app.chat_view.chat_message_ids, ids);
     assert!(app.current_session_runtime().is_employee_chat());
     assert!(app.current_session_runtime().employee_target.is_none());
+    assert_eq!(app.current_session_runtime().employee_chat_label().as_deref(), Some("数字员工"));
+    let label_request = app.digital_employees.history_label_request.clone().expect("history name lookup");
+    let _ = app.update(Message::DigitalEmployees(Event::HistoryLabelLoaded(
+        label_request,
+        Some(chat::EmployeeAppearance {
+            name: "测试员工".into(),
+            portrait: super::super::portraits::avatar("测试员工", false),
+        }),
+    )));
+    assert_eq!(app.current_session_runtime().employee_chat_label().as_deref(), Some("数字员工 · 测试员工"));
+    assert!(app.current_session_runtime().employee_portrait.is_some());
     app.current_session_runtime_mut().input_editor =
         iced::widget::text_editor::Content::with_text("你好");
     let _ = app.update(Message::Chat(ChatMessage::SendPressed));
@@ -278,6 +316,70 @@ async fn employee_acp_desktop_private_chat_request_and_stop() {
 #[tokio::test]
 async fn employee_acp_desktop_shared_chat_request_and_stop() {
     check_entry("shared").await;
+}
+
+#[tokio::test]
+async fn employee_acp_picker_replaces_only_an_unsent_employee() {
+    use super::super::chat_picker;
+
+    let (_lock, _home, _guard) = crate::app::config::desktop_test_gateway::temp_home();
+    let server = TestServer::start_matching(
+        2,
+        |request| request.path == "/v1/shiju/account/me",
+        |_| (200, ACCOUNT),
+    );
+    let mut app = signed_in_app(server.port);
+    app.navigation_tabs.screen = Screen::Project;
+    let mut entry = crate::app::state::DelegateAgentSettingsEntry::from_config(EMPLOYEE_CHAT_PROFILE, None);
+    entry.enabled = true;
+    app.agents_settings.entries.push(entry);
+    app.digital_employees.assistants.data = Some(Arc::new(assistants::Snapshot {
+        mine: vec![serde_json::from_value(json!({
+            "employee_id":"private-1","name":"私有员工","department_path":"",
+            "owner_user_id":"103","created_by":"103","owned_by_caller":true,
+            "publish_status":"PUBLISHED","status":"ACTIVE","runtime_status":"on_duty",
+            "capability_summary":{"skill_count":0,"mcp_count":0},"usage_count":0,
+        })).unwrap()],
+        governance: Ok(None),
+        members: Default::default(),
+    }));
+    app.digital_employees.shared.directory = Some(Arc::new(shared_api::Directory {
+        employees: vec![serde_json::from_value(json!({
+            "employee_id":"shared-1","name":"共享员工","visibility":"org","status":"ACTIVE",
+            "publish_status":"PUBLISHED","active_version_id":"version-1",
+        })).unwrap()],
+        access: Default::default(),
+        templates: None,
+        counts: None,
+    }));
+    app.current_session_runtime_mut().input_editor =
+        iced::widget::text_editor::Content::with_text("保留草稿");
+
+    let open = || Message::Chat(ChatMessage::SessionAgentSelected(Some(EMPLOYEE_CHAT_PROFILE.into())));
+    let picker_event = |event| Message::DigitalEmployees(Event::ChatPicker(event));
+    let private = EmployeeTarget { employee_id: "private-1".into(), kind: EmployeeKind::Private };
+    let shared = EmployeeTarget { employee_id: "shared-1".into(), kind: EmployeeKind::Shared };
+    let _ = app.update(open());
+    assert!(chat_picker::is_open(&app));
+    let _ = app.update(Message::Chat(ChatMessage::SendPressed));
+    assert!(app.session_state.active_session_id.is_none());
+    let checked = output(app.update(picker_event(chat_picker::Event::Select(private.clone())))).await;
+    let _ = app.update(checked);
+    assert_eq!(app.current_session_runtime().employee_target, Some(private.clone()));
+
+    let _ = app.update(open());
+    let _ = app.update(picker_event(chat_picker::Event::Scope(EmployeeKind::Shared)));
+    let checked = output(app.update(picker_event(chat_picker::Event::Select(shared.clone())))).await;
+    let _ = app.update(checked);
+    let runtime = app.current_session_runtime();
+    assert_eq!(runtime.employee_target, Some(shared.clone()));
+    assert_eq!(runtime.input_editor.text(), "保留草稿");
+    assert_eq!(runtime.acp_model_source, vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal);
+    app.current_session_runtime_mut().request_lifecycle.request_started_ms = 1;
+    let _ = app.update(open());
+    let _ = app.update(picker_event(chat_picker::Event::Select(private)));
+    assert!(!chat_picker::is_open(&app));
+    assert_eq!(app.current_session_runtime().employee_target, Some(shared));
 }
 
 #[tokio::test]

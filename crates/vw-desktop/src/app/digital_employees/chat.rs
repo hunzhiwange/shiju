@@ -6,20 +6,132 @@ use gateway_shiju_account::{
     GatewayShijuAccountClient, SHIJU_CREDENTIAL_HEADER, ShijuAccountMeDto, ShijuCredential,
 };
 use iced::Task;
+use iced::widget::image::Handle;
 
 #[derive(Clone)]
 pub(crate) struct Selection {
     pub target: EmployeeTarget,
     pub name: String,
+    pub(super) portrait: Option<Handle>,
+}
+
+#[derive(Clone)]
+pub(crate) enum ChatIntent {
+    Open(Selection),
+    Bind(Selection),
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct HistoryLabelRequest {
+    session_id: String,
+    employee_id: String,
+    navigation_generation: u64,
+}
+
+#[derive(Clone)]
+pub(crate) struct EmployeeAppearance {
+    pub(super) name: String,
+    pub(super) portrait: Option<Handle>,
+}
+
+pub(crate) fn refresh_history_label(app: &mut App, session_id: &str) -> Task<Message> {
+    let Some(runtime) = app.session_state.session_runtime_states.get(session_id) else {
+        return Task::none();
+    };
+    if !runtime.is_employee_chat() || runtime.employee_display_name.is_some() {
+        return Task::none();
+    }
+    let Some(employee_id) = runtime.agent_label.as_deref()
+        .and_then(|label| label.strip_prefix("数字员工 · "))
+        .filter(|id| (1..=128).contains(&id.len()) && id.bytes().all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')
+        }))
+    else {
+        return Task::none();
+    };
+    let request = HistoryLabelRequest {
+        session_id: session_id.to_owned(),
+        employee_id: employee_id.to_owned(),
+        navigation_generation: app.session_state.session_view_cache.navigation_generation,
+    };
+    if app.digital_employees.history_label_request.as_ref() == Some(&request) {
+        return Task::none();
+    }
+    let Some(credential) = credential(app, &crate::app::config::gateway_client_endpoint()) else {
+        return Task::none();
+    };
+    app.digital_employees.history_label_request = Some(request.clone());
+    let employee_id = request.employee_id.clone();
+    Task::perform(
+        async move {
+            #[derive(serde::Deserialize)]
+            struct EmployeeDetail {
+                employee: EmployeeName,
+            }
+            #[derive(serde::Deserialize)]
+            struct EmployeeName {
+                employee_id: String,
+                name: String,
+                visibility: Option<String>,
+                agent_kind: Option<String>,
+                role_title: Option<String>,
+            }
+            let client = super::api::Client::new(credential.expose()).ok()?;
+            let detail: EmployeeDetail = client.get_path(&["employees", &employee_id], &[]).await.ok()?;
+            let name = detail.employee.name.trim();
+            (detail.employee.employee_id == employee_id && !name.is_empty()).then(|| {
+                let portrait = if detail.employee.visibility.as_deref() == Some("org") {
+                    super::portraits::shared_avatar(
+                        name,
+                        detail.employee.agent_kind.as_deref() != Some("worker"),
+                        detail.employee.role_title.as_deref().map(str::trim).unwrap_or_default(),
+                    )
+                } else {
+                    super::portraits::avatar(name, false)
+                };
+                EmployeeAppearance { name: name.to_owned(), portrait }
+            })
+        },
+        move |name| Message::DigitalEmployees(Event::HistoryLabelLoaded(request, name)),
+    )
+}
+
+pub(super) fn apply_history_label(
+    app: &mut App,
+    request: HistoryLabelRequest,
+    appearance: Option<EmployeeAppearance>,
+) {
+    if app.digital_employees.history_label_request.as_ref() != Some(&request)
+        || app.session_state.session_view_cache.navigation_generation != request.navigation_generation
+        || app.session_state.active_session_id.as_deref() != Some(request.session_id.as_str())
+        || credential(app, &crate::app::config::gateway_client_endpoint()).is_none()
+    {
+        return;
+    }
+    if let Some(appearance) = appearance
+        && let Some(runtime) = app.session_state.session_runtime_states.get_mut(&request.session_id)
+        && runtime.is_employee_chat()
+    {
+        runtime.employee_display_name = Some(appearance.name);
+        runtime.employee_portrait = appearance.portrait;
+    }
 }
 
 impl Selection {
     pub(super) fn private(employee_id: String, name: String) -> Self {
-        Self { target: EmployeeTarget { employee_id, kind: EmployeeKind::Private }, name }
+        let portrait = super::portraits::avatar(&name, false);
+        Self { target: EmployeeTarget { employee_id, kind: EmployeeKind::Private }, name, portrait }
     }
 
-    pub(super) fn shared(employee_id: String, name: String) -> Self {
-        Self { target: EmployeeTarget { employee_id, kind: EmployeeKind::Shared }, name }
+    pub(super) fn shared(employee: &super::shared_api::SharedEmployee) -> Self {
+        let portrait = super::portraits::shared_avatar(
+            &employee.name, employee.manager(), employee.role().unwrap_or_default(),
+        );
+        Self {
+            target: EmployeeTarget { employee_id: employee.employee_id.clone(), kind: EmployeeKind::Shared },
+            name: employee.name.clone(),
+            portrait,
+        }
     }
 }
 
@@ -52,10 +164,10 @@ pub(super) fn select(app: &mut App, page: Page, selection: Option<Selection>) ->
     let Some(selection) = selection else {
         return app.show_error_toast("该数字员工当前不可聊天，请刷新列表");
     };
-    check_scope(app, Some(selection))
+    check_scope(app, Some(ChatIntent::Open(selection)))
 }
 
-pub(crate) fn check_scope(app: &mut App, selection: Option<Selection>) -> Task<Message> {
+pub(crate) fn check_scope(app: &mut App, selection: Option<ChatIntent>) -> Task<Message> {
     let endpoint = crate::app::config::gateway_client_endpoint();
     let Some(account) = app.account.active_account() else {
         return if selection.is_some() {
@@ -120,9 +232,14 @@ pub(super) fn scope_checked(
     app: &mut App,
     request: u64,
     result: Result<Scope, String>,
-    selection: Option<Selection>,
+    selection: Option<ChatIntent>,
 ) -> Task<Message> {
     if request != app.digital_employees.chat_scope_request {
+        return Task::none();
+    }
+    if matches!(selection, Some(ChatIntent::Bind(_)))
+        && !super::chat_picker::finish_verification(app, request)
+    {
         return Task::none();
     }
     match result {
@@ -134,7 +251,17 @@ pub(super) fn scope_checked(
             return if selection.is_some() { app.show_error_toast(error) } else { Task::none() };
         }
     }
-    let Some(selection) = selection else { return Task::none() };
+    let selection = match selection {
+        Some(ChatIntent::Bind(selection)) => {
+            app.digital_employees.chat_picker = None;
+            // A project resolution for a previous first send must not use a new target.
+            app.session_state.agent_stream_id = app.session_state.agent_stream_id.wrapping_add(1);
+            bind_selection(app, selection);
+            return Task::none();
+        }
+        Some(ChatIntent::Open(selection)) => selection,
+        None => return Task::none(),
+    };
     let page = match selection.target.kind {
         EmployeeKind::Private => Page::Assistants,
         EmployeeKind::Shared => Page::Shared,
@@ -148,13 +275,9 @@ pub(super) fn scope_checked(
 }
 
 fn open_draft(app: &mut App, selection: Selection) -> Task<Message> {
-    let blank = app.session_state.session_runtime_states.get(crate::app::session::EMPTY_SESSION_ID);
-    if app.workspace_state.new_session_creating
-        || blank.is_some_and(|runtime| !runtime.input_editor.text().trim().is_empty())
-        || !app.session_state.files.is_empty()
-    {
-        return app.show_warning_toast("请先处理已有的会话草稿或附件");
-    }
+    let Ok(id) = ordered_id::descending(ordered_id::Prefix::Session, None) else {
+        return app.show_error_toast("无法生成数字员工会话 ID，请重试");
+    };
     let path = app
         .navigation_tabs
         .project_path
@@ -173,11 +296,17 @@ fn open_draft(app: &mut App, selection: Selection) -> Task<Message> {
             path.to_string_lossy().into_owned()
         }
     };
-    let project = app.open_project(path.clone());
-    let draft = crate::app::message::project::open_session_draft(app, path.clone(), path);
+    let project = crate::app::message::project::open_employee_session_draft(app, path, id);
+    bind_selection(app, selection);
+    project
+}
+
+fn bind_selection(app: &mut App, selection: Selection) {
     let runtime = app.current_session_runtime_mut();
     runtime.agent = Some(EMPLOYEE_CHAT_PROFILE.into());
-    runtime.agent_label = Some(selection.name);
+    runtime.agent_label = Some(selection.name.clone());
+    runtime.employee_display_name = Some(selection.name);
+    runtime.employee_portrait = selection.portrait;
     runtime.acp_agent = Some("employee-acp".into());
     runtime.employee_target = Some(selection.target);
     runtime.acp_options_state = Default::default();
@@ -188,8 +317,10 @@ fn open_draft(app: &mut App, selection: Selection) -> Task<Message> {
     runtime.task_mode_enabled = false;
     runtime.workflow_mode_enabled = false;
     runtime.goal_mode_enabled = false;
+    app.invalidate_project_chat_preferences_read();
+    app.session_state.acp_agent = Some("employee-acp".into());
+    app.popover_visibility.reasoning_effort = false;
     app.sync_active_session_preferences();
-    Task::batch([project, draft])
 }
 
 pub(crate) fn invalidate_chats(
@@ -197,6 +328,7 @@ pub(crate) fn invalidate_chats(
     outgoing: Option<desktop_account::SecretSkey>,
 ) -> Task<Message> {
     use crate::app::message::chat::stream::stop_agent_stream;
+    app.digital_employees.chat_picker = None;
     let ids: Vec<_> = app
         .session_state
         .session_runtime_states

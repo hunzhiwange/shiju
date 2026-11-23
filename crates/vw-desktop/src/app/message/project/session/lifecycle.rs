@@ -477,6 +477,13 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 }
                 app.get_session_runtime_mut(&target_session_id).restore_open_binding(binding);
             }
+            #[cfg(not(target_arch = "wasm32"))]
+            let employee_label = crate::app::digital_employees::chat::refresh_history_label(
+                app,
+                &target_session_id,
+            );
+            #[cfg(target_arch = "wasm32")]
+            let employee_label = iced::Task::none();
             if let Some(full_access) = prepared.full_access {
                 app.restore_session_full_access(&target_session_id, full_access);
             }
@@ -489,7 +496,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     "preserved prepared session history because remote history was incomplete"
                 );
                 app.chat_view.active_session_view_state.ui_preparing = false;
-                return Some(iced::Task::none());
+                return Some(employee_label);
             }
 
             if content_decision == Some(HistoryDecision::RefreshMetadata) {
@@ -512,13 +519,14 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     &target_session_id,
                 );
                 let queued = crate::app::message::chat::stream::start_next(app, &target_session_id);
-                return Some(iced::Task::batch([trajectory, queued]));
+                return Some(iced::Task::batch([trajectory, queued, employee_label]));
             }
 
             let commit_started_at = Instant::now();
             let message_count = prepared.messages.len();
             apply_prepared_session_open(app, prepared, open_generation);
             let trajectory_refresh_task = iced::Task::batch([
+                employee_label,
                 crate::app::message::chat::refresh_active_trajectory_raw_task(
                     app,
                     &target_session_id,

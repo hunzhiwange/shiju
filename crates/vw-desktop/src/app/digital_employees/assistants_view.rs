@@ -248,20 +248,24 @@ fn filters<'a>(state: &'a List, data: &Snapshot, width: f32) -> Item<'a> {
     column![segmented(scopes.wrap().into()), fields].spacing(10).into()
 }
 
-fn employee_card<'a>(
-    person: &'a Assistant,
-    data: &'a Snapshot,
-    actor: Option<&'a str>,
-    can_open: bool,
-) -> Item<'a> {
-    let (runtime, runtime_tone) = match person.runtime() {
+pub(super) fn runtime_badge(person: &Assistant) -> (&'static str, Tone) {
+    match person.runtime() {
         "on_duty" => ("在岗", Tone::Green),
         "abnormal" => ("异常", Tone::Red),
         "enabling" => ("启用中", Tone::Warning),
         "disabling" => ("停用中", Tone::Warning),
         "none" => ("已停用", Tone::Muted),
         _ => ("—", Tone::Muted),
-    };
+    }
+}
+
+fn employee_card<'a>(
+    person: &'a Assistant,
+    data: &'a Snapshot,
+    actor: Option<&'a str>,
+    can_open: bool,
+) -> Item<'a> {
+    let (runtime, runtime_tone) = runtime_badge(person);
     let (published, publish_tone) = match person.publish_status.as_str() {
         "PUBLISHED" => ("已发布", Tone::Green),
         "PUBLISHING" => ("发布中", Tone::Warning),

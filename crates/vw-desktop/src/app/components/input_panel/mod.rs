@@ -108,11 +108,13 @@ pub(super) fn session_tool_tab_button<'a>(
         tab, popover_open, active_tab, runtime.agent.is_some(), &runtime.tool_selector,
     );
     let key = runtime.agent.as_deref().unwrap_or(crate::app::state::MAIN_AGENT_KEY);
-    let label = desktop_chat_input::input_panel::panel::agent_label(
-        key, runtime.agent_label.as_deref(), app.agents_settings.entries.iter().map(|entry| (entry.key.as_str(), entry.label.as_str())),
-    );
+    let label = runtime.employee_chat_label().unwrap_or_else(|| {
+        desktop_chat_input::input_panel::panel::agent_label(
+            key, runtime.agent_label.as_deref(), app.agents_settings.entries.iter().map(|entry| (entry.key.as_str(), entry.label.as_str())),
+        )
+    });
     let toggle = desktop_chat_input::input_panel::panel::session_tool_tab_toggle(
-        tab, highlight, label, runtime.acp_agent.as_deref(),
+        tab, highlight, label, runtime.acp_agent.as_deref(), runtime.employee_portrait,
         Message::Chat(message::ChatMessage::OpenSessionToolSelectorTab(tab)),
     );
 
@@ -270,6 +272,20 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let (agent_tab_btn, tools_tab_btn, skills_tab_btn) = session_tool_tab_buttons(app);
 
     let acp_btn = app.session_state.active_session_id.as_ref().and_then(|_| acp_options::entry(app, runtime));
+    #[cfg(not(target_arch = "wasm32"))]
+    let acp_btn = if runtime.is_some_and(|runtime| runtime.is_employee_chat()) {
+        (!crate::app::digital_employees::chat_picker::employee_locked(app)).then(|| {
+            iced::widget::button(iced::widget::text("更换员工").size(13))
+                .padding([6, 10])
+                .style(super::system_settings_common::rounded_action_btn_style)
+                .on_press(Message::Chat(message::ChatMessage::SessionAgentSelected(Some(
+                    desktop_session::session::agent::EMPLOYEE_CHAT_PROFILE.into(),
+                ))))
+                .into()
+        })
+    } else {
+        acp_btn
+    };
     let reasoning_btn = if selected_acp_agent.is_some() {
         None
     } else {

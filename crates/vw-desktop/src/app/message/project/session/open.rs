@@ -26,18 +26,45 @@ pub(crate) fn open_session_draft(
     app.cache_active_session_chat();
     app.session_state.agent_stream_id = app.session_state.agent_stream_id.wrapping_add(1);
     app.session_state.active_session_id = None;
-    app.chat_view.chat_scroll_id = iced::widget::Id::unique();
-    super::lifecycle::history_state(app).blank_draft();
-    app.session_state.files.clear();
-    app.invalidate_chat_ui_state();
-    app.session_state.input_popovers.recommended_prompt = false;
-    app.session_state.input_popovers.agent_sessions = false;
-    app.session_state.input_editor = iced::widget::text_editor::Content::new();
+    let runtime = app.current_session_runtime_mut();
+    let parked = runtime.parked_input_files.take();
+    let editor = parked.as_ref().map(|_| runtime.input_editor.clone());
+    runtime.open_draft(project_path, directory.clone());
+    if let Some(editor) = editor {
+        runtime.input_editor = editor;
+    }
+    app.session_state.files = parked.unwrap_or_default();
+    reset_draft_view(app);
     app.reset_draft_full_access();
-    app.current_session_runtime_mut().open_draft(project_path, directory.clone());
     app.sync_active_session_preferences();
     app.workspace_state.new_session_last_directory = Some(directory.clone());
     app.save_desktop_preference("new_session_last_directory", serde_json::Value::String(directory))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn open_employee_session_draft(
+    app: &mut App,
+    path: String,
+    id: String,
+) -> iced::Task<Message> {
+    app.stash_active_session_view();
+    let project_task = app.open_project(path.clone());
+    app.session_state.active_session_id = Some(id);
+    app.current_session_runtime_mut().open_draft(path.clone(), path);
+    reset_draft_view(app);
+    project_task
+}
+
+fn reset_draft_view(app: &mut App) {
+    app.chat_view.chat_scroll_id = iced::widget::Id::unique();
+    super::lifecycle::history_state(app).blank_draft();
+    app.session_state.paged_chat_timeline = None;
+    app.invalidate_chat_ui_state();
+    app.session_state.input_popovers.recommended_prompt = false;
+    app.session_state.input_popovers.agent_sessions = false;
+    app.session_state.input_editor = app.current_session_runtime_ref()
+        .map(|runtime| runtime.input_editor.clone())
+        .unwrap_or_default();
 }
 
 pub(crate) fn open_project_session(
@@ -82,6 +109,11 @@ pub(crate) fn open_project_session(
     }
     app.session_state.chat_fork_dialog = None;
     app.session_state.active_session_id = Some(id.clone());
+    app.session_state.files = app
+        .get_session_runtime_mut(&id)
+        .parked_input_files
+        .take()
+        .unwrap_or_default();
     let open_generation = app.session_state.session_view_cache.begin_open(&id);
     app.mark_active_session_viewed();
     if let Some(snapshot) = app.session_state.session_view_cache.take(&id) {
@@ -105,10 +137,15 @@ pub(crate) fn open_project_session(
             iced::widget::scrollable::RelativeOffset { x: Some(0.0), y: Some(scroll_offset_y) },
         )
         .map(|_: ()| Message::CopyDone);
+        #[cfg(not(target_arch = "wasm32"))]
+        let employee_label = crate::app::digital_employees::chat::refresh_history_label(app, &id);
+        #[cfg(target_arch = "wasm32")]
+        let employee_label = iced::Task::none();
         let queued = crate::app::message::chat::stream::start_next(app, &id);
         return iced::Task::batch(vec![
             open_task,
             restore_scroll_task,
+            employee_label,
             queued,
             iced::Task::done(Message::Chat(crate::app::message::ChatMessage::LoadInputPanelTodos)),
         ]);
@@ -122,7 +159,10 @@ pub(crate) fn open_project_session(
     use desktop_session::session::history_commit::ColdHistory;
     let requesting = app.session_is_requesting(&id);
     let cached = app.session_state.session_chat_cache.contains_key(&id);
-    let history_route = super::lifecycle::history_state(app).cold_history(requesting, cached);
+    let local_employee_draft = app.current_session_runtime_ref()
+        .is_some_and(|runtime| runtime.is_employee_chat() && runtime.draft.is_some());
+    let history_route = super::lifecycle::history_state(app)
+        .cold_history(requesting || local_employee_draft, cached || local_employee_draft);
     let has_requesting_cache = history_route != ColdHistory::Remote;
     let requesting_cache_prewarm_task = if history_route == ColdHistory::RequestingMessages {
         let base_chunk_start = app.preferred_base_chat_ui_chunk_start();
@@ -176,7 +216,7 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
     let generation = app.session_state.session_view_cache.navigation_generation;
     let requesting_draft = app.session_state.session_runtime_states
         .get(id.trim())
-        .filter(|runtime| runtime.request_lifecycle.is_requesting)
+        .filter(|runtime| runtime.request_lifecycle.is_requesting || runtime.is_employee_chat())
         .and_then(|runtime| runtime.draft.as_ref())
         .map(|draft| (draft.project_path.as_str(), draft.directory.as_str()));
     let is_active_draft = requesting_draft.is_some_and(|(_, directory)| directory == path)

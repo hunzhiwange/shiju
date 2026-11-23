@@ -7,6 +7,7 @@ mod board;
 mod board_api;
 mod board_view;
 pub(crate) mod chat;
+pub(crate) mod chat_picker;
 mod departments;
 mod portraits;
 mod shared;
@@ -49,6 +50,8 @@ pub(crate) struct State {
     chat_scope_request: u64,
     chat_request_floor: u64,
     chat_scope: Option<chat::Scope>,
+    chat_picker: Option<chat_picker::Picker>,
+    history_label_request: Option<chat::HistoryLabelRequest>,
     page: Page,
     assistants: assistants::List,
     board: board::Board,
@@ -64,7 +67,9 @@ pub(crate) struct State {
 #[derive(Clone)]
 pub(crate) enum Event {
     Open,
-    ChatScopeChecked(u64, Result<chat::Scope, String>, Option<chat::Selection>),
+    ChatScopeChecked(u64, Result<chat::Scope, String>, Option<chat::ChatIntent>),
+    ChatPicker(chat_picker::Event),
+    HistoryLabelLoaded(chat::HistoryLabelRequest, Option<chat::EmployeeAppearance>),
     SelectPage(Page),
     Assistants(assistants::ListEvent),
     Board(board::BoardEvent),
@@ -83,6 +88,8 @@ impl std::fmt::Debug for Event {
         formatter.write_str(match self {
             Self::Open => "Open",
             Self::ChatScopeChecked(..) => "ChatScopeChecked",
+            Self::ChatPicker(_) => "ChatPicker",
+            Self::HistoryLabelLoaded(..) => "HistoryLabelLoaded",
             Self::SelectPage(_) => "SelectPage",
             Self::Assistants(_) => "Assistants",
             Self::Board(_) => "Board",
@@ -103,6 +110,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Event::ChatScopeChecked(request, result, selection) => {
             return chat::scope_checked(app, request, result, selection);
         }
+        Event::ChatPicker(event) => return chat_picker::update(app, event),
+        Event::HistoryLabelLoaded(request, name) => chat::apply_history_label(app, request, name),
         Event::SelectPage(page) => return select_page(app, page),
         Event::Assistants(event) => return assistants::update(app, event),
         Event::Board(event) => return board::update(app, event),

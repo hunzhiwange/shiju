@@ -12,6 +12,8 @@ mod open;
 mod worktree;
 
 pub(crate) use lifecycle::cache_external_session;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use open::open_employee_session_draft;
 pub(crate) use open::{open_existing_checkout, open_project_session, open_session_draft};
 
 #[cfg(test)]

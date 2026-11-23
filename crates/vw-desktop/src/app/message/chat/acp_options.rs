@@ -187,6 +187,9 @@ pub(super) fn select_source(
     let project_path = app.navigation_tabs.project_path.clone();
     let request_id = next_source_request_id();
     let runtime = app.get_session_runtime_mut(&session_id);
+    if runtime.is_employee_chat() {
+        return app.show_warning_toast("识矩数字员工仅使用智能体原生模型");
+    }
     let Some(agent) = runtime.acp_agent.clone() else {
         return Task::none();
     };

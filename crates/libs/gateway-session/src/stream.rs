@@ -1194,6 +1194,7 @@ async fn prepare_gateway_agent_request_with_employee<H: StreamHost>(
         }
         // The product owns model selection for employee chat.
         body.model = None;
+        body.reasoning_effort = None;
     }
     let options = body.options.as_ref();
     validate_agent_selection_options(options)?;
@@ -1233,7 +1234,7 @@ async fn prepare_gateway_agent_request_with_employee<H: StreamHost>(
     if employee {
         body.acp_model_source = vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal;
     }
-    let model = session_model::<H>(body, &binding, session).await?;
+    let model = if employee { None } else { session_model::<H>(body, &binding, session).await? };
     let explicit_full_access = options
         .and_then(|options| options.get("full_access"))
         .map(|value| {
@@ -1280,6 +1281,9 @@ async fn prepare_gateway_agent_request_with_employee<H: StreamHost>(
         model,
     )
     .await?;
+    if employee {
+        overrides.model = None;
+    }
     overrides.acp_backend = acp_backend;
     overrides.employee_target = employee_target;
     Ok(overrides)

@@ -146,6 +146,7 @@ async fn acp_model_source_ui_controls_render_chinese_labels_in_both_themes() {
                             false,
                             app.label.clone(),
                             Some("claude"),
+                            None,
                             Event::Agent,
                         ),
                         model_views::model_toggle_button(

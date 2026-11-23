@@ -140,7 +140,7 @@ pub(super) fn update(app: &mut App, event: ListEvent) -> Task<Message> {
         ListEvent::Chat(id) => {
             let selection = state.directory.as_ref().and_then(|directory| directory.employees.iter()
                 .find(|employee| employee.employee_id == id && employee.can_chat()))
-                .map(|employee| super::chat::Selection::shared(id.clone(), employee.name.clone()));
+                .map(super::chat::Selection::shared);
             return super::chat::select(app, Page::Shared, selection);
         }
         ListEvent::Dispatch(id) => {

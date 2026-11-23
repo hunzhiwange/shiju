@@ -27,8 +27,10 @@ image = "0.25.9"
 serde = { version = "1", features = ["derive"] }
 tempfile = "3"
 
-[target.'cfg(target_os = "macos")'.dependencies]
+[target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSGeometry"] }
 mac-usernotifications = "0.3.1"

@@ -237,7 +237,7 @@ pub fn main() -> iced::Result {
     }
 
     // Helpers bypass the desktop instance gate; every GUI launch acquires it before App::new.
-    #[cfg(target_os = "macos")]
+    #[cfg(any(unix, windows))]
     let _instance = match app::single_instance::acquire_or_forward() {
         Ok(Some(guard)) => guard,
         Ok(None) => return Ok(()),
@@ -264,7 +264,7 @@ pub fn main() -> iced::Result {
     }
 
     #[cfg(target_os = "macos")]
-    app::deep_links::install_url_handler();
+    app::deep_links::install_apple_event_handlers();
 
     let result = iced::daemon(boot_app, app::App::update, app::App::view_window)
         .title(app::App::title_for_window)

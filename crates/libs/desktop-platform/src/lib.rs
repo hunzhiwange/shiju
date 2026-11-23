@@ -3,7 +3,7 @@ pub mod menu_actions;
 pub mod native_menu;
 pub mod desktop_notification;
 pub mod skill_deeplink;
-#[cfg(target_os = "macos")]
+#[cfg(any(unix, windows))]
 pub mod single_instance;
 #[cfg(target_os = "macos")]
 pub mod deep_links;

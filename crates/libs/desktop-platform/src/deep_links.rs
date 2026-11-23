@@ -79,7 +79,7 @@ pub fn take_notification() -> bool {
 
 #[path = "deep_links_macos.rs"]
 mod native;
-pub use native::install_url_handler;
+pub use native::install_apple_event_handlers;
 
 #[cfg(test)]
 #[path = "desktop_integration_38_tests.rs"]

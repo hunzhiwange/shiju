@@ -108,21 +108,25 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::DroppedFilePath(path) => {
-            app.file_tree_interaction.drop_external_file(path);
             if app.file_tree_interaction.input_drop_hovered {
+                app.file_tree_interaction.drop_external_file(path);
                 return crate::app::message::chat::update(
                     app,
                     crate::app::message::ChatMessage::InputAreaDragDrop,
                 );
             }
             if app.knowledge.file_drop_hovered {
+                app.file_tree_interaction.drop_external_file(path);
                 return crate::app::message::knowledge_tool::update(
                     app,
                     crate::app::message::knowledge_tool::KnowledgeToolMessage::ImportDroppedFiles,
                 );
             }
-            app.file_tree_interaction.discard_pending_drop();
-            Task::none()
+            app.file_tree_interaction.clear_drag();
+            crate::app::message::preview::update(
+                app,
+                crate::app::message::PreviewMessage::Open(path),
+            )
         }
         ViewMessage::HoveredFilesLeft => {
             app.file_tree_interaction.leave_external_files();

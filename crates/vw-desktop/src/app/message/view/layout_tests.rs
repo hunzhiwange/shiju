@@ -223,7 +223,7 @@ async fn file_tree_move_drop_chat_release_orders_preserve_existing_delivery() {
 }
 
 #[test]
-fn file_tree_external_drop_hover_left_and_release_never_import_or_leave_chat_paths() {
+fn unclaimed_external_drop_opens_only_the_dropped_file_in_preview() {
     use crate::app::message::ViewMessage as V;
     let mut app = test_app();
     app.navigation_tabs.project_path = Some("/project".into());
@@ -232,10 +232,16 @@ fn file_tree_external_drop_hover_left_and_release_never_import_or_leave_chat_pat
         V::HoveredFilePath("/tmp/hover-only".into()),
         V::HoveredFilesLeft,
         V::GlobalMouseReleased,
-        V::DroppedFilePath("/tmp/actual".into()),
     ] {
         let _ = super::update(&mut app, message);
     }
+    assert!(app.navigation_tabs.preview_tabs.is_empty());
+
+    let path = "/tmp/actual.md";
+    let _ = super::update(&mut app, V::DroppedFilePath(path.into()));
+
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some(path));
+    assert_eq!(app.navigation_tabs.preview_tabs.len(), 1);
     assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
     assert!(app.file_tree_interaction.dragging_file_paths.is_empty());
     assert!(!app.file_tree_interaction.file_tree_operation_in_progress);

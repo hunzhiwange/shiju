@@ -394,6 +394,9 @@ if [ -x /usr/libexec/PlistBuddy ]; then
   APP_INFO_PLIST="$APP_BUNDLE/Contents/Info.plist"
   /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable $DESKTOP_BIN_NAME" \
     "$APP_INFO_PLIST"
+  DOCUMENT_TYPES_PLIST="$(dirname "$0")/../release/macos/DocumentTypes.plist"
+  /usr/libexec/PlistBuddy -c "Merge \"$DOCUMENT_TYPES_PLIST\"" \
+    "$APP_INFO_PLIST"
   # macOS attributes access by the embedded browser helper to the launching app.
   /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription ShiJu lets websites you allow use your camera." "$APP_INFO_PLIST" 2>/dev/null \
     || /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string ShiJu lets websites you allow use your camera." "$APP_INFO_PLIST"

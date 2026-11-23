@@ -142,37 +142,56 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 crate::app::desktop_lifecycle::remove_tray();
             }
         }
-        #[cfg(target_os = "macos")]
+        #[cfg(any(unix, windows))]
         GeneralSettingsMessage::InstanceTick => {
             if app.shutdown_requested {
                 return Task::none();
             }
-            let requests = crate::app::single_instance::poll();
+            use crate::app::single_instance;
+
+            let requests = single_instance::poll();
+            let mut wake = !requests.is_empty();
             let mut unsupported = false;
-            for args in &requests {
-                match crate::app::deep_links::receive_arguments(args) {
+            let mut receive_failed = false;
+            for args in requests {
+                match single_instance::receive_arguments(args) {
                     Ok(other) => unsupported |= other,
-                    Err(_) => return app.show_error_toast("无法暂存启动链接".to_string()),
+                    Err(_) => receive_failed = true,
                 }
             }
-            let links = crate::app::deep_links::take_notification();
-            if requests.is_empty() && !links {
-                return Task::none();
-            }
-            if desktop_platform::provider_link_preview::pending().is_some()
-                || desktop_platform::mcp_link_preview::pending().is_some()
-                || desktop_platform::prompt_link_preview::pending().is_some()
+            #[cfg(target_os = "macos")]
             {
-                app.navigation_panels.show_settings = true;
+                wake |= crate::app::deep_links::take_notification();
+                if wake
+                    && (desktop_platform::provider_link_preview::pending().is_some()
+                        || desktop_platform::mcp_link_preview::pending().is_some()
+                        || desktop_platform::prompt_link_preview::pending().is_some())
+                {
+                    app.navigation_panels.show_settings = true;
+                }
             }
-            let wake = app.reopen_main_window();
-            if unsupported {
-                return Task::batch([
-                    wake,
-                    app.show_error_toast("已唤醒主窗口；当前尚不支持启动参数".to_string()),
-                ]);
+            // A cold launch can receive paths before the editor's gateway is ready.
+            let files = if app.startup_state == crate::app::state::NativeStartupState::Ready {
+                single_instance::take_open_files()
+            } else {
+                Vec::new()
+            };
+            let mut tasks = Vec::new();
+            if wake || !files.is_empty() {
+                tasks.push(app.reopen_main_window());
             }
-            return wake;
+            for path in files {
+                tasks.push(crate::app::message::preview::update(
+                    app,
+                    crate::app::message::PreviewMessage::Open(path),
+                ));
+            }
+            if receive_failed {
+                tasks.push(app.show_error_toast("无法暂存启动请求".to_string()));
+            } else if unsupported {
+                tasks.push(app.show_error_toast("已唤醒主窗口；当前尚不支持启动参数".to_string()));
+            }
+            return Task::batch(tasks);
         }
         GeneralSettingsMessage::TrayProviderSwitch(id) => {
             return crate::app::desktop_lifecycle::tray_switch::start(app, id);

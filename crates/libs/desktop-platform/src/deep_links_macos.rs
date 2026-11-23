@@ -1,4 +1,4 @@
-//! GURL Apple Event bridge, installed before Iced starts pumping AppKit events.
+//! Apple Event bridge, installed before Iced starts pumping AppKit events.
 use std::ffi::{c_char, c_void};
 use std::sync::Once;
 use objc2::{class, msg_send, sel};
@@ -32,16 +32,57 @@ unsafe extern "C" fn receive_url(
     }
 }
 
+unsafe extern "C" fn receive_documents(
+    _this: *mut AnyObject,
+    _selector: Sel,
+    event: *mut AnyObject,
+    _reply: *mut AnyObject,
+) {
+    if event.is_null() {
+        return;
+    }
+    // SAFETY: The open-documents event carries a one-based descriptor list.
+    unsafe {
+        let documents: *mut AnyObject =
+            msg_send![event, paramDescriptorForKeyword: u32::from_be_bytes(*b"----")];
+        if documents.is_null() {
+            return;
+        }
+        let count: isize = msg_send![documents, numberOfItems];
+        let mut paths = Vec::new();
+        for index in 1..=count {
+            let descriptor: *mut AnyObject = msg_send![documents, descriptorAtIndex: index];
+            if descriptor.is_null() {
+                continue;
+            }
+            let url: *mut AnyObject = msg_send![descriptor, fileURLValue];
+            if url.is_null() {
+                continue;
+            }
+            let path: *mut NSString = msg_send![url, path];
+            if let Some(path) = path.as_ref() {
+                paths.push(path.to_string());
+            }
+        }
+        if super::super::single_instance::queue_open_files(paths).is_err() {
+            tracing::error!("failed to retain desktop document event");
+        }
+    }
+}
+
 /// Must be called on the GUI main thread before entering the event loop.
 /// The registered target intentionally lives until process exit.
-pub fn install_url_handler() {
+pub fn install_apple_event_handlers() {
     static INSTALL: Once = Once::new();
     INSTALL.call_once(|| unsafe {
-        assert!(libc::pthread_main_np() != 0, "URL handler requires main thread");
+        let main_thread = objc2::MainThreadMarker::new().expect("Apple Events require the main thread");
+        let _app = objc2_app_kit::NSApplication::sharedApplication(main_thread);
         let class = objc_allocateClassPair(class!(NSObject), c"ShiJuURLReceiver".as_ptr(), 0);
         assert!(!class.is_null(), "could not allocate URL receiver class");
         let selector = sel!(handleGetURL:withReplyEvent:);
         assert!(class_addMethod(class, selector, receive_url as *const () as *const c_void, c"v@:@@".as_ptr()));
+        let open_documents = sel!(handleOpenDocuments:withReplyEvent:);
+        assert!(class_addMethod(class, open_documents, receive_documents as *const () as *const c_void, c"v@:@@".as_ptr()));
         objc_registerClassPair(class);
         let target: *mut AnyObject = msg_send![&*class, new];
         assert!(!target.is_null(), "could not allocate URL receiver");
@@ -51,6 +92,12 @@ pub fn install_url_handler() {
             andSelector: selector,
             forEventClass: 0x4755524cu32,
             andEventID: 0x4755524cu32
+        ];
+        let _: () = msg_send![manager,
+            setEventHandler: target,
+            andSelector: open_documents,
+            forEventClass: u32::from_be_bytes(*b"aevt"),
+            andEventID: u32::from_be_bytes(*b"odoc")
         ];
     });
 }

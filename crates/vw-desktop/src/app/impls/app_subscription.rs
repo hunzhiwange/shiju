@@ -413,7 +413,7 @@ impl App {
                 .map(|_| Message::View(message::ViewMessage::AutoCheckAppUpdate)),
             #[cfg(target_os = "macos")]
             crate::app::native_menu::subscription(),
-            #[cfg(target_os = "macos")]
+            #[cfg(any(unix, windows))]
             iced::time::every(std::time::Duration::from_millis(200)).map(|_| {
                 Message::Settings(message::SettingsMessage::General(
                     message::GeneralSettingsMessage::InstanceTick,

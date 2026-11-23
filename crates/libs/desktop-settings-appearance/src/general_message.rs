@@ -27,7 +27,7 @@ pub enum GeneralSettingsMessage {
     PromptLinkPreview(u64),
     #[cfg(target_os = "macos")]
     PromptLinkRejected(u64),
-    #[cfg(target_os = "macos")]
+    #[cfg(any(unix, windows))]
     InstanceTick,
     TrayTick,
     TrayProviderSwitch(String),

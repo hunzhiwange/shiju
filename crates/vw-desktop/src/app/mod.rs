@@ -11,7 +11,7 @@ pub mod components;
 /// config 子模块，拆分当前领域的局部职责。
 pub mod config;
 pub(crate) mod desktop_lifecycle;
-#[cfg(target_os = "macos")]
+#[cfg(any(unix, windows))]
 pub mod single_instance;
 #[cfg(target_os = "macos")]
 pub mod deep_links;

@@ -330,6 +330,12 @@ Tag releases sign and notarize macOS ZIP and DMG artifacts in
 `.github/workflows/release.yml`. Pull request builds use ad-hoc signing and
 never receive release credentials.
 
+For both Intel and Apple Silicon tag builds, the build job uploads the inputs
+for its matching `package-macos (<target>)` job. If signing, notarization, or
+DMG creation fails, open the failed packaging job in that run and select
+**Re-run this job**. GitHub reuses the build inputs while they are retained and
+continues the dependent release jobs after packaging succeeds.
+
 Configure these GitHub Actions repository secrets:
 
 - `MACOS_CERTIFICATE_P12_BASE64`: base64-encoded Developer ID Application

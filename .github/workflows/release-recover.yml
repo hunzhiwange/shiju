@@ -52,10 +52,10 @@ jobs:
           assert tag['type'] == 'commit' and run['head_sha'] == tag['sha'], 'Source commit mismatch'
           print(f"Verified {os.environ['RELEASE_TAG']} at {tag['sha']}")
           PY
-          gh api --paginate "repos/$GH_REPO/actions/runs/$SOURCE_RUN/jobs?per_page=100" --jq '.jobs[] | select(.name == "build-global-artifacts" or (.name | startswith("build-local-artifacts (")) or (.name | startswith("build-web-artifacts"))) | .conclusion' > "$RUNNER_TEMP/build-results.txt"
+          gh api --paginate "repos/$GH_REPO/actions/runs/$SOURCE_RUN/jobs?per_page=100" --jq '.jobs[] | select(.name == "build-global-artifacts" or (.name | startswith("build-local-artifacts (")) or (.name | startswith("build-web-artifacts")) or (.name | startswith("package-macos ("))) | .conclusion' > "$RUNNER_TEMP/build-results.txt"
           test "$(wc -l < "$RUNNER_TEMP/build-results.txt")" -gt 0
           if grep -vx 'success' "$RUNNER_TEMP/build-results.txt"; then
-            echo 'Source builds did not all succeed' >&2
+            echo 'Source builds and macOS packaging did not all succeed' >&2
             exit 1
           fi
       - name: Download existing artifacts

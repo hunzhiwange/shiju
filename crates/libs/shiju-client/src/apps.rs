@@ -95,6 +95,17 @@ impl ShijuAppClient {
         runtime_base_url: &str,
     ) -> Result<Self, ShijuAppError> {
         let http = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::custom(|attempt| {
+                // 自定义鉴权头可能在重定向时被保留，只允许原站点接收密钥。
+                if attempt
+                    .previous()
+                    .first()
+                    .is_some_and(|initial| initial.origin() != attempt.url().origin())
+                {
+                    return attempt.stop();
+                }
+                reqwest::redirect::Policy::default().redirect(attempt)
+            }))
             .timeout(Duration::from_secs(15))
             .build()
             .map_err(|_| ShijuAppError::upstream("failed to create SHIJU application client"))?;
@@ -405,7 +416,7 @@ impl ShijuAppClient {
         let response = self
             .http
             .post(self.browser_session_endpoint.clone())
-            .bearer_auth(credential)
+            .header(API_KEY_HEADER, credential_header(credential)?)
             .send()
             .await
             .map_err(|_| ShijuAppError::upstream("SHIJU browser session request failed"))?;
@@ -548,8 +559,10 @@ fn credential_header(credential: &str) -> Result<HeaderValue, ShijuAppError> {
     if credential.trim().is_empty() || credential.trim() != credential {
         return Err(ShijuAppError::invalid_input("SHIJU application credential is invalid"));
     }
-    HeaderValue::from_str(credential)
-        .map_err(|_| ShijuAppError::invalid_input("SHIJU application credential is invalid"))
+    let mut header = HeaderValue::from_str(credential)
+        .map_err(|_| ShijuAppError::invalid_input("SHIJU application credential is invalid"))?;
+    header.set_sensitive(true);
+    Ok(header)
 }
 
 fn is_valid_runtime_set_cookie(value: &str) -> bool {

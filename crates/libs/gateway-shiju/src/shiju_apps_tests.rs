@@ -281,9 +281,12 @@ async fn shiju_app_routes_map_catalog_apps_and_launch() {
     assert!(requests[4].starts_with("POST /api/runtime/browser-session "));
     assert!(requests[4].lines().any(|line| {
         line.split_once(": ").is_some_and(|(name, value)| {
-            name.eq_ignore_ascii_case("authorization") && value == format!("Bearer {CREDENTIAL}")
+            name.eq_ignore_ascii_case("x-api-key") && value == CREDENTIAL
         })
     }));
+    assert!(
+        !requests[4].lines().any(|line| line.to_ascii_lowercase().starts_with("authorization:"))
+    );
     for request in requests {
         assert!(!request.lines().next().unwrap_or_default().contains(CREDENTIAL));
     }

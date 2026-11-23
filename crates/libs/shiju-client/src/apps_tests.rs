@@ -156,6 +156,7 @@ fn assert_api_key(request: &str) {
         .expect("X-Api-Key header");
     assert!(api_key == CREDENTIAL, "X-Api-Key credential must match exactly");
     assert!(!request.lines().any(|line| line.to_ascii_lowercase().starts_with("cookie:")));
+    assert!(!request.lines().any(|line| line.to_ascii_lowercase().starts_with("authorization:")));
 }
 
 #[test]
@@ -236,13 +237,8 @@ async fn shiju_apps_adapter_maps_catalog_and_installed_lists() {
         "GET /app-platform/api/tenant/installations/{INSTALLATION_ID}/api-key-binding HTTP/1.1\r\n"
     )));
     assert!(requests[5].starts_with("POST /api/runtime/browser-session HTTP/1.1\r\n"));
-    assert!(requests[5].lines().any(|line| {
-        line.split_once(": ").is_some_and(|(name, value)| {
-            name.eq_ignore_ascii_case("authorization") && value == format!("Bearer {CREDENTIAL}")
-        })
-    }));
-    for request in &requests[..5] {
-        assert_api_key(request);
+    for request in requests {
+        assert_api_key(&request);
         assert!(!request.lines().next().unwrap().contains(CREDENTIAL));
     }
 }

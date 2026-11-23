@@ -18,6 +18,21 @@ impl RecordPublicationContext {
             target_host_id: self.host.clone(),
             app_id: self.app,
         };
+        if self.app == AppId::Claude
+            && !self.expected.stack.enabled
+            && self.expected.mode.as_ref().is_some_and(|mode| mode.mode == Mode::Proxy)
+        {
+            return app_routing_services::provider_publication::apply_checked(
+                self.database.clone(),
+                routing,
+                &self.home,
+                &self.root,
+                &scope,
+                &vw_api_app_provider_environment::mode_apply::ModeApplyAction::Direct {},
+                || authorized() && self.validate_record_inputs().is_ok(),
+            )
+            .map(|_| ());
+        }
         routing.restore_provider(&scope, || {
             let result = self.restore_exit(&tx, &authorized);
             result.map_err(|status| RouteCommitError {

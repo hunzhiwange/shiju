@@ -234,6 +234,19 @@ pub fn apply(
     scope: &FailoverQueueScope,
     action: &ModeApplyAction,
 ) -> Result<ModeApplyResult, StatusCode> {
+    apply_checked(database, routing, home, root, scope, action, || true)
+}
+
+/// Apply a mode only while the caller's scoped revision and grant remain current.
+pub fn apply_checked(
+    database: GlobalDatabase,
+    routing: &RoutingListener,
+    home: &Path,
+    root: &Path,
+    scope: &FailoverQueueScope,
+    action: &ModeApplyAction,
+    validate: impl Fn() -> bool,
+) -> Result<ModeApplyResult, StatusCode> {
     if scope.app_id != AppId::Claude {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
@@ -255,7 +268,7 @@ pub fn apply(
     }
     let selected = tx.claude_directory(tenant).map_err(unavailable)?;
     let mut file = ClaudeFile::open_selected(home, selected.as_ref(), true).map_err(unavailable)?;
-    if tx.state(scope.app_id).map_err(unavailable)? != state {
+    if tx.state(scope.app_id).map_err(unavailable)? != state || !validate() {
         return Err(StatusCode::CONFLICT);
     }
     if tx.pending(scope.app_id).map_err(unavailable)?.is_some() {
@@ -299,7 +312,8 @@ pub fn apply(
     let settings = row.get("settingsConfig").ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
     let changed = Cell::new(false);
     let current = || {
-        read(id).ok().as_ref() == Some(&row)
+        validate()
+            && read(id).ok().as_ref() == Some(&row)
             && read(direct.id.as_str()).ok().as_ref() == Some(&direct_row)
     };
     let commit_error = |error| RouteCommitError {

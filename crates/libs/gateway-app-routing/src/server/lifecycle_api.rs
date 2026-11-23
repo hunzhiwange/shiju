@@ -86,6 +86,16 @@ pub(super) fn insert_local_control(extensions: &mut axum::http::Extensions, host
     extensions.insert(control);
 }
 
+/// Application requests may select the host in JSON. Supply the authenticated
+/// local context here and let each transaction check the requested host.
+pub async fn local_application_control(
+    mut request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    insert_local_control(request.extensions_mut(), vw_api_transport::LOCAL_HOST_ID);
+    next.run(request).await
+}
+
 pub(super) async fn local_control(
     params: Result<RawPathParams, RawPathParamsRejection>,
     mut request: axum::extract::Request,

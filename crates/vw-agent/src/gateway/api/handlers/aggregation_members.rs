@@ -11,5 +11,10 @@ pub(super) fn router() -> Router {
     }
 }
 pub(super) fn router_with_policy(path: Option<std::path::PathBuf>) -> Router {
-    gateway_aggregation::aggregation_members::router_with_policy(path, SnapshotHost)
+    let router = gateway_aggregation::aggregation_members::router_with_policy(path, SnapshotHost);
+    #[cfg(target_os = "macos")]
+    let router = router.route_layer(axum::middleware::from_fn(
+        gateway_app_routing::server::lifecycle_api::local_application_control,
+    ));
+    router
 }

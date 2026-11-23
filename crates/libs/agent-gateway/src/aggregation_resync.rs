@@ -126,6 +126,9 @@ impl RecordPublicationContext {
         if allowed.stack.enabled != self.expected.stack.enabled {
             return Err(StatusCode::FORBIDDEN);
         }
+        if allowed.stack != self.expected.stack {
+            allowed.stack_tenant = Some(self.project.tenant_scope().clone());
+        }
         match (&mut allowed.mode, &candidate.mode) {
             (Some(expected), Some(next)) => expected.proxy_route = next.proxy_route.clone(),
             (None, Some(next))
@@ -135,6 +138,9 @@ impl RecordPublicationContext {
             }
             (None, None) => {}
             _ => return Err(StatusCode::FORBIDDEN),
+        }
+        if allowed.mode != self.expected.mode {
+            allowed.mode_tenant = Some(self.project.tenant_scope().clone());
         }
         if &allowed != candidate {
             return Err(StatusCode::FORBIDDEN);

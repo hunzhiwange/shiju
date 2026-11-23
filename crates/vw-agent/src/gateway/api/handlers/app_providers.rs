@@ -23,6 +23,15 @@ use vw_api_transport::id::TenantScope;
 pub(crate) fn router() -> Router {
     let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
     let editor = editor_merge::Editor::new(policy.clone());
+    let records = get(read)
+        .put(save)
+        .post(create::create)
+        .patch(update::update)
+        .layer(DefaultBodyLimit::max(16 * 1024));
+    #[cfg(target_os = "macos")]
+    let records = records.layer(axum::middleware::from_fn(
+        gateway_app_routing::server::lifecycle_api::local_application_control,
+    ));
     Router::new()
         .merge(catalog::router())
         .merge(basic::router())
@@ -60,14 +69,7 @@ pub(crate) fn router() -> Router {
         .merge(icons::router())
         .merge(universal::router())
         .merge(universal_sync::router())
-        .route(
-            "/app-providers/{app}/{id}",
-            get(read)
-                .put(save)
-                .post(create::create)
-                .patch(update::update)
-                .layer(DefaultBodyLimit::max(16 * 1024)),
-        )
+        .route("/app-providers/{app}/{id}", records)
 }
 #[cfg(any(test, target_arch = "wasm32"))]
 use gateway_app_providers::{error, store};

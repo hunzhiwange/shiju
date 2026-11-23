@@ -6830,6 +6830,7 @@ dependencies = [
  "vw-api-app-identity",
  "vw-api-app-provider-base",
  "vw-api-app-provider-edit",
+ "vw-api-app-provider-environment",
  "vw-api-app-provider-extended",
  "vw-api-app-provider-profiles",
  "vw-api-app-provider-terminal",

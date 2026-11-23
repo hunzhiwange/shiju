@@ -38,8 +38,11 @@ impl gateway_app_providers::mode_apply::ModePublication for Host {
             if root != provider_root {
                 return Err(StatusCode::CONFLICT);
             }
-            let store =
-                gateway_app_providers::store(database.clone()).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+            let publication_database = database
+                .as_ref()
+                .map_or_else(|| control.database.clone(), |database| database.0.clone());
+            let store = gateway_app_providers::store(Some(Extension(publication_database.clone())))
+                .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
             let third_party = match &request.action {
                 ModeApplyAction::Proxy { provider_id } => {
                     vw_agent_apps::providers::validate_identity(provider_id)
@@ -47,25 +50,19 @@ impl gateway_app_providers::mode_apply::ModePublication for Host {
                     store
                         .claude_record(&tenant, provider_id)
                         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
-                        .is_some_and(|row| require_direct(&row).is_ok())
+                        .ok_or(StatusCode::NOT_FOUND)
+                        .map(|row| require_direct(&row).is_ok())?
                 }
                 _ => true,
             };
             if third_party {
-                let database = match database {
-                    Some(Extension(database)) => database,
-                    None => agent_database::GlobalDatabase::for_home(
-                        &agent_paths::paths().home,
-                    )
-                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
-                };
                 let scope = vw_api_app_failover::FailoverQueueScope {
                     project,
                     target_host_id: request.target_host_id.clone(),
                     app_id: app,
                 };
                 return app_routing_services::provider_publication::apply(
-                    database,
+                    publication_database,
                     &control.routing,
                     &home,
                     &root,

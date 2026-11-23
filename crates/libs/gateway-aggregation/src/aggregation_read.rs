@@ -146,23 +146,23 @@ fn execute(
     // The app-wide in-process lock is read-only and does not create any files.
     let _guard = vw_agent_apps::providers::live::write_guard::lock_app(app, &home)
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    let tx = ProviderTransactions::open_existing(
+    let uninitialized = || {
+        error_with_code(StatusCode::CONFLICT, "mode_uninitialized")
+    };
+    let Some(tx) = ProviderTransactions::open_existing(
         root,
         ExecutionHostId::new(&query.target_host_id).map_err(|_| StatusCode::BAD_REQUEST)?,
     )
     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
-    .ok_or(StatusCode::CONFLICT)?;
+    else {
+        return Ok(uninitialized());
+    };
     let state = tx.state(app).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     // Project ownership is persisted by the write owner, never claimed by a GET.
-    if state.project_scope.as_ref() != Some(&project) {
-        return Err(if state.project_scope.is_some() {
-            StatusCode::FORBIDDEN
-        } else {
-            StatusCode::CONFLICT
-        });
+    if state.project_scope.as_ref().is_some_and(|owner| owner != &project) {
+        return Err(StatusCode::FORBIDDEN);
     }
     let observed = mode_state::observe(&state, &tenant).map_err(|_| StatusCode::FORBIDDEN)?;
-    state.require_project(&project).map_err(|_| StatusCode::CONFLICT)?;
     if let Some(pending) = tx.pending(app).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)? {
         if pending.tenant != tenant
             || pending.target.project_scope.as_ref().is_some_and(|owner| owner != &project)
@@ -171,6 +171,10 @@ fn execute(
         }
         return Ok(error_with_code(StatusCode::CONFLICT, "recovery_pending"));
     }
+    if state.project_scope.is_none() {
+        return Ok(uninitialized());
+    }
+    state.require_project(&project).map_err(|_| StatusCode::CONFLICT)?;
     let db = db.ok_or(StatusCode::SERVICE_UNAVAILABLE)?.0;
     let capture = || {
         super::aggregation_read_snapshot::load(

@@ -411,3 +411,394 @@ async fn local_routing_control_endpoints() {
         assert_eq!(response.status(), expected);
     }
 }
+
+#[tokio::test]
+async fn local_routing_app_attachment() {
+    use axum::{Json, Router, extract::Path as RoutePath, routing::post};
+    use vw_agent_apps::providers::live::{
+        commit::{ExecutionHostId, PendingTarget, ProviderTransactions},
+        write_guard::lock_app,
+    };
+    use vw_api_app_identity::AppId::Claude;
+    use vw_api_app_provider_base::claude::{ClaudeConfig, ClaudeProfile};
+
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path().canonicalize().unwrap();
+    let tenant = TenantScope::new("p", "owner").unwrap();
+    let host = vw_api_transport::LOCAL_HOST_ID;
+    let project = vw_api_transport::LOCAL_PROJECT_ID;
+    let legacy =
+        local_app_auth::auth_policy_path(&home, "p", "owner").with_file_name("auth-credentials");
+    fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+    fs::create_dir(&legacy).unwrap();
+    fs::set_permissions(&legacy, fs::Permissions::from_mode(0o700)).unwrap();
+
+    let upstream = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = format!("http://{}", upstream.local_addr().unwrap());
+    let direct_endpoint = format!("{endpoint}/first/v1");
+    let upstream = tokio::spawn(async move {
+        axum::serve(
+            upstream,
+            Router::new().route(
+                "/{provider}/v1/messages",
+                post(|RoutePath(provider): RoutePath<String>, headers: axum::http::HeaderMap| async move {
+                    let id = match (provider.as_str(), headers.get("x-api-key").and_then(|key| key.to_str().ok())) {
+                        ("first", Some("first-key")) => "first",
+                        ("second", Some("second-key")) => "second",
+                        _ => return (axum::http::StatusCode::UNAUTHORIZED, Json(json!({}))),
+                    };
+                    (
+                        axum::http::StatusCode::OK,
+                        Json(json!({"id":id,"type":"message",
+                    "role":"assistant","model":"fixture","content":[{"type":"text","text":"ok"}],
+                    "stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}})),
+                    )
+                }),
+            ),
+        )
+        .await
+        .unwrap();
+    });
+    let db = crate::global_database::GlobalDatabase::new(
+        config_runtime_paths::global_database_path(&home),
+    )
+    .unwrap();
+    let store = crate::app_providers::AppProviderStore::new(db).unwrap();
+    for id in ["first", "second"] {
+        store
+            .claude_save(
+                &tenant,
+                id,
+                &ClaudeProfile {
+                    name: id.into(),
+                    config: ClaudeConfig::ThirdParty {
+                        base_url: format!("{endpoint}/{id}/v1"),
+                        api_key: format!("{id}-key"),
+                        api_key_header: true,
+                    },
+                    model: Some("fixture".into()),
+                },
+                None,
+                true,
+            )
+            .unwrap();
+    }
+    let directory = home.join(".claude");
+    fs::create_dir(&directory).unwrap();
+    let settings = directory.join("settings.json");
+    fs::write(
+        &settings,
+        json!({"env":{"ANTHROPIC_BASE_URL": direct_endpoint,
+        "ANTHROPIC_API_KEY":"first-key","ANTHROPIC_MODEL":"fixture"},"fixture":true})
+        .to_string(),
+    )
+    .unwrap();
+    let transactions =
+        ProviderTransactions::new(&legacy, ExecutionHostId::new(host).unwrap()).unwrap();
+    transactions
+        .commit(
+            &tenant,
+            &mut lock_app(Claude, &directory).unwrap(),
+            &[],
+            PendingTarget {
+                pointer: Some("first".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+    let (_gateway, port) = spawn_gateway_with_options(&home, None, false).await;
+    let client = reqwest::Client::builder()
+        .no_proxy()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .unwrap();
+    let post = |path: &str, body: Value| {
+        client
+            .post(format!("http://127.0.0.1:{port}/v1/{path}"))
+            .header("x-platform-id", "p")
+            .header("x-company-id", "owner")
+            .bearer_auth(GATEWAY_SKEY)
+            .json(&body)
+    };
+    let config = format!("http://127.0.0.1:{port}/v1/app-routing/hosts/{host}/config");
+    let authorized = |method, url: &str| {
+        client
+            .request(method, url)
+            .header("x-platform-id", "p")
+            .header("x-company-id", "owner")
+            .bearer_auth(GATEWAY_SKEY)
+    };
+    let mut listener = authorized(reqwest::Method::GET, &config)
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json::<Value>()
+        .await
+        .unwrap();
+    listener["listenPort"] = json!(0);
+    listener["enabled"] = json!(true);
+    authorized(reqwest::Method::PUT, &config)
+        .json(&listener)
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap();
+
+    let response = post(&format!("app-routing/hosts/{host}/start"), json!({}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let binding = response.json::<Value>().await.unwrap();
+    let published_url = format!("http://127.0.0.1:{}", binding["boundPort"]);
+    let apply = |action| {
+        post(
+            "app-providers/claude/mode/apply",
+            json!({"targetHostId": host, "projectId":project, "action":action}),
+        )
+    };
+    let saved = || serde_json::from_slice::<Value>(&fs::read(&settings).unwrap()).unwrap();
+    let route_mode = format!("app-routing/hosts/{host}/projects/{project}/apps/claude/mode");
+    for app in ["claude", "codex", "gemini", "grokbuild"] {
+        let base = format!("http://127.0.0.1:{port}/v1");
+        let response = authorized(
+            reqwest::Method::GET,
+            &format!("{base}/agent-apps/{app}/aggregation/state"),
+        )
+        .send()
+        .await
+        .unwrap();
+        let (status, code) = if matches!(app, "claude" | "codex") {
+            (409, "mode_uninitialized")
+        } else {
+            (422, "unsupported_app")
+        };
+        assert_eq!(response.status(), status, "{app}");
+        assert_eq!(
+            response.json::<Value>().await.unwrap()["error"]["code"],
+            code
+        );
+        let legacy = authorized(
+            reqwest::Method::GET,
+            &format!("{base}/app-providers/{app}/mode/state"),
+        )
+        .query(&[("targetHostId", host), ("mode", "direct")])
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json::<Value>()
+        .await
+        .unwrap();
+        assert_eq!(legacy["attached"], false, "{app}");
+    }
+
+    let forward = async |id: &str, model: &str| {
+        let config = saved();
+        assert_eq!(config["env"]["ANTHROPIC_BASE_URL"], published_url);
+        let response = client
+            .post(format!("{published_url}/v1/messages"))
+            .header(
+                "x-api-key",
+                config["env"]["ANTHROPIC_AUTH_TOKEN"].as_str().unwrap(),
+            )
+            .json(&json!({"model":model,"messages":[{"role":"user","content":"hello"}]}))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        assert_eq!(response.json::<Value>().await.unwrap()["id"], id);
+    };
+
+    for id in ["first", "second"] {
+        let response = apply(json!({"kind":"proxy","providerId":id}))
+            .send()
+            .await
+            .unwrap();
+        let status = response.status();
+        let body = response.text().await.unwrap();
+        assert_eq!(status, 200, "attach {id}: {body}");
+        assert_eq!(
+            serde_json::from_str::<Value>(&body).unwrap()["attached"],
+            true
+        );
+        forward(id, "fixture").await;
+    }
+    let before = saved();
+    let response = apply(json!({"kind":"proxy","providerId":"missing"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 404);
+    assert_eq!(saved(), before);
+    forward("second", "fixture").await;
+
+    let config_bytes = fs::read(&settings).unwrap();
+    fs::write(&settings, b"{malformed").unwrap();
+    let response = apply(json!({"kind":"proxy","providerId":"first"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 409);
+    assert_eq!(fs::read(&settings).unwrap(), b"{malformed");
+    assert!(transactions.pending(Claude).unwrap().is_none());
+    assert_eq!(
+        transactions
+            .state(Claude)
+            .unwrap()
+            .mode
+            .unwrap()
+            .proxy_route
+            .as_deref(),
+        Some("second")
+    );
+    fs::write(&settings, config_bytes).unwrap();
+    forward("second", "fixture").await;
+
+    let response = post(&route_mode, json!({"action":{"kind":"direct"}}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200, "{}", response.text().await.unwrap());
+    assert_eq!(response.json::<Value>().await.unwrap()["attached"], false);
+    assert_eq!(saved()["env"]["ANTHROPIC_BASE_URL"], direct_endpoint);
+    assert_eq!(saved()["fixture"], true);
+    let state = transactions.state(Claude).unwrap();
+    assert_eq!(state.pointer.unwrap().id.as_str(), "first");
+    assert!(!state.mode.unwrap().attached);
+    let aggregation = format!("http://127.0.0.1:{port}/v1/agent-apps/claude/aggregation");
+    let read_state = async || {
+        authorized(reqwest::Method::GET, &format!("{aggregation}/state"))
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap()
+            .json::<Value>()
+            .await
+            .unwrap()
+    };
+    // Preview is read-only. Register the selected provider through the scoped
+    // default write before requesting a signed aggregation preview.
+    let state = read_state().await;
+    let response = authorized(reqwest::Method::PUT, &format!("{aggregation}/default"))
+        .json(&json!({"expectedRevision":state["revision"], "providerId":"first"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200, "{}", response.text().await.unwrap());
+    let preview = post(
+        "agent-apps/claude/aggregation/preview",
+        json!({"defaultProviderId":"first"}),
+    )
+    .send()
+    .await
+    .unwrap()
+    .error_for_status()
+    .unwrap()
+    .json::<Value>()
+    .await
+    .unwrap();
+    assert!(
+        preview["previewToken"].is_string(),
+        "aggregation preview: {preview}"
+    );
+    let finish = async |response: reqwest::Response, expected: &str| {
+        let status = response.status();
+        let body = response.text().await.unwrap();
+        assert!(
+            status.is_success(),
+            "submit {expected}: HTTP {status} {body}"
+        );
+        let mut progress: Value = serde_json::from_str(&body).unwrap();
+        let operation = format!(
+            "http://127.0.0.1:{port}/v1/app-providers/operations/{}",
+            progress["operationId"].as_str().unwrap()
+        );
+        tokio::time::timeout(Duration::from_secs(10), async {
+            while progress.get("aggregationOutcome").is_none() {
+                tokio::time::sleep(Duration::from_millis(25)).await;
+                progress = authorized(reqwest::Method::GET, &operation)
+                    .query(&[("targetHostId", host), ("projectId", project)])
+                    .send()
+                    .await
+                    .unwrap()
+                    .error_for_status()
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            progress["aggregationOutcome"]["kind"], expected,
+            "{progress}"
+        );
+    };
+    finish(
+        post(
+            "agent-apps/claude/aggregation/publish",
+            json!({
+                "expectedRevision":preview["revision"], "previewToken":preview["previewToken"],
+                "requestId":"fixture-publish", "confirmed":true
+            }),
+        )
+        .send()
+        .await
+        .unwrap(),
+        "published",
+    )
+    .await;
+    let state = read_state().await;
+    assert_eq!(state["mode"], "aggregation");
+    assert_eq!(state["attached"], true);
+    forward("first", "fixture").await;
+
+    let switched = authorized(reqwest::Method::PUT, &format!("{aggregation}/default"))
+        .json(&json!({"expectedRevision":state["revision"], "providerId":"second"}))
+        .send()
+        .await
+        .unwrap();
+    let status = switched.status();
+    let body = switched.text().await.unwrap();
+    assert_eq!(status, 200, "aggregation switch: {body}");
+    let switched: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(switched["defaultProviderId"], "second");
+    forward("second", "fixture").await;
+
+    finish(post("agent-apps/claude/aggregation/exit", json!({
+        "expectedRevision":switched["revision"], "requestId":"fixture-exit", "confirmed":true
+    })).send().await.unwrap(), "exited").await;
+    let state = read_state().await;
+    assert_eq!(state["mode"], "direct");
+    assert_eq!(state["attached"], false);
+    assert_eq!(state["directProviderId"], "first");
+    assert_eq!(saved()["env"]["ANTHROPIC_BASE_URL"], direct_endpoint);
+    assert_eq!(saved()["fixture"], true);
+    post(
+        &route_mode,
+        json!({"action":{"kind":"proxy","providerId":"second"}}),
+    )
+    .send()
+    .await
+    .unwrap()
+    .error_for_status()
+    .unwrap();
+    let state = read_state().await;
+    assert_eq!(state["mode"], "routing");
+    forward("second", "fixture").await;
+    finish(post("agent-apps/claude/aggregation/exit", json!({
+        "expectedRevision":state["revision"], "requestId":"fixture-exit-ordinary", "confirmed":true
+    })).send().await.unwrap(), "exited").await;
+    assert_eq!(read_state().await["attached"], false);
+    assert_eq!(saved()["env"]["ANTHROPIC_BASE_URL"], direct_endpoint);
+    upstream.abort();
+}

@@ -35,10 +35,10 @@ pub fn router() -> axum::Router {
             get(get_app_config).put(put_app_config),
         )
         .route("/app-routing/hosts/{host}/egress", get(get_egress).put(put_egress))
+        .route("/app-routing/hosts/{host}/projects/{project}/apps/{app}/mode", post(attach_mode))
         .route_layer(middleware::from_fn(super::lifecycle_api::local_control));
     Router::new()
         .merge(control)
-        .route("/app-routing/hosts/{host}/projects/{project}/apps/{app}/mode", post(attach_mode))
         .route(
             "/app-routing/hosts/{host}/projects/{project}/apps/{app}/egress/scans",
             post(start_outbound_scan::<RoutingControl>),

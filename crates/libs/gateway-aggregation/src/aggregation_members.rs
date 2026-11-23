@@ -329,9 +329,11 @@ fn execute<H: Host>(
     let mut candidate = state.clone();
     if let Some(stack) = target.stack {
         candidate.stack = stack;
+        candidate.stack_tenant = Some(tenant.clone());
     }
     if let Some(mode) = target.mode {
         candidate.mode = Some(mode);
+        candidate.mode_tenant = Some(tenant.clone());
     }
     // Validate the response projection before changing durable intent. Invalid
     // saved client declarations must not turn a committed write into an error.

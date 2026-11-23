@@ -24,8 +24,15 @@ pub fn control(routing: Option<RoutingControl>) -> PublicationControl {
 }
 
 /// Inject the current routing grant into provider writes at composition.
-pub async fn inject(routing: Option<axum::Extension<RoutingControl>>,
-    mut request: axum::extract::Request, next: axum::middleware::Next) -> axum::response::Response {
-    request.extensions_mut().insert(control(routing.map(|axum::Extension(c)| c)));
+pub async fn inject(
+    mut request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    super::lifecycle_api::insert_local_control(
+        request.extensions_mut(),
+        vw_api_transport::LOCAL_HOST_ID,
+    );
+    let routing = request.extensions().get::<RoutingControl>().cloned();
+    request.extensions_mut().insert(control(routing));
     next.run(request).await
 }

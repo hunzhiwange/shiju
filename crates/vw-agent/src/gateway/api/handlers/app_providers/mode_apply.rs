@@ -11,11 +11,19 @@ pub(super) fn router() -> Router {
 pub(super) fn router_with_policy(path: Option<std::path::PathBuf>) -> Router {
     let router = gateway_app_providers::mode_apply::router_with_policy(path);
     #[cfg(target_os = "macos")]
-    let router = router.layer(axum::middleware::from_fn(|mut req: axum::extract::Request, next: axum::middleware::Next| async move {
-        let control = req.extensions().get::<RoutingControl>().cloned();
-        req.extensions_mut().insert(gateway_app_providers::mode_apply::ModeHost(std::sync::Arc::new(Host(control, !cfg!(test)))));
-        next.run(req).await
-    }));
+    let router = router
+        .layer(axum::middleware::from_fn(
+            |mut request: axum::extract::Request, next: axum::middleware::Next| async move {
+                let control = request.extensions().get::<RoutingControl>().cloned();
+                request.extensions_mut().insert(gateway_app_providers::mode_apply::ModeHost(
+                    std::sync::Arc::new(Host(control, !cfg!(test))),
+                ));
+                next.run(request).await
+            },
+        ))
+        .layer(axum::middleware::from_fn(
+            gateway_app_routing::server::lifecycle_api::local_application_control,
+        ));
     router
 }
 #[cfg(target_os = "macos")]

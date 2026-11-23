@@ -16,8 +16,13 @@ pub fn router_with_policy(policy: Option<std::path::PathBuf>) -> Router {
     router_with_editor(policy.clone(), gateway_app_providers::editor_merge::Editor::new(policy))
 }
 pub fn router_with_editor(policy: Option<std::path::PathBuf>, editor: gateway_app_providers::editor_merge::Editor) -> Router {
-    let routes = Router::new().merge(gateway_aggregation::aggregation_publish::router(crate::server::snapshot_host::SnapshotHost))
-        .merge(gateway_aggregation::aggregation_exit::router(crate::server::snapshot_host::SnapshotHost)).merge(gateway_aggregation::aggregation_restart::router(crate::server::snapshot_host::SnapshotHost));
+    use crate::server::{lifecycle_api::local_application_control, snapshot_host::SnapshotHost};
+
+    let routes = Router::new()
+        .merge(gateway_aggregation::aggregation_publish::router(SnapshotHost))
+        .merge(gateway_aggregation::aggregation_exit::router(SnapshotHost))
+        .route_layer(axum::middleware::from_fn(local_application_control))
+        .merge(gateway_aggregation::aggregation_restart::router(SnapshotHost));
     gateway_app_providers::operations::router_with_editor(policy, editor, routes)
         .layer(Extension(gateway_app_providers::operations::OperationControl(std::sync::Arc::new(ScopedHost))))
 }

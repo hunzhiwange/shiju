@@ -481,7 +481,33 @@ async fn attached_apps(
     #[cfg(not(target_arch = "wasm32"))]
     {
         let [claude, codex, gemini, grok] = ROUTING_APPS;
-        let read = |id| client.aggregation_state(id, &scope);
+        let read = |id| {
+            let client = &client;
+            let scope = &scope;
+            async move {
+                use gateway_aggregation::AggregationApiError;
+                use vw_api_app_provider_environment::mode_state::{ModeStateQuery, ProviderMode};
+
+                match client.aggregation_state(id, scope).await {
+                    Ok(state) => return Some(state.attached),
+                    Err(AggregationApiError::Http { status: 409, body })
+                        if body["error"]["code"] == "mode_uninitialized" => {}
+                    Err(AggregationApiError::Http { status: 422, body })
+                        if body["error"]["code"] == "unsupported_app" => {}
+                    Err(_) => return None,
+                }
+                if scope.target_host_id != vw_api_transport::LOCAL_HOST_ID {
+                    return None;
+                }
+
+                let query = ModeStateQuery {
+                    target_host_id: scope.target_host_id.clone(),
+                    provider_id: None,
+                    mode: ProviderMode::Direct,
+                };
+                client.provider_mode_state(id, &query, "").await.ok().map(|state| state.attached)
+            }
+        };
         let Ok(results) = tokio::time::timeout(std::time::Duration::from_secs(8), async {
             let (a, b, c, d) = tokio::join!(read(claude), read(codex), read(gemini), read(grok));
             [a, b, c, d]
@@ -494,9 +520,9 @@ async fn attached_apps(
         let mut complete = true;
         for (id, result) in ROUTING_APPS.into_iter().zip(results) {
             match result {
-                Ok(state) if state.attached => apps.push(id),
-                Ok(_) => {}
-                _ => complete = false,
+                Some(true) => apps.push(id),
+                Some(false) => {}
+                None => complete = false,
             }
         }
         (apps, complete)

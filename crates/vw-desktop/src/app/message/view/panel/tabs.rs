@@ -1,6 +1,6 @@
 use super::ViewMessage;
 use crate::app::message::ProjectMessage;
-use crate::app::{App, Message};
+use crate::app::{App, FocusArea, Message, Screen};
 use desktop_navigation::panel::tabs as domain;
 use iced::Task;
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
@@ -14,12 +14,27 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::TabHovered(id) => domain::Message::TabHovered(id),
         _ => return Task::none(),
     };
+    let selects_tab = match &local {
+        domain::Message::TabSelected(_) => true,
+        domain::Message::TabClosed(id) => app.navigation_tabs.active_tab_id.as_ref() == Some(id),
+        _ => false,
+    };
     let update = domain::update(
         &mut app.navigation_tabs,
         &mut app.navigation_mode.code_projects_menu_open,
         &mut app.navigation_panels,
         local,
     );
+    if selects_tab
+        && app.navigation_tabs.screen == Screen::Preview
+        && let Some(path) = app.navigation_tabs.active_preview_path.clone()
+    {
+        app.focus_area = FocusArea::Preview;
+        #[cfg(not(target_arch = "wasm32"))]
+        crate::app::message::preview::lsp::sync_lsp_for_path(app, &path);
+        #[cfg(target_arch = "wasm32")]
+        let _ = path;
+    }
     let task = update.task.map(|()| Message::None);
     let effect = match update.effect {
         Some(domain::Effect::GoHome { previous_project_path }) => {

@@ -381,7 +381,6 @@ impl App {
         // 加载项目特定的任务看板设置
         self.task_board.task_board_settings = desktop_workspace::projects::project_board_settings(&self.workspace_state.recent_projects_meta, &path);
 
-        self.navigation_tabs.restore_project_preview(&path);
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(manager) = self.lsp_manager.as_mut() {
             manager.prestart_for_project(&path);

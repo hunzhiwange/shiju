@@ -70,6 +70,10 @@ pub enum Message {
     Git(message::GitMessage),
     Chat(message::ChatMessage),
     Preview(message::PreviewMessage),
+    PreviewIoFinished {
+        project_path: Option<String>,
+        message: message::PreviewMessage,
+    },
     Editor(message::EditorMessage),
     Knowledge(message::KnowledgeToolMessage),
     WorkflowTool(crate::apps::workflow::WorkflowMessage),

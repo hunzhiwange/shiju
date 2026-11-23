@@ -87,6 +87,8 @@ pub fn tabs() -> crate::panel::tabs::State {
         project_path: None,
         project_preview_tabs: HashMap::new(),
         preview_tabs: Vec::new(),
+        standalone_preview_tabs: Vec::new(),
+        standalone_preview_active_path: None,
         project_preview_active_path: HashMap::new(),
         active_preview_path: None,
         screen: crate::ui_types::Screen::Home,

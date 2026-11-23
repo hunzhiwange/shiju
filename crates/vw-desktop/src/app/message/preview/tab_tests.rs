@@ -73,7 +73,7 @@ fn open_existing_tab_focuses_preview_and_preserves_single_tab() {
 // 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
 // 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
-fn open_existing_tab_outside_project_creates_one_selected_top_level_tab() {
+fn opening_multiple_files_outside_project_shares_one_editor_tab() {
     let mut app = app();
     app.navigation_tabs.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
     app.file_manager.show_file_manager = true;
@@ -82,13 +82,15 @@ fn open_existing_tab_outside_project_creates_one_selected_top_level_tab() {
 
     let _ = update(&mut app, PreviewMessage::Open("/tmp/a.txt".to_string()));
     let _ = update(&mut app, PreviewMessage::Open("/tmp/a.txt".to_string()));
+    let _ = update(&mut app, PreviewMessage::Open("/tmp/b.txt".to_string()));
 
     let preview_tabs =
-        app.navigation_tabs.open_tabs.iter().filter(|tab| tab.id == "preview:/tmp/a.txt").collect::<Vec<_>>();
+        app.navigation_tabs.open_tabs.iter().filter(|tab| tab.screen == Screen::Preview).collect::<Vec<_>>();
     assert_eq!(preview_tabs.len(), 1);
-    assert_eq!(preview_tabs[0].title, "a.txt");
-    assert_eq!(preview_tabs[0].screen, Screen::Preview);
-    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("preview:/tmp/a.txt"));
+    assert_eq!(preview_tabs[0].title, "编辑器");
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some(EDITOR_TAB_ID));
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some("/tmp/b.txt"));
+    assert_eq!(app.navigation_tabs.preview_tabs.len(), 2);
     assert_eq!(app.navigation_tabs.screen, Screen::Preview);
 }
 

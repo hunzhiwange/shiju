@@ -282,6 +282,9 @@ impl App {
 
             // 预览相关消息
             Message::Preview(msg) => message::preview::update(self, msg),
+            Message::PreviewIoFinished { project_path, message } => {
+                message::preview::tab::finish_io(self, project_path.as_deref(), message)
+            }
 
             // 编辑器相关消息
             Message::Editor(msg) => message::editor::update(self, msg),

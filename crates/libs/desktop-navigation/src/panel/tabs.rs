@@ -1,10 +1,13 @@
-//! Main-tab selection and per-project preview restoration.
+//! Main-tab selection and preview restoration.
 use crate::components::top_bar::types::AppTab;
 use crate::ui_types::Screen;
 use desktop_editor::preview::PreviewTab;
 use iced::widget::Id;
 use iced::{Point, Task};
 use std::collections::HashMap;
+
+pub const EDITOR_TAB_ID: &str = "editor";
+
 #[derive(Clone)]
 pub enum Message {
     GoHome,
@@ -20,6 +23,9 @@ pub struct State {
     pub project_path: Option<String>,
     pub project_preview_tabs: HashMap<String, Vec<PreviewTab>>,
     pub preview_tabs: Vec<PreviewTab>,
+    /// Standalone editors parked while the current project owns `preview_tabs`.
+    pub standalone_preview_tabs: Vec<PreviewTab>,
+    pub(crate) standalone_preview_active_path: Option<String>,
     pub project_preview_active_path: HashMap<String, Option<String>>,
     pub active_preview_path: Option<String>,
     pub screen: Screen,
@@ -58,15 +64,10 @@ pub fn update(
     let task = match message {
         Message::GoHome => {
             panels.close_menu();
-            let previous_project_path = app.project_path.as_deref().map(str::to_owned);
-            if let Some(prev_path) = previous_project_path.clone() {
-                app.project_preview_tabs
-                    .insert(prev_path.clone(), std::mem::take(&mut app.preview_tabs));
-                app.project_preview_active_path.insert(prev_path, app.active_preview_path.take());
-            }
+            app.switch_preview_project(None);
             app.screen = Screen::Home;
             app.active_tab_id = Some("home".to_string());
-            app.project_path = None;
+            app.remember_standalone_selection();
             app.preview_tab_menu_path = None;
             app.preview_tab_menu_pos = None;
             Task::none()
@@ -93,85 +94,16 @@ pub fn update(
         }
         Message::TabSelected(id) => {
             *code_projects_menu_open = false;
-            let previous_project_path = app.project_path.as_deref().map(str::to_owned);
-            if let Some(prev_path) = previous_project_path.clone() {
-                app.project_preview_tabs
-                    .insert(prev_path.clone(), std::mem::take(&mut app.preview_tabs));
-                app.project_preview_active_path.insert(prev_path, app.active_preview_path.take());
-            }
-            app.active_tab_id = Some(id.clone());
-            if let Some(tab) = app.open_tabs.iter().find(|t| t.id == id) {
-                app.screen = tab.screen;
-                if let Some(path) = &tab.project_path {
-                    app.project_path = Some(path.clone());
-                    let tabs = app.project_preview_tabs.remove(path).unwrap_or_default();
-                    let active = app.project_preview_active_path.remove(path).unwrap_or_default();
-                    app.preview_tabs = tabs;
-                    app.active_preview_path = active;
-                } else if id == "home" {
-                    app.project_path = None;
-                    app.preview_tabs.clear();
-                    app.active_preview_path = None;
-                }
-            } else if let Some(ref path) = app.project_path {
-                let tabs = app.project_preview_tabs.remove(path).unwrap_or_default();
-                let active = app.project_preview_active_path.remove(path).unwrap_or_default();
-                app.preview_tabs = tabs;
-                app.active_preview_path = active;
-            }
-            if previous_project_path != app.project_path {
-                app.preview_tab_menu_path = None;
-                app.preview_tab_menu_pos = None;
-            }
+            app.select_tab(id);
             Task::none()
         }
         Message::TabClosed(id) => {
-            let previous_project_path = app.project_path.as_deref().map(str::to_owned);
-            if let Some(index) = app.open_tabs.iter().position(|t| t.id == id) {
+            if let Some(index) = app.open_tabs.iter().position(|tab| tab.id == id) {
                 app.open_tabs.remove(index);
-
-                // If we closed the active tab, switch to another one
                 if app.active_tab_id.as_ref() == Some(&id) {
                     if let Some(last_tab) = app.open_tabs.last() {
-                        app.active_tab_id = Some(last_tab.id.clone());
-                        app.screen = last_tab.screen;
-                        if let Some(path) = &last_tab.project_path {
-                            if previous_project_path.as_ref() != Some(path) {
-                                if let Some(prev_path) = previous_project_path.clone() {
-                                    app.project_preview_tabs.insert(
-                                        prev_path.clone(),
-                                        std::mem::take(&mut app.preview_tabs),
-                                    );
-                                    app.project_preview_active_path
-                                        .insert(prev_path, app.active_preview_path.take());
-                                }
-                                app.project_path = Some(path.clone());
-                                let tabs =
-                                    app.project_preview_tabs.remove(path).unwrap_or_default();
-                                let active = app
-                                    .project_preview_active_path
-                                    .remove(path)
-                                    .unwrap_or_default();
-                                app.preview_tabs = tabs;
-                                app.active_preview_path = active;
-                            } else {
-                                app.project_path = Some(path.clone());
-                            }
-                        } else if last_tab.id == "home" {
-                            if let Some(prev_path) = previous_project_path.clone() {
-                                app.project_preview_tabs.insert(
-                                    prev_path.clone(),
-                                    std::mem::take(&mut app.preview_tabs),
-                                );
-                                app.project_preview_active_path
-                                    .insert(prev_path, app.active_preview_path.take());
-                            }
-                            app.project_path = None;
-                            app.preview_tab_menu_path = None;
-                            app.preview_tab_menu_pos = None;
-                        }
+                        app.select_tab(last_tab.id.clone());
                     } else {
-                        // Should not happen if home tab is always there, but just in case
                         app.active_tab_id = None;
                         app.screen = Screen::Home;
                     }
@@ -188,6 +120,38 @@ pub fn update(
 }
 
 impl State {
+    fn select_tab(&mut self, id: String) {
+        if let Some(tab) = self.open_tabs.iter().find(|tab| tab.id == id) {
+            let screen = tab.screen;
+            let project = tab.project_path.clone();
+            if project.is_some() || id == EDITOR_TAB_ID || id == "home" {
+                self.switch_preview_project(project);
+            }
+            self.screen = screen;
+            if id == EDITOR_TAB_ID {
+                let selected = self.active_preview_path.as_ref()
+                    .or(self.standalone_preview_active_path.as_ref());
+                self.active_preview_path = selected
+                    .and_then(|path| self.preview_tabs.iter().find(|tab| &tab.path == path))
+                    .or_else(|| self.preview_tabs.last())
+                    .map(|tab| tab.path.clone());
+                self.preview_tab_menu_path = None;
+                self.preview_tab_menu_pos = None;
+            } else if id == "home" {
+                self.remember_standalone_selection();
+                self.preview_tab_menu_path = None;
+                self.preview_tab_menu_pos = None;
+            }
+        }
+        self.active_tab_id = Some(id);
+    }
+
+    fn remember_standalone_selection(&mut self) {
+        if let Some(path) = self.active_preview_path.take() {
+            self.standalone_preview_active_path = Some(path);
+        }
+    }
+
     pub fn show_project(&mut self) {
         self.screen = Screen::Project;
     }

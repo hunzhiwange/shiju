@@ -3,8 +3,10 @@
 
 use super::update;
 use crate::app::message::ViewMessage;
+use crate::app::message::PreviewMessage;
 use crate::app::state::AppTab;
-use crate::app::{App, Screen};
+use crate::app::{App, Message, Screen};
+use desktop_navigation::panel::tabs::EDITOR_TAB_ID;
 
 fn test_app() -> App {
     App::new().0
@@ -62,6 +64,51 @@ fn tab_selected_knowledge_initializes_knowledge_without_project_switch() {
     assert_eq!(app.navigation_tabs.screen, Screen::Knowledge);
     assert_eq!(app.navigation_tabs.project_path, None);
     assert!(app.knowledge.loading_status);
+}
+
+#[test]
+fn dropped_file_tabs_restore_their_editors_after_switching_home_and_project() {
+    let mut app = test_app();
+    let first = "/tmp/first.md";
+    let second = "/tmp/second.md";
+    app.navigation_tabs.open_tabs.push(tab("project-a", Screen::Project, Some("/project-a")));
+    let _ = app.update(Message::View(ViewMessage::DroppedFilePath(first.into())));
+    let _ = app.update(Message::PreviewIoFinished {
+        project_path: None,
+        message: PreviewMessage::OpenLoaded {
+            path: first.into(),
+            content: "first file".into(),
+            truncated: false,
+        },
+    });
+    let _ = app.update(Message::View(ViewMessage::DroppedFilePath(second.into())));
+    let _ = update(&mut app, ViewMessage::TabSelected("project-a".into()));
+    assert!(app.navigation_tabs.preview_tabs.is_empty());
+
+    let _ = app.update(Message::PreviewIoFinished {
+        project_path: None,
+        message: PreviewMessage::OpenLoaded {
+            path: second.into(),
+            content: "second file".into(),
+            truncated: false,
+        },
+    });
+    assert!(app.navigation_tabs.preview_tabs.is_empty());
+    let _ = update(&mut app, ViewMessage::TabSelected("home".into()));
+    let _ = update(&mut app, ViewMessage::TabSelected(EDITOR_TAB_ID.into()));
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some(second));
+
+    for (path, content) in [(second, "second file"), (first, "first file"), (second, "second file")] {
+        assert_eq!(app.navigation_tabs.screen, Screen::Preview);
+        assert_eq!(app.navigation_tabs.project_path, None);
+        let _ = app.update(Message::Preview(PreviewMessage::Select(path.into())));
+        assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some(path));
+        let editor = &app.navigation_tabs.preview_tabs.iter().find(|tab| tab.path == path).unwrap().editor;
+        assert_eq!(editor.content(), content);
+        let _ = update(&mut app, ViewMessage::TabSelected("home".into()));
+        let _ = update(&mut app, ViewMessage::TabSelected(EDITOR_TAB_ID.into()));
+        assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some(path));
+    }
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。

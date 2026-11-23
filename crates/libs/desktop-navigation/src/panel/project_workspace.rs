@@ -21,24 +21,36 @@ impl State {
         }
         self.active_tab_id = Some(tab_id);
 
-        // 保存前一个项目的预览标签页与激活路径
         let previous_project_path = self.project_path.clone();
         let project_changed = previous_project_path.as_deref() != Some(path.as_str());
-        if let Some(prev_path) = &previous_project_path {
-            self.project_preview_tabs
-                .insert(prev_path.clone(), std::mem::take(&mut self.preview_tabs));
-            self.project_preview_active_path
-                .insert(prev_path.clone(), self.active_preview_path.take());
-        }
-        self.project_path = Some(path.clone());
+        self.switch_preview_project(Some(path));
+        self.preview_tab_menu_path = None;
+        self.preview_tab_menu_pos = None;
         (previous_project_path, project_changed)
     }
-    pub fn restore_project_preview(&mut self, path: &str) {
-        // 恢复当前项目的预览标签页与激活路径（若存在）
-        let tabs = self.project_preview_tabs.remove(path).unwrap_or_default();
-        let active = self.project_preview_active_path.remove(path).unwrap_or_default();
-        self.preview_tabs = tabs;
-        self.active_preview_path = active;
+
+    pub fn switch_preview_project(&mut self, project: Option<String>) {
+        if self.project_path == project {
+            return;
+        }
+        let tabs = std::mem::take(&mut self.preview_tabs);
+        let active = self.active_preview_path.take();
+        if let Some(previous) = self.project_path.take() {
+            self.project_preview_tabs.insert(previous.clone(), tabs);
+            self.project_preview_active_path.insert(previous, active);
+        } else {
+            self.standalone_preview_tabs = tabs;
+            if active.is_some() {
+                self.standalone_preview_active_path = active;
+            }
+        }
+        if let Some(path) = &project {
+            self.preview_tabs = self.project_preview_tabs.remove(path).unwrap_or_default();
+            self.active_preview_path = self.project_preview_active_path.remove(path).flatten();
+        } else {
+            self.preview_tabs = std::mem::take(&mut self.standalone_preview_tabs);
+        }
+        self.project_path = project;
         self.preview_tab_menu_path = None;
         self.preview_tab_menu_pos = None;
     }

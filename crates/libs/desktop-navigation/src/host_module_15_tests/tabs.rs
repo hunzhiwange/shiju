@@ -5,6 +5,8 @@ fn test_app() -> domain::State {
         apps_search_query: String::new(),        project_path: None,
         project_preview_tabs: Default::default(),
         preview_tabs: Vec::new(),
+        standalone_preview_tabs: Vec::new(),
+        standalone_preview_active_path: None,
         project_preview_active_path: Default::default(),
         active_preview_path: None,
         screen: Screen::Home,

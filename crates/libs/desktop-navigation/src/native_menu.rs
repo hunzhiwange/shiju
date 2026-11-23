@@ -7,6 +7,7 @@ use crate::components::top_bar::menus::{
     MenuEntry, edit_menu_entries, file_menu_entries, help_menu_entries, view_menu_entries,
 };
 use crate::components::top_bar::types::WorkspaceMode;
+use crate::panel::tabs::EDITOR_TAB_ID;
 use crate::ui_types::Screen;
 use desktop_platform::menu_actions::NativeMenuAction;
 
@@ -34,16 +35,21 @@ pub fn window_tab_entries<'a>(
     tabs: impl IntoIterator<Item = TabInput<'a>>,
     active_tab_id: Option<&str>,
 ) -> Vec<WindowTabEntry> {
+    let i18n = desktop_i18n::I18n::new(locale);
     tabs.into_iter()
         .filter(|tab| !tab.id.starts_with("find:"))
         .map(|tab| WindowTabEntry {
             id: tab.id.to_owned(),
-            title: desktop_i18n::native::tab_title(
-                desktop_i18n::I18n::new(locale),
-                window_tab_title(tab.title, tab.project_path),
-                tab.title.trim().is_empty()
-                    && tab.project_path.is_none_or(|path| path.trim().is_empty()),
-            ),
+            title: if tab.id == EDITOR_TAB_ID {
+                desktop_i18n::other::tab_label(i18n, tab.id, tab.title)
+            } else {
+                desktop_i18n::native::tab_title(
+                    i18n,
+                    window_tab_title(tab.title, tab.project_path),
+                    tab.title.trim().is_empty()
+                        && tab.project_path.is_none_or(|path| path.trim().is_empty()),
+                )
+            },
             active: active_tab_id == Some(tab.id),
         })
         .collect()

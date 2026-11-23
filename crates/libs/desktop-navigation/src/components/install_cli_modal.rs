@@ -270,8 +270,13 @@ pub fn view_inner<'a>(
             let mut content = row![].spacing(8).align_y(Alignment::Center);
             if installing {
                 content = content.push(
-                    text(desktop_ui_controls::status_animation::spinner_frame(animation_frame))
-                        .width(Length::Fixed(16.0)),
+                    desktop_ui_controls::status_animation::activity_spinner(animation_frame, 13.0)
+                        .style(|theme, _| iced::widget::svg::Style {
+                            color: Some(
+                                primary_action_btn_style(theme, button::Status::Disabled)
+                                    .text_color,
+                            ),
+                        }),
                 );
             }
             let content = content.push(text(i18n.__(label)).size(13));

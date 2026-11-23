@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       experiment:
-        description: Measurement to run (experiments never change production configuration)
+        description: Benchmark a build, or populate the release cache from the protected default branch
         type: choice
-        options: [dist, lto, precise]
+        options: [dist, warm-cache, lto, precise]
         default: dist
       cache:
-        description: 'Rust cache: off for baseline, restore for measured reuse'
+        description: 'Rust cache: off for baseline, restore for reuse and warm-cache'
         type: choice
         options: [restore, 'off']
         default: restore
@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   measure:
-    if: inputs.experiment == 'dist'
+    if: inputs.experiment == 'dist' || inputs.experiment == 'warm-cache'
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -41,6 +41,16 @@ jobs:
       CACHE_TARGETS: ${{ matrix.target }}
       RELEASE_CACHE_MODE: ${{ inputs.cache }}
     steps:
+      - name: Require a trusted ref for cache warming
+        if: inputs.experiment == 'warm-cache'
+        shell: bash
+        env:
+          CAN_WARM: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.ref_protected && inputs.cache == 'restore' }}
+        run: |
+          if [[ "$CAN_WARM" != 'true' ]]; then
+            echo 'Use the protected default branch and set cache to restore.' >&2
+            exit 1
+          fi
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.sha }}
@@ -159,13 +169,13 @@ jobs:
           dotnet tool install --global wix --version 5.0.2
           wix extension add --global WixToolset.UI.wixext/5.0.2
       - name: Cache pinned macOS packaging tools
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && inputs.experiment == 'dist'
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/macos-packaging-tools
           key: packaging-tools-${{ runner.os }}-${{ runner.arch }}-cargo-bundle-0.12.0
       - name: Install macOS packaging tools in a shared Cargo slot
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && inputs.experiment == 'dist'
         shell: bash
         run: |
           bash scripts/install_macos_packaging_tools.sh "$RUNNER_TEMP/macos-packaging-tools"
@@ -189,55 +199,6 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         run: cargo build --locked --profile dist --target "$CACHE_TARGETS" -p computer-control --bin shiju-computer-use
-      - name: Package prebuilt binaries without signing credentials
-        shell: bash
-        env:
-          TARGET: ${{ matrix.target }}
-          PROFILE: dist
-          SKIP_BUILD: '1'
-          OUT_DIR: target/distrib
-          CREATE_MSI: '1'
-          CREATE_ZIP: '1'
-          CREATE_DMG: '1'
-          PACKAGE_APP: '1'
-          MACOS_SIGN_MODE: adhoc
-          MACOS_NOTARIZE: '0'
-          INCLUDE_CLI_IN_APP: '1'
-          INCLUDE_ACP_IN_APP: '1'
-        run: |
-          case "$TARGET" in
-            *apple-darwin) bash scripts/bundle_macos.sh ;;
-            *windows-msvc) bash scripts/bundle_windows.sh ;;
-            *unknown-linux-gnu) bash scripts/bundle_linux.sh ;;
-            *) echo "Unsupported target: $TARGET" >&2; exit 1 ;;
-          esac
-      - name: Record package checksums and native package metadata
-        shell: bash
-        env:
-          TARGET: ${{ matrix.target }}
-        run: |
-          python - <<'PYTHON'
-          import hashlib, json, os, pathlib, subprocess
-          root = pathlib.Path('target/distrib')
-          target = os.environ['TARGET']
-          files = [p for p in root.iterdir() if p.is_file()]
-          required = ['.dmg', '.zip'] if 'apple' in target else ['.msi', '.zip'] if 'windows' in target else ['.deb', '.rpm', '.tar.gz']
-          for suffix in required:
-              assert any(p.name.endswith(suffix) and p.stat().st_size for p in files), f'Missing {suffix}'
-          records = {}
-          for p in files:
-              digest = hashlib.sha256()
-              with p.open('rb') as source:
-                  for chunk in iter(lambda: source.read(1024 * 1024), b''):
-                      digest.update(chunk)
-              records[p.name] = dict(bytes=p.stat().st_size, sha256=digest.hexdigest())
-              if p.suffix in ['.deb', '.rpm']:
-                  command = ['dpkg-deb', '--info', str(p)] if p.suffix == '.deb' else ['rpm', '-qip', str(p)]
-                  records[p.name]['metadata'] = subprocess.check_output(command, text=True)
-                  command = ['dpkg-deb', '--contents', str(p)] if p.suffix == '.deb' else ['rpm', '-qlp', str(p)]
-                  records[p.name]['contents'] = subprocess.check_output(command, text=True)
-          pathlib.Path('benchmark/packages.json').write_text(json.dumps(records, indent=2))
-          PYTHON
       - name: Stage compiler cache from the held slot
         if: ${{ success() && github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.ref_protected && env.RELEASE_CACHE_MODE != 'off' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         shell: bash
@@ -276,6 +237,71 @@ jobs:
             ${{ steps.cargo-cache-layout.outputs.cargo_home }}/git/checkouts
             ${{ env.RELEASE_CARGO_CACHE }}
           key: ${{ steps.cargo-cache-layout.outputs.key }}
+      - name: Verify the release cache is available
+        if: inputs.experiment == 'warm-cache'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/registry/index
+            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/registry/cache
+            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/registry/src
+            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/git/db
+            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/git/checkouts
+            ${{ env.RELEASE_CARGO_CACHE }}
+          key: ${{ steps.cargo-cache-layout.outputs.key }}
+          lookup-only: true
+          fail-on-cache-miss: true
+      - name: Package prebuilt binaries without signing credentials
+        if: inputs.experiment == 'dist'
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          PROFILE: dist
+          SKIP_BUILD: '1'
+          OUT_DIR: target/distrib
+          CREATE_MSI: '1'
+          CREATE_ZIP: '1'
+          CREATE_DMG: '1'
+          PACKAGE_APP: '1'
+          MACOS_SIGN_MODE: adhoc
+          MACOS_NOTARIZE: '0'
+          INCLUDE_CLI_IN_APP: '1'
+          INCLUDE_ACP_IN_APP: '1'
+        run: |
+          case "$TARGET" in
+            *apple-darwin) bash scripts/bundle_macos.sh ;;
+            *windows-msvc) bash scripts/bundle_windows.sh ;;
+            *unknown-linux-gnu) bash scripts/bundle_linux.sh ;;
+            *) echo "Unsupported target: $TARGET" >&2; exit 1 ;;
+          esac
+      - name: Record package checksums and native package metadata
+        if: inputs.experiment == 'dist'
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          python - <<'PYTHON'
+          import hashlib, json, os, pathlib, subprocess
+          root = pathlib.Path('target/distrib')
+          target = os.environ['TARGET']
+          files = [p for p in root.iterdir() if p.is_file()]
+          required = ['.dmg', '.zip'] if 'apple' in target else ['.msi', '.zip'] if 'windows' in target else ['.deb', '.rpm', '.tar.gz']
+          for suffix in required:
+              assert any(p.name.endswith(suffix) and p.stat().st_size for p in files), f'Missing {suffix}'
+          records = {}
+          for p in files:
+              digest = hashlib.sha256()
+              with p.open('rb') as source:
+                  for chunk in iter(lambda: source.read(1024 * 1024), b''):
+                      digest.update(chunk)
+              records[p.name] = dict(bytes=p.stat().st_size, sha256=digest.hexdigest())
+              if p.suffix in ['.deb', '.rpm']:
+                  command = ['dpkg-deb', '--info', str(p)] if p.suffix == '.deb' else ['rpm', '-qip', str(p)]
+                  records[p.name]['metadata'] = subprocess.check_output(command, text=True)
+                  command = ['dpkg-deb', '--contents', str(p)] if p.suffix == '.deb' else ['rpm', '-qlp', str(p)]
+                  records[p.name]['contents'] = subprocess.check_output(command, text=True)
+          pathlib.Path('benchmark/packages.json').write_text(json.dumps(records, indent=2))
+          PYTHON
       - name: Release Cargo cache slot
         if: always()
         shell: bash
@@ -294,7 +320,7 @@ jobs:
               lock.rmdir()
           PYTHON
       - name: Upload evidence even after failure
-        if: always()
+        if: ${{ always() && hashFiles('benchmark/**') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: release-benchmark-${{ matrix.target }}-${{ github.sha }}

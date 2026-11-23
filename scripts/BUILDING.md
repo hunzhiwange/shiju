@@ -336,6 +336,12 @@ DMG creation fails, open the failed packaging job in that run and select
 **Re-run this job**. GitHub reuses the build inputs while they are retained and
 continues the dependent release jobs after packaging succeeds.
 
+To warm the Cargo cache for a new tag, run **Release benchmark** on the
+protected default branch with `experiment=warm-cache` and `cache=restore`
+after the version bump and before pushing the tag. This builds both macOS
+targets, saves their compiler caches, and checks that both keys are available.
+Release tags can restore compatible caches from the default branch.
+
 Configure these GitHub Actions repository secrets:
 
 - `MACOS_CERTIFICATE_P12_BASE64`: base64-encoded Developer ID Application

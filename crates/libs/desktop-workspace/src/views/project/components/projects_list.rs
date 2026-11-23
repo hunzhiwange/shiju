@@ -28,6 +28,7 @@ use iced::{Background, Color, ContentFit, Element, Length, Theme};
 
 use desktop_ui_controls::tooltip::tooltip_dark_style;
 use desktop_ui_controls::single_line_label::SingleLineLabel;
+use desktop_ui_controls::system_settings_common::icons::{icon_btn_svg_style, icon_svg};
 
 
 
@@ -580,20 +581,18 @@ fn agent_settings_badge_button(i18n: desktop_i18n::I18n, selected: bool) -> Elem
 }
 
 fn cron_badge_button(i18n: desktop_i18n::I18n, selected: bool) -> Element<'static, Message> {
-    let badge = container(desktop_ui_controls::system_settings_common::icon_svg(
-        desktop_assets::assets::Icon::Clock,
-        20.0,
-    ))
+    let badge = container(
+        icon_svg(desktop_assets::assets::Icon::Clock, 20.0).style(icon_btn_svg_style),
+    )
     .center_x(36)
     .center_y(36);
     title_tooltip(navigation_badge(badge, Message::OpenCron, selected), i18n.__("定时任务"), TooltipPosition::Right)
 }
 
 fn projects_badge_button(i18n: desktop_i18n::I18n, selected: bool) -> Element<'static, Message> {
-    let badge = container(desktop_ui_controls::system_settings_common::icon_svg(
-        desktop_assets::assets::Icon::FolderOpen,
-        20.0,
-    ))
+    let badge = container(
+        icon_svg(desktop_assets::assets::Icon::FolderOpen, 20.0).style(icon_btn_svg_style),
+    )
     .center_x(36)
     .center_y(36);
     title_tooltip(

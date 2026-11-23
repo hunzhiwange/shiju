@@ -643,8 +643,6 @@ if contract.get('layout') == 'python':
     raise SystemExit(0)
 if agent == 'sigit':
     # Fixed upstream source plus the reviewed host-only tool boundary.
-    if not os.environ.get('CARGO_TARGET_DIR'):
-        raise RuntimeError('siGit source build requires the repository cargo_slot.py entry')
     archive = assets / 'sigit.tar.gz'
     for attempt in range(3):
         try:
@@ -684,10 +682,15 @@ if agent == 'sigit':
         raise RuntimeError('Unexpected siGit source layout')
     source = roots[0]
     run(['patch', '--batch', '--forward', '-p1', '-d', str(source), '-i', str(assets / 'sigit.patch')])
-    env = dict(os.environ, MISTRALRS_METAL_PRECOMPILE='0')
-    subprocess.run(['cargo', 'build', '--locked', '-p', 'sigit', '--bin', 'sigit'], cwd=source, env=env, check=True)
+    target = Path(os.environ.get('CARGO_TARGET_DIR') or assets / 'cargo-target').absolute()
+    build_env = dict(os.environ, CARGO_TARGET_DIR=str(target), CARGO_BUILD_BUILD_DIR=str(target),
+                     MISTRALRS_METAL_PRECOMPILE='0')
+    subprocess.run(
+        ['cargo', 'build', '--locked', '-p', 'sigit', '--bin', 'sigit'],
+        cwd=source, env=build_env, check=True, stdin=subprocess.DEVNULL,
+    )
     runtime.mkdir()
-    shutil.copy2(Path(env['CARGO_TARGET_DIR']) / 'debug/sigit', runtime / 'sigit')
+    shutil.copy2(target / 'debug/sigit', runtime / 'sigit')
     (runtime / 'build-receipt.json').write_text(json.dumps({
         'version': contract['version'], 'source_sha256': contract['source_sha256'],
         'patch_sha256': contract['patch_sha256'], 'sha256': digest(runtime / 'sigit')}))

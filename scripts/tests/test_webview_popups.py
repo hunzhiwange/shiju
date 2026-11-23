@@ -222,6 +222,28 @@ class WebViewPopups(unittest.TestCase):
         self.launch("/start")
         self.assertEqual(self.request("/same-page")[0], "GET")
 
+    def test_blank_target_link_reuses_current_view(self):
+        self.action_page(
+            "/start",
+            "<base target='_blank'><a href='/explicit' target='_blank'>Link</a>",
+            "window.name = 'original-view'; document.links[0].click()",
+        )
+        self.action_page(
+            "/explicit",
+            "<base target='_blank'><a href='/inherited'>Link</a>",
+            "if (window.name === 'original-view') document.links[0].click()",
+        )
+        self.page(
+            "/inherited",
+            "<script>if (window.name === 'original-view') fetch('/original-view')</script>",
+        )
+        self.launch("/start")
+        self.request("/explicit")
+        if self.linux:
+            self.request("/explicit-ready")
+            self.click(self.window_title, "/explicit")
+        self.request("/original-view")
+
     def visible_window(self, title):
         deadline = time.monotonic() + 8
         while time.monotonic() < deadline:
@@ -325,7 +347,7 @@ class WebViewPopups(unittest.TestCase):
         self.stop(process)
 
         # An already open popup owns its own dialog, including failure feedback.
-        link("/opener", "/child", "target='_blank'")
+        self.action_page("/opener", "", "window.open('/child')")
         link("/child", f"{unknown}:synthetic")
         self.launch("/opener")
         self.request("/child-ready")
@@ -369,7 +391,7 @@ class WebViewPopups(unittest.TestCase):
 
     def check_generated_download(self, url_expression):
         self.action_page(
-            "/start", "<a href=/popup target=_blank>Open</a>", "document.links[0].click()",
+            "/start", "", "window.open('/popup')",
         )
         self.action_page(
             "/popup",

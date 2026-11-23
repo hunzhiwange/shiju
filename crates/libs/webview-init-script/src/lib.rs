@@ -20,6 +20,29 @@ pub fn build_init_script(
 
             const DEFAULT_DOMAIN = '';
 
+            window.addEventListener('click', (event) => {{
+                if (event.defaultPrevented || event.button !== 0 ||
+                    event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+
+                const link = event.composedPath().find(node =>
+                    node instanceof HTMLAnchorElement || node instanceof HTMLAreaElement
+                );
+                if (!link?.hasAttribute('href') || link.hasAttribute('download') ||
+                    (link.protocol !== 'http:' && link.protocol !== 'https:')) return;
+
+                const target = link.getAttribute('target');
+                const effectiveTarget = target || document.querySelector('base[target]')?.target;
+                if (effectiveTarget?.toLowerCase() !== '_blank') return;
+
+                // Keep the browser's default link activation and only change its destination frame.
+                link.setAttribute('target', '_self');
+                setTimeout(() => {{
+                    if (link.getAttribute('target') !== '_self') return;
+                    if (target === null) link.removeAttribute('target');
+                    else link.setAttribute('target', target);
+                }}, 0);
+            }});
+
             function reportNavigation() {{
                 try {{
                     if (window.ipc && typeof window.ipc.postMessage === 'function') {{

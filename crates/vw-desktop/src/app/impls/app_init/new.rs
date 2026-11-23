@@ -155,7 +155,15 @@ impl App {
 
             // ========== 窗口和布局 ==========
             window_size: (1200.0, 800.0),
+            #[cfg(target_arch = "wasm32")]
             mobile_layout: crate::app::state::MobileLayoutState::new(1200.0, 800.0),
+            #[cfg(not(target_arch = "wasm32"))]
+            mobile_layout: {
+                let mut layout = crate::app::state::MobileLayoutState::default();
+                layout.select(crate::app::state::LayoutPreference::Desktop);
+                layout
+            },
+            #[cfg(not(target_arch = "wasm32"))]
             desktop_layout_window_size: None,
             fullscreen_layout_settling: false,
             startup_resize_checked: false,

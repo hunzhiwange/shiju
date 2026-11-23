@@ -1,6 +1,6 @@
 //! 会话内的呈现策略；尺寸使用 Iced 已转换的逻辑像素，无需再次应用缩放。
 
-const MOBILE_BREAKPOINT: f32 = 768.0;
+pub const MOBILE_BREAKPOINT: f32 = 768.0;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum LayoutPreference {

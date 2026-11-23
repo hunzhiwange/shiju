@@ -345,18 +345,24 @@ fn shutdown_waits_for_pending_layout_preferences() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn mobile_layout_window_restores_original_dimensions_for_desktop_and_auto() {
+fn mobile_layout_window_restores_original_dimensions_on_exit() {
     use crate::app::state::LayoutPreference;
-    for restore in [LayoutPreference::Desktop, LayoutPreference::Auto] {
-        let mut app = crate::app::App::new().0;
-        app.window_size = (1280.0, 820.0);
-        assert_eq!(super::layout_window_size(&mut app, LayoutPreference::Mobile), Some((430.0, 820.0)));
-        app.window_size = (430.0, 820.0);
-        // 重复选择手机不得覆盖原始尺寸。
-        assert_eq!(super::layout_window_size(&mut app, LayoutPreference::Mobile), Some((430.0, 820.0)));
-        assert_eq!(super::layout_window_size(&mut app, restore), Some((1280.0, 820.0)));
-        assert_eq!(super::layout_window_size(&mut app, restore), None);
-    }
+    let mut app = crate::app::App::new().0;
+    app.window_size = (1920.0, 1080.0);
+    assert_eq!(
+        super::layout_window_size(&mut app, LayoutPreference::Mobile),
+        Some((430.0, 932.0))
+    );
+    app.window_size = (430.0, 932.0);
+    assert_eq!(
+        super::layout_window_size(&mut app, LayoutPreference::Mobile),
+        Some((430.0, 932.0))
+    );
+    assert_eq!(
+        super::layout_window_size(&mut app, LayoutPreference::Desktop),
+        Some((1920.0, 1080.0))
+    );
+    assert_eq!(super::layout_window_size(&mut app, LayoutPreference::Desktop), None);
 }
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -15,6 +15,59 @@ fn terminal_subscription(term: &iced_term::Terminal) -> Subscription<Message> {
     desktop_terminal::local::subscription(term).map(Message::Terminal)
 }
 
+#[cfg(target_arch = "wasm32")]
+fn browser_layout_stream() -> impl iced::futures::Stream<Item = Message> {
+    use crate::app::state::LayoutPreference;
+    use desktop_navigation::mobile_layout::MOBILE_BREAKPOINT;
+    use iced::futures::{SinkExt, StreamExt, channel::mpsc};
+    use wasm_bindgen::{JsCast, closure::Closure};
+    use web_sys::{Event, MediaQueryList};
+
+    struct Listener {
+        query: MediaQueryList,
+        callback: Closure<dyn FnMut(Event)>,
+    }
+
+    impl Drop for Listener {
+        fn drop(&mut self) {
+            let _ = self.query.remove_event_listener_with_callback(
+                "change",
+                self.callback.as_ref().unchecked_ref(),
+            );
+        }
+    }
+
+    iced::stream::channel(1, async |mut output| {
+        let media = format!("(width < {MOBILE_BREAKPOINT}px), (hover: none) and (pointer: coarse)");
+        let Some(query) = web_sys::window()
+            .and_then(|window| window.match_media(&media).ok().flatten())
+        else {
+            return;
+        };
+        let (changes, mut events) = mpsc::unbounded();
+        let _ = changes.unbounded_send(query.matches());
+        let current = query.clone();
+        let callback = Closure::<dyn FnMut(Event)>::new(move |_| {
+            let _ = changes.unbounded_send(current.matches());
+        });
+        if query
+            .add_event_listener_with_callback("change", callback.as_ref().unchecked_ref())
+            .is_err()
+        {
+            return;
+        }
+        let _listener = Listener { query, callback };
+        while let Some(mobile) = events.next().await {
+            let preference =
+                if mobile { LayoutPreference::Mobile } else { LayoutPreference::Desktop };
+            let message = Message::View(message::ViewMessage::LayoutSelected(preference));
+            if output.send(message).await.is_err() {
+                break;
+            }
+        }
+    })
+}
+
 fn cron_history_subscription(app: &App) -> Subscription<Message> {
     use crate::app::message::settings::cron_history;
     desktop_settings_cron::update::history::subscription(
@@ -163,6 +216,8 @@ impl App {
             .unwrap_or_else(Subscription::none);
 
         let events = Subscription::batch([
+            #[cfg(target_arch = "wasm32")]
+            Subscription::run(browser_layout_stream),
             crate::app::components::daily_memory::subscription(&self.apps_catalog.daily_memory),
             {
                 #[cfg(not(target_arch = "wasm32"))]

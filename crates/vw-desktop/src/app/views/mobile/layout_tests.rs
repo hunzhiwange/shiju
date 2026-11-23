@@ -1,22 +1,21 @@
 use super::*;
+use crate::app::state::LayoutPreference;
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Font, Pixels, Rectangle, Size, Theme};
 
 #[tokio::test(flavor = "multi_thread")]
+#[cfg(not(target_arch = "wasm32"))]
 async fn mobile_layout_switch_draws_compactly_in_both_themes() {
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("headless renderer");
-    let mut app = App::new().0;
-    for preference in [LayoutPreference::Auto, LayoutPreference::Desktop, LayoutPreference::Mobile]
-    {
-        app.mobile_layout.select(preference);
+    for mode in [LayoutMode::Desktop, LayoutMode::Mobile] {
         for theme in [Theme::Light, Theme::Dark] {
             for width in [360.0, 1200.0] {
                 let size = Size::new(width, 800.0);
-                let mut element = layout_switch(&app);
+                let mut element = phone_mode_button(mode);
                 let mut tree = Tree::new(element.as_widget());
                 let node = element.as_widget_mut().layout(
                     &mut tree,

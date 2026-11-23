@@ -1,7 +1,9 @@
 //! 移动外壳；全局通知、认证和审批浮层由 App::view 统一挂载。
 use crate::app::assets::{Icon, get_icon};
 use crate::app::message::ViewMessage;
-use crate::app::{App, Message, Screen, state::LayoutPreference};
+use crate::app::{App, Message, Screen};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::state::LayoutMode;
 use iced::widget::{column, container, row, text};
 use iced::{Element, Length};
 pub mod chat;
@@ -33,7 +35,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     } else {
         "会话"
     };
-    let header = header(app, title);
+    let header = header(title);
     let content = if app.mobile_layout.mine_open {
         mine::view(app)
     } else if app.mobile_layout.drawer_open {
@@ -48,9 +50,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         chat::view(app)
     } else {
         column![
-            text("此工具尚未适配手机，请切换桌面布局使用。"),
+            text("此工具尚未适配手机布局。"),
             action("返回会话", ViewMessage::MobileChat),
-            action("桌面布局", ViewMessage::LayoutSelected(LayoutPreference::Desktop))
         ]
         .spacing(12)
         .into()
@@ -76,15 +77,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
 }
 
 /// 原生窗口控制区与页面导航分行，避免窄屏下挤占返回按钮。
-fn header<'a>(app: &'a App, title: &'a str) -> Element<'a, Message> {
+fn header(title: &str) -> Element<'_, Message> {
     let controls = row![
         navigation_icon(Icon::ArrowLeft, "返回", ViewMessage::MobileBack),
         container(text(title)).width(Length::Fill).center_x(Length::Fill),
-        layout_switch(app),
-        navigation_icon(Icon::FolderClosed, "项目", ViewMessage::MobileDrawerToggled)
-    ]
-    .spacing(8)
-    .align_y(iced::Alignment::Center);
+    ];
+    #[cfg(not(target_arch = "wasm32"))]
+    let controls = controls.push(phone_mode_button(LayoutMode::Mobile));
+    let controls = controls
+        .push(navigation_icon(Icon::FolderClosed, "项目", ViewMessage::MobileDrawerToggled))
+        .spacing(8)
+        .align_y(iced::Alignment::Center);
     let controls: Element<'_, Message> =
         container(container(controls).padding(7).width(Length::Fill).max_width(430))
             .center_x(Length::Fill)
@@ -181,29 +184,18 @@ fn bottom_tab(
     if selected { button.into() } else { button.on_press(Message::View(message)).into() }
 }
 
-/// 桌面工具栏与手机标题栏共用同一个紧凑三态按钮。
-pub(crate) fn layout_switch(app: &App) -> Element<'_, Message> {
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn phone_mode_button(mode: LayoutMode) -> Element<'static, Message> {
+    use crate::app::state::LayoutPreference;
     use iced::widget::svg;
-    let (next, label, path) = match app.mobile_layout.preference() {
-        LayoutPreference::Auto => (
-            LayoutPreference::Desktop,
-            "自动 · 点击切换桌面",
-            r#"<rect x="3" y="4" width="15" height="12" rx="2"/><rect x="15" y="10" width="6" height="11" rx="1"/><path d="M7 20h5m-2-4v4"/>"#,
-        ),
-        LayoutPreference::Desktop => (
-            LayoutPreference::Mobile,
-            "桌面 · 点击切换手机",
-            r#"<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/>"#,
-        ),
-        LayoutPreference::Mobile => (
-            LayoutPreference::Auto,
-            "手机 · 点击切换自动",
-            r#"<rect x="6" y="2" width="12" height="20" rx="3"/><path d="M10 5h4m-3 14h2"/>"#,
-        ),
+    let (next, label) = match mode {
+        LayoutMode::Desktop => (LayoutPreference::Mobile, "进入手机模式"),
+        LayoutMode::Mobile => (LayoutPreference::Desktop, "退出手机模式"),
     };
-    let icon = svg::Handle::from_memory(format!(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">{path}</svg>"#
-    ).into_bytes());
+    let icon = svg::Handle::from_memory(
+        br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M10 5h4m-3 14h2"/></svg>"#
+            .as_slice(),
+    );
     header_icon(icon, label, ViewMessage::LayoutSelected(next))
 }
 

@@ -15,7 +15,7 @@ try {
         for (const colorScheme of ['light', 'dark']) {
             for (const deviceScaleFactor of [1, 2, 3]) {
                 const context = await browser.newContext({ viewport: { width, height },
-                    colorScheme, deviceScaleFactor, hasTouch: true });
+                    colorScheme, deviceScaleFactor, hasTouch: width < 1440 });
                 try {
                     const page = await context.newPage();
                     const errors = [];
@@ -37,24 +37,25 @@ try {
                     const prefix = join(output, `${width}-${height}-${colorScheme}-${deviceScaleFactor}`);
                     const capture = async name => page.screenshot({ path: `${prefix}-${name}.png` });
                     const initial = await capture('initial');
-                    if (width < 768) {
-                        // The mobile shell uses 44px actions and 7px outer padding.
-                        await page.touchscreen.tap(width - 35, 29);
+                    if (width < 1440) {
+                        const headerInset = (width - Math.min(width, 430)) / 2;
+                        await page.touchscreen.tap(width - headerInset - 19, 19);
                         await page.waitForTimeout(600);
                         const drawer = await capture('drawer');
                         assert.notDeepEqual(drawer, initial, 'Project action must change the rendered canvas');
-                        await page.touchscreen.tap(width - 35, 29);
+                        await page.touchscreen.tap(width - headerInset - 19, 19);
                         await page.waitForTimeout(600);
-                        await page.touchscreen.tap(120, height - 29);
+                        await page.touchscreen.tap(width * 5 / 8, height - 29);
                         await page.waitForTimeout(600);
                         const settings = await capture('settings');
                         assert.notDeepEqual(settings, initial, 'Settings action must change the rendered canvas');
-                        await page.touchscreen.tap(30, 29);
+                        await page.touchscreen.tap(headerInset + 19, 19);
                         await page.waitForTimeout(600);
                         const returned = await capture('returned');
                         assert.notDeepEqual(returned, settings, 'Back must leave settings');
-                        // Explicit mobile layout survives crossing the automatic breakpoint.
-                        await page.touchscreen.tap(235, 77);
+                    }
+                    if (width < 768) {
+                        // Browser touch emulation keeps the mobile shell in landscape.
                         await page.setViewportSize({ width: 844, height: 390 });
                         await page.waitForTimeout(600);
                         await capture('landscape-mobile');

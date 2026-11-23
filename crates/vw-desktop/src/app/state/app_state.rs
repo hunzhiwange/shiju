@@ -77,7 +77,8 @@ pub struct App {
     pub(crate) window_size: (f32, f32),
     /// 当前会话的布局选择，独立于工作区模式与桌面面板尺寸。
     pub(crate) mobile_layout: MobileLayoutState,
-    /// 手动手机模式前的原生窗口尺寸，恢复桌面或自动时取回。
+    /// 进入手机模式前的原生窗口尺寸，退出时恢复。
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) desktop_layout_window_size: Option<(f32, f32)>,
     /// 全屏切换后的布局稳定期是否进行中
     pub(crate) fullscreen_layout_settling: bool,

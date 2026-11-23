@@ -214,14 +214,20 @@ fn mobile_message(message: &ViewMessage) -> Option<desktop_navigation::mobile_la
 }
 fn update_mobile(app: &mut App, message: desktop_navigation::mobile_layout::Message) -> Task<Message> {
  use desktop_navigation::mobile_layout as domain;
- #[cfg(not(target_arch = "wasm32"))]
  if let domain::Message::Selected(preference) = &message {
-     if let Some(window) = app.main_window_id {
-         if let Some((width, height)) = layout_window_size(app, *preference) {
-             app.mobile_layout.select(*preference);
-             return iced::window::resize(window, iced::Size::new(width, height));
-         }
+     app.mobile_layout.select(*preference);
+     #[cfg(not(target_arch = "wasm32"))]
+     if let Some(window) = app.main_window_id
+         && let Some((width, height)) = layout_window_size(app, *preference)
+     {
+         let resize = iced::window::resize(window, iced::Size::new(width, height));
+         return if *preference == crate::app::state::LayoutPreference::Mobile {
+             iced::window::maximize(window, false).chain(resize)
+         } else {
+             resize
+         };
      }
+     return Task::none();
  }
 
  let blocked = app.session_state.question_modal_request.is_some() || app.session_state.permission_modal_request.is_some() || app.workspace_state.new_session_picker_project.is_some();
@@ -254,7 +260,7 @@ fn layout_window_size(app: &mut App, preference: crate::app::state::LayoutPrefer
             if app.desktop_layout_window_size.is_none() {
                 app.desktop_layout_window_size = Some(app.window_size);
             }
-            Some((app.window_size.0.min(430.0), app.window_size.1))
+            Some((app.window_size.0.min(430.0), app.window_size.1.min(932.0)))
         }
         LayoutPreference::Desktop | LayoutPreference::Auto => app.desktop_layout_window_size.take(),
     }

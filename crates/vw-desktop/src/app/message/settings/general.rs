@@ -360,7 +360,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
                 return crate::app::desktop_notification::failure_feedback(
                     app,
-                    format!("{} {error}", i18n.__("系统通知发送失败，请检查系统通知权限。"),),
+                    format!("{} {error}", i18n.__("系统通知发送失败。")),
                 );
             }
         }

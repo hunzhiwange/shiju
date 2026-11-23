@@ -34,11 +34,10 @@ fn validate_macos_settings(
 #[cfg(target_os = "macos")]
 pub fn show(title: &str, body: &str) -> Result<(), String> {
     ensure_macos_permission().map_err(str::to_owned)?;
-    mac_usernotifications::Notification::new()
-        .title(title)
-        .message(body)
-        .default_sound()
-        .send_blocking()
+    // Wait for macOS to accept the request without tracking a user response.
+    let notification =
+        mac_usernotifications::Notification::new().title(title).message(body).default_sound();
+    mac_usernotifications::blocking::send(notification)
         .map(|_| ())
         .map_err(|error| error.to_string())
 }

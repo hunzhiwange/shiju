@@ -1,12 +1,14 @@
 use crate::{SystemTab, SETTINGS_SCROLL_GUTTER};
 use desktop_i18n::I18n;
 use desktop_assets::assets::Icon;
+use desktop_ui_controls::system_settings_common::icons::icon_btn_with_tooltip_position;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_btn, icon_svg,
     settings_muted_text_style, settings_text_input_style,
 };
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::text::Wrapping;
+use iced::widget::tooltip::Position as TooltipPosition;
 use iced::widget::{
     Space, button, column, container, row, scrollable, stack, svg, text, text_input,
 };
@@ -19,13 +21,15 @@ pub struct NavigationGroup<Message> { pub label: Option<&'static str>, pub entri
 pub const SETTINGS_NAVIGATION_SCROLL: &str = "system-settings-navigation-scroll";
 pub fn view<'a, Message: Clone + 'static>(query: &'a str, i18n: I18n, width: f32, groups: Vec<NavigationGroup<Message>>, close: Message, on_query: impl Fn(String) -> Message + 'a) -> Element<'a, Message> {
     let title = row![
-        icon_btn(
+        icon_btn_with_tooltip_position(
             Icon::ArrowLeft,
             i18n.__("返回"),
             Some(close),
+            TooltipPosition::Bottom,
         ),
         text(i18n.__("设置"))
             .size(18)
+            .line_height(iced::Pixels(22.0))
             .font(Font { weight: font::Weight::Semibold, ..Font::DEFAULT }),
     ]
     .spacing(4)

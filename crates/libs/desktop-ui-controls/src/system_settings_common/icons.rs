@@ -106,6 +106,15 @@ pub fn icon_btn_tooltip_style(theme: &iced::Theme) -> iced::widget::container::S
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn icon_btn<Message: Clone + 'static>(icon: Icon, tip: &'static str, on: Option<Message>) -> Element<'static, Message> {
+    icon_btn_with_tooltip_position(icon, tip, on, TooltipPosition::FollowCursor)
+}
+
+pub fn icon_btn_with_tooltip_position<Message: Clone + 'static>(
+    icon: Icon,
+    tip: &'static str,
+    on: Option<Message>,
+    position: TooltipPosition,
+) -> Element<'static, Message> {
     let btn = {
         let base = button(icon_svg(icon, 14.0).style(icon_btn_svg_style))
             .padding([4, 6])
@@ -116,5 +125,5 @@ pub fn icon_btn<Message: Clone + 'static>(icon: Icon, tip: &'static str, on: Opt
 
     let tip_content = container(text(tip).size(12)).padding([6, 10]).style(icon_btn_tooltip_style);
 
-    Tooltip::new(btn, tip_content, TooltipPosition::FollowCursor).gap(6).into()
+    Tooltip::new(btn, tip_content, position).gap(6).into()
 }

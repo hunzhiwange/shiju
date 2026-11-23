@@ -624,7 +624,7 @@ exclude = [
 resolver = "3"
 
 [workspace.package]
-version = "0.7.9"
+version = "0.7.10"
 
 [profile.dev]
 # Keep macOS development binaries within the compact unwind offset limit.

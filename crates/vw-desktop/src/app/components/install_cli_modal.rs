@@ -58,13 +58,37 @@ pub fn view_update_check_with_progress<'a>(
     update_progress: Option<&'a update_types::UpdateProgress>,
     last_copied_code_hash: Option<u64>,
 ) -> iced::Element<'a, Message> {
-    shared::view_update_check_with_progress(title, content, current_version, server_version, is_checking, show_install_action, use_app_update_action, update_progress, last_copied_code_hash, help).map(map)
+    shared::view_update_check_with_progress(
+        title,
+        content,
+        current_version,
+        server_version,
+        is_checking,
+        show_install_action,
+        use_app_update_action,
+        update_progress,
+        last_copied_code_hash,
+        help,
+    )
+    .map(map)
 }
 pub fn view_app_update(app: &App) -> iced::Element<'_, Message> {
     shared::view_inner(
         crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         &app.update_panel.cli_install_modal_title,
-        &app.update_panel.cli_install_modal_message,
+        app.update_panel
+            .cli_install_message
+            .as_ref()
+            .map(|message| {
+                std::borrow::Cow::Owned(
+                    message
+                        .render(crate::app::i18n::I18n::new(app.general_settings.desktop_locale))
+                        .expect("valid CLI source templates"),
+                )
+            })
+            .unwrap_or_else(|| {
+                std::borrow::Cow::Borrowed(app.update_panel.cli_install_modal_message.as_str())
+            }),
         Some(&app.update_panel.cli_install_modal_current_version),
         Some(&app.update_panel.cli_install_modal_server_version),
         app.update_panel.cli_install_modal_is_checking_update,

@@ -98,7 +98,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 }
                 #[cfg(target_arch = "wasm32")]
                 {
-                    app.input_feedback.error_message = Some("当前平台不支持重启应用".to_string());
+                    app.set_localized_input_error(
+                        crate::app::i18n::input::ErrorField::General,
+                        "当前平台不支持重启应用",
+                        vec![],
+                    );
                     Task::none()
                 }
             }
@@ -173,15 +177,27 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::OpenTerminalPressed => {
             if !crate::app::config::gateway_client_endpoint().is_loopback() {
-                return app.show_error_toast("远端终端只能通过网关 PTY 打开");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "远端终端只能通过网关 PTY 打开",
+                    vec![],
+                );
             }
             if let Some(_path) = crate::app::components::git_panel::git_repo_path_for_app(app) {
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Err(error) = crate::app::components::git_panel::open_terminal(&_path) {
-                    return app.show_error_toast(format!("无法打开终端：{error}"));
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "无法打开终端：%s",
+                        vec![error.into()],
+                    );
                 }
             } else {
-                return app.show_error_toast("没有可打开终端的本机仓库目录");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "没有可打开终端的本机仓库目录",
+                    vec![],
+                );
             }
             Task::none()
         }
@@ -203,8 +219,14 @@ pub fn close_requested(app: &mut App, window_id: iced::window::Id) -> Task<Messa
 
     if windows.main_window_id.is_some() {
         if app.lifecycle.close_to_tray && !app.shutdown_requested {
-            if let Err(error) = crate::app::desktop_lifecycle::ensure_tray(app.general_settings.desktop_locale) {
-                return app.show_error_toast(format!("无法关闭到托盘：{error}"));
+            if let Err(error) =
+                crate::app::desktop_lifecycle::ensure_tray(app.general_settings.desktop_locale)
+            {
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "无法关闭到托盘：%s",
+                    vec![error.into()],
+                );
             }
             #[cfg(target_os = "macos")]
             return app.release_main_window();
@@ -409,6 +431,9 @@ fn update_panel(app: &mut App, message: PanelMessage) -> Task<Message> {
                 ),
                 |result| Message::View(ViewMessage::AppUpdateSourceSaved(result)),
             ),
+            Effect::LocalizedError(source, arguments) => {
+                app.show_localized_toast(crate::app::state::ToastKind::Error, source, arguments)
+            }
             Effect::Error(error) => app.show_error_toast(error),
             #[cfg(not(target_arch = "wasm32"))]
             Effect::Shutdown => {
@@ -470,7 +495,9 @@ fn navigation_message(
         ViewMessage::ToggleSystemSettings => Local::ToggleSystemSettings,
         ViewMessage::OpenAcpSettings => Local::OpenAcpSettings,
         ViewMessage::OpenSystemSettingsTab(value) => Local::OpenSystemSettingsTab(*value),
-        ViewMessage::OpenSystemSettingsTarget(target) => Local::OpenSystemSettingsTab(target.page()),
+        ViewMessage::OpenSystemSettingsTarget(target) => {
+            Local::OpenSystemSettingsTab(target.page())
+        }
         ViewMessage::OpenSystemSettingsModelDetail(provider, model) => {
             Local::OpenSystemSettingsModelDetail(provider.clone(), model.clone())
         }
@@ -546,7 +573,11 @@ fn update_navigation(
                         )
                         .await
                     },
-                    move |result| Message::Project(ProjectMessage::ProjectSessionsLoaded(generation, path, result)),
+                    move |result| {
+                        Message::Project(ProjectMessage::ProjectSessionsLoaded(
+                            generation, path, result,
+                        ))
+                    },
                 );
                 return Task::batch([save, sessions]);
             }

@@ -175,7 +175,7 @@ pub fn view_update_check_with_progress<'a>(
 pub fn view_inner<'a>(
     i18n: desktop_i18n::I18n,
     title: &'a str,
-    content: &'a str,
+    content: impl Into<std::borrow::Cow<'a, str>>,
     current_version: Option<&'a str>,
     server_version: Option<&'a str>,
     is_checking: bool,
@@ -189,6 +189,7 @@ pub fn view_inner<'a>(
     animation_frame: usize,
     help: HelpRenderer,
 ) -> Element<'a, Message> {
+    let content = content.into();
     let close_message = Message::View(ViewMessage::CloseInstallCliModal);
     let has_version_info = current_version.is_some() && server_version.is_some();
     #[cfg(target_arch = "wasm32")]
@@ -232,12 +233,12 @@ pub fn view_inner<'a>(
                 update_value(desktop_i18n::modals::render(
                     i18n,
                     "当前版本 %s",
-                    &[current_version.into()]
+                    &[i18n.__(current_version).into()]
                 )),
                 update_value(desktop_i18n::modals::render(
                     i18n,
                     "服务器版本 %s",
-                    &[server_version.into()]
+                    &[i18n.__(server_version).into()]
                 )),
             ]
             .spacing(8)
@@ -422,7 +423,15 @@ pub fn view_inner<'a>(
         .wrap(),
         settings_close_button(close_message.clone()),
     );
-    let description = text(i18n.__(content))
+    #[cfg(not(target_arch = "wasm32"))]
+    let content = desktop_update
+        .filter(|_| title == "安装包已就绪")
+        .and_then(|state| state.ready.as_ref())
+        .map(|ready| ready.instructions_localized(i18n))
+        .unwrap_or_else(|| i18n.__(&content).to_owned());
+    #[cfg(target_arch = "wasm32")]
+    let content = i18n.__(&content).to_owned();
+    let description = text(content)
         .size(13)
         .width(Length::Fill)
         .wrapping(Wrapping::WordOrGlyph)

@@ -85,3 +85,15 @@ pub fn launch_log_summary(target: &str, options: &LaunchOptions) -> String {
 
 #[cfg(test)]
 mod launch_tests;
+
+/// Explicit desktop language; standalone helper launches retain the desktop default.
+pub fn launch_locale(args: &[String]) -> config_ui::DesktopLocale {
+    args.iter()
+        .find_map(|arg| match arg.as_str() {
+            "--locale=zh-CN" => Some(config_ui::DesktopLocale::SimplifiedChinese),
+            "--locale=zh-TW" => Some(config_ui::DesktopLocale::TraditionalChinese),
+            "--locale=en" => Some(config_ui::DesktopLocale::English),
+            _ => None,
+        })
+        .unwrap_or_default()
+}

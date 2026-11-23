@@ -1,10 +1,10 @@
 use tao::event::{Event, WindowEvent};
 use tao::event_loop::ControlFlow;
+use webview_browser_views::to_wry_rect;
 use webview_core::events::UserEvent;
 use webview_core::navigation::{ExternalTarget, is_safe_navigation_url};
 use webview_launch::DEFAULT_TARGET;
 use webview_toolbar::{toolbar_address_script, window_regions};
-use webview_browser_views::to_wry_rect;
 
 pub(crate) struct BrowserEvents {
     pub(crate) window: tao::window::Window,
@@ -22,10 +22,27 @@ pub(crate) struct BrowserEvents {
 impl BrowserEvents {
     pub(crate) fn handle(&mut self, event: Event<'_, UserEvent>, control_flow: &mut ControlFlow) {
         let Self {
-            window, webview, toolbar_webview, popups, external, proxy,
-            embedded_mode, independent_mode, current_url, browser_cleared,
+            window,
+            webview,
+            toolbar_webview,
+            popups,
+            external,
+            proxy,
+            embedded_mode,
+            independent_mode,
+            current_url,
+            browser_cleared,
         } = self;
         match event {
+            Event::UserEvent(UserEvent::SetLocale(locale)) => {
+                if let Some(toolbar) = toolbar_webview.as_ref()
+                    && let Ok(script) = webview_toolbar::toolbar_locale_script(locale)
+                {
+                    let _ = toolbar.evaluate_script(&script);
+                }
+                #[cfg(target_os = "macos")]
+                webview_native_menu::install_edit_menu(proxy.clone(), current_url, locale);
+            }
             Event::UserEvent(UserEvent::Resize(w, h)) => {
                 window.set_inner_size(tao::dpi::LogicalSize::new(w as f64, h as f64));
             }

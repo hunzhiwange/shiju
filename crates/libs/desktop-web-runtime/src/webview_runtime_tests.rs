@@ -242,3 +242,21 @@ fn webview_helper_candidates_find_cargo_builds_from_relax_runner() {
         ],
     );
 }
+
+#[test]
+fn desktop_gettext_browser_locale_refresh_keeps_the_child_and_navigation() {
+    use config_ui::DesktopLocale::*;
+    let probe = Arc::new(Mutex::new(ProcessProbe { running: true, ..Default::default() }));
+    let mut controller = WorkBrowserController::default();
+    let bounds = WebviewBounds { x: 0, y: 0, width: 800, height: 600 };
+    controller.ensure_started_with("https://example.com/", bounds, |_| {
+        Ok(Box::new(MemoryProcess { probe: Arc::clone(&probe) }))
+    }).unwrap();
+    controller.set_locale(English).unwrap();
+    controller.set_locale(English).unwrap();
+    controller.set_locale(TraditionalChinese).unwrap();
+    controller.navigate("https://example.com/unchanged").unwrap();
+    let state = probe.lock().unwrap();
+    assert_eq!(String::from_utf8_lossy(&state.protocol), "locale en\nlocale zh-TW\nnavigate https://example.com/unchanged\n");
+    assert_eq!(state.terminations, 0);
+}

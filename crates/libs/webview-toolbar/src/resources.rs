@@ -142,7 +142,24 @@ const TOOLBAR_TEMPLATE: &str = r#"<!doctype html>
 "#;
 
 pub fn toolbar_html() -> String {
+    toolbar_html_with_locale(config_ui::DesktopLocale::default())
+}
+
+pub fn toolbar_html_with_locale(locale: config_ui::DesktopLocale) -> String {
+    let i18n = desktop_i18n::I18n::new(locale);
+    let language = match locale {
+        config_ui::DesktopLocale::SimplifiedChinese => "zh-CN",
+        config_ui::DesktopLocale::TraditionalChinese => "zh-TW",
+        config_ui::DesktopLocale::English => "en",
+    };
     TOOLBAR_TEMPLATE
+        .replace("lang=\"zh-CN\"", &format!("lang=\"{language}\""))
+        .replace("后退", i18n.__("后退"))
+        .replace("前进", i18n.__("前进"))
+        .replace("输入网址", i18n.__("输入网址"))
+        .replace("刷新", i18n.__("刷新"))
+        .replace("在外部浏览器中打开", i18n.__("在外部浏览器中打开"))
+        .replace("关闭", i18n.__("关闭"))
         .replace("__ARROW_LEFT__", ARROW_LEFT_ICON)
         .replace("__ARROW_RIGHT__", ARROW_RIGHT_ICON)
         .replace("__RELOAD__", RELOAD_ICON)
@@ -153,4 +170,32 @@ pub fn toolbar_html() -> String {
 pub fn toolbar_address_script(address: &str) -> Result<String, serde_json::Error> {
     let address = serde_json::to_string(address)?;
     Ok(format!("window.VibeWindowToolbar?.setAddress({address});"))
+}
+
+/// Refresh visible controls without reloading the page or replacing the address.
+pub fn toolbar_locale_script(
+    locale: config_ui::DesktopLocale,
+) -> Result<String, serde_json::Error> {
+    let i18n = desktop_i18n::I18n::new(locale);
+    let language = match locale {
+        config_ui::DesktopLocale::SimplifiedChinese => "zh-CN",
+        config_ui::DesktopLocale::TraditionalChinese => "zh-TW",
+        config_ui::DesktopLocale::English => "en",
+    };
+    let labels = serde_json::to_string(&[
+        ("back", i18n.__("后退")),
+        ("forward", i18n.__("前进")),
+        ("reload", i18n.__("刷新")),
+        ("open_external", i18n.__("在外部浏览器中打开")),
+        ("close", i18n.__("关闭")),
+    ])?;
+    let placeholder = serde_json::to_string(i18n.__("输入网址"))?;
+    Ok(format!(
+        r#"document.documentElement.lang='{language}';
+for (const [action,label] of {labels}) {{
+ const element=document.querySelector('[data-action="'+action+'"]');
+ if(element) {{element.title=label;element.setAttribute('aria-label',label);}}
+}}
+const input=document.querySelector('input');if(input) input.placeholder={placeholder};"#
+    ))
 }

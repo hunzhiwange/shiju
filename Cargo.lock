@@ -6768,6 +6768,7 @@ dependencies = [
 name = "desktop-app-launch"
 version = "0.7.10"
 dependencies = [
+ "config-ui",
  "desktop-i18n",
  "desktop-skill-hub",
  "gateway-shiju-app",
@@ -24448,6 +24449,7 @@ dependencies = [
 name = "webview-browser-runtime"
 version = "0.7.10"
 dependencies = [
+ "config-ui",
  "gtk",
  "open",
  "tao",
@@ -24472,6 +24474,7 @@ dependencies = [
 name = "webview-browser-views"
 version = "0.7.10"
 dependencies = [
+ "config-ui",
  "gtk",
  "tao",
  "webview-core",
@@ -24487,6 +24490,7 @@ dependencies = [
 name = "webview-core"
 version = "0.7.10"
 dependencies = [
+ "config-ui",
  "url",
 ]
 
@@ -24530,6 +24534,7 @@ dependencies = [
 name = "webview-ipc"
 version = "0.7.10"
 dependencies = [
+ "config-ui",
  "serde_json",
  "webview-core",
 ]
@@ -24537,6 +24542,9 @@ dependencies = [
 [[package]]
 name = "webview-launch"
 version = "0.7.10"
+dependencies = [
+ "config-ui",
+]
 
 [[package]]
 name = "webview-local-content"
@@ -24604,6 +24612,8 @@ dependencies = [
 name = "webview-native-menu"
 version = "0.7.10"
 dependencies = [
+ "config-ui",
+ "desktop-i18n",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
@@ -24650,6 +24660,8 @@ dependencies = [
 name = "webview-toolbar"
 version = "0.7.10"
 dependencies = [
+ "config-ui",
+ "desktop-i18n",
  "serde_json",
  "url",
  "webview-core",

@@ -1,12 +1,12 @@
 //! Verified downloads for automatic updates through system installers.
 use anyhow::{Context, Result, bail};
+use desktop_release::{DesktopInstaller, DesktopRelease, InstallerKind};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use update_types::UpdateProgress;
-use desktop_release::{DesktopInstaller, DesktopRelease, InstallerKind};
 
 /// Only the verified download path can produce this result. Fields stay private so
 /// callers cannot substitute an arbitrary path or digest before opening it.
@@ -63,6 +63,14 @@ impl PreparedDesktopUpdate {
 
     pub fn kind(&self) -> InstallerKind {
         self.asset.kind
+    }
+
+    pub fn instructions_localized(&self, i18n: desktop_i18n::I18n) -> String {
+        i18n.format(
+            "安装包已就绪：%s。%s",
+            &[self.path.display().to_string().into(), i18n.__(instructions(self.kind())).into()],
+        )
+        .expect("valid source template")
     }
 
     pub fn instructions(&self) -> String {

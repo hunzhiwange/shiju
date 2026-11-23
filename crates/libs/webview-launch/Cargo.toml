@@ -6,3 +6,6 @@ license = "MIT"
 
 [lib]
 doctest = false
+
+[dependencies]
+config-ui = { path = "../config-ui" }

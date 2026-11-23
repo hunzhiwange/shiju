@@ -1,9 +1,9 @@
 //! Update modal state transitions, release checks and download lifecycle.
-use iced::Task;
 use crate::app::desktop_update::DesktopUpdate;
-use crate::cli_install::{install_cli_tool, current_cli_tool_version_label, versions_match};
+use crate::cli_install::{current_cli_tool_version_label, install_cli_tool, versions_match};
 #[cfg(not(target_arch = "wasm32"))]
 use desktop_release as update;
+use iced::Task;
 #[derive(Debug, Clone)]
 pub enum PanelMessage {
     InstallCliTool,
@@ -30,7 +30,7 @@ pub enum PanelMessage {
     AppInstallerDirectoryOpened(Result<(), String>),
     AppUpdateProgressTick,
     AppUpdateFinished(Result<String, String>),
-    InstallCliToolFinished(Result<String, String>),
+    InstallCliToolFinished(Result<desktop_i18n::format::Message, crate::cli_install::InstallError>),
     CloseInstallCliModal,
 }
 /// Update-modal projection transferred by value by the desktop shell.
@@ -39,6 +39,7 @@ pub struct PanelState {
     pub show_cli_install_modal: bool,
     pub cli_install_modal_title: String,
     pub cli_install_modal_message: String,
+    pub cli_install_message: Option<desktop_i18n::format::Message>,
     pub cli_install_modal_current_version: String,
     pub cli_install_modal_server_version: String,
     pub cli_install_modal_show_update_action: bool,
@@ -52,7 +53,16 @@ pub enum Effect {
     CloseMenu,
     SaveSource(desktop_release::UpdateSource),
     Error(String),
+    LocalizedError(&'static str, Vec<desktop_i18n::format::Argument>),
     Shutdown,
+}
+fn localized_error(
+    effects: &mut Vec<Effect>,
+    source: &'static str,
+    arguments: Vec<desktop_i18n::format::Argument>,
+) -> Task<PanelMessage> {
+    effects.push(Effect::LocalizedError(source, arguments));
+    Task::none()
 }
 fn show_error_toast(effects: &mut Vec<Effect>, error: impl Into<String>) -> Task<PanelMessage> {
     effects.push(Effect::Error(error.into()));
@@ -76,6 +86,7 @@ pub fn update(
             effects.push(Effect::CloseMenu);
             panel.show_cli_install_modal = true;
             panel.cli_install_modal_title = "CLI 更新检测".to_string();
+            panel.cli_install_message = None;
             panel.cli_install_modal_message =
                 "打开终端，通过 shiju 调用各项功能：shiju agent 启动 TUI，shiju service 管理服务。下方命令可直接复制。"
                     .to_string();
@@ -98,22 +109,20 @@ pub fn update(
                 return Task::none();
             }
             let Some(source) = state.source else {
-                return show_error_toast(effects, "请先选择有效的升级来源");
+                return localized_error(effects, "请先选择有效的升级来源", vec![]);
             };
             state.request += 1;
             let request = state.request;
             state.checking = true;
             panel.cli_install_modal_is_checking_update = true;
+            panel.cli_install_message = None;
             panel.cli_install_modal_message = "正在请求所选来源的最新 CLI 版本...".into();
             Task::perform(fetch_latest_release_version(source), move |res| {
                 PanelMessage::CheckCliToolUpdateFinished(request, source, res)
             })
         }
         PanelMessage::CheckCliToolUpdateFinished(request, source, res) => {
-            if request != state.request
-                || Some(source) != state.source
-                || !state.checking
-            {
+            if request != state.request || Some(source) != state.source || !state.checking {
                 return Task::none();
             }
             state.checking = false;
@@ -122,15 +131,18 @@ pub fn update(
                 Ok(version) => {
                     panel.cli_install_modal_server_version = version.clone();
                     if versions_match(&panel.cli_install_modal_current_version, &version) {
+                        panel.cli_install_message = None;
                         panel.cli_install_modal_message =
                             "检测完成，本地 CLI 已是最新版本。".to_string();
                     } else {
+                        panel.cli_install_message = None;
                         panel.cli_install_modal_message =
                             "检测完成，发现新的 CLI 版本，可直接安装更新。".to_string();
                     }
                 }
                 Err(error) => {
                     panel.cli_install_modal_server_version = "检测失败".to_string();
+                    panel.cli_install_message = None;
                     panel.cli_install_modal_message = error;
                 }
             }
@@ -144,22 +156,28 @@ pub fn update(
                 if state.ready.is_some() {
                     return Task::none();
                 }
-                return update(panel, state, effects, version, #[cfg(not(target_arch = "wasm32"))] locale, PanelMessage::CheckAppUpdate);
+                return update(
+                    panel,
+                    state,
+                    effects,
+                    version,
+                    #[cfg(not(target_arch = "wasm32"))]
+                    locale,
+                    PanelMessage::CheckAppUpdate,
+                );
             }
             state.request += 1;
             state.checking = false;
             panel.cli_install_modal_title = "检测更新".into();
-            panel.cli_install_modal_message = state
-                .error
-                .clone()
-                .unwrap_or_else(|| "请选择来源并检测最新发布版本。".into());
+            panel.cli_install_message = None;
+            panel.cli_install_modal_message =
+                state.error.clone().unwrap_or_else(|| "请选择来源并检测最新发布版本。".into());
             panel.cli_install_modal_current_version = current_app_version_label(version);
             panel.cli_install_modal_server_version = "未检测".into();
             panel.cli_install_modal_show_update_action = true;
             panel.cli_install_modal_show_install_action = false;
             panel.cli_install_modal_use_app_update_action = true;
-            panel.cli_install_modal_is_checking_update =
-                state.checking || state.busy;
+            panel.cli_install_modal_is_checking_update = state.checking || state.busy;
             if let Some(release) = &state.release {
                 panel.cli_install_modal_server_version = release.version.clone();
                 panel.cli_install_modal_show_install_action = state.installable();
@@ -167,11 +185,20 @@ pub fn update(
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(ready) = &state.ready {
                 panel.cli_install_modal_title = "安装包已就绪".into();
+                panel.cli_install_message = None;
                 panel.cli_install_modal_message = ready.instructions();
                 panel.cli_install_modal_show_install_action = false;
                 return Task::none();
             }
-            update(panel, state, effects, version, #[cfg(not(target_arch = "wasm32"))] locale, PanelMessage::CheckAppUpdate)
+            update(
+                panel,
+                state,
+                effects,
+                version,
+                #[cfg(not(target_arch = "wasm32"))]
+                locale,
+                PanelMessage::CheckAppUpdate,
+            )
         }
         PanelMessage::AppUpdateSourceSelected(source) => {
             if state.busy || state.saving {
@@ -194,6 +221,7 @@ pub fn update(
             panel.cli_install_modal_show_install_action =
                 !panel.cli_install_modal_use_app_update_action;
             panel.cli_install_modal_is_checking_update = false;
+            panel.cli_install_message = None;
             panel.cli_install_modal_message = "来源已切换，请重新检测更新。".into();
             effects.push(Effect::SaveSource(source));
             Task::none()
@@ -202,9 +230,11 @@ pub fn update(
             state.saving = false;
             match result {
                 Ok(()) => Task::none(),
-                Err(error) => {
-                    show_error_toast(effects, format!("升级来源未保存，本轮选择仍有效：{error}"))
-                }
+                Err(error) => localized_error(
+                    effects,
+                    "升级来源未保存，本轮选择仍有效：%s",
+                    vec![error.into()],
+                ),
             }
         }
         PanelMessage::CheckAppUpdate => {
@@ -212,7 +242,7 @@ pub fn update(
                 return Task::none();
             }
             let Some(source) = state.source else {
-                return show_error_toast(effects, "请先选择有效的升级来源");
+                return localized_error(effects, "请先选择有效的升级来源", vec![]);
             };
             state.request += 1;
             let request = state.request;
@@ -224,6 +254,7 @@ pub fn update(
             }
             panel.cli_install_modal_is_checking_update = true;
             panel.cli_install_modal_show_install_action = false;
+            panel.cli_install_message = None;
             panel.cli_install_modal_message = "正在请求所选来源的最新应用版本...".into();
             panel.app_update_progress = None;
             panel.app_update_progress_rx = None;
@@ -247,6 +278,7 @@ pub fn update(
                     match newer {
                         Ok(newer) => {
                             panel.cli_install_modal_show_install_action = newer;
+                            panel.cli_install_message = None;
                             panel.cli_install_modal_message = if newer {
                                 "检测完成，发现新版本，可下载安装包后通过系统安装器安装。"
                             } else {
@@ -255,19 +287,25 @@ pub fn update(
                             .into();
                             state.release = Some(release);
                         }
-                        Err(error) => return app_update_error(panel, state, effects, error.to_string()),
+                        Err(error) => {
+                            return app_update_error(panel, state, effects, error.to_string());
+                        }
                     }
                 }
-                Ok(_) => return app_update_error(panel, state, effects, "发布结果与所选来源不一致".into()),
+                Ok(_) => {
+                    return app_update_error(
+                        panel,
+                        state,
+                        effects,
+                        "发布结果与所选来源不一致".into(),
+                    );
+                }
                 Err(error) => return app_update_error(panel, state, effects, error),
             }
             Task::none()
         }
         PanelMessage::RunAppUpdate => {
-            if state.busy
-                || state.checking
-                || !state.installable()
-            {
+            if state.busy || state.checking || !state.installable() {
                 return Task::none();
             }
             #[cfg(not(target_arch = "wasm32"))]
@@ -277,6 +315,7 @@ pub fn update(
                 state.busy = true;
                 panel.cli_install_modal_is_checking_update = true;
                 panel.cli_install_modal_show_install_action = false;
+                panel.cli_install_message = None;
                 panel.cli_install_modal_message = "正在下载并校验安装包...".into();
                 panel.app_update_progress = None;
                 panel.app_update_progress_rx = Some(progress_rx);
@@ -308,6 +347,7 @@ pub fn update(
             state.busy = false;
             panel.cli_install_modal_is_checking_update = false;
             panel.cli_install_modal_show_install_action = state.installable();
+            panel.cli_install_message = None;
             panel.cli_install_modal_message = "下载已取消，可重新下载安装包。".into();
             panel.app_update_progress_rx = None;
             panel.app_update_progress = None;
@@ -338,6 +378,7 @@ pub fn update(
             match result {
                 Ok(ready) => {
                     panel.cli_install_modal_title = "安装包已就绪".into();
+                    panel.cli_install_message = None;
                     panel.cli_install_modal_message = ready.instructions();
                     state.ready = Some(ready);
                     Task::none()
@@ -352,6 +393,7 @@ pub fn update(
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(ready) = state.ready.clone() {
                 panel.cli_install_modal_title = "更新中…".into();
+                panel.cli_install_message = None;
                 panel.cli_install_modal_message =
                     "正在校验安装包并启动自动更新，请稍候；准备就绪后应用将自动退出。".into();
                 state.busy = true;
@@ -424,6 +466,7 @@ pub fn update(
             match res {
                 Ok(message) => {
                     panel.cli_install_modal_title = "安装包已就绪".into();
+                    panel.cli_install_message = None;
                     panel.cli_install_modal_message = message;
                     #[cfg(not(target_arch = "wasm32"))]
                     {
@@ -442,11 +485,24 @@ pub fn update(
             match res {
                 Ok(message) => {
                     panel.cli_install_modal_title = "CLI 安装完成".to_string();
-                    panel.cli_install_modal_message = message;
+                    panel.cli_install_message = None;
+                    panel.cli_install_modal_message = message
+                        .render(desktop_i18n::I18n::new(
+                            config_ui::DesktopLocale::SimplifiedChinese,
+                        ))
+                        .expect("valid CLI source templates");
+                    panel.cli_install_message = Some(message);
                 }
                 Err(error) => {
                     panel.cli_install_modal_title = "CLI 安装失败".to_string();
-                    panel.cli_install_modal_message = error;
+                    let message = error.message();
+                    panel.cli_install_message = None;
+                    panel.cli_install_modal_message = message
+                        .render(desktop_i18n::I18n::new(
+                            config_ui::DesktopLocale::SimplifiedChinese,
+                        ))
+                        .expect("valid CLI source templates");
+                    panel.cli_install_message = Some(message);
                 }
             }
             Task::none()
@@ -474,13 +530,20 @@ async fn fetch_latest_release_version(
     Err("当前平台不支持检测更新".to_string())
 }
 
-fn app_update_error(panel: &mut PanelState, state: &mut DesktopUpdate, effects: &mut Vec<Effect>, error: String) -> Task<PanelMessage> {
+fn app_update_error(
+    panel: &mut PanelState,
+    state: &mut DesktopUpdate,
+    effects: &mut Vec<Effect>,
+    error: String,
+) -> Task<PanelMessage> {
     panel.cli_install_modal_show_install_action = state.installable();
+    panel.cli_install_message = None;
     panel.cli_install_modal_message = error.clone();
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ready) = &state.ready {
         panel.cli_install_modal_title = "自动更新启动失败".into();
         panel.cli_install_modal_show_install_action = false;
+        panel.cli_install_message = None;
         panel.cli_install_modal_message = format!("{error}\n{}", ready.instructions());
     }
     show_error_toast(effects, error)

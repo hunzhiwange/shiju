@@ -1,3 +1,4 @@
+use desktop_i18n::I18n;
 use std::collections::BTreeMap;
 pub struct Preview {
     pub app: String,
@@ -53,16 +54,20 @@ pub fn pending() -> Option<super::deep_links::PendingLink> {
 
 
 use iced::widget::{column, text};
-pub fn body(parsed: Result<Preview, &'static str>) -> iced::Element<'static, ()> {
-    let body: iced::Element<'static, ()> = match parsed {
-        Ok(preview) => column![
-            text(format!("目标应用：{}", preview.app)),
-            text(format!("配置字段：{} 项（内容已隐藏）", preview.fields)),
-            text(if preview.has_credentials { "API 凭据：已提供（已隐藏）" } else { "API 凭据：未提供" }),
-            text("名称、端点、模型及其他载荷均已隐藏。链接仍在待确认队列中；未写入供应商，未读取远程配置。"),
-            text("关闭将拒绝此链接。导入确认由后续导入流程处理。"),
-        ].spacing(12).into(),
-        Err(error) => text(error).into(),
-    };
-    body.into()
+pub fn body(parsed: Result<Preview, &'static str>, i18n: I18n) -> iced::Element<'static, ()> {
+    column(lines(parsed, i18n).into_iter().map(|line| text(line).into())).spacing(12).into()
+}
+
+/// Render only product copy; the application identifier remains an opaque value.
+pub fn lines(parsed: Result<Preview, &'static str>, i18n: I18n) -> Vec<String> {
+    match parsed {
+        Ok(preview) => vec![
+            i18n.format("目标应用：%s", &[preview.app.into()]).expect("valid source template"),
+            i18n.format("配置字段：%u 项（内容已隐藏）", &[preview.fields.into()]).expect("valid source template"),
+            i18n.__(if preview.has_credentials { "API 凭据：已提供（已隐藏）" } else { "API 凭据：未提供" }).to_owned(),
+            i18n.__("名称、端点、模型及其他载荷均已隐藏。链接仍在待确认队列中；未写入供应商，未读取远程配置。").to_owned(),
+            i18n.__("关闭将拒绝此链接。导入确认由后续导入流程处理。").to_owned(),
+        ],
+        Err(error) => vec![i18n.__(error).to_owned()],
+    }
 }

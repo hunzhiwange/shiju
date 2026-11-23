@@ -8,6 +8,7 @@ pub(super) fn person_icon() -> svg::Handle {
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let account = app.account.active_account();
     let name = account
         .map(|a| {
@@ -15,9 +16,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .map(|p| p.name().to_string())
                 .unwrap_or_else(|| a.identity().company_name().to_string())
         })
-        .unwrap_or_else(|| "登录 ShiJu".to_string());
-    let company =
-        account.map(|a| a.identity().company_name()).unwrap_or("登录后管理你的 ShiJu 账号");
+        .unwrap_or_else(|| i18n.__("登录 ShiJu").to_string());
+    let company = account
+        .map(|a| a.identity().company_name())
+        .unwrap_or(i18n.__("登录后管理你的 ShiJu 账号"));
     let avatar = container(
         svg(person_icon())
             .width(28)

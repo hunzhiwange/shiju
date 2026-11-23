@@ -1,8 +1,37 @@
 //! CLI installation and installed-version detection.
+#[derive(Debug, Clone)]
+pub enum InstallError {
+    Diagnostic(String),
+    MissingBundle(String),
+    UnsupportedPlatform,
+}
+impl From<String> for InstallError {
+    fn from(error: String) -> Self {
+        Self::Diagnostic(error)
+    }
+}
+impl InstallError {
+    pub fn message(self) -> desktop_i18n::format::Message {
+        use desktop_i18n::format::Message;
+        match self {
+            Self::Diagnostic(error) => Message::literal(error),
+            Self::UnsupportedPlatform => Message::new("当前平台不支持安装 CLI 工具", vec![]),
+            Self::MissingBundle(path) => Message::new(
+                "未在应用包中发现 CLI，也未设置 VIBEWINDOW_CLI_URL 可供下载。\n请下载独立 CLI 包并手动安装：\n1) 解压后将可执行文件复制到 %s\n2) 重命名为 shiju 或 shiju.exe\n3) 确保 PATH 包含 %s 后重启终端",
+                vec![path.clone().into(), path.into()],
+            ),
+        }
+    }
+}
 #[cfg(not(target_arch = "wasm32"))]
-use std::{fs, io::Write, path::{Path, PathBuf}, process::Command};
+use std::{
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+    process::Command,
+};
 #[cfg(not(target_arch = "wasm32"))]
-pub fn install_cli_tool() -> Result<String, String> {
+pub fn install_cli_tool() -> Result<desktop_i18n::format::Message, InstallError> {
     let home = resolve_home_dir()?;
     let install_dir = config_runtime_paths::home_config_dir(&home).join("bin");
     fs::create_dir_all(&install_dir).map_err(|e| format!("创建安装目录失败: {e}"))?;
@@ -17,35 +46,35 @@ pub fn install_cli_tool() -> Result<String, String> {
     } else if let Ok(url) = std::env::var("VIBEWINDOW_CLI_URL") {
         install_cli_binary_from_url(&url, &target_bin)?;
     } else {
-        return Err(format!(
-            "未在应用包中发现 CLI，也未设置 VIBEWINDOW_CLI_URL 可供下载。\n请下载独立 CLI 包并手动安装：\n1) 解压后将可执行文件复制到 {}\n2) 重命名为 shiju 或 shiju.exe\n3) 确保 PATH 包含 {} 后重启终端",
-            config_runtime_paths::tilde_config_path("bin"),
-            config_runtime_paths::tilde_config_path("bin")
-        ));
+        return Err(InstallError::MissingBundle(config_runtime_paths::tilde_config_path("bin")));
     }
 
     let updated_profiles = ensure_path_profiles(&home, &install_dir)?;
-    let mut message =
-        format!("已安装到 {}\n可执行文件: {}", install_dir.display(), target_bin.display());
+    use desktop_i18n::format::Message;
+    let mut messages = vec![Message::new(
+        "已安装到 %s\n可执行文件: %s",
+        vec![install_dir.display().to_string().into(), target_bin.display().to_string().into()],
+    )];
     if replacing_existing {
-        message.push_str(
-            "\n已安全替换旧 CLI；如果后台 service 正在运行，请重启 service 以加载新版本。",
-        );
+        messages.push(Message::new(
+            "已安全替换旧 CLI；如果后台 service 正在运行，请重启 service 以加载新版本。",
+            vec![],
+        ));
     }
     if updated_profiles.is_empty() {
-        message.push_str("\nPATH 配置已存在，无需重复写入。");
+        messages.push(Message::new("PATH 配置已存在，无需重复写入。", vec![]));
     } else {
-        message.push_str("\n已更新 PATH 配置文件：");
+        messages.push(Message::new("已更新 PATH 配置文件：", vec![]));
         for profile in updated_profiles {
-            message.push_str(&format!("\n- {profile}"));
+            messages.push(Message::literal(format!("- {profile}")));
         }
     }
-    Ok(message)
+    Ok(Message::lines(messages))
 }
 
 #[cfg(target_arch = "wasm32")]
-pub fn install_cli_tool() -> Result<String, String> {
-    Err("当前平台不支持安装 CLI 工具".to_string())
+pub fn install_cli_tool() -> Result<desktop_i18n::format::Message, InstallError> {
+    Err(InstallError::UnsupportedPlatform)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

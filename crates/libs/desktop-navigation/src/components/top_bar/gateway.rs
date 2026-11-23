@@ -1,10 +1,10 @@
 //! 顶栏网关服务弹窗。
 
+use super::types::TopBarGatewayTab;
 use super::widgets::{color_with_alpha, icon_svg, menu_item_btn};
+use super::{Menu as MenuType, Message};
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::overlays::BelowOverlay;
-use super::{Message, Menu as MenuType};
-use super::types::TopBarGatewayTab;
 use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, row, text};
@@ -297,15 +297,21 @@ fn compact_gateway_label(value: &str, max_chars: usize) -> String {
     if chars.next().is_some() { format!("{truncated}...") } else { truncated }
 }
 
-fn mcp_server_summaries(editor_text: &str) -> Result<Vec<McpServerSummary>, String> {
+fn mcp_server_summaries(
+    editor_text: &str,
+    i18n: desktop_i18n::I18n,
+) -> Result<Vec<McpServerSummary>, String> {
     let trimmed = editor_text.trim();
     if trimmed.is_empty() {
         return Ok(Vec::new());
     }
 
-    let value = serde_json::from_str::<serde_json::Value>(trimmed)
-        .map_err(|err| format!("MCP JSON 解析失败: {err}"))?;
-    let servers = value.as_array().ok_or_else(|| "MCP 配置必须是 server 数组".to_string())?;
+    let value = serde_json::from_str::<serde_json::Value>(trimmed).map_err(|err| {
+        i18n.format("MCP JSON 解析失败: %s", &[err.to_string().into()])
+            .expect("valid source template")
+    })?;
+    let servers =
+        value.as_array().ok_or_else(|| i18n.__("MCP 配置必须是 server 数组").to_string())?;
 
     let mut summaries = Vec::with_capacity(servers.len());
     for (index, server) in servers.iter().enumerate() {
@@ -323,7 +329,7 @@ fn mcp_server_summaries(editor_text: &str) -> Result<Vec<McpServerSummary>, Stri
             .and_then(serde_json::Value::as_str)
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .unwrap_or("未命名")
+            .unwrap_or(i18n.__("未命名"))
             .to_string();
         let transport = object
             .get("type")
@@ -374,7 +380,7 @@ pub fn mcp_tab_content(app: &State) -> Vec<Element<'static, Message>> {
             None,
         ));
     } else {
-        match mcp_server_summaries(app.mcp_text) {
+        match mcp_server_summaries(app.mcp_text, desktop_i18n::I18n::new(app.desktop_locale)) {
             Ok(summaries) => {
                 for server in &summaries {
                     let mark = if !server.enabled {

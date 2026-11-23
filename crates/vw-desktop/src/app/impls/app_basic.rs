@@ -89,7 +89,7 @@ impl App {
 
     pub fn title_for_window(&self, window: iced::window::Id) -> String {
         if self.task_pet_window_id == Some(window) {
-            "VibeWindow Pet".to_string()
+            desktop_i18n::I18n::new(self.general_settings.desktop_locale).__("VibeWindow 伙伴").to_owned()
         } else {
             self.title()
         }

@@ -8,6 +8,8 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+desktop-i18n = { path = "../desktop-i18n" }
+config-ui = { path = "../config-ui" }
 webview-core = { path = "../webview-core" }
 serde_json = "1"
 url = "2"

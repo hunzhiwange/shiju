@@ -1,4 +1,10 @@
 use super::*;
+fn mcp_server_summaries(editor_text: &str) -> Result<Vec<McpServerSummary>, String> {
+    super::mcp_server_summaries(
+        editor_text,
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+    )
+}
 use iced::widget::Space;
 #[test]
 fn mcp_server_summaries_read_editor_config() {

@@ -110,12 +110,18 @@ pub fn title(screen: crate::ui_types::Screen, locale: config_ui::DesktopLocale) 
         Screen::WorkflowManager => {
             desktop_i18n::I18n::new(locale).__("识矩 - 任务编排").to_string()
         }
-        Screen::ThirdPartyAgents => format!("{} - {}", desktop_i18n::I18n::new(locale).__("识矩"), desktop_i18n::I18n::new(locale).__("第三方智能体")),
-        Screen::Projects => format!("识矩 - {}", desktop_i18n::I18n::new(locale).__("项目管理")),
-        Screen::Cron => format!("识矩 - {}", desktop_i18n::I18n::new(locale).__("定时任务")),
+        Screen::ThirdPartyAgents => format!(
+            "{} - {}",
+            desktop_i18n::I18n::new(locale).__("识矩"),
+            desktop_i18n::I18n::new(locale).__("第三方智能体")
+        ),
+        Screen::Projects => desktop_i18n::I18n::new(locale).__("识矩 - 项目管理").to_owned(),
+        Screen::Cron => desktop_i18n::I18n::new(locale).__("识矩 - 定时任务").to_owned(),
         Screen::TaskBoard => desktop_i18n::I18n::new(locale).__("识矩 - 任务看板").to_string(),
         #[cfg(not(target_arch = "wasm32"))]
-        Screen::DigitalEmployees => desktop_i18n::I18n::new(locale).__("识矩 - 数字员工").to_string(),
+        Screen::DigitalEmployees => {
+            desktop_i18n::I18n::new(locale).__("识矩 - 数字员工").to_string()
+        }
         #[cfg(not(target_arch = "wasm32"))]
         Screen::ShijuApps => desktop_i18n::I18n::new(locale).__("识矩 - 识矩应用").to_string(),
         #[cfg(not(target_arch = "wasm32"))]

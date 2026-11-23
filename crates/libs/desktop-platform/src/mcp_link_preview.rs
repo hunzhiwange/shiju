@@ -1,3 +1,4 @@
+use desktop_i18n::I18n;
 use crate::deep_links;
 use base64::{Engine as _, engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD}};
 use std::collections::BTreeMap;
@@ -64,10 +65,22 @@ pub fn pending() -> Option<deep_links::PendingLink> {
 
 
 use iced::widget::{column, text};
-pub fn body(parsed: Result<Vec<Result<McpCreateRequest, String>>, &'static str>) -> iced::Element<'static, ()> {
-    let body = column![text(match parsed {
-        Ok(entries) => format!("MCP 定义 {} 项，内容已隐藏。继续后须再次确认保存，逐项报告成功或失败。", entries.len()),
-        Err(error) => error.to_owned(),
-    }), text("链接的 apps 与 enabled 不授予权限；不会执行命令、连接服务或分发配置。")].spacing(12);
+pub fn body(
+    parsed: Result<Vec<Result<McpCreateRequest, String>>, &'static str>,
+    i18n: I18n,
+) -> iced::Element<'static, ()> {
+    let body = column![
+        text(match parsed {
+            Ok(entries) => i18n
+                .format(
+                    "MCP 定义 %u 项，内容已隐藏。继续后须再次确认保存，逐项报告成功或失败。",
+                    &[entries.len().into()]
+                )
+                .expect("valid source template"),
+            Err(error) => i18n.__(error).to_owned(),
+        }),
+        text(i18n.__("链接的 apps 与 enabled 不授予权限；不会执行命令、连接服务或分发配置。"))
+    ]
+    .spacing(12);
     body.into()
 }

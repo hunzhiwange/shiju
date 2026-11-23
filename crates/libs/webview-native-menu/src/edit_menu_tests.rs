@@ -7,9 +7,9 @@ fn edit_menu_actions_cover_clipboard_shortcuts() {
     let by_title = |title| EDIT_MENU_ACTIONS.iter().find(|action| action.title == title);
 
     assert_eq!(
-        by_title("Copy"),
+        by_title("复制"),
         Some(&MenuAction {
-            title: "Copy",
+            title: "复制",
             selector: "copy:",
             key: "c",
             shift: false,
@@ -17,9 +17,9 @@ fn edit_menu_actions_cover_clipboard_shortcuts() {
         })
     );
     assert_eq!(
-        by_title("Paste"),
+        by_title("粘贴"),
         Some(&MenuAction {
-            title: "Paste",
+            title: "粘贴",
             selector: "paste:",
             key: "v",
             shift: false,
@@ -27,9 +27,9 @@ fn edit_menu_actions_cover_clipboard_shortcuts() {
         })
     );
     assert_eq!(
-        by_title("Cut"),
+        by_title("剪切"),
         Some(&MenuAction {
-            title: "Cut",
+            title: "剪切",
             selector: "cut:",
             key: "x",
             shift: false,
@@ -37,9 +37,9 @@ fn edit_menu_actions_cover_clipboard_shortcuts() {
         })
     );
     assert_eq!(
-        by_title("Select All"),
+        by_title("全选"),
         Some(&MenuAction {
-            title: "Select All",
+            title: "全选",
             selector: "selectAll:",
             key: "a",
             shift: false,
@@ -47,9 +47,9 @@ fn edit_menu_actions_cover_clipboard_shortcuts() {
         })
     );
     assert_eq!(
-        by_title("Redo"),
+        by_title("重做"),
         Some(&MenuAction {
-            title: "Redo",
+            title: "重做",
             selector: "redo:",
             key: "z",
             shift: true,
@@ -61,13 +61,13 @@ fn edit_menu_actions_cover_clipboard_shortcuts() {
 #[test]
 fn edit_menu_actions_keep_stable_order() {
     let titles: Vec<_> = EDIT_MENU_ACTIONS.iter().map(|action| action.title).collect();
-    assert_eq!(titles, ["Undo", "Redo", "Cut", "Copy", "Paste", "Select All"]);
+    assert_eq!(titles, ["撤销", "重做", "剪切", "复制", "粘贴", "全选"]);
 }
 
 #[test]
 fn browser_menu_actions_cover_navigation_controls() {
     let titles: Vec<_> = BROWSER_MENU_ACTIONS.iter().map(|action| action.title).collect();
-    assert_eq!(titles, ["Back", "Forward", "Reload", "Open in External Browser", "Close Page",]);
+    assert_eq!(titles, ["后退", "前进", "刷新", "在外部浏览器中打开", "关闭页面",]);
     assert_eq!(BROWSER_MENU_ACTIONS[2].key, "r");
     assert_eq!(BROWSER_MENU_ACTIONS[0].selector, "browserBack:");
     assert_eq!(BROWSER_MENU_ACTIONS[4].selector, "browserClose:");
@@ -76,7 +76,7 @@ fn browser_menu_actions_cover_navigation_controls() {
 #[test]
 fn window_menu_actions_cover_standard_window_controls() {
     let titles: Vec<_> = WINDOW_MENU_ACTIONS.iter().map(|action| action.title).collect();
-    assert_eq!(titles, ["Minimize", "Zoom", "Enter Full Screen"]);
+    assert_eq!(titles, ["最小化", "缩放", "进入全屏幕"]);
     assert_eq!(WINDOW_MENU_ACTIONS[0].selector, "performMiniaturize:");
     assert_eq!(WINDOW_MENU_ACTIONS[0].key, "m");
     assert_eq!(WINDOW_MENU_ACTIONS[2].selector, "toggleFullScreen:");
@@ -86,7 +86,7 @@ fn window_menu_actions_cover_standard_window_controls() {
 #[test]
 fn help_menu_actions_include_about() {
     assert_eq!(HELP_MENU_ACTIONS.len(), 1);
-    assert_eq!(HELP_MENU_ACTIONS[0].title, "About Vibe Window WebView");
+    assert_eq!(HELP_MENU_ACTIONS[0].title, "关于 Vibe Window WebView");
     assert_eq!(HELP_MENU_ACTIONS[0].selector, "orderFrontStandardAboutPanel:");
 }
 

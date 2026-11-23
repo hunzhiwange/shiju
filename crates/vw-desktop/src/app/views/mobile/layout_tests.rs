@@ -15,7 +15,7 @@ async fn mobile_layout_switch_draws_compactly_in_both_themes() {
         for theme in [Theme::Light, Theme::Dark] {
             for width in [360.0, 1200.0] {
                 let size = Size::new(width, 800.0);
-                let mut element = phone_mode_button(mode);
+                let mut element = phone_mode_button(mode, config_ui::DesktopLocale::default());
                 let mut tree = Tree::new(element.as_widget());
                 let node = element.as_widget_mut().layout(
                     &mut tree,

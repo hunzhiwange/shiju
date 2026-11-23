@@ -1,12 +1,10 @@
-use webview_external_protocol::dialog::show_error_dialog;
 use webview_browser_views::{build_content_view, build_toolbar_view};
+use webview_external_protocol::dialog::show_error_dialog;
 
-use webview_local_content::{
-    StartTarget, normalize_url, percent_encode_url_path, resolve_target,
-};
-use webview_launch::{DEFAULT_TARGET, launch_log_summary, parse_launch_options};
 use webview_core::events::UserEvent;
 use webview_init_script::build_init_script;
+use webview_launch::{DEFAULT_TARGET, launch_log_summary, parse_launch_options};
+use webview_local_content::{StartTarget, normalize_url, percent_encode_url_path, resolve_target};
 
 use webview_storage::{append_log, webview_data_dir};
 
@@ -31,6 +29,7 @@ pub fn run(args: Vec<String>) {
     use webview_toolbar::window_regions;
 
     let target = normalize_url(args.first().map(String::as_str).unwrap_or(DEFAULT_TARGET));
+    let locale = webview_launch::launch_locale(&args[1..]);
     let options = parse_launch_options(&args[1..]);
     let shiju_app_set_cookie = if options.shiju_app_set_cookie_stdin {
         let stdin = io::stdin();
@@ -56,7 +55,7 @@ pub fn run(args: Vec<String>) {
     let proxy = event_loop.create_proxy();
     let embedded_mode = options.mode == "embedded";
     #[cfg(target_os = "macos")]
-    webview_native_menu::install_edit_menu(proxy.clone(), &url);
+    webview_native_menu::install_edit_menu(proxy.clone(), &url, locale);
     crate::control_pipe::spawn(&proxy, embedded_mode);
 
     let wb = crate::launch::window_builder(&options, embedded_mode);
@@ -106,9 +105,8 @@ pub fn run(args: Vec<String>) {
         window_regions(logical_size.width, logical_size.height, independent_mode);
 
     let toolbar_webview = if let Some(region) = toolbar_region {
-        let toolbar_result = build_toolbar_view(
-            &window, region, options.shiju_app_set_cookie_stdin, &proxy,
-        );
+        let toolbar_result =
+            build_toolbar_view(&window, region, options.shiju_app_set_cookie_stdin, &proxy, locale);
 
         let toolbar = match toolbar_result {
             Ok(toolbar) => toolbar,

@@ -27,3 +27,7 @@ objc2-foundation = { version = "0.3.0", default-features = false, features = [
     "NSString",
     "NSObject",
 ] }
+
+[dependencies]
+config-ui = { path = "../config-ui" }
+desktop-i18n = { path = "../desktop-i18n" }

@@ -11,5 +11,6 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
 doctest = false
 
 [dependencies]
+config-ui = { path = "../config-ui" }
 webview-core = { path = "../webview-core" }
 serde_json = "1"

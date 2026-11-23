@@ -5,8 +5,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 
-use reqwest::Url;
 use gateway_shiju_app::ShijuAppLaunchDto;
+use reqwest::Url;
 
 const RUNTIME_HOST: &str = "app.shiju.cloud";
 
@@ -35,9 +35,9 @@ impl LaunchProcess for SystemProcess {
     }
 
     fn write_stdin(&mut self, child: &mut Self::Child, input: &[u8]) -> Result<(), SkillHubError> {
-        let mut stdin = child
+        let stdin = child
             .stdin
-            .take()
+            .as_mut()
             .ok_or_else(|| SkillHubError::localized("无法获取 WebView 标准输入", vec![]))?;
         stdin
             .write_all(input)
@@ -81,6 +81,7 @@ pub(super) fn launch_with<P: LaunchProcess>(
     candidates: &[PathBuf],
     target: &ShijuAppLaunchDto,
     expected_installation_id: &str,
+    locale: config_ui::DesktopLocale,
 ) -> Result<P::Child, SkillHubError> {
     validate_target(target, expected_installation_id)?;
     if target.runtime_set_cookie.is_empty()
@@ -93,6 +94,14 @@ pub(super) fn launch_with<P: LaunchProcess>(
         target.runtime_url.clone(),
         format!("--title={}", target.name),
         "--shiju-app-set-cookie-stdin".to_string(),
+        format!(
+            "--locale={}",
+            match locale {
+                config_ui::DesktopLocale::SimplifiedChinese => "zh-CN",
+                config_ui::DesktopLocale::TraditionalChinese => "zh-TW",
+                config_ui::DesktopLocale::English => "en",
+            }
+        ),
     ];
     let mut failures = Vec::new();
     for candidate in candidates {
@@ -123,11 +132,7 @@ pub fn launch_shiju_app(
     candidates: &[PathBuf],
     target: &ShijuAppLaunchDto,
     expected_installation_id: &str,
+    locale: config_ui::DesktopLocale,
 ) -> Result<Child, SkillHubError> {
-    launch_with(
-        &mut SystemProcess,
-        candidates,
-        target,
-        expected_installation_id,
-    )
+    launch_with(&mut SystemProcess, candidates, target, expected_installation_id, locale)
 }

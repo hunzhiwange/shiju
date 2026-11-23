@@ -29,46 +29,42 @@ pub(crate) struct MenuAction {
 
 /// Edit 菜单动作列表（供测试与安装共用）。
 pub(crate) const EDIT_MENU_ACTIONS: &[MenuAction] = &[
-    MenuAction { title: "Undo", selector: "undo:", key: "z", shift: false, control: false },
-    MenuAction { title: "Redo", selector: "redo:", key: "z", shift: true, control: false },
-    MenuAction { title: "Cut", selector: "cut:", key: "x", shift: false, control: false },
-    MenuAction { title: "Copy", selector: "copy:", key: "c", shift: false, control: false },
-    MenuAction { title: "Paste", selector: "paste:", key: "v", shift: false, control: false },
-    MenuAction {
-        title: "Select All",
-        selector: "selectAll:",
-        key: "a",
-        shift: false,
-        control: false,
-    },
+    MenuAction { title: "撤销", selector: "undo:", key: "z", shift: false, control: false },
+    MenuAction { title: "重做", selector: "redo:", key: "z", shift: true, control: false },
+    MenuAction { title: "剪切", selector: "cut:", key: "x", shift: false, control: false },
+    MenuAction { title: "复制", selector: "copy:", key: "c", shift: false, control: false },
+    MenuAction { title: "粘贴", selector: "paste:", key: "v", shift: false, control: false },
+    MenuAction { title: "全选", selector: "selectAll:", key: "a", shift: false, control: false },
 ];
 
 /// Browser 菜单动作列表。
 pub(crate) const BROWSER_MENU_ACTIONS: &[MenuAction] = &[
-    MenuAction { title: "Back", selector: "browserBack:", key: "[", shift: false, control: false },
     MenuAction {
-        title: "Forward",
+        title: "后退", selector: "browserBack:", key: "[", shift: false, control: false
+    },
+    MenuAction {
+        title: "前进",
         selector: "browserForward:",
         key: "]",
         shift: false,
         control: false,
     },
     MenuAction {
-        title: "Reload",
+        title: "刷新",
         selector: "browserReload:",
         key: "r",
         shift: false,
         control: false,
     },
     MenuAction {
-        title: "Open in External Browser",
+        title: "在外部浏览器中打开",
         selector: "browserOpenExternal:",
         key: "",
         shift: false,
         control: false,
     },
     MenuAction {
-        title: "Close Page",
+        title: "关闭页面",
         selector: "browserClose:",
         key: "",
         shift: false,
@@ -79,15 +75,15 @@ pub(crate) const BROWSER_MENU_ACTIONS: &[MenuAction] = &[
 /// Window 菜单动作列表。
 pub(crate) const WINDOW_MENU_ACTIONS: &[MenuAction] = &[
     MenuAction {
-        title: "Minimize",
+        title: "最小化",
         selector: "performMiniaturize:",
         key: "m",
         shift: false,
         control: false,
     },
-    MenuAction { title: "Zoom", selector: "performZoom:", key: "", shift: false, control: false },
+    MenuAction { title: "缩放", selector: "performZoom:", key: "", shift: false, control: false },
     MenuAction {
-        title: "Enter Full Screen",
+        title: "进入全屏幕",
         selector: "toggleFullScreen:",
         key: "f",
         shift: false,
@@ -97,7 +93,7 @@ pub(crate) const WINDOW_MENU_ACTIONS: &[MenuAction] = &[
 
 /// Help 菜单动作列表。
 pub(crate) const HELP_MENU_ACTIONS: &[MenuAction] = &[MenuAction {
-    title: "About Vibe Window WebView",
+    title: "关于 Vibe Window WebView",
     selector: "orderFrontStandardAboutPanel:",
     key: "",
     shift: false,
@@ -157,12 +153,20 @@ impl MenuTarget {
 }
 
 /// 兼容旧调用名。
-pub fn install_edit_menu(proxy: EventLoopProxy<UserEvent>, initial_url: &str) {
-    install_native_menu(proxy, initial_url);
+pub fn install_edit_menu(
+    proxy: EventLoopProxy<UserEvent>,
+    initial_url: &str,
+    locale: config_ui::DesktopLocale,
+) {
+    install_native_menu(proxy, initial_url, locale);
 }
 
 /// 安装 macOS 主菜单。
-fn install_native_menu(proxy: EventLoopProxy<UserEvent>, initial_url: &str) {
+fn install_native_menu(
+    proxy: EventLoopProxy<UserEvent>,
+    initial_url: &str,
+    locale: config_ui::DesktopLocale,
+) {
     let Some(mtm) = MainThreadMarker::new() else {
         return;
     };
@@ -172,6 +176,7 @@ fn install_native_menu(proxy: EventLoopProxy<UserEvent>, initial_url: &str) {
     }
     set_current_url(initial_url);
 
+    let i18n = desktop_i18n::I18n::new(locale);
     let app = NSApplication::sharedApplication(mtm);
     let menubar = NSMenu::new(mtm);
     let target = MenuTarget::new(mtm);
@@ -182,13 +187,16 @@ fn install_native_menu(proxy: EventLoopProxy<UserEvent>, initial_url: &str) {
     let app_menu = NSMenu::new(mtm);
     app_menu_item.setSubmenu(Some(&app_menu));
 
-    append_submenu(&menubar, "Edit", EDIT_MENU_ACTIONS, Some(2), None, mtm);
-    append_browser_submenu(&menubar, &target, initial_url, mtm);
-    let window_menu = append_submenu(&menubar, "Window", WINDOW_MENU_ACTIONS, None, None, mtm);
-    let help_menu = append_submenu(&menubar, "Help", HELP_MENU_ACTIONS, None, None, mtm);
+    append_submenu(&menubar, "编辑", EDIT_MENU_ACTIONS, Some(2), None, mtm, i18n);
+    append_browser_submenu(&menubar, &target, initial_url, mtm, i18n);
+    let window_menu = append_submenu(&menubar, "窗口", WINDOW_MENU_ACTIONS, None, None, mtm, i18n);
+    let help_menu = append_submenu(&menubar, "帮助", HELP_MENU_ACTIONS, None, None, mtm, i18n);
 
     // 保持 target 存活，菜单项会弱引用它作为 action target。
-    std::mem::forget(target);
+    thread_local! {
+        static TARGET: std::cell::RefCell<Option<Retained<MenuTarget>>> = const { std::cell::RefCell::new(None) };
+    }
+    TARGET.with(|slot| *slot.borrow_mut() = Some(target));
 
     app.setMainMenu(Some(&menubar));
     // 注册后系统会注入 Fill / Center / Move & Resize / Tile 等标准窗口项。
@@ -217,17 +225,18 @@ fn append_browser_submenu(
     target: &MenuTarget,
     initial_url: &str,
     mtm: MainThreadMarker,
+    i18n: desktop_i18n::I18n,
 ) {
     let menu_item = NSMenuItem::new(mtm);
     menubar.addItem(&menu_item);
     let menu = NSMenu::new(mtm);
-    menu.setTitle(&NSString::from_str("Browser"));
+    menu.setTitle(&NSString::from_str(i18n.__("浏览器")));
     menu_item.setSubmenu(Some(&menu));
 
     let status_title = if initial_url.trim().is_empty() {
-        "Page: (empty)".to_string()
+        i18n.__("页面：（空）").to_string()
     } else {
-        format!("Page: {initial_url}")
+        i18n.format("页面：%s", &[initial_url.into()]).expect("valid source template")
     };
     let status = unsafe {
         menu.addItemWithTitle_action_keyEquivalent(
@@ -243,7 +252,7 @@ fn append_browser_submenu(
         if index == 3 {
             menu.addItem(&NSMenuItem::separatorItem(mtm));
         }
-        add_targeted_menu_item(&menu, action, target);
+        add_targeted_menu_item(&menu, action, target, i18n);
     }
 }
 
@@ -254,11 +263,12 @@ fn append_submenu(
     separator_before_index: Option<usize>,
     target: Option<&MenuTarget>,
     mtm: MainThreadMarker,
+    i18n: desktop_i18n::I18n,
 ) -> Retained<NSMenu> {
     let menu_item = NSMenuItem::new(mtm);
     menubar.addItem(&menu_item);
     let menu = NSMenu::new(mtm);
-    menu.setTitle(&NSString::from_str(title));
+    menu.setTitle(&NSString::from_str(i18n.__(title)));
     menu_item.setSubmenu(Some(&menu));
 
     for (index, action) in actions.iter().enumerate() {
@@ -266,15 +276,20 @@ fn append_submenu(
             menu.addItem(&NSMenuItem::separatorItem(mtm));
         }
         if let Some(target) = target {
-            add_targeted_menu_item(&menu, action, target);
+            add_targeted_menu_item(&menu, action, target, i18n);
         } else {
-            add_menu_item(&menu, action);
+            add_menu_item(&menu, action, i18n);
         }
     }
     menu
 }
 
-fn add_targeted_menu_item(menu: &NSMenu, action: &MenuAction, target: &MenuTarget) {
+fn add_targeted_menu_item(
+    menu: &NSMenu,
+    action: &MenuAction,
+    target: &MenuTarget,
+    i18n: desktop_i18n::I18n,
+) {
     let selector = match action.selector {
         "browserBack:" => sel!(browserBack:),
         "browserForward:" => sel!(browserForward:),
@@ -286,7 +301,7 @@ fn add_targeted_menu_item(menu: &NSMenu, action: &MenuAction, target: &MenuTarge
 
     let item = unsafe {
         menu.addItemWithTitle_action_keyEquivalent(
-            &NSString::from_str(action.title),
+            &NSString::from_str(i18n.__(action.title)),
             Some(selector),
             &NSString::from_str(action.key),
         )
@@ -298,7 +313,7 @@ fn add_targeted_menu_item(menu: &NSMenu, action: &MenuAction, target: &MenuTarge
     apply_key_modifiers(&item, action);
 }
 
-fn add_menu_item(menu: &NSMenu, action: &MenuAction) {
+fn add_menu_item(menu: &NSMenu, action: &MenuAction, i18n: desktop_i18n::I18n) {
     let selector = match action.selector {
         "undo:" => sel!(undo:),
         "redo:" => sel!(redo:),
@@ -315,7 +330,7 @@ fn add_menu_item(menu: &NSMenu, action: &MenuAction) {
 
     let item = unsafe {
         menu.addItemWithTitle_action_keyEquivalent(
-            &NSString::from_str(action.title),
+            &NSString::from_str(i18n.__(action.title)),
             Some(selector),
             &NSString::from_str(action.key),
         )

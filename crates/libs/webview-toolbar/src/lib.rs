@@ -6,7 +6,9 @@ mod resources;
 
 pub use ipc::{ToolbarAction, parse_toolbar_ipc_message};
 pub use layout::{ViewRegion, window_regions};
-pub use resources::{toolbar_address_script, toolbar_html};
+pub use resources::{
+    toolbar_address_script, toolbar_html, toolbar_html_with_locale, toolbar_locale_script,
+};
 
 #[cfg(test)]
 mod toolbar_tests;

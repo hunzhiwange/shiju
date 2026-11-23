@@ -1,3 +1,4 @@
+use desktop_i18n::I18n;
 use crate::deep_links;
 use crate::skill_deeplink as deeplink;
 pub fn pending() -> Option<deep_links::PendingLink> {
@@ -16,15 +17,25 @@ pub fn parse(raw: &str, directory: String, host: String) -> Result<deeplink::Req
 
 
 use iced::widget::{column, text};
-pub fn body(parsed: Result<deeplink::Request, String>) -> iced::Element<'static, ()> {
-    let mut body = column![text("外部技能链接需要确认后才保存仓库。保存不会安装技能。")].spacing(12);
+pub fn body(parsed: Result<deeplink::Request, String>, i18n: I18n) -> iced::Element<'static, ()> {
+    let mut body =
+        column![text(i18n.__("外部技能链接需要确认后才保存仓库。保存不会安装技能。"))].spacing(12);
     match parsed {
         Ok(request) => {
-            body = body.push(text(format!("仓库：{}/{}\n分支：{}\n项目目录：{}",
-                request.repo.owner, request.repo.name, request.repo.branch,
-                request.directory)));
+            body = body.push(text(
+                i18n.format(
+                    "仓库：%s/%s\n分支：%s\n项目目录：%s",
+                    &[
+                        request.repo.owner.into(),
+                        request.repo.name.into(),
+                        request.repo.branch.into(),
+                        request.directory.into(),
+                    ],
+                )
+                .expect("valid source template"),
+            ));
         }
-        Err(_) => {},
+        Err(_) => {}
     }
     body.into()
 }

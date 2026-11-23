@@ -56,7 +56,7 @@ fn launch(
     installation_id: &str,
 ) -> Task<Message> {
     #[cfg(not(target_arch = "wasm32"))]
-    match crate::app::shiju_apps::launch_shiju_app(&target, installation_id) {
+    match crate::app::shiju_apps::launch_shiju_app(&target, installation_id, app.general_settings.desktop_locale) {
         Ok(child) => {
             app.web_navigation.independent_webview_children.push(child);
             app.shiju_apps.launch = ShijuAppLaunchState::Idle;

@@ -91,7 +91,13 @@ fn open_in_browser(_app: &mut State, url: &str) -> Option<Effect> {
 }
 
 /// 处理网页打开与书签 Cookie 配置；独立 WebView 不可用时回退系统浏览器。
-pub fn update(app: &mut State, mut message: Message) -> Option<Effect> {
+pub fn update(app: &mut State, message: Message) -> Option<Effect> {
+    update_with_locale(app, message, config_ui::DesktopLocale::default())
+}
+
+pub fn update_with_locale(app: &mut State, mut message: Message, locale: config_ui::DesktopLocale) -> Option<Effect> {
+    let i18n = desktop_i18n::I18n::new(locale);
+    let language = locale_code(locale);
     // Validate before either the WebView helper or the system URL handler sees input.
     let target = match &mut message {
         Message::OpenWebUrl(url)
@@ -131,6 +137,8 @@ pub fn update(app: &mut State, mut message: Message) -> Option<Effect> {
                     if let Ok(child) = std::process::Command::new(&cand)
                         .arg(_url.clone())
                         .arg(format!("--cookies={}", cookies_json))
+                        .arg(format!("--locale={language}"))
+                        .stdin(std::process::Stdio::piped())
                         .spawn()
                     {
                         app.independent_webview_children.push(child);
@@ -164,6 +172,8 @@ pub fn update(app: &mut State, mut message: Message) -> Option<Effect> {
                         .arg(_url.clone())
                         .arg(format!("--title={}", _title))
                         .arg(format!("--cookies={}", cookies_json))
+                        .arg(format!("--locale={language}"))
+                        .stdin(std::process::Stdio::piped())
                         .spawn()
                     {
                         app.independent_webview_children.push(child);
@@ -197,6 +207,8 @@ pub fn update(app: &mut State, mut message: Message) -> Option<Effect> {
                     let mut cmd = std::process::Command::new(&cand);
                     cmd.arg(url.clone()).arg(format!("--title={}", _title));
                     cmd.arg(format!("--cookies={}", cookies_json));
+                    cmd.arg(format!("--locale={language}"));
+                    cmd.stdin(std::process::Stdio::piped());
                     if let Some(ww) = _w {
                         cmd.arg(format!("--width={}", ww));
                     }
@@ -210,7 +222,7 @@ pub fn update(app: &mut State, mut message: Message) -> Option<Effect> {
                                 let _ = rfd::MessageDialog::new()
                                     .set_title("VibeWindow WebView")
                                     .set_description(
-                                        "无法启动内置 WebView。\n\n请安装 Microsoft Edge WebView2 Runtime（Evergreen x64）。\n\n即将使用系统默认浏览器打开。",
+                                        i18n.__("无法启动内置 WebView。\n\n请安装 Microsoft Edge WebView2 Runtime（Evergreen x64）。\n\n即将使用系统默认浏览器打开。"),
                                     )
                                     .set_level(rfd::MessageLevel::Error)
                                     .set_buttons(rfd::MessageButtons::Ok)
@@ -390,3 +402,23 @@ pub fn update(app: &mut State, mut message: Message) -> Option<Effect> {
 #[cfg(test)]
 #[path = "web_tests.rs"]
 mod web_tests;
+
+fn locale_code(locale: config_ui::DesktopLocale) -> &'static str {
+    match locale {
+        config_ui::DesktopLocale::SimplifiedChinese => "zh-CN",
+        config_ui::DesktopLocale::TraditionalChinese => "zh-TW",
+        config_ui::DesktopLocale::English => "en",
+    }
+}
+
+/// Refresh existing helpers through their control pipe, without touching page data.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn refresh_locale(app: &mut State, locale: config_ui::DesktopLocale) {
+    use std::io::Write;
+    let command = format!("locale {}\n", locale_code(locale));
+    for child in &mut app.independent_webview_children {
+        if let Some(input) = child.stdin.as_mut() {
+            let _ = input.write_all(command.as_bytes()).and_then(|()| input.flush());
+        }
+    }
+}

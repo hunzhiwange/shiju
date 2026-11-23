@@ -1,18 +1,25 @@
 //! Browser toolbar construction and GTK packing.
 
+use crate::to_wry_rect;
 use tao::{event_loop::EventLoopProxy, window::Window};
 use webview_core::events::UserEvent;
-use webview_toolbar::{ToolbarAction, ViewRegion, parse_toolbar_ipc_message, toolbar_html};
+use webview_toolbar::{
+    ToolbarAction, ViewRegion, parse_toolbar_ipc_message, toolbar_html_with_locale,
+};
 use wry::{WebView, WebViewBuilder};
 #[cfg(all(unix, not(target_os = "macos")))]
-use {gtk::prelude::*, tao::platform::unix::WindowExtUnix, wry::{WebViewBuilderExtUnix, WebViewExtUnix}};
-use crate::to_wry_rect;
+use {
+    gtk::prelude::*,
+    tao::platform::unix::WindowExtUnix,
+    wry::{WebViewBuilderExtUnix, WebViewExtUnix},
+};
 
 pub fn build_toolbar_view(
     window: &Window,
     region: ViewRegion,
     read_only_address: bool,
     proxy: &EventLoopProxy<UserEvent>,
+    locale: config_ui::DesktopLocale,
 ) -> wry::Result<WebView> {
     #[cfg(all(unix, not(target_os = "macos")))]
     let gtk_container = window.default_vbox();
@@ -20,11 +27,11 @@ pub fn build_toolbar_view(
     let toolbar_ready_proxy = proxy.clone();
     let toolbar_builder = WebViewBuilder::new()
         .with_html(if read_only_address {
-            toolbar_html()
+            toolbar_html_with_locale(locale)
                 .replace("type=\"text\"", "type=\"text\" readonly")
                 .replace("post('navigate', address.value);", "")
         } else {
-            toolbar_html()
+            toolbar_html_with_locale(locale)
         })
         .with_clipboard(true)
         .with_bounds(to_wry_rect(region))

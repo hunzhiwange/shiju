@@ -11,6 +11,7 @@ doctest = false
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
 
 [dependencies]
+config-ui = { path = "../config-ui" }
 webview-core = { path = "../webview-core" }
 webview-toolbar = { path = "../webview-toolbar" }
 webview-ipc = { path = "../webview-ipc" }

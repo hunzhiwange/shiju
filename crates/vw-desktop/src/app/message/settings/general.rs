@@ -53,7 +53,11 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Ok(()) => {}
                 Err(error) => {
                     // 系统注册或旧项清理可能已部分成功；回读期间禁止再次写入。
-                    let toast = app.show_error_toast(format!("设置开机启动失败：{error}"));
+                    let toast = app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "设置开机启动失败：%s",
+                        vec![error.into()],
+                    );
                     let refresh = Task::perform(
                         async {
                             #[cfg(not(target_arch = "wasm32"))]
@@ -86,7 +90,11 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 result,
                 false,
             ) {
-                return app.show_error_toast(format!("读取开机启动状态失败：{error}"));
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "读取开机启动状态失败：%s",
+                    vec![error.into()],
+                );
             }
         }
         #[cfg(target_os = "macos")]
@@ -96,13 +104,21 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         #[cfg(target_os = "macos")]
         GeneralSettingsMessage::McpLinkRejected(id) => {
             if crate::app::deep_links::acknowledge(id).is_err() {
-                return app.show_error_toast("无法拒绝 MCP 链接");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "无法拒绝 MCP 链接",
+                    vec![],
+                );
             }
         }
         #[cfg(target_os = "macos")]
         GeneralSettingsMessage::ProviderLinkRejected(id) => {
             if crate::app::deep_links::acknowledge(id).is_err() {
-                return app.show_error_toast("无法拒绝供应商链接".to_string());
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "无法拒绝供应商链接",
+                    vec![],
+                );
             }
         }
         #[cfg(target_os = "macos")]
@@ -112,7 +128,11 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         #[cfg(target_os = "macos")]
         GeneralSettingsMessage::SkillLinkRejected(id) => {
             if crate::app::deep_links::acknowledge(id).is_err() {
-                return app.show_error_toast("无法拒绝技能链接");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "无法拒绝技能链接",
+                    vec![],
+                );
             }
         }
         #[cfg(target_os = "macos")]
@@ -122,20 +142,33 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         #[cfg(target_os = "macos")]
         GeneralSettingsMessage::PromptLinkRejected(id) => {
             if crate::app::deep_links::acknowledge(id).is_err() {
-                return app.show_error_toast("无法取消提示词链接");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "无法取消提示词链接",
+                    vec![],
+                );
             }
         }
         GeneralSettingsMessage::CloseToTrayToggled(enabled) => {
             if enabled
-                && let Err(error) = crate::app::desktop_lifecycle::ensure_tray(app.general_settings.desktop_locale)
+                && let Err(error) =
+                    crate::app::desktop_lifecycle::ensure_tray(app.general_settings.desktop_locale)
             {
-                return app.show_error_toast(format!("无法启用托盘：{error}"));
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "无法启用托盘：%s",
+                    vec![error.into()],
+                );
             }
             if let Err(error) = crate::app::desktop_lifecycle::save_close_to_tray(enabled) {
                 if !app.lifecycle.close_to_tray {
                     crate::app::desktop_lifecycle::remove_tray();
                 }
-                return app.show_error_toast(format!("保存关闭到托盘失败：{error}"));
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "保存关闭到托盘失败：%s",
+                    vec![error.into()],
+                );
             }
             app.lifecycle.close_to_tray = enabled;
             if !enabled {
@@ -187,9 +220,17 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 ));
             }
             if receive_failed {
-                tasks.push(app.show_error_toast("无法暂存启动请求".to_string()));
+                tasks.push(app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "无法暂存启动请求",
+                    vec![],
+                ));
             } else if unsupported {
-                tasks.push(app.show_error_toast("已唤醒主窗口；当前尚不支持启动参数".to_string()));
+                tasks.push(app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "已唤醒主窗口；当前尚不支持启动参数",
+                    vec![],
+                ));
             }
             return Task::batch(tasks);
         }
@@ -268,12 +309,20 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             );
             #[cfg(not(target_arch = "wasm32"))]
             crate::app::desktop_lifecycle::refresh_tray_locale(locale);
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Err(error) = app.work_browser_controller.set_locale(locale) {
+                tracing::warn!(%error, "failed to refresh browser locale");
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            desktop_apps_ui::web::refresh_locale(&mut app.web_navigation, locale);
             crate::app::i18n::editor::refresh(app);
             crate::apps::workflow::refresh_top_tab_title(app);
             crate::app::i18n::apps::refresh_hub_titles(app);
             let viewing_task = app.task_board.task_board_viewing_logs.clone();
             crate::app::message::task_board::sync_task_logs_editor(app, viewing_task.as_ref());
-            let chunks = app.chat_view.active_session_view_state
+            let chunks = app
+                .chat_view
+                .active_session_view_state
                 .prepared_chat_ui_chunks
                 .iter()
                 .copied()

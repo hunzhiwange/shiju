@@ -45,11 +45,15 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::OpenUrlExternal(url) => domain::Message::OpenUrlExternal(url),
         _ => return Task::none(),
     };
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Err(error) = app.work_browser_controller.set_locale(app.general_settings.desktop_locale) { return finish(app, Some(error)); }
     let placement = placement(app);
     let error = domain::update(&mut app.work_browser, #[cfg(not(target_arch = "wasm32"))] &mut app.work_browser_controller, &placement, message);
     finish(app, error)
 }
 pub(super) fn sync_lifecycle(app: &mut App) -> Task<Message> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Err(error) = app.work_browser_controller.set_locale(app.general_settings.desktop_locale) { return finish(app, Some(error)); }
     let placement = placement(app);
     let error = domain::sync_lifecycle(&mut app.work_browser, #[cfg(not(target_arch = "wasm32"))] &mut app.work_browser_controller, &placement);
     finish(app, error)

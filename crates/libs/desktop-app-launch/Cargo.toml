@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+config-ui = { path = "../config-ui" }
 gateway-shiju-app = { path = "../gateway-shiju-app" }
 desktop-skill-hub = { path = "../desktop-skill-hub" }
 iced_core = "0.14"

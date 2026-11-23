@@ -66,7 +66,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     {
         let new = button(
             container(
-                row![icon(Icon::Plus), text("新建会话").size(15)]
+                row![icon(Icon::Plus), text(i18n.__("新建会话")).size(15)]
                     .spacing(8)
                     .align_y(iced::Alignment::Center),
             )
@@ -83,7 +83,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         });
         items = items.push(new).push(
             container(
-                text("项目与会话").size(12).style(
+                text(i18n.__("项目与会话")).size(12).style(
                     crate::app::components::system_settings_common::settings_muted_text_style,
                 ),
             )
@@ -120,7 +120,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .on_press(Message::View(ViewMessage::MobileNewSession(path.clone())));
         let add = tooltip(
             add,
-            container(text("新建会话").size(12))
+            container(text(i18n.__("新建会话")).size(12))
                 .padding([6, 10])
                 .style(desktop_ui_controls::tooltip::tooltip_dark_style),
             tooltip::Position::Bottom,
@@ -152,7 +152,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 let total = sessions.iter().filter(|session| session.is_user_navigable()).count();
                 if total > visible {
                     items = items.push(session_row(
-                        &format!("加载更多 · 还有 {} 条", total - visible),
+                        &i18n
+                            .format("加载更多 · 还有 %u 条", &[(total - visible).into()])
+                            .expect("valid source template"),
                         ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(path.clone()),
                         false,
                     ));
@@ -160,7 +162,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             }
             if app.workspace_state.project_sessions_loading.contains(path) {
                 items = items.push(
-                    container(text("正在加载会话…").size(13).style(
+                    container(text(i18n.__("正在加载会话…")).size(13).style(
                         crate::app::components::system_settings_common::settings_muted_text_style,
                     ))
                     .padding([8, 14]),
@@ -171,7 +173,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if app.workspace_state.recent_projects.is_empty() {
         items =
             items.push(
-                container(text("暂无项目，请先在设置中配置网关或项目。").size(14).style(
+                container(text(i18n.__("暂无项目，请先在设置中配置网关或项目。")).size(14).style(
                     crate::app::components::system_settings_common::settings_muted_text_style,
                 ))
                 .padding(14),

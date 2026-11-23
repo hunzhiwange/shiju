@@ -1,3 +1,4 @@
+use desktop_i18n::I18n;
 use crate::deep_links;
 use vw_api_app_operations::{PromptResource, PromptSharePayload};
 use base64::{Engine as _, prelude::*};
@@ -42,14 +43,23 @@ pub fn parse(raw: &str) -> Result<PromptSharePayload, &'static str> {
 
 
 use iced::widget::{column, text};
-pub fn body(parsed: Result<PromptSharePayload, &'static str>) -> iced::Element<'static, ()> {
-    let mut body = column![text("目标使用当前提示词页面；尚未打开时，继续将加载来源应用的提示词，再次继续即可确认导入。默认保持停用。")].spacing(12);
+pub fn body(
+    parsed: Result<PromptSharePayload, &'static str>,
+    i18n: I18n,
+) -> iced::Element<'static, ()> {
+    let mut body = column![text(i18n.__("目标使用当前提示词页面；尚未打开时，继续将加载来源应用的提示词，再次继续即可确认导入。默认保持停用。"))].spacing(12);
     match parsed {
         Ok(payload) => {
-            body = body.push(text(format!("来源应用：{:?}", payload.source_app)))
-                .push(text(payload.name)).push(text(payload.description.unwrap_or_default())).push(text(payload.content));
+            body = body
+                .push(text(
+                    i18n.format("来源应用：%s", &[format!("{:?}", payload.source_app).into()])
+                        .expect("valid source template"),
+                ))
+                .push(text(payload.name))
+                .push(text(payload.description.unwrap_or_default()))
+                .push(text(payload.content));
         }
-        Err(_) => {},
+        Err(_) => {}
     }
     body.into()
 }

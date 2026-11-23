@@ -28,7 +28,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::WebBookmarkRemove(idx) => domain::Message::WebBookmarkRemove(idx),
         _ => return Task::none(),
     };
-    let effect = domain::update(&mut app.web_navigation, message);
+    let effect = domain::update_with_locale(&mut app.web_navigation, message, app.general_settings.desktop_locale);
     match effect {
         Some(domain::Effect::Save(bookmarks)) => app.save_desktop_preference("web_bookmarks", bookmarks),
         Some(domain::Effect::Error(message)) => app.show_localized_toast(crate::app::state::ToastKind::Error, message, vec![]),

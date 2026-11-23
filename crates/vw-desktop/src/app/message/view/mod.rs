@@ -172,7 +172,7 @@ pub enum ViewMessage {
     /// # 参数
     /// - `Ok(String)`: 安装成功，包含安装路径
     /// - `Err(String)`: 安装失败，包含错误信息
-    InstallCliToolFinished(Result<String, String>),
+    InstallCliToolFinished(Result<desktop_i18n::format::Message, desktop_update::cli_install::InstallError>),
     /// 关闭 CLI 安装弹窗
     CloseInstallCliModal,
     /// 打开使用量统计视图
@@ -798,7 +798,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::TaskPetShowWindow => {
             #[cfg(target_arch = "wasm32")]
             {
-                return app.show_error_toast("当前平台不支持独立伙伴窗口");
+                return app.show_localized_toast(crate::app::state::ToastKind::Error, "当前平台不支持独立伙伴窗口", vec![]);
             }
             #[cfg(not(target_arch = "wasm32"))]
             {

@@ -9,6 +9,7 @@ pub enum UserEvent {
     ConfirmExternal,
     NavigationChanged(String),
     ToolbarReady,
+    SetLocale(config_ui::DesktopLocale),
     ClearBrowser,
     Back,
     Forward,

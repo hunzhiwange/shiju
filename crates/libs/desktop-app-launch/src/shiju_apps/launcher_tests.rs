@@ -61,6 +61,7 @@ fn launcher_passes_set_cookie_only_over_stdin() {
         &[PathBuf::from("/safe/vw-webview")],
         &target("https://app.shiju.cloud/app/01K1APP0000000000000000001/"),
         "01K1APP0000000000000000001",
+        config_ui::DesktopLocale::English,
     )
     .unwrap();
 
@@ -71,6 +72,7 @@ fn launcher_passes_set_cookie_only_over_stdin() {
             "https://app.shiju.cloud/app/01K1APP0000000000000000001/",
             "--title=会议纪要助手",
             "--shiju-app-set-cookie-stdin",
+            "--locale=en",
         ]
     );
     assert!(!process.argv.join(" ").contains("fixture-runtime-session-secret"));
@@ -95,6 +97,7 @@ fn launcher_rejects_untrusted_runtime_without_external_fallback() {
             &[PathBuf::from("/safe/vw-webview")],
             &target(runtime_url),
             "01K1APP0000000000000000001",
+        config_ui::DesktopLocale::English,
         )
         .unwrap_err();
         assert!(error.contains("不受信任"));
@@ -112,6 +115,7 @@ fn launcher_terminates_child_when_stdin_write_fails() {
         &[PathBuf::from("/safe/vw-webview")],
         &target("https://app.shiju.cloud/app/01K1APP0000000000000000001/"),
         "01K1APP0000000000000000001",
+        config_ui::DesktopLocale::English,
     )
     .unwrap_err();
 
@@ -129,6 +133,7 @@ fn launcher_reports_missing_helper_without_exposing_secret() {
         &[PathBuf::from("/missing/vw-webview")],
         &target("https://app.shiju.cloud/app/01K1APP0000000000000000001/"),
         "01K1APP0000000000000000001",
+        config_ui::DesktopLocale::English,
     )
     .unwrap_err();
 

@@ -31,6 +31,13 @@ pub fn parse_stdin_event(line: &str) -> Option<UserEvent> {
         ["navigate", url] if is_safe_navigation_url(url) => {
             Some(UserEvent::OpenUrl((*url).to_string()))
         }
+        ["locale", "zh-CN"] => {
+            Some(UserEvent::SetLocale(config_ui::DesktopLocale::SimplifiedChinese))
+        }
+        ["locale", "zh-TW"] => {
+            Some(UserEvent::SetLocale(config_ui::DesktopLocale::TraditionalChinese))
+        }
+        ["locale", "en"] => Some(UserEvent::SetLocale(config_ui::DesktopLocale::English)),
         ["back"] => Some(UserEvent::Back),
         ["forward"] => Some(UserEvent::Forward),
         ["reload"] => Some(UserEvent::Reload),

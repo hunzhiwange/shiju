@@ -1,9 +1,9 @@
 //! 移动外壳；全局通知、认证和审批浮层由 App::view 统一挂载。
 use crate::app::assets::{Icon, get_icon};
 use crate::app::message::ViewMessage;
-use crate::app::{App, Message, Screen};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::state::LayoutMode;
+use crate::app::{App, Message, Screen};
 use iced::widget::{column, container, row, text};
 use iced::{Element, Length};
 pub mod chat;
@@ -22,6 +22,7 @@ pub(super) fn action(label: &str, message: ViewMessage) -> Element<'_, Message> 
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let title = if app.mobile_layout.mine_open {
         "我的"
     } else if app.mobile_layout.drawer_open {
@@ -35,7 +36,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     } else {
         "会话"
     };
-    let header = header(title);
+    let header = header(app, i18n.__(title));
     let content = if app.mobile_layout.mine_open {
         mine::view(app)
     } else if app.mobile_layout.drawer_open {
@@ -50,8 +51,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         chat::view(app)
     } else {
         column![
-            text("此工具尚未适配手机布局。"),
-            action("返回会话", ViewMessage::MobileChat),
+            text(i18n.__("此工具尚未适配手机布局。")),
+            action(i18n.__("返回会话"), ViewMessage::MobileChat),
         ]
         .spacing(12)
         .into()
@@ -77,15 +78,21 @@ pub fn view(app: &App) -> Element<'_, Message> {
 }
 
 /// 原生窗口控制区与页面导航分行，避免窄屏下挤占返回按钮。
-fn header(title: &str) -> Element<'_, Message> {
+fn header<'a>(app: &App, title: &'a str) -> Element<'a, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let controls = row![
-        navigation_icon(Icon::ArrowLeft, "返回", ViewMessage::MobileBack),
+        navigation_icon(Icon::ArrowLeft, i18n.__("返回"), ViewMessage::MobileBack),
         container(text(title)).width(Length::Fill).center_x(Length::Fill),
     ];
     #[cfg(not(target_arch = "wasm32"))]
-    let controls = controls.push(phone_mode_button(LayoutMode::Mobile));
+    let controls =
+        controls.push(phone_mode_button(LayoutMode::Mobile, app.general_settings.desktop_locale));
     let controls = controls
-        .push(navigation_icon(Icon::FolderClosed, "项目", ViewMessage::MobileDrawerToggled))
+        .push(navigation_icon(
+            Icon::FolderClosed,
+            i18n.__("项目"),
+            ViewMessage::MobileDrawerToggled,
+        ))
         .spacing(8)
         .align_y(iced::Alignment::Center);
     let controls: Element<'_, Message> =
@@ -109,6 +116,7 @@ fn header(title: &str) -> Element<'_, Message> {
 
 /// 通栏底部导航：图标在上、标签在下，背景延伸至页面底边。
 fn bottom_navigation(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let mine = app.mobile_layout.mine_open;
     let project = !mine && app.mobile_layout.drawer_open;
     let settings = !mine && !project && app.navigation_panels.show_system_settings;
@@ -116,7 +124,7 @@ fn bottom_navigation(app: &App) -> Element<'_, Message> {
         row![
             bottom_tab(
                 get_icon(Icon::ChatTextFill),
-                "会话",
+                i18n.__("会话"),
                 ViewMessage::MobileChat,
                 !mine
                     && !project
@@ -125,12 +133,17 @@ fn bottom_navigation(app: &App) -> Element<'_, Message> {
             ),
             bottom_tab(
                 get_icon(Icon::FolderClosed),
-                "项目",
+                i18n.__("项目"),
                 ViewMessage::MobileDrawerToggled,
                 project
             ),
-            bottom_tab(get_icon(Icon::Gear), "设置", ViewMessage::MobileSettings, settings),
-            bottom_tab(mine::person_icon(), "我的", ViewMessage::MobileMine, mine),
+            bottom_tab(
+                get_icon(Icon::Gear),
+                i18n.__("设置"),
+                ViewMessage::MobileSettings,
+                settings
+            ),
+            bottom_tab(mine::person_icon(), i18n.__("我的"), ViewMessage::MobileMine, mine),
         ]
         .width(Length::Fill)
         .align_y(iced::Alignment::Center),
@@ -185,7 +198,10 @@ fn bottom_tab(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn phone_mode_button(mode: LayoutMode) -> Element<'static, Message> {
+pub(crate) fn phone_mode_button(
+    mode: LayoutMode,
+    locale: config_ui::DesktopLocale,
+) -> Element<'static, Message> {
     use crate::app::state::LayoutPreference;
     use iced::widget::svg;
     let (next, label) = match mode {
@@ -196,7 +212,7 @@ pub(crate) fn phone_mode_button(mode: LayoutMode) -> Element<'static, Message> {
         br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M10 5h4m-3 14h2"/></svg>"#
             .as_slice(),
     );
-    header_icon(icon, label, ViewMessage::LayoutSelected(next))
+    header_icon(icon, desktop_i18n::I18n::new(locale).__(label), ViewMessage::LayoutSelected(next))
 }
 
 fn navigation_icon(

@@ -22,10 +22,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let edit_menu = menus::edit_menu(app);
     let view_menu = menus::view_menu(app);
     let help_menu = menus::help_menu(app);
-    let settings = controls::settings_button(crate::app::i18n::I18n::new(app.general_settings.desktop_locale));
+    let settings =
+        controls::settings_button(crate::app::i18n::I18n::new(app.general_settings.desktop_locale));
     #[cfg(not(target_arch = "wasm32"))]
     let open_external_module = iced::widget::row![
-        crate::app::views::mobile::phone_mode_button(crate::app::state::LayoutMode::Desktop),
+        crate::app::views::mobile::phone_mode_button(
+            crate::app::state::LayoutMode::Desktop,
+            app.general_settings.desktop_locale
+        ),
         external::open_external_module(app),
     ]
     .spacing(4)

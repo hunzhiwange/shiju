@@ -75,3 +75,13 @@ fn work_browser_navigation_ipc_accepts_only_safe_navigation_messages() {
     );
     assert_eq!(parse_navigation_ipc_message("not-json"), None);
 }
+
+#[test]
+fn desktop_gettext_locale_control_accepts_only_supported_languages() {
+    use config_ui::DesktopLocale::*;
+    for (code, locale) in [("zh-CN", SimplifiedChinese), ("en", English), ("zh-TW", TraditionalChinese)] {
+        assert_eq!(super::parse_stdin_event(&format!("locale {code}")), Some(webview_core::events::UserEvent::SetLocale(locale)));
+    }
+    assert_eq!(super::parse_stdin_event("locale unsupported"), None);
+    assert_eq!(super::parse_stdin_event("locale en extra"), None);
+}

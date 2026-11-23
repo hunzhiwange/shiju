@@ -14,14 +14,22 @@ pub(crate) fn handoff(app: &mut App, id: u64) -> Task<Message> {
     let Some(link) = pending().filter(|link| link.id == id) else { return Task::none() };
     let payload = match parse(&link.url) {
         Ok(payload) => payload,
-        Err(error) => return app.show_error_toast(error),
+        Err(error) => {
+            return app.show_error_toast(
+                desktop_i18n::I18n::new(app.general_settings.desktop_locale).__(&error),
+            );
+        }
     };
     if app.apps_catalog.prompts.scope.is_none()
         || app.apps_catalog.prompts.catalog.is_none()
         || app.apps_catalog.prompts.preview.is_none()
     {
         if app.apps_catalog.prompts.loading {
-            return app.show_error_toast("提示词正在加载，请稍后重试");
+            return app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "提示词正在加载，请稍后重试",
+                vec![],
+            );
         }
         return prompts::update(app, prompts::Event::Open(payload.source_app));
     }
@@ -35,7 +43,11 @@ pub(crate) fn handoff(app: &mut App, id: u64) -> Task<Message> {
     } else {
         Task::batch([
             task,
-            app.show_error_toast("请先在目标应用中打开提示词页面，等待加载完成后重试"),
+            app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "请先在目标应用中打开提示词页面，等待加载完成后重试",
+                vec![],
+            ),
         ])
     }
 }
@@ -51,5 +63,11 @@ pub(crate) fn overlay<'a>(app: &App, base: Element<'a, Message>) -> Element<'a, 
     let accept = Message::Settings(SettingsMessage::General(
         GeneralSettingsMessage::PromptLinkPreview(link.id),
     ));
-    desktop_navigation::view_layout::link_preview::prompt(base, &link.url, close, accept)
+    desktop_navigation::view_layout::link_preview::prompt(
+        base,
+        &link.url,
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale),
+        close,
+        accept,
+    )
 }

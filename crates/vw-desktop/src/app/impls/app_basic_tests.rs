@@ -58,7 +58,7 @@ fn title_covers_each_screen_and_pet_window_override() {
     let main_window = iced::window::Id::unique();
     app.task_pet_window_id = Some(pet_window);
     app.navigation_tabs.screen = Screen::Project;
-    assert_eq!(app.title_for_window(pet_window), "VibeWindow Pet");
+    assert_eq!(app.title_for_window(pet_window), "VibeWindow 伙伴");
     assert_eq!(app.title_for_window(main_window), "识矩 - 项目");
 }
 

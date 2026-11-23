@@ -107,3 +107,21 @@ fn window_regions_reserve_toolbar_only_for_independent_mode() {
         (None, ViewRegion { x: 0, y: 0, width: 900, height: 600 })
     );
 }
+
+#[test]
+fn desktop_gettext_toolbar_preserves_controls_and_localizes_html() {
+    use config_ui::DesktopLocale::*;
+    for (locale, language, back, address) in [
+        (SimplifiedChinese, "zh-CN", "后退", "输入网址"),
+        (English, "en", "Back", "Enter URL"),
+        (TraditionalChinese, "zh-TW", "後退", "輸入網址"),
+    ] {
+        let html = crate::toolbar_html_with_locale(locale);
+        assert!(html.contains(&format!("lang=\"{language}\"")));
+        assert!(html.contains(&format!("title=\"{back}\"")));
+        assert!(html.contains(&format!("placeholder=\"{address}\"")));
+        for action in ["back", "forward", "navigate", "reload", "open_external", "close"] {
+            assert!(html.contains(&format!("data-action=\"{action}\"")));
+        }
+    }
+}

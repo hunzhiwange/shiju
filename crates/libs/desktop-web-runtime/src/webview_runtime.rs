@@ -107,6 +107,7 @@ pub struct WorkBrowserController {
     last_bounds: Option<WebviewBounds>,
     visible: bool,
     always_on_top: bool,
+    locale: config_ui::DesktopLocale,
 }
 
 impl fmt::Debug for WorkBrowserController {
@@ -121,13 +122,29 @@ impl fmt::Debug for WorkBrowserController {
     }
 }
 
+fn locale_code(locale: config_ui::DesktopLocale) -> &'static str {
+    match locale {
+        config_ui::DesktopLocale::SimplifiedChinese => "zh-CN",
+        config_ui::DesktopLocale::TraditionalChinese => "zh-TW",
+        config_ui::DesktopLocale::English => "en",
+    }
+}
+
 impl WorkBrowserController {
-    pub fn ensure_started(
-        &mut self,
-        target: &str,
-        bounds: WebviewBounds,
-    ) -> Result<bool, String> {
-        self.ensure_started_with(target, bounds, |launch| spawn_embedded_webview(&launch))
+    pub fn set_locale(&mut self, locale: config_ui::DesktopLocale) -> Result<(), String> {
+        if self.locale == locale {
+            return Ok(());
+        }
+        if self.has_running_child() {
+            self.send_command(&format!("locale {}", locale_code(locale)))?;
+        }
+        self.locale = locale;
+        Ok(())
+    }
+
+    pub fn ensure_started(&mut self, target: &str, bounds: WebviewBounds) -> Result<bool, String> {
+        let locale = self.locale;
+        self.ensure_started_with(target, bounds, |launch| spawn_embedded_webview(launch, locale))
     }
 
     pub fn ensure_started_with<F>(
@@ -395,8 +412,12 @@ fn embedded_launch_args(launch: &WorkBrowserLaunch) -> Vec<String> {
     ]
 }
 
-fn spawn_embedded_webview(launch: &WorkBrowserLaunch) -> Result<Box<dyn BrowserProcess>, String> {
-    let args = embedded_launch_args(launch);
+fn spawn_embedded_webview(
+    launch: &WorkBrowserLaunch,
+    locale: config_ui::DesktopLocale,
+) -> Result<Box<dyn BrowserProcess>, String> {
+    let mut args = embedded_launch_args(launch);
+    args.push(format!("--locale={}", locale_code(locale)));
     let mut failures = Vec::new();
     for candidate in webview_helper_candidates() {
         let mut command = Command::new(&candidate);

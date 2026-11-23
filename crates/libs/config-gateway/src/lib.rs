@@ -61,10 +61,6 @@ pub struct GatewayConfig {
     /// 内存中保留的不同幂等键数量上限。
     #[serde(default = "default_gateway_idempotency_max_keys")]
     pub idempotency_max_keys: usize,
-
-    /// Node-control 协议脚手架配置（`[gateway.node_control]`）。
-    #[serde(default)]
-    pub node_control: NodeControlConfig,
 }
 
 /// 服务端网关 skey 条目。
@@ -99,24 +95,6 @@ pub struct GatewaySkey {
     /// 用户会话 ID。旧 skey 允许使用默认用户 0。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_id: Option<String>,
-}
-
-/// `[gateway.node_control]` 下的 Node-control 脚手架配置。
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
-pub struct NodeControlConfig {
-    /// 是否启用实验性的 node-control API 端点。
-    #[serde(default)]
-    pub enabled: bool,
-
-    /// node-control API 调用可选的额外共享 token。
-    /// 设置后，客户端必须在 `X-Node-Control-Token` 中发送该值。
-    #[serde(default)]
-    pub auth_token: Option<String>,
-
-    /// `node.describe` / `node.invoke` 允许访问的远端节点 ID 白名单。
-    /// 为空表示“没有显式白名单”，即接受所有 ID。
-    #[serde(default)]
-    pub allowed_node_ids: Vec<String>,
 }
 
 fn default_gateway_port() -> u16 {
@@ -167,7 +145,6 @@ impl Default for GatewayConfig {
             rate_limit_max_keys: default_gateway_rate_limit_max_keys(),
             idempotency_ttl_secs: default_idempotency_ttl_secs(),
             idempotency_max_keys: default_gateway_idempotency_max_keys(),
-            node_control: NodeControlConfig::default(),
         }
     }
 }

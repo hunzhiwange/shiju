@@ -1,6 +1,6 @@
 use super::{
     AppState, MAX_BODY_SIZE,
-    agent, api, handlers, health, middleware, node_control, openai_compat, request_timeout_middleware, skey_auth_middleware, sse,
+    agent, api, handlers, health, middleware, openai_compat, request_timeout_middleware, skey_auth_middleware, sse,
     webhook, ws,
 };
 use crate::app::agent::config::{self, Config};
@@ -159,7 +159,6 @@ async fn serve_gateway(
             wati_enabled: channels.wati.is_some(),
             nextcloud_talk_enabled: channels.nextcloud_talk.is_some(),
             qq_webhook_enabled: channels.qq_webhook_enabled,
-            node_control_enabled: config.gateway.node_control.enabled,
         },
     );
 
@@ -306,7 +305,6 @@ pub(super) fn client_router(
         .route("/v1/models", get(openai_compat::handle_v1_models))
         .nest("/v1", openai_compat_route)
         .route("/v1/ws/chat", get(ws::handle_ws_chat).layer(from_fn(super::user_scope::session_user)))
-        .route("/v1/node-control", post(node_control::handle_node_control))
         .route("/v1/events", get(sse::handle_sse_events))
         .route("/v1/status", get(api::handle_api_status))
         .route("/v1/tools", get(api::handle_api_tools))

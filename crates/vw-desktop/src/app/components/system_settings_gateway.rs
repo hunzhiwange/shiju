@@ -39,7 +39,6 @@ pub(super) const GATEWAY_TABS: &[SettingsTabDescriptor<GatewaySettingsTab>] = &[
             "反向代理",
             "webhook",
             "幂等性",
-            "node-control",
         ],
     ),
     SettingsTabDescriptor::new(

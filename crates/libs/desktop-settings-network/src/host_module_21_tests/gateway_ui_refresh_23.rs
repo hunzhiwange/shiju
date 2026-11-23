@@ -216,17 +216,13 @@ fn click(ui: &mut Ui<'_>, renderer: &mut Renderer, point: iced::Point) -> Vec<Me
 
 const DRAFT_NAME: &str = "测试 · 測試 · fixture key";
 const SAVE_ERROR: &str = "fixture: configuration could not be saved";
-const NODE_TOKEN: &str = "fictional-node-token";
 
 fn fixture() -> App {
     let mut app = App::default();
     let s = &mut app.gateway_settings;
     s.host_input = format!("{}.example.invalid", "fictional-long-gateway-".repeat(14));
-    s.node_control_auth_token_input = NODE_TOKEN.into();
-    s.node_control_allowed_node_ids_input = "/fixture/测试/測試/".repeat(16);
     s.port = 42167;
     s.auth_enabled = true;
-    s.node_control_enabled = false;
     s.new_skey_calendar_month = "2030-02".into();
     s.new_skey_name_input = DRAFT_NAME.into();
     s.new_skey_expires_at_input = "2030-02-14".into();
@@ -262,10 +258,6 @@ async fn ui_refresh_23_layout_and_interaction() {
         let positions = geometry(&mut ui, &renderer);
         assert_within(positions.input(&app.gateway_settings.host_input), width);
         assert_centered(positions.input("42167"), positions.label("42167"));
-        assert_within(
-            positions.input(&app.gateway_settings.node_control_allowed_node_ids_input),
-            width,
-        );
         capture(
             &mut ui,
             &mut renderer,
@@ -471,26 +463,6 @@ async fn ui_refresh_23_preserves_values_and_disabled_states() {
         click(&mut ui, &mut renderer, label("通过 Authorization: Bearer 校验 skey")).as_slice(),
         [Message::Gateway(GatewayMessage::AuthEnabledToggled(false))]
     ));
-    assert!(matches!(
-        click(&mut ui, &mut renderer, label("启用实验性的 node-control API")).as_slice(),
-        [Message::Gateway(GatewayMessage::NodeControlEnabledToggled(true))]
-    ));
-    let token = mouse::Cursor::Available(positions.input(&"•".repeat(NODE_TOKEN.len())).center());
-    assert!(
-        send(
-            &mut ui,
-            &mut renderer,
-            token,
-            &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)), key(Named::End),]
-        )
-        .is_empty()
-    );
-    assert!(matches!(send(&mut ui, &mut renderer, token, &[key(Named::Backspace)]).as_slice(),
-        [Message::Gateway(GatewayMessage::NodeControlAuthTokenChanged(value))]
-            if value == "fictional-node-toke"));
-    assert!(
-        send(&mut ui, &mut renderer, token, &[key(Named::Enter), key(Named::Escape)]).is_empty()
-    );
     let port = positions.input("42167").center();
     assert!(click(&mut ui, &mut renderer, port).is_empty());
     let cursor = mouse::Cursor::Available(port);
@@ -651,7 +623,7 @@ async fn help_rollout_18_renders_contextual_help() {
         for (title, description) in [
             (
                 "服务端网关配置",
-                "配置 Gateway 的监听地址、skey 鉴权、限流和实验性 node-control 行为。",
+                "配置 Gateway 的监听地址、skey 鉴权和限流。",
             ),
             ("服务管理", "通过本机 gateway 调用 shiju service 管理 OS 服务生命周期。"),
             ("主机地址", "控制服务端 Gateway 的监听地址。"),
@@ -678,7 +650,6 @@ async fn help_rollout_18_renders_contextual_help() {
             ("幂等性", "控制 webhook 幂等 key 的存活时间与内存上限。"),
             ("幂等性TTL(秒)", "控制 webhook 幂等 key 的存活时间。"),
             ("幂等性最大键数", "控制幂等缓存允许保留的 key 数量。"),
-            ("Node Control", "配置实验性的 node-control 协议，包括额外鉴权和允许的远端节点 ID。"),
         ]
         .into_iter()
         .enumerate()

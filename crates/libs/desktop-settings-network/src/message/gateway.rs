@@ -2,7 +2,6 @@
 use desktop_i18n::settings_models::messages::Feedback;
 use crate::Message as SettingsMessage;
 use crate::state::GatewaySettingsState;
-use super::parse_comma_or_newline_list;
 
 use chrono::{Datelike, NaiveDate, Utc};
 
@@ -164,7 +163,6 @@ fn persist_gateway_settings(app: &mut GatewaySettingsState) -> Effect {
     let rate_limit_max_keys = clamp_token_limit(s.rate_limit_max_keys) as usize;
     let idempotency_ttl_secs = s.idempotency_ttl_secs.clamp(1, 86_400) as u64;
     let idempotency_max_keys = clamp_token_limit(s.idempotency_max_keys) as usize;
-    let node_control_enabled = s.node_control_enabled;
     let host = normalize_host(&s.host_input);
     let skeys = s
         .skeys
@@ -172,8 +170,6 @@ fn persist_gateway_settings(app: &mut GatewaySettingsState) -> Effect {
         .filter(|entry| !entry.skey_hash.trim().is_empty())
         .cloned()
         .collect::<Vec<_>>();
-    let node_control_auth_token = s.node_control_auth_token_input.trim().to_string();
-    let allowed_node_ids = parse_comma_or_newline_list(&s.node_control_allowed_node_ids_input);
 
     {
         let mut gateway = config_gateway::GatewayConfig::default();
@@ -189,10 +185,6 @@ fn persist_gateway_settings(app: &mut GatewaySettingsState) -> Effect {
         gateway.rate_limit_max_keys = rate_limit_max_keys;
         gateway.idempotency_ttl_secs = idempotency_ttl_secs;
         gateway.idempotency_max_keys = idempotency_max_keys;
-        gateway.node_control.enabled = node_control_enabled;
-        gateway.node_control.auth_token =
-            if node_control_auth_token.is_empty() { None } else { Some(node_control_auth_token) };
-        gateway.node_control.allowed_node_ids = allowed_node_ids;
 
         Effect::Persist(gateway)
     }
@@ -325,15 +317,6 @@ pub fn update(app: &mut GatewaySettingsState, message: SettingsMessage) -> Effec
         GatewayMessage::IdempotencyMaxKeysChanged(value) => {
             app.idempotency_max_keys = clamp_token_limit(value)
         }
-        GatewayMessage::NodeControlEnabledToggled(value) => {
-            app.node_control_enabled = value
-        }
-        GatewayMessage::NodeControlAuthTokenChanged(value) => {
-            app.node_control_auth_token_input = value
-        }
-        GatewayMessage::NodeControlAllowedNodeIdsChanged(value) => {
-            app.node_control_allowed_node_ids_input = value
-        }
         GatewayMessage::ServiceCommandRequested(command) => {
             let command = command.trim().to_ascii_lowercase();
             if is_danger_service_command(&command) {
@@ -456,7 +439,4 @@ pub fn apply_config(target: &mut config_gateway::GatewayConfig, value: config_ga
         target.rate_limit_max_keys = value.rate_limit_max_keys;
         target.idempotency_ttl_secs = value.idempotency_ttl_secs;
         target.idempotency_max_keys = value.idempotency_max_keys;
-        target.node_control.enabled = value.node_control.enabled;
-        target.node_control.auth_token = value.node_control.auth_token;
-        target.node_control.allowed_node_ids = value.node_control.allowed_node_ids;
 }

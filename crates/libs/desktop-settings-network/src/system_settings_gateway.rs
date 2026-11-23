@@ -62,38 +62,6 @@ fn skey_field<'a>(
         .into()
 }
 
-fn text_row_with_hint<'a>(
-    label: &'static str,
-    description: &'static str,
-    placeholder: &'static str,
-    value: &'a str,
-    hint: &'static str,
-    on_input: impl Fn(String) -> Message + 'a,
-) -> Element<'a, Message> {
-    field_row(
-        label,
-        description,
-        settings_control_with_hint(
-            settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
-            hint,
-        ),
-    )
-}
-
-fn secure_text_row<'a>(
-    label: &'static str,
-    description: &'static str,
-    placeholder: &'static str,
-    value: &'a str,
-    on_input: impl Fn(String) -> Message + 'a,
-) -> Element<'a, Message> {
-    field_row(
-        label,
-        description,
-        settings_text_input(placeholder, value).secure(true).on_input(on_input).width(Length::Fill),
-    )
-}
-
 fn bool_row<'a>(
     label: &'static str,
     description: &'static str,
@@ -483,47 +451,6 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
         },
     );
 
-    let node_control_enabled_row = bool_row(
-        connection_text(app.desktop_locale, "节点控制.已启用"),
-        "",
-        s.node_control_enabled,
-        connection_text(app.desktop_locale, "启用实验性的 node-control API"),
-        |value| {
-            Message::Gateway(GatewayMessage::NodeControlEnabledToggled(
-                value,
-            ))
-        },
-    );
-    let node_control_auth_token_row = secure_text_row(
-        connection_text(app.desktop_locale, "节点控制.认证令牌"),
-        connection_text(
-            app.desktop_locale,
-            "额外共享令牌，客户端需通过 X-Node-Control-Token 传递。",
-        ),
-        connection_text(app.desktop_locale, "可选共享令牌"),
-        &s.node_control_auth_token_input,
-        |value| {
-            Message::Gateway(
-                GatewayMessage::NodeControlAuthTokenChanged(value),
-            )
-        },
-    );
-    let node_control_allowed_ids_row = text_row_with_hint(
-        connection_text(app.desktop_locale, "节点控制.允许的节点ID"),
-        "",
-        connection_text(app.desktop_locale, "逗号或换行分隔，支持 *"),
-        &s.node_control_allowed_node_ids_input,
-        connection_text(
-            app.desktop_locale,
-            "allowed_node_ids 留空表示不设置显式 allowlist；可使用 * 允许所有节点。",
-        ),
-        |value| {
-            Message::Gateway(
-                GatewayMessage::NodeControlAllowedNodeIdsChanged(value),
-            )
-        },
-    );
-
     let mut skey_management = column![skeys_section].spacing(16).width(Length::Fill);
     if let Some(panel) = last_created_skey_panel {
         skey_management = skey_management.push(panel);
@@ -598,25 +525,6 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
         settings_group_card(
             column![idempotency_ttl_row, settings_divider(), idempotency_max_keys_row].spacing(0)
         ),
-        settings_group_heading_with_help(app.render_help,
-            i18n,
-            theme,
-            "Node Control",
-            connection_text(
-                app.desktop_locale,
-                "配置实验性的 node-control 协议，包括额外鉴权和允许的远端节点 ID。"
-            )
-        ),
-        settings_group_card(
-            column![
-                node_control_enabled_row,
-                settings_divider(),
-                node_control_auth_token_row,
-                settings_divider(),
-                node_control_allowed_ids_row,
-            ]
-            .spacing(0),
-        ),
     ]
     .spacing(16)
     .width(Length::Fill)
@@ -651,7 +559,7 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
                 connection_text(app.desktop_locale, "服务端网关配置"),
                 connection_text(
                     app.desktop_locale,
-                    "配置 Gateway 的监听地址、skey 鉴权、限流和实验性 node-control 行为。"
+                    "配置 Gateway 的监听地址、skey 鉴权和限流。"
                 ),
             ))
             .width(Length::Fill),

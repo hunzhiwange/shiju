@@ -6,7 +6,6 @@ pub struct GatewayRouteSummaryOptions {
     pub wati_enabled: bool,
     pub nextcloud_talk_enabled: bool,
     pub qq_webhook_enabled: bool,
-    pub node_control_enabled: bool,
 }
 
 pub fn gateway_route_summary(options: GatewayRouteSummaryOptions) -> Vec<String> {
@@ -62,9 +61,6 @@ pub fn gateway_route_entries(options: GatewayRouteSummaryOptions) -> Vec<Gateway
         routes.push(public_route("POST", "/v1/qq", "QQ Bot webhook"));
     }
     routes.extend(client_route_entries());
-    if options.node_control_enabled {
-        routes.push(client_route("POST", "/v1/node-control", "node-control RPC"));
-    }
     routes
 }
 
@@ -76,7 +72,6 @@ pub fn documented_gateway_routes() -> Vec<GatewayRouteEntry> {
         wati_enabled: false,
         nextcloud_talk_enabled: false,
         qq_webhook_enabled: false,
-        node_control_enabled: false,
     })
 }
 

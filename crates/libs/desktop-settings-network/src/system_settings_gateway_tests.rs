@@ -104,20 +104,12 @@ fn service_action_elements_cover_idle_running_and_copied_states() {
 }
 
 #[test]
-fn field_rows_build_text_secure_bool_hint_and_number_controls() {
+fn field_rows_build_bool_hint_and_number_controls() {
     let _: iced::Element<'_, Message> =
         field_row("标签", "说明", iced::widget::text("control").size(12));
-    let _: iced::Element<'_, Message> =
-        secure_text_row("密钥", "说明", "placeholder", "secret", |value| {
-            Message::Gateway(
-                GatewayMessage::NodeControlAuthTokenChanged(value),
-            )
-        });
     let _: iced::Element<'_, Message> = bool_row("开关", "说明", true, "开启", |value| {
         Message::Gateway(GatewayMessage::AuthEnabledToggled(value))
     });
-    let _: iced::Element<'_, Message> =
-        text_row_with_hint("文本", "说明", "占位", "值", "提示文本", |_| Message::None);
     let _: iced::Element<'_, Message> =
         bool_row_with_hint("开关", "说明", true, "开启", "提示文本", |_| Message::None);
     let app = test_app();
@@ -287,9 +279,6 @@ fn view_builds_empty_and_populated_gateway_states() {
     populated.gateway_settings.new_skey_calendar_open = true;
     populated.gateway_settings.last_created_skey = Some("sk-test".to_string());
     populated.gateway_settings.last_created_skey_copied = true;
-    populated.gateway_settings.node_control_enabled = true;
-    populated.gateway_settings.node_control_auth_token_input = "node-secret".to_string();
-    populated.gateway_settings.node_control_allowed_node_ids_input = "node-a\nnode-b".to_string();
     populated.gateway_settings.save_error = Some(("gateway save failed".to_string()).into());
     populated.gateway_settings.copied_service_command = Some("shiju server restart".to_string());
     let _ = view(populated.inputs());

@@ -36,7 +36,6 @@ mod limits;
 mod middleware;
 #[cfg(test)]
 mod mod_tests;
-mod node_control;
 mod openai_compat;
 mod options;
 #[cfg(test)]
@@ -65,7 +64,6 @@ pub use limits::{
     RATE_LIMIT_MAX_KEYS_DEFAULT, RATE_LIMIT_WINDOW_SECS, RATE_LIMITER_SWEEP_INTERVAL_SECS,
     SlidingWindowRateLimiter,
 };
-pub use node_control::NodeControlRequest;
 pub use options::ServeOptions;
 pub use runtime::serve;
 pub use runtime::start;

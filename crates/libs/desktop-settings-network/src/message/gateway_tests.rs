@@ -321,27 +321,10 @@ fn gateway_config_messages_clamp_values_and_preserve_ignored_pair_limit() {
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::TrustForwardedHeadersToggled(true)),
     );
-    let _ =
-        update(&mut app, SettingsMessage::Gateway(GatewayMessage::NodeControlEnabledToggled(true)));
-    let _ = update(
-        &mut app,
-        SettingsMessage::Gateway(GatewayMessage::NodeControlAuthTokenChanged(
-            " token ".to_string(),
-        )),
-    );
-    let _ = update(
-        &mut app,
-        SettingsMessage::Gateway(GatewayMessage::NodeControlAllowedNodeIdsChanged(
-            "node-a, node-b".to_string(),
-        )),
-    );
 
     assert!(app.auth_enabled);
     assert!(app.allow_public_bind);
     assert!(app.trust_forwarded_headers);
-    assert!(app.node_control_enabled);
-    assert_eq!(app.node_control_auth_token_input, " token ");
-    assert_eq!(app.node_control_allowed_node_ids_input, "node-a, node-b");
 }
 
 #[test]

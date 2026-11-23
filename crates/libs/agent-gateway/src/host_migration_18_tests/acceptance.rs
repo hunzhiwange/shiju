@@ -241,6 +241,5 @@ mod basics;
 mod client_key;
 mod memory_keys;
 mod metrics;
-mod node_control;
 mod pairing;
 mod state;

@@ -247,7 +247,7 @@ pub mod system_settings_general;
 
 /// 系统设置：网关配置
 ///
-/// 配置 HTTP gateway 的监听地址、配对、安全限流与 node-control 行为。
+/// 配置 HTTP gateway 的监听地址、配对与安全限流。
 pub mod system_settings_gateway;
 
 /// 系统设置：客户端网关连接

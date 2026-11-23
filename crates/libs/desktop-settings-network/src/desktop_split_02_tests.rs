@@ -69,9 +69,6 @@ fn web_search_browser_and_gateway_defaults_are_ready_for_empty_config() {
     assert_eq!(gateway.rate_limit_max_keys, 10_000);
     assert_eq!(gateway.idempotency_ttl_secs, 300);
     assert_eq!(gateway.idempotency_max_keys, 10_000);
-    assert!(!gateway.node_control_enabled);
-    assert!(gateway.node_control_auth_token_input.is_empty());
-    assert!(gateway.node_control_allowed_node_ids_input.is_empty());
     assert!(gateway.service_action_running.is_none());
     assert!(gateway.service_action_output.is_none());
     assert!(gateway.copied_service_command.is_none());

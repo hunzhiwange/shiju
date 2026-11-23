@@ -22,8 +22,6 @@ pub mod sse;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod health;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod node_control;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod openai_compat;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod middleware;

@@ -89,7 +89,6 @@ fn gateway_route_summary_lists_tenant_policy_and_client_api_entries() {
         wati_enabled: true,
         nextcloud_talk_enabled: true,
         qq_webhook_enabled: true,
-        node_control_enabled: true,
     });
     let text = lines.join("\n");
 
@@ -128,7 +127,6 @@ fn gateway_route_summary_lists_tenant_policy_and_client_api_entries() {
         "/v1/hooks/trust",
         "/v1/hooks/revoke",
         "/v1/hooks/audit",
-        "/v1/node-control",
         "/v1/shiju/account/login",
         "/v1/shiju/account/login/poll",
         "/v1/shiju/account/profile",
@@ -224,14 +222,13 @@ fn gateway_route_summary_hides_disabled_optional_routes() {
         wati_enabled: false,
         nextcloud_talk_enabled: false,
         qq_webhook_enabled: false,
-        node_control_enabled: false,
     });
     let text = lines.join("\n");
 
     assert!(!text.contains("GET    /health"), "root health route should not be shown");
 
     for route in
-        ["/v1/whatsapp", "/v1/linq", "/v1/wati", "/v1/nextcloud-talk", "/v1/qq", "/v1/node-control"]
+        ["/v1/whatsapp", "/v1/linq", "/v1/wati", "/v1/nextcloud-talk", "/v1/qq"]
     {
         assert!(!text.contains(route), "disabled route should not be shown: {route}");
     }

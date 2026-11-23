@@ -61,6 +61,20 @@ pub(crate) fn view(catalog: &AppsCatalogState) -> iced::Element<'_, Message> {
     desktop_apps_ui::app_routing::lifecycle::view(&catalog.routing, context(catalog)).map(message)
 }
 
+pub(crate) fn restore_overlay<'a>(
+    catalog: &'a AppsCatalogState,
+    base: iced::Element<'a, Message>,
+) -> iced::Element<'a, Message> {
+    let Some(card) = restore_confirmation(&catalog.routing, context(catalog)) else {
+        return base;
+    };
+    desktop_ui_controls::system_settings_common::settings_modal_overlay(
+        Some(base),
+        message(Event::CancelRestore),
+        card.map(message),
+    )
+}
+
 pub(crate) fn inline_service(catalog: &AppsCatalogState) -> iced::Element<'_, Message> {
     page_service(&catalog.routing, context(catalog)).map(message)
 }

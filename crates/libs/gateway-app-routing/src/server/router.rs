@@ -11,7 +11,7 @@ pub fn router() -> axum::Router {
     use super::lifecycle_api::RoutingControl;
     use axum::{Router, middleware};
     use super::config_api::*;
-    use super::lifecycle_api::{start, status, stop};
+    use super::lifecycle_api::{start, status, stop, stop_with_restore};
     use super::outbound_api::*;
     use super::outbound_probe::*;
     use super::outbound_scan::*;
@@ -21,6 +21,7 @@ pub fn router() -> axum::Router {
         .route("/app-routing/hosts/{host}/health", get(health::<RoutingControl>))
         .route("/app-routing/hosts/{host}/start", post(start))
         .route("/app-routing/hosts/{host}/stop", post(stop))
+        .route("/app-routing/hosts/{host}/stop-with-restore", post(stop_with_restore))
         .route("/app-routing/hosts/{host}/config", get(get_config).put(put_config))
         .route(
             "/app-routing/hosts/{host}/client-host",

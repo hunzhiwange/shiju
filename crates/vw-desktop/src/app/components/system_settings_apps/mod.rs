@@ -54,11 +54,12 @@ pub(crate) fn view_overlays<'a>(
         )
     };
     let base = commands::overlay(state, base);
-    launch::overlay(
+    let base = launch::overlay(
         state, i18n, theme,
         preferences::overlay(state, i18n, theme,
             lifecycle::overlay(&state.lifecycle, &state.host, base)),
-    )
+    );
+    crate::app::components::app_routing::lifecycle::restore_overlay(state, base)
 }
 
 

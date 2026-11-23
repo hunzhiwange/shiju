@@ -251,6 +251,44 @@ pub fn apply_checked(
     action: &ModeApplyAction,
     validate: impl Fn() -> bool,
 ) -> Result<ModeApplyResult, StatusCode> {
+    apply_inner(database, routing, home, root, scope, action, validate, None)
+}
+
+pub fn restore_checked(
+    routes: &crate::RouteRestore,
+    database: GlobalDatabase,
+    home: &Path,
+    root: &Path,
+    scope: &FailoverQueueScope,
+    validate: impl Fn() -> bool,
+) -> Result<ModeApplyResult, StatusCode> {
+    apply_inner(
+        database,
+        routes.listener(),
+        home,
+        root,
+        scope,
+        &ModeApplyAction::Direct {},
+        validate,
+        Some(routes),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn apply_inner(
+    database: GlobalDatabase,
+    routing: &RoutingListener,
+    home: &Path,
+    root: &Path,
+    scope: &FailoverQueueScope,
+    action: &ModeApplyAction,
+    validate: impl Fn() -> bool,
+    routes: Option<&crate::RouteRestore>,
+) -> Result<ModeApplyResult, StatusCode> {
+    let restore = |commit: &mut dyn FnMut() -> Result<(), RouteCommitError>| match routes {
+        Some(routes) => routes.restore_provider(scope, commit),
+        None => routing.restore_provider(scope, commit),
+    };
     if scope.app_id != AppId::Claude {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
@@ -279,7 +317,7 @@ pub fn apply_checked(
         let route_scope = RouteScope { tenant, host: &scope.target_host_id, app: scope.app_id };
         let mut mode =
             ClaudeMode { file: &mut file, transactions: &tx, scope: route_scope, runtime: None };
-        routing.restore_provider(scope, || {
+        restore(&mut || {
             mode.recover_route(&scope.project).map_err(|_| RouteCommitError {
                 status: StatusCode::CONFLICT,
                 recovery_pending: true,
@@ -439,7 +477,7 @@ pub fn apply_checked(
             })
         })?;
     } else {
-        routing.restore_provider(scope, || {
+        restore(&mut || {
             let route_scope = RouteScope { tenant, host: &scope.target_host_id, app: scope.app_id };
             let mut mode = ClaudeMode {
                 file: &mut file,

@@ -28,6 +28,7 @@ pub struct State {
     context: Option<Context>,
     serial: u64,
     busy: bool,
+    confirming_restore: bool,
     status: Option<RoutingStatus>,
     retry_start: bool,
     health: Option<RoutingHealth>,
@@ -39,6 +40,7 @@ pub enum Operation {
     Refresh,
     Start,
     Stop,
+    StopWithRestore,
 }
 
 #[derive(Clone, Debug)]
@@ -50,6 +52,8 @@ pub enum Event {
     Attached(Context, u64, vw_api_transport::id::ProjectId, Vec<vw_api_app_identity::AppId>, bool),
     Outbound(super::outbound::Event),
     Run(Operation),
+    ConfirmRestore,
+    CancelRestore,
     Loaded(
         Context,
         u64,
@@ -62,6 +66,11 @@ pub enum Event {
 pub enum StatusFailure {
     Unconfigured,
     Request(String),
+    Restore {
+        status: RoutingStatus,
+        health: RoutingHealth,
+        message: String,
+    },
 }
 
 impl State {
@@ -99,6 +108,11 @@ impl State {
                 self.health = Some(health);
                 self.error = None;
             }
+            Err(StatusFailure::Restore { status, health, message }) => {
+                self.status = Some(status);
+                self.health = Some(health);
+                self.error = Some(message);
+            }
             Err(error) => {
                 // A failed command may have reached the host. Never infer its outcome.
                 self.status = None;
@@ -106,6 +120,7 @@ impl State {
                 self.error = match error {
                     StatusFailure::Unconfigured => None,
                     StatusFailure::Request(error) => Some(error),
+                    StatusFailure::Restore { .. } => unreachable!(),
                 };
             }
         }
@@ -155,12 +170,21 @@ async fn request(
     #[cfg(not(target_arch = "wasm32"))]
     {
         tokio::time::timeout(std::time::Duration::from_secs(15), async {
-            let status = match operation {
-                Operation::Refresh => client.app_routing_status(&host, &token).await,
-                Operation::Start => client.app_routing_start(&host, &token).await,
-                Operation::Stop => client.app_routing_stop(&host, &token).await,
-            }
-            .map_err(|error| match &error {
+            let (status, restore_error) = match operation {
+                Operation::Refresh => (client.app_routing_status(&host, &token).await, None),
+                Operation::Start => (client.app_routing_start(&host, &token).await, None),
+                Operation::Stop => (client.app_routing_stop(&host, &token).await, None),
+                Operation::StopWithRestore => {
+                    match client.app_routing_stop_with_restore(&host, &token).await {
+                        Ok(result) => (Ok(result.status), restore_failure_message(&result.failures)),
+                        Err(error) => (
+                            client.app_routing_status(&host, &token).await,
+                            Some(error_message(error)),
+                        ),
+                    }
+                }
+            };
+            let status = status.map_err(|error| match &error {
                 AppRoutingError::Http { status: 503, body: Some(body) }
                     if matches!(operation, Operation::Refresh)
                         && body.error.code == "routing_control_not_configured" =>
@@ -174,7 +198,9 @@ async fn request(
                         "网关暂时无法读取路由状态，请检查路由授权与网关连接后刷新。".into(),
                     )
                 }
-                _ => StatusFailure::Request(error_message(error)),
+                _ => StatusFailure::Request(
+                    restore_error.clone().unwrap_or_else(|| error_message(error)),
+                ),
             })?;
             let health = if status.state == RoutingState::Running {
                 match client.app_routing_health(&host, &token).await {
@@ -184,12 +210,16 @@ async fn request(
                     {
                         RoutingHealth { ready: false }
                     }
+                    Err(_) if restore_error.is_some() => RoutingHealth { ready: false },
                     Err(error) => return Err(StatusFailure::Request(error_message(error))),
                 }
             } else {
                 RoutingHealth { ready: false }
             };
-            Ok((status, health))
+            match restore_error {
+                Some(message) => Err(StatusFailure::Restore { status, health, message }),
+                None => Ok((status, health)),
+            }
         })
         .await
         .map_err(|_| StatusFailure::Request("服务请求超时，请刷新确认".into()))?
@@ -199,6 +229,28 @@ async fn request(
         let _ = (client, host, token, operation);
         Err(StatusFailure::Request(error_message(AppRoutingError::Transport)))
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn restore_failure_message(failures: &[gateway_app_routing::RoutingRestoreFailure]) -> Option<String> {
+    use vw_api_app_identity::AppId;
+    if failures.is_empty() {
+        return None;
+    }
+    let names = failures
+        .iter()
+        .map(|failure| {
+            let name = match failure.app_id {
+                AppId::Claude => "Claude Code".into(),
+                AppId::Codex => "Codex".into(),
+                AppId::ClaudeDesktop => "Claude Desktop".into(),
+                app => format!("{app:?}"),
+            };
+            format!("{name}（HTTP {}）", failure.status)
+        })
+        .collect::<Vec<_>>()
+        .join("、");
+    Some(format!("以下应用恢复直连失败：{names}。请处理后重试。"))
 }
 
 pub fn update(
@@ -274,9 +326,22 @@ pub fn update(
             }
             Task::none()
         }
+        Event::ConfirmRestore => {
+            state.confirming_restore = state.context.as_ref() == Some(&context)
+                && can_control(state, Operation::StopWithRestore);
+            Task::none()
+        }
+        Event::CancelRestore => {
+            state.confirming_restore = false;
+            Task::none()
+        }
         Event::Run(operation) => {
             if state.context.as_ref() != Some(&context) {
                 state.invalidate();
+            }
+            let confirmed = std::mem::take(&mut state.confirming_restore);
+            if matches!(operation, Operation::StopWithRestore) && !confirmed {
+                return Task::none();
             }
             if state.busy || (inline_page && state.listener.is_busy()) {
                 return Task::none();
@@ -314,8 +379,15 @@ pub fn update(
             if state.finish(&request, serial, result) {
                 match operation {
                     Operation::Start => state.retry_start = failed,
-                    Operation::Stop if !failed => state.retry_start = false,
+                    Operation::Stop | Operation::StopWithRestore if !failed => {
+                        state.retry_start = false;
+                    }
                     _ => {}
+                }
+                if matches!(operation, Operation::StopWithRestore) && !failed {
+                    *notice = Some(crate::Notice::Success(
+                        "应用已恢复直连，路由服务已停止".into(),
+                    ));
                 }
                 if inline_page {
                     return Task::done(Event::InspectPage);
@@ -336,7 +408,7 @@ fn can_control(state: &State, operation: Operation) -> bool {
     match (operation, state.status.as_ref().map(|s| s.state)) {
         (Operation::Start, Some(RoutingState::Stopped | RoutingState::Failed)) => true,
         (Operation::Start, None | Some(RoutingState::Running)) => state.retry_start,
-        (Operation::Stop, Some(RoutingState::Running)) => true,
+        (Operation::Stop | Operation::StopWithRestore, Some(RoutingState::Running)) => true,
         _ => false,
     }
 }
@@ -422,7 +494,18 @@ fn service_card<'a>(
             (connected && (!fresh || !state.busy && !state.listener.is_busy()))
                 .then_some(Event::Run(Operation::Refresh)),
         );
-    let mut controls = row![details, refresh, action].spacing(8).align_y(Alignment::Center);
+    let mut controls = row![refresh, action].spacing(8).align_y(Alignment::Center);
+    if stopping {
+        controls = controls.push(
+            button(text("恢复直连并停止").size(SETTINGS_CONTROL_TEXT_SIZE))
+                .padding([8, 14])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(
+                    (fresh && can_control(state, Operation::StopWithRestore))
+                        .then_some(Event::ConfirmRestore),
+                ),
+        );
+    }
     if stopping && fresh && state.retry_start {
         controls = controls.push(
             button(text("重试启动").size(SETTINGS_CONTROL_TEXT_SIZE))
@@ -433,7 +516,10 @@ fn service_card<'a>(
                 ),
         );
     }
-    let mut card = column![container(controls).padding([16, 0])];
+    let mut card = column![
+        container(row![details, controls.wrap()].spacing(8).align_y(Alignment::Center))
+            .padding([16, 0])
+    ];
     if fresh && state.unconfigured {
         card = card.push(
             container(
@@ -485,6 +571,42 @@ fn service_card<'a>(
         );
     }
     settings_group_card(card).into()
+}
+
+pub fn restore_confirmation(state: &State, context: Option<Context>) -> Option<Element<'_, Event>> {
+    use iced::{Alignment, Length};
+    if context.is_none() || state.context != context || !state.confirming_restore {
+        return None;
+    }
+    let header = row![
+        text("恢复直连并停止").size(17).width(Length::Fill),
+        settings_close_button(Event::CancelRestore),
+    ]
+    .align_y(Alignment::Center);
+    let actions = row![
+        button(text("取消").size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding([8, 14])
+            .style(rounded_action_btn_style)
+            .on_press(Event::CancelRestore),
+        button(text("恢复直连并停止").size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding([8, 14])
+            .style(primary_action_btn_style)
+            .on_press(Event::Run(Operation::StopWithRestore)),
+    ]
+    .spacing(8);
+    Some(
+        settings_modal_card(
+            column![
+                header,
+                text("接入的应用将恢复到各自的直连供应商。全部恢复后，路由服务将停止。")
+                    .size(SETTINGS_CONTROL_TEXT_SIZE),
+                actions,
+            ]
+            .spacing(16),
+        )
+        .max_width(460)
+        .into(),
+    )
 }
 
 pub fn attached(

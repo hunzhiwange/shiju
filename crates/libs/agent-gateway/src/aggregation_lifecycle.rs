@@ -54,6 +54,38 @@ fn lifecycle_status(error: LifecycleError) -> StatusCode {
     }
 }
 impl AggregationLifecycle {
+    pub fn restore(
+        &self,
+        host: &impl PublicationHost,
+        routes: &app_routing_services::RouteRestore,
+        app: app_routing_services::lifecycle_host::RestoreApp,
+        authorized: &dyn Fn() -> bool,
+    ) -> Result<(), StatusCode> {
+        if app.scope.target_host_id != self.host
+            || app.scope.project.tenant_scope() != &self.tenant
+        {
+            return Err(StatusCode::FORBIDDEN);
+        }
+        if !matches!(app.scope.app_id, AppId::Claude | AppId::Codex | AppId::ClaudeDesktop) {
+            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+        let mut context = RecordPublicationContext {
+            database: self.database.clone(),
+            project: app.scope.project,
+            host: self.host.clone(),
+            app: app.scope.app_id,
+            home: app.home,
+            root: app.root,
+            routing: None,
+            expected: app.expected,
+            principal: app.principal,
+            revision: String::new(),
+            failure: Default::default(),
+        };
+        context.revision = host.revision(&context, None)?;
+        context.exit_with_routes(routes, authorized)
+    }
+
     fn transactions(&self) -> Result<Option<ProviderTransactions>, StatusCode> {
         let (_, root) = app_access_service::access::aggregation_lifecycle_host(
             &self.policy,

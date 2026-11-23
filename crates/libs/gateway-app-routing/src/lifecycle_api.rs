@@ -14,6 +14,20 @@ pub enum AppRoutingError {
     Http { status: u16, body: Option<ApiErrorBody> },
 }
 
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RoutingRestoreResult {
+    pub status: RoutingStatus,
+    pub failures: Vec<RoutingRestoreFailure>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RoutingRestoreFailure {
+    pub app_id: vw_api_app_identity::AppId,
+    pub status: u16,
+}
+
 impl std::fmt::Display for AppRoutingError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -66,6 +80,20 @@ impl GatewayAppRoutingClient {
         self.app_routing_request(
             reqwest::Method::POST,
             &[host, "stop"],
+            token,
+            Some(&vw_api_app_routing::RoutingLifecycleRequest {}),
+        )
+        .await
+    }
+
+    pub async fn app_routing_stop_with_restore(
+        &self,
+        host: &str,
+        token: &str,
+    ) -> Result<RoutingRestoreResult, AppRoutingError> {
+        self.app_routing_request(
+            reqwest::Method::POST,
+            &[host, "stop-with-restore"],
             token,
             Some(&vw_api_app_routing::RoutingLifecycleRequest {}),
         )

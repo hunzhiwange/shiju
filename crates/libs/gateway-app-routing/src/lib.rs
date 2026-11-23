@@ -4,7 +4,7 @@ mod outbound_api;
 mod outbound_probe;
 mod outbound_scan;
 
-pub use lifecycle_api::AppRoutingError;
+pub use lifecycle_api::{AppRoutingError, RoutingRestoreFailure, RoutingRestoreResult};
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod config_api_tests;

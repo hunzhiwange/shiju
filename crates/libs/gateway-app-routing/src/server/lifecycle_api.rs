@@ -41,6 +41,9 @@ type LocalLifecycle = dyn Fn(GlobalDatabase, PathBuf, TenantScope, String) -> Ar
     + Send
     + Sync;
 
+mod restore;
+pub(super) use restore::stop_with_restore;
+
 #[derive(Clone)]
 pub struct RoutingControl {
     pub database: GlobalDatabase,

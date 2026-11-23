@@ -461,6 +461,15 @@ impl RouteAuth {
         !self.active.lock().grants.is_empty()
     }
 
+    #[cfg(target_os = "macos")]
+    pub(crate) fn has_routes_outside(&self, scopes: &[vw_api_app_failover::FailoverQueueScope]) -> bool {
+        self.active.lock().grants.values().any(|route| {
+            !scopes.iter().any(|scope| {
+                route.binding.has_scope(&scope.project, &scope.target_host_id, scope.app_id)
+            })
+        })
+    }
+
     #[cfg_attr(
         not(test),
         expect(dead_code, reason = "unready grants are exercised by authorization tests")

@@ -45,6 +45,8 @@ pub mod shutdown;
 pub mod transport_security;
 pub mod request_status;
 pub use listener::{ListenerError, RoutingListener};
+#[cfg(target_os = "macos")]
+pub use listener::RouteRestore;
 pub use shared_transport::SharedTransport;
 #[cfg(target_os = "macos")]
 pub use route_auth::{RouteCommitError, RouteRevocation, VerifiedRouteBinding};

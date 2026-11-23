@@ -7,6 +7,15 @@ use vw_api_app_aggregation::RecoveryState;
 impl RecordPublicationContext {
     pub fn exit_aggregation(&self, authorized: impl Fn() -> bool) -> Result<(), StatusCode> {
         let routing = self.routing.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+        let routes = routing.begin_route_restore().map_err(|_| StatusCode::CONFLICT)?;
+        self.exit_with_routes(&routes, authorized)
+    }
+
+    pub(crate) fn exit_with_routes(
+        &self,
+        routes: &app_routing_services::RouteRestore,
+        authorized: impl Fn() -> bool,
+    ) -> Result<(), StatusCode> {
         let tx = ProviderTransactions::open_existing(
             &self.root,
             ExecutionHostId::new(&self.host).map_err(failed)?,
@@ -22,18 +31,17 @@ impl RecordPublicationContext {
             && !self.expected.stack.enabled
             && self.expected.mode.as_ref().is_some_and(|mode| mode.mode == Mode::Proxy)
         {
-            return app_routing_services::provider_publication::apply_checked(
+            return app_routing_services::provider_publication::restore_checked(
+                routes,
                 self.database.clone(),
-                routing,
                 &self.home,
                 &self.root,
                 &scope,
-                &vw_api_app_provider_environment::mode_apply::ModeApplyAction::Direct {},
                 || authorized() && self.validate_record_inputs().is_ok(),
             )
             .map(|_| ());
         }
-        routing.restore_provider(&scope, || {
+        routes.restore_provider(&scope, || {
             let result = self.restore_exit(&tx, &authorized);
             result.map_err(|status| RouteCommitError {
                 status,

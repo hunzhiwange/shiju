@@ -136,11 +136,18 @@ impl RoutingListener {
         *self.aggregation_lifecycle.lock() = Some(Arc::new(context));
     }
 
+    #[cfg(target_os = "macos")]
+    pub fn aggregation_lifecycle(
+        &self,
+    ) -> Option<Arc<dyn crate::lifecycle_host::AggregationLifecycleHost>> {
+        self.aggregation_lifecycle.lock().clone()
+    }
+
     /// Each publisher obtains the existing control permit itself. Do not hold
     /// that permit while resuming. Closing the gateway prevents late publication.
     #[cfg(target_os = "macos")]
     pub async fn resume_aggregations(self: &Arc<Self>) -> Result<(), ListenerError> {
-        let context = self.aggregation_lifecycle.lock().clone();
+        let context = self.aggregation_lifecycle();
         let Some(context) = context else {
             return Ok(());
         };
@@ -174,7 +181,7 @@ impl RoutingListener {
         &self,
     ) -> Result<Vec<vw_api_app_failover::FailoverQueueScope>, ListenerError>
     {
-        let context = self.aggregation_lifecycle.lock().clone();
+        let context = self.aggregation_lifecycle();
         let Some(context) = context else {
             return Ok(vec![]);
         };
@@ -251,6 +258,12 @@ impl RoutingListener {
     ) -> Result<(), axum::http::StatusCode> {
         let _permit = self.try_control().map_err(|_| axum::http::StatusCode::CONFLICT)?;
         self.auth.restore_provider(scope, commit)
+    }
+
+    #[cfg(target_os = "macos")]
+    pub fn begin_route_restore(self: &Arc<Self>) -> Result<RouteRestore, ListenerError> {
+        let permit = self.try_control()?;
+        Ok(RouteRestore { listener: Arc::clone(self), _permit: permit })
     }
 
     #[cfg(target_os = "macos")]
@@ -557,6 +570,13 @@ impl RoutingListener {
     pub async fn stop_controlled(&self) -> Result<(), ListenerError> {
         #[cfg(target_os = "macos")]
         let restore = self.detach_aggregations().await;
+        self.drain().await?;
+        #[cfg(target_os = "macos")]
+        restore?;
+        Ok(())
+    }
+
+    async fn drain(&self) -> Result<(), ListenerError> {
         let running =
             self.lifecycle.lock().begin_stop().map_err(|_| ListenerError::TransitionInProgress)?;
         #[cfg(target_os = "macos")]
@@ -567,8 +587,6 @@ impl RoutingListener {
                 .await
                 .map_err(|_| ListenerError::StopTimeout)?;
         }
-        #[cfg(target_os = "macos")]
-        restore?;
         Ok(())
     }
 
@@ -619,6 +637,39 @@ impl RoutingListener {
             retired,
         };
         (running, task)
+    }
+}
+
+/// Holds the listener control permit across native restoration and draining.
+#[cfg(target_os = "macos")]
+pub struct RouteRestore {
+    listener: Arc<RoutingListener>,
+    _permit: tokio::sync::OwnedMutexGuard<bool>,
+}
+
+#[cfg(target_os = "macos")]
+impl RouteRestore {
+    pub fn listener(&self) -> &RoutingListener {
+        &self.listener
+    }
+
+    pub fn restore_provider(
+        &self,
+        scope: &vw_api_app_failover::FailoverQueueScope,
+        commit: impl FnOnce() -> Result<(), super::RouteCommitError>,
+    ) -> Result<(), axum::http::StatusCode> {
+        self.listener.auth.restore_provider(scope, commit)
+    }
+
+    pub fn has_routes_outside(&self, scopes: &[vw_api_app_failover::FailoverQueueScope]) -> bool {
+        self.listener.auth.has_routes_outside(scopes)
+    }
+
+    pub async fn stop(self) -> Result<(), ListenerError> {
+        if self.listener.has_active_routes() {
+            return Err(ListenerError::AppsAttached);
+        }
+        self.listener.drain().await
     }
 }
 

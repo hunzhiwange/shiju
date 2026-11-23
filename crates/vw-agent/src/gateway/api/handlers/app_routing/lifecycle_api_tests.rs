@@ -418,6 +418,11 @@ async fn local_routing_app_attachment() {
 }
 
 #[tokio::test]
+async fn local_routing_stop_with_restore() {
+    exercise_local_routing_attachment(Some(RestartScenario::StopWithRestore)).await;
+}
+
+#[tokio::test]
 async fn local_routing_manual_restart_restore() {
     exercise_local_routing_attachment(Some(RestartScenario::Provider)).await;
 }
@@ -431,6 +436,7 @@ async fn local_routing_manual_restart_restore_aggregation() {
 enum RestartScenario {
     Provider,
     Aggregation,
+    StopWithRestore,
 }
 
 async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
@@ -583,6 +589,40 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
         )
     };
     let saved = || serde_json::from_slice::<Value>(&fs::read(&settings).unwrap()).unwrap();
+    let finish = async |response: reqwest::Response, expected: &str| {
+        let status = response.status();
+        let body = response.text().await.unwrap();
+        assert!(
+            status.is_success(),
+            "submit {expected}: HTTP {status} {body}"
+        );
+        let mut progress: Value = serde_json::from_str(&body).unwrap();
+        let operation = format!(
+            "http://127.0.0.1:{port}/v1/app-providers/operations/{}",
+            progress["operationId"].as_str().unwrap()
+        );
+        tokio::time::timeout(Duration::from_secs(10), async {
+            while progress.get("aggregationOutcome").is_none() {
+                tokio::time::sleep(Duration::from_millis(25)).await;
+                progress = authorized(reqwest::Method::GET, &operation)
+                    .query(&[("targetHostId", host), ("projectId", project)])
+                    .send()
+                    .await
+                    .unwrap()
+                    .error_for_status()
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            progress["aggregationOutcome"]["kind"], expected,
+            "{progress}"
+        );
+    };
     let route_mode = format!("app-routing/hosts/{host}/projects/{project}/apps/claude/mode");
     for app in ["claude", "codex", "gemini", "grokbuild"] {
         let base = format!("http://127.0.0.1:{port}/v1");
@@ -649,6 +689,123 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
             true
         );
         forward(id, "fixture").await;
+    }
+    if restart == Some(RestartScenario::StopWithRestore) {
+        use vw_api_app_identity::AppId::Codex;
+        use vw_api_app_provider_profiles::codex_catalog::CodexProfile;
+        let codex = home.join(".codex");
+        fs::create_dir(&codex).unwrap();
+        let config = codex.join("config.toml");
+        for id in ["first", "second"] {
+            let native_config = format!(
+                "model='fixture-{id}'\nmodel_provider='relay'\n[model_providers.relay]\nname='Fixture'\nbase_url='{endpoint}/{id}/v1'\nwire_api='responses'\n",
+            );
+            store.codex_save(
+                &tenant,
+                id,
+                &CodexProfile {
+                    name: id.into(),
+                    config: native_config.clone(),
+                    api_key: Some(format!("{id}-key")),
+                    preserve_login: false,
+                },
+                None,
+                None,
+            ).unwrap();
+            if id == "first" {
+                fs::write(&config, format!("{native_config}\n[history]\npersistence='save-all'\n")).unwrap();
+            }
+        }
+        let scope = vw_api_transport::id::ProjectScope::new(tenant.clone(), project.into()).unwrap();
+        transactions.commit_project_checked(
+            &scope,
+            &mut lock_app(Codex, &codex).unwrap(),
+            &transactions.state(Codex).unwrap(),
+            true,
+            &[],
+            PendingTarget {
+                pointer: Some("first".into()),
+                mode: Some(vw_agent_apps::providers::live::commit::ModeState {
+                    mode: vw_agent_apps::providers::live::commit::Mode::Direct,
+                    attached: false,
+                    proxy_route: Some("first".into()),
+                    contract: None,
+                }),
+                stack: Some(vw_agent_apps::providers::mode_state::StackState {
+                    enabled: false,
+                    members: vec!["first".into(), "second".into()],
+                    keys: [("first".into(), "first".into()), ("second".into(), "second".into())].into(),
+                }),
+                ..Default::default()
+            },
+            || Ok(()),
+        ).unwrap();
+        let preview = post(
+            "agent-apps/codex/aggregation/preview",
+            json!({"defaultProviderId":"first", "catalogPolicy":"use_managed"}),
+        ).send().await.unwrap().error_for_status().unwrap().json::<Value>().await.unwrap();
+        assert!(preview["previewToken"].is_string(), "{preview}");
+        finish(post("agent-apps/codex/aggregation/publish", json!({
+            "expectedRevision":preview["revision"], "previewToken":preview["previewToken"],
+            "requestId":"fixture-stop-restore-codex", "confirmed":true
+        })).send().await.unwrap(), "published").await;
+        let codex_before = fs::read_to_string(&config).unwrap();
+        assert!(codex_before.contains(&published_url));
+        assert!(transactions.state(Codex).unwrap().mode.unwrap().attached);
+
+        let before = saved();
+        let stop = |action| post(&format!("app-routing/hosts/{host}/{action}"), json!({}));
+        let response = stop("stop").send().await.unwrap();
+        assert_eq!(response.status(), 409);
+        assert_eq!(response.json::<Value>().await.unwrap()["error"]["code"], "apps_attached");
+        let foreign = client
+            .post(format!("http://127.0.0.1:{port}/v1/app-routing/hosts/{host}/stop-with-restore"))
+            .header("x-platform-id", "p")
+            .header("x-company-id", "other")
+            .bearer_auth(GATEWAY_SKEY)
+            .json(&json!({}))
+            .send().await.unwrap();
+        assert_eq!(foreign.status(), 403);
+        assert_eq!(saved(), before);
+        assert_eq!(fs::read_to_string(&config).unwrap(), codex_before);
+        forward("second", "fixture").await;
+
+        let edited = codex_before.replace(&published_url, "http://127.0.0.1:1");
+        fs::write(&config, &edited).unwrap();
+        let response = stop("stop-with-restore").send().await.unwrap();
+        let status = response.status();
+        let body = response.text().await.unwrap();
+        assert_eq!(status, 200, "restore and stop: {body}");
+        let partial: Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(partial["status"]["state"], "running");
+        assert_eq!(partial["failures"], json!([{"appId":"codex","status":409}]));
+        assert_eq!(fs::read_to_string(&config).unwrap(), edited);
+        assert_eq!(saved()["env"]["ANTHROPIC_BASE_URL"], direct_endpoint);
+        assert_eq!(saved()["fixture"], true);
+        assert!(!transactions.state(Claude).unwrap().mode.unwrap().attached);
+        assert!(transactions.state(Codex).unwrap().mode.unwrap().attached);
+        let address = ("127.0.0.1", binding["boundPort"].as_u64().unwrap() as u16);
+        assert!(tokio::net::TcpStream::connect(address).await.is_ok());
+
+        fs::write(&config, &codex_before).unwrap();
+        let response = stop("stop-with-restore").send().await.unwrap();
+        let status = response.status();
+        let body = response.text().await.unwrap();
+        assert_eq!(status, 200, "retry restore and stop: {body}");
+        let stopped: Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(stopped["status"]["state"], "stopped");
+        assert_eq!(stopped["failures"], json!([]));
+        assert!(tokio::net::TcpStream::connect(address).await.is_err());
+        let native: Value = toml::from_str(&fs::read_to_string(config).unwrap()).unwrap();
+        assert_eq!(native["model_providers"][native["model_provider"].as_str().unwrap()]["base_url"], direct_endpoint);
+        assert_eq!(native["history"]["persistence"], "save-all");
+        let state = transactions.state(Codex).unwrap();
+        assert!(!state.stack.enabled);
+        assert_eq!(state.stack.members, ["first", "second"]);
+        assert!(!state.mode.unwrap().attached);
+        assert!(transactions.pending(Codex).unwrap().is_none());
+        upstream.abort();
+        return;
     }
     if restart == Some(RestartScenario::Provider) {
         authorized(
@@ -845,40 +1002,6 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
         preview["previewToken"].is_string(),
         "aggregation preview: {preview}"
     );
-    let finish = async |response: reqwest::Response, expected: &str| {
-        let status = response.status();
-        let body = response.text().await.unwrap();
-        assert!(
-            status.is_success(),
-            "submit {expected}: HTTP {status} {body}"
-        );
-        let mut progress: Value = serde_json::from_str(&body).unwrap();
-        let operation = format!(
-            "http://127.0.0.1:{port}/v1/app-providers/operations/{}",
-            progress["operationId"].as_str().unwrap()
-        );
-        tokio::time::timeout(Duration::from_secs(10), async {
-            while progress.get("aggregationOutcome").is_none() {
-                tokio::time::sleep(Duration::from_millis(25)).await;
-                progress = authorized(reqwest::Method::GET, &operation)
-                    .query(&[("targetHostId", host), ("projectId", project)])
-                    .send()
-                    .await
-                    .unwrap()
-                    .error_for_status()
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
-            }
-        })
-        .await
-        .unwrap();
-        assert_eq!(
-            progress["aggregationOutcome"]["kind"], expected,
-            "{progress}"
-        );
-    };
     finish(
         post(
             "agent-apps/claude/aggregation/publish",

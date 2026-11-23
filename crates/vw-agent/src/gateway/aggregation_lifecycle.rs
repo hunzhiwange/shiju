@@ -28,4 +28,13 @@ impl AggregationLifecycle {
 impl app_routing_services::lifecycle_host::AggregationLifecycleHost for AggregationLifecycle {
     fn resume(&self, routing: Arc<RoutingListener>) -> Result<(), StatusCode> { self.resume(routing) }
     fn detach(&self) -> DetachResult { self.detach() }
+
+    fn restore(
+        &self,
+        routes: &app_routing_services::RouteRestore,
+        app: app_routing_services::lifecycle_host::RestoreApp,
+        authorized: &dyn Fn() -> bool,
+    ) -> Result<(), StatusCode> {
+        self.service().restore(&super::aggregation_desktop_record::Host, routes, app, authorized)
+    }
 }

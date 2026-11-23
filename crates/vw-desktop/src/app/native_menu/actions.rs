@@ -1,12 +1,12 @@
 //! 将 App 状态投影为原生菜单输入，装配跨域消息。
 use crate::app::components::top_bar::menu_actions::NativeMenuAction;
-use crate::app::{App, Message, Screen};
+use crate::app::{App, Message};
 pub(crate) use desktop_navigation::native_menu::NativeMenuSnapshot;
 
 pub(crate) fn snapshot(app: &App) -> NativeMenuSnapshot {
     NativeMenuSnapshot {
         locale: app.general_settings.desktop_locale,
-        is_project: matches!(app.navigation_tabs.screen, Screen::Project),
+        screen: app.navigation_tabs.screen,
         workspace_mode: app.navigation_mode.workspace_mode,
         show_file_manager: app.file_manager.show_file_manager,
         file_manager_show_changes: app.file_manager.file_manager_show_changes,

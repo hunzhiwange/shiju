@@ -8,6 +8,7 @@ use desktop_ui_controls::overlays::BelowOverlay;
 use desktop_platform::menu_actions::NativeMenuAction;
 
 use crate::presentation::WorkResourceMode;
+use crate::ui_types::Screen;
 use super::types::WorkspaceMode;
 
 use iced::Element;
@@ -55,8 +56,8 @@ fn menu_entries(
     Column::with_children(entries.into_iter().map(|entry| entry.into_element(i18n))).into()
 }
 
-pub fn file_menu_entries(is_project: bool) -> Vec<MenuEntry> {
-    if is_project {
+pub fn file_menu_entries(screen: Screen) -> Vec<MenuEntry> {
+    if screen == Screen::Project {
         vec![
             MenuEntry::item(
                 NativeMenuAction::FileNewSession,
@@ -97,29 +98,29 @@ pub fn file_menu_entries(is_project: bool) -> Vec<MenuEntry> {
             ),
         ]
     } else {
-        vec![
-            MenuEntry::item(
-                NativeMenuAction::FileSave,
-                "保存代码",
-                Some("⌘S"),
-                Message::SaveFile,
-            ),
-            MenuEntry::item(
-                NativeMenuAction::FileGoHome,
-                "返回首页",
-                None,
-                Message::GoHome,
-            ),
-        ]
+        let is_preview = screen == Screen::Preview;
+        let mut entries = vec![MenuEntry::item(
+            NativeMenuAction::FileSave,
+            if is_preview { "保存文件" } else { "保存代码" },
+            Some("⌘S"),
+            Message::SaveFile,
+        )];
+        if is_preview {
+            entries.extend(undo_redo_entries());
+            entries.push(MenuEntry::Separator);
+        }
+        entries.push(MenuEntry::item(
+            NativeMenuAction::FileGoHome,
+            "返回首页",
+            None,
+            Message::GoHome,
+        ));
+        entries
     }
 }
 
-pub fn edit_menu_entries(is_project: bool) -> Vec<MenuEntry> {
-    if !is_project {
-        return Vec::new();
-    }
-
-    vec![
+fn undo_redo_entries() -> [MenuEntry; 2] {
+    [
         MenuEntry::item(
             NativeMenuAction::EditUndo,
             "撤销",
@@ -132,6 +133,18 @@ pub fn edit_menu_entries(is_project: bool) -> Vec<MenuEntry> {
             Some("⇧⌘Z"),
             Message::Redo,
         ),
+    ]
+}
+
+pub fn edit_menu_entries(is_project: bool) -> Vec<MenuEntry> {
+    if !is_project {
+        return Vec::new();
+    }
+
+    let [undo, redo] = undo_redo_entries();
+    vec![
+        undo,
+        redo,
         MenuEntry::Separator,
         MenuEntry::item(NativeMenuAction::EditCut, "剪切", Some("⌘X"), Message::CutShortcut),
         MenuEntry::item(NativeMenuAction::EditCopy, "复制", Some("⌘C"), Message::CopyShortcut),
@@ -298,7 +311,6 @@ pub fn help_menu_entries() -> Vec<MenuEntry> {
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn file_menu(app: &Inputs<'_>) -> Element<'static, Message> {
-    let is_project = app.is_project;
     let file_btn = menu_btn(
         app.i18n.__("文件"),
         MenuType::File,
@@ -307,7 +319,7 @@ pub fn file_menu(app: &Inputs<'_>) -> Element<'static, Message> {
 
     let file_content = menu_container(menu_entries(
         app.i18n,
-        file_menu_entries(is_project),
+        file_menu_entries(app.screen),
     ));
 
     BelowOverlay::new(file_btn, file_content)
@@ -330,7 +342,6 @@ pub fn file_menu(app: &Inputs<'_>) -> Element<'static, Message> {
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn edit_menu(app: &Inputs<'_>) -> Element<'static, Message> {
-    let is_project = app.is_project;
     let edit_btn = menu_btn(
         app.i18n.__("编辑"),
         MenuType::Edit,
@@ -339,7 +350,7 @@ pub fn edit_menu(app: &Inputs<'_>) -> Element<'static, Message> {
 
     let edit_content = menu_container(menu_entries(
         app.i18n,
-        edit_menu_entries(is_project),
+        edit_menu_entries(app.screen == Screen::Project),
     ));
 
     BelowOverlay::new(edit_btn, edit_content)
@@ -447,7 +458,7 @@ fn menu_item_btn<'a>(label: &'a str, shortcut: Option<&'a str>, msg: Option<Mess
 pub enum MenuType { File, Edit, View, Help, OpenExternal, GatewayServices }
 pub struct Inputs<'a> {
  pub i18n: desktop_i18n::I18n,
- pub is_project: bool,
+ pub screen: Screen,
  pub active_menu: Option<MenuType>,
  pub workspace_mode: WorkspaceMode,
  pub show_file_manager: bool,

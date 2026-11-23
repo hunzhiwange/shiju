@@ -110,7 +110,7 @@ impl ToolbarInput {
         let i18n = desktop_i18n::I18n::new(locale);
         let inputs = menus::Inputs {
             i18n,
-            is_project: self.screen == Screen::Project,
+            screen: self.screen,
             active_menu: None,
             workspace_mode: self.workspace_mode,
             show_file_manager: false,

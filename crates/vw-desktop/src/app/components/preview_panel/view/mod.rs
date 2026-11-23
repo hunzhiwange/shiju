@@ -31,7 +31,7 @@ mod mod_tests;
 mod settings_tests;
 
 use crate::app::components::editor_toolbar;
-use crate::app::{App, Message, message};
+use crate::app::{App, Message, Screen, message};
 use iced::Element;
 
 /// 重新导出 content::build_content_base，让上层模块通过稳定路径访问。
@@ -73,8 +73,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
         context_menu_pos: app.preview_state.preview_context_menu_pos, i18n: desktop_i18n::I18n::new(app.general_settings.desktop_locale),
     }, ViewParts {
         header_tabs: build_header_tabs(app).map(ViewMessage::External),
-        header_tools: tab.map(|tab| editor_toolbar::view(app,
-            (!tab.read_only).then_some(Message::Preview(message::PreviewMessage::SaveFile)), tab.is_dirty).map(ViewMessage::External)),
+        header_tools: tab.filter(|_| app.navigation_tabs.screen != Screen::Preview).map(|tab| {
+            editor_toolbar::view(
+                app,
+                (!tab.read_only).then_some(Message::Preview(message::PreviewMessage::SaveFile)),
+                tab.is_dirty,
+            )
+            .map(ViewMessage::External)
+        }),
         tools: editor_popovers::tools(app).map(ViewMessage::External),
         content: build_content_base(app).map(ViewMessage::External),
         menu_ui: build_menu_ui(app).map(ViewMessage::External),

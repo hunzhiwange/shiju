@@ -11,13 +11,13 @@ use crate::ui_types::Screen;
 use desktop_platform::menu_actions::NativeMenuAction;
 
 fn test_app(screen: Screen) -> NativeMenuSnapshot {
-    NativeMenuSnapshot { is_project: screen == Screen::Project, ..snapshot_with(Vec::new()) }
+    NativeMenuSnapshot { screen, ..snapshot_with(Vec::new()) }
 }
 
 fn snapshot_with(tabs: Vec<WindowTabEntry>) -> NativeMenuSnapshot {
     NativeMenuSnapshot {
         locale: config_ui::DesktopLocale::SimplifiedChinese,
-        is_project: true,
+        screen: Screen::Project,
         workspace_mode: WorkspaceMode::Work,
         show_file_manager: true,
         file_manager_show_changes: false,

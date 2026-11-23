@@ -1,4 +1,6 @@
-use crate::app::{App, Message, Screen, message};
+use crate::app::{App, Message, message};
+#[cfg(test)]
+use crate::app::Screen;
 use crate::app::message::view::MenuType;
 use desktop_navigation::components::top_bar::menus as domain;
 #[cfg(test)]
@@ -13,7 +15,7 @@ fn adapt(entry: domain::MenuEntry) -> MenuEntry {
  }
 }
 #[cfg(test)]
-pub(crate) fn file_menu_entries(is_project: bool) -> Vec<MenuEntry> { domain::file_menu_entries(is_project).into_iter().map(adapt).collect() }
+pub(crate) fn file_menu_entries(screen: Screen) -> Vec<MenuEntry> { domain::file_menu_entries(screen).into_iter().map(adapt).collect() }
 #[cfg(test)]
 pub(crate) fn edit_menu_entries(is_project: bool) -> Vec<MenuEntry> { domain::edit_menu_entries(is_project).into_iter().map(adapt).collect() }
 #[cfg(test)]
@@ -22,7 +24,7 @@ pub(crate) fn view_menu_entries(workspace_mode: WorkspaceMode, show_file_manager
 pub(crate) fn help_menu_entries() -> Vec<MenuEntry> { domain::help_menu_entries().into_iter().map(adapt).collect() }
 fn to_domain(value: MenuType) -> domain::MenuType { match value {MenuType::File => domain::MenuType::File,MenuType::Edit => domain::MenuType::Edit,MenuType::View => domain::MenuType::View,MenuType::Help => domain::MenuType::Help,MenuType::OpenExternal => domain::MenuType::OpenExternal,MenuType::GatewayServices => domain::MenuType::GatewayServices,} }
 fn from_domain(value: domain::MenuType) -> MenuType { match value {domain::MenuType::File => MenuType::File,domain::MenuType::Edit => MenuType::Edit,domain::MenuType::View => MenuType::View,domain::MenuType::Help => MenuType::Help,domain::MenuType::OpenExternal => MenuType::OpenExternal,domain::MenuType::GatewayServices => MenuType::GatewayServices,} }
-fn inputs(app: &App) -> domain::Inputs<'_> { domain::Inputs { i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale), is_project: matches!(app.navigation_tabs.screen, Screen::Project), active_menu: app.navigation_panels.active_menu.map(to_domain), workspace_mode: app.navigation_mode.workspace_mode, show_file_manager: app.file_manager.show_file_manager, file_manager_show_changes: app.file_manager.file_manager_show_changes, update_version: app.desktop_update.notification_release().map(|r| r.version.as_str()), } }
+fn inputs(app: &App) -> domain::Inputs<'_> { domain::Inputs { i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale), screen: app.navigation_tabs.screen, active_menu: app.navigation_panels.active_menu.map(to_domain), workspace_mode: app.navigation_mode.workspace_mode, show_file_manager: app.file_manager.show_file_manager, file_manager_show_changes: app.file_manager.file_manager_show_changes, update_version: app.desktop_update.notification_release().map(|r| r.version.as_str()), } }
 pub(super) fn file_menu(app: &App) -> iced::Element<'_, Message> { domain::file_menu(&inputs(app)).map(map) }
 pub(super) fn edit_menu(app: &App) -> iced::Element<'_, Message> { domain::edit_menu(&inputs(app)).map(map) }
 pub(super) fn view_menu(app: &App) -> iced::Element<'_, Message> { domain::view_menu(&inputs(app)).map(map) }

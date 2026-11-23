@@ -14,7 +14,7 @@ fn assert_separator(entry: &MenuEntry) {
 
 #[test]
 fn project_file_menu_entries_preserve_order_shortcuts_and_actions() {
-    let entries = file_menu_entries(true);
+    let entries = file_menu_entries(Screen::Project);
 
     assert_eq!(entries.len(), 7);
     let expected = [("新建会话", None), ("新建项目", None), ("查看会话", None), ("查看项目", None)];
@@ -50,13 +50,25 @@ fn project_file_menu_entries_preserve_order_shortcuts_and_actions() {
 
 #[test]
 fn non_project_file_menu_entries_offer_save_and_home_actions() {
-    let entries = file_menu_entries(false);
+    let entries = file_menu_entries(Screen::Home);
 
     assert_eq!(entries.len(), 2);
     assert_eq!((item(&entries[0]).0, item(&entries[0]).1), ("保存代码", Some("⌘S")));
     assert!(matches!(item(&entries[0]).2, Message::SaveFile));
     assert_eq!((item(&entries[1]).0, item(&entries[1]).1), ("返回首页", None));
     assert!(matches!(item(&entries[1]).2, Message::GoHome));
+}
+
+#[test]
+fn preview_file_menu_contains_the_editor_toolbar_actions() {
+    let entries = file_menu_entries(Screen::Preview);
+
+    assert_eq!(entries.len(), 5);
+    assert!(matches!(item(&entries[0]), ("保存文件", Some("⌘S"), Message::SaveFile)));
+    assert!(matches!(item(&entries[1]), ("撤销", Some("⌘Z"), Message::Undo)));
+    assert!(matches!(item(&entries[2]), ("重做", Some("⇧⌘Z"), Message::Redo)));
+    assert_separator(&entries[3]);
+    assert!(matches!(item(&entries[4]).2, Message::GoHome));
 }
 
 #[test]

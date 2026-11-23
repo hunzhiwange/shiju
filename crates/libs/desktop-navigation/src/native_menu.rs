@@ -7,6 +7,7 @@ use crate::components::top_bar::menus::{
     MenuEntry, edit_menu_entries, file_menu_entries, help_menu_entries, view_menu_entries,
 };
 use crate::components::top_bar::types::WorkspaceMode;
+use crate::ui_types::Screen;
 use desktop_platform::menu_actions::NativeMenuAction;
 
 pub use desktop_platform::native_menu::WindowTabEntry;
@@ -15,7 +16,7 @@ pub use desktop_platform::native_menu::WindowTabEntry;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeMenuSnapshot {
     pub locale: config_ui::DesktopLocale,
-    pub is_project: bool,
+    pub screen: Screen,
     pub workspace_mode: WorkspaceMode,
     pub show_file_manager: bool,
     pub file_manager_show_changes: bool,
@@ -51,8 +52,8 @@ pub fn window_tab_entries<'a>(
 /// 与 topbar 同源的菜单分区（不含窗口菜单；窗口菜单含动态标签列表）。
 pub fn menu_sections(snapshot: &NativeMenuSnapshot) -> [(&'static str, Vec<MenuEntry>); 3] {
     [
-        ("文件", file_menu_entries(snapshot.is_project)),
-        ("编辑", edit_menu_entries(snapshot.is_project)),
+        ("文件", file_menu_entries(snapshot.screen)),
+        ("编辑", edit_menu_entries(snapshot.screen == Screen::Project)),
         (
             "视图",
             view_menu_entries(

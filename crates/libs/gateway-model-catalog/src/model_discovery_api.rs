@@ -52,11 +52,11 @@ impl GatewayModelCatalogClient {
         target_host_id: &str,
         id: Option<&TaskId>,
         input: Option<&ModelDiscoveryRequest>,
-        token: &str,
+        _token: &str,
     ) -> Result<ModelDiscoveryStatus, Error> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (method, project, target_host_id, id, input, token);
+            let _ = (method, project, target_host_id, id, input, _token);
             Err(Error::Transport("model discovery requires native transport".into()))
         }
         #[cfg(not(target_arch = "wasm32"))]

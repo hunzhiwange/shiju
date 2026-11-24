@@ -422,11 +422,11 @@ fn project_id(worktree: &Path) -> Option<String> {
 
 fn root_commit_id(repo: &Repository) -> Option<String> {
     let mut revwalk = repo.revwalk().ok()?;
-    let Ok(mut refs) = repo.references() else {
+    let Ok(refs) = repo.references() else {
         return None;
     };
 
-    while let Some(reference) = refs.next() {
+    for reference in refs {
         let Ok(reference) = reference else { continue };
         let Some(oid) = reference.target() else { continue };
         let _ = revwalk.push(oid);

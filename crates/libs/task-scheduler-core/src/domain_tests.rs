@@ -3,7 +3,7 @@
 
 use serde_json::json;
 use vw_api_agent_scheduler::{
-    AgentCapabilityDto, AgentCapabilityKindDto, AgentResourceLeaseDto, AgentResourceLeaseStatusDto,
+    AgentResourceLeaseDto, AgentResourceLeaseStatusDto,
     AgentRunDto, AgentRunStatusDto, AgentSchedulerScope, AgentTaskDto, AgentTaskKindDto,
     AgentTaskStatusDto, TaskDependencyNodeDto,
 };
@@ -11,8 +11,8 @@ use vw_api_transport::common::TimestampMs;
 use vw_api_transport::id::ProjectId;
 
 use super::domain::{
-    AgentCapabilityKind, AgentResourceLease, AgentResourceLeaseStatus, AgentRun, AgentRunStatus,
-    AgentSchedulerContext, AgentTask, AgentTaskKind, AgentTaskStatus, AssigneeId, TeamId,
+    AgentResourceLease, AgentResourceLeaseStatus,
+    AgentSchedulerContext, AgentTaskKind,
 };
 
 #[test]

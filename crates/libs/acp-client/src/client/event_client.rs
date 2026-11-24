@@ -392,13 +392,12 @@ impl acp::Client for AcpEventClient {
         // agent's native mode automatically approves its own tools.
         let require_host_decision = managed_mcp.is_some() || iflow_tool;
         let mut approval_prompt = None;
-        let response = if iflow_tool && self.non_interactive_permissions.is_some() {
-            crate::permissions::resolve_host_confirmation(&args, false)
-        } else if require_host_decision
-            && (mode == PermissionMode::DenyAll
-                || self.non_interactive_permissions == Some(NonInteractivePermissionPolicy::Deny)
-                || (self.non_interactive_permissions.is_none()
-                    && self.permission_confirmation.is_none()))
+        let response = if (iflow_tool && self.non_interactive_permissions.is_some())
+            || (require_host_decision
+                && (mode == PermissionMode::DenyAll
+                    || self.non_interactive_permissions == Some(NonInteractivePermissionPolicy::Deny)
+                    || (self.non_interactive_permissions.is_none()
+                        && self.permission_confirmation.is_none())))
         {
             crate::permissions::resolve_host_confirmation(&args, false)
         } else if let Some(confirm) = &self.permission_confirmation

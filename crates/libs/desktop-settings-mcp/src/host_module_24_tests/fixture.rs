@@ -376,7 +376,9 @@ pub fn import_card<'a>(
 pub fn diagnostic_panel(f: &Fixture) -> Element<'_, McpMessage> {
     use desktop_apps_ui::agent_apps_diagnostics::{mcp_panel, mcp_results};
     let s = &f.state.diagnostics;
+    let i18n = desktop_i18n::I18n::new(Default::default());
     mcp_panel::view(
+        i18n,
         mcp_panel::Panel {
             visible: probe::context(f).as_ref() == s.context.as_ref(),
             active: s.active(),
@@ -400,7 +402,7 @@ pub fn diagnostic_panel(f: &Fixture) -> Element<'_, McpMessage> {
                 mcp_panel::Event::Refresh => probe::McpDiagnosticMessage::Refresh,
             })
         },
-        mcp_results::view(s),
+        mcp_results::view(i18n, s),
     )
 }
 pub fn view(f: &Fixture) -> Element<'_, McpMessage> {

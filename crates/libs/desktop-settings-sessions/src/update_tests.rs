@@ -4,6 +4,7 @@ fn identity(company: &str) -> Identity {
     Identity {
         gateway: "http://127.0.0.1:1".into(),
         tenant: TenantScope::new("10000", company).unwrap(),
+        user_id: Default::default(),
         auth_fingerprint: [0; 32],
     }
 }

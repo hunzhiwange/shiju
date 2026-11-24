@@ -6,11 +6,11 @@ impl GatewayExternalSessionClient {
     pub async fn external_session_messages(
         &self,
         request: &SessionMessagesRequest,
-        token: &str,
+        _token: &str,
     ) -> Result<SessionMessagesResponse, AgentAppsReadError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (request, token);
+            let _ = (request, _token);
             return Err(AgentAppsReadError::Transport("authorized history reads require native transport".into()));
         }
         #[cfg(not(target_arch = "wasm32"))]

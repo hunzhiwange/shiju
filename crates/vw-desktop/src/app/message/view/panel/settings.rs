@@ -190,7 +190,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     return app.show_localized_toast(
                         crate::app::state::ToastKind::Error,
                         "无法打开终端：%s",
-                        vec![error.into()],
+                        vec![error.to_string().into()],
                     );
                 }
             } else {

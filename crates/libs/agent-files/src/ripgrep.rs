@@ -166,7 +166,7 @@ pub fn tree(cwd: impl AsRef<Path>, limit: Option<usize>) -> Result<String, std::
 
     let mut lines = Vec::new();
     let mut used = 0usize;
-    for (p, _) in dirs.iter() {
+    for p in dirs.keys() {
         if used >= limit {
             break;
         }
@@ -222,7 +222,7 @@ pub struct MatchData {
 /// 二进制文件或权限问题中断整个搜索。
 pub fn search(input: SearchInput) -> Result<Vec<MatchData>, std::io::Error> {
     let re = Regex::new(&input.pattern)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        .map_err(std::io::Error::other)?;
     let files = files(FilesInput {
         cwd: input.cwd.clone(),
         glob: input.glob.clone(),

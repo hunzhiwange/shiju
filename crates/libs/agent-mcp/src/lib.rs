@@ -208,15 +208,13 @@ impl ServerHandler for AgentToolServer {
     /// 1. 调用宿主的 `McpToolRuntime::spec_dtos` 获取默认对外工具规范
     /// 2. 将每个工具规范转换为 MCP 工具格式
     /// 3. 处理参数 schema，确保其为有效的 JSON 对象
-    fn list_tools(
+    async fn list_tools(
         &self,
         _request: Option<PaginatedRequestParam>,
         _context: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<ListToolsResult, McpError>> + Send + '_ {
-        async move {
-            // 返回工具列表结果
-            Ok(ListToolsResult { tools: mcp_tools_from_registry(self.ctx.as_ref()), ..Default::default() })
-        }
+    ) -> Result<ListToolsResult, McpError> {
+        // 返回工具列表结果
+        Ok(ListToolsResult { tools: mcp_tools_from_registry(self.ctx.as_ref()), ..Default::default() })
     }
 
     /// 执行工具调用
@@ -240,16 +238,14 @@ impl ServerHandler for AgentToolServer {
     /// 2. 将参数转换为 JSON 字符串格式
     /// 3. 调用工具执行引擎运行工具
     /// 4. 根据执行结果构造返回内容
-    fn call_tool(
+    async fn call_tool(
         &self,
         request: CallToolRequestParam,
         _context: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<CallToolResult, McpError>> + Send + '_ {
-        async move {
-            let name = request.name;
-            let arguments = request.arguments;
-            Ok(call_tool_with_context(name.as_ref(), arguments, self.ctx.as_ref()))
-        }
+    ) -> Result<CallToolResult, McpError> {
+        let name = request.name;
+        let arguments = request.arguments;
+        Ok(call_tool_with_context(name.as_ref(), arguments, self.ctx.as_ref()))
     }
 }
 

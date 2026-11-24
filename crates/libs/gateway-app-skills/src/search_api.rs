@@ -20,7 +20,7 @@ impl std::fmt::Display for MarketSearchError {
 }
 impl std::error::Error for MarketSearchError {}
 impl GatewayAppSkillsClient {
-    pub async fn agent_apps_market_search(&self, query: &MarketSearchQuery, token: &str)
+    pub async fn agent_apps_market_search(&self, query: &MarketSearchQuery, _token: &str)
         -> Result<MarketSearchResponse, MarketSearchError> {
         let request = self.transport.native_transport().map_err(|_| MarketSearchError::Transport)?
             .get(format!("{}/v1/agent-apps/skills/search", self.transport.endpoint().base_url()))

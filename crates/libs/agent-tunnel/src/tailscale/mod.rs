@@ -49,11 +49,10 @@ fn normalize_dns_name(value: &str) -> &str {
 }
 
 fn host_and_port(host_port: &str) -> (&str, Option<u16>) {
-    if let Some((host, port)) = host_port.rsplit_once(':') {
-        if let Ok(port) = port.parse::<u16>() {
+    if let Some((host, port)) = host_port.rsplit_once(':')
+        && let Ok(port) = port.parse::<u16>() {
             return (host, Some(port));
         }
-    }
 
     (host_port, None)
 }
@@ -125,11 +124,10 @@ fn public_urls_from_status(
     };
 
     for (host_port, service) in web {
-        if let Some(expected_hostname) = hostname {
-            if !host_matches(host_port, expected_hostname) {
+        if let Some(expected_hostname) = hostname
+            && !host_matches(host_port, expected_hostname) {
                 continue;
             }
-        }
 
         let Some(handlers) = service.get("Handlers").and_then(Value::as_object) else {
             continue;

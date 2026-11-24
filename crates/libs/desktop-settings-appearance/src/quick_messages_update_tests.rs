@@ -3,7 +3,7 @@ struct Fixture { quick_messages: Vec<QuickMessageConfig> }
 enum SettingsMessage { QuickMessages(QuickMessagesMessage) }
 fn update(app: &mut Fixture, message: SettingsMessage) -> Effect {
     let SettingsMessage::QuickMessages(message) = message;
-    super::update(&mut app.quick_messages, message)
+    super::update(desktop_i18n::I18n::new(Default::default()), &mut app.quick_messages, message)
 }
 fn quick_message(text: &str) -> QuickMessageConfig {
     QuickMessageConfig { text: text.into(), group: QuickMessageGroup::General, kind: QuickMessageKind::Message }

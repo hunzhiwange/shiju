@@ -45,7 +45,7 @@ workflow:
 fn field<'a>(value: &'a Value, key: &str) -> &'a Value {
     value
         .as_mapping()
-        .and_then(|mapping| mapping.get(&Value::String(key.to_string())))
+        .and_then(|mapping| mapping.get(Value::String(key.to_string())))
         .expect("expected field")
 }
 
@@ -732,7 +732,7 @@ fn serialize_workflow_yaml_patches_root_and_removes_legacy_graph() {
     let value = serde_yaml::from_str::<Value>(&yaml).expect("serialized yaml should parse");
 
     assert!(
-        value.as_mapping().expect("root map").get(&Value::String("graph".to_string())).is_none()
+        value.as_mapping().expect("root map").get(Value::String("graph".to_string())).is_none()
     );
     assert_eq!(field(field(&value, "app"), "name").as_str(), Some("新名称"));
     assert_eq!(

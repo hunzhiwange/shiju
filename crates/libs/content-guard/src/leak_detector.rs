@@ -384,11 +384,12 @@ impl LeakDetector {
                 patterns.push(name.to_string());
 
                 // 脱敏整个密钥块
-                if let Some(start_idx) = content.find(begin) {
-                    if let Some(end_idx) = content.find(end) {
-                        let key_block = &content[start_idx..end_idx + end.len()];
-                        *redacted = redacted.replace(key_block, "[REDACTED_PRIVATE_KEY]");
-                    }
+                if let Some(start_idx) = content.find(begin)
+                    && let Some(end_offset) = content[start_idx + begin.len()..].find(end)
+                {
+                    let end_idx = start_idx + begin.len() + end_offset + end.len();
+                    let key_block = &content[start_idx..end_idx];
+                    *redacted = redacted.replace(key_block, "[REDACTED_PRIVATE_KEY]");
                 }
             }
         }

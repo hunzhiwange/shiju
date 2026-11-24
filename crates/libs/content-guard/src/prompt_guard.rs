@@ -132,6 +132,7 @@ impl GuardAction {
     /// let action = GuardAction::from_str("unknown");  // 未知值返回默认
     /// assert_eq!(action, GuardAction::Warn);
     /// ```
+    #[allow(clippy::should_implement_trait)] // Keep the infallible, fallback-based public API.
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "block" => Self::Block,

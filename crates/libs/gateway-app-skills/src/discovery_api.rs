@@ -18,7 +18,7 @@ impl std::fmt::Display for SkillDiscoveryError {
 }
 impl std::error::Error for SkillDiscoveryError {}
 impl GatewayAppSkillsClient {
-    pub async fn agent_apps_skills_discover(&self, query: &DiscoverSkillsRequest, token: &str)
+    pub async fn agent_apps_skills_discover(&self, query: &DiscoverSkillsRequest, _token: &str)
         -> Result<DiscoverSkillsResponse, SkillDiscoveryError> {
         let request = self.transport.native_transport().map_err(|_| SkillDiscoveryError::Transport)?
             .post(format!("{}/v1/agent-apps/skills/discover", self.transport.endpoint().base_url()))

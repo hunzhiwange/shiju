@@ -26,6 +26,10 @@ impl InputQueueState {
         self.queued.pop_back()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.queued.is_empty()
+    }
+
     pub fn len(&self) -> usize {
         self.queued.len()
     }

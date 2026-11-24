@@ -37,11 +37,10 @@ pub fn scan_openclaw_health_from_bytes(source: Option<&[u8]>) -> Vec<OpenClawHea
 /// Diagnostics preserve source branch semantics and never mutate configuration.
 pub fn scan_openclaw_health_from_value(config: &Value) -> Vec<OpenClawHealthWarning> {
     let mut warnings = Vec::new();
-    if let Some(profile) = config.pointer("/tools/profile").and_then(Value::as_str) {
-        if !matches!(profile, "minimal" | "coding" | "messaging" | "full") {
+    if let Some(profile) = config.pointer("/tools/profile").and_then(Value::as_str)
+        && !matches!(profile, "minimal" | "coding" | "messaging" | "full") {
             warnings.push(warning("invalid_tools_profile", "tools.profile uses an unsupported value.", "tools.profile"));
         }
-    }
     if config.pointer("/agents/defaults/timeout").is_some() {
         warnings.push(warning("legacy_agents_timeout", "agents.defaults.timeout is deprecated; use agents.defaults.timeoutSeconds.", "agents.defaults.timeout"));
     }

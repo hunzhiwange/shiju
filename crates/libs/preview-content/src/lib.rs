@@ -281,7 +281,7 @@ pub fn compute_search_matches(content: &str, terms: &[String]) -> Vec<(usize, us
     }
 
     // 按行号和列号排序
-    out.sort_by(|a, b| (a.0, a.1).cmp(&(b.0, b.1)));
+    out.sort_by_key(|a| (a.0, a.1));
     out
 }
 

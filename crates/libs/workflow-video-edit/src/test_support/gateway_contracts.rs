@@ -27,8 +27,8 @@ pub fn captured(s: &Scenario, kind: &str) -> Vec<String> {
 
 pub fn long_transcript(row: &Value, scenario: &Scenario, duration: u32) {
         assert_eq!(row["transcript"]["Ready"]["duration_sec"].as_f64(), Some(f64::from(duration)));
-        let starts = captured(&scenario, "model.start");
-        let done = captured(&scenario, "model.done");
+        let starts = captured(scenario, "model.start");
+        let done = captured(scenario, "model.done");
         assert!(starts.len() >= 5);
         assert_eq!(done[..5], starts[..5].iter().rev().cloned().collect::<Vec<_>>());
         let jobs = row["asset_jobs"].as_array().unwrap();
@@ -38,24 +38,24 @@ pub fn long_transcript(row: &Value, scenario: &Scenario, duration: u32) {
             assert!(starts.len() > 5);
             assert!(jobs.len() > 5);
         }
-        assert_eq!(captured(&scenario, "asset.submit").len(), jobs.len());
-        let posts = captured(&scenario, "asset.submit");
-        let ready = captured(&scenario, "asset.done");
+        assert_eq!(captured(scenario, "asset.submit").len(), jobs.len());
+        let posts = captured(scenario, "asset.submit");
+        let ready = captured(scenario, "asset.done");
         assert_eq!(ready[..5], posts[..5].iter().rev().cloned().collect::<Vec<_>>());
-        assert_eq!(captured(&scenario, "project.create").len(), 1);
-        assert_eq!(captured(&scenario, "upload.put").len(), 1);
-        assert_eq!(captured(&scenario, "transcript.submit").len(), 1);
-        assert_eq!(captured(&scenario, "preview.read").len(), 1);
+        assert_eq!(captured(scenario, "project.create").len(), 1);
+        assert_eq!(captured(scenario, "upload.put").len(), 1);
+        assert_eq!(captured(scenario, "transcript.submit").len(), 1);
+        assert_eq!(captured(scenario, "preview.read").len(), 1);
         assert!(
-            captured(&scenario, "project.write")
+            captured(scenario, "project.write")
                 .iter()
                 .all(|w| !w.to_lowercase().contains("export"))
         );
 }
 
 pub fn accepted_timeout(scenario: &Scenario, row: &Value) {
-    let submitted = captured(&scenario, "asset.submit");
-    let reconciled = captured(&scenario, "asset.reconcile");
+    let submitted = captured(scenario, "asset.submit");
+    let reconciled = captured(scenario, "asset.reconcile");
     assert_eq!(submitted.len(), submitted.iter().collect::<std::collections::BTreeSet<_>>().len());
     assert_eq!(
         submitted.iter().collect::<std::collections::BTreeSet<_>>(),
@@ -71,16 +71,16 @@ pub fn accepted_timeout(scenario: &Scenario, row: &Value) {
 }
 
 pub fn cancelled_restart(scenario: &Scenario, posted: Vec<String>, planned: Vec<String>, before: &Value, after: &Value) {
-    assert_eq!(captured(&scenario, "asset.submit"), posted);
+    assert_eq!(captured(scenario, "asset.submit"), posted);
     assert_eq!(
-        captured(&scenario, "model.start"),
+        captured(scenario, "model.start"),
         planned,
         "cancelled remote work must be reconciled before any new planning"
     );
     assert_eq!(scenario.peak.load(Ordering::SeqCst), 5);
-    assert_eq!(captured(&scenario, "asset.reconcile").len(), 5);
+    assert_eq!(captured(scenario, "asset.reconcile").len(), 5);
     assert_eq!(after["run_id"], before["run_id"]);
-    assert!(captured(&scenario, "project.write").is_empty());
+    assert!(captured(scenario, "project.write").is_empty());
 }
 
 pub fn terminal_success(root: &Path, message_id: Option<&str>, output: &str, events: &[Value]) {

@@ -15,7 +15,7 @@ impl std::fmt::Display for SkillUninstallError {
 }
 impl std::error::Error for SkillUninstallError {}
 impl GatewayAppSkillsClient {
-    pub async fn agent_apps_skills_uninstall(&self, id: &str, request: &UninstallSkillRequest, token: &str)
+    pub async fn agent_apps_skills_uninstall(&self, id: &str, request: &UninstallSkillRequest, _token: &str)
         -> Result<UninstallSkillResponse, SkillUninstallError> {
         let id = encoded_id(id)?;
         let client = self.transport.native_transport().map_err(|_| SkillUninstallError::Transport)?;

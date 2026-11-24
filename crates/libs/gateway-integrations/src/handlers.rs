@@ -170,8 +170,8 @@ pub async fn handle_api_integration_credentials_put<H: IntegrationsHost>(
 
     // 如果客户端提供了版本号，检查是否与当前版本匹配
     // 这是一种乐观锁机制，用于检测并发修改冲突
-    if let Some(revision) = body.revision.as_deref() {
-        if revision != current_revision {
+    if let Some(revision) = body.revision.as_deref()
+        && revision != current_revision {
             // 版本不匹配，说明配置已被其他客户端修改
             // 返回 409 冲突错误，提示客户端需要刷新配置
             return (
@@ -183,7 +183,6 @@ pub async fn handle_api_integration_credentials_put<H: IntegrationsHost>(
             )
                 .into_response();
         }
-    }
 
     // 尝试应用集成凭据更新
     let updated = match H::apply_integration_credentials_update(

@@ -236,10 +236,9 @@ pub fn normalize_codex_model(raw: &str) -> String {
             name.truncate(name.len() - 11);
         }
     }
-    if let Some((base, date)) = name.rsplit_once('-') {
-        if date.len() == 8 && date.bytes().all(|b| b.is_ascii_digit()) {
+    if let Some((base, date)) = name.rsplit_once('-')
+        && date.len() == 8 && date.bytes().all(|b| b.is_ascii_digit()) {
             return base.to_owned();
         }
-    }
     name
 }

@@ -148,10 +148,10 @@ fn launcher() -> Result<AutoLaunch, String> {
         if macos_app_bundle(&executable).is_none() {
             return Err("macOS 开机启动需从打包后的 .app 运行；请打开识矩应用后再启用".into());
         }
-        return AutoLaunchBuilder::new()
+        AutoLaunchBuilder::new()
             .set_macos_launch_mode(auto_launch::MacOSLaunchMode::SMAppService)
             .build()
-            .map_err(|err| err.to_string());
+            .map_err(|err| err.to_string())
     }
     #[cfg(not(target_os = "macos"))]
     legacy_launcher()

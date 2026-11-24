@@ -42,8 +42,8 @@ fn cc_data_27_recovery_lists_backups_with_corrupt_target() {
         category: SnapshotCategory::Preference,
         object_id: "usage-source/claude".into(),
     };
-    let receipt = create_local_backup(&root, &scope, &[target.clone()], "fixture", || {
-        Ok(capture_preference(&scope, target))
+    let receipt = create_local_backup(&root, &scope, std::slice::from_ref(&target), "fixture", || {
+        Ok(capture_preference(&scope, target.clone()))
     }).unwrap().unwrap();
     let damaged = tempfile::tempdir().unwrap();
     let database = damaged.path().join("target.db");
@@ -77,8 +77,8 @@ fn cc_data_27_recovery_failure_preserves_original_evidence() {
         principal_id: "fixture-user".into(), host_id: "fixture-host".into(),
     };
     let target = SnapshotTarget { category: SnapshotCategory::Preference, object_id: "usage-source/claude".into() };
-    let receipt = create_local_backup(&root, &scope, &[target.clone()], "fixture", || {
-        Ok(capture_preference(&scope, target))
+    let receipt = create_local_backup(&root, &scope, std::slice::from_ref(&target), "fixture", || {
+        Ok(capture_preference(&scope, target.clone()))
     }).unwrap().unwrap();
     let evidence = tempfile::tempdir().unwrap();
     let database = evidence.path().join("target.db");

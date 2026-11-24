@@ -62,7 +62,7 @@ async fn state() -> &'static StorageState {
 
             let migrations_len = 1usize;
             for index in migration..migrations_len {
-                LOGGER.info(format!("running migration"), {
+                LOGGER.info("running migration".to_string(), {
                     let mut extra = Map::new();
                     extra.insert("index".to_string(), Value::Number(index.into()));
                     Some(extra)
@@ -322,7 +322,9 @@ async fn list_impl(prefix: &[&str], strict: bool) -> Result<Vec<Vec<String>>, Er
     }
     let prefix_vec: Vec<String> = prefix.iter().map(|s| s.to_string()).collect();
 
-    let result = tokio::task::spawn_blocking(move || {
+
+
+    tokio::task::spawn_blocking(move || {
         if strict {
             match std::fs::metadata(&base) {
                 Ok(metadata) if metadata.is_dir() => {}
@@ -358,19 +360,16 @@ async fn list_impl(prefix: &[&str], strict: bool) -> Result<Vec<Vec<String>>, Er
                 let s = comp.as_os_str().to_string_lossy().to_string();
                 parts.push(s);
             }
-            if let Some(last) = parts.last_mut() {
-                if last.ends_with(".json") {
+            if let Some(last) = parts.last_mut()
+                && last.ends_with(".json") {
                     *last = last.trim_end_matches(".json").to_string();
                 }
-            }
             out.push(parts);
         }
         out.sort();
         Ok(out)
     })
-    .await?;
-
-    result
+    .await?
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -434,16 +433,14 @@ fn migration_0_blocking(storage_dir: &Path) -> Result<(), Error> {
                 if p.extension().and_then(|s| s.to_str()) != Some("json") {
                     continue;
                 }
-                if let Ok(s) = std::fs::read_to_string(p) {
-                    if let Ok(v) = serde_json::from_str::<Value>(&s) {
-                        if let Some(root) =
+                if let Ok(s) = std::fs::read_to_string(p)
+                    && let Ok(v) = serde_json::from_str::<Value>(&s)
+                        && let Some(root) =
                             v.get("path").and_then(|x| x.get("root")).and_then(|x| x.as_str())
                         {
                             found_root = Some(root.to_string());
                             break;
                         }
-                    }
-                }
             }
             let Some(worktree) = found_root else {
                 continue;
@@ -563,8 +560,8 @@ fn migration_0_blocking(storage_dir: &Path) -> Result<(), Error> {
 #[cfg(not(target_arch = "wasm32"))]
 fn root_commit_id(repo: &Repository) -> Option<String> {
     let mut revwalk = repo.revwalk().ok()?;
-    let Ok(mut refs) = repo.references() else { return None };
-    while let Some(r) = refs.next() {
+    let Ok(refs) = repo.references() else { return None };
+    for r in refs {
         let Ok(r) = r else { continue };
         let Some(oid) = r.target() else { continue };
         let _ = revwalk.push(oid);

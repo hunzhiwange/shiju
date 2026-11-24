@@ -4,7 +4,6 @@ use anyhow::Result;
 use vw_api_transport::id::TenantScope;
 
 use crate::store::SystemConfigStore;
-use agent_database::test_support::PostgresTestDatabase;
 
 // 正常值、缺省值与非法输入成组验证，用于固定配置兼容边界和失败语义。
 #[test]

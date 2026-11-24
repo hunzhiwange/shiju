@@ -46,6 +46,12 @@ use tracing::info;
 /// - 不需要持久化存储观测数据的场景
 pub struct LogObserver;
 
+impl Default for LogObserver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LogObserver {
     /// 创建新的日志观察器实例
     ///

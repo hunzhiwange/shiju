@@ -556,17 +556,17 @@ impl Observer for OtelObserver {
 
             // 累加 token 使用量
             ObserverMetric::TokensUsed(t) => {
-                self.tokens_used.add(*t as u64, &[]);
+                self.tokens_used.add(*t, &[]);
             }
 
             // 更新当前活跃会话数
             ObserverMetric::ActiveSessions(s) => {
-                self.active_sessions.record(*s as u64, &[]);
+                self.active_sessions.record(*s, &[]);
             }
 
             // 更新当前队列深度
             ObserverMetric::QueueDepth(d) => {
-                self.queue_depth.record(*d as u64, &[]);
+                self.queue_depth.record(*d, &[]);
             }
         }
     }

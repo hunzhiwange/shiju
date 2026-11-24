@@ -97,12 +97,11 @@ pub fn scan_dsh_file(
             (bytes[offset..offset + end + 1].to_vec(), end + 1)
         };
         for line in text.split(|b| *b == b'\n').filter(|l| !l.is_empty()) {
-            if !history_changed {
-                if let Some((identity, record)) = parse_line(line, &mut state, scope, source, session_id)? {
+            if !history_changed
+                && let Some((identity, record)) = parse_line(line, &mut state, scope, source, session_id)? {
                     save_usage_record_in_transaction(&tx, scope, &identity, &record)?;
                     records += 1;
                 }
-            }
             cursor.line_offset += 1;
         }
         offset += consumed;
@@ -163,7 +162,7 @@ fn parse_line(
         .filter(|v| *v >= 0 && latency.is_some_and(|l| *v <= l));
     let measurement = |v: i64| UsageMeasurement { value: v as f64, kind: UsageMeasurementKind::Estimated };
     let request = data["message"]["id"].as_str().filter(|id| !id.trim().is_empty())
-        .map(str::to_owned).unwrap_or_else(|| format!("{}", hex::encode(Sha256::digest(event.to_string().as_bytes()))));
+        .map(str::to_owned).unwrap_or_else(|| hex::encode(Sha256::digest(event.to_string().as_bytes())).to_string());
     let model = data["message"]["source"]["model"].as_str().filter(|m| !m.trim().is_empty()).map(str::to_owned);
     let identity = UsageSourceIdentity {
         target_host: source.target_host.clone(), app: source.app.clone(), instance_id: source.instance_id.clone(),

@@ -75,15 +75,14 @@ impl Program<Message> for SaturationValuePicker {
                     return Some(Action::publish((self.on_change)(self.hsv)));
                 }
             }
-            Event::Mouse(mouse::Event::CursorMoved { .. }) => {
-                if state.is_dragging {
+            Event::Mouse(mouse::Event::CursorMoved { .. })
+                if state.is_dragging => {
                     let s = (cursor_position.x / bounds.width).clamp(0.0, 1.0);
                     let v = 1.0 - (cursor_position.y / bounds.height).clamp(0.0, 1.0);
 
                     let new_hsv = Hsv { s, v, ..self.hsv };
                     return Some(Action::publish((self.on_change)(new_hsv)));
                 }
-            }
             _ => {}
         }
 
@@ -141,14 +140,13 @@ impl Program<Message> for HuePicker {
                     return Some(Action::publish((self.on_change)(self.hsv)));
                 }
             }
-            Event::Mouse(mouse::Event::CursorMoved { .. }) => {
-                if state.is_dragging {
+            Event::Mouse(mouse::Event::CursorMoved { .. })
+                if state.is_dragging => {
                     let h = (cursor_position.x / bounds.width).clamp(0.0, 1.0) * 360.0;
 
                     let new_hsv = Hsv { h, ..self.hsv };
                     return Some(Action::publish((self.on_change)(new_hsv)));
                 }
-            }
             _ => {}
         }
 

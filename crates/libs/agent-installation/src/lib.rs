@@ -413,7 +413,7 @@ pub fn latest(install_method: Option<Method>) -> Result<String, Error> {
         let url = "https://community.chocolatey.org/api/v2/Packages?$filter=Id%20eq%20%27vibewindow%27%20and%20IsLatestVersion&$select=Version";
         let v: ChocoRoot =
             http_get_json(url, Some(&[("Accept", "application/json;odata=verbose")]))?;
-        return Ok(v.d.results.get(0).map(|r| r.version.clone()).unwrap_or_default());
+        return Ok(v.d.results.first().map(|r| r.version.clone()).unwrap_or_default());
     }
 
     if detected == Method::Scoop {

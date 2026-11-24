@@ -31,15 +31,15 @@ pub(super) fn start(app: &mut App, preferences: Preferences) -> Task<Message> {
         return Task::none();
     }
     if app.voice.local_stop.is_some() {
-        return super::voice::feedback(app, crate::app::state::ToastKind::Error, "正在停止上一轮聊天，请稍后重试。");
+        return super::feedback(app, crate::app::state::ToastKind::Error, "正在停止上一轮聊天，请稍后重试。");
     }
     if let Err(error) =
         preferences.validate().and_then(|_| ready_to_send(app).map_err(str::to_owned))
     {
-        return super::voice::feedback(app, crate::app::state::ToastKind::Error, error);
+        return super::feedback(app, crate::app::state::ToastKind::Error, error);
     }
     let Some(scope) = super::scope(app) else {
-        return super::voice::feedback(app, crate::app::state::ToastKind::Error, "请先选择聊天会话。");
+        return super::feedback(app, crate::app::state::ToastKind::Error, "请先选择聊天会话。");
     };
     let session = scope.session_id().map(str::to_owned);
     app.voice.conversation_endpoint = Some(crate::app::gateway_client_endpoint());
@@ -115,14 +115,14 @@ fn outcome(app: &mut App, error: String) -> Task<Message> {
         chat.cancel_media();
         chat.notice = Some(error.clone());
     }
-    super::voice::feedback(app, crate::app::state::ToastKind::Error, error)
+    super::feedback(app, crate::app::state::ToastKind::Error, error)
 }
 pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
     if let Event::Stopped(call, result) = event {
         if app.voice.local_stop.as_ref().is_some_and(|s| s.call == call) {
             app.voice.local_stop = None;
             if let Err(error) = result {
-                return super::voice::feedback(app, crate::app::state::ToastKind::Error, error);
+                return super::feedback(app, crate::app::state::ToastKind::Error, error);
             }
         }
         return Task::none();
@@ -145,7 +145,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
     if matches!(event, Event::Begin) {
         if chat.stage != Stage::Ready || chat.muted || app.voice.local_stop.is_some() { return Task::none(); }
-        if let Err(error) = ready_to_send(app) { return super::voice::feedback(app, crate::app::state::ToastKind::Error, error); }
+        if let Err(error) = ready_to_send(app) { return super::feedback(app, crate::app::state::ToastKind::Error, error); }
         app.voice.screen.cancel();
     }
     let (task, effect) = desktop_voice_ui::message::voice_local_chat::update_media(
@@ -157,7 +157,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             let send = send_request(app, input.clone(), input);
             Task::batch([task, send])
         }
-        Some(desktop_voice_ui::message::voice_local_chat::Effect::Error(error)) => Task::batch([task, super::voice::feedback(app, crate::app::state::ToastKind::Error, error)]),
+        Some(desktop_voice_ui::message::voice_local_chat::Effect::Error(error)) => Task::batch([task, super::feedback(app, crate::app::state::ToastKind::Error, error)]),
         None => task,
     }
 }

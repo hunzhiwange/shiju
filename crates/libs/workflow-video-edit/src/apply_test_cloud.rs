@@ -49,11 +49,10 @@ async fn endpoint(
                 if s.no_change {
                     return Json(json!(VideoWriteStatus::NoChange)).into_response();
                 }
-                if matches!(write, VideoProjectWrite::Cleanup) {
-                    if let Some(cancel) = &s.canceller {
+                if matches!(write, VideoProjectWrite::Cleanup)
+                    && let Some(cancel) = &s.canceller {
                         cancel.cancel();
                     }
-                }
                 s.writes.push(write);
                 if s.lost_receipt {
                     s.lost_receipt = false;

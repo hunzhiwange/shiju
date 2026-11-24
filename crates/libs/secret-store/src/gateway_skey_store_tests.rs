@@ -2,7 +2,6 @@
 
 use super::*;
 use agent_database::GlobalDatabase;
-use agent_database::test_support::PostgresTestDatabase;
 use vw_api_transport::id::TenantScope;
 
 fn skey(name: &str, hash: &str) -> GatewaySkey {

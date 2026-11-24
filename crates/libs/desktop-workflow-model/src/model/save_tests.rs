@@ -147,8 +147,8 @@ fn patch_root_for_save_updates_app_graph_variables_viewport_and_removes_legacy_g
     let patched = patch_root_for_save(
         &app_meta,
         &document,
-        &[env.clone()],
-        &[conversation.clone()],
+        std::slice::from_ref(&env),
+        std::slice::from_ref(&conversation),
         &raw_root,
         WorkflowViewport { x: 5.0, y: 6.0, zoom: 1.5 },
     )

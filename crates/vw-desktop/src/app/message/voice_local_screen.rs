@@ -23,10 +23,10 @@ pub(in crate::app::message::voice) fn share_screen(
     payload: ScreenPayload,
 ) -> Task<Message> {
     if screen_call(app) != Ok(call) {
-        return super::voice::feedback(app, crate::app::state::ToastKind::Error, "语音会话或模型已变化，未发送屏幕；请重新分享。");
+        return super::super::feedback(app, crate::app::state::ToastKind::Error, "语音会话或模型已变化，未发送屏幕；请重新分享。");
     }
     match desktop_voice_ui::message::voice_local_chat::screen_input(payload) {
         Ok((input, caption)) => send_request(app, input, caption),
-        Err(error) => super::voice::feedback(app, crate::app::state::ToastKind::Error, error),
+        Err(error) => super::super::feedback(app, crate::app::state::ToastKind::Error, error),
     }
 }

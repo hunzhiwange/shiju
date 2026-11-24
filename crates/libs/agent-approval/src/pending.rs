@@ -132,11 +132,10 @@ impl ApprovalManager {
         }
 
         let mut resolved = self.resolved_non_cli_requests.lock();
-        if resolved.len() >= 1024 {
-            if let Some(first_key) = resolved.keys().next().cloned() {
+        if resolved.len() >= 1024
+            && let Some(first_key) = resolved.keys().next().cloned() {
                 resolved.remove(&first_key);
             }
-        }
         resolved.insert(request_id.to_string(), decision);
     }
 
@@ -158,10 +157,10 @@ impl ApprovalManager {
         let mut rows = pending
             .values()
             .filter(|req| {
-                requested_by.map_or(true, |by| req.requested_by == by)
-                    && requested_channel.map_or(true, |channel| req.requested_channel == channel)
+                requested_by.is_none_or(|by| req.requested_by == by)
+                    && requested_channel.is_none_or(|channel| req.requested_channel == channel)
                     && requested_reply_target
-                        .map_or(true, |reply_target| req.requested_reply_target == reply_target)
+                        .is_none_or(|reply_target| req.requested_reply_target == reply_target)
             })
             .cloned()
             .collect::<Vec<_>>();

@@ -51,11 +51,10 @@ impl TranscriptPager {
 
     pub fn set_live_tail(&mut self, lines: Vec<Line<'static>>) {
         // 只有仍在跟随底部时，新尾部才把偏移重置为末尾哨兵。
-        if self.live_tail != lines {
-            if let Some(search) = &mut self.search {
+        if self.live_tail != lines
+            && let Some(search) = &mut self.search {
                 search.invalidate_from(self.committed.len());
             }
-        }
         self.live_tail = lines;
         if self.follow_bottom {
             self.scroll_offset = usize::MAX;

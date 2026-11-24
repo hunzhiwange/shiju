@@ -3,7 +3,7 @@
 use vw_agent::model_relay::{ProviderRelayBackend, RelayBinding, RelayIdentity, RelayServer};
 pub use vw_agent::{config, env, project, provider};
 
-#[path = "../src/model_relay/messages_request_http_tests.rs"]
+#[path = "../../libs/model-relay-http/src/host_migration_46_tests/messages_request_http_tests.rs"]
 mod messages_request_http_tests;
 
 #[tokio::test]

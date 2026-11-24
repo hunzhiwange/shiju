@@ -370,11 +370,10 @@ pub fn update(
             panel.cli_install_modal_is_checking_update = false;
             // The completion message may arrive before the next progress subscription tick.
             // The producer has finished, so retain its final measured byte count before closing.
-            if let Some(receiver) = panel.app_update_progress_rx.take() {
-                if let Some(progress) = receiver.try_iter().last() {
+            if let Some(receiver) = panel.app_update_progress_rx.take()
+                && let Some(progress) = receiver.try_iter().last() {
                     panel.app_update_progress = Some(progress);
                 }
-            }
             match result {
                 Ok(ready) => {
                     panel.cli_install_modal_title = "安装包已就绪".into();
@@ -407,7 +406,7 @@ pub fn update(
                         .map_err(|error| error.to_string())?
                         .map_err(|error| format!("{error:#}"))
                     },
-                    |result| PanelMessage::AppUpdateFinished(result),
+                    PanelMessage::AppUpdateFinished,
                 );
             }
             Task::none()
@@ -427,7 +426,7 @@ pub fn update(
                         .map_err(|error| error.to_string())?
                         .map_err(|error| format!("{error:#}"))
                     },
-                    |result| PanelMessage::AppInstallerDirectoryOpened(result),
+                    PanelMessage::AppInstallerDirectoryOpened,
                 );
             }
             Task::none()

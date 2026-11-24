@@ -371,7 +371,7 @@ pub fn settings_pick_list_style(theme: &Theme, status: pick_list::Status) -> pic
             Color::WHITE.scale_alpha(0.90)
         }
     } else {
-        extended.background.base.color.into()
+        extended.background.base.color
     };
 
     let border_color = if is_open {

@@ -2,7 +2,6 @@
 
 // 测试连接配置刻意包含危险 URL 与模式名，错误信息不得回显连接密钥。
 use anyhow::Result;
-use std::time::Duration;
 
 use super::config::DatabaseProvider;
 use super::postgres::{self, PostgresPoolSettings, PostgresTlsMode};

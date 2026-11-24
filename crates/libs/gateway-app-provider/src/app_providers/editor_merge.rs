@@ -29,7 +29,7 @@ impl GatewayAppProviderClient {
         id: &str,
         action: &str,
         body: &B,
-        token: &str,
+        _token: &str,
     ) -> Result<T, Error> {
         if id.is_empty()
             || id.len() > 128
@@ -39,7 +39,7 @@ impl GatewayAppProviderClient {
         }
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (app, action, body, token);
+            let _ = (app, action, body, _token);
             Err(Error::Transport("editor requires native transport".into()))
         }
         #[cfg(not(target_arch = "wasm32"))]

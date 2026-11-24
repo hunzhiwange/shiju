@@ -6,11 +6,11 @@ impl GatewayExternalSessionClient {
     pub async fn external_session_compression(
         &self,
         request: &HistoryMaintenanceTarget,
-        token: &str,
+        _token: &str,
     ) -> Result<SessionCompressionState, AgentAppsReadError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (request, token);
+            let _ = (request, _token);
             return Err(AgentAppsReadError::Transport(
                 "authorized history maintenance requires native transport".into(),
             ));
@@ -41,11 +41,11 @@ impl GatewayExternalSessionClient {
     pub async fn external_session_compression_set(
         &self,
         request: &SessionCompressionUpdate,
-        token: &str,
+        _token: &str,
     ) -> Result<SessionCompressionState, AgentAppsReadError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (request, token);
+            let _ = (request, _token);
             return Err(AgentAppsReadError::Transport(
                 "authorized history maintenance requires native transport".into(),
             ));

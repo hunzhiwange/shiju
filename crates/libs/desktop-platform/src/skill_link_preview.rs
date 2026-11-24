@@ -20,22 +20,19 @@ use iced::widget::{column, text};
 pub fn body(parsed: Result<deeplink::Request, String>, i18n: I18n) -> iced::Element<'static, ()> {
     let mut body =
         column![text(i18n.__("外部技能链接需要确认后才保存仓库。保存不会安装技能。"))].spacing(12);
-    match parsed {
-        Ok(request) => {
-            body = body.push(text(
-                i18n.format(
-                    "仓库：%s/%s\n分支：%s\n项目目录：%s",
-                    &[
-                        request.repo.owner.into(),
-                        request.repo.name.into(),
-                        request.repo.branch.into(),
-                        request.directory.into(),
-                    ],
-                )
-                .expect("valid source template"),
-            ));
-        }
-        Err(_) => {}
+    if let Ok(request) = parsed {
+        body = body.push(text(
+            i18n.format(
+                "仓库：%s/%s\n分支：%s\n项目目录：%s",
+                &[
+                    request.repo.owner.into(),
+                    request.repo.name.into(),
+                    request.repo.branch.into(),
+                    request.directory.into(),
+                ],
+            )
+            .expect("valid source template"),
+        ));
     }
     body.into()
 }

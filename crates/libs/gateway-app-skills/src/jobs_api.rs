@@ -27,7 +27,7 @@ impl GatewayAppSkillsClient {
         -> Result<SkillJobResponse, SkillJobError> {
         self.skill_job_request(scope, id, token, true).await
     }
-    async fn skill_job_request(&self, scope: &SkillReposQuery, id: &TaskId, token: &str, cancel: bool)
+    async fn skill_job_request(&self, scope: &SkillReposQuery, id: &TaskId, _token: &str, cancel: bool)
         -> Result<SkillJobResponse, SkillJobError> {
         let id: &str = id.as_ref();
         if id.is_empty() || id.len() > 128 || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b)) {

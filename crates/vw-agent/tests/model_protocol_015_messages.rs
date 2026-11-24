@@ -1,7 +1,7 @@
 //! Real ProviderRelayBackend wire test, isolated from unrelated lib unit tests.
 use vw_agent::model_relay::{ProviderRelayBackend, RelayBinding, RelayIdentity, RelayServer};
 pub use vw_agent::{config, env, project};
-#[path = "../src/model_relay/messages_thinking_http_tests.rs"]
+#[path = "../../libs/model-relay-http/src/host_migration_46_tests/messages_thinking_http_tests.rs"]
 mod wire;
 
 #[tokio::test]

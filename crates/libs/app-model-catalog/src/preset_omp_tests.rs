@@ -1,5 +1,5 @@
 use super::{
-    preset_catalog::{omp_preset, omp_presets, pi_preset},
+    preset_catalog::{omp_preset, pi_preset},
     preset_pi::PiPresetProtocol::{OpenaiCompletions, OpenaiResponses},
 };
 use serde_json::{json, to_value};

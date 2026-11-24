@@ -57,7 +57,7 @@ impl GatewayHermesMemoryClient {
         self.hermes_memory_request(reqwest::Method::GET, "model", scope, token, None).await
     }
 
-    async fn hermes_memory_request<T: DeserializeOwned>(&self, method: reqwest::Method, resource: &str, scope: &HermesMemoryScope, token: &str, body: Option<serde_json::Value>) -> Result<T, HermesMemoryError> {
+    async fn hermes_memory_request<T: DeserializeOwned>(&self, method: reqwest::Method, resource: &str, scope: &HermesMemoryScope, _token: &str, body: Option<serde_json::Value>) -> Result<T, HermesMemoryError> {
         use HermesMemoryError as E;
         if scope.target_host_id.trim().is_empty() {
             return Err(E::InvalidInput);

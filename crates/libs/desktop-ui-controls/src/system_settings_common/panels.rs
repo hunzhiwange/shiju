@@ -416,7 +416,6 @@ fn modal_backdrop<'a, Message: Clone + 'a>(close_message: Message) -> Element<'a
         )
         .on_press(close_message),
     )
-    .into()
 }
 
 fn modal_overlay<'a, Message: Clone + 'a>(

@@ -6,7 +6,7 @@ use super::RusqliteStore;
 #[cfg(feature = "whatsapp-web")]
 fn test_store() -> (tempfile::TempDir, RusqliteStore) {
     let tmp = tempfile::tempdir().unwrap();
-    let store = RusqliteStore::new(&tmp.path().join("store.db")).unwrap();
+    let store = RusqliteStore::new(tmp.path().join("store.db")).unwrap();
     (tmp, store)
 }
 

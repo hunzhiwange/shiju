@@ -385,10 +385,10 @@ pub fn find_event_by_id(path: &Path, id: &str) -> Result<Option<RuntimeTraceEven
         if trimmed.is_empty() {
             continue;
         }
-        if let Ok(event) = serde_json::from_str::<RuntimeTraceEvent>(trimmed) {
-            if event.id == id {
-                return Ok(Some(event));
-            }
+        if let Ok(event) = serde_json::from_str::<RuntimeTraceEvent>(trimmed)
+            && event.id == id
+        {
+            return Ok(Some(event));
         }
     }
 

@@ -112,7 +112,7 @@ pub fn overlay<'a>(app: ViewData<'a>) -> Element<'a, Message> {
         app.search_text,
     )
     .id(input_id())
-    .on_input(|value| Message::InputChanged(value))
+    .on_input(Message::InputChanged)
     .padding([8, 10])
     .size(14)
     .style(search_input_style);

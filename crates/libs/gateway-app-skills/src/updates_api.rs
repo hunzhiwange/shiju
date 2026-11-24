@@ -30,7 +30,7 @@ impl GatewayAppSkillsClient {
         self.skill_update_send::<(), _>(&format!("/agent-apps/skills/update-tasks/{id}"), None, Some(scope), token).await
     }
     async fn skill_update_send<Q: serde::Serialize, R: serde::de::DeserializeOwned>(&self,
-        path: &str, body: Option<&Q>, scope: Option<&SkillReposQuery>, token: &str,
+        path: &str, body: Option<&Q>, scope: Option<&SkillReposQuery>, _token: &str,
     ) -> Result<R, SkillUpdateError> {
         let client = self.transport.native_transport().map_err(|_| SkillUpdateError::Transport)?;
         let url = format!("{}/v1{path}", self.transport.endpoint().base_url());

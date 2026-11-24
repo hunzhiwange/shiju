@@ -61,9 +61,9 @@ async fn session_spinner_renders_around_the_row_center() {
             );
             let background = &pixels[pixels.len() - 4..];
             let mut painted_rows = pixels
-                .chunks_exact(RENDER_SIZE * 4)
+                .as_chunks::<{ RENDER_SIZE * 4 }>().0.iter()
                 .enumerate()
-                .filter(|(_, row)| row.chunks_exact(4).any(|pixel| pixel != background))
+                .filter(|(_, row)| row.as_chunks::<4>().0.iter().any(|pixel| pixel != background))
                 .map(|(y, _)| y);
             let first = painted_rows.next().expect("spinner frame should be visible");
             top = top.min(first);

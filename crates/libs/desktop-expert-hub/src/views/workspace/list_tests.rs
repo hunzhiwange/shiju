@@ -67,7 +67,7 @@ fn expert_hub_view_builds_all_visible_skill_tabs_and_access_states() {
     for &(_, tab) in skill_tab_specs() {
         for state in 0..4 {
             set_state(&mut app, tab, state);
-            let element: iced::Element<'_, Message> = super::view(&app.input());
+            let element: iced::Element<'_, Message> = super::view(&app.input(), std::convert::identity, std::convert::identity);
             std::hint::black_box(element);
         }
     }

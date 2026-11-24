@@ -9,7 +9,7 @@ impl GatewayAppProviderClient {
         app: AppId,
         id: &str,
         request: &AppProviderDelete,
-        token: &str,
+        _token: &str,
     ) -> Result<AppProviderDeleted, String> {
         let path = provider_path(app, id)?;
         let builder = self.transport.client()

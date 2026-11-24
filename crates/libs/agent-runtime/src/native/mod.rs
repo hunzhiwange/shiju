@@ -315,14 +315,13 @@ where
     }
 
     // Unix/Linux/macOS 平台优先使用用户配置的 shell
-    if let Some(program) = user_shell {
-        if let Some(kind) = classify_unix_shell_program(&program) {
+    if let Some(program) = user_shell
+        && let Some(kind) = classify_unix_shell_program(&program) {
             // 验证 shell 程序文件是否存在
             if program.exists() {
                 return Some(ShellProgram { kind, program });
             }
         }
-    }
 
     // 如果用户 shell 不可用，按优先级检测系统 shell
     for (name, kind) in unix_shell_candidates() {
@@ -501,6 +500,12 @@ impl NativeRuntime {
     #[cfg(any(test, feature = "test-support"))]
     pub fn new_for_test(shell: Option<ShellProgram>) -> Self {
         Self { shell }
+    }
+}
+
+impl Default for NativeRuntime {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

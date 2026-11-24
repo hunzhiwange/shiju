@@ -44,6 +44,6 @@ async fn sidebar_label_renders_multiline_titles_on_one_line_and_ellipsizes_to_fi
         );
         let background = if theme == Theme::Light { Color::WHITE } else { Color::BLACK };
         let pixels = renderer.screenshot(Size::new(width as u32, 32), 1.0, background);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel != &pixels[..4]));
     }
 }

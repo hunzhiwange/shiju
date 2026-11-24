@@ -190,7 +190,7 @@ impl text::Editor for TestEditor {
 
     fn line(&self, index: usize) -> Option<Line<'_>> {
         (index == 0)
-            .then(|| Line { text: Cow::Borrowed(self.text.as_str()), ending: LineEnding::None })
+            .then_some(Line { text: Cow::Borrowed(self.text.as_str()), ending: LineEnding::None })
     }
 
     fn line_count(&self) -> usize {

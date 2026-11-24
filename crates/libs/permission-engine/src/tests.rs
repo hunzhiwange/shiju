@@ -20,7 +20,7 @@ fn wildcard_match_rejects_invalid_glob_patterns() {
 #[test]
 fn evaluate_defaults_to_ask_without_matching_rule() {
     let ruleset = from_config(&json!({"shell.rm": "deny", "shell.read": "ask"}));
-    assert_eq!(evaluate("shell.rm", "anything", &[ruleset.clone()]).action, Action::Deny);
+    assert_eq!(evaluate("shell.rm", "anything", std::slice::from_ref(&ruleset)).action, Action::Deny);
     assert_eq!(evaluate("shell.read", "anything", &[ruleset]).action, Action::Ask);
 }
 
@@ -105,7 +105,7 @@ fn evaluate_matches_permission_globs_and_prefers_the_last_match() {
         },
     ];
 
-    assert_eq!(evaluate("shell.write", "notes.txt", &[ruleset.clone()]).action, Action::Allow);
+    assert_eq!(evaluate("shell.write", "notes.txt", std::slice::from_ref(&ruleset)).action, Action::Allow);
     assert_eq!(evaluate("shell.read", "secret.key", &[ruleset]).action, Action::Deny);
 }
 

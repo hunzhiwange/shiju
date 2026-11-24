@@ -6,7 +6,7 @@ use super::RusqliteStore;
 #[cfg(feature = "whatsapp-web")]
 fn test_store() -> (tempfile::TempDir, RusqliteStore) {
     let tmp = tempfile::tempdir().unwrap();
-    let store = RusqliteStore::new(&tmp.path().join("store.db")).unwrap();
+    let store = RusqliteStore::new(tmp.path().join("store.db")).unwrap();
     (tmp, store)
 }
 
@@ -118,7 +118,7 @@ async fn mutation_macs_can_be_inserted_loaded_and_deleted() {
     let (_tmp, store) = test_store();
     let mutation = AppStateMutationMAC { index_mac: vec![1, 2], value_mac: vec![3, 4] };
 
-    AppSyncStore::put_mutation_macs(&store, "critical_block", 5, &[mutation.clone()])
+    AppSyncStore::put_mutation_macs(&store, "critical_block", 5, std::slice::from_ref(&mutation))
         .await
         .unwrap();
 

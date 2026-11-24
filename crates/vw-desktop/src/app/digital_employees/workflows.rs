@@ -15,7 +15,7 @@ pub(super) const PAGE_SIZE: usize = 9;
 pub(super) struct List {
     pub items: Option<Arc<Vec<Workflow>>>,
     pub loading: bool,
-    pub error: Option<String>,
+    pub error: Option<desktop_i18n::workflow::Feedback>,
     pub search: String,
     pub status: Option<Status>,
     pub department: Department,

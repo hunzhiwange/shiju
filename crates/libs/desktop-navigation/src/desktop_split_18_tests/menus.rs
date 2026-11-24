@@ -4,7 +4,7 @@ use crate::components::top_bar::menus::{
 fn test_app(is_project: bool) -> Inputs<'static> {
     Inputs {
         i18n: desktop_i18n::I18n::new(Default::default()),
-        is_project,
+        screen: if is_project { crate::ui_types::Screen::Project } else { crate::ui_types::Screen::Home },
         active_menu: None,
         workspace_mode: crate::components::top_bar::types::WorkspaceMode::Code,
         show_file_manager: false,

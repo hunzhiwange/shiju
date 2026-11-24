@@ -30,11 +30,11 @@ fn create(root: &Path, scope: &SafetySnapshotScope) -> LocalBackupReceipt {
         category: SnapshotCategory::Preference,
         object_id: "usage-source/claude".into(),
     };
-    let receipt = create_local_backup(root, scope, &[target.clone()], "Anonymous", || {
+    let receipt = create_local_backup(root, scope, std::slice::from_ref(&target), "Anonymous", || {
         let state =
             load_source_settings(&transaction, &scope.project, &scope.host_id, "claude").unwrap();
         Ok(vec![OwnerPreimage {
-            target,
+            target: target.clone(),
             state: Some(PresentPreimage {
                 revision: state.settings_revision.to_string(),
                 bytes: serde_json::to_vec(&state.settings).unwrap(),

@@ -2,12 +2,19 @@
 
 #[derive(Debug, Clone)]
 pub struct GatewayVoiceClient {
+    #[cfg(not(target_arch = "wasm32"))]
     transport: gateway_http::GatewayTransport,
 }
 
 impl GatewayVoiceClient {
     pub fn new(transport: gateway_http::GatewayTransport) -> Self {
-        Self { transport }
+        #[cfg(target_arch = "wasm32")]
+        let _ = transport;
+
+        Self {
+            #[cfg(not(target_arch = "wasm32"))]
+            transport,
+        }
     }
 }
 

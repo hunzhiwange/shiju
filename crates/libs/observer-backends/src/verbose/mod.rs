@@ -39,6 +39,12 @@ use std::any::Any;
 /// 由于 `VerboseObserver` 不包含任何内部状态，可以安全地在多线程环境中共享。
 pub struct VerboseObserver;
 
+impl Default for VerboseObserver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VerboseObserver {
     /// 创建一个新的详细输出观察器实例
     ///

@@ -122,7 +122,7 @@ impl GatewayExternalSessionClient {
         &self,
         action: &str,
         request: &SessionStreamRequest,
-        token: &str,
+        _token: &str,
     ) -> Result<reqwest::Response, AgentAppsReadError> {
         let pending = self.transport.dynamic_host_client()
             .post(format!("{}/v1/external-sessions/{action}", self.transport.endpoint().base_url()))

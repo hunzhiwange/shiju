@@ -426,18 +426,17 @@ fn accumulate_group(
     let first = valid(&r.performance.first_token_ms);
     let latency = valid(&r.performance.latency_ms);
     let performance = if relay { &mut stats.measured } else { &mut stats.estimated };
-    if !relay || r.status == UsageRequestStatus::Succeeded {
-        if let Some(first) = first {
+    if (!relay || r.status == UsageRequestStatus::Succeeded)
+        && let Some(first) = first {
             performance.first_token_values.push(first);
             performance.first_token_samples = add(performance.first_token_samples, 1)?;
         }
-    }
     if let (Some(output), Some(latency)) = (r.tokens.as_ref().and_then(|t| t.output), latency) {
         let duration = if relay { first.map(|first| latency - first) } else { Some(latency) };
         let minimum_output = if relay { 100 } else { 200 };
         let minimum_duration = if relay { 100.0 } else { 1000.0 };
-        if let Some(duration) = duration.filter(|d| *d >= minimum_duration) {
-            if output >= minimum_output {
+        if let Some(duration) = duration.filter(|d| *d >= minimum_duration)
+            && output >= minimum_output {
                 performance.speed_output_tokens = add(performance.speed_output_tokens, output)?;
                 performance.speed_duration_ms += duration;
                 if !performance.speed_duration_ms.is_finite() {
@@ -445,7 +444,6 @@ fn accumulate_group(
                 }
                 performance.speed_samples = add(performance.speed_samples, 1)?;
             }
-        }
     }
     for (index, measurement) in [
         &r.performance.first_token_ms,

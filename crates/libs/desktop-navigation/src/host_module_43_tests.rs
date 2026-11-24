@@ -11,7 +11,7 @@ fn notification_layer_keeps_page_and_panel() {
 #[test]
 fn toast_layer_stays_mounted_for_empty_content() {
     for bottom in [44, 98] {
-        let view = with_toast::<()>(Space::new().into(), Space::new().into(), bottom);
+        let view = with_toast::<()>(Space::new().into(), Space::new().into(), bottom, iced::alignment::Horizontal::Center);
         assert_eq!(view.as_widget().children().len(), 2);
     }
 }

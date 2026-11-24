@@ -27,8 +27,8 @@ impl RawResponse {
         self.1.lock().unwrap_or_else(std::sync::PoisonError::into_inner).remove(&key)
     }
     pub fn capture(&self, message: &Value) {
-        if message["method"] == "elicitation/create" {
-            if let (Some(id), Some(schema)) = (
+        if message["method"] == "elicitation/create"
+            && let (Some(id), Some(schema)) = (
                 message.get("id"),
                 if message.pointer("/params/mode").and_then(Value::as_str) == Some("url") {
                     message.get("params")
@@ -41,32 +41,29 @@ impl RawResponse {
                     forms.insert(id.to_string(), schema.clone());
                 }
             }
-        }
         if message.get("method").is_some() {
             return;
         }
         if let Some(tools) = message.pointer("/result/tools").and_then(Value::as_array) {
             let mut metadata = self.2.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             for tool in tools {
-                if let Some(name) = tool["name"].as_str() {
-                    if metadata.len() < 2048 || metadata.contains_key(name) {
+                if let Some(name) = tool["name"].as_str()
+                    && (metadata.len() < 2048 || metadata.contains_key(name)) {
                         metadata.insert(
                             name.to_owned(),
                             tool.get("_meta").cloned().unwrap_or(Value::Null),
                         );
                     }
-                }
             }
         }
-        if let (Some(id), Some(result)) = (message.get("id"), message.get("result")) {
-            if ["resources", "resourceTemplates", "contents", "prompts", "messages"]
+        if let (Some(id), Some(result)) = (message.get("id"), message.get("result"))
+            && ["resources", "resourceTemplates", "contents", "prompts", "messages"]
                 .iter()
                 .any(|key| result.get(key).is_some())
             {
                 *self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner) =
                     Some((id.clone(), result.clone()));
             }
-        }
     }
     pub fn take(&self, id: &RequestId) -> Result<Value> {
         let expected = serde_json::to_value(id)?;

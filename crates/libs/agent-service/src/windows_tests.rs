@@ -192,7 +192,7 @@ fn windows_service_installs_unicode_hidden_launcher_and_removes_it_on_uninstall(
     let bytes = std::fs::read(&launcher).expect("hidden launcher");
     assert_eq!(&bytes[..2], &[0xff, 0xfe]);
     let units: Vec<u16> =
-        bytes[2..].chunks_exact(2).map(|pair| u16::from_le_bytes([pair[0], pair[1]])).collect();
+        bytes[2..].as_chunks::<2>().0.iter().map(|pair| u16::from_le_bytes([pair[0], pair[1]])).collect();
     let script = String::from_utf16(&units).expect("UTF-16 launcher");
     assert!(script.contains("用户目录 with spaces"));
     assert!(script.contains("WScript.Quit(shell.Run("));

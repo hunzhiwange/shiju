@@ -341,16 +341,14 @@ impl<Message: SelectionMessage> Widget<Message, Theme, Renderer> for Area<'_, Me
             }
             Event::Mouse(CursorMoved { .. } | ButtonReleased(Left))
                 if let (Some(press), Some(point), Some((anchor, _))) =
-                    (state.press, position, state.gesture.range) =>
-            {
-                if state.gesture.dragged || press.distance(point) > 3.0 {
+                    (state.press, position, state.gesture.range)
+                && (state.gesture.dragged || press.distance(point) > 3.0) => {
                     state.gesture.dragged = true;
                     if let Some(end) = fragments.position(point, false) {
                         state.gesture.range = Some((anchor, end));
                     }
                     shell.request_redraw();
                 }
-            }
             _ => {}
         }
         self.selection.0.set(state.gesture);
@@ -666,7 +664,7 @@ impl Operation for Fragments {
         if let Some((bounds, translation)) = self.scroll.take() {
             let previous = (self.clip, self.translation);
             self.clip = self.clip.intersection(&(bounds - self.translation)).unwrap_or_default();
-            self.translation = self.translation + translation;
+            self.translation += translation;
             operate(self);
             (self.clip, self.translation) = previous;
         } else {

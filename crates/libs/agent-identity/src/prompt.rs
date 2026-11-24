@@ -79,8 +79,8 @@ pub fn aieos_to_system_prompt(identity: &AieosIdentity) -> String {
             }
         }
 
-        if let Some(ref matrix) = psych.neural_matrix {
-            if !matrix.is_empty() {
+        if let Some(ref matrix) = psych.neural_matrix
+            && !matrix.is_empty() {
                 prompt.push_str("\n**神经矩阵（认知权重）:**\n");
                 let mut sorted_keys: Vec<_> = matrix.keys().collect();
                 sorted_keys.sort();
@@ -89,16 +89,14 @@ pub fn aieos_to_system_prompt(identity: &AieosIdentity) -> String {
                     let _ = writeln!(prompt, "- {}: {:.2}", trait_name, weight);
                 }
             }
-        }
 
-        if let Some(ref compass) = psych.moral_compass {
-            if !compass.is_empty() {
+        if let Some(ref compass) = psych.moral_compass
+            && !compass.is_empty() {
                 prompt.push_str("\n**道德指南针:**\n");
                 for principle in compass {
                     let _ = writeln!(prompt, "- {}", principle);
                 }
             }
-        }
 
         prompt.push('\n');
     }
@@ -117,24 +115,22 @@ pub fn aieos_to_system_prompt(identity: &AieosIdentity) -> String {
             let _ = writeln!(prompt, "**正式程度:** {}", formality);
         }
 
-        if let Some(ref phrases) = ling.catchphrases {
-            if !phrases.is_empty() {
+        if let Some(ref phrases) = ling.catchphrases
+            && !phrases.is_empty() {
                 prompt.push_str("**口头禅:**\n");
                 for phrase in phrases {
                     let _ = writeln!(prompt, "- \"{}\"", phrase);
                 }
             }
-        }
 
-        if let Some(ref forbidden) = ling.forbidden_words {
-            if !forbidden.is_empty() {
+        if let Some(ref forbidden) = ling.forbidden_words
+            && !forbidden.is_empty() {
                 prompt.push_str("\n**Words/Phrases to Avoid:**\n");
                 prompt.push_str("\n**避免使用的词语:**\n");
                 for word in forbidden {
                     let _ = writeln!(prompt, "- {}", word);
                 }
             }
-        }
 
         prompt.push('\n');
     }
@@ -148,35 +144,32 @@ pub fn aieos_to_system_prompt(identity: &AieosIdentity) -> String {
             let _ = writeln!(prompt, "**核心驱动力:** {}", drive);
         }
 
-        if let Some(ref short) = mot.short_term_goals {
-            if !short.is_empty() {
+        if let Some(ref short) = mot.short_term_goals
+            && !short.is_empty() {
                 prompt.push_str("**Short-term Goals:**\n");
                 prompt.push_str("**短期目标:**\n");
                 for goal in short {
                     let _ = writeln!(prompt, "- {}", goal);
                 }
             }
-        }
 
-        if let Some(ref long) = mot.long_term_goals {
-            if !long.is_empty() {
+        if let Some(ref long) = mot.long_term_goals
+            && !long.is_empty() {
                 prompt.push_str("\n**Long-term Goals:**\n");
                 prompt.push_str("\n**长期目标:**\n");
                 for goal in long {
                     let _ = writeln!(prompt, "- {}", goal);
                 }
             }
-        }
 
-        if let Some(ref fears) = mot.fears {
-            if !fears.is_empty() {
+        if let Some(ref fears) = mot.fears
+            && !fears.is_empty() {
                 prompt.push_str("\n**Fears/Avoidances:**\n");
                 prompt.push_str("\n**恐惧/回避事项:**\n");
                 for fear in fears {
                     let _ = writeln!(prompt, "- {}", fear);
                 }
             }
-        }
 
         prompt.push('\n');
     }
@@ -185,25 +178,23 @@ pub fn aieos_to_system_prompt(identity: &AieosIdentity) -> String {
         prompt.push_str("## Capabilities\n\n");
         prompt.push_str("## 能力定义\n\n");
 
-        if let Some(ref skills) = cap.skills {
-            if !skills.is_empty() {
+        if let Some(ref skills) = cap.skills
+            && !skills.is_empty() {
                 prompt.push_str("**Skills:**\n");
                 prompt.push_str("**技能:**\n");
                 for skill in skills {
                     let _ = writeln!(prompt, "- {}", skill);
                 }
             }
-        }
 
-        if let Some(ref tools) = cap.tools {
-            if !tools.is_empty() {
+        if let Some(ref tools) = cap.tools
+            && !tools.is_empty() {
                 prompt.push_str("\n**Tools Access:**\n");
                 prompt.push_str("\n**可访问工具:**\n");
                 for tool in tools {
                     let _ = writeln!(prompt, "- {}", tool);
                 }
             }
-        }
 
         prompt.push('\n');
     }
@@ -217,15 +208,14 @@ pub fn aieos_to_system_prompt(identity: &AieosIdentity) -> String {
             let _ = writeln!(prompt, "**起源故事:** {}", story);
         }
 
-        if let Some(ref education) = hist.education {
-            if !education.is_empty() {
+        if let Some(ref education) = hist.education
+            && !education.is_empty() {
                 prompt.push_str("**Education:**\n");
                 prompt.push_str("**教育经历:**\n");
                 for edu in education {
                     let _ = writeln!(prompt, "- {}", edu);
                 }
             }
-        }
 
         if let Some(ref occupation) = hist.occupation {
             let _ = writeln!(prompt, "\n**Occupation:** {}", occupation);
@@ -255,18 +245,17 @@ pub fn aieos_to_system_prompt(identity: &AieosIdentity) -> String {
         prompt.push_str("## Interests\n\n");
         prompt.push_str("## 兴趣爱好\n\n");
 
-        if let Some(ref hobbies) = interests.hobbies {
-            if !hobbies.is_empty() {
+        if let Some(ref hobbies) = interests.hobbies
+            && !hobbies.is_empty() {
                 prompt.push_str("**Hobbies:**\n");
                 prompt.push_str("**爱好:**\n");
                 for hobby in hobbies {
                     let _ = writeln!(prompt, "- {}", hobby);
                 }
             }
-        }
 
-        if let Some(ref favorites) = interests.favorites {
-            if !favorites.is_empty() {
+        if let Some(ref favorites) = interests.favorites
+            && !favorites.is_empty() {
                 prompt.push_str("\n**Favorites:**\n");
                 prompt.push_str("\n**喜好:**\n");
                 let mut sorted_keys: Vec<_> = favorites.keys().collect();
@@ -276,7 +265,6 @@ pub fn aieos_to_system_prompt(identity: &AieosIdentity) -> String {
                     let _ = writeln!(prompt, "- {}: {}", category, value);
                 }
             }
-        }
 
         if let Some(ref lifestyle) = interests.lifestyle {
             let _ = writeln!(prompt, "\n**Lifestyle:** {}", lifestyle);

@@ -161,6 +161,7 @@ fn cc_mcp_t46_old_context_and_duplicate_completion_cannot_replace_results() {
         generation: 8,
         selected: vec![record("a")],
         result: None,
+        matrix: Default::default(),
     };
     assert!(!state.finish(&context, &old, 8, Ok(result())));
     assert!(!state.finish(&context, &context, 7, Ok(result())));

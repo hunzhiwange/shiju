@@ -90,7 +90,7 @@ impl DesktopUpdate {
             && self.release.is_none()
         {
             let initial_check_started = self.initial_check_started;
-            *self = DesktopUpdate::from_config(&cfg);
+            *self = DesktopUpdate::from_config(cfg);
             self.initial_check_started = initial_check_started;
         }
     }

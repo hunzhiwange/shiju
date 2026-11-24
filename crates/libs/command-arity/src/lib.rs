@@ -265,11 +265,10 @@ pub fn prefix(tokens: &[&str]) -> Vec<String> {
     let mut out = Vec::with_capacity(tokens.len());
     for len in 1..=tokens.len() {
         out.push(tokens[..len].join(" "));
-        if let Some(arity) = ARITY.get(out.last().map(String::as_str).unwrap_or_default()) {
-            if *arity <= len {
+        if let Some(arity) = ARITY.get(out.last().map(String::as_str).unwrap_or_default())
+            && *arity <= len {
                 break;
             }
-        }
     }
     out
 }

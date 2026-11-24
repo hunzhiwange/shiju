@@ -217,11 +217,10 @@ impl CodexLineage {
         let file = File::open(path)?;
         let before = FileStamp::read(&file)?;
         #[cfg(target_os = "macos")]
-        if let Some((stamp, timeline)) = self.cache.get(path) {
-            if stamp == &before {
+        if let Some((stamp, timeline)) = self.cache.get(path)
+            && stamp == &before {
                 return Ok(Arc::clone(timeline));
             }
-        }
         self.cache.remove(path);
         let mut reader = rollout::reader_from_file(path, file.try_clone()?)?;
         let mut events = Vec::new();
@@ -325,8 +324,8 @@ impl CodexLineage {
         let child = self.load(path)?;
         let mut parser = CodexDeltaParser::new();
         let mut replay = Vec::new();
-        if !child.continuation {
-            if let Some(parent) = &child.parent {
+        if !child.continuation
+            && let Some(parent) = &child.parent {
                 // An idle fork has no replay to reconcile until it records usage.
                 if !child.events.iter().any(|event| signature(event).is_some()) {
                     return Ok(Vec::new());
@@ -335,7 +334,6 @@ impl CodexLineage {
                     .ok_or_else(|| invalid("fork session_meta lacks valid timestamp"))?;
                 replay = self.parent_signatures(parent, cutoff)?;
             }
-        }
         let mut parent_offset = 0;
         let mut matching_prefix = !replay.is_empty();
         let mut initialized = !child.continuation;
@@ -367,14 +365,13 @@ impl CodexLineage {
                 false
             };
             // Inherited snapshots still advance cumulative and dedup state.
-            if let Some(mut delta) = parser.observe(event) {
-                if !inherited {
+            if let Some(mut delta) = parser.observe(event)
+                && !inherited {
                     // Replayed metadata may name an ancestor; ownership always
                     // comes from this rollout's validated root metadata.
                     delta.session_id = Some(child.thread.clone());
                     result.push(delta);
                 }
-            }
         }
         Ok(result)
     }

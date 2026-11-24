@@ -134,7 +134,7 @@ impl<S> Playback<S> {
             return Err(error);
         }
         b.submitted += (bytes.len() / 2) as u64;
-        b.samples.extend(bytes.chunks_exact(2).map(|s| i16::from_le_bytes([s[0], s[1]])));
+        b.samples.extend(bytes.as_chunks::<2>().0.iter().map(|s| i16::from_le_bytes([s[0], s[1]])));
         Ok(())
     }
     pub fn played_ms(&self) -> u64 {

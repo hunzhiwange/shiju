@@ -4,7 +4,7 @@ use super::chat::ChannelsConfigExt;
 use super::other::{QQConfig, QQReceiveMode};
 use super::{
     ChannelsConfig, DingTalkConfig, FeishuConfig, FeishuInstanceConfig, LarkConfig,
-    LarkReceiveMode, TelegramConfig, WebhookConfig,
+    LarkReceiveMode, WebhookConfig,
 };
 use config_channel_services::{WeChatConfig, WeComConfig};
 

@@ -6,11 +6,11 @@ impl GatewayExternalSessionClient {
     pub async fn external_session_delete(
         &self,
         request: &DeleteSessionRequest,
-        token: &str,
+        _token: &str,
     ) -> Result<DeleteSessionOutcome, AgentAppsReadError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (request, token);
+            let _ = (request, _token);
             return Err(AgentAppsReadError::Transport(
                 "authorized history deletion requires native transport".into(),
             ));
@@ -39,11 +39,11 @@ impl GatewayExternalSessionClient {
     pub async fn external_sessions_delete(
         &self,
         request: &[DeleteSessionRequest],
-        token: &str,
+        _token: &str,
     ) -> Result<Vec<DeleteSessionOutcome>, AgentAppsReadError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (request, token);
+            let _ = (request, _token);
             return Err(AgentAppsReadError::Transport(
                 "authorized history deletion requires native transport".into(),
             ));

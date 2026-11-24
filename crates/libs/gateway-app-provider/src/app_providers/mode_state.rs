@@ -8,11 +8,11 @@ impl GatewayAppProviderClient {
         &self,
         app: AppId,
         query: &ModeStateQuery,
-        token: &str,
+        _token: &str,
     ) -> Result<ProviderModeStatus, Error> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (app, query, token);
+            let _ = (app, query, _token);
             Err(Error::Transport("Provider mode requires native transport".into()))
         }
         #[cfg(not(target_arch = "wasm32"))]

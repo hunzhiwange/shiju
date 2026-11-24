@@ -128,24 +128,22 @@ pub fn classify_with_decision(
 
     // 收集所有规则并按优先级降序排序，确保高优先级规则优先匹配
     let mut rules: Vec<_> = config.rules.iter().collect();
-    rules.sort_by(|a, b| b.priority.cmp(&a.priority));
+    rules.sort_by_key(|a| std::cmp::Reverse(a.priority));
 
     // 遍历排序后的规则列表进行匹配
     for rule in rules {
         // 长度约束检查：消息长度必须满足最小长度要求
-        if let Some(min) = rule.min_length {
-            if len < min {
+        if let Some(min) = rule.min_length
+            && len < min {
                 // 长度不足，跳过当前规则继续检查下一条
                 continue;
             }
-        }
         // 长度约束检查：消息长度不能超过最大长度限制
-        if let Some(max) = rule.max_length {
-            if len > max {
+        if let Some(max) = rule.max_length
+            && len > max {
                 // 长度超限，跳过当前规则继续检查下一条
                 continue;
             }
-        }
 
         // 关键词匹配（不区分大小写）和模式匹配（区分大小写）
         // 任一条件满足即视为匹配成功

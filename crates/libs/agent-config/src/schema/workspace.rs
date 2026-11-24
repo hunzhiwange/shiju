@@ -383,7 +383,7 @@ pub(super) async fn persist_active_workspace_config_dir_with_default(
 
     // 如果使用默认配置目录，则清除标记文件
     if config_dir == default_config_dir {
-        remove_active_workspace_marker(&default_config_dir).await?;
+        remove_active_workspace_marker(default_config_dir).await?;
         return Ok(());
     }
 
@@ -391,7 +391,7 @@ pub(super) async fn persist_active_workspace_config_dir_with_default(
     write_active_workspace_marker(config_dir, config_dir).await?;
 
     // 尝试镜像到默认 HOME 范围的根目录，作为最佳努力的指针
-    if let Err(error) = write_active_workspace_marker(&default_config_dir, config_dir).await {
+    if let Err(error) = write_active_workspace_marker(default_config_dir, config_dir).await {
         tracing::warn!(
             selected_config_dir = %config_dir.display(),
             default_config_dir = %default_config_dir.display(),

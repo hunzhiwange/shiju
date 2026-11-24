@@ -2,7 +2,6 @@
 //! PostgreSQL 夹具固定租户作用域，并验证时间戳转换采用饱和策略。
 
 use super::*;
-use agent_database::test_support::PostgresTestDatabase;
 use crate::{DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID, built_in_workflow_by_id};
 
 fn custom_workflow(id: &str, label: &str) -> TaskLifecycleWorkflowDto {

@@ -41,8 +41,8 @@ pub fn recovery(backend: &str, root: &Path) -> BackendFixture {
             "--nocapture",
             "--test-threads=1",
         ])
-        .env("VW_MODEL_RECOVERY_TEST_ROOT", &root)
-        .env("VIBEWINDOW_TEST_ROOT", &root)
+        .env("VW_MODEL_RECOVERY_TEST_ROOT", root)
+        .env("VIBEWINDOW_TEST_ROOT", root)
         .env("VW_RECOVERY_WINDOW_HTTP", "1")
         .env("VIBEWINDOW_CONFIG_DIR", root.join("config"))
         .env_remove("VIBEWINDOW_WORKSPACE")
@@ -61,7 +61,7 @@ pub fn plugin(backend: &str, root: &Path) -> BackendFixture {
             "--ignored",
             "--nocapture",
         ])
-        .env("SHIJU_PLUGIN_WINDOW_ROOT", &root)
+        .env("SHIJU_PLUGIN_WINDOW_ROOT", root)
         .spawn()
         .unwrap();
     std::fs::write(root.join("backend.pid"), child.id().to_string()).unwrap();

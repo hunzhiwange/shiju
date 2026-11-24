@@ -1,7 +1,6 @@
 use super::process;
 use super::process::*;
 use std::process::Command;
-use vw_api_types::{agent_apps::*};
 use vw_api_app_identity::{
     AppId,
     AppInstallation,

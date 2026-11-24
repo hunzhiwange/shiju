@@ -1,6 +1,6 @@
 //! Transport for authorized host-local backup operations.
 use crate::GatewayAppDataClient;
-use serde::{Serialize, Deserialize, de::DeserializeOwned};
+use serde::{Serialize, de::DeserializeOwned};
 use vw_api_app_operations::data_management::*;
 
 /// Safe transport errors: no raw HTTP payloads, URLs or credentials are retained.

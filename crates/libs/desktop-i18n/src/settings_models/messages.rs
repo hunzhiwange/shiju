@@ -26,7 +26,7 @@ impl Feedback {
             return format!("{}\n{}", parts.0.display(locale), parts.1.display(locale));
         }
         match &self.owned {
-            Some((key, args)) => render(locale, *key, args),
+            Some((key, args)) => render(locale, key, args),
             None => self.original.clone(),
         }
     }

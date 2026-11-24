@@ -569,7 +569,7 @@ struct IndexFileLockGuard {
 #[cfg(not(target_arch = "wasm32"))]
 impl IndexFileLockGuard {
     fn acquire(path: &Path) -> io::Result<Self> {
-        let file = OpenOptions::new().read(true).write(true).create(true).open(path)?;
+        let file = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(path)?;
         acquire_exclusive_file_lock(&file)?;
         Ok(Self { _file: file })
     }

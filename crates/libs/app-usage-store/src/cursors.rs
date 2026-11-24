@@ -234,13 +234,11 @@ where
         return Err(UsageCursorError::SourceChangedDuringScan);
     }
     cursor.tail_fingerprint = fingerprint(file, cursor.byte_offset)?;
-    if !history_changed {
-        if let Some(old) = old {
-            if fingerprint(file, old.byte_offset)? != old.tail_fingerprint {
+    if !history_changed
+        && let Some(old) = old
+            && fingerprint(file, old.byte_offset)? != old.tail_fingerprint {
                 return Err(UsageCursorError::SourceChangedDuringScan);
             }
-        }
-    }
     let payload = serde_json::to_string(&cursor).map_err(|_| UsageCursorError::InvalidCursor)?;
     transaction.execute(
         "INSERT INTO usage_scan_cursors(cursor_key,payload_json) VALUES (?1,?2)

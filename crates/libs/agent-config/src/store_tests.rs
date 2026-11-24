@@ -5,7 +5,6 @@ use vw_api_transport::id::TenantScope;
 
 use super::SystemConfigStore;
 use agent_database::GlobalDatabase;
-use agent_database::test_support::PostgresTestDatabase;
 use secret_store::gateway_skey_store::{GatewaySkeyReplacement, GatewaySkeyStore};
 
 #[test]

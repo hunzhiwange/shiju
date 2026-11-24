@@ -292,7 +292,7 @@ pub async fn from_directory(
             result.sandboxes.push(sandbox_s.clone());
         }
         // 清理已不存在的 sandbox，避免 UI 展示陈旧目录或后续操作落到无效路径。
-        result.sandboxes = result.sandboxes.into_iter().filter(|p| Path::new(p).is_dir()).collect();
+        result.sandboxes.retain(|p| Path::new(p).is_dir());
         result.worktree = worktree_s;
         result.vcs = vcs;
         if is_builtin_workspace_project(Path::new(&result.worktree)) {
@@ -410,7 +410,7 @@ pub async fn update(scope: &ProjectScope, input: UpdateInput) -> Result<Info, Er
                     }
                     if let Some(ov) = icon.override_icon {
                         cur.override_icon =
-                            ov.and_then(|s| if s.is_empty() { None } else { Some(s) });
+                            ov.filter(|s| !s.is_empty());
                     }
                     if let Some(color) = icon.color {
                         cur.color = color;
@@ -421,7 +421,7 @@ pub async fn update(scope: &ProjectScope, input: UpdateInput) -> Result<Info, Er
                 if let Some(cmds) = input.commands.clone() {
                     let mut cur = draft.commands.clone().unwrap_or_default();
                     if let Some(start) = cmds.start {
-                        cur.start = start.and_then(|s| if s.is_empty() { None } else { Some(s) });
+                        cur.start = start.filter(|s| !s.is_empty());
                     }
                     if cur.start.is_none() {
                         draft.commands = None;

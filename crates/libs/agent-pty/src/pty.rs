@@ -434,7 +434,7 @@ pub async fn create(input: CreateInput) -> Result<Info, Error> {
     }
 
     // 确定工作目录
-    let cwd = input.cwd.unwrap_or_else(|| instance::directory());
+    let cwd = input.cwd.unwrap_or_else(instance::directory);
     if cwd.trim().is_empty() {
         return Err(Error::Invalid("missing cwd".to_string()));
     }
@@ -619,15 +619,14 @@ pub async fn update(id: &str, input: UpdateInput) -> Result<Option<Info>, Error>
     let Some(session) = s else { return Ok(None) };
 
     // 更新标题（如果提供）
-    if let Some(title) = input.title {
-        if let Ok(mut info) = session.info.lock() {
+    if let Some(title) = input.title
+        && let Ok(mut info) = session.info.lock() {
             info.title = title;
         }
-    }
 
     // 更新终端大小（如果提供）
-    if let Some(size) = input.size {
-        if let Ok(m) = session.master.lock() {
+    if let Some(size) = input.size
+        && let Ok(m) = session.master.lock() {
             let _ = m.resize(PtySize {
                 rows: size.rows,
                 cols: size.cols,
@@ -635,7 +634,6 @@ pub async fn update(id: &str, input: UpdateInput) -> Result<Option<Info>, Error>
                 pixel_height: 0,
             });
         }
-    }
 
     // 获取更新后的会话信息
     let info = session.info.lock().ok().map(|i| i.clone());
@@ -740,11 +738,10 @@ pub async fn write(id: &str, data: &str) {
     let Some(session) = sessions.get(id).cloned() else { return };
 
     // 检查会话是否仍在运行
-    if let Ok(info) = session.info.lock() {
-        if info.status != Status::Running {
+    if let Ok(info) = session.info.lock()
+        && info.status != Status::Running {
             return;
         }
-    }
 
     // 执行写入操作
     if let Ok(mut w) = session.writer.lock() {

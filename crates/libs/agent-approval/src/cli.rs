@@ -1,5 +1,5 @@
 use super::{ApprovalRequest, ApprovalResponse, summarize_args};
-use std::io::{self, BufRead, IsTerminal, Write};
+use std::io::{self, BufRead, Write};
 
 /// 显示审批提示并从标准输入读取用户响应。
 pub(super) fn prompt_cli_interactive(request: &ApprovalRequest) -> ApprovalResponse {
@@ -20,7 +20,7 @@ fn prompt_cli_should_default_to_no_without_reading_stdin() -> bool {
 
     #[cfg(not(test))]
     {
-        !io::stdin().is_terminal()
+        !io::IsTerminal::is_terminal(&io::stdin())
     }
 }
 

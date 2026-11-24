@@ -168,9 +168,9 @@ fn events(
     stream
         .map(move |event| {
             event.and_then(|mut event| {
-                if matches!(event.event.as_deref(), None | Some("") | Some("message")) {
-                    if let Some(data) = &event.data {
-                        if let Ok(mut value) = serde_json::from_str::<Value>(data) {
+                if matches!(event.event.as_deref(), None | Some("") | Some("message"))
+                    && let Some(data) = &event.data
+                        && let Ok(mut value) = serde_json::from_str::<Value>(data) {
                             let initialize_error = protocol
                                 .lock()
                                 .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -186,8 +186,6 @@ fn events(
                             crate::wire_result::preserve_mcp_wire_result(&mut value);
                             event.data = Some(value.to_string());
                         }
-                    }
-                }
                 Ok(event)
             })
         })
@@ -205,15 +203,14 @@ impl StreamableHttpClient for HttpClient {
         auth: Option<String>,
     ) -> Result<StreamableHttpPostResponse, StreamableHttpError<Self::Error>> {
         let mut initializing = false;
-        if let ClientJsonRpcMessage::Request(request) = &message {
-            if matches!(request.request, ClientRequest::InitializeRequest(_)) {
+        if let ClientJsonRpcMessage::Request(request) = &message
+            && matches!(request.request, ClientRequest::InitializeRequest(_)) {
                 initializing = true;
                 let mut protocol =
                     self.protocol.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
                 protocol.initialize_id = Some(request.id.clone());
                 protocol.version = None;
             }
-        }
         let mut request = self.request(
             self.client.post(uri.as_ref()).header("accept", "text/event-stream, application/json"),
         );
@@ -224,8 +221,8 @@ impl StreamableHttpClient for HttpClient {
             request = request.bearer_auth(auth);
         }
         let response = self.check_io(request.json(&message).send()).await?;
-        if response.status() == reqwest_012::StatusCode::UNAUTHORIZED {
-            if let Some(header) = response.headers().get("www-authenticate") {
+        if response.status() == reqwest_012::StatusCode::UNAUTHORIZED
+            && let Some(header) = response.headers().get("www-authenticate") {
                 let header = header.to_str().map_err(|_| {
                     StreamableHttpError::UnexpectedServerResponse(
                         "invalid www-authenticate header".into(),
@@ -235,7 +232,6 @@ impl StreamableHttpClient for HttpClient {
                     www_authenticate_header: header.to_owned(),
                 }));
             }
-        }
         let status = response.status();
         let response = response.error_for_status()?;
         if matches!(status, reqwest_012::StatusCode::ACCEPTED | reqwest_012::StatusCode::NO_CONTENT)

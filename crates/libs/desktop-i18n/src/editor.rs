@@ -32,10 +32,9 @@ pub fn lsp_status(
     localized: Option<&(String, super::format::Message)>,
 ) -> Option<String> {
     let raw = raw?;
-    if let Some((fallback, message)) = localized {
-        if fallback == raw {
+    if let Some((fallback, message)) = localized
+        && fallback == raw {
             return Some(message.render(super::I18n::new(locale)).expect("valid LSP template"));
         }
-    }
     Some(raw.to_owned())
 }

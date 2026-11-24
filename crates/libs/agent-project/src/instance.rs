@@ -151,7 +151,7 @@ where
     Dispose: Fn(Arc<S>) -> DisposeFut + Send + Sync + 'static,
     DisposeFut: std::future::Future<Output = ()> + Send + 'static,
 {
-    state::create(|| directory(), name, init, dispose)
+    state::create(directory, name, init, dispose)
 }
 
 /// 释放当前项目实例缓存的状态与上下文。

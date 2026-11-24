@@ -1,4 +1,3 @@
-use super::*;
 use vw_api_app_provider_extended::hermes::*;
 #[tokio::test]
 async fn cc04_hermes_sdk_rejects_path_identity_without_request() {

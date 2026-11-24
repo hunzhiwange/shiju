@@ -26,7 +26,7 @@ fn cp12_unmanaged_scan_success() {
         directory: "sample".into(), name: "Sample".into(), description: None,
         source: ssot.join("sample"),
     };
-    let rows = scan_unmanaged(&home, &ssot, &[saved.clone()], &targets).unwrap();
+    let rows = scan_unmanaged(&home, &ssot, std::slice::from_ref(&saved), &targets).unwrap();
     assert!(rows[0].managed);
     fs::write(targets[1].directory.join("sample/SKILL.md"), "Different instructions").unwrap();
     let rows = scan_unmanaged(&home, &ssot, &[saved], &targets).unwrap();
@@ -47,13 +47,13 @@ fn cp12_unmanaged_scan_rejects_without_side_effects() {
     let private = outside.path().join("SKILL.md");
     fs::write(&private, "unchanged").unwrap();
     std::os::unix::fs::symlink(outside.path(), target.directory.join("linked")).unwrap();
-    let rows = scan_unmanaged(&home, &ssot, &[], &[target.clone()]).unwrap();
+    let rows = scan_unmanaged(&home, &ssot, &[], std::slice::from_ref(&target)).unwrap();
     assert_eq!(rows.len(), 1);
     assert!(rows[0].external_link);
     assert!(rows[0].content_hash.is_none());
     fs::create_dir(target.directory.join("unsafe")).unwrap();
     std::os::unix::fs::symlink(&private, target.directory.join("unsafe/SKILL.md")).unwrap();
-    assert!(scan_unmanaged(&home, &ssot, &[], &[target.clone()]).is_err());
+    assert!(scan_unmanaged(&home, &ssot, &[], std::slice::from_ref(&target)).is_err());
     assert_eq!(fs::read_to_string(private).unwrap(), "unchanged");
     assert_eq!(fs::read_dir(ssot).unwrap().count(), 0);
     assert!(fs::symlink_metadata(target.directory.join("linked")).unwrap().file_type().is_symlink());

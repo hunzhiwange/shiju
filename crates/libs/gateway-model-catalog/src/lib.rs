@@ -4,12 +4,19 @@ pub use gateway_http::AgentAppsReadError;
 
 #[derive(Debug, Clone)]
 pub struct GatewayModelCatalogClient {
+    #[cfg(not(target_arch = "wasm32"))]
     transport: gateway_http::GatewayTransport,
 }
 
 impl GatewayModelCatalogClient {
     pub fn new(transport: gateway_http::GatewayTransport) -> Self {
-        Self { transport }
+        #[cfg(target_arch = "wasm32")]
+        let _ = transport;
+
+        Self {
+            #[cfg(not(target_arch = "wasm32"))]
+            transport,
+        }
     }
 }
 

@@ -18,11 +18,10 @@ pub fn builtin_overlay_slug(builtin_name: &str) -> String {
     for c in builtin_name.chars() {
         let lower = c.to_ascii_lowercase();
         if lower.is_ascii_alphanumeric() {
-            if let Some(sep) = pending_sep.take() {
-                if !out.is_empty() {
+            if let Some(sep) = pending_sep.take()
+                && !out.is_empty() {
                     out.push(sep);
                 }
-            }
             out.push(lower);
         } else if lower == '_' {
             pending_sep = Some('_');

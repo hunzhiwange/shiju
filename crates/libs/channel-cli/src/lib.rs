@@ -103,6 +103,12 @@ impl CliChannel {
     }
 }
 
+impl Default for CliChannel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 async fn listen_from_reader(
     reader: Box<dyn tokio::io::AsyncBufRead + Unpin + Send>,

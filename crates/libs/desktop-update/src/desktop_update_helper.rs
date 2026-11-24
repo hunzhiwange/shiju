@@ -145,8 +145,8 @@ pub fn run_if_requested() -> Option<Result<()>> {
                     .set_description(i18n.__("升级已完成，是否立即启动新版？"))
                     .set_buttons(rfd::MessageButtons::YesNo)
                     .show();
-                if answer == rfd::MessageDialogResult::Yes {
-                    if let Err(error) = launch(&request.executable) {
+                if answer == rfd::MessageDialogResult::Yes
+                    && let Err(error) = launch(&request.executable) {
                         #[cfg(target_os = "macos")]
                         {
                             macos::rollback(&request).with_context(|| {
@@ -167,7 +167,6 @@ pub fn run_if_requested() -> Option<Result<()>> {
                             .show();
                         return Err(error.context("启动新版失败"));
                     }
-                }
                 #[cfg(target_os = "macos")]
                 macos::cleanup(&request)?;
             }

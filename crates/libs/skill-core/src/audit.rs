@@ -376,11 +376,10 @@ fn audit_markdown_file(
     let rel = relative_display(root, path);
 
     // 检测高风险代码片段
-    if security.detect_high_risk_content {
-        if let Some(pattern) = detect_high_risk_snippet(&content) {
+    if security.detect_high_risk_content
+        && let Some(pattern) = detect_high_risk_snippet(&content) {
             report.findings.push(format!("{rel}: detected high-risk command pattern ({pattern})."));
         }
-    }
 
     // 提取并审计所有 Markdown 链接
     if security.reject_script_files || security.validate_markdown_links {
@@ -445,13 +444,12 @@ fn audit_manifest_file(
                     ));
                 }
                 // 检查是否匹配高风险模式
-                if security.detect_high_risk_content {
-                    if let Some(pattern) = detect_high_risk_snippet(command) {
+                if security.detect_high_risk_content
+                    && let Some(pattern) = detect_high_risk_snippet(command) {
                         report.findings.push(format!(
                             "{rel}: tools[{idx}].command matches high-risk pattern ({pattern})."
                         ));
                     }
-                }
             } else if security.validate_manifest {
                 report.findings.push(format!("{rel}: tools[{idx}] is missing a command field."));
             }
@@ -469,8 +467,8 @@ fn audit_manifest_file(
     // 审计提示定义
     if let Some(prompts) = parsed.get("prompts").and_then(toml::Value::as_array) {
         for (idx, prompt) in prompts.iter().enumerate() {
-            if security.detect_high_risk_content {
-                if let Some(prompt) = prompt.as_str() {
+            if security.detect_high_risk_content
+                && let Some(prompt) = prompt.as_str() {
                     // 检查提示内容是否包含高风险模式
                     if let Some(pattern) = detect_high_risk_snippet(prompt) {
                         report.findings.push(format!(
@@ -478,7 +476,6 @@ fn audit_manifest_file(
                         ));
                     }
                 }
-            }
         }
     }
 

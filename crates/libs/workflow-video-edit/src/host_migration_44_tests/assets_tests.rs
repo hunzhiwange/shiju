@@ -57,11 +57,10 @@ impl Endpoint {
                     if line == "\r\n" {
                         break;
                     }
-                    if let Some((name, value)) = line.split_once(':') {
-                        if name.eq_ignore_ascii_case("content-length") {
+                    if let Some((name, value)) = line.split_once(':')
+                        && name.eq_ignore_ascii_case("content-length") {
                             size = value.trim().parse().unwrap();
                         }
-                    }
                 }
                 let mut bytes = vec![0; size];
                 reader.read_exact(&mut bytes).unwrap();

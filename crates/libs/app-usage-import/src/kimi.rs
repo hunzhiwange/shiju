@@ -98,7 +98,7 @@ pub fn scan_kimi_file(
                 .into_iter().flatten().any(|n| n > 0) { continue; }
             let Some(committed) = timestamp_ms(&record["time"]) else { continue; };
             let id = meta["messageId"].as_str().filter(|id| !id.is_empty()).map(str::to_owned)
-                .unwrap_or_else(|| format!("{}", hex::encode(Sha256::digest(record.to_string().as_bytes()))));
+                .unwrap_or_else(|| hex::encode(Sha256::digest(record.to_string().as_bytes())).to_string());
             // Only metadata and counters survive parsing, never prompts or tools.
             pending.push((id, meta, tokens, committed));
         }
@@ -200,11 +200,10 @@ fn refresh_existing(
         }
     }
     let performance = &mut old.record.performance;
-    if let Some(latency) = &incoming.record.performance.latency_ms {
-        if performance.first_token_ms.is_none() || incoming.record.performance.first_token_ms.is_some() {
+    if let Some(latency) = &incoming.record.performance.latency_ms
+        && (performance.first_token_ms.is_none() || incoming.record.performance.first_token_ms.is_some()) {
             performance.latency_ms = Some(latency.clone());
         }
-    }
     if incoming.record.performance.first_token_ms.is_some() {
         performance.first_token_ms = incoming.record.performance.first_token_ms.clone();
     }

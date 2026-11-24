@@ -14,7 +14,7 @@ use serde_yaml::Value;
 fn field<'a>(value: &'a Value, key: &str) -> &'a Value {
     value
         .as_mapping()
-        .and_then(|mapping| mapping.get(&Value::String(key.to_string())))
+        .and_then(|mapping| mapping.get(Value::String(key.to_string())))
         .expect("expected field")
 }
 

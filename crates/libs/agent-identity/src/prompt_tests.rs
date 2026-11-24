@@ -4,10 +4,9 @@
 use super::*;
 use crate::model::{
     AieosIdentity, CapabilitiesSection, HistorySection, IdentitySection, InterestsSection,
-    LinguisticsSection, MotivationsSection, Names, OceanTraits, PhysicalitySection,
+    LinguisticsSection, MotivationsSection, Names,
     PsychologySection,
 };
-use std::collections::HashMap;
 
 #[test]
 fn prompt_is_empty_for_empty_identity() {

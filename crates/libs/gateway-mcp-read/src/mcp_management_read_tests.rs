@@ -1,4 +1,4 @@
-use super::{AgentAppsReadError, GatewayMcpReadClient, test_support};
+use super::{AgentAppsReadError, test_support};
 use gateway_endpoint::GatewayAuth;
 use serde_json::json;
 use {

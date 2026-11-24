@@ -8,11 +8,11 @@ impl GatewayExternalSessionClient {
     pub async fn external_history_maintenance_submit(
         &self,
         request: &HistoryMaintenanceRequest,
-        token: &str,
+        _token: &str,
     ) -> Result<HistoryMaintenanceProgress, AgentAppsReadError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (request, token);
+            let _ = (request, _token);
             return Err(AgentAppsReadError::Transport(
                 "authorized history maintenance requires native transport".into(),
             ));
@@ -41,11 +41,11 @@ impl GatewayExternalSessionClient {
     pub async fn external_history_maintenance_query(
         &self,
         request: &HistoryMaintenanceQuery,
-        token: &str,
+        _token: &str,
     ) -> Result<HistoryMaintenanceProgress, AgentAppsReadError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (request, token);
+            let _ = (request, _token);
             return Err(AgentAppsReadError::Transport(
                 "authorized history maintenance requires native transport".into(),
             ));
@@ -77,11 +77,11 @@ impl GatewayExternalSessionClient {
     pub async fn external_history_maintenance_cancel(
         &self,
         request: &HistoryMaintenanceQuery,
-        token: &str,
+        _token: &str,
     ) -> Result<HistoryMaintenanceProgress, AgentAppsReadError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (request, token);
+            let _ = (request, _token);
             return Err(AgentAppsReadError::Transport(
                 "authorized history maintenance requires native transport".into(),
             ));

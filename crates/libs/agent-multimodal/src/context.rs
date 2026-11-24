@@ -91,11 +91,10 @@ impl ImageTurnContext {
                 total_refs += parse_image_markers(&message.content).1.len();
             }
         }
-        if let Some(content) = current_user_content {
-            if !resume_history_only {
+        if let Some(content) = current_user_content
+            && !resume_history_only {
                 total_refs += parse_image_markers(content).1.len();
             }
-        }
         if total_refs == 0 {
             return Ok(Self {
                 scope,

@@ -109,11 +109,10 @@ fn validate_vibewindow_user_entry(passwd_entry: &str, del_cmd: &str, add_cmd: &s
 /// 并在用户已存在时复用 `check_vibewindow_user` 做安全校验。
 fn ensure_vibewindow_user() -> Result<()> {
     let output = Command::new("getent").args(["passwd", "vibewindow"]).output();
-    if let Ok(output) = output {
-        if output.status.success() {
+    if let Ok(output) = output
+        && output.status.success() {
             return check_vibewindow_user();
         }
-    }
 
     let is_alpine = Path::new("/etc/alpine-release").exists();
     if is_alpine {
@@ -260,17 +259,15 @@ fn resolve_invoking_user_config_dir() -> Option<PathBuf> {
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty() && value != "root");
 
-    if let Some(user) = sudo_user {
-        if let Ok(output) = Command::new("getent").args(["passwd", &user]).output() {
-            if output.status.success() {
+    if let Some(user) = sudo_user
+        && let Ok(output) = Command::new("getent").args(["passwd", &user]).output()
+            && output.status.success() {
                 let entry = String::from_utf8_lossy(&output.stdout);
                 let fields: Vec<&str> = entry.trim().split(':').collect();
                 if fields.len() >= 6 {
                     return Some(config_runtime_paths::home_config_dir(PathBuf::from(fields[5])));
                 }
             }
-        }
-    }
 
     std::env::var("HOME").ok().map(PathBuf::from).map(config_runtime_paths::home_config_dir)
 }
@@ -422,38 +419,6 @@ fn warn_if_binary_in_home(exe_path: &Path) {
 fn binary_path_appears_in_home(exe_path: &Path) -> bool {
     let path_str = exe_path.to_string_lossy();
     path_str.contains("/home/") || path_str.contains(".cargo/bin")
-}
-
-#[cfg(test)]
-pub(super) mod test_support {
-    use anyhow::Result;
-    use std::path::{Path, PathBuf};
-
-    pub fn binary_path_appears_in_home(exe_path: &Path) -> bool {
-        super::binary_path_appears_in_home(exe_path)
-    }
-
-    pub fn copy_dir_recursive(source: &Path, target: &Path) -> Result<()> {
-        super::copy_dir_recursive(source, target)
-    }
-
-    pub fn migrate_openrc_runtime_state_with<F>(
-        config_dir: &Path,
-        resolve_source_dir: F,
-    ) -> Result<()>
-    where
-        F: FnOnce() -> Option<PathBuf>,
-    {
-        super::migrate_openrc_runtime_state_with(config_dir, resolve_source_dir)
-    }
-
-    pub fn validate_vibewindow_user_entry(
-        passwd_entry: &str,
-        del_cmd: &str,
-        add_cmd: &str,
-    ) -> Result<()> {
-        super::validate_vibewindow_user_entry(passwd_entry, del_cmd, add_cmd)
-    }
 }
 
 /// 生成 OpenRC init 脚本文本。
@@ -616,4 +581,36 @@ pub(super) fn install_linux_openrc(config: &Config) -> Result<()> {
     println!("   Start with: sudo shiju service start");
     let _ = config;
     Ok(())
+}
+
+#[cfg(test)]
+pub(super) mod test_support {
+    use anyhow::Result;
+    use std::path::{Path, PathBuf};
+
+    pub fn binary_path_appears_in_home(exe_path: &Path) -> bool {
+        super::binary_path_appears_in_home(exe_path)
+    }
+
+    pub fn copy_dir_recursive(source: &Path, target: &Path) -> Result<()> {
+        super::copy_dir_recursive(source, target)
+    }
+
+    pub fn migrate_openrc_runtime_state_with<F>(
+        config_dir: &Path,
+        resolve_source_dir: F,
+    ) -> Result<()>
+    where
+        F: FnOnce() -> Option<PathBuf>,
+    {
+        super::migrate_openrc_runtime_state_with(config_dir, resolve_source_dir)
+    }
+
+    pub fn validate_vibewindow_user_entry(
+        passwd_entry: &str,
+        del_cmd: &str,
+        add_cmd: &str,
+    ) -> Result<()> {
+        super::validate_vibewindow_user_entry(passwd_entry, del_cmd, add_cmd)
+    }
 }

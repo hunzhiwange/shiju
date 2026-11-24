@@ -230,6 +230,7 @@ pub mod list {
             _ => Message::None,
         };
         let card = domain::components::list::card(
+            help.i18n,
             map,
             domain::components::list::View {
                 scope: state.scope.as_ref(),
@@ -279,6 +280,7 @@ pub mod list {
                 Some(base),
                 Message::Settings(SettingsMessage::AppProviders(ListMessage::Cancel)),
                 domain::components::list::editor_card(
+                    help.i18n,
                     &form.sort,
                     &form.category,
                     &form.notes,

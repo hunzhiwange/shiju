@@ -13,7 +13,7 @@ impl GatewayAppProviderClient {
         &self,
         app: AppId,
         host: &str,
-        token: &str,
+        _token: &str,
     ) -> Result<
         vw_api_app_provider_edit::catalog::ProviderCatalog,
         gateway_app_read::AgentAppsReadError,
@@ -21,7 +21,7 @@ impl GatewayAppProviderClient {
         use gateway_app_read::AgentAppsReadError as Error;
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (app, host, token);
+            let _ = (app, host, _token);
             Err(Error::Transport("authorized application reads require native transport".into()))
         }
         #[cfg(not(target_arch = "wasm32"))]

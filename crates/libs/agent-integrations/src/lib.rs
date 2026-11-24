@@ -149,11 +149,10 @@ fn list_integrations(
 
     let mut count = 0usize;
     for cat in IntegrationCategory::all() {
-        if let Some(ref cf) = cat_filter {
-            if *cf != *cat {
+        if let Some(ref cf) = cat_filter
+            && *cf != *cat {
                 continue;
             }
-        }
 
         let cat_entries: Vec<_> = entries
             .iter()

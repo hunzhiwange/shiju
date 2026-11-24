@@ -1,9 +1,7 @@
 //! 测试任务状态机允许的转换、终态保护与任务类型约束。
 //! 每类任务分别覆盖允许与禁止转换，终态在重复事件下保持幂等。
 
-use std::collections::HashSet;
 
-use super::events::AgentEventKind;
 use super::state_machine::{
     AgentTaskKind, AgentTaskStatus, agent_task_can_transition, ensure_transition,
     ensure_transition_key,

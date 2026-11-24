@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use reqwest::header::{CACHE_CONTROL, HeaderValue};
+use reqwest::header::CACHE_CONTROL;
 use reqwest::{Method, RequestBuilder, Response, StatusCode, Url};
 use serde::de::DeserializeOwned;
 use vw_api_app_auth::{

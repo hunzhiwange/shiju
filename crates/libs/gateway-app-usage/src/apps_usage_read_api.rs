@@ -2,7 +2,7 @@
 
 use super::GatewayAppUsageClient;
 use gateway_http::apply_request_context;
-use reqwest::header::{CACHE_CONTROL, HeaderValue};
+use reqwest::header::CACHE_CONTROL;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use vw_api_apps_usage::apps_usage::{UsageSnapshotQuery, UsageSnapshotResponse};
 use vw_api_app_auth::AuthError;
@@ -125,7 +125,7 @@ impl GatewayAppUsageClient {
         &self,
         path: &str,
         selection: &UsageSnapshotQuery,
-        principal_token: &str,
+        _principal_token: &str,
     ) -> Result<T, AppsUsageReadError> {
         let request = self.transport.native_transport().map_err(|_| AppsUsageReadError::Transport)?
             .get(format!("{}{path}", self.transport.endpoint().base_url()))

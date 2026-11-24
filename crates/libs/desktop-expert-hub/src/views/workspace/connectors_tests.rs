@@ -49,7 +49,7 @@ async fn connector_chinese_modal_and_independent_waits_draw_in_both_themes() {
             app.expert_hub.connectors.begin(3, ConnectorWork::Saving);
         }
         for theme in [Theme::Dark, Theme::Light] {
-            let mut element = super::view(&app.input());
+            let mut element = super::view(&app.input(), std::convert::identity, std::convert::identity);
             let mut renderer =
                 <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
                     .await

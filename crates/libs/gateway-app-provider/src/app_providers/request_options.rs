@@ -31,7 +31,7 @@ impl GatewayAppProviderClient {
         method: &str,
         action: &str,
         body: &B,
-        token: &str,
+        _token: &str,
     ) -> Result<R, Error> {
         if id.is_empty()
             || id.len() > 128
@@ -41,7 +41,7 @@ impl GatewayAppProviderClient {
         }
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (app, method, action, body, token);
+            let _ = (app, method, action, body, _token);
             Err(Error::Transport("request options requires native transport".into()))
         }
         #[cfg(not(target_arch = "wasm32"))]

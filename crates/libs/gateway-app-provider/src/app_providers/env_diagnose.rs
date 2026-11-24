@@ -8,7 +8,7 @@ impl GatewayAppProviderClient {
         &self,
         app: AppId,
         request_body: &vw_api_app_provider_environment::env_diagnose::EnvDiagnoseRequest,
-        token: &str,
+        _token: &str,
     ) -> Result<
         vw_api_app_provider_environment::env_diagnose::EnvDiagnosis,
         gateway_app_read::AgentAppsReadError,
@@ -16,7 +16,7 @@ impl GatewayAppProviderClient {
         use gateway_app_read::AgentAppsReadError as Error;
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (app, request_body, token);
+            let _ = (app, request_body, _token);
             Err(Error::Transport("authorized application reads require native transport".into()))
         }
         #[cfg(not(target_arch = "wasm32"))]

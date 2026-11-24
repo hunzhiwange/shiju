@@ -188,11 +188,9 @@ pub fn scan_grokbuild_file(
         }
     }
     if file.metadata()?.len() != length || file.metadata()?.modified()? != metadata.modified()? { return Err(UsageCursorError::SourceChangedDuringScan); }
-    if !changed {
-        if let Some(old) = old {
-            if fingerprint(file, old.byte_offset)? != old.tail_fingerprint { return Err(UsageCursorError::SourceChangedDuringScan); }
-        }
-    }
+    if !changed
+        && let Some(old) = old
+            && fingerprint(file, old.byte_offset)? != old.tail_fingerprint { return Err(UsageCursorError::SourceChangedDuringScan); }
     cursor.tail_fingerprint = fingerprint(file, cursor.byte_offset)?;
     cursor.parser_state = Some(serde_json::to_string(&state).map_err(|_| invalid())?);
     transaction.execute("INSERT INTO usage_scan_cursors(cursor_key,payload_json) VALUES (?1,?2) ON CONFLICT(cursor_key) DO UPDATE SET payload_json=excluded.payload_json",

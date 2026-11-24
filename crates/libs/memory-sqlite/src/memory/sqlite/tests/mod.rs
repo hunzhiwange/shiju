@@ -17,8 +17,6 @@
 //! - 按职责拆分到多个子模块，便于定位和维护
 
 use super::*;
-pub(super) use crate::memory::MemoryCategory;
-pub(super) use crate::memory::embeddings;
 use crate::memory::traits::Memory;
 use std::sync::Arc;
 use tempfile::TempDir;

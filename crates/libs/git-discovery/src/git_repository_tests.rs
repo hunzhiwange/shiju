@@ -69,8 +69,8 @@ fn discover_resolves_linked_worktree_to_common_root() {
     let repo = Repository::init(&primary).expect("repo init");
     std::fs::write(primary.join("README.md"), "demo\n").expect("readme");
     let oid = commit_tree(&repo, "initial");
-    let mut opts = git2::WorktreeAddOptions::new();
-    repo.worktree("linked-discovery", &linked, Some(&mut opts)).expect("linked worktree");
+    let opts = git2::WorktreeAddOptions::new();
+    repo.worktree("linked-discovery", &linked, Some(&opts)).expect("linked worktree");
 
     let discovered = discover(&linked).expect("linked worktree should discover");
     assert_eq!(discovered.root_commit_ids, vec![oid.to_string()]);

@@ -252,7 +252,7 @@ async fn toast_text_wraps_as_needed_and_leaves_room_for_retry() {
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     let mut renderer = renderer().await;
-    let _ = app.show_localized_toast(ToastKind::Success, "已删除", vec![]);
+    app.show_localized_toast(ToastKind::Success, "已删除", vec![]);
     let mut ui = scene(app.view(), &mut renderer, NARROW);
     let short = label(&geometry(&mut ui, &renderer), "操作已完成 · 已删除");
     assert!(short.height < 20.0, "{short:?}");
@@ -262,7 +262,7 @@ async fn toast_text_wraps_as_needed_and_leaves_room_for_retry() {
     drop(ui);
 
     let path = "/fixture/".to_owned() + &"filename".repeat(16);
-    let _ = app.show_toast(ToastKind::Error, path.clone());
+    app.show_toast(ToastKind::Error, path.clone());
     let mut ui = scene(app.view(), &mut renderer, NARROW);
     let long = label(&geometry(&mut ui, &renderer), &format!("操作失败 · {path}"));
     assert!(long.height > short.height && long.x + long.width <= NARROW.width as f32, "{long:?}");
@@ -277,7 +277,7 @@ async fn toast_text_wraps_as_needed_and_leaves_room_for_retry() {
     drop(ui);
 
     app.retry = true;
-    let _ = app.show_toast(ToastKind::Warning, format!("本地缓存待同步：{path}"));
+    app.show_toast(ToastKind::Warning, format!("本地缓存待同步：{path}"));
     let mut ui = scene(app.view(), &mut renderer, NARROW);
     let retry = label(&geometry(&mut ui, &renderer), "重试");
     assert!(retry.width > 0.0 && retry.x + retry.width <= NARROW.width as f32, "{retry:?}");

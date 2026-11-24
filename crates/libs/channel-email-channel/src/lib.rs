@@ -298,11 +298,10 @@ impl EmailChannel {
     /// 返回提取的文本内容字符串。如果无法提取任何可读内容，返回 `"(no readable content)"`
     fn extract_text(parsed: &mail_parser::Message) -> String {
         // 优先使用纯文本正文
-        if let Some(text) = parsed.body_text(0) {
-            if !text.contains('\u{fffd}') {
+        if let Some(text) = parsed.body_text(0)
+            && !text.contains('\u{fffd}') {
                 return text.trim().to_string();
             }
-        }
         // 其次使用 HTML 正文（移除标签）
         if let Some(html) = parsed.body_html(0) {
             return Self::strip_html(html.as_ref()).trim().to_string();
@@ -310,16 +309,14 @@ impl EmailChannel {
         // 最后尝试从附件中提取文本
         for part in parsed.attachments() {
             let part: &mail_parser::MessagePart = part;
-            if let Some(ct) = MimeHeaders::content_type(part) {
-                if ct.ctype() == "text" {
-                    if let Ok(text) = std::str::from_utf8(part.contents())
+            if let Some(ct) = MimeHeaders::content_type(part)
+                && ct.ctype() == "text"
+                    && let Ok(text) = std::str::from_utf8(part.contents())
                         && !text.contains('\u{fffd}')
                     {
                         let name = MimeHeaders::attachment_name(part).unwrap_or("file");
                         return format!("[Attachment: {}]\n{}", name, text.trim());
                     }
-                }
-            }
         }
         "(no readable content)".to_string()
     }

@@ -63,7 +63,7 @@ fn work_views_compound_filter_unions_options_and_intersects_fields() {
             ExecutionAgent::Acp { id: "codex".into() },
             ExecutionAgent::Builtin { id: "main".into() },
         ],
-        ..Default::default(),
+        ..Default::default()
     };
     assert!(filter.matches(&task, &workflow));
     task.priority = 21;

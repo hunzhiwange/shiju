@@ -23,7 +23,7 @@ fn read_accepts_owned_root_path() {
     let temp = tempfile::tempdir().expect("tempdir");
     fs::write(temp.path().join("note.txt"), "owned").expect("write text");
 
-    let content = read(temp.path().to_path_buf(), "note.txt").expect("read text");
+    let content = read(temp.path(), "note.txt").expect("read text");
 
     assert!(matches!(content.r#type, ContentType::Text));
     assert_eq!(content.content, "owned");
@@ -182,7 +182,7 @@ fn list_accepts_owned_root_path() {
     let temp = tempfile::tempdir().expect("tempdir");
     fs::write(temp.path().join("note.txt"), "note").expect("write note");
 
-    let nodes = list(temp.path().to_path_buf(), None).expect("list root");
+    let nodes = list(temp.path(), None).expect("list root");
 
     assert_eq!(nodes.len(), 1);
     assert_eq!(nodes[0].name, "note.txt");

@@ -5,7 +5,7 @@ use chacha20poly1305::aead::{Aead as _, KeyInit as _};
 
 fn store_with_fixture_key(dir: &std::path::Path, key_byte: u8) -> SecretStore {
     let store = SecretStore::new(dir, true);
-    std::fs::write(dir.join(".secret_key"), hex_encode(&vec![key_byte; KEY_LEN])).unwrap();
+    std::fs::write(dir.join(".secret_key"), hex_encode(&[key_byte; KEY_LEN])).unwrap();
     store
 }
 

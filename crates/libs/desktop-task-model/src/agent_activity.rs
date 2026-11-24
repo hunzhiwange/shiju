@@ -40,7 +40,6 @@ pub fn project_activity(
         .map(|slot| {
             let task = slot
                 .leased_task_id
-                .as_deref()
                 .and_then(|id| tasks.iter().find(|task| task.id == id));
             // A recorded run keeps its original key even when its definition disappears.
             let key = slot.agent_id.map(str::to_owned).or_else(|| task.and_then(|t| t.agent.clone()));

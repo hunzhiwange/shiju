@@ -480,16 +480,14 @@ fn validate_video_iteration_limits(
 ) -> Result<(), desktop_i18n::workflow::Feedback> {
     match value {
         Value::Mapping(map) => {
-            if map.get("type").and_then(Value::as_str) == Some("iteration") {
-                if let Some(limit) = map.get("max_parallel") {
-                    if !limit.as_u64().is_some_and(|n| (1..=5).contains(&n)) {
+            if map.get("type").and_then(Value::as_str) == Some("iteration")
+                && let Some(limit) = map.get("max_parallel")
+                    && !limit.as_u64().is_some_and(|n| (1..=5).contains(&n)) {
                         return Err(desktop_i18n::workflow::Feedback::new(
                             "视频分段并发必须为 1..5",
                             vec![],
                         ));
                     }
-                }
-            }
             for value in map.values() {
                 validate_video_iteration_limits(value)?;
             }

@@ -119,11 +119,10 @@ pub fn resolve_app_theme_name(name: &str, store: Option<&ThemeStore>) -> Option<
 ///
 /// 自定义主题必须带上已知 id，写成 `custom:<id>`；内置主题仍用显示名。
 pub fn config_value_for_theme(theme: &Theme, custom_id: Option<&str>) -> String {
-    if matches!(theme, Theme::Custom(_)) {
-        if let Some(id) = custom_id.filter(|id| !id.is_empty()) {
+    if matches!(theme, Theme::Custom(_))
+        && let Some(id) = custom_id.filter(|id| !id.is_empty()) {
             return format!("{CUSTOM_THEME_PREFIX}{id}");
         }
-    }
     theme.to_string()
 }
 

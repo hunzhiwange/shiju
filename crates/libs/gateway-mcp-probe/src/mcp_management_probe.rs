@@ -105,11 +105,11 @@ impl GatewayMcpProbeClient {
         segments: &[&str],
         scope: &DiagnosticScopeQuery,
         body: Option<&B>,
-        token: &str,
+        _token: &str,
     ) -> Result<T, AgentAppsSettingsError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (method, segments, scope, body, token);
+            let _ = (method, segments, scope, body, _token);
             Err(AgentAppsSettingsError::Transport(
                 "MCP checks require native transport with redirects and retries disabled".into(),
             ))

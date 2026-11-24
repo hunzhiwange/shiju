@@ -49,11 +49,11 @@ impl GatewayModelCatalogClient {
         resource: &str,
         project: &ModelCatalogProject,
         input: &impl serde::Serialize,
-        token: &str,
+        _token: &str,
     ) -> Result<T, Error> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (resource, project, input, token);
+            let _ = (resource, project, input, _token);
             Err(Error::Transport("model catalog requires native transport".into()))
         }
         #[cfg(not(target_arch = "wasm32"))]

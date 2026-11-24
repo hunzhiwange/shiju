@@ -34,7 +34,7 @@ pub fn node_data_yaml(node: &WorkflowNode) -> Result<String, desktop_i18n::workf
     let data = node
         .raw_node
         .as_mapping()
-        .and_then(|map| map.get(&key_value("data")))
+        .and_then(|map| map.get(key_value("data")))
         .cloned()
         .unwrap_or_else(|| yaml_map(vec![]));
     yaml_string_for_editor(&data)
@@ -94,7 +94,7 @@ pub fn load_document_from_path(
                 vec![error.to_string()],
             )
         })?;
-        return load_document_from_text(Some(path.to_string()), text);
+        load_document_from_text(Some(path.to_string()), text)
     }
 
     #[cfg(target_arch = "wasm32")]

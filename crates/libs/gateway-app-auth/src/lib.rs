@@ -1,11 +1,20 @@
 //! 网关应用授权查询、流程与账号操作。
 #[derive(Debug, Clone)]
 pub struct GatewayAppAuthClient {
+    #[cfg(not(target_arch = "wasm32"))]
     transport: gateway_http::GatewayTransport,
 }
 
 impl GatewayAppAuthClient {
-    pub fn new(transport: gateway_http::GatewayTransport) -> Self { Self { transport } }
+    pub fn new(transport: gateway_http::GatewayTransport) -> Self {
+        #[cfg(target_arch = "wasm32")]
+        let _ = transport;
+
+        Self {
+            #[cfg(not(target_arch = "wasm32"))]
+            transport,
+        }
+    }
 }
 #[cfg(not(target_arch = "wasm32"))]
 mod agent_apps_auth_read;

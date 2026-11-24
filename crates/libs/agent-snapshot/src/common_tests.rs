@@ -86,7 +86,7 @@ fn git_error_displays_message() {
 
 #[test]
 fn source_errors_display_inner_messages() {
-    let io = Error::Io(std::io::Error::new(std::io::ErrorKind::Other, "snapshot I/O failed"));
+    let io = Error::Io(std::io::Error::other("snapshot I/O failed"));
     let utf8_source = String::from_utf8(vec![0xff]).unwrap_err();
     let utf8_message = utf8_source.to_string();
     let utf8 = Error::Utf8(utf8_source);

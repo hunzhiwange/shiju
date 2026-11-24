@@ -384,7 +384,7 @@ async fn select_menu_renders_checked_and_hovered_options_and_fits_viewport() {
                 assert!(messages.is_empty());
             }
             let pixels = renderer.screenshot(Size::new(480, 420), 1.0, theme.palette().background);
-            assert!(pixels.chunks_exact(4).any(|p| p[3] != 0));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|p| p[3] != 0));
             if let Ok(directory) = std::env::var("SHIJU_SETTINGS_PREVIEW_DIR") {
                 std::fs::create_dir_all(&directory).unwrap();
                 image::save_buffer(

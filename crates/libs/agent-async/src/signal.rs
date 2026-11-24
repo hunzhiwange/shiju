@@ -6,6 +6,12 @@ pub struct Signal {
     rx: tokio::sync::watch::Receiver<bool>,
 }
 
+impl Default for Signal {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Signal {
     pub fn new() -> Self {
         let (tx, rx) = tokio::sync::watch::channel(false);

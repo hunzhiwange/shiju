@@ -5,7 +5,6 @@ use super::*;
 use tempfile::TempDir;
 
 use agent_database::config::DatabaseProvider;
-use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn workflow_postgres_provider_is_wired() {

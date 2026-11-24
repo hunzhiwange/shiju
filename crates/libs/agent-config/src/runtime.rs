@@ -274,12 +274,11 @@ fn plugin_name(spec: &str) -> String {
     }
     // 处理版本化格式：package@version
     let last_at = spec.rfind('@');
-    if let Some(i) = last_at {
-        if i > 0 {
+    if let Some(i) = last_at
+        && i > 0 {
             // 返回 @ 符号之前的部分
             return spec[..i].to_string();
         }
-    }
     // 无特殊格式，直接返回原字符串
     spec.to_string()
 }

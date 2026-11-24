@@ -132,9 +132,8 @@ impl RequestUsage {
         if self.sse {
             while let Some(end) = self.pending.iter().position(|b| *b == b'\n') {
                 let line: Vec<_> = self.pending.drain(..=end).collect();
-                if let Some(data) = line.strip_prefix(b"data:") {
-                    if let Ok(value) = serde_json::from_slice::<Value>(data) { self.snapshot(&value); }
-                }
+                if let Some(data) = line.strip_prefix(b"data:")
+                    && let Ok(value) = serde_json::from_slice::<Value>(data) { self.snapshot(&value); }
             }
         }
     }
@@ -163,7 +162,7 @@ impl RequestUsage {
         self.sse = parts.headers.get(axum::http::header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok()).is_some_and(|v| v.starts_with("text/event-stream"));
         let stream = futures_util::stream::unfold((body.into_data_stream(), self), |(mut stream, mut usage)| async move {
-            if usage.value.is_none() { return None; }
+            usage.value.as_ref()?;
             match stream.next().await {
                 Some(Ok(bytes)) => { usage.observe(&bytes); Some((Ok::<_, axum::Error>(bytes), (stream, usage))) }
                 Some(Err(error)) => {

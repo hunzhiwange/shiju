@@ -29,7 +29,7 @@ impl GatewayAppSkillsClient {
         -> Result<SkillBindingsResponse, SkillBindingError> {
         self.skill_distribution_post("resync", query, token).await
     }
-    async fn skill_distribution_post(&self, path: &str, query: &impl serde::Serialize, token: &str)
+    async fn skill_distribution_post(&self, path: &str, query: &impl serde::Serialize, _token: &str)
         -> Result<SkillBindingsResponse, SkillBindingError> {
         let request = self.transport.native_transport().map_err(|_| SkillBindingError::Transport)?
             .post(format!("{}/v1/agent-apps/skills/{path}", self.transport.endpoint().base_url()))
@@ -45,7 +45,7 @@ impl GatewayAppSkillsClient {
 
 impl GatewayAppSkillsClient {
     pub async fn agent_apps_skill_binding_targets(&self, scope: &vw_api_app_skills::repos_api::SkillReposQuery,
-        change: Option<&SkillBindingPreferences>, token: &str) -> Result<SkillBindingSnapshot, SkillBindingError> {
+        change: Option<&SkillBindingPreferences>, _token: &str) -> Result<SkillBindingSnapshot, SkillBindingError> {
         let url = format!("{}/v1/agent-apps/skills/binding-targets", self.transport.endpoint().base_url());
         let client = self.transport.native_transport().map_err(|_| SkillBindingError::Transport)?;
         let request = match change { Some(value) => client.put(url).json(value), None => client.get(url).query(scope) };

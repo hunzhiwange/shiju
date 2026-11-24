@@ -41,11 +41,11 @@ impl GatewayMcpWriteClient {
         method: reqwest::Method,
         id: Option<&McpRecordId>,
         body: &B,
-        token: &str,
+        _token: &str,
     ) -> Result<T, AgentAppsSettingsError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (method, id, body, token);
+            let _ = (method, id, body, _token);
             Err(AgentAppsSettingsError::Transport(
                 "MCP catalog writes require native transport with redirects and retries disabled"
                     .into(),

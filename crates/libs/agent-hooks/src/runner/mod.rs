@@ -595,6 +595,12 @@ impl HookRunner {
     }
 }
 
+impl Default for HookRunner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;

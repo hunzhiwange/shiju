@@ -1,5 +1,5 @@
 //! Domain tests migrated from the native video workflow; native security stays in vw-agent.
-use crate::{assets, budget, cloud_failure, manifest, planning, prepare, transcript};
+use crate::{assets, budget, manifest, planning, prepare, transcript};
 use crate::merge_tests;
 use crate::command::{parse_video_edit_command, prepare_video_edit_request};
 use crate::types::VideoEditRequest;

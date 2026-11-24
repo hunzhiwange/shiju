@@ -133,31 +133,29 @@ impl rmcp::ClientHandler for NoopClient {
         std::future::ready(Err(unsupported_client_capability_error("roots")))
     }
 
-    fn create_elicitation(
+    async fn create_elicitation(
         &self,
         request: CreateElicitationRequestParam,
         context: RequestContext<RoleClient>,
-    ) -> impl Future<Output = Result<CreateElicitationResult, ErrorData>> + Send + '_ {
-        async move {
-            let schema = self.raw_responses.take_form(&context.id);
-            let owner = self
-                .form_owner
-                .clone()
-                .ok_or_else(|| unsupported_client_capability_error("elicitation"))?;
-            self.host.as_ref()
-                .ok_or_else(|| unsupported_client_capability_error("elicitation"))?
-                .request_elicitation(
-                owner,
-                self.form_server.clone(),
-                request,
-                context.ct,
-                self.closed.clone(),
-                Some(schema.ok_or_else(|| {
-                    ErrorData::invalid_params("MCP form wire schema is unavailable", None)
-                })?),
-            )
-            .await
-        }
+    ) -> Result<CreateElicitationResult, ErrorData> {
+        let schema = self.raw_responses.take_form(&context.id);
+        let owner = self
+            .form_owner
+            .clone()
+            .ok_or_else(|| unsupported_client_capability_error("elicitation"))?;
+        self.host.as_ref()
+            .ok_or_else(|| unsupported_client_capability_error("elicitation"))?
+            .request_elicitation(
+            owner,
+            self.form_server.clone(),
+            request,
+            context.ct,
+            self.closed.clone(),
+            Some(schema.ok_or_else(|| {
+                ErrorData::invalid_params("MCP form wire schema is unavailable", None)
+            })?),
+        )
+        .await
     }
 
     fn on_resource_list_changed(

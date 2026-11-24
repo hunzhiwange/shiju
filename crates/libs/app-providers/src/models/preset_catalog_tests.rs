@@ -1,6 +1,5 @@
 use super::preset_catalog::universal_preset;
 use crate::providers::{universal, universal_sync, update};
-use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
 use vw_api_app_provider_edit::universal::UniversalConfig;
 use vw_api_app_provider_edit::universal::UniversalProviderWrite;

@@ -400,9 +400,9 @@ pub fn workflow_start_node_min_height(raw_node: &Value) -> f32 {
 fn workflow_start_node_variables_from_raw(raw_node: &Value) -> Vec<WorkflowStartVariableSummary> {
     let Some(variable_values) = raw_node
         .as_mapping()
-        .and_then(|node| node.get(&Value::String("data".to_string())))
+        .and_then(|node| node.get(Value::String("data".to_string())))
         .and_then(Value::as_mapping)
-        .and_then(|data| data.get(&Value::String("variables".to_string())))
+        .and_then(|data| data.get(Value::String("variables".to_string())))
         .and_then(Value::as_sequence)
     else {
         return Vec::new();
@@ -414,17 +414,17 @@ fn workflow_start_node_variables_from_raw(raw_node: &Value) -> Vec<WorkflowStart
         .map(|(index, value)| {
             let variable_map = value.as_mapping();
             let variable_name = variable_map
-                .and_then(|map| map.get(&Value::String("variable".to_string())))
+                .and_then(|map| map.get(Value::String("variable".to_string())))
                 .and_then(Value::as_str)
                 .map(str::trim)
                 .filter(|value| !value.is_empty());
             let variable_label = variable_map
-                .and_then(|map| map.get(&Value::String("label".to_string())))
+                .and_then(|map| map.get(Value::String("label".to_string())))
                 .and_then(Value::as_str)
                 .map(str::trim)
                 .filter(|value| !value.is_empty());
             let input_type = variable_map
-                .and_then(|map| map.get(&Value::String("type".to_string())))
+                .and_then(|map| map.get(Value::String("type".to_string())))
                 .and_then(Value::as_str)
                 .unwrap_or("text-input");
             let display_name = variable_name

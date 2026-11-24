@@ -183,11 +183,11 @@ impl GatewayMcpDistributionClient {
         method: reqwest::Method,
         segments: &[&str],
         body: &B,
-        token: &str,
+        _token: &str,
     ) -> Result<T, AgentAppsSettingsError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (method, segments, body, token);
+            let _ = (method, segments, body, _token);
             Err(AgentAppsSettingsError::Transport(
                 "MCP distribution requires native transport with redirects and retries disabled"
                     .into(),

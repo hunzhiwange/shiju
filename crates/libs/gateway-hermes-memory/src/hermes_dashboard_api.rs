@@ -21,7 +21,7 @@ impl GatewayHermesMemoryClient {
     pub async fn hermes_dashboard_cancel(&self, scope: &DashboardScope, id: &str, token: &str) -> Result<DashboardOperation, HermesDashboardError> {
         self.hermes_dashboard_request(reqwest::Method::DELETE, &operation_path(id)?, scope, token).await
     }
-    async fn hermes_dashboard_request<T: DeserializeOwned>(&self, method: reqwest::Method, resource: &str, scope: &DashboardScope, token: &str) -> Result<T, HermesDashboardError> {
+    async fn hermes_dashboard_request<T: DeserializeOwned>(&self, method: reqwest::Method, resource: &str, scope: &DashboardScope, _token: &str) -> Result<T, HermesDashboardError> {
         use HermesDashboardError as E;
         let transport = self.transport.native_transport().map_err(|_| E::Transport)?;
         let request = transport.request(method, format!("{}{BASE}/{resource}", self.transport.endpoint().base_url()))

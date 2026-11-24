@@ -1,6 +1,5 @@
 static TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 use super::execute::*;
-use vw_api_types::{agent_apps::*};
 use vw_api_app_identity::{
     AppId,
     AppInstallation,

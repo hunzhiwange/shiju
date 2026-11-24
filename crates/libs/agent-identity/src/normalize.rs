@@ -48,11 +48,10 @@ fn normalize_names(value: Option<&Value>) -> Option<Names> {
         full: value_at_path(value, &["full"]).and_then(scalar_to_string),
     };
 
-    if names.full.is_none() {
-        if let (Some(first), Some(last)) = (&names.first, &names.last) {
+    if names.full.is_none()
+        && let (Some(first), Some(last)) = (&names.first, &names.last) {
             names.full = Some(format!("{first} {last}"));
         }
-    }
 
     if names.first.is_none()
         && names.last.is_none()

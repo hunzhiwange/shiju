@@ -167,7 +167,7 @@ pub(super) fn patch_root_for_save(
             conversation_variables.iter().map(saved_conversation_variable_value).collect(),
         ),
     );
-    root_map.remove(&key_value("graph"));
+    root_map.remove(key_value("graph"));
 
     Ok(root)
 }
@@ -217,7 +217,7 @@ pub(super) fn saved_edge_value(edge: &WorkflowEdge) -> Value {
     set_optional_string(raw_map, "targetHandle", edge.target_handle.as_deref());
     set_mapping_value(raw_map, "selected", Value::Bool(edge.selected));
     set_mapping_value(raw_map, "zIndex", yaml_value(edge.z_index as f64));
-    if !raw_map.contains_key(&key_value("type")) {
+    if !raw_map.contains_key(key_value("type")) {
         set_mapping_value(raw_map, "type", Value::String("custom".to_string()));
     }
 
@@ -258,16 +258,16 @@ pub(super) fn saved_conversation_variable_value(variable: &WorkflowConversationV
 
 pub(super) fn raw_graph_value(root: &Value) -> Option<&Mapping> {
     let root_map = root.as_mapping()?;
-    if let Some(workflow) = root_map.get(&key_value("workflow")) {
+    if let Some(workflow) = root_map.get(key_value("workflow")) {
         let workflow_map = workflow.as_mapping()?;
-        return workflow_map.get(&key_value("graph")).and_then(Value::as_mapping);
+        return workflow_map.get(key_value("graph")).and_then(Value::as_mapping);
     }
 
-    root_map.get(&key_value("graph")).and_then(Value::as_mapping)
+    root_map.get(key_value("graph")).and_then(Value::as_mapping)
 }
 
 pub(super) fn raw_workflow_value(root: &Value) -> Option<&Mapping> {
-    root.as_mapping()?.get(&key_value("workflow")).and_then(Value::as_mapping)
+    root.as_mapping()?.get(key_value("workflow")).and_then(Value::as_mapping)
 }
 
 pub(super) fn yaml_string_for_editor(
@@ -298,7 +298,7 @@ pub(super) fn set_optional_string(map: &mut Mapping, key: &str, value: Option<&s
     match value.filter(|value| !value.trim().is_empty()) {
         Some(value) => set_mapping_value(map, key, Value::String(value.to_string())),
         None => {
-            map.remove(&key_value(key));
+            map.remove(key_value(key));
         }
     }
 }

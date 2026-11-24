@@ -742,13 +742,11 @@ fn detect_mime(
         return Some(header_mime);
     }
 
-    if let Some(path) = path {
-        if let Some(ext) = path.extension().and_then(|value| value.to_str()) {
-            if let Some(mime) = mime_from_extension(ext) {
+    if let Some(path) = path
+        && let Some(ext) = path.extension().and_then(|value| value.to_str())
+            && let Some(mime) = mime_from_extension(ext) {
                 return Some(mime.to_string());
             }
-        }
-    }
 
     mime_from_magic(bytes).map(ToString::to_string)
 }

@@ -1874,7 +1874,6 @@ fn gateway_local_agent_stream_request_forwards_execution_selection() {
 
     assert_eq!(body.model.as_deref(), Some("deepseek/deepseek-v4-flash"));
     assert_eq!(body.agent, None);
-    assert_eq!(body.acp_agent.as_deref(), Some("codex"));
     assert_eq!(body.reasoning_effort, Some(vw_api_chat_identity::ReasoningEffortDto::High));
     assert_eq!(body.messages[0]["content"], "Use the selected model");
     let options = body.options.expect("gateway options");
@@ -3715,7 +3714,7 @@ async fn exercise_persisted_work_plan(
 
     let final_board = board(resumed_app.clone()).await;
     for task in final_board.iter().filter(|task| task.task_id.as_ref() != "ordinary") {
-        assert_eq!(task.status, Some(AgentTaskStatusDto::Completed), "{}", task.task_id);
+        assert_eq!(task.status, Some(AgentTaskStatusDto::Completed), "{}", task.task_id.as_ref());
     }
     assert_eq!(
         reopened

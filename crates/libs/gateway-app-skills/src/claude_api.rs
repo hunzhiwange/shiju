@@ -2,7 +2,7 @@ use crate::GatewayAppSkillsClient;
 use vw_api_app_skills::claude_api::*;
 
 impl GatewayAppSkillsClient {
-    pub async fn claude_config_status(&self, scope: &ClaudeConfigQuery, token: &str)
+    pub async fn claude_config_status(&self, scope: &ClaudeConfigQuery, _token: &str)
         -> Result<ClaudeConfigResponse, String> {
         let request = self.transport.native_transport().map_err(|_| "Claude transport unavailable")?
             .get(format!("{}/v1/agent-apps/claude/config-status", self.transport.endpoint().base_url()))
@@ -20,7 +20,7 @@ impl GatewayAppSkillsClient {
         self.claude_control("onboarding", request, token).await
     }
 
-    async fn claude_control(&self, path: &str, body: &ClaudeConfigRequest, token: &str)
+    async fn claude_control(&self, path: &str, body: &ClaudeConfigRequest, _token: &str)
         -> Result<ClaudeConfigChangeResponse, String> {
         let request = self.transport.native_transport().map_err(|_| "Claude transport unavailable")?
             .post(format!("{}/v1/agent-apps/claude/{path}", self.transport.endpoint().base_url()))

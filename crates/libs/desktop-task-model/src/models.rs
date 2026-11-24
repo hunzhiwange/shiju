@@ -433,11 +433,9 @@ impl TaskStatus {
                     crate::workflow::DEFAULT_TASK_WORKFLOW_ID,
                 )
             })
-        {
-            if workflow.status_definition(*self).is_some() {
+            && workflow.status_definition(*self).is_some() {
                 return workflow.next_status(*self);
             }
-        }
         self.next()
     }
 

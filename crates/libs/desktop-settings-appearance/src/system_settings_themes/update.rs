@@ -234,6 +234,7 @@ fn pick_theme_pack_task() -> Task<ThemesMessage> {
 }
 
 fn save_theme_pack_task(theme_id: String) -> Task<ThemesMessage> {
+    #[cfg(not(target_arch = "wasm32"))]
     let default_id = if find_builtin_theme(&theme_id).is_some() {
         builtin_overlay_slug(&theme_id)
     } else {

@@ -10,7 +10,7 @@ fn cp12_inventory_success() {
     fs::write(tree.join("z.txt"), "last").unwrap();
     fs::write(tree.join("a.txt"), "first").unwrap();
     let saved = LocalSkill { directory: "sample".into(), name: "old".into(), description: None, source: tree.clone() };
-    let detail = get_all_installed(root.path(), &[saved.clone()]).unwrap().remove(0);
+    let detail = get_all_installed(root.path(), std::slice::from_ref(&saved)).unwrap().remove(0);
     assert!(detail.present);
     assert_eq!(detail.skill.name, "Sample");
     assert_eq!(detail.version.as_deref(), Some("1.2"));
@@ -50,7 +50,7 @@ fn cp12_inventory_supports_manifest_without_markdown() {
     fs::create_dir(&tree).unwrap();
     fs::write(tree.join("SKILL.toml"), "name = 'Manifest'\ndescription = 'Details'\n").unwrap();
     let saved = LocalSkill { directory: "sample".into(), name: "old".into(), description: None, source: tree };
-    let details = get_all_installed(root.path(), &[saved.clone()]).unwrap();
+    let details = get_all_installed(root.path(), std::slice::from_ref(&saved)).unwrap();
     assert_eq!(details[0].skill.name, "Manifest");
     assert!(details[0].version.is_none());
     assert!(details[0].manifest.is_some());

@@ -115,15 +115,11 @@ impl ImageAnalysisCache {
         }
 
         let result = self.run_analysis(store, scope, image_id, &model_ref, extractor).await;
-        match &result {
-            Ok(value) => {
-                if let Err(error) = self.persist_cache(&cache_path, value) {
-                    ANALYSIS_INFLIGHT.lock().remove(&cache_key);
-                    return Err(error);
-                }
+        if let Ok(value) = &result
+            && let Err(error) = self.persist_cache(&cache_path, value) {
+                ANALYSIS_INFLIGHT.lock().remove(&cache_key);
+                return Err(error);
             }
-            Err(_) => {}
-        }
         ANALYSIS_INFLIGHT.lock().remove(&cache_key);
         result
     }
@@ -321,8 +317,8 @@ pub async fn resolve_analysis_model(
 /// 解析模型输出为结构化分析；非 JSON 时整体视为可见文字。
 pub fn parse_analysis_model_output(output: &str) -> RawImageAnalysis {
     let trimmed = output.trim();
-    if let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed) {
-        if let Some(object) = value.as_object() {
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed)
+        && let Some(object) = value.as_object() {
             let visible_text = object
                 .get("visible_text")
                 .and_then(|value| value.as_str())
@@ -335,7 +331,6 @@ pub fn parse_analysis_model_output(output: &str) -> RawImageAnalysis {
                 .to_string();
             return RawImageAnalysis { visible_text, visual_summary };
         }
-    }
 
     RawImageAnalysis { visible_text: trimmed.to_string(), visual_summary: String::new() }
 }

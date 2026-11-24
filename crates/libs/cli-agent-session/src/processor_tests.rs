@@ -148,7 +148,6 @@ fn gateway_stream_request_from_processor_request_keeps_empty_query_after_empty_h
     assert!(gateway.reasoning_effort.is_none());
     assert!(gateway.agent.is_none());
     assert!(gateway.allowed_tools.is_none());
-    assert!(gateway.acp_agent.is_none());
     assert!(gateway.acp_allowed_tools.is_none());
 }
 

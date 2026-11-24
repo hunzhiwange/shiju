@@ -138,7 +138,7 @@ fn built_in_specs_include_stable_user_keys() {
     assert!(specs.contains_key("claude"));
     assert_eq!(specs["auggie"].env["AUGMENT_DISABLE_AUTO_UPDATE"], "1");
     assert_eq!(codex_args.first().copied(), Some("-y"));
-    assert!(codex_args.iter().any(|arg| *arg == CODEX_ADAPTER_PACKAGE));
+    assert!(codex_args.contains(&CODEX_ADAPTER_PACKAGE));
     assert!(!codex_args.iter().any(|arg| arg.contains("mcp_servers.node_repl")));
     for args in [gemini_args, qoder_args, qwen_args] {
         assert!(!args.iter().any(|arg| matches!(arg.as_str(), "yolo" | "bypass_permissions")));

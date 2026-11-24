@@ -159,7 +159,7 @@ fn install_result_resets_update_state_and_sets_outcome_copy() {
     app.update_panel.cli_install_modal_use_app_update_action = true;
     app.update_panel.cli_install_modal_is_checking_update = true;
 
-    let _ = update(&mut app, ViewMessage::InstallCliToolFinished(Ok("installed".into())));
+    let _ = update(&mut app, ViewMessage::InstallCliToolFinished(Ok(desktop_i18n::format::Message::literal("installed".into()))));
 
     assert!(app.update_panel.show_cli_install_modal);
     assert_eq!(app.update_panel.cli_install_modal_title, "CLI 安装完成");
@@ -171,7 +171,7 @@ fn install_result_resets_update_state_and_sets_outcome_copy() {
     assert!(!app.update_panel.cli_install_modal_use_app_update_action);
     assert!(!app.update_panel.cli_install_modal_is_checking_update);
 
-    let _ = update(&mut app, ViewMessage::InstallCliToolFinished(Err("permission denied".into())));
+    let _ = update(&mut app, ViewMessage::InstallCliToolFinished(Err("permission denied".to_owned().into())));
     assert_eq!(app.update_panel.cli_install_modal_title, "CLI 安装失败");
     assert_eq!(app.update_panel.cli_install_modal_message, "permission denied");
 }

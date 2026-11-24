@@ -11,7 +11,7 @@ fn none_memory_is_zero_sized_copyable_and_named() {
 
     assert_eq!(std::mem::size_of::<NoneMemory>(), 0);
     assert_eq!(format!("{cloned:?}"), "NoneMemory");
-    assert_eq!(NoneMemory::default().name(), "none");
+    assert_eq!(NoneMemory.name(), "none");
 }
 
 #[tokio::test]

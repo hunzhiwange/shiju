@@ -88,15 +88,13 @@ impl TranscriptCache {
         let before = source_fingerprint(source).map_err(|_| "cannot fingerprint session source")?;
         {
             let mut entries = self.entries.lock().map_err(|_| "session cache lock poisoned")?;
-            if let Some(index) = entries.iter().position(|e| &e.identity == source.identity()) {
-                if let Some(entry) = entries.remove(index) {
-                    if entry.root == source.root() && entry.path == source.path() && entry.fingerprint == before {
+            if let Some(index) = entries.iter().position(|e| &e.identity == source.identity())
+                && let Some(entry) = entries.remove(index)
+                    && entry.root == source.root() && entry.path == source.path() && entry.fingerprint == before {
                         let value = Arc::clone(&entry.transcript);
                         entries.push_back(entry);
                         return Ok((value, true));
                     }
-                }
-            }
         }
         // Parse outside the lock. Never publish a parse spanning a source update.
         let value = Arc::new(Transcript::new(load()?)?);

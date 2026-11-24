@@ -11,7 +11,6 @@ use vw_api_task_lifecycle::{
 
 use agent_database::GlobalDatabase;
 use agent_database::config::DatabaseProvider;
-use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn task_lifecycle_postgres_provider_is_wired() {

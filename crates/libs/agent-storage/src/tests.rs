@@ -46,7 +46,7 @@ fn error_display_delegates_to_inner_error() {
     let err = Error::NotFound(NotFoundError { message: "gone".to_string() });
     assert_eq!(err.to_string(), "gone");
 
-    let io = Error::Io(std::io::Error::new(std::io::ErrorKind::Other, "io boom"));
+    let io = Error::Io(std::io::Error::other("io boom"));
     assert_eq!(io.to_string(), "io boom");
 
     let json = serde_json::from_str::<serde_json::Value>("{").unwrap_err();

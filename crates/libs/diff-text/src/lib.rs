@@ -155,11 +155,10 @@ pub fn count_unified_diff_changes(diff: &str) -> (usize, usize) {
                         adds += 1;
                     }
                 }
-                '-' => {
-                    if !line.starts_with("---") {
+                '-'
+                    if !line.starts_with("---") => {
                         dels += 1;
                     }
-                }
                 _ => {}
             }
         }

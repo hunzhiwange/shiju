@@ -1,10 +1,7 @@
 use vw_api_app_operations::{AppActionPreviewId, AppActionPreviewRequest, AppActionSubmitRequest, AppOperationPhase};
 use super::{AgentAppsLifecycleError, test_support};
 use serde_json::json;
-use {
-    vw_api_types::agent_apps::*,
-    vw_api_transport::id::TaskId,
-};
+use vw_api_transport::id::TaskId;
 
 #[tokio::test]
 async fn cc_apps_lifecycle_sdk_roundtrip_preserves_ids_and_recovers_by_reading() {

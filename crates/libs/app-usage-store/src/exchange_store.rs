@@ -103,17 +103,16 @@ pub fn save_refresh_result(
     host: &str,
     result: Result<CachedRates, String>,
 ) -> Result<ExchangeSettings, String> {
-    if let Ok(cache) = &result {
-        if cache.fetched_at <= 0
+    if let Ok(cache) = &result
+        && (cache.fetched_at <= 0
             || cache.rates.is_empty()
             || !["open.er-api.com", "floatrates.com"].contains(&cache.source.as_str())
             || cache.rates.iter().any(|(code, rate)| {
                 !TARGET_CURRENCIES.contains(&code.as_str()) || !rate.is_finite() || *rate <= 0.0
-            })
+            }))
         {
             return Err("Invalid fetched exchange rates".into());
         }
-    }
     update(connection, scope, host, |settings| match result {
         Ok(cache) => {
             // A slower, older refresh cannot replace a newer successful snapshot.

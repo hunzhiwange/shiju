@@ -32,6 +32,12 @@ pub struct PrometheusObserver {
     queue_depth: GaugeVec,
 }
 
+impl Default for PrometheusObserver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PrometheusObserver {
     /// 创建并注册所有 VibeWindow 运行时指标。
     ///
@@ -211,8 +217,6 @@ impl Observer for PrometheusObserver {
                 success,
                 input_tokens,
                 output_tokens,
-                cached_tokens: _,
-                reasoning_tokens: _,
                 ..
             } => {
                 let success_str = if *success { "true" } else { "false" };

@@ -3,7 +3,6 @@
 // 数据库 fixture 为每次测试创建独立模式，重点确认相同记录不会跨租户可见。
 use super::*;
 
-use agent_database::test_support::PostgresTestDatabase;
 
 fn body(name: &str, description: &str, workflow_yaml: &str) -> WorkflowRecordUpsertBody {
     WorkflowRecordUpsertBody {

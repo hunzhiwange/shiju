@@ -331,11 +331,10 @@ impl GitHubScout {
             "VibeWindow-SkillForge/0.1".parse().expect("valid header"),
         );
         // 如果提供了 token，添加认证头
-        if let Some(ref t) = token {
-            if let Ok(val) = format!("Bearer {t}").parse() {
+        if let Some(ref t) = token
+            && let Ok(val) = format!("Bearer {t}").parse() {
                 headers.insert(reqwest::header::AUTHORIZATION, val);
             }
-        }
 
         // 构建 HTTP 客户端
         let client = reqwest::Client::builder();

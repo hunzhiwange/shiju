@@ -6,11 +6,11 @@ impl GatewayExternalSessionClient {
     pub async fn external_session_resume(
         &self,
         request: &SessionResumeRequest,
-        token: &str,
+        _token: &str,
     ) -> Result<SessionResumeResponse, AgentAppsReadError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (request, token);
+            let _ = (request, _token);
             return Err(AgentAppsReadError::Transport(
                 "authorized history resume requires native transport".into(),
             ));
@@ -39,11 +39,11 @@ impl GatewayExternalSessionClient {
     pub async fn external_session_resume_command(
         &self,
         request: &SessionResumeRequest,
-        token: &str,
+        _token: &str,
     ) -> Result<vw_api_external_session::SessionResumeCommandResponse, AgentAppsReadError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (request, token);
+            let _ = (request, _token);
             return Err(AgentAppsReadError::Transport(
                 "authorized history resume requires native transport".into(),
             ));

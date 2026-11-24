@@ -121,7 +121,6 @@ use crate::constants::SKILL_DOWNLOAD_POLICY_FILE;
 use crate::source::{extract_link_host, source_urls_for_trust_check};
 use crate::types::SkillDownloadPolicy;
 use anyhow::{Context, Result};
-use std::io::IsTerminal;
 use std::path::Path;
 
 /// 获取策略配置文件的完整路径
@@ -421,6 +420,7 @@ fn source_domain_trust_can_prompt_interactively() -> bool {
 
     #[cfg(not(test))]
     {
+        use std::io::IsTerminal;
         std::io::stdin().is_terminal() && std::io::stdout().is_terminal()
     }
 }

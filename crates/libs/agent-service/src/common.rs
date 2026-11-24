@@ -15,15 +15,14 @@ const SERVICE_ENV_VARS: &[&str] = &[
 pub(super) fn build_launchd_env_vars() -> String {
     let mut entries = Vec::new();
     for &var in SERVICE_ENV_VARS {
-        if let Ok(val) = std::env::var(var) {
-            if !val.is_empty() {
+        if let Ok(val) = std::env::var(var)
+            && !val.is_empty() {
                 entries.push(format!(
                     "    <key>{}</key>\n    <string>{}</string>",
                     xml_escape(var),
                     xml_escape(&val)
                 ));
             }
-        }
     }
 
     if entries.is_empty() {
@@ -36,11 +35,10 @@ pub(super) fn build_launchd_env_vars() -> String {
 pub(super) fn build_systemd_env_vars() -> String {
     let mut lines = Vec::new();
     for &var in SERVICE_ENV_VARS {
-        if let Ok(val) = std::env::var(var) {
-            if !val.is_empty() {
+        if let Ok(val) = std::env::var(var)
+            && !val.is_empty() {
                 lines.push(format!("Environment=\"{var}={val}\""));
             }
-        }
     }
 
     if lines.is_empty() { String::new() } else { format!("{}\n", lines.join("\n")) }

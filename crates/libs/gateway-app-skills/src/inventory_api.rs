@@ -30,7 +30,7 @@ impl GatewayAppSkillsClient {
     }
 
     async fn read_skill_inventory<T: serde::de::DeserializeOwned>(&self,
-        scope: &SkillReposQuery, token: &str, id: Option<&str>,
+        scope: &SkillReposQuery, _token: &str, id: Option<&str>,
     ) -> Result<T, SkillInventoryError> {
         let mut url = reqwest::Url::parse(&format!("{}/v1/agent-apps/skills", self.transport.endpoint().base_url()))
             .map_err(|_| SkillInventoryError::Transport)?;

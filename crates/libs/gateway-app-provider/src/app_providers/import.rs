@@ -7,11 +7,11 @@ impl GatewayAppProviderClient {
         &self,
         app: vw_api_app_identity::AppId,
         body: &ProviderImport,
-        token: &str,
+        _token: &str,
     ) -> Result<ProviderImportResult, Error> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (app, body, token);
+            let _ = (app, body, _token);
             Err(Error::Transport("Provider import requires native transport".into()))
         }
         #[cfg(not(target_arch = "wasm32"))]

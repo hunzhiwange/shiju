@@ -40,11 +40,10 @@ fn resolve_skill_location(skill: &Skill, workspace_dir: &Path) -> PathBuf {
 
 fn render_skill_location(skill: &Skill, workspace_dir: &Path, prefer_relative: bool) -> String {
     let location = resolve_skill_location(skill, workspace_dir);
-    if prefer_relative {
-        if let Ok(relative) = location.strip_prefix(workspace_dir) {
+    if prefer_relative
+        && let Ok(relative) = location.strip_prefix(workspace_dir) {
             return relative.display().to_string();
         }
-    }
     location.display().to_string()
 }
 

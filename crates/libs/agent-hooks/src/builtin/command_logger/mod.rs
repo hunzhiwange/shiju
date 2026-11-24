@@ -135,6 +135,12 @@ impl CommandLoggerHook {
     }
 }
 
+impl Default for CommandLoggerHook {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// [`HookHandler`] trait 实现
 ///
 /// 为 [`CommandLoggerHook`] 实现钩子处理接口，使其能够接入

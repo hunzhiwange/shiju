@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn bubblewrap_default_constructs_named_backend() {
-        let sandbox = BubblewrapSandbox::default();
+        let sandbox = BubblewrapSandbox;
 
         assert_eq!(sandbox.name(), "bubblewrap");
         assert_eq!(sandbox.description(), "User namespace sandbox (requires bwrap)");

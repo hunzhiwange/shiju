@@ -143,11 +143,10 @@ fn build_buckets(
                 loop {
                     date = date.succ_opt().ok_or(UsageSummaryError::InvalidInput)?;
                     // Some IANA transitions skip an entire calendar date.
-                    if let Ok(next) = super::ranges::start_of_day(date, zone) {
-                        if next > at {
+                    if let Ok(next) = super::ranges::start_of_day(date, zone)
+                        && next > at {
                             break next;
                         }
-                    }
                 }
             }
             UsageSeriesInterval::Hour => {

@@ -350,8 +350,7 @@ async fn parse_skill_md(path: &Path) -> Option<(String, String, String)> {
 
     // 解析 YAML frontmatter，如果不存在则使用 Null 值
     let yaml = frontmatter
-        .map(|s| serde_yaml::from_str::<serde_yaml::Value>(s).ok())
-        .flatten()
+        .and_then(|s| serde_yaml::from_str::<serde_yaml::Value>(s).ok())
         .unwrap_or(serde_yaml::Value::Null);
 
     /// 从 YAML 文档中获取字符串字段
@@ -368,7 +367,7 @@ async fn parse_skill_md(path: &Path) -> Option<(String, String, String)> {
         let serde_yaml::Value::Mapping(map) = doc else {
             return None;
         };
-        map.get(&serde_yaml::Value::String(key.to_string())).and_then(|v| v.as_str())
+        map.get(serde_yaml::Value::String(key.to_string())).and_then(|v| v.as_str())
     }
 
     // 提取必需的 name 字段（不能为空）

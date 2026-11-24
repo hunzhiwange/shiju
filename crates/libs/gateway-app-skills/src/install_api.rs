@@ -18,7 +18,7 @@ impl std::fmt::Display for SkillInstallError {
 }
 impl std::error::Error for SkillInstallError {}
 impl GatewayAppSkillsClient {
-    pub async fn agent_apps_skills_install(&self, query: &InstallSkillRequest, token: &str)
+    pub async fn agent_apps_skills_install(&self, query: &InstallSkillRequest, _token: &str)
         -> Result<InstallSkillResponse, SkillInstallError> {
         let request = self.transport.native_transport().map_err(|_| SkillInstallError::Transport)?
             .post(format!("{}/v1/agent-apps/skills/install", self.transport.endpoint().base_url()))

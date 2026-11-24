@@ -456,8 +456,8 @@ where
             }
 
             // 处理键盘按键事件
-            iced::Event::Keyboard(iced::keyboard::Event::KeyPressed { key, text, .. }) => {
-                if state.is_focused {
+            iced::Event::Keyboard(iced::keyboard::Event::KeyPressed { key, text, .. })
+                if state.is_focused => {
                     match key {
                         // Enter 键：确认编辑并提交值
                         iced::keyboard::Key::Named(iced::keyboard::key::Named::Enter) => {
@@ -603,7 +603,6 @@ where
                         }
                     }
                 }
-            }
             _ => {}
         }
     }

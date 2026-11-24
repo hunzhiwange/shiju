@@ -86,8 +86,8 @@ impl DisableDeploy {
             .map_err(|_| DisableError::Preserved)? != binding.fingerprint {
             return Err(DisableError::Preserved);
         }
-        let stage = tempfile::Builder::new().prefix(".skill-disable-").tempdir_in(&destination_root)?;
-        let stage_dir = open_beneath(&destination_root, stage.path(), true)
+        let stage = tempfile::Builder::new().prefix(".skill-disable-").tempdir_in(destination_root)?;
+        let stage_dir = open_beneath(destination_root, stage.path(), true)
             .map_err(|_| DisableError::Preserved)?;
         Ok(Self { root, stage: Some(stage), stage_dir, binding: binding.clone(), removed: false })
     }
@@ -149,8 +149,7 @@ impl DisableDeploy {
 
 impl Drop for DisableDeploy {
     fn drop(&mut self) {
-        if self.rollback().is_err() {
-            if let Some(stage) = self.stage.take() { let _ = stage.keep(); }
-        }
+        if self.rollback().is_err()
+            && let Some(stage) = self.stage.take() { let _ = stage.keep(); }
     }
 }

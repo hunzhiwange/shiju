@@ -31,7 +31,7 @@ fn raw_turn_key_distinguishes_reused_step_indices() {
         json!({"model": "provider/model-a"}),
         json!({"text": "first"}),
     );
-    let first_turn = LlmRawArtifact::from_full_raw_rounds("turn-a", &[raw.clone()]).unwrap();
+    let first_turn = LlmRawArtifact::from_full_raw_rounds("turn-a", std::slice::from_ref(&raw)).unwrap();
     let second_turn = LlmRawArtifact::from_full_raw_rounds("turn-b", &[raw]).unwrap();
 
     assert_eq!(first_turn.rounds[0].step_index, second_turn.rounds[0].step_index);

@@ -164,6 +164,7 @@ fn update_message(event: McpMessage) -> desktop_settings_mcp::configuration_upda
         McpMessage::ConfirmDelete(v0) => U::ConfirmDelete(v0),
         McpMessage::CancelDelete => U::CancelDelete,
         McpMessage::Save => U::Save,
+        McpMessage::Connect(_) => panic!("unexpected MCP connection event"),
     }
 }
 

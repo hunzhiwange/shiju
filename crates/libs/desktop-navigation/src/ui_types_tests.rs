@@ -38,6 +38,7 @@ fn screen_variants_exclude_removed_apps() {
             super::Screen::ShijuApps => "ShijuApps",
             super::Screen::ShijuSkills => "ShijuSkills",
             super::Screen::ExpertHub => "ExpertHub",
+            super::Screen::DigitalEmployees => "DigitalEmployees",
         }
     }
 

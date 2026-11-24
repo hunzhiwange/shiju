@@ -153,7 +153,7 @@ fn build_turn(messages: &[SessionMessage], blocks: &[Vec<SessionBlock>], provide
             match block {
                 SessionBlock::Text{text,..} => {
                     if in_final || question_at==Some(i) || text.trim().is_empty() { continue; }
-                    if messages[i].role=="system" { if let Some(n) = event_in_message { turn.steps[n].body=Some(text.clone()); continue; } }
+                    if messages[i].role=="system" && let Some(n) = event_in_message { turn.steps[n].body=Some(text.clone()); continue; }
                 }
                 SessionBlock::Image{..} if in_final || question_at==Some(i) => continue,
                 SessionBlock::Thinking{text,summary,redacted,..} if text.is_empty() && summary.as_deref().unwrap_or("").is_empty() && !redacted => continue,

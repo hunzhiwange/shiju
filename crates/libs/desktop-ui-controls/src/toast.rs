@@ -349,6 +349,12 @@ impl State {
     }
 }
 
+impl Default for State {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Supplemental OS failures must not replace the user's current business feedback.
 pub fn show_supplemental_error(active: &mut Option<Toast>, next_id: &mut usize, error: String) -> Option<usize> {
     if active.is_some() { return None; }

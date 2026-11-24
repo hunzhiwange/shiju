@@ -34,6 +34,12 @@ pub struct TaskSet<T> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+impl<T: Send + 'static> Default for TaskSet<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Send + 'static> TaskSet<T> {
     /// 创建一个新的空任务集合
     ///

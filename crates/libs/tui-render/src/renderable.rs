@@ -266,6 +266,12 @@ impl<'a> ColumnRenderable<'a> {
     }
 }
 
+impl<'a> Default for ColumnRenderable<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// 弹性列中的一个子项，缓存指定宽度下的期望高度。
 pub struct FlexChild<'a> {
     flex: i32,
@@ -372,6 +378,12 @@ impl<'a> FlexRenderable<'a> {
     }
 }
 
+impl<'a> Default for FlexRenderable<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> Renderable for FlexRenderable<'a> {
     fn render(&self, area: Rect, buf: &mut Buffer) {
         self.allocate(area).into_iter().zip(self.children.iter()).for_each(|(rect, child)| {
@@ -475,6 +487,12 @@ impl<'a> RowRenderable<'a> {
 
     pub fn push(&mut self, width: u16, child: impl Into<Box<dyn Renderable>>) {
         self.children.push((width, RenderableItem::Owned(child.into())));
+    }
+}
+
+impl<'a> Default for RowRenderable<'a> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

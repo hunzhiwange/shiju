@@ -29,11 +29,11 @@ impl GatewayAppProviderClient {
         app: AppId,
         action: &str,
         request_body: &B,
-        token: &str,
+        _token: &str,
     ) -> Result<T, Error> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (app, action, request_body, token);
+            let _ = (app, action, request_body, _token);
             Err(Error::Transport("authorized application reads require native transport".into()))
         }
         #[cfg(not(target_arch = "wasm32"))]

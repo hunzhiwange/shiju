@@ -854,9 +854,9 @@ pub fn handle_command(command: SkillCommands, config: &SkillRuntimeConfig) -> Re
                 println!();
                 for skill in &skills {
                     println!(
-                        "  {} {} — {}",
+                        "  {} v{} — {}",
                         skill.name,
-                        format!("v{}", skill.version),
+                        skill.version,
                         skill.description
                     );
                     if !skill.tools.is_empty() {
@@ -897,8 +897,7 @@ pub fn handle_command(command: SkillCommands, config: &SkillRuntimeConfig) -> Re
             let report = audit::audit_skill_directory_with_security(&target, &security)?;
             if report.is_clean() {
                 println!(
-                    "  {} Skill audit passed for {} ({} files scanned).",
-                    "✓",
+                    "  ✓ Skill audit passed for {} ({} files scanned).",
                     target.display(),
                     report.files_scanned
                 );
@@ -906,7 +905,7 @@ pub fn handle_command(command: SkillCommands, config: &SkillRuntimeConfig) -> Re
             }
 
             // 审计失败，显示发现的问题
-            println!("  {} Skill audit failed for {}", "✗", target.display());
+            println!("  ✗ Skill audit failed for {}", target.display());
             for finding in report.findings {
                 println!("    - {finding}");
             }
@@ -943,8 +942,7 @@ pub fn handle_command(command: SkillCommands, config: &SkillRuntimeConfig) -> Re
                             format!("failed to install skills.sh skill: {resolved_source}")
                         })?;
                 println!(
-                    "  {} Skill installed from skills.sh: {} ({} files scanned)",
-                    "✓",
+                    "  ✓ Skill installed from skills.sh: {} ({} files scanned)",
                     installed_dir.display(),
                     files_scanned
                 );
@@ -956,8 +954,7 @@ pub fn handle_command(command: SkillCommands, config: &SkillRuntimeConfig) -> Re
                             format!("failed to install git skill source: {resolved_source}")
                         })?;
                 println!(
-                    "  {} Skill installed and audited: {} ({} files scanned)",
-                    "✓",
+                    "  ✓ Skill installed and audited: {} ({} files scanned)",
                     installed_dir.display(),
                     files_scanned
                 );
@@ -969,8 +966,7 @@ pub fn handle_command(command: SkillCommands, config: &SkillRuntimeConfig) -> Re
                             format!("failed to install local skill source: {resolved_source}")
                         })?;
                 println!(
-                    "  {} Skill installed and audited: {} ({} files scanned)",
-                    "✓",
+                    "  ✓ Skill installed and audited: {} ({} files scanned)",
                     dest.display(),
                     files_scanned
                 );
@@ -993,11 +989,10 @@ pub fn handle_command(command: SkillCommands, config: &SkillRuntimeConfig) -> Re
             let canonical_skills = skills_dir(workspace_dir)
                 .canonicalize()
                 .unwrap_or_else(|_| skills_dir(workspace_dir));
-            if let Ok(canonical_skill) = skill_path.canonicalize() {
-                if !canonical_skill.starts_with(&canonical_skills) {
+            if let Ok(canonical_skill) = skill_path.canonicalize()
+                && !canonical_skill.starts_with(&canonical_skills) {
                     anyhow::bail!("Skill path escapes skills directory: {name}");
                 }
-            }
 
             // 检查技能是否存在
             if !skill_path.exists() {
@@ -1006,7 +1001,7 @@ pub fn handle_command(command: SkillCommands, config: &SkillRuntimeConfig) -> Re
 
             // 删除技能目录
             std::fs::remove_dir_all(&skill_path)?;
-            println!("  {} Skill '{}' removed.", "✓", name);
+            println!("  ✓ Skill '{}' removed.", name);
             Ok(())
         }
     }

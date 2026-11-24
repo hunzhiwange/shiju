@@ -45,11 +45,11 @@ impl GatewayAppProviderClient {
         app: AppId,
         request: Request,
         body: &B,
-        token: &str,
+        _token: &str,
     ) -> Result<R, Error> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (app, request, body, token);
+            let _ = (app, request, body, _token);
             Err(Error::Transport("configuration paths require native transport".into()))
         }
         #[cfg(not(target_arch = "wasm32"))]

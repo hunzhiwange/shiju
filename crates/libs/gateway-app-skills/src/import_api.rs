@@ -18,7 +18,7 @@ impl std::fmt::Display for SkillImportError {
 }
 impl std::error::Error for SkillImportError {}
 impl GatewayAppSkillsClient {
-    pub async fn agent_apps_skills_import(&self, query: &ImportSkillRequest, token: &str)
+    pub async fn agent_apps_skills_import(&self, query: &ImportSkillRequest, _token: &str)
         -> Result<ImportSkillResponse, SkillImportError> {
         let request = self.transport.native_transport().map_err(|_| SkillImportError::Transport)?
             .post(format!("{}/v1/agent-apps/skills/import", self.transport.endpoint().base_url()))
@@ -32,7 +32,7 @@ impl GatewayAppSkillsClient {
         }
         serde_json::from_slice(&bytes).map_err(|_| SkillImportError::Decode)
     }
-    pub async fn agent_apps_skills_unmanaged(&self, query: &UnmanagedSkillsQuery, token: &str)
+    pub async fn agent_apps_skills_unmanaged(&self, query: &UnmanagedSkillsQuery, _token: &str)
         -> Result<UnmanagedSkillsResponse, SkillImportError> {
         let request = self.transport.native_transport().map_err(|_| SkillImportError::Transport)?
             .get(format!("{}/v1/agent-apps/skills/unmanaged", self.transport.endpoint().base_url()))

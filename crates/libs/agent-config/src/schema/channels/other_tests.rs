@@ -1,10 +1,6 @@
 // 覆盖其它渠道配置的展示元数据及 WhatsApp 后端判定规则。
 
-use super::other::{
-    DingTalkConfig, IrcConfig, LinqConfig, NextcloudTalkConfig, NostrConfig, QQConfig,
-    SignalConfig, WatiConfig, WhatsAppConfig,
-};
-use crate::traits::ChannelConfig;
+use super::other::WhatsAppConfig;
 
 #[test]
 fn whatsapp_backend_helpers_distinguish_cloud_web_and_ambiguous_configs() {

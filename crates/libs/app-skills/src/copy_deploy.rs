@@ -68,14 +68,13 @@ impl CopyDeploy {
         let destination = destination_root.join(directory);
         // A missing managed projection may be recreated during resync, but its
         // saved identity and mode still must match the authorized target.
-        if let Some(saved) = saved {
-            if saved.directory != directory || saved.destination != destination
+        if let Some(saved) = saved
+            && (saved.directory != directory || saved.destination != destination
                 || (method == SyncMethod::Copy && saved.link_target.is_some())
                 || (method == SyncMethod::Symlink && saved.link_target.is_none())
-                || saved.link_target.as_ref().is_some_and(|path| path != &source) {
+                || saved.link_target.as_ref().is_some_and(|path| path != &source)) {
                 return Err(LocalInstallError::Conflict);
             }
-        }
         let previous = match fs::symlink_metadata(&destination) {
             Ok(_) => {
                 let saved = saved.ok_or(LocalInstallError::Conflict)?;

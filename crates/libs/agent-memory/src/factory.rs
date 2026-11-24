@@ -353,11 +353,9 @@ pub fn create_memory_with_storage_and_routes(
     if config.snapshot_enabled
         && config.snapshot_on_hygiene
         && matches!(backend_kind, MemoryBackendKind::Sqlite | MemoryBackendKind::Lucid)
-    {
-        if let Err(e) = snapshot::export_snapshot(workspace_dir) {
+        && let Err(e) = snapshot::export_snapshot(workspace_dir) {
             tracing::warn!("memory snapshot skipped: {e}");
         }
-    }
 
     // 自动水合：如果 brain.db 丢失但 MEMORY_SNAPSHOT.md 存在，
     // 在创建后端之前从快照恢复"灵魂"

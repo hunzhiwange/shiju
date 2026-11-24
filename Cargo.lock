@@ -927,6 +927,7 @@ dependencies = [
  "vw-api-app-provider-profiles",
  "vw-api-file",
  "vw-api-hermes-memory",
+ "vw-api-media",
  "vw-api-model-catalog",
  "vw-api-project-profiles",
  "vw-api-tools",
@@ -22846,6 +22847,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "vw-api-media"
+version = "0.7.10"
+dependencies = [
+ "base64 0.22.1",
+ "serde",
+ "uuid",
+]
+
+[[package]]
 name = "vw-api-model-catalog"
 version = "0.7.10"
 dependencies = [
@@ -23506,6 +23516,7 @@ dependencies = [
  "vw-api-knowledge",
  "vw-api-mcp-inspect",
  "vw-api-mcp-management",
+ "vw-api-media",
  "vw-api-model-catalog",
  "vw-api-openclaw-settings",
  "vw-api-project",

@@ -103,6 +103,8 @@ agent-database = { path = "../agent-database" }
 app-settings-store = { path = "../app-settings-store" }
 app-project-profiles = { path = "../app-project-profiles" }
 app-operations = { path = "../app-operations" }
+vw-api-media = { path = "../api-media" }
+rusqlite = { workspace = true, features = ["bundled"] }
 vw-api-transport = { path = "../api-transport" }
 vw-api-project-profiles = { path = "../api-project-profiles" }
 vw-api-app-provider-environment = { path = "../api-app-provider-environment" }
@@ -247,10 +249,6 @@ path = "../config-runtime-paths"
 
 [dev-dependencies.config-gateway]
 path = "../config-gateway"
-
-[dev-dependencies.rusqlite]
-workspace = true
-features = ["bundled"]
 
 [dev-dependencies.vw-api-hermes-memory]
 path = "../api-hermes-memory"

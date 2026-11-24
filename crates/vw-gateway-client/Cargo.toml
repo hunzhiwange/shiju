@@ -53,6 +53,7 @@ vw-api-computer-control = { path = "../libs/api-computer-control" }
 gateway-external-session = { path = "../libs/gateway-external-session" }
 gateway-workspace-memory = { path = "../libs/gateway-workspace-memory" }
 gateway-hermes-memory = { path = "../libs/gateway-hermes-memory" }
+vw-api-media = { path = "../libs/api-media" }
 vw-api-voice = { path = "../libs/api-voice" }
 vw-api-apps-usage = { path = "../libs/api-apps-usage" }
 vw-api-usage = { path = "../libs/api-usage" }

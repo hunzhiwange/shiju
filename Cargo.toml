@@ -214,6 +214,7 @@ members = [
   "crates/libs/api-hermes-memory",
   "crates/libs/api-workspace-memory",
   "crates/libs/api-computer-control",
+  "crates/libs/api-media",
   "crates/libs/api-voice",
   "crates/libs/api-external-session",
   "crates/libs/api-app-skills",

@@ -1,0 +1,10 @@
+[package]
+name = "vw-api-media"
+version = "0.7.10"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+uuid = { version = "1.11", features = ["v4", "serde"] }

@@ -76,6 +76,8 @@ mod file_api;
 mod git_api;
 mod inference_api;
 mod knowledge_api;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod media_api;
 mod mcp_api;
 pub mod mcp_management_distribution;
 #[cfg(test)]

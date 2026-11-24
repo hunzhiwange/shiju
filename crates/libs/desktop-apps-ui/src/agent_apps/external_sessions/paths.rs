@@ -209,11 +209,6 @@ pub(super) fn controls<'a>(i18n: desktop_i18n::I18n, state: &State, session: &'a
     content.into()
 }
 
-pub(super) fn source_button(i18n: desktop_i18n::I18n, ) -> Element<'static, Message> {
-    button(text(i18n.__("会话记录在哪里"))).padding([8, 12]).style(rounded_action_btn_style)
-        .on_press(msg(Event::Sources(true))).into()
-}
-
 pub(super) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
     let Some(sources) = &state.sources else { return base; };
     let close = msg(Event::Sources(false));

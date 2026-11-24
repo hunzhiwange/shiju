@@ -23,7 +23,7 @@ fn reverse_search_walks_local_history_and_reports_boundaries() {
 
     assert_eq!(
         history.search("unicode", HistorySearchDirection::Older, true),
-        HistorySearchResult::Found(HistoryEntry::new("second unicode 你好"))
+        HistorySearchResult::Found(Box::new(HistoryEntry::new("second unicode 你好")))
     );
     assert_eq!(
         history.search("unicode", HistorySearchDirection::Older, false),

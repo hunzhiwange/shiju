@@ -78,6 +78,7 @@ impl State {
         })
     }
 }
+#[cfg(not(target_arch = "wasm32"))]
 fn terminal(state: DiagnosticJobState) -> bool {
     !matches!(
         state,

@@ -763,7 +763,7 @@ pub fn stream_chat_with_tools(
     model: Option<String>,
     options: Value,
     tools: HashMap<String, tools::ToolSpec>,
-    mut on_event: impl FnMut(StreamEvent) + Send + 'static,
+    on_event: impl FnMut(StreamEvent) + Send + 'static,
 ) {
     stream_chat_with_tools_for_session(
         "chat",
@@ -772,7 +772,7 @@ pub fn stream_chat_with_tools(
         model,
         options,
         tools,
-        move |ev| on_event(ev),
+        on_event,
     );
 }
 
@@ -783,7 +783,7 @@ pub fn stream_chat_with_tools_for_session(
     model: Option<String>,
     options: Value,
     tools: HashMap<String, tools::ToolSpec>,
-    mut on_event: impl FnMut(StreamEvent) + Send + 'static,
+    on_event: impl FnMut(StreamEvent) + Send + 'static,
 ) {
     stream_chat_with_tools_for_session_with_abort(
         session_id,
@@ -794,7 +794,7 @@ pub fn stream_chat_with_tools_for_session(
         tools,
         None,
         false,
-        move |ev| on_event(ev),
+        on_event,
     );
 }
 

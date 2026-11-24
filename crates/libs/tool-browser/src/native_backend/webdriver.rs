@@ -121,6 +121,7 @@ pub fn selector_for_find(by: &str, value: &str) -> String {
 ///
 /// 表示解析后的选择器是 CSS 选择器还是 XPath 表达式。
 /// WebDriver/fantoccini 需要区分这两种定位方式。
+#[cfg(test)]
 pub enum SelectorKind {
     /// CSS 选择器（如 `#id`, `.class`, `[attr="value"]`）
     Css(String),
@@ -168,6 +169,7 @@ pub enum SelectorKind {
 /// let kind = parse_selector("#login-form");
 /// // 返回: Css("#login-form")
 /// ```
+#[cfg(test)]
 pub fn parse_selector(selector: &str) -> SelectorKind {
     let trimmed = selector.trim();
 

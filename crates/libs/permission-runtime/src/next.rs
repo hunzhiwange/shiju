@@ -172,7 +172,7 @@ pub enum Error {
     /// 规则明确禁止该操作
     Denied(Ruleset),
     /// 请求待处理，等待用户响应
-    Pending(Request),
+    Pending(Box<Request>),
 }
 
 impl std::fmt::Display for Error {
@@ -323,7 +323,7 @@ pub fn ask(mut req: Request, ruleset: &Ruleset) -> Result<(), Error> {
                 // 将请求添加到全局状态
                 let mut lock = STATE.lock().map_err(|_| Error::Rejected)?;
                 lock.pending.insert(req.id.clone(), req.clone());
-                return Err(Error::Pending(req));
+                return Err(Error::Pending(Box::new(req)));
             }
         }
     }

@@ -220,8 +220,10 @@ fn create_cli_memory_rejects_disabled_backend() {
 #[test]
 fn create_cli_memory_prefers_storage_provider_override() {
     let tmp = tempfile::TempDir::new().unwrap();
-    let mut config = Config::default();
-    config.workspace_dir = tmp.path().to_path_buf();
+    let mut config = Config {
+        workspace_dir: tmp.path().to_path_buf(),
+        ..Default::default()
+    };
     config.memory.backend = "none".into();
     config.storage.provider.config = StorageProviderConfig {
         provider: "postgres".into(),
@@ -242,8 +244,10 @@ fn create_cli_memory_prefers_storage_provider_override() {
 #[test]
 fn create_cli_memory_rejects_mariadb_without_connection_settings() {
     let tmp = tempfile::TempDir::new().unwrap();
-    let mut config = Config::default();
-    config.workspace_dir = tmp.path().to_path_buf();
+    let mut config = Config {
+        workspace_dir: tmp.path().to_path_buf(),
+        ..Default::default()
+    };
     config.memory.backend = "mariadb".into();
 
     let error = match create_cli_memory(&config) {
@@ -258,8 +262,10 @@ fn create_cli_memory_rejects_mariadb_without_connection_settings() {
 #[test]
 fn create_cli_memory_normalizes_and_creates_markdown_backend() {
     let tmp = tempfile::TempDir::new().unwrap();
-    let mut config = Config::default();
-    config.workspace_dir = tmp.path().to_path_buf();
+    let mut config = Config {
+        workspace_dir: tmp.path().to_path_buf(),
+        ..Default::default()
+    };
     config.memory.backend = "  MARKDOWN  ".into();
 
     let memory = create_cli_memory(&config).expect("markdown backend should be available");
@@ -270,8 +276,10 @@ fn create_cli_memory_normalizes_and_creates_markdown_backend() {
 #[test]
 fn create_cli_memory_ignores_blank_storage_provider_override() {
     let tmp = tempfile::TempDir::new().unwrap();
-    let mut config = Config::default();
-    config.workspace_dir = tmp.path().to_path_buf();
+    let mut config = Config {
+        workspace_dir: tmp.path().to_path_buf(),
+        ..Default::default()
+    };
     config.memory.backend = "none".into();
     config.storage.provider.config.provider = "   ".into();
 
@@ -286,8 +294,10 @@ fn create_cli_memory_ignores_blank_storage_provider_override() {
 #[tokio::test]
 async fn handle_command_routes_all_variants_to_disabled_backend_rejection() {
     let tmp = tempfile::TempDir::new().unwrap();
-    let mut config = Config::default();
-    config.workspace_dir = tmp.path().to_path_buf();
+    let mut config = Config {
+        workspace_dir: tmp.path().to_path_buf(),
+        ..Default::default()
+    };
     config.memory.backend = "none".into();
     let commands = [
         MemoryCommands::List { category: None, session: None, limit: 50, offset: 0 },
@@ -307,8 +317,10 @@ async fn handle_command_routes_all_variants_to_disabled_backend_rejection() {
 #[tokio::test]
 async fn empty_markdown_backend_handles_all_commands_without_external_services() {
     let tmp = tempfile::TempDir::new().unwrap();
-    let mut config = Config::default();
-    config.workspace_dir = tmp.path().to_path_buf();
+    let mut config = Config {
+        workspace_dir: tmp.path().to_path_buf(),
+        ..Default::default()
+    };
     config.memory.backend = "markdown".into();
 
     handle_command(

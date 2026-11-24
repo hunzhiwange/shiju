@@ -18,6 +18,10 @@ impl LinkTarget {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn parse(target: &str) -> Option<Self> {
         if Path::new(target).is_absolute() {
             return Self::local_path(target);

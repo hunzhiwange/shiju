@@ -7,7 +7,7 @@ use super::*;
 use crate::create_memory_for_migration;
 
 #[allow(dead_code)]
-mod tests {
+mod memory_cases {
     use super::*;
 
     use config_routing::EmbeddingRouteConfig;

@@ -50,19 +50,22 @@ pub fn refresh_after_commit(
     else { DataOperationResult::Partial { errors } }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InvalidProjectionResult;
+
 /// Only retry the exact failed projections retained by the server. Validate the
 /// entire result before any IO; this entry point has no data-commit callback.
 pub fn retry_failed_projections(
     target: &DataManagementTarget,
     previous: &DataOperationResult,
     mut refresh: impl FnMut(&DataManagementTarget, Projection) -> Result<(), ()>,
-) -> Result<DataOperationResult, ()> {
-    let DataOperationResult::Partial { errors } = previous else { return Err(()); };
-    if errors.is_empty() { return Err(()); }
+) -> Result<DataOperationResult, InvalidProjectionResult> {
+    let DataOperationResult::Partial { errors } = previous else { return Err(InvalidProjectionResult); };
+    if errors.is_empty() { return Err(InvalidProjectionResult); }
     let mut pending = Vec::new();
     for error in errors {
-        let projection = PROJECTIONS.into_iter().find(|p| p.warning() == *error).ok_or(())?;
-        if pending.contains(&projection) { return Err(()); }
+        let projection = PROJECTIONS.into_iter().find(|p| p.warning() == *error).ok_or(InvalidProjectionResult)?;
+        if pending.contains(&projection) { return Err(InvalidProjectionResult); }
         pending.push(projection);
     }
     let errors = pending.into_iter().filter_map(|projection| {

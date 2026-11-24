@@ -48,7 +48,6 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
                 args: vec!["-i".to_string()],
                 env: terminal_env(),
                 working_directory: cwd,
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -84,7 +83,6 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
                 args: vec!["-lc".to_string(), command],
                 env: terminal_env(),
                 working_directory: cwd,
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -124,7 +122,6 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
                     args: vec!["--noprofile".to_string(), "--norc".to_string(), "-i".to_string()],
                     env,
                     working_directory: cwd,
-                    ..Default::default()
                 }
             },
             ..Default::default()
@@ -205,7 +202,6 @@ fi
                     args: vec!["-i".to_string()],
                     env,
                     working_directory: cwd,
-                    ..Default::default()
                 }
             },
             ..Default::default()

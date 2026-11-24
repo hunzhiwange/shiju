@@ -87,7 +87,7 @@ pub fn settings_group_heading<'a, Message: Clone + 'a>(
 
 /// 页面说明在问号卡片内显示，保留页面标题的字号。
 /// 分组说明在问号卡片内显示，保留分组标题的字号。
-
+///
 /// 承载带分隔线的设置行，横向留白与行内间距独立。
 pub fn settings_group_card<'a, Message: Clone + 'a>(
     content: impl Into<Element<'a, Message>>,

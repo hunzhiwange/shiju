@@ -332,7 +332,7 @@ impl ChatComposer {
         let result = self.history.search(&query, HistorySearchDirection::Older, restart);
         match result {
             HistorySearchResult::Found(entry) => {
-                self.restore_history_entry(entry);
+                self.restore_history_entry(*entry);
                 self.history_search.as_mut().unwrap().matched = true;
             }
             HistorySearchResult::NotFound | HistorySearchResult::AtBoundary => {

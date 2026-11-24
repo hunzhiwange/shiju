@@ -35,10 +35,6 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Color;
 use ratatui::style::Style;
-#[cfg(test)]
-use ratatui::style::Stylize;
-#[cfg(any(test, target_arch = "wasm32"))]
-use ratatui::text::Span;
 use ratatui::widgets::StatefulWidgetRef;
 use ratatui::widgets::WidgetRef;
 use std::borrow::Cow;
@@ -106,14 +102,6 @@ struct TextElement {
     payload: Option<String>,
     id: u64,
     range: Range<usize>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg(test)]
-pub(crate) struct TextElementSnapshot {
-    pub(crate) id: u64,
-    pub(crate) range: Range<usize>,
-    pub(crate) text: String,
 }
 
 /// Owned visible draft state, including atomic payloads and the UTF-8 cursor.
@@ -325,13 +313,6 @@ impl TextArea {
         self.vim_enabled && self.vim_mode == VimMode::Normal
     }
 
-    /// 返回表示在 Vim 正常模式下最后一个可编辑项的位置。
-    /// Return the cursor position that represents the last editable item in Vim normal mode.
-    #[cfg(test)]
-    pub(crate) fn vim_normal_end_cursor(&self) -> usize {
-        if self.text.is_empty() { 0 } else { self.prev_atomic_boundary(self.text.len()) }
-    }
-
     /// 是否等待 Vim 操作符进行运动？ 这可以被观察到，因此输入编辑器可以避免使用` d{motion}`或` y{motion}`中的第二个键作为高级快捷键。
     /// Return whether a Vim operator is waiting for a motion.
     ///
@@ -357,20 +338,6 @@ impl TextArea {
         }
     }
 
-    /// 如果启用了模态编辑，则输入 Vim 插入模式。 在 Vim 未启用时调用此操作为无副作用（no-op），这允许父工作流在提交前重置模式，而不首先分支当前键映射状态。
-    /// Enter Vim insert mode if modal editing is enabled.
-    ///
-    /// Calling this while Vim is disabled is a no-op, which lets parent
-    /// workflows reset mode after submissions without first branching on the
-    /// current keymap state.
-    #[cfg(test)]
-    pub(crate) fn enter_vim_insert_mode(&mut self) {
-        if self.vim_enabled {
-            self.vim_mode = VimMode::Insert;
-            self.vim_pending = VimPending::None;
-        }
-    }
-
     /// 如果启用了模态编辑，则进入正常模式。
     /// Enter Vim normal mode if modal editing is enabled.
     ///
@@ -384,24 +351,6 @@ impl TextArea {
             self.vim_pending = VimPending::None;
             self.preferred_col = None;
         }
-    }
-
-    /// 是否应将快速明文爆发视为粘贴输入。
-    /// Return whether rapid plain-key bursts should be treated as paste input.
-    ///
-    /// Paste burst detection is disabled in Vim normal mode so a fast sequence
-    /// like `dd` or `yw` remains command input instead of being converted into
-    /// literal text.
-    #[cfg(test)]
-    pub(crate) fn allows_paste_burst(&self) -> bool {
-        !self.vim_enabled || self.vim_mode == VimMode::Insert
-    }
-
-    /// 返回是否使用插入模式光标样式渲染。
-    /// Return whether rendering should use the insert-mode cursor style.
-    #[cfg(test)]
-    pub(crate) fn uses_vim_insert_cursor(&self) -> bool {
-        self.vim_enabled && self.vim_mode == VimMode::Insert
     }
 
     /// 在 Composer 级路由之前拦截是否应被转发的 Escape 键。
@@ -432,19 +381,6 @@ impl TextArea {
         Some(match self.vim_mode {
             VimMode::Normal => "Normal",
             VimMode::Insert => "Insert",
-        })
-    }
-
-    /// 返回用于激活 Vim 编辑模式的样式脚本报示
-    /// Return the styled footer indicator for the active Vim editing mode.
-    #[cfg(test)]
-    pub(crate) fn vim_mode_indicator_span(&self) -> Option<Span<'static>> {
-        if !self.vim_enabled {
-            return None;
-        }
-        Some(match self.vim_mode {
-            VimMode::Normal => "Vim: Normal".magenta(),
-            VimMode::Insert => "Vim: Insert".green(),
         })
     }
 
@@ -1542,20 +1478,6 @@ impl TextArea {
                     ByteRange { start: e.range.start, end: e.range.end },
                     placeholder,
                 )
-            })
-            .collect()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn text_element_snapshots(&self) -> Vec<TextElementSnapshot> {
-        self.elements
-            .iter()
-            .filter_map(|element| {
-                self.text.get(element.range.clone()).map(|text| TextElementSnapshot {
-                    id: element.id,
-                    range: element.range.clone(),
-                    text: text.to_string(),
-                })
             })
             .collect()
     }

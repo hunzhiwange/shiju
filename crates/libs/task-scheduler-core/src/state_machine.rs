@@ -116,7 +116,8 @@ fn finite_can_transition(from: AgentTaskStatus, to: AgentTaskStatus) -> bool {
         Paused, Queued, Running, Submitted,
     };
 
-    match (from, to) {
+    matches!(
+        (from, to),
         (Draft, Queued)
         | (Draft, Assigned)
         | (Queued, Assigned)
@@ -153,9 +154,8 @@ fn finite_can_transition(from: AgentTaskStatus, to: AgentTaskStatus) -> bool {
         | (Blocked, Cancelled)
         | (Completed, Archived)
         | (Failed, Archived)
-        | (Cancelled, Archived) => true,
-        _ => false,
-    }
+        | (Cancelled, Archived)
+    )
 }
 
 fn infinite_can_transition(from: AgentTaskStatus, to: AgentTaskStatus) -> bool {
@@ -164,7 +164,8 @@ fn infinite_can_transition(from: AgentTaskStatus, to: AgentTaskStatus) -> bool {
         Queued, Running,
     };
 
-    match (from, to) {
+    matches!(
+        (from, to),
         (Draft, Active)
         | (Draft, Queued)
         | (Queued, Active)
@@ -189,9 +190,8 @@ fn infinite_can_transition(from: AgentTaskStatus, to: AgentTaskStatus) -> bool {
         | (Running, Cancelled)
         | (Paused, Cancelled)
         | (Blocked, Cancelled)
-        | (Cancelled, Archived) => true,
-        _ => false,
-    }
+        | (Cancelled, Archived)
+    )
 }
 
 fn dependency_graph_can_transition(from: AgentTaskStatus, to: AgentTaskStatus) -> bool {
@@ -200,7 +200,8 @@ fn dependency_graph_can_transition(from: AgentTaskStatus, to: AgentTaskStatus) -
         Paused, Queued, Revision, Running, Submitted,
     };
 
-    match (from, to) {
+    matches!(
+        (from, to),
         (Draft, Queued)
         | (Queued, Assigned)
         | (Assigned, Dispatched)
@@ -237,9 +238,8 @@ fn dependency_graph_can_transition(from: AgentTaskStatus, to: AgentTaskStatus) -
         | (Blocked, Cancelled)
         | (Completed, Archived)
         | (Failed, Archived)
-        | (Cancelled, Archived) => true,
-        _ => false,
-    }
+        | (Cancelled, Archived)
+    )
 }
 
 fn task_kind_name(kind: AgentTaskKind) -> &'static str {

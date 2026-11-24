@@ -96,7 +96,6 @@ struct RecordedRequest {
     path: String,
     query: Option<String>,
     api_key: Option<String>,
-    content_type: Option<String>,
     body: serde_json::Value,
 }
 
@@ -156,8 +155,6 @@ async fn record_qdrant_request(
     let query = uri.query().map(str::to_string);
     let api_key =
         req.headers().get("api-key").and_then(|value| value.to_str().ok()).map(str::to_string);
-    let content_type =
-        req.headers().get("content-type").and_then(|value| value.to_str().ok()).map(str::to_string);
     let bytes = to_bytes(req.into_body(), 1024 * 1024).await.unwrap();
     let body = if bytes.is_empty() {
         serde_json::Value::Null
@@ -170,7 +167,6 @@ async fn record_qdrant_request(
         path,
         query,
         api_key,
-        content_type,
         body,
     });
 

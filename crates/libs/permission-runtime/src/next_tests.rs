@@ -268,7 +268,7 @@ fn error_display_includes_rejection_denial_and_pending_messages() {
     assert!(denied.to_string().contains("prevents"));
     assert!(Error::Rejected.to_string().contains("rejected"));
     assert!(Error::Corrected("try read".to_string()).to_string().contains("try read"));
-    assert!(Error::Pending(request(vec!["x"], vec![])).to_string().contains("approval"));
+    assert!(Error::Pending(Box::new(request(vec!["x"], vec![]))).to_string().contains("approval"));
 }
 
 #[test]

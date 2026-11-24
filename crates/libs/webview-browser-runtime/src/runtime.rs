@@ -143,8 +143,7 @@ pub fn run(args: Vec<String>) {
     let webview_result = build_content_view(
         &window,
         &mut web_context,
-        initial_url,
-        &init_script,
+        (initial_url, &init_script),
         #[cfg(target_os = "macos")]
         SAFARI_USER_AGENT,
         #[cfg(unix)]

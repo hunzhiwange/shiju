@@ -47,7 +47,7 @@ pub struct AcpxOperationalError {
     detail_code: Option<String>,
     origin: Option<OutputErrorOrigin>,
     retryable: Option<bool>,
-    acp: Option<OutputErrorAcpPayload>,
+    acp: Option<Box<OutputErrorAcpPayload>>,
     output_already_emitted: bool,
 }
 
@@ -60,7 +60,7 @@ impl AcpxOperationalError {
             detail_code: options.detail_code,
             origin: options.origin,
             retryable: options.retryable,
-            acp: options.acp,
+            acp: options.acp.map(Box::new),
             output_already_emitted: options.output_already_emitted,
         }
     }
@@ -86,7 +86,7 @@ impl AcpxOperationalError {
     }
 
     pub fn acp(&self) -> Option<&OutputErrorAcpPayload> {
-        self.acp.as_ref()
+        self.acp.as_deref()
     }
 
     pub fn output_already_emitted(&self) -> bool {
@@ -100,7 +100,7 @@ impl AcpxOperationalError {
             origin: self.origin,
             message: self.message.clone(),
             retryable: self.retryable,
-            acp: self.acp.clone(),
+            acp: self.acp.as_deref().cloned(),
             timestamp: None,
         })
     }

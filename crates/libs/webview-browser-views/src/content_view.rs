@@ -17,8 +17,7 @@ use crate::to_wry_rect;
 pub fn build_content_view(
     window: &Window,
     web_context: &mut WebContext,
-    initial_url: &str,
-    init_script: &str,
+    (initial_url, init_script): (&str, &str),
     #[cfg(target_os = "macos")] user_agent: &'static str,
     #[cfg(unix)] log_path: &Path,
     local_root: Option<PathBuf>,

@@ -161,6 +161,7 @@ pub enum FenceKind {
 /// The tracker reports the fence context that applies to the current line
 /// before that line mutates the state. Callers rely on that when deciding
 /// whether the current raw line can open or continue a table.
+#[derive(Default)]
 pub struct FenceTracker {
     state: Option<(char, usize, FenceKind)>,
 }

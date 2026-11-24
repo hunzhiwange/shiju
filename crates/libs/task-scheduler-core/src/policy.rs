@@ -190,8 +190,7 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
             AgentEventKind::TaskResumed,
             Some(task.status),
             Some(AgentTaskStatus::Queued),
-            Some(from_status_key),
-            Some(to_status_key),
+            Some((from_status_key, to_status_key)),
             message,
             json!({"policy_action": "auto_promote_pool"}),
             now_ms,
@@ -311,7 +310,6 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
                 Some(task.status),
                 Some(task.status),
                 None,
-                None,
                 message,
                 json!({"policy_action": "running_timeout_grace"}),
                 now_ms,
@@ -405,8 +403,7 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
             event_kind,
             Some(task.status),
             Some(to_status),
-            Some(from_status_key),
-            Some(to_status_key),
+            Some((from_status_key, to_status_key)),
             message,
             payload,
             now_ms,
@@ -496,12 +493,12 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
         kind: AgentEventKind,
         from_status: Option<AgentTaskStatus>,
         to_status: Option<AgentTaskStatus>,
-        from_status_key: Option<String>,
-        to_status_key: Option<String>,
+        status_keys: Option<(String, String)>,
         message: impl Into<String>,
         payload: Value,
         created_at_ms: TimestampMs,
     ) -> Result<()> {
+        let (from_status_key, to_status_key) = status_keys.unzip();
         self.store.append_event(
             PolicyEventRequest {
                 task_id: Some(task.id.clone()),

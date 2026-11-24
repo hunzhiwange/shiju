@@ -432,7 +432,11 @@ impl SkillMarketProvider for SkillHubProvider {
                     .to_string(),
             };
             let version = member.version.filter(|version| !version.trim().is_empty());
-            let coordinate = if locator.namespace.trim().is_empty() || version.is_none() {
+            let coordinate = if !locator.namespace.trim().is_empty()
+                && let Some(version) = version
+            {
+                SkillMarketCoordinateDto { locator, version }
+            } else {
                 // SkillHub can omit a suite member's namespace while its public detail
                 // endpoint still resolves the canonical coordinate by slug.
                 let mut url = self.endpoint(&["api", "v1", "skills", &locator.slug])?;
@@ -454,8 +458,6 @@ impl SkillMarketProvider for SkillHubProvider {
                 }
                 required_value(&resolved.version, "version").map_err(|_| missing("version"))?;
                 resolved
-            } else {
-                SkillMarketCoordinateDto { locator, version: version.expect("checked version") }
             };
             coordinates.push(coordinate);
         }

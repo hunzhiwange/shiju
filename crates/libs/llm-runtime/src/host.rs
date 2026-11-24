@@ -2,11 +2,13 @@
 use std::{future::Future, pin::Pin, sync::OnceLock};
 use crate::{types::StreamInput, StreamEvent, Error};
 pub type StreamFuture = Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>;
+type StreamObserver = Box<dyn FnMut(StreamEvent) + Send>;
+
 #[derive(Clone, Copy)]
 pub struct Host {
     #[cfg(not(target_arch = "wasm32"))]
     pub annotate_model_source: fn(&mut vw_api_acp_model::acp_session::AcpSessionOptions, &str),
-    pub stream: fn(StreamInput, Box<dyn FnMut(StreamEvent) + Send>) -> StreamFuture,
+    pub stream: fn(StreamInput, StreamObserver) -> StreamFuture,
     pub catalog_error: fn(agent_provider::provider::CatalogError) -> String,
     pub system_prompt: fn(&model_types::Model, &[String]) -> Vec<String>,
     pub unified_prompt_marker: &'static str,

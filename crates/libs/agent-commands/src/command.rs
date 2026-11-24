@@ -247,6 +247,7 @@ pub mod r#default {
     /// - commit：审查指定的提交
     /// - branch：审查分支变更
     /// - pr：审查 PR 变更
+    ///
     /// 默认审查未提交的变更。
     pub const REVIEW: &str = "review";
 }

@@ -86,6 +86,7 @@ pub(crate) fn parse_assistant_segments(content: &str) -> Vec<AssistantSegment> {
 /// 执行 assistant_segments_to_lines 对应的模块功能。
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
+#[cfg(test)]
 pub(crate) fn assistant_segments_to_lines(
     segments: Vec<AssistantSegment>,
     expand_tool_details: bool,

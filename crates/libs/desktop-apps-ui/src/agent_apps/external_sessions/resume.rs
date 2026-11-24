@@ -9,15 +9,6 @@ use vw_api_external_session::*;
 
 fn msg(event: Event) -> Message { message(super::Event::Resume(event)) }
 
-pub(super) fn control(i18n: desktop_i18n::I18n, session: &SessionMeta, enabled: bool) -> Element<'_, Message> {
-    column![button(text(i18n.__("恢复会话"))).padding([8, 12]).style(rounded_action_btn_style)
-        .on_press_maybe((enabled && session.capabilities.resume)
-            .then(|| msg(Event::Open(session.identity.clone())))),
-        text(if session.capabilities.resume { i18n.__("在终端中恢复") }
-            else { i18n.__("来源应用未提供此会话的原生恢复能力") }).size(12).style(settings_muted_text_style),
-    ].spacing(4).into()
-}
-
 pub(super) fn reader_control<'a>(i18n: desktop_i18n::I18n, session: &'a SessionMeta, state: &super::State) -> Element<'a, Message> {
     let terminal = match state.resume.preferred.unwrap_or(SessionTerminal::Terminal) {
         SessionTerminal::Terminal if session.identity.target_host == local_app_auth::HOST_ID

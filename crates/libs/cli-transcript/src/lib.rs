@@ -173,6 +173,7 @@ impl TranscriptEntry {
 /// let paragraph = Paragraph::new("text")
 ///     .wrap(wrap_trim_disabled());
 /// ```
+#[cfg(test)]
 pub(crate) fn wrap_trim_disabled() -> ratatui::widgets::Wrap {
     ratatui::widgets::Wrap { trim: false }
 }

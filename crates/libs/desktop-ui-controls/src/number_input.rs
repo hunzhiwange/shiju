@@ -567,16 +567,15 @@ where
                             for c in s.chars() {
                                 // 只接受数字、小数点和负号
                                 if c.is_ascii_digit() || c == '.' || c == '-' {
-                                    if state.edit_buffer.is_none() {
-                                        // 首次输入时创建新的编辑缓冲区
-                                        state.edit_buffer = Some(c.to_string());
-                                        state.caret = 1;
-                                    } else {
+                                    if let Some(buffer) = state.edit_buffer.as_mut() {
                                         // 在光标位置插入字符
-                                        let buffer = state.edit_buffer.as_mut().unwrap();
                                         let pos = state.caret.min(buffer.len());
                                         buffer.insert(pos, c);
                                         state.caret = pos + 1;
+                                    } else {
+                                        // 首次输入时创建新的编辑缓冲区
+                                        state.edit_buffer = Some(c.to_string());
+                                        state.caret = 1;
                                     }
                                 }
                             }
@@ -588,14 +587,13 @@ where
                                 for c in t.chars() {
                                     // 只接受数字、小数点和负号
                                     if c.is_ascii_digit() || c == '.' || c == '-' {
-                                        if state.edit_buffer.is_none() {
-                                            state.edit_buffer = Some(c.to_string());
-                                            state.caret = 1;
-                                        } else {
-                                            let buffer = state.edit_buffer.as_mut().unwrap();
+                                        if let Some(buffer) = state.edit_buffer.as_mut() {
                                             let pos = state.caret.min(buffer.len());
                                             buffer.insert(pos, c);
                                             state.caret = pos + 1;
+                                        } else {
+                                            state.edit_buffer = Some(c.to_string());
+                                            state.caret = 1;
                                         }
                                     }
                                 }

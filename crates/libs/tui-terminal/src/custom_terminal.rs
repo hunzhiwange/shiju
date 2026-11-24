@@ -189,8 +189,6 @@ where
     /// 内联模式下渲染在视口上方的可见历史行数。
     /// Count of visible history rows rendered above the viewport in inline mode.
     visible_history_rows: u16,
-    #[cfg(test)]
-    screen_size_override: Option<Size>,
 }
 
 impl<B> Drop for Terminal<B>
@@ -265,21 +263,7 @@ where
             last_known_screen_size: screen_size,
             last_known_cursor_pos: cursor_pos,
             visible_history_rows: 0,
-            #[cfg(test)]
-            screen_size_override: None,
         }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn with_screen_size_and_cursor_position_for_test(
-        backend: B,
-        screen_size: Size,
-        cursor_pos: Position,
-    ) -> Self {
-        let mut terminal =
-            Self::with_screen_size_and_cursor_position(backend, screen_size, cursor_pos);
-        terminal.screen_size_override = Some(screen_size);
-        terminal
     }
 
     /// 获取为本次渲染提供一致终端状态视图的 `Frame`。
@@ -636,10 +620,6 @@ where
     /// 查询后端的真实尺寸。
     /// Queries the real size of the backend.
     pub fn size(&self) -> io::Result<Size> {
-        #[cfg(test)]
-        if let Some(size) = self.screen_size_override {
-            return Ok(size);
-        }
         self.backend.size()
     }
 }

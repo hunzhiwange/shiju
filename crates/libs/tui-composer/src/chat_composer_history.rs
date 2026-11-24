@@ -68,7 +68,7 @@ pub enum HistorySearchDirection {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum HistorySearchResult {
-    Found(HistoryEntry),
+    Found(Box<HistoryEntry>),
     AtBoundary,
     NotFound,
 }
@@ -177,7 +177,7 @@ impl ChatComposerHistory {
         loop {
             if self.entries[index].text.to_lowercase().contains(&query) {
                 self.search_index = Some(index);
-                return HistorySearchResult::Found(self.entries[index].clone());
+                return HistorySearchResult::Found(Box::new(self.entries[index].clone()));
             }
             let next_index = match direction {
                 HistorySearchDirection::Older => index.checked_sub(1),

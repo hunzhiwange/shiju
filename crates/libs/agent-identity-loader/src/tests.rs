@@ -14,7 +14,7 @@ use vw_config_types::security::IdentityConfig;
 ///
 /// 包含所有针对 AIEOS 身份功能的单元测试
 #[allow(dead_code)]
-mod tests {
+mod identity_cases {
     use super::*;
 
     /// 测试 AIEOS 配置验证 - 有路径配置时返回 true

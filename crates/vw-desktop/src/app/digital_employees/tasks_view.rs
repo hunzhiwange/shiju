@@ -243,7 +243,7 @@ fn select<'a>(
 }
 
 fn department_filter(i18n: desktop_i18n::I18n, center: &Center) -> Item<'_> {
-    let ALL: &str = i18n.__("全部可查看部门");
+    let all_departments: &str = i18n.__("全部可查看部门");
     const WIDTH: f32 = 248.0;
     let Some(departments) = center.departments.as_deref() else {
         return if center.department_error {
@@ -254,7 +254,7 @@ fn department_filter(i18n: desktop_i18n::I18n, center: &Center) -> Item<'_> {
     };
     let current = center.filters.department.as_str();
     let selected = if current.is_empty() {
-        ALL
+        all_departments
     } else {
         departments
             .iter()
@@ -299,7 +299,7 @@ fn department_filter(i18n: desktop_i18n::I18n, center: &Center) -> Item<'_> {
     }
 
     let query = center.department_search.trim().to_lowercase();
-    let mut matches = std::iter::once(("", ALL))
+    let mut matches = std::iter::once(("", all_departments))
         .chain(departments.iter().map(|(path, name)| (path.as_str(), name.as_str())))
         .filter(|(_, name)| name.to_lowercase().contains(&query))
         .peekable();

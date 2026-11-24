@@ -34,7 +34,7 @@ pub fn pretty_block_type(kind: &str) -> String {
         "list-operator" => "列表操作".to_string(),
         "agent" => "Agent".to_string(),
         "document-extractor" => "文档提取".to_string(),
-        other if other.is_empty() => "节点".to_string(),
+        "" => "节点".to_string(),
         other => other.replace('-', " "),
     }
 }

@@ -1,5 +1,5 @@
 //! 本模块集中实现 `mod` 在底部面板中的职责。
-//! 关键声明 `TIP_SEPARATOR`、`DESIRED_SPACERS_BETWEEN_SECTIONS`、`OTHER_OPTION_LABEL`、`OTHER_OPTION_DESCRIPTION` 共同界定本文件的对外交互面。
+//! 关键声明 `TIP_SEPARATOR`、`OTHER_OPTION_LABEL`、`OTHER_OPTION_DESCRIPTION` 共同界定本文件的对外交互面。
 //! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
 //! 交互分支通过明确枚举或返回值向上层传递选择结果。
 //! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
@@ -30,8 +30,6 @@ use ratatui::layout::Rect;
 use unicode_width::UnicodeWidthStr;
 
 const TIP_SEPARATOR: &str = " | ";
-#[cfg(test)]
-const DESIRED_SPACERS_BETWEEN_SECTIONS: u16 = 2;
 const OTHER_OPTION_LABEL: &str = "None of the above";
 const OTHER_OPTION_DESCRIPTION: &str = "Optionally, add details in notes (tab).";
 const UNANSWERED_CONFIRM_TITLE: &str = "Submit with unanswered questions?";

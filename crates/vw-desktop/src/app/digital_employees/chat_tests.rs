@@ -319,7 +319,7 @@ async fn employee_acp_desktop_shared_chat_request_and_stop() {
 }
 
 #[tokio::test]
-async fn employee_acp_picker_replaces_only_an_unsent_employee() {
+async fn employee_acp_picker_allows_agent_changes_only_before_first_send() {
     use super::super::chat_picker;
 
     let (_lock, _home, _guard) = crate::app::config::desktop_test_gateway::temp_home();
@@ -333,6 +333,13 @@ async fn employee_acp_picker_replaces_only_an_unsent_employee() {
     let mut entry = crate::app::state::DelegateAgentSettingsEntry::from_config(EMPLOYEE_CHAT_PROFILE, None);
     entry.enabled = true;
     app.agents_settings.entries.push(entry);
+    app.agents_settings.entries.push(crate::app::state::DelegateAgentSettingsEntry::from_config(
+        "acp-codex",
+        Some(config_agent::AgentDefinitionConfig {
+            runtime: config_agent_profile::AgentRuntime::Acp { backend: "codex".into() },
+            ..Default::default()
+        }),
+    ));
     app.digital_employees.assistants.data = Some(Arc::new(assistants::Snapshot {
         mine: vec![serde_json::from_value(json!({
             "employee_id":"private-1","name":"私有员工","department_path":"",
@@ -356,6 +363,7 @@ async fn employee_acp_picker_replaces_only_an_unsent_employee() {
         iced::widget::text_editor::Content::with_text("保留草稿");
 
     let open = || Message::Chat(ChatMessage::SessionAgentSelected(Some(EMPLOYEE_CHAT_PROFILE.into())));
+    let select_codex = || Message::Chat(ChatMessage::SessionAgentSelected(Some("acp-codex".into())));
     let picker_event = |event| Message::DigitalEmployees(Event::ChatPicker(event));
     let private = EmployeeTarget { employee_id: "private-1".into(), kind: EmployeeKind::Private };
     let shared = EmployeeTarget { employee_id: "shared-1".into(), kind: EmployeeKind::Shared };
@@ -367,6 +375,13 @@ async fn employee_acp_picker_replaces_only_an_unsent_employee() {
     let _ = app.update(checked);
     assert_eq!(app.current_session_runtime().employee_target, Some(private.clone()));
 
+    let _ = app.update(select_codex());
+    let runtime = app.current_session_runtime();
+    assert_eq!(runtime.agent.as_deref(), Some("acp-codex"));
+    assert_eq!(runtime.acp_agent.as_deref(), Some("codex"));
+    assert!(!runtime.is_employee_chat());
+    assert_eq!(runtime.input_editor.text(), "保留草稿");
+
     let _ = app.update(open());
     let _ = app.update(picker_event(chat_picker::Event::Scope(EmployeeKind::Shared)));
     let checked = output(app.update(picker_event(chat_picker::Event::Select(shared.clone())))).await;
@@ -376,6 +391,7 @@ async fn employee_acp_picker_replaces_only_an_unsent_employee() {
     assert_eq!(runtime.input_editor.text(), "保留草稿");
     assert_eq!(runtime.acp_model_source, vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal);
     app.current_session_runtime_mut().request_lifecycle.request_started_ms = 1;
+    let _ = app.update(select_codex());
     let _ = app.update(open());
     let _ = app.update(picker_event(chat_picker::Event::Select(private)));
     assert!(!chat_picker::is_open(&app));

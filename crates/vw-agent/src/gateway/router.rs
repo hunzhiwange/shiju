@@ -110,8 +110,9 @@ pub(super) fn management_auth_router() -> Router {
 }
 
 pub(super) fn build_router_with_auth(cors_whitelist: Vec<String>, auth: Router) -> Router {
-    agent_gateway::router::build_router_with_auth(
-        cors_whitelist, auth, handler_router(), handler_router(), super::api::voice_router(),
+    agent_gateway::router::build_router_with_scoped_api(
+        cors_whitelist, auth, handler_router(), handler_router(),
+        super::api::voice_router(), super::api::media_router(),
     )
 }
 

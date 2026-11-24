@@ -63,6 +63,7 @@ struct ModelsResponse {
 struct ModelEntry {
     id: Option<String>,
     owned_by: Option<Value>,
+    supported_endpoint_types: Option<Value>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -115,6 +116,38 @@ pub(crate) async fn discover_openai_compatible_models_with_limits(
             }
         })?;
     Ok(parse_models(&body, false)?.into_iter().map(|model| model.id).collect())
+}
+
+/// Read per-model media endpoint grants from the account's OpenAI-compatible catalog.
+pub async fn discover_media_endpoint_types(
+    api_base: &Url,
+    bearer: &str,
+) -> Result<std::collections::HashMap<String, Vec<String>>, DiscoveryError> {
+    let url = Url::parse(&format!("{}/models", api_base.as_str().trim_end_matches('/')))
+        .map_err(|_| DiscoveryError::new("request"))?;
+    let mut value = HeaderValue::from_str(&format!("Bearer {bearer}"))
+        .map_err(|_| DiscoveryError::new("request"))?;
+    value.set_sensitive(true);
+    let mut headers = HeaderMap::new();
+    headers.insert(AUTHORIZATION, value);
+    let body = fetch_at(&[url], &headers, DiscoveryLimits::default(), Client::builder().no_proxy())
+        .await?;
+    let parsed: ModelsResponse =
+        serde_json::from_slice(&body).map_err(|_| DiscoveryError::new("invalid_response"))?;
+    let entries = parsed.data.ok_or_else(|| DiscoveryError::new("invalid_response"))?;
+    let mut result = std::collections::HashMap::new();
+    let mut seen = std::collections::HashSet::new();
+    for entry in entries {
+        let Some(id) = model_id(entry.id.as_deref()) else { continue };
+        if !seen.insert(id.to_owned()) {
+            result.remove(id);
+        } else if let Some(types) = entry.supported_endpoint_types
+            .and_then(|types| serde_json::from_value::<Vec<String>>(types).ok())
+        {
+            result.insert(id.to_owned(), types);
+        }
+    }
+    Ok(result)
 }
 
 /// Request only the supplied, preauthorized candidates with the supplied protocol headers.

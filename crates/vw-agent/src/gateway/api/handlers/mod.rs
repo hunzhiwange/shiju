@@ -322,6 +322,8 @@ pub(crate) use gateway_aggregation::aggregation_read_snapshot as aggregation_rea
 
 /// Authenticated recording transcription.
 pub(crate) mod voice;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod media;
 #[cfg(test)]
 pub(crate) mod voice_handoff;
 #[cfg(test)]

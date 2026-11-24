@@ -11,3 +11,6 @@ pub mod native_history;
 mod routing;
 pub use request::do_stream_request_aisdk;
 pub use crate::messages::has_tool_calls;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod media;

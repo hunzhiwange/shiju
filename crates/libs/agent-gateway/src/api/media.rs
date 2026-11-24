@@ -118,6 +118,15 @@ impl MediaJobStore {
         scope: &MediaJobScope,
         request: &MediaSubmit,
     ) -> Result<MediaReservation, Code> {
+        self.reserve_with_capacity(scope, request, true)
+    }
+
+    pub fn reserve_with_capacity(
+        &self,
+        scope: &MediaJobScope,
+        request: &MediaSubmit,
+        can_start: bool,
+    ) -> Result<MediaReservation, Code> {
         if scope.session_id != request.session_id {
             return Err(Code::NotFound);
         }
@@ -131,7 +140,7 @@ impl MediaJobStore {
         if let Some(existing) = store.existing(&key, &digest)? {
             return Ok(MediaReservation::Existing(existing));
         }
-        if store.active.len() >= MAX_ACTIVE_JOBS {
+        if !can_start || store.active.len() >= MAX_ACTIVE_JOBS {
             return Err(Code::Backpressure);
         }
 
@@ -169,6 +178,12 @@ impl MediaJobStore {
         let key = (scope.owner, id);
         let (_, snapshot) = store.load(&key)?.ok_or(Code::NotFound)?;
         store.visible_job(&key, &snapshot)
+    }
+
+    /// Release a worker whose terminal update could not be recorded.
+    /// Incomplete snapshots then become SubmissionUnknown on read.
+    pub fn abandon(&self, scope: &MediaJobScope, id: MediaJobId) {
+        self.inner.lock().active.remove(&(scope.owner, id));
     }
 
     /// Apply a worker update after reserving a job, or reconcile a verified
@@ -260,6 +275,27 @@ impl MediaJobStore {
             return Err(Code::NotFound);
         };
         result.assets.into_iter().find(|asset| asset.id == asset_id).ok_or(Code::NotFound)
+    }
+
+    /// Resolve an attachment only from results already published in this job scope.
+    pub fn find_asset(&self, scope: &MediaJobScope, asset_id: &str) -> Result<(MediaJobId, MediaAsset), Code> {
+        if !valid_asset_id(asset_id) {
+            return Err(Code::NotFound);
+        }
+        let store = self.inner.lock();
+        let (id, asset) = store.database.query_row(
+            "SELECT media_jobs.id, asset.value
+             FROM media_jobs, json_each(media_jobs.snapshot, '$.result.assets') AS asset
+             WHERE owner = ?1 AND json_extract(snapshot, '$.status') = 'succeeded'
+                 AND json_extract(asset.value, '$.id') = ?2
+             LIMIT 1",
+            params![&scope.owner[..], asset_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        ).optional().map_err(|_| Code::Unavailable)?.ok_or(Code::NotFound)?;
+        let id = MediaJobId::parse_str(&id).map_err(|_| Code::Unavailable)?;
+        let asset: MediaAsset = serde_json::from_str(&asset).map_err(|_| Code::Unavailable)?;
+        asset.validate()?;
+        Ok((id, asset))
     }
 
     /// Build a result from the existing image registry. Use the already authorized

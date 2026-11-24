@@ -7,6 +7,16 @@ use crate::middleware::{basic_auth_middleware, cors_origin_allowed, tenant_scope
 pub fn build_router_with_auth(
     cors_whitelist: Vec<String>, auth: Router, handlers: Router, versioned_handlers: Router, voice: Router,
 ) -> Router {
+    build_router_with_scoped_api(
+        cors_whitelist, auth, handlers, versioned_handlers, voice, Router::new(),
+    )
+}
+
+/// Mount an independently authenticated API beside the Basic-authenticated routes.
+pub fn build_router_with_scoped_api(
+    cors_whitelist: Vec<String>, auth: Router, handlers: Router, versioned_handlers: Router,
+    voice: Router, scoped_api: Router,
+) -> Router {
     // 将 CORS 白名单包装为 Arc，以便在 CORS 谓词闭包中安全共享
     // 避免每次请求时克隆整个列表
     let whitelist = Arc::new(cors_whitelist);
@@ -32,6 +42,7 @@ pub fn build_router_with_auth(
         // Basic 认证在租户解析前执行；OPTIONS 由各中间件放行。
         .layer(middleware::from_fn(basic_auth_middleware))
         .merge(auth)
+        .nest("/api", scoped_api)
         // CORS 中间件：处理跨域请求（最外层）
         .layer(cors)
 }

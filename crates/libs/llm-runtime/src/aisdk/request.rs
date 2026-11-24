@@ -55,6 +55,37 @@ pub fn bearer_fingerprint(secret: &str) -> String {
     hex::encode(digest)[..12].to_string()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) fn deployment_bearer(
+    provider_info: &model_types::Info,
+    auth_info: Option<&auth::Info>,
+) -> Option<(String, String)> {
+    provider_info
+        .key
+        .as_ref()
+        .map(|s| s.trim().to_string())
+        .filter(|k| !k.is_empty())
+        .map(|key| (key, "provider.key".to_string()))
+        .or_else(|| {
+            for k in &provider_info.env {
+                if let Some(v) = env::get(k).map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+                {
+                    return Some((v, format!("provider.env:{k}")));
+                }
+            }
+            None
+        })
+        .or_else(|| match auth_info {
+            Some(auth::Info::Api(api)) if !api.key.trim().is_empty() => {
+                Some((api.key.trim().to_string(), "auth.api".to_string()))
+            }
+            Some(auth::Info::Oauth(o)) if !o.access.trim().is_empty() => {
+                Some((o.access.trim().to_string(), "auth.oauth".to_string()))
+            }
+            _ => None,
+        })
+}
+
 /// 执行基于 AI SDK 的流式请求
 ///
 /// 该函数是与语言模型提供商进行流式通信的主要入口点。它处理认证、
@@ -163,30 +194,7 @@ pub async fn do_stream_request_aisdk(
     // 1. 提供商配置中的 key 字段
     // 2. 提供商环境变量列表中第一个非空值
     // 3. auth_info 中的认证信息
-    let bearer_and_source = provider_info
-        .key
-        .as_ref()
-        .map(|s| s.trim().to_string())
-        .filter(|k| !k.is_empty())
-        .map(|key| (key, "provider.key".to_string()))
-        .or_else(|| {
-            for k in &provider_info.env {
-                if let Some(v) = env::get(k).map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
-                {
-                    return Some((v, format!("provider.env:{k}")));
-                }
-            }
-            None
-        })
-        .or_else(|| match auth_info {
-            Some(auth::Info::Api(api)) if !api.key.trim().is_empty() => {
-                Some((api.key.trim().to_string(), "auth.api".to_string()))
-            }
-            Some(auth::Info::Oauth(o)) if !o.access.trim().is_empty() => {
-                Some((o.access.trim().to_string(), "auth.oauth".to_string()))
-            }
-            _ => None,
-        });
+    let bearer_and_source = deployment_bearer(provider_info, auth_info);
 
     // 如果无法获取有效的 Bearer Token，返回认证错误
     let Some((bearer, bearer_source)) = bearer_and_source else {

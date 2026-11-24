@@ -113,3 +113,13 @@ pub(crate) fn voice_router<S: Clone + Send + Sync + 'static>() -> axum::Router<S
     handlers::voice::router()
         .layer(axum::middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware))
 }
+
+/// Session media routes use the same tenant boundary as voice and authenticate each request.
+pub(crate) fn media_router<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
+    #[cfg(not(target_arch = "wasm32"))]
+    return handlers::media::router()
+        .layer(axum::middleware::from_fn(crate::gateway::user_scope::session_user))
+        .layer(axum::middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+    #[cfg(target_arch = "wasm32")]
+    axum::Router::new()
+}

@@ -195,6 +195,7 @@ config-runtime = { path = "../libs/config-runtime" }
 vw-api-acp-model = { path = "../libs/api-acp-model" }
 config-observability = { path = "../libs/config-observability" }
 config-hooks = { path = "../libs/config-hooks" }
+app-models = { path = "../libs/app-models" }
 provider-model-discovery = { path = "../libs/provider-model-discovery" }
 provider-model-cache = { path = "../libs/provider-model-cache" }
 vw-api-tools = { path = "../libs/api-tools" }
@@ -429,7 +430,7 @@ rustls = { version = "0.23.37", default-features = false, features = ["ring", "l
 rustls-platform-verifier = "0.7"
 rustyline = "17.0"
 tempfile = "3"
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "time", "test-util", "process", "signal"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "time", "test-util", "process", "signal", "fs", "io-util"] }
 tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "logging", "tls12"] }
 tokio-serial = "5.4.5"
 tokio-stream = { version = "0.1.18", features = ["fs", "sync"] }

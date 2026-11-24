@@ -4,7 +4,7 @@
 mod http;
 mod merge;
 
-pub use http::{DiscoveryError, DiscoveredModel, is_real_bearer, discover_openai_compatible_models, discover_catalog_models};
+pub use http::{DiscoveryError, DiscoveredModel, is_real_bearer, discover_openai_compatible_models, discover_catalog_models, discover_media_endpoint_types};
 pub use merge::{resolve_api_base, merge_remote_models, discover_and_merge_provider};
 
 #[cfg(test)]

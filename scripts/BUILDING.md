@@ -331,11 +331,20 @@ Tag releases sign and notarize macOS ZIP and DMG artifacts in
 `.github/workflows/release.yml`. Pull request builds use ad-hoc signing and
 never receive release credentials.
 
-For both Intel and Apple Silicon tag builds, the build job uploads the inputs
-for its matching `package-macos (<target>)` job. If signing, notarization, or
-DMG creation fails, open the failed packaging job in that run and select
-**Re-run this job**. GitHub reuses the build inputs while they are retained and
-continues the dependent release jobs after packaging succeeds.
+Each desktop target uploads its own install packages as
+`artifacts-build-local-<target>`. The standalone Web ZIP and checksum are in
+`artifacts-build-web`. Download successful packages from the Release workflow
+run's **Summary → Artifacts**, even when another target or publication fails.
+Tag runs also publish available packages to GitHub Releases once GitHub release
+preflight succeeds. A partial release lists missing targets in its notes and
+stays off **Latest**. Shared installers and automatic Homebrew and npm
+publication require a complete build. Use **Re-run failed jobs** to retry
+missing packages in the same run and add them to its release.
+
+For Intel and Apple Silicon tag builds, each `package-macos` job starts after
+its own architecture's build job uploads the inputs. If signing, notarization,
+or DMG creation fails, open that packaging job and select **Re-run this job**.
+GitHub reuses the retained build inputs and reruns dependent release jobs.
 
 **Release benchmark** checks both macOS cache keys when Cargo configuration or
 dependency files change on the protected default branch. It builds and saves a

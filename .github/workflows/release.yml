@@ -94,7 +94,6 @@ jobs:
     runs-on: "ubuntu-22.04"
     outputs:
       val: ${{ steps.plan.outputs.manifest }}
-      macos: ${{ steps.plan.outputs.macos }}
       tag: ${{ !github.event.pull_request && github.ref_name || '' }}
       tag-flag: ${{ !github.event.pull_request && format('--tag={0}', github.ref_name) || '' }}
       publishing: ${{ !github.event.pull_request }}
@@ -128,442 +127,46 @@ jobs:
           echo "dist ran successfully"
           cat plan-dist-manifest.json
           echo "manifest=$(jq -c "." plan-dist-manifest.json)" >> "$GITHUB_OUTPUT"
-          macos=$(jq -c '[.ci.github.artifacts_matrix.include[]? as $job
-            | $job.targets[] | select(endswith("-apple-darwin"))
-            | {runner: $job.runner, target: .}]' plan-dist-manifest.json)
-          echo "macos=$macos" >> "$GITHUB_OUTPUT"
       - name: "Upload dist-manifest.json"
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-plan-dist-manifest
           path: plan-dist-manifest.json
 
-  # Build and packages all the platform-specific things
+  # Each matrix entry owns its build, packaging, and artifact upload.
   build-local-artifacts:
     name: build-local-artifacts (${{ join(matrix.targets, ', ') }})
-    # Let the initial task tell us to not run (currently very blunt)
-    needs:
-      - plan
-      - release-preflight
-      - publish-access
-    if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.release-preflight.result == 'success' || github.event_name == 'pull_request') && (needs.publish-access.result == 'success' || github.event_name == 'pull_request') && fromJson(needs.plan.outputs.val).ci.github.artifacts_matrix.include != null && (needs.plan.outputs.publishing == 'true' || fromJson(needs.plan.outputs.val).ci.github.pr_run_mode == 'upload') }}
+    needs: plan
+    if: ${{ needs.plan.result == 'success' && fromJson(needs.plan.outputs.val).ci.github.artifacts_matrix.include != null && (needs.plan.outputs.publishing == 'true' || fromJson(needs.plan.outputs.val).ci.github.pr_run_mode == 'upload') }}
     strategy:
       fail-fast: false
-      # Target platforms/runners are computed by dist in create-release.
-      # Each member of the matrix has the following arguments:
-      #
-      # - runner: the github runner
-      # - dist-args: cli flags to pass to dist
-      # - install-dist: expression to run to install dist on the runner
-      #
-      # Typically there will be:
-      # - 1 "global" task that builds universal installers
-      # - N "local" tasks that build each platform's binaries and platform-specific installers
       matrix: ${{ fromJson(needs.plan.outputs.val).ci.github.artifacts_matrix }}
-    runs-on: ${{ matrix.runner }}
-    container: ${{ matrix.container && matrix.container.image || null }}
-    env:
-      CACHE_TARGETS: ${{ join(matrix.targets, ' ') }}
-      RELEASE_CACHE_MODE: restore
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      BUILD_MANIFEST_NAME: target/distrib/${{ join(matrix.targets, '-') }}-dist-manifest.json
-    steps:
-      - name: enable windows longpaths
-        run: |
-          git config --global core.longpaths true
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-          submodules: recursive
-      - name: Install Rust non-interactively if not already installed
-        if: ${{ matrix.container }}
-        run: |
-          if ! command -v cargo > /dev/null 2>&1; then
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          fi
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Acquire Cargo cache slot
-        shell: bash
-        run: |
-          mkdir -p target/rust-slot-locks
-          while :; do
-            for slot in {1..10}; do
-              lock="target/rust-slot-locks/slot-$slot.lock"
-              if mkdir "$lock" 2>/dev/null; then break 2; fi
-            done
-            sleep 5
-          done
-          trap 'rm -f "$lock/owner"; rmdir "$lock"' EXIT
-          printf 'plan=release-performance task=3 session=%s pid=%s\n' "$GITHUB_RUN_ID" "$PPID" > "$lock/owner"
-          # Hold until the final cleanup step; every Cargo and packaging child inherits it.
-          python - "$slot" <<'PYTHON'
-          import os, pathlib, sys
-          root = pathlib.Path.cwd()
-          with open(os.environ['GITHUB_ENV'], 'a') as out:
-              print(f'CARGO_TARGET_DIR={root / "target" / ("rust-slot-" + sys.argv[1])}', file=out)
-              print(f'RELEASE_CARGO_SLOT={sys.argv[1]}', file=out)
-          PYTHON
-          trap - EXIT
-      - name: Identify Cargo cache layout and toolchain
-        id: cargo-cache-layout
-        shell: bash
-        run: python scripts/release_cargo_cache.py
-      - name: Restore trusted Cargo cache
-        id: cargo-cache
-        if: ${{ env.RELEASE_CACHE_MODE != 'off' }}
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ steps.cargo-cache-layout.outputs.paths }}
-          key: ${{ steps.cargo-cache-layout.outputs.key }}
-          restore-keys: ${{ steps.cargo-cache-layout.outputs.prefix }}
-      - name: Install dist
-        run: ${{ matrix.install_dist.run }}
-      # Get the dist-manifest
-      - name: Fetch local artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: artifacts-*
-          path: target/distrib/
-          merge-multiple: true
-      - name: Install dependencies
-        run: |
-          ${{ matrix.packages_install }}
-      - name: Build artifacts
-        env:
-          VIBEWINDOW_RELEASE_BUILD: "1"
-        run: |
-          # Actually do builds and make zips and whatnot
-          dist build ${{ needs.plan.outputs.tag-flag }} --print=linkage --output-format=json ${{ matrix.dist_args }} > dist-manifest.json
-          echo "dist ran successfully"
-      - name: Build the embedded macOS control helper
-        if: ${{ contains(join(matrix.targets, ','), 'apple-darwin') }}
-        shell: bash
-        run: |
-          # The helper ships inside the macOS app, outside the cargo-dist archives.
-          for target in ${{ join(matrix.targets, ' ') }}; do
-            if [[ "$target" == *apple-darwin ]]; then
-              cargo build --locked --profile dist --target "$target" -p computer-control --bin shiju-computer-use
-            fi
-          done
-      - name: Build Linux DEB/RPM
-        if: ${{ contains(join(matrix.targets, ','), 'unknown-linux-gnu') }}
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y rpm
-          for target in ${{ join(matrix.targets, ' ') }}; do
-            if [[ "$target" == *unknown-linux-gnu ]]; then
-              TARGET="$target" PROFILE=dist OUT_DIR=target/distrib scripts/bundle_linux.sh
-              case "$target" in
-                aarch64-unknown-linux-gnu) deb_arch=arm64; rpm_arch=aarch64 ;;
-                x86_64-unknown-linux-gnu) deb_arch=amd64; rpm_arch=x86_64 ;;
-                *) echo "Unsupported Linux package target: $target" >&2; exit 1 ;;
-              esac
-              version=$(scripts/switch_version.sh --current | tr '-' '~')
-              deb="target/distrib/shiju_${version}_${deb_arch}.deb"
-              rpm="target/distrib/shiju-${version}-1.${rpm_arch}.rpm"
-              test -s "$deb" && test -s "$rpm"
-              test "$(dpkg-deb -f "$deb" Package)" = shiju
-              test "$(dpkg-deb -f "$deb" Architecture)" = "$deb_arch"
-              test "$(dpkg-deb -f "$deb" Version)" = "$version"
-              test "$(rpm -qp --queryformat '%{NAME}:%{VERSION}:%{ARCH}' "$rpm")" = "shiju:$version:$rpm_arch"
-            fi
-          done
-      - name: Cache pinned macOS packaging tools
-        if: ${{ github.event_name == 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/macos-packaging-tools
-          key: packaging-tools-${{ runner.os }}-${{ runner.arch }}-cargo-bundle-0.12.0
-      - name: Install macOS packaging tools in a shared Cargo slot
-        if: ${{ github.event_name == 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
-        shell: bash
-        run: |
-          bash scripts/install_macos_packaging_tools.sh "$RUNNER_TEMP/macos-packaging-tools"
-      # Pull requests use certificate-free ad-hoc signing.
-      - name: Build macOS packages with ad-hoc signing
-        if: ${{ github.event_name == 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
-        shell: bash
-        run: |
-          for target in ${{ join(matrix.targets, ' ') }}; do
-            if [[ "$target" == *apple-darwin ]]; then
-              TARGET="$target" \
-              PROFILE=dist \
-              SKIP_BUILD=1 \
-              OUT_DIR=target/distrib \
-              CREATE_DMG=1 \
-              PACKAGE_APP=1 \
-              MACOS_SIGN_MODE=adhoc \
-              MACOS_NOTARIZE=0 \
-              INCLUDE_CLI_IN_APP=1 \
-              INCLUDE_ACP_IN_APP=1 \
-              scripts/bundle_macos.sh
-            fi
-          done
-      - name: Build Windows MSI
-        if: ${{ contains(join(matrix.targets, ','), 'pc-windows-msvc') }}
-        shell: bash
-        run: |
-          dotnet tool install --global wix --version 5.0.2 || dotnet tool update --global wix --version 5.0.2
-          export PATH="$HOME/.dotnet/tools:$PATH"
-          wix extension add --global WixToolset.UI.wixext/5.0.2
-          for target in ${{ join(matrix.targets, ' ') }}; do
-            if [[ "$target" == *pc-windows-msvc ]]; then
-              TARGET="$target" PROFILE=dist SKIP_BUILD=1 OUT_DIR=target/distrib CREATE_ZIP=0 CREATE_MSI=1 INCLUDE_CLI_IN_APP=1 INCLUDE_ACP_IN_APP=1 scripts/bundle_windows.sh
-            fi
-          done
-      - id: cargo-dist
-        name: Post-build
-        # We force bash here just because github makes it really hard to get values up
-        # to "real" actions without writing to env-vars, and writing to env-vars has
-        # inconsistent syntax between shell and powershell.
-        shell: bash
-        run: |
-          # Parse out what we just built and upload it to scratch storage
-          echo "paths<<EOF" >> "$GITHUB_OUTPUT"
-          dist print-upload-files-from-manifest --manifest dist-manifest.json >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-
-          cp dist-manifest.json "$BUILD_MANIFEST_NAME"
-      - name: Stage prebuilt macOS release inputs
-        if: ${{ github.event_name == 'push' && contains(join(matrix.targets, ','), 'apple-darwin') }}
-        shell: bash
-        env:
-          DIST_ARTIFACTS: ${{ steps.cargo-dist.outputs.paths }}
-        run: |
-          set -euo pipefail
-          inputs="$RUNNER_TEMP/macos-release-inputs"
-          mkdir -p "$inputs/distrib"
-          : "${DIST_ARTIFACTS:?Missing cargo-dist release artifacts}"
-          while IFS= read -r artifact; do
-            if [[ -n "$artifact" ]]; then
-              cp "$artifact" "$inputs/distrib/"
-            fi
-          done <<< "$DIST_ARTIFACTS"
-          cp "$BUILD_MANIFEST_NAME" "$inputs/distrib/"
-
-          profile="$CACHE_TARGETS/dist"
-          executables=()
-          for binary in shi-ju vw-webview shiju-computer-use shiju acp; do
-            test -x "$CARGO_TARGET_DIR/$profile/$binary"
-            executables+=("$profile/$binary")
-          done
-          if [[ "$CACHE_TARGETS" == aarch64-apple-darwin && -x "$CARGO_TARGET_DIR/$profile/aionrs-acp" ]]; then
-            executables+=("$profile/aionrs-acp")
-          fi
-          # Tar preserves executable modes across the artifact upload/download.
-          tar -cf "$inputs/binaries.tar" -C "$CARGO_TARGET_DIR" "${executables[@]}"
-      - name: Upload prebuilt macOS release inputs
-        if: ${{ github.event_name == 'push' && contains(join(matrix.targets, ','), 'apple-darwin') }}
-        uses: actions/upload-artifact@v4
-        with:
-          # Keep intermediate files outside the artifacts-* release downloads.
-          name: macos-release-inputs-${{ join(matrix.targets, '_') }}
-          path: ${{ runner.temp }}/macos-release-inputs/
-          if-no-files-found: error
-          compression-level: 0
-
-      - name: "Upload artifacts"
-        if: ${{ github.event_name != 'push' || !contains(join(matrix.targets, ','), 'apple-darwin') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: artifacts-build-local-${{ join(matrix.targets, '_') }}
-          path: |
-            ${{ steps.cargo-dist.outputs.paths }}
-            target/distrib/*.deb
-            target/distrib/*.dmg
-            target/distrib/ShiJu-macos*.zip
-            target/distrib/*.msi
-            target/distrib/*.rpm
-            ${{ env.BUILD_MANIFEST_NAME }}
-
-      - name: Release Cargo cache slot
-        if: always()
-        shell: bash
-        run: |
-          python - <<'PYTHON'
-          import os, pathlib
-          slot = os.environ.get('RELEASE_CARGO_SLOT')
-          if slot:
-              if slot not in {str(n) for n in range(1, 11)}:
-                  raise RuntimeError('Invalid slot during cleanup')
-              lock = pathlib.Path(f'target/rust-slot-locks/slot-{slot}.lock')
-              owner = lock / 'owner'
-              if f'session={os.environ["GITHUB_RUN_ID"]}' not in owner.read_text().split():
-                  raise RuntimeError('Refusing to release another run slot')
-              owner.unlink()
-              lock.rmdir()
-          PYTHON
+    uses: ./.github/workflows/build-platform.yml
+    with:
+      platform: ${{ toJSON(matrix) }}
+      tag-flag: ${{ needs.plan.outputs.tag-flag }}
+    secrets:
+      MACOS_CERTIFICATE_P12_BASE64: ${{ github.event_name == 'push' && contains(join(matrix.targets, ','), 'apple-darwin') && secrets.MACOS_CERTIFICATE_P12_BASE64 || '' }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ github.event_name == 'push' && contains(join(matrix.targets, ','), 'apple-darwin') && secrets.MACOS_CERTIFICATE_PASSWORD || '' }}
+      MACOS_SIGN_IDENTITY: ${{ github.event_name == 'push' && contains(join(matrix.targets, ','), 'apple-darwin') && secrets.MACOS_SIGN_IDENTITY || '' }}
+      APPLE_NOTARY_APPLE_ID: ${{ github.event_name == 'push' && contains(join(matrix.targets, ','), 'apple-darwin') && secrets.APPLE_NOTARY_APPLE_ID || '' }}
+      APPLE_NOTARY_PASSWORD: ${{ github.event_name == 'push' && contains(join(matrix.targets, ','), 'apple-darwin') && secrets.APPLE_NOTARY_PASSWORD || '' }}
+      APPLE_TEAM_ID: ${{ github.event_name == 'push' && contains(join(matrix.targets, ','), 'apple-darwin') && secrets.APPLE_TEAM_ID || '' }}
 
   # Project-specific job; dist-workspace.toml allows maintained CI additions.
   build-web-artifacts:
-    needs: [plan, release-preflight]
-    if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.release-preflight.result == 'success' || github.event_name == 'pull_request') && (needs.plan.outputs.publishing == 'true' || fromJson(needs.plan.outputs.val).ci.github.pr_run_mode == 'upload') }}
+    needs: plan
+    if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.plan.outputs.publishing == 'true' || fromJson(needs.plan.outputs.val).ci.github.pr_run_mode == 'upload') }}
     permissions:
       contents: read
     uses: ./.github/workflows/build-web.yml
-
-  package-macos:
-    name: package-macos (${{ matrix.target }})
-    needs: [plan, build-local-artifacts]
-    if: ${{ github.event_name == 'push' && needs.plan.outputs.macos != '[]' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(needs.plan.outputs.macos) }}
-    runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: read
-    env:
-      TARGET: ${{ matrix.target }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-          submodules: recursive
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Download prebuilt macOS release inputs
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-release-inputs-${{ matrix.target }}
-          path: ${{ runner.temp }}/macos-release-inputs
-      - name: Restore prebuilt executables
-        shell: bash
-        run: |
-          target_dir="$RUNNER_TEMP/macos-package-target"
-          mkdir -p "$target_dir"
-          tar -xf "$RUNNER_TEMP/macos-release-inputs/binaries.tar" -C "$target_dir"
-          echo "CARGO_TARGET_DIR=$target_dir" >> "$GITHUB_ENV"
-      - name: Restore pinned macOS packaging tools
-        id: packaging-tools
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ runner.temp }}/macos-packaging-tools
-          key: packaging-tools-${{ runner.os }}-${{ runner.arch }}-cargo-bundle-0.12.0
-      - name: Install pinned macOS packaging tools
-        shell: bash
-        run: bash scripts/install_macos_packaging_tools.sh "$RUNNER_TEMP/macos-packaging-tools"
-      - name: Save pinned macOS packaging tools before signing
-        if: ${{ steps.packaging-tools.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ runner.temp }}/macos-packaging-tools
-          key: ${{ steps.packaging-tools.outputs.cache-primary-key }}
-      - name: Configure macOS release signing
-        shell: bash
-        env:
-          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
-          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
-          APPLE_NOTARY_APPLE_ID: ${{ secrets.APPLE_NOTARY_APPLE_ID }}
-          APPLE_NOTARY_PASSWORD: ${{ secrets.APPLE_NOTARY_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          set -euo pipefail
-          : "${MACOS_CERTIFICATE_P12_BASE64:?Missing MACOS_CERTIFICATE_P12_BASE64 secret}"
-          : "${MACOS_CERTIFICATE_PASSWORD:?Missing MACOS_CERTIFICATE_PASSWORD secret}"
-          : "${MACOS_SIGN_IDENTITY:?Missing MACOS_SIGN_IDENTITY secret}"
-          : "${APPLE_NOTARY_APPLE_ID:?Missing APPLE_NOTARY_APPLE_ID secret}"
-          : "${APPLE_NOTARY_PASSWORD:?Missing APPLE_NOTARY_PASSWORD secret}"
-          : "${APPLE_TEAM_ID:?Missing APPLE_TEAM_ID secret}"
-
-          keychain_path="$RUNNER_TEMP/vibewindow-signing.keychain-db"
-          certificate_path="$RUNNER_TEMP/vibewindow-signing.p12"
-          keychain_password="$(openssl rand -base64 32)"
-
-          printf '%s' "$MACOS_CERTIFICATE_P12_BASE64" | /usr/bin/base64 -D > "$certificate_path"
-          security create-keychain -p "$keychain_password" "$keychain_path"
-          security set-keychain-settings -lut 21600 "$keychain_path"
-          security unlock-keychain -p "$keychain_password" "$keychain_path"
-          security import "$certificate_path" \
-            -k "$keychain_path" \
-            -P "$MACOS_CERTIFICATE_PASSWORD" \
-            -T /usr/bin/codesign
-          security set-key-partition-list \
-            -S apple-tool:,apple:,codesign: \
-            -s \
-            -k "$keychain_password" \
-            "$keychain_path"
-          security list-keychains -d user -s "$keychain_path"
-          rm -f "$certificate_path"
-
-          signing_identities="$(security find-identity -v -p codesigning "$keychain_path")"
-          if ! grep -Fq "$MACOS_SIGN_IDENTITY" <<<"$signing_identities"; then
-            echo "Configured MACOS_SIGN_IDENTITY was not found in the imported certificate" >&2
-            exit 1
-          fi
-
-          xcrun notarytool store-credentials "vibewindow-ci" \
-            --apple-id "$APPLE_NOTARY_APPLE_ID" \
-            --password "$APPLE_NOTARY_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" \
-            --keychain "$keychain_path"
-      # Intel hosted runners can drop CloudKit HTTP/3 connections during stapling.
-      # Force TCP for this ephemeral runner: https://github.com/actions/runner-images/issues/14924
-      - name: Work around Intel macOS CloudKit HTTP/3 failures
-        if: ${{ matrix.target == 'x86_64-apple-darwin' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "block return out quick proto udp from any to any port 443" | sudo pfctl -f -
-          sudo pfctl -E
-      - name: Build signed and notarized macOS packages
-        shell: bash
-        env:
-          PROFILE: dist
-          SKIP_BUILD: '1'
-          CREATE_DMG: '1'
-          PACKAGE_APP: '1'
-          INCLUDE_CLI_IN_APP: '1'
-          INCLUDE_ACP_IN_APP: '1'
-          MACOS_SIGN_MODE: developer-id
-          MACOS_NOTARIZE: '1'
-          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
-          NOTARY_KEYCHAIN_PROFILE: vibewindow-ci
-        run: |
-          set -euo pipefail
-          export OUT_DIR="$RUNNER_TEMP/macos-packages"
-          export NOTARY_KEYCHAIN_PATH="$RUNNER_TEMP/vibewindow-signing.keychain-db"
-          scripts/bundle_macos.sh
-          for extension in zip dmg; do
-            package="$OUT_DIR/ShiJu-macos-$TARGET-$PROFILE.$extension"
-            test -s "$package"
-            mv "$package" "$RUNNER_TEMP/macos-release-inputs/distrib/"
-          done
-      - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: artifacts-build-local-${{ matrix.target }}
-          path: ${{ runner.temp }}/macos-release-inputs/distrib/
-          if-no-files-found: error
-          compression-level: 0
-      - name: Clean up macOS signing credentials
-        if: ${{ always() }}
-        shell: bash
-        run: |
-          keychain_path="$RUNNER_TEMP/vibewindow-signing.keychain-db"
-          if [[ -f "$keychain_path" ]]; then
-            security delete-keychain "$keychain_path" || true
-          fi
-          rm -f \
-            "$RUNNER_TEMP/vibewindow-signing.p12" \
-            "$RUNNER_TEMP/vibewindow-signing.keychain-db"
 
   # Build and package all the platform-agnostic(ish) things
   build-global-artifacts:
     needs:
       - plan
       - build-local-artifacts
-      - package-macos
-    if: >-
-      ${{ !cancelled() && needs.plan.result == 'success' && needs.build-local-artifacts.result == 'success'
-          && (needs.package-macos.result == 'success'
-              || (needs.package-macos.result == 'skipped' && (github.event_name == 'pull_request' || needs.plan.outputs.macos == '[]'))) }}
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.build-local-artifacts.result == 'success' }}
     runs-on: "ubuntu-22.04"
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -605,92 +208,84 @@ jobs:
           path: |
             ${{ steps.cargo-dist.outputs.paths }}
             ${{ env.BUILD_MANIFEST_NAME }}
-  # Determines if we should publish/announce
   host:
     needs:
       - plan
       - release-preflight
-      - publish-access
       - build-local-artifacts
-      - package-macos
       - build-global-artifacts
       - build-web-artifacts
-    # A tag that includes macOS must have all of its signed packages before publication.
-    if: >-
-      ${{ always() && needs.publish-access.result == 'success' && needs.release-preflight.result == 'success'
-          && needs.plan.result == 'success' && needs.plan.outputs.publishing == 'true' && needs.build-web-artifacts.result == 'success'
-          && (needs.package-macos.result == 'success' || (needs.package-macos.result == 'skipped' && needs.plan.outputs.macos == '[]'))
-          && (needs.build-global-artifacts.result == 'skipped' || needs.build-global-artifacts.result == 'success')
-          && (needs.build-local-artifacts.result == 'skipped' || needs.build-local-artifacts.result == 'success') }}
+    if: ${{ !cancelled() && needs.release-preflight.result == 'success' && needs.plan.result == 'success' && needs.plan.outputs.publishing == 'true' }}
+    permissions:
+      contents: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    runs-on: "ubuntu-22.04"
+    runs-on: ubuntu-22.04
     outputs:
-      val: ${{ steps.host.outputs.manifest }}
+      complete: ${{ steps.assets.outputs.complete }}
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
           submodules: recursive
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: artifacts-*
+          path: release-artifacts
+      - name: Stage available packages
+        id: assets
+        env:
+          BUILD_COMPLETE: ${{ needs.build-local-artifacts.result == 'success' && needs.build-global-artifacts.result == 'success' && needs.build-web-artifacts.result == 'success' }}
+        run: python3 scripts/prepare_release_assets.py release-artifacts target/distrib "$RUNNER_TEMP/notes.txt"
       - name: Install cached dist
+        if: steps.assets.outputs.complete == 'true'
         uses: actions/download-artifact@v4
         with:
           name: cargo-dist-cache
           path: ~/.cargo/bin/
-      - run: chmod +x ~/.cargo/bin/dist
-      # Fetch artifacts from scratch-storage
-      - name: Fetch artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: artifacts-*
-          path: target/distrib/
-          merge-multiple: true
-      - id: host
+      - name: Prepare complete dist release
+        if: steps.assets.outputs.complete == 'true'
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+          ANNOUNCEMENT_BODY: ${{ fromJson(needs.plan.outputs.val).announcement_github_body }}
         shell: bash
         run: |
-          dist host ${{ needs.plan.outputs.tag-flag }} --steps=upload --steps=release --output-format=json > dist-manifest.json
-          echo "artifacts uploaded and released successfully"
-          cat dist-manifest.json
-          echo "manifest=$(jq -c "." dist-manifest.json)" >> "$GITHUB_OUTPUT"
-      - name: "Upload dist-manifest.json"
+          chmod +x ~/.cargo/bin/dist
+          dist host --tag="$RELEASE_TAG" --steps=upload --steps=release --output-format=json > dist-manifest.json
+          jq -r --arg fallback "$ANNOUNCEMENT_BODY" '.announcement_github_body // $fallback' dist-manifest.json > "$RUNNER_TEMP/notes.txt"
+          cp dist-manifest.json target/distrib/
+      - name: Upload complete dist manifest
+        if: steps.assets.outputs.complete == 'true'
         uses: actions/upload-artifact@v4
         with:
-          # Overwrite the previous copy
           name: artifacts-dist-manifest
           path: dist-manifest.json
-      # Create a GitHub Release while uploading all files to it
-      - name: "Download GitHub Artifacts"
-        uses: actions/download-artifact@v4
-        with:
-          pattern: artifacts-*
-          path: artifacts
-          merge-multiple: true
-      - name: Cleanup
+          overwrite: true
+          if-no-files-found: error
+      - name: Add Web instructions
+        if: steps.assets.outputs.web == 'true'
         run: |
-          # Remove the granular manifests
-          rm -f artifacts/*-dist-manifest.json
-      - name: Create GitHub Release
-        env:
-          PRERELEASE_FLAG: "${{ fromJson(steps.host.outputs.manifest).announcement_is_prerelease && '--prerelease' || '' }}"
-          ANNOUNCEMENT_TITLE: "${{ fromJson(steps.host.outputs.manifest).announcement_title }}"
-          ANNOUNCEMENT_BODY: "${{ fromJson(steps.host.outputs.manifest).announcement_github_body }}"
-        run: |
-          # Write and read notes from a file to avoid quoting breaking things
-          echo "$ANNOUNCEMENT_BODY" > $RUNNER_TEMP/notes.txt
           cat >> "$RUNNER_TEMP/notes.txt" <<'WEB_NOTES'
 
           ### Web 静态版
           下载 `shiju-web-*.zip` 及对应 `.sha256`，解压后执行 `npm run start`，打开 http://127.0.0.1:8765/。
           仅需 Node.js，无需 Rust 或 npm 依赖。代理业务功能需另行连接 ShiJu 网关，详见压缩包中的 README.md。
           WEB_NOTES
-
-          # The push event already provides the tag. Avoid target_commitish, which
-          # can require workflow-write permission unavailable to GITHUB_TOKEN.
-          gh release create "${{ needs.plan.outputs.tag }}" --verify-tag $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
+      - name: Publish GitHub Release
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+          RELEASE_TITLE: ${{ fromJson(needs.plan.outputs.val).announcement_title }}
+          PRERELEASE: ${{ fromJson(needs.plan.outputs.val).announcement_is_prerelease }}
+          COMPLETE: ${{ steps.assets.outputs.complete }}
+        shell: bash
+        run: |
+          rm -f target/distrib/*-dist-manifest.json
+          bash scripts/publish_github_release.sh target/distrib "$RUNNER_TEMP/notes.txt"
 
   publish-homebrew-formula:
     needs: [plan, host, publish-access]
-    if: ${{ !cancelled() && needs.publish-access.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.mode == 'publish-existing') || (needs.host.result == 'success' && (!fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases))) }}
+    if: ${{ !cancelled() && needs.publish-access.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.mode == 'publish-existing') || (needs.host.result == 'success' && needs.host.outputs.complete == 'true' && (!fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases))) }}
     runs-on: ubuntu-22.04
     concurrency:
       group: homebrew-tap-publish
@@ -722,7 +317,7 @@ jobs:
 
   publish-npm:
     needs: [plan, host, publish-access]
-    if: ${{ !cancelled() && needs.publish-access.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.mode == 'publish-existing') || (needs.host.result == 'success' && (!fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases))) }}
+    if: ${{ !cancelled() && needs.publish-access.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.mode == 'publish-existing') || (needs.host.result == 'success' && needs.host.outputs.complete == 'true' && (!fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases))) }}
     runs-on: ubuntu-22.04
     concurrency:
       group: npm-publish-${{ inputs.tag || needs.plan.outputs.tag }}

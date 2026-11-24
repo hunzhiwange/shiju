@@ -1,0 +1,410 @@
+name: Build platform artifacts
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        description: One cargo-dist artifact matrix entry
+        required: true
+        type: string
+      tag-flag:
+        type: string
+    secrets:
+      MACOS_CERTIFICATE_P12_BASE64:
+        required: false
+      MACOS_CERTIFICATE_PASSWORD:
+        required: false
+      MACOS_SIGN_IDENTITY:
+        required: false
+      APPLE_NOTARY_APPLE_ID:
+        required: false
+      APPLE_NOTARY_PASSWORD:
+        required: false
+      APPLE_TEAM_ID:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ${{ fromJSON(inputs.platform).runner }}
+    container: ${{ fromJSON(inputs.platform).container && fromJSON(inputs.platform).container.image || null }}
+    env:
+      CACHE_TARGETS: ${{ join(fromJSON(inputs.platform).targets, ' ') }}
+      RELEASE_CACHE_MODE: restore
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BUILD_MANIFEST_NAME: target/distrib/${{ join(fromJSON(inputs.platform).targets, '-') }}-dist-manifest.json
+    steps:
+      - name: enable windows longpaths
+        run: |
+          git config --global core.longpaths true
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: Install Rust non-interactively if not already installed
+        if: ${{ fromJSON(inputs.platform).container }}
+        run: |
+          if ! command -v cargo > /dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          fi
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Acquire Cargo cache slot
+        shell: bash
+        run: |
+          mkdir -p target/rust-slot-locks
+          while :; do
+            for slot in {1..10}; do
+              lock="target/rust-slot-locks/slot-$slot.lock"
+              if mkdir "$lock" 2>/dev/null; then break 2; fi
+            done
+            sleep 5
+          done
+          trap 'rm -f "$lock/owner"; rmdir "$lock"' EXIT
+          printf 'plan=release-performance task=3 session=%s pid=%s\n' "$GITHUB_RUN_ID" "$PPID" > "$lock/owner"
+          # Hold until the final cleanup step; every Cargo and packaging child inherits it.
+          python - "$slot" <<'PYTHON'
+          import os, pathlib, sys
+          root = pathlib.Path.cwd()
+          with open(os.environ['GITHUB_ENV'], 'a') as out:
+              print(f'CARGO_TARGET_DIR={root / "target" / ("rust-slot-" + sys.argv[1])}', file=out)
+              print(f'RELEASE_CARGO_SLOT={sys.argv[1]}', file=out)
+          PYTHON
+          trap - EXIT
+      - name: Identify Cargo cache layout and toolchain
+        id: cargo-cache-layout
+        shell: bash
+        run: python scripts/release_cargo_cache.py
+      - name: Restore trusted Cargo cache
+        id: cargo-cache
+        if: ${{ env.RELEASE_CACHE_MODE != 'off' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.cargo-cache-layout.outputs.paths }}
+          key: ${{ steps.cargo-cache-layout.outputs.key }}
+          restore-keys: ${{ steps.cargo-cache-layout.outputs.prefix }}
+      - name: Install dist
+        run: ${{ fromJSON(inputs.platform).install_dist.run }}
+      - name: Fetch the plan manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts-plan-dist-manifest
+          path: target/distrib/
+      - name: Install dependencies
+        run: |
+          ${{ fromJSON(inputs.platform).packages_install }}
+      - name: Build artifacts
+        env:
+          VIBEWINDOW_RELEASE_BUILD: "1"
+        run: |
+          # Actually do builds and make zips and whatnot
+          dist build ${{ inputs.tag-flag }} --print=linkage --output-format=json ${{ fromJSON(inputs.platform).dist_args }} > dist-manifest.json
+          echo "dist ran successfully"
+      - name: Build the embedded macOS control helper
+        if: ${{ contains(join(fromJSON(inputs.platform).targets, ','), 'apple-darwin') }}
+        shell: bash
+        run: |
+          # The helper ships inside the macOS app, outside the cargo-dist archives.
+          for target in ${{ join(fromJSON(inputs.platform).targets, ' ') }}; do
+            if [[ "$target" == *apple-darwin ]]; then
+              cargo build --locked --profile dist --target "$target" -p computer-control --bin shiju-computer-use
+            fi
+          done
+      - name: Build Linux DEB/RPM
+        if: ${{ contains(join(fromJSON(inputs.platform).targets, ','), 'unknown-linux-gnu') }}
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          for target in ${{ join(fromJSON(inputs.platform).targets, ' ') }}; do
+            if [[ "$target" == *unknown-linux-gnu ]]; then
+              TARGET="$target" PROFILE=dist OUT_DIR=target/distrib scripts/bundle_linux.sh
+              case "$target" in
+                aarch64-unknown-linux-gnu) deb_arch=arm64; rpm_arch=aarch64 ;;
+                x86_64-unknown-linux-gnu) deb_arch=amd64; rpm_arch=x86_64 ;;
+                *) echo "Unsupported Linux package target: $target" >&2; exit 1 ;;
+              esac
+              version=$(scripts/switch_version.sh --current | tr '-' '~')
+              deb="target/distrib/shiju_${version}_${deb_arch}.deb"
+              rpm="target/distrib/shiju-${version}-1.${rpm_arch}.rpm"
+              test -s "$deb" && test -s "$rpm"
+              test "$(dpkg-deb -f "$deb" Package)" = shiju
+              test "$(dpkg-deb -f "$deb" Architecture)" = "$deb_arch"
+              test "$(dpkg-deb -f "$deb" Version)" = "$version"
+              test "$(rpm -qp --queryformat '%{NAME}:%{VERSION}:%{ARCH}' "$rpm")" = "shiju:$version:$rpm_arch"
+            fi
+          done
+      - name: Cache pinned macOS packaging tools
+        if: ${{ github.event_name == 'pull_request' && contains(join(fromJSON(inputs.platform).targets, ','), 'apple-darwin') }}
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/macos-packaging-tools
+          key: packaging-tools-${{ runner.os }}-${{ runner.arch }}-cargo-bundle-0.12.0
+      - name: Install macOS packaging tools in a shared Cargo slot
+        if: ${{ github.event_name == 'pull_request' && contains(join(fromJSON(inputs.platform).targets, ','), 'apple-darwin') }}
+        shell: bash
+        run: |
+          bash scripts/install_macos_packaging_tools.sh "$RUNNER_TEMP/macos-packaging-tools"
+      # Pull requests use certificate-free ad-hoc signing.
+      - name: Build macOS packages with ad-hoc signing
+        if: ${{ github.event_name == 'pull_request' && contains(join(fromJSON(inputs.platform).targets, ','), 'apple-darwin') }}
+        shell: bash
+        run: |
+          for target in ${{ join(fromJSON(inputs.platform).targets, ' ') }}; do
+            if [[ "$target" == *apple-darwin ]]; then
+              TARGET="$target" \
+              PROFILE=dist \
+              SKIP_BUILD=1 \
+              OUT_DIR=target/distrib \
+              CREATE_DMG=1 \
+              PACKAGE_APP=1 \
+              MACOS_SIGN_MODE=adhoc \
+              MACOS_NOTARIZE=0 \
+              INCLUDE_CLI_IN_APP=1 \
+              INCLUDE_ACP_IN_APP=1 \
+              scripts/bundle_macos.sh
+            fi
+          done
+      - name: Build Windows MSI
+        if: ${{ contains(join(fromJSON(inputs.platform).targets, ','), 'pc-windows-msvc') }}
+        shell: bash
+        run: |
+          dotnet tool install --global wix --version 5.0.2 || dotnet tool update --global wix --version 5.0.2
+          export PATH="$HOME/.dotnet/tools:$PATH"
+          wix extension add --global WixToolset.UI.wixext/5.0.2
+          for target in ${{ join(fromJSON(inputs.platform).targets, ' ') }}; do
+            if [[ "$target" == *pc-windows-msvc ]]; then
+              TARGET="$target" PROFILE=dist SKIP_BUILD=1 OUT_DIR=target/distrib CREATE_ZIP=0 CREATE_MSI=1 INCLUDE_CLI_IN_APP=1 INCLUDE_ACP_IN_APP=1 scripts/bundle_windows.sh
+            fi
+          done
+      - id: cargo-dist
+        name: Post-build
+        # We force bash here just because github makes it really hard to get values up
+        # to "real" actions without writing to env-vars, and writing to env-vars has
+        # inconsistent syntax between shell and powershell.
+        shell: bash
+        run: |
+          # Parse out what we just built and upload it to scratch storage
+          echo "paths<<EOF" >> "$GITHUB_OUTPUT"
+          dist print-upload-files-from-manifest --manifest dist-manifest.json >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+          cp dist-manifest.json "$BUILD_MANIFEST_NAME"
+      - name: Stage prebuilt macOS release inputs
+        if: ${{ github.event_name == 'push' && contains(join(fromJSON(inputs.platform).targets, ','), 'apple-darwin') }}
+        shell: bash
+        env:
+          DIST_ARTIFACTS: ${{ steps.cargo-dist.outputs.paths }}
+        run: |
+          set -euo pipefail
+          inputs="$RUNNER_TEMP/macos-release-inputs"
+          mkdir -p "$inputs/distrib"
+          : "${DIST_ARTIFACTS:?Missing cargo-dist release artifacts}"
+          while IFS= read -r artifact; do
+            if [[ -n "$artifact" ]]; then
+              cp "$artifact" "$inputs/distrib/"
+            fi
+          done <<< "$DIST_ARTIFACTS"
+          cp "$BUILD_MANIFEST_NAME" "$inputs/distrib/"
+
+          profile="$CACHE_TARGETS/dist"
+          executables=()
+          for binary in shi-ju vw-webview shiju-computer-use shiju acp; do
+            test -x "$CARGO_TARGET_DIR/$profile/$binary"
+            executables+=("$profile/$binary")
+          done
+          if [[ "$CACHE_TARGETS" == aarch64-apple-darwin && -x "$CARGO_TARGET_DIR/$profile/aionrs-acp" ]]; then
+            executables+=("$profile/aionrs-acp")
+          fi
+          # Tar preserves executable modes across the artifact upload/download.
+          tar -cf "$inputs/binaries.tar" -C "$CARGO_TARGET_DIR" "${executables[@]}"
+      - name: Upload prebuilt macOS release inputs
+        if: ${{ github.event_name == 'push' && contains(join(fromJSON(inputs.platform).targets, ','), 'apple-darwin') }}
+        uses: actions/upload-artifact@v4
+        with:
+          # Keep intermediate files outside the artifacts-* release downloads.
+          name: macos-release-inputs-${{ join(fromJSON(inputs.platform).targets, '_') }}
+          path: ${{ runner.temp }}/macos-release-inputs/
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: "Upload artifacts"
+        if: ${{ github.event_name != 'push' || !contains(join(fromJSON(inputs.platform).targets, ','), 'apple-darwin') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-build-local-${{ join(fromJSON(inputs.platform).targets, '_') }}
+          if-no-files-found: error
+          path: |
+            ${{ steps.cargo-dist.outputs.paths }}
+            target/distrib/*.deb
+            target/distrib/*.dmg
+            target/distrib/ShiJu-macos*.zip
+            target/distrib/*.msi
+            target/distrib/*.rpm
+            ${{ env.BUILD_MANIFEST_NAME }}
+
+      - name: Release Cargo cache slot
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PYTHON'
+          import os, pathlib
+          slot = os.environ.get('RELEASE_CARGO_SLOT')
+          if slot:
+              if slot not in {str(n) for n in range(1, 11)}:
+                  raise RuntimeError('Invalid slot during cleanup')
+              lock = pathlib.Path(f'target/rust-slot-locks/slot-{slot}.lock')
+              owner = lock / 'owner'
+              if f'session={os.environ["GITHUB_RUN_ID"]}' not in owner.read_text().split():
+                  raise RuntimeError('Refusing to release another run slot')
+              owner.unlink()
+              lock.rmdir()
+          PYTHON
+
+  # Sign on a fresh runner once this architecture has uploaded its inputs.
+  package-macos:
+    needs: build
+    if: ${{ github.event_name == 'push' && contains(join(fromJSON(inputs.platform).targets, ','), 'apple-darwin') }}
+    runs-on: ${{ fromJSON(inputs.platform).runner }}
+    permissions:
+      contents: read
+    env:
+      TARGET: ${{ join(fromJSON(inputs.platform).targets, ' ') }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download prebuilt macOS release inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-release-inputs-${{ join(fromJSON(inputs.platform).targets, '_') }}
+          path: ${{ runner.temp }}/macos-release-inputs
+      - name: Restore prebuilt executables
+        shell: bash
+        run: |
+          target_dir="$RUNNER_TEMP/macos-package-target"
+          mkdir -p "$target_dir"
+          tar -xf "$RUNNER_TEMP/macos-release-inputs/binaries.tar" -C "$target_dir"
+          echo "CARGO_TARGET_DIR=$target_dir" >> "$GITHUB_ENV"
+      - name: Restore pinned macOS packaging tools
+        id: packaging-tools
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/macos-packaging-tools
+          key: packaging-tools-${{ runner.os }}-${{ runner.arch }}-cargo-bundle-0.12.0
+      - name: Install pinned macOS packaging tools
+        shell: bash
+        run: bash scripts/install_macos_packaging_tools.sh "$RUNNER_TEMP/macos-packaging-tools"
+      - name: Save pinned macOS packaging tools before signing
+        if: ${{ steps.packaging-tools.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/macos-packaging-tools
+          key: ${{ steps.packaging-tools.outputs.cache-primary-key }}
+      - name: Configure macOS release signing
+        shell: bash
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          APPLE_NOTARY_APPLE_ID: ${{ secrets.APPLE_NOTARY_APPLE_ID }}
+          APPLE_NOTARY_PASSWORD: ${{ secrets.APPLE_NOTARY_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          : "${MACOS_CERTIFICATE_P12_BASE64:?Missing MACOS_CERTIFICATE_P12_BASE64 secret}"
+          : "${MACOS_CERTIFICATE_PASSWORD:?Missing MACOS_CERTIFICATE_PASSWORD secret}"
+          : "${MACOS_SIGN_IDENTITY:?Missing MACOS_SIGN_IDENTITY secret}"
+          : "${APPLE_NOTARY_APPLE_ID:?Missing APPLE_NOTARY_APPLE_ID secret}"
+          : "${APPLE_NOTARY_PASSWORD:?Missing APPLE_NOTARY_PASSWORD secret}"
+          : "${APPLE_TEAM_ID:?Missing APPLE_TEAM_ID secret}"
+
+          keychain_path="$RUNNER_TEMP/vibewindow-signing.keychain-db"
+          certificate_path="$RUNNER_TEMP/vibewindow-signing.p12"
+          keychain_password="$(openssl rand -base64 32)"
+
+          printf '%s' "$MACOS_CERTIFICATE_P12_BASE64" | /usr/bin/base64 -D > "$certificate_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" \
+            -k "$keychain_path" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$keychain_password" \
+            "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          rm -f "$certificate_path"
+
+          signing_identities="$(security find-identity -v -p codesigning "$keychain_path")"
+          if ! grep -Fq "$MACOS_SIGN_IDENTITY" <<<"$signing_identities"; then
+            echo "Configured MACOS_SIGN_IDENTITY was not found in the imported certificate" >&2
+            exit 1
+          fi
+
+          xcrun notarytool store-credentials "vibewindow-ci" \
+            --apple-id "$APPLE_NOTARY_APPLE_ID" \
+            --password "$APPLE_NOTARY_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --keychain "$keychain_path"
+      # Intel hosted runners can drop CloudKit HTTP/3 connections during stapling.
+      # Force TCP for this ephemeral runner: https://github.com/actions/runner-images/issues/14924
+      - name: Work around Intel macOS CloudKit HTTP/3 failures
+        if: ${{ env.TARGET == 'x86_64-apple-darwin' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "block return out quick proto udp from any to any port 443" | sudo pfctl -f -
+          sudo pfctl -E
+      - name: Build signed and notarized macOS packages
+        shell: bash
+        env:
+          PROFILE: dist
+          SKIP_BUILD: '1'
+          CREATE_DMG: '1'
+          PACKAGE_APP: '1'
+          INCLUDE_CLI_IN_APP: '1'
+          INCLUDE_ACP_IN_APP: '1'
+          MACOS_SIGN_MODE: developer-id
+          MACOS_NOTARIZE: '1'
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          NOTARY_KEYCHAIN_PROFILE: vibewindow-ci
+        run: |
+          set -euo pipefail
+          export OUT_DIR="$RUNNER_TEMP/macos-packages"
+          export NOTARY_KEYCHAIN_PATH="$RUNNER_TEMP/vibewindow-signing.keychain-db"
+          scripts/bundle_macos.sh
+          for extension in zip dmg; do
+            package="$OUT_DIR/ShiJu-macos-$TARGET-$PROFILE.$extension"
+            test -s "$package"
+            mv "$package" "$RUNNER_TEMP/macos-release-inputs/distrib/"
+          done
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-build-local-${{ join(fromJSON(inputs.platform).targets, '_') }}
+          path: ${{ runner.temp }}/macos-release-inputs/distrib/
+          if-no-files-found: error
+          compression-level: 0
+      - name: Clean up macOS signing credentials
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          keychain_path="$RUNNER_TEMP/vibewindow-signing.keychain-db"
+          if [[ -f "$keychain_path" ]]; then
+            security delete-keychain "$keychain_path" || true
+          fi
+          rm -f \
+            "$RUNNER_TEMP/vibewindow-signing.p12" \
+            "$RUNNER_TEMP/vibewindow-signing.keychain-db"

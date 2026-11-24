@@ -1,3 +1,6 @@
+use std::{cell::Cell, rc::Rc};
+
+use desktop_i18n::I18n;
 use gtk::prelude::*;
 use webkit2gtk::WebViewExt;
 use wry::{
@@ -13,6 +16,7 @@ impl Host {
         features: NewWindowFeatures,
         on_close: impl Fn() + 'static,
         title: &str,
+        i18n: Rc<Cell<I18n>>,
     ) -> wry::Result<(WebView, Self)> {
         let host = Self(gtk::Window::new(gtk::WindowType::Toplevel));
         host.0.set_title(title);
@@ -22,7 +26,7 @@ impl Host {
             host.0.set_transient_for(Some(&parent));
         }
         let webview = builder.with_related_view(opener).build_gtk(&host.0)?;
-        webview_media_permissions::install(&webview, &host.0);
+        webview_media_permissions::install(i18n, &webview, &host.0);
         // Wry destroys the native widget on window.close(). GTK also destroys
         // that widget when its containing window closes.
         let native = webview.webview();

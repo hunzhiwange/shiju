@@ -132,6 +132,8 @@ impl PopupWindows {
             on_close,
             #[cfg(unix)]
             self.title,
+            #[cfg(all(unix, not(target_os = "macos")))]
+            self.i18n.clone(),
             #[cfg(target_os = "macos")]
             self.user_agent,
             #[cfg(target_os = "macos")]

@@ -807,7 +807,7 @@ pub fn processor_event_from_prompt_event(
 ) -> session_engine::processor_events::StreamEvent {
     match event {
         session_port::PromptEvent::LlmRawArtifact(artifact) => {
-            session_engine::processor_events::StreamEvent::LlmRawArtifact(artifact)
+            session_engine::processor_events::StreamEvent::LlmRawArtifact(*artifact)
         }
         session_port::PromptEvent::ContextLoaded { paths } => {
             session_engine::processor_events::StreamEvent::ContextLoaded { paths }

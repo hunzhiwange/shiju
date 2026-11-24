@@ -285,23 +285,23 @@ pub fn validate_config(config: &Config) -> Result<()> {
             );
         }
 
-        if let Some(base_url) = profile.base_url.as_deref().map(str::trim) {
-            if !base_url.is_empty() {
-                let parsed = reqwest::Url::parse(base_url).with_context(|| {
-                    format!("model_providers.{profile_name}.base_url is not a valid URL")
-                })?;
-                if !matches!(parsed.scheme(), "http" | "https") {
-                    anyhow::bail!("model_providers.{profile_name}.base_url must use http/https");
-                }
+        if let Some(base_url) = profile.base_url.as_deref().map(str::trim)
+            && !base_url.is_empty()
+        {
+            let parsed = reqwest::Url::parse(base_url).with_context(|| {
+                format!("model_providers.{profile_name}.base_url is not a valid URL")
+            })?;
+            if !matches!(parsed.scheme(), "http" | "https") {
+                anyhow::bail!("model_providers.{profile_name}.base_url must use http/https");
             }
         }
 
-        if let Some(wire_api) = profile.wire_api.as_deref().map(str::trim) {
-            if !wire_api.is_empty() && normalize_wire_api(wire_api).is_none() {
-                anyhow::bail!(
-                    "model_providers.{profile_name}.wire_api must be one of: responses, chat_completions"
-                );
-            }
+        if let Some(wire_api) = profile.wire_api.as_deref().map(str::trim)
+            && !wire_api.is_empty() && normalize_wire_api(wire_api).is_none()
+        {
+            anyhow::bail!(
+                "model_providers.{profile_name}.wire_api must be one of: responses, chat_completions"
+            );
         }
     }
 

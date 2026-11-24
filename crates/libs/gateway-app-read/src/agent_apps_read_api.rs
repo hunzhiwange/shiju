@@ -77,10 +77,10 @@ impl GatewayAppReadClient {
         &self,
         path: &str,
         query: &[(&str, String)],
-        token: Option<&str>,
+        _token: Option<&str>,
     ) -> Result<T, AgentAppsReadError> {
         #[cfg(target_arch = "wasm32")]
-        if token.is_some() {
+        if _token.is_some() {
             return Err(AgentAppsReadError::Transport(
                 "authorized application reads require native transport".into(),
             ));
@@ -90,11 +90,6 @@ impl GatewayAppReadClient {
         #[cfg(target_arch = "wasm32")]
         let transport = &self.transport.client();
         let request = transport.get(format!("{}{path}", self.transport.endpoint().base_url())).query(query);
-        let request = if let Some(token) = token {
-            request
-        } else {
-            request
-        };
         let response = gateway_http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await

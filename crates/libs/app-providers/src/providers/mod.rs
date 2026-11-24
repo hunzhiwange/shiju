@@ -91,8 +91,6 @@ pub use app_provider_native::providers::openclaw;
 pub use app_provider_native::providers::opencode;
 
 #[cfg(target_os = "macos")]
-
-#[cfg(target_os = "macos")]
 pub use app_provider_native::providers::pi;
 
 #[cfg(target_os = "macos")]

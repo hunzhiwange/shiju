@@ -1,4 +1,7 @@
-use super::super::{AgentAppsReadError, GatewayClient};
+use super::super::GatewayClient;
+#[cfg(not(target_arch = "wasm32"))]
+use super::super::AgentAppsReadError;
+#[cfg(not(target_arch = "wasm32"))]
 use vw_api_external_session::SessionStreamRequest;
 #[cfg(not(target_arch = "wasm32"))]
 pub use gateway_external_session::ExternalSessionStream;

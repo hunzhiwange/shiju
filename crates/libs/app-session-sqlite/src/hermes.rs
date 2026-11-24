@@ -114,10 +114,10 @@ pub fn parse_jsonl_session(path: &Path, identity: &ExternalSessionIdentity) -> O
             }
         }
 
-        if first_user_msg.is_none() {
-            if let Some(("user", text)) = jsonl_message(&value) {
-                first_user_msg = Some(truncate_summary(&text, TITLE_MAX_CHARS));
-            }
+        if first_user_msg.is_none()
+            && let Some(("user", text)) = jsonl_message(&value)
+        {
+            first_user_msg = Some(truncate_summary(&text, TITLE_MAX_CHARS));
         }
     }
 
@@ -139,10 +139,10 @@ pub fn parse_jsonl_session(path: &Path, identity: &ExternalSessionIdentity) -> O
                 .or_else(|| value.get("ts"))
                 .and_then(parse_timestamp_to_ms);
         }
-        if last_msg.is_none() {
-            if let Some(("user" | "assistant", text)) = jsonl_message(&value) {
-                last_msg = Some(truncate_summary(&text, 160));
-            }
+        if last_msg.is_none()
+            && let Some(("user" | "assistant", text)) = jsonl_message(&value)
+        {
+            last_msg = Some(truncate_summary(&text, 160));
         }
         if tail_ts.is_some() && last_msg.is_some() {
             break;

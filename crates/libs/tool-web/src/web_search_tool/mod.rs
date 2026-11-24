@@ -593,7 +593,7 @@ impl WebSearchTool {
             .json(&json!({
                 "query": query,
                 "limit": self.max_results,
-                "timeout": (self.timeout_secs * 1000) as u64,
+                "timeout": self.timeout_secs * 1000,
             }))
             .send()
             .await

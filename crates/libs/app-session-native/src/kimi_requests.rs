@@ -73,10 +73,9 @@ impl RequestIndex {
                 if let Some(step) = &mut self.step {
                     if let (Some(expected), Some(actual)) =
                         (step.turn_step.as_deref(), record["turnStep"].as_str())
+                        && expected != actual
                     {
-                        if expected != actual {
-                            return;
-                        }
+                        return;
                     }
                     // Retries replace the failed attempt; native timing belongs to the final one.
                     step.model = model_name(&record["model"]).map(str::to_owned);

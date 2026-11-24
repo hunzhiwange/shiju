@@ -83,10 +83,6 @@ enum GlobalDatabaseBackend {
 }
 
 #[cfg(any(test, feature = "test-support"))]
-static TEST_GLOBAL_DATABASE_HOMES: LazyLock<Mutex<Vec<tempfile::TempDir>>> =
-    LazyLock::new(|| Mutex::new(Vec::new()));
-
-#[cfg(any(test, feature = "test-support"))]
 std::thread_local! {
     static TEST_GLOBAL_DATABASE_HOME: tempfile::TempDir =
         tempfile::tempdir().expect("create isolated global database test home");

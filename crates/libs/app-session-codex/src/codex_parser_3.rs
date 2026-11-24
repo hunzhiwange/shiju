@@ -111,24 +111,23 @@ impl RolloutParser {
                     duration_ms,
                     ..
                 } = block
+                    && id == call_id
                 {
-                    if id == call_id {
-                        if exit_code.is_none() {
-                            *exit_code = info.exit_code;
-                        }
-                        if duration_ms.is_none() {
-                            *duration_ms = info.duration_ms;
-                        }
-                        // 输出先到时只能判为成功，失败 / 中断以迟到的结构化项为准
-                        if *status == ToolStatus::Success {
-                            if matches!(info.status, ToolStatus::Error | ToolStatus::Interrupted) {
-                                *status = info.status;
-                            } else if exit_code.is_some_and(|c| c != 0) {
-                                *status = ToolStatus::Error;
-                            }
-                        }
-                        return;
+                    if exit_code.is_none() {
+                        *exit_code = info.exit_code;
                     }
+                    if duration_ms.is_none() {
+                        *duration_ms = info.duration_ms;
+                    }
+                    // 输出先到时只能判为成功，失败 / 中断以迟到的结构化项为准
+                    if *status == ToolStatus::Success {
+                        if matches!(info.status, ToolStatus::Error | ToolStatus::Interrupted) {
+                            *status = info.status;
+                        } else if exit_code.is_some_and(|c| c != 0) {
+                            *status = ToolStatus::Error;
+                        }
+                    }
+                    return;
                 }
             }
         }

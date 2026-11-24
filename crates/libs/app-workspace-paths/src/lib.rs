@@ -156,10 +156,10 @@ impl WorkspaceDirectory {
                 break;
             }
             let name = unsafe { std::ffi::CStr::from_ptr((*entry).d_name.as_ptr()) };
-            if let Ok(name) = name.to_str() {
-                if name != "." && name != ".." {
-                    names.push(name.to_owned());
-                }
+            if let Ok(name) = name.to_str()
+                && name != "." && name != ".."
+            {
+                names.push(name.to_owned());
             }
         }
         Ok(names)

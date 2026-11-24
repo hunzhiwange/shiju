@@ -138,6 +138,8 @@ pub struct GlobalEvent {
     pub payload: Value,
 }
 
+type GlobalCallback = Arc<dyn Fn(GlobalEvent) + Send + Sync + 'static>;
+
 /// 全局订阅状态
 ///
 /// 存储所有全局订阅的回调函数，不区分事件类型。
@@ -146,7 +148,7 @@ struct GlobalState {
     /// 全局订阅列表
     ///
     /// 每项为 (订阅ID, 回调函数)，回调接收完整的 `GlobalEvent`。
-    subscriptions: Vec<(u64, Arc<dyn Fn(GlobalEvent) + Send + Sync + 'static>)>,
+    subscriptions: Vec<(u64, GlobalCallback)>,
 }
 
 /// 全局订阅状态存储
@@ -389,10 +391,10 @@ pub fn once(def: Definition, callback: impl Fn(Value) -> bool + Send + Sync + 's
     // 注册订阅，包装用户回调
     let unsub = subscribe(def, move |event| {
         // 用户回调返回 true 时取消订阅
-        if callback(event) {
-            if let Some(f) = slot2.lock().ok().and_then(|mut s| s.take()) {
-                f();
-            }
+        if callback(event)
+            && let Some(f) = slot2.lock().ok().and_then(|mut s| s.take())
+        {
+            f();
         }
     });
 
@@ -505,7 +507,7 @@ pub fn global_subscribe(callback: impl Fn(GlobalEvent) + Send + Sync + 'static) 
     let id = SUB_ID.fetch_add(1, Ordering::Relaxed);
 
     // 包装回调
-    let cb: Arc<dyn Fn(GlobalEvent) + Send + Sync + 'static> = Arc::new(callback);
+    let cb: GlobalCallback = Arc::new(callback);
 
     // 添加到全局订阅列表
     {

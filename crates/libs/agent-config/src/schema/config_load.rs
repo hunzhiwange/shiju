@@ -185,9 +185,11 @@ pub async fn load_config_from_json_root(
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn default_tenant_payload(config_path: &Path, workspace_dir: &Path) -> Result<String> {
-    let mut config = Config::default();
-    config.config_path = config_path.to_path_buf();
-    config.workspace_dir = workspace_dir.to_path_buf();
+    let mut config = Config {
+        config_path: config_path.to_path_buf(),
+        workspace_dir: workspace_dir.to_path_buf(),
+        ..Config::default()
+    };
     validate_config(&config)?;
     encrypt_config_secrets(&mut config)?;
     serde_json::to_string(&config).context("serialize default tenant system config")

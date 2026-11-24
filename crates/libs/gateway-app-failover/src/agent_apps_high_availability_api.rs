@@ -177,7 +177,7 @@ impl GatewayAppFailoverClient {
         scope: &FailoverQueueQuery,
         provider_id: Option<&ProviderId>,
         body: Option<&B>,
-        token: Option<&str>,
+        _token: Option<&str>,
     ) -> Result<T, AgentAppsHighAvailabilityError> {
         use AgentAppsHighAvailabilityError as Error;
         // The general JSON helpers erase structured HTTP statuses. Reuse the native
@@ -189,9 +189,6 @@ impl GatewayAppFailoverClient {
         ).query(scope);
         if let Some(provider_id) = provider_id {
             request = request.query(&[("providerId", provider_id.as_ref())]);
-        }
-        if let Some(token) = token {
-            request = request;
         }
         if let Some(body) = body {
             request = request.json(body);

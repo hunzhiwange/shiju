@@ -166,10 +166,10 @@ pub(super) fn backup_ids(parent: &File) -> Result<Vec<String>, Error> {
         // SAFETY: readdir's name remains valid until the next stream operation.
         let name = unsafe { std::ffi::CStr::from_ptr((*entry).d_name.as_ptr()) };
         let Ok(name) = name.to_str() else { continue };
-        if let Some(id) = name.strip_suffix(".local-backup") {
-            if archive_name(id).is_ok() {
-                ids.push(id.to_owned());
-            }
+        if let Some(id) = name.strip_suffix(".local-backup")
+            && archive_name(id).is_ok()
+        {
+            ids.push(id.to_owned());
         }
     }
     ids.sort();

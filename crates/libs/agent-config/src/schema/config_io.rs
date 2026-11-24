@@ -140,10 +140,10 @@ pub fn normalize_legacy_alias_conflicts(config_payload: &mut serde_json::Value) 
 
     if obj.contains_key("acp") && obj.contains_key("acp2") {
         obj.remove("acp2");
-    } else if !obj.contains_key("acp") {
-        if let Some(value) = obj.remove("acp2") {
-            obj.insert("acp".to_string(), value);
-        }
+    } else if !obj.contains_key("acp")
+        && let Some(value) = obj.remove("acp2")
+    {
+        obj.insert("acp".to_string(), value);
     }
 }
 

@@ -6,11 +6,11 @@
 //!
 //! # 核心组件
 //!
-//! - [`EmbeddingProvider`]: 嵌入提供者的核心 trait，定义了所有嵌入服务必须实现的接口
-//! - [`OpenAiEmbedding`]: OpenAI 兼容的嵌入服务实现
-//! - [`AlibabaEmbedding`]: 阿里 DashScope OpenAI 兼容嵌入服务实现
-//! - [`NoopEmbedding`]: 空操作的嵌入实现，用于禁用嵌入功能
-//! - [`create_embedding_provider`]: 工厂函数，根据配置创建对应的嵌入提供者
+//! - [`EmbeddingProvider`][]: 嵌入提供者的核心 trait，定义了所有嵌入服务必须实现的接口
+//! - [`OpenAiEmbedding`][]: OpenAI 兼容的嵌入服务实现
+//! - [`AlibabaEmbedding`][]: 阿里 DashScope OpenAI 兼容嵌入服务实现
+//! - [`NoopEmbedding`][]: 空操作的嵌入实现，用于禁用嵌入功能
+//! - [`create_embedding_provider`][]: 工厂函数，根据配置创建对应的嵌入提供者
 //!
 //! # 平台适配
 //!

@@ -566,12 +566,12 @@ pub(super) async fn resolve_runtime_config_dirs_from_env(
     }
 
     // 优先级2：检查 VIBEWINDOW_WORKSPACE 环境变量
-    if let Some(custom_workspace) = env_workspace {
-        if !custom_workspace.is_empty() {
-            let (vibewindow_dir, workspace_dir) =
-                resolve_config_dir_for_workspace(&PathBuf::from(custom_workspace));
-            return Ok((vibewindow_dir, workspace_dir, ConfigResolutionSource::EnvWorkspace));
-        }
+    if let Some(custom_workspace) = env_workspace
+        && !custom_workspace.is_empty()
+    {
+        let (vibewindow_dir, workspace_dir) =
+            resolve_config_dir_for_workspace(&PathBuf::from(custom_workspace));
+        return Ok((vibewindow_dir, workspace_dir, ConfigResolutionSource::EnvWorkspace));
     }
 
     // 优先级3：检查持久化的活动工作空间标记

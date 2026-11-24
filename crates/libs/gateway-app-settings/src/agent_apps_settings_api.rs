@@ -216,11 +216,11 @@ impl GatewayAppSettingsClient {
         resource: &str,
         host: &str,
         body: Option<&B>,
-        token: Option<&str>,
+        _token: Option<&str>,
     ) -> Result<T, AgentAppsSettingsError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (method, resource, host, body, token);
+            let _ = (method, resource, host, body, _token);
             Err(AgentAppsSettingsError::Transport(
                 "settings/launch requests require a native transport with redirects and retries disabled"
                     .into(),
@@ -232,9 +232,6 @@ impl GatewayAppSettingsClient {
             let mut request = self.transport.dynamic_host_client()
                 .request(method, format!("{}/v1/agent-apps/{resource}", self.transport.endpoint().base_url()))
                 .query(&[("targetHostId", host)]);
-            if let Some(token) = token {
-                request = request;
-            }
             if let Some(body) = body {
                 request = request.json(body);
             }

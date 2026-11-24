@@ -646,7 +646,7 @@ impl WebFetchTool {
                 "url": url,
                 "formats": ["markdown"],  // 请求 Markdown 格式
                 "onlyMainContent": true,   // 只提取主要内容
-                "timeout": (self.effective_timeout_secs(timeout_secs) * 1000) as u64  // 转换为毫秒
+                "timeout": self.effective_timeout_secs(timeout_secs) * 1000  // 转换为毫秒
             }))
             .send()
             .await?;

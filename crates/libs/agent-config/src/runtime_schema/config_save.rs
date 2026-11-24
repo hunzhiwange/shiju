@@ -41,7 +41,7 @@ pub async fn save_config_for_tenant(config: &Config, tenant: &TenantScope) -> Re
         #[cfg(any(test, feature = "test-support"))]
         {
             let store = SystemConfigStore::new(GlobalDatabase::for_home(home)?)?;
-            return save_config_to_store(config, tenant, &store);
+            save_config_to_store(config, tenant, &store)
         }
 
         #[cfg(not(any(test, feature = "test-support")))]

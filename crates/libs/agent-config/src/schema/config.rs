@@ -23,10 +23,10 @@ pub fn apply_named_model_provider_profile(config: &mut Config, read_codex_openai
         .filter(|value| !value.is_empty())
         .map(ToString::to_string);
 
-    if config.api_url.as_deref().map(str::trim).is_none_or(|value| value.is_empty()) {
-        if let Some(base_url) = base_url.as_ref() {
-            config.api_url = Some(base_url.clone());
-        }
+    if config.api_url.as_deref().map(str::trim).is_none_or(|value| value.is_empty())
+        && let Some(base_url) = base_url.as_ref()
+    {
+        config.api_url = Some(base_url.clone());
     }
 
     if profile.requires_openai_auth
@@ -52,11 +52,11 @@ pub fn apply_named_model_provider_profile(config: &mut Config, read_codex_openai
         return;
     }
 
-    if let Some(profile_name) = profile_name {
-        if !profile_name.eq_ignore_ascii_case(&profile_key) {
-            config.default_provider = Some(profile_name.to_string());
-            return;
-        }
+    if let Some(profile_name) = profile_name
+        && !profile_name.eq_ignore_ascii_case(&profile_key)
+    {
+        config.default_provider = Some(profile_name.to_string());
+        return;
     }
 
     if let Some(base_url) = base_url {

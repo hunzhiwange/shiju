@@ -15,6 +15,7 @@ const SQLITE_SENTINEL: &[u8] = b"sqlite-side-untouched";
 // Local profile: max_idle=10 is unmapped; max_open=100 maps to r2d2 max_size;
 // max_lifetime=300s is applied; Debug=false means no SQL debug logging is installed.
 /// 本地配置声明但不映射到 r2d2 的空闲连接基线。
+#[cfg(test)]
 pub(super) const LOCAL_MAX_IDLE_BASELINE: u32 = 10;
 /// 本地配置映射到连接池的最大连接数。
 pub(super) const LOCAL_MAX_OPEN_CONNECTIONS: u32 = 100;
@@ -111,22 +112,26 @@ impl PostgresTestDatabase {
     }
 
     /// 返回本次夹具的 PostgreSQL 模式名。
+    #[cfg(test)]
     pub(super) fn schema(&self) -> &str {
         &self.schema
     }
 
     /// 返回本地配置中未映射到 r2d2 的空闲连接基线。
+    #[cfg(test)]
     pub(super) fn max_idle_baseline(&self) -> u32 {
         LOCAL_MAX_IDLE_BASELINE
     }
 
     // r2d2 has no maximum-idle cap. The local baseline must not become min_idle.
     /// 确认本地 `max_idle` 不会被错误映射为池参数。
+    #[cfg(test)]
     pub(super) fn max_idle_is_unmapped(&self) -> bool {
         true
     }
 
     /// 读取 SQLite 对照文件，证明 PostgreSQL 测试未改动本地库。
+    #[cfg(test)]
     pub(super) fn sqlite_sentinel(&self) -> Result<Vec<u8>> {
         Ok(std::fs::read(config_runtime_paths::global_database_path(self.home.path()))?)
     }

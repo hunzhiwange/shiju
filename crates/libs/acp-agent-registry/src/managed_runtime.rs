@@ -135,56 +135,24 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         return Ok(root(agent)?.join(linux.revision));
     }
     // Install revised contracts beside their prior reviewed runtimes.
-    let revision = if agent == "auggie" {
-        2
-    } else if agent == "glm-acp-agent" && LINUX_GNU {
-        5
-    } else if matches!(agent, "gemini" | "nova" | "glm-acp-agent") {
-        3
-    } else if agent == "pi" {
-        4
-    } else if agent == "vibe" {
-        4
-    } else if agent == "cortex-code" {
-        5
-    } else if agent == "amp-acp" {
-        5
-    } else if agent == "harn" {
-        5
-    } else if matches!(agent, "corust-agent" | "sigit") {
-        4
-    } else if agent == "aionrs" {
-        3
-    } else if agent == "dimcode" {
-        3
-    } else if matches!(agent, "copilot" | "goose" | "kilocode" | "opencode") {
-        2
-    } else if matches!(agent, "droid" | "kiro") {
-        2
-    } else if agent == "cursor" {
-        6
-    } else if agent == "deepagents" {
-        5
-    } else if agent == "snow" {
-        4
-    } else if agent == "stakpak" {
-        4
-    } else if agent == "junie" {
-        3
-    } else if agent == "vtcode" {
-        if contract.files.get(&contract.bin).is_some_and(|digest| digest != VTCODE_V2_SHA256) {
+    let revision = match agent {
+        "glm-acp-agent" if LINUX_GNU => 5,
+        "cursor" => 6,
+        "cortex-code" | "amp-acp" | "harn" | "deepagents" => 5,
+        "pi" | "vibe" | "corust-agent" | "sigit" | "snow" | "stakpak" => 4,
+        "gemini" | "nova" | "glm-acp-agent" | "aionrs" | "dimcode" | "junie" | "hermes"
+        | "poolside" | "openclaw" => 3,
+        "vtcode"
+            if contract
+                .files
+                .get(&contract.bin)
+                .is_some_and(|digest| digest != VTCODE_V2_SHA256) =>
+        {
             3
-        } else {
-            2
         }
-    } else if matches!(agent, "codebuddy" | "codex" | "dirac" | "iflow" | "qoder" | "qwen") {
-        2
-    } else if matches!(agent, "hermes" | "poolside") {
-        3
-    } else if agent == "openclaw" {
-        3
-    } else {
-        1
+        "auggie" | "copilot" | "goose" | "kilocode" | "opencode" | "droid" | "kiro" | "vtcode"
+        | "codebuddy" | "codex" | "dirac" | "iflow" | "qoder" | "qwen" => 2,
+        _ => 1,
     };
     Ok(root(agent)?.join(format!("{agent}-{}-model-source-v{revision}", contract.version)))
 }

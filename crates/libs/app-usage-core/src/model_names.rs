@@ -81,10 +81,10 @@ fn push_unique_candidate(candidates: &mut Vec<String>, candidate: String) -> boo
 }
 
 fn strip_known_model_namespace(model_id: &str) -> Option<String> {
-    if let Some(pos) = model_id.rfind("claude-") {
-        if pos > 0 {
-            return Some(model_id[pos..].to_string());
-        }
+    if let Some(pos) = model_id.rfind("claude-")
+        && pos > 0
+    {
+        return Some(model_id[pos..].to_string());
     }
 
     for marker in [
@@ -196,10 +196,10 @@ fn strip_model_date_suffix(model_id: &str) -> Option<String> {
 
 fn strip_reasoning_effort_suffix(model_id: &str) -> Option<String> {
     for suffix in ["-minimal", "-low", "-medium", "-high", "-xhigh"] {
-        if let Some(stripped) = model_id.strip_suffix(suffix) {
-            if !stripped.is_empty() {
-                return Some(stripped.to_string());
-            }
+        if let Some(stripped) = model_id.strip_suffix(suffix)
+            && !stripped.is_empty()
+        {
+            return Some(stripped.to_string());
         }
     }
     None

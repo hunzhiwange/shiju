@@ -1,4 +1,7 @@
-use crate::{AgentAppsReadError, GatewayExternalSessionClient};
+use crate::GatewayExternalSessionClient;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::AgentAppsReadError;
+#[cfg(not(target_arch = "wasm32"))]
 use vw_api_external_session::{SessionStreamFrame, SessionStreamRequest, TranscriptChunk};
 
 /// Dropping this reader closes the HTTP body and cancels the host read.

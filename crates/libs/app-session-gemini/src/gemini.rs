@@ -313,23 +313,22 @@ fn gemini_blocks(
         if let Some(diff_text) = call
             .pointer("/resultDisplay/fileDiff")
             .and_then(Value::as_str)
+            && let SessionBlock::ToolCall { diff, title, .. } = &mut call_block
         {
-            if let SessionBlock::ToolCall { diff, title, .. } = &mut call_block {
-                let (added, removed) = count_diff_lines(diff_text);
-                let path = call
-                    .pointer("/resultDisplay/filePath")
-                    .or_else(|| call.pointer("/resultDisplay/fileName"))
-                    .and_then(Value::as_str)
-                    .unwrap_or(title.as_str())
-                    .to_string();
-                let op = diff
-                    .as_ref()
-                    .and_then(|d| d.files.first())
-                    .map_or(DiffOp::Update, |f| f.op);
-                let mut summary = single_file_diff(&path, op, added, removed);
-                summary.full = file_ref(format!("{call_base}/resultDisplay/fileDiff"));
-                *diff = Some(summary);
-            }
+            let (added, removed) = count_diff_lines(diff_text);
+            let path = call
+                .pointer("/resultDisplay/filePath")
+                .or_else(|| call.pointer("/resultDisplay/fileName"))
+                .and_then(Value::as_str)
+                .unwrap_or(title.as_str())
+                .to_string();
+            let op = diff
+                .as_ref()
+                .and_then(|d| d.files.first())
+                .map_or(DiffOp::Update, |f| f.op);
+            let mut summary = single_file_diff(&path, op, added, removed);
+            summary.full = file_ref(format!("{call_base}/resultDisplay/fileDiff"));
+            *diff = Some(summary);
         }
         blocks.push(call_block);
 

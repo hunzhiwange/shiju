@@ -71,10 +71,10 @@ fn index_titles(path: &Path) -> io::Result<HashMap<String, String>> {
     for line in BufReader::new(file).lines() {
         let line = line?;
         let Ok(value) = serde_json::from_str::<Value>(&line) else { continue };
-        if let (Some(id), Some(title)) = (value["id"].as_str(), value["thread_name"].as_str()) {
-            if !id.trim().is_empty() && !title.trim().is_empty() {
-                titles.insert(id.trim().into(), title.trim().into());
-            }
+        if let (Some(id), Some(title)) = (value["id"].as_str(), value["thread_name"].as_str())
+            && !id.trim().is_empty() && !title.trim().is_empty()
+        {
+            titles.insert(id.trim().into(), title.trim().into());
         }
     }
     Ok(titles)
@@ -161,41 +161,38 @@ fn parse_session_lines(
         if created_at.is_none() {
             created_at = value.get("timestamp").and_then(parse_timestamp_to_ms);
         }
-        if value.get("type").and_then(Value::as_str) == Some("session_meta") {
-            if let Some(payload) = value.get("payload") {
-                if is_subagent_source(payload.get("source")) {
-                    return None;
-                }
-                if session_id.is_none() {
-                    session_id = payload
-                        .get("id")
-                        .and_then(Value::as_str)
-                        .map(|s| s.to_string());
-                }
-                if project_dir.is_none() {
-                    project_dir = payload
-                        .get("cwd")
-                        .and_then(Value::as_str)
-                        .map(|s| s.to_string());
-                }
-                if let Some(ts) = payload.get("timestamp").and_then(parse_timestamp_to_ms) {
-                    created_at.get_or_insert(ts);
-                }
+        if value.get("type").and_then(Value::as_str) == Some("session_meta")
+            && let Some(payload) = value.get("payload")
+        {
+            if is_subagent_source(payload.get("source")) {
+                return None;
+            }
+            if session_id.is_none() {
+                session_id = payload
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .map(|s| s.to_string());
+            }
+            if project_dir.is_none() {
+                project_dir = payload
+                    .get("cwd")
+                    .and_then(Value::as_str)
+                    .map(|s| s.to_string());
+            }
+            if let Some(ts) = payload.get("timestamp").and_then(parse_timestamp_to_ms) {
+                created_at.get_or_insert(ts);
             }
         }
         // Extract first user message as title candidate
         if first_user_message.is_none()
             && value.get("type").and_then(Value::as_str) == Some("response_item")
-        {
-            if let Some(payload) = value.get("payload") {
-                if payload.get("type").and_then(Value::as_str) == Some("message")
+            && let Some(payload) = value.get("payload")
+                && payload.get("type").and_then(Value::as_str) == Some("message")
                     && payload.get("role").and_then(Value::as_str) == Some("user")
-                {
-                    let text = payload.get("content").map(extract_text).unwrap_or_default();
-                    if let Some(title) = title_candidate_from_user_message(&text) {
-                        first_user_message = Some(title);
-                    }
-                }
+        {
+            let text = payload.get("content").map(extract_text).unwrap_or_default();
+            if let Some(title) = title_candidate_from_user_message(&text) {
+                first_user_message = Some(title);
             }
         }
         if session_id.is_some()
@@ -219,14 +216,13 @@ fn parse_session_lines(
         if last_active_at.is_none() {
             last_active_at = value.get("timestamp").and_then(parse_timestamp_to_ms);
         }
-        if summary.is_none() && value.get("type").and_then(Value::as_str) == Some("response_item") {
-            if let Some(payload) = value.get("payload") {
-                if payload.get("type").and_then(Value::as_str) == Some("message") {
-                    let text = payload.get("content").map(extract_text).unwrap_or_default();
-                    if !text.trim().is_empty() {
-                        summary = Some(text);
-                    }
-                }
+        if summary.is_none() && value.get("type").and_then(Value::as_str) == Some("response_item")
+            && let Some(payload) = value.get("payload")
+                && payload.get("type").and_then(Value::as_str) == Some("message")
+        {
+            let text = payload.get("content").map(extract_text).unwrap_or_default();
+            if !text.trim().is_empty() {
+                summary = Some(text);
             }
         }
         if last_active_at.is_some() && summary.is_some() {

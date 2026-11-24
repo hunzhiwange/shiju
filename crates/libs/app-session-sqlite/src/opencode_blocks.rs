@@ -161,15 +161,15 @@ fn push_tool_blocks(blocks: &mut Vec<SessionBlock>, locator: &PartLocator, part:
     {
         use vw_api_external_session::ToolKind;
         // edit/write 的 state.title 是相对项目的路径，比参数里的绝对路径更短
-        if matches!(kind, ToolKind::Edit | ToolKind::Write) {
-            if let Some(t) = state_title {
-                *title = title_path(t);
-            }
+        if matches!(kind, ToolKind::Edit | ToolKind::Write)
+            && let Some(t) = state_title
+        {
+            *title = title_path(t);
         }
-        if title.is_empty() {
-            if let Some(t) = state_title {
-                *title = title_path(t);
-            }
+        if title.is_empty()
+            && let Some(t) = state_title
+        {
+            *title = title_path(t);
         }
         // 工具自己给的改动统计优先于参数估算（字段名待核实：filediff / diff / exists）
         if let Some(meta) = metadata {

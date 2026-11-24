@@ -71,8 +71,8 @@ fn voice_task_08_playback_sine_preserves_order_across_packets() {
         callback.render(&mut data);
         result.extend(data);
     }
-    for (frame, expected) in result.chunks_exact(2).zip(samples) {
-        assert_eq!(frame, [expected as f32 / 32768.0; 2]);
+    for (frame, expected) in result.as_chunks::<2>().0.iter().zip(samples) {
+        assert_eq!(*frame, [expected as f32 / 32768.0; 2]);
     }
 }
 

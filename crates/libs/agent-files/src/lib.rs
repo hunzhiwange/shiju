@@ -5,10 +5,10 @@
 //!
 //! # 子模块
 //!
-//! - [`ignore`]: 文件忽略规则处理（基于 .gitignore 等）
-//! - [`ripgrep`]: 基于 ripgrep 的高性能文件搜索
-//! - [`time`]: 文件时间戳相关操作
-//! - [`watcher`]: 文件系统变更监控
+//! - [`ignore`][]: 文件忽略规则处理（基于 .gitignore 等）
+//! - [`ripgrep`][]: 基于 ripgrep 的高性能文件搜索
+//! - [`time`][]: 文件时间戳相关操作
+//! - [`watcher`][]: 文件系统变更监控
 
 mod fs_ops;
 mod git_status;

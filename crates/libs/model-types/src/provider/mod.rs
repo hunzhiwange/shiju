@@ -312,39 +312,39 @@ pub trait Provider: ProviderBounds {
     ) -> anyhow::Result<ChatResponse> {
         // If tools are provided but provider doesn't support native tools,
         // inject tool instructions into system prompt as fallback.
-        if let Some(tools) = request.tools {
-            if !tools.is_empty() && !self.supports_native_tools() {
-                let tool_instructions = match self.convert_tools(tools) {
-                    ToolsPayload::PromptGuided { instructions } => instructions,
-                    payload => {
-                        anyhow::bail!(
-                            "Provider returned non-prompt-guided tools payload ({payload:?}) while supports_native_tools() is false"
-                        )
-                    }
-                };
-                let mut modified_messages = request.messages.to_vec();
-
-                // Inject tool instructions into an existing system message.
-                // If none exists, prepend one to the conversation.
-                if let Some(system_message) =
-                    modified_messages.iter_mut().find(|m| m.role == "system")
-                {
-                    if !system_message.content.is_empty() {
-                        system_message.content.push_str("\n\n");
-                    }
-                    system_message.content.push_str(&tool_instructions);
-                } else {
-                    modified_messages.insert(0, ChatMessage::system(tool_instructions));
+        if let Some(tools) = request.tools
+            && !tools.is_empty()
+            && !self.supports_native_tools()
+        {
+            let tool_instructions = match self.convert_tools(tools) {
+                ToolsPayload::PromptGuided { instructions } => instructions,
+                payload => {
+                    anyhow::bail!(
+                        "Provider returned non-prompt-guided tools payload ({payload:?}) while supports_native_tools() is false"
+                    )
                 }
+            };
+            let mut modified_messages = request.messages.to_vec();
 
-                let text = self.chat_with_history(&modified_messages, model, temperature).await?;
-                return Ok(ChatResponse {
-                    text: Some(text),
-                    tool_calls: Vec::new(),
-                    usage: None,
-                    reasoning_content: None,
-                });
+            // Inject tool instructions into an existing system message.
+            // If none exists, prepend one to the conversation.
+            if let Some(system_message) = modified_messages.iter_mut().find(|m| m.role == "system")
+            {
+                if !system_message.content.is_empty() {
+                    system_message.content.push_str("\n\n");
+                }
+                system_message.content.push_str(&tool_instructions);
+            } else {
+                modified_messages.insert(0, ChatMessage::system(tool_instructions));
             }
+
+            let text = self.chat_with_history(&modified_messages, model, temperature).await?;
+            return Ok(ChatResponse {
+                text: Some(text),
+                tool_calls: Vec::new(),
+                usage: None,
+                reasoning_content: None,
+            });
         }
 
         let text = self.chat_with_history(request.messages, model, temperature).await?;

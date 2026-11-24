@@ -34,7 +34,7 @@ pub async fn collect_channel_events(
             break Err(anyhow::anyhow!("session processor exited without terminal event"));
         };
         match ev {
-            PromptEvent::LlmRawArtifact(artifact) => response.raw_artifacts.push(artifact),
+            PromptEvent::LlmRawArtifact(artifact) => response.raw_artifacts.push(*artifact),
             PromptEvent::Text(delta) => {
                 final_step_has_text |= !delta.trim().is_empty();
                 response.text.push_str(&delta);

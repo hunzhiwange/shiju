@@ -38,10 +38,10 @@ pub fn scan_sessions(data_root: &Path, identity: &ExternalSessionIdentity) -> Re
     let mut queries = Vec::new();
     if is_v2(&conn) {
         queries.push(("SELECT s.id, COALESCE(s.title, ''), s.directory, s.time_created, MAX(s.time_updated, COALESCE(MAX(m.time_updated), s.time_updated)) FROM session_v2 s LEFT JOIN session_message m ON m.session_id = s.id GROUP BY s.id ORDER BY 5 DESC", None));
-        if sqlite_table_exists(&conn, "session") {
-            if let Some(marker) = get_v2_migration_marker_ts(&conn) {
-                queries.push(("SELECT id, COALESCE(title, ''), directory, time_created, time_updated FROM session WHERE NOT EXISTS (SELECT 1 FROM session_v2 WHERE session_v2.id = session.id) AND time_updated > ?1 ORDER BY time_updated DESC", Some(marker)));
-            }
+        if sqlite_table_exists(&conn, "session")
+            && let Some(marker) = get_v2_migration_marker_ts(&conn)
+        {
+            queries.push(("SELECT id, COALESCE(title, ''), directory, time_created, time_updated FROM session WHERE NOT EXISTS (SELECT 1 FROM session_v2 WHERE session_v2.id = session.id) AND time_updated > ?1 ORDER BY time_updated DESC", Some(marker)));
         }
     } else {
         queries.push(("SELECT id, COALESCE(title, ''), directory, time_created, time_updated FROM session ORDER BY time_updated DESC", None));

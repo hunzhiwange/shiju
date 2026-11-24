@@ -365,11 +365,10 @@ pub fn rectify_tool_call_args(
     if hint.expected_keys.iter().any(|key| key == "skill")
         && !hint.expected_keys.iter().any(|key| key == "name")
         && !args_object.contains_key("skill")
+        && let Some(value) = args_object.remove("name")
     {
-        if let Some(value) = args_object.remove("name") {
-            args_object.insert("skill".to_string(), value);
-            changed = true;
-        }
+        args_object.insert("skill".to_string(), value);
+        changed = true;
     }
 
     let expects_parameters_key = hint.expected_keys.iter().any(|key| key == "parameters");

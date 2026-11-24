@@ -52,18 +52,24 @@ fn resolve_root(context: &OmpSessionContext<'_>) -> Result<SessionRootResolution
     validate_path(context.agent_dir)?;
     validate_path(context.native_agent_dir)?;
     let mut data = context.agent_dir.to_path_buf();
-    if context.agent_dir == context.native_agent_dir {
-        if let Some(xdg) = context.xdg_data_home {
-            validate_path(xdg)?;
-            let mut candidate = xdg.join("omp");
-            if let Some(profile) = context.profile.filter(|p| !p.is_empty() && *p != "default") {
-                if profile.len() > 64 || !profile.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"._-".contains(&b)) || profile == "." || profile == ".." {
-                    return Err("Invalid OMP profile".into());
-                }
-                candidate = candidate.join("profiles").join(profile);
+    if context.agent_dir == context.native_agent_dir
+        && let Some(xdg) = context.xdg_data_home
+    {
+        validate_path(xdg)?;
+        let mut candidate = xdg.join("omp");
+        if let Some(profile) = context.profile.filter(|p| !p.is_empty() && *p != "default") {
+            if profile.len() > 64
+                || !profile.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"._-".contains(&b))
+                || profile == "."
+                || profile == ".."
+            {
+                return Err("Invalid OMP profile".into());
             }
-            validate_path(&candidate)?;
-            if candidate.is_dir() { data = candidate; }
+            candidate = candidate.join("profiles").join(profile);
+        }
+        validate_path(&candidate)?;
+        if candidate.is_dir() {
+            data = candidate;
         }
     }
     let root = data.join("sessions");

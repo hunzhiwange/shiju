@@ -277,15 +277,14 @@ impl OutputTail {
                     let remaining = MAX_PROGRESS_LINE.saturating_sub(line.len());
                     line.extend_from_slice(&part[..part.len().min(remaining)]);
                     if part.ends_with(b"\n") {
-                        if line.len() < MAX_PROGRESS_LINE {
-                            if let Some(payload) = line.strip_prefix(b"SHIJU_DOWNLOAD ") {
-                                if let Ok(download) = serde_json::from_slice(payload) {
-                                    let mut progress = progress.lock().unwrap();
-                                    progress.download = download;
-                                    if progress.download.is_none() {
-                                        progress.stage = "校验下载并安装".into();
-                                    }
-                                }
+                        if line.len() < MAX_PROGRESS_LINE
+                            && let Some(payload) = line.strip_prefix(b"SHIJU_DOWNLOAD ")
+                            && let Ok(download) = serde_json::from_slice(payload)
+                        {
+                            let mut progress = progress.lock().unwrap();
+                            progress.download = download;
+                            if progress.download.is_none() {
+                                progress.stage = "校验下载并安装".into();
                             }
                         }
                         line.clear();

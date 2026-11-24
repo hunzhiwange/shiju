@@ -1,4 +1,6 @@
-use super::{GatewayAppProviderClient, provider_collection_path};
+use super::GatewayAppProviderClient;
+#[cfg(not(target_arch = "wasm32"))]
+use super::provider_collection_path;
 use vw_api_app_identity::{AppId};
 impl GatewayAppProviderClient {
     /// Native transport only; token authorizes the selected execution host independently.

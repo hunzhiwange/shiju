@@ -112,11 +112,11 @@ pub(super) fn publish(
     if result.is_err() {
         // Best-effort removal only of our newly created child; never recurse into
         // caller paths or delete an existing archive after a name collision.
-        if let Ok(dir) = open_at(&parent, &child, libc::O_RDONLY | libc::O_DIRECTORY) {
-            if let Ok(file) = name(b"preimages.json") {
-                unsafe {
-                    libc::unlinkat(dir.as_raw_fd(), file.as_ptr(), 0);
-                }
+        if let Ok(dir) = open_at(&parent, &child, libc::O_RDONLY | libc::O_DIRECTORY)
+            && let Ok(file) = name(b"preimages.json")
+        {
+            unsafe {
+                libc::unlinkat(dir.as_raw_fd(), file.as_ptr(), 0);
             }
         }
         unsafe {

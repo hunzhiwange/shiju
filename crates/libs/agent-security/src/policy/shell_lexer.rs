@@ -191,8 +191,8 @@ pub fn split_unquoted_segments(command: &str) -> Vec<String> {
                     }
                     '|' => {
                         // 管道符：检查是否为 || (逻辑或)
-                        // peek 检查下一个字符但不消费它
-                        if chars.next_if_eq(&'|').is_some() {}
+                        // 如果还有一个管道符，将其作为同一个操作符消费。
+                        let _ = chars.next_if_eq(&'|');
                         push_segment(&mut segments, &mut current);
                     }
                     '&' => {
@@ -288,13 +288,12 @@ pub fn contains_unquoted_single_ampersand(command: &str) -> bool {
                 match ch {
                     '\'' => quote = QuoteState::Single,
                     '"' => quote = QuoteState::Double,
-                    '&' => {
+                    '&'
                         // 检查下一个字符是否也是 &
                         // 如果不是，说明是单个 &（后台运行符）
-                        if chars.next_if_eq(&'&').is_none() {
+                        if chars.next_if_eq(&'&').is_none() => {
                             return true;
                         }
-                    }
                     _ => {}
                 }
             }

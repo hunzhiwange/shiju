@@ -75,7 +75,7 @@ impl GatewayAppProviderClient {
         id: Option<&str>,
         host: &str,
         body: Option<&ProviderOperationRequest>,
-        token: Option<&str>,
+        _token: Option<&str>,
         scope: Option<&AggregationQuery>,
     ) -> Result<ProviderOperationProgress, Error> {
         if id.is_some_and(|id| {
@@ -87,7 +87,7 @@ impl GatewayAppProviderClient {
         }
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (method, id, host, body, token, scope);
+            let _ = (method, id, host, body, _token, scope);
             Err(Error::Transport("Provider operations require native transport".into()))
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -101,9 +101,6 @@ impl GatewayAppProviderClient {
                 .map_err(|_| Error::Transport("invalid operation method".into()))?;
             let url = format!("{}/v1/app-providers/operations{path}", self.transport.endpoint().base_url());
             let mut request = self.transport.dynamic_host_client().request(method, url);
-            if let Some(token) = token {
-                request = request;
-            }
             if let Some(body) = body {
                 request = request.json(body);
             } else if let Some(scope) = scope {

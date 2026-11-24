@@ -208,7 +208,7 @@ fn set_proxy_env_pair(key: &str, value: Option<&str>) {
 fn clear_proxy_env_pair(key: &str) {
     unsafe {
         std::env::remove_var(key);
-        std::env::remove_var(&key.to_ascii_lowercase());
+        std::env::remove_var(key.to_ascii_lowercase());
     }
 }
 

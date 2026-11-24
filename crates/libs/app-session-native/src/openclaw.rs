@@ -91,10 +91,10 @@ fn load_display_names(sessions_dir: &Path) -> HashMap<String, String> {
         if let (Some(id), Some(name)) = (
             entry.get("sessionId").and_then(Value::as_str),
             entry.get("displayName").and_then(Value::as_str),
-        ) {
-            if !name.is_empty() {
-                map.insert(id.to_string(), name.to_string());
-            }
+        )
+            && !name.is_empty()
+        {
+            map.insert(id.to_string(), name.to_string());
         }
     }
     map
@@ -145,19 +145,19 @@ pub fn parse_session(
             continue;
         }
 
-        if event_type == "message" {
-            if let Some(message) = value.get("message") {
-                let text = message.get("content").map(extract_text).unwrap_or_default();
-                let cleaned = strip_message_id_suffix(&text);
-                if !cleaned.trim().is_empty() {
-                    if first_user_message.is_none()
-                        && message.get("role").and_then(Value::as_str) == Some("user")
-                    {
-                        first_user_message = Some(cleaned.trim().to_string());
-                    }
-                    if summary.is_none() {
-                        summary = Some(cleaned.trim().to_string());
-                    }
+        if event_type == "message"
+            && let Some(message) = value.get("message")
+        {
+            let text = message.get("content").map(extract_text).unwrap_or_default();
+            let cleaned = strip_message_id_suffix(&text);
+            if !cleaned.trim().is_empty() {
+                if first_user_message.is_none()
+                    && message.get("role").and_then(Value::as_str) == Some("user")
+                {
+                    first_user_message = Some(cleaned.trim().to_string());
+                }
+                if summary.is_none() {
+                    summary = Some(cleaned.trim().to_string());
                 }
             }
         }

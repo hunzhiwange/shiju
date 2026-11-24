@@ -5,7 +5,7 @@
 
 use runtime_flags as flag;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::LazyLock;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
@@ -202,7 +202,5 @@ pub fn assert_sync(session_id: &str, filepath: impl AsRef<Path>) -> Result<(), E
 ///
 /// 返回平台路径的 lossy 字符串表示。
 pub fn normalize(path: impl AsRef<Path>) -> String {
-    let p = path.as_ref();
-    let p: PathBuf = if p.is_absolute() { p.to_path_buf() } else { p.to_path_buf() };
-    p.to_string_lossy().to_string()
+    path.as_ref().to_string_lossy().into_owned()
 }

@@ -123,10 +123,10 @@ impl SkillDiscoveryCache {
 
     fn finish(&self, key: &RepoKey, sequence: u64, result: SkillDiscoveryResult, now: Instant) -> Result<(), CacheError> {
         let mut state = self.0.lock().map_err(|_| CacheError::Poisoned)?;
-        if let Some(partition) = state.partitions.get_mut(key) {
-            if partition.sequence == sequence {
-                partition.result = Some((now, result));
-            }
+        if let Some(partition) = state.partitions.get_mut(key)
+            && partition.sequence == sequence
+        {
+            partition.result = Some((now, result));
         }
         Ok(())
     }

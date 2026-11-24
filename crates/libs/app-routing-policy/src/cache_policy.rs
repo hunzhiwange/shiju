@@ -18,17 +18,14 @@ pub fn inject_messages(body: &mut Value, enabled: bool) {
     }
 
     // (a) tools 末尾
-    if budget > 0 {
-        if let Some(tools) = body.get_mut("tools").and_then(|t| t.as_array_mut()) {
-            if let Some(last) = tools.last_mut() {
-                if last.get("cache_control").is_none() {
-                    if let Some(o) = last.as_object_mut() {
-                        o.insert("cache_control".to_string(), make_cache_control());
-                    }
-                    budget -= 1;
-                }
-            }
+    if let Some(tools) = body.get_mut("tools").and_then(Value::as_array_mut)
+        && let Some(last) = tools.last_mut()
+        && last.get("cache_control").is_none()
+    {
+        if let Some(object) = last.as_object_mut() {
+            object.insert("cache_control".to_string(), make_cache_control());
         }
+        budget -= 1;
     }
 
     // (b) system 末尾
@@ -38,43 +35,42 @@ pub fn inject_messages(body: &mut Value, enabled: bool) {
             body["system"] = json!([{"type": "text", "text": text}]);
         }
 
-        if let Some(system) = body.get_mut("system").and_then(|s| s.as_array_mut()) {
-            if let Some(last) = system.last_mut() {
-                if last.get("cache_control").is_none() {
-                    if let Some(o) = last.as_object_mut() {
-                        o.insert("cache_control".to_string(), make_cache_control());
-                    }
-                    budget -= 1;
-                }
+        if let Some(system) = body.get_mut("system").and_then(Value::as_array_mut)
+            && let Some(last) = system.last_mut()
+            && last.get("cache_control").is_none()
+        {
+            if let Some(object) = last.as_object_mut() {
+                object.insert("cache_control".to_string(), make_cache_control());
             }
+            budget -= 1;
         }
     }
 
     // (c) 最后一条可缓存消息的最后一个非 thinking block。工具循环通常以
     // user/tool_result 结束；只标 assistant 会让最新稳定前缀无法命中缓存。
-    if budget > 0 {
-        if let Some(messages) = body.get_mut("messages").and_then(|m| m.as_array_mut()) {
-            for message in messages.iter_mut().rev() {
-                if inject_message_breakpoint(message) {
-                    budget -= 1;
-                    break;
-                }
+    if budget > 0
+        && let Some(messages) = body.get_mut("messages").and_then(Value::as_array_mut)
+    {
+        for message in messages.iter_mut().rev() {
+            if inject_message_breakpoint(message) {
+                budget -= 1;
+                break;
             }
+        }
 
-            // (d) A second, older user anchor helps long tool-result turns where
-            // the stable prefix falls outside Anthropic's 20-block lookback from
-            // the newest breakpoint. Keep this best-effort and inside the 4-BP cap.
-            if budget > 0 && messages.len() >= 4 {
-                let mut user_count = 0;
-                for message in messages.iter_mut().rev() {
-                    if message.get("role").and_then(Value::as_str) != Some("user") {
-                        continue;
-                    }
-                    user_count += 1;
-                    if user_count == 2 {
-                        inject_message_breakpoint(message);
-                        break;
-                    }
+        // (d) A second, older user anchor helps long tool-result turns where
+        // the stable prefix falls outside Anthropic's 20-block lookback from
+        // the newest breakpoint. Keep this best-effort and inside the 4-BP cap.
+        if budget > 0 && messages.len() >= 4 {
+            let mut user_count = 0;
+            for message in messages.iter_mut().rev() {
+                if message.get("role").and_then(Value::as_str) != Some("user") {
+                    continue;
+                }
+                user_count += 1;
+                if user_count == 2 {
+                    inject_message_breakpoint(message);
+                    break;
                 }
             }
         }

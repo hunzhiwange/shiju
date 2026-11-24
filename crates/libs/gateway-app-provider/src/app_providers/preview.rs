@@ -1,5 +1,7 @@
 use gateway_app_read::AgentAppsReadError as Error;
-use super::{GatewayAppProviderClient, provider_collection_path};
+use super::GatewayAppProviderClient;
+#[cfg(not(target_arch = "wasm32"))]
+use super::provider_collection_path;
 use vw_api_app_provider_edit::preview::*;
 use vw_api_app_identity::{AppId};
 impl GatewayAppProviderClient {

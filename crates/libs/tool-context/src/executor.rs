@@ -17,7 +17,7 @@ use vw_api_tools::PermissionRequestDto;
 #[derive(Debug, Clone, PartialEq)]
 pub enum ToolCallError {
     /// 调用被权限或安全策略拒绝。
-    Denied { message: String, permission_request: Option<PermissionRequestDto> },
+    Denied { message: String, permission_request: Option<Box<PermissionRequestDto>> },
     /// 调用失败。
     Failed(String),
 }
@@ -31,7 +31,10 @@ impl ToolCallError {
         message: impl Into<String>,
         permission_request: PermissionRequestDto,
     ) -> Self {
-        Self::Denied { message: message.into(), permission_request: Some(permission_request) }
+        Self::Denied {
+            message: message.into(),
+            permission_request: Some(Box::new(permission_request)),
+        }
     }
 
     pub fn message(&self) -> &str {
@@ -42,7 +45,7 @@ impl ToolCallError {
 
     pub fn permission_request(&self) -> Option<&PermissionRequestDto> {
         match self {
-            Self::Denied { permission_request, .. } => permission_request.as_ref(),
+            Self::Denied { permission_request, .. } => permission_request.as_deref(),
             Self::Failed(_) => None,
         }
     }
@@ -289,7 +292,7 @@ fn normalize_tool_args(tool_id: &str, args: Value) -> Value {
                 obj.entry("replace_all".to_string()).or_insert(value);
             }
         }
-        id if matches!(id, "WebFetch" | "web_fetch" | "webfetch") => {
+        "WebFetch" | "web_fetch" | "webfetch" => {
             if !obj.contains_key("url")
                 && let Some(value) = obj.get("href").cloned()
             {

@@ -61,10 +61,13 @@ impl SourceRegistry {
     pub fn register(&mut self, meta: &SessionMeta, path: PathBuf) -> io::Result<()> {
         self.check_identity(&meta.identity)?;
         self.validate_path(&meta.identity, &path)?;
-        if let Some(existing) = self.sources.get(&meta.identity) {
-            if existing != &(path.clone(), meta.project_dir.clone()) { return Err(invalid("ambiguous session locator")); }
+        let source = (path, meta.project_dir.clone());
+        if let Some(existing) = self.sources.get(&meta.identity)
+            && existing != &source
+        {
+            return Err(invalid("ambiguous session locator"));
         }
-        self.sources.insert(meta.identity.clone(), (path, meta.project_dir.clone()));
+        self.sources.insert(meta.identity.clone(), source);
         Ok(())
     }
 

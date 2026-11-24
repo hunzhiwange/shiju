@@ -135,16 +135,16 @@ fn parse_session_lines(
                     .and_then(|m| m.get("role"))
                     .and_then(Value::as_str)
                     == Some("user");
-            if is_user {
-                if let Some(message) = value.get("message") {
-                    let text = message.get("content").map(extract_text).unwrap_or_default();
-                    let trimmed = text.trim();
-                    if !trimmed.is_empty()
-                        && !trimmed.starts_with("<command-name>")
-                        && !is_injected_text(trimmed)
-                    {
-                        first_user_message = Some(trimmed.to_string());
-                    }
+            if is_user
+                && let Some(message) = value.get("message")
+            {
+                let text = message.get("content").map(extract_text).unwrap_or_default();
+                let trimmed = text.trim();
+                if !trimmed.is_empty()
+                    && !trimmed.starts_with("<command-name>")
+                    && !is_injected_text(trimmed)
+                {
+                    first_user_message = Some(trimmed.to_string());
                 }
             }
         }

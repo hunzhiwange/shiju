@@ -283,16 +283,14 @@ impl PairingGuard {
             }
 
             // 检查该客户端是否被锁定
-            if let Some(state) = map.get(&client_id) {
-                if let Some(until) = state.lockout_until {
-                    if now < until {
-                        // 仍在锁定期内，返回剩余时间
-                        let remaining = (until - now).as_secs();
-                        return Err(remaining.max(1));
-                    }
-                    // 锁定期已过，移除记录
-                    map.remove(&client_id);
+            if let Some(until) = map.get(&client_id).and_then(|state| state.lockout_until) {
+                if now < until {
+                    // 仍在锁定期内，返回剩余时间
+                    let remaining = (until - now).as_secs();
+                    return Err(remaining.max(1));
                 }
+                // 锁定期已过，移除记录
+                map.remove(&client_id);
             }
         }
 

@@ -8,7 +8,7 @@ use gateway_http::apply_request_context;
 use gateway_app_lifecycle::operation_path;
 use reqwest::{
     Method, RequestBuilder, Response, StatusCode,
-    header::{CACHE_CONTROL, HeaderValue},
+    header::CACHE_CONTROL,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use {
@@ -224,9 +224,8 @@ impl GatewayAppUsageClient {
     async fn send_usage_request(
         &self,
         request: RequestBuilder,
-        principal_token: &str,
+        _principal_token: &str,
     ) -> Result<Response, AppsUsageWriteError> {
-        let request = request;
         let response = apply_request_context(request, self.transport.endpoint())
             .send()
             .await

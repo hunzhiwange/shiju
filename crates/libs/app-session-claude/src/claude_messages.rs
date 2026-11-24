@@ -234,15 +234,15 @@ impl TranscriptBuilder {
         let block = summary_event_block(EventKind::Compaction, &summary, || {
             Some(line.content_ref("/message/content"))
         });
-        if let Some(last) = self.drafts.last_mut() {
-            if let [event @ SessionBlock::Event {
-                kind: EventKind::Compaction,
-                ..
-            }] = last.blocks.as_mut_slice()
-            {
-                *event = block;
-                return;
-            }
+        if let Some(last) = self.drafts.last_mut()
+            && let [event @ SessionBlock::Event
+        {
+            kind: EventKind::Compaction,
+            ..
+        }] = last.blocks.as_mut_slice()
+        {
+            *event = block;
+            return;
         }
         self.push_draft("system", ts, None, vec![block]);
     }
@@ -283,10 +283,10 @@ impl TranscriptBuilder {
                         }
                         "tool_use" | "server_tool_use" => {
                             let block = tool_call_block(item, i, line);
-                            if let SessionBlock::ToolCall { id, raw_name, .. } = &block {
-                                if !id.is_empty() {
-                                    calls.push((blocks.len(), id.clone(), raw_name.clone()));
-                                }
+                            if let SessionBlock::ToolCall { id, raw_name, .. } = &block
+                                && !id.is_empty()
+                            {
+                                calls.push((blocks.len(), id.clone(), raw_name.clone()));
                             }
                             blocks.push(block);
                         }

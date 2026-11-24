@@ -135,16 +135,15 @@ impl ExchangeSettings {
         let code = self.currency.code();
         if self.mode == RateMode::Auto {
             display.error = self.refresh_error.clone();
-            if let Some(cache) = &self.cache {
-                if let Some(rate) = cache.rates.get(code).copied().filter(|rate| valid(*rate)) {
-                    display.rate = rate;
-                    display.source = cache.source.clone();
-                    display.stale = self.needs_refresh(now_ms);
-                    display.degraded = display.stale
-                        || display.error.is_some()
-                        || cache.source == "floatrates.com";
-                    return display;
-                }
+            if let Some(cache) = &self.cache
+                && let Some(rate) = cache.rates.get(code).copied().filter(|rate| valid(*rate))
+            {
+                display.rate = rate;
+                display.source = cache.source.clone();
+                display.stale = self.needs_refresh(now_ms);
+                display.degraded =
+                    display.stale || display.error.is_some() || cache.source == "floatrates.com";
+                return display;
             }
             display.degraded = true;
         }
@@ -199,7 +198,7 @@ pub fn format_money(usd: f64, digits: usize, display: &MoneyDisplay) -> String {
     };
     let fixed = format!("{value:.shown$}");
     if shown < digits && value != 0.0 && fixed.parse::<f64>().ok() == Some(0.0) {
-        let precision = (1.0 - value.abs().log10().floor()).max(0.0).min(324.0) as usize;
+        let precision = (1.0 - value.abs().log10().floor()).clamp(0.0, 324.0) as usize;
         return format!("{}{value:.precision$}", display.currency.symbol());
     }
     let (whole, fraction) =

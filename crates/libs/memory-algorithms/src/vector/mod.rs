@@ -157,16 +157,8 @@ pub fn vec_to_bytes(v: &[f32]) -> Vec<u8> {
 /// assert_eq!(original, restored);
 /// ```
 pub fn bytes_to_vec(bytes: &[u8]) -> Vec<f32> {
-    bytes
-        // 将字节切片按每 4 字节分组
-        .chunks_exact(4)
-        .map(|chunk| {
-            // 尝试将 4 字节转换为数组，失败则使用零值
-            let arr: [u8; 4] = chunk.try_into().unwrap_or([0; 4]);
-            // 从小端序字节解析 f32
-            f32::from_le_bytes(arr)
-        })
-        .collect()
+    let (chunks, _) = bytes.as_chunks::<4>();
+    chunks.iter().copied().map(f32::from_le_bytes).collect()
 }
 
 /// 带分数的检索结果。

@@ -171,10 +171,10 @@ fn parse_messages(data: &[u8]) -> Result<Vec<SessionMessage>, String> {
             "tool/result" => (&record["data"]["message"], "/data/message", "tool"),
             _ => continue,
         };
-        if let Some(id) = raw["id"].as_str() {
-            if !seen.insert(id.to_string()) {
-                continue;
-            }
+        if let Some(id) = raw["id"].as_str()
+            && !seen.insert(id.to_string())
+        {
+            continue;
         }
         let mut message_blocks = vec![];
         let reference = |pointer: String| {

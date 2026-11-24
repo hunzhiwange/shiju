@@ -369,7 +369,7 @@ fn iso_seconds_utc() -> String {
         )
         .unwrap_or_default();
         let dt = OffsetDateTime::from_unix_timestamp(secs)
-            .unwrap_or_else(|_| OffsetDateTime::UNIX_EPOCH)
+            .unwrap_or(OffsetDateTime::UNIX_EPOCH)
             .to_offset(UtcOffset::UTC);
         dt.format(&fmt).unwrap_or_else(|_| "1970-01-01T00:00:00".to_string())
     }
@@ -406,7 +406,7 @@ fn iso_file_stamp_utc() -> String {
             format_description::parse_borrowed::<2>("[year]-[month]-[day]T[hour][minute][second]")
                 .unwrap_or_default();
         let dt = OffsetDateTime::from_unix_timestamp(secs)
-            .unwrap_or_else(|_| OffsetDateTime::UNIX_EPOCH)
+            .unwrap_or(OffsetDateTime::UNIX_EPOCH)
             .to_offset(UtcOffset::UTC);
         dt.format(&fmt).unwrap_or_else(|_| "1970-01-01T000000".to_string())
     }
@@ -860,7 +860,7 @@ impl Logger {
         // 构建标签前缀字符串
         let prefix = merged
             .iter()
-            .filter_map(|(k, v)| {
+            .map(|(k, v)| {
                 let mut out = String::new();
                 out.push_str(k);
                 out.push('=');
@@ -870,7 +870,7 @@ impl Logger {
                         &serde_json::to_string(v).unwrap_or_else(|_| "\"?\"".to_string()),
                     ),
                 }
-                Some(out)
+                out
             })
             .collect::<Vec<_>>()
             .join(" ");

@@ -95,7 +95,10 @@ pub(super) fn require_node() -> Result<PathBuf> {
     {
         return Ok(node);
     }
-    return Err(copy::error(desktop_i18n::format::Message::new("未找到可用的 Node.js 22 或以上版本，请检查 Node.js 版本及安装路径", vec![])));
+    Err(copy::error(desktop_i18n::format::Message::new(
+        "未找到可用的 Node.js 22 或以上版本，请检查 Node.js 版本及安装路径",
+        vec![],
+    )))
 }
 
 #[cfg(not(unix))]

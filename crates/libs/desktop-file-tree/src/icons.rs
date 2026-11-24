@@ -7,9 +7,9 @@
 //!
 //! # 主要组件
 //!
-//! - [`static_icon_svg`]: 创建固定颜色的静态 SVG 图标
-//! - [`themed_icon_svg`]: 创建可随主题变化的 SVG 图标
-//! - [`file_icon_for`]: 根据文件名返回对应的图标类型
+//! - [`static_icon_svg`][]: 创建固定颜色的静态 SVG 图标
+//! - [`themed_icon_svg`][]: 创建可随主题变化的 SVG 图标
+//! - [`file_icon_for`][]: 根据文件名返回对应的图标类型
 
 use iced::widget::svg::Svg;
 use iced::{Length, Theme};

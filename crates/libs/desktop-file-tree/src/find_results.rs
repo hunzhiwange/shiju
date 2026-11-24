@@ -10,7 +10,7 @@
 //!
 //! # 组件结构
 //!
-//! - [`build_find_results_list`]: 构建搜索结果列表，包含搜索控件和匹配项列表
+//! - [`build_find_results_list`][]: 构建搜索结果列表，包含搜索控件和匹配项列表
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};

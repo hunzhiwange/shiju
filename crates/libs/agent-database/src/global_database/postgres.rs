@@ -285,7 +285,7 @@ impl PostgresProvider {
         Ok(connection)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     /// 返回连接池的有效参数快照。
     pub(super) fn settings(&self) -> PostgresPoolSettings {
         self.settings

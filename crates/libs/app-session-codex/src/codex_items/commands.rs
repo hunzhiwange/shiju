@@ -59,10 +59,11 @@ pub(crate) fn command_from_value(value: &Value) -> String {
         Value::String(cmd) => unwrap_shell_string(cmd).to_string(),
         Value::Array(parts) => {
             let parts: Vec<&str> = parts.iter().filter_map(Value::as_str).collect();
-            if let [program, flag, script] = parts.as_slice() {
-                if is_shell_program(program) && matches!(*flag, "-lc" | "-c" | "-l -c") {
-                    return script.to_string();
-                }
+            if let [program, flag, script] = parts.as_slice()
+                && is_shell_program(program)
+                && matches!(*flag, "-lc" | "-c" | "-l -c")
+            {
+                return script.to_string();
             }
             parts.join(" ")
         }
@@ -78,17 +79,18 @@ fn is_shell_program(program: &str) -> bool {
 fn unwrap_shell_string(cmd: &str) -> &str {
     let trimmed = cmd.trim_start();
     let mut parts = trimmed.splitn(3, ' ');
-    if let (Some(program), Some(flag), Some(rest)) = (parts.next(), parts.next(), parts.next()) {
-        if is_shell_program(program) && matches!(flag, "-lc" | "-c") {
-            let rest = rest.trim();
-            // 去掉整体包裹的引号
-            for quote in ['\'', '"'] {
-                if let Some(inner) = rest.strip_prefix(quote).and_then(|r| r.strip_suffix(quote)) {
-                    return inner;
-                }
+    if let (Some(program), Some(flag), Some(rest)) = (parts.next(), parts.next(), parts.next())
+        && is_shell_program(program)
+        && matches!(flag, "-lc" | "-c")
+    {
+        let rest = rest.trim();
+        // 去掉整体包裹的引号
+        for quote in ['\'', '"'] {
+            if let Some(inner) = rest.strip_prefix(quote).and_then(|r| r.strip_suffix(quote)) {
+                return inner;
             }
-            return rest;
         }
+        return rest;
     }
     cmd
 }

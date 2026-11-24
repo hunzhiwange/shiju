@@ -43,10 +43,10 @@ pub fn apply_env_overrides(config: &mut Config, host: &EnvironmentHost) {
     // ==================== API 密钥配置 ====================
     // 优先级：VIBEWINDOW_API_KEY > API_KEY
     // 从环境变量读取 API 密钥，如果设置了且非空则覆盖配置中的 api_key 字段
-    if let Ok(key) = std::env::var("VIBEWINDOW_API_KEY").or_else(|_| std::env::var("API_KEY")) {
-        if !key.is_empty() {
-            config.api_key = Some(key);
-        }
+    if let Ok(key) = std::env::var("VIBEWINDOW_API_KEY").or_else(|_| std::env::var("API_KEY"))
+        && !key.is_empty()
+    {
+        config.api_key = Some(key);
     }
 
     // ==================== Provider 配置 ====================
@@ -70,7 +70,7 @@ pub fn apply_env_overrides(config: &mut Config, host: &EnvironmentHost) {
         let should_apply_legacy_provider = config
             .default_provider
             .as_deref()
-            .map_or(true, |configured| configured.trim().eq_ignore_ascii_case("shiju"));
+            .is_none_or(|configured| configured.trim().eq_ignore_ascii_case("shiju"));
         if should_apply_legacy_provider && !provider.is_empty() {
             config.default_provider = Some(provider);
         }
@@ -78,10 +78,10 @@ pub fn apply_env_overrides(config: &mut Config, host: &EnvironmentHost) {
 
     // ==================== 模型配置 ====================
     // 优先级：VIBEWINDOW_MODEL > MODEL
-    if let Ok(model) = std::env::var("VIBEWINDOW_MODEL").or_else(|_| std::env::var("MODEL")) {
-        if !model.is_empty() {
-            config.default_model = Some(model);
-        }
+    if let Ok(model) = std::env::var("VIBEWINDOW_MODEL").or_else(|_| std::env::var("MODEL"))
+        && !model.is_empty()
+    {
+        config.default_model = Some(model);
     }
 
     // 应用命名的 provider 配置文件重映射（Codex app-server 兼容性）
@@ -97,15 +97,15 @@ pub fn apply_env_overrides(config: &mut Config, host: &EnvironmentHost) {
     // ==================== 技能系统配置 ====================
     // 技能提示模式覆盖：VIBEWINDOW_SKILLS_PROMPT_MODE
     // 有效值：full（完整模式）| compact（紧凑模式）
-    if let Ok(mode) = std::env::var("VIBEWINDOW_SKILLS_PROMPT_MODE") {
-        if !mode.trim().is_empty() {
-            if let Some(parsed) = parse_skills_prompt_injection_mode(&mode) {
-                config.skills.prompt_injection_mode = parsed;
-            } else {
-                tracing::warn!(
-                    "忽略无效的 VIBEWINDOW_SKILLS_PROMPT_MODE 值（有效值：full|compact）"
-                );
-            }
+    if let Ok(mode) = std::env::var("VIBEWINDOW_SKILLS_PROMPT_MODE")
+        && !mode.trim().is_empty()
+    {
+        if let Some(parsed) = parse_skills_prompt_injection_mode(&mode) {
+            config.skills.prompt_injection_mode = parsed;
+        } else {
+            tracing::warn!(
+                "忽略无效的 VIBEWINDOW_SKILLS_PROMPT_MODE 值（有效值：full|compact）"
+            );
         }
     }
 
@@ -113,17 +113,16 @@ pub fn apply_env_overrides(config: &mut Config, host: &EnvironmentHost) {
     // 网关端口：VIBEWINDOW_GATEWAY_PORT 或 PORT
     if let Ok(port_str) =
         std::env::var("VIBEWINDOW_GATEWAY_PORT").or_else(|_| std::env::var("PORT"))
+        && let Ok(port) = port_str.parse::<u16>()
     {
-        if let Ok(port) = port_str.parse::<u16>() {
-            config.gateway.port = port;
-        }
+        config.gateway.port = port;
     }
 
     // 网关主机：VIBEWINDOW_GATEWAY_HOST 或 HOST
-    if let Ok(host) = std::env::var("VIBEWINDOW_GATEWAY_HOST").or_else(|_| std::env::var("HOST")) {
-        if !host.is_empty() {
-            config.gateway.host = host;
-        }
+    if let Ok(host) = std::env::var("VIBEWINDOW_GATEWAY_HOST").or_else(|_| std::env::var("HOST"))
+        && !host.is_empty()
+    {
+        config.gateway.host = host;
     }
 
     // 允许公开绑定：VIBEWINDOW_ALLOW_PUBLIC_BIND
@@ -135,12 +134,11 @@ pub fn apply_env_overrides(config: &mut Config, host: &EnvironmentHost) {
     // ==================== 温度配置 ====================
     // VIBEWINDOW_TEMPERATURE: 覆盖默认温度参数
     // 有效范围：0.0 到 2.0
-    if let Ok(temp_str) = std::env::var("VIBEWINDOW_TEMPERATURE") {
-        if let Ok(temp) = temp_str.parse::<f64>() {
-            if (0.0..=2.0).contains(&temp) {
-                config.default_temperature = temp;
-            }
-        }
+    if let Ok(temp_str) = std::env::var("VIBEWINDOW_TEMPERATURE")
+        && let Ok(temp) = temp_str.parse::<f64>()
+            && (0.0..=2.0).contains(&temp)
+    {
+        config.default_temperature = temp;
     }
 
     // ==================== 推理功能配置 ====================
@@ -163,16 +161,15 @@ pub fn apply_env_overrides(config: &mut Config, host: &EnvironmentHost) {
         .ok()
         .map(|value| ("VIBEWINDOW_REASONING_LEVEL", value))
         .or_else(|| std::env::var("REASONING_LEVEL").ok().map(|value| ("REASONING_LEVEL", value)));
-    if let Some((env_name, level)) = alias_level {
-        if let Some(normalized) = Config::normalize_reasoning_level_override(Some(&level), env_name)
-        {
-            tracing::warn!(
-                env_name,
-                reasoning_level = %normalized,
-                "{env_name} 已废弃，建议使用 config 中的 provider.reasoning_level 配置"
-            );
-            config.runtime.reasoning_level = Some(normalized);
-        }
+    if let Some((env_name, level)) = alias_level
+        && let Some(normalized) = Config::normalize_reasoning_level_override(Some(&level), env_name)
+    {
+        tracing::warn!(
+            env_name,
+            reasoning_level = %normalized,
+            "{env_name} 已废弃，建议使用 config 中的 provider.reasoning_level 配置"
+        );
+        config.runtime.reasoning_level = Some(normalized);
     }
 
     // ==================== 视觉支持配置 ====================
@@ -220,23 +217,19 @@ pub fn apply_env_overrides(config: &mut Config, host: &EnvironmentHost) {
     // 有效范围：1 到 10
     if let Ok(max_results) = std::env::var("VIBEWINDOW_WEB_SEARCH_MAX_RESULTS")
         .or_else(|_| std::env::var("WEB_SEARCH_MAX_RESULTS"))
+        && let Ok(max_results) = max_results.parse::<usize>()
+            && (1..=10).contains(&max_results)
     {
-        if let Ok(max_results) = max_results.parse::<usize>() {
-            if (1..=10).contains(&max_results) {
-                config.web_search.max_results = max_results;
-            }
-        }
+        config.web_search.max_results = max_results;
     }
 
     // 网络搜索超时：VIBEWINDOW_WEB_SEARCH_TIMEOUT_SECS 或 WEB_SEARCH_TIMEOUT_SECS
     if let Ok(timeout_secs) = std::env::var("VIBEWINDOW_WEB_SEARCH_TIMEOUT_SECS")
         .or_else(|_| std::env::var("WEB_SEARCH_TIMEOUT_SECS"))
+        && let Ok(timeout_secs) = timeout_secs.parse::<u64>()
+            && timeout_secs > 0
     {
-        if let Ok(timeout_secs) = timeout_secs.parse::<u64>() {
-            if timeout_secs > 0 {
-                config.web_search.timeout_secs = timeout_secs;
-            }
-        }
+        config.web_search.timeout_secs = timeout_secs;
     }
 
     // ==================== 存储配置 ====================
@@ -257,12 +250,11 @@ pub fn apply_env_overrides(config: &mut Config, host: &EnvironmentHost) {
     }
 
     // 存储连接超时：VIBEWINDOW_STORAGE_CONNECT_TIMEOUT_SECS
-    if let Ok(timeout_secs) = std::env::var("VIBEWINDOW_STORAGE_CONNECT_TIMEOUT_SECS") {
-        if let Ok(timeout_secs) = timeout_secs.parse::<u64>() {
-            if timeout_secs > 0 {
-                config.storage.provider.config.connect_timeout_secs = Some(timeout_secs);
-            }
-        }
+    if let Ok(timeout_secs) = std::env::var("VIBEWINDOW_STORAGE_CONNECT_TIMEOUT_SECS")
+        && let Ok(timeout_secs) = timeout_secs.parse::<u64>()
+            && timeout_secs > 0
+    {
+        config.storage.provider.config.connect_timeout_secs = Some(timeout_secs);
     }
 
     // ==================== 代理配置 ====================

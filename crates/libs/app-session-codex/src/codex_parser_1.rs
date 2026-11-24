@@ -224,10 +224,10 @@ impl RolloutParser {
     pub(super) fn compaction_event(&mut self, ts: Option<i64>, summary: Option<SessionBlock>) {
         if let Some(idx) = self.last_compaction {
             // 同一次压缩的多种记录：补上缺的摘要即可
-            if let (Some(first), Some(summary)) = (self.messages[idx].blocks.first_mut(), summary) {
-                if matches!(first, SessionBlock::Event { text: None, .. }) {
-                    *first = summary;
-                }
+            if let (Some(first), Some(summary)) = (self.messages[idx].blocks.first_mut(), summary)
+                && matches!(first, SessionBlock::Event { text: None, .. })
+            {
+                *first = summary;
             }
             return;
         }

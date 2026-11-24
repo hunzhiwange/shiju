@@ -289,7 +289,8 @@ pub async fn request_interactive_approval_with_display<H: ContextHost>(
             reply_target: non_cli.reply_target.clone(),
         });
         if sent.is_err() {
-            let _ = H::reject_pending(manager,
+            H::reject_pending(
+                manager,
                 &pending_request,
                 &non_cli.sender,
                 channel_name,

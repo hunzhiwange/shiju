@@ -4,8 +4,8 @@
 //!
 //! # 主要功能
 //!
-//! - [`config_dir_creation_error`]: 为目录创建失败生成用户友好的错误消息
-//! - [`read_codex_openai_api_key`]: 从 Codex 认证文件中读取 OpenAI API 密钥
+//! - [`config_dir_creation_error`][]: 为目录创建失败生成用户友好的错误消息
+//! - [`read_codex_openai_api_key`][]: 从 Codex 认证文件中读取 OpenAI API 密钥
 //!
 //! # 安全考虑
 //!

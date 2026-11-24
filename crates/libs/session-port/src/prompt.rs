@@ -19,7 +19,7 @@ pub enum PromptTermination {
 #[derive(Debug, Clone)]
 pub enum PromptEvent {
     /// 仅供 Gateway 暂存的原始 LLM 工件。
-    LlmRawArtifact(LlmRawArtifact),
+    LlmRawArtifact(Box<LlmRawArtifact>),
 
     /// 实际加载的上下文文件。
     ContextLoaded {

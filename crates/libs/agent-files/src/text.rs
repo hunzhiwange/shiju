@@ -28,11 +28,10 @@ fn decode(bytes: &[u8], file: &str) -> Result<String, Error> {
     let invalid = || Error::InvalidText(file.to_string());
     let text = if bytes.starts_with(&[0xff, 0xfe, 0, 0]) || bytes.starts_with(&[0, 0, 0xfe, 0xff]) {
         let little_endian = bytes[0] == 0xff;
-        let mut units = bytes[4..].chunks_exact(4);
+        let (units, remainder) = bytes[4..].as_chunks::<4>();
         let text = units
-            .by_ref()
-            .map(|unit| {
-                let unit = [unit[0], unit[1], unit[2], unit[3]];
+            .iter()
+            .map(|&unit| {
                 char::from_u32(if little_endian {
                     u32::from_le_bytes(unit)
                 } else {
@@ -41,7 +40,7 @@ fn decode(bytes: &[u8], file: &str) -> Result<String, Error> {
                 .ok_or_else(invalid)
             })
             .collect::<Result<String, _>>()?;
-        if !units.remainder().is_empty() {
+        if !remainder.is_empty() {
             return Err(invalid());
         }
         text

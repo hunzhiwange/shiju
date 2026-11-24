@@ -46,14 +46,13 @@ impl RolloutParser {
             }
         }
         // 兜底：输出内容里包含池中某条命令输出的开头 → 认领
-        if let (Some(out), true, true) = (&out, is_shell, commands.is_empty()) {
-            if let Some(pos) = self
+        if let (Some(out), true, true) = (&out, is_shell, commands.is_empty())
+            && let Some(pos) = self
                 .pool
                 .iter()
                 .position(|c| !c.output_head.is_empty() && out.text.contains(&c.output_head))
-            {
-                commands.push(self.pool.remove(pos));
-            }
+        {
+            commands.push(self.pool.remove(pos));
         }
 
         // 1. 回填调用块
@@ -94,14 +93,14 @@ impl RolloutParser {
                 *kind = diff_kind(&merged);
                 *diff = Some(merged);
             }
-            if patch_rejected {
-                if let Some(diff) = diff {
-                    diff.added = 0;
-                    diff.removed = 0;
-                    for file in &mut diff.files {
-                        file.added = 0;
-                        file.removed = 0;
-                    }
+            if patch_rejected
+                && let Some(diff) = diff
+            {
+                diff.added = 0;
+                diff.removed = 0;
+                for file in &mut diff.files {
+                    file.added = 0;
+                    file.removed = 0;
                 }
             }
         }
@@ -252,12 +251,12 @@ impl RolloutParser {
         let phases = std::mem::take(&mut self.phases);
         let mut messages = self.messages;
         for msg in &mut messages {
-            if msg.role == "assistant" {
-                if let Some(phase) = msg.id.as_ref().and_then(|id| phases.get(id)) {
-                    let meta = msg.meta.get_or_insert_with(MessageMeta::default);
-                    if meta.stop_reason.is_none() {
-                        meta.stop_reason = Some(phase.clone());
-                    }
+            if msg.role == "assistant"
+                && let Some(phase) = msg.id.as_ref().and_then(|id| phases.get(id))
+            {
+                let meta = msg.meta.get_or_insert_with(MessageMeta::default);
+                if meta.stop_reason.is_none() {
+                    meta.stop_reason = Some(phase.clone());
                 }
             }
             msg.content = project_content(&msg.blocks);

@@ -198,3 +198,159 @@ fn notification_permission_failure_disables_and_persists_notification_setting() 
     assert!(app.toast_state.active_toast.is_some());
     assert!(task.units() > 0);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn desktop_language_switch_refreshes_visible_labels_and_preserves_source_fallback() {
+    use crate::app::task::{Task as BoardTask, TaskLogEntry, TaskStatus};
+    use crate::app::{AppTab, Screen};
+    use config_ui::DesktopLocale;
+    use desktop_i18n::I18n;
+
+    let (mut app, startup) = App::new();
+    // Drop effect tasks: no bootstrap/config write is polled, and no native window,
+    // tray, browser child or MCP panel is created by this fixture.
+    drop(startup);
+    let pet_window = iced::window::Id::unique();
+    app.task_pet_window_id = Some(pet_window);
+    let editor_id = desktop_navigation::panel::tabs::EDITOR_TAB_ID;
+    for (id, title, screen) in [
+        ("cron", "定时任务", Screen::Cron),
+        ("projects", "项目管理", Screen::Projects),
+        (editor_id, "编辑器", Screen::Preview),
+        ("find:language-test", "查找结果 1", Screen::Project),
+        ("user-tab", "用户/%s/%n", Screen::Project),
+    ] {
+        app.navigation_tabs.open_tabs.push(AppTab {
+            id: id.into(),
+            title: title.into(),
+            screen,
+            project_path: None,
+        });
+    }
+    app.project_find.open_scope("/tmp/用户/%s/%n".into(), "language-test".into());
+    app.navigation_tabs.active_tab_id = Some("user-tab".into());
+    app.navigation_tabs.screen = Screen::Project;
+    let mut task = BoardTask::default();
+    task.logs.push(TaskLogEntry::new_status_change(TaskStatus::Pending, TaskStatus::Running));
+    task.logs.push(TaskLogEntry::new_message("用户日志/%s/%n".into()));
+    app.task_board.task_board_viewing_logs = Some(task);
+
+    for (locale, cron, projects, editor, search, pet, status) in [
+        (
+            DesktopLocale::SimplifiedChinese,
+            "定时任务",
+            "项目管理",
+            "编辑器",
+            "查找结果 1",
+            "VibeWindow 伙伴",
+            "状态变更: 待执行 → 执行中",
+        ),
+        (
+            DesktopLocale::English,
+            "Scheduled tasks",
+            "Project management",
+            "Editor",
+            "Search results 1",
+            "VibeWindow Pet",
+            "Status changed: Pending → Running",
+        ),
+        (
+            DesktopLocale::TraditionalChinese,
+            "排程任務",
+            "專案管理",
+            "編輯器",
+            "查詢結果 1",
+            "VibeWindow 夥伴",
+            "狀態變更: 待執行 → 執行中",
+        ),
+        (
+            DesktopLocale::SimplifiedChinese,
+            "定时任务",
+            "项目管理",
+            "编辑器",
+            "查找结果 1",
+            "VibeWindow 伙伴",
+            "状态变更: 待执行 → 执行中",
+        ),
+    ] {
+        // Use the host settings entry, rather than calling refresh helpers directly.
+        let save = super::super::update(
+            &mut app,
+            SettingsMessage::General(GeneralSettingsMessage::LocaleSelected(locale)),
+        );
+        assert!(save.units() > 0);
+        drop(save);
+        assert!(app.general_settings.desktop_locale_saving);
+        assert!(app.general_settings.desktop_locale_selected);
+        assert_eq!(app.general_settings.desktop_locale, locale);
+        for (id, expected) in [
+            ("cron", cron),
+            ("projects", projects),
+            (editor_id, editor),
+            ("find:language-test", search),
+            ("user-tab", "用户/%s/%n"),
+        ] {
+            assert_eq!(
+                app.navigation_tabs.open_tabs.iter().find(|tab| tab.id == id).unwrap().title,
+                expected
+            );
+        }
+        assert_eq!(app.title_for_window(pet_window), pet);
+        let logs = app.task_board.task_board_logs_editor.text();
+        assert!(logs.contains(status), "{logs}");
+        assert!(logs.contains("用户日志/%s/%n"));
+        assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("user-tab"));
+        assert_eq!(app.navigation_tabs.screen, Screen::Project);
+        assert_eq!(app.project_find.find_results_tabs[0].scope_path, "/tmp/用户/%s/%n");
+        let source = "集成回归专用未收录文案/%s/%n";
+        assert_eq!(I18n::new(app.general_settings.desktop_locale).__(source), source);
+        assert_eq!(app.general_settings.desktop_locale, locale);
+        let saved = super::super::update(
+            &mut app,
+            SettingsMessage::General(GeneralSettingsMessage::LocaleSaved(locale, Ok(()))),
+        );
+        assert_eq!(saved.units(), 0);
+        assert!(!app.general_settings.desktop_locale_saving);
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn desktop_language_stale_save_keeps_latest_selection_pending() {
+    use config_ui::DesktopLocale;
+    let (mut app, startup) = App::new();
+    drop(startup);
+    let first = update(
+        &mut app,
+        SettingsMessage::General(GeneralSettingsMessage::LocaleSelected(DesktopLocale::English)),
+    );
+    assert!(first.units() > 0);
+    drop(first);
+    let second = update(
+        &mut app,
+        SettingsMessage::General(GeneralSettingsMessage::LocaleSelected(
+            DesktopLocale::TraditionalChinese,
+        )),
+    );
+    assert_eq!(second.units(), 0);
+    let retry = update(
+        &mut app,
+        SettingsMessage::General(GeneralSettingsMessage::LocaleSaved(
+            DesktopLocale::English,
+            Ok(()),
+        )),
+    );
+    assert!(retry.units() > 0);
+    drop(retry);
+    assert_eq!(app.general_settings.desktop_locale, DesktopLocale::TraditionalChinese);
+    assert!(app.general_settings.desktop_locale_saving);
+    let _ = update(
+        &mut app,
+        SettingsMessage::General(GeneralSettingsMessage::LocaleSaved(
+            DesktopLocale::TraditionalChinese,
+            Err("用户/%s/%n".into()),
+        )),
+    );
+    assert!(!app.general_settings.desktop_locale_saving);
+    assert_eq!(app.general_settings.desktop_locale, DesktopLocale::TraditionalChinese);
+    assert_eq!(app.toast_state.active_toast.as_ref().unwrap().message, "儲存失敗：用户/%s/%n");
+}

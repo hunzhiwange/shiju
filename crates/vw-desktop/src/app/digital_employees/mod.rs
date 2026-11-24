@@ -266,11 +266,5 @@ pub(crate) fn refresh_titles(app: &mut App) {
         if tab.id == TAB_ID {
             tab.title = i18n.__("数字员工").to_owned();
         }
-        if let Some(id) = tab.id.strip_prefix("find:") {
-            if let Some(result) = app.project_find.find_results_tabs.iter().find(|result| result.id == id) {
-                tab.title = i18n.format("查找结果 %u", &[result.matches.len().into()])
-                    .expect("valid search result title");
-            }
-        }
     }
 }

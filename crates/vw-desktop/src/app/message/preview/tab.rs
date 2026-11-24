@@ -167,7 +167,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
             if !app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == EDITOR_TAB_ID) {
                 app.navigation_tabs.open_tabs.push(AppTab {
                     id: EDITOR_TAB_ID.to_owned(),
-                    title: "编辑器".to_owned(),
+                    title: desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("编辑器").to_owned(),
                     screen: Screen::Preview,
                     project_path: None,
                 });

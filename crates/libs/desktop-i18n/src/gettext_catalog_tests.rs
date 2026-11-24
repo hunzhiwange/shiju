@@ -98,3 +98,22 @@ fn desktop_gettext_catalog_runtime_falls_back_for_blank_or_invalid_catalog() {
         }
     }
 }
+
+#[test]
+fn desktop_gettext_catalog_embedded_translations_preserve_format_signatures() {
+    for source in [include_str!("locales/en.json"), include_str!("locales/zh-TW.json")] {
+        let catalog = parse_catalog(source).unwrap();
+        for (key, translation) in catalog {
+            assert!(!translation.trim().is_empty(), "blank translation: {key}");
+            // These lookup-only labels contain a literal percent or chrono pattern;
+            // neither is passed to the typed sprintf formatter.
+            if key.contains('%') && !matches!(key.as_str(), "错误率（%）" | "%Y年%m月") {
+                assert_eq!(
+                    crate::format::validate_translation(&key, &translation),
+                    Ok(()),
+                    "invalid translation: {key} -> {translation}"
+                );
+            }
+        }
+    }
+}

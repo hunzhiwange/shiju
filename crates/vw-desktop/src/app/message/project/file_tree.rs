@@ -370,7 +370,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     if !app.navigation_tabs.open_tabs.iter().any(|t| t.id == open_tab_id) {
                         app.navigation_tabs.open_tabs.push(AppTab {
                             id: open_tab_id.clone(),
-                            title: format!("查找结果 {}", app.project_find.find_results_tabs.len()),
+                            title: desktop_i18n::I18n::new(app.general_settings.desktop_locale)
+                                .format("查找结果 %u", &[app.project_find.find_results_tabs.len().into()])
+                                .expect("valid search result title"),
                             screen: Screen::Project,
                             project_path: app.navigation_tabs.project_path.clone(),
                         });

@@ -310,7 +310,9 @@ pub fn view<External: Clone + 'static>(app: &Input<'_>, files_list: Vec<String>)
                             .height(Length::Fill)
                             .align_y(Vertical::Center)
                             .width(Length::Fill),
-                        icon_svg(Icon::ChevronDown, 11.0)
+                        icon_svg(Icon::ChevronDown, 11.0).style(|theme: &iced::Theme, _| {
+                            iced::widget::svg::Style { color: Some(theme.palette().text) }
+                        })
                     ]
                     .spacing(4)
                     .align_y(iced::Alignment::Center),

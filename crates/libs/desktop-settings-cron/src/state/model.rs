@@ -4,7 +4,9 @@ use super::{CronFrequency, CronHistoryState, CronScheduleDraft};
 ///
 /// 管理 Cron 定时任务功能的配置。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum CronSettingsTab {
+    #[default]
     Jobs,
     History,
     Config,
@@ -12,15 +14,12 @@ pub enum CronSettingsTab {
     Add,
 }
 
-impl Default for CronSettingsTab {
-    fn default() -> Self {
-        Self::Jobs
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum CronAddJobType {
     Shell,
+    #[default]
     Agent,
 }
 
@@ -33,14 +32,11 @@ impl CronAddJobType {
     }
 }
 
-impl Default for CronAddJobType {
-    fn default() -> Self {
-        Self::Agent
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum CronAddScheduleKind {
+    #[default]
     Cron,
     At,
     Every,
@@ -56,11 +52,6 @@ impl CronAddScheduleKind {
     }
 }
 
-impl Default for CronAddScheduleKind {
-    fn default() -> Self {
-        Self::Cron
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct CronJobDraft {

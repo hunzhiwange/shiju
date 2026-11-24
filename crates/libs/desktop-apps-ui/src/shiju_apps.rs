@@ -209,11 +209,9 @@ pub fn update(app: &mut Input<'_>, message: ShijuAppsMessage) -> Task<ShijuAppsM
         ShijuAppsMessage::CategoriesLoaded { account_id, generation, result } => {
             if app.account.is_some_and(|account| account.id() == account_id)
                 && app.shiju_apps.featured_generation == generation
-            {
-                if let Ok(items) = result {
+                && let Ok(items) = result {
                     app.shiju_apps.categories = items;
                 }
-            }
             Task::none()
         }
         ShijuAppsMessage::ArtworkLoaded { account_id, items } => {

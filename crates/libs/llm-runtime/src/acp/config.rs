@@ -117,11 +117,10 @@ pub fn lookup_acp_command(
     }
 
     let model_preferred = model.api.id.trim();
-    if !model_preferred.is_empty() {
-        if let Some(spec) = resolve_agent_spec_with_overrides(model_preferred, Some(&overrides)) {
+    if !model_preferred.is_empty()
+        && let Some(spec) = resolve_agent_spec_with_overrides(model_preferred, Some(&overrides)) {
             return Some((model_preferred.to_string(), to_schema_acp_config(spec)));
         }
-    }
 
     resolve_agent_spec_with_overrides(DEFAULT_AGENT_NAME, Some(&overrides))
         .map(|spec| (DEFAULT_AGENT_NAME.to_string(), to_schema_acp_config(spec)))

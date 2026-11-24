@@ -56,7 +56,6 @@ const DEFAULT_ENABLED_ACP_AGENTS: &[&str] =
     &["claude", "gemini", "opencode", "codex", "openclaw", "copilot"];
 
 #[allow(dead_code)]
-
 fn default_enabled_acp_config(
     catalog: &HashMap<String, AcpAgentConfig>,
 ) -> HashMap<String, AcpAgentConfig> {

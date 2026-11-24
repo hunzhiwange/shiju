@@ -146,8 +146,8 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
                 Ok(catalog) => { state.catalog = Some(catalog); state.editor = None; state.undo = None;
                     // Reload the target snapshot as well as the catalog before enabling writes.
                     let refresh = update(app, Event::Open(scope.app_id));
-                    return Task::batch([refresh, Input::show_success_toast(format!("提示词已保存。{}", effect(scope.app_id)))]); }
-                Err(error) => { let draft = state.editor.as_mut().expect("saving editor"); draft.saving = false; draft.error = Some(error.clone()); return crate::prompts::update::Input::show_error_toast(error); }
+                    Task::batch([refresh, Input::show_success_toast(format!("提示词已保存。{}", effect(scope.app_id)))])}
+                Err(error) => { let draft = state.editor.as_mut().expect("saving editor"); draft.saving = false; draft.error = Some(error.clone()); crate::prompts::update::Input::show_error_toast(error)}
             }
         }
         Event::Mutate(_) | Event::Undo if app.prompts.loading || app.prompts.mutating || app.prompts.editor.is_some() => Task::none(),

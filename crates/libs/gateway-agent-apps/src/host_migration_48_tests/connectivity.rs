@@ -1,5 +1,4 @@
 //! Native transport adapter; catalog policy and revision checks belong to the domain.
-pub use agent_app_services::mcp::connectivity::*;
 use agent_app_services::mcp::connection_runtime::{CheckPeer, ConnectionCheckRuntime};
 use mcp_client::{RunningMcpPeer, open_connection_check_peer};
 use mcp_client::ProbeChild;

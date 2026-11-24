@@ -186,7 +186,7 @@ where
         let permission_badge_text = pending_permission_badge_label(
             desktop_i18n::I18n::new(app.desktop_locale),
             app.permission_modal_requests,
-            app.permission_modal_request_id.as_deref(),
+            app.permission_modal_request_id,
         );
         let visible_non_explore_tool_count = if is_permission_target_message {
             count_visible_non_explore_tool_cards(blocks, tool_block_metadata, &tool_last)
@@ -220,15 +220,15 @@ where
                         let matched_permission_request = pending_permission_request_for_tool_call(
                             app.permission_modal_requests,
                             message_id,
-                            &raw_text,
+                            raw_text,
                         );
 
                         let matches_permission_tool = if is_permission_target_message {
-                            let raw_call_id = tool_call_id_from_raw(&raw_text);
+                            let raw_call_id = tool_call_id_from_raw(raw_text);
                             if pending_permission_targets_tool_call(
                                 app.permission_modal_request,
                                 message_id,
-                                &raw_text,
+                                raw_text,
                             ) {
                                 true
                             } else if raw_call_id.is_none() {
@@ -247,12 +247,11 @@ where
                     }
                     ParsedChatBlock::Text { content } => {
                         facts.visible_text = normalized_visible_text(content).is_some();
-                        if facts.visible_text {
-                            if let Some(text) = special_text_blocks.get(text_idx) {
+                        if facts.visible_text
+                            && let Some(text) = special_text_blocks.get(text_idx) {
                                 facts.hide_after_explore = should_hide_explore_link_box(text);
                                 text_idx += 1;
                             }
-                        }
                     }
                 }
                 facts
@@ -310,15 +309,15 @@ where
                     let matched_permission_request = pending_permission_request_for_tool_call(
                         app.permission_modal_requests,
                         message_id,
-                        &raw_text,
+                        raw_text,
                     );
 
                     let matches_permission_tool = if is_permission_target_message {
-                        let raw_call_id = tool_call_id_from_raw(&raw_text);
+                        let raw_call_id = tool_call_id_from_raw(raw_text);
                         if pending_permission_targets_tool_call(
                             app.permission_modal_request,
                             message_id,
-                            &raw_text,
+                            raw_text,
                         ) {
                             true
                         } else if raw_call_id.is_none() {
@@ -330,17 +329,17 @@ where
                         false
                     };
 
-                    let rendered = render_shared_tool_view(app, idx, tool_idx, &raw_text);
+                    let rendered = render_shared_tool_view(app, idx, tool_idx, raw_text);
 
                     if let Some(view) = rendered {
                         let should_highlight_permission_tool =
                             should_highlight_pending_permission_tool(
                                 matched_permission_request.map(|request| request.id.as_str()),
-                                app.permission_modal_request_id.as_deref(),
+                                app.permission_modal_request_id,
                                 matches_permission_tool,
                             );
                         let view = if let Some(request) = matched_permission_request {
-                            let label = if app.permission_modal_request_id.as_deref()
+                            let label = if app.permission_modal_request_id
                                 == Some(request.id.as_str())
                             {
                                 permission_badge_text.clone()
@@ -383,7 +382,7 @@ where
     } else {
         let text = display_text;
         let markdown_key = (idx as u64) << 32;
-        if let Some(view) = assistant_api_error_view(app, idx, None, &text) {
+        if let Some(view) = assistant_api_error_view(app, idx, None, text) {
             body = body.push(view);
         } else if !is_streaming_assistant
             && let Some(blocks) = app.chat_markdown_blocks.get(&markdown_key)

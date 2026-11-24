@@ -158,11 +158,10 @@ impl ActiveRunner {
     }
 
     pub(super) fn refresh_pager(&mut self, app: &V3GatewayApp, _width: u16) {
-        if let Some(pager) = self.transcript_pager.as_mut() {
-            if pager.needs_source_refresh(app.widget().transcript_revision()) {
+        if let Some(pager) = self.transcript_pager.as_mut()
+            && pager.needs_source_refresh(app.widget().transcript_revision()) {
                 pager.replace_committed(app.transcript_lines(u16::MAX, true));
             }
-        }
     }
 
     pub(super) fn handle_pager_key(&mut self, key: crossterm::event::KeyEvent) {

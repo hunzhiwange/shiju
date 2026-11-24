@@ -139,11 +139,10 @@ fn update_event(input: &mut Input<'_>, event: Event) -> Task<Event> {
         }
         Event::Filter(change) => {
             state.filter_menu = None;
-            if matches!(change, super::overview::Change::Clear) {
-                if let Some(query) = &mut state.logs.query {
+            if matches!(change, super::overview::Change::Clear)
+                && let Some(query) = &mut state.logs.query {
                     query.filter.status = None;
                 }
-            }
             state.filter(change);
             state.logs.first_page();
             update(input, Event::Refresh)

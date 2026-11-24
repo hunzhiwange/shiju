@@ -218,11 +218,10 @@ pub(super) fn temporary_workflow_task_titles(query: &str) -> Vec<String> {
         }
     }
 
-    if titles.is_empty() {
-        if let Some(title) = normalize_temporary_workflow_task_title(query) {
+    if titles.is_empty()
+        && let Some(title) = normalize_temporary_workflow_task_title(query) {
             titles.push(title);
         }
-    }
     if titles.is_empty() {
         titles.push("完成用户需求".to_string());
     }

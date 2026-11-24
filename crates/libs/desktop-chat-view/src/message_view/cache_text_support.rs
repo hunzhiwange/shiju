@@ -48,7 +48,6 @@ pub use desktop_chat_tools::card_style::single_line_preview;
 pub use desktop_chat_tools::text_layout::truncate_lines_middle;
 
 /// 拆出 Markdown 围栏及其后缀，供正文清理和代码块解析使用。
-
 /// 归一化 display text，让后续路径或文本比较保持确定性。
 ///
 /// # 参数

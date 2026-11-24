@@ -2,7 +2,7 @@
 
 use super::{
     auth_access::{AuthAccountHost, authorize_auth_account_read},
-    agent_apps_auth_start::{Runtime, direct_loopback_peer, routes},
+    agent_apps_auth_start::{Runtime, routes},
 };
 #[cfg(target_os = "macos")]
 use app_provider_services::AppProviderStore;

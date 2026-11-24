@@ -316,7 +316,7 @@ async fn ui_refresh_33_layout_and_interaction() {
     next.metadata.insert("arguments".into(), serde_json::json!("echo 下一個"));
     app.permission_modal_request = Some(current.clone());
     app.permission_modal_requests = vec![current, next];
-    let _ = app.show_toast(ToastKind::Info, "Fixture notice");
+    app.show_toast(ToastKind::Info, "Fixture notice");
     for (locale, language) in [
         (DesktopLocale::English, "en"),
         (DesktopLocale::SimplifiedChinese, "zh"),
@@ -463,7 +463,7 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
         tool: None,
         mcp_form: None,
     };
-    let _ = app.show_toast(ToastKind::Error, "Fixture error · 測試錯誤");
+    app.show_toast(ToastKind::Error, "Fixture error · 測試錯誤");
     for (locale, language) in [
         (DesktopLocale::English, "en"),
         (DesktopLocale::SimplifiedChinese, "zh"),
@@ -587,7 +587,7 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
                 [Message::Question(Question::QuestionOptionToggled(0, value))] if value == B
             ));
             drop(ui);
-            let _ = app.update(single.into_iter().next().unwrap());
+            app.update(single.into_iter().next().unwrap());
             assert_eq!(app.question_modal_answers[0], [B]);
 
             let mut ui = scene(app.view(), &mut renderer, NARROW);
@@ -615,12 +615,12 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
                 [Message::Question(Question::QuestionOptionToggled(1, value))] if value == D
             ));
             drop(ui);
-            let _ = app.update(multi.into_iter().next().unwrap());
+            app.update(multi.into_iter().next().unwrap());
             assert_eq!(app.question_modal_answers[1], [C, D]);
         }
     }
 
-    let _ = app.show_toast(ToastKind::Error, "Fixture error · 測試錯誤. ".repeat(40));
+    app.show_toast(ToastKind::Error, "Fixture error · 測試錯誤. ".repeat(40));
     let mut ui = scene(app.view(), &mut renderer, NARROW);
     let i18n = I18n::new(app.desktop_locale);
     let submit = label(&geometry(&mut ui, &renderer), i18n.__("确定"));

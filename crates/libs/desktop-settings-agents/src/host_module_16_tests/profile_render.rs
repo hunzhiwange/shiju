@@ -150,7 +150,7 @@ async fn agent_config_cleanup_five_tabs_render_in_both_themes() {
                 &Rectangle::with_size(bounds),
             );
             let pixels = renderer.screenshot(Size::new(width, height), 1.0, Color::TRANSPARENT);
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
             image::save_buffer(
                 format!("/tmp/shiju-task7-{name}-{tab}-{width}x{height}.png"),
                 &pixels,
@@ -205,7 +205,7 @@ async fn agent_config_cleanup_skill_directory_renders_chinese_in_both_themes() {
             &Rectangle::with_size(bounds),
         );
         let pixels = renderer.screenshot(Size::new(1100, 900), 1.0, Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
         image::save_buffer(
             format!("/tmp/shiju-task2-skill-directory-{name}.png"),
             &pixels,
@@ -299,7 +299,7 @@ async fn agent_runtime_creation_controls_render_in_both_themes() {
                 &Rectangle::with_size(bounds),
             );
             let pixels = renderer.screenshot(Size::new(920, 760), 1.0, Color::TRANSPARENT);
-            assert!(pixels.chunks_exact(4).any(|p| p[3] > 0));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|p| p[3] > 0));
             image::save_buffer(
                 format!("/tmp/shiju-runtime-creation-{name}-{state}.png"),
                 &pixels,
@@ -412,7 +412,7 @@ async fn agent_runtime_visibility_actual_modal_renders_native_and_acp_in_both_th
                     &Rectangle::with_size(bounds),
                 );
                 let pixels = renderer.screenshot(Size::new(1100, 900), 1.0, Color::TRANSPARENT);
-                assert!(pixels.chunks_exact(4).any(|p| p[3] > 0));
+                assert!(pixels.as_chunks::<4>().0.iter().any(|p| p[3] > 0));
                 if tab == "basic" {
                     image::save_buffer(
                         format!("/tmp/shiju-runtime-visibility-{backend}-{name}.png"),

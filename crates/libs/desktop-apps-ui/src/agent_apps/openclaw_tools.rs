@@ -134,7 +134,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: &'a State, base: Element<'a,
     if state.loaded {
         let selected = Profile::from_value(&state.draft.profile);
         if let Profile::Unknown(value) = &selected {
-            body = body.push(text(i18n.sprintf("未知 profile：%s。选择其他值前将原样保留。", &[format!("{}", value).into()])));
+            body = body.push(text(i18n.sprintf("未知 profile：%s。选择其他值前将原样保留。", &[value.to_string().into()])));
         }
         body = body.push(text(i18n.__("工具 profile"))).push(
             settings_select(
@@ -225,7 +225,7 @@ pub fn update(
         gateway_openclaw_settings::GatewayOpenClawSettingsClient::new(client.transport().clone());
     let valid = |scope: &Scope, state: &State| {
         scope.context == context
-            && scope.project == project.to_string()
+            && scope.project == project
             && scope.host == host
             && scope.catalog == generation
             && scope.generation == state.generation

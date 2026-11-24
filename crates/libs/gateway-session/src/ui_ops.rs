@@ -74,7 +74,7 @@ fn encode_cursor(cursor: &MessageCursor) -> Result<String, ApiError> {
 }
 
 fn decode_cursor(value: &str) -> Result<MessageCursor, ApiError> {
-    if value.len() % 2 != 0 || value.is_empty() {
+    if !value.len().is_multiple_of(2) || value.is_empty() {
         return Err(ApiError::bad_request("invalid session message cursor"));
     }
     let bytes = (0..value.len())

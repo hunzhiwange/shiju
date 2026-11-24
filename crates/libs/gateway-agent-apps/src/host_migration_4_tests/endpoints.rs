@@ -1,11 +1,9 @@
 use app_provider_services::AppProviderStore;
-use app_diagnostics_runtime::agent_apps_diagnostic_jobs::{DiagnosticJobOwner, DiagnosticJobs};
 use agent_database::GlobalDatabase;
 use axum::{
     Extension,
     body::Body,
     http::{Request, StatusCode},
-    response::IntoResponse,
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -15,14 +13,9 @@ use std::{
         Arc,
         atomic::{AtomicUsize, Ordering},
     },
-    time::Duration,
 };
 use tower::ServiceExt;
 use vw_api_app_identity::AppId;
-use vw_api_app_diagnostics::DiagnosticJobIdentity;
-use vw_api_app_diagnostics::DiagnosticJobState;
-use vw_api_app_provider_base::AppProviderWrite;
-use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_transport::id::TenantScope;
 
 const TOKEN: &str = "fixture-diagnostic-member-token-00001";

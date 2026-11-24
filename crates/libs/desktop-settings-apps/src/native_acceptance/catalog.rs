@@ -127,7 +127,7 @@ impl Harness {
                 }
             }
             Message::Capture(screenshot) => {
-                assert!(screenshot.rgba.chunks_exact(4).any(|p| p[0] != p[1]));
+                assert!(screenshot.rgba.as_chunks::<4>().0.iter().any(|p| p[0] != p[1]));
                 let name = format!(
                     "{}-{}.png",
                     if self.case < 9 { "light" } else { "dark" },

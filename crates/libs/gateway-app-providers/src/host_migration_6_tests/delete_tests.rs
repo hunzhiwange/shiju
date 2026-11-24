@@ -21,7 +21,7 @@ fn setup(root: &Path) -> (Router, GlobalDatabase) {
     let value = serde_json::json!({"principals":[{"id":"reader","token_sha256":hex::encode(Sha256::digest(TOKEN)),"grants":[{"platform_id":"p","company_id":"a","host_id":"host","provider_config_read":true},{"platform_id":"p","company_id":"a","host_id":"metadata-only"}]}],"hosts":[{"id":"host","online":true,"binding":"local","home":root,"search_paths":[],"applications":root.join("Applications")},{"id":"metadata-only","online":true,"binding":"local","home":root,"search_paths":[],"applications":root.join("Applications")}]});
     std::fs::write(&policy, value.to_string()).unwrap();
     std::fs::set_permissions(&policy, std::fs::Permissions::from_mode(0o600)).unwrap();
-    let db = GlobalDatabase::for_home(&root.join("database")).unwrap();
+    let db = GlobalDatabase::for_home(root.join("database")).unwrap();
     let settings = GatewaySettingsStore::new(db.clone()).unwrap();
     for app in ["kimi", "opencode", "claude"] {
         for id in ["used", "unused"] {
@@ -116,7 +116,7 @@ async fn cc04_delete_api_permission_scope_and_unknown_config_denials_preserve_ro
         .await
     }));
     let before = rows(&db);
-    for (auth, company, host, token, path, expected) in [
+    for (auth, company, host, _token, path, expected) in [
         (false, "a", "host", TOKEN, "opencode/unused", StatusCode::UNAUTHORIZED),
         (true, "b", "host", TOKEN, "opencode/unused", StatusCode::FORBIDDEN),
         (true, "a", "metadata-only", TOKEN, "opencode/unused", StatusCode::FORBIDDEN),

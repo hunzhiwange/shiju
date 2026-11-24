@@ -7,10 +7,10 @@ fn connection_error() -> String {
         is_retryable: true,
         response_headers: None,
         response_body: None,
-        metadata: Some(std::collections::HashMap::from([(
+        metadata: Some(Box::new(std::collections::HashMap::from([(
             "connection_failure".into(),
             "true".into(),
-        )])),
+        )]))),
     })
     .unwrap()
 }
@@ -69,10 +69,10 @@ fn service_retry_respects_retry_after_and_remains_cancellable() {
         message: "overloaded".into(),
         status_code: Some(503),
         is_retryable: true,
-        response_headers: Some(std::collections::HashMap::from([(
+        response_headers: Some(Box::new(std::collections::HashMap::from([(
             "Retry-After".into(),
             "12".into(),
-        )])),
+        )]))),
         response_body: None,
         metadata: None,
     })

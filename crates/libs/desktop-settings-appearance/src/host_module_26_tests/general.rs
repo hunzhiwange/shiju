@@ -156,7 +156,7 @@ async fn general_settings_render_chinese_in_light_and_dark_without_overflow() {
                 );
                 let pixels =
                     renderer.screenshot(Size::new(width, 1200), 1.0, theme.palette().background);
-                assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+                assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
                 if let Ok(directory) = std::env::var("SHIJU_SETTINGS_PREVIEW_DIR") {
                     std::fs::create_dir_all(&directory).expect("preview directory");
                     image::save_buffer(
@@ -882,7 +882,7 @@ mod tab_appearance {
                     ui.operate(&renderer, &mut labels);
                     assert_eq!(&labels.0[1..1 + names.len()], &names);
                     assert!(
-                        labels.0[1 + names.len()..].iter().any(|label| label == &i18n.__(content)),
+                        labels.0[1 + names.len()..].iter().any(|label| label == i18n.__(content)),
                         "{content:?} missing from {active:?}"
                     );
 

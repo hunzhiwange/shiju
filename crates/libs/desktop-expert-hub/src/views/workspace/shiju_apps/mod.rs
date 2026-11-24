@@ -15,7 +15,7 @@ pub fn view<'a, M: Clone + 'static>(
 }
 fn input<'a>(app: &WorkspaceInput<'a>) -> crate::views::shiju_apps::ViewInput<'a> {
     crate::views::shiju_apps::ViewInput {
-        shiju_apps: &app.shiju_apps,
+        shiju_apps: app.shiju_apps,
         desktop_locale: app.desktop_locale,
     }
 }

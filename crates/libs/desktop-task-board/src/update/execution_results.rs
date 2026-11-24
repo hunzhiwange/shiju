@@ -108,8 +108,8 @@ pub fn update(
             }
             task_to_persist = Some(task.clone());
         }
-        if should_recycle_worktree {
-            if let Some(task) = (*app.task_board_tasks).iter_mut().find(|task| task.id == task_id) {
+        if should_recycle_worktree
+            && let Some(task) = (*app.task_board_tasks).iter_mut().find(|task| task.id == task_id) {
                 let reason = recycle_reason
                     .as_deref()
                     .map(|reason| truncate_for_ui(reason, TASK_LOG_UI_MAX_DETAIL_CHARS))
@@ -117,13 +117,12 @@ pub fn update(
                 task.add_localized_log("%s，等待网关运行时清理 worktree 槽位", vec![reason.into()]);
                 task_to_persist = Some(task.clone());
             }
-        }
         app.effects.push(ResultEffect::SyncLogs(app.task_board_tasks.iter().find(|task| task.id == task_id).cloned()));
         if let (Some(project_path), Some(task_clone)) = (&(*app.project_path), task_to_persist.clone()) {
             (*app.task_board_tasks_pending_persistence).insert(task_id.clone());
             let persist_task = persist_result(
                 project_path.clone(),
-                (*app.task_board_settings).workflow_id.clone(),
+                app.task_board_settings.workflow_id.clone(),
                 task_clone,
                 "保存执行结果",
             );
@@ -216,7 +215,7 @@ pub fn update(
                 (*app.task_board_tasks_pending_persistence).insert(task_id.clone());
                 let persist_task = persist_result(
                     project_path.clone(),
-                    (*app.task_board_settings).workflow_id.clone(),
+                    app.task_board_settings.workflow_id.clone(),
                     task_clone,
                     "保存审核结果",
                 );
@@ -229,7 +228,7 @@ pub fn update(
             (*app.task_board_tasks_pending_persistence).insert(task_id.clone());
             let persist_task = persist_result(
                 project_path.clone(),
-                (*app.task_board_settings).workflow_id.clone(),
+                app.task_board_settings.workflow_id.clone(),
                 task_clone,
                 "保存审核结果",
             );
@@ -324,7 +323,7 @@ pub fn update(
             (*app.task_board_tasks_pending_persistence).insert(task_id.clone());
             let persist_task = persist_result(
                 project_path.clone(),
-                (*app.task_board_settings).workflow_id.clone(),
+                app.task_board_settings.workflow_id.clone(),
                 task_clone,
                 "保存合并结果",
             );

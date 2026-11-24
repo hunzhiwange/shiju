@@ -14,8 +14,8 @@ fn build_selected_commit_request_formats_conventional_subject_and_body() {
     let git_commit_description: String = " body line ".to_string();
     let staged_files_selected: Vec<String> = vec!["src/main.rs".to_string()];
     let staged_hunks_selected: Vec<(String, usize)> = vec![("src/lib.rs".to_string(), 2)];
-    let mut staged_lines_selected: Vec<(String, usize)> = vec![("src/lib.rs".to_string(), 4)];
-    let mut staged_old_lines_selected: Vec<(String, usize)> = vec![("src/lib.rs".to_string(), 3)];
+    let staged_lines_selected: Vec<(String, usize)> = vec![("src/lib.rs".to_string(), 4)];
+    let staged_old_lines_selected: Vec<(String, usize)> = vec![("src/lib.rs".to_string(), 3)];
 
     let request = domain::build_commit_request(
         &git_commit_message,
@@ -45,8 +45,8 @@ fn build_all_commit_request_enables_atomic_stage_all() {
     let git_commit_type: Option<ConventionalCommitType> = Some(ConventionalCommitType::Feat);
     let staged_files_selected: Vec<String> = Default::default();
     let staged_hunks_selected: Vec<(String, usize)> = Default::default();
-    let mut staged_lines_selected: Vec<(String, usize)> = Default::default();
-    let mut staged_old_lines_selected: Vec<(String, usize)> = Default::default();
+    let staged_lines_selected: Vec<(String, usize)> = Default::default();
+    let staged_old_lines_selected: Vec<(String, usize)> = Default::default();
     let git_commit_message: String = "ship everything".to_string();
 
     let request = domain::build_commit_request(
@@ -71,8 +71,8 @@ fn build_selected_commit_request_rejects_blank_message() {
     let git_commit_scope: String = Default::default();
     let staged_files_selected: Vec<String> = Default::default();
     let staged_hunks_selected: Vec<(String, usize)> = Default::default();
-    let mut staged_lines_selected: Vec<(String, usize)> = Default::default();
-    let mut staged_old_lines_selected: Vec<(String, usize)> = Default::default();
+    let staged_lines_selected: Vec<(String, usize)> = Default::default();
+    let staged_old_lines_selected: Vec<(String, usize)> = Default::default();
     let git_commit_type: Option<ConventionalCommitType> = None;
     let git_commit_message: String = "   ".to_string();
     let git_commit_description: String = "\n\t".to_string();
@@ -98,8 +98,8 @@ fn build_selected_commit_request_formats_subject_without_scope_or_type() {
     let mut git_commit_description: String = Default::default();
     let staged_files_selected: Vec<String> = Default::default();
     let staged_hunks_selected: Vec<(String, usize)> = Default::default();
-    let mut staged_lines_selected: Vec<(String, usize)> = Default::default();
-    let mut staged_old_lines_selected: Vec<(String, usize)> = Default::default();
+    let staged_lines_selected: Vec<(String, usize)> = Default::default();
+    let staged_old_lines_selected: Vec<(String, usize)> = Default::default();
     let mut git_commit_type: Option<ConventionalCommitType> = Some(ConventionalCommitType::Feat);
     let git_commit_scope: String = "  ".to_string();
     let git_commit_message: String = " add tests ".to_string();

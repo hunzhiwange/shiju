@@ -81,5 +81,5 @@ pub async fn assert_element_draws(
     );
 
     let pixels = renderer.screenshot(iced::Size::new(width as u32, 800), 1.0, Color::TRANSPARENT);
-    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
 }

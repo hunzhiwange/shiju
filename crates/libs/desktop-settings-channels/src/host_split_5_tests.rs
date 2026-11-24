@@ -11,7 +11,7 @@ use crate::{
 };
 use config_ui::DesktopLocale;
 use iced::advanced::renderer::{Headless, Style};
-use iced::{Element, Event, Rectangle, Renderer, Size, Theme, mouse};
+use iced::{Element, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 fn isolated(test: &str) -> bool {
     const CHILD: &str = "SHIJU_CHANNEL_FORMS_CHILD";

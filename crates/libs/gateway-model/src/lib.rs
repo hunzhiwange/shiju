@@ -4,13 +4,17 @@ use axum::http::{HeaderMap, StatusCode};
 use std::path::{Path, PathBuf};
 use vw_api_transport::id::TenantScope;
 
+type AuthorizeProviderConfigAccess = fn(Option<&Path>, &HeaderMap, &TenantScope, &str, bool) -> Result<(), StatusCode>;
+#[cfg(target_os = "macos")]
+type AuthorizeProviderDiscovery = fn(Option<&Path>, &HeaderMap, &TenantScope, &str) -> Result<(vw_agent_apps::apps::discovery::read::LocalReadEnvironment, String), StatusCode>;
+
 /// Existing host policy operations, injected without exposing policy records.
 #[derive(Clone, Copy)]
 pub struct Authorization {
     pub provider_config_home: fn(Option<&Path>, &HeaderMap, &TenantScope, &str) -> Result<PathBuf, StatusCode>,
-    pub authorize_provider_config_access: fn(Option<&Path>, &HeaderMap, &TenantScope, &str, bool) -> Result<(), StatusCode>,
+    pub authorize_provider_config_access: AuthorizeProviderConfigAccess,
     #[cfg(target_os = "macos")]
-    pub provider_discovery_host: fn(Option<&Path>, &HeaderMap, &TenantScope, &str) -> Result<(vw_agent_apps::apps::discovery::read::LocalReadEnvironment, String), StatusCode>,
+    pub provider_discovery_host: AuthorizeProviderDiscovery,
 }
 
 mod model_catalog;

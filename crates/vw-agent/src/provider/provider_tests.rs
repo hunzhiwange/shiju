@@ -82,7 +82,7 @@ async fn agent_cross_layer_explicit_model_reaches_the_next_request_with_metadata
         .await
         .expect("isolated provider config should be saved");
 
-    let state = load_state_impl(false).await;
+    let state = load_state_for_test(false).await;
     let model = &state.providers[provider_id].models[model_id];
     let request_limit = crate::session::llm::model_limit_for_request(
         Some(format!("{provider_id}/{model_id}")),

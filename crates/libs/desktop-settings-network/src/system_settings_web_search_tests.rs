@@ -3,8 +3,6 @@
 //! 各提供商夹具只启用自身条件字段，未知提供商则保留通用接口配置入口。
 
 use super::*;
-use iced::widget::column;
-use crate::messages::*;
 use crate::Message;
 use iced::Element;
 use iced::advanced::widget::Tree;
@@ -99,17 +97,17 @@ fn view_builds_supported_and_fallback_provider_layouts() {
             app.web_search_settings.provider = provider.to_string();
             app.web_search_settings.enabled = populated;
             app.web_search_settings.api_key_input =
-                populated.then_some("api-key").unwrap_or("").into();
+                if populated { "api-key" } else { "" }.into();
             app.web_search_settings.brave_api_key_input =
-                populated.then_some("brave-key").unwrap_or("").into();
+                if populated { "brave-key" } else { "" }.into();
             app.web_search_settings.api_url_input =
-                populated.then_some("https://search.example").unwrap_or("").into();
+                if populated { "https://search.example" } else { "" }.into();
             app.web_search_settings.max_results_input =
-                populated.then_some("10").unwrap_or("").into();
+                if populated { "10" } else { "" }.into();
             app.web_search_settings.timeout_secs_input =
-                populated.then_some("30").unwrap_or("").into();
+                if populated { "30" } else { "" }.into();
             app.web_search_settings.user_agent =
-                populated.then_some("VibeWindow/Test").unwrap_or("").into();
+                if populated { "VibeWindow/Test" } else { "" }.into();
             keep_element(view(app.inputs()));
             keep_element(content(app.inputs()));
         }

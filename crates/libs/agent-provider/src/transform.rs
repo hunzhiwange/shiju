@@ -185,8 +185,8 @@ pub fn normalize_messages(
                 let Some(p) = part.as_object_mut() else { continue };
                 let ty = p.get("type").and_then(Value::as_str).unwrap_or_default();
                 // 标准化 tool-call 和 tool-result 的 toolCallId
-                if (ty == "tool-call" || ty == "tool-result") && p.contains_key("toolCallId") {
-                    if let Some(id) = p.get("toolCallId").and_then(Value::as_str) {
+                if (ty == "tool-call" || ty == "tool-result") && p.contains_key("toolCallId")
+                    && let Some(id) = p.get("toolCallId").and_then(Value::as_str) {
                         // 将非字母数字字符（除 _ 和 -）替换为下划线
                         let normalized = id
                             .chars()
@@ -200,7 +200,6 @@ pub fn normalize_messages(
                             .collect::<String>();
                         p.insert("toolCallId".to_string(), Value::String(normalized));
                     }
-                }
             }
         }
     }

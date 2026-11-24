@@ -144,8 +144,8 @@ pub fn convert(
         }
     }
     messages = complete_turns(messages);
-    if let Some(last) = messages.last_mut().filter(|m| m["role"] == "assistant") {
-        if let Some(parts) = last["content"].as_array_mut() {
+    if let Some(last) = messages.last_mut().filter(|m| m["role"] == "assistant")
+        && let Some(parts) = last["content"].as_array_mut() {
             if let Some(part) = parts.last_mut().filter(|p| p["type"] == "text") {
                 part["text"] = part["text"].as_str().ok_or(BAD)?.trim_end().into();
             }
@@ -153,7 +153,6 @@ pub fn convert(
                 p["type"] != "text" || p["text"].as_str().is_some_and(|s| !s.is_empty())
             });
         }
-    }
     messages.retain(|m| m["content"].as_array().is_some_and(|p| !p.is_empty()));
     if messages.is_empty() {
         return Err(BAD);

@@ -31,6 +31,3 @@ pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
         |message| Message::SkillHub(SkillHubMessage::Public(message)),
     )
 }
-
-#[cfg(test)]
-use crate::message::skill_hub::PublicSkillMessage;

@@ -7,7 +7,6 @@ use vw_api_transport::common::TimestampMs;
 
 use super::map_resource_lease_row;
 use crate::store::resources::{ResourceKind, ResourceLeaseStatus};
-use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn map_resource_lease_row_preserves_lifecycle_taint_and_metadata() -> Result<()> {

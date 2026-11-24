@@ -13,7 +13,7 @@ fn history_results_ignore_old_generation_and_old_commit_selection() {
     state.repo_path = Some(path.clone());
     state.generation = 2;
     state.loading = true;
-    let _task = update(
+    update(
         &mut state,
         GitMessage::RepositoryReady {
             path: path.clone(),
@@ -25,7 +25,7 @@ fn history_results_ignore_old_generation_and_old_commit_selection() {
     assert!(state.snapshot.branch.is_none());
     state.selected = Some("newer".into());
     state.detail_loading = true;
-    let _task = update(
+    update(
         &mut state,
         GitMessage::HistoryDetailReady {
             path,
@@ -40,22 +40,22 @@ fn history_results_ignore_old_generation_and_old_commit_selection() {
 #[test]
 fn history_file_selection_expands_one_file_and_closes_others() {
     let mut state = RepositoryState::default();
-    let _ = update(&mut state, GitMessage::SelectHistoryFile(0));
+    update(&mut state, GitMessage::SelectHistoryFile(0));
     assert_eq!(state.selected_file, Some(0));
-    let _ = update(&mut state, GitMessage::SelectHistoryFile(1));
+    update(&mut state, GitMessage::SelectHistoryFile(1));
     assert_eq!(state.selected_file, Some(1));
-    let _ = update(&mut state, GitMessage::SelectHistoryFile(1));
+    update(&mut state, GitMessage::SelectHistoryFile(1));
     assert_eq!(state.selected_file, None);
 }
 #[test]
 fn remote_animation_advances_only_while_syncing() {
     let mut state = RepositoryState::default();
-    let _ = update(&mut state, GitMessage::RemoteAnimationTick);
+    update(&mut state, GitMessage::RemoteAnimationTick);
     assert_eq!(state.remote_animation_frame, 0);
     state.remote_busy = true;
-    let _ = update(&mut state, GitMessage::RemoteAnimationTick);
+    update(&mut state, GitMessage::RemoteAnimationTick);
     assert_eq!(state.remote_animation_frame, 1);
     state.remote_busy = false;
-    let _ = update(&mut state, GitMessage::RemoteAnimationTick);
+    update(&mut state, GitMessage::RemoteAnimationTick);
     assert_eq!(state.remote_animation_frame, 1);
 }

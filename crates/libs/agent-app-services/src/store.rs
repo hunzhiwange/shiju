@@ -98,7 +98,7 @@ impl IconLibraryStore {
 }
 
 pub(super) fn parse_icons(raw: &str) -> Vec<CustomIconEntry> {
-    let Ok(values) = serde_json::from_str::<Vec<serde_json::Value>>(&raw) else {
+    let Ok(values) = serde_json::from_str::<Vec<serde_json::Value>>(raw) else {
         tracing::warn!(error_category = "invalid_icon_array", "icon library parse failure");
         return Vec::new();
     };

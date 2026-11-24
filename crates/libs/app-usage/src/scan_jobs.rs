@@ -197,13 +197,11 @@ fn owned<'a>(state: &'a State, owner: &ScanOwner, id: &TaskId) -> Result<&'a Ent
 struct ExecutionGuard { jobs: ScanJobs, id: TaskId }
 impl Drop for ExecutionGuard {
     fn drop(&mut self) {
-        if let Ok(mut state) = self.jobs.0.lock() {
-            if let Some(entry) = state.jobs.get_mut(&self.id) {
-                if entry.snapshot.phase == ScanPhase::Running {
+        if let Ok(mut state) = self.jobs.0.lock()
+            && let Some(entry) = state.jobs.get_mut(&self.id)
+                && entry.snapshot.phase == ScanPhase::Running {
                     entry.snapshot.phase = ScanPhase::Failed;
                     entry.snapshot.current_adapter = None;
                 }
-            }
-        }
     }
 }

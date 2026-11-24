@@ -85,7 +85,7 @@ fn execute(
         )
         .map_err(failure)?
         .ok_or(StatusCode::CONFLICT)?;
-        compression.set_enabled(&tx, &target.scope, enabled, &validate).map_err(failure)?;
+        compression.set_enabled(&tx, &target.scope, enabled, validate).map_err(failure)?;
     }
     let enabled = compression.is_enabled().map_err(failure)?;
     let usage = compression.disk_usage().map_err(failure)?;

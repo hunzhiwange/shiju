@@ -348,7 +348,7 @@ async fn specialized_tool_headers_dark_permission_and_failure_render_path_is_saf
         &viewport,
     );
     let pixels = renderer.screenshot(Size::new(1120, 900), 1.0, Color::TRANSPARENT);
-    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
 
     if let Ok(path) = std::env::var("VW_SPECIALIZED_TOOL_HEADERS_SCREENSHOT") {
         image::save_buffer(path, &pixels, 1120, 900, image::ColorType::Rgba8)

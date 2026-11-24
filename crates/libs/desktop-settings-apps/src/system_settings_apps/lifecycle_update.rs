@@ -138,9 +138,8 @@ pub fn update(
     }
     if matches!(message, LifecycleMessage::Preview(_)) && !internal_preview
         && state.batch.as_ref().is_some_and(|b| !b.stopped) { return Task::none(); }
-    if matches!(message, LifecycleMessage::Close | LifecycleMessage::Cancel) {
-        if let Some(batch) = &mut state.batch { batch.stopped = true; }
-    }
+    if matches!(message, LifecycleMessage::Close | LifecycleMessage::Cancel)
+        && let Some(batch) = &mut state.batch { batch.stopped = true; }
     if matches!(message, LifecycleMessage::Preview(_)) && !internal_preview
         && !state.active() && state.preview.is_none() {
         state.batch = None;

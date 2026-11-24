@@ -62,7 +62,7 @@ async fn acp_status_cards_and_editor_render_all_results_and_animate_in_both_them
                         &Rectangle::with_size(bounds),
                     );
                     let pixels = renderer.screenshot(Size::new(960, 640), 1.0, Color::TRANSPARENT);
-                    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+                    assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
                     if let Some(previous) = first_frame {
                         assert_ne!(pixels, previous, "running indicator must visibly animate");
                     }
@@ -149,7 +149,7 @@ async fn acp_catalog_displays_registered_agents_render_both_themes() {
                 &Rectangle::with_size(bounds),
             );
             let pixels = renderer.screenshot(Size::new(960, 500), 1.0, Color::TRANSPARENT);
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0), "{agent}");
+            assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0), "{agent}");
         }
     }
 }
@@ -195,7 +195,7 @@ async fn acp_editor_validates_and_saves_fields_render_both_themes() {
                 &Rectangle::with_size(bounds),
             );
             let pixels = renderer.screenshot(Size::new(960, 500), 1.0, Color::TRANSPARENT);
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0), "{agent}");
+            assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0), "{agent}");
         }
     }
 }
@@ -238,7 +238,7 @@ async fn acp_diagnostic_ignores_stale_results_render_both_themes() {
                 &Rectangle::with_size(bounds),
             );
             let pixels = renderer.screenshot(Size::new(960, 500), 1.0, Color::TRANSPARENT);
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0), "{agent}");
+            assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0), "{agent}");
         }
     }
 }
@@ -306,7 +306,7 @@ async fn acp_configuration_flow_regression_long_editor_keeps_actions_visible() {
                 &Rectangle::with_size(bounds),
             );
             let pixels = renderer.screenshot(Size::new(960, 640), 1.0, Color::TRANSPARENT);
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
             if count == 40
                 && let Some(directory) = std::env::var_os("ACP_REGRESSION_SCREENSHOTS")
             {

@@ -199,11 +199,10 @@ pub async fn prune(session_id: &str) -> Result<(), session_info::Error> {
         }
 
         // 遇到摘要消息时停止修剪
-        if let message::Info::Assistant(a) = &msg.info {
-            if a.summary == Some(true) {
+        if let message::Info::Assistant(a) = &msg.info
+            && a.summary == Some(true) {
                 break 'outer;
             }
-        }
 
         // 遍历消息中的各个部分，寻找可修剪的工具调用
         for part in msg.parts.iter().rev() {
@@ -377,9 +376,8 @@ pub fn model_history(messages: &[message::WithParts]) -> Vec<serde_json::Value> 
 /// assistant message into several UI messages, so their text cannot be hashed as one.
 fn checkpoint_source<H: CompactionHost>(input: &ProcessInput, boundary: usize) -> Result<Vec<serde_json::Value>, session_info::Error> {
     #[cfg(not(target_arch = "wasm32"))]
-    if let Some(snapshot) = H::snapshot(&input.session_id).map_err(session_info::Error::Runtime)? {
-        if let Some(source) = snapshot_checkpoint_source(&snapshot, &input.parent_id, H::project_message) { return Ok(source); }
-    }
+    if let Some(snapshot) = H::snapshot(&input.session_id).map_err(session_info::Error::Runtime)?
+        && let Some(source) = snapshot_checkpoint_source(&snapshot, &input.parent_id, H::project_message) { return Ok(source); }
     Ok(model_history(&input.messages[..boundary]))
 }
 

@@ -91,11 +91,11 @@ pub async fn save(
     let record = MountRecord {
         version: 1,
         binding: binding.clone(),
-        revision: revision,
-        skills: skills,
-        fingerprint: fingerprint,
-        mcp_names: mcp_names,
-        mcp_catalog: mcp_catalog,
+        revision,
+        skills,
+        fingerprint,
+        mcp_names,
+        mcp_catalog,
     };
     // Rename is the recovery commit point: before it the old record is authoritative;
     // after it a restarted backend must prepare the complete new revision again.

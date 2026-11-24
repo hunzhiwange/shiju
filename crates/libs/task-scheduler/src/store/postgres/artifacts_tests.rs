@@ -9,7 +9,6 @@ use vw_api_transport::id::ProjectId;
 
 use super::{ensure_run_matches_task, map_artifact_row};
 use crate::domain::{RunId, TaskId};
-use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn map_artifact_row_preserves_optional_run_path_payload_and_timestamp() -> Result<()> {

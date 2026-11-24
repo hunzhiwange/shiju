@@ -1778,11 +1778,10 @@ fn protect_agent_snapshot(
         _ if info.is_first_response_pending() => bail!("pending sessions must be reserved"),
         _ => {}
     }
-    if let Some(current) = current {
-        if current.directory != info.directory {
+    if let Some(current) = current
+        && current.directory != info.directory {
             bail!("session directory does not match its reservation");
         }
-    }
     Ok(())
 }
 
@@ -2709,9 +2708,9 @@ fn upsert_session_message_sqlite(
     Ok(())
 }
 
-fn message_processing_values(
-    message: &ChatMessage,
-) -> Result<(Option<i64>, Option<i64>, Option<i64>, Option<i64>)> {
+type MessageProcessingValues = (Option<i64>, Option<i64>, Option<i64>, Option<i64>);
+
+fn message_processing_values(message: &ChatMessage) -> Result<MessageProcessingValues> {
     let Some(timing) = message.processing_timing.as_ref() else {
         return Ok((None, None, None, None));
     };

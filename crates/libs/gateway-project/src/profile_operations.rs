@@ -131,3 +131,9 @@ impl ProfileApplyOperation {
         false
     }
 }
+
+impl Default for ProfileApplyOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -236,12 +236,10 @@ pub async fn file_drag_integration_non_loopback_cannot_spoof_forwarded_headers(s
                 tokio::net::TcpStream::connect((ip, server.addr.port())),
             )
             .await
-            {
-                if !connection.local_addr().unwrap().ip().is_loopback() {
+                && !connection.local_addr().unwrap().ip().is_loopback() {
                     reachable = Some(ip);
                     break;
                 }
-            }
         }
         let local_ip =
             reachable.expect("a locally reachable non-loopback IPv4 interface is required");

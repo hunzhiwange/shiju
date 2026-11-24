@@ -33,7 +33,7 @@ pub fn card<'a>(
         body = body.push(settings_error_banner(i18n.__(error)));
     }
     if form.confirming_direct && !form.needs_refresh {
-        body = body.push(settings_panel(text(i18n.format("确认恢复已保存的直连供应商「%s」？保存时将校验配置并更新客户端。", &[(format!("{}", provider_name(i18n, snapshot, form.status.as_ref().and_then(|s| s.direct_provider.as_deref())))).into()]).expect("valid display template"))));
+        body = body.push(settings_panel(text(i18n.format("确认恢复已保存的直连供应商「%s」？保存时将校验配置并更新客户端。", &[(provider_name(i18n, snapshot, form.status.as_ref().and_then(|s| s.direct_provider.as_deref())).to_string()).into()]).expect("valid display template"))));
     }
     if !ready {
         body = body.push(settings_panel(text(if form.writing() {
@@ -107,10 +107,10 @@ fn summary<'a>(i18n: desktop_i18n::I18n, snapshot: Option<&'a crate::state::list
     settings_panel(
         column![
             settings_field_label(i18n.__("模式状态")),
-            text(i18n.format("配置模式：%s", &[(format!("{}", mode)).into()]).expect("valid display template")),
-            text(i18n.format("直连供应商：%s", &[(format!("{}", provider_name(i18n, snapshot, status.direct_provider.as_deref()))).into()]).expect("valid display template")),
-            text(i18n.format("模式目标：%s", &[(format!("{}", provider_name(i18n, snapshot, status.in_use_provider.as_deref()))).into()]).expect("valid display template")),
-            text(i18n.format("上次配置的路由目标：%s", &[(format!("{}", provider_name(i18n, snapshot, status.proxy_route.as_deref()))).into()]).expect("valid display template")),
+            text(i18n.format("配置模式：%s", &[(mode.to_string()).into()]).expect("valid display template")),
+            text(i18n.format("直连供应商：%s", &[(provider_name(i18n, snapshot, status.direct_provider.as_deref()).to_string()).into()]).expect("valid display template")),
+            text(i18n.format("模式目标：%s", &[(provider_name(i18n, snapshot, status.in_use_provider.as_deref()).to_string()).into()]).expect("valid display template")),
+            text(i18n.format("上次配置的路由目标：%s", &[(provider_name(i18n, snapshot, status.proxy_route.as_deref()).to_string()).into()]).expect("valid display template")),
             text(if status.attached {
                 i18n.__("客户端配置已接入路由")
             } else {

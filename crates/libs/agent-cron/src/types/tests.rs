@@ -165,7 +165,7 @@ mod tests {
         assert_eq!(parsed.id, "job-1");
         assert_eq!(parsed.job_type, JobType::Agent);
         assert_eq!(parsed.session_target, SessionTarget::Main);
-        assert_eq!(parsed.delivery.best_effort, false);
+        assert!(!parsed.delivery.best_effort);
         assert_eq!(parsed.fallbacks, vec!["fallback-a"]);
         assert!(parsed.full_access);
         assert!(parsed.task_pool);

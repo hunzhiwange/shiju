@@ -273,7 +273,7 @@ fn service_card<'a, U: Clone + 'static>(i18n: I18n,
                     .then_some(Event::RetryService(service.service)),
                 );
             card = card.push(settings_divider()).push(
-                container(column![settings_error_banner(i18n.__(*reason)), retry].spacing(8))
+                container(column![settings_error_banner(i18n.__(reason)), retry].spacing(8))
                     .padding([12, 16])
                     .width(Length::Fill),
             );

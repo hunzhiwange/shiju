@@ -6,10 +6,12 @@ fn test_module_is_wired() {
 }
 
 fn task(id: &str, priority: u32, order: u32) -> super::models::Task {
-    let mut task = super::models::Task::default();
-    task.id = id.to_string();
-    task.priority = priority;
-    task.order = order;
+    let mut task = super::models::Task {
+        id: id.to_string(),
+        priority: priority,
+        order: order,
+        ..Default::default()
+    };
     task
 }
 
@@ -162,8 +164,7 @@ fn select_next_tasks_returns_empty_when_limit_is_zero() {
 fn executor_event_variants_keep_payloads() {
     use super::TaskStatus;
 
-    let events = vec![
-        super::ExecutorEvent::TaskStarted { task_id: "a".to_string() },
+    let events = [super::ExecutorEvent::TaskStarted { task_id: "a".to_string() },
         super::ExecutorEvent::TaskProgress {
             task_id: "b".to_string(),
             message: "half".to_string(),
@@ -174,8 +175,7 @@ fn executor_event_variants_keep_payloads() {
             task_id: "e".to_string(),
             from: TaskStatus::Pending,
             to: TaskStatus::Running,
-        },
-    ];
+        }];
 
     assert!(matches!(&events[0], super::ExecutorEvent::TaskStarted { task_id } if task_id == "a"));
     assert!(

@@ -106,7 +106,7 @@ async fn public_market_detail_renders_chinese_markdown_in_both_modes_and_themes(
                 &viewport,
             );
             let pixels = renderer.screenshot(Size::new(900, 720), 1.0, Color::TRANSPARENT);
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
         }
     }
     let _: iced::Element<'_, Message> = view(&app_with_markdown(PublicDetailMode::Visual));
@@ -162,7 +162,7 @@ async fn expert_package_install_modal_renders_chinese_in_both_themes() {
             &viewport,
         );
         let pixels = renderer.screenshot(Size::new(900, 720), 1.0, Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
         if let Ok(dir) = std::env::var("VW_EXPERT_SCREENSHOT_DIR") {
             let name = if theme == Theme::Light { "light" } else { "dark" };
             let path = std::path::Path::new(&dir).join(format!("expert-install-{name}.png"));

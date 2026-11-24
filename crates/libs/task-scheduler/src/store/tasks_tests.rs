@@ -21,7 +21,6 @@ use super::store::logs::{AgentSchedulerWorkspaceContext, AppendAgentTaskLogReque
 use super::store::runs::ClaimTaskRunRequest;
 use super::store::tasks::{AgentTaskBoardUpdate, AgentTaskDagNode, AgentTaskFilter, NewAgentTask};
 use agent_database::GlobalDatabase;
-use agent_database::test_support::PostgresTestDatabase;
 use agent_project::store::ProjectStore;
 use project_types::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 

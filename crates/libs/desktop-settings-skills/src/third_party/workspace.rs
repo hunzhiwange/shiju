@@ -581,8 +581,8 @@ pub fn view<'a>(
         );
     }
 
-    if installed && count.is_some_and(|count| count > 0) && !s.hide_import_notice {
-        if let Some(importable) = s.importable.filter(|count| *count > 0) {
+    if installed && count.is_some_and(|count| count > 0) && !s.hide_import_notice
+        && let Some(importable) = s.importable.filter(|count| *count > 0) {
             page_body = page_body.push(
                 container(
                     row![
@@ -606,7 +606,6 @@ pub fn view<'a>(
                 .style(settings_section_card_style),
             );
         }
-    }
     let mut entries = Vec::new();
     if installed {
         let mut installed_sources = std::collections::BTreeSet::new();
@@ -826,8 +825,8 @@ pub fn view<'a>(
         return page_body.push(list(entries, Some(table_header.into()))).into();
     }
 
-    if s.tab == Tab::Repositories {
-        if let Some(data) = s.discovery.as_ref().filter(|data| !data.failures.is_empty()) {
+    if s.tab == Tab::Repositories
+        && let Some(data) = s.discovery.as_ref().filter(|data| !data.failures.is_empty()) {
             let names = data
                 .failures
                 .iter()
@@ -868,7 +867,6 @@ pub fn view<'a>(
                 }),
             );
         }
-    }
     let mut filters = row![
         settings_compact_tab_button(
             i18n.__("仓库"),

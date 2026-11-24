@@ -99,9 +99,11 @@ fn state_with(pairing: PairingGuard, rate_limit: u32, config: Config) -> AppStat
 
 fn test_config() -> Config {
     let temp = tempfile::tempdir().unwrap().keep();
-    let mut config = Config::default();
-    config.config_path = temp.join("vibewindow.json");
-    config.workspace_dir = temp.join("workspace");
+    let mut config = Config {
+        config_path: temp.join("vibewindow.json"),
+        workspace_dir: temp.join("workspace"),
+        ..Default::default()
+    };
     config
 }
 
@@ -163,9 +165,11 @@ async fn handle_pair_reports_unpersisted_success_when_config_save_fails() {
     let invalid_home = temp.path().join("not-a-directory");
     std::fs::write(&invalid_home, "fixture").unwrap();
     let _home_guard = HomeEnvGuard::set(&invalid_home);
-    let mut config = Config::default();
-    config.config_path = temp.path().to_path_buf();
-    config.workspace_dir = temp.path().join("workspace");
+    let mut config = Config {
+        config_path: temp.path().to_path_buf(),
+        workspace_dir: temp.path().join("workspace"),
+        ..Default::default()
+    };
 
     let guard = PairingGuard::new(true, &[]);
     let code = guard.pairing_code().unwrap();

@@ -103,7 +103,7 @@ async fn cc04_create_sdk_api_persists_without_native_file_changes() {
     let live = native.join("settings.json");
     std::fs::write(&live, b"{\"env\":{\"unmanaged\":\"keep\"}}").unwrap();
     let before = std::fs::read(&live).unwrap();
-    let db = GlobalDatabase::for_home(&root.path().join("database")).unwrap();
+    let db = GlobalDatabase::for_home(root.path().join("database")).unwrap();
     let app = axum::Router::new().nest(
         "/v1",
         super::record_router()

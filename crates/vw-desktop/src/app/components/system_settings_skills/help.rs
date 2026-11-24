@@ -14,6 +14,3 @@ pub(super) fn view_overlays<'a>(
         Message::Settings(message::SettingsMessage::SkillsHelpClose),
     )
 }
-
-#[cfg(test)]
-pub(super) use desktop_settings_skills::help::help_text;

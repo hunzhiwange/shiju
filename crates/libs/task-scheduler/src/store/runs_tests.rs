@@ -21,7 +21,6 @@ use super::store::tasks::NewAgentTask;
 use super::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 use super::task_graph::AgentTaskDependency;
 use agent_database::GlobalDatabase;
-use agent_database::test_support::PostgresTestDatabase;
 use agent_project::store::ProjectStore;
 
 #[test]

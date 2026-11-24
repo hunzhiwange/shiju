@@ -50,10 +50,10 @@ async fn request(
     router: &Router,
     method: &str,
     path: &str,
-    token: Option<&str>,
+    _token: Option<&str>,
     body: Value,
 ) -> (StatusCode, Value) {
-    let mut request = Request::builder()
+    let request = Request::builder()
         .method(method)
         .uri(format!("/v1/apps/usage/{path}"))
         .header("x-platform-id", "test-platform")

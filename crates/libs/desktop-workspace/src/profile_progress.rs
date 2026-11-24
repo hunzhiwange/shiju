@@ -29,15 +29,13 @@ pub(super) fn admitted<C: Clone + PartialEq + Send + 'static>(state: &mut crate:
         .filter(|f| f.scope == scope && f.submitted && owner(&f.owner, &response) && owner(&response, &current)) else { return Update::none(); };
     form.loading = false;
     if let Ok(value) = value {
-        if let Ok(receipt) = serde_json::from_value::<Receipt>(value.clone()) {
-            if receipt.profile_id == form.id && receipt.group == scope && !receipt.operation_id.trim().is_empty() {
+        if let Ok(receipt) = serde_json::from_value::<Receipt>(value.clone())
+            && receipt.profile_id == form.id && receipt.group == scope && !receipt.operation_id.trim().is_empty() {
                 form.operation_id = Some(receipt.operation_id.clone());
                 return accept(state, catalog, client, scope, receipt);
             }
-        }
-        if let Ok(result) = serde_json::from_value::<ProjectProfileApplyResult>(value) {
-            if valid(&result, &form.id, scope) { return finish(state, catalog, client, scope, result); }
-        }
+        if let Ok(result) = serde_json::from_value::<ProjectProfileApplyResult>(value)
+            && valid(&result, &form.id, scope) { return finish(state, catalog, client, scope, result); }
     }
     form.error = Some("应用结果未知，未取得操作 ID；禁止重发。请在执行主机核对。 ");
     Update::toast(true, "应用结果未知；原请求不会重发")

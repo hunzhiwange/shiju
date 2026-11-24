@@ -5,7 +5,6 @@ use axum::{Extension, Router, middleware};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::Path};
-use vw_api_types::{agent_apps::*};
 use vw_api_app_identity::{
     AppId,
     LaunchIdentity,

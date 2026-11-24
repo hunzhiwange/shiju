@@ -203,8 +203,4 @@ pub mod mcp_app_bridge;
 mod mcp_app_download;
 
 #[cfg(test)]
-pub(crate) use self::preview::LspHoverPending;
-#[cfg(test)]
 pub(crate) use self::preview::LspProgress;
-#[cfg(test)]
-pub(crate) use self::preview::path_to_file_uri;

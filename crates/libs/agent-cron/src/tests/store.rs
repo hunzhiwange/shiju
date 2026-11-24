@@ -22,7 +22,6 @@ use crate::store::{
     with_connection,
 };
 use crate::{CronJobPatch, JobType, Schedule};
-use anyhow::Result;
 use chrono::{Duration as ChronoDuration, Utc};
 use rusqlite::params;
 use tempfile::TempDir;

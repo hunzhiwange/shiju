@@ -194,7 +194,7 @@ pub(super) fn reply_button(
 pub(super) fn reply_input<'a>(i18n: desktop_i18n::I18n, value: &'a str) -> Element<'a, Message> {
     row![
         text_input(i18n.__("继续说点什么..."), value)
-            .on_input(|next| Message::TaskPetReplyInputChanged(next))
+            .on_input(Message::TaskPetReplyInputChanged)
             .on_submit(Message::TaskPetReplySubmit)
             .padding(SETTINGS_CONTROL_PADDING)
             .size(SETTINGS_CONTROL_TEXT_SIZE)

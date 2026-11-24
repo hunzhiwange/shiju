@@ -215,7 +215,7 @@ fn parse_sse_first_text_requires_space_after_data_prefix() {
 
 #[tokio::test]
 async fn execute_rejects_invalid_parameters_before_network() {
-    let error = supervised_tool().execute(json!([])).await.err().expect("array args must fail");
+    let error = supervised_tool().execute(json!([])).await.expect_err("array args must fail");
 
     assert!(error.to_string().contains("Missing or invalid parameters"));
 }
@@ -225,8 +225,7 @@ async fn execute_rejects_negative_token_count_before_network() {
     let error = supervised_tool()
         .execute(json!({"query": "rust", "tokensNum": -1}))
         .await
-        .err()
-        .expect("negative token count must not deserialize as u32");
+        .expect_err("negative token count must not deserialize as u32");
 
     assert!(error.to_string().contains("Missing or invalid parameters"));
     assert!(error.to_string().contains("-1"));

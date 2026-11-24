@@ -69,7 +69,7 @@ pub fn card<'a>(i18n: desktop_i18n::I18n, form: &'a Form) -> Element<'a, Message
     };
     let pending = match (&form.selection, selected) {
         (Some(Change::Clear), _) => row![text(i18n.__("待保存：清除自定义图标"))],
-        (_, Some(icon)) => row![text(i18n.format("待保存：%s", &[(format!("{}", icon.name)).into()]).expect("valid display template")), preview(i18n, &icon.data)],
+        (_, Some(icon)) => row![text(i18n.format("待保存：%s", &[(icon.name.to_string()).into()]).expect("valid display template")), preview(i18n, &icon.data)],
         _ => row![text(i18n.__("没有待保存的选择"))],
     }
     .align_y(Alignment::Center)
@@ -106,7 +106,7 @@ pub fn card<'a>(i18n: desktop_i18n::I18n, form: &'a Form) -> Element<'a, Message
                 fields.push(settings_panel(column![text(i18n.__("重命名 · 名称")), input(name)].spacing(8)));
         }
         Some(Draft::Delete { name, .. }) => {
-            fields = fields.push(settings_panel(text(i18n.format("从图标库删除「%s」？", &[(format!("{}", name)).into()]).expect("valid display template"))));
+            fields = fields.push(settings_panel(text(i18n.format("从图标库删除「%s」？", &[(name.to_string()).into()]).expect("valid display template"))));
         }
         None => {
             fields = fields.push(action(
@@ -167,14 +167,14 @@ pub fn card<'a>(i18n: desktop_i18n::I18n, form: &'a Form) -> Element<'a, Message
     .spacing(8);
     let mut layout = column![
         row![
-            text(i18n.format("供应商图标 · %s", &[(format!("{}", form.name)).into()]).expect("valid display template")).size(22).width(Length::Fill),
+            text(i18n.format("供应商图标 · %s", &[(form.name.to_string()).into()]).expect("valid display template")).size(22).width(Length::Fill),
             settings_close_button(message(Event::Close)),
         ]
         .spacing(8),
     ]
     .spacing(12);
     if let Some(error) = &form.notice {
-        layout = layout.push(settings_panel(text(i18n.format("图标操作失败：%s", &[(format!("{}", error)).into()]).expect("valid display template")).size(13)));
+        layout = layout.push(settings_panel(text(i18n.format("图标操作失败：%s", &[(error.to_string()).into()]).expect("valid display template")).size(13)));
     } else if form.busy {
         layout = layout.push(text(i18n.__("正在处理…")).size(13).style(settings_muted_text_style));
     }

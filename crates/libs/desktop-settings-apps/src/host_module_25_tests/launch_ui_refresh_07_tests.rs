@@ -1,5 +1,5 @@
 use super::page_fixture::{self as system_settings_apps, *};
-use super::page_fixture::{drag, launch, lifecycle, preferences};
+use super::page_fixture::{launch, lifecycle, preferences};
 use crate::system_settings_apps::catalog::CatalogRow;
 use desktop_i18n::I18n;
 use iced::advanced::renderer::{Headless, Style};
@@ -8,7 +8,6 @@ use iced::advanced::{Layout, Shell, clipboard, layout, widget::Tree};
 use iced::keyboard::{self, Key, key::Named};
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_api_app_identity::*;
 use vw_api_app_identity::{
     AppCatalogEntry, AppHostPreferences, AppId, AppInstallationEnvironment, AppInstallationId,
     AppInstallationSource, AppPreferencesCapabilities, AppPreferencesResult, AppReadResponse,

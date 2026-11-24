@@ -2,7 +2,7 @@
 //! 处理聊天输入区的局部消息。
 //! 本模块将编辑器操作、文件检索和工具细节限制在输入面板边界内。
 
-use super::file_search::{handle_file_search_input_changed, handle_file_search_navigate_down, handle_file_search_navigate_up, handle_file_search_select, handle_file_search_select_current, handle_input_area_drag_drop, handle_input_editor_action, handle_remove_file_reference, ranked_file_search_entries, ranked_file_search_results};
+use super::file_search::{handle_file_search_navigate_down, handle_file_search_navigate_up, handle_file_search_select_current, handle_input_area_drag_drop, handle_input_editor_action, handle_remove_file_reference, ranked_file_search_entries, ranked_file_search_results};
 use crate::app::{App, FocusArea};
 use iced::widget::text_editor;
 use std::sync::Arc;

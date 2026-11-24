@@ -3,7 +3,7 @@ use crate::pet_state::{TaskPetItem, TaskPetStatus};
 
 #[test]
 fn newest_open_thinking_text_ignores_visible_answer() {
-    let messages = vec![(true, "<think>分析实现路径".to_string())];
+    let messages = [(true, "<think>分析实现路径".to_string())];
 
     let detail =
         newest_open_thinking_text(messages.iter().map(|message| (message.0, message.1.as_str())));
@@ -13,7 +13,7 @@ fn newest_open_thinking_text_ignores_visible_answer() {
 
 #[test]
 fn newest_open_thinking_text_returns_none_without_open_think() {
-    let messages = vec![(true, "<think>分析完成</think>\n最终回答".to_string())];
+    let messages = [(true, "<think>分析完成</think>\n最终回答".to_string())];
 
     let detail =
         newest_open_thinking_text(messages.iter().map(|message| (message.0, message.1.as_str())));
@@ -23,11 +23,9 @@ fn newest_open_thinking_text_returns_none_without_open_think() {
 
 #[test]
 fn newest_open_thinking_text_skips_user_and_uses_newest_open_assistant() {
-    let messages = vec![
-        (true, "<think>older analysis".to_string()),
+    let messages = [(true, "<think>older analysis".to_string()),
         (false, "<think>user text".to_string()),
-        (true, "<think>newest analysis".to_string()),
-    ];
+        (true, "<think>newest analysis".to_string())];
 
     assert_eq!(
         newest_open_thinking_text(messages.iter().map(|message| (message.0, message.1.as_str())))

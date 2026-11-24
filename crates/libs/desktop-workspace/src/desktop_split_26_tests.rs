@@ -24,7 +24,7 @@ fn supported_image_attachment_detection_is_case_insensitive() {
 
 #[test]
 fn collect_local_attachments_skips_empty_missing_folders_and_duplicates() {
-    let files;
+
     let project_path: Option<String> = None;
     let max_images = 16;
     let max_image_size_mb = 20;
@@ -32,7 +32,7 @@ fn collect_local_attachments_skips_empty_missing_folders_and_duplicates() {
     let file = dir.path().join("notes.txt");
     fs::write(&file, "hello").expect("write file");
     let existing = fs::canonicalize(&file).expect("canonical file").to_string_lossy().to_string();
-    files = vec![existing.clone()];
+    let files = vec![existing.clone()];
 
     let (accepted, errors) = collect_local_attachments(
         &files,
@@ -84,11 +84,11 @@ fn collect_local_attachments_accepts_non_image_files_once() {
 
 #[test]
 fn collect_local_attachments_reports_image_limit_before_copying() {
-    let files;
+
     let project_path: Option<String> = None;
     let max_image_size_mb = 20;
     let max_images = 1;
-    files = vec!["already.png".to_string()];
+    let files = vec!["already.png".to_string()];
     let dir = tempdir().expect("tempdir");
     let image = dir.path().join("new.png");
     fs::write(&image, b"png").expect("write image");

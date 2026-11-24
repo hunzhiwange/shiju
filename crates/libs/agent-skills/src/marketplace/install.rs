@@ -434,7 +434,7 @@ fn extract_safe_archive(
 
 fn validate_archive_path(raw_name: &str) -> Result<PathBuf> {
     if raw_name.is_empty()
-        || raw_name.as_bytes().len() > MAX_RELATIVE_PATH_BYTES
+        || raw_name.len() > MAX_RELATIVE_PATH_BYTES
         || raw_name.contains('\\')
         || raw_name.contains('\0')
     {

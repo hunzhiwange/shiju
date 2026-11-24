@@ -19,7 +19,6 @@ use super::store::artifacts::RecordTaskArtifactRequest;
 use super::store::runs::ClaimTaskRunRequest;
 use super::store::tasks::NewAgentTask;
 use agent_database::GlobalDatabase;
-use agent_database::test_support::PostgresTestDatabase;
 use agent_project::store::ProjectStore;
 
 #[test]

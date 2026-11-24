@@ -607,7 +607,7 @@ async fn load_state_from_config(config: config::Config, apply_enabled_filter: bo
 
                 // 解析能力配置（使用基础模型或默认值）
                 let cap = resolve_model_capabilities(
-                    &model_cfg,
+                    model_cfg,
                     base.as_ref().map(|model| &model.capabilities),
                     reasoning_model_ids.contains(&api.id),
                 );
@@ -663,7 +663,7 @@ async fn load_state_from_config(config: config::Config, apply_enabled_filter: bo
 
     // 检测环境变量中的认证信息
     let env_vars = env::all();
-    for (_provider_id, provider) in database.iter_mut() {
+    for provider in database.values_mut() {
         let key =
             provider.env.iter().filter_map(|k| env_vars.get(k).cloned()).find(|v| !v.is_empty());
         if let Some(k) = key {

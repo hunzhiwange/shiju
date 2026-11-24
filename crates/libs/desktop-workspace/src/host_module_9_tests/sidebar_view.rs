@@ -66,8 +66,10 @@ async fn work_sidebar_uses_resizable_width_from_app_state() {
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("tiny-skia headless renderer should be available");
-    let mut app = SidebarViewFixture::default();
-    app.width = 420.0;
+    let mut app = SidebarViewFixture {
+        width: 420.0,
+        ..Default::default()
+    };
     let mut sidebar = app.view();
     let limits = layout::Limits::new(Size::ZERO, Size::new(520.0, 800.0));
     let mut tree = Tree::new(sidebar.as_widget());

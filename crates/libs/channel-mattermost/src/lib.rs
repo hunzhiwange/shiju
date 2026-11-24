@@ -405,12 +405,11 @@ impl Channel for MattermostChannel {
                     last_create_at = last_create_at.max(create_at);
 
                     // 发送有效消息到订阅通道
-                    if let Some(channel_msg) = msg {
-                        if tx.send(channel_msg).await.is_err() {
+                    if let Some(channel_msg) = msg
+                        && tx.send(channel_msg).await.is_err() {
                             // 发送通道已关闭，退出监听
                             return Ok(());
                         }
-                    }
                 }
             }
         }
@@ -480,11 +479,10 @@ impl Channel for MattermostChannel {
                 }
 
                 // 发送打字事件
-                if let Ok(r) = client.post(&url).bearer_auth(&token).json(&body).send().await {
-                    if !r.status().is_success() {
+                if let Ok(r) = client.post(&url).bearer_auth(&token).json(&body).send().await
+                    && !r.status().is_success() {
                         tracing::debug!(status = %r.status(), "Mattermost typing indicator failed");
                     }
-                }
 
                 // Mattermost 打字事件约 6 秒后过期，每 4 秒重新发送
                 tokio::time::sleep(std::time::Duration::from_secs(4)).await;
@@ -636,15 +634,12 @@ fn contains_bot_mention_mm(
     }
 
     // 方式 2：元数据检查 - Mattermost 可能在 "metadata.mentions" 数组中包含提及的用户 ID
-    if !bot_user_id.is_empty() {
-        if let Some(mentions) =
+    if !bot_user_id.is_empty()
+        && let Some(mentions) =
             post.get("metadata").and_then(|m| m.get("mentions")).and_then(|m| m.as_array())
-        {
-            if mentions.iter().any(|m| m.as_str() == Some(bot_user_id)) {
+            && mentions.iter().any(|m| m.as_str() == Some(bot_user_id)) {
                 return true;
             }
-        }
-    }
 
     false
 }

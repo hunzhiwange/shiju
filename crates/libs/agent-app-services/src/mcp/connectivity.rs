@@ -158,11 +158,10 @@ impl McpCatalogStore {
         };
         // rmcp can still be awaiting a Streamable HTTP response during initialization.
         http_io.cancel();
-        if result.is_err() {
-            if let Some(child) = child.take() {
+        if result.is_err()
+            && let Some(child) = child.take() {
                 child.kill_and_reap().await;
             }
-        }
         if let Some(client) = running {
             let _ = timeout(CLOSE_TIMEOUT, client.cancel()).await;
         }

@@ -98,8 +98,8 @@ fn empty_state_methods_are_noops_or_expected_errors() {
     state.set_node_editor_start_variable_max_length(0, "ignored".to_string());
 
     assert!(state.node_editor.is_none());
-    assert_eq!(state.delete_edge_by_id("missing"), false);
-    assert_eq!(state.delete_node_by_id("missing"), false);
+    assert!(!state.delete_edge_by_id("missing"));
+    assert!(!state.delete_node_by_id("missing"));
     assert_eq!(
         (state.focus_node("missing", (800.0, 600.0))).map_err(String::from),
         Err("目标节点不存在".to_string())

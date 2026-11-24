@@ -38,24 +38,22 @@ impl WorkflowState {
 
     pub fn remove_node_editor_code_input_variable(&mut self, index: usize) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::Code { inputs, .. } = draft {
-                if index < inputs.len() {
+            if let WorkflowNodeVisualDraft::Code { inputs, .. } = draft
+                && index < inputs.len() {
                     inputs.remove(index);
                     return true;
                 }
-            }
             false
         });
     }
 
     pub fn set_node_editor_code_input_variable_name(&mut self, index: usize, value: String) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::Code { inputs, .. } = draft {
-                if let Some(input) = inputs.get_mut(index) {
+            if let WorkflowNodeVisualDraft::Code { inputs, .. } = draft
+                && let Some(input) = inputs.get_mut(index) {
                     input.variable = value;
                     return true;
                 }
-            }
             false
         });
     }
@@ -67,8 +65,8 @@ impl WorkflowState {
         value_type: String,
     ) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::Code { inputs, .. } = draft {
-                if let Some(input) = inputs.get_mut(index) {
+            if let WorkflowNodeVisualDraft::Code { inputs, .. } = draft
+                && let Some(input) = inputs.get_mut(index) {
                     input.selector = parse_code_selector_key(&selector_key);
                     input.value_type = value_type;
                     if input.variable.trim().is_empty() {
@@ -76,7 +74,6 @@ impl WorkflowState {
                     }
                     return true;
                 }
-            }
             false
         });
     }
@@ -117,8 +114,7 @@ impl WorkflowState {
                 default_value_editor,
                 ..
             } = draft
-            {
-                if index < outputs.len() {
+                && index < outputs.len() {
                     let previous_outputs = outputs.clone();
                     outputs.remove(index);
                     maybe_sync_code_default_value_editor(
@@ -130,7 +126,6 @@ impl WorkflowState {
                     );
                     return true;
                 }
-            }
             false
         });
     }

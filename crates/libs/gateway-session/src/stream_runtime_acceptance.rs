@@ -6,7 +6,6 @@ use axum::{Json, Extension, extract::Query, http::{HeaderMap, StatusCode}, respo
 use gateway_instance::host::InstanceQuery;
 use gateway_resumable_stream::STREAM_REQUEST_ID_HEADER;
 use serde_json::Value;
-use session_store::ui_store;
 
 pub async fn codex_skills_defaults_gateway_main_and_child_preload_before_first_request<H: RuntimeAcceptanceHost>() {
     tokio::task::spawn_blocking(move || {
@@ -18,7 +17,7 @@ pub async fn codex_skills_defaults_gateway_main_and_child_preload_before_first_r
             "https://example.test/v1",
             None,
         ));
-    let _streams = H::stream_guard();
+    let _streams = runtime.block_on(H::stream_guard());
     let workspace = tempfile::tempdir().unwrap();
     let source = workspace.path().join("skills/review/SKILL.md");
     std::fs::create_dir_all(source.parent().unwrap()).unwrap();
@@ -178,7 +177,7 @@ pub async fn agcollab_delivery_reaches_next_model_request<H: RuntimeAcceptanceHo
             "https://example.test/v1",
             None,
         ));
-    let _streams = H::stream_guard();
+    let _streams = runtime.block_on(H::stream_guard());
     let workspace = tempfile::tempdir().unwrap();
     let source = workspace.path().join("skills/review/SKILL.md");
     std::fs::create_dir_all(source.parent().unwrap()).unwrap();
@@ -193,7 +192,8 @@ pub async fn agcollab_delivery_reaches_next_model_request<H: RuntimeAcceptanceHo
             "reviewer": {"provider":"model-recovery","model":"original","allowed_tools":["skill","file_read"],"allowed_skills":["review"],"skill_policy":"strict"}
         }
     }))).unwrap();
-    for name in ["main"] {
+    {
+        let name = "main";
         let session_id = format!("ses_defaults_{}", uuid::Uuid::new_v4());
         let coordinator =
             session_engine::child_agent::coordinator::global_child_agent_coordinator();
@@ -318,7 +318,7 @@ pub async fn agent_native_defaults_reach_registered_tools_and_prompt<H: RuntimeA
             "https://example.test/v1",
             None,
         ));
-    let _streams = H::stream_guard();
+    let _streams = runtime.block_on(H::stream_guard());
     let workspace = tempfile::tempdir().unwrap();
     let script = workspace.path().join("fixture.py");
     std::fs::write(
@@ -486,14 +486,14 @@ pub fn video_edit_progress_and_snapshot(
 
         assert!(!project.join(".shiju/workflow_commands.json").exists());
         let scope = session_store::ui_store::resolve_session_scope_id_for_tenant(
-            &tenant,
-            Some(&directory),
+            tenant,
+            Some(directory),
             None,
         )
         .unwrap();
         let stored = session_store::ui_store::load_session_scoped_for_tenant(
-            &tenant,
-            &session,
+            tenant,
+            session,
             Some(&scope),
         )
         .unwrap();

@@ -44,7 +44,7 @@ pub(super) fn reader_control<'a>(i18n: desktop_i18n::I18n, session: &'a SessionM
     }).menu_icon(desktop_assets::assets::Icon::ChevronDown, 180.0)
         .width(Length::Fixed(30.0)).disabled(!enabled);
     row![
-        button(text(i18n.sprintf("在 %s 中恢复", &[format!("{}", terminal).into()])).size(13)).padding([7, 11]).style(primary_action_btn_style)
+        button(text(i18n.sprintf("在 %s 中恢复", &[terminal.to_string().into()])).size(13)).padding([7, 11]).style(primary_action_btn_style)
             .on_press_maybe(enabled.then(|| msg(Event::Open(session.identity.clone())))),
         menu,
     ].spacing(3).align_y(iced::Alignment::Center).into()

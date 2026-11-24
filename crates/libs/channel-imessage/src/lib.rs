@@ -280,7 +280,7 @@ async fn forward_imessage_messages(
     channel: &IMessageChannel,
     tx: &mpsc::Sender<ChannelMessage>,
     last_rowid: &mut i64,
-    messages: Vec<(i64, String, String)>,
+    messages: Vec<MessageRow>,
 ) -> bool {
     for (rowid, sender, text) in messages {
         if rowid > *last_rowid {
@@ -574,10 +574,13 @@ async fn load_initial_rowid(conn: Connection) -> anyhow::Result<(Connection, i64
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+type MessageRow = (i64, String, String);
+
+#[cfg(not(target_arch = "wasm32"))]
 fn query_new_messages(
     conn: &Connection,
     since_rowid: i64,
-) -> anyhow::Result<Vec<(i64, String, String)>> {
+) -> anyhow::Result<Vec<MessageRow>> {
     let mut stmt = conn.prepare(
         "SELECT m.ROWID, h.id, m.text \
              FROM message m \
@@ -598,9 +601,9 @@ fn query_new_messages(
 async fn poll_imessage_connection(
     conn: Connection,
     since_rowid: i64,
-) -> anyhow::Result<(Connection, anyhow::Result<Vec<(i64, String, String)>>)> {
+) -> anyhow::Result<(Connection, anyhow::Result<Vec<MessageRow>>)> {
     tokio::task::spawn_blocking(
-        move || -> (Connection, anyhow::Result<Vec<(i64, String, String)>>) {
+        move || {
             let result = query_new_messages(&conn, since_rowid);
             (conn, result)
         },
@@ -654,7 +657,7 @@ async fn get_max_rowid(db_path: &Path) -> anyhow::Result<i64> {
 ///
 /// # 返回值
 ///
-/// - `Ok(Vec<(i64, String, String)>)`：新消息列表
+/// - `Ok(Vec<MessageRow>)`：新消息列表
 ///   - 元组格式：`(ROWID, 发送者ID, 消息文本)`
 /// - `Err(...)`：数据库访问失败
 ///
@@ -675,7 +678,7 @@ async fn get_max_rowid(db_path: &Path) -> anyhow::Result<i64> {
 async fn fetch_new_messages(
     db_path: &Path,
     since_rowid: i64,
-) -> anyhow::Result<Vec<(i64, String, String)>> {
+) -> anyhow::Result<Vec<MessageRow>> {
     let conn = open_imessage_connection(db_path).await?;
     let (_, result) = poll_imessage_connection(conn, since_rowid).await?;
     result

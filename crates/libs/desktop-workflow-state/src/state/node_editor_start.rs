@@ -515,8 +515,7 @@ impl WorkflowState {
             let mut changed = false;
 
             if let Some(WorkflowNodeVisualDraft::Start { variables }) = editor.visual_draft.as_mut()
-            {
-                if index < variables.len() {
+                && index < variables.len() {
                     variables.remove(index);
                     editor.start_variable_focus_index = match editor.start_variable_focus_index {
                         Some(_) if variables.is_empty() => None,
@@ -528,7 +527,6 @@ impl WorkflowState {
                     };
                     changed = true;
                 }
-            }
 
             if changed {
                 let _ = sync_node_editor_raw_from_visual(editor);
@@ -549,96 +547,88 @@ impl WorkflowState {
 
     pub fn set_node_editor_start_variable_label(&mut self, index: usize, value: String) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::Start { variables } = draft {
-                if let Some(variable) = variables.get_mut(index) {
+            if let WorkflowNodeVisualDraft::Start { variables } = draft
+                && let Some(variable) = variables.get_mut(index) {
                     variable.label = value;
                     return true;
                 }
-            }
             false
         });
     }
 
     pub fn set_node_editor_start_variable_name(&mut self, index: usize, value: String) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::Start { variables } = draft {
-                if let Some(variable) = variables.get_mut(index) {
+            if let WorkflowNodeVisualDraft::Start { variables } = draft
+                && let Some(variable) = variables.get_mut(index) {
                     variable.variable = value;
                     return true;
                 }
-            }
             false
         });
     }
 
     pub fn set_node_editor_start_variable_type(&mut self, index: usize, value: String) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::Start { variables } = draft {
-                if let Some(variable) = variables.get_mut(index) {
+            if let WorkflowNodeVisualDraft::Start { variables } = draft
+                && let Some(variable) = variables.get_mut(index) {
                     variable.input_type = value;
                     return true;
                 }
-            }
             false
         });
     }
 
     pub fn set_node_editor_start_variable_required(&mut self, index: usize, value: bool) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::Start { variables } = draft {
-                if let Some(variable) = variables.get_mut(index) {
+            if let WorkflowNodeVisualDraft::Start { variables } = draft
+                && let Some(variable) = variables.get_mut(index) {
                     variable.required = value;
                     return true;
                 }
-            }
             false
         });
     }
 
     pub fn set_node_editor_start_variable_default(&mut self, index: usize, value: String) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::Start { variables } = draft {
-                if let Some(variable) = variables.get_mut(index) {
+            if let WorkflowNodeVisualDraft::Start { variables } = draft
+                && let Some(variable) = variables.get_mut(index) {
                     variable.default_value = value;
                     return true;
                 }
-            }
             false
         });
     }
 
     pub fn set_node_editor_start_variable_placeholder(&mut self, index: usize, value: String) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::Start { variables } = draft {
-                if let Some(variable) = variables.get_mut(index) {
+            if let WorkflowNodeVisualDraft::Start { variables } = draft
+                && let Some(variable) = variables.get_mut(index) {
                     variable.placeholder = value;
                     return true;
                 }
-            }
             false
         });
     }
 
     pub fn set_node_editor_start_variable_hint(&mut self, index: usize, value: String) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::Start { variables } = draft {
-                if let Some(variable) = variables.get_mut(index) {
+            if let WorkflowNodeVisualDraft::Start { variables } = draft
+                && let Some(variable) = variables.get_mut(index) {
                     variable.hint = value;
                     return true;
                 }
-            }
             false
         });
     }
 
     pub fn set_node_editor_start_variable_max_length(&mut self, index: usize, value: String) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::Start { variables } = draft {
-                if let Some(variable) = variables.get_mut(index) {
+            if let WorkflowNodeVisualDraft::Start { variables } = draft
+                && let Some(variable) = variables.get_mut(index) {
                     variable.max_length_input = value;
                     return true;
                 }
-            }
             false
         });
     }

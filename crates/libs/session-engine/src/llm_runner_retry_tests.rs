@@ -185,10 +185,10 @@ fn run_llm_step_with_retry_preserves_length_error_without_repeating_partial_outp
         is_retryable: false,
         response_headers: None,
         response_body: Some("max_tokens".into()),
-        metadata: Some(std::collections::HashMap::from([
+        metadata: Some(Box::new(std::collections::HashMap::from([
             ("stream_failure_kind".into(), "incomplete".into()),
             ("source".into(), "aisdk".into()),
-        ])),
+        ]))),
     };
     for _ in 0..4 {
         enqueue_test_llm_stream(vec![

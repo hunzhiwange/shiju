@@ -224,9 +224,11 @@ fn block_on_gateway_runs_future_inside_multithread_runtime() {
 
 #[test]
 fn build_task_commit_message_uses_fallback_when_title_unavailable() {
-    let mut task = Task::default();
-    task.id = "T1".to_string();
-    task.prompt = String::new();
+    let mut task = Task {
+        id: "T1".to_string(),
+        prompt: String::new(),
+        ..Default::default()
+    };
 
     assert_eq!(build_task_commit_message(gateway_client, &task, "fallback message"), "fallback message");
 }
@@ -267,9 +269,11 @@ fn resolve_task_execution_workspace_reads_branch_from_selected_worktree() {
         &["worktree", "add", worktree_dir.to_string_lossy().as_ref(), "feature/task-worktree"],
     );
 
-    let mut task = Task::default();
-    task.selected_worktree_path = Some(worktree_dir.to_string_lossy().to_string());
-    task.merge_target_branch = Some("main".to_string());
+    let mut task = Task {
+        selected_worktree_path: Some(worktree_dir.to_string_lossy().to_string()),
+        merge_target_branch: Some("main".to_string()),
+        ..Default::default()
+    };
 
     let (workspace, _guard) =
         resolve_task_execution_workspace(gateway_client, &task, repo_dir.to_string_lossy().as_ref(), None)

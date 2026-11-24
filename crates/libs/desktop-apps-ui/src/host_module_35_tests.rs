@@ -52,8 +52,10 @@ fn repository(secret: &str, company_id: &str) -> AccountRepository {
 
 #[test]
 fn shiju_apps_tabs_ignore_stale_or_wrong_account_results() {
-    let mut app = Fixture::default();
-    app.account = repository("account-secret", "company-1");
+    let mut app = Fixture {
+        account: repository("account-secret", "company-1"),
+        ..Default::default()
+    };
     let _ = app.update(ShijuAppsMessage::Open);
     let mine_generation = app.shiju_apps.generation;
 
@@ -134,8 +136,10 @@ fn api_key(api_key_id: u64, status: &str) -> ShijuIamApiKeyDto {
 }
 
 fn app_ready_for_launch() -> Fixture {
-    let mut app = Fixture::default();
-    app.account = repository("account-secret", "company-1");
+    let mut app = Fixture {
+        account: repository("account-secret", "company-1"),
+        ..Default::default()
+    };
     // Lifecycle requests are scoped to the stored account, not its company ID.
     app.shiju_apps.account_id = app.account.active_account_id().map(str::to_owned);
     app.shiju_apps.mine = ShijuAppsLoadState::Loaded(ShijuAppListDto { apps: vec![ready_app()] });

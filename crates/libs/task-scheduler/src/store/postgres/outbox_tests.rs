@@ -7,7 +7,6 @@ use vw_api_transport::common::TimestampMs;
 
 use super::map_outbox_message_row;
 use crate::store::outbox::OutboxMessageStatus;
-use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn map_outbox_message_row_preserves_failure_retry_state() -> Result<()> {

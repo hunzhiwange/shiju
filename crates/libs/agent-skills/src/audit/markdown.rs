@@ -48,11 +48,10 @@ fn audit_markdown_content(
         .with_context(|| format!("failed to read markdown file {}", path.display()))?;
     let rel = relative_display(root, path);
 
-    if security.detect_high_risk_content {
-        if let Some(pattern) = detect_high_risk_snippet(&content) {
+    if security.detect_high_risk_content
+        && let Some(pattern) = detect_high_risk_snippet(&content) {
             report.findings.push(format!("{rel}: detected high-risk command pattern ({pattern})."));
         }
-    }
 
     if audit_links && (security.reject_script_files || security.validate_markdown_links) {
         for raw_target in extract_markdown_links(&content) {

@@ -49,7 +49,7 @@ fn markdown_block_editor_ignores_edit_actions_and_applies_navigation_actions() {
     );
 
     // 缺失键返回 None 分支。
-    let _task = handle_markdown_block_editor_action(
+    handle_markdown_block_editor_action(
         &mut app.chat_markdown_block_editors,
         u128::MAX,
         text_editor::Action::SelectAll,

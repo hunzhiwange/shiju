@@ -138,7 +138,7 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
             state.error = None;
         }
         Event::BillingField(app, source) if !state.billing_busy && !state.busy => {
-            if let Some(draft) = &mut state.billing_draft { if let Some(value) = draft.get_mut(&app) { *value = source; } }
+            if let Some(draft) = &mut state.billing_draft && let Some(value) = draft.get_mut(&app) { *value = source; }
         }
         Event::BillingSave | Event::Files | Event::StorageOpen | Event::StorageReload => {
             let billing = matches!(event, Event::BillingSave);

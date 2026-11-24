@@ -162,16 +162,16 @@ pub fn update(
 ) -> iced::Task<EnvironmentMessage> {
     use EnvironmentMessage::*;
     // A project/gateway/tenant switch invalidates every pending editor response.
-    if (*state).identity.as_ref().is_some_and(|old| old != &current) {
-        let generation = (*state).generation + 1;
-        let list_generation = (*state).list_generation + 1;
+    if state.identity.as_ref().is_some_and(|old| old != &current) {
+        let generation = state.generation + 1;
+        let list_generation = state.list_generation + 1;
         (*state) = crate::state::WorktreeEnvironmentState {
             generation,
             list_generation,
             ..Default::default()
         };
     }
-    (*state).identity = Some(current.clone());
+    state.identity = Some(current.clone());
     match event {
         Refresh if !state.adding => {
             state.list_generation += 1;
@@ -280,10 +280,10 @@ pub fn update(
         let command = if command.trim().is_empty() { None } else { Some(command) };
         effects.push(EnvironmentEffect::CommandSaved { path, command });
     }
-    let generation = (*state).generation;
+    let generation = state.generation;
     let client = client.clone();
     if let Some(project) = edit {
-        (*state).loaded = false;
+        state.loaded = false;
         return iced::Task::perform(
             async move {
                 let client = client?;

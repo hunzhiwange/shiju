@@ -76,7 +76,7 @@ fn upsert_prompt_template_item(
         if let Some(map) = item.as_mapping_mut() {
             set_mapping_string(map, "role", role);
             set_mapping_string(map, "text", text);
-            if !map.contains_key(&yaml_key("id")) {
+            if !map.contains_key(yaml_key("id")) {
                 set_mapping_string(map, "id", &generate_prompt_item_id(role));
             }
         }
@@ -103,7 +103,7 @@ pub(super) fn ensure_mapping_entry<'a>(map: &'a mut Mapping, key: &str) -> &'a m
 }
 
 pub(super) fn mapping_value<'a>(map: &'a Mapping, key: &str) -> Option<&'a Value> {
-    map.get(&yaml_key(key))
+    map.get(yaml_key(key))
 }
 
 pub(super) fn set_mapping_string(map: &mut Mapping, key: &str, value: &str) {

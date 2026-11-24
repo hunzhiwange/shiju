@@ -82,9 +82,7 @@ pub async fn load(model: Option<String>) -> Option<UsageModelInfo> {
         }
         None => provider_resolution::default_model().await.ok(),
     };
-    let Some(parsed) = parsed else {
-        return None;
-    };
+    let parsed = parsed?;
     let m =
         provider_resolution::get_model(&parsed.provider_id, &parsed.model_id).await.ok()?;
     let provider_name = provider_resolution::get_provider(&parsed.provider_id)

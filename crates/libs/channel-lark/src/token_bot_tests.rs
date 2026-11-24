@@ -1,6 +1,5 @@
 // 本文件验证 Lark 机器人标识刷新、令牌重试与文本发送封装。
 
-use super::super::*;
 use super::token_test_support::*;
 
 #[tokio::test]

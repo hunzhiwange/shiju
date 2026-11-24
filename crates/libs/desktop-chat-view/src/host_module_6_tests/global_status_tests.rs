@@ -97,7 +97,7 @@ async fn global_status_spinner_rotates_at_text_height() {
             let mut spinner_rows = pixels
                 .chunks_exact(image_size.width as usize * 4)
                 .enumerate()
-                .filter(|(_, row)| row[..slot_width].chunks_exact(4).any(|px| px != background))
+                .filter(|(_, row)| row[..slot_width].as_chunks::<4>().0.iter().any(|px| px != background))
                 .map(|(y, _)| y);
             let first = spinner_rows.next().expect("spinner frame should be visible");
             let last = spinner_rows.next_back().unwrap_or(first);

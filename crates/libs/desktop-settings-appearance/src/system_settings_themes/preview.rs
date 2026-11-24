@@ -10,15 +10,14 @@ use iced::{Background, Border, Color, Element, Length, Theme};
 
 fn parse_hex_or(value: &str, fallback: Color) -> Color {
     let bytes = value.as_bytes();
-    if bytes.len() == 7 && bytes[0] == b'#' {
-        if let (Ok(r), Ok(g), Ok(b)) = (
+    if bytes.len() == 7 && bytes[0] == b'#'
+        && let (Ok(r), Ok(g), Ok(b)) = (
             u8::from_str_radix(&value[1..3], 16),
             u8::from_str_radix(&value[3..5], 16),
             u8::from_str_radix(&value[5..7], 16),
         ) {
             return Color::from_rgb8(r, g, b);
         }
-    }
     fallback
 }
 

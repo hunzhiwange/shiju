@@ -60,7 +60,7 @@ fn repo_with_initial_commit(path: &Path) -> Repository {
 
 fn add_linked_worktree(repo: &Repository, name: &str, path: &Path) {
     let mut opts = git2::WorktreeAddOptions::new();
-    repo.worktree(name, path, Some(&mut opts)).expect("linked worktree");
+    repo.worktree(name, path, Some(&opts)).expect("linked worktree");
 }
 
 #[test]

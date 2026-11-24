@@ -7,5 +7,3 @@ fn archived_chats_native_acceptance_has_explicit_isolated_entry() {
         "native archive acceptance target missing"
     );
 }
-
-pub(super) use desktop_settings_sessions::acceptance::fixture::fixture;

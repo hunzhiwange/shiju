@@ -12,7 +12,7 @@ use vw_api_app_identity::{
     AppRuntimeKind,
 };
 use super::catalog::*;
-use {gateway_http::AgentAppsReadError, vw_api_app_identity::*};
+use gateway_http::AgentAppsReadError;
 
 fn row() -> CatalogRow {
     CatalogRow {

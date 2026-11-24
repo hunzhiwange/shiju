@@ -21,6 +21,3 @@ pub(super) fn save_complete(app: &mut App, result: Result<(), String>) -> Task<M
     }
     next
 }
-
-#[cfg(test)]
-pub(crate) use desktop_editor::persistence::ConfigPersistence;

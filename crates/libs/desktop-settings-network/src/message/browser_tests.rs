@@ -263,7 +263,7 @@ fn browser_config_accepts_blank_defaultable_and_optional_fields() {
     app.computer_use_max_coordinate_x_input = "  ".to_string();
     app.computer_use_max_coordinate_y_input = "  ".to_string();
 
-    assert!(browser_config(&mut app).is_ok());
+    assert!(browser_config(&app).is_ok());
 }
 
 // 提交与删除：覆盖保存、安装或移除操作前后的状态衔接。
@@ -284,7 +284,7 @@ fn browser_config_accepts_explicit_optional_fields() {
     app.computer_use_max_coordinate_x_input = "1920".to_string();
     app.computer_use_max_coordinate_y_input = "1080".to_string();
 
-    assert!(browser_config(&mut app).is_ok());
+    assert!(browser_config(&app).is_ok());
 }
 
 #[test]

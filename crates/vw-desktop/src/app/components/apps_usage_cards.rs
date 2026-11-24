@@ -118,8 +118,3 @@ pub(crate) fn current_scope(app: &App, account: bool) -> Option<Scope> {
 #[cfg(test)]
 #[path = "apps_usage_cards_tests.rs"]
 pub(in crate::app) mod tests;
-
-#[cfg(test)]
-pub use desktop_usage::apps_usage_cards::Failure;
-#[cfg(test)]
-pub use desktop_usage::apps_usage_cards::Target;

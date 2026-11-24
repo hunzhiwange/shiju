@@ -69,7 +69,7 @@ async fn handle_event(
         let token_ok = payload
             .get("token")
             .and_then(|t| t.as_str())
-            .map_or(true, |t| t == state.verification_token);
+            .is_none_or(|t| t == state.verification_token);
 
         if !token_ok {
             return (StatusCode::FORBIDDEN, "invalid token").into_response();
@@ -81,15 +81,14 @@ async fn handle_event(
 
     let messages = state.channel.parse_event_payload_async(&payload).await;
 
-    if !messages.is_empty() {
-        if let Some(message_id) =
+    if !messages.is_empty()
+        && let Some(message_id) =
             payload.pointer("/event/message/message_id").and_then(|m| m.as_str())
         {
             let ack_text = messages.first().map_or("", |msg| msg.content.as_str());
             let ack_emoji = random_lark_ack_reaction(payload.get("event"), ack_text).to_string();
             spawn_ack_reaction(Arc::clone(&state.channel), message_id.to_string(), ack_emoji);
         }
-    }
 
     for msg in messages {
         if state.tx.send(msg).await.is_err() {

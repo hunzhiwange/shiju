@@ -381,11 +381,10 @@ impl<H: QuestionHost> QuestionTool<H> {
             "answers": collected.answers,
         });
 
-        if let Some(annotations) = collected.annotations.filter(|items| !items.is_empty()) {
-            if let Some(object) = data.as_object_mut() {
+        if let Some(annotations) = collected.annotations.filter(|items| !items.is_empty())
+            && let Some(object) = data.as_object_mut() {
                 object.insert("annotations".to_string(), serde_json::to_value(&annotations)?);
             }
-        }
 
         let mut metadata = json!({
             "question_count": question_count,

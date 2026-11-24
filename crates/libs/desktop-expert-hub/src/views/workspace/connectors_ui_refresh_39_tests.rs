@@ -158,7 +158,7 @@ fn capture(
         mouse::Cursor::Available(point),
     );
     let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
-    assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]), "{name} drew no content");
+    assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel != &pixels[..4]), "{name} drew no content");
     if let Some(directory) = std::env::var_os("SHIJU_UI_REFRESH_39_SCREENSHOTS") {
         ::image::save_buffer(
             std::path::PathBuf::from(directory).join(format!("{name}.png")),

@@ -1,8 +1,6 @@
 use model_transport::{RelayBinding, RelayIdentity};
 use super::{API_KEY, RouteAuth, VerifiedRouteBinding, serve};
-use crate::{
-    app_routing::{RoutingListener, SharedTransport},
-};
+use crate::app_routing::SharedTransport;
 use axum::{
     http::{HeaderMap, StatusCode, header},
     response::IntoResponse,

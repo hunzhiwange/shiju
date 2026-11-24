@@ -8,8 +8,10 @@ use iced::{Point, Size};
 async fn ui_refresh_35_preserves_values_and_disabled_states() {
     use vw_api_chat_identity::ReasoningEffortDto;
 
-    let mut app = crate::slice_view_fixture::Fixture::default();
-    app.desktop_locale = DesktopLocale::English;
+    let mut app = crate::slice_view_fixture::Fixture {
+        desktop_locale: DesktopLocale::English,
+        ..Default::default()
+    };
     assert!(
         crate::panel::reasoning_selector::build_bulk_reasoning_effort_selector(app.reasoning())
             .is_none()

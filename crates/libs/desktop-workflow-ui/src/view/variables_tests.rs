@@ -445,6 +445,6 @@ async fn variables_tests_draw_chinese_in_both_themes() {
         );
         let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
         assert_eq!(pixels.len(), 1200 * 800 * 4);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel != &pixels[..4]));
     }
 }

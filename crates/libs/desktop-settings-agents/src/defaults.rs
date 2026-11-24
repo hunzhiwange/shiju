@@ -18,11 +18,10 @@ pub fn validate(
     skills: &[String],
     mcp: &[String],
 ) -> Result<(), String> {
-    if let AgentDefault::Fixed(model) = &defaults.model {
-        if !models.contains(model) {
+    if let AgentDefault::Fixed(model) = &defaults.model
+        && !models.contains(model) {
             return Err("模型不可用，或当前引擎尚未提供此模型来源能力，请重新选择或继承。".into());
         }
-    }
     if let AgentDefault::Fixed(permission) = &defaults.permission {
         let supported = if matches!(runtime, AgentRuntime::Acp { .. }) {
             permission == &serde_json::json!({"*":"deny"})
@@ -45,13 +44,12 @@ pub fn validate(
     for (selection, available, label) in
         [(&defaults.skills, skills, "技能"), (&defaults.mcp, mcp, "MCP")]
     {
-        if let AgentDefault::Fixed(ids) = selection {
-            if let Some(id) = ids.iter().find(|id| !available.contains(id)) {
+        if let AgentDefault::Fixed(ids) = selection
+            && let Some(id) = ids.iter().find(|id| !available.contains(id)) {
                 return Err(format!(
                     "{label} {id} 未知、已禁用或不在当前作用域，请移除或选择继承。"
                 ));
             }
-        }
     }
     Ok(())
 }

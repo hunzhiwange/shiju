@@ -216,8 +216,10 @@ fn cc_mcp_t45_graphical_values_edit_literals_and_references_without_losing_keys(
 
 #[test]
 fn cc_mcp_t45_transport_change_does_not_move_environment_credentials_into_headers() {
-    let mut state = crate::management_state::McpSettingsState::default();
-    state.connection_form = Some(draft());
+    let mut state = crate::management_state::McpSettingsState {
+        connection_form: Some(draft()),
+        ..Default::default()
+    };
     let mut app = crate::management_update::Update {
         state: &mut state,
         context: Some(context()),

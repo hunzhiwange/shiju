@@ -387,11 +387,8 @@ fn execute(
         }
         return Ok(failure(StatusCode::CONFLICT, "recovery_pending"));
     }
-    match &state.omo {
-        Some(OmoSelection::Standard(id) | OmoSelection::Slim(id)) => {
-            validate_identity(id).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?
-        }
-        _ => {}
+    if let Some(OmoSelection::Standard(id) | OmoSelection::Slim(id)) = &state.omo {
+        validate_identity(id).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?
     }
     let db = db.ok_or(StatusCode::SERVICE_UNAVAILABLE)?.0;
     let snapshot = capture(&db, &scope, home)?;

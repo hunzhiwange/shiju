@@ -39,8 +39,10 @@ fn usage_replica_07_restore_saved_draft() {
 fn usage_replica_07_preferences_persist_and_limit() {
     let directory = std::env::temp_dir().join(format!("usage-replica-07-{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap()));
     let path = directory.join("display.json");
-    let mut preferences = Preferences::default();
-    preferences.area = true;
+    let mut preferences = Preferences {
+        area: true,
+        ..Default::default()
+    };
     preferences.toggle(TodayItem::Requests);
     preferences.toggle(TodayItem::Tokens);
     assert_eq!(preferences.today, vec![TodayItem::Cost, TodayItem::Requests]);

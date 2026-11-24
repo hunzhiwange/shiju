@@ -131,7 +131,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
                 Task::none()
             }
             Err(e) => {
-                state.save_error = Some((e).into());
+                state.save_error = Some(e);
                 state.catalog_loading = false;
                 reset_models_sync_state(state);
                 Task::none()
@@ -154,7 +154,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
             }
             Err(e) => {
                 state.loading = false;
-                state.save_error = Some((e).into());
+                state.save_error = Some(e);
                 state.catalog_loading = false;
                 Task::none()
             }
@@ -252,7 +252,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
             }
             Err(e) => {
                 state.loading = false;
-                state.connect_error = Some((e).into());
+                state.connect_error = Some(e);
                 Task::none()
             }
         },
@@ -297,7 +297,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
             }
             Err(e) => {
                 state.loading = false;
-                state.save_error = Some((e).into());
+                state.save_error = Some(e);
                 state.disconnect_confirm_provider_id = None;
                 Task::none()
             }
@@ -346,7 +346,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
             Err(e) => {
                 state.loading = false;
                 state.custom_models_discovering = false;
-                state.save_error = Some((e).into());
+                state.save_error = Some(e);
                 Task::none()
             }
         },
@@ -566,7 +566,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
                 next_models.push(new_model.clone());
             }
             if let Err(error) = validate_model_drafts(&next_models) {
-                state.save_error = Some((error).into());
+                state.save_error = Some(error);
                 return Task::none();
             }
             if let Some(i) = m.edit_index {
@@ -629,7 +629,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
                     state.save_error = None;
                 }
                 Err(error) => {
-                    state.save_error = Some((error).into());
+                    state.save_error = Some(error);
                 }
             }
             Task::none()
@@ -653,7 +653,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
             }
 
             if let Err(error) = validate_model_drafts(&draft.models) {
-                state.save_error = Some((error).into());
+                state.save_error = Some(error);
                 return Task::none();
             }
 
@@ -688,7 +688,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
             Err(e) => {
                 state.loading = false;
                 state.custom_models_discovering = false;
-                state.save_error = Some((e).into());
+                state.save_error = Some(e);
                 Task::none()
             }
         },
@@ -708,7 +708,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
         }
         SettingsMessage::PopularProvidersSaved(res) => {
             if let Err(e) = res {
-                state.save_error = Some((e).into());
+                state.save_error = Some(e);
             }
             Task::none()
         }
@@ -738,7 +738,7 @@ fn update_task(state: &mut ProviderSettingsState, models: &mut ModelSettingsStat
             }
             Err(e) => {
                 state.catalog_loading = false;
-                state.save_error = Some((e).into());
+                state.save_error = Some(e);
                 Task::none()
             }
         },

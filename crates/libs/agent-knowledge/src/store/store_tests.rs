@@ -5,7 +5,6 @@ use crate::fusion::{RetrievalSource, RetrievedCandidate};
 use super::*;
 use agent_database::global_database::GlobalDatabase;
 use agent_database::global_database::config::DatabaseProvider;
-use agent_database::global_database::test_support::PostgresTestDatabase;
 use memory_types::memory::embeddings::EmbeddingProvider;
 use memory_algorithms::vector;
 use async_trait::async_trait;
@@ -1403,7 +1402,7 @@ fn validation_rejects_invalid_dataset_document_retrieve_and_ids() {
         "metadata",
     );
 
-    let max_encoded = ((crate::import::MAX_IMPORT_FILE_BYTES + 2) / 3) * 4;
+    let max_encoded = crate::import::MAX_IMPORT_FILE_BYTES.div_ceil(3) * 4;
     assert_api_error(
         import_source_bytes(&"A".repeat(max_encoded + 1)).unwrap_err(),
         StatusCode::BAD_REQUEST,
@@ -1695,7 +1694,7 @@ fn retrieval_score_helpers_merge_and_rerank_results() {
         chunk("other", &other_dataset, "Refund policy", "refund terms", 0.2),
     ];
     chunks[1].metadata = json!({ "question": "How do refunds work?" });
-    rerank_chunks("refund", &[dataset_id.clone()], &mut chunks);
+    rerank_chunks("refund", std::slice::from_ref(&dataset_id), &mut chunks);
     assert_eq!(chunks[0].id, "low");
     assert!(chunks[0].score.unwrap_or_default() > 0.4);
     let other = chunks.iter().find(|chunk| chunk.id == "other").expect("other chunk");

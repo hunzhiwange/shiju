@@ -228,7 +228,7 @@ pub(super) fn frequency_form<'a>(
                         toggle(weekdays, value);
                     }
                     days = days.push(
-                        button(text(i18n.__(*label)).size(13))
+                        button(text(i18n.__(label)).size(13))
                             .padding([8, 10])
                             .style(move |t, s| cron_segment_style(t, s, active))
                             .on_press(changed(editing, next)),

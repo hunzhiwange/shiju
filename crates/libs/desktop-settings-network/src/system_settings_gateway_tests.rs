@@ -3,7 +3,6 @@
 
 use super::*;
 use super::calendar::{days_in_month, month_start, parse_calendar_month, parse_skey_date, skey_calendar_month};
-use iced::widget::column;
 
 
 // 网关测试使用默认应用提供主题和消息上下文，不读取实际服务状态。

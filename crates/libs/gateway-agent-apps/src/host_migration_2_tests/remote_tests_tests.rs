@@ -6,7 +6,6 @@ use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::Path, time::Duration};
 use vw_agent_apps::apps::launch::request::LaunchMaterial;
 use {
-    vw_api_types::agent_apps::*,
     vw_api_transport::id::TaskId,
     vw_api_transport::id::TenantScope,
     vw_api_task::TaskStatus,

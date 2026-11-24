@@ -7,7 +7,7 @@ fn agent_defaults_form_switch_preserves_invalid_draft_and_prevents_save() {
     app.agents_settings.config_ready = true;
     app.acp_agents = vec!["codex".into()];
     let dispatch = |app: &mut ProfileFixture, message| {
-        let _ = dispatch(app, message);
+        dispatch(app, message);
     };
     dispatch(&mut app, AgentsMessage::AddAgentKeyChanged("custom".into()));
     dispatch(&mut app, AgentsMessage::AddAgentRequested);
@@ -44,7 +44,7 @@ fn agent_config_cleanup_single_model_group_prevents_conflict() {
     let mut app = ProfileFixture::default();
     app.agents_settings.config_ready = true;
     let dispatch = |app: &mut ProfileFixture, message| {
-        let _ = dispatch(app, message);
+        dispatch(app, message);
     };
     dispatch(&mut app, AgentsMessage::ProfileOpen("main".into()));
     let model = AgentModelReference { provider: "provider".into(), model: "model".into() };
@@ -152,7 +152,7 @@ async fn agent_model_inheritance_renders_chinese_in_both_themes() {
             &Rectangle::with_size(bounds),
         );
         let pixels = renderer.screenshot(Size::new(1100, 900), 1.0, Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
         image::save_buffer(
             format!("/tmp/shiju-model-inheritance-{name}.png"),
             &pixels,

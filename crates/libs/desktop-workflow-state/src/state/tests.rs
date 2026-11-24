@@ -4,7 +4,7 @@ use super::*;
 use serde_yaml::{Mapping, Value};
 
 fn mapping_value<'a>(mapping: &'a Mapping, key: &str) -> &'a Value {
-    mapping.get(&yaml_key(key)).expect("expected key to exist")
+    mapping.get(yaml_key(key)).expect("expected key to exist")
 }
 
 #[test]

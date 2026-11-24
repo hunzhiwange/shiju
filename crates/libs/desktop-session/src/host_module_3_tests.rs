@@ -22,12 +22,10 @@ fn info(id: &str, title: &str, project: &str) -> session_info::Info {
 
 #[test]
 fn desktop_first_response_title_updates_only_untitled_copies_for_its_project() {
-    let mut sessions = vec![
-        info("session-1", "手工改名", "project-1"),
-        info("session-2", "当前会话", "project-1"),
-    ];
+    let mut sessions = [info("session-1", "手工改名", "project-1"),
+        info("session-2", "当前会话", "project-1")];
     let mut project_sessions =
-        vec![info("session-1", "", "project-1"), info("session-1", "", "foreign-project")];
+        [info("session-1", "", "project-1"), info("session-1", "", "foreign-project")];
     assert!(draft::apply_published_title(
         sessions.iter_mut().chain(project_sessions.iter_mut()),
         &info("session-1", "服务端标题", "project-1")

@@ -176,7 +176,7 @@ pub(super) fn start_skill_action(
                 account_id,
                 skill_id,
                 action,
-                result: result.map_err(SkillHubError::from),
+                result,
             })
         },
     )
@@ -265,7 +265,7 @@ pub(super) fn finish_quick_upgrade_resolution(
         }
         Err(error) => {
             app.expert_hub.action = None;
-            return show_skill_error(app, ToastKind::Error, Some("技能升级失败：%s"), error.into());
+            return show_skill_error(app, ToastKind::Error, Some("技能升级失败：%s"), error);
         }
     };
     let action = SkillVersionAction {

@@ -213,14 +213,13 @@ pub fn update(app: &mut Update, message: AcpMessage) -> Task<Message> {
             if app.state.install_id.as_deref() != Some(&id) {
                 return Task::none();
             }
-            if let Some(download) = progress.as_mut().and_then(|progress| progress.download.as_mut()) {
-                if app.state.install_progress.as_ref()
+            if let Some(download) = progress.as_mut().and_then(|progress| progress.download.as_mut())
+                && app.state.install_progress.as_ref()
                     .and_then(|previous| previous.download.as_ref())
                     .is_some_and(|previous| previous.downloaded == download.downloaded)
                 {
                     download.bytes_per_second = 0;
                 }
-            }
             app.state.install_progress = progress;
             poll_install_progress(app, agent, id)
         },

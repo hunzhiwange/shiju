@@ -75,9 +75,7 @@ pub fn resolve_app_theme_name(name: &str, store: Option<&ThemeStore>) -> Option<
         };
     }
 
-    let Some(id) = name.strip_prefix(CUSTOM_THEME_PREFIX) else {
-        return None;
-    };
+    let id = name.strip_prefix(CUSTOM_THEME_PREFIX)?;
     if id.is_empty() {
         return None;
     }

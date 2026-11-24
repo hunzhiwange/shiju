@@ -26,7 +26,7 @@ pub enum Action<S> {
  TestTaskCompletionNotification, TabSelected(GeneralSettingsTab),
 }
 pub fn app_theme_options(app_theme: &Theme) -> Vec<Theme> {
-    let mut themes: Vec<Theme> = Theme::ALL.iter().cloned().collect();
+    let mut themes: Vec<Theme> = Theme::ALL.to_vec();
     let Some(store) = theme_store_from_home() else {
         return themes;
     };

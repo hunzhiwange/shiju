@@ -59,7 +59,9 @@ pub fn spawn_scoped_typing_task(
     let stop_signal = cancellation_token;
     let refresh_interval = Duration::from_secs(CHANNEL_TYPING_REFRESH_INTERVAL_SECS);
 
-    let handle = agent_util::spawn(async move {
+
+
+    agent_util::spawn(async move {
         let mut interval = tokio::time::interval(refresh_interval);
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
@@ -77,9 +79,7 @@ pub fn spawn_scoped_typing_task(
         if let Err(e) = channel.stop_typing(&recipient).await {
             tracing::debug!("Failed to stop typing on {}: {e}", channel.name());
         }
-    });
-
-    handle
+    })
 }
 
 #[cfg(test)]

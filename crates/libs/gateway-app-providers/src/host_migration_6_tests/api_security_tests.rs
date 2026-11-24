@@ -159,7 +159,7 @@ impl Fixture {
         method: &str,
         path: &str,
         company: &str,
-        token: &str,
+        _token: &str,
         body: Value,
     ) -> (u16, String) {
         let response = reqwest::Client::new()

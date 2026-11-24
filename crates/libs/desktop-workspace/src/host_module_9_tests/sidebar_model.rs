@@ -163,9 +163,11 @@ fn work_sidebar_shows_visible_task_in_own_project() {
 
 #[test]
 fn work_sidebar_builds_workbuddy_sections_from_real_projects() {
-    let mut app = SidebarFixture::default();
-    app.recent_projects = vec!["/workspace/alpha".into(), "/workspace/beta".into()];
-    app.recent_projects_edits = vec!["阿尔法空间".into(), "Beta".into()];
+    let mut app = SidebarFixture {
+        recent_projects: vec!["/workspace/alpha".into(), "/workspace/beta".into()],
+        recent_projects_edits: vec!["阿尔法空间".into(), "Beta".into()],
+        ..Default::default()
+    };
     app.project_sessions.insert(
         "/workspace/alpha".into(),
         vec![

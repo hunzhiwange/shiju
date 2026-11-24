@@ -138,7 +138,7 @@ pub fn shiju_upgrade_button_style(
         background,
         border: Border {
             radius: 7.0.into(),
-            width: enabled.then_some(1.0).unwrap_or_default(),
+            width: if enabled { 1.0 } else { Default::default() },
             color: if enabled {
                 palette.primary.base.color.scale_alpha(if is_dark { 0.58 } else { 0.38 })
             } else {

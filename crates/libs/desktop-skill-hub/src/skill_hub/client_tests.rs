@@ -102,8 +102,7 @@ async fn desktop_gettext_area_14_client_error_keeps_template_in_load_state() {
     let error = client(&base_url)
         .latest_shiju_package(ShijuPackageId::DarwinArm64)
         .await
-        .err()
-        .expect("HTTP error");
+        .expect_err("HTTP error");
     request.join().unwrap();
     let state: LoadState<()> = LoadState::Error(error);
     let LoadState::Error(error) = state else { panic!("error state") };

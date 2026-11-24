@@ -249,7 +249,7 @@ async fn left_endpoint_hides_primary_fill_under_thumb_in_both_themes() {
         let primary = &frames[1][offset..offset + 4];
         assert_ne!(&frames[0][offset..offset + 4], primary);
         assert!(
-            !frames[0].chunks_exact(4).any(|pixel| pixel == primary),
+            !frames[0].as_chunks::<4>().0.iter().any(|pixel| pixel == primary),
             "minimum level must not expose blue fill around the thumb"
         );
     }

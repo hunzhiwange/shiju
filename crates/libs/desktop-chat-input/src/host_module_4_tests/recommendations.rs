@@ -49,8 +49,10 @@ async fn session_entry_recommendations_click_select_and_close() {
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, Shell, layout, mouse};
     use iced::{Event, Font, Pixels, Point, Rectangle, Size, Vector};
-    let mut app = Fixture::default();
-    app.prompts = vec![" ".into(), "点击后只填入草稿".into()];
+    let mut app = Fixture {
+        prompts: vec![" ".into(), "点击后只填入草稿".into()],
+        ..Default::default()
+    };
     let renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await

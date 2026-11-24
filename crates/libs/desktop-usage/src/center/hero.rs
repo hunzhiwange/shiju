@@ -149,7 +149,7 @@ pub fn view_with_cost<'a>(i18n: desktop_i18n::I18n,
             )
         ];
         let help = match metric {
-            Metric::Cost => i18n.format("已知费用 %s\n未知费用 %s 请求", &[(format!("{}", value)).into(), (format!("{}", summary.map_or(0, |s| s.counts.unknown_cost_requests))).into()]).expect("valid display template"),
+            Metric::Cost => i18n.format("已知费用 %s\n未知费用 %s 请求", &[(value.to_string()).into(), (format!("{}", summary.map_or(0, |s| s.counts.unknown_cost_requests))).into()]).expect("valid display template"),
             Metric::Tokens => {
                 i18n.__("新增输入 + 输出 + 缓存写入 + 缓存命中；未知计数显示 —，不重复计算推理或缓存子集。")
                     .into()

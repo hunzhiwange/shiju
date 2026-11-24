@@ -130,9 +130,11 @@ const RECENT: &str = "/其他專案/second-project";
 const URL: &str = "git+https://example.invalid/測試/plugin.git#v2.0.0";
 
 fn fixture() -> Fixture {
-    let mut app = Fixture::default();
-    app.project_path = Some(PATH.into());
-    app.recent_projects = vec![RECENT.into()];
+    let mut app = Fixture {
+        project_path: Some(PATH.into()),
+        recent_projects: vec![RECENT.into()],
+        ..Default::default()
+    };
     let s = &mut app.skills_settings;
     s.query = "Fixture".into();
     s.directory_scope = SkillsDirectoryScope::All;

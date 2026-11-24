@@ -1,5 +1,5 @@
 use crate::app_routing::{
-    RoutingListener, SharedTransport, VerifiedRouteBinding,
+    SharedTransport, VerifiedRouteBinding,
     aggregation_routing::{AggregationModel, AggregationPublication, AggregationTarget},
     dispatch::JsonTarget,
 };

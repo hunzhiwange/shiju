@@ -68,6 +68,3 @@ pub(super) fn finished(
         ),
     }
 }
-
-#[cfg(test)]
-use super::AccountMessage;

@@ -354,11 +354,10 @@ pub(super) fn backups(target: &HistoryMaintenanceTarget, root: &Path, private: &
         let Some(id) = name.to_str() else { return Err(StatusCode::SERVICE_UNAVAILABLE); };
         let parsed = uuid::Uuid::parse_str(id).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
         if parsed.to_string() != id { return Err(StatusCode::SERVICE_UNAVAILABLE); }
-        if let Some(meta) = BackupGeneration::inspect(&entry.path(), &binding).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)? {
-            if !meta.entries.is_empty() {
+        if let Some(meta) = BackupGeneration::inspect(&entry.path(), &binding).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+            && !meta.entries.is_empty() {
                 generations.push(HistoryBackupSummary { generation_id: id.into(), complete: meta.complete, entries: meta.entries.len() });
             }
-        }
     }
     generations.sort_by(|a, b| a.generation_id.cmp(&b.generation_id));
     Ok(HistoryBackups { generations })

@@ -173,7 +173,7 @@ pub fn update_bulk(
                 .as_ref()
                 .is_some_and(|editing_task_id| task_ids.contains(editing_task_id))
             {
-                (*state.task_board_draft).reasoning_effort = reasoning_effort;
+                state.task_board_draft.reasoning_effort = reasoning_effort;
             }
             crate::bulk::clear_selected_task_ids(state.task_board_selected_tasks, &task_ids);
 
@@ -205,7 +205,7 @@ pub fn update_bulk(
                 .as_ref()
                 .is_some_and(|editing_task_id| task_ids.contains(editing_task_id))
             {
-                (*state.task_board_draft).task_split_mode = task_split_mode;
+                state.task_board_draft.task_split_mode = task_split_mode;
             }
             crate::bulk::clear_selected_task_ids(state.task_board_selected_tasks, &task_ids);
 

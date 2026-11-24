@@ -1,5 +1,4 @@
 use super::*;
-use vw_api_app_provider_profiles::claude_desktop::*;
 use vw_api_app_provider_profiles::desktop_mapping::*;
 #[tokio::test]
 async fn cc04_desktop_mapping_facade_rejects_path_identity() {

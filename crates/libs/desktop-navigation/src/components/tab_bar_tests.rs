@@ -255,6 +255,6 @@ async fn view_draws_unicode_tabs_and_selects_home_in_both_themes() {
         assert!(messages.iter().any(|message| matches!(message, Message::TabSelected(id) if id == "home")), "{messages:?}");
         ui.draw(&mut renderer, &theme, &iced::advanced::renderer::Style { text_color: theme.palette().text }, cursor);
         let pixels = renderer.screenshot(size, 1.0, Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
     }
 }

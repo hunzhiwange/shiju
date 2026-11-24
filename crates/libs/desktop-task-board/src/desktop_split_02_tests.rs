@@ -53,9 +53,9 @@ window_size: (500.0, 420.0), now_ms: 1000,
     assert!((*app.task_pet_dragging));
     app.drag_task_pet_to(100.0, 100.0);
     assert_eq!((*app.task_pet_drag_anchor), Some(iced::Point::new(100.0, 100.0)));
-    let before = (*app.task_pet_position);
+    let before = *app.task_pet_position;
     app.drag_task_pet_to(-200.0, 600.0);
-    assert!((*app.task_pet_position).x <= before.x);
+    assert!(app.task_pet_position.x <= before.x);
     assert!(app.task_pet_facing_left());
     assert!(app.task_pet_is_walking());
     app.finish_task_pet_drag();

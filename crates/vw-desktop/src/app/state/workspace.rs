@@ -21,13 +21,9 @@ pub use desktop_usage::view_types::UsageModelInfo;
 mod workspace_tests;
 
 #[cfg(test)]
-pub use desktop_file_tree::state::FIND_RESULTS_PAGE_SIZE;
-#[cfg(test)]
 pub use desktop_file_tree::state::FindInFolderMatch;
 #[cfg(test)]
 pub use desktop_file_tree::state::FindInFolderTab;
-#[cfg(test)]
-pub use desktop_file_tree::state::find_results_page_bounds;
 pub use desktop_task_board::message::TaskBoardDetailTab;
 #[cfg(test)]
 pub use desktop_task_board::message::TaskBoardSettingsModalTab;
@@ -45,7 +41,5 @@ pub use desktop_workspace::workspace_state::GitDiffFileMenuState;
 pub use desktop_workspace::workspace_state::GitDiffSelectedLine;
 #[cfg(test)]
 pub(crate) use desktop_git_ui::git_panel::diff_view::GitDiffCommentDraft;
-#[cfg(test)]
-pub(crate) use desktop_git_ui::git_panel::diff_view::GitDiffContextMenuState;
 #[cfg(test)]
 pub(crate) use desktop_git_ui::git_panel::diff_view::GitDiffLineRange;

@@ -251,13 +251,12 @@ fn strip_media_from_tool_value_at_depth(
 
     match value {
         Value::String(text) => {
-            if scope.allows(ToolMediaKind::Image) {
-                if let Some(media_part) = whole_string_image_data_url(text) {
+            if scope.allows(ToolMediaKind::Image)
+                && let Some(media_part) = whole_string_image_data_url(text) {
                     media_parts.push(media_part);
                     *text = replacement_text.to_string();
                     return 1;
                 }
-            }
 
             let trimmed = text.trim();
             if trimmed.is_empty() {
@@ -393,8 +392,8 @@ fn typed_image_has_payload(part: &Value) -> bool {
         return false;
     };
 
-    if let Some(source) = object.get("source").and_then(Value::as_object) {
-        if source_media_type_is_image(source) {
+    if let Some(source) = object.get("source").and_then(Value::as_object)
+        && source_media_type_is_image(source) {
             let has_url =
                 source.get("url").and_then(Value::as_str).is_some_and(|url| !url.trim().is_empty());
             let has_data =
@@ -403,7 +402,6 @@ fn typed_image_has_payload(part: &Value) -> bool {
                 return true;
             }
         }
-    }
 
     object.get("data").and_then(Value::as_str).is_some_and(|data| !data.is_empty())
         && object
@@ -474,11 +472,10 @@ fn image_url_content_part(image_url: Value) -> Value {
 }
 
 fn merge_top_level_detail(part: &Value, image_url: &mut Map<String, Value>) {
-    if image_url.get("detail").is_none() {
-        if let Some(detail) = part.get("detail") {
+    if image_url.get("detail").is_none()
+        && let Some(detail) = part.get("detail") {
             image_url.insert("detail".to_string(), detail.clone());
         }
-    }
 
     // OpenAI-compatible Chat gateways only accept `auto` / `low` / `high`
     // here. Codex emits `original` (full-resolution) for models whose catalog

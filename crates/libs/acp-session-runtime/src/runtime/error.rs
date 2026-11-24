@@ -25,7 +25,7 @@ mod error_tests;
 pub struct SessionRuntimeError {
     message: String,
     source: Option<Box<dyn StdError + Send + Sync + 'static>>,
-    output: Option<OutputErrorParams>,
+    output: Option<Box<OutputErrorParams>>,
     output_already_emitted: bool,
     interrupted: bool,
 }
@@ -40,7 +40,7 @@ impl SessionRuntimeError {
         E: StdError + Send + Sync + 'static,
     {
         let interrupted = is_interrupted_error(&error);
-        let output = Some(normalize_runtime_error(&error, None, Some(OutputErrorOrigin::Runtime)));
+        let output = Some(Box::new(normalize_runtime_error(&error, None, Some(OutputErrorOrigin::Runtime))));
         Self {
             message: error.to_string(),
             source: Some(Box::new(error)),
@@ -60,7 +60,7 @@ impl SessionRuntimeError {
     ///
     /// 如果构造时未能生成专门参数，会回退到通用 runtime 错误。
     pub fn output_params(&self) -> OutputErrorParams {
-        self.output.clone().unwrap_or_else(|| OutputErrorParams {
+        self.output.as_deref().cloned().unwrap_or_else(|| OutputErrorParams {
             code: crate::OutputErrorCode::Runtime,
             detail_code: None,
             origin: Some(OutputErrorOrigin::Runtime),

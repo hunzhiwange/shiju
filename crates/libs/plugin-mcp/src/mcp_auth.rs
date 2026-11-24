@@ -142,11 +142,9 @@ pub fn source_config(host: &dyn SourceHost, server: &McpServerHttp) -> Result<Op
     for declaration in &outcome.servers {
         if let Some((name, config)) = http_config(declaration)?
             && name == context.name
-        {
-            if selected.replace(config).is_some() {
+            && selected.replace(config).is_some() {
                 bail!("ambiguous plugin MCP HTTP credential source");
             }
-        }
     }
     let config = selected.context("plugin MCP HTTP declaration no longer exists")?;
     if fingerprint(&context, &config)? != context.digest {
@@ -435,13 +433,12 @@ fn validate_oauth(config: &Map<String, Value>) -> Result<()> {
             _ => bail!("invalid or unsupported plugin MCP OAuth field"),
         }
     }
-    if let Some(secret) = oauth.get("client_secret").and_then(Value::as_str) {
-        if secret.trim().is_empty()
-            || oauth.get("client_id").and_then(Value::as_str).is_none_or(|id| id.trim().is_empty())
+    if let Some(secret) = oauth.get("client_secret").and_then(Value::as_str)
+        && (secret.trim().is_empty()
+            || oauth.get("client_id").and_then(Value::as_str).is_none_or(|id| id.trim().is_empty()))
         {
             bail!("plugin MCP OAuth secret must be nonempty and requires a client identifier");
         }
-    }
     if let Some(callback) = oauth.get("callback_url").and_then(Value::as_str) {
         validate_url(callback, false)?;
     }

@@ -151,7 +151,7 @@ pub fn build_saved_app_run_detail_layer(
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .padding(SETTINGS_CONTROL_PADDING)
         .height(Length::Fill)
-        .on_action(|action| WorkflowMessage::SavedAppRunDetailAction(action))
+        .on_action(WorkflowMessage::SavedAppRunDetailAction)
         .style(settings_text_editor_style);
     let header = settings_modal_header(
         column![

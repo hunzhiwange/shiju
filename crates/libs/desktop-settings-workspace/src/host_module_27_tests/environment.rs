@@ -10,8 +10,10 @@ fn project(id: &str) -> vw_api_project::ProjectDto {
 }
 #[test]
 fn worktree_environment_ui_saves_setup_for_selected_project() {
-    let mut app = Fixture::default();
-    app.project_id = Some("a".into());
+    let mut app = Fixture {
+        project_id: Some("a".into()),
+        ..Default::default()
+    };
     apply(&mut app, Event::Edit(project("b")));
     loaded(&mut app, Some("original"));
     app.worktree_settings.environment.editor =

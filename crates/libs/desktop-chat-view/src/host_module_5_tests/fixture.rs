@@ -6,7 +6,6 @@ use crate::message_view::{
 };
 use crate::{chat_ui::ChatMarkdownSelection, render_cache::ChatRenderCacheEntry};
 use iced::widget::text_editor;
-use session_ui_types::ChatMessage;
 use std::{
     collections::{HashMap, HashSet},
     rc::Rc,

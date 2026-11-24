@@ -124,7 +124,7 @@ fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndp
             Task::none()
         }
         Event::BrowserRemove(origin) => {
-            if !state.busy() { if let Some(snapshot) = &mut state.browser { snapshot.permissions.origins.remove(&origin); } }
+            if !state.busy() && let Some(snapshot) = &mut state.browser { snapshot.permissions.origins.remove(&origin); }
             Task::none()
         }
         Event::BrowserSave => {
@@ -187,7 +187,7 @@ fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndp
         Event::Loaded { identity: source, generation, result } => {
             if source != identity { return Task::none(); }
             if !state.apply_loaded(generation, result) { return Task::none(); }
-            if let Some(error) = state.error.clone() { return notify(notice, Notice::Error(error.into())); }
+            if let Some(error) = state.error.clone() { return notify(notice, Notice::Error(error)); }
             Task::none()
         }
         Event::PairOpen(feature @ (ControlSetting::Excel | ControlSetting::Word)) => {
@@ -202,9 +202,8 @@ fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndp
         }
         Event::PairOpen(_) => Task::none(),
         Event::PairDocument(value) => {
-            if !state.busy() {
-                if let Some(draft) = &mut state.pairing { if draft.credential.is_none() { draft.document = value; } }
-            }
+            if !state.busy()
+                && let Some(draft) = &mut state.pairing && draft.credential.is_none() { draft.document = value; }
             Task::none()
         }
         Event::CopyCredential => {
@@ -236,7 +235,7 @@ fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndp
             state.stopping = false;
             match result {
                 Ok(()) => notify(notice, Notice::Success("服务端已停止电脑操控".into())),
-                Err(error) => notify(notice, Notice::Error(error.into())),
+                Err(error) => notify(notice, Notice::Error(error)),
             }
         }
         Event::Completed { identity: source, generation, result } => {
@@ -248,7 +247,7 @@ fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndp
                     if let Some(draft) = &mut state.pairing { draft.credential = credential; expiry = draft.credential.is_some(); }
                     notify(notice, Notice::Success("服务端已确认授权更改".into()))
                 }
-                Err(error) => notify(notice, Notice::Error(error.into())),
+                Err(error) => notify(notice, Notice::Error(error)),
             };
             let reload = refresh(state, endpoint);
             let expiry_task = if expiry {

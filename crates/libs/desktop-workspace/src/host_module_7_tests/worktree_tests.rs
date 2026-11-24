@@ -362,7 +362,7 @@ fn reset_worktree_blocks_primary_confirms_secondary_and_cancels() {
 fn reset_worktree_confirmed_and_result_update_state() {
     let mut app = app();
     let project = "/tmp/project".to_string();
-    let worktree = "/tmp/wt".to_string();
+    let _worktree = "/tmp/wt".to_string();
 
     let _ = apply(&mut app, Event::ResetConfirmed);
     assert!(app.new_session_confirm_reset_directory.is_none());

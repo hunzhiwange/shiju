@@ -98,7 +98,7 @@ pub fn dialogue_flow_permission_text_task(project_path: Option<String>) -> Task<
                 serde_json::to_string_pretty(&perm).map_err(|e| e.to_string())
             }
         },
-        |res| SettingsMessage::DialogueFlowPermissionLoaded(res),
+        SettingsMessage::DialogueFlowPermissionLoaded,
     )
 }
 
@@ -198,7 +198,7 @@ pub fn dialogue_flow_permission_reset_task(project_path: Option<String>) -> Task
                 serde_json::to_string_pretty(&perm).map_err(|e| e.to_string())
             }
         },
-        |res| SettingsMessage::DialogueFlowPermissionLoaded(res),
+        SettingsMessage::DialogueFlowPermissionLoaded,
     )
 }
 

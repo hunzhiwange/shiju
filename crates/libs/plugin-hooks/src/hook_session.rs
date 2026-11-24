@@ -41,8 +41,8 @@ pub async fn start<H: HookHost>(context: Arc<ToolUseContext<H>>, resumed: bool) 
     if sessions.contains_key(&key) {
         return Ok(());
     }
-    if let Some(runner) = context.hook_runner() {
-        if let Err(error) =
+    if let Some(runner) = context.hook_runner()
+        && let Err(error) =
             scope_tool_use_context(context.clone(), runner.start_session(&input))
                 .await
         {
@@ -53,7 +53,6 @@ pub async fn start<H: HookHost>(context: Arc<ToolUseContext<H>>, resumed: bool) 
             .await;
             return Err(error);
         }
-    }
     sessions.insert(key, context);
     Ok(())
 }

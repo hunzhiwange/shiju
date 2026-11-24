@@ -12,11 +12,11 @@
 //!
 //! # 核心组件
 //!
-//! - [`TodoPanelData`]: 待办面板数据结构
-//! - [`compute_todo_data`]: 计算待办数据的函数
-//! - [`read_todos_for_panel`]: 读取并排序当前会话任务
+//! - [`TodoPanelData`][]: 待办面板数据结构
+//! - [`compute_todo_data`][]: 计算待办数据的函数
+//! - [`read_todos_for_panel`][]: 读取并排序当前会话任务
 //! - [`todo_id_display`]: 格式化任务 ID 供界面展示
-//! - [`todo_panel`]: 渲染待办面板的函数
+//! - [`todo_panel`][]: 渲染待办面板的函数
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;

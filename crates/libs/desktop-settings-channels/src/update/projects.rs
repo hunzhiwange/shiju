@@ -12,7 +12,7 @@ fn tenant(client: &GatewayClient) -> Result<String, String> {
 }
 
 fn configured(app: &ChannelsSettingsState, instance: &str) -> Result<(), String> {
-    let config = build_channels_config_from_settings(&app)?;
+    let config = build_channels_config_from_settings(app)?;
     if !config
         .resolve_channel_instance_profiles()
         .map_err(|err| err.to_string())?
@@ -25,9 +25,8 @@ fn configured(app: &ChannelsSettingsState, instance: &str) -> Result<(), String>
 }
 
 /// 使用项目管理中的名称和顺序，不枚举 Gateway 的工作区登记记录。
-
 pub fn load_active(app: &mut ChannelsSettingsState, services: &Services) -> Task<Message> {
-    let instance = build_channels_config_from_settings(&app)
+    let instance = build_channels_config_from_settings(app)
         .ok()
         .and_then(|config| config.resolve_channel_instance_profiles().ok())
         .and_then(|profiles| {
@@ -104,7 +103,7 @@ pub fn loaded(
         return super::localized_toast(
             super::ToastKind::Error,
             "项目加载失败：%s",
-            vec![error.into()],
+            vec![error],
         );
     }
     Task::none()
@@ -135,7 +134,7 @@ pub fn select(
 
 /// 删除或重命名实例后，仅保留仍然配置的真实实例键。
 pub fn retain_configured_bindings(app: &mut ChannelsSettingsState) {
-    if let Ok(config) = build_channels_config_from_settings(&app)
+    if let Ok(config) = build_channels_config_from_settings(app)
         && let Ok(profiles) = config.resolve_channel_instance_profiles()
     {
         app.instance_execution

@@ -362,8 +362,10 @@ async fn codex_plugin_compat_t37_host_denial_precedes_hook_allow() {
         }
     }
     let root = tempfile::tempdir().unwrap();
-    let mut security = SecurityPolicy::default();
-    security.workspace_dir = root.path().to_path_buf();
+    let mut security = SecurityPolicy {
+        workspace_dir: root.path().to_path_buf(),
+        ..Default::default()
+    };
     let mut runner = agent_hooks::HookRunner::new();
     runner.register(Box::new(AllowHook));
     let context = ToolUseContext::new("t37", None)

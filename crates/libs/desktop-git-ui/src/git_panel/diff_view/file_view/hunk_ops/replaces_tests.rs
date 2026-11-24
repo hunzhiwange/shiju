@@ -59,8 +59,10 @@ fn render_count(
 
 #[test]
 fn should_compute_word_diff_requires_highlight_equal_lengths_changes_and_short_lines() {
-    let mut app = Fixture::default();
-    app.show_git_diff_highlight = true;
+    let mut app = Fixture {
+        show_git_diff_highlight: true,
+        ..Default::default()
+    };
 
     assert!(super::replaces::should_compute_word_diff(&app.view_state(), 1, 1, "let a = 1;", "let a = 2;"));
     assert!(super::replaces::should_compute_word_diff(&app.view_state(), 1, 1, "a", "b"));
@@ -74,8 +76,10 @@ fn should_compute_word_diff_requires_highlight_equal_lengths_changes_and_short_l
 
 #[test]
 fn should_compute_word_diff_enforces_new_line_length_boundary() {
-    let mut app = Fixture::default();
-    app.show_git_diff_highlight = true;
+    let mut app = Fixture {
+        show_git_diff_highlight: true,
+        ..Default::default()
+    };
     let at_limit = "b".repeat(512);
     let over_limit = "b".repeat(513);
 
@@ -85,8 +89,10 @@ fn should_compute_word_diff_enforces_new_line_length_boundary() {
 
 #[test]
 fn render_replace_ops_merge_view_emits_old_then_new_rows() {
-    let mut app = Fixture::default();
-    app.merge_view = true;
+    let mut app = Fixture {
+        merge_view: true,
+        ..Default::default()
+    };
 
     assert_eq!(
         render_count(&app, 0, 2, 0, 3, &["old a", "old b"], &["new a", "new b", "new c"]),
@@ -96,8 +102,10 @@ fn render_replace_ops_merge_view_emits_old_then_new_rows() {
 
 #[test]
 fn render_replace_ops_split_view_uses_max_old_new_count() {
-    let mut app = Fixture::default();
-    app.merge_view = false;
+    let mut app = Fixture {
+        merge_view: false,
+        ..Default::default()
+    };
 
     assert_eq!(
         render_count(&app, 0, 2, 0, 3, &["old a", "old b"], &["new a", "new b", "new c"]),
@@ -108,33 +116,41 @@ fn render_replace_ops_split_view_uses_max_old_new_count() {
 
 #[test]
 fn render_replace_ops_handles_equal_length_word_diff_and_missing_lines() {
-    let mut app = Fixture::default();
-    app.show_git_diff_highlight = true;
-    app.merge_view = false;
+    let mut app = Fixture {
+        show_git_diff_highlight: true,
+        merge_view: false,
+        ..Default::default()
+    };
 
     assert_eq!(render_count(&app, 0, 2, 0, 2, &["let a = 1;", "let b = 1;"], &["let a = 2;"]), 2);
 }
 
 #[test]
 fn render_replace_ops_merge_view_zero_old_len_emits_only_new_rows() {
-    let mut app = Fixture::default();
-    app.merge_view = true;
+    let mut app = Fixture {
+        merge_view: true,
+        ..Default::default()
+    };
 
     assert_eq!(render_count(&app, 0, 0, 0, 2, &[], &["new a", "new b"]), 2);
 }
 
 #[test]
 fn render_replace_ops_merge_view_zero_new_len_emits_only_old_rows() {
-    let mut app = Fixture::default();
-    app.merge_view = true;
+    let mut app = Fixture {
+        merge_view: true,
+        ..Default::default()
+    };
 
     assert_eq!(render_count(&app, 0, 2, 0, 0, &["old a", "old b"], &[]), 2);
 }
 
 #[test]
 fn render_replace_ops_split_view_zero_old_len_emits_only_new_panes() {
-    let mut app = Fixture::default();
-    app.merge_view = false;
+    let mut app = Fixture {
+        merge_view: false,
+        ..Default::default()
+    };
 
     assert_eq!(render_count(&app, 0, 0, 0, 2, &[], &["new a", "new b"]), 2);
 }
@@ -182,8 +198,10 @@ fn render_replace_ops_split_view_wraps_matching_context_menu_for_new_only_row() 
 
 #[test]
 fn render_replace_ops_split_view_zero_new_len_emits_only_old_panes() {
-    let mut app = Fixture::default();
-    app.merge_view = false;
+    let mut app = Fixture {
+        merge_view: false,
+        ..Default::default()
+    };
 
     assert_eq!(render_count(&app, 0, 2, 0, 0, &["old a", "old b"], &[]), 2);
 }

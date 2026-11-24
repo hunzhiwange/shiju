@@ -64,15 +64,16 @@ fn persist_web_search_settings(app: &mut WebSearchSettingsState) -> Result<Effec
     };
 
     Ok({
-        let mut web_search = config_tools::WebSearchConfig::default();
-        web_search.enabled = enabled;
-        web_search.provider = provider;
-        web_search.api_key = api_key;
-        web_search.api_url = api_url;
-        web_search.brave_api_key = brave_api_key;
-        web_search.max_results = max_results;
-        web_search.timeout_secs = timeout_secs;
-        web_search.user_agent = user_agent;
+        let web_search = config_tools::WebSearchConfig {
+            enabled: enabled,
+            provider: provider,
+            api_key: api_key,
+            api_url: api_url,
+            brave_api_key: brave_api_key,
+            max_results: max_results,
+            timeout_secs: timeout_secs,
+            user_agent: user_agent,
+        };
 
         Effect::Persist(web_search)
     })

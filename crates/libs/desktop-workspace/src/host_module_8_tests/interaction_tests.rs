@@ -2,8 +2,10 @@ use crate::interaction::{InteractionState, handle_local};
 type LocalMessage = crate::project_message::message::ProjectMessage<(), (), ()>;
 #[test]
 fn rename_changed_and_cancel_manage_rename_state() {
-    let mut app = InteractionState::default();
-    app.file_tree_rename_path = Some("/tmp/a.txt".to_string());
+    let mut app = InteractionState {
+        file_tree_rename_path: Some("/tmp/a.txt".to_string()),
+        ..Default::default()
+    };
 
     let _ = handle_local(&mut app, &LocalMessage::FileTreeRenameChanged("b.txt".to_string()));
     assert_eq!(app.file_tree_rename_value, "b.txt");

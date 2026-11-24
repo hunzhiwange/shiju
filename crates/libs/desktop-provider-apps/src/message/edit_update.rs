@@ -431,11 +431,10 @@ pub fn update(state: &mut State, current: Option<(GatewayClient, Scope)>, token:
                 if !form.identified() {
                     return crate::message::provider_update::error("请填写标识与名称");
                 }
-            } else if !matches!(form.mode, Mode::Delete) {
-                if let Err(e) = form.request() {
+            } else if !matches!(form.mode, Mode::Delete)
+                && let Err(e) = form.request() {
                     return crate::message::provider_update::error(e);
                 }
-            }
             form.saving = true;
             let form = form.clone();
             let token = token.to_owned();

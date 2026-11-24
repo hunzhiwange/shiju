@@ -6,8 +6,7 @@ use serde_json::json;
 use std::path::Path;
 use vw_api_transport::common::TimestampMs;
 
-use crate::domain::{AgentRunStatus, AssigneeId, TaskId};
-use crate::events::AgentEventKind;
+use crate::domain::{AgentRunStatus, TaskId};
 use crate::runner::local::{
     LocalAgentExecutionOutput, LocalAgentExecutionRequest, LocalAgentExecutor, LocalAgentRunner,
     LocalAgentRunnerRequest, LocalAgentWorkspace, LocalAgentWorkspaceRequest,

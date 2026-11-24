@@ -25,3 +25,9 @@ impl Feedback {
         }
     }
 }
+
+impl Default for Feedback {
+    fn default() -> Self {
+        Self::new()
+    }
+}

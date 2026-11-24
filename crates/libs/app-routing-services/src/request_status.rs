@@ -82,11 +82,9 @@ impl Guard {
     fn output(&self) {
         if let Some(row) =
             self.requests.0.lock().iter_mut().find(|row| row.status.request_id == self.id)
-        {
-            if row.status.first_token_ms.is_none() {
+            && row.status.first_token_ms.is_none() {
                 row.status.first_token_ms = Some(millis(row.started));
             }
-        }
     }
     fn finish(&self, state: State) {
         let mut rows = self.requests.0.lock();

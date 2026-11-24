@@ -45,11 +45,11 @@ pub fn view(i18n: desktop_i18n::I18n,
     };
     let label = i18n.__(label);
     let queried_at = result.queried_at.and_then(|at| DateTime::from_timestamp_millis(at.0));
-    body = body.push(line(i18n.format("来源 · %s · %s · 查询时间 %s", &[(format!("{}", label)).into(), (format!("{}", source)).into(), (format!("{}", queried_at.map_or_else(|| i18n.__("未知").into(), |at| display_time(at, now)))).into()]).expect("valid display template")));
+    body = body.push(line(i18n.format("来源 · %s · %s · 查询时间 %s", &[(label.to_string()).into(), (source.to_string()).into(), (queried_at.map_or_else(|| i18n.__("未知").into(), |at| display_time(at, now)).to_string()).into()]).expect("valid display template")));
     if let Some(failure) = &snapshot.refresh_failure
         && let Some(at) = failure.queried_at.and_then(|at| DateTime::from_timestamp_millis(at.0))
     {
-        body = body.push(line(i18n.format("最近刷新失败 · %s", &[(format!("{}", display_time(at, now))).into()]).expect("valid display template")));
+        body = body.push(line(i18n.format("最近刷新失败 · %s", &[(display_time(at, now).to_string()).into()]).expect("valid display template")));
     }
 
     if let UsageQueryOutcome::Success { data } = &result.outcome {
@@ -95,7 +95,7 @@ fn subscription_rows<M: 'static>(i18n: desktop_i18n::I18n,
     now: &DateTime<impl TimeZone>,
 ) -> Column<'static, M> {
     if let Some(tier) = &subscription.rate_limit_tier {
-        body = body.push(line(i18n.format("限额档位 · %s", &[(format!("{}", tier)).into()]).expect("valid display template")));
+        body = body.push(line(i18n.format("限额档位 · %s", &[(tier.to_string()).into()]).expect("valid display template")));
     }
     body = window_rows(i18n, body, &subscription.windows, now);
     if let Some(credits) = credits_line(subscription.credits_balance) {
@@ -104,7 +104,7 @@ fn subscription_rows<M: 'static>(i18n: desktop_i18n::I18n,
             CreditsUsdEstimate::RoundedDollars(dollars) => format!("${dollars}"),
         };
         body =
-            body.push(line(i18n.format("Credits · %s · 估算 %s", &[(format!("{}", f64::from(credits.balance))).into(), (format!("{}", estimate)).into()]).expect("valid display template")));
+            body.push(line(i18n.format("Credits · %s · 估算 %s", &[(format!("{}", f64::from(credits.balance))).into(), (estimate.to_string()).into()]).expect("valid display template")));
     }
     if let Some(credits) = reset_credits_line(subscription.reset_credits.as_deref(), now) {
         body = body.push(line(i18n.format("可用重置 · %u 次", &[credits.count.into()]).expect("valid display template")));
@@ -155,7 +155,7 @@ fn window_rows<M: 'static>(i18n: desktop_i18n::I18n,
             .as_deref()
             .and_then(|at| at.parse::<DateTime<chrono::FixedOffset>>().ok())
         {
-            values.push(i18n.format("重置时间 %s", &[(format!("{}", display_time(at.to_utc(), now))).into()]).expect("valid display template"));
+            values.push(i18n.format("重置时间 %s", &[(display_time(at.to_utc(), now).to_string()).into()]).expect("valid display template"));
         }
         body = body.push(line(values.join(" · ")));
     }

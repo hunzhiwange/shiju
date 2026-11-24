@@ -17,10 +17,3 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         }
     }
 }
-
-#[cfg(test)]
-pub(crate) use desktop_settings_skills::storage_modal::Readback;
-#[cfg(test)]
-pub(crate) use desktop_settings_skills::update::storage_modal::Change;
-#[cfg(test)]
-pub(crate) use desktop_settings_skills::update::storage_modal::open_local;

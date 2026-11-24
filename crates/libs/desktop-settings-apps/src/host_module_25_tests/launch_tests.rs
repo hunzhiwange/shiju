@@ -2,7 +2,6 @@ use super::{launch_fixture, launch_route as route};
 use crate::system_settings_apps::launch::{LaunchChoice, LaunchState};
 use vw_api_app_identity::{
     AppId, AppInstallationId, LaunchIdentity, LaunchIdentityKind, LaunchRequest, LaunchResult,
-    LaunchSessionPhase,
 };
 type LaunchMessage =
     crate::system_settings_apps::launch::LaunchMessage<desktop_apps_ui::AgentAppsContext>;

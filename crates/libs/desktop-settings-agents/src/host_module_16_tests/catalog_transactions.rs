@@ -160,7 +160,7 @@ async fn agent_catalog_view_renders_long_chinese_cards_in_both_themes() {
             &Rectangle::with_size(bounds),
         );
         let pixels = renderer.screenshot(Size::new(1400, 1000), 1.0, Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
         image::save_buffer(
             format!("/tmp/shiju-agent-catalog-{name}.png"),
             &pixels,

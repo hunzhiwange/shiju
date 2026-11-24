@@ -18,9 +18,9 @@ async fn inline_editor_renders_chinese_and_submits_without_row_actions() {
                 Cache::new(),
                 &mut renderer,
             );
-            ui.operate(&mut renderer, &mut operation::focusable::focus(INPUT_ID.into()));
+            ui.operate(&renderer, &mut operation::focusable::focus(INPUT_ID.into()));
             ui.operate(
-                &mut renderer,
+                &renderer,
                 &mut operation::text_input::select_range(INPUT_ID.into(), 0, 5),
             );
             ui.draw(

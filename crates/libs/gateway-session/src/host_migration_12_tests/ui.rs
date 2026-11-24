@@ -4,7 +4,6 @@ use super::*;
 use crate::ui_ops::*;
 use axum::Json;
 use session_ui_types as ui_models;
-use vw_api_transport::TenantScope;
 use vw_api_todo::todo::{TodoPriority, TodoStatus};
 use std::collections::BTreeSet;
 use gateway_instance::host::InstanceQuery;

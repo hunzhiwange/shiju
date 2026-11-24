@@ -317,7 +317,7 @@ pub fn inline_spans<'a>(
                 value = value.font(font);
             }
             if let Some(target) =
-                part.target.as_ref().and_then(|target| visible_target(target))
+                part.target.as_ref().and_then(&visible_target)
             {
                 value = value.link(target).underline(true).color(link_color);
             }

@@ -213,7 +213,7 @@ fn split_legacy_chars(
             end = range_end;
         }
         if end < range_end {
-            end = prefer_boundary(&chars, start, end).max(start + 1);
+            end = prefer_boundary(chars, start, end).max(start + 1);
         }
         end = adjust_end_for_protected(start, end, range_end, protected_spans);
         let (content_start, content_end) = trim_bounds(chars, start, end);
@@ -252,9 +252,9 @@ fn heading_boundaries(text: &str, dominant_level: usize) -> Vec<HeadingBoundary>
             position += segment.chars().count();
             continue;
         }
-        if !in_fence {
-            if let Some(heading) = parse_markdown_heading(line) {
-                if heading.level <= dominant_level {
+        if !in_fence
+            && let Some(heading) = parse_markdown_heading(line)
+                && heading.level <= dominant_level {
                     if position == 0 {
                         boundaries[0].heading = Some(heading);
                     } else {
@@ -262,8 +262,6 @@ fn heading_boundaries(text: &str, dominant_level: usize) -> Vec<HeadingBoundary>
                             .push(HeadingBoundary { start_at: position, heading: Some(heading) });
                     }
                 }
-            }
-        }
         position += segment.chars().count();
     }
 

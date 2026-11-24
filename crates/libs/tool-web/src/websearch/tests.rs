@@ -229,7 +229,7 @@ fn parse_numbered_results_ignores_empty_titles_and_preserves_non_numeric_lines()
 
 #[tokio::test]
 async fn execute_rejects_non_object_parameters_before_network() {
-    let error = new_tool().execute(json!([])).await.err().expect("array args must fail");
+    let error = new_tool().execute(json!([])).await.expect_err("array args must fail");
 
     assert!(error.to_string().contains("Missing or invalid parameters"));
 }

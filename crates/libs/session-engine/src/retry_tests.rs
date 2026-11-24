@@ -33,7 +33,7 @@ fn delay_prefers_retry_after_headers_case_insensitively() {
         message: "rate limited".to_string(),
         status_code: Some(429),
         response_body: None,
-        response_headers: Some(headers),
+        response_headers: Some(Box::new(headers)),
         metadata: None,
         is_retryable: true,
     };
@@ -60,7 +60,7 @@ fn delay_uses_retry_after_seconds_and_exponential_fallbacks() {
         message: "rate limited".to_string(),
         status_code: Some(429),
         response_body: None,
-        response_headers: Some(headers),
+        response_headers: Some(Box::new(headers)),
         metadata: None,
         is_retryable: true,
     };
@@ -70,10 +70,10 @@ fn delay_uses_retry_after_seconds_and_exponential_fallbacks() {
         message: "retry".to_string(),
         status_code: Some(503),
         response_body: None,
-        response_headers: Some(HashMap::from([
+        response_headers: Some(Box::new(HashMap::from([
             ("retry-after-ms".to_string(), "-1".to_string()),
             ("retry-after".to_string(), "nan".to_string()),
-        ])),
+        ]))),
         metadata: None,
         is_retryable: true,
     };
@@ -89,10 +89,10 @@ fn delay_falls_back_from_invalid_milliseconds_to_trimmed_seconds() {
         message: "rate limited".to_string(),
         status_code: Some(429),
         response_body: None,
-        response_headers: Some(HashMap::from([
+        response_headers: Some(Box::new(HashMap::from([
             ("retry-after-ms".to_string(), "infinite".to_string()),
             ("retry-after".to_string(), " 0.0011 ".to_string()),
-        ])),
+        ]))),
         metadata: None,
         is_retryable: true,
     };
@@ -107,7 +107,7 @@ fn delay_only_caps_backoff_when_response_headers_are_absent() {
         message: "temporary".to_string(),
         status_code: Some(503),
         response_body: None,
-        response_headers: Some(HashMap::new()),
+        response_headers: Some(Box::new(HashMap::new())),
         metadata: None,
         is_retryable: true,
     };

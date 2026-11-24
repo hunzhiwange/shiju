@@ -249,7 +249,7 @@ pub async fn execute_tool_calls_and_update_history<C: ContextHost, T, P, O, N>(
 
     let all_outcomes_returned = executable_calls.len() == executed_outcomes.len();
     for ((idx, call), outcome) in
-        executable_indices.iter().zip(executable_calls.iter()).zip(executed_outcomes.into_iter())
+        executable_indices.iter().zip(executable_calls.iter()).zip(executed_outcomes)
     {
         let call = (services.pending_view)(call);
         let view = (services.outcome_view)(&outcome);
@@ -265,15 +265,15 @@ pub async fn execute_tool_calls_and_update_history<C: ContextHost, T, P, O, N>(
                 "iteration": iteration + 1,
                 "tool": view.tool_name.to_string(),
                 "duration_ms": view.duration.as_millis(),
-                "output": (services.scrub_credentials)(&view.output),
+                "output": (services.scrub_credentials)(view.output),
             }),
         );
 
         if let Some(tx) = on_delta {
             let secs = view.duration.as_secs();
             let icon = if view.success { "\u{2705}" } else { "\u{274c}" };
-            let (_, done_action) = (services.progress_actions)(&view.tool_name);
-            let label = (services.progress_label)(&view.tool_name, &call.arguments);
+            let (_, done_action) = (services.progress_actions)(view.tool_name);
+            let label = (services.progress_label)(view.tool_name, call.arguments);
             let _ = tx
                 .send(format!(
                     "{}{icon} {} · {} · {secs}s\n",

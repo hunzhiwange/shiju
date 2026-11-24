@@ -5,8 +5,10 @@ fn apply(state: &mut MemorySettingsState, message: MemoryMessage) { let _ = upda
 
 #[test]
 fn update_applies_backend_retention_and_embedding_text_fields() {
-    let mut app = MemorySettingsState::default();
-    app.save_error = Some("old".to_string());
+    let mut app = MemorySettingsState {
+        save_error: Some("old".to_string()),
+        ..Default::default()
+    };
 
     apply(&mut app, MemoryMessage::BackendChanged(" NULL ".to_string()));
     apply(&mut app, MemoryMessage::ArchiveAfterDaysChanged(12));

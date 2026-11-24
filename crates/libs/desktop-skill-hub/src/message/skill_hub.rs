@@ -502,7 +502,7 @@ pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Messa
                 && let Some(detail) = app.expert_hub.detail.as_mut()
             {
                 detail.versions =
-                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
+                    result.map(LoadState::Loaded).unwrap_or_else(LoadState::Error);
             }
             Task::none()
         }
@@ -544,13 +544,13 @@ pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Messa
                     "已在系统浏览器中打开技能下载",
                     vec![],
                 ),
-                Err(error) => show_skill_error(app, ToastKind::Error, None, error.into()),
+                Err(error) => show_skill_error(app, ToastKind::Error, None, error),
             }
         }
         SkillHubMessage::MarketplaceLoaded { generation, account_id, result } => {
             if response_is_current(app, generation, &account_id) {
                 app.expert_hub.marketplace =
-                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
+                    result.map(LoadState::Loaded).unwrap_or_else(LoadState::Error);
             }
             Task::none()
         }
@@ -568,35 +568,35 @@ pub fn update(app: &mut SkillUpdate<'_>, message: SkillHubMessage) -> Task<Messa
                     }
                 }
                 app.expert_hub.installed =
-                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
+                    result.map(LoadState::Loaded).unwrap_or_else(LoadState::Error);
             }
             Task::none()
         }
         SkillHubMessage::SystemLoaded { generation, account_id, result } => {
             if response_is_current(app, generation, &account_id) {
                 app.expert_hub.system =
-                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
+                    result.map(LoadState::Loaded).unwrap_or_else(LoadState::Error);
             }
             Task::none()
         }
         SkillHubMessage::MineLoaded { generation, account_id, result } => {
             if response_is_current(app, generation, &account_id) {
                 app.expert_hub.mine =
-                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
+                    result.map(LoadState::Loaded).unwrap_or_else(LoadState::Error);
             }
             Task::none()
         }
         SkillHubMessage::PlatformTagCatalogLoaded { generation, account_id, result } => {
             if tag_catalog_response_is_current(app, generation, &account_id) {
                 app.expert_hub.platform_tag_catalog =
-                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
+                    result.map(LoadState::Loaded).unwrap_or_else(LoadState::Error);
             }
             Task::none()
         }
         SkillHubMessage::CompanyTagCatalogLoaded { generation, account_id, result } => {
             if tag_catalog_response_is_current(app, generation, &account_id) {
                 app.expert_hub.company_tag_catalog =
-                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
+                    result.map(LoadState::Loaded).unwrap_or_else(LoadState::Error);
             }
             Task::none()
         }

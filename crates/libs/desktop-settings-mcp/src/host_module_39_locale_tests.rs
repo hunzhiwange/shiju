@@ -3,8 +3,10 @@ use config_ui::DesktopLocale;
 
 #[test]
 fn desktop_gettext_area_6_mcp_validation_keeps_semantic_error() {
-    let mut state = crate::state::State::default();
-    state.editor = iced::widget::text_editor::Content::with_text("{");
+    let mut state = crate::state::State {
+        editor: iced::widget::text_editor::Content::with_text("{"),
+        ..Default::default()
+    };
     let _ = crate::configuration_update::update(
         &mut state,
         crate::configuration_update::Message::Format,

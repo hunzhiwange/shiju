@@ -1,5 +1,5 @@
 use super::{JsonTarget, VerifiedRouteBinding};
-use crate::app_routing::{RoutingListener, SharedTransport, dispatch::prepare_request};
+use crate::app_routing::{SharedTransport, dispatch::prepare_request};
 use axum::{
     Json, Router,
     extract::Path,

@@ -21,15 +21,14 @@ impl ComputerUseClient {
 
         self.validate_action(action, &params)?;
 
-        if action == "screen_capture" {
-            if let Some(path) = params.get("path").and_then(Value::as_str) {
+        if action == "screen_capture"
+            && let Some(path) = params.get("path").and_then(Value::as_str) {
                 let resolved = self.resolve_output_path_for_write("path", path).await?;
                 params.insert(
                     "path".to_string(),
                     Value::String(resolved.to_string_lossy().into_owned()),
                 );
             }
-        }
 
         let payload = json!({
             "action": action,

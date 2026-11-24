@@ -33,7 +33,7 @@ fn tooltip_style(_theme: &Theme) -> iced::widget::container::Style {
 
 fn hover_message(hover: Option<ModelPopoverHover>) -> Message {
     std::hint::black_box(hover);
-    ()
+
 }
 
 fn exit_message() -> Message {
@@ -87,15 +87,19 @@ fn hover_text_trigger_records_initial_unanchored_text() {
     let observed = Rc::new(RefCell::new(None));
     let captured = Rc::clone(&observed);
 
-    keep(hover_text_trigger(
-        text("trigger"),
-        "plain tooltip",
-        move |hover| {
-            *captured.borrow_mut() = hover;
-            exit_message()
-        },
-        exit_message(),
-    ));
+    keep({
+        exit_message();
+        exit_message();
+        hover_text_trigger(
+            text("trigger"),
+            "plain tooltip",
+            move |hover| {
+                *captured.borrow_mut() = hover;
+
+            },
+            (),
+        )
+    });
 
     let observed = observed.borrow();
     let Some(ModelPopoverHover::Text { text, anchor }) = observed.as_ref() else {
@@ -110,16 +114,20 @@ fn hover_model_trigger_records_initial_unanchored_ids() {
     let observed = Rc::new(RefCell::new(None));
     let captured = Rc::clone(&observed);
 
-    keep(hover_model_trigger(
-        text("model"),
-        "openai",
-        "gpt-test",
-        move |hover| {
-            *captured.borrow_mut() = hover;
-            exit_message()
-        },
-        exit_message(),
-    ));
+    keep({
+        exit_message();
+        exit_message();
+        hover_model_trigger(
+            text("model"),
+            "openai",
+            "gpt-test",
+            move |hover| {
+                *captured.borrow_mut() = hover;
+
+            },
+            (),
+        )
+    });
 
     let observed = observed.borrow();
     let Some(ModelPopoverHover::Model { provider_id, model_id, anchor }) = observed.as_ref() else {
@@ -135,16 +143,20 @@ fn hover_model_trigger_preserves_empty_identifiers() {
     let observed = Rc::new(RefCell::new(None));
     let captured = Rc::clone(&observed);
 
-    keep(hover_model_trigger(
-        text("model"),
-        "",
-        "",
-        move |hover| {
-            *captured.borrow_mut() = hover;
-            exit_message()
-        },
-        exit_message(),
-    ));
+    keep({
+        exit_message();
+        exit_message();
+        hover_model_trigger(
+            text("model"),
+            "",
+            "",
+            move |hover| {
+                *captured.borrow_mut() = hover;
+
+            },
+            (),
+        )
+    });
 
     let observed = observed.borrow();
     let Some(ModelPopoverHover::Model { provider_id, model_id, anchor }) = observed.as_ref() else {

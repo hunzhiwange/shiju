@@ -47,7 +47,7 @@ fn indexed_path(mut tree: &FileTreeNode, relative: &Path) -> bool {
         match tree.children.get(name) {
             Some(child) => tree = child,
             None => {
-                return components.peek().is_none() && tree.files.iter().any(|file| *file == key);
+                return components.peek().is_none() && tree.files.contains(&key);
             }
         }
     }

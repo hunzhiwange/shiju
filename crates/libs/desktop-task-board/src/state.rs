@@ -284,15 +284,15 @@ impl State {
 
             // ========== 任务板定时器 ==========
             // 下次刷新时间（60秒后）
-            task_board_next_refresh_at_ms: (init_ms as u64).saturating_add(60_000),
+            task_board_next_refresh_at_ms: init_ms.saturating_add(60_000),
             // 下次调度器tick（1秒后）
-            task_board_next_scheduler_tick_at_ms: (init_ms as u64).saturating_add(1_000),
+            task_board_next_scheduler_tick_at_ms: init_ms.saturating_add(1_000),
             // 下次自动审查tick（30秒后）
-            task_board_next_auto_review_tick_at_ms: (init_ms as u64).saturating_add(30_000),
+            task_board_next_auto_review_tick_at_ms: init_ms.saturating_add(30_000),
             // 下次自动提升tick（30秒后）
-            task_board_next_auto_promote_tick_at_ms: (init_ms as u64).saturating_add(30_000),
+            task_board_next_auto_promote_tick_at_ms: init_ms.saturating_add(30_000),
             // 下次自动合并tick（10秒后）
-            task_board_next_auto_merge_tick_at_ms: (init_ms as u64).saturating_add(10_000),
+            task_board_next_auto_merge_tick_at_ms: init_ms.saturating_add(10_000),
             task_board_worktree_desired_capacity: None,
             // 日志刷新和扫描游标
             task_board_last_log_flush_at_ms: 0,

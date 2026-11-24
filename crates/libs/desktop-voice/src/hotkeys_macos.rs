@@ -76,10 +76,7 @@ impl Reservations {
         }
         let mut handles = Self(Vec::new());
         for (index, key) in keys.enumerate() {
-            let modifiers = u32::from(key.modifiers & COMMAND != 0) * (1 << 8)
-                | u32::from(key.modifiers & SHIFT != 0) * (1 << 9)
-                | u32::from(key.modifiers & ALT != 0) * (1 << 11)
-                | u32::from(key.modifiers & CONTROL != 0) * (1 << 12);
+            let modifiers = (u32::from(key.modifiers & COMMAND != 0) * (1 << 8)) | (u32::from(key.modifiers & SHIFT != 0) * (1 << 9)) | (u32::from(key.modifiers & ALT != 0) * (1 << 11)) | (u32::from(key.modifiers & CONTROL != 0) * (1 << 12));
             let mut handle = ptr::null();
             // SAFETY: main-thread-only Carbon calls, valid output pointer, exclusive reservation.
             let result = unsafe {

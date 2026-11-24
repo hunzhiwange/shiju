@@ -6,7 +6,7 @@ use super::*;
 ///
 /// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
 pub(crate) fn handle(app: &mut Context<'_>, message: WorkflowMessage) -> Option<Task<Output>> {
-    if crate::message::document::handle(&mut app.workflow_state, app.window_size, message.clone()) {
+    if crate::message::document::handle(app.workflow_state, app.window_size, message.clone()) {
         return Some(Task::none());
     }
     Some(match message {

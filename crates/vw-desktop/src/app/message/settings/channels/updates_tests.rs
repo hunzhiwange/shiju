@@ -5,7 +5,7 @@ use super::*;
 use crate::app::App;
 use std::sync::Arc;
 use gateway_channel_qr::{
-    ChannelQrFetchResponseDto, ChannelQrStatusDto, ChannelQrStatusResponseDto,
+    ChannelQrStatusDto, ChannelQrStatusResponseDto,
 };
 
 fn app() -> App {

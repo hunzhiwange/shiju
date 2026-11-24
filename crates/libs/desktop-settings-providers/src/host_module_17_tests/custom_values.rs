@@ -212,7 +212,7 @@ async fn ui_refresh_09_preserves_values_and_disabled_states() {
     assert!(saved.output_modalities.is_none());
     assert!(saved.inherited_capabilities.as_ref().unwrap().tool_call);
 
-    let _ = provider_update(
+    provider_update(
         &mut app,
         crate::provider_message::SettingsMessage::CustomProviderModelOpen(Some(0)),
     );
@@ -231,7 +231,7 @@ async fn ui_refresh_09_preserves_values_and_disabled_states() {
     apply(&mut app, filtered);
     app.provider_settings.custom_editing_provider_id = Some("fixture".into());
     screenshot(&app, &mut renderer, &Theme::Light, Size::new(420, 620), "provider-models-empty");
-    let _ = provider_update(
+    provider_update(
         &mut app,
         crate::provider_message::SettingsMessage::CustomProviderSaveDone(Err(
             "Fixture save failed".into(),

@@ -1801,7 +1801,7 @@ fn searchable_text(message: &UiMessage) -> Cow<'_, str> {
             .as_deref()
             .map(Cow::Borrowed)
             .or_else(|| message.arguments.as_deref().map(Cow::Borrowed))
-            .unwrap_or_else(|| Cow::Borrowed(message.tool_name.as_str())),
+            .unwrap_or(Cow::Borrowed(message.tool_name.as_str())),
         UiMessage::ToolResult(message) => Cow::Borrowed(message.content.as_str()),
         UiMessage::Thinking(message) => {
             if let Some(summary) = message.summary.as_deref() {

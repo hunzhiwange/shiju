@@ -406,7 +406,7 @@ async fn ui_refresh_10_preserves_values_and_disabled_states() {
 async fn ui_refresh_10_detail_scrolls_and_closes_without_saving() {
     let mut renderer = renderer().await;
     let mut app = fixture();
-    let _ = update(&mut app, SettingsMessage::ModelDetailOpen(PROVIDER.into(), MODEL.into()));
+    update(&mut app, SettingsMessage::ModelDetailOpen(PROVIDER.into(), MODEL.into()));
     let size = Size::new(420, 620);
     for (locale, theme, name) in [
         (DesktopLocale::English, Theme::Dark, "detail-en-dark-420"),

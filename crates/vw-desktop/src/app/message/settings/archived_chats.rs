@@ -133,8 +133,3 @@ pub(crate) fn gateway_changed(app: &mut App) -> Task<Message> {
 #[cfg(test)]
 #[path = "archived_chats_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-pub use desktop_settings_sessions::archived_chats::accept_restore;
-#[cfg(test)]
-pub use desktop_settings_sessions::archived_chats::apply;

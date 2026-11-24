@@ -58,12 +58,11 @@ async fn execute(tenant: TenantScope, db: Option<Extension<GlobalDatabase>>, pol
                 policy.0.as_deref(), &headers, &project, &scope.target_host_id)?;
             let id = match &operation { Operation::List => None,
                 Operation::Delete(id) | Operation::Restore(id, _, _) => Some(id) };
-            if let Some(id) = id {
-                if !id.starts_with("skill-uninstall-") || id.len() > 255
-                    || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
+            if let Some(id) = id
+                && (!id.starts_with("skill-uninstall-") || id.len() > 255
+                    || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')) {
                     return Err(StatusCode::BAD_REQUEST);
                 }
-            }
             let backups = backup_root(&root, &project, &scope.target_host_id)?;
             let entries = match backup_catalog::list_backups(&backups) {
                 Ok(entries) => entries,

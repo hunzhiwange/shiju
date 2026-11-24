@@ -243,12 +243,11 @@ pub(crate) fn normalize_shell_arguments(
 
             // 尝试从各种别名字段提取命令
             for alias in ["cmd", "script", "shell_command", "command_line", "bash", "sh", "input"] {
-                if let Some(value) = map.get(alias).and_then(|v| v.as_str()) {
-                    if let Some(command) = normalize_shell_command_from_raw(value) {
+                if let Some(value) = map.get(alias).and_then(|v| v.as_str())
+                    && let Some(command) = normalize_shell_command_from_raw(value) {
                         map.insert("command".to_string(), serde_json::Value::String(command));
                         return serde_json::Value::Object(map);
                     }
-                }
             }
 
             // 尝试从 url 或 http_url 字段提取并构建 curl 命令
@@ -258,12 +257,10 @@ pub(crate) fn normalize_shell_arguments(
                 .and_then(|v| v.as_str())
                 .map(str::trim)
                 .filter(|url| !url.is_empty())
-            {
-                if let Some(command) = normalize_shell_command_from_raw(url) {
+                && let Some(command) = normalize_shell_command_from_raw(url) {
                     map.insert("command".to_string(), serde_json::Value::String(command));
                     return serde_json::Value::Object(map);
                 }
-            }
 
             // 最后尝试使用原始字符串提示
             if let Some(raw) = raw_string_hint.and_then(normalize_shell_command_from_raw) {
@@ -878,15 +875,14 @@ pub fn parse_glm_shortened_body(body: &str) -> Option<ParsedToolCall> {
             .trim_end_matches('/')
             .trim();
         (tool, attrs)
-    } else if let Some(gt_pos) = body.find('>') {
+    } else {
+        let gt_pos = body.find('>')?;
         // GLM 缩写格式：`tool_name>value`
         let tool = body[..gt_pos].trim();
         let value = body[gt_pos + 1..].trim();
         // 去除某些模型输出的尾部自闭合标记
         let value = value.trim_end_matches("/>").trim_end_matches('/').trim();
         (tool, value)
-    } else {
-        return None;
     };
 
     // 验证工具名称：仅允许字母数字和下划线

@@ -46,14 +46,3 @@ mod settings_tests;
 
 mod worktrees;
 pub(crate) use worktrees::*;
-
-#[cfg(test)]
-pub(crate) use acp_diagnostic::AcpDiagnosticStatus;
-#[cfg(test)]
-pub(crate) use cron_frequency::CronFrequency;
-#[cfg(test)]
-pub(crate) use cron_history::*;
-#[cfg(test)]
-pub(crate) use cron_schedule_draft::*;
-#[cfg(test)]
-pub(super) use super::*;

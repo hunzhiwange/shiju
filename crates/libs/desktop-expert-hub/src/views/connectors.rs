@@ -33,7 +33,7 @@ pub fn view<'a, M: Clone + 'static>(app: &ViewInput<'a>, help: HelpRenderer<M>, 
         help_label(
             help,
             i18n,
-            &app.app_theme,
+            app.app_theme,
             title,
             text(title).size(22),
             i18n.__("查看并授权你自己的连接器账号。"),

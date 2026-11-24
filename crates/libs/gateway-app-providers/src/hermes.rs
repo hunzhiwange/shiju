@@ -207,7 +207,7 @@ fn execute(
         let read_only = member.as_ref().is_some_and(read_only_member);
         let row = match before {
             Some(row) => row,
-            None => native_row(member.as_ref().filter(|_| !read_only).ok_or_else(|| {
+            None => native_row(member.as_ref().filter(|_| !read_only).ok_or({
                 if read_only { StatusCode::UNPROCESSABLE_ENTITY } else { StatusCode::NOT_FOUND }
             })?),
         };

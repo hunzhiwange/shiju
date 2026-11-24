@@ -54,15 +54,17 @@ impl Tool for NamedTool {
 }
 
 fn approval_config(auto_approve: &[&str]) -> AutonomyConfig {
-    let mut config = AutonomyConfig::default();
-    config.level = AutonomyLevel::Supervised;
-    config.auto_approve = auto_approve.iter().map(|tool| (*tool).to_string()).collect();
-    config.always_ask = Vec::new();
+    let mut config = AutonomyConfig {
+        level: AutonomyLevel::Supervised,
+        auto_approve: auto_approve.iter().map(|tool| (*tool).to_string()).collect(),
+        always_ask: Vec::new(),
+        ..Default::default()
+    };
     config
 }
 
 fn boxed_tools(names: &[&'static str]) -> Arc<Vec<Box<dyn Tool>>> {
-    Arc::new(names.iter().map(|name| Box::new(NamedTool(*name)) as Box<dyn Tool>).collect())
+    Arc::new(names.iter().map(|name| Box::new(NamedTool(name)) as Box<dyn Tool>).collect())
 }
 
 fn context(

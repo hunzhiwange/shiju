@@ -308,7 +308,7 @@ async fn run_fixture<H: ProfileAcceptanceHost>(root: &Path, test_name: &str) {
 
     let original = read_desktop_history(&app, &source).await;
     assert_eq!(original.len(), 6);
-    for (index, turn) in original.chunks_exact(2).enumerate() {
+    for (index, turn) in original.as_chunks::<2>().0.iter().enumerate() {
         assert_eq!(turn[0].message.role, ChatRole::User);
         assert_eq!(turn[0].message.content, PROMPTS[index]);
         assert_eq!(turn[1].message.role, ChatRole::Assistant);

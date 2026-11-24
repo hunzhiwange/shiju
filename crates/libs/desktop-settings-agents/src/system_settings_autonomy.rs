@@ -275,7 +275,7 @@ pub fn view<'a>(app: &View<'a>) -> Element<'a, Message> {
                 .__("仅允许在工作区路径内操作，除非显式加入 allowed_roots。"),
             s.workspace_only,
             desktop_i18n::I18n::new(app.desktop_locale).__("仅限工作区"),
-            |v| Message::AutonomyWorkspaceOnlyToggled(v),
+            Message::AutonomyWorkspaceOnlyToggled,
         )
     };
 

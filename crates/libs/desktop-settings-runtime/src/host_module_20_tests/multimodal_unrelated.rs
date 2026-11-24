@@ -2,11 +2,13 @@ use crate::messages::SettingsMessage;
 use crate::multimodal::update;
 #[test]
 fn update_ignores_messages_for_other_settings_sections() {
-    let mut app = crate::state::MultimodalSettingsState::default();
-    app.max_images = 7;
-    app.max_image_size_mb = 12;
-    app.allow_remote_fetch = true;
-    app.save_error = Some("keep".to_string());
+    let mut app = crate::state::MultimodalSettingsState {
+        max_images: 7,
+        max_image_size_mb: 12,
+        allow_remote_fetch: true,
+        save_error: Some("keep".to_string()),
+        ..Default::default()
+    };
 
     let _ = update(&mut app, SettingsMessage::ReliabilityHelpClose);
 

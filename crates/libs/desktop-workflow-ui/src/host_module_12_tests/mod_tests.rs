@@ -225,6 +225,6 @@ async fn controller_loaded_workflow_draws_in_light_and_dark_themes() {
             &viewport,
         );
         let pixels = renderer.screenshot(Size::new(1440, 960), 1.0, Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
     }
 }

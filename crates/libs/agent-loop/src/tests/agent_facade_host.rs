@@ -264,7 +264,8 @@ fn build_resolved_agent_applies_runtime_defaults() {
         build_resolved_agent("explore", role_config, &Vec::new(), &Vec::new());
     assert_eq!(explore_keeps_custom.definition.system_prompt.as_deref(), Some("custom"));
 
-    for key in ["explore"] {
+    {
+        let key = "explore";
         let resolved =
             build_resolved_agent(key, DelegateAgentConfig::default(), &Vec::new(), &Vec::new());
         assert!(
@@ -341,7 +342,7 @@ fn build_resolved_agent_allows_selected_skills() {
     );
 
     assert_eq!(
-        permission_next::evaluate("skill", "shiju", &[resolved.permission.clone()]).action,
+        permission_next::evaluate("skill", "shiju", std::slice::from_ref(&resolved.permission)).action,
         Action::Allow
     );
     assert_eq!(

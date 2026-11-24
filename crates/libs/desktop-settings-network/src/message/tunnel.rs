@@ -67,7 +67,7 @@ fn build_tunnel_config(s: &TunnelSettingsState) -> TunnelConfig {
 }
 
 fn persist_tunnel_settings(app: &mut TunnelSettingsState) -> Effect {
-    let config = build_tunnel_config(&app);
+    let config = build_tunnel_config(app);
     Effect::Persist(config)
 }
 

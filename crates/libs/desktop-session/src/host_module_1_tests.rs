@@ -170,8 +170,10 @@ mod cache_tests;
 
 #[test]
 fn rebuild_active_session_message_meta_keeps_tool_outside_step_indexing() {
-    let mut state = ActiveSessionViewState::<()>::default();
-    state.updated_ms = 3_000;
+    let mut state = ActiveSessionViewState::<()> {
+        updated_ms: 3_000,
+        ..Default::default()
+    };
     let chat = vec![
         ChatMessage {
             role: ChatRole::Assistant,

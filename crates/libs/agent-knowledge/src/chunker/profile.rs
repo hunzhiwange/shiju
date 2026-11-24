@@ -30,12 +30,11 @@ impl DocProfile {
             if in_fence {
                 continue;
             }
-            if let Some(heading) = parse_markdown_heading(line) {
-                if (1..=6).contains(&heading.level) {
+            if let Some(heading) = parse_markdown_heading(line)
+                && (1..=6).contains(&heading.level) {
                     profile.markdown_heading_counts[heading.level - 1] += 1;
                     profile.markdown_heading_total += 1;
                 }
-            }
         }
         profile
     }

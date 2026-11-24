@@ -247,9 +247,7 @@ impl<H: FileToolHost> ApplyPatchTool<H> {
     }
 
     fn read_state_metadata(&self, source_path: &Path, display_path: &str) -> Option<Value> {
-        if current_tool_use_context::<H>().is_none() {
-            return None;
-        }
+        current_tool_use_context::<H>()?;
 
         Some(match current_read_state_for_path::<H>(source_path) {
             Some(entry) => {

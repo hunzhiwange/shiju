@@ -135,8 +135,7 @@ pub fn build_code_visual_section<'a>(
                 row![
                     text(i18n.__("启用失败重试")).size(12),
                     Space::new().width(Length::Fill),
-                    settings_toggle(retry_config.enabled).on_toggle(|value|
-                        WorkflowMessage::NodeEditorCodeRetryEnabledChanged(value)),
+                    settings_toggle(retry_config.enabled).on_toggle(WorkflowMessage::NodeEditorCodeRetryEnabledChanged),
                 ]
                 .align_y(Alignment::Center),
                 {

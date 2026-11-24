@@ -131,7 +131,7 @@ impl State {
 type Message = Event;
 fn message(event: Event) -> Message { event }
 
-pub fn context(gateway: Option<&AgentAppsContext>, host: &str, generation: u64, access: u64, loading: bool, token: &str) -> Option<Context> {
+pub fn context(gateway: Option<&AgentAppsContext>, host: &str, generation: u64, access: u64, loading: bool, _token: &str) -> Option<Context> {
     if host.is_empty() || loading { return None; }
     Some(Context { gateway: gateway?.clone(), host: host.into(), generation, access })
 }
@@ -272,19 +272,16 @@ pub fn update(
     if let Event::Config(event) = event {
         return super::config::update(&mut state.config, context, project, token, client, notice, event);
     }
-    match event {
-        Event::Listener(event) => {
-            return super::config::update_inline(
-                &mut state.listener,
-                context,
-                project,
-                token,
-                client,
-                notice,
-                event,
-            );
-        }
-        _ => {}
+    if let Event::Listener(event) = event {
+        return super::config::update_inline(
+            &mut state.listener,
+            context,
+            project,
+            token,
+            client,
+            notice,
+            event,
+        );
     }
     let Some(context) = context else {
         return Task::none();
@@ -441,7 +438,8 @@ pub(crate) fn service_label(
     let connected = context.is_some();
     let fresh = connected && state.context == context;
     let status = state.status.as_ref().filter(|_| fresh);
-    let label = if fresh && state.unconfigured {
+
+    (if fresh && state.unconfigured {
         i18n.__("网关未启用路由管理")
     } else if fresh && state.busy {
         i18n.__("正在处理…")
@@ -458,8 +456,7 @@ pub(crate) fn service_label(
             None if !connected => i18n.__("等待连接执行主机"),
             None => i18n.__("状态未知"),
         }
-    };
-    label
+    }) as _
 }
 
 pub fn page_can_configure(state: &State, context: Option<Context>) -> bool {

@@ -22,7 +22,6 @@ use session_ui_types::{
 use super::store::{FirstResponseCommit, LlmRawStepKey, SessionStore};
 use agent_database::GlobalDatabase;
 use agent_database::config::DatabaseProvider;
-use agent_database::test_support::PostgresTestDatabase;
 use agent_project::store::ProjectStore;
 use session_port::llm_raw::LlmRawArtifact;
 

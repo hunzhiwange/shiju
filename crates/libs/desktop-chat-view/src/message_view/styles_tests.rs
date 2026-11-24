@@ -177,8 +177,8 @@ async fn thinking_status_spinner_matches_title_height_and_center() {
         let background = &pixels[pixels.len() - 4..];
         let spinner_width = spinner.width.ceil() as usize * 4;
         assert!(
-            pixels.chunks_exact(120 * 4).any(|row| {
-                row[..spinner_width].chunks_exact(4).any(|pixel| pixel != background)
+            pixels.as_chunks::<{ 120 * 4 }>().0.iter().any(|row| {
+                row[..spinner_width].as_chunks::<4>().0.iter().any(|pixel| pixel != background)
             }),
             "spinner should render in {theme:?}"
         );

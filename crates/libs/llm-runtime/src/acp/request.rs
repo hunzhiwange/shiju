@@ -424,14 +424,13 @@ pub async fn do_stream_request_acp<H: Host>(
         {
             return Err(acp_option_error("GLM skill mounts require a supported session_model launch with native tools enabled"));
         }
-        if cfg!(target_os = "linux") {
-            if parsed_options.full_access
+        if cfg!(target_os = "linux")
+            && (parsed_options.full_access
                 || parsed_options.permission_mode == Some(acp_types::PermissionMode::ApproveAll)
-                || parsed_options.non_interactive_permissions.is_some()
+                || parsed_options.non_interactive_permissions.is_some())
             {
                 return Err(acp_option_error("GLM Linux skill mounts require interactive host permissions"));
             }
-        }
     }
     if !employee {
         H::supplier(&acp_agent_name, parsed_options.skill_view.as_ref())?;
@@ -911,11 +910,10 @@ pub async fn do_stream_request_acp<H: Host>(
         .unwrap_or_else(|| cwd_text.clone());
     let session_name = acp_session_name(&scoped_session);
     // Managed launches must never replay an advertised native model/config over the Provider.
-    if source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel {
-        if let Some(options) = parsed_options.session_options.as_mut() {
+    if source == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
+        && let Some(options) = parsed_options.session_options.as_mut() {
             options.model = None;
         }
-    }
     let mut force_new_session = requested_force_new_session;
     let mut recovered_session_change = false;
     loop {
@@ -1066,8 +1064,7 @@ pub async fn do_stream_request_acp<H: Host>(
                 agent_client_protocol::SessionConfigOptionCategory::Mode,
             ) && let Some(mode_id) = acp_access_policy::session_mode_preference::get_desired_mode_id(record.vwacp.as_ref())
                 .or_else(|| parsed_options.session_mode.clone())
-            {
-                if let Err(err) = apply_default_mode(
+                && let Err(err) = apply_default_mode(
                     &cached_client.client,
                     &acp_session_id,
                     &cwd,
@@ -1082,7 +1079,6 @@ pub async fn do_stream_request_acp<H: Host>(
                     .await;
                     return Err(err);
                 }
-            }
             if (bound_model_id.is_some()
                 || (launch_profile.is_none()
                     && !super::controls::has_saved_config_category(
@@ -1101,8 +1097,7 @@ pub async fn do_stream_request_acp<H: Host>(
                     .session_capabilities(&acp_session_id)
                     .and_then(|info| info.models)
                     .is_some_and(|models| models.current_model_id.0.as_ref() == model_id)
-            {
-                if let Err(err) = cached_client
+                && let Err(err) = cached_client
                     .client
                     .set_session_model(acp_session_id.clone(), &cwd, model_id)
                     .await
@@ -1115,7 +1110,6 @@ pub async fn do_stream_request_acp<H: Host>(
                     .await;
                     return Err(err);
                 }
-            }
             let mut config_options: std::collections::BTreeMap<_, _> =
                 parsed_options.session_config_options.iter().cloned().collect();
             if super::controls::has_saved_config_category(

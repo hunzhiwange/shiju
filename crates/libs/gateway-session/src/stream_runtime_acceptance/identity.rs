@@ -48,7 +48,7 @@ pub fn profile_edit_stream<H: RuntimeAcceptanceHost>(runtime: &tokio::runtime::R
                 }
             }
         });
-        let captured = H::captured(&session_id);
+        let captured = H::captured(session_id);
         assert_eq!(captured.len(), 1);
         assert!(
             captured[0].system.iter().any(|body| body.contains("ORIGINAL_BINDING_RULE")),

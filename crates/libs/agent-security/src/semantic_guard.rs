@@ -376,9 +376,7 @@ impl SemanticGuard {
         };
 
         // 获取最相似的匹配结果
-        let Some(entry) = entries.into_iter().next() else {
-            return None;
-        };
+        let entry = entries.into_iter().next()?;
 
         let score = entry.score.unwrap_or(0.0);
 
@@ -503,11 +501,10 @@ pub async fn update_guard_corpus(
     let actual_sha256 = sha256_hex(payload.as_bytes());
 
     // 如果提供了期望的哈希值，进行验证
-    if let Some(expected) = expected_sha256.map(str::trim).filter(|value| !value.is_empty()) {
-        if !expected.eq_ignore_ascii_case(&actual_sha256) {
+    if let Some(expected) = expected_sha256.map(str::trim).filter(|value| !value.is_empty())
+        && !expected.eq_ignore_ascii_case(&actual_sha256) {
             bail!("guard corpus checksum mismatch: expected {expected}, got {actual_sha256}");
         }
-    }
 
     // 解析 JSONL 格式的语料库
     let records = parse_guard_corpus_jsonl(&payload)?;
@@ -747,11 +744,10 @@ fn parse_guard_corpus_jsonl(raw: &str) -> Result<Vec<GuardCorpusRecord>> {
         })?;
 
         // 清理空的 ID 字段
-        if let Some(id) = record.id.as_deref().map(str::trim) {
-            if id.is_empty() {
+        if let Some(id) = record.id.as_deref().map(str::trim)
+            && id.is_empty() {
                 record.id = None;
             }
-        }
 
         // 基于类别和文本（小写）去重
         let dedupe_key = format!("{}:{}", record.category, record.text.to_ascii_lowercase());

@@ -14,47 +14,47 @@ pub struct SettingsState<'a> {
 pub fn update_settings(state: SettingsState<'_>, message: TaskBoardMessage) -> Result<(), TaskBoardMessage> {
     match message {
         TaskBoardMessage::SetAutoPromoteDelay(seconds) => {
-            (*state.settings).auto_promote_delay_seconds = seconds;
+            state.settings.auto_promote_delay_seconds = seconds;
         }
         TaskBoardMessage::SetMaxConcurrent(count) => {
-            (*state.settings).max_concurrent = count.clamp(1, 10);
+            state.settings.max_concurrent = count.clamp(1, 10);
             (*state.worktree_desired_capacity) = None;
         }
         TaskBoardMessage::ToggleAutoRefresh(enabled) => {
-            (*state.settings).auto_refresh = enabled;
+            state.settings.auto_refresh = enabled;
         }
         TaskBoardMessage::SetRefreshIntervalSeconds(seconds) => {
-            (*state.settings).refresh_interval_seconds = seconds.clamp(1, 3600);
+            state.settings.refresh_interval_seconds = seconds.clamp(1, 3600);
             (*state.next_refresh_at_ms) =
                 next_deadline_ms(task_board_refresh_interval_secs(state.settings));
         }
         TaskBoardMessage::SetSchedulerTickIntervalSeconds(seconds) => {
-            (*state.settings).scheduler_tick_interval_seconds = seconds.clamp(1, 60);
+            state.settings.scheduler_tick_interval_seconds = seconds.clamp(1, 60);
             (*state.next_scheduler_tick_at_ms) =
                 next_deadline_ms(scheduler_tick_interval_secs(state.settings));
         }
         TaskBoardMessage::SetAutoPromoteTickIntervalSeconds(seconds) => {
-            (*state.settings).auto_promote_tick_interval_seconds = seconds.clamp(1, 3600);
+            state.settings.auto_promote_tick_interval_seconds = seconds.clamp(1, 3600);
             (*state.next_auto_promote_tick_at_ms) =
                 next_deadline_ms(auto_promote_tick_interval_secs(state.settings));
         }
         TaskBoardMessage::SetFailedRetryMinutes(minutes) => {
-            (*state.settings).failed_retry_minutes = minutes.clamp(1, 1440);
+            state.settings.failed_retry_minutes = minutes.clamp(1, 1440);
         }
         TaskBoardMessage::SetFailedRetryMaxAttempts(attempts) => {
-            (*state.settings).failed_retry_max_attempts = attempts.clamp(0, 10);
+            state.settings.failed_retry_max_attempts = attempts.clamp(0, 10);
         }
         TaskBoardMessage::SetRunningTimeoutMinutes(minutes) => {
-            (*state.settings).running_timeout_minutes = minutes.clamp(1, 1440);
+            state.settings.running_timeout_minutes = minutes.clamp(1, 1440);
         }
         TaskBoardMessage::ToggleRecycleWorktreeOnTaskFinish(enabled) => {
-            (*state.settings).recycle_worktree_on_task_finish = enabled;
+            state.settings.recycle_worktree_on_task_finish = enabled;
         }
         TaskBoardMessage::SetPrSubmittedStallTimeoutSeconds(seconds) => {
-            (*state.settings).pr_submitted_stall_timeout_seconds = seconds.clamp(5, 3600);
+            state.settings.pr_submitted_stall_timeout_seconds = seconds.clamp(5, 3600);
         }
         TaskBoardMessage::SetAgentSchedulerDispatchMode(dispatch_mode) => {
-            (*state.settings).agent_scheduler_dispatch_mode = dispatch_mode;
+            state.settings.agent_scheduler_dispatch_mode = dispatch_mode;
         }
         TaskBoardMessage::SettingsUpdated(mut settings) => {
             settings = settings.sanitized();

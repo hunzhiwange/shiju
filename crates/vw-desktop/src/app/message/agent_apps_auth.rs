@@ -102,10 +102,3 @@ impl desktop_provider_apps::auth::controller::Ports for NativePorts {
         crate::app::components::system_settings_apps::local::connect_auth(client)
     }
 }
-
-#[cfg(test)]
-pub(crate) use desktop_provider_apps::auth::SERVICES;
-#[cfg(test)]
-pub(crate) use desktop_provider_apps::auth::load;
-#[cfg(test)]
-pub(crate) use desktop_provider_apps::auth::load_service;

@@ -140,7 +140,7 @@ async fn cc04_dsh_binding_errors_and_denials_have_no_side_effects() {
     }
     assert_eq!(f.record("bound"), Some(stored));
     assert_eq!(f.bytes(), before);
-    for (company, host, token) in
+    for (company, host, _token) in
         [("b", "host", TOKEN), ("a", "other", TOKEN), ("a", "host", "fake-invalid")]
     {
         let mut body = f.request(DshActivation::Add);

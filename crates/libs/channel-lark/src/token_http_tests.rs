@@ -1,6 +1,5 @@
 // 本文件验证 Lark 令牌 HTTP 流程、媒体获取、富文本发送与反应重试。
 
-use super::super::*;
 use super::token_test_support::*;
 use channel_types::{Channel, SendMessage};
 use std::time::{Duration, Instant};

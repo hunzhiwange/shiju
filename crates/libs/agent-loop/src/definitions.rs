@@ -206,12 +206,12 @@ fn choose_default_agent(state: &State) -> Result<String, String> {
     }
 
     // 尝试使用内置的首选代理
-    for key in ["main"] {
-        if let Some(agent) = state.agents.get(key) {
-            if is_primary_visible(&agent.definition) {
+    {
+        let key = "main";
+        if let Some(agent) = state.agents.get(key)
+            && is_primary_visible(&agent.definition) {
                 return Ok(key.to_string());
             }
-        }
     }
 
     // 回退：按名称排序选择第一个可见的主代理

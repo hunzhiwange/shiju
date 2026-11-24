@@ -45,7 +45,7 @@ async fn send(
     method: &str,
     uri: &str,
     company: &str,
-    token: &str,
+    _token: &str,
     authenticated: bool,
     payload: &Value,
 ) -> (StatusCode, Value) {

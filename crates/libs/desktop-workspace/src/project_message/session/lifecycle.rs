@@ -537,7 +537,7 @@ pub fn loaded_chat_from_gateway_messages(
                     flush_loaded_text_message(
                         &mut chat,
                         &mut message_ids,
-                        role.clone(),
+                        role,
                         &mut content,
                         model.clone(),
                         &mut think_timing,
@@ -570,7 +570,7 @@ pub fn loaded_chat_from_gateway_messages(
                     flush_loaded_text_message(
                         &mut chat,
                         &mut message_ids,
-                        role.clone(),
+                        role,
                         &mut content,
                         model.clone(),
                         &mut think_timing,

@@ -106,7 +106,7 @@ async fn file_tree_menu_renders_shortcuts_in_light_and_dark_themes() {
             &viewport,
         );
         let pixels = renderer.screenshot(Size::new(220, 600), 1.0, Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] == 255));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] == 255));
     }
 }
 

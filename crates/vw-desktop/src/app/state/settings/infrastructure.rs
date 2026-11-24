@@ -41,14 +41,6 @@ pub(crate) const AUTONOMY_LIST_KINDS: [AutonomyListKind; 7] = [
 ];
 
 #[cfg(test)]
-use super::*;
-#[cfg(test)]
-pub use desktop_settings_mcp::state::McpNewServerState;
-#[cfg(test)]
-pub use desktop_settings_mcp::state::McpNewServerTransport;
-#[cfg(test)]
-pub(crate) use desktop_settings_security::app_init::state::AutonomyListEditorState;
-#[cfg(test)]
 pub(crate) use desktop_settings_security::app_init::state::AutonomyListKind;
 #[cfg(test)]
 pub(crate) use desktop_settings_security::app_init::state::AutonomySettingsTab;

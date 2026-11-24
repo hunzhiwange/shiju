@@ -30,7 +30,7 @@ fn action(i18n: desktop_i18n::I18n, label: &'static str, event: Event, enabled: 
     button(text(i18n.__(label)))
         .padding([8, 14])
         .style(rounded_action_btn_style)
-        .on_press_maybe(enabled.then(|| event))
+        .on_press_maybe(enabled.then_some(event))
         .into()
 }
 pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: State<'a>, base: Element<'a, Message>) -> Element<'a, Message> {

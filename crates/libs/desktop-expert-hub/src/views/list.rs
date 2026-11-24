@@ -20,7 +20,7 @@ use gateway_shiju_skill::ShijuSkillSource;
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, button, checkbox, column, container, responsive, row, scrollable, text};
 use iced::{
-    Alignment, Background, Border, Color, Element, Font, Length, Point, Shadow, Theme, Vector,
+    Alignment, Background, Border, Color, Element, Length, Point, Shadow, Theme, Vector,
 };
 use std::collections::BTreeMap;
 use std::fmt;

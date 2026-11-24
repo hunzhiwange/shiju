@@ -219,7 +219,7 @@ pub fn deployments<'a>(
         settings_modal_header(
             column![
                 text(i18n.format("服务模型目录 · %s", &[(format!("{:?}", form.context.scope.app)).into()]).expect("valid display template")).size(20),
-                text(i18n.format("供应商 %s", &[(format!("{}", form.provider_id)).into()]).expect("valid display template"))
+                text(i18n.format("供应商 %s", &[(form.provider_id.to_string()).into()]).expect("valid display template"))
                     .size(13)
                     .style(settings_muted_text_style),
             ]
@@ -359,7 +359,7 @@ pub fn deployments<'a>(
             let mut details = column![title].spacing(4);
             if entry.display_alias.is_some() {
                 details = details.push(
-                    text(i18n.format("请求 ID：%s", &[(format!("{}", id.as_ref())).into()]).expect("valid display template"))
+                    text(i18n.format("请求 ID：%s", &[(id.as_ref().to_string()).into()]).expect("valid display template"))
                         .size(13)
                         .wrapping(Wrapping::WordOrGlyph)
                         .style(settings_muted_text_style),

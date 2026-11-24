@@ -378,7 +378,8 @@ async fn ui_refresh_18_layout_and_interaction() {
     let messages = click(&mut ui, &mut renderer, edit_server);
     assert!(matches!(messages.as_slice(), [Message::Mcp(McpMessage::ServerEditRequested(0))]));
     drop(ui);
-    drop(settings::update(&mut app, Message::Mcp(McpMessage::ServerEditRequested(0))));
+    settings::update(&mut app, Message::Mcp(McpMessage::ServerEditRequested(0)));
+    drop(());
     assert_eq!(app.mcp_settings.editing_server_index, Some(0), "{:?}", app.mcp_settings.save_error);
     assert!(app.mcp_settings.new_server_expanded);
     let mut ui = scene(mcp::view_overlays(&app, mcp::view(&app)), &mut renderer, size);
@@ -453,7 +454,8 @@ async fn ui_refresh_18_layout_and_interaction() {
     ));
     drop(ui);
     let saved_json = app.mcp_settings.editor.text();
-    drop(settings::update(&mut app, Message::Mcp(McpMessage::ServerEditCanceled)));
+    settings::update(&mut app, Message::Mcp(McpMessage::ServerEditCanceled));
+    drop(());
     assert_eq!(app.mcp_settings.editor.text(), saved_json);
     assert!(app.mcp_settings.editing_server_index.is_none());
 
@@ -472,7 +474,8 @@ async fn ui_refresh_18_layout_and_interaction() {
         [Message::Mcp(McpMessage::CancelDelete)]
     ));
     drop(ui);
-    drop(settings::update(&mut app, Message::Mcp(McpMessage::CancelDelete)));
+    settings::update(&mut app, Message::Mcp(McpMessage::CancelDelete));
+    drop(());
     assert_eq!(app.mcp_settings.editor.text(), saved_json);
 
     app.mcp_settings.active_tab = McpSettingsTab::Json;
@@ -495,7 +498,8 @@ async fn ui_refresh_18_layout_and_interaction() {
     };
     assert!(action.is_edit());
     drop(ui);
-    drop(settings::update(&mut app, Message::Mcp(McpMessage::EditorAction(action))));
+    settings::update(&mut app, Message::Mcp(McpMessage::EditorAction(action)));
+    drop(());
     assert_eq!(app.mcp_settings.editor.text().matches("繁體值").count(), 2);
 }
 
@@ -559,7 +563,8 @@ async fn ui_refresh_18_preserves_values_and_disabled_states() {
         [Message::Acp(AcpMessage::CancelEditor)]
     ));
     drop(ui);
-    drop(settings::update(&mut app, Message::Acp(AcpMessage::CancelEditor)));
+    settings::update(&mut app, Message::Acp(AcpMessage::CancelEditor));
+    drop(());
     assert!(!app.acp_settings.new_agent_expanded);
     assert!(app.acp_settings.diagnostic_id.is_none());
     assert_eq!(app.acp_settings.catalog["fixture-agent"].command, "/示例路徑/bin/fixture-agent");
@@ -812,9 +817,11 @@ async fn help_rollout_09_mcp_server_and_policy_help() {
             }
             assert_help_card(&mut page, &mut renderer, context, title, description);
         }
-        let mut profile = super::profile_update::ProfileFixture::default();
-        profile.desktop_locale = locale;
-        profile.app_theme = theme.clone();
+        let mut profile = super::profile_update::ProfileFixture {
+            desktop_locale: locale,
+            app_theme: theme.clone(),
+            ..Default::default()
+        };
         app.mcp_settings.inspect_loading = true;
         profile.mcp_settings.inspect_loading = true;
         let draft = DelegateAgentSettingsEntry::from_config("fixture-agent", None);
@@ -1031,7 +1038,8 @@ async fn settings_help_gap_13_mcp_add_and_edit_transport_fields() {
                         panic!("expected transport selection, got {messages:?}");
                     };
                     drop(ui);
-                    drop(settings::update(&mut app, Message::Mcp(message.clone())));
+                    settings::update(&mut app, Message::Mcp(message.clone()));
+                    drop(());
                 }
             }
         }

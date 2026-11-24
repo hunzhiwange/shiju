@@ -35,9 +35,11 @@ async fn persist_pairing_tokens_writes_config_tokens() {
         agent_config::runtime_schema::default_config_and_workspace_dirs().unwrap();
     let config_path = config_dir.join("vibewindow.json");
 
-    let mut config = Config::default();
-    config.config_path = config_path.clone();
-    config.workspace_dir = workspace_path;
+    let mut config = Config {
+        config_path: config_path.clone(),
+        workspace_dir: workspace_path,
+        ..Default::default()
+    };
     config.save().await.unwrap();
 
     let guard = PairingGuard::new(true, &[]);

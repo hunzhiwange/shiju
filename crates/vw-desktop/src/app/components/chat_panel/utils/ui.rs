@@ -12,10 +12,4 @@ pub fn chat_context_menu<'a>(i18n: crate::app::i18n::I18n, is_open: bool) -> Opt
 }
 
 #[cfg(test)]
-pub use desktop_chat_view::utils::ui::chat_context_menu_button_style;
-#[cfg(test)]
-pub use desktop_chat_view::utils::ui::chat_context_menu_style;
-#[cfg(test)]
-pub use desktop_chat_view::utils::ui::copy_tooltip_style;
-#[cfg(test)]
 pub use desktop_chat_view::utils::ui::text_context_menu;

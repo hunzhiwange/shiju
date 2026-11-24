@@ -196,8 +196,8 @@ pub fn update(state: &mut State, input: &Input, event: Event) -> Effect {
             }
             Some((
                 SkillRepoEntry {
-                    owner: owner.into(),
-                    name: name.into(),
+                    owner,
+                    name,
                     branch: state.branch.trim().to_owned(),
                     enabled: true,
                 },

@@ -33,3 +33,9 @@ impl Draft {
         }
     }
 }
+
+impl Default for Draft {
+    fn default() -> Self {
+        Self::new()
+    }
+}

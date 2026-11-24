@@ -112,7 +112,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n, routing: &'a lifecycle::State, base
         for (index, request) in snapshot.requests.iter().enumerate() {
             let label = request_label(i18n, request.state);
             // Do not render even opaque server identifiers or arbitrary error payloads.
-            body = body.push(text(i18n.sprintf("请求 %u：%s · %u ms", &[(index + 1).into(), format!("{}", label).into(), (request.elapsed_ms).into()])));
+            body = body.push(text(i18n.sprintf("请求 %u：%s · %u ms", &[(index + 1).into(), label.to_string().into(), (request.elapsed_ms).into()])));
         }
     }
     if let Some(error) = &state.error { body = body.push(settings_error_banner(i18n.__(error).to_owned())); }

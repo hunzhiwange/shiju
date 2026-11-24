@@ -96,15 +96,14 @@ fn progress(i18n: desktop_i18n::I18n, snapshot: &DiagnosticJobSnapshot) -> Strin
         DiagnosticJobState::Failed { .. } => i18n.__("检测失败"),
         DiagnosticJobState::Interrupted {} => i18n.__("检测中断"),
     };
-    let mut label = i18n.sprintf("%s：已处理 %u 项", &[format!("{}", label).into(), (snapshot.progress.completed).into()]);
+    let mut label = i18n.sprintf("%s：已处理 %u 项", &[label.to_string().into(), (snapshot.progress.completed).into()]);
     for result in snapshot.results.iter().flatten() {
         match result {
             DiagnosticResult::OutboundScan { report } => {
-                if let DiagnosticOutcome::Succeeded { evidence } = &report.outcome {
-                    if evidence.tcp_open {
+                if let DiagnosticOutcome::Succeeded { evidence } = &report.outcome
+                    && evidence.tcp_open {
                         label.push_str(&i18n.sprintf("；候选端口 %s（仅 TCP 可达）", &[format!("{}", evidence.port).into()]));
                     }
-                }
             }
             DiagnosticResult::OutboundProxy { report } => {
                 if let DiagnosticOutcome::Succeeded { evidence } = &report.outcome {
@@ -411,7 +410,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n,
     );
     let mut body = column![text(i18n.__("出口设置用于常驻路由。检测读取已保存的配置，扫描可发现预设的回环端口。"))].spacing(12);
     if let Some(status) = &state.status {
-        body = body.push(text(i18n.sprintf("已保存：%s；实际：%s；包含凭据：%s", &[format!("{}", mode_label(i18n, status.configured_mode)).into(), format!("{}", mode_label(i18n, status.effective_mode)).into(), format!("{}", if status.has_credentials { i18n.__("是") } else { i18n.__("否") }).into()])));
+        body = body.push(text(i18n.sprintf("已保存：%s；实际：%s；包含凭据：%s", &[mode_label(i18n, status.configured_mode).to_string().into(), mode_label(i18n, status.effective_mode).to_string().into(), (if status.has_credentials { i18n.__("是") } else { i18n.__("否") }).to_string().into()])));
         let mut modes = row![].spacing(8);
         for mode in
             [RoutingEgressMode::Direct, RoutingEgressMode::System, RoutingEgressMode::Custom]
@@ -423,7 +422,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n,
                     .on_press_maybe((!state.busy).then_some(message(Event::Mode(mode)))),
             );
         }
-        body = body.push(modes).push(text(i18n.sprintf("草稿模式：%s", &[format!("{}", mode_label(i18n, state.mode.unwrap_or(status.configured_mode))).into()])));
+        body = body.push(modes).push(text(i18n.sprintf("草稿模式：%s", &[mode_label(i18n, state.mode.unwrap_or(status.configured_mode)).to_string().into()])));
         if state.mode == Some(RoutingEgressMode::Custom) {
             let mut input =
                 settings_text_input(i18n.__("完整代理 URL（仅写入）"), &state.secret.0).secure(true);

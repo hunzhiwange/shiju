@@ -222,7 +222,6 @@ pub fn checkout_branch(_path: &str, _branch: &str) -> Result<(), String> {
 ///
 /// - `Ok(())`: 打开成功
 /// - `Err(std::io::Error)`: 如果命令执行失败
-
 /// 在终端中打开指定目录（WebAssembly 平台）
 ///
 /// 在 Web 平台上不支持此功能，始终返回错误。

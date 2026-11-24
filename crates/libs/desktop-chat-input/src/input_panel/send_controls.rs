@@ -742,11 +742,10 @@ pub fn bottom_bar<'a, Message: Clone + 'a>(
     let mut attach_btn = Some(attach_btn);
     let mut utility_controls = row![usage_btn].spacing(4).align_y(Alignment::Center);
 
-    if task_mode_enabled {
-        if let Some(attach_btn) = attach_btn.take() {
+    if task_mode_enabled
+        && let Some(attach_btn) = attach_btn.take() {
             utility_controls = utility_controls.push(attach_btn);
         }
-    }
 
     if let Some(pool_btn) = pool_btn {
         utility_controls = utility_controls.push(pool_btn);

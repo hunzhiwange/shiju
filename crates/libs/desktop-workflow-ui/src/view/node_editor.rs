@@ -94,7 +94,7 @@ where
 {
     text_editor(content)
         .placeholder(placeholder)
-        .on_action(move |action| map_message(action))
+        .on_action(map_message)
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .height(Length::Fixed(height))
@@ -261,7 +261,7 @@ pub fn build_node_advanced_dsl_section<'a>(
     let editor = text_editor(&editor.raw_data_editor)
         .id(iced::widget::Id::new(NODE_EDITOR_DSL_EDITOR_ID))
         .placeholder(i18n.__("输入节点 data 的 YAML，支持各类型特有字段"))
-        .on_action(|action| WorkflowMessage::NodeEditorDataAction(action))
+        .on_action(WorkflowMessage::NodeEditorDataAction)
         .key_binding(node_editor_dsl_key_binding)
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
@@ -313,7 +313,7 @@ fn node_editor_dsl_key_binding(
     };
 
     custom
-        .map(|message| text_editor::Binding::Custom(message))
+        .map(text_editor::Binding::Custom)
         .or_else(|| text_editor::Binding::from_key_press(key_press))
 }
 

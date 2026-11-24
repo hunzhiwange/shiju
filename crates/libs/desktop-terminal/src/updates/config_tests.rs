@@ -7,8 +7,8 @@ impl TestApp {
 }
 fn update(app: &mut TestApp, message: super::TerminalMessage) -> iced::Task<super::TerminalMessage> {
     let mut effects = Vec::new();
-    let result = super::update(&mut app.terminal, &mut app.terminal_config_persistence, &iced::Theme::Dark, &mut effects, message);
-    result
+
+    super::update(&mut app.terminal, &mut app.terminal_config_persistence, &iced::Theme::Dark, &mut effects, message)
 }
 // 验证终端外观配置更新及稳定持久化键选择。
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。

@@ -104,7 +104,7 @@ async fn cron_wecom_form_renders_add_edit_and_configuration() {
                         assert_eq!(pixels.len(), (width * height * 4) as usize);
                         let background = &pixels[pixels.len() - 4..];
                         assert!(
-                            pixels.chunks_exact(4).filter(|pixel| *pixel != background).count()
+                            pixels.as_chunks::<4>().0.iter().filter(|pixel| *pixel != background).count()
                                 > 10_000,
                             "弹窗必须实际绘制，不能只输出背景"
                         );

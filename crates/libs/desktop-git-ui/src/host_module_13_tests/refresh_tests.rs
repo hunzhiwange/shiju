@@ -1,12 +1,9 @@
 //! 原宿主入口的领域状态与效果断言，调用真实领域路由。
 
-use crate::git_panel::diff_view::GitDiffCommentDraft;
-use crate::git_panel::diff_view::GitDiffLineRange;
 use crate::git_panel::types::GitWorktreeOption;
 use crate::message_git::messages::GitMessage;
 use crate::test_support::Fixture;
 use crate::test_support::update;
-use desktop_workspace::workspace_state::GitDiffSelectedLine;
 
 fn test_app() -> Fixture {
     Fixture::default()

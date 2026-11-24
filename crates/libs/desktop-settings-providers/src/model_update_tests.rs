@@ -50,9 +50,11 @@ fn row_value(rows: &[ModelDetailRow], label: &str) -> String {
 
 #[test]
 fn models_refresh_clears_transient_state_and_success_replaces_providers() {
-    let mut app = crate::state::ModelSettingsState::default();
-    app.save_error = Some(("stale".to_string()).into());
-    app.providers = vec![provider_summary()];
+    let mut app = crate::state::ModelSettingsState {
+        save_error: Some(("stale".to_string()).into()),
+        providers: vec![provider_summary()],
+        ..Default::default()
+    };
     let _ = update(
         &mut app,
         ModelMessage::ModelDetailOpen("openai".to_string(), "gpt-5".to_string()),
@@ -72,9 +74,11 @@ fn models_refresh_clears_transient_state_and_success_replaces_providers() {
 
 #[test]
 fn models_refresh_error_stops_loading_and_records_error() {
-    let mut app = crate::state::ModelSettingsState::default();
-    app.loading = true;
-    app.providers = vec![provider_summary()];
+    let mut app = crate::state::ModelSettingsState {
+        loading: true,
+        providers: vec![provider_summary()],
+        ..Default::default()
+    };
 
     let _ = update(&mut app, ModelMessage::ModelsRefreshed(Err("network".to_string().into())));
 
@@ -107,8 +111,10 @@ fn provider_model_groups_start_collapsed_and_toggle_independently() {
 
 #[test]
 fn model_detail_open_reports_missing_provider_and_missing_model() {
-    let mut app = crate::state::ModelSettingsState::default();
-    app.providers = vec![provider_summary()];
+    let mut app = crate::state::ModelSettingsState {
+        providers: vec![provider_summary()],
+        ..Default::default()
+    };
 
     let _ = update(
         &mut app,
@@ -127,8 +133,10 @@ fn model_detail_open_reports_missing_provider_and_missing_model() {
 
 #[test]
 fn model_detail_open_maps_complete_detail_into_human_readable_rows() {
-    let mut app = crate::state::ModelSettingsState::default();
-    app.providers = vec![provider_summary()];
+    let mut app = crate::state::ModelSettingsState {
+        providers: vec![provider_summary()],
+        ..Default::default()
+    };
 
     let _ = update(
         &mut app,

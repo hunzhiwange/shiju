@@ -210,8 +210,8 @@ pub fn probe(
     notice: &mut Option<desktop_apps_ui::Notice>,
     event: ProbeMessage,
 ) -> Task<ProbeMessage> {
-    if let ProbeMessage::Start(ids) = &event {
-        if current.as_ref().is_none_or(|c| {
+    if let ProbeMessage::Start(ids) = &event
+        && current.as_ref().is_none_or(|c| {
             ids.is_empty()
                 || ids.iter().any(|id| {
                     !visible.iter().any(|r| &r.record.id == id && c.connections.contains(r))
@@ -219,7 +219,6 @@ pub fn probe(
         }) {
             return Task::none();
         }
-    }
     desktop_apps_ui::agent_apps_diagnostics::mcp::update(
         state,
         current,
@@ -373,9 +372,7 @@ pub fn overlay<'a>(
             .height(540)
             .into(),
         )
-    } else if let Some(error) = &state.error {
-        Some(
-            settings_modal_card(
+    } else { state.error.as_ref().map(|error| settings_modal_card(
                 column![
                     settings_error_banner(desktop_i18n::settings_extensions::feedback(
                         i18n,
@@ -385,11 +382,7 @@ pub fn overlay<'a>(
                 ]
                 .spacing(10),
             )
-            .into(),
-        )
-    } else {
-        None
-    };
+            .into()) };
     match dialog {
         Some(dialog) => settings_modal_overlay(Some(background), Message::Close, dialog),
         None => background,

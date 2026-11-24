@@ -265,11 +265,11 @@ pub fn prepare(
         }
         _ => None,
     };
-    if let Some((identity, generation, active)) = response {
-        if identity != &current
+    if let Some((identity, generation, active)) = response
+        && (identity != &current
             || state.identity.as_ref() != Some(identity)
             || generation != state.generation
-            || !active
+            || !active)
         {
             // Reconcile the new project context without accepting the old response.
             if identity != &current && state.identity.as_ref() == Some(identity) {
@@ -277,7 +277,6 @@ pub fn prepare(
             }
             return UpdatePlan::Ignore;
         }
-    }
     let refresh = matches!(event, WorktreeSettingsMessage::Refresh);
     if refresh && state.saving {
         return UpdatePlan::Ignore;

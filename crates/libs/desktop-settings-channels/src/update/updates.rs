@@ -145,8 +145,8 @@ fn fill_confirmed_credentials(
         app.qr_flow.instance_credentials = Some(named_qr_credentials(channel, credentials)?);
         return Ok(());
     }
-    if channel == "wecom" {
-        if let Some(draft) = app.wecom_delivery.as_mut() {
+    if channel == "wecom"
+        && let Some(draft) = app.wecom_delivery.as_mut() {
             let bot_id = credential(credentials, "bot_id")?;
             let secret = credential(credentials, "secret")?;
             draft.bot_id = bot_id;
@@ -154,7 +154,6 @@ fn fill_confirmed_credentials(
             draft.clear_secret = false;
             return Ok(());
         }
-    }
     match channel {
         "dingtalk" => {
             let cfg = app.dingtalk.get_or_insert_with(super::helpers::default_dingtalk_config);
@@ -432,7 +431,7 @@ pub fn update(
                     super::localized_toast(
                         super::ToastKind::Error,
                         "获取二维码失败：%s",
-                        vec![error.into()],
+                        vec![error],
                     )
                 }
             }

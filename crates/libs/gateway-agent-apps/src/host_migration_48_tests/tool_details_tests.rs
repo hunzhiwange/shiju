@@ -135,7 +135,7 @@ fn cc_mcp_t50_discovery_rechecks_revocation_and_cancel_releases_the_owned_job() 
             let scope=fixture.catalog_scope();
             let record=run_sync_database(||Ok(fixture.catalog.create(&scope,http_draft("held",&url))))?.unwrap();
             let permit=json!({"project_id":"project","app_id":"claude","record_id":"held","connection_revision":record.connection_revision,"endpoint_sha256":hex::encode(Sha256::digest(url.as_bytes()))});
-            details_policy(&fixture,&[permit.clone()])?;
+            details_policy(&fixture,std::slice::from_ref(&permit))?;
             let headers=HeaderMap::from_iter([("x-agent-apps-token".parse().unwrap(),HeaderValue::from_static(TOKEN))]);
             let start=||network_probe::start_details(&fixture.jobs,database.clone(),Some(fixture.root.path().join("policy.json")),&headers,fixture.owner.scope.clone(),McpToolDetailsRequest {
                 scope:scope.clone(),record:record.record.clone(),connection_revision:record.connection_revision,generation:1,

@@ -497,11 +497,10 @@ impl<C: HookHost> HookHandler for CommandPluginHookHandler<C> {
             "duration_ms": duration_millis(duration),
         });
         if let Err(error) = self.execute_payload(payload).await {
-            if self.codex_protocol {
-                if let Some(context) = tool_context::context::current_tool_use_context::<C>() {
+            if self.codex_protocol
+                && let Some(context) = tool_context::context::current_tool_use_context::<C>() {
                     let _ = context.push_hook_context(format!("PostToolUse hook failed: {error}"));
                 }
-            }
             tracing::warn!(
                 hook = self.name.as_str(),
                 error = %error,

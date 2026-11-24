@@ -201,8 +201,8 @@ fn execute(
             ExecutionHostId::new(host).map_err(|_| StatusCode::BAD_REQUEST)?,
         )
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        if let Some(tx) = tx {
-            if tx
+        if let Some(tx) = tx
+            && (tx
                 .state(AppId::Omp)
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
                 .project_scope
@@ -210,11 +210,10 @@ fn execute(
                 || tx
                     .pending(AppId::Omp)
                     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
-                    .is_some_and(|p| p.target.project_scope.is_some())
+                    .is_some_and(|p| p.target.project_scope.is_some()))
             {
                 return Err(StatusCode::CONFLICT);
             }
-        }
     }
     if matches!(op, Operation::State(_)) {
         return encode(

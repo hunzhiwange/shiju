@@ -173,8 +173,7 @@ pub fn build_node_visual_section<'a>(
                         workflow_text_input(
                             i18n.__("例如：start.image"),
                             vision_selector_input,
-                            |value|
-                                WorkflowMessage::NodeEditorLlmVisionSelectorChanged(value),
+                            WorkflowMessage::NodeEditorLlmVisionSelectorChanged,
                         ),
                     ]
                     .spacing(8)
@@ -197,8 +196,7 @@ pub fn build_node_visual_section<'a>(
         WorkflowNodeVisualDraft::End { outputs } => Some(
             column![
                 text(i18n.__("输出变量")).size(13),
-                build_named_value_list(i18n, outputs, |edit|
-                    WorkflowMessage::NodeEditorEndFieldEdit(edit)
+                build_named_value_list(i18n, outputs, WorkflowMessage::NodeEditorEndFieldEdit
                 ),
             ]
             .spacing(8)
@@ -207,8 +205,7 @@ pub fn build_node_visual_section<'a>(
         WorkflowNodeVisualDraft::TemplateTransform { variables, template_editor } => Some(
             column![
                 text(i18n.__("模板变量")).size(13),
-                build_named_value_list(i18n, variables, |edit|
-                    WorkflowMessage::NodeEditorTemplateFieldEdit(edit)
+                build_named_value_list(i18n, variables, WorkflowMessage::NodeEditorTemplateFieldEdit
                 ),
                 build_editor_field_validated(
                     i18n.__("Jinja 模板"),

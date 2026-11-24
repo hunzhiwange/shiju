@@ -8,7 +8,6 @@ use vw_api_transport::common::TimestampMs;
 use super::map_event_row;
 use crate::events::AgentEventKind;
 use crate::state_machine::AgentTaskStatus;
-use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn map_event_row_preserves_optional_identifiers_status_keys_and_payload() -> Result<()> {

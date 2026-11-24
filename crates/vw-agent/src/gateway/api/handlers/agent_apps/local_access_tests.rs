@@ -11,7 +11,7 @@ async fn local_apps_default_router_loads_new_private_grant_without_restart_or_en
         assert!(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").is_none());
         let app = crate::gateway::router::handler_router()
             .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
-        let request = |token: &str| {
+        let request = |_token: &str| {
             Request::builder()
                 .uri("/agent-apps/catalog?targetHostId=desktop-local")
                 .header("x-platform-id", "p")
@@ -79,7 +79,7 @@ async fn verify_local_auth(home: &std::path::Path, app_token: &str) {
         Err(AgentAppsAuthError::Http { status: 404, code: Some(AuthErrorCode::NotFound), .. })
     ));
 
-    let request = |peer: &str, forwarded: bool, company: &str, token: &str| {
+    let request = |peer: &str, forwarded: bool, company: &str, _token: &str| {
         let mut builder = Request::builder()
             .uri("/v1/agent-apps/auth/accounts?host_id=desktop-local&service=codex_oauth")
             .extension(ConnectInfo(peer.parse::<SocketAddr>().unwrap()))

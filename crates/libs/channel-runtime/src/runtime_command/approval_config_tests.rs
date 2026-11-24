@@ -37,9 +37,11 @@ fn autonomy_config(
     mode: NonCliNaturalLanguageApprovalMode,
     mode_by_channel: HashMap<String, NonCliNaturalLanguageApprovalMode>,
 ) -> AutonomyConfig {
-    let mut config = AutonomyConfig::default();
-    config.auto_approve = auto_approve.iter().map(|tool| (*tool).to_string()).collect();
-    config.always_ask = always_ask.iter().map(|tool| (*tool).to_string()).collect();
+    let mut config = AutonomyConfig {
+        auto_approve: auto_approve.iter().map(|tool| (*tool).to_string()).collect(),
+        always_ask: always_ask.iter().map(|tool| (*tool).to_string()).collect(),
+        ..Default::default()
+    };
     config.non_cli_approval_approvers =
         approvers.iter().map(|approver| (*approver).to_string()).collect();
     config.non_cli_natural_language_approval_mode = mode;

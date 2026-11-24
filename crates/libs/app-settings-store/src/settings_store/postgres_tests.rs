@@ -3,7 +3,6 @@
 // CRUD 在同一数据库 fixture 中切换多个作用域，直接观察键空间是否串用。
 use super::*;
 
-use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn postgres_gateway_settings_crud_isolates_tenant_namespace_and_key() {

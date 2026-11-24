@@ -73,9 +73,7 @@ pub fn drop_insert_index(tasks: &[Task], task_id: &str, to_status: desktop_task_
         a.order.cmp(&b.order).then_with(|| a.created_at_ms.cmp(&b.created_at_ms))
     });
     let insert_at = insert_index.unwrap_or(status_tasks.len()).min(status_tasks.len());
-    let Some(drag_task) = tasks.iter().find(|t| t.id == task_id) else {
-        return None;
-    };
+    let drag_task = tasks.iter().find(|t| t.id == task_id)?;
     status_tasks.insert(insert_at, drag_task);
 
     Some(insert_at)

@@ -398,8 +398,7 @@ async fn skillhub_provider_displays_unresolved_skillset_members_but_rejects_inst
     let error = self::provider(&base_url)
         .skill_set_artifact("skillhub", "fixture-suite")
         .await
-        .err()
-        .expect("unresolved member must not install");
+        .expect_err("unresolved member must not install");
     assert!(matches!(error, SkillMarketProviderError::InvalidResponse(message)
         if message.contains("namespace")));
     assert_eq!(requests.join().expect("join artifact fixture").len(), 2);

@@ -145,7 +145,7 @@ async fn query(
     path: &str,
     query: &str,
     auth: Option<&str>,
-    token: Option<&str>,
+    _token: Option<&str>,
     company: &str,
 ) -> anyhow::Result<(StatusCode, Value)> {
     let mut request = app

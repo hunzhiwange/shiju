@@ -168,8 +168,6 @@ fn tool_icon_badge_color(theme: &Theme, is_compact_file_tool: bool, visual: Tool
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-
-
 /// 处理 tool header label 对应的局部职责。
 ///
 /// # 参数

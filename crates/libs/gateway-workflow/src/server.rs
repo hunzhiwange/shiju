@@ -609,7 +609,7 @@ fn workflow_streaming_response<S: Clone + Send + Sync + 'static>(
         }
     });
 
-    let sse_stream = UnboundedReceiverStream::new(rx).map(|event| Ok::<Event, Infallible>(event));
+    let sse_stream = UnboundedReceiverStream::new(rx).map(Ok::<Event, Infallible>);
     Sse::new(sse_stream).keep_alive(KeepAlive::new()).into_response()
 }
 

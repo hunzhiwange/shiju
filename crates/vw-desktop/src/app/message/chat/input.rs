@@ -681,6 +681,3 @@ pub(crate) fn apply_chat_message_measurements(
 
     changed
 }
-
-#[cfg(test)]
-pub(crate) use file_search::build_ranked_file_search_entries;

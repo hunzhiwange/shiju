@@ -595,8 +595,8 @@ pub(super) fn navigate(state: &mut super::State, event: &Event) -> Option<Task<E
             ));
         }
         Event::Turn(index) => {
-            if let Some(reader) = &mut state.reader {
-                if index < reader.turns.len() {
+            if let Some(reader) = &mut state.reader
+                && index < reader.turns.len() {
                     reader.details.cancel();
                     reader.details = details::State::default();
                     reader.images.cancel();
@@ -608,7 +608,6 @@ pub(super) fn navigate(state: &mut super::State, event: &Event) -> Option<Task<E
                         reader.offset,
                     ));
                 }
-            }
         }
         _ => unreachable!(),
     }

@@ -7,7 +7,7 @@
 //! - 当 `HOME` 环境变量不可用时，应回退到配置范围内的 `.openclaw/workspace` 路径
 
 use super::super::*;
-use super::super::{SourceWorkspace, SourceWorkspaceKind};
+use super::super::SourceWorkspaceKind;
 use super::{env_lock, test_config};
 use tempfile::TempDir;
 

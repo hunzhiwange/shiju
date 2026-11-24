@@ -232,8 +232,10 @@ fn chat_header_view_builds_default_session_variants() {
     keep_element(chat_header_view(&queued.input()));
 
     let mut success = active_header_app();
-    let mut success_runtime = SessionRuntimeState::default();
-    success_runtime.has_unseen_success = true;
+    let mut success_runtime = SessionRuntimeState {
+        has_unseen_success: true,
+        ..Default::default()
+    };
     success.session_runtime_states.insert("active".to_string(), success_runtime);
     success.show_session_actions_popover = true;
     keep_element(chat_header_view(&success.input()));

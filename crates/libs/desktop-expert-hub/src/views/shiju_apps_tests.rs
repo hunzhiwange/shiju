@@ -292,7 +292,7 @@ async fn assert_draws(app: &App, theme: Theme) {
         &viewport,
     );
     let pixels = renderer.screenshot(Size::new(960, 720), 1.0, Color::TRANSPARENT);
-    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
 }
 
 #[tokio::test(flavor = "multi_thread")]

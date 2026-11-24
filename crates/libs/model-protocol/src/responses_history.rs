@@ -172,8 +172,8 @@ pub fn preserve_invalid(items: &mut Vec<Value>) {
                 }
                 item = json!({"role":"assistant","content":format!("[Historical tool call with invalid arguments; context only, not a new tool invocation]\n{}", item)});
             }
-        } else if item["type"] == "function_call_output" {
-            if let Some(owner) = item["call_id"].as_str().and_then(|id| owners.get(id)) {
+        } else if item["type"] == "function_call_output"
+            && let Some(owner) = item["call_id"].as_str().and_then(|id| owners.get(id)) {
                 let content = output[*owner]["content"].as_str().unwrap_or("");
                 output[*owner]["content"] = format!(
                     "{content}\n[Historical tool result for invalid call; context only]\n{item}"
@@ -181,7 +181,6 @@ pub fn preserve_invalid(items: &mut Vec<Value>) {
                 .into();
                 continue;
             }
-        }
         output.push(item);
     }
     *items = output;

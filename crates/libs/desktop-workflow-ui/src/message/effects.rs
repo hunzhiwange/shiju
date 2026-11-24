@@ -79,7 +79,7 @@ pub fn open_saved_app_task(gateway_client: fn() -> Result<gateway_workflow::Gate
                 }
                 Ok(loaded)
             },
-            |res| WorkflowMessage::OpenSavedAppFinished(res),
+            WorkflowMessage::OpenSavedAppFinished,
         )
     }
 }
@@ -117,7 +117,7 @@ pub fn delete_saved_app_task(gateway_client: fn() -> Result<gateway_workflow::Ga
                     ))
                 }
             },
-            |res| WorkflowMessage::DeleteSavedAppFinished(res),
+            WorkflowMessage::DeleteSavedAppFinished,
         )
     }
 }
@@ -205,7 +205,7 @@ pub fn save_entry(gateway_client: fn() -> Result<gateway_workflow::GatewayWorkfl
                 Ok(Some(WorkflowSaveTarget::FilePath(path)))
             }
         },
-        |res| WorkflowMessage::SaveActiveAppFinished(res),
+        WorkflowMessage::SaveActiveAppFinished,
     )
 }
 
@@ -243,7 +243,7 @@ pub fn open_file() -> Task<WorkflowMessage> {
 
                 Ok(Some(loaded))
             },
-            |res| WorkflowMessage::OpenFileFinished(res),
+            WorkflowMessage::OpenFileFinished,
         )
     }
 }
@@ -284,7 +284,7 @@ pub fn export_svg(state: &mut WorkflowState) -> Task<WorkflowMessage> {
                 ))
             }
         },
-        |result| WorkflowMessage::ExportFinished(result),
+        WorkflowMessage::ExportFinished,
     )
 }
 
@@ -321,7 +321,7 @@ pub fn export_png(state: &mut WorkflowState) -> Task<WorkflowMessage> {
                 ))
             }
         },
-        |result| WorkflowMessage::ExportFinished(result),
+        WorkflowMessage::ExportFinished,
     )
 }
 
@@ -381,7 +381,7 @@ pub fn export_jpeg(state: &mut WorkflowState) -> Task<WorkflowMessage> {
                 ))
             }
         },
-        |result| WorkflowMessage::ExportFinished(result),
+        WorkflowMessage::ExportFinished,
     )
 }
 

@@ -18,11 +18,11 @@ pub fn view<Identity>(i18n: desktop_i18n::I18n, state: &State<Identity>, scope: 
         )
         .padding([8, 12])
         .style(rounded_action_btn_style)
-        .on_press_maybe((!group.loading).then(|| Event::Refresh(scope))),
+        .on_press_maybe((!group.loading).then_some(Event::Refresh(scope))),
         button(text(i18n.__("创建组合")).size(SETTINGS_CONTROL_TEXT_SIZE))
             .padding([8, 12])
             .style(rounded_action_btn_style)
-            .on_press_maybe(enabled.then(|| Event::Open(scope, Action::Create))),
+            .on_press_maybe(enabled.then_some(Event::Open(scope, Action::Create))),
     ]
     .spacing(8);
     if group.current.is_some() {
@@ -30,7 +30,7 @@ pub fn view<Identity>(i18n: desktop_i18n::I18n, state: &State<Identity>, scope: 
             button(text(i18n.__("清除当前标记")).size(SETTINGS_CONTROL_TEXT_SIZE))
                 .padding([8, 12])
                 .style(rounded_action_btn_style)
-                .on_press_maybe(enabled.then(|| Event::Open(scope, Action::Clear))),
+                .on_press_maybe(enabled.then_some(Event::Open(scope, Action::Clear))),
         );
     }
     let mut content = column![
@@ -47,7 +47,7 @@ pub fn view<Identity>(i18n: desktop_i18n::I18n, state: &State<Identity>, scope: 
     if group.loaded {
         let current = group.current.as_ref().and_then(|id| group.profiles.iter().find(|p| &p.id == id));
         content = content.push(text(match (current, &group.current) {
-            (Some(profile), _) => i18n.format("当前组合：%s%s", &[format!("{}", profile.name).into(), format!("{}", if profile.payload.scope_captured(scope) { "" } else { i18n.__(" · 未拍快照") }).into()]).expect("valid workbench template"),
+            (Some(profile), _) => i18n.format("当前组合：%s%s", &[profile.name.to_string().into(), (if profile.payload.scope_captured(scope) { "" } else { i18n.__(" · 未拍快照") }).to_string().into()]).expect("valid workbench template"),
             (None, Some(_)) => i18n.__("当前组合不可用，请刷新").into(),
             _ => i18n.__("尚未选择当前组合").into(),
         }));
@@ -62,8 +62,8 @@ pub fn view<Identity>(i18n: desktop_i18n::I18n, state: &State<Identity>, scope: 
                 ProjectProfileApplyStatus::Cancelled => i18n.__("已取消"),
                 ProjectProfileApplyStatus::Failed => i18n.__("失败"),
             };
-            content = content.push(text(i18n.format("最近保存结果：%s（历史记录，不确认本次请求）", &[format!("{}", status).into()]).expect("valid workbench template")));
-            content = content.push(text(i18n.format("组合：%s · %s", &[format!("{}", result.profile_id.0).into(), format!("{}", if result.selected { i18n.__("当时已选择") } else { i18n.__("当时未确认选择") }).into()]).expect("valid workbench template")));
+            content = content.push(text(i18n.format("最近保存结果：%s（历史记录，不确认本次请求）", &[status.to_string().into()]).expect("valid workbench template")));
+            content = content.push(text(i18n.format("组合：%s · %s", &[result.profile_id.0.to_string().into(), (if result.selected { i18n.__("当时已选择") } else { i18n.__("当时未确认选择") }).to_string().into()]).expect("valid workbench template")));
             for item in &result.items {
                 content = content.push(text(format!("{:?} · {} · {:?}{}", item.category,
                     item.reference_id.as_deref().unwrap_or(i18n.__("空集合")), item.status,

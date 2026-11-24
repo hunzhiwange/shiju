@@ -1,4 +1,4 @@
-use super::{ListenerError, RoutingListener, SharedTransport};
+use super::{ListenerError, SharedTransport};
 use axum::{body::Body, response::Response};
 use hyper::{server::conn::http1, service::service_fn};
 use hyper_util::rt::TokioIo;

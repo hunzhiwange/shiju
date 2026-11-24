@@ -134,6 +134,7 @@ fn terminal_surface_style(theme: &Theme) -> iced::widget::container::Style {
     }
 }
 
+#[cfg(any(test, not(target_arch = "wasm32")))]
 fn terminal_content_padding(tab_id: u64) -> iced::Padding {
     let left_offset = (tab_id % 2) as f32 * 0.01;
     iced::Padding { top: 8.0, right: 8.0, bottom: 4.0, left: 8.0 + left_offset }

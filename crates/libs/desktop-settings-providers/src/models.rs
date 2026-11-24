@@ -262,31 +262,27 @@ pub(crate) fn model_detail(provider: &ProviderModelsSummary, model: &ModelSummar
     let caps = get("capabilities");
     rows.push(ModelDetailRow {
         label: Feedback::owned("支持工具调用 (capabilities.toolcall)", vec![]),
-        value: (yes_no(caps.get("toolcall").and_then(Value::as_bool).unwrap_or(false)))
-            .into(),
+        value: (yes_no(caps.get("toolcall").and_then(Value::as_bool).unwrap_or(false))),
     });
     rows.push(ModelDetailRow {
         label: Feedback::owned("支持附件 (capabilities.attachment)", vec![]),
-        value: (yes_no(caps.get("attachment").and_then(Value::as_bool).unwrap_or(false)))
-            .into(),
+        value: (yes_no(caps.get("attachment").and_then(Value::as_bool).unwrap_or(false))),
     });
     rows.push(ModelDetailRow {
         label: Feedback::owned("支持推理 (capabilities.reasoning)", vec![]),
-        value: (yes_no(caps.get("reasoning").and_then(Value::as_bool).unwrap_or(false)))
-            .into(),
+        value: (yes_no(caps.get("reasoning").and_then(Value::as_bool).unwrap_or(false))),
     });
     rows.push(ModelDetailRow {
         label: Feedback::owned("支持温度 (capabilities.temperature)", vec![]),
-        value: (yes_no(caps.get("temperature").and_then(Value::as_bool).unwrap_or(false)))
-            .into(),
+        value: (yes_no(caps.get("temperature").and_then(Value::as_bool).unwrap_or(false))),
     });
     rows.push(ModelDetailRow {
         label: Feedback::owned("输入模态 (capabilities.input.*)", vec![]),
-        value: (join_caps(caps.get("input").unwrap_or(&Value::Null))).into(),
+        value: (join_caps(caps.get("input").unwrap_or(&Value::Null))),
     });
     rows.push(ModelDetailRow {
         label: Feedback::owned("输出模态 (capabilities.output.*)", vec![]),
-        value: (join_caps(caps.get("output").unwrap_or(&Value::Null))).into(),
+        value: (join_caps(caps.get("output").unwrap_or(&Value::Null))),
     });
 
     let interleaved = caps.get("interleaved").unwrap_or(&Value::Null);

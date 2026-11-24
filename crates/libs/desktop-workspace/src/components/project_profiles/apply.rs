@@ -34,17 +34,17 @@ pub(super) fn overlay<'a, Identity>(i18n: desktop_i18n::I18n, state: &'a State<I
         }
     }
     if let Some(operation) = &form.operation_id {
-        body = body.push(text(i18n.format("操作：%s", &[format!("{}", operation).into()]).expect("valid workbench template")));
+        body = body.push(text(i18n.format("操作：%s", &[operation.to_string().into()]).expect("valid workbench template")));
         if form.cancelling && form.result.is_none() { body = body.push(text(i18n.__("已请求取消，等待执行主机确认；已完成项不会自动撤销。"))); }
     }
     let actions = row![
         button(text(i18n.__("查询进度"))).padding([8, 14]).style(rounded_action_btn_style)
-            .on_press_maybe((!form.loading && form.operation_id.is_some() && form.result.is_none()).then(|| Event::Apply(scope, ApplyEvent::Recover))),
+            .on_press_maybe((!form.loading && form.operation_id.is_some() && form.result.is_none()).then_some(Event::Apply(scope, ApplyEvent::Recover))),
         button(text(i18n.__("取消操作"))).padding([8, 14]).style(rounded_action_btn_style)
-            .on_press_maybe((!form.loading && !form.cancelling && form.operation_id.is_some() && form.result.is_none()).then(|| Event::Apply(scope, ApplyEvent::Cancel))),
+            .on_press_maybe((!form.loading && !form.cancelling && form.operation_id.is_some() && form.result.is_none()).then_some(Event::Apply(scope, ApplyEvent::Cancel))),
         button(text(i18n.__("关闭"))).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe((!form.loading && (!form.submitted || form.result.is_some())).then_some(close.clone())),
         button(text(i18n.__("确认应用一次"))).padding([8, 14]).style(primary_action_btn_style)
-            .on_press_maybe((!form.loading && !form.submitted && form.preview.is_some()).then(|| Event::Apply(scope, ApplyEvent::Confirm)))
+            .on_press_maybe((!form.loading && !form.submitted && form.preview.is_some()).then_some(Event::Apply(scope, ApplyEvent::Confirm)))
     ].spacing(10);
     let card = settings_modal_layout(header, body, Some(actions.into())).width(620).height(520);
     settings_modal_overlay(Some(base), close, card)

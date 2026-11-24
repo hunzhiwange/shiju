@@ -106,7 +106,7 @@ pub fn card<'a>(
         body = body.push(text(progress).size(13));
     }
     if let Some(error) = &form.error {
-        body = body.push(settings_panel(text(i18n.format("请求失败　%s", &[(format!("{}", error)).into()]).expect("valid display template")).size(13)));
+        body = body.push(settings_panel(text(i18n.format("请求失败　%s", &[(error.to_string()).into()]).expect("valid display template")).size(13)));
     }
     if let Some((operation, snippet)) = &form.preview {
         let extracted = *operation == Operation::Extract;

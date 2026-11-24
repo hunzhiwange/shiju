@@ -9,10 +9,12 @@ use {
     vw_api_transport::id::TenantScope,
 };
 
+type DashboardJobs = HashMap<String, (ProjectScope, String, String, Operation)>;
+
 #[derive(Clone, Default)]
 struct State {
     policy: Option<PathBuf>,
-    jobs: Arc<Mutex<HashMap<String, (ProjectScope, String, String, Operation)>>>,
+    jobs: Arc<Mutex<DashboardJobs>>,
 }
 pub fn router() -> Router {
     Router::new()

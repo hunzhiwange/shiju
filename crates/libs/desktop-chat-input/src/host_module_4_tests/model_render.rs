@@ -190,7 +190,7 @@ async fn acp_model_source_ui_controls_render_chinese_labels_in_both_themes() {
                     &Rectangle::with_size(bounds),
                 );
                 let pixels = renderer.screenshot(Size::new(640, 780), 1.0, Color::TRANSPARENT);
-                assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+                assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
                 let directory = std::env::temp_dir().join("shiju-input-agent-model-render");
                 std::fs::create_dir_all(&directory).unwrap();
                 ::image::RgbaImage::from_raw(640, 780, pixels)

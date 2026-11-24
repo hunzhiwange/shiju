@@ -22,8 +22,10 @@ fn update(
 }
 #[test]
 fn channel_refresh_clears_error_and_tab_selection_updates_state() {
-    let mut state = crate::state::ChannelsSettingsState::default();
-    state.save_error = Some("old".to_string());
+    let mut state = crate::state::ChannelsSettingsState {
+        save_error: Some("old".to_string()),
+        ..Default::default()
+    };
 
     let _ = update(&mut state, ChannelsMessage::Refresh);
     assert!(state.save_error.is_none());

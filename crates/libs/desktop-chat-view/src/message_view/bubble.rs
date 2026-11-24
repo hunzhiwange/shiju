@@ -188,7 +188,7 @@ pub fn message_view_with_runtime<'a, M: SelectionMessage + 'static>(
     let permission_badge_text = pending_permission_badge_label(
         desktop_i18n::I18n::new(app.desktop_locale),
         app.permission_modal_requests,
-        app.permission_modal_request_id.as_deref(),
+        app.permission_modal_request_id,
     );
     let message_id = app.chat_message_ids.get(idx).and_then(|message_id| message_id.as_deref());
     let supports_permission_badge =

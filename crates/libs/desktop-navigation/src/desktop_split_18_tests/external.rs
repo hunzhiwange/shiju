@@ -64,8 +64,10 @@ fn supported_external_apps_is_empty_without_cached_targets() {
 
 #[test]
 fn open_external_module_builds_empty_element_outside_project_screen() {
-    let mut app = Fixture::default();
-    app.screen = Screen::Home;
+    let mut app = Fixture {
+        screen: Screen::Home,
+        ..Default::default()
+    };
 
     let element = open_external_module(&app.state());
 
@@ -74,10 +76,12 @@ fn open_external_module_builds_empty_element_outside_project_screen() {
 
 #[test]
 fn open_external_module_builds_open_menu_without_project_path_or_targets() {
-    let mut app = Fixture::default();
-    app.screen = Screen::Project;
-    app.has_project = false;
-    app.active_menu = Some(MenuType::OpenExternal);
+    let mut app = Fixture {
+        screen: Screen::Project,
+        has_project: false,
+        active_menu: Some(MenuType::OpenExternal),
+        ..Default::default()
+    };
     app.open_external_exists.clear();
 
     let element = open_external_module(&app.state());
@@ -87,10 +91,12 @@ fn open_external_module_builds_open_menu_without_project_path_or_targets() {
 
 #[test]
 fn open_external_module_builds_disabled_preferred_target_with_copy_available() {
-    let mut app = Fixture::default();
-    app.screen = Screen::Project;
-    app.has_project = true;
-    app.open_external_app = ExternalOpenApp::VSCode;
+    let mut app = Fixture {
+        screen: Screen::Project,
+        has_project: true,
+        open_external_app: ExternalOpenApp::VSCode,
+        ..Default::default()
+    };
     app.open_external_exists.clear();
     app.open_external_exists.insert(ExternalOpenApp::VSCode, false);
 
@@ -101,11 +107,13 @@ fn open_external_module_builds_disabled_preferred_target_with_copy_available() {
 
 #[test]
 fn open_external_module_builds_project_controls_for_available_targets() {
-    let mut app = Fixture::default();
-    app.screen = Screen::Project;
-    app.has_project = true;
-    app.open_external_app = ExternalOpenApp::VSCode;
-    app.open_external_platform = Some(RuntimePlatform::MacOs);
+    let mut app = Fixture {
+        screen: Screen::Project,
+        has_project: true,
+        open_external_app: ExternalOpenApp::VSCode,
+        open_external_platform: Some(RuntimePlatform::MacOs),
+        ..Default::default()
+    };
     app.open_external_exists.clear();
     for target in OPEN_EXTERNAL_TARGETS {
         app.open_external_exists.insert(target, true);

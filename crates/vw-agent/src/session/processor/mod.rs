@@ -37,7 +37,7 @@ pub(crate) mod llm_runner;
 #[cfg(test)]
 pub(crate) use llm_runner::{
     ChannelCancelStream, enqueue_test_llm_stream, register_channel_cancel_stream,
-    take_test_llm_messages, test_llm_stream_guard,
+    take_test_llm_messages, test_llm_stream_guard, test_llm_stream_guard_async,
 };
 mod planning;
 mod prefetch;

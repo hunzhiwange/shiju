@@ -5,11 +5,11 @@
 //!
 //! # 主要组件
 //!
-//! - [`HResizeHandle`]: 水平方向的调整大小手柄，用于调整垂直分割线的位置
-//! - [`VResizeHandle`]: 垂直方向的调整大小手柄，用于调整水平分割线的位置
-//! - [`TopBorderCover`]: 顶部边框覆盖组件，用于绘制顶部分割线
-//! - [`SessionPanelRightBorder`]: 会话面板右边框装饰组件
-//! - [`SessionPanelLeftBorder`]: 会话面板左边框装饰组件
+//! - [`HResizeHandle`][]: 水平方向的调整大小手柄，用于调整垂直分割线的位置
+//! - [`VResizeHandle`][]: 垂直方向的调整大小手柄，用于调整水平分割线的位置
+//! - [`TopBorderCover`][]: 顶部边框覆盖组件，用于绘制顶部分割线
+//! - [`SessionPanelRightBorder`][]: 会话面板右边框装饰组件
+//! - [`SessionPanelLeftBorder`][]: 会话面板左边框装饰组件
 //!
 //! # 设计特性
 //!

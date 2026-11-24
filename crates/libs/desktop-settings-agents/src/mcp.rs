@@ -126,7 +126,7 @@ pub fn view<'a>(
                 .label(server_label)
                 .on_toggle_maybe(
                     (fixed && (checked || enabled))
-                        .then(|| move |checked| toggle_message(&defaults, &id, checked, enabled)),
+                        .then_some(move |checked| toggle_message(&defaults, &id, checked, enabled)),
                 )
                 .style(settings_checkbox_style),
         );

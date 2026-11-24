@@ -264,9 +264,7 @@ fn columns<'a, External: Clone + 'static>(app: &Input<'a, External>, width: f32)
             width - log_width,
         ));
     }
-    if state.loading {
-        commits = commits.push(text(copy.status.unwrap_or_default()).size(12));
-    } else if state.snapshot.commits.is_empty() {
+    if state.loading || state.snapshot.commits.is_empty() {
         commits = commits.push(text(copy.status.unwrap_or_default()).size(12));
     }
     if state.snapshot.has_more && state.limit < 10_000 {

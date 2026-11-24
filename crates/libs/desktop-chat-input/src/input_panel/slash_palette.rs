@@ -102,7 +102,7 @@ fn highlighted_slash_query(query: &str) -> String {
 
 /// 构建 Slash 分组 overlay。
 pub fn slash_palette_overlay(i18n: desktop_i18n::I18n, sections: &[SlashPaletteSection], query: &str, selected_index: usize, scroll_id: iced::widget::Id) -> Element<'static, Message> {
-    let highlighted_query = highlighted_slash_query(&query);
+    let highlighted_query = highlighted_slash_query(query);
 
     let mut list = column![].spacing(6);
     if sections.is_empty() {

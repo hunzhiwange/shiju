@@ -143,7 +143,7 @@ async fn repository_history_renders_chinese_in_both_themes() {
             );
         }
         let pixels = renderer.screenshot(Size::new(width, 650), 1.0, theme.palette().background);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
         image::save_buffer(
             format!("/tmp/shiju-git-history-{name}-{width}.png"),
             &pixels,
@@ -153,13 +153,13 @@ async fn repository_history_renders_chinese_in_both_themes() {
         )
         .unwrap();
         let added = pixels
-            .chunks_exact(4)
+            .as_chunks::<4>().0.iter()
             .filter(|pixel| {
                 pixel[1] > pixel[0].saturating_add(8) && pixel[1] > pixel[2].saturating_add(8)
             })
             .count();
         let deleted = pixels
-            .chunks_exact(4)
+            .as_chunks::<4>().0.iter()
             .filter(|pixel| {
                 pixel[0] > pixel[1].saturating_add(8) && pixel[0] > pixel[2].saturating_add(8)
             })

@@ -71,6 +71,3 @@ impl App {
         self.task_board.apply_preferences(&cfg);
     }
 }
-
-#[cfg(test)]
-use crate::app::Message;

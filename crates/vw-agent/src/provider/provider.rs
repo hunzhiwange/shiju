@@ -46,7 +46,7 @@ pub async fn get_small_model(provider_id: &str) -> Result<Option<Model>, Catalog
 }
 pub fn init() { ensure_host(); agent_provider::provider::init(); }
 #[cfg(test)]
-async fn load_state_impl(filter: bool) -> State {
+async fn load_state_for_test(filter: bool) -> State {
     ensure_host();
     agent_provider::provider::load_state_impl(filter).await
 }

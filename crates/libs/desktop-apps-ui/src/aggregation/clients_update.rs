@@ -12,7 +12,7 @@ fn message(event: Event) -> Event { event }
 pub async fn execute(
     client: GatewayClient,
     selection: Selection,
-    token: String,
+    _token: String,
     session: Session,
     action: Action,
 ) -> Result<Reply, AgentAppsSettingsError> {

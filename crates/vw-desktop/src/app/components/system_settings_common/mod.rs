@@ -47,22 +47,3 @@ pub use utils::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH, bool_support_label,
     format_context_limit, settings_field_label, settings_toggle, url_encode,
 };
-
-#[cfg(test)]
-pub(crate) use panels::settings_modal_layout_with_scroll_id;
-#[cfg(test)]
-pub(crate) use panels::settings_modal_overlay_with_backdrop_dismiss;
-#[cfg(test)]
-pub(crate) use panels::settings_modal_overlay_with_escape;
-#[cfg(test)]
-pub(crate) use panels::settings_modal_overlay_with_escape_and_backdrop_dismiss;
-#[cfg(test)]
-pub(crate) use panels::settings_responsive_row;
-#[cfg(test)]
-pub(crate) use select::SettingsSelectLabel;
-#[cfg(test)]
-pub(crate) use styles::settings_icon_tile_style;
-#[cfg(test)]
-pub(crate) use tabs::settings_compact_tab_button;
-#[cfg(test)]
-pub(super) use panels::settings_row_with_flexible_control;

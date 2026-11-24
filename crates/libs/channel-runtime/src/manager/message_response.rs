@@ -144,11 +144,10 @@ pub async fn handle_llm_result(
                 }),
             );
             // 如果存在草稿消息，则取消它
-            if let (Some(channel), Some(draft_id)) = (target_channel, draft_message_id) {
-                if let Err(err) = channel.cancel_draft(&msg.reply_target, draft_id).await {
+            if let (Some(channel), Some(draft_id)) = (target_channel, draft_message_id)
+                && let Err(err) = channel.cancel_draft(&msg.reply_target, draft_id).await {
                     tracing::debug!("Failed to cancel draft on {}: {err}", channel.name());
                 }
-            }
         }
         // 情况 2：请求成功完成并返回了响应
         LlmExecutionResult::Completed(Ok(Ok(response))) => {
@@ -327,13 +326,12 @@ pub async fn handle_llm_result(
                 truncate_with_ellipsis(&delivered_response, 80)
             );
 
-            if let Some(channel) = target_channel {
-                if deliver_channel_reply(channel, &msg, draft_message_id, &delivered_response).await
+            if let Some(channel) = target_channel
+                && deliver_channel_reply(channel, &msg, draft_message_id, &delivered_response).await
                     && let (Some(id), Some(snapshot)) = (committed_id, &ctx.message_snapshot)
                 {
                     mark_retryable_reply(host, snapshot, &id, &msg, delivered_response).await;
                 }
-            }
         }
         // 情况 3：请求完成但返回了错误
         LlmExecutionResult::Completed(Ok(Err(e))) => {
@@ -358,11 +356,10 @@ pub async fn handle_llm_result(
                     }),
                 );
                 // 取消草稿消息
-                if let (Some(channel), Some(draft_id)) = (target_channel, draft_message_id) {
-                    if let Err(err) = channel.cancel_draft(&msg.reply_target, draft_id).await {
+                if let (Some(channel), Some(draft_id)) = (target_channel, draft_message_id)
+                    && let Err(err) = channel.cancel_draft(&msg.reply_target, draft_id).await {
                         tracing::debug!("Failed to cancel draft on {}: {err}", channel.name());
                     }
-                }
             }
             // 子情况 3b：上下文窗口溢出
             else if is_context_window_overflow_error(&e) {

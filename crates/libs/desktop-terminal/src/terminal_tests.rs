@@ -115,8 +115,10 @@ fn blank_with_settings_preserves_preferences_and_gates_visibility() {
 
 #[test]
 fn selecting_unknown_terminal_preserves_selection_and_visibility() {
-    let mut state = TerminalState::default();
-    state.height = 120.0;
+    let mut state = TerminalState {
+        height: 120.0,
+        ..Default::default()
+    };
 
     assert!(!state.select_terminal(99));
 
@@ -128,8 +130,10 @@ fn selecting_unknown_terminal_preserves_selection_and_visibility() {
 #[cfg(all(unix, not(target_arch = "wasm32")))]
 #[test]
 fn selecting_terminal_preserves_height_at_minimum_boundary() {
-    let mut state = TerminalState::default();
-    state.height = 160.0;
+    let mut state = TerminalState {
+        height: 160.0,
+        ..Default::default()
+    };
     assert!(state.add_terminal(Some(std::env::temp_dir())));
     let id = state.tabs[0].id;
 

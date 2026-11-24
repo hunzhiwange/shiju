@@ -202,6 +202,3 @@ fn heading_help<'a>(
     );
     desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, content)
 }
-
-#[cfg(test)]
-pub(super) use desktop_settings_skills::page::skills_tab_labels;

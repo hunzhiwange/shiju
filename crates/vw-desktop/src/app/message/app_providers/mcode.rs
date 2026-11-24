@@ -13,12 +13,3 @@ pub fn membership_changed(app:&mut App,scope:Scope,generation:u64,add:bool,resul
  let current=super::list::current(app,scope.app).ok();
  super::provider_update::run(app,|state,_,_|desktop_provider_apps::message::mcode::membership_changed(state,current,scope,generation,add,result))
 }
-
-#[cfg(test)]
-pub use desktop_provider_apps::message::mcode::Field;
-#[cfg(test)]
-pub use desktop_provider_apps::message::mcode::change;
-#[cfg(test)]
-pub use desktop_provider_apps::message::mcode::load;
-#[cfg(test)]
-pub use desktop_provider_apps::message::mcode::save;

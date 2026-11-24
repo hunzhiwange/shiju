@@ -9,7 +9,7 @@ use vw_api_app_routing::{RoutingEgressMode, RoutingEgressUpdate};
 async fn request(
     port: u16,
     method: Method,
-    token: Option<&str>,
+    _token: Option<&str>,
     body: Option<Value>,
 ) -> reqwest::Response {
     let mut request = reqwest::Client::builder()

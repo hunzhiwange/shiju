@@ -135,29 +135,13 @@ use desktop_workflow_state::state::*;
 #[cfg(test)]
 use desktop_workflow_model::*;
 #[cfg(test)]
-use iced::{Alignment, Background, Border, Color, Length, Point, Shadow, Theme, Vector};
-#[cfg(test)]
-use iced::widget::{Space, button, checkbox, container, image, mouse_area, scrollable, slider, stack, svg, text, text_input, scrollable::{Direction, Scrollbar}, tooltip::{Position as TooltipPosition, Tooltip}};
-#[cfg(test)]
-use desktop_assets::assets::{self, Icon};
-#[cfg(test)]
-use desktop_ui_controls::overlays::PointBelowOverlay;
-#[cfg(test)]
-use desktop_ui_controls::system_settings_common::*;
+use iced::{Color, Point, Theme, Vector};
 #[cfg(test)]
 use app_list::*;
-#[cfg(test)]
-use canvas_shell::*;
-#[cfg(test)]
-use data_nodes::*;
 #[cfg(test)]
 use http_request::*;
 #[cfg(test)]
 use if_else::*;
-#[cfg(test)]
-use menu::*;
-#[cfg(test)]
-use next_step::*;
 #[cfg(test)]
 use run_preview::*;
 #[cfg(test)]
@@ -165,10 +149,4 @@ use start_inputs::*;
 #[cfg(test)]
 use start_meta::*;
 #[cfg(test)]
-use styles::*;
-#[cfg(test)]
-use toolbar::*;
-#[cfg(test)]
 use variables::*;
-#[cfg(test)]
-use crate::view::{editor_style, is_dark_theme, workflow_text_input, WorkflowAppSwitchOption, WorkflowAppSwitchSource, workflow_app_display_name, workflow_app_switch_options};

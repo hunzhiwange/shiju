@@ -162,11 +162,10 @@ async fn execute(
                 &tenant,
                 &request.target.target_host_id,
                 service,
-            ) {
-                if owner.host.credential_root.as_ref() == Some(&root) {
+            )
+                && owner.host.credential_root.as_ref() == Some(&root) {
                     authorized.push((service, owner));
                 }
-            }
         }
         let target = McpBindingTarget {
             target: &request.target,

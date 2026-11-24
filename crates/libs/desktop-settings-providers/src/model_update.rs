@@ -46,7 +46,7 @@ pub fn update(state: &mut crate::state::ModelSettingsState, message: ModelMessag
             }
             Err(e) => {
                 state.loading = false;
-                state.save_error = Some((e).into());
+                state.save_error = Some(e);
                 state.detail_modal = None;
                 ModelEffect::None
             }
@@ -103,7 +103,7 @@ pub fn update(state: &mut crate::state::ModelSettingsState, message: ModelMessag
                             change.previous_enabled,
                         );
                     }
-                    state.save_error = Some((error).into());
+                    state.save_error = Some(error);
                 }
             }
             ModelEffect::None
@@ -120,7 +120,7 @@ pub fn update(state: &mut crate::state::ModelSettingsState, message: ModelMessag
                 for change in &changes {
                     set_local_model_status(&mut state.providers, change, change.previous_enabled);
                 }
-                state.save_error = Some((error).into());
+                state.save_error = Some(error);
             }
             ModelEffect::None
         }

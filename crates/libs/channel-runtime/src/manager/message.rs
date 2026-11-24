@@ -150,7 +150,7 @@ pub async fn process_channel_message_inner(
         channel = %msg.channel,
         has_target_channel = target_channel.is_some(),
         use_streaming,
-        supports_draft = target_channel.as_ref().map_or(false, |ch| ch.supports_draft_updates()),
+        supports_draft = target_channel.as_ref().is_some_and(|ch| ch.supports_draft_updates()),
         "Draft streaming decision"
     );
 
@@ -272,9 +272,7 @@ async fn maybe_send_initial_draft(
         return None;
     }
 
-    let Some(channel) = target_channel else {
-        return None;
-    };
+    let channel = target_channel?;
 
     // 先发占位草稿，再异步累积 delta，降低慢模型在聊天通道中的无反馈时间。
     match channel

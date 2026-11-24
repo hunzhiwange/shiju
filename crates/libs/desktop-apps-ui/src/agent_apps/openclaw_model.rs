@@ -93,7 +93,7 @@ pub fn update(state: &mut State, connection: Connection, event: Event, notice: &
     if matches!(event, Event::Close) { state.invalidate(); return Task::none(); }
     let Connection { client, context, catalog_context, project, host, generation, token } = connection;
     let client = gateway_openclaw_settings::GatewayOpenClawSettingsClient::new(client.transport().clone());
-    let valid = |scope: &Scope, state: &State| scope.context == context && scope.project == project.to_string()
+    let valid = |scope: &Scope, state: &State| scope.context == context && scope.project == project
         && scope.host == host && scope.catalog == generation
         && scope.generation == state.generation;
     match event {

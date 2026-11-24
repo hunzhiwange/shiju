@@ -25,5 +25,3 @@ pub(super) use session_row::SessionRowDetails;
 pub(super) use session_row::SessionRowStatus;
 #[cfg(test)]
 pub(super) use session_row::session_row;
-#[cfg(test)]
-pub(super) use sessions_panel::project_sessions_header_with_tools;

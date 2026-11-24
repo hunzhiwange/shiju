@@ -52,7 +52,7 @@ async fn assert_element_draws_in_dark_theme(mut element: iced::Element<'_, Messa
     );
 
     let pixels = renderer.screenshot(iced::Size::new(960, 1_200), 1.0, Color::TRANSPARENT);
-    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
 }
 
 fn provider(id: &str, name: &str, connected: bool) -> ProviderSummary {

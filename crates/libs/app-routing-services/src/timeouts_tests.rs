@@ -60,7 +60,7 @@ impl Fixture {
         let project =
             ProjectScope::new(tenant.clone(), format!("route-{}", uuid::Uuid::new_v4()).into())
                 .unwrap();
-        let database = GlobalDatabase::for_home(&crate::test_home()).unwrap();
+        let database = GlobalDatabase::for_home(crate::test_home()).unwrap();
         let store = RoutingConfigStore::new(database, tenant, "host".into()).unwrap();
         let token = listener
             .auth

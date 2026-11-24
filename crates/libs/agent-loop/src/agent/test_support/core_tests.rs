@@ -314,7 +314,7 @@ pub fn legacy_and_processor_auto_selection_are_consistent<H: crate::agent::Agent
     agent.available_hints = vec!["fast".to_string()];
     agent.route_model_by_hint = HashMap::from([("fast".to_string(), "provider/fast".to_string())]);
     agent.model_name = "auto".to_string();
-    let models = vec![selectable_model::<H>("provider", "fast")];
+    let models = [selectable_model::<H>("provider", "fast")];
     let candidates = models
         .iter()
         .map(|model| ModelCandidate { provider_id: &model.provider_id, model })

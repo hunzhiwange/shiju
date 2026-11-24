@@ -22,7 +22,7 @@ pub fn action_button<'a, M: Clone + 'static>(
 pub fn progress<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n, state: &'a LifecycleState, event: impl Fn(Action) -> M + Copy + 'static) -> Element<'a, M> {
     let mut content = column![].spacing(8);
     if let Some(batch) = &state.batch {
-        content = content.push(text(i18n.sprintf("批量升级：成功 %u · 失败 %s · 取消 %s · %s %s", &[(batch.completed).into(), format!("{}", batch.failed).into(), format!("{}", batch.cancelled).into(), format!("{}", if batch.stopped { i18n.__("跳过 / 未执行") } else { i18n.__("等待") }).into(), format!("{}", batch.pending()).into()])).size(13));
+        content = content.push(text(i18n.sprintf("批量升级：成功 %u · 失败 %s · 取消 %s · %s %s", &[(batch.completed).into(), format!("{}", batch.failed).into(), format!("{}", batch.cancelled).into(), (if batch.stopped { i18n.__("跳过 / 未执行") } else { i18n.__("等待") }).to_string().into(), format!("{}", batch.pending()).into()])).size(13));
         if !batch.stopped {
             content = content.push(button(text(i18n.__("停止批量升级")))
                 .padding([8, 16]).style(rounded_action_btn_style)
@@ -31,11 +31,11 @@ pub fn progress<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n, state: &'a Lif
     }
     if let Some(request) = &state.request {
         content = content.push(
-            text(i18n.sprintf("应用：%s · %s", &[format!("{:?}", request.app_id).into(), format!("{}", match request.action {
+            text(i18n.sprintf("应用：%s · %s", &[format!("{:?}", request.app_id).into(), (match request.action {
                     AppLifecycleAction::Install => i18n.__("安装"),
                     AppLifecycleAction::Update => i18n.__("升级"),
                     AppLifecycleAction::Uninstall => i18n.__("卸载"),
-                }).into()]))
+                }).to_string().into()]))
             .size(13),
         );
     }
@@ -44,7 +44,7 @@ pub fn progress<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n, state: &'a Lif
     }
     if let Some(operation) = &state.operation {
         content = content.push(
-            text(i18n.sprintf("操作 %s\n%s · %s", &[format!("{}", operation.operation_id.0).into(), format!("{:?}", operation.phase).into(), format!("{:?}", operation.status).into()]))
+            text(i18n.sprintf("操作 %s\n%s · %s", &[operation.operation_id.0.to_string().into(), format!("{:?}", operation.phase).into(), format!("{:?}", operation.status).into()]))
             .size(13),
         );
         if operation.phase != AppOperationPhase::Terminal {
@@ -92,7 +92,7 @@ pub fn overlay<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
         );
         let mut body = column![].spacing(12);
         for item in &batch.items {
-            body = body.push(text(i18n.sprintf("%s · %s\n实例：%s · %s", &[format!("{:?}", item.app_id).into(), format!("{}", item.path).into(), format!("{}", item.id.0).into(), format!("{:?}", item.source).into()]))
+            body = body.push(text(i18n.sprintf("%s · %s\n实例：%s · %s", &[format!("{:?}", item.app_id).into(), item.path.to_string().into(), item.id.0.to_string().into(), format!("{:?}", item.source).into()]))
                 .size(13).wrapping(iced::widget::text::Wrapping::WordOrGlyph));
         }
         let footer = row![

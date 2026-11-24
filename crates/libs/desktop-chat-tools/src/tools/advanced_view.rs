@@ -378,9 +378,7 @@ pub fn tool_advanced_view<'a>(
         )
         .or_else(|| tool_error_text(&value))
         .unwrap_or_default()
-    } else if matches!(tool_name, "browser" | "browser_open" | "open_browser_page") {
-        advanced_success_body(i18n, tool_name, output, &value)
-    } else if !output.is_empty() {
+    } else if matches!(tool_name, "browser" | "browser_open" | "open_browser_page") || !output.is_empty() {
         advanced_success_body(i18n, tool_name, output, &value)
     } else {
         advanced_fallback_body(i18n, tool_name, &value, explicit_spec)

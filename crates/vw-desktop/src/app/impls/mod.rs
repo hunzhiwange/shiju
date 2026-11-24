@@ -33,20 +33,3 @@ mod app_view_status;
 pub(crate) use app_view_status::STATUS_BAR_HEIGHT;
 #[cfg(test)]
 mod tests;
-
-#[cfg(test)]
-pub(super) use crate::app::AppTab;
-#[cfg(test)]
-pub(super) use crate::app::CookieConfig;
-#[cfg(test)]
-pub(super) use crate::app::DiffTheme;
-#[cfg(test)]
-pub(super) use crate::app::RecentProjectMeta;
-#[cfg(test)]
-pub(super) use crate::app::SettingsTab;
-#[cfg(test)]
-pub(super) use crate::app::Shell;
-#[cfg(test)]
-pub(super) use crate::app::TerminalTheme;
-#[cfg(test)]
-pub(super) use crate::app::models;

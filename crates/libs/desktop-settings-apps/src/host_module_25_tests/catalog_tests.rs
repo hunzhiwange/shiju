@@ -3,9 +3,7 @@ use crate::system_settings_apps::catalog::*;
 use desktop_apps_ui::AgentAppsContext;
 use gateway_http::AgentAppsReadError;
 use vw_api_app_identity::{
-    AppCatalogEntry, AppDesktopObservation, AppId, AppInstallation, AppInstallationEnvironment,
-    AppInstallationId, AppInstallationProbeFailure, AppInstallationRuntimeStatus,
-    AppInstallationSource, AppReadResponse, AppRuntimeKind,
+    AppCatalogEntry, AppId, AppReadResponse, AppRuntimeKind,
 };
 
 fn row() -> CatalogRow {
@@ -73,7 +71,7 @@ fn local_apps_credentials_only_apply_to_current_connection_and_generation() {
     for (context, generation) in
         [(other, generation), (context.clone(), generation.wrapping_sub(1))]
     {
-        let _ = catalog_route(
+        catalog_route(
             &mut app,
             AppsCatalogMessage::LocalReady {
                 context,
@@ -83,7 +81,7 @@ fn local_apps_credentials_only_apply_to_current_connection_and_generation() {
         );
         assert!(app.token.is_empty());
     }
-    let _ = catalog_route(
+    catalog_route(
         &mut app,
         AppsCatalogMessage::LocalReady {
             context,
@@ -128,26 +126,28 @@ fn catalog_cache_expires_and_invalidates_after_failure_or_context_change() {
 #[test]
 fn catalog_reopening_reuses_cache_but_manual_refresh_and_credentials_invalidate_it() {
     let (_, context) = super::lifecycle_app();
-    let mut app = AppsCatalogState::default();
-    app.host = "remote".into();
-    app.token = "fixture".into();
+    let mut app = AppsCatalogState {
+        host: "remote".into(),
+        token: "fixture".into(),
+        ..Default::default()
+    };
     let generation = app.begin(context.clone());
     assert!(app.finish(&context, generation, Ok(vec![row()])));
-    let _ = catalog_route(&mut app, AppsCatalogMessage::EnsureLoaded);
+    catalog_route(&mut app, AppsCatalogMessage::EnsureLoaded);
     assert!(!app.loading);
     assert_eq!(app.generation, generation);
     assert_eq!(app.rows.len(), 1);
-    let _ = catalog_route(&mut app, AppsCatalogMessage::Refresh);
+    catalog_route(&mut app, AppsCatalogMessage::Refresh);
     assert!(app.loading);
     assert!(!app.cache_is_fresh());
     let generation = app.generation;
     assert!(app.finish(&context, generation, Ok(vec![row()])));
-    let _ = catalog_route(&mut app, AppsCatalogMessage::TokenInput("replacement".into()));
+    catalog_route(&mut app, AppsCatalogMessage::TokenInput("replacement".into()));
     assert!(!app.cache_is_fresh());
     assert!(app.rows.is_empty());
     let generation = app.begin(context.clone());
     assert!(app.finish(&context, generation, Ok(vec![row()])));
-    let _ = catalog_route(&mut app, AppsCatalogMessage::HostInput("other".into()));
+    catalog_route(&mut app, AppsCatalogMessage::HostInput("other".into()));
     assert!(!app.cache_is_fresh());
     assert!(app.rows.is_empty());
 }

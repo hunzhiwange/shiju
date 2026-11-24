@@ -80,8 +80,10 @@ async fn renderer() -> Renderer {
 
 fn fixture() -> (ProfileFixture, tempfile::TempDir, DelegateAgentSettingsEntry) {
     let root = tempfile::tempdir().unwrap();
-    let mut app = ProfileFixture::default();
-    app.project_path = Some(root.path().to_string_lossy().into_owned());
+    let mut app = ProfileFixture {
+        project_path: Some(root.path().to_string_lossy().into_owned()),
+        ..Default::default()
+    };
     app.agents_settings.config_ready = true;
     app.agents_settings.active_config_tab = AgentConfigTab::Agents;
     app.agents_settings.loading = false;

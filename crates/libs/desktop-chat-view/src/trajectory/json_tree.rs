@@ -137,7 +137,7 @@ fn project_value(
     match value {
         Value::Object(object) => {
             let mut entries = object.iter().collect::<Vec<_>>();
-            entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+            entries.sort_by_key(|(left, _)| *left);
             let last_index = entries.len().saturating_sub(1);
             for (index, (child_key, child)) in entries.into_iter().enumerate() {
                 let child_path = format!("{path}/{}", escape_json_pointer(child_key));

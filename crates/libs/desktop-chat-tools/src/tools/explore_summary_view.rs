@@ -392,7 +392,7 @@ pub fn tool_explore_summary_view<'a>(
     let group_tool_idx = if use_running_group_slot { group_running_idx } else { group_base_idx };
     let key = ((msg_idx as u64) << 32) | (group_tool_idx as u64);
 
-    let expanded = explore_summary_expanded(has_running, key, &app.chat_explore_expanded);
+    let expanded = explore_summary_expanded(has_running, key, app.chat_explore_expanded);
 
     // 获取当前时间，用于动画效果
     let now_ms = app.now_ms;

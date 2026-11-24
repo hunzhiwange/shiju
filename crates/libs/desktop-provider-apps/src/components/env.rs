@@ -84,10 +84,10 @@ pub fn card<'a>(
     for (index, entry) in form.entries.iter().enumerate() {
         let source = match entry.source {
             EnvSource::UserShell { file, line } => {
-                i18n.format("用户文件 · %s 第 %s 行", &[(format!("{}", file.filename())).into(), (format!("{}", line)).into()]).expect("valid display template")
+                i18n.format("用户文件 · %s 第 %s 行", &[(file.filename().to_string()).into(), (format!("{}", line)).into()]).expect("valid display template")
             }
             EnvSource::SystemShell { file, line } => {
-                i18n.format("系统文件 · %s 第 %s 行", &[(format!("{}", file.filename())).into(), (format!("{}", line)).into()]).expect("valid display template")
+                i18n.format("系统文件 · %s 第 %s 行", &[(file.filename().to_string()).into(), (format!("{}", line)).into()]).expect("valid display template")
             }
             EnvSource::ProcessInherited => i18n.__("执行进程继承的环境").into(),
         };
@@ -104,7 +104,7 @@ pub fn card<'a>(
         } else {
             column![
                 text(&entry.variable).size(14),
-                text(i18n.format("%s · 只读", &[(format!("{}", source)).into()]).expect("valid display template")).size(13).style(settings_muted_text_style),
+                text(i18n.format("%s · 只读", &[(source.to_string()).into()]).expect("valid display template")).size(13).style(settings_muted_text_style),
             ]
         };
         entries = entries.push(settings_panel(details.spacing(4)));

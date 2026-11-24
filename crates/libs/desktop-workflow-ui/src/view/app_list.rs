@@ -108,7 +108,7 @@ pub(crate) fn saved_apps_header_button(
 pub(crate) fn build_search_input(i18n: desktop_i18n::I18n, state: &WorkflowState) -> Element<'_, Message> {
     container(
         text_input(i18n.__("搜索"), &state.saved_app_search_query)
-            .on_input(|query| WorkflowMessage::SavedAppSearchChanged(query))
+            .on_input(WorkflowMessage::SavedAppSearchChanged)
             .padding(SETTINGS_CONTROL_PADDING)
             .size(SETTINGS_CONTROL_TEXT_SIZE)
             .line_height(iced::Pixels(SAVED_APPS_SEARCH_INPUT_LINE_HEIGHT))

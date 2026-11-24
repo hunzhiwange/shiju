@@ -169,15 +169,14 @@ impl TelegramChannel {
 
         // 文件大小限制检查
         // 防止下载过大的文件消耗过多带宽和存储空间
-        if let Some(size) = attachment.file_size {
-            if size > TELEGRAM_MAX_FILE_DOWNLOAD_BYTES {
+        if let Some(size) = attachment.file_size
+            && size > TELEGRAM_MAX_FILE_DOWNLOAD_BYTES {
                 tracing::info!(
                     "Skipping attachment: file size {size} bytes exceeds {} MB limit",
                     TELEGRAM_MAX_FILE_DOWNLOAD_BYTES / (1024 * 1024)
                 );
                 return None;
             }
-        }
 
         // 提取发送者信息（用户名和 ID）
         let (username, sender_id, sender_identity) = Self::extract_sender_info(message);
@@ -199,14 +198,10 @@ impl TelegramChannel {
         // 如果配置了 mention_only，则只处理明确提及机器人的消息
         if self.mention_only && is_group {
             let bot_username = self.bot_username.lock();
-            if let Some(ref bot_username) = *bot_username {
-                // 检查附件说明文字中是否包含机器人用户名
-                let text_to_check = attachment.caption.as_deref().unwrap_or("");
-                if !Self::contains_bot_mention(text_to_check, bot_username) {
-                    return None;
-                }
-            } else {
-                // 无法获取机器人用户名，跳过此消息
+            let bot_username = bot_username.as_deref()?;
+            // 检查附件说明文字中是否包含机器人用户名
+            let text_to_check = attachment.caption.as_deref().unwrap_or("");
+            if !Self::contains_bot_mention(text_to_check, bot_username) {
                 return None;
             }
         }
@@ -241,12 +236,9 @@ impl TelegramChannel {
         let is_group = Self::is_group_message(message);
         if self.mention_only && is_group {
             let bot_username = self.bot_username.lock();
-            if let Some(ref bot_username) = *bot_username {
-                let caption_text = attachment.caption.as_deref().unwrap_or("");
-                if !Self::contains_bot_mention(caption_text, bot_username) {
-                    return None;
-                }
-            } else {
+            let bot_username = bot_username.as_deref()?;
+            let caption_text = attachment.caption.as_deref().unwrap_or("");
+            if !Self::contains_bot_mention(caption_text, bot_username) {
                 return None;
             }
         }
@@ -316,12 +308,11 @@ impl TelegramChannel {
         let mut content = format_attachment_content(attachment.kind, &local_filename, &local_path);
 
         // 如果附件有说明文字，追加到消息内容中
-        if let Some(caption) = &attachment.caption {
-            if !caption.is_empty() {
+        if let Some(caption) = &attachment.caption
+            && !caption.is_empty() {
                 use std::fmt::Write;
                 let _ = write!(content, "\n\n{caption}");
             }
-        }
 
         // 如果消息是回复其他消息，提取引用上下文并添加到内容开头
         if let Some(quote) = self.extract_reply_context(message) {

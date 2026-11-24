@@ -31,11 +31,10 @@ pub fn build_run_request_inputs(
         }
 
         let value = parse_run_input_value(input)?;
-        if name == "query" && query.is_empty() {
-            if let Some(text) = value.as_str() {
+        if name == "query" && query.is_empty()
+            && let Some(text) = value.as_str() {
                 query = text.to_string();
             }
-        }
         parsed.insert(name.to_string(), value);
     }
 

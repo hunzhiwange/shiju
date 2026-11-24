@@ -69,7 +69,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: &'a State, base: Element<'a,
         body = body.push(editor);
     }
     if let Some(filename) = &state.delete {
-        body = body.push(text(i18n.sprintf("确认删除 %s？", &[format!("{}", filename.as_str()).into()]))).push(row![
+        body = body.push(text(i18n.sprintf("确认删除 %s？", &[filename.as_str().to_string().into()]))).push(row![
             button(text(i18n.__("确认删除"))).padding([8,12]).style(rounded_action_btn_style).on_press_maybe((!state.busy).then(|| message(Event::ConfirmDelete))),
             button(text(i18n.__("取消删除"))).padding([8,12]).style(rounded_action_btn_style).on_press_maybe((!state.busy).then(|| message(Event::CancelDelete)))].spacing(8));
     }

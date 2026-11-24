@@ -11,7 +11,7 @@ pub enum AppRoutingError {
     Transport,
     InvalidRequest,
     Decode,
-    Http { status: u16, body: Option<ApiErrorBody> },
+    Http { status: u16, body: Option<Box<ApiErrorBody>> },
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -104,12 +104,12 @@ impl GatewayAppRoutingClient {
         &self,
         method: reqwest::Method,
         path: &[&str],
-        token: &str,
+        _token: &str,
         body: Option<&impl serde::Serialize>,
     ) -> Result<T, AppRoutingError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (method, path, token, body);
+            let _ = (method, path, body);
             Err(AppRoutingError::Transport)
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -135,7 +135,7 @@ impl GatewayAppRoutingClient {
                 .map_err(|_| AppRoutingError::Transport)?;
             let status = response.status();
             if !status.is_success() {
-                let body = response.json::<ApiErrorBody>().await.ok();
+                let body = response.json::<Box<ApiErrorBody>>().await.ok();
                 return Err(AppRoutingError::Http { status: status.as_u16(), body });
             }
             response.json().await.map_err(|error| {

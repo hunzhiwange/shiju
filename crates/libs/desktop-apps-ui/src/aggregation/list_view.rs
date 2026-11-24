@@ -118,7 +118,7 @@ use vw_api_app_aggregation::RecoveryState;
             })
             .unwrap_or(i18n.__("未设置"));
         let summary = column![
-            text(i18n.sprintf("当前连接 · %s", &[format!("{}", mode).into()])).size(15),
+            text(i18n.sprintf("当前连接 · %s", &[mode.to_string().into()])).size(15),
             text(format!(
                 "{} · {recovery}",
                 if state.attached { i18n.__("目录已发布") } else { i18n.__("目录未发布") }

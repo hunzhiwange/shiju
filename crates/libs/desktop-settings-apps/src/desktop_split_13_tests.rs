@@ -33,9 +33,11 @@ fn cc_apps_desktop_preferences_state_list_uses_saved_order_and_visibility() {
     let mut saved = value();
     saved.user.app_order = vec!["codex".into(), "claude".into(), "gemini".into()];
     saved.user.visible_apps = vec![AppId::Codex, AppId::Claude];
-    let mut preferences = PreferencesState::default();
-    preferences.saved = Some(saved.clone());
-    preferences.draft = Some(value());
+    let mut preferences = PreferencesState {
+        saved: Some(saved.clone()),
+        draft: Some(value()),
+        ..Default::default()
+    };
     assert_eq!(
         visible_rows(&crate::system_settings_apps::ViewState {
             rows: &rows,

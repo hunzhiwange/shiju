@@ -1,5 +1,5 @@
 use super::{JsonTarget, VerifiedRouteBinding};
-use crate::app_routing::{RoutingListener, SharedTransport};
+use crate::app_routing::SharedTransport;
 use serde_json::json;
 use std::time::Duration;
 use tokio::{

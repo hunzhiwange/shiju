@@ -18,9 +18,9 @@ fn map(message: crate::views::Message) -> Message {
 }
 pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
     knowledge::view(&ViewInput {
-        expert_hub: &app.expert_hub,
+        expert_hub: app.expert_hub,
         desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        app_theme: app.app_theme,
     })
     .map(map)
 }

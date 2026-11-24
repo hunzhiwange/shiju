@@ -166,8 +166,8 @@ pub fn view_with_discovery<'a, M: Clone + 'static>(
             body = body.push(container(entries).width(Length::Fill).style(style::table));
         }
     }
-    if let Some(index) = s.remove_pending {
-        if let Some(repo) = s.snapshot.as_ref().and_then(|v| v.repos.get(index)) {
+    if let Some(index) = s.remove_pending
+        && let Some(repo) = s.snapshot.as_ref().and_then(|v| v.repos.get(index)) {
             body = body
                 .push(text(
                     desktop_i18n::__!(
@@ -192,7 +192,6 @@ pub fn view_with_discovery<'a, M: Clone + 'static>(
                     .spacing(8),
                 );
         }
-    }
 
     if s.busy {
         body = body.push(text(i18n.__("正在同步仓库…")));

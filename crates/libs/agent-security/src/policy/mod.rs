@@ -261,8 +261,8 @@ impl SecurityPolicy {
             _ => return result,
         }
 
-        if self.policy_check_enabled(|policy| policy.workspace_paths) && self.workspace_only {
-            if let PathCheckResult::Blocked { path, reason } =
+        if self.policy_check_enabled(|policy| policy.workspace_paths) && self.workspace_only
+            && let PathCheckResult::Blocked { path, reason } =
                 check_path_constraints(&parsed, &context.workspace_dir, &context.allowed_roots)
             {
                 return PermissionResult::deny(format!(
@@ -270,7 +270,6 @@ impl SecurityPolicy {
                     path.display()
                 ));
             }
-        }
 
         // 风险检查放在 allowlist 和路径检查之后，确保“已允许的命令”仍会因为破坏性
         // 行为被二次拦截。

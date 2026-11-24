@@ -1,5 +1,5 @@
 use super::{GitMessage, repository};
-use crate::app::components::git_panel::repository_ops::{HistoryDetail, RepositorySnapshot};
+use crate::app::components::git_panel::repository_ops::HistoryDetail;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn history_preview_uses_committed_snapshot_including_deleted_files() {

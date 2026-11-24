@@ -408,6 +408,7 @@ async fn connection(
     stop: CancellationToken,
 ) -> Result<()> {
     let tls = tokio::time::timeout(TIMEOUT, tls.accept(socket)).await??;
+    #[expect(clippy::result_large_err, reason = "Tungstenite requires an unboxed handshake response")]
     let callback = |request: &tokio_tungstenite::tungstenite::handshake::server::Request,
                     response| {
         if request.uri().path() == "/office"

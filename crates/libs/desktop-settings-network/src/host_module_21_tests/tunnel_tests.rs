@@ -10,8 +10,10 @@ async fn help_rollout_17_renders_contextual_help() {
         return;
     }
     let mut renderer = renderer().await;
-    let mut app = super::NetworkFixture::default();
-    app.system_settings_tab = SystemTab::Tunnel;
+    let mut app = super::NetworkFixture {
+        system_settings_tab: SystemTab::Tunnel,
+        ..Default::default()
+    };
     app.tunnel_settings.save_error = Some("Fixture tunnel connection failed".into());
     app.tunnel_settings.custom_start_command = "fixture-tunnel {port}".into();
 

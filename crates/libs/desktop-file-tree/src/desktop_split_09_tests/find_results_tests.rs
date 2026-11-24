@@ -12,7 +12,7 @@ use iced::advanced::Layout;
 use iced::advanced::layout;
 use iced::advanced::renderer::Headless;
 use iced::advanced::widget::Tree;
-use iced::{Font, Pixels, Size, Theme};
+use iced::{Font, Pixels, Size};
 
 fn find_tab(id: &str) -> FindInFolderTab {
     FindInFolderTab {

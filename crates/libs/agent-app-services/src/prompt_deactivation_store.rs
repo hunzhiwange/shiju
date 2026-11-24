@@ -71,7 +71,7 @@ impl PromptsStore {
             let patch = WholeFile::new(live.as_deref(), Some(Vec::new()));
             transactions.commit_project_checked(scope.project, &mut guard, &state, false,
                 &[FileChange { name, privacy: FilePrivacy::Private, patch: &patch }],
-                PendingTarget::default(), &preflight)
+                PendingTarget::default(), preflight)
                 .map_err(|_| anyhow::anyhow!("prompt deactivation transaction failed"))?;
         } else {
             preflight().map_err(|_| anyhow::anyhow!("prompt reconciliation conflict"))?;

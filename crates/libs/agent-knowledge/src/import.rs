@@ -123,7 +123,7 @@ pub fn parse_document_import(
 
 fn reject_oversized_base64(content_base64: &str) -> Result<(), KnowledgeImportError> {
     let encoded = content_base64.trim().len();
-    let max_encoded = ((MAX_IMPORT_FILE_BYTES + 2) / 3) * 4;
+    let max_encoded = MAX_IMPORT_FILE_BYTES.div_ceil(3) * 4;
     if encoded > max_encoded {
         return Err(KnowledgeImportError::bad_request(format!(
             "knowledge import file is too large: max {} bytes",

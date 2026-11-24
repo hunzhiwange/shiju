@@ -1,8 +1,10 @@
 use config_agent_profile::{AgentDefault, AgentDefaults, AgentRuntime};
 #[test]
 fn agent_defaults_form_rejects_incompatible_engine_values() {
-    let mut defaults = AgentDefaults::default();
-    defaults.permission = AgentDefault::Fixed(serde_json::json!({"*":"allow"}));
+    let mut defaults = AgentDefaults {
+        permission: AgentDefault::Fixed(serde_json::json!({"*":"allow"})),
+        ..Default::default()
+    };
     assert!(
         super::validate(
             &AgentRuntime::Acp { backend: "codex".into() },

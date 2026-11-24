@@ -10,11 +10,3 @@ pub(crate) fn finish(
 
 #[cfg(test)]
 use vw_api_app_provider_profiles::codex_catalog::CodexLiveResult;
-#[cfg(test)]
-pub use desktop_provider_apps::message::codex::Field;
-#[cfg(test)]
-pub use desktop_provider_apps::message::codex::change;
-#[cfg(test)]
-pub use desktop_provider_apps::message::codex::load;
-#[cfg(test)]
-pub use desktop_provider_apps::message::codex::save;

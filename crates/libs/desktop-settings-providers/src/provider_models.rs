@@ -162,14 +162,13 @@ pub(crate) fn merge_custom_provider_draft(
     if draft.display_name.trim().is_empty() {
         draft.display_name = settings.name.clone();
     }
-    if draft.base_url.trim().is_empty() {
-        if let Some(api) = settings.models.values().find_map(|model| {
+    if draft.base_url.trim().is_empty()
+        && let Some(api) = settings.models.values().find_map(|model| {
             let url = model.api.url.trim();
             (!url.is_empty()).then(|| url.to_string())
         }) {
             draft.base_url = api;
         }
-    }
     Ok(draft)
 }
 
@@ -219,18 +218,14 @@ fn model_draft_from_settings_model(
         model_id: model.id.clone(),
         display_name: model.name.clone(),
         family: model.family.clone().unwrap_or_default(),
-        context_limit: (model.limit.context > 0)
-            .then(|| model.limit.context.to_string())
-            .unwrap_or_default(),
+        context_limit: if model.limit.context > 0 { model.limit.context.to_string() } else { Default::default() },
         input_limit: model
             .limit
             .input
             .filter(|value| *value > 0)
             .map(|value| value.to_string())
             .unwrap_or_default(),
-        output_limit: (model.limit.output > 0)
-            .then(|| model.limit.output.to_string())
-            .unwrap_or_default(),
+        output_limit: if model.limit.output > 0 { model.limit.output.to_string() } else { Default::default() },
         inherited_capabilities: Some(model_capability_defaults(model)),
         enabled: model.status == "active",
         from_catalog,
@@ -268,11 +263,10 @@ fn overlay_settings_model_onto_draft(
     if inherited_input_was_persisted {
         draft.input_limit.clear();
     }
-    if draft.input_limit.trim().is_empty() && !context_was_explicit {
-        if let Some(input) = settings_model.limit.input.filter(|value| *value > 0) {
+    if draft.input_limit.trim().is_empty() && !context_was_explicit
+        && let Some(input) = settings_model.limit.input.filter(|value| *value > 0) {
             draft.input_limit = input.to_string();
         }
-    }
     if draft.output_limit.trim().is_empty() && settings_model.limit.output > 0 {
         draft.output_limit = settings_model.limit.output.to_string();
     }
@@ -586,14 +580,13 @@ pub(crate) fn validate_model_drafts(
         let context = parse_limit_field(model_id, "上下文", &model.context_limit, false)?;
         parse_limit_field(model_id, "输入", &model.input_limit, false)?;
         let output = parse_limit_field(model_id, "输出", &model.output_limit, true)?;
-        if let (Some(context), Some(output)) = (context, output) {
-            if output > context {
+        if let (Some(context), Some(output)) = (context, output)
+            && output > context {
                 return Err(Feedback::owned(
                     "模型 %s 的输出限制不能超过上下文限制",
                     vec![model_id.to_string()],
                 ));
             }
-        }
     }
     Ok(())
 }

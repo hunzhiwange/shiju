@@ -1,6 +1,6 @@
 //! Domain regressions migrated from the agent; real registry/tenant bridges remain there.
 use crate::shell::*;
-use agent_security::{AutonomyLevel, SecurityPolicy};
+use agent_security::SecurityPolicy;
 use tool_types::Tool;
 use serde_json::json;
 use std::{sync::Arc, path::{Path, PathBuf}, time::Duration};

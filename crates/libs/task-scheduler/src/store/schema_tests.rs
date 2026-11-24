@@ -15,7 +15,6 @@ use super::domain::AgentSchedulerContext;
 use super::store::AgentSchedulerStore;
 use super::store::schema::initialize_schema;
 use agent_database::GlobalDatabase;
-use agent_database::test_support::PostgresTestDatabase;
 use agent_project::store::ProjectStore;
 
 // Worker/team 存储已移出调度器；这里独立列出当前结构，避免复用实现常量掩盖回归。

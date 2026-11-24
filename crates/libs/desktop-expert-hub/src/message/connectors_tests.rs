@@ -65,14 +65,14 @@ fn connector_form_redacts_password_and_preserves_optional_blank_secret() {
 
 fn ready_app() -> App {
     let mut app = app();
-    let _ = load(&mut app);
+    load(&mut app);
     let generation = app.expert_hub.connectors.list_generation;
     let account_id = owner(&app);
     let mut second = connector();
     second.company_platform_id = 8;
     let mut third = connector();
     third.company_platform_id = 9;
-    let _ = update(
+    update(
         &mut app,
         ConnectorMessage::Loaded(generation, account_id, Ok(vec![connector(), second, third])),
     );
@@ -99,47 +99,45 @@ fn authorization(app: &mut App, id: u64) -> u64 {
 fn connector_loading_rejects_wrong_account_and_stale_generation() {
     let mut app = app();
     let account_id = owner(&app);
-    let _ = load(&mut app);
+    load(&mut app);
     let generation = app.expert_hub.connectors.list_generation;
     for (generation, account) in [(generation - 1, account_id.as_str()), (generation, "other")] {
-        let _ = update(
+        update(
             &mut app,
             ConnectorMessage::Loaded(generation, account.into(), Ok(vec![connector()])),
         );
         assert!(matches!(app.expert_hub.connectors.list, LoadState::Loading { .. }));
     }
-    let _ = update(
+    update(
         &mut app,
         ConnectorMessage::Loaded(generation, account_id.clone(), Ok(vec![connector()])),
     );
     assert!(matches!(app.expert_hub.connectors.list, LoadState::Loaded(_)));
     app.expert_hub.connectors.clear(Some("other".into()));
-    let _ =
-        update(&mut app, ConnectorMessage::Loaded(generation, account_id, Ok(vec![connector()])));
+    update(&mut app, ConnectorMessage::Loaded(generation, account_id, Ok(vec![connector()])));
     assert!(matches!(app.expert_hub.connectors.list, LoadState::Idle));
 }
 #[test]
 fn connector_authorizations_start_and_cancel_independently() {
     let mut app = ready_app();
     let account_id = owner(&app);
-    let _ = update(&mut app, ConnectorMessage::Authorize(7));
+    update(&mut app, ConnectorMessage::Authorize(7));
     let first = app.expert_hub.connectors.work[&7].generation;
-    let _ = update(&mut app, ConnectorMessage::Authorize(8));
+    update(&mut app, ConnectorMessage::Authorize(8));
     let second = app.expert_hub.connectors.work[&8].generation;
     assert_ne!(first, second);
     assert_eq!(app.expert_hub.connectors.work.len(), 2);
-    let _ = update(&mut app, ConnectorMessage::CancelAuthorization(7));
+    update(&mut app, ConnectorMessage::CancelAuthorization(7));
     assert!(!app.expert_hub.connectors.work.contains_key(&7));
     assert_eq!(app.expert_hub.connectors.work[&8].generation, second);
-    let _ = update(&mut app, ConnectorMessage::Authorize(7));
+    update(&mut app, ConnectorMessage::Authorize(7));
     let replacement = app.expert_hub.connectors.work[&7].generation;
-    let _ = update(
+    update(
         &mut app,
         ConnectorMessage::Started(first, account_id.clone(), 7, Err("old failure".into())),
     );
     assert_eq!(app.expert_hub.connectors.work[&7].generation, replacement);
-    let _ =
-        update(&mut app, ConnectorMessage::Started(second, account_id, 8, Err("failure".into())));
+    update(&mut app, ConnectorMessage::Started(second, account_id, 8, Err("failure".into())));
     assert!(!app.expert_hub.connectors.work.contains_key(&8));
     assert!(app.expert_hub.connectors.work.contains_key(&7));
 }
@@ -153,7 +151,7 @@ fn connector_approval_refresh_preserves_other_authorization_and_open_form() {
     let mut third = connector();
     third.company_platform_id = 9;
     app.expert_hub.connectors.form = Some(ConnectorForm::new(third));
-    let _ = update(
+    update(
         &mut app,
         ConnectorMessage::Polled(
             first,
@@ -167,7 +165,7 @@ fn connector_approval_refresh_preserves_other_authorization_and_open_form() {
     assert!(app.expert_hub.connectors.form.is_some());
     assert!(app.expert_hub.connectors.list_loading);
     assert!(matches!(app.expert_hub.connectors.list, LoadState::Loaded(_)));
-    let _ = update(
+    update(
         &mut app,
         ConnectorMessage::Polled(
             second,
@@ -182,9 +180,9 @@ fn connector_approval_refresh_preserves_other_authorization_and_open_form() {
 fn connector_modal_close_does_not_cancel_another_authorization() {
     let mut app = ready_app();
     let generation = authorization(&mut app, 7);
-    let _ = update(&mut app, ConnectorMessage::Edit(8));
+    update(&mut app, ConnectorMessage::Edit(8));
     assert_eq!(app.expert_hub.connectors.form.as_ref().unwrap().connector.company_platform_id, 8);
-    let _ = update(&mut app, ConnectorMessage::Cancel);
+    update(&mut app, ConnectorMessage::Cancel);
     assert!(app.expert_hub.connectors.form.is_none());
     assert_eq!(app.expert_hub.connectors.work[&7].generation, generation);
 }
@@ -196,7 +194,7 @@ fn connector_expired_or_denied_flow_only_removes_its_own_wait() {
         let account_id = owner(&app);
         let first = authorization(&mut app, 7);
         let second = authorization(&mut app, 8);
-        let _ = update(
+        update(
             &mut app,
             ConnectorMessage::Polled(first, account_id, 7, Ok(ShijuConnectorPoll { status })),
         );
@@ -212,7 +210,7 @@ fn connector_expired_or_denied_flow_only_removes_its_own_wait() {
     {
         *deadline = std::time::Instant::now();
     }
-    let _ = update(&mut app, ConnectorMessage::Poll(first, account_id, 7));
+    update(&mut app, ConnectorMessage::Poll(first, account_id, 7));
     assert!(!app.expert_hub.connectors.work.contains_key(&7));
     assert_eq!(app.expert_hub.connectors.work[&8].generation, second);
 }
@@ -221,15 +219,15 @@ fn connector_save_failure_preserves_modal_and_other_waits() {
     let mut app = ready_app();
     let account_id = owner(&app);
     let other = authorization(&mut app, 7);
-    let _ = update(&mut app, ConnectorMessage::Edit(8));
-    let _ = update(&mut app, ConnectorMessage::Save);
+    update(&mut app, ConnectorMessage::Edit(8));
+    update(&mut app, ConnectorMessage::Save);
     let saving = app.expert_hub.connectors.work[&8].generation;
     assert!(app.expert_hub.connectors.form_is_saving());
-    let _ = update(&mut app, ConnectorMessage::Cancel);
+    update(&mut app, ConnectorMessage::Cancel);
     assert!(app.expert_hub.connectors.form.is_some());
-    let _ = update(&mut app, ConnectorMessage::Refresh);
+    update(&mut app, ConnectorMessage::Refresh);
     assert_eq!(app.expert_hub.connectors.work[&8].generation, saving);
-    let _ = update(
+    update(
         &mut app,
         ConnectorMessage::Saved(saving, account_id, 8, Err("connection failed".into())),
     );
@@ -251,7 +249,7 @@ fn connector_logout_clears_all_waits_and_ignores_late_results() {
     assert!(app.expert_hub.connectors.work.is_empty());
     assert!(app.expert_hub.connectors.form.is_none());
     assert!(matches!(app.expert_hub.connectors.list, LoadState::NeedsLogin));
-    let _ = update(
+    update(
         &mut app,
         ConnectorMessage::Polled(
             first,
@@ -267,8 +265,8 @@ fn connector_logout_clears_all_waits_and_ignores_late_results() {
 #[test]
 fn connector_save_and_authorize_are_disabled_without_login() {
     let mut app = App::default();
-    let _ = load(&mut app);
-    let _ = update(&mut app, ConnectorMessage::Authorize(7));
+    load(&mut app);
+    update(&mut app, ConnectorMessage::Authorize(7));
     assert!(matches!(app.expert_hub.connectors.list, LoadState::NeedsLogin));
     assert!(app.expert_hub.connectors.work.is_empty());
 }

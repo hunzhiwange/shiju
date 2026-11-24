@@ -235,7 +235,7 @@ pub fn filter_completions(lsp_overlay: &mut iced_code_editor::LspOverlayState) {
         lsp_overlay.completion_items = lsp_overlay.all_completions.clone();
     } else {
         // 否则只显示包含过滤文本的补全项（不区分大小写）
-        lsp_overlay.completion_items = (*lsp_overlay)
+        lsp_overlay.completion_items = lsp_overlay
             .all_completions
             .iter()
             .filter(|item| item.to_lowercase().contains(&filter))

@@ -188,14 +188,14 @@ fn reveal_path(endpoint: gateway_endpoint::GatewayEndpoint, path: String, scope:
 pub(super) fn controls<'a>(i18n: desktop_i18n::I18n, state: &State, session: &'a SessionMeta, loopback: bool) -> Element<'a, Message> {
     let local = cfg!(target_os = "macos") && session.identity.target_host == local_app_auth::HOST_ID
         && loopback;
-    let source = i18n.sprintf("来源应用：%s · 实例：%s", &[format!("{:?}", session.identity.provider).into(), format!("{}", session.identity.instance_id).into()]);
+    let source = i18n.sprintf("来源应用：%s · 实例：%s", &[format!("{:?}", session.identity.provider).into(), session.identity.instance_id.to_string().into()]);
     let mut content = column![text(source).size(12).style(settings_muted_text_style)].spacing(4);
     for (kind, label) in [(Location::Project, i18n.__("项目位置")), (Location::Source, i18n.__("会话来源"))] {
         let Some(path) = location(session, kind) else { continue; };
         let identity = session.identity.clone();
         content = content.push(text(format!("{label}：{path}")).size(12).style(settings_muted_text_style));
         content = content.push(row![
-            button(text(i18n.sprintf("复制%s", &[format!("{}", label).into()]))).padding([8, 12]).style(rounded_action_btn_style)
+            button(text(i18n.sprintf("复制%s", &[label.to_string().into()]))).padding([8, 12]).style(rounded_action_btn_style)
                 .on_press(msg(Event::Copy(identity.clone(), state.generation, kind))),
             button(text(i18n.__("在 Finder 中显示"))).padding([8, 12]).style(rounded_action_btn_style)
                 .on_press_maybe((local && local_path(path).is_some()).then(||

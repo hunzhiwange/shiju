@@ -50,7 +50,7 @@ fn draw(element: iced::Element<'_, McpMessage>, theme: Theme) -> Vec<String> {
 use super::fixture::resync::*;
 
 use iced::Task;
-use {gateway_mcp_distribution::*, vw_api_app_identity::*, vw_api_mcp_management::*};
+use {gateway_mcp_distribution::*, vw_api_mcp_management::*};
 fn target() -> McpAppTarget {
     McpAppTarget {
         app_id: AppId::Codex,

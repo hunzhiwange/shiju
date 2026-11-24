@@ -13,8 +13,10 @@ where F: FnOnce(agent_config::runtime::Config, String) -> Fut,
     let upgrade = public_original(fixtures, t.path(), "superpowers-7.0.1");
     let before = digest(&source);
     let next = digest(&upgrade);
-    let mut config = agent_config::runtime::Config::default();
-    config.workspace_dir = t.path().join("workspace");
+    let mut config = agent_config::runtime::Config {
+        workspace_dir: t.path().join("workspace"),
+        ..Default::default()
+    };
     config.config_path = t.path().join("config/shiju.json");
     let plugins = t.path().join("config/plugins");
     let installed =

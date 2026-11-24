@@ -187,7 +187,7 @@ for line in sys.stdin:
             HeaderMap::new(),
             Json(GatewayChatStreamRequest {
                 session_id: Some(format!("ses_amp_allowed_{}", uuid::Uuid::new_v4()).into()),
-                agent: Some(profile.clone().into()),
+                agent: Some(profile.clone()),
                 model: Some("model-recovery/original".into()),
                 messages: vec![json!({"role":"user","content":"验收宿主写入"})],
                 options: Some(json!({"full_access":true,"cwd":workspace,"acp_model_source":"session_model","acp_close_client_after_request":true})),

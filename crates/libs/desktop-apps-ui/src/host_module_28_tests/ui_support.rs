@@ -8,7 +8,7 @@ pub use domain::{
     AgentAppsContext, Scope,
     state::{
         desktop::Form,
-        edit::{EditForm, Mode},
+        edit::EditForm,
         list::{Editor, Snapshot},
     },
 };
@@ -209,7 +209,7 @@ pub mod list {
         help: Help<'a>,
         base: Element<'a, Message>,
     ) -> Element<'a, Message> {
-        let Some(scope) = &state.scope else { return base };
+        let Some(_scope) = &state.scope else { return base };
         let map = |event| match event {
             domain::components::list::ListMessage::Create => {
                 Message::Settings(SettingsMessage::AppProviderEdit(EditMessage::Create))

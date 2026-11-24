@@ -25,7 +25,7 @@ async fn settings_tabs_core_appearance_cron() {
 
 #[path = "../../../../libs/desktop-settings-shell/src/cron_render_test_support.rs"]
 mod rendering;
-use iced::{Point, Size, mouse};
+use iced::{Size, mouse};
 use rendering::{Geometry, assert_fits, capture, click, frame, geometry, renderer, scene, wheel};
 impl rendering::TestMessage for Message {
     fn is_none(&self) -> bool {

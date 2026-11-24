@@ -122,9 +122,11 @@ fn session_info(id: &str, directory: &str, updated_ms: u64) -> Info {
 
 #[test]
 fn sync_active_session_from_chat_only_advances_session_timestamp() {
-    let mut app = Fixture::default();
-    app.active_session_id = Some("active".to_string());
-    app.sessions = vec![session_info("active", "/active", 2_000)];
+    let mut app = Fixture {
+        active_session_id: Some("active".to_string()),
+        sessions: vec![session_info("active", "/active", 2_000)],
+        ..Default::default()
+    };
     app.active_session_view_state.updated_ms = 1_000;
     app.chat = vec![message(ChatRole::User, "question")];
 
@@ -139,10 +141,12 @@ fn sync_active_session_from_chat_only_advances_session_timestamp() {
 
 #[test]
 fn cache_pruning_retains_requesting_sessions_and_removes_inactive_sessions() {
-    let mut app = Fixture::default();
-    app.active_session_id = Some("requesting".to_string());
-    app.chat = vec![message(ChatRole::User, "kept")];
-    app.chat_message_ids = vec![Some("message-1".to_string())];
+    let mut app = Fixture {
+        active_session_id: Some("requesting".to_string()),
+        chat: vec![message(ChatRole::User, "kept")],
+        chat_message_ids: vec![Some("message-1".to_string())],
+        ..Default::default()
+    };
     app.get_session_runtime_mut("requesting").request_lifecycle.is_requesting = true;
     app.store_session_chat_snapshot(
         "inactive".to_string(),
@@ -168,8 +172,10 @@ fn cache_pruning_retains_requesting_sessions_and_removes_inactive_sessions() {
 
 #[test]
 fn known_session_directory_prefers_loaded_sessions_then_searches_projects() {
-    let mut app = Fixture::default();
-    app.sessions = vec![session_info("duplicate", "/loaded", 1)];
+    let mut app = Fixture {
+        sessions: vec![session_info("duplicate", "/loaded", 1)],
+        ..Default::default()
+    };
     app.project_sessions.insert(
         "/project".to_string(),
         vec![

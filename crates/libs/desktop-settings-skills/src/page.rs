@@ -82,7 +82,7 @@ pub fn system_config_view(app: ConfigContext<'_>) -> Element<'static, Message> {
         ),
         checkbox(s.auto_load_project_skills)
             .label(tr(app.desktop_locale, "默认加载项目技能"))
-            .on_toggle(|v| Message::SkillsProjectAutoLoadToggled(v))
+            .on_toggle(Message::SkillsProjectAutoLoadToggled)
             .text_size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_checkbox_style),
     );

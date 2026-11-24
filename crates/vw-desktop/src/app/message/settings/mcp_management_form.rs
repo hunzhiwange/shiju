@@ -14,6 +14,3 @@ pub(crate) fn update(app: &mut App, event: FormMessage) -> Task<Message> {
     let effects = std::mem::take(&mut input.effects);
     super::mcp_management_tools::apply_effects(app, task, effects)
 }
-
-#[cfg(test)]
-use super::mcp_management_list as catalog;

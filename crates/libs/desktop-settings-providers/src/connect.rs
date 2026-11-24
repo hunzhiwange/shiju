@@ -24,7 +24,7 @@ pub fn modal<'a>(s: &'a crate::provider_state::ProviderSettingsState, style: Vie
     let locale = style.locale;
     let close = Message::Settings(SettingsMessage::ProviderConnectClose);
     let header = settings_modal_header(
-        text(owned_text(locale, "配置 %s 的密钥", &[modal.provider_name.clone()]))
+        text(owned_text(locale, "配置 %s 的密钥", std::slice::from_ref(&modal.provider_name)))
             .size(18)
             .wrapping(Wrapping::WordOrGlyph),
         settings_close_button(close.clone()),

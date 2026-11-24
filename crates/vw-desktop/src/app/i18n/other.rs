@@ -9,6 +9,3 @@ pub(crate) fn session_title(app: &crate::app::App, id: &str, raw: &str) -> Strin
         app.input_feedback.generated_session_titles.get(id),
     )
 }
-
-#[cfg(test)]
-pub use desktop_i18n::other::*;

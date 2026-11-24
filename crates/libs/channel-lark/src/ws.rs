@@ -293,10 +293,10 @@ impl LarkChannel {
                     // 处理控制帧（method = 0）
                     if frame.method == 0 {
                         // 处理 pong 响应，更新心跳配置
-                        if frame.header_value("type") == "pong" {
-                            if let Some(p) = &frame.payload {
-                                if let Ok(cfg) = serde_json::from_slice::<WsClientConfig>(p) {
-                                    if let Some(secs) = cfg.ping_interval {
+                        if frame.header_value("type") == "pong"
+                            && let Some(p) = &frame.payload
+                                && let Ok(cfg) = serde_json::from_slice::<WsClientConfig>(p)
+                                    && let Some(secs) = cfg.ping_interval {
                                         let secs = secs.max(10);
                                         // 如果服务器建议的 ping 间隔与当前不同，则更新
                                         if secs != ping_secs {
@@ -306,9 +306,6 @@ impl LarkChannel {
                                             tracing::info!("Lark: ping_interval → {ping_secs}s");
                                         }
                                     }
-                                }
-                            }
-                        }
                         continue;
                     }
 

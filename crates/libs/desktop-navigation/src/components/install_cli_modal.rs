@@ -485,6 +485,3 @@ pub fn view_inner<'a>(
     let card = settings_modal_layout(header, body, actions).width(540).height(height);
     settings_modal_overlay(None, close_message, container(card).padding(12))
 }
-
-#[cfg(test)]
-use iced::Background;

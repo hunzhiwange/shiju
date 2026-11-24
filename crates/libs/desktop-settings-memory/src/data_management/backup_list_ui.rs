@@ -153,9 +153,8 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
                 Some(DataBackupPolicy { interval_hours, retain_count })
             } else { None };
             if matches!(action, Event::Confirm) && (state.pending.is_none() || (matches!(state.pending, Some(Pending::Rename(_))) && state.name.trim().is_empty())) { return Task::none(); }
-            if let Some(Pending::Cleanup(id)) = &state.pending {
-                if matches!(action, Event::Confirm) && !state.locations.iter().any(|location| location.id == *id && crate::system_settings_data::locations::can_cleanup(location)) { return Task::none(); }
-            }
+            if let Some(Pending::Cleanup(id)) = &state.pending
+                && matches!(action, Event::Confirm) && !state.locations.iter().any(|location| location.id == *id && crate::system_settings_data::locations::can_cleanup(location)) { return Task::none(); }
             let pending = state.pending.clone();
             let name = if matches!(action, Event::Create) {
                 format!("backup-{}", chrono::Local::now().format("%Y-%m-%d_%H-%M-%S-%3f"))
@@ -167,14 +166,13 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<vw_ga
             let generation = state.generation;
             let token = token.clone();
             return Task::perform(async move {
-                if matches!(action, Event::Confirm) {
-                    if let Some(Pending::Cleanup(id)) = &pending {
+                if matches!(action, Event::Confirm)
+                    && let Some(Pending::Cleanup(id)) = &pending {
                         let result = gateway_app_data::GatewayAppDataClient::new(client.transport().clone()).data_backup_delete_location(&DeleteDataBackupLocationRequest {
                             target, category_id: id.clone(), confirmed: true,
                         }, Some(&token)).await.map_err(|e| e.to_string());
                         return message(Event::Cleaned(current, generation, result));
                     }
-                }
                 if matches!(action, Event::Refresh) {
                     let result = async {
                         let request = ListDataBackupsRequest { target: target.clone() };

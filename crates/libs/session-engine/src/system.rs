@@ -32,7 +32,6 @@ use time::format_description;
 /// 统一的会话系统提示模板
 ///
 /// 所有模型共用；指令优先级为：用户本轮要求 > 项目协议（含 AGENTS.md）> 本文件默认指引。
-
 pub use crate::system_prompt::{UNIFIED_PROMPT_MARKER, RuntimePromptModes};
 pub fn render_unified_prompt_with_modes(
     model_id: &str,

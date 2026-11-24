@@ -6,7 +6,7 @@ use crate::app::message::{SettingsMessage, ViewMessage};
 use crate::app::state::ModelConfigTab;
 use config_ui::DesktopLocale;
 use iced::advanced::Layout;
-use iced::keyboard::{self, Key, key::Named};
+use iced::keyboard::{Key, key::Named};
 use iced::{Event, Point, Rectangle, mouse};
 
 fn fixture() -> App {

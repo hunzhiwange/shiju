@@ -12,7 +12,7 @@ fn task_board_drag_starts_only_after_threshold_is_exceeded() {
     app.task_board_drag_pending =
         Some(("task-1".to_owned(), desktop_task_model::TaskStatus::Planning, iced::Point::ORIGIN));
 
-    let _task = crate::drag::promote_pending_drag(
+    crate::drag::promote_pending_drag(
         &mut app.task_board_drag_pending,
         &mut app.task_board_dragging,
         iced::Point::new(3.0, 4.0),
@@ -20,7 +20,7 @@ fn task_board_drag_starts_only_after_threshold_is_exceeded() {
     assert!(app.task_board_drag_pending.is_some());
     assert!(app.task_board_dragging.is_none());
 
-    let _task = crate::drag::promote_pending_drag(
+    crate::drag::promote_pending_drag(
         &mut app.task_board_drag_pending,
         &mut app.task_board_dragging,
         iced::Point::new(6.0, 0.0),

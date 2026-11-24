@@ -161,7 +161,7 @@ fn table_link_renders_and_emits_open_message_in_both_themes() {
             mouse::Cursor::Unavailable,
         );
         let pixels = renderer.screenshot(Size::new(340, 120), 1.0, theme.palette().background);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel != &pixels[..4]));
 
         for (x, target) in [(20.0, "https://example.com/docs"), (210.0, "https://example.com/bare")]
         {
@@ -403,7 +403,7 @@ fn markdown_renders_padded_inline_code_in_both_themes() {
             mouse::Cursor::Unavailable,
         );
         let pixels = renderer.screenshot(Size::new(340, 60), 1.0, theme.palette().background);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel != &pixels[..4]));
     }
 }
 

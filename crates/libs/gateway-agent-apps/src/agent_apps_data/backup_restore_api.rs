@@ -253,8 +253,8 @@ async fn get(
         let mut r = load(&db, &input.target, input.operation_id.as_ref())?
             .filter(|r| r.target == input.target)
             .ok_or(StatusCode::NOT_FOUND)?;
-        if r.status == "running" || r.status == "queued" {
-            if let Ok(pid) = i32::try_from(r.executor_pid) {
+        if (r.status == "running" || r.status == "queued")
+            && let Ok(pid) = i32::try_from(r.executor_pid) {
                 // Signal zero only probes liveness; never resumes an interrupted write.
                 if pid > 0
                     && unsafe { libc::kill(pid, 0) } != 0
@@ -265,7 +265,6 @@ async fn get(
                     save(&db, &r)?;
                 }
             }
-        }
         Ok(Json(public(&r)))
     })
     .await

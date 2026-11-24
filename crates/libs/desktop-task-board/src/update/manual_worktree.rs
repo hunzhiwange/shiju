@@ -317,7 +317,7 @@ pub fn update_manual_worktree(
                 _ => "worktree 操作",
             };
             ui.notify("已取消 %s 确认，可重新发起操作", vec![(action_label).to_string().into()]);
-            ()
+
         }
         TaskBoardMessage::WorktreeActionLogTick => {
             poll_worktree_action_logs(&mut state.logs());
@@ -330,7 +330,7 @@ pub fn update_manual_worktree(
             {
                 clear_worktree_action_logs(&mut state.logs());
             }
-            ()
+
         }
         TaskBoardMessage::UiTick => {
             poll_worktree_action_logs(&mut state.logs());

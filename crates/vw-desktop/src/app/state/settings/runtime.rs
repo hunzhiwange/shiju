@@ -24,18 +24,10 @@ pub(crate) use desktop_settings_memory::state::MemorySettingsState;
 pub(crate) use desktop_settings_runtime::state::{HooksSettingsState, RuntimeSettingsState, ReliabilitySettingsState};
 
 #[cfg(test)]
-use super::*;
-#[cfg(test)]
-pub use desktop_settings_skills::types::PluginCatalogItem;
-#[cfg(test)]
 pub use desktop_settings_skills::types::SkillsCatalogItem;
 #[cfg(test)]
 pub use desktop_settings_skills::types::SkillsCatalogKind;
 #[cfg(test)]
 pub use desktop_settings_skills::types::SkillsDirectoryScope;
 #[cfg(test)]
-pub use desktop_settings_skills::types::SkillsSelectedDetail;
-#[cfg(test)]
 pub(crate) use desktop_settings_network::state::GatewayClientServerDraft;
-#[cfg(test)]
-pub(crate) use desktop_settings_runtime::state::CostPriceInput;

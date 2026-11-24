@@ -118,7 +118,7 @@ pub fn card<'a>(
             .style(settings_muted_text_style),
         )
         .push(
-            settings_text_input(i18n.__("入站 ACP 会话ID"), &state.acp_session)
+            settings_text_input(i18n.__("入站 ACP 会话ID"), state.acp_session)
                 .on_input(move |value| message(ToolsMessage::AcpSessionChanged(value))),
         )
         .push(toolbar_button(

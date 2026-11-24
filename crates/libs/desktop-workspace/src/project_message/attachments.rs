@@ -135,7 +135,7 @@ pub fn collect_local_attachments(
     max_image_size_mb: usize,
     picked: Vec<String>,
 ) -> (Vec<String>, Vec<ProjectFeedback>) {
-    let max_images = max_image_count.clamp(1, 16) as usize;
+    let max_images = max_image_count.clamp(1, 16);
     let max_bytes =
         (max_image_size_mb.clamp(1, 20) as u64).saturating_mul(1024 * 1024);
     let mut seen = files.iter().cloned().collect::<HashSet<_>>();

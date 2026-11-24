@@ -17,8 +17,6 @@ pub(crate) fn launch_shiju_app(
 }
 
 #[cfg(test)]
-pub(crate) use desktop_app_launch::ShijuAppDetailTarget;
-#[cfg(test)]
 pub(crate) use desktop_app_launch::ShijuAppsLoadState;
 #[cfg(test)]
 pub(crate) use desktop_app_launch::ShijuAppsTab;

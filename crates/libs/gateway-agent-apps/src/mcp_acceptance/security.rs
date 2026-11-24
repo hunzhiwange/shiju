@@ -60,7 +60,7 @@ async fn send(
     method: &str,
     uri: &str,
     company: &str,
-    token: &str,
+    _token: &str,
     payload: Value,
 ) -> (StatusCode, Value) {
     let response = app

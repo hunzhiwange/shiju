@@ -184,7 +184,7 @@ pub fn connection_form_panel(
             .align_y(Alignment::Center),
         );
         if draft.json {
-            let editor = text_editor(&draft.editor)
+            let editor = text_editor(draft.editor)
                 .padding(SETTINGS_CONTROL_PADDING)
                 .size(SETTINGS_CONTROL_TEXT_SIZE)
                 .height(340)
@@ -246,7 +246,7 @@ pub fn connection_form_panel(
                     (!draft.saving).then_some(FormMessage::ArgAdd),
                 ));
             } else {
-                body = body.push(input("URL", "url", &draft.url));
+                body = body.push(input("URL", "url", draft.url));
             }
             body = body.push(
                 text(if draft.transport == "stdio" {
@@ -257,7 +257,7 @@ pub fn connection_form_panel(
                 .size(14),
             );
             let values: std::collections::BTreeMap<String, McpConfigValue> =
-                serde_json::from_str(&draft.values).unwrap_or_default();
+                serde_json::from_str(draft.values).unwrap_or_default();
             for (name, value) in values {
                 let key = name.clone();
                 let remove = name.clone();

@@ -504,11 +504,10 @@ impl Draft {
             FormMessage::Json(json) => {
                 self.error = self.toggle_json(json).err();
             }
-            FormMessage::Preset(index) => {
-                if self.record.is_none() {
+            FormMessage::Preset(index)
+                if self.record.is_none() => {
                     self.preset(index);
                 }
-            }
             _ => {}
         }
         self.select_default_target();

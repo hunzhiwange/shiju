@@ -47,6 +47,3 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
 pub(crate) fn selected(app: &App, provider: &str) -> bool {
     app.apps_catalog.failover_health.context.as_ref().is_some_and(|c| c.provider.as_ref() == provider)
 }
-
-#[cfg(test)]
-pub use desktop_apps_ui::agent_apps_health::State;

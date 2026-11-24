@@ -674,7 +674,8 @@ async fn help_rollout_16_renders_contextual_help() {
         // An application-driven switch (such as settings search) has no outside click.
         assert!(click(&mut ui, &mut renderer, heading_icon).is_empty());
         let cache = ui.into_cache();
-        drop(super::update(&mut app, Message::NetworkTabSelected(crate::NetworkTab::HttpRequest)));
+        super::update(&mut app, Message::NetworkTabSelected(crate::NetworkTab::HttpRequest));
+        drop(());
         assert_eq!(app.system_settings_tab, SystemTab::HttpRequest);
         let mut switched = UserInterface::build(
             page(&app),

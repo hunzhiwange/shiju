@@ -492,8 +492,10 @@ fn viewed_and_requesting_helpers_update_and_query_per_session_state() {
     let mut app = test_app();
     app.session_runtime_states.clear();
     app.active_session_id = Some("active".to_string());
-    let mut active = SessionRuntimeState::default();
-    active.has_unseen_success = true;
+    let mut active = SessionRuntimeState {
+        has_unseen_success: true,
+        ..Default::default()
+    };
     active.request_lifecycle.is_requesting = true;
     app.session_runtime_states.insert("active".to_string(), active);
 
@@ -563,8 +565,10 @@ fn historical_session_model_restore_preserves_existing_session_selection() {
 fn mark_session_acp_rebuild_required_sets_flag_and_clears_effective_agent() {
     let mut app = test_app();
     app.session_runtime_states.clear();
-    let mut runtime = SessionRuntimeState::default();
-    runtime.last_effective_acp_agent = Some("old-agent".to_string());
+    let mut runtime = SessionRuntimeState {
+        last_effective_acp_agent: Some("old-agent".to_string()),
+        ..Default::default()
+    };
     app.session_runtime_states.insert("session".to_string(), runtime);
 
     app.mark_session_acp_rebuild_required("session");

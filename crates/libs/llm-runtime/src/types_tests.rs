@@ -300,12 +300,12 @@ fn error_display_serializes_each_structured_assistant_error_variant() {
                 message: "rate limited".to_string(),
                 status_code: Some(429),
                 is_retryable: true,
-                response_headers: Some(HashMap::from([(
+                response_headers: Some(Box::new(HashMap::from([(
                     "retry-after".to_string(),
                     "5".to_string(),
-                )])),
+                )]))),
                 response_body: Some("slow down".to_string()),
-                metadata: Some(HashMap::from([("request_id".to_string(), "req-1".to_string())])),
+                metadata: Some(Box::new(HashMap::from([("request_id".to_string(), "req-1".to_string())]))),
             },
             json!({
                 "name": "APIError",

@@ -36,7 +36,7 @@ pub fn overlay<'a, Message: Clone + 'static>(i18n: desktop_i18n::I18n,
             DesktopProfileMode::Routing => i18n.__("路由"),
             DesktopProfileMode::Aggregation => i18n.__("聚合"),
         };
-        body = body.push(text(i18n.sprintf("安装：%s · 当前模式：%s · 已配置：%s · 恢复：%s", &[format!("{}", installation).into(), format!("{}", mode).into(), format!("{}", status.configured).into(), format!("{:?}", status.recovery).into()])));
+        body = body.push(text(i18n.sprintf("安装：%s · 当前模式：%s · 已配置：%s · 恢复：%s", &[installation.to_string().into(), mode.to_string().into(), format!("{}", status.configured).into(), format!("{:?}", status.recovery).into()])));
         for notice in &status.notices {
             body = body.push(text(i18n.sprintf("客户端提醒：%s", &[format!("{:?}", notice).into()])));
         }
@@ -51,7 +51,7 @@ pub fn overlay<'a, Message: Clone + 'static>(i18n: desktop_i18n::I18n,
         body = body.push(settings_panel(text(i18n.__(notice))));
     }
     if let Some(p) = &s.preview {
-        body = body.push(text(i18n.sprintf("预览默认供应商：%s", &[format!("{}", p.default_provider_id.as_deref().unwrap_or(i18n.__("未选择"))).into()])));
+        body = body.push(text(i18n.sprintf("预览默认供应商：%s", &[p.default_provider_id.as_deref().unwrap_or(i18n.__("未选择")).to_string().into()])));
         for issue in &p.issues {
             body = body.push(settings_error_banner(i18n.sprintf("预览问题：%s，阻止发布：%s", &[format!("{:?}", issue.code).into(), format!("{}", issue.blocking).into()])));
         }

@@ -334,13 +334,12 @@ impl ChatWidget {
     /// 使用终端鼠标滚轮滚动复制的记录。
     /// Scrolls the copied transcript with the terminal mouse wheel.
     pub fn handle_mouse_event(&mut self, event: MouseEvent) -> V3Action {
-        if let TranscriptMouseAction::Copy(text) = self.transcript.handle_mouse_event(event) {
-            if let Err(error) = self.copy_text(text.as_str()) {
+        if let TranscriptMouseAction::Copy(text) = self.transcript.handle_mouse_event(event)
+            && let Err(error) = self.copy_text(text.as_str()) {
                 self.transcript.push_history(V3DisplayEvent::Error {
                     message: format!("复制失败：{error}"),
                 });
             }
-        }
         V3Action::None
     }
 
@@ -358,11 +357,10 @@ impl ChatWidget {
             overlay.handle_paste(text.as_str());
             return V3Action::None;
         }
-        if self.overlay.is_none() {
-            if let Some(attachment) = tui_clipboard::clipboard_image::image_path_attachment(&text) {
+        if self.overlay.is_none()
+            && let Some(attachment) = tui_clipboard::clipboard_image::image_path_attachment(&text) {
                 return self.bottom_pane.add_attachment(attachment);
             }
-        }
         self.bottom_pane.handle_paste(text)
     }
 

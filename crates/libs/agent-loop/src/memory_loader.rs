@@ -7,7 +7,7 @@
 //! # 主要组件
 //!
 //! - [`MemoryLoader`]: 定义记忆加载行为的核心 trait
-//! - [`DefaultMemoryLoader`]: 默认实现，提供基于相关性分数的过滤功能
+//! - [`DefaultMemoryLoader`][]: 默认实现，提供基于相关性分数的过滤功能
 //!
 //! # 架构说明
 //!
@@ -188,11 +188,10 @@ impl MemoryLoader for DefaultMemoryLoader {
             }
 
             // 检查相关性分数，跳过低于阈值的条目
-            if let Some(score) = entry.score {
-                if score < self.min_relevance_score {
+            if let Some(score) = entry.score
+                && score < self.min_relevance_score {
                     continue;
                 }
-            }
 
             // 将条目添加到上下文中，格式："- key: content"
             let _ = writeln!(context, "- {}: {}", entry.key, entry.content);

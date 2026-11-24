@@ -73,7 +73,7 @@ pub(super) fn apply(
             );
 
             let prompt_value = data_map
-                .remove(&yaml_key("prompt_template"))
+                .remove(yaml_key("prompt_template"))
                 .unwrap_or_else(|| Value::Sequence(Vec::new()));
             let merged_prompt = merge_prompt_template_value(
                 prompt_value,
@@ -114,17 +114,17 @@ pub(super) fn apply(
                 "basic" => {
                     set_mapping_string(auth, "username", auth_username);
                     set_mapping_string(auth, "password", auth_password);
-                    auth.remove(&yaml_key("token"));
+                    auth.remove(yaml_key("token"));
                 }
                 "bearer" | "api-key" => {
                     set_mapping_string(auth, "token", auth_token);
-                    auth.remove(&yaml_key("username"));
-                    auth.remove(&yaml_key("password"));
+                    auth.remove(yaml_key("username"));
+                    auth.remove(yaml_key("password"));
                 }
                 _ => {
-                    auth.remove(&yaml_key("username"));
-                    auth.remove(&yaml_key("password"));
-                    auth.remove(&yaml_key("token"));
+                    auth.remove(yaml_key("username"));
+                    auth.remove(yaml_key("password"));
+                    auth.remove(yaml_key("token"));
                 }
             }
             data_map

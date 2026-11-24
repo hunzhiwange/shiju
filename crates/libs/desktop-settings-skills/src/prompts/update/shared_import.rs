@@ -57,7 +57,7 @@ pub fn update(app: &mut Input<'_>, event: Event) -> Task<Message> {
             state.shared_import = Some(crate::prompts::shared_import::Draft { payload, enable_after_import: false, error: None });
             Task::none()
         }
-        Event::Enable(value) => { if !state.mutating { if let Some(draft) = &mut state.shared_import { draft.enable_after_import = value; } } Task::none() }
+        Event::Enable(value) => { if !state.mutating && let Some(draft) = &mut state.shared_import { draft.enable_after_import = value; } Task::none() }
         Event::Confirm => {
             if state.loading || state.mutating { return Task::none(); }
             let (Some(draft), Some(catalog), Some(preview)) = (&state.shared_import, &state.catalog, &state.preview) else { return Task::none(); };

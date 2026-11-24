@@ -39,7 +39,9 @@ impl<H: ContextHost, C: ClientConnection> ClientTool<H, C> {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
 impl<H: ContextHost, C: ClientConnection> Tool for ClientTool<H, C> {
     fn name(&self) -> &str {
-        &self.spec.id
+        // Tool dispatch uses the registration ID.
+        let ToolSpec { id, .. } = &self.spec;
+        id
     }
     fn description(&self) -> &str {
         &self.spec.description

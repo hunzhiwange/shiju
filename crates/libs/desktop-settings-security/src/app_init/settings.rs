@@ -80,7 +80,7 @@ pub fn build_security_settings(
         },
         syscall_anomaly_baseline_syscalls: security_cfg.syscall_anomaly.baseline_syscalls.clone(),
         list_editor: crate::security_state::SecurityListEditorState::default(),
-        canary_tokens: security_cfg.canary_tokens.clone(),
+        canary_tokens: security_cfg.canary_tokens,
         semantic_guard: security_cfg.semantic_guard,
         semantic_guard_collection: {
             let value = security_cfg.semantic_guard_collection.trim().to_string();

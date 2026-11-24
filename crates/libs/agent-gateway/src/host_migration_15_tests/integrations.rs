@@ -106,9 +106,11 @@ impl Provider for StaticProvider {
 }
 
 fn config_in(temp: &TempDir) -> Config {
-    let mut config = Config::default();
-    config.config_path = temp.path().join("vibewindow.json");
-    config.workspace_dir = temp.path().join("workspace");
+    let mut config = Config {
+        config_path: temp.path().join("vibewindow.json"),
+        workspace_dir: temp.path().join("workspace"),
+        ..Default::default()
+    };
     config
 }
 

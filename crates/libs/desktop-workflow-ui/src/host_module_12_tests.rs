@@ -1,10 +1,8 @@
 //! Original workflow controller assertions using only domain state.
 #![allow(unused_must_use)]
 use crate::controller::*;
-use crate::controller::{app, document, run};
+use crate::controller::{app, document};
 use crate::message::{WorkflowMessage, WorkflowSaveTarget};
-use desktop_workflow_model::*;
-use desktop_workflow_state::state::*;
 use iced::{Point, widget::text_editor};
 struct Fixture {
     workflow_state: WorkflowState,

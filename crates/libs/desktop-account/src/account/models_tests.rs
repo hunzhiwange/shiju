@@ -27,10 +27,9 @@ fn account_gateway_dtos_map_without_exposing_credentials() {
 
     let credential =
         vw_gateway_client::ShijuCredential::new("gateway-secret-value").expect("credential");
-    let poll = LoginPoll::try_from(vw_gateway_client::ShijuLoginPollDto::Approved {
+    let poll = LoginPoll::from(vw_gateway_client::ShijuLoginPollDto::Approved {
         credential: credential.clone(),
-    })
-    .expect("approved poll");
+    });
     let LoginPoll::Approved(skey) = poll else {
         panic!("expected approved poll");
     };

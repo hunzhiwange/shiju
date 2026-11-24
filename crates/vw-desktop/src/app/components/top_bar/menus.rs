@@ -67,6 +67,4 @@ domain::Message::MenuAction(event) => Message::View(message::ViewMessage::MenuAc
 #[cfg(test)]
 use crate::app::components::top_bar::menu_actions::NativeMenuAction;
 #[cfg(test)]
-use crate::app::state::WorkResourceMode;
-#[cfg(test)]
 use crate::app::state::WorkspaceMode;

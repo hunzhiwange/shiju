@@ -198,13 +198,12 @@ impl ShijuAppsState {
     }
 
     pub fn render_launch_error(&self, source: &str, i18n: desktop_i18n::I18n) -> String {
-        if let Some((generation, original, error)) = &self.launch_feedback {
-            if original == source
+        if let Some((generation, original, error)) = &self.launch_feedback
+            && original == source
                 && self.launch.request_identity().is_some_and(|(active, _)| active == *generation)
             {
                 return error.render(i18n);
             }
-        }
         source.to_string()
     }
 

@@ -11,7 +11,6 @@ use vw_api_knowledge::{
 };
 
 use super::{PostgresKnowledgeStore, content_hash, metadata_or_object};
-use agent_database::test_support::PostgresTestDatabase;
 
 fn dataset_request() -> KnowledgeDatasetCreateRequest {
     KnowledgeDatasetCreateRequest {

@@ -228,9 +228,7 @@ fn build_start_variable_file_default_value<'a>(
                         workflow_text_input(
                             i18n.__("输入文件链接"),
                             &start_variable_editor.default_file_url_input,
-                            |value| WorkflowMessage::NodeEditorStartVariableEditorDefaultFileUrlChanged(
-                                    value
-                                ),
+                            WorkflowMessage::NodeEditorStartVariableEditorDefaultFileUrlChanged,
                         ),
                         button(text(i18n.__("好的")).size(12))
                             .style(primary_action_btn_style)

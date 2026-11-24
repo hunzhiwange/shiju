@@ -366,11 +366,10 @@ fn recent_project_row<'a>(app: &State<'_>, index: usize, path: &str) -> Element<
 }
 
 fn recent_project_name(app: &State<'_>, index: usize, path: &str) -> String {
-    if let Some(name) = app.recent_projects_edits.get(index).map(|name| name.trim()) {
-        if !name.is_empty() {
+    if let Some(name) = app.recent_projects_edits.get(index).map(|name| name.trim())
+        && !name.is_empty() {
             return name.to_owned();
         }
-    }
 
     if let Some(meta) = app.recent_projects_meta.iter().find(|meta| meta.path == path) {
         let name = meta.name.trim();
@@ -387,7 +386,7 @@ fn project_name_from_path(i18n: desktop_i18n::I18n, path: &str) -> String {
     if trimmed.is_empty() {
         return i18n.__("未命名项目").to_string();
     }
-    let without_trailing_separator = trimmed.trim_end_matches(|ch| ch == '/' || ch == '\\');
+    let without_trailing_separator = trimmed.trim_end_matches(['/', '\\']);
     let display_path =
         if without_trailing_separator.is_empty() { trimmed } else { without_trailing_separator };
 

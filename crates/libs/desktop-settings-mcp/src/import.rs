@@ -117,7 +117,7 @@ pub fn panel<'a>(i18n: desktop_i18n::I18n,
         if state.all || state.source.as_ref().is_some_and(|t| t.app_id == AppId::Claude) {
             body = body
                 .push(text(i18n.__("受管 Claude 官方账号 ID（仅引用）")).size(12))
-                .push(settings_text_input(i18n.__("账号 ID"), &state.account).on_input_maybe(
+                .push(settings_text_input(i18n.__("账号 ID"), state.account).on_input_maybe(
                     idle.then_some(|value| message(ImportMessage::Account(value))),
                 ));
         }
@@ -167,7 +167,7 @@ fn completion<'a>(i18n: desktop_i18n::I18n,
     let mut body = column![].spacing(12);
     if reports.is_empty() {
         for label in labels {
-            body = body.push(text(desktop_i18n::settings_extensions::feedback(i18n, &label)).size(14));
+            body = body.push(text(desktop_i18n::settings_extensions::feedback(i18n, label)).size(14));
         }
     } else {
         let added: usize = reports.iter().map(|r| r.added).sum();
@@ -234,7 +234,7 @@ fn completion<'a>(i18n: desktop_i18n::I18n,
                         config = config.push(text(i18n.__(note)).size(11).style(settings_muted_text_style));
                     }
                     for label in &report.labels {
-                        config = config.push(text(desktop_i18n::settings_extensions::feedback(i18n, &label)).size(12).style(settings_muted_text_style));
+                        config = config.push(text(desktop_i18n::settings_extensions::feedback(i18n, label)).size(12).style(settings_muted_text_style));
                     }
                     details = details.push(row![name.width(120), config].spacing(10));
                 }

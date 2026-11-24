@@ -108,5 +108,5 @@ async fn codex_plugin_compat_t61_public_hook_original() {
     assert_eq!(digest(&installed.installed_dir), before);
     remove_installed_plugin(&t.path().join("plugins"), "notify@public").unwrap();
     assert!(state.is_dir(), "plugin removal must preserve external session state");
-    fs::remove_dir(&state).unwrap();
+    fs::remove_dir(state).unwrap();
 }

@@ -188,13 +188,10 @@ pub async fn execute(client: GatewayClient, changes: Vec<Change>, token: String)
         for previous in &attempts {
             if previous.change.record.scope == change.record.scope
                 && previous.change.record.record.id == change.record.record.id
-            {
-                if let Ok(item) = &previous.result {
-                    if item.desired_committed {
+                && let Ok(item) = &previous.result
+                    && item.desired_committed {
                         change.record.record = item.record.clone();
                     }
-                }
-            }
         }
         let result = apply(
             client.clone(),

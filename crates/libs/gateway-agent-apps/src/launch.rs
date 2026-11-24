@@ -172,7 +172,7 @@ async fn launch(
                     })?)
                 }
             } else {
-                let material = validate_launch_request(&request.launch, &host.id, &observed.installations, &[root.clone()], false).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+                let material = validate_launch_request(&request.launch, &host.id, &observed.installations, std::slice::from_ref(&root), false).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
                 let mut command = vw_agent_apps::apps::launch::host::command(material, &root, &host.search_paths).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
                 let terminal = context.terminal;
                 let preferred = preferences.preferred_terminal;

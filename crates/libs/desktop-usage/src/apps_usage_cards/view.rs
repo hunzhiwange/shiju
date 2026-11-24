@@ -176,7 +176,7 @@ pub(super) fn summary(i18n: desktop_i18n::I18n, result: &Result<UsageSnapshotRes
     };
     let source = i18n.__(source);
     let mut lines = vec![if snapshot.stale {
-        i18n.format("%s · 旧快照，最近刷新失败", &[(format!("{}", source)).into()]).expect("valid display template")
+        i18n.format("%s · 旧快照，最近刷新失败", &[(source.to_string()).into()]).expect("valid display template")
     } else {
         source.into()
     }];
@@ -210,7 +210,7 @@ pub(super) fn summary(i18n: desktop_i18n::I18n, result: &Result<UsageSnapshotRes
                         lines.extend(packages.iter().map(|package| {
                             let label = package.plan_name.as_deref().unwrap_or(i18n.__("套餐"));
                             if package.is_valid == Some(false) {
-                                i18n.format("%s · 失效", &[(format!("{}", label)).into()]).expect("valid display template")
+                                i18n.format("%s · 失效", &[(label.to_string()).into()]).expect("valid display template")
                             } else {
                                 remaining(i18n, label, package.remaining, package.unit.as_deref())
                             }
@@ -220,7 +220,7 @@ pub(super) fn summary(i18n: desktop_i18n::I18n, result: &Result<UsageSnapshotRes
                 };
             lines.extend(windows.iter().map(|window| {
                 if let Some(utilization) = window.utilization {
-                    i18n.format("%s · 剩余 %s%%", &[(format!("{}", window.name)).into(), (format!("{:.0}", (100.0 - f64::from(utilization)).clamp(0.0, 100.0))).into()]).expect("valid display template")
+                    i18n.format("%s · 剩余 %s%%", &[(window.name.to_string()).into(), (format!("{:.0}", (100.0 - f64::from(utilization)).clamp(0.0, 100.0))).into()]).expect("valid display template")
                 } else {
                     remaining(i18n, &window.name, window.remaining, window.unit.as_deref())
                 }
@@ -236,8 +236,8 @@ pub(super) fn summary(i18n: desktop_i18n::I18n, result: &Result<UsageSnapshotRes
 fn remaining(i18n: desktop_i18n::I18n, label: &str, amount: Option<UsageNumber>, unit: Option<&str>) -> String {
     match amount {
         Some(amount) => {
-            i18n.format("%s · 剩余 %s %s", &[(format!("{}", label)).into(), (format!("{}", f64::from(amount))).into(), (format!("{}", unit.unwrap_or(""))).into()]).expect("valid display template").trim_end().into()
+            i18n.format("%s · 剩余 %s %s", &[(label.to_string()).into(), (format!("{}", f64::from(amount))).into(), (unit.unwrap_or("").to_string()).into()]).expect("valid display template").trim_end().into()
         }
-        None => i18n.format("%s · 剩余额度未知", &[(format!("{}", label)).into()]).expect("valid display template"),
+        None => i18n.format("%s · 剩余额度未知", &[(label.to_string()).into()]).expect("valid display template"),
     }
 }

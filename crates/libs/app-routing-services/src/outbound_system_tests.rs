@@ -1,5 +1,5 @@
 use super::{
-    RoutingListener, SharedTransport,
+    SharedTransport,
     outbound_custom_tests::{
         assert_origin, complete_upstream, direct_fixture, fixture, issue, project, read_head,
         request,

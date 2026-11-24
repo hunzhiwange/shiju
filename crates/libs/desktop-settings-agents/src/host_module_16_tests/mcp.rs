@@ -24,8 +24,10 @@ use config_agent_profile::AgentDefault;
 #[test]
 fn agent_config_cleanup_mcp_tab_uses_stable_server_ids() {
     assert_eq!(crate::state::AGENT_DETAIL_MCP_TAB, "mcp");
-    let mut defaults = config_agent_profile::AgentDefaults::default();
-    defaults.mcp = AgentDefault::Fixed(vec![]);
+    let mut defaults = config_agent_profile::AgentDefaults {
+        mcp: AgentDefault::Fixed(vec![]),
+        ..Default::default()
+    };
     let message = mcp::toggle_message(&defaults, "server-id", true, true);
     let Message::Agents(AgentsMessage::ProfileDefaultsChanged(next)) = message else {
         panic!("typed defaults event")
@@ -128,7 +130,7 @@ async fn agent_config_cleanup_mcp_renders_chinese_in_both_themes() {
             &Rectangle::with_size(bounds),
         );
         let pixels = renderer.screenshot(Size::new(1100, 900), 1.0, Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
         image::save_buffer(
             format!("/tmp/shiju-task5-mcp-{name}.png"),
             &pixels,

@@ -50,16 +50,14 @@ pub async fn resolve_or_create_sender_session_id(
             .unwrap_or_else(|e| e.into_inner())
             .get(&snapshot.scope)
             .cloned();
-        if let Some(existing) = existing {
-            if let Ok(info) = host.get(&existing).await {
-                if info.project_id == snapshot.scope.project
+        if let Some(existing) = existing
+            && let Ok(info) = host.get(&existing).await
+                && info.project_id == snapshot.scope.project
                     && info.time.archived.is_none()
                     && Path::new(&info.directory) == snapshot.directory
                 {
                     return Ok(existing);
                 }
-            }
-        }
         create_channel_session(host, snapshot, route).await
     }
 }

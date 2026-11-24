@@ -152,9 +152,9 @@ pub async fn update(input: UpdateInput) -> Result<(), Error> {
 pub async fn get(session_id: &str) -> Vec<Info> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        return map_tool_todos_to_gateway(tool_services::todo::read_session_todos(
+        map_tool_todos_to_gateway(tool_services::todo::read_session_todos(
             session_id,
-        ));
+        ))
     }
 
     #[cfg(target_arch = "wasm32")]

@@ -104,7 +104,7 @@ pub fn update(state: &mut State, connection: Result<(GatewayClient,Scope),String
                 return Task::none();
             }
             state.snippets = Some(Form::default());
-            return update(state, connection.clone(), &token, snapshot, Event::RetryRead);
+            return update(state, connection.clone(), token, snapshot, Event::RetryRead);
         }
         Event::Close => {
             if state.snippets.as_ref().is_some_and(|form| form.pending != Some(Operation::Save)) {

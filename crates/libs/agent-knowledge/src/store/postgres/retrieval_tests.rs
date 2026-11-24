@@ -3,7 +3,6 @@
 // 检索模式与数据集作用域先解析，非法 ID 不应触发任何数据库访问。
 use super::*;
 use agent_database::GlobalDatabase;
-use agent_database::test_support::PostgresTestDatabase;
 
 fn sqlite_backed_store() -> PostgresKnowledgeStore {
     let path = tempfile::tempdir().expect("temporary directory").keep().join("knowledge.sqlite");

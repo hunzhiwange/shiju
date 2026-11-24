@@ -9,7 +9,6 @@ use vw_api_knowledge::{
 };
 
 use super::{PostgresKnowledgeStore, i64_from_u64, u64_from_i64, usize_from_i64};
-use agent_database::test_support::PostgresTestDatabase;
 
 fn dataset_request(name: &str, top_k: usize) -> KnowledgeDatasetCreateRequest {
     KnowledgeDatasetCreateRequest {

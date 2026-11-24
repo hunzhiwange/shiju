@@ -93,8 +93,7 @@ pub fn build_knowledge_visual_section<'a>(
             build_editor_field(
                 "Reranking",
                 row![
-                    settings_toggle(reranking_enable).on_toggle(|value|
-                        WorkflowMessage::NodeEditorKnowledgeRerankingEnabledChanged(value)),
+                    settings_toggle(reranking_enable).on_toggle(WorkflowMessage::NodeEditorKnowledgeRerankingEnabledChanged),
                     text("multiple_retrieval_config.reranking_enable")
                         .size(12)
                         .style(settings_muted_text_style),
@@ -119,8 +118,7 @@ pub fn build_knowledge_visual_section<'a>(
             workflow_text_input(
                 "disabled / automatic / manual",
                 metadata_filtering_mode,
-                |value|
-                    WorkflowMessage::NodeEditorKnowledgeMetadataFilteringModeChanged(value),
+                WorkflowMessage::NodeEditorKnowledgeMetadataFilteringModeChanged,
             ),
         ),
         build_editor_field(
@@ -391,8 +389,7 @@ pub fn build_agent_visual_section<'a>(
             "Memory",
             column![
                 row![
-                    settings_toggle(memory_enabled).on_toggle(|value|
-                        WorkflowMessage::NodeEditorAgentMemoryEnabledChanged(value)),
+                    settings_toggle(memory_enabled).on_toggle(WorkflowMessage::NodeEditorAgentMemoryEnabledChanged),
                     text(i18n.__("启用 memory.window")).size(12).style(settings_muted_text_style),
                 ]
                 .spacing(8)

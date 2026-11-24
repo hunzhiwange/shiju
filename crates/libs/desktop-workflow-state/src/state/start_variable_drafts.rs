@@ -114,7 +114,7 @@ pub(super) fn merge_start_variable_value(
             );
         }
         _ => {
-            variable_map.remove(&yaml_key("options"));
+            variable_map.remove(yaml_key("options"));
         }
     }
 
@@ -156,15 +156,15 @@ pub(super) fn merge_start_variable_value(
             ),
         );
     } else {
-        variable_map.remove(&yaml_key("allowed_file_types"));
-        variable_map.remove(&yaml_key("allowed_file_extensions"));
-        variable_map.remove(&yaml_key("allowed_file_upload_methods"));
+        variable_map.remove(yaml_key("allowed_file_types"));
+        variable_map.remove(yaml_key("allowed_file_extensions"));
+        variable_map.remove(yaml_key("allowed_file_upload_methods"));
     }
 
     let default_value = variable.default_value.trim();
     if variable.input_type == "file-list" {
         if variable.default_file_values.is_empty() {
-            variable_map.remove(&yaml_key("default"));
+            variable_map.remove(yaml_key("default"));
         } else {
             variable_map.insert(
                 yaml_key("default"),
@@ -178,7 +178,7 @@ pub(super) fn merge_start_variable_value(
             );
         }
     } else if default_value.is_empty() {
-        variable_map.remove(&yaml_key("default"));
+        variable_map.remove(yaml_key("default"));
     } else {
         let default_yaml = match variable.input_type.as_str() {
             "number" => {
@@ -220,7 +220,7 @@ pub(super) fn merge_start_variable_value(
     }
 
     if variable.max_length_input.trim().is_empty() {
-        variable_map.remove(&yaml_key("max_length"));
+        variable_map.remove(yaml_key("max_length"));
     } else {
         let max_length = variable.max_length_input.trim().parse::<u64>().map_err(|_| {
             desktop_i18n::workflow::Feedback::new(
@@ -239,7 +239,7 @@ pub(super) fn merge_start_variable_value(
         );
     }
 
-    if !variable_map.contains_key(&yaml_key("options")) {
+    if !variable_map.contains_key(yaml_key("options")) {
         variable_map.insert(yaml_key("options"), Value::Sequence(Vec::new()));
     }
 
@@ -335,7 +335,7 @@ pub(super) fn merge_if_else_condition_value(
             vec![],
         )
     })?;
-    if !condition_map.contains_key(&yaml_key("id")) {
+    if !condition_map.contains_key(yaml_key("id")) {
         set_mapping_string(condition_map, "id", &generate_condition_id());
     }
     set_mapping_string(condition_map, "comparison_operator", &condition.comparison_operator);

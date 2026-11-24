@@ -234,7 +234,7 @@ impl PromptsStore {
         let catalog: PromptCatalog = serde_json::from_str(raw)
             .map_err(|_| anyhow::anyhow!("invalid stored prompt catalog"))?;
         for (index, entry) in catalog.entries.iter().enumerate() {
-            validate_entry(&entry)?;
+            validate_entry(entry)?;
             ensure!(!catalog.entries[..index].iter().any(|other| other.id == entry.id),
                 "duplicate stored prompt identity");
         }

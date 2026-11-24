@@ -13,14 +13,13 @@ pub fn install<T>(
     load_plugin_manifest: impl Fn(&Path) -> Result<PluginManifest>,
     install_package: impl Fn(&PluginManifest, PluginIdentity, &Path, Option<&str>) -> Result<T>,
 ) -> Result<T> {
-    if let Ok(parsed) = url::Url::parse(url) {
-        if parsed.password().is_some()
+    if let Ok(parsed) = url::Url::parse(url)
+        && (parsed.password().is_some()
             || (matches!(parsed.scheme(), "http" | "https") && !parsed.username().is_empty())
-            || parsed.query().is_some()
+            || parsed.query().is_some())
         {
             bail!("Git source must not contain embedded credentials or query parameters");
         }
-    }
     let revision = sha.or(reference).context("Git plugin source requires an explicit revision")?;
     if revision.is_empty() {
         bail!("Git revision cannot be empty");
@@ -36,11 +35,10 @@ pub fn install<T>(
         .bare(true)
         .clone(url, &temporary.path().join("repository"))?;
     let commit = repo.revparse_single(revision)?.peel_to_commit()?;
-    if let Some(sha) = sha {
-        if sha.len() != 40 || commit.id().to_string() != sha.to_ascii_lowercase() {
+    if let Some(sha) = sha
+        && (sha.len() != 40 || commit.id().to_string() != sha.to_ascii_lowercase()) {
             bail!("Git SHA must be a full commit identifier");
         }
-    }
     let tree = commit.tree()?;
     let selected = if path.as_os_str().is_empty() {
         tree

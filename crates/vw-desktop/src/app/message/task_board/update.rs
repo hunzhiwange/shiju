@@ -1379,8 +1379,6 @@ fn projection_state(
     }
 }
 
-#[cfg(test)]
-use taskboard::update::projection::*;
 
 fn publish_work_plan(
     app: &crate::app::App,

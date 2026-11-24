@@ -13,10 +13,8 @@
 //! - **安全检查**：验证命令执行的安全策略
 
 use agent_config::runtime::Config;
-use crate::CronJobPatch;
 use crate::{
-    CronCommands, CronJob, Schedule, add_shell_job, get_job, handle_command, list_jobs, pause_job,
-    remove_job, resume_job, update_job,
+    CronCommands, CronJob, Schedule, add_shell_job, get_job, handle_command,
 };
 use agent_security::SecurityPolicy;
 use anyhow::Result;

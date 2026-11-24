@@ -102,7 +102,7 @@ pub fn card<'a>(
                 ] {
                     apps = apps.push(
                         checkbox(form.apps.contains(&app))
-                            .label(i18n.format("%s · 记录%s", &[(format!("{}", app_label(app))).into(), (format!("{}", if enabled { "已启用" } else { "未启用" })).into()]).expect("valid display template"))
+                            .label(i18n.format("%s · 记录%s", &[(app_label(app).to_string()).into(), ((if enabled { "已启用" } else { "未启用" }).to_string()).into()]).expect("valid display template"))
                             .on_toggle_maybe(
                                 (!form.busy)
                                     .then_some(move |checked| message(Event::Toggle(app, checked))),
@@ -119,7 +119,7 @@ pub fn card<'a>(
         fields = fields.push(action(i18n.__("重试读取"), Event::RetryList, true, false));
     }
     if let Some(error) = &form.error {
-        fields = fields.push(settings_panel(text(i18n.format("请求失败：%s", &[(format!("{}", error)).into()]).expect("valid display template")).size(13)));
+        fields = fields.push(settings_panel(text(i18n.format("请求失败：%s", &[(error.to_string()).into()]).expect("valid display template")).size(13)));
     }
     if !form.results.is_empty() {
         fields = fields.push(text(i18n.__("逐应用结果")).size(16));
@@ -128,7 +128,7 @@ pub fn card<'a>(
         let catalog = match item.catalog {
             UniversalCatalogResult::Updated => i18n.__("目录已更新").to_owned(),
             UniversalCatalogResult::Failed { code } => {
-                i18n.format("目录更新失败：%s", &[(format!("{}", reason_label(i18n, code))).into()]).expect("valid display template")
+                i18n.format("目录更新失败：%s", &[(reason_label(i18n, code).to_string()).into()]).expect("valid display template")
             }
         };
         let live = match item.live {
@@ -141,7 +141,7 @@ pub fn card<'a>(
         ]
         .spacing(6);
         if let Some(id) = &item.provider_id {
-            result = result.push(text(i18n.format("档案标识：%s", &[(format!("{}", id)).into()]).expect("valid display template")).size(13));
+            result = result.push(text(i18n.format("档案标识：%s", &[(id.to_string()).into()]).expect("valid display template")).size(13));
         }
         fields = fields.push(settings_panel(result));
     }

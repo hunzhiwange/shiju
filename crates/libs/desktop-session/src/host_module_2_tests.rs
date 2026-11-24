@@ -4,8 +4,10 @@ use crate::message::chat::session::InlineModeCommand;
 
 #[test]
 fn apply_inline_mode_command_toggles_task_mode_and_clears_runtime_editor() {
-    let mut runtime = crate::session::agent::SessionRuntimeState::<()>::default();
-    runtime.input_editor = iced::widget::text_editor::Content::with_text("draft");
+    let mut runtime = crate::session::agent::SessionRuntimeState::<()> {
+        input_editor: iced::widget::text_editor::Content::with_text("draft"),
+        ..Default::default()
+    };
 
     apply_inline_mode_command(&mut runtime, InlineModeCommand::TaskMode);
 
@@ -217,7 +219,7 @@ fn send_current_session_input_keeps_workflow_mode_for_root_session() {
 
 #[test]
 fn send_current_session_input_keeps_workflow_mode_for_any_query_when_toggle_on() {
-    for (_index, query) in [
+    for query in [
         "这个模块是做什么的？",
         "为什么测试会失败",
         "解释一下当前工作流",
@@ -226,7 +228,7 @@ fn send_current_session_input_keeps_workflow_mode_for_any_query_when_toggle_on()
         "How does this workflow work?",
     ]
     .into_iter()
-    .enumerate()
+
     {
         let mut runtime = crate::session::agent::SessionRuntimeState::<()>::default();
         {
@@ -247,7 +249,7 @@ fn send_current_session_input_keeps_workflow_mode_for_any_query_when_toggle_on()
 
 #[test]
 fn send_current_session_input_keeps_explicit_actions_in_workflow_mode() {
-    for (_index, query) in [
+    for query in [
         "修复工作流重试问题",
         "请实现普通问答分流",
         "麻烦帮我修复工作流",
@@ -258,7 +260,7 @@ fn send_current_session_input_keeps_explicit_actions_in_workflow_mode() {
         "Please implement workflow routing",
     ]
     .into_iter()
-    .enumerate()
+
     {
         let mut runtime = crate::session::agent::SessionRuntimeState::<()>::default();
         {
@@ -416,7 +418,7 @@ fn active_session_is_plan_run_child_uses_persisted_source() {
     assert!(!is_plan_run_child(None, false, [].iter()));
     let mut child = session_info("child", "Child", "/repo");
     child.parent_id = Some("parent".to_string());
-    let mut sessions = vec![child];
+    let mut sessions = [child];
     assert!(!is_plan_run_child(Some("child"), false, sessions.iter()));
     sessions[0].slug = session_info::Info::plan_run_slug(&sessions[0].slug);
     assert!(is_plan_run_child(Some("child"), false, sessions.iter()));

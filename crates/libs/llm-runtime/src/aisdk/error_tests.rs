@@ -228,10 +228,10 @@ fn api_log_fields_include_optional_details() {
         is_retryable: true,
         response_headers: None,
         response_body: Some("body text".to_string()),
-        metadata: Some(std::collections::HashMap::from([
+        metadata: Some(Box::new(std::collections::HashMap::from([
             ("provider".to_string(), "openai".to_string()),
             ("request".to_string(), "abc".to_string()),
-        ])),
+        ]))),
     };
 
     let fields = aisdk_assistant_error_log_fields(&error);

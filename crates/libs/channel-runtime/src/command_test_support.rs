@@ -91,6 +91,12 @@ impl RecordingChannel {
     }
 }
 
+impl Default for RecordingChannel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
 impl Channel for RecordingChannel {
@@ -116,7 +122,7 @@ impl Channel for RecordingChannel {
 
 // 工具夹具固定可用集合，验证命令不会越权访问其它工具。
 pub fn boxed_tools(names: &[&'static str]) -> Arc<Vec<Box<dyn Tool>>> {
-    Arc::new(names.iter().map(|name| Box::new(NamedTool(*name)) as Box<dyn Tool>).collect())
+    Arc::new(names.iter().map(|name| Box::new(NamedTool(name)) as Box<dyn Tool>).collect())
 }
 
 pub fn autonomy_config(
@@ -124,9 +130,11 @@ pub fn autonomy_config(
     approvers: &[&str],
     mode: NonCliNaturalLanguageApprovalMode,
 ) -> AutonomyConfig {
-    let mut config = AutonomyConfig::default();
-    config.auto_approve = auto_approve.iter().map(|tool| (*tool).to_string()).collect();
-    config.always_ask = Vec::new();
+    let mut config = AutonomyConfig {
+        auto_approve: auto_approve.iter().map(|tool| (*tool).to_string()).collect(),
+        always_ask: Vec::new(),
+        ..Default::default()
+    };
     config.non_cli_approval_approvers =
         approvers.iter().map(|approver| (*approver).to_string()).collect();
     config.non_cli_natural_language_approval_mode = mode;

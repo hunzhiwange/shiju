@@ -18,7 +18,7 @@ fn visual_draft(state: &WorkflowState) -> &WorkflowNodeVisualDraft {
 }
 
 fn yaml_key_value<'a>(mapping: &'a Mapping, key: &str) -> &'a Value {
-    mapping.get(&yaml_key(key)).expect("yaml key should exist")
+    mapping.get(yaml_key(key)).expect("yaml key should exist")
 }
 
 fn submitted_data_map(state: &WorkflowState) -> Mapping {

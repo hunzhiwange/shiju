@@ -105,11 +105,11 @@ fn provider_changes_update_available_models_without_opening_model_settings() {
                 vec![model("custom", "latest", "Latest", "active")],
             ),
         )]);
-        let _ = update(&mut app, message(Ok((providers, Vec::new(), false, Vec::new()))));
+        update(&mut app, message(Ok((providers, Vec::new(), false, Vec::new()))));
         assert_eq!(app.model_settings.providers[0].models[0].id, "latest");
         assert!(app.model_settings.providers[0].models[0].enabled);
 
-        let _ = update(&mut app, message(Ok((HashMap::new(), Vec::new(), false, Vec::new()))));
+        update(&mut app, message(Ok((HashMap::new(), Vec::new(), false, Vec::new()))));
         assert!(app.model_settings.providers.is_empty());
     }
 }

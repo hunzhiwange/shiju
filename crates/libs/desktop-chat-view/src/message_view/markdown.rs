@@ -141,7 +141,7 @@ pub fn strip_inline_markdown(input: &str) -> String {
                     ticks += 1;
                     i += 1;
                 }
-                let fence: String = std::iter::repeat('`').take(ticks).collect();
+                let fence: String = std::iter::repeat_n('`', ticks).collect();
                 let start = i;
                 while i < chars.len() {
                     if chars[i] == '`' {

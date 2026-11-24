@@ -216,7 +216,7 @@ async fn message_visual_contract_renders_complex_content_in_light_and_dark_theme
             &viewport,
         );
         let pixels = renderer.screenshot(Size::new(1_000, 1_200), 1.0, Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
 
         if let Ok(directory) = std::env::var("VW_MESSAGE_VISUAL_SCREENSHOT_DIR") {
             image::save_buffer(

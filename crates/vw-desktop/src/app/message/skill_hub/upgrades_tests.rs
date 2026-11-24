@@ -4,8 +4,6 @@ use super::*;
 use crate::app::account::{
     AccountIdentity, AccountOrigin, AccountRepository, SecretSkey, VerifiedAccount,
 };
-use crate::app::state::ToastKind;
-use upgrades::{FunctionUpgradeReport, main_selections};
 
 fn app_with_skills() -> App {
     let mut app = App::new().0;

@@ -68,12 +68,11 @@ pub(super) fn parse_outgoing_content(content: &str) -> (String, Vec<String>) {
     let mut image_urls = Vec::new();
 
     for line in content.lines() {
-        if let Some(marker_target) = parse_image_marker_line(line) {
-            if is_remote_media_url(marker_target) {
+        if let Some(marker_target) = parse_image_marker_line(line)
+            && is_remote_media_url(marker_target) {
                 image_urls.push(marker_target.to_string());
                 continue;
             }
-        }
         passthrough_lines.push(line);
     }
 

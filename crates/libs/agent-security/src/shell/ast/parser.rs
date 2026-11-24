@@ -54,11 +54,10 @@ impl BashAst {
             return (ast, ParseQuality::Fallback);
         }
 
-        if let Some((cached_command, cached_ast)) = LAST_PARSED_COMMAND.lock().as_ref() {
-            if cached_command == trimmed {
+        if let Some((cached_command, cached_ast)) = LAST_PARSED_COMMAND.lock().as_ref()
+            && cached_command == trimmed {
                 return (cached_ast.clone(), cached_ast.quality());
             }
-        }
 
         let ast = Self::parse_uncached(trimmed);
         LAST_PARSED_COMMAND.lock().replace((trimmed.to_string(), ast.clone()));

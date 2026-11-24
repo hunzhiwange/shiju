@@ -366,7 +366,7 @@ async fn ui_refresh_22_preserves_values_and_disabled_states() {
         panic!("remove must request confirmation with the original list and index");
     };
     drop(ui);
-    assert_eq!(update(&mut app, settings.clone()), false);
+    assert!(!update(&mut app, settings.clone()));
     assert_eq!(app.autonomy_settings.allowed_commands, ["fixture-tool --inspect"]);
     let mut ui = scene(view(&app), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
@@ -381,7 +381,7 @@ async fn ui_refresh_22_preserves_values_and_disabled_states() {
     ));
     drop(ui);
     let Message::Autonomy(cancel) = canceled.into_iter().next().unwrap() else { unreachable!() };
-    assert_eq!(update(&mut app, cancel), false);
+    assert!(!update(&mut app, cancel));
     assert_eq!(app.autonomy_settings.list_editor.pending_remove_index(allowed), None);
     assert_eq!(app.autonomy_settings.allowed_commands, ["fixture-tool --inspect"]);
     assert_eq!(app.autonomy_settings.forbidden_paths.len(), 12);
@@ -402,7 +402,7 @@ async fn ui_refresh_22_preserves_values_and_disabled_states() {
     };
     drop(ui);
     let previous = app.autonomy_settings.list(env).to_vec();
-    assert_eq!(update(&mut app, settings.clone()), false);
+    assert!(!update(&mut app, settings.clone()));
     assert_eq!(app.autonomy_settings.list(env), previous);
     assert!(app.autonomy_settings.save_error.is_some());
     snapshot(view(&app), &mut renderer, &Theme::Light, size, "invalid-autonomy-list");
@@ -436,7 +436,7 @@ async fn ui_refresh_22_preserves_values_and_disabled_states() {
         panic!("expected the original OTP domain list action");
     };
     drop(ui);
-    assert_eq!(update(&mut app, settings.clone()), false);
+    assert!(!update(&mut app, settings.clone()));
     assert_eq!(app.security_settings.otp_gated_domains, ["fixture.example"]);
     assert!(app.security_settings.save_error.is_some());
 }

@@ -1,6 +1,5 @@
 use super::*;
 use agent_database::test_support::PostgresTestDatabase;
-use vw_api_types::{agent_apps::*};
 use vw_api_app_identity::{
     AppId,
     AppInstallation,

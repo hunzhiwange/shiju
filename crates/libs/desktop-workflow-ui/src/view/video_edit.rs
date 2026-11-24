@@ -36,7 +36,7 @@ pub fn modal(i18n: desktop_i18n::I18n, state: &WorkflowState) -> Element<'_, Mes
             .height(Length::Fixed(280.0));
         if !draft.busy {
             control = control
-                .on_action(|a| WorkflowMessage::VideoTemplateYamlAction(a));
+                .on_action(WorkflowMessage::VideoTemplateYamlAction);
         }
         template = template.push(settings_field_label(i18n.__("完整模板 YAML"))).push(control);
     } else {

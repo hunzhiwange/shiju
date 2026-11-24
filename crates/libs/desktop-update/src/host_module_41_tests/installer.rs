@@ -1,5 +1,4 @@
 use super::*;
-use super::*;
 use crate::app::installer_update::PreparedDesktopUpdate;
 use desktop_release::InstallerKind;
 use sha2::{Digest, Sha256};

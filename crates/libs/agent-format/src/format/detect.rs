@@ -112,13 +112,11 @@ pub(super) async fn prettier_enabled() -> bool {
     .await;
 
     for item in items {
-        if let Ok(text) = tokio::fs::read_to_string(&item).await {
-            if let Ok(json) = serde_json::from_str::<Value>(&text) {
-                if has_dep(&json, "prettier") {
+        if let Ok(text) = tokio::fs::read_to_string(&item).await
+            && let Ok(json) = serde_json::from_str::<Value>(&text)
+                && has_dep(&json, "prettier") {
                     return true;
                 }
-            }
-        }
     }
     false
 }
@@ -145,13 +143,11 @@ pub(super) async fn oxfmt_enabled() -> bool {
     .await;
 
     for item in items {
-        if let Ok(text) = tokio::fs::read_to_string(&item).await {
-            if let Ok(json) = serde_json::from_str::<Value>(&text) {
-                if has_dep(&json, "oxfmt") {
+        if let Ok(text) = tokio::fs::read_to_string(&item).await
+            && let Ok(json) = serde_json::from_str::<Value>(&text)
+                && has_dep(&json, "oxfmt") {
                     return true;
                 }
-            }
-        }
     }
     false
 }
@@ -244,11 +240,10 @@ pub(super) async fn ruff_enabled() -> bool {
         }
 
         if config == "pyproject.toml" {
-            if let Ok(content) = tokio::fs::read_to_string(&found[0]).await {
-                if content.contains("[tool.ruff]") {
+            if let Ok(content) = tokio::fs::read_to_string(&found[0]).await
+                && content.contains("[tool.ruff]") {
                     return true;
                 }
-            }
         } else {
             return true;
         }
@@ -264,11 +259,10 @@ pub(super) async fn ruff_enabled() -> bool {
         if found.is_empty() {
             continue;
         }
-        if let Ok(content) = tokio::fs::read_to_string(&found[0]).await {
-            if content.contains("ruff") {
+        if let Ok(content) = tokio::fs::read_to_string(&found[0]).await
+            && content.contains("ruff") {
                 return true;
             }
-        }
     }
     false
 }
@@ -305,8 +299,8 @@ pub(super) async fn pint_enabled() -> bool {
     .await;
 
     for item in items {
-        if let Ok(text) = tokio::fs::read_to_string(&item).await {
-            if let Ok(json) = serde_json::from_str::<Value>(&text) {
+        if let Ok(text) = tokio::fs::read_to_string(&item).await
+            && let Ok(json) = serde_json::from_str::<Value>(&text) {
                 if json
                     .get("require")
                     .and_then(|v| v.as_object())
@@ -322,7 +316,6 @@ pub(super) async fn pint_enabled() -> bool {
                     return true;
                 }
             }
-        }
     }
     false
 }

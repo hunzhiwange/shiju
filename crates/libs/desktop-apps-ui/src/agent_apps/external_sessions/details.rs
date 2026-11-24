@@ -307,7 +307,7 @@ fn block_view<'a>(i18n: desktop_i18n::I18n, reader: &'a reader::State, m: usize,
     let label = match block {
         SessionBlock::Text { .. } => i18n.__("代码 / 正文").to_owned(),
         SessionBlock::Thinking { summary, duration_ms, .. } => {
-            i18n.sprintf("思考 · %s · %sms", &[format!("{}", summary.as_deref().unwrap_or("")).into(), format!("{}", duration_ms.map(|ms| ms.to_string()).unwrap_or_else(|| i18n.__("未知").into())).into()])
+            i18n.sprintf("思考 · %s · %sms", &[summary.as_deref().unwrap_or("").to_string().into(), duration_ms.map(|ms| ms.to_string()).unwrap_or_else(|| i18n.__("未知").into()).to_string().into()])
         }
         SessionBlock::ToolCall { title, raw_name, detail, diff, .. } => {
             let title = if title.trim().is_empty() { raw_name } else { title };
@@ -323,11 +323,11 @@ fn block_view<'a>(i18n: desktop_i18n::I18n, reader: &'a reader::State, m: usize,
                 ToolStatus::Pending => i18n.__("工具执行中"),
                 _ => i18n.__("工具输出"),
             };
-            exit_code.map_or_else(|| label.to_owned(), |code| i18n.sprintf("%s · 退出码 %s", &[format!("{}", label).into(), format!("{}", code).into()]))
+            exit_code.map_or_else(|| label.to_owned(), |code| i18n.sprintf("%s · 退出码 %s", &[label.to_string().into(), format!("{}", code).into()]))
         }
         SessionBlock::Event { kind, .. } => i18n.sprintf("事件 · %s", &[format!("{:?}", kind).into()]),
         SessionBlock::Step { phase, reason, .. } => {
-            i18n.sprintf("步骤 · %s · %s", &[format!("{:?}", phase).into(), format!("{}", reason.as_deref().unwrap_or("")).into()])
+            i18n.sprintf("步骤 · %s · %s", &[format!("{:?}", phase).into(), reason.as_deref().unwrap_or("").to_string().into()])
         }
         SessionBlock::Image { .. } => return column![].into(),
     };

@@ -214,8 +214,10 @@ mod logs {
 
     #[test]
     fn refresh_task_log_cache_by_id_updates_only_existing_task() {
-        let mut app = LogsFixture::default();
-        app.task_board_tasks = vec![task("active", TaskStatus::Planning, vec![log(1, "planning")])];
+        let mut app = LogsFixture {
+            task_board_tasks: vec![task("active", TaskStatus::Planning, vec![log(1, "planning")])],
+            ..Default::default()
+        };
         app.task_board_log_cache.insert("untouched".to_string(), vec![log(2, "keep")]);
 
         crate::helpers::logs::refresh_task_log_cache_by_id(&mut app.state(), "active");
@@ -287,9 +289,11 @@ mod logs {
 
     #[test]
     fn close_logs_context_menu_resets_open_state_and_position() {
-        let mut app = LogsFixture::default();
-        app.task_board_logs_context_menu_open = true;
-        app.task_board_logs_context_menu_pos = Some((12.0, 34.0));
+        let mut app = LogsFixture {
+            task_board_logs_context_menu_open: true,
+            task_board_logs_context_menu_pos: Some((12.0, 34.0)),
+            ..Default::default()
+        };
 
         crate::helpers::logs::close_logs_context_menu(&mut app.state());
 
@@ -299,10 +303,12 @@ mod logs {
 
     #[test]
     fn task_logs_max_scroll_top_line_uses_visible_lines_and_safe_minimums() {
-        let mut app = LogsFixture::default();
-        app.task_board_logs_editor = text_editor::Content::with_text("one\ntwo\nthree\nfour\nfive");
-        app.task_board_logs_viewport_height = 40.0;
-        app.current_line_height = 20.0;
+        let mut app = LogsFixture {
+            task_board_logs_editor: text_editor::Content::with_text("one\ntwo\nthree\nfour\nfive"),
+            task_board_logs_viewport_height: 40.0,
+            current_line_height: 20.0,
+            ..Default::default()
+        };
 
         assert_eq!(
             crate::helpers::logs::max_scroll_top_line(
@@ -327,11 +333,13 @@ mod logs {
 
     #[test]
     fn apply_task_logs_scroll_lines_clamps_bounds_and_tracks_bottom() {
-        let mut app = LogsFixture::default();
-        app.task_board_logs_editor = text_editor::Content::with_text("one\ntwo\nthree\nfour\nfive");
-        app.task_board_logs_viewport_height = 40.0;
-        app.current_line_height = 20.0;
-        app.task_board_logs_scroll_top_line = 1.0;
+        let mut app = LogsFixture {
+            task_board_logs_editor: text_editor::Content::with_text("one\ntwo\nthree\nfour\nfive"),
+            task_board_logs_viewport_height: 40.0,
+            current_line_height: 20.0,
+            task_board_logs_scroll_top_line: 1.0,
+            ..Default::default()
+        };
 
         crate::helpers::logs::apply_task_logs_scroll_lines(&mut app.state(), 99);
         assert_eq!(app.task_board_logs_scroll_top_line, 3.0);
@@ -344,10 +352,12 @@ mod logs {
 
     #[test]
     fn restore_and_bottom_scroll_round_and_clamp_target_line() {
-        let mut app = LogsFixture::default();
-        app.task_board_logs_editor = text_editor::Content::with_text("one\ntwo\nthree\nfour\nfive");
-        app.task_board_logs_viewport_height = 40.0;
-        app.current_line_height = 20.0;
+        let mut app = LogsFixture {
+            task_board_logs_editor: text_editor::Content::with_text("one\ntwo\nthree\nfour\nfive"),
+            task_board_logs_viewport_height: 40.0,
+            current_line_height: 20.0,
+            ..Default::default()
+        };
 
         crate::helpers::logs::restore_task_logs_scroll(&mut app.state(), 1.6);
         assert_eq!(app.task_board_logs_scroll_top_line, 2.0);
@@ -362,13 +372,15 @@ mod logs {
     // 完成、失败与过期响应均按当前场景的既定契约处理。
     #[test]
     fn sync_task_logs_editor_replaces_text_resets_remainder_and_restores_position() {
-        let mut app = LogsFixture::default();
-        app.task_board_logs_editor = text_editor::Content::with_text("old");
-        app.task_board_logs_auto_scroll = false;
-        app.task_board_logs_scroll_top_line = 1.0;
-        app.task_board_logs_scroll_remainder = 0.75;
-        app.task_board_logs_viewport_height = 20.0;
-        app.current_line_height = 20.0;
+        let mut app = LogsFixture {
+            task_board_logs_editor: text_editor::Content::with_text("old"),
+            task_board_logs_auto_scroll: false,
+            task_board_logs_scroll_top_line: 1.0,
+            task_board_logs_scroll_remainder: 0.75,
+            task_board_logs_viewport_height: 20.0,
+            current_line_height: 20.0,
+            ..Default::default()
+        };
         let task = task("sync", TaskStatus::Running, vec![log(1_000, "one\ntwo\nthree")]);
 
         crate::helpers::logs::sync_task_logs_editor(&mut app.state(), Some(&task));

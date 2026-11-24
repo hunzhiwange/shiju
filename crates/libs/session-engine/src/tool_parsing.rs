@@ -75,9 +75,7 @@ pub fn parse_tool_at(
         k += 1;
     }
 
-    if last_ok.is_none() {
-        return None;
-    }
+    last_ok?;
     Some((name.to_string(), buf.trim().to_string(), k - start))
 }
 

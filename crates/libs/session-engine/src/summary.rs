@@ -488,21 +488,19 @@ fn compute_diff_inner(
         // 查找第一个 StepStart 中的快照作为起始点
         if from.is_none() {
             for part in &item.parts {
-                if let crate::message::Part::StepStart(p) = part {
-                    if let Some(s) = p.snapshot.as_ref() {
+                if let crate::message::Part::StepStart(p) = part
+                    && let Some(s) = p.snapshot.as_ref() {
                         from = Some(s.clone());
                         break;
                     }
-                }
             }
         }
         // 查找最后一个 StepFinish 中的快照作为结束点
         for part in &item.parts {
-            if let crate::message::Part::StepFinish(p) = part {
-                if let Some(s) = p.snapshot.as_ref() {
+            if let crate::message::Part::StepFinish(p) = part
+                && let Some(s) = p.snapshot.as_ref() {
                     to = Some(s.clone());
                 }
-            }
         }
     }
 
@@ -648,13 +646,13 @@ fn unquote_git_path(input: &str) -> String {
         };
 
         // 处理八进制转义（\ooo 形式，最多3位）
-        if next >= '0' && next <= '7' {
+        if ('0'..='7').contains(&next) {
             let mut j = i + 1;
             let mut oct = String::new();
             // 收集最多3个八进制数字
             while j < chars.len() && oct.len() < 3 {
                 let ch = chars[j];
-                if ch < '0' || ch > '7' {
+                if !('0'..='7').contains(&ch) {
                     break;
                 }
                 oct.push(ch);

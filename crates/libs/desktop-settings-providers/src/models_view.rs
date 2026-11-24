@@ -27,9 +27,7 @@ pub fn main_view<'a>(s: &'a crate::state::ModelSettingsState, style: ViewStyle<'
         let pname_lower = p.name.to_ascii_lowercase();
         let provider_match = !q.is_empty() && (pid_lower.contains(&q) || pname_lower.contains(&q));
 
-        let models = if q.is_empty() {
-            p.models.iter().collect::<Vec<_>>()
-        } else if provider_match {
+        let models = if q.is_empty() || provider_match {
             p.models.iter().collect::<Vec<_>>()
         } else {
             p.models

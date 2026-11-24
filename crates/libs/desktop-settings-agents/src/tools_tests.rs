@@ -5,7 +5,6 @@ use super::tools::{
     ToolGroup, preset_tool_count, tool_card_button_style, tool_english_name, tool_group_meta,
     tool_group_order, tool_in_preset, tool_matches_any, tool_meta, tool_preset_meta,
 };
-use iced::advanced::widget::Tree;
 use iced::widget::button;
 use iced::{Background, Color, Theme};
 

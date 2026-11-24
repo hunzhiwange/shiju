@@ -4,12 +4,8 @@ use crate::app::state::WorktreesTab;
 pub(crate) mod environment;
 mod managed;
 pub(crate) mod recovery;
-#[cfg(test)]
-pub(crate) use managed::load_groups;
 
 pub use desktop_settings_workspace::messages::{WorktreeSettingsMessage, ManagedMessage};
-#[cfg(test)]
-pub(crate) use desktop_settings_workspace::worktrees::apply;
 
 use super::SettingsMessage;
 use crate::app::{App, Message};

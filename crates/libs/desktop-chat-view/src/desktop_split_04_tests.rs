@@ -252,8 +252,10 @@ fn pin_chat_ui_chunk_rejects_empty_chat_and_clamps_to_last_chunk() {
 
 #[test]
 fn protected_chat_ui_chunk_starts_deduplicates_pinned_and_expanded_messages() {
-    let mut app = Fixture::default();
-    app.chat = (0..70).map(|idx| message(ChatRole::User, &idx.to_string())).collect();
+    let mut app = Fixture {
+        chat: (0..70).map(|idx| message(ChatRole::User, &idx.to_string())).collect(),
+        ..Default::default()
+    };
     app.ui().pin_chat_ui_chunk(Some(35));
     app.chat_message_expanded.extend([1, 35, 100]);
     app.chat_think_expanded.extend([(35_u64) << 32, (65_u64) << 32]);
@@ -280,8 +282,10 @@ fn protected_chat_ui_chunk_starts_keeps_requesting_tail_assistant_chunk() {
 
 #[test]
 fn unload_chat_ui_chunk_clears_derived_caches_but_preserves_interaction_state() {
-    let mut app = Fixture::default();
-    app.chat = vec![message(ChatRole::Assistant, "answer")];
+    let mut app = Fixture {
+        chat: vec![message(ChatRole::Assistant, "answer")],
+        ..Default::default()
+    };
     let PreparedChatUiPhase::Base(chunk) = prepare_chat_ui_chunk_phase(&app.chat, 0, true, false)
     else {
         panic!("base preparation should return a base phase");
@@ -310,8 +314,10 @@ fn unload_chat_ui_chunk_clears_derived_caches_but_preserves_interaction_state() 
 
 #[test]
 fn invalidate_chat_ui_chunk_drops_interaction_state_in_target_chunk_only() {
-    let mut app = Fixture::default();
-    app.chat = (0..40).map(|idx| message(ChatRole::User, &idx.to_string())).collect();
+    let mut app = Fixture {
+        chat: (0..40).map(|idx| message(ChatRole::User, &idx.to_string())).collect(),
+        ..Default::default()
+    };
     let target_key = (1_u64) << 32;
     let retained_key = (33_u64) << 32;
     app.chat_think_expanded.extend([target_key, retained_key]);
@@ -333,8 +339,10 @@ fn invalidate_chat_ui_chunk_drops_interaction_state_in_target_chunk_only() {
 
 #[test]
 fn invalidate_chat_ui_for_message_idx_ignores_out_of_range_message() {
-    let mut app = Fixture::default();
-    app.chat = vec![message(ChatRole::User, "only")];
+    let mut app = Fixture {
+        chat: vec![message(ChatRole::User, "only")],
+        ..Default::default()
+    };
     app.prepared_chat_ui_chunks.insert(0);
 
     app.ui().invalidate_chat_ui_for_message_idx(1);
@@ -344,8 +352,10 @@ fn invalidate_chat_ui_for_message_idx_ignores_out_of_range_message() {
 
 #[test]
 fn sync_chat_message_estimated_heights_len_truncates_removed_measurements() {
-    let mut app = Fixture::default();
-    app.chat = vec![message(ChatRole::User, "one"), message(ChatRole::Assistant, "two")];
+    let mut app = Fixture {
+        chat: vec![message(ChatRole::User, "one"), message(ChatRole::Assistant, "two")],
+        ..Default::default()
+    };
     app.ui().sync_chat_message_estimated_heights_len();
     app.chat_message_measured_heights.insert(1, 123.0);
 
@@ -375,8 +385,10 @@ fn preferred_base_chat_ui_chunk_start_uses_visible_window_or_tail_fallback() {
 
 #[test]
 fn pending_chat_ui_chunk_starts_filters_loaded_chunks_and_tracks_anchor() {
-    let mut app = Fixture::default();
-    app.chat = (0..100).map(|idx| message(ChatRole::User, &idx.to_string())).collect();
+    let mut app = Fixture {
+        chat: (0..100).map(|idx| message(ChatRole::User, &idx.to_string())).collect(),
+        ..Default::default()
+    };
     app.prepared_chat_ui_chunks.insert(32);
     app.preparing_chat_ui_chunks.insert(64);
 
@@ -390,8 +402,10 @@ fn pending_chat_ui_chunk_starts_filters_loaded_chunks_and_tracks_anchor() {
 
 #[test]
 fn apply_prepared_chat_ui_phase_missing_cache_entry_marks_chunk_stale() {
-    let mut app = Fixture::default();
-    app.chat = vec![message(ChatRole::Assistant, "live")];
+    let mut app = Fixture {
+        chat: vec![message(ChatRole::Assistant, "live")],
+        ..Default::default()
+    };
     app.chat_render_cache.insert(0, ChatRenderCacheEntry::default());
     app.prepared_chat_ui_chunks.insert(0);
     app.preparing_chat_ui_chunks.insert(0);
@@ -446,8 +460,10 @@ fn prepared_stream_message_updates_only_target_cache() {
 
 #[test]
 fn stale_prepared_stream_message_is_ignored() {
-    let mut app = Fixture::default();
-    app.chat = vec![message(ChatRole::Assistant, "old")];
+    let mut app = Fixture {
+        chat: vec![message(ChatRole::Assistant, "old")],
+        ..Default::default()
+    };
     app.chat_render_cache.insert(
         0,
         ChatRenderCacheEntry {
@@ -468,8 +484,10 @@ fn stale_prepared_stream_message_is_ignored() {
 
 #[test]
 fn markdown_cache_reuses_unchanged_message() {
-    let mut app = Fixture::default();
-    app.chat = vec![message(ChatRole::Assistant, "第一段\n\n第二段")];
+    let mut app = Fixture {
+        chat: vec![message(ChatRole::Assistant, "第一段\n\n第二段")],
+        ..Default::default()
+    };
     let first = prepare_chat_ui_message_phase(&app.chat[0], 0, false);
     app.ui().apply_prepared_chat_ui_phase(first);
 
@@ -492,8 +510,10 @@ fn markdown_cache_reuses_unchanged_message() {
 
 #[test]
 fn markdown_cache_prunes_offscreen_blocks() {
-    let mut app = Fixture::default();
-    app.chat = (0..500).map(|idx| message(ChatRole::Assistant, &format!("# 消息 {idx}"))).collect();
+    let mut app = Fixture {
+        chat: (0..500).map(|idx| message(ChatRole::Assistant, &format!("# 消息 {idx}"))).collect(),
+        ..Default::default()
+    };
     app.ui().sync_chat_message_estimated_heights_len();
     app.chat_virtualizer.set_viewport_height(2_000.0);
     app.chat_virtualizer.scroll_to_item_anchor(250, 0.0, 0.0);

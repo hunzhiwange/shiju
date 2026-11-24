@@ -17,9 +17,9 @@ pub fn selected_record(
 
     catalog
         .select_for_runtime(
-            &project,
-            &scope,
-            &McpRuntimeSelection { record: record, project: project.clone() },
+            project,
+            scope,
+            &McpRuntimeSelection { record, project: project.clone() },
         )
         .unwrap();
 

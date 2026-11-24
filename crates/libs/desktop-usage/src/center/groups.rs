@@ -417,7 +417,7 @@ fn table_content(
     match &state.result {
         Some(Err(error)) => {
             rows = rows.push(
-                container(text(i18n.format("分组加载失败：%s", &[(format!("{}", error)).into()]).expect("valid display template"))).padding([10.0, TABLE_INSET]),
+                container(text(i18n.format("分组加载失败：%s", &[(error.to_string()).into()]).expect("valid display template"))).padding([10.0, TABLE_INSET]),
             );
         }
         Some(Ok(_)) if groups.is_empty() && !state.loading => {

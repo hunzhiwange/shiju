@@ -18,8 +18,7 @@ fn message_editor_ignores_edit_actions_and_applies_navigation_actions() {
     handle_message_editor_action(&mut chat_message_editors, 0, text_editor::Action::SelectAll);
     assert_eq!(chat_message_editors[0].selection().as_deref(), Some("hello"));
 
-    let _task =
-        handle_message_editor_action(&mut chat_message_editors, 99, text_editor::Action::SelectAll);
+    handle_message_editor_action(&mut chat_message_editors, 99, text_editor::Action::SelectAll);
 }
 
 #[test]
@@ -76,15 +75,14 @@ fn special_tool_and_think_editors_use_stable_composite_keys() {
     );
     assert_eq!(chat_special_text_editors[&special_key].text(), "special");
 
-    let _task = handle_special_text_editor_action(
+    handle_special_text_editor_action(
         &mut chat_special_text_editors,
         9,
         9,
         text_editor::Action::SelectAll,
     );
-    let _task =
-        handle_think_editor_action(&mut chat_think_editors, 9, 9, text_editor::Action::SelectAll);
-    let _task = handle_tool_text_editor_action(
+    handle_think_editor_action(&mut chat_think_editors, 9, 9, text_editor::Action::SelectAll);
+    handle_tool_text_editor_action(
         &mut chat_tool_text_editors,
         9,
         9,

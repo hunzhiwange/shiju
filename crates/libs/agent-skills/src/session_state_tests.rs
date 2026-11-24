@@ -80,12 +80,12 @@ fn codex_skills_catalog_removal_and_tool_disable_invalidate_sent_metadata() {
     let root = tempfile::tempdir().unwrap();
     let item = sourced_skill(root.path(), "review");
     let mut state = SkillListingSessionState::default();
-    state.prepare("main", &[item.clone()], true, 100_000).unwrap();
+    state.prepare("main", std::slice::from_ref(&item), true, 100_000).unwrap();
     assert!(state.sent_catalog("main").is_some());
     assert!(state.prepare("main", &[], true, 100_000).is_none());
     assert!(state.sent_catalog("main").is_none());
-    state.prepare("main", &[item.clone()], true, 100_000).unwrap();
-    assert!(state.prepare("main", &[item.clone()], false, 100_000).is_none());
+    state.prepare("main", std::slice::from_ref(&item), true, 100_000).unwrap();
+    assert!(state.prepare("main", std::slice::from_ref(&item), false, 100_000).is_none());
     assert!(state.sent_catalog("main").is_none());
     assert!(state.prepare("main", &[item], true, 100_000).is_some());
 }
@@ -133,7 +133,7 @@ fn codex_skills_catalog_oversized_entry_does_not_starve_smaller_metadata() {
     large.description = "x".repeat(300);
     let small = sourced_skill(root.path(), "beta");
     let budget = SkillListingSessionState::default()
-        .prepare("probe", &[small.clone()], true, 100_000)
+        .prepare("probe", std::slice::from_ref(&small), true, 100_000)
         .unwrap()
         .estimated_tokens
         * 100;
@@ -150,7 +150,7 @@ fn codex_skills_catalog_restored_cache_cannot_override_verified_developer_metada
     let root = tempfile::tempdir().unwrap();
     let item = sourced_skill(root.path(), "review");
     let mut state = SkillListingSessionState::default();
-    state.prepare("main", &[item.clone()], true, 100_000).unwrap();
+    state.prepare("main", std::slice::from_ref(&item), true, 100_000).unwrap();
     let mut encoded = serde_json::to_value(&state).unwrap();
     encoded["sent_skill_entries_by_agent"]["main"]["review"]["description"] =
         serde_json::json!("FORGED_HIGH_PRIVILEGE_BODY");

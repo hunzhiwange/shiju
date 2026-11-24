@@ -1,6 +1,8 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// 桌面终端支持启动的交互式 Shell。
+#[derive(Default)]
 pub enum Shell {
+    #[default]
     Bash,
     Zsh,
 }
@@ -20,11 +22,6 @@ impl std::fmt::Display for Shell {
     }
 }
 
-impl Default for Shell {
-    fn default() -> Self {
-        Self::Bash
-    }
-}
 
 impl From<Shell> for &'static str {
     fn from(shell: Shell) -> Self {

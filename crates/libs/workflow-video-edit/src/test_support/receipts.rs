@@ -4,11 +4,12 @@ use model_types::{ChatRequest, ChatResponse, Provider};
 use anyhow::Result;
 use serde_json::{Value, json};
 use std::{collections::{BTreeMap, BTreeSet}, sync::{Arc, LazyLock, Mutex}};
-static PROJECTS: LazyLock<Arc<Mutex<BTreeMap<String, Vec<VideoProjectWrite>>>>> =
-    LazyLock::new(Default::default);
+type ProjectWrites = Arc<Mutex<BTreeMap<String, Vec<VideoProjectWrite>>>>;
+
+static PROJECTS: LazyLock<ProjectWrites> = LazyLock::new(Default::default);
 pub struct Cloud {
     context: VideoContextHandle,
-    writes: Arc<Mutex<BTreeMap<String, Vec<VideoProjectWrite>>>>,
+    writes: ProjectWrites,
 }
 #[async_trait::async_trait]
 impl VideoPrepareCloud for Cloud {

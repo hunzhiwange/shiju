@@ -1,5 +1,5 @@
 use super::{
-    RoutingListener, SharedTransport,
+    SharedTransport,
     outbound_custom_tests::{
         PROXY_CA, complete_upstream, fixture, issue, project, read_head, request, tls_fixture,
     },

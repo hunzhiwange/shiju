@@ -20,6 +20,3 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         }
     }
 }
-
-#[cfg(test)]
-pub(crate) use desktop_settings_skills::market_view::Results;

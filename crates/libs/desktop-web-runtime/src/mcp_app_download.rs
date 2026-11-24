@@ -22,7 +22,7 @@ pub struct DownloadPrompt {
 
 pub async fn select_destination( i18n: desktop_i18n::I18n, prompt: DownloadPrompt) -> Option<PathBuf> {
     let title = match prompt.origin {
-        Some(origin) => i18n.sprintf("从 %s 下载并保存文件", &[format!("{}", origin).into()]),
+        Some(origin) => i18n.sprintf("从 %s 下载并保存文件", &[origin.to_string().into()]),
         None => i18n.__("保存 MCP 应用文件").to_owned(),
     };
     rfd::AsyncFileDialog::new()

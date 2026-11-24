@@ -33,6 +33,12 @@ impl<H: McpToolHost> McpStatusTool<H> {
     }
 }
 
+impl<H: McpToolHost> Default for McpStatusTool<H> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<H: McpToolHost> Tool for McpStatusTool<H> {

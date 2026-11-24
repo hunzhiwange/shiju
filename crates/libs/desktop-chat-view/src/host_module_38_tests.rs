@@ -91,14 +91,14 @@ async fn permission_and_question_modals_preserve_scroll_position() {
             .expect("headless renderer");
     let mut ui = UserInterface::build(view(&app), bounds, Cache::new(), &mut renderer);
     ui.operate(
-        &mut renderer,
+        &renderer,
         &mut operation::scrollable::scroll_to(
             id.clone(),
             operation::scrollable::AbsoluteOffset { x: None, y: Some(200.0) },
         ),
     );
     let mut position = ScrollPosition { id: &id, y: None };
-    ui.operate(&mut renderer, &mut position);
+    ui.operate(&renderer, &mut position);
     assert_eq!(position.y, Some(200.0));
 
     let question = question_types::Request {
@@ -124,15 +124,17 @@ async fn permission_and_question_modals_preserve_scroll_position() {
         app.question_modal_request = question;
         ui = UserInterface::build(view(&app), bounds, ui.into_cache(), &mut renderer);
         position.y = None;
-        ui.operate(&mut renderer, &mut position);
+        ui.operate(&renderer, &mut position);
         assert_eq!(position.y, expected_y);
     }
 }
 
 #[test]
 fn with_permission_modal_builds_single_request_dialog_when_queue_is_empty() {
-    let mut app = Requests::default();
-    app.permission_modal_request = Some(request("perm-1"));
+    let mut app = Requests {
+        permission_modal_request: Some(request("perm-1")),
+        ..Default::default()
+    };
 
     let element: iced::Element<'_, Message> = with_permission_modal(&app, root());
 
@@ -164,8 +166,10 @@ fn with_permission_modal_builds_single_and_multi_request_dialogs() {
 #[test]
 fn with_permission_modal_builds_navigation_for_middle_and_last_requests() {
     let requests = vec![request("perm-1"), request("perm-2"), request("perm-3")];
-    let mut app = Requests::default();
-    app.permission_modal_requests = requests.clone();
+    let mut app = Requests {
+        permission_modal_requests: requests.clone(),
+        ..Default::default()
+    };
 
     app.permission_modal_request = Some(requests[1].clone());
     let middle: iced::Element<'_, Message> = with_permission_modal(&app, root());
@@ -178,9 +182,11 @@ fn with_permission_modal_builds_navigation_for_middle_and_last_requests() {
 
 #[test]
 fn with_permission_modal_falls_back_to_first_position_for_request_outside_queue() {
-    let mut app = Requests::default();
-    app.permission_modal_request = Some(request("perm-current"));
-    app.permission_modal_requests = vec![request("perm-1"), request("perm-2")];
+    let mut app = Requests {
+        permission_modal_request: Some(request("perm-current")),
+        permission_modal_requests: vec![request("perm-1"), request("perm-2")],
+        ..Default::default()
+    };
 
     let element: iced::Element<'_, Message> = with_permission_modal(&app, root());
 
@@ -190,9 +196,11 @@ fn with_permission_modal_falls_back_to_first_position_for_request_outside_queue(
 #[test]
 fn with_permission_modal_limits_long_pending_request_list() {
     let requests = (0..7).map(|idx| request(&format!("perm-{idx}"))).collect::<Vec<_>>();
-    let mut app = Requests::default();
-    app.permission_modal_request = Some(requests[0].clone());
-    app.permission_modal_requests = requests;
+    let mut app = Requests {
+        permission_modal_request: Some(requests[0].clone()),
+        permission_modal_requests: requests,
+        ..Default::default()
+    };
 
     let element: iced::Element<'_, Message> = with_permission_modal(&app, root());
 

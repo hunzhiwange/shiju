@@ -137,7 +137,7 @@ pub(super) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a super::State, base: 
     let maintenance = &state.maintenance;
     let Some(target) = &maintenance.target else { return base; };
     let enabled = !maintenance.busy();
-    let mut body = column![text(i18n.sprintf("Codex 实例：%s", &[format!("{}", target.instance_id).into()])),
+    let mut body = column![text(i18n.sprintf("Codex 实例：%s", &[target.instance_id.to_string().into()])),
         text(i18n.__("先保存设置，再启动维护。关闭统一历史不会自动回滚；迁移与恢复需要单独启动。")).style(settings_muted_text_style)].spacing(12);
     if let Some(options) = &maintenance.options {
         let mut unify = checkbox(options.unify_enabled).label(i18n.__("统一 Codex 会话历史")).style(settings_checkbox_style);
@@ -151,7 +151,7 @@ pub(super) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a super::State, base: 
         }
     }
     if let Some(progress) = &maintenance.progress {
-        body = body.push(text(i18n.sprintf("%s · %s · %u/%s · 已改会话 %s · 状态行 %s", &[format!("{:?}", progress.status).into(), format!("{}", progress.phase).into(), (progress.completed).into(), format!("{}", progress.total).into(), format!("{}", progress.changed_rollouts).into(), format!("{}", progress.changed_state_rows).into()])));
+        body = body.push(text(i18n.sprintf("%s · %s · %u/%s · 已改会话 %s · 状态行 %s", &[format!("{:?}", progress.status).into(), progress.phase.to_string().into(), (progress.completed).into(), format!("{}", progress.total).into(), format!("{}", progress.changed_rollouts).into(), format!("{}", progress.changed_state_rows).into()])));
         if progress.interrupted { body = body.push(text(i18n.__("服务重启导致任务中断，请核实备份后操作"))); }
         if progress.cancellation_requested { body = body.push(text(i18n.__("取消已受理，仍需查询确认任务停止"))); }
         body = body.push(row![
@@ -163,7 +163,7 @@ pub(super) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a super::State, base: 
         body = body.push(settings_error_banner(i18n.__("提交结果未确认，已禁用重复操作。请重新连接并核实维护记录。")));
     }
     for backup in &maintenance.backups {
-        body = body.push(button(text(i18n.sprintf("恢复备份 %s（%s 项）%s", &[format!("{}", backup.generation_id).into(), format!("{}", backup.entries).into(), format!("{}", if backup.complete { "" } else { i18n.__(" · 不完整") }).into()]))).padding([8, 12]).style(rounded_action_btn_style)
+        body = body.push(button(text(i18n.sprintf("恢复备份 %s（%s 项）%s", &[backup.generation_id.to_string().into(), format!("{}", backup.entries).into(), (if backup.complete { "" } else { i18n.__(" · 不完整") }).to_string().into()]))).padding([8, 12]).style(rounded_action_btn_style)
             .on_press_maybe((enabled && backup.complete).then(|| msg(Event::AskRestore(backup.generation_id.clone())))));
     }
     if maintenance.confirmation.is_some() {

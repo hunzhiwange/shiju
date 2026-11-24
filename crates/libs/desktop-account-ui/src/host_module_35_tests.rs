@@ -324,7 +324,7 @@ fn repository() -> AccountRepository {
     for index in 0..8 {
         repository.upsert_verified(
             VerifiedAccount::from_parts(
-                AccountIdentity::from_profile(&format!("Fixture {index}"), "enabled").unwrap(),
+                AccountIdentity::from_profile(format!("Fixture {index}"), "enabled").unwrap(),
                 SecretSkey::new(format!("fixture-{index}")).unwrap(),
             ),
             AccountOrigin::ManualSkey,

@@ -123,8 +123,8 @@ impl Decoder {
             value.as_object_mut().ok_or(BAD)?.remove("promptFeedback");
         }
         let mut observed = value.clone();
-        if self.shadow.is_some() {
-            if let Some(parts) = observed.pointer_mut("/candidates/0/content/parts").and_then(Value::as_array_mut) {
+        if self.shadow.is_some()
+            && let Some(parts) = observed.pointer_mut("/candidates/0/content/parts").and_then(Value::as_array_mut) {
                 for part in parts {
                     if let Some(object) = part.as_object_mut() {
                         object.remove("thoughtSignature");
@@ -132,7 +132,6 @@ impl Decoder {
                     }
                 }
             }
-        }
         self.observer.push(format!("data: {observed}\n\n").as_bytes()).map_err(|_| BAD)?;
         if let Some(usage) = value.get("usageMetadata") {
             if !usage.is_object() {
@@ -208,11 +207,10 @@ impl Decoder {
                         Some(Value::String(id)) => (!id.is_empty()).then_some(id.as_str()),
                         _ => return Err(BAD),
                     };
-                    if let Some(id) = id {
-                        if !ids.insert(id.to_owned()) {
+                    if let Some(id) = id
+                        && !ids.insert(id.to_owned()) {
                             return Err(BAD);
                         }
-                    }
                     let existing = id
                         .and_then(|id| self.tools.iter().position(|t| t.call["id"] == id))
                         .or_else(|| {

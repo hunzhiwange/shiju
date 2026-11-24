@@ -64,6 +64,3 @@ pub(crate) fn input(app: &mut App) -> desktop_settings_mcp::management_update::U
         effects: Vec::new(),
     }
 }
-
-#[cfg(test)]
-pub use desktop_settings_mcp::configuration_update::catalog::CatalogState;

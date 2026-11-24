@@ -235,9 +235,7 @@ impl NextcloudTalkChannel {
     /// 2. 如果内容是字符串，尝试解析为 JSON 并提取 `message` 字段
     /// 3. 如果内容是对象，直接提取 `message` 字段
     fn extract_content_from_as2_object(payload: &serde_json::Value) -> Option<String> {
-        let Some(content_value) = payload.get("object").and_then(|obj| obj.get("content")) else {
-            return None;
-        };
+        let content_value = payload.get("object").and_then(|obj| obj.get("content"))?;
 
         let content = match content_value {
             serde_json::Value::String(raw) => {
@@ -247,14 +245,13 @@ impl NextcloudTalkChannel {
                 }
 
                 // Activity Streams 负载常将消息文本作为 JSON 嵌入在 object.content 中
-                if let Ok(decoded) = serde_json::from_str::<serde_json::Value>(trimmed) {
-                    if let Some(message) = decoded.get("message").and_then(|v| v.as_str()) {
+                if let Ok(decoded) = serde_json::from_str::<serde_json::Value>(trimmed)
+                    && let Some(message) = decoded.get("message").and_then(|v| v.as_str()) {
                         let message = message.trim();
                         if !message.is_empty() {
                             return Some(message.to_string());
                         }
                     }
-                }
 
                 trimmed.to_string()
             }

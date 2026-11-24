@@ -10,11 +10,3 @@ pub(crate) fn finish(
 
 #[cfg(test)]
 use vw_api_app_provider_base::claude::ClaudeLiveResult;
-#[cfg(test)]
-pub use desktop_provider_apps::message::claude::Field;
-#[cfg(test)]
-pub use desktop_provider_apps::message::claude::change;
-#[cfg(test)]
-pub use desktop_provider_apps::message::claude::load;
-#[cfg(test)]
-pub use desktop_provider_apps::message::claude::save;

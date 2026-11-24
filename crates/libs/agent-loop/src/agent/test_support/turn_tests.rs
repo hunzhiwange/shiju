@@ -459,8 +459,10 @@ pub async fn turn_propagates_provider_error<H: crate::agent::AgentHost>() {
 
 pub async fn turn_trims_history_after_success<H: crate::agent::AgentHost>() {
     let provider = ProviderHandle::with_responses(vec![Ok(text_response("trimmed"))]);
-    let mut config = AgentDefinitionConfig::default();
-    config.max_history_messages = 1;
+    let config = AgentDefinitionConfig {
+        max_history_messages: 1,
+        ..Default::default()
+    };
     let mut agent = build_agent::<H>(
         provider.provider(),
         Arc::new(NoneMemory::new()),

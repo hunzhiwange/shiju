@@ -18,17 +18,17 @@ fn map(message: views::Message) -> Message {
 }
 pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
     let input = views::ViewInput {
-        expert_hub: &app.expert_hub,
+        expert_hub: app.expert_hub,
         desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        app_theme: app.app_theme,
     };
     domain::view(
         &input,
         views::install_guide::view(&views::install_guide::InstallInput {
             state: &app.expert_hub.install_guide,
             desktop_locale: app.desktop_locale,
-            project_path: &app.project_path,
-            recent_projects: &app.recent_projects,
+            project_path: app.project_path,
+            recent_projects: app.recent_projects,
         }),
     )
     .map(map)

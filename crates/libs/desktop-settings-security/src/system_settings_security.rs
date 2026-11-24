@@ -42,7 +42,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "完全访问始终绕过 Bash 安全检查。"),
         s.bash.enabled,
         security_text(locale, "开启"),
-        |v| Message::SecurityBashSecurityEnabledToggled(v),
+        Message::SecurityBashSecurityEnabledToggled,
     );
     use crate::security_message::{BashPolicyCheck as P, BashValidatorCheck as V};
     let policy_active = s.bash.enabled;
@@ -395,7 +395,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "记录安全相关动作和事件。"),
         s.audit_enabled,
         security_text(locale, "开启"),
-        |v| Message::SecurityAuditEnabledToggled(v),
+        Message::SecurityAuditEnabledToggled,
     );
 
     let audit_log_path_row = text_row(
@@ -404,7 +404,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "指定审计日志文件的写入位置。"),
         "audit.log",
         &s.audit_log_path,
-        |v| Message::SecurityAuditLogPathChanged(v),
+        Message::SecurityAuditLogPathChanged,
     );
 
     let audit_size_row = slider_row(
@@ -425,7 +425,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "为审计事件添加签名，提高完整性。"),
         s.audit_sign_events,
         security_text(locale, "签名事件"),
-        |v| Message::SecurityAuditSignEventsToggled(v),
+        Message::SecurityAuditSignEventsToggled,
     );
 
     let otp_enabled_row = bool_row(
@@ -433,7 +433,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "启用敏感动作的二次验证。"),
         s.otp_enabled,
         security_text(locale, "开启"),
-        |v| Message::SecurityOtpEnabledToggled(v),
+        Message::SecurityOtpEnabledToggled,
     );
 
     let otp_method_row = field_row_with_help(
@@ -441,7 +441,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "OTP 方法"),
         security_text(locale, "支持 totp、pairing、cli-prompt。"),
         settings_text_input("totp | pairing | cli-prompt", &s.otp_method_input)
-            .on_input(|v| Message::SecurityOtpMethodChanged(v))
+            .on_input(Message::SecurityOtpMethodChanged)
             .width(Length::Fill),
     );
 
@@ -509,7 +509,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "启用紧急停止状态机。"),
         s.estop_enabled,
         security_text(locale, "开启"),
-        |v| Message::SecurityEstopEnabledToggled(v),
+        Message::SecurityEstopEnabledToggled,
     );
 
     let estop_state_file_row = text_row(
@@ -518,7 +518,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "指定紧急停止状态文件位置。"),
         config_runtime_paths::ESTOP_STATE_FILE_PATH,
         &s.estop_state_file,
-        |v| Message::SecurityEstopStateFileChanged(v),
+        Message::SecurityEstopStateFileChanged,
     );
 
     let estop_require_otp_row = bool_row(
@@ -526,7 +526,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "从 E-Stop 恢复时要求额外 OTP 验证。"),
         s.estop_require_otp_to_resume,
         security_text(locale, "开启"),
-        |v| Message::SecurityEstopRequireOtpToResumeToggled(v),
+        Message::SecurityEstopRequireOtpToResumeToggled,
     );
 
     let syscall_enabled_row = bool_row(
@@ -534,7 +534,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "启用系统调用层面的异常行为检测。"),
         s.syscall_anomaly_enabled,
         security_text(locale, "开启"),
-        |v| Message::SecuritySyscallAnomalyEnabledToggled(v),
+        Message::SecuritySyscallAnomalyEnabledToggled,
     );
 
     let syscall_strict_row = bool_row(
@@ -542,7 +542,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "使用更严格的异常检测规则。"),
         s.syscall_anomaly_strict_mode,
         security_text(locale, "开启"),
-        |v| Message::SecuritySyscallAnomalyStrictModeToggled(v),
+        Message::SecuritySyscallAnomalyStrictModeToggled,
     );
 
     let syscall_alert_unknown_row = bool_row(
@@ -613,7 +613,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "指定系统调用异常日志的写入位置。"),
         "syscall-anomalies.log",
         &s.syscall_anomaly_log_path,
-        |v| Message::SecuritySyscallAnomalyLogPathChanged(v),
+        Message::SecuritySyscallAnomalyLogPathChanged,
     );
 
     let baseline_syscalls_row = list_editor(
@@ -632,7 +632,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "启用蜜罐令牌与外泄检测。"),
         s.canary_tokens,
         security_text(locale, "开启"),
-        |v| Message::SecurityCanaryTokensToggled(v),
+        Message::SecurityCanaryTokensToggled,
     );
 
     let semantic_guard_row = bool_row(
@@ -640,7 +640,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "启用语义层面的注入攻击检测。"),
         s.semantic_guard,
         security_text(locale, "开启"),
-        |v| Message::SecuritySemanticGuardToggled(v),
+        Message::SecuritySemanticGuardToggled,
     );
 
     let semantic_collection_row = text_row(
@@ -649,7 +649,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         security_text(locale, "指定用于语义分析的数据集合。"),
         "semantic_guard",
         &s.semantic_guard_collection,
-        |v| Message::SecuritySemanticGuardCollectionChanged(v),
+        Message::SecuritySemanticGuardCollectionChanged,
     );
 
     let semantic_threshold_row = slider_row(

@@ -105,14 +105,12 @@ pub fn build_message_meta_label(
 pub fn build_user_question_markers(chat: &[ChatMessage]) -> Vec<UserQuestionMarker> {
     chat.iter()
         .enumerate()
-        .filter_map(|(message_idx, message)| {
-            (message.role == ChatRole::User).then(|| UserQuestionMarker {
+        .filter(|&(_message_idx, message)| message.role == ChatRole::User).map(|(message_idx, message)| UserQuestionMarker {
                 message_idx,
                 preview: user_question_preview(
                     session_text::strip_task_session_source_marker(&message.content).as_ref(),
                 ),
             })
-        })
         .collect()
 }
 
@@ -189,14 +187,12 @@ pub fn sync_user_question_index(
         return;
     }
 
-    markers.extend(chat[previous_len..].iter().enumerate().filter_map(|(offset, message)| {
-        (message.role == ChatRole::User).then(|| UserQuestionMarker {
+    markers.extend(chat[previous_len..].iter().enumerate().filter(|&(_offset, message)| message.role == ChatRole::User).map(|(offset, message)| UserQuestionMarker {
             message_idx: previous_len + offset,
             preview: user_question_preview(
                 session_text::strip_task_session_source_marker(&message.content).as_ref(),
             ),
-        })
-    }));
+        }));
     *indexed_len = chat.len();
 }
 
@@ -225,7 +221,7 @@ pub fn refresh_tail_message_meta(
         .iter()
         .filter(|message| matches!(message.role, ChatRole::Assistant))
         .count() as u32;
-    let label = build_message_meta_label(&chat[changed_idx], &mut assistant_count, &step_index_map);
+    let label = build_message_meta_label(&chat[changed_idx], &mut assistant_count, step_index_map);
 
     if changed_idx < labels.len() {
         labels[changed_idx] = label;
@@ -335,7 +331,7 @@ impl<P: Default> ActiveSessionViewState<P> {
     pub fn rebuild_active_session_message_meta(&mut self, chat: &[ChatMessage]) {
         self.message_meta_texts = build_message_meta_labels(chat, &self.step_index_map);
         if self.user_question_indexed_chat_len != chat.len() {
-            self.user_question_markers = build_user_question_markers(&chat);
+            self.user_question_markers = build_user_question_markers(chat);
             self.user_question_indexed_chat_len = chat.len();
         }
     }

@@ -13,8 +13,8 @@
 //!
 //! - [`DashboardAiIntegrationSpec`]: 单个 AI 集成规范的静态定义
 //! - [`DASHBOARD_AI_INTEGRATION_SPECS`]: 所有支持的 AI 集成规范列表
-//! - [`build_integration_settings_payload`]: 构建集成设置载荷供前端使用
-//! - [`apply_integration_credentials_update`]: 应用集成凭据更新到配置
+//! - [`build_integration_settings_payload`][]: 构建集成设置载荷供前端使用
+//! - [`apply_integration_credentials_update`][]: 应用集成凭据更新到配置
 //!
 //! ## 设计原则
 //!
@@ -647,9 +647,7 @@ pub fn apply_integration_credentials_update(
     // 清理 API URL 设置
     // 如果集成不支持自定义 URL，且之前不是活跃提供商，清空 api_url
     // 如果支持但未在本次更新中指定且之前不是活跃提供商，也清空
-    if !spec.supports_api_url && !was_active_provider {
-        updated.api_url = None;
-    } else if spec.supports_api_url && !fields.contains_key("api_url") && !was_active_provider {
+    if !was_active_provider && (!spec.supports_api_url || !fields.contains_key("api_url")) {
         updated.api_url = None;
     }
 

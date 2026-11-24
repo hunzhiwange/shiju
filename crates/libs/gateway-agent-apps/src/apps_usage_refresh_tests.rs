@@ -92,7 +92,7 @@ async fn request(
     method: &str,
     path: &str,
     company: &str,
-    token: &str,
+    _token: &str,
     body: Value,
 ) -> (StatusCode, Value) {
     let response = tokio::time::timeout(

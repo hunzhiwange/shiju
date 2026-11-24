@@ -18,12 +18,3 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     };
     desktop_settings_skills::prompts::update::update(&mut input, event).map(message)
 }
-
-#[cfg(test)]
-pub use desktop_settings_skills::prompts::update::pi_files;
-#[cfg(test)]
-pub use desktop_settings_skills::prompts::update::sync;
-#[cfg(test)]
-pub use desktop_settings_skills::prompts::update::templates;
-#[cfg(test)]
-pub use desktop_settings_skills::prompts::update::transfer;

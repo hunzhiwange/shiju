@@ -50,13 +50,13 @@ fn themes_apply_custom_updates_app_theme() {
         app.app_theme = Theme::Light;
         app.active_custom_theme_id = None;
 
-        let _ = update(&mut app, SettingsMessage::Themes(ThemesMessage::Refresh));
+        update(&mut app, SettingsMessage::Themes(ThemesMessage::Refresh));
         assert!(
             app.themes_settings.entries.iter().any(|entry| entry.id == "mint-night"),
             "refresh should load custom theme into gallery"
         );
 
-        let _ = update(
+        update(
             &mut app,
             SettingsMessage::Themes(ThemesMessage::ApplyCustom("mint-night".to_string())),
         );

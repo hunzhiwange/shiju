@@ -145,8 +145,8 @@ fn success_body<'a>(
                 );
             }
 
-            if let Some(value) = result.value.as_ref() {
-                if let Some(object) = value.as_object() {
+            if let Some(value) = result.value.as_ref()
+                && let Some(object) = value.as_object() {
                     let keys = object.keys().take(5).cloned().collect::<Vec<_>>();
                     let mut text_value = if keys.is_empty() {
                         i18n.__("已返回配置概览，点击查看详情。").to_string()
@@ -169,7 +169,6 @@ fn success_body<'a>(
                             .into(),
                     );
                 }
-            }
 
             None
         }

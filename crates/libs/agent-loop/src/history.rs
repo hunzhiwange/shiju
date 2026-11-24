@@ -54,7 +54,7 @@ use std::fmt::Write;
 /// 3. 如果超出限制，从系统提示之后开始移除最旧的消息
 pub fn trim_history(history: &mut Vec<ChatMessage>, max_history: usize) {
     // 检查第一条消息是否为系统提示
-    let has_system = history.first().map_or(false, |m| m.role == "system");
+    let has_system = history.first().is_some_and(|m| m.role == "system");
 
     // 计算非系统消息的数量
     let non_system_count = if has_system { history.len() - 1 } else { history.len() };

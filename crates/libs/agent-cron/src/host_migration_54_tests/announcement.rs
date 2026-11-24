@@ -341,7 +341,7 @@ pub(crate) async fn shell_barrier() -> (tokio::net::TcpListener, String) {
 pub(crate) async fn release_shell(mut stream: tokio::net::TcpStream) {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let mut request = [0; 4096];
-    stream.read(&mut request).await.unwrap();
+    assert!(stream.read(&mut request).await.unwrap() > 0);
     stream
         .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
         .await

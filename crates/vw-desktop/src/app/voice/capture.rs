@@ -18,7 +18,7 @@ pub use test_backend::{
     Recording, SAMPLE_RATE, VolumeSummary, input_devices,
 };
 #[cfg(test)]
-pub(super) use test_backend::{CaptureBackend, CaptureSink, PcmConverter, device_lease};
+pub(super) use test_backend::{CaptureBackend, CaptureSink, PcmConverter};
 
 #[cfg(test)]
 #[path = "../../../../libs/audio-capture/src/capture_native.rs"]

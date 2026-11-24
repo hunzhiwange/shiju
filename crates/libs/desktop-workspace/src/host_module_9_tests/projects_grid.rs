@@ -34,8 +34,10 @@ fn code_projects_rail_renders_titles_and_opens_the_four_column_grid() {
     use iced::{Event, Font, Point, Renderer, Size, mouse};
     use iced_runtime::user_interface::{Cache, UserInterface};
 
-    let mut app = ProjectsFixture::default();
-    app.recent_projects = (0..7).map(|index| format!("/tmp/project-{index}")).collect();
+    let mut app = ProjectsFixture {
+        recent_projects: (0..7).map(|index| format!("/tmp/project-{index}")).collect(),
+        ..Default::default()
+    };
     app.recent_projects_edits =
         (0..7).map(|index| format!("项目 {index} 的完整中文名称 Mixed Project Name")).collect();
     for font in desktop_assets::fonts::load_all() {

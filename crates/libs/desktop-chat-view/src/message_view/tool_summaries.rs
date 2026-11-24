@@ -415,11 +415,9 @@ fn collect_tool_texts(
             let input = tool_input(value);
             if let Some(preview) = super::cache_tools::file_preview(tool_name, input, output)
                 .or_else(|| file_tool_input_preview(tool_name, input))
-            {
-                if !preview.trim().is_empty() {
+                && !preview.trim().is_empty() {
                     tool_texts.push(preview);
                 }
-            }
         }
         "glob" | "glob_search" | "grep" | "lsp" | "content_search" | "codesearch" => {
             if is_error {
@@ -713,9 +711,9 @@ pub fn tool_card_text_blocks(raw: &str) -> Vec<Vec<String>> {
     out
 }
 
-fn flush_explore_summary<'a>(
+fn flush_explore_summary(
     out: &mut Vec<(usize, String)>,
-    items: &mut Vec<&'a str>,
+    items: &mut Vec<&str>,
     group_idx: usize,
     force_running: bool,
 ) {

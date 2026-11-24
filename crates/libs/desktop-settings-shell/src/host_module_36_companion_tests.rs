@@ -66,7 +66,7 @@ async fn mini_companion_size_modal_renders_themes_and_routes_cancel_reset() {
         for theme in [Theme::Light, Theme::Dark] {
             ui.draw(&mut renderer, &theme, &Default::default(), mouse::Cursor::Unavailable);
             let pixels = renderer.screenshot(Size::new(640, 520), 1.0, iced::Color::TRANSPARENT);
-            assert!(pixels.chunks_exact(4).any(|p| p[3] != 0));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|p| p[3] != 0));
         }
         for label in ["取消", "重置"] {
             let bounds = labels.0.iter().find(|(s, _)| s == label).unwrap().1;

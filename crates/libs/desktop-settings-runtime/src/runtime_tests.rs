@@ -15,7 +15,7 @@ fn apply(app: &mut RuntimeSettingsState, message: RuntimeMessage) {
 fn assert_persist_error(configure: impl FnOnce(&mut RuntimeSettingsState), expected: &str) {
     let mut app = app();
     configure(&mut app);
-    assert_eq!(persist_runtime_settings(&mut app).err().as_deref(), Some(expected));
+    assert_eq!(persist_runtime_settings(&app).err().as_deref(), Some(expected));
 }
 
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
@@ -144,7 +144,7 @@ fn valid_runtime_settings_produce_persistence_config() {
     app.reasoning_enabled_input = "auto".to_string();
     app.reasoning_level_input = "high".to_string();
 
-    let config = persist_runtime_settings(&mut app).expect("valid settings should persist");
+    let config = persist_runtime_settings(&app).expect("valid settings should persist");
 
     assert_eq!(config.docker.cpu_limit, Some(1.25));
     assert_eq!(config.reasoning_level.as_deref(), Some("high"));

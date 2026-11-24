@@ -82,7 +82,7 @@ pub fn with_modal<'a, Message: Clone + 'static>(
         let model_locked = option.kind == AcpOptionKind::Model
             || matches!(&option.kind, AcpOptionKind::Config { id } if id == "model");
         // Copilot may display the first level before an explicit selection has been saved.
-        let can_confirm_current = runtime.acp_agent.as_deref() == Some("copilot")
+        let can_confirm_current = runtime.acp_agent == Some("copilot")
             && runtime.acp_options.acp_model_source
                 == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
             && matches!(&option.kind, AcpOptionKind::Config { id } if id == "reasoning_effort");

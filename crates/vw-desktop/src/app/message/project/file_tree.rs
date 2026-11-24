@@ -37,8 +37,6 @@ mod external_drop;
 #[path = "file_tree_move_drop.rs"]
 mod move_drop;
 
-#[cfg(test)]
-use crate::app::state::FileTreeClipboard;
 use desktop_workspace::file_tree::{is_directory_path, path_display_name, replace_path_prefix};
 use iced::Point;
 

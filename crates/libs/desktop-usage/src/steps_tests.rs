@@ -235,7 +235,7 @@ async fn expanded_steps_panel_draws_dark_theme_styles() {
     let bounds = Size::new(800.0, 520.0);
     let limits = layout::Limits::new(Size::ZERO, bounds);
     let mut tree = Tree::new(element.as_widget());
-    let node = element.as_widget_mut().layout(&mut tree, &mut renderer, &limits);
+    let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
 
     element.as_widget().draw(
         &tree,

@@ -85,5 +85,3 @@ pub(crate) fn view(app: &App) -> iced::Element<'_, Message> {
 
 #[cfg(test)]
 pub(crate) use crate::app::state::TrajectoryDetailsTab;
-#[cfg(test)]
-pub(crate) use desktop_chat_view::trajectory::details::trajectory_detail_values;

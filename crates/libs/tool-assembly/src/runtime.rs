@@ -155,22 +155,22 @@ pub fn runtime_config_for_context<H: RuntimeHost>(ctx: &ToolRuntimeContext<H>) -
         })
     });
 
-    let config = H::block_on(async {
+    H::block_on(async {
         match H::load_project_config(&ctx.tool_use_context().tenant_scope(), &workspace_dir).await {
             Ok(config) => Arc::new(config),
             Err(error) => {
                 tracing::warn!(
                     "tool runtime: failed to load config, falling back to defaults: {error}"
                 );
-                let mut config = Config::default();
-                config.workspace_dir = workspace_dir.clone();
-                config.config_path = workspace_dir.join(".vibewindow.json");
+                let mut config = Config {
+                    workspace_dir: workspace_dir.clone(),
+                    config_path: workspace_dir.join(".vibewindow.json"),
+                    ..Default::default()
+                };
                 Arc::new(config)
             }
         }
-    });
-
-    config
+    })
 }
 
 pub fn agent_tool_parallel_limit_for_context<H: RuntimeHost>(

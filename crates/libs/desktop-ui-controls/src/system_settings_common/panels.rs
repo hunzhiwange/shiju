@@ -86,7 +86,6 @@ pub fn settings_group_heading<'a, Message: Clone + 'a>(
 }
 
 /// 页面说明在问号卡片内显示，保留页面标题的字号。
-
 /// 分组说明在问号卡片内显示，保留分组标题的字号。
 
 /// 承载带分隔线的设置行，横向留白与行内间距独立。
@@ -144,7 +143,6 @@ pub fn settings_flexible_row<'a, Message: Clone + 'a>(
 }
 
 /// 字段说明使用问号，控件可继续显示错误和其它常驻提示。
-
 pub fn settings_flexible_row_with_label<'a, Message: Clone + 'a>(
     label: impl Into<Element<'a, Message>>,
     max_control_width: f32,

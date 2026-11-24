@@ -139,7 +139,7 @@ pub fn valid_external_drop(root: &str, source: &str, directory: &str, files: &[S
 pub enum FeedbackKind { Success, Error }
 
 pub fn import_feedback(source: &str, result: Result<vw_api_file::file::LocalImportResponse, String>) -> (FeedbackKind, String) {
-    let name = path_display_name(&source);
+    let name = path_display_name(source);
     let (kind, detail) = match result {
         Ok(response) if response.items.len() == 1 && response.items[0].source_path == source => {
             let item = &response.items[0];

@@ -53,7 +53,7 @@ fn search_updates_query_and_dismisses_previous_row_actions() {
     app.project_tools_menu_path = Some("/workspace/project-a".into());
     app.recent_project_delete_confirm_idx = Some(0);
 
-    let _task = update(&mut app, SettingsMessage::RecentProjectQueryChanged("project-b".into()));
+    update(&mut app, SettingsMessage::RecentProjectQueryChanged("project-b".into()));
 
     assert_eq!(app.recent_project_query, "project-b");
     assert!(app.project_tools_menu_path.is_none());
@@ -64,12 +64,12 @@ fn delete_request_and_cancel_only_change_confirmation_state() {
     let mut app = app();
     app.recent_projects = vec!["/workspace/project-a".to_string()];
 
-    let _task = update(&mut app, SettingsMessage::RecentProjectDeleteRequested(7));
+    update(&mut app, SettingsMessage::RecentProjectDeleteRequested(7));
 
     assert_eq!(app.recent_project_delete_confirm_idx, Some(7));
     assert_eq!(app.recent_projects, vec!["/workspace/project-a"]);
 
-    let _task = update(&mut app, SettingsMessage::RecentProjectDeleteCanceled);
+    update(&mut app, SettingsMessage::RecentProjectDeleteCanceled);
 
     assert_eq!(app.recent_project_delete_confirm_idx, None);
     assert_eq!(app.recent_projects, vec!["/workspace/project-a"]);
@@ -79,13 +79,11 @@ fn worktree_toggle_inserts_enabled_entry_and_removes_disabled_entry() {
     let mut app = app();
     let path = "/workspace/project-a";
 
-    let _task =
-        update(&mut app, SettingsMessage::ProjectEnableWorktreeToggled(path.to_string(), true));
+    update(&mut app, SettingsMessage::ProjectEnableWorktreeToggled(path.to_string(), true));
 
     assert_eq!(app.project_worktree_enabled.get(path), Some(&true));
 
-    let _task =
-        update(&mut app, SettingsMessage::ProjectEnableWorktreeToggled(path.to_string(), false));
+    update(&mut app, SettingsMessage::ProjectEnableWorktreeToggled(path.to_string(), false));
 
     assert!(!app.project_worktree_enabled.contains_key(path));
 }
@@ -125,7 +123,7 @@ fn delete_confirmed_removes_associated_state_and_rebuilds_display_names() {
     app.project_worktree_enabled.insert("/workspace/from-meta".to_string(), true);
     app.recent_project_delete_confirm_idx = Some(0);
 
-    let _task = update(&mut app, SettingsMessage::RecentProjectDeleteConfirmed(0));
+    update(&mut app, SettingsMessage::RecentProjectDeleteConfirmed(0));
 
     assert_eq!(app.recent_projects, vec!["/workspace/from-meta", "/workspace/from-path", "/"]);
     assert_eq!(app.recent_projects_edits, vec!["Metadata name", "from-path", "/"]);
@@ -142,7 +140,7 @@ fn delete_confirmed_handles_missing_edit_for_existing_project() {
     app.recent_projects_edits.clear();
     app.recent_projects_meta = vec![recent_project_meta("/workspace/deleted", "Deleted")];
 
-    let _task = update(&mut app, SettingsMessage::RecentProjectDeleteConfirmed(0));
+    update(&mut app, SettingsMessage::RecentProjectDeleteConfirmed(0));
 
     assert!(app.recent_projects.is_empty());
     assert!(app.recent_projects_edits.is_empty());
@@ -158,7 +156,7 @@ fn delete_confirmed_rejects_out_of_bounds_index_but_closes_confirmation() {
     app.project_worktree_enabled.insert("/workspace/project-a".to_string(), true);
     app.recent_project_delete_confirm_idx = Some(4);
 
-    let _task = update(&mut app, SettingsMessage::RecentProjectDeleteConfirmed(4));
+    update(&mut app, SettingsMessage::RecentProjectDeleteConfirmed(4));
 
     assert_eq!(app.recent_projects, vec!["/workspace/project-a"]);
     assert_eq!(app.recent_projects_edits, vec!["Project A"]);

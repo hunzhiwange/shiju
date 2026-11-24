@@ -395,11 +395,10 @@ pub fn update(app: &mut SkillUpdate<'_>, message: PublicSkillMessage) -> Task<Me
         && requests.iter().any(|request| {
             matches!(request, PublicRequest::SkillDetail { .. } | PublicRequest::SuiteDetail { .. })
         });
-    if detail_opened {
-        if let Some(detail) = app.expert_hub.public_market.detail.as_mut() {
+    if detail_opened
+        && let Some(detail) = app.expert_hub.public_market.detail.as_mut() {
             detail.selected_install_project_path = default_project_path.clone();
         }
-    }
     if detail_opened || returns_to_list || open_installed || installed_while_on_list {
         let project_path =
             if open_installed { app.project_path.clone() } else { default_project_path };

@@ -229,11 +229,7 @@ impl WhatsAppWebChannel {
         let trimmed = phone.trim();
         let user_part = trimmed.split_once('@').map(|(user, _)| user).unwrap_or(trimmed);
         let normalized_user = user_part.trim_start_matches('+');
-        if user_part.starts_with('+') {
-            format!("+{normalized_user}")
-        } else {
-            format!("+{normalized_user}")
-        }
+        format!("+{normalized_user}")
     }
 
     /// Whether the recipient string is a WhatsApp JID (contains a domain suffix).

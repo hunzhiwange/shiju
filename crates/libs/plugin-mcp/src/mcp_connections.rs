@@ -85,11 +85,10 @@ struct ActiveConnection {
 }
 impl Drop for ActiveConnection {
     fn drop(&mut self) {
-        if !self.keep {
-            if let Some(client) = self.client.take() {
+        if !self.keep
+            && let Some(client) = self.client.take() {
                 client.service().catalogs.close();
             }
-        }
     }
 }
 pub fn configuration_key(server: &McpServer) -> Result<String> {

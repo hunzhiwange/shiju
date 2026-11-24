@@ -1,11 +1,10 @@
 // 覆盖网关 API 配置脱敏与集成设置组合后的序列化行为。
 
 // 这些组合测试确保脱敏后的配置仍可序列化，并能恢复未被用户改写的旧值。
-use super::*;
 
 #[allow(dead_code)]
 mod tests {
-    use super::*;
+
 
     use agent_config::runtime_schema::{
         CloudflareTunnelConfig, LarkReceiveMode, NgrokTunnelConfig, WatiConfig,
@@ -20,8 +19,10 @@ mod tests {
 
     #[test]
     fn masking_keeps_toml_valid() {
-        let mut cfg = agent_config::runtime::Config::default();
-        cfg.api_key = Some("sk-live-123".to_string());
+        let mut cfg = agent_config::runtime::Config {
+            api_key: Some("sk-live-123".to_string()),
+            ..Default::default()
+        };
 
         let masked = mask_sensitive_fields(&cfg);
         let toml = toml::to_string_pretty(&masked).expect("masked config should serialize");
@@ -204,10 +205,12 @@ mod tests {
 
     #[test]
     fn apply_integration_credentials_update_switches_provider_with_fallback_model() {
-        let mut config = agent_config::runtime::Config::default();
-        config.default_provider = Some("openrouter".to_string());
-        config.default_model = Some("anthropic/claude-sonnet-4-6".to_string());
-        config.api_url = Some("https://old.example.com".to_string());
+        let mut config = agent_config::runtime::Config {
+            default_provider: Some("openrouter".to_string()),
+            default_model: Some("anthropic/claude-sonnet-4-6".to_string()),
+            api_url: Some("https://old.example.com".to_string()),
+            ..Default::default()
+        };
 
         let updated = apply_integration_credentials_update(&config, "ollama", &BTreeMap::new())
             .expect("ollama update should succeed");

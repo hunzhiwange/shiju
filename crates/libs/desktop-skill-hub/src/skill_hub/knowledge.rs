@@ -34,7 +34,7 @@ impl<T> Default for KnowledgePage<T> {
 impl<T> KnowledgePage<T> {
     pub fn pages(&self) -> u32 {
         let size = u64::from(self.query.page_size.max(1));
-        (self.total / size + u64::from(self.total % size != 0)).max(1).min(u64::from(u32::MAX))
+        (self.total / size + u64::from(!self.total.is_multiple_of(size))).max(1).min(u64::from(u32::MAX))
             as u32
     }
     fn begin(&mut self, request: KnowledgeRequest) {

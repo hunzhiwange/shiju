@@ -90,7 +90,7 @@ impl Harness {
         }
         self.state.date_time_picker = Some(picker);
         if self.case % 4 == 2 {
-            let _ = self.apply(SettingsMessage::CronPickerCancel);
+            self.apply(SettingsMessage::CronPickerCancel);
             assert!(self.state.date_time_picker.is_none());
             assert_eq!(self.state.add_draft.at, "2024-02-29T09:30:00Z");
         }
@@ -106,7 +106,7 @@ impl Harness {
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::Ui(AppMessage::Settings(message)) => {
-                let _ = self.apply(message);
+                self.apply(message);
             }
             Message::Ui(_) => {}
             Message::Opened(id) => {

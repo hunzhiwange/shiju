@@ -6,7 +6,7 @@ use super::{
     allocate_unique_theme_id, draft_from_definition, editor_tab_labels,
     new_theme_draft, slugify_theme_id, try_definition_from_draft,
 };
-use super::super::state::{ThemeEditorDraft, ThemeEditorTab};
+use super::super::state::ThemeEditorTab;
 use desktop_theme::{ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex};
 
 fn sample_custom_theme() -> ThemeDefinition {

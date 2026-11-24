@@ -31,6 +31,7 @@ mod material;
 pub use material::*;
 #[cfg(unix)]
 pub(super) use material::CredentialKind;
+#[cfg(unix)]
 use material::{INVALID_MATERIAL, MAX_BYTES};
 #[cfg(unix)]
 use material::DIRECTORY_MARKER;

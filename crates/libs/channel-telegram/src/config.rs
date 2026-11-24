@@ -366,11 +366,10 @@ impl TelegramChannel {
             return;
         }
         // 获取写锁并添加用户（如果不存在）
-        if let Ok(mut users) = self.allowed_users.write() {
-            if !users.iter().any(|u| u == &normalized) {
+        if let Ok(mut users) = self.allowed_users.write()
+            && !users.iter().any(|u| u == &normalized) {
                 users.push(normalized);
             }
-        }
     }
 
     /// 从消息文本中提取绑定码

@@ -229,16 +229,14 @@ pub fn message(raw: &str) -> Option<Message> {
             .unwrap_or_else(|| Message::literal(error.to_owned()));
         return Some(Message::nested("%s 听写结果已保留，请在语音设置的跨应用听写试用中显式复制。".to_owned(), vec![error]));
     }
-    if let Some(value) = raw.strip_prefix("快捷键 ").and_then(|s| s.strip_suffix("）。")) {
-        if let Some((key, status)) = value.rsplit_once(" 无法注册或已被占用（") {
+    if let Some(value) = raw.strip_prefix("快捷键 ").and_then(|s| s.strip_suffix("）。"))
+        && let Some((key, status)) = value.rsplit_once(" 无法注册或已被占用（") {
             return Some(Message::new("快捷键 %s 无法注册或已被占用（%s）。", vec![key.into(), status.into()]));
         }
-    }
-    if let Some(value) = raw.strip_prefix("无法核验目标属性 ").and_then(|s| s.strip_suffix("）。")) {
-        if let Some((name, code)) = value.rsplit_once("（系统错误 ") {
+    if let Some(value) = raw.strip_prefix("无法核验目标属性 ").and_then(|s| s.strip_suffix("）。"))
+        && let Some((name, code)) = value.rsplit_once("（系统错误 ") {
             return Some(Message::new("无法核验目标属性 %s（系统错误 %s）。", vec![name.into(), code.into()]));
         }
-    }
     None
 }
 

@@ -104,7 +104,7 @@ pub(super) fn build_code_output_variable_row<'a>(
     let key_path = format!("code.outputs[{index}].key");
     let type_path = format!("code.outputs[{index}].type");
     let selected = code_picker_option(&output.value_type, type_options)
-        .or_else(|| Some(WorkflowCodePickerOption { value: "string", label: "String" }));
+        .or(Some(WorkflowCodePickerOption { value: "string", label: "String" }));
 
     let mut content = column![
         row![
@@ -319,7 +319,7 @@ pub(super) fn upstream_node_ids<'a>(
 
 pub(super) fn start_node_variable_entries(node: &WorkflowNode) -> Vec<(String, String)> {
     node_data_map(node)
-        .and_then(|data| data.get(&serde_yaml::Value::String("variables".to_string())))
+        .and_then(|data| data.get(serde_yaml::Value::String("variables".to_string())))
         .and_then(serde_yaml::Value::as_sequence)
         .map(|variables| {
             variables
@@ -327,7 +327,7 @@ pub(super) fn start_node_variable_entries(node: &WorkflowNode) -> Vec<(String, S
                 .filter_map(serde_yaml::Value::as_mapping)
                 .filter_map(|item| {
                     let name = item
-                        .get(&serde_yaml::Value::String("variable".to_string()))
+                        .get(serde_yaml::Value::String("variable".to_string()))
                         .and_then(serde_yaml::Value::as_str)?
                         .trim()
                         .to_string();
@@ -336,7 +336,7 @@ pub(super) fn start_node_variable_entries(node: &WorkflowNode) -> Vec<(String, S
                     }
 
                     let input_type = item
-                        .get(&serde_yaml::Value::String("type".to_string()))
+                        .get(serde_yaml::Value::String("type".to_string()))
                         .and_then(serde_yaml::Value::as_str)
                         .unwrap_or("text-input");
                     Some((name, start_input_value_type(input_type).to_string()))
@@ -348,7 +348,7 @@ pub(super) fn start_node_variable_entries(node: &WorkflowNode) -> Vec<(String, S
 
 pub(super) fn node_output_entries(node: &WorkflowNode) -> Vec<(String, String)> {
     node_data_map(node)
-        .and_then(|data| data.get(&serde_yaml::Value::String("outputs".to_string())))
+        .and_then(|data| data.get(serde_yaml::Value::String("outputs".to_string())))
         .and_then(serde_yaml::Value::as_mapping)
         .map(|outputs| {
             outputs
@@ -361,7 +361,7 @@ pub(super) fn node_output_entries(node: &WorkflowNode) -> Vec<(String, String)> 
 
                     let value_type = value
                         .as_mapping()
-                        .and_then(|map| map.get(&serde_yaml::Value::String("type".to_string())))
+                        .and_then(|map| map.get(serde_yaml::Value::String("type".to_string())))
                         .and_then(serde_yaml::Value::as_str)
                         .unwrap_or("string")
                         .to_string();
@@ -375,7 +375,7 @@ pub(super) fn node_output_entries(node: &WorkflowNode) -> Vec<(String, String)> 
 pub(super) fn node_data_map(node: &WorkflowNode) -> Option<&serde_yaml::Mapping> {
     node.raw_node
         .as_mapping()
-        .and_then(|map| map.get(&serde_yaml::Value::String("data".to_string())))
+        .and_then(|map| map.get(serde_yaml::Value::String("data".to_string())))
         .and_then(serde_yaml::Value::as_mapping)
 }
 

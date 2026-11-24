@@ -1,7 +1,4 @@
-use super::{
-    RoutingListener,
-    config_apply::{AppTimeouts, ListenerConfig, RoutingConfigStore},
-};
+use super::config_apply::{AppTimeouts, ListenerConfig, RoutingConfigStore};
 use agent_database::{GlobalDatabase, test_support::PostgresTestDatabase};
 use std::{
     net::{Ipv4Addr, TcpListener},

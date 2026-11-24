@@ -1,4 +1,3 @@
-use super::RecentProjectMeta;
 fn recent_meta(path: &str) -> crate::project_message::edit_meta::RecentProjectMeta {
     crate::project_message::edit_meta::RecentProjectMeta {
         path: path.to_string(),
@@ -259,5 +258,5 @@ fn built_in_workspace_survives_recent_project_limit_and_keeps_its_name() {
     assert_eq!(recent.len(), 11);
     assert!(recent.contains(&path));
     assert_eq!(super::project_tab(&path).1, "workspace");
-    assert_eq!(super::recent_project_labels(&[path.clone()], &[recent_meta(&path)]), ["workspace"]);
+    assert_eq!(super::recent_project_labels(std::slice::from_ref(&path), &[recent_meta(&path)]), ["workspace"]);
 }

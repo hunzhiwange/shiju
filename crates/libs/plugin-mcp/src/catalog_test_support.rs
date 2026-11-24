@@ -74,7 +74,6 @@ impl ServerHandler for Service {
         Ok(ListToolsResult {
             tools,
             next_cursor: cursor.then(|| "loop".into()),
-            ..Default::default()
         })
     }
     async fn call_tool(
@@ -114,7 +113,6 @@ impl ServerHandler for Service {
                 vec![]
             },
             next_cursor: (first || self.invalid.load(Ordering::SeqCst) == 2).then(|| "next".into()),
-            ..Default::default()
         })
     }
     async fn list_resource_templates(
@@ -131,7 +129,6 @@ impl ServerHandler for Service {
         Ok(ListResourceTemplatesResult {
             resource_templates: if first { vec![template] } else { vec![] },
             next_cursor: (first || self.invalid.load(Ordering::SeqCst) == 3).then(|| "next".into()),
-            ..Default::default()
         })
     }
     async fn list_prompts(
@@ -145,7 +142,6 @@ impl ServerHandler for Service {
         Ok(ListPromptsResult {
             prompts: if first { vec![Prompt::new(name, Some("fixture"), None)] } else { vec![] },
             next_cursor: (first || self.invalid.load(Ordering::SeqCst) == 4).then(|| "next".into()),
-            ..Default::default()
         })
     }
 }

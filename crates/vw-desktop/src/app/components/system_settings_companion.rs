@@ -1,7 +1,6 @@
 //! 伙伴设置的素材注入与局部动作映射。
 use crate::app::{App, Message, message::view::ViewMessage, state::TaskPetAvatarKind};
 use iced::Element;
-#[cfg(test)] use desktop_i18n::I18n;
 use desktop_settings_appearance::companion as domain;
 fn avatars() -> [TaskPetAvatarKind; 4] { [TaskPetAvatarKind::None, TaskPetAvatarKind::Robot, TaskPetAvatarKind::Beauty, TaskPetAvatarKind::Handsome] }
 pub fn content(app: &App) -> Element<'_, Message> {

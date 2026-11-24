@@ -34,18 +34,15 @@ pub struct InstanceQuery {
 /// 返回非空目录字符串。非 wasm 目标默认退回当前进程目录，wasm 目标默认退回 `/`。
 pub fn resolve_directory(query: &InstanceQuery, headers: &HeaderMap) -> String {
     // 查询参数是显式调用意图，优先于请求头中的桌面端上下文。
-    if let Some(d) = query.directory.as_deref() {
-        if !d.trim().is_empty() {
+    if let Some(d) = query.directory.as_deref()
+        && !d.trim().is_empty() {
             return d.to_string();
         }
-    }
     // 请求头用于前端统一附带当前工作区，空值不能覆盖后面的安全默认值。
     if let Some(d) = headers.get("x-directory").and_then(|v| v.to_str().ok()).map(|s| s.to_string())
-    {
-        if !d.trim().is_empty() {
+        && !d.trim().is_empty() {
             return d;
         }
-    }
     #[cfg(not(target_arch = "wasm32"))]
     {
         display_directory(std::env::current_dir())
@@ -94,11 +91,11 @@ pub async fn with_instance<T>(
 ) -> Result<T, ApiError> {
     let provided =
         project::instance::provide(PathBuf::from(directory), Some(instance_init(bootstrap)), f).await;
-    let res = match provided {
+
+    match provided {
         Ok(res) => res,
-        Err(e) => return Err(ApiError::bad_request(e.to_string())),
-    };
-    res
+        Err(e) => Err(ApiError::bad_request(e.to_string())),
+    }
 }
 
 pub async fn load_local_project(project_id: &str) -> Result<project::Info, ApiError> {

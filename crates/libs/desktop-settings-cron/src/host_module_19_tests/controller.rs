@@ -144,10 +144,12 @@ fn wb_schedule_feedback_unconfigured_channel_is_explicit_error() {
 #[test]
 fn cron_wecom_form_requires_credentials_and_explicit_target() {
     let mut app = app();
-    let mut draft = crate::state::CronJobDraft::default();
-    draft.delivery_enabled = true;
-    draft.delivery_channel = "wecom".into();
-    draft.delivery_to = "user".into();
+    let mut draft = crate::state::CronJobDraft {
+        delivery_enabled: true,
+        delivery_channel: "wecom".into(),
+        delivery_to: "user".into(),
+        ..Default::default()
+    };
     assert!(validate_delivery(&app, &draft).is_err());
     app.delivery.bot = true;
     assert!(validate_delivery(&app, &draft).is_ok());

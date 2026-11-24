@@ -146,7 +146,7 @@ fn project_accepts_custom_registered_workflow() {
     app.project_editor.project_edit_path = Some(path.clone());
     app.project_editor.project_edit_name = "Project".to_string();
 
-    let _ = apply(&mut app, Event::ProjectEditWorkflowIdChanged(workflow_id.to_string()));
+    apply(&mut app, Event::ProjectEditWorkflowIdChanged(workflow_id.to_string()));
 
     assert_eq!(app.project_editor.project_edit_task_board_settings.workflow_id, workflow_id);
     assert_eq!(
@@ -154,7 +154,7 @@ fn project_accepts_custom_registered_workflow() {
         workflow_id
     );
 
-    let _ = apply(&mut app, Event::ProjectEditSaved);
+    apply(&mut app, Event::ProjectEditSaved);
     let saved = app.recent_projects_meta.iter().find(|meta| meta.path == path).unwrap();
     assert_eq!(
         saved.task_board_settings.as_ref().map(|settings| settings.workflow_id.as_str()),
@@ -167,7 +167,7 @@ fn project_rejects_unknown_workflow_id() {
     let _guard = RuntimeWorkflowGuard::with_workflows(Vec::new());
     let mut app = app();
 
-    let _ = apply(&mut app, Event::ProjectEditWorkflowIdChanged("missing_workflow".to_string()));
+    apply(&mut app, Event::ProjectEditWorkflowIdChanged("missing_workflow".to_string()));
 
     assert_eq!(
         app.project_editor.project_edit_task_board_settings.workflow_id,

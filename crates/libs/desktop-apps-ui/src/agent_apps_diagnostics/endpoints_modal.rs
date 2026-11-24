@@ -55,7 +55,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: State<'a>, base: Element<'a,
     body = body
         .push(settings_field_label(i18n.__("预设名称（可选）")))
         .push(
-            settings_text_input(i18n.__("例如 PackyCode；留空不合并预设"), &state.preset_name)
+            settings_text_input(i18n.__("例如 PackyCode；留空不合并预设"), state.preset_name)
                 .on_input_maybe(
                     (!state.active && !state.loading).then_some(|v| message(Event::Preset(v))),
                 ),
@@ -71,7 +71,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: State<'a>, base: Element<'a,
         body = body.push(text(i18n.__("正在读取候选端点…")));
     }
     if let Some(snapshot) = state.snapshot {
-        body = body.push(text(i18n.sprintf("进度：%u / %s · %s", &[(snapshot.progress.completed).into(), format!("{}", snapshot.progress.total.map(|n| n.to_string()).unwrap_or_else(|| i18n.__("未知").into())).into(), format!("{:?}", snapshot.state).into()])));
+        body = body.push(text(i18n.sprintf("进度：%u / %s · %s", &[(snapshot.progress.completed).into(), snapshot.progress.total.map(|n| n.to_string()).unwrap_or_else(|| i18n.__("未知").into()).to_string().into(), format!("{:?}", snapshot.state).into()])));
     }
     if state.cancelling {
         body = body.push(text(i18n.__("正在取消测速，等待清理完成…")));
@@ -108,7 +108,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: State<'a>, base: Element<'a,
         body = body.push(settings_panel(
             column![
                 text(&candidate.display_url).size(14),
-                text(i18n.sprintf("来源：%s", &[format!("{}", sources).into()])),
+                text(i18n.sprintf("来源：%s", &[sources.to_string().into()])),
                 text(evidence),
                 action(i18n,
                     if state.selected.as_ref() == Some(&candidate.id) {

@@ -213,7 +213,7 @@ fn find_entry_mut<'a>(
 }
 
 fn tool_matches_any(tool_id: &str, candidates: &[&str]) -> bool {
-    candidates.iter().any(|candidate| tool_id == *candidate)
+    candidates.contains(&tool_id)
 }
 
 fn tool_in_preset(tool_id: &str, preset_key: &str) -> bool {

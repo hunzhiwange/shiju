@@ -9,12 +9,3 @@ pub(crate) fn change_membership(app:&mut crate::app::App,id:String,add:bool)->ic
 pub(crate) fn membership_changed(app:&mut crate::app::App,scope:desktop_provider_apps::Scope,generation:u64,add:bool,result:Result<vw_api_app_provider_extended::hermes::HermesLiveResult,String>)->iced::Task<crate::app::Message>{
  let current=super::list::current(app,scope.app).ok(); super::provider_update::hermes_changed(app,current,scope,generation,add,result)
 }
-
-#[cfg(test)]
-pub use desktop_provider_apps::message::hermes::Field;
-#[cfg(test)]
-pub use desktop_provider_apps::message::hermes::change;
-#[cfg(test)]
-pub use desktop_provider_apps::message::hermes::load;
-#[cfg(test)]
-pub use desktop_provider_apps::message::hermes::save;

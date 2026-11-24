@@ -5,7 +5,6 @@ use anyhow::Result;
 use vw_api_transport::TenantScope;
 
 use super::PostgresKnowledgeStore;
-use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn embedding_cache_round_trips_and_updates_existing_content() -> Result<()> {

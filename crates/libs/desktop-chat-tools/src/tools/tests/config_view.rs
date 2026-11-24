@@ -150,7 +150,7 @@ fn value_label_converts_all_value_types() {
     assert_eq!(value_label(&serde_json::json!(true)), "true");
     assert_eq!(value_label(&serde_json::json!(false)), "false");
     assert_eq!(value_label(&serde_json::json!(42)), "42");
-    assert_eq!(value_label(&serde_json::json!(3.14)), "3.14");
+    assert_eq!(value_label(&serde_json::json!(3.25)), "3.25");
 
     let arr = serde_json::json!([1, 2, 3]);
     let label = value_label(&arr);

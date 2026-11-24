@@ -29,7 +29,7 @@ pub fn view<'a>(i18n: desktop_i18n::I18n, projection: &'a TrajectoryProjection, 
 
     let timeline = trajectory_timeline(
         i18n,
-        &projection,
+        projection,
         trajectory_controls.duration_mode(),
         turns_collapsed,
         calls_collapsed,
@@ -45,16 +45,16 @@ pub fn view<'a>(i18n: desktop_i18n::I18n, projection: &'a TrajectoryProjection, 
     );
     let search = text_input(
         i18n.__("搜索角色、工具、内容或 ID"),
-        &search_text,
+        search_text,
     )
-    .on_input(|search| Message::TrajectorySearchChanged(search))
+    .on_input(Message::TrajectorySearchChanged)
     .padding([7, 9])
     .size(12)
     .style(styles::trajectory_search_input_style);
     let ledger = trajectory_ledger(
         i18n,
-        &projection,
-        &search_text,
+        projection,
+        search_text,
         selected_record_id,
         &trajectory_controls,
         select_record,

@@ -4,9 +4,9 @@ use crate::views::{self, ViewInput};
 use iced::Element;
 fn input<'a>(app: &WorkspaceInput<'a>) -> ViewInput<'a> {
     ViewInput {
-        expert_hub: &app.expert_hub,
+        expert_hub: app.expert_hub,
         desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        app_theme: app.app_theme,
     }
 }
 fn map(message: views::Message) -> Message {

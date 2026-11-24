@@ -141,7 +141,7 @@ async fn kv_with_menu_draws_icon_and_text_styles_in_dark_theme() {
     let bounds = Size::new(480.0, 80.0);
     let limits = layout::Limits::new(Size::ZERO, bounds);
     let mut tree = Tree::new(element.as_widget());
-    let node = element.as_widget_mut().layout(&mut tree, &mut renderer, &limits);
+    let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
 
     element.as_widget().draw(
         &tree,

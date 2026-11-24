@@ -78,7 +78,7 @@ fn scan_controls(i18n: desktop_i18n::I18n, state: &State, ready: bool) -> Elemen
         ].spacing(12).align_y(iced::Alignment::Center),
         text(i18n.__("支持 Claude Code、Codex、Gemini CLI、Grok Build、OpenCode、Pi、Oh My Pi、MiniMax Code、Kimi Code、DeepSeek Harness 和 Antigravity 的日志格式。"))
             .size(12).style(text::secondary),
-        text(i18n.format("启动和打开用量页时各触发一次同步，定时同步按所选间隔执行。上次同步：%s", &[(format!("{}", status)).into()]).expect("valid display template"))
+        text(i18n.format("启动和打开用量页时各触发一次同步，定时同步按所选间隔执行。上次同步：%s", &[(status.to_string()).into()]).expect("valid display template"))
             .size(12).style(text::secondary),
         text(i18n.__("Hermes、OpenClaw 暂不支持用量统计")).size(12).style(text::secondary),
         row![
@@ -112,7 +112,7 @@ fn scan_controls(i18n: desktop_i18n::I18n, state: &State, ready: bool) -> Elemen
             .or_else(|| job.progress.get("status"))
             .and_then(|value| value.as_str())
             .unwrap_or(i18n.__("等待主机反馈"));
-        scanning = scanning.push(text(i18n.format("任务状态  %s", &[(format!("{}", phase)).into()]).expect("valid display template")).size(12));
+        scanning = scanning.push(text(i18n.format("任务状态  %s", &[(phase.to_string()).into()]).expect("valid display template")).size(12));
         if active {
             scanning = scanning.push(
                 row![

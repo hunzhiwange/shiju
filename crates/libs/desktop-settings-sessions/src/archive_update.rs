@@ -26,11 +26,11 @@ pub fn update(
 ) -> Task<ArchivedChatsMessage> {
     match message {
         ArchivedChatsMessage::DeleteConfirmed => {
-            if (*state).delete_generation.is_some() || (*state).delete_target.is_none() {
+            if state.delete_generation.is_some() || state.delete_target.is_none() {
                 return Task::none();
             }
             apply(&mut (*state), message, &current);
-            let Some(generation) = (*state).delete_generation else {
+            let Some(generation) = state.delete_generation else {
                 return update(
                     state,
                     ArchivedChatsMessage::Refresh,
@@ -40,8 +40,8 @@ pub fn update(
                     effects,
                 );
             };
-            let target = (*state).delete_target.as_ref().unwrap().row.clone();
-            (*state).delete_reconcile_ids = delete_candidates.clone();
+            let target = state.delete_target.as_ref().unwrap().row.clone();
+            state.delete_reconcile_ids = delete_candidates.clone();
             return delete_task(client.clone(), current, generation, target);
         }
         ArchivedChatsMessage::Deleted { identity, generation, id, result } => {
@@ -62,10 +62,10 @@ pub fn update(
             );
             return match result {
                 Ok(ids) => {
-                    (*state).delete_reconcile_ids.retain(|id| !ids.contains(id));
+                    state.delete_reconcile_ids.retain(|id| !ids.contains(id));
                     effects.push(Effect::Deleted(ids));
                     let toast = toast(effects, true, "已删除归档聊天。");
-                    if (*state).delete_reconcile_ids.is_empty() {
+                    if state.delete_reconcile_ids.is_empty() {
                         toast
                     } else {
                         Task::batch([
@@ -99,9 +99,9 @@ pub fn update(
         }
         ArchivedChatsMessage::Loaded { ref identity, generation, ref result }
             if identity == &current
-                && (*state).identity.as_ref() == Some(identity)
-                && generation == (*state).request_generation
-                && (*state).loading =>
+                && state.identity.as_ref() == Some(identity)
+                && generation == state.request_generation
+                && state.loading =>
         {
             if let Ok(rows) = result {
                 let removed: Vec<_> = state
@@ -110,20 +110,20 @@ pub fn update(
                     .filter(|id| !rows.iter().any(|row| &row.id == *id))
                     .cloned()
                     .collect();
-                (*state).delete_reconcile_ids.clear();
+                state.delete_reconcile_ids.clear();
                 effects.push(Effect::Deleted(removed));
             }
         }
         ArchivedChatsMessage::Restore(ref id) => {
-            if (*state).operating_ids.contains(id) {
+            if state.operating_ids.contains(id) {
                 return Task::none();
             }
             let id = id.clone();
             apply(&mut (*state), message, &current);
-            let Some(&generation) = (*state).restore_requests.get(&id) else {
+            let Some(&generation) = state.restore_requests.get(&id) else {
                 return Task::none();
             };
-            let row = (*state).sessions.iter().find(|row| row.id == id).unwrap().clone();
+            let row = state.sessions.iter().find(|row| row.id == id).unwrap().clone();
             return restore_task(client.clone(), current, generation, row);
         }
         ArchivedChatsMessage::Restored { identity, generation, id, result } => {
@@ -161,8 +161,8 @@ pub fn update(
         }
         ArchivedChatsMessage::ProjectRefreshed { identity, generation, result } => {
             if identity != current
-                || (*state).identity.as_ref() != Some(&identity)
-                || generation != (*state).request_generation
+                || state.identity.as_ref() != Some(&identity)
+                || generation != state.request_generation
             {
                 return Task::none();
             }
@@ -177,11 +177,11 @@ pub fn update(
         _ => {}
     }
     if matches!(message, ArchivedChatsMessage::Refresh) {
-        if !(*state).operating_ids.is_empty() {
+        if !state.operating_ids.is_empty() {
             return Task::none();
         }
         apply(&mut (*state), message, &current);
-        let generation = (*state).request_generation;
+        let generation = state.request_generation;
         let client = client.clone();
         return load_task(client, current, generation);
     }

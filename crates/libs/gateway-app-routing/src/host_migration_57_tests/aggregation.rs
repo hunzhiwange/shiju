@@ -15,7 +15,7 @@ fn test_home() -> std::path::PathBuf {
     HOME.get_or_init(|| tempfile::tempdir().unwrap()).path().to_owned()
 }
 fn test_listener() -> RoutingListener {
-    RoutingListener::with_database(agent_database::GlobalDatabase::for_home(&test_home()).unwrap())
+    RoutingListener::with_database(agent_database::GlobalDatabase::for_home(test_home()).unwrap())
 }
 
 #[tokio::test]
@@ -192,7 +192,7 @@ use vw_api_app_provider_base::validation::ProviderRequestOptions;
         ),
         &listener,
         policy_path,
-        agent_database::GlobalDatabase::for_home(&test_home()).unwrap(),
+        agent_database::GlobalDatabase::for_home(test_home()).unwrap(),
     )
     .await;
     assert_eq!(router.oneshot(Request::new(Body::empty())).await.unwrap().status(), StatusCode::OK);

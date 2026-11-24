@@ -39,24 +39,3 @@ pub use update::update;
 #[cfg(test)]
 #[path = "task_board_tests.rs"]
 mod task_board_tests;
-
-#[cfg(test)]
-use crate::app::state::TaskBoardDetailTab;
-#[cfg(test)]
-use crate::app::state::TaskBoardSettingsModalTab;
-#[cfg(test)]
-use crate::app::task::TaskBoardSettings;
-#[cfg(test)]
-use crate::app::task::TaskDraft;
-#[cfg(test)]
-use crate::app::task::TaskImportPromptFormat;
-#[cfg(test)]
-use crate::app::task::TaskLogEntry;
-#[cfg(test)]
-use crate::app::task::TaskSplitMode;
-#[cfg(test)]
-use crate::app::task::executor::TaskLogStream;
-#[cfg(test)]
-use crate::app::task::normalize_task_model_input;
-#[cfg(test)]
-pub(crate) use helpers::import_prompt_template;

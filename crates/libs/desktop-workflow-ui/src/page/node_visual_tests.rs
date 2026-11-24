@@ -4,10 +4,9 @@ use super::*;
 use iced::{Point, widget::text_editor};
 
 use desktop_workflow_state::state::{
-    WorkflowClassifierClassDraft, WorkflowCodeOutputDraft, WorkflowCodeVariableDraft,
-    WorkflowIfElseCaseDraft, WorkflowModelDraft, WorkflowNamedValueDraft, WorkflowNodeEditorDraft,
+    WorkflowCodeOutputDraft, WorkflowCodeVariableDraft,
+    WorkflowIfElseCaseDraft, WorkflowNodeEditorDraft,
     WorkflowNodeEditorValidation, WorkflowNodeRetryDraft, WorkflowNodeValidationError,
-    WorkflowParameterDraft, WorkflowVariableSelectorDraft,
 };
 
 fn editor_with_visual_draft(

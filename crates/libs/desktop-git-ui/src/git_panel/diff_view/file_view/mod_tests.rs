@@ -143,8 +143,10 @@ fn view_file_covers_collapsed_loading_missing_and_file_status_branches() {
 
 #[test]
 fn view_file_missing_contents_builds_header_with_existing_line_selection() {
-    let mut app = App::default();
-    app.staged_old_lines_selected = vec![("src/lib.rs".to_string(), 4)];
+    let mut app = App {
+        staged_old_lines_selected: vec![("src/lib.rs".to_string(), 4)],
+        ..Default::default()
+    };
 
     render_file(&app, FileStatus::Modified, None, false);
 

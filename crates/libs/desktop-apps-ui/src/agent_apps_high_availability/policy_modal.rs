@@ -140,7 +140,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: State<'a>, base: Element<'a,
         for (index, label) in LABELS.iter().enumerate() {
             body = body.push(
                 column![
-                    settings_field_label(*label),
+                    settings_field_label(label),
                     settings_text_input("", &state.fields[index]).on_input_maybe(
                         (!state.busy).then_some(move |value| message(Event::Edit(index, value)))
                     )

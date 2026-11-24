@@ -17,7 +17,7 @@ use iced::widget::scrollable;
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;
 use iced::widget::{Space, button, column, container, row, text, text_input};
-use iced::{Alignment, Background, Border, Element, Length, Theme};
+use iced::{Alignment, Element, Length, Theme};
 
 use desktop_assets::assets::Icon;
 use super::icons::{acp_agent_icon, icon_svg};
@@ -132,7 +132,7 @@ pub fn task_mode_form<'a>(
     let i18n = input.i18n;
     let priority_label = i18n.__("优先级");
     let priority_input = text_input("", task_mode_priority)
-        .on_input(|v| Message::PriorityChanged(v))
+        .on_input(Message::PriorityChanged)
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style)
@@ -150,7 +150,7 @@ pub fn task_mode_form<'a>(
         input.i18n.__("auto / provider/model / 自定义模型"),
         task_mode_model,
     )
-    .on_input(|v| Message::ModelChanged(v))
+    .on_input(Message::ModelChanged)
     .padding(SETTINGS_CONTROL_PADDING)
     .size(SETTINGS_CONTROL_TEXT_SIZE)
     .style(settings_text_input_style)

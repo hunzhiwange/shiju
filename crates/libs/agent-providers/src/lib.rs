@@ -258,12 +258,7 @@ pub fn scrub_secret_patterns(input: &str) -> String {
         let mut search_from = 0;
 
         // 循环查找并替换所有匹配项
-        loop {
-            // 在剩余字符串中查找前缀
-            let Some(rel) = scrubbed[search_from..].find(prefix) else {
-                break;
-            };
-
+        while let Some(rel) = scrubbed[search_from..].find(prefix) {
             // 计算前缀在原字符串中的绝对位置
             let start = search_from + rel;
             // 令牌内容的起始位置（前缀之后）

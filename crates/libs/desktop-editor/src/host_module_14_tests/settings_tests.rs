@@ -38,7 +38,9 @@ enum SettingsControl {
 
 /// 将设置面板的局部交互映射为应用消息。
 fn control_message(control: SettingsControl) -> EditorMessage {
-    let message = match control {
+
+
+    match control {
         SettingsControl::Close => EditorMessage::ToggleSettings,
         SettingsControl::FontSize(value) => EditorMessage::FontSizePreview(value),
         SettingsControl::AutoLineHeight(enabled) => EditorMessage::ToggleAutoLineHeight(enabled),
@@ -48,9 +50,7 @@ fn control_message(control: SettingsControl) -> EditorMessage {
             EditorMessage::ToggleFollowSystemTheme(enabled)
         }
         SettingsControl::Theme(theme) => EditorMessage::ThemeChanged(theme),
-    };
-
-    message
+    }
 }
 
 /// 返回设置面板当前应显示的编辑器主题。

@@ -61,9 +61,7 @@ pub fn read_state_metadata_for_path<H: ContextHost>(
     full: &Path,
     action_label: &str,
 ) -> Option<Value> {
-    if current_tool_use_context::<H>().is_none() {
-        return None;
-    }
+    current_tool_use_context::<H>()?;
 
     let path = display_path(workspace_dir, full);
     Some(match current_read_state_for_path::<H>(full) {

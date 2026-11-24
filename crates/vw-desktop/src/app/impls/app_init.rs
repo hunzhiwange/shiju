@@ -33,6 +33,3 @@ mod preferences;
 mod startup_snapshot;
 mod system_settings;
 pub(in crate::app) mod dispatch;
-
-#[cfg(test)]
-pub(super) use desktop_workspace::basic::display_name_for_path;

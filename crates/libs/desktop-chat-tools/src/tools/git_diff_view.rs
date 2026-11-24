@@ -503,7 +503,6 @@ pub(super) fn git_diff_title(preview: &GitDiffPreview) -> String {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-
 /// 处理 git diff body 对应的局部职责。
 ///
 /// # 参数

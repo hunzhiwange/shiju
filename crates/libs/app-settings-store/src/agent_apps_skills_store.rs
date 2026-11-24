@@ -183,8 +183,8 @@ impl SkillInstallsStore {
     fn job_io<T: Send>(&self, operation: impl FnOnce() -> T + Send) -> T {
         use tokio::runtime::{Handle, RuntimeFlavor};
 
-        if self.0.uses_postgres() {
-            if let Ok(runtime) = Handle::try_current() {
+        if self.0.uses_postgres()
+            && let Ok(runtime) = Handle::try_current() {
                 return match runtime.runtime_flavor() {
                     RuntimeFlavor::MultiThread => tokio::task::block_in_place(operation),
                     _ => std::thread::scope(|threads| {
@@ -192,7 +192,6 @@ impl SkillInstallsStore {
                     }),
                 };
             }
-        }
         operation()
     }
 
@@ -308,8 +307,8 @@ impl SkillInstallsStore {
     ) -> Result<SkillInstallsState> {
         let directory = installation.skill().directory.clone();
         let result = self.0.update_with_preimages(
-            scope.tenant_scope(), Self::NAMESPACE, &key, &[], |payload| {
-                let mut state = Self::decode(payload, &root)?;
+            scope.tenant_scope(), Self::NAMESPACE, key, &[], |payload| {
+                let mut state = Self::decode(payload, root)?;
                 ensure!(state.version == expected_version, "skill installation version conflict");
                 ensure!(
                     !state.skills.iter().any(|skill| skill.directory.eq_ignore_ascii_case(&directory)),
@@ -479,9 +478,8 @@ impl SkillInstallsStore {
                 Ok(state)
             }
             Err(error) => {
-                if let Some(copy) = deployment.as_mut() {
-                    if copy.rollback().is_err() { return Err(error.context("skill copy rollback requires recovery")); }
-                }
+                if let Some(copy) = deployment.as_mut()
+                    && copy.rollback().is_err() { return Err(error.context("skill copy rollback requires recovery")); }
                 Err(error)
             }
         }
@@ -542,9 +540,8 @@ impl SkillInstallsStore {
             match result {
                 Ok(state) => { if let Some(update) = update { update.finish(); } Ok(state) }
                 Err(error) => {
-                    if let Some(update) = update.as_mut() {
-                        if update.rollback().is_err() { return Err(error.context("skill update rollback requires recovery")); }
-                    }
+                    if let Some(update) = update.as_mut()
+                        && update.rollback().is_err() { return Err(error.context("skill update rollback requires recovery")); }
                     Err(error)
                 }
             }
@@ -582,11 +579,10 @@ impl SkillInstallsStore {
                 Ok(state)
             }
             Err(error) => {
-                if let Some(deployment) = deployment.as_mut() {
-                    if deployment.rollback().is_err() {
+                if let Some(deployment) = deployment.as_mut()
+                    && deployment.rollback().is_err() {
                         return Err(error.context("skill disable rollback requires recovery"));
                     }
-                }
                 Err(error)
             }
         }
@@ -628,11 +624,10 @@ impl SkillInstallsStore {
                 Ok((state, result))
             }
             Err(error) => {
-                if let Some(uninstall) = uninstall.as_mut() {
-                    if uninstall.rollback().is_err() {
+                if let Some(uninstall) = uninstall.as_mut()
+                    && uninstall.rollback().is_err() {
                         return Err(error.context("skill uninstall rollback requires recovery"));
                     }
-                }
                 Err(error)
             }
         }
@@ -684,11 +679,10 @@ impl SkillInstallsStore {
                 Ok(result)
             }
             Err(error) => {
-                if let Some(restore) = restore.as_mut() {
-                    if restore.rollback().is_err() {
+                if let Some(restore) = restore.as_mut()
+                    && restore.rollback().is_err() {
                         return Err(error.context("skill restore rollback requires recovery"));
                     }
-                }
                 Err(error)
             }
         }

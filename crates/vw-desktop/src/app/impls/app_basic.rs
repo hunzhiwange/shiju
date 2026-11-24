@@ -335,6 +335,4 @@ impl App {
 mod app_basic_tests;
 
 #[cfg(test)]
-use super::Screen;
-#[cfg(test)]
 use super::state::ExternalOpenApp;

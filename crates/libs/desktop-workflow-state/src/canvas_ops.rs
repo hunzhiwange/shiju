@@ -12,9 +12,7 @@ pub fn zoom_by(pan: Vector, zoom: f32, factor: f32, center_opt: Option<Point>, w
 }
 
 pub fn zoom_to_fit(document: &WorkflowDocument, window_size: (f32, f32)) -> Option<(Vector, f32)> {
-    let Some(bounds) = document.bounds() else {
-        return None;
-    };
+    let bounds = document.bounds()?;
 
     let usable_width = (window_size.0 - 72.0).max(320.0);
     let usable_height = (window_size.1 - 176.0).max(260.0);

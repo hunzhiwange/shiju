@@ -33,7 +33,8 @@ async fn app_update_modal_draws_chinese_selection_and_dynamic_path_in_both_theme
     ] {
         app.update_panel.cli_install_modal_use_app_update_action = app_update;
         app.cli_commands_tab = tab;
-        for mut element in [app.view()] {
+        {
+            let mut element = app.view();
             let viewport = iced::Rectangle::with_size(iced::Size::new(960.0, 900.0));
             let mut tree = Tree::new(element.as_widget());
             let node = element.as_widget_mut().layout(
@@ -51,7 +52,7 @@ async fn app_update_modal_draws_chinese_selection_and_dynamic_path_in_both_theme
                 &viewport,
             );
             let pixels = renderer.screenshot(iced::Size::new(960, 900), 1.0, Color::TRANSPARENT);
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
         }
     }
 }
@@ -88,7 +89,7 @@ async fn settings_tabs_peripheral_appearance_cli_commands() {
                 message,
                 Message::View(ViewMessage::CliCommandsTabSelected(CliCommandsTab::Service))
             ));
-            let _ = app.update(message);
+            app.update(message);
             assert_eq!(app.cli_commands_tab, CliCommandsTab::Service);
             let copy = scene.click_message(view_app_update(app), i18n.__("复制"));
             assert!(
@@ -102,7 +103,7 @@ async fn settings_tabs_peripheral_appearance_cli_commands() {
             );
             let close = scene.click_message(view_app_update(app), i18n.__("关闭"));
             assert!(matches!(close, Message::View(ViewMessage::CloseInstallCliModal)));
-            let _ = app.update(close);
+            app.update(close);
             assert!(!app.update_panel.show_cli_install_modal);
         },
     )

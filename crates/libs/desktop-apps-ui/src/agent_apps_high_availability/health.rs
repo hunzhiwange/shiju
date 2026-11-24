@@ -33,9 +33,9 @@ pub fn view<'a>(i18n: desktop_i18n::I18n, state: State<'a>, visible: bool) -> El
     let actual =
         route.and_then(|r| r.actual_provider_id.as_ref()).map(|id| id.as_ref()).unwrap_or(i18n.__("未知"));
     let mut body = column![
-        text(i18n.sprintf("生产健康：%s", &[format!("{}", label).into()])),
-        text(i18n.sprintf("配置候选：%s", &[format!("{}", configured).into()])),
-        text(i18n.sprintf("实际命中：%s", &[format!("{}", actual).into()])),
+        text(i18n.sprintf("生产健康：%s", &[label.to_string().into()])),
+        text(i18n.sprintf("配置候选：%s", &[configured.to_string().into()])),
+        text(i18n.sprintf("实际命中：%s", &[actual.to_string().into()])),
     ]
     .spacing(7);
     if let Some(ms) = health.and_then(|h| h.retry_after_ms) {

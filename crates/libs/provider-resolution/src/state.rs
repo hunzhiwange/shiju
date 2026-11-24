@@ -1,6 +1,7 @@
 //! 聚合缓存及配置指纹。
 use crate::State;
 use provider_state_cache as cache;
+#[cfg(not(target_arch = "wasm32"))]
 use provider_config_reader as config;
 use once_cell::sync::Lazy;
 use std::sync::{Arc, Mutex};

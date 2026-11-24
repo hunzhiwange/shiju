@@ -203,7 +203,7 @@ pub fn view<'a, Host: Clone + 'static>(app: &ViewState<'a>, map: fn(Event) -> Ho
         .padding([8, 14])
         .style(primary_action_btn_style);
 
-    let search = text_input(i18n.__("搜索项目"), &app.recent_project_query)
+    let search = text_input(i18n.__("搜索项目"), app.recent_project_query)
         .on_input(move |query| map(Event::RecentProjectQueryChanged(query)))
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)

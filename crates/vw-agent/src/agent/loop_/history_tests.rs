@@ -10,7 +10,7 @@ async fn internal_compaction_returns_false_without_prior_history() {
 #[tokio::test]
 #[allow(clippy::await_holding_lock)]
 async fn internal_compaction_uses_shared_runner_and_preserves_current_turn() {
-    let _guard = crate::session::processor::test_llm_stream_guard();
+    let _guard = crate::session::processor::test_llm_stream_guard_async().await;
     crate::session::processor::enqueue_test_llm_stream(vec![
         crate::session::llm::StreamEvent::Delta("remembered decision".into()),
         crate::session::llm::StreamEvent::Done {
@@ -26,7 +26,7 @@ async fn internal_compaction_uses_shared_runner_and_preserves_current_turn() {
 #[tokio::test]
 #[allow(clippy::await_holding_lock)]
 async fn internal_compaction_keeps_history_when_provider_fails() {
-    let _guard = crate::session::processor::test_llm_stream_guard();
+    let _guard = crate::session::processor::test_llm_stream_guard_async().await;
     crate::session::processor::enqueue_test_llm_stream(vec![
         crate::session::llm::StreamEvent::Error(crate::session::message::AssistantError::Unknown {
             message: "summary failed".into(),
@@ -38,7 +38,7 @@ async fn internal_compaction_keeps_history_when_provider_fails() {
 #[tokio::test]
 #[allow(clippy::await_holding_lock)]
 async fn codex_plugin_compat_t42_agent_loop_emits_around_real_summary() {
-    let _guard = crate::session::processor::test_llm_stream_guard();
+    let _guard = crate::session::processor::test_llm_stream_guard_async().await;
     crate::session::processor::enqueue_test_llm_stream(vec![
         crate::session::llm::StreamEvent::Delta("fixture summary".into()),
         crate::session::llm::StreamEvent::Done {

@@ -74,7 +74,7 @@ impl AgentSchedulerStorageContext for Path {
     fn storage_scope(&self) -> Result<AgentSchedulerScope> {
         #[cfg(any(test, feature = "test-support"))]
         {
-            return test_scheduler_scope(self);
+            test_scheduler_scope(self)
         }
         #[cfg(not(any(test, feature = "test-support")))]
         {
@@ -101,7 +101,7 @@ impl Default for AgentSchedulerStore {
     fn default() -> Self {
         #[cfg(any(test, feature = "test-support"))]
         {
-            return Self::new_for_tests().expect("create temporary agent scheduler test home");
+            Self::new_for_tests().expect("create temporary agent scheduler test home")
         }
         #[cfg(not(any(test, feature = "test-support")))]
         {

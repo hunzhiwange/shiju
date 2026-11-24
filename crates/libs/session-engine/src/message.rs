@@ -233,11 +233,10 @@ async fn read_messages(
     keys.sort();
     let mut out = Vec::new();
     for key in keys.into_iter().rev() {
-        if let Some(limit) = limit {
-            if out.len() >= limit {
+        if let Some(limit) = limit
+            && out.len() >= limit {
                 break;
             }
-        }
         if key.len() != 3 {
             continue;
         }

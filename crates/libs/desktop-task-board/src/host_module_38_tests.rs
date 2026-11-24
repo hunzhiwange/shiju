@@ -50,7 +50,7 @@ async fn mini_interact(app: &Fixture, point: iced::Point, events: &[iced::Event]
             Color::TRANSPARENT,
         );
         assert!(
-            pixels.chunks_exact(4).any(|pixel| pixel[3] > 0),
+            pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0),
             "Mini must render visible controls"
         );
         if let Some(directory) = std::env::var_os("SHIJU_MINI_TASK3_SCREENSHOTS")

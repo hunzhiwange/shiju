@@ -8,7 +8,7 @@ use tool_services::scheduler::PendingToolCall;
 use tool_context::{host::ContextHost, context::ToolUseContext};
 use model_types::{ChatMessage, ToolCall};
 use tool_types::Tool;
-use crate::progress::{DRAFT_PROGRESS_SENTINEL, DRAFT_WS_EVENT_SENTINEL};
+use crate::progress::DRAFT_WS_EVENT_SENTINEL;
 use std::{sync::Arc, collections::HashSet};
 use agent_observability::NoopObserver;
 use tool_types::ToolResult;

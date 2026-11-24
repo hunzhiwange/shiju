@@ -3,9 +3,9 @@ use crate::views::{ViewInput, public_skills as domain};
 use iced::Element;
 pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
     domain::view(&ViewInput {
-        expert_hub: &app.expert_hub,
+        expert_hub: app.expert_hub,
         desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
+        app_theme: app.app_theme,
     })
     .map(map)
 }
@@ -39,10 +39,3 @@ pub(super) fn source_selector(
 ) -> Element<'static, Message> {
     domain::source_selector(i18n, state).map(map)
 }
-
-#[cfg(test)]
-pub(super) use domain::grid_column_count;
-#[cfg(test)]
-pub(super) use domain::public_tab_specs;
-#[cfg(test)]
-pub(super) use domain::source_selector_visible;

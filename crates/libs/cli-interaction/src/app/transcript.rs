@@ -14,7 +14,6 @@ use super::{
     CustomTerminal,
     GatewayV3Bridge,
     Line,
-    Result,
     TerminalMode,
     TranscriptPager,
     V3GatewayApp,

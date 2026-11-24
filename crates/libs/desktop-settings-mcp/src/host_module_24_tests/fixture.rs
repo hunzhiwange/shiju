@@ -115,23 +115,13 @@ pub struct Authority {
     pub loading: bool,
     pub rows: Vec<CatalogRow>,
 }
+#[derive(Default)]
 pub struct Fixture {
     pub state: McpSettingsState,
     pub authority: Authority,
     pub project_id: Option<String>,
     pub on_page: bool,
     pub effects: Vec<Effect>,
-}
-impl Default for Fixture {
-    fn default() -> Self {
-        Self {
-            state: Default::default(),
-            authority: Default::default(),
-            project_id: None,
-            on_page: false,
-            effects: Vec::new(),
-        }
-    }
 }
 impl Fixture {
     fn input(&mut self) -> crate::management_update::Update<'_> {
@@ -171,7 +161,6 @@ impl Fixture {
 }
 pub mod catalog {
     use super::*;
-use iced::widget::column;
     pub use crate::management_list::CatalogMessage;
     pub fn context(f: &Fixture) -> Option<Context> {
         let client = client();
@@ -211,7 +200,6 @@ use iced::widget::column;
 pub mod imports {
     pub fn open_draft(f: &mut super::Fixture, request: vw_api_mcp_management::McpCreateRequest) -> iced::Task<super::McpMessage> { crate::management_import_update::open_draft(&mut f.input(), request).map(super::McpMessage::Import) }
     use super::*;
-use iced::widget::column;
     pub use crate::management_import::*;
     pub fn targets(f: &Fixture) -> Vec<McpAppTarget> {
         let context = catalog::context(f);
@@ -247,9 +235,8 @@ use iced::widget::column;
 }
 pub mod resync {
     use super::*;
-use iced::widget::column;
     pub use crate::management_resync::{
-        ResyncFailure, ResyncMessage, ResyncResult, ResyncState, locked,
+        ResyncFailure, ResyncMessage, ResyncResult,
     };
     pub fn update(f: &mut Fixture, event: ResyncMessage) -> Task<McpMessage> {
         let context = catalog::context(f);
@@ -276,7 +263,6 @@ use iced::widget::column;
 }
 pub mod probe {
     use super::*;
-use iced::widget::column;
     pub use crate::diagnostic_context::Context;
     pub use desktop_apps_ui::agent_apps_diagnostics::{
         mcp::McpDiagnosticMessage,
@@ -297,7 +283,8 @@ use iced::widget::column;
         let current = context(f);
         let visible = catalog::visible(f).is_some();
         let mut notice = None;
-        let task = desktop_apps_ui::agent_apps_diagnostics::mcp::update(
+
+        desktop_apps_ui::agent_apps_diagnostics::mcp::update(
             &mut f.state.diagnostics,
             current,
             visible.then_some(f.state.catalog.result.as_ref()).flatten(),
@@ -306,8 +293,7 @@ use iced::widget::column;
             &mut notice,
             event,
         )
-        .map(McpMessage::Diagnostic);
-        task
+        .map(McpMessage::Diagnostic)
     }
 }
 pub fn invalidate(f: &mut Fixture) -> Task<McpMessage> {
@@ -318,7 +304,6 @@ pub fn invalidate(f: &mut Fixture) -> Task<McpMessage> {
 }
 pub mod tools {
     use super::*;
-use iced::widget::column;
     pub use crate::management_tools::{Context, ToolsMessage};
     pub fn visible(f: &Fixture) -> Option<&crate::management_tools::ToolsState> {
         crate::management_tools::visible(&f.state.tools, probe::context(f).as_ref())
@@ -472,7 +457,6 @@ pub fn overlay<'a>(f: &'a Fixture, dialog: Element<'a, McpMessage>) -> Element<'
 
 pub mod form {
     use super::*;
-use iced::widget::column;
     pub use crate::management_form::*;
     pub fn update(f: &mut Fixture, event: FormMessage) -> Task<McpMessage> {
         let mut input = f.input();
@@ -484,7 +468,6 @@ use iced::widget::column;
 }
 pub mod bindings {
     use super::*;
-use iced::widget::column;
     pub use crate::management_bindings::*;
     pub fn update(f: &mut Fixture, event: BindingsMessage) -> Task<McpMessage> {
         let mut input = f.input();

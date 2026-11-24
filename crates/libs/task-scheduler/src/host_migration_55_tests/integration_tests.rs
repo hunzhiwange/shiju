@@ -5,7 +5,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::Result;
-use rusqlite::{Connection, params};
+use rusqlite::Connection;
 use serde_json::{Value, json};
 use vw_api_agent_scheduler::AgentSchedulerScope;
 use vw_api_transport::common::TimestampMs;
@@ -14,34 +14,23 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use vw_api_task::TaskPoolWorkflowSnapshotDto;
-use vw_api_task_lifecycle::TaskLifecycleWorkflowUpsertBody;
 use project_types::{Info, TimeInfo};
 use session_info::{Info as AgentSessionInfo, TimeInfo as AgentSessionTimeInfo};
 use session_ui_types::{
-    ChatMessage, ChatRole, ChatSession, ChatSessionStep, SessionTodoItem, TokenUsage,
+    ChatMessage, ChatRole, ChatSession, ChatSessionStep, TokenUsage,
 };
 
-use task_scheduler_core::artifacts::TaskArtifactWriter;
 use crate::domain::{
-    AgentRunStatus, AgentSchedulerContext, AssigneeId, HolderId, ResourceId, ResourceLeaseId,
+    AgentSchedulerContext, AssigneeId, HolderId, ResourceId, ResourceLeaseId,
     RunId, TaskId, TeamId,
 };
-use crate::engine::dispatch::DispatchEngine;
 use crate::events::AgentEventKind;
-use crate::outbox_dispatcher::{OutboxDispatcher, OutboxDrainSummary};
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::store::AgentSchedulerStore;
 use crate::store::events::AppendAgentEventRequest;
-use crate::store::logs::{AgentSchedulerWorkspaceContext, AppendAgentTaskLogRequest};
-use crate::store::outbox::EnqueueOutboxMessageRequest;
 use crate::store::resources::{AcquireResourceLeaseRequest, ResourceKind};
-use crate::store::runs::AgentRunFinishStatus;
-use crate::store::runs::ClaimTaskRunRequest;
 use crate::store::tasks::NewAgentTask;
-use crate::task_graph::AgentTaskDependency;
 use agent_database::global_database::GlobalDatabase;
-use agent_database::global_database::test_support::PostgresTestDatabase;
 use agent_project::store::ProjectStore;
 
 

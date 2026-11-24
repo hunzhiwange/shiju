@@ -249,8 +249,8 @@ async fn ui_refresh_15_host_tabs_and_errors() {
         app.agents_settings.entries.push(other);
     }
 
-    for (theme, theme_name) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
-        for (locale, locale_name) in LOCALES {
+    for (_theme, _theme_name) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
+        for (locale, _locale_name) in LOCALES {
             app.general_settings.desktop_locale = locale;
             for width in [640, 960] {
                 let mut page = Scene::new(super::view(&app), &mut renderer, width, 840);

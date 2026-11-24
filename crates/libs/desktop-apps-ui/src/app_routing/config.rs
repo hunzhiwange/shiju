@@ -229,12 +229,10 @@ fn update_settings(
                 && !state.busy
                 && state.context.as_ref() == Some(&context)
                 && state.project == project
-            {
-                if matches!(state.value, Some(Value::Listener(_))) {
+                && matches!(state.value, Some(Value::Listener(_))) {
                     state.logging = enabled;
                     state.error = None;
                 }
-            }
             return Task::none();
         }
         Event::Reload | Event::Save => {}

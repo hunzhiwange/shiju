@@ -145,20 +145,11 @@ fn forbidden_option_value<F>(candidate: &str, is_path_allowed: &F) -> Option<Str
 where
     F: Fn(&str) -> bool,
 {
-    let long_option_value = candidate.split_once('=');
-    if long_option_value.is_some() {
-        let (_, value) = long_option_value.expect("long option value was checked");
-        return forbidden_path_candidate(value, is_path_allowed);
-    }
-
-    let short_option_value = attached_short_option_value(candidate);
-    if short_option_value.is_none() {
-        return None;
-    }
-    forbidden_path_candidate(
-        short_option_value.expect("short option value was checked"),
-        is_path_allowed,
-    )
+    let value = match candidate.split_once('=') {
+        Some((_, value)) => value,
+        None => attached_short_option_value(candidate)?,
+    };
+    forbidden_path_candidate(value, is_path_allowed)
 }
 
 fn forbidden_path_candidate<F>(raw: &str, is_path_allowed: &F) -> Option<String>

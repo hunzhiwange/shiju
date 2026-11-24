@@ -157,3 +157,9 @@ impl OwnedState {
         }
     }
 }
+
+impl Default for OwnedState {
+    fn default() -> Self {
+        Self::new()
+    }
+}

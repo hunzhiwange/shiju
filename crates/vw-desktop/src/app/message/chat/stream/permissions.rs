@@ -281,8 +281,3 @@ fn permission_state(
         permission_modal_requests: &mut app.session_state.permission_modal_requests,
     }
 }
-
-#[cfg(test)]
-pub(super) use desktop_session::message::chat::stream::permissions::advance_permission_requests_after_reply;
-#[cfg(test)]
-pub(super) use desktop_session::message::chat::stream::permissions::sync_permission_requests;

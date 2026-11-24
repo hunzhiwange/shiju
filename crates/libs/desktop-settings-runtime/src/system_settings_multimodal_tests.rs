@@ -176,7 +176,7 @@ async fn multimodal_view_draws_non_ascii_dynamic_model_in_dark_theme() {
     );
 
     let pixels = renderer.screenshot(iced::Size::new(960, 1_200), 1.0, Color::TRANSPARENT);
-    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
 }
 
 

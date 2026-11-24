@@ -132,7 +132,7 @@ pub fn card<'a>(
                         .push(text(format!("{kind} · {}", change.path.join(" › "))).size(14));
                 }
                 for path in &preview.inactive {
-                    changes = changes.push(text(i18n.format("未生效 · %s", &[(format!("{}", path.join(" › "))).into()]).expect("valid display template")).size(14));
+                    changes = changes.push(text(i18n.format("未生效 · %s", &[(path.join(" › ").to_string()).into()]).expect("valid display template")).size(14));
                 }
                 body = body.push(settings_panel(changes));
                 body = body.push(settings_panel(

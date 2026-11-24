@@ -103,7 +103,7 @@ async fn aggregation_t66_iced_draws_dynamic_chinese_in_both_themes() {
             );
             let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
             assert_eq!(pixels.len(), size.width as usize * size.height as usize * 4);
-            assert!(pixels.chunks_exact(4).any(|p| p != &pixels[..4]), "modal must paint content");
+            assert!(pixels.as_chunks::<4>().0.iter().any(|p| p != &pixels[..4]), "modal must paint content");
             if let Some(root) = std::env::var_os("SHIJU_T66_RENDER_DIR") {
                 std::fs::create_dir_all(&root).unwrap();
                 image::save_buffer(

@@ -107,11 +107,10 @@ pub fn catalog_skills(
                 if !visited.insert(directory.to_path_buf()) { continue; }
                 if let Some(skill) = load_candidate(
                     &plugin, directory, format, config, SkillLoadMode::MetadataOnly, &mut inventory,
-                )? {
-                    if names.insert(skill.name.clone()) {
+                )?
+                    && names.insert(skill.name.clone()) {
                         result.push((skill, plugin.disabled_marker.is_none()));
                     }
-                }
             }
         }
     }

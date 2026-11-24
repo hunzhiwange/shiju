@@ -145,7 +145,7 @@ pub(super) fn view<'a>(i18n: desktop_i18n::I18n, reader: &'a reader::State, refe
         button(text(if entry.is_some_and(|e| e.pending) {
             i18n.__("正在读取图片…").to_owned()
         } else {
-            i18n.sprintf("显示图片 · %s", &[format!("{}", label).into()])
+            i18n.sprintf("显示图片 · %s", &[label.to_string().into()])
         }))
         .padding([8, 12])
         .style(rounded_action_btn_style)

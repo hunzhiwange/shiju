@@ -9,5 +9,3 @@ pub use audio_playback::{Playback, PlaybackError};
 mod test_backend;
 #[cfg(test)]
 pub use test_backend::{Playback, PlaybackError};
-#[cfg(test)]
-pub(super) use test_backend::{fixture, fixture_stream};

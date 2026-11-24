@@ -634,14 +634,13 @@ impl Channel for SignalChannel {
                         if !current_data.is_empty() {
                             match serde_json::from_str::<SseEnvelope>(&current_data) {
                                 Ok(sse) => {
-                                    if let Some(ref envelope) = sse.envelope {
-                                        if let Some(msg) = self.process_envelope(envelope) {
+                                    if let Some(ref envelope) = sse.envelope
+                                        && let Some(msg) = self.process_envelope(envelope) {
                                             // 发送消息到通道，如果接收端已关闭则退出
                                             if tx.send(msg).await.is_err() {
                                                 return Ok(());
                                             }
                                         }
-                                    }
                                 }
                                 Err(e) => {
                                     tracing::debug!("Signal SSE parse skip: {e}");
@@ -664,11 +663,10 @@ impl Channel for SignalChannel {
             if !current_data.is_empty() {
                 match serde_json::from_str::<SseEnvelope>(&current_data) {
                     Ok(sse) => {
-                        if let Some(ref envelope) = sse.envelope {
-                            if let Some(msg) = self.process_envelope(envelope) {
+                        if let Some(ref envelope) = sse.envelope
+                            && let Some(msg) = self.process_envelope(envelope) {
                                 let _ = tx.send(msg).await;
                             }
-                        }
                     }
                     Err(e) => {
                         tracing::debug!("Signal SSE trailing parse skip: {e}");

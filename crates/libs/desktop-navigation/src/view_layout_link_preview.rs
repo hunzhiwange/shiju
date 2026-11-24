@@ -67,7 +67,7 @@ pub fn prompt<'a, M: Clone + 'static>(
 ) -> Element<'a, M> {
     let parsed = desktop_platform::prompt_link_preview::parse(url);
     let valid = parsed.is_ok();
-    let error = parsed.as_ref().err().map(|error| i18n.__(&error).to_owned());
+    let error = parsed.as_ref().err().map(|error| i18n.__(error).to_owned());
     let content = desktop_platform::prompt_link_preview::body(parsed, i18n).map(|_| unreachable!());
     let body = column![content].spacing(12);
     let body = if let Some(error) = error { body.push(settings_error_banner(error)) } else { body };
@@ -112,7 +112,7 @@ pub fn skill<'a, M: Clone + 'static>(
         host.to_string(),
     );
     let valid = parsed.is_ok();
-    let error = parsed.as_ref().err().map(|error| i18n.__(&error).to_owned());
+    let error = parsed.as_ref().err().map(|error| i18n.__(error).to_owned());
     let content = desktop_platform::skill_link_preview::body(parsed, i18n).map(|_| unreachable!());
     let body = column![content].spacing(12);
     let body = if let Some(error) = error { body.push(settings_error_banner(error)) } else { body };

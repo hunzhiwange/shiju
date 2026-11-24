@@ -23,9 +23,3 @@ pub fn wasm_save_task(
 
 #[cfg(test)]
 use model_types::Info;
-#[cfg(test)]
-pub use desktop_settings_providers::settings_util::is_provider_connected;
-#[cfg(test)]
-pub use desktop_settings_providers::settings_util::parse_comma_or_newline_list;
-#[cfg(test)]
-pub use desktop_settings_providers::settings_util::sync_save;

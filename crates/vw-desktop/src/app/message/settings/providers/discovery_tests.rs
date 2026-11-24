@@ -8,7 +8,6 @@ use super::{
 use crate::app::{
     Message,
     message::{SettingsMessage, app_providers::list::ListMessage},
-    state::app_providers::model_catalog::DiscoveryPhase,
 };
 use iced::{Task, futures::StreamExt};
 use serde_json::{Value, json};

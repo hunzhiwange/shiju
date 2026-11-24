@@ -857,7 +857,7 @@ pub fn run<H: RunnerHost>(
             &total_usage,
             &step_out,
             step_index,
-            app_session_scope.as_deref(),
+            app_session_scope,
         );
 
         let finished_ms = crate::processor_clock::now_ms();
@@ -1027,7 +1027,7 @@ pub fn run<H: RunnerHost>(
             &empty_tools,
             is_last_step,
             step_index,
-            app_session_scope.as_deref(),
+            app_session_scope,
             &mut stop_hook_active,
         );
         if let Err(error) = session_protocol

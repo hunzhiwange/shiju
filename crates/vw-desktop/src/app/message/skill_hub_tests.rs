@@ -4,7 +4,6 @@
 use super::SkillHubMessage;
 use super::skill_hub::{
     agent_install_text, dispatch_download_with, dispatch_shiju_download_with,
-    marketplace_query, mine_query, open_shiju_install_dir_with, update as update_skill_hub,
 };
 use crate::app::account::{
     AccountIdentity, AccountOrigin, AccountRepository, SecretSkey, VerifiedAccount,

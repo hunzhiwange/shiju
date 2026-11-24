@@ -767,15 +767,14 @@ pub(crate) fn execute_tool_call_with_agent_lifecycle<H: ToolExecutionHost>(
             let execution =
                 scope.spawn(move || tools::runtime::execute_agent_tool_call(name, input, ctx, callback));
             let created = created_rx.recv().ok();
-            if emit_ui {
-                if let Some(created) = &created {
+            if emit_ui
+                && let Some(created) = &created {
                     on_event(tool_stream_event(
                         stable_tool_call_id(ctx, name, input_ui),
                         name,
                         agent_tool_running_payload(input_ui, created),
                     ));
                 }
-            }
             ToolExecutionWithAgentLifecycle {
                 result: execution.join().expect("AgentTool execution thread panicked"),
                 created,
@@ -1582,18 +1581,17 @@ pub fn describe_batch_call(tool: &str, params: &serde_json::Value) -> String {
         // 辅助函数：尝试从多个可能的键中获取字符串值
         let get = |keys: &[&str]| -> Option<String> {
             for k in keys {
-                if let Some(v) = obj.get(*k).and_then(|x| x.as_str()).map(|s| s.trim()) {
-                    if !v.is_empty() {
+                if let Some(v) = obj.get(*k).and_then(|x| x.as_str()).map(|s| s.trim())
+                    && !v.is_empty() {
                         return Some(v.to_string());
                     }
-                }
             }
             None
         };
 
         // 根据工具类型提取关键参数
         details = match tool {
-            "bash" | "shell" => get(&["command"]).map(|v| v),
+            "bash" | "shell" => get(&["command"]),
             "read" | "file_read" => {
                 let path = get(&["filePath", "file_path", "path"]);
                 let mut parts = Vec::new();
@@ -1613,7 +1611,7 @@ pub fn describe_batch_call(tool: &str, params: &serde_json::Value) -> String {
             "write" | "file_write" | "file_edit" | "apply_patch" => {
                 get(&["file_path", "filePath", "path"])
             }
-            "glob" => get(&["pattern"]).map(|v| v),
+            "glob" => get(&["pattern"]),
             "grep" => {
                 let pat = get(&["pattern"]);
                 let path = get(&["path"]);
@@ -1624,7 +1622,7 @@ pub fn describe_batch_call(tool: &str, params: &serde_json::Value) -> String {
                     _ => None,
                 }
             }
-            "ls" => get(&["path"]).map(|v| v),
+            "ls" => get(&["path"]),
             _ => None,
         };
     }

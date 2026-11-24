@@ -29,7 +29,6 @@ use super::{
     ReasoningEffort,
     SESSION_HISTORY_DISPLAY_LIMIT,
     TuiState,
-    UiAttachmentKind,
     UiMessage,
     UiStepState,
     V3Attachment,

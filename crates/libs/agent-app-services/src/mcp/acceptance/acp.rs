@@ -95,8 +95,8 @@ pub async fn revoke_cached(catalog: &McpCatalogStore, project_scope: &McpCatalog
     selected: &McpCatalogMount, root: &Path, tool: &Arc<dyn Tool>, pool: &Arc<McpSessionConnections>) -> McpCatalogRecord {
     let live = ToolCatalog::default();
     live.replace(vec![tool.clone()], [tool.name().to_owned()]).unwrap();
-    let definition = catalog.connection_for_revision(&project_scope, &selected.record).unwrap();
-    let current = catalog.update_connection(&project_scope, &selected.record, definition).unwrap();
+    let definition = catalog.connection_for_revision(project_scope, &selected.record).unwrap();
+    let current = catalog.update_connection(project_scope, &selected.record, definition).unwrap();
     fs::remove_file(root.join("selected")).unwrap();
     assert!(tool.call(json!({})).await.is_err(), "a cached executor must reject the old revision");
     pool.refresh_tool_catalog(&live).await.unwrap();

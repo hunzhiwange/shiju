@@ -70,11 +70,10 @@ pub(super) fn wrap_text_lines(text: &str, max_width: usize, max_lines: usize) ->
         lines.push(clean.to_string());
     }
 
-    if truncated && let Some(last) = lines.last_mut() {
-        if !last.ends_with('…') {
+    if truncated && let Some(last) = lines.last_mut()
+        && !last.ends_with('…') {
             last.push('…');
         }
-    }
 
     lines
 }
@@ -154,9 +153,9 @@ fn code_node_description_text(i18n: desktop_i18n::I18n, node: &WorkflowNode) -> 
 fn code_node_error_strategy(node: &WorkflowNode) -> Option<&str> {
     node.raw_node
         .as_mapping()
-        .and_then(|node_map| node_map.get(&Value::String("data".to_string())))
+        .and_then(|node_map| node_map.get(Value::String("data".to_string())))
         .and_then(Value::as_mapping)
-        .and_then(|data_map| data_map.get(&Value::String("error_strategy".to_string())))
+        .and_then(|data_map| data_map.get(Value::String("error_strategy".to_string())))
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|value| !value.is_empty())

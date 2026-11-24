@@ -102,7 +102,7 @@ pub(super) fn view(i18n: desktop_i18n::I18n, state: &State, loopback: bool) -> E
             let display_label = if state.by_time || dir.is_none() { i18n.__(&label) } else { &label };
             let project_name = display_label.rsplit(['/', '\\']).find(|part| !part.is_empty()).unwrap_or(display_label);
             let total = count.unwrap_or(sessions.len());
-            let metadata = i18n.sprintf("%s%s 个会话 · %s", &[format!("{}", total).into(), format!("{}", if page.truncated { "+" } else { "" }).into(), format!("{}", recent).into()]);
+            let metadata = i18n.sprintf("%s%s 个会话 · %s", &[format!("{}", total).into(), (if page.truncated { "+" } else { "" }).to_string().into(), recent.to_string().into()]);
             let mut heading = row![].spacing(9).align_y(iced::Alignment::Center);
             if !state.by_time {
                 heading = heading.push(icon_svg(if collapsed { Icon::ChevronRight } else { Icon::ChevronDown }, 13.0));

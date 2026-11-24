@@ -18,6 +18,7 @@ use futures_util::{StreamExt, stream};
 mod output;
 
 /// 基于当前会话 gateway 的 LLM provider。
+#[derive(Default)]
 pub struct SessionLlmProvider {
     support_vision: bool,
 }
@@ -48,11 +49,10 @@ impl SessionLlmProvider {
     #[cfg(not(target_arch = "wasm32"))]
     fn build_messages(system_prompt: Option<&str>, message: &str) -> Vec<serde_json::Value> {
         let mut messages = Vec::new();
-        if let Some(sys) = system_prompt {
-            if !sys.trim().is_empty() {
+        if let Some(sys) = system_prompt
+            && !sys.trim().is_empty() {
                 messages.push(serde_json::json!({"role":"system","content": sys}));
             }
-        }
         messages.push(serde_json::json!({"role":"user","content": message}));
         messages
     }
@@ -79,7 +79,7 @@ impl SessionLlmProvider {
     }
 
     #[cfg(any(test, target_arch = "wasm32"))]
-    fn extract_system_and_last_user<'a>(messages: &'a [ChatMessage]) -> (Option<&'a str>, &'a str) {
+    fn extract_system_and_last_user(messages: &[ChatMessage]) -> (Option<&str>, &str) {
         let system = messages.iter().find(|m| m.role == "system").map(|m| m.content.as_str());
         let last_user =
             messages.iter().rfind(|m| m.role == "user").map(|m| m.content.as_str()).unwrap_or("");
@@ -392,7 +392,7 @@ impl Provider for SessionLlmProvider {
             });
 
             let s = tokio_stream::wrappers::UnboundedReceiverStream::new(rx);
-            return s.boxed();
+            s.boxed()
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -479,7 +479,7 @@ impl Provider for SessionLlmProvider {
             });
 
             let s = tokio_stream::wrappers::UnboundedReceiverStream::new(rx);
-            return s.boxed();
+            s.boxed()
         }
 
         #[cfg(target_arch = "wasm32")]

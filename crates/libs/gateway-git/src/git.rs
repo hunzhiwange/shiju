@@ -358,11 +358,10 @@ fn worktree_path_for_branch(directory: &str, branch: &str) -> Result<Option<Stri
         return Ok(Some(workdir_string(&repo, directory)));
     }
 
-    if let Some(primary) = repo.workdir() {
-        if primary != Path::new(directory) && worktree_has_branch_head(primary, &branch_ref) {
+    if let Some(primary) = repo.workdir()
+        && primary != Path::new(directory) && worktree_has_branch_head(primary, &branch_ref) {
             return Ok(Some(path_to_string(primary)));
         }
-    }
 
     let names = repo.worktrees().map_err(|err| err.to_string())?;
     for name in names.iter() {

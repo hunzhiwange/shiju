@@ -119,9 +119,9 @@ fn workflow_run_inputs_from_start_node(node: &WorkflowNode) -> Vec<WorkflowRunIn
     let Some(variables) = node
         .raw_node
         .as_mapping()
-        .and_then(|node| node.get(&Value::String("data".to_string())))
+        .and_then(|node| node.get(Value::String("data".to_string())))
         .and_then(Value::as_mapping)
-        .and_then(|data| data.get(&Value::String("variables".to_string())))
+        .and_then(|data| data.get(Value::String("variables".to_string())))
         .and_then(Value::as_sequence)
     else {
         return Vec::new();

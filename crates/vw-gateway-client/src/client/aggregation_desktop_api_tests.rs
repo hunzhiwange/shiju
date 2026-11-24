@@ -1,4 +1,4 @@
-use super::{AgentAppsSettingsError, GatewayClient, test_support};
+use super::{GatewayClient, test_support};
 use crate::endpoint::GatewayAuth;
 use serde_json::json;
 use vw_api_app_aggregation::*;

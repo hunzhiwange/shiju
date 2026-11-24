@@ -66,23 +66,23 @@ pub fn update(
 ) -> Task<RepositoryMessage> {
     match message {
         RepositoryMessage::RemoteAnimationTick => {
-            if !(*state).remote_busy {
+            if !state.remote_busy {
                 return Task::none();
             }
-            (*state).remote_animation_frame =
-                (*state).remote_animation_frame.wrapping_add(1);
+            state.remote_animation_frame =
+                state.remote_animation_frame.wrapping_add(1);
             effects.push(Effect::ScheduleAnimationTick);
             Task::none()
         }
         RepositoryMessage::ShowHistory(history) => {
-            (*state).history = history && current_path.clone().is_some();
+            state.history = history && current_path.clone().is_some();
             Task::done(RepositoryMessage::RefreshRepository)
         }
         RepositoryMessage::LoadMoreHistory => {
-            if (*state).loading {
+            if state.loading {
                 return Task::none();
             }
-            (*state).limit = ((*state).limit + 100).min(10_000);
+            state.limit = (state.limit + 100).min(10_000);
             Task::done(RepositoryMessage::RefreshRepository)
         }
         RepositoryMessage::RefreshRepository => {
@@ -140,7 +140,7 @@ pub fn update(
         }
         RepositoryMessage::RepositoryReady { path, generation, result } => {
             if current_path.clone().as_deref() != Some(&path)
-                || (*state).generation != generation
+                || state.generation != generation
             {
                 return Task::none();
             }
@@ -208,8 +208,8 @@ pub fn update(
         }
         RepositoryMessage::HistoryDetailReady { path, generation, sha, result } => {
             if current_path.clone().as_deref() != Some(&path)
-                || (*state).generation != generation
-                || (*state).selected.as_deref() != Some(&sha)
+                || state.generation != generation
+                || state.selected.as_deref() != Some(&sha)
             {
                 return Task::none();
             }
@@ -222,11 +222,11 @@ pub fn update(
             Task::none()
         }
         RepositoryMessage::OpenHistoryFileMenu(index) => {
-            (*state).file_menu = Some(index);
+            state.file_menu = Some(index);
             Task::none()
         }
         RepositoryMessage::CloseHistoryFileMenu => {
-            (*state).file_menu = None;
+            state.file_menu = None;
             Task::none()
         }
         action @ (RepositoryMessage::PreviewHistoryFile(_) | RepositoryMessage::CopyHistoryFile(_)) => {
@@ -235,7 +235,7 @@ pub fn update(
             else {
                 unreachable!()
             };
-            let snapshot = (*state)
+            let snapshot = state
                 .detail
                 .as_ref()
                 .and_then(|detail| detail.files.get(*index))
@@ -250,14 +250,14 @@ pub fn update(
                     }
                     .map(|content| (file.path.clone(), content))
                 });
-            (*state).file_menu = None;
+            state.file_menu = None;
             let Some((path, content)) = snapshot else {
                 return Task::none();
             };
             if matches!(action, RepositoryMessage::CopyHistoryFile(_)) {
                 { effects.push(Effect::CopyCode(content)); Task::none() }
             } else {
-                let sha = (*state).selected.as_deref().unwrap_or_default();
+                let sha = state.selected.as_deref().unwrap_or_default();
                 let title = format!(
                     "{} @ {}",
                     std::path::Path::new(&path).file_name().unwrap_or_default().to_string_lossy(),
@@ -265,7 +265,7 @@ pub fn update(
                 );
                 let key = format!(
                     "git-history://{}/{sha}/{path}",
-                    (*state).repo_path.as_deref().unwrap_or_default()
+                    state.repo_path.as_deref().unwrap_or_default()
                 );
                 effects.push(Effect::PreviewSnapshot {
                     key,
@@ -277,21 +277,21 @@ pub fn update(
             }
         }
         RepositoryMessage::SelectHistoryFile(index) => {
-            (*state).file_menu = None;
-            (*state).selected_file =
-                if (*state).selected_file == Some(index) { None } else { Some(index) };
+            state.file_menu = None;
+            state.selected_file =
+                if state.selected_file == Some(index) { None } else { Some(index) };
             Task::none()
         }
         RepositoryMessage::RunRemote(action) => {
-            if (*state).remote_busy || commit_in_progress {
+            if state.remote_busy || commit_in_progress {
                 return Task::none();
             }
             let Some(path) = current_path.clone() else {
                 return Task::none();
             };
-            (*state).remote_busy = true;
-            (*state).remote_action = Some(action);
-            (*state).remote_animation_frame = 0;
+            state.remote_busy = true;
+            state.remote_action = Some(action);
+            state.remote_animation_frame = 0;
             // 执行前重新读取分支，避免使用刷新前的远端或跟踪配置。
             Task::batch([
                 Task::done(RepositoryMessage::RemoteAnimationTick),
@@ -325,8 +325,8 @@ pub fn update(
             ])
         }
         RepositoryMessage::RemoteFinished { path, action, result } => {
-            (*state).remote_busy = false;
-            (*state).remote_action = None;
+            state.remote_busy = false;
+            state.remote_action = None;
             let (success, message) = match result {
                 Ok(()) => (true, desktop_i18n::workflow::Feedback::from(match action {
                     repository_ops::RemoteAction::Fetch => "获取完成",

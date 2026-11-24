@@ -160,7 +160,7 @@ pub async fn discover_dynamic_mcp_tools<H: McpToolHost<Connections = McpSessionC
                 }
                 let tools = allowed_tools
                     .into_iter()
-                    .zip(specs.into_iter())
+                    .zip(specs)
                     .map(|(tool, spec)| {
                         tool_mcp::mcp_tool::McpTool::<H>::from_session_server(
                             configured_server.clone(),

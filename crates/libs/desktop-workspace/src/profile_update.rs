@@ -62,11 +62,10 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(
     event: Event<C>,
 ) -> Update<C> {
     if let Event::Apply(scope, event) = event { return apply::update(state, catalog, client, scope, event); }
-    if let Event::Refresh(scope) = &event {
-        if state.application.as_ref().is_some_and(|f| f.scope == *scope && f.submitted && f.result.is_none()) {
+    if let Event::Refresh(scope) = &event
+        && state.application.as_ref().is_some_and(|f| f.scope == *scope && f.submitted && f.result.is_none()) {
             return apply::update(state, catalog, client, *scope, apply::Event::Recover);
         }
-    }
     let context = catalog.context.clone();
     let project = catalog.project.clone();
     if !catalog.connected { return Update::none(); }

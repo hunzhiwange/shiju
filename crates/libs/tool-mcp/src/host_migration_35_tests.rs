@@ -4,7 +4,7 @@ use vw_api_tools::{ToolExposure, ToolSource, ToolSpecDto};
 fn dynamic_tools_contract_mcp_registration_preserves_identity_and_stable_id() {
     use crate::mcp_tool::mcp_tools_to_specs;
     let definition = rmcp::model::Tool::new("read", "Read data", serde_json::Map::new());
-    let alpha = mcp_tools_to_specs("alpha", None, &[definition.clone()], &[]).unwrap();
+    let alpha = mcp_tools_to_specs("alpha", None, std::slice::from_ref(&definition), &[]).unwrap();
     let beta = mcp_tools_to_specs("beta", None, &[definition], &[]).unwrap();
     assert_ne!(alpha[0].id, beta[0].id);
     assert_ne!(alpha[0].identity, beta[0].identity);

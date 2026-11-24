@@ -6,7 +6,7 @@ pub(super) fn format_count(count: u64) -> String {
     let digits = count.to_string();
     let mut formatted = String::with_capacity(digits.len() + (digits.len() - 1) / 3);
     for (index, digit) in digits.chars().enumerate() {
-        if index > 0 && (digits.len() - index) % 3 == 0 {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
             formatted.push(',');
         }
         formatted.push(digit);

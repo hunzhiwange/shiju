@@ -274,9 +274,11 @@ fn model_popover_content_renders_loading_empty_and_filtered_states() {
 
 #[test]
 fn model_popover_content_keeps_available_models_visible_while_refreshing() {
-    let mut app = ModelSettingsState::default();
-    app.loading = true;
-    app.providers = vec![provider("openai", "OpenAI", vec![model("gpt-4.1", "GPT 4.1", true)])];
+    let mut app = ModelSettingsState {
+        loading: true,
+        providers: vec![provider("openai", "OpenAI", vec![model("gpt-4.1", "GPT 4.1", true)])],
+        ..Default::default()
+    };
 
     let content = model_views::model_popover_content(
         ModelPopoverInput {

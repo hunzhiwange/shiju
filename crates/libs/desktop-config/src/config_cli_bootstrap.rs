@@ -517,10 +517,7 @@ fn wait_for_gateway_build(
 
 #[cfg(not(target_arch = "wasm32"))]
 fn gateway_health(endpoint: &GatewayRuntimeEndpoint) -> Option<serde_json::Value> {
-    let address = match resolve_gateway_socket_address(endpoint) {
-        Some(address) => address,
-        None => return None,
-    };
+    let address = resolve_gateway_socket_address(endpoint)?;
 
     let mut stream = match TcpStream::connect_timeout(&address, GATEWAY_HEALTH_CONNECT_TIMEOUT) {
         Ok(stream) => stream,
@@ -542,9 +539,7 @@ fn gateway_health(endpoint: &GatewayRuntimeEndpoint) -> Option<serde_json::Value
         return None;
     }
 
-    let Some(status_line) = response.lines().next() else {
-        return None;
-    };
+    let status_line = response.lines().next()?;
     if !status_line.contains(" 200 ") {
         return None;
     }
@@ -565,11 +560,11 @@ fn resolve_gateway_socket_address(endpoint: &GatewayRuntimeEndpoint) -> Option<S
 fn service_installed(_home: &Path) -> bool {
     #[cfg(target_os = "macos")]
     {
-        return _home
+        _home
             .join("Library")
             .join("LaunchAgents")
             .join(format!("{MACOS_SERVICE_LABEL}.plist"))
-            .exists();
+            .exists()
     }
 
     #[cfg(target_os = "linux")]
@@ -595,12 +590,12 @@ fn service_running(home: &Path) -> bool {
     #[cfg(target_os = "macos")]
     {
         let _ = home;
-        return background_command("launchctl")
+        background_command("launchctl")
             .arg("list")
             .output()
             .ok()
             .and_then(|output| String::from_utf8(output.stdout).ok())
-            .is_some_and(|text| text.lines().any(|line| line.contains(MACOS_SERVICE_LABEL)));
+            .is_some_and(|text| text.lines().any(|line| line.contains(MACOS_SERVICE_LABEL)))
     }
 
     #[cfg(target_os = "linux")]

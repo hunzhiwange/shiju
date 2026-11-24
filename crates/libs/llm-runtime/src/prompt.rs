@@ -567,11 +567,10 @@ pub fn stream_prompt(
         })
         .await;
 
-        if let Some(message) = missing_stream_error_message(&result) {
-            if let Ok(mut on_event) = on_event.lock() {
+        if let Some(message) = missing_stream_error_message(&result)
+            && let Ok(mut on_event) = on_event.lock() {
                 (*on_event)(PromptStreamEvent::Error(message));
             }
-        }
     });
 }
 
@@ -645,7 +644,7 @@ pub fn stream_prompt_with_tools(
 ) {
     // Web 平台不支持此功能
     if cfg!(target_arch = "wasm32") {
-        (&mut on_event)(StreamEvent::Error(message::AssistantError::Unknown {
+        on_event(StreamEvent::Error(message::AssistantError::Unknown {
             message: "Not supported on Web".to_string(),
         }));
         return;
@@ -657,7 +656,7 @@ pub fn stream_prompt_with_tools(
     let model = match block_on(resolve_model(model)) {
         Ok(m) => m,
         Err(e) => {
-            (&mut on_event)(StreamEvent::Error(
+            on_event(StreamEvent::Error(
                 serde_json::from_str(&e).unwrap_or(message::AssistantError::Unknown { message: e }),
             ));
             return;
@@ -698,11 +697,10 @@ pub fn stream_prompt_with_tools(
             }
         })
         .await;
-        if let Some(message) = missing_stream_error_message(&result) {
-            if let Ok(mut on_event) = on_event.lock() {
+        if let Some(message) = missing_stream_error_message(&result)
+            && let Ok(mut on_event) = on_event.lock() {
                 (*on_event)(StreamEvent::Error(message::AssistantError::Unknown { message }));
             }
-        }
     });
 }
 
@@ -774,7 +772,7 @@ pub fn stream_chat_with_tools(
         model,
         options,
         tools,
-        move |ev| (&mut on_event)(ev),
+        move |ev| on_event(ev),
     );
 }
 
@@ -796,7 +794,7 @@ pub fn stream_chat_with_tools_for_session(
         tools,
         None,
         false,
-        move |ev| (&mut on_event)(ev),
+        move |ev| on_event(ev),
     );
 }
 
@@ -813,7 +811,7 @@ pub fn stream_chat_with_tools_for_session_with_abort(
 ) {
     // Web 平台不支持此功能
     if cfg!(target_arch = "wasm32") {
-        (&mut on_event)(StreamEvent::Error(message::AssistantError::Unknown {
+        on_event(StreamEvent::Error(message::AssistantError::Unknown {
             message: "Not supported on Web".to_string(),
         }));
         return;
@@ -838,7 +836,7 @@ pub fn stream_chat_with_tools_for_session_with_abort(
     }) {
         Ok(m) => m,
         Err(e) => {
-            (&mut on_event)(StreamEvent::Error(
+            on_event(StreamEvent::Error(
                 serde_json::from_str(&e).unwrap_or(message::AssistantError::Unknown { message: e }),
             ));
             return;
@@ -883,11 +881,10 @@ pub fn stream_chat_with_tools_for_session_with_abort(
             }
         })
         .await;
-        if let Some(message) = missing_stream_error_message(&result) {
-            if let Ok(mut on_event) = on_event.lock() {
+        if let Some(message) = missing_stream_error_message(&result)
+            && let Ok(mut on_event) = on_event.lock() {
                 (*on_event)(StreamEvent::Error(message::AssistantError::Unknown { message }));
             }
-        }
     });
 }
 

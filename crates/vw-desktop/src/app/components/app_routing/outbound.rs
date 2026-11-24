@@ -7,5 +7,3 @@ pub(crate) fn entry(i18n: desktop_i18n::I18n, id: vw_api_app_identity::AppId) ->
 
 #[cfg(test)]
 use crate::app::state::AppsCatalogState;
-#[cfg(test)]
-pub use desktop_apps_ui::app_routing::outbound::*;

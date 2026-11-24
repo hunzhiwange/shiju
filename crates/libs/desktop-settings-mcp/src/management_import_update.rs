@@ -320,7 +320,7 @@ pub fn update(app: &mut Update<'_>, event: ImportMessage) -> Task<ImportMessage>
 
 pub fn trusted_targets<'a>(
     context: Option<&crate::management_context::Context>,
-    authorized: bool,
+    _authorized: bool,
     loading: bool,
     installations: impl IntoIterator<Item = (AppId, &'a vw_api_app_identity::AppInstallation)>,
 ) -> Vec<McpAppTarget> {

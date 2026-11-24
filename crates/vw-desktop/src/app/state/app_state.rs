@@ -245,8 +245,8 @@ pub struct App {
     pub(crate) digital_employees: crate::app::digital_employees::State,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) shiju_apps: crate::app::shiju_apps::ShijuAppsState,
-    pub(crate) task_property_settings: crate::app::components::system_settings::task_settings::properties::State,
-    pub(crate) task_label_settings: crate::app::components::system_settings::task_settings::labels::State,
+    pub(in crate::app) task_property_settings: crate::app::components::system_settings::task_settings::properties::State,
+    pub(in crate::app) task_label_settings: crate::app::components::system_settings::task_settings::labels::State,
     /// 工作流管理面板状态
     pub workflow_manager: crate::app::views::workflow_manager::WorkflowManagerState,
     pub task_board: desktop_task_board::state::State,

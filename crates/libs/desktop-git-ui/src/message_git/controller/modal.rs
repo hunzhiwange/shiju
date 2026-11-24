@@ -17,7 +17,7 @@ fn open_copy_modal_with_text(app: &mut State, ctx: &Context, text: String) {
         theme,
         ctx.font_size,
         ctx.line_height,
-        ctx.language.clone(),
+        ctx.language,
     );
 }
 
@@ -147,7 +147,7 @@ pub fn update(
                 theme,
                 ctx.font_size,
                 ctx.line_height,
-                ctx.language.clone(),
+                ctx.language,
             );
             Task::none()
         }
@@ -161,7 +161,7 @@ pub fn update(
         GitMessage::CopyModalCodeEditorEvent(event) => app
             .git_copy_modal_code_editor
             .update(&event)
-            .map(|next| GitMessage::CopyModalCodeEditorEvent(next)),
+            .map(GitMessage::CopyModalCodeEditorEvent),
         GitMessage::CopyModalCopyCurrent => {
             let content = crate::message_git::modal::current_copy_content(
                 app.git_copy_modal_use_color,

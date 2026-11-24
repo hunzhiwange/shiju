@@ -280,6 +280,6 @@ async fn channel_default_project_chinese_dynamic_panel_draws_in_both_themes() {
             &Rectangle::with_size(bounds),
         );
         let pixels = renderer.screenshot(Size::new(width, 500), 1.0, Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
     }
 }

@@ -57,13 +57,15 @@ async fn assert_draws(app: &ViewInput<'_>, theme: Theme) {
         &viewport,
     );
     let pixels = renderer.screenshot(Size::new(960, 720), 1.0, Color::TRANSPARENT);
-    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
 }
 
 #[tokio::test]
 async fn installed_skills_render_local_provider_and_suite_cards_with_confirmation() {
-    let mut state = desktop_skill_hub::skill_hub::ExpertHubState::default();
-    state.section = ExpertHubSection::Skills;
+    let mut state = desktop_skill_hub::skill_hub::ExpertHubState {
+        section: ExpertHubSection::Skills,
+        ..Default::default()
+    };
     state.public_market.installed_open = true;
     state.public_market.installed = LoadState::Loaded(vec![
         item("local", "workspace", None, None),

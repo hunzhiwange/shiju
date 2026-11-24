@@ -124,7 +124,7 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
         let error = result.as_ref().err().cloned();
         if catalog.preferences.finish(generation, result) {
             if let Some(error) = error {
-                return iced::Task::done(PreferencesMessage::Error((error).into()));
+                return iced::Task::done(PreferencesMessage::Error(error));
             }
             return iced::Task::done(PreferencesMessage::Success(("应用设置已由网关确认").into()));
         }

@@ -89,6 +89,3 @@ fn start_native_video_edit(app: &mut App) -> Task<Message> {
 
 #[cfg(test)]
 mod video_edit_tests;
-
-#[cfg(test)]
-pub use desktop_workflow_ui::message::WorkflowSaveTarget;

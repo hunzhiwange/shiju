@@ -223,15 +223,14 @@ impl Tool for CronRunTool {
         };
 
         // 对 Shell 类型任务进行命令执行安全验证
-        if matches!(job.job_type, JobType::Shell) {
-            if let Err(reason) = self.security.validate_command_execution(&job.command, approved) {
+        if matches!(job.job_type, JobType::Shell)
+            && let Err(reason) = self.security.validate_command_execution(&job.command, approved) {
                 return Ok(ToolResult {
                     success: false,
                     output: String::new(),
                     error: Some(reason),
                 });
             }
-        }
 
         // 记录本次操作，检查操作预算
         if !self.security.record_action() {

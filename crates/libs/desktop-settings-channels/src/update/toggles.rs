@@ -295,7 +295,7 @@ pub(super) fn add_channel_instance(app: &mut ChannelsSettingsState, channel: &st
             };
             app.wechat_instances.push(config_channel_services::WeChatInstanceConfig { id, config });
         }
-        _ => return,
+        _ => (),
     }
 }
 

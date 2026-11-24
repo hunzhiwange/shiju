@@ -36,7 +36,7 @@ async fn video_edit_ui_chinese_modal_renders_light_and_dark() {
             &viewport,
         );
         let pixels = renderer.screenshot(Size::new(1100, 820), 1.0, Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|p| p[3] > 0));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|p| p[3] > 0));
         ::image::save_buffer(
             format!("/tmp/video12-modal-{name}.png"),
             &pixels,

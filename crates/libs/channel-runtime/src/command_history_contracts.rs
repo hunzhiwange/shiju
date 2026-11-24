@@ -1,7 +1,6 @@
 //! History assertions driven by the real inbound host and real message storage.
 use channel_support::runtime_state::ChannelRuntimeContext;
 use channel_types as traits;
-use model_types::ChatMessage;
 use session_engine::message;
 use channel_support::session::channel_session_ownership;
 use std::{future::Future, pin::Pin};

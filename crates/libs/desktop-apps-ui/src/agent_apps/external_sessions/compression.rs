@@ -107,14 +107,14 @@ pub fn update(state: &mut super::State, connection: crate::Connection, notice: &
 pub fn view<'a>(i18n: desktop_i18n::I18n, state: &'a super::State, base: Element<'a, super::Event>) -> Element<'a, super::Event> {
     let compression = &state.compression;
     let Some(target) = &compression.target else { return base; };
-    let mut body = column![text(i18n.sprintf("Codex 实例：%s", &[format!("{}", target.instance_id).into()])),
+    let mut body = column![text(i18n.sprintf("Codex 实例：%s", &[target.instance_id.to_string().into()])),
         text(i18n.__("此开关由 Codex 在启动后处理历史压缩；桌面只保存原生配置并查询磁盘占用。"))
             .style(settings_muted_text_style)].spacing(12);
     if let Some(value) = &compression.value {
         let mut control = checkbox(compression.draft).label(i18n.__("启用 Codex 会话压缩")).style(settings_checkbox_style);
         if !compression.pending { control = control.on_toggle(|v| msg(Event::Toggle(v))); }
         body = body.push(control)
-            .push(text(i18n.sprintf("当前已确认：%s", &[format!("{}", if value.enabled { i18n.__("已开启") } else { i18n.__("已关闭") }).into()])))
+            .push(text(i18n.sprintf("当前已确认：%s", &[(if value.enabled { i18n.__("已开启") } else { i18n.__("已关闭") }).to_string().into()])))
             .push(text(i18n.sprintf("活动会话：%s 字节", &[format!("{}", value.active_bytes).into()])))
             .push(text(i18n.sprintf("归档会话：%s 字节", &[format!("{}", value.archived_bytes).into()])))
             .push(text(i18n.__("统计为实际存储文件字节数，压缩文件按压缩后的大小计算。")));

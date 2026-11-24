@@ -59,8 +59,7 @@ pub(super) fn build_file_list_column<'a, Host: Clone + 'static>(
         if view_ctx.is_edit_like
             && !render_state.is_search
             && let Some(rel) = relative_to_project_root(app.project_path, abs)
-        {
-            if let Some(change) = changes_by_path.get(rel.as_str()) {
+            && let Some(change) = changes_by_path.get(rel.as_str()) {
                 let title = format!("{}  +{}-{}", rel, change.additions, change.deletions);
                 column_view = column_view.push(edit_file_change_block(
                     app,
@@ -78,7 +77,6 @@ pub(super) fn build_file_list_column<'a, Host: Clone + 'static>(
                 ));
                 continue;
             }
-        }
 
         if let Some((title, file, after)) = fallback_edit_diff_payload(app, view_ctx, display, abs)
         {

@@ -1,23 +1,13 @@
 //! 从宿主用量投影拆出的局部聚合行为，保留原断言。
 use crate::data::UsageData;
 use session_ui_types::{ChatMessage, ChatRole, ChatSessionStep, TokenUsage};
+#[derive(Default)]
 struct Input {
     usage: TokenUsage,
     active_session_id: Option<String>,
     chat: Vec<ChatMessage>,
     steps: Vec<ChatSessionStep>,
     updated_ms: u64,
-}
-impl Default for Input {
-    fn default() -> Self {
-        Self {
-            usage: TokenUsage::default(),
-            active_session_id: None,
-            chat: Vec::new(),
-            steps: Vec::new(),
-            updated_ms: 0,
-        }
-    }
 }
 fn project(input: &Input) -> UsageData {
     UsageData::from_parts(

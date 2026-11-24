@@ -1441,8 +1441,10 @@ use super::super::{resolve_task_execution_acp_agent, resolve_task_execution_dele
 use desktop_task_model::Task;
 #[test]
 fn resolve_task_execution_acp_agent_prefers_selected_agent() {
-    let mut task = Task::default();
-    task.acp_agent = Some("claude".to_string());
+    let mut task = Task {
+        acp_agent: Some("claude".to_string()),
+        ..Default::default()
+    };
 
     let acp_agent = resolve_task_execution_acp_agent(&task);
 
@@ -1451,8 +1453,10 @@ fn resolve_task_execution_acp_agent_prefers_selected_agent() {
 
 #[test]
 fn resolve_task_execution_acp_agent_keeps_unknown_agent() {
-    let mut task = Task::default();
-    task.acp_agent = Some("custom-acp".to_string());
+    let mut task = Task {
+        acp_agent: Some("custom-acp".to_string()),
+        ..Default::default()
+    };
 
     let acp_agent = resolve_task_execution_acp_agent(&task);
 
@@ -1461,8 +1465,10 @@ fn resolve_task_execution_acp_agent_keeps_unknown_agent() {
 
 #[test]
 fn resolve_task_execution_acp_agent_respects_explicit_internal_selection() {
-    let mut task = Task::default();
-    task.acp_agent = Some("internal".to_string());
+    let mut task = Task {
+        acp_agent: Some("internal".to_string()),
+        ..Default::default()
+    };
 
     let acp_agent = resolve_task_execution_acp_agent(&task);
 
@@ -1480,9 +1486,11 @@ fn resolve_task_execution_acp_agent_does_not_fallback_when_missing() {
 
 #[test]
 fn resolve_task_execution_delegate_agent_drops_default_main_for_acp_agent() {
-    let mut task = Task::default();
-    task.agent = Some(desktop_task_model::TASK_AGENT_MAIN.to_string());
-    task.acp_agent = Some("codex".to_string());
+    let mut task = Task {
+        agent: Some(desktop_task_model::TASK_AGENT_MAIN.to_string()),
+        acp_agent: Some("codex".to_string()),
+        ..Default::default()
+    };
 
     let delegate_agent = resolve_task_execution_delegate_agent(&task);
 
@@ -1491,9 +1499,11 @@ fn resolve_task_execution_delegate_agent_drops_default_main_for_acp_agent() {
 
 #[test]
 fn resolve_task_execution_delegate_agent_keeps_explicit_agent_for_acp_agent() {
-    let mut task = Task::default();
-    task.agent = Some("reviewer-agent".to_string());
-    task.acp_agent = Some("codex".to_string());
+    let mut task = Task {
+        agent: Some("reviewer-agent".to_string()),
+        acp_agent: Some("codex".to_string()),
+        ..Default::default()
+    };
 
     let delegate_agent = resolve_task_execution_delegate_agent(&task);
 

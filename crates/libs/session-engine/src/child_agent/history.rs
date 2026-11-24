@@ -19,9 +19,7 @@ fn find_think_open_tag(s: &str) -> Option<(usize, usize)> {
             search_from = pos + 1;
             continue;
         }
-        let Some(tag_end_rel) = s[pos..].find('>') else {
-            return None;
-        };
+        let tag_end_rel = s[pos..].find('>')?;
         let tag = &s[pos + "<think".len()..pos + tag_end_rel];
         if is_think_tag_remainder(tag) {
             return Some((pos, tag_end_rel + 1));
@@ -35,9 +33,7 @@ fn find_think_close_tag(s: &str) -> Option<(usize, usize)> {
     let mut search_from = 0usize;
     while let Some(pos_rel) = s[search_from..].find("</think") {
         let pos = search_from + pos_rel;
-        let Some(tag_end_rel) = s[pos..].find('>') else {
-            return None;
-        };
+        let tag_end_rel = s[pos..].find('>')?;
         let tag = &s[pos + "</think".len()..pos + tag_end_rel];
         if is_think_tag_remainder(tag) {
             return Some((pos, tag_end_rel + 1));

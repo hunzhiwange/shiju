@@ -300,15 +300,14 @@ impl BrowserTool {
                 let mut sanitized = serde_json::Map::new();
                 for (key, item) in map {
                     let key_lower = key.to_ascii_lowercase();
-                    if key_lower.contains("base64") {
-                        if let Some(text) = item.as_str() {
+                    if key_lower.contains("base64")
+                        && let Some(text) = item.as_str() {
                             sanitized.insert(
                                 key.clone(),
                                 Value::String(format!("<base64 {} chars>", text.chars().count())),
                             );
                             continue;
                         }
-                    }
                     sanitized.insert(key.clone(), Self::sanitize_payload(item));
                 }
                 Value::Object(sanitized)
@@ -665,15 +664,14 @@ impl Tool for BrowserTool {
             }
         };
 
-        if let BrowserAction::Screenshot { path: Some(path), .. } = &action {
-            if let Err(err) = self.computer_use_client().validate_output_path("path", path) {
+        if let BrowserAction::Screenshot { path: Some(path), .. } = &action
+            && let Err(err) = self.computer_use_client().validate_output_path("path", path) {
                 return Ok(ToolResult {
                     success: false,
                     output: String::new(),
                     error: Some(err.to_string()),
                 });
             }
-        }
 
         self.execute_action(action, backend).await
     }

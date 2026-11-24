@@ -1,6 +1,6 @@
 use super::{JsonTarget, VerifiedRouteBinding};
 use crate::app_routing::{
-    RoutingListener, SharedTransport,
+    SharedTransport,
     decode_request::{ContentCodings, DecodeError},
 };
 use async_compression::tokio::bufread::{BrotliEncoder, DeflateEncoder, ZlibEncoder, ZstdEncoder};

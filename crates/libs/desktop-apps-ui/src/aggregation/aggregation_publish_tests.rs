@@ -85,7 +85,7 @@ async fn aggregation_t58_confirmation_shapes_draws_and_dispatches_in_both_themes
             let mut ui =
                 UserInterface::build(element, Size::new(820.0, 720.0), Cache::new(), &mut renderer);
             let mut geometry = Geometry::default();
-            ui.operate(&mut renderer, &mut geometry);
+            ui.operate(&renderer, &mut geometry);
             let bounds =
                 |name: &str| geometry.labels.iter().find(|(label, _)| label == name).unwrap().1;
             assert!(geometry.labels.iter().any(|(label, _)| label == "确认聚合发布"));
@@ -168,7 +168,7 @@ async fn aggregation_t58_confirmation_shapes_draws_and_dispatches_in_both_themes
             );
             let pixels = renderer.screenshot(Size::new(820, 720), 1.0, theme.palette().background);
             assert_eq!(pixels.len(), 820 * 720 * 4);
-            assert!(pixels.chunks_exact(4).any(|p| p != &pixels[0..4]));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|p| p != &pixels[0..4]));
             if case == 0 {
                 image::save_buffer(
                     format!(
@@ -295,7 +295,7 @@ async fn aggregation_t59_exit_shapes_draws_and_dispatches_in_both_themes() {
             let mut ui =
                 UserInterface::build(element, Size::new(820.0, 720.0), Cache::new(), &mut renderer);
             let mut geometry = Geometry::default();
-            ui.operate(&mut renderer, &mut geometry);
+            ui.operate(&renderer, &mut geometry);
             let has = |s: &str| geometry.labels.iter().any(|(label, _)| label == s);
             assert!(has("回到直连"));
             assert!(has("保留成员：动态中文供应商 0 😀"));
@@ -377,7 +377,7 @@ async fn aggregation_t59_exit_shapes_draws_and_dispatches_in_both_themes() {
             );
             let pixels = renderer.screenshot(Size::new(820, 720), 1.0, theme.palette().background);
             assert_eq!(pixels.len(), 820 * 720 * 4);
-            assert!(pixels.chunks_exact(4).any(|p| p != &pixels[0..4]));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|p| p != &pixels[0..4]));
             if case == 2 {
                 image::save_buffer(
                     format!(

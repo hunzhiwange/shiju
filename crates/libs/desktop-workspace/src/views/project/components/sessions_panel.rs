@@ -601,7 +601,7 @@ pub fn session_items_list<'a>(
         })
         .map(|(_, draft)| draft)
         .collect::<Vec<_>>();
-    drafts.sort_unstable_by(|left, right| compare_session_recency(&left, &right, pinned));
+    drafts.sort_unstable_by(|left, right| compare_session_recency(left, right, pinned));
     for session in &drafts {
         session_items =
             session_items.push(session_tree_row(app, SessionTreeRow { session }, project_title));
@@ -617,7 +617,7 @@ pub fn session_items_list<'a>(
         );
     } else if let Some(sessions) = sessions {
         let projection =
-            session_tree_projection(sessions, load_count, &app.pinned);
+            session_tree_projection(sessions, load_count, app.pinned);
         let total_visible = projection.total_roots;
         for tree_row in projection.rows {
             session_items = session_items.push(session_tree_row(app, tree_row, project_title));
@@ -693,7 +693,7 @@ pub fn project_sessions_panel(
 ) -> Element<'static, Message> {
     if let Some(path) = target_path {
         let horizontal_padding = 14.0;
-        let title = project_panel_title(&path, &app.recent_projects, &app.recent_projects_edits);
+        let title = project_panel_title(&path, app.recent_projects, app.recent_projects_edits);
 
         let is_loading = app.project_sessions_loading.contains(&path);
         let load_count = app.project_session_load_counts.get(&path).copied().unwrap_or(10);

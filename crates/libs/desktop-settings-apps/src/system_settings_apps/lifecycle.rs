@@ -22,13 +22,12 @@ impl LifecycleState {
         *self = Self { generation, ..Default::default() };
     }
     pub fn accept_status(&mut self, status: AppOperationStatus) -> bool {
-        if let Some(current) = &self.operation {
-            if current.operation_id != status.operation_id
-                || current.phase == AppOperationPhase::Terminal
+        if let Some(current) = &self.operation
+            && (current.operation_id != status.operation_id
+                || current.phase == AppOperationPhase::Terminal)
             {
                 return false;
             }
-        }
         if status.phase == AppOperationPhase::Terminal {
             self.cancel_requested = false;
         }

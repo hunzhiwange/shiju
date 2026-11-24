@@ -34,19 +34,11 @@ pub(crate) use desktop_settings_runtime::state::{
 };
 
 #[cfg(test)]
-pub use desktop_settings_providers::state::ModelDetailModalState;
-#[cfg(test)]
-pub use desktop_settings_providers::state::ModelDetailRow;
-#[cfg(test)]
 pub use desktop_settings_providers::state::ModelRoute;
 #[cfg(test)]
 pub use desktop_settings_providers::state::ModelSummary;
 #[cfg(test)]
 pub use desktop_settings_providers::state::ProviderModelsSummary;
-#[cfg(test)]
-pub(crate) use desktop_settings_cron::state::CronAddJobType;
-#[cfg(test)]
-pub(crate) use desktop_settings_cron::state::CronAddScheduleKind;
 #[cfg(test)]
 pub(crate) use desktop_settings_cron::state::CronJobDraft;
 #[cfg(test)]

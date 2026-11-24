@@ -74,7 +74,7 @@ async fn aggregation_t64_actual_text_rendering_in_both_themes() {
             );
             let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
             assert_eq!(pixels.len(), 960 * 800 * 4);
-            assert!(pixels.chunks_exact(4).any(|p| p[0] != p[1] || p[1] != p[2]));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|p| p[0] != p[1] || p[1] != p[2]));
             if let Some(directory) = std::env::var_os("SHIJU_T64_PREVIEW_DIR") {
                 image::save_buffer(
                     std::path::PathBuf::from(directory)

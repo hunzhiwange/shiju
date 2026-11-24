@@ -167,7 +167,7 @@ async fn aggregation_t61_actual_text_rendering_in_both_themes() {
             );
             let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
             assert_eq!(pixels.len(), 960 * 800 * 4);
-            assert!(pixels.chunks_exact(4).any(|p| p[0] != p[1] || p[1] != p[2]));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|p| p[0] != p[1] || p[1] != p[2]));
             let classic =
                 probe.0.iter().find(|(t, _)| t == "经典工具（默认开启）").unwrap().1.center();
             let mut toggled = Vec::new();

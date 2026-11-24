@@ -3,12 +3,12 @@ use super::request::LaunchMaterial;
 use crate::auth::{credential_file::AccountCredential, credential_lease::CredentialLease};
 use serde_json::Value;
 use std::{
-    fs,
-    io::Write,
     path::Path,
     process::{Command, Stdio},
 };
-use vw_api_app_identity::{AppId};
+#[cfg(unix)]
+use std::{fs, io::Write};
+use vw_api_app_identity::AppId;
 
 /// Not Debug/serializable. Private material lives until the child has been reaped.
 pub struct AccountLaunch {
@@ -173,93 +173,93 @@ pub fn prepare_account_launch_with_model(
             }
         }
     }
-    let mut builder = tempfile::Builder::new();
-    builder.prefix("shiju-account-");
+    #[cfg(not(unix))]
+    {
+        let _ = model;
+        Err("official account launch requires a reviewed host ACL adapter".into())
+    }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        builder.permissions(fs::Permissions::from_mode(0o700));
+
+        let mut builder = tempfile::Builder::new();
+        builder.prefix("shiju-account-").permissions(fs::Permissions::from_mode(0o700));
+        let private =
+            builder.tempdir_in(temp).map_err(|_| "cannot create private official account directory")?;
+        let mut command = Command::new(material.program);
+        command.current_dir(material.cwd).env_clear();
+        for name in [
+            "PATH",
+            "HOME",
+            "USERPROFILE",
+            "SystemRoot",
+            "WINDIR",
+            "TEMP",
+            "TMP",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "TERM",
+            "COLORTERM",
+        ] {
+            if let Some(value) = std::env::var_os(name) {
+                command.env(name, value);
+            }
+        }
+        let mut codex_auth = None;
+        match credential {
+            AccountCredential::GeminiOauth(_) => {
+                return Err("Gemini OAuth credentials are routing-only".into());
+            }
+            AccountCredential::CopilotToken(_) => {
+                return Err("Copilot authorization has no launch application".into());
+            }
+            AccountCredential::XaiOauth(_) => {
+                return Err("xAI authorization has no launch application".into());
+            }
+            AccountCredential::KimiOauth(_) => {
+                return Err("Kimi authorization requires a reviewed native account adapter".into());
+            }
+            AccountCredential::ClaudeToken(token) => {
+                command
+                    .env("CLAUDE_CONFIG_DIR", private.path())
+                    .env("CLAUDE_CODE_OAUTH_TOKEN", token)
+                    .args(["--settings-sources", ""]);
+            }
+            AccountCredential::ClaudeDirectory(directory) => {
+                command.env("CLAUDE_CONFIG_DIR", directory.path()).args(["--settings-sources", ""]);
+            }
+            AccountCredential::CodexAuth(auth) => {
+                write_private(&private.path().join("auth.json"), auth.to_string().as_bytes())?;
+                codex_auth = Some(auth);
+                write_private(
+                    &private.path().join("config.toml"),
+                    b"model_provider = \"openai\"\ncli_auth_credentials_store = \"file\"\n",
+                )?;
+                command.env("CODEX_HOME", private.path());
+            }
+        }
+        if let Some(model) = model {
+            if model.is_empty()
+                || model.len() > 256
+                || model.starts_with('-')
+                || model.chars().any(char::is_control)
+            {
+                return Err("invalid official provider model".into());
+            }
+            command.args(["--model", model]);
+        }
+        command.args(material.args);
+        Ok(AccountLaunch { command, private, codex_auth })
     }
-    #[cfg(not(unix))]
-    {
-        return Err("official account launch requires a reviewed host ACL adapter".into());
-    }
-    let private =
-        builder.tempdir_in(temp).map_err(|_| "cannot create private official account directory")?;
-    let mut command = Command::new(material.program);
-    command.current_dir(material.cwd).env_clear();
-    for name in [
-        "PATH",
-        "HOME",
-        "USERPROFILE",
-        "SystemRoot",
-        "WINDIR",
-        "TEMP",
-        "TMP",
-        "LANG",
-        "LC_ALL",
-        "LC_CTYPE",
-        "TERM",
-        "COLORTERM",
-    ] {
-        if let Some(value) = std::env::var_os(name) {
-            command.env(name, value);
-        }
-    }
-    let mut codex_auth = None;
-    match credential {
-        AccountCredential::GeminiOauth(_) => {
-            return Err("Gemini OAuth credentials are routing-only".into());
-        }
-        AccountCredential::CopilotToken(_) => {
-            return Err("Copilot authorization has no launch application".into());
-        }
-        AccountCredential::XaiOauth(_) => {
-            return Err("xAI authorization has no launch application".into());
-        }
-        AccountCredential::KimiOauth(_) => {
-            return Err("Kimi authorization requires a reviewed native account adapter".into());
-        }
-        AccountCredential::ClaudeToken(token) => {
-            command
-                .env("CLAUDE_CONFIG_DIR", private.path())
-                .env("CLAUDE_CODE_OAUTH_TOKEN", token)
-                .args(["--settings-sources", ""]);
-        }
-        AccountCredential::ClaudeDirectory(directory) => {
-            command.env("CLAUDE_CONFIG_DIR", directory.path()).args(["--settings-sources", ""]);
-        }
-        AccountCredential::CodexAuth(auth) => {
-            write_private(&private.path().join("auth.json"), auth.to_string().as_bytes())?;
-            codex_auth = Some(auth);
-            write_private(
-                &private.path().join("config.toml"),
-                b"model_provider = \"openai\"\ncli_auth_credentials_store = \"file\"\n",
-            )?;
-            command.env("CODEX_HOME", private.path());
-        }
-    }
-    if let Some(model) = model {
-        if model.is_empty()
-            || model.len() > 256
-            || model.starts_with('-')
-            || model.chars().any(char::is_control)
-        {
-            return Err("invalid official provider model".into());
-        }
-        command.args(["--model", model]);
-    }
-    command.args(material.args);
-    Ok(AccountLaunch { command, private, codex_auth })
 }
+
+#[cfg(unix)]
 fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let mut options = fs::OpenOptions::new();
     options.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
+    use std::os::unix::fs::OpenOptionsExt;
+    options.mode(0o600);
     options
         .open(path)
         .and_then(|mut f| f.write_all(bytes))

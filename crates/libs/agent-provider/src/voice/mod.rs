@@ -79,11 +79,11 @@ async fn voice_credentials(config: &VoiceConfig) -> Result<(String, String), Tra
     let id = config
         .provider_id
         .as_deref()
-        .ok_or_else(|| TranscriptionError::Service(VoiceErrorCode::ProviderAuth))?;
+        .ok_or(TranscriptionError::Service(VoiceErrorCode::ProviderAuth))?;
     let provider = crate::provider::get_provider(id)
         .await
         .map_err(|_| TranscriptionError::Service(VoiceErrorCode::ProviderUnavailable))?
-        .ok_or_else(|| TranscriptionError::Service(VoiceErrorCode::ProviderAuth))?;
+        .ok_or(TranscriptionError::Service(VoiceErrorCode::ProviderAuth))?;
     let auth = agent_auth::get(id);
     let key = provider
         .key
@@ -97,16 +97,16 @@ async fn voice_credentials(config: &VoiceConfig) -> Result<(String, String), Tra
                 .filter_map(|name| agent_env::get(name))
                 .find(|key| provider_model_discovery::is_real_bearer(key))
         })
-        .or_else(|| match auth {
+        .or(match auth {
             Some(agent_auth::Info::Api(api)) => Some(api.key),
             _ => None,
         })
         .filter(|key| provider_model_discovery::is_real_bearer(key))
-        .ok_or_else(|| TranscriptionError::Service(VoiceErrorCode::ProviderAuth))?;
+        .ok_or(TranscriptionError::Service(VoiceErrorCode::ProviderAuth))?;
     let base = match provider.options.get("baseURL") {
         Some(value) => value
             .as_str()
-            .ok_or_else(|| TranscriptionError::Service(VoiceErrorCode::InvalidRequest))?,
+            .ok_or(TranscriptionError::Service(VoiceErrorCode::InvalidRequest))?,
         None if id == "openai" => "https://api.openai.com/v1",
         None => return Err(TranscriptionError::Service(VoiceErrorCode::InvalidRequest)),
     };

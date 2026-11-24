@@ -15,15 +15,3 @@ use crate::app::Message;
 use desktop_settings_appearance::system_settings_themes::editor as domain;
 #[cfg(test)]
 use iced::Element;
-#[cfg(test)]
-pub(crate) use domain::allocate_unique_theme_id;
-#[cfg(test)]
-pub(crate) use domain::draft_from_builtin;
-#[cfg(test)]
-pub(crate) use domain::draft_from_definition;
-#[cfg(test)]
-pub(crate) use domain::new_theme_draft;
-#[cfg(test)]
-pub(crate) use domain::slugify_theme_id;
-#[cfg(test)]
-pub(crate) use domain::try_definition_from_draft;

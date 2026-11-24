@@ -74,7 +74,7 @@ pub(super) fn finish_installation_load(
                 app,
                 ToastKind::Error,
                 Some("无法检查识矩技能安装状态：%s"),
-                error.into(),
+                error,
             )
         }
     }
@@ -217,7 +217,7 @@ pub(super) fn open_shiju_install_dir_for(
         }
     }) {
         Ok(()) => app.show_localized_toast(ToastKind::Info, "已打开识矩技能目录", vec![]),
-        Err(error) => show_skill_error(app, ToastKind::Error, None, error.into()),
+        Err(error) => show_skill_error(app, ToastKind::Error, None, error),
     }
 }
 
@@ -307,7 +307,6 @@ pub(super) fn finish_agent_package_load(
 }
 
 /// 返回适合复制给代理的安装命令；尚未加载包信息时返回空文本。
-
 pub(super) fn start_manual_download(
     app: &mut SkillUpdate<'_>,
     package_id: ShijuPackageId,
@@ -359,10 +358,10 @@ pub(super) fn finish_manual_download(
             Ok(()) => {
                 app.show_localized_toast(ToastKind::Info, "已在系统浏览器中打开安装包", vec![])
             }
-            Err(error) => show_skill_error(app, ToastKind::Error, None, error.into()),
+            Err(error) => show_skill_error(app, ToastKind::Error, None, error),
         },
         Err(error) => {
-            show_skill_error(app, ToastKind::Error, Some("安装包地址生成失败：%s"), error.into())
+            show_skill_error(app, ToastKind::Error, Some("安装包地址生成失败：%s"), error)
         }
     }
 }

@@ -305,11 +305,10 @@ pub fn tool_name_from_raw(raw: &str) -> Option<String> {
         return None;
     }
 
-    if let Ok(value) = serde_json::from_str::<Value>(rest.trim()) {
-        if let Some(canonical) = canonical_tool_name_from_value(&value) {
+    if let Ok(value) = serde_json::from_str::<Value>(rest.trim())
+        && let Some(canonical) = canonical_tool_name_from_value(&value) {
             return Some(canonical);
         }
-    }
 
     Some(canonical_tool_name(tool_name).to_string())
 }

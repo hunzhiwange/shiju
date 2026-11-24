@@ -272,7 +272,7 @@ pub fn render_header(query: &str, i18n: I18n, blocked: bool) -> Element<'static,
     // 搜索输入框
     let search_input = text_input(
         i18n.__("搜索工具、网址或动作"),
-        &query,
+        query,
     )
     .on_input(move |s| {
         // 阻塞状态下不响应输入

@@ -55,8 +55,8 @@ impl Harness {
                 id: "account-fixture".into(),
                 label: "中文官方账号".into(),
             })),
-            phase: (self.case % 6 == 0).then_some(LaunchSessionPhase::Completed),
-            accepted: self.case % 6 == 0,
+            phase: self.case.is_multiple_of(6).then_some(LaunchSessionPhase::Completed),
+            accepted: self.case.is_multiple_of(6),
             busy: self.case % 6 == 2,
             error: (self.case % 6 == 1)
                 .then(|| "执行主机拒绝中文目录；没有回退本地终端或其他账号。".repeat(40)),
@@ -96,7 +96,7 @@ impl Harness {
                 }
             }
             Message::Capture(screenshot) => {
-                assert!(screenshot.rgba.chunks_exact(4).any(|p| p[0] != p[1]));
+                assert!(screenshot.rgba.as_chunks::<4>().0.iter().any(|p| p[0] != p[1]));
                 image::save_buffer(
                     self.root.join(format!(
                         "{}-{}.png",

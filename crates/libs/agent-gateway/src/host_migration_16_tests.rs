@@ -1,7 +1,6 @@
 // 覆盖待审批请求映射、回复处理及非 CLI 授权持久化。
 
 use crate::approval_state;
-use agent_config::runtime as config;
 use agent_approval::ApprovalResponse;
 use permission_runtime::next as permission_next;
 use axum::{Json, extract::{Extension, Path, Query}};

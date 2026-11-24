@@ -130,7 +130,7 @@ fn resolve_stdio(
                 let value = std::env::var(&name).map_err(|_| {
                     anyhow::anyhow!("required plugin MCP environment variable is unavailable")
                 })?;
-                env.insert(name.into(), Value::String(value));
+                env.insert(name, Value::String(value));
             }
         }
     }

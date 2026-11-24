@@ -90,9 +90,7 @@ pub fn update(app: &mut State, active_session_id: Option<&str>, steps: &[session
             None
         }
         Message::UsageTurnStepRawOpen(turn_id, step_index) => {
-            let Some(session_id) = active_session_id.map(str::to_owned) else {
-                return None;
-            };
+            let session_id = active_session_id.map(str::to_owned)?;
             let key = (session_id.clone(), turn_id.clone(), step_index);
             if raw.contains_key(&key) {
                 open_raw_modal(app, raw, &key);

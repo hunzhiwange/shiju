@@ -473,9 +473,11 @@ fn wb_schedule_draft_invalid_legacy_input_keeps_timezone_when_corrected() {
 #[test]
 fn wb_schedule_picker_existing_absolute_uses_selected_timezone() {
     let mut app = app();
-    let mut schedule = crate::state::CronScheduleDraft::default();
-    schedule.timezone = "Asia/Shanghai".into();
-    schedule.rule = crate::state::CronScheduleRule::AbsoluteAt("2030-12-31T23:35:42Z".into());
+    let mut schedule = crate::state::CronScheduleDraft {
+        timezone: "Asia/Shanghai".into(),
+        rule: crate::state::CronScheduleRule::AbsoluteAt("2030-12-31T23:35:42Z".into()),
+        ..Default::default()
+    };
     app.add_draft.schedule_draft = Some(schedule);
     let _ = update(&mut app, SettingsMessage::CronPickerOpen { editing: false });
     let picker = app.date_time_picker.as_ref().unwrap();

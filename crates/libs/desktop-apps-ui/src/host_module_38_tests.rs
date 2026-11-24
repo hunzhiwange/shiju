@@ -61,8 +61,7 @@ mod apps {
                 &Theme::Dark,
                 i18n.__(title),
                 i18n.__(description),
-            )
-            .into(),
+            ),
             cookie_help: settings_selectable_help_label(
                 i18n,
                 &Theme::Dark,

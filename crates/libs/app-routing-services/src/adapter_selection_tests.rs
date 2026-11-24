@@ -142,7 +142,7 @@ fn cc_route_031_target_deduplicates_protocol_prefix() {
 #[tokio::test]
 async fn cc_route_031_listener_uses_current_managed_credential_on_wire() {
     use crate::app_routing::{
-        RoutingListener, SharedTransport, adapter_selection::ManagedCredential,
+        SharedTransport, adapter_selection::ManagedCredential,
         dispatch::JsonTarget,
     };
     use tokio::io::AsyncWriteExt;

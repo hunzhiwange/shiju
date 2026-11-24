@@ -215,11 +215,10 @@ pub fn dispatch<R>(
             DispatchEffect::Start { item, replaced_request, replace: true }
         }
         DispatchKind::Guide => {
-            if runtime.draft.is_none() {
-                if let Some(request) = &runtime.request_lifecycle.active_agent_request {
+            if runtime.draft.is_none()
+                && let Some(request) = &runtime.request_lifecycle.active_agent_request {
                     crate::session::agent::mark_pending_guide_handoff(request.id);
                 }
-            }
             runtime.request_lifecycle.queue.insert(0, item);
             runtime.input_editor = iced::widget::text_editor::Content::new();
             DispatchEffect::None

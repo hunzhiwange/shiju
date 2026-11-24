@@ -16,8 +16,7 @@ use vw_api_knowledge::KnowledgeEmbeddingTestRequest;
 use vw_api_knowledge::{
     KnowledgeChunkingMode, KnowledgeDatasetCreateRequest, KnowledgeDocumentCreateRequest,
     KnowledgeDocumentImportRequest, KnowledgeDocumentListQuery, KnowledgeDocumentPatchRequest,
-    KnowledgeDocumentReindexRequest, KnowledgeDocumentStatus, KnowledgeDocumentsBatchAction,
-    KnowledgeDocumentsBatchActionRequest, KnowledgeIndexJobStatus, KnowledgeIndexingMode,
+    KnowledgeDocumentReindexRequest, KnowledgeDocumentStatus, KnowledgeDocumentsBatchAction, KnowledgeIndexJobStatus, KnowledgeIndexingMode,
     KnowledgeMatchType, KnowledgeRetrievalMode, KnowledgeRetrieveRequest,
 };
 

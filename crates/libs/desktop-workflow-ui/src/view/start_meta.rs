@@ -77,10 +77,8 @@ pub fn start_variable_default_error(
     }
 }
 
-pub fn start_variable_advanced_hint(input_type: &str) -> Option<&'static str> {
-    match input_type {
-        _ => None,
-    }
+pub fn start_variable_advanced_hint(_input_type: &str) -> Option<&'static str> {
+    None
 }
 
 pub fn start_variable_type_options(

@@ -3,10 +3,7 @@ use crate::distribution::*;
 use crate::management_bindings::*;
 use crate::management_context as catalog;
 use gateway_mcp_distribution::{McpBindingRequest, McpBulkRequest};
-use vw_api_app_identity::{
-    AppCatalogEntry, AppId, AppInstallation, AppInstallationEnvironment, AppInstallationId,
-    AppInstallationRuntimeStatus, AppInstallationSource, AppReadResponse, AppRuntimeKind,
-};
+use vw_api_app_identity::AppId;
 use vw_api_mcp_management::*;
 use vw_gateway_client::GatewayClient;
 

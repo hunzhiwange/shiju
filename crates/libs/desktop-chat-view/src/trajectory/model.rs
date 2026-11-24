@@ -10,16 +10,13 @@ pub use super::tab::TrajectoryDetailsTab;
 
 /// 指标是否由当前持久化数据明确提供。
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default)]
 pub enum MetricAvailability<T> {
     Available(T),
+    #[default]
     Unavailable,
 }
 
-impl<T> Default for MetricAvailability<T> {
-    fn default() -> Self {
-        Self::Unavailable
-    }
-}
 
 /// 轨迹记录的封闭类别集合。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

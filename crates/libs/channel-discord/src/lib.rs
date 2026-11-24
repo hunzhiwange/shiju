@@ -560,11 +560,10 @@ impl Channel for DiscordChannel {
                     if let Some(ref gid) = guild_filter {
                         let msg_guild = d.get("guild_id").and_then(serde_json::Value::as_str);
                         // 私聊消息没有 guild_id，直接放行；群组消息需要匹配过滤器
-                        if let Some(g) = msg_guild {
-                            if g != gid {
+                        if let Some(g) = msg_guild
+                            && g != gid {
                                 continue;
                             }
-                        }
                     }
 
                     // 提取并规范化消息内容

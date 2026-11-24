@@ -16,7 +16,7 @@ pub fn build_prompt(
     out.push_str("\n\n");
 
     let mut chunks: Vec<String> = Vec::new();
-    let mut used = out.as_bytes().len();
+    let mut used = out.len();
     for msg in session.messages.iter().rev() {
         let role = match msg.role {
             Role::User => "user",
@@ -26,7 +26,7 @@ pub fn build_prompt(
             Role::Tool => "tool",
         };
         let mut content = msg.content.as_str();
-        if matches!(msg.role, Role::Tool) && content.as_bytes().len() > MAX_TOOL_MESSAGE_BYTES {
+        if matches!(msg.role, Role::Tool) && content.len() > MAX_TOOL_MESSAGE_BYTES {
             let mut cut = MAX_TOOL_MESSAGE_BYTES;
             while cut > 0 && !content.is_char_boundary(cut) {
                 cut -= 1;
@@ -40,18 +40,18 @@ pub fn build_prompt(
         if !chunk.ends_with('\n') {
             chunk.push('\n');
         }
-        if used + chunk.as_bytes().len() > MAX_PROMPT_BYTES {
+        if used + chunk.len() > MAX_PROMPT_BYTES {
             break;
         }
-        used += chunk.as_bytes().len();
+        used += chunk.len();
         chunks.push(chunk);
     }
     chunks.reverse();
     for c in chunks {
         out.push_str(&c);
     }
-    if let Some(extra) = extra_assistant {
-        if !extra.trim().is_empty() {
+    if let Some(extra) = extra_assistant
+        && !extra.trim().is_empty() {
             if !out.ends_with('\n') {
                 out.push('\n');
             }
@@ -59,6 +59,5 @@ pub fn build_prompt(
             out.push_str(extra.trim());
             out.push('\n');
         }
-    }
     out
 }

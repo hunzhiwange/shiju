@@ -3,7 +3,6 @@
 
 use super::*;
 use crate::app::message::{GeneralSettingsMessage, SettingsMessage};
-use crate::app::state::GeneralSettingsTab;
 
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
 // 这里固定可观察结果，避免依赖处理过程中的临时实现细节。

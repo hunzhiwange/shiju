@@ -136,8 +136,8 @@ pub fn ingest_planning_answer_todowrite_only<H: PlanningHost>(
 
     // 如果未找到显式的 todowrite 调用，但该工具在允许列表中，
     // 则尝试从文本中自动提取待办事项
-    if !ran_todowrite && allowed_tools.iter().any(|name| is_todo_write_tool_id(name)) {
-        if let Some(input) = build_todowrite_from_text(answer) {
+    if !ran_todowrite && allowed_tools.iter().any(|name| is_todo_write_tool_id(name))
+        && let Some(input) = build_todowrite_from_text(answer) {
             // 记录隐式的 todowrite 调用
             session.push(crate::session_memory::Role::Assistant, format!("/{TODO_WRITE_TOOL_ID}"));
 
@@ -154,7 +154,6 @@ pub fn ingest_planning_answer_todowrite_only<H: PlanningHost>(
             );
             ran_todowrite = true;
         }
-    }
 
     ran_todowrite
 }

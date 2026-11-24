@@ -2,7 +2,7 @@
 //! 覆盖默认、全量与执行环境构造路径，确保能力缺失时不会注册伪可用工具。
 
 use super::*;
-use crate::{runtime::*, factory::*, agents::*, toolset::*, ToolSpec};
+use crate::{runtime::*, factory::*};
 use crate::tool_search::TOOL_SEARCH_ID;
 use super::host;
 use host::Host;

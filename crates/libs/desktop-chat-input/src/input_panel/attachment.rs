@@ -380,8 +380,8 @@ pub fn parse_attachment_markers(
         let marker_end = marker_start + rel_end;
         let marker = content[marker_start..marker_end].trim();
 
-        if let Some(path) = marker.strip_prefix("IMAGE:").map(str::trim) {
-            if !path.is_empty() {
+        if let Some(path) = marker.strip_prefix("IMAGE:").map(str::trim)
+            && !path.is_empty() {
                 attachments.push(AttachmentDisplayItem {
                     path: path.to_string(),
                     display_name: None,
@@ -390,10 +390,9 @@ pub fn parse_attachment_markers(
                 cursor = marker_end + 1;
                 continue;
             }
-        }
 
-        if let Some(path) = marker.strip_prefix("DOCUMENT:").map(str::trim) {
-            if !path.is_empty() {
+        if let Some(path) = marker.strip_prefix("DOCUMENT:").map(str::trim)
+            && !path.is_empty() {
                 attachments.push(AttachmentDisplayItem {
                     path: path.to_string(),
                     display_name: None,
@@ -402,7 +401,6 @@ pub fn parse_attachment_markers(
                 cursor = marker_end + 1;
                 continue;
             }
-        }
 
         if let Some(name) = marker.strip_prefix("Document:").map(str::trim) {
             let mut path_cursor = marker_end + 1;

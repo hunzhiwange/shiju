@@ -31,7 +31,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n,
         settings_close_button(close.clone()),
     );
     let mut body = column![
-        text(i18n.sprintf("应用：%s · 供应商：%s", &[format!("{:?}", context.scope.app).into(), format!("{}", context.provider.as_ref()).into()])).size(13),
+        text(i18n.sprintf("应用：%s · 供应商：%s", &[format!("{:?}", context.scope.app).into(), context.provider.as_ref().to_string().into()])).size(13),
         text(i18n.__("网络可达仅表示收到 HTTP 响应，不代表鉴权、模型或流式正确。")),
         action(i18n, i18n.__("检查网络可达性"), Event::Start(DiagnosticProbeKind::Reachability), true),
         settings_field_label(i18n.__("已保存的模型 ID")),
@@ -53,7 +53,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n,
             );
         }
         if let Some(snapshot) = &run.snapshot {
-            result = result.push(text(i18n.sprintf("进度：%u / %s", &[(snapshot.progress.completed).into(), format!("{}", snapshot.progress.total.map(|v| v.to_string()).unwrap_or_else(|| i18n.__("未知").into())).into()])));
+            result = result.push(text(i18n.sprintf("进度：%u / %s", &[(snapshot.progress.completed).into(), snapshot.progress.total.map(|v| v.to_string()).unwrap_or_else(|| i18n.__("未知").into()).to_string().into()])));
             for evidence in snapshot.results.iter().flatten() {
                 result = result.push(text(evidence_text(i18n, evidence)).size(13));
             }
@@ -123,15 +123,15 @@ fn report_text<E>(i18n: desktop_i18n::I18n, report: &DiagnosticReport<E>, succes
         .map(|t| format!("{:?} {}ms", t.phase, t.elapsed_ms))
         .collect::<Vec<_>>()
         .join("，");
-    i18n.sprintf("来源：%s · %s\n%s", &[format!("{}", source).into(), format!("{}", outcome).into(), format!("{}", timings).into()])
+    i18n.sprintf("来源：%s · %s\n%s", &[source.to_string().into(), outcome.to_string().into(), timings.to_string().into()])
 }
 pub fn evidence_text(i18n: desktop_i18n::I18n, result: &DiagnosticResult) -> String {
     match result {
         DiagnosticResult::Reachability { report, .. } => report_text(i18n, report, |e| {
-            i18n.sprintf("网络可达，HTTP %s；鉴权/模型/流式未验证%s", &[format!("{}", e.http_status).into(), format!("{}", if e.slow { i18n.__("；响应较慢") } else { "" }).into()])
+            i18n.sprintf("网络可达，HTTP %s；鉴权/模型/流式未验证%s", &[format!("{}", e.http_status).into(), (if e.slow { i18n.__("；响应较慢") } else { "" }).to_string().into()])
         }),
-        DiagnosticResult::Model { report, may_incur_cost, .. } => i18n.sprintf("%s\n可能计费：%s", &[format!("{}", report_text(i18n, report, |e| i18n.sprintf("模型响应有效，HTTP %s，实际模型：%s", &[format!("{}", e.http_status).into(), format!("{}", e.actual_model_id.as_ref()).into()]))).into(), format!("{}", may_incur_cost).into()]),
-        DiagnosticResult::Streaming { report, may_incur_cost, .. } => i18n.sprintf("%s\n可能计费：%s", &[format!("{}", report_text(i18n, report, |e| i18n.sprintf("流式增量与结束有效，HTTP %s，实际模型：%s，首事件 %sms，最大间隔 %sms", &[format!("{}", e.http_status).into(), format!("{}", e.actual_model_id.as_ref()).into(), format!("{}", e.first_event_ms).into(), format!("{:?}", e.max_event_gap_ms).into()]))).into(), format!("{}", may_incur_cost).into()]),
+        DiagnosticResult::Model { report, may_incur_cost, .. } => i18n.sprintf("%s\n可能计费：%s", &[report_text(i18n, report, |e| i18n.sprintf("模型响应有效，HTTP %s，实际模型：%s", &[format!("{}", e.http_status).into(), e.actual_model_id.as_ref().to_string().into()])).to_string().into(), format!("{}", may_incur_cost).into()]),
+        DiagnosticResult::Streaming { report, may_incur_cost, .. } => i18n.sprintf("%s\n可能计费：%s", &[report_text(i18n, report, |e| i18n.sprintf("流式增量与结束有效，HTTP %s，实际模型：%s，首事件 %sms，最大间隔 %sms", &[format!("{}", e.http_status).into(), e.actual_model_id.as_ref().to_string().into(), format!("{}", e.first_event_ms).into(), format!("{:?}", e.max_event_gap_ms).into()])).to_string().into(), format!("{}", may_incur_cost).into()]),
         _ => i18n.__("证据类型不匹配，未验证").into(),
     }
 }

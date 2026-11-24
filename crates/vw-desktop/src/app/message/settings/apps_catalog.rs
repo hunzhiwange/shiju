@@ -460,6 +460,3 @@ pub(crate) fn catalog_input(state: &mut crate::app::state::AppsCatalogState) -> 
         preferences: &mut state.preferences, launch: &mut state.launch,
     }
 }
-
-#[cfg(test)]
-use crate::app::components::system_settings_apps::catalog;

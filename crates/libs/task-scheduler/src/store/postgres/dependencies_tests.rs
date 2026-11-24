@@ -17,9 +17,7 @@ use super::super::super::super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::super::super::super::task_graph::AgentTaskDependency;
 use super::super::super::AgentSchedulerStore;
 use super::super::super::tasks::NewAgentTask;
-use super::super::PostgresAgentSchedulerStore;
 use agent_database::GlobalDatabase;
-use agent_database::test_support::PostgresTestDatabase;
 use agent_project::store::ProjectStore;
 
 #[test]

@@ -29,9 +29,10 @@ fn input_context_menu_copy_without_selection_only_closes_menu() {
 
 #[test]
 fn close_input_context_menu_clears_open_state_and_position() {
-    let mut menu = InputContextMenuState::default();
-    menu.open = true;
-    menu.position = Some((12.0, 24.0));
+    let mut menu = InputContextMenuState {
+        open: true,
+        position: Some((12.0, 24.0)),
+    };
 
     menu.close();
 

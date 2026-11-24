@@ -103,8 +103,10 @@ fn submit_and_reject_without_request_are_noops() {
 
 #[test]
 fn submit_with_request_id_but_missing_request_preserves_pending_id() {
-    let mut app = Fixture::default();
-    app.question_modal_request_id = Some("pending".to_string());
+    let mut app = Fixture {
+        question_modal_request_id: Some("pending".to_string()),
+        ..Default::default()
+    };
 
     handle_question_submit(&mut app);
 

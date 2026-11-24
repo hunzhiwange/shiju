@@ -49,16 +49,20 @@ fn render_count(
 
 #[test]
 fn render_delete_ops_returns_one_row_per_deleted_line_in_split_view() {
-    let mut app = Fixture::default();
-    app.merge_view = false;
+    let mut app = Fixture {
+        merge_view: false,
+        ..Default::default()
+    };
 
     assert_eq!(render_count(&app, "src/lib.rs", 0, 2, &["old one", "old two"]), 2);
 }
 
 #[test]
 fn render_delete_ops_returns_one_row_per_deleted_line_in_merge_view() {
-    let mut app = Fixture::default();
-    app.merge_view = true;
+    let mut app = Fixture {
+        merge_view: true,
+        ..Default::default()
+    };
 
     assert_eq!(render_count(&app, "src/lib.rs", 1, 2, &["keep", "old one", "old two"]), 2);
 }
@@ -89,8 +93,10 @@ fn render_delete_ops_handles_selected_and_hovered_rows_independently_at_nonzero_
 
 #[test]
 fn render_delete_ops_file_staging_does_not_require_line_staging() {
-    let mut app = Fixture::default();
-    app.staged_files_selected = vec!["src/lib.rs".to_string()];
+    let mut app = Fixture {
+        staged_files_selected: vec!["src/lib.rs".to_string()],
+        ..Default::default()
+    };
 
     assert!(app.staged_old_lines_selected.is_empty());
     assert_eq!(render_count(&app, "src/lib.rs", 0, 1, &["old one"]), 1);

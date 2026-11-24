@@ -85,11 +85,10 @@ fn filter_unsupported_include_markers(body: &mut Value) -> bool {
         None => false,
     };
 
-    if remove_empty_include {
-        if let Some(body) = body.as_object_mut() {
+    if remove_empty_include
+        && let Some(body) = body.as_object_mut() {
             body.remove("include");
         }
-    }
 
     changed
 }
@@ -183,14 +182,13 @@ fn tool_dedup_key(tool: &Value) -> String {
                 return format!("type:{tool_type}\u{0}name:{name}");
             }
         }
-        if tool_type == "mcp" {
-            if let Some(label) = tool.get("server_label").and_then(Value::as_str) {
+        if tool_type == "mcp"
+            && let Some(label) = tool.get("server_label").and_then(Value::as_str) {
                 let label = label.trim();
                 if !label.is_empty() {
                     return format!("type:mcp\u{0}server_label:{label}");
                 }
             }
-        }
     }
     format!("json:{tool}")
 }
@@ -204,12 +202,11 @@ fn strip_null_reasoning_content(body: &mut Value) -> bool {
         if item.get("type").and_then(Value::as_str).map(str::trim) != Some("reasoning") {
             continue;
         }
-        if let Some(obj) = item.as_object_mut() {
-            if matches!(obj.get("content"), Some(Value::Null)) {
+        if let Some(obj) = item.as_object_mut()
+            && matches!(obj.get("content"), Some(Value::Null)) {
                 obj.remove("content");
                 changed = true;
             }
-        }
     }
     changed
 }
@@ -388,14 +385,13 @@ fn simplify_xai_function_parameters(params: Option<&Value>) -> Value {
         }
         Some(Value::Object(obj)) => {
             for union_key in ["oneOf", "anyOf"] {
-                if let Some(branches) = obj.get(union_key).and_then(Value::as_array) {
-                    if branches
+                if let Some(branches) = obj.get(union_key).and_then(Value::as_array)
+                    && branches
                         .iter()
                         .any(|branch| branch.get("type").and_then(Value::as_str) != Some("object"))
                     {
                         return flatten_union_branches_to_object(branches);
                     }
-                }
             }
 
             let mut result = Value::Object(obj.clone());
@@ -482,12 +478,11 @@ fn normalize_xai_function_tool_parameters(tool: &mut Value) -> bool {
                 obj.insert("strict".to_string(), json!(false));
                 changed = true;
             }
-            if let Some(function) = obj.get_mut("function").and_then(Value::as_object_mut) {
-                if function.get("strict") == Some(&json!(true)) {
+            if let Some(function) = obj.get_mut("function").and_then(Value::as_object_mut)
+                && function.get("strict") == Some(&json!(true)) {
                     function.insert("strict".to_string(), json!(false));
                     changed = true;
                 }
-            }
         }
         return changed;
     }
@@ -505,18 +500,16 @@ fn normalize_xai_function_tool_parameters(tool: &mut Value) -> bool {
         _ => false,
     };
 
-    if changed && is_automation_update_tool(function_tool_name(tool)) {
-        if let Some(obj) = tool.as_object_mut() {
+    if changed && is_automation_update_tool(function_tool_name(tool))
+        && let Some(obj) = tool.as_object_mut() {
             if obj.get("strict") == Some(&json!(true)) {
                 obj.insert("strict".to_string(), json!(false));
             }
-            if let Some(function) = obj.get_mut("function").and_then(Value::as_object_mut) {
-                if function.get("strict") == Some(&json!(true)) {
+            if let Some(function) = obj.get_mut("function").and_then(Value::as_object_mut)
+                && function.get("strict") == Some(&json!(true)) {
                     function.insert("strict".to_string(), json!(false));
                 }
-            }
         }
-    }
 
     changed
 }

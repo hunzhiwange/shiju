@@ -49,7 +49,7 @@ fn draw(element: iced::Element<'_, McpMessage>, theme: Theme) -> Vec<String> {
 
 use super::fixture::catalog;
 use super::fixture::imports::*;
-use {vw_api_app_identity::*, vw_api_transport::TenantScope};
+use vw_api_transport::TenantScope;
 fn target() -> McpAppTarget {
     McpAppTarget {
         app_id: AppId::Codex,

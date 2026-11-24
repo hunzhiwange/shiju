@@ -21,6 +21,7 @@ use {
     vw_api_transport::TenantScope,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
 const CREDENTIAL_GENERATION_CHANGED: &str = "official credential changed before publication";
 
 #[cfg(unix)]

@@ -23,9 +23,11 @@ fn test_module_is_wired() {
 // 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn update_forwards_close_and_clears_connect_state() {
-    let mut state = ProviderSettingsState::default();
-    state.connect_modal = Some(ProviderConnectState::default());
-    state.connect_error = Some(("invalid key".to_string()).into());
+    let mut state = ProviderSettingsState {
+        connect_modal: Some(ProviderConnectState::default()),
+        connect_error: Some(("invalid key".to_string()).into()),
+        ..Default::default()
+    };
 
     update(&mut state, SettingsMessage::ProviderConnectClose);
 
@@ -55,8 +57,10 @@ fn update_forwards_disconnect_request_payload_unchanged() {
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn update_forwards_disconnect_error_and_clears_confirmation() {
-    let mut state = ProviderSettingsState::default();
-    state.disconnect_confirm_provider_id = Some("openai".to_string());
+    let mut state = ProviderSettingsState {
+        disconnect_confirm_provider_id: Some("openai".to_string()),
+        ..Default::default()
+    };
 
     update(
         &mut state,

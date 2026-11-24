@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
 use parking_lot::Mutex;
-use serde_json::{Value, json};
+use serde_json::json;
 use vw_api_transport::common::TimestampMs;
 use std::collections::VecDeque;
 use vw_api_task::{
@@ -18,7 +18,7 @@ use crate::runner::gateway_executor::*;
 use crate::runner::local::*;
 use crate::store::AgentSchedulerStore;
 use agent_project as project;
-use crate::domain::{AssigneeId, RunId, TaskId};
+use crate::domain::{RunId, TaskId};
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::store::runs::ClaimTaskRunRequest;
 use crate::store::tasks::NewAgentTask;

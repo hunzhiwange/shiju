@@ -3,8 +3,6 @@
 //! 提供商值按精确稳定键匹配，未知或近似输入必须回退到未选择状态。
 
 use super::*;
-use iced::widget::column;
-use crate::messages::*;
 use crate::Message;
 use iced::Element;
 use iced::advanced::widget::Tree;
@@ -27,8 +25,8 @@ fn provider_controls(tree: &Tree) -> &Tree {
     let provider_section = &content.children[2];
     assert_eq!(provider_section.children.len(), 2);
 
-    let panel = &provider_section.children[1];
-    panel
+
+    (&provider_section.children[1]) as _
 }
 
 fn unwrap_tunnel_message(message: Message) -> TunnelMessage {

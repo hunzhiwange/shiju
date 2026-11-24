@@ -283,8 +283,8 @@ pub fn parse_ws_delta_event(delta: &str) -> Option<WsDeltaEvent> {
         }
 
         // 解析工具调用成功：✅ <name> (<duration>s)
-        if let Some(rest) = progress.strip_prefix("✅ ") {
-            if let Some((name, duration_secs)) = parse_tool_completion_payload(rest) {
+        if let Some(rest) = progress.strip_prefix("✅ ")
+            && let Some((name, duration_secs)) = parse_tool_completion_payload(rest) {
                 return Some(WsDeltaEvent::ToolResult {
                     name,
                     success: true,
@@ -293,11 +293,10 @@ pub fn parse_ws_delta_event(delta: &str) -> Option<WsDeltaEvent> {
                     result: None,
                 });
             }
-        }
 
         // 解析工具调用失败：❌ <name> (<duration>s)
-        if let Some(rest) = progress.strip_prefix("❌ ") {
-            if let Some((name, duration_secs)) = parse_tool_completion_payload(rest) {
+        if let Some(rest) = progress.strip_prefix("❌ ")
+            && let Some((name, duration_secs)) = parse_tool_completion_payload(rest) {
                 return Some(WsDeltaEvent::ToolResult {
                     name,
                     success: false,
@@ -306,7 +305,6 @@ pub fn parse_ws_delta_event(delta: &str) -> Option<WsDeltaEvent> {
                     result: None,
                 });
             }
-        }
 
         return None;
     }
@@ -629,11 +627,10 @@ pub fn extract_ws_auth_skey(headers: &HeaderMap) -> Option<String> {
 
     // 遍历所有协议，查找 bearer.<skey> 格式
     for protocol in offered.split(',').map(str::trim).filter(|s| !s.is_empty()) {
-        if let Some(token) = protocol.strip_prefix("bearer.") {
-            if !token.trim().is_empty() {
+        if let Some(token) = protocol.strip_prefix("bearer.")
+            && !token.trim().is_empty() {
                 return Some(token.trim().to_string());
             }
-        }
     }
 
     None

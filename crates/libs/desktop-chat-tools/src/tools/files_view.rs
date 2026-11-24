@@ -136,7 +136,7 @@ pub fn tool_files_view<'a, Host: Clone + 'static>(
     let render_state = parse::build_file_list_state(
         items,
         parse::is_search_tool(tool_name),
-        &app.filter,
+        app.filter,
         100,
     );
     let view_ctx = FilesViewContext {

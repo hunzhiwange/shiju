@@ -91,15 +91,14 @@ fn diagnostic_mcp_stdio_cancellation_reaps_process_tree_handshake() -> anyhow::R
                                 .ok()
                                 .and_then(|s| s.trim().parse::<i32>().ok())
                         };
-                        if let (Some(pid), Some(child)) = (read("pid"), read("child")) {
-                            if workdir
+                        if let (Some(pid), Some(child)) = (read("pid"), read("child"))
+                            && workdir
                                 .join(format!("{mode}.requests"))
                                 .metadata()
                                 .is_ok_and(|m| m.len() > 0)
                             {
                                 break (pid, child);
                             }
-                        }
                         tokio::time::sleep(Duration::from_millis(10)).await;
                     }
                 })

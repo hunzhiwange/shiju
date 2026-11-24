@@ -65,10 +65,11 @@ fn handle_permission_list_loaded_applies_sorted_request_and_clears_on_error() {
 
 #[test]
 fn handle_permission_list_loaded_clears_stale_modal_for_empty_success() {
-    let mut app = Fixture::default();
-    app.permission_modal_request_id = Some("stale".to_string());
-    app.permission_modal_request = Some(request("stale", "s"));
-    app.permission_modal_requests = vec![request("stale", "s")];
+    let mut app = Fixture {
+        permission_modal_request_id: Some("stale".to_string()),
+        permission_modal_request: Some(request("stale", "s")),
+        permission_modal_requests: vec![request("stale", "s")],
+    };
 
     handle_permission_list_loaded(&mut app, Ok(Vec::new()));
 
@@ -79,8 +80,10 @@ fn handle_permission_list_loaded_clears_stale_modal_for_empty_success() {
 
 #[test]
 fn handle_permission_select_request_updates_current_when_found_and_clears_when_missing() {
-    let mut app = Fixture::default();
-    app.permission_modal_requests = vec![request("a", "s"), request("b", "s")];
+    let mut app = Fixture {
+        permission_modal_requests: vec![request("a", "s"), request("b", "s")],
+        ..Default::default()
+    };
 
     handle_permission_select_request(&mut app, "b".to_string());
 
@@ -95,10 +98,11 @@ fn handle_permission_select_request_updates_current_when_found_and_clears_when_m
 
 #[test]
 fn handle_permission_approve_all_always_clears_modal_state() {
-    let mut app = Fixture::default();
-    app.permission_modal_request_id = Some("a".to_string());
-    app.permission_modal_request = Some(request("a", "s"));
-    app.permission_modal_requests = vec![request("a", "s"), request("b", "s")];
+    let mut app = Fixture {
+        permission_modal_request_id: Some("a".to_string()),
+        permission_modal_request: Some(request("a", "s")),
+        permission_modal_requests: vec![request("a", "s"), request("b", "s")],
+    };
 
     handle_permission_approve_all_always(&mut app);
 
@@ -110,10 +114,11 @@ fn handle_permission_approve_all_always_clears_modal_state() {
 #[test]
 // 回复后选择相邻请求而不是清空整个队列，保证连续授权流程不会跳项。
 fn handle_permission_approve_once_advances_modal_to_next_request() {
-    let mut app = Fixture::default();
-    app.permission_modal_request_id = Some("b".to_string());
-    app.permission_modal_request = Some(request("b", "s"));
-    app.permission_modal_requests = vec![request("c", "s"), request("a", "s"), request("b", "s")];
+    let mut app = Fixture {
+        permission_modal_request_id: Some("b".to_string()),
+        permission_modal_request: Some(request("b", "s")),
+        permission_modal_requests: vec![request("c", "s"), request("a", "s"), request("b", "s")],
+    };
 
     handle_permission_approve_once(&mut app);
 
@@ -127,8 +132,10 @@ fn handle_permission_approve_once_advances_modal_to_next_request() {
 
 #[test]
 fn handle_permission_approve_once_without_selection_preserves_pending_requests() {
-    let mut app = Fixture::default();
-    app.permission_modal_requests = vec![request("a", "s")];
+    let mut app = Fixture {
+        permission_modal_requests: vec![request("a", "s")],
+        ..Default::default()
+    };
 
     handle_permission_approve_once(&mut app);
 
@@ -138,10 +145,11 @@ fn handle_permission_approve_once_without_selection_preserves_pending_requests()
 
 #[test]
 fn approve_always_advances_modal_to_remaining_request() {
-    let mut app = Fixture::default();
-    app.permission_modal_request_id = Some("a".to_string());
-    app.permission_modal_request = Some(request("a", "s"));
-    app.permission_modal_requests = vec![request("a", "s"), request("b", "s")];
+    let mut app = Fixture {
+        permission_modal_request_id: Some("a".to_string()),
+        permission_modal_request: Some(request("a", "s")),
+        permission_modal_requests: vec![request("a", "s"), request("b", "s")],
+    };
 
     handle_permission_approve_always(&mut app);
 
@@ -151,10 +159,11 @@ fn approve_always_advances_modal_to_remaining_request() {
 
 #[test]
 fn reject_advances_modal_to_remaining_request() {
-    let mut app = Fixture::default();
-    app.permission_modal_request_id = Some("a".to_string());
-    app.permission_modal_request = Some(request("a", "s"));
-    app.permission_modal_requests = vec![request("a", "s"), request("b", "s")];
+    let mut app = Fixture {
+        permission_modal_request_id: Some("a".to_string()),
+        permission_modal_request: Some(request("a", "s")),
+        permission_modal_requests: vec![request("a", "s"), request("b", "s")],
+    };
 
     handle_permission_reject(&mut app);
 

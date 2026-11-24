@@ -8,7 +8,7 @@ use gateway_model_catalog::GatewayModelCatalogClient;
 use iced::futures::StreamExt;
 use serde_json::{Value, json};
 use std::{
-    sync::mpsc::{self, Receiver, Sender},
+    sync::mpsc::{Receiver, Sender},
     time::Duration,
 };
 use vw_api_app_identity::AppId;

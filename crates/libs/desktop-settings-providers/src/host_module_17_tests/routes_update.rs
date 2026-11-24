@@ -5,24 +5,26 @@ fn update(state: &mut ModelRoutesSettingsState, message: ModelRoutesMessage) {
 }
 #[test]
 fn invalid_route_edits_update_fields_and_expose_validation_errors() {
-    let mut app = crate::state::ModelRoutesSettingsState::default();
-    app.routes = vec![ModelRoute::default()];
+    let mut app = crate::state::ModelRoutesSettingsState {
+        routes: vec![ModelRoute::default()],
+        ..Default::default()
+    };
 
-    let _ = update(&mut app, ModelRoutesMessage::ProviderChanged(0, "openai".to_string()));
+    update(&mut app, ModelRoutesMessage::ProviderChanged(0, "openai".to_string()));
     assert_eq!(app.routes[0].provider, "openai");
     assert_eq!(app.save_error.as_deref(), Some("第 1 条路由缺少 pattern"));
 
-    let _ = update(&mut app, ModelRoutesMessage::PatternChanged(0, "chat".to_string()));
+    update(&mut app, ModelRoutesMessage::PatternChanged(0, "chat".to_string()));
     assert_eq!(app.routes[0].pattern, "chat");
     assert_eq!(app.save_error.as_deref(), Some("第 1 条路由缺少 model"));
 
     app.routes[0].provider.clear();
-    let _ = update(&mut app, ModelRoutesMessage::ModelChanged(0, "gpt-5".to_string()));
+    update(&mut app, ModelRoutesMessage::ModelChanged(0, "gpt-5".to_string()));
     assert_eq!(app.routes[0].model, "gpt-5");
     assert_eq!(app.save_error.as_deref(), Some("第 1 条路由缺少 provider"));
 
     app.routes[0].provider = "openai".to_string();
-    let _ = update(&mut app, ModelRoutesMessage::PriorityChanged(0, "high".to_string()));
+    update(&mut app, ModelRoutesMessage::PriorityChanged(0, "high".to_string()));
     assert_eq!(app.routes[0].priority_input, "high");
     assert_eq!(app.save_error.as_deref(), Some("第 1 条路由的 priority 不是有效数字"));
 }
@@ -44,16 +46,16 @@ fn remove_route_updates_existing_rows_and_ignores_out_of_range_indexes() {
     ];
     app.save_error = Some(("stale".to_string()).into());
 
-    let _ = update(&mut app, ModelRoutesMessage::RemoveRoute(9));
+    update(&mut app, ModelRoutesMessage::RemoveRoute(9));
 
     assert_eq!(app.routes.len(), 2);
 
-    let _ = update(&mut app, ModelRoutesMessage::RemoveRoute(0));
+    update(&mut app, ModelRoutesMessage::RemoveRoute(0));
 
     assert_eq!(app.routes.len(), 1);
     assert_eq!(app.routes[0].pattern, "code");
 
-    let _ = update(&mut app, ModelRoutesMessage::RemoveRoute(0));
+    update(&mut app, ModelRoutesMessage::RemoveRoute(0));
 
     assert!(app.routes.is_empty());
 }

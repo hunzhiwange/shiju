@@ -427,7 +427,7 @@ pub fn mcp_tab_content(app: &State) -> Vec<Element<'static, Message>> {
     }
 
     let refresh_message = (!app.mcp.loading && !app.mcp.saving)
-        .then(|| Message::RefreshMcp);
+        .then_some(Message::RefreshMcp);
     let refresh_label = if app.mcp.loading {
         desktop_i18n::I18n::new(app.desktop_locale).__("刷新中...")
     } else {

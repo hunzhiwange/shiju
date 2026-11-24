@@ -22,13 +22,13 @@ pub(super) fn classify_route(route: &GatewayRouteEntry) -> Option<RouteCoverage>
     }
     // Keep unsupported routes explicit: new endpoints still require a coverage audit.
     let exclusion = match (route.method, path) {
-        ("POST", "/v1/agent-apps/diagnostics/jobs")
-        | ("POST", "/v1/agent-apps/mcp/checks")
-        | ("POST", "/v1/agent-apps/diagnostics/endpoint-candidates/query")
-        | ("GET", "/v1/agent-apps/diagnostics/jobs/{id}")
-        | ("POST", "/v1/agent-apps/diagnostics/jobs/{id}/cancel")
-        | ("GET" | "POST", "/v1/agent-apps/mcp")
-        | ("GET", "/v1/agent-apps/mcp/presets" | "/v1/agent-apps/mcp/native") => {
+        ("POST",
+"/v1/agent-apps/diagnostics/jobs" | "/v1/agent-apps/mcp/checks" |
+"/v1/agent-apps/diagnostics/endpoint-candidates/query" |
+"/v1/agent-apps/diagnostics/jobs/{id}/cancel") |
+("GET",
+"/v1/agent-apps/diagnostics/jobs/{id}" | "/v1/agent-apps/mcp/presets" |
+"/v1/agent-apps/mcp/native") | ("GET" | "POST", "/v1/agent-apps/mcp") => {
             Some("desktop application diagnostics and managed MCP have no CLI command")
         }
         ("POST", "/v1/mcp/apps/call") => {
@@ -38,10 +38,11 @@ pub(super) fn classify_route(route: &GatewayRouteEntry) -> Option<RouteCoverage>
         ("POST", "/v1/cron/preview" | "/api/cron/preview") => {
             Some("cron schedule preview has no CLI command")
         }
-        ("POST", "/v1/session/{session_id}/dynamic-tools/hosts")
-        | ("PUT", "/v1/session/{session_id}/dynamic-tools")
-        | ("GET", "/v1/session/{session_id}/dynamic-tools/calls")
-        | ("POST", "/v1/session/{session_id}/dynamic-tools/calls/{call_id}/response") => {
+        ("POST",
+"/v1/session/{session_id}/dynamic-tools/hosts" |
+"/v1/session/{session_id}/dynamic-tools/calls/{call_id}/response") |
+("PUT", "/v1/session/{session_id}/dynamic-tools") |
+("GET", "/v1/session/{session_id}/dynamic-tools/calls") => {
             Some("dynamic tool host protocol has no CLI command")
         }
         _ => None,

@@ -260,7 +260,7 @@ where
         executed_steps =
             executed_steps.saturating_add(u32::try_from(completed_nodes.len()).unwrap_or(u32::MAX));
 
-        completed_nodes.sort_by(|left, right| left.node_index.cmp(&right.node_index));
+        completed_nodes.sort_by_key(|left| left.node_index);
         for completed in completed_nodes {
             let applied = apply_completed_workflow_node(&run_id, &mut state, completed, on_event);
             if applied.failed {
@@ -2330,11 +2330,10 @@ fn loop_has_stop_condition(data: &Value) -> bool {
 }
 
 fn loop_should_stop(data: &Value, pool: &VariablePool) -> Result<bool, String> {
-    if let Some((conditions, logical_operator)) = loop_condition_fields(data) {
-        if conditions_match(conditions, logical_operator, pool)? {
+    if let Some((conditions, logical_operator)) = loop_condition_fields(data)
+        && conditions_match(conditions, logical_operator, pool)? {
             return Ok(true);
         }
-    }
     if let Some(selector) = loop_stop_selector(data) {
         let value = pool.get_selector(&selector).unwrap_or(&Value::Null);
         if workflow_value_truthy(value) {

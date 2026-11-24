@@ -734,7 +734,7 @@ pub(super) fn build_code_variable_drafts(value: Option<&Value>) -> Vec<WorkflowC
                 .filter_map(Value::as_mapping)
                 .map(|item| {
                     let selector = item
-                        .get(&yaml_key("value_selector"))
+                        .get(yaml_key("value_selector"))
                         .and_then(Value::as_sequence)
                         .map(|parts| {
                             parts
@@ -745,7 +745,7 @@ pub(super) fn build_code_variable_drafts(value: Option<&Value>) -> Vec<WorkflowC
                         })
                         .unwrap_or_default();
                     let variable = item
-                        .get(&yaml_key("variable"))
+                        .get(yaml_key("variable"))
                         .and_then(Value::as_str)
                         .map(str::to_string)
                         .filter(|text| !text.trim().is_empty())
@@ -755,7 +755,7 @@ pub(super) fn build_code_variable_drafts(value: Option<&Value>) -> Vec<WorkflowC
                     WorkflowCodeVariableDraft {
                         variable,
                         value_type: item
-                            .get(&yaml_key("value_type"))
+                            .get(yaml_key("value_type"))
                             .and_then(Value::as_str)
                             .unwrap_or("string")
                             .to_string(),
@@ -781,7 +781,7 @@ pub(super) fn build_code_output_drafts(value: Option<&Value>) -> Vec<WorkflowCod
 
                     let value_type = value
                         .as_mapping()
-                        .and_then(|map| map.get(&yaml_key("type")))
+                        .and_then(|map| map.get(yaml_key("type")))
                         .and_then(Value::as_str)
                         .unwrap_or("string");
 
@@ -798,19 +798,19 @@ pub(super) fn build_code_output_drafts(value: Option<&Value>) -> Vec<WorkflowCod
 pub(super) fn build_code_retry_draft(value: Option<&Value>) -> WorkflowNodeRetryDraft {
     let map = value.and_then(Value::as_mapping);
     let max_retries = map
-        .and_then(|item| item.get(&yaml_key("max_retries")))
+        .and_then(|item| item.get(yaml_key("max_retries")))
         .and_then(value_as_u64)
         .unwrap_or(3)
         .clamp(1, 10) as u8;
     let retry_interval = map
-        .and_then(|item| item.get(&yaml_key("retry_interval")))
+        .and_then(|item| item.get(yaml_key("retry_interval")))
         .and_then(value_as_u64)
         .unwrap_or(1000)
         .clamp(100, 5000) as u16;
 
     WorkflowNodeRetryDraft {
         enabled: map
-            .and_then(|item| item.get(&yaml_key("retry_enabled")))
+            .and_then(|item| item.get(yaml_key("retry_enabled")))
             .and_then(Value::as_bool)
             .unwrap_or(false),
         max_retries,

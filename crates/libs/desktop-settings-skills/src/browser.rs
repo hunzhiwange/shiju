@@ -48,7 +48,7 @@ pub fn view<'a>(app: BrowserContext<'a>) -> Element<'a, Message> {
         .collect::<Vec<_>>();
 
     let search_input = text_input(tr(locale, "搜索技能"), s.query)
-        .on_input(|value| Event::SkillsQueryChanged(value))
+        .on_input(Event::SkillsQueryChanged)
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style)

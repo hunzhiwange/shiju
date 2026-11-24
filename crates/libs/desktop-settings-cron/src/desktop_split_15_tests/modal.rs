@@ -264,8 +264,8 @@ mod modal_render {
                             &Style { text_color: theme.palette().text },
                             mouse::Cursor::Unavailable,
                         );
-                        if index == 0 {
-                            if let Some(directory) = &directory {
+                        if index == 0
+                            && let Some(directory) = &directory {
                                 let pixels =
                                     renderer.screenshot(size, 1.0, theme.palette().background);
                                 ::image::save_buffer(
@@ -280,7 +280,6 @@ mod modal_render {
                                 )
                                 .unwrap();
                             }
-                        }
                         let mut messages = Vec::new();
                         let point = save.center();
                         ui.update(

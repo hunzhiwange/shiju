@@ -146,6 +146,3 @@ fn update_compression(
     };
     Task::batch([task, feedback])
 }
-
-#[cfg(test)]
-pub use desktop_apps_ui::agent_apps::external_sessions::Scope;

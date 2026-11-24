@@ -48,20 +48,20 @@ fn tools_menu_toggles_and_closes() {
     let mut app = app();
     let path = "/tmp/project".to_string();
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectToolsMenuToggled(path.clone()),
     );
     assert_eq!(app.project_tools_menu_path, Some(path.clone()));
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectToolsMenuToggled(path),
     );
     assert!(app.project_tools_menu_path.is_none());
 
     app.project_tools_menu_path = Some("/tmp/project".to_string());
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectToolsMenuClosed,
     );
@@ -77,7 +77,7 @@ fn edit_opened_prefers_recent_edit_and_loads_meta_fields() {
     app.project_worktree_enabled.insert(path.clone(), true);
     app.project_tools_menu_path = Some(path.clone());
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditOpened(path.clone()),
     );
@@ -98,14 +98,14 @@ fn edit_opened_falls_back_to_meta_name_then_path_file_name() {
     let path = "/tmp/project-a".to_string();
     app.recent_projects_meta = vec![meta(&path, "Meta Name")];
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditOpened(path.clone()),
     );
     assert_eq!(app.project_editor.project_edit_name, "Meta Name");
 
     app.recent_projects_meta.clear();
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditOpened(
             "/tmp/fallback-project".to_string(),
@@ -135,7 +135,7 @@ fn edit_opened_uses_active_project_settings_and_sanitizes_numeric_fields() {
     app.project_editor.project_edit_icon_color_picker_open = true;
     app.project_editor.project_edit_icon_color_format = desktop_ui_controls::color_picker::ColorFormat::Rgba;
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditOpened(path),
     );
@@ -172,7 +172,7 @@ fn edit_opened_for_inactive_project_uses_its_saved_task_board_settings() {
     app.task_board_settings.refresh_interval_seconds = 99;
     app.recent_projects_meta = vec![project_meta];
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditOpened(path),
     );
@@ -186,7 +186,7 @@ fn edit_opened_without_saved_settings_uses_project_defaults() {
     let mut app = app();
     let path = "/tmp/new-project".to_string();
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditOpened(path),
     );
@@ -222,41 +222,41 @@ fn edit_opened_without_saved_settings_uses_project_defaults() {
 fn edit_simple_field_messages_update_state() {
     let mut app = app();
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditTabSelected(
             ProjectEditTab::Scheduling,
         ),
     );
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditNameChanged("Name".to_string()),
     );
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditIconChanged("icon".to_string()),
     );
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditIconHovered(true),
     );
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditIconColorChanged(
             "#112233".to_string(),
         ),
     );
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditIconColorPickerToggled,
     );
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditStartScriptChanged(
             "cargo run".to_string(),
         ),
     );
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditWorktreeToggled(true),
     );
@@ -270,7 +270,7 @@ fn edit_simple_field_messages_update_state() {
     assert_eq!(app.project_editor.project_edit_start_script, "cargo run");
     assert!(app.project_editor.project_edit_worktree_enabled);
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditIconColorPickerClosed,
     );
@@ -284,19 +284,19 @@ fn edit_color_format_preset_editor_action_and_recycle_toggle_update_state() {
     app.project_editor.project_edit_start_script = "first".to_string();
     app.project_editor.project_edit_start_script_editor = iced::widget::text_editor::Content::with_text("first");
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditIconColorPresetSelected(
             "#abcdef".to_string(),
         ),
     );
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditIconColorFormatChanged(
             desktop_ui_controls::color_picker::ColorFormat::Rgba,
         ),
     );
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditStartScriptEditorAction(
             iced::widget::text_editor::Action::Edit(iced::widget::text_editor::Edit::Paste(
@@ -304,7 +304,7 @@ fn edit_color_format_preset_editor_action_and_recycle_toggle_update_state() {
             )),
         ),
     );
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditRecycleWorktreeOnTaskFinishToggled(
             true,
@@ -324,13 +324,13 @@ fn edit_icon_file_picked_ignores_empty_and_accepts_trimmed_path() {
     let mut app = app();
     app.project_editor.project_edit_icon = "old".to_string();
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditIconFilePicked(None),
     );
     assert_eq!(app.project_editor.project_edit_icon, "old");
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditIconFilePicked(Some(
             "   ".to_string(),
@@ -339,7 +339,7 @@ fn edit_icon_file_picked_ignores_empty_and_accepts_trimmed_path() {
     assert_eq!(app.project_editor.project_edit_icon, "old");
 
     app.project_editor.project_edit_icon_hovered = true;
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditIconFilePicked(Some(
             " /tmp/icon.png ".to_string(),
@@ -352,11 +352,11 @@ fn edit_icon_file_picked_ignores_empty_and_accepts_trimmed_path() {
 fn edit_toggles_and_numeric_changes_clamp_settings() {
     let mut app = app();
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditTaskBoardAutoRefreshToggled(false),
     );
-    let _ = apply(
+    apply(
         &mut app,
         Event::ProjectEditSessionAutoRefreshToggled(false),
     );
@@ -377,7 +377,7 @@ fn edit_toggles_and_numeric_changes_clamp_settings() {
         Event::ProjectEditPrSubmittedStallTimeoutSecondsChanged(1),
     ];
     for message in messages {
-        let _ = apply(&mut app, message);
+        apply(&mut app, message);
     }
 
     assert_eq!(app.project_editor.project_edit_task_board_settings.max_concurrent, 10);
@@ -406,7 +406,7 @@ fn edit_input_messages_preserve_raw_text() {
         Event::ProjectEditPrSubmittedStallTimeoutSecondsInputChanged("8".to_string()),
     ];
     for message in inputs {
-        let _ = apply(&mut app, message);
+        apply(&mut app, message);
     }
 
     assert_eq!(app.project_editor.project_edit_max_concurrent_input, "x");
@@ -433,8 +433,7 @@ fn edit_cancel_resets_transient_fields() {
     app.project_editor.project_edit_max_concurrent_input = "10".to_string();
     app.project_editor.project_edit_task_board_auto_refresh = false;
 
-    let _ =
-        apply(&mut app, Event::ProjectEditCanceled);
+    apply(&mut app, Event::ProjectEditCanceled);
 
     assert!(app.project_editor.project_edit_path.is_none());
     assert!(app.project_editor.project_edit_name.is_empty());
@@ -456,7 +455,7 @@ fn recent_remove_pressed_opens_confirmation_without_removing() {
     app.recent_projects_edits = vec!["Remove".to_string(), "Keep".to_string()];
     app.project_tools_menu_path = Some(removed.clone());
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::RecentRemovePressed(removed.clone()),
     );
@@ -470,8 +469,7 @@ fn recent_remove_canceled_clears_confirmation() {
     let mut app = app();
     app.recent_project_remove_confirm_path = Some("/tmp/remove".to_string());
 
-    let _ =
-        apply(&mut app, Event::RecentRemoveCanceled);
+    apply(&mut app, Event::RecentRemoveCanceled);
 
     assert!(app.recent_project_remove_confirm_path.is_none());
 }
@@ -488,7 +486,7 @@ fn recent_remove_updates_recent_lists_and_clears_related_state() {
     app.project_editor.project_edit_name = "Remove".to_string();
     app.recent_project_remove_confirm_path = Some(removed.clone());
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::RecentRemoveConfirmed(removed),
     );
@@ -511,7 +509,7 @@ fn recent_remove_rebuilds_edit_names_from_file_names_when_meta_is_missing() {
     app.project_editor.project_edit_path = Some("/tmp/other".to_string());
     app.project_editor.project_edit_name = "Other".to_string();
 
-    let _ = apply(
+    apply(
         &mut app,
         Event::RecentRemoveConfirmed(removed),
     );

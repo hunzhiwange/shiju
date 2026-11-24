@@ -1,4 +1,4 @@
-use super::{GatewayClient, test_support};
+use super::test_support;
 use serde_json::json;
 use vw_api_app_aggregation::*;
 fn scope() -> AggregationQuery {

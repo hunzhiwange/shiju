@@ -112,7 +112,7 @@ fn healthy_full_daemon_is_reused_without_launching_cli() {
     let server = std::thread::spawn(move || {
         let (mut stream, _) = listener.accept().unwrap();
         let mut request = [0; 1024];
-        stream.read(&mut request).unwrap();
+        assert!(stream.read(&mut request).unwrap() > 0);
         let body = serde_json::json!({
             "status": "ok", "build_id": "build",
             "runtime": {"components": {"daemon": {"status": "ok"}}}

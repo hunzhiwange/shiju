@@ -171,15 +171,14 @@ async fn workflow_dsml_retry_recovers_before_publishing_downstream() {
         let mut preview = String::new();
         let mut resets = 0;
         for event in events {
-            if let WorkflowRunEvent::NodeDelta(delta) = event {
-                if delta.node_id == "plan" {
+            if let WorkflowRunEvent::NodeDelta(delta) = event
+                && delta.node_id == "plan" {
                     if delta.replace {
                         preview.clear();
                         resets += 1;
                     }
                     preview.push_str(&delta.text);
                 }
-            }
         }
         if streaming {
             assert!(resets >= 2);

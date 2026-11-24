@@ -185,8 +185,3 @@ pub(in crate::app) fn config_access() -> desktop_config::ConfigAccess {
     desktop_config::ConfigAccess::new(gateway_client_endpoint(), None)
         .with_bootstrap_config(load_gateway_client_bootstrap_config())
 }
-
-#[cfg(test)]
-pub(in crate::app) use desktop_config::config_system_settings::normalize_editor_metrics;
-#[cfg(test)]
-pub(in crate::app) use desktop_config::config_system_settings::normalize_system_settings_config;

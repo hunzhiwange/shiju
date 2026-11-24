@@ -305,12 +305,12 @@ fn heatmap_chart(i18n: desktop_i18n::I18n, series: &UsageSeries, metric: Metric)
             container::Style::default().background(color).border(border::rounded(3))
         });
         week = week.push(bucket_tooltip(i18n, mark, bucket, metric, value));
-        if (first_weekday + index + 1) % 7 == 0 {
+        if (first_weekday + index + 1).is_multiple_of(7) {
             weeks = weeks.push(week);
             week = column![].spacing(3);
         }
     }
-    if (first_weekday + series.buckets.len()) % 7 != 0 {
+    if !(first_weekday + series.buckets.len()).is_multiple_of(7) {
         weeks = weeks.push(week);
     }
     let mut days = column![].spacing(3);
@@ -353,7 +353,7 @@ pub fn view_range(i18n: desktop_i18n::I18n, state: &State, metric: Metric, all: 
     }
     match &state.result {
         None => body.push(text(i18n.__("请选择用量范围"))).into(),
-        Some(Err(error)) => body.push(text(i18n.format("图表加载失败：%s", &[(format!("{}", error)).into()]).expect("valid display template"))).into(),
+        Some(Err(error)) => body.push(text(i18n.format("图表加载失败：%s", &[(error.to_string()).into()]).expect("valid display template"))).into(),
         Some(Ok((trend, heatmap))) => {
             if all != Some(true) {
                 let interval = match trend.interval {
@@ -381,7 +381,7 @@ pub fn view_range(i18n: desktop_i18n::I18n, state: &State, metric: Metric, all: 
             }
             if all != Some(false) {
                 body = body
-                    .push(text(i18n.format("每日热力图 · %s", &[(format!("{}", metric.label())).into()]).expect("valid display template")).size(14))
+                    .push(text(i18n.format("每日热力图 · %s", &[(metric.label().to_string()).into()]).expect("valid display template")).size(14))
                     .push(heatmap_chart(i18n, heatmap, metric));
             }
             body.into()

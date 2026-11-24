@@ -19,9 +19,11 @@ mod execution;
 #[derive(Clone)]
 struct Policy(Option<PathBuf>, ProfileAuthorization);
 
+type AuthorizeProfileAccess = fn(Option<&std::path::Path>, &HeaderMap, &ProjectScope, &str, bool) -> Result<String, StatusCode>;
+
 #[derive(Clone, Copy)]
 pub struct ProfileAuthorization {
-    pub read_or_create: fn(Option<&std::path::Path>, &HeaderMap, &ProjectScope, &str, bool) -> Result<String, StatusCode>,
+    pub read_or_create: AuthorizeProfileAccess,
     pub maintenance: fn(Option<&std::path::Path>, &HeaderMap, &ProjectScope, &str) -> Result<String, StatusCode>,
 }
 #[derive(Deserialize)]

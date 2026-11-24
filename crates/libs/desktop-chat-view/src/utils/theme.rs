@@ -3,7 +3,6 @@
 //! 本模块提供状态、路径、文本、主题、时间或菜单相关的小型工具，供聊天面板视图复用。
 
 /// 重新导出 use iced::widget::svg::{self, Svg}，让上层模块通过稳定路径访问。
-
 /// 重新导出 use iced::widget::{button, text}，让上层模块通过稳定路径访问。
 
 /// 重新导出 use iced::widget::button;

@@ -81,7 +81,7 @@ pub fn update(
 
             let maintenance = (*app.project_path).clone().map(|path| {
                 vec![ExecutionEffect::Maintain(path)]
-            }).unwrap_or_else(Vec::new);
+            }).unwrap_or_default();
             batch(vec![maintenance, vec![ExecutionEffect::Wake(WakeKind::Execution)]])
         },
         TaskBoardMessage::AgentSchedulerExecutionWakeCompleted(result) => {
@@ -158,9 +158,9 @@ pub fn update(
                 command(
                     project_path.clone(),
                     task,
-                    (*app.task_board_settings).workflow_id.clone(),
+                    app.task_board_settings.workflow_id.clone(),
                 AgentSchedulerCommandKindDto::Merge,
-                (*app.task_board_settings).agent_scheduler_dispatch_mode,
+                app.task_board_settings.agent_scheduler_dispatch_mode,
                 None,
                 Some("自动审核已跳过，进入合并阶段".to_string()),
             ),
@@ -272,10 +272,10 @@ pub fn update(
                     return self::command(
                         path,
                         task,
-                        (*app.task_board_settings).workflow_id.clone(),
+                        app.task_board_settings.workflow_id.clone(),
                         command,
-                        (*app.task_board_settings).agent_scheduler_dispatch_mode,
-                        Some((*app.task_board_settings).max_concurrent.clamp(1, 10)),
+                        app.task_board_settings.agent_scheduler_dispatch_mode,
+                        Some(app.task_board_settings.max_concurrent.clamp(1, 10)),
                         None,
                     );
                 } else if let Some(task_in_list) =

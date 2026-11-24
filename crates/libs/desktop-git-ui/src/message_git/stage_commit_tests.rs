@@ -10,14 +10,12 @@ fn commit_form_messages_update_fields_and_modals() {
     let mut show_git_commit_help_modal: bool = Default::default();
     let mut show_git_filter_help_modal: bool = Default::default();
 
-    let _result =
-        super::commit_message_changed(&mut git_commit_message, "summary".into());
-    let _result = super::commit_type_selected(&mut git_commit_type, ConventionalCommitType::Fix);
-    let _result = super::commit_scope_changed(&mut git_commit_scope, "ui".into());
-    let _result =
-        super::commit_description_changed(&mut git_commit_description, "body".into());
-    let _result = super::commit_help_open(&mut show_git_commit_help_modal);
-    let _result = super::filter_help_open(&mut show_git_filter_help_modal);
+    super::commit_message_changed(&mut git_commit_message, "summary".into());
+    super::commit_type_selected(&mut git_commit_type, ConventionalCommitType::Fix);
+    super::commit_scope_changed(&mut git_commit_scope, "ui".into());
+    super::commit_description_changed(&mut git_commit_description, "body".into());
+    super::commit_help_open(&mut show_git_commit_help_modal);
+    super::filter_help_open(&mut show_git_filter_help_modal);
 
     assert_eq!(git_commit_message, "summary");
     assert_eq!(git_commit_type, Some(ConventionalCommitType::Fix));
@@ -26,8 +24,8 @@ fn commit_form_messages_update_fields_and_modals() {
     assert!(show_git_commit_help_modal);
     assert!(show_git_filter_help_modal);
 
-    let _result = super::commit_help_close(&mut show_git_commit_help_modal);
-    let _result = super::filter_help_close(&mut show_git_filter_help_modal);
+    super::commit_help_close(&mut show_git_commit_help_modal);
+    super::filter_help_close(&mut show_git_filter_help_modal);
 
     assert!(!show_git_commit_help_modal);
     assert!(!show_git_filter_help_modal);
@@ -38,7 +36,7 @@ fn commit_description_editor_action_synchronizes_plain_text() {
     let mut git_commit_description: String = Default::default();
     let mut git_commit_description_editor: text_editor::Content = text_editor::Content::new();
 
-    let _result = super::commit_description_editor_action(&mut git_commit_description_editor, &mut git_commit_description, text_editor::Action::Edit(
+    super::commit_description_editor_action(&mut git_commit_description_editor, &mut git_commit_description, text_editor::Action::Edit(
             text_editor::Edit::Paste(std::sync::Arc::new("first\nsecond".to_string())),
         ));
 
@@ -56,13 +54,13 @@ fn filter_messages_toggle_and_clear_filter_state() {
     let mut git_filter_query: String = Default::default();
     let mut show_git_filter_options: bool = Default::default();
 
-    let _result = super::toggle_filter_options(&mut show_git_filter_options, true);
-    let _result = super::filter_query_changed(&mut git_filter_query, "src".into());
-    let _result = super::filter_toggle_included(&mut git_filter_included, true);
-    let _result = super::filter_toggle_excluded(&mut git_filter_excluded, true);
-    let _result = super::filter_toggle_new(&mut git_filter_new, true);
-    let _result = super::filter_toggle_modified(&mut git_filter_modified, true);
-    let _result = super::filter_toggle_deleted(&mut git_filter_deleted, true);
+    super::toggle_filter_options(&mut show_git_filter_options, true);
+    super::filter_query_changed(&mut git_filter_query, "src".into());
+    super::filter_toggle_included(&mut git_filter_included, true);
+    super::filter_toggle_excluded(&mut git_filter_excluded, true);
+    super::filter_toggle_new(&mut git_filter_new, true);
+    super::filter_toggle_modified(&mut git_filter_modified, true);
+    super::filter_toggle_deleted(&mut git_filter_deleted, true);
 
     assert!(show_git_filter_options);
     assert_eq!(git_filter_query, "src");
@@ -72,7 +70,7 @@ fn filter_messages_toggle_and_clear_filter_state() {
     assert!(git_filter_modified);
     assert!(git_filter_deleted);
 
-    let _result = super::clear_filters(&mut git_filter_query, &mut git_filter_included, &mut git_filter_excluded, &mut git_filter_new, &mut git_filter_modified, &mut git_filter_deleted);
+    super::clear_filters(&mut git_filter_query, &mut git_filter_included, &mut git_filter_excluded, &mut git_filter_new, &mut git_filter_modified, &mut git_filter_deleted);
 
     assert!(git_filter_query.is_empty());
     assert!(!git_filter_included);
@@ -89,33 +87,24 @@ fn stage_selection_toggles_are_deduplicated_and_removable() {
     let mut staged_lines_selected: Vec<(String, usize)> = Default::default();
     let mut staged_old_lines_selected: Vec<(String, usize)> = Default::default();
 
-    let _result =
-        super::toggle_stage_file(&mut staged_files_selected, "a.rs".into(), true);
-    let _result =
-        super::toggle_stage_file(&mut staged_files_selected, "a.rs".into(), true);
-    let _result =
-        super::toggle_stage_hunk(&mut staged_hunks_selected, "a.rs".into(), 1, true);
-    let _result =
-        super::toggle_stage_hunk(&mut staged_hunks_selected, "a.rs".into(), 1, true);
-    let _result =
-        super::toggle_stage_line(&mut staged_lines_selected, "a.rs".into(), 2, true);
-    let _result =
-        super::toggle_stage_line(&mut staged_lines_selected, "a.rs".into(), 2, true);
-    let _result = super::toggle_stage_old_line(&mut staged_old_lines_selected, "a.rs".into(), 3, true);
-    let _result = super::toggle_stage_old_line(&mut staged_old_lines_selected, "a.rs".into(), 3, true);
+    super::toggle_stage_file(&mut staged_files_selected, "a.rs".into(), true);
+    super::toggle_stage_file(&mut staged_files_selected, "a.rs".into(), true);
+    super::toggle_stage_hunk(&mut staged_hunks_selected, "a.rs".into(), 1, true);
+    super::toggle_stage_hunk(&mut staged_hunks_selected, "a.rs".into(), 1, true);
+    super::toggle_stage_line(&mut staged_lines_selected, "a.rs".into(), 2, true);
+    super::toggle_stage_line(&mut staged_lines_selected, "a.rs".into(), 2, true);
+    super::toggle_stage_old_line(&mut staged_old_lines_selected, "a.rs".into(), 3, true);
+    super::toggle_stage_old_line(&mut staged_old_lines_selected, "a.rs".into(), 3, true);
 
     assert_eq!(staged_files_selected, vec!["a.rs"]);
     assert_eq!(staged_hunks_selected, vec![("a.rs".to_string(), 1)]);
     assert_eq!(staged_lines_selected, vec![("a.rs".to_string(), 2)]);
     assert_eq!(staged_old_lines_selected, vec![("a.rs".to_string(), 3)]);
 
-    let _result =
-        super::toggle_stage_file(&mut staged_files_selected, "a.rs".into(), false);
-    let _result =
-        super::toggle_stage_hunk(&mut staged_hunks_selected, "a.rs".into(), 1, false);
-    let _result =
-        super::toggle_stage_line(&mut staged_lines_selected, "a.rs".into(), 2, false);
-    let _result = super::toggle_stage_old_line(&mut staged_old_lines_selected, "a.rs".into(), 3, false);
+    super::toggle_stage_file(&mut staged_files_selected, "a.rs".into(), false);
+    super::toggle_stage_hunk(&mut staged_hunks_selected, "a.rs".into(), 1, false);
+    super::toggle_stage_line(&mut staged_lines_selected, "a.rs".into(), 2, false);
+    super::toggle_stage_old_line(&mut staged_old_lines_selected, "a.rs".into(), 3, false);
 
     assert!(staged_files_selected.is_empty());
     assert!(staged_hunks_selected.is_empty());
@@ -130,7 +119,7 @@ fn clear_all_file_lines_only_removes_matching_file() {
     staged_lines_selected = vec![("a.rs".to_string(), 1), ("b.rs".to_string(), 2)];
     staged_old_lines_selected = vec![("a.rs".to_string(), 3), ("b.rs".to_string(), 4)];
 
-    let _result = super::clear_all_file_lines(&mut staged_lines_selected, &mut staged_old_lines_selected, "a.rs".into());
+    super::clear_all_file_lines(&mut staged_lines_selected, &mut staged_old_lines_selected, "a.rs".into());
 
     assert_eq!(staged_lines_selected, vec![("b.rs".to_string(), 2)]);
     assert_eq!(staged_old_lines_selected, vec![("b.rs".to_string(), 4)]);
@@ -141,21 +130,18 @@ fn hover_messages_set_and_clear_only_matching_header() {
     let mut git_hovered_file_header: Option<String> = Default::default();
     let mut git_panel_header_hovered: bool = Default::default();
 
-    let _result =
-        super::hover_file_header_enter(&mut git_hovered_file_header, "a.rs".into());
-    let _result =
-        super::hover_file_header_exit(&mut git_hovered_file_header, "b.rs".into());
+    super::hover_file_header_enter(&mut git_hovered_file_header, "a.rs".into());
+    super::hover_file_header_exit(&mut git_hovered_file_header, "b.rs".into());
 
     assert_eq!(git_hovered_file_header.as_deref(), Some("a.rs"));
 
-    let _result =
-        super::hover_file_header_exit(&mut git_hovered_file_header, "a.rs".into());
-    let _result = super::hover_git_panel_header_enter(&mut git_panel_header_hovered);
+    super::hover_file_header_exit(&mut git_hovered_file_header, "a.rs".into());
+    super::hover_git_panel_header_enter(&mut git_panel_header_hovered);
 
     assert_eq!(git_hovered_file_header, None);
     assert!(git_panel_header_hovered);
 
-    let _result = super::hover_git_panel_header_exit(&mut git_panel_header_hovered);
+    super::hover_git_panel_header_exit(&mut git_panel_header_hovered);
 
     assert!(!git_panel_header_hovered);
 }
@@ -198,8 +184,7 @@ fn select_all_file_lines_replaces_only_target_with_changed_lines() {
     let mut staged_old_lines_selected =
         vec![("note.txt".to_string(), 99), ("other.txt".to_string(), 8)];
 
-    let _result =
-        super::select_all_file_lines(&mut staged_lines_selected, &mut staged_old_lines_selected, &path, "note.txt");
+    super::select_all_file_lines(&mut staged_lines_selected, &mut staged_old_lines_selected, &path, "note.txt");
 
     assert_eq!(
         staged_lines_selected,
@@ -223,7 +208,7 @@ fn visible_line_selection_skips_missing_files_and_inverts_changed_lines() {
     let mut staged_old_lines_selected = Vec::new();
     let path = temp.path().to_string_lossy().into_owned();
 
-    let _result = super::select_visible_file_lines(
+    super::select_visible_file_lines(
         &mut staged_lines_selected, &mut staged_old_lines_selected, Some(&path),
         vec!["missing.txt".into(), "note.txt".into()], false,
     );
@@ -234,7 +219,7 @@ fn visible_line_selection_skips_missing_files_and_inverts_changed_lines() {
     );
     assert_eq!(staged_old_lines_selected, vec![("note.txt".to_string(), 1)]);
 
-    let _result = super::select_visible_file_lines(
+    super::select_visible_file_lines(
         &mut staged_lines_selected, &mut staged_old_lines_selected, Some(&path),
         vec!["missing.txt".into(), "note.txt".into()], true,
     );

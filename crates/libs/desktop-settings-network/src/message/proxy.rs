@@ -31,14 +31,15 @@ fn persist_proxy_settings(app: &mut ProxySettingsState) -> Effect {
     // 更新全局代理配置
     // 空字符串转换为 None，非空字符串包装为 Some
     {
-        let mut proxy = config_proxy::ProxyConfig::default();
-        proxy.enabled = enabled;
-        proxy.scope = scope;
-        proxy.http_proxy = if http_proxy.is_empty() { None } else { Some(http_proxy) };
-        proxy.https_proxy = if https_proxy.is_empty() { None } else { Some(https_proxy) };
-        proxy.all_proxy = if all_proxy.is_empty() { None } else { Some(all_proxy) };
-        proxy.no_proxy = no_proxy;
-        proxy.services = services;
+        let proxy = config_proxy::ProxyConfig {
+            enabled: enabled,
+            scope: scope,
+            http_proxy: if http_proxy.is_empty() { None } else { Some(http_proxy) },
+            https_proxy: if https_proxy.is_empty() { None } else { Some(https_proxy) },
+            all_proxy: if all_proxy.is_empty() { None } else { Some(all_proxy) },
+            no_proxy: no_proxy,
+            services: services,
+        };
 
         Effect::Persist(proxy)
     }

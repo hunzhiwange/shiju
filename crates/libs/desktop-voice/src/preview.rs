@@ -115,7 +115,7 @@ async fn play<S>(
         pending.extend(chunk);
         // Pace against the actual output callback; never overflow the two-second ring.
         while pending.len() >= 960 {
-            if submitted.saturating_sub(u64::from(playback.played_ms()) * 24) > 24000 {
+            if submitted.saturating_sub(playback.played_ms() * 24) > 24000 {
                 tokio::time::sleep(Duration::from_millis(20)).await;
             } else {
                 let rest = pending.split_off(960);

@@ -1,6 +1,6 @@
 use super::auth_router as agent_apps_auth_read;
 use axum::{Extension, http::StatusCode};
-use serde_json::{Value, json};
+use serde_json::Value;
 use std::{
     fs,
     os::unix::fs::PermissionsExt,

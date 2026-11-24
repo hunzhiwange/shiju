@@ -31,7 +31,7 @@ use vw_api_app_provider_base::AppProviderWrite;
         path
     }
     fn router(root: &Path) -> Router {
-        let db = agent_database::GlobalDatabase::for_home(&root.join("database")).unwrap();
+        let db = agent_database::GlobalDatabase::for_home(root.join("database")).unwrap();
         let store = app_provider_services::AppProviderStore::new(db.clone()).unwrap();
         for (company, app, id) in [
             ("a", AppId::Claude, "ours"),
@@ -62,7 +62,7 @@ use vw_api_app_provider_base::AppProviderWrite;
             .layer(Extension(db))
             .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware))
     }
-    fn request(path: &str, company: &str, token: &str) -> Request<Body> {
+    fn request(path: &str, company: &str, _token: &str) -> Request<Body> {
         Request::builder()
             .uri(path)
             .header("x-platform-id", "p")

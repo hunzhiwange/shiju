@@ -105,7 +105,7 @@ pub fn build_render_cache_entry(
                     .get(block_idx)
                     .and_then(Option::as_ref)
                     .and_then(|metadata| metadata.name.as_deref())
-                    && is_explore_tool(&name)
+                    && is_explore_tool(name)
                 {
                     explore_items.push(raw.to_string());
                     estimated_expanded_height += 28.0;

@@ -1,4 +1,5 @@
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct McpSettingsState {
     pub actions: crate::management_probe::actions::State,
     pub tools: crate::management_tools::ToolsState,
@@ -13,23 +14,6 @@ pub struct McpSettingsState {
     pub installing_chrome_devtools: bool,
 }
 
-impl Default for McpSettingsState {
-    fn default() -> Self {
-        Self {
-            actions: Default::default(),
-            diagnostics: Default::default(),
-            tools: Default::default(),
-            catalog: Default::default(),
-            bindings: Default::default(),
-            resync: Default::default(),
-            import: None,
-            connection_form: None,
-            page: Default::default(),
-            installing_rustcodegraph: false,
-            installing_chrome_devtools: false,
-        }
-    }
-}
 
 // Preserve existing callers until the update slices migrate; state has one owner.
 impl std::ops::Deref for McpSettingsState {

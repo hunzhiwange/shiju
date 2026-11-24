@@ -1,11 +1,7 @@
 //! Built-in template validation and editor behavior.
 
 use super::*;
-use desktop_workflow_model as model;
-use desktop_workflow_state::state::{
-    WorkflowState,
-    video_edit::{TEMPLATE_ID, VideoEditUiState},
-};
+use desktop_workflow_state::state::video_edit::{TEMPLATE_ID, VideoEditUiState};
 use vw_api_workflow::WorkflowRecord;
 fn record(yaml: &str) -> WorkflowRecord {
     WorkflowRecord {

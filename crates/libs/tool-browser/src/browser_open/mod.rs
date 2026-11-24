@@ -436,11 +436,10 @@ async fn open_brave(url: &str) -> anyhow::Result<()> {
             let status =
                 tokio::process::Command::new("open").arg("-a").arg(app).arg(url).status().await;
 
-            if let Ok(s) = status {
-                if s.success() {
+            if let Ok(s) = status
+                && s.success() {
                     return Ok(());
                 }
-            }
         }
         anyhow::bail!(
             "Brave Browser was not found (tried macOS app names 'Brave Browser' and 'Brave')"
@@ -511,11 +510,10 @@ async fn open_chrome(url: &str) -> anyhow::Result<()> {
             let status =
                 tokio::process::Command::new("open").arg("-a").arg(app).arg(url).status().await;
 
-            if let Ok(s) = status {
-                if s.success() {
+            if let Ok(s) = status
+                && s.success() {
                     return Ok(());
                 }
-            }
         }
         anyhow::bail!(
             "Google Chrome was not found (tried macOS app names 'Google Chrome' and 'Chrome')"

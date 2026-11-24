@@ -9,12 +9,3 @@ pub(crate) fn change_membership(app:&mut crate::app::App,id:String,add:bool)->ic
 pub(crate) fn membership_changed(app:&mut crate::app::App,scope:desktop_provider_apps::Scope,generation:u64,add:bool,result:Result<vw_api_app_provider_terminal::kimi::KimiLiveResult,String>)->iced::Task<crate::app::Message>{
  let current=super::list::current(app,scope.app).ok(); super::provider_update::kimi_changed(app,current,scope,generation,add,result)
 }
-
-#[cfg(test)]
-pub use desktop_provider_apps::message::kimi::Field;
-#[cfg(test)]
-pub use desktop_provider_apps::message::kimi::change;
-#[cfg(test)]
-pub use desktop_provider_apps::message::kimi::load;
-#[cfg(test)]
-pub use desktop_provider_apps::message::kimi::save;

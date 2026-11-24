@@ -32,26 +32,26 @@ pub fn update_model(state: ModelState<'_>, message: TaskBoardMessage, options: &
     let mut effect = ModelEffect::default();
     match message {
         TaskBoardMessage::UpdateDraftModel(v) => {
-            (*state.draft).model = v;
-            if (*state.draft).acp_agent.is_none() && !options.contains(&(*state.draft).reasoning_effort) {
-                (*state.draft).reasoning_effort = None;
+            state.draft.model = v;
+            if state.draft.acp_agent.is_none() && !options.contains(&state.draft.reasoning_effort) {
+                state.draft.reasoning_effort = None;
             }
-            (*state.last_model) = (*state.draft).model.clone();
+            (*state.last_model) = state.draft.model.clone();
         }
         TaskBoardMessage::UpdateEditingTaskModel(model) => {
-            (*state.draft).model = model;
-            if (*state.draft).acp_agent.is_none() && !options.contains(&(*state.draft).reasoning_effort) {
-                (*state.draft).reasoning_effort = None;
+            state.draft.model = model;
+            if state.draft.acp_agent.is_none() && !options.contains(&state.draft.reasoning_effort) {
+                state.draft.reasoning_effort = None;
             }
-            (*state.last_model) = normalize_task_model(&(*state.draft).model);
+            (*state.last_model) = normalize_task_model(&state.draft.model);
             (*state.model_popover) = false;
         }
         TaskBoardMessage::UpdateEditingTaskModelInput(model) => {
-            (*state.draft).model = model;
-            if (*state.draft).acp_agent.is_none() && !options.contains(&(*state.draft).reasoning_effort) {
-                (*state.draft).reasoning_effort = None;
+            state.draft.model = model;
+            if state.draft.acp_agent.is_none() && !options.contains(&state.draft.reasoning_effort) {
+                state.draft.reasoning_effort = None;
             }
-            (*state.last_model) = normalize_task_model(&(*state.draft).model);
+            (*state.last_model) = normalize_task_model(&state.draft.model);
         }
         TaskBoardMessage::ToggleModelPopover => {
             let new = !(*state.model_popover);
@@ -65,11 +65,11 @@ pub fn update_model(state: ModelState<'_>, message: TaskBoardMessage, options: &
             }
         }
         TaskBoardMessage::ModelSelected(model) => {
-            (*state.draft).model = model;
-            if (*state.draft).acp_agent.is_none() && !options.contains(&(*state.draft).reasoning_effort) {
-                (*state.draft).reasoning_effort = None;
+            state.draft.model = model;
+            if state.draft.acp_agent.is_none() && !options.contains(&state.draft.reasoning_effort) {
+                state.draft.reasoning_effort = None;
             }
-            (*state.last_model) = (*state.draft).model.clone();
+            (*state.last_model) = state.draft.model.clone();
             (*state.model_popover) = false;
             effect.clear_hover = true;
         }

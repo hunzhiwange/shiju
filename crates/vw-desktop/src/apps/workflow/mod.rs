@@ -71,6 +71,3 @@ pub(crate) fn refresh_top_tab_title(app: &mut App) {
             app.workflow_state.display_title(crate::app::i18n::I18n::new(app.general_settings.desktop_locale));
     }
 }
-
-#[cfg(test)]
-pub(crate) use desktop_workflow_ui::view::node_editor::NODE_EDITOR_DSL_EDITOR_ID;

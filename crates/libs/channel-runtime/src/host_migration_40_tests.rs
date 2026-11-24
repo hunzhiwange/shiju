@@ -14,7 +14,7 @@ async fn dispatch_message(
 
 use std::{future::Future, pin::Pin};
 use anyhow::Result;
-use channel_support::{scope::ChannelMessageSnapshot, routing::ChannelRouteSelection};
+use channel_support::scope::ChannelMessageSnapshot;
 use crate::{host::ScopedFuture, command_host::SessionActivity};
 // Approval/help tests must never invoke session storage or task submission.
 struct CommandPort;

@@ -281,8 +281,8 @@ impl SessionRunner for GoalSessionRunner {
             let plan_abs = fixture.plan_dir.clone();
             *self.task_files.lock().expect("task files lock") =
                 fixture.tasks.iter().map(|task| plan_abs.join(&task.file)).collect();
-        } else if call_index == 2 {
-            if let Some(reason) = &self.initial_blocker {
+        } else if call_index == 2
+            && let Some(reason) = &self.initial_blocker {
                 let task_file = self
                     .task_files
                     .lock()
@@ -296,7 +296,6 @@ impl SessionRunner for GoalSessionRunner {
                 )
                 .map_err(|error| format!("write blocker failed: {error}"))?;
             }
-        }
 
         self.responses
             .lock()
@@ -397,7 +396,7 @@ fn complete_task_mds(plan_dir: &Path) {
 
 fn write_plan_fixture(_root: &str, fixture: &PlanFixture) -> Result<(), String> {
     let plan_abs = &fixture.plan_dir;
-    std::fs::create_dir_all(&plan_abs)
+    std::fs::create_dir_all(plan_abs)
         .map_err(|error| format!("create plan dir failed: {error}"))?;
 
     let doc = PlanTasksDocument {

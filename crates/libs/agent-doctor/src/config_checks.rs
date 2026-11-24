@@ -137,8 +137,7 @@ pub(super) fn check_config_semantics(config: &Config, items: &mut Vec<DiagItem>)
         .strip_prefix("hint:")
         .map(str::trim)
         .filter(|value| !value.is_empty())
-    {
-        if !config.embedding_routes.iter().any(|route| route.hint.trim() == hint) {
+        && !config.embedding_routes.iter().any(|route| route.hint.trim() == hint) {
             items.push(DiagItem::warn(
                 cat,
                 format!(
@@ -146,7 +145,6 @@ pub(super) fn check_config_semantics(config: &Config, items: &mut Vec<DiagItem>)
                 ),
             ));
         }
-    }
 
     let has_channel = config.channels_config.channels().iter().any(|(_, enabled)| *enabled);
     if has_channel {

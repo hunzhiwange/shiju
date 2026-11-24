@@ -40,9 +40,11 @@ impl Drop for TestDir {
 }
 
 fn make_enabled_config(dir: &TestDir) -> Config {
-    let mut config = Config::default();
-    config.config_path = dir.config_path();
-    config.workspace_dir = dir.path.join("workspace");
+    let mut config = Config {
+        config_path: dir.config_path(),
+        workspace_dir: dir.path.join("workspace"),
+        ..Default::default()
+    };
     config.security.estop.enabled = true;
     config.security.estop.state_file = "estop_state.json".to_string();
     config.security.estop.require_otp_to_resume = false;

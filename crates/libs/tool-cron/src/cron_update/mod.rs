@@ -335,15 +335,14 @@ impl Tool for CronUpdateTool {
 
         // ===== 阶段 5: 命令安全验证 =====
         // 如果 patch 中包含命令更新，需要进行安全检查
-        if let Some(command) = &patch.command {
-            if let Err(reason) = self.security.validate_command_execution(command, approved) {
+        if let Some(command) = &patch.command
+            && let Err(reason) = self.security.validate_command_execution(command, approved) {
                 return Ok(ToolResult {
                     success: false,
                     output: String::new(),
                     error: Some(reason),
                 });
             }
-        }
 
         // ===== 阶段 6: 执行权限检查 =====
         // 检查只读模式、频率限制和操作预算

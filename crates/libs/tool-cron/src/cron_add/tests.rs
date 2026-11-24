@@ -28,7 +28,7 @@ use agent_security::SecurityPolicy;
 use std::sync::Arc;
 use tool_types::Tool;
 use agent_config::runtime::Config;
-use agent_cron::{add_job, list_jobs};
+use agent_cron::list_jobs;
 use agent_security::AutonomyLevel;
 use serde_json::json;
 use tempfile::TempDir;

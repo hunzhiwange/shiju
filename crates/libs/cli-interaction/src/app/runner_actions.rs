@@ -45,7 +45,6 @@ use super::{
     new_draft_id,
     next_plan_run_request_id,
     next_workflow_run_request_id,
-    plan_run_request,
     push_runner_error,
     spawn_directory_switch,
     spawn_permission_reply,

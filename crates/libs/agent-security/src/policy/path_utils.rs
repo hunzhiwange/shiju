@@ -60,18 +60,16 @@ pub fn home_dir() -> Option<PathBuf> {
 /// ```
 pub fn expand_user_path(path: &str) -> PathBuf {
     // 特殊情况：路径恰好是 "~"，直接返回主目录
-    if path == "~" {
-        if let Some(home) = home_dir() {
+    if path == "~"
+        && let Some(home) = home_dir() {
             return home;
         }
-    }
 
     // 如果路径以 "~/" 开头，将波浪号替换为主目录并拼接剩余部分
-    if let Some(stripped) = path.strip_prefix("~/") {
-        if let Some(home) = home_dir() {
+    if let Some(stripped) = path.strip_prefix("~/")
+        && let Some(home) = home_dir() {
             return home.join(stripped);
         }
-    }
 
     // 其他情况：路径不含波浪号，原样返回
     PathBuf::from(path)

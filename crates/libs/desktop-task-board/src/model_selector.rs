@@ -189,7 +189,7 @@ fn build_toggle_label(app: SelectorView<'_>, auto_model: bool, model: &str) -> S
     })
 }
 
-pub fn model_display_label<'a>(i18n: desktop_i18n::I18n, model: &'a str) -> &'a str {
+pub fn model_display_label(i18n: desktop_i18n::I18n, model: &str) -> &str {
     if model == TASK_MODEL_ACP_NATIVE { i18n.__("智能体原生模型") } else { model }
 }
 
@@ -293,7 +293,7 @@ fn build_model_popover<'a>(
         desktop_i18n::I18n::new(app.desktop_locale).__("搜索模型…"),
         &app.model_settings.query,
     )
-    .on_input(|v| Message::ModelQueryChanged(v));
+    .on_input(Message::ModelQueryChanged);
 
     let mut model_list = column![].spacing(2);
     let mut any_models = false;

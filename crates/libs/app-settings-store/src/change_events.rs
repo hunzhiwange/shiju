@@ -56,7 +56,7 @@ pub fn subscribe(tenant: &TenantScope) -> watch::Receiver<u64> {
 }
 
 thread_local! {
-    static SUPPRESSION: RefCell<BTreeMap<TenantKey, usize>> = RefCell::new(BTreeMap::new());
+    static SUPPRESSION: RefCell<BTreeMap<TenantKey, usize>> = const { RefCell::new(BTreeMap::new()) };
 }
 
 /// Synchronous owner publication only: never carry thread-local suppression over

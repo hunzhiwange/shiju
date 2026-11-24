@@ -174,11 +174,8 @@ impl TelegramChannel {
 
         if self.mention_only && is_group && !allow_sender_without_mention {
             let bot_username = self.bot_username.lock();
-            if let Some(ref bot_username) = *bot_username {
-                if !Self::contains_bot_mention(text, bot_username) {
-                    return None;
-                }
-            } else {
+            let bot_username = bot_username.as_deref()?;
+            if !Self::contains_bot_mention(text, bot_username) {
                 return None;
             }
         }

@@ -60,9 +60,8 @@ fn normalize_model(model: &str) -> String {
     if model.contains('.') && !bracket { return model.to_owned(); }
     let one_m = bracket || model.ends_with("-1m");
     let mut base = if bracket { &model[..model.len()-4] } else if one_m { &model[..model.len()-3] } else { model };
-    if let Some((head, date)) = base.rsplit_once('-') {
-        if date.len() == 8 && date.bytes().all(|b| b.is_ascii_digit()) { base = head; }
-    }
+    if let Some((head, date)) = base.rsplit_once('-')
+        && date.len() == 8 && date.bytes().all(|b| b.is_ascii_digit()) { base = head; }
     let dotted = base.rsplit_once('-').and_then(|(head, minor)| {
         let (_, major) = head.rsplit_once('-')?;
         (!minor.is_empty() && !major.is_empty() && minor.bytes().chain(major.bytes()).all(|b| b.is_ascii_digit()))

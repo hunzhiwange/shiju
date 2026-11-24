@@ -1,5 +1,4 @@
 use super::*;
-use vw_api_types::agent_apps::*;
 use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_app_identity::{
     AppId,

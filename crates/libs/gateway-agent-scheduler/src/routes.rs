@@ -53,7 +53,9 @@ pub fn router_with_gateway<S>(gateway: SharedAgentSchedulerGateway) -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    let router = Router::new()
+
+
+    Router::new()
         .route(
             "/agent-scheduler/projects/{project_id}/commands",
             post(agent_scheduler_project_command),
@@ -124,9 +126,7 @@ where
             "/agent-scheduler/projects/{project_id}/outbox/drain",
             post(agent_scheduler_project_drain_outbox),
         )
-        .layer(Extension(gateway));
-
-    router
+        .layer(Extension(gateway))
 }
 
 async fn agent_scheduler_project_command(

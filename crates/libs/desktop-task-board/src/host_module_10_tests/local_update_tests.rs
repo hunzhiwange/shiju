@@ -33,10 +33,12 @@ fn bulk_priority_returns_persistence_intent_and_clears_only_selected_ids() {
 
 #[test]
 fn task_created_ignores_other_projects_and_closes_create_form_for_current_project() {
-    let mut state = Fixture::default();
-    state.project_path = Some("/current".into());
-    state.task_board_close_after_create = true;
-    state.task_board_create_modal_open = true;
+    let mut state = Fixture {
+        project_path: Some("/current".into()),
+        task_board_close_after_create: true,
+        task_board_create_modal_open: true,
+        ..Default::default()
+    };
     state.task_board_draft.prompt = "stale".into();
     let result = update_local(
         local_state(&mut state),

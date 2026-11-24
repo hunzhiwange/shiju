@@ -55,6 +55,3 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     };
     Task::batch([task, feedback])
 }
-
-#[cfg(test)]
-pub use domain::Scope;

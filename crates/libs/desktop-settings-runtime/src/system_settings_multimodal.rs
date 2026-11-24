@@ -92,10 +92,7 @@ fn image_model_control<'a>(app: View<'a>) -> Element<'a, Message> {
     let configured_is_available = selected.is_some();
 
     let picker = settings_select(options, selected, move |value| {
-        let model = (value
-            != desktop_i18n::I18n::new(app.desktop_locale).__(NO_IMAGE_MODEL_OPTION))
-        .then_some(value)
-        .unwrap_or_default();
+        let model = if value != desktop_i18n::I18n::new(app.desktop_locale).__(NO_IMAGE_MODEL_OPTION) { value } else { Default::default() };
         Message::Settings(SettingsMessage::Multimodal(MultimodalMessage::OcrModelChanged(model)))
     })
     .placeholder(desktop_i18n::I18n::new(app.desktop_locale).__("请选择支持图片输入的模型"))

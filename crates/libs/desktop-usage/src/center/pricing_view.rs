@@ -177,7 +177,7 @@ fn price_list(state: &State, enabled: bool, i18n: I18n) -> Element<'_, Message> 
             .push(rule::horizontal(1));
         if state.pending_delete.as_deref() == Some(id) {
             let confirm = row![
-                text(i18n.format("删除 %s 的定价？", &[(format!("{}", name)).into()]).expect("valid display template")).size(13).width(Length::Fill),
+                text(i18n.format("删除 %s 的定价？", &[(name.to_string()).into()]).expect("valid display template")).size(13).width(Length::Fill),
                 action(i18n.__("取消"), Event::CancelDelete, enabled),
                 action(i18n.__("确认删除"), Event::ConfirmDelete(id.to_owned()), enabled),
             ]

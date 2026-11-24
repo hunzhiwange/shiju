@@ -223,7 +223,7 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
                 }
                 Err(error) => {
                     state.error = Some(error.clone());
-                    return iced::Task::done(LaunchMessage::Error((error).into()));
+                    return iced::Task::done(LaunchMessage::Error(error));
                 }
             }
             return Task::none();
@@ -251,7 +251,7 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
                 }
                 Err(error) => {
                     catalog.launch.error = Some(error.clone());
-                    return iced::Task::done(LaunchMessage::Error((error).into()));
+                    return iced::Task::done(LaunchMessage::Error(error));
                 }
             }
         }
@@ -268,7 +268,7 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
             }
             if catalog.launch.finish(generation, result) {
                 if let Some(error) = catalog.launch.error.clone() {
-                    return iced::Task::done(LaunchMessage::Error((error).into()));
+                    return iced::Task::done(LaunchMessage::Error(error));
                 }
                 let toast = iced::Task::done(LaunchMessage::Success(("终端启动请求已受理；尚未确认 CLI 完成").into()));
                 if let Some(id) = catalog.launch.session_id.clone() {
@@ -312,8 +312,8 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
             catalog.launch.invalidate();
             let cwd = super::local::launch_directory(
                 &gateway_client,
-                &catalog.host,
-                &catalog.token,
+                catalog.host,
+                catalog.token,
                 project_path.as_deref(),
             );
             if provider.is_none() {

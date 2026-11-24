@@ -2,8 +2,6 @@
 //! 非整数和越界输入先舍入再限制，域名列表保持一项对应一行。
 
 use super::*;
-use iced::widget::column;
-use crate::messages::*;
 use crate::Message;
 use iced::Element;
 use iced::widget::text;

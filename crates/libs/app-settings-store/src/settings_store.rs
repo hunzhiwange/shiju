@@ -135,7 +135,7 @@ impl GatewaySettingsStore {
         config_key: &str,
         payload_json: &str,
     ) -> Result<()> {
-        let result = (|| -> Result<_> {
+        (|| -> Result<_> {
             validate_identifier(namespace, "gateway settings namespace")?;
             validate_identifier(config_key, "gateway settings config key")?;
             validate_identifier(payload_json, "gateway settings payload")?;
@@ -160,7 +160,7 @@ impl GatewaySettingsStore {
 
         })()?;
         crate::change_events::committed(tenant, namespace);
-        Ok(result)
+        Ok(())
     }
 
     /// Hold referenced configurations stable through the same write transaction.

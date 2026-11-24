@@ -50,14 +50,14 @@ pub(crate) fn sync_top_tab(app: &mut Context<'_>) {
 }
 pub fn update(app: &mut Context<'_>, message: WorkflowMessage) -> Task<Output> {
     app.workflow_state.select_tenant(app.tenant.clone());
-    let task = video_edit::handle(app, message.clone())
+
+    video_edit::handle(app, message.clone())
         .or_else(|| app::handle(app, message.clone()))
         .or_else(|| run::handle(app, message.clone()))
         .or_else(|| node::handle(app, message.clone()))
         .or_else(|| document::handle(app, message.clone()))
         .or_else(|| canvas::handle(app, message))
-        .unwrap_or_else(Task::none);
-    task
+        .unwrap_or_else(Task::none)
 }
 fn after(duration: std::time::Duration, message: Output) -> Task<Output> {
     let Output::Workflow(message) = message else { unreachable!() };
@@ -116,22 +116,22 @@ pub(crate) fn open_file() -> Task<Output> {
 }
 
 pub(crate) fn export_svg(app: &mut Context<'_>) -> Task<Output> {
-    crate::message::effects::export_svg(&mut app.workflow_state).map(Output::Workflow)
+    crate::message::effects::export_svg(app.workflow_state).map(Output::Workflow)
 }
 
 pub(crate) fn export_png(app: &mut Context<'_>) -> Task<Output> {
-    crate::message::effects::export_png(&mut app.workflow_state).map(Output::Workflow)
+    crate::message::effects::export_png(app.workflow_state).map(Output::Workflow)
 }
 
 pub(crate) fn export_jpeg(app: &mut Context<'_>) -> Task<Output> {
-    crate::message::effects::export_jpeg(&mut app.workflow_state).map(Output::Workflow)
+    crate::message::effects::export_jpeg(app.workflow_state).map(Output::Workflow)
 }
 
 pub(crate) fn export_finished(
     app: &mut Context<'_>,
     result: Result<(), desktop_i18n::workflow::Feedback>,
 ) {
-    crate::message::effects::export_finished(&mut app.workflow_state, result)
+    crate::message::effects::export_finished(app.workflow_state, result)
 }
 
 

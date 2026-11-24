@@ -167,7 +167,7 @@ fn scope_menu<'a>(i18n: desktop_i18n::I18n,
     let filter = &query.filter;
     let current_scope = options.iter().find(|option| {
         option.provider == filter.provider && option.model == filter.request_model
-    }).map(|option| option.label.as_str()).or_else(|| filter.request_model.as_deref()).or_else(|| {
+    }).map(|option| option.label.as_str()).or(filter.request_model.as_deref()).or_else(|| {
         match filter.provider.as_ref() {
             Some(UsageProvider::Known { provider_id }) => Some(provider_id.as_str()),
             Some(UsageProvider::Unknown) => Some(i18n.__("未知供应商")),
@@ -208,7 +208,7 @@ fn source_menu<'a>(i18n: desktop_i18n::I18n, query: &UsageQuery, open_menu: Opti
     })
 }
 
-fn filter_dropdown<'a>(i18n: desktop_i18n::I18n,
+fn filter_dropdown<'a>(_i18n: desktop_i18n::I18n,
     menu: FilterMenu,
     open_menu: Option<FilterMenu>,
     icon: Icon,

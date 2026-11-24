@@ -98,14 +98,13 @@ pub fn build_system_messages(input: &StreamInput, is_codex: bool) -> Vec<String>
     parts.extend(provider_prompts.into_iter().map(|s| s.to_string()));
 
     // 添加输入中的系统消息（过滤掉空白消息）
-    parts.extend(input.system.iter().cloned().filter(|s| !s.trim().is_empty()));
+    parts.extend(input.system.iter().filter(|&s| !s.trim().is_empty()).cloned());
 
     // 添加用户自定义的系统消息（如果非空）
-    if let Some(s) = input.user.system.as_ref() {
-        if !s.trim().is_empty() {
+    if let Some(s) = input.user.system.as_ref()
+        && !s.trim().is_empty() {
             parts.push(s.clone());
         }
-    }
 
     // 合并所有非空部分，用换行符连接
     let joined = parts.into_iter().filter(|s| !s.trim().is_empty()).collect::<Vec<_>>().join("\n");
@@ -260,11 +259,10 @@ pub fn ensure_openai_tool_call_sequence(msgs: &mut Vec<Value>) {
 
         // 如果 assistant 消息没有 content，添加一个空格作为占位符
         // OpenAI API 要求 assistant 消息必须有 content 字段
-        if !has_content {
-            if let Some(obj) = msgs[i].as_object_mut() {
+        if !has_content
+            && let Some(obj) = msgs[i].as_object_mut() {
                 obj.insert("content".to_string(), Value::String(" ".to_string()));
             }
-        }
 
         // 收集紧随其后的 tool 响应消息中已出现的 tool_call_id
         let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -280,11 +278,10 @@ pub fn ensure_openai_tool_call_sequence(msgs: &mut Vec<Value>) {
             }
 
             // 如果 tool 消息的 tool_call_id 在当前 assistant 的 tool_calls 中，记录为已见到
-            if let Some(tool_call_id) = next_obj.get("tool_call_id").and_then(Value::as_str) {
-                if ids.iter().any(|id| id == tool_call_id) {
+            if let Some(tool_call_id) = next_obj.get("tool_call_id").and_then(Value::as_str)
+                && ids.iter().any(|id| id == tool_call_id) {
                     seen.insert(tool_call_id.to_string());
                 }
-            }
             j += 1;
         }
 

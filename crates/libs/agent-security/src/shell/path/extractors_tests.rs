@@ -93,7 +93,7 @@ fn blocks_dangerous_paths() {
     let workspace = PathBuf::from("/workspace");
     assert!(matches!(
         check_path_constraints(&cmd, &workspace, &[]),
-        PathCheckResult::Blocked { path, .. } if path == PathBuf::from("/etc/passwd")
+        PathCheckResult::Blocked { path, .. } if path == *"/etc/passwd"
     ));
 }
 
@@ -111,7 +111,7 @@ fn blocks_paths_outside_workspace() {
     let workspace = PathBuf::from("/workspace");
     assert!(matches!(
         check_path_constraints(&cmd, &workspace, &[]),
-        PathCheckResult::Blocked { path, .. } if path == PathBuf::from("/root")
+        PathCheckResult::Blocked { path, .. } if path == *"/root"
     ));
 }
 

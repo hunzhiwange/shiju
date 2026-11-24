@@ -138,8 +138,10 @@ fn state_with_provider(
     webhook_rate_limit: u32,
 ) -> AppState {
     let (event_tx, _) = broadcast::channel(16);
-    let mut config = Config::default();
-    config.default_provider = Some("test-provider".to_string());
+    let mut config = Config {
+        default_provider: Some("test-provider".to_string()),
+        ..Default::default()
+    };
     let paired_tokens = paired_tokens.iter().map(|token| token.to_string()).collect::<Vec<_>>();
 
     AppState {

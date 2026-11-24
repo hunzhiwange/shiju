@@ -537,7 +537,7 @@ fn table_content(state: &State, i18n: I18n, viewport_width: f32) -> Element<'_, 
     match &state.result {
         Some(Err(error)) => {
             rows = rows.push(
-                container(text(i18n.format("请求加载失败：%s", &[(format!("{}", error)).into()]).expect("valid display template"))).padding([10.0, TABLE_INSET]),
+                container(text(i18n.format("请求加载失败：%s", &[(error.to_string()).into()]).expect("valid display template"))).padding([10.0, TABLE_INSET]),
             )
         }
         Some(Ok(result)) => {
@@ -635,7 +635,7 @@ fn table_content(state: &State, i18n: I18n, viewport_width: f32) -> Element<'_, 
         .on_submit_maybe(can_jump.then_some(Event::Jump));
     let footer = container(
         row![
-            text(i18n.format("共 %s 条记录", &[(format!("{}", total)).into()]).expect("valid display template")).size(12).style(text::secondary),
+            text(i18n.format("共 %s 条记录", &[(total.to_string()).into()]).expect("valid display template")).size(12).style(text::secondary),
             settings_select(
                 PAGE_SIZES.map(PageSizeOption),
                 Some(PageSizeOption(page_size)),
@@ -670,7 +670,7 @@ fn table_content(state: &State, i18n: I18n, viewport_width: f32) -> Element<'_, 
     let mut content = column![];
     if let Some(error) = &state.preference_error {
         content = content
-            .push(text(i18n.format("列设置保存/加载失败：%s", &[(format!("{}", error)).into()]).expect("valid display template")).size(12).style(text::danger));
+            .push(text(i18n.format("列设置保存/加载失败：%s", &[(error.to_string()).into()]).expect("valid display template")).size(12).style(text::danger));
     }
     content.push(table).push(footer).into()
 }
@@ -719,7 +719,7 @@ pub(super) fn detail_drawer(i18n: desktop_i18n::I18n, state: &State) -> Option<(
     }
     let body: Element<'_, Event> = match &state.detail {
         None => text(i18n.__("正在加载详情…")).font(DETAIL_FONT).style(text::secondary).into(),
-        Some(Err(error)) => text(i18n.format("请求详情加载失败：%s", &[(format!("{}", error)).into()]).expect("valid display template"))
+        Some(Err(error)) => text(i18n.format("请求详情加载失败：%s", &[(error.to_string()).into()]).expect("valid display template"))
             .font(DETAIL_FONT)
             .style(text::danger)
             .into(),
@@ -728,7 +728,7 @@ pub(super) fn detail_drawer(i18n: desktop_i18n::I18n, state: &State) -> Option<(
     Some((Event::CloseDetail, usage_detail_drawer(i18n, i18n.__("请求详情"), Event::CloseDetail, body)))
 }
 
-pub(super) fn usage_detail_drawer<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
+pub(super) fn usage_detail_drawer<'a, M: Clone + 'static>(_i18n: desktop_i18n::I18n,
     title: &'static str,
     close: M,
     body: Element<'a, M>,

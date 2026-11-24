@@ -169,7 +169,7 @@ pub fn update(
         gateway_openclaw_settings::GatewayOpenClawSettingsClient::new(client.transport().clone());
     let valid = |scope: &Scope, state: &State| {
         scope.context == context
-            && scope.project == project.to_string()
+            && scope.project == project
             && scope.host == host
             && scope.catalog == generation
             && scope.generation == state.generation

@@ -207,7 +207,7 @@ impl<'a> RowScene<'a> {
         let pixels =
             renderer.screenshot(iced::Size::new(640, 700), 1.0, theme.palette().background);
         assert_eq!(pixels.len(), 640 * 700 * 4);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel != &pixels[..4]));
         Self { ui, labels: bounds.labels, inputs: bounds.inputs, icons, quads }
     }
 

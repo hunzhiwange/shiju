@@ -258,7 +258,7 @@ fn readme_panel<'a>(app: &ViewInput<'a>, state: &'a SkillDetailState) -> Element
             markdown_style.inline_code_font = Font::default();
             markdown_style.code_block_font = Font::default();
             let settings = markdown::Settings::with_text_size(14, markdown_style);
-            markdown::view(state.readme_items.iter(), settings).map(|_| Message::None).into()
+            markdown::view(state.readme_items.iter(), settings).map(|_| Message::None)
         }
         LoadState::Error(error) => text(
             desktop_i18n::I18n::new(app.desktop_locale)

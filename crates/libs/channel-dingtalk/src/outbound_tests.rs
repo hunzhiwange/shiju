@@ -69,14 +69,13 @@ impl Webhook {
                     .unwrap_or(("200 OK", r#"{"errcode":0}"#));
                 requests.push(body);
                 let _ = observations.send(requests.len());
-                if requests.len() == 1 {
-                    if let Some(cache) = &cache {
+                if requests.len() == 1
+                    && let Some(cache) = &cache {
                         tokio::time::timeout(Duration::from_secs(2), cache.write())
                             .await
                             .unwrap()
                             .insert("chat-1".into(), "http://127.0.0.1:1/not-original".into());
                     }
-                }
                 if status == "DROP" {
                     continue;
                 }

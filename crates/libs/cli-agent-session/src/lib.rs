@@ -23,8 +23,6 @@ pub(crate) mod run;
 #[cfg(test)]
 #[path = "run_tests.rs"]
 mod run_tests;
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) use cli_workspace_git as session;
 pub(crate) mod setup;
 #[cfg(test)]
 #[path = "setup_tests.rs"]

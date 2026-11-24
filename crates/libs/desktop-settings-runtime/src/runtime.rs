@@ -79,8 +79,10 @@ fn persist_runtime_settings(s: &RuntimeSettingsState) -> Result<RuntimeConfig, S
     };
     let reasoning_level = parse_reasoning_level(&s.reasoning_level_input)?;
 
-    let mut runtime = RuntimeConfig::default();
-    runtime.kind = kind.clone();
+    let mut runtime = RuntimeConfig {
+        kind: kind.clone(),
+        ..Default::default()
+    };
     runtime.docker.image = if docker_image.is_empty() {
         RuntimeConfig::default().docker.image
     } else {

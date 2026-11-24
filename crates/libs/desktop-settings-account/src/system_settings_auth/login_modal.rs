@@ -152,7 +152,7 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
             }
             fields.into()
         }
-        LoginPhase::Failed(reason) => settings_error_banner(i18n.__(*reason)),
+        LoginPhase::Failed(reason) => settings_error_banner(i18n.__(reason)),
     };
     let mut footer = row![
         button(text(i18n.__("取消")))

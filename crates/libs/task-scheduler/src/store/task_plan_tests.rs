@@ -6,7 +6,6 @@ use vw_api_transport::id::{ProjectId, ProjectScope, TenantScope};
 
 use agent_database::GlobalDatabase;
 use agent_database::config::DatabaseProvider;
-use agent_database::test_support::PostgresTestDatabase;
 use agent_project::store::ProjectStore;
 use project_types::{Info, TimeInfo};
 

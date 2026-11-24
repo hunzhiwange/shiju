@@ -45,7 +45,7 @@ pub fn overlay_screen<'a, Message: Clone + 'static>(
     ]
     .spacing(12);
     if let Some(error) = state.error {
-        body = body.push(text(crate::feedback::render(i18n, &error)).size(14));
+        body = body.push(text(crate::feedback::render(i18n, error)).size(14));
     }
     let mentions_screen = state.captions.iter().any(|c| {
         c.role == vw_api_voice::TranscriptRole::User

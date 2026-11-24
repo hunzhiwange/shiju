@@ -280,7 +280,7 @@ fn native_to_provider_messages_serializes_tool_calls_and_tool_results() {
 
 #[test]
 fn parsed_types_support_debug_clone_and_default_dispatcher() {
-    let dispatcher = XmlToolDispatcher::default();
+    let dispatcher = XmlToolDispatcher;
     assert!(!dispatcher.should_send_tool_specs());
 
     let call = ParsedToolCall {

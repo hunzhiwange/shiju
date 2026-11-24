@@ -95,14 +95,14 @@ pub fn gateway_cors() -> tower_http::cors::CorsLayer {
     use tower_http::cors::{AllowOrigin, Any, CorsLayer};
     use axum::http::HeaderValue;
     let cors_whitelist: Arc<Vec<String>> = Arc::new(Vec::new());
-    let cors = CorsLayer::new()
+
+
+    CorsLayer::new()
         .allow_origin(AllowOrigin::predicate(move |origin: &HeaderValue, _| {
             crate::middleware::cors_origin_allowed(origin, cors_whitelist.as_ref())
         }))
         .allow_methods(Any)
-        .allow_headers(Any);
-
-    cors
+        .allow_headers(Any)
 }
 pub fn print_gateway_startup(display_addr: &str, tunnel_url: Option<&str>, pairing: &PairingGuard, options: GatewayRouteSummaryOptions) {
     println!("VibeWindow Gateway listening on http://{display_addr}");

@@ -92,7 +92,7 @@ fn parameter_extractor_round_trips_parameters() {
         .expect("extractor should sync");
     let value: Value = serde_yaml::from_str(&synced).expect("synced YAML");
     let map = value.as_mapping().expect("map");
-    assert_eq!(mapping_value(map, "memory").and_then(Value::as_mapping).is_some(), true);
+    assert!(mapping_value(map, "memory").and_then(Value::as_mapping).is_some());
     assert_eq!(mapping_value(map, "parameters").and_then(Value::as_sequence).unwrap().len(), 2);
     let parameters = mapping_value(map, "parameters").and_then(Value::as_sequence).unwrap();
     assert_eq!(

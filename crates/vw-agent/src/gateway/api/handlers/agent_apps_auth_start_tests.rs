@@ -166,7 +166,7 @@ printf delivered > '{}'
         &self,
         path: &str,
         query: &str,
-        token: &str,
+        _token: &str,
         body: Value,
     ) -> anyhow::Result<(StatusCode, Value)> {
         let response = self

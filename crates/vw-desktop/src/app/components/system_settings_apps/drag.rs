@@ -15,5 +15,3 @@ pub(crate) fn subscription(state: &DragState, main: Option<iced::window::Id>) ->
 
 #[cfg(test)]
 use crate::app::state::AppsCatalogState;
-#[cfg(test)]
-pub use desktop_settings_apps::system_settings_apps::drag::reordered;

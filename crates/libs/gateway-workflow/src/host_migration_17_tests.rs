@@ -2,7 +2,7 @@
 use crate::server::*;
 use axum::http::StatusCode;
 use workflow_engine::{WorkflowNodeDeltaEvent, WorkflowNodeStartedEvent, WorkflowRunEvent};
-use vw_api_workflow::{WorkflowNodeRunDto, WorkflowNodeRunStatus, WorkflowPauseDto, WorkflowRunRequest, WorkflowRunResponse, WorkflowRunStatus};
+use vw_api_workflow::{WorkflowNodeRunDto, WorkflowNodeRunStatus, WorkflowPauseDto, WorkflowRunResponse, WorkflowRunStatus};
 use std::collections::BTreeMap;
 use serde_json::json;
 use tokio::sync::mpsc;

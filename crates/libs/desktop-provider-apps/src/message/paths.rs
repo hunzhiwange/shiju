@@ -57,7 +57,7 @@ pub fn update(state: &mut State, connection: Result<(GatewayClient,Scope),String
             return Task::none();
         }
         state.paths = Some(Form::default());
-        return update(state, connection.clone(), &token, catalog_generation, Event::Refresh);
+        return update(state, connection.clone(), token, catalog_generation, Event::Refresh);
     }
     let Some(form) = &mut state.paths else { return Task::none() };
     if matches!(event, Event::Close) {

@@ -52,11 +52,10 @@ fn extract_tool_text_from_json_value(value: &serde_json::Value) -> Option<String
     }
 
     // 尝试从 message 字段递归提取
-    if let Some(message) = value.get("message") {
-        if let Some(content) = extract_tool_text_from_json_value(message) {
+    if let Some(message) = value.get("message")
+        && let Some(content) = extract_tool_text_from_json_value(message) {
             return Some(content);
         }
-    }
 
     // 尝试从 choices 数组中递归提取
     if let Some(choices) = value.get("choices").and_then(|v| v.as_array()) {
@@ -139,11 +138,9 @@ pub fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) {
     // 策略 2：尝试 Minimax 特有的 XML 格式
     if let Some((minimax_text, minimax_calls)) =
         super::minimax_xml::parse_minimax_invoke_calls(response)
-    {
-        if !minimax_calls.is_empty() {
+        && !minimax_calls.is_empty() {
             return (minimax_text, canonicalize_calls(minimax_calls));
         }
-    }
 
     // 策略 4：回退到 XML 风格的工具调用标签解析
     while let Some((start, open_tag)) =
@@ -175,20 +172,18 @@ pub fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) {
             }
 
             // 如果 JSON 解析失败，尝试 XML 格式（DeepSeek/GLM 风格）
-            if !parsed_any {
-                if let Some(xml_calls) = super::xml_helpers::parse_xml_tool_calls(inner) {
+            if !parsed_any
+                && let Some(xml_calls) = super::xml_helpers::parse_xml_tool_calls(inner) {
                     calls.extend(xml_calls);
                     parsed_any = true;
                 }
-            }
 
             // 尝试 GLM 简化格式：`shell>uname -a` 或 `shell\ncommand: date`
-            if !parsed_any {
-                if let Some(glm_call) = super::tool_call_formats::parse_glm_shortened_body(inner) {
+            if !parsed_any
+                && let Some(glm_call) = super::tool_call_formats::parse_glm_shortened_body(inner) {
                     calls.push(glm_call);
                     parsed_any = true;
                 }
-            }
 
             // 如果所有格式都无法解析，记录警告
             if !parsed_any {
@@ -220,22 +215,20 @@ pub fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) {
                 }
 
                 // 尝试 XML 格式
-                if !parsed_any {
-                    if let Some(xml_calls) = super::xml_helpers::parse_xml_tool_calls(inner) {
+                if !parsed_any
+                    && let Some(xml_calls) = super::xml_helpers::parse_xml_tool_calls(inner) {
                         calls.extend(xml_calls);
                         parsed_any = true;
                     }
-                }
 
                 // 尝试 GLM 简化格式
-                if !parsed_any {
-                    if let Some(glm_call) =
+                if !parsed_any
+                    && let Some(glm_call) =
                         super::tool_call_formats::parse_glm_shortened_body(inner)
                     {
                         calls.push(glm_call);
                         parsed_any = true;
                     }
-                }
 
                 if parsed_any {
                     remaining = &after_open[cross_idx + cross_tag.len()..];
@@ -249,8 +242,8 @@ pub fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) {
 
             // 未通过跨别名闭合标签解决 —— 回退到从未闭合标签中恢复 JSON
             // （通过花括号平衡）
-            if let Some(json_end) = super::json::find_json_end(after_open) {
-                if let Ok(value) =
+            if let Some(json_end) = super::json::find_json_end(after_open)
+                && let Ok(value) =
                     serde_json::from_str::<serde_json::Value>(&after_open[..json_end])
                 {
                     let parsed_calls = super::json::parse_tool_calls_from_json_value(&value);
@@ -260,7 +253,6 @@ pub fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) {
                         continue;
                     }
                 }
-            }
 
             // 尝试提取第一个 JSON 值（带结束位置）
             if let Some((value, consumed_end)) =
@@ -403,15 +395,14 @@ pub fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) {
             for call in xml_calls {
                 calls.push(call);
                 // 尝试从文本中移除 XML 部分
-                if let Some(start) = cleaned_text.find("<minimax:toolcall>") {
-                    if let Some(end) = cleaned_text.find("</minimax:toolcall>") {
+                if let Some(start) = cleaned_text.find("<minimax:toolcall>")
+                    && let Some(end) = cleaned_text.find("</minimax:toolcall>") {
                         let end_pos = end + "</minimax:toolcall>".len();
                         if end_pos <= cleaned_text.len() {
                             cleaned_text =
                                 format!("{}{}", &cleaned_text[..start], &cleaned_text[end_pos..]);
                         }
                     }
-                }
             }
             if !cleaned_text.trim().is_empty() {
                 text_parts.push(cleaned_text.trim().to_string());

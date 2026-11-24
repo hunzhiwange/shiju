@@ -5,9 +5,11 @@ use crate::{
 };
 #[test]
 fn plugin_hooks_toggle_persists_config() {
-    let mut state = HooksSettingsState::default();
-    state.plugins_enabled = true;
-    state.save_error = Some("old".into());
+    let mut state = HooksSettingsState {
+        plugins_enabled: true,
+        save_error: Some("old".into()),
+        ..Default::default()
+    };
     assert!(matches!(
         update(&mut state, HooksMessage::PluginHooksToggled(false)),
         Effect::Save { plugins_enabled: false, .. }
@@ -70,10 +72,12 @@ fn hooks_tab_loads_catalog_and_audit() {
 }
 #[test]
 fn hook_trust_result_refreshes_and_toasts() {
-    let mut app = HooksSettingsState::default();
-    app.catalog = vec![catalog_entry(false)];
-    app.mutation_loading = true;
-    app.mutation_error = Some("old".to_string());
+    let mut app = HooksSettingsState {
+        catalog: vec![catalog_entry(false)],
+        mutation_loading: true,
+        mutation_error: Some("old".to_string()),
+        ..Default::default()
+    };
 
     let request_task = apply(
         &mut app,
@@ -113,11 +117,13 @@ fn hook_trust_result_refreshes_and_toasts() {
 }
 #[test]
 fn hook_load_failure_preserves_last_good_data() {
-    let mut app = HooksSettingsState::default();
-    app.catalog = vec![catalog_entry(true)];
-    app.audit = vec![audit_entry()];
-    app.catalog_loading = true;
-    app.audit_loading = true;
+    let mut app = HooksSettingsState {
+        catalog: vec![catalog_entry(true)],
+        audit: vec![audit_entry()],
+        catalog_loading: true,
+        audit_loading: true,
+        ..Default::default()
+    };
 
     let _ = apply(
         &mut app,

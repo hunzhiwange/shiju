@@ -167,12 +167,10 @@ impl QQChannel {
                         GatewayEvent::Dispatch { event_type, payload } => {
                             if let Some(channel_msg) =
                                 self.parse_dispatch_message_event(&event_type, &payload).await
-                            {
-                                if tx.send(channel_msg).await.is_err() {
+                                && tx.send(channel_msg).await.is_err() {
                                     tracing::warn!("QQ: message channel closed");
                                     break;
                                 }
-                            }
                         }
                     }
                 }

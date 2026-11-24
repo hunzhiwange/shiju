@@ -197,7 +197,7 @@ pub(super) fn bash_checkbox<'a>(
         security_text(locale, "已保存，当前不生效")
     });
     let checkbox = if active {
-        checkbox.on_toggle(move |value| on_toggle(value))
+        checkbox.on_toggle(on_toggle)
     } else {
         checkbox
     };

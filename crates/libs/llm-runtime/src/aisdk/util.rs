@@ -123,9 +123,7 @@ fn image_url_from_content_part(part: &Value) -> Option<String> {
 pub fn openai_user_content_to_aisdk_message(
     content: Option<&Value>,
 ) -> Option<aisdk::core::UserMessage> {
-    let Some(content) = content else {
-        return None;
-    };
+    let content = content?;
 
     if let Some(text) = content.as_str() {
         let (cleaned, refs) = multimodal::parse_image_markers(text);
@@ -144,9 +142,7 @@ pub fn openai_user_content_to_aisdk_message(
         return (!parts.is_empty()).then(|| aisdk::core::UserMessage::from_parts(parts));
     }
 
-    let Some(arr) = content.as_array() else {
-        return None;
-    };
+    let arr = content.as_array()?;
     let mut parts = Vec::new();
     for part in arr {
         let Some(ty) = part.get("type").and_then(Value::as_str) else {
@@ -154,11 +150,10 @@ pub fn openai_user_content_to_aisdk_message(
         };
         match ty {
             "text" => {
-                if let Some(text) = part.get("text").and_then(Value::as_str) {
-                    if !text.is_empty() {
+                if let Some(text) = part.get("text").and_then(Value::as_str)
+                    && !text.is_empty() {
                         parts.push(aisdk::core::UserContentPart::Text(text.to_string()));
                     }
-                }
             }
             "image_url" | "image" => {
                 if let Some(url) = image_url_from_content_part(part) {
@@ -319,11 +314,10 @@ pub fn openai_messages_to_aisdk_messages(
                 }
 
                 for (result_index, result) in tool_results.iter().enumerate() {
-                    if !consumed_results[result_index] {
-                        if let Some(result_obj) = result.as_object() {
+                    if !consumed_results[result_index]
+                        && let Some(result_obj) = result.as_object() {
                             out.push(tool_result_message(result_obj, &tool_name_by_id));
                         }
-                    }
                 }
 
                 message_index = tool_result_end;

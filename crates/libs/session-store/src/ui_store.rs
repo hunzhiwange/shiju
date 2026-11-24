@@ -533,7 +533,7 @@ pub fn load_llm_raw_step_scoped(
     #[cfg(not(target_arch = "wasm32"))]
     return {
         let default_scope = session_scope();
-        let Some(scope) = scope.or_else(|| default_scope.as_deref()) else {
+        let Some(scope) = scope.or(default_scope.as_deref()) else {
             return Ok(None);
         };
         let tenant = current_tenant_scope();
@@ -561,7 +561,7 @@ pub fn load_llm_raw_step_scoped_for_tenant(
         let project_scope = project_scope(tenant, scope)
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error.to_string()))?;
         let store = runtime_session_store()
-            .map_err(|error| io::Error::new(io::ErrorKind::Other, error.to_string()))?;
+            .map_err(|error| io::Error::other(error.to_string()))?;
         store
             .load_session_step_llm_raw(&project_scope, session_id, step_index)
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))
@@ -646,7 +646,7 @@ pub fn try_persist_llm_raw_step(
     return {
         let default_scope = session_scope();
         let scope = scope
-            .or_else(|| default_scope.as_deref())
+            .or(default_scope.as_deref())
             .ok_or_else(|| anyhow::anyhow!("persist LLM raw step requires a project scope"))?;
         let tenant = current_tenant_scope();
         let project_scope = project_scope(&tenant, Some(scope))?;

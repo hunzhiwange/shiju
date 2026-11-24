@@ -58,9 +58,11 @@ fn provider_summary() -> ProviderModelsSummary {
 
 #[test]
 fn model_toggle_updates_locally_and_starts_save_without_reloading() {
-    let mut state = crate::state::ModelSettingsState::default();
-    state.save_error = Some(("stale".to_string()).into());
-    state.providers = vec![provider_summary()];
+    let mut state = crate::state::ModelSettingsState {
+        save_error: Some(("stale".to_string()).into()),
+        providers: vec![provider_summary()],
+        ..Default::default()
+    };
     let _ = update(
         &mut state,
         ModelMessage::ModelDetailOpen("openai".to_string(), "gpt-5".to_string()),
@@ -161,8 +163,10 @@ fn models_set_all_updates_every_connected_model_with_one_save() {
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn model_status_save_error_rolls_back_local_changes() {
-    let mut state = crate::state::ModelSettingsState::default();
-    state.providers = vec![provider_summary()];
+    let mut state = crate::state::ModelSettingsState {
+        providers: vec![provider_summary()],
+        ..Default::default()
+    };
     let change = ModelStatusChange {
         provider_id: "openai".to_string(),
         model_id: "gpt-5".to_string(),
@@ -191,8 +195,10 @@ fn model_status_save_error_rolls_back_local_changes() {
 
 #[test]
 fn model_status_save_success_keeps_optimistic_state() {
-    let mut state = crate::state::ModelSettingsState::default();
-    state.providers = vec![provider_summary()];
+    let mut state = crate::state::ModelSettingsState {
+        providers: vec![provider_summary()],
+        ..Default::default()
+    };
     let change = ModelStatusChange {
         provider_id: "openai".to_string(),
         model_id: "gpt-5".to_string(),

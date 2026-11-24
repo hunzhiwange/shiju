@@ -26,6 +26,3 @@ pub(crate) fn overlay<'a>(app: &'a App, base: iced::Element<'a, Message>) -> ice
     let scope = (crate::app::components::third_party_settings::is_visible(app)).then(|| apps_usage_cards::current_scope(app, false)).flatten();
     domain::overlay(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), &app.app_providers.usage.settings, scope, base, map)
 }
-
-#[cfg(test)]
-pub use desktop_usage::apps_usage_settings::Editor;

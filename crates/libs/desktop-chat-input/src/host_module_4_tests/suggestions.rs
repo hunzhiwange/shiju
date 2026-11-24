@@ -11,8 +11,10 @@ fn paste(state: &mut State, editor: &mut text_editor::Content, value: String) {
 }
 #[test]
 fn file_search_input_changed_toggles_visibility_and_resets_selection() {
-    let mut app = State::default();
-    app.file_search_selected_index = 4;
+    let mut app = State {
+        file_search_selected_index: 4,
+        ..Default::default()
+    };
 
     app.change_files(" src ".to_string());
 

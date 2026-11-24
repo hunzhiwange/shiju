@@ -33,7 +33,7 @@ impl Fixture {
         let db = GlobalDatabase::for_home(root.path()).unwrap();
         Self { root, policy, db }
     }
-    async fn call(&self, id: &str, token: &str, cancel: bool) -> (StatusCode, Value) {
+    async fn call(&self, id: &str, _token: &str, cancel: bool) -> (StatusCode, Value) {
         let app = super::jobs_api::router_with_policy(Some(self.policy.clone()))
             .layer(Extension(TenantScope::new("p", "c").unwrap()))
             .layer(Extension(self.db.clone()));

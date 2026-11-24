@@ -7,7 +7,7 @@ use vw_api_workflow::is_builtin_workflow_uuid;
 ///
 /// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
 pub(crate) fn handle(app: &mut Context<'_>, message: WorkflowMessage) -> Option<Task<Output>> {
-    if crate::message::app::handle(&mut app.workflow_state, app.window_size, message.clone()) {
+    if crate::message::app::handle(app.workflow_state, app.window_size, message.clone()) {
         return Some(Task::none());
     }
     Some(match message {
@@ -137,7 +137,7 @@ pub(crate) fn handle(app: &mut Context<'_>, message: WorkflowMessage) -> Option<
             Task::none()
         }
         WorkflowMessage::SubmitAppEditor => {
-            match crate::message::app::submit_editor(&mut app.workflow_state, app.window_size) {
+            match crate::message::app::submit_editor(app.workflow_state, app.window_size) {
                 Ok(true) => sync_top_tab(app),
                 Ok(false) => {}
                 Err(error) => app.workflow_state.set_error(error),

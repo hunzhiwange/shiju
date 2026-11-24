@@ -164,7 +164,7 @@ fn digest(value: &str) -> Result<[u8; 32], McpFailureCode> {
         return Err(invalid);
     }
     let mut digest = [0; 32];
-    for (index, pair) in value.as_bytes().chunks_exact(2).enumerate() {
+    for (index, pair) in value.as_bytes().as_chunks::<2>().0.iter().enumerate() {
         let pair = std::str::from_utf8(pair).map_err(|_| invalid)?;
         digest[index] = u8::from_str_radix(pair, 16).map_err(|_| invalid)?;
     }

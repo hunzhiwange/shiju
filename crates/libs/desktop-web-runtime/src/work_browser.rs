@@ -16,12 +16,14 @@ use crate::webview_runtime::{
     work_browser_surface_visible,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
 const WORK_RESIZE_HANDLE_WIDTH: f32 = 6.0;
 pub const RESOURCE_PANEL_HEADER_HEIGHT: f32 = 88.0;
 pub const BROWSER_TOOLBAR_MAX_HEIGHT: f32 = 38.0;
 pub const BROWSER_TOOLBAR_CONTENT_GAP: f32 = 8.0;
 pub const BROWSER_CONTENT_TOP_INSET: f32 =
     RESOURCE_PANEL_HEADER_HEIGHT + BROWSER_TOOLBAR_MAX_HEIGHT + BROWSER_TOOLBAR_CONTENT_GAP;
+#[cfg(not(target_arch = "wasm32"))]
 const BROWSER_HORIZONTAL_INSET: f32 = 12.0;
 pub const BROWSER_BOTTOM_GAP: f32 = 10.0;
 
@@ -107,7 +109,7 @@ fn toolbar_icon_button(
 pub fn external_browser_message(address: &str) -> Option<Message> {
     normalize_navigation_url(address)
         .ok()
-        .map(|url| Message::OpenUrlExternal(url))
+        .map(Message::OpenUrlExternal)
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -133,7 +135,7 @@ pub fn view(state: &WorkBrowserState, locale: config_ui::DesktopLocale) -> Eleme
                 desktop_i18n::I18n::new(locale).__("输入网址"),
                 &state.address
             )
-            .on_input(|address| Message::WorkBrowserAddressChanged(address))
+            .on_input(Message::WorkBrowserAddressChanged)
             .on_submit(Message::WorkBrowserNavigate)
             .padding([5, 10])
             .size(12)
@@ -318,10 +320,7 @@ fn close_current(state: &mut WorkBrowserState, #[cfg(not(target_arch = "wasm32")
     state.error = None;
     state.closed = true;
 
-    match result {
-        Ok(()) => None,
-        Err(error) => Some(error),
-    }
+    result.err()
 }
 
 #[cfg(target_arch = "wasm32")]

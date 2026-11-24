@@ -71,7 +71,7 @@ async fn connector_chinese_modal_and_independent_waits_draw_in_both_themes() {
                 &Rectangle::with_size(bounds),
             );
             let pixels = renderer.screenshot(Size::new(1100, 900), 1.0, Color::TRANSPARENT);
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
         }
     }
 }

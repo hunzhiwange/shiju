@@ -12,11 +12,10 @@ pub fn normalize(body: &mut Value) -> Result<bool, StatusCode> {
     // Discovered tools are declarations supplied by the client, never executed here.
     if let Some(items) = body["input"].as_array() {
         for item in items {
-            if item["type"] == "tool_search_output" {
-                if let Some(tools) = item.get("tools") {
+            if item["type"] == "tool_search_output"
+                && let Some(tools) = item.get("tools") {
                     definitions.extend(tools.as_array().ok_or(StatusCode::BAD_REQUEST)?.clone());
                 }
-            }
         }
     }
     let mut search = false;

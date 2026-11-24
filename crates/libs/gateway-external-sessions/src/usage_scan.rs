@@ -16,7 +16,7 @@ pub async fn run() {
     timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {
         timer.tick().await;
-        if tokio::task::spawn_blocking(move || cycle()).await.is_err() {
+        if tokio::task::spawn_blocking(cycle).await.is_err() {
             tracing::warn!("usage scan worker failed");
         }
     }
@@ -81,10 +81,10 @@ fn cycle_inner() -> anyhow::Result<()> {
                 let Some((_, app, provider)) = ADAPTERS.iter().find(|(a,_,_)| *a == adapter) else {
                     return ScanStep::Failed(ScanFailure::InvalidSource);
                 };
-                if !pending.contains_key(&adapter) {
+                if let std::collections::hash_map::Entry::Vacant(e) = pending.entry(adapter) {
                     let discovered = discover(&owner.scope, &host, *provider, &instances);
                     match discovered {
-                        Ok(files) => { all_files.insert(adapter, files.iter().map(|work| work.path.clone()).collect()); pending.insert(adapter, files.into_iter()); }
+                        Ok(files) => { all_files.insert(adapter, files.iter().map(|work| work.path.clone()).collect()); e.insert(files.into_iter()); }
                         Err(_) => return ScanStep::Failed(ScanFailure::SourceUnavailable),
                     }
                 }

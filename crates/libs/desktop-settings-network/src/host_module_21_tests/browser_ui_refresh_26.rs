@@ -516,7 +516,8 @@ async fn ui_refresh_26_preserves_values_and_disabled_states() {
 
     // Force local validation to fail, before any gateway task could be created.
     app.browser_settings.computer_use_timeout_ms_input = "0".into();
-    drop(super::update(&mut app, settings.clone()));
+    super::update(&mut app, settings.clone());
+    drop(());
     assert_eq!(app.browser_settings.backend, "computer_use");
     assert!(app.browser_settings.save_error.is_some());
     let mut ui = scene(page(&app), &mut renderer, size);

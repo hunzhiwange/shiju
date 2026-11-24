@@ -113,9 +113,11 @@ fn pop_next_manual_merge_task_discards_invalid_entries_and_returns_first_eligibl
 
 #[test]
 fn pop_next_manual_merge_task_drains_queue_without_eligible_task() {
-    let mut app = super::Fixture::default();
-    app.task_board_tasks = vec![task("T-pending", TaskStatus::Pending)];
-    app.task_board_manual_merge_queue = vec!["T-missing".to_string(), "T-pending".to_string()];
+    let mut app = super::Fixture {
+        task_board_tasks: vec![task("T-pending", TaskStatus::Pending)],
+        task_board_manual_merge_queue: vec!["T-missing".to_string(), "T-pending".to_string()],
+        ..Default::default()
+    };
 
     assert!(super::pop_next_manual_merge_task(&mut app).is_none());
     assert!(app.task_board_manual_merge_queue.is_empty());
@@ -123,9 +125,11 @@ fn pop_next_manual_merge_task_drains_queue_without_eligible_task() {
 
 #[test]
 fn start_manual_merge_queue_task_returns_none_when_pr_merge_is_already_running() {
-    let mut app = super::Fixture::default();
-    app.project_path = Some("/tmp/project".into());
-    app.task_board_tasks = vec![task("T-running", TaskStatus::PrSubmitted)];
+    let mut app = super::Fixture {
+        project_path: Some("/tmp/project".into()),
+        task_board_tasks: vec![task("T-running", TaskStatus::PrSubmitted)],
+        ..Default::default()
+    };
     app.task_board_executor.running_tasks = vec!["T-running".to_string()];
     app.task_board_manual_merge_queue = vec!["T-running".to_string(), "T-later".to_string()];
 
@@ -140,10 +144,12 @@ fn start_manual_merge_queue_task_returns_none_when_pr_merge_is_already_running()
 
 #[test]
 fn start_manual_merge_queue_task_with_project_and_no_eligible_task_drains_invalid_queue() {
-    let mut app = super::Fixture::default();
-    app.project_path = Some("/tmp/project".into());
-    app.task_board_tasks = vec![task("T-pending", TaskStatus::Pending)];
-    app.task_board_manual_merge_queue = vec!["T-missing".to_string(), "T-pending".to_string()];
+    let mut app = super::Fixture {
+        project_path: Some("/tmp/project".into()),
+        task_board_tasks: vec![task("T-pending", TaskStatus::Pending)],
+        task_board_manual_merge_queue: vec!["T-missing".to_string(), "T-pending".to_string()],
+        ..Default::default()
+    };
 
     let _command = super::start_manual_merge_queue_task(&mut app);
 
@@ -152,10 +158,12 @@ fn start_manual_merge_queue_task_with_project_and_no_eligible_task_drains_invali
 
 #[test]
 fn start_manual_merge_queue_task_with_eligible_task_adds_log_and_pops_queue() {
-    let mut app = super::Fixture::default();
-    app.project_path = Some("/tmp/project".into());
-    app.task_board_tasks = vec![task("T-merge", TaskStatus::PrSubmitted)];
-    app.task_board_manual_merge_queue = vec!["T-merge".to_string(), "T-later".to_string()];
+    let mut app = super::Fixture {
+        project_path: Some("/tmp/project".into()),
+        task_board_tasks: vec![task("T-merge", TaskStatus::PrSubmitted)],
+        task_board_manual_merge_queue: vec!["T-merge".to_string(), "T-later".to_string()],
+        ..Default::default()
+    };
 
     let _command = super::start_manual_merge_queue_task(&mut app);
 

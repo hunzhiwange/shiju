@@ -39,7 +39,7 @@ fn image_app() -> App {
     app
 }
 fn frame(app: &mut App) -> (crate::app::voice::screen_context::Ticket, screen::Owner, Vec<u8>) {
-    use crate::app::voice::screen_context::{self, Target};
+    use crate::app::voice::screen_context::Target;
     let owner = screen::Owner::Local(screen_call(app).unwrap());
     app.voice.screen.set_enabled(true);
     let ticket = app

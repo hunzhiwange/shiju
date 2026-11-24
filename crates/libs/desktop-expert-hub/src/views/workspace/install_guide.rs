@@ -6,13 +6,13 @@ fn input<'a>(app: &WorkspaceInput<'a>) -> InstallInput<'a> {
     InstallInput {
         state: &app.expert_hub.install_guide,
         desktop_locale: app.desktop_locale,
-        project_path: &app.project_path,
-        recent_projects: &app.recent_projects,
+        project_path: app.project_path,
+        recent_projects: app.recent_projects,
     }
 }
 #[cfg(test)]
 pub(super) fn install_project_options(app: &WorkspaceInput) -> Vec<String> {
-    install_guide::install_project_options(&app.project_path, &app.recent_projects)
+    install_guide::install_project_options(app.project_path, app.recent_projects)
 }
 fn map(message: crate::views::Message) -> Message {
     match message {
@@ -48,12 +48,6 @@ pub(super) fn with_uninstall_confirmation<'a, M: Clone + 'static>(
 }
 
 #[cfg(test)]
-pub(super) use install_guide::InstallTargetPresentation;
-#[cfg(test)]
 pub(super) use install_guide::direct_install_button_label;
 #[cfg(test)]
 pub(super) use install_guide::install_target_presentations;
-#[cfg(test)]
-pub(super) use install_guide::target_path_label;
-#[cfg(test)]
-pub(super) use install_guide::target_root_label;

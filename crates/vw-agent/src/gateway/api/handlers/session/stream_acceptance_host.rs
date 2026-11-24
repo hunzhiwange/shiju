@@ -6,7 +6,7 @@ impl RuntimeAcceptanceHost for Host {
     type Boundary = std::sync::Arc<crate::session::processor::llm_runner::ChannelCancelStream>;
     fn env_lock() -> &'static tokio::sync::Mutex<()> { crate::test_support::global_async_env_lock() }
     async fn recovery(api: &str, key: Option<&str>) -> Self::Fixture { Self::Fixture::new(api, key).await }
-    fn stream_guard() -> std::sync::MutexGuard<'static, ()> { crate::session::processor::test_llm_stream_guard() }
+    async fn stream_guard() -> tokio::sync::MutexGuard<'static, ()> { crate::session::processor::test_llm_stream_guard_async().await }
     fn enqueue(events: Vec<llm_runtime::StreamEvent>) { crate::session::processor::enqueue_test_llm_stream(events); }
     fn captured(session: &str) -> Vec<CapturedRequest> {
         crate::session::processor::take_test_llm_messages(session).into_iter().map(|r| CapturedRequest {

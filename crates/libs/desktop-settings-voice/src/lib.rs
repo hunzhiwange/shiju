@@ -158,7 +158,7 @@ pub fn update(state: &mut State, hotkeys: &mut desktop_voice::hotkeys::Runtime, 
             };
             Task::batch([refresh, feedback])
         }
-        Event::RefreshLocal => refresh_local(&state),
+        Event::RefreshLocal => refresh_local(state),
         Event::Resources(generation, language, resources) => {
             if state.generation == generation
             && state.edit.as_ref().is_some_and(|edit| {

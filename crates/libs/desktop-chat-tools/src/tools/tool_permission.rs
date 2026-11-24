@@ -103,9 +103,7 @@ pub fn pending_permission_request_for_tool_call<'a>(
     // raw 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     raw: &str,
 ) -> Option<&'a gateway_interaction::PendingPermissionRequestDto> {
-    let Some(message_id) = message_id else {
-        return None;
-    };
+    let message_id = message_id?;
 
     if let Some(request) = requests
         .iter()
@@ -143,9 +141,7 @@ pub fn pending_permission_request_for_message<'a>(
     // message_id 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     message_id: Option<&str>,
 ) -> Option<&'a gateway_interaction::PendingPermissionRequestDto> {
-    let Some(message_id) = message_id else {
-        return None;
-    };
+    let message_id = message_id?;
 
     let mut matches = requests
         .iter()

@@ -140,10 +140,9 @@ impl State {
         if self.onboarding {
             self.refresh();
         }
-        if let Some(Ok(target)) = &self.target {
-            if let Err(error) = target.verify() {
+        if let Some(Ok(target)) = &self.target
+            && let Err(error) = target.verify() {
                 self.target = Some(Err(error));
             }
-        }
     }
 }

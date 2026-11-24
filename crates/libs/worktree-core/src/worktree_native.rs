@@ -51,11 +51,10 @@ pub fn parse_worktree_list(input: &str) -> Vec<WorktreeEntry> {
             out.push(WorktreeEntry { path: rest.trim().to_string(), branch: None });
             continue;
         }
-        if let Some(rest) = line.strip_prefix("branch ") {
-            if let Some(last) = out.last_mut() {
+        if let Some(rest) = line.strip_prefix("branch ")
+            && let Some(last) = out.last_mut() {
                 last.branch = Some(rest.trim().to_string());
             }
-        }
     }
     out
 }

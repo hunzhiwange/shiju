@@ -43,9 +43,9 @@ impl desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage 
         Self::None
     }
 }
-fn help<'a, 'theme, E: Clone + 'static>(
+fn help<'a, E: Clone + 'static>(
     i18n: desktop_i18n::I18n,
-    theme: Option<&'theme iced::Theme>,
+    theme: Option<&iced::Theme>,
     title: &'a str,
     label: iced::widget::Text<'a>,
     description: std::borrow::Cow<'a, str>,

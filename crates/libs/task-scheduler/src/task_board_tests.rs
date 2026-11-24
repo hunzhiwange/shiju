@@ -13,7 +13,6 @@ use vw_api_transport::common::TimestampMs;
 use super::domain::TaskId;
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::store::AgentSchedulerStore;
-use super::store::logs::AppendAgentTaskLogRequest;
 use super::store::tasks::NewAgentTask;
 use super::store::tasks::StoredAgentTask;
 use super::task_board::{

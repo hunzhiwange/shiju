@@ -1,7 +1,5 @@
 use super::*;
 use iced::{Point, Vector, widget::text_editor};
-use desktop_workflow_model::*;
-use desktop_workflow_state::state::*;
 fn scroll_action() -> text_editor::Action {
     text_editor::Action::Scroll { lines: 1 }
 }

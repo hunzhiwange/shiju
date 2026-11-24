@@ -1,10 +1,11 @@
 use super::*;
-use iced::widget::column;
 use iced::advanced::widget::Tree;
 #[test]
 fn network_save_error_banner_follows_tabs_for_each_network_page() {
-    let mut app = Fixture::default();
-    app.system_settings_tab = SystemTab::WebSearch;
+    let mut app = Fixture {
+        system_settings_tab: SystemTab::WebSearch,
+        ..Default::default()
+    };
     assert_eq!(active_save_error(&app.inputs()), None);
     assert_eq!(view(app.inputs()).as_widget().children().len(), 3);
 

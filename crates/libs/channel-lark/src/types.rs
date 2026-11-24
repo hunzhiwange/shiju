@@ -5,10 +5,10 @@
 //!
 //! # 核心类型
 //!
-//! - [`PbHeader`]: 协议头键值对
+//! - [`PbHeader`][]: 协议头键值对
 //! - [`PbFrame`]: WebSocket 通信帧结构
-//! - [`WsClientConfig`]: 客户端配置信息
-//! - [`LarkEvent`]: 飞书事件信封结构
+//! - [`WsClientConfig`][]: 客户端配置信息
+//! - [`LarkEvent`][]: 飞书事件信封结构
 
 /// 协议头键值对
 ///

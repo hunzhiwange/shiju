@@ -150,11 +150,10 @@ pub fn validate_content(block: &Value) -> Result<()> {
                 bail!("invalid MCP content audience");
             }
         }
-        if let Some(priority) = annotations.get("priority").filter(|value| !value.is_null()) {
-            if !priority.as_f64().is_some_and(|value| (0.0..=1.0).contains(&value)) {
+        if let Some(priority) = annotations.get("priority").filter(|value| !value.is_null())
+            && !priority.as_f64().is_some_and(|value| (0.0..=1.0).contains(&value)) {
                 bail!("MCP content priority must be between zero and one");
             }
-        }
         string_fields(annotations, &[], &["lastModified"])?;
     }
     Ok(())

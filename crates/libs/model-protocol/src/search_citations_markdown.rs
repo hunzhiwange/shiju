@@ -282,14 +282,12 @@ pub(super) fn markdown_code_scan(text: &str) -> MarkdownCodeScan {
                 mask[line_start..line_end].fill(true);
                 if let Some((candidate, length, suffix_start)) =
                     markdown_fence_at(line, content_start)
-                {
-                    if candidate == open_fence.marker
+                    && candidate == open_fence.marker
                         && length >= open_fence.minimum_length
                         && line[suffix_start..].iter().all(|byte| byte.is_ascii_whitespace())
                     {
                         fence = None;
                     }
-                }
             } else {
                 // A fenced block cannot outlive its blockquote/list container.
                 // Re-process this line as top-level Markdown.
@@ -311,8 +309,8 @@ pub(super) fn markdown_code_scan(text: &str) -> MarkdownCodeScan {
                 in_indented_code = true;
                 handled_as_indented = true;
             }
-            if !handled_as_indented {
-                if let Some((new_fence, suffix_start)) = markdown_fence(line) {
+            if !handled_as_indented
+                && let Some((new_fence, suffix_start)) = markdown_fence(line) {
                     // A backtick fence's info string cannot itself contain a backtick.
                     // Treat such a line as ordinary text instead of masking the rest
                     // of the response as an unterminated code block.
@@ -321,7 +319,6 @@ pub(super) fn markdown_code_scan(text: &str) -> MarkdownCodeScan {
                         fence = Some(new_fence);
                     }
                 }
-            }
         }
         previous_line_blank = line_blank;
         line_start = line_end;
@@ -557,12 +554,12 @@ pub(super) fn markdown_reference_definitions(
             continue;
         }
         let indentation = line.as_bytes().iter().take_while(|byte| **byte == b' ').count();
-        if indentation <= 3 && line.as_bytes().get(indentation) == Some(&b'[') {
-            if let Some(closing) = markdown_closing_bracket(line, indentation) {
-                if line.as_bytes().get(closing + 1) == Some(&b':') {
+        if indentation <= 3 && line.as_bytes().get(indentation) == Some(&b'[')
+            && let Some(closing) = markdown_closing_bracket(line, indentation)
+                && line.as_bytes().get(closing + 1) == Some(&b':') {
                     let label = normalize_markdown_reference_label(&line[indentation + 1..closing]);
-                    if !label.is_empty() {
-                        if let Some(destination) =
+                    if !label.is_empty()
+                        && let Some(destination) =
                             markdown_reference_destination(&line[closing + 2..])
                         {
                             definitions.push(MarkdownReferenceDefinition {
@@ -572,10 +569,7 @@ pub(super) fn markdown_reference_definitions(
                                 line_end,
                             });
                         }
-                    }
                 }
-            }
-        }
         line_start = line_end;
     }
     definitions

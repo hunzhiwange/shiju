@@ -104,30 +104,25 @@ pub fn delay(attempt: u64, error: Option<&message::AssistantError>) -> u64 {
     let attempt = attempt.max(1);
 
     // 尝试从 API 错误的响应头中获取重试延迟
-    if let Some(message::AssistantError::APIError { response_headers, .. }) = error {
-        if let Some(headers) = response_headers {
+    if let Some(message::AssistantError::APIError { response_headers, .. }) = error
+        && let Some(headers) = response_headers {
             // 优先检查 retry-after-ms 头（毫秒单位）
-            if let Some(v) = header_value_case_insensitive(headers, "retry-after-ms") {
-                if let Ok(parsed) = v.trim().parse::<f64>() {
-                    if parsed.is_finite() && parsed >= 0.0 {
+            if let Some(v) = header_value_case_insensitive(headers, "retry-after-ms")
+                && let Ok(parsed) = v.trim().parse::<f64>()
+                    && parsed.is_finite() && parsed >= 0.0 {
                         return parsed.ceil() as u64;
                     }
-                }
-            }
 
             // 其次检查 retry-after 头（秒单位，需转换为毫秒）
-            if let Some(v) = header_value_case_insensitive(headers, "retry-after") {
-                if let Ok(parsed) = v.trim().parse::<f64>() {
-                    if parsed.is_finite() && parsed >= 0.0 {
+            if let Some(v) = header_value_case_insensitive(headers, "retry-after")
+                && let Ok(parsed) = v.trim().parse::<f64>()
+                    && parsed.is_finite() && parsed >= 0.0 {
                         return (parsed * 1000.0).ceil() as u64;
                     }
-                }
-            }
 
             // 有响应头但无重试建议时，使用指数退避（无上限）
             return RETRY_INITIAL_DELAY.saturating_mul(pow_u64(RETRY_BACKOFF_FACTOR, attempt - 1));
         }
-    }
 
     // 无响应头或非 API 错误时，使用指数退避并限制最大延迟
     let computed = RETRY_INITIAL_DELAY.saturating_mul(pow_u64(RETRY_BACKOFF_FACTOR, attempt - 1));

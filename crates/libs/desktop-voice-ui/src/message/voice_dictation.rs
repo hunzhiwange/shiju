@@ -307,7 +307,7 @@ fn decode_local(wav: &[u8]) -> Result<Vec<i16>, String> {
     if pcm.len() / 2 > local::SAMPLE_RATE as usize * local::MAX_RECOGNITION_SECONDS {
         return Err(local_error(LocalSpeechError::Limit));
     }
-    Ok(pcm.chunks_exact(2).map(|b| i16::from_le_bytes([b[0], b[1]])).collect())
+    Ok(pcm.as_chunks::<2>().0.iter().map(|b| i16::from_le_bytes([b[0], b[1]])).collect())
 }
 pub async fn retry(
     preferences: Preferences,

@@ -111,8 +111,10 @@ fn invalidate_chat_ui_state_clears_user_question_index_for_history_replacement()
 
 #[test]
 fn resolve_render_cache_height_requires_matching_message_content_hash() {
-    let mut app = Fixture::default();
-    app.chat = vec![message(ChatRole::Assistant, "cached")];
+    let mut app = Fixture {
+        chat: vec![message(ChatRole::Assistant, "cached")],
+        ..Default::default()
+    };
     let content_hash = crate::message_view::parse::hash_chat_content("cached");
     app.chat_render_cache.insert(
         0,

@@ -82,11 +82,11 @@ pub enum AssistantError {
         status_code: Option<i64>,
         is_retryable: bool,
         #[serde(skip_serializing_if = "Option::is_none")]
-        response_headers: Option<std::collections::HashMap<String, String>>,
+        response_headers: Option<Box<std::collections::HashMap<String, String>>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         response_body: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        metadata: Option<std::collections::HashMap<String, String>>,
+        metadata: Option<Box<std::collections::HashMap<String, String>>>,
     },
     Unknown {
         message: String,

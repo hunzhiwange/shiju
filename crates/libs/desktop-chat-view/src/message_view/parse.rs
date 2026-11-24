@@ -172,9 +172,7 @@ fn find_think_open_tag(s: &str) -> Option<(usize, usize)> {
             continue;
         }
 
-        let Some(tag_end_rel) = s[pos..].find('>') else {
-            return None;
-        };
+        let tag_end_rel = s[pos..].find('>')?;
         let tag_end = pos + tag_end_rel;
 
         let tag = &s[pos + "<think".len()..tag_end];
@@ -201,9 +199,7 @@ fn find_think_close_tag(s: &str) -> Option<(usize, usize)> {
     while let Some(pos_rel) = s[search_from..].find("</think") {
         let pos = search_from + pos_rel;
 
-        let Some(tag_end_rel) = s[pos..].find('>') else {
-            return None;
-        };
+        let tag_end_rel = s[pos..].find('>')?;
         let tag_end = pos + tag_end_rel;
 
         let tag = &s[pos + "</think".len()..tag_end];
@@ -260,9 +256,7 @@ fn find_reasoning_marker(s: &str) -> Option<(usize, usize)> {
 /// - `None`: 未找到有效的工具调用块起始
 fn find_tool_start(s: &str) -> Option<usize> {
     for (idx, _) in s.match_indices("tool ") {
-        let boundary_ok = if idx == 0 {
-            true
-        } else if s[..idx].ends_with('\n') {
+        let boundary_ok = if idx == 0 || s[..idx].ends_with('\n') {
             true
         } else {
             let prefix = s[..idx].trim_end_matches([' ', '\t']);
@@ -295,9 +289,7 @@ fn parse_tool_block(s: &str, inline: bool) -> Option<usize> {
         return None;
     }
 
-    let Some(line_end) = s.find('\n') else {
-        return None;
-    };
+    let line_end = s.find('\n')?;
     if inline
         && (s["tool ".len()..line_end].trim().is_empty()
             || !s[line_end + 1..].trim_start().starts_with('{'))

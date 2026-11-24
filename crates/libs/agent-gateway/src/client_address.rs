@@ -152,11 +152,10 @@ pub fn client_key_from_request(
     trust_forwarded_headers: bool,
 ) -> String {
     // 如果配置为信任转发头部，优先从头部提取客户端 IP
-    if trust_forwarded_headers {
-        if let Some(ip) = forwarded_client_ip(headers) {
+    if trust_forwarded_headers
+        && let Some(ip) = forwarded_client_ip(headers) {
             return ip.to_string();
         }
-    }
 
     // 回退到对等地址，如果不可用则返回 "unknown"
     peer_addr.map(|addr| addr.ip().to_string()).unwrap_or_else(|| "unknown".to_string())

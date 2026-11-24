@@ -60,11 +60,10 @@ fn apply_theme(app: &mut Update<'_>, theme: Theme) -> Task<ThemesMessage> {
         *app.active_custom_theme_id = None;
         clear_active_theme_skin(app);
     } else {
-        if app.active_custom_theme_id.is_none() {
-            if let Some(store) = theme_store_from_home() {
+        if app.active_custom_theme_id.is_none()
+            && let Some(store) = theme_store_from_home() {
                 *app.active_custom_theme_id = desktop_theme::find_custom_theme_id(&theme, &store);
             }
-        }
         sync_active_theme_skin(app);
     }
     app.effects.push(Effect::ApplyTheme(theme, app.active_custom_theme_id.clone()));
@@ -73,8 +72,8 @@ fn apply_theme(app: &mut Update<'_>, theme: Theme) -> Task<ThemesMessage> {
 
 fn refresh(app: &mut Update) -> Task<ThemesMessage> {
     let mut toast = Task::none();
-    if let Some(root) = current_themes_root() {
-        if let Err(err) = ensure_bundled_presets(&root) {
+    if let Some(root) = current_themes_root()
+        && let Err(err) = ensure_bundled_presets(&root) {
             tracing::warn!(
                 target: "vw_desktop",
                 error = %err,
@@ -86,7 +85,6 @@ fn refresh(app: &mut Update) -> Task<ThemesMessage> {
                 vec![err.to_string().into()],
             );
         }
-    }
     refresh_gallery_state(app.themes_settings);
     toast
 }
@@ -207,7 +205,7 @@ fn pick_image_task(on_picked: fn(Option<String>) -> ThemesMessage) -> Task<Theme
                 None
             }
         },
-        move |picked| on_picked(picked),
+        on_picked,
     )
 }
 
@@ -267,13 +265,12 @@ fn save_theme_pack_task(theme_id: String) -> Task<ThemesMessage> {
 
 fn export_theme_pack(theme_id: &str, pack_path: &str) -> Result<(), String> {
     if let Some(builtin) = find_builtin_theme(theme_id) {
-        if let Some(root) = current_themes_root() {
-            if builtin_overlay_exists(&root, theme_id) {
+        if let Some(root) = current_themes_root()
+            && builtin_overlay_exists(&root, theme_id) {
                 let theme_dir = root.join("overlays").join(builtin_overlay_slug(theme_id));
                 return export_theme_dir_to_pack(theme_dir, pack_path)
                     .map_err(|err| err.to_string());
             }
-        }
 
         let definition = ThemeDefinition {
             id: builtin_overlay_slug(theme_id),

@@ -78,22 +78,6 @@ pub(crate) mod app_providers;
 pub(crate) mod project_profiles;
 
 #[cfg(test)]
-use config_tools::HttpRequestConfig;
-#[cfg(test)]
-use crate::app::message;
-#[cfg(test)]
-use crate::app::models;
-#[cfg(test)]
-use crate::app::models::ChatMessage;
-#[cfg(test)]
-use crate::app::models::ChatSessionStep;
-#[cfg(test)]
-use serde_json::Value;
-#[cfg(test)]
-use std::collections::HashSet;
-#[cfg(test)]
-use std::path::PathBuf;
-#[cfg(test)]
 pub(crate) use account::AccountOperation;
 #[cfg(test)]
 pub(crate) use account::AccountPasswordEditorState;
@@ -105,13 +89,3 @@ pub(crate) use account::MonthlyQuotaState;
 pub(crate) use app_state::Notification;
 #[cfg(test)]
 pub(crate) use app_state::Toast;
-#[cfg(test)]
-pub(crate) use presentation::ConventionalCommitType;
-#[cfg(test)]
-pub(crate) use presentation::WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS;
-#[cfg(test)]
-pub(crate) use presentation::WORK_SIDEBAR_LOAD_MORE_STEP;
-#[cfg(test)]
-pub(crate) use presentation::WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE;
-#[cfg(test)]
-pub(crate) use presentation::WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP;

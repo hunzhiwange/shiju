@@ -94,7 +94,7 @@ pub fn content<'a>(app: View<'a>) -> Element<'a, Message> {
         i18n.__("控制是否启用代理能力。"),
         checkbox(s.enabled)
             .label(i18n.__("启用代理"))
-            .on_toggle(|v| Message::ProxyEnabledToggled(v))
+            .on_toggle(Message::ProxyEnabledToggled)
             .style(settings_checkbox_style),
     );
 
@@ -124,7 +124,7 @@ pub fn content<'a>(app: View<'a>) -> Element<'a, Message> {
         i18n.__("HTTP 代理"),
         i18n.__("HTTP 请求代理地址。"),
         settings_text_input("http://127.0.0.1:7890", &s.http_proxy)
-            .on_input(|v| Message::ProxyHttpChanged(v))
+            .on_input(Message::ProxyHttpChanged)
             .width(Length::Fill),
     );
 
@@ -133,7 +133,7 @@ pub fn content<'a>(app: View<'a>) -> Element<'a, Message> {
         i18n.__("HTTPS 代理"),
         i18n.__("HTTPS 请求代理地址。"),
         settings_text_input("http://127.0.0.1:7890", &s.https_proxy)
-            .on_input(|v| Message::ProxyHttpsChanged(v))
+            .on_input(Message::ProxyHttpsChanged)
             .width(Length::Fill),
     );
 
@@ -141,7 +141,7 @@ pub fn content<'a>(app: View<'a>) -> Element<'a, Message> {
         i18n.__("ALL 代理"),
         i18n.__("当未命中 HTTP/HTTPS 时使用的兜底代理。"),
         settings_text_input("socks5://127.0.0.1:7891", &s.all_proxy)
-            .on_input(|v| Message::ProxyAllChanged(v))
+            .on_input(Message::ProxyAllChanged)
             .width(Length::Fill),
     );
 
@@ -150,7 +150,7 @@ pub fn content<'a>(app: View<'a>) -> Element<'a, Message> {
         i18n.__("排除列表"),
         i18n.__("支持逗号或换行分隔，格式与 NO_PROXY 一致。"),
         settings_text_input("localhost, 127.0.0.1, *.internal", &s.no_proxy_input)
-            .on_input(|v| Message::ProxyNoProxyChanged(v))
+            .on_input(Message::ProxyNoProxyChanged)
             .width(Length::Fill),
     );
 
@@ -158,7 +158,7 @@ pub fn content<'a>(app: View<'a>) -> Element<'a, Message> {
         i18n.__("服务选择器"),
         i18n.__("仅在范围为指定服务时生效。"),
         settings_text_input("provider.openai, tool.http_request", &s.services_input)
-            .on_input(|v| Message::ProxyServicesChanged(v))
+            .on_input(Message::ProxyServicesChanged)
             .width(Length::Fill),
     );
 

@@ -15,6 +15,3 @@ pub(crate) type ListState = desktop_provider_apps::state::list::ListState<
     crate::app::state::aggregation_omo::Form,
     Usage,
 >;
-
-#[cfg(test)]
-pub use desktop_provider_apps::state::list::Editor;

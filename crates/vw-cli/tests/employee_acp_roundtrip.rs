@@ -151,7 +151,8 @@ async fn employee_product(
     let bytes = axum::body::to_bytes(body, 16_384).await.unwrap();
     let payload: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
     let mut product = product.lock().unwrap();
-    let response = match (parts.method.clone(), route.as_slice()) {
+
+    match (parts.method.clone(), route.as_slice()) {
         (Method::GET, [collection, employee, "conversations"]) => {
             let items: Vec<_> = product
                 .conversations
@@ -229,8 +230,7 @@ async fn employee_product(
             product.unexpected.push(parts.uri.path().to_owned());
             StatusCode::NOT_FOUND.into_response()
         }
-    };
-    response
+    }
 }
 
 fn submit(product: &mut Product, id: Uuid, key: Option<&str>, payload: &Value) -> Response {

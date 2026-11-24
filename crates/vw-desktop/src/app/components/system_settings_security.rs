@@ -62,8 +62,6 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     desktop_settings_security::system_settings_security::host_overlays(&inputs(app), dialog, map)
 }
 
-#[cfg(test)]
-pub(crate) use desktop_settings_security::system_settings_security::security_tab_label;
 
 #[cfg(test)]
 #[path = "settings_help_routing_tests.rs"]

@@ -61,7 +61,7 @@ pub fn resolve_mounts(
         let (mounts, servers, reviewed_names) = run_sync_database(|| {
             let mut mounts = Vec::new();
             let mut servers = Vec::new();
-            let mut reviewed_names = Vec::new();
+            let reviewed_names = Vec::new();
             for mount in selected {
                 match is_reviewed(&store, &project, mount) {
                     Ok(true) => {

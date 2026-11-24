@@ -4,7 +4,7 @@ use crate::autonomy_inputs::View;
 use crate::autonomy_message::Message;
 use config_ui::DesktopLocale;
 use desktop_i18n::I18n;
-use desktop_settings_security::app_init::state::{AutonomySettingsState, AutonomySettingsTab};
+use desktop_settings_security::app_init::state::AutonomySettingsState;
 use iced::advanced::{
     clipboard,
     renderer::{Headless, Style},
@@ -140,8 +140,8 @@ pub(crate) fn capture(
         .is_empty()
     );
     ui.draw(renderer, theme, &Style { text_color: theme.palette().text }, cursor);
-    let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
-    pixels
+
+    renderer.screenshot(size, 1.0, theme.palette().background)
 }
 pub(crate) fn key(name: iced::keyboard::key::Named) -> Event {
     use iced::keyboard::{self, Key};

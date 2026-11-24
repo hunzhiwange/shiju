@@ -45,8 +45,10 @@ fn draw(element: iced::Element<'_, McpMessage>, theme: Theme) -> Vec<String> {
 use vw_api_tools::*;
 use {vw_api_app_diagnostics::*, vw_api_app_identity::*, vw_api_mcp_management::*};
 fn setup() -> Fixture {
-    let mut app = Fixture::default();
-    app.project_id = Some("project".into());
+    let mut app = Fixture {
+        project_id: Some("project".into()),
+        ..Default::default()
+    };
     app.authority.host = "host".into();
     app.authority.token = "fixture".into();
     app.authority.context = Some(catalog::context(&app).unwrap().endpoint);

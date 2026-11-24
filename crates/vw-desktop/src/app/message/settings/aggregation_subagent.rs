@@ -6,8 +6,6 @@ use crate::app::{
 use iced::Task;
 use vw_gateway_client::GatewayClient;
 use vw_api_app_identity::AppId;
-#[cfg(test)]
-use vw_api_app_aggregation::*;
 pub use desktop_apps_ui::aggregation::subagent::{Context, Event, Form};
 pub(crate) fn message(e: Event) -> Message {
     list::message(ListMessage::CodexSubagent(e))

@@ -119,12 +119,12 @@ pub(super) fn apply(
             set_mapping_string(data_map, "tool_label", tool_label);
             set_mapping_string(data_map, "tool_description", tool_description);
             if credential_id.trim().is_empty() {
-                data_map.remove(&yaml_key("credential_id"));
+                data_map.remove(yaml_key("credential_id"));
             } else {
                 set_mapping_string(data_map, "credential_id", credential_id);
             }
             if plugin_unique_identifier.trim().is_empty() {
-                data_map.remove(&yaml_key("plugin_unique_identifier"));
+                data_map.remove(yaml_key("plugin_unique_identifier"));
             } else {
                 set_mapping_string(data_map, "plugin_unique_identifier", plugin_unique_identifier);
             }
@@ -156,7 +156,7 @@ pub(super) fn apply(
             set_mapping_string(data_map, "agent_strategy_name", strategy_name);
             set_mapping_string(data_map, "agent_strategy_label", strategy_label);
             if plugin_unique_identifier.trim().is_empty() {
-                data_map.remove(&yaml_key("plugin_unique_identifier"));
+                data_map.remove(yaml_key("plugin_unique_identifier"));
             } else {
                 set_mapping_string(data_map, "plugin_unique_identifier", plugin_unique_identifier);
             }
@@ -242,11 +242,11 @@ pub(super) fn apply(
                 }
                 "fail-branch" => {
                     set_mapping_string(data_map, "error_strategy", error_strategy);
-                    data_map.remove(&yaml_key("default_value"));
+                    data_map.remove(yaml_key("default_value"));
                 }
                 _ => {
-                    data_map.remove(&yaml_key("error_strategy"));
-                    data_map.remove(&yaml_key("default_value"));
+                    data_map.remove(yaml_key("error_strategy"));
+                    data_map.remove(yaml_key("default_value"));
                 }
             }
         }

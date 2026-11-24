@@ -13,8 +13,4 @@ pub(crate) fn local() -> Result<Store, String> {
 }
 
 #[cfg(test)]
-pub(crate) use voice_recordings::Entry;
-#[cfg(test)]
 pub(crate) use voice_recordings::Store;
-#[cfg(test)]
-pub(crate) use voice_recordings::pcm;

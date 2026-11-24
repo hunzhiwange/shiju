@@ -625,10 +625,4 @@ pub(crate) fn prepare_session_ui_chunks_task(
 mod helpers_tests;
 
 #[cfg(test)]
-pub(crate) use desktop_workspace::project_message::attachments::is_supported_image_attachment;
-#[cfg(test)]
 pub(crate) use desktop_workspace::project_message::gateway::GatewayFileContext;
-#[cfg(test)]
-pub(crate) use desktop_workspace::project_message::paths::copy_recursively;
-#[cfg(test)]
-pub(crate) use desktop_workspace::project_message::paths::unique_name_in_dir;

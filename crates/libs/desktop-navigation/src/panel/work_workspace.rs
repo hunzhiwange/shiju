@@ -59,11 +59,10 @@ pub fn update(app: &mut State, message: Message) {
                 app.work_chat_half_fullscreen = false;
             }
         }
-        Message::WorkSpaceToggled(project_path) => {
-            if !app.work_expanded_spaces.insert(project_path.clone()) {
+        Message::WorkSpaceToggled(project_path)
+            if !app.work_expanded_spaces.insert(project_path.clone()) => {
                 app.work_expanded_spaces.remove(&project_path);
             }
-        }
         _ => {}
     }
 

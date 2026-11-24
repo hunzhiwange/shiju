@@ -30,6 +30,3 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     Task::batch([task, feedback])
 }
 pub(crate) fn subscription(state: &State) -> iced::Subscription<Message> { domain::subscription(state).map(message) }
-
-#[cfg(test)]
-pub use domain::Scope;

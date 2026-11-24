@@ -211,7 +211,7 @@ pub fn load(
             },
         );
     }
-    return Task::perform(
+    Task::perform(
         async move {
             gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone())
                 .app_provider_basic(scope.app, &source)
@@ -227,7 +227,7 @@ pub fn load(
                 result,
             })
         },
-    );
+    )
 }
 pub fn dispatch_save(
     client: vw_gateway_client::GatewayClient,
@@ -314,9 +314,9 @@ pub fn dispatch_save(
             message(EditMessage::OpenCodeSaved { scope: scope.clone(), generation, result })
         });
     }
-    return Task::perform(save(client, scope.clone(), form, token), move |result| {
+    Task::perform(save(client, scope.clone(), form, token), move |result| {
         message(EditMessage::Saved { scope: scope.clone(), generation, result })
-    });
+    })
 }
 
 fn message(event: EditMessage) -> EditMessage {

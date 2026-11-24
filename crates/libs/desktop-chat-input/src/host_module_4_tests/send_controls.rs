@@ -96,8 +96,10 @@ async fn voice_ui_primary_busy_preserves_send_behavior() {
     for behavior in
         [ChatSendBehavior::Queue, ChatSendBehavior::StopAndSend, ChatSendBehavior::Guide]
     {
-        let mut app = Fixture::default();
-        app.chat_send_behavior = behavior;
+        let mut app = Fixture {
+            chat_send_behavior: behavior,
+            ..Default::default()
+        };
         let messages = click_control(send_button(&app, true, true, true)).await;
         assert!(messages.iter().any(|m| matches!(m, Message::SendPressed)));
         assert!(click_control(send_button(&app, false, false, true)).await.is_empty());

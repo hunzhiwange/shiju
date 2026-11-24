@@ -1,5 +1,5 @@
 use super::{
-    RoutingListener, SharedTransport,
+    SharedTransport,
     config_apply::RoutingConfigStore,
     outbound_config::EgressError,
     outbound_custom_tests::{

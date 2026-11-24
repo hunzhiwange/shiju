@@ -59,11 +59,10 @@ impl QQChannel {
 
         {
             let cache = self.token_cache.read().await;
-            if let Some((ref token, expiry)) = *cache {
-                if now < expiry {
+            if let Some((ref token, expiry)) = *cache
+                && now < expiry {
                     return Ok(token.clone());
                 }
-            }
         }
 
         let (token, expiry) = self.fetch_access_token().await?;

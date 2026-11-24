@@ -15,11 +15,10 @@ fn readings() -> &'static Mutex<HashMap<Account, Reading>> {
 fn store(account: Account, windows: Vec<(f64, Option<i64>)>) {
     let mut cache = readings().lock().unwrap_or_else(|e| e.into_inner());
     cache.retain(|_, reading| reading.at.elapsed() < Duration::from_secs(60));
-    if cache.len() >= 4096 && !cache.contains_key(&account) {
-        if let Some(oldest) = cache.iter().min_by_key(|(_, r)| r.at).map(|(k, _)| k.clone()) {
+    if cache.len() >= 4096 && !cache.contains_key(&account)
+        && let Some(oldest) = cache.iter().min_by_key(|(_, r)| r.at).map(|(k, _)| k.clone()) {
             cache.remove(&oldest);
         }
-    }
     cache.insert(account, Reading { at: Instant::now(), windows });
 }
 pub fn decision(account: &Account) -> Decision {

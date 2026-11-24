@@ -250,8 +250,6 @@ pub(crate) fn update_input(app: &App) -> desktop_settings_skills::update::Input 
     }
 }
 
-#[cfg(test)]
-pub(super) use domain::map_catalog_items;
 
 /// Refresh the visible scoped workspace only after a reducer accepts a completion.
 pub(crate) fn refresh_workspace(app: &mut App) -> Task<Message> {

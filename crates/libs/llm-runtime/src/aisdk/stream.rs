@@ -62,11 +62,11 @@ pub fn aisdk_stream_chunk_error(
         is_retryable: false,
         response_headers: None,
         response_body: Some(message.clone()),
-        metadata: Some(HashMap::from([
+        metadata: Some(Box::new(HashMap::from([
             ("source".to_string(), "aisdk".to_string()),
             ("raw_error".to_string(), message),
             ("stream_failure_kind".to_string(), kind.to_string()),
-        ])),
+        ]))),
     }
 }
 
@@ -327,11 +327,10 @@ pub async fn do_stream_request_aisdk_with_model<
             if let Some(seq) = stop_sequences_from_value(v) {
                 builder.stop_sequences = Some(seq);
             }
-        } else if let Some(v) = obj.get("stop") {
-            if let Some(seq) = stop_sequences_from_value(v) {
+        } else if let Some(v) = obj.get("stop")
+            && let Some(seq) = stop_sequences_from_value(v) {
                 builder.stop_sequences = Some(seq);
             }
-        }
     }
     if !request_body.is_empty() {
         builder = builder.body(Value::Object(request_body));
@@ -577,12 +576,11 @@ pub async fn do_stream_request_aisdk_with_model<
                         }
 
                         // 推理内容：如果之前没有发送过增量，现在发送完整推理
-                        AiContent::Reasoning { content, .. } => {
-                            if !saw_reasoning && !content.is_empty() {
+                        AiContent::Reasoning { content, .. }
+                            if !saw_reasoning && !content.is_empty() => {
                                 saw_reasoning = true;
                                 on_event(StreamEvent::ReasoningDelta(content));
                             }
-                        }
 
                         // 其他内容类型暂不处理
                         _ => {}

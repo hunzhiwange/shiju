@@ -183,7 +183,7 @@ async fn aggregation_t63_draws_chinese_mapping_in_light_and_dark() {
         ui.operate(&renderer, &mut before);
         let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
         assert_eq!(pixels.len(), 1000 * 900 * 4);
-        assert!(pixels.chunks_exact(4).any(|p| p != &pixels[..4]));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|p| p != &pixels[..4]));
         if let Some(root) = std::env::var_os("SHIJU_T63_RENDER_DIR") {
             std::fs::create_dir_all(&root).unwrap();
             image::save_buffer(

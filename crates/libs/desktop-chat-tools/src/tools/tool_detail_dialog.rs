@@ -107,7 +107,7 @@ pub(crate) fn build_editor_panel<'a>(app: DetailInput<'a>, size: Size) -> Elemen
 
     let editor = text_editor(dialog.editor)
         .id(dialog.editor_id.clone())
-        .on_action(|action| Message::ToolDetailEditorAction(action))
+        .on_action(Message::ToolDetailEditorAction)
         .key_binding(tool_detail_key_binding)
         .size(14.0)
         .padding([8, 10])
@@ -220,7 +220,7 @@ pub(crate) fn tool_detail_key_binding(
     };
 
     custom
-        .map(|message| text_editor::Binding::Custom(message))
+        .map(text_editor::Binding::Custom)
         .or_else(|| text_editor::Binding::from_key_press(key_press))
 }
 

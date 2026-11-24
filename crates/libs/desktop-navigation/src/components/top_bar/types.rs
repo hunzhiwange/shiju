@@ -49,18 +49,15 @@ pub struct AppTab {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum TopBarGatewayTab {
+    #[default]
     Gateway,
     Mcp,
     Lsp,
     Plugins,
 }
 
-impl Default for TopBarGatewayTab {
-    fn default() -> Self {
-        Self::Gateway
-    }
-}
 
 /// 外部打开应用枚举
 ///

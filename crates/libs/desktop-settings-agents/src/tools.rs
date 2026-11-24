@@ -98,7 +98,7 @@ pub fn tool_card_button_style(
 }
 
 pub fn tool_matches_any(tool_id: &str, candidates: &[&str]) -> bool {
-    candidates.iter().any(|candidate| tool_id == *candidate)
+    candidates.contains(&tool_id)
 }
 
 pub fn tool_group_meta(group: ToolGroup) -> ToolGroupMeta {
@@ -658,7 +658,7 @@ pub fn view<'a>(
     let i18n = I18n::new(input.locale);
     let active_tab = settings.active_tools_list_tab;
     let is_builtin_tab = active_tab == AGENT_TOOLS_BUILTIN_TAB;
-    let visible_tool_ids = tools_for_list_tab(&settings.available_tools, active_tab);
+    let visible_tool_ids = tools_for_list_tab(settings.available_tools, active_tab);
     let visible_tools: Vec<String> = visible_tool_ids.iter().map(|id| (*id).to_string()).collect();
 
     let tools_list: Element<'_, Message> = if settings.available_tools.is_empty() {

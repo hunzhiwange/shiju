@@ -37,13 +37,12 @@ pub async fn fork_with_parent<H: SessionIo>(
     let directory = instance_directory_opt().unwrap_or_else(|| original.directory.clone());
     // 在创建目标前确认截点确实属于源会话。
     let mut msgs = crate::message::messages(session_id, None).await?;
-    if let Some(until) = message_id {
-        if !msgs.iter().any(|msg| msg.info.id() == until) {
+    if let Some(until) = message_id
+        && !msgs.iter().any(|msg| msg.info.id() == until) {
             return Err(Error::Storage(storage::Error::NotFound(storage::NotFoundError {
                 message: format!("message {until} not found in source thread"),
             })));
         }
-    }
     // 创建新会话
     let created = H::create_next(CreateInput {
         parent_id,

@@ -51,7 +51,7 @@ async fn assert_element_draws(mut element: iced::Element<'_, crate::message::Tas
     );
 
     let pixels = renderer.screenshot(iced::Size::new(320, 180), 1.0, Color::TRANSPARENT);
-    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
 }
 
 #[test]

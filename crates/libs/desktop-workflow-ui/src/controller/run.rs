@@ -4,7 +4,7 @@ use super::*;
 
 /// 消费已保存应用运行消息；不属于本模块的消息返回 `None`。
 pub(crate) fn handle(app: &mut Context<'_>, message: WorkflowMessage) -> Option<Task<Output>> {
-    if crate::message::run::handle(&mut app.workflow_state, app.window_size, message.clone()) {
+    if crate::message::run::handle(app.workflow_state, app.window_size, message.clone()) {
         return Some(Task::none());
     }
     Some(match message {
@@ -27,7 +27,7 @@ pub(crate) fn handle(app: &mut Context<'_>, message: WorkflowMessage) -> Option<
                     app.show_error_toast("内置剪辑模板必须从原生会话执行，请使用模板设置"),
                 );
             }
-            crate::message::run::submit_run_prompt(&mut app.workflow_state, prompt);
+            crate::message::run::submit_run_prompt(app.workflow_state, prompt);
             Task::none()
         }
         WorkflowMessage::SavedAppRunFinished { uuid, result } => {

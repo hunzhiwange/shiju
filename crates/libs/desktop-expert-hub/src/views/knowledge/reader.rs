@@ -44,7 +44,7 @@ fn body<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
     let close = message(KnowledgeMessage::CloseReader);
     let busy = matches!(reader.status, LoadState::Loading { .. });
     // 复用公共详情的 Markdown 路径，关闭高亮并避免中文走等宽字体。
-    let mut style = markdown::Style::from(&*app.app_theme);
+    let mut style = markdown::Style::from(app.app_theme);
     style.inline_code_font = Font::default();
     style.code_block_font = Font::default();
     let body =

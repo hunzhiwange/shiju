@@ -11,7 +11,7 @@ fn scheduler_deadline_is_preserved_while_still_in_the_future() {
     let (mut app, _task) = super::fixture_pair();
     app.task_board_next_scheduler_tick_at_ms = u64::MAX;
 
-    let _scheduled = crate::helpers::settings::scheduler_deadline(
+    crate::helpers::settings::scheduler_deadline(
         &mut app.task_board_next_scheduler_tick_at_ms,
         &app.task_board_settings,
     );
@@ -27,7 +27,7 @@ fn scheduler_deadline_is_refreshed_after_expiry() {
     app.task_board_next_scheduler_tick_at_ms = 0;
     let start_ms = now_ms();
 
-    let _scheduled = crate::helpers::settings::scheduler_deadline(
+    crate::helpers::settings::scheduler_deadline(
         &mut app.task_board_next_scheduler_tick_at_ms,
         &app.task_board_settings,
     );
@@ -40,7 +40,7 @@ fn fixed_interval_schedulers_refresh_their_deadlines() {
     let (mut app, _task) = super::fixture_pair();
 
     let review_start_ms = now_ms();
-    let _review_task = crate::helpers::settings::fixed_deadline(
+    crate::helpers::settings::fixed_deadline(
         &mut app.task_board_next_auto_review_tick_at_ms,
         TASK_AUTO_CODE_REVIEW_TICK_INTERVAL_SECS,
     );
@@ -53,7 +53,7 @@ fn fixed_interval_schedulers_refresh_their_deadlines() {
     );
 
     let merge_start_ms = now_ms();
-    let _merge_task = crate::helpers::settings::fixed_deadline(
+    crate::helpers::settings::fixed_deadline(
         &mut app.task_board_next_auto_merge_tick_at_ms,
         TASK_AUTO_MERGE_TICK_INTERVAL_SECS,
     );
@@ -71,7 +71,7 @@ fn auto_promote_scheduler_uses_sanitized_interval_for_deadline() {
     app.task_board_settings.auto_promote_tick_interval_seconds = 0;
     let start_ms = now_ms();
 
-    let _scheduled = crate::helpers::settings::fixed_deadline(
+    crate::helpers::settings::fixed_deadline(
         &mut app.task_board_next_auto_promote_tick_at_ms,
         crate::helpers::settings::auto_promote_tick_interval_secs(&app.task_board_settings),
     );

@@ -11,7 +11,8 @@ pub fn tab() -> PreviewTab {
             .join("\n")
     );
     let path = "/tmp/editor-config-acceptance.rs".to_owned();
-    let tab = PreviewTab {
+
+    PreviewTab {
         path: path.clone(),
         title: "editor-config-acceptance.rs".into(),
         content: content.clone(),
@@ -27,6 +28,5 @@ pub fn tab() -> PreviewTab {
         lsp_uri: None,
         #[cfg(not(target_arch = "wasm32"))]
         lsp_language_id: None,
-    };
-    tab
+    }
 }

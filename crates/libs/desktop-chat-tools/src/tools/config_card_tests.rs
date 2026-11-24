@@ -1,6 +1,5 @@
 use super::config_view::tool_config_view;
 use super::view_fixture::TestApp as App;
-use serde_json::json;
 #[test]
 fn config_view_rejects_bad_tool_and_empty_completed_result() {
     let app = App::new().0;

@@ -38,13 +38,10 @@ impl Request {
         let items = body["input"].as_array_mut().unwrap_or(&mut empty);
         let mut triggers = 0;
         for item in items {
-            match item["type"].as_str() {
-                Some("compaction_trigger") => {
-                    super::messages::object_keys(item, &["type"])?;
-                    triggers += 1;
-                    *item = json!({"type":"message","role":"user","content":PROMPT});
-                }
-                _ => {}
+            if let Some("compaction_trigger") = item["type"].as_str() {
+                super::messages::object_keys(item, &["type"])?;
+                triggers += 1;
+                *item = json!({"type":"message","role":"user","content":PROMPT});
             }
         }
         if triggers > 1 {

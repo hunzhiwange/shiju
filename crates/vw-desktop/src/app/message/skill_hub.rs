@@ -11,8 +11,6 @@ use crate::app::skill_hub::{
 use crate::app::{
     App, AppTab, Message, Screen,
 };
-#[cfg(test)]
-use crate::app::skill_hub::ShijuDirectInstallState;
 use iced::Task;
 use desktop_expert_hub::message::skill_hub::{self as domain, SkillHubMessage as D};
 use desktop_expert_hub::message::Message as DomainEvent;
@@ -521,9 +519,5 @@ use crate::app::skill_hub::LoadState;
 use gateway_shiju_skill::ShijuMaintainedSkillQuery;
 #[cfg(test)]
 use gateway_shiju_skill::ShijuSkillSearchQuery;
-#[cfg(test)]
-pub(crate) use public::selectable_expert_skill;
-#[cfg(test)]
-pub(super) use desktop_expert_hub::message::skill_hub::install_shiju_package_for_targets;
 #[cfg(test)]
 pub(super) use desktop_expert_hub::skill_operations::*;

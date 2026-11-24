@@ -250,7 +250,7 @@ fn build_cached_acp_client_with_approval<H: Host>(
         PermissionMode::ApproveReads
     }))
     .with_full_access(parsed_options.full_access)
-    .with_non_interactive_permissions(parsed_options.non_interactive_permissions.clone())
+    .with_non_interactive_permissions(parsed_options.non_interactive_permissions)
     .with_permission_confirmation(Arc::new(move |title, arguments| {
         let active = active_confirmation.lock().clone();
         Box::pin(async move {

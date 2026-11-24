@@ -26,11 +26,10 @@ pub(super) fn workflow_run_preview_value(
         return None;
     }
 
-    if is_duration_run_preview_key(key) {
-        if let Some(duration) = format_run_preview_duration(i18n, key, value) {
+    if is_duration_run_preview_key(key)
+        && let Some(duration) = format_run_preview_duration(i18n, key, value) {
             return Some(duration);
         }
-    }
 
     if is_time_run_preview_key(key) {
         return format_run_preview_timestamp_value(key, value);

@@ -7,6 +7,3 @@ pub fn update(app:&mut App,event:Event)->Task<Message>{
 }
 
 pub fn message(event:Event)->Message {super::list::message(super::list::ListMessage::Mode(event))}
-
-#[cfg(test)]
-pub use desktop_provider_apps::message::mode::available;

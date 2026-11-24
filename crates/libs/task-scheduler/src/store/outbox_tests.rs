@@ -20,7 +20,6 @@ use super::domain::AgentSchedulerContext;
 use super::store::outbox::{EnqueueOutboxMessageRequest, OutboxMessageStatus, StoredOutboxMessage};
 use super::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 use agent_database::GlobalDatabase;
-use agent_database::test_support::PostgresTestDatabase;
 use agent_project::store::ProjectStore;
 
 #[test]

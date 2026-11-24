@@ -104,7 +104,7 @@ fn stage_all_requires_project_context_and_reports_finished_states() {
     app.error_message = None;
     let task = update(&mut app, GitMessage::StageAll);
     assert!(app.git.git_commit_in_progress);
-    assert!(task.len() > 0);
+    assert!(!task.is_empty());
 
     let _task = update(&mut app, GitMessage::StageAllFinished(Ok(())));
     assert!(!app.git.git_commit_in_progress);

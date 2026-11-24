@@ -328,7 +328,7 @@ fn build_editor<'a>(
     build_input_editor(
         state.clone(),
         content,
-        |theme, status| iced::widget::text_editor::default(theme, status),
+        iced::widget::text_editor::default,
         task,
     )
 }

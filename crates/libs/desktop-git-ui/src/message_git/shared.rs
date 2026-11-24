@@ -70,7 +70,7 @@ pub fn range_contains_line(range: &GitDiffLineRange, file: &str, line: usize, is
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn diff_contents_for_file(repo_path: &str, file: &str) -> Option<(String, String)> {
-    let repo = git2::Repository::open(&repo_path).ok()?;
+    let repo = git2::Repository::open(repo_path).ok()?;
     let head = repo.head().ok()?;
     let tree = head.peel_to_tree().ok()?;
 

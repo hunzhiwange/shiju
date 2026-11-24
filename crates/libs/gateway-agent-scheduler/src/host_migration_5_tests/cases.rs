@@ -9,7 +9,7 @@ use std::time::Duration;
 use tower::ServiceExt;
 use uuid::Uuid;
 use vw_api_agent_scheduler::{
-    AgentCapabilityDto, AgentCapabilityKindDto, AgentSchedulerBulkCommandRequest,
+    AgentSchedulerBulkCommandRequest,
     AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest,
     AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,
     AgentSchedulerLegacyTaskImportDto, AgentSchedulerMoveTaskPayloadDto,
@@ -237,7 +237,7 @@ async fn acceptance_gateway_task(git: bool) {
             output.stdout
         })
     };
-    let before = git.then(&git_state);
+    let before = git.then(git_state);
     let store = AgentSchedulerStore::new();
     store.initialize_project(&project_path).expect("init scheduler");
     store

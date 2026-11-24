@@ -173,15 +173,14 @@ fn normalize_cached_channel_turns(turns: Vec<ChatMessage>) -> Vec<ChatMessage> {
             // 中断的通道轮次可能产生连续的用户消息（助手尚未持久化）
             // 采用合并策略而非丢弃，以保留完整的用户输入上下文
             (false, "user") | (true, "assistant") => {
-                if let Some(last_turn) = normalized.last_mut() {
-                    if !turn.content.is_empty() {
+                if let Some(last_turn) = normalized.last_mut()
+                    && !turn.content.is_empty() {
                         if !last_turn.content.is_empty() {
                             // 用双换行符分隔合并的内容，保持可读性
                             last_turn.content.push_str("\n\n");
                         }
                         last_turn.content.push_str(&turn.content);
                     }
-                }
             }
             // 忽略其他角色（如 system）的消息
             _ => {}

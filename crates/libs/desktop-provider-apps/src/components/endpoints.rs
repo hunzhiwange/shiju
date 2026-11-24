@@ -42,11 +42,11 @@ pub fn card<'a>(i18n: desktop_i18n::I18n,
         body = body.push(settings_panel(
             column![
                 text(&endpoint.url),
-                text(i18n.format("%s · 最后使用：%s", &[(format!("{}", if endpoint.kind == AppProviderEndpointKind::FullUrl {
+                text(i18n.format("%s · 最后使用：%s", &[((if endpoint.kind == AppProviderEndpointKind::FullUrl {
                         i18n.__("完整 URL")
                     } else {
                         i18n.__("基础 URL")
-                    })).into(), (format!("{}", endpoint.last_used.map(|v| v.to_string()).unwrap_or_else(|| i18n.__("未使用").into()))).into()]).expect("valid display template")),
+                    }).to_string()).into(), (endpoint.last_used.map(|v| v.to_string()).unwrap_or_else(|| i18n.__("未使用").into()).to_string()).into()]).expect("valid display template")),
                 row![
                     action(
                         i18n.__("标记使用"),
@@ -65,7 +65,7 @@ pub fn card<'a>(i18n: desktop_i18n::I18n,
             .push(text(i18n.__("请求选项（只写）")).size(18))
             .push(text(i18n.__("留空保留；输入 {} 清除对应组。刷新只回读配置状态，不回填敏感值。")));
         if let Some(view) = &form.options {
-            body = body.push(text(i18n.format("服务状态：普通头%s，代理覆盖%s；未应用", &[(format!("{}", if view.headers_configured { i18n.__("已配置") } else { i18n.__("未配置") })).into(), (format!("{}", if view.overrides_configured { i18n.__("已配置") } else { i18n.__("未配置") })).into()]).expect("valid display template")));
+            body = body.push(text(i18n.format("服务状态：普通头%s，代理覆盖%s；未应用", &[((if view.headers_configured { i18n.__("已配置") } else { i18n.__("未配置") }).to_string()).into(), ((if view.overrides_configured { i18n.__("已配置") } else { i18n.__("未配置") }).to_string()).into()]).expect("valid display template")));
         }
         body = body
             .push(text(i18n.__("普通请求头：供原生适配消费；此入口仅保存，尚未投影到原生配置。")))

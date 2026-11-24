@@ -117,7 +117,7 @@ mod rendering {
                     &mut renderer,
                 );
                 let mut geometry = Geometry::default();
-                ui.operate(&mut renderer, &mut geometry);
+                ui.operate(&renderer, &mut geometry);
                 let title =
                     geometry.labels.iter().find(|(label, _)| label == "归档聊天 TUI").unwrap().1;
                 assert!(title.width < 120.0, "tooltip anchor must fit the title");
@@ -187,7 +187,7 @@ mod rendering {
                     &mut renderer,
                 );
                 let mut before = Geometry::default();
-                ui.operate(&mut renderer, &mut before);
+                ui.operate(&renderer, &mut before);
                 let scroll = before.scrolls[0];
                 let point = scroll.center();
                 ui.update(
@@ -212,7 +212,7 @@ mod rendering {
                     mouse::Cursor::Unavailable,
                 );
                 let mut after = Geometry::default();
-                ui.operate(&mut renderer, &mut after);
+                ui.operate(&renderer, &mut after);
                 assert!(
                     after.offsets[0].y.abs() > 1000.0,
                     "real wheel must move the long list: {:?}",
@@ -222,7 +222,7 @@ mod rendering {
                 let bounds = after.controls[0];
                 assert!(click(&mut ui, &mut renderer, bounds.center()).is_empty());
                 let mut opened = Geometry::default();
-                ui.operate(&mut renderer, &mut opened);
+                ui.operate(&renderer, &mut opened);
                 assert_eq!(opened.scrolls.len(), 2);
                 if let Some(path) = std::env::var_os("SHIJU_ARCHIVED_SCREENSHOTS") {
                     image::save_buffer(
@@ -291,7 +291,7 @@ mod rendering {
                             mouse::Cursor::Unavailable,
                         );
                         let mut geometry = Geometry::default();
-                        ui.operate(&mut renderer, &mut geometry);
+                        ui.operate(&renderer, &mut geometry);
                         let label = I18n::new(locale).__(if operating {
                             "正在恢复会话"
                         } else {
@@ -376,7 +376,7 @@ mod rendering {
                         );
                         if let Some(trigger) = trigger {
                             let mut geometry = Geometry::default();
-                            ui.operate(&mut renderer, &mut geometry);
+                            ui.operate(&renderer, &mut geometry);
                             let bounds = geometry.controls[usize::from(trigger == "所有项目")];
                             assert!(click(&mut ui, &mut renderer, bounds.center()).is_empty());
                         }
@@ -387,7 +387,7 @@ mod rendering {
                             mouse::Cursor::Unavailable,
                         );
                         let mut geometry = Geometry::default();
-                        ui.operate(&mut renderer, &mut geometry);
+                        ui.operate(&renderer, &mut geometry);
                         assert_eq!(geometry.inputs.len(), 1);
                         assert!(!geometry.labels.iter().any(|(label, _)| {
                             ["类型", "本地", "云端", "全部聊天"]
@@ -440,7 +440,7 @@ mod rendering {
             &mut Vec::new(),
         );
         let mut geometry = Geometry::default();
-        ui.operate(&mut renderer, &mut geometry);
+        ui.operate(&renderer, &mut geometry);
         let bounds = geometry.controls[0];
         assert!(click(&mut ui, &mut renderer, bounds.center()).is_empty());
         let mut messages = Vec::new();
@@ -511,7 +511,7 @@ mod rendering {
                 mouse::Cursor::Unavailable,
             );
             let mut geometry = Geometry::default();
-            ui.operate(&mut renderer, &mut geometry);
+            ui.operate(&renderer, &mut geometry);
             assert!(geometry.labels.iter().any(|(label, _)| label == expected), "{name}");
             if name == "error" {
                 let bounds = geometry.labels.iter().find(|(label, _)| label == "重试").unwrap().1;
@@ -571,7 +571,7 @@ mod rendering {
                         mouse::Cursor::Unavailable,
                     );
                     let mut geometry = Geometry::default();
-                    ui.operate(&mut renderer, &mut geometry);
+                    ui.operate(&renderer, &mut geometry);
                     assert!(geometry.labels.iter().any(|(label, _)| label == "删除已归档的聊天？"));
                     assert!(geometry.inputs.is_empty(), "background focus targets hidden");
                     assert_eq!(geometry.focus, if pending { vec![] } else { vec![true] });
@@ -684,7 +684,7 @@ mod rendering {
                             &mut renderer,
                         );
                         let mut geometry = Geometry::default();
-                        ui.operate(&mut renderer, &mut geometry);
+                        ui.operate(&renderer, &mut geometry);
                         let more =
                             geometry.labels.iter().find(|(label, _)| label == "…").unwrap().1;
                         assert!(click(&mut ui, &mut renderer, more.center()).iter().any(|m| matches!(m, ArchivedChatsMessage::ProjectActionsToggled(id) if id == &project_id)));
@@ -702,7 +702,7 @@ mod rendering {
                             &mut renderer,
                         );
                         let mut geometry = Geometry::default();
-                        ui.operate(&mut renderer, &mut geometry);
+                        ui.operate(&renderer, &mut geometry);
                         let delete = geometry
                             .labels
                             .iter()
@@ -741,7 +741,7 @@ mod rendering {
                         mouse::Cursor::Unavailable,
                     );
                     let mut geometry = Geometry::default();
-                    ui.operate(&mut renderer, &mut geometry);
+                    ui.operate(&renderer, &mut geometry);
                     assert!(
                         geometry
                             .labels

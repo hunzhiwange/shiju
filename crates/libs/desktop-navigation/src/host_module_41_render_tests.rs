@@ -52,9 +52,11 @@ fn fixture(kind: InstallerKind) -> (tempfile::TempDir, PreparedDesktopUpdate) {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn app_update_ready_installer_draws_all_loading_frames_in_both_themes() {
-    let mut panel = desktop_update::panel::PanelState::default();
-    panel.cli_install_modal_use_app_update_action = true;
-    panel.cli_install_modal_show_install_action = true;
+    let mut panel = desktop_update::panel::PanelState {
+        cli_install_modal_use_app_update_action: true,
+        cli_install_modal_show_install_action: true,
+        ..Default::default()
+    };
     let mut state =
         desktop_update::app::desktop_update::DesktopUpdate::from_config(&serde_json::json!({}));
     // Draw every loading frame and the ready/retry controls in both themes.
@@ -124,7 +126,7 @@ async fn app_update_ready_installer_draws_all_loading_frames_in_both_themes() {
             );
             let pixels =
                 renderer.screenshot(iced::Size::new(960, 900), 1.0, iced::Color::TRANSPARENT);
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
         }
     }
 }

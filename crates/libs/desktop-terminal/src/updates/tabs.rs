@@ -8,7 +8,7 @@ type TerminalState = crate::TerminalState<Shell>;
 
 use iced::Task;
 
-pub(super) fn close_tab(terminal: &mut TerminalState, focused: &mut bool, effects: &mut Vec<Effect>, id: u64) -> Task<TerminalMessage> {
+pub(super) fn close_tab(terminal: &mut TerminalState, focused: &mut bool, _effects: &mut Vec<Effect>, id: u64) -> Task<TerminalMessage> {
     #[cfg(not(target_arch = "wasm32"))]
     let was_active = terminal.active_id == Some(id);
     if !terminal.close_terminal(id) {
@@ -23,7 +23,7 @@ pub(super) fn close_tab(terminal: &mut TerminalState, focused: &mut bool, effect
     let reap = reap_retired_task(terminal);
     #[cfg(not(target_arch = "wasm32"))]
     if was_active && *focused {
-        return Task::batch([reap, super::event::focus_active_terminal(terminal, focused, effects)]);
+        return Task::batch([reap, super::event::focus_active_terminal(terminal, focused, _effects)]);
     }
     reap
 }

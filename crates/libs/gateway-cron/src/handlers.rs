@@ -421,9 +421,9 @@ pub async fn handle_api_cron_update(
         Ok(window) => window,
         Err(error) => return cron_field_error(error),
     };
-    if let Some(current) = &current {
-        if schedule.is_some() || starts_at.is_some() || ends_at.is_some() {
-            if let Err(error) = validate_candidates(
+    if let Some(current) = &current
+        && (schedule.is_some() || starts_at.is_some() || ends_at.is_some())
+            && let Err(error) = validate_candidates(
                 schedule.as_ref().unwrap_or(&current.schedule),
                 starts_at.unwrap_or(current.starts_at),
                 ends_at.unwrap_or(current.ends_at),
@@ -431,8 +431,6 @@ pub async fn handle_api_cron_update(
             ) {
                 return cron_field_error(error);
             }
-        }
-    }
     let job_type = match body.job_type.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
         Some(value) => match agent_cron::JobType::try_from(value) {
             Ok(job_type) => Some(job_type),
@@ -480,11 +478,9 @@ pub async fn handle_api_cron_update(
     };
     if let Some(final_delivery) =
         delivery.as_ref().or_else(|| current.as_ref().map(|job| &job.delivery))
-    {
-        if let Err(error) = agent_cron::delivery::validate_saved(state.delivery.as_ref(), &config, final_delivery).await {
+        && let Err(error) = agent_cron::delivery::validate_saved(state.delivery.as_ref(), &config, final_delivery).await {
             return cron_field_error(error.to_string());
         }
-    }
     let patch = agent_cron::CronJobPatch {
         starts_at,
         ends_at,

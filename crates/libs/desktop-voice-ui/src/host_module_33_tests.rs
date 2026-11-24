@@ -198,7 +198,7 @@ async fn voice_moon_ui_inline_draws_and_routes_controls() {
                     .unwrap();
                 }
                 assert!(
-                    pixels.chunks_exact(4).any(|p| p[2] > 180 && p[2] > p[0].saturating_add(30)),
+                    pixels.as_chunks::<4>().0.iter().any(|p| p[2] > 180 && p[2] > p[0].saturating_add(30)),
                     "blue moon must be painted"
                 );
             }

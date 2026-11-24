@@ -167,11 +167,10 @@ pub(super) async fn fetch(
         if metadata.name != package || !exact_version(&metadata.version) {
             bail!("npm metadata name or resolved version mismatch");
         }
-        if let Some(requested) = version {
-            if exact_version(requested) && requested != metadata.version {
+        if let Some(requested) = version
+            && exact_version(requested) && requested != metadata.version {
                 bail!("npm resolved version mismatch");
             }
-        }
         let tarball = endpoint(&metadata.dist.tarball, fixture)?;
         let bytes = download(tarball, MAX_ARCHIVE, fixture).await?;
         verify(&bytes, &metadata.dist.integrity)?;

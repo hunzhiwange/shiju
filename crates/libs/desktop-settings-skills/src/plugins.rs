@@ -290,8 +290,8 @@ pub fn view<'a>(app: ViewState<'a>) -> Element<'a, Message> {
         .or_else(|| plugins.first())
         .cloned();
 
-    let search_input = text_input(tr(locale, "搜索插件"), &s.query)
-        .on_input(|value| Message::SkillsQueryChanged(value))
+    let search_input = text_input(tr(locale, "搜索插件"), s.query)
+        .on_input(Message::SkillsQueryChanged)
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style)

@@ -127,7 +127,7 @@ pub fn retryable(error: &message::AssistantError) -> Option<String> {
         message::AssistantError::ContextOverflowError { .. } => None,
 
         // API 错误：检查是否标记为可重试
-        message::AssistantError::APIError { message, is_retryable, response_body: _, .. } => {
+        message::AssistantError::APIError { message, is_retryable, .. } => {
             // 如果明确标记为不可重试，直接返回
             if !*is_retryable {
                 return None;
@@ -147,9 +147,7 @@ pub fn retryable(error: &message::AssistantError) -> Option<String> {
         | message::AssistantError::MessageAbortedError { message }
         | message::AssistantError::ProviderAuthError { message, .. } => {
             // 尝试解析 JSON 格式的错误消息
-            let Some(json) = parse_json_message(message) else {
-                return None;
-            };
+            let json = parse_json_message(message)?;
 
             // 确保解析结果是 JSON 对象
             if !json.is_object() {

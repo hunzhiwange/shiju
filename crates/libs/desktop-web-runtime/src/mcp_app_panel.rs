@@ -185,7 +185,7 @@ async fn confirm_external_link( i18n: desktop_i18n::I18n, origin: String) -> boo
         // Use an app-owned alert so a system notification's default response cannot approve.
         let alert = NSAlert::new(mtm);
         alert.setMessageText(&NSString::from_str(i18n.__("打开 MCP 外部链接")));
-        alert.setInformativeText(&NSString::from_str(&i18n.sprintf("是否使用系统浏览器打开此来源的链接？\n%s", &[format!("{}", origin).into()])));
+        alert.setInformativeText(&NSString::from_str(&i18n.sprintf("是否使用系统浏览器打开此来源的链接？\n%s", &[origin.to_string().into()])));
         let cancel = alert.addButtonWithTitle(&NSString::from_str(i18n.__("取消")));
         cancel.setKeyEquivalent(&NSString::from_str("\u{1b}"));
         let open = alert.addButtonWithTitle(&NSString::from_str(i18n.__("打开")));

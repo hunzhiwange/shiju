@@ -254,7 +254,7 @@ fn cc_mcp_t09_scoped_material_reaches_only_execution_transports() -> anyhow::Res
             }
             listener.set_nonblocking(true)?;
             assert_eq!(listener.accept().unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
-            match resolve(owner.host, Some(owner)).ok().expect("authorized execution") {
+            match resolve(owner.host, Some(owner)).expect("authorized execution") {
                 McpExecutionConnection::Stdio { command, args, env, cwd } => {
                     assert_eq!(transport, McpTransport::Stdio);
                     assert!(cwd.is_none());

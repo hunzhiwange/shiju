@@ -252,7 +252,7 @@ async fn todo_continuation_status_draws_centered_in_both_themes() {
                 &format!("todo-continuation-{language}-{mode}"),
                 mouse::Cursor::Unavailable,
             );
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel != &pixels[..4]));
         }
     }
 }

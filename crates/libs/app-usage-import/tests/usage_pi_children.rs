@@ -25,7 +25,7 @@ fn usage17_pi_children_child_projection_is_counted_once() {
     let child = dir.path().join("parent/run/child.jsonl");
     let replica = dir.path().join("replica.jsonl");
     let entry = projection(&child, 1700000030);
-    write(&parent, "parent", &[entry.clone()]);
+    write(&parent, "parent", std::slice::from_ref(&entry));
     write(&replica, "parent", &[entry]);
     write(&child, "child", &[assistant(10, 1700000025)]);
     let files = vec![parent, child, replica];

@@ -114,7 +114,7 @@ pub async fn instance_event_sse<H: InstanceHost>(
             let tx_sub = tx.clone();
             let filter_dir2 = filter_dir.clone();
             let unsub = bus::global_subscribe(move |evt| {
-                if !evt.directory.as_deref().map_or(true, |d| d == filter_dir2) {
+                if !evt.directory.as_deref().is_none_or(|d| d == filter_dir2) {
                     return;
                 }
                 let data = serde_json::to_string(&evt.payload).unwrap_or("{}".to_string());

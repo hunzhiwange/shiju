@@ -68,7 +68,7 @@ pub async fn scene<Message: Clone + 'static>(
         let pixels =
             renderer.screenshot(Size::new(width as u32, 1600), 1.0, theme.palette().background);
         assert!(
-            pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]),
+            pixels.as_chunks::<4>().0.iter().any(|pixel| pixel != &pixels[..4]),
             "preview must draw more than a uniform background"
         );
         if let Some(dir) = std::env::var_os("SHIJU_MINI_TASK4_SCREENSHOTS") {

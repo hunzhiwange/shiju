@@ -112,7 +112,7 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Result<vw_ga
             match result {
                 Err(error) => {
                     state.error = Some(error.clone());
-                    return Task::done(Outcome::Error(format!("用量操作失败：{error}").into()));
+                    return Task::done(Outcome::Error(format!("用量操作失败：{error}")));
                 }
                 Ok(Reply::Settings(preferences, last)) => { state.preferences = Some(preferences); state.last = Some(last);
                     if state.job.as_ref().is_some_and(|job| !terminal(job)) { return poll(sequence, scope); } }

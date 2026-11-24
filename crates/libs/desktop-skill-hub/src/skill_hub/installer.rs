@@ -1143,7 +1143,6 @@ fn backup_existing_installs(installs: &mut [PreparedInstall]) -> Result<()> {
 }
 
 fn commit_installs(installs: &mut [PreparedInstall]) -> Result<()> {
-    let mut committed = 0usize;
     for index in 0..installs.len() {
         let staged_package = installs[index].staging.path().join("package");
         if let Err(error) =
@@ -1154,7 +1153,7 @@ fn commit_installs(installs: &mut [PreparedInstall]) -> Result<()> {
                 )
             })
         {
-            let rollback_error = rollback_commits(installs, committed).err();
+            let rollback_error = rollback_commits(installs, index).err();
             return match rollback_error {
                 Some(rollback_error) => {
                     Err(error.context(format!("安装失败后的回滚也失败: {rollback_error}")))
@@ -1162,7 +1161,6 @@ fn commit_installs(installs: &mut [PreparedInstall]) -> Result<()> {
                 None => Err(error),
             };
         }
-        committed += 1;
     }
     Ok(())
 }

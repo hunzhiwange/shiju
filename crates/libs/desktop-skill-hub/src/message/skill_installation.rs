@@ -15,13 +15,13 @@ pub(super) fn start_direct_install(app: &mut SkillUpdate<'_>) -> Task<Message> {
     let project_root = match selected_project_root(app.expert_hub, &selections) {
         Ok(project_root) => project_root,
         Err(error) => {
-            return show_skill_error(app, ToastKind::Error, None, error.into());
+            return show_skill_error(app, ToastKind::Error, None, error);
         }
     };
     let home = match home_directory() {
         Ok(home) => home,
         Err(error) => {
-            return show_skill_error(app, ToastKind::Error, None, error.into());
+            return show_skill_error(app, ToastKind::Error, None, error);
         }
     };
     if let Err(error) = resolve_skill_destinations(&home, project_root.as_deref(), &selections) {
@@ -81,7 +81,7 @@ pub(super) fn finish_direct_package_load(
                 app,
                 ToastKind::Error,
                 Some("直接安装准备失败：%s"),
-                error.into(),
+                error,
             );
         }
     };
@@ -145,7 +145,7 @@ pub(super) fn finish_direct_install(
         }
         Err(error) => {
             app.expert_hub.install_guide.direct_install = ShijuDirectInstallState::Idle;
-            show_skill_error(app, ToastKind::Error, Some("识矩技能安装失败：%s"), error.into())
+            show_skill_error(app, ToastKind::Error, Some("识矩技能安装失败：%s"), error)
         }
     }
 }
@@ -286,13 +286,13 @@ pub(super) fn start_shiju_key_sync(
     let project_root = match selected_project_root(app.expert_hub, &selections) {
         Ok(project_root) => project_root,
         Err(error) => {
-            return show_skill_error(app, ToastKind::Error, None, error.into());
+            return show_skill_error(app, ToastKind::Error, None, error);
         }
     };
     let home = match home_directory() {
         Ok(home) => home,
         Err(error) => {
-            return show_skill_error(app, ToastKind::Error, None, error.into());
+            return show_skill_error(app, ToastKind::Error, None, error);
         }
     };
     let Some(operation) = app.expert_hub.install_guide.start_login_sync() else {
@@ -397,14 +397,14 @@ pub(super) fn start_shiju_uninstall(app: &mut SkillUpdate<'_>) -> Task<Message> 
         Ok(project_root) => project_root,
         Err(error) => {
             app.expert_hub.install_guide.direct_install = ShijuDirectInstallState::Installed;
-            return show_skill_error(app, ToastKind::Error, None, error.into());
+            return show_skill_error(app, ToastKind::Error, None, error);
         }
     };
     let home = match home_directory() {
         Ok(home) => home,
         Err(error) => {
             app.expert_hub.install_guide.direct_install = ShijuDirectInstallState::Installed;
-            return show_skill_error(app, ToastKind::Error, None, error.into());
+            return show_skill_error(app, ToastKind::Error, None, error);
         }
     };
     let result_selections = selections.clone();
@@ -463,7 +463,7 @@ pub(super) fn finish_shiju_uninstall(
         }
         Err(error) => {
             app.expert_hub.install_guide.direct_install = ShijuDirectInstallState::Installed;
-            show_skill_error(app, ToastKind::Error, Some("识矩技能卸载失败：%s"), error.into())
+            show_skill_error(app, ToastKind::Error, Some("识矩技能卸载失败：%s"), error)
         }
     }
 }

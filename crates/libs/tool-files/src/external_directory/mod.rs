@@ -273,7 +273,7 @@ pub async fn assert_external_directory<H: FileToolHost>(
     // - 文件类型：使用其父目录进行权限检查
     let checked_path = match options.kind {
         Kind::Directory => full,
-        Kind::File => full.parent().unwrap_or_else(|| full.as_path()).to_path_buf(),
+        Kind::File => full.parent().unwrap_or(full.as_path()).to_path_buf(),
     };
 
     // 返回安全策略违规信息

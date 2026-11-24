@@ -2,7 +2,7 @@
 //! 通用 MCP 载荷和渲染提示可修正路由，但无法解析的工具块必须返回无视图。
 
 use super::tool_meta::{
-    tool_activity_header, tool_header_title, tool_status_badge, tool_visual_state,
+    tool_header_title, tool_status_badge, tool_visual_state,
 };
 use super::tool_renderer::render_shared_tool_view;
 use super::{App, Message};
@@ -294,7 +294,7 @@ async fn shared_tool_headers_dark_chinese_render_path_is_safe() {
         &viewport,
     );
     let pixels = renderer.screenshot(Size::new(960, 640), 1.0, Color::TRANSPARENT);
-    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
 
     if let Ok(path) = std::env::var("VW_TOOL_HEADERS_SCREENSHOT") {
         image::save_buffer(path, &pixels, 960, 640, image::ColorType::Rgba8)

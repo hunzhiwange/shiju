@@ -65,6 +65,3 @@ pub(crate) fn apply_effects(
     }
     Task::batch(tasks)
 }
-
-#[cfg(test)]
-pub use desktop_settings_mcp::configuration_update::tools::Context;

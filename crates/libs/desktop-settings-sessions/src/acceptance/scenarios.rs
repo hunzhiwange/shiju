@@ -75,14 +75,14 @@ impl Scenarios {
         }
     }
     pub fn theme(&self) -> Theme {
-        if self.case / CASES.len() % 2 == 0 { Theme::Light } else { Theme::Dark }
+        if (self.case / CASES.len()).is_multiple_of(2) { Theme::Light } else { Theme::Dark }
     }
     pub fn width(&self) -> f32 {
         if self.case < CASES.len() * 2 { 860.0 } else { 360.0 }
     }
     pub fn finished(&self) -> bool { self.case == CASES.len() * 4 }
     pub fn capture_name(&self) -> String {
-        format!("{}-{}-{}.png", if self.case / CASES.len() % 2 == 0 { "light" } else { "dark" }, self.width(), CASES[self.case % CASES.len()])
+        format!("{}-{}-{}.png", if (self.case / CASES.len()).is_multiple_of(2) { "light" } else { "dark" }, self.width(), CASES[self.case % CASES.len()])
     }
     pub fn view(&self) -> iced::Element<'_, Archive> {
         iced::widget::container(crate::view::page(&self.state, config_ui::DesktopLocale::SimplifiedChinese))

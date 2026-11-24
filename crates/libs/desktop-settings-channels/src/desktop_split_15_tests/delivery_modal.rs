@@ -158,7 +158,7 @@ async fn wecom_delivery_modal_renders_narrow_chinese_and_qr_states() {
                 assert_eq!(pixels.len(), (size.width * size.height * 4) as usize);
                 let background = &pixels[pixels.len() - 4..];
                 assert!(
-                    pixels.chunks_exact(4).filter(|pixel| *pixel != background).count() > 10_000,
+                    pixels.as_chunks::<4>().0.iter().filter(|pixel| *pixel != background).count() > 10_000,
                     "modal must paint beyond the small background label"
                 );
                 if let Some(dir) = std::env::var_os("SHIJU_WECOM_MODAL_SCREENSHOTS") {

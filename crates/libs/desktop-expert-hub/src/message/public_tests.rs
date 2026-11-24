@@ -502,8 +502,10 @@ fn installed(id: &str) -> DesktopSkillCatalogEntryDto {
 
 #[test]
 fn batch_delete_requires_confirmation_and_reports_partial_failure() {
-    let mut state = PublicSkillMarketState::default();
-    state.installed = LoadState::Loaded(vec![installed("first"), installed("second")]);
+    let mut state = PublicSkillMarketState {
+        installed: LoadState::Loaded(vec![installed("first"), installed("second")]),
+        ..Default::default()
+    };
     state.select_all_installed();
 
     assert!(reduce(&mut state, PublicSkillMessage::RequestBatchDelete).is_empty());

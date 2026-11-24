@@ -184,8 +184,8 @@ impl TaskPetState<'_> {
 
         let new_size = self.task_pet_window_size();
         let new_position = iced::Point::new(
-        ((*self.task_pet_position).x + old_size.width - new_size.width).max(0.0),
-        ((*self.task_pet_position).y + old_size.height - new_size.height).max(0.0),
+        (self.task_pet_position.x + old_size.width - new_size.width).max(0.0),
+        (self.task_pet_position.y + old_size.height - new_size.height).max(0.0),
         );
         *self.task_pet_position = new_position;
         Some((new_size, new_position))
@@ -209,8 +209,8 @@ impl TaskPetState<'_> {
         let max_y =
         (self.window_size.1 - self.task_pet_window_size().height - PET_MARGIN).max(PET_MARGIN);
         let position = iced::Point::new(
-        ((*self.task_pet_drag_start).x + x - anchor.x).clamp(PET_MARGIN, max_x),
-        ((*self.task_pet_drag_start).y + y - anchor.y).clamp(PET_MARGIN, max_y),
+        (self.task_pet_drag_start.x + x - anchor.x).clamp(PET_MARGIN, max_x),
+        (self.task_pet_drag_start.y + y - anchor.y).clamp(PET_MARGIN, max_y),
         );
         self.move_task_pet_to(position);
     }
@@ -230,7 +230,7 @@ impl TaskPetState<'_> {
     }
 
     pub fn move_task_pet_to(&mut self, position: iced::Point) {
-        let delta_x = position.x - (*self.task_pet_position).x;
+        let delta_x = position.x - self.task_pet_position.x;
         if delta_x.abs() >= 0.5 {
             *self.task_pet_drag_direction = if delta_x < 0.0 { -1 } else { 1 };
             *self.task_pet_walk_until_ms = self.now_ms + PET_WALK_ANIMATION_MS;

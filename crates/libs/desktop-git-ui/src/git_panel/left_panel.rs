@@ -194,13 +194,13 @@ pub fn view<'a, External: Clone + 'static>(app: &Input<'a>, help_label: Element<
             })
             .placeholder(i18n.__("类型（必选）"))
             .width(Length::Fixed(148.0));
-        let scope = settings_text_input(i18n.__("scope（可选）"), &app.git_commit_scope)
+        let scope = settings_text_input(i18n.__("scope（可选）"), app.git_commit_scope)
             .on_input(|value| Message::CommitScopeChanged(value))
             .width(Length::Fill);
         row![commit_type_pick, scope].spacing(8).align_y(Alignment::Center)
     });
 
-    let summary_input = settings_text_input(i18n.__("摘要（Summary）"), &app.git_commit_message)
+    let summary_input = settings_text_input(i18n.__("摘要（Summary）"), app.git_commit_message)
         .on_input(|value| Message::CommitMessageChanged(value))
         .width(Length::Fill);
     let desc_input = settings_text_editor(app.git_commit_description_editor)

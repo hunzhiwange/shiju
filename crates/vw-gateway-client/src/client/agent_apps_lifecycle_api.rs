@@ -2,6 +2,7 @@
 use vw_api_app_operations::{AppActionExecutionResult, AppActionPreview, AppActionPreviewRequest, AppActionSubmitRequest, AppOperationStatus};
 use super::GatewayClient;
 #[cfg(any(test, target_arch = "wasm32"))]
+#[cfg(not(target_arch = "wasm32"))]
 use serde::{Serialize, de::DeserializeOwned};
 
 use vw_api_transport::id::TaskId;

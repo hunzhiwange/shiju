@@ -50,7 +50,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n,
         ));
         for member in &preview.members {
             let mut models =
-                column![text(i18n.sprintf("%s · %u 个模型", &[format!("{}", member.name).into(), (member.models.len()).into()]))]
+                column![text(i18n.sprintf("%s · %u 个模型", &[member.name.to_string().into(), (member.models.len()).into()]))]
                     .spacing(6);
             for model in &member.models {
                 models = models.push(text(format!(
@@ -125,20 +125,20 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n,
                 for notice in &state.notices {
                     body = body.push(text(notice_label(i18n, *notice)));
                 }
-                body = body.push(text(i18n.sprintf("恢复状态：%s", &[format!("{}", recovery_label(i18n, state.recovery)).into()])));
+                body = body.push(text(i18n.sprintf("恢复状态：%s", &[recovery_label(i18n, state.recovery).to_string().into()])));
                 if exiting {
                     body = body.push(text(i18n.sprintf("保留聚合名单：%u 项", &[(state.members.len()).into()])));
                 }
             }
             Some(AggregationOutcome::Failed { status, code, recovery }) => {
-                body = body.push(text(i18n.sprintf("目标错误：%s / %s · 恢复状态：%s", &[format!("{}", status).into(), format!("{:?}", code).into(), format!("{}", recovery_label(i18n, *recovery)).into()])));
+                body = body.push(text(i18n.sprintf("目标错误：%s / %s · 恢复状态：%s", &[format!("{}", status).into(), format!("{:?}", code).into(), recovery_label(i18n, *recovery).to_string().into()])));
             }
             _ => {}
         }
     }
     if let Some(state) = &session.exit_state {
         for member in &state.members {
-            body = body.push(text(i18n.sprintf("保留成员：%s", &[format!("{}", member.name).into()])));
+            body = body.push(text(i18n.sprintf("保留成员：%s", &[member.name.to_string().into()])));
         }
     }
     let mut footer = row![

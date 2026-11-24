@@ -1,5 +1,4 @@
 use crate::app::{App, Message, message};
-#[cfg(test)] pub(super) use desktop_navigation::components::top_bar::workspace_mode::{copy, mode_icon, mode_label_font};
 pub(super) fn selector(app: &App) -> iced::Element<'_, Message> {
  desktop_navigation::components::top_bar::workspace_mode::selector(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), app.navigation_mode.workspace_mode, app.navigation_mode.show_workspace_mode_popover).map(|event| {
  use desktop_navigation::components::top_bar::workspace_mode::Message as Event;

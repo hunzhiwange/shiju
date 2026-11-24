@@ -39,9 +39,9 @@ pub async fn recover(
     directory: &str,
     query: &str,
 ) -> Option<Box<RecoveredDraft>> {
-    let publication = read_publication(&client, &session_id, &directory).await.ok()??;
+    let publication = read_publication(client, session_id, directory).await.ok()??;
     let snapshot = gateway_session::GatewaySessionClient::new(client.transport().clone())
-        .session_ui_get_without_raw(&session_id, Some(&directory))
+        .session_ui_get_without_raw(session_id, Some(directory))
         .await
         .ok()??
         .session;

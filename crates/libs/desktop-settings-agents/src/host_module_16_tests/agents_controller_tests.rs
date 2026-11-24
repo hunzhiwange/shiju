@@ -277,7 +277,7 @@ async fn agent_config_cleanup_stale_skill_catalog_is_ignored() {
     let mut app = test_app();
     let fixture = AgentConfigCleanupGateway::start().await;
     app.endpoint = fixture.endpoint.clone();
-    let outer_catalog = vec![skill_item("outer-library", "global", true)];
+    let outer_catalog = [skill_item("outer-library", "global", true)];
     let outer_loading = true;
     let task_a = update(
         &mut app,

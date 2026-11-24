@@ -6,7 +6,6 @@ use super::usage::{UsageRing, get_usage_details, get_usage_rate_percent};
 use session_ui_types::{ChatSessionStep, TokenUsage};
 use super::usage::Model as UsageModelInfo;
 use iced::advanced::renderer::Headless;
-use iced::widget::canvas::Program;
 use iced::{Font, Pixels, Rectangle, Size, Theme};
 
 #[derive(Default)]

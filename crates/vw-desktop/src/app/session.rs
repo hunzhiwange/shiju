@@ -44,8 +44,3 @@ pub(crate) use desktop_session::session::backfill_message_models_from_steps;
 
 #[cfg(test)]
 mod view_cache_tests;
-
-#[cfg(test)]
-pub(crate) use desktop_session::message::chat::stream::assign_message_model_to_step;
-#[cfg(test)]
-pub(crate) use self::view_cache::SessionViewCache;

@@ -41,13 +41,12 @@ pub(super) fn audit_manifest_file(
                         "{rel}: tools[{idx}].command uses shell chaining operators, which are blocked."
                     ));
                 }
-                if security.detect_high_risk_content {
-                    if let Some(pattern) = detect_high_risk_snippet(command) {
+                if security.detect_high_risk_content
+                    && let Some(pattern) = detect_high_risk_snippet(command) {
                         report.findings.push(format!(
                             "{rel}: tools[{idx}].command matches high-risk pattern ({pattern})."
                         ));
                     }
-                }
             } else if security.validate_manifest {
                 report.findings.push(format!("{rel}: tools[{idx}] is missing a command field."));
             }
@@ -63,15 +62,13 @@ pub(super) fn audit_manifest_file(
 
     if let Some(prompts) = parsed.get("prompts").and_then(toml::Value::as_array) {
         for (idx, prompt) in prompts.iter().enumerate() {
-            if security.detect_high_risk_content {
-                if let Some(prompt) = prompt.as_str() {
-                    if let Some(pattern) = detect_high_risk_snippet(prompt) {
+            if security.detect_high_risk_content
+                && let Some(prompt) = prompt.as_str()
+                    && let Some(pattern) = detect_high_risk_snippet(prompt) {
                         report.findings.push(format!(
                             "{rel}: prompts[{idx}] contains high-risk pattern ({pattern})."
                         ));
                     }
-                }
-            }
         }
     }
 

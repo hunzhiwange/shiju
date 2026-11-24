@@ -85,15 +85,14 @@ fn color_to_hex(color: Color) -> String {
 }
 
 fn parse_hex_color(value: &str) -> Color {
-    if value.len() == 7 && value.as_bytes()[0] == b'#' {
-        if let (Ok(r), Ok(g), Ok(b)) = (
+    if value.len() == 7 && value.as_bytes()[0] == b'#'
+        && let (Ok(r), Ok(g), Ok(b)) = (
             u8::from_str_radix(&value[1..3], 16),
             u8::from_str_radix(&value[3..5], 16),
             u8::from_str_radix(&value[5..7], 16),
         ) {
             return Color::from_rgb8(r, g, b);
         }
-    }
     Color::from_rgb8(0x88, 0x88, 0x88)
 }
 

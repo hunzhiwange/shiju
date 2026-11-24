@@ -80,7 +80,7 @@ impl Harness {
                     flag: Some("-lc".into()),
                 }],
             },
-            restart_required: self.case % 5 == 0,
+            restart_required: self.case.is_multiple_of(5),
             capabilities: Some(AppPreferencesCapabilities {
                 terminals: vec![if windows { "wt" } else { "terminal" }.into()],
                 wsl_preferences: windows,
@@ -120,7 +120,7 @@ impl Harness {
                 }
             }
             Message::Capture(screenshot) => {
-                assert!(screenshot.rgba.chunks_exact(4).any(|p| p[0] != p[1]));
+                assert!(screenshot.rgba.as_chunks::<4>().0.iter().any(|p| p[0] != p[1]));
                 image::save_buffer(
                     self.root.join(format!(
                         "{}-{}.png",

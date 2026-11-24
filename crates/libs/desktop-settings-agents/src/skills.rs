@@ -305,11 +305,10 @@ pub fn view<'a>(
     let project_open = input.skill_directory.is_some();
     let global = SkillDirectory::Global(tr(input.locale, "全局目录"));
     let mut projects = input.project_options.to_vec();
-    if let Some(path) = &input.skill_directory {
-        if !projects.contains(path) {
+    if let Some(path) = &input.skill_directory
+        && !projects.contains(path) {
             projects.push(path.clone());
         }
-    }
     let selected = input
         .skill_directory
         .clone()
@@ -396,7 +395,7 @@ pub fn view<'a>(
     } else {
         let cards = skills
             .iter()
-            .map(|skill| skill_card(input.locale, entry, *skill))
+            .map(|skill| skill_card(input.locale, entry, skill))
             .collect::<Vec<_>>();
 
         column![

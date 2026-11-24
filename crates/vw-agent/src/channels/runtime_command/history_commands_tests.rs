@@ -117,7 +117,7 @@ async fn model_server(
 async fn channel_session_history_compact_persists_summary_and_next_chat_reads_it() {
     let (_temp, ctx, msg, id, ids) = fixture().await;
     let (server, requests) = model_server(&ctx, "compressed context").await;
-    let _guard = crate::session::processor::test_llm_stream_guard();
+    let _guard = crate::session::processor::test_llm_stream_guard_async().await;
     crate::session::processor::enqueue_test_llm_stream(vec![
         crate::session::llm::StreamEvent::Delta("compressed context".into()),
         crate::session::llm::StreamEvent::Done {
@@ -168,7 +168,7 @@ async fn channel_session_history_compact_persists_summary_and_next_chat_reads_it
 async fn channel_session_history_blank_compaction_preserves_persisted_history_and_cache() {
     let (_temp, ctx, msg, id, ids) = fixture().await;
     let (server, requests) = model_server(&ctx, " ").await;
-    let _guard = crate::session::processor::test_llm_stream_guard();
+    let _guard = crate::session::processor::test_llm_stream_guard_async().await;
     crate::session::processor::enqueue_test_llm_stream(vec![
         crate::session::llm::StreamEvent::Delta(" ".into()),
         crate::session::llm::StreamEvent::Done {

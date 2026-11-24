@@ -24,7 +24,7 @@ async fn get(
     gateway: &Gateway,
     path: &str,
     query: &str,
-    token: &str,
+    _token: &str,
     company: &str,
     basic: bool,
 ) -> anyhow::Result<(StatusCode, Value)> {

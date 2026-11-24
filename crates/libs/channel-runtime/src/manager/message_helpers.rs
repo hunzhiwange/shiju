@@ -424,11 +424,10 @@ pub async fn load_prior_turns(
         )
         .await;
         // 如果最后一轮是用户消息，在其前面追加记忆上下文
-        if let Some(last_turn) = prior_turns.last_mut() {
-            if last_turn.role == "user" && !memory_context.is_empty() {
+        if let Some(last_turn) = prior_turns.last_mut()
+            && last_turn.role == "user" && !memory_context.is_empty() {
                 last_turn.content = format!("{memory_context}{user_turn_content}");
             }
-        }
     }
 
     prior_turns

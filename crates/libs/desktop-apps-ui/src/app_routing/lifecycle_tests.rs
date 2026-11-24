@@ -75,13 +75,13 @@ fn cc_route_088_errors_do_not_render_server_payloads() {
 };
     let message = error_message(AppRoutingError::Http {
         status: 409,
-        body: Some(ApiErrorBody {
+        body: Some(Box::new(ApiErrorBody {
             error: ApiErrorDetail {
                 code: "address_in_use".into(),
                 message: "fixture-sensitive-payload".into(),
                 details: None,
             },
-        }),
+        })),
     });
     assert!(message.contains("监听地址已占用"));
     assert!(!message.contains("fixture-sensitive-payload"));

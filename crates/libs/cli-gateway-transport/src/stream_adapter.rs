@@ -263,10 +263,10 @@ pub fn adapt_gateway_workflow_stream_event(
             )]
         }
         GatewayWorkflowStreamEvent::TextChunk { text, .. } => {
-            (!text.is_empty()).then(|| UiRuntimeEvent::Delta(text)).into_iter().collect()
+            (!text.is_empty()).then_some(UiRuntimeEvent::Delta(text)).into_iter().collect()
         }
         GatewayWorkflowStreamEvent::Message { answer, .. } => {
-            (!answer.trim().is_empty()).then(|| UiRuntimeEvent::Delta(answer)).into_iter().collect()
+            (!answer.trim().is_empty()).then_some(UiRuntimeEvent::Delta(answer)).into_iter().collect()
         }
         GatewayWorkflowStreamEvent::WorkflowFinished { task_id, workflow_run_id, data, pause } => {
             let status = data

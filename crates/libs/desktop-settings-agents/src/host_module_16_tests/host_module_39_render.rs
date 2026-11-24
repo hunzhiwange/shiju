@@ -52,7 +52,7 @@ async fn desktop_gettext_area_6_settings_render_three_locales_in_both_themes() {
                     &Rectangle::with_size(bounds),
                 );
                 let pixels = renderer.screenshot(Size::new(960, 800), 1.0, Color::TRANSPARENT);
-                assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+                assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
                 let directory = std::env::temp_dir()
                     .join(format!("shiju-gettext-area-6-{}", std::process::id()));
                 std::fs::create_dir_all(&directory).unwrap();

@@ -84,7 +84,7 @@ const LOGIN_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
 /// 在后台加载账号仓储，并将结果送回账号消息循环。
 pub fn load_repository(services: Services) -> Task<AccountMessage> {
-    Task::perform(async move { services.load() }, |result| AccountMessage::RepositoryLoaded(result))
+    Task::perform(async move { services.load() }, AccountMessage::RepositoryLoaded)
 }
 
 fn validate_task(

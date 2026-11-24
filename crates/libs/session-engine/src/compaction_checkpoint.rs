@@ -68,7 +68,7 @@ pub async fn save_with_retained(
         retained_user,
         retained_tail,
     };
-    storage::write_atomic(&["context_checkpoint", &scope, session, &id], &checkpoint)
+    storage::write_atomic(&["context_checkpoint", scope, session, &id], &checkpoint)
         .await
         .map_err(|e| e.to_string())
 }
@@ -78,7 +78,7 @@ pub async fn save_with_retained(
 pub async fn restore(scope: &str, session: &str, history: &[Value]) -> Result<Vec<Value>, String> {
     validate_session(session)?;
     let mut keys =
-        storage::list(&["context_checkpoint", &scope, session]).await.map_err(|e| e.to_string())?;
+        storage::list(&["context_checkpoint", scope, session]).await.map_err(|e| e.to_string())?;
     if keys.is_empty() {
         return normalize_native_history(history);
     }
@@ -142,7 +142,7 @@ pub async fn copy_scoped(
 pub async fn remove_strict(scope: &str, session: &str) -> Result<(), String> {
     validate_session(session)?;
     for prefix in ["skill_checkpoint", "context_checkpoint"] {
-        for key in storage::list_strict(&[prefix, &scope, session])
+        for key in storage::list_strict(&[prefix, scope, session])
             .await
             .map_err(|error| error.to_string())?
         {
@@ -158,7 +158,7 @@ pub async fn remove(scope: &str, session: &str) -> Result<(), String> {
     super::skill_checkpoint::remove(scope, session).await?;
     validate_session(session)?;
     for key in
-        storage::list(&["context_checkpoint", &scope, session]).await.map_err(|e| e.to_string())?
+        storage::list(&["context_checkpoint", scope, session]).await.map_err(|e| e.to_string())?
     {
         storage::remove(&key.iter().map(String::as_str).collect::<Vec<_>>())
             .await

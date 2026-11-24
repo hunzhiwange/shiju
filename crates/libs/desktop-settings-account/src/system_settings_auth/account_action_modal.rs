@@ -57,7 +57,7 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
         }
         ActionPhase::Blocked(reason)
         | ActionPhase::CheckFailed(reason)
-        | ActionPhase::SaveFailed(reason) => body.push(settings_error_banner(i18n.__(*reason))),
+        | ActionPhase::SaveFailed(reason) => body.push(settings_error_banner(i18n.__(reason))),
         _ => body,
     };
 

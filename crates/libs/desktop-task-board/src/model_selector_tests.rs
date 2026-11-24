@@ -33,11 +33,13 @@ fn test_module_is_wired() {
 
 #[test]
 fn selector_kind_reads_model_sources_and_open_flags() {
-    let mut app = Fixture::default();
-    app.draft_model = "openai/gpt-4.1".to_string();
-    app.task_board_bulk_model_input = "anthropic/claude".to_string();
-    app.task_board_model_popover = true;
-    app.task_board_bulk_model_popover = false;
+    let mut app = Fixture {
+        draft_model: "openai/gpt-4.1".to_string(),
+        task_board_bulk_model_input: "anthropic/claude".to_string(),
+        task_board_model_popover: true,
+        task_board_bulk_model_popover: false,
+        ..Default::default()
+    };
 
     assert_eq!(TaskBoardModelSelectorKind::Draft.current_model(app.view()), "openai/gpt-4.1");
     assert_eq!(TaskBoardModelSelectorKind::Edit.current_model(app.view()), "openai/gpt-4.1");

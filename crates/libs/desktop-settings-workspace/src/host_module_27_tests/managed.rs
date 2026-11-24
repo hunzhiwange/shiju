@@ -20,8 +20,10 @@ fn item(id: &str) -> vw_api_worktree::ManagedWorktreeDto {
 }
 
 fn managed_app() -> super::Fixture {
-    let mut app = super::Fixture::default();
-    app.project_path = Some("/项目/same".into());
+    let mut app = super::Fixture {
+        project_path: Some("/项目/same".into()),
+        ..Default::default()
+    };
     app.worktree_settings.managed.groups = vec![group("same")];
     app.worktree_settings.managed.groups[0].items = vec![item("same")];
     app

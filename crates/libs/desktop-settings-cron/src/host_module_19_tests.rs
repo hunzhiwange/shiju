@@ -3,7 +3,7 @@ use crate::state::*;
 use crate::system_settings_cron as domain;
 use crate::update::messages::SettingsMessage;
 use gateway_cron::CronJobDto;
-use iced::widget::{container, text, text_editor};
+use iced::widget::{container, text_editor};
 use iced::{Element, Length, Theme};
 #[derive(Debug, Clone)]
 enum ViewMessage {
@@ -358,7 +358,7 @@ fn map(event: LocalMessage) -> Message {
         }),
     }
 }
-pub fn view(app: &Fixture) -> Element<'_, Message> {
+fn view(app: &Fixture) -> Element<'_, Message> {
     let scheduler = if app.cron_settings.active_tab == CronSettingsTab::Scheduler {
         scheduler::embedded_view(app)
     } else {
@@ -366,7 +366,7 @@ pub fn view(app: &Fixture) -> Element<'_, Message> {
     };
     domain::view(&data(app), scheduler, map)
 }
-pub fn view_overlays<'a>(app: &'a Fixture, base: Element<'a, Message>) -> Element<'a, Message> {
+fn view_overlays<'a>(app: &'a Fixture, base: Element<'a, Message>) -> Element<'a, Message> {
     domain::view_overlays(&data(app), base, map)
 }
 #[cfg(test)]

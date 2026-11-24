@@ -1,4 +1,4 @@
-use super::{test_support, WorkspaceMemoryScope, WorkspaceMemoryError};
+use super::{test_support, WorkspaceMemoryScope};
 use serde_json::json;
 use {
     vw_api_transport::id::ProjectId,

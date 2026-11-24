@@ -54,6 +54,3 @@ fn apply_to_open_editors(app: &mut App, font_size: Option<f32>, line_height: Opt
         line_height,
     );
 }
-
-#[cfg(test)]
-pub(crate) use desktop_editor::metrics::MetricsPreview;

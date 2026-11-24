@@ -198,7 +198,6 @@ fn save_error_banner<'a>(app: &ViewData<'a>) -> Option<Element<'a, Message>> {
                 })
                 .unwrap_or_else(|| desktop_i18n::settings::message(I18n::new(app.desktop_locale), error)),
         )
-        .into()
     })
 }
 
@@ -277,7 +276,7 @@ fn with_runs_modal<'a, M: Clone + 'static>(app: &ViewData<'a>, dialog: Element<'
     let status: Option<Element<'_, Message>> = if s.runs_modal_loading {
         Some(text(tr.__("正在加载历史记录...")).size(13).style(settings_muted_text_style).into())
     } else if let Some(error) = &s.runs_modal_error {
-        Some(settings_error_banner(error).into())
+        Some(settings_error_banner(error))
     } else if s.runs_modal.is_empty() {
         Some(text(tr.__("暂无执行历史")).size(13).style(settings_muted_text_style).into())
     } else {

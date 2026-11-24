@@ -45,8 +45,10 @@ fn file_search_list_len(app: &Fixture) -> usize {
 
 #[test]
 fn file_search_overlay_empty_results_render_one_empty_state_row() {
-    let mut app = Fixture::default();
-    app.file_search_query = "missing".to_string();
+    let mut app = Fixture {
+        file_search_query: "missing".to_string(),
+        ..Default::default()
+    };
 
     let overlay = overlay(&app);
 
@@ -56,10 +58,12 @@ fn file_search_overlay_empty_results_render_one_empty_state_row() {
 
 #[test]
 fn file_search_overlay_non_empty_results_render_each_ranked_entry() {
-    let mut app = Fixture::default();
-    app.project = Some("/repo".to_string());
-    app.file_search_query = "main".to_string();
-    app.file_search_selected_index = 1;
+    let mut app = Fixture {
+        project: Some("/repo".to_string()),
+        file_search_query: "main".to_string(),
+        file_search_selected_index: 1,
+        ..Default::default()
+    };
     app.set_file_index(
         "/repo",
         vec![
@@ -77,9 +81,11 @@ fn file_search_overlay_non_empty_results_render_each_ranked_entry() {
 
 #[test]
 fn file_search_overlay_includes_matching_parent_directory_rows() {
-    let mut app = Fixture::default();
-    app.project = Some("/repo".to_string());
-    app.file_search_query = "src".to_string();
+    let mut app = Fixture {
+        project: Some("/repo".to_string()),
+        file_search_query: "src".to_string(),
+        ..Default::default()
+    };
     app.set_file_index("/repo", vec!["/repo/src/main.rs".to_string()]);
 
     assert_eq!(file_search_list_len(&app), 2);
@@ -87,9 +93,11 @@ fn file_search_overlay_includes_matching_parent_directory_rows() {
 
 #[test]
 fn file_search_overlay_limits_large_result_sets_to_twenty_rows() {
-    let mut app = Fixture::default();
-    app.project = Some("/repo".to_string());
-    app.file_search_query = "file".to_string();
+    let mut app = Fixture {
+        project: Some("/repo".to_string()),
+        file_search_query: "file".to_string(),
+        ..Default::default()
+    };
     app.set_file_index("/repo", (0..30).map(|i| format!("src/file_{i}.rs")).collect());
 
     let overlay = overlay(&app);

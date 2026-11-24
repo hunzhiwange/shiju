@@ -22,7 +22,7 @@ fn extra_handles_empty_input_and_duplicate_keys() {
 
 #[test]
 fn project_error_display_delegates_to_inner_errors() {
-    let io = Error::Io(std::io::Error::new(std::io::ErrorKind::Other, "io boom"));
+    let io = Error::Io(std::io::Error::other("io boom"));
     assert_eq!(io.to_string(), "io boom");
 
     let json_err = serde_json::from_str::<serde_json::Value>("{").unwrap_err();

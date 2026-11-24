@@ -142,7 +142,8 @@ pub fn update_with_client(state: &mut State, current: Option<Identity>, client: 
             state.error = None;
 
             return Task::perform(async move {
-                let response = match client {
+
+                match client {
                     Err(e) => Event::Synced(ticket, id, Err(e)),
                     Ok(client) => {
                         let scan = gateway_usage_scan::GatewayUsageScanClient::new(client.transport().clone());
@@ -173,8 +174,7 @@ pub fn update_with_client(state: &mut State, current: Option<Identity>, client: 
                             }
                         }
                     }
-                };
-                response
+                }
             }, message);
         }
     }

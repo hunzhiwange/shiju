@@ -15,7 +15,8 @@ pub fn refresh(app: &mut super::cron::Inputs<'_>) -> Task<Message> {
 
 pub fn update(app: &mut super::cron::Inputs<'_>, event: CronHistoryMessage) -> Task<Message> {
 
-    let task = match event {
+
+    match event {
         CronHistoryMessage::Refresh => refresh(app),
         CronHistoryMessage::DetailsOpened(key) => {
             app.cron_settings.history.selected_run = Some(key);
@@ -75,8 +76,7 @@ pub fn update(app: &mut super::cron::Inputs<'_>, event: CronHistoryMessage) -> T
             app.cron_settings.history.task_picker_open = value;
             Task::none()
         }
-    };
-    task
+    }
 }
 
 /// Visibility is coordinated by the host; the history domain owns poll cadence and identity.

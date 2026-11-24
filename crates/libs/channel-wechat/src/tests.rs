@@ -386,11 +386,10 @@ async fn markdown_delivery_wechat_text_items_preserve_fences_and_table_rows() {
             pulldown_cmark::Parser::new_ext(text, pulldown_cmark::Options::ENABLE_TABLES)
                 .into_offset_iter()
         {
-            if let pulldown_cmark::Event::Text(value) = event {
-                if value.starts_with("let value_") {
+            if let pulldown_cmark::Event::Text(value) = event
+                && value.starts_with("let value_") {
                     reconstructed_code.push_str(&value);
                 }
-            }
         }
         reconstructed_rows.extend(
             text.lines().filter(|line| line.starts_with("| row-")).map(|line| format!("{line}\n")),

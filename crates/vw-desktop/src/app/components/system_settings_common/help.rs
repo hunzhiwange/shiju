@@ -36,8 +36,3 @@ pub fn with_settings_help_modal<'a>(
         close_message,
     )
 }
-
-#[cfg(test)]
-pub use shared::settings_close_button_style;
-#[cfg(test)]
-pub use shared::settings_close_icon_style;

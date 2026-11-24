@@ -63,5 +63,5 @@ async fn settings_tooltip_draws_readable_chinese_text_on_dark_background() {
     );
 
     let pixels = renderer.screenshot(Size::new(180, 90), 1.0, theme.palette().background);
-    assert!(pixels.chunks_exact(4).any(|pixel| pixel[..3].iter().all(|&value| value > 160)));
+    assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[..3].iter().all(|&value| value > 160)));
 }

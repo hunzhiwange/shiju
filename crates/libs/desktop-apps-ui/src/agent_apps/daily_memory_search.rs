@@ -88,7 +88,7 @@ pub(crate) fn results(i18n: desktop_i18n::I18n, state: &State, busy: bool) -> El
         for result in &state.results {
             body = body.push(
                 column![
-                    button(text(i18n.sprintf("%s · %s 次匹配", &[format!("{}", result.date).into(), format!("{}", result.match_count).into()])))
+                    button(text(i18n.sprintf("%s · %s 次匹配", &[result.date.to_string().into(), format!("{}", result.match_count).into()])))
                         .padding([8, 12])
                         .style(rounded_action_btn_style)
                         .on_press_maybe((!busy).then(|| daily_memory::message(

@@ -206,10 +206,12 @@ fn restore_masked_sensitive_fields_leaves_missing_current_sections_masked() {
 }
 
 fn full_config() -> Config {
-    let mut config = Config::default();
-    config.config_path = "/tmp/current/vibewindow.json".into();
-    config.workspace_dir = "/tmp/current/workspace".into();
-    config.api_key = secret("api-key");
+    let mut config = Config {
+        config_path: "/tmp/current/vibewindow.json".into(),
+        workspace_dir: "/tmp/current/workspace".into(),
+        api_key: secret("api-key"),
+        ..Default::default()
+    };
     config.gateway.paired_tokens =
         vec!["paired-a".to_string(), String::new(), "paired-c".to_string()];
     config.proxy.http_proxy = secret("http://user:pass@proxy.local:8080");

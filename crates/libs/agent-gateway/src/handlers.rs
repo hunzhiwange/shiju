@@ -169,7 +169,7 @@ pub async fn handle_whatsapp_message<E, H, W: WhatsAppWebhook + 'static>(
         return (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response();
     }
 
-    process_channel_messages(&state, &wa, &messages, runtime, dispatch)
+    process_channel_messages(&state, wa, &messages, runtime, dispatch)
     .await;
 
     // Acknowledge the webhook
@@ -242,7 +242,7 @@ pub async fn handle_linq_webhook<E, H, W: WhatsAppWebhook + 'static>(
         return (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response();
     }
 
-    process_channel_messages(&state, &linq, &messages, runtime, dispatch)
+    process_channel_messages(&state, linq, &messages, runtime, dispatch)
     .await;
 
     // Acknowledge the webhook
@@ -300,7 +300,7 @@ pub async fn handle_wati_webhook<E, H, W: WhatsAppWebhook + 'static>(State(state
         return (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response();
     }
 
-    process_channel_messages(&state, &wati, &messages, runtime, dispatch)
+    process_channel_messages(&state, wati, &messages, runtime, dispatch)
     .await;
 
     // Acknowledge the webhook
@@ -366,7 +366,7 @@ pub async fn handle_nextcloud_talk_webhook<E, H, W: WhatsAppWebhook + 'static>(
         return (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response();
     }
 
-    process_channel_messages(&state, &nextcloud_talk, &messages, runtime, dispatch)
+    process_channel_messages(&state, nextcloud_talk, &messages, runtime, dispatch)
     .await;
 
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
@@ -421,7 +421,7 @@ pub async fn handle_qq_webhook<E, H, W: WhatsAppWebhook + 'static>(
         return (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response();
     }
 
-    process_channel_messages(&state, &qq, &messages, runtime, dispatch)
+    process_channel_messages(&state, qq, &messages, runtime, dispatch)
     .await;
 
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()

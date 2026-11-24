@@ -149,7 +149,7 @@ pub fn view<'a>(
     let mut chart_section = column![].width(Length::Fill).spacing(8);
     match &state.result {
         Some(Err(error)) => {
-            chart_section = chart_section.push(text(i18n.format("用量加载失败：%s", &[(format!("{}", error)).into()]).expect("valid display template")).size(12));
+            chart_section = chart_section.push(text(i18n.format("用量加载失败：%s", &[(error.to_string()).into()]).expect("valid display template")).size(12));
         }
         Some(Ok(summary)) if summary.counts.unknown_cost_requests > 0 => {
             chart_section = chart_section.push(
@@ -244,7 +244,7 @@ fn header_segment_style(theme: &Theme, status: button::Status, first: bool) -> b
     style
 }
 
-fn detail_tabs(i18n: desktop_i18n::I18n, active: DetailTab, counts: [Option<u64>; 3]) -> Element<'static, Event> {
+fn detail_tabs(_i18n: desktop_i18n::I18n, active: DetailTab, counts: [Option<u64>; 3]) -> Element<'static, Event> {
     let mut tabs = row![].spacing(16).padding(iced::padding::left(super::logs::TABLE_INSET));
     for ((tab, label), count) in [
         (DetailTab::Logs, "请求日志"),

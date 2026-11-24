@@ -558,11 +558,10 @@ pub fn extract_tool_context_summary(history: &[ChatMessage], start_index: usize)
             for segment in content.split(open_tag) {
                 if let Some(json_end) = segment.find(close_tag) {
                     let json_str = segment[..json_end].trim();
-                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(json_str) {
-                        if let Some(name) = val.get("name").and_then(|n| n.as_str()) {
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(json_str)
+                        && let Some(name) = val.get("name").and_then(|n| n.as_str()) {
                             push_unique_tool_name(tool_names, name);
                         }
-                    }
                 }
             }
         }
@@ -572,8 +571,8 @@ pub fn extract_tool_context_summary(history: &[ChatMessage], start_index: usize)
     ///
     /// 解析包含 `tool_calls` 字段的 JSON 对象，提取工具名称
     fn collect_tool_names_from_native_json(content: &str, tool_names: &mut Vec<String>) {
-        if let Ok(val) = serde_json::from_str::<serde_json::Value>(content) {
-            if let Some(calls) = val.get("tool_calls").and_then(|c| c.as_array()) {
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(content)
+            && let Some(calls) = val.get("tool_calls").and_then(|c| c.as_array()) {
                 for call in calls {
                     let name = call
                         .get("function")
@@ -585,7 +584,6 @@ pub fn extract_tool_context_summary(history: &[ChatMessage], start_index: usize)
                     }
                 }
             }
-        }
     }
 
     /// 从工具结果标签中收集工具名称
@@ -761,8 +759,8 @@ pub fn sanitize_tool_json_value(
     let object = value.as_object()?;
 
     // 检查是否为包含 tool_calls 的消息对象
-    if let Some(tool_calls) = object.get("tool_calls").and_then(|value| value.as_array()) {
-        if !tool_calls.is_empty()
+    if let Some(tool_calls) = object.get("tool_calls").and_then(|value| value.as_array())
+        && !tool_calls.is_empty()
             && tool_calls.iter().all(|call| is_tool_call_payload(call, known_tool_names))
         {
             // 提取 content 字段作为替换内容
@@ -774,7 +772,6 @@ pub fn sanitize_tool_json_value(
                 .to_string();
             return Some((content, true));
         }
-    }
 
     // 检查是否为工具结果载荷
     if is_tool_result_payload(object, saw_tool_call_payload) {

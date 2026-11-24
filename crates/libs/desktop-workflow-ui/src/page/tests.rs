@@ -9,8 +9,8 @@ use desktop_workflow_state::state::{
     WorkflowRunStatus, WorkflowSavedAppSummary, WorkflowVariableEditorDraft,
     WorkflowVariableEditorMode,
 };
-use iced::widget::{button, text_editor};
-use iced::{Point, Size, Theme};
+use iced::widget::text_editor;
+use iced::{Point, Size};
 use serde_yaml::Value;
 
 #[test]

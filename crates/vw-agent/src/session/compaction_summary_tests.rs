@@ -8,7 +8,7 @@ fn reliability() -> ReliabilityConfig {
 #[tokio::test]
 #[allow(clippy::await_holding_lock)] // Serialize the scripted model boundary.
 async fn compaction_dropped_async_request_cancels_the_model_worker() {
-    let _guard = processor::test_llm_stream_guard();
+    let _guard = processor::test_llm_stream_guard_async().await;
     let session = format!("cancel-summary-{}", uuid::Uuid::new_v4());
     let stream = std::sync::Arc::new(processor::ChannelCancelStream::default());
     processor::register_channel_cancel_stream(&session, stream.clone());
@@ -45,7 +45,7 @@ fn model_limit(context: u64, input: u64, output: u64) -> ModelLimit {
 #[tokio::test]
 #[allow(clippy::await_holding_lock)] // Serialize the scripted model boundary.
 async fn compaction_failed_attempt_leaves_previous_checkpoint_restorable() {
-    let _guard = processor::test_llm_stream_guard();
+    let _guard = processor::test_llm_stream_guard_async().await;
     let session = format!("failed-checkpoint-{}", uuid::Uuid::new_v4());
     let source = vec![json!({"role":"user","content":"original request"})];
     crate::session::compaction_checkpoint::save(&session, &source, "previous decision", None)

@@ -125,7 +125,7 @@ fn cc_mcp_t39_revision_checks_reject_revoked_success_and_cancel_owned_work() -> 
             let record = run_sync_database(|| Ok(fixture.catalog.create(&scope, http_draft("held", &url))))?.unwrap();
             let permit = json!({"project_id":"project","app_id":"claude","record_id":"held",
                 "connection_revision":record.connection_revision,"endpoint_sha256":hex::encode(Sha256::digest(url.as_bytes()))});
-            fixture.policy(&[permit.clone()])?;
+            fixture.policy(std::slice::from_ref(&permit))?;
             let headers = HeaderMap::from_iter([("x-agent-apps-token".parse().unwrap(), HeaderValue::from_static(TOKEN))]);
             let start = |generation| network_probe::start_connection_checks(
                 &fixture.jobs, database.clone(), Some(fixture.root.path().join("policy.json")),

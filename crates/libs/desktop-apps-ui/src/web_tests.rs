@@ -7,8 +7,10 @@ use iced::widget::text_editor;
 use super::{Message as ViewMessage, update};
 
 fn app() -> App {
-    let mut app = App::default();
-    app.show_web_links_menu = false;
+    let mut app = App {
+        show_web_links_menu: false,
+        ..Default::default()
+    };
     app.web_bookmarks.clear();
     app.web_bookmark_title_input.clear();
     app.web_bookmark_url_input.clear();

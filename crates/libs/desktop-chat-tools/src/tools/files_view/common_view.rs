@@ -152,7 +152,7 @@ pub(super) fn build_common_tool_view<'a, Host: Clone + 'static>(
         .map(|value| tool_visual_state(tool_status(value)))
         .unwrap_or_else(|| tool_visual_state(""));
     let mut summary =
-        tool_value.as_ref().and_then(|value| tool_summary_text(value)).unwrap_or_default();
+        tool_value.as_ref().and_then(tool_summary_text).unwrap_or_default();
     if summary.is_empty() {
         summary = crate::tools::localized_tool_inline_summary(
             view_ctx.app.i18n,
@@ -198,7 +198,7 @@ pub(super) fn build_common_tool_view<'a, Host: Clone + 'static>(
     let filter_row: Element<'a, Message<Host>> = if render_state.is_search {
         let filter_input = text_input(
             view_ctx.app.i18n.__("筛选文件..."),
-            &view_ctx.app.filter,
+            view_ctx.app.filter,
         )
         .on_input(|value| Message::ToolFilesFilterChanged(value))
         .size(12)

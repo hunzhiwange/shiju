@@ -43,7 +43,7 @@ pub fn update(
         if old != context || !form.finish(generation, saved, result) {
             return Task::none();
         }
-        return if let Some(e) = form.error.clone() {
+        return if let Some(e) = form.error {
             error(notice, e)
         } else if saved {
             info(notice, "Codex 设置已保存，请新建 Codex 会话后使用。")

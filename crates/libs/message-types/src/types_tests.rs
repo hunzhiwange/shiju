@@ -93,15 +93,15 @@ fn assistant_info() -> AssistantInfo {
             message: "rate limited".to_string(),
             status_code: Some(429),
             is_retryable: true,
-            response_headers: Some(std::collections::HashMap::from([(
+            response_headers: Some(Box::new(std::collections::HashMap::from([(
                 "retry-after".to_string(),
                 "1".to_string(),
-            )])),
+            )]))),
             response_body: Some("body".to_string()),
-            metadata: Some(std::collections::HashMap::from([(
+            metadata: Some(Box::new(std::collections::HashMap::from([(
                 "request".to_string(),
                 "abc".to_string(),
-            )])),
+            )]))),
         }),
         parent_id: "user-1".to_string(),
         model_id: "gpt".to_string(),

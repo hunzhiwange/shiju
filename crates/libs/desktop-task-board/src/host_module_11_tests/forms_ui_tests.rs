@@ -395,7 +395,7 @@ async fn ui_refresh_34_preserves_values_and_disabled_states() {
         messages.as_slice(),
         [Message::TaskBoard(TaskBoardMessage::ToggleImportMode(true))]
     ));
-    let _ = app.update(messages.into_iter().next().unwrap());
+    app.update(messages.into_iter().next().unwrap());
 
     let mut ui = scene(super::panel_fixture::page(&app), &mut renderer, size);
     capture(&mut ui, &mut renderer, &theme, size, "import", mouse::Cursor::Unavailable);
@@ -453,7 +453,7 @@ async fn ui_refresh_34_preserves_values_and_disabled_states() {
         messages.as_slice(),
         [Message::TaskBoard(TaskBoardMessage::ToggleImportMode(false))]
     ));
-    let _ = app.update(messages.into_iter().next().unwrap());
+    app.update(messages.into_iter().next().unwrap());
     assert_eq!(app.task_board_draft.priority, "42");
     assert_eq!(app.task_board_draft.model, "fixture/example-model");
     assert_eq!(app.task_board_draft.acp_agent.as_deref(), Some("example-executor"));

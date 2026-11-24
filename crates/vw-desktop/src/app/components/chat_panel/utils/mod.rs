@@ -35,8 +35,3 @@ pub use ui::{
     bold_font, capped_scroll_height, chat_context_menu, chat_context_target_key,
     copy_tooltip_content,
 };
-
-#[cfg(test)]
-pub(crate) use text::markdown_code_fence;
-#[cfg(test)]
-pub(crate) use ui::text_context_menu;

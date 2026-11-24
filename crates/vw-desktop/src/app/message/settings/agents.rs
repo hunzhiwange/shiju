@@ -50,6 +50,3 @@ pub(super) fn handle_agents_config_saved(app: &mut App, result: Result<(), Strin
  let pending = std::mem::take(&mut input.effects); drop(input); effects(app, pending, task)
 }
 #[cfg(test)] #[path="agents_tests.rs"] mod tests;
-
-#[cfg(test)]
-pub(in crate::app) use domain::merge_catalog_profiles;

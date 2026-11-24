@@ -137,8 +137,10 @@ fn option_toggled_replaces_single_choice_and_toggles_multi_choice() {
 }
 #[test]
 fn option_toggled_without_request_or_matching_answer_is_ignored() {
-    let mut app = Fixture::default();
-    app.question_modal_answers = vec![vec!["unchanged".to_string()]];
+    let mut app = Fixture {
+        question_modal_answers: vec![vec!["unchanged".to_string()]],
+        ..Default::default()
+    };
 
     super::handle_question_option_toggled(&mut app.state(), 0, "new".to_string());
 
@@ -152,8 +154,10 @@ fn option_toggled_without_request_or_matching_answer_is_ignored() {
 }
 #[test]
 fn custom_changed_ignores_out_of_range_indexes() {
-    let mut app = Fixture::default();
-    app.question_modal_custom = vec!["old".to_string()];
+    let mut app = Fixture {
+        question_modal_custom: vec!["old".to_string()],
+        ..Default::default()
+    };
 
     super::handle_question_custom_changed(&mut app.state(), 0, "new".to_string());
     super::handle_question_custom_changed(&mut app.state(), 3, "ignored".to_string());

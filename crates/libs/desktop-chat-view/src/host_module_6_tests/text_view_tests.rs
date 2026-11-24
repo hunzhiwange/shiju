@@ -68,7 +68,7 @@ async fn text_tool_error_card_dark_chinese_detail_render_path_is_safe() {
         &viewport,
     );
     let pixels = renderer.screenshot(Size::new(960, 720), 1.0, Color::TRANSPARENT);
-    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
 
     if let Ok(path) = std::env::var("VW_TEXT_TOOL_DETAIL_SCREENSHOT") {
         image::save_buffer(path, &pixels, 960, 720, image::ColorType::Rgba8)

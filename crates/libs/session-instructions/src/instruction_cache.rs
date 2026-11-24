@@ -86,7 +86,7 @@ impl InstructionCache {
         hook: Option<&dyn InstructionsLoadedHook>,
     ) -> (Option<Resolved>, LoadReason) {
         let key = CacheKey::new(workspace, session, filepath);
-        if self.invalidations.get(&key).is_none()
+        if !self.invalidations.contains_key(&key)
             && let Some(entry) = self.entries.get(&key)
             && entry.is_current()
         {

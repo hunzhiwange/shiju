@@ -16,8 +16,10 @@ pub fn create_task_draft_with_preferences(
     model: String,
     acp_agent: Option<String>,
 ) -> TaskDraft {
-    let mut draft = TaskDraft::default();
-    draft.model = normalize_task_model(&model);
+    let mut draft = TaskDraft {
+        model: normalize_task_model(&model),
+        ..Default::default()
+    };
     set_draft_executor_selection(&mut draft, acp_agent);
     draft
 }

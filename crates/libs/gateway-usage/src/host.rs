@@ -15,14 +15,17 @@ pub struct File {
     pub identity: ExternalSessionIdentity,
 }
 
+type AuthorizeUsageMaintenance = fn(Option<&Path>, &HeaderMap, &ProjectScope, &str) -> Result<(String, PathBuf, Vec<Source>, PathBuf), StatusCode>;
+type DiscoverUsageFiles = fn(&ProjectScope, &str, SessionProvider, &[(PathBuf, Source)]) -> anyhow::Result<Vec<File>>;
+
 #[derive(Clone, Copy)]
 pub struct Host {
     pub database: fn() -> anyhow::Result<agent_database::GlobalDatabase>,
     pub authorize_read: fn(Option<&Path>, &HeaderMap, &ProjectScope, &str) -> Result<(), StatusCode>,
     pub authorize_events: fn(Option<&Path>, &HeaderMap, &ProjectScope, &str) -> Result<String, StatusCode>,
-    pub authorize_maintenance: fn(Option<&Path>, &HeaderMap, &ProjectScope, &str) -> Result<(String, PathBuf, Vec<Source>, PathBuf), StatusCode>,
+    pub authorize_maintenance: AuthorizeUsageMaintenance,
     pub authorized_owner: fn(Option<&Path>, TenantScope, &HeaderMap) -> Result<ScanOwner, StatusCode>,
     pub apps: fn() -> Vec<&'static str>,
     pub schedules: fn() -> &'static Mutex<HashMap<ScanOwner, ScanSchedule>>,
-    pub discover: fn(&ProjectScope, &str, SessionProvider, &[(PathBuf, Source)]) -> anyhow::Result<Vec<File>>,
+    pub discover: DiscoverUsageFiles,
 }

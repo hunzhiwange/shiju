@@ -30,7 +30,7 @@ fn multimodal_config_from_state(
 }
 
 fn persist_multimodal_settings(state: &mut MultimodalSettingsState) -> Option<MultimodalConfig> {
-    let Ok(config) = multimodal_config_from_state(&state) else {
+    let Ok(config) = multimodal_config_from_state(state) else {
         return None;
     };
 

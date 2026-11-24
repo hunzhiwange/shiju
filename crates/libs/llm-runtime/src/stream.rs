@@ -9,9 +9,9 @@
 //!
 //! # 主要组件
 //!
-//! - [`stream`]: 核心流式请求函数，处理完整的请求生命周期
-//! - [`should_abort`]: 检查请求是否应被中断
-//! - [`is_retryable_assistant_error`]: 判断错误是否可重试
+//! - [`stream`][]: 核心流式请求函数，处理完整的请求生命周期
+//! - [`should_abort`][]: 检查请求是否应被中断
+//! - [`is_retryable_assistant_error`][]: 判断错误是否可重试
 //!
 //! # 架构说明
 //!
@@ -334,16 +334,14 @@ async fn stream_inner<H: Host>(
 
     // 第四层：如果用户指定了 variant 且非 small 模式，合并 variant 特定配置
     // 这允许为不同用户群体或场景提供定制化选项
-    if let Some(variant) = input.user.variant.as_ref() {
-        if !input.small {
-            if let Some(opts) = input.model.variants.get(variant) {
+    if let Some(variant) = input.user.variant.as_ref()
+        && !input.small
+            && let Some(opts) = input.model.variants.get(variant) {
                 merge_deep_value(
                     &mut merged_options,
                     &Value::Object(opts.iter().map(|(k, v)| (k.clone(), v.clone())).collect()),
                 );
             }
-        }
-    }
 
     // 保留请求来源及按 CLI 能力解析的默认值，Provider/model/variant 不能覆盖它。
     if request_options_value_enable_acp(&merged_options)
@@ -357,11 +355,10 @@ async fn stream_inner<H: Host>(
 
     // Codex 模式特殊处理：移除 instructions 选项
     // Codex API 不支持该参数，必须从合并后的选项中删除
-    if is_codex {
-        if let Some(obj) = merged_options.as_object_mut() {
+    if is_codex
+        && let Some(obj) = merged_options.as_object_mut() {
             obj.remove("instructions");
         }
-    }
 
     // ========== 提取 LLM 参数 ==========
 
@@ -841,9 +838,7 @@ pub fn assert_no_raw_image_paths(messages: &Value) -> Result<(), String> {
             if reference.starts_with("data:") {
                 continue;
             }
-            return Err(format!(
-                "multimodal provider boundary rejected raw image reference (expected data URI or asset text)"
-            ));
+            return Err("multimodal provider boundary rejected raw image reference (expected data URI or asset text)".to_string());
         }
     }
     Ok(())

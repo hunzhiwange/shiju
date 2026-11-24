@@ -137,14 +137,13 @@ fn tokenize_segment(segment: &str, depth: usize) -> Option<Vec<Token>> {
             continue;
         }
 
-        if let Some((compound_op, len)) = read_compound_operator(segment, index) {
-            if matches!(compound_op, "&&" | "||" | "|" | ";") {
+        if let Some((compound_op, len)) = read_compound_operator(segment, index)
+            && matches!(compound_op, "&&" | "||" | "|" | ";") {
                 // 复合操作符在上层已经切分，这里把它当作 token 边界以避免拼入参数。
                 push_token(&mut tokens, &mut current);
                 index += len;
                 continue;
             }
-        }
 
         if let Some((inner, end)) = read_process_substitution(segment, index) {
             current.text.push_str(&segment[index..end]);
@@ -159,11 +158,10 @@ fn tokenize_segment(segment: &str, depth: usize) -> Option<Vec<Token>> {
         if let Some((inner, end)) = read_command_substitution(segment, index) {
             current.text.push_str(&segment[index..end]);
             current.has_command_substitution = true;
-            if depth < MAX_SUBCOMMAND_DEPTH {
-                if let Some(info) = parse_command_info(inner.trim(), depth + 1) {
+            if depth < MAX_SUBCOMMAND_DEPTH
+                && let Some(info) = parse_command_info(inner.trim(), depth + 1) {
                     current.subcommands.push(info);
                 }
-            }
             index = end;
             continue;
         }
@@ -172,11 +170,10 @@ fn tokenize_segment(segment: &str, depth: usize) -> Option<Vec<Token>> {
             let (inner, end) = read_backticks(segment, index)?;
             current.text.push_str(&segment[index..end]);
             current.has_command_substitution = true;
-            if depth < MAX_SUBCOMMAND_DEPTH {
-                if let Some(info) = parse_command_info(inner.trim(), depth + 1) {
+            if depth < MAX_SUBCOMMAND_DEPTH
+                && let Some(info) = parse_command_info(inner.trim(), depth + 1) {
                     current.subcommands.push(info);
                 }
-            }
             index = end;
             continue;
         }
@@ -207,14 +204,13 @@ fn tokenize_segment(segment: &str, depth: usize) -> Option<Vec<Token>> {
             continue;
         }
 
-        if ch == '$' {
-            if let Some((expansion, end)) = read_variable_expansion(segment, index) {
+        if ch == '$'
+            && let Some((expansion, end)) = read_variable_expansion(segment, index) {
                 current.text.push_str(&expansion);
                 current.has_variable_expansion = true;
                 index = end;
                 continue;
             }
-        }
 
         if ch == '<' || ch == '>' {
             if current.text.is_empty() || current.text.chars().all(|value| value.is_ascii_digit()) {
@@ -509,11 +505,10 @@ fn read_double_quoted(input: &str, start: usize, depth: usize) -> Option<(Token,
         if let Some((inner, end)) = read_command_substitution(input, index) {
             token.text.push_str(&input[index..end]);
             token.has_command_substitution = true;
-            if depth < MAX_SUBCOMMAND_DEPTH {
-                if let Some(info) = parse_command_info(inner.trim(), depth + 1) {
+            if depth < MAX_SUBCOMMAND_DEPTH
+                && let Some(info) = parse_command_info(inner.trim(), depth + 1) {
                     token.subcommands.push(info);
                 }
-            }
             index = end;
             continue;
         }
@@ -572,12 +567,12 @@ fn read_command_substitution(input: &str, start: usize) -> Option<(&str, usize)>
     if !input[start..].starts_with("$(") {
         return None;
     }
-    read_parenthesized(input, start + 2).map(|(inner, end)| (inner, end))
+    read_parenthesized(input, start + 2)
 }
 
 fn read_process_substitution(input: &str, start: usize) -> Option<(&str, usize)> {
     if input[start..].starts_with("<(") || input[start..].starts_with(">(") {
-        return read_parenthesized(input, start + 2).map(|(inner, end)| (inner, end));
+        return read_parenthesized(input, start + 2);
     }
     None
 }

@@ -30,6 +30,12 @@ pub struct InFlightTaskCompletion {
     pub notify: tokio::sync::Notify,
 }
 
+impl Default for InFlightTaskCompletion {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InFlightTaskCompletion {
     /// 创建新的未完成状态实例。
     pub fn new() -> Self {

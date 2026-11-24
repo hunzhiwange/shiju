@@ -57,9 +57,7 @@ pub fn split_think(raw: &str) -> (Vec<String>, String, bool) {
         if !s.starts_with("tool ") {
             return None;
         }
-        let Some(line_end) = s.find('\n') else {
-            return None;
-        };
+        let line_end = s.find('\n')?;
         let mut i = line_end + 1;
         let mut buf = String::new();
         for _ in 0..64 {
@@ -100,9 +98,7 @@ pub fn split_think(raw: &str) -> (Vec<String>, String, bool) {
                 search_from = pos + 1;
                 continue;
             }
-            let Some(tag_end_rel) = s[pos..].find('>') else {
-                return None;
-            };
+            let tag_end_rel = s[pos..].find('>')?;
             let tag_end = pos + tag_end_rel;
             let tag = &s[pos + "<think".len()..tag_end];
             if is_think_tag_remainder(tag) {
@@ -117,9 +113,7 @@ pub fn split_think(raw: &str) -> (Vec<String>, String, bool) {
         let mut search_from = 0usize;
         while let Some(pos_rel) = s[search_from..].find("</think") {
             let pos = search_from + pos_rel;
-            let Some(tag_end_rel) = s[pos..].find('>') else {
-                return None;
-            };
+            let tag_end_rel = s[pos..].find('>')?;
             let tag_end = pos + tag_end_rel;
             let tag = &s[pos + "</think".len()..tag_end];
             if is_think_tag_remainder(tag) {

@@ -347,8 +347,8 @@ fn clamp_limits_values_to_bounds() {
 
 #[test]
 fn round_precision_rounds_to_requested_decimal_places() {
-    assert_eq!(round_precision(3.14159, 0), 3.0);
-    assert_eq!(round_precision(3.14159, 2), 3.14);
+    assert_eq!(round_precision(3.2467, 0), 3.0);
+    assert_eq!(round_precision(3.2467, 2), 3.25);
     assert_eq!(round_precision(-3.146, 2), -3.15);
     assert_eq!(round_precision(1.23456, 4), 1.2346);
 }
@@ -356,7 +356,7 @@ fn round_precision_rounds_to_requested_decimal_places() {
 #[test]
 fn fmt_value_trims_fractional_suffixes() {
     assert_eq!(fmt_value(42.9, 0), "43");
-    assert_eq!(fmt_value(3.140, 4), "3.14");
+    assert_eq!(fmt_value(3.250, 4), "3.25");
     assert_eq!(fmt_value(10.0, 2), "10");
     assert_eq!(fmt_value(-2.556, 2), "-2.56");
 }

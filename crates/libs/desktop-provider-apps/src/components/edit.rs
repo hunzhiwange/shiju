@@ -47,7 +47,7 @@ pub fn card_with_selection<'a>(
         ));
     }
     if delete {
-        fields = fields.push(settings_panel(text(i18n.format("确认删除「%s」？执行端会检查当前选择与引用，失败时保留此选择。", &[(format!("{}", form.fields.name)).into()]).expect("valid display template"))));
+        fields = fields.push(settings_panel(text(i18n.format("确认删除「%s」？执行端会检查当前选择与引用，失败时保留此选择。", &[(form.fields.name.to_string()).into()]).expect("valid display template"))));
     } else {
         let mut basic = column![].spacing(8);
         if matches!(form.mode, Mode::Create | Mode::Copy { .. }) {

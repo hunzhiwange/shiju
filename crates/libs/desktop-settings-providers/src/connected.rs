@@ -368,7 +368,7 @@ pub fn view<'a>(s: &'a crate::provider_state::ProviderSettingsState, style: View
 
         let description = provider_id
             .map(|pid| format!("{} ID: {}", connection_text(style.locale, "提供商"), pid))
-            .unwrap_or_else(|| owned_text(style.locale, "匹配模式：%s", &[pat.clone()]));
+            .unwrap_or_else(|| owned_text(style.locale, "匹配模式：%s", std::slice::from_ref(pat)));
 
         popular_panel = popular_panel.push(settings_divider()).push(provider_item_row(
             logo_id,

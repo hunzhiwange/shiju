@@ -48,16 +48,20 @@ fn render_count(
 
 #[test]
 fn render_insert_ops_returns_one_row_per_inserted_line_in_split_view() {
-    let mut app = Fixture::default();
-    app.merge_view = false;
+    let mut app = Fixture {
+        merge_view: false,
+        ..Default::default()
+    };
 
     assert_eq!(render_count(&app, "src/lib.rs", 0, 2, &["new one", "new two"]), 2);
 }
 
 #[test]
 fn render_insert_ops_returns_one_row_per_inserted_line_in_merge_view() {
-    let mut app = Fixture::default();
-    app.merge_view = true;
+    let mut app = Fixture {
+        merge_view: true,
+        ..Default::default()
+    };
 
     assert_eq!(render_count(&app, "src/lib.rs", 1, 2, &["keep", "new one", "new two"]), 2);
 }
@@ -86,9 +90,11 @@ fn render_insert_ops_covers_explicit_selection_and_line_staging() {
 
 #[test]
 fn render_insert_ops_covers_hover_and_file_staging_without_selection() {
-    let mut app = Fixture::default();
-    app.git_diff_hovered_line = Some(("src/lib.rs".to_string(), 0, false));
-    app.staged_files_selected = vec!["src/lib.rs".to_string()];
+    let mut app = Fixture {
+        git_diff_hovered_line: Some(("src/lib.rs".to_string(), 0, false)),
+        staged_files_selected: vec!["src/lib.rs".to_string()],
+        ..Default::default()
+    };
 
     assert_eq!(render_count(&app, "src/lib.rs", 0, 1, &["new one"]), 1);
 }

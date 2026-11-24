@@ -1,6 +1,6 @@
 //! Desktop facade for the native capture backend.
 #[cfg(test)]
-use super::{capture_native, capture};
+use super::capture_native;
 #[cfg(not(test))]
 pub use audio_capture::{
     Capture, LiveCapture,
@@ -13,8 +13,8 @@ pub use audio_capture::{
 mod test_backend;
 #[cfg(test)]
 pub use test_backend::{
-    Capture, CaptureError, FRAME_SAMPLES, InputDevice, LiveCapture, LiveFrames, MAX_SECONDS,
-    Recording, SAMPLE_RATE, VolumeSummary, input_devices,
+    Capture, CaptureError, InputDevice, LiveCapture,
+    Recording,
 };
 #[cfg(test)]
 pub(super) use test_backend::{CaptureBackend, CaptureSink, PcmConverter, device_lease};

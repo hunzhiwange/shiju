@@ -4,7 +4,6 @@
 use anyhow::Result;
 
 use super::{initialize_schema, reject_unsupported_schema};
-use agent_database::test_support::PostgresTestDatabase;
 use agent_project::store::ProjectStore;
 
 #[test]

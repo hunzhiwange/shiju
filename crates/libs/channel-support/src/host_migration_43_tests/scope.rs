@@ -4,7 +4,6 @@ use super::session::channel_message;
 use crate::{runtime_state::ChannelRuntimeContext, scope::*, routing::get_route_selection};
 use crate::routing_context::set_route_selection;
 use model_types::ChatMessage;
-use std::sync::Arc;
 use channel_types as traits;
 use anyhow::Result;
 use session_store::ui_store::{current_tenant_scope, with_tenant_scope};

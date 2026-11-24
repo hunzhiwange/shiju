@@ -28,7 +28,7 @@ fn router(path: &Path, db: GlobalDatabase) -> Router {
 }
 async fn call(
     app: &Router,
-    token: &str,
+    _token: &str,
     company: &str,
     host: &str,
     patch: Option<Value>,

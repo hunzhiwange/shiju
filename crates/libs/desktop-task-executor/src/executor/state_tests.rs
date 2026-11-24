@@ -160,8 +160,7 @@ fn get_all_running_logs_leaves_non_running_task_logs_queued() {
 
 #[test]
 fn task_log_stream_variants_keep_payloads() {
-    let variants = vec![
-        super::TaskLogStream::SubTaskStarted {
+    let variants = [super::TaskLogStream::SubTaskStarted {
             subtask_id: "s1".to_string(),
             content: "do work".to_string(),
             timestamp_ms: 10,
@@ -171,8 +170,7 @@ fn task_log_stream_variants_keep_payloads() {
             subtask_id: "s3".to_string(),
             error: "bad".to_string(),
             timestamp_ms: 30,
-        },
-    ];
+        }];
 
     assert!(matches!(
         &variants[0],

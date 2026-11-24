@@ -115,12 +115,11 @@ pub(super) fn fit(messages: &mut Vec<Value>, budget: u64) -> Result<bool, String
 /// Enforce a large decrease when possible, but retain a viable prompt for tiny histories.
 pub(super) fn recover(messages: &mut Vec<Value>, budget: u64) -> Result<bool, String> {
     let mut candidate = messages.clone();
-    if let Ok(changed) = fit(&mut candidate, budget) {
-        if changed {
+    if let Ok(changed) = fit(&mut candidate, budget)
+        && changed {
             *messages = candidate;
             return Ok(true);
         }
-    }
     let source_len = messages.len().saturating_sub(1);
     if shrink_largest_content(&mut messages[..source_len], true)
         || remove_oldest_group(messages)

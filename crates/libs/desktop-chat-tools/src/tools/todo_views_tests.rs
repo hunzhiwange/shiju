@@ -77,7 +77,7 @@ fn todoread_view_sorts_and_renders_parsed_todos() {
 #[test]
 fn tool_expanded_delegates_to_todo_tool_expanded_app_state() {
     let mut app = app();
-    let key = (0_u64 << 32) | 0;
+    let key = 0;
 
     assert!(!tool_expanded(&app.input(), key, false));
     app.chat_tool_expanded.insert(key);

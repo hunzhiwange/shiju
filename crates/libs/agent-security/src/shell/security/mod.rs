@@ -110,8 +110,10 @@ impl SecurityPipeline {
         strict: bool,
         block_quoted_shell_newlines: bool,
     ) -> Self {
-        let mut validators = BashValidatorChecksConfig::default();
-        validators.quoted_newline = block_quoted_shell_newlines;
+        let validators = BashValidatorChecksConfig {
+            quoted_newline: block_quoted_shell_newlines,
+            ..Default::default()
+        };
         Self::new_with_config(strict, &validators)
     }
 

@@ -151,12 +151,14 @@ fn mcp_tab_content_includes_servers_and_management_actions() {
 
 #[test]
 fn mcp_tab_content_handles_loading_saving_errors_status_and_parse_empty_states() {
-    let mut app = Fixture::default();
-    app.loading = true;
-    app.saving = true;
-    app.save_error = Some("very long gateway mcp error message".to_string());
-    app.status_message = Some("MCP 已同步".to_string());
-    app.mcp_text = String::from("{not-json");
+    let mut app = Fixture {
+        loading: true,
+        saving: true,
+        save_error: Some("very long gateway mcp error message".to_string()),
+        status_message: Some("MCP 已同步".to_string()),
+        mcp_text: String::from("{not-json"),
+        ..Default::default()
+    };
 
     assert_eq!(mcp_tab_content(&app.state()).len(), 6);
 
@@ -185,8 +187,10 @@ fn gateway_and_plugin_tabs_cover_empty_and_loading_states() {
 
 #[test]
 fn gateway_services_module_builds_each_tab() {
-    let mut app = Fixture::default();
-    app.active_menu = Some(MenuType::GatewayServices);
+    let mut app = Fixture {
+        active_menu: Some(MenuType::GatewayServices),
+        ..Default::default()
+    };
 
     for tab in [
         TopBarGatewayTab::Gateway,

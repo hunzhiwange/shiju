@@ -9,14 +9,13 @@
 //! 测试使用临时目录 (`tempfile::tempdir`) 来隔离文件系统操作，
 //! 确保测试之间互不影响，且不会污染实际的工作目录。
 
-use super::*;
 
 /// 心跳模块的测试套件
 ///
 /// 包含心跳引擎的核心功能验证测试。
 #[allow(dead_code)]
 mod tests {
-    use super::*;
+
 
     use config_automation::HeartbeatConfig;
     use crate::engine::HeartbeatEngine;

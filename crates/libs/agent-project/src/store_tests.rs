@@ -14,7 +14,6 @@ use project_types::{Commands, Icon, Info, TimeInfo, Vcs};
 use super::ProjectStore;
 use agent_database::GlobalDatabase;
 use agent_database::config::DatabaseProvider;
-use agent_database::test_support::PostgresTestDatabase;
 
 #[derive(Debug, PartialEq, Eq)]
 struct SeedCatalog {

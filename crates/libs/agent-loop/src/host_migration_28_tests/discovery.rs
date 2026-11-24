@@ -6,7 +6,6 @@ use tool_types::Tool;
 use model_types::{ChatMessage, Provider};
 use std::sync::Arc;
 use tool_assembly::catalog::{ToolCatalog, ToolCatalogSnapshot};
-use tool_assembly::tool_search::ToolDiscoverySession;
 use anyhow::Result;
 use tokio_util::sync::CancellationToken;
 use model_types::ProviderCapabilities;

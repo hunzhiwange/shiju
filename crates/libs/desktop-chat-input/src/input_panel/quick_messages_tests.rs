@@ -145,7 +145,7 @@ async fn shiju_upgrade_badge_and_menu_render_chinese_counts_in_both_themes() {
                 &Rectangle::with_size(bounds),
             );
             let pixels = renderer.screenshot(Size::new(320, 280), 1.0, Color::TRANSPARENT);
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
         }
     }
 }
@@ -624,7 +624,7 @@ async fn session_entry_recommendations_render_both_themes() {
             &Rectangle::with_size(bounds),
         );
         let pixels = renderer.screenshot(Size::new(260, 300), 1.0, Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|p| p[3] > 0));
+        assert!(pixels.as_chunks::<4>().0.iter().any(|p| p[3] > 0));
         let mut messages = Vec::new();
         element.as_widget_mut().update(
             &mut tree,

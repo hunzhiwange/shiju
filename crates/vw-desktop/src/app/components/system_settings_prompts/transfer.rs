@@ -17,5 +17,3 @@ pub(crate) fn overlay<'a>(
 
 #[cfg(test)]
 pub(crate) use desktop_settings_skills::prompts::transfer::State;
-#[cfg(test)]
-pub(crate) use desktop_settings_skills::prompts::transfer::TARGETS;

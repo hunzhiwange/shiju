@@ -3,7 +3,7 @@
 #[cfg(test)]
 use crate::app::account::{
     AccountOrigin, AccountPasswordDraft, AccountPasswordField, AccountPasswordInput,
-    AccountProfileDraft, AccountRepository, ManualSkeyInput, SecretSkey,
+    AccountProfileDraft, AccountRepository, SecretSkey,
     VerifiedAccount,
 };
 #[cfg(test)]

@@ -219,7 +219,7 @@ pub fn build_input_editor<'a>(
     let editor = text_editor(input_editor)
         .id(app.input_editor_id.clone())
         .placeholder(app.i18n.__("随便问点什么..."))
-        .on_action(|a| Message::InputEditorAction(a))
+        .on_action(Message::InputEditorAction)
         .key_binding(move |kp| binding_from_key_press(&key_state, kp))
         .size(14.0)
         // 设置编辑器内边距：上下压缩，左右留出更舒适的输入空间。

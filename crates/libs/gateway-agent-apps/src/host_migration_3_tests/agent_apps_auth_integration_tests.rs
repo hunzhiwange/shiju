@@ -167,7 +167,7 @@ struct Fixture {
 impl Fixture {
     fn new(database: GlobalDatabase) -> anyhow::Result<Self> {
         let fixture = Self { home: tempfile::tempdir()?, tenant: TenantScope::new("p", "c")? };
-        let home = fixture.home.path();
+        let _home = fixture.home.path();
         let root = fixture.root();
         fs::create_dir_all(&root)?;
         fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;

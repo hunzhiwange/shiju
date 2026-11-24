@@ -136,11 +136,6 @@ pub use workflow::{
     all_task_workflows, default_task_workflow, default_task_workflow_statuses,
     is_builtin_task_workflow_id, task_workflow_by_id, update_runtime_task_lifecycle_cache,
 };
-#[cfg(test)]
-pub(crate) use workflow::{
-    register_runtime_task_workflow, replace_runtime_task_lifecycle_workflows_for_tests,
-    reset_runtime_task_lifecycle_cache, runtime_task_lifecycle_cache_test_lock,
-};
 
 // =============================================================================
 // 重新导出：存储层

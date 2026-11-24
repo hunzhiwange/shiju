@@ -19,10 +19,6 @@ pub use crate::app::components::chat_panel::tool_text_support::{
     tool_text_style_with_danger,
 };
 pub(crate) use command_summary_view::tool_command_summary_view;
-#[cfg(test)]
-pub(crate) use explore_summary_view::explore_summary_expanded;
-#[cfg(test)]
-pub(crate) use explore_summary_view::explore_summary_is_running;
 pub use explore_summary_view::tool_explore_summary_view;
 pub use tool_detail_dialog::tool_detail_dialog_view;
 pub use tool_meta::tool_header_label;
@@ -43,72 +39,3 @@ pub use types::{ChangeFile, ChangeFileSummary, CommandItem, EXPLORE_GROUP_TOOL_I
 
 
 pub(crate) use desktop_chat_tools::tools::mcp_view::is_mcp_tool_raw;
-
-#[cfg(test)]
-pub(crate) use command_summary_view::is_command_tool;
-#[cfg(test)]
-pub(crate) use tool_meta::ToolVisual;
-#[cfg(test)]
-pub(crate) use tool_meta::ToolVisualState;
-#[cfg(test)]
-pub(crate) use tool_meta::localized_tool_inline_summary;
-#[cfg(test)]
-pub(crate) use tool_meta::localized_tool_inline_summary_unbounded;
-#[cfg(test)]
-pub(crate) use tool_meta::tool_inline_summary;
-#[cfg(test)]
-pub(crate) use tool_meta::tool_inline_summary_unbounded;
-#[cfg(test)]
-pub(crate) use tool_meta::tool_verb;
-#[cfg(test)]
-pub(crate) use tool_meta::tool_visual_state;
-#[cfg(test)]
-pub(crate) use tool_parse::AgentToolSessionPayload;
-#[cfg(test)]
-pub(crate) use tool_parse::AgentToolSessionStatus;
-#[cfg(test)]
-pub(crate) use tool_parse::agent_tool_session_payloads_from_content;
-#[cfg(test)]
-pub(crate) use tool_parse::explore_item_dedupe_key;
-#[cfg(test)]
-pub(crate) use tool_parse::is_acp_tool_payload;
-#[cfg(test)]
-pub(crate) use tool_parse::tool_error_text;
-#[cfg(test)]
-pub(crate) use tool_parse::tool_input;
-#[cfg(test)]
-pub(crate) use tool_parse::tool_output_text;
-#[cfg(test)]
-pub(crate) use tool_parse::tool_status;
-#[cfg(test)]
-pub(crate) use tool_parse::tool_status_from_raw;
-#[cfg(test)]
-pub(crate) use tool_parse::tool_structured_diff_text;
-#[cfg(test)]
-pub(crate) use tool_parse::tool_summary_text;
-#[cfg(test)]
-pub(crate) use tool_permission::ToolPermissionState;
-#[cfg(test)]
-pub(crate) use tool_permission::localized_tool_permission_error_text;
-#[cfg(test)]
-pub(crate) use tool_permission::localized_tool_permission_title;
-#[cfg(test)]
-pub(crate) use tool_permission::pending_permission_badge_label;
-#[cfg(test)]
-pub(crate) use tool_permission::pending_permission_request_badge_label;
-#[cfg(test)]
-pub(crate) use tool_permission::pending_permission_request_for_message;
-#[cfg(test)]
-pub(crate) use tool_permission::pending_permission_request_for_tool_call;
-#[cfg(test)]
-pub(crate) use tool_permission::pending_permission_targets_message;
-#[cfg(test)]
-pub(crate) use tool_permission::pending_permission_targets_tool_call;
-#[cfg(test)]
-pub(crate) use tool_permission::tool_permission_error_text;
-#[cfg(test)]
-pub(crate) use tool_permission::tool_permission_state;
-#[cfg(test)]
-pub(crate) use tool_permission::tool_permission_summary;
-#[cfg(test)]
-pub(crate) use tool_permission::tool_permission_target_summary;

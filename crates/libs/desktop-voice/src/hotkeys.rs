@@ -356,10 +356,7 @@ pub fn record_subscription() -> iced::Subscription<RecordEvent> {
             Code::Fn => 63,
             _ => return None,
         };
-        let flags = u32::from(modifiers.shift()) * SHIFT
-            | u32::from(modifiers.control()) * CONTROL
-            | u32::from(modifiers.alt()) * ALT
-            | u32::from(modifiers.logo()) * COMMAND;
+        let flags = (u32::from(modifiers.shift()) * SHIFT) | (u32::from(modifiers.control()) * CONTROL) | (u32::from(modifiers.alt()) * ALT) | (u32::from(modifiers.logo()) * COMMAND);
         Some(RecordEvent::Recorded(Shortcut { key, modifiers: flags }))
     })
 }

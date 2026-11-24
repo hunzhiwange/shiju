@@ -77,14 +77,13 @@ pub fn update(app: &mut State<'_>, message: Event) -> Task<Event> {
             if let Some(stale) = stale {
                 return discard(stale.token);
             }
-            if let Some(error) = failure {
-                if app.plugin_install.as_ref().is_some_and(|f| f.request_id == request_id) {
+            if let Some(error) = failure
+                && app.plugin_install.as_ref().is_some_and(|f| f.request_id == request_id) {
                     return Task::done(Event::Toast(
                         ToastKind::Error,
                         desktop_i18n::format::Message::new("插件安装失败：%s", vec![error.into()]),
                     ));
                 }
-            }
             if app.plugin_install.as_ref().is_some_and(|form| {
                 form.request_id == request_id && matches!(form.phase, PluginInstallPhase::Review(_))
             }) {

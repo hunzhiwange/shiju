@@ -19,11 +19,11 @@ fn map(message: views::Message) -> Message {
 }
 pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
     domain::view(&domain::DetailInput {
-        expert_hub: &app.expert_hub,
+        expert_hub: app.expert_hub,
         desktop_locale: app.desktop_locale,
-        app_theme: &app.app_theme,
-        project_path: &app.project_path,
-        recent_projects: &app.recent_projects,
+        app_theme: app.app_theme,
+        project_path: app.project_path,
+        recent_projects: app.recent_projects,
         selection: crate::message::public::selectable_expert_skill(
             &app.expert_hub.public_market,
             app.project_path.as_deref(),

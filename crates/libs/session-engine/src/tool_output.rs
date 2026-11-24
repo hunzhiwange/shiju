@@ -133,7 +133,7 @@ pub fn sanitize_json_value(
             if mode == ToolInputSanitizeMode::Ui && preserves_full_ui_input(tool, Some(key)) {
                 return Value::String(s.clone());
             }
-            if s.as_bytes().len() <= max_string_bytes {
+            if s.len() <= max_string_bytes {
                 return Value::String(s.clone());
             }
             let mut cut = max_string_bytes;
@@ -170,7 +170,7 @@ pub fn sanitize_json_value(
 
 /// 执行 truncate_string 操作，并返回调用方需要的结果。
 pub fn truncate_string(s: &str, limit: usize) -> String {
-    if s.as_bytes().len() <= limit {
+    if s.len() <= limit {
         return s.to_string();
     }
     let mut cut = limit;
@@ -183,7 +183,7 @@ pub fn truncate_string(s: &str, limit: usize) -> String {
 }
 
 pub fn truncate_string_tail(s: &str, limit: usize) -> String {
-    if s.as_bytes().len() <= limit {
+    if s.len() <= limit {
         return s.to_string();
     }
     let total = s.len();

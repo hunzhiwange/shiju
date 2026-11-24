@@ -27,9 +27,7 @@ pub fn selectable_list_button_style(
         theme.palette().primary.b,
         if is_dark { 0.19 } else { 0.13 },
     );
-    let background = if pressed {
-        Some(Background::Color(if selected { selected_hover_bg } else { neutral_hover }))
-    } else if hovered {
+    let background = if pressed || hovered {
         Some(Background::Color(if selected { selected_hover_bg } else { neutral_hover }))
     } else if selected {
         Some(Background::Color(selected_bg))

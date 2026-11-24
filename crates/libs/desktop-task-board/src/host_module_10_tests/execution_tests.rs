@@ -291,8 +291,10 @@ fn poll_worktree_action_logs_keeps_receiver_when_channel_is_empty() {
 
 #[test]
 fn flushing_without_running_tasks_resets_log_scan_cursor() {
-    let mut app = super::Fixture::default();
-    app.task_board_log_scan_cursor = 9;
+    let mut app = super::Fixture {
+        task_board_log_scan_cursor: 9,
+        ..Default::default()
+    };
 
     super::flush_running_task_logs(&mut app, web_time::Instant::now());
 
@@ -335,10 +337,12 @@ fn worktree_snapshot_refresh_interval_tracks_panel_visibility() {
 
 #[test]
 fn missing_project_path_clears_stale_worktree_snapshot_state() {
-    let mut app = super::Fixture::default();
-    app.project_path = None;
-    app.task_board_worktree_snapshot_loading = true;
-    app.task_board_last_worktree_snapshot_at_ms = 123;
+    let mut app = super::Fixture {
+        project_path: None,
+        task_board_worktree_snapshot_loading: true,
+        task_board_last_worktree_snapshot_at_ms: 123,
+        ..Default::default()
+    };
 
     let _refresh = super::maybe_schedule_worktree_snapshot_refresh(&mut app, true);
 
@@ -349,9 +353,11 @@ fn missing_project_path_clears_stale_worktree_snapshot_state() {
 
 #[test]
 fn worktree_snapshot_refresh_skips_loading_and_interval_but_force_schedules() {
-    let mut app = super::Fixture::default();
-    app.project_path = Some("/tmp/project".to_string());
-    app.task_board_worktree_snapshot_loading = true;
+    let mut app = super::Fixture {
+        project_path: Some("/tmp/project".to_string()),
+        task_board_worktree_snapshot_loading: true,
+        ..Default::default()
+    };
 
     let loading = super::maybe_schedule_worktree_snapshot_refresh(&mut app, true);
     assert!(!loading);

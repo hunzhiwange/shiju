@@ -49,6 +49,6 @@ fn render_line_content_draws_go_tabs_as_blank_indentation() {
         );
         let pixels = renderer.screenshot(size, 1.0, Color::TRANSPARENT);
         assert_eq!(pixels.len(), (size.width * size.height * 4) as usize);
-        assert!(pixels.chunks_exact(4).all(|pixel| pixel[3] == 0));
+        assert!(pixels.as_chunks::<4>().0.iter().all(|pixel| pixel[3] == 0));
     });
 }

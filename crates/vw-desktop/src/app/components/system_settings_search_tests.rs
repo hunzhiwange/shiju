@@ -2,7 +2,6 @@
 //!
 //! 搜索样例同时包含中文、全拼、分词拼音、首字母和大小写 ASCII 查询。
 
-use super::system_settings::SystemTab;
 use super::system_settings_search::{SystemSettingsSearchTarget, catalog};
 use crate::app::App;
 use crate::app::state::{MemorySettingsTab, ModelConfigTab};

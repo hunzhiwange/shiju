@@ -40,7 +40,3 @@ mod tests;
 pub use desktop_settings_voice::Loaded;
 #[cfg(test)]
 pub use desktop_settings_voice::LocalResources;
-#[cfg(test)]
-pub use desktop_settings_voice::State;
-#[cfg(test)]
-pub use desktop_settings_voice::local_resources;

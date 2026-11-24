@@ -1,5 +1,5 @@
-use super::page_fixture::{self as system_settings_apps, *};
-use super::page_fixture::{drag, launch, lifecycle, preferences};
+use super::page_fixture::*;
+use super::page_fixture::{drag, launch};
 use crate::system_settings_apps::catalog::CatalogRow;
 use desktop_i18n::I18n;
 use iced::advanced::renderer::{Headless, Style};
@@ -16,7 +16,7 @@ use vw_api_app_identity::{
     AppReadResponse, AppRuntimeKind, AppUserPreferences,
 };
 use vw_api_app_operations::{AppActionPreviewRequest, AppActionTarget, AppLifecycleAction};
-use {gateway_http::AgentAppsReadError, vw_api_app_identity::*};
+use gateway_http::AgentAppsReadError;
 
 fn view(state: &AppsCatalogState) -> Element<'_, Message> {
     localized_view(state, I18n::new(Default::default()))

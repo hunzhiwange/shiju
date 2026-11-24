@@ -23,7 +23,7 @@ fn terminal(preferred: Option<&str>, _: &Path, material: &LaunchMaterial) -> Res
 fn failing_terminal(_: Option<&str>, _: &Path, _: &LaunchMaterial) -> Result<(), String> {
     Err("fixed failure".into())
 }
-async fn call(app: &Router, token: &str, value: Value) -> (StatusCode, Value) {
+async fn call(app: &Router, _token: &str, value: Value) -> (StatusCode, Value) {
     let response = app
         .clone()
         .oneshot(
@@ -144,7 +144,7 @@ async fn cc_apps_launch_api_target_scope_accepts_and_rejects_before_terminal() {
         .push(json!({"platform_id":"p","company_id":"foreign","host_id":"h","launch":true}));
     value["principals"].as_array_mut().unwrap().push(json!({"id":"b","token_sha256":hex::encode(Sha256::digest("fixture-other-principal-authorized-token")),"grants":[{"platform_id":"p","company_id":"c","host_id":"h","launch":true}]}));
     std::fs::write(&policy, value.to_string()).unwrap();
-    for (company, token) in [("foreign", TOKEN), ("c", "fixture-other-principal-authorized-token")]
+    for (company, _token) in [("foreign", TOKEN), ("c", "fixture-other-principal-authorized-token")]
     {
         let response = app
             .clone()

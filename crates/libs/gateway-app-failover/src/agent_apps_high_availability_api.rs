@@ -14,7 +14,7 @@ pub enum AgentAppsHighAvailabilityError {
     InvalidCredential,
     NativeTransportRequired,
     Decode,
-    Http { status: u16, body: Option<ApiErrorBody> },
+    Http { status: u16, body: Option<Box<ApiErrorBody>> },
 }
 
 impl std::fmt::Display for AgentAppsHighAvailabilityError {

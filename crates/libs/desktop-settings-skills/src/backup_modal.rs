@@ -64,8 +64,8 @@ pub fn view<'a, M: Clone + 'static>(
             .center_y(118),
         );
     }
-    if let Some(id) = s.delete_pending {
-        if let Some(backup) = s.backups.iter().find(|b| &b.backup_id == id) {
+    if let Some(id) = s.delete_pending
+        && let Some(backup) = s.backups.iter().find(|b| &b.backup_id == id) {
             body = body
                 .push(text(
                     desktop_i18n::__!(
@@ -83,7 +83,6 @@ pub fn view<'a, M: Clone + 'static>(
                     .spacing(8),
                 );
         }
-    }
     if s.selected.is_some() {
         body = body.push(settings_field_label(i18n.__("恢复后启用的应用")));
         if s.available.is_empty() {

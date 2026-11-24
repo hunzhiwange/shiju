@@ -48,7 +48,7 @@ pub async fn copy_scoped(
 pub async fn remove(scope: &str, session: &str) -> Result<(), String> {
     validate_session(session)?;
     for key in
-        storage::list(&["skill_checkpoint", &scope, session]).await.map_err(|e| e.to_string())?
+        storage::list(&["skill_checkpoint", scope, session]).await.map_err(|e| e.to_string())?
     {
         storage::remove(&key.iter().map(String::as_str).collect::<Vec<_>>())
             .await

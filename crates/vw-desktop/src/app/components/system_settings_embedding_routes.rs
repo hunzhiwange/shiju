@@ -10,6 +10,3 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
 #[cfg(test)]
 #[path = "system_settings_embedding_routes_ui_refresh_11_tests.rs"]
 mod ui_refresh_11_tests;
-
-#[cfg(test)]
-use crate::app::message::settings::EmbeddingRoutesMessage;

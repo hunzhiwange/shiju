@@ -68,7 +68,7 @@ pub async fn channel_command_cancel_bypasses_full_slots_and_cleans_before_new_se
     let (tx, rx) = tokio::sync::mpsc::channel(8);
     let dispatch = tokio::spawn(run_message_dispatch_loop(host, rx, ctx.clone(), 1));
     tx.send(msg.clone()).await.unwrap();
-    wait_cancel_flag(&stream.started).await;
+    wait_cancel_flag(stream.started).await;
     // Another request queues for the only permit; /stop must still reach its target.
     let mut queued = msg.clone();
     queued.sender = "another-sender".into();
@@ -107,7 +107,7 @@ pub async fn channel_command_cancel_isolates_instance_room_thread_sender_and_ten
     let CancelFixture { ctx, channel: _channel, msg, stream, session: _session } = fixture;
     let worker =
         tokio::spawn(process_channel_message(host, ctx.clone(), msg.clone(), CancellationToken::new()));
-    wait_cancel_flag(&stream.started).await;
+    wait_cancel_flag(stream.started).await;
     for dimension in 0..4 {
         let mut other = msg.clone();
         match dimension {
@@ -134,7 +134,7 @@ pub async fn channel_command_cancel_unconfirmed_exit_keeps_mutations_busy(host: 
     let CancelFixture { ctx, channel, msg, stream, session } = fixture;
     let worker =
         tokio::spawn(process_channel_message(host, ctx.clone(), msg.clone(), CancellationToken::new()));
-    wait_cancel_flag(&stream.started).await;
+    wait_cancel_flag(stream.started).await;
     let (first, second) =
         tokio::join!(stop_channel_task(&ctx, &msg), stop_channel_task(&ctx, &msg));
     assert!(first.contains("尚未停止"));
@@ -155,7 +155,7 @@ pub async fn channel_command_cancel_busy_commands_preserve_state_and_status_resp
     let CancelFixture { ctx, channel, msg, stream, session } = fixture;
     let worker =
         tokio::spawn(process_channel_message(host, ctx.clone(), msg.clone(), CancellationToken::new()));
-    wait_cancel_flag(&stream.started).await;
+    wait_cancel_flag(stream.started).await;
     for command in
         ["/new", "/project default", "/resume invalid", "/reset", "/compact", "/stop invalid"]
     {
@@ -207,7 +207,7 @@ pub async fn channel_command_cancel_waits_for_feedback_before_releasing_scope(ho
     let ctx = Arc::new(blocked_ctx);
     let worker =
         tokio::spawn(process_channel_message(host, ctx.clone(), msg.clone(), CancellationToken::new()));
-    wait_cancel_flag(&stream.started).await;
+    wait_cancel_flag(stream.started).await;
     let stopping = tokio::spawn({
         let ctx = ctx.clone();
         let msg = msg.clone();
@@ -227,10 +227,10 @@ pub async fn channel_command_cancel_dropped_caller_still_drains_processor(host: 
     let CancelFixture { ctx, channel: _channel, msg, stream, session } = fixture;
     let worker =
         tokio::spawn(process_channel_message(host, ctx.clone(), msg.clone(), CancellationToken::new()));
-    wait_cancel_flag(&stream.started).await;
+    wait_cancel_flag(stream.started).await;
     worker.abort();
     assert!(worker.await.unwrap_err().is_cancelled());
-    wait_cancel_flag(&stream.exited).await;
+    wait_cancel_flag(stream.exited).await;
     tokio::time::timeout(Duration::from_secs(2), async {
         while active_channel_task(&ctx, &msg).is_some() {
             tokio::time::sleep(Duration::from_millis(5)).await;

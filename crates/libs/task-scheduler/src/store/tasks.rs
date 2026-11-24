@@ -378,7 +378,7 @@ impl AgentSchedulerStore {
         let mut tasks =
             rows.collect::<rusqlite::Result<Vec<_>>>().context("list task board agent tasks")?;
         tasks.retain(|task| !bool_metadata_field(&task.metadata, "task_board.deleted"));
-        tasks.sort_by(|left, right| task_board_sort_key(left).cmp(&task_board_sort_key(right)));
+        tasks.sort_by_key(task_board_sort_key);
         Ok(tasks)
     }
 

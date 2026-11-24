@@ -1,27 +1,15 @@
 //! 测试资源存储在多后端下的租约排他性、过期与作用域隔离。
 //! 公共断言在 SQLite 与可用 PostgreSQL 后端复用，另用并发屏障验证单一持有者。
 
-use std::sync::{Arc, Barrier};
 
 use anyhow::Result;
-use rusqlite::{Connection, params};
-use vw_api_agent_scheduler::AgentSchedulerScope;
 use vw_api_transport::common::TimestampMs;
-use {
-    vw_api_transport::id::ProjectId,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
-};
-use project_types::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
 use super::domain::{
-    AgentSchedulerContext, AssigneeId, HolderId, ResourceId, ResourceLeaseId, TeamId,
+    HolderId, ResourceId, ResourceLeaseId,
 };
-use super::store::resources::{AcquireResourceLeaseRequest, ResourceKind, ResourceLeaseStatus};
-use super::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
-use agent_database::GlobalDatabase;
-use agent_database::test_support::PostgresTestDatabase;
-use agent_project::store::ProjectStore;
+use super::store::resources::{AcquireResourceLeaseRequest, ResourceKind};
+use super::store::AgentSchedulerStore;
 
 #[test]
 fn agent_resource_store_rejects_invalid_lease_times_and_empty_taint_reason() -> Result<()> {

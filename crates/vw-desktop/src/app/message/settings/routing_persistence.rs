@@ -53,6 +53,3 @@ pub(crate) fn flush(app: &mut App) -> (Task<Message>, Option<tokio::sync::watch:
 #[cfg(test)]
 #[path = "routing_persistence_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-pub(crate) use domain::RoutingPersistence;

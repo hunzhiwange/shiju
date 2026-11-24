@@ -77,11 +77,10 @@ pub fn with_search(
     {
         let sources = item["action"]["sources"].as_array_mut().ok_or(INVALID)?;
         for candidate in candidates {
-            if let Some(url) = candidate["url"].as_str() {
-                if attributed.insert(url.to_owned()) {
+            if let Some(url) = candidate["url"].as_str()
+                && attributed.insert(url.to_owned()) {
                     sources.push(candidate);
                 }
-            }
         }
     }
     let mut layout = Vec::new();

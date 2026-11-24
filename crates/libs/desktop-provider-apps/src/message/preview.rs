@@ -77,7 +77,7 @@ pub fn update(state: &mut State, connection: Result<(GatewayClient,Scope),String
             return Task::none();
         };
         state.preview = Some(Form::new(id, provider.provider.name.clone()));
-        return update(state, connection.clone(), &token, snapshot, Event::Refresh);
+        return update(state, connection.clone(), token, snapshot, Event::Refresh);
     }
     if matches!(event, Event::Close) {
             if state.preview.as_ref().is_some_and(|form| form.save.is_none()) {

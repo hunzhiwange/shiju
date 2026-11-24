@@ -179,8 +179,8 @@ fn content<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
         if !inline {
             body = body.push(settings_panel(
                 row![
-                    settings_value_badge(i18n.format("直连 · %s", &[(format!("{}", selection(i18n, snapshot, &snapshot.catalog.direct))).into()]).expect("valid display template")),
-                    settings_value_badge(i18n.format("原生当前 · %s", &[(format!("{}", selection(i18n, snapshot, &snapshot.catalog.in_use))).into()]).expect("valid display template")),
+                    settings_value_badge(i18n.format("直连 · %s", &[(selection(i18n, snapshot, &snapshot.catalog.direct).to_string()).into()]).expect("valid display template")),
+                    settings_value_badge(i18n.format("原生当前 · %s", &[(selection(i18n, snapshot, &snapshot.catalog.in_use).to_string()).into()]).expect("valid display template")),
                 ]
                 .spacing(8)
                 .wrap(),
@@ -597,13 +597,12 @@ pub fn local_card<'a, L, F, A, S, P, D, O, M, U>(
             super::endpoints::card(i18n, form, app),
         ));
     }
-    if let Some(form) = &state.desktop {
-        if form.aggregation.is_none() {
+    if let Some(form) = &state.desktop
+        && form.aggregation.is_none() {
             return Some((
                 E::Desktop(crate::message::desktop::Event::Cancel),
                 super::desktop::card(form, help),
             ));
         }
-    }
     None
 }

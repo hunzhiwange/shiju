@@ -190,8 +190,10 @@ fn builder_methods_expose_injected_runtime_capabilities() {
     let (progress_tx, _progress_rx) = tokio::sync::mpsc::channel(1);
     let (prompt_tx, _prompt_rx) = tokio::sync::mpsc::unbounded_channel();
     let abort_token = CancellationToken::new();
-    let mut security = SecurityPolicy::default();
-    security.workspace_dir = PathBuf::from("/secure-workspace");
+    let mut security = SecurityPolicy {
+        workspace_dir: PathBuf::from("/secure-workspace"),
+        ..Default::default()
+    };
     let approval = Arc::new(ApprovalManager::from_config(&AutonomyConfig::default()));
     let hook_runner = Arc::new(agent_hooks::HookRunner::new());
     let messages = vec![ChatMessage::user("hello"), ChatMessage::assistant("hi")];

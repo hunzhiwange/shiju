@@ -209,8 +209,8 @@ pub fn update_local(
             }
         }
         TaskBoardMessage::SaveEditingTask => {
-            if let Some(id) = state.editing_task_id.as_ref() {
-                if let Some(task) = state.tasks.iter_mut().find(|t| &t.id == id) {
+            if let Some(id) = state.editing_task_id.as_ref()
+                && let Some(task) = state.tasks.iter_mut().find(|t| &t.id == id) {
                     crate::update::forms::apply_task_draft(
                         task,
                         state.draft,
@@ -219,7 +219,6 @@ pub fn update_local(
                     );
                     return Ok(LocalEffect::Persist(task.clone()));
                 }
-            }
         }
         TaskBoardMessage::CreateTaskSubmitted => {
             if let Some(task) = crate::update::forms::task_from_draft(
@@ -345,43 +344,43 @@ pub fn update_local(
             (*state.worktree_manual_confirm_kind) = None;
         }
         TaskBoardMessage::UpdateDraftPriority(v) => {
-            (*state.draft).priority = v;
+            state.draft.priority = v;
         }
         TaskBoardMessage::UpdateDraftAssignee(v) => {
-            (*state.draft).assignee = v;
+            state.draft.assignee = v;
         }
         TaskBoardMessage::UpdateDraftAgent(agent) => {
-            (*state.draft).agent = agent.or_else(|| Some(main_agent_key.to_string()));
+            state.draft.agent = agent.or_else(|| Some(main_agent_key.to_string()));
         }
         TaskBoardMessage::UpdateDraftReasoningEffort(reasoning_effort) => {
-            (*state.draft).reasoning_effort = reasoning_effort;
+            state.draft.reasoning_effort = reasoning_effort;
         }
         TaskBoardMessage::UpdateDraftTaskSplitMode(mode) => {
-            (*state.draft).task_split_mode = mode;
+            state.draft.task_split_mode = mode;
         }
         TaskBoardMessage::UpdateDraftDescription(v) => {
-            (*state.draft).description = v;
+            state.draft.description = v;
         }
         TaskBoardMessage::UpdateDraftPrompt(v) => {
-            (*state.draft).prompt = v;
+            state.draft.prompt = v;
         }
         TaskBoardMessage::UpdateDraftAutoPromoteDelay(v) => {
-            (*state.draft).auto_promote_delay_seconds = v;
+            state.draft.auto_promote_delay_seconds = v;
         }
         TaskBoardMessage::UpdateEditingTaskPriority(priority) => {
-            (*state.draft).priority = priority;
+            state.draft.priority = priority;
         }
         TaskBoardMessage::UpdateEditingTaskAgent(agent) => {
-            (*state.draft).agent = agent.or_else(|| Some(main_agent_key.to_string()));
+            state.draft.agent = agent.or_else(|| Some(main_agent_key.to_string()));
         }
         TaskBoardMessage::UpdateEditingTaskReasoningEffort(reasoning_effort) => {
-            (*state.draft).reasoning_effort = reasoning_effort;
+            state.draft.reasoning_effort = reasoning_effort;
         }
         TaskBoardMessage::UpdateEditingTaskSplitMode(mode) => {
-            (*state.draft).task_split_mode = mode;
+            state.draft.task_split_mode = mode;
         }
         TaskBoardMessage::UpdateEditingTaskPrompt(prompt) => {
-            (*state.draft).prompt = prompt;
+            state.draft.prompt = prompt;
         }
         TaskBoardMessage::ClearCreateSubmitSuccess => {
             (*state.create_submit_success) = false;
@@ -391,11 +390,11 @@ pub fn update_local(
         }
         TaskBoardMessage::DescEditorAction(action) => {
             (*state.desc_editor).perform(action);
-            (*state.draft).description = (*state.desc_editor).text().to_string();
+            state.draft.description = (*state.desc_editor).text().to_string();
         }
         TaskBoardMessage::PromptEditorAction(action) => {
             (*state.prompt_editor).perform(action);
-            (*state.draft).prompt = (*state.prompt_editor).text().to_string();
+            state.draft.prompt = (*state.prompt_editor).text().to_string();
         }
         TaskBoardMessage::LogsViewerOpenContextMenu { x, y } => {
             (*state.logs_context_menu_open) = true;

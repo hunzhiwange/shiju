@@ -16,8 +16,10 @@ fn usage_replica_08_decimal_prices() {
 
 #[test]
 fn usage_replica_08_invalid_save_retains_editor() {
-    let mut state = State::default();
-    state.editor = Some(price("-1"));
+    let mut state = State {
+        editor: Some(price("-1")),
+        ..Default::default()
+    };
     let _ = update(&mut state, None, true, Err("offline".into()), Event::Save);
     assert_eq!(state.editor.as_ref().unwrap().input_cost_per_million, "-1");
     assert!(state.error.is_some());
@@ -26,8 +28,10 @@ fn usage_replica_08_invalid_save_retains_editor() {
 
 #[test]
 fn usage_replica_08_delete_requires_matching_confirmation() {
-    let mut state = State::default();
-    state.pending_delete = Some("one".into());
+    let mut state = State {
+        pending_delete: Some("one".into()),
+        ..Default::default()
+    };
     let _ = update(&mut state, None, true, Err("offline".into()), Event::ConfirmDelete("two".into()));
     assert_eq!(state.pending_delete.as_deref(), Some("one"));
     assert!(!state.busy);
@@ -40,10 +44,12 @@ fn identity() -> Identity {
 #[test]
 fn usage_replica_08_failed_write_retains_original_and_draft() {
     let id = identity();
-    let mut state = State::default();
-    state.open = true;
-    state.scope = Some(id.clone());
-    state.busy = true;
+    let mut state = State {
+        open: true,
+        scope: Some(id.clone()),
+        busy: true,
+        ..Default::default()
+    };
     state.prices.push(StoredModelPricing { price: price("1"), source: "fixture".into(), is_custom: true });
     state.editor = Some(price("2"));
     state.pending_delete = Some("example-model".into());

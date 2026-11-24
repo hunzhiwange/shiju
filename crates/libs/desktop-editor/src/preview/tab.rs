@@ -116,7 +116,9 @@ pub async fn load_preview_text_content(
     project_path: Option<String>,
     path: String,
 ) -> Result<(String, bool), String> {
-    let result = async {
+
+
+    async {
         let client = client?;
         let (directory, relative_path) = gateway_preview_target(project_path.as_deref(), &path)?;
         let response = gateway_files::GatewayFilesClient::new(client.transport().clone())
@@ -126,9 +128,7 @@ pub async fn load_preview_text_content(
             &response.content,
         ))
     }
-    .await;
-
-    result
+    .await
 }
 
 pub async fn persist_preview_file(

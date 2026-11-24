@@ -3,7 +3,7 @@ mod http {
     use axum::{
         Router,
         body::Bytes,
-        http::{HeaderMap, StatusCode},
+        http::HeaderMap,
         routing::post,
     };
     use futures_util::StreamExt;

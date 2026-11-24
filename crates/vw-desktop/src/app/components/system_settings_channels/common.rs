@@ -135,9 +135,3 @@ use crate::app::Message;
 use desktop_settings_channels::common::LabeledOption;
 #[cfg(test)]
 use iced::Element;
-#[cfg(test)]
-pub(super) use desktop_settings_channels::common::GROUP_REPLY_MODE_OPTIONS;
-#[cfg(test)]
-pub(super) use desktop_settings_channels::common::LARK_RECEIVE_MODE_OPTIONS;
-#[cfg(test)]
-pub(super) use desktop_settings_channels::common::QQ_RECEIVE_MODE_OPTIONS;

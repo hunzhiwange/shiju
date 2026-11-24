@@ -3,7 +3,7 @@ use config_voice::VoiceConfig;
 use desktop_voice::preferences::{Edit, Preferences};
 pub fn setup(state: &mut crate::State, case: usize) {
     state.edit = None;
-    if case % 3 != 0 {
+    if !case.is_multiple_of(3) {
         state.resources = crate::local_resources(None);
         state.edit = Some(Edit::new(
             VoiceConfig {

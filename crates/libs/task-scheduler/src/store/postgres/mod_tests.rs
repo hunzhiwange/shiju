@@ -11,7 +11,6 @@ use {
 use project_types::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
 use super::PostgresAgentSchedulerStore;
-use agent_database::test_support::PostgresTestDatabase;
 use agent_project::store::ProjectStore;
 
 #[test]

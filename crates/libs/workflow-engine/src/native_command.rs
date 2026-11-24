@@ -259,9 +259,8 @@ pub async fn run_command<H: NativeCommandHost>(
                     if !emit(event) { cancellation.cancel(); return Err("cancelled".to_string()) }
                 }
                 _ = tick.tick(), if video_run => {
-                    if let Ok(mut progress) = progress.lock() && progress.ready() {
-                        if let Some(event) = progress.event_changed(&video_budget, H::now_ms) && !emit(H::event(CommandEvent::Tool(event))) { cancellation.cancel(); return Err("cancelled".into()); }
-                    }
+                    if let Ok(mut progress) = progress.lock() && progress.ready()
+                        && let Some(event) = progress.event_changed(&video_budget, H::now_ms) && !emit(H::event(CommandEvent::Tool(event))) { cancellation.cancel(); return Err("cancelled".into()); }
                 }
                 _ = cancellation.cancelled() => return Err("cancelled".to_string()),
             }

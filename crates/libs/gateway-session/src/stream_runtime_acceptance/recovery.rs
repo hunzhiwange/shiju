@@ -45,7 +45,7 @@ pub async fn gateway_first_response_failure_preserves_history_until_same_session
         Some("fixture-key"),
     )
     .await;
-    let _streams = H::stream_guard();
+    let _streams = H::stream_guard().await;
     let workspace = tempfile::tempdir().unwrap();
     let directory = workspace.path().canonicalize().unwrap().to_string_lossy().into_owned();
     let tenant = ui_store::current_tenant_scope();
@@ -129,7 +129,7 @@ pub async fn gateway_first_response_disconnect_after_tool_start_replays_cancella
         None,
     )
     .await;
-    let _streams = H::stream_guard();
+    let _streams = H::stream_guard().await;
     let workspace = tempfile::tempdir().unwrap();
     let directory = workspace.path().canonicalize().unwrap().to_string_lossy().into_owned();
     H::update_config(serde_json::json!({
@@ -302,7 +302,7 @@ pub async fn gateway_chat_git_line_counts<H: RuntimeAcceptanceHost>(initialize: 
         None,
     )
     .await;
-    let _streams = H::stream_guard();
+    let _streams = H::stream_guard().await;
     let workspace = tempfile::tempdir().unwrap();
     let directory = workspace.path().canonicalize().unwrap();
     let file = directory.join("example.txt");

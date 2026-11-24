@@ -440,7 +440,7 @@ fn workspace<'a>(app: &'a App, content: Element<'a, Message>) -> Element<'a, Mes
 }
 
 fn sidebar(app: &App) -> Element<'_, Message> {
-    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
+    let _i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let state = &app.apps_catalog;
     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     let showing_usage = usage::is_visible(app);
@@ -656,7 +656,8 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
             app,
             crate::app::message::agent_apps_auth::Event::Refresh,
         ),
-        _ => Task::none(),
+        #[cfg(target_arch = "wasm32")]
+        ThirdPartyPage::Authorization => Task::none(),
     }
 }
 

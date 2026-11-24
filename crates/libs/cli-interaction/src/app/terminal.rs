@@ -28,7 +28,6 @@ use super::{
     Event,
     KeyEventKind,
     Rect,
-    Result,
     RunnerControl,
     TERMINAL_EVENT_BUDGET,
     TerminalMode,

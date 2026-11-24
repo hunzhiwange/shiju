@@ -187,6 +187,12 @@ impl PendingInputPreview {
     }
 }
 
+impl Default for PendingInputPreview {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Renderable for PendingInputPreview {
     fn render(&self, area: Rect, buf: &mut Buffer) {
         if area.is_empty() {

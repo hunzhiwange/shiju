@@ -176,13 +176,12 @@ impl WorkflowState {
 
     pub fn status_text(&self, i18n: desktop_i18n::I18n) -> Option<String> {
         let raw = self.status_message.as_ref()?;
-        if let Some(message) = &self.localized_status {
-            if message.render(desktop_i18n::I18n::new(Default::default())).as_ref().ok()
+        if let Some(message) = &self.localized_status
+            && message.render(desktop_i18n::I18n::new(Default::default())).as_ref().ok()
                 == Some(raw)
             {
                 return Some(message.render(i18n).expect("valid workflow status template"));
             }
-        }
         Some(raw.clone())
     }
 }
@@ -190,11 +189,10 @@ impl WorkflowState {
 impl WorkflowState {
     pub fn error_text(&self, i18n: desktop_i18n::I18n) -> Option<String> {
         let raw = self.error_message.as_ref()?;
-        if let Some(message) = &self.localized_error {
-            if message.to_string() == *raw {
+        if let Some(message) = &self.localized_error
+            && message.to_string() == *raw {
                 return Some(message.render(i18n));
             }
-        }
         Some(raw.clone())
     }
 }

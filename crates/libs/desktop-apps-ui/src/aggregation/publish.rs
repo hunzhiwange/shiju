@@ -156,7 +156,7 @@ fn error_label(e: &AggregationApiError) -> &'static str {
 pub async fn execute(
     client: GatewayClient,
     selection: Selection,
-    token: String,
+    _token: String,
     session: Session,
     action: Action,
     default: Option<String>,

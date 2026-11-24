@@ -101,7 +101,7 @@ async fn draw_directory() {
             let mut ui =
                 UserInterface::build(element, Size::new(800.0, 700.0), Cache::new(), &mut renderer);
             let mut geometry = Geometry::default();
-            ui.operate(&mut renderer, &mut geometry);
+            ui.operate(&renderer, &mut geometry);
             assert!(geometry.labels.iter().any(|(label, _)| label == "聚合目录"));
             if case == 4 {
                 assert!(geometry.labels.iter().any(|(label, _)| label == "动态中文供应商 0 😀"));
@@ -147,7 +147,7 @@ async fn draw_directory() {
             );
             let pixels = renderer.screenshot(Size::new(800, 700), 1.0, theme.palette().background);
             assert_eq!(pixels.len(), 800 * 700 * 4);
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[0..4]));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel != &pixels[0..4]));
         }
     }
 }

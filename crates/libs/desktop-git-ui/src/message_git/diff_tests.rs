@@ -26,7 +26,7 @@ fn range(file: &str, start: usize, end: usize, is_old: bool) -> GitDiffLineRange
 fn toggle_diff_line_selection_adds_and_removes_same_line() {
     let mut app = test_app();
 
-    let _ = update(
+    update(
         &mut app,
         GitMessage::ToggleDiffLineSelection(
             "src/main.rs".to_string(),
@@ -38,7 +38,7 @@ fn toggle_diff_line_selection_adds_and_removes_same_line() {
     assert_eq!(app.git_diff_selected_lines.len(), 1);
     assert_eq!(app.git_diff_selected_lines[0].text, "+new");
 
-    let _ = update(
+    update(
         &mut app,
         GitMessage::ToggleDiffLineSelection(
             "src/main.rs".to_string(),
@@ -55,7 +55,7 @@ fn toggle_diff_line_selection_clears_range_and_distinguishes_diff_side() {
     app.git_diff_selected_range = Some(range("src/main.rs", 4, 6, false));
     app.git_diff_selected_lines = vec![selected("src/main.rs", 4, true, "-old")];
 
-    let _ = update(
+    update(
         &mut app,
         GitMessage::ToggleDiffLineSelection(
             "src/main.rs".to_string(),
@@ -86,7 +86,7 @@ fn drag_select_start_clears_transient_selection_state() {
     });
     app.git_diff_selected_range = Some(range("old.rs", 1, 2, true));
 
-    let _ = update(
+    update(
         &mut app,
         GitMessage::DiffDragSelectStart("new.rs".to_string(), 7, false, "+line".to_string()),
     );
@@ -107,7 +107,7 @@ fn drag_select_end_without_range_stops_dragging_and_consumes_start_text() {
     app.git_diff_dragging = true;
     app.git_diff_drag_start_text = Some("unused".to_string());
 
-    let _ = update(&mut app, GitMessage::DiffDragSelectEnd);
+    update(&mut app, GitMessage::DiffDragSelectEnd);
 
     assert!(!app.git_diff_dragging);
     assert!(app.git_diff_drag_start_text.is_none());
@@ -121,12 +121,12 @@ fn drag_select_multiple_lines_normalizes_reverse_range_and_closes_comment() {
         editor: iced::widget::text_editor::Content::new(),
     });
 
-    let _ = update(
+    update(
         &mut app,
         GitMessage::DiffDragSelectStart("src/main.rs".to_string(), 8, false, "+eight".to_string()),
     );
-    let _ = update(&mut app, GitMessage::DiffDragSelectHover("src/main.rs".to_string(), 3, false));
-    let _ = update(&mut app, GitMessage::DiffDragSelectEnd);
+    update(&mut app, GitMessage::DiffDragSelectHover("src/main.rs".to_string(), 3, false));
+    update(&mut app, GitMessage::DiffDragSelectEnd);
 
     let selected_range = app.git_diff_selected_range.as_ref().expect("range should be selected");
     assert_eq!(selected_range.file, "src/main.rs");
@@ -140,19 +140,19 @@ fn drag_select_multiple_lines_normalizes_reverse_range_and_closes_comment() {
 fn drag_select_single_line_toggles_selection_and_double_click_opens_comment_draft() {
     let mut app = test_app();
 
-    let _ = update(
+    update(
         &mut app,
         GitMessage::DiffDragSelectStart("src/main.rs".to_string(), 10, false, "+line".to_string()),
     );
-    let _ = update(&mut app, GitMessage::DiffDragSelectEnd);
+    update(&mut app, GitMessage::DiffDragSelectEnd);
     assert_eq!(app.git_diff_selected_lines.len(), 1);
     assert!(app.git_diff_selected_range.is_none());
 
-    let _ = update(
+    update(
         &mut app,
         GitMessage::DiffDragSelectStart("src/main.rs".to_string(), 10, false, "+line".to_string()),
     );
-    let _ = update(&mut app, GitMessage::DiffDragSelectEnd);
+    update(&mut app, GitMessage::DiffDragSelectEnd);
     assert_eq!(app.git_diff_selected_lines.len(), 1);
     assert!(app.git_diff_comment_draft.is_some());
 }
@@ -160,13 +160,13 @@ fn drag_select_single_line_toggles_selection_and_double_click_opens_comment_draf
 fn drag_hover_only_updates_matching_active_range() {
     let mut app = test_app();
 
-    let _ = update(
+    update(
         &mut app,
         GitMessage::DiffDragSelectStart("src/main.rs".to_string(), 2, false, "+a".to_string()),
     );
-    let _ = update(&mut app, GitMessage::DiffDragSelectHover("src/lib.rs".to_string(), 9, false));
+    update(&mut app, GitMessage::DiffDragSelectHover("src/lib.rs".to_string(), 9, false));
     assert_eq!(app.git_diff_drag_range.as_ref().map(|value| value.end), Some(2));
 
-    let _ = update(&mut app, GitMessage::DiffDragSelectHover("src/main.rs".to_string(), 5, false));
+    update(&mut app, GitMessage::DiffDragSelectHover("src/main.rs".to_string(), 5, false));
     assert_eq!(app.git_diff_drag_range.as_ref().map(|value| value.end), Some(5));
 }

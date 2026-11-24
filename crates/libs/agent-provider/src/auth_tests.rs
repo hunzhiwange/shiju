@@ -125,7 +125,7 @@ async fn api_stores_and_replaces_key_in_auth_store() {
 
 #[test]
 fn auth_error_from_io_and_display_variants() {
-    let err: Error = std::io::Error::new(std::io::ErrorKind::Other, "disk full").into();
+    let err: Error = std::io::Error::other("disk full").into();
     assert_eq!(err.to_string(), "disk full");
     assert_eq!(Error::MissingOauth.to_string(), "missing oauth authorization");
     assert_eq!(Error::CallbackFailed.to_string(), "oauth callback failed");

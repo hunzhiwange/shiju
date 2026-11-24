@@ -25,10 +25,12 @@ pub struct Host {
     pub credential_root: Option<PathBuf>,
 }
 
+type AuthorizeSettingsHost = fn(Option<&std::path::Path>, &HeaderMap, &ProjectScope, &str, bool) -> Result<Host, StatusCode>;
+
 /// Existing host authorization actions, retaining scoped policy checks.
 #[derive(Clone, Copy)]
 pub struct Authorization {
-    pub settings: fn(Option<&std::path::Path>, &HeaderMap, &ProjectScope, &str, bool) -> Result<Host, StatusCode>,
+    pub settings: AuthorizeSettingsHost,
     pub sensitive_env: fn(Option<&std::path::Path>, &HeaderMap, &ProjectScope, &str) -> Result<(), StatusCode>,
 }
 

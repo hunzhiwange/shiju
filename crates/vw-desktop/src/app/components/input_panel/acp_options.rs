@@ -48,6 +48,3 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
 #[cfg(test)]
 #[path = "acp_options_ui_refresh_42_tests.rs"]
 pub(super) mod ui_refresh_42_tests;
-
-#[cfg(test)]
-pub(crate) use shared::OPTIONS_SCROLL;

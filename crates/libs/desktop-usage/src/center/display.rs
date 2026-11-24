@@ -81,7 +81,7 @@ pub fn update(state: &mut State, current: Option<Identity>, visible: bool, clien
                         return update(state, current, visible, client, Event::Refresh);
                     }
                 }
-                Err(error) => { state.restore(); state.error = Some(error.clone()); return Task::done(Outcome::Error(format!("显示设置失败：{error}").into())); }
+                Err(error) => { state.restore(); state.error = Some(error.clone()); return Task::done(Outcome::Error(format!("显示设置失败：{error}"))); }
             }
         }
         _ if state.busy => {}
@@ -180,7 +180,7 @@ pub fn sidebar_today(i18n: desktop_i18n::I18n,
                 } else {
                     full.split('（').next().unwrap_or(&full).to_owned()
                 };
-                let detail = if unknown == 0 { full } else { i18n.format("%s · %s 条请求费用未知", &[(format!("{}", full)).into(), (format!("{}", unknown)).into()]).expect("valid display template") };
+                let detail = if unknown == 0 { full } else { i18n.format("%s · %s 条请求费用未知", &[(full.to_string()).into(), (format!("{}", unknown)).into()]).expect("valid display template") };
                 (i18n.__("已知费用"), short, detail)
             }
             TodayItem::Tokens | TodayItem::Requests | TodayItem::HitRate => {
@@ -200,9 +200,9 @@ pub fn sidebar_today(i18n: desktop_i18n::I18n,
         };
         values.push((short, format!("{} {detail}", i18n.__(label))));
     }
-    let badge = i18n.format("今日 %s", &[(format!("{}", values.first()?.0)).into()]).expect("valid display template");
+    let badge = i18n.format("今日 %s", &[(values.first()?.0.to_string()).into()]).expect("valid display template");
     let tooltip = values.into_iter().map(|(_, detail)| detail).collect::<Vec<_>>().join(" · ");
-    Some((badge, i18n.format("今日 · %s", &[(format!("{}", tooltip)).into()]).expect("valid display template")))
+    Some((badge, i18n.format("今日 · %s", &[(tooltip.to_string()).into()]).expect("valid display template")))
 }
 
 pub fn status(i18n: desktop_i18n::I18n, state: &State, current: Option<Identity>) -> String {
@@ -211,7 +211,7 @@ pub fn status(i18n: desktop_i18n::I18n, state: &State, current: Option<Identity>
     let Some(result) = &state.result else { return i18n.__("汇率未加载；显示 USD").into(); };
     let d = &result.display;
     if !d.rate.is_finite() || d.rate <= 0.0 { return i18n.__("汇率未知；显示 USD").into(); }
-    i18n.format("%s · %s · 1 USD = %s %s · 来源 %s · 缓存%s · %s%s · 未知费用始终未知", &[(format!("{:?}", result.settings.currency)).into(), (format!("{:?}", result.settings.mode)).into(), (format!("{}", d.rate)).into(), (format!("{:?}", d.currency)).into(), (format!("{}", d.source)).into(), (format!("{}", if d.stale { i18n.__("已过期") } else { i18n.__("未过期") })).into(), (format!("{}", if d.degraded { i18n.__("已降级") } else { i18n.__("正常") })).into(), (format!("{}", d.error.as_ref().map(|e| format!(" · {e}")).unwrap_or_default())).into()]).expect("valid display template")
+    i18n.format("%s · %s · 1 USD = %s %s · 来源 %s · 缓存%s · %s%s · 未知费用始终未知", &[(format!("{:?}", result.settings.currency)).into(), (format!("{:?}", result.settings.mode)).into(), (format!("{}", d.rate)).into(), (format!("{:?}", d.currency)).into(), (d.source.to_string()).into(), ((if d.stale { i18n.__("已过期") } else { i18n.__("未过期") }).to_string()).into(), ((if d.degraded { i18n.__("已降级") } else { i18n.__("正常") }).to_string()).into(), (d.error.as_ref().map(|e| format!(" · {e}")).unwrap_or_default().to_string()).into()]).expect("valid display template")
 }
 fn action(label: &'static str, event: Event, enabled: bool) -> Element<'static, Outcome<Event>> {
     button(text(label).size(13))
@@ -480,7 +480,7 @@ impl Preferences {
         std::fs::rename(&temporary, path).map_err(|e| e.to_string())
     }
 }
-fn today_controls(i18n: desktop_i18n::I18n, state: &State, enabled: bool) -> Element<'static, Outcome<Event>> {
+fn today_controls(_i18n: desktop_i18n::I18n, state: &State, enabled: bool) -> Element<'static, Outcome<Event>> {
     let mut controls = row![].spacing(8);
     for (item, _, label) in TODAY {
         let selected = state.preferences.today.contains(&item);

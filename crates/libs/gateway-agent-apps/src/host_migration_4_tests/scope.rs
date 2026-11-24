@@ -1,11 +1,8 @@
-use app_provider_services::AppProviderStore;
 use app_diagnostics_runtime::agent_apps_diagnostic_jobs::{DiagnosticJobOwner, DiagnosticJobs};
-use agent_database::GlobalDatabase;
 use axum::{
     Extension,
     body::Body,
     http::{Request, StatusCode},
-    response::IntoResponse,
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -19,10 +16,6 @@ use std::{
 };
 use tower::ServiceExt;
 use vw_api_app_identity::AppId;
-use vw_api_app_diagnostics::DiagnosticJobIdentity;
-use vw_api_app_diagnostics::DiagnosticJobState;
-use vw_api_app_provider_base::AppProviderWrite;
-use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_transport::id::TenantScope;
 
 const TOKEN: &str = "fixture-diagnostic-member-token-00001";
@@ -58,7 +51,7 @@ async fn diagnostic_api_read_and_cancel_are_scope_bound() -> anyhow::Result<()> 
     let app = crate::agent_apps_diagnostics::router_with_policy::<super::probe_host::NativeProbeHost>(Some(policy.clone()))
         .layer(Extension(tenant))
         .layer(Extension(jobs.clone()));
-    let request = |id: &str, cancel: bool, project: &str, host: &str, app_id: &str, token: &str| {
+    let request = |id: &str, cancel: bool, project: &str, host: &str, app_id: &str, _token: &str| {
         Request::builder().method(if cancel {"POST"} else {"GET"})
             .uri(format!("/agent-apps/diagnostics/jobs/{id}{}?projectId={project}&targetHostId={host}&appId={app_id}", if cancel {"/cancel"} else {""}))
             .body(Body::empty()).unwrap()

@@ -79,7 +79,7 @@ fn complete_task_mds(plan_dir: &Path) {
 
 fn write_plan_fixture(_root: &str, fixture: &PlanFixture) -> Result<(), String> {
     let plan_abs = &fixture.plan_dir;
-    std::fs::create_dir_all(&plan_abs)
+    std::fs::create_dir_all(plan_abs)
         .map_err(|error| format!("create plan dir failed: {error}"))?;
 
     let doc = PlanTasksDocument {

@@ -10,8 +10,6 @@ use super::system_settings::load_gateway_client_bootstrap_config;
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) use desktop_config::config_gateway::project_config_override_path;
 
-#[cfg(all(test, not(target_arch = "wasm32")))]
-use desktop_config::config_gateway::load_vibewindow_root_json;
 
 
 
@@ -67,7 +65,3 @@ fn config_access() -> desktop_config::ConfigAccess {
 pub(in crate::app) use desktop_config::access::apply_main_agent_overrides;
 #[cfg(test)]
 pub(super) use desktop_config::access::run_gateway_call;
-#[cfg(test)]
-pub(super) use desktop_config::access::set_config_value_at_path;
-#[cfg(test)]
-pub(super) use desktop_config::config_gateway::load_config_value_at_path;

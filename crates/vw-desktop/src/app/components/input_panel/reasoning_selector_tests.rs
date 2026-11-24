@@ -5,7 +5,7 @@ use super::reasoning_selector::{
     reasoning_effort_selector,
 };
 use crate::app::message::chat;
-use crate::app::{Message, message};
+use crate::app::message;
 use vw_api_chat_identity::ReasoningEffortDto;
 
 // 宿主保留：宿主模型能力投影、ACP 确认及聊天更新契约。

@@ -45,7 +45,7 @@ pub(crate) fn save_graph(
 }
 
 pub(crate) fn handle(app: &mut Context<'_>, message: WorkflowMessage) -> Option<Task<Output>> {
-    if crate::message::video_edit::handle(&mut app.workflow_state, app.window_size, message.clone())
+    if crate::message::video_edit::handle(app.workflow_state, app.window_size, message.clone())
     {
         return Some(Task::none());
     }
@@ -151,7 +151,7 @@ pub(crate) fn handle(app: &mut Context<'_>, message: WorkflowMessage) -> Option<
             let yaml = match state.validated_yaml() {
                 Ok(yaml) => yaml,
                 Err(e) if !restore => {
-                    state.error = Some(e.into());
+                    state.error = Some(e);
                     return Some(Task::none());
                 }
                 Err(_) => String::new(),

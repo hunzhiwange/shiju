@@ -64,7 +64,7 @@ pub fn view<'a>(i18n: desktop_i18n::I18n, state: &'a State, index: usize, conten
     }
     if state.model_loaded {
         let info = match &state.model {
-            Some(model) => i18n.sprintf("模型（只读）：%s；提供商：%s；上下文：%s；最大输出：%s。修改请使用供应商设置。", &[format!("{}", model.default.as_deref().unwrap_or(i18n.__("未配置"))).into(), format!("{}", model.provider.as_deref().unwrap_or(i18n.__("未配置"))).into(), format!("{}", model.context_length.map_or(i18n.__("未配置").into(), |n| n.to_string())).into(), format!("{}", model.max_tokens.map_or(i18n.__("未配置").into(), |n| n.to_string())).into()]),
+            Some(model) => i18n.sprintf("模型（只读）：%s；提供商：%s；上下文：%s；最大输出：%s。修改请使用供应商设置。", &[model.default.as_deref().unwrap_or(i18n.__("未配置")).to_string().into(), model.provider.as_deref().unwrap_or(i18n.__("未配置")).to_string().into(), model.context_length.map_or(i18n.__("未配置").into(), |n| n.to_string()).to_string().into(), model.max_tokens.map_or(i18n.__("未配置").into(), |n| n.to_string()).to_string().into()]),
             None => i18n.__("模型（只读）：未配置；修改请使用供应商设置。").into(),
         };
         panel = panel.push(text(info));
@@ -91,11 +91,10 @@ pub(crate) fn request(
     if state.busy {
         return Task::none();
     }
-    if let Event::Toggle(index, _) = &action {
-        if *index > 1 || state.limits.is_none() {
+    if let Event::Toggle(index, _) = &action
+        && (*index > 1 || state.limits.is_none()) {
             return Task::none();
         }
-    }
     state.busy = true;
     state.error = None;
     Task::perform(

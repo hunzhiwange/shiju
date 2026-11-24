@@ -25,23 +25,11 @@ pub use desktop_chat_tools::tools::tool_parse::explore_item_dedupe_key;
 #[cfg(test)]
 pub use desktop_chat_tools::tools::tool_parse::is_acp_tool_payload;
 #[cfg(test)]
-pub use desktop_chat_tools::tools::tool_parse::tool_change_file_summaries;
-#[cfg(test)]
-pub use desktop_chat_tools::tools::tool_parse::tool_change_files;
-#[cfg(test)]
 pub use desktop_chat_tools::tools::tool_parse::tool_error_text;
 #[cfg(test)]
 pub use desktop_chat_tools::tools::tool_parse::tool_input;
 #[cfg(test)]
-pub use desktop_chat_tools::tools::tool_parse::tool_input_path;
-#[cfg(test)]
-pub use desktop_chat_tools::tools::tool_parse::tool_output_path;
-#[cfg(test)]
 pub use desktop_chat_tools::tools::tool_parse::tool_output_text;
-#[cfg(test)]
-pub use desktop_chat_tools::tools::tool_parse::tool_render_hint_metadata;
-#[cfg(test)]
-pub use desktop_chat_tools::tools::tool_parse::tool_result_data;
 #[cfg(test)]
 pub use desktop_chat_tools::tools::tool_parse::tool_status;
 #[cfg(test)]

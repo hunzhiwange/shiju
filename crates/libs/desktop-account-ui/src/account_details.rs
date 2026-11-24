@@ -325,9 +325,7 @@ pub fn details<'a>(
     if !account.details_open {
         return None;
     }
-    let Some(active) = account.active_account() else {
-        return None;
-    };
+    let active = account.active_account()?;
     if !matches!(&account.profile_editor, AccountProfileEditorState::Closed) {
         let editor = profile_editor_body(account, locale);
         return Some(editor);

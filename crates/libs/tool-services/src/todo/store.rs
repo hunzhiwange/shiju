@@ -50,7 +50,7 @@ fn scoped_project_id() -> Option<String> {
 fn load_todos(session: &str, scope: Option<&str>) -> Vec<Todo> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        return session_store::ui_store::load_session_todos_scoped(session, scope)
+        session_store::ui_store::load_session_todos_scoped(session, scope)
             .into_iter()
             .map(|todo| Todo {
                 content: todo.content,
@@ -58,7 +58,7 @@ fn load_todos(session: &str, scope: Option<&str>) -> Vec<Todo> {
                 priority: todo.priority,
                 id: todo.id,
             })
-            .collect();
+            .collect()
     }
 
     #[cfg(target_arch = "wasm32")]

@@ -111,7 +111,7 @@ fn add_skey(app: &mut GatewaySettingsState) -> Effect {
     let name = match normalize_skey_name(&app.new_skey_name_input) {
         Ok(value) => value,
         Err(err) => {
-            app.save_error = Some((err).into());
+            app.save_error = Some(err);
             return Effect::None;
         }
     };
@@ -119,7 +119,7 @@ fn add_skey(app: &mut GatewaySettingsState) -> Effect {
     let expires_at = match normalize_expires_at(&app.new_skey_expires_at_input) {
         Ok(value) => value,
         Err(err) => {
-            app.save_error = Some((err).into());
+            app.save_error = Some(err);
             return Effect::None;
         }
     };
@@ -173,13 +173,15 @@ fn persist_gateway_settings(app: &mut GatewaySettingsState) -> Effect {
         .collect::<Vec<_>>();
 
     {
-        let mut gateway = config_gateway::GatewayConfig::default();
-        gateway.port = port;
-        gateway.host = host;
-        gateway.auth_enabled = auth_enabled;
-        gateway.allow_public_bind = allow_public_bind;
-        gateway.skeys = skeys;
-        gateway.require_pairing = false;
+        let mut gateway = config_gateway::GatewayConfig {
+            port: port,
+            host: host,
+            auth_enabled: auth_enabled,
+            allow_public_bind: allow_public_bind,
+            skeys: skeys,
+            require_pairing: false,
+            ..Default::default()
+        };
         gateway.paired_tokens.clear();
         gateway.webhook_rate_limit_per_minute = webhook_rate_limit_per_minute;
         gateway.trust_forwarded_headers = trust_forwarded_headers;

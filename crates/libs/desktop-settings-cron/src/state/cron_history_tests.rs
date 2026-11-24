@@ -40,9 +40,11 @@ fn cron_history_filters_intersect() {
 
 #[test]
 fn cron_history_duplicate_names_use_ids() {
-    let mut state = CronHistoryState::default();
-    state.runs = vec![run("a", Some("same"), "ok"), run("b", Some("same"), "ok")];
-    state.selected_job_id = Some("b".into());
+    let mut state = CronHistoryState {
+        runs: vec![run("a", Some("same"), "ok"), run("b", Some("same"), "ok")],
+        selected_job_id: Some("b".into()),
+        ..Default::default()
+    };
     assert_eq!(state.visible_runs().map(|run| run.job_id.as_str()).collect::<Vec<_>>(), vec!["b"]);
 }
 
@@ -65,9 +67,11 @@ fn cron_history_duplicate_names_with_common_prefix_remain_distinct() {
 
 #[test]
 fn cron_history_unknown_status_is_not_success() {
-    let mut state = CronHistoryState::default();
-    state.runs = vec![run("a", None, "unknown"), run("b", None, "ok"), run("c", None, "error")];
-    state.status_filter = CronHistoryStatus::Success;
+    let mut state = CronHistoryState {
+        runs: vec![run("a", None, "unknown"), run("b", None, "ok"), run("c", None, "error")],
+        status_filter: CronHistoryStatus::Success,
+        ..Default::default()
+    };
     assert_eq!(state.visible_runs().count(), 1);
     state.status_filter = CronHistoryStatus::Failed;
     assert_eq!(state.visible_runs().next().unwrap().job_id, "c");
@@ -77,8 +81,10 @@ fn cron_history_unknown_status_is_not_success() {
 
 #[test]
 fn cron_history_context_invalidates_inflight_and_keeps_filters() {
-    let mut state = CronHistoryState::default();
-    state.search = "backup".into();
+    let mut state = CronHistoryState {
+        search: "backup".into(),
+        ..Default::default()
+    };
     assert!(state.sync_context(true, Some("one".into())));
     let first = state.begin_request().unwrap();
     assert!(state.accepts(first));
@@ -95,10 +101,12 @@ fn cron_history_context_invalidates_inflight_and_keeps_filters() {
 
 #[test]
 fn cron_history_refresh_prunes_deleted_selection_and_preserves_filters() {
-    let mut state = CronHistoryState::default();
-    state.search = "search".into();
-    state.status_filter = CronHistoryStatus::Failed;
-    state.selected_job_id = Some("deleted".into());
+    let mut state = CronHistoryState {
+        search: "search".into(),
+        status_filter: CronHistoryStatus::Failed,
+        selected_job_id: Some("deleted".into()),
+        ..Default::default()
+    };
     state.apply_response(
         gateway_cron::CronHistoryResponse {
             runs: vec![run("a", Some("search"), "error")],
@@ -121,8 +129,10 @@ fn cron_history_candidates_search_all_jobs() {
         "expression": "* * * * *", "command": "echo", "next_run": "later", "enabled": true
     }))
     .unwrap();
-    let mut state = CronHistoryState::default();
-    state.task_search = " DaI ".into();
+    let mut state = CronHistoryState {
+        task_search: " DaI ".into(),
+        ..Default::default()
+    };
     let jobs = vec![job];
     assert_eq!(state.task_candidates(&jobs), vec![("unrun", "DAILY".into())]);
     state.task_picker_open = true;

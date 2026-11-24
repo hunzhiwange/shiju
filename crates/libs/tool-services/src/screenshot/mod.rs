@@ -601,8 +601,8 @@ impl ScreenshotTool {
     #[allow(clippy::incompatible_msrv)]
     async fn read_and_encode(output_path: &std::path::Path) -> anyhow::Result<ToolResult> {
         // 在读取前检查文件大小，防止大文件导致内存溢出
-        if let Ok(meta) = tokio::fs::metadata(output_path).await {
-            if meta.len() > MAX_RAW_BYTES {
+        if let Ok(meta) = tokio::fs::metadata(output_path).await
+            && meta.len() > MAX_RAW_BYTES {
                 // 文件过大，不进行 Base64 编码，但报告成功
                 return Ok(ToolResult {
                     success: true,
@@ -614,7 +614,6 @@ impl ScreenshotTool {
                     error: None,
                 });
             }
-        }
 
         // 读取文件内容
         match tokio::fs::read(output_path).await {

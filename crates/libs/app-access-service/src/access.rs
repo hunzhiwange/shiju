@@ -971,7 +971,7 @@ pub fn tenant_policy_path(tenant: &TenantScope) -> PathBuf {
 
 fn authorize_scoped(
     path: Option<&Path>,
-    headers: &HeaderMap,
+    _headers: &HeaderMap,
     tenant: &TenantScope,
     target: &str,
     action: Option<vw_api_app_operations::AppLifecycleAction>,
@@ -1438,9 +1438,9 @@ pub fn authorize_provider_login(
     headers: &HeaderMap,
     tenant: &TenantScope,
     target: &str,
-    account: &str,
+    _account: &str,
 ) -> Result<(), StatusCode> {
-    let authorization =
+    let _authorization =
         authorize_scoped(path, headers, tenant, target, None, Capability::ProviderConfigWrite)?;
     Ok(())
 }

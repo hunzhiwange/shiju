@@ -259,13 +259,12 @@ impl State {
                 let index = i64::from(self.month.year()) * 12
                     + i64::from(self.month.month0())
                     + i64::from(delta);
-                if let Ok(year) = i32::try_from(index.div_euclid(12)) {
-                    if let Some(date) =
+                if let Ok(year) = i32::try_from(index.div_euclid(12))
+                    && let Some(date) =
                         NaiveDate::from_ymd_opt(year, index.rem_euclid(12) as u32 + 1, 1)
                     {
                         self.month = date;
                     }
-                }
             }
             Event::Today => self.month = now.date_naive().with_day(1).unwrap(),
             Event::Pick(day) => {

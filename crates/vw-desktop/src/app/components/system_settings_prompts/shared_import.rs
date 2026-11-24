@@ -10,6 +10,3 @@ pub(crate) fn overlay<'a>(
         super::ui_message,
     )
 }
-
-#[cfg(test)]
-pub(crate) use desktop_settings_skills::prompts::shared_import::Draft;

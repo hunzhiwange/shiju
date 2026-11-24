@@ -432,8 +432,8 @@ async fn untrusted_plugin_hook_skip_does_not_warn() {
 
     println!("untrusted plugin hook skip levels: {levels:?}");
     assert_eq!(registered, 0);
-    assert!(levels.iter().any(|level| *level == tracing::Level::DEBUG));
-    assert!(!levels.iter().any(|level| *level == tracing::Level::WARN));
+    assert!(levels.contains(&tracing::Level::DEBUG));
+    assert!(!levels.contains(&tracing::Level::WARN));
 }
 
 #[test]
@@ -477,7 +477,7 @@ fn trusted_unsupported_plugin_hook_is_not_registered() {
     });
 
     assert_eq!(registered, 0);
-    assert!(subscriber.levels().iter().any(|level| *level == tracing::Level::WARN));
+    assert!(subscriber.levels().contains(&tracing::Level::WARN));
 }
 
 #[cfg(unix)]

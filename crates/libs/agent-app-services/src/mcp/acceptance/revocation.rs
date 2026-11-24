@@ -26,14 +26,14 @@ pub fn update_delete(
         let call = old.call(json!({"wait": true}));
         let revoke = async {
             tokio::time::timeout(Duration::from_secs(5), async {
-                while fs::read_to_string(&calls)?.lines().count() < 2 {
+                while fs::read_to_string(calls)?.lines().count() < 2 {
                     tokio::time::sleep(Duration::from_millis(10)).await;
                 }
                 Ok::<_, std::io::Error>(())
             })
             .await??;
             let second = catalog
-                .update_connection(&scope, &first, connection(&script, &calls, "second"))
+                .update_connection(scope, first, connection(script, calls, "second"))
                 .unwrap()
                 .record;
             let error = old.call(json!({})).await.expect_err(
@@ -57,7 +57,7 @@ assert!(runtime.block_on(current.call(json!({})))?.model_text().contains("second
 assert!(runtime.block_on(old.call(json!({}))).is_err());
 live.replace(vec![current.clone()], [id.to_owned()])?;
 
-catalog.delete(&scope, &second).unwrap();
+catalog.delete(scope, &second).unwrap();
 assert!(runtime.block_on(current.call(json!({}))).is_err());
 runtime.block_on(pool.refresh_tool_catalog(&live))?;
 assert!(!live.snapshot().authorizes(id));
@@ -78,18 +78,18 @@ pub fn disable_reselect(
     live.replace(vec![cached.clone()], [id.to_owned()])?;
 
     assert_eq!(
-        catalog.disable_for_runtime(&other, &scope, &selection),
+        catalog.disable_for_runtime(other, scope, selection),
         Err(McpFailureCode::PermissionDenied)
     );
-    catalog.disable_for_runtime(&project, &scope, &selection).unwrap();
-    catalog.disable_for_runtime(&project, &scope, &selection).unwrap();
+    catalog.disable_for_runtime(project, scope, selection).unwrap();
+    catalog.disable_for_runtime(project, scope, selection).unwrap();
     let error = runtime.block_on(cached.call(json!({}))).unwrap_err();
     assert!(format!("{error:#}").contains("runtime selection was revoked"));
     runtime.block_on(pool.refresh_tool_catalog(&live))?;
-    assert!(!live.snapshot().authorizes(&id));
+    assert!(!live.snapshot().authorizes(id));
     assert!(discover().is_none());
 
-    catalog.select_for_runtime(&project, &scope, &selection).unwrap();
+    catalog.select_for_runtime(project, scope, selection).unwrap();
     let fresh = discover().expect("reenabled server should expose a new executor");
     let error = runtime.block_on(cached.call(json!({}))).unwrap_err();
     assert!(format!("{error:#}").contains("runtime selection was revoked"));
@@ -98,7 +98,7 @@ pub fn disable_reselect(
     assert_ne!(before.model_text(), after.model_text());
     assert_eq!(fs::read_to_string(root.join("starts"))?.lines().count(), 2);
 
-    catalog.disable_for_runtime(&project, &scope, &selection).unwrap();
+    catalog.disable_for_runtime(project, scope, selection).unwrap();
     assert!(discover().is_none());
     Ok(())
 }

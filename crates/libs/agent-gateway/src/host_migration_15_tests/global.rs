@@ -265,8 +265,10 @@ async fn global_config_get_maps_unusable_config_directory_to_bad_request() {
 
 #[test]
 fn config_response_maps_secret_encryption_failure_to_internal_error() {
-    let mut config = config::Config::default();
-    config.config_path = std::path::PathBuf::new();
+    let mut config = config::Config {
+        config_path: std::path::PathBuf::new(),
+        ..Default::default()
+    };
 
     let err = config_response(config).expect_err("missing config parent should fail");
 
@@ -540,7 +542,7 @@ async fn global_event_sse_preserves_published_event_directory() {
             .await
             .expect("published event should be present")
             .expect("published event frame should be readable");
-        published.push_str(&String::from_utf8(chunk.to_vec()).expect("event should be utf8"));
+        published.push_str(core::str::from_utf8(&chunk).expect("event should be utf8"));
         if published.contains("\"type\":\"test.global.sse.directory\"") {
             break;
         }
@@ -566,7 +568,7 @@ async fn global_event_sse_streams_heartbeat_and_stops_after_receiver_closes() {
             .await
             .expect("initial SSE event should be present")
             .expect("initial SSE event frame should be readable");
-        frames.push_str(&String::from_utf8(chunk.to_vec()).expect("event should be utf8"));
+        frames.push_str(core::str::from_utf8(&chunk).expect("event should be utf8"));
         if frames.contains("\"type\":\"server.heartbeat\"") {
             break;
         }

@@ -108,7 +108,7 @@ async fn assert_draws(mut element: Element<'_, Message>, theme: &Theme, width: f
         &viewport,
     );
     let pixels = renderer.screenshot(Size::new(width as u32, 800), 1.0, Color::TRANSPARENT);
-    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
 }
 
 #[test]

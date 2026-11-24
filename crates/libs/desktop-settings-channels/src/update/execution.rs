@@ -8,7 +8,7 @@ use iced::Task;
 use config_agent_profile::AgentModelReference;
 
 fn configured(app: &ChannelsSettingsState, instance: &str) -> Result<(), String> {
-    let config = build_channels_config_from_settings(&app)?;
+    let config = build_channels_config_from_settings(app)?;
     if !config
         .resolve_channel_instance_profiles()
         .map_err(|e| e.to_string())?
@@ -27,7 +27,7 @@ fn tenant(services: &Services) -> Result<String, String> {
 
 /// 页面展示前预加载各实例，候选就绪后才创建可交互的选择框。
 pub fn load_active(app: &mut ChannelsSettingsState, services: &Services) -> Task<Message> {
-    let profiles = build_channels_config_from_settings(&app)
+    let profiles = build_channels_config_from_settings(app)
         .ok()
         .and_then(|config| config.resolve_channel_instance_profiles().ok())
         .unwrap_or_default();

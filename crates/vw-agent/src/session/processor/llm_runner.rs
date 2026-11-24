@@ -144,5 +144,5 @@ mod llm_runner_tests;
 #[cfg(test)]
 pub(crate) use llm_runner_tests::{
     ChannelCancelStream, enqueue_test_llm_stream, register_channel_cancel_stream,
-    take_test_llm_messages, take_test_llm_stream_tool_ids, test_llm_stream_guard,
+    take_test_llm_messages, take_test_llm_stream_tool_ids, test_llm_stream_guard, test_llm_stream_guard_async,
 };

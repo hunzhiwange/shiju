@@ -90,12 +90,11 @@ pub(crate) async fn forward_json(
         return forward_alpha_search(request, route, limits, listener,
             #[cfg(target_os = "macos")] egress).await;
     }
-    if app == AppId::Gemini {
-        if let Some(metadata) = model_protocol::gemini_metadata::Request::parse(request.uri()) {
+    if app == AppId::Gemini
+        && let Some(metadata) = model_protocol::gemini_metadata::Request::parse(request.uri()) {
             return forward_gemini_metadata(request, route, limits, listener,
                 #[cfg(target_os = "macos")] egress, metadata).await;
         }
-    }
     let gemini = (app == AppId::Gemini)
         .then(|| model_protocol::native_gemini::Request::parse(request.uri()))
         .flatten();
@@ -867,11 +866,8 @@ async fn forward_rectified(
     let (mut parts, body) = response.into_parts();
     let codings = ContentCodings::from_headers(&parts.headers).map_err(upstream_decode_status)?;
     let bytes = decode_response::decode(body, codings, MAX_JSON_BYTES).await.map_err(upstream_decode_status)?;
-    let repaired = model_protocol::signature_rectify::repair(&input, parts.status, &bytes, url);
-    let repaired = match repaired {
-        Ok(value) => value,
-        Err(()) => return Err(RouteError::UnreadableAgentTask),
-    };
+    let repaired = model_protocol::signature_rectify::repair(&input, parts.status, &bytes, url)
+        .map_err(|_| RouteError::UnreadableAgentTask)?;
     // Share the existing single replay allowance with signature repair.
     // Inspect the decoded error message only for the Messages endpoint.
     let repaired = repaired.or_else(|| {

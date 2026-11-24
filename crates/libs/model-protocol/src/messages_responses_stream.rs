@@ -213,8 +213,8 @@ impl Decoder {
                 }
             }
             Some("reasoning") => {
-                if complete {
-                    if let Some(block) =
+                if complete
+                    && let Some(block) =
                         super::reasoning_bridge::anthropic_block_from_openai_reasoning_item(item)
                     {
                         let key = (index, 0);
@@ -233,7 +233,6 @@ impl Decoder {
                             }
                         }
                     }
-                }
             }
             Some("message") => {
                 let thinking = item["type"] == "reasoning";
@@ -332,21 +331,19 @@ impl Decoder {
             self.terminal = true;
             for (index, item) in output.iter().enumerate() {
                 let mut item = item.clone();
-                if item["type"] == "web_search_call" {
-                    if let Some(result) = final_message["content"].as_array().and_then(|parts| {
+                if item["type"] == "web_search_call"
+                    && let Some(result) = final_message["content"].as_array().and_then(|parts| {
                         parts.iter().find(|part| {
                             part["type"] == "web_search_tool_result"
                                 && part["tool_use_id"] == item["id"]
                         })
-                    }) {
-                        if result["content"].is_array() {
+                    })
+                        && result["content"].is_array() {
                             if item.get("action").is_none() {
                                 item["action"] = json!({});
                             }
                             item["action"]["sources"] = result["content"].clone();
                         }
-                    }
-                }
                 self.item(index as u64, &item, true, &mut out)?;
             }
             out.push_str(&event(json!({"type":"message_delta","delta":{

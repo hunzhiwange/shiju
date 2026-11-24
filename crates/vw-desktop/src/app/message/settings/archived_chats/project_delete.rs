@@ -40,8 +40,3 @@ fn task(
     )
     .map(super::event)
 }
-
-#[cfg(test)]
-pub(super) use desktop_settings_sessions::archived_chats::project_delete::apply;
-#[cfg(test)]
-pub(super) use desktop_settings_sessions::archived_chats::project_delete::delete_checked;

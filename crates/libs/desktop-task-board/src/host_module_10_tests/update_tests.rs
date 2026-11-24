@@ -76,8 +76,10 @@ fn work_plan_detail_entry_selects_basic_and_preserves_log_entry() {
     use crate::message::{TaskBoardDetailTab, TaskBoardMessage};
     use crate::update::local::{LocalEffect, update_local};
 
-    let mut app = Fixture::default();
-    app.project_path = Some("/work".into());
+    let mut app = Fixture {
+        project_path: Some("/work".into()),
+        ..Default::default()
+    };
     app.task_board_tasks.push(Task {
         id: "task-1".into(),
         status: TaskStatus::Running,

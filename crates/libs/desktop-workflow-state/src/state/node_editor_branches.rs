@@ -100,24 +100,22 @@ impl WorkflowState {
 
     pub fn set_node_editor_if_else_case_logical_operator(&mut self, index: usize, value: String) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::IfElse { cases } = draft {
-                if let Some(case) = cases.get_mut(index) {
+            if let WorkflowNodeVisualDraft::IfElse { cases } = draft
+                && let Some(case) = cases.get_mut(index) {
                     case.logical_operator = value;
                     return true;
                 }
-            }
             false
         });
     }
 
     pub fn add_node_editor_if_else_condition(&mut self, case_index: usize) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::IfElse { cases } = draft {
-                if let Some(case) = cases.get_mut(case_index) {
+            if let WorkflowNodeVisualDraft::IfElse { cases } = draft
+                && let Some(case) = cases.get_mut(case_index) {
                     case.conditions.push(default_if_else_condition_draft());
                     return true;
                 }
-            }
             false
         });
     }
@@ -128,14 +126,12 @@ impl WorkflowState {
         condition_index: usize,
     ) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::IfElse { cases } = draft {
-                if let Some(case) = cases.get_mut(case_index) {
-                    if condition_index < case.conditions.len() {
+            if let WorkflowNodeVisualDraft::IfElse { cases } = draft
+                && let Some(case) = cases.get_mut(case_index)
+                    && condition_index < case.conditions.len() {
                         case.conditions.remove(condition_index);
                         return true;
                     }
-                }
-            }
             false
         });
     }
@@ -147,15 +143,14 @@ impl WorkflowState {
         value: String,
     ) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::IfElse { cases } = draft {
-                if let Some(condition) = cases
+            if let WorkflowNodeVisualDraft::IfElse { cases } = draft
+                && let Some(condition) = cases
                     .get_mut(case_index)
                     .and_then(|case| case.conditions.get_mut(condition_index))
                 {
                     condition.variable_selector_input = value;
                     return true;
                 }
-            }
             false
         });
     }
@@ -167,15 +162,14 @@ impl WorkflowState {
         value: String,
     ) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::IfElse { cases } = draft {
-                if let Some(condition) = cases
+            if let WorkflowNodeVisualDraft::IfElse { cases } = draft
+                && let Some(condition) = cases
                     .get_mut(case_index)
                     .and_then(|case| case.conditions.get_mut(condition_index))
                 {
                     condition.comparison_operator = value;
                     return true;
                 }
-            }
             false
         });
     }
@@ -187,15 +181,14 @@ impl WorkflowState {
         value: String,
     ) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::IfElse { cases } = draft {
-                if let Some(condition) = cases
+            if let WorkflowNodeVisualDraft::IfElse { cases } = draft
+                && let Some(condition) = cases
                     .get_mut(case_index)
                     .and_then(|case| case.conditions.get_mut(condition_index))
                 {
                     condition.compare_value = value;
                     return true;
                 }
-            }
             false
         });
     }
@@ -207,15 +200,14 @@ impl WorkflowState {
         value: String,
     ) {
         self.update_node_visual_draft(|draft| {
-            if let WorkflowNodeVisualDraft::IfElse { cases } = draft {
-                if let Some(condition) = cases
+            if let WorkflowNodeVisualDraft::IfElse { cases } = draft
+                && let Some(condition) = cases
                     .get_mut(case_index)
                     .and_then(|case| case.conditions.get_mut(condition_index))
                 {
                     condition.var_type = value;
                     return true;
                 }
-            }
             false
         });
     }

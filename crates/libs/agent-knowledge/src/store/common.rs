@@ -135,7 +135,7 @@ pub fn normalize_import_mime(mime_type: Option<&str>) -> Option<String> {
 
 pub fn import_source_bytes(content_base64: &str) -> Result<u64, ApiError> {
     let encoded = content_base64.trim();
-    let max_encoded = ((crate::import::MAX_IMPORT_FILE_BYTES + 2) / 3) * 4;
+    let max_encoded = crate::import::MAX_IMPORT_FILE_BYTES.div_ceil(3) * 4;
     if encoded.len() > max_encoded {
         return Err(ApiError::bad_request(format!(
             "knowledge import file is too large: max {} bytes",

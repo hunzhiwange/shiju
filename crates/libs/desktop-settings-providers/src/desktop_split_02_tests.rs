@@ -1,7 +1,6 @@
 // Tests migrated from desktop host state; production types retain their original owners.
 mod behavior_0 {
 use crate::state::*;
-use crate::provider_state::*;
 #[test]
 fn model_detail_and_model_settings_defaults_are_stable() {
     let custom_modal = CustomProviderModelModalState {

@@ -15,15 +15,14 @@ pub struct State {
 impl State {
     pub fn new(system: &config_ui::AppSystemSettingsConfig) -> Self {
         // 应用程序主题（启动时轻量种子内置预设，失败仅 warn）
-        if let Some(root) = desktop_theme::theme_catalog::current_themes_root() {
-            if let Err(err) = desktop_theme::theme_catalog::ensure_bundled_presets(&root) {
+        if let Some(root) = desktop_theme::theme_catalog::current_themes_root()
+            && let Err(err) = desktop_theme::theme_catalog::ensure_bundled_presets(&root) {
                 tracing::warn!(
                     target: "vw_desktop",
                     error = %err,
                     "failed to seed bundled theme presets on startup"
                 );
             }
-        }
         let theme_store = desktop_theme::theme_catalog::theme_store_from_home();
         let (cfg_app_theme, cfg_active_custom_theme_id) =
             match desktop_theme::theme_catalog::resolve_app_theme_name(

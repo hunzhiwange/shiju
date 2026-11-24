@@ -6,7 +6,7 @@ use super::*;
 use crate::app::state::{
     ModelConfigTab,
 };
-use crate::app::{App, Message};
+use crate::app::App;
 use iced::advanced::widget::Tree;
 
 // 提供商目录完全由 fixture 提供，避免网络刷新状态进入筛选和批量操作测试。

@@ -205,11 +205,10 @@ pub fn update(state: &mut State, input: &Input, message: Message) -> Effect {
             effect: bindings::Effect::Error("当前应用不支持技能绑定，请刷新应用目录".into()),
         };
     }
-    if let bindings::Event::BindTarget(id, target, enabled) = &event {
-        if !available.contains(target) || state.binding_status(target, id) != Some(!enabled) {
+    if let bindings::Event::BindTarget(id, target, enabled) = &event
+        && (!available.contains(target) || state.binding_status(target, id) != Some(!enabled)) {
             return Effect::None;
         }
-    }
     if let bindings::Event::Select(id) = &event {
         state.workspace.close_menus();
         if !state.bindings.open {

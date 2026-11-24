@@ -40,8 +40,10 @@ pub fn job(id: &str) -> CronJobDto {
 }
 
 pub fn list_state() -> desktop_settings_cron::state::CronSettingsState {
-    let mut state = desktop_settings_cron::state::CronSettingsState::default();
-    state.jobs_loading = false;
+    let mut state = desktop_settings_cron::state::CronSettingsState {
+        jobs_loading: false,
+        ..Default::default()
+    };
     let mut row = job("list-job");
     row.name = Some("每日巡检".into());
     row.command = "检查运行状态并生成摘要".into();

@@ -65,7 +65,7 @@ async fn assert_draws(app: &Fixture, theme: &Theme) {
         &Rectangle::with_size(bounds),
     );
     let pixels = renderer.screenshot(Size::new(720, 800), 1.0, Color::TRANSPARENT);
-    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
     if let Ok(dir) = std::env::var("VW_EXPERT_SCREENSHOT_DIR") {
         let index = SCREENSHOT_INDEX.fetch_add(1, Ordering::Relaxed);
         let path = std::path::Path::new(&dir).join(format!("experts-{index:02}.png"));

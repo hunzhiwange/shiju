@@ -1,6 +1,6 @@
 use super::support::{Message, SettingsMessage};
 use desktop_ui_controls::system_settings_common::{
-    settings_modal_card, settings_modal_overlay, settings_select,
+    settings_modal_overlay, settings_select,
 };
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, Shell, clipboard, layout, widget::Tree};

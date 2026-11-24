@@ -6,7 +6,6 @@ use vw_api_transport::id::TenantScope;
 
 use super::settings_store::GatewaySettingsStore;
 use agent_database::GlobalDatabase;
-use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn gateway_settings_store_isolates_tenant_namespace_and_key() -> Result<()> {

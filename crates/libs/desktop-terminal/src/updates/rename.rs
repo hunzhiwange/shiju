@@ -38,8 +38,8 @@ fn cancel_edit(edit_title: &mut Option<String>) {
 pub(super) fn update(terminal: &mut TerminalState, locale: config_ui::DesktopLocale, message: TerminalMessage) -> Task<TerminalMessage> {
     let start_id = if let TerminalMessage::RenameStart(id) = &message { Some(*id) } else { None };
     let task = update_terminal(&mut *terminal, message);
-    if let Some(id) = start_id {
-        if let Some(tab) =
+    if let Some(id) = start_id
+        && let Some(tab) =
             terminal.tabs.iter_mut().find(|tab| tab.id == id && tab.default_title)
         {
             tab.edit_title = Some(
@@ -47,7 +47,6 @@ pub(super) fn update(terminal: &mut TerminalState, locale: config_ui::DesktopLoc
                     .expect("terminal title template"),
             );
         }
-    }
     task
 }
 

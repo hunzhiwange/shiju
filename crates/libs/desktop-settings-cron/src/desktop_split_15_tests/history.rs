@@ -121,7 +121,7 @@ async fn cron_history_renders_chinese_long_lists_and_details() {
                 );
                 let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
                 assert_eq!(pixels.len(), width as usize * 720 * 4);
-                assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]));
+                assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel != &pixels[..4]));
                 if let Some(directory) = std::env::var_os("SHIJU_CRON_HISTORY_SCREENSHOTS") {
                     ::image::save_buffer(
                         std::path::PathBuf::from(directory)

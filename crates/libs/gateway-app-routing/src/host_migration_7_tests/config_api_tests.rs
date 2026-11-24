@@ -16,7 +16,7 @@ async fn request(
     port: u16,
     path: &str,
     method: Method,
-    token: Option<&str>,
+    _token: Option<&str>,
     body: Option<Value>,
 ) -> Response {
     let mut request = Client::builder()

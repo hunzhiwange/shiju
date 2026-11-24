@@ -100,7 +100,7 @@ pub(super) async fn inspect(
         &viewport,
     );
     let pixels = renderer.screenshot(Size::new(width as u32, 800), 1.0, theme.palette().background);
-    assert!(pixels.chunks_exact(4).any(|p| p[3] > 0));
+    assert!(pixels.as_chunks::<4>().0.iter().any(|p| p[3] > 0));
     if let Ok(directory) = std::env::var("VW_KNOWLEDGE_SCREENSHOT_DIR") {
         static INDEX: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
         let index = INDEX.fetch_add(1, std::sync::atomic::Ordering::Relaxed);

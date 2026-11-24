@@ -622,8 +622,8 @@ async fn run_heartbeat_worker(config: Config, services: std::sync::Arc<dyn Daemo
                     };
 
                     // 如果配置了投递目标，发送执行结果
-                    if let Some((channel, target)) = &delivery {
-                        if let Err(e) = services.deliver_announcement(
+                    if let Some((channel, target)) = &delivery
+                        && let Err(e) = services.deliver_announcement(
                             &config,
                             channel,
                             target,
@@ -637,7 +637,6 @@ async fn run_heartbeat_worker(config: Config, services: std::sync::Arc<dyn Daemo
                             );
                             tracing::warn!("Heartbeat delivery failed: {e}");
                         }
-                    }
                 }
                 Err(e) => {
                     // 任务执行失败

@@ -9,7 +9,7 @@ pub(super) fn actions(i18n: desktop_i18n::I18n, profile: &ProjectProfile, scope:
     let mut actions = row![].spacing(8);
     for action in [Action::Rename(profile.id.clone(), profile.version), Action::Resnapshot(profile.id.clone(), profile.version), Action::Delete(profile.id.clone(), profile.version)] {
         actions = actions.push(button(text(i18n.__(action.title()))).padding([8, 12]).style(rounded_action_btn_style)
-            .on_press_maybe(enabled.then(|| Event::Open(scope, action))));
+            .on_press_maybe(enabled.then_some(Event::Open(scope, action))));
     }
     actions.into()
 }
@@ -37,7 +37,7 @@ pub(super) fn overlay<'a, Identity>(i18n: desktop_i18n::I18n, state: &'a State<I
         button(text(i18n.__("取消"))).padding([8, 14]).style(rounded_action_btn_style)
             .on_press_maybe((!form.busy).then_some(close.clone())),
         button(text(if form.busy { i18n.__("处理中") } else { i18n.__("确认") })).padding([8, 14]).style(primary_action_btn_style)
-            .on_press_maybe((!form.busy && (!form.action.needs_name() || !form.name.trim().is_empty())).then(|| Event::Submit(scope)))
+            .on_press_maybe((!form.busy && (!form.action.needs_name() || !form.name.trim().is_empty())).then_some(Event::Submit(scope)))
     ].spacing(10);
     let card = settings_modal_layout(header, body, Some(actions.into())).width(560).height(320);
     settings_modal_overlay(Some(base), close, card)

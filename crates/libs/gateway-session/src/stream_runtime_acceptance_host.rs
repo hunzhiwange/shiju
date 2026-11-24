@@ -17,7 +17,7 @@ pub trait RuntimeAcceptanceHost: crate::stream_host::StreamHost + Send + Sync + 
     type Boundary;
     fn env_lock() -> &'static tokio::sync::Mutex<()>;
     fn recovery(api: &str, key: Option<&str>) -> impl Future<Output = Self::Fixture>;
-    fn stream_guard() -> std::sync::MutexGuard<'static, ()>;
+    fn stream_guard() -> impl Future<Output = tokio::sync::MutexGuard<'static, ()>>;
     fn enqueue(events: Vec<llm_runtime::StreamEvent>);
     fn captured(session: &str) -> Vec<CapturedRequest>;
     fn tool_ids() -> Vec<Vec<String>>;

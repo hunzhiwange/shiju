@@ -1,5 +1,5 @@
 use super::VerifiedRouteBinding;
-use crate::app_routing::{ListenerError, RoutingListener};
+use crate::app_routing::ListenerError;
 use std::{net::SocketAddr, time::Duration};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},

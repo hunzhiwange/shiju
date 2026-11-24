@@ -21,7 +21,7 @@ pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     let close = event(LaunchMessage::Close);
     let editable = !state.busy && !state.accepted;
     let mut body = column![
-        text(i18n.sprintf("应用：%s · 实例：%s", &[format!("{:?}", request.app_id).into(), format!("{}", request.installation_id.0).into()]))
+        text(i18n.sprintf("应用：%s · 实例：%s", &[format!("{:?}", request.app_id).into(), request.installation_id.0.to_string().into()]))
             .size(13)
             .style(settings_muted_text_style),
     ]

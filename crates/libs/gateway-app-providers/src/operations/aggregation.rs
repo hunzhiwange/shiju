@@ -21,7 +21,7 @@ impl Running {
         let mut progress = self.operation.snapshot();
         let outcome = if matches!(progress.status, TaskStatus::Completed | TaskStatus::Failed) {
             owned.outcome.lock().unwrap_or_else(|e| e.into_inner()).clone().or_else(|| {
-                (progress.status == TaskStatus::Failed).then(|| AggregationOutcome::Failed {
+                (progress.status == TaskStatus::Failed).then_some(AggregationOutcome::Failed {
                     status: 502,
                     code: AggregationErrorCode::TargetFailed,
                     recovery: RecoveryState::Failed,

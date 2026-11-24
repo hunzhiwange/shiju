@@ -735,11 +735,11 @@ fn temporary_workflow_yaml_sets_dify_node_layout() {
         let position =
             node.get("position").and_then(serde_yaml::Value::as_mapping).expect("node position");
         let x = position
-            .get(&serde_yaml::Value::String("x".to_string()))
+            .get(serde_yaml::Value::String("x".to_string()))
             .and_then(serde_yaml::Value::as_i64)
             .expect("x");
         let y = position
-            .get(&serde_yaml::Value::String("y".to_string()))
+            .get(serde_yaml::Value::String("y".to_string()))
             .and_then(serde_yaml::Value::as_i64)
             .expect("y");
         assert_eq!(node.get("type").and_then(serde_yaml::Value::as_str), Some("custom"));

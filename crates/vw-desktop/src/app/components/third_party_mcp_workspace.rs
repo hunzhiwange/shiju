@@ -22,7 +22,7 @@ use iced::{
 };
 
 #[derive(Debug, Clone)]
-pub(crate) struct Event {
+pub struct Event {
     scope: Scope,
     action: Action,
 }

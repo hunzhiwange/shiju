@@ -13,14 +13,13 @@ use {
 };
 use project_types::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
-use super::domain::{AgentSchedulerContext, AssigneeId, RunId, TaskId};
+use super::domain::AgentSchedulerContext;
 use super::events::AgentEventKind;
 use super::state_machine::AgentTaskStatus;
 use super::store::AgentSchedulerStore;
 use super::store::events::AppendAgentEventRequest;
-use super::store::outbox::{EnqueueOutboxMessageRequest, OutboxMessageStatus};
+use super::store::outbox::EnqueueOutboxMessageRequest;
 use agent_database::GlobalDatabase;
-use agent_database::test_support::PostgresTestDatabase;
 use agent_project::store::ProjectStore;
 
 #[test]

@@ -14,7 +14,7 @@ fn router(path: &Path) -> Router {
     read::router_with_policy(Some(path.to_owned()))
         .layer(middleware::from_fn(gateway_types::tenant_scope::tenant_scope_middleware))
 }
-fn request(endpoint: &str, token: &str, company: &str, host: &str) -> Request<Body> {
+fn request(endpoint: &str, _token: &str, company: &str, host: &str) -> Request<Body> {
     Request::builder()
         .uri(format!("/agent-apps/{endpoint}?targetHostId={host}&appId=claude"))
         .header("x-platform-id", "p")

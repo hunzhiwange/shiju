@@ -29,5 +29,3 @@ pub(super) fn deliver(action: LinkAction, url: &reqwest::Url) -> Result<(), &'st
 
 #[cfg(test)]
 use crate::app::state::agent_apps_auth::State;
-#[cfg(test)]
-pub use desktop_apps_ui::agent_apps_auth::browser::accepts_paste;

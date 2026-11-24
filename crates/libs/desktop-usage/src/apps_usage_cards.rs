@@ -162,9 +162,7 @@ impl Cards {
         if self.scope.as_ref() == Some(scope)
             && let Some(entry) = self.entries.get_mut(target)
             && matches!(&entry.result, Some(Ok(items)) if has_snapshot(items, &provider))
-        {
-            if !entry.expanded.remove(&provider) { entry.expanded.insert(provider); }
-        }
+            && !entry.expanded.remove(&provider) { entry.expanded.insert(provider); }
     }
     pub fn clear(&mut self) {
         self.scope = None;

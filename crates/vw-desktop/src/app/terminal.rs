@@ -18,6 +18,3 @@ pub(crate) fn open_local_directory(path: &str) -> std::io::Result<()> {
     }
     desktop_terminal::local::open_local_directory(path)
 }
-
-#[cfg(test)]
-pub(crate) use desktop_terminal::panes;

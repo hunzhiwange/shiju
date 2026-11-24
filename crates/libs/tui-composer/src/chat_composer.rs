@@ -596,6 +596,12 @@ impl ChatComposer {
     }
 }
 
+impl Default for ChatComposer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 fn is_file_search_char(character: char) -> bool {
     character.is_ascii_alphanumeric()
         || matches!(character, '/' | '\\' | '.' | '_' | '-' | ':' | '#')

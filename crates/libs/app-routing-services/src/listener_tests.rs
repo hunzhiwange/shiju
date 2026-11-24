@@ -1,4 +1,4 @@
-use super::listener::{ListenerError, RoutingListener};
+use super::listener::ListenerError;
 use std::{io::ErrorKind, net::Ipv4Addr, sync::Arc, time::Duration};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},

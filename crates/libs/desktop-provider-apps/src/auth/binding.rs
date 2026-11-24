@@ -176,7 +176,7 @@ pub fn update<U: Usage>(state: &mut State<U>, notice: &mut Option<Notice>, effec
     let connection = state
         .connection
         .as_ref()
-        .filter(|connection| connection_matches(binding, connection, &origin_input.token));
+        .filter(|connection| connection_matches(binding, connection, origin_input.token));
     let Some(connection) = connection else {
         return Task::none();
     };

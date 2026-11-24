@@ -200,8 +200,8 @@ pub fn assistant_error_from_aisdk(
                 is_retryable: retryable,
                 // AISDK 不直接暴露响应头；保留为 None。
                 response_headers: None,
-                response_body: source_chain.or_else(|| Some(raw_error)),
-                metadata: Some(metadata),
+                response_body: source_chain.or(Some(raw_error)),
+                metadata: Some(Box::new(metadata)),
             }
         }
         // 其他未分类错误 -> 转换为未知错误

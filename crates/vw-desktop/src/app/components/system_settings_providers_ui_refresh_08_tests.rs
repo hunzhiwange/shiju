@@ -9,7 +9,7 @@ use iced::{Element, Event, Point, Size, Theme, mouse};
 #[path = "../../../../libs/desktop-settings-providers/src/view_test_support.rs"]
 mod rendering;
 use config_ui::DesktopLocale;
-use rendering::{Scene, ime, key, modal_path, renderer};
+use rendering::{Scene, key, modal_path, renderer};
 
 fn fixture() -> App {
     let mut app = None;

@@ -1538,9 +1538,7 @@ fn complete_index_job_blocking(
         .map_err(sql_error)?;
         tx.commit().map_err(sql_error)
     })();
-    if let Err(error) = result {
-        return Err(error);
-    }
+    result?;
 
     query_index_job(&conn, tenant, &job.id)?
         .ok_or_else(|| ApiError::not_found(format!("knowledge index job not found: {}", job.id)))
@@ -2545,13 +2543,11 @@ fn nearby_text_context(
     {
         if let Some(candidate) =
             query_chunk(conn, tenant, chunk_id, None, KnowledgeMatchType::Nearby)?
-        {
-            if candidate.document_id == chunk.document_id
+            && candidate.document_id == chunk.document_id
                 && candidate.chunk_type == KnowledgeChunkType::Text
             {
                 linked_chunks.push(candidate);
             }
-        }
     }
     Ok(non_empty_context(merge_text_chunks(&linked_chunks, "\n")))
 }

@@ -81,7 +81,7 @@ fn command_flow_model_answer() {
 
 #[allow(clippy::await_holding_lock)] // 现有模型流队列要求跨异步调用串行持有。
 async fn command_flow_happy(platform: &str, instance: &str) {
-    let _guard = crate::session::processor::test_llm_stream_guard();
+    let _guard = crate::session::processor::test_llm_stream_guard_async().await;
     let (_temp, ctx, channel, msg) = command_flow_fixture(platform, instance).await;
     let help = command_flow_send(&ctx, &channel, &msg, "/help").await;
     let doc = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/vibewindow/通道命令.md")).unwrap();

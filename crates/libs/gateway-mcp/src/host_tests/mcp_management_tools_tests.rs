@@ -59,8 +59,8 @@ async fn cc_mcp_t50_acp_http_reads_only_explicitly_granted_scoped_sessions() {
         scope.project_id().as_ref(),
         session.id
     );
-    async fn request_read(app: &Router, uri: &str, token: Option<&str>) -> (StatusCode, Value) {
-        let mut request = Request::builder().uri(uri);
+    async fn request_read(app: &Router, uri: &str, _token: Option<&str>) -> (StatusCode, Value) {
+        let request = Request::builder().uri(uri);
         let response = app.clone().oneshot(request.body(Body::empty()).unwrap()).await.unwrap();
         let status = response.status();
         let bytes = to_bytes(response.into_body(), 65536).await.unwrap();

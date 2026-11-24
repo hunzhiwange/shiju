@@ -53,11 +53,17 @@ static TEST_LLM_STREAMS: std::sync::LazyLock<std::sync::Mutex<VecDeque<Vec<llm::
 static TEST_LLM_STREAM_TOOL_IDS: std::sync::LazyLock<std::sync::Mutex<Vec<Vec<String>>>> =
     std::sync::LazyLock::new(|| std::sync::Mutex::new(Vec::new()));
 
-static TEST_LLM_STREAM_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =
-    std::sync::LazyLock::new(|| std::sync::Mutex::new(()));
+static TEST_LLM_STREAM_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-pub(crate) fn test_llm_stream_guard() -> std::sync::MutexGuard<'static, ()> {
-    let guard = TEST_LLM_STREAM_LOCK.lock().expect("lock scripted LLM stream tests");
+pub(crate) fn test_llm_stream_guard() -> tokio::sync::MutexGuard<'static, ()> {
+    clear_test_llm_streams(TEST_LLM_STREAM_LOCK.blocking_lock())
+}
+
+pub(crate) async fn test_llm_stream_guard_async() -> tokio::sync::MutexGuard<'static, ()> {
+    clear_test_llm_streams(TEST_LLM_STREAM_LOCK.lock().await)
+}
+
+fn clear_test_llm_streams(guard: tokio::sync::MutexGuard<'static, ()>) -> tokio::sync::MutexGuard<'static, ()> {
     TEST_LLM_STREAMS.lock().expect("lock scripted LLM streams").clear();
     TEST_LLM_MESSAGES.lock().unwrap().clear();
     TEST_LLM_STREAM_TOOL_IDS.lock().expect("lock scripted LLM tool ids").clear();

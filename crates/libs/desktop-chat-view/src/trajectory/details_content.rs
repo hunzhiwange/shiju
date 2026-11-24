@@ -87,8 +87,8 @@ pub fn trajectory_details_body<'a>(
                 i18n,
                 &value,
                 &collapsed_paths,
-                |path| Message::TrajectoryDetailsJsonToggled(path),
-                |value| Message::TrajectoryDetailsJsonCopied(value),
+                Message::TrajectoryDetailsJsonToggled,
+                Message::TrajectoryDetailsJsonCopied,
             )
         }
         TrajectoryDetailContent::Tools(tools) => tool_definitions_view(i18n, tools, state),
@@ -163,7 +163,7 @@ fn tool_definitions_view<'a>(
                         "{toggle_prefix}{path}"
                     ))
                 },
-                |value| Message::TrajectoryDetailsJsonCopied(value),
+                Message::TrajectoryDetailsJsonCopied,
             );
             card = card.push(
                 column![

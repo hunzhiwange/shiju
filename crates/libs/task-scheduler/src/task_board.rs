@@ -547,13 +547,12 @@ impl<'a> AgentTaskBoardService<'a> {
         let current = self.store.load_task_board_workflow(project_path)?;
         if let Some(candidate) = workflow.as_ref() {
             candidate.validate_for_schedule().map_err(anyhow::Error::msg)?;
-            if !dry_run && current.is_none() {
-                if let Some(conflict) =
+            if !dry_run && current.is_none()
+                && let Some(conflict) =
                     self.store.replace_task_board_workflow(project_path, None, candidate)?
                 {
                     anyhow::bail!("{conflict}");
                 }
-            }
         }
         let workflow = current.or(workflow);
 

@@ -18,10 +18,12 @@ fn todo(id: &str, status: &str) -> todo_types::Todo {
 
 #[test]
 fn loaded_todos_for_inactive_session_are_ignored() {
-    let mut app = Fixture::default();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_session_id = Some("active".to_string());
-    app.chat_todo_items = vec![todo("old", "pending")];
+    let mut app = Fixture {
+        active_session_id: Some("active".to_string()),
+        chat_todo_session_id: Some("active".to_string()),
+        chat_todo_items: vec![todo("old", "pending")],
+        ..Default::default()
+    };
 
     super::apply_loaded_session_todos(
         &mut app.panel(),
@@ -35,10 +37,12 @@ fn loaded_todos_for_inactive_session_are_ignored() {
 
 #[test]
 fn loaded_pending_todos_expand_panel_for_new_session() {
-    let mut app = Fixture::default();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_expanded = false;
-    app.chat_todo_anim = 0.0;
+    let mut app = Fixture {
+        active_session_id: Some("active".to_string()),
+        chat_todo_expanded: false,
+        chat_todo_anim: 0.0,
+        ..Default::default()
+    };
 
     super::apply_loaded_session_todos(
         &mut app.panel(),
@@ -54,11 +58,13 @@ fn loaded_pending_todos_expand_panel_for_new_session() {
 
 #[test]
 fn loaded_completed_todos_auto_collapse_open_panel() {
-    let mut app = Fixture::default();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_session_id = Some("active".to_string());
-    app.chat_todo_expanded = true;
-    app.chat_todo_anim = 1.0;
+    let mut app = Fixture {
+        active_session_id: Some("active".to_string()),
+        chat_todo_session_id: Some("active".to_string()),
+        chat_todo_expanded: true,
+        chat_todo_anim: 1.0,
+        ..Default::default()
+    };
 
     super::apply_loaded_session_todos(
         &mut app.panel(),
@@ -72,9 +78,11 @@ fn loaded_completed_todos_auto_collapse_open_panel() {
 
 #[test]
 fn loaded_todos_error_records_session_and_clears_items() {
-    let mut app = Fixture::default();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_items = vec![todo("old", "pending")];
+    let mut app = Fixture {
+        active_session_id: Some("active".to_string()),
+        chat_todo_items: vec![todo("old", "pending")],
+        ..Default::default()
+    };
 
     super::apply_loaded_session_todos(
         &mut app.panel(),
@@ -88,11 +96,13 @@ fn loaded_todos_error_records_session_and_clears_items() {
 
 #[test]
 fn already_collapsed_panel_preserves_cached_todos_at_animation_threshold() {
-    let mut app = Fixture::default();
-    app.chat_todo_expanded = false;
-    app.chat_todo_anim = 0.001;
-    app.chat_todo_session_id = Some("cached".to_string());
-    app.chat_todo_items = vec![todo("cached", "completed")];
+    let mut app = Fixture {
+        chat_todo_expanded: false,
+        chat_todo_anim: 0.001,
+        chat_todo_session_id: Some("cached".to_string()),
+        chat_todo_items: vec![todo("cached", "completed")],
+        ..Default::default()
+    };
 
     super::maybe_auto_collapse_todo_panel(&mut app.panel());
 
@@ -103,11 +113,13 @@ fn already_collapsed_panel_preserves_cached_todos_at_animation_threshold() {
 
 #[test]
 fn auto_collapse_without_active_session_clears_cached_todos() {
-    let mut app = Fixture::default();
-    app.chat_todo_expanded = true;
-    app.chat_todo_anim = 1.0;
-    app.chat_todo_session_id = Some("cached".to_string());
-    app.chat_todo_items = vec![todo("cached", "completed")];
+    let mut app = Fixture {
+        chat_todo_expanded: true,
+        chat_todo_anim: 1.0,
+        chat_todo_session_id: Some("cached".to_string()),
+        chat_todo_items: vec![todo("cached", "completed")],
+        ..Default::default()
+    };
 
     super::maybe_auto_collapse_todo_panel(&mut app.panel());
 
@@ -118,12 +130,13 @@ fn auto_collapse_without_active_session_clears_cached_todos() {
 
 #[test]
 fn auto_collapse_ignores_todos_cached_for_different_session() {
-    let mut app = Fixture::default();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_session_id = Some("cached".to_string());
-    app.chat_todo_items = vec![todo("cached", "completed")];
-    app.chat_todo_expanded = true;
-    app.chat_todo_anim = 1.0;
+    let mut app = Fixture {
+        active_session_id: Some("active".to_string()),
+        chat_todo_session_id: Some("cached".to_string()),
+        chat_todo_items: vec![todo("cached", "completed")],
+        chat_todo_expanded: true,
+        chat_todo_anim: 1.0,
+    };
 
     super::maybe_auto_collapse_todo_panel(&mut app.panel());
 
@@ -134,11 +147,13 @@ fn auto_collapse_ignores_todos_cached_for_different_session() {
 
 #[test]
 fn auto_collapse_keeps_panel_open_for_empty_todo_list() {
-    let mut app = Fixture::default();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_session_id = Some("active".to_string());
-    app.chat_todo_expanded = true;
-    app.chat_todo_anim = 1.0;
+    let mut app = Fixture {
+        active_session_id: Some("active".to_string()),
+        chat_todo_session_id: Some("active".to_string()),
+        chat_todo_expanded: true,
+        chat_todo_anim: 1.0,
+        ..Default::default()
+    };
 
     super::maybe_auto_collapse_todo_panel(&mut app.panel());
 
@@ -148,12 +163,13 @@ fn auto_collapse_keeps_panel_open_for_empty_todo_list() {
 
 #[test]
 fn auto_collapse_keeps_panel_open_while_any_todo_is_incomplete() {
-    let mut app = Fixture::default();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_session_id = Some("active".to_string());
-    app.chat_todo_items = vec![todo("done", "completed"), todo("open", "in_progress")];
-    app.chat_todo_expanded = true;
-    app.chat_todo_anim = 1.0;
+    let mut app = Fixture {
+        active_session_id: Some("active".to_string()),
+        chat_todo_session_id: Some("active".to_string()),
+        chat_todo_items: vec![todo("done", "completed"), todo("open", "in_progress")],
+        chat_todo_expanded: true,
+        chat_todo_anim: 1.0,
+    };
 
     super::maybe_auto_collapse_todo_panel(&mut app.panel());
 
@@ -163,12 +179,13 @@ fn auto_collapse_keeps_panel_open_while_any_todo_is_incomplete() {
 
 #[test]
 fn completed_todos_close_panel_and_normalize_idle_animation() {
-    let mut app = Fixture::default();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_session_id = Some("active".to_string());
-    app.chat_todo_items = vec![todo("done", "completed")];
-    app.chat_todo_expanded = true;
-    app.chat_todo_anim = -0.0005;
+    let mut app = Fixture {
+        active_session_id: Some("active".to_string()),
+        chat_todo_session_id: Some("active".to_string()),
+        chat_todo_items: vec![todo("done", "completed")],
+        chat_todo_expanded: true,
+        chat_todo_anim: -0.0005,
+    };
 
     super::maybe_auto_collapse_todo_panel(&mut app.panel());
 
@@ -178,12 +195,13 @@ fn completed_todos_close_panel_and_normalize_idle_animation() {
 
 #[test]
 fn completed_todos_with_active_animation_schedule_next_tick() {
-    let mut app = Fixture::default();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_session_id = Some("active".to_string());
-    app.chat_todo_items = vec![todo("done", "completed")];
-    app.chat_todo_expanded = true;
-    app.chat_todo_anim = 1.0;
+    let mut app = Fixture {
+        active_session_id: Some("active".to_string()),
+        chat_todo_session_id: Some("active".to_string()),
+        chat_todo_items: vec![todo("done", "completed")],
+        chat_todo_expanded: true,
+        chat_todo_anim: 1.0,
+    };
 
     let task = super::maybe_auto_collapse_todo_panel(&mut app.panel());
 
@@ -193,11 +211,13 @@ fn completed_todos_with_active_animation_schedule_next_tick() {
 
 #[test]
 fn loaded_pending_todos_for_same_session_do_not_reopen_panel() {
-    let mut app = Fixture::default();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_session_id = Some("active".to_string());
-    app.chat_todo_expanded = false;
-    app.chat_todo_anim = 0.0;
+    let mut app = Fixture {
+        active_session_id: Some("active".to_string()),
+        chat_todo_session_id: Some("active".to_string()),
+        chat_todo_expanded: false,
+        chat_todo_anim: 0.0,
+        ..Default::default()
+    };
 
     super::apply_loaded_session_todos(
         &mut app.panel(),
@@ -212,10 +232,12 @@ fn loaded_pending_todos_for_same_session_do_not_reopen_panel() {
 
 #[test]
 fn loaded_empty_todos_for_new_session_do_not_expand_panel() {
-    let mut app = Fixture::default();
-    app.active_session_id = Some("active".to_string());
-    app.chat_todo_expanded = false;
-    app.chat_todo_anim = 0.0;
+    let mut app = Fixture {
+        active_session_id: Some("active".to_string()),
+        chat_todo_expanded: false,
+        chat_todo_anim: 0.0,
+        ..Default::default()
+    };
 
     super::apply_loaded_session_todos(&mut app.panel(), "active".to_string(), Ok(Vec::new()));
 

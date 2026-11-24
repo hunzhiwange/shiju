@@ -129,11 +129,10 @@ pub fn update(app: &mut SkillUpdate<'_>, msg: ConnectorMessage) -> Task<Message>
             }
         }
         ConnectorMessage::Variable(name, value) => {
-            if let Some(form) = editable_form(app) {
-                if let Some(input) = form.values.get_mut(&name) {
+            if let Some(form) = editable_form(app)
+                && let Some(input) = form.values.get_mut(&name) {
                     *input = value;
                 }
-            }
         }
         ConnectorMessage::Loaded(generation, account_id, result) => {
             if !same_account(app, &account_id)
@@ -172,7 +171,7 @@ pub fn update(app: &mut SkillUpdate<'_>, msg: ConnectorMessage) -> Task<Message>
                         app,
                         ToastKind::Error,
                         None,
-                        error.into(),
+                        error,
                     );
                 }
             };

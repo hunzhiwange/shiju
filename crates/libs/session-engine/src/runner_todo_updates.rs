@@ -105,7 +105,7 @@ pub fn maybe_update_todos_after_work<H: RunnerHost>(
     // 调用 LLM 分析执行进展并生成工具调用，最多重试 2 次
     let step_out = match crate::llm_runner::run_llm_step_with_retry::<H::Stream>(
         &ctx.session,
-        &llm_messages,
+        llm_messages,
         &system,
         model,
         &serde_json::Value::Object(serde_json::Map::new()),

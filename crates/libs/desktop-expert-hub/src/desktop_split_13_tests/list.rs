@@ -81,12 +81,14 @@ fn market_tag_rows_show_full_catalogs() {
         }
     }
 
-    let mut app = ExpertHubState::default();
-    app.skill_tab = SkillTab::Marketplace;
-    app.platform_tag_catalog = platform;
-    app.company_tag_catalog = company;
-    app.market_tag_id = Some(1);
-    app.market_company_tag_id = Some(7);
+    let mut app = ExpertHubState {
+        skill_tab: SkillTab::Marketplace,
+        platform_tag_catalog: platform,
+        company_tag_catalog: company,
+        market_tag_id: Some(1),
+        market_company_tag_id: Some(7),
+        ..Default::default()
+    };
     let element: iced::Element<'_, Message> = view(&app);
     std::hint::black_box(element);
 }
@@ -200,7 +202,7 @@ async fn installed_upgrade_actions_render_chinese_targets_in_both_themes() {
                 &Rectangle::with_size(bounds),
             );
             let pixels = renderer.screenshot(Size::new(width as u32, 280), 1.0, Color::TRANSPARENT);
-            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+            assert!(pixels.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
         }
     }
 }

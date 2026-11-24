@@ -9,7 +9,6 @@ use vw_api_transport::id::ProjectId;
 use super::{ensure_run_matches_task, map_log_row, map_workspace_row};
 use crate::domain::TaskId;
 use crate::state_machine::AgentTaskStatus;
-use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn postgres_log_mappers_preserve_status_keys_and_workspace_fields() -> Result<()> {

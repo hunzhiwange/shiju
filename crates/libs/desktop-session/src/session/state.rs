@@ -165,7 +165,7 @@ impl<R: Default, S: super::view_cache::ViewSnapshot> State<R, S> {
                 ),
             )]),
             session_reasoning_efforts:
-                desktop_config::config_desktop::session_reasoning_efforts_from_config(&cfg),
+                desktop_config::config_desktop::session_reasoning_efforts_from_config(cfg),
             last_llm_full_access: None,
             archived_session_ids: HashSet::new(),
             chat_context_menu: Default::default(),
@@ -184,7 +184,7 @@ impl<R: Default, S: super::view_cache::ViewSnapshot> State<R, S> {
 impl<R: Default, S: super::view_cache::ViewSnapshot> State<R, S> {
     pub fn restore_access_preferences(&mut self, cfg: &serde_json::Value) {
         let mut efforts =
-            desktop_config::config_desktop::session_reasoning_efforts_from_config(&cfg);
+            desktop_config::config_desktop::session_reasoning_efforts_from_config(cfg);
         // 启动配置返回前发生的本地选择（包括默认值）优先。
         efforts.extend(self.session_reasoning_efforts.clone());
         for (id, runtime) in &mut self.session_runtime_states {

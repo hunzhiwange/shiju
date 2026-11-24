@@ -99,6 +99,12 @@ impl FileSearchPopup {
         self.matches.len().clamp(1, MAX_POPUP_ROWS) as u16
     }
 }
+
+impl Default for FileSearchPopup {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl WidgetRef for &FileSearchPopup {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
         let rows = self

@@ -105,7 +105,7 @@ fn test_home() -> std::path::PathBuf {
 }
 #[cfg(test)]
 fn test_database() -> agent_database::GlobalDatabase {
-    agent_database::GlobalDatabase::for_home(&test_home()).unwrap()
+    agent_database::GlobalDatabase::for_home(test_home()).unwrap()
 }
 #[cfg(test)]
 fn test_listener() -> RoutingListener {

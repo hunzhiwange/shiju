@@ -253,11 +253,10 @@ pub fn prefetch_seed_context<H: PrefetchHost>(
     let mut seen: HashSet<String> = HashSet::new();
 
     // 特殊处理：style.css 是常见的前端样式文件，优先检测
-    if query.to_lowercase().contains("style.css") {
-        if seen.insert("style.css".to_string()) {
+    if query.to_lowercase().contains("style.css")
+        && seen.insert("style.css".to_string()) {
             candidates.push("style.css".to_string());
         }
-    }
 
     // 构建文件路径匹配的正则表达式
     // 匹配模式：

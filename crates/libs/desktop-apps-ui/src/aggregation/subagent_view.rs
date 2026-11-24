@@ -63,7 +63,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n, form: &'a Form, base: Element<'a, M
         if form.unavailable() {
             options.push(ModelOption {
                 id: form.draft.subagent_model_id.clone(),
-                label: i18n.sprintf("已移除：%s", &[format!("{}", form.draft.subagent_model_id.as_deref().unwrap_or_default()).into()]),
+                label: i18n.sprintf("已移除：%s", &[form.draft.subagent_model_id.as_deref().unwrap_or_default().to_string().into()]),
             });
             body = body.push(settings_error_banner(i18n.__("所选模型已不在发布目录中。保留选择意图；实际覆写已撤下，跟随主模型。可选择新模型或清空。")));
         }
@@ -100,7 +100,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n, form: &'a Form, base: Element<'a, M
             .filter(|id| !state.choices.iter().any(|c| &c.model_id == *id))
         {
             reviewers
-                .push(ModelOption { id: Some(id.clone()), label: i18n.sprintf("已移除：%s", &[format!("{}", id).into()]) });
+                .push(ModelOption { id: Some(id.clone()), label: i18n.sprintf("已移除：%s", &[id.to_string().into()]) });
             body = body.push(settings_error_banner(
                 i18n.__("审批模型已不在发布目录中，当前使用 Codex 默认审批。请重新选择或清空后保存。"),
             ));
@@ -124,13 +124,13 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n, form: &'a Form, base: Element<'a, M
             column![
                 settings_field_label(i18n.__("当前生效设置")),
                 text(effective_model),
-                text(i18n.sprintf("审批模型：%s", &[format!("{}", state.effective.auto_review_model_id.as_deref().unwrap_or(i18n.__("Codex 默认审批模型"))).into()])),
+                text(i18n.sprintf("审批模型：%s", &[state.effective.auto_review_model_id.as_deref().unwrap_or(i18n.__("Codex 默认审批模型")).to_string().into()])),
                 text(if state.effective.classic_tools {
                     i18n.__("经典工具：已生效")
                 } else {
                     i18n.__("经典工具：未生效")
                 }),
-                text(i18n.sprintf("推理强度：%s", &[format!("{}", i18n.__(&EffortOption(state.effective.subagent_effort).to_string())).into()])),
+                text(i18n.sprintf("推理强度：%s", &[i18n.__(&EffortOption(state.effective.subagent_effort).to_string()).to_string().into()])),
                 text(i18n.__("草稿保存后生效。")).size(13)
             ]
             .spacing(6),

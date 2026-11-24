@@ -105,9 +105,11 @@ fn project_name_from_path_whitespace_only() {
 
 #[test]
 fn recent_project_name_uses_edits_when_present() {
-    let mut app = super::super::tests::Fixture::default();
-    app.recent_projects = vec!["/test/path".to_string()];
-    app.recent_projects_edits = vec!["Custom Name".to_string()];
+    let mut app = super::super::tests::Fixture {
+        recent_projects: vec!["/test/path".to_string()],
+        recent_projects_edits: vec!["Custom Name".to_string()],
+        ..Default::default()
+    };
     let name = super::recent_project_name(&app.state(), 0, "/test/path");
     assert_eq!(name, "Custom Name");
 }
@@ -152,9 +154,11 @@ fn recent_project_name_skips_whitespace_edits_and_uses_meta() {
 
 #[test]
 fn recent_project_name_falls_back_to_path_when_no_meta_match() {
-    let mut app = super::super::tests::Fixture::default();
-    app.recent_projects = vec!["/test/my-project".to_string()];
-    app.recent_projects_edits = vec!["".to_string()];
+    let mut app = super::super::tests::Fixture {
+        recent_projects: vec!["/test/my-project".to_string()],
+        recent_projects_edits: vec!["".to_string()],
+        ..Default::default()
+    };
     let name = super::recent_project_name(&app.state(), 0, "/test/my-project");
     assert_eq!(name, "my-project");
 }
@@ -230,42 +234,52 @@ fn recent_project_name_multiple_projects_finds_correct_meta_by_path() {
 
 #[test]
 fn render_body_empty_projects_does_not_panic() {
-    let mut app = super::super::tests::Fixture::default();
-    app.recent_projects = vec![];
+    let mut app = super::super::tests::Fixture {
+        recent_projects: vec![],
+        ..Default::default()
+    };
     let _ = super::render_body(&app.state());
 }
 
 #[test]
 fn render_body_with_recent_projects_does_not_panic() {
-    let mut app = super::super::tests::Fixture::default();
-    app.recent_projects = vec!["/test/project-one".to_string()];
-    app.recent_projects_edits = vec!["".to_string()];
+    let mut app = super::super::tests::Fixture {
+        recent_projects: vec!["/test/project-one".to_string()],
+        recent_projects_edits: vec!["".to_string()],
+        ..Default::default()
+    };
     let _ = super::render_body(&app.state());
 }
 
 #[test]
 fn render_body_with_selected_project_does_not_panic() {
-    let mut app = super::super::tests::Fixture::default();
-    app.recent_projects = vec!["/test/active".to_string()];
-    app.recent_projects_edits = vec!["".to_string()];
-    app.project_path = Some("/test/active".to_string());
+    let mut app = super::super::tests::Fixture {
+        recent_projects: vec!["/test/active".to_string()],
+        recent_projects_edits: vec!["".to_string()],
+        project_path: Some("/test/active".to_string()),
+        ..Default::default()
+    };
     let _ = super::render_body(&app.state());
 }
 
 #[test]
 fn render_body_with_non_matching_selected_project_does_not_panic() {
-    let mut app = super::super::tests::Fixture::default();
-    app.recent_projects = vec!["/test/project".to_string()];
-    app.recent_projects_edits = vec!["".to_string()];
-    app.project_path = Some("/other/project".to_string());
+    let mut app = super::super::tests::Fixture {
+        recent_projects: vec!["/test/project".to_string()],
+        recent_projects_edits: vec!["".to_string()],
+        project_path: Some("/other/project".to_string()),
+        ..Default::default()
+    };
     let _ = super::render_body(&app.state());
 }
 
 #[test]
 fn render_body_with_multiple_projects_does_not_panic() {
-    let mut app = super::super::tests::Fixture::default();
-    app.recent_projects = vec!["/test/a".to_string(), "/test/b".to_string(), "/test/c".to_string()];
-    app.recent_projects_edits = vec!["".to_string(), "".to_string(), "Project C".to_string()];
+    let mut app = super::super::tests::Fixture {
+        recent_projects: vec!["/test/a".to_string(), "/test/b".to_string(), "/test/c".to_string()],
+        recent_projects_edits: vec!["".to_string(), "".to_string(), "Project C".to_string()],
+        ..Default::default()
+    };
     let _ = super::render_body(&app.state());
 }
 
@@ -300,8 +314,10 @@ fn project_name_from_path_trims_surrounding_whitespace_before_extracting_name() 
 
 #[test]
 fn recent_project_name_returns_trimmed_edit_name() {
-    let mut app = super::super::tests::Fixture::default();
-    app.recent_projects_edits = vec!["  Edited Project  ".to_string()];
+    let mut app = super::super::tests::Fixture {
+        recent_projects_edits: vec!["  Edited Project  ".to_string()],
+        ..Default::default()
+    };
 
     assert_eq!(super::recent_project_name(&app.state(), 0, "/tmp/fallback"), "Edited Project");
 }

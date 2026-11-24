@@ -2,13 +2,16 @@
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UnreadableAgentTask;
+
 /// `Err` means the current encrypted task cannot safely be replaced.
 pub fn repair(
     body: &Value,
     status: StatusCode,
     error: &[u8],
     url: &reqwest::Url,
-) -> Result<Option<Value>, ()> {
+) -> Result<Option<Value>, UnreadableAgentTask> {
     let text = String::from_utf8_lossy(error);
     let lower = text.to_lowercase();
     let messages = url.path().trim_end_matches('/').ends_with("/messages");
@@ -57,7 +60,7 @@ pub fn repair(
         if let Some(items) = fixed["input"].as_array_mut() {
             let current = items.iter().rposition(|item| !matches!(item["type"].as_str(), Some("compaction_trigger" | "additional_tools")));
             if current.is_some_and(|i| items[i]["type"] == "agent_message" && items[i]["content"].as_array()
-                .is_some_and(|parts| parts.iter().any(encrypted))) { return Err(()); }
+                .is_some_and(|parts| parts.iter().any(encrypted))) { return Err(UnreadableAgentTask); }
             items.retain(|item| item["type"] != "reasoning");
             for item in items {
                 let kind = item["type"].as_str().unwrap_or("").to_owned();
@@ -73,9 +76,8 @@ pub fn repair(
                     for part in parts { if encrypted(part) { *part = json!({"type":"input_text","text":"[encrypted content omitted]"}); } }
                 }
                 let prefix = match kind.as_str() { "message" => Some("msg_"), "function_call" => Some("fc_"), _ => None };
-                if kind != "item_reference" && (foreign || prefix.is_some_and(|p| item["id"].as_str().is_some_and(|id| !id.starts_with(p)))) {
-                    if let Some(object) = item.as_object_mut() { object.remove("id"); }
-                }
+                if kind != "item_reference" && (foreign || prefix.is_some_and(|p| item["id"].as_str().is_some_and(|id| !id.starts_with(p))))
+                    && let Some(object) = item.as_object_mut() { object.remove("id"); }
             }
         }
     }

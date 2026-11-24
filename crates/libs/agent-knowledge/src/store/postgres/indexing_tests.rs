@@ -3,7 +3,6 @@
 // 文件名和 Base64 在访问数据库前校验，失败不能产生待处理文档。
 use super::*;
 use agent_database::GlobalDatabase;
-use agent_database::test_support::PostgresTestDatabase;
 use serde_json::json;
 
 fn sqlite_backed_store() -> PostgresKnowledgeStore {

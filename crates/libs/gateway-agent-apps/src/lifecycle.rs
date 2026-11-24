@@ -307,11 +307,10 @@ type UsageService = Option<Extension<Arc<super::usage_refresh::UsageRefresh>>>;
 type OperationSources = Option<Extension<gateway_types::app_operations::OperationSources>>;
 async fn resolve_operation(state: &State, tenant: TenantScope, headers: HeaderMap,
     host: &str, id: &str, sources: OperationSources, #[cfg(target_os = "macos")] usage: UsageService, cancel: bool) -> Result<OwnedOperation, Response> {
-    if let Some(Extension(sources)) = sources {
-        if let Some(entry) = sources.0.resolve(tenant.clone(), headers.clone(), host.to_owned(), id.to_owned(), state.policy.clone(), cancel).await? {
+    if let Some(Extension(sources)) = sources
+        && let Some(entry) = sources.0.resolve(tenant.clone(), headers.clone(), host.to_owned(), id.to_owned(), state.policy.clone(), cancel).await? {
             return Ok(OwnedOperation::External(entry));
         }
-    }
     #[cfg(target_os = "macos")]
     if let Some(Extension(service)) = usage
         && let Some(entry) = service.operations.get(id)

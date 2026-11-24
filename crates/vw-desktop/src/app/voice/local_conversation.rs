@@ -13,5 +13,3 @@ mod tests;
 
 #[cfg(test)]
 pub use desktop_voice::local_conversation::speak;
-#[cfg(test)]
-pub use desktop_voice::local_conversation::spoken_prefix;

@@ -116,8 +116,6 @@ pub(super) fn skill_project_options(app: &App) -> Vec<String> {
     desktop_settings_skills::browser::skill_project_options(context(app))
 }
 #[cfg(test)]
-pub(super) use desktop_settings_skills::browser::detail_source_note;
-#[cfg(test)]
 pub(super) fn status_banner<'a>(
     message: impl iced::widget::text::IntoFragment<'a>,
     is_error: bool,
@@ -188,7 +186,3 @@ use crate::app::assets::Icon;
 use iced::Element;
 #[cfg(test)]
 pub(super) use desktop_settings_skills::browser::DetailActionStyle;
-#[cfg(test)]
-pub(super) use desktop_settings_skills::browser::catalog_panel_style;
-#[cfg(test)]
-pub(super) use desktop_settings_skills::browser::header_panel_style;

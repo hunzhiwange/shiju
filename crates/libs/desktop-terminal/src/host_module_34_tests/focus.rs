@@ -108,12 +108,11 @@ fn map_message(message: crate::message::Message) -> Message {
 }
 
 fn view(app: &Inputs, workspace: bool) -> Element<'_, Message> {
-    if workspace {
-        if app.routing.terminal.is_fullscreen {
+    if workspace
+        && app.routing.terminal.is_fullscreen {
             return super::support::view_with_locale(&app.routing, app.desktop_locale)
                 .map(map_message);
         }
-    }
     iced::widget::column![
         iced::widget::container(app.editor.content_view(|e| { Message::Editor(e) }))
             .height(Length::Fixed(280.0)),

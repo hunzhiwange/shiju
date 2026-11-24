@@ -207,7 +207,7 @@ async fn employee_acp_cli_missing_credential_leaves_stdout_empty() {
     assert!(error.to_string().contains("SHIJU_EMPLOYEE_ACP_CREDENTIAL"));
     let mut output = String::new();
     BufReader::new(reader).read_line(&mut output).await.unwrap();
-    assert!(output.is_empty());
+    assert_eq!(output, "");
 }
 
 #[tokio::test]

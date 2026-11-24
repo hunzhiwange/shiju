@@ -405,7 +405,7 @@ pub fn new_session_picker_layer<'a>(app: &Input) -> Element<'a, Message> {
                         desktop_i18n::__!(
                             desktop_i18n::I18n::new(app.desktop_locale),
                             "确认删除工作区 %s ?",
-                            format!("{}", name)
+                            name.to_string()
                         )
                         .expect("valid input display template")
                     )
@@ -454,7 +454,7 @@ pub fn new_session_picker_layer<'a>(app: &Input) -> Element<'a, Message> {
         picker_col = picker_col.push(
             container(
                 column![
-                    text(desktop_i18n::__!(desktop_i18n::I18n::new(app.desktop_locale), "删除失败，是否强制删除工作区 %s ?", format!("{}", name)).expect("valid input display template")).size(11),
+                    text(desktop_i18n::__!(desktop_i18n::I18n::new(app.desktop_locale), "删除失败，是否强制删除工作区 %s ?", name.to_string()).expect("valid input display template")).size(11),
                     row![
                         // 取消按钮
                         button(container(text(desktop_i18n::I18n::new(app.desktop_locale).__("取消")).size(11)).padding([2, 8]))
@@ -489,7 +489,7 @@ pub fn new_session_picker_layer<'a>(app: &Input) -> Element<'a, Message> {
                         desktop_i18n::__!(
                             desktop_i18n::I18n::new(app.desktop_locale),
                             "确认重置工作区 %s ?",
-                            format!("{}", name)
+                            name.to_string()
                         )
                         .expect("valid input display template")
                     )

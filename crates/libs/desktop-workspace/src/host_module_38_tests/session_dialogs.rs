@@ -430,7 +430,8 @@ async fn ui_refresh_32_absent_modals_preserve_underlay() {
     let mut app = fixture();
     let mut renderer = renderer().await;
     app.session_rename_id = None;
-    for view in [with_session_rename(&app, root())] {
+    {
+        let view = with_session_rename(&app, root());
         let mut ui = scene(view, &mut renderer, VIEW_SIZE);
         let bounds = geometry(&mut ui, &renderer);
         assert!(bounds.inputs.is_empty());

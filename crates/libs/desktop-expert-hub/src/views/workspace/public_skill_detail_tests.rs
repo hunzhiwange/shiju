@@ -3,8 +3,7 @@
 
 use gateway_skill_market::{
     SkillMarketCoordinateDto, SkillMarketSkillDetailDto, SkillMarketSkillDto,
-    SkillMarketSkillFileDto, SkillMarketSkillLocatorDto, SkillMarketSkillSetDetailDto,
-    SkillMarketSkillSetDto,
+    SkillMarketSkillFileDto, SkillMarketSkillLocatorDto,
 };
 
 use super::Message;

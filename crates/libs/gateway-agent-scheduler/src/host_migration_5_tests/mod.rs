@@ -1,6 +1,4 @@
 //! Store-backed gateway migration fixtures; external execution ports fail closed.
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -9,11 +7,9 @@ use axum::extract::{Extension, Query};
 use axum::Json;
 use serde_json::json;
 
-use vw_api_agent_scheduler::{AgentCapabilityKindDto, AgentEventDto, AgentEventKindDto, AgentOutboxMessageDto, AgentOutboxMessageStatusDto, AgentSchedulerBulkCommandRequest, AgentSchedulerCommandKindDto, AgentSchedulerCreateTaskRequest, AgentSchedulerCreateTaskResponse, AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest, AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskGraphEdgeDto, AgentSchedulerTaskMetadataUpdateRequest, AgentSchedulerWakeRequest as AgentSchedulerProjectWakeRequest, AgentTaskDto, AgentTaskKindDto, AgentTaskStatusDto};
+use vw_api_agent_scheduler::{AgentEventDto, AgentEventKindDto, AgentOutboxMessageDto, AgentOutboxMessageStatusDto, AgentSchedulerCreateTaskRequest, AgentSchedulerCreateTaskResponse, AgentSchedulerTaskBoardEventsResponse, AgentSchedulerWakeRequest as AgentSchedulerProjectWakeRequest, AgentTaskDto, AgentTaskStatusDto};
 use vw_api_agent_scheduler::AgentSchedulerScope;
-use vw_api_transport::common::TimestampMs;
 use vw_api_transport::id::{ProjectId, ProjectScope, TenantScope};
-use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
 
 use task_scheduler::domain::{AgentSchedulerContext, RunId, TaskId};
 
@@ -31,7 +27,6 @@ use task_scheduler::store::logs::{StoredAgentTaskLog};
 use task_scheduler::store::tasks::{NewAgentTask};
 use task_scheduler::store::{AgentSchedulerStore};
 
-use task_scheduler::task_graph::{AgentTaskDependency};
 use gateway_types::ApiError;
 use agent_project as project;
 

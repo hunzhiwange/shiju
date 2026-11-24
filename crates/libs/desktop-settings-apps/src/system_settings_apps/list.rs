@@ -243,7 +243,7 @@ pub fn view_with_updates<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
                 .copied()
                 .filter(|a| {
                     presentation::presence(a) == presence
-                        && presentation::matches_query(a, &state.query)
+                        && presentation::matches_query(a, state.query)
                 })
                 .collect();
             if apps.is_empty() {
@@ -500,7 +500,7 @@ fn card<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
         .and_then(|candidate| candidate.latest.as_deref())
     {
         version =
-            version.push(text(i18n.sprintf("可升级至 %s", &[format!("{}", latest).into()])).size(12).wrapping(Wrapping::Glyph));
+            version.push(text(i18n.sprintf("可升级至 %s", &[latest.to_string().into()])).size(12).wrapping(Wrapping::Glyph));
     } else if preferred.is_some_and(|installation| {
         !matches!(installation.runtime_status, AppInstallationRuntimeStatus::Runnable)
     }) {

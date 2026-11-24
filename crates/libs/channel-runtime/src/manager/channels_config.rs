@@ -379,14 +379,13 @@ pub fn collect_configured_channels(
     // 独立的 Feishu 配置段
     #[cfg(feature = "channel-lark")]
     if channel_instance_profiles_valid {
-        if let Some(ref fs) = config.channels_config.feishu {
-            if fs.has_required_credentials() {
+        if let Some(ref fs) = config.channels_config.feishu
+            && fs.has_required_credentials() {
                 channels.push(ConfiguredChannel::new(
                     "Feishu",
                     Arc::new(LarkChannel::from_feishu_config(fs)),
                 ));
             }
-        }
 
         for feishu_instance in &config.channels_config.feishu_instances {
             if feishu_instance.config.has_required_credentials() {

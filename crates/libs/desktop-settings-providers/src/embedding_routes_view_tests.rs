@@ -26,7 +26,7 @@ fn content_tree(tree: &Tree) -> &Tree {
 
 #[test]
 fn field_rows_build_label_description_and_input_structure() {
-    let app = test_app();
+    let _app = test_app();
     let plain =
         element_tree(field_row(style(), "匹配模式", "说明", "semantic", "memory", |value| {
             Message::Settings(SettingsMessage::EmbeddingRoutes(

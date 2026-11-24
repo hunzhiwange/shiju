@@ -189,22 +189,20 @@ fn analyze_node_features(
         }
         "process_substitution" => {
             has_process_substitution = true;
-            if depth <= MAX_SUBCOMMAND_DEPTH {
-                if let Some(info) = first_named_child(child)
+            if depth <= MAX_SUBCOMMAND_DEPTH
+                && let Some(info) = first_named_child(child)
                     .and_then(|stmt| build_command_info_from_node(ast, stmt, depth + 1))
                 {
                     subcommands.push(info);
                 }
-            }
         }
         "expansion" | "simple_expansion" => {
             has_variable_expansion = true;
         }
-        "word" | "concatenation" | "string" | "raw_string" | "string_content" => {
-            if contains_glob_pattern(&extract_text(ast, child)) {
+        "word" | "concatenation" | "string" | "raw_string" | "string_content"
+            if contains_glob_pattern(&extract_text(ast, child)) => {
                 has_glob = true;
             }
-        }
         _ => {}
     });
 
@@ -222,21 +220,18 @@ fn collect_redirects(ast: &BashAst, node: BashNode<'_>) -> Vec<Redirect> {
     let mut redirects = Vec::new();
 
     for child in field_children(node, "redirect") {
-        if seen.insert((child.start_byte(), child.end_byte())) {
-            if let Some(redirect) = parse_redirect_node(ast, child) {
+        if seen.insert((child.start_byte(), child.end_byte()))
+            && let Some(redirect) = parse_redirect_node(ast, child) {
                 redirects.push(redirect);
             }
-        }
     }
 
     walk_descendants(node, &mut |child| {
         if matches!(child.kind(), "file_redirect" | "herestring_redirect" | "heredoc_redirect")
             && seen.insert((child.start_byte(), child.end_byte()))
-        {
-            if let Some(redirect) = parse_redirect_node(ast, child) {
+            && let Some(redirect) = parse_redirect_node(ast, child) {
                 redirects.push(redirect);
             }
-        }
     });
 
     redirects

@@ -47,46 +47,41 @@ impl TelegramChannel {
             let bytes = line.as_bytes();
             let len = bytes.len();
             while i < len {
-                if i + 1 < len && bytes[i] == b'*' && bytes[i + 1] == b'*' {
-                    if let Some(end) = line[i + 2..].find("**") {
+                if i + 1 < len && bytes[i] == b'*' && bytes[i + 1] == b'*'
+                    && let Some(end) = line[i + 2..].find("**") {
                         let inner = Self::escape_html(&line[i + 2..i + 2 + end]);
                         write!(line_out, "<b>{inner}</b>").unwrap();
                         i += 4 + end;
                         continue;
                     }
-                }
-                if i + 1 < len && bytes[i] == b'_' && bytes[i + 1] == b'_' {
-                    if let Some(end) = line[i + 2..].find("__") {
+                if i + 1 < len && bytes[i] == b'_' && bytes[i + 1] == b'_'
+                    && let Some(end) = line[i + 2..].find("__") {
                         let inner = Self::escape_html(&line[i + 2..i + 2 + end]);
                         write!(line_out, "<b>{inner}</b>").unwrap();
                         i += 4 + end;
                         continue;
                     }
-                }
-                if bytes[i] == b'*' && (i == 0 || bytes[i - 1] != b'*') {
-                    if let Some(end) = line[i + 1..].find('*') {
-                        if end > 0 {
+                if bytes[i] == b'*' && (i == 0 || bytes[i - 1] != b'*')
+                    && let Some(end) = line[i + 1..].find('*')
+                        && end > 0 {
                             let inner = Self::escape_html(&line[i + 1..i + 1 + end]);
                             write!(line_out, "<i>{inner}</i>").unwrap();
                             i += 2 + end;
                             continue;
                         }
-                    }
-                }
-                if bytes[i] == b'`' && (i == 0 || bytes[i - 1] != b'`') {
-                    if let Some(end) = line[i + 1..].find('`') {
+                if bytes[i] == b'`' && (i == 0 || bytes[i - 1] != b'`')
+                    && let Some(end) = line[i + 1..].find('`') {
                         let inner = Self::escape_html(&line[i + 1..i + 1 + end]);
                         write!(line_out, "<code>{inner}</code>").unwrap();
                         i += 2 + end;
                         continue;
                     }
-                }
-                if bytes[i] == b'[' {
-                    if let Some(bracket_end) = line[i + 1..].find(']') {
+                if bytes[i] == b'['
+                    && let Some(bracket_end) = line[i + 1..].find(']') {
                         let text_part = &line[i + 1..i + 1 + bracket_end];
                         let after_bracket = i + 1 + bracket_end + 1;
-                        if after_bracket < len && bytes[after_bracket] == b'(' {
-                            if let Some(paren_end) = line[after_bracket + 1..].find(')') {
+                        if after_bracket < len && bytes[after_bracket] == b'('
+                            && let Some(paren_end) = line[after_bracket + 1..].find(')') {
                                 let url = &line[after_bracket + 1..after_bracket + 1 + paren_end];
                                 if url.starts_with("http://") || url.starts_with("https://") {
                                     let text_html = Self::escape_html(text_part);
@@ -98,17 +93,14 @@ impl TelegramChannel {
                                     continue;
                                 }
                             }
-                        }
                     }
-                }
-                if i + 1 < len && bytes[i] == b'~' && bytes[i + 1] == b'~' {
-                    if let Some(end) = line[i + 2..].find("~~") {
+                if i + 1 < len && bytes[i] == b'~' && bytes[i + 1] == b'~'
+                    && let Some(end) = line[i + 2..].find("~~") {
                         let inner = Self::escape_html(&line[i + 2..i + 2 + end]);
                         write!(line_out, "<s>{inner}</s>").unwrap();
                         i += 4 + end;
                         continue;
                     }
-                }
                 let ch = line[i..].chars().next().unwrap();
                 match ch {
                     '<' => line_out.push_str("&lt;"),

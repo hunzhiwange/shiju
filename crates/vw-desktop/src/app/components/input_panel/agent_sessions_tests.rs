@@ -8,10 +8,9 @@ use super::agent_sessions::{
     running_agent_sessions,
 };
 use crate::app::models::{ChatMessage as ChatEntry, ChatRole};
-use crate::app::session::{AgentChildSession, AgentChildSessionKind, AgentChildSessionStatus};
+use crate::app::session::{AgentChildSessionKind, AgentChildSessionStatus};
 use crate::app::state::{AcpHistoryReplayMode, AgentRequest};
 use crate::app::{Message, message};
-use iced::Theme;
 use session_info::{Info, TimeInfo};
 
 // 会话与工具事件 fixture 只填充层级展示所需字段，避免无关运行时状态干扰断言。

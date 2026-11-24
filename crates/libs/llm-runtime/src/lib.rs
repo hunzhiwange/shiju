@@ -30,3 +30,6 @@ mod host_migration_21_tests;
 mod host_migration_24_tests;
 
 pub mod system_message_contract;
+
+#[cfg(test)]
+use crate::convert_test_support as convert_test_support;

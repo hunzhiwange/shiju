@@ -30,11 +30,6 @@ impl EnvVarGuard {
         Self { key, original }
     }
 
-    fn unset(key: &'static str) -> Self {
-        let original = std::env::var(key).ok();
-        unsafe { std::env::remove_var(key) };
-        Self { key, original }
-    }
 }
 
 impl Drop for EnvVarGuard {
@@ -48,10 +43,11 @@ impl Drop for EnvVarGuard {
 }
 
 fn runtime_config(workspace_dir: &Path, config_dir: &Path) -> Config {
-    let mut config = Config::default();
-    config.workspace_dir = workspace_dir.to_path_buf();
-    config.config_path = config_dir.join("vibewindow.json");
-    config
+    Config {
+        workspace_dir: workspace_dir.to_path_buf(),
+        config_path: config_dir.join("vibewindow.json"),
+        ..Config::default()
+    }
 }
 
 fn write_plugin_manifest(plugin_root: &Path, name: &str, skills_path: &str) {

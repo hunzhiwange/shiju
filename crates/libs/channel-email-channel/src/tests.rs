@@ -19,7 +19,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 测试默认 SMTP 端口使用 TLS 端口
@@ -266,6 +266,7 @@ mod tests {
     /// 验证允许列表可以同时包含：
     /// - 精确邮箱地址
     /// - 域名通配符（带或不带 @ 前缀）
+    ///
     /// 并且所有规则都能正确生效。
     #[test]
     fn is_sender_allowed_multiple_senders() {

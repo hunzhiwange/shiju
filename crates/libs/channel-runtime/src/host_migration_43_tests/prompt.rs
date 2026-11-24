@@ -424,7 +424,7 @@ fn system_prompt_includes_tools_workspace_runtime_and_execution_style() {
         Some(20),
         true,
         agent_config::runtime_schema::SkillsPromptInjectionMode::Compact,
-        chrono_tz::Asia::Shanghai,
+        runtime_time::zones::SHANGHAI,
     );
 
     assert!(prompt.contains("## Tools"));
@@ -453,7 +453,7 @@ fn system_prompt_adds_default_multi_agent_policy_only_when_agent_tool_available(
             None,
             native_tools,
             agent_config::runtime_schema::SkillsPromptInjectionMode::Compact,
-            chrono_tz::Asia::Shanghai,
+            runtime_time::zones::SHANGHAI,
         );
         for expected in [
             "independent workstreams",
@@ -481,7 +481,7 @@ fn system_prompt_adds_default_multi_agent_policy_only_when_agent_tool_available(
             None,
             native_tools,
             agent_config::runtime_schema::SkillsPromptInjectionMode::Compact,
-            chrono_tz::Asia::Shanghai,
+            runtime_time::zones::SHANGHAI,
         );
         assert!(!without_agent_tool.contains("not genuinely simple and single-step"));
         assert!(!without_agent_tool.contains("When uncertain whether a task is simple, delegate"));
@@ -501,7 +501,7 @@ fn system_prompt_teaches_event_driven_subagent_wait_and_synthesis() {
             None,
             native_tools,
             agent_config::runtime_schema::SkillsPromptInjectionMode::Compact,
-            chrono_tz::Asia::Shanghai,
+            runtime_time::zones::SHANGHAI,
         );
         for expected in [
             "`launch` or `spawn`",
@@ -532,7 +532,7 @@ fn system_prompt_teaches_event_driven_subagent_wait_and_synthesis() {
             None,
             native_tools,
             agent_config::runtime_schema::SkillsPromptInjectionMode::Compact,
-            chrono_tz::Asia::Shanghai,
+            runtime_time::zones::SHANGHAI,
         );
         assert!(!without_agent_tool.contains("Continue useful parent work"));
         assert!(!without_agent_tool.contains("still running"));
@@ -549,7 +549,7 @@ fn system_prompt_default_wrapper_uses_xml_task_text() {
         &[],
         None,
         Some(10),
-        chrono_tz::Asia::Shanghai,
+        runtime_time::zones::SHANGHAI,
     );
 
     assert!(prompt.contains("emit the actual <tool_call> before any explanation"));
@@ -579,7 +579,7 @@ fn system_prompt_with_compact_skill_mode_excludes_static_skill_content() {
         Some(50),
         false,
         agent_config::runtime_schema::SkillsPromptInjectionMode::Compact,
-        chrono_tz::Asia::Shanghai,
+        runtime_time::zones::SHANGHAI,
     );
 
     assert!(!prompt.contains("## Tools"));

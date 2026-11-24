@@ -76,6 +76,27 @@ pub fn now_ms() -> u64 {
     }
 }
 
+/// Returns the current time in whole seconds since the Unix epoch.
+pub fn unix_seconds() -> i64 {
+    unix_ticks(1_000_000_000)
+}
+
+/// Returns the current time in whole milliseconds since the Unix epoch.
+pub fn unix_millis() -> i64 {
+    unix_ticks(1_000_000)
+}
+
+fn unix_ticks(nanos_per_tick: u128) -> i64 {
+    match now().duration_since(web_time::UNIX_EPOCH) {
+        Ok(duration) => i64::try_from(duration.as_nanos() / nanos_per_tick).unwrap_or(i64::MAX),
+        Err(error) => {
+            // Round toward the preceding tick for timestamps before the epoch.
+            let ticks = error.duration().as_nanos().div_ceil(nanos_per_tick);
+            i64::try_from(-(ticks as i128)).unwrap_or(i64::MIN)
+        }
+    }
+}
+
 /// 获取当前时间的 SystemTime
 ///
 /// 该函数主要用于仍需要保留原始时间对象的场景。

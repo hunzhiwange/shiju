@@ -42,6 +42,7 @@ pub struct Loaded {
     pub cloud_error: Option<String>,
 }
 #[derive(Clone)]
+#[expect(clippy::large_enum_variant, reason = "Keep the voice settings event payload API")]
 pub enum Event {
     Open,
     Onboarding,

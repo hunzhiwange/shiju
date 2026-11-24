@@ -544,7 +544,7 @@ impl UsageRefresh {
         source: QuerySource,
         operation: &Operation,
     ) -> Result<UsageQueryResult, RefreshError> {
-        let now = TimestampMs(chrono::Utc::now().timestamp_millis());
+        let now = TimestampMs(runtime_time::unix_millis());
         let correlation_id = uuid::Uuid::new_v4().to_string();
         let (origin, base_url, api_key) = match source {
             QuerySource::General { origin, base_url, api_key } => (origin, base_url, api_key),
@@ -625,7 +625,7 @@ impl UsageRefresh {
         };
         Ok(UsageQueryResult {
             source: UsageSource::Script("general".into()),
-            queried_at: Some(TimestampMs(chrono::Utc::now().timestamp_millis())),
+            queried_at: Some(TimestampMs(runtime_time::unix_millis())),
             credential_state,
             credential_message: None,
             outcome,

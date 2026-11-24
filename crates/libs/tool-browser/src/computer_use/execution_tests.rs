@@ -178,8 +178,10 @@ async fn execute_action_posts_policy_metadata_trimmed_auth_and_structured_data()
 // 输出路径解析必须发生在请求 sidecar 之前，确保路径逃逸不会产生网络副作用。
 async fn execute_action_resolves_screen_capture_path_inside_workspace() {
     let workspace = TempDir::new().unwrap();
-    let mut security = SecurityPolicy::default();
-    security.workspace_dir = workspace.path().to_path_buf();
+    let security = SecurityPolicy {
+        workspace_dir: workspace.path().to_path_buf(),
+        ..SecurityPolicy::default()
+    };
     let (endpoint, server) = sidecar_server(200, r#"{"success":true}"#).await;
     let client = ComputerUseClient::new(
         Arc::new(security),

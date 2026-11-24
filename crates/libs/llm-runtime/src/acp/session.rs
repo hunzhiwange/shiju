@@ -176,6 +176,7 @@ pub fn build_cached_acp_client<H: Host>(
     build_cached_acp_client_with_approval::<H>(acp_agent_name, acp_cfg, parsed_options, None, None, None, None, None, None, None, None)
 }
 
+#[expect(clippy::too_many_arguments, reason = "Keep the existing request forwarding interface")]
 fn build_cached_acp_client_with_approval<H: Host>(
     acp_agent_name: &str,
     acp_cfg: &config::schema::AcpAgentConfig,
@@ -291,6 +292,7 @@ pub fn get_cached_acp_client<H: Host>(
     get_cached_acp_client_with_approval::<H>(acp_agent_name, acp_cfg, cwd, parsed_options, None, None, None, None, None, None, None, None)
 }
 
+#[expect(clippy::too_many_arguments, reason = "Keep the existing request forwarding interface")]
 pub(super) fn get_cached_acp_client_with_approval<H: Host>(
     acp_agent_name: &str,
     acp_cfg: &config::schema::AcpAgentConfig,

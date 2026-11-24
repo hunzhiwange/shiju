@@ -224,7 +224,7 @@ fn block_on_gateway_runs_future_inside_multithread_runtime() {
 
 #[test]
 fn build_task_commit_message_uses_fallback_when_title_unavailable() {
-    let mut task = Task {
+    let task = Task {
         id: "T1".to_string(),
         prompt: String::new(),
         ..Default::default()
@@ -269,7 +269,7 @@ fn resolve_task_execution_workspace_reads_branch_from_selected_worktree() {
         &["worktree", "add", worktree_dir.to_string_lossy().as_ref(), "feature/task-worktree"],
     );
 
-    let mut task = Task {
+    let task = Task {
         selected_worktree_path: Some(worktree_dir.to_string_lossy().to_string()),
         merge_target_branch: Some("main".to_string()),
         ..Default::default()

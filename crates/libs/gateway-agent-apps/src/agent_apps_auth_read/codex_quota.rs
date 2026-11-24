@@ -95,7 +95,7 @@ pub(super) async fn query_codex_quota(
     let result = ManagedCodexUsage::new(reqwest::Client::builder())?
         .query(
             &auth,
-            TimestampMs(chrono::Utc::now().timestamp_millis()),
+            TimestampMs(runtime_time::unix_millis()),
             &uuid::Uuid::new_v4().to_string(),
         )
         .await;

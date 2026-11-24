@@ -81,7 +81,7 @@ fn market_tag_rows_show_full_catalogs() {
         }
     }
 
-    let mut app = ExpertHubState {
+    let app = ExpertHubState {
         skill_tab: SkillTab::Marketplace,
         platform_tag_catalog: platform,
         company_tag_catalog: company,

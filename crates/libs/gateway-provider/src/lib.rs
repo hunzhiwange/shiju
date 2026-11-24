@@ -23,11 +23,10 @@ pub struct InstanceQuery {
 }
 
 /// Binds the existing tenant and project instance contexts without spawning work.
+pub type SettingsProviderList = (HashMap<String, provider::provider::Info>, HashMap<String, String>);
+
 pub trait ProviderHost: Send + Sync + 'static {
-    fn settings_provider_list() -> HostFuture<Result<
-        (HashMap<String, provider::provider::Info>, HashMap<String, String>),
-        provider::provider::CatalogError,
-    >>;
+    fn settings_provider_list() -> HostFuture<Result<SettingsProviderList, provider::provider::CatalogError>>;
     fn resolve_directory(query: &InstanceQuery, headers: &HeaderMap) -> String;
     fn with_context<T: Send + 'static>(
         tenant: TenantScope,

@@ -125,6 +125,7 @@ pub fn bearer_fingerprint(secret: &str) -> String {
 /// ).await;
 /// ```
 #[cfg(not(target_arch = "wasm32"))]
+#[expect(clippy::too_many_arguments, reason = "Keep the existing request forwarding interface")]
 pub async fn do_stream_request_aisdk(
     host: &dyn super::host::Host,
     provider_info: &provider::Info,

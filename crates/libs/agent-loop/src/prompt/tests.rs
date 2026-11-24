@@ -27,7 +27,7 @@ use super::*;
 /// 此模块包含所有测试用例的实现，使用 `#[allow(dead_code)]` 标注
 /// 以允许测试辅助代码在非测试构建中被编译器忽略。
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     use tool_types::Tool;
@@ -145,7 +145,7 @@ mod tests {
             skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
-            timezone: chrono_tz::Asia::Shanghai,
+            timezone: runtime_time::zones::SHANGHAI,
         };
 
         // 执行身份段构建
@@ -196,7 +196,7 @@ mod tests {
             skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "instr",
-            timezone: chrono_tz::Asia::Shanghai,
+            timezone: runtime_time::zones::SHANGHAI,
         };
 
         // 使用默认配置构建提示词
@@ -258,7 +258,7 @@ mod tests {
             skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
-            timezone: chrono_tz::Asia::Shanghai,
+            timezone: runtime_time::zones::SHANGHAI,
         };
 
         // 构建技能段
@@ -317,7 +317,7 @@ mod tests {
             skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Compact,
             identity_config: None,
             dispatcher_instructions: "",
-            timezone: chrono_tz::Asia::Shanghai,
+            timezone: runtime_time::zones::SHANGHAI,
         };
 
         // 构建技能段
@@ -355,7 +355,7 @@ mod tests {
             skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "instr",
-            timezone: chrono_tz::Asia::Shanghai,
+            timezone: runtime_time::zones::SHANGHAI,
         };
 
         // 构建日期时间段
@@ -386,7 +386,7 @@ mod tests {
             skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
-            timezone: chrono_tz::America::New_York,
+            timezone: runtime_time::zones::NEW_YORK,
         };
 
         let rendered = DateTimeSection.build(&ctx).unwrap();
@@ -454,7 +454,7 @@ mod tests {
             skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
-            timezone: chrono_tz::Asia::Shanghai,
+            timezone: runtime_time::zones::SHANGHAI,
         };
 
         // 构建完整的系统提示词

@@ -504,7 +504,6 @@ pub async fn handle_api_cron_update(
         fallbacks: body.fallbacks.map(agent_cron::normalize_fallbacks),
         full_access: body.full_access,
         task_pool: body.task_pool,
-        ..agent_cron::CronJobPatch::default()
     };
 
     match agent_cron::update_job(&config, &id, patch) {

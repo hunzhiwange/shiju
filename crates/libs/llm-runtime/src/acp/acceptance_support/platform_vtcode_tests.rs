@@ -8,8 +8,7 @@ use vw_api_acp_model::acp_model_source::{
 
 use crate::acp::model_source::{drivers, launch_identity, prepare_profile};
 
-#[path = "../../aisdk/convert_test_support.rs"]
-mod models;
+use crate::convert_test_support as models;
 
 const AGENT: &str = "vtcode";
 const MANIFEST: &str = include_str!(concat!(

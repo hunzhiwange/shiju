@@ -807,7 +807,7 @@ pub fn processor_event_from_prompt_event(
 ) -> session_engine::processor_events::StreamEvent {
     match event {
         session_port::PromptEvent::LlmRawArtifact(artifact) => {
-            session_engine::processor_events::StreamEvent::LlmRawArtifact(*artifact)
+            session_engine::processor_events::StreamEvent::LlmRawArtifact(artifact)
         }
         session_port::PromptEvent::ContextLoaded { paths } => {
             session_engine::processor_events::StreamEvent::ContextLoaded { paths }
@@ -1673,7 +1673,7 @@ async fn start_chat_producer<H: StreamHost>(
                 let mut ev = processor_event_from_prompt_event(prompt_event);
                 if let session_engine::processor_events::StreamEvent::LlmRawArtifact(artifact) = ev
                 {
-                    match raw_commit::register(&tenant, app_session_scope.as_deref(), artifact) {
+                    match raw_commit::register(&tenant, app_session_scope.as_deref(), *artifact) {
                         Ok(()) => continue,
                         Err(error) => {
                             tracing::error!(
@@ -2523,7 +2523,6 @@ pub fn commit_collected_child_agent_turn<H: StreamHost>(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 /// Persist a turn and return its history guard so summary updates remain serialized.
 #[allow(clippy::too_many_arguments)]
 pub async fn persist_stream_messages(
@@ -2632,6 +2631,7 @@ pub async fn persist_stream_messages(
     Ok((assistant_id, user_id, _history))
 }
 
+#[expect(clippy::too_many_arguments, reason = "Keep the existing request forwarding interface")]
 pub async fn persist_stream_chat_turn_for_agent<H: StreamHost>(
     session_id: &str,
     query: &str,

@@ -21,7 +21,7 @@ vw-api-acp-model = { path = "../api-acp-model" }
 agent-config = { path = "../agent-config" }
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
-chrono-tz = "0.10.4"
+runtime-time = { path = "../runtime-time", features = ["named-time-zones"] }
 cron = "0.16"
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["sync", "time", "macros", "rt", "process"] }

@@ -313,17 +313,5 @@ fn publication_store(
         publication_host::input(input))
 }
 
-/// Reapply saved current selections through the existing owner authorization and
-/// native journal. This never activates an inactive record or consumes remote JSON.
-#[cfg(target_os = "macos")]
-pub(super) async fn sync_saved_provider(database: GlobalDatabase, policy: Option<std::path::PathBuf>,
-    headers: axum::http::HeaderMap, target: &vw_api_app_operations::DataManagementTarget,
-    app: vw_api_app_identity::AppId, id: &str,
-) -> Result<(), ()> {
-    gateway_app_providers::sync_saved_provider(
-        database, policy, headers, target, app, id, publication_host::control(None),
-    ).await
-}
-
 #[cfg(target_os = "macos")]
 mod publication_host;

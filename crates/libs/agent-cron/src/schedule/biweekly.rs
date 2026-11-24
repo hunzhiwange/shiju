@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Datelike, Duration, LocalResult, NaiveDate, TimeZone, Utc};
-use chrono_tz::Tz;
+use runtime_time::zones::NamedTimeZone as Tz;
 
 pub(super) fn next_run(
     anchor_date: NaiveDate,

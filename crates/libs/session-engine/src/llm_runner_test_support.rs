@@ -1,11 +1,10 @@
-//! Scripted stream fixtures shared by library and host contract tests.
-use super::runner;
+//! Scripted stream fixtures for the runner tests.
+use super as runner;
 use llm_runtime as llm;
 use session_port::ui_types as models;
 use std::sync::mpsc;
 use std::time::Duration;
 
-#[allow(dead_code)] // Used by library buffering contracts.
 pub(super) fn collect_events(
     events: impl IntoIterator<Item = llm::StreamEvent>,
 ) -> (Result<runner::LlmStep, String>, Vec<String>) {
@@ -20,7 +19,7 @@ pub(super) fn collect_events(
     let result = runner::collect_llm_step_from_stream(
         rx,
         &mut |event| {
-            if let super::CollectorStreamEvent::Delta(text) = event {
+            if let super::StreamEvent::Delta(text) = event {
                 deltas.push(text);
             }
             true
@@ -32,7 +31,6 @@ pub(super) fn collect_events(
     (result, deltas)
 }
 
-#[allow(dead_code)] // Used by host consumer/timeout contracts.
 pub(super) fn collect_events_with_delta_consumer(
     events: impl IntoIterator<Item = llm::StreamEvent>,
     keep_sender_alive: bool,
@@ -50,7 +48,7 @@ pub(super) fn collect_events_with_delta_consumer(
     let result = runner::collect_llm_step_from_stream(
         rx,
         &mut |event| {
-            let super::CollectorStreamEvent::Delta(text) = event else {
+            let super::StreamEvent::Delta(text) = event else {
                 return true;
             };
             let index = deltas.len();
@@ -79,7 +77,7 @@ pub(super) fn observe_first_delta_before_stream_continues(
         runner::collect_llm_step_from_stream(
             stream_rx,
             &mut |event| {
-                if let super::CollectorStreamEvent::Delta(delta) = event {
+                if let super::StreamEvent::Delta(delta) = event {
                     let _ = observed_tx.send(delta);
                 }
                 true

@@ -353,6 +353,7 @@ pub(super) fn draft_plan(
     })
 }
 
+#[expect(clippy::too_many_arguments, reason = "Pass borrowed canvas render state directly")]
 pub(super) fn draw_nodes(
     i18n: desktop_i18n::I18n,
     frame: &mut Frame,

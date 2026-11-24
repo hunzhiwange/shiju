@@ -26,7 +26,7 @@ vw-agent-apps = { path = "../../vw-agent-apps" }
 axum = "0.8.8"
 base64 = "0.23"
 anyhow = "1"
-chrono = "0.4"
+runtime-time = { path = "../runtime-time" }
 uuid = { version = "1.11", features = ["v4", "serde"] }
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["sync", "rt", "macros", "time"] }

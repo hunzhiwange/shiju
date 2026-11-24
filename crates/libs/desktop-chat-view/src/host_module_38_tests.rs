@@ -131,7 +131,7 @@ async fn permission_and_question_modals_preserve_scroll_position() {
 
 #[test]
 fn with_permission_modal_builds_single_request_dialog_when_queue_is_empty() {
-    let mut app = Requests {
+    let app = Requests {
         permission_modal_request: Some(request("perm-1")),
         ..Default::default()
     };
@@ -182,7 +182,7 @@ fn with_permission_modal_builds_navigation_for_middle_and_last_requests() {
 
 #[test]
 fn with_permission_modal_falls_back_to_first_position_for_request_outside_queue() {
-    let mut app = Requests {
+    let app = Requests {
         permission_modal_request: Some(request("perm-current")),
         permission_modal_requests: vec![request("perm-1"), request("perm-2")],
         ..Default::default()
@@ -196,7 +196,7 @@ fn with_permission_modal_falls_back_to_first_position_for_request_outside_queue(
 #[test]
 fn with_permission_modal_limits_long_pending_request_list() {
     let requests = (0..7).map(|idx| request(&format!("perm-{idx}"))).collect::<Vec<_>>();
-    let mut app = Requests {
+    let app = Requests {
         permission_modal_request: Some(requests[0].clone()),
         permission_modal_requests: requests,
         ..Default::default()

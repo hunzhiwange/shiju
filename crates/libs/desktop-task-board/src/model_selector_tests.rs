@@ -33,7 +33,7 @@ fn test_module_is_wired() {
 
 #[test]
 fn selector_kind_reads_model_sources_and_open_flags() {
-    let mut app = Fixture {
+    let app = Fixture {
         draft_model: "openai/gpt-4.1".to_string(),
         task_board_bulk_model_input: "anthropic/claude".to_string(),
         task_board_model_popover: true,

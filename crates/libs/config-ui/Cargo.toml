@@ -7,7 +7,7 @@ license = "MIT"
 [dependencies]
 config-voice = { path = "../config-voice" }
 config-gateway = { path = "../config-gateway" }
-chrono-tz = "0.10.4"
+runtime-time = { path = "../runtime-time", features = ["named-time-zones"] }
 schemars = "1.2"
 serde = { version = "1", features = ["derive"] }
 

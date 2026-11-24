@@ -8,8 +8,10 @@ use iced_runtime::user_interface::{Cache, UserInterface};
 #[tokio::test]
 async fn inline_editor_renders_chinese_and_submits_without_row_actions() {
     let mut renderer = super::renderer().await;
-    let mut app = ViewState::default();
-    app.file_tree_rename_value = "原始视频.mov—用于检查中文与超长名称的原位编辑".into();
+    let app = ViewState {
+        file_tree_rename_value: "原始视频.mov—用于检查中文与超长名称的原位编辑".into(),
+        ..ViewState::default()
+    };
     for theme in [Theme::Light, Theme::Dark] {
         for directory in [false, true] {
             let mut ui = UserInterface::build(
@@ -96,9 +98,11 @@ async fn inline_editor_keeps_original_tree_height() {
     use super::tree_list::build_file_tree_list;
     use iced::advanced::{layout, widget::Tree};
     let mut renderer = super::renderer().await;
-    let mut app = ViewState::default();
-    app.project_path = Some("/tree".into());
-    app.file_index = vec!["/tree/中文.md".into()];
+    let mut app = ViewState {
+        project_path: Some("/tree".into()),
+        file_index: vec!["/tree/中文.md".into()],
+        ..ViewState::default()
+    };
     let limits = layout::Limits::new(Size::ZERO, Size::new(320.0, 500.0));
     let original = {
         let mut element = build_file_tree_list(app.inputs());

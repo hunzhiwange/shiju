@@ -10,7 +10,7 @@ doctest = false
 [dependencies]
 vw-api-hermes-memory = { path = "../api-hermes-memory" }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
-serde_yaml = "0.9"
+serde_yaml.workspace = true
 toml_edit = "0.22"
 
 [target.'cfg(target_os = "macos")'.dependencies]

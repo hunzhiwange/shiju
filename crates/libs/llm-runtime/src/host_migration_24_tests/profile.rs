@@ -35,8 +35,7 @@ fn acp_model_source_launch_profile_all_drivers_fail_closed_without_secret_errors
     }
 }
 
-#[path = "../aisdk/convert_test_support.rs"]
-mod models;
+use crate::convert_test_support as models;
 
 #[test]
 fn launch_profile_rejects_inactive_and_acp_models_before_executable_access() {

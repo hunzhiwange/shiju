@@ -42,9 +42,11 @@ fn codex_plugin_compat_t32_runtime_requires_explicit_content_trust() {
     package(&root, false, false, &declaration);
     let config_dir = temp.path().join("config");
     fs::create_dir(&config_dir).unwrap();
-    let mut config = Config::default();
-    config.workspace_dir = workspace;
-    config.config_path = config_dir.join("vibewindow.json");
+    let mut config = Config {
+        workspace_dir: workspace,
+        config_path: config_dir.join("vibewindow.json"),
+        ..Config::default()
+    };
     config.hooks.enabled = true;
     config.hooks.plugins.enabled = true;
     let manifest_bytes = fs::read(root.join(".codex-plugin/plugin.json")).unwrap();

@@ -50,7 +50,7 @@ futures-util = "0.3.32"
 parking_lot = "0.12"
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
 sha2 = "0.11"
-chrono = "0.4"
+runtime-time = { path = "../runtime-time" }
 tracing = "0.1"
 hex = "0.4"
 tempfile = "3"
@@ -63,7 +63,7 @@ rusqlite.workspace = true
 [dev-dependencies]
 gateway-app-read = { path = "../gateway-app-read" }
 gateway-app-skills = { path = "../gateway-app-skills" }
-serde_yaml = "0.9"
+serde_yaml.workspace = true
 gateway-http = { path = "../gateway-http" }
 gateway-app-lifecycle = { path = "../gateway-app-lifecycle" }
 gateway-app-settings = { path = "../gateway-app-settings" }

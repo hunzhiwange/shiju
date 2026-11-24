@@ -79,7 +79,7 @@ fn config_revision_changes_when_config_changes() {
 #[test]
 // 面板载荷只报告是否已配置，不得把实际凭据复制到响应字段。
 fn build_payload_marks_active_keyed_provider_without_exposing_secret() {
-    let mut config = Config {
+    let config = Config {
         default_provider: Some("openai".to_string()),
         default_model: Some("gpt-5.2".to_string()),
         api_key: Some("sk-test".to_string()),
@@ -117,7 +117,7 @@ fn build_payload_marks_active_keyed_provider_without_exposing_secret() {
 
 #[test]
 fn build_payload_marks_unkeyed_provider_as_unconfigured() {
-    let mut config = Config {
+    let config = Config {
         default_provider: Some("openrouter".to_string()),
         default_model: Some("openai/gpt-5.2".to_string()),
         api_key: None,
@@ -136,7 +136,7 @@ fn build_payload_marks_unkeyed_provider_as_unconfigured() {
 
 #[test]
 fn build_payload_uses_provider_aliases_for_active_id() {
-    let mut config = Config {
+    let config = Config {
         default_provider: Some(" gemini ".to_string()),
         default_model: Some("google/gemini-3.1-pro".to_string()),
         api_key: Some("key".to_string()),
@@ -157,7 +157,7 @@ fn build_payload_uses_provider_aliases_for_active_id() {
 
 #[test]
 fn build_payload_includes_api_url_field_only_for_supported_provider() {
-    let mut config = Config {
+    let config = Config {
         default_provider: Some("ollama".to_string()),
         default_model: Some("llama3.2".to_string()),
         api_url: Some("http://localhost:11434".to_string()),
@@ -181,7 +181,7 @@ fn build_payload_includes_api_url_field_only_for_supported_provider() {
 
 #[test]
 fn build_payload_returns_no_active_id_without_default_provider() {
-    let mut config = Config {
+    let config = Config {
         default_provider: None,
         ..Default::default()
     };
@@ -194,7 +194,7 @@ fn build_payload_returns_no_active_id_without_default_provider() {
 
 #[test]
 fn apply_update_sets_provider_and_default_model_on_first_activation() {
-    let mut config = Config {
+    let config = Config {
         default_provider: Some("anthropic".to_string()),
         default_model: Some("claude-sonnet-4-6".to_string()),
         api_url: Some("https://stale.example".to_string()),
@@ -214,7 +214,7 @@ fn apply_update_sets_provider_and_default_model_on_first_activation() {
 
 #[test]
 fn apply_update_preserves_active_model_when_model_is_omitted() {
-    let mut config = Config {
+    let config = Config {
         default_provider: Some("openai".to_string()),
         default_model: Some("gpt-4o".to_string()),
         ..Default::default()
@@ -229,7 +229,7 @@ fn apply_update_preserves_active_model_when_model_is_omitted() {
 
 #[test]
 fn apply_update_clears_blank_fields() {
-    let mut config = Config {
+    let config = Config {
         default_provider: Some("ollama".to_string()),
         default_model: Some("llama3.2".to_string()),
         api_key: Some("key".to_string()),
@@ -266,7 +266,7 @@ fn apply_update_accepts_supported_api_url() {
 
 #[test]
 fn apply_update_clears_stale_api_url_when_supported_provider_first_activates_without_url() {
-    let mut config = Config {
+    let config = Config {
         default_provider: Some("openai".to_string()),
         api_url: Some("https://stale.example".to_string()),
         ..Default::default()

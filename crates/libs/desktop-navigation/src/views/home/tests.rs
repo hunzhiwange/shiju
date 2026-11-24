@@ -26,7 +26,7 @@ fn view_builds_empty_recent_projects_home() {
 
 #[test]
 fn view_builds_recent_projects_home() {
-    let mut app = Fixture {
+    let app = Fixture {
         recent_projects: vec!["/tmp/vibe-window".to_string()],
         recent_projects_edits: vec!["Vibe Window".to_string()],
         project_path: Some("/tmp/vibe-window".to_string()),

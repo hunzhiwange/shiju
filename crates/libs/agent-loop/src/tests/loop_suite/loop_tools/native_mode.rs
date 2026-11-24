@@ -78,7 +78,7 @@ fn native_tools_system_prompt_contains_zero_xml() {
         None,
         true,
         agent_config::runtime_schema::SkillsPromptInjectionMode::Full,
-        chrono_tz::Asia::Shanghai,
+        runtime_time::zones::SHANGHAI,
     );
 
     assert!(!system_prompt.contains("<tool_call>"), "Native prompt must not contain <tool_call>");

@@ -17,9 +17,9 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::Path;
 use std::time::Duration;
 
-fn env_lock() -> std::sync::MutexGuard<'static, ()> {
-    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    LOCK.lock().unwrap_or_else(|err| err.into_inner())
+async fn env_lock() -> tokio::sync::MutexGuard<'static, ()> {
+    static LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    LOCK.lock().await
 }
 
 // 主目录守卫把配置持久化限制在临时目录，并在结束时恢复进程环境。
@@ -99,12 +99,12 @@ fn state_with(pairing: PairingGuard, rate_limit: u32, config: Config) -> AppStat
 
 fn test_config() -> Config {
     let temp = tempfile::tempdir().unwrap().keep();
-    let mut config = Config {
+
+    Config {
         config_path: temp.join("vibewindow.json"),
         workspace_dir: temp.join("workspace"),
         ..Default::default()
-    };
-    config
+    }
 }
 
 fn connect_info(ip: IpAddr) -> ConnectInfo<SocketAddr> {
@@ -137,7 +137,7 @@ async fn call_pair_code(state: AppState, ip: IpAddr) -> (StatusCode, serde_json:
 
 #[tokio::test(flavor = "current_thread")]
 async fn handle_pair_returns_token_and_persists_when_code_is_valid() {
-    let _env_guard = env_lock();
+    let _env_guard = env_lock().await;
     let home = tempfile::tempdir().unwrap();
     let _home_guard = HomeEnvGuard::set(home.path());
     let guard = PairingGuard::new(true, &[]);
@@ -160,12 +160,12 @@ async fn handle_pair_returns_token_and_persists_when_code_is_valid() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn handle_pair_reports_unpersisted_success_when_config_save_fails() {
-    let _env_guard = env_lock();
+    let _env_guard = env_lock().await;
     let temp = tempfile::tempdir().unwrap();
     let invalid_home = temp.path().join("not-a-directory");
     std::fs::write(&invalid_home, "fixture").unwrap();
     let _home_guard = HomeEnvGuard::set(&invalid_home);
-    let mut config = Config {
+    let config = Config {
         config_path: temp.path().to_path_buf(),
         workspace_dir: temp.path().join("workspace"),
         ..Default::default()
@@ -245,7 +245,7 @@ async fn handle_pair_code_omits_code_when_pairing_not_required() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn persist_pairing_tokens_updates_in_memory_config_and_returns_errors() {
-    let _env_guard = env_lock();
+    let _env_guard = env_lock().await;
     let home = tempfile::tempdir().unwrap();
     let _home_guard = HomeEnvGuard::set(home.path());
     let config = test_config();

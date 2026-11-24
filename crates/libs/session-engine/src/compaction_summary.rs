@@ -16,6 +16,7 @@ pub trait SummaryHost {
         cancellation: Option<&CancellationToken>,
     ) -> Result<crate::llm_step::LlmStep, String>;
 }
+#[expect(clippy::too_many_arguments, reason = "Keep the existing request forwarding interface")]
 fn run_llm_step_with_retry<H: SummaryHost>(
     session_id: &str, messages: &[Value], system: &[String], model: Option<String>,
     options: &Value, available_tools: &[tool_types::ToolSpec],

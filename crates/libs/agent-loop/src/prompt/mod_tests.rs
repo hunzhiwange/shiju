@@ -80,7 +80,7 @@ fn empty_context<'a>(workspace_dir: &'a Path, tools: &'a [Box<dyn Tool>]) -> Pro
         skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
         identity_config: None,
         dispatcher_instructions: "",
-        timezone: chrono_tz::Asia::Shanghai,
+        timezone: runtime_time::zones::SHANGHAI,
     }
 }
 

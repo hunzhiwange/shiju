@@ -2,7 +2,7 @@
 use crate::requests::{CronAddBody, CronUpdateBody};
 use agent_cron::{self as cron, CronJob, Schedule};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
-use chrono_tz::Tz;
+use runtime_time::zones::NamedTimeZone as Tz;
 use serde_json::{Value, json};
 
 type Instant = DateTime<Utc>;

@@ -161,7 +161,7 @@ fn acp_model_source_relay_chat_oauth_expiry_and_revocation_never_use_cached_keys
         }))
     };
     assert_eq!(
-        credential(&info, oauth(chrono::Utc::now().timestamp_millis() + 60_000)).unwrap(),
+        credential(&info, oauth(runtime_time::unix_millis() + 60_000)).unwrap(),
         "fresh-access"
     );
     assert_eq!(credential(&info, oauth(0)).unwrap_err(), StatusCode::UNAUTHORIZED);

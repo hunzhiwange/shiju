@@ -88,7 +88,7 @@ fn cron_templates_one_shot_rejects_invalid_and_ambiguous_local_time() {
         schedule: CronTemplateSchedule::TomorrowAt { hour: 2 },
         ..CRON_TEMPLATES[8]
     };
-    let zone = chrono_tz::Europe::Berlin;
+    let zone = runtime_time::zones::BERLIN;
     for (month, day) in [(3, 28), (10, 24)] {
         let now = zone.with_ymd_and_hms(2026, month, day, 12, 0, 0).unwrap();
         assert!(template.draft(now).is_err());

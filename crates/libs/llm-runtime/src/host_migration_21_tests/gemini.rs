@@ -124,7 +124,6 @@ fn acp_model_source_gemini_rejects_configuration_conflicts_before_publication() 
             command: "gemini".into(),
             args: vec!["--experimental-acp".into()],
             env: std::collections::HashMap::from([(key.into(), "conflict".into())]),
-            ..Default::default()
         };
         let fixture = profile();
         let mut profile = AcpLaunchProfile::new(&config, fixture.binding.identity().clone()).unwrap();

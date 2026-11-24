@@ -1,6 +1,4 @@
 //! Buffering and provider-event collection belong to the library runner.
-use super::*;
-use crate::processor_events::StreamEvent as CollectorStreamEvent;
 use crate::llm_runner as runner;
 use crate::message::AssistantError;
 use session_port::ui_types as models;
@@ -10,9 +8,7 @@ mod llm {
     pub use llm_runtime::StreamEvent;
     pub use crate::processor_events::ToolCall;
 }
-#[path = "llm_runner_test_support.rs"]
-mod llm_runner_test_support;
-use llm_runner_test_support::{collect_events, observe_first_delta_before_stream_continues, usage};
+use super::test_support::{collect_events, observe_first_delta_before_stream_continues, usage};
 
 #[test]
 fn stream_explicit_completion_returns_text_tool_calls_usage_and_full_messages() {

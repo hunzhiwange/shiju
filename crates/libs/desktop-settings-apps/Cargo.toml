@@ -40,7 +40,7 @@ vw-api-transport = { path = "../api-transport" }
 desktop-ui-controls = { path = "../desktop-ui-controls" }
 desktop-assets = { path = "../desktop-assets" }
 serde_json = "1"
-directories = "5"
+directories = "6"
 tokio = { version = "1", default-features = false, features = ["rt", "macros", "sync", "time"] }
 iced = { version = "0.14", features = ["image", "svg", "advanced", "tokio"] }
 

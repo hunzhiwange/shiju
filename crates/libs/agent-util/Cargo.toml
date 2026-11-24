@@ -11,7 +11,7 @@ doctest = false
 regex = "1"
 anyhow = "1"
 chrono = "0.4"
-chrono-tz = "0.10.4"
+runtime-time = { path = "../runtime-time", features = ["named-time-zones"] }
 display-format = { path = "../display-format" }
 glob = "0.3"
 serde = { version = "1", features = ["derive"] }

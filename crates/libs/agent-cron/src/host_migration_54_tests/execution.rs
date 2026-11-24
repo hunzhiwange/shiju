@@ -15,13 +15,6 @@ async fn run_job_command_uses_job_project_path_as_working_directory() {
     assert!(output.contains(&project_dir.to_string_lossy().to_string()));
 }
 
-/// 测试 Shell 命令执行失败
-///
-/// 验证命令执行失败时的处理：
-/// - 命令失败时返回 false
-/// - 输出中包含错误信息
-/// - 状态码表示失败（非零）
-
 /// 测试任务重试机制在首次失败后恢复
 ///
 /// 验证 scheduler_retries 配置：

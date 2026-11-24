@@ -6,13 +6,13 @@ fn test_module_is_wired() {
 }
 
 fn task(id: &str, priority: u32, order: u32) -> super::models::Task {
-    let mut task = super::models::Task {
+
+    super::models::Task {
         id: id.to_string(),
-        priority: priority,
-        order: order,
+        priority,
+        order,
         ..Default::default()
-    };
-    task
+    }
 }
 
 #[test]

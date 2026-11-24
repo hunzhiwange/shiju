@@ -3,8 +3,7 @@
 use model_types as provider;
 use serde_json::json;
 
-#[path = "convert_test_support.rs"]
-mod fixtures;
+use crate::convert_test_support as fixtures;
 use fixtures::test_model;
 
 fn compute_request_info(

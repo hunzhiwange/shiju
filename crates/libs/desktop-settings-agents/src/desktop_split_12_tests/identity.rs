@@ -64,7 +64,7 @@ fn identity_view_builds_workspace_file_without_metadata_using_default_root() {
 
 #[test]
 fn identity_view_builds_missing_workspace_file_fallback() {
-    let mut app = crate::agents_state::AgentsSettingsState {
+    let app = crate::agents_state::AgentsSettingsState {
         active_prompt_tab: "MISSING.md".to_string(),
         ..Default::default()
     };

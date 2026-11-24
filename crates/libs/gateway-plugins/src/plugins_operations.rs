@@ -37,7 +37,7 @@ struct PreparedInstall {
     _owner: tempfile::TempDir,
 }
 enum Operation<U> {
-    Install(PreparedInstall),
+    Install(Box<PreparedInstall>),
     Update(U),
 }
 pub struct Pending<U> {
@@ -143,7 +143,7 @@ async fn prepare_install<H: PluginHost>(
         let response = preview::<H>(String::new(), body.source, &installed, None)?;
         let token = store::<H>(
             install_dir_from_config(&config),
-            Operation::Install(PreparedInstall { installed, hash, _owner: temporary }),
+            Operation::Install(Box::new(PreparedInstall { installed, hash, _owner: temporary })),
         )?;
         Ok::<_, anyhow::Error>(DesktopPluginPreviewDto { token, ..response })
     })

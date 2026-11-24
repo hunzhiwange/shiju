@@ -1,0 +1,340 @@
+[workspace]
+members = [".", "macros"]
+resolver = "2"
+
+[package]
+name = "vibewindow-aisdk"
+version = "0.7.1"
+edition = "2024"
+license = "MIT"
+description = "An open-source Rust library for building AI-powered applications, inspired by the Vercel AI SDK. It provides a robust, type-safe, and easy-to-use interface for interacting with various Large Language Models (LLMs)."
+homepage = "https://github.com/hunzhiwange/aisdk"
+repository = "https://github.com/hunzhiwange/aisdk"
+readme = "README.md"
+keywords = ["ai", "sdk", "vibewindow-aisdk", "ai-sdk-rs", "openai"]
+categories = ["api-bindings", "asynchronous"]
+
+[lib]
+name = "aisdk"
+
+[features]
+default = ["language-model-request", "embedding-model-request", "image-model-request"]
+full = ["language-model-request", "embedding-model-request", "image-model-request", "prompt", "openai", "openaicompatible", "openaichatcompletions", "anthropic", "groq", "vercel", "google", "openrouter", "deepseek", "amazon-bedrock", "togetherai", "xai", "mistral", "abacus", "aihubmix", "alibaba", "alibaba-cn", "bailing", "baseten", "chutes", "cloudflare-ai-gateway", "cortecs", "firmware", "fireworks-ai", "friendli", "fastrouter", "github-copilot", "github-models", "helicone", "huggingface", "iflowcn", "inception", "inference", "io-net", "llama", "lmstudio", "lucidquery", "moark", "modelscope", "moonshotai", "moonshotai-cn", "morph", "nano-gpt", "nebius", "nova", "novita-ai", "nvidia", "ollama-cloud", "opencode", "ovhcloud", "poe", "privatemode-ai", "requesty", "scaleway", "siliconflow", "siliconflow-cn", "submodel", "synthetic", "upstage", "vultr", "wandb", "xiaomi", "zai", "zai-coding-plan", "zenmux", "zhipuai", "zhipuai-coding-plan", "302ai", "berget", "cloudflare-workers-ai", "jiekou", "kuae-cloud-coding-plan", "stackit", "stepfun", "abliteration-ai", "ai-router", "aiand", "aki-io", "alibaba-coding-plan", "alibaba-coding-plan-cn", "alibaba-token-plan", "alibaba-token-plan-cn", "ambient", "anyapi", "atomic-chat", "auriko", "blueclaw", "clarifai", "claudinio", "cline-pass", "cloudferro-sherlock", "crof", "crossmodel", "daoxe", "databricks", "digitalocean", "dinference", "drun", "ebcloud", "empiriolabs", "evroc", "frogbot", "gmicloud", "greenpt", "hetzner", "hpc-ai", "hyper", "impossibl", "inceptron", "inferx", "kenari", "kilo", "lilac", "llmgateway", "llmtr", "longcat", "lynkr", "meganova", "mixlayer", "modal", "model-oracle-ai", "modelis", "nearai", "neon", "neuralwatt", "ofox", "opencode-go", "orcarouter", "pioneer", "poolside", "qihang-ai", "qiniu-ai", "regolo-ai", "routing-run", "sakana", "sarvam", "snowflake-cortex", "stepfun-ai", "stepfun-ai-step-plan", "stepfun-step-plan", "tencent-coding-plan", "tencent-token-plan", "tencent-tokenhub", "tensorx", "the-grid-ai", "tinfoil", "trustedrouter", "umans-ai", "umans-ai-coding-plan", "unorouter", "wafer.ai", "xiaomi-token-plan-ams", "xiaomi-token-plan-cn", "xiaomi-token-plan-sgp", "xpersona", "zeldoc", "zenifra", "above", "agentrouter", "agnes", "ai21", "aimlapi", "ainetcafe", "aixy", "amd", "arcee", "bee", "bothub", "boundless", "commandcode", "coralbricks", "crusoe", "echo", "edenai", "engy", "inco", "infomaniak", "iteracompute", "jalapeno", "kimi-code-plan-cn", "kimi-code-plan-global", "klokintegration", "kosmik", "liquid", "llmgateway-providers", "llmtech", "lowrouter", "melious", "nan", "oci", "openreason", "opper", "pareto", "pendra", "prime", "reflection", "runinfra", "sambanova", "scnet-token-plan", "scx-ai", "sensenova", "standardcompute", "tempr", "tokengo", "tokenrouter", "vancine", "vispark", "volcengine", "volcengine-coding-plan", "wallaby"]
+language-model-request = []
+embedding-model-request = []
+image-model-request = []
+test-access = []
+jitter = ["dep:fastrand"]
+prompt = ["tera", "glob"]
+axum = ["dep:axum"]
+openai = []
+anthropic = []
+google = []
+openaichatcompletions = []
+openaicompatible = ["openaichatcompletions", "openai"]
+groq = ["openaichatcompletions"]
+vercel = ["openaichatcompletions"]
+openrouter = ["openaichatcompletions"]
+deepseek = ["openaichatcompletions"]
+mistral = ["openaichatcompletions"]
+amazon-bedrock = ["openaichatcompletions"]
+togetherai = ["openaichatcompletions"]
+xai = ["openaichatcompletions"]
+abacus = ["openaichatcompletions"]
+aihubmix = ["openaichatcompletions"]
+alibaba = ["openaichatcompletions"]
+alibaba-cn = ["openaichatcompletions"]
+bailing = ["openaichatcompletions"]
+baseten = ["openaichatcompletions"]
+chutes = ["openaichatcompletions"]
+cloudflare-ai-gateway = ["openaichatcompletions"]
+cortecs = ["openaichatcompletions"]
+firmware = ["openaichatcompletions"]
+fireworks-ai = ["openaichatcompletions"]
+friendli = ["openaichatcompletions"]
+fastrouter = ["openaichatcompletions"]
+github-copilot = ["openaichatcompletions"]
+github-models = ["openaichatcompletions"]
+helicone = ["openaichatcompletions"]
+huggingface = ["openaichatcompletions"]
+iflowcn = ["openaichatcompletions"]
+inception = ["openaichatcompletions"]
+inference = ["openaichatcompletions"]
+io-net = ["openaichatcompletions"]
+llama = ["openaichatcompletions"]
+lmstudio = ["openaichatcompletions"]
+lucidquery = ["openaichatcompletions"]
+moark = ["openaichatcompletions"]
+modelscope = ["openaichatcompletions"]
+moonshotai = ["openaichatcompletions"]
+moonshotai-cn = ["openaichatcompletions"]
+morph = ["openaichatcompletions"]
+nano-gpt = ["openaichatcompletions"]
+nebius = ["openaichatcompletions"]
+nova = ["openaichatcompletions"]
+novita-ai = ["openaichatcompletions"]
+nvidia = ["openaichatcompletions"]
+ollama-cloud = ["openaichatcompletions"]
+opencode = ["openaichatcompletions"]
+ovhcloud = ["openaichatcompletions"]
+poe = ["openaichatcompletions"]
+privatemode-ai = ["openaichatcompletions"]
+requesty = ["openaichatcompletions"]
+scaleway = ["openaichatcompletions"]
+siliconflow = ["openaichatcompletions"]
+siliconflow-cn = ["openaichatcompletions"]
+submodel = ["openaichatcompletions"]
+synthetic = ["openaichatcompletions"]
+upstage = ["openaichatcompletions"]
+vultr = ["openaichatcompletions"]
+wandb = ["openaichatcompletions"]
+xiaomi = ["openaichatcompletions"]
+zai = ["openaichatcompletions"]
+zai-coding-plan = ["openaichatcompletions"]
+zenmux = ["openaichatcompletions"]
+zhipuai = ["openaichatcompletions"]
+zhipuai-coding-plan = ["openaichatcompletions"]
+302ai = ["openaichatcompletions"]
+berget = ["openaichatcompletions"]
+cloudflare-workers-ai = ["openaichatcompletions"]
+jiekou = ["openaichatcompletions"]
+kuae-cloud-coding-plan = ["openaichatcompletions"]
+stackit = ["openaichatcompletions"]
+stepfun = ["openaichatcompletions"]
+abliteration-ai = ["openaichatcompletions"]
+ai-router = ["openaichatcompletions"]
+aiand = ["openaichatcompletions"]
+aki-io = ["openaichatcompletions"]
+alibaba-coding-plan = ["openaichatcompletions"]
+alibaba-coding-plan-cn = ["openaichatcompletions"]
+alibaba-token-plan = ["openaichatcompletions"]
+alibaba-token-plan-cn = ["openaichatcompletions"]
+ambient = ["openaichatcompletions"]
+anyapi = ["openaichatcompletions"]
+atomic-chat = ["openaichatcompletions"]
+auriko = ["openaichatcompletions"]
+blueclaw = ["openaichatcompletions"]
+clarifai = ["openaichatcompletions"]
+claudinio = ["openaichatcompletions"]
+cline-pass = ["openaichatcompletions"]
+cloudferro-sherlock = ["openaichatcompletions"]
+crof = ["openaichatcompletions"]
+crossmodel = ["openaichatcompletions"]
+daoxe = ["openaichatcompletions"]
+databricks = ["openaichatcompletions"]
+digitalocean = ["openaichatcompletions"]
+dinference = ["openaichatcompletions"]
+drun = ["openaichatcompletions"]
+ebcloud = ["openaichatcompletions"]
+empiriolabs = ["openaichatcompletions"]
+evroc = ["openaichatcompletions"]
+frogbot = ["openaichatcompletions"]
+gmicloud = ["openaichatcompletions"]
+greenpt = ["openaichatcompletions"]
+hetzner = ["openaichatcompletions"]
+hpc-ai = ["openaichatcompletions"]
+hyper = ["openaichatcompletions"]
+impossibl = ["openaichatcompletions"]
+inceptron = ["openaichatcompletions"]
+inferx = ["openaichatcompletions"]
+kenari = ["openaichatcompletions"]
+kilo = ["openaichatcompletions"]
+lilac = ["openaichatcompletions"]
+llmgateway = ["openaichatcompletions"]
+llmtr = ["openaichatcompletions"]
+longcat = ["openaichatcompletions"]
+lynkr = ["openaichatcompletions"]
+meganova = ["openaichatcompletions"]
+mixlayer = ["openaichatcompletions"]
+modal = ["openaichatcompletions"]
+model-oracle-ai = ["openaichatcompletions"]
+modelis = ["openaichatcompletions"]
+nearai = ["openaichatcompletions"]
+neon = ["openaichatcompletions"]
+neuralwatt = ["openaichatcompletions"]
+ofox = ["openaichatcompletions"]
+opencode-go = ["openaichatcompletions"]
+orcarouter = ["openaichatcompletions"]
+pioneer = ["openaichatcompletions"]
+poolside = ["openaichatcompletions"]
+qihang-ai = ["openaichatcompletions"]
+qiniu-ai = ["openaichatcompletions"]
+regolo-ai = ["openaichatcompletions"]
+routing-run = ["openaichatcompletions"]
+sakana = ["openaichatcompletions"]
+sarvam = ["openaichatcompletions"]
+snowflake-cortex = ["openaichatcompletions"]
+stepfun-ai = ["openaichatcompletions"]
+stepfun-ai-step-plan = ["openaichatcompletions"]
+stepfun-step-plan = ["openaichatcompletions"]
+tencent-coding-plan = ["openaichatcompletions"]
+tencent-token-plan = ["openaichatcompletions"]
+tencent-tokenhub = ["openaichatcompletions"]
+tensorx = ["openaichatcompletions"]
+the-grid-ai = ["openaichatcompletions"]
+tinfoil = ["openaichatcompletions"]
+trustedrouter = ["openaichatcompletions"]
+umans-ai = ["openaichatcompletions"]
+umans-ai-coding-plan = ["openaichatcompletions"]
+unorouter = ["openaichatcompletions"]
+"wafer.ai" = ["openaichatcompletions"]
+xiaomi-token-plan-ams = ["openaichatcompletions"]
+xiaomi-token-plan-cn = ["openaichatcompletions"]
+xiaomi-token-plan-sgp = ["openaichatcompletions"]
+xpersona = ["openaichatcompletions"]
+zeldoc = ["openaichatcompletions"]
+zenifra = ["openaichatcompletions"]
+above = ["openaichatcompletions"]
+agentrouter = ["openaichatcompletions"]
+agnes = ["openaichatcompletions"]
+ai21 = ["openaichatcompletions"]
+aimlapi = ["openaichatcompletions"]
+ainetcafe = ["openaichatcompletions"]
+aixy = ["openaichatcompletions"]
+amd = ["openaichatcompletions"]
+arcee = ["openaichatcompletions"]
+bee = ["openaichatcompletions"]
+bothub = ["openaichatcompletions"]
+boundless = ["openaichatcompletions"]
+commandcode = ["openaichatcompletions"]
+coralbricks = ["openaichatcompletions"]
+crusoe = ["openaichatcompletions"]
+echo = ["openaichatcompletions"]
+edenai = ["openaichatcompletions"]
+engy = ["openaichatcompletions"]
+inco = ["openaichatcompletions"]
+infomaniak = ["openaichatcompletions"]
+iteracompute = ["openaichatcompletions"]
+jalapeno = ["openaichatcompletions"]
+kimi-code-plan-cn = ["openaichatcompletions"]
+kimi-code-plan-global = ["openaichatcompletions"]
+klokintegration = ["openaichatcompletions"]
+kosmik = ["openaichatcompletions"]
+liquid = ["openaichatcompletions"]
+llmgateway-providers = ["openaichatcompletions"]
+llmtech = ["openaichatcompletions"]
+lowrouter = ["openaichatcompletions"]
+melious = ["openaichatcompletions"]
+nan = ["openaichatcompletions"]
+oci = ["openaichatcompletions"]
+openreason = ["openaichatcompletions"]
+opper = ["openaichatcompletions"]
+pareto = ["openaichatcompletions"]
+pendra = ["openaichatcompletions"]
+prime = ["openaichatcompletions"]
+reflection = ["openaichatcompletions"]
+runinfra = ["openaichatcompletions"]
+sambanova = ["openaichatcompletions"]
+scnet-token-plan = ["openaichatcompletions"]
+scx-ai = ["openaichatcompletions"]
+sensenova = ["openaichatcompletions"]
+standardcompute = ["openaichatcompletions"]
+tempr = ["openaichatcompletions"]
+tokengo = ["openaichatcompletions"]
+tokenrouter = ["openaichatcompletions"]
+vancine = ["openaichatcompletions"]
+vispark = ["openaichatcompletions"]
+volcengine = ["openaichatcompletions"]
+volcengine-coding-plan = ["openaichatcompletions"]
+wallaby = ["openaichatcompletions"]
+
+[dependencies]
+tera = { version = "2.4", features = ["glob_fs"], optional = true }
+glob = { version = "0.3", optional = true }
+log = "0.4"
+async-trait = "0.1.88"
+serde = {version = "1.0.219", features = ["derive"]}
+serde_json = { version = "1.0" }
+schemars = "1.0.4"
+thiserror = "2.0.12"
+derive_builder = "0.20.2"
+futures = "0.3"
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "multipart", "rustls-tls"] }
+reqwest-eventsource = "0.6.0"
+uuid = { version = "1.0", features = ["v4"] }
+axum = { version = ">=0.7, <0.9", optional = true }
+fastrand = { version = "2", optional = true }
+parking_lot = "0.12.5"
+base64 = "0.22.1"
+aisdk-macros = { package = "vibewindow-aisdk-macros", version = "0.3.0", path = "./macros" }
+
+[dev-dependencies]
+cargo-husky = { version = "1", features = ["precommit-hook", "run-cargo-test", "run-cargo-clippy", "run-cargo-fmt"] }
+dotenv = "0.15.0"
+tempfile = "3.10.1"
+wiremock = "0.6.5"
+
+[package.metadata.release]
+pre-release-commit-message = "chore: release {{version}}"
+pre-release-replacements = [
+  {file="CHANGELOG.md", search="Unreleased", replace="{{version}}"},
+  {file="CHANGELOG.md", search="\\.\\.\\.HEAD", replace="...{{tag_name}}", exactly=1},
+  {file="CHANGELOG.md", search="ReleaseDate", replace="{{date}}"},
+  {file="CHANGELOG.md", search="<!-- next-header -->", replace="<!-- next-header -->\n\n## [Unreleased] - ReleaseDate", exactly=1},
+  {file="CHANGELOG.md", search="<!-- next-url -->", replace="<!-- next-url -->\n[Unreleased]: https://github.com/hunzhiwange/aisdk/compare/{{tag_name}}...HEAD", exactly=1},
+]
+
+[[example]]
+name = "runtime_model_ref"
+required-features = ["openaicompatible", "alibaba-cn"]
+
+[[test]]
+name = "openai_tests"
+path = "tests/provider/openai_tests.rs"
+required-features = ["openai", "test-access"]
+
+[[test]]
+name = "openai_compatible_tests"
+path = "tests/provider/openai_compatible_tests.rs"
+required-features = ["openaicompatible", "test-access"]
+
+[[test]]
+name = "anthropic_tests"
+path = "tests/provider/anthropic_tests.rs"
+required-features = ["anthropic", "test-access"]
+
+[[test]]
+name = "groq_tests"
+path = "tests/provider/groq_tests.rs"
+required-features = ["groq", "test-access"]
+
+[[test]]
+name = "google_tests"
+path = "tests/provider/google_tests.rs"
+required-features = ["google", "test-access"]
+
+[[test]]
+name = "vercel_tests"
+path = "tests/provider/vercel_tests.rs"
+required-features = ["vercel", "test-access"]
+
+[[test]]
+name = "openrouter_tests"
+path = "tests/provider/openrouter_tests.rs"
+required-features = ["openrouter", "test-access"]
+
+[[test]]
+name = "deepseek_tests"
+path = "tests/provider/deepseek_tests.rs"
+required-features = ["deepseek", "test-access"]
+
+[[test]]
+name = "mistral_tests"
+path = "tests/provider/mistral_tests.rs"
+required-features = ["mistral", "test-access"]
+
+[[test]]
+name = "amazon_bedrock_tests"
+path = "tests/provider/amazon_bedrock_tests.rs"
+required-features = ["amazon-bedrock", "test-access"]
+
+[[test]]
+name = "togetherai_tests"
+path = "tests/provider/togetherai_tests.rs"
+required-features = ["togetherai", "test-access"]
+
+[[test]]
+name = "xai_tests"
+path = "tests/provider/xai_tests.rs"
+required-features = ["xai", "test-access"]

@@ -12,7 +12,7 @@ use model_selection::{
     AutoModelSelectionRequest, ModelCandidate, ModelReference, select_auto_model,
 };
 use anyhow::Result;
-use chrono_tz::Tz;
+use runtime_time::zones::NamedTimeZone as Tz;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -325,7 +325,7 @@ impl<H: super::AgentHost> Agent<H> {
     #[cfg(any(test, feature = "test-support"))]
     pub fn fixture_auto_save(&mut self, enabled: bool) { self.auto_save = enabled; }
     #[cfg(any(test, feature = "test-support"))]
-    pub fn fixture_timezone(&mut self, timezone: chrono_tz::Tz) { self.timezone = timezone; }
+    pub fn fixture_timezone(&mut self, timezone: runtime_time::zones::NamedTimeZone) { self.timezone = timezone; }
     #[cfg(any(test, feature = "test-support"))]
     pub fn fixture_routing(&mut self, classification: config_routing::QueryClassificationConfig, hints: Vec<String>, routes: std::collections::HashMap<String,String>) {
         self.classification_config = classification;

@@ -650,7 +650,7 @@ fn output_delta_token_and_redaction_helpers_cover_edge_cases() {
     assert_eq!(outputs["json"], json!({"ok": true}));
     let plain_outputs = llm_outputs("plain answer".to_string());
     assert_eq!(plain_outputs["text"], json!("plain answer"));
-    assert!(plain_outputs.get("json").is_none());
+    assert!(!plain_outputs.contains_key("json"));
     assert!(workflow_token_usage(None).is_none());
     assert!(workflow_token_usage(Some(&TokenUsage::default())).is_none());
     let usage = workflow_token_usage(Some(&TokenUsage {

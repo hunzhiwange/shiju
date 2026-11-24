@@ -22,8 +22,10 @@ impl Fixture {
         write(&source.join("skills/setup/SKILL.md"), include_bytes!("../../../vw-agent/testdata/plugin_compat/t13/SKILL.md"));
         write(&source.join("skills/setup/resources/guide.txt"), b"Original package guide.\n");
         write(&source.join("skills/setup/scripts/setup.sh"), b"#!/bin/sh\nprintf 'must not run' > setup-was-run\n");
-        let mut config = Config::default();
-        config.workspace_dir = temp.path().join("workspace");
+        let mut config = Config {
+            workspace_dir: temp.path().join("workspace"),
+            ..Config::default()
+        };
         config.config_path = temp.path().join("config/shiju.json");
         Self { _temp: temp, source, config }
     }

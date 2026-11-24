@@ -79,7 +79,7 @@ fn skill(id: &str, enabled: bool, source: &str) -> SkillsCatalogItem {
 #[test]
 fn agent_config_cleanup_skills_inherit_and_fixed_are_distinct() {
     use config_agent_profile::AgentDefault;
-    let mut app = crate::agents_state::AgentsSettingsState {
+    let app = crate::agents_state::AgentsSettingsState {
         skill_catalog: vec![skill("allowed", true, "global"), skill("other", true, "global")],
         ..Default::default()
     };

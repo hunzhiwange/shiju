@@ -405,7 +405,7 @@ async fn worktree_cleanup_session_store_preserves_pending_duplicates_and_errors(
     let primary = f.primary.to_string_lossy().into_owned();
     assert_eq!(
         store.foreign_worktree_directories(f.scope.tenant_scope()).unwrap(),
-        [primary.clone()]
+        std::slice::from_ref(&primary)
     );
     store.save_agent_session(&other, &first).unwrap();
     let directories = store.foreign_worktree_directories(f.scope.tenant_scope()).unwrap();

@@ -25,7 +25,7 @@ config-skills = { path = "../config-skills" }
 config-tools = { path = "../config-tools" }
 config-ui = { path = "../config-ui" }
 config-worktree = { path = "../config-worktree" }
-directories = "5"
+directories = "6"
 schemars = "1.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

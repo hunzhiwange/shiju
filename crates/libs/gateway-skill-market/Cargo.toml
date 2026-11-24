@@ -23,7 +23,7 @@ config-skills = { path = "../config-skills", optional = true }
 config-runtime-paths = { path = "../config-runtime-paths", optional = true }
 gateway-desktop-settings = { path = "../gateway-desktop-settings", optional = true }
 axum = { version = "0.8.8", features = ["json"], optional = true }
-directories = { version = "5", optional = true }
+directories = { version = "6", optional = true }
 url = { version = "2", optional = true }
 tokio = { version = "1", features = ["rt"], optional = true }
 

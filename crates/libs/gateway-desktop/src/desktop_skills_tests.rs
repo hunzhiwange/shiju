@@ -1,11 +1,5 @@
 // 覆盖桌面技能目录解析、详情读取、脚手架创建与安装。
 
-// 临时技能目录同时构造 TOML、Markdown 和缺失资源，验证元数据优先级与回退。
-#[test]
-fn desktop_skills_test_module_is_loaded() {
-    assert!(true);
-}
-
 #[test]
 fn router_builds_with_unit_state() {
     let _ = super::router::<()>();

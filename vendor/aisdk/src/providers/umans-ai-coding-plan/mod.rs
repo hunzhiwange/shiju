@@ -1,0 +1,23 @@
+//! This module provides the UmansAiCodingPlan provider, wrapping OpenAI Chat Completions for UmansAiCodingPlan requests.
+
+pub mod capabilities;
+
+// Generate the settings module
+crate::openai_compatible_settings!(
+    UmansAiCodingPlanProviderSettings,
+    UmansAiCodingPlanProviderSettingsBuilder,
+    "UmansAiCodingPlan",
+    "https://api.code.umans.ai/v1",
+    "UMANS_AI_CODING_PLAN_API_KEY"
+);
+
+// Generate the provider struct and builder
+crate::openai_compatible_provider!(
+    UmansAiCodingPlan,
+    UmansAiCodingPlanBuilder,
+    UmansAiCodingPlanProviderSettings,
+    "umans-ai-coding-plan"
+);
+
+// Generate the language model implementation
+crate::openai_compatible_language_model!(UmansAiCodingPlan);

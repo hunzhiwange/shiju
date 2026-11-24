@@ -23,7 +23,7 @@ hex = "0.4"
 tracing = "0.1"
 shell-command = { path = "../shell-command" }
 tempfile = "3"
-serde_yaml = "0.9"
+serde_yaml.workspace = true
 serde_json = "1"
 sha2 = "0.11"
 anyhow = "1"
@@ -36,7 +36,7 @@ walkdir = "2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 app-skill-catalog = { path = "../app-skill-catalog" }
-dialoguer = "0.11"
+dialoguer = "0.12"
 libc = "0.2"
 
 base64 = "0.23"

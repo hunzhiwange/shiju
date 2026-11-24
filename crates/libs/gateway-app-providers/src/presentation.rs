@@ -33,16 +33,16 @@ async fn write(
     body: Result<Json<AppProviderPresentation>, JsonRejection>,
 ) -> Response {
     let Ok(Json(request)) = body else { return error("invalid input") };
-    match tokio::task::spawn_blocking(move || -> Result<_, Response> {
-        let store = store(database).map_err(|message| error(&message))?;
+    match tokio::task::spawn_blocking(move || -> Result<_, Box<Response>> {
+        let store = store(database).map_err(|message| Box::new(error(&message)))?;
         #[cfg(target_os = "macos")]
         let store = if let Some(host) = query.target_host_id.clone() {
             let input = PublicationInput { query, routing: control.map(|Extension(c)| c) };
-            let headers = input.headers(headers).map_err(IntoResponse::into_response)?;
+            let headers = input.headers(headers).map_err(|failure| Box::new(failure.into_response()))?;
             let policy =
                 std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
             publication_store(store, policy.as_deref(), &headers, &tenant, &host, app, input)
-                .map_err(IntoResponse::into_response)?
+                .map_err(|failure| Box::new(failure.into_response()))?
         } else {
             store
         };
@@ -51,15 +51,15 @@ async fn write(
         store.set_presentation(&tenant, app, &id, &request).map_err(|message| {
             #[cfg(target_os = "macos")]
             if let Some(status) = store.publication_error() {
-                return status.into_response();
+                return Box::new(status.into_response());
             }
-            error(&message)
+            Box::new(error(&message))
         })
     })
     .await
     {
         Ok(Ok(value)) => Json(value).into_response(),
-        Ok(Err(response)) => response,
+        Ok(Err(response)) => *response,
         Err(_) => error("application provider storage unavailable"),
     }
 }

@@ -194,6 +194,7 @@ pub struct NostrChannel {
     /// Nostr SDK 客户端实例
     /// 负责与中继服务器通信、签名和加解密
     client: Client,
+    keys: Keys,
 
     /// 本节点的公钥
     /// 用于订阅发往本节点的消息
@@ -266,7 +267,7 @@ impl NostrChannel {
         let allowed = AllowList::parse(allowed_pubkeys)?;
 
         // 创建客户端并配置签名器
-        let client = Client::builder().signer(keys).build();
+        let client = Client::builder().authenticator(SignerAuthenticator::new(keys.clone())).build();
 
         // 添加所有中继服务器
         for relay in &relays {
@@ -281,6 +282,7 @@ impl NostrChannel {
 
         Ok(Self {
             client,
+            keys,
             public_key,
             allowed,
             sender_protocols: Arc::new(RwLock::new(HashMap::new())),
@@ -344,12 +346,9 @@ impl Channel for NostrChannel {
         match protocol {
             NostrProtocol::Nip17 => {
                 // NIP-17：礼物包装私密消息
-                // 获取签名器，用于加密和签名
-                let signer = self.client.signer().await.context("客户端没有签名器")?;
-
                 // 构建并发送 NIP-17 消息
-                let event = EventBuilder::private_msg(&signer, recipient, &message.content, [])
-                    .await
+                let event = PrivateDirectMessageBuilder::new(recipient, &message.content)
+                    .finalize(&self.keys)
                     .context("构建 NIP-17 消息失败")?;
 
                 self.client.send_event(&event).await.context("发送 NIP-17 消息失败")?;
@@ -361,13 +360,8 @@ impl Channel for NostrChannel {
             }
             NostrProtocol::Nip04 => {
                 // NIP-04：传统加密直接消息（Kind 4）
-                // 获取签名器用于加密
-                let signer = self.client.signer().await.context("客户端没有签名器")?;
-
                 // 使用 NIP-04 加密消息内容
-                let encrypted = signer
-                    .nip04_encrypt(&recipient, &message.content)
-                    .await
+                let encrypted = self.keys.nip04_encrypt(&recipient, &message.content)
                     .context("NIP-04 加密失败")?;
 
                 // 构建 Kind 4 事件并添加接收者标签
@@ -375,7 +369,8 @@ impl Channel for NostrChannel {
                     .tag(Tag::public_key(recipient));
 
                 // 发送事件
-                self.client.send_event_builder(builder).await.context("发送 NIP-04 消息失败")?;
+                let event = builder.finalize(&self.keys).context("签名 NIP-04 消息失败")?;
+                self.client.send_event(&event).await.context("发送 NIP-04 消息失败")?;
 
                 tracing::debug!(
                     "已发送 NIP-04 消息到 {}",
@@ -437,7 +432,8 @@ impl Channel for NostrChannel {
             .kinds(vec![Kind::EncryptedDirectMessage, Kind::GiftWrap])
             .limit(10);
 
-        self.client.subscribe(filter, None).await.context("订阅 Nostr 事件失败")?;
+        let mut notifications = self.client.notifications();
+        self.client.subscribe(filter).await.context("订阅 Nostr 事件失败")?;
 
         tracing::info!(
             "Nostr 通道开始监听，身份：{}",
@@ -446,16 +442,11 @@ impl Channel for NostrChannel {
 
         // 克隆 Arc 以在异步循环中使用
         let sender_protocols = Arc::clone(&self.sender_protocols);
-        let signer = self.client.signer().await.context("客户端没有签名器")?;
 
         // 主监听循环
-        loop {
-            // 接收来自中继池的通知
-            let notification =
-                self.client.notifications().recv().await.context("通知通道已关闭")?;
-
+        while let Some(notification) = notifications.next().await {
             match notification {
-                RelayPoolNotification::Event { event, .. } => {
+                ClientNotification::Event { event, .. } => {
                     // 根据事件类型处理消息
                     let result = match event.kind {
                         Kind::EncryptedDirectMessage => {
@@ -476,7 +467,7 @@ impl Channel for NostrChannel {
                             }
 
                             // 尝试解密 NIP-04 消息
-                            match signer.nip04_decrypt(&event.pubkey, &event.content).await {
+                            match self.keys.nip04_decrypt(&event.pubkey, &event.content) {
                                 Ok(content) => {
                                     let sender = event.pubkey;
 
@@ -504,7 +495,7 @@ impl Channel for NostrChannel {
                             // NIP-17：先拆开礼物包装，然后检查 rumor 的 created_at
                             // （外层礼物包装的时间戳有抖动，用于隐私保护）
 
-                            match self.client.unwrap_gift_wrap(&event).await {
+                            match UnwrappedGift::from_gift_wrap(&self.keys, &event) {
                                 Ok(unwrapped) => {
                                     let rumor = unwrapped.rumor;
 
@@ -567,12 +558,12 @@ impl Channel for NostrChannel {
                         }
                     }
                 }
-                RelayPoolNotification::Shutdown => {
+                ClientNotification::Shutdown => {
                     // 中继池关闭，退出监听
                     tracing::info!("Nostr 中继池已关闭");
                     break;
                 }
-                RelayPoolNotification::Message { .. } => {}
+                ClientNotification::Message { .. } => {}
             }
         }
 
@@ -596,7 +587,7 @@ impl Channel for NostrChannel {
     /// - 降级策略决策
     async fn health_check(&self) -> bool {
         // 检查是否有任何中继服务器处于连接状态
-        self.client.relays().await.values().any(|r| r.is_connected())
+        self.client.relays().await.values().any(|r| r.status().is_connected())
     }
 }
 

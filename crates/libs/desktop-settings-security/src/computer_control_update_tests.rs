@@ -20,10 +20,12 @@ fn cc_runtime_ui06_stale_permission_response_is_discarded() {
     use super::*;
     let endpoint = GatewayEndpoint::new("127.0.0.1", 8765);
     let identity = ControlIdentity::from_endpoint(&endpoint);
-    let mut state = ComputerControlSettingsState::default();
-    state.identity = Some(identity.clone());
-    state.generation = 4;
-    state.requesting_permission = true;
+    let mut state = ComputerControlSettingsState {
+        identity: Some(identity.clone()),
+        generation: 4,
+        requesting_permission: true,
+        ..ComputerControlSettingsState::default()
+    };
     let (_, notice) = update(&mut state, &endpoint, None, None, Event::NativePermissionRequested {
         identity, generation: 3, result: Err("old response".into()),
     });
@@ -36,8 +38,10 @@ fn cc_runtime_ui06_not_installed_report_does_not_grant_permissions() {
         state: vw_api_computer_control::NativeServiceState::NotInstalled, permissions: None,
     };
     assert!(report.permissions.is_none());
-    let mut state = crate::computer_control_state::ComputerControlSettingsState::default();
-    state.requesting_permission = true;
+    let state = crate::computer_control_state::ComputerControlSettingsState {
+        requesting_permission: true,
+        ..crate::computer_control_state::ComputerControlSettingsState::default()
+    };
     assert!(state.busy());
 }
 

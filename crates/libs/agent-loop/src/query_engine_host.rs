@@ -5,11 +5,13 @@ use agent_observability::Observer;
 use model_types::{ChatMessage, Provider};
 use std::sync::Arc;
 use anyhow::Result;
+pub type QueryTools = (Arc<dyn Memory>, Vec<Box<dyn Tool>>);
+
 /// Host I/O retains the caller's tenant, tool and cancellation scopes.
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
 pub trait QueryEngineHost: agent_loop::core::skills::CoreSkillHost<Context: tool_context::host::ContextHost<HookRunner = agent_hooks::HookRunner>> {
-    fn assemble_tools(config: &Config, session: &str) -> Result<(Arc<dyn Memory>, Vec<Box<dyn Tool>>)>;
+    fn assemble_tools(config: &Config, session: &str) -> Result<QueryTools>;
     async fn team_runtime_instructions(session: &str, enabled: bool) -> String;
     async fn restore_history(session: &str, source: &[serde_json::Value]) -> std::result::Result<Vec<serde_json::Value>, String>;
     async fn compact_history(
@@ -20,6 +22,7 @@ pub trait QueryEngineHost: agent_loop::core::skills::CoreSkillHost<Context: tool
         limit: &agent_provider::provider::ModelLimit,
         require_reduction: bool,
     ) -> Result<bool>;
+#[expect(clippy::too_many_arguments, reason = "Keep the existing request forwarding interface")]
     async fn agent_turn(
         provider: &dyn Provider,
         history: &mut Vec<ChatMessage>,

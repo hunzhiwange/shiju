@@ -159,6 +159,7 @@ pub(super) fn edge_handle_label(
     Some(trimmed.to_string())
 }
 
+#[expect(clippy::too_many_arguments, reason = "Pass borrowed canvas render state directly")]
 pub(super) fn draw_node_handles<CanvasRenderer>(
     frame: &mut Frame<CanvasRenderer>,
     node: &WorkflowNode,
@@ -207,6 +208,7 @@ pub(super) fn draw_node_handles<CanvasRenderer>(
     }
 }
 
+#[expect(clippy::too_many_arguments, reason = "Pass borrowed canvas render state directly")]
 fn draw_single_handle<CanvasRenderer>(
     frame: &mut Frame<CanvasRenderer>,
     node: &WorkflowNode,
@@ -319,9 +321,11 @@ fn draw_single_handle<CanvasRenderer>(
     }
 }
 
+type ConnectedHandles<'a> = HashMap<&'a str, HashSet<String>>;
+
 pub(super) fn connected_handles(
     document: &WorkflowDocument,
-) -> (HashMap<&str, HashSet<String>>, HashMap<&str, HashSet<String>>) {
+) -> (ConnectedHandles<'_>, ConnectedHandles<'_>) {
     let mut sources = HashMap::<&str, HashSet<String>>::new();
     let mut targets = HashMap::<&str, HashSet<String>>::new();
 

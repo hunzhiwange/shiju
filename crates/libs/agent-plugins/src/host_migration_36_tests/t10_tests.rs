@@ -50,8 +50,10 @@ impl Fixture {
             )
             .unwrap();
         }
-        let mut config = Config::default();
-        config.workspace_dir = workspace.clone();
+        let mut config = Config {
+            workspace_dir: workspace.clone(),
+            ..Config::default()
+        };
         config.config_path = temp.path().join("config/vibewindow.json");
         Self { _temp: temp, workspace, config: Arc::new(config) }
     }

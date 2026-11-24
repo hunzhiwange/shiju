@@ -76,7 +76,7 @@ impl Context {
                     || !issued
                         .ok()
                         .and_then(|value| value.parse::<i64>().ok())
-                        .is_some_and(|deadline| deadline >= chrono::Utc::now().timestamp())
+                        .is_some_and(|deadline| deadline >= runtime_time::unix_seconds())
                 {
                     return Err(StatusCode::UNPROCESSABLE_ENTITY);
                 }
@@ -127,7 +127,7 @@ impl Context {
                 .resolve(&ReferenceScope::Session(self.identity.clone()), receipt)?;
             let (deadline, expected) = saved.split_once(':').ok_or(StatusCode::FORBIDDEN)?;
             if deadline.parse::<i64>().map_err(|_| StatusCode::FORBIDDEN)?
-                < chrono::Utc::now().timestamp()
+                < runtime_time::unix_seconds()
             {
                 return Err(StatusCode::FORBIDDEN);
             }
@@ -201,7 +201,7 @@ impl Context {
             self.references.remember(
                 &ReferenceScope::Session(self.identity.clone()),
                 &format!("shiju-unreasoned-v1:{}", self.digest(&normalized)),
-                &(chrono::Utc::now().timestamp() + 900).to_string(),
+                &(runtime_time::unix_seconds() + 900).to_string(),
             )?;
         }
         if !thought.is_empty() {
@@ -217,7 +217,7 @@ impl Context {
             self.references.remember(
                 &ReferenceScope::Session(self.identity.clone()),
                 &receipt,
-                &format!("{}:{digest}", chrono::Utc::now().timestamp() + 900),
+                &format!("{}:{digest}", runtime_time::unix_seconds() + 900),
             )?;
             for id in tools {
                 self.references.remember_item(

@@ -5,8 +5,7 @@ use std::path::Path;
 
 use crate::acp::model_source::{configure_profile, drivers, launch_identity, prepare_profile};
 
-#[path = "../../aisdk/convert_test_support.rs"]
-mod models;
+use crate::convert_test_support as models;
 
 const AGENT: &str = "codex";
 const RELAY: &str = "http://127.0.0.1:34567";

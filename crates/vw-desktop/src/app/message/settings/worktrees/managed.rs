@@ -3,8 +3,6 @@ use crate::app::{App, Message};
 use super::{SettingsMessage, WorktreeSettingsMessage};
 use iced::Task;
 pub use desktop_settings_workspace::messages::ManagedMessage;
-#[cfg(test)]
-pub(crate) use desktop_settings_workspace::managed::load_groups;
 
 pub(super) fn finish(app: &mut App, task: Task<WorktreeSettingsMessage>, effects: Vec<desktop_settings_workspace::lifecycle::Effect>) -> Task<Message> {
     let mut tasks = Vec::new();

@@ -37,8 +37,4 @@ pub use desktop_editor::preview::tab::safe_preview;
 pub use desktop_editor::preview::tab::preview_description;
 
 #[cfg(test)]
-pub(crate) use desktop_editor::preview::LspHoverPending;
-#[cfg(test)]
 pub(crate) use desktop_editor::preview::LspProgress;
-#[cfg(test)]
-pub(crate) use preview_content::path_to_file_uri;

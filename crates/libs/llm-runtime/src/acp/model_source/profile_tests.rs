@@ -27,7 +27,7 @@ fn acp_model_source_launch_profile_private_files_child_env_and_revocation() {
             .overlay_environment(HashMap::from([("TASK9_LAUNCH_TOKEN".into(), "other".into())]))
             .is_err()
     );
-    assert!(profile.append_arguments(&[token.clone()]).is_err());
+    assert!(profile.append_arguments(std::slice::from_ref(&token)).is_err());
     profile.append_arguments(&["--config".into(), path.to_string_lossy().into()]).unwrap();
     let output = std::process::Command::new("python3")
         .args(["-c", "import os,sys; assert open(sys.argv[1]).read()==os.environ['TASK9_LAUNCH_TOKEN']; print('PRIVATE_LAUNCH_OK')"])

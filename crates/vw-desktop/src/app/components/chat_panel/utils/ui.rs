@@ -10,6 +10,3 @@ pub fn chat_context_menu<'a>(i18n: crate::app::i18n::I18n, is_open: bool) -> Opt
         TextContextAction::Bing => ChatMessage::SearchContextMenuWithBing,
     })))
 }
-
-#[cfg(test)]
-pub use desktop_chat_view::utils::ui::text_context_menu;

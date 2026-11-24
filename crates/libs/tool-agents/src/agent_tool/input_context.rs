@@ -1,7 +1,7 @@
 //! Input/specification tests must never invoke runtime capabilities.
 #![allow(unused_variables)]
 use std::{path::{Path, PathBuf}, sync::Arc};
-use tool_context::{context::ToolUseContext, host::{ContextHost, HostFuture}, PermissionDecision};
+use tool_context::{context::ToolUseContext, host::ContextHost, PermissionDecision};
 use tool_types::{Tool, ToolResult};
 use serde_json::Value;
 #[derive(Clone)]
@@ -38,12 +38,20 @@ fn can_act(security: &Self::SecurityPolicy) -> bool { panic!("input/specificatio
 fn is_rate_limited(security: &Self::SecurityPolicy) -> bool { panic!("input/specification test reached context service: is_rate_limited") }
 fn is_path_allowed(security: &Self::SecurityPolicy, path: &str) -> bool { panic!("input/specification test reached context service: is_path_allowed") }
 fn shell_security_decision(name: &str, input: Value, security: &Self::SecurityPolicy, command: &str, approved: bool) -> PermissionDecision { panic!("input/specification test reached context service: shell_security_decision") }
-fn permission_hook<'a>(runner: &'a Self::HookRunner, name: &'a str, input: &'a Value) -> impl Future<Output = anyhow::Result<Option<bool>>> + HostFuture + 'a { async move { panic!("input/specification test reached context service: permission_hook") } }
+async fn permission_hook<'a>(runner: &'a Self::HookRunner, name: &'a str, input: &'a Value) -> anyhow::Result<Option<bool>> {
+    panic!("input/specification test reached context service: permission_hook")
+}
 fn record_approval(manager: &Self::ApprovalManager, name: &str, display: &Value, response: tool_context::approval::ApprovalResponse, channel: &str) { panic!("input/specification test reached context service: record_approval") }
 fn prompt_cli(manager: &Self::ApprovalManager, request: &tool_context::approval::ApprovalRequest) -> tool_context::approval::ApprovalResponse { panic!("input/specification test reached context service: prompt_cli") }
 fn create_pending(manager: &Self::ApprovalManager, name: &str, sender: &str, channel: &str, reply_target: &str, reason: Option<String>, display: Value, message_id: Option<String>, call_id: Option<String>) -> String { panic!("input/specification test reached context service: create_pending") }
 fn reject_pending(manager: &Self::ApprovalManager, request: &str, sender: &str, channel: &str, reply_target: &str) { panic!("input/specification test reached context service: reject_pending") }
-fn await_approval<'a>(manager: &'a Self::ApprovalManager, request: &'a str, sender: &'a str, channel: &'a str, reply_target: &'a str, cancellation: Option<&'a tokio_util::sync::CancellationToken>) -> impl Future<Output = tool_context::approval::ApprovalResponse> + HostFuture + 'a { async move { panic!("input/specification test reached context service: await_approval") } }
-fn pre_hook(runner: &Self::HookRunner, name: String, input: Value) -> impl Future<Output = tool_context::hooks::PreHookOutcome> + HostFuture { async move { panic!("input/specification test reached context service: pre_hook") } }
-fn post_hook<'a>(runner: &'a Self::HookRunner, name: &'a str, result: &'a ToolResult, duration: std::time::Duration) -> impl Future<Output = ()> + HostFuture + 'a { async move { panic!("input/specification test reached context service: post_hook") } }
+async fn await_approval<'a>(manager: &'a Self::ApprovalManager, request: &'a str, sender: &'a str, channel: &'a str, reply_target: &'a str, cancellation: Option<&'a tokio_util::sync::CancellationToken>) -> tool_context::approval::ApprovalResponse {
+    panic!("input/specification test reached context service: await_approval")
+}
+async fn pre_hook(runner: &Self::HookRunner, name: String, input: Value) -> tool_context::hooks::PreHookOutcome {
+    panic!("input/specification test reached context service: pre_hook")
+}
+async fn post_hook<'a>(runner: &'a Self::HookRunner, name: &'a str, result: &'a ToolResult, duration: std::time::Duration) -> () {
+    panic!("input/specification test reached context service: post_hook")
+}
 }

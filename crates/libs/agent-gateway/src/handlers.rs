@@ -6,6 +6,7 @@ use gateway_pairing::pairing::constant_time_eq;
 use axum::{body::Bytes, extract::{State, Query}, http::{HeaderMap, StatusCode}, response::{IntoResponse, Json, Response}};
 use std::sync::Arc;
 use channel_support::runtime_state::ChannelRuntimeContext;
+type ChannelRuntime<E, W, H> = fn(&AppState<E, GatewayChannels<W>, H>) -> anyhow::Result<Arc<ChannelRuntimeContext>>;
 pub type ChannelDispatch = fn(Arc<ChannelRuntimeContext>, ChannelMessage, tokio_util::sync::CancellationToken) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>;
 /// The WhatsApp implementation is supplied by the host, including local HTTP fixtures.
 pub trait WhatsAppWebhook: Channel {
@@ -20,7 +21,7 @@ async fn process_channel_messages<E, H, W, C>(
     state: &AppState<E, GatewayChannels<W>, H>,
     channel: &std::sync::Arc<C>,
     messages: &[ChannelMessage],
-    runtime: fn(&AppState<E, GatewayChannels<W>, H>) -> anyhow::Result<Arc<ChannelRuntimeContext>>,
+    runtime: ChannelRuntime<E, W, H>,
     dispatch: ChannelDispatch,
 ) where
     C: Channel + 'static,
@@ -124,7 +125,7 @@ pub async fn handle_whatsapp_message<E, H, W: WhatsAppWebhook + 'static>(
     State(state): State<AppState<E, GatewayChannels<W>, H>>,
     headers: HeaderMap,
     body: Bytes,
- runtime: fn(&AppState<E, GatewayChannels<W>, H>) -> anyhow::Result<Arc<ChannelRuntimeContext>>, dispatch: ChannelDispatch) -> Response {
+ runtime: ChannelRuntime<E, W, H>, dispatch: ChannelDispatch) -> Response {
     let channels = state.channels.lock().clone();
     let Some(ref wa) = channels.whatsapp else {
         return (
@@ -181,7 +182,7 @@ pub async fn handle_linq_webhook<E, H, W: WhatsAppWebhook + 'static>(
     State(state): State<AppState<E, GatewayChannels<W>, H>>,
     headers: HeaderMap,
     body: Bytes,
- runtime: fn(&AppState<E, GatewayChannels<W>, H>) -> anyhow::Result<Arc<ChannelRuntimeContext>>, dispatch: ChannelDispatch) -> Response {
+ runtime: ChannelRuntime<E, W, H>, dispatch: ChannelDispatch) -> Response {
     let channels = state.channels.lock().clone();
     let Some(ref linq) = channels.linq else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Linq not configured"})))
@@ -277,7 +278,7 @@ pub struct WatiVerifyQuery {
 }
 
 /// 解析并处理 WATI 入站消息。
-pub async fn handle_wati_webhook<E, H, W: WhatsAppWebhook + 'static>(State(state): State<AppState<E, GatewayChannels<W>, H>>, body: Bytes, runtime: fn(&AppState<E, GatewayChannels<W>, H>) -> anyhow::Result<Arc<ChannelRuntimeContext>>, dispatch: ChannelDispatch) -> Response {
+pub async fn handle_wati_webhook<E, H, W: WhatsAppWebhook + 'static>(State(state): State<AppState<E, GatewayChannels<W>, H>>, body: Bytes, runtime: ChannelRuntime<E, W, H>, dispatch: ChannelDispatch) -> Response {
     let channels = state.channels.lock().clone();
     let Some(ref wati) = channels.wati else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "WATI not configured"})))
@@ -312,7 +313,7 @@ pub async fn handle_nextcloud_talk_webhook<E, H, W: WhatsAppWebhook + 'static>(
     State(state): State<AppState<E, GatewayChannels<W>, H>>,
     headers: HeaderMap,
     body: Bytes,
- runtime: fn(&AppState<E, GatewayChannels<W>, H>) -> anyhow::Result<Arc<ChannelRuntimeContext>>, dispatch: ChannelDispatch) -> Response {
+ runtime: ChannelRuntime<E, W, H>, dispatch: ChannelDispatch) -> Response {
     let channels = state.channels.lock().clone();
     let Some(ref nextcloud_talk) = channels.nextcloud_talk else {
         return (
@@ -377,7 +378,7 @@ pub async fn handle_qq_webhook<E, H, W: WhatsAppWebhook + 'static>(
     State(state): State<AppState<E, GatewayChannels<W>, H>>,
     headers: HeaderMap,
     body: Bytes,
- runtime: fn(&AppState<E, GatewayChannels<W>, H>) -> anyhow::Result<Arc<ChannelRuntimeContext>>, dispatch: ChannelDispatch) -> Response {
+ runtime: ChannelRuntime<E, W, H>, dispatch: ChannelDispatch) -> Response {
     let channels = state.channels.lock().clone();
     let Some(ref qq) = channels.qq else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "QQ not configured"})))

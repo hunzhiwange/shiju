@@ -141,7 +141,7 @@ mod tests {
                 success: true,
                 duration_secs: Some(2),
                 tool_call_id: Some("call_1".to_string()),
-                result: Some(ToolResultDto {
+                result: Some(Box::new(ToolResultDto {
                     tool_use_id: Some("call_1".to_string()),
                     tool_id: Some("shell".into()),
                     success: Some(true),
@@ -153,7 +153,7 @@ mod tests {
                     context_updates: Vec::new(),
                     extra_messages: Vec::new(),
                     telemetry: None,
-                }),
+                })),
             })
         );
     }
@@ -171,7 +171,7 @@ mod tests {
                 success: false,
                 duration_secs: None,
                 tool_call_id: Some("call_fallback".to_string()),
-                result: Some(ToolResultDto {
+                result: Some(Box::new(ToolResultDto {
                     tool_use_id: None,
                     tool_id: Some("file_read".into()),
                     success: None,
@@ -183,7 +183,7 @@ mod tests {
                     context_updates: Vec::new(),
                     extra_messages: Vec::new(),
                     telemetry: None,
-                }),
+                })),
             })
         );
     }
@@ -221,7 +221,7 @@ mod tests {
                 success: false,
                 duration_secs: Some(4),
                 tool_call_id: Some("call_result".to_string()),
-                result: Some(result),
+                result: Some(Box::new(result)),
             })
         );
     }

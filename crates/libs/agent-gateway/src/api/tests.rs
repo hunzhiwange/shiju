@@ -19,7 +19,7 @@ mod tests {
 
     #[test]
     fn masking_keeps_toml_valid() {
-        let mut cfg = agent_config::runtime::Config {
+        let cfg = agent_config::runtime::Config {
             api_key: Some("sk-live-123".to_string()),
             ..Default::default()
         };
@@ -205,7 +205,7 @@ mod tests {
 
     #[test]
     fn apply_integration_credentials_update_switches_provider_with_fallback_model() {
-        let mut config = agent_config::runtime::Config {
+        let config = agent_config::runtime::Config {
             default_provider: Some("openrouter".to_string()),
             default_model: Some("anthropic/claude-sonnet-4-6".to_string()),
             api_url: Some("https://old.example.com".to_string()),

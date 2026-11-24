@@ -141,7 +141,7 @@ async fn save(store: &VideoEditManifestStore, run: &mut VideoEditRunManifest) ->
     let store = store.clone();
     let mut snapshot = run.clone();
     *run = agent_database::run_isolated(move || {
-        store.save(&mut snapshot, chrono::Utc::now().timestamp_millis())?;
+        store.save(&mut snapshot, runtime_time::unix_millis())?;
         Ok::<_, anyhow::Error>(snapshot)
     })
     .await??;

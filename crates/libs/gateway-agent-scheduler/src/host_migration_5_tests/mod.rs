@@ -48,7 +48,6 @@ pub(super) async fn test_default_tenant_scope(
 use crate::*;
 use self::host::TestHost;
 type StoreBackedAgentSchedulerGateway = crate::store_gateway::StoreBackedAgentSchedulerGateway<TestHost>;
-fn router<S: Clone + Send + Sync + 'static>() -> axum::Router<S> { router_with_gateway(std::sync::Arc::new(StoreBackedAgentSchedulerGateway::default())) }
 fn router_with_gateway<S: Clone + Send + Sync + 'static>(gateway: std::sync::Arc<dyn AgentSchedulerGateway>) -> axum::Router<S> { crate::router_with_gateway(gateway).layer(axum::middleware::from_fn(test_default_tenant_scope)) }
 mod host;
 

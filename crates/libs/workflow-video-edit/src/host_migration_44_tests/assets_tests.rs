@@ -193,7 +193,7 @@ pub(super) fn fixture(
         VideoEditManifestStore::new(GlobalDatabase::new(dir.path().join("db")).unwrap()).unwrap();
     let mut run = super::manifest_tests::candidate();
     run.project_id = Some("project".into());
-    let run = store.claim(run, "asset-test", chrono::Utc::now().timestamp_millis()).unwrap();
+    let run = store.claim(run, "asset-test", runtime_time::unix_millis()).unwrap();
     let mut recipes = BTreeMap::new();
     let mut effects = Vec::new();
     for i in 0..n {
@@ -275,7 +275,7 @@ async fn video_edit_asset_jobs_restart_reconciles_lost_receipt_without_post() {
     assert!(run.asset_jobs[0].task_id.is_none());
     store.release(&run).unwrap();
     let mut recovered =
-        store.claim(run, "restarted", chrono::Utc::now().timestamp_millis()).unwrap();
+        store.claim(run, "restarted", runtime_time::unix_millis()).unwrap();
     cloud.finish("task-0", false);
     let result = prepare_video_assets(
         &cloud,
@@ -436,7 +436,7 @@ async fn video_edit_asset_jobs_restart_does_not_resume_cancelled_dispatch() {
     assert!(prepare_video_assets(&cloud, &store, &mut run, &requests, &budget).await.is_err());
     store.release(&run).unwrap();
     let mut recovered =
-        store.claim(run, "restart-cancelled", chrono::Utc::now().timestamp_millis()).unwrap();
+        store.claim(run, "restart-cancelled", runtime_time::unix_millis()).unwrap();
     cloud.finish("task-0", false);
     let result = prepare_video_assets(
         &cloud,

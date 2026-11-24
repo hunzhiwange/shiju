@@ -66,7 +66,7 @@ async fn work_sidebar_uses_resizable_width_from_app_state() {
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("tiny-skia headless renderer should be available");
-    let mut app = SidebarViewFixture {
+    let app = SidebarViewFixture {
         width: 420.0,
         ..Default::default()
     };

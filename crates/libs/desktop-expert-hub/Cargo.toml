@@ -27,7 +27,7 @@ config-ui = { path = "../config-ui" }
 tokio = { version = "1", default-features = false, features = ["rt", "sync", "time"] }
 
 desktop-skill-hub = { path = "../desktop-skill-hub" }
-directories = "5"
+directories = "6"
 tempfile = "3"
 gateway-knowledge = { path = "../gateway-knowledge" }
 gateway-http = { path = "../gateway-http" }

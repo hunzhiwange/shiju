@@ -32,7 +32,7 @@ pub async fn run(policy: PathBuf) {
                 };
                 let hours = settings.as_ref().map_or(hours, |s| s.interval_hours);
                 let result = periodic_backup_if_needed::<BackupFailure>(
-                    &root, &scope, hours, chrono::Utc::now().timestamp_millis(), || {
+                    &root, &scope, hours, runtime_time::unix_millis(), || {
                         super::backup_capture::capture_preferences(
                             &root, &scope, &database, "Periodic backup",
                         ).map_err(|_| BackupFailure)

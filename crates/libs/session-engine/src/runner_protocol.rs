@@ -217,7 +217,7 @@ impl DesktopSessionProtocol {
 }
 
 pub fn prepare_context_before_llm_step(
-    llm_messages: &mut Vec<Value>,
+    llm_messages: &mut [Value],
     system: &[String],
     tools: &[tool_types::ToolSpec],
     model_limit: &model_types::ModelLimit,

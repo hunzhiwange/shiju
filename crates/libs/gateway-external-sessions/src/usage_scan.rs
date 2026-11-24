@@ -186,7 +186,7 @@ fn dispatch(connection: &mut rusqlite::Connection, scope: &ProjectScope,
         SessionProvider::Codex => usage::snapshot_scan::scan_codex(connection, scope, key, path, all)?,
         SessionProvider::Pi | SessionProvider::Omp => usage::snapshot_scan::scan_pi(connection, scope, key, path)?,
         SessionProvider::Gemini => usage::gemini::scan_gemini_file(connection, scope, key, &mut file()?, |_| Ok(None))?.imported,
-        SessionProvider::Grokbuild => usage::grokbuild::scan_grokbuild_file(connection, scope, key, &mut file()?, chrono::Utc::now().timestamp(), |_| Ok(None))?.imported,
+        SessionProvider::Grokbuild => usage::grokbuild::scan_grokbuild_file(connection, scope, key, &mut file()?, runtime_time::unix_seconds(), |_| Ok(None))?.imported,
         SessionProvider::Kimi => {
             let agent = path.parent().and_then(Path::file_name).and_then(|s| s.to_str())
                 .ok_or_else(|| anyhow::anyhow!("Kimi agent unavailable"))?;

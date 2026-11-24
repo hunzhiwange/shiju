@@ -36,6 +36,7 @@
 //! | 查询分类路由 | `turn_routes_with_hint_when_query_classification_matches` |
 
 #[allow(dead_code)]
+#[expect(clippy::module_inception, reason = "Keep paths used by downstream host tests")]
 pub mod tests {
     use async_trait::async_trait;
     use parking_lot::Mutex;

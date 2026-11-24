@@ -19,10 +19,11 @@ fn run(args: &[&str], config: &Config) -> anyhow::Result<()> {
     )
 }
 fn config(root: &Path) -> Config {
-    let mut c = Config::default();
-    c.config_path = root.join("config/config.json");
-    c.workspace_dir = root.join("workspace");
-    c
+    Config {
+        config_path: root.join("config/config.json"),
+        workspace_dir: root.join("workspace"),
+        ..Config::default()
+    }
 }
 fn market(root: &Path, name: &str, version: &str) {
     fs::create_dir_all(root.join(".agents/plugins")).unwrap();

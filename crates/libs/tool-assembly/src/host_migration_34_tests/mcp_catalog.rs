@@ -1,4 +1,4 @@
-use crate::{Tool, catalog::ToolCatalog};
+use crate::catalog::ToolCatalog;
 use plugin_mcp::mcp_connections::McpSessionConnections;
 use agent_client_protocol::{McpServer, McpServerStdio};
 use rmcp::{
@@ -80,7 +80,6 @@ impl ServerHandler for Service {
                 })
                 .collect(),
             next_cursor: (!second_page).then(|| "second".into()),
-            ..Default::default()
         })
     }
 }

@@ -16,7 +16,7 @@ pub type EventSink = session_port::EventSink<StreamEvent>;
 fn map_non_terminal(event: StreamEvent) -> Option<PromptEvent> {
     match event {
         StreamEvent::LlmRawArtifact(artifact) => {
-            Some(PromptEvent::LlmRawArtifact(Box::new(artifact)))
+            Some(PromptEvent::LlmRawArtifact(artifact))
         }
         StreamEvent::ContextLoaded { paths } => Some(PromptEvent::ContextLoaded { paths }),
         StreamEvent::Delta(text) => Some(PromptEvent::Text(text)),
@@ -55,9 +55,9 @@ impl Drop for WorkerCompletion {
     }
 }
 
-pub fn start_prompt_with_runner<H: ContextHost, R>(mut request: Request<H::ApprovalManager, H::SessionSkillSources>, runner: R) -> PromptTurn
+pub fn start_prompt_with_runner<H, R>(mut request: Request<H::ApprovalManager, H::SessionSkillSources>, runner: R) -> PromptTurn
 where
-    H: Send + Sync,
+    H: ContextHost + Send + Sync,
     tool_context::context::ToolUseContext<H>: Send + Sync,
     H::ApprovalManager: Send + Sync,
     H::SessionSkillSources: Send,

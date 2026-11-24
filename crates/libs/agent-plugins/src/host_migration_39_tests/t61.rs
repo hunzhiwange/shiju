@@ -15,9 +15,11 @@ fn codex_plugin_compat_t61_public_marketplace_cli_lifecycle() {
     let t = tempfile::tempdir().unwrap();
     let source = public_original(t.path(), "superpowers-7.0.1");
     let before = digest(&source);
-    let mut config = agent_config::runtime::Config::default();
-    config.config_path = t.path().join("config/config.json");
-    config.workspace_dir = t.path().join("workspace");
+    let config = agent_config::runtime::Config {
+        config_path: t.path().join("config/config.json"),
+        workspace_dir: t.path().join("workspace"),
+        ..Default::default()
+    };
     let run = |args: &[&str]| {
         let parsed =
             Args::try_parse_from(std::iter::once("plugin").chain(args.iter().copied())).unwrap();

@@ -10,8 +10,3 @@ pub fn tool_explore_summary_view<'a>(app: &'a crate::app::App, msg_idx: usize, g
  desktop_chat_tools::tools::explore_summary_view::tool_explore_summary_view(&input,msg_idx,group_idx,items,force_running,closed_by_following_block)
  .map(|view| view.map(super::card_adapter::map_card))
 }
-
-#[cfg(test)]
-pub(crate) use desktop_chat_tools::tools::explore_summary_view::explore_summary_expanded;
-#[cfg(test)]
-pub(crate) use desktop_chat_tools::tools::explore_summary_view::explore_summary_is_running;

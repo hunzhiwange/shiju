@@ -129,14 +129,6 @@ const DEFAULT_EVENT_LIMIT: usize = 100;
 const MAX_EVENT_LIMIT: usize = 1_000;
 const DEFAULT_OUTBOX_DRAIN_LIMIT: usize = 50;
 const MAX_OUTBOX_DRAIN_LIMIT: usize = 500;
-#[cfg(test)]
-const LOCAL_GATEWAY_WORKER_ID: &str = "gateway-local";
-#[cfg(test)]
-const DEFAULT_WORKER_RUN_LEASE_EXTENSION_MS: i64 = 30 * 60 * 1_000;
-#[cfg(test)]
-const WORKER_OUTCOME_SUCCESS: &str = "success";
-#[cfg(test)]
-const WORKER_OUTCOME_FAILURE: &str = "failure";
 
 type ProjectDispatchLock = Arc<AsyncMutex<()>>;
 

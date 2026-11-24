@@ -32,13 +32,13 @@ fn persist_proxy_settings(app: &mut ProxySettingsState) -> Effect {
     // 空字符串转换为 None，非空字符串包装为 Some
     {
         let proxy = config_proxy::ProxyConfig {
-            enabled: enabled,
-            scope: scope,
+            enabled,
+            scope,
             http_proxy: if http_proxy.is_empty() { None } else { Some(http_proxy) },
             https_proxy: if https_proxy.is_empty() { None } else { Some(https_proxy) },
             all_proxy: if all_proxy.is_empty() { None } else { Some(all_proxy) },
-            no_proxy: no_proxy,
-            services: services,
+            no_proxy,
+            services,
         };
 
         Effect::Persist(proxy)

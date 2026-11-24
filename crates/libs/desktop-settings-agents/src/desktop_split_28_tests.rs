@@ -937,7 +937,7 @@ fn config_loaded_after_tool_catalog_removes_stale_selections_without_creating_us
     app.registered_tools = Some(app.available_tools.clone());
 
     let mut config = config_aggregate::Config::default();
-    let mut custom = config_agent::DelegateAgentConfig {
+    let custom = config_agent::DelegateAgentConfig {
         allowed_tools: vec!["removed_a".to_string(), "removed_b".to_string()],
         ..Default::default()
     };

@@ -12,7 +12,7 @@ use super::*;
 ///
 /// 包含整合任务工厂函数的各类测试用例，确保任务配置符合预期。
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     use crate::{JobType, Schedule, SessionTarget};

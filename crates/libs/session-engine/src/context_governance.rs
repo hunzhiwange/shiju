@@ -13,9 +13,6 @@ pub const STALE_TOOL_RESULT_PLACEHOLDER: &str =
 
 // Stable invoked skill source key belongs to session-engine.
 
-/// 重放技能时恢复的上下文更新，顺序与技能调用顺序一致。
-// InvokedSkillContextUpdate has a single owner in session-engine.
-
 const ESTIMATED_CHARS_PER_TOKEN: u64 = 4;
 // Image data is encoded as a transport payload, not as text tokens. Counting
 // the whole base64 body here can reject an otherwise valid vision request
@@ -163,7 +160,7 @@ pub use crate::invoked_skill_context::restore_invoked_skill_context;
 ///
 /// 历史替换属于 `session::compaction`：这里绝不能用确定性裁剪替代模型摘要。
 pub fn compact_context_for_next_request(
-    messages: &mut Vec<Value>,
+    messages: &mut [Value],
     system: &[String],
     tools: &[ToolSpec],
     limit: &ModelLimit,

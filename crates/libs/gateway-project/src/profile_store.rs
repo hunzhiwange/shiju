@@ -131,7 +131,7 @@ impl ProfileOperation<'_> {
         self.mutate(scope.project.tenant_scope(), |state| {
             let profile = state.profiles.get_mut(&id.0).context("project profile not found")?;
             app_project_profiles::resnapshot::merge_snapshot(
-                profile, &snapshot, scope.group, expected_version, chrono::Utc::now().timestamp(),
+                profile, &snapshot, scope.group, expected_version, runtime_time::unix_seconds(),
             )?;
             Ok(profile.clone())
         })
@@ -240,7 +240,7 @@ impl ProfileOperation<'_> {
         self.mutate(tenant, |state| {
             let profile = state.profiles.get_mut(&id.0).context("project profile not found")?;
             app_project_profiles::rename::rename(
-                profile, name, expected_version, chrono::Utc::now().timestamp(),
+                profile, name, expected_version, runtime_time::unix_seconds(),
             )?;
             Ok(profile.clone())
         })

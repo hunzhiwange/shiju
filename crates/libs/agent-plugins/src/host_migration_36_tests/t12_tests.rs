@@ -34,8 +34,10 @@ fn snapshot(root: &Path) -> BTreeMap<PathBuf, String> {
 impl Fixture {
     fn new() -> Self {
         let temp = tempfile::tempdir().unwrap();
-        let mut config = Config::default();
-        config.workspace_dir = temp.path().join("workspace");
+        let mut config = Config {
+            workspace_dir: temp.path().join("workspace"),
+            ..Config::default()
+        };
         config.config_path = temp.path().join("config/shiju.json");
         let root = config.workspace_dir.join("plugins/agent-pack");
         write(&root.join(".codex-plugin/plugin.json"), br#"{"name":"agent-pack"}"#);

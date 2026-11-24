@@ -21,7 +21,7 @@ task-scheduler = { path = "../task-scheduler" }
 vw-api-chat-identity = { path = "../api-chat-identity" }
 vw-api-task = { path = "../api-task" }
 tokio = { version = "1", features = ["sync", "rt"] }
-chrono = "0.4"
+runtime-time = { path = "../runtime-time" }
 tracing = "0.1"
 async-trait = "0.1"
 axum = { version = "0.8.8", features = ["json"] }

@@ -2,7 +2,6 @@
 
 use super::*;
 use crate::{Icon, TimeInfo};
-use base64::Engine as _;
 use tempfile::TempDir;
 use uuid::Uuid;
 

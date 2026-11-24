@@ -14,7 +14,7 @@ pub enum StreamEvent {
     /// 独立于最终错误和模型文本的恢复进度。
     ModelRecovery(ModelRecovery),
     /// 仅供 Gateway 暂存、不会编码给客户端的原始 LLM 工件。
-    LlmRawArtifact(LlmRawArtifact),
+    LlmRawArtifact(Box<LlmRawArtifact>),
 
     /// 系统提示词已加载协议文件，客户端可据此展示真实的上下文读取记录。
     ContextLoaded {

@@ -30,7 +30,7 @@ tui-contracts = { path = "../libs/tui-contracts" }
 tui-render = { path = "../libs/tui-render" }
 insta = "1.46.3"
 tui-markdown = { path = "../libs/tui-markdown" }
-crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
+crossterm = "0.29"
 ratatui = { version = "0.30.2", features = ["unstable-backend-writer", "unstable-rendered-line-info", "unstable-widget-ref"] }
 pretty_assertions = "1.4.1"
 vt100 = "0.16.2"

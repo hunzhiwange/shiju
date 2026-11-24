@@ -431,8 +431,10 @@ fn task_reasoning_effort_imports_roundtrip() {
         .expect_err("invalid reasoning effort should fail import");
     assert!(error.contains("reasoning_effort"));
 
-    let mut task = super::Task::default();
-    task.reasoning_effort = Some(ReasoningEffortDto::High);
+    let task = super::Task {
+        reasoning_effort: Some(ReasoningEffortDto::High),
+        ..super::Task::default()
+    };
     let encoded = serde_json::to_value(&task).expect("serialize task reasoning effort");
     assert_eq!(encoded["reasoning_effort"], "high");
     let decoded: super::Task =
@@ -643,9 +645,11 @@ fn task_log_constructors_and_auto_merge_blank_checks_preserve_semantics() {
     assert_eq!(message.status_to, None);
     assert_eq!(message.message, "note");
 
-    let mut task = super::Task::default();
-    task.merge_source_branch = Some("  ".into());
-    task.merge_target_branch = Some("main".into());
+    let mut task = super::Task {
+        merge_source_branch: Some("  ".into()),
+        merge_target_branch: Some("main".into()),
+        ..super::Task::default()
+    };
     assert!(!task.should_auto_merge());
     task.merge_source_branch = Some("feature".into());
     task.merge_target_branch = Some("\t".into());

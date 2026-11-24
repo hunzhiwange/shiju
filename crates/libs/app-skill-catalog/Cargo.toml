@@ -16,7 +16,7 @@ vw-api-transport = { path = "../api-transport" }
 reqwest = { version = "0.13", default-features = false, features = ["form", "json", "query", "rustls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
-serde_yaml = "0.9"
+serde_yaml.workspace = true
 uuid = { version = "1.11", features = ["v4", "js"] }
 tempfile = "3"
 tokio = { version = "1", features = ["rt", "time"] }

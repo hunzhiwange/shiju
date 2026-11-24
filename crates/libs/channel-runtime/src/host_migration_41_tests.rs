@@ -12,7 +12,7 @@ const BOOTSTRAP_MAX_CHARS: usize = 20_000;
 fn channel_system_prompt(
     workspace: &std::path::Path, model: &str, tools: &[(&str, &str)],
     skills: &[agent_skills::Skill], identity: Option<&agent_config::runtime_schema::IdentityConfig>,
-    max: Option<usize>, timezone: chrono_tz::Tz,
+    max: Option<usize>, timezone: runtime_time::zones::NamedTimeZone,
 ) -> String {
     channel_support::prompt::build_system_prompt_with_mode(workspace, model, tools, skills, identity, max,
         false, agent_config::runtime_schema::SkillsPromptInjectionMode::Full, timezone, "")
@@ -77,10 +77,5 @@ mod history_management;
 mod session_history;
 mod system_prompt;
 mod command_parsing;
-mod vision;
-mod identity;
 mod health_supervisor;
-mod config_loading;
 mod tool_execution;
-mod routing;
-mod approval_commands;

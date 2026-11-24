@@ -75,7 +75,7 @@ pub fn next_occurrence_for_schedule(
             // 如果指定了时区，需要在该时区下计算下一次执行时间
             if let Some(tz_name) = tz {
                 // 解析 IANA 时区名称
-                let timezone = chrono_tz::Tz::from_str(tz_name)
+                let timezone = runtime_time::zones::NamedTimeZone::from_str(tz_name)
                     .with_context(|| format!("Invalid IANA timezone: {tz_name}"))?;
 
                 // 将 UTC 时间转换为指定时区的本地时间

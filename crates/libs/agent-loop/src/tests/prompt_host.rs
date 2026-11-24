@@ -57,7 +57,7 @@ fn empty_context<'a>(workspace_dir: &'a Path, tools: &'a [Box<dyn Tool>]) -> Pro
         skills_prompt_mode: agent_config::schema::SkillsPromptInjectionMode::Full,
         identity_config: None,
         dispatcher_instructions: "",
-        timezone: chrono_tz::Asia::Shanghai,
+        timezone: runtime_time::zones::SHANGHAI,
     }
 }
 
@@ -76,7 +76,7 @@ fn base_and_task_plan_prompts_share_recursive_orchestration_policy() {
         None,
         true,
         agent_config::schema::SkillsPromptInjectionMode::Compact,
-        chrono_tz::Asia::Shanghai,
+        runtime_time::zones::SHANGHAI,
     );
     let planning = crate::task_plan_run::build_planning_prompt("workflow-1", "实现递归智能体编排");
     let execution = crate::task_plan_run::build_execution_prompt(

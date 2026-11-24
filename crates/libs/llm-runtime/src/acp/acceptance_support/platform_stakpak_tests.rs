@@ -5,8 +5,7 @@ use std::{fs, path::Path, process::Command};
 
 use crate::acp::model_source::{drivers, launch_identity, prepare_profile};
 
-#[path = "../../aisdk/convert_test_support.rs"]
-mod models;
+use crate::convert_test_support as models;
 
 const AGENT: &str = "stakpak";
 const MANIFEST: &str = include_str!(concat!(

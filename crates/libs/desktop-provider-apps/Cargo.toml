@@ -48,7 +48,7 @@ gateway-app-auth = { path = "../gateway-app-auth" }
 gateway-endpoint = { path = "../gateway-endpoint" }
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
 
-serde_yaml = "0.9"
+serde_yaml.workspace = true
 toml = "0.9"
 
 [dev-dependencies]

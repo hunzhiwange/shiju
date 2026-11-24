@@ -11,7 +11,7 @@ pub fn schedule_request(
         return Err(err.clone());
     }
     if let Some(rule) = &draft.schedule_draft {
-        rule.timezone.parse::<chrono_tz::Tz>().map_err(|_| "请选择有效的 IANA 时区")?;
+        rule.timezone.parse::<runtime_time::zones::NamedTimeZone>().map_err(|_| "请选择有效的 IANA 时区")?;
         return rule.request();
     }
     Ok(gateway_cron::CronPreviewRequest {

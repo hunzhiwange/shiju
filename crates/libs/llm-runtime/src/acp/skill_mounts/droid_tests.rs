@@ -30,7 +30,7 @@ fn acp_skill_coexistence_droid_publishes_only_selected_view() {
     }
     let settings = native.parent().unwrap().join("settings.json");
     fs::write(&settings, r#"{"disabledSkills":["disabled"]}"#).unwrap();
-    assert_eq!(publish(&home, &workspace, None::<&FixtureLease>).unwrap(), [native.clone()]);
+    assert_eq!(publish(&home, &workspace, None::<&FixtureLease>).unwrap(), std::slice::from_ref(&native));
     assert!(!home.join(".factory").exists());
     std::os::unix::fs::symlink(&skill, view.join("selected")).unwrap();
     let reads = publish(&home, &workspace, Some(&FixtureLease(view.clone()))).unwrap();

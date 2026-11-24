@@ -27,7 +27,7 @@ ring = "0.17.14"
 hex = "0.4"
 base64 = "0.23"
 getrandom = "0.4"
-chrono = { version = "0.4", features = ["serde"] }
+runtime-time = { path = "../runtime-time" }
 vw-api-app-provider-edit = { path = "../api-app-provider-edit" }
 vw-api-app-provider-profiles = { path = "../api-app-provider-profiles" }
 sha2 = "0.11"

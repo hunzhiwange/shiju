@@ -13,7 +13,7 @@ desktop-workflow-state = { path = "../desktop-workflow-state" }
 desktop-i18n = { path = "../desktop-i18n" }
 desktop-assets = { path = "../desktop-assets" }
 iced = { version = "0.14", features = ["image", "advanced"] }
-serde_yaml = "0.9"
+serde_yaml.workspace = true
 unicode-width = "0.2"
 
 [dev-dependencies]

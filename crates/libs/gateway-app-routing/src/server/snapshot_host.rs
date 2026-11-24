@@ -21,7 +21,7 @@ impl gateway_aggregation::aggregation_codex_settings::SnapshotHost for SnapshotH
     }
     #[cfg(target_os = "macos")]
     fn codex_inputs<'a>(&self, snapshot: &'a Self::Snapshot)
-        -> Result<(Option<&'a [u8]>, Option<&'a [u8]>), axum::http::StatusCode> {
+        -> Result<gateway_aggregation::aggregation_read_snapshot::CodexInputs<'a>, axum::http::StatusCode> {
         gateway_aggregation::aggregation_read_snapshot::codex_inputs(snapshot)
     }
 }

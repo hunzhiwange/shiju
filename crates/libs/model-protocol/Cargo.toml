@@ -27,7 +27,7 @@ model-reasoning = { path = "../model-reasoning" }
 parking_lot = "0.12"
 uuid = { version = "1.11", features = ["v4", "js"] }
 base64 = "0.23"
-chrono = "0.4"
+runtime-time = { path = "../runtime-time" }
 ring = "0.17.14"
 getrandom = "0.4"
 vw-api-transport = { path = "../api-transport" }

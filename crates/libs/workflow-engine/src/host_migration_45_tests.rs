@@ -1,8 +1,13 @@
+#[cfg(not(feature = "test-support"))]
 #[path = "test_support/provider.rs"]
 mod provider;
+#[cfg(not(feature = "test-support"))]
 #[path = "test_support/binding.rs"]
 mod binding;
-use provider::CloudFixtureProvider;
+#[cfg(not(feature = "test-support"))]
+use {binding::binding_fixture as make_binding_fixture, provider::CloudFixtureProvider};
+#[cfg(feature = "test-support")]
+use crate::test_support::{binding_fixture as make_binding_fixture, CloudFixtureProvider};
 use crate::*;
 use crate::native_command::{BoundCommandRequest, CommandEvent as StreamEvent, NativeCommandHost};
 use serde_json::json;
@@ -36,7 +41,7 @@ fn run_bound_command(request: &Request, emit: &mut (impl FnMut(StreamEvent) -> b
     ))
 }
 fn binding_fixture() -> tempfile::TempDir {
-    binding::binding_fixture(tenant())
+    make_binding_fixture(tenant())
 }
 
 #[test]

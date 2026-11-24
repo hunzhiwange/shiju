@@ -108,7 +108,7 @@ pub enum WsDeltaEvent {
         /// 对应的工具调用 ID。
         tool_call_id: Option<String>,
         /// 结构化工具结果 DTO。
-        result: Option<ToolResultDto>,
+        result: Option<Box<ToolResultDto>>,
     },
 }
 
@@ -145,7 +145,13 @@ pub fn parse_ws_private_event(progress: &str) -> Option<WsDeltaEvent> {
         .and_then(|dto| dto.tool_use_id.clone())
         .or_else(|| value.get("tool_call_id").and_then(Value::as_str).map(ToOwned::to_owned));
 
-    Some(WsDeltaEvent::ToolResult { name, success, duration_secs, tool_call_id, result })
+    Some(WsDeltaEvent::ToolResult {
+        name,
+        success,
+        duration_secs,
+        tool_call_id,
+        result: result.map(Box::new),
+    })
 }
 
 /// 净化 WebSocket 响应内容。

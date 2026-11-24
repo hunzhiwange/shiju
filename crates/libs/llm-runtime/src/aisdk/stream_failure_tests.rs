@@ -42,6 +42,7 @@ impl super::super::host::Host for StreamHost {
     }
 }
 
+#[expect(clippy::too_many_arguments, reason = "Mirror the library stream test interface")]
 async fn do_stream_request_aisdk_with_model<
     M: aisdk::core::language_model::LanguageModel + ToolCallSupport,
 >(

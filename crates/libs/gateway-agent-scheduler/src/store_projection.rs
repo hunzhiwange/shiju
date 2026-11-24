@@ -205,20 +205,11 @@ pub(super) fn task_id_from_api(task_id: &vw_api_transport::TaskId) -> Result<Tas
 }
 
 pub(super) fn current_timestamp_ms() -> TimestampMs {
-    TimestampMs(chrono::Utc::now().timestamp_millis().max(0))
+    TimestampMs(runtime_time::unix_millis().max(0))
 }
 
 pub fn add_ms_or_saturate(timestamp: TimestampMs, delta_ms: i64) -> TimestampMs {
     TimestampMs(timestamp.0.saturating_add(delta_ms).max(timestamp.0))
-}
-
-#[cfg(test)]
-pub(super) fn workspace_payload(workspace: &AgentSchedulerWorkspaceContextDto) -> Value {
-    json!({
-        "slot_id": workspace.slot_id,
-        "path": workspace.path,
-        "branch": workspace.branch,
-    })
 }
 
 pub(super) fn dispatch_mode_from_dto(dispatch_mode: AgentSchedulerDispatchModeDto) -> DispatchMode {
@@ -399,36 +390,12 @@ pub fn task_board_status_role_from_metadata(metadata: &Value) -> Option<TaskPool
     }
 }
 
-#[cfg(test)]
-pub(super) fn workflow_status_role(
-    workflow: &TaskPoolWorkflowSnapshotDto,
-    status_key: &str,
-) -> Option<TaskPoolWorkflowStatusRoleDto> {
-    workflow
-        .statuses
-        .iter()
-        .find(|status| status.enabled && status.key == status_key)
-        .map(|status| status.role)
-}
-
 pub(super) fn task_metadata_object(value: Value) -> Result<Map<String, Value>, ApiError> {
     match value {
         Value::Object(map) => Ok(map),
         Value::Null => Ok(Map::new()),
         _ => Err(ApiError::bad_request("task metadata must be a JSON object")),
     }
-}
-
-#[cfg(test)]
-pub(super) fn set_lifecycle_projection_metadata(
-    metadata: &mut Map<String, Value>,
-    target: &LifecycleStatusProjection,
-) {
-    metadata.insert("task_board.status_key".to_string(), json!(target.status_key.clone()));
-    metadata.insert(
-        "task_board.status_role".to_string(),
-        json!(lifecycle_status_role_key(target.status_role)),
-    );
 }
 
 pub fn task_board_status_key(status: AgentTaskStatus, metadata: &Value) -> String {
@@ -669,21 +636,6 @@ pub(super) fn event_to_dto(event: StoredAgentEvent) -> AgentEventDto {
     }
 }
 
-#[cfg(test)]
-pub(super) fn run_to_dto(run: StoredAgentRun) -> AgentRunDto {
-    AgentRunDto {
-        id: run.id.as_str().to_string(),
-        task_id: run.task_id.as_str().to_string(),
-        status: run_status_to_dto(run.status),
-        lease_expires_at_ms: run.lease_expires_at_ms,
-        attempt: run.attempt,
-        started_at_ms: run.started_at_ms,
-        finished_at_ms: run.finished_at_ms,
-        last_heartbeat_at_ms: run.last_heartbeat_at_ms,
-        error_message: run.error_message,
-    }
-}
-
 pub(super) fn outbox_to_dto(message: StoredOutboxMessage) -> AgentOutboxMessageDto {
     AgentOutboxMessageDto {
         id: message.id,
@@ -699,20 +651,6 @@ pub(super) fn outbox_to_dto(message: StoredOutboxMessage) -> AgentOutboxMessageD
         last_error: message.last_error,
         payload: message.payload,
         created_at_ms: message.created_at_ms,
-    }
-}
-
-#[cfg(test)]
-pub(super) fn run_status_to_dto(status: AgentRunStatus) -> AgentRunStatusDto {
-    match status {
-        AgentRunStatus::Pending => AgentRunStatusDto::Pending,
-        AgentRunStatus::Leased => AgentRunStatusDto::Leased,
-        AgentRunStatus::Running => AgentRunStatusDto::Running,
-        AgentRunStatus::Succeeded => AgentRunStatusDto::Succeeded,
-        AgentRunStatus::Failed => AgentRunStatusDto::Failed,
-        AgentRunStatus::Cancelled => AgentRunStatusDto::Cancelled,
-        AgentRunStatus::TimedOut => AgentRunStatusDto::TimedOut,
-        AgentRunStatus::Stale => AgentRunStatusDto::Stale,
     }
 }
 
@@ -769,30 +707,6 @@ pub(super) fn task_status_to_dto(status: AgentTaskStatus) -> AgentTaskStatusDto 
         AgentTaskStatus::Failed => AgentTaskStatusDto::Failed,
         AgentTaskStatus::Cancelled => AgentTaskStatusDto::Cancelled,
         AgentTaskStatus::Archived => AgentTaskStatusDto::Archived,
-    }
-}
-
-#[cfg(test)]
-pub(super) fn capability_kind_from_dto(kind: AgentCapabilityKindDto) -> AgentCapabilityKind {
-    match kind {
-        AgentCapabilityKindDto::Skill => AgentCapabilityKind::Skill,
-        AgentCapabilityKindDto::RemoteSkill => AgentCapabilityKind::RemoteSkill,
-        AgentCapabilityKindDto::McpServer => AgentCapabilityKind::McpServer,
-        AgentCapabilityKindDto::Model => AgentCapabilityKind::Model,
-        AgentCapabilityKindDto::Runtime => AgentCapabilityKind::Runtime,
-        AgentCapabilityKindDto::Tool => AgentCapabilityKind::Tool,
-    }
-}
-
-#[cfg(test)]
-pub(super) fn capability_kind_to_dto(kind: AgentCapabilityKind) -> AgentCapabilityKindDto {
-    match kind {
-        AgentCapabilityKind::Skill => AgentCapabilityKindDto::Skill,
-        AgentCapabilityKind::RemoteSkill => AgentCapabilityKindDto::RemoteSkill,
-        AgentCapabilityKind::McpServer => AgentCapabilityKindDto::McpServer,
-        AgentCapabilityKind::Model => AgentCapabilityKindDto::Model,
-        AgentCapabilityKind::Runtime => AgentCapabilityKindDto::Runtime,
-        AgentCapabilityKind::Tool => AgentCapabilityKindDto::Tool,
     }
 }
 

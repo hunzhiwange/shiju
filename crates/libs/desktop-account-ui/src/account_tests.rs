@@ -58,7 +58,7 @@ fn cancel_returns_to_idle_and_invalidates_pending_results() {
 
 #[test]
 fn manual_input_debug_is_redacted() {
-    let mut state = AccountState {
+    let state = AccountState {
         manual_input: ManualSkeyInput::new("top-secret"),
         ..Default::default()
     };

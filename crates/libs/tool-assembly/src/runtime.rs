@@ -162,7 +162,7 @@ pub fn runtime_config_for_context<H: RuntimeHost>(ctx: &ToolRuntimeContext<H>) -
                 tracing::warn!(
                     "tool runtime: failed to load config, falling back to defaults: {error}"
                 );
-                let mut config = Config {
+                let config = Config {
                     workspace_dir: workspace_dir.clone(),
                     config_path: workspace_dir.join(".vibewindow.json"),
                     ..Default::default()

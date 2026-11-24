@@ -13,7 +13,7 @@ agent-util = { path = "../agent-util" }
 config-runtime-paths = { path = "../config-runtime-paths" }
 glob = "0.3"
 serde = { version = "1", features = ["derive"] }
-serde_yaml = "0.9"
+serde_yaml.workspace = true
 tokio = { version = "1", features = ["sync", "rt"] }
 tracing = "0.1"
 

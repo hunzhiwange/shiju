@@ -13,10 +13,12 @@ mod behavior_1 {
 use crate::app_init::state::*;
 #[test]
 fn autonomy_settings_from_config_preserves_unknown_saved_tools() {
-    let mut config = config_security::AutonomyConfig::default();
-    config.auto_approve = vec!["known_tool".to_string(), "retired_tool".to_string()];
-    config.always_ask = vec!["missing_tool".to_string()];
-    config.non_cli_excluded_tools = vec!["legacy_tool".to_string()];
+    let config = config_security::AutonomyConfig {
+        auto_approve: vec!["known_tool".to_string(), "retired_tool".to_string()],
+        always_ask: vec!["missing_tool".to_string()],
+        non_cli_excluded_tools: vec!["legacy_tool".to_string()],
+        ..config_security::AutonomyConfig::default()
+    };
 
     let autonomy = AutonomySettingsState::from_config(&config);
 

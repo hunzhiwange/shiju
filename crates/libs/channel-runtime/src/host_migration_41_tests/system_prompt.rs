@@ -28,7 +28,7 @@ fn build_system_prompt(
         skills,
         identity_config,
         bootstrap_max_chars,
-        chrono_tz::Asia::Shanghai,
+        runtime_time::zones::SHANGHAI,
     )
 }
 
@@ -66,7 +66,7 @@ fn channel_prompt_uses_configured_timezone() {
         &[],
         None,
         None,
-        chrono_tz::America::New_York,
+        runtime_time::zones::NEW_YORK,
     );
 
     assert!(prompt.contains("-04:00") || prompt.contains("-05:00"));

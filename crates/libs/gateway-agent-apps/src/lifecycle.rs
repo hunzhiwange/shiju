@@ -305,6 +305,7 @@ impl OwnedOperation {
 #[cfg(target_os = "macos")]
 type UsageService = Option<Extension<Arc<super::usage_refresh::UsageRefresh>>>;
 type OperationSources = Option<Extension<gateway_types::app_operations::OperationSources>>;
+#[expect(clippy::result_large_err, reason = "Preserve the complete Axum error response")]
 async fn resolve_operation(state: &State, tenant: TenantScope, headers: HeaderMap,
     host: &str, id: &str, sources: OperationSources, #[cfg(target_os = "macos")] usage: UsageService, cancel: bool) -> Result<OwnedOperation, Response> {
     if let Some(Extension(sources)) = sources
@@ -330,6 +331,7 @@ async fn resolve_operation(state: &State, tenant: TenantScope, headers: HeaderMa
     }
 }
 
+#[expect(clippy::result_large_err, reason = "Preserve the complete Axum error response")]
 async fn read(
     Extension(state): Extension<State>,
     Extension(tenant): Extension<TenantScope>,
@@ -353,6 +355,7 @@ async fn read(
     .await?;
     Ok(entry.response(id))
 }
+#[expect(clippy::result_large_err, reason = "Preserve the complete Axum error response")]
 async fn events(
     Extension(state): Extension<State>,
     Extension(tenant): Extension<TenantScope>,
@@ -394,6 +397,7 @@ async fn events(
     .await?;
     Ok(entry.response(id))
 }
+#[expect(clippy::result_large_err, reason = "Preserve the complete Axum error response")]
 async fn cancel(
     Extension(state): Extension<State>,
     Extension(tenant): Extension<TenantScope>,

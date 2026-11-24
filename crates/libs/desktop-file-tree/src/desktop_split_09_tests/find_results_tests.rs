@@ -76,15 +76,19 @@ fn find_results_list_builds_empty_states() {
     let app = ViewState::default();
     assert_eq!(child_count(build_find_results_list(app.inputs())), 1);
 
-    let mut app = ViewState::default();
-    app.active_find_results_tab_id = Some("missing".to_string());
+    let app = ViewState {
+        active_find_results_tab_id: Some("missing".to_string()),
+        ..ViewState::default()
+    };
     assert_eq!(child_count(build_find_results_list(app.inputs())), 1);
 }
 
 #[test]
 fn find_results_list_builds_controls_empty_results_and_limit_notice() {
-    let mut app = ViewState::default();
-    app.project_path = Some("/tmp/project".to_string());
+    let mut app = ViewState {
+        project_path: Some("/tmp/project".to_string()),
+        ..ViewState::default()
+    };
 
     let mut tab = find_tab("active");
     tab.replace_editor = iced::widget::text_editor::Content::with_text("new_name");
@@ -130,8 +134,10 @@ async fn find_results_keeps_header_above_scrollable_cards_in_narrow_panel() {
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("tiny-skia headless renderer should be available");
-    let mut app = ViewState::default();
-    app.project_path = Some("/tmp/project".to_string());
+    let mut app = ViewState {
+        project_path: Some("/tmp/project".to_string()),
+        ..ViewState::default()
+    };
     let mut tab = find_tab("active");
     tab.matches.push(find_match(
         "/tmp/project/src/a_very_long_module_name.rs",
@@ -157,8 +163,10 @@ async fn find_results_keeps_header_above_scrollable_cards_in_narrow_panel() {
 
 #[test]
 fn find_results_list_builds_matches_highlight_fallback_and_menu_overlay() {
-    let mut app = ViewState::default();
-    app.project_path = Some("/tmp/project".to_string());
+    let mut app = ViewState {
+        project_path: Some("/tmp/project".to_string()),
+        ..ViewState::default()
+    };
 
     let mut tab = find_tab("active");
     tab.matches = vec![
@@ -177,8 +185,10 @@ fn find_results_list_builds_matches_highlight_fallback_and_menu_overlay() {
 
 #[test]
 fn find_results_list_builds_zero_length_and_out_of_range_previews_without_menu_anchor() {
-    let mut app = ViewState::default();
-    app.project_path = Some("/tmp/project".to_string());
+    let mut app = ViewState {
+        project_path: Some("/tmp/project".to_string()),
+        ..ViewState::default()
+    };
 
     let mut tab = find_tab("active");
     tab.matches = vec![

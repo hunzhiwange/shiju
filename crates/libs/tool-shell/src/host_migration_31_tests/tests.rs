@@ -12,7 +12,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     use config_security::{AuditConfig, SyscallAnomalyConfig};
@@ -837,8 +837,7 @@ mod tests {
             Some(std::env::temp_dir().to_string_lossy().to_string()),
         ));
         scope_tool_use_context(context, async {
-            let _lock =
-                global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+            let _lock = global_env_lock().lock().await;
             let _g1 = EnvGuard::set("API_KEY", "sk-test-secret-12345");
             let _g2 = EnvGuard::set("VIBEWINDOW_API_KEY", "sk-test-secret-67890");
 
@@ -919,8 +918,7 @@ mod tests {
             Some(std::env::temp_dir().to_string_lossy().to_string()),
         ));
         scope_tool_use_context(context, async {
-            let _lock =
-                global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+            let _lock = global_env_lock().lock().await;
             let _guard = EnvGuard::set("VIBEWINDOW_TEST_PASSTHROUGH", "db://unit-test");
             let tool = ShellTool::new(
                 test_security_with_env_passthrough(&["VIBEWINDOW_TEST_PASSTHROUGH"]),
@@ -966,8 +964,7 @@ mod tests {
             Some(std::env::temp_dir().to_string_lossy().to_string()),
         ));
         scope_tool_use_context(context, async {
-            let _lock =
-                global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+            let _lock = global_env_lock().lock().await;
             let path_guard = EnvGuard::set("PATH", "/usr/bin:/bin");
             let expected = allowed_shell_env_value("PATH").expect("effective PATH should resolve");
 

@@ -70,7 +70,7 @@ fn parse_ws_private_event_prefers_explicit_name_over_result_tool_id() {
             success: false,
             duration_secs: None,
             tool_call_id: Some("call_result".to_string()),
-            result: Some(result),
+            result: Some(Box::new(result)),
         })
     );
 }

@@ -88,7 +88,7 @@ use cli_gateway_session::plan_run::{
 };
 #[cfg(any(test, target_arch = "wasm32"))]
 use cli_gateway_session::plan_run::{
-    plan_run_request, stop_owned_plan_run_blocking, stream_plan_run_resumable_blocking,
+    stop_owned_plan_run_blocking, stream_plan_run_resumable_blocking,
 };
 use cli_gateway_session::session_diff::load_session_diff_blocking;
 use cli_interaction_model::{UiRuntimeEvent, UiRuntimeTerminalEvent};

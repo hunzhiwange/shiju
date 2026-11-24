@@ -79,10 +79,11 @@ async fn codex_plugin_compat_t24_returns_validated_user_response() {
         roundtrip("t24-accept", Some(vec![vec!["24".into()], vec!["accept".into()]])).await;
     assert_eq!(accepted["result"], json!({"action":"accept","content":{"age":24,"choice":"a"}}));
     unsubscribe();
-    let events = events.lock().unwrap();
-    assert_eq!(events.len(), 1);
-    assert!(events[0]["properties"]["answers"].is_null());
-    drop(events);
+    {
+        let events = events.lock().unwrap();
+        assert_eq!(events.len(), 1);
+        assert!(events[0]["properties"]["answers"].is_null());
+    }
     let declined = roundtrip("t24-decline", Some(vec![vec![], vec!["decline".into()]])).await;
     assert_eq!(declined["result"], json!({"action":"decline"}));
     let cancelled = roundtrip("t24-cancel", None).await;

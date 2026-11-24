@@ -52,8 +52,6 @@ pub(crate) use desktop_account::AccountProfileDraft;
 #[cfg(test)]
 pub(crate) use desktop_account::AccountRepository;
 #[cfg(test)]
-pub(crate) use desktop_account::ManualSkeyInput;
-#[cfg(test)]
 pub(crate) use desktop_account::SecretSkey;
 #[cfg(test)]
 pub(crate) use desktop_account::VerifiedAccount;

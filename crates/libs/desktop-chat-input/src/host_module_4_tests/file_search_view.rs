@@ -45,7 +45,7 @@ fn file_search_list_len(app: &Fixture) -> usize {
 
 #[test]
 fn file_search_overlay_empty_results_render_one_empty_state_row() {
-    let mut app = Fixture {
+    let app = Fixture {
         file_search_query: "missing".to_string(),
         ..Default::default()
     };

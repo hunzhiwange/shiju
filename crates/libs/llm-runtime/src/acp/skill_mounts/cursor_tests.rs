@@ -38,7 +38,6 @@ fn acp_skill_coexistence_cursor_adds_only_the_trusted_view() {
         command: "cursor-agent".into(),
         args: vec!["acp".into()],
         env: [("CURSOR_CONFIG_DIR".into(), "/private-config".into())].into(),
-        ..Default::default()
     };
     super::configure(&mut config, Some(&view)).unwrap();
     assert_eq!(config.command, "cursor-agent");

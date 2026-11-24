@@ -196,7 +196,7 @@ async fn aggregation_t39_aggregation_read_preserves_contract() {
     assert_eq!(payload["revision"], current.revision);
     assert_eq!(payload["defaultProviderId"], "beta");
     assert_eq!(payload["catalogPolicy"], "preserve");
-    assert!(payload["expiresAt"].as_i64().unwrap() > chrono::Utc::now().timestamp());
+    assert!(payload["expiresAt"].as_i64().unwrap() > runtime_time::unix_seconds());
     assert_eq!(files(f.root.path()), before);
     assert!(f.tx.state(AppId::Claude).unwrap() == state);
     assert!(f.tx.pending(AppId::Claude).unwrap().is_none());

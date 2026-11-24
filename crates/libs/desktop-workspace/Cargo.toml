@@ -25,7 +25,7 @@ desktop-ui-controls = { path = "../desktop-ui-controls" }
 
 desktop-i18n = { path = "../desktop-i18n" }
 config-runtime-paths = { path = "../config-runtime-paths" }
-directories = "5"
+directories = "6"
 sha2 = "0.11"
 hex = "0.4"
 regex = "1"

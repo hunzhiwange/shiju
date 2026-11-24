@@ -20,7 +20,8 @@ use agent_config::runtime::Config;
 pub trait AgentHost: crate::core::skills::CoreSkillHost {
     fn from_config(config: &Config) -> Result<Agent<Self>>;
     async fn models() -> Result<Vec<model_types::Model>>;
-async fn run_tool_call_loop_with_skills(
+    #[expect(clippy::too_many_arguments, reason = "Keep the existing request forwarding interface")]
+    async fn run_tool_call_loop_with_skills(
     provider: &dyn Provider,
     history: &mut Vec<ChatMessage>,
     tools_registry: &[Box<dyn Tool>],

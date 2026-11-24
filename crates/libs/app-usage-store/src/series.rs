@@ -1,6 +1,6 @@
 //! Calendar series share the summary's snapshot, canonical filtering and accounting.
 use chrono::{DateTime, Duration, TimeZone, Timelike, Utc};
-use chrono_tz::Tz;
+use runtime_time::zones::NamedTimeZone as Tz;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use {

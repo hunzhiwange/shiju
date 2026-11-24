@@ -216,8 +216,10 @@ async fn resolve_backend_rejects_rust_native_without_compiled_feature() {
 
 #[tokio::test]
 async fn resolve_backend_propagates_invalid_computer_use_config_without_network() {
-    let mut computer_use = super::super::ComputerUseConfig::default();
-    computer_use.timeout_ms = 0;
+    let computer_use = super::super::ComputerUseConfig {
+        timeout_ms: 0,
+        ..super::super::ComputerUseConfig::default()
+    };
     let tool = BrowserTool::new_with_backend(
         Arc::new(SecurityPolicy::default()),
         vec!["example.com".into()],
@@ -429,8 +431,10 @@ fn tool_contract_exposes_browser_schema_and_safety_flags() {
 #[tokio::test]
 // 安全策略和动作预算都要在后端探测前拒绝，避免拒绝请求仍触发网络连接。
 async fn execute_rejects_read_only_policy_before_backend_resolution() {
-    let mut security = SecurityPolicy::default();
-    security.autonomy = AutonomyLevel::ReadOnly;
+    let security = SecurityPolicy {
+        autonomy: AutonomyLevel::ReadOnly,
+        ..SecurityPolicy::default()
+    };
     let tool = tool_with_backend(security, "agent_browser");
 
     let result = tool
@@ -445,8 +449,10 @@ async fn execute_rejects_read_only_policy_before_backend_resolution() {
 
 #[tokio::test]
 async fn execute_rejects_exhausted_action_budget_before_backend_resolution() {
-    let mut security = SecurityPolicy::default();
-    security.max_actions_per_hour = 0;
+    let security = SecurityPolicy {
+        max_actions_per_hour: 0,
+        ..SecurityPolicy::default()
+    };
     let tool = tool_with_backend(security, "agent_browser");
 
     let result = tool
@@ -511,8 +517,10 @@ async fn rust_native_execution_rejects_build_without_feature() {
 
 #[tokio::test]
 async fn call_lifts_policy_failure_into_structured_result() {
-    let mut security = SecurityPolicy::default();
-    security.autonomy = AutonomyLevel::ReadOnly;
+    let security = SecurityPolicy {
+        autonomy: AutonomyLevel::ReadOnly,
+        ..SecurityPolicy::default()
+    };
     let tool = tool_with_backend(security, "agent_browser");
 
     let result = tool
@@ -627,8 +635,10 @@ async fn execute_routes_computer_use_action_to_sidecar_and_preserves_output() {
 #[tokio::test]
 async fn execute_validates_screen_capture_output_path_before_sidecar_request() {
     let (endpoint, server) = reachable_endpoint().await;
-    let mut security = SecurityPolicy::default();
-    security.workspace_dir = PathBuf::from(".");
+    let security = SecurityPolicy {
+        workspace_dir: PathBuf::from("."),
+        ..SecurityPolicy::default()
+    };
     let tool = BrowserTool::new_with_backend(
         Arc::new(security),
         vec!["example.com".into()],
@@ -724,8 +734,10 @@ async fn call_uses_browser_backend_when_success_output_is_not_json() {
 #[tokio::test]
 async fn computer_use_endpoint_url_and_validate_url_delegate_to_client_policy() {
     let workspace = TempDir::new().unwrap();
-    let mut security = SecurityPolicy::default();
-    security.workspace_dir = workspace.path().to_path_buf();
+    let security = SecurityPolicy {
+        workspace_dir: workspace.path().to_path_buf(),
+        ..SecurityPolicy::default()
+    };
     let tool = computer_use_tool("http://127.0.0.1:8787/v1/actions".into(), security);
 
     let endpoint = tool.computer_use_endpoint_url().expect("default local endpoint should parse");

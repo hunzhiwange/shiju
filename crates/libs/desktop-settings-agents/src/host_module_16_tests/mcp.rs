@@ -24,7 +24,7 @@ use config_agent_profile::AgentDefault;
 #[test]
 fn agent_config_cleanup_mcp_tab_uses_stable_server_ids() {
     assert_eq!(crate::state::AGENT_DETAIL_MCP_TAB, "mcp");
-    let mut defaults = config_agent_profile::AgentDefaults {
+    let defaults = config_agent_profile::AgentDefaults {
         mcp: AgentDefault::Fixed(vec![]),
         ..Default::default()
     };

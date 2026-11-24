@@ -40,6 +40,6 @@ pub fn pick(client:GatewayClient,scope:Scope,token:String,generation:u64,catalog
 pub fn open(client:GatewayClient,scope:Scope,token:String,path:String)->Task<Message>{
  Task::perform(async move {tokio::task::spawn_blocking(move || {
  let home=local::launch_directory(&client,&scope.host,&token,None).ok_or(())?;
- desktop_provider_apps::message::paths::open_local(&home,&path)
+ desktop_provider_apps::message::paths::open_local(&home,&path).map_err(|_| ())
  }).await.ok().and_then(Result::ok)},|opened|if opened.is_some(){Message::None}else{message(Event::FolderFailed)})
 }

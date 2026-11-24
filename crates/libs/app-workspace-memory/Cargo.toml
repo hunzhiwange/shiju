@@ -15,7 +15,7 @@ vw-api-workspace-memory = { path = "../api-workspace-memory" }
 vw-api-hermes-memory = { path = "../api-hermes-memory" }
 vw-api-transport = { path = "../api-transport" }
 reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
-serde_yaml = "0.9"
+serde_yaml.workspace = true
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]
 tempfile = "3"

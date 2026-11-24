@@ -78,7 +78,7 @@ async fn read(p: Policy,t: TenantScope,h: HeaderMap,kind: Read) -> Response {
             Read::Config => output(u::models_sync::get_models_sync_config(&c,&o.scope,&o.target_host).map_err(domain)?),
             Read::Display => {
                 let s = u::exchange_store::load_exchange_settings(&c,&o.scope,&o.target_host).map_err(domain)?;
-                output(json!({"display":s.resolve(chrono::Utc::now().timestamp_millis()),"settings":s}))
+                output(json!({"display":s.resolve(runtime_time::unix_millis()),"settings":s}))
             }
         }
     }).await.map_err(unavailable)?
@@ -133,10 +133,10 @@ async fn refresh(Extension(p): Extension<Policy>,Extension(t): Extension<TenantS
     let host_context = p.1;
     let o = tokio::task::spawn_blocking(move || authorize(&p,t,&h,true)).await.map_err(unavailable)??;
     let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).build().map_err(unavailable)?;
-    let result = u::exchange::fetch_usd_rates(&client,chrono::Utc::now().timestamp_millis()).await;
+    let result = u::exchange::fetch_usd_rates(&client,runtime_time::unix_millis()).await;
     tokio::task::spawn_blocking(move || {
         let s = u::exchange_store::save_refresh_result(&mut connection(host_context)?,&o.scope,&o.target_host,result).map_err(unavailable)?;
-        output(json!({"display":s.resolve(chrono::Utc::now().timestamp_millis()),"settings":s}))
+        output(json!({"display":s.resolve(runtime_time::unix_millis()),"settings":s}))
     }).await.map_err(unavailable)?
 }
 async fn sync(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap) -> Result<(StatusCode,Json<Value>),StatusCode> {

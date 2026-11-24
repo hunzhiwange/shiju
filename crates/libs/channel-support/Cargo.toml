@@ -22,7 +22,7 @@ agent-skills = { path = "../agent-skills" }
 agent-memory = { path = "../agent-memory" }
 agent-util = { path = "../agent-util" }
 agent-provider = { path = "../agent-provider" }
-chrono-tz = "0.10"
+runtime-time = { path = "../runtime-time", features = ["named-time-zones"] }
 config-routing = { path = "../config-routing" }
 model-selection = { path = "../model-selection" }
 channel-types = { path = "../channel-types" }

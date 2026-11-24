@@ -17,7 +17,7 @@ use tool_types::Tool;
 use agent_observability::traits::ObserverMetric;
 use session_port::ui_types as ui_models;
 use anyhow::Result;
-use chrono_tz::Tz;
+use runtime_time::zones::NamedTimeZone as Tz;
 use std::any::Any;
 use std::sync::{Arc, Mutex};
 use config_agent::merged_agent_configs;

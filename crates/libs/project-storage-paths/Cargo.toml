@@ -9,7 +9,7 @@ doctest = false
 
 [dependencies]
 anyhow = "1"
-directories = "5"
+directories = "6"
 git-discovery = { path = "../git-discovery" }
 hex = "0.4"
 sha2 = "0.11"

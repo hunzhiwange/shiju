@@ -59,9 +59,11 @@ fn write_script(path: &Path, body: &str) {
 }
 
 fn test_config(workspace_dir: PathBuf, config_dir: PathBuf) -> Config {
-    let mut config = Config::default();
-    config.workspace_dir = workspace_dir;
-    config.config_path = config_dir.join("vibewindow.json");
+    let mut config = Config {
+        workspace_dir,
+        config_path: config_dir.join("vibewindow.json"),
+        ..Config::default()
+    };
     config.hooks.enabled = true;
     config.hooks.builtin.command_logger = false;
     config.hooks.plugins.enabled = true;

@@ -5,8 +5,10 @@ use std::path::Path;
 
 #[test]
 fn plugin_install_dir_uses_config_parent() {
-    let mut config = Config::default();
-    config.config_path = "/tmp/vibewindow-config/vibewindow.json".into();
+    let config = Config {
+        config_path: "/tmp/vibewindow-config/vibewindow.json".into(),
+        ..Config::default()
+    };
 
     assert_eq!(install_dir_from_config(&config), Path::new("/tmp/vibewindow-config/plugins"));
 }

@@ -76,7 +76,7 @@ fn should_compute_word_diff_requires_highlight_equal_lengths_changes_and_short_l
 
 #[test]
 fn should_compute_word_diff_enforces_new_line_length_boundary() {
-    let mut app = Fixture {
+    let app = Fixture {
         show_git_diff_highlight: true,
         ..Default::default()
     };
@@ -89,7 +89,7 @@ fn should_compute_word_diff_enforces_new_line_length_boundary() {
 
 #[test]
 fn render_replace_ops_merge_view_emits_old_then_new_rows() {
-    let mut app = Fixture {
+    let app = Fixture {
         merge_view: true,
         ..Default::default()
     };
@@ -102,7 +102,7 @@ fn render_replace_ops_merge_view_emits_old_then_new_rows() {
 
 #[test]
 fn render_replace_ops_split_view_uses_max_old_new_count() {
-    let mut app = Fixture {
+    let app = Fixture {
         merge_view: false,
         ..Default::default()
     };
@@ -116,7 +116,7 @@ fn render_replace_ops_split_view_uses_max_old_new_count() {
 
 #[test]
 fn render_replace_ops_handles_equal_length_word_diff_and_missing_lines() {
-    let mut app = Fixture {
+    let app = Fixture {
         show_git_diff_highlight: true,
         merge_view: false,
         ..Default::default()
@@ -127,7 +127,7 @@ fn render_replace_ops_handles_equal_length_word_diff_and_missing_lines() {
 
 #[test]
 fn render_replace_ops_merge_view_zero_old_len_emits_only_new_rows() {
-    let mut app = Fixture {
+    let app = Fixture {
         merge_view: true,
         ..Default::default()
     };
@@ -137,7 +137,7 @@ fn render_replace_ops_merge_view_zero_old_len_emits_only_new_rows() {
 
 #[test]
 fn render_replace_ops_merge_view_zero_new_len_emits_only_old_rows() {
-    let mut app = Fixture {
+    let app = Fixture {
         merge_view: true,
         ..Default::default()
     };
@@ -147,7 +147,7 @@ fn render_replace_ops_merge_view_zero_new_len_emits_only_old_rows() {
 
 #[test]
 fn render_replace_ops_split_view_zero_old_len_emits_only_new_panes() {
-    let mut app = Fixture {
+    let app = Fixture {
         merge_view: false,
         ..Default::default()
     };
@@ -198,7 +198,7 @@ fn render_replace_ops_split_view_wraps_matching_context_menu_for_new_only_row() 
 
 #[test]
 fn render_replace_ops_split_view_zero_new_len_emits_only_old_panes() {
-    let mut app = Fixture {
+    let app = Fixture {
         merge_view: false,
         ..Default::default()
     };

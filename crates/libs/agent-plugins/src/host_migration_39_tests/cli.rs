@@ -14,10 +14,11 @@ fn config_for(dir: &tempfile::TempDir) -> Config {
     fs::create_dir_all(&workspace_dir).expect("workspace dir");
     fs::create_dir_all(&config_dir).expect("config dir");
 
-    let mut config = Config::default();
-    config.workspace_dir = workspace_dir;
-    config.config_path = config_dir.join("vibewindow.json");
-    config
+    Config {
+        workspace_dir,
+        config_path: config_dir.join("vibewindow.json"),
+        ..Config::default()
+    }
 }
 
 fn write_plugin(plugin_root: &Path, name: &str) {

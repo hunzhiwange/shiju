@@ -1,8 +1,7 @@
 use crate::acp::{config, controls, model_source::drivers, request, skill_mounts};
 use serde_json::json;
 
-#[path = "../../aisdk/convert_test_support.rs"]
-mod models;
+use crate::convert_test_support as models;
 use vw_api_acp_model::acp_model_source::{
     AcpModelSource as Source, AcpModelSourceCapability as Capability,
 };

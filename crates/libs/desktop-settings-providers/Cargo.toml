@@ -30,7 +30,7 @@ provider-resolution = { path = "../provider-resolution" }
 provider-model-cache = { path = "../provider-model-cache" }
 provider-model-discovery = { path = "../provider-model-discovery" }
 model-catalog-types = { path = "../model-catalog-types" }
-directories = "5"
+directories = "6"
 
 desktop-provider-apps = { path = "../desktop-provider-apps" }
 vw-api-model-catalog = { path = "../api-model-catalog" }

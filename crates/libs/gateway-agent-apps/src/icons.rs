@@ -46,6 +46,7 @@ async fn read_icons(
     .map_err(|error| AgentAppsApiError::storage_unavailable(error.into()))?
 }
 
+#[expect(clippy::result_large_err, reason = "Preserve the complete Axum error response")]
 async fn add_icon(
     Extension(tenant): Extension<TenantScope>,
     database: Option<Extension<GlobalDatabase>>,
@@ -73,7 +74,7 @@ async fn add_icon(
                 &request.name,
                 &request.data,
                 &uuid::Uuid::new_v4().to_string(),
-                chrono::Utc::now().timestamp_millis(),
+                runtime_time::unix_millis(),
             )
             .map(Json)
             .map_err(AgentAppsApiError::from)
@@ -83,6 +84,7 @@ async fn add_icon(
     .map_err(IntoResponse::into_response)
 }
 
+#[expect(clippy::result_large_err, reason = "Preserve the complete Axum error response")]
 async fn rename_icon(
     Extension(tenant): Extension<TenantScope>,
     database: Option<Extension<GlobalDatabase>>,

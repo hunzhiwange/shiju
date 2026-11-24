@@ -18,8 +18,10 @@ impl Fixture {
     fn new() -> Self {
         let temp = tempfile::tempdir().unwrap();
         let workspace = temp.path().join("workspace");
-        let mut config = Config::default();
-        config.workspace_dir = workspace.clone();
+        let mut config = Config {
+            workspace_dir: workspace.clone(),
+            ..Config::default()
+        };
         config.config_path = temp.path().join("config/vibewindow.json");
         Self { temp, workspace, config }
     }

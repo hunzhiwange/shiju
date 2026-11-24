@@ -15,7 +15,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
     use crate::actions::is_computer_use_only_action;
     use crate::backend::{

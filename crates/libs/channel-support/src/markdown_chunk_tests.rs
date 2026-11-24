@@ -80,7 +80,7 @@ fn markdown_delivery_tables_repeat_header_without_duplicate_rows() {
     let header = "| 名称 | 值 |\n| :--- | ---: |\n";
     let rows = (0..12).map(|i| format!("| 项{i} | `a\\|b` |\n")).collect::<Vec<_>>();
     let table = format!("{header}{}", rows.concat());
-    assert_eq!(split_markdown(&table, table.len()).unwrap(), [table.clone()]);
+    assert_eq!(split_markdown(&table, table.len()).unwrap(), std::slice::from_ref(&table));
     let chunks = split_markdown(&table, 95).unwrap();
     assert!(chunks.len() > 1);
     let mut restored = String::new();

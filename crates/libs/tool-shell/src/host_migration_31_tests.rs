@@ -11,8 +11,8 @@ use host::Host;
 type ShellTool = crate::ShellTool<Host>;
 type ToolUseContext = tool_context::context::ToolUseContext<Host>;
 use tool_context::context::scope_tool_use_context;
-fn global_env_lock() -> &'static std::sync::Mutex<()> {
-    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+fn global_env_lock() -> &'static tokio::sync::Mutex<()> {
+    static LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
     &LOCK
 }
 #[path = "host_migration_31_tests/tests.rs"]

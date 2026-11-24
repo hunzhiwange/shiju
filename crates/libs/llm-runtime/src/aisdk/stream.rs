@@ -162,6 +162,7 @@ pub fn normalize_tool_call_id(id: &str, request_namespace: &str) -> String {
 /// - 中止错误：通过 abort 通道主动取消请求
 /// - 流错误：流传输过程中的数据解析或协议错误
 #[cfg(not(target_arch = "wasm32"))]
+#[expect(clippy::too_many_arguments, reason = "Keep the existing request forwarding interface")]
 pub async fn do_stream_request_aisdk_with_model<
     M: aisdk::core::language_model::LanguageModel + ToolCallSupport,
 >(

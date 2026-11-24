@@ -11,7 +11,7 @@ doctest = false
 tui-widgets = { path = "../tui-widgets" }
 tui-contracts = { path = "../tui-contracts" }
 tui-render = { path = "../tui-render" }
-crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
+crossterm = "0.29"
 ratatui = { version = "0.30.2", features = [
     "unstable-backend-writer",
     "unstable-rendered-line-info",

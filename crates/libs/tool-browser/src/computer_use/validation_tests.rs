@@ -195,8 +195,10 @@ fn validate_output_path_rejects_escape_empty_and_null_paths() {
 
 #[test]
 fn validate_output_path_applies_security_policy() {
-    let mut security = SecurityPolicy::default();
-    security.forbidden_paths = vec!["blocked".into()];
+    let security = SecurityPolicy {
+        forbidden_paths: vec!["blocked".into()],
+        ..SecurityPolicy::default()
+    };
     let c = client_with_policy(security, ComputerUseConfig::default(), vec![]);
 
     let err = c
@@ -209,8 +211,10 @@ fn validate_output_path_applies_security_policy() {
 // 路径先做词法与安全策略校验，再异步创建父目录并拒绝链接或非普通文件。
 async fn resolve_output_path_creates_parent_and_rejects_non_files() {
     let tmp = TempDir::new().expect("tempdir should create");
-    let mut security = SecurityPolicy::default();
-    security.workspace_dir = tmp.path().to_path_buf();
+    let security = SecurityPolicy {
+        workspace_dir: tmp.path().to_path_buf(),
+        ..SecurityPolicy::default()
+    };
     let c = client_with_policy(security, ComputerUseConfig::default(), vec![]);
 
     let resolved = c
@@ -231,8 +235,10 @@ async fn resolve_output_path_creates_parent_and_rejects_non_files() {
 #[tokio::test]
 async fn resolve_output_path_accepts_existing_regular_file() {
     let tmp = TempDir::new().expect("tempdir should create");
-    let mut security = SecurityPolicy::default();
-    security.workspace_dir = tmp.path().to_path_buf();
+    let security = SecurityPolicy {
+        workspace_dir: tmp.path().to_path_buf(),
+        ..SecurityPolicy::default()
+    };
     let c = client_with_policy(security, ComputerUseConfig::default(), vec![]);
 
     tokio::fs::write(tmp.path().join("existing.png"), b"existing")
@@ -250,8 +256,10 @@ async fn resolve_output_path_accepts_existing_regular_file() {
 #[tokio::test]
 async fn resolve_output_path_rejects_existing_symlink() {
     let tmp = TempDir::new().expect("tempdir should create");
-    let mut security = SecurityPolicy::default();
-    security.workspace_dir = tmp.path().to_path_buf();
+    let security = SecurityPolicy {
+        workspace_dir: tmp.path().to_path_buf(),
+        ..SecurityPolicy::default()
+    };
     let c = client_with_policy(security, ComputerUseConfig::default(), vec![]);
 
     let target = tmp.path().join("target.png");
@@ -277,8 +285,10 @@ async fn resolve_output_path_rejects_symlinked_parent_escape() {
     std::os::unix::fs::symlink(&outside, workspace.join("escape"))
         .expect("directory symlink fixture should create");
 
-    let mut security = SecurityPolicy::default();
-    security.workspace_dir = workspace;
+    let security = SecurityPolicy {
+        workspace_dir: workspace,
+        ..SecurityPolicy::default()
+    };
     let c = client_with_policy(security, ComputerUseConfig::default(), vec![]);
 
     let err = c

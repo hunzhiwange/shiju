@@ -213,7 +213,7 @@ fn execute(host_context: crate::Host, o: &ScanOwner, home: &std::path::Path, ins
     u::source_settings::initialize_source_settings(&c)?;
     u::cursors::initialize_usage_cursors(&c)?;
     match kind {
-        Maintenance::Rollup => { u::retention::rollup_and_prune(&mut c,&o.scope,&o.target_host,chrono::Utc::now().timestamp(),|| operation.is_cancelled())?; }
+        Maintenance::Rollup => { u::retention::rollup_and_prune(&mut c,&o.scope,&o.target_host,runtime_time::unix_seconds(),|| operation.is_cancelled())?; }
         Maintenance::Backfill => {
             u::pricing::initialize_pricing_store(&c).map_err(anyhow::Error::msg)?;
             u::pricing_batch::backfill_unknown_costs(&mut c,&o.scope,&o.target_host,128,|| operation.is_cancelled()).map_err(anyhow::Error::msg)?;

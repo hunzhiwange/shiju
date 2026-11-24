@@ -12,7 +12,7 @@ use super::*;
 ///
 /// 包含对 Schedule 相关功能的单元测试，验证调度器在各种场景下的行为。
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     use chrono::TimeZone;

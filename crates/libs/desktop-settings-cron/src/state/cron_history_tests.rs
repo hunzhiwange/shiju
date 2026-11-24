@@ -40,7 +40,7 @@ fn cron_history_filters_intersect() {
 
 #[test]
 fn cron_history_duplicate_names_use_ids() {
-    let mut state = CronHistoryState {
+    let state = CronHistoryState {
         runs: vec![run("a", Some("same"), "ok"), run("b", Some("same"), "ok")],
         selected_job_id: Some("b".into()),
         ..Default::default()

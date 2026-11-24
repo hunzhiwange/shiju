@@ -602,7 +602,7 @@ pub(crate) enum AgentToolWorkerEvent {
     },
     Finished {
         index: usize,
-        execution: ToolExecutionWithAgentLifecycle,
+        execution: Box<ToolExecutionWithAgentLifecycle>,
     },
 }
 
@@ -658,7 +658,7 @@ where
                     let created = created_slot.lock().ok().and_then(|slot| slot.clone());
                     let _ = event_tx.send(AgentToolWorkerEvent::Finished {
                         index,
-                        execution: ToolExecutionWithAgentLifecycle { result, created },
+                        execution: Box::new(ToolExecutionWithAgentLifecycle { result, created }),
                     });
                 });
             }
@@ -671,7 +671,7 @@ where
                         on_created(index, child);
                     }
                     Ok(AgentToolWorkerEvent::Finished { index, execution }) => {
-                        outcomes[index] = Some(execution);
+                        outcomes[index] = Some(*execution);
                         finished += 1;
                     }
                     Err(_) => break,

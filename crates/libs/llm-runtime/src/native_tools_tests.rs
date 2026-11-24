@@ -52,6 +52,7 @@ async fn native_tool_search_event_empty_output_is_dedicated_item() {
 struct SpecTool(tool_types::ToolSpec);
 #[async_trait::async_trait]
 impl tool_types::Tool for SpecTool {
+    #[expect(clippy::misnamed_getters, reason = "Use the tool dispatch ID")]
     fn name(&self) -> &str {
         &self.0.id
     }

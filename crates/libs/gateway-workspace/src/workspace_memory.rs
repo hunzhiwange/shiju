@@ -19,12 +19,14 @@ struct State {
     policy: Option<PathBuf>,
     jobs: Arc<Mutex<HashMap<String, Job>>>,
 }
+type SearchResults = Arc<Mutex<Option<Vec<DailyMemorySearchResult>>>>;
+
 struct Job {
     project: ProjectScope,
     host: String,
     actor: String,
     operation: Operation,
-    result: Arc<Mutex<Option<Vec<DailyMemorySearchResult>>>>,
+    result: SearchResults,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -126,7 +128,7 @@ async fn search(Extension(state): Extension<State>, Extension(tenant): Extension
     jobs.insert(id.clone(), Job { project: ProjectScope::new(tenant, scope.project_id).map_err(|_| StatusCode::BAD_REQUEST)?, host: scope.target_host_id, actor, operation: op.clone(), result });
     Ok(Json(SearchResponse { progress: (state.status)(id, &op), results: None }))
 }
-fn owned(state: &State, tenant: TenantScope, headers: &HeaderMap, scope: &Scope, id: &str) -> Result<(Operation, Arc<Mutex<Option<Vec<DailyMemorySearchResult>>>>), StatusCode> {
+fn owned(state: &State, tenant: TenantScope, headers: &HeaderMap, scope: &Scope, id: &str) -> Result<(Operation, SearchResults), StatusCode> {
     let (_, actor) = authorize(state, tenant.clone(), headers, scope, false)?;
     let jobs = state.jobs.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let job = jobs.get(id).ok_or(StatusCode::NOT_FOUND)?;

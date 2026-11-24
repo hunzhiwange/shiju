@@ -105,6 +105,7 @@ impl Provider for RecordingProvider {
 
 #[derive(Default)]
 struct RecordingMemory {
+    #[expect(clippy::type_complexity, reason = "Record the complete memory call for assertions")]
     stores: Mutex<Vec<(String, String, MemoryCategory, Option<String>)>>,
 }
 
@@ -353,7 +354,7 @@ pub async fn turn_timestamp_uses_configured_timezone<H: crate::agent::AgentHost>
         provider.provider(),
         Box::new(StaticMemoryLoader { result: Ok(String::new()) }),
     );
-    agent.fixture_timezone(chrono_tz::UTC);
+    agent.fixture_timezone(runtime_time::zones::UTC);
 
     agent.turn("hi").await.expect("turn should succeed");
 
@@ -505,7 +506,7 @@ pub async fn turn_with_stream_timestamp_uses_configured_timezone<H: crate::agent
         provider.provider(),
         Box::new(StaticMemoryLoader { result: Ok(String::new()) }),
     );
-    agent.fixture_timezone(chrono_tz::UTC);
+    agent.fixture_timezone(runtime_time::zones::UTC);
     let (tx, _rx) = tokio::sync::mpsc::channel(8);
 
     agent.turn_with_stream("hi", tx).await.expect("streaming turn should succeed");

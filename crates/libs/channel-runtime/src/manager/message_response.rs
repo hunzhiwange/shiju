@@ -103,6 +103,7 @@ use channel_support::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKi
 /// - 可能发送消息到目标通道
 /// - 可能更新或删除草稿消息
 /// - 会添加/移除消息反应表情
+#[expect(clippy::too_many_arguments, reason = "Keep the existing response adapter interface")]
 pub async fn handle_llm_result(
     host: &'static dyn crate::host::ChannelHost,
     ctx: &ChannelRuntimeContext,

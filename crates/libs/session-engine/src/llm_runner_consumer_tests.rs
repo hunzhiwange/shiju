@@ -1,16 +1,11 @@
 //! Consumer rejection, abort signalling and timeout flush boundaries.
-use super::*;
-use crate::llm_runner as runner;
-use crate::processor_events::StreamEvent as CollectorStreamEvent;
 use crate::message::AssistantError;
 use llm_runtime as llm;
 use session_port::ui_types as models;
 use std::sync::mpsc;
 use std::time::Duration;
 
-#[path = "llm_runner_test_support.rs"]
-mod llm_runner_test_support;
-use llm_runner_test_support::collect_events_with_delta_consumer;
+use super::test_support::collect_events_with_delta_consumer;
 
 #[test]
 fn collect_stream_aborts_when_consumer_stops() {

@@ -288,8 +288,6 @@ async fn init_recovers_poisoned_info_lock_when_head_changes() {
 
 #[tokio::test]
 async fn git2_branch_tracking_works_without_git_executable() {
-    let _env_lock =
-        crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
     let _async_env_lock = crate::test_support::global_async_env_lock().lock().await;
 
     let (temp, repo) = repo_with_initial_commit();

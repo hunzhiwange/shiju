@@ -13,6 +13,7 @@ struct MockTool {
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
 impl Tool for MockTool {
+    #[expect(clippy::misnamed_getters, reason = "Use the dispatch ID rather than the display name")]
     fn name(&self) -> &str {
         &self.spec.id
     }
@@ -362,7 +363,7 @@ async fn codex_plugin_compat_t37_host_denial_precedes_hook_allow() {
         }
     }
     let root = tempfile::tempdir().unwrap();
-    let mut security = SecurityPolicy {
+    let security = SecurityPolicy {
         workspace_dir: root.path().to_path_buf(),
         ..Default::default()
     };

@@ -49,8 +49,10 @@ impl Fixture {
         let workspace = temp.path().join("workspace");
         write(&source.join(".codex-plugin/plugin.json"), MANIFEST);
         write(&source.join("commands/review.md"), COMMAND);
-        let mut config = Config::default();
-        config.workspace_dir = workspace.clone();
+        let mut config = Config {
+            workspace_dir: workspace.clone(),
+            ..Config::default()
+        };
         config.config_path = temp.path().join("config/shiju.json");
         Self { _temp: temp, source, workspace, config }
     }

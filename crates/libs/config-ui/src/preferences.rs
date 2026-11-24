@@ -1,4 +1,4 @@
-use chrono_tz::{TZ_VARIANTS, Tz};
+use runtime_time::zones::{NamedTimeZone as Tz, TZ_NAMES};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -81,7 +81,7 @@ pub fn default_timezone() -> String {
 }
 
 pub fn timezone_options() -> Vec<&'static str> {
-    TZ_VARIANTS.iter().map(|timezone| timezone.name()).collect()
+    TZ_NAMES.to_vec()
 }
 
 pub(super) fn deserialize_timezone<'de, D>(deserializer: D) -> Result<String, D::Error>

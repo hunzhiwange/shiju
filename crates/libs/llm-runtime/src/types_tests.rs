@@ -183,7 +183,7 @@ fn stream_event_variants_clone_with_payloads() {
         name: "tool".to_string(),
         arguments: "{}".to_string(),
     };
-    let events = vec![
+    let events = [
         StreamEvent::Delta("delta".to_string()),
         StreamEvent::ReasoningDelta("reasoning".to_string()),
         StreamEvent::ToolCalls(vec![tool_call.clone()]),
@@ -330,7 +330,7 @@ fn error_display_serializes_each_structured_assistant_error_variant() {
 #[test]
 fn reqwest_error_conversion_preserves_http_display() {
     let reqwest_error =
-        reqwest::Client::new().get("http://[::1").build().err().expect("invalid URL should fail");
+        reqwest::Client::new().get("http://[::1").build().expect_err("invalid URL should fail");
     let expected = reqwest_error.to_string();
     let wrapped: Error = reqwest_error.into();
     assert_eq!(wrapped.to_string(), expected);

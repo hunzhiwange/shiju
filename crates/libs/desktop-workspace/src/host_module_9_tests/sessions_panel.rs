@@ -182,7 +182,7 @@ fn session_items_reports_empty_when_only_archived_sessions_exist() {
 
 #[test]
 fn session_items_builds_missing_summary_menu_default_anchor_and_no_load_more() {
-    let mut app = PanelFixture {
+    let app = PanelFixture {
         session_menu_id: Some("summaryless".to_string()),
         session_menu_anchor: None,
         ..Default::default()
@@ -224,7 +224,7 @@ fn project_panel_builds_empty_and_selected_project_states() {
 
 #[test]
 fn project_panel_uses_path_fallback_for_unknown_or_blank_recent_names() {
-    let mut app = PanelFixture {
+    let app = PanelFixture {
         recent_projects: vec!["/tmp/project".to_string()],
         recent_projects_edits: vec!["   ".to_string()],
         ..Default::default()

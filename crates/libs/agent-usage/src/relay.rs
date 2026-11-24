@@ -47,7 +47,7 @@ impl RequestUsage {
             instance_id: "routing".into(), kind: UsageSourceKind::Relay,
             file_identity: "routing".into(), native_session_id: session.clone(), native_request_id: id.clone() };
         let record = UsageRecord {
-            id: id.clone(), started_at_unix_seconds: UsageUnixSeconds(chrono::Utc::now().timestamp()),
+            id: id.clone(), started_at_unix_seconds: UsageUnixSeconds(runtime_time::unix_seconds()),
             provider: provider.map_or(UsageProvider::Unknown, |provider_id| UsageProvider::Known { provider_id }),
             sources: vec![UsageSourceRef { source_id: id.clone(), kind: UsageSourceKind::Relay, app,
                 native_request_id: Some(id.clone()), native_session_id: session }],

@@ -190,8 +190,11 @@ impl AgentHost for InputHost {
     fn tenant() -> TenantScope {
         panic!("input/specification test reached host service: tenant")
     }
-    fn with_tenant<F: Future + Send>(tenant: TenantScope, operation: F) -> impl Future<Output = F::Output> + Send where F::Output: Send {
-        async move { panic!("input/specification test reached host service: with_tenant") }
+    async fn with_tenant<F: Future + Send>(tenant: TenantScope, operation: F) -> F::Output
+    where
+        F::Output: Send,
+    {
+        panic!("input/specification test reached host service: with_tenant")
     }
     async fn session_depth(directory: String, parent: String) -> Result<usize> {
         panic!("input/specification test reached host service: session_depth")

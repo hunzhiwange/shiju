@@ -4,7 +4,7 @@ pub fn channel_prompt_event(event: session_engine::processor_events::StreamEvent
     use session_port::{PromptEvent as P, PromptTermination as T};
     Some(match event {
         E::ModelToolCalls(_) => return None,
-        E::LlmRawArtifact(value) => P::LlmRawArtifact(Box::new(value)),
+        E::LlmRawArtifact(value) => P::LlmRawArtifact(value),
         E::Delta(value) => P::Text(value),
         E::Tool(value) => P::Tool(value),
         E::Done(value) => P::Terminated(T::Completed(value)),

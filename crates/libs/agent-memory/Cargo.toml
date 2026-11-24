@@ -34,7 +34,7 @@ tracing = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 agent-util = { path = "../agent-util" }
-dialoguer = "0.11"
+dialoguer = "0.12"
 memory-lucid = { path = "../memory-lucid" }
 memory-sqlite = { path = "../memory-sqlite" }
 memory-mariadb = { path = "../memory-mariadb", optional = true }

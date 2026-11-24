@@ -4,7 +4,7 @@
 //! must be resolved again on each query; calendar days use an explicit IANA zone.
 
 use chrono::{DateTime, Datelike, Days, NaiveDate, TimeZone, Utc};
-use chrono_tz::Tz;
+use runtime_time::zones::NamedTimeZone as Tz;
 use vw_api_usage::{
     UsageCalendarPeriod, UsageRange, UsageResolvedRange, UsageUnixSeconds,
 };

@@ -9,6 +9,7 @@ pub use audio_capture::{
 // Desktop worker tests share the backend source to retain private device fixtures.
 // Production uses the library; no fixture API is exported across crate boundaries.
 #[cfg(test)]
+#[expect(dead_code, reason = "The test backend compiles only the desktop capture fixture paths")]
 #[path = "../../audio-capture/src/capture.rs"]
 mod test_backend;
 #[cfg(test)]

@@ -86,15 +86,16 @@ fn search_input_style_tracks_focus_and_hover() {
 
 #[test]
 fn matching_sessions_uses_title_preview_and_directory() {
-    let mut app = Fixture::default();
-    app.sessions = vec![
-        session("session-1", "Alpha Plan", "/workspace/alpha"),
-        session("session-2", "Beta", "/workspace/beta"),
-    ];
-    app.session_previews = std::collections::HashMap::from([(
-        "session-2".to_string(),
-        "Discuss release checklist".to_string(),
-    )]);
+    let app = Fixture {
+        sessions: vec![
+            session("session-1", "Alpha Plan", "/workspace/alpha"),
+            session("session-2", "Beta", "/workspace/beta"),
+        ],
+        session_previews: std::collections::HashMap::from([(
+            "session-2".to_string(),
+            "Discuss release checklist".to_string(),
+        )]),
+    };
 
     let title_hits = matching_sessions(&app, "alpha");
     let preview_hits = matching_sessions(&app, "release");
@@ -125,8 +126,10 @@ fn child_session_navigation_search_hides_internal_sources() {
 
 #[test]
 fn matching_sessions_rejects_blank_queries() {
-    let mut app = Fixture::default();
-    app.sessions = vec![session("session-1", "Alpha", "/workspace/alpha")];
+    let app = Fixture {
+        sessions: vec![session("session-1", "Alpha", "/workspace/alpha")],
+        ..Fixture::default()
+    };
 
     assert!(matching_sessions(&app, "").is_empty());
     assert!(matching_sessions(&app, " \t\n ").is_empty());
@@ -134,8 +137,10 @@ fn matching_sessions_rejects_blank_queries() {
 
 #[test]
 fn matching_sessions_matches_id_case_insensitively_and_preserves_fields() {
-    let mut app = Fixture::default();
-    app.sessions = vec![session("Session-ALPHA", "Planning", "/workspace/demo")];
+    let mut app = Fixture {
+        sessions: vec![session("Session-ALPHA", "Planning", "/workspace/demo")],
+        ..Fixture::default()
+    };
     app.session_previews.insert("Session-ALPHA".to_string(), "Release notes".to_string());
 
     let matches = matching_sessions(&app, "  session-alpha  ");
@@ -149,10 +154,12 @@ fn matching_sessions_matches_id_case_insensitively_and_preserves_fields() {
 
 #[test]
 fn matching_sessions_limits_results_to_first_eight() {
-    let mut app = Fixture::default();
-    app.sessions = (0..10)
-        .map(|index| session(&format!("session-{index}"), "Needle", "/workspace/demo"))
-        .collect();
+    let app = Fixture {
+        sessions: (0..10)
+            .map(|index| session(&format!("session-{index}"), "Needle", "/workspace/demo"))
+            .collect(),
+        ..Fixture::default()
+    };
 
     let matches = matching_sessions(&app, "needle");
     let ids = matches.iter().map(|session| session.id.clone()).collect::<Vec<_>>();
@@ -162,12 +169,14 @@ fn matching_sessions_limits_results_to_first_eight() {
 
 #[test]
 fn matching_sessions_preserves_session_order_across_different_matching_fields() {
-    let mut app = Fixture::default();
-    app.sessions = vec![
-        session("needle-id", "First", "/workspace/one"),
-        session("session-2", "Needle title", "/workspace/two"),
-        session("session-3", "Third", "/workspace/needle-directory"),
-    ];
+    let mut app = Fixture {
+        sessions: vec![
+            session("needle-id", "First", "/workspace/one"),
+            session("session-2", "Needle title", "/workspace/two"),
+            session("session-3", "Third", "/workspace/needle-directory"),
+        ],
+        ..Fixture::default()
+    };
     app.session_previews.insert("session-2".to_string(), "unrelated".to_string());
 
     let ids =

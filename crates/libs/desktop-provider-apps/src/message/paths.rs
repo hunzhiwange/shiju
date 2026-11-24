@@ -189,29 +189,29 @@ async fn execute(
 }
 
 #[cfg(target_os = "macos")]
-pub fn open_local(home: &str, path: &str) -> Result<(), ()> {
-    use std::path::Path;
+pub fn open_local(home: &str, path: &str) -> std::io::Result<()> {
+    use std::{io::{Error, ErrorKind}, path::Path};
     let home = Path::new(home);
     let path = Path::new(path);
-    let relative = path.strip_prefix(home).map_err(|_| ())?;
+    let invalid_path = || Error::from(ErrorKind::PermissionDenied);
+    let relative = path.strip_prefix(home).map_err(|_| invalid_path())?;
     if relative.as_os_str().is_empty()
         || !relative.components().all(|part| matches!(part, std::path::Component::Normal(_)))
     {
-        return Err(());
+        return Err(invalid_path());
     }
-    let actual = path.canonicalize().map_err(|_| ())?;
-    if actual != home.canonicalize().map_err(|_| ())?.join(relative) || !actual.is_dir() {
-        return Err(());
+    let actual = path.canonicalize()?;
+    if actual != home.canonicalize()?.join(relative) || !actual.is_dir() {
+        return Err(invalid_path());
     }
     let status = std::process::Command::new("/usr/bin/open")
         .args(["-a", "Finder"])
         .arg(actual)
-        .status()
-        .map_err(|_| ())?;
-    status.success().then_some(()).ok_or(())
+        .status()?;
+    status.success().then_some(()).ok_or_else(|| Error::other("Finder could not open the directory"))
 }
 
 #[cfg(not(target_os = "macos"))]
-pub fn open_local(_: &str, _: &str) -> Result<(), ()> {
-    Err(())
+pub fn open_local(_: &str, _: &str) -> std::io::Result<()> {
+    Err(std::io::ErrorKind::Unsupported.into())
 }

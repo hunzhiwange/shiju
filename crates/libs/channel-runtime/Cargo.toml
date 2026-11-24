@@ -8,7 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-chrono-tz = "0.10"
+runtime-time = { path = "../runtime-time", features = ["named-time-zones"] }
 anyhow = "1"
 tracing = "0.1"
 tokio = { version = "1", features = ["sync", "time", "macros", "rt", "fs"] }
@@ -89,7 +89,7 @@ channel-whatsapp-web = { path = "../channel-whatsapp-web", optional = true }
 [dev-dependencies]
 model-selection = { path = "../model-selection" }
 chrono = "0.4"
-chrono-tz = "0.10"
+runtime-time = { path = "../runtime-time", features = ["named-time-zones"] }
 config-channel-services = { path = "../config-channel-services" }
 agent-approval = { path = "../agent-approval", features = ["test-support"] }
 tempfile = "3"

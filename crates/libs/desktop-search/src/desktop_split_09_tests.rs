@@ -63,8 +63,10 @@ fn session_label_line_count(app: &SearchFixture) -> usize {
 
 #[test]
 fn view_blank_query_returns_full_size_empty_surface() {
-    let mut app = SearchFixture::default();
-    app.search_text = " \t ".to_string();
+    let app = SearchFixture {
+        search_text: " \t ".to_string(),
+        ..SearchFixture::default()
+    };
 
     let search_view = view(app.data());
 
@@ -75,38 +77,45 @@ fn view_blank_query_returns_full_size_empty_surface() {
 
 #[test]
 fn view_groups_file_project_and_session_matches() {
-    let mut app = SearchFixture::default();
-    app.search_text = "needle".to_string();
-    app.files = vec!["src/needle.rs".to_string()];
-    app.recent_projects = vec!["/workspace/needle-project".to_string()];
-    app.sessions = vec![session("session-1", "Needle session", "/workspace/demo")];
+    let app = SearchFixture {
+        search_text: "needle".to_string(),
+        files: vec!["src/needle.rs".to_string()],
+        recent_projects: vec!["/workspace/needle-project".to_string()],
+        sessions: vec![session("session-1", "Needle session", "/workspace/demo")],
+        ..SearchFixture::default()
+    };
 
     assert_eq!(search_view_content_len(&app), 6);
 }
 
 #[test]
 fn view_non_blank_query_without_matches_renders_empty_results() {
-    let mut app = SearchFixture::default();
-    app.search_text = "missing".to_string();
+    let app = SearchFixture {
+        search_text: "missing".to_string(),
+        ..SearchFixture::default()
+    };
 
     assert_eq!(search_view_content_len(&app), 0);
 }
 
 #[test]
 fn view_limits_project_rows_to_eight_case_insensitively() {
-    let mut app = SearchFixture::default();
-    app.search_text = "  NEEDLE  ".to_string();
-    app.recent_projects =
-        (0..10).map(|index| format!("/workspace/needle-project-{index}")).collect();
+    let app = SearchFixture {
+        search_text: "  NEEDLE  ".to_string(),
+        recent_projects: (0..10).map(|index| format!("/workspace/needle-project-{index}")).collect(),
+        ..SearchFixture::default()
+    };
 
     assert_eq!(search_view_content_len(&app), 9);
 }
 
 #[test]
 fn view_session_labels_render_only_non_blank_metadata() {
-    let mut app = SearchFixture::default();
-    app.search_text = "needle".to_string();
-    app.sessions = vec![session("session-1", "Needle session", " \t")];
+    let mut app = SearchFixture {
+        search_text: "needle".to_string(),
+        sessions: vec![session("session-1", "Needle session", " \t")],
+        ..SearchFixture::default()
+    };
     app.session_previews.insert("session-1".to_string(), "  ".to_string());
     assert_eq!(session_label_line_count(&app), 1);
 

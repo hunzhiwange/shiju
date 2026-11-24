@@ -234,7 +234,7 @@ fn acp_public_permission_options_only_expose_host_modes() {
     };
     let projected = project_options(&host(), Some(info.clone()), None);
     assert_eq!(kinds(projected), [model.clone(), effort.clone()]);
-    assert_eq!(kinds(advertised(info.clone())), [effort.clone()]);
+    assert_eq!(kinds(advertised(info.clone())), std::slice::from_ref(&effort));
     assert!(project_options(&host(), None, None).options.is_empty());
     info.config_options.as_mut().unwrap().remove(0);
     assert_eq!(kinds(project_options(&host(), Some(info), None)), [model, effort]);

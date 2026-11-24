@@ -19,7 +19,7 @@ desktop-ui-controls = { path = "../desktop-ui-controls" }
 
 desktop-config = { path = "../desktop-config" }
 vw-gateway-client = { path = "../../vw-gateway-client" }
-chrono-tz = "0.10"
+runtime-time = { path = "../runtime-time", features = ["named-time-zones"] }
 
 [dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint" }

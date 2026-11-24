@@ -68,7 +68,7 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             }
             let timezone =
                 draft.schedule_draft.as_ref().map(|d| d.timezone.as_str()).unwrap_or("UTC");
-            let tz = match timezone.parse::<chrono_tz::Tz>() {
+            let tz = match timezone.parse::<runtime_time::zones::NamedTimeZone>() {
                 Ok(tz) => tz,
                 Err(_) => {
                     state.save_error_translation = None;

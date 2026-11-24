@@ -35,7 +35,7 @@ async fn persist_pairing_tokens_writes_config_tokens() {
         agent_config::runtime_schema::default_config_and_workspace_dirs().unwrap();
     let config_path = config_dir.join("vibewindow.json");
 
-    let mut config = Config {
+    let config = Config {
         config_path: config_path.clone(),
         workspace_dir: workspace_path,
         ..Default::default()

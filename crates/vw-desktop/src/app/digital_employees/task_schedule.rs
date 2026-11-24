@@ -2,11 +2,11 @@ use std::fmt;
 
 use chrono::{DateTime, NaiveDateTime, NaiveTime, Timelike, Utc};
 
-pub(super) const TIMEZONE: chrono_tz::Tz = chrono_tz::Asia::Shanghai;
+pub(super) const TIMEZONE: runtime_time::zones::NamedTimeZone = runtime_time::zones::SHANGHAI;
 pub(super) const WEEKDAYS: [&str; 7] = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 pub(super) const INTERVALS: [u32; 6] = [1, 5, 10, 15, 20, 30];
 
-pub(super) fn future_once(value: NaiveDateTime) -> Result<DateTime<chrono_tz::Tz>, &'static str> {
+pub(super) fn future_once(value: NaiveDateTime) -> Result<DateTime<runtime_time::zones::NamedTimeZone>, &'static str> {
     let time = value.and_local_timezone(TIMEZONE).single().ok_or("执行时间无效")?;
     if time <= Utc::now() {
         return Err("执行时间必须晚于当前时间");

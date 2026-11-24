@@ -265,7 +265,7 @@ async fn global_config_get_maps_unusable_config_directory_to_bad_request() {
 
 #[test]
 fn config_response_maps_secret_encryption_failure_to_internal_error() {
-    let mut config = config::Config {
+    let config = config::Config {
         config_path: std::path::PathBuf::new(),
         ..Default::default()
     };

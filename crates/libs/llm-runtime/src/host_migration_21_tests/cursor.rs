@@ -25,7 +25,6 @@ fn cursor_rejects_remote_endpoints_and_conflicting_launches_before_writing_files
             command: "cursor".into(),
             args: args.into_iter().map(str::to_owned).collect(),
             env,
-            ..Default::default()
         };
         let mut profile = AcpLaunchProfile::new(
             &config,

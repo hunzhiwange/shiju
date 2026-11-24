@@ -171,7 +171,7 @@ pub fn build_fills_defaults_when_optional_fields_are_absent<H: crate::agent::Age
     assert_eq!(agent.multimodal_config.max_images, 10);
     assert_eq!(agent.multimodal_config.max_image_size_mb, 5);
     assert!(agent.multimodal_config.allow_remote_fetch);
-    assert_eq!(agent.timezone, chrono_tz::Asia::Shanghai);
+    assert_eq!(agent.timezone, runtime_time::zones::SHANGHAI);
 }
 
 pub fn build_collects_tool_specs_in_tool_order<H: crate::agent::AgentHost>() {
@@ -234,7 +234,7 @@ pub fn build_uses_configured_optional_fields<H: crate::agent::AgentHost>() {
         .available_hints(vec!["fast".into()])
         .route_model_by_hint(routes)
         .multimodal_config(multimodal_config)
-        .timezone(chrono_tz::America::New_York)
+        .timezone(runtime_time::zones::NEW_YORK)
         .build()
         .unwrap();
 
@@ -255,7 +255,7 @@ pub fn build_uses_configured_optional_fields<H: crate::agent::AgentHost>() {
     assert_eq!(agent.multimodal_config.max_images, 2);
     assert_eq!(agent.multimodal_config.max_image_size_mb, 3);
     assert!(agent.multimodal_config.allow_remote_fetch);
-    assert_eq!(agent.timezone, chrono_tz::America::New_York);
+    assert_eq!(agent.timezone, runtime_time::zones::NEW_YORK);
 }
 
 pub async fn build_uses_configured_memory_loader<H: crate::agent::AgentHost>() {

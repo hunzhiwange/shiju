@@ -56,11 +56,13 @@ pub fn finite_task(task_id: &TaskId) -> Result<NewAgentTask> {
     })
 }
 
+type RecordedChatCall = (String, Option<String>, Vec<Value>);
+
 #[derive(Debug, Default)]
 struct FakeChatStream {
     results: Mutex<VecDeque<Result<GatewayChatStreamCollected, String>>>,
     payloads: Mutex<VecDeque<Vec<Value>>>,
-    calls: Mutex<Vec<(String, Option<String>, Vec<Value>)>>,
+    calls: Mutex<Vec<RecordedChatCall>>,
 }
 
 impl GatewayChatStreamClient for FakeChatStream {

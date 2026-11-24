@@ -94,7 +94,7 @@ fn build_agent_with_provider_and_tools<H: crate::agent::AgentHost>(
         .expect("core test agent should build")
 }
 
-fn selectable_model<H: crate::agent::AgentHost>(provider_id: &str, id: &str) -> provider::Model {
+fn selectable_model(provider_id: &str, id: &str) -> provider::Model {
     provider::Model {
         id: id.to_string(),
         provider_id: provider_id.to_string(),
@@ -314,7 +314,7 @@ pub fn legacy_and_processor_auto_selection_are_consistent<H: crate::agent::Agent
     agent.available_hints = vec!["fast".to_string()];
     agent.route_model_by_hint = HashMap::from([("fast".to_string(), "provider/fast".to_string())]);
     agent.model_name = "auto".to_string();
-    let models = [selectable_model::<H>("provider", "fast")];
+    let models = [selectable_model("provider", "fast")];
     let candidates = models
         .iter()
         .map(|model| ModelCandidate { provider_id: &model.provider_id, model })

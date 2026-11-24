@@ -15,10 +15,11 @@ fn package(root: &Path, version: &str) {
     .unwrap();
 }
 fn config(root: &Path) -> Config {
-    let mut c = Config::default();
-    c.workspace_dir = root.join("workspace");
-    c.config_path = root.join("config/shiju.json");
-    c
+    Config {
+        workspace_dir: root.join("workspace"),
+        config_path: root.join("config/shiju.json"),
+        ..Config::default()
+    }
 }
 fn options(c: &Config) -> PluginDiscoveryOptions {
     crate::mcp::plugin_mcp_discovery_options(c)

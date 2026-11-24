@@ -54,6 +54,7 @@ fn document() -> WorkflowDocument {
 }
 
 #[test]
+#[expect(clippy::type_complexity, reason = "Check the render helper signatures")]
 fn render_helpers_are_wired_through_canvas_module() {
     let _grid: fn(&mut Frame, Size, Vector, f32, &Theme) = draw_grid;
     let _edges: fn(

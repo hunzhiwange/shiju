@@ -10,7 +10,7 @@ pub fn fixture(
         VideoEditManifestStore::new(GlobalDatabase::new(dir.path().join("db")).unwrap()).unwrap();
     let mut run = super::manifest_fixture::candidate();
     run.project_id = Some("project".into());
-    let run = store.claim(run, "asset-test", chrono::Utc::now().timestamp_millis()).unwrap();
+    let run = store.claim(run, "asset-test", runtime_time::unix_millis()).unwrap();
     let mut recipes = BTreeMap::new();
     let mut effects = Vec::new();
     for i in 0..n {

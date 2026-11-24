@@ -16,7 +16,7 @@ vw-api-apps-usage = { path = "../api-apps-usage" }
 vw-api-transport = { path = "../api-transport" }
 vw-api-usage = { path = "../api-usage" }
 chrono = { version = "0.4", default-features = false, features = ["std"] }
-chrono-tz = "0.10.4"
+runtime-time = { path = "../runtime-time", features = ["named-time-zones"] }
 rusqlite = { workspace = true, features = ["bundled", "hooks", "limits"] }
 rust_decimal = { version = "1", default-features = false, features = ["std"] }
 serde = { version = "1", features = ["derive"] }

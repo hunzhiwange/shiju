@@ -49,7 +49,7 @@ config-observability = { path = "../config-observability" }
 config-reliability = { path = "../config-reliability" }
 config-routing = { path = "../config-routing" }
 config-runtime = { path = "../config-runtime" }
-serde_yaml = "0.9"
+serde_yaml.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 uuid = { version = "1.11", features = ["v4"] }

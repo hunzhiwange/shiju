@@ -53,8 +53,10 @@ impl Fixture {
             &source.join("skills/setup/scripts/setup.sh"),
             b"#!/bin/sh\nprintf 'must not run' > setup-was-run\n",
         );
-        let mut config = Config::default();
-        config.workspace_dir = temp.path().join("workspace");
+        let mut config = Config {
+            workspace_dir: temp.path().join("workspace"),
+            ..Config::default()
+        };
         config.config_path = temp.path().join("config/shiju.json");
         Self { _temp: temp, source, config: Arc::new(config) }
     }

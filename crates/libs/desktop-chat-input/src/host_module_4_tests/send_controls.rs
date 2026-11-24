@@ -96,7 +96,7 @@ async fn voice_ui_primary_busy_preserves_send_behavior() {
     for behavior in
         [ChatSendBehavior::Queue, ChatSendBehavior::StopAndSend, ChatSendBehavior::Guide]
     {
-        let mut app = Fixture {
+        let app = Fixture {
             chat_send_behavior: behavior,
             ..Default::default()
         };

@@ -45,7 +45,7 @@ agent-memory = { path = "../agent-memory" }
 agent-skills = { path = "../agent-skills" }
 agent-util = { path = "../agent-util" }
 tool-assembly = { path = "../tool-assembly" }
-chrono-tz = "0.10"
+runtime-time = { path = "../runtime-time", features = ["named-time-zones"] }
 
 regex = "1"
 tokio = { version = "1", features = ["sync", "macros", "time"] }

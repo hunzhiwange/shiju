@@ -49,7 +49,7 @@ fn render_count(
 
 #[test]
 fn render_delete_ops_returns_one_row_per_deleted_line_in_split_view() {
-    let mut app = Fixture {
+    let app = Fixture {
         merge_view: false,
         ..Default::default()
     };
@@ -59,7 +59,7 @@ fn render_delete_ops_returns_one_row_per_deleted_line_in_split_view() {
 
 #[test]
 fn render_delete_ops_returns_one_row_per_deleted_line_in_merge_view() {
-    let mut app = Fixture {
+    let app = Fixture {
         merge_view: true,
         ..Default::default()
     };
@@ -93,7 +93,7 @@ fn render_delete_ops_handles_selected_and_hovered_rows_independently_at_nonzero_
 
 #[test]
 fn render_delete_ops_file_staging_does_not_require_line_staging() {
-    let mut app = Fixture {
+    let app = Fixture {
         staged_files_selected: vec!["src/lib.rs".to_string()],
         ..Default::default()
     };

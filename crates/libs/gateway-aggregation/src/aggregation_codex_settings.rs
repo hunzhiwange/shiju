@@ -25,7 +25,7 @@ pub trait SnapshotHost: Clone + Send + Sync + 'static {
         snapshot: &Self::Snapshot) -> Result<String, StatusCode>;
     #[cfg(target_os = "macos")]
     fn codex_inputs<'a>(&self, snapshot: &'a Self::Snapshot)
-        -> Result<(Option<&'a [u8]>, Option<&'a [u8]>), StatusCode>;
+        -> Result<crate::aggregation_read_snapshot::CodexInputs<'a>, StatusCode>;
 }
 #[derive(Clone)]
 struct Policy<H> { path: Option<PathBuf>, host: H }

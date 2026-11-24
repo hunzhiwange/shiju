@@ -1,5 +1,5 @@
 //! Repository-only fixture. Any unexpected host capability fails closed.
-use tool_context::{host::{ContextHost, HostFuture}, context::ToolUseContext, PermissionDecision};
+use tool_context::{host::ContextHost, context::ToolUseContext, PermissionDecision};
 use std::{path::{Path, PathBuf}, sync::Arc};
 use tool_types::{Tool, ToolResult};
 use serde_json::Value;
@@ -39,14 +39,22 @@ impl ContextHost for Host {
     fn is_rate_limited(security: &Self::SecurityPolicy) -> bool { security.is_rate_limited() }
     fn is_path_allowed(security: &Self::SecurityPolicy, path: &str) -> bool { security.is_path_allowed(path) }
     fn shell_security_decision(name: &str, input: Value, security: &Self::SecurityPolicy, command: &str, approved: bool) -> PermissionDecision { panic!("toolset test reached host: shell_security_decision") }
-    fn permission_hook<'a>(runner: &'a Self::HookRunner, name: &'a str, input: &'a Value) -> impl Future<Output = anyhow::Result<Option<bool>>> + HostFuture + 'a { async move { runner.run_permission_request(name, input).await } }
+    async fn permission_hook<'a>(runner: &'a Self::HookRunner, name: &'a str, input: &'a Value) -> anyhow::Result<Option<bool>> {
+        runner.run_permission_request(name, input).await
+    }
     fn record_approval(manager: &Self::ApprovalManager, name: &str, display: &Value, response: tool_context::approval::ApprovalResponse, channel: &str) { panic!("toolset test reached host: record_approval") }
     fn prompt_cli(manager: &Self::ApprovalManager, request: &tool_context::approval::ApprovalRequest) -> tool_context::approval::ApprovalResponse { panic!("toolset test reached host: prompt_cli") }
     fn create_pending(manager: &Self::ApprovalManager, name: &str, sender: &str, channel: &str, reply_target: &str, reason: Option<String>, display: Value, message_id: Option<String>, call_id: Option<String>) -> String { panic!("toolset test reached host: create_pending") }
     fn reject_pending(manager: &Self::ApprovalManager, request: &str, sender: &str, channel: &str, reply_target: &str) { panic!("toolset test reached host: reject_pending") }
-    fn await_approval<'a>(manager: &'a Self::ApprovalManager, request: &'a str, sender: &'a str, channel: &'a str, reply_target: &'a str, cancellation: Option<&'a tokio_util::sync::CancellationToken>) -> impl Future<Output = tool_context::approval::ApprovalResponse> + HostFuture + 'a { async { panic!("toolset test reached host: await_approval") } }
-    fn pre_hook(runner: &Self::HookRunner, name: String, input: Value) -> impl Future<Output = tool_context::hooks::PreHookOutcome> + HostFuture { async { panic!("toolset test reached host: pre_hook") } }
-    fn post_hook<'a>(runner: &'a Self::HookRunner, name: &'a str, result: &'a ToolResult, duration: std::time::Duration) -> impl Future<Output = ()> + HostFuture + 'a { async { panic!("toolset test reached host: post_hook") } }
+    async fn await_approval<'a>(manager: &'a Self::ApprovalManager, request: &'a str, sender: &'a str, channel: &'a str, reply_target: &'a str, cancellation: Option<&'a tokio_util::sync::CancellationToken>) -> tool_context::approval::ApprovalResponse {
+        panic!("toolset test reached host: await_approval")
+    }
+    async fn pre_hook(runner: &Self::HookRunner, name: String, input: Value) -> tool_context::hooks::PreHookOutcome {
+        panic!("toolset test reached host: pre_hook")
+    }
+    async fn post_hook<'a>(runner: &'a Self::HookRunner, name: &'a str, result: &'a ToolResult, duration: std::time::Duration) -> () {
+        panic!("toolset test reached host: post_hook")
+    }
 }
 
 impl tool_files::FileToolHost for Host {

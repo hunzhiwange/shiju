@@ -538,6 +538,7 @@ pub fn run_llm_step<H: LlmStreamHost>(
 /// - 当 `additional_retries` 为 0 时仍会执行首次调用
 /// - 已输出内容或工具事件后停止自动重放，保留消费者收到的内容
 /// - 退避期间会阻塞当前线程
+#[expect(clippy::too_many_arguments, reason = "Keep the existing request forwarding interface")]
 pub fn run_llm_step_with_retry<H: LlmStreamHost>(
     session_id: &str,
     messages: &[serde_json::Value],
@@ -594,6 +595,10 @@ pub fn run_llm_step_with_budget<H: LlmStreamHost>(
 }
 
 pub use crate::recovery::provider_retry_backoff_ms;
+
+#[cfg(test)]
+#[path = "llm_runner_test_support.rs"]
+mod test_support;
 
 #[cfg(test)]
 #[path = "llm_runner_buffer_tests.rs"]

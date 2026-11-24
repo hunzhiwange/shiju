@@ -42,7 +42,7 @@ impl NativeRequest {
             model: (!model.is_empty()).then(|| model.to_owned()),
             session: session.filter(|s| !s.is_empty()).map(str::to_owned)
                 .or_else(|| SESSION.try_with(Clone::clone).ok()),
-            started: chrono::Utc::now().timestamp(), clock: std::time::Instant::now(), measured_latency: true, finished: false,
+            started: runtime_time::unix_seconds(), clock: std::time::Instant::now(), measured_latency: true, finished: false,
         }
     }
 

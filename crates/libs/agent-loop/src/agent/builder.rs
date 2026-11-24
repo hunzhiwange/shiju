@@ -8,7 +8,7 @@ use model_types::Provider;
 use agent_security::SecurityPolicy;
 use tool_types::Tool;
 use anyhow::Result;
-use chrono_tz::Tz;
+use runtime_time::zones::NamedTimeZone as Tz;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -81,6 +81,12 @@ pub struct AgentBuilder<H: super::AgentHost> {
     route_model_by_hint: Option<HashMap<String, String>>,
     multimodal_config: Option<config_tools::MultimodalConfig>,
     timezone: Option<Tz>,
+}
+
+impl<H: super::AgentHost> Default for AgentBuilder<H> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<H: super::AgentHost> AgentBuilder<H> {
@@ -309,7 +315,7 @@ impl<H: super::AgentHost> AgentBuilder<H> {
             available_hints: self.available_hints.unwrap_or_default(),
             route_model_by_hint: self.route_model_by_hint.unwrap_or_default(),
             multimodal_config: self.multimodal_config.unwrap_or_default(),
-            timezone: self.timezone.unwrap_or(chrono_tz::Asia::Shanghai),
+            timezone: self.timezone.unwrap_or(runtime_time::zones::SHANGHAI),
             skill_session,
         })
     }

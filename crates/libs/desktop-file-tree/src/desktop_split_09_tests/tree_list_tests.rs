@@ -11,22 +11,26 @@ fn tree_list_builds_empty_states_with_and_without_project() {
     let app = ViewState::default();
     let _ = build_file_tree_list(app.inputs());
 
-    let mut app = ViewState::default();
-    app.project_path = Some("/tmp/demo".to_string());
-    app.file_tree_model = Some(build_file_tree_model("/tmp/demo", &[]));
+    let app = ViewState {
+        project_path: Some("/tmp/demo".to_string()),
+        file_tree_model: Some(build_file_tree_model("/tmp/demo", &[])),
+        ..ViewState::default()
+    };
     let _ = build_file_tree_list(app.inputs());
 }
 
 #[test]
 fn tree_list_builds_fallback_model_with_expanded_selection_and_file_menu() {
-    let mut app = ViewState::default();
-    app.project_path = Some("/tmp/demo".to_string());
-    app.file_tree_model = Some(build_file_tree_model("/tmp/demo", &[]));
-    app.file_index = vec![
-        "/tmp/demo/README.md".to_string(),
-        "/tmp/demo/src/main.rs".to_string(),
-        "/tmp/demo/src/nested/lib.rs".to_string(),
-    ];
+    let mut app = ViewState {
+        project_path: Some("/tmp/demo".to_string()),
+        file_tree_model: Some(build_file_tree_model("/tmp/demo", &[])),
+        file_index: vec![
+            "/tmp/demo/README.md".to_string(),
+            "/tmp/demo/src/main.rs".to_string(),
+            "/tmp/demo/src/nested/lib.rs".to_string(),
+        ],
+        ..ViewState::default()
+    };
     app.file_tree_expanded_set.insert("src".to_string());
     app.file_tree_expanded_set.insert("src/nested".to_string());
     app.file_tree_menu_path = Some("/tmp/demo/src/main.rs".to_string());
@@ -38,8 +42,10 @@ fn tree_list_builds_fallback_model_with_expanded_selection_and_file_menu() {
 
 #[test]
 fn tree_list_builds_cached_model_with_directory_menu() {
-    let mut app = ViewState::default();
-    app.project_path = Some("/tmp/demo".to_string());
+    let mut app = ViewState {
+        project_path: Some("/tmp/demo".to_string()),
+        ..ViewState::default()
+    };
     let files = vec!["/tmp/demo/src/main.rs".to_string()];
     app.file_tree_model = Some(build_file_tree_model("/tmp/demo", &files));
     app.file_tree_expanded_set.insert("src".to_string());
@@ -64,8 +70,10 @@ fn changes_list_builds_loading_no_changes_and_empty_path_states() {
 
 #[test]
 fn changes_list_builds_root_and_nested_files_with_directory_menu() {
-    let mut app = ViewState::default();
-    app.project_path = Some("/tmp/demo".to_string());
+    let mut app = ViewState {
+        project_path: Some("/tmp/demo".to_string()),
+        ..ViewState::default()
+    };
     app.git_changed_files =
         vec!["README.md".to_string(), "src/main.rs".to_string(), "src/nested/lib.rs".to_string()];
     app.file_tree_expanded_set.insert("chg:src".to_string());
@@ -79,9 +87,11 @@ fn changes_list_builds_root_and_nested_files_with_directory_menu() {
 
 #[test]
 fn changes_list_builds_expanded_file_menu_for_selected_file() {
-    let mut app = ViewState::default();
-    app.project_path = Some("/tmp/demo".to_string());
-    app.git_changed_files = vec!["src/main.rs".to_string()];
+    let mut app = ViewState {
+        project_path: Some("/tmp/demo".to_string()),
+        git_changed_files: vec!["src/main.rs".to_string()],
+        ..ViewState::default()
+    };
     app.file_tree_expanded_set.insert("chg:src".to_string());
     app.git_focused_file = Some("src/main.rs".to_string());
     app.file_tree_menu_path = Some("/tmp/demo/src/main.rs".to_string());
@@ -92,12 +102,14 @@ fn changes_list_builds_expanded_file_menu_for_selected_file() {
 
 #[test]
 fn changes_list_builds_root_file_menu_without_project_path() {
-    let mut app = ViewState::default();
-    app.git_changed_files = vec!["README.md".to_string()];
-    app.git_focused_file = Some("README.md".to_string());
-    app.file_tree_menu_path = Some("README.md".to_string());
-    app.file_tree_menu_source = Some("changes-file".to_string());
-    app.file_tree_menu_anchor = Some(iced::Point::new(4.0, 6.0));
+    let app = ViewState {
+        git_changed_files: vec!["README.md".to_string()],
+        git_focused_file: Some("README.md".to_string()),
+        file_tree_menu_path: Some("README.md".to_string()),
+        file_tree_menu_source: Some("changes-file".to_string()),
+        file_tree_menu_anchor: Some(iced::Point::new(4.0, 6.0)),
+        ..ViewState::default()
+    };
 
     let element = build_changes_list(app.inputs());
 
@@ -106,8 +118,10 @@ fn changes_list_builds_root_file_menu_without_project_path() {
 
 #[test]
 fn tree_lists_build_collapsed_directories_and_ignore_mismatched_menu_sources() {
-    let mut app = ViewState::default();
-    app.project_path = Some("/tmp/demo".to_string());
+    let mut app = ViewState {
+        project_path: Some("/tmp/demo".to_string()),
+        ..ViewState::default()
+    };
     let files = vec!["/tmp/demo/src/nested/lib.rs".to_string()];
     app.file_tree_model = Some(build_file_tree_model("/tmp/demo", &files));
     app.file_tree_menu_path = Some("/tmp/demo/src".to_string());
@@ -254,8 +268,10 @@ impl<'a> RowScene<'a> {
 }
 
 pub(super) fn alignment_app() -> ViewState {
-    let mut app = ViewState::default();
-    app.project_path = Some("/tree-fixture".into());
+    let mut app = ViewState {
+        project_path: Some("/tree-fixture".into()),
+        ..ViewState::default()
+    };
     app.git_changed_files =
         ["root.md", "sp6/原始视频.mov", "sp7/.shiju/配置.json", "closed/child.txt"]
             .map(str::to_owned)

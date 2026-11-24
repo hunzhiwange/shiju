@@ -422,12 +422,14 @@ async fn load_runtime_defaults_reads_toml_config_and_policy() {
     let mut mode_by_channel = HashMap::new();
     mode_by_channel.insert("telegram".to_string(), NonCliNaturalLanguageApprovalMode::Direct);
 
-    let mut config = Config::default();
-    config.default_provider = Some("openrouter".to_string());
-    config.default_model = Some("runtime-model".to_string());
-    config.default_temperature = 0.35;
-    config.api_key = Some(encrypted);
-    config.api_url = Some("https://runtime.example.test/v1".to_string());
+    let mut config = Config {
+        default_provider: Some("openrouter".to_string()),
+        default_model: Some("runtime-model".to_string()),
+        default_temperature: 0.35,
+        api_key: Some(encrypted),
+        api_url: Some("https://runtime.example.test/v1".to_string()),
+        ..Config::default()
+    };
     config.reliability.provider_retries = 7;
     config.autonomy.auto_approve = vec!["shell".to_string()];
     config.autonomy.always_ask = vec!["file_write".to_string()];
@@ -527,12 +529,14 @@ async fn maybe_apply_runtime_config_update_applies_changed_config_to_runtime_sta
     let mut mode_by_channel = HashMap::new();
     mode_by_channel.insert("telegram".to_string(), NonCliNaturalLanguageApprovalMode::Disabled);
 
-    let mut config = Config::default();
-    config.default_provider = Some("custom:https://llm.example.test/v1".to_string());
-    config.default_model = Some("runtime-reload-model".to_string());
-    config.default_temperature = 0.12;
-    config.api_key = Some("runtime-key".to_string());
-    config.api_url = Some("https://runtime-reload.example.test/v1".to_string());
+    let mut config = Config {
+        default_provider: Some("custom:https://llm.example.test/v1".to_string()),
+        default_model: Some("runtime-reload-model".to_string()),
+        default_temperature: 0.12,
+        api_key: Some("runtime-key".to_string()),
+        api_url: Some("https://runtime-reload.example.test/v1".to_string()),
+        ..Config::default()
+    };
     config.autonomy.auto_approve = vec!["mock_price".to_string()];
     config.autonomy.always_ask = vec!["shell".to_string()];
     config.autonomy.non_cli_excluded_tools = vec!["browser".to_string(), "fs".to_string()];

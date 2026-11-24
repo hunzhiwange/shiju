@@ -118,7 +118,6 @@ fn acp_model_source_copilot_conflicting_account_environment_is_rejected() {
             command: "copilot".into(),
             args: vec!["--acp".into(), "--stdio".into()],
             env: std::collections::HashMap::from([(key.into(), "conflicting".into())]),
-            ..Default::default()
         };
         let mut profile = AcpLaunchProfile::new(
             &config,

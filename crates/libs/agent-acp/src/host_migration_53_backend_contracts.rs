@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use tempfile::TempDir;
 use acp_server::server::{
-    BackendCancelHandle, BackendEvent, BackendTermination, BackendPrompt,
+    BackendEvent, BackendTermination, BackendPrompt,
     SessionBackend,
 };
 use vw_api_transport::id::TenantScope;

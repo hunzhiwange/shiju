@@ -15,7 +15,7 @@ desktop-release = { path = "../desktop-release" }
 update-types = { path = "../update-types" }
 anyhow = "1"
 config-runtime-paths = { path = "../config-runtime-paths" }
-directories = "5"
+directories = "6"
 iced = { version = "0.14", features = ["tokio"] }
 open = "5"
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls"] }

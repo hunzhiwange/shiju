@@ -64,7 +64,7 @@ fn supported_external_apps_is_empty_without_cached_targets() {
 
 #[test]
 fn open_external_module_builds_empty_element_outside_project_screen() {
-    let mut app = Fixture {
+    let app = Fixture {
         screen: Screen::Home,
         ..Default::default()
     };

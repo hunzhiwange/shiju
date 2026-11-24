@@ -18,14 +18,14 @@ fn configured_datetime_uses_iana_timezone() {
     let utc = Utc.with_ymd_and_hms(2026, 1, 15, 0, 30, 0).unwrap();
 
     assert_eq!(
-        configured_datetime_at(utc, chrono_tz::Asia::Shanghai),
+        configured_datetime_at(utc, runtime_time::zones::SHANGHAI),
         "2026-01-15 08:30:00 +08:00 (Asia/Shanghai)"
     );
     assert_eq!(
-        configured_datetime_at(utc, chrono_tz::America::New_York),
+        configured_datetime_at(utc, runtime_time::zones::NEW_YORK),
         "2026-01-14 19:30:00 -05:00 (America/New_York)"
     );
-    assert_eq!(parse_timezone("Asia/Shanghai").unwrap(), chrono_tz::Asia::Shanghai);
+    assert_eq!(parse_timezone("Asia/Shanghai").unwrap(), runtime_time::zones::SHANGHAI);
     assert!(
         parse_timezone("Mars/Olympus_Mons")
             .unwrap_err()

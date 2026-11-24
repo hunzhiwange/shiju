@@ -133,6 +133,7 @@ pub struct LoopServices<C: ContextHost, T> {
     pub scrub_credentials: fn(&str) -> String,
     pub llm_round: for<'a> fn(RoundRequest<'a>) -> LoopFuture<'a, Result<LlmRoundResult<T>>>,
     pub execute_tools: for<'a> fn(ToolRoundRequest<'a, C, T>) -> LoopFuture<'a, Result<()>>,
+    #[expect(clippy::type_complexity, reason = "Preserve the host callback signature")]
     pub stop_hook: for<'a> fn(Arc<ToolUseContext<C>>, bool, bool, Option<&'a str>) -> LoopFuture<'a, Result<TurnEndOutcome>>,
     pub cancel_descendants: fn(&str, &[String]) -> Result<usize>,
     pub descendant_snapshots: fn(&str, &[String]) -> Result<Vec<ChildAgentTaskSnapshot>>,
@@ -159,6 +160,7 @@ pub async fn integrate<C: ContextHost,T>(services: &LoopServices<C,T>, context: 
     }
     consume(services, context, history)
 }
+#[expect(clippy::too_many_arguments, reason = "Keep the existing request forwarding interface")]
 pub async fn run_tool_call_loop_with_skills<H, C, T>(
     services: &LoopServices<C, T>,
     provider: &dyn Provider,

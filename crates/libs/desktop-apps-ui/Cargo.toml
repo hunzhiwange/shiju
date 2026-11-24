@@ -8,7 +8,7 @@ doctest = false
 [dependencies]
 config-ui = { path = "../config-ui" }
 gateway-aggregation-codex = { path = "../gateway-aggregation-codex" }
-serde_yaml = "0.9"
+serde_yaml.workspace = true
 gateway-app-provider = { path = "../gateway-app-provider" }
 gateway-http = { path = "../gateway-http" }
 vw-api-app-provider-terminal = { path = "../api-app-provider-terminal" }

@@ -9,7 +9,7 @@ doctest = false
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow = "1"
-async-imap = { version = "0.11", features = ["runtime-tokio"], default-features = false }
+async-imap = { version = "0.12", features = ["runtime-tokio"], default-features = false }
 async-trait = "0.1.89"
 channel-types = { path = "../channel-types" }
 chrono = "0.4"

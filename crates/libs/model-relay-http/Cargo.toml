@@ -39,7 +39,7 @@ tokio = { version = "1", features = ["io-util", "process", "test-util"] }
 agent-auth = { path = "../agent-auth" }
 agent-provider = { path = "../agent-provider" }
 model-reasoning = { path = "../model-reasoning" }
-chrono = "0.4"
+runtime-time = { path = "../runtime-time" }
 agent-config = { path = "../agent-config", features = ["test-support"] }
 agent-project = { path = "../agent-project", features = ["test-support"] }
 agent-database = { path = "../agent-database", features = ["test-support"] }

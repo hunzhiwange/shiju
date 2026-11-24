@@ -111,7 +111,7 @@ fn execute(policy: Policy, tenant: TenantScope, headers: HeaderMap, request: Rea
         None => UsageQuery { range: UsageRange::All, filter: UsageFilter::default(), cursor: None, limit: None },
     };
     let zone = request.time_zone.as_deref().unwrap_or("UTC");
-    let now = UsageUnixSeconds(chrono::Utc::now().timestamp());
+    let now = UsageUnixSeconds(runtime_time::unix_seconds());
     let range = ranges::resolve_usage_range(&query.range, zone, now).map_err(|_| StatusCode::BAD_REQUEST)?;
     if query.limit.is_some_and(|v| v == 0 || v > logs::MAX_USAGE_LOG_PAGE_SIZE)
         || (!matches!(kind, Read::Logs) && query.cursor.is_some())

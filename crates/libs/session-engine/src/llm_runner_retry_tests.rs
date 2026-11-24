@@ -7,9 +7,7 @@ use std::collections::{HashSet, VecDeque};
 use std::sync::{LazyLock, Mutex};
 use tool_types::ToolSpec;
 
-#[path = "llm_runner_test_support.rs"]
-mod support;
-use support::usage;
+use super::test_support::usage;
 
 static STREAMS: LazyLock<Mutex<VecDeque<Vec<llm::StreamEvent>>>> =
     LazyLock::new(|| Mutex::new(VecDeque::new()));

@@ -16,9 +16,11 @@ use iced::widget::button;
 use iced::{Background, Color, Element, Font, Pixels, Rectangle, Size, Theme, Vector};
 
 fn app_with_clipboard() -> ViewState {
-    let mut app = ViewState::default();
-    app.can_paste = true;
-    app
+
+    ViewState {
+        can_paste: true,
+        ..ViewState::default()
+    }
 }
 
 fn menu_item_count(element: &Element<'_, crate::Message>) -> usize {

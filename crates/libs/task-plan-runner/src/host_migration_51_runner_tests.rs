@@ -475,10 +475,6 @@ fn event_kind(event: &TaskPlanRunStreamEventDto) -> &'static str {
     }
 }
 
-fn plan_dir_exists(home: &Path, task_id: &str) -> bool {
-    crate::plan_dir_abs(home, task_id).join("tasks.json").is_file()
-}
-
 #[tokio::test]
 async fn run_plan_delays_subtask_finished_until_nested_agents_are_terminal() {
     crate::test_host::install();

@@ -267,7 +267,7 @@ pub fn build_system_prompt_with_mode(
     bootstrap_max_chars: Option<usize>,
     native_tools: bool,
     skills_prompt_mode: agent_config::runtime_schema::SkillsPromptInjectionMode,
-    timezone: chrono_tz::Tz,
+    timezone: runtime_time::zones::NamedTimeZone,
     recursive_policy: &str,
 ) -> String {
     use std::fmt::Write;

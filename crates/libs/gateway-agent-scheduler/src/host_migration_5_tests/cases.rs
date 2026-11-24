@@ -2137,13 +2137,6 @@ async fn scheduler_task_board_command_payload_errors_are_reported_before_store_m
     }
 }
 
-fn default_context() -> AgentSchedulerContext {
-    let tenant = TenantScope::new("default-platform", "default-company").expect("tenant");
-    let scope = ProjectScope::new(tenant, ProjectId::from("default-project")).expect("scope");
-    AgentSchedulerContext::new(AgentSchedulerScope::new(scope), "/tmp/default-project")
-        .expect("context")
-}
-
 fn create_task_request(task_id: &str) -> AgentSchedulerCreateTaskRequest {
     AgentSchedulerCreateTaskRequest {
         placement: None,
@@ -2358,36 +2351,6 @@ async fn wait_for_store_log(
     panic!("timed out waiting for store log message {message}");
 }
 
-async fn wait_for_store_artifact(
-    store: &AgentSchedulerStore,
-    project_path: &std::path::Path,
-    task_id: &TaskId,
-    kind: &str,
-) -> Vec<StoredTaskArtifact> {
-    for _ in 0..50 {
-        let artifacts = store.list_task_artifacts(project_path, task_id).expect("artifacts");
-        if artifacts.iter().any(|artifact| artifact.kind == kind) {
-            return artifacts;
-        }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-
-    panic!("timed out waiting for store artifact kind {kind}");
-}
-
-fn encode_path_segment(value: &str) -> String {
-    let mut encoded = String::new();
-    for byte in value.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
-                encoded.push(char::from(byte));
-            }
-            _ => encoded.push_str(&format!("%{byte:02X}")),
-        }
-    }
-    encoded
-}
-
 fn task_graph_edge(
     predecessor_task_id: &str,
     successor_task_id: &str,
@@ -2595,30 +2558,6 @@ where
     )
     .await
     .expect("response")
-}
-
-fn workflow_status_with_transitions(
-    key: &str,
-    role: TaskPoolWorkflowStatusRoleDto,
-    transitions: Vec<TaskPoolWorkflowTransitionDto>,
-) -> TaskPoolWorkflowStatusDto {
-    TaskPoolWorkflowStatusDto {
-        key: key.to_string(),
-        label: key.to_string(),
-        role,
-        enabled: true,
-        terminal: false,
-        next: None,
-        transitions,
-    }
-}
-
-fn workflow_transition(outcome: &str, target: &str) -> TaskPoolWorkflowTransitionDto {
-    TaskPoolWorkflowTransitionDto {
-        outcome: outcome.to_string(),
-        label: None,
-        target: target.to_string(),
-    }
 }
 
 fn run_test_git(repo: &std::path::Path, args: &[&str]) {
@@ -3400,7 +3339,7 @@ async fn exercise_persisted_work_plan(
     let tasks = format!("{route}/tasks");
     let commands = format!("{route}/commands");
     let wake_route = format!("{route}/wake");
-    let now = || TimestampMs(chrono::Utc::now().timestamp_millis());
+    let now = || TimestampMs(runtime_time::unix_millis());
 
     let builtin = task_scheduler::lifecycle_bridge::builtin_task_workflow_snapshot();
     gateway.store.save_task_board_workflow(&context, &builtin)?;

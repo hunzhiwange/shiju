@@ -59,8 +59,10 @@ fn stdio_command(server: &McpServer) -> &str {
 #[test]
 fn plugin_mcp_discovery_options_use_config_parent_or_workspace_fallback() {
     let workspace_dir = PathBuf::from("/workspace/project");
-    let mut config = Config::default();
-    config.workspace_dir = workspace_dir.clone();
+    let mut config = Config {
+        workspace_dir: workspace_dir.clone(),
+        ..Config::default()
+    };
     config.config_path = PathBuf::from("/config/vibewindow.json");
     config.plugins.enabled = vec!["selected-plugin".to_string()];
     config.plugins.sources = vec!["extra-plugins".to_string()];

@@ -109,7 +109,7 @@ fn boundary_date(draft: &CronScheduleDraft, end: bool) -> Option<NaiveDate> {
         return value;
     }
     let absolute = if end { draft.ends_at } else { draft.starts_at }?;
-    let timezone = draft.timezone.parse::<chrono_tz::Tz>().ok()?;
+    let timezone = draft.timezone.parse::<runtime_time::zones::NamedTimeZone>().ok()?;
     let date = absolute.with_timezone(&timezone).date_naive();
     if end { date.pred_opt() } else { Some(date) }
 }
@@ -311,7 +311,7 @@ pub(super) fn frequency_form<'a>(
             changed(editing, next)
         }),
     );
-    if current.timezone.parse::<chrono_tz::Tz>().is_err() {
+    if current.timezone.parse::<runtime_time::zones::NamedTimeZone>().is_err() {
         form = form.push(super::settings_error_banner(i18n.__("请选择有效的 IANA 时区")));
     }
     if !matches!(current.rule, R::At { .. } | R::AbsoluteAt(_)) {
@@ -436,7 +436,7 @@ pub(super) fn preview<'a>(i18n: I18n, draft: &CronJobDraft, editing: bool) -> El
                 let local = chrono::DateTime::parse_from_rfc3339(value)
                     .ok()
                     .and_then(|date| {
-                        current.timezone.parse::<chrono_tz::Tz>().ok().map(|tz| {
+                        current.timezone.parse::<runtime_time::zones::NamedTimeZone>().ok().map(|tz| {
                             date.with_timezone(&tz).format("%Y-%m-%d %H:%M %Z").to_string()
                         })
                     })

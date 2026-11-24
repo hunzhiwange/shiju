@@ -106,12 +106,12 @@ impl Provider for StaticProvider {
 }
 
 fn config_in(temp: &TempDir) -> Config {
-    let mut config = Config {
+
+    Config {
         config_path: temp.path().join("vibewindow.json"),
         workspace_dir: temp.path().join("workspace"),
         ..Default::default()
-    };
-    config
+    }
 }
 
 fn state_with(config: Config, require_pairing: bool, token: Option<&str>) -> AppState {
@@ -410,8 +410,6 @@ async fn integration_credentials_put_reports_unchanged_when_revision_is_same() {
 #[tokio::test]
 async fn integration_credentials_put_saves_and_updates_state() {
     let _async_env_lock = super::global_async_env_lock().lock().await;
-    let _env_lock =
-        super::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
     let temp = tempfile::tempdir().expect("tempdir");
     let _home = HomeEnvGuard::set(temp.path());
     let state = state_with(config_in(&temp), false, None);
@@ -452,8 +450,6 @@ async fn integration_credentials_put_saves_and_updates_state() {
 #[tokio::test]
 async fn integration_credentials_put_accepts_valid_bearer_token() {
     let _async_env_lock = super::global_async_env_lock().lock().await;
-    let _env_lock =
-        super::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
     let temp = tempfile::tempdir().expect("tempdir");
     let _home = HomeEnvGuard::set(temp.path());
     let state = state_with(config_in(&temp), true, Some("paired-token"));
@@ -477,8 +473,6 @@ async fn integration_credentials_put_accepts_valid_bearer_token() {
 #[tokio::test]
 async fn integration_credentials_put_reports_config_persistence_failure() {
     let _async_env_lock = super::global_async_env_lock().lock().await;
-    let _env_lock =
-        super::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
     let temp = tempfile::tempdir().expect("tempdir");
     let invalid_home = temp.path().join("not-a-directory");
     std::fs::write(&invalid_home, "fixture").expect("invalid home fixture");

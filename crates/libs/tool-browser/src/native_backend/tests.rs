@@ -100,9 +100,9 @@ async fn mock_webdriver_handler(
         && state.active_element_missing.load(Ordering::SeqCst)
     {
         Value::Null
-    } else if method == "GET" && path.ends_with("/element/active") {
-        json!({"element-6066-11e4-a52e-4f735466cecf": MOCK_ELEMENT_ID})
-    } else if method == "POST" && path.ends_with("/element") {
+    } else if (method == "GET" && path.ends_with("/element/active"))
+        || (method == "POST" && path.ends_with("/element"))
+    {
         json!({"element-6066-11e4-a52e-4f735466cecf": MOCK_ELEMENT_ID})
     } else if method == "GET" && path.ends_with("/text") {
         json!("Mock element text")

@@ -23,11 +23,14 @@ pub struct ToolExecutionServices<C: ContextHost,T,P,O,N> {
     pub call_view: for<'a> fn(&'a T) -> CallView<'a>,
     pub pending_view: for<'a> fn(&'a P) -> CallView<'a>,
     pub pending_call: fn(String, Value, Option<String>) -> P,
+    #[expect(clippy::type_complexity, reason = "Preserve the host callback signature")]
     pub schedule: fn(&[P], &[Box<dyn Tool>]) -> Vec<ToolBatch<P>>,
     pub outcome_view: for<'a> fn(&'a O) -> OutcomeView<'a>,
     pub take_output: fn(O) -> String,
     pub failure: fn(String, String) -> O,
+    #[expect(clippy::type_complexity, reason = "Preserve the host callback signature")]
     pub execute_parallel: for<'a> fn(&'a [P], &'a [Box<dyn Tool>], &'a dyn Observer, Arc<ToolUseContext<C>>, Option<&'a CancellationToken>) -> LoopFuture<'a, Result<Vec<O>>>,
+    #[expect(clippy::type_complexity, reason = "Preserve the host callback signature")]
     pub execute_sequential: for<'a> fn(&'a [P], &'a [Box<dyn Tool>], &'a dyn Observer, Arc<ToolUseContext<C>>, Option<&'a CancellationToken>) -> LoopFuture<'a, Result<Vec<O>>>,
     pub inject_cron_delivery: fn(&str, &mut Value, &str, Option<&str>),
     pub call_signature: fn(&str, &Value) -> (String,String),
@@ -38,12 +41,14 @@ pub struct ToolExecutionServices<C: ContextHost,T,P,O,N> {
     pub serialize_native: fn(&N) -> Result<String>,
     pub ws_event_sentinel: &'static str,
     #[cfg(not(target_arch = "wasm32"))]
+    #[expect(clippy::type_complexity, reason = "Preserve the host callback signature")]
     pub native_search_history: fn(&C::ToolDiscoverySession, &ToolCall) -> Result<(N,N)>,
 }
 pub fn immediate_failure<C: ContextHost,T,P,O,N>(services: &ToolExecutionServices<C,T,P,O,N>, name: String, id: Option<String>, output: String) -> (String, Option<String>, O) {
     let outcome = (services.failure)(name.clone(), output);
     (name,id,outcome)
 }
+#[expect(clippy::too_many_arguments, reason = "Keep the existing request forwarding interface")]
 pub async fn execute_tool_calls_and_update_history<C: ContextHost, T, P, O, N>(
     services: &ToolExecutionServices<C,T,P,O,N>,
     history: &mut Vec<ChatMessage>,

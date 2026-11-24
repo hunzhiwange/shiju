@@ -320,7 +320,7 @@ fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngi
         max_history_messages: 10,
         min_memory_relevance_score: 0.5,
         turn_count: 0,
-        timezone: chrono_tz::Asia::Shanghai,
+        timezone: runtime_time::zones::SHANGHAI,
         hook_runtime: None,
         skill_session: None,
     }
@@ -876,7 +876,7 @@ async fn submit_message_timestamp_uses_configured_timezone() {
         ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("final answer", None))]);
     let provider_handle = provider.clone();
     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
-    engine.timezone = chrono_tz::Asia::Shanghai;
+    engine.timezone = runtime_time::zones::SHANGHAI;
 
     engine.submit_message("plain request").await.expect("submit should succeed");
 

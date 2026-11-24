@@ -174,11 +174,11 @@ fn persist_gateway_settings(app: &mut GatewaySettingsState) -> Effect {
 
     {
         let mut gateway = config_gateway::GatewayConfig {
-            port: port,
-            host: host,
-            auth_enabled: auth_enabled,
-            allow_public_bind: allow_public_bind,
-            skeys: skeys,
+            port,
+            host,
+            auth_enabled,
+            allow_public_bind,
+            skeys,
             require_pairing: false,
             ..Default::default()
         };

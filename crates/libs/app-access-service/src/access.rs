@@ -40,6 +40,7 @@ struct Principal {
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+#[expect(dead_code, reason = "Preserve legacy policy schema and gateway adapter contracts")]
 struct Grant {
     #[serde(default)]
     #[serde(rename = "device_sync_probe")]
@@ -204,6 +205,7 @@ struct Grant {
 #[cfg(target_os = "macos")]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+#[expect(dead_code, reason = "Preserve legacy policy schema and gateway adapter contracts")]
 struct RoutingAppPermit {
     project_id: ProjectId,
     app_id: AppId,
@@ -212,6 +214,7 @@ struct RoutingAppPermit {
 #[cfg(target_os = "macos")]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+#[expect(dead_code, reason = "Preserve legacy policy schema and gateway adapter contracts")]
 struct McpAcpReadPermit {
     project_id: ProjectId,
     session_id: vw_api_transport::SessionId,
@@ -240,6 +243,7 @@ pub struct McpProbePermit {
 
 #[cfg(target_os = "macos")]
 impl McpProbePermit {
+    #[expect(dead_code, reason = "Legacy policy scope matcher is retained for compatibility")]
     fn matches(&self, scope: &DiagnosticScope, id: &McpRecordId) -> bool {
         self.project_id == *scope.project.project_id()
             && self.app_id == scope.app_id
@@ -361,6 +365,7 @@ impl McpProbeAccess {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+#[expect(dead_code, reason = "Preserve legacy policy schema and gateway adapter contracts")]
 struct UsageReadPermit {
     project_id: vw_api_transport::ProjectId,
     app_id: vw_api_app_identity::AppId,
@@ -371,6 +376,7 @@ struct UsageReadPermit {
 #[cfg(target_os = "macos")]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+#[expect(dead_code, reason = "Preserve legacy policy schema and gateway adapter contracts")]
 struct UsageSettingsWritePermit {
     resource: UsageReadPermit,
     api_key_ref: Option<UsageCredentialId>,
@@ -378,6 +384,7 @@ struct UsageSettingsWritePermit {
 }
 
 #[cfg(target_os = "macos")]
+#[expect(dead_code, reason = "Preserve legacy policy schema and gateway adapter contracts")]
 impl UsageSettingsWritePermit {
     fn matches(
         &self,
@@ -394,6 +401,7 @@ impl UsageSettingsWritePermit {
 #[cfg(target_os = "macos")]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+#[expect(dead_code, reason = "Preserve legacy policy schema and gateway adapter contracts")]
 struct UsageScriptTestPermit {
     resource: UsageReadPermit,
     api_key_ref: Option<UsageCredentialId>,
@@ -401,6 +409,7 @@ struct UsageScriptTestPermit {
 }
 
 #[cfg(target_os = "macos")]
+#[expect(dead_code, reason = "Preserve legacy policy schema and gateway adapter contracts")]
 impl UsageScriptTestPermit {
     fn origin(
         &self,
@@ -724,6 +733,7 @@ pub fn authorize_identity_launch(
 }
 
 #[derive(Clone, Copy)]
+#[expect(dead_code, reason = "Preserve legacy policy schema and gateway adapter contracts")]
 enum Capability<'a> {
     UsageLedgerRead(&'a vw_api_transport::ProjectId),
     DataBackups(&'a vw_api_transport::ProjectId),
@@ -870,6 +880,7 @@ pub fn authorize_usage_cancel(
     )
 }
 
+#[expect(dead_code, reason = "Preserve legacy policy schema and gateway adapter contracts")]
 impl UsageReadPermit {
     fn matches(&self, query: &vw_api_apps_usage::apps_usage::UsageSnapshotQuery) -> bool {
         self.project_id == query.project_id
@@ -1022,14 +1033,26 @@ use gateway_execution::gateway_host;
 #[cfg(target_os = "macos")]
 use gateway_execution::gateway_mcp_permit;
 
-fn load(path: &Path) -> Result<Policy, ()> {
+/// Policy load or startup validation failed. Details stay out of request responses.
+#[derive(Clone, Copy, Debug)]
+pub struct PolicyError;
+
+impl std::fmt::Display for PolicyError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("application access policy unavailable")
+    }
+}
+
+impl std::error::Error for PolicyError {}
+
+fn load(path: &Path) -> Result<Policy, PolicyError> {
     if !path.is_absolute() {
-        return Err(());
+        return Err(PolicyError);
     }
     #[cfg(not(unix))]
     {
         let _ = path;
-        Err(())
+        Err(PolicyError)
     }
     #[cfg(unix)]
     {
@@ -1040,20 +1063,20 @@ fn load(path: &Path) -> Result<Policy, ()> {
         let directory = std::fs::OpenOptions::new()
             .read(true)
             .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
-            .open(path.parent().ok_or(())?)
-            .map_err(|_| ())?;
-        let parent = directory.metadata().map_err(|_| ())?;
+            .open(path.parent().ok_or(PolicyError)?)
+            .map_err(|_| PolicyError)?;
+        let parent = directory.metadata().map_err(|_| PolicyError)?;
         // The configured directory must not allow another OS principal to replace grants.
         let uid = unsafe { libc::geteuid() };
         if !parent.is_dir()
             || parent.mode() & 0o022 != 0
             || (parent.uid() != uid && parent.uid() != 0)
         {
-            return Err(());
+            return Err(PolicyError);
         }
         use std::os::unix::ffi::OsStrExt;
         let name =
-            std::ffi::CString::new(path.file_name().ok_or(())?.as_bytes()).map_err(|_| ())?;
+            std::ffi::CString::new(path.file_name().ok_or(PolicyError)?.as_bytes()).map_err(|_| PolicyError)?;
         // Keep the validated directory open so path replacement cannot change its identity.
         // SAFETY: directory is live and name is a NUL-terminated single path component.
         let fd = unsafe {
@@ -1064,24 +1087,24 @@ fn load(path: &Path) -> Result<Policy, ()> {
             )
         };
         if fd < 0 {
-            return Err(());
+            return Err(PolicyError);
         }
         // SAFETY: openat returned an owned descriptor, consumed exactly once here.
         let file = unsafe { std::fs::File::from_raw_fd(fd) };
-        let metadata = file.metadata().map_err(|_| ())?;
+        let metadata = file.metadata().map_err(|_| PolicyError)?;
         if !metadata.is_file()
             || metadata.mode() & 0o077 != 0
             || (metadata.uid() != uid && metadata.uid() != 0)
             || metadata.len() > 65536
         {
-            return Err(());
+            return Err(PolicyError);
         }
         let mut bytes = Vec::new();
-        file.take(65537).read_to_end(&mut bytes).map_err(|_| ())?;
+        file.take(65537).read_to_end(&mut bytes).map_err(|_| PolicyError)?;
         if bytes.len() > 65536 {
-            return Err(());
+            return Err(PolicyError);
         }
-        let policy: Policy = serde_json::from_slice(&bytes).map_err(|_| ())?;
+        let policy: Policy = serde_json::from_slice(&bytes).map_err(|_| PolicyError)?;
         let mut ids = HashSet::new();
         let mut services = Vec::new();
         for host in &policy.hosts {
@@ -1117,7 +1140,7 @@ fn load(path: &Path) -> Result<Policy, ()> {
                 || host.search_paths.len() > 64
                 || host.search_paths.iter().any(|p| !p.is_absolute())
             {
-                return Err(());
+                return Err(PolicyError);
             }
         }
         let mut principals = HashSet::new();
@@ -1140,7 +1163,7 @@ fn load(path: &Path) -> Result<Policy, ()> {
                             .any(|p| vw_agent_apps::providers::validate_identity(&p.id).is_err())
                 })
             {
-                return Err(());
+                return Err(PolicyError);
             }
         }
         Ok(policy)
@@ -1237,7 +1260,7 @@ pub struct RoutingSetup {
 
 /// One explicit administrator policy governs the gateway's single listener.
 #[cfg(target_os = "macos")]
-pub fn routing_setup(path: &Path) -> Result<RoutingSetup, ()> {
+pub fn routing_setup(path: &Path) -> Result<RoutingSetup, PolicyError> {
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     let bind = |config: Option<&RoutingStartup>| {
@@ -1247,7 +1270,7 @@ pub fn routing_setup(path: &Path) -> Result<RoutingSetup, ()> {
             .to_canonical();
         let port = config.map_or(15721, |config| config.listen_port);
         if !ip.is_loopback() || (1..1024).contains(&port) {
-            return Err(());
+            return Err(PolicyError);
         }
         Ok(SocketAddr::new(ip, port))
     };
@@ -1259,7 +1282,7 @@ pub fn routing_setup(path: &Path) -> Result<RoutingSetup, ()> {
     });
     let startup = enabled.next();
     if enabled.next().is_some() {
-        return Err(());
+        return Err(PolicyError);
     }
     let startup_address = startup.map(|host| bind(host.routing_startup.as_ref())).transpose()?;
 
@@ -1276,12 +1299,12 @@ pub fn routing_setup(path: &Path) -> Result<RoutingSetup, ()> {
                     || grant.host_id != owner.host_id
             })
         {
-            return Err(());
+            return Err(PolicyError);
         }
         let tenant = TenantScope::new(owner.platform_id.clone(), owner.company_id.clone())
-            .map_err(|_| ())?;
-        let host = policy.hosts.iter().find(|host| host.id == owner.host_id).ok_or(())?;
-        vw_agent_apps::providers::validate_identity(&host.id).map_err(|_| ())?;
+            .map_err(|_| PolicyError)?;
+        let host = policy.hosts.iter().find(|host| host.id == owner.host_id).ok_or(PolicyError)?;
+        vw_agent_apps::providers::validate_identity(&host.id).map_err(|_| PolicyError)?;
         Some(RoutingControlScope {
             tenant,
             host: host.id.clone(),
@@ -1344,7 +1367,7 @@ pub fn authorize_routing_mode(
 /// Startup consumes the same administrator-owned host identities and private
 /// roots as account execution. No request path, token or ambient HOME fallback.
 #[cfg(target_os = "macos")]
-pub fn recover_provider_policy(path: &Path) -> Result<(), ()> {
+pub fn recover_provider_policy(path: &Path) -> Result<(), PolicyError> {
     use vw_agent_apps::providers::live::{
         commit::{ExecutionHostId, ProviderTransactions},
         recovery::RecoveryOutcome,
@@ -1358,22 +1381,22 @@ pub fn recover_provider_policy(path: &Path) -> Result<(), ()> {
             continue;
         };
         // Unused hosts have no transactions. Do not provision a root at startup.
-        if !root.join("provider-live").try_exists().map_err(|_| ())? {
+        if !root.join("provider-live").try_exists().map_err(|_| PolicyError)? {
             continue;
         }
         let transactions =
-            ProviderTransactions::new(&root, ExecutionHostId::new(&host.id).map_err(|_| ())?)
-                .map_err(|_| ())?;
+            ProviderTransactions::new(&root, ExecutionHostId::new(&host.id).map_err(|_| PolicyError)?)
+                .map_err(|_| PolicyError)?;
         let login = if host.home.join(".claude").exists() {
             Some(
                 vw_agent_apps::providers::claude_login::LoginHost::open(&host.home)
-                    .map_err(|_| ())?,
+                    .map_err(|_| PolicyError)?,
             )
         } else {
             None
         };
         if let Some(login) = &login
-            && !login.journal_matches_host(&transactions).map_err(|_| ())?
+            && !login.journal_matches_host(&transactions).map_err(|_| PolicyError)?
         {
             tracing::warn!(
                 "provider recovery deferred; login intent belongs to another execution host"
@@ -1385,7 +1408,7 @@ pub fn recover_provider_policy(path: &Path) -> Result<(), ()> {
         let settle_login = match login.as_ref().map(|login| login.recover(&transactions, &keychain))
         {
             Some(Err(WriteError::Recovered)) => login.as_ref(),
-            Some(Err(_)) => return Err(()),
+            Some(Err(_)) => return Err(PolicyError),
             Some(Ok(())) | None => None,
         };
         for (app, outcome) in transactions.recover_on_startup() {
@@ -1405,7 +1428,7 @@ pub fn recover_provider_policy(path: &Path) -> Result<(), ()> {
             }
         }
         if let Some(login) = settle_login {
-            login.recover(&transactions, &keychain).map_err(|_| ())?;
+            login.recover(&transactions, &keychain).map_err(|_| PolicyError)?;
         }
     }
     Ok(())
@@ -1450,7 +1473,7 @@ pub fn authorize_provider_login(
 pub fn import_provider_policy(
     path: &Path,
     database: &agent_database::GlobalDatabase,
-) -> Result<(), ()> {
+) -> Result<(), PolicyError> {
     let policy = load(path)?;
     for principal in &policy.principals {
         for grant in &principal.grants {
@@ -1464,8 +1487,8 @@ pub fn import_provider_policy(
             else {
                 continue;
             };
-            let tenant = TenantScope::new(&grant.platform_id, &grant.company_id).map_err(|_| ())?;
-            let store = app_provider_services::AppProviderStore::new(database.clone()).map_err(|_| ())?;
+            let tenant = TenantScope::new(&grant.platform_id, &grant.company_id).map_err(|_| PolicyError)?;
+            let store = app_provider_services::AppProviderStore::new(database.clone()).map_err(|_| PolicyError)?;
             for app in [AppId::Claude, AppId::Codex, AppId::Gemini, AppId::GrokBuild, AppId::Agy] {
                 if store.import_native(&tenant, &host.home, app,
                     vw_api_app_provider_edit::import::ImportTrigger::Startup).is_err() {
@@ -1899,6 +1922,7 @@ pub fn authorize_project_profiles_maintenance(
 
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[expect(dead_code, reason = "Preserve legacy policy schema and gateway adapter contracts")]
 struct ExternalHistoryPermit {
     project_id: vw_api_transport::ProjectId,
     provider: vw_api_external_session::SessionProvider,

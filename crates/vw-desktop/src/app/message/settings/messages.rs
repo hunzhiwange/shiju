@@ -14,20 +14,8 @@ pub type SettingsMessage = desktop_settings_shell::messages::SettingsMessage<
 >;
 
 #[cfg(test)]
-pub use desktop_settings_shell::messages::BashPolicyCheck;
-#[cfg(test)]
-pub use desktop_settings_shell::messages::BashValidatorCheck;
-#[cfg(test)]
 pub use desktop_settings_shell::messages::EmbeddingRoutesMessage;
 #[cfg(test)]
 pub use desktop_settings_shell::messages::MultimodalMessage;
 #[cfg(test)]
 pub use desktop_settings_shell::messages::StorageMessage;
-#[cfg(test)]
-pub use desktop_settings_shell::messages::ThemeChromeField;
-#[cfg(test)]
-pub use desktop_settings_shell::messages::ThemeColorPickerTarget;
-#[cfg(test)]
-pub use desktop_settings_shell::messages::ThemePaletteField;
-#[cfg(test)]
-pub use desktop_settings_shell::messages::TunnelMessage;

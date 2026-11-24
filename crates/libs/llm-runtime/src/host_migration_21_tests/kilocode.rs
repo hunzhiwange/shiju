@@ -71,7 +71,6 @@ fn acp_model_source_kilocode_rejects_conflicting_config_and_sensitive_arguments(
             command: "kilocode".into(),
             args: vec!["acp".into()],
             env: [("KILO_CONFIG_CONTENT".into(), "{}".into())].into(),
-            ..Default::default()
         },
     ] {
         let mut profile = configured_profile(config);

@@ -198,25 +198,25 @@ pub async fn create_next<H: LifecycleHost>(input: CreateInput) -> Result<Info, E
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn reserve_next<H: LifecycleHost>(input: CreateInput) -> Result<Info, Error> {
-    reserve_info::<H>(new_info::<H>(input)?).await
+    reserve_info(new_info::<H>(input)?).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn reserve_visible_task<H: LifecycleHost>(input: CreateInput) -> Result<Info, Error> {
     let mut info = new_info::<H>(input)?;
     info.slug = Info::visible_task_slug(&info.slug);
-    reserve_info::<H>(info).await
+    reserve_info(info).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn reserve_child_agent<H: LifecycleHost>(input: CreateInput) -> Result<Info, Error> {
     let mut info = new_info::<H>(input)?;
     info.mark_agent_tool();
-    reserve_info::<H>(info).await
+    reserve_info(info).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn reserve_info<H: LifecycleHost>(info: Info) -> Result<Info, Error> {
+async fn reserve_info(info: Info) -> Result<Info, Error> {
     let _worktree_use = worktree_core::registry::use_lease(std::path::Path::new(&info.directory))
         .map_err(|error| Error::Runtime(anyhow::Error::new(error)))?;
     let tenant = session_store::ui_store::current_tenant_scope();
@@ -417,7 +417,7 @@ pub async fn list_for_project<H: LifecycleHost>(project_id: String) -> Result<Ve
     for info in &mut out {
         project_fork::<H>(info).await?;
     }
-    out.sort_by(|a, b| b.time.updated.cmp(&a.time.updated));
+    out.sort_by_key(|entry| std::cmp::Reverse(entry.time.updated));
     Ok(out)
 }
 
@@ -468,7 +468,7 @@ pub async fn list_all<H: LifecycleHost>() -> Result<Vec<Info>, Error> {
     for info in &mut out {
         project_fork::<H>(info).await?;
     }
-    out.sort_by(|a, b| b.time.updated.cmp(&a.time.updated));
+    out.sort_by_key(|entry| std::cmp::Reverse(entry.time.updated));
     Ok(out)
 }
 

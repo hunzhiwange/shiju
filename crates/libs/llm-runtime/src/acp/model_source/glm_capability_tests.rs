@@ -6,8 +6,7 @@ use vw_api_acp_model::acp_model_source::{
     AcpModelSourceRejectionReason as Reason,
 };
 
-#[path = "../../aisdk/convert_test_support.rs"]
-mod models;
+use crate::convert_test_support as models;
 
 const AGENT: &str = "glm-acp-agent";
 const SCENARIO: &str = "SHIJU_GLM_CAPABILITY_TEST_SCENARIO";

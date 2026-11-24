@@ -104,7 +104,7 @@ impl Decoder {
         event(value)
     }
     fn initial(&self) -> Value {
-        json!({"id":self.id,"object":"response","created_at":chrono::Utc::now().timestamp(),"model":self.model,"status":"in_progress","output":[],"usage":null,"error":null,"incomplete_details":null})
+        json!({"id":self.id,"object":"response","created_at":runtime_time::unix_seconds(),"model":self.model,"status":"in_progress","output":[],"usage":null,"error":null,"incomplete_details":null})
     }
     fn failure(&mut self, message: &str) -> String {
         let tail = self.flush_inline();

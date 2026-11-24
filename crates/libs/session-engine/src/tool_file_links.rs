@@ -8,10 +8,7 @@ use std::path::{Path, PathBuf};
 pub fn extract_file_link_blocks(s: &str) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     let mut i = 0usize;
-    loop {
-        let Some(start_rel) = s[i..].find("<file_link>") else {
-            break;
-        };
+    while let Some(start_rel) = s[i..].find("<file_link>") {
         let start = i + start_rel;
         let Some(end_rel) = s[start..].find("</file_link>") else {
             break;

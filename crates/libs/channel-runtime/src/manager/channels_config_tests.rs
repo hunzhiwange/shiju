@@ -461,13 +461,15 @@ impl Channel for InboundFixture {
 
 #[test]
 fn unavailable_channel_credentials_are_not_instantiated() {
-    let mut config = Config::default();
-    config.channels_config = serde_json::from_value(serde_json::json!({
-        "cli": true,
-        "discord": {"bot_token":"healthy", "allowed_users":[]},
-        "slack": {"bot_token":"enc2:not-hex"}
-    }))
-    .unwrap();
+    let mut config = Config {
+        channels_config: serde_json::from_value(serde_json::json!({
+                "cli": true,
+                "discord": {"bot_token":"healthy", "allowed_users":[]},
+                "slack": {"bot_token":"enc2:not-hex"}
+            }))
+            .unwrap(),
+        ..Config::default()
+    };
     config.channels_config.unavailable_channels.insert("slack:default".into());
     let channels = collect_configured_channels(&config, TenantScope::default(), "credential isolation test");
     let names = channel_names(&channels);
@@ -478,25 +480,27 @@ fn unavailable_channel_credentials_are_not_instantiated() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn named_qq_wecom_wechat_instances_start_with_separate_runtime_keys() {
-    let mut config = Config::default();
-    config.channels_config = serde_json::from_value(serde_json::json!({
-        "cli": true,
-        "qq_instances": [
-            {"id": "one", "app_id": "qq-one", "app_secret": "fixture", "receive_mode": "websocket"},
-            {"id": "two", "app_id": "qq-two", "app_secret": "fixture", "receive_mode": "websocket"},
-            {"id": "draft", "app_id": "", "app_secret": "", "receive_mode": "websocket"}
-        ],
-        "wecom_instances": [
-            {"id": "one", "bot_id": "wecom-one", "secret": "fixture"},
-            {"id": "two", "bot_id": "wecom-two", "secret": "fixture"}
-        ],
-        "wechat_instances": [
-            {"id": "one", "bot_token": "wechat-one"},
-            {"id": "two", "bot_token": "wechat-two"}
-        ],
-        "instance_default_projects": {"wecom:two": "project-two"}
-    }))
-    .unwrap();
+    let config = Config {
+        channels_config: serde_json::from_value(serde_json::json!({
+                "cli": true,
+                "qq_instances": [
+                    {"id": "one", "app_id": "qq-one", "app_secret": "fixture", "receive_mode": "websocket"},
+                    {"id": "two", "app_id": "qq-two", "app_secret": "fixture", "receive_mode": "websocket"},
+                    {"id": "draft", "app_id": "", "app_secret": "", "receive_mode": "websocket"}
+                ],
+                "wecom_instances": [
+                    {"id": "one", "bot_id": "wecom-one", "secret": "fixture"},
+                    {"id": "two", "bot_id": "wecom-two", "secret": "fixture"}
+                ],
+                "wechat_instances": [
+                    {"id": "one", "bot_token": "wechat-one"},
+                    {"id": "two", "bot_token": "wechat-two"}
+                ],
+                "instance_default_projects": {"wecom:two": "project-two"}
+            }))
+            .unwrap(),
+        ..Config::default()
+    };
     let channels = collect_configured_channels(&config, TenantScope::default(), "test");
     let keys: Vec<_> = channels
         .iter()

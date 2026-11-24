@@ -18,7 +18,7 @@ session-ui-types = { path = "../session-ui-types" }
 local-app-auth = { path = "../local-app-auth" }
 anyhow = "1"
 axum = { version = "0.8.8", features = ["json"] }
-chrono = "0.4"
+runtime-time = { path = "../runtime-time" }
 futures-util = "0.3.32"
 serde_json = "1"
 tokio = { version = "1", features = ["rt", "sync"] }

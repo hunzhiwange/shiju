@@ -1,6 +1,6 @@
 //! Provider routes with the existing tenant/project context adapter.
 use axum::{Router, http::HeaderMap};
-use gateway_provider::{HostFuture, InstanceQuery, ProviderHost};
+use gateway_provider::{HostFuture, InstanceQuery, ProviderHost, SettingsProviderList};
 use gateway_types::ApiError;
 use vw_api_transport::id::TenantScope;
 
@@ -8,7 +8,7 @@ struct Host;
 
 impl ProviderHost for Host {
     fn settings_provider_list() -> HostFuture<Result<
-        (std::collections::HashMap<String, agent_provider::provider::Info>, std::collections::HashMap<String, String>),
+        SettingsProviderList,
         agent_provider::provider::CatalogError,
     >> {
         Box::pin(crate::provider::provider::settings_provider_list())

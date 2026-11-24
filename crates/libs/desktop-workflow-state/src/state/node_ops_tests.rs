@@ -319,12 +319,14 @@ fn create_context_node_auto_connects_from_node_insert_menu() {
 
 #[test]
 fn create_context_node_from_canvas_inserts_without_auto_connect() {
-    let mut state = WorkflowState::default();
-    state.context_menu = Some(WorkflowCanvasContextMenu {
-        target: WorkflowCanvasContextMenuTarget::Canvas,
-        anchor: Point::new(2.0, 3.0),
-        world: Point::new(90.0, 100.0),
-    });
+    let mut state = WorkflowState {
+        context_menu: Some(WorkflowCanvasContextMenu {
+            target: WorkflowCanvasContextMenuTarget::Canvas,
+            anchor: Point::new(2.0, 3.0),
+            world: Point::new(90.0, 100.0),
+        }),
+        ..WorkflowState::default()
+    };
 
     state.create_context_node("answer").expect("context node should insert");
 

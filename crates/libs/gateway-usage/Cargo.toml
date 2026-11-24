@@ -21,7 +21,7 @@ app-usage-codex = { path = "../app-usage-codex" }
 app-lifecycle = { path = "../app-lifecycle" }
 anyhow = "1"
 axum = { version = "0.8.8", features = ["json"] }
-chrono = { version = "0.4", features = ["serde"] }
+runtime-time = { path = "../runtime-time" }
 futures-util = "0.3.32"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

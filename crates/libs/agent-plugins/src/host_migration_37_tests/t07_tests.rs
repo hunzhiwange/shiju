@@ -41,9 +41,11 @@ fn codex_plugin_compat_t07_preserves_healthy_skill_and_mcp_consumers() {
         &serde_json::to_vec(&value).unwrap(),
     );
     write_manifest(&source.join("b-broken"), ".codex-plugin/plugin.json", b"{");
-    let mut config = Config::default();
-    config.workspace_dir = workspace.clone();
-    config.config_path = config_dir.join("vibewindow.json");
+    let config = Config {
+        workspace_dir: workspace.clone(),
+        config_path: config_dir.join("vibewindow.json"),
+        ..Config::default()
+    };
     let skills = crate::skills::load_plugin_skills(&workspace, &config, SkillLoadMode::Full, &crate::discover_plugins);
     assert_eq!(skills.len(), 1);
     assert_eq!(skills[0].name, "kept-skill");

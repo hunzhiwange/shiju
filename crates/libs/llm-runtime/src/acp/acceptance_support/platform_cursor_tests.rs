@@ -4,8 +4,7 @@ use std::{path::Path, process::Command};
 
 use crate::acp::model_source::{launch_identity, prepare_profile};
 
-#[path = "../../aisdk/convert_test_support.rs"]
-mod models;
+use crate::convert_test_support as models;
 
 const MANIFEST: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

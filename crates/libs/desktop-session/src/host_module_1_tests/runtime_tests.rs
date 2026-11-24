@@ -565,7 +565,7 @@ fn historical_session_model_restore_preserves_existing_session_selection() {
 fn mark_session_acp_rebuild_required_sets_flag_and_clears_effective_agent() {
     let mut app = test_app();
     app.session_runtime_states.clear();
-    let mut runtime = SessionRuntimeState {
+    let runtime = SessionRuntimeState {
         last_effective_acp_agent: Some("old-agent".to_string()),
         ..Default::default()
     };

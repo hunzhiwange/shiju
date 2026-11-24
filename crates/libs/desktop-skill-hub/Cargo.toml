@@ -14,7 +14,7 @@ gateway-skill-market = { path = "../gateway-skill-market" }
 gateway-shiju-skill = { path = "../gateway-shiju-skill" }
 gateway-shiju-knowledge = { path = "../gateway-shiju-knowledge" }
 config-runtime-paths = { path = "../config-runtime-paths" }
-directories = "5"
+directories = "6"
 parking_lot = "0.12"
 tempfile = "3"
 zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2-zlib-rs"] }

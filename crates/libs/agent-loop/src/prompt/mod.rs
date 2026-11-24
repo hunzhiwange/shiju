@@ -41,7 +41,7 @@
 //!     skills_prompt_mode: SkillsPromptInjectionMode::Full,
 //!     identity_config: None,
 //!     dispatcher_instructions: "",
-//!     timezone: chrono_tz::Asia::Shanghai,
+//!     timezone: runtime_time::zones::SHANGHAI,
 //! };
 //! let prompt = builder.build(&ctx)?;
 //! ```
@@ -61,7 +61,7 @@ use agent_config::schema::IdentityConfig;
 use agent_skills::types::Skill;
 use tool_types::Tool;
 use anyhow::Result;
-use chrono_tz::Tz;
+use runtime_time::zones::NamedTimeZone as Tz;
 use std::fmt::Write;
 use std::path::Path;
 

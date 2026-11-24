@@ -190,7 +190,7 @@ fn builder_methods_expose_injected_runtime_capabilities() {
     let (progress_tx, _progress_rx) = tokio::sync::mpsc::channel(1);
     let (prompt_tx, _prompt_rx) = tokio::sync::mpsc::unbounded_channel();
     let abort_token = CancellationToken::new();
-    let mut security = SecurityPolicy {
+    let security = SecurityPolicy {
         workspace_dir: PathBuf::from("/secure-workspace"),
         ..Default::default()
     };

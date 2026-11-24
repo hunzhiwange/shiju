@@ -243,7 +243,7 @@ pub fn build_system_prompt(
     skills: &[skills::Skill],
     identity_config: Option<&agent_config::runtime_schema::IdentityConfig>,
     bootstrap_max_chars: Option<usize>,
-    timezone: chrono_tz::Tz,
+    timezone: runtime_time::zones::NamedTimeZone,
 ) -> String {
     // 使用默认模式调用完整版本的构建函数
     build_system_prompt_with_mode(
@@ -291,7 +291,7 @@ pub fn build_system_prompt(
 /// 7. 日期时间章节 — 当前时间
 /// 8. 运行时章节 — 主机信息
 /// 9. 通道能力章节 — 消息通道特性
-pub fn build_system_prompt_with_mode(workspace_dir: &Path, model_name: &str, tools: &[(&str, &str)], skills: &[skills::Skill], identity_config: Option<&agent_config::runtime_schema::IdentityConfig>, bootstrap_max_chars: Option<usize>, native_tools: bool, skills_prompt_mode: agent_config::runtime_schema::SkillsPromptInjectionMode, timezone: chrono_tz::Tz) -> String {
+pub fn build_system_prompt_with_mode(workspace_dir: &Path, model_name: &str, tools: &[(&str, &str)], skills: &[skills::Skill], identity_config: Option<&agent_config::runtime_schema::IdentityConfig>, bootstrap_max_chars: Option<usize>, native_tools: bool, skills_prompt_mode: agent_config::runtime_schema::SkillsPromptInjectionMode, timezone: runtime_time::zones::NamedTimeZone) -> String {
     channel_support::prompt::build_system_prompt_with_mode(workspace_dir, model_name, tools, skills, identity_config, bootstrap_max_chars, native_tools, skills_prompt_mode, timezone, agent_loop::prompt::multi_agent::recursive_orchestration_policy())
 }
 

@@ -62,6 +62,4 @@ fn config_access() -> desktop_config::ConfigAccess {
 }
 
 #[cfg(test)]
-pub(in crate::app) use desktop_config::access::apply_main_agent_overrides;
-#[cfg(test)]
 pub(super) use desktop_config::access::run_gateway_call;

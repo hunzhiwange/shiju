@@ -363,5 +363,3 @@ pub(crate) use messages::MemoryMessage;
 pub(crate) use messages::MultimodalMessage;
 #[cfg(test)]
 pub(crate) use messages::RuntimeMessage;
-#[cfg(test)]
-pub(crate) use messages::StorageMessage;

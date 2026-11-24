@@ -82,7 +82,7 @@ gateway-host-tools = { path = "../gateway-host-tools" }
 acp-config = { path = "../acp-config" }
 acp-types = { path = "../acp-types" }
 mcp-client = { path = "../mcp-client" }
-aisdk = { git = "https://github.com/hunzhiwange/aisdk.git", rev = "3401d28a7353c6e90cf4372f52c682cb2d02986b", package = "vibewindow-aisdk", version = ">=0.7.1", features = ["full"] }
+aisdk = { workspace = true, features = ["full"] }
 
 [dev-dependencies]
 session-store = { path = "../session-store", features = ["test-support"] }

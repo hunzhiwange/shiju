@@ -356,7 +356,7 @@ pub fn token(
     use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
     let payload = serde_json::to_vec(&json!({"kind":"aggregation_preview_v1","principal":principal,"scope":project,
         "targetHostId":host,"app":app,"revision":revision,"defaultProviderId":request.default_provider_id,
-        "catalogPolicy":request.catalog_policy,"expiresAt":chrono::Utc::now().timestamp()+120})).map_err(unavailable)?;
+        "catalogPolicy":request.catalog_policy,"expiresAt":runtime_time::unix_seconds()+120})).map_err(unavailable)?;
     Ok(format!("{}.{}", URL_SAFE_NO_PAD.encode(&payload), sign(&payload)?))
 }
 
@@ -413,11 +413,13 @@ fn read_native(home: &Path, relative: &str) -> Result<Option<Vec<u8>>, StatusCod
     Err(StatusCode::UNPROCESSABLE_ENTITY)
 }
 
+pub type CodexInputs<'a> = (Option<&'a [u8]>, Option<&'a [u8]>);
+
 /// Fixed Codex inputs already validated and included in the scoped revision.
 /// Official defaults require their account owner's verified login generation.
 pub fn codex_inputs(
     snapshot: &Snapshot,
-) -> Result<(Option<&[u8]>, Option<&[u8]>), StatusCode> {
+) -> Result<CodexInputs<'_>, StatusCode> {
     if snapshot.rows.iter().any(|(_, row)| row["category"] == "official") {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     }
@@ -467,7 +469,7 @@ pub fn verify_token(
         || value.target_host_id != host
         || value.app != app
         || value.revision != revision
-        || value.expires_at <= chrono::Utc::now().timestamp()
+        || value.expires_at <= runtime_time::unix_seconds()
     {
         return Err(conflict);
     }

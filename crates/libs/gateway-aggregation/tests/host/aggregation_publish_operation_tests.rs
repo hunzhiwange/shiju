@@ -5,7 +5,7 @@ fn aggregation_t41_signed_preview_expiry_and_subject_are_enforced() {
     use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
     let payload = json!({"kind":"aggregation_preview_v1","principal":"writer","scope":scope("project"),
         "targetHostId":"host","app":"claude","revision":"revision","defaultProviderId":null,
-        "catalogPolicy":"preserve","expiresAt":chrono::Utc::now().timestamp()-1});
+        "catalogPolicy":"preserve","expiresAt":runtime_time::unix_seconds()-1});
     let bytes = serde_json::to_vec(&payload).unwrap();
     let expired = format!("{}.{}", URL_SAFE_NO_PAD.encode(&bytes), sign(&bytes).unwrap());
     assert_eq!(

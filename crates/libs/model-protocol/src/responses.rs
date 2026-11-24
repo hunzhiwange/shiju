@@ -361,7 +361,7 @@ pub fn from_chat(
         }
     }
     Ok(
-        json!({"id":id,"object":"response","created_at":chrono::Utc::now().timestamp(),"model":model,"status":status,"output":output,"error":null,"incomplete_details":if status=="incomplete" {json!({"reason":"max_output_tokens"})}else{Value::Null},"usage":usage,"store":false}),
+        json!({"id":id,"object":"response","created_at":runtime_time::unix_seconds(),"model":model,"status":status,"output":output,"error":null,"incomplete_details":if status=="incomplete" {json!({"reason":"max_output_tokens"})}else{Value::Null},"usage":usage,"store":false}),
     )
 }
 

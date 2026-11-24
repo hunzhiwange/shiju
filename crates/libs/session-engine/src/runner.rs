@@ -897,7 +897,7 @@ pub fn run<H: RunnerHost>(
                     return;
                 }
             };
-            if !on_event(StreamEvent::LlmRawArtifact(raw_artifact)) {
+            if !on_event(StreamEvent::LlmRawArtifact(Box::new(raw_artifact))) {
                 return;
             }
         }

@@ -12,12 +12,14 @@ use config_voice::VoiceConfig;
 #[tokio::test]
 async fn voice_task_13_modal_renders_chinese_with_both_themes() {
     let mut renderer = Renderer::new(Font::DEFAULT, 15.0.into(), Some("tiny-skia")).await.unwrap();
-    let mut state = State::default();
-    state.edit = Some(Edit::new(
-        VoiceConfig { dictionary: vec!["识矩语音".into(); 30], ..Default::default() },
-        Preferences::default(),
-    ));
-    state.cloud_ready = true;
+    let mut state = State {
+        edit: Some(Edit::new(
+            VoiceConfig { dictionary: vec!["识矩语音".into(); 30], ..Default::default() },
+            Preferences::default(),
+        )),
+        cloud_ready: true,
+        ..State::default()
+    };
     for engine in [
         desktop_voice::preferences::VoiceEngine::Local,
         desktop_voice::preferences::VoiceEngine::Cloud,

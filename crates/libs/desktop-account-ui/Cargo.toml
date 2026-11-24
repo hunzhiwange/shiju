@@ -31,7 +31,7 @@ desktop-account = { path = "../desktop-account", features = ["test-support"] }
 path = "../../vw-gateway-client"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 open = "5"
-directories = "5"
+directories = "6"
 tokio = { version = "1", features = ["time"] }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = "0.3"

@@ -17,7 +17,7 @@ use time::{OffsetDateTime, UtcOffset};
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use chrono_tz::Tz;
+use runtime_time::zones::NamedTimeZone as Tz;
 
 /// Parse an IANA timezone used by chat prompts and message timestamps.
 pub fn parse_timezone(value: &str) -> Result<Tz> {

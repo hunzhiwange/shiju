@@ -59,7 +59,7 @@ fn repo_with_initial_commit(path: &Path) -> Repository {
 }
 
 fn add_linked_worktree(repo: &Repository, name: &str, path: &Path) {
-    let mut opts = git2::WorktreeAddOptions::new();
+    let opts = git2::WorktreeAddOptions::new();
     repo.worktree(name, path, Some(&opts)).expect("linked worktree");
 }
 
@@ -448,8 +448,6 @@ async fn remove_sandbox_returns_not_found_for_missing_project() {
 
 #[tokio::test]
 async fn git2_project_discovery_works_without_git_executable() {
-    let _env_lock =
-        crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
     let _async_env_lock = crate::test_support::global_async_env_lock().lock().await;
 
     let committed = TempDir::new().expect("committed tempdir");

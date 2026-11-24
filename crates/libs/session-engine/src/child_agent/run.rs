@@ -249,7 +249,7 @@ pub async fn create_with_fork<H: ChildHost>(
         if let Some(root) = parent.workspace_root() {
             anyhow::ensure!(
                 agent_util::filesystem::normalize_path(root)
-                    == *&input.directory,
+                    == input.directory,
                 "subagent workspace mismatch"
             );
         }
@@ -294,7 +294,7 @@ pub async fn create_with_fork<H: ChildHost>(
                 H::get_session(&parent_session_id).await.context("load delegated parent session")?;
             anyhow::ensure!(
                 agent_util::filesystem::normalize_path(&parent.directory)
-                    == *&directory,
+                    == directory,
                 "subagent parent workspace mismatch"
             );
             let history = match fork_turns {

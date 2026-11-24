@@ -115,9 +115,15 @@ pub(crate) enum Action {
     Approve(SessionKey, String, PendingPermissionReplyDto),
     Approved(SessionKey, String, bool),
     Panel(String, u64, desktop_terminal::message::Message),
+    GroupAgentsByProject(bool),
+    ResizeSidebarWidth(iced::widget::pane_grid::ResizeEvent),
+    ResizeSidebarSections(iced::widget::pane_grid::ResizeEvent),
     NewLayout(String),
     SelectLayout(String, u64),
     CloseLayout(String, u64),
+    OpenLayoutMenu(String, u64, iced::Point),
+    CloseLayoutMenu(String),
+    RenameLayout(String, u64, String),
     TerminalClipboard(SessionKey, Option<String>),
 }
 
@@ -149,7 +155,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
         if !navigation.open_tabs.iter().any(|tab| tab.id == TAB_ID) {
             navigation.open_tabs.push(desktop_navigation::components::top_bar::types::AppTab {
                 id: TAB_ID.into(),
-                title: "CLI 工作台".into(),
+                title: "我的工作台".into(),
                 screen: crate::app::Screen::CliWorkbench,
                 project_path: None,
             });
@@ -215,6 +221,8 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             if !matches!(
                 &action,
                 Action::Draft(_)
+                    | Action::ResizeSidebarWidth(_)
+                    | Action::ResizeSidebarSections(_)
                     | Action::Target(_)
                     | Action::TerminalOutput(..)
                     | Action::TerminalWritten(..)
@@ -755,7 +763,8 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action) -> Task<
             return iced::widget::operation::focus(super::view::DIALOG_INPUT);
         }
         Action::Draft(value) => match state.dialog.as_mut() {
-            Some(Dialog::Compose { draft, .. } | Dialog::Rename(_, draft)) => *draft = value,
+            Some(Dialog::Compose { draft, .. } | Dialog::Rename(_, draft)
+                | Dialog::RenameLayout(_, _, draft)) => *draft = value,
             _ => {}
         },
         Action::Target(value) => {
@@ -833,6 +842,13 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action) -> Task<
             }
         }
         Action::Panel(project, layout, message) => return panel(state, id, &project, layout, message),
+        Action::GroupAgentsByProject(grouped) => state.group_agents_by_project = grouped,
+        Action::ResizeSidebarWidth(event) => {
+            state.sidebar_layout.workspace.resize(event.split, event.ratio.clamp(0.20, 0.65));
+        }
+        Action::ResizeSidebarSections(event) => {
+            state.sidebar_layout.sections.resize(event.split, event.ratio.clamp(0.23, 0.77));
+        }
         Action::NewLayout(project) if state.selected.as_ref() == Some(&project) => {
             if let Some(project) = state.projects.get_mut(&project) {
                 project.new_layout();
@@ -846,6 +862,34 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action) -> Task<
         Action::CloseLayout(project, layout) if state.selected.as_ref() == Some(&project) => {
             if state.projects.get_mut(&project).is_some_and(|project| project.close_layout(layout)) {
                 return super::terminal::focus(state);
+            }
+        }
+        Action::OpenLayoutMenu(project, layout, point)
+            if state.selected.as_ref() == Some(&project) && state.dialog.is_none() =>
+        {
+            if let Some(project) = state.projects.get_mut(&project).filter(|project| {
+                project.active_layout == layout || project.parked_layouts.contains_key(&layout)
+            }) {
+                project.tab_menu = None;
+                project.content_menu = None;
+                project.panes.split_menu = None;
+                project.layout_menu = Some((layout, point));
+            }
+        }
+        Action::CloseLayoutMenu(project) => {
+            if let Some(project) = state.projects.get_mut(&project) {
+                project.layout_menu = None;
+            }
+        }
+        Action::RenameLayout(project, layout, title)
+            if state.selected.as_ref() == Some(&project) && state.dialog.is_none() =>
+        {
+            if let Some(current) = state.projects.get_mut(&project).filter(|current| {
+                current.active_layout == layout || current.parked_layouts.contains_key(&layout)
+            }) {
+                current.layout_menu = None;
+                state.dialog = Some(Dialog::RenameLayout(project, layout, title));
+                return iced::widget::operation::focus(super::view::DIALOG_INPUT);
             }
         }
         Action::TerminalClipboard(key, text) => {
@@ -1062,6 +1106,15 @@ fn confirm(state: &mut Workbench, id: window::Id) -> Task<Message> {
             {
                 tab.name = Some(draft.trim().chars().take(80).collect());
             }
+        }
+        Some(Dialog::RenameLayout(_, _, draft)) if !draft.trim().is_empty() => {
+            if let Some(Dialog::RenameLayout(project, layout, draft)) = state.dialog.take()
+                && let Some(project) = state.projects.get_mut(&project)
+                && (project.active_layout == layout || project.parked_layouts.contains_key(&layout))
+            {
+                project.layout_names.insert(layout, draft.trim().chars().take(80).collect());
+            }
+            return super::terminal::focus(state);
         }
         Some(Dialog::Compose { target: Some(session), draft }) if !draft.trim().is_empty() => {
             let (Some(project), Some(client)) = (state.selected.clone(), client(state)) else {

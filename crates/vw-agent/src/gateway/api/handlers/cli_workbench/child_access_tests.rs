@@ -35,6 +35,7 @@ async fn cli_workbench_child_access_restricts_project_identity_and_routes() {
                 project_id: project.to_owned(),
                 directory: "/fixture".to_owned(),
                 capabilities: capabilities(&target),
+                agent_activity: None,
                 target,
                 state: ProcessState::Running,
             },

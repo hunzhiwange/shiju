@@ -1,19 +1,21 @@
 use desktop_assets::assets::Icon;
-use desktop_terminal::terminal_panel::{TAB_HEIGHT, TAB_TOOLBAR_BUTTON_WIDTH};
+use desktop_terminal::terminal_panel::{TAB_HEIGHT, TAB_TOOLBAR_BUTTON_WIDTH, tab_context_menu};
+use desktop_ui_controls::overlays::point_below::PointBelowOverlay;
+use desktop_ui_controls::right_click_area::RightClickArea;
 use desktop_ui_controls::system_settings_common::*;
 use desktop_ui_controls::system_settings_common::icons::{icon_btn_style, icon_btn_svg_style};
-use desktop_ui_controls::system_settings_common::tabs::settings_compact_tab_button;
+use desktop_ui_controls::single_line_label::SingleLineLabel;
 use gateway_interaction::PendingPermissionReplyDto;
 use iced::{
     Alignment, Border, Element, Length, Theme,
     widget::{
-        Column, Space, button, column, container, responsive, row, scrollable, svg, text,
+        Column, Space, button, column, container, pane_grid, responsive, row, scrollable, svg, text,
         text::Wrapping, text_input, tooltip,
     },
     window,
 };
 use vw_api_types::cli_workbench::{
-    CliWorkbenchDraftAction, CliWorkbenchMessageState as Delivery,
+    CliWorkbenchAgentActivity, CliWorkbenchDraftAction, CliWorkbenchMessageState as Delivery,
     CliWorkbenchProcessState as Process, CliWorkbenchTarget,
 };
 
@@ -24,6 +26,9 @@ use super::{
 use crate::app::i18n::I18n;
 
 pub(super) const DIALOG_INPUT: &str = "cli-workbench-dialog-input";
+
+const SIDEBAR_DIVIDER_WIDTH: f32 = 1.0;
+const SIDEBAR_DIVIDER_HIT_WIDTH: f32 = 18.0;
 
 #[derive(Clone, Copy)]
 struct View {
@@ -51,15 +56,31 @@ pub(crate) fn view(app: &App, id: window::Id) -> Element<'_, Message> {
             .selected
             .as_ref()
             .and_then(|id| state.projects.get(id).map(|project| (id, project)));
-        let sidebar = sidebar(ui, state);
-        let main = match selected {
+        let main = || match selected {
             Some((id, project)) => workspace(ui, state, id, project),
             None => container(text(ui.label("请选择项目")).size(16)).center(Length::Fill).into(),
         };
         let content: Element<'_, Message> = if size.width < 680.0 {
-            column![container(sidebar).height(146), main].spacing(8).into()
+            column![container(sidebar(ui, state)).height(146), main()].spacing(8).into()
         } else {
-            row![container(sidebar).width(208).height(Length::Fill), main].spacing(8).into()
+            let grid = pane_grid::PaneGrid::new(&state.sidebar_layout.workspace, |_, terminal, _| {
+                let body = if *terminal {
+                    container(main())
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .style(sidebar_surface)
+                        .into()
+                } else {
+                    sidebar(ui, state)
+                };
+                pane_grid::Content::new(body)
+            })
+            .spacing(SIDEBAR_DIVIDER_WIDTH)
+            .on_resize(SIDEBAR_DIVIDER_HIT_WIDTH - SIDEBAR_DIVIDER_WIDTH, move |event| {
+                ui.msg(Action::ResizeSidebarWidth(event))
+            })
+            .style(sidebar_divider);
+            container(grid).style(settings_divider_style).into()
         };
         let error = state.error.or_else(|| {
             selected.and_then(|(_, project)| {
@@ -113,91 +134,280 @@ fn vertical<'a>(content: Column<'a, Message>) -> scrollable::Scrollable<'a, Mess
 }
 
 fn sidebar<'a>(ui: View, state: &'a Workbench) -> Element<'a, Message> {
-    let mut list = column![row![
-        text(ui.label("项目")).size(13).style(settings_muted_text_style).width(Length::Fill),
+    let grid = pane_grid::PaneGrid::new(&state.sidebar_layout.sections, |_, agents, _| {
+        pane_grid::Content::new(if *agents { sidebar_agents(ui, state) } else { sidebar_projects(ui, state) })
+    })
+    .spacing(SIDEBAR_DIVIDER_WIDTH)
+    .on_resize(SIDEBAR_DIVIDER_HIT_WIDTH - SIDEBAR_DIVIDER_WIDTH, move |event| {
+        ui.msg(Action::ResizeSidebarSections(event))
+    })
+    .style(sidebar_divider);
+    container(grid).style(settings_divider_style).into()
+}
+
+fn sidebar_divider(theme: &Theme) -> pane_grid::Style {
+    let mut style = pane_grid::default(theme);
+    style.picked_split.width = 2.0;
+    style.hovered_split.width = 2.0;
+    style
+}
+
+fn sidebar_surface(theme: &Theme) -> container::Style {
+    container::Style {
+        background: Some(theme.extended_palette().background.base.color.into()),
+        ..Default::default()
+    }
+}
+
+fn sidebar_projects<'a>(ui: View, state: &'a Workbench) -> Element<'a, Message> {
+    let projects_header = sidebar_header(
+        ui.label("项目"),
         icon_btn(
             Icon::ArrowClockwise,
             ui.label("刷新"),
             (!state.discovering).then_some(ui.msg(Action::Refresh)),
         ),
-    ].align_y(Alignment::Center)].spacing(5);
+    );
+    let mut projects = column![].spacing(3);
     for (id, project) in &state.projects {
-        list = list.push(
-            settings_compact_tab_button(
-                project.name.as_str(),
-                state.selected.as_ref() == Some(id),
-                ui.msg(Action::SelectProject(id.clone())),
-            )
-            .width(Length::Fill),
-        );
-    }
-    if state.discovering && state.projects.is_empty() {
-        list = list.push(text(ui.label("正在读取工作台项目…")).size(13));
-    } else if state.projects.is_empty() {
-        list = list.push(text(ui.label("暂无项目")).size(13));
-    }
-    list = list
-        .push(settings_divider())
-        .push(text(ui.label("待处理")).size(13).style(settings_muted_text_style));
-    let mut pending = false;
-    for (project_id, project) in &state.projects {
-        for (session, tab) in &project.tabs {
-            let key = SessionKey { project: project_id.clone(), session: session.clone() };
-            if tab.session.state == Process::WaitingForApproval {
-                pending = true;
-                list = list.push(
-                    control(
-                        format!("{} · {}", project.name, tab_label(tab)),
-                        Some(ui.msg(Action::SelectSession(key.clone()))),
-                        false,
-                    )
-                    .width(Length::Fill),
-                );
+        let selected = state.selected.as_ref() == Some(id);
+        let icon = icon_svg(if selected { Icon::FolderOpen } else { Icon::FolderClosed }, 15.0)
+            .style(|theme: &Theme, _| svg::Style {
+                color: Some(theme.extended_palette().primary.strong.color),
+            });
+        let badge = container(icon).center_x(23).center_y(23).style(|theme: &Theme| {
+            container::Style {
+                background: Some(theme.extended_palette().primary.base.color.scale_alpha(0.12).into()),
+                border: Border::default().rounded(6),
+                ..Default::default()
             }
-            for draft in &tab.drafts {
-                pending = true;
-                list = list.push(
-                    control(
-                        format!(
-                            "{} · {} · {} #{}",
-                            project.name,
-                            tab_label(tab),
-                            ui.label("待提交"),
-                            id_suffix(&draft.id.request_id),
-                        ),
-                        Some(ui.msg(Action::ShowDraft(key.clone(), draft.id.request_id.clone()))),
-                        false,
-                    )
-                    .width(Length::Fill),
-                );
-            }
-        }
+        });
+        projects = projects.push(sidebar_button(
+            row![badge, SingleLineLabel::new(project.name.clone(), 13.0)]
+                .spacing(7)
+                .align_y(Alignment::Center),
+            ui.msg(Action::SelectProject(id.clone())),
+            selected,
+        ));
     }
-    if !pending {
-        list =
-            list.push(text(ui.label("暂无待处理事项")).size(12).style(settings_muted_text_style));
+    if state.projects.is_empty() {
+        let label = if state.discovering { "正在读取工作台项目…" } else { "暂无项目" };
+        projects = projects.push(sidebar_note(ui.label(label)));
     }
     if let Some(project_id) = &state.selected
         && let Some(project) = state.projects.get(project_id)
         && project.tabs.values().any(|tab| tab.hidden)
     {
-        list = list
-            .push(settings_divider())
-            .push(text(ui.label("已关闭的标签")).size(13).style(settings_muted_text_style));
+        projects = projects.push(sidebar_note(ui.label("已关闭的标签")));
         for (session, tab) in project.tabs.iter().filter(|(_, tab)| tab.hidden) {
             let key = SessionKey { project: project_id.clone(), session: session.clone() };
-            list = list.push(
+            projects = projects.push(
                 control(tab_label(tab), Some(ui.msg(Action::SelectSession(key))), false)
                     .width(Length::Fill),
             );
         }
     }
-    container(vertical(list).height(Length::Fill))
-        .style(settings_panel_style)
-        .padding([7, 2])
+    let mut drafts = state.projects.iter().flat_map(|(project_id, project)| {
+        project.tabs.iter().flat_map(move |(session, tab)| {
+            tab.drafts.iter().map(move |draft| (project_id, project, session, tab, draft))
+        })
+    }).peekable();
+    if drafts.peek().is_some() {
+        projects = projects.push(sidebar_note(ui.label("待提交草稿")));
+        for (project_id, project, session, tab, draft) in drafts {
+            let key = SessionKey { project: project_id.clone(), session: session.clone() };
+            projects = projects.push(control(
+                format!("{} · {} #{}", project.name, tab_label(tab), id_suffix(&draft.id.request_id)),
+                Some(ui.msg(Action::ShowDraft(key, draft.id.request_id.clone()))),
+                false,
+            ).width(Length::Fill));
+        }
+    }
+
+    sidebar_section(projects_header, projects)
+}
+
+fn sidebar_agents<'a>(ui: View, state: &'a Workbench) -> Element<'a, Message> {
+    let grouped = state.group_agents_by_project;
+    let sort = settings_select([false, true], Some(grouped), move |grouped| {
+        ui.msg(Action::GroupAgentsByProject(grouped))
+    })
+    .format_labels(move |grouped| ui.label(if *grouped { "按项目分组" } else { "按优先级排序" }).into())
+    .menu_icon(if grouped { Icon::FolderClosed } else { Icon::Clock }, 176.0)
+    .width(30)
+    .height(26.0);
+    let agents_header = sidebar_header(
+        ui.label("智能体"),
+        toolbar_tooltip(sort.into(), ui.label("智能体排序")),
+    );
+    sidebar_section(agents_header, active_agents(ui, state))
+}
+
+fn sidebar_section<'a>(header: Element<'a, Message>, rows: Column<'a, Message>) -> Element<'a, Message> {
+    container(column![header, vertical(rows).height(Length::Fill)])
+        .style(sidebar_surface)
+        .padding([2, 2])
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
+}
+
+fn sidebar_header<'a>(title: &'static str, action: Element<'a, Message>) -> Element<'a, Message> {
+    container(row![sidebar_note(title).width(Length::Fill), action].align_y(Alignment::Center))
+        .padding([3, 7])
+        .width(Length::Fill)
+        .into()
+}
+
+fn sidebar_note(label: &str) -> iced::widget::Text<'_> {
+    text(label).size(12).style(settings_muted_text_style)
+}
+
+fn sidebar_button<'a>(
+    content: iced::widget::Row<'a, Message>,
+    action: Message,
+    selected: bool,
+) -> button::Button<'a, Message> {
+    button(content)
+        .padding([4, 6])
+        .width(Length::Fill)
+        .on_press(action)
+        .style(move |theme, status| {
+            let mut style = icon_btn_style(theme, status);
+            if selected && status == button::Status::Active {
+                style.background = Some(theme.extended_palette().primary.base.color.scale_alpha(0.12).into());
+            }
+            style
+        })
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum AgentStatus {
+    NeedsInput,
+    Working,
+}
+
+impl AgentStatus {
+    fn for_tab(project: &Project, tab: &Tab) -> Option<Self> {
+        if project.disconnected || tab.stopping {
+            return None;
+        }
+        match (&tab.session.target, tab.session.state, tab.session.agent_activity) {
+            (CliWorkbenchTarget::Shell, _, _) => None,
+            (_, Process::WaitingForApproval, _)
+            | (CliWorkbenchTarget::NativeCli { .. }, Process::Running, Some(CliWorkbenchAgentActivity::NeedsInput)) => {
+                Some(Self::NeedsInput)
+            }
+            (CliWorkbenchTarget::Acp { .. }, Process::Running, _)
+            | (CliWorkbenchTarget::NativeCli { .. }, Process::Running, Some(CliWorkbenchAgentActivity::Working)) => {
+                Some(Self::Working)
+            }
+            _ => None,
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::NeedsInput => "需要处理",
+            Self::Working => "正在执行",
+        }
+    }
+
+    fn color(self, theme: &Theme) -> iced::Color {
+        let palette = theme.extended_palette();
+        match self {
+            Self::NeedsInput => palette.danger.strong.color,
+            Self::Working => palette.success.strong.color,
+        }
+    }
+}
+
+fn active_agents<'a>(ui: View, state: &'a Workbench) -> Column<'a, Message> {
+    let grouped = state.group_agents_by_project;
+    let mut list = column![].spacing(3);
+    let mut active = Vec::new();
+    for (project_id, project) in &state.projects {
+        for tab in project.tabs.values() {
+            if let Some(status) = AgentStatus::for_tab(project, tab) {
+                active.push((status, project_id, project, tab));
+            }
+        }
+    }
+    if active.is_empty() {
+        return list.push(sidebar_note(ui.label("暂无活动智能体")));
+    }
+    active.sort_by(|left, right| {
+        if grouped {
+            left.2.name.cmp(&right.2.name).then(left.1.cmp(right.1)).then(left.0.cmp(&right.0))
+        } else {
+            left.0.cmp(&right.0).then(left.2.name.cmp(&right.2.name))
+        }
+    });
+    let mut previous = None;
+    for (status, project_id, project, tab) in active {
+        let section = if grouped { project_id.as_str() } else { status.label() };
+        if previous != Some(section) {
+            let label = if grouped { &project.name } else { ui.label(status.label()) };
+            list = list.push(container(sidebar_note(label)).padding([5, 6]));
+            previous = Some(section);
+        }
+        let selected = state.selected.as_ref() == Some(project_id)
+            && project.active_tab().is_some_and(|active| active.view_id == tab.view_id);
+        let title = agent_title(state, tab);
+        let label = if grouped { title } else { format!("{} · {title}", project.name) };
+        let mut content = row![agent_icon(tab), SingleLineLabel::new(label, 13.0)]
+            .spacing(7)
+            .align_y(Alignment::Center);
+        if grouped {
+            content = content.push(text(ui.label(status.label())).size(10).style(move |theme: &Theme| text::Style {
+                color: Some(status.color(theme)),
+            }));
+        }
+        list = list.push(sidebar_button(
+            content.height(23),
+            ui.msg(Action::SelectSession(SessionKey {
+                project: project_id.clone(),
+                session: tab.session.id.clone(),
+            })),
+            selected,
+        ));
+    }
+    list
+}
+
+fn agent_title(state: &Workbench, tab: &Tab) -> String {
+    if let Some(title) = &tab.name {
+        return title.clone();
+    }
+    let name = match &tab.session.target {
+        CliWorkbenchTarget::Acp { agent } => state.agents.iter()
+            .find(|entry| entry.key == *agent).map(|entry| entry.label()),
+        CliWorkbenchTarget::NativeCli { app_id } => state.native_apps.iter()
+            .find(|entry| entry.id == *app_id).map(|entry| entry.name.as_str()),
+        CliWorkbenchTarget::Shell => None,
+    };
+    name.map_or_else(|| tab_label(tab), str::to_owned)
+}
+
+fn agent_icon(tab: &Tab) -> svg::Svg<'static> {
+    let key = match &tab.session.target {
+        CliWorkbenchTarget::Acp { agent } => agent.strip_prefix("acp-").unwrap_or(agent),
+        CliWorkbenchTarget::NativeCli { app_id } => app_id,
+        CliWorkbenchTarget::Shell => "",
+    };
+    let icon = match key {
+        "claude" | "claude-code" => Icon::AppClaudeCode,
+        "codex" => Icon::AppCodex,
+        "gemini" | "gemini-cli" => Icon::AppGeminiCli,
+        "opencode" => Icon::AppOpenCode,
+        "openclaw" => Icon::AppOpenClaw,
+        "hermes" => Icon::AppHermes,
+        "pi" => Icon::AppPi,
+        "kimi" => Icon::AppKimiCode,
+        "agy" => Icon::AppAntigravity,
+        _ => return icon_svg(Icon::Robot, 17.0).style(icon_btn_svg_style),
+    };
+    icon_svg(icon, 17.0)
 }
 
 #[derive(Clone, PartialEq)]
@@ -353,7 +563,7 @@ fn layout_tabs<'a>(ui: View, project_id: &str, project: &Project) -> Element<'a,
     let can_close = !project.parked_layouts.is_empty();
     for id in project.layout_ids() {
         let selected = id == project.active_layout;
-        let label = ui.i18n.sprintf("分屏组 %u", &[id.into()]);
+        let label = layout_label(project, id);
         let tab = button(
             row![
                 icon_svg(Icon::Terminal, 13.0).style(move |theme: &Theme, _| svg::Style {
@@ -373,7 +583,7 @@ fn layout_tabs<'a>(ui: View, project_id: &str, project: &Project) -> Element<'a,
         })
         .on_press(ui.msg(Action::SelectLayout(project_id.into(), id)));
         let mut item = row![tab].align_y(Alignment::Center);
-        if can_close {
+        if selected && can_close {
             item = item.push(toolbar_icon(
                 Icon::X,
                 ui.label("关闭分屏组"),
@@ -381,7 +591,7 @@ fn layout_tabs<'a>(ui: View, project_id: &str, project: &Project) -> Element<'a,
                 Some(ui.msg(Action::CloseLayout(project_id.into(), id))),
             ));
         }
-        tabs = tabs.push(container(item).padding(2).style(move |theme| {
+        let item = container(item).padding(2).style(move |theme| {
             let background = theme.extended_palette().background;
             container::Style {
                 background: selected.then(|| background.weak.color.into()),
@@ -392,9 +602,17 @@ fn layout_tabs<'a>(ui: View, project_id: &str, project: &Project) -> Element<'a,
                 },
                 ..Default::default()
             }
-        }));
+        });
+        let project_key = project_id.to_owned();
+        tabs = tabs.push(Element::new(
+            RightClickArea::new(
+                item.into(),
+                Box::new(move |point| ui.msg(Action::OpenLayoutMenu(project_key.clone(), id, point))),
+            )
+            .use_global_position(),
+        ));
     }
-    container(
+    let strip = container(
         row![
             scrollable(tabs)
                 .direction(scrollable::Direction::Horizontal(
@@ -416,8 +634,37 @@ fn layout_tabs<'a>(ui: View, project_id: &str, project: &Project) -> Element<'a,
     .style(|theme| container::Style {
         background: Some(theme.extended_palette().background.base.color.into()),
         ..Default::default()
-    })
-    .into()
+    });
+    let (menu, point) = match project.layout_menu {
+        Some((id, point)) => (
+            tab_context_menu(
+                ui.locale,
+                ui.msg(Action::RenameLayout(project_id.into(), id, layout_label(project, id))),
+                can_close.then(|| ui.msg(Action::CloseLayout(project_id.into(), id))),
+            ),
+            point,
+        ),
+        None => (Space::new().into(), iced::Point::ORIGIN),
+    };
+    PointBelowOverlay::new(strip, menu)
+        .show(project.layout_menu.is_some())
+        .global_anchor(point)
+        .gap(2.0)
+        .close_on_target_click(true)
+        .capture_keyboard()
+        .on_close(ui.msg(Action::CloseLayoutMenu(project_id.into())))
+        .into()
+}
+
+fn layout_label(project: &Project, id: u64) -> String {
+    let name = project.layout_names.get(&id).map(String::as_str).unwrap_or_else(|| {
+        project.directory.trim_end_matches(['/', '\\'])
+            .rsplit(['/', '\\'])
+            .next()
+            .filter(|name| !name.trim().is_empty())
+            .unwrap_or(&project.name)
+    });
+    name.to_owned()
 }
 
 fn layout_tab_foreground(theme: &Theme, selected: bool) -> iced::Color {
@@ -610,7 +857,9 @@ fn dialog_view<'a>(
     let close = ui.msg(Action::Dismiss);
     let confirm = ui.msg(Action::Confirm);
     let (title, draft, enabled, select) = match dialog {
-        Dialog::Rename(_, draft) => (ui.label("重命名"), draft, !draft.trim().is_empty(), None),
+        Dialog::Rename(_, draft) | Dialog::RenameLayout(_, _, draft) => {
+            (ui.label("重命名"), draft, !draft.trim().is_empty(), None)
+        }
         Dialog::ReadDraft(..) => return base,
         Dialog::Compose { target, draft } => {
             let targets: Vec<_> = project
@@ -624,10 +873,10 @@ fn dialog_view<'a>(
                 })
                 .map(|(id, _)| id.clone())
                 .collect();
-            let enabled =
-                target.as_ref().is_some_and(|id| targets.contains(id)) && !draft.trim().is_empty();
+            let selected = target.as_ref().filter(|id| targets.contains(id)).cloned();
+            let enabled = selected.is_some() && !draft.trim().is_empty();
             let select =
-                settings_select(targets, target.clone(), move |id| ui.msg(Action::Target(id)))
+                settings_select(targets, selected, move |id| ui.msg(Action::Target(id)))
                     .format_labels(|id| {
                         project
                             .and_then(|project| project.tabs.get(id))
@@ -647,13 +896,16 @@ fn dialog_view<'a>(
         .on_submit_maybe(enabled.then_some(confirm.clone()));
     let mut fields = column![].spacing(8);
     if let Some(select) = select {
-        fields = fields.push(select);
+        fields = fields.push(column![
+            settings_field_label(ui.label("目标会话")),
+            select,
+        ].spacing(6));
     }
     let card = settings_modal_card(
         column![
             row![text(title).size(17).width(Length::Fill), settings_close_button(close.clone())]
                 .align_y(Alignment::Center),
-            vertical(fields.push(input)).height(Length::Shrink),
+            fields.push(input),
             row![
                 Space::new().width(Length::Fill),
                 control(ui.label("取消"), Some(close.clone()), false),

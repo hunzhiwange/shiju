@@ -172,3 +172,23 @@ fn cli_workbench_pty_failed_spawn_removes_private_directory() {
     assert_eq!(error.kind(), io::ErrorKind::NotFound);
     assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
 }
+
+#[test]
+fn cli_workbench_pty_tracks_latest_title_without_consuming_output() {
+    let root = tempfile::tempdir().unwrap();
+    let script = r#"
+        printf '\033]2;working\007'
+        read -r line
+        printf '\033]52;ignored\007'
+        printf '\033]0;idle\033\\'
+        printf 'updated'
+    "#;
+    let process = WorkbenchPty::spawn(shell(&root, script), root.path(), SIZE).unwrap();
+    let mut reader = process.attach(0).unwrap();
+
+    read_until(&process, &mut reader, b"working\x07");
+    assert_eq!(process.terminal_title().as_deref(), Some("working"));
+    process.write(&reader, b"continue\n").unwrap();
+    read_until(&process, &mut reader, b"updated");
+    assert_eq!(process.terminal_title().as_deref(), Some("idle"));
+}

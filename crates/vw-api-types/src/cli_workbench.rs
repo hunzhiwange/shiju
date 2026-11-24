@@ -47,6 +47,15 @@ pub enum CliWorkbenchProcessState {
     Disconnected,
 }
 
+/// Task activity reported by a native agent, distinct from PTY process liveness.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CliWorkbenchAgentActivity {
+    Idle,
+    Working,
+    NeedsInput,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CliWorkbenchSession {
     pub id: String,
@@ -55,6 +64,8 @@ pub struct CliWorkbenchSession {
     pub target: CliWorkbenchTarget,
     pub state: CliWorkbenchProcessState,
     pub capabilities: CliWorkbenchCapabilities,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_activity: Option<CliWorkbenchAgentActivity>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

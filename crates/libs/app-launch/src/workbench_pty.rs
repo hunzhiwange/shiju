@@ -77,9 +77,60 @@ struct Shared {
 struct State {
     master: Option<File>,
     replay: VecDeque<u8>,
+    title: TerminalTitle,
     next: u64,
     stopping: bool,
     exit: Option<io::Result<ExitStatus>>,
+}
+
+#[derive(Default)]
+struct TerminalTitle {
+    value: Option<String>,
+    sequence: TitleSequence,
+    payload: Vec<u8>,
+}
+
+#[derive(Default)]
+enum TitleSequence {
+    #[default]
+    Text,
+    Escape,
+    OscCommand,
+    TitleSeparator,
+    Title,
+    TitleEscape,
+}
+
+impl TerminalTitle {
+    // Track OSC 0/2 across PTY reads. Other OSC payloads are ignored.
+    fn observe(&mut self, output: &[u8]) {
+        use TitleSequence::{Escape, OscCommand, Text, Title, TitleEscape, TitleSeparator};
+
+        for &byte in output {
+            self.sequence = match (&self.sequence, byte) {
+                (Title, 0x07) | (TitleEscape, b'\\') => {
+                    self.value = std::str::from_utf8(&self.payload).ok()
+                        .filter(|title| !title.trim().is_empty())
+                        .map(str::to_owned);
+                    Text
+                }
+                (_, 0x18 | 0x1a) => Text,
+                (Title, 0x1b) => TitleEscape,
+                (_, 0x1b) => Escape,
+                (Escape | TitleEscape, b']') => OscCommand,
+                (OscCommand, b'0' | b'2') => TitleSeparator,
+                (TitleSeparator, b';') => {
+                    self.payload.clear();
+                    Title
+                }
+                (Title, _) if self.payload.len() < 1024 => {
+                    self.payload.push(byte);
+                    Title
+                }
+                _ => Text,
+            };
+        }
+    }
 }
 
 impl WorkbenchPty {
@@ -104,6 +155,7 @@ impl WorkbenchPty {
             state: Mutex::new(State {
                 master: Some(master),
                 replay: VecDeque::new(),
+                title: TerminalTitle::default(),
                 next: 0,
                 stopping: false,
                 exit: None,
@@ -140,6 +192,10 @@ impl WorkbenchPty {
 
     pub fn pid(&self) -> u32 {
         self.pid
+    }
+
+    pub fn terminal_title(&self) -> Option<String> {
+        self.shared.state.lock().unwrap().title.value.clone()
     }
 
     /// Attach at an absolute byte cursor. Use zero to request the retained tail.
@@ -264,8 +320,7 @@ fn run(mut child: ChildGroup, shared: &Shared, private: tempfile::TempDir) {
     child.terminate();
     let tail = {
         let mut state = shared.state.lock().unwrap();
-        let State { replay, next, .. } = &mut *state;
-        drain(&mut master, replay, next)
+        drain(&mut master, &mut state)
     };
     // Closing the master first releases terminal IO that can block exit on macOS.
     drop(master);
@@ -283,14 +338,15 @@ fn monitor(child: &ChildGroup, shared: &Shared) -> io::Result<()> {
             if state.stopping || child.has_exited()? {
                 return Ok(());
             }
-            let State { master, replay, next, .. } = &mut *state;
-            let master = master.as_mut().unwrap();
-            let before = *next;
-            let full = drain(master, replay, next)?;
-            if *next != before {
+            let mut master = state.master.take().unwrap();
+            let fd = master.as_raw_fd();
+            let before = state.next;
+            let full = drain(&mut master, &mut state);
+            state.master = Some(master);
+            if state.next != before {
                 shared.changed.notify_all();
             }
-            (master.as_raw_fd(), full)
+            (fd, full?)
         };
         if full {
             // Give input and stop callers a chance to acquire the lock under sustained output.
@@ -319,7 +375,7 @@ fn wait_readable(fd: RawFd) -> io::Result<()> {
 }
 
 /// Drain a bounded batch so continuous output cannot starve stop or input.
-fn drain(master: &mut File, replay: &mut VecDeque<u8>, next: &mut u64) -> io::Result<bool> {
+fn drain(master: &mut File, state: &mut State) -> io::Result<bool> {
     let mut bytes = [0; 8192];
     for _ in 0..8 {
         let count = match master.read(&mut bytes) {
@@ -334,10 +390,12 @@ fn drain(master: &mut File, replay: &mut VecDeque<u8>, next: &mut u64) -> io::Re
             }
             Err(error) => return Err(error),
         };
-        let discard = (replay.len() + count).saturating_sub(REPLAY_CAPACITY);
-        replay.drain(..discard);
-        replay.extend(&bytes[..count]);
-        *next += count as u64;
+        let output = &bytes[..count];
+        state.title.observe(output);
+        let discard = (state.replay.len() + count).saturating_sub(REPLAY_CAPACITY);
+        state.replay.drain(..discard);
+        state.replay.extend(output);
+        state.next += count as u64;
     }
     Ok(true)
 }

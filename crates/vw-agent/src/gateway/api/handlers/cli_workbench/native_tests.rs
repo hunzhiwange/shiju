@@ -80,6 +80,7 @@ fn cli_workbench_project_snapshot_only_attaches_sessions_in_scope() {
             info: CliWorkbenchSession {
                 id: id.into(), project_id: project.into(), directory: "/fixture".into(),
                 capabilities: capabilities(&target), target,
+                agent_activity: None,
                 state: CliWorkbenchProcessState::Running,
             },
             turn: None,
@@ -128,6 +129,7 @@ async fn cli_workbench_native_drafts_are_scoped_and_manual() {
                     directory: "/fixture".into(),
                     state: ProcessState::Running,
                     capabilities: capabilities(&target),
+                    agent_activity: None,
                     target,
                 },
                 turn: None,

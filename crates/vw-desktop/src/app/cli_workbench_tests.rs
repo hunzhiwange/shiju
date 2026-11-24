@@ -10,6 +10,7 @@ fn session(project: &str, id: &str, state: Process) -> CliWorkbenchSession {
         directory: format!("/projects/{project}"),
         target: CliWorkbenchTarget::Acp { agent: "acp-codex".into() },
         state,
+        agent_activity: None,
         capabilities: CliWorkbenchCapabilities {
             available: true,
             terminal: false,

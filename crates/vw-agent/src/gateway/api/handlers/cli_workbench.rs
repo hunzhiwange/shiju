@@ -80,6 +80,12 @@ impl Session {
                 Ok(None) => self.info.state,
                 Err(_) => ProcessState::Disconnected,
             };
+            self.info.agent_activity = match (&self.info.target, self.info.state) {
+                (CliWorkbenchTarget::NativeCli { app_id }, ProcessState::Running) => {
+                    pty.agent_activity(app_id)
+                }
+                _ => None,
+            };
             if matches!(self.info.state, ProcessState::Exited | ProcessState::Disconnected) {
                 self.revoke_child_access();
             }
@@ -370,6 +376,7 @@ async fn start(
         target: request.target,
         state: ProcessState::Ready,
         capabilities,
+        agent_activity: None,
     };
     let session = Session {
         scope,

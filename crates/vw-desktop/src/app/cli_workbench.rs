@@ -2,7 +2,7 @@
 use std::collections::{BTreeMap, HashSet};
 
 use gateway_interaction::PendingPermissionRequestDto;
-use iced::{Task, window};
+use iced::{Task, widget::pane_grid, window};
 use desktop_terminal::panes::TerminalPanes;
 use vw_api_types::cli_workbench::{
     CliWorkbenchDeliveryCapability, CliWorkbenchDraft, CliWorkbenchError, CliWorkbenchMessage, CliWorkbenchNativeApp,
@@ -34,6 +34,8 @@ pub(crate) struct Workbench {
     native_apps: Vec<CliWorkbenchNativeApp>,
     terminal_available: bool,
     agents: Vec<update::Agent>,
+    group_agents_by_project: bool,
+    sidebar_layout: SidebarLayout,
     dialog: Option<Dialog>,
     error: Option<&'static str>,
     refreshing: bool,
@@ -45,6 +47,26 @@ pub(crate) struct Workbench {
     projects_epoch: u64,
     agents_epoch: u64,
     agents_loading: bool,
+}
+
+struct SidebarLayout {
+    workspace: pane_grid::State<bool>,
+    sections: pane_grid::State<bool>,
+}
+
+impl Default for SidebarLayout {
+    fn default() -> Self {
+        let (mut workspace, sidebar) = pane_grid::State::new(false);
+        let (_, split) = workspace.split(pane_grid::Axis::Vertical, sidebar, true)
+            .expect("the sidebar pane exists");
+        workspace.resize(split, 0.34);
+
+        let (mut sections, projects) = pane_grid::State::new(false);
+        sections.split(pane_grid::Axis::Horizontal, projects, true)
+            .expect("the projects pane exists");
+
+        Self { workspace, sections }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,6 +83,8 @@ struct Project {
     parked_layouts: BTreeMap<u64, TerminalPanes>,
     active_layout: u64,
     next_layout: u64,
+    layout_names: BTreeMap<u64, String>,
+    layout_menu: Option<(u64, iced::Point)>,
     tab_menu: Option<(u64, f32, f32)>,
     content_menu: Option<(u64, iced::Point)>,
     disconnected: bool,
@@ -93,6 +117,7 @@ struct Turn {
 
 enum Dialog {
     Rename(SessionKey, String),
+    RenameLayout(String, u64, String),
     Compose { target: Option<String>, draft: String },
     ReadDraft(SessionKey, String),
 }
@@ -172,6 +197,8 @@ impl Project {
             parked_layouts: BTreeMap::new(),
             active_layout: 1,
             next_layout: 2,
+            layout_names: BTreeMap::new(),
+            layout_menu: None,
             tab_menu: None,
             content_menu: None,
             disconnected: false,
@@ -201,6 +228,7 @@ impl Project {
     }
 
     fn select_layout(&mut self, id: u64) -> bool {
+        self.layout_menu = None;
         if self.active_layout == id {
             return true;
         }
@@ -215,12 +243,14 @@ impl Project {
     }
 
     fn close_layout(&mut self, id: u64) -> bool {
+        self.layout_menu = None;
         if id == self.active_layout {
             let Some((&next, _)) = self.parked_layouts.range(id..).next()
                 .or_else(|| self.parked_layouts.last_key_value()) else { return false };
             self.select_layout(next);
         }
         let Some(closed) = self.parked_layouts.remove(&id) else { return false };
+        self.layout_names.remove(&id);
         let view_ids: HashSet<_> = closed.grid.iter()
             .flat_map(|(_, pane)| pane.tabs.iter().copied())
             .collect();

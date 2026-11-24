@@ -2,7 +2,8 @@ use std::{io, sync::Arc};
 
 use vw_agent_apps::apps::launch::workbench_pty::{PtySize, WorkbenchPty};
 use vw_api_types::cli_workbench::{
-    CLI_WORKBENCH_MAX_TERMINAL_INPUT, CliWorkbenchTerminalInput, CliWorkbenchTerminalOutput,
+    CLI_WORKBENCH_MAX_TERMINAL_INPUT, CliWorkbenchAgentActivity, CliWorkbenchTerminalInput,
+    CliWorkbenchTerminalOutput,
 };
 
 use super::*;
@@ -15,6 +16,27 @@ pub(in super::super) struct Pty {
 impl Pty {
     pub(in super::super) fn exit_status(&self) -> io::Result<Option<std::process::ExitStatus>> {
         self.process.exit_status()
+    }
+
+    pub(in super::super) fn agent_activity(&self, app_id: &str) -> Option<CliWorkbenchAgentActivity> {
+        use CliWorkbenchAgentActivity::{Idle, NeedsInput, Working};
+
+        let title = self.process.terminal_title()?;
+        let marker = title.split_whitespace().next()?;
+        match app_id {
+            "codex" if title.contains("Action Required") => Some(NeedsInput),
+            "codex" if title.split_whitespace().any(|part| {
+                matches!(part, "⠋" | "⠙" | "⠹" | "⠸" | "⠼" | "⠴" | "⠦" | "⠧" | "⠇" | "⠏")
+            }) => Some(Working),
+            "codex" | "claude" if marker == "✳" => Some(Idle),
+            "claude" if marker.chars().count() == 1
+                && marker.starts_with(|ch| matches!(ch, '\u{2800}'..='\u{28ff}' | '◐'..='◓')) =>
+            {
+                Some(Working)
+            }
+            "codex" => Some(Idle),
+            _ => None,
+        }
     }
 }
 
@@ -63,6 +85,7 @@ pub(in super::super) async fn start(
         project_id,
         directory,
         capabilities: capabilities(&target),
+        agent_activity: None,
         target,
         state: ProcessState::Running,
     };

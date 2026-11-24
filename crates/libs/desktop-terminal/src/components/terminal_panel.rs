@@ -404,107 +404,17 @@ pub fn pane_header<'a, M: Clone + 'a>(
         let tab_with_overlay: Element<'_, Message> = if tab_context_menu_id
             == Some(tab_id)
         {
-            // 构建右键菜单内容
-            let context_menu = container(
-                column![
-                    // 重命名选项
-                    button(
-                        row![
-                            svg::Svg::new(assets::get_icon(Icon::Pencil))
-                                .width(Length::Fixed(12.0))
-                                .height(Length::Fixed(12.0))
-                                .style(|theme: &Theme, _| iced::widget::svg::Style {
-                                    color: Some(theme.palette().text),
-                                }),
-                            text(desktop_i18n::I18n::new(locale).__("重命名"))
-                        ]
-                        .spacing(6)
-                        .align_y(iced::Alignment::Center),
-                    )
-                    .on_press(Message::Batch(vec![
-                        Message::Terminal(message::TerminalMessage::RenameStart(tab_id)),
-                        Message::Terminal(message::TerminalMessage::TabContextClose),
-                    ]))
-                    .padding([6, 12])
-                    .width(Length::Fill)
-                    .style(|theme: &Theme, status| {
-                        let palette = theme.extended_palette();
-                        iced::widget::button::Style {
-                            background: match status {
-                                iced::widget::button::Status::Hovered => Some(Background::Color(
-                                    palette.background.strong.color.scale_alpha(0.12),
-                                )),
-                                _ => None,
-                            },
-                            text_color: theme.palette().text,
-                            border: Border {
-                                width: 0.0,
-                                color: Color::TRANSPARENT,
-                                radius: 4.0.into(),
-                            },
-                            ..Default::default()
-                        }
-                    }),
-                    // 关闭选项
-                    button(
-                        row![
-                            svg::Svg::new(assets::get_icon(Icon::Trash))
-                                .width(Length::Fixed(12.0))
-                                .height(Length::Fixed(12.0))
-                                .style(|theme: &Theme, _| iced::widget::svg::Style {
-                                    color: Some(theme.palette().text),
-                                }),
-                            text(desktop_i18n::I18n::new(locale).__("关闭"))
-                        ]
-                        .spacing(6)
-                        .align_y(iced::Alignment::Center),
-                    )
-                    .on_press_maybe(can_close_tabs.then_some(Message::Batch(vec![
-                        Message::Terminal(message::TerminalMessage::Close(tab_id)),
-                        Message::Terminal(message::TerminalMessage::TabContextClose),
-                    ])))
-                    .padding([6, 12])
-                    .width(Length::Fill)
-                    .style(move |theme: &Theme, status| {
-                        let palette = theme.extended_palette();
-                        iced::widget::button::Style {
-                            // 关闭按钮悬停时使用危险色背景
-                            background: match status {
-                                iced::widget::button::Status::Hovered => Some(Background::Color(
-                                    palette.danger.base.color.scale_alpha(0.12),
-                                )),
-                                _ => None,
-                            },
-                            text_color: if can_close_tabs {
-                                theme.palette().text
-                            } else {
-                                theme.palette().text.scale_alpha(0.4)
-                            },
-                            border: Border {
-                                width: 0.0,
-                                color: Color::TRANSPARENT,
-                                radius: 4.0.into(),
-                            },
-                            ..Default::default()
-                        }
-                    })
-                ]
-                .spacing(2),
-            )
-            .width(Length::Fixed(108.0))
-            .padding([6, 6])
-            .style(|theme: &Theme| {
-                let palette = theme.extended_palette();
-                iced::widget::container::Style {
-                    background: Some(Background::Color(palette.background.base.color)),
-                    border: Border {
-                        width: 1.0,
-                        color: palette.background.strong.color.scale_alpha(0.6),
-                        radius: 8.0.into(),
-                    },
-                    ..Default::default()
-                }
-            });
+            let context_menu = tab_context_menu(
+                locale,
+                Message::Batch(vec![
+                    Message::Terminal(message::TerminalMessage::RenameStart(tab_id)),
+                    Message::Terminal(message::TerminalMessage::TabContextClose),
+                ]),
+                can_close_tabs.then_some(Message::Batch(vec![
+                    Message::Terminal(message::TerminalMessage::Close(tab_id)),
+                    Message::Terminal(message::TerminalMessage::TabContextClose),
+                ])),
+            );
 
             // 获取菜单显示位置，默认在标签栏下方
             let (x, y) = tab_context_menu_pos.unwrap_or((0.0, tab_header_height));
@@ -538,6 +448,52 @@ pub fn pane_header<'a, M: Clone + 'a>(
     let tabs_scroll: Element<'a, Message> = tabs_scroll.into();
     let toolbar = row![tabs_scroll.map(on_message), controls].height(TAB_HEADER_HEIGHT);
     container(toolbar).width(Length::Fill).style(terminal_surface_style).into()
+}
+
+pub fn tab_context_menu<'a, M: Clone + 'a>(
+    locale: config_ui::DesktopLocale,
+    rename: M,
+    close: Option<M>,
+) -> Element<'a, M> {
+    let i18n = I18n::new(locale);
+    let menu_item = |icon, label, action: Option<M>, danger| {
+        let enabled = action.is_some();
+        let icon = svg::Svg::new(assets::get_icon(icon))
+            .width(12)
+            .height(12)
+            .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) });
+        button(row![icon, text(label)].spacing(6).align_y(iced::Alignment::Center))
+            .on_press_maybe(action)
+            .padding([6, 12])
+            .width(Length::Fill)
+            .style(move |theme: &Theme, status| {
+                let palette = theme.extended_palette();
+                let hover = if danger { palette.danger.base.color } else { palette.background.strong.color };
+                button::Style {
+                    background: (status == button::Status::Hovered)
+                        .then(|| Background::Color(hover.scale_alpha(0.12))),
+                    text_color: theme.palette().text.scale_alpha(if enabled { 1.0 } else { 0.4 }),
+                    border: Border::default().rounded(4),
+                    ..Default::default()
+                }
+            })
+    };
+    container(column![
+        menu_item(Icon::Pencil, i18n.__("重命名"), Some(rename), false),
+        menu_item(Icon::Trash, i18n.__("关闭"), close, true),
+    ].spacing(2))
+    .width(Length::Fixed(108.0))
+    .padding(6)
+    .style(|theme: &Theme| {
+        let palette = theme.extended_palette();
+        container::Style {
+            background: Some(Background::Color(palette.background.base.color)),
+            border: Border::default().width(1).rounded(8)
+                .color(palette.background.strong.color.scale_alpha(0.6)),
+            ..Default::default()
+        }
+    })
+    .into()
 }
 
 pub fn pane_surface<'a, M: 'a>(out: Element<'a, M>) -> Element<'a, M> {

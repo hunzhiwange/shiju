@@ -11,6 +11,7 @@ doctest = false
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
 
 [dependencies]
+desktop-i18n = { path = "../desktop-i18n" }
 webview-core = { path = "../webview-core" }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_env = "musl")))'.dependencies]

@@ -21,7 +21,7 @@ impl Parent {
     }
 
     pub(super) fn show(
-        &self,
+        &self, i18n: desktop_i18n::I18n,
         title: &str,
         message: &str,
         confirm: bool,
@@ -37,8 +37,8 @@ impl Parent {
         dialog.set_title(title);
         dialog.set_secondary_text(Some(message));
         if confirm {
-            dialog.add_button("取消", ResponseType::Cancel);
-            dialog.add_button("打开", ResponseType::Accept);
+            dialog.add_button(i18n.__("取消"), ResponseType::Cancel);
+            dialog.add_button(i18n.__("打开"), ResponseType::Accept);
             dialog.set_default_response(ResponseType::Cancel);
         }
         let done = Cell::new(Some(done));

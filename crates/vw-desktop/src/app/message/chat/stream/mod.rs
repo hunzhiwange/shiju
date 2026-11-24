@@ -276,7 +276,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         .into_iter()
                         .find(|path| path.is_file())
                         .ok_or_else(|| "MCP app helper unavailable".to_string())?;
-                    crate::app::components::mcp_app_panel::McpAppPanel::launch(
+                    crate::app::components::mcp_app_panel::McpAppPanel::launch(app.general_settings.desktop_locale,
                         &helper,
                         session.clone(),
                         resource,

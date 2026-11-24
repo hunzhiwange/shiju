@@ -97,32 +97,36 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
         Event::Loaded(context, serial, result)
     }, message)
 }
-pub fn entry(id: AppId) -> Element<'static, Message> {
-    button(text("请求状态" )).padding([8, 12]).style(rounded_action_btn_style)
+pub fn entry(i18n: desktop_i18n::I18n, id: AppId) -> Element<'static, Message> {
+    button(text(i18n.__("请求状态") )).padding([8, 12]).style(rounded_action_btn_style)
         .on_press(message(Event::Open(id))).into()
 }
-pub fn overlay<'a>(routing: &'a lifecycle::State, base: Element<'a, Message>) -> Element<'a, Message> {
+pub fn overlay<'a>(i18n: desktop_i18n::I18n, routing: &'a lifecycle::State, base: Element<'a, Message>) -> Element<'a, Message> {
     let state = &routing.requests;
     if !state.open { return base; }
-    let header = settings_modal_header(text("路由请求状态").size(20), settings_close_button(message(Event::Close)));
-    let mut body = column![text("只读取脱敏快照；关闭窗口不会停止或取消请求。历史记录有限，刷新间可能被淘汰。")].spacing(12);
-    if state.busy { body = body.push(text("正在读取")); }
+    let header = settings_modal_header(text(i18n.__("路由请求状态")).size(20), settings_close_button(message(Event::Close)));
+    let mut body = column![text(i18n.__("只读取脱敏快照；关闭窗口不会停止或取消请求。历史记录有限，刷新间可能被淘汰。"))].spacing(12);
+    if state.busy { body = body.push(text(i18n.__("正在读取"))); }
     if let Some(snapshot) = &state.snapshot {
-        body = body.push(text(format!("活跃请求：{}", snapshot.active_count)));
+        body = body.push(text(i18n.sprintf("活跃请求：%u", &[(snapshot.active_count).into()])));
         for (index, request) in snapshot.requests.iter().enumerate() {
-            let label = match request.state {
-                RoutingRequestState::Active => "进行中",
-                RoutingRequestState::Completed => "已完成",
-                RoutingRequestState::Failed => "失败",
-                RoutingRequestState::Cancelled => "已取消",
-            };
+            let label = request_label(i18n, request.state);
             // Do not render even opaque server identifiers or arbitrary error payloads.
-            body = body.push(text(format!("请求 {}：{} · {} ms", index + 1, label, request.elapsed_ms)));
+            body = body.push(text(i18n.sprintf("请求 %u：%s · %u ms", &[(index + 1).into(), format!("{}", label).into(), (request.elapsed_ms).into()])));
         }
     }
-    if let Some(error) = &state.error { body = body.push(settings_error_banner(error.clone())); }
-    let refresh = button(text("刷新请求状态")).padding([8, 12]).style(rounded_action_btn_style)
+    if let Some(error) = &state.error { body = body.push(settings_error_banner(i18n.__(error).to_owned())); }
+    let refresh = button(text(i18n.__("刷新请求状态"))).padding([8, 12]).style(rounded_action_btn_style)
         .on_press_maybe((!state.busy).then_some(message(Event::Refresh)));
     let card = settings_modal_layout(header, body, Some(refresh.into())).width(700).height(500);
     settings_modal_overlay(Some(base), message(Event::Close), container(card).padding(12))
+}
+
+pub(crate) fn request_label(i18n: desktop_i18n::I18n, state: RoutingRequestState) -> &'static str {
+    match state {
+        RoutingRequestState::Active => i18n.__("进行中"),
+        RoutingRequestState::Completed => i18n.__("已完成"),
+        RoutingRequestState::Failed => i18n.__("失败"),
+        RoutingRequestState::Cancelled => i18n.__("已取消"),
+    }
 }

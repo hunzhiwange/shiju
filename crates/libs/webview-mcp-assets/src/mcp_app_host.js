@@ -8,13 +8,19 @@ const reported = new Set();
 const encoder = new TextEncoder();
 const linkStatus = document.querySelector("#link-status");
 let noticeTimer;
-function showNotice(text) {
-    linkStatus.textContent = text;
+let noticeKey;
+window.__mcpSetLocale = copy => {
+    Object.assign(uiCopy, copy);
+    if (!linkStatus.hidden && noticeKey) linkStatus.textContent = uiCopy[noticeKey];
+};
+function showNotice(key) {
+    noticeKey = key;
+    linkStatus.textContent = uiCopy[key];
     linkStatus.hidden = false;
     clearTimeout(noticeTimer);
     noticeTimer = setTimeout(() => { linkStatus.hidden = true; }, 4500);
 }
-window.__mcpPopupBlocked = () => showNotice("MCP 应用无法打开此弹窗，请使用外部链接。");
+window.__mcpPopupBlocked = () => showNotice("popupBlocked");
 
 window.addEventListener("message", event => {
     if (event.source !== frame.contentWindow || event.origin !== "null") return;
@@ -36,7 +42,7 @@ window.addEventListener("message", event => {
                 return;
             }
             if (data.notice === "linkDenied") {
-                showNotice("未打开外部链接。");
+                showNotice("linkDenied");
                 return;
             }
             if (data.blocked) {

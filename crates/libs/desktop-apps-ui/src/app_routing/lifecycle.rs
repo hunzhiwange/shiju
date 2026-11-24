@@ -386,7 +386,7 @@ pub fn update(
                 }
                 if matches!(operation, Operation::StopWithRestore) && !failed {
                     *notice = Some(crate::Notice::Success(
-                        "应用已恢复直连，路由服务已停止".into(),
+                        desktop_i18n::format::Message::new("应用已恢复直连，路由服务已停止", vec![]),
                     ));
                 }
                 if inline_page {
@@ -413,44 +413,65 @@ fn can_control(state: &State, operation: Operation) -> bool {
     }
 }
 
-pub fn view(state: &State, context: Option<Context>) -> Element<'_, Message> {
-    service_view(state, context, false)
+pub fn view(i18n: desktop_i18n::I18n, state: &State, context: Option<Context>) -> Element<'_, Message> {
+    service_view(i18n, state, context, false)
 }
 
-pub fn page_service(state: &State, context: Option<Context>) -> Element<'_, Message> {
-    service_view(state, context, true)
+pub fn page_service(i18n: desktop_i18n::I18n, state: &State, context: Option<Context>) -> Element<'_, Message> {
+    service_view(i18n, state, context, true)
 }
 
-fn service_view(state: &State, context: Option<Context>, inline: bool) -> Element<'_, Message> {
+fn service_view(i18n: desktop_i18n::I18n, state: &State, context: Option<Context>, inline: bool) -> Element<'_, Message> {
+    let connected = context.is_some();
+    let fresh = connected && state.context == context;
+    let status = state.status.as_ref().filter(|_| fresh);
+    let label = service_label(i18n, state, context);
+    service_card(i18n, state, connected, fresh, status, label, inline)
+}
+
+pub(crate) fn service_title(i18n: desktop_i18n::I18n) -> &'static str {
+    i18n.__("路由服务")
+}
+
+pub(crate) fn service_label(
+    i18n: desktop_i18n::I18n,
+    state: &State,
+    context: Option<Context>,
+) -> &'static str {
     let connected = context.is_some();
     let fresh = connected && state.context == context;
     let status = state.status.as_ref().filter(|_| fresh);
     let label = if fresh && state.unconfigured {
-        "网关未启用路由管理"
+        i18n.__("网关未启用路由管理")
     } else if fresh && state.busy {
-        "正在处理…"
+        i18n.__("正在处理…")
     } else {
         match status.map(|status| status.state) {
-            Some(RoutingState::Stopped) => "已停止",
-            Some(RoutingState::Starting) => "正在启动",
+            Some(RoutingState::Stopped) => i18n.__("已停止"),
+            Some(RoutingState::Starting) => i18n.__("正在启动"),
             Some(RoutingState::Running) if state.health.is_some_and(|health| health.ready) => {
-                "运行中"
+                i18n.__("运行中")
             }
-            Some(RoutingState::Running) => "运行中 · 尚未就绪",
-            Some(RoutingState::Stopping) => "正在停止",
-            Some(RoutingState::Failed) => "启动失败",
-            None if !connected => "等待连接执行主机",
-            None => "状态未知",
+            Some(RoutingState::Running) => i18n.__("运行中 · 尚未就绪"),
+            Some(RoutingState::Stopping) => i18n.__("正在停止"),
+            Some(RoutingState::Failed) => i18n.__("启动失败"),
+            None if !connected => i18n.__("等待连接执行主机"),
+            None => i18n.__("状态未知"),
         }
     };
-    service_card(state, connected, fresh, status, label, inline)
+    label
 }
 
 pub fn page_can_configure(state: &State, context: Option<Context>) -> bool {
     context.is_some() && state.context == context && state.status.is_some()
 }
 
-fn service_card<'a>(
+pub(crate) fn service_address(status: Option<&RoutingStatus>) -> Option<String> {
+    let status = status?;
+    Some(std::net::SocketAddr::new(status.bound_address?, status.bound_port?).to_string())
+}
+
+fn service_card<'a>(i18n: desktop_i18n::I18n,
     state: &'a State,
     connected: bool,
     fresh: bool,
@@ -461,24 +482,22 @@ fn service_card<'a>(
     use iced::{Alignment, Length, widget::container};
 
     let mut details = column![
-        text("路由服务").size(15),
+        text(service_title(i18n)).size(15),
         text(format!("●  {label}")).size(13).style(settings_muted_text_style),
     ]
     .width(Length::Fill)
     .spacing(5);
-    if let Some(address) =
-        status.and_then(|s| Some(std::net::SocketAddr::new(s.bound_address?, s.bound_port?)))
-    {
-        details = details.push(text(address.to_string()).size(13).style(settings_muted_text_style));
+    if let Some(address) = service_address(status) {
+        details = details.push(text(address).size(13).style(settings_muted_text_style));
     }
     let stopping = matches!(status.map(|s| s.state), Some(RoutingState::Running));
     let operation = if stopping { Operation::Stop } else { Operation::Start };
     let action_label = if stopping {
-        "停止"
+        i18n.__("停止")
     } else if state.retry_start {
-        "重试启动"
+        i18n.__("重试启动")
     } else {
-        "启动"
+        i18n.__("启动")
     };
     let action =
         button(text(action_label).size(SETTINGS_CONTROL_TEXT_SIZE))
@@ -487,7 +506,7 @@ fn service_card<'a>(
             .on_press_maybe(
                 (fresh && can_control(state, operation)).then_some(Event::Run(operation)),
             );
-    let refresh = button(text("刷新").size(SETTINGS_CONTROL_TEXT_SIZE))
+    let refresh = button(text(i18n.__("刷新")).size(SETTINGS_CONTROL_TEXT_SIZE))
         .padding([8, 12])
         .style(rounded_action_btn_style)
         .on_press_maybe(
@@ -497,7 +516,7 @@ fn service_card<'a>(
     let mut controls = row![refresh, action].spacing(8).align_y(Alignment::Center);
     if stopping {
         controls = controls.push(
-            button(text("恢复直连并停止").size(SETTINGS_CONTROL_TEXT_SIZE))
+            button(text(i18n.__("恢复直连并停止")).size(SETTINGS_CONTROL_TEXT_SIZE))
                 .padding([8, 14])
                 .style(rounded_action_btn_style)
                 .on_press_maybe(
@@ -508,7 +527,7 @@ fn service_card<'a>(
     }
     if stopping && fresh && state.retry_start {
         controls = controls.push(
-            button(text("重试启动").size(SETTINGS_CONTROL_TEXT_SIZE))
+            button(text(i18n.__("重试启动")).size(SETTINGS_CONTROL_TEXT_SIZE))
                 .padding([8, 14])
                 .style(rounded_action_btn_style)
                 .on_press_maybe(
@@ -523,7 +542,7 @@ fn service_card<'a>(
     if fresh && state.unconfigured {
         card = card.push(
             container(
-                text("请检查网关的执行主机策略与路由管理授权，重启网关后刷新。")
+                text(i18n.__("请检查网关的执行主机策略与路由管理授权，重启网关后刷新。"))
                     .size(13)
                     .style(settings_muted_text_style),
             )
@@ -532,7 +551,7 @@ fn service_card<'a>(
     }
     if let Some(error) = state.error.as_ref().filter(|_| fresh) {
         card =
-            card.push(container(settings_error_banner(error)).padding(iced::padding::bottom(14)));
+            card.push(container(settings_error_banner(i18n.__(error).to_owned())).padding(iced::padding::bottom(14)));
     }
     if inline
         && fresh
@@ -541,22 +560,22 @@ fn service_card<'a>(
     {
         card = card
             .push(settings_divider())
-            .push(super::config::listener_fields(&state.listener, status.map(|s| s.state)))
+            .push(super::config::listener_fields(i18n, &state.listener, status.map(|s| s.state)))
             .push(settings_divider())
-            .push(super::config::client_host_field(&state.listener))
+            .push(super::config::client_host_field(i18n, &state.listener))
             .push(settings_divider())
-            .push(super::config::logging_field(&state.listener, status.is_some()));
+            .push(super::config::logging_field(i18n, &state.listener, status.is_some()));
     } else if !inline && !state.unconfigured {
         card = card.push(
             container(
                 row![
-                    button(text("监听设置"))
+                    button(text(i18n.__("监听设置")))
                         .padding([8, 12])
                         .style(rounded_action_btn_style)
                         .on_press_maybe(
                             connected.then_some(Event::Config(super::config::Event::Open(None)))
                         ),
-                    button(text("连接地址"))
+                    button(text(i18n.__("连接地址")))
                         .padding([8, 12])
                         .style(rounded_action_btn_style)
                         .on_press_maybe(
@@ -573,22 +592,22 @@ fn service_card<'a>(
     settings_group_card(card).into()
 }
 
-pub fn restore_confirmation(state: &State, context: Option<Context>) -> Option<Element<'_, Event>> {
+pub fn restore_confirmation(i18n: desktop_i18n::I18n, state: &State, context: Option<Context>) -> Option<Element<'_, Event>> {
     use iced::{Alignment, Length};
     if context.is_none() || state.context != context || !state.confirming_restore {
         return None;
     }
     let header = row![
-        text("恢复直连并停止").size(17).width(Length::Fill),
+        text(i18n.__("恢复直连并停止")).size(17).width(Length::Fill),
         settings_close_button(Event::CancelRestore),
     ]
     .align_y(Alignment::Center);
     let actions = row![
-        button(text("取消").size(SETTINGS_CONTROL_TEXT_SIZE))
+        button(text(i18n.__("取消")).size(SETTINGS_CONTROL_TEXT_SIZE))
             .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press(Event::CancelRestore),
-        button(text("恢复直连并停止").size(SETTINGS_CONTROL_TEXT_SIZE))
+        button(text(i18n.__("恢复直连并停止")).size(SETTINGS_CONTROL_TEXT_SIZE))
             .padding([8, 14])
             .style(primary_action_btn_style)
             .on_press(Event::Run(Operation::StopWithRestore)),
@@ -598,7 +617,7 @@ pub fn restore_confirmation(state: &State, context: Option<Context>) -> Option<E
         settings_modal_card(
             column![
                 header,
-                text("接入的应用将恢复到各自的直连供应商。全部恢复后，路由服务将停止。")
+                text(i18n.__("接入的应用将恢复到各自的直连供应商。全部恢复后，路由服务将停止。"))
                     .size(SETTINGS_CONTROL_TEXT_SIZE),
                 actions,
             ]

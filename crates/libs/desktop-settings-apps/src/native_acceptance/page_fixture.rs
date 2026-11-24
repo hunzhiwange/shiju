@@ -131,7 +131,7 @@ pub fn localized_view(state: &AppsCatalogState, i18n: I18n) -> Element<'_, Messa
 pub fn view(state: &AppsCatalogState, i18n: I18n) -> Element<'_, Message> {
     let input = view_state(state);
     let details = state.rows.iter().find(|r| Some(r.entry.id) == state.expanded).map(|row| {
-        domain::details::view(
+        domain::details::view(i18n,
             &input,
             row,
             column![].into(),
@@ -139,11 +139,11 @@ pub fn view(state: &AppsCatalogState, i18n: I18n) -> Element<'_, Message> {
             action,
         )
     });
-    domain::list::view(
+    domain::list::view(i18n,
         &input,
         |title, description| heading(i18n, None, title, description, 17),
         true,
-        domain::domains::view(column![].into(), |_| message(AppsCatalogMessage::Other)),
+        domain::domains::view(i18n, column![].into(), |_| message(AppsCatalogMessage::Other)),
         column![].into(),
         details,
         action,
@@ -163,7 +163,7 @@ pub fn view_overlays<'a>(
             state,
             i18n,
             theme,
-            lifecycle::overlay(&state.lifecycle, &state.host, base),
+            lifecycle::overlay(i18n, &state.lifecycle, &state.host, base),
         ),
     )
 }
@@ -177,7 +177,7 @@ pub mod launch {
         theme: &Theme,
         base: Element<'a, Message>,
     ) -> Element<'a, Message> {
-        domain::launch_view::overlay(
+        domain::launch_view::overlay(i18n,
             &state.launch,
             &state.host,
             base,
@@ -199,7 +199,7 @@ pub mod preferences {
         theme: &Theme,
         base: Element<'a, Message>,
     ) -> Element<'a, Message> {
-        domain::preferences_view::overlay(
+        domain::preferences_view::overlay(i18n,
             &state.preferences,
             &state.host,
             &state.rows,
@@ -213,6 +213,7 @@ pub mod lifecycle {
     use super::*;
     pub use domain::lifecycle::*;
     pub fn overlay<'a>(
+        i18n: I18n,
         state: &'a LifecycleState,
         host: &'a str,
         base: Element<'a, Message>,
@@ -222,7 +223,7 @@ pub mod lifecycle {
             .as_ref()
             .map(|p| domain::uninstall::guidance(p.request.app_id))
             .unwrap_or("");
-        domain::lifecycle_view::overlay(state, host, base, guidance, action)
+        domain::lifecycle_view::overlay(i18n, state, host, base, guidance, action)
     }
 }
 pub mod drag {
@@ -259,7 +260,8 @@ pub mod details {
     use super::*;
 use iced::widget::column;
     pub fn view<'a>(state: &'a AppsCatalogState, row: &'a CatalogRow) -> Element<'a, Message> {
-        domain::details::view(
+        let i18n = I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
+        domain::details::view(i18n,
             &view_state(state),
             row,
             column![].into(),

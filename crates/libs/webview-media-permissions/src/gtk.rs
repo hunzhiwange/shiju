@@ -14,13 +14,14 @@ unsafe extern "C" {
     ) -> gtk::glib::ffi::gboolean;
 }
 
-pub fn install(webview: &wry::WebView, parent: &gtk::Window) {
+pub fn install( locale: std::rc::Rc<std::cell::Cell<desktop_i18n::I18n>>, webview: &wry::WebView, parent: &gtk::Window) {
     let native = webview.webview();
     if let Some(settings) = WebViewExt::settings(&native) {
         settings.set_enable_media_stream(true);
     }
     let parent = parent.downgrade();
     native.connect_permission_request(move |view, request| {
+        let i18n = locale.get();
         let Some(media) = request.downcast_ref::<UserMediaPermissionRequest>() else {
             return false;
         };
@@ -31,9 +32,9 @@ pub fn install(webview: &wry::WebView, parent: &gtk::Window) {
             return false;
         }
         let device = match (media.is_for_audio_device(), media.is_for_video_device()) {
-            (true, true) => "摄像头和麦克风",
-            (true, false) => "麦克风",
-            (false, true) => "摄像头",
+            (true, true) => i18n.__("摄像头和麦克风"),
+            (true, false) => i18n.__("麦克风"),
+            (false, true) => i18n.__("摄像头"),
             (false, false) => return false,
         };
         let Some((parent, uri, origin)) = parent.upgrade().and_then(|parent| {
@@ -50,14 +51,14 @@ pub fn install(webview: &wry::WebView, parent: &gtk::Window) {
             DialogFlags::MODAL | DialogFlags::DESTROY_WITH_PARENT,
             MessageType::Question,
             ButtonsType::None,
-            "媒体设备访问",
+            i18n.__("媒体设备访问"),
         );
-        dialog.set_title("媒体设备访问");
+        dialog.set_title(i18n.__("媒体设备访问"));
         // GTK exposes the top-level URI only. WebKit enforces secure contexts,
         // frame delegation and request lifetime in the engine.
-        dialog.set_secondary_text(Some(&format!("允许 {origin} 或其授权的内嵌网页使用{device}？")));
-        dialog.add_button("拒绝", ResponseType::Cancel);
-        dialog.add_button("允许", ResponseType::Accept);
+        dialog.set_secondary_text(Some(&i18n.sprintf("允许 %s 或其授权的内嵌网页使用%s？", &[format!("{}", origin).into(), format!("{}", device).into()])));
+        dialog.add_button(i18n.__("拒绝"), ResponseType::Cancel);
+        dialog.add_button(i18n.__("允许"), ResponseType::Accept);
         dialog.set_default_response(ResponseType::Cancel);
         let view = view.downgrade();
         let request = request.clone();

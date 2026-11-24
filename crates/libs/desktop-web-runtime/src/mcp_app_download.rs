@@ -20,10 +20,10 @@ pub struct DownloadPrompt {
     pub origin: Option<String>,
 }
 
-pub async fn select_destination(prompt: DownloadPrompt) -> Option<PathBuf> {
+pub async fn select_destination( i18n: desktop_i18n::I18n, prompt: DownloadPrompt) -> Option<PathBuf> {
     let title = match prompt.origin {
-        Some(origin) => format!("从 {origin} 下载并保存文件"),
-        None => "保存 MCP 应用文件".to_owned(),
+        Some(origin) => i18n.sprintf("从 %s 下载并保存文件", &[format!("{}", origin).into()]),
+        None => i18n.__("保存 MCP 应用文件").to_owned(),
     };
     rfd::AsyncFileDialog::new()
         .set_title(title)

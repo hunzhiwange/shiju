@@ -165,45 +165,41 @@ pub(super) fn update(reader: &mut reader::State, value: Event) {
 }
 pub(super) const INPUT_ID: &str = "external-session-find";
 
-pub(super) fn filters(reader: &reader::State) -> Element<'_, Message> {
+pub(super) fn filters(i18n: desktop_i18n::I18n, reader: &reader::State) -> Element<'_, Message> {
     let mut filters = row![].spacing(2);
     for (filter, label) in
-        [(Filter::All, "全部"), (Filter::Conversation, "对话"), (Filter::Changes, "改动")]
+        [(Filter::All, i18n.__("全部")), (Filter::Conversation, i18n.__("对话")), (Filter::Changes, i18n.__("改动"))]
     {
         filters = filters.push(super::list::segment(label, reader.find.filter == filter, event(Event::Filter(filter))));
     }
     iced::widget::container(filters).padding(3).style(super::list::subtle_surface).into()
 }
 
-pub(super) fn controls(reader: &reader::State) -> Element<'_, Message> {
+pub(super) fn controls(i18n: desktop_i18n::I18n, reader: &reader::State) -> Element<'_, Message> {
     use desktop_assets::assets::Icon;
     let count = hits(reader).len();
     row![
-            text_input("查找已加载内容", &reader.find.query)
+            text_input(i18n.__("查找已加载内容"), &reader.find.query)
                 .id(INPUT_ID)
                 .style(settings_text_input_style)
                 .padding(SETTINGS_CONTROL_PADDING)
                 .size(SETTINGS_CONTROL_TEXT_SIZE)
                 .on_input(|q| event(Event::Query(q))),
-            text(format!(
-                "{} / {} 处",
-                if count == 0 { 0 } else { reader.find.selected.min(count - 1) + 1 },
-                count
-            )),
-            icon_btn(Icon::ArrowUp, "上一处", (count > 0).then(|| event(Event::Move(false)))),
-            icon_btn(Icon::ArrowDown, "下一处", (count > 0).then(|| event(Event::Move(true)))),
-            icon_btn(Icon::X, "关闭查找", Some(ParentEvent::ReaderSearch)),
+            text(i18n.sprintf("%s / %s 处", &[format!("{}", if count == 0 { 0 } else { reader.find.selected.min(count - 1) + 1 }).into(), format!("{}", count).into()])),
+            icon_btn(Icon::ArrowUp, i18n.__("上一处"), (count > 0).then(|| event(Event::Move(false)))),
+            icon_btn(Icon::ArrowDown, i18n.__("下一处"), (count > 0).then(|| event(Event::Move(true)))),
+            icon_btn(Icon::X, i18n.__("关闭查找"), Some(ParentEvent::ReaderSearch)),
     ]
     .spacing(8)
     .align_y(iced::Alignment::Center)
     .into()
 }
-pub(super) fn focused(reader: &reader::State, i18n: desktop_i18n::I18n) -> Option<Element<'_, Message>> {
+pub(super) fn focused(i18n: desktop_i18n::I18n, reader: &reader::State) -> Option<Element<'_, Message>> {
     let hit = hits(reader).into_iter().nth(reader.find.selected)?;
     if hit.turn != reader.active {
         return None;
     }
-    Some(settings_group_card(column![text("当前命中").size(14), details::selectable(hit.text, false, &reader.find.query.trim().to_lowercase(), i18n)].spacing(6)).into())
+    Some(settings_group_card(column![text(i18n.__("当前命中")).size(14), details::selectable(hit.text, false, &reader.find.query.trim().to_lowercase(), i18n)].spacing(6)).into())
 }
 
 #[derive(Clone, Copy, Default, Debug, PartialEq)]

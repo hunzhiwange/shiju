@@ -6,35 +6,35 @@ use iced::{
     Element, Length,
     widget::{button, column, container, row, text, text_input},
 };
-pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Message> {
+pub fn overlay<'a>(i18n: desktop_i18n::I18n, form: &'a Form, base: Element<'a, Message>) -> Element<'a, Message> {
     let active = !form.busy;
     let action = |label: &'static str, event: Event, enabled: bool| {
-        button(text(label))
+        button(text(i18n.__(label)))
             .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press_maybe(enabled.then_some(message(event)))
     };
     let title = match form.variant {
-        Variant::Standard => "OMO 标准目录",
-        Variant::Slim => "OMO Slim 目录",
+        Variant::Standard => i18n.__("OMO 标准目录"),
+        Variant::Slim => i18n.__("OMO Slim 目录"),
     };
     let close = message(Event::Close);
     let header = settings_modal_header(text(title).size(20), settings_close_button(close.clone()));
     let mut body = column![
-        text("应用已保存的本变体档案：标准分类为 omo，Slim 分类为 omo-slim。切换变体前请先显式停用当前变体。配置段只读，编辑请使用供应商档案。"),
-        settings_field_label("供应商标识"),
-        text_input("已保存的供应商标识", &form.provider).padding(SETTINGS_CONTROL_PADDING).size(SETTINGS_CONTROL_TEXT_SIZE).style(settings_text_input_style).on_input_maybe(active.then_some(|v| message(Event::Provider(v)))),
+        text(i18n.__("应用已保存的本变体档案：标准分类为 omo，Slim 分类为 omo-slim。切换变体前请先显式停用当前变体。配置段只读，编辑请使用供应商档案。")),
+        settings_field_label(i18n.__("供应商标识")),
+        text_input(i18n.__("已保存的供应商标识"), &form.provider).padding(SETTINGS_CONTROL_PADDING).size(SETTINGS_CONTROL_TEXT_SIZE).style(settings_text_input_style).on_input_maybe(active.then_some(|v| message(Event::Provider(v)))),
     ].spacing(12).width(Length::Fill);
     if form.busy {
-        body = body.push(text("正在加载…").style(settings_muted_text_style));
+        body = body.push(text(i18n.__("正在加载…")).style(settings_muted_text_style));
     }
     if let Some(error) = &form.error {
-        body = body.push(settings_error_banner(error));
+        body = body.push(settings_error_banner(i18n.__(error)));
     }
     if let Some(snapshot) = &form.snapshot {
         body = body
-            .push(settings_field_label("当前项"))
-            .push(text(snapshot.current().unwrap_or("已停用")));
+            .push(settings_field_label(i18n.__("当前项")))
+            .push(text(snapshot.current().unwrap_or(i18n.__("已停用"))));
         for (label, value) in snapshot.sections() {
             body = body
                 .push(settings_panel(column![settings_field_label(label), text(value)].spacing(8)));
@@ -42,10 +42,10 @@ pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Me
     }
     let writable = active && form.snapshot.is_some();
     let footer = row![
-        action("关闭", Event::Close, true),
-        action("刷新后重试", Event::Refresh, active),
-        action("停用此变体", Event::Disable, writable),
-        button(text("应用供应商")).padding([8, 14]).style(primary_action_btn_style).on_press_maybe(
+        action(i18n.__("关闭"), Event::Close, true),
+        action(i18n.__("刷新后重试"), Event::Refresh, active),
+        action(i18n.__("停用此变体"), Event::Disable, writable),
+        button(text(i18n.__("应用供应商"))).padding([8, 14]).style(primary_action_btn_style).on_press_maybe(
             (writable && !form.provider.trim().is_empty()).then_some(message(Event::Apply))
         ),
     ]

@@ -49,8 +49,8 @@ impl std::fmt::Debug for Event {
 pub(crate) fn message(event: Event) -> Message {
     event
 }
-pub fn entry() -> Element<'static, Message> {
-    button(text("模型白名单"))
+pub fn entry(i18n: desktop_i18n::I18n, ) -> Element<'static, Message> {
+    button(text(i18n.__("模型白名单")))
         .padding([8, 12])
         .style(rounded_action_btn_style)
         .on_press(message(Event::Open))
@@ -61,16 +61,16 @@ pub(crate) fn parse_draft(value: &str) -> Result<OpenClawModelCatalog, String> {
         "请输入模型目录 JSON 对象，每个模型的 alias 必须为字符串，额外字段可保留任意 JSON 值".into()
     })
 }
-pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
+pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
     if !state.open {
         return base;
     }
     let close = message(Event::Close);
     let mut body =
-        column![text("以 JSON 对象编辑模型白名单、alias 和额外字段。保存 {} 会明确写入空目录。")]
+        column![text(i18n.__("以 JSON 对象编辑模型白名单、alias 和额外字段。保存 {} 会明确写入空目录。"))]
             .spacing(12);
     if state.busy {
-        body = body.push(text("正在处理…"));
+        body = body.push(text(i18n.__("正在处理…")));
     }
     for warning in &state.warnings {
         body = body.push(text(format!(
@@ -81,7 +81,7 @@ pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, 
     }
     if state.loaded {
         if state.missing {
-            body = body.push(text("当前配置没有模型目录；保存后将创建该分节。"));
+            body = body.push(text(i18n.__("当前配置没有模型目录；保存后将创建该分节。")));
         }
         let mut editor = settings_text_editor(&state.editor).height(260);
         if !state.busy {
@@ -90,25 +90,25 @@ pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, 
         body = body.push(editor);
     } else if !state.busy {
         body = body.push(
-            button(text("重试读取"))
+            button(text(i18n.__("重试读取")))
                 .padding([8, 12])
                 .style(rounded_action_btn_style)
                 .on_press(message(Event::Open)),
         );
     }
     let footer = row![
-        button(text("取消"))
+        button(text(i18n.__("取消")))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press(close.clone()),
-        button(text("保存"))
+        button(text(i18n.__("保存")))
             .padding([8, 12])
             .style(primary_action_btn_style)
             .on_press_maybe((state.loaded && !state.busy).then(|| message(Event::Save)))
     ]
     .spacing(8);
     let header = settings_modal_header(
-        text("OpenClaw 模型白名单").size(20),
+        text(i18n.__("OpenClaw 模型白名单")).size(20),
         settings_close_button(close.clone()),
     );
     let card = settings_modal_layout(header, body, Some(footer.into())).width(620).height(520);

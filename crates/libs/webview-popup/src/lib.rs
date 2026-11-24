@@ -31,6 +31,7 @@ struct Popup {
 }
 
 pub struct PopupWindows {
+    i18n: Rc<Cell<desktop_i18n::I18n>>,
     windows: RefCell<HashMap<u64, Popup>>,
     next_id: Cell<u64>,
     proxy: EventLoopProxy<UserEvent>,
@@ -45,7 +46,7 @@ pub struct PopupWindows {
 }
 
 impl PopupWindows {
-    pub fn new(
+    pub fn new(i18n: Rc<Cell<desktop_i18n::I18n>>,
         proxy: EventLoopProxy<UserEvent>,
         log_path: PathBuf,
         external: ExternalProtocols,
@@ -54,6 +55,7 @@ impl PopupWindows {
         #[cfg(windows)] owner: &tao::window::Window,
     ) -> Rc<Self> {
         Rc::new(Self {
+            i18n,
             windows: RefCell::default(),
             next_id: Cell::new(0),
             proxy,
@@ -157,7 +159,7 @@ impl PopupWindows {
             .get(&id)
             .and_then(|popup| webview_external_protocol::dialog_parent(&popup.webview));
         if let Some(parent) = parent {
-            webview_external_protocol::show_confirmation(parent, target, confirmation);
+            webview_external_protocol::show_confirmation(self.i18n.get(), parent, target, confirmation);
         }
     }
 

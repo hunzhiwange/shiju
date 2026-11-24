@@ -311,14 +311,14 @@ fn update_settings(
         message,
     )
 }
-pub(super) fn listener_fields(
+pub(super) fn listener_fields(i18n: desktop_i18n::I18n,
     state: &State,
     service: Option<vw_api_app_routing::RoutingState>,
 ) -> Element<'_, Message> {
     use iced::Length;
 
     let Some(Value::Listener(saved)) = &state.value else {
-        return inline_status(state);
+        return inline_status(i18n, state);
     };
     let ready = !state.busy && service.is_some();
     let bind_changed = state.fields[0] != saved.listen_address.to_string()
@@ -338,9 +338,9 @@ pub(super) fn listener_fields(
         };
         let save = button(
             text(if bind_changed && service == Some(vw_api_app_routing::RoutingState::Running) {
-                "保存并重启"
+                i18n.__("保存并重启")
             } else {
-                "保存"
+                i18n.__("保存")
             })
             .size(SETTINGS_CONTROL_TEXT_SIZE),
         )
@@ -348,24 +348,24 @@ pub(super) fn listener_fields(
         .style(rounded_action_btn_style)
         .on_press_maybe((ready && changed).then_some(lifecycle::Event::Listener(Event::Save)));
         column![
-            row![field(0, "监听地址", "推荐 127.0.0.1"), field(1, "监听端口", "0 或 1024–65535")]
+            row![field(0, i18n.__("监听地址"), i18n.__("推荐 127.0.0.1")), field(1, i18n.__("监听端口"), i18n.__("0 或 1024–65535"))]
                 .spacing(10),
             container(save).align_right(Length::Fill),
         ]
         .spacing(8)
     };
     let mut fields =
-        column![container(settings_responsive_row("监听设置", "", controls)).padding([12, 0]),];
+        column![container(settings_responsive_row(i18n.__("监听设置"), "", controls)).padding([12, 0]),];
     if state.error.is_some() {
-        fields = fields.push(inline_status(state));
+        fields = fields.push(inline_status(i18n, state));
     }
     fields.into()
 }
 
-pub(super) fn logging_field(state: &State, enabled: bool) -> Element<'_, Message> {
+pub(super) fn logging_field(i18n: desktop_i18n::I18n, state: &State, enabled: bool) -> Element<'_, Message> {
     settings_row(
-        "记录路由请求",
-        "通过监听设置的「保存」提交",
+        i18n.__("记录路由请求"),
+        i18n.__("通过监听设置的「保存」提交"),
         44.0,
         settings_toggle(state.logging).on_toggle_maybe(
             (enabled && state.value.is_some() && !state.busy)
@@ -374,65 +374,65 @@ pub(super) fn logging_field(state: &State, enabled: bool) -> Element<'_, Message
     )
 }
 
-pub(super) fn client_host_field(state: &State) -> Element<'_, Message> {
+pub(super) fn client_host_field(i18n: desktop_i18n::I18n, state: &State) -> Element<'_, Message> {
     let host = match &state.value {
         Some(Value::Listener(config)) => {
             vw_api_app_routing::routing_client_host_from_bind(config.listen_address)
         }
         _ => String::new(),
     };
-    settings_responsive_row("连接地址", "由保存的监听地址推导", move || {
-        settings_text_input("等待监听设置", &host)
+    settings_responsive_row(i18n.__("连接地址"), i18n.__("由保存的监听地址推导"), move || {
+        settings_text_input(i18n.__("等待监听设置"), &host)
     })
 }
 
-fn inline_status(state: &State) -> Element<'_, Message> {
+fn inline_status(i18n: desktop_i18n::I18n, state: &State) -> Element<'_, Message> {
     let mut content = column![].spacing(8);
     if let Some(error) = &state.error {
-        content = content.push(settings_error_banner(error));
+        content = content.push(settings_error_banner(i18n.__(error).to_owned()));
         content = content.push(
-            button(text("重新读取").size(SETTINGS_CONTROL_TEXT_SIZE))
+            button(text(i18n.__("重新读取")).size(SETTINGS_CONTROL_TEXT_SIZE))
                 .padding([8, 12])
                 .style(rounded_action_btn_style)
                 .on_press(lifecycle::Event::Listener(Event::Reload)),
         );
     } else {
-        content = content.push(text("正在读取…").size(13).style(settings_muted_text_style));
+        content = content.push(text(i18n.__("正在读取…")).size(13).style(settings_muted_text_style));
     }
     container(content).padding([12, 0]).into()
 }
 
-pub fn timeout_button(id: AppId) -> Element<'static, Message> {
-    button(text("应用路由超时"))
+pub fn timeout_button(i18n: desktop_i18n::I18n, id: AppId) -> Element<'static, Message> {
+    button(text(i18n.__("应用路由超时")))
         .padding([8, 12])
         .style(rounded_action_btn_style)
         .on_press(message(Event::Open(Some(id))))
         .into()
 }
-pub fn overlay<'a>(
+pub fn overlay<'a>(i18n: desktop_i18n::I18n,
     routing: &'a lifecycle::State,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    let base = super::outbound::overlay(routing, base);
+    let base = super::outbound::overlay(i18n, routing, base);
     let state = &routing.config;
     if !state.open {
         return base;
     }
     let (title, description, labels): (_, _, &[_]) = match state.target {
         Target::Listener => (
-            "路由监听设置",
-            "修改监听设置可能重新绑定路由服务。",
-            &["监听 IP 地址", "监听端口（0 表示自动分配）"],
+            i18n.__("路由监听设置"),
+            i18n.__("修改监听设置可能重新绑定路由服务。"),
+            &[i18n.__("监听 IP 地址"), i18n.__("监听端口（0 表示自动分配）")],
         ),
         Target::ClientHost => (
-            "路由连接地址",
-            "客户端连接路由时使用的地址。留空时由监听地址推导。",
-            &["IP 地址或主机名"],
+            i18n.__("路由连接地址"),
+            i18n.__("客户端连接路由时使用的地址。留空时由监听地址推导。"),
+            &[i18n.__("IP 地址或主机名")],
         ),
         Target::App(_) => (
-            "应用路由超时",
-            "设置连接和请求的超时。",
-            &["首字节超时（秒）", "流式空闲超时（秒，0 表示禁用）", "非流式超时（秒）"],
+            i18n.__("应用路由超时"),
+            i18n.__("设置连接和请求的超时。"),
+            &[i18n.__("首字节超时（秒）"), i18n.__("流式空闲超时（秒，0 表示禁用）"), i18n.__("非流式超时（秒）")],
         ),
     };
     let header =
@@ -453,26 +453,26 @@ pub fn overlay<'a>(
     }
     if matches!(state.value, Some(Value::Listener(_))) {
         body = body.push(settings_row(
-            "记录路由请求",
-            "将已授权请求写入路由日志。",
+            i18n.__("记录路由请求"),
+            i18n.__("将已授权请求写入路由日志。"),
             48.0,
             settings_toggle(state.logging)
                 .on_toggle_maybe((!state.busy).then_some(|value| message(Event::Logging(value)))),
         ));
     }
     if let Some(error) = &state.error {
-        body = body.push(settings_error_banner(error.clone()));
+        body = body.push(settings_error_banner(i18n.__(error).to_owned()));
     }
     let actions = row![
-        button(text("取消"))
+        button(text(i18n.__("取消")))
             .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press_maybe((!state.busy).then_some(message(Event::Close))),
-        button(text("重新读取"))
+        button(text(i18n.__("重新读取")))
             .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press_maybe((!state.busy).then_some(message(Event::Reload))),
-        button(text(if state.busy { "请求中" } else { "保存" }))
+        button(text(if state.busy { i18n.__("请求中") } else { i18n.__("保存") }))
             .padding([8, 14])
             .style(primary_action_btn_style)
             .on_press_maybe((!state.busy && state.value.is_some()).then_some(message(Event::Save))),

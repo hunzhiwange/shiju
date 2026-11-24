@@ -12,6 +12,7 @@ fn standard(revision: &str, current: Option<&str>) -> Snapshot {
 
 #[tokio::test]
 async fn aggregation_t64_actual_text_rendering_in_both_themes() {
+    let i18n = desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
     use iced::{
         Font, Size, Theme,
         advanced::renderer::{Headless, Style},
@@ -47,7 +48,7 @@ async fn aggregation_t64_actual_text_rendering_in_both_themes() {
                     other_fields: None,
                 }),
             });
-            let element = desktop_apps_ui::aggregation::omo_view::overlay(
+            let element = desktop_apps_ui::aggregation::omo_view::overlay(i18n,
                 &form,
                 Space::new().width(iced::Length::Fill).height(iced::Length::Fill).into(),
             );

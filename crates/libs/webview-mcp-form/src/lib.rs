@@ -28,6 +28,7 @@ mod supported {
     }
 
     pub struct FormPolicy {
+        pub(crate) i18n: Rc<Cell<desktop_i18n::I18n>>,
         pub(crate) parent: Option<webview_external_protocol::Parent>,
         pub(crate) frame_domains: Vec<String>,
         pub(crate) origins: Vec<String>,
@@ -39,6 +40,7 @@ mod supported {
 
     impl FormPolicy {
         pub fn new(
+            i18n: Rc<Cell<desktop_i18n::I18n>>,
             parent: Option<webview_external_protocol::Parent>,
             frame_domains: Vec<String>,
             origins: Vec<String>,
@@ -47,6 +49,7 @@ mod supported {
             revoke_document: fn(),
         ) -> Self {
             Self {
+                i18n,
                 parent,
                 frame_domains,
                 origins,
@@ -97,7 +100,7 @@ mod supported {
             let active = self.active.clone();
             let submitted = self.submitted.clone();
             let revoke_document = self.revoke_document;
-            webview_external_protocol::confirm_mcp_form(parent, &origin, move |approved| {
+            webview_external_protocol::confirm_mcp_form(self.i18n.get(), parent, &origin, move |approved| {
                 pending.set(false);
                 let approved = approved && active.load(Ordering::Acquire);
                 submitted.set(approved);

@@ -19,6 +19,9 @@ pub mod list;
 pub mod publish;
 mod clients_update;
 pub use list::{Form, Selection, supported};
-pub enum Notice { Error(String), Info(String), Success(String), Warning(String) }
-pub(crate) fn error<E>(notice: &mut Option<Notice>, text: impl Into<String>) -> iced::Task<E> { *notice = Some(Notice::Error(text.into())); iced::Task::none() }
-fn info<E>(notice: &mut Option<Notice>, text: impl Into<String>) -> iced::Task<E> { *notice = Some(Notice::Info(text.into())); iced::Task::none() }
+pub enum Notice {
+    Error(desktop_i18n::format::Message), Info(desktop_i18n::format::Message),
+    Success(desktop_i18n::format::Message), Warning(desktop_i18n::format::Message),
+}
+pub(crate) fn error<E>(notice: &mut Option<Notice>, text: impl Into<crate::Feedback>) -> iced::Task<E> { *notice = Some(Notice::Error(text.into().into_message())); iced::Task::none() }
+fn info<E>(notice: &mut Option<Notice>, text: impl Into<crate::Feedback>) -> iced::Task<E> { *notice = Some(Notice::Info(text.into().into_message())); iced::Task::none() }

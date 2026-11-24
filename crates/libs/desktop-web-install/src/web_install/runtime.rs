@@ -1,5 +1,6 @@
 //! 管理从 Web 包启动的 Node 静态服务；仅允许回环地址和自动分配端口。
-use anyhow::{Context, Result, bail};
+use anyhow::Result;
+use super::copy::{self, ProductContext as _};
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -94,7 +95,7 @@ pub(super) fn require_node() -> Result<PathBuf> {
     {
         return Ok(node);
     }
-    bail!("未找到可用的 Node.js 22 或以上版本，请检查 Node.js 版本及安装路径");
+    return Err(copy::error(desktop_i18n::format::Message::new("未找到可用的 Node.js 22 或以上版本，请检查 Node.js 版本及安装路径", vec![])));
 }
 
 #[cfg(not(unix))]
@@ -103,16 +104,16 @@ pub(super) fn require_node() -> Result<PathBuf> {
     let output = node_command(&node)
         .arg("--version")
         .output()
-        .context("请先安装 Node.js 22 或以上版本，并确保 node 位于 PATH 中")?;
+        .product_context("请先安装 Node.js 22 或以上版本，并确保 node 位于 PATH 中")?;
     if !output.status.success() || !supported_node_version(&String::from_utf8_lossy(&output.stdout)) {
-        bail!("请先安装 Node.js 22 或以上版本，并确保 node 位于 PATH 中");
+        return Err(copy::error(desktop_i18n::format::Message::new("请先安装 Node.js 22 或以上版本，并确保 node 位于 PATH 中", vec![])));
     }
     Ok(node)
 }
 
 impl Runtime {
     pub(super) fn url(&self) -> Result<Option<String>> {
-        let mut inner = self.inner.lock().map_err(|_| anyhow::anyhow!("Web 服务状态锁异常"))?;
+        let mut inner = self.inner.lock().map_err(|_| copy::error(desktop_i18n::format::Message::new("Web 服务状态锁异常", vec![])))?;
         if let Some(process) = inner.process.as_mut() {
             if process.child.try_wait()?.is_none() {
                 return Ok(Some(process.url.clone()));
@@ -124,9 +125,9 @@ impl Runtime {
 
     pub(super) fn start(&self, path: &Path, node: Option<PathBuf>) -> Result<String> {
         {
-            let mut inner = self.inner.lock().map_err(|_| anyhow::anyhow!("Web 服务状态锁异常"))?;
+            let mut inner = self.inner.lock().map_err(|_| copy::error(desktop_i18n::format::Message::new("Web 服务状态锁异常", vec![])))?;
             if inner.closed {
-                bail!("应用正在退出，无法启动 Web 服务");
+                return Err(copy::error(desktop_i18n::format::Message::new("应用正在退出，无法启动 Web 服务", vec![])));
             }
             if let Some(process) = inner.process.as_mut() {
                 if process.child.try_wait()?.is_none() {
@@ -148,15 +149,15 @@ impl Runtime {
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn()
-            .context("启动 Web 服务失败")?;
+            .product_context("启动 Web 服务失败")?;
         let mut process = RunningWeb { child, url: String::new() };
-        let stdout = process.child.stdout.take().context("无法读取 Web 服务启动信息")?;
+        let stdout = process.child.stdout.take().product_context("无法读取 Web 服务启动信息")?;
         let (sender, receiver) = std::sync::mpsc::sync_channel(1);
         // 等待就绪期间不持锁，退出应用仍可立即终止子进程。
         {
-            let mut inner = self.inner.lock().map_err(|_| anyhow::anyhow!("Web 服务状态锁异常"))?;
+            let mut inner = self.inner.lock().map_err(|_| copy::error(desktop_i18n::format::Message::new("Web 服务状态锁异常", vec![])))?;
             if inner.closed {
-                bail!("应用正在退出，无法启动 Web 服务");
+                return Err(copy::error(desktop_i18n::format::Message::new("应用正在退出，无法启动 Web 服务", vec![])));
             }
             inner.process = Some(process);
         }
@@ -168,33 +169,33 @@ impl Runtime {
         let ready = (|| -> Result<String> {
             let line = receiver
                 .recv_timeout(Duration::from_secs(10))
-                .context("等待 Web 服务启动超时，请重试")??;
-            let url = line.trim().strip_prefix("ShiJu Web: ").context("Web 服务启动响应无效")?;
+                .product_context("等待 Web 服务启动超时，请重试")??;
+            let url = line.trim().strip_prefix("ShiJu Web: ").product_context("Web 服务启动响应无效")?;
             let port = url
                 .strip_prefix("http://127.0.0.1:")
                 .and_then(|v| v.strip_suffix('/'))
                 .and_then(|v| v.parse::<u16>().ok())
                 .filter(|port| *port != 0)
-                .context("Web 服务必须监听本机回环地址")?;
-            let mut inner = self.inner.lock().map_err(|_| anyhow::anyhow!("Web 服务状态锁异常"))?;
-            let process = inner.process.as_mut().context("Web 服务已停止")?;
+                .product_context("Web 服务必须监听本机回环地址")?;
+            let mut inner = self.inner.lock().map_err(|_| copy::error(desktop_i18n::format::Message::new("Web 服务状态锁异常", vec![])))?;
+            let process = inner.process.as_mut().product_context("Web 服务已停止")?;
             if process.child.try_wait()?.is_some() {
-                bail!("Web 服务启动后意外退出");
+                return Err(copy::error(desktop_i18n::format::Message::new("Web 服务启动后意外退出", vec![])));
             }
             process.url = format!("http://127.0.0.1:{port}/");
             Ok(process.url.clone())
         })();
         if ready.is_err() {
-            self.stop().context("Web 服务启动失败，清理子进程失败")?;
+            self.stop().product_context("Web 服务启动失败，清理子进程失败")?;
         }
         ready
     }
 
     pub(super) fn stop(&self) -> Result<()> {
-        let mut inner = self.inner.lock().map_err(|_| anyhow::anyhow!("Web 服务状态锁异常"))?;
+        let mut inner = self.inner.lock().map_err(|_| copy::error(desktop_i18n::format::Message::new("Web 服务状态锁异常", vec![])))?;
         if let Some(process) = inner.process.as_mut() {
             if process.child.try_wait()?.is_none() {
-                process.child.kill().context("停止 Web 服务失败")?;
+                process.child.kill().product_context("停止 Web 服务失败")?;
             }
             process.child.wait()?;
         }

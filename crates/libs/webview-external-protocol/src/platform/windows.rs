@@ -40,7 +40,7 @@ impl Parent {
     }
 
     pub(super) fn show(
-        &self,
+        &self, _i18n: desktop_i18n::I18n,
         title: &str,
         message: &str,
         confirm: bool,

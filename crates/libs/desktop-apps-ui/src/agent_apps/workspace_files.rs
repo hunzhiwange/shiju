@@ -77,14 +77,14 @@ pub enum Event {
 pub(crate) fn message(event: Event) -> Message {
     event
 }
-pub fn entry() -> Element<'static, Message> {
-    button(text("工作区文件"))
+pub fn entry(i18n: desktop_i18n::I18n, ) -> Element<'static, Message> {
+    button(text(i18n.__("工作区文件")))
         .padding([8, 12])
         .style(rounded_action_btn_style)
         .on_press(message(Event::Open))
         .into()
 }
-pub fn overlay<'a>(
+pub fn overlay<'a>(i18n: desktop_i18n::I18n,
     state: &'a State,
     _host: &'a str,
     base: Element<'a, Message>,
@@ -94,11 +94,11 @@ pub fn overlay<'a>(
     }
     let mut body = column![
         row![
-            button(text("工作区目录"))
+            button(text(i18n.__("工作区目录")))
                 .padding([8, 12])
                 .style(rounded_action_btn_style)
                 .on_press(message(Event::Directory(WorkspaceDirectory::Workspace))),
-            button(text("记忆目录"))
+            button(text(i18n.__("记忆目录")))
                 .padding([8, 12])
                 .style(rounded_action_btn_style)
                 .on_press(message(Event::Directory(WorkspaceDirectory::Memory)))
@@ -108,10 +108,10 @@ pub fn overlay<'a>(
     .spacing(8);
     for filename in FILES {
         let status = match state.files.iter().find(|(f, _)| *f == filename).map(|(_, r)| r) {
-            Some(Ok(true)) => "存在",
-            Some(Ok(false)) => "缺失",
-            Some(Err(_)) => "读取失败",
-            None => "待刷新",
+            Some(Ok(true)) => i18n.__("存在"),
+            Some(Ok(false)) => i18n.__("缺失"),
+            Some(Err(_)) => i18n.__("读取失败"),
+            None => i18n.__("待刷新"),
         };
         body = body.push(
             button(text(format!("{} · {status}", filename.as_str())))
@@ -121,7 +121,7 @@ pub fn overlay<'a>(
         );
     }
     let mut footer = row![
-        button(text("刷新"))
+        button(text(i18n.__("刷新")))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press_maybe((!state.busy).then(|| message(Event::Refresh)))
@@ -138,13 +138,13 @@ pub fn overlay<'a>(
         body = body.push(editor);
         footer = footer
             .push(
-                button(text("保存"))
+                button(text(i18n.__("保存")))
                     .padding([8, 12])
                     .style(primary_action_btn_style)
                     .on_press_maybe((!state.busy).then(|| message(Event::Save))),
             )
             .push(
-                button(text("关闭编辑"))
+                button(text(i18n.__("关闭编辑")))
                     .padding([8, 12])
                     .style(rounded_action_btn_style)
                     .on_press_maybe((!state.busy).then(|| message(Event::CloseEditor))),
@@ -153,7 +153,7 @@ pub fn overlay<'a>(
     let close = message(Event::Close);
     let card = settings_modal_layout(
         settings_modal_header(
-            text("OpenClaw 工作区").size(20),
+            text(i18n.__("OpenClaw 工作区")).size(20),
             settings_close_button(close.clone()),
         ),
         body,

@@ -166,7 +166,7 @@ pub fn view(state: &WorkBrowserState, locale: config_ui::DesktopLocale) -> Eleme
             column![
                 text(desktop_i18n::I18n::new(locale).__("内置浏览器不可用"))
                     .size(16),
-                text(error).size(12).style(|theme: &Theme| text::Style {
+                text(desktop_i18n::I18n::new(locale).__(error)).size(12).style(|theme: &Theme| text::Style {
                     color: Some(theme.extended_palette().danger.base.color),
                 }),
                 button(text(desktop_i18n::I18n::new(locale).__("重试")).size(12))

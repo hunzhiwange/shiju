@@ -109,21 +109,21 @@ fn candidate(draft: &OpenClawToolsConfig) -> OpenClawToolsConfig {
     value.deny.retain(|item| !item.trim().is_empty());
     value
 }
-pub fn entry() -> Element<'static, Message> {
-    button(text("工具设置"))
+pub fn entry(i18n: desktop_i18n::I18n, ) -> Element<'static, Message> {
+    button(text(i18n.__("工具设置")))
         .padding([8, 12])
         .style(rounded_action_btn_style)
         .on_press(message(Event::Open))
         .into()
 }
-pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
+pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
     if !state.open {
         return base;
     }
     let close = message(Event::Close);
-    let mut body = column![text("配置 OpenClaw 工具范围；留空条目保存时忽略。")].spacing(12);
+    let mut body = column![text(i18n.__("配置 OpenClaw 工具范围；留空条目保存时忽略。"))].spacing(12);
     if state.busy {
-        body = body.push(text("正在处理…"));
+        body = body.push(text(i18n.__("正在处理…")));
     }
     if let Some(error) = &state.error {
         body = body.push(text(error));
@@ -134,9 +134,9 @@ pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, 
     if state.loaded {
         let selected = Profile::from_value(&state.draft.profile);
         if let Profile::Unknown(value) = &selected {
-            body = body.push(text(format!("未知 profile：{value}。选择其他值前将原样保留。")));
+            body = body.push(text(i18n.sprintf("未知 profile：%s。选择其他值前将原样保留。", &[format!("{}", value).into()])));
         }
-        body = body.push(text("工具 profile")).push(
+        body = body.push(text(i18n.__("工具 profile"))).push(
             settings_select(
                 [
                     Profile::Unset,
@@ -148,23 +148,28 @@ pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, 
                 Some(selected),
                 |profile| message(Event::Profile(profile)),
             )
+            .format_labels(|profile| match profile {
+                Profile::Unset => i18n.__("未设置").to_owned(),
+                Profile::Unknown(value) => i18n.sprintf("未知值：%s", &[value.clone().into()]),
+                _ => profile.to_string(),
+            })
             .disabled(state.busy),
         );
         for (deny, label, items) in [
-            (false, "允许列表 allow", &state.draft.allow),
-            (true, "拒绝列表 deny", &state.draft.deny),
+            (false, i18n.__("允许列表 allow"), &state.draft.allow),
+            (true, i18n.__("拒绝列表 deny"), &state.draft.deny),
         ] {
             body = body.push(text(label));
             for (index, value) in items.iter().enumerate() {
                 let mut input =
-                    settings_text_input("工具名称或匹配模式", value).width(Length::Fill);
+                    settings_text_input(i18n.__("工具名称或匹配模式"), value).width(Length::Fill);
                 if !state.busy {
                     input = input.on_input(move |value| message(Event::Edit(deny, index, value)));
                 }
                 body = body.push(
                     row![
                         input,
-                        button(text("删除"))
+                        button(text(i18n.__("删除")))
                             .padding([8, 12])
                             .style(rounded_action_btn_style)
                             .on_press_maybe(
@@ -175,7 +180,7 @@ pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, 
                 );
             }
             body = body.push(
-                button(text("添加条目"))
+                button(text(i18n.__("添加条目")))
                     .padding([8, 12])
                     .style(rounded_action_btn_style)
                     .on_press_maybe((!state.busy).then(|| message(Event::Add(deny)))),
@@ -183,22 +188,22 @@ pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, 
         }
     }
     let footer = row![
-        button(text("取消"))
+        button(text(i18n.__("取消")))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press(close.clone()),
-        button(text("重试读取"))
+        button(text(i18n.__("重试读取")))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press_maybe((!state.busy && !state.loaded).then(|| message(Event::Open))),
-        button(text("保存"))
+        button(text(i18n.__("保存")))
             .padding([8, 12])
             .style(primary_action_btn_style)
             .on_press_maybe((state.loaded && !state.busy).then(|| message(Event::Save)))
     ]
     .spacing(8);
     let header = settings_modal_header(
-        text("OpenClaw 工具配置").size(20),
+        text(i18n.__("OpenClaw 工具配置")).size(20),
         settings_close_button(close.clone()),
     );
     let card = settings_modal_layout(header, body, Some(footer.into())).width(640).height(520);

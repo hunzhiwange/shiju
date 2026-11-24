@@ -15,6 +15,7 @@ fn mcp_app_form_navigation_requires_exact_origin_and_live_document() {
 
     let origin = "https://api.example.test:8443";
     let policy = FormPolicy {
+        i18n: Rc::new(Cell::new(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese))),
         parent: None,
         frame_domains: Vec::new(),
         origins: vec![origin.into(), "https://other.example.test".into()],

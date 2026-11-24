@@ -43,8 +43,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         &mut state.codex_subagent, &mut state.generation, blocked, client, context, event, &mut notice,
     ).map(message);
     let feedback = match notice {
-        Some(desktop_settings_apps::aggregation::Notice::Error(error)) => app.show_error_toast(error),
-        Some(desktop_settings_apps::aggregation::Notice::Info(info)) => app.show_info_toast(info),
+        Some(desktop_settings_apps::aggregation::Notice::Error(error)) => app.show_message_toast(crate::app::state::ToastKind::Error, error),
+        Some(desktop_settings_apps::aggregation::Notice::Info(info)) => app.show_message_toast(crate::app::state::ToastKind::Info, info),
         _ => Task::none(),
     };
     Task::batch([task, feedback])

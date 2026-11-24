@@ -75,7 +75,7 @@ async fn aggregation_t66_iced_draws_dynamic_chinese_in_both_themes() {
                 error: failed.then(|| "OMP YAML 无法安全编辑，草稿已保留，请修正后重试".into()),
                 ..Form::default()
             };
-            let element = overlay(
+            let element = overlay(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
                 &form,
                 Space::new().width(iced::Length::Fill).height(iced::Length::Fill).into(),
             );

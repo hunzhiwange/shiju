@@ -128,9 +128,9 @@ fn decode(response: SessionImageResponse) -> Result<image::Handle, AgentAppsRead
     let bitmap = decoder.decode().map_err(|_| invalid())?.into_rgba8();
     Ok(image::Handle::from_rgba(bitmap.width(), bitmap.height(), bitmap.into_raw()))
 }
-pub(super) fn view<'a>(reader: &'a reader::State, reference: &'a ImageRef) -> Element<'a, Message> {
+pub(super) fn view<'a>(i18n: desktop_i18n::I18n, reader: &'a reader::State, reference: &'a ImageRef) -> Element<'a, Message> {
     let entry = reader.images.entries.iter().find(|e| &e.reference == reference);
-    let label = reference.alt.as_deref().unwrap_or("会话图片");
+    let label = reference.alt.as_deref().unwrap_or(i18n.__("会话图片"));
     if let Some(handle) = entry.and_then(|e| e.handle.as_ref()) {
         column![
             text(label),
@@ -143,9 +143,9 @@ pub(super) fn view<'a>(reader: &'a reader::State, reference: &'a ImageRef) -> El
         .into()
     } else {
         button(text(if entry.is_some_and(|e| e.pending) {
-            "正在读取图片…".to_owned()
+            i18n.__("正在读取图片…").to_owned()
         } else {
-            format!("显示图片 · {label}")
+            i18n.sprintf("显示图片 · %s", &[format!("{}", label).into()])
         }))
         .padding([8, 12])
         .style(rounded_action_btn_style)
@@ -155,7 +155,7 @@ pub(super) fn view<'a>(reader: &'a reader::State, reference: &'a ImageRef) -> El
         .into()
     }
 }
-pub(super) fn overlay<'a>(
+pub(super) fn overlay<'a>(i18n: desktop_i18n::I18n,
     base: Element<'a, Message>,
     reader: &'a reader::State,
 ) -> Element<'a, Message> {
@@ -169,12 +169,12 @@ pub(super) fn overlay<'a>(
         let close = event(Event::Close);
         let card = settings_modal_card(
             column![
-                text("图片预览").size(18),
+                text(i18n.__("图片预览")).size(18),
                 image(handle.clone())
                     .width(Length::Fill)
                     .height(480)
                     .content_fit(iced::ContentFit::Contain),
-                button(text("关闭"))
+                button(text(i18n.__("关闭")))
                     .padding([8, 12])
                     .style(rounded_action_btn_style)
                     .on_press(close.clone())

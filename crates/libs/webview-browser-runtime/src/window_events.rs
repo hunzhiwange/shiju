@@ -17,6 +17,7 @@ pub(crate) struct BrowserEvents {
     pub(crate) independent_mode: bool,
     pub(crate) current_url: String,
     pub(crate) browser_cleared: bool,
+    pub(crate) dialog_i18n: std::rc::Rc<std::cell::Cell<desktop_i18n::I18n>>,
 }
 
 impl BrowserEvents {
@@ -32,9 +33,11 @@ impl BrowserEvents {
             independent_mode,
             current_url,
             browser_cleared,
+            dialog_i18n,
         } = self;
         match event {
             Event::UserEvent(UserEvent::SetLocale(locale)) => {
+                dialog_i18n.set(desktop_i18n::I18n::new(locale));
                 if let Some(toolbar) = toolbar_webview.as_ref()
                     && let Ok(script) = webview_toolbar::toolbar_locale_script(locale)
                 {
@@ -66,7 +69,7 @@ impl BrowserEvents {
             Event::UserEvent(UserEvent::OpenExternal(u)) => {
                 if is_safe_navigation_url(&u) {
                     if open::that(u).is_err() {
-                        webview_external_protocol::show_browser_open_error(window);
+                        webview_external_protocol::show_browser_open_error(dialog_i18n.get(), window);
                     }
                 } else if let Some(target) = ExternalTarget::parse(&u) {
                     external.request(target, None, proxy);
@@ -82,7 +85,7 @@ impl BrowserEvents {
                     if let Some(id) = popup {
                         popups.show_external_confirmation(id, target, confirmation);
                     } else if let Some(parent) = webview_external_protocol::main_dialog_parent(window) {
-                        webview_external_protocol::show_confirmation(parent, target, confirmation);
+                        webview_external_protocol::show_confirmation(dialog_i18n.get(), parent, target, confirmation);
                     }
                 }
             }

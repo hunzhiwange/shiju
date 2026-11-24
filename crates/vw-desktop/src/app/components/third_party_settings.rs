@@ -209,12 +209,12 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
             let lead = match tab {
                 Tab::Routing => Some(
                     column![
-                        routing::view(state),
+                        routing::view(i18n, state),
                         settings_panel(
                             row![
-                        super::app_routing::config::timeout_button(id),
-                        super::app_routing::outbound::entry(id),
-                        super::app_routing::requests::entry(id),
+                        super::app_routing::config::timeout_button(i18n, id),
+                        super::app_routing::outbound::entry(i18n, id),
+                        super::app_routing::requests::entry(i18n, id),
                         button(text(i18n.__("备用队列")).size(13)).padding([8, 12])
                             .style(rounded_action_btn_style)
                             .on_press(super::app_providers::list::map(
@@ -228,7 +228,7 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                     .into(),
                 ),
                 Tab::Aggregation => Some(match aggregation {
-                    Some(form) => desktop_apps_ui::aggregation::list_view::page(
+                    Some(form) => desktop_apps_ui::aggregation::list_view::page(i18n,
                         form,
                         &app.app_providers.query,
                     )
@@ -339,7 +339,7 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
             .spacing(10);
             (column![title(), tabs()].spacing(12).into(), empty.into())
         } else {
-            let actions = details::workspace_actions(
+            let actions = details::workspace_actions(i18n,
                 &projection,
                 agent,
                 system_settings_apps::local::available(),
@@ -360,7 +360,7 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                 ]
                 .spacing(12)
                 .into(),
-                system_settings_apps::details::view(state, agent),
+                system_settings_apps::details::view(i18n, state, agent),
             )
         }
     } else {
@@ -949,6 +949,7 @@ mod integration_tests;
 
 /// Main-page composition; all configuration dialogs stay attached to this page.
 pub(crate) fn standalone(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     if usage::is_visible(app) {
         return view(app);
     }
@@ -959,7 +960,7 @@ pub(crate) fn standalone(app: &App) -> Element<'_, Message> {
         &app.appearance.app_theme,
         base,
     );
-    base = super::app_providers::list::overlay_with_list(
+    base = super::app_providers::list::overlay_with_list(i18n,
         &app.app_providers,
         provider_help(app),
         base,
@@ -967,10 +968,10 @@ pub(crate) fn standalone(app: &App) -> Element<'_, Message> {
     );
     if crate::app::message::agent_apps_high_availability::can_show(app) {
         base =
-            super::agent_apps_high_availability::queue::overlay(&app.app_providers.failover, base);
+            super::agent_apps_high_availability::queue::overlay(i18n, &app.app_providers.failover, base);
     }
     if crate::app::message::agent_apps_diagnostics::model::can_show(app) {
-        base = super::agent_apps_diagnostics::model_panel::overlay(
+        base = super::agent_apps_diagnostics::model_panel::overlay(i18n,
             &app.apps_catalog.model_diagnostics,
             base,
         );

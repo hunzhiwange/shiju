@@ -5,8 +5,8 @@ pub(crate) fn view(
     iced::widget::responsive(move |size| {
         let projection = super::view_state(state);
         let details = desktop_settings_apps::system_settings_apps::list::selected_app(&projection)
-            .map(|row| super::details::view(state, row));
-        let catalog = desktop_settings_apps::system_settings_apps::list::view_with_updates(
+            .map(|row| super::details::view(i18n, state, row));
+        let catalog = desktop_settings_apps::system_settings_apps::list::view_with_updates(i18n,
             &projection,
             Some(&state.updates),
             size.width < 580.0,

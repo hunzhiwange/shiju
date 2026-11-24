@@ -4,6 +4,7 @@ use vw_api_app_aggregation::PiDirectoryState;
 
 #[tokio::test]
 async fn aggregation_t65_renders_dynamic_chinese_in_light_and_dark() {
+    let i18n = desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
     use iced::{
         Font, Length, Size, Theme,
         advanced::renderer::Headless,
@@ -60,7 +61,7 @@ async fn aggregation_t65_renders_dynamic_chinese_in_light_and_dark() {
     let mut images = Vec::new();
     for theme in [Theme::Light, Theme::Dark] {
         let mut ui = UserInterface::build(
-            desktop_apps_ui::aggregation::pi_view::overlay(
+            desktop_apps_ui::aggregation::pi_view::overlay(i18n,
                 &form,
                 container(text("背景")).width(Length::Fill).height(Length::Fill).into(),
             ),

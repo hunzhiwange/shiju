@@ -628,6 +628,7 @@ fn check_saved_key_controls(
 
 #[tokio::test]
 async fn ui_refresh_14_renders_loading_error_and_empty_catalog() {
+    let i18n = desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
     use super::ui_support::{AgentAppsContext, ListState, Scope, Snapshot};
     use vw_api_app_provider_edit::catalog::ProviderCatalog;
     use vw_api_app_provider_edit::catalog::ProviderSelection;
@@ -662,7 +663,7 @@ async fn ui_refresh_14_renders_loading_error_and_empty_catalog() {
     let generation = state.begin(scope.clone());
     let size = Size::new(420, 690);
     let mut check = |state: &ListState, expected, name: &str| {
-        let mut scene = Scene::new(list::overlay(state, Help::test(), base()), &mut renderer, size);
+        let mut scene = Scene::new(list::overlay(i18n, state, Help::test(), base()), &mut renderer, size);
         let mut text = VisibleText { expected, found: false };
         scene.ui.operate(&renderer, &mut text);
         assert!(text.found, "{name}");

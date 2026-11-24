@@ -3,7 +3,7 @@ use vw_api_openclaw_settings::OpenClawDefaultModel;
 
 #[test]
 fn openclaw_model_editor_preserves_selection_missing_from_catalog() {
-    let options = choices(&[], "old/model", &[]);
+    let options = choices(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &[], "old/model", &[]);
     assert_eq!(options.len(), 2);
     assert!(options[1].to_string().contains("old/model"));
 }

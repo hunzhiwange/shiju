@@ -56,8 +56,8 @@ impl std::fmt::Debug for Event {
 pub(crate) fn message(event: Event) -> Message {
     event
 }
-pub fn entry() -> Element<'static, Message> {
-    button(text("代理默认设置"))
+pub fn entry(i18n: desktop_i18n::I18n, ) -> Element<'static, Message> {
+    button(text(i18n.__("代理默认设置")))
         .padding([8, 12])
         .style(rounded_action_btn_style)
         .on_press(message(Event::Open))
@@ -105,14 +105,14 @@ fn candidate(
     }
     if errors.iter().any(Option::is_some) { Err(errors) } else { Ok(next) }
 }
-pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
+pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
     if !state.open {
         return base;
     }
     let close = message(Event::Close);
-    let mut body = column![text("留空可清除对应字段；模型与其他默认配置将保留。")].spacing(12);
+    let mut body = column![text(i18n.__("留空可清除对应字段；模型与其他默认配置将保留。"))].spacing(12);
     if state.busy {
-        body = body.push(text("正在处理…"));
+        body = body.push(text(i18n.__("正在处理…")));
     }
     for warning in &state.warnings {
         body = body.push(text(format!(
@@ -123,31 +123,31 @@ pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, 
     }
     if state.loaded {
         for (index, (_, label)) in FIELDS.iter().enumerate() {
-            let input = settings_text_input("未设置", &state.inputs[index]).width(Length::Fill);
-            body = body.push(text(*label)).push(if state.busy {
+            let input = settings_text_input(i18n.__("未设置"), &state.inputs[index]).width(Length::Fill);
+            body = body.push(text(i18n.__(label))).push(if state.busy {
                 input
             } else {
                 input.on_input(move |v| message(Event::Edit(index, v)))
             });
             if let Some(error) = &state.errors[index] {
-                body = body.push(text(error).style(iced::widget::text::danger));
+                body = body.push(text(i18n.__(error)).style(iced::widget::text::danger));
             }
         }
     }
     let action = if !state.loaded { Event::Open } else { Event::Save };
     let footer = row![
-        button(text("取消"))
+        button(text(i18n.__("取消")))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press(close.clone()),
-        button(text(if state.loaded { "保存" } else { "重试" }))
+        button(text(if state.loaded { i18n.__("保存") } else { i18n.__("重试") }))
             .padding([8, 12])
             .style(primary_action_btn_style)
             .on_press_maybe((!state.busy).then(|| message(action)))
     ]
     .spacing(8);
     let header = settings_modal_header(
-        text("OpenClaw 代理默认设置").size(20),
+        text(i18n.__("OpenClaw 代理默认设置")).size(20),
         settings_close_button(close.clone()),
     );
     let card = settings_modal_layout(header, body, Some(footer.into())).width(620).height(560);

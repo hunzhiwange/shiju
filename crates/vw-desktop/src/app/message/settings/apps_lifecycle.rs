@@ -6,7 +6,7 @@ use iced::Task;
 pub(super) fn update(app: &mut App, message: LifecycleMessage) -> Task<Message> {
     let client = match crate::app::config::gateway_client() {
         Ok(client) => client,
-        Err(_) => return app.show_error_toast("网关不可用"),
+        Err(_) => return app.show_localized_toast(crate::app::state::ToastKind::Error, "网关不可用", vec![]),
     };
     let current = AgentAppsContext {
         gateway: client.endpoint().base_url(),
@@ -39,7 +39,7 @@ pub(super) fn update(app: &mut App, message: LifecycleMessage) -> Task<Message> 
         app.apps_catalog.updates = Default::default();
     }
     let feedback = match notice {
-        Some(desktop_settings_apps::aggregation::Notice::Error(error)) => app.show_error_toast(error),
+        Some(desktop_settings_apps::aggregation::Notice::Error(error)) => app.show_message_toast(crate::app::state::ToastKind::Error, error),
         _ => Task::none(),
     };
     Task::batch([task, feedback])

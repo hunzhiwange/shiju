@@ -64,6 +64,7 @@ pub fn update<U: Usage>(
         if visible {
             state.copy_login_link = !open;
             if let Err(error) = ports.store_preference(open) {
+                effects.preference_failed = true;
                 return crate::error(notice, error);
             }
         }

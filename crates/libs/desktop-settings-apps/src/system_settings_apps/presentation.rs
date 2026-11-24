@@ -44,7 +44,7 @@ pub fn preferred(app: &CatalogRow) -> Option<&AppInstallation> {
     installations.iter().find(|i| i.is_path_default).or_else(|| installations.first())
 }
 
-pub fn source_label(source: AppInstallationSource) -> &'static str {
+pub fn source_label(i18n: desktop_i18n::I18n, source: AppInstallationSource) -> &'static str {
     match source {
         AppInstallationSource::Homebrew => "Homebrew",
         AppInstallationSource::Nvm => "nvm",
@@ -55,9 +55,9 @@ pub fn source_label(source: AppInstallationSource) -> &'static str {
         AppInstallationSource::Pnpm => "pnpm",
         AppInstallationSource::Scoop => "Scoop",
         AppInstallationSource::Pip => "pip",
-        AppInstallationSource::System => "系统安装",
-        AppInstallationSource::Native => "官方安装",
-        AppInstallationSource::Unknown => "来源待确认",
+        AppInstallationSource::System => i18n.__("系统安装"),
+        AppInstallationSource::Native => i18n.__("官方安装"),
+        AppInstallationSource::Unknown => i18n.__("来源待确认"),
     }
 }
 

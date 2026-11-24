@@ -29,18 +29,18 @@ pub(crate) fn view_overlays<'a>(
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let base = iced::widget::stack![base,
-        desktop_apps_ui::app_routing::outbound::overlay(&state.routing, iced::widget::Space::new().into())
+        desktop_apps_ui::app_routing::outbound::overlay(i18n, &state.routing, iced::widget::Space::new().into())
             .map(|event| message(AppsCatalogMessage::Routing(event)))
     ].into();
-    let base = crate::app::components::app_routing::requests::overlay(state, base);
-    let base = crate::app::components::app_routing::config::overlay(state, base);
-    let base = crate::app::components::openclaw_catalog::overlay(&state.openclaw_catalog, base);
-    let base = crate::app::components::workspace_files::overlay(&state.workspace_files, &state.host, base);
-    let base = crate::app::components::daily_memory::overlay(&state.daily_memory, base);
-    let base = crate::app::components::openclaw_tools::overlay(&state.openclaw_tools, base);
-    let base = crate::app::components::openclaw_env::overlay(&state.openclaw_env, base);
-    let base = crate::app::components::openclaw_model::overlay(&state.openclaw_model, base);
-    let base = crate::app::components::openclaw_defaults::overlay(&state.openclaw_defaults, base);
+    let base = crate::app::components::app_routing::requests::overlay(i18n, state, base);
+    let base = crate::app::components::app_routing::config::overlay(i18n, state, base);
+    let base = crate::app::components::openclaw_catalog::overlay(i18n, &state.openclaw_catalog, base);
+    let base = crate::app::components::workspace_files::overlay(i18n, &state.workspace_files, &state.host, base);
+    let base = crate::app::components::daily_memory::overlay(i18n, &state.daily_memory, base);
+    let base = crate::app::components::openclaw_tools::overlay(i18n, &state.openclaw_tools, base);
+    let base = crate::app::components::openclaw_env::overlay(i18n, &state.openclaw_env, base);
+    let base = crate::app::components::openclaw_model::overlay(i18n, &state.openclaw_model, base);
+    let base = crate::app::components::openclaw_defaults::overlay(i18n, &state.openclaw_defaults, base);
     let base = crate::app::components::system_settings_prompts::templates::overlay(
         i18n,
         &state.prompts.templates,
@@ -56,18 +56,18 @@ pub(crate) fn view_overlays<'a>(
     {
         base
     } else {
-        crate::app::components::agent_apps_high_availability_policy::overlay(
+        crate::app::components::agent_apps_high_availability_policy::overlay(i18n,
             &state.high_availability,
             base,
         )
     };
-    let base = commands::overlay(state, base);
+    let base = commands::overlay(i18n, state, base);
     let base = launch::overlay(
         state, i18n, theme,
         preferences::overlay(state, i18n, theme,
-            lifecycle::overlay(&state.lifecycle, &state.host, base)),
+            lifecycle::overlay(i18n, &state.lifecycle, &state.host, base)),
     );
-    crate::app::components::app_routing::lifecycle::restore_overlay(state, base)
+    crate::app::components::app_routing::lifecycle::restore_overlay(i18n, state, base)
 }
 
 

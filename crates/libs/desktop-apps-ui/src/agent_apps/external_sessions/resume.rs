@@ -9,20 +9,20 @@ use vw_api_external_session::*;
 
 fn msg(event: Event) -> Message { message(super::Event::Resume(event)) }
 
-pub(super) fn control(session: &SessionMeta, enabled: bool) -> Element<'_, Message> {
-    column![button(text("恢复会话")).padding([8, 12]).style(rounded_action_btn_style)
+pub(super) fn control(i18n: desktop_i18n::I18n, session: &SessionMeta, enabled: bool) -> Element<'_, Message> {
+    column![button(text(i18n.__("恢复会话"))).padding([8, 12]).style(rounded_action_btn_style)
         .on_press_maybe((enabled && session.capabilities.resume)
             .then(|| msg(Event::Open(session.identity.clone())))),
-        text(if session.capabilities.resume { "在终端中恢复" }
-            else { "来源应用未提供此会话的原生恢复能力" }).size(12).style(settings_muted_text_style),
+        text(if session.capabilities.resume { i18n.__("在终端中恢复") }
+            else { i18n.__("来源应用未提供此会话的原生恢复能力") }).size(12).style(settings_muted_text_style),
     ].spacing(4).into()
 }
 
-pub(super) fn reader_control<'a>(session: &'a SessionMeta, state: &super::State) -> Element<'a, Message> {
+pub(super) fn reader_control<'a>(i18n: desktop_i18n::I18n, session: &'a SessionMeta, state: &super::State) -> Element<'a, Message> {
     let terminal = match state.resume.preferred.unwrap_or(SessionTerminal::Terminal) {
         SessionTerminal::Terminal if session.identity.target_host == local_app_auth::HOST_ID
             && cfg!(target_os = "macos") => "Terminal.app",
-        SessionTerminal::Terminal => "终端",
+        SessionTerminal::Terminal => i18n.__("终端"),
         SessionTerminal::Iterm2 => "iTerm2",
         SessionTerminal::Ghostty => "Ghostty",
         SessionTerminal::Kitty => "Kitty",
@@ -31,7 +31,7 @@ pub(super) fn reader_control<'a>(session: &'a SessionMeta, state: &super::State)
         SessionTerminal::Otty => "Otty",
         SessionTerminal::Alacritty => "Alacritty",
         SessionTerminal::Warp => "Warp",
-        SessionTerminal::Custom => "自定义终端",
+        SessionTerminal::Custom => i18n.__("自定义终端"),
     };
     let enabled = !state.busy && !state.deletion.busy() && !state.resume.busy && session.capabilities.resume;
     let identity = session.identity.clone();
@@ -44,22 +44,22 @@ pub(super) fn reader_control<'a>(session: &'a SessionMeta, state: &super::State)
     }).menu_icon(desktop_assets::assets::Icon::ChevronDown, 180.0)
         .width(Length::Fixed(30.0)).disabled(!enabled);
     row![
-        button(text(format!("在 {terminal} 中恢复")).size(13)).padding([7, 11]).style(primary_action_btn_style)
+        button(text(i18n.sprintf("在 %s 中恢复", &[format!("{}", terminal).into()])).size(13)).padding([7, 11]).style(primary_action_btn_style)
             .on_press_maybe(enabled.then(|| msg(Event::Open(session.identity.clone())))),
         menu,
     ].spacing(3).align_y(iced::Alignment::Center).into()
 }
 
 /// Compact actions remain separate from the body read target.
-pub fn quick_controls(session: &SessionMeta, enabled: bool) -> Element<'_, Message> {
+pub fn quick_controls(i18n: desktop_i18n::I18n, session: &SessionMeta, enabled: bool) -> Element<'_, Message> {
     use iced::widget::{tooltip, tooltip::Position};
     row![
         tooltip(button(text("↗")).padding([8, 10]).style(rounded_action_btn_style)
             .on_press_maybe((enabled && session.capabilities.resume).then(|| msg(Event::Open(session.identity.clone())))),
-            text("在终端中恢复"), Position::Top),
+            text(i18n.__("在终端中恢复")), Position::Top),
         tooltip(button(text("⧉")).padding([8, 10]).style(rounded_action_btn_style)
             .on_press_maybe((enabled && session.capabilities.resume).then(|| msg(Event::CopyFor(session.identity.clone())))),
-            text("复制受控恢复命令"), Position::Top),
+            text(i18n.__("复制受控恢复命令")), Position::Top),
     ].spacing(4).into()
 }
 
@@ -161,7 +161,7 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
     Task::none()
 }
 
-pub(super) fn view<'a>(state: &'a super::State, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(super) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a super::State, base: Element<'a, Message>) -> Element<'a, Message> {
     if state.resume.identity.is_none() && !state.resume.preferences { return base; }
     let close = msg(Event::Close);
     let mut choices = row![].spacing(8);
@@ -170,7 +170,7 @@ pub(super) fn view<'a>(state: &'a super::State, base: Element<'a, Message>) -> E
         (SessionTerminal::Ghostty, "Ghostty"), (SessionTerminal::Kitty, "Kitty"),
         (SessionTerminal::Wezterm, "WezTerm"), (SessionTerminal::Kaku, "Kaku"),
         (SessionTerminal::Otty, "Otty"), (SessionTerminal::Alacritty, "Alacritty"),
-        (SessionTerminal::Warp, "Warp"), (SessionTerminal::Custom, "自定义终端"),
+        (SessionTerminal::Warp, "Warp"), (SessionTerminal::Custom, i18n.__("自定义终端")),
     ] {
         let selected = state.resume.terminal == Some(terminal);
         choices = choices.push(button(text(if selected { format!("● {label}") } else { label.into() }))
@@ -178,15 +178,15 @@ pub(super) fn view<'a>(state: &'a super::State, base: Element<'a, Message>) -> E
             .on_press_maybe((!state.resume.busy).then(|| msg(Event::Terminal(terminal)))));
     }
     let card = settings_modal_card(column![
-        row![text(if state.resume.preferences { "首选终端" } else { "恢复外部会话" }).size(18), settings_close_button(close.clone())].spacing(12),
-        text("首选终端仅在当前工作区有效；更换授权作用域后重置。").size(12).style(settings_muted_text_style),
-        text("支持已安装的 macOS 终端。自定义终端须由管理员预先配置。").style(settings_muted_text_style),
+        row![text(if state.resume.preferences { i18n.__("首选终端") } else { i18n.__("恢复外部会话") }).size(18), settings_close_button(close.clone())].spacing(12),
+        text(i18n.__("首选终端仅在当前工作区有效；更换授权作用域后重置。")).size(12).style(settings_muted_text_style),
+        text(i18n.__("支持已安装的 macOS 终端。自定义终端须由管理员预先配置。")).style(settings_muted_text_style),
         choices.wrap(),
-        button(text("复制恢复命令")).padding([8, 12]).style(rounded_action_btn_style)
+        button(text(i18n.__("复制恢复命令"))).padding([8, 12]).style(rounded_action_btn_style)
             .on_press_maybe((!state.resume.busy && !state.resume.preferences).then(|| msg(Event::Copy))),
-        text("恢复命令适用于会话来源环境。依赖账号凭据的会话无法复制恢复命令。").style(settings_muted_text_style),
-        row![button(text("关闭")).padding([8, 12]).style(rounded_action_btn_style).on_press(close.clone()),
-            button(text(if state.resume.busy { "正在恢复…" } else { "在所选终端恢复" }))
+        text(i18n.__("恢复命令适用于会话来源环境。依赖账号凭据的会话无法复制恢复命令。")).style(settings_muted_text_style),
+        row![button(text(i18n.__("关闭"))).padding([8, 12]).style(rounded_action_btn_style).on_press(close.clone()),
+            button(text(if state.resume.busy { i18n.__("正在恢复…") } else { i18n.__("在所选终端恢复") }))
                 .padding([8, 12]).style(primary_action_btn_style)
                 .on_press_maybe((!state.resume.busy && !state.resume.preferences).then(|| msg(Event::Launch)))].spacing(8),
     ].spacing(16)).width(Length::Fill).max_width(560);

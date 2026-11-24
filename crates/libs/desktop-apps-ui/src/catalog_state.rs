@@ -237,7 +237,7 @@ pub struct CommandsState {
     pub inferred: bool,
     pub diagnostics_loading: bool,
     pub diagnostics_error: Option<String>,
-    pub diagnostics: Vec<(String, Vec<String>)>,
+    pub diagnostics: Vec<(String, Vec<desktop_i18n::format::Message>)>,
     pub sequence: u64,
     pub copied: std::collections::BTreeMap<usize, u64>,
 }

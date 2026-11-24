@@ -237,7 +237,7 @@ fn cc_apps_desktop_lifecycle_state_message_confirmation_scope_cancel_and_toast()
     );
     assert!(app.lifecycle.preview.is_none());
     assert!(
-        matches!(app.notice.as_ref(), Some(crate::aggregation::Notice::Error(message)) if message == "Node 版本不足，预检拒绝")
+        matches!(app.notice.as_ref(), Some(crate::aggregation::Notice::Error(message)) if message.render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese)).unwrap() == "Node 版本不足，预检拒绝")
     );
     route(&mut app, M::Confirm);
     assert!(!app.lifecycle.busy);

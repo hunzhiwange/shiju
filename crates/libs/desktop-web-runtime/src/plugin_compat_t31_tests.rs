@@ -40,8 +40,7 @@ fn codex_plugin_compat_t31_destroys_app_after_session_close() {
         1,
     ))
     .unwrap();
-    let panel = McpAppPanel::launch(
-        &helper,
+    let panel = McpAppPanel::launch(config_ui::DesktopLocale::SimplifiedChinese, &helper,
         "session".into(),
         &resource(pidfile.to_str().unwrap()),
         json!({}),
@@ -113,8 +112,7 @@ fn codex_plugin_compat_t31_real_local_mcp_page() {
         1,
     ))
     .unwrap();
-    let panel = McpAppPanel::launch(
-        std::path::Path::new(&helper),
+    let panel = McpAppPanel::launch(config_ui::DesktopLocale::SimplifiedChinese, std::path::Path::new(&helper),
         "local-qa-session".into(),
         &app,
         json!({}),
@@ -165,8 +163,7 @@ fn codex_plugin_compat_t31_reports_missing_helper() {
     ))
     .unwrap();
     assert!(
-        McpAppPanel::launch(
-            std::path::Path::new("/nonexistent/t31-helper"),
+        McpAppPanel::launch(config_ui::DesktopLocale::SimplifiedChinese, std::path::Path::new("/nonexistent/t31-helper"),
             "session".into(),
             &resource("中文"),
             json!({}),

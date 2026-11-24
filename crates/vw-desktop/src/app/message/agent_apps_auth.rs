@@ -78,6 +78,8 @@ pub(in crate::app) fn update_at(
         app.app_providers.usage.clear();
     }
     let feedback = match notice {
+        Some(desktop_provider_apps::Notice::Error(_)) if effects.preference_failed =>
+            app.show_localized_toast(crate::app::state::ToastKind::Error, browser::PREFERENCE_ERROR, vec![]),
         Some(desktop_provider_apps::Notice::Error(text)) => app.show_error_toast(text),
         Some(desktop_provider_apps::Notice::Success(text)) => app.show_success_toast(text),
         None => Task::none(),

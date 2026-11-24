@@ -20,7 +20,11 @@ pub struct Origin<'a> {
     pub catalog_generation: u64,
 }
 #[derive(Default)]
-pub struct Effects { pub opened: bool, pub saved: bool }
+pub struct Effects {
+    pub opened: bool,
+    pub saved: bool,
+    pub preference_failed: bool,
+}
 use iced::Task;
 use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient, vw_api_app_identity::AppId}};
 use vw_api_app_auth::{

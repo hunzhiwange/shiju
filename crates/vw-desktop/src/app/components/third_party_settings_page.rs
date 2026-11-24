@@ -133,10 +133,10 @@ fn applications(app: &App) -> Element<'_, Message> {
         let mut actions = row![providers].spacing(8);
         if id == AppId::OpenClaw {
             actions = actions
-                .push(openclaw_model::entry())
-                .push(openclaw_defaults::entry())
-                .push(openclaw_env::entry())
-                .push(openclaw_tools::entry());
+                .push(openclaw_model::entry(i18n, ))
+                .push(openclaw_defaults::entry(i18n, ))
+                .push(openclaw_env::entry(i18n, ))
+                .push(openclaw_tools::entry(i18n, ));
         }
         let mut entry = column![heading, actions.wrap()].spacing(8);
         if let Ok(observation) = &app.observation {
@@ -184,7 +184,7 @@ fn routing(app: &App) -> Element<'_, Message> {
     let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let catalog = &app.apps_catalog;
     column![
-        column![text(i18n.__("服务")).size(18), app_routing::lifecycle::inline_service(catalog)]
+        column![text(i18n.__("服务")).size(18), app_routing::lifecycle::inline_service(i18n, catalog)]
             .spacing(12),
         routing_apps(app),
         failover(app),
@@ -286,7 +286,7 @@ fn failover(app: &App) -> Element<'_, Message> {
     }));
     let mut content = column![tabs.wrap()].spacing(14);
     if state.open && available {
-        content = content.push(agent_apps_high_availability_policy::inline(state));
+        content = content.push(agent_apps_high_availability_policy::inline(i18n, state));
     } else if !available {
         content = content.push(
             text(i18n.__("路由管理可用后，可按应用调整故障转移策略。"))
@@ -297,9 +297,9 @@ fn failover(app: &App) -> Element<'_, Message> {
     if let Some(id) = selected.filter(|_| available) {
         content = content.push(
             row![
-                app_routing::config::timeout_button(id),
-                app_routing::outbound::entry(id),
-                app_routing::requests::entry(id),
+                app_routing::config::timeout_button(i18n, id),
+                app_routing::outbound::entry(i18n, id),
+                app_routing::requests::entry(i18n, id),
             ]
             .spacing(8)
             .wrap(),

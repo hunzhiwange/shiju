@@ -104,34 +104,34 @@ pub fn update(state: &mut super::State, connection: crate::Connection, notice: &
     Task::none()
 }
 
-pub fn view<'a>(state: &'a super::State, base: Element<'a, super::Event>) -> Element<'a, super::Event> {
+pub fn view<'a>(i18n: desktop_i18n::I18n, state: &'a super::State, base: Element<'a, super::Event>) -> Element<'a, super::Event> {
     let compression = &state.compression;
     let Some(target) = &compression.target else { return base; };
-    let mut body = column![text(format!("Codex 实例：{}", target.instance_id)),
-        text("此开关由 Codex 在启动后处理历史压缩；桌面只保存原生配置并查询磁盘占用。")
+    let mut body = column![text(i18n.sprintf("Codex 实例：%s", &[format!("{}", target.instance_id).into()])),
+        text(i18n.__("此开关由 Codex 在启动后处理历史压缩；桌面只保存原生配置并查询磁盘占用。"))
             .style(settings_muted_text_style)].spacing(12);
     if let Some(value) = &compression.value {
-        let mut control = checkbox(compression.draft).label("启用 Codex 会话压缩").style(settings_checkbox_style);
+        let mut control = checkbox(compression.draft).label(i18n.__("启用 Codex 会话压缩")).style(settings_checkbox_style);
         if !compression.pending { control = control.on_toggle(|v| msg(Event::Toggle(v))); }
         body = body.push(control)
-            .push(text(format!("当前已确认：{}", if value.enabled { "已开启" } else { "已关闭" })))
-            .push(text(format!("活动会话：{} 字节", value.active_bytes)))
-            .push(text(format!("归档会话：{} 字节", value.archived_bytes)))
-            .push(text("统计为实际存储文件字节数，压缩文件按压缩后的大小计算。"));
+            .push(text(i18n.sprintf("当前已确认：%s", &[format!("{}", if value.enabled { i18n.__("已开启") } else { i18n.__("已关闭") }).into()])))
+            .push(text(i18n.sprintf("活动会话：%s 字节", &[format!("{}", value.active_bytes).into()])))
+            .push(text(i18n.sprintf("归档会话：%s 字节", &[format!("{}", value.archived_bytes).into()])))
+            .push(text(i18n.__("统计为实际存储文件字节数，压缩文件按压缩后的大小计算。")));
     }
     if compression.pending {
-        body = body.push(text(if compression.saving { "正在保存并重新读取确认，请稍候…" } else { "正在读取压缩状态和磁盘统计…" }));
+        body = body.push(text(if compression.saving { i18n.__("正在保存并重新读取确认，请稍候…") } else { i18n.__("正在读取压缩状态和磁盘统计…") }));
     }
-    if compression.error { body = body.push(settings_error_banner("读取或保存结果未确认，请刷新后再操作。")); }
+    if compression.error { body = body.push(settings_error_banner(i18n.__("读取或保存结果未确认，请刷新后再操作。"))); }
     let footer = row![
-        button(text("刷新")).padding([8, 12]).style(rounded_action_btn_style)
+        button(text(i18n.__("刷新"))).padding([8, 12]).style(rounded_action_btn_style)
             .on_press_maybe((!compression.pending).then(|| msg(Event::Reload))),
-        button(text("保存设置")).padding([8, 12]).style(primary_action_btn_style)
+        button(text(i18n.__("保存设置"))).padding([8, 12]).style(primary_action_btn_style)
             .on_press_maybe((!compression.pending && compression.value.as_ref().is_some_and(|v| v.enabled != compression.draft))
                 .then(|| msg(Event::Save))),
-        button(text("取消 / 关闭")).padding([8, 12]).style(rounded_action_btn_style)
+        button(text(i18n.__("取消 / 关闭"))).padding([8, 12]).style(rounded_action_btn_style)
             .on_press_maybe((!compression.saving).then(|| msg(Event::Cancel)))].spacing(8);
-    let header = row![text("压缩设置与磁盘统计").size(18), settings_close_button(msg(Event::Close))].spacing(12);
+    let header = row![text(i18n.__("压缩设置与磁盘统计")).size(18), settings_close_button(msg(Event::Close))].spacing(12);
     let card = settings_modal_layout(header, body, Some(footer.into()))
         .width(Length::Fixed(620.0)).height(Length::Fixed(420.0));
     settings_modal_overlay(Some(base), msg(Event::Close), container(card).padding(12).center(Length::Fill))

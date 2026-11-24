@@ -4,7 +4,7 @@ use iced::{
     Element,
     widget::{column, text},
 };
-pub fn view<'a, Message: 'a>(state: &'a McpState) -> Element<'a, Message> {
+pub fn view<'a, Message: 'a>(i18n: desktop_i18n::I18n, state: &'a McpState) -> Element<'a, Message> {
     let mut body = column![].spacing(6);
     for (record, phase) in &state.targets {
         let phase = if state.cancelling
@@ -15,7 +15,7 @@ pub fn view<'a, Message: 'a>(state: &'a McpState) -> Element<'a, Message> {
         } else {
             *phase
         };
-        body = body.push(text(format!("{} · {}", record.id.0, phase.label())).size(13));
+        body = body.push(text(format!("{} · {}", record.id.0, i18n.__(phase.label()))).size(13));
     }
     body.into()
 }

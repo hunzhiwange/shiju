@@ -61,6 +61,7 @@ fn snapshot(run: &ModelRun, state: DiagnosticJobState) -> DiagnosticJobSnapshot 
 }
 #[tokio::test]
 async fn diagnostic_desktop_cancel_keeps_terminal_state() {
+    let i18n = desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
     for kind in [
         DiagnosticProbeKind::Reachability,
         DiagnosticProbeKind::Model,
@@ -109,7 +110,7 @@ async fn diagnostic_desktop_cancel_keeps_terminal_state() {
             }
             serde_json::Value::Object(object)
         }).unwrap()).unwrap();
-        let text = super::model_panel::evidence_text(&evidence);
+        let text = super::model_panel::evidence_text(i18n, &evidence);
         assert!(text.contains("受控夹具（非真实供应商）") && text.contains("7ms"));
         if kind == DiagnosticProbeKind::Reachability {
             assert!(text.contains("401") && text.contains("鉴权/模型/流式未验证"));
@@ -266,6 +267,7 @@ async fn protocol_roundtrip(kind: DiagnosticProbeKind) -> ModelRun {
 }
 
 async fn render_panel(state: &ModelState) {
+    let i18n = desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
     use iced::{
         Font, Pixels, Rectangle, Renderer, Size, Theme,
         advanced::{
@@ -278,7 +280,7 @@ async fn render_panel(state: &ModelState) {
     let mut renderer =
         <Renderer as Headless>::new(Font::DEFAULT, Pixels(14.0), Some("tiny-skia")).await.unwrap();
     for theme in [Theme::Dark, Theme::Light] {
-        let mut element = super::model_panel::overlay(state, iced::widget::text("应用管理").into());
+        let mut element = super::model_panel::overlay(i18n, state, iced::widget::text("应用管理").into());
         let mut tree = Tree::new(element.as_widget());
         let size = Size::new(800.0, 720.0);
         let node = element.as_widget_mut().layout(

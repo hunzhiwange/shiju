@@ -22,7 +22,7 @@ use iced::{
     widget::{button, column, row, text},
 };
 
-pub fn view<'a, Choice: Clone + PartialEq + std::fmt::Display + 'static, M: Clone + 'static>(
+pub fn view<'a, Choice: Clone + PartialEq + std::fmt::Display + 'static, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: Panel<'a, Choice>,
     message: impl Fn(Event<Choice>) -> M + Copy + 'a,
     results: Element<'a, M>,
@@ -30,14 +30,14 @@ pub fn view<'a, Choice: Clone + PartialEq + std::fmt::Display + 'static, M: Clon
     let visible = state.visible;
     let active = visible && state.active;
     let control = |label: &'static str, event: Option<Event<Choice>>| {
-        button(text(label))
+        button(text(i18n.__(label)))
             .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press_maybe(event.map(message))
     };
     let mut body = column![
-        text("MCP 连通检测").size(16),
-        text("仅点击才检查连接并发现工具，不执行工具；结果属于当前连接修订。")
+        text(i18n.__("MCP 连通检测")).size(16),
+        text(i18n.__("仅点击才检查连接并发现工具，不执行工具；结果属于当前连接修订。"))
             .size(12)
             .style(settings_muted_text_style),
         settings_select(state.choices, state.app, move |choice| message(Event::Select(choice)))
@@ -46,7 +46,7 @@ pub fn view<'a, Choice: Clone + PartialEq + std::fmt::Display + 'static, M: Clon
     .spacing(8);
     if let Some(catalog) = state.catalog {
         body = body.push(control(
-            "检测全部",
+            i18n.__("检测全部"),
             (!active && !catalog.records.is_empty()).then(|| {
                 Event::Start(catalog.records.iter().map(|r| r.record.id.clone()).collect())
             }),
@@ -63,14 +63,14 @@ pub fn view<'a, Choice: Clone + PartialEq + std::fmt::Display + 'static, M: Clon
                                 .labels
                                 .iter()
                                 .find(|(id, _)| *id == record.record.id)
-                                .map(|(_, label)| *label)
-                                .unwrap_or("unchecked · 未检查")
+                                .map(|(_, label)| i18n.__(label))
+                                .unwrap_or(i18n.__("unchecked · 未检查"))
                         } else {
-                            "unchecked · 未检查"
+                            i18n.__("unchecked · 未检查")
                         }
                     )),
                     control(
-                        "检测",
+                        i18n.__("检测"),
                         (!active).then(|| Event::Start(vec![record.record.id.clone()]))
                     )
                 ]
@@ -84,14 +84,14 @@ pub fn view<'a, Choice: Clone + PartialEq + std::fmt::Display + 'static, M: Clon
         if active {
             body = body.push(
                 row![
-                    control("取消检测", (!state.cancelling).then_some(Event::Cancel)),
-                    control("刷新检测", state.error.as_ref().map(|_| Event::Refresh))
+                    control(i18n.__("取消检测"), (!state.cancelling).then_some(Event::Cancel)),
+                    control(i18n.__("刷新检测"), state.error.as_ref().map(|_| Event::Refresh))
                 ]
                 .spacing(8),
             );
         }
         if let Some(error) = state.error {
-            body = body.push(settings_error_banner(error.clone()));
+            body = body.push(settings_error_banner(i18n.__(error).to_owned()));
         }
     }
     body.into()

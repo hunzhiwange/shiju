@@ -8218,6 +8218,8 @@ dependencies = [
  "anyhow",
  "app-discovery",
  "config-runtime-paths",
+ "config-ui",
+ "desktop-i18n",
  "desktop-release",
  "directories 5.0.1",
  "iced",
@@ -24454,6 +24456,7 @@ name = "webview-browser-runtime"
 version = "0.7.10"
 dependencies = [
  "config-ui",
+ "desktop-i18n",
  "gtk",
  "open",
  "tao",
@@ -24515,6 +24518,7 @@ name = "webview-external-protocol"
 version = "0.7.10"
 dependencies = [
  "block2 0.6.2",
+ "desktop-i18n",
  "gtk",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
@@ -24561,6 +24565,9 @@ dependencies = [
 name = "webview-mcp-assets"
 version = "0.7.10"
 dependencies = [
+ "config-ui",
+ "desktop-i18n",
+ "serde_json",
  "webview-mcp-policy",
 ]
 
@@ -24569,6 +24576,8 @@ name = "webview-mcp-form"
 version = "0.7.10"
 dependencies = [
  "block2 0.6.2",
+ "config-ui",
+ "desktop-i18n",
  "gtk",
  "objc2 0.6.4",
  "objc2-web-kit",
@@ -24591,11 +24600,13 @@ dependencies = [
 name = "webview-mcp-runtime"
 version = "0.7.10"
 dependencies = [
+ "desktop-i18n",
  "getrandom 0.4.3",
  "serde_json",
  "tao",
  "vw-api-mcp-network",
  "webview-external-protocol",
+ "webview-launch",
  "webview-mcp-assets",
  "webview-mcp-form",
  "webview-mcp-policy",
@@ -24606,6 +24617,7 @@ dependencies = [
 name = "webview-media-permissions"
 version = "0.7.10"
 dependencies = [
+ "desktop-i18n",
  "gtk",
  "url",
  "webkit2gtk",
@@ -24629,6 +24641,7 @@ dependencies = [
 name = "webview-popup"
 version = "0.7.10"
 dependencies = [
+ "desktop-i18n",
  "gtk",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",

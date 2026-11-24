@@ -5,6 +5,7 @@ pub use desktop_apps_ui::shiju_apps::{SHIJU_APPS_TAB_ID, SHIJU_APPS_TITLE, Shiju
 use iced::Task;
 pub(crate) fn update(app: &mut App, message: ShijuAppsMessage) -> Task<Message> {
     let mut input = desktop_apps_ui::shiju_apps::Input {
+        i18n: desktop_i18n::I18n::new(app.general_settings.desktop_locale),
         shiju_apps: &mut app.shiju_apps,
         account: app.account.active_account(),
         client: crate::app::config::gateway_client(),

@@ -45,7 +45,7 @@ pub(super) fn action<'a, M: Clone + 'static>(
     .into()
 }
 
-pub fn view<'a, M: Clone + 'static>(
+pub fn view<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: &ViewState<'a>,
     help_heading: impl Fn(&'static str, &'static str) -> Element<'a, M>,
     local_available: bool,
@@ -54,7 +54,7 @@ pub fn view<'a, M: Clone + 'static>(
     details: Option<Element<'a, M>>,
     message: impl Fn(Action) -> M + Copy + 'static,
 ) -> Element<'a, M> {
-    view_with_updates(
+    view_with_updates(i18n,
         state,
         None,
         false,
@@ -67,7 +67,7 @@ pub fn view<'a, M: Clone + 'static>(
     )
 }
 
-pub fn view_with_updates<'a, M: Clone + 'static>(
+pub fn view_with_updates<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: &ViewState<'a>,
     updates: Option<&'a desktop_apps_ui::catalog_state::UpdatesState>,
     compact: bool,
@@ -117,18 +117,19 @@ pub fn view_with_updates<'a, M: Clone + 'static>(
             })
         },
     )
+    .format_labels(|source| i18n.__(source).to_owned())
     .menu_icon(Icon::DotsThreeVertical, 168.0)
     .width(34)
     .height(34.0)
     .disabled(!ready);
     let more = tooltip(
         more,
-        container(text("更多应用操作").size(12)).padding([6, 8]).style(settings_panel_style),
+        container(text(i18n.__("更多应用操作")).size(12)).padding([6, 8]).style(settings_panel_style),
         tooltip::Position::Bottom,
     );
     let update_buttons = row![
         button(
-            container(text(if checking { "检查中…" } else { "检查更新" }).size(13))
+            container(text(if checking { i18n.__("检查中…") } else { i18n.__("检查更新") }).size(13))
                 .center_x(Length::Fill),
         )
         .width(92)
@@ -142,7 +143,7 @@ pub fn view_with_updates<'a, M: Clone + 'static>(
     .align_y(Alignment::Center);
     let update_buttons = if upgrade_count > 0 {
         update_buttons.push(
-            button(text(format!("全部升级（{upgrade_count}）")).size(13))
+            button(text(i18n.sprintf("全部升级（%s）", &[format!("{}", upgrade_count).into()])).size(13))
                 .padding([7, 10])
                 .style(primary_action_btn_style)
                 .on_press_maybe(
@@ -159,7 +160,7 @@ pub fn view_with_updates<'a, M: Clone + 'static>(
     };
     let title = row![
         icon(Icon::Grid1x2, 20.0),
-        help_heading("应用", "管理第三方应用。显示开关控制应用是否出现在智能侧栏。"),
+        help_heading(i18n.__("应用"), i18n.__("管理第三方应用。显示开关控制应用是否出现在智能侧栏。")),
     ]
     .spacing(9)
     .align_y(Alignment::Center);
@@ -176,7 +177,7 @@ pub fn view_with_updates<'a, M: Clone + 'static>(
                 .align_y(Alignment::Center)
         ]
     };
-    let search = text_input("搜索应用名称或命令", state.query)
+    let search = text_input(i18n.__("搜索应用名称或命令"), state.query)
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style)
@@ -189,9 +190,9 @@ pub fn view_with_updates<'a, M: Clone + 'static>(
     {
         let minutes = elapsed.as_secs() / 60;
         let status = if minutes == 0 {
-            "刚刚检查过更新".to_owned()
+            i18n.__("刚刚检查过更新").to_owned()
         } else {
-            format!("上次检查 · {minutes} 分钟前")
+            i18n.sprintf("上次检查 · %s 分钟前", &[format!("{}", minutes).into()])
         };
         context = context.push(text(status).size(12).style(settings_muted_text_style));
     }
@@ -207,7 +208,7 @@ pub fn view_with_updates<'a, M: Clone + 'static>(
     let mut toolbar = column![heading, filters].spacing(12);
     if state.drag.source.is_some() {
         toolbar = toolbar
-            .push(text("松开鼠标完成排序 · Esc 取消").size(12).style(settings_muted_text_style));
+            .push(text(i18n.__("松开鼠标完成排序 · Esc 取消")).size(12).style(settings_muted_text_style));
     }
     let mut content = column![].spacing(16).width(Length::Fill);
     if let Some(error) = updates.and_then(|updates| updates.error.as_ref()) {
@@ -223,17 +224,17 @@ pub fn view_with_updates<'a, M: Clone + 'static>(
         || state.lifecycle.request.is_some()
         || state.lifecycle.error.is_some()
     {
-        content = content.push(super::lifecycle_view::progress(state.lifecycle, message));
+        content = content.push(super::lifecycle_view::progress(i18n, state.lifecycle, message));
     }
     if state.loading && state.rows.is_empty() {
         content = content.push(empty(
-            "正在读取应用",
-            "正在检查安装状态和版本，请稍候。",
+            i18n.__("正在读取应用"),
+            i18n.__("正在检查安装状态和版本，请稍候。"),
             Icon::ArrowClockwise,
         ));
     } else if state.rows.is_empty() {
         content =
-            content.push(empty("暂无应用", "请刷新应用目录。", Icon::Terminal));
+            content.push(empty(i18n.__("暂无应用"), i18n.__("请刷新应用目录。"), Icon::Terminal));
     } else {
         let mut found = 0;
         for presence in [Presence::Installed, Presence::Missing, Presence::Unverified] {
@@ -250,9 +251,9 @@ pub fn view_with_updates<'a, M: Clone + 'static>(
             }
             found += apps.len();
             let label = match presence {
-                Presence::Installed => "已安装",
-                Presence::Missing => "未安装",
-                Presence::Unverified => "待确认",
+                Presence::Installed => i18n.__("已安装"),
+                Presence::Missing => i18n.__("未安装"),
+                Presence::Unverified => i18n.__("待确认"),
             };
             let section_title = row![
                 text(label).size(14),
@@ -266,9 +267,9 @@ pub fn view_with_updates<'a, M: Clone + 'static>(
                 row![
                     container(section_title).width(Length::Fill),
                     row_columns(
-                        text("版本 / 状态").size(12).style(settings_muted_text_style).into(),
+                        text(i18n.__("版本 / 状态")).size(12).style(settings_muted_text_style).into(),
                         Space::new().into(),
-                        text("侧栏显示").size(12).style(settings_muted_text_style).into(),
+                        text(i18n.__("侧栏显示")).size(12).style(settings_muted_text_style).into(),
                         Space::new().into(),
                     )
                 ]
@@ -281,10 +282,10 @@ pub fn view_with_updates<'a, M: Clone + 'static>(
                 if index > 0 {
                     cards = cards.push(settings_divider());
                 }
-                cards = cards.push(card(state, updates, app, compact, local_available, message));
+                cards = cards.push(card(i18n, state, updates, app, compact, local_available, message));
                 if !state.loading && state.expanded == Some(app.entry.id) {
                     let mut panel =
-                        column![super::details::actions(state, app, local_available, message),]
+                        column![super::details::actions(i18n, state, app, local_available, message),]
                             .spacing(10);
                     if let Some(details) = details.take() {
                         panel = panel.push(details);
@@ -313,8 +314,8 @@ pub fn view_with_updates<'a, M: Clone + 'static>(
         }
         if found == 0 {
             content = content.push(empty(
-                "没有找到匹配的应用",
-                "试试其他名称，或清空搜索内容。",
+                i18n.__("没有找到匹配的应用"),
+                i18n.__("试试其他名称，或清空搜索内容。"),
                 Icon::Search,
             ));
         }
@@ -414,7 +415,7 @@ pub fn brand_icon<M: 'static>(app: AppId, size: f32) -> Element<'static, M> {
     }
 }
 
-fn card<'a, M: Clone + 'static>(
+fn card<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: &ViewState<'a>,
     updates: Option<&'a desktop_apps_ui::catalog_state::UpdatesState>,
     app: &'a CatalogRow,
@@ -465,9 +466,9 @@ fn card<'a, M: Clone + 'static>(
             area,
             container(
                 text(if !state.query.trim().is_empty() {
-                    "清空搜索后可拖动排序"
+                    i18n.__("清空搜索后可拖动排序")
                 } else {
-                    "拖动排序"
+                    i18n.__("拖动排序")
                 })
                 .size(11),
             )
@@ -485,10 +486,10 @@ fn card<'a, M: Clone + 'static>(
         updates.results.iter().find(|candidate| preferred == Some(&candidate.installation))
     });
     let version_label = match (preferred, presence) {
-        (Some(installation), _) => installation.version.as_deref().unwrap_or("版本待确认"),
-        (None, Presence::Installed) => "已发现桌面应用",
-        (None, Presence::Missing) => "未安装",
-        (None, Presence::Unverified) => "安装状态待确认",
+        (Some(installation), _) => installation.version.as_deref().unwrap_or(i18n.__("版本待确认")),
+        (None, Presence::Installed) => i18n.__("已发现桌面应用"),
+        (None, Presence::Missing) => i18n.__("未安装"),
+        (None, Presence::Unverified) => i18n.__("安装状态待确认"),
     };
     let mut version = column![
         text(version_label).size(12).wrapping(Wrapping::Glyph).style(settings_muted_text_style),
@@ -499,24 +500,24 @@ fn card<'a, M: Clone + 'static>(
         .and_then(|candidate| candidate.latest.as_deref())
     {
         version =
-            version.push(text(format!("可升级至 {latest}")).size(12).wrapping(Wrapping::Glyph));
+            version.push(text(i18n.sprintf("可升级至 %s", &[format!("{}", latest).into()])).size(12).wrapping(Wrapping::Glyph));
     } else if preferred.is_some_and(|installation| {
         !matches!(installation.runtime_status, AppInstallationRuntimeStatus::Runnable)
     }) {
-        version = version.push(pill("需要检查", Tone::Warning));
+        version = version.push(pill(i18n.__("需要检查"), Tone::Warning));
     }
     let toggle_details =
         (state.drag.source.is_none()).then_some(message(Action::ToggleDetails(app.entry.id)));
     let select = icon_btn(
         if expanded { Icon::ChevronUp } else { Icon::ChevronDown },
-        if expanded { "收起应用详情" } else { "展开应用详情" },
+        if expanded { i18n.__("收起应用详情") } else { i18n.__("展开应用详情") },
         toggle_details.clone(),
     );
     let mut title = row![text(&app.entry.name).size(15).wrapping(Wrapping::Glyph)]
         .spacing(7)
         .align_y(Alignment::Center);
     if let Some(installation) = preferred {
-        title = title.push(pill(presentation::source_label(installation.source), Tone::Neutral));
+        title = title.push(pill(presentation::source_label(i18n, installation.source), Tone::Neutral));
     }
     let mut description = column![title.wrap()].spacing(4).width(Length::Fill);
     let path = preferred.map(|installation| installation.path.as_str()).or_else(|| {
@@ -542,7 +543,7 @@ fn card<'a, M: Clone + 'static>(
         .filter(|count| *count > 0)
     {
         description = description.push(
-            button(text(format!("另有 {count} 处安装")).size(12))
+            button(text(i18n.sprintf("另有 %s 处安装", &[format!("{}", count).into()])).size(12))
                 .padding([3, 7])
                 .style(rounded_action_btn_style)
                 .on_press_maybe(toggle_details),
@@ -559,10 +560,10 @@ fn card<'a, M: Clone + 'static>(
     let toggle = settings_toggle(visible).on_toggle_maybe(
         enabled.then_some(move |visible| message(Action::SetVisible(id, visible))),
     );
-    let toggle = if compact { toggle.label("侧栏显示").text_size(12) } else { toggle };
+    let toggle = if compact { toggle.label(i18n.__("侧栏显示")).text_size(12) } else { toggle };
     let toggle = tooltip(
         toggle,
-        container(text("在智能侧栏显示").size(12)).padding([6, 8]).style(settings_panel_style),
+        container(text(i18n.__("在智能侧栏显示")).size(12)).padding([6, 8]).style(settings_panel_style),
         tooltip::Position::Top,
     );
     let primary: Element<'_, M> =
@@ -574,7 +575,7 @@ fn card<'a, M: Clone + 'static>(
                     installation_id: candidate.installation.id.clone(),
                 },
             };
-            button(text("升级").size(13))
+            button(text(i18n.__("升级")).size(13))
                 .padding([7, 10])
                 .style(primary_action_btn_style)
                 .on_press_maybe(
@@ -587,7 +588,7 @@ fn card<'a, M: Clone + 'static>(
                 )
                 .into()
         } else {
-            super::details::install_action(state, app, local_available, message)
+            super::details::install_action(i18n, state, app, local_available, message)
                 .unwrap_or_else(|| Space::new().into())
         };
     let identity = row![

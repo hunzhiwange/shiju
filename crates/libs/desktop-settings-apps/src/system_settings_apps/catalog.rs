@@ -59,47 +59,47 @@ pub fn runtime_label(kind: AppRuntimeKind) -> &'static str {
     }
 }
 
-pub fn runtime_status(row: &CatalogRow, kind: AppRuntimeKind) -> String {
+pub fn runtime_status(i18n: desktop_i18n::I18n, row: &CatalogRow, kind: AppRuntimeKind) -> String {
     // Native observations do not prove an adapter or editor runtime works.
     match kind {
-        AppRuntimeKind::AcpAdapter => return "未验证（请在 ACP 页管理）".into(),
+        AppRuntimeKind::AcpAdapter => return i18n.__("未验证（请在 ACP 页管理）").into(),
         AppRuntimeKind::ReviewRuntime | AppRuntimeKind::EditorIntegration => {
-            return "未验证".into();
+            return i18n.__("未验证").into();
         }
         _ => {}
     }
     let observation = match &row.observation {
         Ok(value) => value,
-        Err(error) => return error_label(error).into(),
+        Err(error) => return i18n.__(error_label(error)).into(),
     };
     if kind == AppRuntimeKind::DesktopApp {
         return match &observation.desktop {
-            Some(desktop) if !desktop.supported => "不支持",
+            Some(desktop) if !desktop.supported => i18n.__("不支持"),
             Some(desktop) => match &desktop.app_bundles {
-                Some(paths) if paths.is_empty() => "未安装",
-                Some(_) => "已发现，运行未验证",
-                None => "未验证",
+                Some(paths) if paths.is_empty() => i18n.__("未安装"),
+                Some(_) => i18n.__("已发现，运行未验证"),
+                None => i18n.__("未验证"),
             },
-            None => "未验证",
+            None => i18n.__("未验证"),
         }
         .into();
     }
     if observation.installations.is_empty() {
-        return "未安装".into();
+        return i18n.__("未安装").into();
     }
     observation
         .installations
         .iter()
         .map(|installation| match &installation.runtime_status {
-            AppInstallationRuntimeStatus::Runnable => "可运行",
-            AppInstallationRuntimeStatus::ExitedWithError { .. } => "运行失败",
+            AppInstallationRuntimeStatus::Runnable => i18n.__("可运行"),
+            AppInstallationRuntimeStatus::ExitedWithError { .. } => i18n.__("运行失败"),
             AppInstallationRuntimeStatus::ProbeFailed { reason } => match reason {
-                AppInstallationProbeFailure::DamagedInstallation => "损坏",
-                AppInstallationProbeFailure::Missing => "文件缺失",
-                AppInstallationProbeFailure::PermissionDenied => "权限不足",
-                AppInstallationProbeFailure::TimedOut => "探测超时，未验证",
-                AppInstallationProbeFailure::Cancelled => "探测取消，未验证",
-                _ => "探测失败，未验证",
+                AppInstallationProbeFailure::DamagedInstallation => i18n.__("损坏"),
+                AppInstallationProbeFailure::Missing => i18n.__("文件缺失"),
+                AppInstallationProbeFailure::PermissionDenied => i18n.__("权限不足"),
+                AppInstallationProbeFailure::TimedOut => i18n.__("探测超时，未验证"),
+                AppInstallationProbeFailure::Cancelled => i18n.__("探测取消，未验证"),
+                _ => i18n.__("探测失败，未验证"),
             },
         })
         .collect::<Vec<_>>()

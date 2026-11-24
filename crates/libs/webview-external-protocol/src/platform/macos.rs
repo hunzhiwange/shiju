@@ -23,7 +23,7 @@ impl Parent {
     }
 
     pub(super) fn show(
-        &self,
+        &self, i18n: desktop_i18n::I18n,
         title: &str,
         message: &str,
         confirm: bool,
@@ -35,12 +35,12 @@ impl Parent {
         alert.setInformativeText(&NSString::from_str(message));
         if confirm {
             // Escape cancels regardless of the system language.
-            let cancel = alert.addButtonWithTitle(&NSString::from_str("取消"));
+            let cancel = alert.addButtonWithTitle(&NSString::from_str(i18n.__("取消")));
             cancel.setKeyEquivalent(&NSString::from_str("\u{1b}"));
-            let open = alert.addButtonWithTitle(&NSString::from_str("打开"));
+            let open = alert.addButtonWithTitle(&NSString::from_str(i18n.__("打开")));
             open.setKeyEquivalent(&NSString::from_str(""));
         } else {
-            alert.addButtonWithTitle(&NSString::from_str("好"));
+            alert.addButtonWithTitle(&NSString::from_str(i18n.__("好")));
         }
         let done = Cell::new(Some(done));
         let completion = RcBlock::new(move |response| {

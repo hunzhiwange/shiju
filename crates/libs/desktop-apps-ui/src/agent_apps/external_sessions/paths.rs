@@ -185,37 +185,36 @@ fn reveal_path(endpoint: gateway_endpoint::GatewayEndpoint, path: String, scope:
     }, |message| message)
 }
 
-pub(super) fn controls<'a>(state: &State, session: &'a SessionMeta, loopback: bool) -> Element<'a, Message> {
+pub(super) fn controls<'a>(i18n: desktop_i18n::I18n, state: &State, session: &'a SessionMeta, loopback: bool) -> Element<'a, Message> {
     let local = cfg!(target_os = "macos") && session.identity.target_host == local_app_auth::HOST_ID
         && loopback;
-    let source = format!("来源应用：{:?} · 实例：{}",
-        session.identity.provider, session.identity.instance_id);
+    let source = i18n.sprintf("来源应用：%s · 实例：%s", &[format!("{:?}", session.identity.provider).into(), format!("{}", session.identity.instance_id).into()]);
     let mut content = column![text(source).size(12).style(settings_muted_text_style)].spacing(4);
-    for (kind, label) in [(Location::Project, "项目位置"), (Location::Source, "会话来源")] {
+    for (kind, label) in [(Location::Project, i18n.__("项目位置")), (Location::Source, i18n.__("会话来源"))] {
         let Some(path) = location(session, kind) else { continue; };
         let identity = session.identity.clone();
         content = content.push(text(format!("{label}：{path}")).size(12).style(settings_muted_text_style));
         content = content.push(row![
-            button(text(format!("复制{label}"))).padding([8, 12]).style(rounded_action_btn_style)
+            button(text(i18n.sprintf("复制%s", &[format!("{}", label).into()]))).padding([8, 12]).style(rounded_action_btn_style)
                 .on_press(msg(Event::Copy(identity.clone(), state.generation, kind))),
-            button(text("在 Finder 中显示")).padding([8, 12]).style(rounded_action_btn_style)
+            button(text(i18n.__("在 Finder 中显示"))).padding([8, 12]).style(rounded_action_btn_style)
                 .on_press_maybe((local && local_path(path).is_some()).then(||
                     msg(Event::Reveal(identity, state.generation, kind)))),
         ].spacing(8).wrap());
     }
     if !local {
-        content = content.push(text("此路径可以复制。")
+        content = content.push(text(i18n.__("此路径可以复制。"))
             .size(12).style(settings_muted_text_style));
     }
     content.into()
 }
 
-pub(super) fn source_button() -> Element<'static, Message> {
-    button(text("会话记录在哪里")).padding([8, 12]).style(rounded_action_btn_style)
+pub(super) fn source_button(i18n: desktop_i18n::I18n, ) -> Element<'static, Message> {
+    button(text(i18n.__("会话记录在哪里"))).padding([8, 12]).style(rounded_action_btn_style)
         .on_press(msg(Event::Sources(true))).into()
 }
 
-pub(super) fn view<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(super) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
     let Some(sources) = &state.sources else { return base; };
     let close = msg(Event::Sources(false));
     let mut locations = column![].spacing(10).padding([0, 7]);
@@ -236,13 +235,13 @@ pub(super) fn view<'a>(state: &'a State, base: Element<'a, Message>) -> Element<
                     .style(settings_muted_text_style),
             ].spacing(8);
             if sources.revealable.contains_key(path) {
-                line = line.push(button(text("在 Finder 中显示"))
+                line = line.push(button(text(i18n.__("在 Finder 中显示")))
                     .padding([4, 8])
                     .style(rounded_action_btn_style)
                     .on_press(msg(Event::RevealSource(path))));
             }
             let copied = sources.copied.contains(path);
-            let copy = button(text(if copied { "已复制" } else { "复制路径" }))
+            let copy = button(text(if copied { i18n.__("已复制") } else { i18n.__("复制路径") }))
                 .padding([4, 8])
                 .style(rounded_action_btn_style)
                 .on_press_maybe((!copied).then(|| msg(Event::CopySource(path))));
@@ -251,12 +250,12 @@ pub(super) fn view<'a>(state: &'a State, base: Element<'a, Message>) -> Element<
         locations = locations.push(group);
     }
     let header = settings_modal_header(
-        text("会话记录在哪里").size(18),
+        text(i18n.__("会话记录在哪里")).size(18),
         settings_close_button(close.clone()),
     );
     let card = settings_modal_card(column![
         header,
-        text("以下是默认位置。修改过数据目录时，以会话详情中的来源为准。Claude Desktop 使用 Claude Code 的记录。")
+        text(i18n.__("以下是默认位置。修改过数据目录时，以会话详情中的来源为准。Claude Desktop 使用 Claude Code 的记录。"))
             .style(settings_muted_text_style),
         scrollable(container(locations).width(Length::Fill)).height(Length::Fixed(320.0))
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),

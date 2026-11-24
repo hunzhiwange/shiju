@@ -73,23 +73,23 @@ fn parse(draft: &str) -> Result<OpenClawEnvConfig, &'static str> {
     }
     serde_json::from_str(draft).map_err(|_| "环境配置必须是 JSON 对象，支持嵌套对象")
 }
-pub fn entry() -> Element<'static, Message> {
-    button(text("环境配置 JSON"))
+pub fn entry(i18n: desktop_i18n::I18n, ) -> Element<'static, Message> {
+    button(text(i18n.__("环境配置 JSON")))
         .padding([8, 12])
         .style(rounded_action_btn_style)
         .on_press(message(Event::Open))
         .into()
 }
-pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
+pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
     if !state.open {
         return base;
     }
     let close = message(Event::Close);
     let mut body =
-        column![text("编辑完整 env 对象，支持 vars、shellEnv 等嵌套对象。内容可能包含密钥。")]
+        column![text(i18n.__("编辑完整 env 对象，支持 vars、shellEnv 等嵌套对象。内容可能包含密钥。"))]
             .spacing(12);
     if state.busy {
-        body = body.push(text("正在处理…"));
+        body = body.push(text(i18n.__("正在处理…")));
     }
     if let Some(error) = &state.error {
         body = body.push(text(error));
@@ -105,22 +105,22 @@ pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, 
         body = body.push(editor);
     }
     let footer = row![
-        button(text("取消"))
+        button(text(i18n.__("取消")))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press(close.clone()),
-        button(text("重试读取"))
+        button(text(i18n.__("重试读取")))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press_maybe((!state.busy && !state.loaded).then(|| message(Event::Open))),
-        button(text("保存"))
+        button(text(i18n.__("保存")))
             .padding([8, 12])
             .style(primary_action_btn_style)
             .on_press_maybe((state.loaded && !state.busy).then(|| message(Event::Save)))
     ]
     .spacing(8);
     let header = settings_modal_header(
-        text("OpenClaw 环境配置").size(20),
+        text(i18n.__("OpenClaw 环境配置")).size(20),
         settings_close_button(close.clone()),
     );
     let card = settings_modal_layout(header, body, Some(footer.into())).width(640).height(520);

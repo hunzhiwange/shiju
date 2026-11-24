@@ -75,8 +75,7 @@ fn codex_plugin_compat_t30_real_webview_roundtrip() {
     parent.postMessage({jsonrpc:'2.0',id:1,method:'ui/initialize'},'*');
     addEventListener('message',e=>{if(e.source!==parent)return;if(e.data.id===1){parent.postMessage({jsonrpc:'2.0',method:'ui/notifications/initialized'},'*');parent.postMessage({jsonrpc:'2.0',id:2,method:'tools/call',params:{name:'allowed',arguments:{value:'中文'}}},'*')}});
     </script>"#;
-    let mut process = McpAppProcess::launch(
-        std::path::Path::new(&helper),
+    let mut process = McpAppProcess::launch(config_ui::DesktopLocale::SimplifiedChinese, std::path::Path::new(&helper),
         "session".into(),
         "server".into(),
         html,

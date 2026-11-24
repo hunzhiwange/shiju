@@ -21,10 +21,10 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let mut notice = None;
     let task = desktop_settings_apps::aggregation::omp::update(&mut app.app_providers.omp_directory, &mut app.app_providers.generation, app.app_providers.loading, app.app_providers.form.is_some(), app.app_providers.editor.is_some(), client, scope, project, access, &mut notice, event).map(message);
     let feedback = match notice {
-        Some(desktop_settings_apps::aggregation::Notice::Error(s)) => app.show_error_toast(s),
-        Some(desktop_settings_apps::aggregation::Notice::Info(s)) => app.show_info_toast(s),
-        Some(desktop_settings_apps::aggregation::Notice::Success(s)) => app.show_success_toast(s),
-        Some(desktop_settings_apps::aggregation::Notice::Warning(s)) => app.show_warning_toast(s),
+        Some(desktop_settings_apps::aggregation::Notice::Error(s)) => app.show_message_toast(crate::app::state::ToastKind::Error, s),
+        Some(desktop_settings_apps::aggregation::Notice::Info(s)) => app.show_message_toast(crate::app::state::ToastKind::Info, s),
+        Some(desktop_settings_apps::aggregation::Notice::Success(s)) => app.show_message_toast(crate::app::state::ToastKind::Success, s),
+        Some(desktop_settings_apps::aggregation::Notice::Warning(s)) => app.show_message_toast(crate::app::state::ToastKind::Warning, s),
         None => Task::none(),
     };
     Task::batch([task, feedback])

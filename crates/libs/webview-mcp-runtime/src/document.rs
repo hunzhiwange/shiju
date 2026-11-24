@@ -18,7 +18,7 @@ pub(crate) struct Document {
     pub(crate) bootstrap: String,
 }
 
-pub(crate) fn read_document() -> Result<Document, Box<dyn std::error::Error>> {
+pub(crate) fn read_document(i18n: desktop_i18n::I18n) -> Result<Document, Box<dyn std::error::Error>> {
     let mut line = String::new();
     std::io::Read::take(io::stdin().lock(), 8 * 1024 * 1024 + 1).read_line(&mut line)?;
     if line.len() > 8 * 1024 * 1024 {
@@ -37,7 +37,7 @@ pub(crate) fn read_document() -> Result<Document, Box<dyn std::error::Error>> {
     let app_csp = app_csp(&policy);
     let wrapper_csp = wrapper_csp(&form_origins);
     let document_nonce = format!("{:016x}{:016x}", getrandom::u64()?, getrandom::u64()?);
-    let wrapper = render_wrapper(&nonce, &document_nonce, form_enabled).into_bytes();
+    let wrapper = render_wrapper(i18n, &nonce, &document_nonce, form_enabled).into_bytes();
     let app = Mutex::new(Some(html.as_bytes().to_vec()));
     let bootstrap = format!(
         "(() => {{

@@ -1092,6 +1092,7 @@ fn change_binding(app: &mut Input<'_>) -> Task<ShijuAppsMessage> {
 }
 
 pub struct Input<'a> {
+    pub i18n: desktop_i18n::I18n,
     pub shiju_apps: &'a mut ShijuAppsState,
     pub account: Option<&'a desktop_account::StoredAccount>,
     pub client: Result<vw_gateway_client::GatewayClient, String>,

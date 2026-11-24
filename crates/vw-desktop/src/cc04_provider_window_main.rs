@@ -93,8 +93,9 @@ fn main() {
     server.join().unwrap();
 }
 fn view(state: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(state.general_settings.desktop_locale);
     iced::widget::stack![
-        app::components::app_providers::list::overlay(
+        app::components::app_providers::list::overlay(i18n,
             &state.app_providers,
             iced::widget::container(iced::widget::text("隔离 HTTP SDK 验收"))
                 .width(iced::Length::Fill)

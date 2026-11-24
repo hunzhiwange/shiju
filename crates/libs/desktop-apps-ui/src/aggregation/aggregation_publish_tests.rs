@@ -75,7 +75,7 @@ async fn aggregation_t58_confirmation_shapes_draws_and_dispatches_in_both_themes
                     }),
                 });
             }
-            let element = overlay(
+            let element = overlay(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
                 &session,
                 container(text("底层页面"))
                     .width(iced::Length::Fill)
@@ -285,7 +285,7 @@ async fn aggregation_t59_exit_shapes_draws_and_dispatches_in_both_themes() {
                     ),
                 ));
             }
-            let element = overlay(
+            let element = overlay(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
                 &session,
                 container(text("目录页面"))
                     .width(iced::Length::Fill)

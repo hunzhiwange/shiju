@@ -1,6 +1,7 @@
 //! 下载独立 Web 压缩包，在暂存目录中解压并检查内容后切换安装目录。
 use super::Event;
-use anyhow::{Context, Result, bail};
+use anyhow::Result;
+use super::copy::{self, ProductContext as _};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
@@ -30,7 +31,7 @@ struct Asset {
 }
 
 pub(super) fn root() -> Result<PathBuf> {
-    let home = directories::BaseDirs::new().context("无法获取用户目录")?;
+    let home = directories::BaseDirs::new().product_context("无法获取用户目录")?;
     Ok(config_runtime_paths::home_config_dir(home.home_dir()).join("web"))
 }
 
@@ -50,18 +51,18 @@ fn client() -> Result<reqwest::blocking::Client> {
         .timeout(Duration::from_secs(300))
         .https_only(true)
         .build()
-        .context("创建 Web 下载客户端失败")
+        .product_context("创建 Web 下载客户端失败")
 }
 
 fn download(client: &reqwest::blocking::Client, url: &str, limit: u64) -> Result<Vec<u8>> {
     let response = client.get(url).send()?.error_for_status()?;
     if response.content_length().is_some_and(|size| size > limit) {
-        bail!("Web 下载文件过大");
+        return Err(copy::error(desktop_i18n::format::Message::new("Web 下载文件过大", vec![])));
     }
     let mut data = Vec::new();
     response.take(limit + 1).read_to_end(&mut data)?;
     if data.len() as u64 > limit {
-        bail!("Web 下载文件过大");
+        return Err(copy::error(desktop_i18n::format::Message::new("Web 下载文件过大", vec![])));
     }
     Ok(data)
 }
@@ -80,7 +81,7 @@ fn release_urls(source: UpdateSource, payload: &[u8]) -> Result<(String, String)
             let release: Release = serde_json::from_slice(payload)?;
             let name = archive_name(&release.tag_name)?;
             if release.draft || release.prerelease {
-                bail!("Web 安装仅支持正式发布版本");
+                return Err(copy::error(desktop_i18n::format::Message::new("Web 安装仅支持正式发布版本", vec![])));
             }
             let zip = asset_url(&release, &name)?.to_owned();
             Ok((name, zip))
@@ -95,7 +96,7 @@ fn release_urls(source: UpdateSource, payload: &[u8]) -> Result<(String, String)
                 || manifest.release_url
                     != format!("https://github.com/hunzhiwange/shiju/releases/tag/{tag}")
             {
-                bail!("ShiJu Web 发布清单格式无效");
+                return Err(copy::error(desktop_i18n::format::Message::new("ShiJu Web 发布清单格式无效", vec![])));
             }
             let zip = format!("{SHIJU_ROOT}/releases/{tag}/{name}");
             Ok((name, zip))
@@ -125,16 +126,16 @@ pub(super) fn install(source: UpdateSource, progress_tx: &Sender<Event>) -> Resu
     let target = root.join("current");
     let backup = root.join("previous");
     if backup.exists() {
-        fs::remove_dir_all(&backup).context("清理上次 Web 安装备份失败")?;
+        fs::remove_dir_all(&backup).product_context("清理上次 Web 安装备份失败")?;
     }
     if target.exists() {
-        fs::rename(&target, &backup).context("备份 Web 安装失败")?;
+        fs::rename(&target, &backup).product_context("备份 Web 安装失败")?;
     }
     if let Err(error) = fs::rename(&package, &target) {
         if backup.exists() {
-            fs::rename(&backup, &target).context("Web 安装失败，恢复旧版本失败")?;
+            fs::rename(&backup, &target).product_context("Web 安装失败，恢复旧版本失败")?;
         }
-        return Err(error).context("切换 Web 安装失败");
+        return Err(error).product_context("切换 Web 安装失败");
     }
     Ok(target)
 }
@@ -147,7 +148,7 @@ fn read_archive(
 ) -> Result<Vec<u8>> {
     let total_bytes = response.content_length();
     if total_bytes.is_some_and(|size| size > MAX_ARCHIVE_BYTES) {
-        bail!("Web 下载文件过大");
+        return Err(copy::error(desktop_i18n::format::Message::new("Web 下载文件过大", vec![])));
     }
     let mut reader = response.take(MAX_ARCHIVE_BYTES + 1);
     let mut data = Vec::new();
@@ -159,7 +160,7 @@ fn read_archive(
         let read = reader.read(&mut buffer)?;
         data.extend_from_slice(&buffer[..read]);
         if data.len() as u64 > MAX_ARCHIVE_BYTES {
-            bail!("Web 下载文件过大");
+            return Err(copy::error(desktop_i18n::format::Message::new("Web 下载文件过大", vec![])));
         }
         let now = Instant::now();
         if read == 0 || now.duration_since(last_report) >= Duration::from_millis(100) {
@@ -185,7 +186,7 @@ fn read_archive(
 }
 
 fn archive_name(tag: &str) -> Result<String> {
-    let version = tag.strip_prefix('v').context("Web 发布标签必须为 vX.Y.Z")?;
+    let version = tag.strip_prefix('v').product_context("Web 发布标签必须为 vX.Y.Z")?;
     let parts: Vec<_> = version.split('.').collect();
     if parts.len() != 3
         || parts.iter().any(|p| {
@@ -194,7 +195,7 @@ fn archive_name(tag: &str) -> Result<String> {
                 || (p.len() > 1 && p.starts_with('0'))
         })
     {
-        bail!("Web 发布标签必须为 vX.Y.Z");
+        return Err(copy::error(desktop_i18n::format::Message::new("Web 发布标签必须为 vX.Y.Z", vec![])));
     }
     Ok(format!("shiju-web-{version}.zip"))
 }
@@ -204,10 +205,10 @@ fn asset_url<'a>(release: &'a Release, name: &str) -> Result<&'a str> {
         .assets
         .iter()
         .find(|asset| asset.name == name)
-        .with_context(|| format!("GitHub 最新版本尚未发布 {name}，请在发布后重试"))?;
+        .product_with_context(|| desktop_i18n::format::Message::new("GitHub 最新版本尚未发布 %s，请在发布后重试", vec![format!("{}", name).into()]))?;
     let expected = format!("{DOWNLOAD_ROOT}{}/{name}", release.tag_name);
     if asset.browser_download_url != expected {
-        bail!("Web 发布包下载地址不符合 ShiJu GitHub 发布路径");
+        return Err(copy::error(desktop_i18n::format::Message::new("Web 发布包下载地址不符合 ShiJu GitHub 发布路径", vec![])));
     }
     Ok(&asset.browser_download_url)
 }
@@ -215,12 +216,12 @@ fn asset_url<'a>(release: &'a Release, name: &str) -> Result<&'a str> {
 fn extract(bytes: &[u8], destination: &Path, stem: &str) -> Result<PathBuf> {
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))?;
     if archive.len() > 4096 {
-        bail!("Web 发布包文件数量过多");
+        return Err(copy::error(desktop_i18n::format::Message::new("Web 发布包文件数量过多", vec![])));
     }
     let mut remaining = MAX_EXTRACTED_BYTES;
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index)?;
-        let path = entry.enclosed_name().context("Web 发布包包含不安全路径")?;
+        let path = entry.enclosed_name().product_context("Web 发布包包含不安全路径")?;
         // 拒绝软链接、Windows 路径及其它平台特殊文件。
         if entry.name().contains('\\')
             || path.components().any(|c| !matches!(c, Component::Normal(_)))
@@ -231,7 +232,7 @@ fn extract(bytes: &[u8], destination: &Path, stem: &str) -> Result<PathBuf> {
             || path.components().next().map(|c| c.as_os_str()) != Some(std::ffi::OsStr::new(stem))
             || path.to_string_lossy().contains(':')
         {
-            bail!("Web 发布包包含不支持的文件或路径");
+            return Err(copy::error(desktop_i18n::format::Message::new("Web 发布包包含不支持的文件或路径", vec![])));
         }
         let target = destination.join(path);
         if entry.is_dir() {
@@ -239,13 +240,13 @@ fn extract(bytes: &[u8], destination: &Path, stem: &str) -> Result<PathBuf> {
             continue;
         }
         if entry.size() > remaining {
-            bail!("Web 发布包解压大小超限");
+            return Err(copy::error(desktop_i18n::format::Message::new("Web 发布包解压大小超限", vec![])));
         }
-        fs::create_dir_all(target.parent().context("Web 文件缺少父目录")?)?;
+        fs::create_dir_all(target.parent().product_context("Web 文件缺少父目录")?)?;
         let mut output = fs::OpenOptions::new().write(true).create_new(true).open(target)?;
         let copied = std::io::copy(&mut entry.by_ref().take(remaining + 1), &mut output)?;
         if copied > remaining {
-            bail!("Web 发布包解压大小超限");
+            return Err(copy::error(desktop_i18n::format::Message::new("Web 发布包解压大小超限", vec![])));
         }
         remaining -= copied;
         output.flush()?;
@@ -256,9 +257,9 @@ fn extract(bytes: &[u8], destination: &Path, stem: &str) -> Result<PathBuf> {
 pub(super) fn validate_package(path: &Path) -> Result<()> {
     for name in ["index.html", "shi_ju.js", "shi_ju_bg.wasm", "serve.mjs", "package.json"] {
         let metadata = fs::symlink_metadata(path.join(name))
-            .with_context(|| format!("Web 安装不完整，缺少 {name}，请重新安装"))?;
+            .product_with_context(|| desktop_i18n::format::Message::new("Web 安装不完整，缺少 %s，请重新安装", vec![format!("{}", name).into()]))?;
         if !metadata.is_file() || metadata.len() == 0 {
-            bail!("Web 安装文件无效: {name}，请重新安装");
+            return Err(copy::error(desktop_i18n::format::Message::new("Web 安装文件无效: %s，请重新安装", vec![format!("{}", name).into()])));
         }
     }
     Ok(())

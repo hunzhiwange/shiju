@@ -29,17 +29,17 @@ fn row() -> CatalogRow {
 #[test]
 fn cc_apps_desktop_catalog_state_empty_and_independent_runtimes() {
     let item = row();
-    assert_eq!(runtime_status(&item, AppRuntimeKind::NativeCli), "未安装");
-    assert_eq!(runtime_status(&item, AppRuntimeKind::AcpAdapter), "未验证（请在 ACP 页管理）");
+    assert_eq!(runtime_status(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &item, AppRuntimeKind::NativeCli), "未安装");
+    assert_eq!(runtime_status(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &item, AppRuntimeKind::AcpAdapter), "未验证（请在 ACP 页管理）");
 }
 
 #[test]
 fn cc_apps_desktop_catalog_state_explicit_failures_and_desktop_presence() {
     let mut item = row();
     item.observation = Err(AgentAppsReadError::Http { status: 503, body: serde_json::json!({}) });
-    assert!(runtime_status(&item, AppRuntimeKind::NativeCli).contains("远端离线"));
+    assert!(runtime_status(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &item, AppRuntimeKind::NativeCli).contains("远端离线"));
     item.observation = Err(AgentAppsReadError::Http { status: 501, body: serde_json::json!({}) });
-    assert_eq!(runtime_status(&item, AppRuntimeKind::NativeCli), "不支持");
+    assert_eq!(runtime_status(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &item, AppRuntimeKind::NativeCli), "不支持");
     item.observation = Ok(AppReadResponse {
         installations: vec![],
         desktop: Some(AppDesktopObservation {
@@ -48,7 +48,7 @@ fn cc_apps_desktop_catalog_state_explicit_failures_and_desktop_presence() {
             config_directories: vec![],
         }),
     });
-    assert_eq!(runtime_status(&item, AppRuntimeKind::DesktopApp), "已发现，运行未验证");
+    assert_eq!(runtime_status(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &item, AppRuntimeKind::DesktopApp), "已发现，运行未验证");
 }
 
 #[test]
@@ -82,8 +82,8 @@ fn cc_apps_desktop_catalog_state_damaged_runnable_unverified() {
         installation.runtime_status = status;
         item.observation =
             Ok(AppReadResponse { installations: vec![installation.clone()], desktop: None });
-        assert_eq!(runtime_status(&item, AppRuntimeKind::NativeCli), expected);
-        assert_eq!(runtime_status(&item, AppRuntimeKind::AcpAdapter), "未验证（请在 ACP 页管理）");
+        assert_eq!(runtime_status(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &item, AppRuntimeKind::NativeCli), expected);
+        assert_eq!(runtime_status(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &item, AppRuntimeKind::AcpAdapter), "未验证（请在 ACP 页管理）");
     }
 }
 
@@ -183,6 +183,6 @@ async fn cc_apps_desktop_catalog_state_sdk_fourteen_concurrent_ordered_and_parti
     server.join().unwrap();
     assert_eq!(rows.len(), 14);
     assert_eq!(rows[2].entry.id, AppId::Codex);
-    assert!(runtime_status(&rows[2], AppRuntimeKind::NativeCli).contains("远端离线"));
-    assert_eq!(runtime_status(&rows[3], AppRuntimeKind::NativeCli), "未安装");
+    assert!(runtime_status(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &rows[2], AppRuntimeKind::NativeCli).contains("远端离线"));
+    assert_eq!(runtime_status(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &rows[3], AppRuntimeKind::NativeCli), "未安装");
 }

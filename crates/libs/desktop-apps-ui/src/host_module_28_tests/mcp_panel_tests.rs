@@ -197,6 +197,7 @@ async fn diagnostic_desktop_mcp_results_keep_server_identity() {
 }
 
 async fn render_results(state: &McpState) {
+    let i18n = desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
     use iced::{
         Font, Pixels, Rectangle, Renderer, Size, Theme,
         advanced::{
@@ -209,7 +210,7 @@ async fn render_results(state: &McpState) {
     let mut renderer =
         <Renderer as Headless>::new(Font::DEFAULT, Pixels(14.0), Some("tiny-skia")).await.unwrap();
     for theme in [Theme::Dark, Theme::Light] {
-        let mut element: iced::Element<'_, ()> = mcp_results::view(state);
+        let mut element: iced::Element<'_, ()> = mcp_results::view(i18n, state);
         let mut tree = Tree::new(element.as_widget());
         let size = Size::new(640.0, 300.0);
         let node = element.as_widget_mut().layout(

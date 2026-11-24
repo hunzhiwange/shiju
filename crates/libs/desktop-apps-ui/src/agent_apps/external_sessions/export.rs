@@ -76,19 +76,19 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
     }
 }
 
-pub(super) fn controls<'a>(state: &super::State, reader: &reader::State) -> Element<'a, Message> {
+pub(super) fn controls<'a>(i18n: desktop_i18n::I18n, state: &super::State, reader: &reader::State) -> Element<'a, Message> {
     let enabled = !reader.exporting && state.page.as_ref().is_some_and(|page|
         page.sessions.iter().any(|s| s.identity == reader.identity && s.capabilities.export_markdown));
     let mut controls = row![].spacing(8);
     for (label, destination, single) in [
-        ("复制本轮 Markdown", Destination::Clipboard, true),
-        ("复制整段 Markdown", Destination::Clipboard, false),
+        (i18n.__("复制本轮 Markdown"), Destination::Clipboard, true),
+        (i18n.__("复制整段 Markdown"), Destination::Clipboard, false),
         #[cfg(not(target_arch = "wasm32"))]
-        ("导出本轮 Markdown", Destination::File, true),
+        (i18n.__("导出本轮 Markdown"), Destination::File, true),
         #[cfg(not(target_arch = "wasm32"))]
-        ("导出整段 Markdown", Destination::File, false),
+        (i18n.__("导出整段 Markdown"), Destination::File, false),
     ] {
-        controls = controls.push(button(text(label)).padding([8, 12]).style(rounded_action_btn_style)
+        controls = controls.push(button(text(i18n.__(label))).padding([8, 12]).style(rounded_action_btn_style)
             .on_press_maybe((enabled && (!single || reader.turns.get(reader.active).is_some()))
                 .then(|| msg(Event::Start(destination, single)))));
     }

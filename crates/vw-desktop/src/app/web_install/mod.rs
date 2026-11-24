@@ -17,7 +17,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     );
     let task = task.map(|event| Message::View(ViewMessage::WebInstall(event)));
     match error {
-        Some(error) => Task::batch([task, app.show_error_toast(error)]),
+        Some(error) => Task::batch([task, app.show_message_toast(crate::app::state::ToastKind::Error, error)]),
         None => task,
     }
 }

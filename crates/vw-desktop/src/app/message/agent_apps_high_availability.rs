@@ -31,8 +31,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let task = desktop_apps_ui::failover_queue::update(&mut app.app_providers.failover,
         current, client, &app.apps_catalog.token, event, &mut notice).map(message);
     let toast = match notice {
-        Some(desktop_apps_ui::Notice::Error(text)) => app.show_error_toast(text),
-        Some(desktop_apps_ui::Notice::Success(text)) => app.show_success_toast(text),
+        Some(desktop_apps_ui::Notice::Error(text)) => app.show_message_toast(crate::app::state::ToastKind::Error, text),
+        Some(desktop_apps_ui::Notice::Success(text)) => app.show_message_toast(crate::app::state::ToastKind::Success, text),
         None => Task::none(),
     };
     Task::batch([task, toast])

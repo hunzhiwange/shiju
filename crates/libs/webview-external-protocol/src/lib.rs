@@ -99,10 +99,10 @@ fn hand_off(
 pub use platform::Parent;
 
 #[cfg(all(not(coverage), unix))]
-pub fn confirm_mcp_form(parent: &Parent, origin: &str, done: impl FnOnce(bool) + 'static) {
-    parent.show(
-        "提交 MCP 表单",
-        &format!("是否向 {origin} 发送表单数据？提交后将显示隔离的响应页面。"),
+pub fn confirm_mcp_form( i18n: desktop_i18n::I18n, parent: &Parent, origin: &str, done: impl FnOnce(bool) + 'static) {
+    parent.show(i18n,
+        i18n.__("提交 MCP 表单"),
+        &i18n.sprintf("是否向 %s 发送表单数据？提交后将显示隔离的响应页面。", &[format!("{}", origin).into()]),
         true,
         done,
     );
@@ -119,19 +119,19 @@ pub fn main_dialog_parent(window: &tao::window::Window) -> Option<platform::Pare
 }
 
 #[cfg(not(coverage))]
-pub fn show_confirmation(
+pub fn show_confirmation( i18n: desktop_i18n::I18n,
     parent: platform::Parent,
     target: ExternalTarget,
     confirmation: Confirmation,
 ) {
-    let message = format!("是否使用系统应用打开 {}: 链接？取消后保留当前页面。", target.scheme());
+    let message = i18n.sprintf("是否使用系统应用打开 %s: 链接？取消后保留当前页面。", &[format!("{}", target.scheme()).into()]);
     let result_parent = parent.clone();
-    parent.show("打开外部应用", &message, true, move |approved| {
+    parent.show(i18n, i18n.__("打开外部应用"), &message, true, move |approved| {
         let outcome = hand_off(target, approved, |scheme, url| result_parent.open(scheme, url));
         if outcome == Outcome::Unavailable {
-            result_parent.show(
-                "无法打开外部应用",
-                "系统没有可用的应用处理此协议，或应用启动失败。当前页面未更改。",
+            result_parent.show(i18n,
+                i18n.__("无法打开外部应用"),
+                i18n.__("系统没有可用的应用处理此协议，或应用启动失败。当前页面未更改。"),
                 false,
                 move |_| drop(confirmation),
             );
@@ -140,9 +140,9 @@ pub fn show_confirmation(
 }
 
 #[cfg(not(coverage))]
-pub fn show_browser_open_error(window: &tao::window::Window) {
+pub fn show_browser_open_error( i18n: desktop_i18n::I18n, window: &tao::window::Window) {
     if let Some(parent) = main_dialog_parent(window) {
-        parent.show("无法打开外部浏览器", "系统未能打开此网页。", false, |_| {});
+        parent.show(i18n, i18n.__("无法打开外部浏览器"), i18n.__("系统未能打开此网页。"), false, |_| {});
     }
 }
 

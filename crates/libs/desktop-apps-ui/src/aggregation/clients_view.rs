@@ -6,70 +6,70 @@ use iced::{
     Element,
     widget::{button, column, container, row, text},
 };
-pub fn overlay<'a>(s: &'a Session, base: Element<'a, Message>) -> Element<'a, Message> {
+pub fn overlay<'a>(i18n: desktop_i18n::I18n, s: &'a Session, base: Element<'a, Message>) -> Element<'a, Message> {
     let close = message(Event::Close);
     let header = settings_modal_header(
-        text("Codex 客户端状态").size(20),
+        text(i18n.__("Codex 客户端状态")).size(20),
         settings_close_button(close.clone()),
     );
     let mut body = column![].spacing(12);
     if s.pending {
-        body = body.push(text("正在加载…"));
+        body = body.push(text(i18n.__("正在加载…")));
     }
     if let Some(error) = s.error {
-        body = body.push(settings_error_banner(error));
+        body = body.push(settings_error_banner(i18n.__(error)));
     }
     if s.confirming {
-        body = body.push(settings_panel(column![text("确认重启托管守护进程？").size(18), text("重启会中断守护进程中正在运行的任务。桌面版与编辑器不会自动重启。确认后仍会核对权限、修订和托管安装身份。")].spacing(10)));
+        body = body.push(settings_panel(column![text(i18n.__("确认重启托管守护进程？")).size(18), text(i18n.__("重启会中断守护进程中正在运行的任务。桌面版与编辑器不会自动重启。确认后仍会核对权限、修订和托管安装身份。"))].spacing(10)));
     }
     if let Some(state) = &s.snapshot {
         let title = if state.unverified {
-            "无法完整核实客户端，可能仍缓存旧状态。"
+            i18n.__("无法完整核实客户端，可能仍缓存旧状态。")
         } else if state.auth {
-            "客户端可能缓存旧登录；这是推断。"
+            i18n.__("客户端可能缓存旧登录；这是推断。")
         } else if state.daemon || state.others {
-            "客户端仍缓存旧目录。"
+            i18n.__("客户端仍缓存旧目录。")
         } else {
-            "当前探测未发现陈旧客户端；不代表所有客户端已刷新。"
+            i18n.__("当前探测未发现陈旧客户端；不代表所有客户端已刷新。")
         };
         body = body.push(text(title));
         if state.daemon {
-            body = body.push(text("命令行托管守护进程：可在独立授权与再次核验身份后重启。"));
+            body = body.push(text(i18n.__("命令行托管守护进程：可在独立授权与再次核验身份后重启。")));
         }
         if state.others {
             body = body
-                .push(text("桌面版：请彻底退出后重新打开。编辑器插件：请完全退出编辑器再重开。"));
+                .push(text(i18n.__("桌面版：请彻底退出后重新打开。编辑器插件：请完全退出编辑器再重开。")));
         }
         if state.unverified {
             body = body.push(text(
-                "未知探测不代表已刷新；确认提醒仅记录此修订，不会重启或清除已知陈旧进程。",
+                i18n.__("未知探测不代表已刷新；确认提醒仅记录此修订，不会重启或清除已知陈旧进程。"),
             ));
         }
     }
     if s.acknowledged {
-        body = body.push(text("已确认此修订提醒；未执行重启，客户端刷新状态仍以探测为准。"));
+        body = body.push(text(i18n.__("已确认此修订提醒；未执行重启，客户端刷新状态仍以探测为准。")));
     }
     if let Some(label) = s.result_label() {
-        body = body.push(text(label));
+        body = body.push(text(i18n.__(label)));
     }
     let mut actions = row![].spacing(10);
     if s.confirming && s.operation.is_none() {
         actions = actions
             .push(
-                button(text("确认重启"))
+                button(text(i18n.__("确认重启")))
                     .padding([8, 14])
                     .style(primary_action_btn_style)
                     .on_press_maybe(s.can_restart().then(|| message(Event::Act(Action::Restart)))),
             )
             .push(
-                button(text("取消"))
+                button(text(i18n.__("取消")))
                     .padding([8, 14])
                     .style(rounded_action_btn_style)
                     .on_press_maybe((!s.pending).then(|| message(Event::Back))),
             );
     } else if s.can_restart() {
         actions = actions.push(
-            button(text("重启守护进程"))
+            button(text(i18n.__("重启守护进程")))
                 .padding([8, 14])
                 .style(primary_action_btn_style)
                 .on_press(message(Event::AskRestart)),
@@ -77,14 +77,14 @@ pub fn overlay<'a>(s: &'a Session, base: Element<'a, Message>) -> Element<'a, Me
     }
     if s.running() || s.operation.is_some() {
         actions = actions.push(
-            button(text("查询进度"))
+            button(text(i18n.__("查询进度")))
                 .padding([8, 14])
                 .style(rounded_action_btn_style)
                 .on_press_maybe((!s.pending).then(|| message(Event::Act(Action::Poll)))),
         );
         if s.running() {
             actions = actions.push(
-                button(text("请求取消"))
+                button(text(i18n.__("请求取消")))
                     .padding([8, 14])
                     .style(rounded_action_btn_style)
                     .on_press_maybe(
@@ -100,7 +100,7 @@ pub fn overlay<'a>(s: &'a Session, base: Element<'a, Message>) -> Element<'a, Me
         && s.snapshot.as_ref().is_some_and(|state| state.unverified && !state.revision.is_empty())
     {
         actions = actions.push(
-            button(text("确认提醒"))
+            button(text(i18n.__("确认提醒")))
                 .padding([8, 14])
                 .style(rounded_action_btn_style)
                 .on_press_maybe((!s.pending).then(|| message(Event::Act(Action::Ack)))),
@@ -109,13 +109,13 @@ pub fn overlay<'a>(s: &'a Session, base: Element<'a, Message>) -> Element<'a, Me
     let footer = column![
         actions,
         row![
-            button(text("重新探测"))
+            button(text(i18n.__("重新探测")))
                 .padding([8, 14])
                 .style(rounded_action_btn_style)
                 .on_press_maybe(
                     (!s.pending && !s.running()).then(|| message(Event::Act(Action::Read)))
                 ),
-            button(text("返回目录"))
+            button(text(i18n.__("返回目录")))
                 .padding([8, 14])
                 .style(rounded_action_btn_style)
                 .on_press_maybe((!s.pending && !s.running()).then_some(close.clone()))

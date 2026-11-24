@@ -9,14 +9,14 @@ use iced::{
     widget::{button, column, row, text, text::Wrapping},
 };
 
-pub fn view<'a, M: Clone + 'static>(
+pub fn view<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: &ViewState<'a>,
     app: &'a catalog::CatalogRow,
     cross_domain: Element<'a, M>,
     manual_guidance: &'a str,
     message: impl Fn(Action) -> M + Copy + 'static,
 ) -> Element<'a, M> {
-    let refresh = button(text("重新探测").size(SETTINGS_CONTROL_TEXT_SIZE))
+    let refresh = button(text(i18n.__("重新探测")).size(SETTINGS_CONTROL_TEXT_SIZE))
         .padding([8, 12])
         .style(rounded_action_btn_style)
         .on_press_maybe(
@@ -24,7 +24,7 @@ pub fn view<'a, M: Clone + 'static>(
                 .then(move || message(Action::RefreshObservation(app.entry.id))),
         );
     let mut details = column![
-        row![text("运行状态").size(16).width(Length::Fill), refresh]
+        row![text(i18n.__("运行状态")).size(16).width(Length::Fill), refresh]
             .spacing(12)
             .align_y(Alignment::Center),
     ]
@@ -34,7 +34,7 @@ pub fn view<'a, M: Clone + 'static>(
             text(format!(
                 "{}：{}",
                 catalog::runtime_label(*kind),
-                catalog::runtime_status(app, *kind)
+                catalog::runtime_status(i18n, app, *kind)
             ))
             .size(13)
             .wrapping(Wrapping::Glyph),
@@ -47,7 +47,7 @@ pub fn view<'a, M: Clone + 'static>(
             details = details.push(
                 row![
                     super::lifecycle_view::action_button(
-                        "macOS 安装预检",
+                        i18n.__("macOS 安装预检"),
                         AppActionPreviewRequest {
                             app_id: app.entry.id,
                             action: AppLifecycleAction::Install,
@@ -58,7 +58,7 @@ pub fn view<'a, M: Clone + 'static>(
                         !state.lifecycle.active() && state.lifecycle.preview.is_none(), message
                     ),
                     super::lifecycle_view::action_button(
-                        "Linux 安装预检",
+                        i18n.__("Linux 安装预检"),
                         AppActionPreviewRequest {
                             app_id: app.entry.id,
                             action: AppLifecycleAction::Install,
@@ -84,33 +84,33 @@ pub fn view<'a, M: Clone + 'static>(
             let mut installation_details = column![
                 text(format!(
                     "{} · {} · {}",
-                    super::presentation::source_label(installation.source),
+                    super::presentation::source_label(i18n, installation.source),
                     environment,
-                    installation.version.as_deref().unwrap_or("版本待确认")
+                    installation.version.as_deref().unwrap_or(i18n.__("版本待确认"))
                 ))
                 .size(14)
                 .wrapping(Wrapping::Glyph),
-                path_field("安装位置", &installation.path),
+                path_field(i18n.__("安装位置"), &installation.path),
             ]
             .spacing(10);
             if let Some(real) = &installation.real_path {
                 if real != &installation.path {
-                    installation_details = installation_details.push(path_field("真实位置", real));
+                    installation_details = installation_details.push(path_field(i18n.__("真实位置"), real));
                 }
             } else {
                 installation_details = installation_details
-                    .push(text("真实位置尚未确认").size(12).style(settings_muted_text_style));
+                    .push(text(i18n.__("真实位置尚未确认")).size(12).style(settings_muted_text_style));
             }
             let enabled = !state.lifecycle.active()
                 && state.lifecycle.preview.is_none()
                 && state.drag.source.is_none();
             let mut actions = row![
-                button(text("终端启动").size(SETTINGS_CONTROL_TEXT_SIZE))
+                button(text(i18n.__("终端启动")).size(SETTINGS_CONTROL_TEXT_SIZE))
                     .padding([8, 12])
                     .style(primary_action_btn_style)
                     .on_press_maybe(enabled.then(move || message(Action::LaunchOpen(app.entry.id, installation.id.clone())))),
                 super::lifecycle_view::action_button(
-                    "检查升级",
+                    i18n.__("检查升级"),
                     AppActionPreviewRequest {
                         app_id: app.entry.id,
                         action: AppLifecycleAction::Update,
@@ -132,7 +132,7 @@ pub fn view<'a, M: Clone + 'static>(
                     },
                 };
                 actions = actions.push(
-                    button(text("卸载").size(SETTINGS_CONTROL_TEXT_SIZE))
+                    button(text(i18n.__("卸载")).size(SETTINGS_CONTROL_TEXT_SIZE))
                         .padding([8, 12])
                         .style(danger_action_btn_style)
                         .on_press_maybe(enabled.then_some(message(Action::Preview(request)))),
@@ -141,23 +141,23 @@ pub fn view<'a, M: Clone + 'static>(
             installation_details = installation_details.push(actions.wrap());
             if installation.source == AppInstallationSource::Unknown {
                 installation_details = installation_details.push(
-                    text(manual_guidance).size(12).style(settings_muted_text_style),
+                    text(i18n.__(manual_guidance)).size(12).style(settings_muted_text_style),
                 );
             }
             details = details.push(settings_divider()).push(installation_details);
         }
         if let Some(desktop) = &observation.desktop {
             for path in desktop.app_bundles.iter().flatten() {
-                details = details.push(path_field("安装位置", path));
+                details = details.push(path_field(i18n.__("安装位置"), path));
             }
         }
     }
     if app.entry.id == vw_api_app_identity::AppId::ClaudeDesktop {
         details = details
-            .push(text("请从 Claude 官网下载并安装到 Applications 文件夹，然后刷新应用列表。")
+            .push(text(i18n.__("请从 Claude 官网下载并安装到 Applications 文件夹，然后刷新应用列表。"))
                 .size(12).style(settings_muted_text_style))
             .push(text("https://claude.com/download").size(13).wrapping(Wrapping::Glyph))
-            .push(button(text("打开 Claude 官方下载页").size(SETTINGS_CONTROL_TEXT_SIZE))
+            .push(button(text(i18n.__("打开 Claude 官方下载页")).size(SETTINGS_CONTROL_TEXT_SIZE))
                 .padding([8, 12])
                 .style(rounded_action_btn_style)
                 .on_press(message(Action::Download)));
@@ -174,25 +174,25 @@ fn path_field<'a, M: 'a>(label: &'a str, path: &'a str) -> Element<'a, M> {
     .into()
 }
 
-pub fn actions<'a, M: Clone + 'static>(
+pub fn actions<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: &ViewState<'a>,
     app: &'a CatalogRow,
     local_available: bool,
     message: impl Fn(Action) -> M + Copy + 'static,
 ) -> Element<'a, M> {
-    action_row(state, app, local_available, message, true)
+    action_row(i18n, state, app, local_available, message, true)
 }
 
-pub fn workspace_actions<'a, M: Clone + 'static>(
+pub fn workspace_actions<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: &ViewState<'a>,
     app: &'a CatalogRow,
     local_available: bool,
     message: impl Fn(Action) -> M + Copy + 'static,
 ) -> Element<'a, M> {
-    action_row(state, app, local_available, message, false)
+    action_row(i18n, state, app, local_available, message, false)
 }
 
-fn action_row<'a, M: Clone + 'static>(
+fn action_row<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: &ViewState<'a>,
     app: &'a CatalogRow,
     local_available: bool,
@@ -207,7 +207,7 @@ fn action_row<'a, M: Clone + 'static>(
     let primary: Element<'_, M> = if ready {
         let installation = presentation::preferred(app).unwrap();
         button(
-            text("启动")
+            text(i18n.__("启动"))
                 .size(SETTINGS_CONTROL_TEXT_SIZE)
                 .width(Length::Fill)
                 .align_x(iced::alignment::Horizontal::Center),
@@ -225,11 +225,11 @@ fn action_row<'a, M: Clone + 'static>(
             message(Action::LaunchOpen(app.entry.id, installation.id.clone()))
         }))
         .into()
-    } else if let Some(install) = install_action(state, app, local_available, message) {
+    } else if let Some(install) = install_action(i18n, state, app, local_available, message) {
         install
     } else {
         action(
-            if installed { "检查" } else { "详情" },
+            if installed { i18n.__("检查") } else { i18n.__("详情") },
             Icon::Sliders,
             Action::RefreshObservation(app.entry.id),
             !busy, message,
@@ -238,7 +238,7 @@ fn action_row<'a, M: Clone + 'static>(
     let mut actions = row![].spacing(8).align_y(Alignment::Center);
     if show_providers {
         actions = actions.push(
-            button(text("供应商").size(SETTINGS_CONTROL_TEXT_SIZE))
+            button(text(i18n.__("供应商")).size(SETTINGS_CONTROL_TEXT_SIZE))
                 .padding([8, 11])
                 .style(rounded_action_btn_style)
                 .on_press_maybe((!busy).then_some(message(Action::Providers(app.entry.id)))),
@@ -248,7 +248,7 @@ fn action_row<'a, M: Clone + 'static>(
     if !matches!(app.entry.id, AppId::ClaudeDesktop | AppId::OpenClaw) {
         let event = Action::Prompts(app.entry.id);
         actions = actions.push(
-            button(text("提示词").size(SETTINGS_CONTROL_TEXT_SIZE))
+            button(text(i18n.__("提示词")).size(SETTINGS_CONTROL_TEXT_SIZE))
                 .padding([8, 11])
                 .style(rounded_action_btn_style)
                 .on_press_maybe((!busy).then_some(message(event))),
@@ -259,7 +259,7 @@ fn action_row<'a, M: Clone + 'static>(
 
 
 /// Inline installation uses the same authorized preview as the details panel.
-pub(super) fn install_action<'a, M: Clone + 'static>(
+pub(super) fn install_action<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: &ViewState<'a>,
     app: &CatalogRow,
     local_available: bool,
@@ -280,7 +280,7 @@ pub(super) fn install_action<'a, M: Clone + 'static>(
     let enabled = !state.loading && !state.lifecycle.active()
         && state.lifecycle.preview.is_none() && state.drag.source.is_none();
     Some(action(
-        "安装",
+        i18n.__("安装"),
         Icon::CloudDownload,
         Action::Preview(AppActionPreviewRequest {
             app_id: app.entry.id,

@@ -191,22 +191,22 @@ fn start(state: &mut super::State, connection: &Connection, notice: &mut Option<
     ])
 }
 
-pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: bool, i18n: desktop_i18n::I18n) -> Element<'a, Message> {
+pub(super) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a super::State, reader: &'a State, loopback: bool) -> Element<'a, Message> {
     let sessions = super::list::readable_sessions(state);
     let index = sessions.iter().position(|session| session.identity == reader.identity);
     let count = sessions.len();
     let session = state.page.as_ref().and_then(|page| page.sessions.iter().find(|s| s.identity == reader.identity));
     let mut header = row![
-        icon_btn(Icon::ArrowLeft, "返回列表", Some(Event::Back)),
+        icon_btn(Icon::ArrowLeft, i18n.__("返回列表"), Some(Event::Back)),
         super::list::provider_icon(reader.identity.provider, 21.0),
         container(SingleLineLabel::new(reader.title.clone(), 17.0).font(iced::Font {
             weight: iced::font::Weight::Semibold, ..iced::Font::DEFAULT
         })).width(Length::Fill),
-        icon_btn(Icon::ChevronLeft, "上一个会话", index.filter(|i| *i > 0).map(|_| Event::Adjacent(false))),
-        icon_btn(Icon::ChevronRight, "下一个会话", index.filter(|i| i + 1 < count).map(|_| Event::Adjacent(true))),
+        icon_btn(Icon::ChevronLeft, i18n.__("上一个会话"), index.filter(|i| *i > 0).map(|_| Event::Adjacent(false))),
+        icon_btn(Icon::ChevronRight, i18n.__("下一个会话"), index.filter(|i| i + 1 < count).map(|_| Event::Adjacent(true))),
     ].spacing(8).align_y(iced::Alignment::Center);
     if let Some(session) = session {
-        header = header.push(super::resume::reader_control(session, state));
+        header = header.push(super::resume::reader_control(i18n, session, state));
     }
     use super::list::Action;
     let mut actions = Vec::new();
@@ -219,7 +219,7 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: boo
     if session.is_some_and(|s| s.capabilities.delete) { actions.push(super::list::Action::Delete); }
     let identity = reader.identity.clone();
     let generation = state.generation;
-    header = header.push(super::list::action_menu(actions, "更多", move |action| {
+    header = header.push(super::list::action_menu(i18n, actions, i18n.__("更多"), move |action| {
         use super::list::Action;
         match action {
             Action::Reload => Event::Read(identity.clone()),
@@ -246,50 +246,50 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State, loopback: boo
         }
     }
     let mut options = column![
-        button(text(if reader.details.process_open { "收起执行过程" } else { "展开执行过程" }).size(13))
+        button(text(if reader.details.process_open { i18n.__("收起执行过程") } else { i18n.__("展开执行过程") }).size(13))
             .padding([6, 9]).style(rounded_action_btn_style).on_press(Event::Details(details::Event::Process)),
-        super::export::controls(state, reader),
+        super::export::controls(i18n, state, reader),
     ].spacing(7);
-    if let Some(session) = session { options = options.push(super::paths::controls(state, session, loopback)); }
+    if let Some(session) = session { options = options.push(super::paths::controls(i18n, state, session, loopback)); }
     let options = BelowOverlay::new(
-        icon_btn(Icon::Sliders, "显示与复制选项", Some(Event::ReaderOptions)),
+        icon_btn(Icon::Sliders, i18n.__("显示与复制选项"), Some(Event::ReaderOptions)),
         container(options).width(320).padding(10).style(settings_modal_card_style),
     ).show(reader.options_open).gap(5.0).on_close(Event::ReaderOptions).dismiss_on_escape();
     let toolbar = row![
         container(metadata).width(Length::Fill),
-        icon_btn(Icon::Columns, if reader.outline_open { "收起对话目录" } else { "展开对话目录" }, Some(Event::ReaderOutline)),
-        find::filters(reader),
+        icon_btn(Icon::Columns, if reader.outline_open { i18n.__("收起对话目录") } else { i18n.__("展开对话目录") }, Some(Event::ReaderOutline)),
+        find::filters(i18n, reader),
         options,
     ];
     #[cfg(not(target_arch = "wasm32"))]
-    let toolbar = toolbar.push(icon_btn(Icon::CloudDownload, "导出为 Markdown 文件",
+    let toolbar = toolbar.push(icon_btn(Icon::CloudDownload, i18n.__("导出为 Markdown 文件"),
         (!reader.exporting && session.is_some_and(|s| s.capabilities.export_markdown))
             .then(|| Event::Export(super::export::Event::Start(super::export::Destination::File, false)))));
-    let toolbar = toolbar.push(icon_btn(Icon::Search, "查找会话内容", Some(Event::ReaderSearch)))
+    let toolbar = toolbar.push(icon_btn(Icon::Search, i18n.__("查找会话内容"), Some(Event::ReaderSearch)))
         .spacing(7).align_y(iced::Alignment::Center);
     let mut tools = column![toolbar].spacing(8);
     if reader.search_open {
-        tools = tools.push(find::controls(reader));
+        tools = tools.push(find::controls(i18n, reader));
     }
     if reader.failed {
-        tools = tools.push(settings_error_banner("读取中断，当前内容可能不完整。"));
+        tools = tools.push(settings_error_banner(i18n.__("读取中断，当前内容可能不完整。")));
     } else if reader.loading {
-        tools = tools.push(text("正在读取会话…").size(12).style(settings_muted_text_style));
+        tools = tools.push(text(i18n.__("正在读取会话…")).size(12).style(settings_muted_text_style));
     }
     let base = column![
         container(header).padding([5, 8]),
         settings_divider(),
         container(tools).padding([7, 8]),
         settings_divider(),
-        iced::widget::responsive(move |size| workspace(reader, i18n, size.width < 640.0)),
+        iced::widget::responsive(move |size| workspace(i18n, reader, size.width < 640.0)),
     ].height(Length::Fill).into();
-    images::overlay(base, reader)
+    images::overlay(i18n, base, reader)
 }
 
-fn workspace(reader: &State, i18n: desktop_i18n::I18n, narrow: bool) -> Element<'_, Message> {
+fn workspace(i18n: desktop_i18n::I18n, reader: &State, narrow: bool) -> Element<'_, Message> {
     let scrollbars = || Direction::Vertical(Scrollbar::new().width(4).scroller_width(4));
     let transcript = scrollable(container(
-        container(body(reader, i18n, narrow)).width(Length::Fill).max_width(900)
+        container(body(i18n, reader, narrow)).width(Length::Fill).max_width(900)
     ).center_x(Length::Fill).padding([0, 7]))
         .id("external-session-reader")
         .on_scroll(|v| Event::ReaderScrolled(v.absolute_offset()))
@@ -299,7 +299,7 @@ fn workspace(reader: &State, i18n: desktop_i18n::I18n, narrow: bool) -> Element<
     if !reader.outline_open {
         return transcript.into();
     }
-    let directory = container(scrollable(outline(reader))
+    let directory = container(scrollable(outline(i18n, reader))
         .width(Length::Fill).height(Length::Fill).direction(scrollbars()))
         .style(outline_surface);
     if narrow {
@@ -316,25 +316,25 @@ fn timestamp(ms: i64) -> Option<String> {
     chrono::Local.timestamp_millis_opt(ms).single().map(|date| date.format("%m月%d日 %H:%M").to_string())
 }
 
-fn outline(reader: &State) -> Element<'_, Message> {
+fn outline(i18n: desktop_i18n::I18n, reader: &State) -> Element<'_, Message> {
     let mut outline = column![row![
-        text("对话目录").size(13).font(semibold()),
+        text(i18n.__("对话目录")).size(13).font(semibold()),
         text(reader.turns.len().to_string()).size(12).style(settings_muted_text_style),
     ].spacing(8).align_y(iced::Alignment::Center)]
         .spacing(8).padding([13, 7]).width(Length::Fill);
     for (i, turn) in reader.turns.iter().enumerate() {
         let title = if turn.question_preview.trim().is_empty() {
-            format!("第 {} 轮", i + 1)
+            i18n.sprintf("第 %u 轮", &[(i + 1).into()])
         } else {
             super::list::preview(&turn.question_preview, 120)
         };
         let active = i == reader.active;
-        let preview = container(SingleLineLabel::new(reply_preview(reader, turn), 12.0))
+        let preview = container(SingleLineLabel::new(reply_preview(i18n, reader, turn), 12.0))
             .style(muted_content).width(Length::Fill);
-        let mut status = row![text(format!("{} 步", turn.step_count)).size(11)
+        let mut status = row![text(i18n.sprintf("%u 步", &[(turn.step_count).into()])).size(11)
             .style(settings_muted_text_style)].spacing(7);
         if turn.aborted || turn.error_count > 0 {
-            status = status.push(text(if turn.aborted { "已中止" } else { "有错误" })
+            status = status.push(text(if turn.aborted { i18n.__("已中止") } else { i18n.__("有错误") })
                 .size(11).style(|theme: &iced::Theme| iced::widget::text::Style {
                     color: Some(theme.extended_palette().danger.base.color),
                 }));
@@ -382,15 +382,15 @@ fn question_bubble(theme: &iced::Theme) -> container::Style {
     }
 }
 
-fn body(reader: &State, i18n: desktop_i18n::I18n, narrow: bool) -> Element<'_, Message> {
+fn body(i18n: desktop_i18n::I18n, reader: &State, narrow: bool) -> Element<'_, Message> {
     let query = reader.find.query.trim().to_lowercase();
     let mut body = column![].spacing(16).padding([16, 8]);
-    if let Some(hit) = find::focused(reader, i18n) {
+    if let Some(hit) = find::focused(i18n, reader) {
         body = body.push(hit);
     }
     let Some(turn) = reader.turns.get(reader.active) else {
         if !reader.loading {
-            body = body.push(text("此会话没有可阅读轮次").style(settings_muted_text_style));
+            body = body.push(text(i18n.__("此会话没有可阅读轮次")).style(settings_muted_text_style));
         }
         return body.into();
     };
@@ -409,7 +409,7 @@ fn body(reader: &State, i18n: desktop_i18n::I18n, narrow: bool) -> Element<'_, M
                 bubble = bubble.push(container(text(at).size(11).style(settings_muted_text_style))
                     .align_right(Length::Fill));
             }
-            bubble = bubble.push(container(details::message_view(reader, question, &query, i18n))
+            bubble = bubble.push(container(details::message_view(i18n, reader, question, &query))
                 .width(Length::Fill).padding([10, 13]).style(question_bubble));
             let mut line = row![];
             if !narrow {
@@ -441,18 +441,18 @@ fn body(reader: &State, i18n: desktop_i18n::I18n, narrow: bool) -> Element<'_, M
 
     let mut answer = column![container(author).center_y(27)].spacing(7).width(Length::Fill);
     if !conversation_only {
-        answer = answer.push(details::steps(reader, turn, reply.map(|(index, _)| index), &query, i18n));
+        answer = answer.push(details::steps(i18n, reader, turn, reply.map(|(index, _)| index), &query));
     }
     if !changes_only {
         if let Some((_, reply)) = reply {
-            answer = answer.push(container(details::message_view(reader, reply, &query, i18n)).padding([3, 0]));
+            answer = answer.push(container(details::message_view(i18n, reader, reply, &query)).padding([3, 0]));
         } else {
             let status = if turn.has_final_reply {
-                if reader.failed { "回复尚未读到，内容不完整" } else { "正在读取回复…" }
+                if reader.failed { i18n.__("回复尚未读到，内容不完整") } else { i18n.__("正在读取回复…") }
             } else if turn.aborted {
-                "本轮已中止，没有最终回复"
+                i18n.__("本轮已中止，没有最终回复")
             } else {
-                "本轮没有最终回复"
+                i18n.__("本轮没有最终回复")
             };
             answer = answer.push(text(status).size(12).style(settings_muted_text_style));
         }
@@ -469,10 +469,10 @@ fn body(reader: &State, i18n: desktop_i18n::I18n, narrow: bool) -> Element<'_, M
     body.push(row![avatar, answer].spacing(9)).into()
 }
 
-fn reply_preview(reader: &State, turn: &TurnIndex) -> String {
+fn reply_preview(i18n: desktop_i18n::I18n, reader: &State, turn: &TurnIndex) -> String {
     if !turn.has_final_reply || reader.messages.len() <= turn.last_message_index {
-        return if reader.failed { "内容不完整" } else if reader.loading { "正在读取…" }
-            else if turn.aborted { "已中止" } else { "暂无回复" }.to_owned();
+        return if reader.failed { i18n.__("内容不完整") } else if reader.loading { i18n.__("正在读取…") }
+            else if turn.aborted { i18n.__("已中止") } else { i18n.__("暂无回复") }.to_owned();
     }
     reader.messages.iter().enumerate().rev()
         .filter(|(i, m)| *i >= turn.first_message_index && *i <= turn.last_message_index
@@ -480,7 +480,7 @@ fn reply_preview(reader: &State, turn: &TurnIndex) -> String {
         .map(|(_, m)| display_text(m))
         .find(|text| !text.trim().is_empty())
         .map(|text| text.chars().take(80).collect())
-        .unwrap_or_else(|| if reader.loading { "正在读取…" } else if reader.failed { "内容不完整" } else { "暂无回复" }.to_owned())
+        .unwrap_or_else(|| if reader.loading { i18n.__("正在读取…") } else if reader.failed { i18n.__("内容不完整") } else { i18n.__("暂无回复") }.to_owned())
 }
 
 fn display_text(message: &SessionMessage) -> String {

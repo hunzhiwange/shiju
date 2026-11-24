@@ -8,14 +8,14 @@ use crate::app::{
     state::app_providers::desktop::Form,
 };
 use iced::Element;
-pub(crate) fn overlay<'a>(
+pub(crate) fn overlay<'a>(i18n: desktop_i18n::I18n,
     form: &'a Form,
     help: Help<'_>,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let fields = desktop_provider_apps::components::desktop::mapping_fields(form, help.provider_help())
         .into_iter().map(|field| field.map(crate::app::components::app_providers::edit::map)).collect();
-    desktop_apps_ui::aggregation::desktop_view::overlay(
+    desktop_apps_ui::aggregation::desktop_view::overlay(i18n,
         form,
         fields,
         message,

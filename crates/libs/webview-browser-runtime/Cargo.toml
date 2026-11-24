@@ -8,6 +8,7 @@ license = "MIT"
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
 
 [dependencies]
+desktop-i18n = { path = "../desktop-i18n" }
 config-ui = { path = "../config-ui" }
 webview-browser-views = { path = "../webview-browser-views" }
 webview-popup = { path = "../webview-popup" }

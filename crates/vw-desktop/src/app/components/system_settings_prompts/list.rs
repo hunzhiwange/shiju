@@ -270,7 +270,7 @@ pub(crate) fn page(app: &App) -> Element<'_, Message> {
                 column![
                     selector,
                     text(i18n.__("在工作区管理 OpenClaw 提示词。")).size(14),
-                    super::super::workspace_files::entry(),
+                    super::super::workspace_files::entry(i18n, ),
                 ]
                 .spacing(12),
             )

@@ -71,7 +71,7 @@ fn codex_plugin_compat_t64_real_macos_mcp_page() {
     ))
     .unwrap();
     let panel =
-        McpAppPanel::launch(&helper, "t64-macos-ui".into(), &app, json!({}), result, client)
+        McpAppPanel::launch(config_ui::DesktopLocale::SimplifiedChinese, &helper, "t64-macos-ui".into(), &app, json!({}), result, client)
             .unwrap();
     fs::write(root.join("ui-ready"), "actual native MCP application launched\n").unwrap();
     println!("T64_MACOS_UI_READY {}", root.display());

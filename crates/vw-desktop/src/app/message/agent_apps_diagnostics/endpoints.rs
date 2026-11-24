@@ -25,9 +25,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         app.app_providers.endpoints = Some(crate::app::state::app_providers::endpoints::Form::new(provider));
         crate::app::message::app_providers::endpoints::update(app, crate::app::message::app_providers::endpoints::Event::Refresh)
     } else { Task::none() };
-    let toast = if applied { app.show_info_toast("端点已回填草稿，请点击供应商表单的保存") } else { match notice {
-        Some(desktop_apps_ui::Notice::Error(text)) => app.show_error_toast(text),
-        Some(desktop_apps_ui::Notice::Success(text)) => app.show_success_toast(text),
+    let toast = if applied { app.show_localized_toast(crate::app::state::ToastKind::Info, "端点已回填草稿，请点击供应商表单的保存", vec![]) } else { match notice {
+        Some(desktop_apps_ui::Notice::Error(text)) => app.show_message_toast(crate::app::state::ToastKind::Error, text),
+        Some(desktop_apps_ui::Notice::Success(text)) => app.show_message_toast(crate::app::state::ToastKind::Success, text),
         None => Task::none(),
     }};
     Task::batch([task, custom, toast])

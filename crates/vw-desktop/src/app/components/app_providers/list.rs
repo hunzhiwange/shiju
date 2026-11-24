@@ -91,15 +91,15 @@ pub(crate) fn page<'a>(
     )
 }
 
-pub(crate) fn overlay<'a>(
+pub(crate) fn overlay<'a>(i18n: desktop_i18n::I18n,
     state: &'a ListState,
     help: Help<'a>,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    overlay_with_list(state, help, base, true)
+    overlay_with_list(i18n, state, help, base, true)
 }
 
-pub(crate) fn overlay_with_list<'a>(
+pub(crate) fn overlay_with_list<'a>(i18n: desktop_i18n::I18n,
     state: &'a ListState,
     help: Help<'a>,
     base: Element<'a, Message>,
@@ -119,16 +119,16 @@ pub(crate) fn overlay_with_list<'a>(
         base
     };
     if let Some(form) = &state.omo {
-        return crate::app::components::aggregation_omo::overlay(form, list);
+        return crate::app::components::aggregation_omo::overlay(i18n, form, list);
     }
     if let Some(form) = &state.codex_subagent {
-        return crate::app::components::aggregation_subagent::overlay(form, list);
+        return crate::app::components::aggregation_subagent::overlay(i18n, form, list);
     }
     if let Some(form) = &state.pi_directory {
-        return crate::app::components::aggregation_pi::overlay(form, list);
+        return crate::app::components::aggregation_pi::overlay(i18n, form, list);
     }
     if let Some(form) = &state.omp_directory {
-        return crate::app::components::aggregation_omp::overlay(form, list);
+        return crate::app::components::aggregation_omp::overlay(i18n, form, list);
     }
     if let Some(form) = &state.model_catalog {
         return crate::app::components::system_settings_providers::catalog::deployments(
@@ -141,10 +141,10 @@ pub(crate) fn overlay_with_list<'a>(
     }
     if let Some(form) = &state.aggregation {
         if show_list {
-            return super::super::aggregation_list::overlay(form, list);
+            return super::super::aggregation_list::overlay(i18n, form, list);
         }
         if form.clients.is_some() || form.publish.is_some() {
-            let dialogs = desktop_apps_ui::aggregation::list_view::dialogs(form)
+            let dialogs = desktop_apps_ui::aggregation::list_view::dialogs(i18n, form)
                 .map(crate::app::message::settings::aggregation_list::message);
             return iced::widget::stack![settings_inactive_view(list), dialogs].into();
         }
@@ -159,10 +159,10 @@ pub(crate) fn overlay_with_list<'a>(
         );
     }
     if let Some(form) = &state.desktop {
-        return super::desktop::overlay(form, help, list);
+        return super::desktop::overlay(i18n, form, help, list);
     }
     if let Some(speed) = &state.endpoint_speed {
-        return crate::app::components::agent_apps_diagnostics::endpoints_modal::overlay(
+        return crate::app::components::agent_apps_diagnostics::endpoints_modal::overlay(i18n,
             speed, list,
         );
     }

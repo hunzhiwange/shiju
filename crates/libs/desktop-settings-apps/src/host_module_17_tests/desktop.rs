@@ -125,6 +125,7 @@ fn scoped_form(scope: Scope) -> Form {
 
 #[tokio::test]
 async fn aggregation_t63_draws_chinese_mapping_in_light_and_dark() {
+    let i18n = desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
     use iced::{
         Font, Size, Theme,
         advanced::renderer::{Headless, Style},
@@ -152,7 +153,7 @@ async fn aggregation_t63_draws_chinese_mapping_in_light_and_dark() {
             theme: &theme,
             render: |_, body, _, _| iced::widget::text(body).into(),
         };
-        let element = desktop_apps_ui::aggregation::desktop_view::overlay(
+        let element = desktop_apps_ui::aggregation::desktop_view::overlay(i18n,
             &form,
             desktop_provider_apps::components::desktop::mapping_fields(&form, help),
             |_| desktop_provider_apps::Message::None,

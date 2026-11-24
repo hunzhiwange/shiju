@@ -259,6 +259,7 @@ impl McpAppProcess {
     }
 
     pub fn launch(
+        locale: config_ui::DesktopLocale,
         helper: &std::path::Path,
         session: String,
         server: String,
@@ -266,6 +267,7 @@ impl McpAppProcess {
         tools: BTreeSet<String>,
     ) -> Result<Self> {
         Self::launch_with_policy(
+            locale,
             helper,
             session,
             server,
@@ -275,6 +277,7 @@ impl McpAppProcess {
         )
     }
     pub fn launch_with_policy(
+        locale: config_ui::DesktopLocale,
         helper: &std::path::Path,
         session: String,
         server: String,
@@ -291,6 +294,11 @@ impl McpAppProcess {
         bridge.resource_domains.clone_from(&csp.resource_domains);
         let mut child = std::process::Command::new(helper)
             .arg("--mcp-app-stdin")
+            .arg(format!("--locale={}", match locale {
+                config_ui::DesktopLocale::SimplifiedChinese => "zh-CN",
+                config_ui::DesktopLocale::TraditionalChinese => "zh-TW",
+                config_ui::DesktopLocale::English => "en",
+            }))
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .spawn()?;
@@ -467,6 +475,18 @@ impl McpAppProcess {
             count += 1;
         }
         Ok(count)
+    }
+
+    pub fn set_locale(&mut self, locale: config_ui::DesktopLocale) -> Result<()> {
+        use std::io::Write;
+        let code = match locale {
+            config_ui::DesktopLocale::SimplifiedChinese => "zh-CN",
+            config_ui::DesktopLocale::TraditionalChinese => "zh-TW",
+            config_ui::DesktopLocale::English => "en",
+        };
+        writeln!(self.input, "locale {code}")?;
+        self.input.flush()?;
+        Ok(())
     }
 
     /// Deliver only host-selected tool data after the handshake.

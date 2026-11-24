@@ -9,7 +9,7 @@ use iced::{
 
 const ACTION_PADDING: [u16; 2] = [8, 12];
 
-pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(
+pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: &'a PreferencesState,
     _host_id: &'a str,
     rows: &'a [super::catalog::CatalogRow],
@@ -24,17 +24,17 @@ pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(
     let editable = !state.busy;
     let mut body = column![].spacing(14);
     if let Some(error) = &state.error {
-        body = body.push(settings_error_banner(error.clone()));
+        body = body.push(settings_error_banner(i18n.__(error).to_owned()));
     }
     if state.busy {
-        body = body.push(text("正在等待网关确认…").size(13));
+        body = body.push(text(i18n.__("正在等待网关确认…")).size(13));
     }
     if let Some(draft) = &state.draft {
         let group_heading = |title, description| {
             heading(title, description, 17)
         };
         let mut visibility =
-            column![group_heading("可见应用与顺序", "显示或隐藏应用，并调整它们在目录中的顺序。",)]
+            column![group_heading(i18n.__("可见应用与顺序"), i18n.__("显示或隐藏应用，并调整它们在目录中的顺序。"),)]
                 .spacing(10);
         for (index, id) in draft.user.app_order.iter().enumerate() {
             if let Some(app) = rows.iter().find(|r| {
@@ -57,7 +57,7 @@ pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(
                                 .on_toggle_maybe(editable.then_some(move |v| event(
                                     PreferencesMessage::Visible(app_id, v)
                                 ))),
-                            button(text("上移").size(SETTINGS_CONTROL_TEXT_SIZE))
+                            button(text(i18n.__("上移")).size(SETTINGS_CONTROL_TEXT_SIZE))
                                 .padding(ACTION_PADDING)
                                 .style(rounded_action_btn_style)
                                 .on_press_maybe(
@@ -73,16 +73,16 @@ pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(
         body = body.push(visibility);
     }
     let header = settings_modal_header(
-        heading("应用设置", "设置应用可见性与顺序。", 28),
+        heading(i18n.__("应用设置"), i18n.__("设置应用可见性与顺序。"), 28),
         settings_close_button(close.clone()),
     );
     let actions = row![
         Space::new().width(Length::Fill),
-        button(text("取消").size(SETTINGS_CONTROL_TEXT_SIZE))
+        button(text(i18n.__("取消")).size(SETTINGS_CONTROL_TEXT_SIZE))
             .padding(ACTION_PADDING)
             .style(rounded_action_btn_style)
             .on_press_maybe(editable.then_some(close.clone())),
-        button(text("保存可见性/顺序").size(SETTINGS_CONTROL_TEXT_SIZE))
+        button(text(i18n.__("保存可见性/顺序")).size(SETTINGS_CONTROL_TEXT_SIZE))
             .padding(ACTION_PADDING)
             .style(primary_action_btn_style)
             .on_press_maybe(

@@ -14,7 +14,7 @@ fn message(event: domain::Event) -> Message {
         domain::Event::Select(id) => endpoints::Event::Select(id),
     })
 }
-pub(crate) fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(crate) fn overlay<'a>(i18n: desktop_i18n::I18n, state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
     let state = domain::State {
         loading: state.loading,
         active: state.active(),
@@ -33,7 +33,7 @@ pub(crate) fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Eleme
     };
     iced::widget::stack![
         base,
-        domain::overlay(state, iced::widget::Space::new().into()).map(message)
+        domain::overlay(i18n, state, iced::widget::Space::new().into()).map(message)
     ]
     .into()
 }

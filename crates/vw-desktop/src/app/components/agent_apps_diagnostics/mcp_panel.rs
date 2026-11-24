@@ -15,7 +15,7 @@ pub(crate) fn view(app: &App) -> iced::Element<'_, Message> {
     let state = &app.mcp_settings.diagnostics;
     let current = diagnostics::context(app);
     let visible = current.is_some() && current.as_ref() == state.context.as_ref();
-    domain::view(
+    domain::view(desktop_i18n::I18n::new(app.general_settings.desktop_locale),
         domain::Panel {
             visible,
             active: state.active(),
@@ -32,6 +32,6 @@ pub(crate) fn view(app: &App) -> iced::Element<'_, Message> {
             error: &state.error,
         },
         message,
-        diagnostics::mcp_results::view(state),
+        diagnostics::mcp_results::view(desktop_i18n::I18n::new(app.general_settings.desktop_locale), state),
     )
 }

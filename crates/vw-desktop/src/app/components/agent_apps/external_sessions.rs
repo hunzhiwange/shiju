@@ -44,7 +44,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let Ok(client) = crate::app::config::gateway_client() else {
         return if !local || matches!(&event, Event::Delete(_) | Event::Read(_) | Event::Adjacent(_))
         {
-            app.show_error_toast("网关不可用，请重新连接")
+            app.show_localized_toast(crate::app::state::ToastKind::Error, "网关不可用，请重新连接", vec![])
         } else {
             Task::none()
         };
@@ -102,8 +102,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
     .map(message);
     let feedback = match notice {
-        Some(desktop_apps_ui::Notice::Error(text)) => app.show_error_toast(text),
-        Some(desktop_apps_ui::Notice::Success(text)) => app.show_success_toast(text),
+        Some(desktop_apps_ui::Notice::Error(text)) => app.show_message_toast(crate::app::state::ToastKind::Error, text),
+        Some(desktop_apps_ui::Notice::Success(text)) => app.show_message_toast(crate::app::state::ToastKind::Success, text),
         None => Task::none(),
     };
     Task::batch([task, feedback])
@@ -140,8 +140,8 @@ fn update_compression(
     )
     .map(message);
     let feedback = match notice {
-        Some(desktop_apps_ui::Notice::Error(text)) => app.show_error_toast(text),
-        Some(desktop_apps_ui::Notice::Success(text)) => app.show_success_toast(text),
+        Some(desktop_apps_ui::Notice::Error(text)) => app.show_message_toast(crate::app::state::ToastKind::Error, text),
+        Some(desktop_apps_ui::Notice::Success(text)) => app.show_message_toast(crate::app::state::ToastKind::Success, text),
         None => Task::none(),
     };
     Task::batch([task, feedback])

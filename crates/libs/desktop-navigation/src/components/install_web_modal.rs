@@ -89,7 +89,7 @@ pub fn with_modal<'a>(app: Input<'a>, help: HelpRenderer) -> (Message, Element<'
         body = body.push(text(i18n.__("访问地址")).size(13)).push(text(url).size(14));
     }
     if !state.status.is_empty() {
-        body = body.push(text(i18n.__(state.status.as_str()).to_owned()).size(13));
+        body = body.push(text(state.rendered_status(i18n)).size(13));
     }
     if let Some(progress) = &state.progress {
         body = body.push(super::install_cli_modal::update_progress_block_localized(

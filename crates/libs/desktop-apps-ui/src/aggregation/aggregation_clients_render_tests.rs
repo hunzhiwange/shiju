@@ -60,7 +60,7 @@ async fn aggregation_t62_real_draw_and_click_in_both_themes() {
                 .height(iced::Length::Fill)
                 .into();
             let mut ui = UserInterface::build(
-                overlay(&s, base),
+                overlay(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &s, base),
                 Size::new(960.0, 800.0),
                 Cache::new(),
                 &mut renderer,

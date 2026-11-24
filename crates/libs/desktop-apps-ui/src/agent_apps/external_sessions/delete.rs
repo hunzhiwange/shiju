@@ -150,22 +150,22 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
     Task::none()
 }
 
-pub(super) fn view<'a>(state: &'a super::State, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(super) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a super::State, base: Element<'a, Message>) -> Element<'a, Message> {
     if state.deletion.pending.is_empty() { return base; }
     let enabled = !state.deletion.deleting;
     let close = msg(Event::Cancel);
-    let mut content = column![text("将从来源永久删除，不经过废纸篓，无法撤销。")].spacing(8).padding([0, 7]);
+    let mut content = column![text(i18n.__("将从来源永久删除，不经过废纸篓，无法撤销。"))].spacing(8).padding([0, 7]);
     for session in &state.deletion.pending {
         content = content.push(text(format!("{:?} · {} · {}", session.identity.provider,
             session.identity.instance_id, session.title.as_deref().unwrap_or(&session.identity.session_id.0))));
     }
     let card = settings_modal_card(column![
-        row![text(format!("删除 {} 个会话？", state.deletion.pending.len())).size(18), settings_close_button(close.clone())].spacing(12),
+        row![text(i18n.sprintf("删除 %u 个会话？", &[(state.deletion.pending.len()).into()])).size(18), settings_close_button(close.clone())].spacing(12),
         scrollable(content).height(Length::Fixed(220.0))
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
-        row![button(text("取消")).padding([8, 12]).style(rounded_action_btn_style)
+        row![button(text(i18n.__("取消"))).padding([8, 12]).style(rounded_action_btn_style)
                 .on_press_maybe(enabled.then(|| close.clone())),
-            button(text(if enabled { "确认删除" } else { "正在删除…" })).padding([8, 12]).style(primary_action_btn_style)
+            button(text(if enabled { i18n.__("确认删除") } else { i18n.__("正在删除…") })).padding([8, 12]).style(primary_action_btn_style)
                 .on_press_maybe(enabled.then(|| msg(Event::Confirm)))].spacing(8),
     ].spacing(16)).width(Length::Fixed(560.0));
     settings_modal_overlay(Some(base), close, container(card).padding(12).center(Length::Fill))

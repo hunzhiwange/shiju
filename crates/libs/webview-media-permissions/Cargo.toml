@@ -10,6 +10,9 @@ doctest = false
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
 
+[dependencies]
+desktop-i18n = { path = "../desktop-i18n" }
+
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_env = "musl")))'.dependencies]
 wry = { version = "=0.56.1" }
 

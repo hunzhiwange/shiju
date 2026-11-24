@@ -42,24 +42,24 @@ pub enum Event {
     Written(Scope, Result<(), String>), Deleted(Scope, DailyMemoryFilename, Result<(), String>),
 }
 pub(crate) fn message(event: Event) -> Message { event }
-pub fn entry() -> Element<'static, Message> {
-    button(text("每日记忆")).padding([8,12]).style(rounded_action_btn_style).on_press(message(Event::Open)).into()
+pub fn entry(i18n: desktop_i18n::I18n, ) -> Element<'static, Message> {
+    button(text(i18n.__("每日记忆"))).padding([8,12]).style(rounded_action_btn_style).on_press(message(Event::Open)).into()
 }
-pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
+pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
     if !state.open { return base; }
     let mut body = column![row![
-        button(text("创建今日草稿")).padding([8,12]).style(rounded_action_btn_style).on_press_maybe((!state.busy && !state.listing && state.error.is_none()).then(|| message(Event::Today))),
-        button(text("刷新列表")).padding([8,12]).style(rounded_action_btn_style).on_press_maybe((!state.listing && !state.busy).then(|| message(Event::Refresh)))].spacing(8)].spacing(8);
+        button(text(i18n.__("创建今日草稿"))).padding([8,12]).style(rounded_action_btn_style).on_press_maybe((!state.busy && !state.listing && state.error.is_none()).then(|| message(Event::Today))),
+        button(text(i18n.__("刷新列表"))).padding([8,12]).style(rounded_action_btn_style).on_press_maybe((!state.listing && !state.busy).then(|| message(Event::Refresh)))].spacing(8)].spacing(8);
     if let Some(error) = &state.error { body = body.push(text(error)); }
-    body = body.push(super::daily_memory_search::controls(&state.search));
-    if state.search.active() { body = body.push(super::daily_memory_search::results(&state.search, state.busy)); }
+    body = body.push(super::daily_memory_search::controls(i18n, &state.search));
+    if state.search.active() { body = body.push(super::daily_memory_search::results(i18n, &state.search, state.busy)); }
     for file in state.files.iter().filter(|_| !state.search.active()) {
         let modified = i64::try_from(file.modified_at).ok().and_then(|s| chrono::DateTime::from_timestamp(s, 0))
-            .map(|t| t.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M").to_string()).unwrap_or_else(|| "时间不可用".into());
+            .map(|t| t.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M").to_string()).unwrap_or_else(|| i18n.__("时间不可用").into());
         body = body.push(column![row![
             button(text(format!("{} · {} B · {}", file.date, file.size_bytes, modified))).padding([8,12]).style(rounded_action_btn_style)
                 .on_press_maybe((!state.busy).then(|| message(Event::Select(file.filename.clone())))),
-            button(text("删除")).padding([8,12]).style(rounded_action_btn_style)
+            button(text(i18n.__("删除"))).padding([8,12]).style(rounded_action_btn_style)
                 .on_press_maybe((!state.busy).then(|| message(Event::AskDelete(file.filename.clone()))))].spacing(8), text(&file.preview)]);
     }
     if let Some(filename) = &state.filename {
@@ -69,14 +69,14 @@ pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, 
         body = body.push(editor);
     }
     if let Some(filename) = &state.delete {
-        body = body.push(text(format!("确认删除 {}？", filename.as_str()))).push(row![
-            button(text("确认删除")).padding([8,12]).style(rounded_action_btn_style).on_press_maybe((!state.busy).then(|| message(Event::ConfirmDelete))),
-            button(text("取消删除")).padding([8,12]).style(rounded_action_btn_style).on_press_maybe((!state.busy).then(|| message(Event::CancelDelete)))].spacing(8));
+        body = body.push(text(i18n.sprintf("确认删除 %s？", &[format!("{}", filename.as_str()).into()]))).push(row![
+            button(text(i18n.__("确认删除"))).padding([8,12]).style(rounded_action_btn_style).on_press_maybe((!state.busy).then(|| message(Event::ConfirmDelete))),
+            button(text(i18n.__("取消删除"))).padding([8,12]).style(rounded_action_btn_style).on_press_maybe((!state.busy).then(|| message(Event::CancelDelete)))].spacing(8));
     }
     let close = message(Event::Close);
-    let footer = row![button(text("保存")).padding([8,12]).style(primary_action_btn_style)
+    let footer = row![button(text(i18n.__("保存"))).padding([8,12]).style(primary_action_btn_style)
         .on_press_maybe((state.loaded && !state.busy && state.delete.is_none()).then(|| message(Event::Save)))];
-    let card = settings_modal_layout(settings_modal_header(text("OpenClaw 每日记忆").size(20), settings_close_button(close.clone())), body, Some(footer.into())).width(760).height(640);
+    let card = settings_modal_layout(settings_modal_header(text(i18n.__("OpenClaw 每日记忆")).size(20), settings_close_button(close.clone())), body, Some(footer.into())).width(760).height(640);
     settings_modal_overlay(Some(base), close, container(card).padding(12).center(Length::Fill))
 }
 pub fn update(state: &mut State, connection: Connection, event: Event, notice: &mut Option<Notice>) -> Task<Message> {

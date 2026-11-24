@@ -317,6 +317,10 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             #[cfg(not(target_arch = "wasm32"))]
             desktop_apps_ui::web::refresh_locale(&mut app.web_navigation, locale);
+            #[cfg(not(target_arch = "wasm32"))]
+            for runtime in app.session_state.session_runtime_states.values() {
+                for panel in &runtime.mcp_app_panels { panel.set_locale(locale); }
+            }
             crate::app::i18n::editor::refresh(app);
             crate::apps::workflow::refresh_top_tab_title(app);
             crate::app::i18n::apps::refresh_hub_titles(app);

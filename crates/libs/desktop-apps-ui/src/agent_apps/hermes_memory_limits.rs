@@ -32,15 +32,15 @@ pub(crate) fn message(event: Event) -> Message {
     hermes_memory::Event::Limits(event)
 }
 
-pub(crate) fn budget_text(content: &str, limit: u64) -> String {
+pub(crate) fn budget_text(i18n: desktop_i18n::I18n, content: &str, limit: u64) -> String {
     let used = content.encode_utf16().count() as u64;
     if used > limit {
-        format!("超出预算 {} / {limit}（UTF-16 单元）；原文保留", used - limit)
+        i18n.sprintf("超出预算 %s / %s（UTF-16 单元）；原文保留", &[format!("{}", used - limit).into(), format!("{}", limit).into()])
     } else {
-        format!("剩余 {} / {limit}（UTF-16 单元）", limit - used)
+        i18n.sprintf("剩余 %s / %s（UTF-16 单元）", &[format!("{}", limit - used).into(), format!("{}", limit).into()])
     }
 }
-pub fn view<'a>(state: &'a State, index: usize, content: &str) -> Element<'a, Message> {
+pub fn view<'a>(i18n: desktop_i18n::I18n, state: &'a State, index: usize, content: &str) -> Element<'a, Message> {
     let mut panel = column![].spacing(8);
     if let Some(limits) = &state.limits {
         let (limit, enabled) = if index == 0 {
@@ -48,38 +48,32 @@ pub fn view<'a>(state: &'a State, index: usize, content: &str) -> Element<'a, Me
         } else {
             (limits.user, limits.user_enabled)
         };
-        let mut toggle = settings_toggle(enabled).label("启用当前记忆");
+        let mut toggle = settings_toggle(enabled).label(i18n.__("启用当前记忆"));
         if !state.busy {
             toggle = toggle.on_toggle(move |enabled| message(Event::Toggle(index, enabled)));
         }
-        panel = panel.push(toggle).push(text(budget_text(content, limit)));
+        panel = panel.push(toggle).push(text(budget_text(i18n, content, limit)));
         if !enabled {
-            panel = panel.push(text("已禁用：Hermes 将跳过此记忆，仍可编辑和保存文件。"));
+            panel = panel.push(text(i18n.__("已禁用：Hermes 将跳过此记忆，仍可编辑和保存文件。")));
         }
     } else {
-        panel = panel.push(text("预算与开关尚未读取；读取成功后可切换。"));
+        panel = panel.push(text(i18n.__("预算与开关尚未读取；读取成功后可切换。")));
     }
     if let Some(error) = &state.error {
         panel = panel.push(text(error));
     }
     if state.model_loaded {
         let info = match &state.model {
-            Some(model) => format!(
-                "模型（只读）：{}；提供商：{}；上下文：{}；最大输出：{}。修改请使用供应商设置。",
-                model.default.as_deref().unwrap_or("未配置"),
-                model.provider.as_deref().unwrap_or("未配置"),
-                model.context_length.map_or("未配置".into(), |n| n.to_string()),
-                model.max_tokens.map_or("未配置".into(), |n| n.to_string())
-            ),
-            None => "模型（只读）：未配置；修改请使用供应商设置。".into(),
+            Some(model) => i18n.sprintf("模型（只读）：%s；提供商：%s；上下文：%s；最大输出：%s。修改请使用供应商设置。", &[format!("{}", model.default.as_deref().unwrap_or(i18n.__("未配置"))).into(), format!("{}", model.provider.as_deref().unwrap_or(i18n.__("未配置"))).into(), format!("{}", model.context_length.map_or(i18n.__("未配置").into(), |n| n.to_string())).into(), format!("{}", model.max_tokens.map_or(i18n.__("未配置").into(), |n| n.to_string())).into()]),
+            None => i18n.__("模型（只读）：未配置；修改请使用供应商设置。").into(),
         };
         panel = panel.push(text(info));
     } else {
-        panel = panel.push(text("只读模型信息尚未读取"));
+        panel = panel.push(text(i18n.__("只读模型信息尚未读取")));
     }
     panel
         .push(
-            button(text(if state.busy { "正在同步设置" } else { "刷新预算与模型" }))
+            button(text(if state.busy { i18n.__("正在同步设置") } else { i18n.__("刷新预算与模型") }))
                 .padding([8, 12])
                 .style(rounded_action_btn_style)
                 .on_press_maybe((!state.busy).then(|| message(Event::Refresh))),

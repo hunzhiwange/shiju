@@ -77,9 +77,9 @@ pub(crate) fn message(event: Event) -> Message {
 pub(super) fn kind(index: usize) -> HermesMemoryKind {
     if index == 0 { HermesMemoryKind::Memory } else { HermesMemoryKind::User }
 }
-pub fn view(state: &State) -> Element<'_, Message> {
+pub fn view(i18n: desktop_i18n::I18n, state: &State) -> Element<'_, Message> {
     if !state.open {
-        return button(text("打开 Hermes 记忆"))
+        return button(text(i18n.__("打开 Hermes 记忆")))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press(message(Event::Open))
@@ -87,7 +87,7 @@ pub fn view(state: &State) -> Element<'_, Message> {
     }
     let draft = &state.drafts[state.active];
     let mut tabs = row![].spacing(8);
-    for (index, label) in ["代理记忆 MEMORY.md", "用户记忆 USER.md"].into_iter().enumerate()
+    for (index, label) in [i18n.__("代理记忆 MEMORY.md"), i18n.__("用户记忆 USER.md")].into_iter().enumerate()
     {
         let label = format!("{}{}", label, if state.drafts[index].dirty() { " ·" } else { "" });
         tabs = tabs.push(
@@ -103,17 +103,17 @@ pub fn view(state: &State) -> Element<'_, Message> {
     }
     column![
         tabs,
-        super::hermes_memory_limits::view(&state.limits, state.active, &draft.editor.text()),
-        text(draft.path.as_deref().unwrap_or("路径暂不可用")),
+        super::hermes_memory_limits::view(i18n, &state.limits, state.active, &draft.editor.text()),
+        text(draft.path.as_deref().unwrap_or(i18n.__("路径暂不可用"))),
         editor,
         row![
-            button(text(if draft.saving.is_some() { "保存中" } else { "保存" }))
+            button(text(if draft.saving.is_some() { i18n.__("保存中") } else { i18n.__("保存") }))
                 .padding([8, 12])
                 .style(primary_action_btn_style)
                 .on_press_maybe(
                     (draft.dirty() && draft.saving.is_none()).then(|| message(Event::Save))
                 ),
-            button(text("重新读取"))
+            button(text(i18n.__("重新读取")))
                 .padding([8, 12])
                 .style(rounded_action_btn_style)
                 .on_press_maybe(

@@ -2,7 +2,7 @@ use crate::app::{App, Message, message::agent_apps_health as health};
 use desktop_apps_ui::agent_apps_high_availability::health as domain;
 pub(crate) fn view(app: &App) -> iced::Element<'_, Message> {
     let state = &app.apps_catalog.failover_health;
-    domain::view(
+    domain::view(desktop_i18n::I18n::new(app.general_settings.desktop_locale),
         domain::State {
             health: &state.health,
             route: &state.route,

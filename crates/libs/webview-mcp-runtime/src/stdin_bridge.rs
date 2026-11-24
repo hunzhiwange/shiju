@@ -22,6 +22,11 @@ pub(crate) fn spawn(proxy: EventLoopProxy<AppEvent>, active: Arc<AtomicBool>) {
             if line == "close" {
                 break;
             }
+            if let Some(code) = line.strip_prefix("locale ") {
+                let locale = webview_launch::launch_locale(&[format!("--locale={code}")]);
+                let _ = proxy.send_event(AppEvent::Locale(desktop_i18n::I18n::new(locale)));
+                continue;
+            }
             if let Ok(value) = serde_json::from_str(line) {
                 let _ = proxy.send_event(AppEvent::Deliver(value));
             }

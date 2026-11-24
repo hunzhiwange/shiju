@@ -56,19 +56,19 @@ impl State {
 fn message(event: Event) -> Message {
     daily_memory::message(daily_memory::Event::Search(event))
 }
-pub(crate) fn controls(state: &State) -> Element<'_, Message> {
+pub(crate) fn controls(i18n: desktop_i18n::I18n, state: &State) -> Element<'_, Message> {
     if !state.open {
-        return button(text("搜索每日记忆"))
+        return button(text(i18n.__("搜索每日记忆")))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press(message(Event::Open))
             .into();
     }
     row![
-        settings_text_input("搜索日期或内容", &state.query)
+        settings_text_input(i18n.__("搜索日期或内容"), &state.query)
             .id("daily-memory-search")
             .on_input(|q| message(Event::Query(q))),
-        button(text("取消搜索"))
+        button(text(i18n.__("取消搜索")))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press(message(Event::Close))
@@ -76,19 +76,19 @@ pub(crate) fn controls(state: &State) -> Element<'_, Message> {
     .spacing(8)
     .into()
 }
-pub(crate) fn results(state: &State, busy: bool) -> Element<'_, Message> {
+pub(crate) fn results(i18n: desktop_i18n::I18n, state: &State, busy: bool) -> Element<'_, Message> {
     let mut body = column![].spacing(8);
     if state.searching {
-        body = body.push(text("正在搜索…"));
+        body = body.push(text(i18n.__("正在搜索…")));
     } else if let Some(error) = &state.error {
         body = body.push(text(error));
     } else if state.results.is_empty() {
-        body = body.push(text("没有匹配的每日记忆"));
+        body = body.push(text(i18n.__("没有匹配的每日记忆")));
     } else {
         for result in &state.results {
             body = body.push(
                 column![
-                    button(text(format!("{} · {} 次匹配", result.date, result.match_count)))
+                    button(text(i18n.sprintf("%s · %s 次匹配", &[format!("{}", result.date).into(), format!("{}", result.match_count).into()])))
                         .padding([8, 12])
                         .style(rounded_action_btn_style)
                         .on_press_maybe((!busy).then(|| daily_memory::message(

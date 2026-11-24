@@ -36,7 +36,7 @@ async fn aggregation_t62_aggregation_clients_preserves_contract() {
     let mut renderer =
         iced::Renderer::new(iced::Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
     let mut ui = UserInterface::build(
-        overlay(&form, iced::widget::Space::new().into()),
+        overlay(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &form, iced::widget::Space::new().into()),
         Size::new(960.0, 800.0),
         Cache::new(),
         &mut renderer,

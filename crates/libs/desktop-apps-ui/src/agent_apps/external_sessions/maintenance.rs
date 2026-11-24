@@ -133,55 +133,53 @@ pub(super) fn update(state: &mut super::State, connection: &Connection, notice: 
     Task::none()
 }
 
-pub(super) fn view<'a>(state: &'a super::State, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(super) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a super::State, base: Element<'a, Message>) -> Element<'a, Message> {
     let maintenance = &state.maintenance;
     let Some(target) = &maintenance.target else { return base; };
     let enabled = !maintenance.busy();
-    let mut body = column![text(format!("Codex 实例：{}", target.instance_id)),
-        text("先保存设置，再启动维护。关闭统一历史不会自动回滚；迁移与恢复需要单独启动。").style(settings_muted_text_style)].spacing(12);
+    let mut body = column![text(i18n.sprintf("Codex 实例：%s", &[format!("{}", target.instance_id).into()])),
+        text(i18n.__("先保存设置，再启动维护。关闭统一历史不会自动回滚；迁移与恢复需要单独启动。")).style(settings_muted_text_style)].spacing(12);
     if let Some(options) = &maintenance.options {
-        let mut unify = checkbox(options.unify_enabled).label("统一 Codex 会话历史").style(settings_checkbox_style);
-        let mut migrate = checkbox(options.migrate_existing).label("迁入既有会话").style(settings_checkbox_style);
+        let mut unify = checkbox(options.unify_enabled).label(i18n.__("统一 Codex 会话历史")).style(settings_checkbox_style);
+        let mut migrate = checkbox(options.migrate_existing).label(i18n.__("迁入既有会话")).style(settings_checkbox_style);
         if enabled { unify = unify.on_toggle(|v| msg(Event::Unify(v))); migrate = migrate.on_toggle(|v| msg(Event::Migrate(v))); }
         body = body.push(unify).push(migrate);
-        for (label, action) in [("执行统一历史迁移（含备份）", HistoryMaintenanceAction::Unify),
-            ("迁移旧官方历史（含备份）", HistoryMaintenanceAction::LegacyOfficial)] {
-            body = body.push(button(text(label)).padding([8, 12]).style(rounded_action_btn_style)
+        for (label, action) in [(i18n.__("执行统一历史迁移（含备份）"), HistoryMaintenanceAction::Unify),
+            (i18n.__("迁移旧官方历史（含备份）"), HistoryMaintenanceAction::LegacyOfficial)] {
+            body = body.push(button(text(i18n.__(label))).padding([8, 12]).style(rounded_action_btn_style)
                 .on_press_maybe((enabled && maintenance.options == maintenance.saved_options).then(|| msg(Event::Start(action)))));
         }
     }
     if let Some(progress) = &maintenance.progress {
-        body = body.push(text(format!("{:?} · {} · {}/{} · 已改会话 {} · 状态行 {}",
-            progress.status, progress.phase, progress.completed, progress.total, progress.changed_rollouts, progress.changed_state_rows)));
-        if progress.interrupted { body = body.push(text("服务重启导致任务中断，请核实备份后操作")); }
-        if progress.cancellation_requested { body = body.push(text("取消已受理，仍需查询确认任务停止")); }
+        body = body.push(text(i18n.sprintf("%s · %s · %u/%s · 已改会话 %s · 状态行 %s", &[format!("{:?}", progress.status).into(), format!("{}", progress.phase).into(), (progress.completed).into(), format!("{}", progress.total).into(), format!("{}", progress.changed_rollouts).into(), format!("{}", progress.changed_state_rows).into()])));
+        if progress.interrupted { body = body.push(text(i18n.__("服务重启导致任务中断，请核实备份后操作"))); }
+        if progress.cancellation_requested { body = body.push(text(i18n.__("取消已受理，仍需查询确认任务停止"))); }
         body = body.push(row![
-            button(text("查询进度")).padding([8, 12]).style(rounded_action_btn_style)
+            button(text(i18n.__("查询进度"))).padding([8, 12]).style(rounded_action_btn_style)
                 .on_press_maybe((!maintenance.pending).then(|| msg(Event::Query))),
-            button(text("取消维护")).padding([8, 12]).style(rounded_action_btn_style)
+            button(text(i18n.__("取消维护"))).padding([8, 12]).style(rounded_action_btn_style)
                 .on_press_maybe((maintenance.busy() && !maintenance.pending && !progress.cancellation_requested).then(|| msg(Event::Cancel)))].spacing(8));
     } else if maintenance.uncertain && !maintenance.pending {
-        body = body.push(settings_error_banner("提交结果未确认，已禁用重复操作。请重新连接并核实维护记录。"));
+        body = body.push(settings_error_banner(i18n.__("提交结果未确认，已禁用重复操作。请重新连接并核实维护记录。")));
     }
     for backup in &maintenance.backups {
-        body = body.push(button(text(format!("恢复备份 {}（{} 项）{}", backup.generation_id, backup.entries,
-            if backup.complete { "" } else { " · 不完整" }))).padding([8, 12]).style(rounded_action_btn_style)
+        body = body.push(button(text(i18n.sprintf("恢复备份 %s（%s 项）%s", &[format!("{}", backup.generation_id).into(), format!("{}", backup.entries).into(), format!("{}", if backup.complete { "" } else { i18n.__(" · 不完整") }).into()]))).padding([8, 12]).style(rounded_action_btn_style)
             .on_press_maybe((enabled && backup.complete).then(|| msg(Event::AskRestore(backup.generation_id.clone())))));
     }
     if maintenance.confirmation.is_some() {
-        body = body.push(text("确认使用所选备份恢复历史？这会修改目标实例的历史数据。"))
-            .push(row![button(text("确认恢复")).padding([8, 12]).style(primary_action_btn_style)
+        body = body.push(text(i18n.__("确认使用所选备份恢复历史？这会修改目标实例的历史数据。")))
+            .push(row![button(text(i18n.__("确认恢复"))).padding([8, 12]).style(primary_action_btn_style)
                 .on_press_maybe(enabled.then(|| msg(Event::ConfirmRestore))),
-                button(text("取消")).padding([8, 12]).style(rounded_action_btn_style)
+                button(text(i18n.__("取消"))).padding([8, 12]).style(rounded_action_btn_style)
                 .on_press_maybe(enabled.then(|| msg(Event::DismissRestore)))].spacing(8));
     }
-    let footer = row![button(text("重新读取")).padding([8, 12]).style(rounded_action_btn_style)
+    let footer = row![button(text(i18n.__("重新读取"))).padding([8, 12]).style(rounded_action_btn_style)
         .on_press_maybe(enabled.then(|| msg(Event::Reload))),
-        button(text("保存设置")).padding([8, 12]).style(primary_action_btn_style)
+        button(text(i18n.__("保存设置"))).padding([8, 12]).style(primary_action_btn_style)
         .on_press_maybe((enabled && maintenance.options.is_some()).then(|| msg(Event::Save))),
-        button(text("关闭")).padding([8, 12]).style(rounded_action_btn_style)
+        button(text(i18n.__("关闭"))).padding([8, 12]).style(rounded_action_btn_style)
         .on_press_maybe(enabled.then(|| msg(Event::Close)))].spacing(8);
-    let header = row![text("历史维护设置").size(18), settings_close_button(msg(Event::Close))].spacing(12);
+    let header = row![text(i18n.__("历史维护设置")).size(18), settings_close_button(msg(Event::Close))].spacing(12);
     let card = settings_modal_layout(header, body, Some(footer.into()))
         .width(Length::Fixed(620.0)).height(Length::Fixed(560.0));
     settings_modal_overlay(Some(base), msg(Event::Close), container(card).padding(12).center(Length::Fill))

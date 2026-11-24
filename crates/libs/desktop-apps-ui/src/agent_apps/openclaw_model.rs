@@ -38,18 +38,18 @@ impl std::fmt::Debug for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str("OpenClawModelEvent") }
 }
 fn message(event: Event) -> Message { event }
-pub fn entry() -> Element<'static, Message> {
-    button(text("默认模型与回退模型")).padding([8, 12]).style(rounded_action_btn_style)
+pub fn entry(i18n: desktop_i18n::I18n, ) -> Element<'static, Message> {
+    button(text(i18n.__("默认模型与回退模型"))).padding([8, 12]).style(rounded_action_btn_style)
         .on_press(message(Event::Open)).into()
 }
 fn empty_model() -> OpenClawDefaultModel {
     OpenClawDefaultModel { primary: String::new(), fallbacks: vec![], extra: Default::default() }
 }
-pub(crate) fn choices(options: &[Choice], current: &str, excluded: &[String]) -> Vec<Choice> {
-    let mut result = vec![Choice { value: String::new(), label: "未设置".into() }];
+pub(crate) fn choices(i18n: desktop_i18n::I18n, options: &[Choice], current: &str, excluded: &[String]) -> Vec<Choice> {
+    let mut result = vec![Choice { value: String::new(), label: i18n.__("未设置").into() }];
     result.extend(options.iter().filter(|o| !excluded.contains(&o.value) || o.value == current).cloned());
     if !current.is_empty() && !result.iter().any(|o| o.value == current) {
-        result.push(Choice { value: current.into(), label: format!("{current}（未配置）") });
+        result.push(Choice { value: current.into(), label: i18n.sprintf("%s（未配置）", &[current.into()]) });
     }
     result
 }
@@ -59,33 +59,33 @@ pub(crate) fn normalize(model: &mut OpenClawDefaultModel) {
         if v.is_empty() || used.contains(v) { false } else { used.push(v.clone()); true }
     });
 }
-pub fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
+pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: &'a State, base: Element<'a, Message>) -> Element<'a, Message> {
     if !state.open { return base; }
     let close = message(Event::Close);
-    let mut body = column![text("模型选项来自已配置的模型白名单；未配置的当前值仍保留。")].spacing(12);
-    if state.busy { body = body.push(text("正在处理…")); }
+    let mut body = column![text(i18n.__("模型选项来自已配置的模型白名单；未配置的当前值仍保留。"))].spacing(12);
+    if state.busy { body = body.push(text(i18n.__("正在处理…"))); }
     for warning in &state.warnings {
         body = body.push(text(format!("{}{}", warning.message, warning.path.as_ref().map(|p| format!(" ({p})")).unwrap_or_default())));
     }
     if state.loaded && !state.busy {
         let model = state.model.clone().unwrap_or_else(empty_model);
-        let opts = choices(&state.options, &model.primary, &[]);
+        let opts = choices(i18n, &state.options, &model.primary, &[]);
         let selected = opts.iter().find(|o| o.value == model.primary).cloned();
-        body = body.push(text("默认模型")).push(settings_select(opts, selected, |c| message(Event::Primary(c.value))).width(Length::Fill));
+        body = body.push(text(i18n.__("默认模型"))).push(settings_select(opts, selected, |c| message(Event::Primary(c.value))).width(Length::Fill));
         for (index, current) in model.fallbacks.iter().enumerate() {
             let mut excluded = model.fallbacks.clone();
             excluded.push(model.primary.clone());
-            let opts = choices(&state.options, current, &excluded);
+            let opts = choices(i18n, &state.options, current, &excluded);
             let selected = opts.iter().find(|o| &o.value == current).cloned();
             body = body.push(row![settings_select(opts, selected, move |c| message(Event::Fallback(index, c.value))).width(Length::Fill),
-                button(text("移除")).padding([8, 12]).style(rounded_action_btn_style).on_press(message(Event::Remove(index)))].spacing(8));
+                button(text(i18n.__("移除"))).padding([8, 12]).style(rounded_action_btn_style).on_press(message(Event::Remove(index)))].spacing(8));
         }
-        body = body.push(button(text("添加回退模型")).padding([8, 12]).style(rounded_action_btn_style).on_press(message(Event::Add)));
+        body = body.push(button(text(i18n.__("添加回退模型"))).padding([8, 12]).style(rounded_action_btn_style).on_press(message(Event::Add)));
     }
-    let footer = row![button(text("取消")).padding([8, 12]).style(rounded_action_btn_style).on_press(close.clone()),
-        button(text("保存")).padding([8, 12]).style(primary_action_btn_style)
+    let footer = row![button(text(i18n.__("取消"))).padding([8, 12]).style(rounded_action_btn_style).on_press(close.clone()),
+        button(text(i18n.__("保存"))).padding([8, 12]).style(primary_action_btn_style)
             .on_press_maybe((state.loaded && !state.busy).then(|| message(Event::Save)))].spacing(8);
-    let header = settings_modal_header(text("OpenClaw 模型选择").size(20), settings_close_button(close.clone()));
+    let header = settings_modal_header(text(i18n.__("OpenClaw 模型选择")).size(20), settings_close_button(close.clone()));
     let card = settings_modal_layout(header, body, Some(footer.into())).width(620).height(520);
     settings_modal_overlay(Some(base), close, container(card).padding(12).center(Length::Fill))
 }

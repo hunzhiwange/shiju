@@ -320,6 +320,7 @@ fn settings_shell(
 
 /// 渲染全屏设置、分类导航及当前分类的浮层。
 pub fn view(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     if !app.navigation_panels.show_system_settings {
         return container(column![]).into();
     }
@@ -445,15 +446,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
         );
         #[cfg(not(target_arch = "wasm32"))]
         let provider_help = provider_help.with_usage(app);
-        dialog = super::app_providers::list::overlay(&app.app_providers, provider_help, dialog);
+        dialog = super::app_providers::list::overlay(i18n, &app.app_providers, provider_help, dialog);
         if crate::app::message::agent_apps_high_availability::can_show(app) {
-            dialog = super::agent_apps_high_availability::queue::overlay(
+            dialog = super::agent_apps_high_availability::queue::overlay(i18n,
                 &app.app_providers.failover,
                 dialog,
             );
         }
         if crate::app::message::agent_apps_diagnostics::model::can_show(app) {
-            dialog = super::agent_apps_diagnostics::model_panel::overlay(
+            dialog = super::agent_apps_diagnostics::model_panel::overlay(i18n,
                 &app.apps_catalog.model_diagnostics,
                 dialog,
             );

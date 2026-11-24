@@ -8,6 +8,7 @@ use vw_api_app_provider_base::basic::ProviderBasic;
 use vw_api_app_provider_base::claude::ClaudeFormKind;
 #[test]
 fn diagnostic_desktop_endpoint_selection_requires_save() {
+    let i18n = desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
     crate::app::config::with_settings_gateway(|_requests, _responses| {
         let mut app = App::new().0;
         app.workspace_state.project_id = Some("project".into());
@@ -174,18 +175,18 @@ fn diagnostic_desktop_endpoint_selection_requires_save() {
             ["fast", "slow", "failed"]
         );
         assert!(
-            super::endpoints_modal::report_text(
+            super::endpoints_modal::report_text(i18n,
                 state.report(&DiagnosticEndpointId("fast".into())).unwrap()
             )
             .contains("7ms · HTTP 401")
         );
         assert!(
-            super::endpoints_modal::report_text(
+            super::endpoints_modal::report_text(i18n,
                 state.report(&DiagnosticEndpointId("failed".into())).unwrap()
             )
             .contains("Timeout")
         );
-        runtime.block_on(render_panel(state));
+        runtime.block_on(render_panel(i18n, state));
         drop(app.update(endpoints::message(Event::Select(DiagnosticEndpointId("fast".into())))));
         assert_eq!(
             app.app_providers.form.as_ref().unwrap().claude.as_ref().unwrap().base_url,
@@ -343,7 +344,7 @@ fn diagnostic_desktop_endpoint_selection_requires_save() {
     });
 }
 
-async fn render_panel(state: &crate::app::message::agent_apps_diagnostics::endpoint_state::State) {
+async fn render_panel(i18n: desktop_i18n::I18n, state: &crate::app::message::agent_apps_diagnostics::endpoint_state::State) {
     use iced::{
         Font, Pixels, Rectangle, Renderer, Size, Theme,
         advanced::{
@@ -357,7 +358,7 @@ async fn render_panel(state: &crate::app::message::agent_apps_diagnostics::endpo
         <Renderer as Headless>::new(Font::DEFAULT, Pixels(14.0), Some("tiny-skia")).await.unwrap();
     for theme in [Theme::Dark, Theme::Light] {
         let mut element =
-            super::endpoints_modal::overlay(state, iced::widget::text("应用管理").into());
+            super::endpoints_modal::overlay(i18n, state, iced::widget::text("应用管理").into());
         let mut tree = Tree::new(element.as_widget());
         let size = Size::new(800.0, 720.0);
         let node = element.as_widget_mut().layout(

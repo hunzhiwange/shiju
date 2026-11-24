@@ -28,7 +28,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             scope, generation: app.app_providers.generation,
             access: app.apps_catalog.model_diagnostics.access_generation, provider: provider.clone().into(),
         };
-        if !current(app, &context) { return app.show_error_toast("请重新连接应用"); }
+        if !current(app, &context) { return app.show_localized_toast(crate::app::state::ToastKind::Error, "请重新连接应用", vec![]); }
         Some(context)
     } else {
         app.apps_catalog.failover_health.context.clone().filter(|c| current(app, c))
@@ -38,8 +38,8 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
     let task = desktop_apps_ui::agent_apps_health::update(&mut app.apps_catalog.failover_health,
         context, polling, crate::app::config::gateway_client(), &app.apps_catalog.token, event, &mut notice).map(message);
     let toast = match notice {
-        Some(desktop_apps_ui::Notice::Error(text)) => app.show_error_toast(text),
-        Some(desktop_apps_ui::Notice::Success(text)) => app.show_success_toast(text),
+        Some(desktop_apps_ui::Notice::Error(text)) => app.show_message_toast(crate::app::state::ToastKind::Error, text),
+        Some(desktop_apps_ui::Notice::Success(text)) => app.show_message_toast(crate::app::state::ToastKind::Success, text),
         None => Task::none(),
     };
     Task::batch([task, toast])

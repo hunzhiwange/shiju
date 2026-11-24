@@ -32,7 +32,7 @@ pub fn settings_select<'a, Message: Clone + 'a, T: Clone + PartialEq + ToString 
     let selected_index =
         selected.as_ref().and_then(|value| options.iter().position(|v| v == value));
     let labels = options.iter().map(ToString::to_string).collect();
-    let label = selected.map(|value| value.to_string());
+    let label = selected.as_ref().map(ToString::to_string);
     let enabled = !options.is_empty();
     let trigger = trigger(label.clone().unwrap_or_default(), label.is_none(), enabled, None, None, false);
     let values = Rc::clone(&options);
@@ -43,6 +43,7 @@ pub fn settings_select<'a, Message: Clone + 'a, T: Clone + PartialEq + ToString 
         label,
         placeholder: String::new(),
         selected: selected_index,
+        selected_value: selected,
         enabled,
         on_selected: Box::new(move |index| on_selected(values[index].clone())),
         on_open: None,
@@ -60,6 +61,7 @@ pub struct SettingsSelect<'a, T, Message> {
     label: Option<String>,
     placeholder: String,
     selected: Option<usize>,
+    selected_value: Option<T>,
     enabled: bool,
     on_selected: Box<dyn Fn(usize) -> Message + 'a>,
     on_open: Option<(String, Message)>,
@@ -70,6 +72,14 @@ pub struct SettingsSelect<'a, T, Message> {
 }
 
 impl<T, Message> SettingsSelect<'_, T, Message> {
+    /// Format visible options without changing their stable values or selection events.
+    pub fn format_labels(mut self, label: impl Fn(&T) -> String) -> Self {
+        self.labels = self.options.iter().map(&label).collect();
+        self.label = self.selected_value.as_ref().map(label);
+        self.rebuild_trigger();
+        self
+    }
+
     pub fn width(mut self, width: impl Into<Length>) -> Self {
         self.width = width.into();
         self

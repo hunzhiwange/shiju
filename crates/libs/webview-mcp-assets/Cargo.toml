@@ -11,4 +11,9 @@ doctest = false
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
 
 [dependencies]
+desktop-i18n = { path = "../desktop-i18n" }
+serde_json = "1"
 webview-mcp-policy = { path = "../webview-mcp-policy" }
+
+[dev-dependencies]
+config-ui = { path = "../config-ui" }

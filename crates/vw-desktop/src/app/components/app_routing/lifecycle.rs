@@ -40,8 +40,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> iced::Task<Message> {
     )
     .map(message);
     let feedback = match notice {
-        Some(desktop_apps_ui::Notice::Error(error)) => app.show_error_toast(error),
-        Some(desktop_apps_ui::Notice::Success(text)) => app.show_success_toast(text),
+        Some(desktop_apps_ui::Notice::Error(error)) => app.show_message_toast(crate::app::state::ToastKind::Error, error),
+        Some(desktop_apps_ui::Notice::Success(text)) => app.show_message_toast(crate::app::state::ToastKind::Success, text),
         None => iced::Task::none(),
     };
     let policy = if load_policy {
@@ -57,15 +57,15 @@ pub(crate) fn update(app: &mut App, event: Event) -> iced::Task<Message> {
     };
     iced::Task::batch([task, feedback, policy])
 }
-pub(crate) fn view(catalog: &AppsCatalogState) -> iced::Element<'_, Message> {
-    desktop_apps_ui::app_routing::lifecycle::view(&catalog.routing, context(catalog)).map(message)
+pub(crate) fn view(i18n: desktop_i18n::I18n, catalog: &AppsCatalogState) -> iced::Element<'_, Message> {
+    desktop_apps_ui::app_routing::lifecycle::view(i18n, &catalog.routing, context(catalog)).map(message)
 }
 
-pub(crate) fn restore_overlay<'a>(
+pub(crate) fn restore_overlay<'a>(i18n: desktop_i18n::I18n,
     catalog: &'a AppsCatalogState,
     base: iced::Element<'a, Message>,
 ) -> iced::Element<'a, Message> {
-    let Some(card) = restore_confirmation(&catalog.routing, context(catalog)) else {
+    let Some(card) = restore_confirmation(i18n, &catalog.routing, context(catalog)) else {
         return base;
     };
     desktop_ui_controls::system_settings_common::settings_modal_overlay(
@@ -75,8 +75,8 @@ pub(crate) fn restore_overlay<'a>(
     )
 }
 
-pub(crate) fn inline_service(catalog: &AppsCatalogState) -> iced::Element<'_, Message> {
-    page_service(&catalog.routing, context(catalog)).map(message)
+pub(crate) fn inline_service(i18n: desktop_i18n::I18n, catalog: &AppsCatalogState) -> iced::Element<'_, Message> {
+    page_service(i18n, &catalog.routing, context(catalog)).map(message)
 }
 
 pub(crate) fn attached_apps(

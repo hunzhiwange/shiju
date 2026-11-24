@@ -14,37 +14,37 @@ fn action(label: &str, event: Event, enabled: bool) -> Element<'_, Message> {
         .on_press_maybe(enabled.then_some(message(event)))
         .into()
 }
-pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Message> {
+pub fn overlay<'a>(i18n: desktop_i18n::I18n, form: &'a Form, base: Element<'a, Message>) -> Element<'a, Message> {
     let ready = form.pending.is_none();
     let close = message(Event::Close);
     let header = settings_modal_header(
-        text("OMP 独立模型条目").size(20),
+        text(i18n.__("OMP 独立模型条目")).size(20),
         settings_close_button(close.clone()),
     );
-    let mut body=column![text("活动 profile 与默认模型只读。条目按当前 profile 保存。登录和 MCP 请使用各自入口。修改已有条目时请提供完整供应商声明。")].spacing(12);
+    let mut body=column![text(i18n.__("活动 profile 与默认模型只读。条目按当前 profile 保存。登录和 MCP 请使用各自入口。修改已有条目时请提供完整供应商声明。"))].spacing(12);
     if let Some(error) = &form.error {
-        body = body.push(settings_error_banner(error.as_str()));
+        body = body.push(settings_error_banner(i18n.__(error.as_str()).to_owned()));
     }
     if let Some(state) = &form.state {
         body = body.push(settings_panel(
             column![
-                settings_field_label("活动 profile"),
-                text(state.profile.as_deref().unwrap_or("默认 profile")),
-                settings_field_label("默认供应商（只读）"),
-                text(state.default_provider_id.as_deref().unwrap_or("未设置")),
-                settings_field_label("默认模型（只读）"),
-                text(state.default_model_id.as_deref().unwrap_or("未设置")),
+                settings_field_label(i18n.__("活动 profile")),
+                text(state.profile.as_deref().unwrap_or(i18n.__("默认 profile"))),
+                settings_field_label(i18n.__("默认供应商（只读）")),
+                text(state.default_provider_id.as_deref().unwrap_or(i18n.__("未设置"))),
+                settings_field_label(i18n.__("默认模型（只读）")),
+                text(state.default_model_id.as_deref().unwrap_or(i18n.__("未设置"))),
             ]
             .spacing(8),
         ));
         if state.members.is_empty() {
-            body = body.push(text("暂无独立条目；内置默认模型仍可生效。"));
+            body = body.push(text(i18n.__("暂无独立条目；内置默认模型仍可生效。")));
         }
         for id in &state.members {
             body = body.push(settings_panel(
                 row![
                     text(id).width(Length::Fill),
-                    action("移除", Event::ReviewRemove(id.clone()), ready)
+                    action(i18n.__("移除"), Event::ReviewRemove(id.clone()), ready)
                 ]
                 .spacing(10)
                 .align_y(iced::Alignment::Center),
@@ -52,19 +52,19 @@ pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Me
         }
     } else {
         body = body.push(text(if ready {
-            "目录未就绪，请刷新。"
+            i18n.__("目录未就绪，请刷新。")
         } else {
-            "正在读取目录…"
+            i18n.__("正在读取目录…")
         }));
     }
     if let Some(id) = &form.removing {
         body = body.push(settings_panel(
             column![
-                text("确认移除以下独立条目？默认模型保持只读。"),
+                text(i18n.__("确认移除以下独立条目？默认模型保持只读。")),
                 text(id),
                 row![
-                    action("取消移除", Event::CancelRemove, ready),
-                    action("确认移除", Event::ConfirmRemove, ready)
+                    action(i18n.__("取消移除"), Event::CancelRemove, ready),
+                    action(i18n.__("确认移除"), Event::ConfirmRemove, ready)
                 ]
                 .spacing(10)
             ]
@@ -88,19 +88,19 @@ pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Me
     }
     body = body.push(settings_panel(
         column![
-            settings_field_label("条目 ID"),
-            input("供应商 ID", &form.id, Event::Id),
-            settings_field_label("名称"),
-            input("显示名称", &form.name, Event::Name),
-            settings_field_label("供应商模型声明（YAML）"),
+            settings_field_label(i18n.__("条目 ID")),
+            input(i18n.__("供应商 ID"), &form.id, Event::Id),
+            settings_field_label(i18n.__("名称")),
+            input(i18n.__("显示名称"), &form.name, Event::Name),
+            settings_field_label(i18n.__("供应商模型声明（YAML）")),
             editor
         ]
         .spacing(8),
     ));
     let actions = row![
-        action("刷新目录", Event::Refresh, ready),
-        action("取消", Event::Close, ready),
-        button(text(if ready { "保存条目" } else { "处理中…" }))
+        action(i18n.__("刷新目录"), Event::Refresh, ready),
+        action(i18n.__("取消"), Event::Close, ready),
+        button(text(if ready { i18n.__("保存条目") } else { i18n.__("处理中…") }))
             .padding([8, 14])
             .style(primary_action_btn_style)
             .on_press_maybe((ready && form.state.is_some()).then_some(message(Event::Save)))

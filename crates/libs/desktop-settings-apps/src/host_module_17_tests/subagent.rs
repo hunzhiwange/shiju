@@ -52,6 +52,7 @@ impl iced::advanced::widget::operation::Operation for TextProbe {
 }
 #[tokio::test]
 async fn aggregation_t60_actual_text_rendering_in_both_themes() {
+    let i18n = desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
     use iced::{
         Font, Size, Theme,
         advanced::renderer::{Headless, Style},
@@ -81,7 +82,7 @@ async fn aggregation_t60_actual_text_rendering_in_both_themes() {
                 s.notices.push(AggregationNotice::MultiAgentV2Forced);
                 s.notices.push(AggregationNotice::EncryptedTaskCrossProvider);
             }
-            let element = desktop_apps_ui::aggregation::subagent_view::overlay(
+            let element = desktop_apps_ui::aggregation::subagent_view::overlay(i18n,
                 &form,
                 Space::new().width(iced::Length::Fill).height(iced::Length::Fill).into(),
             );

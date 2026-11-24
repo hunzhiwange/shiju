@@ -223,6 +223,7 @@ fn lifecycle_fixture(action: AppLifecycleAction) -> AppsCatalogState {
 
 #[tokio::test]
 async fn ui_refresh_07_renders_modal_states() {
+    let i18n = desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
     let mut renderer = renderer().await;
     let mut launch = launch_fixture();
     for (width, height) in [(420, 280), (640, 640), (960, 640)] {
@@ -274,7 +275,7 @@ async fn ui_refresh_07_renders_modal_states() {
     {
         let state = lifecycle_fixture(action);
         capture(
-            lifecycle::overlay(&state.lifecycle, &state.host, base()),
+            lifecycle::overlay(i18n, &state.lifecycle, &state.host, base()),
             &mut renderer,
             Size::new(420, 280),
             &format!("{action:?}"),
@@ -422,6 +423,7 @@ impl Operation for BodyOffset {
 
 #[tokio::test]
 async fn ui_refresh_07_layout_and_interaction() {
+    let i18n = desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
     use super::page_fixture::lifecycle;
     let mut renderer = renderer().await;
     let size = Size::new(420.0, 280.0);
@@ -430,7 +432,7 @@ async fn ui_refresh_07_layout_and_interaction() {
     {
         let state = lifecycle_fixture(action);
         let mut scene = Scene::new(
-            lifecycle::overlay(&state.lifecycle, &state.host, base()),
+            lifecycle::overlay(i18n, &state.lifecycle, &state.host, base()),
             &mut renderer,
             size,
         );

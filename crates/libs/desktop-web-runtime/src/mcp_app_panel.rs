@@ -19,6 +19,7 @@ pub struct McpAppPanel(Arc<PanelLease>);
 struct PanelLease {
     cancelled: Arc<AtomicBool>,
     status: Arc<AtomicU8>,
+    locale: Arc<AtomicU8>,
 }
 impl Drop for PanelLease {
     fn drop(&mut self) {
@@ -62,6 +63,7 @@ impl McpAppPanel {
     }
 
     pub fn launch(
+        locale: config_ui::DesktopLocale,
         helper: &Path,
         session: String,
         app: &Value,
@@ -72,6 +74,7 @@ impl McpAppPanel {
         let (server, tool, binding, html) = Self::validate(app)?;
         let binding = binding.to_owned();
         let mut process = McpAppProcess::launch_with_policy(
+            locale,
             helper,
             session,
             server.to_owned(),
@@ -81,13 +84,16 @@ impl McpAppPanel {
         )?;
         let cancelled = Arc::new(AtomicBool::new(false));
         let status = Arc::new(AtomicU8::new(0));
-        let lease =
-            Self(Arc::new(PanelLease { cancelled: cancelled.clone(), status: status.clone() }));
+        let selected_locale = Arc::new(AtomicU8::new(locale_id(locale)));
+        let lease = Self(Arc::new(PanelLease {
+            cancelled: cancelled.clone(), status: status.clone(), locale: selected_locale.clone(),
+        }));
         std::thread::Builder::new().name("mcp-app-panel".into()).spawn(move || {
             let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build();
             if let Ok(runtime) = runtime {
                 runtime.block_on(async {
                     let mut delivered = false;
+                    let mut current_locale = locale;
                     let started = std::time::Instant::now();
                     loop {
                         if cancelled.load(Ordering::Acquire) {
@@ -99,12 +105,18 @@ impl McpAppPanel {
                             }
                             break;
                         }
+                        let locale = selected_locale.load(Ordering::Acquire);
+                        let next_locale = locale_value(locale);
+                        if locale_id(current_locale) != locale {
+                            if process.set_locale(next_locale).is_err() { status.store(3, Ordering::Release); break; }
+                            current_locale = next_locale;
+                        }
                         let poll = process.poll_gateway(
                             &client,
                             &binding,
-                            confirm_external_link,
+                            move |origin| confirm_external_link(desktop_i18n::I18n::new(current_locale), origin),
                             open_system_browser,
-                            select_destination,
+                            move |prompt| select_destination(desktop_i18n::I18n::new(current_locale), prompt),
                             || cancelled.load(Ordering::Acquire),
                         );
                         let stop = async {
@@ -144,6 +156,9 @@ impl McpAppPanel {
         })?;
         Ok(lease)
     }
+    pub fn set_locale(&self, locale: config_ui::DesktopLocale) {
+        self.0.locale.store(locale_id(locale), Ordering::Release);
+    }
     pub fn failed(&self) -> bool {
         self.0.status.load(Ordering::Acquire) == 3
     }
@@ -156,7 +171,7 @@ impl McpAppPanel {
 }
 
 #[cfg(target_os = "macos")]
-async fn confirm_external_link(origin: String) -> bool {
+async fn confirm_external_link( i18n: desktop_i18n::I18n, origin: String) -> bool {
     use objc2::MainThreadMarker;
     use objc2_app_kit::{NSAlert, NSAlertSecondButtonReturn};
     use objc2_foundation::NSString;
@@ -169,13 +184,11 @@ async fn confirm_external_link(origin: String) -> bool {
         let mtm = MainThreadMarker::new().expect("confirmation runs on the main thread");
         // Use an app-owned alert so a system notification's default response cannot approve.
         let alert = NSAlert::new(mtm);
-        alert.setMessageText(&NSString::from_str("打开 MCP 外部链接"));
-        alert.setInformativeText(&NSString::from_str(&format!(
-            "是否使用系统浏览器打开此来源的链接？\n{origin}"
-        )));
-        let cancel = alert.addButtonWithTitle(&NSString::from_str("取消"));
+        alert.setMessageText(&NSString::from_str(i18n.__("打开 MCP 外部链接")));
+        alert.setInformativeText(&NSString::from_str(&i18n.sprintf("是否使用系统浏览器打开此来源的链接？\n%s", &[format!("{}", origin).into()])));
+        let cancel = alert.addButtonWithTitle(&NSString::from_str(i18n.__("取消")));
         cancel.setKeyEquivalent(&NSString::from_str("\u{1b}"));
-        let open = alert.addButtonWithTitle(&NSString::from_str("打开"));
+        let open = alert.addButtonWithTitle(&NSString::from_str(i18n.__("打开")));
         open.setKeyEquivalent(&NSString::from_str(""));
         let _ = decision.send(alert.runModal() == NSAlertSecondButtonReturn);
     });
@@ -183,10 +196,10 @@ async fn confirm_external_link(origin: String) -> bool {
 }
 
 #[cfg(not(target_os = "macos"))]
-async fn confirm_external_link(origin: String) -> bool {
+async fn confirm_external_link( i18n: desktop_i18n::I18n, origin: String) -> bool {
     rfd::AsyncMessageDialog::new()
-        .set_title("打开 MCP 外部链接")
-        .set_description(format!("是否使用系统浏览器打开此来源的链接？\n{origin}"))
+        .set_title(i18n.__("打开 MCP 外部链接"))
+        .set_description(i18n.sprintf("是否使用系统浏览器打开此来源的链接？\n%s", &[format!("{}", origin).into()]))
         .set_buttons(rfd::MessageButtons::YesNo)
         .show()
         .await
@@ -203,5 +216,20 @@ fn open_system_browser(url: &str) -> bool {
     #[cfg(not(windows))]
     {
         open::that(url).is_ok()
+    }
+}
+
+fn locale_id(locale: config_ui::DesktopLocale) -> u8 {
+    match locale {
+        config_ui::DesktopLocale::SimplifiedChinese => 0,
+        config_ui::DesktopLocale::TraditionalChinese => 1,
+        config_ui::DesktopLocale::English => 2,
+    }
+}
+fn locale_value(id: u8) -> config_ui::DesktopLocale {
+    match id {
+        1 => config_ui::DesktopLocale::TraditionalChinese,
+        2 => config_ui::DesktopLocale::English,
+        _ => config_ui::DesktopLocale::SimplifiedChinese,
     }
 }

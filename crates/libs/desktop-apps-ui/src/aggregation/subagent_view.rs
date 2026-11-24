@@ -36,26 +36,26 @@ impl std::fmt::Display for EffortOption {
         f.write_str(label)
     }
 }
-pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Message> {
+pub fn overlay<'a>(i18n: desktop_i18n::I18n, form: &'a Form, base: Element<'a, Message>) -> Element<'a, Message> {
     let ready = form.pending.is_none();
     let editable = ready && form.snapshot.is_some();
     let action = |label: &'static str, event, enabled: bool| {
-        button(text(label))
+        button(text(i18n.__(label)))
             .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press_maybe(enabled.then_some(message(event)))
     };
     let mut body = column![
-        text("选择已发布的非默认成员模型。保存后需要新建 Codex 会话；已有会话保持原设置。")
+        text(i18n.__("选择已发布的非默认成员模型。保存后需要新建 Codex 会话；已有会话保持原设置。"))
             .style(settings_muted_text_style)
     ]
     .spacing(12)
     .width(Length::Fill);
     if let Some(error) = form.error {
-        body = body.push(settings_error_banner(error));
+        body = body.push(settings_error_banner(i18n.__(error)));
     }
     if let Some(state) = &form.snapshot {
-        let mut options = vec![ModelOption { id: None, label: "跟随主模型".into() }];
+        let mut options = vec![ModelOption { id: None, label: i18n.__("跟随主模型").into() }];
         options.extend(state.choices.iter().map(|c| ModelOption {
             id: Some(c.model_id.clone()),
             label: format!("{} · {}", c.label, c.model_id),
@@ -63,15 +63,12 @@ pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Me
         if form.unavailable() {
             options.push(ModelOption {
                 id: form.draft.subagent_model_id.clone(),
-                label: format!(
-                    "已移除：{}",
-                    form.draft.subagent_model_id.as_deref().unwrap_or_default()
-                ),
+                label: i18n.sprintf("已移除：%s", &[format!("{}", form.draft.subagent_model_id.as_deref().unwrap_or_default()).into()]),
             });
-            body = body.push(settings_error_banner("所选模型已不在发布目录中。保留选择意图；实际覆写已撤下，跟随主模型。可选择新模型或清空。"));
+            body = body.push(settings_error_banner(i18n.__("所选模型已不在发布目录中。保留选择意图；实际覆写已撤下，跟随主模型。可选择新模型或清空。")));
         }
         let selected = options.iter().find(|c| c.id == form.draft.subagent_model_id).cloned();
-        body = body.push(settings_field_label("子代理模型")).push(
+        body = body.push(settings_field_label(i18n.__("子代理模型"))).push(
             settings_select(options, selected, |v| message(Event::Model(v.id)))
                 .width(Length::Fill)
                 .disabled(!editable),
@@ -84,13 +81,14 @@ pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Me
         let selected = EffortOption(
             form.draft.subagent_effort.filter(|e| choice.is_some_and(|c| c.efforts.contains(e))),
         );
-        body = body.push(settings_field_label("推理强度")).push(
+        body = body.push(settings_field_label(i18n.__("推理强度"))).push(
             settings_select(efforts, Some(selected), |v| message(Event::Effort(v.0)))
+                .format_labels(|value| i18n.__(&value.to_string()).to_owned())
                 .width(Length::Fill)
                 .disabled(!editable || choice.is_none()),
         );
         let mut reviewers =
-            vec![ModelOption { id: None, label: "Codex 默认审批模型".into() }];
+            vec![ModelOption { id: None, label: i18n.__("Codex 默认审批模型").into() }];
         reviewers.extend(state.choices.iter().map(|c| ModelOption {
             id: Some(c.model_id.clone()),
             label: format!("{} · {}", c.label, c.model_id),
@@ -102,80 +100,77 @@ pub fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Me
             .filter(|id| !state.choices.iter().any(|c| &c.model_id == *id))
         {
             reviewers
-                .push(ModelOption { id: Some(id.clone()), label: format!("已移除：{id}") });
+                .push(ModelOption { id: Some(id.clone()), label: i18n.sprintf("已移除：%s", &[format!("{}", id).into()]) });
             body = body.push(settings_error_banner(
-                "审批模型已不在发布目录中，当前使用 Codex 默认审批。请重新选择或清空后保存。",
+                i18n.__("审批模型已不在发布目录中，当前使用 Codex 默认审批。请重新选择或清空后保存。"),
             ));
         }
         let reviewer = reviewers.iter().find(|c| c.id == form.draft.auto_review_model_id).cloned();
-        body = body.push(settings_field_label("自动审批模型")).push(
+        body = body.push(settings_field_label(i18n.__("自动审批模型"))).push(
             settings_select(reviewers, reviewer, |v| message(Event::Review(v.id)))
                 .width(Length::Fill).disabled(!editable),
-        ).push(text("默认审批模型由 Codex 与可用模型目录决定。外部账号额度、模型访问权限及计费限制仍适用；此处不能绕过。")
+        ).push(text(i18n.__("默认审批模型由 Codex 与可用模型目录决定。外部账号额度、模型访问权限及计费限制仍适用；此处不能绕过。"))
             .size(13).style(settings_muted_text_style))
-        .push(checkbox(form.draft.classic_tools).label("经典工具（默认开启）")
+        .push(checkbox(form.draft.classic_tools).label(i18n.__("经典工具（默认开启）"))
             .style(settings_checkbox_style)
             .on_toggle_maybe(editable.then_some(|enabled| message(Event::Classic(enabled)))))
-        .push(text("关闭经典工具后，新版工具可能携带加密任务，跨供应商子代理可能无法解密。")
+        .push(text(i18n.__("关闭经典工具后，新版工具可能携带加密任务，跨供应商子代理可能无法解密。"))
             .size(13).style(settings_muted_text_style));
         if state.choices.is_empty() {
-            body = body.push(text("暂无可选的已发布成员模型。"));
+            body = body.push(text(i18n.__("暂无可选的已发布成员模型。")));
         }
-        let effective_model = state.effective.subagent_model_id.as_deref().unwrap_or("跟随主模型");
+        let effective_model = state.effective.subagent_model_id.as_deref().unwrap_or(i18n.__("跟随主模型"));
         body = body.push(settings_panel(
             column![
-                settings_field_label("当前生效设置"),
+                settings_field_label(i18n.__("当前生效设置")),
                 text(effective_model),
-                text(format!(
-                    "审批模型：{}",
-                    state.effective.auto_review_model_id.as_deref().unwrap_or("Codex 默认审批模型")
-                )),
+                text(i18n.sprintf("审批模型：%s", &[format!("{}", state.effective.auto_review_model_id.as_deref().unwrap_or(i18n.__("Codex 默认审批模型"))).into()])),
                 text(if state.effective.classic_tools {
-                    "经典工具：已生效"
+                    i18n.__("经典工具：已生效")
                 } else {
-                    "经典工具：未生效"
+                    i18n.__("经典工具：未生效")
                 }),
-                text(format!("推理强度：{}", EffortOption(state.effective.subagent_effort))),
-                text("草稿保存后生效。").size(13)
+                text(i18n.sprintf("推理强度：%s", &[format!("{}", i18n.__(&EffortOption(state.effective.subagent_effort).to_string())).into()])),
+                text(i18n.__("草稿保存后生效。")).size(13)
             ]
             .spacing(6),
         ));
         if state.notices.contains(&AggregationNotice::MultiAgentV2Forced) {
             body = body.push(settings_error_banner(
-                "Codex 强制启用了 multi_agent_v2，经典工具设置无法覆盖此配置；请检查 Codex 客户端配置。",
+                i18n.__("Codex 强制启用了 multi_agent_v2，经典工具设置无法覆盖此配置；请检查 Codex 客户端配置。"),
             ));
         }
         if state.notices.contains(&AggregationNotice::EncryptedTaskCrossProvider)
             || (!form.draft.classic_tools && choice.is_some())
         {
             body = body.push(settings_error_banner(
-                "新版工具可能携带加密任务，跨供应商子代理可能无法使用。",
+                i18n.__("新版工具可能携带加密任务，跨供应商子代理可能无法使用。"),
             ));
         }
         if state.notices.contains(&AggregationNotice::RestartDesktop)
             || state.notices.contains(&AggregationNotice::RestartEditor)
         {
-            body = body.push(text("请完全退出并重开桌面或编辑器客户端。"));
+            body = body.push(text(i18n.__("请完全退出并重开桌面或编辑器客户端。")));
         }
     } else {
         body = body.push(text(if ready {
-            "请刷新已发布目录后再编辑。"
+            i18n.__("请刷新已发布目录后再编辑。")
         } else {
-            "正在读取或保存设置…"
+            i18n.__("正在读取或保存设置…")
         }));
     }
     if form.saved {
-        body = body.push(text("已保存。请新建 Codex 会话使用新设置。"));
+        body = body.push(text(i18n.__("已保存。请新建 Codex 会话使用新设置。")));
     }
     let close = if ready { message(Event::Close) } else { Message::None };
     let header = settings_modal_header(
-        text("Codex 子代理设置").size(20),
+        text(i18n.__("Codex 子代理设置")).size(20),
         settings_close_button(close.clone()),
     );
     let footer = row![
-        action("刷新并重载", Event::Refresh, ready),
-        action("取消", Event::Close, ready),
-        button(text("保存"))
+        action(i18n.__("刷新并重载"), Event::Refresh, ready),
+        action(i18n.__("取消"), Event::Close, ready),
+        button(text(i18n.__("保存")))
             .padding([8, 16])
             .style(primary_action_btn_style)
             .on_press_maybe(editable.then_some(message(Event::Save)))

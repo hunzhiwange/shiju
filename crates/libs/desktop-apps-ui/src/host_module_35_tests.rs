@@ -22,6 +22,7 @@ struct Feedback {
 impl Fixture {
     fn update(&mut self, event: ShijuAppsMessage) -> iced::Task<ShijuAppsMessage> {
         let mut input = crate::shiju_apps::Input {
+            i18n: desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             shiju_apps: &mut self.shiju_apps,
             account: self.account.active_account(),
             client: Err("fixture offline".into()),

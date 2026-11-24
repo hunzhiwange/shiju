@@ -44,26 +44,26 @@ pub enum Event {
 pub(crate) fn message(event: Event) -> Message {
     event
 }
-pub fn view(state: &State) -> Element<'_, Message> {
+pub fn view(i18n: desktop_i18n::I18n, state: &State) -> Element<'_, Message> {
     let mut content = column![
-        text("Hermes Web 设置").size(15),
-        text("模型、工具和定时任务等深层设置由 Hermes Web 面板提供。")
+        text(i18n.__("Hermes Web 设置")).size(15),
+        text(i18n.__("模型、工具和定时任务等深层设置由 Hermes Web 面板提供。"))
     ]
     .spacing(8);
     if !state.progress.is_empty() {
         content = content.push(text(&state.progress));
     }
     let mut actions = row![
-        button(text(if state.operation.is_some() { "重试查询" } else { "打开 / 重试" }))
+        button(text(if state.operation.is_some() { i18n.__("重试查询") } else { i18n.__("打开 / 重试") }))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press_maybe((!state.busy).then(|| message(Event::Probe)))
     ]
     .spacing(8);
     if state.offline && state.operation.is_none() {
-        content = content.push(text("面板离线。是否启动 Hermes dashboard？"));
+        content = content.push(text(i18n.__("面板离线。是否启动 Hermes dashboard？")));
         actions = actions.push(
-            button(text("确认启动"))
+            button(text(i18n.__("确认启动")))
                 .padding([8, 12])
                 .style(primary_action_btn_style)
                 .on_press_maybe((!state.busy).then(|| message(Event::Start))),
@@ -71,7 +71,7 @@ pub fn view(state: &State) -> Element<'_, Message> {
     }
     if state.operation.is_some() {
         actions = actions.push(
-            button(text("取消启动"))
+            button(text(i18n.__("取消启动")))
                 .padding([8, 12])
                 .style(rounded_action_btn_style)
                 .on_press(message(Event::Cancel)),

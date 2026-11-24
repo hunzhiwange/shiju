@@ -29,6 +29,6 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     };
     let mut notice = None;
     let task = domain::update(&mut app.apps_catalog.model_diagnostics, &access, &mut notice, event).map(message);
-    let feedback = match notice { Some(Notice::Error(text)) => app.show_error_toast(text), Some(Notice::Success(text)) => app.show_success_toast(text), None => Task::none() };
+    let feedback = match notice { Some(Notice::Error(text)) => app.show_message_toast(crate::app::state::ToastKind::Error, text), Some(Notice::Success(text)) => app.show_message_toast(crate::app::state::ToastKind::Success, text), None => Task::none() };
     Task::batch([task, feedback])
 }

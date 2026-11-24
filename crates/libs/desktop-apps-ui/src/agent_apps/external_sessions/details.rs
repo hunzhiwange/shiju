@@ -149,14 +149,7 @@ pub(super) fn selectable<'a>(
     selectable_readonly_text(value, width, font, &ranges, i18n)
 }
 
-fn body<'a>(
-    reader: &'a reader::State,
-    preview: &'a str,
-    full: Option<&'a ContentRef>,
-    preformatted: bool,
-    query: &str,
-    i18n: I18n,
-) -> Element<'a, Message> {
+fn body<'a>(i18n: desktop_i18n::I18n, reader: &'a reader::State, preview: &'a str, full: Option<&'a ContentRef>, preformatted: bool, query: &str) -> Element<'a, Message> {
     let page =
         full.and_then(|reference| reader.details.pages.iter().find(|p| &p.reference == reference));
     let visible = page.filter(|p| p.started).map_or(preview, |p| p.text.as_str());
@@ -194,22 +187,17 @@ fn body<'a>(
     content.width(Length::Fill).into()
 }
 
-pub(super) fn message_view<'a>(
-    reader: &'a reader::State,
-    message: &'a SessionMessage,
-    query: &str,
-    i18n: I18n,
-) -> Element<'a, Message> {
+pub(super) fn message_view<'a>(i18n: desktop_i18n::I18n, reader: &'a reader::State, message: &'a SessionMessage, query: &str) -> Element<'a, Message> {
     if message.blocks.is_empty() {
         return selectable(message.content.as_str(), false, query, i18n);
     }
     let mut content = column![].spacing(7);
     for block in &message.blocks {
         for image in images::references(block) {
-            content = content.push(images::view(reader, image));
+            content = content.push(images::view(i18n, reader, image));
         }
         if let SessionBlock::Text { text, full } = block {
-            content = content.push(body(reader, text, full.as_ref(), false, query, i18n));
+            content = content.push(body(i18n, reader, text, full.as_ref(), false, query));
         }
     }
     content.into()
@@ -222,13 +210,7 @@ fn failure(block: &SessionBlock) -> bool {
             | SessionBlock::Event { kind: EventKind::Error | EventKind::Aborted, .. }
     )
 }
-pub(super) fn steps<'a>(
-    reader: &'a reader::State,
-    turn: &TurnIndex,
-    final_reply: Option<usize>,
-    query: &str,
-    i18n: I18n,
-) -> Element<'a, Message> {
+pub(super) fn steps<'a>(i18n: desktop_i18n::I18n, reader: &'a reader::State, turn: &TurnIndex, final_reply: Option<usize>, query: &str) -> Element<'a, Message> {
     let changes_only = reader.find.filter == find::Filter::Changes;
     let open = reader.details.process_open || changes_only;
     let mut commands = 0;
@@ -258,7 +240,7 @@ pub(super) fn steps<'a>(
                 SessionBlock::Text { text, full } if commentary => {
                     has_steps = true;
                     if open || find::block_matches(reader, block, query) {
-                        timeline = timeline.push(commentary_row(body(reader, text, full.as_ref(), false, query, i18n)));
+                        timeline = timeline.push(commentary_row(body(i18n, reader, text, full.as_ref(), false, query)));
                         has_rows = true;
                     }
                 }
@@ -267,7 +249,7 @@ pub(super) fn steps<'a>(
                 _ => {
                     has_steps = true;
                     if open || failure(block) || find::block_matches(reader, block, query) {
-                        timeline = timeline.push(block_view(reader, m, b, block, query, i18n));
+                        timeline = timeline.push(block_view(i18n, reader, m, b, block, query));
                         has_rows = true;
                     }
                 }
@@ -280,22 +262,22 @@ pub(super) fn steps<'a>(
     }
     let mut heading = row![
         icon_svg(if open { Icon::ChevronDown } else { Icon::ChevronRight }, 13.0),
-        text("执行过程").size(13).font(super::reader::semibold()),
+        text(i18n.__("执行过程")).size(13).font(super::reader::semibold()),
     ].spacing(8).align_y(iced::Alignment::Center);
     if turn.step_count > 0 {
-        heading = heading.push(text(format!("{} 步", turn.step_count)).size(12).style(settings_muted_text_style));
+        heading = heading.push(text(i18n.sprintf("%u 步", &[(turn.step_count).into()])).size(12).style(settings_muted_text_style));
     }
     if commands > 0 && !changes_only {
-        heading = heading.push(text(format!("{commands} 条命令")).size(12).style(settings_muted_text_style));
+        heading = heading.push(text(i18n.sprintf("%s 条命令", &[format!("{}", commands).into()])).size(12).style(settings_muted_text_style));
     }
     if turn.error_count > 0 {
-        heading = heading.push(text(format!("{} 个错误", turn.error_count)).size(12)
+        heading = heading.push(text(i18n.sprintf("%u 个错误", &[(turn.error_count).into()])).size(12)
             .style(|theme: &iced::Theme| iced::widget::text::Style {
                 color: Some(theme.extended_palette().danger.base.color),
             }));
     }
     if turn.aborted {
-        heading = heading.push(text("已中止").size(12).style(settings_muted_text_style));
+        heading = heading.push(text(i18n.__("已中止")).size(12).style(settings_muted_text_style));
     }
     let summary = button(heading).padding([5, 5])
         .style(|theme, status| super::list::flat_button(theme, status, false))
@@ -318,41 +300,34 @@ fn commentary_row(content: Element<'_, Message>) -> Element<'_, Message> {
     ].spacing(8)).padding([4, 8]).into()
 }
 
-fn block_view<'a>(
-    reader: &'a reader::State,
-    m: usize,
-    b: usize,
-    block: &'a SessionBlock,
-    query: &str,
-    i18n: I18n,
-) -> Element<'a, Message> {
+fn block_view<'a>(i18n: desktop_i18n::I18n, reader: &'a reader::State, m: usize, b: usize, block: &'a SessionBlock, query: &str) -> Element<'a, Message> {
     if let SessionBlock::Thinking { redacted: true, .. } = block {
-        return commentary_row(text("思考内容已隐去").size(12).style(settings_muted_text_style).into());
+        return commentary_row(text(i18n.__("思考内容已隐去")).size(12).style(settings_muted_text_style).into());
     }
     let label = match block {
-        SessionBlock::Text { .. } => "代码 / 正文".to_owned(),
+        SessionBlock::Text { .. } => i18n.__("代码 / 正文").to_owned(),
         SessionBlock::Thinking { summary, duration_ms, .. } => {
-            format!("思考 · {} · {}ms", summary.as_deref().unwrap_or(""), duration_ms.map(|ms| ms.to_string()).unwrap_or_else(|| "未知".into()))
+            i18n.sprintf("思考 · %s · %sms", &[format!("{}", summary.as_deref().unwrap_or("")).into(), format!("{}", duration_ms.map(|ms| ms.to_string()).unwrap_or_else(|| i18n.__("未知").into())).into()])
         }
         SessionBlock::ToolCall { title, raw_name, detail, diff, .. } => {
             let title = if title.trim().is_empty() { raw_name } else { title };
             format!("{title}{}{}",
                 detail.as_ref().filter(|value| *value != title)
                     .map(|d| format!("  ·  {d}")).unwrap_or_default(),
-                diff.as_ref().map(|d| format!(" · {} 个文件 · +{} −{}", d.files.len(), d.added, d.removed)).unwrap_or_default())
+                diff.as_ref().map(|d| i18n.sprintf(" · %u 个文件 · +%s −%s", &[(d.files.len()).into(), format!("{}", d.added).into(), format!("{}", d.removed).into()])).unwrap_or_default())
         }
         SessionBlock::ToolResult { status, exit_code, .. } => {
             let label = match status {
-                ToolStatus::Error => "工具执行失败",
-                ToolStatus::Interrupted => "工具执行中断",
-                ToolStatus::Pending => "工具执行中",
-                _ => "工具输出",
+                ToolStatus::Error => i18n.__("工具执行失败"),
+                ToolStatus::Interrupted => i18n.__("工具执行中断"),
+                ToolStatus::Pending => i18n.__("工具执行中"),
+                _ => i18n.__("工具输出"),
             };
-            exit_code.map_or_else(|| label.to_owned(), |code| format!("{label} · 退出码 {code}"))
+            exit_code.map_or_else(|| label.to_owned(), |code| i18n.sprintf("%s · 退出码 %s", &[format!("{}", label).into(), format!("{}", code).into()]))
         }
-        SessionBlock::Event { kind, .. } => format!("事件 · {kind:?}"),
+        SessionBlock::Event { kind, .. } => i18n.sprintf("事件 · %s", &[format!("{:?}", kind).into()]),
         SessionBlock::Step { phase, reason, .. } => {
-            format!("步骤 · {phase:?} · {}", reason.as_deref().unwrap_or(""))
+            i18n.sprintf("步骤 · %s · %s", &[format!("{:?}", phase).into(), format!("{}", reason.as_deref().unwrap_or("")).into()])
         }
         SessionBlock::Image { .. } => return column![].into(),
     };
@@ -373,20 +348,20 @@ fn block_view<'a>(
         .spacing(8).align_y(iced::Alignment::Center);
     if let SessionBlock::ToolCall { kind, .. } = block {
         let action = match kind {
-            ToolKind::Shell => "执行",
-            ToolKind::Read => "读取",
-            ToolKind::Search => "搜索",
-            ToolKind::Edit => "编辑",
-            ToolKind::Write => "写入",
-            ToolKind::Mcp => "调用",
-            _ => "工具",
+            ToolKind::Shell => i18n.__("执行"),
+            ToolKind::Read => i18n.__("读取"),
+            ToolKind::Search => i18n.__("搜索"),
+            ToolKind::Edit => i18n.__("编辑"),
+            ToolKind::Write => i18n.__("写入"),
+            ToolKind::Mcp => i18n.__("调用"),
+            _ => i18n.__("工具"),
         };
         heading = heading.push(text(action).size(12).font(super::reader::semibold()));
     }
     heading = heading.push(container(SingleLineLabel::new(label, 13.0)).width(Length::Fill));
     if let SessionBlock::ToolResult { line_count, duration_ms, .. } = block {
         if *line_count > 0 {
-            heading = heading.push(text(format!("{line_count} 行")).size(12).style(settings_muted_text_style));
+            heading = heading.push(text(i18n.sprintf("%s 行", &[format!("{}", line_count).into()])).size(12).style(settings_muted_text_style));
         }
         if let Some(ms) = duration_ms {
             heading = heading.push(text(format!("{ms} ms")).size(12).style(settings_muted_text_style));
@@ -399,11 +374,11 @@ fn block_view<'a>(
     if expanded {
         let mut details = column![].spacing(6).width(Length::Fill);
         for image in images::references(block) {
-            details = details.push(images::view(reader, image));
+            details = details.push(images::view(i18n, reader, image));
         }
         match block {
             SessionBlock::Text { text, full } | SessionBlock::Thinking { text, full, .. } => {
-                details = details.push(body(reader, text, full.as_ref(), false, query, i18n));
+                details = details.push(body(i18n, reader, text, full.as_ref(), false, query));
             }
             SessionBlock::ToolCall { title, input_preview, input_full, detail, diff, .. } => {
                 let description = detail.as_deref().unwrap_or(title.as_str());
@@ -419,17 +394,17 @@ fn block_view<'a>(
                         .unwrap_or_else(|| find::matches(visible_input, query));
                     let disclosure = row![
                         icon_svg(if input_open { Icon::ChevronDown } else { Icon::ChevronRight }, 12.0),
-                        text("参数").size(12).style(settings_muted_text_style),
+                        text(i18n.__("参数")).size(12).style(settings_muted_text_style),
                     ].spacing(5).align_y(iced::Alignment::Center);
                     details = details.push(button(disclosure).padding([4, 5])
                         .style(|theme, status| super::list::flat_button(theme, status, false))
                         .on_press(event(Event::Input(m, b, !input_open))));
                     if input_open {
-                        details = details.push(nested_output(body(reader, input_preview, input_full.as_ref(), true, query, i18n)));
+                        details = details.push(nested_output(body(i18n, reader, input_preview, input_full.as_ref(), true, query)));
                     }
                 }
                 if let Some(diff) = diff {
-                    details = details.push(text(format!("改动 · +{} −{}", diff.added, diff.removed))
+                    details = details.push(text(i18n.sprintf("改动 · +%s −%s", &[format!("{}", diff.added).into(), format!("{}", diff.removed).into()]))
                         .size(12).style(settings_muted_text_style));
                     for file in &diff.files {
                         details = details.push(nested_output(selectable(format!(
@@ -438,18 +413,18 @@ fn block_view<'a>(
                         ), false, query, i18n)));
                     }
                     if diff.full.is_some() {
-                        details = details.push(nested_output(body(reader, "", diff.full.as_ref(), true, query, i18n)));
+                        details = details.push(nested_output(body(i18n, reader, "", diff.full.as_ref(), true, query)));
                     }
                 }
             }
             SessionBlock::ToolResult { preview, full, truncated, .. } => {
                 if *truncated && full.is_none() {
-                    details = details.push(text("预览已截断").size(12).style(settings_muted_text_style));
+                    details = details.push(text(i18n.__("预览已截断")).size(12).style(settings_muted_text_style));
                 }
-                details = details.push(nested_output(body(reader, preview, full.as_ref(), true, query, i18n)));
+                details = details.push(nested_output(body(i18n, reader, preview, full.as_ref(), true, query)));
             }
             SessionBlock::Event { text, full, .. } => {
-                details = details.push(body(reader, text.as_deref().unwrap_or(""), full.as_ref(), false, query, i18n));
+                details = details.push(body(i18n, reader, text.as_deref().unwrap_or(""), full.as_ref(), false, query));
             }
             _ => {}
         }

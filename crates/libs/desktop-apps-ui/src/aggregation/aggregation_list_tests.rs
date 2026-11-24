@@ -97,7 +97,7 @@ async fn draw_directory() {
             }
             let base =
                 container(text("底层页面")).width(iced::Length::Fill).height(iced::Length::Fill);
-            let element = overlay(&form, base.into());
+            let element = overlay(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &form, base.into());
             let mut ui =
                 UserInterface::build(element, Size::new(800.0, 700.0), Cache::new(), &mut renderer);
             let mut geometry = Geometry::default();

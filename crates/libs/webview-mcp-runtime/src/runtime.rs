@@ -22,12 +22,15 @@ use webview_mcp_form as form;
 
 pub(crate) enum AppEvent {
     Deliver(Value),
+    Locale(desktop_i18n::I18n),
     PopupBlocked,
     Close,
 }
 
 /// Load host supplied HTML from the pipe, without granting a local-directory protocol.
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
+    let i18n = desktop_i18n::I18n::new(webview_launch::launch_locale(&std::env::args().collect::<Vec<_>>()));
+    let dialog_i18n = Rc::new(Cell::new(i18n));
     let Document {
         nonce,
         policy,
@@ -38,7 +41,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         wrapper,
         app,
         bootstrap,
-    } = read_document()?;
+    } = read_document(i18n)?;
     let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
     let popup_proxy = proxy.clone();
@@ -152,7 +155,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let _form_delegate = if form_enabled {
         let delegate = form::install(
             &webview,
-            form::FormPolicy::new(
+            form::FormPolicy::new(dialog_i18n.clone(),
                 webview_external_protocol::main_dialog_parent(&window),
                 policy.frame_domains,
                 form_origins,
@@ -180,6 +183,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let _ = webview
                         .evaluate_script(&format!("window.__mcpDeliver?.(JSON.parse({encoded}))"));
                 }
+            }
+            Event::UserEvent(AppEvent::Locale(i18n)) => {
+                dialog_i18n.set(i18n);
+                let labels = webview_mcp_assets::locale_copy(i18n);
+                let _ = webview.evaluate_script(&format!("window.__mcpSetLocale?.({labels})"));
             }
             Event::UserEvent(AppEvent::PopupBlocked) => {
                 let _ = webview.evaluate_script("window.__mcpPopupBlocked?.()");

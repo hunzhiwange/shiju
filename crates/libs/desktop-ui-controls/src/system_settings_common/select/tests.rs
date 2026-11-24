@@ -402,3 +402,14 @@ async fn select_menu_renders_checked_and_hovered_options_and_fits_viewport() {
         }
     }
 }
+
+
+#[test]
+fn localized_labels_preserve_option_values_and_unavailable_selection() {
+    let select = super::settings_select([1, 2], Some(3), |value| value)
+        .format_labels(|value| format!("Option {value}"));
+    assert_eq!(select.labels, vec!["Option 1".to_owned(), "Option 2".to_owned()]);
+    assert_eq!(select.label.as_deref(), Some("Option 3"));
+    assert_eq!(&*select.options, &[1, 2]);
+    assert_eq!((select.on_selected)(1), 2);
+}

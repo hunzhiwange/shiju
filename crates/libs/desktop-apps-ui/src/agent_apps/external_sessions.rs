@@ -347,15 +347,15 @@ pub fn close(state: &mut State) {
 /// Compose the catalog and its scoped overlays using local messages.
 pub fn view(state: &State, loopback: bool, i18n: desktop_i18n::I18n) -> iced::Element<'_, Event> {
     let base = if let Some(reader) = &state.reader {
-        reader::view(state, reader, loopback, i18n)
+        reader::view(i18n, state, reader, loopback)
     } else {
-        list::view(state, loopback)
+        list::view(i18n, state, loopback)
     };
-    compression::view(
+    compression::view(i18n,
         state,
-        maintenance::view(
+        maintenance::view(i18n,
             state,
-            paths::view(state, resume::view(state, delete::view(state, base))),
+            paths::view(i18n, state, resume::view(i18n, state, delete::view(i18n, state, base))),
         ),
     )
 }

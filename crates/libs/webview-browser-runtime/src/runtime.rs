@@ -30,6 +30,8 @@ pub fn run(args: Vec<String>) {
 
     let target = normalize_url(args.first().map(String::as_str).unwrap_or(DEFAULT_TARGET));
     let locale = webview_launch::launch_locale(&args[1..]);
+    let i18n = desktop_i18n::I18n::new(locale);
+    let dialog_i18n = std::rc::Rc::new(std::cell::Cell::new(i18n));
     let options = parse_launch_options(&args[1..]);
     let shiju_app_set_cookie = if options.shiju_app_set_cookie_stdin {
         let stdin = io::stdin();
@@ -127,7 +129,7 @@ pub fn run(args: Vec<String>) {
     let initial_url = shiju_app_set_cookie.as_ref().map_or(url.as_str(), |_| DEFAULT_TARGET);
 
     let external = ExternalProtocols::default();
-    let popups = webview_popup::PopupWindows::new(
+    let popups = webview_popup::PopupWindows::new(dialog_i18n.clone(),
         proxy.clone(),
         log_path.clone(),
         external.clone(),
@@ -167,12 +169,12 @@ pub fn run(args: Vec<String>) {
 
     #[cfg(windows)]
     if webview_external_protocol::block_native_external_launches(&webview, local_root.is_some()).is_err() {
-        show_error_dialog("VibeWindow WebView", "无法安装外部协议保护。");
+        show_error_dialog("VibeWindow WebView", i18n.__("无法安装外部协议保护。"));
         return;
     }
 
     #[cfg(all(unix, not(target_os = "macos")))]
-    webview_media_permissions::install(&webview, window.gtk_window().upcast_ref());
+    webview_media_permissions::install(dialog_i18n.clone(), &webview, window.gtk_window().upcast_ref());
 
     #[cfg(target_os = "macos")]
     let attachment_delegate = webview_downloads::enable_attachments(&webview);
@@ -181,25 +183,25 @@ pub fn run(args: Vec<String>) {
         let cookie = match runtime_cookie(set_cookie) {
             Ok(cookie) => cookie,
             Err(error) => {
-                show_error_dialog("VibeWindow WebView", error);
+                show_error_dialog("VibeWindow WebView", i18n.__(error));
                 return;
             }
         };
         let headers = match runtime_cookie_headers(&cookie) {
             Ok(headers) => headers,
             Err(error) => {
-                show_error_dialog("VibeWindow WebView", error);
+                show_error_dialog("VibeWindow WebView", i18n.__(error));
                 return;
             }
         };
         if let Err(error) = webview.set_cookie(&cookie) {
-            let msg = format!("设置识矩应用浏览器会话失败: {error}");
+            let msg = i18n.sprintf("设置识矩应用浏览器会话失败: %s", &[error.to_string().into()]);
             append_log(&log_path, &msg);
             show_error_dialog("VibeWindow WebView", &msg);
             return;
         }
         if let Err(error) = webview.load_url_with_headers(&url, headers) {
-            let msg = format!("加载识矩应用失败: {error}");
+            let msg = i18n.sprintf("加载识矩应用失败: %s", &[error.to_string().into()]);
             append_log(&log_path, &msg);
             show_error_dialog("VibeWindow WebView", &msg);
             return;
@@ -207,7 +209,7 @@ pub fn run(args: Vec<String>) {
     }
 
     let mut events = crate::window_events::BrowserEvents {
-        window, webview, toolbar_webview, popups, external, proxy,
+        window, webview, toolbar_webview, popups, external, proxy, dialog_i18n,
         embedded_mode, independent_mode, current_url: url, browser_cleared: false,
     };
     event_loop.run(move |event, _, control_flow| {

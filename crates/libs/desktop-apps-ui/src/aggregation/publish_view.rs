@@ -10,7 +10,7 @@ use iced::{
 use vw_api_app_aggregation::*;
 use vw_api_task::TaskStatus;
 
-pub fn overlay<'a>(
+pub fn overlay<'a>(i18n: desktop_i18n::I18n,
     session: &'a Session,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
@@ -18,26 +18,26 @@ pub fn overlay<'a>(
     let close = message(Event::Dismiss);
     let header = column![
         settings_modal_header(
-            text(if exiting { "回到直连" } else { "切换到聚合模式" }).size(20),
+            text(if exiting { i18n.__("回到直连") } else { i18n.__("切换到聚合模式") }).size(20),
             settings_close_button(close.clone()),
         ),
         settings_divider(),
     ]
     .spacing(12);
     let mut body =
-        column![text("请核对默认供应商、发布模型和限制。聚合不支持故障转移。")].spacing(12);
+        column![text(i18n.__("请核对默认供应商、发布模型和限制。聚合不支持故障转移。"))].spacing(12);
     if let Some(state) = &session.exit_state {
-        body = column![text("恢复已保存的直连配置，保留聚合名单与稳定标识。请在恢复后按提示重选模型或重启客户端。")].spacing(12);
-        body = body.push(text(format!("聚合名单保留：{} 项", state.members.len())));
+        body = column![text(i18n.__("恢复已保存的直连配置，保留聚合名单与稳定标识。请在恢复后按提示重选模型或重启客户端。"))].spacing(12);
+        body = body.push(text(i18n.sprintf("聚合名单保留：%u 项", &[(state.members.len()).into()])));
     }
     if session.busy {
-        body = body.push(text("正在加载…"));
+        body = body.push(text(i18n.__("正在加载…")));
     }
     if let Some(error) = session.error {
-        body = body.push(settings_error_banner(error));
+        body = body.push(settings_error_banner(i18n.__(error)));
     }
     if let Some(preview) = &session.preview {
-        let default = preview.default_provider_id.as_deref().unwrap_or("未设置");
+        let default = preview.default_provider_id.as_deref().unwrap_or(i18n.__("未设置"));
         let default_name = preview
             .members
             .iter()
@@ -45,41 +45,41 @@ pub fn overlay<'a>(
             .map(|m| m.name.as_str())
             .unwrap_or(default);
         body = body.push(settings_panel(
-            column![settings_field_label("默认供应商"), text(default_name.to_owned()).size(15),]
+            column![settings_field_label(i18n.__("默认供应商")), text(default_name.to_owned()).size(15),]
                 .spacing(6),
         ));
         for member in &preview.members {
             let mut models =
-                column![text(format!("{} · {} 个模型", member.name, member.models.len()))]
+                column![text(i18n.sprintf("%s · %u 个模型", &[format!("{}", member.name).into(), (member.models.len()).into()]))]
                     .spacing(6);
             for model in &member.models {
                 models = models.push(text(format!(
                     "{} · {}{}",
                     model.label,
                     model.id,
-                    if model.supports_1m { " · 支持 1M" } else { "" }
+                    if model.supports_1m { i18n.__(" · 支持 1M") } else { "" }
                 )));
             }
             body = body.push(settings_panel(models));
         }
         for issue in &preview.issues {
             let label = match issue.code {
-                PreviewIssueCode::ModelCollision => "模型标识冲突",
-                PreviewIssueCode::InvalidMember => "成员不可用",
-                PreviewIssueCode::MissingDefault => "缺少默认供应商",
-                PreviewIssueCode::InvalidDefault => "默认供应商无效",
-                PreviewIssueCode::FailoverEnabled => "请先关闭故障转移",
-                PreviewIssueCode::UnrestorableDirect => "无法安全恢复直连配置",
+                PreviewIssueCode::ModelCollision => i18n.__("模型标识冲突"),
+                PreviewIssueCode::InvalidMember => i18n.__("成员不可用"),
+                PreviewIssueCode::MissingDefault => i18n.__("缺少默认供应商"),
+                PreviewIssueCode::InvalidDefault => i18n.__("默认供应商无效"),
+                PreviewIssueCode::FailoverEnabled => i18n.__("请先关闭故障转移"),
+                PreviewIssueCode::UnrestorableDirect => i18n.__("无法安全恢复直连配置"),
             };
             body = body.push(text(format!(
                 "{}：{label} · {} · {}",
-                if issue.blocking { "阻止发布" } else { "提示" },
+                if issue.blocking { i18n.__("阻止发布") } else { i18n.__("提示") },
                 issue.provider_id.as_deref().unwrap_or("—"),
                 issue.model_id.as_deref().unwrap_or("—")
             )));
         }
         for notice in &preview.notices {
-            body = body.push(text(notice_label(*notice)).style(settings_muted_text_style));
+            body = body.push(text(notice_label(i18n, *notice)).style(settings_muted_text_style));
         }
     }
     if let Some(op) = &session.operation {
@@ -90,62 +90,59 @@ pub fn overlay<'a>(
                     && !state.attached
                     && matches!(state.recovery, RecoveryState::Restored | RecoveryState::None) =>
             {
-                "已回到直连，恢复成功"
+                i18n.__("已回到直连，恢复成功")
             }
-            (_, Some(AggregationOutcome::Exited { .. })) => "直连恢复尚未成功，请刷新核对实际状态",
+            (_, Some(AggregationOutcome::Exited { .. })) => i18n.__("直连恢复尚未成功，请刷新核对实际状态"),
             (TaskStatus::Completed, Some(AggregationOutcome::Published { .. })) if !exiting => {
-                "聚合已发布，请按提示刷新客户端"
+                i18n.__("聚合已发布，请按提示刷新客户端")
             }
-            (TaskStatus::Cancelled, _) => "操作已取消，请刷新实际状态",
+            (TaskStatus::Cancelled, _) => i18n.__("操作已取消，请刷新实际状态"),
             (_, Some(AggregationOutcome::Failed { .. })) | (TaskStatus::Failed, _) => {
-                "操作失败，请检查恢复状态"
+                i18n.__("操作失败，请检查恢复状态")
             }
             (TaskStatus::Running | TaskStatus::Queued, _) => {
                 if exiting {
-                    "直连恢复进行中"
+                    i18n.__("直连恢复进行中")
                 } else {
-                    "发布进行中"
+                    i18n.__("发布进行中")
                 }
             }
-            _ => "操作已结束，请刷新核对实际状态",
+            _ => i18n.__("操作已结束，请刷新核对实际状态"),
         };
         body = body.push(settings_panel(
             column![
                 text(status),
-                text(format!("进度：{} / {} · 阶段：{:?}", op.completed, op.total, op.phase))
+                text(i18n.sprintf("进度：%u / %s · 阶段：%s", &[(op.completed).into(), format!("{}", op.total).into(), format!("{:?}", op.phase).into()]))
             ]
             .spacing(6),
         ));
         if op.cancellation_requested {
-            body = body.push(text("已请求取消，等待确认；发布阶段可能无法取消。"));
+            body = body.push(text(i18n.__("已请求取消，等待确认；发布阶段可能无法取消。")));
         }
         match &op.aggregation_outcome {
             Some(AggregationOutcome::Published { state })
             | Some(AggregationOutcome::Exited { state }) => {
                 for notice in &state.notices {
-                    body = body.push(text(notice_label(*notice)));
+                    body = body.push(text(notice_label(i18n, *notice)));
                 }
-                body = body.push(text(format!("恢复状态：{}", recovery_label(state.recovery))));
+                body = body.push(text(i18n.sprintf("恢复状态：%s", &[format!("{}", recovery_label(i18n, state.recovery)).into()])));
                 if exiting {
-                    body = body.push(text(format!("保留聚合名单：{} 项", state.members.len())));
+                    body = body.push(text(i18n.sprintf("保留聚合名单：%u 项", &[(state.members.len()).into()])));
                 }
             }
             Some(AggregationOutcome::Failed { status, code, recovery }) => {
-                body = body.push(text(format!(
-                    "目标错误：{status} / {code:?} · 恢复状态：{}",
-                    recovery_label(*recovery)
-                )));
+                body = body.push(text(i18n.sprintf("目标错误：%s / %s · 恢复状态：%s", &[format!("{}", status).into(), format!("{:?}", code).into(), format!("{}", recovery_label(i18n, *recovery)).into()])));
             }
             _ => {}
         }
     }
     if let Some(state) = &session.exit_state {
         for member in &state.members {
-            body = body.push(text(format!("保留成员：{}", member.name)));
+            body = body.push(text(i18n.sprintf("保留成员：%s", &[format!("{}", member.name).into()])));
         }
     }
     let mut footer = row![
-        button(text(if session.operation.is_some() { "返回目录" } else { "取消" }))
+        button(text(if session.operation.is_some() { i18n.__("返回目录") } else { i18n.__("取消") }))
             .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press_maybe((!session.busy && !session.running()).then_some(close.clone()))
@@ -153,13 +150,13 @@ pub fn overlay<'a>(
     .spacing(12);
     if session.operation.is_some() {
         footer = footer.push(
-            button(text("查询进度"))
+            button(text(i18n.__("查询进度")))
                 .padding([8, 14])
                 .style(rounded_action_btn_style)
                 .on_press_maybe((!session.busy).then(|| message(Event::Act(Action::Poll)))),
         );
         footer = footer.push(
-            button(text(if exiting { "取消恢复" } else { "取消发布" }))
+            button(text(if exiting { i18n.__("取消恢复") } else { i18n.__("取消发布") }))
                 .padding([8, 14])
                 .style(rounded_action_btn_style)
                 .on_press_maybe(
@@ -171,7 +168,7 @@ pub fn overlay<'a>(
         );
     } else {
         footer = footer.push(
-            button(text(if exiting { "确认回到直连" } else { "发布聚合目录" }))
+            button(text(if exiting { i18n.__("确认回到直连") } else { i18n.__("发布聚合目录") }))
                 .padding([8, 14])
                 .style(primary_action_btn_style)
                 .on_press_maybe(
@@ -181,7 +178,7 @@ pub fn overlay<'a>(
     }
     if exiting && !session.busy && !session.running() && session.error.is_some() {
         footer = footer.push(
-            button(text("刷新后重试"))
+            button(text(i18n.__("刷新后重试")))
                 .padding([8, 14])
                 .style(rounded_action_btn_style)
                 .on_press(message(Event::RetryExit)),
@@ -193,12 +190,12 @@ pub fn overlay<'a>(
     settings_modal_overlay(Some(base), close, container(card).padding(12))
 }
 
-fn recovery_label(recovery: RecoveryState) -> &'static str {
+fn recovery_label(i18n: desktop_i18n::I18n, recovery: RecoveryState) -> &'static str {
     match recovery {
-        RecoveryState::None => "无需恢复",
-        RecoveryState::Pending => "等待恢复",
-        RecoveryState::Restored => "已恢复",
-        RecoveryState::Failed => "恢复失败",
+        RecoveryState::None => i18n.__("无需恢复"),
+        RecoveryState::Pending => i18n.__("等待恢复"),
+        RecoveryState::Restored => i18n.__("已恢复"),
+        RecoveryState::Failed => i18n.__("恢复失败"),
     }
 }
 

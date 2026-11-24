@@ -67,7 +67,7 @@ pub(crate) fn update(app: &mut App, value: Event) -> Task<Message> {
                     Ok(client) => client,
                     Err(_) => {
                         state.diagnostics_error = Some("网关不可用，请重新连接".into());
-                        return app.show_error_toast("网关不可用，请重新连接");
+                        return app.show_localized_toast(crate::app::state::ToastKind::Error, "网关不可用，请重新连接", vec![]);
                     }
                 };
                 let context = crate::app::state::AgentAppsContext {
@@ -95,20 +95,29 @@ pub(crate) fn update(app: &mut App, value: Event) -> Task<Message> {
             state.diagnostics_loading = false;
             match result {
                 Ok(rows) => state.diagnostics = rows.into_iter().map(|row| {
+                    use desktop_i18n::format::Message as Copy;
                     let mut lines = Vec::new();
                     match row.observation {
-                        Err(error) => lines.push(format!("探测失败：{}", super::catalog::error_label(&error))),
+                        Err(error) => lines.push(Copy::nested("探测失败：%s".into(), vec![
+                            Copy::new(super::catalog::error_label(&error), vec![]),
+                        ])),
                         Ok(observation) => {
-                            lines.push(if observation.installations.len() > 1 {
+                            lines.push(Copy::new(if observation.installations.len() > 1 {
                                 "发现多个安装实例，请核对环境与路径优先级"
                             } else if observation.installations.is_empty() { "未知：未发现 CLI 安装实例" }
-                            else { "无冲突：仅发现一个安装实例" }.into());
+                            else { "无冲突：仅发现一个安装实例" }, vec![]));
                             for installation in observation.installations {
-                                lines.push(format!("{:?} · {:?} · {}", installation.environment, installation.source,
-                                    if installation.is_path_default { "PATH 默认" } else { "非 PATH 默认（具体顺序未知）" }));
-                                lines.push(installation.path);
-                                if let Some(path) = installation.real_path { lines.push(format!("真实路径：{path}")); }
-                                lines.push(format!("探测状态：{:?}", installation.runtime_status));
+                                lines.push(Copy::nested("%s · %s · %s".into(), vec![
+                                    Copy::literal(format!("{:?}", installation.environment)),
+                                    Copy::literal(format!("{:?}", installation.source)),
+                                    Copy::new(if installation.is_path_default { "PATH 默认" }
+                                        else { "非 PATH 默认（具体顺序未知）" }, vec![]),
+                                ]));
+                                lines.push(Copy::literal(installation.path));
+                                if let Some(path) = installation.real_path {
+                                    lines.push(Copy::new("真实路径：%s", vec![path.into()]));
+                                }
+                                lines.push(Copy::new("探测状态：%s", vec![format!("{:?}", installation.runtime_status).into()]));
                             }
                         }
                     }
@@ -155,50 +164,50 @@ pub(crate) fn update(app: &mut App, value: Event) -> Task<Message> {
     Task::none()
 }
 
-pub(crate) fn overlay<'a>(state: &'a AppsCatalogState, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(crate) fn overlay<'a>(i18n: desktop_i18n::I18n, state: &'a AppsCatalogState, base: Element<'a, Message>) -> Element<'a, Message> {
     let Some(panel) = state.commands.panel else { return base; };
-    let title = match panel { 1 => "手动安装命令", 2 => "手动卸载命令", _ => "诊断安装冲突" };
+    let title = match panel { 1 => i18n.__("手动安装命令"), 2 => i18n.__("手动卸载命令"), _ => i18n.__("诊断安装冲突") };
     let mut body = column![].spacing(14);
     if panel == 3 {
-        if state.commands.diagnostics_loading { body = body.push(text("正在重新检查安装状态…")); }
+        if state.commands.diagnostics_loading { body = body.push(text(i18n.__("正在重新检查安装状态…"))); }
         else if let Some(error) = &state.commands.diagnostics_error { body = body.push(settings_error_banner(error.clone())); }
         else {
-            if state.commands.diagnostics.is_empty() { body = body.push(text("未知：尚无安装观察")); }
+            if state.commands.diagnostics.is_empty() { body = body.push(text(i18n.__("未知：尚无安装观察"))); }
             for (name, lines) in &state.commands.diagnostics {
                 let mut details = column![text(name.clone()).size(17)].spacing(8);
-                for line in lines { details = details.push(text(line.clone()).size(13)); }
+                for line in lines { details = details.push(text(line.render(i18n).expect("valid installation diagnostic template")).size(13)); }
                 body = body.push(settings_panel(details));
             }
         }
     } else {
-        body = body.push(text(if state.commands.inferred { "默认选项来自所选应用的安装观察，可切换。" }
-            else { "选项未完全由安装观察确认。缺少环境证据时默认 Linux，缺少方式证据时默认 npm；请切换至实际环境和方式。" }).size(13))
+        body = body.push(text(if state.commands.inferred { i18n.__("默认选项来自所选应用的安装观察，可切换。") }
+            else { i18n.__("选项未完全由安装观察确认。缺少环境证据时默认 Linux，缺少方式证据时默认 npm；请切换至实际环境和方式。") }).size(13))
             .push(row![
-                settings_select(PLATFORMS, Some(PLATFORMS[state.commands.platform]), |value| event(Event::Platform(PLATFORMS.iter().position(|v| *v == value).unwrap_or(2)))).width(Length::Fill),
-                settings_select(METHODS, Some(METHODS[state.commands.method]), |value| event(Event::Method(METHODS.iter().position(|v| *v == value).unwrap_or(0)))).width(Length::Fill),
+                settings_select(PLATFORMS, Some(PLATFORMS[state.commands.platform]), |value| event(Event::Platform(PLATFORMS.iter().position(|v| *v == value).unwrap_or(2)))).format_labels(|value| i18n.__(value).to_owned()).width(Length::Fill),
+                settings_select(METHODS, Some(METHODS[state.commands.method]), |value| event(Event::Method(METHODS.iter().position(|v| *v == value).unwrap_or(0)))).format_labels(|value| i18n.__(value).to_owned()).width(Length::Fill),
             ].spacing(12));
         let recipes = recipes(state);
-        if recipes.is_empty() { body = body.push(text("此组合暂无已审核命令，请切换运行环境或方式。")); }
+        if recipes.is_empty() { body = body.push(text(i18n.__("此组合暂无已审核命令，请切换运行环境或方式。"))); }
         for (index, (label, command)) in recipes.into_iter().enumerate() {
             body = body.push(settings_panel(column![
-                row![text(label).width(Length::Fill), copy_button(state, index)],
+                row![text(label).width(Length::Fill), copy_button(i18n, state, index)],
                 text(command).size(13),
             ].spacing(8)));
         }
     }
     let mut actions = row![].spacing(8);
-    if panel == 1 { actions = actions.push(copy_button(state, usize::MAX)); }
-    if panel == 3 { actions = actions.push(button(text("重新诊断")).padding([8, 12]).style(rounded_action_btn_style)
+    if panel == 1 { actions = actions.push(copy_button(i18n, state, usize::MAX)); }
+    if panel == 3 { actions = actions.push(button(text(i18n.__("重新诊断"))).padding([8, 12]).style(rounded_action_btn_style)
         .on_press_maybe((!state.commands.diagnostics_loading).then_some(event(Event::Open(3))))); }
-    actions = actions.push(button(text("关闭")).padding([8, 12]).style(rounded_action_btn_style).on_press(event(Event::Close)));
+    actions = actions.push(button(text(i18n.__("关闭"))).padding([8, 12]).style(rounded_action_btn_style).on_press(event(Event::Close)));
     let card = settings_modal_layout_with_scroll_id(
         settings_modal_header(text(title).size(24), settings_close_button(event(Event::Close))),
         body, Some(actions.into()), Some("apps-manual-commands-body"),
     ).width(Length::Fill).max_width(760.).max_height(620.);
     settings_modal_overlay(Some(base), event(Event::Close), container(card).padding(12).center(Length::Fill))
 }
-fn copy_button(state: &AppsCatalogState, index: usize) -> Element<'static, Message> {
-    button(text(if state.commands.copied.contains_key(&index) { "已复制" }
-        else if index == usize::MAX { "整体复制" } else { "复制" }))
+fn copy_button(i18n: desktop_i18n::I18n, state: &AppsCatalogState, index: usize) -> Element<'static, Message> {
+    button(text(if state.commands.copied.contains_key(&index) { i18n.__("已复制") }
+        else if index == usize::MAX { i18n.__("整体复制") } else { i18n.__("复制") }))
         .padding([8, 12]).style(rounded_action_btn_style).on_press(event(Event::Copy(index))).into()
 }

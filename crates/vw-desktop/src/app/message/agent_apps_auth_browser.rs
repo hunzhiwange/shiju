@@ -5,8 +5,9 @@ fn preference_path() -> Option<std::path::PathBuf> {
 pub(in crate::app) fn load_preference() -> bool {
     preference_path().is_none_or(|path| read_preference(&path))
 }
+pub(super) const PREFERENCE_ERROR: &str = "登录浏览器偏好保存失败，本次会话仍会使用当前选择";
 pub(super) fn store_preference(open: bool) -> Result<(), &'static str> {
-    const ERROR: &str = "登录浏览器偏好保存失败，本次会话仍会使用当前选择";
+    const ERROR: &str = PREFERENCE_ERROR;
     let path = preference_path().ok_or(ERROR)?;
     save_preference(&path, open).map_err(|_| ERROR)
 }

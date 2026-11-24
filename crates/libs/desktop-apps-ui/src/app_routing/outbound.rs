@@ -34,6 +34,7 @@ pub struct State {
     status: Option<RoutingEgressStatus>,
     cancel: Option<Arc<AtomicBool>>,
     progress: String,
+    snapshot: Option<DiagnosticJobSnapshot>,
     error: Option<String>,
 }
 // Message and state debugging must never print a write-only proxy URL.
@@ -85,29 +86,29 @@ fn terminal(state: DiagnosticJobState) -> bool {
             | DiagnosticJobState::Cancelling {}
     )
 }
-fn progress(snapshot: &DiagnosticJobSnapshot) -> String {
+fn progress(i18n: desktop_i18n::I18n, snapshot: &DiagnosticJobSnapshot) -> String {
     let label = match snapshot.state {
-        DiagnosticJobState::Queued {} => "排队中",
-        DiagnosticJobState::Running {} => "检测中",
-        DiagnosticJobState::Cancelling {} => "取消中",
-        DiagnosticJobState::Cancelled {} => "已取消",
-        DiagnosticJobState::Succeeded {} => "检测完成",
-        DiagnosticJobState::Failed { .. } => "检测失败",
-        DiagnosticJobState::Interrupted {} => "检测中断",
+        DiagnosticJobState::Queued {} => i18n.__("排队中"),
+        DiagnosticJobState::Running {} => i18n.__("检测中"),
+        DiagnosticJobState::Cancelling {} => i18n.__("取消中"),
+        DiagnosticJobState::Cancelled {} => i18n.__("已取消"),
+        DiagnosticJobState::Succeeded {} => i18n.__("检测完成"),
+        DiagnosticJobState::Failed { .. } => i18n.__("检测失败"),
+        DiagnosticJobState::Interrupted {} => i18n.__("检测中断"),
     };
-    let mut label = format!("{label}：已处理 {} 项", snapshot.progress.completed);
+    let mut label = i18n.sprintf("%s：已处理 %u 项", &[format!("{}", label).into(), (snapshot.progress.completed).into()]);
     for result in snapshot.results.iter().flatten() {
         match result {
             DiagnosticResult::OutboundScan { report } => {
                 if let DiagnosticOutcome::Succeeded { evidence } = &report.outcome {
                     if evidence.tcp_open {
-                        label.push_str(&format!("；候选端口 {}（仅 TCP 可达）", evidence.port));
+                        label.push_str(&i18n.sprintf("；候选端口 %s（仅 TCP 可达）", &[format!("{}", evidence.port).into()]));
                     }
                 }
             }
             DiagnosticResult::OutboundProxy { report } => {
                 if let DiagnosticOutcome::Succeeded { evidence } = &report.outcome {
-                    label.push_str(&format!("；目标 HTTP {}", evidence.http_status));
+                    label.push_str(&i18n.sprintf("；目标 HTTP %s", &[format!("{}", evidence.http_status).into()]));
                 }
             }
             _ => {}
@@ -129,6 +130,7 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
         Event::Cancel => {
             if let Some(cancel) = &state.cancel {
                 cancel.store(true, Ordering::Relaxed);
+                state.snapshot = None;
                 state.progress = "正在取消，等待释放资源".into();
             }
             return Task::none();
@@ -178,7 +180,7 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
                 state.cancel = None;
             }
             match result {
-                Ok(snapshot) => state.progress = progress(&snapshot),
+                Ok(snapshot) => { state.progress.clear(); state.snapshot = Some(snapshot); },
                 Err(error) => {
                     state.error = Some(error.clone());
                     return crate::error(notice, error);
@@ -241,6 +243,7 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
         };
         let cancel = Arc::new(AtomicBool::new(false));
         state.cancel = Some(cancel.clone());
+        state.snapshot = None;
         state.progress = "正在启动检测（使用已保存出口）".into();
         return Task::run(
             iced::stream::channel(8, async move |mut output| {
@@ -380,21 +383,21 @@ pub fn update(state: &mut State, context: Option<Context>, project: Option<Strin
         message,
     )
 }
-pub fn entry(id: AppId) -> Element<'static, Message> {
-    button(text("出口设置与检测"))
+pub fn entry(i18n: desktop_i18n::I18n, id: AppId) -> Element<'static, Message> {
+    button(text(i18n.__("出口设置与检测")))
         .padding([8, 12])
         .style(rounded_action_btn_style)
         .on_press(message(Event::Open(id)))
         .into()
 }
-fn mode_label(mode: RoutingEgressMode) -> &'static str {
+fn mode_label(i18n: desktop_i18n::I18n, mode: RoutingEgressMode) -> &'static str {
     match mode {
-        RoutingEgressMode::Direct => "直连",
-        RoutingEgressMode::System => "系统代理",
-        RoutingEgressMode::Custom => "自定义代理",
+        RoutingEgressMode::Direct => i18n.__("直连"),
+        RoutingEgressMode::System => i18n.__("系统代理"),
+        RoutingEgressMode::Custom => i18n.__("自定义代理"),
     }
 }
-pub fn overlay<'a>(
+pub fn overlay<'a>(i18n: desktop_i18n::I18n,
     routing: &'a lifecycle::State,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
@@ -403,53 +406,45 @@ pub fn overlay<'a>(
         return base;
     }
     let header = settings_modal_header(
-        text("路由出口设置").size(20),
+        text(i18n.__("路由出口设置")).size(20),
         settings_close_button(message(Event::Close)),
     );
-    let mut body = column![text("出口设置用于常驻路由。检测读取已保存的配置，扫描可发现预设的回环端口。")].spacing(12);
+    let mut body = column![text(i18n.__("出口设置用于常驻路由。检测读取已保存的配置，扫描可发现预设的回环端口。"))].spacing(12);
     if let Some(status) = &state.status {
-        body = body.push(text(format!(
-            "已保存：{}；实际：{}；包含凭据：{}",
-            mode_label(status.configured_mode),
-            mode_label(status.effective_mode),
-            if status.has_credentials { "是" } else { "否" }
-        )));
+        body = body.push(text(i18n.sprintf("已保存：%s；实际：%s；包含凭据：%s", &[format!("{}", mode_label(i18n, status.configured_mode)).into(), format!("{}", mode_label(i18n, status.effective_mode)).into(), format!("{}", if status.has_credentials { i18n.__("是") } else { i18n.__("否") }).into()])));
         let mut modes = row![].spacing(8);
         for mode in
             [RoutingEgressMode::Direct, RoutingEgressMode::System, RoutingEgressMode::Custom]
         {
             modes = modes.push(
-                button(text(mode_label(mode)))
+                button(text(mode_label(i18n, mode)))
                     .padding([8, 12])
                     .style(rounded_action_btn_style)
                     .on_press_maybe((!state.busy).then_some(message(Event::Mode(mode)))),
             );
         }
-        body = body.push(modes).push(text(format!(
-            "草稿模式：{}",
-            mode_label(state.mode.unwrap_or(status.configured_mode))
-        )));
+        body = body.push(modes).push(text(i18n.sprintf("草稿模式：%s", &[format!("{}", mode_label(i18n, state.mode.unwrap_or(status.configured_mode))).into()])));
         if state.mode == Some(RoutingEgressMode::Custom) {
             let mut input =
-                settings_text_input("完整代理 URL（仅写入）", &state.secret.0).secure(true);
+                settings_text_input(i18n.__("完整代理 URL（仅写入）"), &state.secret.0).secure(true);
             if !state.busy {
                 input = input.on_input(|value| message(Event::Edit(Secret(value))));
             }
             body = body.push(input);
         }
     }
-    body = body.push(text(&state.progress));
+    body = body.push(text(state.snapshot.as_ref().map(|snapshot| progress(i18n, snapshot)).unwrap_or_else(|| i18n.__(&state.progress).to_owned())));
     if let Some(error) = &state.error {
         body = body.push(settings_error_banner(error.clone()));
     }
     let mut actions = row![].spacing(8);
     for (label, event, enabled) in [
-        ("关闭", Event::Close, !state.busy),
-        ("重新读取", Event::Reload, !state.busy),
-        ("保存", Event::Save, !state.busy && state.status.is_some()),
-        ("测试已保存出口", Event::Start(false), !state.busy && state.status.is_some()),
-        ("有限扫描", Event::Start(true), !state.busy),
-        ("取消检测", Event::Cancel, state.cancel.is_some()),
+        (i18n.__("关闭"), Event::Close, !state.busy),
+        (i18n.__("重新读取"), Event::Reload, !state.busy),
+        (i18n.__("保存"), Event::Save, !state.busy && state.status.is_some()),
+        (i18n.__("测试已保存出口"), Event::Start(false), !state.busy && state.status.is_some()),
+        (i18n.__("有限扫描"), Event::Start(true), !state.busy),
+        (i18n.__("取消检测"), Event::Cancel, state.cancel.is_some()),
     ] {
         let style = if matches!(event, Event::Save) {
             primary_action_btn_style

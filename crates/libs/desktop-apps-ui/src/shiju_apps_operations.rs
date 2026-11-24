@@ -70,7 +70,7 @@ pub(super) fn update(app: &mut Input<'_>, event: DetailAction) -> Task<ShijuApps
             app.shiju_apps.copy_form = Some(ShijuAppCopyRequest {
                 request_id: uuid::Uuid::new_v4().to_string(),
                 app_id: format!("{id}-copy"),
-                title: format!("{} 副本", item.name.chars().take(120).collect::<String>()),
+                title: app.i18n.sprintf("%s 副本", &[item.name.chars().take(120).collect::<String>().into()]),
                 expected_version: item.version.clone(),
             });
             Task::none()

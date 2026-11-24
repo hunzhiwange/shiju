@@ -81,7 +81,7 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
             return super::apps_lifecycle::update(app, super::apps_lifecycle::LifecycleMessage::Batch(items));
         }
         AppsCatalogMessage::CheckUpdates => {
-            let Ok(client) = crate::app::config::gateway_client() else { return app.show_error_toast("网关不可用"); };
+            let Ok(client) = crate::app::config::gateway_client() else { return app.show_localized_toast(crate::app::state::ToastKind::Error, "网关不可用", vec![]); };
             let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.navigation_tabs.project_path.clone() };
             let state = &mut app.apps_catalog;
             if state.loading || state.updates.checking || state.context.as_ref() != Some(&context) { return Task::none(); }
@@ -187,7 +187,7 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
             if app.apps_catalog.loading { return Task::none(); }
             let client = match crate::app::config::gateway_client() {
                 Ok(client) => client,
-                Err(_) => return app.show_error_toast("网关不可用，请重新连接"),
+                Err(_) => return app.show_localized_toast(crate::app::state::ToastKind::Error, "网关不可用，请重新连接", vec![]),
             };
             let context = AgentAppsContext {
                 gateway: client.endpoint().base_url(),

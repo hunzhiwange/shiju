@@ -331,8 +331,7 @@ async fn mcp_app_open_link_real_helper_roundtrip() {
         });
         send('ui/initialize', 'init');
         </script>"#;
-    let mut process = McpAppProcess::launch_with_policy(
-        std::path::Path::new(&helper),
+    let mut process = McpAppProcess::launch_with_policy(config_ui::DesktopLocale::SimplifiedChinese, std::path::Path::new(&helper),
         "session".into(),
         "server".into(),
         html,

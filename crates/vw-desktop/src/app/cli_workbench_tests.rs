@@ -29,6 +29,25 @@ fn key(project: &str, session: &str) -> SessionKey {
     SessionKey { project: project.into(), session: session.into() }
 }
 
+#[test]
+fn cli_workbench_sidebar_defaults_to_twenty_percent_and_clamps_to_ten() {
+    use iced::widget::pane_grid::{Node, ResizeEvent};
+
+    let mut sidebar = SidebarLayout::default();
+    let Node::Split { id, ratio, .. } = sidebar.workspace.layout() else {
+        panic!("expected a sidebar divider");
+    };
+    let (split, default) = (*id, *ratio);
+    assert_eq!(default, 0.20);
+
+    sidebar.resize_width(ResizeEvent { split, ratio: 0.0 });
+
+    let Node::Split { ratio, .. } = sidebar.workspace.layout() else {
+        panic!("expected a sidebar divider after resizing");
+    };
+    assert_eq!(*ratio, 0.10);
+}
+
 fn message(target: &str, revision: u64, output: &str) -> CliWorkbenchMessage {
     CliWorkbenchMessage {
         id: CliWorkbenchMessageId {

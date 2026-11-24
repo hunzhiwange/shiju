@@ -844,7 +844,7 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action) -> Task<
         Action::Panel(project, layout, message) => return panel(state, id, &project, layout, message),
         Action::GroupAgentsByProject(grouped) => state.group_agents_by_project = grouped,
         Action::ResizeSidebarWidth(event) => {
-            state.sidebar_layout.workspace.resize(event.split, event.ratio.clamp(0.20, 0.65));
+            state.sidebar_layout.resize_width(event);
         }
         Action::ResizeSidebarSections(event) => {
             state.sidebar_layout.sections.resize(event.split, event.ratio.clamp(0.23, 0.77));

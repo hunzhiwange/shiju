@@ -54,12 +54,25 @@ struct SidebarLayout {
     sections: pane_grid::State<bool>,
 }
 
+impl SidebarLayout {
+    const DEFAULT_WIDTH_RATIO: f32 = 0.20;
+    const MIN_WIDTH_RATIO: f32 = 0.10;
+    const MAX_WIDTH_RATIO: f32 = 0.65;
+
+    fn resize_width(&mut self, event: pane_grid::ResizeEvent) {
+        self.workspace.resize(
+            event.split,
+            event.ratio.clamp(Self::MIN_WIDTH_RATIO, Self::MAX_WIDTH_RATIO),
+        );
+    }
+}
+
 impl Default for SidebarLayout {
     fn default() -> Self {
         let (mut workspace, sidebar) = pane_grid::State::new(false);
         let (_, split) = workspace.split(pane_grid::Axis::Vertical, sidebar, true)
             .expect("the sidebar pane exists");
-        workspace.resize(split, 0.34);
+        workspace.resize(split, Self::DEFAULT_WIDTH_RATIO);
 
         let (mut sections, projects) = pane_grid::State::new(false);
         sections.split(pane_grid::Axis::Horizontal, projects, true)

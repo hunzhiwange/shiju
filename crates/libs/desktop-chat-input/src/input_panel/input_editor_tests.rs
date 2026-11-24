@@ -315,6 +315,7 @@ fn editor_state() -> super::input_editor::EditorState {
         show_file_search: false,
         input_editor_id: iced::widget::Id::unique(),
         i18n: desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        placeholder: "随便问点什么...",
         context_menu_position: None,
         context_menu_open: false,
     }

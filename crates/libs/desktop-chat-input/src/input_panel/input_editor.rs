@@ -218,7 +218,7 @@ pub fn build_input_editor<'a>(
     let key_state = app.clone();
     let editor = text_editor(input_editor)
         .id(app.input_editor_id.clone())
-        .placeholder(app.i18n.__("随便问点什么..."))
+        .placeholder(app.i18n.__(app.placeholder))
         .on_action(Message::InputEditorAction)
         .key_binding(move |kp| binding_from_key_press(&key_state, kp))
         .size(14.0)
@@ -354,6 +354,7 @@ pub struct EditorState {
     pub show_file_search: bool,
     pub input_editor_id: iced::widget::Id,
     pub i18n: desktop_i18n::I18n,
+    pub placeholder: &'static str,
     pub context_menu_position: Option<(f32, f32)>,
     pub context_menu_open: bool,
 }

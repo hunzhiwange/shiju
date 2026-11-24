@@ -153,6 +153,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::AttachmentFilesPick => {
             #[cfg(not(target_arch = "wasm32"))]
             {
+                use crate::app::message::chat::media_shortcuts;
+                if let Some(mode) = media_shortcuts::active_mode(app) {
+                    return Some(media_shortcuts::pick_attachments(app, mode));
+                }
                 Some(iced::Task::perform(
                     desktop_workspace::basic::pick_attachments(),
                     |picked| Message::Project(ProjectMessage::AttachmentFilesPicked(picked)),

@@ -135,6 +135,19 @@ pub fn collect_local_attachments(
     max_image_size_mb: usize,
     picked: Vec<String>,
 ) -> (Vec<String>, Vec<ProjectFeedback>) {
+    collect_local_attachments_filtered(
+        files, project_path, max_image_count, max_image_size_mb, picked, |_| true,
+    )
+}
+
+pub fn collect_local_attachments_filtered(
+    files: &[String],
+    project_path: Option<&str>,
+    max_image_count: usize,
+    max_image_size_mb: usize,
+    picked: Vec<String>,
+    accepts: impl Fn(&Path) -> bool,
+) -> (Vec<String>, Vec<ProjectFeedback>) {
     let max_images = max_image_count.clamp(1, 16);
     let max_bytes =
         (max_image_size_mb.clamp(1, 20) as u64).saturating_mul(1024 * 1024);
@@ -168,6 +181,14 @@ pub fn collect_local_attachments(
             errors.push(ProjectFeedback::new(
                 "不支持文件夹：%s",
                 vec![resolved.display().to_string().into()],
+            ));
+            continue;
+        }
+
+        if !accepts(&resolved) {
+            errors.push(ProjectFeedback::new(
+                "当前媒体模式不支持此附件：%s",
+                vec![attachment_name(&resolved).into()],
             ));
             continue;
         }

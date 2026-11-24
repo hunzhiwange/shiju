@@ -74,6 +74,7 @@ pub struct Surface<'a, Message> {
     pub voice: Option<Element<'a, Message>>,
     pub agent_sessions: Option<Element<'a, Message>>,
     pub quick_messages: Option<Element<'a, Message>>,
+    pub media_shortcuts: Option<Element<'a, Message>>,
 }
 
 pub struct SurfaceMessages<Message> {
@@ -123,8 +124,12 @@ pub fn view<'a, Message: Clone + 'a>(
     if let Some(quick_messages) = parts.quick_messages {
         panel = panel.push(quick_messages);
     }
+    panel = panel.push(card);
+    if let Some(shortcuts) = parts.media_shortcuts {
+        panel = panel.push(shortcuts);
+    }
     desktop_chat_view::panel::conversation_reading_column(
-        panel.push(card),
+        panel,
         iced::Padding { top: 0.0, right: 2.0, bottom: 0.0, left: 2.0 },
     )
     .into()

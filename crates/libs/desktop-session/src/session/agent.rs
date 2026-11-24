@@ -49,6 +49,15 @@ pub enum EmployeeKind {
     Shared,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MediaMode {
+    Image,
+    Video,
+    Speech,
+    Vision,
+    Transcription,
+}
+
 /// 会话运行时状态
 ///
 /// 管理单个会话的运行时状态，包括请求状态、输入编辑器、
@@ -87,6 +96,7 @@ pub struct SessionRuntimeState<RenderState> {
     pub stream_render_state: RenderState,
     /// 输入编辑器内容
     pub input_editor: text_editor::Content,
+    pub media_mode: Option<MediaMode>,
     /// Attachments parked while another session owns the composer.
     pub parked_input_files: Option<Vec<String>>,
     /// 当前选择的模型标识符
@@ -180,6 +190,7 @@ impl<RenderState: Default> SessionRuntimeState<RenderState> {
             stream_tail_state: StreamTailState::default(),
             stream_render_state: RenderState::default(),
             input_editor: text_editor::Content::new(),
+            media_mode: None,
             parked_input_files: None,
             model,
             auto_model,

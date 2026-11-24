@@ -5,6 +5,7 @@
 use crate::app::i18n::project::ProjectFeedback;
 use crate::app::message::project::ProjectMessage;
 use crate::app::{App, Message};
+use desktop_chat_input::input_panel::media_shortcuts::MediaModeInput;
 use iced::Task;
 use vw_api_project::ProjectDto;
 
@@ -12,12 +13,14 @@ pub(crate) fn collect_local_attachments(
     app: &App,
     picked: Vec<String>,
 ) -> (Vec<String>, Vec<ProjectFeedback>) {
-    desktop_workspace::project_message::attachments::collect_local_attachments(
+    let mode = crate::app::message::chat::media_shortcuts::active_mode(app);
+    desktop_workspace::project_message::attachments::collect_local_attachments_filtered(
         &app.session_state.files,
         app.navigation_tabs.project_path.as_deref(),
         app.multimodal_settings.max_images as usize,
         app.multimodal_settings.max_image_size_mb as usize,
         picked,
+        |path| mode.is_none_or(|mode| mode.accepts(path)),
     )
 }
 

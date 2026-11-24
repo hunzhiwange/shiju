@@ -1,9 +1,14 @@
+use desktop_chat_input::input_panel::media_shortcuts::MediaModeInput;
+
 fn state(app: &crate::app::App) -> desktop_chat_input::input_panel::input_editor::EditorState {
     desktop_chat_input::input_panel::input_editor::EditorState {
         show_slash_palette: app.input_suggestions.show_slash_palette,
         show_file_search: app.input_suggestions.show_file_search,
         input_editor_id: app.session_state.input_editor_id.clone(),
         i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
+        placeholder: crate::app::message::chat::media_shortcuts::active_mode(app)
+            .map(MediaModeInput::placeholder)
+            .unwrap_or("随便问点什么..."),
         context_menu_position: app.session_state.input_context_menu.position,
         context_menu_open: app.session_state.input_context_menu.open,
     }

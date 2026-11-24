@@ -29,6 +29,7 @@ pub const SHIJU_APPS_TITLE: &str = "识矩应用";
 /// 识矩应用目录、详情、密钥绑定和启动流程的消息集合。
 pub enum ShijuAppsMessage {
     Open,
+    OpenStudio,
     SelectTab(ShijuAppsTab),
     OpenDetail(ShijuAppDetailTarget),
     CloseDetail,
@@ -136,6 +137,7 @@ pub fn update(app: &mut Input<'_>, message: ShijuAppsMessage) -> Task<ShijuAppsM
 
             ensure_current_tab_loaded(app)
         }
+        ShijuAppsMessage::OpenStudio => open_studio(app),
         ShijuAppsMessage::SelectTab(tab) => {
             if app.shiju_apps.tab != tab {
                 reset_page(app);
@@ -278,10 +280,61 @@ pub fn update(app: &mut Input<'_>, message: ShijuAppsMessage) -> Task<ShijuAppsM
             artwork::load(app)
         }
         ShijuAppsMessage::MineLoaded { generation, account_id, result } => {
+            let studio_lookup = app.shiju_apps.studio_lookup_generation == Some(generation)
+                && app.shiju_apps.account_id.as_deref() == Some(account_id.as_str())
+                && app.account.is_some_and(|account| account.id() == account_id)
+                && matches!(&app.shiju_apps.mine, ShijuAppsLoadState::Loading { generation: current } if *current == generation);
             accept_list(app.account, &account_id, generation, &mut app.shiju_apps.mine, result);
+            if studio_lookup {
+                app.shiju_apps.studio_lookup_generation = None;
+                let open = launch_studio_from_mine(app);
+                return Task::batch([open, artwork::load(app)]);
+            }
             artwork::load(app)
         }
     }
+}
+
+fn open_studio(app: &mut Input<'_>) -> Task<ShijuAppsMessage> {
+    let Some(account) = app.account else {
+        return app.show_localized_toast((), "请先登录识矩账户，再配置应用 Studio", vec![]);
+    };
+    let account_id = account.id().to_owned();
+    if app.shiju_apps.account_id.as_deref() != Some(account_id.as_str()) {
+        app.shiju_apps.clear_for_account(Some(account_id.clone()));
+    }
+    match &app.shiju_apps.mine {
+        ShijuAppsLoadState::Loaded(_) => return launch_studio_from_mine(app),
+        ShijuAppsLoadState::Loading { generation } => {
+            app.shiju_apps.studio_lookup_generation = Some(*generation);
+            return Task::none();
+        }
+        _ => {}
+    }
+    let generation = app.shiju_apps.next_generation();
+    app.shiju_apps.studio_lookup_generation = Some(generation);
+    app.shiju_apps.mine = ShijuAppsLoadState::Loading { generation };
+    load_mine(app.client.clone(), account.skill_hub_credential(), account_id, generation)
+}
+
+fn launch_studio_from_mine(app: &mut Input<'_>) -> Task<ShijuAppsMessage> {
+    const STUDIO_APP_ID: &str = "app-studio";
+    let installation_id = match &app.shiju_apps.mine {
+        ShijuAppsLoadState::Loaded(mine) => mine.apps.iter().find_map(|item| {
+            (item.app_id == STUDIO_APP_ID && valid_installation_id(&item.installation_id))
+                .then(|| item.installation_id.clone())
+        }),
+        _ => return app.show_localized_toast((), "无法读取应用 Studio 的安装状态，请重试", vec![]),
+    };
+    let Some(installation_id) = installation_id else {
+        return app.show_localized_toast((), "请在识矩应用中安装或配置应用 Studio", vec![]);
+    };
+    if app.shiju_apps.tab != ShijuAppsTab::Mine {
+        app.shiju_apps.tab = ShijuAppsTab::Mine;
+        app.shiju_apps.browse = Default::default();
+    }
+    app.effects.push(Effect::Open);
+    prepare_installed_launch(app, installation_id)
 }
 
 fn prepare_installed_launch(
@@ -839,6 +892,9 @@ fn load_current_tab(app: &mut Input<'_>) -> Task<ShijuAppsMessage> {
         ShijuAppsTab::Mine | ShijuAppsTab::Favorites | ShijuAppsTab::Created => {
             let mut tasks = Vec::new();
             if app.shiju_apps.tab != ShijuAppsTab::Created || !cached(&app.shiju_apps.mine) {
+                if app.shiju_apps.studio_lookup_generation.is_some() {
+                    app.shiju_apps.studio_lookup_generation = Some(generation);
+                }
                 app.shiju_apps.mine = ShijuAppsLoadState::Loading { generation };
                 tasks.push(load_mine(
                     client.clone(),

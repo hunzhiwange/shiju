@@ -86,6 +86,21 @@ pub(super) fn handle_remove_file_reference(app: &mut App, file_path: String) -> 
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_input_area_drag_drop(app: &mut App) -> Task<Message> {
     app.file_tree_interaction.input_drop_hovered = false;
+    if crate::app::message::chat::media_shortcuts::active_mode(app).is_some() {
+        let paths = collect_dropped_paths(app).into_iter().map(|dropped| {
+            let path = std::path::Path::new(&dropped.path);
+            match app.navigation_tabs.project_path.as_deref() {
+                Some(root) if path.is_relative() => {
+                    std::path::Path::new(root).join(path).to_string_lossy().into_owned()
+                }
+                _ => dropped.path,
+            }
+        }).collect();
+        clear_drag_drop_state(app);
+        crate::app::message::project::helpers::append_local_attachments(app, paths);
+        app.focus_area = FocusArea::None;
+        return focus_input_editor(app);
+    }
     let mentions = drop_mention_paths(app);
     if !mentions.is_empty() {
         let runtime = app.current_session_runtime_mut();

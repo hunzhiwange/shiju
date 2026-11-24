@@ -28,6 +28,10 @@ impl<M, P, V, D, T, G> ChatMessage<M, P, V, D, T, G> {
             | ChatMessage::ToggleShijuSkillMenu
             | ChatMessage::SelectShijuSkill(_)
             | ChatMessage::InputEditorAction(_)
+            | ChatMessage::MediaModeSelected(_)
+            | ChatMessage::MediaAttachmentsPicked { .. }
+            | ChatMessage::OpenMediaAppStudio
+            | ChatMessage::OpenMediaVideoEditor
             | ChatMessage::OpenInputContextMenu { .. }
             | ChatMessage::CloseInputContextMenu
             | ChatMessage::CopyInputSelection

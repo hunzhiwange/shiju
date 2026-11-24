@@ -138,6 +138,7 @@ pub struct ShijuAppsState {
     pub tab: ShijuAppsTab,
     pub store: ShijuAppsLoadState<ShijuAppCatalogDto>,
     pub mine: ShijuAppsLoadState<ShijuAppListDto>,
+    pub studio_lookup_generation: Option<u64>,
     pub created: ShijuAppsLoadState<Vec<ShijuCreatedApp>>,
     pub featured: ShijuAppsLoadState<Vec<ShijuFeaturedApp>>,
     pub featured_generation: u64,
@@ -213,6 +214,7 @@ impl ShijuAppsState {
         self.account_id = account_id;
         self.store = ShijuAppsLoadState::Idle;
         self.mine = ShijuAppsLoadState::Idle;
+        self.studio_lookup_generation = None;
         self.created = ShijuAppsLoadState::Idle;
         self.featured = ShijuAppsLoadState::Idle;
         self.featured_generation = self.generation;
@@ -257,6 +259,7 @@ impl Default for ShijuAppsState {
             tab: ShijuAppsTab::Mine,
             store: ShijuAppsLoadState::Idle,
             mine: ShijuAppsLoadState::Idle,
+            studio_lookup_generation: None,
             created: ShijuAppsLoadState::Idle,
             featured: ShijuAppsLoadState::Idle,
             featured_generation: 0,

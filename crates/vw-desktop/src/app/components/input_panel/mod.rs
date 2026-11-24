@@ -435,6 +435,10 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
             voice: None,
             agent_sessions: agent_sessions::agent_sessions_entry(app, &running_agent_sessions),
             quick_messages: quick_messages::view(app),
+            #[cfg(not(target_arch = "wasm32"))]
+            media_shortcuts: Some(message::chat::media_shortcuts::view(app)),
+            #[cfg(target_arch = "wasm32")]
+            media_shortcuts: None,
         },
         desktop_chat_input::input_panel::layout::SurfaceMessages {
             close_file_search: Message::Chat(message::ChatMessage::FileSearchInputChanged(String::new())),

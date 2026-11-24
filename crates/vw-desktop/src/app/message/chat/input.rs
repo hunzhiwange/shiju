@@ -60,6 +60,10 @@ pub(crate) fn is_composer_event(message: &ChatMessage) -> bool {
         message,
         ChatMessage::InputChanged(_)
             | ChatMessage::InputEditorAction(_)
+            | ChatMessage::MediaModeSelected(_)
+            | ChatMessage::MediaAttachmentsPicked { .. }
+            | ChatMessage::OpenMediaAppStudio
+            | ChatMessage::OpenMediaVideoEditor
             | ChatMessage::OpenInputContextMenu { .. }
             | ChatMessage::CloseInputContextMenu
             | ChatMessage::CopyInputSelection
@@ -85,6 +89,12 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.session_state.input_text = value;
             Task::none()
         }
+        ChatMessage::MediaModeSelected(mode) => super::media_shortcuts::select(app, mode),
+        ChatMessage::MediaAttachmentsPicked { session_id, project_path, mode, paths } => {
+            super::media_shortcuts::attachments_picked(app, session_id, project_path, mode, paths)
+        }
+        ChatMessage::OpenMediaAppStudio => super::media_shortcuts::open_app_studio(app),
+        ChatMessage::OpenMediaVideoEditor => super::media_shortcuts::open_video_editor(app),
         ChatMessage::QuickMessageSelected(index) => {
             app.session_state.input_popovers.quick_message_group = None;
             let Some(item) = app.general_settings.quick_messages.get(index).cloned() else {

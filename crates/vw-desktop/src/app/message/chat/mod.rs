@@ -25,6 +25,7 @@ use std::time::Duration;
 mod acp_options;
 pub mod context;
 pub mod input;
+pub(crate) mod media_shortcuts;
 mod processing_timing;
 pub mod session;
 pub mod stream;

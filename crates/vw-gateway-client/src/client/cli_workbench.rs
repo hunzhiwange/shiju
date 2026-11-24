@@ -6,6 +6,18 @@ use vw_api_types::cli_workbench::*;
 use super::GatewayClient;
 
 impl GatewayClient {
+    pub async fn cli_workbench_projects(
+        &self,
+        preferred_directory: Option<&str>,
+    ) -> Result<CliWorkbenchProjects, CliWorkbenchError> {
+        let mut path = "/v1/cli-workbench/projects".to_owned();
+        if let Some(directory) = preferred_directory {
+            path.push_str("?directory=");
+            path.push_str(&gateway_project::encode_path_segment(directory));
+        }
+        self.cli_workbench_request(reqwest::Method::GET, &path, None::<&()>).await
+    }
+
     pub async fn cli_workbench_list(
         &self,
         project_id: &str,
@@ -77,6 +89,17 @@ impl GatewayClient {
         self.cli_workbench_request(
             reqwest::Method::GET,
             "/v1/cli-workbench/terminal-capability",
+            None::<&()>,
+        )
+        .await
+    }
+
+    pub async fn cli_workbench_terminal_catalog(
+        &self,
+    ) -> Result<CliWorkbenchTerminalCapability, CliWorkbenchError> {
+        self.cli_workbench_request(
+            reqwest::Method::GET,
+            "/v1/cli-workbench/terminal-capability?include_apps=true",
             None::<&()>,
         )
         .await

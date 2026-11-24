@@ -1,10 +1,8 @@
 //! Terminal settings, state and deferred native runtime retirement.
 #[cfg(not(target_arch = "wasm32"))]
-use iced::widget::pane_grid::{Axis, Direction, Pane};
+use iced::widget::pane_grid::{Direction, Pane};
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::panes::TerminalPane;
 #[cfg(not(target_arch = "wasm32"))]
 mod spawn;
 

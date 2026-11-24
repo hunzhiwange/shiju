@@ -4,8 +4,8 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use iced::{Element, Theme};
-use iced_term::{Command, Event, Terminal, TerminalView, actions::Action, settings};
+use iced::Theme;
+use iced_term::{Command, Event, Terminal, actions::Action, settings};
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -72,8 +72,8 @@ impl AttachedTerminal {
         }
     }
 
-    pub fn view(&self) -> Element<'_, Event> {
-        TerminalView::show(&self.terminal)
+    pub fn terminal(&self) -> &Terminal {
+        &self.terminal
     }
 
     pub fn widget_id(&self) -> iced::widget::Id {
@@ -92,6 +92,21 @@ impl AttachedTerminal {
     pub fn take_input(&mut self) -> (Vec<u8>, Option<(u16, u16)>, bool) {
         self.terminal.take_attached_input()
     }
+
+    pub fn paste_prompt(&mut self, text: String) -> bool {
+        let bracketed = self.terminal.bracketed_paste_enabled();
+        if !prompt_can_be_pasted(&text, bracketed) {
+            return false;
+        }
+        self.terminal.handle(Command::ProxyToBackend(iced_term::BackendCommand::Paste(text)));
+        true
+    }
+}
+
+fn prompt_can_be_pasted(text: &str, bracketed: bool) -> bool {
+    !text.is_empty() && text.chars().all(|ch| {
+        !ch.is_control() || (bracketed && matches!(ch, '\n' | '\t'))
+    })
 }
 
 #[cfg(test)]

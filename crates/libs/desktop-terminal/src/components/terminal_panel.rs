@@ -50,6 +50,8 @@ const TAB_STRIP_ID: &str = "terminal-tab-strip";
 const TAB_HEADER_HEIGHT: f32 = 34.0;
 const TAB_SCROLLBAR_WIDTH: f32 = 4.0;
 const TAB_SCROLLBAR_GAP: f32 = 3.0;
+pub const TAB_HEIGHT: f32 = TAB_HEADER_HEIGHT - TAB_SCROLLBAR_WIDTH - TAB_SCROLLBAR_GAP;
+pub const TAB_TOOLBAR_BUTTON_WIDTH: f32 = 30.0;
 
 struct TabCloseIcon {
     enabled: bool,
@@ -134,6 +136,14 @@ fn terminal_surface_style(theme: &Theme) -> iced::widget::container::Style {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn pane_divider_style(theme: &Theme) -> iced::widget::pane_grid::Style {
+    let mut style = iced::widget::pane_grid::default(theme);
+    style.picked_split.width = crate::panes::PANE_SPACING;
+    style.hovered_split.width = crate::panes::PANE_SPACING;
+    style
+}
+
 #[cfg(any(test, not(target_arch = "wasm32")))]
 fn terminal_content_padding(tab_id: u64) -> iced::Padding {
     let left_offset = (tab_id % 2) as f32 * 0.01;
@@ -204,29 +214,86 @@ fn pane_view<'a>(
     active_id: Option<u64>,
     controls: iced::widget::Row<'a, Message>,
 ) -> (Element<'a, Message>, Element<'a, Message>) {
-    let tab_header_height = TAB_HEADER_HEIGHT - TAB_SCROLLBAR_WIDTH - TAB_SCROLLBAR_GAP;
+    let locale = app.desktop_locale;
+    let header = pane_header(
+        tabs.iter().map(|tab| {
+            let title = if tab.default_title {
+                I18n::new(locale).format("终端 %u", &[tab.id.into()])
+                    .expect("terminal title template")
+            } else {
+                tab.title.clone()
+            };
+            (tab.id, title)
+        }),
+        active_id,
+        app.tabs.len() > 1,
+        app.tab_context_menu_id,
+        app.tab_context_menu_pos,
+        locale,
+        controls,
+        |message| message,
+    );
+
+    // ==================== 获取当前激活的标签页 ====================
+
+    // 优先查找指定 ID 的标签页，否则使用第一个标签页
+    let active_tab = active_terminal_tab_index(active_id, tabs.iter().map(|tab| tab.id))
+        .and_then(|index| tabs.get(index).copied());
+
+    // ==================== 构建终端内容区域 ====================
+
+    let out: Element<'_, Message> = if let Some(_tab) = active_tab {
+        // 非 WASM 平台：渲染真实的终端视图
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            content_menu::terminal_surface(app, _tab)
+        }
+        // WASM 平台：显示不支持提示
+        #[cfg(target_arch = "wasm32")]
+        {
+            container(text(desktop_i18n::I18n::new(app.desktop_locale).__("Web 不支持终端")))
+                .padding([10, 12])
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
+        }
+    } else {
+        // 无标签页时显示空白内容
+        container(text("").font(Font::DEFAULT))
+            .padding([10, 12])
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+    };
+
+    (header, pane_surface(out))
+}
+
+pub fn pane_header<'a, M: Clone + 'a>(
+    tabs: impl IntoIterator<Item = (u64, String)>,
+    active_id: Option<u64>,
+    can_close_tabs: bool,
+    tab_context_menu_id: Option<u64>,
+    tab_context_menu_pos: Option<(f32, f32)>,
+    locale: config_ui::DesktopLocale,
+    controls: iced::widget::Row<'a, M>,
+    on_message: impl Fn(Message) -> M + 'a,
+) -> Element<'a, M> {
+    let tab_header_height = TAB_HEIGHT;
 
     // ==================== 构建标签页行 ====================
 
     let mut tabs_row = row![].align_y(iced::Alignment::Center);
-    let can_close_tabs = app.tabs.len() > 1;
 
     // 遍历所有终端标签页，逐个构建 UI 元素
-    for (index, t) in tabs.iter().enumerate() {
+    for (index, (tab_id, title)) in tabs.into_iter().enumerate() {
         // 判断当前标签页是否为激活状态
         // 如果没有指定激活 ID，则默认第一个标签页为激活
-        let active = terminal_tab_is_active(active_id, t.id, index);
-        let tab_id = t.id;
+        let active = terminal_tab_is_active(active_id, tab_id, index);
 
         // 计算标签页宽度：基于标题字符数量
         // 公式：字符数 * 8.4（每字符平均宽度）+ 62.0（内边距和图标预留）
         // 限制在 92.0-260.0 范围内
-        let title = if t.default_title {
-            I18n::new(app.desktop_locale).format("终端 %u", &[t.id.into()])
-                .expect("terminal title template")
-        } else {
-            t.title.clone()
-        };
         let tab_width = terminal_tab_width(&title);
 
         // 关闭按钮尺寸
@@ -334,7 +401,7 @@ fn pane_view<'a>(
 
         // ---------- 条件渲染右键菜单 ----------
         // 当此标签页的上下文菜单打开时，显示菜单覆盖层
-        let tab_with_overlay: Element<'_, Message> = if app.tab_context_menu_id
+        let tab_with_overlay: Element<'_, Message> = if tab_context_menu_id
             == Some(tab_id)
         {
             // 构建右键菜单内容
@@ -349,7 +416,7 @@ fn pane_view<'a>(
                                 .style(|theme: &Theme, _| iced::widget::svg::Style {
                                     color: Some(theme.palette().text),
                                 }),
-                            text(desktop_i18n::I18n::new(app.desktop_locale).__("重命名"))
+                            text(desktop_i18n::I18n::new(locale).__("重命名"))
                         ]
                         .spacing(6)
                         .align_y(iced::Alignment::Center),
@@ -387,7 +454,7 @@ fn pane_view<'a>(
                                 .style(|theme: &Theme, _| iced::widget::svg::Style {
                                     color: Some(theme.palette().text),
                                 }),
-                            text(desktop_i18n::I18n::new(app.desktop_locale).__("关闭"))
+                            text(desktop_i18n::I18n::new(locale).__("关闭"))
                         ]
                         .spacing(6)
                         .align_y(iced::Alignment::Center),
@@ -440,7 +507,7 @@ fn pane_view<'a>(
             });
 
             // 获取菜单显示位置，默认在标签栏下方
-            let (x, y) = app.tab_context_menu_pos.unwrap_or((0.0, tab_header_height));
+            let (x, y) = tab_context_menu_pos.unwrap_or((0.0, tab_header_height));
             // 使用 PointBelowOverlay 组件创建菜单覆盖层
             PointBelowOverlay::new(right_click_tab, context_menu)
                 .show(true)
@@ -468,60 +535,35 @@ fn pane_view<'a>(
         .height(Length::Fixed(TAB_HEADER_HEIGHT))
         .width(Length::Fill);
 
-    // ==================== 获取当前激活的标签页 ====================
-
-    // 优先查找指定 ID 的标签页，否则使用第一个标签页
-    let active_tab = active_terminal_tab_index(active_id, tabs.iter().map(|tab| tab.id))
-        .and_then(|index| tabs.get(index).copied());
-
-    // ==================== 构建终端内容区域 ====================
-
-    let out: Element<'_, Message> = if let Some(_tab) = active_tab {
-        // 非 WASM 平台：渲染真实的终端视图
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            content_menu::terminal_surface(app, _tab)
-        }
-        // WASM 平台：显示不支持提示
-        #[cfg(target_arch = "wasm32")]
-        {
-            container(text(desktop_i18n::I18n::new(app.desktop_locale).__("Web 不支持终端")))
-                .padding([10, 12])
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .into()
-        }
-    } else {
-        // 无标签页时显示空白内容
-        container(text("").font(Font::DEFAULT))
-            .padding([10, 12])
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
-    };
-
-    // 包装终端内容区域，应用边框样式
-    let out =
-        container(out).width(Length::Fill).height(Length::Fill).padding(0).style(move |theme| {
-            let mut style = terminal_surface_style(theme);
-            style.border = Border {
-                radius: iced::border::Radius {
-                    top_left: 0.0,
-                    top_right: 0.0,
-                    bottom_right: 0.0,
-                    bottom_left: 0.0,
-                },
-                width: 0.0,
-                color: Color::TRANSPARENT,
-            };
-            style
-        });
-
-    let toolbar = row![tabs_scroll, controls].height(TAB_HEADER_HEIGHT);
-    let header = container(toolbar).width(Length::Fill).style(terminal_surface_style);
-
-    (header.into(), out.into())
+    let tabs_scroll: Element<'a, Message> = tabs_scroll.into();
+    let toolbar = row![tabs_scroll.map(on_message), controls].height(TAB_HEADER_HEIGHT);
+    container(toolbar).width(Length::Fill).style(terminal_surface_style).into()
 }
+
+pub fn pane_surface<'a, M: 'a>(out: Element<'a, M>) -> Element<'a, M> {
+    container(out)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .padding(0)
+        .style(terminal_surface_style)
+        .into()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn shared_grid<'a, M: Clone + 'a>(
+    panes: &'a crate::panes::TerminalPanes,
+    shortcut_focus: Option<&'a iced::widget::Id>,
+    on_message: impl Fn(message::TerminalMessage) -> M + Clone + 'a,
+    content: impl Fn(iced::widget::pane_grid::Pane, &crate::panes::TerminalPane, bool)
+        -> (Element<'a, M>, Element<'a, M>) + 'a,
+) -> Element<'a, M> {
+    pane_grid::shared(panes, shortcut_focus, on_message, content)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use content_menu::surface as terminal_content;
+#[cfg(not(target_arch = "wasm32"))]
+pub use split_menu::split_control;
 
 /// 渲染终端窗格以及覆盖整个面板的重命名模态框。
 pub fn view<'a>(app: ViewInput<'a>) -> Element<'a, Message> {

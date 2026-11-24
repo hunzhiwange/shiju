@@ -58,6 +58,21 @@ pub struct CliWorkbenchSession {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CliWorkbenchProject {
+    pub id: String,
+    pub name: String,
+    pub directory: String,
+    pub sessions: Vec<CliWorkbenchSession>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CliWorkbenchProjects {
+    pub projects: Vec<CliWorkbenchProject>,
+    pub preferred_project: Option<String>,
+    pub terminal_available: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StartCliWorkbenchSession {
     pub target: CliWorkbenchTarget,
@@ -147,9 +162,17 @@ impl CliWorkbenchMessage {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CliWorkbenchTerminalCapability {
     pub available: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub native_apps: Vec<CliWorkbenchNativeApp>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CliWorkbenchNativeApp {
+    pub id: String,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

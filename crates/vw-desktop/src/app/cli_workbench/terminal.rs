@@ -17,6 +17,7 @@ pub(super) struct Attachment {
     pub(super) error: Option<&'static str>,
     pub(super) truncated: bool,
     pub(super) fresh: bool,
+    pending_paste: Option<(String, bool)>,
     reading: bool,
     writing: bool,
     connected: bool,
@@ -27,18 +28,9 @@ pub(super) struct Attachment {
 }
 
 impl Attachment {
-    pub(super) fn detach(&mut self) {
-        self.reading = false;
-        self.writing = false;
-        self.connected = false;
-        self.size_pending = self.size.is_some();
-        if let Some(view) = &mut self.view {
-            view.take_input();
-        }
-    }
-
     fn disconnect(&mut self) {
         self.connected = false;
+        self.pending_paste = None;
         self.size_pending = self.size.is_some();
         if let Some(view) = &mut self.view {
             view.take_input();
@@ -46,10 +38,40 @@ impl Attachment {
     }
 }
 
+pub(super) fn paste_prompt(
+    state: &mut Workbench,
+    id: window::Id,
+    key: SessionKey,
+    prompt: String,
+    submit: bool,
+) -> Task<Message> {
+    let prompt = prompt.replace("\r\n", "\n").replace('\r', "\n");
+    // Reserve space for the bracketed paste delimiters and an optional Enter.
+    let framing = 12 + usize::from(submit);
+    if prompt.len() > vw_api_types::cli_workbench::CLI_WORKBENCH_MAX_TERMINAL_INPUT - framing {
+        state.error = Some("终端输入过长，已丢弃");
+        return Task::none();
+    }
+    if !state.terminal_available
+        || !state.projects.get(&key.project).is_some_and(|project| {
+            !project.disconnected && project.tabs.get(&key.session).is_some_and(|tab| {
+                tab.session.capabilities.terminal && tab.can_send() && tab.terminal.pending_paste.is_none()
+            })
+        })
+        || !state.locate(&key)
+    {
+        return Task::none();
+    }
+    let Some(tab) = state.tab_mut(&key) else { return Task::none() };
+    tab.terminal.pending_paste = Some((prompt, submit));
+    state.dialog = None;
+    Task::batch([focus(state), flush(state, id, key)])
+}
+
 fn visible(state: &Workbench, key: &SessionKey) -> bool {
     state.selected.as_ref() == Some(&key.project)
         && state.projects.get(&key.project).is_some_and(|project| {
-            project.panes.iter().any(|(_, id)| id.as_deref() == Some(key.session.as_str()))
+            project.tabs.get(&key.session).is_some_and(|tab| project.panes.is_visible_tab(tab.view_id))
         })
 }
 
@@ -63,12 +85,7 @@ pub(super) fn focus(state: &Workbench) -> Task<Message> {
     let Some(project) = state.selected.as_ref().and_then(|id| state.projects.get(id)) else {
         return Task::none();
     };
-    let Some(view) = project
-        .panes
-        .get(project.active_pane)
-        .and_then(Option::as_ref)
-        .and_then(|id| project.tabs.get(id))
-        .and_then(|tab| tab.terminal.view.as_ref())
+    let Some(view) = project.active_tab().and_then(|tab| tab.terminal.view.as_ref())
     else {
         return Task::none();
     };
@@ -89,15 +106,18 @@ pub(super) fn tick(state: &mut Workbench, id: window::Id, theme: &Theme) -> Task
 
     let mut tasks = Vec::new();
     let generation = state.scope_generation;
-    for (pane, session) in current.panes.iter() {
-        let Some(session) = session else { continue };
-        let Some(tab) = current.tabs.get_mut(session) else { continue };
+    for (pane, pane_state) in current.panes.grid.iter() {
+        let Some(view_id) = pane_state.active_id else { continue };
+        if !current.panes.is_visible_tab(view_id) {
+            continue;
+        }
+        let Some((session, tab)) = current.tabs.iter_mut().find(|(_, tab)| tab.view_id == view_id) else { continue };
         if !tab.session.capabilities.terminal || tab.session.state == Process::Disconnected {
             continue;
         }
         let terminal = &mut tab.terminal;
         let focus_new =
-            terminal.view.is_none() && *pane == current.active_pane && state.dialog.is_none();
+            terminal.view.is_none() && *pane == current.panes.focused && state.dialog.is_none();
         let fresh = terminal.fresh;
         let view = terminal.view.get_or_insert_with(|| {
             AttachedTerminal::new(tab.session.directory.as_str().into(), theme, fresh)
@@ -163,6 +183,7 @@ pub(super) fn output(
                 terminal.error = None;
             }
             if output.finished {
+                terminal.pending_paste = None;
                 tab.session.state = Process::Exited;
             }
         }
@@ -209,8 +230,7 @@ pub(super) fn event(
     if clicked {
         project.select(&key.session);
     }
-    let active = project.panes.get(project.active_pane).and_then(Option::as_deref)
-        == Some(key.session.as_str());
+    let active = project.active_tab().is_some_and(|tab| tab.session.id == key.session);
     if !resize && !active {
         return Task::none();
     }
@@ -239,6 +259,17 @@ pub(super) fn written(
     flush(state, id, key)
 }
 
+pub(super) fn backend_action(
+    state: &mut Workbench,
+    id: window::Id,
+    key: SessionKey,
+    command: iced_term::BackendCommand,
+) -> Task<Message> {
+    let Some(terminal_id) = state.tab_mut(&key).and_then(|tab| tab.terminal.view.as_ref())
+        .map(|view| view.terminal().id) else { return Task::none() };
+    event(state, id, key, iced_term::Event::BackendCall(terminal_id, command))
+}
+
 fn flush(state: &mut Workbench, id: window::Id, key: SessionKey) -> Task<Message> {
     let send = writable(state, &key);
     let generation = state.scope_generation;
@@ -249,7 +280,7 @@ fn flush(state: &mut Workbench, id: window::Id, key: SessionKey) -> Task<Message
     if terminal.writing && send {
         return Task::none();
     }
-    let (bytes, size, overflow) = view.take_input();
+    let (mut bytes, size, overflow) = view.take_input();
     if let Some((rows, cols)) = size {
         terminal.size = Some(CliWorkbenchTerminalSize { rows, cols });
         terminal.size_pending = true;
@@ -266,6 +297,22 @@ fn flush(state: &mut Workbench, id: window::Id, key: SessionKey) -> Task<Message
         return Task::none();
     }
     let Some(gateway) = gateway else { return Task::none() };
+    if bytes.is_empty() && let Some((prompt, submit)) = terminal.pending_paste.take() {
+        if !view.paste_prompt(prompt) {
+            terminal.error = Some("终端当前无法安全粘贴这段文字");
+            return Task::none();
+        }
+        let (pasted, _, overflow) = view.take_input();
+        if overflow {
+            terminal.error = Some("终端输入过长，已丢弃");
+            return Task::none();
+        }
+        bytes = pasted;
+        if submit {
+            // Enter follows the closing bracketed paste delimiter in the same PTY write.
+            bytes.push(b'\r');
+        }
+    }
     let size = if terminal.size_pending { terminal.size } else { None };
     if bytes.is_empty() && size.is_none() {
         return Task::none();

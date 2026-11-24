@@ -147,30 +147,6 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         let message = match message {
             Message::CliWorkbench(event) => return crate::app::cli_workbench::update(self, event),
-            Message::NativeWindowEvent(id, message) if self.cli_workbench.owns_window(id) => {
-                return match message {
-                    desktop_navigation::global_events::Message::CloseRequested(_) => {
-                        self.close_cli_workbench_window(id)
-                    }
-                    desktop_navigation::global_events::Message::WindowClosed(_) => {
-                        self.cli_workbench.closed(id);
-                        Task::none()
-                    }
-                    _ => Task::none(),
-                };
-            }
-            Message::NativeWindowEvent(_, event) => super::app_subscription::adapt_global_event(event),
-            Message::View(message::ViewMessage::CloseRequested(id))
-                if self.cli_workbench.owns_window(id) =>
-            {
-                return self.close_cli_workbench_window(id);
-            }
-            Message::View(message::ViewMessage::WindowClosed(id))
-                if self.cli_workbench.owns_window(id) =>
-            {
-                self.cli_workbench.closed(id);
-                return Task::none();
-            }
             message => message,
         };
         if crate::app::message::app_providers::leave::intercept(self, &message) {
@@ -204,7 +180,7 @@ impl App {
         let refresh_pins = self.prepare_session_ui_projection(&message);
         let task = match message {
             #[cfg(not(target_arch = "wasm32"))]
-            message @ (Message::CliWorkbench(_) | Message::NativeWindowEvent(..)) => {
+            message @ Message::CliWorkbench(_) => {
                 return self.update(message);
             }
             Message::SessionDetailsHovered { session_id, project_id, directory } => {

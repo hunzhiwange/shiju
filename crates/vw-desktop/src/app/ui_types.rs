@@ -13,8 +13,6 @@ pub enum Message {
     #[allow(private_interfaces)]
     CliWorkbench(crate::app::cli_workbench::Event),
     #[cfg(not(target_arch = "wasm32"))]
-    NativeWindowEvent(iced::window::Id, desktop_navigation::global_events::Message),
-    #[cfg(not(target_arch = "wasm32"))]
     Voice(message::voice::Event),
     #[cfg(not(target_arch = "wasm32"))]
     StartupCliServiceBootstrapped(Result<(), String>),

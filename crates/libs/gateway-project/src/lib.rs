@@ -13,7 +13,7 @@ pub mod profile_operations;
 #[cfg(not(target_arch = "wasm32"))]
 pub use host::ProjectHost;
 #[cfg(not(target_arch = "wasm32"))]
-pub use routes::{router, load_project, project_scope, project_context_directory};
+pub use routes::{router, load_project, project_scope, project_context_directory, project_display_name, project_owns_directory};
 #[cfg(all(not(target_arch = "wasm32"), feature = "test-support"))]
 #[doc(hidden)]
 pub mod testing { pub use super::routes::*; }

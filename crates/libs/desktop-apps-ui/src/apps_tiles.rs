@@ -31,6 +31,8 @@ pub enum Event {
     OpenWebUrlWithTitleAndSize(String, String, Option<i32>, Option<i32>),
     OpenUrlExternal(String), WebBookmarkEditStart(usize), OpenKnowledge,
     OpenWorkflowTool, OpenThirdPartyAgents, AppsSearchChanged(String),
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenCliWorkbench,
 }
 use Event as Message;
 use iced::widget::{Space, button, column, container, row, stack, text, text_input};
@@ -72,7 +74,15 @@ fn compute_tile_columns(window_width: f32, tile_width: f32, gap: f32) -> usize {
 
 #[cfg(test)]
 fn builtin_tile_titles() -> Vec<&'static str> {
-    vec!["项目管理", "添加网址", "知识库", "工作流", "第三方智能体"]
+    vec![
+        "项目管理",
+        #[cfg(not(target_arch = "wasm32"))]
+        "CLI 工作台",
+        "添加网址",
+        "知识库",
+        "工作流",
+        "第三方智能体",
+    ]
 }
 
 /// 渲染应用瓦片网格
@@ -129,6 +139,18 @@ pub fn render_tiles_grid<'a>(window_width: f32, query: &str, i18n: I18n, bookmar
                 ),
             ],
             msg(Message::OpenMostRecent),
+        ));
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    if matches("CLI 工作台") {
+        tiles.push(ui::tile(
+            i18n,
+            Icon::Terminal,
+            i18n.__("CLI 工作台").to_string(),
+            Color::from_rgb8(0x15, 0x8E, 0xA5),
+            vec![("打开", msg(Message::OpenCliWorkbench))],
+            msg(Message::OpenCliWorkbench),
         ));
     }
 

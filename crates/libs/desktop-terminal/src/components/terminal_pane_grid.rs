@@ -18,8 +18,45 @@ const DIVIDER_HIT_WIDTH: f32 = 9.0;
 const DRAG_THRESHOLD: f32 = 5.0;
 
 pub(super) fn view<'a>(app: ViewInput<'a>) -> Element<'a, Message> {
+    let shortcut_focus = app.focused
+            .then(|| {
+                app
+                    .tabs
+                    .iter()
+                    .find(|tab| Some(tab.id) == app.active_id && tab.edit_title.is_none())
+            })
+            .flatten()
+            .map(|tab| tab.term.widget_id());
+    shared(app.panes, shortcut_focus, Message::Terminal, move |pane, state, top_right| {
+            let tabs = state
+                .tabs
+                .iter()
+                .filter_map(|id| app.tabs.iter().find(|tab| tab.id == *id))
+                .collect();
+            let mut controls = row![toolbar_icon_button(
+                Icon::Plus,
+                Message::Terminal(TerminalMessage::AddToPane(pane)),
+            )];
+            if state.active_id.is_some() {
+                controls = controls.push(split_menu::split_button(app, pane));
+            }
+            if top_right {
+                controls =
+                    controls.push(hide_button()).push(fullscreen_button(app, TAB_HEADER_HEIGHT));
+            }
+
+            let (header, body) = pane_view(app, tabs, state.active_id, controls);
+            (header, body)
+    })
+}
+
+pub(super) fn shared<'a, M: Clone + 'a>(
+    panes: &'a TerminalPanes,
+    shortcut_focus: Option<&'a Id>,
+    on_message: impl Fn(TerminalMessage) -> M + Clone + 'a,
+    content: impl Fn(Pane, &crate::panes::TerminalPane, bool) -> (Element<'a, M>, Element<'a, M>) + 'a,
+) -> Element<'a, M> {
     responsive(move |size| {
-        let panes = app.panes;
         let grid = &panes.grid;
         let mut spacing = PANE_SPACING;
         let mut regions = grid.layout().pane_regions(spacing, 0.0, size);
@@ -34,67 +71,40 @@ pub(super) fn view<'a>(app: ViewInput<'a>) -> Element<'a, Message> {
         let top_right = regions.iter().find_map(|(pane, region)| {
             (region.y == 0.0 && region.x + region.width >= size.width - 0.5).then_some(*pane)
         });
-        let mut grid = PaneGrid::new(grid, move |pane, state, _| {
-            let tabs = state
-                .tabs
-                .iter()
-                .filter_map(|id| app.tabs.iter().find(|tab| tab.id == *id))
-                .collect();
-            let mut controls = row![toolbar_icon_button(
-                Icon::Plus,
-                Message::Terminal(TerminalMessage::AddToPane(pane)),
-            )];
-            if state.active_id.is_some() {
-                controls = controls.push(split_menu::split_button(app, pane));
-            }
-            if Some(pane) == top_right {
-                controls =
-                    controls.push(hide_button()).push(fullscreen_button(app, TAB_HEADER_HEIGHT));
-            }
-
-            let (header, body) = pane_view(app, tabs, state.active_id, controls);
-            let header = iced::widget::mouse_area(header).on_double_click(Message::Terminal(
-                TerminalMessage::TogglePaneMaximized(panes.instance.clone(), pane),
-            ));
+        let make_message = on_message.clone();
+        let mut grid = PaneGrid::new(grid, |pane, state, _| {
+            let (header, body) = content(pane, state, Some(pane) == top_right);
+            let header = iced::widget::mouse_area(header).on_double_click(
+                on_message(TerminalMessage::TogglePaneMaximized(panes.instance.clone(), pane)),
+            );
             pane_grid::Content::new(body).title_bar(pane_grid::TitleBar::new(header))
         })
         .width(Length::Fill)
         .height(Length::Fill)
         .spacing(spacing)
         .min_size(0)
-        .style(|theme| {
-            let mut style = pane_grid::default(theme);
-            style.picked_split.width = PANE_SPACING;
-            style.hovered_split.width = PANE_SPACING;
-            style
-        });
+        .style(super::pane_divider_style);
         if panes.grid.len() > 1 && panes.grid.maximized().is_none() {
-            grid = grid.on_resize(DIVIDER_HIT_WIDTH - spacing, |event| {
-                Message::Terminal(TerminalMessage::ResizePane(panes.instance.clone(), event))
+            grid = grid.on_resize(DIVIDER_HIT_WIDTH - spacing, move |event| {
+                make_message(TerminalMessage::ResizePane(panes.instance.clone(), event))
             });
         }
 
-        let shortcut_focus = app.focused
-            .then(|| {
-                app
-                    .tabs
-                    .iter()
-                    .find(|tab| Some(tab.id) == app.active_id && tab.edit_title.is_none())
-            })
-            .flatten()
-            .map(|tab| tab.term.widget_id());
-        Element::new(TerminalGrid { grid, panes, regions, shortcut_focus })
+        Element::new(TerminalGrid {
+            grid, panes, regions, shortcut_focus, on_message: Box::new(on_message.clone()),
+        })
     })
     .into()
 }
 
 // Iced fills PaneGrid's pane order in diff, not state. Seed it before the first
 // layout so a focus operation on a newly shown grid survives the next diff.
-struct TerminalGrid<'a> {
-    grid: PaneGrid<'a, Message>,
+struct TerminalGrid<'a, M> {
+    grid: PaneGrid<'a, M>,
     panes: &'a TerminalPanes,
     regions: std::collections::BTreeMap<Pane, Rectangle>,
     shortcut_focus: Option<&'a Id>,
+    on_message: Box<dyn Fn(TerminalMessage) -> M + 'a>,
 }
 
 struct GridMemory {
@@ -104,7 +114,7 @@ struct GridMemory {
     title_click: Option<(Pane, mouse::Click)>,
 }
 
-impl TerminalGrid<'_> {
+impl<M: Clone> TerminalGrid<'_, M> {
     fn target(
         &self,
         drag: TabDrag,
@@ -147,9 +157,9 @@ impl Operation for FocusedWidget {
     }
 }
 
-impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
+impl<M: Clone> Widget<M, Theme, Renderer> for TerminalGrid<'_, M> {
     fn tag(&self) -> tree::Tag {
-        tree::Tag::of::<TerminalGrid<'static>>()
+        tree::Tag::of::<GridMemory>()
     }
 
     fn state(&self) -> tree::State {
@@ -201,7 +211,7 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
         cursor: mouse::Cursor,
         renderer: &Renderer,
         clipboard: &mut dyn Clipboard,
-        shell: &mut Shell<'_, Message>,
+        shell: &mut Shell<'_, M>,
         viewport: &Rectangle,
     ) {
         use iced::{keyboard, touch, window};
@@ -216,7 +226,7 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
             self.grid.operate(grid, layout, renderer, &mut focused);
             if focused.0.as_ref() == Some(id) {
                 if !repeat {
-                    shell.publish(Message::Terminal(TerminalMessage::Split(
+                    shell.publish((self.on_message)(TerminalMessage::Split(
                         self.panes.instance.clone(),
                         self.panes.focused,
                         direction,
@@ -320,7 +330,7 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
                 if self.panes.grid.maximized().is_none()
                     && let Some((target, _)) = self.target(pressed, layout, cursor)
                 {
-                    shell.publish(Message::Terminal(TerminalMessage::DockPane(
+                    shell.publish((self.on_message)(TerminalMessage::DockPane(
                         self.panes.instance.clone(),
                         pressed.pane,
                         target,
@@ -336,7 +346,7 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
                     title_click.filter(|(pane, _)| *pane == pressed.pane).map(|(_, click)| click);
                 let click = mouse::Click::new(position, Button::Left, previous);
                 if click.kind() == mouse::click::Kind::Double {
-                    shell.publish(Message::Terminal(TerminalMessage::TogglePaneMaximized(
+                    shell.publish((self.on_message)(TerminalMessage::TogglePaneMaximized(
                         self.panes.instance.clone(),
                         pressed.pane,
                     )));
@@ -416,7 +426,7 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
         renderer: &Renderer,
         viewport: &Rectangle,
         translation: Vector,
-    ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
+    ) -> Option<overlay::Element<'b, M, Theme, Renderer>> {
         self.grid.overlay(
             &mut tree.state.downcast_mut::<GridMemory>().grid,
             layout,

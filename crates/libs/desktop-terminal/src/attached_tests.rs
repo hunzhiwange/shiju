@@ -45,3 +45,31 @@ fn cli_workbench_attach_keeps_user_input_and_reports_measured_size() {
     assert!(!overflow);
     assert_eq!(terminal.take_input(), (Vec::new(), None, false));
 }
+
+#[test]
+fn cli_workbench_attach_renders_tui_and_pastes_without_submitting() {
+    let mut terminal = AttachedTerminal::new("/tmp".into(), &Theme::Dark, true);
+    let first_frame = b"\x1b[?1049h\x1b[?2004hCodex TUI";
+    let cursor = first_frame.len() as u64;
+    assert!(terminal.apply_output(0, 0, cursor, first_frame, false, true));
+    assert!(terminal.terminal.text().iter().any(|line| line.contains("Codex TUI")));
+    assert!(terminal.paste_prompt("one\ntwo".into()));
+    assert_eq!(terminal.take_input().0.as_slice(), b"\x1b[200~one\ntwo\x1b[201~");
+
+    let second_frame = b"\x1b[2J\x1b[HRunning";
+    assert!(terminal.apply_output(cursor, cursor, cursor + second_frame.len() as u64, second_frame, false, true));
+    let text = terminal.terminal.text();
+    assert!(text.iter().any(|line| line.contains("Running")));
+    assert!(!text.iter().any(|line| line.contains("Codex TUI")));
+}
+
+#[test]
+fn cli_workbench_attach_rejects_pastes_that_can_emit_terminal_controls() {
+    let mut terminal = AttachedTerminal::new("/tmp".into(), &Theme::Light, true);
+    for prompt in ["two\nlines", "submit\r", "\x1b[201~"] {
+        assert!(!terminal.paste_prompt(prompt.into()));
+        assert!(terminal.take_input().0.is_empty());
+    }
+    assert!(terminal.paste_prompt("检查工作区".into()));
+    assert_eq!(terminal.take_input().0.as_slice(), "检查工作区".as_bytes());
+}

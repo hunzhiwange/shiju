@@ -11,9 +11,18 @@ use crate::TerminalTab;
 use crate::{ViewInput, message::Message};
 
 pub(super) fn terminal_surface<'a>(app: ViewInput<'a>, tab: &'a TerminalTab) -> Element<'a, Message> {
-    let id = tab.id;
+    surface(&tab.term, tab.id, app.desktop_locale, app.content_menu, true)
+}
+
+pub fn surface<'a>(
+    term: &'a iced_term::Terminal,
+    id: u64,
+    locale: config_ui::DesktopLocale,
+    content_menu: Option<(u64, iced::Point)>,
+    chat_actions: bool,
+) -> Element<'a, Message> {
     let terminal = container(
-        iced_term::TerminalView::show(&tab.term)
+        iced_term::TerminalView::show(term)
             .map(|event| Message::Terminal(TerminalMessage::Event(event))),
     )
     .width(Length::Fill)
@@ -24,8 +33,8 @@ pub(super) fn terminal_surface<'a>(app: ViewInput<'a>, tab: &'a TerminalTab) -> 
         Box::new(move |position| Message::Terminal(TerminalMessage::ContentMenuOpen(id, position))),
     )
     .preserve_on_right_click();
-    let position = app.content_menu.filter(|(menu_id, _)| *menu_id == id);
-    let menu = if position.is_some() { menu(app, tab) } else { Space::new().into() };
+    let position = content_menu.filter(|(menu_id, _)| *menu_id == id);
+    let menu = if position.is_some() { menu(locale, id, term.has_selection(), chat_actions) } else { Space::new().into() };
 
     PointBelowOverlay::new(surface, menu)
         .show(position.is_some())
@@ -37,10 +46,13 @@ pub(super) fn terminal_surface<'a>(app: ViewInput<'a>, tab: &'a TerminalTab) -> 
         .into()
 }
 
-fn menu(app: ViewInput<'_>, tab: &TerminalTab) -> Element<'static, Message> {
-    let i18n = I18n::new(app.desktop_locale);
-    let selected = tab.term.has_selection();
-    let id = tab.id;
+fn menu(
+    locale: config_ui::DesktopLocale,
+    id: u64,
+    selected: bool,
+    chat_actions: bool,
+) -> Element<'static, Message> {
+    let i18n = I18n::new(locale);
     let item = |label, shortcut, action, enabled: bool| {
         button(
             row![
@@ -79,10 +91,10 @@ fn menu(app: ViewInput<'_>, tab: &TerminalTab) -> Element<'static, Message> {
         })
     };
     let shortcut = |mac, other| if cfg!(target_os = "macos") { mac } else { other };
-    let [split_left, split_right, split_up, split_down] = split_items(app, |direction| {
+    let [split_left, split_right, split_up, split_down] = split_items(locale, |direction| {
         TerminalMessage::ContentMenuAction(id, ContentAction::Split(direction))
     });
-    let items = column![
+    let mut items = column![
         item(i18n.__("新建终端"), "", ContentAction::NewTerminal, true),
         rule::horizontal(1),
         item(i18n.__("复制"), shortcut("⌘ C", "Ctrl+Shift+C"), ContentAction::Copy, selected),
@@ -95,17 +107,21 @@ fn menu(app: ViewInput<'_>, tab: &TerminalTab) -> Element<'static, Message> {
         ),
         item(i18n.__("全选"), shortcut("⌘ A", "Ctrl+Shift+A"), ContentAction::SelectAll, true),
         item(i18n.__("清屏"), shortcut("⌘ K", "Ctrl+Shift+K"), ContentAction::Clear, true),
-        rule::horizontal(1),
-        item(i18n.__("在聊天中求助"), "", ContentAction::AskInChat, true),
-        item(i18n.__("插入到聊天"), "", ContentAction::InsertInChat, selected),
-        rule::horizontal(1),
+    ];
+    if chat_actions {
+        items = items.push(rule::horizontal(1))
+            .push(item(i18n.__("在聊天中求助"), "", ContentAction::AskInChat, true))
+            .push(item(i18n.__("插入到聊天"), "", ContentAction::InsertInChat, selected));
+    }
+    let items = items.extend([
+        rule::horizontal(1).into(),
         split_left,
         split_right,
         split_up,
         split_down,
-        rule::horizontal(1),
-        item(i18n.__("关闭终端标签页"), "", ContentAction::CloseTab, true),
-    ]
+        rule::horizontal(1).into(),
+    ])
+    .push(item(i18n.__("关闭终端标签页"), "", ContentAction::CloseTab, true))
     .spacing(2);
     container(scrollable(items).direction(scrollable::Direction::Vertical(
         scrollable::Scrollbar::new().width(4).scroller_width(4).spacing(3),

@@ -236,26 +236,68 @@ fn discover_installations(
     }).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
 }
 
-/// Prepare an interactive command after the workbench route authorizes direct local access
-/// and binds the cwd to a registered project. Returns the same scoped host environment
-/// and native app validation as the external-terminal launch.
+#[cfg(target_os = "macos")]
+fn workbench_authorization(tenant: &TenantScope) -> Result<super::access::Authorization, StatusCode> {
+    let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from);
+    let authorization = super::access::authorize_identity_launch(
+        policy.as_deref(), &HeaderMap::new(), tenant, local_app_auth::HOST_ID,
+    )?;
+    if authorization.host.id != local_app_auth::HOST_ID {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    Ok(authorization)
+}
+
+#[cfg(target_os = "macos")]
+fn workbench_installation(
+    observed: &vw_api_app_identity::AppReadResponse,
+) -> Option<&vw_api_app_identity::AppInstallation> {
+    use vw_api_app_identity::AppInstallationRuntimeStatus;
+
+    let mut runnable = observed.installations.iter().filter(|installation| {
+        installation.runtime_status == AppInstallationRuntimeStatus::Runnable
+    });
+    let first = runnable.next()?;
+    if first.is_path_default { Some(first) } else {
+        Some(runnable.find(|candidate| candidate.is_path_default).unwrap_or(first))
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub fn workbench_native_apps(tenant: &TenantScope) -> Vec<vw_api_types::cli_workbench::CliWorkbenchNativeApp> {
+    use vw_api_app_identity::AppRuntimeKind;
+    use vw_api_types::cli_workbench::CliWorkbenchNativeApp;
+
+    let Ok(authorization) = workbench_authorization(tenant) else { return Vec::new() };
+    let host = &authorization.host;
+    vw_agent_apps::apps::catalog::catalog().into_iter().filter_map(|app| {
+        let entry = app.metadata;
+        if !entry.runtime_kinds.contains(&AppRuntimeKind::NativeCli)
+            || authorize_native_login(&authorization, entry.id).is_err()
+        {
+            return None;
+        }
+        let observed = discover_installations(
+            entry.id, &host.id, &host.home, &host.search_paths, host.applications.clone(),
+        ).ok()?;
+        workbench_installation(&observed)?;
+        let serde_json::Value::String(id) = serde_json::to_value(entry.id).ok()? else { return None };
+        Some(CliWorkbenchNativeApp { id, name: entry.name })
+    }).collect()
+}
+
+/// Build the selected native CLI or interactive Shell on the authorized local host.
 #[cfg(target_os = "macos")]
 pub fn workbench_command(
     tenant: &TenantScope,
     target: &vw_api_types::cli_workbench::CliWorkbenchTarget,
     directory: &str,
 ) -> Result<std::process::Command, StatusCode> {
-    use vw_api_app_identity::{AppId, AppInstallationRuntimeStatus, AppRuntimeKind};
+    use vw_api_app_identity::{AppId, AppRuntimeKind};
     use vw_api_types::cli_workbench::CliWorkbenchTarget;
 
-    let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from);
-    let authorization = super::access::authorize_identity_launch(
-        policy.as_deref(), &HeaderMap::new(), tenant, local_app_auth::HOST_ID,
-    )?;
+    let authorization = workbench_authorization(tenant)?;
     let host = &authorization.host;
-    if host.id != local_app_auth::HOST_ID {
-        return Err(StatusCode::FORBIDDEN);
-    }
     let root = host.home.canonicalize().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let cwd = Path::new(directory).canonicalize().map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
     if cwd != Path::new(directory)
@@ -285,13 +327,7 @@ pub fn workbench_command(
             let observed = discover_installations(
                 app_id, &host.id, &host.home, &host.search_paths, host.applications.clone(),
             )?;
-            let mut runnable = observed.installations.iter().filter(|installation| {
-                installation.runtime_status == AppInstallationRuntimeStatus::Runnable
-            });
-            let first = runnable.next().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-            let installation = if first.is_path_default { first } else {
-                runnable.find(|candidate| candidate.is_path_default).unwrap_or(first)
-            };
+            let installation = workbench_installation(&observed).ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
             let request = LaunchRequest {
                 app_id,
                 installation_id: installation.id.clone(),

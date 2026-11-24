@@ -50,6 +50,16 @@ async fn cli_workbench_acp_lists_sessions_for_registered_project() {
     let (status, body) = request(&tenant, "GET", &path, Value::Null).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body, json!([]));
+
+    let directory = gateway_project::encode_path_segment(&project.worktree);
+    let path = format!("/v1/cli-workbench/projects?directory={directory}");
+    let (status, body) = request(&tenant, "GET", &path, Value::Null).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["preferred_project"], json!(project.id.as_str()));
+    let entry = body["projects"].as_array().unwrap().iter()
+        .find(|entry| entry["id"] == project.id.as_str()).unwrap();
+    assert_eq!(entry["sessions"], json!([]));
+    assert!(entry.get("git").is_none());
 }
 
 #[cfg(unix)]

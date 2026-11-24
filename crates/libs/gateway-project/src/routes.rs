@@ -155,20 +155,8 @@ pub fn map_project(info: &project::Info, host: ProjectHost) -> ProjectDto {
         ahead: None,
         behind: None,
     };
-    let display_name = info
-        .name
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .or_else(|| {
-            std::path::Path::new(&directory)
-                .file_name()
-                .and_then(|value| value.to_str())
-                .map(ToOwned::to_owned)
-        })
-        .unwrap_or_else(|| directory.clone());
-    let session_count = Some(
-        (host.session_count)(&directory),
-    );
+    let display_name = project_display_name(info, &directory);
+    let session_count = Some((host.session_count)(&directory));
 
     ProjectDto {
         id: info.id.as_str().into(),
@@ -184,6 +172,20 @@ pub fn map_project(info: &project::Info, host: ProjectHost) -> ProjectDto {
         active_worktree_id: None,
         session_count,
     }
+}
+
+pub fn project_display_name(info: &project::Info, directory: &str) -> String {
+    info
+        .name
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            std::path::Path::new(&directory)
+                .file_name()
+                .and_then(|value| value.to_str())
+                .map(ToOwned::to_owned)
+        })
+        .unwrap_or_else(|| directory.to_owned())
 }
 
 pub fn worktree_id_from_directory(directory: &str) -> String {

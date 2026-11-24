@@ -37,10 +37,6 @@ pub(crate) enum MainWindowViewKind {
 
 impl App {
     pub fn view_window(&self, window: iced::window::Id) -> Element<'_, Message> {
-        #[cfg(not(target_arch = "wasm32"))]
-        if self.cli_workbench.owns_window(window) {
-            return crate::app::cli_workbench::view(self, window);
-        }
         if self.task_pet_window_id == Some(window) {
             components::task_pet::window(self)
         } else {
@@ -129,6 +125,11 @@ impl App {
             Screen::Project => views::project::view(self),
             Screen::Preview => components::preview_panel::view(self),
             Screen::Apps => views::apps::view(self),
+            #[cfg(not(target_arch = "wasm32"))]
+            Screen::CliWorkbench => self.main_window_id.map_or_else(
+                || iced::widget::Space::new().into(),
+                |id| crate::app::cli_workbench::view(self, id),
+            ),
             Screen::Usage => views::usage::view(self),
             Screen::Knowledge => views::knowledge::view(self),
             Screen::WorkflowTool => crate::apps::workflow::view(self),
@@ -163,7 +164,11 @@ impl App {
         let status_bar: Element<'_, Message> = app_view_status::status_bar(self);
 
         // 当系统设置打开时，仅保留顶部菜单栏，其余区域全部由设置面板占满
-        let main_view: Element<'_, Message> = if self.mobile_layout.mode()
+        #[cfg(not(target_arch = "wasm32"))]
+        let workbench_active = self.navigation_tabs.screen == Screen::CliWorkbench;
+        #[cfg(target_arch = "wasm32")]
+        let workbench_active = false;
+        let main_view: Element<'_, Message> = if !workbench_active && self.mobile_layout.mode()
             == crate::app::state::LayoutMode::Mobile
         {
             views::mobile::narrow_view(self)

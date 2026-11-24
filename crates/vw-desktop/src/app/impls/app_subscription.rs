@@ -149,9 +149,6 @@ fn map_global_event(
     id: iced::window::Id,
 ) -> Option<Message> {
     let event = desktop_navigation::global_events::map_global_event(event, status, id)?;
-    #[cfg(not(target_arch = "wasm32"))]
-    return Some(Message::NativeWindowEvent(id, event));
-    #[cfg(target_arch = "wasm32")]
     Some(adapt_global_event(event))
 }
 
@@ -239,14 +236,16 @@ impl App {
             Subscription::run(browser_layout_stream),
             crate::app::components::daily_memory::subscription(&self.apps_catalog.daily_memory),
             #[cfg(not(target_arch = "wasm32"))]
-            if self.cli_workbench.window.is_some() {
+            if self.navigation_tabs.screen == crate::app::Screen::CliWorkbench {
                 iced::time::every(std::time::Duration::from_secs(3))
                     .map(|_| Message::CliWorkbench(crate::app::cli_workbench::Event::Tick))
             } else {
                 Subscription::none()
             },
             #[cfg(not(target_arch = "wasm32"))]
-            if self.cli_workbench.has_visible_terminal() {
+            if self.navigation_tabs.screen == crate::app::Screen::CliWorkbench
+                && self.cli_workbench.has_visible_terminal()
+            {
                 iced::time::every(std::time::Duration::from_millis(80))
                     .map(|_| Message::CliWorkbench(crate::app::cli_workbench::Event::TerminalTick))
             } else {

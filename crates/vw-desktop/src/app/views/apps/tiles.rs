@@ -16,6 +16,11 @@ fn map(event: Event) -> Message {
         Event::OpenKnowledge => Message::View(ViewMessage::OpenKnowledge),
         Event::OpenWorkflowTool => Message::View(ViewMessage::OpenWorkflowTool),
         Event::OpenThirdPartyAgents => Message::View(ViewMessage::OpenThirdPartyAgents),
+        #[cfg(not(target_arch = "wasm32"))]
+        Event::OpenCliWorkbench => Message::CliWorkbench(crate::app::cli_workbench::Event::Open {
+            backend: None,
+            native_app: None,
+        }),
         Event::AppsSearchChanged(query) => Message::View(ViewMessage::AppsSearchChanged(query)),
     }
 }

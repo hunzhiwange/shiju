@@ -22,6 +22,7 @@ use vw_api_types::cli_workbench::{
     CliWorkbenchCapabilities, CliWorkbenchDeliveryCapability, CliWorkbenchError,
     CliWorkbenchErrorCode as ErrorCode, CliWorkbenchMessage, CliWorkbenchMessageId,
     CliWorkbenchMessageState as MessageState, CliWorkbenchProcessState as ProcessState,
+    CliWorkbenchProject, CliWorkbenchProjects,
     CliWorkbenchSession, CliWorkbenchTarget, SendCliWorkbenchMessage, StartCliWorkbenchSession,
 };
 
@@ -178,10 +179,61 @@ impl Turn {
 
 pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
     collaboration_routes()
+        .route("/cli-workbench/projects", get(projects))
         .merge(terminal::routes())
         .merge(drafts::routes())
         .route(&format!("{SESSIONS}/{{session}}/stop"), post(stop))
         .layer(from_fn(crate::gateway::user_scope::session_user))
+}
+
+#[derive(Deserialize)]
+struct ProjectsQuery {
+    directory: Option<String>,
+}
+
+async fn projects(
+    Extension(tenant): Extension<TenantScope>,
+    terminal: terminal::Authority,
+    Query(query): Query<ProjectsQuery>,
+) -> Result<Json<CliWorkbenchProjects>, WorkbenchError> {
+    let records = agent_project::list(&tenant).await.map_err(|_| unavailable())?;
+    let preferred_project = query.directory.as_deref().and_then(|directory| {
+        records
+            .iter()
+            .find(|record| record.worktree == directory)
+            .or_else(|| records.iter().find(|record| gateway_project::project_owns_directory(record, directory)))
+            .map(|record| record.id.as_str().to_owned())
+    });
+    let mut projects: Vec<_> = records.iter().map(|record| {
+        let directory = gateway_project::project_context_directory(record).unwrap_or_default();
+        CliWorkbenchProject {
+            id: record.id.as_str().to_owned(),
+            name: gateway_project::project_display_name(record, &directory),
+            directory,
+            sessions: Vec::new(),
+        }
+    }).collect();
+    attach_project_sessions(&mut WORKBENCH.lock(), &tenant, &mut projects);
+    Ok(Json(CliWorkbenchProjects { projects, preferred_project, terminal_available: terminal.available() }))
+}
+
+fn attach_project_sessions(
+    workbench: &mut Workbench,
+    tenant: &TenantScope,
+    projects: &mut [CliWorkbenchProject],
+) {
+    let mut by_id: HashMap<_, _> = projects.iter_mut().map(|project| {
+        (project.id.as_str(), &mut project.sessions)
+    }).collect();
+    for session in workbench.sessions.values_mut().filter(|session| session.scope.tenant_scope() == tenant) {
+        if let Some(sessions) = by_id.get_mut(session.scope.project_id().as_ref()) {
+            session.refresh_process_state();
+            sessions.push(session.info.clone());
+        }
+    }
+    for sessions in by_id.values_mut() {
+        sessions.sort_unstable_by(|left, right| left.id.cmp(&right.id));
+    }
 }
 
 fn collaboration_routes<S: Clone + Send + Sync + 'static>() -> Router<S> {

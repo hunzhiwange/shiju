@@ -55,6 +55,8 @@ pub enum Screen {
     Project,
     Preview,
     Apps,
+    #[cfg(not(target_arch = "wasm32"))]
+    CliWorkbench,
     Usage,
     Knowledge,
     WorkflowTool,

@@ -62,7 +62,6 @@ impl crate::app::App {
         Task::none()
     }
 }
-
 #[cfg(not(target_os = "macos"))]
 pub(crate) fn hide_main_window<T: MaybeSend + 'static>(id: window::Id) -> Task<T> {
     window::set_mode(id, window::Mode::Hidden)
@@ -77,36 +76,5 @@ pub(crate) fn show_main_window<T: MaybeSend + 'static>(id: window::Id) -> Task<T
             .chain(window::minimize(id, false))
             .chain(window::set_mode(id, window::Mode::Windowed))
             .chain(window::gain_focus(id))
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl crate::app::App {
-    pub(in crate::app) fn open_cli_workbench_window(
-        &mut self,
-    ) -> (window::Id, Task<crate::app::Message>) {
-        if let Some(id) = self.cli_workbench.window {
-            return (id, show_main_window(id));
-        }
-        let (id, open) = window::open(window::Settings {
-            size: iced::Size::new(1080.0, 720.0),
-            min_size: Some(iced::Size::new(420.0, 420.0)),
-            position: window::Position::Centered,
-            exit_on_close_request: false,
-            ..Default::default()
-        });
-        self.cli_workbench.attach(id);
-        (id, open.discard())
-    }
-
-    pub(in crate::app) fn close_cli_workbench_window(
-        &mut self,
-        id: window::Id,
-    ) -> Task<crate::app::Message> {
-        if self.cli_workbench.request_close(id) {
-            window::close(id)
-        } else {
-            Task::none()
-        }
     }
 }

@@ -42,7 +42,7 @@ fn direct_local(peer: Option<SocketAddr>, headers: &HeaderMap) -> bool {
 }
 
 impl Authority {
-    fn available(&self) -> bool {
+    pub(super) fn available(&self) -> bool {
         cfg!(target_os = "macos") && self.0.as_ref().is_some_and(|local| !local.0.is_cancelled())
     }
 
@@ -63,8 +63,32 @@ pub(super) fn routes<S: Clone + Send + Sync + 'static>() -> Router<S> {
     router
 }
 
-async fn capability(authority: Authority) -> Json<CliWorkbenchTerminalCapability> {
-    Json(CliWorkbenchTerminalCapability { available: authority.available() })
+#[derive(Deserialize)]
+struct CapabilityQuery {
+    #[serde(default)]
+    include_apps: bool,
+}
+
+async fn capability(
+    authority: Authority,
+    Extension(tenant): Extension<TenantScope>,
+    Query(query): Query<CapabilityQuery>,
+) -> Result<Json<CliWorkbenchTerminalCapability>, WorkbenchError> {
+    let available = authority.available();
+    #[cfg(target_os = "macos")]
+    let native_apps = if available && query.include_apps {
+        tokio::task::spawn_blocking(move || gateway_agent_apps::launch::workbench_native_apps(&tenant))
+            .await
+            .map_err(|_| unavailable())?
+    } else {
+        Vec::new()
+    };
+    #[cfg(not(target_os = "macos"))]
+    let native_apps = {
+        let _ = (tenant, query.include_apps);
+        Vec::new()
+    };
+    Ok(Json(CliWorkbenchTerminalCapability { available, native_apps }))
 }
 
 #[cfg(target_os = "macos")]

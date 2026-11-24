@@ -148,6 +148,10 @@ impl Terminal {
         )
     }
 
+    pub fn bracketed_paste_enabled(&self) -> bool {
+        self.backend.renderable_content().terminal_mode.contains(crate::TermMode::BRACKETED_PASTE)
+    }
+
     /// The latest known shell directory, falling back to its launch directory.
     pub fn working_directory(&self) -> Option<std::path::PathBuf> {
         self.backend.working_directory()

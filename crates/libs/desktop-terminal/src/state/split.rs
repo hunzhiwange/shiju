@@ -12,19 +12,9 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
         direction: Direction,
         cwd: Option<PathBuf>,
     ) -> Result<(), SplitError> {
-        if self.panes.grid.get(pane).and_then(|pane| pane.active_id).is_none() {
-            return Err(SplitError::MissingPane);
-        }
-        let axis = match direction {
-            Direction::Left | Direction::Right => Axis::Vertical,
-            Direction::Up | Direction::Down => Axis::Horizontal,
-        };
         let mut grid = self.panes.grid.clone();
-        let (new_pane, _) =
-            grid.split(axis, pane, TerminalPane::default()).ok_or(SplitError::MissingPane)?;
-        if matches!(direction, Direction::Left | Direction::Up) {
-            grid.swap(pane, new_pane);
-        }
+        let new_pane = crate::panes::split_grid(&mut grid, pane, direction)
+            .ok_or(SplitError::MissingPane)?;
 
         // Alacritty can silently ignore an invalid working directory on Unix.
         if cwd.as_ref().is_some_and(|path| !path.is_dir()) {

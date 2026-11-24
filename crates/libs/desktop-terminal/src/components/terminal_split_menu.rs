@@ -3,9 +3,11 @@ use iced::widget::pane_grid::{Direction, Pane};
 use iced::widget::{button, column, container, row, svg, text};
 use iced::{Border, Element, Length, Point, Shadow, Theme, Vector};
 
-use super::{TAB_HEADER_HEIGHT, toolbar_icon_button};
+use super::{TAB_HEIGHT, TAB_TOOLBAR_BUTTON_WIDTH};
 use desktop_assets::assets::{self, Icon};
 use desktop_ui_controls::overlays::point_below::PointBelowOverlay;
+use desktop_ui_controls::system_settings_common::icon_svg;
+use desktop_ui_controls::system_settings_common::icons::{icon_btn_style, icon_btn_svg_style};
 use desktop_i18n::I18n;
 use crate::message::TerminalMessage;
 use crate::{ViewInput, message::Message};
@@ -44,10 +46,10 @@ pub(super) fn shortcut(event: &Event) -> Option<Direction> {
 }
 
 pub(super) fn split_items(
-    app: ViewInput<'_>,
+    locale: config_ui::DesktopLocale,
     on_split: impl Fn(Direction) -> TerminalMessage,
 ) -> [Element<'static, Message>; 4] {
-    let i18n = I18n::new(app.desktop_locale);
+    let i18n = I18n::new(locale);
     DIRECTIONS.map(|(direction, _, icon, label, arrow)| {
         let shortcut = match (MACOS, direction) {
             (true, Direction::Right) => "⌘D".into(),
@@ -94,8 +96,16 @@ pub(super) fn split_items(
 }
 
 pub(super) fn split_button(app: ViewInput<'_>, pane: Pane) -> Element<'static, Message> {
-    let items = column![].extend(split_items(app, |direction| {
-        TerminalMessage::Split(app.panes.instance.clone(), pane, direction)
+    split_control(app.panes, app.desktop_locale, pane)
+}
+
+pub fn split_control(
+    panes: &crate::panes::TerminalPanes,
+    locale: config_ui::DesktopLocale,
+    pane: Pane,
+) -> Element<'static, Message> {
+    let items = column![].extend(split_items(locale, |direction| {
+        TerminalMessage::Split(panes.instance.clone(), pane, direction)
     }));
     let menu =
         container(items).width(if MACOS { 200 } else { 240 }).padding(4).style(|theme: &Theme| {
@@ -114,17 +124,18 @@ pub(super) fn split_button(app: ViewInput<'_>, pane: Pane) -> Element<'static, M
                 ..Default::default()
             }
         });
-    PointBelowOverlay::new(
-        toolbar_icon_button(
-            Icon::Columns,
-            Message::Terminal(TerminalMessage::ToggleSplitMenu(pane)),
-        ),
-        menu,
-    )
-    .show(app.panes.split_menu == Some(pane))
-    .anchor(Point::new(-14.0, TAB_HEADER_HEIGHT))
-    .gap(2.0)
-    .capture_keyboard()
-    .on_close(Message::Terminal(TerminalMessage::CloseSplitMenu))
-    .into()
+    let icon = container(icon_svg(Icon::Columns, 14.0).style(icon_btn_svg_style))
+        .center_x(TAB_TOOLBAR_BUTTON_WIDTH)
+        .center_y(TAB_HEIGHT);
+    let trigger = button(icon)
+        .on_press(Message::Terminal(TerminalMessage::ToggleSplitMenu(pane)))
+        .padding(0)
+        .style(icon_btn_style);
+    PointBelowOverlay::new(trigger, menu)
+        .show(panes.split_menu == Some(pane))
+        .anchor(Point::new(-14.0, TAB_HEIGHT))
+        .gap(2.0)
+        .capture_keyboard()
+        .on_close(Message::Terminal(TerminalMessage::CloseSplitMenu))
+        .into()
 }

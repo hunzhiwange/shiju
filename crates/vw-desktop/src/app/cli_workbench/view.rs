@@ -1,11 +1,14 @@
 use desktop_assets::assets::Icon;
+use desktop_terminal::terminal_panel::{TAB_HEIGHT, TAB_TOOLBAR_BUTTON_WIDTH};
 use desktop_ui_controls::system_settings_common::*;
+use desktop_ui_controls::system_settings_common::icons::{icon_btn_style, icon_btn_svg_style};
+use desktop_ui_controls::system_settings_common::tabs::settings_compact_tab_button;
 use gateway_interaction::PendingPermissionReplyDto;
 use iced::{
-    Alignment, Element, Length,
+    Alignment, Border, Element, Length, Theme,
     widget::{
-        Column, Space, button, column, container, pane_grid, responsive, row, scrollable, text,
-        text::Wrapping, text_input,
+        Column, Space, button, column, container, responsive, row, scrollable, svg, text,
+        text::Wrapping, text_input, tooltip,
     },
     window,
 };
@@ -26,6 +29,7 @@ pub(super) const DIALOG_INPUT: &str = "cli-workbench-dialog-input";
 struct View {
     window: window::Id,
     i18n: I18n,
+    locale: config_ui::DesktopLocale,
 }
 
 impl View {
@@ -39,7 +43,8 @@ impl View {
 }
 
 pub(crate) fn view(app: &App, id: window::Id) -> Element<'_, Message> {
-    let ui = View { window: id, i18n: I18n::new(app.general_settings.desktop_locale) };
+    let locale = app.general_settings.desktop_locale;
+    let ui = View { window: id, i18n: I18n::new(locale), locale };
     let state = &app.cli_workbench;
     responsive(move |size| {
         let selected = state
@@ -64,18 +69,7 @@ pub(crate) fn view(app: &App, id: window::Id) -> Element<'_, Message> {
                     .or(project.approval_error.then_some("无法读取工作台审批"))
             })
         });
-        let base = column![
-            row![
-                text(ui.label("CLI 工作台")).size(17).width(Length::Fill),
-                icon_btn(
-                    Icon::ArrowClockwise,
-                    ui.label("刷新"),
-                    (!state.discovering).then_some(ui.msg(Action::Refresh))
-                ),
-            ]
-            .align_y(Alignment::Center),
-        ]
-        .spacing(8);
+        let base = column![].spacing(6);
         let base = if let Some(error) = error {
             base.push(settings_error_banner(ui.label(error).to_owned()))
         } else {
@@ -119,14 +113,20 @@ fn vertical<'a>(content: Column<'a, Message>) -> scrollable::Scrollable<'a, Mess
 }
 
 fn sidebar<'a>(ui: View, state: &'a Workbench) -> Element<'a, Message> {
-    let mut list =
-        column![text(ui.label("项目")).size(13).style(settings_muted_text_style)].spacing(5);
+    let mut list = column![row![
+        text(ui.label("项目")).size(13).style(settings_muted_text_style).width(Length::Fill),
+        icon_btn(
+            Icon::ArrowClockwise,
+            ui.label("刷新"),
+            (!state.discovering).then_some(ui.msg(Action::Refresh)),
+        ),
+    ].align_y(Alignment::Center)].spacing(5);
     for (id, project) in &state.projects {
         list = list.push(
-            control(
-                &project.name,
-                Some(ui.msg(Action::SelectProject(id.clone()))),
+            settings_compact_tab_button(
+                project.name.as_str(),
                 state.selected.as_ref() == Some(id),
+                ui.msg(Action::SelectProject(id.clone())),
             )
             .width(Length::Fill),
         );
@@ -200,163 +200,228 @@ fn sidebar<'a>(ui: View, state: &'a Workbench) -> Element<'a, Message> {
         .into()
 }
 
+#[derive(Clone, PartialEq)]
+pub(super) struct LaunchChoice {
+    pub(super) target: CliWorkbenchTarget,
+    label: String,
+}
+
+impl std::fmt::Display for LaunchChoice {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.label)
+    }
+}
+
+pub(super) fn launch_choices(state: &Workbench, i18n: I18n) -> Vec<LaunchChoice> {
+    let mut choices = Vec::new();
+    if state.terminal_available {
+        choices.push(LaunchChoice {
+            target: CliWorkbenchTarget::Shell,
+            label: i18n.__("新建 Shell").into(),
+        });
+        let mut apps: Vec<_> = state.native_apps.iter()
+            .map(|app| (app.id.as_str(), app.name.as_str()))
+            .collect();
+        if !apps.iter().any(|(id, _)| *id == super::CODEX_APP_ID) {
+            apps.push((super::CODEX_APP_ID, "Codex"));
+        }
+        apps.sort_by_key(|(id, _)| state.native_app.as_deref() != Some(*id));
+        choices.extend(apps.into_iter().map(|(id, name)| LaunchChoice {
+            target: CliWorkbenchTarget::NativeCli { app_id: id.into() },
+            label: format!("{name} · {}", i18n.__("终端")),
+        }));
+    }
+    choices.extend(state.agents.iter()
+        .filter(|agent| !state.terminal_available || agent.matching_backend(Some(super::CODEX_APP_ID)).is_none())
+        .map(|agent| LaunchChoice {
+            target: CliWorkbenchTarget::Acp { agent: agent.key.clone() },
+            label: format!("{} · {}", agent.label(), i18n.__("ACP 对话")),
+        }));
+    choices
+}
+
 fn workspace<'a>(
     ui: View,
     state: &'a Workbench,
     project_id: &'a str,
     project: &'a Project,
 ) -> Element<'a, Message> {
-    let active = project.panes.get(project.active_pane).and_then(|session| session.as_ref());
+    let active = project.active_tab();
     let sendable = |tab: &Tab| {
         tab.can_send()
             && !project.disconnected
             && (!tab.session.capabilities.terminal || state.terminal_available)
     };
-    let active_target = active.filter(|id| project.tabs.get(*id).is_some_and(sendable)).cloned();
-    let mut tools = row![control(
-        ui.label("发送消息"),
-        project.tabs.values().any(sendable).then_some(ui.msg(Action::Compose(active_target))),
-        false,
-    ),]
-    .spacing(6)
-    .align_y(Alignment::Center);
-    if state.terminal_available {
-        let can_start = !state.starting && !project.disconnected;
-        tools = tools.push(control(
-            ui.label("新建 Shell"),
-            can_start.then_some(ui.msg(Action::StartTerminal(CliWorkbenchTarget::Shell))),
-            false,
-        ));
-        if let Some(app_id) = &state.native_app {
-            tools = tools.push(control(
-                ui.label("新建原生 CLI"),
-                can_start.then_some(ui.msg(Action::StartTerminal(CliWorkbenchTarget::NativeCli {
-                    app_id: app_id.clone(),
-                }))),
-                true,
-            ));
+    let active_target = active.filter(|tab| sendable(tab)).map(|tab| tab.session.id.clone());
+    let can_start = !state.starting && !project.disconnected;
+    let choices = launch_choices(state, ui.i18n);
+    let empty_label = choices.is_empty().then(|| {
+        if state.agents_loading {
+            ui.label("正在读取 ACP 智能体…")
+        } else {
+            ui.label("此项目暂无可用的 ACP 智能体")
         }
-    }
-    if state.agents_loading {
-        tools = tools
-            .push(text(ui.label("正在读取 ACP 智能体…")).size(12).style(settings_muted_text_style));
-    } else if state.backend.is_some() && state.agents.is_empty() {
-        tools = tools.push(
-            text(ui.label("此应用暂无可用的 ACP 智能体")).size(12).style(settings_muted_text_style),
-        );
-    } else if !state.agents.is_empty() {
-        let select = settings_select(
-            state.agents.iter().map(|agent| agent.key.clone()),
-            state.agent.clone(),
-            move |key| ui.msg(Action::SelectAgent(key)),
-        )
-        .format_labels(|key| {
-            state
-                .agents
-                .iter()
-                .find(|agent| &agent.key == key)
-                .map_or_else(|| key.clone(), |agent| agent.label().to_owned())
-        })
-        .placeholder(ui.label("选择 ACP 智能体"))
-        .width(180)
-        .height(32.0);
-        tools = tools.push(select).push(control(
-            ui.label(if state.starting { "正在创建会话…" } else { "新建 ACP 会话" }),
-            (!state.starting && !project.disconnected && state.agent.is_some())
-                .then_some(ui.msg(Action::Start)),
-            true,
-        ));
-    }
-    if project.panes.len() == 1 && project.split_candidate().is_some() {
-        tools = tools
-            .push(control(
-                ui.label("左右分屏"),
-                Some(ui.msg(Action::Split(project_id.into(), pane_grid::Axis::Vertical))),
-                false,
-            ))
-            .push(control(
-                ui.label("上下分屏"),
-                Some(ui.msg(Action::Split(project_id.into(), pane_grid::Axis::Horizontal))),
-                false,
-            ));
-    }
-    let tabs = project.tabs.iter().filter(|(_, tab)| !tab.hidden).fold(
-        row![].spacing(5),
-        |row, (id, tab)| {
-            let key = SessionKey { project: project_id.into(), session: id.clone() };
-            let status = process_label(tab, project.disconnected);
-            row.push(control(
-                format!("{} · {}", tab_label(tab), ui.label(status)),
-                Some(ui.msg(Action::SelectSession(key))),
-                active == Some(id),
-            ))
+    });
+    use desktop_terminal::{message::{Message as Panel, TerminalMessage as Term}, terminal_panel};
+    let layout = project.active_layout;
+    let on_panel = move |message| ui.msg(Action::Panel(project_id.into(), layout, message));
+    let focus = active.and_then(|tab| tab.terminal.view.as_ref()).map(|view| view.terminal().widget_id());
+    let grid = terminal_panel::shared_grid(
+        &project.panes,
+        state.dialog.is_none().then_some(focus).flatten(),
+        move |event| on_panel(Panel::Terminal(event)),
+        move |pane, pane_state, top_right| {
+            let current = pane_state.active_id.and_then(|id| project.tab_for_view(id));
+            let launch = settings_select(choices.iter().cloned(), None, move |choice| {
+                ui.msg(Action::Start(project_id.into(), layout, choice.target, pane))
+            })
+            .menu_icon(Icon::Plus, 220.0)
+            .width(TAB_TOOLBAR_BUTTON_WIDTH)
+            .height(TAB_HEIGHT)
+            .disabled(!can_start);
+            let mut controls = row![toolbar_tooltip(launch.into(), ui.label("新建会话"))]
+                .align_y(Alignment::Center);
+            if super::update::split_target(state, project, pane).is_some() {
+                let split = terminal_panel::split_control(&project.panes, ui.locale, pane).map(on_panel);
+                controls = controls.push(if project.panes.split_menu == Some(pane) {
+                    split
+                } else {
+                    toolbar_tooltip(split, ui.label("分屏"))
+                });
+            }
+            if let Some(tab) = current {
+                let key = SessionKey { project: project_id.into(), session: tab.session.id.clone() };
+                let can_stop = !project.disconnected && tab.can_stop()
+                    && (!tab.session.capabilities.terminal || state.terminal_available);
+                controls = controls.push(toolbar_icon(
+                    Icon::Square,
+                    ui.label("停止会话"),
+                    0.0,
+                    can_stop.then_some(ui.msg(Action::Stop(key))),
+                ));
+            }
+            if top_right {
+                controls = controls.push(toolbar_icon(
+                    Icon::ArrowUp,
+                    ui.label("发送消息"),
+                    3.0,
+                    project.tabs.values().any(sendable)
+                        .then(|| ui.msg(Action::Compose(active_target.clone()))),
+                ));
+            }
+            let header = terminal_panel::pane_header(
+                pane_state.tabs.iter().filter_map(|id| project.tab_for_view(*id).map(|tab| (*id, tab_label(tab)))),
+                pane_state.active_id,
+                true,
+                project.tab_menu.map(|(id, _, _)| id),
+                project.tab_menu.map(|(_, x, y)| (x, y)),
+                ui.locale,
+                controls,
+                on_panel,
+            );
+            let body = if let Some(tab) = current {
+                let key = SessionKey { project: project_id.into(), session: tab.session.id.clone() };
+                session_content(
+                    ui, &key, tab,
+                    project.disconnected || (tab.session.capabilities.terminal && !state.terminal_available),
+                    project.content_menu,
+                    layout,
+                )
+            } else {
+                container(text(ui.label("暂无会话")).size(15)).center(Length::Fill).into()
+            };
+            (header, terminal_panel::pane_surface(body))
         },
     );
-    let tab_strip = scrollable(container(tabs).padding([3, 0]))
-        .direction(scrollable::Direction::Horizontal(
-            scrollable::Scrollbar::new().width(4).scroller_width(4),
-        ))
-        .width(Length::Fill);
-    let grid = pane_grid::PaneGrid::new(&project.panes, move |pane, selected, _| {
-        let Some((id, tab)) =
-            selected.as_ref().and_then(|id| project.tabs.get(id).map(|tab| (id, tab)))
-        else {
-            return pane_grid::Content::new(
-                container(text(ui.label("暂无会话")).size(15)).center(Length::Fill),
-            );
-        };
-        let key = SessionKey { project: project_id.into(), session: id.clone() };
-        let can_stop = !project.disconnected
-            && tab.can_stop()
-            && (!tab.session.capabilities.terminal || state.terminal_available);
-        let mut controls = row![
-            control(ui.label("重命名"), Some(ui.msg(Action::Rename(key.clone()))), false),
-            control(ui.label("关闭标签"), Some(ui.msg(Action::Hide(key.clone()))), false),
-            control(
-                ui.label("停止会话"),
-                can_stop.then_some(ui.msg(Action::Stop(key.clone()))),
-                false
-            ),
-        ]
-        .spacing(5);
-        if project.panes.len() > 1 {
-            controls = controls.push(control(
-                ui.label("关闭分屏"),
-                Some(ui.msg(Action::ClosePane(project_id.into(), pane))),
-                false,
-            ));
-        }
-        let heading =
-            column![text(tab_label(tab)).size(14).wrapping(Wrapping::Glyph), controls.wrap(),]
-                .spacing(3);
-        pane_grid::Content::new(session_content(
-            ui,
-            &key,
-            tab,
-            project.disconnected
-                || (tab.session.capabilities.terminal && !state.terminal_available),
-        ))
-        .title_bar(pane_grid::TitleBar::new(heading).padding(6).style(move |theme| {
-            let mut style = settings_panel_style(theme);
-            if pane == project.active_pane {
-                style.border.color = theme.extended_palette().primary.strong.color;
-                style.border.width = 1.0;
-            }
-            style
-        }))
-    })
-    .spacing(6)
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .min_size(0)
-    .on_click(move |pane| ui.msg(Action::Focus(project_id.into(), pane)))
-    .on_drag(move |drag| ui.msg(Action::Drag(project_id.into(), drag)))
-    .on_resize(8, move |resize| ui.msg(Action::Resize(project_id.into(), resize)));
-    column![tools.wrap(), tab_strip, grid]
-        .spacing(5)
+    let mut workspace = column![layout_tabs(ui, project_id, project), settings_divider()];
+    if let Some(label) = empty_label {
+        workspace = workspace.push(text(label).size(12).style(settings_muted_text_style));
+    }
+    // The shared grid leaves a one-pixel gap between its opaque pane surfaces.
+    let grid = container(grid)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .style(settings_divider_style);
+    workspace.push(grid)
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
+}
+
+fn layout_tabs<'a>(ui: View, project_id: &str, project: &Project) -> Element<'a, Message> {
+    let mut tabs = row![].spacing(4).align_y(Alignment::Center);
+    let can_close = !project.parked_layouts.is_empty();
+    for id in project.layout_ids() {
+        let selected = id == project.active_layout;
+        let label = ui.i18n.sprintf("分屏组 %u", &[id.into()]);
+        let tab = button(
+            row![
+                icon_svg(Icon::Terminal, 13.0).style(move |theme: &Theme, _| svg::Style {
+                    color: Some(layout_tab_foreground(theme, selected)),
+                }),
+                text(label).size(13),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center),
+        )
+        .padding([5, 8])
+        .style(move |theme, status| {
+            let mut style = icon_btn_style(theme, status);
+            style.text_color = layout_tab_foreground(theme, selected);
+            style.border = Border::default().rounded(5);
+            style
+        })
+        .on_press(ui.msg(Action::SelectLayout(project_id.into(), id)));
+        let mut item = row![tab].align_y(Alignment::Center);
+        if can_close {
+            item = item.push(toolbar_icon(
+                Icon::X,
+                ui.label("关闭分屏组"),
+                0.0,
+                Some(ui.msg(Action::CloseLayout(project_id.into(), id))),
+            ));
+        }
+        tabs = tabs.push(container(item).padding(2).style(move |theme| {
+            let background = theme.extended_palette().background;
+            container::Style {
+                background: selected.then(|| background.weak.color.into()),
+                border: if selected {
+                    Border::default().rounded(7).width(1).color(background.strong.color)
+                } else {
+                    Border::default()
+                },
+                ..Default::default()
+            }
+        }));
+    }
+    container(
+        row![
+            scrollable(tabs)
+                .direction(scrollable::Direction::Horizontal(
+                    scrollable::Scrollbar::new().width(4).scroller_width(4),
+                ))
+                .width(Length::Fill),
+            toolbar_icon(
+                Icon::Plus,
+                ui.label("新建分屏组"),
+                0.0,
+                Some(ui.msg(Action::NewLayout(project_id.into()))),
+            ),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    )
+    .padding([5, 7])
+    .width(Length::Fill)
+    .style(|theme| container::Style {
+        background: Some(theme.extended_palette().background.base.color.into()),
+        ..Default::default()
+    })
+    .into()
+}
+
+fn layout_tab_foreground(theme: &Theme, selected: bool) -> iced::Color {
+    theme.palette().text.scale_alpha(if selected { 1.0 } else { 0.72 })
 }
 
 fn session_content<'a>(
@@ -364,13 +429,26 @@ fn session_content<'a>(
     key: &SessionKey,
     tab: &'a Tab,
     disconnected: bool,
+    content_menu: Option<(u64, iced::Point)>,
+    layout: u64,
 ) -> Element<'a, Message> {
     if tab.session.capabilities.terminal {
         let terminal = if let Some(view) = &tab.terminal.view {
+            use desktop_terminal::message::{Message as Panel, TerminalMessage as Term};
             let key = key.clone();
-            view.view().map(move |event| ui.msg(Action::TerminalEvent(key.clone(), event)))
+            desktop_terminal::terminal_panel::terminal_content(
+                view.terminal(), tab.view_id, ui.locale, content_menu, false,
+            ).map(move |message| match message {
+                Panel::Terminal(Term::Event(event)) => ui.msg(Action::TerminalEvent(key.clone(), event)),
+                message => ui.msg(Action::Panel(key.project.clone(), layout, message)),
+            })
         } else {
-            container(text(ui.label("终端内容暂不可用")).size(13)).center(Length::Fill).into()
+            let label = if !disconnected && tab.session.state == Process::Running {
+                "正在连接终端…"
+            } else {
+                "终端内容暂不可用"
+            };
+            container(text(ui.label(label)).size(13)).center(Length::Fill).into()
         };
         let mut content = column![].spacing(4);
         if disconnected || tab.session.state == Process::Disconnected {
@@ -500,6 +578,28 @@ fn session_content<'a>(
     vertical(content).width(Length::Fill).height(Length::Fill).into()
 }
 
+fn toolbar_icon(
+    icon: Icon,
+    label: &'static str,
+    background_inset: f32,
+    action: Option<Message>,
+) -> Element<'static, Message> {
+    let icon = container(icon_svg(icon, 14.0).style(icon_btn_svg_style))
+        .center_x(TAB_TOOLBAR_BUTTON_WIDTH - 2.0 * background_inset)
+        .center_y(TAB_HEIGHT - 2.0 * background_inset);
+    let control = button(icon).padding(0).style(icon_btn_style).on_press_maybe(action);
+    let slot = container(control).center_x(TAB_TOOLBAR_BUTTON_WIDTH).center_y(TAB_HEIGHT);
+    toolbar_tooltip(slot.into(), label)
+}
+
+fn toolbar_tooltip<'a>(control: Element<'a, Message>, label: &'static str) -> Element<'a, Message> {
+    tooltip(control, text(label).size(12), tooltip::Position::Bottom)
+        .gap(6)
+        .padding(7)
+        .style(desktop_ui_controls::tooltip::tooltip_dark_style)
+        .into()
+}
+
 fn dialog_view<'a>(
     ui: View,
     base: Element<'a, Message>,
@@ -535,16 +635,7 @@ fn dialog_view<'a>(
                     })
                     .placeholder(ui.label("选择目标会话"))
                     .width(Length::Fill);
-            let native = target
-                .as_ref()
-                .and_then(|id| project?.tabs.get(id))
-                .is_some_and(|tab| tab.session.capabilities.terminal);
-            (
-                ui.label(if native { "创建终端草稿" } else { "发送消息" }),
-                draft,
-                enabled,
-                Some(select),
-            )
+            (ui.label("发送消息"), draft, enabled, Some(select))
         }
     };
     let input = text_input(title, draft)
@@ -600,7 +691,7 @@ fn draft_dialog<'a>(
                 settings_close_button(close.clone()),
             ]
             .align_y(Alignment::Center),
-            text(ui.label("复制草稿后，在目标终端粘贴并手动提交。"))
+            text(ui.label("将草稿粘贴到目标终端，按 Enter 提交。"))
                 .size(13)
                 .wrapping(Wrapping::Glyph),
             container(
@@ -618,6 +709,11 @@ fn draft_dialog<'a>(
                 control(
                     ui.label("标记已手动提交"),
                     resolve(CliWorkbenchDraftAction::MarkSubmitted),
+                    false
+                ),
+                control(
+                    ui.label("粘贴到终端"),
+                    enabled.then(|| ui.msg(Action::PasteDraft(key.clone(), request.into()))),
                     true
                 ),
             ]
@@ -637,10 +733,11 @@ pub(super) fn tab_label(tab: &Tab) -> String {
     }
     let name = match &tab.session.target {
         CliWorkbenchTarget::Acp { agent } => agent,
+        CliWorkbenchTarget::NativeCli { app_id } if app_id == super::CODEX_APP_ID => "Codex",
         CliWorkbenchTarget::NativeCli { app_id } => app_id,
         CliWorkbenchTarget::Shell => "Shell",
     };
-    format!("{name} #{}", id_suffix(&tab.session.id))
+    name.to_owned()
 }
 
 fn id_suffix(id: &str) -> &str {

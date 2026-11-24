@@ -37,6 +37,66 @@ async fn cli_workbench_native_capability_requires_a_direct_local_gateway() {
     }
 }
 
+#[tokio::test]
+async fn cli_workbench_native_catalog_is_not_disclosed_to_a_forwarded_request() {
+    let tenant = TenantScope::new("native-fixture", "catalog").unwrap();
+    let response = router::<()>()
+        .layer(Extension(tenant))
+        .layer(Extension(LocalWorkbenchGateway::default()))
+        .oneshot(
+            Request::builder()
+                .uri(format!("{CAPABILITY}?include_apps=true"))
+                .extension(ConnectInfo("127.0.0.1:1234".parse::<std::net::SocketAddr>().unwrap()))
+                .header("forwarded", "for=127.0.0.1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), 4096).await.unwrap();
+    assert_eq!(serde_json::from_slice::<Value>(&body).unwrap(), json!({"available": false}));
+}
+
+#[test]
+fn cli_workbench_project_snapshot_only_attaches_sessions_in_scope() {
+    use vw_api_types::cli_workbench::{
+        CliWorkbenchProcessState, CliWorkbenchProject, CliWorkbenchSession, CliWorkbenchTarget,
+    };
+
+    let tenant = TenantScope::new("workbench-fixture", "snapshot").unwrap();
+    let other_user = tenant.clone().with_user_id(vw_api_transport::UserId::new("other").unwrap());
+    let other_tenant = TenantScope::new("workbench-fixture", "other").unwrap();
+    let mut workbench = Workbench::default();
+    for (id, project, scope) in [
+        ("visible", "project", tenant.clone()),
+        ("removed", "obsolete", tenant.clone()),
+        ("other-user", "project", other_user),
+        ("other-tenant", "project", other_tenant),
+    ] {
+        let target = CliWorkbenchTarget::Acp { agent: "fixture".into() };
+        workbench.sessions.insert(id.into(), Session {
+            scope: project_scope(scope, project.into()).ok().unwrap(),
+            info: CliWorkbenchSession {
+                id: id.into(), project_id: project.into(), directory: "/fixture".into(),
+                capabilities: capabilities(&target), target,
+                state: CliWorkbenchProcessState::Running,
+            },
+            turn: None,
+            #[cfg(target_os = "macos")]
+            terminal: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            child_access: None,
+        });
+    }
+    let mut projects = [CliWorkbenchProject {
+        id: "project".into(), name: "Project".into(), directory: "/fixture".into(),
+        sessions: Vec::new(),
+    }];
+    attach_project_sessions(&mut workbench, &tenant, &mut projects);
+    assert_eq!(projects[0].sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(), ["visible"]);
+}
+
 #[cfg(target_os = "macos")]
 #[tokio::test]
 async fn cli_workbench_native_drafts_are_scoped_and_manual() {

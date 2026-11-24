@@ -2,7 +2,7 @@
 
 
 use iced::widget::Id;
-use iced::widget::pane_grid::{Node, Pane, ResizeEvent, State, Target};
+use iced::widget::pane_grid::{Axis, Direction, Node, Pane, ResizeEvent, State, Target};
 
 
 pub const PANE_SPACING: f32 = 1.0;
@@ -51,6 +51,19 @@ impl TerminalPanes {
         true
     }
 
+    pub fn place(&mut self, pane: Pane, id: u64) {
+        if self.grid.get(pane).is_none() {
+            return;
+        }
+        if self.owner(id) == Some(pane) {
+            self.select(id);
+            return;
+        }
+        self.remove(id);
+        self.add(pane, id);
+        self.select(id);
+    }
+
     pub fn remove(&mut self, id: u64) -> Option<u64> {
         if let Some(pane) = self.owner(id) {
             let state = self.grid.get_mut(pane).expect("tab owner");
@@ -79,6 +92,10 @@ impl TerminalPanes {
         })
     }
 
+    pub fn split(&mut self, pane: Pane, direction: Direction) -> Option<Pane> {
+        split_grid(&mut self.grid, pane, direction)
+    }
+
     pub fn resize(&mut self, event: ResizeEvent) {
         if event.ratio.is_finite() {
             self.grid.resize(event.split, event.ratio.clamp(0.0, 1.0));
@@ -101,6 +118,19 @@ impl TerminalPanes {
             self.grid = candidate;
         }
     }
+}
+
+pub(crate) fn split_grid(grid: &mut State<TerminalPane>, pane: Pane, direction: Direction) -> Option<Pane> {
+    grid.get(pane)?.active_id?;
+    let axis = match direction {
+        Direction::Left | Direction::Right => Axis::Vertical,
+        Direction::Up | Direction::Down => Axis::Horizontal,
+    };
+    let (new_pane, _) = grid.split(axis, pane, TerminalPane::default())?;
+    if matches!(direction, Direction::Left | Direction::Up) {
+        grid.swap(pane, new_pane);
+    }
+    Some(new_pane)
 }
 
 // Re-docking a pane on its existing edge must preserve the user's split ratios.

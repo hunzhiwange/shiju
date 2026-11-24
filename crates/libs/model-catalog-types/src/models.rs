@@ -50,6 +50,14 @@ pub struct ModelModalities {
     pub output: Vec<String>,
 }
 
+impl ModelModalities {
+    /// An input and output pair must both appear in the model's declaration.
+    pub fn supports_pair(&self, input: &str, output: &str) -> bool {
+        self.input.iter().any(|value| value.as_str() == input)
+            && self.output.iter().any(|value| value.as_str() == output)
+    }
+}
+
 /// 模型是否支持交错式输入输出的配置表示。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]

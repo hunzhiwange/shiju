@@ -13,6 +13,7 @@ pub mod fill_opencode;
 pub mod fill_pi;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod fill_service;
+pub mod media_capabilities;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod metadata;
 #[cfg(not(target_arch = "wasm32"))]
@@ -29,6 +30,8 @@ mod fill_codex_tests;
 mod fill_openclaw_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod fill_service_tests;
+#[cfg(test)]
+mod media_capabilities_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod metadata_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]

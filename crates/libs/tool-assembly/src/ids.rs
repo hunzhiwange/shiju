@@ -14,6 +14,8 @@ pub const BROWSER_TOOL_ALIAS: &str = "browser";
 pub const BROWSER_OPEN_TOOL_ALIAS: &str = "browser_open";
 pub const ENTER_WORKTREE_TOOL_ID: &str = "enter_worktree";
 pub const EXIT_WORKTREE_TOOL_ID: &str = "exit_worktree";
+pub const MEDIA_SUBMIT_TOOL_ID: &str = "media_submit";
+pub const MEDIA_STATUS_TOOL_ID: &str = "media_status";
 
 pub const ENTER_WORKTREE_TOOL_ALIASES: [&str; 1] = ["EnterWorktree"];
 pub const EXIT_WORKTREE_TOOL_ALIASES: [&str; 1] = ["ExitWorktree"];

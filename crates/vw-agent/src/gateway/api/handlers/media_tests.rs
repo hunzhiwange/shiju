@@ -36,6 +36,7 @@ const TOKEN: &str = "sk-media-fixture-client";
 const OTHER_TOKEN: &str = "sk-media-fixture-other";
 const SECRET: &str = "fixture-provider-secret";
 const SESSION: &str = "fixture-session";
+static FIXTURES: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 struct Server {
     base: String,
@@ -65,23 +66,25 @@ impl Drop for Credential {
     }
 }
 
-struct Fixture {
+pub(crate) struct Fixture {
     gateway: Server,
     _upstream: Server,
-    _workspace: tempfile::TempDir,
+    workspace: tempfile::TempDir,
     _credential: Credential,
     platform: String,
     client: reqwest::Client,
-    model: MediaModel,
+    pub(crate) model: MediaModel,
     image: Vec<u8>,
     image_posts: Arc<AtomicUsize>,
     video_posts: Arc<AtomicUsize>,
     video_polled: Arc<Notify>,
     video_canceled: Arc<Notify>,
+    _serial: tokio::sync::MutexGuard<'static, ()>,
 }
 
 impl Fixture {
-    async fn new() -> Self {
+    pub(crate) async fn new() -> Self {
+        let serial = FIXTURES.lock().await;
         let mut image = Cursor::new(Vec::new());
         image::DynamicImage::new_rgb8(2, 3).write_to(&mut image, image::ImageFormat::Png).unwrap();
         let image = image.into_inner();
@@ -143,7 +146,10 @@ impl Fixture {
         crate::config::update_global_for_tenant(
             &owner,
             json!({
-                "gateway": {"auth_enabled": true, "skeys": [{"skey": TOKEN, "name": "fixture"}]},
+                "gateway": {"auth_enabled": true, "skeys": [
+                    {"skey": TOKEN, "name": "fixture"},
+                    {"skey": OTHER_TOKEN, "name": "second fixture credential"}
+                ]},
                 "providers": {
                     (provider): {
                         "api": base, "adapter": "openai-compatible", "env": [key_env],
@@ -197,7 +203,7 @@ impl Fixture {
         Self {
             gateway,
             _upstream: upstream,
-            _workspace: workspace,
+            workspace,
             _credential: credential,
             platform,
             client,
@@ -207,6 +213,7 @@ impl Fixture {
             video_posts,
             video_polled,
             video_canceled,
+            _serial: serial,
         }
     }
 
@@ -228,7 +235,38 @@ impl Fixture {
         }
     }
 
-    fn submission(&self, operation: MediaOperation, text: &str) -> MediaSubmit {
+    pub(crate) fn workspace(&self) -> &std::path::Path {
+        self.workspace.path()
+    }
+
+    pub(crate) fn image_posts(&self) -> usize {
+        self.image_posts.load(Ordering::Relaxed)
+    }
+
+    pub(crate) async fn tool_context(&self, authenticated: bool) -> Option<Arc<crate::tools::ToolUseContext>> {
+        self.context_for_token(authenticated.then_some(TOKEN)).await
+    }
+
+    pub(crate) async fn other_tool_context(&self) -> Arc<crate::tools::ToolUseContext> {
+        self.context_for_token(Some(OTHER_TOKEN)).await.unwrap()
+    }
+
+    async fn context_for_token(&self, token: Option<&str>) -> Option<Arc<crate::tools::ToolUseContext>> {
+        use crate::gateway::api::handlers::session::stream::Host;
+        use gateway_session::stream_host::StreamHost as _;
+
+        let tenant = TenantScope::new(&self.platform, "owner").unwrap();
+        let mut headers = HeaderMap::new();
+        if let Some(token) = token {
+            headers.insert(header::AUTHORIZATION, format!("Bearer {token}").parse().unwrap());
+        }
+        crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
+            Host::authenticated_tool_context(&tenant, Some(SESSION), &headers).await.0
+        })
+        .await
+    }
+
+    pub(crate) fn submission(&self, operation: MediaOperation, text: &str) -> MediaSubmit {
         MediaSubmit {
             request_id: MediaJobId::new_v4(),
             session_id: SESSION.into(),
@@ -240,7 +278,7 @@ impl Fixture {
         }
     }
 
-    async fn submit(&self, request: &MediaSubmit) -> reqwest::Response {
+    pub(crate) async fn submit(&self, request: &MediaSubmit) -> reqwest::Response {
         self.request(Method::POST, MEDIA_JOBS_PATH, "owner", Some(TOKEN))
             .json(request)
             .send()
@@ -248,7 +286,7 @@ impl Fixture {
             .unwrap()
     }
 
-    async fn wait(&self, job_id: MediaJobId) -> MediaJobState {
+    pub(crate) async fn wait(&self, job_id: MediaJobId) -> MediaJobState {
         tokio::time::timeout(Duration::from_secs(8), async {
             loop {
                 let job: MediaJob = self

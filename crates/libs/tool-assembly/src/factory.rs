@@ -67,6 +67,10 @@ PdfReadTool,
 #[cfg(not(target_arch = "wasm32"))]
 ScreenshotTool,
 ImageAssetReadTool,
+#[cfg(not(target_arch = "wasm32"))]
+MediaSubmitTool,
+#[cfg(not(target_arch = "wasm32"))]
+MediaStatusTool,
 SkillToolWithRuntimeConfig,
 SleepTool,
 TodoReadToolScoped,
@@ -311,6 +315,11 @@ pub fn all_tools_with_runtime<H: FactoryHost>(
     #[cfg(not(target_arch = "wasm32"))]
     tool_arcs.push(H::construct(ToolConstruction::ScreenshotTool, &construction));
     tool_arcs.push(H::construct(ToolConstruction::ImageAssetReadTool, &construction));
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        tool_arcs.push(H::construct(ToolConstruction::MediaSubmitTool, &construction));
+        tool_arcs.push(H::construct(ToolConstruction::MediaStatusTool, &construction));
+    }
 
     tool_arcs.push(H::construct(ToolConstruction::SkillToolWithRuntimeConfig, &construction));
     tool_arcs.push(H::construct(ToolConstruction::SleepTool, &construction));
@@ -349,7 +358,11 @@ pub fn all_tools_with_runtime<H: FactoryHost>(
         tool_arcs.push(H::search_tool(&catalog));
     }
 
-    let batch_tools = Arc::new(tool_arcs.clone());
+    // A paid media submission requires its own runtime call ID for replay.
+    let batch_tools = Arc::new(
+        tool_arcs.iter().filter(|tool| tool.name() != crate::ids::MEDIA_SUBMIT_TOOL_ID)
+            .cloned().collect(),
+    );
     tool_arcs.push(H::batch(batch_tools));
     boxed_registry_from_arcs(tool_arcs)
 }

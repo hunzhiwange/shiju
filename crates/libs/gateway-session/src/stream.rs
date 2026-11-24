@@ -1397,10 +1397,12 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
     send: impl FnMut(Value, bool) -> bool + Send + 'static,
 ) -> Result<(), ApiError> {
     start_chat_producer::<H>(
-        tenant, dir, body, background_full_access, abort_token, prompt_cancel, None, send,
+        tenant, dir, body, background_full_access, abort_token, prompt_cancel, None,
+        H::tool_context(), send,
     ).await
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn start_chat_producer<H: StreamHost>(
     tenant: TenantScope,
     dir: String,
@@ -1409,6 +1411,7 @@ async fn start_chat_producer<H: StreamHost>(
     abort_token: Option<tokio_util::sync::CancellationToken>,
     prompt_cancel: Option<SharedPromptCancel>,
     employee: Option<EmployeeAuthorization>,
+    delegated_context: H::ToolContext,
     send: impl FnMut(Value, bool) -> bool + Send + 'static,
 ) -> Result<(), ApiError> {
     let fork = match body.session_id.as_ref().map(|id| id.0.trim()).filter(|id| !id.is_empty()) {
@@ -1572,8 +1575,6 @@ async fn start_chat_producer<H: StreamHost>(
         .await
         .map_err(|error| ApiError::internal(error.to_string()))?;
     let runtime_handle = tokio::runtime::Handle::current();
-    let delegated_context = H::tool_context();
-
     std::thread::spawn(move || {
         let _prompt_guard = prompt_guard;
         struct Sink<F> {
@@ -2238,7 +2239,7 @@ pub async fn chat_stream_with_employee<H: StreamHost>(
         Box::pin(async move {
             let project = instance::project()
                 .ok_or_else(|| ApiError::internal("chat stream is missing project context"))?;
-            let serialized = serde_json::to_vec(&(&project.id, &dir, &body))
+            let mut serialized = serde_json::to_vec(&(&project.id, &dir, &body))
                 .map_err(|error| ApiError::internal(format!("chat stream 请求签名失败: {error}")))?;
             let session_id = body.session_id.as_ref().map(|id| id.0.trim())
                 .filter(|id| !id.is_empty()).map(str::to_owned);
@@ -2275,11 +2276,6 @@ pub async fn chat_stream_with_employee<H: StreamHost>(
                 }
                 None
             };
-            let mut signature = request_signature(&serialized);
-            if let Some(auth) = &authorization {
-                // Each credential generation owns its own resumable delivery.
-                signature.push_str(&format!(":{}", auth.generation));
-            }
             let goal_evaluation = body.options.as_ref().and_then(|options| {
                 options.get("goal_evaluation").and_then(Value::as_bool)
             }) == Some(true);
@@ -2291,6 +2287,18 @@ pub async fn chat_stream_with_employee<H: StreamHost>(
             if let Some(session_id) = &session_id {
                 axum::http::HeaderValue::from_str(session_id)
                     .map_err(|_| ApiError::bad_request("invalid session id"))?;
+            }
+            let (tool_context, tool_principal) = H::authenticated_tool_context(
+                &tenant_for_stream, session_id.as_deref(), &headers,
+            ).await;
+            if let Some(principal) = tool_principal {
+                // Replay can contain tool results from jobs owned by this principal.
+                serialized.extend_from_slice(&principal);
+            }
+            let mut signature = request_signature(&serialized);
+            if let Some(auth) = &authorization {
+                // Each credential generation owns its own resumable delivery.
+                signature.push_str(&format!(":{}", auth.generation));
             }
             let mut opened = global_stream_store()
                 .open_chat(
@@ -2341,6 +2349,7 @@ pub async fn chat_stream_with_employee<H: StreamHost>(
                     Some(cancellation),
                     Some(prompt_cancel),
                     authorization,
+                    tool_context,
                     move |payload, terminal| {
                         if delivery.as_ref().is_some_and(|token| token.is_cancelled()) {
                             producer.publish(r#"{"type":"chat.error","error":"Employee account authorization changed"}"#, true);

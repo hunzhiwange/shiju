@@ -37,6 +37,13 @@ pub trait StreamHost: crate::message_host::MessageHost {
     type ToolContext: Send + 'static;
     type Approval: Send + 'static;
     fn tool_context() -> Self::ToolContext;
+    fn authenticated_tool_context(
+        _tenant: &TenantScope,
+        _session: Option<&str>,
+        _headers: &axum::http::HeaderMap,
+    ) -> impl Future<Output = (Self::ToolContext, Option<[u8; 32]>)> + Send {
+        async { (Self::tool_context(), None) }
+    }
     fn approval_manager() -> impl Future<Output = Self::Approval> + Send;
     fn start_prompt(
         tenant: TenantScope,

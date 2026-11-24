@@ -47,6 +47,8 @@ pub struct ToolUseContext<H: ContextHost> {
     session: String,
     session_skills: H::SessionSkillSources,
     tenant_scope: vw_api_transport::TenantScope,
+    #[cfg(not(target_arch = "wasm32"))]
+    media_authority: Option<([u8; 32], tokio::runtime::Handle)>,
     hook_input: Option<serde_json::Value>,
     hook_contexts: Arc<Mutex<Vec<String>>>,
     pub async_hooks: Arc<H::AsyncHooks>,
@@ -97,6 +99,8 @@ impl<H: ContextHost> Clone for ToolUseContext<H> {
             session: self.session.clone(),
             session_skills: self.session_skills.clone(),
             tenant_scope: self.tenant_scope.clone(),
+            #[cfg(not(target_arch = "wasm32"))]
+            media_authority: self.media_authority.clone(),
             hook_input: self.hook_input.clone(),
             hook_contexts: self.hook_contexts.clone(),
             async_hooks: self.async_hooks.clone(),
@@ -207,6 +211,8 @@ impl<H: ContextHost> ToolUseContext<H> {
             run_worktree_owner: None,
             session: session.into(),
             tenant_scope: H::current_tenant_scope(),
+            #[cfg(not(target_arch = "wasm32"))]
+            media_authority: None,
             hook_input: None,
             hook_contexts: Arc::new(Mutex::new(Vec::new())),
             async_hooks: Arc::default(),
@@ -278,6 +284,10 @@ impl<H: ContextHost> ToolUseContext<H> {
     }
 
     pub fn for_child(mut self, session: String, tools: Vec<String>) -> Self {
+        #[cfg(not(target_arch = "wasm32"))]
+        if session != self.session {
+            self.media_authority = None;
+        }
         self.session = session.clone();
         self.delegated_tools = Some(Arc::new(tools.into_iter().collect()));
         self.agent_name = None;
@@ -299,6 +309,7 @@ impl<H: ContextHost> ToolUseContext<H> {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 self.run_worktree_owner = parent.run_worktree_owner.clone();
+                self.media_authority = parent.media_authority.clone();
             }
             self.workflow = parent.workflow.clone();
         }
@@ -363,6 +374,21 @@ impl<H: ContextHost> ToolUseContext<H> {
 
     pub fn tenant_scope(&self) -> vw_api_transport::TenantScope {
         self.tenant_scope.clone()
+    }
+
+    /// Bind an authenticated gateway principal and the runtime that owns background jobs.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn with_media_authority(
+        mut self,
+        authority: Option<([u8; 32], tokio::runtime::Handle)>,
+    ) -> Self {
+        self.media_authority = authority;
+        self
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn media_authority(&self) -> Option<&([u8; 32], tokio::runtime::Handle)> {
+        self.media_authority.as_ref()
     }
 
     /// 返回当前会话 ID。

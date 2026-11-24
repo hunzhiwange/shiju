@@ -15,7 +15,7 @@ use agent_gateway::api::{
     media::{
         MAX_MEDIA_ASSET_BYTES, MAX_MEDIA_SUBMIT_BYTES, MAX_MEDIA_UPLOAD_BYTES, MEDIA_ASSET_ROUTE,
         MEDIA_JOB_ROUTE, MEDIA_JOBS_PATH, MEDIA_MODELS_PATH, MediaAsset, MediaAssetSource,
-        MediaErrorCode as Code, MediaInput, MediaJobId, MediaJobScope, MediaJobState,
+        MediaErrorCode as Code, MediaInput, MediaJob, MediaJobId, MediaJobScope, MediaJobState,
         MediaJobStore, MediaModel, MediaModels, MediaOperation, MediaReservation, MediaResult,
         MediaSessionQuery, MediaSubmit, bounded_media_asset_stream, media_error_response,
     },
@@ -59,7 +59,7 @@ pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
 }
 
 #[derive(Clone)]
-struct Identity {
+pub(crate) struct Identity {
     tenant: TenantScope,
     principal: [u8; 32],
 }
@@ -78,7 +78,10 @@ async fn authenticate(
     }
 }
 
-async fn authenticate_headers(tenant: TenantScope, headers: &HeaderMap) -> Result<Identity, Code> {
+pub(crate) async fn authenticate_headers(
+    tenant: TenantScope,
+    headers: &HeaderMap,
+) -> Result<Identity, Code> {
     if headers.get_all(header::AUTHORIZATION).iter().count() != 1 {
         return Err(Code::Unauthorized);
     }
@@ -104,6 +107,17 @@ struct MediaContext {
 }
 
 impl Identity {
+    pub(crate) fn principal(&self) -> [u8; 32] {
+        self.principal
+    }
+
+    fn from_tool_context(
+        context: &crate::tools::ToolUseContext,
+    ) -> Result<(Self, &tokio::runtime::Handle), Code> {
+        let (principal, runtime) = context.media_authority().ok_or(Code::Unauthorized)?;
+        Ok((Self { tenant: context.tenant_scope(), principal: *principal }, runtime))
+    }
+
     async fn session(&self, session: MediaSessionQuery) -> Result<MediaContext, Code> {
         let scope = MediaJobScope::new(&self.tenant, self.principal, session.clone())?;
         let info = super::voice::Host::load_session(self.tenant.clone(), session.session_id)
@@ -230,55 +244,133 @@ async fn submit(Extension(identity): Extension<Identity>, request: Request) -> R
             let context = identity
                 .session(MediaSessionQuery { session_id: request.session_id.clone() })
                 .await?;
-            let (request, context, files) = blocking(move || {
-                request.validate()?;
-                let files = inputs(storage()?, &context, &request.inputs)?;
-                validate_inputs(request.operation, request.text.as_deref(), &files)?;
-                Ok((request, context, files))
-            })
-            .await?;
-            let extractor = deployments::frame_extractor();
+            let (request, context, files) = prepare(context, request).await?;
             let selected = (request.deployment_id.clone(), request.model_id.clone());
             let routes =
                 deployments::routes(identity.tenant, context.directory.clone(), Some(selected))
                     .await?;
-            let (route, asr) = deployments::select(routes, &request)?;
-            if asr.is_some() && extractor.is_none() {
-                return Err(Code::Unavailable);
-            }
-            blocking(move || {
-                let store = storage()?;
-                let worker = WORKERS.try_acquire().ok();
-                match store.jobs.reserve_with_capacity(
-                    &context.scope,
-                    &request,
-                    worker.is_some(),
-                )? {
-                    MediaReservation::Existing(job) => Ok((StatusCode::OK, Json(job))),
-                    MediaReservation::Start { job, cancellation } => {
-                        // Once the journal reserves this request, always launch its worker,
-                        // even if the HTTP request was dropped while reserving.
-                        let worker = worker.expect("a new job requires a worker slot");
-                        tokio::spawn(async move {
-                            let _worker = worker;
-                            execute(
-                                request,
-                                context,
-                                route,
-                                asr.zip(extractor),
-                                files,
-                                cancellation,
-                            )
-                            .await;
-                        });
-                        Ok((StatusCode::ACCEPTED, Json(job)))
-                    }
-                }
-            })
-            .await
+            let selection = deployments::select(
+                routes,
+                request.operation,
+                !request.inputs.is_empty(),
+                Some(&request.deployment_id),
+                Some(&request.model_id),
+            )?;
+            let (status, job) = reserve(
+                request, context, files, selection, tokio::runtime::Handle::current(),
+            ).await?;
+            Ok((status, Json(job)))
         }
         .await,
     )
+}
+
+pub(crate) struct ToolSubmission {
+    pub(crate) request_id: MediaJobId,
+    pub(crate) operation: MediaOperation,
+    pub(crate) deployment_id: Option<String>,
+    pub(crate) model_id: Option<String>,
+    pub(crate) text: Option<String>,
+    pub(crate) asset_ids: Vec<String>,
+}
+
+pub(crate) async fn submit_for_tool(
+    context: &crate::tools::ToolUseContext,
+    submission: ToolSubmission,
+) -> Result<MediaJob, Code> {
+    let _slot = REQUESTS.try_acquire().map_err(|_| Code::Backpressure)?;
+    let (identity, runtime) = Identity::from_tool_context(context)?;
+    let context = identity
+        .session(MediaSessionQuery { session_id: context.session().into() })
+        .await?;
+    let request_id = submission.request_id;
+    let scope = context.scope.clone();
+    match blocking(move || storage()?.jobs.get(&scope, request_id)).await {
+        Ok(job) if job.operation == submission.operation => return Ok(job),
+        Ok(_) => return Err(Code::Conflict),
+        Err(Code::NotFound) => {}
+        Err(code) => return Err(code),
+    }
+    let selected = submission.deployment_id.clone().zip(submission.model_id.clone());
+    let routes = deployments::routes(identity.tenant, context.directory.clone(), selected).await?;
+    let selection = deployments::select(
+        routes,
+        submission.operation,
+        !submission.asset_ids.is_empty(),
+        submission.deployment_id.as_deref(),
+        submission.model_id.as_deref(),
+    )?;
+    let request = MediaSubmit {
+        request_id,
+        session_id: context.session_id.clone(),
+        operation: submission.operation,
+        deployment_id: selection.0.model.deployment_id.clone(),
+        model_id: selection.0.model.model_id.clone(),
+        text: submission.text,
+        inputs: submission
+            .asset_ids
+            .into_iter()
+            .map(|asset_id| MediaInput::Asset { asset_id })
+            .collect(),
+    };
+    let (request, context, files) = prepare(context, request).await?;
+    reserve(request, context, files, selection, runtime.clone()).await.map(|(_, job)| job)
+}
+
+pub(crate) async fn job_for_tool(
+    context: &crate::tools::ToolUseContext,
+    id: MediaJobId,
+) -> Result<MediaJob, Code> {
+    let _slot = REQUESTS.try_acquire().map_err(|_| Code::Backpressure)?;
+    let (identity, _) = Identity::from_tool_context(context)?;
+    let scope = identity
+        .session(MediaSessionQuery { session_id: context.session().into() })
+        .await?
+        .scope;
+    blocking(move || storage()?.jobs.get(&scope, id)).await
+}
+
+async fn prepare(
+    context: MediaContext,
+    request: MediaSubmit,
+) -> Result<(MediaSubmit, MediaContext, Vec<MediaFile>), Code> {
+    blocking(move || {
+        request.validate()?;
+        let files = inputs(storage()?, &context, &request.inputs)?;
+        validate_inputs(request.operation, request.text.as_deref(), &files)?;
+        Ok((request, context, files))
+    })
+    .await
+}
+
+async fn reserve(
+    request: MediaSubmit,
+    context: MediaContext,
+    files: Vec<MediaFile>,
+    (route, asr): (Route, Option<Route>),
+    runtime: tokio::runtime::Handle,
+) -> Result<(StatusCode, MediaJob), Code> {
+    let extractor = deployments::frame_extractor();
+    if asr.is_some() && extractor.is_none() {
+        return Err(Code::Unavailable);
+    }
+    blocking(move || {
+        let store = storage()?;
+        let worker = WORKERS.try_acquire().ok();
+        match store.jobs.reserve_with_capacity(&context.scope, &request, worker.is_some())? {
+            MediaReservation::Existing(job) => Ok((StatusCode::OK, job)),
+            MediaReservation::Start { job, cancellation } => {
+                // Workers belong to the gateway even when the caller ends its response or turn.
+                let worker = worker.expect("a new job requires a worker slot");
+                runtime.spawn(async move {
+                    let _worker = worker;
+                    execute(request, context, route, asr.zip(extractor), files, cancellation).await;
+                });
+                Ok((StatusCode::ACCEPTED, job))
+            }
+        }
+    })
+    .await
 }
 
 fn inputs(
@@ -652,4 +744,4 @@ use futures_util::TryStreamExt as _;
 
 #[cfg(test)]
 #[path = "media_tests.rs"]
-mod tests;
+pub(crate) mod tests;

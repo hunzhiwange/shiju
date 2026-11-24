@@ -34,6 +34,35 @@ impl StreamHost for Host {
     fn tool_context() -> Self::ToolContext {
         crate::tools::current_tool_use_context()
     }
+    async fn authenticated_tool_context(
+        tenant: &TenantScope,
+        session: Option<&str>,
+        headers: &axum::http::HeaderMap,
+    ) -> (Self::ToolContext, Option<[u8; 32]>) {
+        let inherited = Self::tool_context().map(|context| {
+            if context.media_authority().is_some() {
+                std::sync::Arc::new((*context).clone().with_media_authority(None))
+            } else {
+                context
+            }
+        });
+        let Some(session) = session else {
+            return (inherited, None);
+        };
+        let Ok(identity) = super::super::media::authenticate_headers(tenant.clone(), headers).await
+        else {
+            return (inherited, None);
+        };
+        let principal = identity.principal();
+        let context = inherited
+            .filter(|context| context.session() == session && context.tenant_scope() == *tenant)
+            .map_or_else(
+                || crate::tools::ToolUseContext::new(session, None),
+                |ctx| (*ctx).clone(),
+            )
+            .with_media_authority(Some((principal, tokio::runtime::Handle::current())));
+        (Some(std::sync::Arc::new(context)), Some(principal))
+    }
     async fn approval_manager() -> Self::Approval {
         crate::gateway::approval_state::approval_manager_for_current_instance().await
     }

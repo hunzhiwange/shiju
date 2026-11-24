@@ -188,6 +188,10 @@ ToolConstruction::ExitWorktreeTool => {
  Arc::new(ExitWorktreeTool::new()) },
 ToolConstruction::ImageAssetReadTool => {
  Arc::new(ImageAssetReadTool::new()) },
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::MediaSubmitTool => Arc::new(super::media::MediaTool::Submit),
+#[cfg(not(target_arch = "wasm32"))]
+ToolConstruction::MediaStatusTool => Arc::new(super::media::MediaTool::Status),
 ToolConstruction::SkillToolWithRuntimeConfig => { let security = context.security;
 let config = context.config.expect("full factory config");
 let workspace_dir = context.workspace_dir.expect("workspace");

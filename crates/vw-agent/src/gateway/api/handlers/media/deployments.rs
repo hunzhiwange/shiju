@@ -7,7 +7,7 @@ use app_models::media_capabilities::{
 use llm_runtime::aisdk::media::{MediaEndpoint, MediaProtocol, credential, deployment_url};
 use sha2::{Digest, Sha256};
 
-use super::{Code, MediaModel, MediaOperation, MediaSubmit};
+use super::{Code, MediaModel, MediaOperation};
 
 pub(super) struct Route {
     pub model: MediaModel,
@@ -226,16 +226,19 @@ pub(super) fn operation(cap: Cap) -> MediaOperation {
 
 pub(super) fn select(
     routes: Vec<Route>,
-    request: &MediaSubmit,
+    operation_requested: MediaOperation,
+    has_inputs: bool,
+    deployment_id: Option<&str>,
+    model_id: Option<&str>,
 ) -> Result<(Route, Option<Route>), Code> {
     let matches = |route: &Route| {
-        route.model.deployment_id == request.deployment_id
-            && route.model.model_id == request.model_id
-            && operation(route.capability) == request.operation
+        deployment_id.is_none_or(|id| route.model.deployment_id == id)
+            && model_id.is_none_or(|id| route.model.model_id == id)
+            && operation(route.capability) == operation_requested
     };
-    let desired = if request.operation == MediaOperation::VideoGenerate {
-        Some(if request.inputs.is_empty() { Cap::VideoGeneration } else { Cap::ImageToVideo })
-    } else if request.operation == MediaOperation::VideoUnderstand {
+    let desired = if operation_requested == MediaOperation::VideoGenerate {
+        Some(if has_inputs { Cap::ImageToVideo } else { Cap::VideoGeneration })
+    } else if operation_requested == MediaOperation::VideoUnderstand {
         Some(
             if routes
                 .iter()

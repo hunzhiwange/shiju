@@ -19,6 +19,8 @@ use std::sync::{
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
+const MAX_JSON_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
+
 #[derive(Default)]
 struct HttpProtocol {
     initialize_id: Option<RequestId>,
@@ -118,10 +120,10 @@ impl HttpClient {
             tokio::select! {
                 biased;
                 () = cancel.cancelled() => Err(StreamableHttpError::TransportChannelClosed),
-                result = operation => Ok(result.map_err(reqwest_012::Error::without_url)?),
+                result = operation => result.map_err(|error| StreamableHttpError::Client(error.without_url())),
             }
         } else {
-            Ok(operation.await?)
+            operation.await.map_err(StreamableHttpError::Client)
         }
     }
 
@@ -233,7 +235,7 @@ impl StreamableHttpClient for HttpClient {
                 }));
             }
         let status = response.status();
-        let response = response.error_for_status()?;
+        let response = response.error_for_status().map_err(StreamableHttpError::Client)?;
         if matches!(status, reqwest_012::StatusCode::ACCEPTED | reqwest_012::StatusCode::NO_CONTENT)
         {
             return Ok(StreamableHttpPostResponse::Accepted);
@@ -255,7 +257,30 @@ impl StreamableHttpClient for HttpClient {
             .map(|value| String::from_utf8_lossy(value.as_bytes()).into_owned());
         match kind.as_deref() {
             Some(kind) if kind.starts_with("application/json") => {
-                let value = self.check_io(response.json::<Value>()).await?;
+                let mut response = response;
+                let oversized = || {
+                    StreamableHttpError::UnexpectedServerResponse(
+                        "MCP JSON response exceeds 16 MiB".into(),
+                    )
+                };
+                if response
+                    .content_length()
+                    .is_some_and(|length| length > MAX_JSON_RESPONSE_BYTES as u64)
+                {
+                    return Err(oversized());
+                }
+                let mut body = Vec::new();
+                while let Some(chunk) = self.check_io(response.chunk()).await? {
+                    if chunk.len() > MAX_JSON_RESPONSE_BYTES - body.len() {
+                        return Err(oversized());
+                    }
+                    body.extend_from_slice(&chunk);
+                }
+                let value: Value = serde_json::from_slice(&body).map_err(|_| {
+                    StreamableHttpError::UnexpectedServerResponse(
+                        "invalid MCP JSON response".into(),
+                    )
+                })?;
                 self.protocol
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -305,9 +330,9 @@ impl StreamableHttpClient for HttpClient {
                 result = delete => result.map_err(reqwest_012::Error::without_url),
             };
             cleanup.state.done.notify_one();
-            return Ok(result?);
+            return result.map_err(StreamableHttpError::Client);
         }
-        Ok(delete.await?)
+        delete.await.map_err(StreamableHttpError::Client)
     }
 
     async fn get_stream(
@@ -333,7 +358,7 @@ impl StreamableHttpClient for HttpClient {
         if response.status() == reqwest_012::StatusCode::METHOD_NOT_ALLOWED {
             return Err(StreamableHttpError::ServerDoesNotSupportSse);
         }
-        let response = response.error_for_status()?;
+        let response = response.error_for_status().map_err(StreamableHttpError::Client)?;
         let kind = response
             .headers()
             .get("content-type")

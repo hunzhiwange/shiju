@@ -47,12 +47,6 @@ target-dir/
 *.wasm
 /vendor/*
 !/vendor/block/
-!/vendor/aisdk/
-!/vendor/async-imap/
-!/vendor/crossterm/
-!/vendor/iced-code-editor/
-!/vendor/ksni/
-!/vendor/mundy/
 !/vendor/iced_term/
 .gitnexus
 /config.json

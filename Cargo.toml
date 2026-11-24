@@ -619,24 +619,12 @@ members = [
 exclude = [
   "vendor/iced_winit",
   "vendor/block",
-  "vendor/crossterm",
-  "vendor/ksni",
-  "vendor/mundy",
-  "vendor/iced-code-editor/iced-code-editor",
-  "vendor/aisdk",
-  "vendor/async-imap",
-  "vendor/aisdk/macros",
   "vendor/block/test_utils",
   "vendor/iced_term",
 ]
 resolver = "3"
 
 [workspace.dependencies]
-# Preserve the pinned editor IME/search and AI SDK native tool-search fixes.
-# https://github.com/doyouhaobaby/iced-code-editor/commit/65ac0fc4d234fc0d25aa037e7b377c7471134431
-iced-code-editor = { path = "vendor/iced-code-editor/iced-code-editor", version = "0.5.6" }
-# https://github.com/hunzhiwange/aisdk/commit/3401d28a7353c6e90cf4372f52c682cb2d02986b
-aisdk = { path = "vendor/aisdk", package = "vibewindow-aisdk", version = "0.7.1" }
 serde_yaml = { package = "yaml_serde", version = "0.10.7" }
 # Preserve checked SQLite conversions for u64 and usize across native crates.
 rusqlite = { version = "0.41.1", features = ["fallible_uint"] }
@@ -659,18 +647,6 @@ inherits = "release"
 lto = "thin"
 
 [patch.crates-io]
-# Port the Linux tray and appearance backends from zbus 5 to zbus 6.
-ksni = { path = "vendor/ksni" }
-mundy = { path = "vendor/mundy" }
-
-# Upstream replaced pin-utils with safe pin projections after publishing 0.12.0.
-# https://github.com/async-email/async-imap/commit/9b343baaeecddb583a8063f08f35a5fd255dc5c7
-async-imap = { path = "vendor/async-imap" }
-
-# Preserve the terminal input boundary fixes from the OpenAI fork.
-# https://github.com/openai-oss-forks/crossterm/commit/45fecb9508105988f42fe6ff0441783ed3717f92
-crossterm = { path = "vendor/crossterm" }
-
 # block 0.1.6 declares an uninhabited extern static (rust-lang/rust#74840).
 block = { path = "vendor/block" }
 

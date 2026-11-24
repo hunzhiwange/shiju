@@ -11,7 +11,7 @@ doctest = false
 gateway-files = { path = "../gateway-files" }
 preview-content = { path = "../preview-content" }
 iced = { version = "0.14", features = ["svg", "image", "advanced", "highlighter", "markdown"] }
-iced-code-editor = { workspace = true, features = ["two-face"] }
+iced-code-editor = { git = "https://github.com/doyouhaobaby/iced-code-editor.git", tag = "v0.5.6", features = ["two-face"] }
 config-ui = { path = "../config-ui" }
 desktop-i18n = { path = "../desktop-i18n" }
 desktop-assets = { path = "../desktop-assets" }

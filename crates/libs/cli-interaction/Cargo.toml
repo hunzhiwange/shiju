@@ -28,7 +28,7 @@ cli-interaction-model = { path = "../cli-interaction-model" }
 pulldown-cmark = "0.13.4"
 anyhow = "1"
 base64 = "0.23"
-crossterm = "0.29"
+crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
 dialoguer = "0.12"
 ratatui = "0.30.0"
 serde_json = "1"

@@ -11,7 +11,7 @@ doctest = false
 tui-contracts = { path = "../tui-contracts" }
 arboard = "3.4"
 base64 = "0.23"
-crossterm = "0.29"
+crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
 image = { version = "0.25.9", default-features = false, features = ["png"] }
 tracing = "0.1"
 

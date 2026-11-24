@@ -106,9 +106,8 @@ fn install_cli_binary_from_url(url: &str, target_bin: &Path) -> Result<(), Strin
 #[cfg(not(target_arch = "wasm32"))]
 fn install_staged_cli_binary(staged_bin: &Path, target_bin: &Path) -> Result<(), String> {
     ensure_cli_binary_executable(staged_bin)?;
-    replace_cli_binary(staged_bin, target_bin).map_err(|error| {
+    replace_cli_binary(staged_bin, target_bin).inspect_err(|_| {
         let _ = fs::remove_file(staged_bin);
-        error
     })
 }
 

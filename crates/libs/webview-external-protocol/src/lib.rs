@@ -99,13 +99,19 @@ fn hand_off(
 pub use platform::Parent;
 
 #[cfg(all(not(coverage), unix))]
-pub fn confirm_mcp_form( i18n: desktop_i18n::I18n, parent: &Parent, origin: &str, done: impl FnOnce(bool) + 'static) {
-    parent.show(i18n,
-        i18n.__("提交 MCP 表单"),
-        &i18n.sprintf("是否向 %s 发送表单数据？提交后将显示隔离的响应页面。", &[format!("{}", origin).into()]),
-        true,
-        done,
-    );
+pub fn confirm_mcp_form(
+    i18n: desktop_i18n::I18n,
+    parent: &Parent,
+    origin: &str,
+    done: impl FnOnce(bool) + 'static,
+) {
+    let Ok(message) =
+        i18n.format("是否向 %s 发送表单数据？提交后将显示隔离的响应页面。", &[origin.into()])
+    else {
+        done(false);
+        return;
+    };
+    parent.show(i18n, i18n.__("提交 MCP 表单"), &message, true, done);
 }
 
 #[cfg(not(coverage))]
@@ -124,7 +130,11 @@ pub fn show_confirmation( i18n: desktop_i18n::I18n,
     target: ExternalTarget,
     confirmation: Confirmation,
 ) {
-    let message = i18n.sprintf("是否使用系统应用打开 %s: 链接？取消后保留当前页面。", &[format!("{}", target.scheme()).into()]);
+    let Ok(message) = i18n
+        .format("是否使用系统应用打开 %s: 链接？取消后保留当前页面。", &[target.scheme().into()])
+    else {
+        return;
+    };
     let result_parent = parent.clone();
     parent.show(i18n, i18n.__("打开外部应用"), &message, true, move |approved| {
         let outcome = hand_off(target, approved, |scheme, url| result_parent.open(scheme, url));

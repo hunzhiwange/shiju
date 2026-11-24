@@ -44,6 +44,7 @@ impl std::fmt::Debug for Event {
 // The desktop edits a selection draft; the SDK owns every persistent operation.
 use super::provider_update::{State,Effect as Message};
 use crate::{state::icons::{Draft,Form}};
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::Read as _;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use iced::Task;

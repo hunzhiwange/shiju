@@ -42,10 +42,15 @@ pub fn card<'a>(
     }
     if let Some(action) = form.confirmation {
         let notice = match action {
-            Action::Clean => i18n.format("确认备份并清理所选的 %s 项定义？", &[(format!("{}", form.selected.len())).into()]).expect("valid display template"),
-            Action::Restore => i18n.__("确认恢复此备份中的定义？文件有外部改动时会保留当前内容。").into(),
+            Action::Clean => i18n.sprintf(
+                "确认备份并清理所选的 %s 项定义？",
+                &[form.selected.len().to_string().into()],
+            ),
+            Action::Restore => i18n
+                .__("确认恢复此备份中的定义？文件有外部改动时会保留当前内容。")
+                .to_owned(),
         };
-        body = body.push(settings_panel(text(i18n.__(notice))));
+        body = body.push(settings_panel(text(notice)));
     }
 
     let mut backup = column![

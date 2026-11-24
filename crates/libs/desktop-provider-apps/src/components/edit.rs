@@ -15,7 +15,6 @@ pub fn card<'a>(
     binding: bool,
     diagnostics: bool,
 ) -> Element<'a, Message> {
-    let i18n = help.i18n;
     card_with_selection(form, help, binding, diagnostics, false)
 }
 

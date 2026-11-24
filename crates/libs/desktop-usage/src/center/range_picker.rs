@@ -328,7 +328,7 @@ impl State {
 
     fn dialog(&self, i18n: desktop_i18n::I18n) -> Element<'_, Event> {
         let action = |label: String, event| {
-            button(text(i18n.__(label)).size(13))
+            button(text(label).size(13))
                 .padding([6, 10])
                 .style(rounded_action_btn_style)
                 .on_press(event)

@@ -207,7 +207,7 @@ pub fn probe(
     visible: &[McpCatalogRecord],
     token: &str,
     client: Result<GatewayClient, String>,
-    notice: &mut Option<desktop_provider_apps::Notice>,
+    notice: &mut Option<desktop_apps_ui::Notice>,
     event: ProbeMessage,
 ) -> Task<ProbeMessage> {
     if let ProbeMessage::Start(ids) = &event {

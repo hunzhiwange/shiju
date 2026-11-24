@@ -70,7 +70,7 @@ pub fn view(
     let base = container(page).padding(14).center_x(Length::Fill).center_y(Length::Fill).into();
     let base = worktrees::editor_with(state, i18n, base, |event| event);
     let base = worktrees::environment::editor_with(&state.environment, i18n, base, |event| event);
-    let base = worktrees::overlay_with(state, base, |event| event);
+    let base = worktrees::overlay_with(i18n, state, base, |event| event);
     iced::widget::keyed::Column::with_children([(case, base)])
         .width(Length::Fill)
         .height(Length::Fill)

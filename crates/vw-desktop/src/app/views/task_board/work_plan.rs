@@ -222,12 +222,12 @@ pub(super) fn project_view(app: &App) -> Element<'_, Message> {
 }
 
 pub(super) fn detail<'a>(app: &'a App, task: &Task) -> Option<Element<'a, Message>> {
+    let i18n = I18n::new(app.general_settings.desktop_locale);
     if !task.subtasks.is_empty() {
         let project = app.navigation_tabs.project_path.as_deref()?;
         if !desktop_task_board::work_views::can_resplit_legacy_work_plan(task, &workflow(app)) {
             return None;
         }
-        let i18n = I18n::new(app.general_settings.desktop_locale);
         return Some(column![
             text(i18n.__(vw_api_agent_scheduler::LEGACY_WORK_PLAN_RESPLIT_REASON)).size(13),
             action(i18n.__("重新拆分")).style(primary_action_btn_style).on_press_maybe(

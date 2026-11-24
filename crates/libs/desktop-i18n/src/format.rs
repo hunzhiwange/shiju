@@ -155,6 +155,11 @@ impl I18n {
     pub fn format(&self, source: &str, arguments: &[Argument]) -> Result<String> {
         format_translation(source, self.__(source), arguments)
     }
+
+    /// Renders display text, using the literal source if the call has invalid arguments.
+    pub fn sprintf(&self, source: &str, arguments: &[Argument]) -> String {
+        self.format(source, arguments).unwrap_or_else(|_| source.to_owned())
+    }
 }
 
 /// Strictly checks a translation without applying the runtime source fallback.

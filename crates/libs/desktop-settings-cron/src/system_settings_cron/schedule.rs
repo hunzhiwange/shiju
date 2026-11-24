@@ -360,7 +360,7 @@ pub(super) fn frequency_form<'a>(
         );
     }
     if let Err(error) = current.request() {
-        form = form.push(super::settings_error_banner(i18n.__(error)));
+        form = form.push(super::settings_error_banner(i18n.__(&error).to_owned()));
     }
     form.into()
 }
@@ -402,7 +402,7 @@ pub(super) fn rule_summary(i18n: I18n, rule: &R) -> String {
         }
         R::Monthly { days, time } => desktop_i18n::__!(i18n, "每月 %s 日 %s", format!("{:?}", days), (time.format("%H:%M")).to_string()).expect("valid settings message"),
         R::Yearly { month, day, time } => {
-            desktop_i18n::__!(i18n, "每年 %u 月 %u 日 %s", month, day, (time.format("%H:%M")).to_string()).expect("valid settings message")
+            desktop_i18n::__!(i18n, "每年 %u 月 %u 日 %s", *month, *day, (time.format("%H:%M")).to_string()).expect("valid settings message")
         }
         R::Advanced(expression) => desktop_i18n::__!(i18n, "高级 Cron %s", (expression).to_string()).expect("valid settings message"),
     }

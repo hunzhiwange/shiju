@@ -616,7 +616,7 @@ fn matrix_table<'a>(
                     }))
                 ),
                 rule::horizontal(1),
-                actions::menu(state).map(ViewMessage::MenuAction),
+                actions::menu(i18n, state).map(ViewMessage::MenuAction),
             ]
             .spacing(4);
             desktop_ui_controls::overlays::BelowOverlay::new(

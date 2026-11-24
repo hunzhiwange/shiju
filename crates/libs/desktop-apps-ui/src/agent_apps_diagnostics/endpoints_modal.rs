@@ -93,7 +93,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: State<'a>, base: Element<'a,
             .iter()
             .find(|(id, _)| **id == candidate.id)
             .map(|(_, report)| *report)
-            .map(report_text)
+            .map(|report| report_text(i18n, report))
             .unwrap_or_else(|| {
                 if state
                     .snapshot

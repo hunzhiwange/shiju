@@ -1,53 +1,92 @@
 //! Compile-time embedded, flat catalogs indexed by Chinese source text.
-use std::{collections::BTreeMap, fmt, sync::LazyLock};
+use std::{
+    collections::{BTreeMap, btree_map::Entry},
+    fmt,
+    sync::LazyLock,
+};
 
 use config_ui::DesktopLocale;
 use serde::{
-    Deserialize, Deserializer,
-    de::{self, MapAccess, Visitor},
+    Deserializer,
+    de::{self, DeserializeSeed, MapAccess, Visitor},
 };
 
 pub fn parse_catalog(source: &str) -> Result<BTreeMap<String, String>, serde_json::Error> {
-    struct FlatCatalog;
+    load_catalog(source, true)
+}
+
+fn load_catalog(source: &str, strict: bool) -> Result<BTreeMap<String, String>, serde_json::Error> {
+    struct FlatCatalog {
+        strict: bool,
+    }
+
+    impl<'de> DeserializeSeed<'de> for FlatCatalog {
+        type Value = BTreeMap<String, String>;
+
+        fn deserialize<D: Deserializer<'de>>(
+            self,
+            deserializer: D,
+        ) -> Result<Self::Value, D::Error> {
+            deserializer.deserialize_map(self)
+        }
+    }
+
     impl<'de> Visitor<'de> for FlatCatalog {
         type Value = BTreeMap<String, String>;
+
         fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("a flat object of Chinese source keys and string translations")
         }
+
         fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<Self::Value, M::Error> {
             let mut entries = BTreeMap::new();
-            while let Some((key, value)) = map.next_entry::<String, String>()? {
-                if !key.chars().any(|c| ('\u{3400}'..='\u{9fff}').contains(&c))
-                    || key.split('.').next().is_some_and(|prefix| {
-                        !prefix.chars().any(|c| ('\u{3400}'..='\u{9fff}').contains(&c))
-                    })
-                {
-                    return Err(de::Error::custom(
-                        "catalog keys must be Chinese source text without domains",
-                    ));
+            while let Some((key, value)) = map.next_entry::<String, serde_json::Value>()? {
+                let prefix = key.split_once('.').map_or(key.as_str(), |(prefix, _)| prefix);
+                if !prefix.chars().any(|c| ('\u{3400}'..='\u{9fff}').contains(&c)) {
+                    if self.strict {
+                        return Err(de::Error::custom(
+                            "catalog keys must be Chinese source text without domains",
+                        ));
+                    }
+                    continue;
                 }
-                if entries.insert(key, value).is_some() {
-                    return Err(de::Error::custom("duplicate catalog key"));
+
+                let serde_json::Value::String(value) = value else {
+                    if self.strict {
+                        return Err(de::Error::custom("catalog translations must be strings"));
+                    }
+                    continue;
+                };
+
+                match entries.entry(key) {
+                    Entry::Vacant(entry) => {
+                        if self.strict || !value.trim().is_empty() {
+                            entry.insert(value);
+                        }
+                    }
+                    Entry::Occupied(_) if self.strict => {
+                        return Err(de::Error::custom("duplicate catalog key"));
+                    }
+                    Entry::Occupied(_) => {}
                 }
             }
             Ok(entries)
         }
     }
-    struct Catalog(BTreeMap<String, String>);
-    impl<'de> Deserialize<'de> for Catalog {
-        fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-            deserializer.deserialize_map(FlatCatalog).map(Self)
-        }
-    }
-    serde_json::from_str::<Catalog>(source).map(|catalog| catalog.0)
+
+    let mut deserializer = serde_json::Deserializer::from_str(source);
+    let entries = FlatCatalog { strict }.deserialize(&mut deserializer)?;
+    deserializer.end()?;
+    Ok(entries)
 }
 
-/// Cache strict parsing failures so a damaged locale keeps returning source text.
+/// Skip unusable entries and keep the first usable translation for each key.
+/// If the JSON cannot be parsed, the locale falls back to source text.
 pub(crate) struct RuntimeCatalog(Result<BTreeMap<String, String>, serde_json::Error>);
 
 impl RuntimeCatalog {
     pub(crate) fn load(source: &str) -> Self {
-        Self(parse_catalog(source))
+        Self(load_catalog(source, false))
     }
 
     fn translate<'a>(&'a self, source: &'a str) -> &'a str {
@@ -55,7 +94,6 @@ impl RuntimeCatalog {
             .as_ref()
             .ok()
             .and_then(|catalog| catalog.get(source))
-            .filter(|translation| !translation.trim().is_empty())
             .map(String::as_str)
             .unwrap_or(source)
     }

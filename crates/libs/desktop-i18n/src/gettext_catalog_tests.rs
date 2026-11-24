@@ -56,7 +56,11 @@ fn desktop_gettext_catalog_runtime_falls_back_for_blank_or_invalid_catalog() {
             (r#"{"语言":"Translated","空串":"","空白":" \t\n　"}"#, "Translated"),
             ("{}", "语言"),
             ("{", "语言"),
-            (r#"{"语言":"a","语言":"b"}"#, "语言"),
+            (r#"{"语言":"a","语言":"b"}"#, "a"),
+            (
+                r#"{"settings.语言":"wrong","语言":"Translated","坏值":{},"尾项":"Last"}"#,
+                "Translated",
+            ),
             (r#"{"语言":{}}"#, "语言"),
             ("[]", "语言"),
         ] {
@@ -69,10 +73,13 @@ fn desktop_gettext_catalog_runtime_falls_back_for_blank_or_invalid_catalog() {
             let check = |en: &RuntimeCatalog, zh_tw: &RuntimeCatalog| {
                 for _ in 0..2 {
                     let broken = I18n::new(broken_locale);
-                    for source in ["缺项", "空串", "空白"] {
+                    for source in ["缺项", "空串", "空白", "坏值", "settings.语言"] {
                         assert_eq!(broken.translate_with_catalogs(source, || en, || zh_tw), source);
                     }
                     assert_eq!(broken.translate_with_catalogs("语言", || en, || zh_tw), expected);
+                    if json.contains("尾项") {
+                        assert_eq!(broken.translate_with_catalogs("尾项", || en, || zh_tw), "Last");
+                    }
                     let (healthy_locale, expected) = match broken_locale {
                         DesktopLocale::English => (DesktopLocale::TraditionalChinese, "語言"),
                         _ => (DesktopLocale::English, "Language"),

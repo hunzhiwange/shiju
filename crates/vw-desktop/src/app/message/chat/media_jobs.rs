@@ -249,7 +249,7 @@ pub(crate) fn message(event: Event) -> Message {
     Message::Chat(ChatMessage::Media(event))
 }
 
-fn session_mut(app: &mut App, key: &SessionKey) -> Option<&mut Session> {
+fn session_mut<'a>(app: &'a mut App, key: &SessionKey) -> Option<&'a mut Session> {
     if key.epoch != app.media_jobs.epoch {
         return None;
     }

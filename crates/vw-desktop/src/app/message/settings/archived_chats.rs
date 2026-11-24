@@ -55,7 +55,7 @@ pub(crate) fn update(app: &mut App, message: ArchivedChatsMessage) -> Task<Messa
                     crate::app::config::gateway_client(),
                     identity,
                     generation,
-                    info,
+                    *info,
                 )
             }
             Effect::ProjectLoaded(path, sessions) => crate::app::message::project::update(

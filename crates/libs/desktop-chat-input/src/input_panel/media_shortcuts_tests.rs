@@ -1,4 +1,4 @@
-use super::{AttachmentRule, MediaMode, Shortcut};
+use super::{AttachmentRule, MediaMode, MediaModeInput, Shortcut};
 use std::path::Path;
 
 #[test]

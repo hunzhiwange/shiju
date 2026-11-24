@@ -40,7 +40,7 @@ pub enum ArchivedChatsMessage {
         identity: Identity,
         generation: u64,
         id: String,
-        result: Result<Info, String>,
+        result: Result<Box<Info>, String>,
     },
     ProjectRefreshed {
         identity: Identity,
@@ -262,7 +262,7 @@ pub fn restore_task(
                 identity: identity.clone(),
                 generation,
                 id: id.clone(),
-                result,
+                result: result.map(Box::new),
             }
         },
     )

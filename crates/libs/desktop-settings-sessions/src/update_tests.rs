@@ -28,7 +28,7 @@ fn restored(current: &Identity, result: Result<Info, String>) -> ArchivedChatsMe
         identity: current.clone(),
         generation: 1,
         id: "a".into(),
-        result,
+        result: result.map(Box::new),
     }
 }
 
@@ -134,7 +134,7 @@ fn archived_chats_restore_success_invalidates_older_project_refreshes() {
             identity: current.clone(),
             generation: first_generation,
             id: "a".into(),
-            result: Ok(first),
+            result: Ok(Box::new(first)),
         },
         &current,
     );
@@ -145,7 +145,7 @@ fn archived_chats_restore_success_invalidates_older_project_refreshes() {
             identity: current.clone(),
             generation: second_generation,
             id: "child".into(),
-            result: Ok(second),
+            result: Ok(Box::new(second)),
         },
         &current,
     );

@@ -4,7 +4,7 @@ use iced::Task;
 use session_info::Info;
 pub enum Effect {
     Deleted(Vec<String>),
-    Restored { identity: Identity, generation: u64, info: Info },
+    Restored { identity: Identity, generation: u64, info: Box<Info> },
     ProjectLoaded(String, Vec<Info>),
     Toast { success: bool, label: &'static str },
 }
@@ -97,22 +97,20 @@ pub fn update(
                 }
             };
         }
-        ArchivedChatsMessage::Loaded { ref identity, generation, ref result }
+        ArchivedChatsMessage::Loaded { ref identity, generation, result: Ok(ref rows) }
             if identity == &current
                 && state.identity.as_ref() == Some(identity)
                 && generation == state.request_generation
                 && state.loading =>
         {
-            if let Ok(rows) = result {
-                let removed: Vec<_> = state
-                    .delete_reconcile_ids
-                    .iter()
-                    .filter(|id| !rows.iter().any(|row| &row.id == *id))
-                    .cloned()
-                    .collect();
-                state.delete_reconcile_ids.clear();
-                effects.push(Effect::Deleted(removed));
-            }
+            let removed: Vec<_> = state
+                .delete_reconcile_ids
+                .iter()
+                .filter(|id| !rows.iter().any(|row| &row.id == *id))
+                .cloned()
+                .collect();
+            state.delete_reconcile_ids.clear();
+            effects.push(Effect::Deleted(removed));
         }
         ArchivedChatsMessage::Restore(ref id) => {
             if state.operating_ids.contains(id) {

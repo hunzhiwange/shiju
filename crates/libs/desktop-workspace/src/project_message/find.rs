@@ -248,7 +248,6 @@ fn update(app: &mut FindState, project_path: Option<&str>, files: Vec<String>, m
             let case_sensitive = tab.case_sensitive; // 大小写敏感
             let whole_word = tab.whole_word; // 全词匹配
             let use_regex = tab.use_regex; // 正则表达式模式
-            let files = files; // 当前文件索引
             let title = format!("查找: {}", query); // 标签页标题
 
             // 标记标签页为运行中状态，并清除之前的错误和限制标志

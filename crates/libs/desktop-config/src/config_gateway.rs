@@ -94,7 +94,6 @@ pub fn gateway_client_endpoint_from_config(
     };
     let auth = gateway_endpoint::GatewayAuth {
         skey: Some(skey).filter(|value| !value.is_empty()),
-        ..gateway_endpoint::GatewayAuth::default()
     };
     let tenant_scope = TenantScope::new(active.platform_id.trim(), active.company_id.trim())
         .expect("gateway client tenant IDs are validated before persistence");

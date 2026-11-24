@@ -5,7 +5,7 @@ fn restored(current: &Identity, result: Result<Info, String>) -> ArchivedChatsMe
         identity: current.clone(),
         generation: 1,
         id: "a".into(),
-        result,
+        result: result.map(Box::new),
     }
 }
 
@@ -76,7 +76,7 @@ fn archived_chats_restore_routes_sync_caches_without_navigation_and_rejects_late
             identity: current.clone(),
             generation,
             id: "a".into(),
-            result: Ok(row.clone()),
+            result: Ok(Box::new(row.clone())),
         },
     );
     assert_eq!(app.session_state.sessions[0].title, "Persisted title");
@@ -124,7 +124,7 @@ fn archived_chats_restore_routes_sync_caches_without_navigation_and_rejects_late
             identity: old,
             generation,
             id: "a".into(),
-            result: Ok(row),
+            result: Ok(Box::new(row)),
         },
     );
     assert_eq!(app.session_state.sessions[0].title, "Persisted title");

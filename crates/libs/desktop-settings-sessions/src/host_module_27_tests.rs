@@ -2,14 +2,6 @@ use crate::archived_chats::*;
 use crate::state::ArchivedChatsState;
 use session_info::Info;
 use vw_api_transport::id::TenantScope;
-fn identity(company: &str) -> Identity {
-    Identity {
-        gateway: "http://127.0.0.1:1".into(),
-        tenant: TenantScope::new("10000", company).unwrap(),
-        user_id: Default::default(),
-        auth_fingerprint: [0; 32],
-    }
-}
 pub(crate) fn info(id: &str, project: &str, title: &str, updated: i64) -> Info {
     serde_json::from_value(serde_json::json!({
         "id": id, "slug": id, "projectID": project, "directory": format!("/fixture/{project}"),

@@ -225,13 +225,23 @@ pub fn execute_gateway_prompt_with_streaming(endpoint: fn() -> vw_gateway_client
         execution_path,
         model,
         prompt,
-        agent,
-        acp_agent,
-        None,
+        GatewayPromptRoute {
+            agent,
+            acp_agent,
+            reasoning_effort: None,
+            session_mode: GatewayPromptSessionMode::Fresh,
+        },
         sender,
-        GatewayPromptSessionMode::Fresh,
         None,
     )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+struct GatewayPromptRoute {
+    agent: Option<String>,
+    acp_agent: Option<String>,
+    reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
+    session_mode: GatewayPromptSessionMode,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -240,13 +250,11 @@ fn execute_gateway_prompt_with_streaming_in_mode(endpoint: fn() -> vw_gateway_cl
     execution_path: &str,
     model: &str,
     prompt: &str,
-    agent: Option<String>,
-    acp_agent: Option<String>,
-    reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
+    route: GatewayPromptRoute,
     sender: Option<&Sender<TaskLogStream>>,
-    session_mode: GatewayPromptSessionMode,
     idle_timeout: Option<Duration>,
 ) -> Result<String, String> {
+    let GatewayPromptRoute { agent, acp_agent, reasoning_effort, session_mode } = route;
     let endpoint = endpoint();
     let acp_enabled = acp_agent.is_some();
     let agent_enabled = agent.is_some();
@@ -473,11 +481,13 @@ fn execute_task_with_selected_backend_in_session(endpoint: fn() -> vw_gateway_cl
         execution_path,
         model,
         prompt,
-        resolve_task_execution_delegate_agent(task),
-        resolve_task_execution_acp_agent(task),
-        task.reasoning_effort,
+        GatewayPromptRoute {
+            agent: resolve_task_execution_delegate_agent(task),
+            acp_agent: resolve_task_execution_acp_agent(task),
+            reasoning_effort: task.reasoning_effort,
+            session_mode,
+        },
         sender,
-        session_mode,
         Some(task_gateway_idle_timeout()),
     )
 }
@@ -974,11 +984,13 @@ fn execute_task_plan_blocking(endpoint: fn() -> vw_gateway_client::GatewayEndpoi
                 &project_path,
                 &model,
                 retry_prompt,
-                resolve_task_execution_delegate_agent(&task),
-                resolve_task_execution_acp_agent(&task),
-                task.reasoning_effort,
+                GatewayPromptRoute {
+                    agent: resolve_task_execution_delegate_agent(&task),
+                    acp_agent: resolve_task_execution_acp_agent(&task),
+                    reasoning_effort: task.reasoning_effort,
+                    session_mode,
+                },
                 sender_ref,
-                session_mode,
                 Some(task_gateway_idle_timeout()),
             )
         },

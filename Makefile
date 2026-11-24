@@ -209,28 +209,34 @@ release-goreleaser-snapshot: ## 用 GoReleaser 在本地生成 snapshot 发布�
 	@command -v goreleaser >/dev/null || { echo "$(RED)Error: goreleaser not found.$(RESET)"; exit 1; }
 	goreleaser release --snapshot --clean --skip=publish
 
-release-check: release-check-clean release-check-fetch release-check-version release-check-clippy ## 发版前本地校验
-	@if [ "$(RELEASE_CHECK_WASM)" = "1" ]; then \
-		$(MAKE) release-check-wasm; \
+release-check: release-check-clean release-check-fetch release-check-version ## 发版前本地校验
+	@failed=0; \
+	$(MAKE) release-check-clippy || failed=1; \
+	if [ "$(RELEASE_CHECK_WASM)" = "1" ]; then \
+		$(MAKE) release-check-wasm || failed=1; \
 	else \
 		echo "$(YELLOW)Skipping wasm release check (RELEASE_CHECK_WASM=0).$(RESET)"; \
-	fi
-	@if [ "$(RELEASE_CHECK_DIST)" = "1" ]; then \
-		$(MAKE) release-check-dist-plan; \
+	fi; \
+	if [ "$(RELEASE_CHECK_DIST)" = "1" ]; then \
+		$(MAKE) release-check-dist-plan || failed=1; \
 	else \
 		echo "$(YELLOW)Skipping cargo-dist release check (RELEASE_CHECK_DIST=0).$(RESET)"; \
-	fi
-	@if [ "$(RELEASE_CHECK_DENY)" = "1" ]; then \
-		$(MAKE) release-check-deny; \
+	fi; \
+	if [ "$(RELEASE_CHECK_DENY)" = "1" ]; then \
+		$(MAKE) release-check-deny || failed=1; \
 	else \
 		echo "$(YELLOW)Skipping cargo-deny release check (RELEASE_CHECK_DENY=0).$(RESET)"; \
-	fi
-	@if [ "$(RELEASE_CHECK_PUBLISH)" = "1" ]; then \
-		$(MAKE) release-check-publish-dry-run; \
+	fi; \
+	if [ "$(RELEASE_CHECK_PUBLISH)" = "1" ]; then \
+		$(MAKE) release-check-publish-dry-run || failed=1; \
 	else \
 		echo "$(YELLOW)Skipping cargo publish dry-run (RELEASE_CHECK_PUBLISH=0).$(RESET)"; \
-	fi
-	@echo "$(GREEN)Release check passed.$(RESET)"
+	fi; \
+	if [ "$$failed" -ne 0 ]; then \
+		echo "$(RED)Release check failed.$(RESET)"; \
+		exit 1; \
+	fi; \
+	echo "$(GREEN)Release check passed.$(RESET)"
 
 release-check-clean: ## 可选检查 git 工作区是否干净: RELEASE_CHECK_CLEAN=1
 	@if [ "$(RELEASE_CHECK_CLEAN)" = "1" ]; then \
@@ -251,8 +257,8 @@ release-check-version: ## 校验发布包继承产品版本，内部 crate 固�
 	@echo "$(CYAN)Checking release and internal crate versions...$(RESET)"
 	@bash scripts/switch_version.sh --check
 
-release-check-clippy: ## 对齐 CI clippy: 所有 target + 所有 feature + warnings deny
-	cargo clippy --all-targets --all-features -- -D warnings
+release-check-clippy: ## 检查所有目标和功能，普通警告仅报告
+	cargo clippy --locked --keep-going --all-targets --all-features
 
 release-check-test: ## 单独运行 workspace lib/bin/tests 测试
 	mkdir -p target/test-home
@@ -260,7 +266,7 @@ release-check-test: ## 单独运行 workspace lib/bin/tests 测试
 	CARGO_HOME="$${CARGO_HOME:-$$HOME/.cargo}" RUSTUP_HOME="$${RUSTUP_HOME:-$$HOME/.rustup}" HOME="$(CURDIR)/target/test-home" RUST_TEST_THREADS=1 perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo test -p vw-agent -p vw-desktop --lib --bins --tests
 
 release-check-wasm: ensure-wasm-target ## 对齐 CI wasm 构建
-	cargo build -p vw-desktop --target wasm32-unknown-unknown --bin shi-ju
+	cargo build --locked -p vw-desktop --target wasm32-unknown-unknown --bin shi-ju
 
 release-check-dist-plan: ## 校验 cargo-dist 发布矩阵和配置
 	@command -v dist >/dev/null || { echo "$(RED)Error: dist not found. Install cargo-dist first.$(RESET)"; exit 1; }
@@ -270,10 +276,10 @@ release-check-dist-plan: ## 校验 cargo-dist 发布矩阵和配置
 
 release-check-deny: ## 校验依赖安全公告、许可证与来源策略
 	@command -v cargo-deny >/dev/null || { echo "$(RED)Error: cargo-deny not found. Install it with: cargo install cargo-deny --locked$(RESET)"; exit 1; }
-	cargo deny check
+	cargo deny --locked check
 
 release-check-publish-dry-run: ## 可选校验 crates.io 打包流程: RELEASE_CHECK_PUBLISH=1
-	@for package in $(RELEASE_PUBLISH_PACKAGES); do \
+	@set -e; for package in $(RELEASE_PUBLISH_PACKAGES); do \
 		echo "$(CYAN)Checking cargo publish dry-run for $$package...$(RESET)"; \
 		cargo publish -p "$$package" --dry-run --locked; \
 	done

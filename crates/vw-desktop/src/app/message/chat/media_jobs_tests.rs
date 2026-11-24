@@ -28,6 +28,90 @@ fn media_job_ui_validates_media_operation_and_keeps_model_deployments_distinct()
 }
 
 #[test]
+fn media_end_to_end_shortcut_models_follow_the_session_input() {
+    use MediaOperation as Op;
+    use desktop_chat_input::input_panel::media_shortcuts::Shortcut;
+
+    let cases: &[(MediaMode, &[&str], Op, &[&str])] = &[
+        (MediaMode::Image, &[], Op::ImageGenerate, &["voice.wav"]),
+        (MediaMode::Image, &["frame.png"], Op::ImageEdit, &["clip.mp4"]),
+        (MediaMode::Video, &["frame.png"], Op::VideoGenerate, &["a.png", "b.png"]),
+        (MediaMode::Speech, &[], Op::SpeechSynthesize, &["voice.wav"]),
+        (MediaMode::Vision, &["frame.png"], Op::ImageUnderstand, &[]),
+        (MediaMode::Vision, &["clip.mp4"], Op::VideoUnderstand, &["frame.png", "clip.mp4"]),
+        (MediaMode::Transcription, &["voice.mp3"], Op::AudioTranscribe, &["a.mp3", "b.mp3"]),
+        (MediaMode::Transcription, &["clip.mp4"], Op::AudioTranscribe, &["clip.mov"]),
+    ];
+    assert_eq!(
+        Shortcut::ALL,
+        [
+            Shortcut::AppStudio,
+            Shortcut::VideoEditor,
+            Shortcut::Media(MediaMode::Image),
+            Shortcut::Media(MediaMode::Video),
+            Shortcut::Media(MediaMode::Speech),
+            Shortcut::Media(MediaMode::Vision),
+            Shortcut::Media(MediaMode::Transcription),
+        ]
+    );
+
+    let mut app = App::new().0;
+    app.session_state.active_session_id = Some("media-shortcut-matrix".into());
+    let key = SessionKey::active(&app).unwrap();
+    let catalog = MediaModels {
+        models: [
+            Op::ImageGenerate,
+            Op::ImageEdit,
+            Op::VideoGenerate,
+            Op::SpeechSynthesize,
+            Op::ImageUnderstand,
+            Op::VideoUnderstand,
+            Op::AudioTranscribe,
+        ]
+        .into_iter()
+        .map(|operation| MediaModel {
+            deployment_id: "managed".into(),
+            model_id: format!("{operation:?}"),
+            display_name: "Managed fixture".into(),
+            operations: vec![operation],
+        })
+        .chain([MediaModel {
+            deployment_id: "direct".into(),
+            model_id: format!("{:?}", Op::ImageGenerate),
+            display_name: "Direct fixture".into(),
+            operations: vec![Op::ImageGenerate],
+        }])
+        .collect(),
+    };
+    for &(mode, files, operation, rejected) in cases {
+        let _ = app.update(Message::Chat(ChatMessage::MediaModeSelected(Some(mode))));
+        let _ = update(&mut app, Event::ModelsLoaded(key.clone(), Ok(catalog.clone())));
+        assert_eq!(media_shortcuts::active_mode(&app), Some(mode));
+        app.session_state.files = files.iter().map(|file| (*file).into()).collect();
+        assert_eq!(composer_operation(&app, mode), Ok(operation));
+
+        let (_, session) = active_session(&app).unwrap();
+        let options = model_options(session, operation);
+        assert_eq!(options.len(), if operation == Op::ImageGenerate { 2 } else { 1 });
+        if operation == Op::ImageGenerate {
+            assert!(!can_send(&app, mode, "prompt"));
+            for choice in options {
+                let _ = update(&mut app, Event::ModelSelected(key.clone(), operation, choice.clone()));
+                let (_, session) = active_session(&app).unwrap();
+                assert_eq!(selected_model(session, operation), Some(choice));
+                assert!(can_send(&app, mode, "prompt"));
+            }
+        } else {
+            assert!(can_send(&app, mode, "prompt"));
+        }
+
+        app.session_state.files = rejected.iter().map(|file| (*file).into()).collect();
+        assert!(composer_operation(&app, mode).is_err());
+        assert!(!can_send(&app, mode, "prompt"));
+    }
+}
+
+#[test]
 fn media_job_ui_keeps_edited_drafts_and_accepts_unchanged_drafts() {
     let draft = Draft { editor: "prompt".into(), files: vec!["frame.png".into()], navigation: 42 };
     assert!(draft.matches("prompt", &["frame.png".into()], 42));

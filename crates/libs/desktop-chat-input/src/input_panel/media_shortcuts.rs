@@ -14,7 +14,8 @@ pub use desktop_session::session::agent::MediaMode;
 
 const IMAGES: &[&str] = &["png", "jpg", "jpeg", "webp", "gif", "bmp"];
 const VIDEOS: &[&str] = &["mp4", "mov", "webm", "m4v", "mpeg", "mpg"];
-const AUDIO: &[&str] = &["wav", "mp3", "m4a", "aac", "flac", "ogg", "opus"];
+const AUDIO: &[&str] = &["wav", "mp3", "m4a", "flac", "ogg"];
+const TRANSCRIPTION_VIDEOS: &[&str] = &["mp4", "webm", "mpeg", "mpg"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AttachmentRule {
@@ -54,7 +55,7 @@ impl MediaModeInput for MediaMode {
             Self::Image | Self::Video => (IMAGES, &[][..]),
             Self::Speech => (&[][..], &[][..]),
             Self::Vision => (IMAGES, VIDEOS),
-            Self::Transcription => (AUDIO, VIDEOS),
+            Self::Transcription => (AUDIO, TRANSCRIPTION_VIDEOS),
         };
         primary.iter().copied().chain(secondary.iter().copied())
     }

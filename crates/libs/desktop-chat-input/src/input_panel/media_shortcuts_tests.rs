@@ -43,5 +43,7 @@ fn media_shortcuts_apply_attachment_requirements() {
         }
     }
     assert!(MediaMode::Vision.accepts(Path::new("photo.webp")));
-    assert!(MediaMode::Transcription.accepts(Path::new("clip.mov")));
+    assert!(MediaMode::Transcription.accepts(Path::new("clip.mp4")));
+    assert!(!MediaMode::Transcription.accepts(Path::new("clip.mov")));
+    assert!(!MediaMode::Transcription.accepts(Path::new("voice.aac")));
 }

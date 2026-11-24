@@ -30,7 +30,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use llm_runtime::aisdk::media::{MediaFailure, MediaFile, MediaOutput};
+use llm_runtime::aisdk::media::{MediaFailure, MediaFile, MediaOutput, transcription_extension};
 use sha2::{Digest, Sha256};
 use tokio::{io::AsyncReadExt, sync::Semaphore};
 use tokio_util::sync::CancellationToken;
@@ -449,7 +449,7 @@ fn validate_inputs(
         ImageGenerate | SpeechSynthesize => files.is_empty(),
         ImageEdit | ImageUnderstand => !files.is_empty() && files.iter().all(image),
         VideoGenerate => files.len() <= 1 && files.iter().all(image),
-        AudioTranscribe => matches!(files, [file] if file.mime.starts_with("audio/")),
+        AudioTranscribe => matches!(files, [file] if transcription_extension(&file.mime).is_some()),
         VideoUnderstand => matches!(files, [file] if file.mime.starts_with("video/")),
     };
     if !valid {

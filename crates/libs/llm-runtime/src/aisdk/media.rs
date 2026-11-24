@@ -81,6 +81,20 @@ pub struct MediaFile {
     pub bytes: Vec<u8>,
 }
 
+pub fn transcription_extension(mime: &str) -> Option<&'static str> {
+    Some(match mime {
+        "audio/wav" | "audio/x-wav" | "audio/wave" => "wav",
+        "audio/mpeg" | "audio/mp3" => "mp3",
+        "audio/mp4" | "audio/x-m4a" => "m4a",
+        "audio/webm" | "video/webm" => "webm",
+        "audio/ogg" => "ogg",
+        "audio/flac" => "flac",
+        "video/mp4" => "mp4",
+        "video/mpeg" => "mpeg",
+        _ => return None,
+    })
+}
+
 pub struct MediaOutput {
     pub text: Option<String>,
     pub files: Vec<MediaFile>,
@@ -368,15 +382,7 @@ impl MediaEndpoint {
         file: Option<MediaFile>,
     ) -> Result<MediaOutput, MediaFailure> {
         let MediaFile { mime, bytes } = file.ok_or(MediaFailure::InvalidInput)?;
-        let extension = match mime.as_str() {
-            "audio/wav" | "audio/x-wav" | "audio/wave" => "wav",
-            "audio/mpeg" | "audio/mp3" => "mp3",
-            "audio/mp4" | "audio/x-m4a" => "m4a",
-            "audio/webm" => "webm",
-            "audio/ogg" => "ogg",
-            "audio/flac" => "flac",
-            _ => return Err(MediaFailure::Unsupported),
-        };
+        let extension = transcription_extension(&mime).ok_or(MediaFailure::Unsupported)?;
         let protocol =
             OpenAIAudioProtocol::OpenAICompatible { speech: false, file_transcription: true };
         let result = self

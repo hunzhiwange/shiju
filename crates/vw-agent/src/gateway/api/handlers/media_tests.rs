@@ -15,6 +15,11 @@ fn media_gateway_flow_rechecks_input_shape() {
         validate_inputs(MediaOperation::AudioTranscribe, None, &[]),
         Err(Code::UnsupportedMedia)
     );
+    assert_eq!(validate_inputs(MediaOperation::AudioTranscribe, None, &[file("video/mp4")]), Ok(()));
+    assert_eq!(
+        validate_inputs(MediaOperation::AudioTranscribe, None, &[file("video/quicktime")]),
+        Err(Code::UnsupportedMedia)
+    );
 }
 
 use std::{

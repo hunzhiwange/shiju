@@ -521,6 +521,10 @@ path = "tests/acp_gemini_chat.rs"
 name = "gateway_legacy_handlers"
 path = "tests/gateway_legacy_handlers.rs"
 
+[[test]]
+name = "media_end_to_end"
+path = "tests/media_end_to_end.rs"
+
 [target.'cfg(unix)'.dependencies]
 tool-computer = { path = "../libs/tool-computer" }
 tool-office = { path = "../libs/tool-office" }

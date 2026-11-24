@@ -94,6 +94,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::CliCommandsTabSelected(_)
         | ViewMessage::CheckCliToolUpdateFinished(..)
         | ViewMessage::OpenAppUpdateModal
+        | ViewMessage::AppUpdateAutomation(_)
         | ViewMessage::CheckAppUpdate
         | ViewMessage::CheckAppUpdateFinished(..)
         | ViewMessage::AppUpdateSourceSelected(_)

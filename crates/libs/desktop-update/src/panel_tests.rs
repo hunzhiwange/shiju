@@ -133,3 +133,45 @@ fn cli_update_ignores_result_after_source_switch() {
     assert!(!app.desktop_update.checking);
     assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn automatic_download_waits_for_current_policy_and_never_opens_installer() {
+    use desktop_release::{DesktopRelease, UpdateSource};
+
+    let mut app = Fixture::new();
+    let policy = DownloadPolicy {
+        enabled: true,
+        wifi: true,
+        ..DownloadPolicy::default()
+    };
+    app.desktop_update.set_download_policy(policy);
+    app.desktop_update.release = Some(DesktopRelease {
+        source: UpdateSource::Shiju,
+        version: "999.0.0".into(),
+        assets: Vec::new(),
+    });
+
+    app.desktop_update.automatic_probe_pending = true;
+    let _ = update_fixture(
+        &mut app,
+        PanelMessage::AutomaticConditionsChecked(0, DownloadPolicy::default(), true),
+    );
+    assert!(!app.desktop_update.busy);
+
+    app.desktop_update.automatic_probe_pending = true;
+    let _ = update_fixture(&mut app, PanelMessage::AutomaticConditionsChecked(0, policy, true));
+    assert!(app.desktop_update.automatic_download_active);
+    assert!(app.desktop_update.download_abort.is_some());
+
+    let request = app.desktop_update.request;
+    app.desktop_update.automatic_probe_pending = true;
+    let _ = update_fixture(
+        &mut app,
+        PanelMessage::AutomaticConditionsChecked(request, policy, false),
+    );
+    assert!(!app.desktop_update.busy);
+    assert!(!app.desktop_update.automatic_download_active);
+    assert!(app.desktop_update.download_abort.is_none());
+    assert!(app.desktop_update.ready.is_none());
+}

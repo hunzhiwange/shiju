@@ -494,6 +494,19 @@ impl App {
             provider_models_sync_tick,
             app_update_progress_tick,
             #[cfg(not(target_arch = "wasm32"))]
+            if self.desktop_update.download_policy.enabled {
+                iced::time::every(std::time::Duration::from_secs(30)).map(|_| {
+                    use chrono::Timelike;
+                    Message::View(message::ViewMessage::AppUpdateAutomation(
+                        desktop_update::panel::PanelMessage::AutomaticDownloadTick(
+                            chrono::Local::now().hour(),
+                        ),
+                    ))
+                })
+            } else {
+                Subscription::none()
+            },
+            #[cfg(not(target_arch = "wasm32"))]
             web_install_progress_tick,
             work_browser_runtime_tick,
             workflow_run,

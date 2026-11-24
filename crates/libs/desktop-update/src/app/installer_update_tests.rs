@@ -140,3 +140,21 @@ fn installer_update_macos_retained_package_allows_retry() {
     .unwrap();
     assert!(message.contains("正在退出"));
 }
+
+#[test]
+fn restores_only_cache_matching_the_checked_release() {
+    let (root, ready) = fixture(InstallerKind::Dmg);
+    let mut expected = asset(InstallerKind::Dmg);
+    let restored = find_cached_installer(root.path(), "v1.2.3", &expected)
+        .unwrap()
+        .unwrap();
+    assert_eq!(restored.path(), ready.path());
+    assert!(find_cached_installer(root.path(), "1.2.4", &expected).unwrap().is_none());
+
+    expected.sha256 = hex::encode(Sha256::digest(b"modified"));
+    assert!(find_cached_installer(root.path(), "1.2.3", &expected).unwrap().is_none());
+    std::fs::write(ready.path(), b"partial").unwrap();
+    assert!(find_cached_installer(root.path(), "1.2.3", &asset(InstallerKind::Dmg))
+        .unwrap()
+        .is_none());
+}

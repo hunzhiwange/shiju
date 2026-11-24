@@ -1,4 +1,5 @@
 //! Desktop update selection and the exact release snapshot used for download.
+use crate::automatic::{CONFIG_KEY, DownloadPolicy};
 use desktop_release::{DesktopRelease, UpdateSource};
 
 pub const UPDATE_CHECK_INTERVAL: std::time::Duration =
@@ -14,6 +15,15 @@ pub struct SkippedRelease {
 pub struct DesktopUpdate {
     pub source: Option<UpdateSource>,
     pub skipped: Option<SkippedRelease>,
+    pub download_policy: DownloadPolicy,
+    pub saving_download_policy: bool,
+    download_policy_edited: bool,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) automatic_probe_pending: bool,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) automatic_download_active: bool,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) automatic_retry_after: Option<std::time::Instant>,
     pub saving_skip: bool,
     pub initial_check_started: bool,
     pub background_request: Option<u64>,
@@ -43,6 +53,15 @@ impl DesktopUpdate {
             skipped: config
                 .get("app_update_skipped_release")
                 .and_then(|value| serde_json::from_value(value.clone()).ok()),
+            download_policy: read_download_policy(config),
+            saving_download_policy: false,
+            download_policy_edited: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            automatic_probe_pending: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            automatic_download_active: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            automatic_retry_after: None,
             saving_skip: false,
             initial_check_started: false,
             background_request: None,
@@ -80,8 +99,22 @@ pub fn source_patch(source: UpdateSource) -> serde_json::Value {
     serde_json::json!({"app_update_source": source})
 }
 
+fn read_download_policy(cfg: &serde_json::Value) -> DownloadPolicy {
+    cfg.get(CONFIG_KEY)
+        .and_then(|value| serde_json::from_value(value.clone()).ok())
+        .unwrap_or_default()
+}
+
 impl DesktopUpdate {
+    pub(crate) fn set_download_policy(&mut self, policy: DownloadPolicy) {
+        self.download_policy = policy;
+        self.download_policy_edited = true;
+    }
+
     pub fn restore_preferences(&mut self, cfg: &serde_json::Value) {
+        if !self.download_policy_edited {
+            self.download_policy = read_download_policy(cfg);
+        }
         if !self.selected_by_user
             && !self.checking
             && self.background_request.is_none()
@@ -89,9 +122,10 @@ impl DesktopUpdate {
             && !self.busy
             && self.release.is_none()
         {
-            let initial_check_started = self.initial_check_started;
-            *self = DesktopUpdate::from_config(cfg);
-            self.initial_check_started = initial_check_started;
+            let restored = DesktopUpdate::from_config(cfg);
+            self.source = restored.source;
+            self.error = restored.error;
+            self.skipped = restored.skipped;
         }
     }
 }

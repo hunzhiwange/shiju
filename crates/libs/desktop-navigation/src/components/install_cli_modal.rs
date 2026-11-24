@@ -267,7 +267,7 @@ pub fn view_inner<'a>(
         let action_row = if use_app_update_action
             && desktop_update.is_some_and(|state| state.ready.is_some())
         {
-            let label = if installing { "更新中…" } else { "自动更新并退出 / 重试" };
+            let label = if installing { "更新中…" } else { "安装更新" };
             let mut content = row![].spacing(8).align_y(Alignment::Center);
             if installing {
                 content = content.push(
@@ -457,6 +457,10 @@ pub fn view_inner<'a>(
                 column![source_control, version_block].spacing(12),
                 progress_block,
             ]
+            .extend(automatic_download_settings(
+                i18n,
+                desktop_update.filter(|_| use_app_update_action),
+            ))
             .spacing(14)
             .into(),
             640,
@@ -484,4 +488,58 @@ pub fn view_inner<'a>(
     };
     let card = settings_modal_layout(header, body, actions).width(540).height(height);
     settings_modal_overlay(None, close_message, container(card).padding(12))
+}
+
+
+fn automatic_download_settings<'a>(
+    i18n: desktop_i18n::I18n,
+    state: Option<&desktop_update::app::desktop_update::DesktopUpdate>,
+) -> Option<Element<'a, Message>> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (i18n, state);
+        None
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use desktop_ui_controls::system_settings_common::settings_checkbox_style;
+        use desktop_update::automatic::DownloadPolicy;
+        use iced::widget::checkbox;
+
+        let state = state?;
+        let policy = state.download_policy;
+        let disabled = state.saving_download_policy;
+        let control = |label: &'static str, checked, change: fn(&mut DownloadPolicy, bool)| {
+            let control = checkbox(checked)
+                .label(i18n.__(label))
+                .size(15)
+                .text_size(SETTINGS_CONTROL_TEXT_SIZE)
+                .style(settings_checkbox_style);
+            if disabled {
+                control
+            } else {
+                control.on_toggle(move |checked| {
+                    let mut policy = policy;
+                    change(&mut policy, checked);
+                    Message::View(ViewMessage::DownloadPolicyChanged(policy))
+                })
+            }
+        };
+        let mut settings = column![control("自动下载更新", policy.enabled, |policy, value| {
+            policy.enabled = value;
+        })].spacing(8);
+        if policy.enabled {
+            settings = settings.push(
+                row![
+                    control("空闲时（10 分钟）", policy.idle, |p, v| p.idle = v),
+                    control("夜间（23:00–07:00）", policy.night, |p, v| p.night = v),
+                    control("仅 Wi-Fi", policy.wifi, |p, v| p.wifi = v),
+                    control("仅接通电源", policy.plugged_in, |p, v| p.plugged_in = v),
+                ]
+                .spacing(12)
+                .wrap(),
+            );
+        }
+        Some(settings.into())
+    }
 }

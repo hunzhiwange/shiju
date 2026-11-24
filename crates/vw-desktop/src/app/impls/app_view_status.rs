@@ -3,6 +3,10 @@ use super::{App, Message};
 use iced::Element;
 pub(crate) use desktop_navigation::status_bar::STATUS_BAR_HEIGHT;
 
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "app_update_ring.rs"]
+mod app_update_ring;
+
 pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
     #[cfg(not(target_arch = "wasm32"))]
     let lsp_content = desktop_editor::status_bar::lsp_content(
@@ -13,9 +17,17 @@ pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
     let lsp_content = iced::widget::Space::new().into();
     let notification = desktop_navigation::status_bar::notification_button(app.notification_state.notifications.len())
         .map(|_| Message::Notification(crate::app::message::NotificationMessage::ToggleExpanded));
+    #[cfg(not(target_arch = "wasm32"))]
+    let update = app_update_ring::view(app);
+    #[cfg(target_arch = "wasm32")]
+    let update = None;
+
     desktop_navigation::status_bar::view(
         crate::app::components::account_status::view(app),
-        crate::app::components::account_status::monthly_quota(app), lsp_content, notification,
+        crate::app::components::account_status::monthly_quota(app),
+        update,
+        lsp_content,
+        notification,
     )
 }
 #[cfg(test)]

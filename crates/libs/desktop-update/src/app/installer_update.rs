@@ -87,15 +87,19 @@ pub async fn prepare_desktop_update(
     let target = desktop_target(std::env::consts::OS, std::env::consts::ARCH)?;
     let kind = installer_kind(std::env::consts::OS)?;
     let asset = release.installer_for_target(target, kind)?;
-    // Installer downloads use the ShiJu identity independently of legacy configuration paths.
-    #[cfg(debug_assertions)]
-    const APP_NAME: &str = "shiju-dev";
-    #[cfg(not(debug_assertions))]
-    const APP_NAME: &str = "shiju";
-    let dirs =
-        directories::ProjectDirs::from("com", "rsung", APP_NAME).context("无法确定应用缓存目录")?;
-    fs::create_dir_all(dirs.cache_dir())?;
-    let attempt = create_attempt(dirs.cache_dir(), &release.version)?;
+    let cache = installer_cache_dir()?;
+    let cached = tokio::task::spawn_blocking({
+        let cache = cache.clone();
+        let asset = asset.clone();
+        let version = release.version.clone();
+        move || find_cached_installer(&cache, &version, &asset)
+    })
+    .await??;
+    if let Some(ready) = cached {
+        return Ok(ready);
+    }
+    fs::create_dir_all(&cache)?;
+    let attempt = create_attempt(&cache, &release.version)?;
     let path = desktop_release::download_desktop_installer(
         release,
         target,
@@ -107,6 +111,58 @@ pub async fn prepare_desktop_update(
     )
     .await?;
     finish_download(attempt, path, asset, &release.version)
+}
+
+fn installer_cache_dir() -> Result<PathBuf> {
+    // Installer downloads use the ShiJu identity independently of legacy configuration paths.
+    #[cfg(debug_assertions)]
+    const APP_NAME: &str = "shiju-dev";
+    #[cfg(not(debug_assertions))]
+    const APP_NAME: &str = "shiju";
+    let dirs =
+        directories::ProjectDirs::from("com", "rsung", APP_NAME).context("无法确定应用缓存目录")?;
+    Ok(dirs.cache_dir().to_owned())
+}
+
+pub async fn restore_desktop_update(release: DesktopRelease) -> Result<Option<PreparedDesktopUpdate>> {
+    tokio::task::spawn_blocking(move || {
+        let target = desktop_target(std::env::consts::OS, std::env::consts::ARCH)?;
+        let kind = installer_kind(std::env::consts::OS)?;
+        let asset = release.installer_for_target(target, kind)?;
+        find_cached_installer(&installer_cache_dir()?, &release.version, asset)
+    })
+    .await?
+}
+
+fn find_cached_installer(
+    cache: &Path,
+    version: &str,
+    asset: &DesktopInstaller,
+) -> Result<Option<PreparedDesktopUpdate>> {
+    let entries = match version_directory(cache, version, false).and_then(|path| Ok(fs::read_dir(path)?)) {
+        Ok(entries) => entries,
+        Err(error) if error.downcast_ref::<std::io::Error>()
+            .is_some_and(|error| error.kind() == std::io::ErrorKind::NotFound) => return Ok(None),
+        Err(error) => return Err(error),
+    };
+    for entry in entries.flatten() {
+        if !entry.file_name().to_string_lossy().starts_with("attempt-")
+            || !entry.file_type().is_ok_and(|kind| kind.is_dir())
+        {
+            continue;
+        }
+        let directory = entry.path();
+        let ready = PreparedDesktopUpdate {
+            path: directory.join(&asset.name),
+            directory,
+            asset: asset.clone(),
+            version: version.trim_start_matches('v').to_owned(),
+        };
+        if verify_ready(&ready).is_ok() {
+            return Ok(Some(ready));
+        }
+    }
+    Ok(None)
 }
 
 /// Revalidate the download and start the independent automatic updater.
@@ -141,18 +197,23 @@ fn extension(kind: InstallerKind) -> &'static str {
 fn instructions(kind: InstallerKind) -> &'static str {
     match kind {
         InstallerKind::Dmg => {
-            "点击自动更新后，应用将退出并自动替换完整应用包，无需拖拽；成功后确认启动新版。"
+            "点击安装更新后，应用将退出并自动替换完整应用包，无需拖拽；成功后确认启动新版。"
         }
         InstallerKind::Msi => {
-            "点击自动更新后，应用将退出并通过 Windows Installer 更新；请允许系统授权，成功后确认启动新版。"
+            "点击安装更新后，应用将退出并通过 Windows Installer 更新；请允许系统授权，成功后确认启动新版。"
         }
         InstallerKind::Rpm | InstallerKind::Deb => {
-            "点击自动更新后，应用将退出并请求系统安装授权；Ubuntu/Debian 使用 DEB，RPM 系统使用 RPM。取消授权或安装失败时保留安装包，成功后提示启动新版。"
+            "点击安装更新后，应用将退出并请求系统安装授权；Ubuntu/Debian 使用 DEB，RPM 系统使用 RPM。取消授权或安装失败时保留安装包，成功后提示启动新版。"
         }
     }
 }
 
 fn create_attempt(cache: &Path, version: &str) -> Result<tempfile::TempDir> {
+    let directory = version_directory(cache, version, true)?;
+    Ok(tempfile::Builder::new().prefix("attempt-").tempdir_in(directory)?)
+}
+
+fn version_directory(cache: &Path, version: &str, create: bool) -> Result<PathBuf> {
     // Validate even this private boundary before using a version as a path component.
     let version = version.strip_prefix('v').unwrap_or(version);
     let parts: Vec<_> = version.split('.').collect();
@@ -164,10 +225,12 @@ fn create_attempt(cache: &Path, version: &str) -> Result<tempfile::TempDir> {
     let mut directory = cache.canonicalize()?;
     for component in ["updates".to_owned(), format!("v{version}")] {
         directory.push(component);
-        match fs::create_dir(&directory) {
-            Ok(()) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-            Err(error) => return Err(error.into()),
+        if create {
+            match fs::create_dir(&directory) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                Err(error) => return Err(error.into()),
+            }
         }
         let metadata = fs::symlink_metadata(&directory)?;
         if metadata.file_type().is_symlink()
@@ -177,7 +240,7 @@ fn create_attempt(cache: &Path, version: &str) -> Result<tempfile::TempDir> {
             bail!("安装包缓存目录不能是符号链接：{}", directory.display());
         }
     }
-    Ok(tempfile::Builder::new().prefix("attempt-").tempdir_in(directory)?)
+    Ok(directory)
 }
 
 fn finish_download(

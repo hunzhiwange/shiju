@@ -4,6 +4,8 @@ pub enum Message { View(ViewMessage), CopyCode(String), None }
 pub enum ViewMessage {
  CloseInstallCliModal, CheckAppUpdate, CheckCliToolUpdate, OpenAppInstaller,
  OpenAppInstallerDirectory, CancelAppUpdate, RunAppUpdate, RunInstallCliTool, SkipAppUpdate,
+ #[cfg(not(target_arch = "wasm32"))]
+ DownloadPolicyChanged(desktop_update::automatic::DownloadPolicy),
  AppUpdateSourceSelected(desktop_release::UpdateSource),
  CliCommandsTabSelected(super::cli_command_help::CliCommandsTab),
  #[cfg(not(target_arch="wasm32"))] WebInstall(desktop_web_install::Event),

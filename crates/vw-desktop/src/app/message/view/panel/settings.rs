@@ -119,6 +119,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::CheckCliToolUpdateFinished(v0, v1, v2) => {
             update_panel(app, PanelMessage::CheckCliToolUpdateFinished(v0, v1, v2))
         }
+        ViewMessage::AppUpdateAutomation(message) => update_panel(app, message),
         ViewMessage::OpenAppUpdateModal => update_panel(app, PanelMessage::OpenAppUpdateModal),
         ViewMessage::AppUpdateSourceSelected(v0) => {
             update_panel(app, PanelMessage::AppUpdateSourceSelected(v0))
@@ -433,6 +434,12 @@ fn update_panel(app: &mut App, message: PanelMessage) -> Task<Message> {
                 ),
                 |result| Message::View(ViewMessage::AppUpdateSourceSaved(result)),
             ),
+            Effect::SaveDownloadPolicy(patch) => Task::perform(
+                crate::app::config::save_app_config_async(patch),
+                |result| Message::View(ViewMessage::AppUpdateAutomation(
+                    PanelMessage::DownloadPolicySaved(result),
+                )),
+            ),
             Effect::LocalizedError(source, arguments) => {
                 app.show_localized_toast(crate::app::state::ToastKind::Error, source, arguments)
             }
@@ -450,6 +457,13 @@ fn update_panel(app: &mut App, message: PanelMessage) -> Task<Message> {
 }
 fn panel_message(message: PanelMessage) -> ViewMessage {
     match message {
+        message @ (PanelMessage::DownloadPolicyChanged(_) | PanelMessage::DownloadPolicySaved(_)) => {
+            ViewMessage::AppUpdateAutomation(message)
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        message @ (PanelMessage::AutomaticDownloadTick(_)
+            | PanelMessage::AutomaticConditionsChecked(..)
+            | PanelMessage::CachedInstallerChecked(..)) => ViewMessage::AppUpdateAutomation(message),
         PanelMessage::InstallCliTool => ViewMessage::InstallCliTool,
         PanelMessage::RunInstallCliTool => ViewMessage::RunInstallCliTool,
         PanelMessage::CheckCliToolUpdate => ViewMessage::CheckCliToolUpdate,

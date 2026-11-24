@@ -1,5 +1,8 @@
 //! Update modal state transitions, release checks and download lifecycle.
 use crate::app::desktop_update::DesktopUpdate;
+use crate::automatic::{CONFIG_KEY, DownloadPolicy};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::installer_update::PreparedDesktopUpdate;
 use crate::cli_install::{current_cli_tool_version_label, install_cli_tool, versions_match};
 #[cfg(not(target_arch = "wasm32"))]
 use desktop_release as update;
@@ -11,6 +14,14 @@ pub enum PanelMessage {
     CheckCliToolUpdate,
     CheckCliToolUpdateFinished(u64, desktop_release::UpdateSource, Result<String, String>),
     OpenAppUpdateModal,
+    DownloadPolicyChanged(DownloadPolicy),
+    DownloadPolicySaved(Result<(), String>),
+    #[cfg(not(target_arch = "wasm32"))]
+    AutomaticDownloadTick(u32),
+    #[cfg(not(target_arch = "wasm32"))]
+    AutomaticConditionsChecked(u64, DownloadPolicy, bool),
+    #[cfg(not(target_arch = "wasm32"))]
+    CachedInstallerChecked(u64, Option<PreparedDesktopUpdate>),
     AppUpdateSourceSelected(desktop_release::UpdateSource),
     AppUpdateSourceSaved(Result<(), String>),
     CheckAppUpdate,
@@ -52,6 +63,7 @@ pub struct PanelState {
 pub enum Effect {
     CloseMenu,
     SaveSource(desktop_release::UpdateSource),
+    SaveDownloadPolicy(serde_json::Value),
     Error(String),
     LocalizedError(&'static str, Vec<desktop_i18n::format::Argument>),
     Shutdown,
@@ -77,6 +89,79 @@ pub fn update(
     message: PanelMessage,
 ) -> Task<PanelMessage> {
     match message {
+        PanelMessage::DownloadPolicyChanged(policy) => {
+            if state.saving_download_policy || state.download_policy == policy {
+                return Task::none();
+            }
+            state.set_download_policy(policy);
+            state.saving_download_policy = true;
+            effects.push(Effect::SaveDownloadPolicy(serde_json::json!({(CONFIG_KEY): policy})));
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                state.automatic_retry_after = None;
+                if state.automatic_download_active {
+                    cancel_download(panel, state);
+                }
+            }
+            Task::none()
+        }
+        PanelMessage::DownloadPolicySaved(result) => {
+            state.saving_download_policy = false;
+            match result {
+                Ok(()) => Task::none(),
+                Err(error) => localized_error(
+                    effects,
+                    "自动下载设置未保存：%s",
+                    vec![error.into()],
+                ),
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        PanelMessage::AutomaticDownloadTick(hour) => {
+            if state.automatic_probe_pending || !state.download_policy.enabled
+                || (!state.automatic_download_active && !can_auto_download(panel, state))
+            {
+                return Task::none();
+            }
+            state.automatic_probe_pending = true;
+            let policy = state.download_policy;
+            let request = state.request;
+            Task::perform(
+                async move {
+                    tokio::task::spawn_blocking(move || policy.allows_on_device(hour))
+                        .await
+                        .unwrap_or(false)
+                },
+                move |allowed| PanelMessage::AutomaticConditionsChecked(request, policy, allowed),
+            )
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        PanelMessage::AutomaticConditionsChecked(request, policy, allowed) => {
+            if !std::mem::take(&mut state.automatic_probe_pending) {
+                return Task::none();
+            }
+            if request != state.request || policy != state.download_policy {
+                return Task::none();
+            }
+            if state.automatic_download_active {
+                if !allowed {
+                    cancel_download(panel, state);
+                }
+            } else if allowed && can_auto_download(panel, state) {
+                state.automatic_download_active = true;
+                return update(panel, state, effects, version, locale, PanelMessage::RunAppUpdate);
+            }
+            Task::none()
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        PanelMessage::CachedInstallerChecked(request, ready) => {
+            if request == state.request && !state.busy && state.installable()
+                && let Some(ready) = ready
+            {
+                mark_installer_ready(panel, state, ready);
+            }
+            Task::none()
+        }
         PanelMessage::InstallCliTool => {
             if state.busy {
                 return Task::none();
@@ -166,8 +251,10 @@ pub fn update(
                     PanelMessage::CheckAppUpdate,
                 );
             }
-            state.request += 1;
-            state.checking = false;
+            if !state.busy {
+                state.request += 1;
+                state.checking = false;
+            }
             panel.cli_install_modal_title = "检测更新".into();
             panel.cli_install_message = None;
             panel.cli_install_modal_message =
@@ -181,6 +268,17 @@ pub fn update(
             if let Some(release) = &state.release {
                 panel.cli_install_modal_server_version = release.version.clone();
                 panel.cli_install_modal_show_install_action = state.installable();
+            }
+            if state.busy {
+                panel.cli_install_modal_show_install_action = false;
+                if state.download_abort.is_some() {
+                    panel.cli_install_modal_message = "正在下载并校验安装包...".into();
+                } else {
+                    panel.cli_install_modal_title = "更新中…".into();
+                    panel.cli_install_modal_message =
+                        "正在校验安装包并启动自动更新，请稍候；准备就绪后应用将自动退出。".into();
+                }
+                return Task::none();
             }
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(ready) = &state.ready {
@@ -286,6 +384,17 @@ pub fn update(
                             }
                             .into();
                             state.release = Some(release);
+                            #[cfg(not(target_arch = "wasm32"))]
+                            if newer {
+                                let release = state.release.clone().expect("checked snapshot");
+                                return Task::perform(
+                                    async move {
+                                        crate::app::installer_update::restore_desktop_update(release)
+                                            .await.ok().flatten()
+                                    },
+                                    move |ready| PanelMessage::CachedInstallerChecked(request, ready),
+                                );
+                            }
                         }
                         Err(error) => {
                             return app_update_error(panel, state, effects, error.to_string());
@@ -310,7 +419,13 @@ pub fn update(
             }
             #[cfg(not(target_arch = "wasm32"))]
             {
+                if state.ready.is_some() {
+                    return Task::none();
+                }
                 let release = state.release.clone().expect("checked snapshot");
+                if panel.cli_install_modal_use_app_update_action {
+                    panel.cli_install_modal_server_version = release.version.clone();
+                }
                 let (progress_tx, progress_rx) = std::sync::mpsc::channel();
                 state.busy = true;
                 panel.cli_install_modal_is_checking_update = true;
@@ -338,19 +453,11 @@ pub fn update(
             }
         }
         PanelMessage::CancelAppUpdate => {
-            // Installation is irreversible here; only an active download is cancellable.
-            let Some(handle) = state.download_abort.take() else {
-                return Task::none();
-            };
-            handle.abort();
-            state.request += 1;
-            state.busy = false;
-            panel.cli_install_modal_is_checking_update = false;
-            panel.cli_install_modal_show_install_action = state.installable();
-            panel.cli_install_message = None;
-            panel.cli_install_modal_message = "下载已取消，可重新下载安装包。".into();
-            panel.app_update_progress_rx = None;
-            panel.app_update_progress = None;
+            #[cfg(not(target_arch = "wasm32"))]
+            if state.download_abort.is_some() {
+                state.automatic_retry_after = Some(std::time::Instant::now() + AUTOMATIC_RETRY_DELAY);
+                cancel_download(panel, state);
+            }
             Task::none()
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -365,6 +472,7 @@ pub fn update(
             if !state.busy {
                 return Task::none();
             }
+            let automatic = std::mem::take(&mut state.automatic_download_active);
             state.download_abort = None;
             state.busy = false;
             panel.cli_install_modal_is_checking_update = false;
@@ -376,13 +484,20 @@ pub fn update(
                 }
             match result {
                 Ok(ready) => {
-                    panel.cli_install_modal_title = "安装包已就绪".into();
-                    panel.cli_install_message = None;
-                    panel.cli_install_modal_message = ready.instructions();
-                    state.ready = Some(ready);
+                    mark_installer_ready(panel, state, ready);
                     Task::none()
                 }
-                Err(error) => app_update_error(panel, state, effects, error),
+                Err(error) => {
+                    if automatic {
+                        state.automatic_retry_after =
+                            Some(std::time::Instant::now() + AUTOMATIC_RETRY_DELAY);
+                        if !panel.show_cli_install_modal {
+                            panel.cli_install_modal_show_install_action = state.installable();
+                            return Task::none();
+                        }
+                    }
+                    app_update_error(panel, state, effects, error)
+                }
             }
         }
         PanelMessage::OpenAppInstaller => {
@@ -509,14 +624,61 @@ pub fn update(
         PanelMessage::CloseInstallCliModal => {
             panel.show_cli_install_modal = false;
             if !panel.cli_install_modal_use_app_update_action {
-                state.request += 1;
-                state.checking = false;
+                if !state.busy {
+                    state.request += 1;
+                    state.checking = false;
+                }
                 reset_cli_update_modal_state(panel);
             }
             Task::none()
         }
     }
 }
+#[cfg(not(target_arch = "wasm32"))]
+const AUTOMATIC_RETRY_DELAY: std::time::Duration = std::time::Duration::from_secs(15 * 60);
+
+#[cfg(not(target_arch = "wasm32"))]
+fn can_auto_download(panel: &PanelState, state: &DesktopUpdate) -> bool {
+    state.download_policy.enabled
+        && !state.busy
+        && !state.checking
+        && !state.saving
+        && !state.saving_skip
+        && state.background_request.is_none()
+        && state.ready.is_none()
+        && (!panel.show_cli_install_modal || panel.cli_install_modal_use_app_update_action)
+        && state.automatic_retry_after.is_none_or(|until| std::time::Instant::now() >= until)
+        && state.notification_release().is_some()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn cancel_download(panel: &mut PanelState, state: &mut DesktopUpdate) {
+    let Some(handle) = state.download_abort.take() else {
+        return;
+    };
+    handle.abort();
+    state.automatic_download_active = false;
+    state.request += 1;
+    state.busy = false;
+    panel.cli_install_modal_is_checking_update = false;
+    panel.cli_install_modal_show_install_action = state.installable();
+    panel.cli_install_message = None;
+    panel.cli_install_modal_message = "下载已取消，可重新下载安装包。".into();
+    panel.app_update_progress_rx = None;
+    panel.app_update_progress = None;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn mark_installer_ready(panel: &mut PanelState, state: &mut DesktopUpdate, ready: PreparedDesktopUpdate) {
+    if panel.cli_install_modal_use_app_update_action {
+        panel.cli_install_modal_title = "安装包已就绪".into();
+        panel.cli_install_message = None;
+        panel.cli_install_modal_message = ready.instructions();
+        panel.cli_install_modal_show_install_action = false;
+    }
+    state.ready = Some(ready);
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 async fn fetch_latest_release_version(source: desktop_release::UpdateSource) -> Result<String, String> {
     fetch_latest_app_release(source).await.map(|release| release.version)
@@ -569,8 +731,6 @@ fn reset_cli_update_modal_state(panel: &mut PanelState) {
     panel.cli_install_modal_show_install_action = false;
     panel.cli_install_modal_use_app_update_action = false;
     panel.cli_install_modal_is_checking_update = false;
-    panel.app_update_progress = None;
-    panel.app_update_progress_rx = None;
 }
 
 #[cfg(not(target_arch = "wasm32"))]

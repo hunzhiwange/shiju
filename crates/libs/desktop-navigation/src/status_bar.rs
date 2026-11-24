@@ -82,9 +82,16 @@ pub fn notification_button<'a>(count: usize) -> Element<'a, super::components::n
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn view<'a, M: 'a>(account: Element<'a, M>, quota: Option<Element<'a, M>>, lsp_content: Element<'a, M>, notification: Element<'a, M>) -> Element<'a, M> {
+pub fn view<'a, M: 'a>(
+    account: Element<'a, M>,
+    quota: Option<Element<'a, M>>,
+    update: Option<Element<'a, M>>,
+    lsp_content: Element<'a, M>,
+    notification: Element<'a, M>,
+) -> Element<'a, M> {
     let content = iced::widget::row![account]
         .extend(quota)
+        .extend(update)
         .push(lsp_content)
         .push(iced::widget::Space::new().width(iced::Length::Fill))
         .push(notification)
@@ -114,10 +121,17 @@ pub fn view<'a, M: 'a>(account: Element<'a, M>, quota: Option<Element<'a, M>>, l
         .into()
 }
 #[cfg(target_arch = "wasm32")]
-pub fn view<'a, M: 'a>(account: Element<'a, M>, quota: Option<Element<'a, M>>, lsp_content: Element<'a, M>, notification: Element<'a, M>) -> Element<'a, M> {
+pub fn view<'a, M: 'a>(
+    account: Element<'a, M>,
+    quota: Option<Element<'a, M>>,
+    update: Option<Element<'a, M>>,
+    lsp_content: Element<'a, M>,
+    notification: Element<'a, M>,
+) -> Element<'a, M> {
     let _ = lsp_content;
     let content = iced::widget::row![account]
         .extend(quota)
+        .extend(update)
         .push(iced::widget::Space::new().width(iced::Length::Fill))
         .push(notification)
         .spacing(10)

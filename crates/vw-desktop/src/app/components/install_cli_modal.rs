@@ -15,6 +15,10 @@ pub(super) fn map(event: domain::Message) -> Message {
             E::RunAppUpdate => ViewMessage::RunAppUpdate,
             E::RunInstallCliTool => ViewMessage::RunInstallCliTool,
             E::SkipAppUpdate => ViewMessage::SkipAppUpdate,
+            #[cfg(not(target_arch = "wasm32"))]
+            E::DownloadPolicyChanged(policy) => ViewMessage::AppUpdateAutomation(
+                desktop_update::panel::PanelMessage::DownloadPolicyChanged(policy),
+            ),
             E::AppUpdateSourceSelected(value) => ViewMessage::AppUpdateSourceSelected(value),
             E::CliCommandsTabSelected(value) => ViewMessage::CliCommandsTabSelected(value),
             #[cfg(not(target_arch="wasm32"))]

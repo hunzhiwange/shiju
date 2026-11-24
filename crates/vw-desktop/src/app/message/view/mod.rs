@@ -140,6 +140,7 @@ pub enum ViewMessage {
     CliCommandsTabSelected(crate::app::components::cli_command_help::CliCommandsTab),
     CheckCliToolUpdateFinished(u64, desktop_release::UpdateSource, Result<String, String>),
     OpenAppUpdateModal,
+    AppUpdateAutomation(desktop_update::panel::PanelMessage),
     CheckAppUpdate,
     AutoCheckAppUpdate,
     AutoCheckAppUpdateFinished(
@@ -1001,6 +1002,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::CliCommandsTabSelected(_)
         | ViewMessage::CheckCliToolUpdateFinished(..)
         | ViewMessage::OpenAppUpdateModal
+        | ViewMessage::AppUpdateAutomation(_)
         | ViewMessage::CheckAppUpdate
         | ViewMessage::AutoCheckAppUpdate
         | ViewMessage::AutoCheckAppUpdateFinished(..)

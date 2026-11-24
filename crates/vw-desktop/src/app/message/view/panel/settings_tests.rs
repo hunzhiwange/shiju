@@ -283,3 +283,40 @@ fn terminal_modes_toggle_preserves_session_and_height_across_mode_roundtrip() {
         assert_eq!(app.terminal.height, 260.0);
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn opening_update_modal_during_status_bar_download_keeps_the_request_active() {
+    use crate::app::message::view::ViewMessage;
+    use desktop_release::{DesktopRelease, UpdateSource};
+
+    let (mut app, _) = crate::app::App::new();
+    app.desktop_update.source = Some(UpdateSource::Shiju);
+    app.desktop_update.release = Some(DesktopRelease {
+        source: UpdateSource::Shiju,
+        version: "9999.0.0".into(),
+        assets: Vec::new(),
+    });
+    app.update_panel.show_cli_install_modal = false;
+    app.update_panel.cli_install_modal_use_app_update_action = false;
+
+    let _download = super::update(&mut app, ViewMessage::RunAppUpdate);
+    let request = app.desktop_update.request;
+    assert!(app.desktop_update.download_abort.is_some());
+    assert!(app.update_panel.app_update_progress_rx.is_some());
+
+    let _ = super::update(&mut app, ViewMessage::OpenAppUpdateModal);
+    assert_eq!(app.desktop_update.request, request);
+    assert!(app.update_panel.app_update_progress_rx.is_some());
+    assert!(app.update_panel.cli_install_modal_is_checking_update);
+    assert!(!app.update_panel.cli_install_modal_show_install_action);
+
+    let _ = super::update(&mut app, ViewMessage::CloseInstallCliModal);
+    let _ = super::update(
+        &mut app,
+        ViewMessage::AppUpdateDownloadPrepared(request, Err("download failed".into())),
+    );
+    assert!(!app.desktop_update.busy);
+    assert!(app.update_panel.app_update_progress_rx.is_none());
+    assert!(app.toast_state.active_toast.is_some());
+}

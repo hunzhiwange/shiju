@@ -631,7 +631,7 @@ rusqlite = { version = "0.41.1", features = ["fallible_uint"] }
 
 [workspace.package]
 # Inherited by release packages only. Internal crates pin their own versions.
-version = "0.7.11"
+version = "0.7.12"
 
 [profile.dev]
 # Keep macOS development binaries within the compact unwind offset limit.

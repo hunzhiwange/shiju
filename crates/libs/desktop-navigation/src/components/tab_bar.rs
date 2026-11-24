@@ -4,7 +4,7 @@
 //!
 //! # 主要功能
 //!
-//! - **标签页显示**：展示所有已打开的标签页，支持点击切换活动标签
+//! - **标签页显示**：放不下的末尾标签收进下拉菜单，支持点击切换活动标签
 //! - **标签页关闭**：非首页标签支持悬停时显示关闭按钮
 //! - **新增标签**：提供"+"按钮用于创建新标签或打开应用列表
 //! - **自适应主题**：根据当前主题（亮色/暗色）自动调整样式
@@ -32,14 +32,22 @@ use desktop_assets::assets::{self, Icon};
 use super::top_bar::types::AppTab;
 use crate::ui_types::Screen;
 use super::top_bar::Message;
+
+mod strip;
+
 #[derive(Clone, Copy)]
 pub struct State<'a> {
- pub open_tabs: &'a [AppTab], pub active_tab_id: &'a Option<String>, pub hovered_tab_id: &'a Option<String>, pub screen: Screen, pub desktop_locale: config_ui::DesktopLocale,
+    pub open_tabs: &'a [AppTab],
+    pub active_tab_id: &'a Option<String>,
+    pub hovered_tab_id: &'a Option<String>,
+    pub screen: Screen,
+    pub desktop_locale: config_ui::DesktopLocale,
+    pub overflow_open: bool,
 }
 
 use iced::widget::canvas::{Frame, Geometry, Path, Program, Stroke};
 use iced::widget::svg::Svg;
-use iced::widget::{MouseArea, Space, button, canvas, container, row, stack, text};
+use iced::widget::{MouseArea, Space, button, canvas, container, stack, text};
 use iced::{Element, Length, Point, Rectangle, Renderer, Theme};
 
 /// 标签栏的默认高度（像素）
@@ -151,7 +159,7 @@ fn tab_label_style(theme: &Theme, active: bool, hovered: bool) -> iced::widget::
 
 /// 渲染标签栏视图
 ///
-/// 根据应用程序当前状态生成标签栏的 UI 元素，包括所有已打开的标签页和新增按钮。
+/// 根据当前状态和可用宽度显示标签、新增按钮和溢出菜单。
 ///
 /// # 参数
 ///
@@ -174,60 +182,8 @@ fn tab_label_style(theme: &Theme, active: bool, hovered: bool) -> iced::widget::
 /// // 将 tab_bar 添加到布局中
 /// ```
 pub fn view(app: &State<'_>) -> Element<'static, Message> {
-    let mut tabs_row = row![];
-
-    // 遍历所有打开的标签，过滤掉内部搜索标签
-    for tab in app.open_tabs.iter().filter(|t| !t.id.starts_with("find:")) {
-        let active = app.active_tab_id.as_deref() == Some(&tab.id);
-        let hovered = app.hovered_tab_id.as_deref() == Some(&tab.id);
-        tabs_row = tabs_row.push(tab_btn(
-            tab.id.clone(),
-            desktop_i18n::other::tab_label(
-                desktop_i18n::I18n::new(app.desktop_locale),
-                &tab.id,
-                &tab.title,
-            ),
-            active,
-            hovered,
-            Message::TabSelected(tab.id.clone()),
-        ));
-    }
-
-    // 如果没有 apps 标签，显示新增按钮
-    if !app.open_tabs.iter().any(|t| t.id == "apps") {
-        // 创建圆形"+"按钮
-        let add_btn = container(
-            button(
-                container(
-                    Svg::new(assets::get_icon(Icon::Plus))
-                        .width(Length::Fixed(14.0))
-                        .height(Length::Fixed(14.0))
-                        .style(|theme: &Theme, _status| iced::widget::svg::Style {
-                            color: Some(theme.palette().text),
-                        }),
-                )
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .align_x(iced::alignment::Horizontal::Center)
-                .align_y(iced::alignment::Vertical::Center),
-            )
-            .on_press(Message::OpenApps)
-            .style(add_button_style)
-            .padding(0)
-            .width(Length::Fixed(22.0))
-            .height(Length::Fixed(22.0)),
-        )
-        .height(Length::Fill)
-        .align_y(iced::alignment::Vertical::Center);
-
-        tabs_row = tabs_row.push(add_btn);
-    }
-
-    // 在项目屏幕下隐藏底部边框
     let hide_border_for_project = matches!(app.screen, Screen::Project);
-
-    // 构建标签栏容器
-    container(tabs_row.spacing(3).align_y(iced::Alignment::Center))
+    container(Element::new(strip::TabStrip::new(app)))
         .width(Length::Fill)
         .height(Length::Fixed(TAB_BAR_HEIGHT))
         .padding(iced::Padding { top: 4.0, right: 4.0, bottom: 0.0, left: 4.0 })

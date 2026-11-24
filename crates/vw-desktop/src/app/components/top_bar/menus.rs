@@ -22,9 +22,7 @@ pub(crate) fn edit_menu_entries(is_project: bool) -> Vec<MenuEntry> { domain::ed
 pub(crate) fn view_menu_entries(workspace_mode: WorkspaceMode, show_file_manager: bool, file_manager_show_changes: bool) -> Vec<MenuEntry> { domain::view_menu_entries(workspace_mode, show_file_manager, file_manager_show_changes).into_iter().map(adapt).collect() }
 #[cfg(test)]
 pub(crate) fn help_menu_entries() -> Vec<MenuEntry> { domain::help_menu_entries().into_iter().map(adapt).collect() }
-fn to_domain(value: MenuType) -> domain::MenuType { match value {MenuType::File => domain::MenuType::File,MenuType::Edit => domain::MenuType::Edit,MenuType::View => domain::MenuType::View,MenuType::Help => domain::MenuType::Help,MenuType::OpenExternal => domain::MenuType::OpenExternal,MenuType::GatewayServices => domain::MenuType::GatewayServices,} }
-fn from_domain(value: domain::MenuType) -> MenuType { match value {domain::MenuType::File => MenuType::File,domain::MenuType::Edit => MenuType::Edit,domain::MenuType::View => MenuType::View,domain::MenuType::Help => MenuType::Help,domain::MenuType::OpenExternal => MenuType::OpenExternal,domain::MenuType::GatewayServices => MenuType::GatewayServices,} }
-fn inputs(app: &App) -> domain::Inputs<'_> { domain::Inputs { i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale), screen: app.navigation_tabs.screen, active_menu: app.navigation_panels.active_menu.map(to_domain), workspace_mode: app.navigation_mode.workspace_mode, show_file_manager: app.file_manager.show_file_manager, file_manager_show_changes: app.file_manager.file_manager_show_changes, update_version: app.desktop_update.notification_release().map(|r| r.version.as_str()), } }
+fn inputs(app: &App) -> domain::Inputs<'_> { domain::Inputs { i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale), screen: app.navigation_tabs.screen, active_menu: app.navigation_panels.active_menu, workspace_mode: app.navigation_mode.workspace_mode, show_file_manager: app.file_manager.show_file_manager, file_manager_show_changes: app.file_manager.file_manager_show_changes, update_version: app.desktop_update.notification_release().map(|r| r.version.as_str()), } }
 pub(super) fn file_menu(app: &App) -> iced::Element<'_, Message> { domain::file_menu(&inputs(app)).map(map) }
 pub(super) fn edit_menu(app: &App) -> iced::Element<'_, Message> { domain::edit_menu(&inputs(app)).map(map) }
 pub(super) fn view_menu(app: &App) -> iced::Element<'_, Message> { domain::view_menu(&inputs(app)).map(map) }
@@ -48,7 +46,7 @@ domain::Message::InstallCliTool => Message::View(message::ViewMessage::InstallCl
 #[cfg(not(target_arch = "wasm32"))]
 domain::Message::InstallWeb => Message::View(message::ViewMessage::WebInstall(crate::app::web_install::Event::Open)),
 domain::Message::OpenAppUpdateModal => Message::View(message::ViewMessage::OpenAppUpdateModal),
-domain::Message::ToggleMenu(value) => Message::View(message::ViewMessage::ToggleMenu(value.map(from_domain))),
+domain::Message::ToggleMenu(value) => Message::View(message::ViewMessage::ToggleMenu(value)),
 domain::Message::Undo => Message::Editor(message::editor::EditorMessage::Undo),
 domain::Message::Redo => Message::Editor(message::editor::EditorMessage::Redo),
 domain::Message::OpenSearch => Message::Editor(message::editor::EditorMessage::OpenSearch),
@@ -60,7 +58,7 @@ domain::Message::SaveFile => Message::Preview(message::PreviewMessage::SaveFile)
 domain::Message::CutShortcut => Message::CutShortcut,
 domain::Message::CopyShortcut => Message::CopyShortcut,
 domain::Message::PasteShortcut => Message::PasteShortcut,
-domain::Message::MenuHovered(menu) => Message::View(message::ViewMessage::MenuHovered(from_domain(menu))),
+domain::Message::MenuHovered(menu) => Message::View(message::ViewMessage::MenuHovered(menu)),
 domain::Message::MenuAction(event) => Message::View(message::ViewMessage::MenuAction(Box::new(map(*event)))),
 } }
 

@@ -417,9 +417,23 @@ where
             return;
         };
         let overlay_bounds = overlay_layout.bounds();
+        let is_pointer = matches!(event, Event::Mouse(_) | Event::Touch(_));
+        let cursor = match event {
+            Event::Touch(
+                iced::touch::Event::FingerPressed { position, .. }
+                | iced::touch::Event::FingerMoved { position, .. }
+                | iced::touch::Event::FingerLifted { position, .. }
+                | iced::touch::Event::FingerLost { position, .. },
+            ) => mouse::Cursor::Available(*position),
+            _ => cursor,
+        };
         let cursor_position = cursor.position();
 
-        if let Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) = event
+        if matches!(
+            event,
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
+                | Event::Touch(iced::touch::Event::FingerPressed { .. })
+        )
             && let Some(on_close) = &self.on_close
             && let Some(cursor_position) = cursor_position
             && !self.target_bounds.contains(cursor_position)
@@ -435,7 +449,17 @@ where
         let is_over_overlay = cursor_position.is_some_and(|p| overlay_bounds.contains(p));
         let is_over_target = cursor_position.is_some_and(|p| self.target_bounds.contains(p));
 
-        if !matches!(event, Event::Mouse(_)) || is_over_overlay {
+        if !is_pointer
+            || is_over_overlay
+            || matches!(
+                event,
+                Event::Touch(
+                    iced::touch::Event::FingerMoved { .. }
+                        | iced::touch::Event::FingerLifted { .. }
+                        | iced::touch::Event::FingerLost { .. }
+                )
+            )
+        {
             self.overlay.as_widget_mut().update(
                 self.tree,
                 event,
@@ -448,7 +472,7 @@ where
             );
         }
 
-        if matches!(event, Event::Mouse(_))
+        if is_pointer
             && (is_over_overlay
                 || (self.capture_outside_click
                     && (!is_over_target

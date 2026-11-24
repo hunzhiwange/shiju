@@ -455,7 +455,7 @@ fn menu_item_btn<'a>(label: &'a str, shortcut: Option<&'a str>, msg: Option<Mess
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MenuType { File, Edit, View, Help, OpenExternal, GatewayServices }
+pub enum MenuType { File, Edit, View, Help, OpenExternal, GatewayServices, TabOverflow }
 pub struct Inputs<'a> {
  pub i18n: desktop_i18n::I18n,
  pub screen: Screen,

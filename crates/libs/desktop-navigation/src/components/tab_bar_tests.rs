@@ -3,18 +3,28 @@
 //! 标签夹具覆盖内部页过滤、悬停关闭层与 Unicode 截断，避免索引和显示错位。
 
 use super::*;
-
+use super::strip::visible_tab_count;
 
 use crate::components::top_bar::types::AppTab;
+use iced::advanced::clipboard;
 use iced::advanced::renderer::Headless;
 use iced::advanced::widget::Tree;
+use iced::advanced::{Layout, layout};
 use iced::widget::button;
-use iced::{Background, Color, Font, Length, Pixels, Rectangle, Theme};
+use iced::{Background, Color, Event, Font, Length, Pixels, Rectangle, Size, Theme, mouse, touch};
+use iced_runtime::user_interface::{Cache, UserInterface};
 
 fn test_app() -> State<'static> {
- static TABS: std::sync::OnceLock<Vec<AppTab>> = std::sync::OnceLock::new();
- static ACTIVE: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
- State { open_tabs: TABS.get_or_init(|| vec![tab("home", "首页", Screen::Home)]), active_tab_id: ACTIVE.get_or_init(|| Some("home".to_string())), hovered_tab_id: &None, screen: Screen::Home, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese }
+    static TABS: std::sync::OnceLock<Vec<AppTab>> = std::sync::OnceLock::new();
+    static ACTIVE: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    State {
+        open_tabs: TABS.get_or_init(|| vec![tab("home", "首页", Screen::Home)]),
+        active_tab_id: ACTIVE.get_or_init(|| Some("home".to_string())),
+        hovered_tab_id: &None,
+        screen: Screen::Home,
+        desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
+        overflow_open: false,
+    }
 }
 
 fn element_tree(element: Element<'_, Message>) -> Tree {
@@ -45,31 +55,139 @@ fn view_uses_public_height_and_full_width() {
     assert_eq!(element.as_widget().size().height, Length::Fixed(TAB_BAR_HEIGHT));
 }
 
-#[test]
-fn view_filters_internal_tabs_and_omits_add_button_when_apps_is_open() {
-    let empty_tree = element_tree(view(&test_app()));
-    assert_eq!(empty_tree.children.len(), 2);
+fn row_bounds(app: &State<'_>, renderer: &Renderer, width: f32) -> Vec<Rectangle> {
+    let mut bar = view(app);
+    let mut tree = Tree::new(bar.as_widget());
+    let limits = layout::Limits::new(Size::ZERO, Size::new(width, TAB_BAR_HEIGHT));
+    let node = bar.as_widget_mut().layout(&mut tree, renderer, &limits);
+    Layout::new(&node)
+        .children()
+        .next()
+        .unwrap()
+        .children()
+        .map(|item| item.bounds())
+        .collect()
+}
 
+#[tokio::test(flavor = "multi_thread")]
+async fn view_filters_internal_tabs_and_omits_add_button_when_apps_is_open() {
+    let renderer = <Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+        .await
+        .unwrap();
+    assert_eq!(row_bounds(&test_app(), &renderer, 640.0).len(), 2);
     let mut tabs = vec![
         tab("home", "Home", Screen::Home),
         tab("find:internal", "Find", Screen::Home),
         tab("project", "Project", Screen::Project),
     ];
-    let hovered = Some("project".to_string());
-    let without_apps = {
-        let app = State { open_tabs: &tabs, hovered_tab_id: &hovered, ..test_app() };
-        element_tree(view(&app))
-    };
-    assert_eq!(without_apps.children.len(), 3);
-    assert_eq!(max_child_count(&without_apps.children[1]), 2);
+    let app = State { open_tabs: &tabs, ..test_app() };
+    assert_eq!(row_bounds(&app, &renderer, 640.0).len(), 3);
 
     tabs.retain(|tab| tab.id != "project");
     tabs.push(tab("apps", "Apps", Screen::Apps));
-    let with_apps = {
-        let app = State { open_tabs: &tabs, hovered_tab_id: &hovered, ..test_app() };
-        element_tree(view(&app))
+    let app = State { open_tabs: &tabs, ..test_app() };
+    assert_eq!(row_bounds(&app, &renderer, 640.0).len(), 2);
+}
+
+#[test]
+fn overflow_uses_the_longest_fitting_prefix_and_reserves_controls() {
+    let tabs = [56.0, 160.0, 60.0];
+    assert_eq!(visible_tab_count(tabs, 307.0, true), 3);
+    assert_eq!(visible_tab_count(tabs, 306.0, true), 2);
+    assert_eq!(visible_tab_count(tabs, 277.0, true), 2);
+    assert_eq!(visible_tab_count(tabs, 276.0, true), 1);
+    assert_eq!(visible_tab_count(tabs, 113.0, true), 0);
+    assert_eq!(visible_tab_count(tabs, 114.0, true), 1);
+    assert_eq!(visible_tab_count(tabs, 252.0, false), 2);
+    assert_eq!(visible_tab_count(tabs, 20.0, false), 0);
+    assert_eq!(visible_tab_count([], 20.0, true), 0);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn overflow_opens_at_the_end_and_selects_or_closes_hidden_tabs() {
+    let mut renderer = <Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+        .await
+        .unwrap();
+    let tabs = [
+        tab("home", "Home", Screen::Home),
+        tab("find:internal", "Internal", Screen::Home),
+        tab("project-a", "Project A", Screen::Project),
+        tab("project-b", "Project B", Screen::Project),
+    ];
+    let active = Some("project-b".to_string());
+    let app = State { open_tabs: &tabs, active_tab_id: &active, ..test_app() };
+    let bounds = Size::new(170.0, 400.0);
+    let narrow = row_bounds(&app, &renderer, bounds.width);
+    assert_eq!(narrow.len(), 3); // Home, add, overflow
+    assert_eq!(narrow[1].width, 22.0);
+    assert!(narrow[2].x > narrow[1].x + narrow[1].width);
+    assert!(narrow[2].x + narrow[2].width <= bounds.width);
+    assert_eq!(row_bounds(&app, &renderer, 640.0).len(), 4);
+
+    let click = |app: State<'_>, renderer: &mut Renderer, point| {
+        let mut ui = UserInterface::build(view(&app), bounds, Cache::new(), renderer);
+        let mut messages = Vec::new();
+        ui.update(
+            &[
+                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+            ],
+            mouse::Cursor::Available(point),
+            renderer,
+            &mut clipboard::Null,
+            &mut messages,
+        );
+        messages
     };
-    assert_eq!(with_apps.children.len(), 2);
+    let messages = click(app, &mut renderer, narrow[2].center());
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::ToggleMenu(Some(super::super::top_bar::Menu::TabOverflow))]
+    ));
+
+    let open = State { overflow_open: true, ..app };
+    let messages = click(open, &mut renderer, Point::new(50.0, 52.0));
+    assert!(matches!(messages.as_slice(), [Message::MenuAction(action)]
+        if matches!(action.as_ref(), Message::TabSelected(id) if id == "project-a")));
+    let messages = click(open, &mut renderer, Point::new(149.0, 80.0));
+    assert!(matches!(messages.as_slice(), [Message::MenuAction(action)]
+        if matches!(action.as_ref(), Message::TabClosed(id) if id == "project-b")));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn open_overflow_captures_an_outside_press_over_a_visible_tab() {
+    let mut renderer = <Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+        .await
+        .unwrap();
+    let tabs = [
+        tab("home", "Home", Screen::Home),
+        tab("project", "Project", Screen::Project),
+        tab("usage", "Usage", Screen::Usage),
+    ];
+    let app = State { open_tabs: &tabs, overflow_open: true, ..test_app() };
+    let bounds = Size::new(170.0, 400.0);
+    let home = row_bounds(&app, &renderer, bounds.width)[0].center();
+    for event in [
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        Event::Touch(touch::Event::FingerPressed { id: touch::Finger(0), position: home }),
+    ] {
+        let cursor = if matches!(event, Event::Touch(_)) {
+            mouse::Cursor::Unavailable
+        } else {
+            mouse::Cursor::Available(home)
+        };
+        let mut ui = UserInterface::build(view(&app), bounds, Cache::new(), &mut renderer);
+        let mut messages = Vec::new();
+        let (_, statuses) = ui.update(
+            &[event],
+            cursor,
+            &mut renderer,
+            &mut clipboard::Null,
+            &mut messages,
+        );
+        assert_eq!(statuses, [iced::event::Status::Captured]);
+        assert!(matches!(messages.as_slice(), [Message::ToggleMenu(None)]));
+    }
 }
 
 #[test]
@@ -223,10 +341,6 @@ async fn close_corner_triangle_draws_valid_bounds_and_handles_zero_width() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn view_draws_unicode_tabs_and_selects_home_in_both_themes() {
-    use iced::advanced::clipboard;
-    use iced::{Event, Point, Size, mouse};
-    use iced_runtime::user_interface::{Cache, UserInterface};
-
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
         for font in desktop_assets::fonts::load_all() {

@@ -42,10 +42,19 @@ pub(in crate::app::components) fn map_message(message: desktop_navigation::compo
 pub(super) fn map_menu(menu: desktop_navigation::components::top_bar::Menu) -> crate::app::message::view::MenuType {
  use desktop_navigation::components::top_bar::Menu;
  use crate::app::message::view::MenuType;
- match menu { Menu::OpenExternal => MenuType::OpenExternal, Menu::GatewayServices => MenuType::GatewayServices }
+ match menu {
+     Menu::OpenExternal => MenuType::OpenExternal,
+     Menu::GatewayServices => MenuType::GatewayServices,
+     Menu::TabOverflow => MenuType::TabOverflow,
+ }
 }
 pub(super) fn local_menu(menu: Option<crate::app::message::view::MenuType>) -> Option<desktop_navigation::components::top_bar::Menu> {
  use desktop_navigation::components::top_bar::Menu;
  use crate::app::message::view::MenuType;
- match menu { Some(MenuType::OpenExternal) => Some(Menu::OpenExternal), Some(MenuType::GatewayServices) => Some(Menu::GatewayServices), _ => None }
+ match menu {
+     Some(MenuType::OpenExternal) => Some(Menu::OpenExternal),
+     Some(MenuType::GatewayServices) => Some(Menu::GatewayServices),
+     Some(MenuType::TabOverflow) => Some(Menu::TabOverflow),
+     _ => None,
+ }
 }

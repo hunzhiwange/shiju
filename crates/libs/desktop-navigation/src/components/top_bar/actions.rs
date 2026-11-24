@@ -8,4 +8,4 @@ pub enum Message {
  GatewayServicesTabSelected(types::TopBarGatewayTab), RefreshMcp, ManageMcp, PluginsRefresh, PluginsSetEnabledRequested { plugin_id: String, enabled: bool }, ManagePlugins, SelectServer(String), ManageGateway, AddGateway,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Menu { OpenExternal, GatewayServices }
+pub enum Menu { OpenExternal, GatewayServices, TabOverflow }

@@ -39,6 +39,8 @@ async fn cli_workbench_child_access_restricts_project_identity_and_routes() {
                 state: ProcessState::Running,
             },
             turn: None,
+            #[cfg(target_os = "macos")]
+            terminal: None,
             child_access: Some(access),
         },
     );

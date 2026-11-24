@@ -30,6 +30,10 @@ use super::session::stream::Host;
 #[cfg(not(target_arch = "wasm32"))]
 mod child_access;
 
+mod drafts;
+mod terminal;
+pub(crate) use terminal::LocalWorkbenchGateway;
+
 const SESSIONS: &str = "/projects/{project}/cli-workbench/sessions";
 pub(crate) const TURN_OPTION: &str = "cli_workbench_turn_id";
 const MAX_SESSIONS_PER_PROJECT: usize = 256;
@@ -52,6 +56,8 @@ struct Session {
     scope: ProjectScope,
     info: CliWorkbenchSession,
     turn: Option<Turn>,
+    #[cfg(target_os = "macos")]
+    terminal: Option<std::sync::Arc<terminal::Pty>>,
     #[cfg(not(target_arch = "wasm32"))]
     child_access: Option<child_access::ChildAccess>,
 }
@@ -66,6 +72,18 @@ struct Turn {
 
 impl Session {
     fn refresh_process_state(&mut self) {
+        #[cfg(target_os = "macos")]
+        if let Some(pty) = &self.terminal {
+            self.info.state = match pty.exit_status() {
+                Ok(Some(_)) => ProcessState::Exited,
+                Ok(None) => self.info.state,
+                Err(_) => ProcessState::Disconnected,
+            };
+            if matches!(self.info.state, ProcessState::Exited | ProcessState::Disconnected) {
+                self.revoke_child_access();
+            }
+            return;
+        }
         if self.info.state == ProcessState::Ready
             && llm_runtime::acp::session::logical_session_exited(
                 self.scope.tenant_scope(),
@@ -88,6 +106,7 @@ impl Session {
 
 struct Delivery {
     text_hash: [u8; 32],
+    draft: Option<drafts::Draft>,
     updates: watch::Receiver<CliWorkbenchMessage>,
 }
 
@@ -159,6 +178,8 @@ impl Turn {
 
 pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
     collaboration_routes()
+        .merge(terminal::routes())
+        .merge(drafts::routes())
         .route(&format!("{SESSIONS}/{{session}}/stop"), post(stop))
         .layer(from_fn(crate::gateway::user_scope::session_user))
 }
@@ -194,8 +215,8 @@ async fn list(
 fn capabilities(target: &CliWorkbenchTarget) -> CliWorkbenchCapabilities {
     let acp = matches!(target, CliWorkbenchTarget::Acp { .. });
     CliWorkbenchCapabilities {
-        available: acp,
-        terminal: false,
+        available: acp || cfg!(target_os = "macos"),
+        terminal: !acp && cfg!(target_os = "macos"),
         delivery: match target {
             CliWorkbenchTarget::Acp { .. } => CliWorkbenchDeliveryCapability::Structured,
             CliWorkbenchTarget::NativeCli { .. } => CliWorkbenchDeliveryCapability::Draft,
@@ -207,12 +228,15 @@ fn capabilities(target: &CliWorkbenchTarget) -> CliWorkbenchCapabilities {
 async fn start(
     Extension(tenant): Extension<TenantScope>,
     Path(project): Path<String>,
+    authority: terminal::Authority,
     Json(request): Json<StartCliWorkbenchSession>,
 ) -> Result<(StatusCode, Json<CliWorkbenchSession>), WorkbenchError> {
     let scope = project_scope(tenant.clone(), project)?;
-    let project = gateway_project::load_project(&scope).await.map_err(|_| not_found())?;
     let capabilities = capabilities(&request.target);
-    let CliWorkbenchTarget::Acp { agent } = &request.target else { return Err(unavailable()) };
+    if !matches!(&request.target, CliWorkbenchTarget::Acp { .. }) {
+        authority.require()?;
+    }
+    let project = gateway_project::load_project(&scope).await.map_err(|_| not_found())?;
     let directory = match request.directory {
         Some(path) if !FsPath::new(&path).is_absolute() => return Err(not_found()),
         Some(path) => path,
@@ -242,6 +266,9 @@ async fn start(
             "could not allocate session ID",
         )
     })?;
+    let CliWorkbenchTarget::Acp { agent } = &request.target else {
+        return terminal::start(scope, project.id, directory, id, request.target, authority).await;
+    };
     let workspace = directory.clone();
     let expected_project = project.id.clone();
     let selected = agent.clone();
@@ -292,32 +319,49 @@ async fn start(
         state: ProcessState::Ready,
         capabilities,
     };
+    let session = Session {
+        scope,
+        info,
+        turn: None,
+        #[cfg(target_os = "macos")]
+        terminal: None,
+        #[cfg(not(target_arch = "wasm32"))]
+        child_access: Some(child_access),
+    };
+    insert_session(session, None)
+}
+
+fn insert_session(
+    session: Session,
+    authority: Option<&terminal::Authority>,
+) -> Result<(StatusCode, Json<CliWorkbenchSession>), WorkbenchError> {
     let mut workbench = WORKBENCH.lock();
-    if workbench.sessions.values().filter(|session| session.scope == scope).count()
+    if let Some(authority) = authority {
+        authority.require()?;
+    }
+    if workbench.sessions.values().filter(|other| other.scope == session.scope).count()
         >= MAX_SESSIONS_PER_PROJECT
     {
         return Err(unavailable());
     }
-    workbench.sessions.insert(
-        id,
-        Session {
-            scope,
-            info: info.clone(),
-            turn: None,
-            #[cfg(not(target_arch = "wasm32"))]
-            child_access: Some(child_access),
-        },
-    );
+    let info = session.info.clone();
+    workbench.sessions.insert(info.id.clone(), session);
     Ok((StatusCode::CREATED, Json(info)))
 }
 
 async fn stop(
     Extension(tenant): Extension<TenantScope>,
     Path((project, session_id)): Path<(String, String)>,
+    #[cfg(target_os = "macos")] authority: terminal::Authority,
 ) -> Result<Json<CliWorkbenchSession>, WorkbenchError> {
     let scope = project_scope(tenant.clone(), project)?;
     let mut workbench = WORKBENCH.lock();
     let session = workbench.session_mut(&scope, &session_id)?;
+    #[cfg(target_os = "macos")]
+    if session.info.capabilities.terminal {
+        authority.require()?;
+        return Ok(Json(terminal::stop(session)));
+    }
     if !matches!(session.info.state, ProcessState::Exited | ProcessState::Stopping) {
         session.info.state = ProcessState::Stopping;
         session.revoke_child_access();
@@ -386,7 +430,17 @@ async fn send(
     {
         return Err(unavailable());
     }
+    let pending_drafts = workbench
+        .deliveries
+        .iter()
+        .filter(|((project, _), delivery)| project == &scope && delivery.draft.is_some())
+        .count();
     let session = workbench.session_mut(&scope, &session_id)?;
+    let delivery = session.info.capabilities.delivery;
+    if delivery == CliWorkbenchDeliveryCapability::Unavailable {
+        return Err(unavailable());
+    }
+    let draft = delivery == CliWorkbenchDeliveryCapability::Draft;
     session.refresh_process_state();
     match session.info.state {
         ProcessState::Ready => {}
@@ -397,6 +451,7 @@ async fn send(
                 "workbench target is waiting for approval",
             ));
         }
+        ProcessState::Running if draft => {}
         ProcessState::Running => {
             return Err(error(StatusCode::CONFLICT, ErrorCode::Busy, "workbench target is busy"));
         }
@@ -411,9 +466,6 @@ async fn send(
             ));
         }
     }
-    let CliWorkbenchTarget::Acp { agent } = &session.info.target else { return Err(unavailable()) };
-    let directory = session.info.directory.clone();
-    let agent = agent.clone();
     let message = CliWorkbenchMessage {
         id: CliWorkbenchMessageId {
             request_id: request.request_id,
@@ -421,7 +473,8 @@ async fn send(
             target_session_id: session_id.clone(),
         },
         turn_id: uuid::Uuid::new_v4().to_string(),
-        state: MessageState::Accepted,
+        state: if draft { MessageState::PendingSubmission } else { MessageState::Accepted },
+        manual_submission: draft,
         revision: 1,
         approval_request_id: None,
         approval_history: Vec::new(),
@@ -431,6 +484,23 @@ async fn send(
         error: None,
     };
     let (updates, receiver) = watch::channel(message.clone());
+    if draft {
+        if pending_drafts >= drafts::MAX_PENDING_PER_PROJECT {
+            return Err(error(StatusCode::CONFLICT, ErrorCode::Busy, "too many pending drafts"));
+        }
+        workbench.deliveries.insert(
+            key,
+            Delivery {
+                text_hash,
+                updates: receiver,
+                draft: Some(drafts::Draft { text: request.text, updates }),
+            },
+        );
+        return Ok(Json(message));
+    }
+    let CliWorkbenchTarget::Acp { agent } = &session.info.target else { return Err(unavailable()) };
+    let directory = session.info.directory.clone();
+    let agent = agent.clone();
     let cancel = CancellationToken::new();
     session.info.state = ProcessState::Running;
     session.turn = Some(Turn {
@@ -440,7 +510,7 @@ async fn send(
         assistant_message_id: None,
         pending_approvals: Vec::new(),
     });
-    workbench.deliveries.insert(key, Delivery { text_hash, updates: receiver });
+    workbench.deliveries.insert(key, Delivery { text_hash, updates: receiver, draft: None });
     tokio::spawn(run_turn(
         scope,
         session_id,
@@ -478,9 +548,7 @@ async fn subscribe(
     let mut updates = WORKBENCH.lock().delivery(scope, &session, request)?.updates.clone();
     let _ = tokio::time::timeout(
         SUBSCRIPTION_WAIT,
-        updates.wait_for(|message| {
-            message.revision > query.after_revision || message.state.is_terminal()
-        }),
+        updates.wait_for(|message| message.revision > query.after_revision || message.is_settled()),
     )
     .await;
     let result = updates.borrow().clone();
@@ -785,3 +853,7 @@ fn finish_turn(
     }
     None
 }
+
+#[cfg(test)]
+#[path = "cli_workbench/native_tests.rs"]
+mod native_tests;

@@ -107,7 +107,7 @@ pub fn truncate_string_to_limit(s: &str, limit: usize) -> String {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn build_font_settings(font_family: &str, font_size: f32) -> iced_term::settings::FontSettings {
+pub(crate) fn build_font_settings(font_family: &str, font_size: f32) -> iced_term::settings::FontSettings {
     let family = if font_family.trim().is_empty() {
         "JetBrains Mono"
     } else {

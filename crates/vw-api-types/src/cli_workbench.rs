@@ -126,6 +126,9 @@ pub struct CliWorkbenchMessage {
     /// Gateway-created identifier for this submission, independent of the request ID.
     pub turn_id: String,
     pub state: CliWorkbenchMessageState,
+    /// A human submits this draft in the terminal. There is no tracked reply.
+    #[serde(default)]
+    pub manual_submission: bool,
     /// Increases whenever the message projection changes.
     pub revision: u64,
     pub approval_request_id: Option<String>,
@@ -135,4 +138,55 @@ pub struct CliWorkbenchMessage {
     pub output: String,
     pub output_truncated: bool,
     pub error: Option<CliWorkbenchErrorCode>,
+}
+
+impl CliWorkbenchMessage {
+    pub fn is_settled(&self) -> bool {
+        self.state.is_terminal()
+            || (self.manual_submission && self.state == CliWorkbenchMessageState::Submitted)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CliWorkbenchTerminalCapability {
+    pub available: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CliWorkbenchTerminalSize {
+    pub rows: u16,
+    pub cols: u16,
+}
+
+/// Output offsets are absolute for the life of the gateway-owned PTY.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct CliWorkbenchTerminalOutput {
+    pub bytes: Vec<u8>,
+    pub start: u64,
+    pub next: u64,
+    pub truncated: bool,
+    pub finished: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CliWorkbenchTerminalInput {
+    pub bytes: Vec<u8>,
+    pub size: Option<CliWorkbenchTerminalSize>,
+}
+
+pub const CLI_WORKBENCH_MAX_TERMINAL_INPUT: usize = 64 * 1024;
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct CliWorkbenchDraft {
+    pub id: CliWorkbenchMessageId,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CliWorkbenchDraftAction {
+    MarkSubmitted,
+    Cancel,
 }

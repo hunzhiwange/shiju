@@ -10,12 +10,13 @@ use iced::{
     window,
 };
 use vw_api_types::cli_workbench::{
-    CliWorkbenchMessageState as Delivery, CliWorkbenchProcessState as Process, CliWorkbenchTarget,
+    CliWorkbenchDraftAction, CliWorkbenchMessageState as Delivery,
+    CliWorkbenchProcessState as Process, CliWorkbenchTarget,
 };
 
 use super::{
     App, Dialog, Message, Project, SessionKey, Tab, Workbench,
-    update::{Action, event},
+    update::{Action, draft_text, event},
 };
 use crate::app::i18n::I18n;
 
@@ -86,7 +87,14 @@ pub(crate) fn view(app: &App, id: window::Id) -> Element<'_, Message> {
             .height(Length::Fill)
             .into();
         match &state.dialog {
-            Some(dialog) => dialog_view(ui, base, dialog, selected.map(|(_, project)| project)),
+            Some(Dialog::ReadDraft(key, request)) => draft_dialog(ui, base, state, key, request),
+            Some(dialog) => dialog_view(
+                ui,
+                base,
+                dialog,
+                selected.map(|(_, project)| project),
+                state.terminal_available,
+            ),
             None => base,
         }
     })
@@ -134,19 +142,35 @@ fn sidebar<'a>(ui: View, state: &'a Workbench) -> Element<'a, Message> {
     let mut pending = false;
     for (project_id, project) in &state.projects {
         for (session, tab) in &project.tabs {
-            if tab.session.state != Process::WaitingForApproval {
-                continue;
-            }
-            pending = true;
             let key = SessionKey { project: project_id.clone(), session: session.clone() };
-            list = list.push(
-                control(
-                    format!("{} · {}", project.name, tab_label(tab)),
-                    Some(ui.msg(Action::SelectSession(key))),
-                    false,
-                )
-                .width(Length::Fill),
-            );
+            if tab.session.state == Process::WaitingForApproval {
+                pending = true;
+                list = list.push(
+                    control(
+                        format!("{} · {}", project.name, tab_label(tab)),
+                        Some(ui.msg(Action::SelectSession(key.clone()))),
+                        false,
+                    )
+                    .width(Length::Fill),
+                );
+            }
+            for draft in &tab.drafts {
+                pending = true;
+                list = list.push(
+                    control(
+                        format!(
+                            "{} · {} · {} #{}",
+                            project.name,
+                            tab_label(tab),
+                            ui.label("待提交"),
+                            id_suffix(&draft.id.request_id),
+                        ),
+                        Some(ui.msg(Action::ShowDraft(key.clone(), draft.id.request_id.clone()))),
+                        false,
+                    )
+                    .width(Length::Fill),
+                );
+            }
         }
     }
     if !pending {
@@ -183,7 +207,11 @@ fn workspace<'a>(
     project: &'a Project,
 ) -> Element<'a, Message> {
     let active = project.panes.get(project.active_pane).and_then(|session| session.as_ref());
-    let sendable = |tab: &Tab| tab.can_send() && !project.disconnected;
+    let sendable = |tab: &Tab| {
+        tab.can_send()
+            && !project.disconnected
+            && (!tab.session.capabilities.terminal || state.terminal_available)
+    };
     let active_target = active.filter(|id| project.tabs.get(*id).is_some_and(sendable)).cloned();
     let mut tools = row![control(
         ui.label("发送消息"),
@@ -192,14 +220,31 @@ fn workspace<'a>(
     ),]
     .spacing(6)
     .align_y(Alignment::Center);
+    if state.terminal_available {
+        let can_start = !state.starting && !project.disconnected;
+        tools = tools.push(control(
+            ui.label("新建 Shell"),
+            can_start.then_some(ui.msg(Action::StartTerminal(CliWorkbenchTarget::Shell))),
+            false,
+        ));
+        if let Some(app_id) = &state.native_app {
+            tools = tools.push(control(
+                ui.label("新建原生 CLI"),
+                can_start.then_some(ui.msg(Action::StartTerminal(CliWorkbenchTarget::NativeCli {
+                    app_id: app_id.clone(),
+                }))),
+                true,
+            ));
+        }
+    }
     if state.agents_loading {
         tools = tools
             .push(text(ui.label("正在读取 ACP 智能体…")).size(12).style(settings_muted_text_style));
-    } else if state.agents.is_empty() {
+    } else if state.backend.is_some() && state.agents.is_empty() {
         tools = tools.push(
             text(ui.label("此应用暂无可用的 ACP 智能体")).size(12).style(settings_muted_text_style),
         );
-    } else {
+    } else if !state.agents.is_empty() {
         let select = settings_select(
             state.agents.iter().map(|agent| agent.key.clone()),
             state.agent.clone(),
@@ -261,7 +306,9 @@ fn workspace<'a>(
             );
         };
         let key = SessionKey { project: project_id.into(), session: id.clone() };
-        let can_stop = !project.disconnected && tab.can_stop();
+        let can_stop = !project.disconnected
+            && tab.can_stop()
+            && (!tab.session.capabilities.terminal || state.terminal_available);
         let mut controls = row![
             control(ui.label("重命名"), Some(ui.msg(Action::Rename(key.clone()))), false),
             control(ui.label("关闭标签"), Some(ui.msg(Action::Hide(key.clone()))), false),
@@ -282,16 +329,21 @@ fn workspace<'a>(
         let heading =
             column![text(tab_label(tab)).size(14).wrapping(Wrapping::Glyph), controls.wrap(),]
                 .spacing(3);
-        pane_grid::Content::new(session_content(ui, &key, tab, project.disconnected)).title_bar(
-            pane_grid::TitleBar::new(heading).padding(6).style(move |theme| {
-                let mut style = settings_panel_style(theme);
-                if pane == project.active_pane {
-                    style.border.color = theme.extended_palette().primary.strong.color;
-                    style.border.width = 1.0;
-                }
-                style
-            }),
-        )
+        pane_grid::Content::new(session_content(
+            ui,
+            &key,
+            tab,
+            project.disconnected
+                || (tab.session.capabilities.terminal && !state.terminal_available),
+        ))
+        .title_bar(pane_grid::TitleBar::new(heading).padding(6).style(move |theme| {
+            let mut style = settings_panel_style(theme);
+            if pane == project.active_pane {
+                style.border.color = theme.extended_palette().primary.strong.color;
+                style.border.width = 1.0;
+            }
+            style
+        }))
     })
     .spacing(6)
     .width(Length::Fill)
@@ -314,8 +366,51 @@ fn session_content<'a>(
     disconnected: bool,
 ) -> Element<'a, Message> {
     if tab.session.capabilities.terminal {
-        // The native workbench integration mounts its attached PTY here, in the owning pane.
-        return container(text(ui.label("终端内容暂不可用")).size(13)).center(Length::Fill).into();
+        let terminal = if let Some(view) = &tab.terminal.view {
+            let key = key.clone();
+            view.view().map(move |event| ui.msg(Action::TerminalEvent(key.clone(), event)))
+        } else {
+            container(text(ui.label("终端内容暂不可用")).size(13)).center(Length::Fill).into()
+        };
+        let mut content = column![].spacing(4);
+        if disconnected || tab.session.state == Process::Disconnected {
+            content = content.push(settings_error_banner(ui.label("终端连接已断开").to_owned()));
+        }
+        if let Some(error) = tab.action_error.or(tab.terminal.error) {
+            if !disconnected || error != "终端连接已断开" {
+                content = content.push(settings_error_banner(ui.label(error).to_owned()));
+            }
+        }
+        if tab.terminal.truncated {
+            content = content
+                .push(text(ui.label("终端回放已截断")).size(12).style(settings_muted_text_style));
+        }
+        if !tab.drafts.is_empty() {
+            content = content.push(control(
+                ui.label("查看待提交草稿"),
+                Some(ui.msg(Action::ShowDraft(key.clone(), tab.drafts[0].id.request_id.clone()))),
+                false,
+            ));
+        }
+        if let Some(turn) = tab.turns.last() {
+            let status = turn
+                .error
+                .or_else(|| {
+                    turn.snapshot.as_ref().and_then(|snapshot| {
+                        snapshot
+                            .error
+                            .map(super::update::error_label)
+                            .or(Some(delivery_label(snapshot.state)))
+                    })
+                })
+                .unwrap_or("正在发送消息…");
+            content =
+                content.push(text(ui.label(status)).size(12).style(settings_muted_text_style));
+        }
+        return content
+            .push(container(terminal).width(Length::Fill).height(Length::Fill))
+            .height(Length::Fill)
+            .into();
     }
     let mut content = column![
         text(&tab.session.directory)
@@ -410,19 +505,22 @@ fn dialog_view<'a>(
     base: Element<'a, Message>,
     dialog: &'a Dialog,
     project: Option<&'a Project>,
+    terminal_available: bool,
 ) -> Element<'a, Message> {
     let close = ui.msg(Action::Dismiss);
     let confirm = ui.msg(Action::Confirm);
     let (title, draft, enabled, select) = match dialog {
         Dialog::Rename(_, draft) => (ui.label("重命名"), draft, !draft.trim().is_empty(), None),
+        Dialog::ReadDraft(..) => return base,
         Dialog::Compose { target, draft } => {
             let targets: Vec<_> = project
                 .into_iter()
                 .flat_map(|project| {
-                    project
-                        .tabs
-                        .iter()
-                        .filter(move |(_, tab)| !project.disconnected && tab.can_send())
+                    project.tabs.iter().filter(move |(_, tab)| {
+                        !project.disconnected
+                            && tab.can_send()
+                            && (!tab.session.capabilities.terminal || terminal_available)
+                    })
                 })
                 .map(|(id, _)| id.clone())
                 .collect();
@@ -437,7 +535,16 @@ fn dialog_view<'a>(
                     })
                     .placeholder(ui.label("选择目标会话"))
                     .width(Length::Fill);
-            (ui.label("发送消息"), draft, enabled, Some(select))
+            let native = target
+                .as_ref()
+                .and_then(|id| project?.tabs.get(id))
+                .is_some_and(|tab| tab.session.capabilities.terminal);
+            (
+                ui.label(if native { "创建终端草稿" } else { "发送消息" }),
+                draft,
+                enabled,
+                Some(select),
+            )
         }
     };
     let input = text_input(title, draft)
@@ -470,6 +577,60 @@ fn dialog_view<'a>(
     settings_modal_overlay_with_escape(base, close, card)
 }
 
+fn draft_dialog<'a>(
+    ui: View,
+    base: Element<'a, Message>,
+    state: &'a Workbench,
+    key: &SessionKey,
+    request: &str,
+) -> Element<'a, Message> {
+    let close = ui.msg(Action::Dismiss);
+    let Some(draft) = draft_text(state, key, request) else { return base };
+    let enabled = state.terminal_available
+        && state.projects.get(&key.project).is_some_and(|project| {
+            !project.disconnected
+                && project.tabs.get(&key.session).is_some_and(|tab| tab.resolving_draft.is_none())
+        });
+    let resolve =
+        |action| enabled.then(|| ui.msg(Action::ResolveDraft(key.clone(), request.into(), action)));
+    let card = settings_modal_card(
+        column![
+            row![
+                text(ui.label("待提交草稿")).size(17).width(Length::Fill),
+                settings_close_button(close.clone()),
+            ]
+            .align_y(Alignment::Center),
+            text(ui.label("复制草稿后，在目标终端粘贴并手动提交。"))
+                .size(13)
+                .wrapping(Wrapping::Glyph),
+            container(
+                vertical(column![text(draft).size(14).wrapping(Wrapping::Glyph)])
+                    .height(Length::Shrink)
+            )
+            .max_height(280),
+            row![
+                control(
+                    ui.label("复制草稿"),
+                    Some(ui.msg(Action::CopyDraft(key.clone(), request.into()))),
+                    false
+                ),
+                control(ui.label("撤销草稿"), resolve(CliWorkbenchDraftAction::Cancel), false),
+                control(
+                    ui.label("标记已手动提交"),
+                    resolve(CliWorkbenchDraftAction::MarkSubmitted),
+                    true
+                ),
+            ]
+            .spacing(6)
+            .wrap(),
+        ]
+        .spacing(12),
+    )
+    .width(Length::Fill)
+    .max_width(560);
+    settings_modal_overlay_with_escape(base, close, card)
+}
+
 pub(super) fn tab_label(tab: &Tab) -> String {
     if let Some(name) = &tab.name {
         return name.clone();
@@ -479,9 +640,11 @@ pub(super) fn tab_label(tab: &Tab) -> String {
         CliWorkbenchTarget::NativeCli { app_id } => app_id,
         CliWorkbenchTarget::Shell => "Shell",
     };
-    let id = &tab.session.id;
-    let suffix = id.char_indices().rev().nth(5).map_or(id.as_str(), |(start, _)| &id[start..]);
-    format!("{name} #{suffix}")
+    format!("{name} #{}", id_suffix(&tab.session.id))
+}
+
+fn id_suffix(id: &str) -> &str {
+    id.char_indices().rev().nth(5).map_or(id, |(start, _)| &id[start..])
 }
 
 fn process_label(tab: &Tab, disconnected: bool) -> &'static str {

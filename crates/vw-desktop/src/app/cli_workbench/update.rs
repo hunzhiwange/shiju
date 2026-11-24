@@ -12,9 +12,10 @@ use iced::{
 use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
 use vw_api_project::{ListProjectsRequest, ProjectDto, ResolveProjectRequest};
 use vw_api_types::cli_workbench::{
-    CliWorkbenchError, CliWorkbenchErrorCode as Code, CliWorkbenchMessage,
-    CliWorkbenchProcessState as Process, CliWorkbenchSession, CliWorkbenchTarget,
-    SendCliWorkbenchMessage, StartCliWorkbenchSession,
+    CliWorkbenchDraft, CliWorkbenchDraftAction, CliWorkbenchError, CliWorkbenchErrorCode as Code,
+    CliWorkbenchMessage, CliWorkbenchProcessState as Process, CliWorkbenchSession,
+    CliWorkbenchTarget, CliWorkbenchTerminalOutput, SendCliWorkbenchMessage,
+    StartCliWorkbenchSession,
 };
 use vw_gateway_client::GatewayClient;
 
@@ -55,13 +56,15 @@ pub(crate) struct ProjectUpdate {
     sessions: Result<Vec<CliWorkbenchSession>, CliWorkbenchError>,
     approvals: HashMap<String, PendingPermissionRequestDto>,
     approval_error: bool,
+    drafts: Option<Vec<CliWorkbenchDraft>>,
     turns: Vec<(SessionKey, String, Result<CliWorkbenchMessage, CliWorkbenchError>)>,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) enum Event {
-    Open(String),
+    Open { backend: Option<String>, native_app: Option<String> },
     Tick,
+    TerminalTick,
     Window(window::Id, Action),
     Response(window::Id, u64, Action),
 }
@@ -70,12 +73,13 @@ pub(crate) enum Event {
 pub(crate) enum Action {
     Refresh,
     ProjectsLoaded(u64, Result<(Vec<ProjectDto>, Option<String>), ()>),
-    SessionsLoaded(u64, Vec<ProjectUpdate>),
+    SessionsLoaded(u64, bool, Vec<ProjectUpdate>),
     SelectProject(String),
     SelectSession(SessionKey),
     SelectAgent(String),
     AgentsLoaded(u64, Result<Vec<Agent>, ()>),
     Start,
+    StartTerminal(CliWorkbenchTarget),
     Started(String, Result<CliWorkbenchSession, CliWorkbenchError>),
     Hide(SessionKey),
     Stop(SessionKey),
@@ -86,6 +90,13 @@ pub(crate) enum Action {
     Target(String),
     Confirm,
     Dismiss,
+    ShowDraft(SessionKey, String),
+    CopyDraft(SessionKey, String),
+    ResolveDraft(SessionKey, String, CliWorkbenchDraftAction),
+    DraftResolved(SessionKey, String, Result<CliWorkbenchMessage, CliWorkbenchError>),
+    TerminalEvent(SessionKey, iced_term::Event),
+    TerminalOutput(SessionKey, u64, Result<CliWorkbenchTerminalOutput, CliWorkbenchError>),
+    TerminalWritten(SessionKey, Result<(), CliWorkbenchError>),
     Sent(SessionKey, String, Result<CliWorkbenchMessage, CliWorkbenchError>),
     Approve(SessionKey, String, PendingPermissionReplyDto),
     Approved(SessionKey, String, bool),
@@ -107,18 +118,19 @@ pub(super) fn event(id: window::Id, action: Action) -> Message {
     Message::CliWorkbench(Event::Window(id, action))
 }
 
-fn response(id: window::Id, scope_generation: u64, action: Action) -> Message {
+pub(super) fn response(id: window::Id, scope_generation: u64, action: Action) -> Message {
     Message::CliWorkbench(Event::Response(id, scope_generation, action))
 }
 
 pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
-    if let Event::Open(backend) = event {
+    if let Event::Open { backend, native_app } = event {
         let current_directory = app.navigation_tabs.project_path.clone();
         let (id, open) = app.open_cli_workbench_window();
         let state = &mut app.cli_workbench;
         state.backend = backend;
-        state.preferred_directory = current_directory;
-        state.selected = None;
+        state.native_app = native_app;
+        bind_scope(state);
+        state.preferred_directory = if state.selected.is_none() { current_directory } else { None };
         state.dialog = None;
         state.agents.clear();
         state.agent = None;
@@ -126,6 +138,12 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
         state.agents_loading = false;
         state.error = None;
         return Task::batch([open, reload_projects(state, id)]);
+    }
+
+    if matches!(&event, Event::TerminalTick) {
+        let theme = app.theme();
+        let state = &mut app.cli_workbench;
+        return state.window.map_or_else(Task::none, |id| super::terminal::tick(state, id, &theme));
     }
 
     let state = &mut app.cli_workbench;
@@ -167,6 +185,9 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
                     | Action::Resize(..)
                     | Action::Drag(..)
                     | Action::Focus(..)
+                    | Action::TerminalOutput(..)
+                    | Action::TerminalWritten(..)
+                    | Action::TerminalEvent(..)
             ) && bind_scope(state)
             {
                 return reload_projects(state, id);
@@ -177,12 +198,18 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
 }
 
+pub(super) fn current_scope(state: &Workbench) -> bool {
+    state.scope.as_ref() == Some(&Scope(super::super::config::gateway_client_endpoint()))
+}
+
 fn bind_scope(state: &mut Workbench) -> bool {
     let scope = Scope(super::super::config::gateway_client_endpoint());
-    if state.scope.as_ref() == Some(&scope) {
+    if state.scope.as_ref() == Some(&scope) && state.client.is_some() {
         return false;
     }
+    state.client = GatewayClient::new(scope.0.clone()).ok();
     state.scope = Some(scope);
+    state.terminal_available = false;
     state.scope_generation += 1;
     state.projects.clear();
     state.selected = None;
@@ -199,8 +226,8 @@ fn bind_scope(state: &mut Workbench) -> bool {
     true
 }
 
-fn client(state: &Workbench) -> Option<GatewayClient> {
-    GatewayClient::new(state.scope.as_ref()?.0.clone()).ok()
+pub(super) fn client(state: &Workbench) -> Option<GatewayClient> {
+    state.client.clone()
 }
 
 fn reload_projects(state: &mut Workbench, id: window::Id) -> Task<Message> {
@@ -264,7 +291,10 @@ fn load_agents(state: &mut Workbench, id: window::Id) -> Task<Message> {
     };
     state.agents_loading = true;
     let directory = project.directory.clone();
-    let backend = state.backend.clone();
+    let Some(backend) = state.backend.clone() else {
+        state.agents_loading = false;
+        return Task::none();
+    };
     let client = client(state);
     Task::perform(
         async move {
@@ -323,13 +353,23 @@ fn refresh_sessions(state: &mut Workbench, id: window::Id) -> Task<Message> {
         .collect();
     Task::perform(
         async move {
-            stream::iter(projects)
-                .map(|(project, requests)| project_update(client.clone(), project, requests))
+            let terminal_available = client.endpoint().is_loopback()
+                && client
+                    .cli_workbench_terminal_capability()
+                    .await
+                    .is_ok_and(|capability| capability.available);
+            let updates = stream::iter(projects)
+                .map(|(project, requests)| {
+                    project_update(client.clone(), project, requests, terminal_available)
+                })
                 .buffer_unordered(6)
                 .collect::<Vec<_>>()
-                .await
+                .await;
+            (terminal_available, updates)
         },
-        move |updates| response(id, generation, Action::SessionsLoaded(epoch, updates)),
+        move |(available, updates)| {
+            response(id, generation, Action::SessionsLoaded(epoch, available, updates))
+        },
     )
 }
 
@@ -337,12 +377,22 @@ async fn project_update(
     client: GatewayClient,
     project: String,
     requests: Vec<(String, String)>,
+    terminal_available: bool,
 ) -> ProjectUpdate {
     let sessions = client.cli_workbench_list(&project).await;
     let mut approvals = HashMap::new();
     let mut approval_error = false;
     let mut turns = Vec::new();
+    let mut drafts = None;
     if let Ok(sessions) = &sessions {
+        if terminal_available
+            && sessions.iter().any(|session| {
+                session.capabilities.delivery
+                    == vw_api_types::cli_workbench::CliWorkbenchDeliveryCapability::Draft
+            })
+        {
+            drafts = client.cli_workbench_drafts(&project).await.ok();
+        }
         let waiting: HashSet<_> = sessions
             .iter()
             .filter(|session| session.state == Process::WaitingForApproval)
@@ -378,7 +428,7 @@ async fn project_update(
             .collect()
             .await;
     }
-    ProjectUpdate { project, sessions, approvals, approval_error, turns }
+    ProjectUpdate { project, sessions, approvals, approval_error, drafts, turns }
 }
 
 fn apply_projects(state: &mut Workbench, projects: Vec<ProjectDto>, selected: Option<String>) {
@@ -407,6 +457,16 @@ fn apply_projects_updates(state: &mut Workbench, batch: Vec<ProjectUpdate>) {
                     tab.approval = update.approvals.get(id).cloned();
                 }
                 project.approval_error = update.approval_error;
+                if let Some(drafts) = update.drafts {
+                    for tab in project.tabs.values_mut() {
+                        tab.drafts.clear();
+                    }
+                    for draft in drafts {
+                        if let Some(tab) = project.tabs.get_mut(&draft.id.target_session_id) {
+                            tab.drafts.push(draft);
+                        }
+                    }
+                }
             }
             Err(_) => {
                 project.disconnected = true;
@@ -433,10 +493,16 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action) -> Task<
                 Err(()) => state.error = Some("无法读取工作台项目"),
             }
         }
-        Action::SessionsLoaded(epoch, updates) => {
+        Action::SessionsLoaded(epoch, available, updates) => {
             state.refreshing = false;
             if epoch == state.epoch {
+                state.terminal_available = available;
                 apply_projects_updates(state, updates);
+                if matches!(&state.dialog, Some(Dialog::ReadDraft(key, request)) if draft_text(state, key, request).is_none())
+                {
+                    state.dialog = None;
+                    return super::terminal::focus(state);
+                }
             }
         }
         Action::SelectProject(project) if state.projects.contains_key(&project) => {
@@ -449,9 +515,12 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action) -> Task<
         }
         Action::SelectSession(key) => {
             let changed = state.selected.as_ref() != Some(&key.project);
-            if state.locate(&key) && changed {
-                state.dialog = None;
-                return load_agents(state, id);
+            if state.locate(&key) {
+                if changed {
+                    state.dialog = None;
+                    return Task::batch([load_agents(state, id), super::terminal::focus(state)]);
+                }
+                return super::terminal::focus(state);
             }
         }
         Action::AgentsLoaded(epoch, result) if epoch == state.agents_epoch => {
@@ -467,7 +536,27 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action) -> Task<
         Action::SelectAgent(key) if state.agents.iter().any(|agent| agent.key == key) => {
             state.agent = Some(key);
         }
-        Action::Start => return start(state, id),
+        Action::Start => {
+            if let Some(agent) = state.agent.clone() {
+                return start(state, id, CliWorkbenchTarget::Acp { agent });
+            }
+        }
+        Action::StartTerminal(target) if state.terminal_available => match &target {
+            CliWorkbenchTarget::Shell => return start(state, id, target),
+            CliWorkbenchTarget::NativeCli { app_id }
+                if state.native_app.as_ref() == Some(app_id) =>
+            {
+                return start(state, id, target);
+            }
+            _ => {}
+        },
+        Action::TerminalEvent(key, event) => return super::terminal::event(state, id, key, event),
+        Action::TerminalOutput(key, cursor, result) => {
+            return super::terminal::output(state, id, key, cursor, result);
+        }
+        Action::TerminalWritten(key, result) => {
+            return super::terminal::written(state, id, key, result);
+        }
         Action::Started(project_id, result) => {
             state.starting = false;
             state.epoch += 1;
@@ -475,10 +564,11 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action) -> Task<
                 Ok(session) if session.project_id == project_id => {
                     if let Some(project) = state.projects.get_mut(&project_id) {
                         let session_id = session.id.clone();
-                        project
-                            .tabs
-                            .entry(session_id.clone())
-                            .or_insert_with(|| super::Tab::new(session));
+                        project.tabs.entry(session_id.clone()).or_insert_with(|| {
+                            let mut tab = super::Tab::new(session);
+                            tab.terminal.fresh = tab.session.capabilities.terminal;
+                            tab
+                        });
                         if state.selected.as_ref() == Some(&project_id) {
                             project.select(&session_id);
                         }
@@ -492,6 +582,7 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action) -> Task<
             if let Some(project) = state.projects.get_mut(&key.project) {
                 project.hide(&key.session);
             }
+            return super::terminal::focus(state);
         }
         Action::Stop(key) => return stop(state, id, key),
         Action::Stopped(key, result) => {
@@ -513,14 +604,59 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action) -> Task<
         }
         Action::Draft(value) => match state.dialog.as_mut() {
             Some(Dialog::Compose { draft, .. } | Dialog::Rename(_, draft)) => *draft = value,
-            None => {}
+            _ => {}
         },
         Action::Target(value) => {
             if let Some(Dialog::Compose { target, .. }) = state.dialog.as_mut() {
                 *target = Some(value);
             }
         }
-        Action::Dismiss => state.dialog = None,
+        Action::Dismiss => {
+            state.dialog = None;
+            return super::terminal::focus(state);
+        }
+        Action::ShowDraft(key, request) => {
+            let changed = state.selected.as_ref() != Some(&key.project);
+            if draft_text(state, &key, &request).is_some() && state.locate(&key) {
+                state.dialog = Some(Dialog::ReadDraft(key, request));
+                if changed {
+                    return load_agents(state, id);
+                }
+            }
+        }
+        Action::CopyDraft(key, request) => {
+            if let Some(text) = draft_text(state, &key, &request) {
+                return iced::clipboard::write(text.to_owned());
+            }
+        }
+        Action::ResolveDraft(key, request, action) => {
+            return resolve_draft(state, id, key, request, action);
+        }
+        Action::DraftResolved(key, request, result) => {
+            state.epoch += 1;
+            if let Some(tab) = state.tab_mut(&key) {
+                tab.resolving_draft = None;
+                match result {
+                    Ok(message)
+                        if message.id.request_id == request
+                            && message.id.target_session_id == key.session =>
+                    {
+                        tab.drafts.retain(|draft| draft.id.request_id != request);
+                        if matches!(&state.dialog, Some(Dialog::ReadDraft(target, current)) if target == &key && current == &request)
+                        {
+                            state.dialog = None;
+                        }
+                        state.apply_turn(&key, &request, Ok(message), false);
+                        return Task::batch([
+                            super::terminal::focus(state),
+                            refresh_sessions(state, id),
+                        ]);
+                    }
+                    Ok(_) => state.error = Some("网关返回无效的工作台会话"),
+                    Err(error) => state.error = Some(error_label(error.code)),
+                }
+            }
+        }
         Action::Confirm => return confirm(state, id),
         Action::Approve(key, request, reply) => return approve(state, id, key, request, reply),
         Action::Approved(key, request, applied) => {
@@ -569,10 +705,8 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action) -> Task<
     Task::none()
 }
 
-fn start(state: &mut Workbench, id: window::Id) -> Task<Message> {
-    let (Some(project), Some(agent), Some(client)) =
-        (state.selected.clone(), state.agent.clone(), client(state))
-    else {
+fn start(state: &mut Workbench, id: window::Id, target: CliWorkbenchTarget) -> Task<Message> {
+    let (Some(project), Some(client)) = (state.selected.clone(), client(state)) else {
         return Task::none();
     };
     if state.starting || state.projects.get(&project).is_none_or(|project| project.disconnected) {
@@ -581,8 +715,7 @@ fn start(state: &mut Workbench, id: window::Id) -> Task<Message> {
     state.starting = true;
     let generation = state.scope_generation;
     state.error = None;
-    let request =
-        StartCliWorkbenchSession { target: CliWorkbenchTarget::Acp { agent }, directory: None };
+    let request = StartCliWorkbenchSession { target, directory: None };
     Task::perform(
         async move {
             let result = client.cli_workbench_start(&project, &request).await;
@@ -598,7 +731,12 @@ fn stop(state: &mut Workbench, id: window::Id, key: SessionKey) -> Task<Message>
     if state.projects.get(&key.project).is_none_or(|project| project.disconnected) {
         return Task::none();
     }
-    let Some(tab) = state.tab_mut(&key) else { return Task::none() };
+    let terminal_available = state.terminal_available;
+    let Some(tab) =
+        state.tab_mut(&key).filter(|tab| !tab.session.capabilities.terminal || terminal_available)
+    else {
+        return Task::none();
+    };
     if !tab.begin_stop() {
         return Task::none();
     }
@@ -635,7 +773,10 @@ fn confirm(state: &mut Workbench, id: window::Id) -> Task<Message> {
                 state.error = Some("无法生成工作台请求编号");
                 return Task::none();
             };
-            let Some(tab) = state.tab_mut(&key).filter(|tab| tab.can_send()) else {
+            let terminal_available = state.terminal_available;
+            let Some(tab) = state.tab_mut(&key).filter(|tab| {
+                tab.can_send() && (!tab.session.capabilities.terminal || terminal_available)
+            }) else {
                 return Task::none();
             };
             tab.action_error = None;
@@ -666,6 +807,57 @@ fn confirm(state: &mut Workbench, id: window::Id) -> Task<Message> {
         _ => {}
     }
     Task::none()
+}
+
+pub(super) fn draft_text<'a>(
+    state: &'a Workbench,
+    key: &SessionKey,
+    request: &str,
+) -> Option<&'a str> {
+    state
+        .projects
+        .get(&key.project)?
+        .tabs
+        .get(&key.session)?
+        .drafts
+        .iter()
+        .find(|draft| draft.id.request_id == request)
+        .map(|draft| draft.text.as_str())
+}
+
+fn resolve_draft(
+    state: &mut Workbench,
+    id: window::Id,
+    key: SessionKey,
+    request: String,
+    action: CliWorkbenchDraftAction,
+) -> Task<Message> {
+    if !state.terminal_available
+        || state.projects.get(&key.project).is_none_or(|project| project.disconnected)
+        || !matches!(&state.dialog, Some(Dialog::ReadDraft(target, current)) if target == &key && current == &request)
+        || draft_text(state, &key, &request).is_none()
+    {
+        return Task::none();
+    }
+    let Some(client) = client(state) else { return Task::none() };
+    let Some(tab) = state.tab_mut(&key) else { return Task::none() };
+    if tab.resolving_draft.is_some() {
+        return Task::none();
+    }
+    tab.resolving_draft = Some(request.clone());
+    state.error = None;
+    let generation = state.scope_generation;
+    Task::perform(
+        async move {
+            let result = client
+                .cli_workbench_resolve_draft(&key.project, &key.session, &request, action)
+                .await;
+            (key, request, result)
+        },
+        move |(key, request, result)| {
+            response(id, generation, Action::DraftResolved(key, request, result))
+        },
+    )
 }
 
 fn approve(

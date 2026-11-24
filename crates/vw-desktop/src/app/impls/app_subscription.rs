@@ -245,6 +245,13 @@ impl App {
             } else {
                 Subscription::none()
             },
+            #[cfg(not(target_arch = "wasm32"))]
+            if self.cli_workbench.has_visible_terminal() {
+                iced::time::every(std::time::Duration::from_millis(80))
+                    .map(|_| Message::CliWorkbench(crate::app::cli_workbench::Event::TerminalTick))
+            } else {
+                Subscription::none()
+            },
             {
                 #[cfg(not(target_arch = "wasm32"))]
                 if self.voice.settings.recording_hotkey.is_some() {

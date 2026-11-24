@@ -1,19 +1,19 @@
+use crate::AlacrittyEvent;
 use crate::actions::Action;
 use crate::backend;
 use crate::bindings::{Binding, BindingAction, BindingsLayout, InputKind};
 use crate::font::TermFont;
 use crate::settings::{FontSettings, Settings, ThemeSettings};
 use crate::theme::{ColorPalette, Theme};
-use crate::AlacrittyEvent;
+use iced::Subscription;
 use iced::futures::stream::BoxStream;
 use iced::futures::{SinkExt, StreamExt};
 use iced::widget::canvas::Cache;
-use iced::Subscription;
 use std::hash::{Hash, Hasher};
 use std::io::Result;
 use std::sync::Arc;
-use tokio::sync::mpsc::{self, Receiver};
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::{self, Receiver};
 
 #[derive(Debug, Clone)]
 pub enum Event {
@@ -41,24 +41,111 @@ pub struct Terminal {
 
 impl Terminal {
     pub fn new(id: u64, settings: Settings) -> Result<Self> {
-        let (backend_event_tx, backend_event_rx) = mpsc::channel(100);
+        let (sender, receiver) = mpsc::channel(100);
         let theme = Theme::new(settings.theme);
         let font = TermFont::new(settings.font);
+        let backend = backend::Backend::new(id, sender, settings.backend)?;
+        Ok(Self::from_backend(id, theme, font, backend, receiver))
+    }
 
-        Ok(Self {
+    /// Create a terminal renderer without launching a local process.
+    pub fn attach(id: u64, settings: Settings) -> Self {
+        let (sender, receiver) = mpsc::channel(100);
+        let font = TermFont::new(settings.font);
+        let backend = backend::Backend::attach(
+            sender,
+            settings.backend.working_directory,
+            font.measure,
+        );
+        Self::from_backend(
+            id,
+            Theme::new(settings.theme),
+            font,
+            backend,
+            receiver,
+        )
+    }
+
+    fn from_backend(
+        id: u64,
+        theme: Theme,
+        font: TermFont,
+        backend: backend::Backend,
+        receiver: Receiver<AlacrittyEvent>,
+    ) -> Self {
+        Self {
             id,
             widget_id: iced::widget::Id::unique(),
             font,
             theme,
             bindings: BindingsLayout::default(),
             cache: Cache::default(),
-            backend: backend::Backend::new(
-                id,
-                backend_event_tx,
-                settings.backend,
-            )?,
-            backend_event_rx: Arc::new(Mutex::new(backend_event_rx)),
-        })
+            backend,
+            backend_event_rx: Arc::new(Mutex::new(receiver)),
+        }
+    }
+
+    /// Feed raw PTY data, retaining parser state between batches.
+    pub fn feed_attached_output(
+        &mut self,
+        bytes: &[u8],
+        reset: bool,
+        reply: bool,
+    ) {
+        let changed = self.backend.feed_output(bytes, reset);
+        if let Ok(mut receiver) = self.backend_event_rx.try_lock() {
+            while let Ok(event) = receiver.try_recv() {
+                if !reply {
+                    continue;
+                }
+                match event {
+                    AlacrittyEvent::PtyWrite(_)
+                    | AlacrittyEvent::TextAreaSizeRequest(_) => {
+                        self.backend.handle(
+                            backend::Command::ProcessAlacrittyEvent(event),
+                        );
+                    },
+                    AlacrittyEvent::ColorRequest(index, format) => {
+                        use alacritty_terminal::vte::ansi::{
+                            Color, NamedColor, Rgb,
+                        };
+                        let color = match index {
+                            0..=255 => Color::Indexed(index as u8),
+                            i if i == NamedColor::Foreground as usize
+                                || i == NamedColor::Cursor as usize =>
+                            {
+                                Color::Named(NamedColor::Foreground)
+                            },
+                            i if i == NamedColor::Background as usize => {
+                                Color::Named(NamedColor::Background)
+                            },
+                            _ => continue,
+                        };
+                        let [r, g, b, _] =
+                            self.theme.get_color(color).into_rgba8();
+                        self.backend
+                            .write(format(Rgb { r, g, b }).into_bytes());
+                    },
+                    _ => {},
+                }
+            }
+        }
+        if changed {
+            self.backend.sync();
+            self.redraw();
+        }
+    }
+
+    /// Return the pending bytes, latest grid size (rows, columns), and overflow state.
+    pub fn take_attached_input(
+        &mut self,
+    ) -> (Vec<u8>, Option<(u16, u16)>, bool) {
+        let (bytes, size, overflow) = self.backend.take_attached_input();
+        (
+            bytes,
+            size.map(|size| (size.num_lines, size.num_cols)),
+            overflow,
+        )
     }
 
     /// The latest known shell directory, falling back to its launch directory.

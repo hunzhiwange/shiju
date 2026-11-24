@@ -71,6 +71,57 @@ impl GatewayClient {
         self.cli_workbench_request(reqwest::Method::GET, &path, None::<&()>).await
     }
 
+    pub async fn cli_workbench_terminal_capability(
+        &self,
+    ) -> Result<CliWorkbenchTerminalCapability, CliWorkbenchError> {
+        self.cli_workbench_request(
+            reqwest::Method::GET,
+            "/v1/cli-workbench/terminal-capability",
+            None::<&()>,
+        )
+        .await
+    }
+
+    pub async fn cli_workbench_terminal_read(
+        &self,
+        project_id: &str,
+        session_id: &str,
+        cursor: u64,
+    ) -> Result<CliWorkbenchTerminalOutput, CliWorkbenchError> {
+        let path = format!("{}/terminal?cursor={cursor}", session_path(project_id, session_id));
+        self.cli_workbench_request(reqwest::Method::GET, &path, None::<&()>).await
+    }
+
+    pub async fn cli_workbench_terminal_write(
+        &self,
+        project_id: &str,
+        session_id: &str,
+        input: &CliWorkbenchTerminalInput,
+    ) -> Result<(), CliWorkbenchError> {
+        let path = format!("{}/terminal", session_path(project_id, session_id));
+        self.cli_workbench_request(reqwest::Method::POST, &path, Some(input)).await
+    }
+
+    pub async fn cli_workbench_drafts(
+        &self,
+        project_id: &str,
+    ) -> Result<Vec<CliWorkbenchDraft>, CliWorkbenchError> {
+        let path = format!("{}/drafts", workbench_path(project_id));
+        self.cli_workbench_request(reqwest::Method::GET, &path, None::<&()>).await
+    }
+
+    pub async fn cli_workbench_resolve_draft(
+        &self,
+        project_id: &str,
+        session_id: &str,
+        request_id: &str,
+        action: CliWorkbenchDraftAction,
+    ) -> Result<CliWorkbenchMessage, CliWorkbenchError> {
+        let request = gateway_project::encode_path_segment(request_id);
+        let path = format!("{}/drafts/{request}", session_path(project_id, session_id));
+        self.cli_workbench_request(reqwest::Method::POST, &path, Some(&action)).await
+    }
+
     async fn cli_workbench_request<B: Serialize, T: DeserializeOwned>(
         &self,
         method: reqwest::Method,

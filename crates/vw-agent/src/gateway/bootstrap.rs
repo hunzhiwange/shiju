@@ -36,12 +36,16 @@ pub(crate) async fn run_gateway_until(
     config: Config,
     shutdown: impl std::future::Future<Output = Result<()>>,
 ) -> Result<()> {
+    let workbench = api::handlers::cli_workbench::LocalWorkbenchGateway::default();
     let result = crate::app_routing::gateway_owner::run_with_routing(
         // The gateway startup future contains large config and router state.
-        async |routing| Box::pin(serve_gateway(host, port, config, routing)).await,
+        async |routing| {
+            Box::pin(serve_gateway(host, port, config, routing, workbench.clone())).await
+        },
         shutdown,
     )
     .await;
+    workbench.shutdown().await;
     result
 }
 
@@ -53,6 +57,7 @@ async fn serve_gateway(
     #[cfg_attr(not(target_os = "macos"), allow(unused_variables))] routing: &Arc<
         crate::app_routing::RoutingListener,
     >,
+    workbench: api::handlers::cli_workbench::LocalWorkbenchGateway,
 ) -> Result<()> {
     agent_gateway::bootstrap::validate_bind(host, &config)?;
     config.gateway.skeys = config::load_gateway_skeys_for_tenant(&TenantScope::default())
@@ -215,6 +220,7 @@ async fn serve_gateway(
     let local_only = addr.ip().is_loopback() && tunnel.is_none();
     let app = if local_only {
         app.layer(axum::Extension(api::handlers::session::employee_account::LocalEmployeeGateway))
+            .layer(axum::Extension(workbench))
     } else {
         app
     };

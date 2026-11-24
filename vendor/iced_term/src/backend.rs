@@ -10,13 +10,12 @@ use alacritty_terminal::selection::{Selection, SelectionRange, SelectionType};
 use alacritty_terminal::sync::FairMutex;
 use alacritty_terminal::term::search::{Match, RegexIter, RegexSearch};
 use alacritty_terminal::term::{
-    self, cell::Cell, test::TermSize, viewport_to_point, Term, TermMode,
+    self, Term, TermMode, cell::Cell, test::TermSize, viewport_to_point,
 };
-use alacritty_terminal::vte::ansi::{ClearMode, Handler};
-use alacritty_terminal::{tty, Grid};
+use alacritty_terminal::vte::ansi::{ClearMode, Handler, Processor};
+use alacritty_terminal::{Grid, tty};
 use iced::keyboard::Modifiers;
 use iced_core::Size;
-use std::borrow::Cow;
 use std::cmp::min;
 use std::io::Result;
 use std::ops::{Index, RangeInclusive};
@@ -143,9 +142,46 @@ pub struct Backend {
     working_directory: WorkingDirectory,
     term: Arc<FairMutex<Term<EventProxy>>>,
     size: TerminalSize,
-    notifier: Notifier,
+    transport: Transport,
     last_content: RenderableContent,
     pub(crate) url_regex: RegexSearch,
+}
+
+enum Transport {
+    Local(Notifier),
+    Attached(Box<Attached>),
+}
+
+#[derive(Default)]
+struct Attached {
+    parser: Processor,
+    input: Vec<u8>,
+    size: Option<WindowSize>,
+    input_overflow: bool,
+}
+
+impl Transport {
+    fn write(&mut self, input: Vec<u8>) {
+        match self {
+            Self::Local(notifier) => notifier.notify(input),
+            Self::Attached(attached) => {
+                if !attached.input_overflow
+                    && input.len() <= 64 * 1024 - attached.input.len()
+                {
+                    attached.input.extend(input);
+                } else {
+                    attached.input_overflow = true;
+                }
+            },
+        }
+    }
+
+    fn resize(&mut self, size: WindowSize) {
+        match self {
+            Self::Local(notifier) => notifier.on_resize(size),
+            Self::Attached(attached) => attached.size = Some(size),
+        }
+    }
 }
 
 impl Backend {
@@ -165,46 +201,129 @@ impl Backend {
             ..tty::Options::default()
         };
 
-        let config = term::Config::default();
         let terminal_size = TerminalSize::default();
         let pty = tty::new(&pty_config, terminal_size.into(), id)?;
 
         #[cfg(any(target_os = "linux", target_os = "macos"))]
-        let working_directory = WorkingDirectory::new(initial_directory, pty.child().id());
+        let working_directory =
+            WorkingDirectory::new(initial_directory, pty.child().id());
         #[cfg(not(any(target_os = "linux", target_os = "macos")))]
         let working_directory = WorkingDirectory::new(initial_directory);
-        let event_proxy = EventProxy(pty_event_proxy_sender, working_directory.clone());
-
-        let mut term = Term::new(config, &terminal_size, event_proxy.clone());
-
-        let cursor = term.grid_mut().cursor_cell().clone();
-
-        let initial_content = RenderableContent {
-            grid: term.grid().clone(),
-            selectable_range: None,
-            terminal_mode: *term.mode(),
-            terminal_size,
-            cursor: cursor.clone(),
-            hovered_hyperlink: None,
-        };
-
-        let term = Arc::new(FairMutex::new(term));
-
+        let event_proxy =
+            EventProxy(pty_event_proxy_sender, working_directory.clone());
+        let term = Arc::new(FairMutex::new(Term::new(
+            term::Config::default(),
+            &terminal_size,
+            event_proxy.clone(),
+        )));
         let pty_event_loop =
             EventLoop::new(term.clone(), event_proxy, pty, false, false)?;
-
         let notifier = Notifier(pty_event_loop.channel());
-
-        let _ = pty_event_loop.spawn();
-
-        Ok(Self {
-            term: term.clone(),
+        let backend = Self::from_term(
             working_directory,
-            size: terminal_size,
-            notifier,
-            last_content: initial_content,
+            term,
+            terminal_size,
+            Transport::Local(notifier),
+        );
+        let _ = pty_event_loop.spawn();
+        Ok(backend)
+    }
+
+    pub(crate) fn attach(
+        sender: mpsc::Sender<Event>,
+        directory: Option<std::path::PathBuf>,
+        measure: Size<f32>,
+    ) -> Self {
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        let working_directory = WorkingDirectory::new(directory, 0);
+        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        let working_directory = WorkingDirectory::new(directory);
+        let cell_width = (measure.width as u16).max(1);
+        let cell_height = (measure.height as u16).max(1);
+        let size = TerminalSize {
+            cell_width,
+            cell_height,
+            num_lines: 24,
+            layout_width: 80.0 * f32::from(cell_width),
+            layout_height: 24.0 * f32::from(cell_height),
+            ..TerminalSize::default()
+        };
+        let events = EventProxy(sender, working_directory.clone());
+        let term = Arc::new(FairMutex::new(Term::new(
+            term::Config::default(),
+            &size,
+            events,
+        )));
+        Self::from_term(
+            working_directory,
+            term,
+            size,
+            Transport::Attached(Box::default()),
+        )
+    }
+
+    fn from_term(
+        working_directory: WorkingDirectory,
+        term: Arc<FairMutex<Term<EventProxy>>>,
+        size: TerminalSize,
+        transport: Transport,
+    ) -> Self {
+        let last_content = {
+            let mut term = term.lock();
+            RenderableContent {
+                grid: term.grid().clone(),
+                selectable_range: None,
+                terminal_mode: *term.mode(),
+                terminal_size: size,
+                cursor: term.grid_mut().cursor_cell().clone(),
+                hovered_hyperlink: None,
+            }
+        };
+        Self {
+            term,
+            working_directory,
+            size,
+            transport,
+            last_content,
             url_regex: RegexSearch::new(URL_REGEX).expect("invalid url regexp"),
-        })
+        }
+    }
+
+    pub(crate) fn feed_output(&mut self, bytes: &[u8], reset: bool) -> bool {
+        let Transport::Attached(attached) = &mut self.transport else {
+            return false;
+        };
+        let mut term = self.term.lock();
+        if reset {
+            term.reset_state();
+            attached.parser = Processor::default();
+            self.last_content.hovered_hyperlink = None;
+        }
+        attached.parser.advance(&mut *term, bytes);
+        // HTTP polling may leave a synchronized frame open until its terminator arrives.
+        if attached
+            .parser
+            .sync_timeout()
+            .sync_timeout()
+            .is_some_and(|deadline| deadline <= std::time::Instant::now())
+        {
+            attached.parser.stop_sync(&mut *term);
+            return true;
+        }
+        reset || !bytes.is_empty()
+    }
+
+    pub(crate) fn take_attached_input(
+        &mut self,
+    ) -> (Vec<u8>, Option<WindowSize>, bool) {
+        match &mut self.transport {
+            Transport::Local(_) => (Vec::new(), None, false),
+            Transport::Attached(attached) => (
+                std::mem::take(&mut attached.input),
+                attached.size.take(),
+                std::mem::take(&mut attached.input_overflow),
+            ),
+        }
     }
 
     pub(crate) fn working_directory(&self) -> Option<std::path::PathBuf> {
@@ -224,8 +343,11 @@ impl Backend {
                     Event::Title(title) => {
                         action = Action::ChangeTitle(title);
                     },
-                    Event::PtyWrite(pty) => {
-                        self.notifier.notify(pty.into_bytes())
+                    Event::PtyWrite(pty) => self.write(pty.into_bytes()),
+                    Event::TextAreaSizeRequest(format)
+                        if matches!(self.transport, Transport::Attached(_)) =>
+                    {
+                        self.write(format(self.size.into()).into_bytes());
                     },
                     _ => {},
                 };
@@ -327,7 +449,7 @@ impl Backend {
     }
 
     fn process_mouse_report(
-        &self,
+        &mut self,
         button: MouseButton,
         modifiers: Modifiers,
         point: Point,
@@ -362,7 +484,7 @@ impl Backend {
         }
     }
 
-    fn sgr_mouse_report(&self, point: Point, button: u8, pressed: bool) {
+    fn sgr_mouse_report(&mut self, point: Point, button: u8, pressed: bool) {
         let c = if pressed { 'M' } else { 'm' };
 
         let msg = format!(
@@ -373,10 +495,10 @@ impl Backend {
             c
         );
 
-        self.notifier.notify(msg.as_bytes().to_vec());
+        self.write(msg.into_bytes());
     }
 
-    fn normal_mouse_report(&self, point: Point, button: u8, is_utf8: bool) {
+    fn normal_mouse_report(&mut self, point: Point, button: u8, is_utf8: bool) {
         let Point { line, column } = point;
         let max_point = if is_utf8 { 2015 } else { 223 };
 
@@ -405,7 +527,7 @@ impl Backend {
             msg.push(32 + 1 + line.0 as u8);
         }
 
-        self.notifier.notify(msg);
+        self.write(msg);
     }
 
     fn start_selection(
@@ -488,10 +610,16 @@ impl Backend {
             .floor() as u16;
         let cols = (self.size.layout_width / self.size.cell_width as f32)
             .floor() as u16;
-        if lines > 0 && cols > 0 {
+        if lines > 0
+            && cols > 0
+            && (matches!(self.transport, Transport::Local(_))
+                || (cols >= 2
+                    && (lines != self.size.num_lines
+                        || cols != self.size.num_cols)))
+        {
             self.size.num_lines = lines;
             self.size.num_cols = cols;
-            self.notifier.on_resize(self.size.into());
+            self.transport.resize(self.size.into());
             terminal.resize(TermSize::new(
                 self.size.num_cols as usize,
                 self.size.num_lines as usize,
@@ -511,15 +639,17 @@ impl Backend {
     }
 
     fn scroll_to_input(term: &mut Term<EventProxy>) -> bool {
-        if term.grid().display_offset() == 0 && !term.mode().contains(TermMode::VI) {
+        if term.grid().display_offset() == 0
+            && !term.mode().contains(TermMode::VI)
+        {
             return false;
         }
         term.scroll_display(Scroll::Bottom);
         true
     }
 
-    fn write<I: Into<Cow<'static, [u8]>>>(&self, input: I) {
-        self.notifier.notify(input);
+    pub(crate) fn write(&mut self, input: Vec<u8>) {
+        self.transport.write(input);
     }
 
     fn scroll(&mut self, terminal: &mut Term<EventProxy>, delta_value: i32) {
@@ -538,7 +668,7 @@ impl Backend {
                     content.push(line_cmd);
                 }
 
-                self.notifier.notify(content);
+                self.write(content);
             } else {
                 terminal.grid_mut().scroll_display(scroll);
             }
@@ -671,7 +801,9 @@ impl Default for RenderableContent {
 
 impl Drop for Backend {
     fn drop(&mut self) {
-        let _ = self.notifier.0.send(Msg::Shutdown);
+        if let Transport::Local(notifier) = &self.transport {
+            let _ = notifier.0.send(Msg::Shutdown);
+        }
     }
 }
 

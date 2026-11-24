@@ -4,12 +4,13 @@ use std::collections::{BTreeMap, HashSet};
 use gateway_interaction::PendingPermissionRequestDto;
 use iced::{Task, widget::pane_grid, window};
 use vw_api_types::cli_workbench::{
-    CliWorkbenchDeliveryCapability, CliWorkbenchError, CliWorkbenchMessage,
+    CliWorkbenchDeliveryCapability, CliWorkbenchDraft, CliWorkbenchError, CliWorkbenchMessage,
     CliWorkbenchProcessState as Process, CliWorkbenchSession,
 };
 
 use super::{App, Message};
 
+mod terminal;
 mod update;
 mod view;
 
@@ -21,10 +22,13 @@ pub(crate) struct Workbench {
     pub(super) window: Option<window::Id>,
     closing: HashSet<window::Id>,
     scope: Option<update::Scope>,
+    client: Option<vw_gateway_client::GatewayClient>,
     selected: Option<String>,
     preferred_directory: Option<String>,
     projects: BTreeMap<String, Project>,
-    backend: String,
+    backend: Option<String>,
+    native_app: Option<String>,
+    terminal_available: bool,
     agents: Vec<update::Agent>,
     agent: Option<String>,
     dialog: Option<Dialog>,
@@ -64,6 +68,9 @@ struct Tab {
     approving: Option<String>,
     turns: Vec<Turn>,
     action_error: Option<&'static str>,
+    terminal: terminal::Attachment,
+    drafts: Vec<CliWorkbenchDraft>,
+    resolving_draft: Option<String>,
 }
 
 struct Turn {
@@ -78,6 +85,7 @@ struct Turn {
 enum Dialog {
     Rename(SessionKey, String),
     Compose { target: Option<String>, draft: String },
+    ReadDraft(SessionKey, String),
 }
 
 impl Tab {
@@ -91,14 +99,22 @@ impl Tab {
             approving: None,
             turns: Vec::new(),
             action_error: None,
+            terminal: terminal::Attachment::default(),
+            drafts: Vec::new(),
+            resolving_draft: None,
         }
     }
 
     fn can_send(&self) -> bool {
-        self.session.capabilities.delivery == CliWorkbenchDeliveryCapability::Structured
-            && self.session.state == Process::Ready
-            && !self.stopping
-            && self.turns.iter().all(|turn| !turn.recover)
+        !self.stopping
+            && match self.session.capabilities.delivery {
+                CliWorkbenchDeliveryCapability::Structured => {
+                    self.session.state == Process::Ready
+                        && self.turns.iter().all(|turn| !turn.recover)
+                }
+                CliWorkbenchDeliveryCapability::Draft => self.session.state == Process::Running,
+                CliWorkbenchDeliveryCapability::Unavailable => false,
+            }
     }
 
     fn can_stop(&self) -> bool {
@@ -225,6 +241,18 @@ impl Project {
 }
 
 impl Workbench {
+    pub(super) fn has_visible_terminal(&self) -> bool {
+        self.window.is_some()
+            && self.terminal_available
+            && self.selected.as_ref().and_then(|id| self.projects.get(id)).is_some_and(|project| {
+                project.panes.iter().any(|(_, id)| {
+                    id.as_ref()
+                        .and_then(|id| project.tabs.get(id))
+                        .is_some_and(|tab| tab.session.capabilities.terminal)
+                })
+            })
+    }
+
     pub(super) fn owns_window(&self, id: window::Id) -> bool {
         self.window == Some(id) || self.closing.contains(&id)
     }
@@ -246,6 +274,8 @@ impl Workbench {
         for tab in self.projects.values_mut().flat_map(|project| project.tabs.values_mut()) {
             tab.stopping = false;
             tab.approving = None;
+            tab.resolving_draft = None;
+            tab.terminal.detach();
         }
         true
     }
@@ -299,7 +329,7 @@ impl Workbench {
                         .as_ref()
                         .is_none_or(|old| snapshot.revision >= old.revision) =>
             {
-                turn.recover = !snapshot.state.is_terminal();
+                turn.recover = !snapshot.is_settled();
                 turn.error = None;
                 turn.snapshot = Some(snapshot);
             }

@@ -259,7 +259,7 @@ async fn wait(
     let mut message = timeout_at(deadline, receive(client, project, delivery))
         .await
         .map_err(|_| wait_timeout(None))??;
-    while !message.state.is_terminal()
+    while !message.is_settled()
         && !matches!(
             message.state,
             CliWorkbenchMessageState::PendingSubmission

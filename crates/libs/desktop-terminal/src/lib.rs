@@ -1,4 +1,6 @@
 //! Terminal state, local messages, updates and views; the host applies cross-domain effects.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod attached;
 pub mod message;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod panes;

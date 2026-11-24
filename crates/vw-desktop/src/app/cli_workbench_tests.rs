@@ -37,6 +37,7 @@ fn message(target: &str, revision: u64, output: &str) -> CliWorkbenchMessage {
         },
         turn_id: "turn".into(),
         state: CliWorkbenchMessageState::Completed,
+        manual_submission: false,
         revision,
         approval_request_id: None,
         approval_history: Vec::new(),
@@ -186,4 +187,38 @@ fn cli_workbench_window_close_routes_away_from_main_window() {
     assert_eq!(app.cli_workbench.window, Some(reopened));
     assert_eq!(app.main_window_id, Some(main));
     assert!(!app.shutdown_requested);
+}
+
+#[test]
+fn cli_workbench_window_routes_terminal_drafts_only_to_native_cli() {
+    let mut native = session("a", "native", Process::Running);
+    native.target = CliWorkbenchTarget::NativeCli { app_id: "codex".into() };
+    native.capabilities.terminal = true;
+    native.capabilities.delivery = CliWorkbenchDeliveryCapability::Draft;
+    let mut shell = native.clone();
+    shell.id = "shell".into();
+    shell.target = CliWorkbenchTarget::Shell;
+    shell.capabilities.delivery = CliWorkbenchDeliveryCapability::Unavailable;
+    let mut workbench = Workbench::default();
+    workbench.projects.insert("a".into(), project("a", vec![native, shell]));
+    let key = key("a", "native");
+    let tab = workbench.tab_mut(&key).unwrap();
+    assert!(tab.can_send());
+    let mut snapshot = message("native", 1, "");
+    snapshot.manual_submission = true;
+    snapshot.state = CliWorkbenchMessageState::PendingSubmission;
+    tab.turns.push(Turn {
+        request: "req".into(),
+        prompt: "review changes".into(),
+        snapshot: Some(snapshot.clone()),
+        error: None,
+        recover: true,
+        submitting: None,
+    });
+    assert!(tab.can_send());
+    snapshot.revision += 1;
+    snapshot.state = CliWorkbenchMessageState::Submitted;
+    workbench.apply_turn(&key, "req", Ok(snapshot), false);
+    assert!(!workbench.tab_mut(&key).unwrap().turns[0].recover);
+    assert!(!workbench.projects["a"].tabs["shell"].can_send());
 }

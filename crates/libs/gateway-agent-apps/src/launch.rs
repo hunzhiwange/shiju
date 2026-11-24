@@ -65,15 +65,7 @@ async fn launch(
     tokio::task::spawn_blocking(move || {
         let authorization = super::access::authorize_identity_launch(context.policy.as_deref(), &headers, &tenant, &target.target_host_id)?;
         if (request.provider_id.is_some() && request.account_id.is_some()) || request.launch.skip_permissions { return Err(StatusCode::UNPROCESSABLE_ENTITY); }
-        // An explicitly scoped native slot must not be reachable through ordinary launch.
-        let native_service = match request.launch.app_id {
-            vw_api_app_identity::AppId::Claude => Some(vw_api_app_auth::AuthService::ClaudeOfficial),
-            vw_api_app_identity::AppId::Agy => Some(vw_api_app_auth::AuthService::AgyOauth),
-            _ => None,
-        };
-        if native_service.is_some_and(|service| authorization.native_login_owner(service) == Some(false)) {
-            return Err(StatusCode::FORBIDDEN);
-        }
+        authorize_native_login(&authorization, request.launch.app_id)?;
         #[cfg(target_os="macos")]
         let agy_owner = context.policy.is_some() && authorization.native_login_owner(vw_api_app_auth::AuthService::AgyOauth) == Some(true);
         let host = authorization.host; let principal = authorization.principal;
@@ -92,16 +84,9 @@ async fn launch(
         }
         #[cfg(unix)]
         {
-            let observed = vw_agent_apps::apps::discovery::read::read(
-                request.launch.app_id,
-                &vw_agent_apps::apps::discovery::read::LocalReadEnvironment {
-                    host_id: host.id.clone(),
-                    home: host.home.clone(),
-                    search_paths: host.search_paths.clone(),
-                    applications: host.applications,
-                },
-            )
-            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+            let observed = discover_installations(
+                request.launch.app_id, &host.id, &host.home, &host.search_paths, host.applications,
+            )?;
             let db = match database {
                 Some(Extension(db)) => db,
                 None => GlobalDatabase::for_home(&agent_paths::paths().home)
@@ -211,4 +196,121 @@ async fn session_status(
     })
     .await
     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+}
+
+
+fn authorize_native_login(
+    authorization: &super::access::Authorization,
+    app_id: vw_api_app_identity::AppId,
+) -> Result<(), StatusCode> {
+    use vw_api_app_auth::AuthService;
+    use vw_api_app_identity::AppId;
+
+    // An explicitly scoped native slot must not be reachable through ordinary launch.
+    let service = match app_id {
+        AppId::Claude => Some(AuthService::ClaudeOfficial),
+        AppId::Agy => Some(AuthService::AgyOauth),
+        _ => None,
+    };
+    if service.is_some_and(|service| authorization.native_login_owner(service) == Some(false)) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn discover_installations(
+    app_id: vw_api_app_identity::AppId,
+    host_id: &str,
+    home: &Path,
+    search_paths: &[PathBuf],
+    applications: PathBuf,
+) -> Result<vw_api_app_identity::AppReadResponse, StatusCode> {
+    use vw_agent_apps::apps::discovery::read::{LocalReadEnvironment, read};
+
+    read(app_id, &LocalReadEnvironment {
+        host_id: host_id.to_owned(),
+        home: home.to_owned(),
+        search_paths: search_paths.to_vec(),
+        applications,
+    }).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
+}
+
+/// Prepare an interactive command after the workbench route authorizes direct local access
+/// and binds the cwd to a registered project. Returns the same scoped host environment
+/// and native app validation as the external-terminal launch.
+#[cfg(target_os = "macos")]
+pub fn workbench_command(
+    tenant: &TenantScope,
+    target: &vw_api_types::cli_workbench::CliWorkbenchTarget,
+    directory: &str,
+) -> Result<std::process::Command, StatusCode> {
+    use vw_api_app_identity::{AppId, AppInstallationRuntimeStatus, AppRuntimeKind};
+    use vw_api_types::cli_workbench::CliWorkbenchTarget;
+
+    let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from);
+    let authorization = super::access::authorize_identity_launch(
+        policy.as_deref(), &HeaderMap::new(), tenant, local_app_auth::HOST_ID,
+    )?;
+    let host = &authorization.host;
+    if host.id != local_app_auth::HOST_ID {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    let root = host.home.canonicalize().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let cwd = Path::new(directory).canonicalize().map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+    if cwd != Path::new(directory)
+        || !cwd.is_dir()
+        || !cwd.starts_with(&root)
+        || directory.chars().any(char::is_control)
+    {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    let material = match target {
+        CliWorkbenchTarget::Shell => LaunchMaterial {
+            program: PathBuf::from("/bin/zsh"),
+            cwd,
+            args: vec!["-i".into()],
+            skip_permissions: false,
+        },
+        CliWorkbenchTarget::NativeCli { app_id } => {
+            let app_id: AppId = serde_json::from_value(serde_json::Value::String(app_id.clone()))
+                .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+            if !vw_agent_apps::apps::catalog::catalog().iter().any(|app| {
+                app.metadata.id == app_id
+                    && app.metadata.runtime_kinds.contains(&AppRuntimeKind::NativeCli)
+            }) {
+                return Err(StatusCode::UNPROCESSABLE_ENTITY);
+            }
+            authorize_native_login(&authorization, app_id)?;
+            let observed = discover_installations(
+                app_id, &host.id, &host.home, &host.search_paths, host.applications.clone(),
+            )?;
+            let mut runnable = observed.installations.iter().filter(|installation| {
+                installation.runtime_status == AppInstallationRuntimeStatus::Runnable
+            });
+            let first = runnable.next().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+            let installation = if first.is_path_default { first } else {
+                runnable.find(|candidate| candidate.is_path_default).unwrap_or(first)
+            };
+            let request = LaunchRequest {
+                app_id,
+                installation_id: installation.id.clone(),
+                cwd: directory.to_owned(),
+                args: Vec::new(),
+                skip_permissions: false,
+            };
+            validate_launch_request(
+                &request, &host.id, &observed.installations, std::slice::from_ref(&root), false,
+            ).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?
+        }
+        CliWorkbenchTarget::Acp { .. } => return Err(StatusCode::UNPROCESSABLE_ENTITY),
+    };
+    let mut command = vw_agent_apps::apps::launch::host::command(material, &root, &host.search_paths)
+        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+    if !["LANG", "LC_ALL", "LC_CTYPE"].into_iter()
+        .any(|key| std::env::var_os(key).is_some_and(|value| !value.is_empty()))
+    {
+        command.env("LC_CTYPE", "en_US.UTF-8");
+    }
+    Ok(command)
 }

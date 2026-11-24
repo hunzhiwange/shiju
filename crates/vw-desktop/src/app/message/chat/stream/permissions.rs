@@ -213,7 +213,7 @@ pub(super) fn handle_full_access_saved(
     );
     match result {
         Ok(_) => super::start_next(app, session_id),
-        Err(error) => app.show_error_toast(format!("保存会话权限失败：{error}")),
+        Err(error) => app.show_localized_toast(crate::app::state::ToastKind::Error, "保存会话权限失败：%s", vec![error.into()]),
     }
 }
 

@@ -73,7 +73,7 @@ pub fn with_modal<'a, Message: Clone + 'static>(
         } else {
             "连接会话后可读取后端支持的选项"
         };
-        fields = fields.push(text(hint).size(13).style(settings_muted_text_style));
+        fields = fields.push(text(i18n.__(hint)).size(13).style(settings_muted_text_style));
     }
     let can_select = !runtime.acp_options_pending
         && !runtime.is_requesting
@@ -123,19 +123,19 @@ pub fn with_modal<'a, Message: Clone + 'static>(
     }
     let header = settings_modal_header(
         column![
-            text("ACP 会话选项").size(20),
-            text("查看权限状态，调整模型来源和会话选项").size(13).style(settings_muted_text_style),
+            text(i18n.__("ACP 会话选项")).size(20),
+            text(i18n.__("查看权限状态，调整模型来源和会话选项")).size(13).style(settings_muted_text_style),
         ]
         .spacing(4),
         settings_close_button(close.clone()),
     );
     let footer = row![
-        action(text(if runtime.acp_options_pending { "处理中…" } else { "刷新" }))
+        action(text(i18n.__(if runtime.acp_options_pending { "处理中…" } else { "刷新" })))
             .padding([8, 16])
             .style(rounded_action_btn_style)
             .on_press_maybe(can_select.then_some(emit(Action::AcpOptionsOpen))),
         Space::new().width(Length::Fill),
-        action(text("关闭"))
+        action(text(i18n.__("关闭")))
             .padding([8, 16])
             .style(rounded_action_btn_style)
             .on_press(close.clone()),
@@ -160,11 +160,12 @@ pub fn source_controls<'a, Message: Clone + 'static>(
     runtime: &OptionsState<'_>, started: bool, help: Element<'a, Message>,
     emit: fn(Action) -> Message,
 ) -> Element<'a, Message> {
+    let i18n = runtime.i18n;
     use vw_api_acp_model::acp_model_source::{
         AcpModelSource, AcpModelSourceCapability, AcpModelSourceRejectionReason,
     };
-    let client = "客户端模型";
-    let native = "智能体原生模型";
+    let client = i18n.__("客户端模型");
+    let native = i18n.__("智能体原生模型");
     let mut controls = column![help].spacing(6);
     for (source, label) in
         [(AcpModelSource::SessionModel, client), (AcpModelSource::CliLocal, native)]
@@ -225,22 +226,22 @@ pub fn source_controls<'a, Message: Clone + 'static>(
         }
     }
     if runtime.acp_model_source == AcpModelSource::SessionModel {
-        let model = if runtime.auto_model { "自动选择".to_string() } else { runtime.model.to_owned() };
+        let model = if runtime.auto_model { i18n.__("自动选择").to_string() } else { runtime.model.to_owned() };
         controls = controls.push(
-            text(format!("当前客户端 Provider/model：{model}"))
+            text(i18n.format("当前客户端 Provider/model：%s", &[model.as_str().into()]).expect("valid model label"))
                 .size(12)
                 .wrapping(text::Wrapping::WordOrGlyph)
                 .style(settings_muted_text_style),
         );
     }
     controls = controls.push(
-        text(if started {
+        text(i18n.__(if started {
             "会话开始后不能切换模型"
         } else if runtime.source_pending {
             "正在等待执行主机确认并保存…"
         } else {
             "切换来源将创建新的 ACP 会话；原生上下文不继承"
-        })
+        }))
         .size(12)
         .style(settings_muted_text_style),
     );
@@ -250,11 +251,12 @@ pub fn source_controls<'a, Message: Clone + 'static>(
 pub fn access_status<'a, Message: Clone + 'static>(
     runtime: &OptionsState<'a>, permission: Element<'a, Message>,
 ) -> Element<'a, Message> {
+    let i18n = runtime.i18n;
     use vw_api_acp_model::acp_session::AcpAccessSupport;
     let mut status = column![
-        settings_field_label("工具权限"),
+        settings_field_label(i18n.__("工具权限")),
         permission,
-        text("审批模式自动允许符合工作区安全边界的普通文件编辑；其他操作仍可能要求审批或被拒绝。")
+        text(i18n.__("审批模式自动允许符合工作区安全边界的普通文件编辑；其他操作仍可能要求审批或被拒绝。"))
             .size(12)
             .style(settings_muted_text_style),
     ]
@@ -263,7 +265,7 @@ pub fn access_status<'a, Message: Clone + 'static>(
     if runtime.acp_rebuild_required
         || observed.is_some_and(|s| s.requested != runtime.full_access_enabled)
     {
-        status = status.push(text("生效能力：未验证；下次发送时同步当前授权").size(13));
+        status = status.push(text(i18n.__("生效能力：未验证；下次发送时同步当前授权")).size(13));
     } else if let Some(observed) = observed {
         let label = match observed.support {
             AcpAccessSupport::Native => "原生权限已确认",
@@ -275,22 +277,22 @@ pub fn access_status<'a, Message: Clone + 'static>(
             AcpAccessSupport::Failed => "同步失败或未确认",
         };
         status = status
-            .push(text(format!("生效能力：{label}")).size(13))
+            .push(text(i18n.format("生效能力：%s", &[i18n.__(label).into()]).expect("valid access label")).size(13))
             .push(
-                text(format!(
-                    "后端：{}；版本：{}",
-                    observed.backend,
-                    observed.version.as_deref().unwrap_or("未提供")
-                ))
+                text(i18n.format(
+                    "后端：%s；版本：%s", &[
+                    observed.backend.as_str().into(),
+                    observed.version.as_deref().unwrap_or(i18n.__("未提供")).into()
+                ]).expect("valid backend label"))
                 .size(12),
             )
             .push(text(observed.explanation.clone()).size(12));
     } else {
-        status = status.push(text("生效能力：未验证；后端未连接，连接后可刷新查看").size(13));
+        status = status.push(text(i18n.__("生效能力：未验证；后端未连接，连接后可刷新查看")).size(13));
     }
     status
         .push(
-            text("此处仅指工具权限；用户问答、计划确认及组织策略仍可能需要确认。")
+            text(i18n.__("此处仅指工具权限；用户问答、计划确认及组织策略仍可能需要确认。"))
                 .size(12)
                 .style(settings_muted_text_style),
         )
@@ -298,7 +300,7 @@ pub fn access_status<'a, Message: Clone + 'static>(
 }
 
 pub fn with_session_modal<'a, Message: Clone + 'static>(runtime: &OptionsState<'a>, started: bool, base: Element<'a, Message>, can_change: bool, source: Element<'a, Message>, emit: fn(Action) -> Message, emit_send: fn(super::send_message::Message) -> Message) -> Element<'a, Message> {
-    let permission = super::send_controls::acp_permission_modes(runtime.full_access_enabled, can_change).map(emit_send);
+    let permission = super::send_controls::acp_permission_modes(runtime.i18n, runtime.full_access_enabled, can_change).map(emit_send);
     let access = access_status(runtime, permission);
     with_modal(runtime, runtime.i18n, started, base, access, source, emit)
 }

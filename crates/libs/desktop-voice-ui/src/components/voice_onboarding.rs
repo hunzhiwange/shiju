@@ -1,4 +1,5 @@
 //! Explicit setup only: opening this modal never captures focus or requests permission.
+use desktop_i18n::I18n;
 use desktop_ui_controls::system_settings_common::*;
 use desktop_voice::permissions::{Permission, PermissionStatus};
 use iced::{
@@ -6,6 +7,7 @@ use iced::{
     widget::{button, column, row, text},
 };
 pub fn modal<'a, Message: Clone + 'static>(
+    i18n: I18n,
     base: Element<'a, Message>,
     map: fn(OnboardingEvent) -> Message,
     statuses: [PermissionStatus; 3],
@@ -13,10 +15,10 @@ pub fn modal<'a, Message: Clone + 'static>(
 ) -> Element<'a, Message> {
     let close = map(OnboardingEvent::Close);
     let mut body = column![
-        text("试用跨应用听写").size(19),
-        text("先在语音设置中配置并保存全局听写快捷键；关闭此弹窗，切换到其它应用的普通文本框，再按住快捷键说话。"),
-        text("松开完成；双击免提，再按完成。Escape 取消。录音不会激活 ShiJu；焦点、文本或选择区变化后拒绝插入。"),
-        text("仅 macOS；密码、安全输入、只读或无法核验的目标不写入。无法插入时结果保留在这里，由你点击复制，不自动修改剪贴板。"),
+        text(i18n.__("试用跨应用听写")).size(19),
+        text(i18n.__("先在语音设置中配置并保存全局听写快捷键；关闭此弹窗，切换到其它应用的普通文本框，再按住快捷键说话。")),
+        text(i18n.__("松开完成；双击免提，再按完成。Escape 取消。录音不会激活 ShiJu；焦点、文本或选择区变化后拒绝插入。")),
+        text(i18n.__("仅 macOS；密码、安全输入、只读或无法核验的目标不写入。无法插入时结果保留在这里，由你点击复制，不自动修改剪贴板。")),
     ].spacing(12);
     for ((permission, label), status) in [
         (Permission::Microphone, "麦克风"),
@@ -36,8 +38,8 @@ pub fn modal<'a, Message: Clone + 'static>(
         };
         body = body.push(
             row![
-                text(format!("{label}：{state}")).width(Length::Fill),
-                button(text("检查 / 授权"))
+                text(i18n.format("%s：%s", &[i18n.__(label).into(), i18n.__(state).into()]).expect("valid permission status")).width(Length::Fill),
+                button(text(i18n.__("检查 / 授权")))
                     .padding([8, 14])
                     .style(rounded_action_btn_style)
                     .on_press(map(OnboardingEvent::Permission(permission)))
@@ -47,11 +49,11 @@ pub fn modal<'a, Message: Clone + 'static>(
     }
     if let Some(text_value) = pending {
         body = body
-            .push(text("保留的听写结果：写入未确认时先检查目标，避免重复插入").size(16))
+            .push(text(i18n.__("保留的听写结果：写入未确认时先检查目标，避免重复插入")).size(16))
             .push(text(text_value));
     }
     let mut footer = row![
-        button(text("刷新权限"))
+        button(text(i18n.__("刷新权限")))
             .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press(map(OnboardingEvent::Refresh))
@@ -59,20 +61,20 @@ pub fn modal<'a, Message: Clone + 'static>(
     .spacing(8);
     if pending.is_some() {
         footer = footer.push(
-            button(text("复制听写结果"))
+            button(text(i18n.__("复制听写结果")))
                 .padding([8, 14])
                 .style(primary_action_btn_style)
                 .on_press(map(OnboardingEvent::Copy)),
         );
         footer = footer.push(
-            button(text("丢弃结果"))
+            button(text(i18n.__("丢弃结果")))
                 .padding([8, 14])
                 .style(rounded_action_btn_style)
                 .on_press(map(OnboardingEvent::Discard)),
         );
     }
     footer = footer.push(
-        button(text("关闭，前往目标应用试用"))
+        button(text(i18n.__("关闭，前往目标应用试用")))
             .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press(close.clone()),
@@ -81,7 +83,7 @@ pub fn modal<'a, Message: Clone + 'static>(
         Some(base),
         close.clone(),
         settings_modal_layout(
-            settings_modal_header(text("跨应用听写").size(20), settings_close_button(close)),
+            settings_modal_header(text(i18n.__("跨应用听写")).size(20), settings_close_button(close)),
             body,
             Some(footer.wrap().into()),
         )

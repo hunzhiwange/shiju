@@ -8,10 +8,10 @@ fn input(state: &State) -> domain::Input {
     }
 }
 fn view(state: &State) -> iced::Element<'static, Event> {
-    domain::view(input(state))
+    domain::view(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), input(state))
 }
 fn recording_bar(state: &State) -> iced::Element<'static, Event> {
-    domain::recording_bar(input(state), state.waveform.view())
+    domain::recording_bar(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), input(state), state.waveform.view())
 }
 #[tokio::test]
 async fn voice_ui_primary_dictation_remains_independent() {

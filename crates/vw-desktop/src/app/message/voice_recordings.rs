@@ -18,7 +18,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Ok(domain::Outcome::None) => Task::none(),
         Ok(domain::Outcome::Task(task)) => task.map(message),
         Ok(domain::Outcome::Apply(text)) => { super::voice::paste(app, text, false); app.voice.recordings.stop(); Task::none() }
-        Err(error) => app.show_error_toast(error),
+        Err(error) => super::voice::feedback(app, crate::app::state::ToastKind::Error, error),
     }
 }
 #[cfg(test)]

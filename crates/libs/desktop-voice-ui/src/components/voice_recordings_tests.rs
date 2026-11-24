@@ -2,7 +2,7 @@ use super::*;
 type State = crate::message::voice_recordings::State;
 type Message = Event;
 fn content(state: &State) -> Element<'_, Message> {
-    super::content(View { entries: &state.entries, result: state.result.as_deref(), problem: state.problem.as_deref(), replaying: state.replay.is_some(), busy: state.busy }, Err("测试录音目录".into()))
+    super::content(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), View { entries: &state.entries, result: state.result.as_deref(), problem: state.problem.as_deref(), replaying: state.replay.is_some(), busy: state.busy }, Err("测试录音目录".into()))
 }
 use iced::advanced::{
     clipboard,

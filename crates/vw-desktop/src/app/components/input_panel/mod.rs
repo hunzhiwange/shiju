@@ -275,7 +275,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     #[cfg(not(target_arch = "wasm32"))]
     let acp_btn = if runtime.is_some_and(|runtime| runtime.is_employee_chat()) {
         (!crate::app::digital_employees::chat_picker::employee_locked(app)).then(|| {
-            iced::widget::button(iced::widget::text("更换员工").size(13))
+            iced::widget::button(iced::widget::text(crate::app::i18n::I18n::new(app.general_settings.desktop_locale).__("更换员工")).size(13))
                 .padding([6, 10])
                 .style(super::system_settings_common::rounded_action_btn_style)
                 .on_press(Message::Chat(message::ChatMessage::SessionAgentSelected(Some(
@@ -339,6 +339,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     };
 
     let bottom_bar = desktop_chat_input::input_panel::layout::controls(
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         desktop_chat_input::input_panel::layout::Controls {
             agent_tab_btn, skills_tab_btn, workflow_btn, model_btn, usage_btn, attach_btn, send, tools_tab_btn, acp_btn, reasoning_btn, permission_btn, pool_btn, cancel,
             mobile_model_content: if mobile { model_popover::model_popover_content(app, auto_model, &model) } else { Space::new().into() },

@@ -156,6 +156,7 @@ fn append_running_descendants(
         let is_planning = session.title.trim().starts_with(PLANNING_TITLE_PREFIX);
         let control = controls.get(&session.id);
         projected.push(AgentChildSession {
+            default_title: false,
             session_id: session.id.clone(),
             agent: "子智能体".to_string(),
             task: if is_planning { String::new() } else { "工作流执行".to_string() },
@@ -367,7 +368,7 @@ pub fn agent_session_row<'a, Message: Clone + 'static>(i18n: I18n, frame: usize,
         })
         .into()
     } else {
-        let title = compact_and_truncate(&child.title, TITLE_MAX_CHARS);
+        let title = compact_and_truncate(if child.default_title { i18n.__("AgentTool 子会话") } else { &child.title }, TITLE_MAX_CHARS);
         let task = compact_and_truncate(
             if child.kind == AgentChildSessionKind::WorkflowExecution {
                 i18n.__("工作流执行")

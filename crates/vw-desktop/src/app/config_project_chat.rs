@@ -101,7 +101,7 @@ impl App {
         match result {
             Ok(()) => next,
             Err(error) => {
-                Task::batch([next, self.show_error_toast(format!("项目聊天偏好未保存：{error}"))])
+                Task::batch([next, self.show_localized_toast(crate::app::state::ToastKind::Error, "项目聊天偏好未保存：%s", vec![error.into()])])
             }
         }
     }

@@ -94,12 +94,13 @@ pub async fn detect_installed() -> Vec<Server> {
 }
 
 /// Run only fixed package-manager arguments; never invoke a shell or elevate privileges.
-pub async fn install(server: Server) -> Result<(), String> {
+pub async fn install(server: Server) -> Result<(), desktop_i18n::format::Message> {
+    use desktop_i18n::format::Message;
     if matches!(server, Server::Lua) && !cfg!(target_os = "macos") {
-        return Err("Lua 请按官方说明安装：https://luals.github.io/#install".into());
+        return Err(Message::new("Lua 请按官方说明安装：https://luals.github.io/#install", vec![]));
     }
     if INSTALLING.swap(true, Ordering::SeqCst) {
-        return Err("已有 LSP 安装正在进行，请等待完成。".into());
+        return Err(Message::new("已有 LSP 安装正在进行，请等待完成。", vec![]));
     }
     struct Release;
     impl Drop for Release {
@@ -110,7 +111,7 @@ pub async fn install(server: Server) -> Result<(), String> {
     let _release = Release;
     let (program, args) = server.command();
     let path = shell_command::resolve_executable(program)
-        .ok_or_else(|| format!("未找到 {program}，请先安装对应工具并重启 ShiJu。"))?;
+        .ok_or_else(|| Message::new("未找到 %s，请先安装对应工具并重启 ShiJu。", vec![program.into()]))?;
     let mut command = tokio::process::Command::new(path);
     shell_command::apply_augmented_path_tokio_command(&mut command);
     command
@@ -121,10 +122,10 @@ pub async fn install(server: Server) -> Result<(), String> {
         .stderr(std::process::Stdio::null());
     let status = tokio::time::timeout(std::time::Duration::from_secs(600), command.status())
         .await
-        .map_err(|_| "安装超时，请在终端运行所示命令排查。".to_string())?
-        .map_err(|error| format!("无法启动安装：{error}"))?;
+        .map_err(|_| Message::new("安装超时，请在终端运行所示命令排查。", vec![]))?
+        .map_err(|error| Message::new("无法启动安装：%s", vec![error.to_string().into()]))?;
     if !status.success() {
-        return Err(format!("安装失败（{status}）。请在终端运行所示命令，检查网络或目录权限。"));
+        return Err(Message::new("安装失败（%s）。请在终端运行所示命令，检查网络或目录权限。", vec![status.to_string().into()]));
     }
     Ok(())
 }

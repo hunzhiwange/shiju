@@ -345,12 +345,12 @@ fn input_strip_places_shiju_before_general_actions() {
 
 #[test]
 fn shiju_trigger_count_reflects_installed_load_state() {
-    assert_eq!(shiju_trigger_label(&LoadState::Idle), "识矩（…）");
-    assert_eq!(shiju_trigger_label(&LoadState::Loading { generation: 3 }), "识矩（…）");
-    assert_eq!(shiju_trigger_label(&LoadState::NeedsLogin), "识矩（…）");
-    assert_eq!(shiju_trigger_label(&LoadState::Error("网关不可用".into())), "识矩（…）");
+    assert_eq!(shiju_trigger_label(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), &LoadState::Idle), "识矩（…）");
+    assert_eq!(shiju_trigger_label(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), &LoadState::Loading { generation: 3 }), "识矩（…）");
+    assert_eq!(shiju_trigger_label(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), &LoadState::NeedsLogin), "识矩（…）");
+    assert_eq!(shiju_trigger_label(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), &LoadState::Error("网关不可用".into())), "识矩（…）");
     assert_eq!(
-        shiju_trigger_label(&LoadState::Loaded(vec![
+        shiju_trigger_label(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), &LoadState::Loaded(vec![
             installed_skill(7, "first", "功能一"),
             installed_skill(8, "second", "功能二"),
         ])),
@@ -371,11 +371,11 @@ fn shiju_trigger_count_reflects_installed_load_state() {
         shiju_menu_status(&LoadState::Error("网关不可用".into())),
         ShijuMenuStatus::Error("网关不可用")
     );
-    assert_eq!(shiju_menu_status_text(ShijuMenuStatus::Loading), "正在加载识矩技能…");
-    assert_eq!(shiju_menu_status_text(ShijuMenuStatus::NeedsLogin), "请先登录识矩账户");
-    assert_eq!(shiju_menu_status_text(ShijuMenuStatus::Empty), "暂无已安装识矩技能");
+    assert_eq!(shiju_menu_status_text(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), ShijuMenuStatus::Loading), "正在加载识矩技能…");
+    assert_eq!(shiju_menu_status_text(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), ShijuMenuStatus::NeedsLogin), "请先登录识矩账户");
+    assert_eq!(shiju_menu_status_text(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), ShijuMenuStatus::Empty), "暂无已安装识矩技能");
     assert_eq!(
-        shiju_menu_status_text(ShijuMenuStatus::Error("网关不可用")),
+        shiju_menu_status_text(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), ShijuMenuStatus::Error("网关不可用")),
         "加载失败：网关不可用"
     );
 }

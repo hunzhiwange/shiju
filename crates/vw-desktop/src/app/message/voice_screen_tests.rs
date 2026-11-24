@@ -1,6 +1,6 @@
 use super::*;
 fn target() -> screen_context::Target {
-    screen_context::Target { pid: 42, window: 7, label: "中性窗口".into() }
+    screen_context::Target { application: None, title: None, pid: 42, window: 7, label: "中性窗口".into() }
 }
 #[test]
 fn voice_task_17_end_and_cancel_retire_queued_screen_without_sending() {

@@ -18,9 +18,9 @@ fn video_edit_ui_progress_keeps_failure_and_budget_visible() {
         ..Default::default()
     };
     let summary =
-        video_edit_summary(&json!({"metadata":{"video_edit_progress":progress}})).unwrap();
+        video_edit_summary(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), &json!({"metadata":{"video_edit_progress":progress}})).unwrap();
     assert!(summary.contains("失败 1"));
     assert!(summary.contains("峰值 5/5"));
     assert!(summary.contains("digest"));
-    assert!(video_edit_summary(&json!({"metadata":{"token":"secret"}})).is_none());
+    assert!(video_edit_summary(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), &json!({"metadata":{"token":"secret"}})).is_none());
 }

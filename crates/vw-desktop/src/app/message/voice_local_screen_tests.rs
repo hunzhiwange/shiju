@@ -45,7 +45,7 @@ fn frame(app: &mut App) -> (crate::app::voice::screen_context::Ticket, screen::O
     let ticket = app
         .voice
         .screen
-        .begin(Target { pid: 42, window: 7, label: "中性窗口".into() }, true)
+        .begin(Target { application: None, title: None, pid: 42, window: 7, label: "中性窗口".into() }, true)
         .unwrap();
     let mut png = std::io::Cursor::new(Vec::new());
     image::RgbaImage::from_raw(2, 2, vec![128; 16])

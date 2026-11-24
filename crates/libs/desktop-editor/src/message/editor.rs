@@ -12,7 +12,7 @@ pub enum EditorMessage {
     #[cfg(not(target_arch = "wasm32"))]
     ClearCopiedLspCommand(u64),
     #[cfg(not(target_arch = "wasm32"))]
-    LspInstalled(Result<(), String>),
+    LspInstalled(Result<(), desktop_i18n::format::Message>),
     #[cfg(not(target_arch = "wasm32"))]
     LspInstallationStatus(Vec<desktop_lsp::install::Server>),
     TogglePopover(EditorPopover),

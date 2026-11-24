@@ -8,6 +8,7 @@ fn i18n() -> desktop_i18n::I18n {
 }
 fn child(session_id: &str, agent: &str, title: &str, task: &str) -> AgentChildSession {
     AgentChildSession {
+        default_title: false,
         session_id: session_id.to_string(),
         agent: agent.to_string(),
         task: task.to_string(),

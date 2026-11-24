@@ -288,7 +288,7 @@ pub fn recommendations_menu<'a>(app: QuickInput<'a>, indices: &[usize]) -> Eleme
     let active = app.recommended_prompt;
     let trigger = button(
         row![
-            text("推荐会话").size(12),
+            text(app.i18n.__("推荐会话")).size(12),
             text(format!("({})", indices.len())).size(11),
             dropdown_icon()
         ]
@@ -306,13 +306,13 @@ pub fn recommendations_menu<'a>(app: QuickInput<'a>, indices: &[usize]) -> Eleme
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn shiju_trigger_label(state: &LoadState<Vec<InstalledSkill>>) -> String {
+fn shiju_trigger_label(i18n: desktop_i18n::I18n, state: &LoadState<Vec<InstalledSkill>>) -> String {
     match state {
-        LoadState::Loaded(skills) => format!("识矩（{}）", skills.len()),
+        LoadState::Loaded(skills) => i18n.format("识矩（%u）", &[skills.len().into()]).expect("valid skill count"),
         LoadState::Idle
         | LoadState::NeedsLogin
         | LoadState::Loading { .. }
-        | LoadState::Error(_) => "识矩（…）".to_string(),
+        | LoadState::Error(_) => i18n.__("识矩（…）").to_string(),
     }
 }
 
@@ -444,12 +444,12 @@ fn shiju_menu_status(state: &LoadState<Vec<InstalledSkill>>) -> ShijuMenuStatus<
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn shiju_menu_status_text(status: ShijuMenuStatus<'_>) -> String {
+fn shiju_menu_status_text(i18n: desktop_i18n::I18n, status: ShijuMenuStatus<'_>) -> String {
     match status {
-        ShijuMenuStatus::Loading => "正在加载识矩技能…".to_string(),
-        ShijuMenuStatus::NeedsLogin => "请先登录识矩账户".to_string(),
-        ShijuMenuStatus::Empty => "暂无已安装识矩技能".to_string(),
-        ShijuMenuStatus::Error(error) => format!("加载失败：{error}"),
+        ShijuMenuStatus::Loading => i18n.__("正在加载识矩技能…").to_string(),
+        ShijuMenuStatus::NeedsLogin => i18n.__("请先登录识矩账户").to_string(),
+        ShijuMenuStatus::Empty => i18n.__("暂无已安装识矩技能").to_string(),
+        ShijuMenuStatus::Error(error) => i18n.format("加载失败：%s", &[error.into()]).expect("valid skill error"),
         ShijuMenuStatus::Loaded => String::new(),
     }
 }
@@ -576,9 +576,7 @@ fn shiju_menu_view(app: QuickInput<'_>) -> Element<'_, Message> {
                         error
                     )
                     .expect("valid skill error template"),
-                    _ => app.i18n
-                        .__(&shiju_menu_status_text(status))
-                        .to_owned(),
+                    _ => shiju_menu_status_text(app.i18n, status),
                 })
                 .size(12)
                 .style(|theme: &Theme| iced::widget::text::Style {
@@ -634,7 +632,7 @@ fn shiju_menu_view(app: QuickInput<'_>) -> Element<'_, Message> {
 #[cfg(not(target_arch = "wasm32"))]
 fn shiju_menu(app: QuickInput<'_>) -> Element<'_, Message> {
     let active = app.shiju_skill;
-    let mut trigger_content = row![text(shiju_trigger_label(app.installed)).size(12)]
+    let mut trigger_content = row![text(shiju_trigger_label(app.i18n, app.installed)).size(12)]
         .spacing(5)
         .align_y(iced::Alignment::Center);
     let upgrade_count = shiju_upgrade_count(app);

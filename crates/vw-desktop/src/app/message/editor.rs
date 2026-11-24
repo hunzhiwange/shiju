@@ -80,10 +80,10 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
         EditorMessage::LspInstalled(result) => {
             app.preview_state.installing_lsp = None;
             match result {
-                Ok(()) => app.show_success_toast(
-                    "LSP 安装完成。请重启 ShiJu 后重新打开文件；若未生效，请检查 PATH。",
+                Ok(()) => app.show_localized_toast(crate::app::state::ToastKind::Success,
+                    "LSP 安装完成。请重启 ShiJu 后重新打开文件；若未生效，请检查 PATH。", vec![]
                 ),
-                Err(error) => app.show_error_toast(error),
+                Err(error) => app.show_message_toast(crate::app::state::ToastKind::Error, error),
             }
         }
         #[cfg(not(target_arch = "wasm32"))]

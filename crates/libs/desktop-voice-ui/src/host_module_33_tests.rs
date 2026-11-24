@@ -9,7 +9,7 @@ use iced::{
 fn local_inline(state: &crate::message::voice::State) -> Option<Element<'_, Event>> {
     let chat = state.local_conversation.as_ref()?;
     Some(
-        view::local_inline(
+        view::local_inline(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()),
             LocalView {
                 stage: chat.stage,
                 muted: chat.muted,
@@ -32,7 +32,7 @@ fn overlay_screen<'a>(
     snapshot: Snapshot,
     screen: Option<&'a desktop_voice::screen_context::State>,
 ) -> Element<'a, Event> {
-    view::overlay_screen(base, view::map, snapshot, screen)
+    view::overlay_screen(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), base, view::map, snapshot, screen)
 }
 
 #[derive(Default)]
@@ -67,6 +67,7 @@ async fn voice_task_17_screen_consent_renders_chinese_and_routes_buttons() {
         let mut screen = desktop_voice::screen_context::State::default();
         screen.set_enabled(true);
         screen.offered = Some(desktop_voice::screen_context::Target {
+            application: None, title: None,
             pid: 42,
             window: 7,
             label: "中性窗口 · 中文标题与 emoji 🌱".into(),

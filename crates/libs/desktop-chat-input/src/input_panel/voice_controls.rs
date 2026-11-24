@@ -2,6 +2,7 @@
 use super::surface_styles::{
     BOTTOM_BAR_ICON_BUTTON_SIZE, BOTTOM_BAR_ICON_SIZE, square_icon_button_style, tooltip_dark_style,
 };
+use desktop_i18n::I18n;
 use desktop_voice_ui::message::voice_draft::Phase;
 #[derive(Debug, Clone)]
 pub enum Event { Start, Finish, Cancel, Apply }
@@ -21,7 +22,7 @@ pub fn action(phase: Phase, pending: bool) -> (Event, &'static str) {
         Phase::Idle | Phase::Error => (Event::Start, "听写"),
     }
 }
-pub fn view(input: Input) -> Element<'static, Event> {
+pub fn view(i18n: I18n, input: Input) -> Element<'static, Event> {
     let phase = input.phase;
     if matches!(phase, Phase::Recording | Phase::Transcribing) {
         return iced::widget::Space::new().into();
@@ -48,14 +49,14 @@ pub fn view(input: Input) -> Element<'static, Event> {
         .height(BOTTOM_BAR_ICON_SIZE)
         .style(|theme: &iced::Theme, _| svg::Style { color: Some(theme.palette().text) });
     let content: Element<'static, Event> =
-        if pending { text(label).size(12).into() } else { icon.into() };
+        if pending { text(i18n.__(label)).size(12).into() } else { icon.into() };
     let control = button(container(content).center_x(Length::Fill).center_y(Length::Fill))
         .height(BOTTOM_BAR_ICON_BUTTON_SIZE)
         .width(if pending { Length::Shrink } else { Length::Fixed(BOTTOM_BAR_ICON_BUTTON_SIZE) })
         .padding([4, 6])
         .style(|theme, status| square_icon_button_style(theme, status, true))
         .on_press(event);
-    let hint = dictation_tooltip(label);
+    let hint = dictation_tooltip(i18n, label);
     let hint_width = if hint.contains('\n') { Length::Fixed(320.0) } else { Length::Shrink };
     let tip = container(text(hint).size(12).width(hint_width))
         .style(tooltip_dark_style)
@@ -65,7 +66,7 @@ pub fn view(input: Input) -> Element<'static, Event> {
         .align_y(Alignment::Center);
     if phase == Phase::Recording || pending {
         controls = controls.push(
-            button(text("取消").size(12))
+            button(text(i18n.__("取消")).size(12))
                 .padding([4, 6])
                 .style(|theme, status| square_icon_button_style(theme, status, true))
                 .on_press(Event::Cancel),
@@ -75,18 +76,18 @@ pub fn view(input: Input) -> Element<'static, Event> {
 }
 
 /// 系统快捷键仅作提示，不触发系统听写或权限请求。
-pub fn dictation_tooltip(label: &str) -> String {
+pub fn dictation_tooltip(i18n: I18n, label: &str) -> String {
     #[cfg(target_os = "macos")]
     if label == "听写" {
-        return format!(
-            "{label}\n也可使用 macOS 系统听写：将光标放入输入框，按系统设置的听写快捷键（如连按两次 Fn/地球仪键）。可在‘系统设置 → 键盘 → 听写’中开启或修改。\n系统听写可用于支持文本输入的可编辑输入框。"
-        );
+        return i18n.format(
+            "%s\n也可使用 macOS 系统听写：将光标放入输入框，按系统设置的听写快捷键（如连按两次 Fn/地球仪键）。可在‘系统设置 → 键盘 → 听写’中开启或修改。\n系统听写可用于支持文本输入的可编辑输入框。", &[i18n.__(label).into()]
+        ).expect("valid dictation hint");
     }
-    label.to_owned()
+    i18n.__(label).to_owned()
 }
 
 /// Recording replaces the editor; all completion controls share the existing Finish event.
-pub fn recording_bar(input: Input, waveform: Element<'static, Event>) -> Element<'static, Event> {
+pub fn recording_bar(i18n: I18n, input: Input, waveform: Element<'static, Event>) -> Element<'static, Event> {
     fn control(
         symbol: &'static str,
         label: &'static str,
@@ -106,17 +107,15 @@ pub fn recording_bar(input: Input, waveform: Element<'static, Event>) -> Element
         )
         .into()
     }
-    let mut bar =
-        row![control("×", "取消听写", Event::Cancel)].spacing(6).align_y(Alignment::Center);
-    if input.phase == Phase::Transcribing {
-        bar = bar.push(text("正在转写…").width(Length::Fill));
-    } else if !input.ready {
-        bar = bar.push(text("正在准备麦克风…").width(Length::Fill));
+    let (status, cancel) = recording_labels(i18n, input);
+    let mut bar = row![control("×", cancel, Event::Cancel)]
+        .spacing(6).align_y(Alignment::Center);
+    if let Some(status) = status {
+        bar = bar.push(text(status).width(Length::Fill));
     } else {
-        bar = bar
-            .push(waveform)
-            .push(control("■", "停止听写", Event::Finish))
-            .push(control("↑", "完成听写", Event::Finish));
+        bar = bar.push(waveform)
+            .push(control("■", i18n.__("停止听写"), Event::Finish))
+            .push(control("↑", i18n.__("完成听写"), Event::Finish));
     }
     container(bar)
         .padding(8)
@@ -127,4 +126,14 @@ pub fn recording_bar(input: Input, waveform: Element<'static, Event>) -> Element
             ..Default::default()
         })
         .into()
+}
+
+/// Resolve semantic recording state on every draw so an active recording follows locale changes.
+pub fn recording_labels(i18n: I18n, input: Input) -> (Option<&'static str>, &'static str) {
+    let status = if input.phase == Phase::Transcribing {
+        Some(i18n.__("正在转写…"))
+    } else if !input.ready {
+        Some(i18n.__("正在准备麦克风…"))
+    } else { None };
+    (status, i18n.__("取消听写"))
 }

@@ -70,9 +70,16 @@ pub(crate) fn invalidate(app: &mut App) {
         app.voice.draft.observe(&text);
     }
 }
+/// Retain a semantic message for known application feedback, and preserve service errors verbatim.
+pub(super) fn feedback(app: &mut App, kind: crate::app::state::ToastKind, raw: impl Into<String>) -> Task<Message> {
+    let raw = raw.into();
+    if let Some(message) = desktop_voice_ui::feedback::message(&raw) {
+        app.show_message_toast(kind, message)
+    } else { app.show_toast(kind, raw) }
+}
 fn fail(app: &mut App, message: String) -> Task<Message> {
     desktop_voice_ui::message::voice::fail(&mut app.voice);
-    app.show_toast(crate::app::state::ToastKind::Error, message)
+    super::voice::feedback(app, crate::app::state::ToastKind::Error, message)
 }
 fn capture_message(event: desktop_voice_ui::message::voice::CaptureEvent) -> Message {
     use desktop_voice_ui::message::voice::CaptureEvent;
@@ -112,8 +119,8 @@ fn check_start(app: &mut App, chat: bool) -> Option<Task<Message>> {
     match desktop_voice_ui::message::voice::check_start(&mut app.voice, chat) {
         StartCheck::Ready => None,
         StartCheck::Idle => Some(Task::none()),
-        StartCheck::Error(error) => Some(app.show_error_toast(error)),
-        StartCheck::Info(info) => Some(app.show_toast(crate::app::state::ToastKind::Info, info)),
+        StartCheck::Error(error) => Some(super::voice::feedback(app, crate::app::state::ToastKind::Error, error)),
+        StartCheck::Info(info) => Some(feedback(app, crate::app::state::ToastKind::Info, info)),
     }
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
@@ -125,7 +132,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             match desktop_voice_ui::message::voice::onboarding(&mut app.voice, event) {
                 Ok(Some(text)) => iced::clipboard::write(text),
                 Ok(None) => Task::none(),
-                Err(error) => app.show_error_toast(error),
+                Err(error) => super::voice::feedback(app, crate::app::state::ToastKind::Error, error),
             }
         }
         Event::HotkeyTick => super::voice_hotkeys::tick(app),
@@ -143,7 +150,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             }
             let preferences = match crate::app::voice::preferences::load() {
                 Ok(p) => p,
-                Err(error) => return app.show_error_toast(error),
+                Err(error) => return super::voice::feedback(app, crate::app::state::ToastKind::Error, error),
             };
             if preferences.engine == crate::app::voice::preferences::VoiceEngine::Local {
                 return local_chat::start(app, preferences);
@@ -162,7 +169,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 || crate::app::voice::preferences::load().map(|p| p.microphone),
             ) {
                 Ok(()) => Task::none(),
-                Err(error) => app.show_toast(crate::app::state::ToastKind::Error, error),
+                Err(error) => super::voice::feedback(app, crate::app::state::ToastKind::Error, error),
             }
         }
         Event::ChatMute => {
@@ -192,7 +199,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 return local_chat::tick(app);
             }
             if let Some(error) = desktop_voice_ui::message::voice::cloud_error(&mut app.voice) {
-                return app.show_error_toast(error);
+                return super::voice::feedback(app, crate::app::state::ToastKind::Error, error);
             }
             Task::none()
         }
@@ -266,10 +273,10 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 paste(app, text, true);
             }
             if let Some(error) = result.error {
-                return app.show_error_toast(error);
+                return super::voice::feedback(app, crate::app::state::ToastKind::Error, error);
             }
             if result.edited {
-                return app.show_toast(
+                return feedback(app,
                     crate::app::state::ToastKind::Info,
                     "草稿已编辑，听写结果已保留；点击应用听写插入。",
                 );

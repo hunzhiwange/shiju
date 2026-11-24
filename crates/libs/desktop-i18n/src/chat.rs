@@ -30,6 +30,14 @@ pub fn trajectory_label(i18n: I18n, label: &str) -> String {
         "CONTEXT" => "上下文",
         "MODEL" => "模型",
         "TOOL" => "工具",
+        "System" => "系统",
+        "Context" => "上下文",
+        "Assistant" => "助手",
+        "Tokens" => "Token 数",
+        "Total duration" => "总耗时",
+        "Input" => "输入",
+        "Message" => "消息",
+        "Model" => "模型",
         "System Prompt" => "系统提示词",
         "Tools" => "工具",
         "Summary" => "摘要",
@@ -73,7 +81,12 @@ pub fn trajectory_label(i18n: I18n, label: &str) -> String {
         "Not recorded" => "未记录",
         "Unknown" => "未知",
         "User" => "用户",
-        _ => return label.to_string(),
+        _ => {
+            if let Some(tool) = label.strip_prefix("Tool · ") {
+                return i18n.format("工具 · %s", &[tool.into()]).expect("valid tool source");
+            }
+            return label.to_string();
+        }
     };
     i18n.__(source).to_string()
 }

@@ -157,7 +157,7 @@ pub(super) fn update(
             return match result {
                 Ok(()) => next,
                 Err(error) => {
-                    Task::batch([next, { effects.push(Effect::Error(format!("终端配置保存失败：{error}"))); Task::none() }])
+                    Task::batch([next, { effects.push(Effect::LocalizedError { source: "终端配置保存失败：%s", arguments: vec![error.into()] }); Task::none() }])
                 }
             };
         }

@@ -1,6 +1,6 @@
 use super::*;
 fn target() -> Target {
-    Target { pid: 42, window: 17, label: "Fixture · 单窗口".into() }
+    Target { application: None, title: None, pid: 42, window: 17, label: "Fixture · 单窗口".into() }
 }
 #[test]
 fn voice_task_17_screen_context_disabled_captures_nothing() {

@@ -17,7 +17,7 @@ pub(super) fn tick(app: &mut App) -> Task<Message> {
     if app.voice.hotkeys.error != previous_error
         && let Some(error) = app.voice.hotkeys.error.clone()
     {
-        tasks.push(app.show_error_toast(error));
+        tasks.push(super::voice::feedback(app, crate::app::state::ToastKind::Error, error));
     }
     Task::batch(tasks)
 }
@@ -29,7 +29,7 @@ pub(super) fn dispatch(app: &mut App, actions: Vec<Action>) -> Task<Message> {
             Action::Start => {
                 match desktop_voice_ui::message::voice_hotkeys::accept_start(&mut app.voice) {
                     Ok(true) => {}, Ok(false) => break,
-                    Err(error) => { tasks.push(app.show_error_toast(error)); break; }
+                    Err(error) => { tasks.push(super::voice::feedback(app, crate::app::state::ToastKind::Error, error)); break; }
                 }
                 external = match crate::app::voice::insertion::capture_external() {
                     Ok(None) => None,

@@ -1,7 +1,7 @@
 use super::*;
 type Message = OnboardingEvent;
 fn modal<'a>(base: Element<'a, Message>, statuses: [PermissionStatus; 3], pending: Option<&'a str>) -> Element<'a, Message> {
-    super::modal(base, std::convert::identity, statuses, pending)
+    super::modal(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), base, std::convert::identity, statuses, pending)
 }
 use iced::advanced::{
     clipboard,

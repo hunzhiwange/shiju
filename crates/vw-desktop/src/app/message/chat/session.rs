@@ -281,7 +281,7 @@ fn send_to_existing_session(app: &mut App, session_id: String, input: String) ->
         && app.cached_chat_messages(&session_id).is_none()
     {
         let Some(directory) = app.known_session_directory(&session_id) else {
-            return app.show_error_toast("无法确定会话目录，未发送消息");
+            return app.show_localized_toast(crate::app::state::ToastKind::Error, "无法确定会话目录，未发送消息", vec![]);
         };
         return Task::perform(
             async move {
@@ -587,7 +587,7 @@ fn check_agent_installation(app: &App, backend: String, query: Option<String>) -
 fn send_current_session_input(app: &mut App) -> Task<Message> {
     #[cfg(not(target_arch = "wasm32"))]
     if crate::app::digital_employees::chat_picker::is_open(app) {
-        return app.show_warning_toast("请先选择要对话的数字员工");
+        return app.show_localized_toast(crate::app::state::ToastKind::Warning, "请先选择要对话的数字员工", vec![]);
     }
     let runtime = app.current_session_runtime();
     if let Some(backend) = runtime.acp_agent.clone().filter(|_| !runtime.is_employee_chat()) {
@@ -603,15 +603,15 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
         app.chat_view.active_session_view_state.ui_preparing,
         app.chat_view.active_session_view_state.base_ready,
     ) {
-        return app.show_error_toast(message);
+        return app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::input::feedback(&(message)));
     }
     #[cfg(not(target_arch = "wasm32"))]
     if app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_employee_chat()) {
         if crate::app::digital_employees::chat::credential(app, &crate::app::config::gateway_client_endpoint()).is_none() {
-            return app.show_error_toast("请登录识矩并连接本机网关后重试");
+            return app.show_localized_toast(crate::app::state::ToastKind::Error, "请登录识矩并连接本机网关后重试", vec![]);
         }
         if !app.session_state.files.is_empty() {
-            return app.show_error_toast("数字员工聊天支持纯文本，请移除附件后重试");
+            return app.show_localized_toast(crate::app::state::ToastKind::Error, "数字员工聊天支持纯文本，请移除附件后重试", vec![]);
         }
     }
     use desktop_session::message::chat::send_input::{SendInputEffect, prepare_send_input};
@@ -679,7 +679,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             if app.current_session_runtime().acp_options_state.source_pending.is_some()
                 || app.current_session_runtime().acp_options_state.pending
             {
-                return app.show_error_toast("模型来源正在保存，请稍后发送");
+                return app.show_localized_toast(crate::app::state::ToastKind::Error, "模型来源正在保存，请稍后发送", vec![]);
             }
             send_current_session_input(app)
         }
@@ -724,7 +724,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 result,
             );
             let loaded = match effect {
-                HistoryLoadEffect::Error(error) => return app.show_error_toast(error),
+                HistoryLoadEffect::Error(error) => return app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::input::feedback(&(error))),
                 HistoryLoadEffect::UseCached => None,
                 HistoryLoadEffect::Store(loaded) => Some(loaded),
             };
@@ -917,7 +917,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.session_state.input_popovers.recommended_prompt = false;
             #[cfg(not(target_arch = "wasm32"))]
             if crate::app::digital_employees::chat_picker::employee_locked(app) {
-                return app.show_warning_toast("会话开始后不能更换数字员工");
+                return app.show_localized_toast(crate::app::state::ToastKind::Warning, "会话开始后不能更换数字员工", vec![]);
             }
             if app.current_session_has_started() {
                 return app.show_localized_toast(
@@ -1475,7 +1475,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
     use desktop_session::message::chat::lifecycle::{StartGate, gate_start};
     #[cfg(not(target_arch = "wasm32"))]
     if crate::app::digital_employees::chat_picker::is_open(app) {
-        return app.show_warning_toast("请先选择要对话的数字员工");
+        return app.show_localized_toast(crate::app::state::ToastKind::Warning, "请先选择要对话的数字员工", vec![]);
     }
     let employee_chat = app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_employee_chat());
     #[cfg(not(target_arch = "wasm32"))]
@@ -1483,11 +1483,11 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         runtime.employee_target.is_none()
             && (app.session_state.active_session_id.is_none() || runtime.draft.is_some())
     }) {
-        return app.show_warning_toast("请先选择要对话的数字员工");
+        return app.show_localized_toast(crate::app::state::ToastKind::Warning, "请先选择要对话的数字员工", vec![]);
     }
     #[cfg(not(target_arch = "wasm32"))]
     if employee_chat && crate::app::digital_employees::chat::credential(app, &crate::app::config::gateway_client_endpoint()).is_none() {
-        return app.show_error_toast("当前识矩账号无法访问该数字员工会话");
+        return app.show_localized_toast(crate::app::state::ToastKind::Error, "当前识矩账号无法访问该数字员工会话", vec![]);
     }
     let active = app.session_state.active_session_id.is_some();
     let preparing = app.chat_view.active_session_view_state.ui_preparing;
@@ -1502,7 +1502,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
     ) {
         Ok(item) => item,
         Err(StartGate::HistoryQueued) => {
-            return app.show_error_toast("会话历史正在加载，消息已保留在队列中");
+            return app.show_localized_toast(crate::app::state::ToastKind::Error, "会话历史正在加载，消息已保留在队列中", vec![]);
         }
         Err(StartGate::PermissionQueued) => return Task::none(),
     };

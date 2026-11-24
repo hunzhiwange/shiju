@@ -148,6 +148,7 @@ pub struct Controls<'a, Message> {
     pub mobile_model_content: Element<'a, Message>,
 }
 pub fn controls<'a, Message: Clone + 'a>(
+    i18n: desktop_i18n::I18n,
     parts: Controls<'a, Message>,
     mobile: bool,
     expanded: bool,
@@ -200,7 +201,7 @@ pub fn controls<'a, Message: Clone + 'a>(
             .style(|theme: &iced::Theme, _| iced::widget::svg::Style {
                 color: Some(theme.palette().text),
             });
-        let toggle = super::panel::bottom_bar_round_toggle(icon.into(), "模型与工具", toggle_model);
+        let toggle = super::panel::bottom_bar_round_toggle(icon.into(), i18n.__("模型与工具"), toggle_model);
         let toggle: Element<'_, Message> = AboveOverlay::new(toggle, menu)
             .show(expanded)
             .block_background_events(true)

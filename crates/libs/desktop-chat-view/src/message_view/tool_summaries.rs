@@ -507,10 +507,10 @@ fn collect_tool_texts(
                 } else {
                     let state_text = match spec.state {
                         AdvancedToolSurfaceState::Available => i18n
-                            .format("%s 已接入当前会话工具面。", &[spec.label.into()])
+                            .format("%s 已接入当前会话工具面。", &[i18n.__(spec.label).into()])
                             .expect("valid surface template"),
                         AdvancedToolSurfaceState::Planned => i18n
-                            .format("%s 当前已明确标记为 planned。", &[spec.label.into()])
+                            .format("%s 当前已明确标记为 planned。", &[i18n.__(spec.label).into()])
                             .expect("valid planned surface template"),
                     };
                     tool_texts.push(state_text);

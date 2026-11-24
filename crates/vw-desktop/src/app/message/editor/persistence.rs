@@ -17,7 +17,7 @@ pub(super) fn save_complete(app: &mut App, result: Result<(), String>) -> Task<M
     let next = app.preview_state.editor_config_persistence.save_complete().map(Message::Editor);
     if result.is_err() {
         tracing::warn!(target: "vw_desktop", "failed to save editor settings");
-        return Task::batch([next, app.show_error_toast("编辑器配置保存失败，请重试")]);
+        return Task::batch([next, app.show_localized_toast(crate::app::state::ToastKind::Error, "编辑器配置保存失败，请重试", vec![])]);
     }
     next
 }

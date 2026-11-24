@@ -69,7 +69,7 @@ impl Fixture {
         if !self.open {
             return base;
         }
-        let permission = crate::input_panel::send_controls::acp_permission_modes(false, false)
+        let permission = crate::input_panel::send_controls::acp_permission_modes(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), false, false)
             .map(|_| Event::Agent);
         let access = acp_options::access_status(&self.state(), permission);
         acp_options::with_modal(

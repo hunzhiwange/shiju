@@ -1,4 +1,5 @@
 //! The archive sits in the existing settings scroll area (4 px gutter).
+use desktop_i18n::I18n;
 use desktop_ui_controls::system_settings_common::*;
 use iced::{
     Alignment, Element, Length,
@@ -11,19 +12,19 @@ fn action<'a, Message: Clone + 'a>(label: &'a str, event: Event, map: fn(Event) 
         .on_press(map(event))
         .into()
 }
-pub fn content<'a>(state: View<'a>, archive_path: Result<std::path::PathBuf, String>) -> Element<'a, Event> {
+pub fn content<'a>(i18n: I18n, state: View<'a>, archive_path: Result<std::path::PathBuf, String>) -> Element<'a, Event> {
     let map = std::convert::identity::<Event>;
     let mut items=column![
-        settings_field_label("最近本机录音"),
-        text("主动开启后仅在本机保存最近二十段成功听写（总计最多 64 MiB）；关闭后停止新增，已有录音可手动删除。").style(settings_muted_text_style),
+        settings_field_label(i18n.__("最近本机录音")),
+        text(i18n.__("主动开启后仅在本机保存最近二十段成功听写（总计最多 64 MiB）；关闭后停止新增，已有录音可手动删除。")).style(settings_muted_text_style),
         text(archive_path.map(|p|p.display().to_string()).unwrap_or_else(|e|e)).size(12),
-        row![action("刷新", Event::Refresh, map),action("删除全部", Event::Clear, map)].spacing(8),
+        row![action(i18n.__("刷新"), Event::Refresh, map),action(i18n.__("删除全部"), Event::Clear, map)].spacing(8),
     ].spacing(10);
     if let Some(problem) = state.problem {
-        items = items.push(text(problem).style(settings_muted_text_style));
+        items = items.push(text(crate::feedback::render(i18n, problem)).style(settings_muted_text_style));
     }
     if state.entries.is_empty() {
-        items = items.push(text("尚无本机录音。"));
+        items = items.push(text(i18n.__("尚无本机录音。")));
     }
     for (index, entry) in state.entries.iter().enumerate().rev() {
         let seconds = entry.bytes.saturating_sub(44) / 48_000;
@@ -32,10 +33,10 @@ pub fn content<'a>(state: View<'a>, archive_path: Result<std::path::PathBuf, Str
             .to_string();
         items = items.push(
             row![
-                text(format!("录音 {} · {} · {} 秒", index + 1, date, seconds)).width(Length::Fill),
-                action("播放", Event::Play(entry.id.clone()), map),
-                action("重新识别", Event::Retry(entry.id.clone()), map),
-                action("删除", Event::Delete(entry.id.clone()), map),
+                text(i18n.format("录音 %u · %s · %u 秒", &[(index + 1).into(), date.as_str().into(), seconds.into()]).expect("valid recording label")).width(Length::Fill),
+                action(i18n.__("播放"), Event::Play(entry.id.clone()), map),
+                action(i18n.__("重新识别"), Event::Retry(entry.id.clone()), map),
+                action(i18n.__("删除"), Event::Delete(entry.id.clone()), map),
             ]
             .spacing(8)
             .align_y(Alignment::Center)
@@ -43,14 +44,14 @@ pub fn content<'a>(state: View<'a>, archive_path: Result<std::path::PathBuf, Str
         );
     }
     if state.replaying {
-        items = items.push(action("停止回放", Event::Stop, map));
+        items = items.push(action(i18n.__("停止回放"), Event::Stop, map));
     }
     if state.busy {
-        items = items.push(row![text("正在重新识别…"), action("取消", Event::Stop, map)].spacing(8));
+        items = items.push(row![text(i18n.__("正在重新识别…")), action(i18n.__("取消"), Event::Stop, map)].spacing(8));
     }
     if let Some(result) = state.result {
         items = items.push(text(result)).push(
-            row![action("回填到当前输入框", Event::Apply, map), action("放弃结果", Event::Dismiss, map)]
+            row![action(i18n.__("回填到当前输入框"), Event::Apply, map), action(i18n.__("放弃结果"), Event::Dismiss, map)]
                 .spacing(8),
         );
     }

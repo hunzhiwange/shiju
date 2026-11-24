@@ -1203,7 +1203,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
             }
             app.sync_task_pet_from_runtime();
         }
-        return app.show_error_toast(display_err);
+        return app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::input::feedback(&(display_err)));
     };
     let display_err = if app.get_session_runtime(&session_id).is_employee_chat() {
         match display_err.as_str() {
@@ -1251,7 +1251,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         app.popover_visibility.send_mode = false;
     }
 
-    let toast_task = app.show_error_toast(display_err.clone());
+    let toast_task = app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::input::feedback(&(display_err.clone())));
 
     let mut persisted_chat = if is_active_session {
         app.chat_view.chat.clone()
@@ -1356,7 +1356,7 @@ pub(super) fn handle_agent_model_recovery(
         gateway_chat_stream::GatewayModelRecoveryPhase::Waiting => {
             app.show_toast(crate::app::state::ToastKind::Info, text)
         }
-        gateway_chat_stream::GatewayModelRecoveryPhase::Stopped => app.show_error_toast(text),
+        gateway_chat_stream::GatewayModelRecoveryPhase::Stopped => app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::input::feedback(&(text))),
         gateway_chat_stream::GatewayModelRecoveryPhase::Recovered
         | gateway_chat_stream::GatewayModelRecoveryPhase::Cancelled => Task::none(),
     }

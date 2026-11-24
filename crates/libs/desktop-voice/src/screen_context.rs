@@ -9,6 +9,8 @@ pub struct Target {
     pub pid: i32,
     pub window: u32,
     pub label: String,
+    pub application: Option<String>,
+    pub title: Option<String>,
 }
 #[derive(Clone)]
 pub struct Ticket {

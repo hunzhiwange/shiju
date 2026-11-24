@@ -86,6 +86,7 @@ tool AgentTool
         projected,
         vec![
             AgentChildSession {
+                default_title: false,
                 session_id: "child-known".to_string(),
                 agent: "writer-2".to_string(),
                 task: "latest".to_string(),
@@ -98,6 +99,7 @@ tool AgentTool
                 task_path: None,
             },
             AgentChildSession {
+                default_title: false,
                 session_id: "child-fallback".to_string(),
                 agent: "reviewer".to_string(),
                 task: long_task.to_string(),

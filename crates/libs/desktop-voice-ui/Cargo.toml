@@ -6,6 +6,8 @@ license = "MIT"
 [lib]
 doctest = false
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+desktop-i18n = { path = "../desktop-i18n" }
+config-ui = { path = "../config-ui" }
 desktop-chat-view = { path = "../desktop-chat-view" }
 desktop-voice = { path = "../desktop-voice" }
 audio-capture = { path = "../audio-capture" }

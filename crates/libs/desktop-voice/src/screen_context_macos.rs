@@ -102,7 +102,7 @@ pub(super) fn foreground() -> Result<Target, String> {
                     "{app_name} · {} · 窗口 {window}",
                     if title.is_empty() { "无标题" } else { &title }
                 );
-                return Ok(Target { pid, window, label });
+                return Ok(Target { pid, window, label, application: Some(app_name), title: (!title.is_empty()).then_some(title) });
             }
         }
     }

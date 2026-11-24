@@ -21,14 +21,15 @@ pub(crate) fn with_voice_chat<'a>(
     let Some(chat) = &app.voice.conversation else {
         return base;
     };
-    overlay_screen(base, chat.snapshot(), Some(&app.voice.screen))
+    overlay_screen(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), base, chat.snapshot(), Some(&app.voice.screen))
 }
 pub(crate) fn overlay_screen<'a>(
+    i18n: crate::app::i18n::I18n,
     base: Element<'a, Message>,
     state: Snapshot,
     screen: Option<&'a crate::app::voice::screen_context::State>,
 ) -> Element<'a, Message> {
-    desktop_voice_ui::components::voice_chat::overlay_screen(base, map, state, screen)
+    desktop_voice_ui::components::voice_chat::overlay_screen(i18n, base, map, state, screen)
 }
 fn map(event: desktop_voice_ui::components::voice_chat::Event) -> Message {
     message(desktop_voice_ui::components::voice_chat::map(event))
@@ -37,6 +38,7 @@ pub(crate) fn local_inline(app: &App) -> Option<Element<'_, Message>> {
     let chat = app.voice.local_conversation.as_ref()?;
     Some(
         desktop_voice_ui::components::voice_chat::local_inline(
+            crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
             desktop_voice_ui::components::voice_chat::LocalView {
                 stage: chat.stage,
                 muted: chat.muted,

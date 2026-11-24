@@ -358,13 +358,13 @@ pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'stati
                 has_agents = true;
                 let selected = selected_agent_key == entry.key;
                 let engine = match &entry.runtime {
-                    config_agent_profile::AgentRuntime::Native => "识矩原生".to_string(),
+                    config_agent_profile::AgentRuntime::Native => i18n.__("识矩原生").to_string(),
                     config_agent_profile::AgentRuntime::Acp { backend } => format!(
                         "ACP · {backend} · {}",
                         match runtime.acp_installed.get(backend) {
-                            Some(true) => "已安装",
-                            Some(false) => "未安装",
-                            None => "安装状态待检测",
+                            Some(true) => i18n.__("已安装"),
+                            Some(false) => i18n.__("未安装"),
+                            None => i18n.__("安装状态待检测"),
                         }
                     ),
                 };

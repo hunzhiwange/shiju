@@ -16,6 +16,7 @@ pub enum Effect {
     SaveConfig(serde_json::Value),
     Delay(std::time::Duration, TerminalMessage),
     Error(String),
+    LocalizedError { source: &'static str, arguments: Vec<desktop_i18n::format::Argument> },
     SettingEdited(&'static str),
     SplitFailed,
     AppendChat(String),

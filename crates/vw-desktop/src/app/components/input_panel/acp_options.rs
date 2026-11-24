@@ -34,7 +34,7 @@ fn source_controls_for<'a>(app: &'a App, runtime: &crate::app::state::SessionRun
     let description = "客户端模型：使用当前供应商与模型，无需重复填写密钥\n智能体原生模型：使用执行主机上的配置与登录状态";
     let help = crate::app::components::system_settings_common::settings_hover_help_label(
         I18n::new(app.general_settings.desktop_locale), &app.appearance.app_theme, title,
-        crate::app::components::system_settings_common::settings_field_label(title), description,
+        crate::app::components::system_settings_common::settings_field_label(I18n::new(app.general_settings.desktop_locale).__(title)), description,
     ).wrap().into();
     shared::source_controls(&state(app, runtime), app.current_session_has_started(), help, emit)
 }

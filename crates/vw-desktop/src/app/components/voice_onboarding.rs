@@ -15,8 +15,8 @@ pub(crate) fn with_onboarding<'a>(
     if !app.voice.insertion.onboarding {
         return base;
     }
-    modal(base, app.voice.insertion.permissions, app.voice.insertion.pending.as_deref())
+    modal(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), base, app.voice.insertion.permissions, app.voice.insertion.pending.as_deref())
 }
-pub(super) fn modal<'a>(base: Element<'a, Message>, statuses: [PermissionStatus; 3], pending: Option<&'a str>) -> Element<'a, Message> {
-    desktop_voice_ui::components::voice_onboarding::modal(base, msg, statuses, pending)
+pub(super) fn modal<'a>(i18n: crate::app::i18n::I18n, base: Element<'a, Message>, statuses: [PermissionStatus; 3], pending: Option<&'a str>) -> Element<'a, Message> {
+    desktop_voice_ui::components::voice_onboarding::modal(i18n, base, msg, statuses, pending)
 }

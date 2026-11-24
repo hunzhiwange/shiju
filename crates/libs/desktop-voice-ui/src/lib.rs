@@ -6,3 +6,6 @@ pub mod components;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_module_33_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod feedback;

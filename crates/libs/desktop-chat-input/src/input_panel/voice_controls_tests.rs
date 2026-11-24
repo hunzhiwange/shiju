@@ -29,7 +29,7 @@ fn voice_task_07_toolbar_style_has_contrast_in_both_themes() {
 }
 #[test]
 fn voice_ui_primary_macos_dictation_hint_is_platform_scoped() {
-    let hint = super::voice_controls::dictation_tooltip(action(Phase::Idle, false).1);
+    let hint = super::voice_controls::dictation_tooltip(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), action(Phase::Idle, false).1);
     #[cfg(target_os = "macos")]
     {
         assert!(hint.starts_with("听写\n"));
@@ -38,7 +38,7 @@ fn voice_ui_primary_macos_dictation_hint_is_platform_scoped() {
     }
     #[cfg(not(target_os = "macos"))]
     assert_eq!(hint, "听写");
-    assert_eq!(super::voice_controls::dictation_tooltip("应用听写"), "应用听写");
+    assert_eq!(super::voice_controls::dictation_tooltip(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), "应用听写"), "应用听写");
 }
 #[test]
 fn voice_ui_dictation_stop_tooltip_is_explicit() {

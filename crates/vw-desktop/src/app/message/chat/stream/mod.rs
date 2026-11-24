@@ -512,7 +512,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             if app.find_session_by_request_id(id)
                 .is_some_and(|session| app.get_session_runtime(&session).is_employee_chat()) =>
         {
-            app.show_warning_toast("网关尚未确认停止，请稍后重试")
+            app.show_localized_toast(crate::app::state::ToastKind::Warning, "网关尚未确认停止，请稍后重试", vec![])
         }
         ChatMessage::AgentStreamStopFinished(_, result) => match result {
             Ok(_) => Task::none(),

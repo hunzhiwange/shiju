@@ -59,7 +59,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             };
             match runtime.apply_acp_source_loaded(request_id, &agent, result) {
                 Ok(()) => Task::none(),
-                Err(error) => app.show_error_toast(error),
+                Err(error) => app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::input::feedback(&(error))),
             }
         }
 
@@ -99,16 +99,16 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     let (boundary, unstarted_fork) = runtime.confirm_acp_source_saved(confirmed);
                     app.sync_active_session_preferences();
                     if boundary && active {
-                        app.show_info_toast(if unstarted_fork {
+                        app.show_localized_toast(crate::app::state::ToastKind::Info, if unstarted_fork {
                             "模型来源已保存；首次发送将保留分叉历史"
                         } else {
                             "模型来源已保存；下一轮创建新的 ACP 会话，不继承原生会话上下文"
-                        })
+                        }, vec![])
                     } else {
                         Task::none()
                     }
                 }
-                Err(error) => app.show_error_toast(error),
+                Err(error) => app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::input::feedback(&(error))),
             }
         }
         ChatMessage::AcpOptionsClose => {
@@ -121,7 +121,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             };
             match runtime.acp_options_state.apply_loaded_options(result) {
                 Ok(()) => Task::none(),
-                Err(error) => app.show_error_toast(error),
+                Err(error) => app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::input::feedback(&(error))),
             }
         }
 
@@ -188,7 +188,7 @@ pub(super) fn select_source(
     let request_id = next_source_request_id();
     let runtime = app.get_session_runtime_mut(&session_id);
     if runtime.is_employee_chat() {
-        return app.show_warning_toast("识矩数字员工仅使用智能体原生模型");
+        return app.show_localized_toast(crate::app::state::ToastKind::Warning, "识矩数字员工仅使用智能体原生模型", vec![]);
     }
     let Some(agent) = runtime.acp_agent.clone() else {
         return Task::none();
@@ -203,7 +203,7 @@ pub(super) fn select_source(
         runtime.request_lifecycle.is_requesting,
     ) {
         Ok(update) => update,
-        Err(error) => return app.show_error_toast(error),
+        Err(error) => return app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::input::feedback(&(error))),
     };
     let draft_options = (session_id == "__empty__" || runtime.draft.is_some())
         .then(|| runtime.acp_options_state.options.clone());

@@ -39,6 +39,8 @@ pub struct AgentChildSession {
     pub task: String,
     /// 优先使用会话元数据解析出的展示标题。
     pub title: String,
+    /// True only for the application-generated empty agent/task fallback.
+    pub default_title: bool,
     /// 子会话工作目录。
     pub directory: String,
     /// 子会话的工作类别。
@@ -241,6 +243,8 @@ pub fn agent_child_session_projection<'a>(
                 .filter(|title| !title.is_empty())
                 .map(str::to_string)
                 .unwrap_or_else(|| fallback_title(&payload.agent, &payload.task));
+            let default_title = known_session.is_none_or(|session| session.title.trim().is_empty())
+                && payload.agent.trim().is_empty() && payload.task.trim().is_empty();
             let directory = known_session
                 .map(|session| session.directory.trim())
                 .filter(|directory| !directory.is_empty())
@@ -252,6 +256,7 @@ pub fn agent_child_session_projection<'a>(
                 agent: payload.agent,
                 task: payload.task,
                 title,
+                default_title,
                 directory,
                 kind: AgentChildSessionKind::Agent,
                 status: if payload.status == AgentToolSessionStatus::Waiting {

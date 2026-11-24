@@ -2,9 +2,10 @@
 use crate::app::message::voice_recordings::{Event, State};
 use crate::app::{App, Message};
 use iced::Element;
-pub(crate) fn view(app: &App) -> Element<'_, Message> { content(&app.voice.recordings) }
-pub(super) fn content(state: &State) -> Element<'_, Message> {
+pub(crate) fn view(app: &App) -> Element<'_, Message> { content(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), &app.voice.recordings) }
+pub(super) fn content(i18n: crate::app::i18n::I18n, state: &State) -> Element<'_, Message> {
     desktop_voice_ui::components::voice_recordings::content(
+        i18n,
         desktop_voice_ui::components::voice_recordings::View {
             entries: &state.entries, result: state.result.as_deref(), problem: state.problem.as_deref(), replaying: state.replay.is_some(), busy: state.busy,
         }, crate::app::voice::recordings::path(),

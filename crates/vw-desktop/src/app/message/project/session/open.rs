@@ -78,7 +78,7 @@ pub(crate) fn open_project_session(
     if app.session_state.session_runtime_states.get(&id).is_some_and(|runtime| runtime.is_employee_chat())
         && crate::app::digital_employees::chat::credential(app, &crate::app::config::gateway_client_endpoint()).is_none()
     {
-        return app.show_error_toast("请登录识矩并连接本机网关后重开会话");
+        return app.show_localized_toast(crate::app::state::ToastKind::Error, "请登录识矩并连接本机网关后重开会话", vec![]);
     }
     app.session_state.session_view_cache.navigation_generation += 1;
     app.session_state.agent_stream_id = app.session_state.agent_stream_id.wrapping_add(1);

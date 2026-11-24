@@ -76,7 +76,7 @@ pub fn advanced_base_title(
     explicit_spec: Option<AdvancedToolSurfaceSpec>,
 ) -> String {
     if let Some(spec) = explicit_spec {
-        return spec.label.to_string();
+        return i18n.__(spec.label).to_string();
     }
 
     match tool_name {
@@ -166,7 +166,7 @@ pub fn advanced_metadata_text(
 
     if let Some(spec) = explicit_spec {
         parts.push(
-            i18n.format("状态: %s", &[(spec.state.label()).into()])
+            i18n.format("状态: %s", &[i18n.__(match spec.state { AdvancedToolSurfaceState::Available => "可用", AdvancedToolSurfaceState::Planned => "计划支持" }).into()])
                 .expect("valid tool display template"),
         );
     }
@@ -229,12 +229,12 @@ pub fn advanced_fallback_body(
 
         return match spec.state {
             AdvancedToolSurfaceState::Available => i18n
-                .format("%s 已接入当前会话工具面。", &[(spec.label).into()])
+                .format("%s 已接入当前会话工具面。", &[i18n.__(spec.label).into()])
                 .expect("valid tool display template"),
             AdvancedToolSurfaceState::Planned => i18n
                 .format(
                     "%s 当前已明确标记为 planned，桌面端先提供清晰状态，不补完整后端。",
-                    &[spec.label.into()],
+                    &[i18n.__(spec.label).into()],
                 )
                 .expect("valid planned surface template"),
         };

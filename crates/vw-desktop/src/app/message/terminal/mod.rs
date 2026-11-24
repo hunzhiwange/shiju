@@ -55,7 +55,8 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
                     |result| Message::Terminal(TerminalMessage::ConfigSaved(result)),
                 )
             }
-            Effect::Error(error) => app.show_error_toast(error),
+            Effect::Error(error) => app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::input::feedback(&(error))),
+            Effect::LocalizedError { source, arguments } => app.show_localized_toast(crate::app::state::ToastKind::Error, source, arguments),
             Effect::SettingEdited(key) => {
                 #[cfg(not(target_arch = "wasm32"))]
                 app.note_startup_setting_edit(key);

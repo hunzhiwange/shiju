@@ -19,7 +19,7 @@ fn emit(action: shared::Action) -> Message {
 }
 pub fn model_toggle_button(app: &App, auto_model: bool, model: &str, expanded: bool) -> Element<'static, Message> {
     if app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_employee_chat()) {
-        return iced::widget::text("智能体原生模型").size(13).into();
+        return iced::widget::text(crate::app::i18n::I18n::new(app.general_settings.desktop_locale).__("智能体原生模型")).size(13).into();
     }
     let cli_local = app.current_session_runtime_ref().is_some_and(|r| r.acp_agent.is_some() && r.acp_model_source == AcpModelSource::CliLocal);
     shared::model_toggle_button(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), &app.model_settings.providers, cli_local, auto_model, model, expanded, emit)
@@ -27,7 +27,7 @@ pub fn model_toggle_button(app: &App, auto_model: bool, model: &str, expanded: b
 pub fn model_popover_content<'a>(app: &'a App, auto_model: bool, model: &str) -> Element<'a, Message> {
     let runtime = app.current_session_runtime();
     if runtime.is_employee_chat() {
-        return iced::widget::text("智能体原生模型").size(13).into();
+        return iced::widget::text(crate::app::i18n::I18n::new(app.general_settings.desktop_locale).__("智能体原生模型")).size(13).into();
     }
     let started = app.current_session_has_started();
     let can_select = shared::can_select_model(&super::acp_options::state(app, &runtime), started);

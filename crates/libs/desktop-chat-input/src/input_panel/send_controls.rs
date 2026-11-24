@@ -341,6 +341,7 @@ pub fn pool_button(
 }
 
 pub fn acp_permission_modes(
+    i18n: desktop_i18n::I18n,
     full_access: bool,
     can_change: bool,
 ) -> Element<'static, Message> {
@@ -365,7 +366,7 @@ pub fn acp_permission_modes(
                 .then_some(Message::ToggleFullAccessPermission),
         )
     };
-    row![choice(false, "审批模式"), choice(true, "完全访问权限")].spacing(8).into()
+    row![choice(false, i18n.__("审批模式")), choice(true, i18n.__("完全访问权限"))].spacing(8).into()
 }
 
 pub fn full_access_button(

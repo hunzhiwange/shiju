@@ -7164,6 +7164,7 @@ dependencies = [
 name = "desktop-lsp"
 version = "0.7.10"
 dependencies = [
+ "desktop-i18n",
  "iced-code-editor",
  "preview-content",
  "serde_json",
@@ -8187,9 +8188,11 @@ dependencies = [
  "audio-capture",
  "base64 0.23.1",
  "chrono",
+ "config-ui",
  "config-voice",
  "desktop-assets",
  "desktop-chat-view",
+ "desktop-i18n",
  "desktop-settings-voice",
  "desktop-ui-controls",
  "desktop-voice",

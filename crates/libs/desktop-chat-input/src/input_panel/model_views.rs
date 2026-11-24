@@ -66,7 +66,7 @@ pub fn model_toggle_button<Message: Clone + 'static>(
 
     // 根据是否启用自动模型确定显示的标签文本
     let toggle_label = if cli_local {
-        "智能体原生模型".to_string()
+        i18n.__("智能体原生模型").to_string()
     } else if auto_model {
         i18n.__("自动模型").to_owned()
     } else {
@@ -313,7 +313,7 @@ pub fn model_popover_content<'a, Message: Clone + 'static>(
         text(if started && !is_acp {
             i18n.__("会话开始后不能切换模型")
         } else if is_acp {
-            "输入 Provider/model 后按回车确认"
+            i18n.__("输入 Provider/model 后按回车确认")
         } else {
             i18n.__("兼容特殊调度器或未出现在列表中的模型 ID")
         })

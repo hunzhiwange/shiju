@@ -254,7 +254,16 @@ impl App {
         source: &str,
         arguments: Vec<crate::app::i18n::format::Argument>,
     ) -> iced::Task<crate::app::Message> {
-        let (fallback, message) = desktop_ui_controls::toast::localized_toast_message(source, arguments);
+        self.show_message_toast(kind, desktop_i18n::format::Message::new(source, arguments))
+    }
+
+    pub fn show_message_toast(
+        &mut self,
+        kind: ToastKind,
+        message: desktop_i18n::format::Message,
+    ) -> iced::Task<crate::app::Message> {
+        let fallback = message.render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese))
+            .expect("valid toast template");
         let task = self.show_toast(kind, fallback);
         if let Some(toast) = &mut self.toast_state.active_toast { toast.localized_message = Some(message); }
         task

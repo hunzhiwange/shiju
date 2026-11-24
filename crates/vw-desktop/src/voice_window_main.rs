@@ -192,7 +192,7 @@ impl Harness {
             let base =
                 container(text("隔离语音验收窗口")).width(Length::Fill).height(Length::Fill).into();
             return if self.case % 3 == 0 {
-                app::components::voice_chat::overlay_screen(base, self.snapshot.clone(), None)
+                app::components::voice_chat::overlay_screen(desktop_i18n::I18n::new(Default::default()), base, self.snapshot.clone(), None)
                     .map(Message::Ui)
             } else {
                 app::components::system_settings_voice::overlay(&self.app, base).map(Message::Ui)

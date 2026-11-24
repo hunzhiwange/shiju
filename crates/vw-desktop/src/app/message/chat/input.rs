@@ -78,7 +78,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             | ChatMessage::GoalModeToggled(true)
     ) && app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_employee_chat())
     {
-        return app.show_warning_toast("数字员工会话支持纯文本聊天");
+        return app.show_localized_toast(crate::app::state::ToastKind::Warning, "数字员工会话支持纯文本聊天", vec![]);
     }
     match message {
         ChatMessage::InputChanged(value) => {
@@ -161,7 +161,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         #[cfg(target_arch = "wasm32")]
         ChatMessage::ToggleShijuSkillMenu | ChatMessage::SelectShijuSkill(_) => {
-            app.show_warning_toast("识矩原生技能管理请使用桌面端")
+            app.show_localized_toast(crate::app::state::ToastKind::Warning, "识矩原生技能管理请使用桌面端", vec![])
         }
         ChatMessage::ToggleAgentSessionsPopover => {
             let has_running_children =

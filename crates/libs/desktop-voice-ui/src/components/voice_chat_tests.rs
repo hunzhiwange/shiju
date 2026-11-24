@@ -1,8 +1,8 @@
 use super::*;
 use iced::{Length, widget::{container, text}};
 type Message = Event;
-fn overlay<'a>(base: Element<'a, Message>, state: Snapshot) -> Element<'a, Message> { super::overlay_screen(base, std::convert::identity, state, None) }
-fn screen_controls(screen: &desktop_voice::screen_context::State, active: bool, mentions_screen: bool, local: bool) -> Element<'static, Message> { super::screen_controls(std::convert::identity, screen, active, mentions_screen, local) }
+fn overlay<'a>(base: Element<'a, Message>, state: Snapshot) -> Element<'a, Message> { super::overlay_screen(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), base, std::convert::identity, state, None) }
+fn screen_controls(screen: &desktop_voice::screen_context::State, active: bool, mentions_screen: bool, local: bool) -> Element<'static, Message> { super::screen_controls(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), std::convert::identity, screen, active, mentions_screen, local) }
 
 #[derive(Default)]
 struct Labels(Vec<(String, iced::Rectangle)>);

@@ -49,35 +49,6 @@ impl SearchState {
         }
     }
 
-    /// 开始新查询并返回专用代次号，供异步回传时校验。
-    #[cfg(test)]
-    pub(crate) fn begin_request(&mut self, query: impl Into<String>) -> u64 {
-        self.query = query.into();
-        self.generation = self.generation.saturating_add(1);
-        self.error = None;
-        self.generation
-    }
-
-    /// 仅应用当前活跃代次的结果；返回值表示回传是否被接受。
-    #[cfg(test)]
-    pub(crate) fn apply_results(
-        &mut self,
-        generation: u64,
-        result: Result<Vec<SearchResult>, String>,
-    ) -> bool {
-        if !self.active || generation != self.generation {
-            return false;
-        }
-        match result {
-            Ok(results) => {
-                self.results = results;
-                self.selected = self.selected.min(self.results.len().saturating_sub(1));
-            }
-            Err(error) => self.error = Some(error),
-        }
-        true
-    }
-
     /// 关闭搜索并返回打开前的焦点标识。
     pub fn cancel(&mut self) -> String {
         self.active = false;

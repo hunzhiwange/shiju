@@ -249,21 +249,8 @@ impl UiAttachment {
         self
     }
 
-    #[cfg(test)]
-    pub(crate) fn with_dimensions(mut self, width_px: u32, height_px: u32) -> Self {
-        self.width_px = Some(width_px);
-        self.height_px = Some(height_px);
-        self
-    }
-
     pub fn with_size_bytes(mut self, size_bytes: u64) -> Self {
         self.size_bytes = Some(size_bytes);
-        self
-    }
-
-    #[cfg(test)]
-    pub(crate) fn with_source(mut self, source: impl Into<String>) -> Self {
-        self.source = Some(source.into());
         self
     }
 

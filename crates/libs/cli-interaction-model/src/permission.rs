@@ -86,6 +86,10 @@ impl PermissionQueue {
         self.requests.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.requests.is_empty()
+    }
+
     /// 移除已处理的队首请求。
     pub fn pop_current(&mut self) -> Option<PermissionRequest> {
         self.requests.pop_front()

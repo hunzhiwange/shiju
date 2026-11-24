@@ -37,8 +37,6 @@ pub mod selectors;
 use cli_interaction_model::snapshots;
 
 use self::selectors::{TuiSearchTextCache, TuiTranscriptLayoutCache};
-#[cfg(test)]
-use self::selectors::TuiTranscriptMeasurements;
 use self::selectors::{TuiTranscriptProjectionCache, derive_transcript_projection_cache};
 
 const EXTENDED_MESSAGE_PREFIX: &str = "vibewindow:tui:";
@@ -108,29 +106,6 @@ impl Default for TuiScrollState {
 }
 
 impl TuiScrollState {
-    /// 将滚动位置钳制到当前消息数量允许的范围内。
-    #[cfg(test)]
-    pub(crate) fn clamp(&mut self, message_count: usize) {
-        self.top_message = self.top_message.min(message_count.saturating_sub(1));
-        self.refresh_sticky(message_count);
-    }
-
-    /// 让滚动位置对齐到末尾消息。
-    #[cfg(test)]
-    pub(crate) fn snap_to_tail(&mut self, message_count: usize) {
-        self.top_message = message_count.saturating_sub(1);
-        self.refresh_sticky(message_count);
-    }
-
-    /// 同步当前 scrollable 宿主反馈出的视口能力。
-    #[cfg(test)]
-    pub(crate) fn sync_viewport(&mut self, viewport_height: u16, viewport_width: u16) {
-        // 兼容现有 footer/测试摘要；真实窗口裁剪改由 selectors 基于行高推导。
-        self.viewport_messages = viewport_height as usize;
-        self.viewport_height = viewport_height;
-        self.viewport_width = viewport_width;
-    }
-
     /// 将滚动位置对齐到 grouped transcript 的稳定锚点上。
     pub(crate) fn clamp_to_anchors(&mut self, anchors: &[usize]) {
         if anchors.is_empty() {
@@ -153,15 +128,6 @@ impl TuiScrollState {
             self.top_message = 0;
             self.sticky_message = None;
         }
-    }
-
-    #[cfg(test)]
-    fn refresh_sticky(&mut self, message_count: usize) {
-        self.sticky_message = if self.follow_tail || message_count == 0 || self.top_message == 0 {
-            None
-        } else {
-            Some(self.top_message.saturating_sub(1))
-        };
     }
 
     fn refresh_sticky_from_anchors(&mut self, anchors: &[usize], anchor_index: usize) {
@@ -418,37 +384,6 @@ pub struct TuiModelCatalogEntry {
 }
 
 impl TuiModelCatalogEntry {
-    /// 返回可直接提交给 `/model` 的稳定模型标识。
-    #[cfg(test)]
-    pub(crate) fn qualified_id(&self) -> String {
-        format!("{}/{}", self.provider_id, self.model_id)
-    }
-
-    /// 供 prompt footer 展示的附加说明。
-    #[cfg(test)]
-    pub(crate) fn suggestion_detail(&self) -> String {
-        if self.model_name.trim().is_empty() || self.model_name == self.model_id {
-            format!("供应商: {}", self.provider_name)
-        } else {
-            format!("{} · {}", self.provider_name, self.model_name)
-        }
-    }
-
-    /// 按 provider/model 的常见检索字段做不区分大小写的包含匹配。
-    #[cfg(test)]
-    pub(crate) fn matches_query(&self, query: &str) -> bool {
-        let query = query.trim();
-        if query.is_empty() {
-            return true;
-        }
-
-        let query = query.to_ascii_lowercase();
-        self.provider_id.to_ascii_lowercase().contains(&query)
-            || self.provider_name.to_ascii_lowercase().contains(&query)
-            || self.model_id.to_ascii_lowercase().contains(&query)
-            || self.model_name.to_ascii_lowercase().contains(&query)
-            || self.qualified_id().to_ascii_lowercase().contains(&query)
-    }
 }
 
 /// runtime pipeline 在一次流式 turn 内部维护的瞬时状态。
@@ -702,34 +637,6 @@ impl TuiState {
         self.clamp_scroll();
     }
 
-    /// 在历史头部插入消息，同时按稳定消息 ID 保持手动滚动锚点。
-    #[cfg(test)]
-    pub(crate) fn prepend_messages_preserving_anchor(&mut self, mut messages: Vec<UiMessage>) {
-        if messages.is_empty() {
-            return;
-        }
-        let anchor_id = (!self.scroll.follow_tail)
-            .then(|| {
-                self.messages.get(self.scroll.top_message).map(|message| message.base().id.clone())
-            })
-            .flatten();
-        for message in &mut messages {
-            attach_session_id(self.session.session_id.as_deref(), message);
-        }
-        messages.append(&mut self.messages);
-        self.messages = messages;
-        self.refresh_search_index();
-        self.refresh_transcript_projection();
-        if let Some(anchor_id) = anchor_id
-            && let Some(index) =
-                self.messages.iter().position(|message| message.base().id == anchor_id)
-        {
-            self.scroll.top_message = index;
-        }
-        self.refresh_session_preview();
-        self.clamp_scroll();
-    }
-
     /// 基于当前消息序列刷新可搜索文本缓存。
     pub(crate) fn refresh_search_index(&mut self) {
         self.search_index.rebuild(&self.messages);
@@ -762,21 +669,6 @@ impl TuiState {
         );
     }
 
-    /// 合并 renderer 对当前可见窗口的真实行高测量结果。
-    #[cfg(test)]
-    pub(crate) fn apply_transcript_measurements(
-        &mut self,
-        measurements: &TuiTranscriptMeasurements,
-    ) {
-        self.transcript_layout.rebuild_width(
-            &self.messages,
-            &self.transcript,
-            measurements.content_width,
-            measurements.verbose,
-        );
-        self.transcript_layout.apply_measurements(measurements);
-    }
-
     /// 只刷新一条消息所属 transcript item 的 wrap/height cache。
     pub(crate) fn refresh_transcript_layout_for_message(&mut self, message_index: usize) {
         self.transcript_layout.refresh_message(&self.messages, &self.transcript, message_index);
@@ -800,30 +692,6 @@ impl TuiState {
             call_count: self.session.persisted_calls.len(),
             last_content: self.messages.iter().rev().find_map(last_content_from_ui_message),
         });
-    }
-
-    /// 清空当前 transcript 与持久化镜像，但保留 workspace/session 上下文。
-    #[cfg(test)]
-    pub(crate) fn clear_messages(&mut self) {
-        self.messages.clear();
-        self.unseen_baseline_id = None;
-        self.search_index = TuiSearchTextCache::default();
-        self.transcript = TuiTranscriptProjectionCache::default();
-        self.transcript_layout.clear();
-        self.scroll.top_message = 0;
-        self.scroll.follow_tail = true;
-        self.scroll.sticky_message = None;
-        self.scroll.last_seen_message = None;
-        self.status.turn_terminal = UiTurnTerminal::Pending;
-        self.status.last_error = None;
-        self.tasks.pending_questions.clear();
-        self.tasks.todo_overlay = None;
-        self.tasks.sync_error = None;
-        self.overlays.clear();
-        self.runtime = TuiRuntimeState::default();
-        self.session.persisted_messages.clear();
-        self.session.persisted_calls.clear();
-        self.refresh_session_preview();
     }
 
     /// 将滚动位置钳制到当前消息数量允许的范围内。

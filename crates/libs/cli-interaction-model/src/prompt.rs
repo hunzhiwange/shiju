@@ -324,12 +324,6 @@ impl PromptState {
         apply_editor_command(self, EditorCommand::Move { motion, select: false })
     }
 
-    #[cfg(test)]
-    pub(crate) fn can_move_cursor(&self, motion: PromptMotion) -> bool {
-        let mut clone = self.clone();
-        apply_editor_command(&mut clone, EditorCommand::Move { motion, select: false })
-    }
-
     pub fn select_previous_history(&mut self) -> bool {
         let Some(value) = self.history.select_previous(&self.value) else {
             return false;
@@ -382,63 +376,6 @@ impl PromptState {
             .position(|queued| queued.priority > command.priority)
             .unwrap_or(self.queued_commands.len());
         self.queued_commands.insert(insert_at, command);
-    }
-
-    /// 取出下一条待执行命令。
-    #[cfg(test)]
-    pub(crate) fn pop_queued_command(&mut self) -> Option<QueuedPromptCommand> {
-        if self.queued_commands.is_empty() { None } else { Some(self.queued_commands.remove(0)) }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn drain_queued_for(
-        &mut self,
-        boundary: QueueDrainBoundary,
-        session_id: Option<&str>,
-    ) -> Option<QueuedPromptCommand> {
-        let max_priority = match boundary {
-            QueueDrainBoundary::Immediate => QueuedPromptPriority::Now,
-            QueueDrainBoundary::Tool => QueuedPromptPriority::NextTool,
-            QueueDrainBoundary::Turn => QueuedPromptPriority::EndTurn,
-        };
-        let index = self.queued_commands.iter().position(|command| {
-            command.priority <= max_priority && command.session_id.as_deref() == session_id
-        })?;
-        Some(self.queued_commands.remove(index))
-    }
-
-    #[cfg(test)]
-    pub(crate) fn reclaim_latest_queued(
-        &mut self,
-        session_id: Option<&str>,
-    ) -> Option<QueuedPromptCommand> {
-        let index = self
-            .queued_commands
-            .iter()
-            .rposition(|command| command.session_id.as_deref() == session_id)?;
-        self.queued_commands.remove(index).into()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn stash_draft(&mut self) -> bool {
-        if self.stashed_draft.is_some() || self.value.is_empty() {
-            return false;
-        }
-        self.stashed_draft = Some(std::mem::take(&mut self.value));
-        self.cursor = PromptCursor::default();
-        true
-    }
-
-    #[cfg(test)]
-    pub(crate) fn restore_stashed_draft(&mut self) -> bool {
-        if !self.value.is_empty() {
-            return false;
-        }
-        let Some(draft) = self.stashed_draft.take() else {
-            return false;
-        };
-        self.set_value(draft);
-        true
     }
 
     /// 当前 prompt 是否处于 busy 状态。

@@ -77,17 +77,6 @@ impl Default for EditorState {
 }
 
 impl EditorState {
-    /// 返回当前可撤销的快照数。
-    #[cfg(test)]
-    pub(crate) fn undo_depth(&self) -> usize {
-        self.undo.len()
-    }
-
-    /// 返回当前可重做的快照数。
-    #[cfg(test)]
-    pub(crate) fn redo_depth(&self) -> usize {
-        self.redo.len()
-    }
 }
 
 /// 编辑器接受的语义命令，与具体终端按键解耦。
@@ -161,21 +150,6 @@ pub(crate) fn apply_editor_command(prompt: &mut PromptState, command: EditorComm
     }
 }
 
-/// 根据光标与视口状态返回当前可见的文本行。
-#[cfg(test)]
-pub(crate) fn editor_viewport(prompt: &PromptState) -> EditorViewport {
-    let (line, column) = cursor_display_position(prompt.value.as_str(), prompt.cursor.char_index);
-    let lines = prompt.value.split('\n').map(ToOwned::to_owned).collect::<Vec<_>>();
-    let top = prompt.editor.viewport_top_line.min(lines.len().saturating_sub(1));
-    let end = top.saturating_add(prompt.editor.viewport_height.max(1)).min(lines.len());
-    EditorViewport {
-        top_line: top,
-        cursor_row: line.saturating_sub(top),
-        cursor_column: column,
-        visible_lines: lines[top..end].to_vec(),
-    }
-}
-
 /// 计算 Unicode 字素数，用于与 prompt 光标索引保持同一坐标系。
 pub(crate) fn grapheme_count(value: &str) -> usize {
     UnicodeSegmentation::graphemes(value, true).count()
@@ -187,19 +161,6 @@ pub(crate) fn byte_index_for_grapheme(value: &str, grapheme_index: usize) -> Opt
         return Some(value.len());
     }
     UnicodeSegmentation::grapheme_indices(value, true).nth(grapheme_index).map(|(index, _)| index)
-}
-
-/// 返回当前选区的完整 UTF-8 文本；空选区或非法边界返回空。
-#[cfg(test)]
-pub(crate) fn selected_text(prompt: &PromptState) -> Option<String> {
-    let selection = prompt.editor.selection?;
-    let (start, end) = selection.ordered();
-    if start >= end {
-        return None;
-    }
-    let start = byte_index_for_grapheme(prompt.value.as_str(), start)?;
-    let end = byte_index_for_grapheme(prompt.value.as_str(), end)?;
-    prompt.value.get(start..end).map(ToOwned::to_owned)
 }
 
 fn insert(prompt: &mut PromptState, text: String) -> bool {

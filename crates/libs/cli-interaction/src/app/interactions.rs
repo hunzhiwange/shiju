@@ -94,7 +94,7 @@ impl V3GatewayApp {
         let mut queue = PermissionQueue::default();
         queue.replace(snapshot.permissions.into_iter().map(PermissionRequest::from_dto).collect());
         self.state.overlays.stack.retain(|overlay| !matches!(overlay, UiOverlay::Permissions(_)));
-        if queue.len() > 0 {
+        if !queue.is_empty() {
             self.state
                 .overlays
                 .push(UiOverlay::Permissions(UiPermissionOverlay { queue, notice: None }));
@@ -130,7 +130,7 @@ impl V3GatewayApp {
             }
         }
         self.state.overlays.stack.retain(|overlay| {
-            !matches!(overlay, UiOverlay::Permissions(permission) if permission.queue.len() == 0)
+            !matches!(overlay, UiOverlay::Permissions(permission) if permission.queue.is_empty())
         });
         reduce_tui_state(&mut self.state, TuiAction::TaskSyncErrorSet(None));
         self.show_next_interaction();

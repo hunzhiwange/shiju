@@ -85,34 +85,6 @@ impl IntegrationPanel {
         }
     }
 
-    /// 将已有内容标记为正在刷新，便于界面保留上一次列表。
-    #[cfg(test)]
-    pub(crate) fn begin_refresh(&mut self) {
-        self.state = IntegrationLoadState::Loading;
-    }
-
-    /// 应用刷新结果，成功时按稳定 ID 保留选中项，失败时仅保存脱敏错误。
-    #[cfg(test)]
-    pub(crate) fn finish_refresh(&mut self, result: Result<Vec<IntegrationItem>, String>) {
-        let selected_id = self.items.get(self.selected).map(|item| item.id.clone());
-        match result {
-            Ok(items) => {
-                self.items = items;
-                self.selected = selected_id
-                    .and_then(|id| self.items.iter().position(|item| item.id == id))
-                    .unwrap_or_default();
-                self.state = if self.items.is_empty() {
-                    IntegrationLoadState::Empty
-                } else {
-                    IntegrationLoadState::Ready
-                };
-            }
-            Err(error) => {
-                self.state = IntegrationLoadState::Error(sanitize_integration_text(&error));
-            }
-        }
-    }
-
     /// 生成终端列表文本，所有条目详情在插值前会经过脱敏。
     pub fn lines(&self) -> Vec<String> {
         let mut lines = vec![format!("{:?} · {:?}", self.kind, self.state)];

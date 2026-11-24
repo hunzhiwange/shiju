@@ -185,9 +185,10 @@ async fn run_args(
 
 #[derive(Debug)]
 pub(super) struct RecordedRequest {
-    method: String,
-    path: String,
-    body: Value,
+    pub(super) method: String,
+    pub(super) path: String,
+    pub(super) body: Value,
+    pub(super) headers: Vec<String>,
 }
 pub(super) fn assert_request(
     rx: &mpsc::Receiver<RecordedRequest>,
@@ -214,7 +215,7 @@ pub(super) fn spawn_server(responses: Vec<Value>) -> (u16, mpsc::Receiver<Record
     });
     (port, rx)
 }
-fn read_request(stream: &mut std::net::TcpStream) -> RecordedRequest {
+pub(super) fn read_request(stream: &mut std::net::TcpStream) -> RecordedRequest {
     let mut bytes = Vec::new();
     let mut chunk = [0; 1024];
     let header_end = loop {
@@ -242,6 +243,7 @@ fn read_request(stream: &mut std::net::TcpStream) -> RecordedRequest {
     RecordedRequest {
         method: line.next().unwrap().to_string(),
         path: line.next().unwrap().to_string(),
+        headers: headers.lines().skip(1).map(str::to_owned).collect(),
         body: if body.is_empty() { Value::Null } else { serde_json::from_slice(&body).unwrap() },
     }
 }

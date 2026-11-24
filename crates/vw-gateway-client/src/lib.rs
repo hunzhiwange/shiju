@@ -23,6 +23,7 @@
 //! - 同时兼容异步与少量阻塞调用场景
 
 mod client;
+pub use vw_api_types::cli_workbench;
 #[cfg(not(target_arch = "wasm32"))]
 pub use client::media_api as media;
 pub use client::project_profile_api;

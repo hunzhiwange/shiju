@@ -561,6 +561,10 @@ impl AcpClient {
         } else {
             cmd.env_remove(credential_env);
         }
+        if env.contains_key("SHIJU_WORKBENCH_CONTEXT") {
+            // Workbench children receive a session-bound credential.
+            cmd.env_remove("VIBEWINDOW_SERVER_PASSWORD");
+        }
         cmd.args(&args);
         if self.managed_workspace_io() {
             match self.agent_name.as_str() {

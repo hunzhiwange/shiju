@@ -54,7 +54,7 @@ async fn cli_workbench_acp_lists_sessions_for_registered_project() {
 
 #[cfg(unix)]
 const ACP_PEER: &str = r#"
-import json, sys, uuid
+import json, os, sys, urllib.request, uuid
 
 def send(frame):
     print(json.dumps(dict(jsonrpc='2.0', **frame)), flush=True)
@@ -93,6 +93,13 @@ for line in sys.stdin:
         with open(sys.argv[1], 'a') as out:
             out.write(marker + '\n')
         if marker == 'first turn':
+            context = json.loads(os.environ['SHIJU_WORKBENCH_CONTEXT'])
+            assert 'VIBEWINDOW_SERVER_PASSWORD' not in os.environ
+            url = f"http://127.0.0.1:{context['port']}/v1/projects/{context['project_id']}/cli-workbench/sessions"
+            query = urllib.request.Request(url, headers={'Authorization': 'Bearer ' + context['token']})
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with opener.open(query, timeout=2) as response:
+                assert any(entry['state'] == 'running' for entry in json.load(response))
             previous = req['id']
             complete(req, 'first result')
         elif marker == 'second turn':
@@ -158,7 +165,11 @@ async fn cli_workbench_acp_routes_isolate_projects_and_correlate_approved_turns(
         &tenant,
         &root,
         json!({
-            "acp": {"claude": {"command": "python3", "args": [script, calls]}}
+            "acp": {"claude": {
+                "command": "python3",
+                "args": [script, calls],
+                "env": {"VIBEWINDOW_SERVER_PASSWORD": "fixture-host-password"}
+            }}
         }),
     )
     .await

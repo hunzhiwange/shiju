@@ -902,6 +902,11 @@ pub async fn do_stream_request_acp<H: Host>(
     } else {
         None
     };
+    if !employee && source == AcpModelSource::CliLocal && launch_profile.is_none()
+        && let Some((key, context)) = H::workbench_child_context(session_id, &cwd)
+    {
+        normalized_acp_cfg.env.insert(key.into(), context);
+    }
     let close_client_after_request =
         employee || parse_close_client_after_request(merged_options)? || launch_profile.is_some();
     let cwd_text = cwd.to_string_lossy().into_owned();

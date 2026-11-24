@@ -12,6 +12,8 @@ use temperature::parse_temperature;
 #[cfg(test)]
 mod cli_tests;
 #[cfg(test)]
+mod cli_workbench_parse_tests;
+#[cfg(test)]
 mod temperature_lib_tests;
 #[cfg(test)]
 mod temperature_tests;

@@ -3,7 +3,7 @@
 use std::ffi::OsString;
 
 use anyhow::{Context, Result, bail};
-use vw_api_transport::id::TenantScope;
+use vw_api_transport::id::{TenantScope, UserId};
 use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};
 
 use super::{ApiOptions, ApiOutputFormat};
@@ -25,6 +25,19 @@ impl ApiContext {
         args: &ApiOptions,
         env_lookup: impl Fn(&str) -> Option<OsString>,
     ) -> Result<Self> {
+        Self::build(args, None, env_lookup)
+    }
+
+    /// Use the caller-specified user with the normal gateway credential source.
+    pub fn for_user(args: &ApiOptions, user_id: UserId) -> Result<Self> {
+        Self::build(args, Some(user_id), |name| std::env::var_os(name))
+    }
+
+    fn build(
+        args: &ApiOptions,
+        user_id: Option<UserId>,
+        env_lookup: impl Fn(&str) -> Option<OsString>,
+    ) -> Result<Self> {
         let tenant_scope = TenantScope::new(args.platform.clone(), args.company.clone())
             .context("invalid API tenant scope")?;
         let skey = resolve_skey(args, env_lookup)?;
@@ -33,6 +46,9 @@ impl ApiContext {
             GatewayEndpoint::new(args.host.clone(), args.port).with_tenant_scope(tenant_scope);
         if skey.is_some() {
             endpoint = endpoint.with_auth(GatewayAuth { skey });
+        }
+        if let Some(user_id) = user_id {
+            endpoint = endpoint.with_user_id(user_id);
         }
         let client = GatewayClient::new(endpoint).map_err(anyhow::Error::msg)?;
 

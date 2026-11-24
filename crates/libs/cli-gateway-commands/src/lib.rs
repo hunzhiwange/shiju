@@ -1,5 +1,7 @@
 //! 远程 Gateway API CLI 的共享边界。
 
+pub mod cli_workbench;
+
 use std::io::{Read, Write};
 
 use anyhow::Result;

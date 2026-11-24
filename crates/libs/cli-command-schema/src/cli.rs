@@ -24,7 +24,9 @@ use agent_cli_types::{
 };
 use config_security as security;
 
-use cli_gateway_commands::{ApiOptions, RootApiCommands, RootConfigCommands};
+use cli_gateway_commands::{
+    ApiOptions, RootApiCommands, RootConfigCommands, cli_workbench::WorkbenchArgs,
+};
 
 /// Shell 补全脚本支持的 shell 类型枚举
 ///
@@ -624,6 +626,9 @@ Examples:
         #[command(subcommand)]
         config_command: ConfigCommands,
     },
+
+    /// 在 CLI 工作台内发现会话并协作。
+    Workbench(WorkbenchArgs),
 
     /// 生成 shell 补全脚本到标准输出
     ///

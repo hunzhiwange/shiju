@@ -1,6 +1,17 @@
 //! Project-scoped CLI workbench contracts.
 use serde::{Deserialize, Serialize};
 
+/// Process-local connection to the session's workbench-only gateway listener.
+pub const CHILD_CONTEXT_ENV: &str = "SHIJU_WORKBENCH_CONTEXT";
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CliWorkbenchChildContext {
+    pub port: u16,
+    pub project_id: String,
+    pub token: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CliWorkbenchTarget {
@@ -89,6 +100,7 @@ impl CliWorkbenchMessageState {
 #[serde(rename_all = "snake_case")]
 pub enum CliWorkbenchErrorCode {
     InvalidRequest,
+    Unauthorized,
     NotFound,
     RequestConflict,
     Closed,

@@ -51,6 +51,10 @@ pub trait Host: Send + Sync + 'static {
     fn model_source(options: &serde_json::Value) -> Result<vw_api_acp_model::acp_model_source::AcpModelSource, String>;
     fn config() -> HostFuture<'static, anyhow::Result<Config>>;
     fn project_id() -> Option<String>;
+    /// Return the bounded workbench connection for this authenticated turn, if any.
+    fn workbench_child_context(_session: &str, _cwd: &Path) -> Option<(&'static str, String)> {
+        None
+    }
     /// Return launch data only for this turn's authenticated employee binding.
     /// The gateway carries it across the stream worker boundary outside JSON options.
     fn employee_acp_launch(_session: &str) -> Option<EmployeeAcpLaunch> {

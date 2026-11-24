@@ -28,6 +28,16 @@ impl Host for RuntimeHost {
     fn config() -> HostFuture<'static, anyhow::Result<config::schema::Config>> { Box::pin(async { Ok(config::get_current().await?) }) }
     fn project_id() -> Option<String> { crate::project::instance::project().map(|project| project.id) }
     #[cfg(not(target_arch = "wasm32"))]
+    fn workbench_child_context(session: &str, cwd: &Path) -> Option<(&'static str, String)> {
+        let context = Self::tool_context()?;
+        if context.session() != session {
+            return None;
+        }
+        crate::gateway::api::handlers::cli_workbench::acp_child_context(
+            &Self::tenant(), session, context.message_id()?, cwd,
+        ).map(|context| (vw_api_types::cli_workbench::CHILD_CONTEXT_ENV, context))
+    }
+    #[cfg(not(target_arch = "wasm32"))]
     fn employee_acp_launch(session: &str) -> Option<llm_runtime::acp::host::EmployeeAcpLaunch> {
         super::super::employee_context::worker_launch(&Self::tenant(), session)
     }

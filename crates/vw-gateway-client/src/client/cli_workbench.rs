@@ -78,8 +78,13 @@ impl GatewayClient {
         body: Option<&B>,
     ) -> Result<T, CliWorkbenchError> {
         let endpoint = self.transport.endpoint();
-        let mut request =
-            self.transport.client().request(method, format!("{}{path}", endpoint.base_url()));
+        #[cfg(not(target_arch = "wasm32"))]
+        let client = self.transport.native_transport().map_err(|_| {
+            client_error(CliWorkbenchErrorCode::GatewayFailure, "workbench transport unavailable")
+        })?;
+        #[cfg(target_arch = "wasm32")]
+        let client = self.transport.client();
+        let mut request = client.request(method, format!("{}{path}", endpoint.base_url()));
         if let Some(body) = body {
             request = request.json(body);
         }
@@ -93,10 +98,15 @@ impl GatewayClient {
             });
         }
         Err(response.json().await.unwrap_or_else(|_| CliWorkbenchError {
-            code: if status == reqwest::StatusCode::NOT_FOUND {
-                CliWorkbenchErrorCode::NotFound
-            } else {
-                CliWorkbenchErrorCode::GatewayFailure
+            code: match status {
+                reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::FORBIDDEN => {
+                    CliWorkbenchErrorCode::Unauthorized
+                }
+                reqwest::StatusCode::NOT_FOUND => CliWorkbenchErrorCode::NotFound,
+                reqwest::StatusCode::BAD_REQUEST | reqwest::StatusCode::UNPROCESSABLE_ENTITY => {
+                    CliWorkbenchErrorCode::InvalidRequest
+                }
+                _ => CliWorkbenchErrorCode::GatewayFailure,
             },
             message: format!("gateway returned HTTP {status}"),
         }))

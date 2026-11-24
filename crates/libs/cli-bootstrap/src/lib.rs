@@ -150,6 +150,10 @@ pub async fn run() -> Result<()> {
         return Ok(());
     }
 
+    if let Commands::Workbench(args) = cli.command {
+        return cli_gateway_commands::cli_workbench::run(args).await;
+    }
+
     // 检测是否为交互式代理模式（全屏 TUI 模式）
     let acp_mode = matches!(&cli.command, Commands::Acp);
     let interactive_agent_mode = matches!(&cli.command, Commands::Agent { message: None, .. });
@@ -183,7 +187,9 @@ pub async fn run() -> Result<()> {
 
     // 根据命令类型路由到相应的处理器
     match cli.command {
-        /* Commands::Onboard { .. } | */ Commands::Completions { .. } => unreachable!(),
+        /* Commands::Onboard { .. } | */ Commands::Completions { .. } | Commands::Workbench(_) => {
+            unreachable!("command is routed before configuration initialization")
+        }
         Commands::Acp | Commands::EmployeeAcp { .. } | Commands::EmployeeAcpProbe => {
             unreachable!("ACP mode is routed before interactive initialization")
         }

@@ -27,6 +27,9 @@ use vw_api_types::cli_workbench::{
 
 use super::session::stream::Host;
 
+#[cfg(not(target_arch = "wasm32"))]
+mod child_access;
+
 const SESSIONS: &str = "/projects/{project}/cli-workbench/sessions";
 pub(crate) const TURN_OPTION: &str = "cli_workbench_turn_id";
 const MAX_SESSIONS_PER_PROJECT: usize = 256;
@@ -49,6 +52,8 @@ struct Session {
     scope: ProjectScope,
     info: CliWorkbenchSession,
     turn: Option<Turn>,
+    #[cfg(not(target_arch = "wasm32"))]
+    child_access: Option<child_access::ChildAccess>,
 }
 
 struct Turn {
@@ -69,6 +74,14 @@ impl Session {
             )
         {
             self.info.state = ProcessState::Exited;
+            self.revoke_child_access();
+        }
+    }
+
+    fn revoke_child_access(&mut self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.child_access.take();
         }
     }
 }
@@ -145,13 +158,17 @@ impl Turn {
 }
 
 pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
+    collaboration_routes()
+        .route(&format!("{SESSIONS}/{{session}}/stop"), post(stop))
+        .layer(from_fn(crate::gateway::user_scope::session_user))
+}
+
+fn collaboration_routes<S: Clone + Send + Sync + 'static>() -> Router<S> {
     Router::new()
         .route(SESSIONS, get(list).post(start))
-        .route(&format!("{SESSIONS}/{{session}}/stop"), post(stop))
         .route(&format!("{SESSIONS}/{{session}}/messages"), post(send))
         .route(&format!("{SESSIONS}/{{session}}/messages/{{request}}"), get(receive))
         .route(&format!("{SESSIONS}/{{session}}/messages/{{request}}/events"), get(subscribe))
-        .layer(from_fn(crate::gateway::user_scope::session_user))
 }
 
 async fn list(
@@ -264,6 +281,9 @@ async fn start(
     .await
     .map_err(|_| unavailable())?;
 
+    #[cfg(not(target_arch = "wasm32"))]
+    let child_access =
+        child_access::ChildAccess::start(&scope, &id).await.map_err(|_| unavailable())?;
     let info = CliWorkbenchSession {
         id: id.clone(),
         project_id: project.id,
@@ -278,7 +298,16 @@ async fn start(
     {
         return Err(unavailable());
     }
-    workbench.sessions.insert(id, Session { scope, info: info.clone(), turn: None });
+    workbench.sessions.insert(
+        id,
+        Session {
+            scope,
+            info: info.clone(),
+            turn: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            child_access: Some(child_access),
+        },
+    );
     Ok((StatusCode::CREATED, Json(info)))
 }
 
@@ -291,6 +320,7 @@ async fn stop(
     let session = workbench.session_mut(&scope, &session_id)?;
     if !matches!(session.info.state, ProcessState::Exited | ProcessState::Stopping) {
         session.info.state = ProcessState::Stopping;
+        session.revoke_child_access();
         if let Some(turn) = &session.turn {
             turn.cancel.cancel();
         } else {
@@ -466,6 +496,25 @@ fn with_turn(session_id: &str, turn_id: &str, update: impl FnOnce(&Turn)) {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn acp_child_context(
+    tenant: &TenantScope,
+    session_id: &str,
+    assistant_id: &str,
+    directory: &FsPath,
+) -> Option<String> {
+    let workbench = WORKBENCH.lock();
+    let session = workbench.sessions.get(session_id)?;
+    if session.scope.tenant_scope() != tenant
+        || FsPath::new(&session.info.directory) != directory
+        || session.turn.as_ref()?.assistant_message_id.as_deref() != Some(assistant_id)
+    {
+        return None;
+    }
+
+    session.child_access.as_ref().map(|access| access.context().to_owned())
+}
+
 pub(crate) fn bind_assistant_message(
     tenant: &TenantScope,
     session_id: &str,
@@ -537,7 +586,7 @@ async fn run_turn(
         agent: Some(agent),
         acp_model_source: vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal,
         messages: vec![json!({ "role": "user", "content": text })],
-        options: Some(json!({ (TURN_OPTION): turn_id.as_str() })),
+        options: Some(json!({ (TURN_OPTION): turn_id.as_str(), "cwd": directory.as_str() })),
         ..Default::default()
     };
     let root = directory.clone();
@@ -728,7 +777,11 @@ fn finish_turn(
     if stopping {
         return Some(session.scope.tenant_scope().clone());
     }
-    session.info.state =
-        if disconnected { ProcessState::Disconnected } else { ProcessState::Ready };
+    if disconnected {
+        session.info.state = ProcessState::Disconnected;
+        session.revoke_child_access();
+    } else {
+        session.info.state = ProcessState::Ready;
+    }
     None
 }

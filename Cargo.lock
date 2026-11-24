@@ -22888,6 +22888,7 @@ dependencies = [
 name = "vw-api-types"
 version = "0.7.12"
 dependencies = [
+ "serde",
  "serde_json",
  "vw-api-acp-model",
  "vw-api-agent-scheduler",

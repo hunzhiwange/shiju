@@ -9,7 +9,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use gateway_session::stream_host::{MessageHost, StreamHost};
+use gateway_session::{message_host::MessageHost, stream_host::StreamHost};
 use parking_lot::Mutex;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -469,7 +469,7 @@ async fn send(
     let message = CliWorkbenchMessage {
         id: CliWorkbenchMessageId {
             request_id: request.request_id,
-            sender_user_id: tenant.user_id().to_string(),
+            sender_user_id: tenant.user_id().as_ref().to_owned(),
             target_session_id: session_id.clone(),
         },
         turn_id: uuid::Uuid::new_v4().to_string(),

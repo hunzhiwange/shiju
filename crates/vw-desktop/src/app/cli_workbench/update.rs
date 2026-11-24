@@ -50,7 +50,7 @@ impl Agent {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct ProjectUpdate {
     project: String,
     sessions: Result<Vec<CliWorkbenchSession>, CliWorkbenchError>,
@@ -396,11 +396,14 @@ async fn project_update(
         let waiting: HashSet<_> = sessions
             .iter()
             .filter(|session| session.state == Process::WaitingForApproval)
-            .map(|session| session.directory.as_str())
+            .map(|session| session.directory.clone())
             .collect();
         let interaction = GatewayInteractionClient::new(client.transport().clone());
         let mut responses = stream::iter(waiting)
-            .map(|directory| interaction.permission_list(Some(directory)))
+            .map(|directory| {
+                let interaction = &interaction;
+                async move { interaction.permission_list(Some(&directory)).await }
+            })
             .buffer_unordered(4);
         while let Some(result) = responses.next().await {
             match result {

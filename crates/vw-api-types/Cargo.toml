@@ -8,6 +8,7 @@ description = "API types for VibeWindow"
 license = "MIT"
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
 vw-api-hermes-dashboard = { path = "../libs/api-hermes-dashboard" }
 vw-api-project-profiles = { path = "../libs/api-project-profiles" }
 vw-api-openclaw-settings = { path = "../libs/api-openclaw-settings" }

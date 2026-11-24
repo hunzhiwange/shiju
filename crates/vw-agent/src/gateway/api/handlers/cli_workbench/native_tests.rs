@@ -59,7 +59,7 @@ async fn cli_workbench_native_drafts_are_scoped_and_manual() {
         (native, CliWorkbenchTarget::NativeCli { app_id: "codex".into() }),
         (shell, CliWorkbenchTarget::Shell),
     ] {
-        insert_session(
+        let (status, Json(session)) = insert_session(
             Session {
                 scope: scope.clone(),
                 info: CliWorkbenchSession {
@@ -78,6 +78,8 @@ async fn cli_workbench_native_drafts_are_scoped_and_manual() {
         )
         .ok()
         .unwrap();
+        assert_eq!(status, StatusCode::CREATED);
+        assert_eq!(session.id, id);
     }
     // The fixture has no PTY. Collaboration can create a draft independently of I/O.
     let core = router::<()>().layer(Extension(LocalWorkbenchGateway::default()));

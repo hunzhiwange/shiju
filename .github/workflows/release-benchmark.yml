@@ -1,6 +1,16 @@
 name: Release benchmark
 
 on:
+  push:
+    branches: [shiju]
+    paths:
+      - Cargo.toml
+      - Cargo.lock
+      - .cargo/config.toml
+      - rust-toolchain.toml
+      - dist-workspace.toml
+      - scripts/release_cargo_cache.py
+      - .github/workflows/release-benchmark.yml
   workflow_dispatch:
     inputs:
       experiment:
@@ -23,7 +33,10 @@ concurrency:
 
 jobs:
   measure:
-    if: inputs.experiment == 'dist' || inputs.experiment == 'warm-cache'
+    if: >-
+      ${{ (github.event_name == 'push' && github.ref_protected
+            && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+          || (github.event_name == 'workflow_dispatch' && (inputs.experiment == 'dist' || inputs.experiment == 'warm-cache')) }}
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -39,7 +52,7 @@ jobs:
       VIBEWINDOW_RELEASE_BUILD: '1'
       CARGO_TERM_COLOR: never
       CACHE_TARGETS: ${{ matrix.target }}
-      RELEASE_CACHE_MODE: ${{ inputs.cache }}
+      RELEASE_CACHE_MODE: ${{ inputs.cache || 'restore' }}
     steps:
       - name: Require a trusted ref for cache warming
         if: inputs.experiment == 'warm-cache'
@@ -79,73 +92,30 @@ jobs:
           with open(os.environ['GITHUB_ENV'], 'a') as out:
               print(f'CARGO_TARGET_DIR={root / "target" / ("rust-slot-" + sys.argv[1])}', file=out)
               print(f'RELEASE_CARGO_SLOT={sys.argv[1]}', file=out)
-              print(f'RELEASE_CARGO_CACHE={pathlib.Path(os.environ["RUNNER_TEMP"]) / "release-cargo-cache"}', file=out)
           PYTHON
           trap - EXIT
       - name: Identify Cargo cache layout and toolchain
         id: cargo-cache-layout
         shell: bash
-        run: |
-          python - <<'PYTHON'
-          import hashlib, json, os, pathlib, subprocess, tomllib
-          target = pathlib.Path(os.environ['CARGO_TARGET_DIR']).resolve()
-          meta = json.loads(subprocess.check_output(['cargo', 'metadata', '--no-deps', '--format-version=1']))
-          assert pathlib.Path(meta['target_directory']).resolve() == target
-          assert pathlib.Path(meta['build_directory']).resolve() == target, 'Cargo build-dir must match the held slot'
-          rust = subprocess.check_output(['rustc', '-Vv'])
-          config = b''.join(pathlib.Path(p).read_bytes() for p in ['.cargo/config.toml', 'rust-toolchain.toml', 'dist-workspace.toml'])
-          config += json.dumps(tomllib.loads(pathlib.Path('Cargo.toml').read_text()).get('profile', {}), sort_keys=True).encode()
-          config += os.environ.get('RUSTFLAGS', '').encode() + os.environ.get('CARGO_ENCODED_RUSTFLAGS', '').encode()
-          base = 'release-rust-v2-' + os.environ['RUNNER_OS'] + '-' + os.environ['RUNNER_ARCH'] + '-' + os.environ['CACHE_TARGETS'] + '-dist-all-features-' + hashlib.sha256(rust + config).hexdigest()[:24]
-          lock = hashlib.sha256(pathlib.Path('Cargo.lock').read_bytes()).hexdigest()[:16]
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
-              print(f'cargo_home={pathlib.Path(os.environ.get("CARGO_HOME", pathlib.Path.home() / ".cargo")).resolve()}', file=out)
-              print(f'prefix={base}-', file=out)
-              print(f'key={base}-{lock}-' + os.environ['GITHUB_SHA'], file=out)
-          print(rust.decode(), json.dumps({k: v for k, v in meta.items() if k.endswith('directory')}, indent=2))
-          PYTHON
-      - name: Restore trusted Cargo cache
-        id: cargo-cache
-        if: ${{ env.RELEASE_CACHE_MODE != 'off' }}
+        run: python scripts/release_cargo_cache.py
+      - name: Look for the current dependency cache
+        id: cargo-cache-lookup
+        if: github.event_name == 'push' || inputs.experiment == 'warm-cache'
         uses: actions/cache/restore@v4
         with:
-          path: |
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/registry/index
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/registry/cache
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/registry/src
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/git/db
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/git/checkouts
-            ${{ env.RELEASE_CARGO_CACHE }}
+          path: ${{ steps.cargo-cache-layout.outputs.paths }}
+          key: ${{ steps.cargo-cache-layout.outputs.key }}
+          lookup-only: true
+      - name: Restore trusted Cargo cache
+        id: cargo-cache
+        if: ${{ env.RELEASE_CACHE_MODE != 'off' && steps.cargo-cache-lookup.outputs.cache-hit != 'true' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.cargo-cache-layout.outputs.paths }}
           key: ${{ steps.cargo-cache-layout.outputs.key }}
           restore-keys: ${{ steps.cargo-cache-layout.outputs.prefix }}
-      - name: Restore compiler directories into the held slot
-        if: ${{ env.RELEASE_CACHE_MODE != 'off' }}
-        shell: bash
-        run: |
-          python - <<'PYTHON'
-          MODE = 'restore'
-          import os, pathlib, shutil, time
-          start = time.monotonic()
-          cache = pathlib.Path(os.environ['RELEASE_CARGO_CACHE'])
-          if MODE == 'save' and cache.exists():
-              shutil.rmtree(cache)
-          slot = pathlib.Path(os.environ['CARGO_TARGET_DIR'])
-          profiles = [pathlib.Path('dist')] + [pathlib.Path(t) / 'dist' for t in os.environ['CACHE_TARGETS'].split()]
-          count = size = 0
-          for profile in profiles:
-              for internal in ['deps', 'build', '.fingerprint', 'incremental']:
-                  relative = profile / internal
-                  src, dst = (cache / 'slot' / relative, slot / relative) if MODE == 'restore' else (slot / relative, cache / 'slot' / relative)
-                  if src.is_dir():
-                      shutil.copytree(src, dst, dirs_exist_ok=True, symlinks=True)
-                      for p in src.rglob('*'):
-                          if p.is_file():
-                              count += 1
-                              size += p.stat().st_size
-          print(f'{MODE}: {count} files, {size} bytes, {time.monotonic()-start:.3f}s; slot={slot}; staging={cache}')
-          PYTHON
       - name: Install dist on macOS (same installer as Release)
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && steps.cargo-cache-lookup.outputs.cache-hit != 'true'
         shell: bash
         run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.30.1/cargo-dist-installer.sh | sh
       - name: Install dist on Windows (same installer as Release)
@@ -180,9 +150,11 @@ jobs:
         run: |
           bash scripts/install_macos_packaging_tools.sh "$RUNNER_TEMP/macos-packaging-tools"
       - name: Install target standard library
+        if: steps.cargo-cache-lookup.outputs.cache-hit != 'true'
         shell: bash
         run: rustup target add '${{ matrix.target }}'
       - name: Measure serial dist build in a shared Cargo slot
+        if: steps.cargo-cache-lookup.outputs.cache-hit != 'true'
         env:
           RELEASE_CACHE_KEY: ${{ steps.cargo-cache-layout.outputs.key }}
           RELEASE_CACHE_MATCHED_KEY: ${{ steps.cargo-cache.outputs.cache-matched-key }}
@@ -196,58 +168,25 @@ jobs:
           sys.exit(benchmark('${{ matrix.target }}', pathlib.Path('benchmark')))
           PYTHON
       - name: Build the embedded macOS control helper
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && steps.cargo-cache-lookup.outputs.cache-hit != 'true'
         shell: bash
         run: cargo build --locked --profile dist --target "$CACHE_TARGETS" -p computer-control --bin shiju-computer-use
-      - name: Stage compiler cache from the held slot
-        if: ${{ success() && github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.ref_protected && env.RELEASE_CACHE_MODE != 'off' && steps.cargo-cache.outputs.cache-hit != 'true' }}
-        shell: bash
-        run: |
-          python - <<'PYTHON'
-          MODE = 'save'
-          import os, pathlib, shutil, time
-          start = time.monotonic()
-          cache = pathlib.Path(os.environ['RELEASE_CARGO_CACHE'])
-          if MODE == 'save' and cache.exists():
-              shutil.rmtree(cache)
-          slot = pathlib.Path(os.environ['CARGO_TARGET_DIR'])
-          profiles = [pathlib.Path('dist')] + [pathlib.Path(t) / 'dist' for t in os.environ['CACHE_TARGETS'].split()]
-          count = size = 0
-          for profile in profiles:
-              for internal in ['deps', 'build', '.fingerprint', 'incremental']:
-                  relative = profile / internal
-                  src, dst = (cache / 'slot' / relative, slot / relative) if MODE == 'restore' else (slot / relative, cache / 'slot' / relative)
-                  if src.is_dir():
-                      shutil.copytree(src, dst, dirs_exist_ok=True, symlinks=True)
-                      for p in src.rglob('*'):
-                          if p.is_file():
-                              count += 1
-                              size += p.stat().st_size
-          print(f'{MODE}: {count} files, {size} bytes, {time.monotonic()-start:.3f}s; slot={slot}; staging={cache}')
-          PYTHON
-      - name: Save Cargo cache from protected default branch only
-        if: ${{ success() && github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.ref_protected && env.RELEASE_CACHE_MODE != 'off' && steps.cargo-cache.outputs.cache-hit != 'true' }}
+      - name: Save Cargo cache on the protected default branch
+        if: >-
+          ${{ github.ref_protected && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+              && env.RELEASE_CACHE_MODE != 'off' && steps.cargo-cache-lookup.outputs.cache-hit != 'true'
+              && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v4
         with:
-          path: |
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/registry/index
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/registry/cache
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/registry/src
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/git/db
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/git/checkouts
-            ${{ env.RELEASE_CARGO_CACHE }}
+          path: ${{ steps.cargo-cache-layout.outputs.paths }}
           key: ${{ steps.cargo-cache-layout.outputs.key }}
       - name: Verify the release cache is available
-        if: inputs.experiment == 'warm-cache'
+        if: >-
+          ${{ (github.event_name == 'push' || inputs.experiment == 'warm-cache')
+              && steps.cargo-cache-lookup.outputs.cache-hit != 'true' }}
         uses: actions/cache/restore@v4
         with:
-          path: |
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/registry/index
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/registry/cache
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/registry/src
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/git/db
-            ${{ steps.cargo-cache-layout.outputs.cargo_home }}/git/checkouts
-            ${{ env.RELEASE_CARGO_CACHE }}
+          path: ${{ steps.cargo-cache-layout.outputs.paths }}
           key: ${{ steps.cargo-cache-layout.outputs.key }}
           lookup-only: true
           fail-on-cache-miss: true

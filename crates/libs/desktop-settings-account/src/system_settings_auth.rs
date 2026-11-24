@@ -447,5 +447,5 @@ pub fn overlay<'a, U: Clone + 'static>(i18n: I18n,
     if let Some(login) = state.login {
         return login_modal::overlay(i18n, login, base);
     }
-    if let Some(binding) = state.binding { binding_modal::overlay(i18n, binding, base) } else { base }
+    if let Some(binding) = state.binding { binding_modal::overlay(binding, i18n, base) } else { base }
 }

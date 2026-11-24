@@ -59,7 +59,7 @@ pub(crate) fn overlay<'a, U: Clone + 'static>(
             let label =
                 if selected { format!("✓ {}", account.label) } else { account.label.clone() };
             body = body.push(
-                button(text(i18n.__(label)).wrapping(Wrapping::WordOrGlyph))
+                button(text(label).wrapping(Wrapping::WordOrGlyph))
                     .width(Length::Fill)
                     .style(if selected {
                         primary_action_btn_style

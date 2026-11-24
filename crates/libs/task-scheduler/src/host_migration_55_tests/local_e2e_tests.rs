@@ -15,55 +15,6 @@ use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::store::AgentSchedulerStore;
 use crate::store::tasks::NewAgentTask;
 
-struct RecordingExecutor {
-    output: String,
-    requests: std::sync::Mutex<Vec<LocalAgentExecutionRequest>>,
-}
-
-impl RecordingExecutor {
-    fn new(output: &str) -> Self {
-        Self { output: output.to_string(), requests: std::sync::Mutex::new(Vec::new()) }
-    }
-}
-
-impl LocalAgentExecutor for RecordingExecutor {
-    fn lease_workspace(&self, request: LocalAgentWorkspaceRequest) -> Result<LocalAgentWorkspace> {
-        let path = request.project_path.join("worktrees/local-e2e-slot");
-        prepare_git_workspace(&path, &format!("codex/{}", request.task_id.as_str()))?;
-        Ok(LocalAgentWorkspace {
-            slot_id: Some("local-e2e-slot".to_string()),
-            path: path.display().to_string(),
-            branch: Some(format!("codex/{}", request.task_id.as_str())),
-        })
-    }
-
-    fn execute(&self, request: LocalAgentExecutionRequest) -> Result<LocalAgentExecutionOutput> {
-        self.requests.lock().expect("requests lock").push(request);
-        Ok(LocalAgentExecutionOutput { raw_output: self.output.clone() })
-    }
-}
-
-fn prepare_git_workspace(path: &Path, branch: &str) -> Result<()> {
-    std::fs::create_dir_all(path)?;
-    for args in [
-        vec!["init"],
-        vec!["config", "user.email", "test@example.com"],
-        vec!["config", "user.name", "Test User"],
-        vec!["checkout", "-b", branch],
-        vec!["commit", "--allow-empty", "-m", "initial"],
-    ] {
-        let output =
-            shell_command::git_std_command().current_dir(path).args(&args).output()?;
-        anyhow::ensure!(
-            output.status.success(),
-            "git {} failed: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&output.stderr).trim()
-        );
-    }
-    Ok(())
-}
-
 fn finite_task(task_id: &TaskId) -> Result<NewAgentTask> {
     Ok(NewAgentTask {
         id: task_id.clone(),

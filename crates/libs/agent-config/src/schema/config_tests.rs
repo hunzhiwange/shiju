@@ -64,16 +64,20 @@ fn config_ext_apply_env_overrides_is_callable() {
 // 错误路径还要确认原配置或存储保持不变，防止校验失败后留下部分更新。
 #[test]
 fn named_model_provider_profile_returns_when_provider_is_missing_or_unknown() {
-    let mut missing = Config::default();
-    missing.default_provider = None;
+    let mut missing = Config {
+        default_provider: None,
+        ..Config::default()
+    };
 
     apply_named_model_provider_profile(&mut missing);
 
     assert_eq!(missing.default_provider, None);
     assert_eq!(missing.api_url, None);
 
-    let mut unknown = Config::default();
-    unknown.default_provider = Some("missing-profile".to_string());
+    let mut unknown = Config {
+        default_provider: Some("missing-profile".to_string()),
+        ..Config::default()
+    };
 
     apply_named_model_provider_profile(&mut unknown);
 
@@ -83,8 +87,10 @@ fn named_model_provider_profile_returns_when_provider_is_missing_or_unknown() {
 
 #[test]
 fn named_model_provider_profile_sets_custom_provider_from_base_url() {
-    let mut config = Config::default();
-    config.default_provider = Some("local-profile".to_string());
+    let mut config = Config {
+        default_provider: Some("local-profile".to_string()),
+        ..Config::default()
+    };
     config.model_providers.insert(
         "local-profile".to_string(),
         ModelProviderConfig {
@@ -101,10 +107,12 @@ fn named_model_provider_profile_sets_custom_provider_from_base_url() {
 
 #[test]
 fn named_model_provider_profile_preserves_existing_api_url_and_key() {
-    let mut config = Config::default();
-    config.default_provider = Some("PROFILE".to_string());
-    config.api_url = Some("https://configured.example/v1".to_string());
-    config.api_key = Some("configured-key".to_string());
+    let mut config = Config {
+        default_provider: Some("PROFILE".to_string()),
+        api_url: Some("https://configured.example/v1".to_string()),
+        api_key: Some("configured-key".to_string()),
+        ..Config::default()
+    };
     config.model_providers.insert(
         "profile".to_string(),
         ModelProviderConfig {
@@ -125,8 +133,10 @@ fn named_model_provider_profile_preserves_existing_api_url_and_key() {
 fn named_model_provider_profile_reads_openai_key_for_auth_profiles() {
     let _guard = env_lock();
     let _openai_key = EnvVarGuard::set("OPENAI_API_KEY", "  env-openai-key  ");
-    let mut config = Config::default();
-    config.default_provider = Some("auth-profile".to_string());
+    let mut config = Config {
+        default_provider: Some("auth-profile".to_string()),
+        ..Config::default()
+    };
     config.model_providers.insert(
         "auth-profile".to_string(),
         ModelProviderConfig { requires_openai_auth: true, ..Default::default() },
@@ -142,10 +152,12 @@ fn named_model_provider_profile_reads_openai_key_for_auth_profiles() {
 fn named_model_provider_profile_replaces_blank_top_level_url_and_key() {
     let _guard = env_lock();
     let _openai_key = EnvVarGuard::set("OPENAI_API_KEY", "  env-openai-key  ");
-    let mut config = Config::default();
-    config.default_provider = Some("auth-profile".to_string());
-    config.api_url = Some(" \n ".to_string());
-    config.api_key = Some("   ".to_string());
+    let mut config = Config {
+        default_provider: Some("auth-profile".to_string()),
+        api_url: Some(" \n ".to_string()),
+        api_key: Some("   ".to_string()),
+        ..Config::default()
+    };
     config.model_providers.insert(
         "auth-profile".to_string(),
         ModelProviderConfig {
@@ -166,8 +178,10 @@ fn named_model_provider_profile_replaces_blank_top_level_url_and_key() {
 fn named_model_provider_profile_does_not_copy_key_without_auth_requirement() {
     let _guard = env_lock();
     let _openai_key = EnvVarGuard::set("OPENAI_API_KEY", "env-openai-key");
-    let mut config = Config::default();
-    config.default_provider = Some("public-profile".to_string());
+    let mut config = Config {
+        default_provider: Some("public-profile".to_string()),
+        ..Config::default()
+    };
     config.model_providers.insert(
         "public-profile".to_string(),
         ModelProviderConfig { requires_openai_auth: false, ..Default::default() },
@@ -181,8 +195,10 @@ fn named_model_provider_profile_does_not_copy_key_without_auth_requirement() {
 
 #[test]
 fn named_model_provider_profile_ignores_blank_profile_values() {
-    let mut config = Config::default();
-    config.default_provider = Some("blank-profile".to_string());
+    let mut config = Config {
+        default_provider: Some("blank-profile".to_string()),
+        ..Config::default()
+    };
     config.model_providers.insert(
         "blank-profile".to_string(),
         ModelProviderConfig {
@@ -201,8 +217,10 @@ fn named_model_provider_profile_ignores_blank_profile_values() {
 
 #[test]
 fn named_model_provider_profile_keeps_provider_when_profile_name_matches_key() {
-    let mut config = Config::default();
-    config.default_provider = Some("alias".to_string());
+    let mut config = Config {
+        default_provider: Some("alias".to_string()),
+        ..Config::default()
+    };
     config.model_providers.insert(
         "alias".to_string(),
         ModelProviderConfig { name: Some(" Alias ".to_string()), ..Default::default() },
@@ -215,8 +233,10 @@ fn named_model_provider_profile_keeps_provider_when_profile_name_matches_key() {
 
 #[test]
 fn named_model_provider_profile_uses_responses_provider_and_profile_name() {
-    let mut responses = Config::default();
-    responses.default_provider = Some("codex".to_string());
+    let mut responses = Config {
+        default_provider: Some("codex".to_string()),
+        ..Config::default()
+    };
     responses.model_providers.insert(
         "codex".to_string(),
         ModelProviderConfig {
@@ -229,8 +249,10 @@ fn named_model_provider_profile_uses_responses_provider_and_profile_name() {
     apply_named_model_provider_profile(&mut responses);
     assert_eq!(responses.default_provider.as_deref(), Some("openai-codex"));
 
-    let mut named = Config::default();
-    named.default_provider = Some("alias".to_string());
+    let mut named = Config {
+        default_provider: Some("alias".to_string()),
+        ..Config::default()
+    };
     named.model_providers.insert(
         "alias".to_string(),
         ModelProviderConfig { name: Some("openrouter".to_string()), ..Default::default() },
@@ -242,8 +264,10 @@ fn named_model_provider_profile_uses_responses_provider_and_profile_name() {
 
 #[test]
 fn named_model_provider_profile_prefers_distinct_name_over_custom_url() {
-    let mut config = Config::default();
-    config.default_provider = Some("alias".to_string());
+    let mut config = Config {
+        default_provider: Some("alias".to_string()),
+        ..Config::default()
+    };
     config.model_providers.insert(
         "alias".to_string(),
         ModelProviderConfig {
@@ -261,8 +285,10 @@ fn named_model_provider_profile_prefers_distinct_name_over_custom_url() {
 
 #[test]
 fn named_model_provider_profile_uses_custom_url_when_name_matches_key() {
-    let mut config = Config::default();
-    config.default_provider = Some("alias".to_string());
+    let mut config = Config {
+        default_provider: Some("alias".to_string()),
+        ..Config::default()
+    };
     config.model_providers.insert(
         "alias".to_string(),
         ModelProviderConfig {

@@ -18,7 +18,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 测试 Bubblewrap 沙箱的名称返回值
@@ -150,7 +150,7 @@ mod tests {
     /// - 访问必要的系统库和工具（只读方式）
     /// - 使用基本的设备功能
     /// - 获取进程信息（如通过 /proc/self/）
-    /// 同时防止对主机系统的写入操作
+    ///   同时防止对主机系统的写入操作
     #[test]
     fn bubblewrap_wrap_command_binds_required_paths() {
         let sandbox = BubblewrapSandbox;

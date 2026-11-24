@@ -81,8 +81,7 @@ mod tests {
         };
 
         let _proxy_lock = crate::test_support::global_runtime_proxy_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+            .lock().await;
         let original = runtime_proxy_config();
         set_runtime_proxy_config(ProxyConfig {
             enabled: true,
@@ -110,8 +109,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn whatsapp_health_check_reports_false_for_graph_error_response() {
         let _proxy_lock = crate::test_support::global_runtime_proxy_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+            .lock().await;
         agent_config::schema::set_runtime_proxy_config(Default::default());
         let ch = WhatsAppChannel::new_with_api_base_url(
             "bad-token".into(),
@@ -1202,8 +1200,7 @@ mod tests {
         use agent_config::schema::{runtime_proxy_config, set_runtime_proxy_config};
 
         let _proxy_lock = crate::test_support::global_runtime_proxy_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+            .lock().await;
         let original = runtime_proxy_config();
         set_runtime_proxy_config(Default::default());
 

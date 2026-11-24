@@ -1,5 +1,4 @@
 use super::super::message_split as discord_message_split;
-use super::*;
 
 /// 测试空消息的分割
 /// 空消息应该返回包含一个空字符串的向量

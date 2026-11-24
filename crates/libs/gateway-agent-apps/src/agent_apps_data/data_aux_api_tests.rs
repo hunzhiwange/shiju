@@ -3,7 +3,6 @@ use super::data_aux_api;
 use {app_settings_store::settings_store::GatewaySettingsStore, agent_database::GlobalDatabase};
 use axum::Extension;
 use serde_json::{Value, json};
-use sha2::Digest;
 use std::{fs, os::unix::fs::PermissionsExt};
 use {
     vw_api_transport::id::ProjectScope,

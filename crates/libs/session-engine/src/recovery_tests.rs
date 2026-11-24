@@ -82,13 +82,12 @@ fn service_retry_respects_retry_after_and_remains_cancellable() {
         false,
         Some(&cancellation),
         &mut |event| {
-            if let StreamEvent::ModelRecovery(recovery) = event {
-                if matches!(recovery.phase, RecoveryPhase::Waiting) {
+            if let StreamEvent::ModelRecovery(recovery) = event
+                && matches!(recovery.phase, RecoveryPhase::Waiting) {
                     assert_eq!(recovery.wait_ms, 12_000);
                     waiting = true;
                     cancellation.cancel();
                 }
-            }
             true
         },
         |_| Err::<(), _>(error.clone()),

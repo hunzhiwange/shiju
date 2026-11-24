@@ -26,9 +26,9 @@ async fn codex_skills_replay_checkpoint_persists_sources_and_rejects_rewound_his
         json!({"role":"assistant","content":"skill loaded"}),
     ];
     let record = InvokedSkillRecord::new("fixture", &source, Some("local".into())).unwrap();
-    save::<NoMountRevision>(&session, "main", &history, &[record.clone()]).await.unwrap();
+    save::<NoMountRevision>(&session, "main", &history, std::slice::from_ref(&record)).await.unwrap();
     assert_eq!(restore::<NoMountRevision>(&session, "main", &history).await.unwrap(), vec![record.clone()]);
-    assert!(save::<NoMountRevision>(&session, "main", &[], &[record.clone()]).await.is_err());
+    assert!(save::<NoMountRevision>(&session, "main", &[], std::slice::from_ref(&record)).await.is_err());
     assert_eq!(restore::<NoMountRevision>(&session, "main", &history).await.unwrap(), vec![record]);
     assert!(restore::<NoMountRevision>(&session, "main", &history[..1]).await.unwrap().is_empty());
     let mut edited = history.clone();
@@ -49,8 +49,8 @@ async fn codex_skills_replay_fork_copies_only_sources_and_rewind_selects_older_c
     latest.push(json!({"role":"assistant","content":"invoke again"}));
     let original = InvokedSkillRecord::new("fixture", &source, Some("first".into())).unwrap();
     let changed = InvokedSkillRecord::new("fixture", &source, Some("second".into())).unwrap();
-    save::<NoMountRevision>(&session, "main", &first, &[original.clone()]).await.unwrap();
-    save::<NoMountRevision>(&session, "main", &latest, &[changed.clone()]).await.unwrap();
+    save::<NoMountRevision>(&session, "main", &first, std::slice::from_ref(&original)).await.unwrap();
+    save::<NoMountRevision>(&session, "main", &latest, std::slice::from_ref(&changed)).await.unwrap();
     crate::compaction_checkpoint::copy_scoped(&scope_for_directory(&session_store::ui_store::current_tenant_scope(), &agent_project::instance::directory()), &scope_for_directory(&session_store::ui_store::current_tenant_scope(), &agent_project::instance::directory()), &session, &target, None).await.unwrap();
     assert_eq!(restore::<NoMountRevision>(&target, "main", &latest).await.unwrap(), vec![changed]);
     assert_eq!(restore::<NoMountRevision>(&target, "main", &first).await.unwrap(), vec![original]);
@@ -84,7 +84,7 @@ async fn codex_skills_replay_checkpoint_isolates_tenant_project_session_and_agen
     let second = vw_api_transport::TenantScope::new("platform", "second").unwrap();
     session_store::ui_store::with_tenant_scope(
         first.clone(),
-        save::<NoMountRevision>(&session, "main", &history, &[record.clone()]),
+        save::<NoMountRevision>(&session, "main", &history, std::slice::from_ref(&record)),
     )
     .await
     .unwrap();
@@ -159,7 +159,7 @@ fn codex_skills_replay_current_source_policy_and_explicit_provenance_are_revalid
     };
     let mut state = agent_skills::session_state::SkillListingSessionState::default();
     state.register_invoked("main", record);
-    state.validate_invoked_sources("main", &[skill.clone()]).unwrap();
+    state.validate_invoked_sources("main", std::slice::from_ref(&skill)).unwrap();
     assert!(state.validate_invoked_sources("main", &[]).is_err());
     let replacement = root.path().join("replacement.md");
     std::fs::write(&replacement, "different source").unwrap();

@@ -15,7 +15,7 @@ use super::*;
 ///
 /// 包含所有针对 service 模块功能的单元测试
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
     use clap::Parser;
     use std::path::Path;
@@ -110,9 +110,10 @@ mod tests {
     #[cfg(not(target_os = "windows"))]
     #[test]
     fn systemd_config_dir_args_preserves_selected_config_dir() {
-        let mut config = Config::default();
-        config.config_path =
-            "/Users/me/Library/Application Support/VibeWindow/vibewindow.json".into();
+        let config = Config {
+            config_path: "/Users/me/Library/Application Support/VibeWindow/vibewindow.json".into(),
+            ..Config::default()
+        };
 
         let args = systemd_config_dir_args(&config);
 

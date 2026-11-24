@@ -216,9 +216,11 @@ fn gateway_client_endpoint_omits_auth_key_when_credentials_are_blank() {
 fn gateway_client_builds_from_configured_endpoint() {
     let _env_guard = env_lock().lock().expect("env lock should be acquired");
     let home = tempfile::tempdir().expect("temp home should be created");
-    let mut cfg = GatewayClientSystemSettingsConfig::default();
-    cfg.host = "gateway.internal".to_string();
-    cfg.port = 42618;
+    let mut cfg = GatewayClientSystemSettingsConfig {
+        host: "gateway.internal".to_string(),
+        port: 42618,
+        ..GatewayClientSystemSettingsConfig::default()
+    };
     cfg.servers.clear();
     write_gateway_bootstrap_config(home.path(), &cfg);
     let _home = EnvVarGuard::set("HOME", home.path());

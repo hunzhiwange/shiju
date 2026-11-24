@@ -13,7 +13,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 测试禁用金丝雀防护时的行为

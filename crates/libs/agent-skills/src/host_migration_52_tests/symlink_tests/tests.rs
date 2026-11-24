@@ -23,7 +23,7 @@
 
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
 
 
     use crate::host_migration_52_tests::skills_dir;

@@ -29,10 +29,6 @@ fn init_ignores_edited_events_without_a_string_file() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn env_lock() -> std::sync::MutexGuard<'static, ()> {
-    crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner())
-}
-
 #[cfg(not(target_arch = "wasm32"))]
 struct PathGuard {
     old: Option<std::ffi::OsString>,
@@ -102,7 +98,7 @@ async fn format_file_with_unknown_extension_returns_ok_in_project_instance() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn format_file_runs_enabled_formatter_with_replaced_file_argument() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::TempDir::new().expect("bin temp dir");
     let project = tempfile::TempDir::new().expect("project temp dir");
     let file = project.path().join("main.go");
@@ -138,7 +134,7 @@ async fn format_file_runs_enabled_formatter_with_replaced_file_argument() {
 // 格式化器不可用或执行失败时保留原文件，并继续评估其它匹配项。
 #[tokio::test]
 async fn format_file_applies_formatter_environment_and_continues_after_failure() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::TempDir::new().expect("bin temp dir");
     let project = tempfile::TempDir::new().expect("project temp dir");
     let file = project.path().join("app.js");
@@ -176,7 +172,7 @@ async fn format_file_applies_formatter_environment_and_continues_after_failure()
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn format_file_skips_formatter_when_cached_as_disabled() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::TempDir::new().expect("bin temp dir");
     let project = tempfile::TempDir::new().expect("project temp dir");
     let file = project.path().join("main.go");
@@ -202,7 +198,7 @@ async fn format_file_skips_formatter_when_cached_as_disabled() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn format_file_matches_extensions_case_sensitively() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::TempDir::new().expect("bin temp dir");
     let project = tempfile::TempDir::new().expect("project temp dir");
     let file = project.path().join("main.GO");
@@ -228,7 +224,7 @@ async fn format_file_matches_extensions_case_sensitively() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn format_file_returns_ok_when_formatter_process_cannot_start() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::TempDir::new().expect("empty bin temp dir");
     let project = tempfile::TempDir::new().expect("project temp dir");
     let file = project.path().join("main.go");
@@ -252,7 +248,7 @@ async fn format_file_returns_ok_when_formatter_process_cannot_start() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn format_file_runs_every_matching_formatter_when_commands_fail() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::TempDir::new().expect("bin temp dir");
     let project = tempfile::TempDir::new().expect("project temp dir");
     let file = project.path().join("app.rb");
@@ -299,7 +295,7 @@ async fn format_file_runs_every_matching_formatter_when_commands_fail() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn format_file_passes_shell_metacharacters_as_a_single_file_argument() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::TempDir::new().expect("bin temp dir");
     let project = tempfile::TempDir::new().expect("project temp dir");
     let file = project.path().join("main; : > injected.go");

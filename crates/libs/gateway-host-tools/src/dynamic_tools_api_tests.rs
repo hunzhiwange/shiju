@@ -323,8 +323,19 @@ async fn dynamic_tools_client_error_status_and_expired_binding_are_returned() {
             .unwrap_err()
             .contains("403")
     );
-    for _ in 0..4 {
-        server.take_request();
+    for (method, path) in [
+        ("POST", "/v1/session/session/dynamic-tools/hosts"),
+        ("GET", "/v1/session/session/dynamic-tools/calls"),
+        ("PUT", "/v1/session/session/dynamic-tools"),
+        ("POST", "/v1/session/session/dynamic-tools/calls/call/response"),
+    ] {
+        let request = server.take_request();
+        assert_eq!(request.method, method);
+        assert_eq!(request.path, path);
+        if method == "PUT" {
+            assert_eq!(request.header("content-type"), Some("application/json"));
+            assert_eq!(request.body["persist"], true);
+        }
     }
     server.join();
 }

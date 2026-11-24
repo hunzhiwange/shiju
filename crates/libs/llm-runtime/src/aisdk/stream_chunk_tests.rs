@@ -28,7 +28,7 @@ use tool_types as tools;
 use super::{aisdk_stream_chunk_error, normalize_tool_call_id};
 
 #[path = "stream_test_support.rs"]
-mod support;
+pub(super) mod support;
 use support::*;
 
 // These fixtures exercise SDK mapping, not application authorization or usage storage.

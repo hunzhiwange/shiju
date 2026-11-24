@@ -28,9 +28,11 @@ fn fixture() -> (TempDir, Config, ChannelConfigWatcher) {
     let store =
         SystemConfigStore::new(GlobalDatabase::new(temp.path().join("config.sqlite3")).unwrap())
             .unwrap();
-    let mut config = Config::default();
-    config.config_path = temp.path().join("vibewindow.json");
-    config.workspace_dir = temp.path().to_path_buf();
+    let config = Config {
+        config_path: temp.path().join("vibewindow.json"),
+        workspace_dir: temp.path().to_path_buf(),
+        ..Config::default()
+    };
     let source = ChannelConfigWatcher::from_store(store, &config, false).unwrap();
     (temp, config, source)
 }

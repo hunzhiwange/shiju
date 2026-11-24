@@ -474,9 +474,11 @@ fn validate_config_rejects_invalid_model_provider_profiles() {
 #[test]
 fn validate_config_rejects_ollama_cloud_without_remote_endpoint_or_key() {
     let (_env_lock, _env_restore) = clear_cloud_env();
-    let mut config = Config::default();
-    config.default_provider = Some("ollama".to_string());
-    config.default_model = Some("llama3:cloud".to_string());
+    let mut config = Config {
+        default_provider: Some("ollama".to_string()),
+        default_model: Some("llama3:cloud".to_string()),
+        ..Config::default()
+    };
 
     assert_invalid(config.clone(), "api_url is local");
 
@@ -503,9 +505,11 @@ fn validate_config_rejects_ollama_cloud_without_remote_endpoint_or_key() {
 #[test]
 fn validate_config_rejects_ollama_cloud_blank_and_loopback_endpoint_aliases() {
     let (_env_lock, _env_restore) = clear_cloud_env();
-    let mut config = Config::default();
-    config.default_provider = Some("ollama".to_string());
-    config.default_model = Some("llama3:cloud".to_string());
+    let mut config = Config {
+        default_provider: Some("ollama".to_string()),
+        default_model: Some("llama3:cloud".to_string()),
+        ..Config::default()
+    };
 
     for api_url in [" ", "http://127.0.0.1:11434", "http://[::1]:11434"] {
         config.api_url = Some(api_url.to_string());
@@ -519,10 +523,12 @@ fn validate_config_rejects_ollama_cloud_blank_and_loopback_endpoint_aliases() {
 #[test]
 fn validate_config_accepts_each_ollama_cloud_environment_credential() {
     let (_env_lock, _env_restore) = clear_cloud_env();
-    let mut config = Config::default();
-    config.default_provider = Some(" OLLAMA ".to_string());
-    config.default_model = Some(" llama3:cloud ".to_string());
-    config.api_url = Some("https://ollama.com".to_string());
+    let config = Config {
+        default_provider: Some(" OLLAMA ".to_string()),
+        default_model: Some(" llama3:cloud ".to_string()),
+        api_url: Some("https://ollama.com".to_string()),
+        ..Config::default()
+    };
 
     for key in CLOUD_ENV_KEYS {
         unsafe {
@@ -543,11 +549,13 @@ fn validate_config_accepts_each_ollama_cloud_environment_credential() {
 
 #[test]
 fn validate_config_accepts_local_ollama_model_without_cloud_credential() {
-    let mut config = Config::default();
-    config.default_provider = Some("ollama".to_string());
-    config.default_model = Some("llama3".to_string());
-    config.api_url = None;
-    config.api_key = None;
+    let config = Config {
+        default_provider: Some("ollama".to_string()),
+        default_model: Some("llama3".to_string()),
+        api_url: None,
+        api_key: None,
+        ..Config::default()
+    };
 
     validate_config(&config).unwrap();
 }

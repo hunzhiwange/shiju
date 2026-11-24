@@ -256,8 +256,10 @@ fn ensure_source_domain_trust_skips_remote_source_without_extractable_host() {
 #[test]
 fn ensure_source_domain_trust_rejects_blocked_and_unknown_noninteractive_sources() {
     let dir = tempfile::tempdir().unwrap();
-    let mut blocked = SkillDownloadPolicy::default();
-    blocked.blocked_domains = vec!["example.com".into()];
+    let mut blocked = SkillDownloadPolicy {
+        blocked_domains: vec!["example.com".into()],
+        ..SkillDownloadPolicy::default()
+    };
 
     let err = ensure_source_domain_trust("https://example.com/skill.git", &mut blocked, dir.path())
         .unwrap_err();
@@ -277,8 +279,10 @@ fn ensure_source_domain_trust_rejects_blocked_and_unknown_noninteractive_sources
 #[test]
 fn ensure_source_domain_trust_checks_expanded_github_host() {
     let dir = tempfile::tempdir().unwrap();
-    let mut policy = SkillDownloadPolicy::default();
-    policy.trusted_domains = vec!["skills.sh".into()];
+    let mut policy = SkillDownloadPolicy {
+        trusted_domains: vec!["skills.sh".into()],
+        ..SkillDownloadPolicy::default()
+    };
 
     let error = ensure_source_domain_trust_with_interactivity(
         "https://skills.sh/acme/tools/review",
@@ -297,9 +301,11 @@ fn ensure_source_domain_trust_checks_expanded_github_host() {
 // 父域阻止规则优先于更具体的可信子域，避免通过域名细化绕过拒绝策略。
 fn ensure_source_domain_trust_prioritizes_blocked_parent_domain() {
     let dir = tempfile::tempdir().unwrap();
-    let mut policy = SkillDownloadPolicy::default();
-    policy.trusted_domains = vec!["downloads.example.com".into()];
-    policy.blocked_domains = vec!["example.com".into()];
+    let mut policy = SkillDownloadPolicy {
+        trusted_domains: vec!["downloads.example.com".into()],
+        blocked_domains: vec!["example.com".into()],
+        ..SkillDownloadPolicy::default()
+    };
 
     let error = ensure_source_domain_trust_with_interactivity(
         "https://downloads.example.com/skill.git",

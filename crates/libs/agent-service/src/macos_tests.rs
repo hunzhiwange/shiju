@@ -14,8 +14,10 @@ fn service_label_matches_launchd_identifier() {
 
 #[test]
 fn config_dir_arg_returns_config_parent_without_file_name() {
-    let mut config = Config::default();
-    config.config_path = "/Users/me/Library/Application Support/VibeWindow/vibewindow.json".into();
+    let config = Config {
+        config_path: "/Users/me/Library/Application Support/VibeWindow/vibewindow.json".into(),
+        ..Config::default()
+    };
 
     let dir = config_dir_arg(&config).unwrap();
 
@@ -25,8 +27,10 @@ fn config_dir_arg_returns_config_parent_without_file_name() {
 
 #[test]
 fn config_dir_arg_returns_none_when_config_path_has_no_parent() {
-    let mut config = Config::default();
-    config.config_path = "/".into();
+    let config = Config {
+        config_path: "/".into(),
+        ..Config::default()
+    };
 
     assert_eq!(config_dir_arg(&config), None);
 }

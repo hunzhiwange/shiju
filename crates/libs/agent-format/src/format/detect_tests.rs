@@ -12,10 +12,6 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-fn env_lock() -> std::sync::MutexGuard<'static, ()> {
-    crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner())
-}
-
 struct PathGuard {
     old: Option<std::ffi::OsString>,
 }
@@ -89,7 +85,7 @@ fn which_returns_none_for_missing_program() {
 
 #[test]
 fn which_returns_none_when_path_is_unset() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().blocking_lock();
     let _path = PathGuard::remove();
 
     assert!(which("any-program").is_none());
@@ -97,7 +93,7 @@ fn which_returns_none_when_path_is_unset() {
 
 #[test]
 fn which_finds_program_on_path_and_ignores_directories() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().blocking_lock();
     let temp = tempfile::tempdir().expect("tempdir");
     write_executable(temp.path(), "tool", "#!/bin/sh\nexit 0\n");
     std::fs::create_dir(temp.path().join("folder-tool")).expect("create dir");
@@ -110,7 +106,7 @@ fn which_finds_program_on_path_and_ignores_directories() {
 #[cfg(windows)]
 #[test]
 fn which_finds_exe_suffix_on_windows() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().blocking_lock();
     let temp = tempfile::tempdir().expect("tempdir");
     write_executable(temp.path(), "tool.exe", "");
     let _path = PathGuard::set(temp.path());
@@ -154,7 +150,7 @@ async fn is_enabled_uses_cache_before_recomputing() {
 
 #[tokio::test]
 async fn is_enabled_computes_which_results_and_caches_both_values() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     write_executable(bin.path(), "present-tool", "#!/bin/sh\nexit 0\n");
     let _path = PathGuard::set(bin.path());
@@ -187,7 +183,7 @@ async fn is_enabled_returns_computed_value_when_cache_is_poisoned() {
 
 #[tokio::test]
 async fn enabled_check_dispatches_every_detector_variant() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     for program in ["bun", "clang-format", "ocamlformat", "ruff", "uv"] {
         write_executable(bin.path(), program, "#!/bin/sh\nexit 0\n");
@@ -240,7 +236,7 @@ async fn enabled_check_dispatches_every_detector_variant() {
 
 #[tokio::test]
 async fn project_scoped_detectors_are_disabled_without_project_context() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     for program in ["bun", "clang-format", "ocamlformat", "ruff"] {
         write_executable(bin.path(), program, "#!/bin/sh\nexit 0\n");
@@ -258,7 +254,7 @@ async fn project_scoped_detectors_are_disabled_without_project_context() {
 
 #[tokio::test]
 async fn prettier_requires_bun_package_json_and_dependency() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     write_executable(bin.path(), "bun", "#!/bin/sh\nexit 0\n");
     let _path = PathGuard::set(bin.path());
@@ -273,7 +269,7 @@ async fn prettier_requires_bun_package_json_and_dependency() {
 
 #[tokio::test]
 async fn prettier_ignores_invalid_json_and_missing_dependency() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     write_executable(bin.path(), "bun", "#!/bin/sh\nexit 0\n");
     let _path = PathGuard::set(bin.path());
@@ -289,7 +285,7 @@ async fn prettier_ignores_invalid_json_and_missing_dependency() {
 
 #[tokio::test]
 async fn prettier_searches_up_to_worktree_only() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     write_executable(bin.path(), "bun", "#!/bin/sh\nexit 0\n");
     let _path = PathGuard::set(bin.path());
@@ -311,7 +307,7 @@ async fn prettier_searches_up_to_worktree_only() {
 
 #[tokio::test]
 async fn prettier_skips_unreadable_nearest_manifest_and_uses_valid_parent() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     write_executable(bin.path(), "bun", "#!/bin/sh\nexit 0\n");
     let _path = PathGuard::set(bin.path());
@@ -328,7 +324,7 @@ async fn prettier_skips_unreadable_nearest_manifest_and_uses_valid_parent() {
 
 #[tokio::test]
 async fn prettier_is_disabled_without_bun_or_project_context() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let empty_bin = tempfile::tempdir().expect("bin tempdir");
     let _path = PathGuard::set(empty_bin.path());
 
@@ -341,7 +337,7 @@ async fn prettier_is_disabled_without_bun_or_project_context() {
 
 #[tokio::test]
 async fn oxfmt_requires_experiment_bun_and_declared_dependency() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     let _path = PathGuard::set(bin.path());
     let project = tempfile::tempdir().expect("project tempdir");
@@ -361,7 +357,7 @@ async fn oxfmt_requires_experiment_bun_and_declared_dependency() {
 
 #[tokio::test]
 async fn biome_requires_bun_and_config_file() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     write_executable(bin.path(), "bun", "#!/bin/sh\nexit 0\n");
     let _path = PathGuard::set(bin.path());
@@ -374,7 +370,7 @@ async fn biome_requires_bun_and_config_file() {
 
 #[tokio::test]
 async fn biome_accepts_json_config_and_ignores_parent_above_worktree() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     write_executable(bin.path(), "bun", "#!/bin/sh\nexit 0\n");
     let _path = PathGuard::set(bin.path());
@@ -394,7 +390,7 @@ async fn biome_accepts_json_config_and_ignores_parent_above_worktree() {
 
 #[tokio::test]
 async fn clang_and_ocamlformat_require_binary_and_config() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     write_executable(bin.path(), "clang-format", "#!/bin/sh\nexit 0\n");
     write_executable(bin.path(), "ocamlformat", "#!/bin/sh\nexit 0\n");
@@ -415,7 +411,7 @@ async fn clang_and_ocamlformat_require_binary_and_config() {
 
 #[tokio::test]
 async fn clang_and_ocamlformat_are_disabled_without_binary() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let empty_bin = tempfile::tempdir().expect("bin tempdir");
     let _path = PathGuard::set(empty_bin.path());
     let project = tempfile::tempdir().expect("project tempdir");
@@ -430,7 +426,7 @@ async fn clang_and_ocamlformat_are_disabled_without_binary() {
 
 #[tokio::test]
 async fn ruff_detects_config_or_dependency_mentions() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     write_executable(bin.path(), "ruff", "#!/bin/sh\nexit 0\n");
     let _path = PathGuard::set(bin.path());
@@ -453,7 +449,7 @@ async fn ruff_detects_config_or_dependency_mentions() {
 
 #[tokio::test]
 async fn ruff_requires_binary_and_supported_config_content() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let empty_bin = tempfile::tempdir().expect("bin tempdir");
     let _path = PathGuard::set(empty_bin.path());
     let project = tempfile::tempdir().expect("project tempdir");
@@ -469,7 +465,7 @@ async fn ruff_requires_binary_and_supported_config_content() {
 
 #[tokio::test]
 async fn ruff_accepts_dedicated_configs_and_each_dependency_manifest() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     write_executable(bin.path(), "ruff", "#!/bin/sh\nexit 0\n");
     let _path = PathGuard::set(bin.path());
@@ -493,7 +489,7 @@ async fn ruff_accepts_dedicated_configs_and_each_dependency_manifest() {
 
 #[tokio::test]
 async fn uvformat_checks_uv_help_and_is_disabled_when_ruff_is_enabled() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     write_executable(bin.path(), "uv", "#!/bin/sh\nexit 0\n");
     let _path = PathGuard::set(bin.path());
@@ -508,7 +504,7 @@ async fn uvformat_checks_uv_help_and_is_disabled_when_ruff_is_enabled() {
 
 #[tokio::test]
 async fn uvformat_is_disabled_when_uv_missing_or_help_fails() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     let _path = PathGuard::set(bin.path());
     let project = tempfile::tempdir().expect("project tempdir");
@@ -566,7 +562,7 @@ async fn pint_skips_invalid_nearest_manifest_and_uses_valid_parent() {
 
 #[tokio::test]
 async fn rlang_air_validates_help_output_first_line() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     write_executable(
         bin.path(),
@@ -583,7 +579,7 @@ async fn rlang_air_validates_help_output_first_line() {
 
 #[tokio::test]
 async fn rlang_air_is_disabled_when_missing_or_command_fails() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     let _path = PathGuard::set(bin.path());
 
@@ -595,7 +591,7 @@ async fn rlang_air_is_disabled_when_missing_or_command_fails() {
 
 #[tokio::test]
 async fn rlang_air_rejects_signature_outside_first_help_line() {
-    let _lock = env_lock();
+    let _lock = crate::test_support::global_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("bin tempdir");
     write_executable(
         bin.path(),

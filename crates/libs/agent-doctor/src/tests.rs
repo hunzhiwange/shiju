@@ -17,7 +17,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     use tempfile::TempDir;
@@ -163,9 +163,11 @@ mod tests {
     /// 此测试验证温度值为 5.0 时会被正确检测并报告为错误。
     #[test]
     fn config_validation_catches_bad_temperature() {
-        let mut config = Config::default();
-        // 设置超出有效范围的温度值
-        config.default_temperature = 5.0;
+        let config = Config {
+            // 设置超出有效范围的温度值
+            default_temperature: 5.0,
+            ..Config::default()
+        };
         let mut items = Vec::new();
         check_config_semantics(&config, &mut items);
         // 查找温度相关的诊断项
@@ -181,9 +183,11 @@ mod tests {
     /// 被标记为 Ok 状态。
     #[test]
     fn config_validation_accepts_valid_temperature() {
-        let mut config = Config::default();
-        // 设置有效范围内的温度值
-        config.default_temperature = 0.7;
+        let config = Config {
+            // 设置有效范围内的温度值
+            default_temperature: 0.7,
+            ..Config::default()
+        };
         let mut items = Vec::new();
         check_config_semantics(&config, &mut items);
         let temp_item = items.iter().find(|i| i.message.contains("temperature"));
@@ -214,9 +218,11 @@ mod tests {
     /// 应该被标记为错误，因为这会导致代理无法正常工作。
     #[test]
     fn config_validation_catches_unknown_provider() {
-        let mut config = Config::default();
-        // 设置一个不存在的 Provider
-        config.default_provider = Some("totally-fake".into());
+        let config = Config {
+            // 设置一个不存在的 Provider
+            default_provider: Some("totally-fake".into()),
+            ..Config::default()
+        };
         let mut items = Vec::new();
         check_config_semantics(&config, &mut items);
         let prov_item = items.iter().find(|i| i.message.contains("default provider"));
@@ -231,9 +237,11 @@ mod tests {
     /// 的配置应该被标记为错误。
     #[test]
     fn config_validation_catches_malformed_custom_provider() {
-        let mut config = Config::default();
-        // 设置格式错误的自定义 Provider（缺少 URL）
-        config.default_provider = Some("custom:".into());
+        let config = Config {
+            // 设置格式错误的自定义 Provider（缺少 URL）
+            default_provider: Some("custom:".into()),
+            ..Config::default()
+        };
         let mut items = Vec::new();
         check_config_semantics(&config, &mut items);
 
@@ -251,9 +259,11 @@ mod tests {
     /// 能够通过配置校验，被标记为 Ok 状态。
     #[test]
     fn config_validation_accepts_custom_provider() {
-        let mut config = Config::default();
-        // 设置格式正确的自定义 Provider
-        config.default_provider = Some("custom:https://my-api.com".into());
+        let config = Config {
+            // 设置格式正确的自定义 Provider
+            default_provider: Some("custom:https://my-api.com".into()),
+            ..Config::default()
+        };
         let mut items = Vec::new();
         check_config_semantics(&config, &mut items);
         let prov_item = items.iter().find(|i| i.message.contains("is valid"));
@@ -268,15 +278,17 @@ mod tests {
     /// 应该发出警告。
     #[test]
     fn config_validation_warns_empty_model_route() {
-        let mut config = Config::default();
-        // 配置一个模型名称为空的路由
-        config.model_routes = vec![agent_config::runtime::ModelRouteConfig {
-            hint: "fast".into(),
-            provider: "groq".into(),
-            model: String::new(), // 空模型名称
-            max_tokens: None,
-            api_key: None,
-        }];
+        let config = Config {
+            // 配置一个模型名称为空的路由
+            model_routes: vec![agent_config::runtime::ModelRouteConfig {
+                hint: "fast".into(),
+                provider: "groq".into(),
+                model: String::new(), // 空模型名称
+                max_tokens: None,
+                api_key: None,
+            }],
+            ..Config::default()
+        };
         let mut items = Vec::new();
         check_config_semantics(&config, &mut items);
         let route_item = items.iter().find(|i| i.message.contains("empty model"));
@@ -291,15 +303,17 @@ mod tests {
     /// 会导致嵌入功能无法使用，应该发出警告。
     #[test]
     fn config_validation_warns_empty_embedding_route_model() {
-        let mut config = Config::default();
-        // 配置一个模型名称为空的嵌入路由
-        config.embedding_routes = vec![agent_config::runtime::EmbeddingRouteConfig {
-            hint: "semantic".into(),
-            provider: "openai".into(),
-            model: String::new(), // 空模型名称
-            dimensions: Some(1536),
-            api_key: None,
-        }];
+        let config = Config {
+            // 配置一个模型名称为空的嵌入路由
+            embedding_routes: vec![agent_config::runtime::EmbeddingRouteConfig {
+                hint: "semantic".into(),
+                provider: "openai".into(),
+                model: String::new(), // 空模型名称
+                dimensions: Some(1536),
+                api_key: None,
+            }],
+            ..Config::default()
+        };
 
         let mut items = Vec::new();
         check_config_semantics(&config, &mut items);
@@ -317,15 +331,17 @@ mod tests {
     /// 功能的 Provider（如 Groq）应该发出警告。
     #[test]
     fn config_validation_warns_invalid_embedding_route_provider() {
-        let mut config = Config::default();
-        // 配置使用不支持嵌入功能的 Provider
-        config.embedding_routes = vec![agent_config::runtime::EmbeddingRouteConfig {
-            hint: "semantic".into(),
-            provider: "groq".into(), // Groq 不支持嵌入功能
-            model: "text-embedding-3-small".into(),
-            dimensions: None,
-            api_key: None,
-        }];
+        let config = Config {
+            // 配置使用不支持嵌入功能的 Provider
+            embedding_routes: vec![agent_config::runtime::EmbeddingRouteConfig {
+                hint: "semantic".into(),
+                provider: "groq".into(), // Groq 不支持嵌入功能
+                model: "text-embedding-3-small".into(),
+                dimensions: None,
+                api_key: None,
+            }],
+            ..Config::default()
+        };
 
         let mut items = Vec::new();
         check_config_semantics(&config, &mut items);

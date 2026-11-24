@@ -9,7 +9,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     use async_trait::async_trait;

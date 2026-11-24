@@ -84,9 +84,11 @@ fn use_temp_config_dir(temp: &TempDir) -> (EnvGuard, EnvGuard) {
 }
 
 async fn write_autonomy_config(temp: &TempDir, auto_approve: &[&str], always_ask: &[&str]) {
-    let mut current = config::Config::default();
-    current.config_path = schema::config_load::config_json_path(temp.path());
-    current.workspace_dir = temp.path().join("workspace");
+    let mut current = config::Config {
+        config_path: schema::config_load::config_json_path(temp.path()),
+        workspace_dir: temp.path().join("workspace"),
+        ..config::Config::default()
+    };
     current.autonomy.auto_approve = auto_approve.iter().map(|entry| (*entry).to_string()).collect();
     current.autonomy.always_ask = always_ask.iter().map(|entry| (*entry).to_string()).collect();
     save_config(&current).await.expect("config should save");

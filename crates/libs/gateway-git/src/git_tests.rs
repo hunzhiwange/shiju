@@ -1,5 +1,4 @@
 use super::*;
-use base64::Engine as _;
 use std::ffi::OsString;
 use uuid::Uuid;
 

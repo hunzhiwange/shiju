@@ -1033,8 +1033,10 @@ impl model_types::Provider for StaticProvider {
 }
 
 fn embedding_config(base_url: &str, api_key: Option<&str>) -> agent_config::runtime::Config {
-    let mut config = agent_config::runtime::Config::default();
-    config.api_key = api_key.map(str::to_string);
+    let mut config = agent_config::runtime::Config {
+        api_key: api_key.map(str::to_string),
+        ..agent_config::runtime::Config::default()
+    };
     config.memory.embedding_provider = "none".to_string();
     config.memory.embedding_model = "hint:knowledge".to_string();
     config.memory.embedding_dimensions = 1536;

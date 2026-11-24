@@ -434,7 +434,7 @@ impl crate::auth::controller::Ports for Ports {
         &self,
         _: vw_gateway_client::GatewayClient,
     ) -> impl std::future::Future<Output = Result<local_app_auth::Credentials, String>> + Send + 'static {
-        async { panic!("unexpected provisioning") }
+        std::future::poll_fn(|_| panic!("unexpected provisioning"))
     }
 }
 fn update_at(app: &mut AuthFixture, event: Event, endpoint: GatewayEndpoint) -> Task<Event> {

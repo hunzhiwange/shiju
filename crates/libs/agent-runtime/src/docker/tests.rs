@@ -13,7 +13,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 测试 Docker 运行时的名称返回
@@ -31,8 +31,10 @@ mod tests {
     /// 配置 256 MB 应返回 256 * 1024 * 1024 字节。
     #[test]
     fn docker_runtime_memory_budget() {
-        let mut cfg = DockerRuntimeConfig::default();
-        cfg.memory_limit_mb = Some(256);
+        let cfg = DockerRuntimeConfig {
+            memory_limit_mb: Some(256),
+            ..DockerRuntimeConfig::default()
+        };
         let runtime = DockerRuntime::new(cfg);
         // 内存限制从 MB 转换为字节
         assert_eq!(runtime.memory_budget(), 256 * 1024 * 1024);

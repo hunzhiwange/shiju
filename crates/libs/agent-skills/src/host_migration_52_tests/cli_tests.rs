@@ -11,9 +11,10 @@ use super::tests::helpers::{EnvVarGuard, env_var_lock as env_lock};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn isolated_config(workspace: &Path) -> crate::host_migration_52_tests::Config {
-    let mut config = crate::host_migration_52_tests::Config::default();
-    config.workspace_dir = workspace.to_path_buf();
-    config
+    crate::host_migration_52_tests::Config {
+        workspace_dir: workspace.to_path_buf(),
+        ..crate::host_migration_52_tests::Config::default()
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

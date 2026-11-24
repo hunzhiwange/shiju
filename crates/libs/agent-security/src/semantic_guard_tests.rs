@@ -110,9 +110,11 @@ async fn spawn_upsert_backend()
 
 #[test]
 fn from_config_trims_qdrant_values_and_clamps_threshold() {
-    let mut memory = MemoryConfig::default();
-    memory.embedding_provider = " none ".to_string();
-    memory.embedding_model = " ignored ".to_string();
+    let mut memory = MemoryConfig {
+        embedding_provider: " none ".to_string(),
+        embedding_model: " ignored ".to_string(),
+        ..MemoryConfig::default()
+    };
     memory.qdrant.url = Some(" http://127.0.0.1:6333/ ".to_string());
     memory.qdrant.api_key = Some(" secret-key ".to_string());
 

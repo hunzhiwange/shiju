@@ -2,31 +2,22 @@
 
 use std::collections::HashMap;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
 
 use aisdk::Error as AiError;
 use aisdk::core::DynamicModel;
 use aisdk::core::capabilities::ToolCallSupport;
 use aisdk::core::language_model::{
-    LanguageModel, LanguageModelOptions, LanguageModelResponse,
-    LanguageModelResponseContentType as AiContent, LanguageModelStreamChunk as AiStreamChunk,
-    LanguageModelStreamChunkType, ReasoningEffort, Usage,
+    LanguageModelStreamChunk as AiStreamChunk, LanguageModelStreamChunkType, ReasoningEffort,
 };
-use aisdk::core::tools::ToolCallInfo;
-use aisdk::core::{AssistantMessage, Message};
+use aisdk::core::Message;
 use aisdk::providers::{AlibabaCn, OpenAICompatible};
-use async_trait::async_trait;
-use futures_util::Stream;
 use serde_json::{Value, json};
 
 use crate::{Error, StreamEvent};
 use message_types::AssistantError;
 use tool_types as tools;
 
-
-#[path = "stream_test_support.rs"]
-mod support;
-use support::*;
+use super::stream_chunk_tests::support::{FakeModel, run_fake_stream};
 
 // These fixtures exercise SDK mapping, not application authorization or usage storage.
 struct StreamHost;

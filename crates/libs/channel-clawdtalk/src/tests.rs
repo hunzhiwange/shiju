@@ -16,7 +16,7 @@ use super::*;
 /// 该模块包含所有与 ClawdTalk 通道相关的测试函数，
 /// 涵盖配置验证、权限检查和事件解析等场景。
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use agent_config::traits::ChannelConfig;
 
     use super::*;

@@ -17,7 +17,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 测试钩子结构体

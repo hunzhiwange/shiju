@@ -12,7 +12,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     use agent_config::schema::{
@@ -603,8 +603,10 @@ mod tests {
 
     #[test]
     fn state_file_path_uses_current_directory_when_config_has_no_parent() {
-        let mut config = Config::default();
-        config.config_path = PathBuf::new();
+        let config = Config {
+            config_path: PathBuf::new(),
+            ..Config::default()
+        };
 
         assert_eq!(state_file_path(&config), PathBuf::from(".").join("daemon_state.json"));
     }

@@ -136,8 +136,10 @@ prompts = ["Do not preload me"]
     .unwrap();
 
     // 配置运行时参数，设置为 Compact 模式
-    let mut config = crate::host_migration_52_tests::Config::default();
-    config.workspace_dir = dir.path().to_path_buf();
+    let mut config = crate::host_migration_52_tests::Config {
+        workspace_dir: dir.path().to_path_buf(),
+        ..crate::host_migration_52_tests::Config::default()
+    };
     config.skills.prompt_injection_mode =
         config_skills::SkillsPromptInjectionMode::Compact;
 

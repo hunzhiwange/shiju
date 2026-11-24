@@ -71,8 +71,10 @@ async fn config_get_without_directory_restores_the_requested_tenant_after_restar
 #[tokio::test]
 async fn handle_api_config_get_returns_pretty_toml_with_masked_secrets() {
     let _env_lock = global_async_env_lock().lock().await;
-    let mut cfg = config::Config::default();
-    cfg.api_key = Some("sk-secret".to_string());
+    let mut cfg = config::Config {
+        api_key: Some("sk-secret".to_string()),
+        ..config::Config::default()
+    };
     cfg.gateway.paired_tokens = vec!["paired-secret".to_string()];
 
     let response = crate::handlers::handle_api_config_get::<TestHost>(
@@ -154,8 +156,10 @@ async fn handle_api_config_put_hydrates_validates_saves_and_updates_runtime_conf
     let _env_lock = global_async_env_lock().lock().await;
     let temp = TempDir::new().expect("temp dir");
     let _home = EnvGuard::set("HOME", temp.path().as_os_str());
-    let mut current = config::Config::default();
-    current.config_path = temp.path().join(".vibewindow.json");
+    let mut current = config::Config {
+        config_path: temp.path().join(".vibewindow.json"),
+        ..config::Config::default()
+    };
     current.api_key = Some("sk-current".to_string());
     current.gateway.paired_tokens = vec!["paired-current".to_string()];
 
@@ -199,8 +203,10 @@ async fn dashboard_config_skeys_are_isolated_by_tenant_scope() {
     let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
     let first = TenantScope::new("platform-a", "company-a").expect("first tenant");
     let second = TenantScope::new("platform-b", "company-b").expect("second tenant");
-    let mut current = config::Config::default();
-    current.config_path = temp.path().join("vibewindow.json");
+    let current = config::Config {
+        config_path: temp.path().join("vibewindow.json"),
+        ..config::Config::default()
+    };
     let state = state(current, false, &[]);
 
     for (tenant, name, hash_byte) in [(&first, "first-skey", 'a'), (&second, "second-skey", 'b')] {

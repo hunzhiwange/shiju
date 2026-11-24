@@ -665,15 +665,6 @@ impl RecordingExecutor {
             workspace_requests: std::sync::Mutex::new(Vec::new()),
         }
     }
-
-    fn failing(message: &str) -> Self {
-        Self {
-            output: Err(message.to_string()),
-            write_output_file: false,
-            requests: std::sync::Mutex::new(Vec::new()),
-            workspace_requests: std::sync::Mutex::new(Vec::new()),
-        }
-    }
 }
 
 impl MissingCommittedWorkspaceExecutor {

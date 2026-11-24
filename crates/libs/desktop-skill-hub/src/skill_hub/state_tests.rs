@@ -225,21 +225,22 @@ fn expert_hub_state_serializes_cache_sync_and_keeps_retry_target() {
 
 #[test]
 fn install_guide_state_resets_requests_without_leaking_signed_urls() {
-    let mut state = ShijuInstallGuideState::default();
-    state.open = true;
-    state.current_package = Some(ShijuPackageId::DarwinArm64);
-    state.agent_package = LoadState::Loaded(ShijuPackageRelease {
-        download_url: SkillDownloadUrl::parse(
-            "https://skill.shiju.cloud/shiju.zip?signature=sensitive",
-        )
-        .unwrap(),
-    });
-    state.direct_install = ShijuDirectInstallState::Fetching {
-        generation: 7,
-        package_id: ShijuPackageId::DarwinArm64,
+    let mut state = ShijuInstallGuideState {
+        open: true,
+        current_package: Some(ShijuPackageId::DarwinArm64),
+        agent_package: LoadState::Loaded(ShijuPackageRelease {
+            download_url: SkillDownloadUrl::parse(
+                "https://skill.shiju.cloud/shiju.zip?signature=sensitive",
+            )
+            .unwrap(),
+        }),
+        direct_install: ShijuDirectInstallState::Fetching {
+            generation: 7,
+            package_id: ShijuPackageId::DarwinArm64,
+        },
+        manual_download: Some(ShijuManualDownloadState { generation: 8, package_id: ShijuPackageId::LinuxAmd64 }),
+        ..ShijuInstallGuideState::default()
     };
-    state.manual_download =
-        Some(ShijuManualDownloadState { generation: 8, package_id: ShijuPackageId::LinuxAmd64 });
 
     state.reset_requests();
 
@@ -303,15 +304,17 @@ fn install_guide_deduplicates_uninstall_and_preserves_local_status_on_reset() {
 
 #[test]
 fn market_state_consumes_gateway_contract_and_switches_sources() {
-    let mut state = PublicSkillMarketState::default();
-    state.sources = LoadState::Loaded(vec![
-        SkillMarketSourceDto {
-            source: "skillhub".to_string(),
-            display_name: "SkillHub".to_string(),
-        },
-        SkillMarketSourceDto { source: "second".to_string(), display_name: "Second".to_string() },
-    ]);
-    state.current_source = Some("skillhub".to_string());
+    let mut state = PublicSkillMarketState {
+        sources: LoadState::Loaded(vec![
+            SkillMarketSourceDto {
+                source: "skillhub".to_string(),
+                display_name: "SkillHub".to_string(),
+            },
+            SkillMarketSourceDto { source: "second".to_string(), display_name: "Second".to_string() },
+        ]),
+        current_source: Some("skillhub".to_string()),
+        ..PublicSkillMarketState::default()
+    };
     state.query.keyword_draft = "rust".to_string();
     state.query.submitted_keyword = "old".to_string();
     state.query.category = Some("development".to_string());
@@ -336,12 +339,14 @@ fn market_state_consumes_gateway_contract_and_switches_sources() {
 
 #[test]
 fn market_detail_switches_visual_and_markdown_without_losing_coordinate() {
-    let mut state = PublicSkillMarketState::default();
-    state.sources = LoadState::Loaded(vec![SkillMarketSourceDto {
-        source: "skillhub".to_string(),
-        display_name: "SkillHub".to_string(),
-    }]);
-    state.current_source = Some("skillhub".to_string());
+    let mut state = PublicSkillMarketState {
+        sources: LoadState::Loaded(vec![SkillMarketSourceDto {
+            source: "skillhub".to_string(),
+            display_name: "SkillHub".to_string(),
+        }]),
+        current_source: Some("skillhub".to_string()),
+        ..PublicSkillMarketState::default()
+    };
     let locator = SkillMarketSkillLocatorDto {
         source: "skillhub".to_string(),
         namespace: "public".to_string(),
@@ -388,8 +393,10 @@ fn installed_item(id: &str) -> DesktopSkillCatalogEntryDto {
 
 #[test]
 fn installed_skills_batch_selection_and_actions_are_scoped() {
-    let mut state = PublicSkillMarketState::default();
-    state.installed = LoadState::Loaded(vec![installed_item("first"), installed_item("second")]);
+    let mut state = PublicSkillMarketState {
+        installed: LoadState::Loaded(vec![installed_item("first"), installed_item("second")]),
+        ..PublicSkillMarketState::default()
+    };
 
     assert!(state.set_installed_selected("first", true));
     assert!(!state.set_installed_selected("missing", true));

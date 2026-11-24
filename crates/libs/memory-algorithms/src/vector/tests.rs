@@ -11,7 +11,7 @@ use super::*;
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation
 )]
-mod tests {
+mod cases {
     use super::*;
 
     #[test]

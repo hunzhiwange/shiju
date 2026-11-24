@@ -11,7 +11,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 创建默认的 NextcloudTalkChannel 测试实例

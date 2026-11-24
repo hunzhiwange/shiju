@@ -5,10 +5,12 @@ use serde_json::{Value,json};
 use std::path::Path;
 mod host;
 fn app(root: &Path) -> Router {
- let mut config = Config::default();
- config.config_path = root.join("config/config.json");
- config.workspace_dir = root.join("workspace");
- crate::stateful_router::<host::Host>().with_state(config)
+    let config = Config {
+        config_path: root.join("config/config.json"),
+        workspace_dir: root.join("workspace"),
+        ..Config::default()
+    };
+    crate::stateful_router::<host::Host>().with_state(config)
 }
 async fn post(app: &Router, path: &str, body: Value, authorized: bool) -> (StatusCode, Value) {
     let mut request = Request::post(path).header("content-type", "application/json");

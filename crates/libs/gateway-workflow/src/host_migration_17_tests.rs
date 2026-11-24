@@ -628,3 +628,16 @@ fn drain_sse_count(rx: &mut mpsc::UnboundedReceiver<axum::response::sse::Event>)
     }
     count
 }
+
+#[test]
+fn workflow_response_to_sse_response_wraps_static_events() {
+    let response = workflow_response_to_sse_response(
+        WorkflowRunResponse {
+            answer: Some("answer".to_string()),
+            ..workflow_response("run-static")
+        },
+        Some("conv-static".to_string()),
+    );
+
+    assert_eq!(response.status(), StatusCode::OK);
+}

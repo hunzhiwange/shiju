@@ -16,7 +16,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
     use channel_types::SendMessage;
     use axum::{

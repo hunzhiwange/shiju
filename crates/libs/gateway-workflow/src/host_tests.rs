@@ -227,19 +227,6 @@ async fn workflow_runtime_and_gateway_tool_provider_execute_successful_tool_call
     assert!(result.files.is_empty());
 }
 
-#[test]
-fn workflow_response_to_sse_response_wraps_static_events() {
-    let response = workflow_response_to_sse_response(
-        WorkflowRunResponse {
-            answer: Some("answer".to_string()),
-            ..workflow_response("run-static")
-        },
-        Some("conv-static".to_string()),
-    );
-
-    assert_eq!(response.status(), StatusCode::OK);
-}
-
 #[tokio::test]
 async fn workflow_handlers_keep_shared_uuid_isolated_by_request_tenant() {
     let uuid = Uuid::new_v4().to_string();

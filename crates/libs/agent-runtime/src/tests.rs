@@ -19,7 +19,7 @@ use super::*;
 ///
 /// 包含所有运行时创建相关的测试用例，覆盖正向场景和错误处理场景。
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 测试创建 native 运行时适配器

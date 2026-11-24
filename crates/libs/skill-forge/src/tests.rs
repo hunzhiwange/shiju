@@ -13,7 +13,7 @@ use super::*;
 /// 包含针对 SkillForge 核心功能的单元测试，验证配置加载、
 /// 锻造流程和边界条件处理的正确性
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 测试禁用状态下的锻造行为

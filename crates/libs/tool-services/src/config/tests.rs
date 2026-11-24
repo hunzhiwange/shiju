@@ -18,9 +18,11 @@ use tempfile::TempDir;
 
 async fn test_config() -> (TempDir, Arc<Config>) {
     let tmp = TempDir::new().expect("tempdir should create");
-    let mut config = Config::default();
-    config.workspace_dir = tmp.path().join("workspace");
-    config.config_path = tmp.path().join("vibewindow.json");
+    let config = Config {
+        workspace_dir: tmp.path().join("workspace"),
+        config_path: tmp.path().join("vibewindow.json"),
+        ..Config::default()
+    };
     // 每个测试使用独立配置文件，避免设置写入影响其他用例。
     std::fs::create_dir_all(&config.workspace_dir).expect("workspace should create");
     config.save().await.expect("config file should write");
@@ -133,8 +135,7 @@ fn setting_normalization_handles_defaults_options_and_option_type_errors() {
 fn setting_formatting_and_labels_cover_defaults_scalars_and_compounds() {
     let provider = setting_spec("defaultProvider").unwrap();
     let browser = setting_spec("browser.enabled").unwrap();
-    let mut config = Config::default();
-    config.default_provider = None;
+    let config = Config { default_provider: None, ..Config::default() };
 
     assert_eq!(format_setting_value(provider, json!(null)), json!("default"));
     assert_eq!(format_setting_value(provider, json!("openai")), json!("openai"));
@@ -423,8 +424,7 @@ async fn config_blocks_writes_in_read_only_mode_without_persisting_changes() {
     let (_tmp, config) = test_config().await;
     let original = serde_json::to_value(persisted_config(&config).await)
         .expect("persisted config should serialize");
-    let mut security = SecurityPolicy::default();
-    security.autonomy = AutonomyLevel::ReadOnly;
+    let security = SecurityPolicy { autonomy: AutonomyLevel::ReadOnly, ..SecurityPolicy::default() };
     let tool = ConfigTool::new(config.clone(), Arc::new(security));
 
     let result = tool
@@ -447,8 +447,7 @@ async fn config_blocks_writes_in_read_only_mode_without_persisting_changes() {
 #[tokio::test]
 async fn config_blocks_writes_when_action_budget_is_exhausted() {
     let (_tmp, config) = test_config().await;
-    let mut security = SecurityPolicy::default();
-    security.max_actions_per_hour = 0;
+    let security = SecurityPolicy { max_actions_per_hour: 0, ..SecurityPolicy::default() };
     let tool = ConfigTool::new(config, Arc::new(security));
 
     let result = tool

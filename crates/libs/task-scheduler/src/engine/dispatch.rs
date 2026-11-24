@@ -33,15 +33,6 @@ pub enum DispatchTarget {
     Local(LocalDispatchRequest),
 }
 
-impl DispatchTarget {
-    #[cfg(test)]
-    fn as_str(&self) -> &'static str {
-        match self {
-            Self::Local(_) => "local",
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 /// 对派发目标的自动选择或强制覆盖策略。
 pub enum DispatchMode {
@@ -349,47 +340,4 @@ fn dispatch_metadata_string(task: &StoredAgentTask, key: &str) -> Option<String>
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_string)
-}
-
-#[cfg(test)]
-fn required_skills_from_metadata(metadata: &Value) -> Result<Vec<String>> {
-    let skills = string_array_field(metadata, "required_skills")?;
-    if skills.is_empty() {
-        return string_array_field(metadata, "skills");
-    }
-    Ok(skills)
-}
-
-#[cfg(test)]
-fn string_array_field(metadata: &Value, field_name: &str) -> Result<Vec<String>> {
-    let Some(value) = metadata.get(field_name) else {
-        return Ok(Vec::new());
-    };
-    let Value::Array(values) = value else {
-        bail!("task metadata field {field_name} must be an array of strings");
-    };
-    values
-        .iter()
-        .map(|value| {
-            value
-                .as_str()
-                .map(str::to_string)
-                .with_context(|| format!("task metadata field {field_name} must contain strings"))
-        })
-        .collect()
-}
-
-#[cfg(test)]
-fn preferred_runtime_from_metadata(metadata: &Value) -> Result<Option<String>> {
-    let Some(value) = metadata.get("preferred_runtime").or_else(|| metadata.get("runtime")) else {
-        return Ok(None);
-    };
-    let runtime = value
-        .as_str()
-        .with_context(|| "task metadata field preferred_runtime must be a string")?
-        .trim();
-    if runtime.is_empty() {
-        return Ok(None);
-    }
-    Ok(Some(runtime.to_string()))
 }

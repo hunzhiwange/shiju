@@ -36,11 +36,13 @@ use crate::instructions::build_shell_policy_instructions;
 #[test]
 fn build_shell_policy_instructions_lists_allowlist() {
     // 创建默认的自主性配置
-    let mut autonomy = config_security::AutonomyConfig::default();
-    // 设置为监督级别，需要人工审批执行
-    autonomy.level = agent_security::AutonomyLevel::Supervised;
-    // 配置允许的命令列表（包含重复的 grep 用于测试去重或显示逻辑）
-    autonomy.allowed_commands = vec!["grep".into(), "cat".into(), "grep".into()];
+    let autonomy = config_security::AutonomyConfig {
+        // 设置为监督级别，需要人工审批执行
+        level: agent_security::AutonomyLevel::Supervised,
+        // 配置允许的命令列表（包含重复的 grep 用于测试去重或显示逻辑）
+        allowed_commands: vec!["grep".into(), "cat".into(), "grep".into()],
+        ..config_security::AutonomyConfig::default()
+    };
 
     // 构建完整的 Bash 策略指令字符串
     let instructions = build_shell_policy_instructions(&autonomy);
@@ -69,11 +71,13 @@ fn build_shell_policy_instructions_lists_allowlist() {
 #[test]
 fn build_shell_policy_instructions_handles_wildcard() {
     // 创建默认的自主性配置
-    let mut autonomy = config_security::AutonomyConfig::default();
-    // 设置为完全自主级别，代理可自主执行
-    autonomy.level = agent_security::AutonomyLevel::Full;
-    // 使用通配符表示允许所有命令
-    autonomy.allowed_commands = vec!["*".into()];
+    let autonomy = config_security::AutonomyConfig {
+        // 设置为完全自主级别，代理可自主执行
+        level: agent_security::AutonomyLevel::Full,
+        // 使用通配符表示允许所有命令
+        allowed_commands: vec!["*".into()],
+        ..config_security::AutonomyConfig::default()
+    };
 
     // 构建完整的 Bash 策略指令字符串
     let instructions = build_shell_policy_instructions(&autonomy);
@@ -100,9 +104,11 @@ fn build_shell_policy_instructions_handles_wildcard() {
 #[test]
 fn build_shell_policy_instructions_read_only_disables_shell() {
     // 创建默认的自主性配置
-    let mut autonomy = config_security::AutonomyConfig::default();
-    // 设置为只读级别，禁止所有修改性操作
-    autonomy.level = agent_security::AutonomyLevel::ReadOnly;
+    let autonomy = config_security::AutonomyConfig {
+        // 设置为只读级别，禁止所有修改性操作
+        level: agent_security::AutonomyLevel::ReadOnly,
+        ..config_security::AutonomyConfig::default()
+    };
 
     // 构建完整的 Bash 策略指令字符串
     let instructions = build_shell_policy_instructions(&autonomy);

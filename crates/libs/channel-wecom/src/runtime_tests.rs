@@ -11,8 +11,10 @@ use vw_api_transport::id::TenantScope;
 type Socket = WebSocketStream<TcpStream>;
 
 fn scope() -> WeComRuntimeScope {
-    let mut config = agent_config::schema::Config::default();
-    config.config_path = std::env::temp_dir().join(Uuid::new_v4().to_string()).join("config.json");
+    let config = agent_config::schema::Config {
+        config_path: std::env::temp_dir().join(Uuid::new_v4().to_string()).join("config.json"),
+        ..agent_config::schema::Config::default()
+    };
     WeComRuntimeScope::from_config(&config, TenantScope::default()).unwrap()
 }
 

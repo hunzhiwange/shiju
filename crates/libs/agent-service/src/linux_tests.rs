@@ -43,8 +43,10 @@ fn systemd_quote_arg_quotes_shell_metacharacters_without_rewriting_them() {
 
 #[test]
 fn systemd_config_dir_args_uses_parent_directory_and_quotes_when_needed() {
-    let mut config = Config::default();
-    config.config_path = "/Users/me/Application Support/VibeWindow/vibewindow.json".into();
+    let config = Config {
+        config_path: "/Users/me/Application Support/VibeWindow/vibewindow.json".into(),
+        ..Config::default()
+    };
 
     let args = systemd_config_dir_args(&config);
 
@@ -55,32 +57,40 @@ fn systemd_config_dir_args_uses_parent_directory_and_quotes_when_needed() {
 #[test]
 // 无法确定配置父目录时省略参数，不构造臆测路径。
 fn systemd_config_dir_args_returns_empty_when_config_path_has_no_parent() {
-    let mut config = Config::default();
-    config.config_path = "/".into();
+    let config = Config {
+        config_path: "/".into(),
+        ..Config::default()
+    };
 
     assert_eq!(systemd_config_dir_args(&config), "");
 }
 
 #[test]
 fn systemd_config_dir_args_leaves_safe_absolute_parent_unquoted() {
-    let mut config = Config::default();
-    config.config_path = "/home/me/.config/vibewindow/vibewindow.json".into();
+    let config = Config {
+        config_path: "/home/me/.config/vibewindow/vibewindow.json".into(),
+        ..Config::default()
+    };
 
     assert_eq!(systemd_config_dir_args(&config), " --config-dir /home/me/.config/vibewindow");
 }
 
 #[test]
 fn systemd_config_dir_args_preserves_relative_parent() {
-    let mut config = Config::default();
-    config.config_path = "profiles/dev/vibewindow.json".into();
+    let config = Config {
+        config_path: "profiles/dev/vibewindow.json".into(),
+        ..Config::default()
+    };
 
     assert_eq!(systemd_config_dir_args(&config), " --config-dir profiles/dev");
 }
 
 #[test]
 fn systemd_config_dir_args_uses_filesystem_root_parent() {
-    let mut config = Config::default();
-    config.config_path = "/vibewindow.json".into();
+    let config = Config {
+        config_path: "/vibewindow.json".into(),
+        ..Config::default()
+    };
 
     assert_eq!(systemd_config_dir_args(&config), " --config-dir /");
 }
@@ -94,8 +104,10 @@ fn linux_service_file_points_to_user_systemd_unit() {
 #[test]
 fn linux_service_file_does_not_depend_on_selected_config_path() {
     let default_file = linux_service_file(&Config::default()).unwrap();
-    let mut config = Config::default();
-    config.config_path = "/tmp/another-profile/vibewindow.json".into();
+    let config = Config {
+        config_path: "/tmp/another-profile/vibewindow.json".into(),
+        ..Config::default()
+    };
 
     assert_eq!(linux_service_file(&config).unwrap(), default_file);
 }

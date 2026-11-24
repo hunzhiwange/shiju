@@ -16,7 +16,7 @@ use super::*;
 /// 封装所有集成相关的测试函数，确保测试代码的组织性和可维护性。
 /// 使用 `#[allow(dead_code)]` 标记，因为测试模块仅在测试构建中被引用。
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     use crate::scout::{ScoutResult, ScoutSource};

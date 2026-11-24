@@ -82,7 +82,7 @@ fn history_trim_preserves_system_and_recent_messages() {
         session
             .messages
             .iter()
-            .map(|item| (item.role.clone(), item.content.as_str()))
+            .map(|item| (item.role, item.content.as_str()))
             .collect::<Vec<_>>(),
         vec![
             (Role::System, "root rules"),
@@ -320,7 +320,7 @@ fn invoked_skill_context_restore_replaces_stale_messages_and_preserves_updates()
         }),
     ];
 
-    let updates = restore_invoked_skill_context(&mut messages, &[replay.clone()]);
+    let updates = restore_invoked_skill_context(&mut messages, std::slice::from_ref(&replay));
 
     assert_eq!(messages.len(), 2);
     assert_eq!(messages[0]["content"], replay.content);

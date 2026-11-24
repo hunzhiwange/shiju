@@ -489,11 +489,13 @@ fn assert_all_config_secrets_masked(config: &Config) {
 
 #[test]
 fn wecom_delivery_masks_and_restores_bot_secret() {
-    let mut current = Config::default();
-    current.channels_config = serde_json::from_value(serde_json::json!({
-        "cli": true, "wecom": {"bot_id": "bot", "secret": "delivery-secret"}
-    }))
-    .unwrap();
+    let current = Config {
+        channels_config: serde_json::from_value(serde_json::json!({
+            "cli": true, "wecom": {"bot_id": "bot", "secret": "delivery-secret"}
+        }))
+        .unwrap(),
+        ..Config::default()
+    };
     let masked = mask_sensitive_fields(&current);
     assert_eq!(masked.channels_config.wecom.as_ref().unwrap().secret, MASKED_SECRET);
     let restored = hydrate_config_for_save(masked, &current);
@@ -502,11 +504,13 @@ fn wecom_delivery_masks_and_restores_bot_secret() {
 
 #[test]
 fn wecom_delivery_webhook_preserves_replaces_clears_and_disables() {
-    let mut current = Config::default();
-    current.channels_config = serde_json::from_value(serde_json::json!({
-        "cli": true, "wecom_webhook": {"webhook_url": "https://example.invalid/?key=old"}
-    }))
-    .unwrap();
+    let current = Config {
+        channels_config: serde_json::from_value(serde_json::json!({
+            "cli": true, "wecom_webhook": {"webhook_url": "https://example.invalid/?key=old"}
+        }))
+        .unwrap(),
+        ..Config::default()
+    };
     let masked = mask_sensitive_fields(&current);
     assert_eq!(
         serde_json::to_value(&masked.channels_config).unwrap()["wecom_webhook"]["webhook_url"],
@@ -543,11 +547,13 @@ fn wecom_delivery_webhook_preserves_replaces_clears_and_disables() {
 
 #[test]
 fn wecom_delivery_bot_replacement_clear_and_disable_are_explicit() {
-    let mut current = Config::default();
-    current.channels_config = serde_json::from_value(serde_json::json!({
-        "cli": true, "wecom": {"bot_id": "bot", "secret": "previous-secret"}
-    }))
-    .unwrap();
+    let current = Config {
+        channels_config: serde_json::from_value(serde_json::json!({
+            "cli": true, "wecom": {"bot_id": "bot", "secret": "previous-secret"}
+        }))
+        .unwrap(),
+        ..Config::default()
+    };
     for value in ["replacement-secret", ""] {
         let mut incoming = current.clone();
         incoming.channels_config.wecom.as_mut().unwrap().secret = value.into();

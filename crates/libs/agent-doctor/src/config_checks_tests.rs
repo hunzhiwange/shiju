@@ -47,12 +47,14 @@ fn custom_embedding_provider_validation_checks_url_shape() {
 
 #[test]
 fn config_semantics_reports_valid_core_settings() {
-    let mut config = Config::default();
-    config.config_path = PathBuf::from("Cargo.toml");
-    config.default_provider = Some("openai".into());
-    config.api_key = Some("configured".into());
-    config.default_model = Some("gpt-4.1".into());
-    config.default_temperature = 2.0;
+    let mut config = Config {
+        config_path: PathBuf::from("Cargo.toml"),
+        default_provider: Some("openai".into()),
+        api_key: Some("configured".into()),
+        default_model: Some("gpt-4.1".into()),
+        default_temperature: 2.0,
+        ..Config::default()
+    };
     config.gateway.port = 42617;
     config.channels_config.telegram = Some(TelegramConfig {
         bot_token: "token".into(),
@@ -81,12 +83,14 @@ fn config_semantics_reports_valid_core_settings() {
 
 #[test]
 fn config_semantics_reports_missing_core_settings() {
-    let mut config = Config::default();
-    config.config_path = PathBuf::from("target/vibewindow-doctor-missing-config.json");
-    config.default_provider = None;
-    config.api_key = None;
-    config.default_model = None;
-    config.default_temperature = -0.1;
+    let mut config = Config {
+        config_path: PathBuf::from("target/vibewindow-doctor-missing-config.json"),
+        default_provider: None,
+        api_key: None,
+        default_model: None,
+        default_temperature: -0.1,
+        ..Config::default()
+    };
     config.gateway.port = 0;
     let mut items = Vec::new();
 
@@ -107,9 +111,11 @@ fn config_semantics_reports_missing_core_settings() {
 
 #[test]
 fn ollama_provider_does_not_warn_about_missing_api_key() {
-    let mut config = Config::default();
-    config.default_provider = Some("ollama".into());
-    config.api_key = None;
+    let config = Config {
+        default_provider: Some("ollama".into()),
+        api_key: None,
+        ..Config::default()
+    };
     let mut items = Vec::new();
 
     check_config_semantics(&config, &mut items);
@@ -119,14 +125,16 @@ fn ollama_provider_does_not_warn_about_missing_api_key() {
 
 #[test]
 fn config_semantics_reports_model_route_hint_provider_and_model_issues() {
-    let mut config = Config::default();
-    config.model_routes = vec![ModelRouteConfig {
-        hint: String::new(),
-        provider: "provider-that-does-not-exist".into(),
-        model: String::new(),
-        max_tokens: None,
-        api_key: None,
-    }];
+    let config = Config {
+        model_routes: vec![ModelRouteConfig {
+            hint: String::new(),
+            provider: "provider-that-does-not-exist".into(),
+            model: String::new(),
+            max_tokens: None,
+            api_key: None,
+        }],
+        ..Config::default()
+    };
     let mut items = Vec::new();
 
     check_config_semantics(&config, &mut items);
@@ -147,8 +155,10 @@ fn config_semantics_reports_model_route_hint_provider_and_model_issues() {
 
 #[test]
 fn config_semantics_reports_invalid_default_provider() {
-    let mut config = Config::default();
-    config.default_provider = Some("provider-that-does-not-exist".into());
+    let config = Config {
+        default_provider: Some("provider-that-does-not-exist".into()),
+        ..Config::default()
+    };
     let mut items = Vec::new();
 
     check_config_semantics(&config, &mut items);
@@ -161,14 +171,16 @@ fn config_semantics_reports_invalid_default_provider() {
 
 #[test]
 fn config_semantics_reports_embedding_route_dimensions_and_missing_hint() {
-    let mut config = Config::default();
-    config.embedding_routes = vec![EmbeddingRouteConfig {
-        hint: "semantic".into(),
-        provider: "openai".into(),
-        model: "text-embedding-3-small".into(),
-        dimensions: Some(0),
-        api_key: None,
-    }];
+    let mut config = Config {
+        embedding_routes: vec![EmbeddingRouteConfig {
+            hint: "semantic".into(),
+            provider: "openai".into(),
+            model: "text-embedding-3-small".into(),
+            dimensions: Some(0),
+            api_key: None,
+        }],
+        ..Config::default()
+    };
     config.memory.embedding_model = "hint:missing".into();
     let mut items = Vec::new();
 
@@ -184,14 +196,16 @@ fn config_semantics_reports_embedding_route_dimensions_and_missing_hint() {
 
 #[test]
 fn config_semantics_reports_embedding_route_hint_provider_and_model_issues() {
-    let mut config = Config::default();
-    config.embedding_routes = vec![EmbeddingRouteConfig {
-        hint: "   ".into(),
-        provider: "voyage".into(),
-        model: "   ".into(),
-        dimensions: None,
-        api_key: None,
-    }];
+    let config = Config {
+        embedding_routes: vec![EmbeddingRouteConfig {
+            hint: "   ".into(),
+            provider: "voyage".into(),
+            model: "   ".into(),
+            dimensions: None,
+            api_key: None,
+        }],
+        ..Config::default()
+    };
     let mut items = Vec::new();
 
     check_config_semantics(&config, &mut items);
@@ -205,14 +219,16 @@ fn config_semantics_reports_embedding_route_hint_provider_and_model_issues() {
 
 #[test]
 fn config_semantics_accepts_matching_embedding_hint() {
-    let mut config = Config::default();
-    config.embedding_routes = vec![EmbeddingRouteConfig {
-        hint: "semantic".into(),
-        provider: "openai".into(),
-        model: "text-embedding-3-small".into(),
-        dimensions: Some(1536),
-        api_key: None,
-    }];
+    let mut config = Config {
+        embedding_routes: vec![EmbeddingRouteConfig {
+            hint: "semantic".into(),
+            provider: "openai".into(),
+            model: "text-embedding-3-small".into(),
+            dimensions: Some(1536),
+            api_key: None,
+        }],
+        ..Config::default()
+    };
     config.memory.embedding_model = "hint:semantic".into();
     let mut items = Vec::new();
 

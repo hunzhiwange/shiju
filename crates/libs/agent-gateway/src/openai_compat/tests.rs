@@ -13,7 +13,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 测试 ChatCompletionsRequest 的最小字段反序列化

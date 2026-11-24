@@ -22,7 +22,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     use config_security::OtpConfig;

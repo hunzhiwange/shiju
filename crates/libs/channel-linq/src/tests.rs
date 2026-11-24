@@ -30,7 +30,7 @@ use super::*;
 /// 使用 `#[allow(dead_code)]` 标注以允许未使用的代码警告，
 /// 因为测试模块中的某些辅助函数可能在特定配置下未被调用。
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 创建用于测试的 LinqChannel 实例

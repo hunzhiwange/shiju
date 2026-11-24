@@ -8,8 +8,10 @@ use super::windows::{
 
 fn temp_config() -> (tempfile::TempDir, agent_config::runtime::Config) {
     let dir = tempfile::tempdir().expect("temp dir");
-    let mut config = agent_config::runtime::Config::default();
-    config.config_path = dir.path().join("vibewindow.json");
+    let config = agent_config::runtime::Config {
+        config_path: dir.path().join("vibewindow.json"),
+        ..agent_config::runtime::Config::default()
+    };
     (dir, config)
 }
 

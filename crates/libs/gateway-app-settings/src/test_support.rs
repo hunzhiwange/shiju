@@ -56,16 +56,6 @@ pub fn server(responses: Vec<(u16, Value)>) -> TestServer {
     server_raw(responses.into_iter().map(|(status, body)| (status, body.to_string())).collect())
 }
 
-pub fn server_with_tenant_scope(
-    responses: Vec<(u16, Value)>,
-    tenant_scope: TenantScope,
-) -> TestServer {
-    server_raw_with_tenant_scope(
-        responses.into_iter().map(|(status, body)| (status, body.to_string())).collect(),
-        tenant_scope,
-    )
-}
-
 pub fn server_raw(responses: Vec<(u16, String)>) -> TestServer {
     server_raw_with_tenant_scope(responses, TenantScope::default())
 }

@@ -6,7 +6,7 @@ use crate::command::{GIT_DEFAULT_ENV, resolved_program_or_original};
 use std::path::{Path, PathBuf};
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
     use std::sync::{LazyLock, Mutex, MutexGuard};
 

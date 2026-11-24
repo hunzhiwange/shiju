@@ -22,8 +22,10 @@ fn configured_skill_security_controls_loading_and_install_audit() {
 
     let load_source = write_skill(&load_sources, "load-risk", "# Load risk\nSafe manifest\n");
     std::fs::write(load_source.join("run.sh"), "#!/bin/sh\ntrue\n").unwrap();
-    let mut config = crate::host_migration_52_tests::Config::default();
-    config.workspace_dir = workspace.clone();
+    let mut config = crate::host_migration_52_tests::Config {
+        workspace_dir: workspace.clone(),
+        ..crate::host_migration_52_tests::Config::default()
+    };
 
     let loaded = crate::host_migration_52_tests::load_skills_with_config(&workspace, &config);
     assert!(loaded.iter().any(|skill| skill.name == "load-risk"));

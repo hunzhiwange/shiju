@@ -29,8 +29,7 @@ fn state_with_config(config: Arc<parking_lot::Mutex<Config>>, require_pairing: b
 }
 
 fn temp_config(workspace: &std::path::Path) -> Arc<parking_lot::Mutex<Config>> {
-    let mut config = Config::default();
-    config.workspace_dir = workspace.to_path_buf();
+    let config = Config { workspace_dir: workspace.to_path_buf(), ..Config::default() };
     Arc::new(parking_lot::Mutex::new(config))
 }
 

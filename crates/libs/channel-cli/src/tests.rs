@@ -25,7 +25,7 @@ use super::*;
 /// 包含所有针对 CLI 通道实现的单元测试。
 /// 使用 `#[allow(dead_code)]` 属性是因为该模块仅在测试配置下编译。
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     #[cfg(not(target_arch = "wasm32"))]

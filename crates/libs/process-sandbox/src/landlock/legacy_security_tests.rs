@@ -27,7 +27,10 @@ fn landlock_with_none_workspace() {
     let result = LandlockSandbox::with_workspace(None);
     match result {
         Ok(sandbox) => assert!(sandbox.is_available()),
-        Err(_) => assert!(!cfg!(all(feature = "sandbox-landlock", target_os = "linux"))),
+        Err(error) if cfg!(all(feature = "sandbox-landlock", target_os = "linux")) => {
+            panic!("Landlock initialization failed: {error}");
+        }
+        Err(_) => {}
     }
 }
 

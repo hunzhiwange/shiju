@@ -58,9 +58,11 @@ fn temp_home() -> (MutexGuard<'static, ()>, TempDir, EnvGuard) {
 
 fn gateway_config(host: &str, port: u16) -> GatewayClientSystemSettingsConfig {
     let mut config = GatewayClientSystemSettingsConfig::default();
-    let mut server = GatewayClientServerConfig::default();
-    server.host = host.to_string();
-    server.port = port;
+    let server = GatewayClientServerConfig {
+        host: host.to_string(),
+        port,
+        ..GatewayClientServerConfig::default()
+    };
     config.set_servers(vec![server], "local".to_string());
     config
 }

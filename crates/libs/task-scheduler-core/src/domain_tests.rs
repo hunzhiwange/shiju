@@ -1,11 +1,9 @@
 //! 测试调度领域标识、状态值和记录类型的校验与序列化契约。
 //! 往返序列化覆盖合法值和拒绝路径，防止存储字符串与领域枚举悄然漂移。
 
-use serde_json::json;
 use vw_api_agent_scheduler::{
     AgentResourceLeaseDto, AgentResourceLeaseStatusDto,
-    AgentRunDto, AgentRunStatusDto, AgentSchedulerScope, AgentTaskDto, AgentTaskKindDto,
-    AgentTaskStatusDto, TaskDependencyNodeDto,
+    AgentSchedulerScope, AgentTaskKindDto,
 };
 use vw_api_transport::common::TimestampMs;
 use vw_api_transport::id::ProjectId;
@@ -64,7 +62,8 @@ fn agent_resource_lease_preserves_resource_identity_and_release_state() {
 
 #[test]
 fn agent_domain_rejects_empty_resource_lease_identifiers() {
-    let cases: [(fn(&mut AgentResourceLeaseDto), &str); 4] = [
+    type MutateLease = fn(&mut AgentResourceLeaseDto);
+    let cases: [(MutateLease, &str); 4] = [
         (|resource_lease| resource_lease.id.clear(), "resource lease id must not be empty"),
         (|resource_lease| resource_lease.resource_kind.clear(), "resource kind must not be empty"),
         (|resource_lease| resource_lease.resource_id.clear(), "resource id must not be empty"),
@@ -78,58 +77,6 @@ fn agent_domain_rejects_empty_resource_lease_identifiers() {
         let error =
             AgentResourceLease::try_from(resource_lease).expect_err("empty lease field rejected");
         assert!(error.to_string().contains(expected_message));
-    }
-}
-
-fn task_dto() -> AgentTaskDto {
-    AgentTaskDto {
-        placement: None,
-        id: "task-20260702-100003".to_string(),
-        title: "Ship team project".to_string(),
-        kind: AgentTaskKindDto::DependencyGraph,
-        status: AgentTaskStatusDto::Assigned,
-        assigned_to: Some("leader-a".to_string()),
-        team_id: Some("alpha-team".to_string()),
-        room_id: Some("!leader-room:example.test".to_string()),
-        project_room_id: Some("!project-room:example.test".to_string()),
-        delegated_to_team: Some("alpha-team".to_string()),
-        schedule: None,
-        timezone: None,
-        next_scheduled_at: None,
-        last_executed_at: None,
-        dag: vec![
-            TaskDependencyNodeDto {
-                task_id: "team-task-1".to_string(),
-                title: "Build API".to_string(),
-                depends_on: Vec::new(),
-                assigned_to: Some("worker-api".to_string()),
-                status: AgentTaskStatusDto::Running,
-            },
-            TaskDependencyNodeDto {
-                task_id: "team-task-2".to_string(),
-                title: "Verify UI".to_string(),
-                depends_on: vec!["team-task-1".to_string()],
-                assigned_to: Some("worker-ui".to_string()),
-                status: AgentTaskStatusDto::Queued,
-            },
-        ],
-        created_at_ms: TimestampMs(1_783_000_200_000),
-        updated_at_ms: TimestampMs(1_783_000_200_010),
-        metadata: json!({"mode": "project"}),
-    }
-}
-
-fn run_dto(task_id: &str) -> AgentRunDto {
-    AgentRunDto {
-        id: "run-1".to_string(),
-        task_id: task_id.to_string(),
-        status: AgentRunStatusDto::Leased,
-        lease_expires_at_ms: Some(TimestampMs(1_783_000_300_000)),
-        attempt: 2,
-        started_at_ms: Some(TimestampMs(1_783_000_210_000)),
-        finished_at_ms: None,
-        last_heartbeat_at_ms: Some(TimestampMs(1_783_000_220_000)),
-        error_message: None,
     }
 }
 

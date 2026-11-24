@@ -4,11 +4,12 @@ use std::{collections::HashMap, path::{Path, PathBuf}, sync::{Arc, LazyLock, Mut
 use tokio::sync::OnceCell;
 
 tokio::task_local! { static DIRECTORY: String; static WORKTREE: String; }
-static STATES: LazyLock<Mutex<HashMap<String, Arc<OnceCell<Arc<State>>>>>> =
+type StateByDirectory = HashMap<String, Arc<OnceCell<Arc<State>>>>;
+static STATES: LazyLock<Mutex<StateByDirectory>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-pub(crate) fn global_env_lock() -> &'static Mutex<()> {
-    static LOCK: Mutex<()> = Mutex::new(());
+pub(crate) fn global_env_lock() -> &'static tokio::sync::Mutex<()> {
+    static LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
     &LOCK
 }
 

@@ -32,11 +32,6 @@ impl<H: ContextHost> GitOperationsTool<H> {
         matches!(operation, "merge" | "commit" | "add" | "checkout" | "stash" | "reset" | "revert")
     }
 
-    #[cfg(test)]
-    fn is_read_only(&self, operation: &str) -> bool {
-        matches!(operation, "status" | "diff" | "log" | "show" | "branch" | "rev-parse")
-    }
-
     fn workspace_dir(&self) -> PathBuf {
         tool_context::context::current_tool_use_context::<H>()
             .and_then(|context| context.workspace_root())

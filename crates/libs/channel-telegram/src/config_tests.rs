@@ -12,13 +12,8 @@ use axum::{
     routing::get,
 };
 use std::path::Path;
-use std::sync::MutexGuard;
 use std::{collections::VecDeque, sync::Arc};
 use tokio::sync::{Mutex, oneshot};
-
-fn env_lock() -> MutexGuard<'static, ()> {
-    crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner())
-}
 
 struct HomeEnvGuard {
     original: Option<std::ffi::OsString>,
@@ -241,8 +236,7 @@ fn pairing_code_active_is_true_for_empty_allowlist() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn load_config_without_env_reads_database_and_sets_runtime_paths() {
-    let _async_env_guard = crate::test_support::global_async_env_lock().lock().await;
-    let _env_guard = env_lock();
+    let _env_guard = crate::test_support::global_env_lock().lock().await;
     let home = tempfile::tempdir().expect("temp home");
     let _home_guard = HomeEnvGuard::set(home.path());
     let mut config = Config::default();
@@ -264,8 +258,7 @@ async fn load_config_without_env_reads_database_and_sets_runtime_paths() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn load_config_without_env_initializes_default_and_reports_invalid_database_payload() {
-    let _async_env_guard = crate::test_support::global_async_env_lock().lock().await;
-    let _env_guard = env_lock();
+    let _env_guard = crate::test_support::global_env_lock().lock().await;
     let home = tempfile::tempdir().expect("temp home");
     let _home_guard = HomeEnvGuard::set(home.path());
 
@@ -283,8 +276,7 @@ async fn load_config_without_env_initializes_default_and_reports_invalid_databas
 
 #[tokio::test(flavor = "current_thread")]
 async fn persist_allowed_identity_rejects_missing_telegram_section_and_empty_identity() {
-    let _async_env_guard = crate::test_support::global_async_env_lock().lock().await;
-    let _env_guard = env_lock();
+    let _env_guard = crate::test_support::global_env_lock().lock().await;
     let home = tempfile::tempdir().expect("temp home");
     let _home_guard = HomeEnvGuard::set(home.path());
     seed_system_config(home.path(), Config::default()).await;
@@ -303,8 +295,7 @@ async fn persist_allowed_identity_rejects_missing_telegram_section_and_empty_ide
 
 #[tokio::test(flavor = "current_thread")]
 async fn persist_allowed_identity_skips_save_when_identity_already_exists() {
-    let _async_env_guard = crate::test_support::global_async_env_lock().lock().await;
-    let _env_guard = env_lock();
+    let _env_guard = crate::test_support::global_env_lock().lock().await;
     let home = tempfile::tempdir().expect("temp home");
     let _home_guard = HomeEnvGuard::set(home.path());
     let mut config = Config::default();
@@ -321,8 +312,7 @@ async fn persist_allowed_identity_skips_save_when_identity_already_exists() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn persist_allowed_identity_appends_normalized_identity() {
-    let _async_env_guard = crate::test_support::global_async_env_lock().lock().await;
-    let _env_guard = env_lock();
+    let _env_guard = crate::test_support::global_env_lock().lock().await;
     let home = tempfile::tempdir().expect("temp home");
     let _home_guard = HomeEnvGuard::set(home.path());
     let mut config = Config::default();

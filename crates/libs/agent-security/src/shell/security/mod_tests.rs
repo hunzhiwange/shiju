@@ -82,8 +82,10 @@ fn for_autonomy_is_strict_when_not_full_or_explicitly_disallowed() {
 
 #[test]
 fn configured_pipeline_removes_only_the_disabled_validator() {
-    let mut config = BashValidatorChecksConfig::default();
-    config.jq = false;
+    let config = BashValidatorChecksConfig {
+        jq: false,
+        ..BashValidatorChecksConfig::default()
+    };
     let pipeline = SecurityPipeline::new_with_config(true, &config);
 
     assert!(!pipeline.validate_command("jq 'def x: .; x'").blocked);

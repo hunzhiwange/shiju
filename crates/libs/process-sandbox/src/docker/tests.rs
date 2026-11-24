@@ -30,7 +30,7 @@ use super::*;
 /// 包含所有针对 `DockerSandbox` 的单元测试用例，验证沙箱的
 /// 创建、配置和命令包装功能。
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 测试沙箱名称获取
@@ -103,9 +103,7 @@ mod tests {
         assert_eq!(DockerSandbox::probe().is_ok(), installed);
     }
 
-    /// §1.1 沙箱隔离标志测试
-    ///
-    /// 以下测试验证 Docker 命令包装器是否正确注入了安全隔离参数。
+    // 以下测试验证 Docker 命令包装器是否正确注入了安全隔离参数。
 
     /// 测试命令包装包含必要的隔离标志
     ///

@@ -61,7 +61,7 @@ fn postgres_fixture_uses_local_profile_and_auto_creates_isolated_schema_without_
     assert_eq!(LOCAL_MAX_IDLE_BASELINE, 10);
     assert_eq!(LOCAL_MAX_OPEN_CONNECTIONS, 100);
     assert_eq!(LOCAL_MAX_LIFETIME.as_secs(), 300);
-    assert!(!LOCAL_DEBUG_LOGGING);
+    assert!(!settings.debug_logging);
     assert!(fixture.max_idle_is_unmapped());
     assert_eq!(fixture.sqlite_sentinel()?, b"sqlite-side-untouched");
 

@@ -19,8 +19,10 @@ fn fallback(raw: &str, tokens: &[&str]) -> ParsedCommand {
 
 #[test]
 fn build_validators_keeps_expected_order_and_strict_substitution() {
-    let mut config = BashValidatorChecksConfig::default();
-    config.quoted_newline = true;
+    let config = BashValidatorChecksConfig {
+        quoted_newline: true,
+        ..BashValidatorChecksConfig::default()
+    };
     let validators = build_validators(true, &config);
     let names = validators.iter().map(|validator| validator.name()).collect::<Vec<_>>();
 
@@ -54,8 +56,10 @@ fn build_validators_keeps_expected_order_and_strict_substitution() {
 
 #[test]
 fn build_validators_honors_group_and_every_item_switch() {
-    let mut disabled_group = BashValidatorChecksConfig::default();
-    disabled_group.enabled = false;
+    let disabled_group = BashValidatorChecksConfig {
+        enabled: false,
+        ..BashValidatorChecksConfig::default()
+    };
     assert!(build_validators(true, &disabled_group).is_empty());
 
     macro_rules! assert_omitted {

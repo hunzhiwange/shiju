@@ -221,8 +221,10 @@ fn legacy_provider_replaces_builtin_shiju_default() {
     let env = ConfigEnvGuard::new();
     env.set("PROVIDER", "legacy-provider");
 
-    let mut missing = Config::default();
-    missing.default_provider = None;
+    let mut missing = Config {
+        default_provider: None,
+        ..Config::default()
+    };
     apply_env_overrides(&mut missing);
     assert_eq!(missing.default_provider.as_deref(), Some("legacy-provider"));
 
@@ -230,8 +232,10 @@ fn legacy_provider_replaces_builtin_shiju_default() {
     apply_env_overrides(&mut default_provider);
     assert_eq!(default_provider.default_provider.as_deref(), Some("legacy-provider"));
 
-    let mut explicit = Config::default();
-    explicit.default_provider = Some("openrouter".to_string());
+    let mut explicit = Config {
+        default_provider: Some("openrouter".to_string()),
+        ..Config::default()
+    };
     apply_env_overrides(&mut explicit);
     assert_eq!(explicit.default_provider.as_deref(), Some("openrouter"));
 }

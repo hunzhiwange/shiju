@@ -31,5 +31,6 @@ mod host_migration_24_tests;
 
 pub mod system_message_contract;
 
-#[cfg(test)]
-use crate::convert_test_support as convert_test_support;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "aisdk/convert_test_support.rs"]
+mod convert_test_support;

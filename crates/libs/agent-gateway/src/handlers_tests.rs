@@ -397,8 +397,7 @@ async fn whatsapp_message_rejects_present_invalid_signature() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn whatsapp_message_acknowledges_nonempty_payload_after_local_send_failure() {
-    let _proxy_lock =
-        crate::test_support::global_runtime_proxy_lock().lock().unwrap_or_else(|e| e.into_inner());
+    let _proxy_lock = crate::test_support::global_runtime_proxy_lock().lock().await;
     let original_proxy = runtime_proxy_config();
     set_runtime_proxy_config(ProxyConfig::default());
 

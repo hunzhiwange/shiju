@@ -9,7 +9,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 测试 ScoutSource 枚举从字符串解析的功能

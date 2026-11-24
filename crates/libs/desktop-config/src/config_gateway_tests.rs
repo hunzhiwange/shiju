@@ -46,9 +46,11 @@ fn apply_main_agent_overrides_uses_non_empty_main_agent_fields() {
 
 #[test]
 fn apply_main_agent_overrides_noops_without_main_agent() {
-    let mut cfg = Config::default();
-    cfg.default_provider = Some("kept".to_string());
-    cfg.default_model = Some("kept/model".to_string());
+    let mut cfg = Config {
+        default_provider: Some("kept".to_string()),
+        default_model: Some("kept/model".to_string()),
+        ..Config::default()
+    };
 
     apply_main_agent_overrides(&mut cfg);
 
@@ -58,9 +60,11 @@ fn apply_main_agent_overrides_noops_without_main_agent() {
 
 #[test]
 fn apply_main_agent_overrides_updates_provider_without_erasing_model_for_blank_model() {
-    let mut cfg = Config::default();
-    cfg.default_provider = Some("old-provider".to_string());
-    cfg.default_model = Some("old-provider/old-model".to_string());
+    let mut cfg = Config {
+        default_provider: Some("old-provider".to_string()),
+        default_model: Some("old-provider/old-model".to_string()),
+        ..Config::default()
+    };
     cfg.agents.insert(
         "main".to_string(),
         AgentDefinitionConfig {
@@ -78,9 +82,11 @@ fn apply_main_agent_overrides_updates_provider_without_erasing_model_for_blank_m
 
 #[test]
 fn apply_main_agent_overrides_applies_independent_fields_for_blank_provider() {
-    let mut cfg = Config::default();
-    cfg.default_provider = Some("kept-provider".to_string());
-    cfg.default_model = Some("kept-provider/kept-model".to_string());
+    let mut cfg = Config {
+        default_provider: Some("kept-provider".to_string()),
+        default_model: Some("kept-provider/kept-model".to_string()),
+        ..Config::default()
+    };
     cfg.identity.format = "aieos".to_string();
     cfg.identity.aieos_path = Some("identity.json".to_string());
     cfg.identity.aieos_inline = Some("inline identity".to_string());

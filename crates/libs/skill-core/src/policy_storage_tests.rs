@@ -74,9 +74,11 @@ fn load_policy_falls_back_to_defaults_for_invalid_toml() {
 fn save_policy_normalizes_without_mutating_input_and_alias_resolution_trims() {
     let dir = tempfile::tempdir().expect("temp dir");
     let skills_path = dir.path();
-    let mut policy = SkillDownloadPolicy::default();
-    policy.trusted_domains = vec!["*.Example.com".to_string(), "example.com".to_string()];
-    policy.blocked_domains = vec![" HTTPS://BAD.EXAMPLE/path ".to_string()];
+    let mut policy = SkillDownloadPolicy {
+        trusted_domains: vec!["*.Example.com".to_string(), "example.com".to_string()],
+        blocked_domains: vec![" HTTPS://BAD.EXAMPLE/path ".to_string()],
+        ..SkillDownloadPolicy::default()
+    };
     policy.aliases.insert("alias".to_string(), "https://github.com/acme/skill.git".to_string());
 
     save_skill_download_policy(skills_path, &policy).unwrap();
@@ -106,9 +108,11 @@ fn save_policy_reports_write_errors_for_missing_directories() {
 #[test]
 fn source_domain_trust_allows_trusted_and_rejects_blocked_domains() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let mut policy = SkillDownloadPolicy::default();
-    policy.trusted_domains = vec!["github.com".to_string()];
-    policy.blocked_domains = vec!["evil.example".to_string()];
+    let mut policy = SkillDownloadPolicy {
+        trusted_domains: vec!["github.com".to_string()],
+        blocked_domains: vec!["evil.example".to_string()],
+        ..SkillDownloadPolicy::default()
+    };
 
     ensure_source_domain_trust("https://api.github.com/acme/skill.git", &mut policy, dir.path())
         .unwrap();
@@ -155,9 +159,11 @@ fn source_domain_trust_skips_sources_without_checkable_hosts() {
 #[test]
 fn source_domain_trust_gives_blocked_domains_precedence() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let mut policy = SkillDownloadPolicy::default();
-    policy.trusted_domains = vec!["example.com".to_string()];
-    policy.blocked_domains = vec!["example.com".to_string()];
+    let mut policy = SkillDownloadPolicy {
+        trusted_domains: vec!["example.com".to_string()],
+        blocked_domains: vec!["example.com".to_string()],
+        ..SkillDownloadPolicy::default()
+    };
 
     let error =
         ensure_source_domain_trust("https://example.com/acme/skill.git", &mut policy, dir.path())
@@ -169,9 +175,11 @@ fn source_domain_trust_gives_blocked_domains_precedence() {
 #[test]
 fn source_domain_trust_checks_repository_derived_from_skills_sh_source() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let mut policy = SkillDownloadPolicy::default();
-    policy.trusted_domains = vec!["skills.sh".to_string()];
-    policy.blocked_domains = vec!["github.com".to_string()];
+    let mut policy = SkillDownloadPolicy {
+        trusted_domains: vec!["skills.sh".to_string()],
+        blocked_domains: vec!["github.com".to_string()],
+        ..SkillDownloadPolicy::default()
+    };
 
     let error = ensure_source_domain_trust(
         "https://skills.sh/acme/skills/example",

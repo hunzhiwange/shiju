@@ -853,8 +853,10 @@ mod upgrade_scenarios {
     use super::*;
     use upgrades::FunctionUpgradeReport;
     fn app_with_skills() -> Fixture {
-        let mut app = Fixture::default();
-        app.account = repository_with_account("test-secret", "company-1");
+        let mut app = Fixture {
+            account: repository_with_account("test-secret", "company-1"),
+            ..Fixture::default()
+        };
         app.expert_hub.account_id =
             app.account.active_account().map(|account| account.id().to_owned());
         app.expert_hub.installed = LoadState::Loaded(vec![InstalledSkill {

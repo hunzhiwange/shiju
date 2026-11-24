@@ -1,7 +1,6 @@
 //! 验证密钥加密、旧格式迁移、密钥文件权限与篡改检测。
 
 use super::*;
-use chacha20poly1305::aead::{Aead as _, KeyInit as _};
 
 fn store_with_fixture_key(dir: &std::path::Path, key_byte: u8) -> SecretStore {
     let store = SecretStore::new(dir, true);

@@ -35,10 +35,12 @@ fn save_config_to_store_encrypts_secrets_without_writing_user_config_file() {
     let temp = TempDir::new().expect("temp dir");
     let store = store(&temp);
     let tenant = TenantScope::default();
-    let mut config = Config::default();
-    config.config_path = temp.path().join("vibewindow.json");
-    config.default_model = Some("gpt-4o-mini".to_string());
-    config.api_key = Some("sk-plain".to_string());
+    let mut config = Config {
+        config_path: temp.path().join("vibewindow.json"),
+        default_model: Some("gpt-4o-mini".to_string()),
+        api_key: Some("sk-plain".to_string()),
+        ..Config::default()
+    };
     config.gateway.paired_tokens = vec!["pair-token".to_string()];
 
     save_config_to_store(&config, &tenant, &store).expect("save config");
@@ -94,10 +96,14 @@ fn save_config_to_store_updates_only_target_tenant() {
     let store = store(&temp);
     let first = TenantScope::new("platform-a", "company-a").expect("first tenant");
     let second = TenantScope::new("platform-b", "company-b").expect("second tenant");
-    let mut first_config = Config::default();
-    first_config.default_provider = Some("first-before".to_string());
-    let mut second_config = Config::default();
-    second_config.default_provider = Some("second-provider".to_string());
+    let mut first_config = Config {
+        default_provider: Some("first-before".to_string()),
+        ..Config::default()
+    };
+    let second_config = Config {
+        default_provider: Some("second-provider".to_string()),
+        ..Config::default()
+    };
     save_config_to_store(&first_config, &first, &store).expect("first initial save");
     save_config_to_store(&second_config, &second, &store).expect("second initial save");
 
@@ -227,9 +233,11 @@ fn merge_patch_between_returns_none_for_equal_values() {
 #[tokio::test]
 async fn unchanged_project_config_does_not_create_override_file() {
     let temp = TempDir::new().expect("temp dir");
-    let mut config = Config::default();
-    config.workspace_dir = temp.path().to_path_buf();
-    config.config_path = temp.path().join(".vibewindow.json");
+    let config = Config {
+        workspace_dir: temp.path().to_path_buf(),
+        config_path: temp.path().join(".vibewindow.json"),
+        ..Config::default()
+    };
 
     let result = update_project_config_from_configs(temp.path(), &config, &config)
         .await
@@ -274,9 +282,11 @@ fn merge_patch_between_replaces_non_object_value() {
 #[test]
 fn prepare_project_override_encrypts_secrets_and_removes_gateway_skeys() {
     let temp = TempDir::new().expect("temp dir");
-    let mut base = Config::default();
-    base.config_path = temp.path().join("vibewindow.json");
-    base.workspace_dir = temp.path().join("workspace");
+    let base = Config {
+        config_path: temp.path().join("vibewindow.json"),
+        workspace_dir: temp.path().join("workspace"),
+        ..Config::default()
+    };
     let plain_secret = "project-api-key";
     let raw_override = serde_json::json!({
         "default_provider": "before",
@@ -301,9 +311,11 @@ fn prepare_project_override_encrypts_secrets_and_removes_gateway_skeys() {
 #[test]
 fn prepare_project_override_rejects_undecryptable_secret() {
     let temp = TempDir::new().expect("temp dir");
-    let mut base = Config::default();
-    base.config_path = temp.path().join("vibewindow.json");
-    base.workspace_dir = temp.path().join("workspace");
+    let base = Config {
+        config_path: temp.path().join("vibewindow.json"),
+        workspace_dir: temp.path().join("workspace"),
+        ..Config::default()
+    };
 
     let error = prepare_project_override(
         &base,
@@ -317,8 +329,10 @@ fn prepare_project_override_rejects_undecryptable_secret() {
 
 #[test]
 fn prepare_project_override_rejects_base_config_path_without_parent() {
-    let mut base = Config::default();
-    base.config_path = std::path::PathBuf::from("/");
+    let base = Config {
+        config_path: std::path::PathBuf::from("/"),
+        ..Config::default()
+    };
 
     let error = prepare_project_override(
         &base,

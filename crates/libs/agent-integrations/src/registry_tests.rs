@@ -521,10 +521,11 @@ fn email_becomes_active_when_configured() {
 #[test]
 fn ai_provider_entries_reflect_provider_and_model_configuration() {
     let entries = all_integrations();
-    let mut config = Config::default();
-
-    config.default_provider = Some("openrouter".into());
-    config.api_key = Some("sk-test".into());
+    let mut config = Config {
+        default_provider: Some("openrouter".into()),
+        api_key: Some("sk-test".into()),
+        ..Config::default()
+    };
     assert_eq!((entry(&entries, "OpenRouter").status_fn)(&config), IntegrationStatus::Active);
 
     for (provider, name) in [

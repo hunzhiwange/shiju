@@ -715,49 +715,6 @@ impl<'a> AgentTaskBoardService<'a> {
         )
     }
 
-    #[cfg(test)]
-    fn append_audit_event_with_payload(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: &StoredAgentTask,
-        kind: AgentEventKind,
-        from_status_key: Option<String>,
-        to_status_key: Option<String>,
-        message: impl Into<String>,
-        command: AgentSchedulerCommandKindDto,
-        extra_payload: Value,
-        now_ms: TimestampMs,
-    ) -> Result<StoredAgentEvent> {
-        let message = message.into();
-        let mut payload = json!({
-            "command": command_key(command),
-            "task_id": task.id.as_str(),
-            "status_key": task_board_status_key(task),
-        });
-        if let (Value::Object(payload), Value::Object(extra)) = (&mut payload, extra_payload) {
-            for (key, value) in extra {
-                payload.insert(key, value);
-            }
-        }
-        self.store.append_event(
-            project_path,
-            AppendAgentEventRequest {
-                task_id: Some(task.id.clone()),
-                run_id: None,
-                worker_id: task.assigned_to.clone(),
-                team_id: task.team_id.clone(),
-                kind,
-                from_status: None,
-                to_status: Some(task.status),
-                from_status_key,
-                to_status_key,
-                message,
-                payload,
-                created_at_ms: now_ms,
-            },
-        )
-    }
-
     fn append_audit_log(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -1078,11 +1035,6 @@ fn clear_selected_worktree_metadata(metadata: &mut Map<String, Value>) {
 
 fn timestamp_field(value: &Value, key: &str) -> Option<TimestampMs> {
     value.get(key).and_then(Value::as_i64).map(TimestampMs)
-}
-
-#[cfg(test)]
-fn string_field(value: &Value, key: &str) -> Option<String> {
-    value.get(key).and_then(Value::as_str).and_then(non_empty_str).map(str::to_string)
 }
 
 fn required_text(value: String, field_name: &str) -> Result<String> {

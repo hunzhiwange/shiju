@@ -776,7 +776,7 @@ async fn codex_skills_replay_real_session_fork_preserves_sources_and_respects_cu
                 &original.id,
                 "main",
                 &history,
-                &[record.clone()],
+                std::slice::from_ref(&record),
             )
             .await
             .unwrap();

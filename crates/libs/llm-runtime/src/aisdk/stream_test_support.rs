@@ -1,11 +1,11 @@
 //! Shared fake SDK provider; request execution is supplied by the parent test module.
 use super::*;
 
-pub(super) type ChunkResult = aisdk::Result<Vec<AiStreamChunk>>;
+pub(crate) type ChunkResult = aisdk::Result<Vec<AiStreamChunk>>;
 type BoxedProviderStream = Pin<Box<dyn Stream<Item = ChunkResult> + Send>>;
 
 #[derive(Clone, Debug)]
-pub(super) struct FakeModel {
+pub(crate) struct FakeModel {
     open_error: Option<AiError>,
     items: Vec<ChunkResult>,
     pending_stream: bool,
@@ -13,7 +13,7 @@ pub(super) struct FakeModel {
 }
 
 impl FakeModel {
-    pub(super) fn with_items(items: Vec<ChunkResult>) -> (Self, Arc<Mutex<Option<LanguageModelOptions>>>) {
+    pub(crate) fn with_items(items: Vec<ChunkResult>) -> (Self, Arc<Mutex<Option<LanguageModelOptions>>>) {
         let captured_options = Arc::new(Mutex::new(None));
         (
             Self {
@@ -27,7 +27,7 @@ impl FakeModel {
     }
 
     #[allow(dead_code)] // Used by the host failure suite.
-    pub(super) fn with_open_error(error: AiError) -> Self {
+    pub(crate) fn with_open_error(error: AiError) -> Self {
         Self {
             open_error: Some(error),
             items: Vec::new(),
@@ -37,7 +37,7 @@ impl FakeModel {
     }
 
     #[allow(dead_code)] // Used by the host cancellation suite.
-    pub(super) fn with_pending_stream() -> Self {
+    pub(crate) fn with_pending_stream() -> Self {
         Self {
             open_error: None,
             items: Vec::new(),
@@ -80,18 +80,18 @@ impl LanguageModel for FakeModel {
 
 impl ToolCallSupport for FakeModel {}
 
-pub(super) fn tool_call(id: &str, name: &str, input: Value) -> ToolCallInfo {
+pub(crate) fn tool_call(id: &str, name: &str, input: Value) -> ToolCallInfo {
     let mut info = ToolCallInfo::new(name);
     info.id(id);
     info.input(input);
     info
 }
 
-pub(super) fn done(content: AiContent, usage: Option<Usage>) -> AiStreamChunk {
+pub(crate) fn done(content: AiContent, usage: Option<Usage>) -> AiStreamChunk {
     AiStreamChunk::Done(AssistantMessage::new(content, usage))
 }
 
-pub(super) async fn run_fake_stream(
+pub(crate) async fn run_fake_stream(
     provider_id: &str,
     request_url: &str,
     model: FakeModel,

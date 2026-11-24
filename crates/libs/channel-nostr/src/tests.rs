@@ -19,7 +19,7 @@ use super::*;
 
 /// 允许列表与通道功能测试模块
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 测试空允许列表拒绝所有公钥

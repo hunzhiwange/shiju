@@ -465,7 +465,7 @@ fn public_url_returns_none_while_state_is_locked() {
 #[cfg(unix)]
 #[tokio::test]
 async fn start_with_fake_tailscale_uses_status_url_and_health_check_matches_state() {
-    let _lock = tailscale_env_lock();
+    let _lock = tailscale_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("fake tailscale bin dir");
     write_fake_tailscale(bin.path());
     let _path = EnvGuard::set_os("PATH", prepend_path(bin.path()).as_os_str());
@@ -482,7 +482,7 @@ async fn start_with_fake_tailscale_uses_status_url_and_health_check_matches_stat
 #[cfg(unix)]
 #[tokio::test]
 async fn start_with_fake_tailscale_rejects_tailnet_only_funnel_status() {
-    let _lock = tailscale_env_lock();
+    let _lock = tailscale_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("fake tailscale bin dir");
     write_fake_tailscale(bin.path());
     let _path = EnvGuard::set_os("PATH", prepend_path(bin.path()).as_os_str());
@@ -501,7 +501,7 @@ async fn start_with_fake_tailscale_rejects_tailnet_only_funnel_status() {
 #[cfg(unix)]
 #[tokio::test]
 async fn start_with_fake_tailscale_reports_command_failure_without_status_url() {
-    let _lock = tailscale_env_lock();
+    let _lock = tailscale_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("fake tailscale bin dir");
     write_fake_tailscale(bin.path());
     let _path = EnvGuard::set_os("PATH", prepend_path(bin.path()).as_os_str());
@@ -518,7 +518,7 @@ async fn start_with_fake_tailscale_reports_command_failure_without_status_url() 
 #[cfg(unix)]
 #[tokio::test]
 async fn tailscale_status_json_reports_cli_failure_and_parse_errors() {
-    let _lock = tailscale_env_lock();
+    let _lock = tailscale_env_lock().lock().await;
     let bin = tempfile::tempdir().expect("fake tailscale bin dir");
     write_fake_tailscale(bin.path());
     let _path = EnvGuard::set_os("PATH", prepend_path(bin.path()).as_os_str());
@@ -536,9 +536,9 @@ async fn tailscale_status_json_reports_cli_failure_and_parse_errors() {
 }
 
 #[cfg(unix)]
-fn tailscale_env_lock() -> std::sync::MutexGuard<'static, ()> {
-    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+fn tailscale_env_lock() -> &'static tokio::sync::Mutex<()> {
+    static LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    &LOCK
 }
 
 #[cfg(unix)]

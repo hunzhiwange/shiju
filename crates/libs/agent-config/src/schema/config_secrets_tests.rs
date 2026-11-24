@@ -94,9 +94,11 @@ fn vec_and_map_encrypt_errors_include_position() {
 #[test]
 fn config_secrets_encrypt_and_decrypt_representative_fields() {
     let tmp = tempfile::tempdir().unwrap();
-    let mut config = Config::default();
-    config.config_path = tmp.path().join("vibewindow.json");
-    config.api_key = Some("api-key".to_string());
+    let mut config = Config {
+        config_path: tmp.path().join("vibewindow.json"),
+        api_key: Some("api-key".to_string()),
+        ..Config::default()
+    };
     config.proxy.http_proxy = Some("http://user:pass@proxy.example:8080".to_string());
     config.proxy.https_proxy = Some("https://user:pass@proxy.example:8443".to_string());
     config.proxy.all_proxy = Some("socks5://user:pass@proxy.example:1080".to_string());
@@ -169,8 +171,10 @@ fn config_secrets_encrypt_and_decrypt_representative_fields() {
 
 #[test]
 fn encrypt_config_secrets_rejects_paths_without_parent_directory() {
-    let mut config = Config::default();
-    config.config_path = PathBuf::new();
+    let mut config = Config {
+        config_path: PathBuf::new(),
+        ..Config::default()
+    };
 
     let err = encrypt_config_secrets(&mut config).unwrap_err().to_string();
 
@@ -180,14 +184,16 @@ fn encrypt_config_secrets_rejects_paths_without_parent_directory() {
 #[test]
 fn decrypt_config_secrets_reports_embedding_route_error_context() {
     let tmp = tempfile::tempdir().unwrap();
-    let mut config = Config::default();
-    config.embedding_routes = vec![EmbeddingRouteConfig {
-        hint: "semantic".to_string(),
-        provider: "openai".to_string(),
-        model: "text-embedding-3-small".to_string(),
-        dimensions: None,
-        api_key: Some("enc2:not-hex".to_string()),
-    }];
+    let mut config = Config {
+        embedding_routes: vec![EmbeddingRouteConfig {
+            hint: "semantic".to_string(),
+            provider: "openai".to_string(),
+            model: "text-embedding-3-small".to_string(),
+            dimensions: None,
+            api_key: Some("enc2:not-hex".to_string()),
+        }],
+        ..Config::default()
+    };
 
     let error = decrypt_config_secrets(&mut config, tmp.path())
         .expect_err("invalid embedding route secret");
@@ -200,15 +206,17 @@ fn encrypt_config_secrets_reports_embedding_route_storage_error() {
     let tmp = tempfile::tempdir().unwrap();
     let blocked_path = tmp.path().join("blocked");
     std::fs::write(&blocked_path, "not a directory").unwrap();
-    let mut config = Config::default();
-    config.config_path = blocked_path.join("vibewindow.json");
-    config.embedding_routes = vec![EmbeddingRouteConfig {
-        hint: "semantic".to_string(),
-        provider: "openai".to_string(),
-        model: "text-embedding-3-small".to_string(),
-        dimensions: None,
-        api_key: Some("embedding-key".to_string()),
-    }];
+    let mut config = Config {
+        config_path: blocked_path.join("vibewindow.json"),
+        embedding_routes: vec![EmbeddingRouteConfig {
+            hint: "semantic".to_string(),
+            provider: "openai".to_string(),
+            model: "text-embedding-3-small".to_string(),
+            dimensions: None,
+            api_key: Some("embedding-key".to_string()),
+        }],
+        ..Config::default()
+    };
 
     let error =
         encrypt_config_secrets(&mut config).expect_err("unwritable embedding route secret store");
@@ -219,12 +227,14 @@ fn encrypt_config_secrets_reports_embedding_route_storage_error() {
 #[test]
 fn config_secrets_channel_failure_does_not_block_core_configuration() {
     let tmp = tempfile::tempdir().unwrap();
-    let mut config = Config::default();
-    config.channels_config = serde_json::from_value(serde_json::json!({
-        "cli": true,
-        "dingtalk": {"client_id":"fixture", "client_secret":"enc2:not-hex"}
-    }))
-    .unwrap();
+    let mut config = Config {
+        channels_config: serde_json::from_value(serde_json::json!({
+            "cli": true,
+            "dingtalk": {"client_id":"fixture", "client_secret":"enc2:not-hex"}
+        }))
+        .unwrap(),
+        ..Config::default()
+    };
     decrypt_config_secrets(&mut config, tmp.path()).unwrap();
     assert!(config.channels_config.unavailable_channels.contains("dingtalk:default"));
     config.api_key = Some("enc2:not-hex".into());

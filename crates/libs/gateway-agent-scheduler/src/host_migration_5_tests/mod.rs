@@ -8,7 +8,6 @@ use axum::Json;
 use serde_json::json;
 
 use vw_api_agent_scheduler::{AgentEventDto, AgentEventKindDto, AgentOutboxMessageDto, AgentOutboxMessageStatusDto, AgentSchedulerCreateTaskRequest, AgentSchedulerCreateTaskResponse, AgentSchedulerTaskBoardEventsResponse, AgentSchedulerWakeRequest as AgentSchedulerProjectWakeRequest, AgentTaskDto, AgentTaskStatusDto};
-use vw_api_agent_scheduler::AgentSchedulerScope;
 use vw_api_transport::id::{ProjectId, ProjectScope, TenantScope};
 
 use task_scheduler::domain::{AgentSchedulerContext, RunId, TaskId};
@@ -20,7 +19,6 @@ use task_scheduler::runner::gateway_request::{append_gateway_stream_payload_task
 use task_scheduler::runner::local::{LocalAgentExecutionOutput, LocalAgentExecutionRequest, LocalAgentWorkspace, LocalAgentWorkspaceRequest};
 use task_scheduler::runner::local::{LocalAgentExecutor};
 use task_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
-use task_scheduler::store::artifacts::StoredTaskArtifact;
 
 use task_scheduler::store::logs::{StoredAgentTaskLog};
 

@@ -3,13 +3,15 @@ use super::*;
 
 #[test]
 fn channel_reload_replaces_webhook_auth_and_disables_removed_channels() {
-    let mut config = ChannelsConfig::default();
-    config.webhook = Some(
-        serde_json::from_value(serde_json::json!({"port":8787,"secret":"first-secret"})).unwrap(),
-    );
-    config.whatsapp = Some(serde_json::from_value(serde_json::json!({
-        "access_token":"access", "phone_number_id":"phone", "verify_token":"first-token", "app_secret":"first-app-secret"
-    })).unwrap());
+    let mut config = ChannelsConfig {
+        webhook: Some(
+            serde_json::from_value(serde_json::json!({"port":8787,"secret":"first-secret"})).unwrap(),
+        ),
+        whatsapp: Some(serde_json::from_value(serde_json::json!({
+            "access_token":"access", "phone_number_id":"phone", "verify_token":"first-token", "app_secret":"first-app-secret"
+        })).unwrap()),
+        ..ChannelsConfig::default()
+    };
     let first = build_gateway_channels(&config);
     assert_eq!(
         first.webhook_secret_hash.as_deref(),

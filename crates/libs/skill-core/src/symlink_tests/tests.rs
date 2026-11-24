@@ -3,7 +3,7 @@
 
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
 
     use crate::skills_dir;
     use std::path::Path;

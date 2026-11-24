@@ -17,7 +17,7 @@
 use super::*;
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 具备完整能力的 Mock Provider

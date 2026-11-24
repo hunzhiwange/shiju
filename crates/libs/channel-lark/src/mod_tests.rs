@@ -111,7 +111,7 @@ async fn lark_channel_listen_webhook_reports_missing_port() {
 #[tokio::test(flavor = "current_thread")]
 async fn lark_channel_send_returns_error_when_proxy_is_unreachable() {
     let _guard =
-        crate::test_support::global_runtime_proxy_lock().lock().unwrap_or_else(|e| e.into_inner());
+        crate::test_support::global_runtime_proxy_lock().lock().await;
     let original = runtime_proxy_config();
     set_runtime_proxy_config(ProxyConfig {
         enabled: true,

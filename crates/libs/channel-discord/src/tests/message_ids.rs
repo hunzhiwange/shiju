@@ -1,4 +1,3 @@
-use super::*;
 
 /// 测试 Discord 消息 ID 格式包含 discord 前缀
 /// 验证消息 ID 遵循格式: discord_{message_id}

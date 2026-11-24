@@ -5,6 +5,7 @@
 
 use std::collections::HashSet;
 use std::future::Future;
+use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 use serde_json::{Value, json};
@@ -220,7 +221,7 @@ pub async fn create_with_fork<H: ChildHost>(
     } else {
         let config = agent_config::runtime::get_project_for_tenant(
             &H::current_tenant_scope(),
-            std::path::Path::new(&input.directory),
+            Path::new(&input.directory),
         )
         .await?;
         let mut context = tool_context::context::ToolUseContext::<H>::new(
@@ -248,8 +249,8 @@ pub async fn create_with_fork<H: ChildHost>(
         );
         if let Some(root) = parent.workspace_root() {
             anyhow::ensure!(
-                agent_util::filesystem::normalize_path(root)
-                    == input.directory,
+                agent_util::filesystem::normalize_path(root).as_path()
+                    == Path::new(&input.directory),
                 "subagent workspace mismatch"
             );
         }
@@ -293,8 +294,8 @@ pub async fn create_with_fork<H: ChildHost>(
             let parent =
                 H::get_session(&parent_session_id).await.context("load delegated parent session")?;
             anyhow::ensure!(
-                agent_util::filesystem::normalize_path(&parent.directory)
-                    == directory,
+                agent_util::filesystem::normalize_path(&parent.directory).as_path()
+                    == Path::new(&directory),
                 "subagent parent workspace mismatch"
             );
             let history = match fork_turns {

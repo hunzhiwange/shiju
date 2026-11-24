@@ -31,7 +31,6 @@ impl RecordedRequest {
 
 pub struct TestServer {
     client: GatewayAppSkillsClient,
-    base_url: String,
     requests: mpsc::Receiver<RecordedRequest>,
     handle: thread::JoinHandle<()>,
 }
@@ -39,10 +38,6 @@ pub struct TestServer {
 impl TestServer {
     pub fn client(&self) -> &GatewayAppSkillsClient {
         &self.client
-    }
-
-    pub fn base_url(&self) -> &str {
-        &self.base_url
     }
 
     pub fn take_request(&self) -> RecordedRequest {
@@ -58,16 +53,6 @@ pub fn server(responses: Vec<(u16, Value)>) -> TestServer {
     server_raw(responses.into_iter().map(|(status, body)| (status, body.to_string())).collect())
 }
 
-pub fn server_with_tenant_scope(
-    responses: Vec<(u16, Value)>,
-    tenant_scope: TenantScope,
-) -> TestServer {
-    server_raw_with_tenant_scope(
-        responses.into_iter().map(|(status, body)| (status, body.to_string())).collect(),
-        tenant_scope,
-    )
-}
-
 pub fn server_raw(responses: Vec<(u16, String)>) -> TestServer {
     server_raw_with_tenant_scope(responses, TenantScope::default())
 }
@@ -79,7 +64,6 @@ pub fn server_raw_with_tenant_scope(
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
     let port = listener.local_addr().expect("local addr").port();
     let (tx, rx) = mpsc::channel();
-    let base_url = format!("http://127.0.0.1:{port}");
     let handle = thread::spawn(move || {
         for (status, body) in responses {
             let (mut stream, _) = listener.accept().expect("accept request");
@@ -90,7 +74,7 @@ pub fn server_raw_with_tenant_scope(
     });
     let endpoint = GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant_scope);
     let client = GatewayAppSkillsClient::new(GatewayTransport::new(endpoint).expect("transport"));
-    TestServer { client, base_url, requests: rx, handle }
+    TestServer { client, requests: rx, handle }
 }
 
 fn read_request(stream: &mut TcpStream) -> RecordedRequest {

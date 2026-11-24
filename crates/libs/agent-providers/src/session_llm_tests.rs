@@ -352,8 +352,10 @@ fn session_provider_with_options_defaults_vision_enabled() {
     );
     assert!(provider.supports_vision());
 
-    let mut options = crate::ProviderRuntimeOptions::default();
-    options.model_support_vision = Some(false);
+    let options = crate::ProviderRuntimeOptions {
+        model_support_vision: Some(false),
+        ..crate::ProviderRuntimeOptions::default()
+    };
     let disabled = SessionLlmProvider::with_options(&options);
     assert!(!disabled.supports_vision());
 }

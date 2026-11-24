@@ -47,8 +47,8 @@ use vw_api_agent_scheduler::{
 };
 #[cfg(any(test, target_arch = "wasm32"))]
 use vw_api_agent_scheduler::{
-    AgentCapabilityKindDto, AgentEventDto, AgentEventKindDto, AgentOutboxMessageDto,
-    AgentOutboxMessageStatusDto, AgentRunDto, AgentRunStatusDto, AgentSchedulerBulkCommandRequest,
+    AgentEventDto, AgentEventKindDto, AgentOutboxMessageDto,
+    AgentOutboxMessageStatusDto, AgentSchedulerBulkCommandRequest,
     AgentSchedulerBulkCommandResponse, AgentSchedulerCommandKindDto,
     AgentSchedulerCommandRequest as AgentSchedulerProjectCommandRequest,
     AgentSchedulerCommandResponse as AgentSchedulerProjectCommandResponse,
@@ -72,19 +72,11 @@ use vw_api_agent_scheduler::{
     TaskDependencyNodeDto,
 };
 use vw_api_transport::common::TimestampMs;
-#[cfg(all(not(test), not(target_arch = "wasm32")))]
 use vw_api_task::TaskPoolWorkflowStatusRoleDto;
-#[cfg(any(test, target_arch = "wasm32"))]
-use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
 
 use task_scheduler::adapters::dispatch::LocalOnlyDispatchAdapter;
-#[cfg(all(not(test), not(target_arch = "wasm32")))]
 use task_scheduler::domain::{
     AgentRunStatus, AgentSchedulerContext, AssigneeId, RunId, TaskId, TeamId,
-};
-#[cfg(any(test, target_arch = "wasm32"))]
-use task_scheduler::domain::{
-    AgentCapabilityKind, AgentRunStatus, AgentSchedulerContext, AssigneeId, RunId, TaskId, TeamId,
 };
 use task_scheduler::engine::dispatch::{
     DispatchBlocker, DispatchEngine, DispatchMode, DispatchOutcome, DispatchReadinessSnapshot,
@@ -93,10 +85,6 @@ use task_scheduler::engine::dispatch::{
 };
 use task_scheduler::engine::recovery::{RecoveryEngine, RecoveryOutcome};
 use task_scheduler::events::AgentEventKind;
-#[cfg(any(test, target_arch = "wasm32"))]
-use task_scheduler::lifecycle_bridge::{
-    LifecycleStatusProjection, status_role_key as lifecycle_status_role_key,
-};
 use task_scheduler::outbox_dispatcher::OutboxDispatcher;
 use task_scheduler::policy::{
     AgentSchedulerPolicyConfig, AgentSchedulerPolicyOutcome, AgentSchedulerPolicyService,

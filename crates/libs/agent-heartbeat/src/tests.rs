@@ -14,7 +14,7 @@
 ///
 /// 包含心跳引擎的核心功能验证测试。
 #[allow(dead_code)]
-mod tests {
+mod cases {
 
 
     use config_automation::HeartbeatConfig;

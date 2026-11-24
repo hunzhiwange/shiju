@@ -6,7 +6,7 @@ use super::image_compression::{
     per_image_output_budget,
 };
 use super::*;
-use base64::{Engine as _, engine::general_purpose::STANDARD};
+use base64::engine::general_purpose::STANDARD;
 use image::codecs::gif::{GifEncoder, Repeat};
 use image::{DynamicImage, Frame, ImageBuffer, ImageFormat, Rgb, Rgba, RgbaImage};
 use std::io::Cursor;

@@ -3,7 +3,7 @@
 // 这些组合测试确保脱敏后的配置仍可序列化，并能恢复未被用户改写的旧值。
 
 #[allow(dead_code)]
-mod tests {
+mod cases {
 
 
     use agent_config::runtime_schema::{
@@ -34,10 +34,12 @@ mod tests {
 
     #[test]
     fn hydrate_config_for_save_restores_masked_secrets_and_paths() {
-        let mut current = agent_config::runtime::Config::default();
-        current.config_path = std::path::PathBuf::from("/tmp/current/vibewindow.json");
-        current.workspace_dir = std::path::PathBuf::from("/tmp/current/workspace");
-        current.api_key = Some("real-key".to_string());
+        let current = agent_config::runtime::Config {
+            config_path: std::path::PathBuf::from("/tmp/current/vibewindow.json"),
+            workspace_dir: std::path::PathBuf::from("/tmp/current/workspace"),
+            api_key: Some("real-key".to_string()),
+            ..agent_config::runtime::Config::default()
+        };
 
         let mut incoming = mask_sensitive_fields(&current);
         incoming.default_model = Some("gpt-4.1-mini".to_string());
@@ -68,8 +70,10 @@ mod tests {
             tenant_id: Some("tenant-1".to_string()),
             allowed_numbers: vec!["*".to_string()],
         });
-        let mut email = config_channel_services::EmailConfig::default();
-        email.password = "email-real-password".to_string();
+        let email = config_channel_services::EmailConfig {
+            password: "email-real-password".to_string(),
+            ..config_channel_services::EmailConfig::default()
+        };
         cfg.channels_config.email = Some(email);
         cfg.channels_config.feishu = Some(agent_config::runtime::FeishuConfig {
             app_id: "cli_app_id".to_string(),
@@ -130,8 +134,10 @@ mod tests {
             tenant_id: Some("tenant-1".to_string()),
             allowed_numbers: vec!["*".to_string()],
         });
-        let mut email = config_channel_services::EmailConfig::default();
-        email.password = "email-real-password".to_string();
+        let email = config_channel_services::EmailConfig {
+            password: "email-real-password".to_string(),
+            ..config_channel_services::EmailConfig::default()
+        };
         current.channels_config.email = Some(email);
         current.channels_config.feishu = Some(agent_config::runtime::FeishuConfig {
             app_id: "cli_app_id".to_string(),

@@ -142,7 +142,9 @@ fn user_text(message: &Message) -> Option<String> {
                 .iter()
                 .filter_map(|part| match part {
                     UserContentPart::Text(text) => Some(text.as_str()),
-                    UserContentPart::Image(_) => None,
+                    UserContentPart::Image(_)
+                    | UserContentPart::Audio(_)
+                    | UserContentPart::Video(_) => None,
                 })
                 .collect::<Vec<_>>()
                 .join(""),
@@ -158,7 +160,9 @@ fn user_image_urls(message: &Message) -> Vec<String> {
             .iter()
             .filter_map(|part| match part {
                 UserContentPart::Image(image) => Some(image.image_url.clone()),
-                UserContentPart::Text(_) => None,
+                UserContentPart::Text(_)
+                | UserContentPart::Audio(_)
+                | UserContentPart::Video(_) => None,
             })
             .collect(),
         _ => Vec::new(),
@@ -249,7 +253,9 @@ fn openai_user_content_to_aisdk_message_keeps_image_markers_and_image_url_parts(
             .iter()
             .filter_map(|part| match part {
                 UserContentPart::Text(text) => Some(text.as_str()),
-                UserContentPart::Image(_) => None,
+                UserContentPart::Image(_)
+                | UserContentPart::Audio(_)
+                | UserContentPart::Video(_) => None,
             })
             .collect::<Vec<_>>(),
         vec!["look"]
@@ -260,7 +266,9 @@ fn openai_user_content_to_aisdk_message_keeps_image_markers_and_image_url_parts(
             .iter()
             .filter_map(|part| match part {
                 UserContentPart::Image(image) => Some(image.image_url.as_str()),
-                UserContentPart::Text(_) => None,
+                UserContentPart::Text(_)
+                | UserContentPart::Audio(_)
+                | UserContentPart::Video(_) => None,
             })
             .collect::<Vec<_>>(),
         vec!["data:image/png;base64,abc", "https://example.com/a.png"]

@@ -6,8 +6,10 @@ use serde_json::json;
 use std::fs;
 
 fn config_for_trace_file(path: &std::path::Path) -> Config {
-    let mut config = Config::default();
-    config.workspace_dir = path.parent().expect("trace file parent").to_path_buf();
+    let mut config = Config {
+        workspace_dir: path.parent().expect("trace file parent").to_path_buf(),
+        ..Config::default()
+    };
     config.observability.runtime_trace_path =
         path.file_name().expect("trace file name").to_string_lossy().to_string();
     config

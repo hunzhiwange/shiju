@@ -13,7 +13,7 @@ use super::*;
 ///
 /// 包含验证命令日志钩子功能的测试用例。
 #[allow(dead_code)]
-mod tests {
+mod cases {
     use super::*;
 
     /// 测试工具调用日志记录功能

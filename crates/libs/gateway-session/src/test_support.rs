@@ -30,7 +30,6 @@ impl RecordedRequest {
 
 pub struct TestServer {
     client: GatewaySessionClient,
-    base_url: String,
     requests: mpsc::Receiver<RecordedRequest>,
     handle: thread::JoinHandle<()>,
 }
@@ -38,10 +37,6 @@ pub struct TestServer {
 impl TestServer {
     pub fn client(&self) -> &GatewaySessionClient {
         &self.client
-    }
-
-    pub fn base_url(&self) -> &str {
-        &self.base_url
     }
 
     pub fn take_request(&self) -> RecordedRequest {
@@ -78,7 +73,6 @@ pub fn server_raw_with_tenant_scope(
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
     let port = listener.local_addr().expect("local addr").port();
     let (tx, rx) = mpsc::channel();
-    let base_url = format!("http://127.0.0.1:{port}");
     let handle = thread::spawn(move || {
         for (status, body) in responses {
             let (mut stream, _) = listener.accept().expect("accept request");
@@ -89,7 +83,7 @@ pub fn server_raw_with_tenant_scope(
     });
     let endpoint = GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant_scope);
     let client = GatewaySessionClient::new(gateway_http::GatewayTransport::new(endpoint).expect("transport"));
-    TestServer { client, base_url, requests: rx, handle }
+    TestServer { client, requests: rx, handle }
 }
 
 fn read_request(stream: &mut TcpStream) -> RecordedRequest {

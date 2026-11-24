@@ -4,9 +4,11 @@ fn agent_config_cleanup_strict_skill_boundary_survives_fixed_selection() {
     use agent_defaults::{DefaultSelection, DefaultsContext, resolve};
     use config_agent_profile::AgentDefault;
     use config_agent::AgentDefinitionConfig;
-    let mut agent = AgentDefinitionConfig::default();
-    agent.skill_policy = DelegateCapabilityPolicy::Strict;
-    agent.allowed_skills = vec!["allowed".into()];
+    let mut agent = AgentDefinitionConfig {
+        skill_policy: DelegateCapabilityPolicy::Strict,
+        allowed_skills: vec!["allowed".into()],
+        ..AgentDefinitionConfig::default()
+    };
     agent.defaults.skills = AgentDefault::Fixed(vec!["outside".into()]);
     let context = DefaultsContext {
         skills: [("allowed".into(), true), ("outside".into(), true)].into(),

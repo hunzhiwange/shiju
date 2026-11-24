@@ -167,8 +167,10 @@ prompts = ["Do not preload me"]
     .unwrap();
 
     // 配置紧凑模式
-    let mut config = SkillRuntimeConfig::default();
-    config.workspace_dir = dir.path().to_path_buf();
+    let mut config = SkillRuntimeConfig {
+        workspace_dir: dir.path().to_path_buf(),
+        ..SkillRuntimeConfig::default()
+    };
     config.skills.prompt_injection_mode = SkillsPromptInjectionMode::Compact;
 
     // 执行紧凑模式加载

@@ -17,7 +17,7 @@ config-runtime-paths = { path = "../config-runtime-paths" }
 directories = "5"
 parking_lot = "0.12"
 tempfile = "3"
-zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 iced = { version = "0.14", features = ["markdown"] }
 desktop-account = { path = "../desktop-account" }
 desktop-i18n = { path = "../desktop-i18n" }

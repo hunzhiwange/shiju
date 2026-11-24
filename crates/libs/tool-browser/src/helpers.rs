@@ -41,7 +41,7 @@ use std::time::Duration;
 /// let err = anyhow!("unknown error");
 /// assert!(!is_recoverable_rust_native_error(&err));
 /// ```
-#[cfg(test)]
+#[cfg(any(test, feature = "browser-native"))]
 pub fn is_recoverable_rust_native_error(err: &anyhow::Error) -> bool {
     let message = format!("{err:#}").to_ascii_lowercase();
 

@@ -945,7 +945,9 @@ fn extract_archive(archive_path: &Path, destination: &Path) -> Result<()> {
                 vec![(index + 1).to_string()],
             )
         })?;
-        let entry_name = entry.name().to_string();
+        let entry_name = entry
+            .name()
+            .context(super::SkillHubError::localized("识矩技能安装包包含不安全路径", vec![]))?;
         if entry_name.contains('\\') {
             bail!(super::SkillHubError::localized("识矩技能安装包包含不安全路径", vec![]));
         }

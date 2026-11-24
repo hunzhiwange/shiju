@@ -201,11 +201,13 @@ fn archive_name(tag: &str) -> Result<String> {
 }
 
 fn asset_url<'a>(release: &'a Release, name: &str) -> Result<&'a str> {
-    let asset = release
-        .assets
-        .iter()
-        .find(|asset| asset.name == name)
-        .product_with_context(|| desktop_i18n::format::Message::new("GitHub 最新版本尚未发布 %s，请在发布后重试", vec![format!("{}", name).into()]))?;
+    let asset =
+        release.assets.iter().find(|asset| asset.name == name).product_with_context(|| {
+            desktop_i18n::format::Message::new(
+                "GitHub 最新版本尚未发布 %s，请在发布后重试",
+                vec![name.to_string().into()],
+            )
+        })?;
     let expected = format!("{DOWNLOAD_ROOT}{}/{name}", release.tag_name);
     if asset.browser_download_url != expected {
         return Err(copy::error(desktop_i18n::format::Message::new("Web 发布包下载地址不符合 ShiJu GitHub 发布路径", vec![])));
@@ -223,7 +225,7 @@ fn extract(bytes: &[u8], destination: &Path, stem: &str) -> Result<PathBuf> {
         let mut entry = archive.by_index(index)?;
         let path = entry.enclosed_name().product_context("Web 发布包包含不安全路径")?;
         // 拒绝软链接、Windows 路径及其它平台特殊文件。
-        if entry.name().contains('\\')
+        if entry.name()?.contains('\\')
             || path.components().any(|c| !matches!(c, Component::Normal(_)))
             || entry.unix_mode().is_some_and(|mode| {
                 let kind = mode & 0o170000;
@@ -256,10 +258,17 @@ fn extract(bytes: &[u8], destination: &Path, stem: &str) -> Result<PathBuf> {
 
 pub(super) fn validate_package(path: &Path) -> Result<()> {
     for name in ["index.html", "shi_ju.js", "shi_ju_bg.wasm", "serve.mjs", "package.json"] {
-        let metadata = fs::symlink_metadata(path.join(name))
-            .product_with_context(|| desktop_i18n::format::Message::new("Web 安装不完整，缺少 %s，请重新安装", vec![format!("{}", name).into()]))?;
+        let metadata = fs::symlink_metadata(path.join(name)).product_with_context(|| {
+            desktop_i18n::format::Message::new(
+                "Web 安装不完整，缺少 %s，请重新安装",
+                vec![name.to_string().into()],
+            )
+        })?;
         if !metadata.is_file() || metadata.len() == 0 {
-            return Err(copy::error(desktop_i18n::format::Message::new("Web 安装文件无效: %s，请重新安装", vec![format!("{}", name).into()])));
+            return Err(copy::error(desktop_i18n::format::Message::new(
+                "Web 安装文件无效: %s，请重新安装",
+                vec![name.to_string().into()],
+            )));
         }
     }
     Ok(())

@@ -8,7 +8,7 @@ license = "MIT"
 doctest = false
 
 [features]
-browser-native = ["dep:fantoccini", "dep:base64"]
+browser-native = ["dep:fantoccini", "dep:base64", "dep:rustls"]
 
 [dependencies]
 product-version = { path = "../product-version" }
@@ -23,6 +23,7 @@ tokio = { version = "1", features = ["rt", "sync", "time", "process", "fs", "net
 directories = "5"
 fantoccini = { version = "0.22.1", optional = true, default-features = false, features = ["rustls-tls"] }
 base64 = { version = "0.23", optional = true }
+rustls = { version = "0.23", optional = true, default-features = false, features = ["ring"] }
 agent-security = { path = "../agent-security" }
 agent-config = { path = "../agent-config" }
 tool-types = { path = "../tool-types" }

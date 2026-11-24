@@ -92,7 +92,7 @@ vw-api-tools = { path = "../api-tools" }
 
 agent-gateway = { path = "../agent-gateway", features = ["test-support"] }
 gateway-app-auth = { path = "../gateway-app-auth" }
-zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 gateway-app-usage = { path = "../gateway-app-usage" }
 vw-gateway-client = { path = "../../vw-gateway-client" }
 rustls = { version = "0.23.37", default-features = false, features = ["ring", "logging", "std", "tls12"] }

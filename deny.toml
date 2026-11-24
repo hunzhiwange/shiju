@@ -9,7 +9,6 @@ unmaintained = "all"
 yanked = "deny"
 # Ignore known unmaintained transitive deps we cannot easily replace
 ignore = [
-    { id = "RUSTSEC-2026-0173", reason = "Transitive compile-time proc macros via mysql; no maintained compatible replacement is available upstream." },
     { id = "RUSTSEC-2026-0189", reason = "rmcp is used for HTTP clients and a stdio server; the vulnerable Streamable HTTP server transport is not enabled." },
     { id = "RUSTSEC-2026-0192", reason = "Transitive font parsing via iced/resvg and pdf-extract; no maintained compatible replacement is available upstream." },
     { id = "RUSTSEC-2026-0194", reason = "Transitive via the Linux-only wayland-scanner build-time proc macro; it does not parse runtime or untrusted XML." },
@@ -19,18 +18,7 @@ ignore = [
     { id = "RUSTSEC-2024-0384", reason = "Reported to `rust-nostr/nostr` and it's WIP" },
     { id = "RUSTSEC-2024-0320", reason = "Transitive via syntect in the desktop syntax highlighting path; no safe upstream upgrade is available." },
     { id = "RUSTSEC-2024-0370", reason = "Transitive via gtk3-rs macro chain under wry/tao Linux webview support; no safe upstream upgrade is available." },
-    { id = "RUSTSEC-2024-0411", reason = "Transitive via tao Linux webview support; gtk3-rs has no safe upstream upgrade in the current release line." },
-    { id = "RUSTSEC-2024-0412", reason = "Transitive via wry/tao Linux webview support; gtk3-rs has no safe upstream upgrade in the current release line." },
-    { id = "RUSTSEC-2024-0413", reason = "Transitive via wry/tao Linux webview support; gtk3-rs has no safe upstream upgrade in the current release line." },
-    { id = "RUSTSEC-2024-0414", reason = "Transitive via wry/tao Linux webview support; gtk3-rs has no safe upstream upgrade in the current release line." },
-    { id = "RUSTSEC-2024-0415", reason = "Transitive via wry/tao Linux webview support; gtk3-rs has no safe upstream upgrade in the current release line." },
-    { id = "RUSTSEC-2024-0416", reason = "Transitive via wry/tao Linux webview support; gtk3-rs has no safe upstream upgrade in the current release line." },
-    { id = "RUSTSEC-2024-0417", reason = "Transitive via wry Linux webview support; gtk3-rs has no safe upstream upgrade in the current release line." },
-    { id = "RUSTSEC-2024-0418", reason = "Transitive via wry/tao Linux webview support; gtk3-rs has no safe upstream upgrade in the current release line." },
-    { id = "RUSTSEC-2024-0419", reason = "Transitive via gtk3-rs macro chain under wry/tao Linux webview support; no safe upstream upgrade is available." },
-    { id = "RUSTSEC-2024-0420", reason = "Transitive via wry/tao Linux webview support; gtk3-rs has no safe upstream upgrade in the current release line." },
     { id = "RUSTSEC-2024-0436", reason = "Transitive via wgpu/rav1e/rmcp in current release path; no safe upstream upgrade is available." },
-    { id = "RUSTSEC-2025-0057", reason = "Transitive via kuchikiki/selectors under wry webview support; no safe upstream upgrade is available." },
 ]
 
 [licenses]

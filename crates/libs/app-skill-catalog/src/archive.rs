@@ -73,7 +73,7 @@ fn extract<R: Read + Seek>(
     for index in 0..archive.len() {
         check()?;
         let mut file = archive.by_index(index).map_err(io::Error::from)?;
-        let mut parts = safe_entry_parts(file.name())?;
+        let mut parts = safe_entry_parts(&file.name().map_err(io::Error::from)?)?;
         if strip_root {
             let root = parts.remove(0);
             match &repository_root {

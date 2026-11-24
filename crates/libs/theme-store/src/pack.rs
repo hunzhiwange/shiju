@@ -87,7 +87,7 @@ fn write_theme_pack(
     let mut archive = ZipWriter::new(cursor);
     let options = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
     archive.start_file(THEME_JSON, options).context("failed to add theme.json to theme pack")?;
-    archive.write_all(&theme_json).context("failed to write theme.json to theme pack")?;
+    archive.write_all(theme_json).context("failed to write theme.json to theme pack")?;
     for name in asset_names {
         let theme_dir = theme_dir.context("theme assets require a source directory")?;
         let path = theme_dir.join(&name);
@@ -152,7 +152,7 @@ fn inspect_archive<R: Read + std::io::Seek>(
         let entry = archive
             .by_index(index)
             .with_context(|| format!("failed to inspect theme pack entry {index}"))?;
-        let name = entry.name().to_string();
+        let name = entry.name()?.into_owned();
         validate_archive_entry_name(&name)?;
         if entries.insert(name.clone(), index).is_some() {
             bail!("theme pack contains duplicate entry `{name}`");

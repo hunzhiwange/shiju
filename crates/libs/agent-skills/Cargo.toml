@@ -41,7 +41,7 @@ libc = "0.2"
 
 base64 = "0.23"
 ring = "0.17.14"
-zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 reqwest = { version = "0.13", default-features = false, features = ["stream", "socks", "json", "gzip", "brotli", "deflate", "zstd", "http2", "rustls", "query"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

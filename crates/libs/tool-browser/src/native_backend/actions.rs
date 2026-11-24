@@ -6,7 +6,6 @@
 use anyhow::{Context, Result};
 use fantoccini::elements::Element;
 use fantoccini::{Client, Locator};
-use serde_json;
 
 /// 按 CSS 选择器查找元素。
 ///

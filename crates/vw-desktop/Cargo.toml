@@ -270,7 +270,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono", "fmt
 unicode-width = "0.2"
 urlencoding = "2.1"
 web-time = "1.1.0"
-zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 voice-permissions = { path = "../libs/voice-permissions" }
 vw-config-types = { path = "../vw-config-types" }
 vw-gateway-client = { path = "../vw-gateway-client" }

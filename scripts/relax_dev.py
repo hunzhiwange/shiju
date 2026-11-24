@@ -66,7 +66,7 @@ def relax_environment(tool):
     return env, prefix
 
 
-def prepare():
+def prepare(desktop=False):
     if platform.system() not in ('Darwin', 'Linux'):
         raise RuntimeError('Relax 团队入口目前支持 macOS/Linux；Windows 请使用原生 Cargo。')
     for tool in ('git', 'cargo', 'rustc', 'cc'):
@@ -78,7 +78,10 @@ def prepare():
         print(f'Relax：等待初始化锁 {lock.name}', flush=True)
         fcntl.flock(lock, fcntl.LOCK_EX)
         print('Relax：检查开发工具和依赖缓存', flush=True)
-        return prepare_locked()
+        binary, tool, launch_dir = prepare_locked()
+        if desktop:
+            prepare_desktop_font(launch_dir)
+        return binary, tool, launch_dir
 
 
 def prepare_locked():
@@ -157,6 +160,23 @@ def prepare_launch_dir():
                           '[source.shiju-relax-vendor]\ndirectory = ' + json.dumps(str(vendor), ensure_ascii=False) + '\n')
         stamp.write_text(vendor_key)
     return launch_dir
+
+
+def prepare_desktop_font(launch_dir):
+    # The iced_aw proc macro reads font.ttf relative to Relax's working directory.
+    versions = re.findall(r'^name = "iced_aw"\nversion = "([^"]+)"',
+                          (ROOT / 'Cargo.lock').read_text(), re.MULTILINE)
+    if len(versions) != 1:
+        raise RuntimeError('Relax 桌面端需要 Cargo.lock 中唯一的 iced_aw 版本。')
+    target = Path('..') / 'vendor' / f'iced_aw-{versions[0]}' / 'font.ttf'
+    if not (launch_dir / target).is_file():
+        raise RuntimeError(f'Relax 桌面端缺少字体：{launch_dir / target}')
+    font = launch_dir / 'font.ttf'
+    if font.is_symlink():
+        if font.readlink() == target:
+            return
+        font.unlink()
+    font.symlink_to(target)
 
 
 def prepare_vendor(vendor):
@@ -250,7 +270,7 @@ def main(argv):
         raise RuntimeError(f'Refusing Relax development cache through a symlink: {target}')
     os.environ.update(CARGO_TARGET_DIR=str(target), CARGO_BUILD_BUILD_DIR=str(target))
     print(f'Relax：构建目录 {target}', flush=True)
-    binary, tool, cwd = prepare()
+    binary, tool, cwd = prepare(desktop=argv[0] == 'desktop')
     if argv[0] == 'setup':
         print('Relax 已就绪：cargo dev-desktop / cargo dev-gateway；保存函数体即可热更新。')
         return 0

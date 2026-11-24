@@ -240,7 +240,7 @@ fn sidebar_agents<'a>(ui: View, state: &'a Workbench) -> Element<'a, Message> {
         ui.label("智能体"),
         toolbar_tooltip(sort.into(), ui.label("智能体排序")),
     );
-    sidebar_section(agents_header, active_agents(ui, state))
+    sidebar_section(agents_header, agent_sessions(ui, state))
 }
 
 fn sidebar_section<'a>(header: Element<'a, Message>, rows: Column<'a, Message>) -> Element<'a, Message> {
@@ -281,35 +281,57 @@ fn sidebar_button<'a>(
         })
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum AgentStatus {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(super) enum AgentStatus {
     NeedsInput,
     Working,
+    Ready,
+    Idle,
+    Running,
+    Stopping,
+    Exited,
+    Disconnected,
 }
 
 impl AgentStatus {
-    fn for_tab(project: &Project, tab: &Tab) -> Option<Self> {
-        if project.disconnected || tab.stopping {
+    pub(super) fn for_tab(project: &Project, tab: &Tab) -> Option<Self> {
+        use CliWorkbenchAgentActivity as Activity;
+
+        if matches!(tab.session.target, CliWorkbenchTarget::Shell) {
             return None;
         }
-        match (&tab.session.target, tab.session.state, tab.session.agent_activity) {
-            (CliWorkbenchTarget::Shell, _, _) => None,
-            (_, Process::WaitingForApproval, _)
-            | (CliWorkbenchTarget::NativeCli { .. }, Process::Running, Some(CliWorkbenchAgentActivity::NeedsInput)) => {
-                Some(Self::NeedsInput)
-            }
-            (CliWorkbenchTarget::Acp { .. }, Process::Running, _)
-            | (CliWorkbenchTarget::NativeCli { .. }, Process::Running, Some(CliWorkbenchAgentActivity::Working)) => {
-                Some(Self::Working)
-            }
-            _ => None,
+        if project.disconnected {
+            return Some(Self::Disconnected);
         }
+        if tab.stopping {
+            return Some(Self::Stopping);
+        }
+        Some(match tab.session.state {
+            Process::WaitingForApproval => Self::NeedsInput,
+            Process::Running => match tab.session.agent_activity {
+                Some(Activity::NeedsInput) => Self::NeedsInput,
+                Some(Activity::Working) => Self::Working,
+                Some(Activity::Idle) => Self::Idle,
+                None if matches!(tab.session.target, CliWorkbenchTarget::Acp { .. }) => Self::Working,
+                None => Self::Running,
+            },
+            Process::Ready => Self::Ready,
+            Process::Stopping => Self::Stopping,
+            Process::Exited => Self::Exited,
+            Process::Disconnected => Self::Disconnected,
+        })
     }
 
     fn label(self) -> &'static str {
         match self {
             Self::NeedsInput => "需要处理",
             Self::Working => "正在执行",
+            Self::Ready => "就绪",
+            Self::Idle => "空闲",
+            Self::Running => "运行中",
+            Self::Stopping => "正在停止",
+            Self::Exited => "已退出",
+            Self::Disconnected => "连接已断开",
         }
     }
 
@@ -318,25 +340,26 @@ impl AgentStatus {
         match self {
             Self::NeedsInput => palette.danger.strong.color,
             Self::Working => palette.success.strong.color,
+            _ => theme.palette().text.scale_alpha(0.7),
         }
     }
 }
 
-fn active_agents<'a>(ui: View, state: &'a Workbench) -> Column<'a, Message> {
+fn agent_sessions<'a>(ui: View, state: &'a Workbench) -> Column<'a, Message> {
     let grouped = state.group_agents_by_project;
     let mut list = column![].spacing(3);
-    let mut active = Vec::new();
+    let mut sessions = Vec::new();
     for (project_id, project) in &state.projects {
         for tab in project.tabs.values() {
             if let Some(status) = AgentStatus::for_tab(project, tab) {
-                active.push((status, project_id, project, tab));
+                sessions.push((status, project_id, project, tab));
             }
         }
     }
-    if active.is_empty() {
-        return list.push(sidebar_note(ui.label("暂无活动智能体")));
+    if sessions.is_empty() {
+        return list.push(sidebar_note(ui.label("暂无智能体")));
     }
-    active.sort_by(|left, right| {
+    sessions.sort_by(|left, right| {
         if grouped {
             left.2.name.cmp(&right.2.name).then(left.1.cmp(right.1)).then(left.0.cmp(&right.0))
         } else {
@@ -344,7 +367,7 @@ fn active_agents<'a>(ui: View, state: &'a Workbench) -> Column<'a, Message> {
         }
     });
     let mut previous = None;
-    for (status, project_id, project, tab) in active {
+    for (status, project_id, project, tab) in sessions {
         let section = if grouped { project_id.as_str() } else { status.label() };
         if previous != Some(section) {
             let label = if grouped { &project.name } else { ui.label(status.label()) };
@@ -355,16 +378,14 @@ fn active_agents<'a>(ui: View, state: &'a Workbench) -> Column<'a, Message> {
             && project.active_tab().is_some_and(|active| active.view_id == tab.view_id);
         let title = agent_title(state, tab);
         let label = if grouped { title } else { format!("{} · {title}", project.name) };
-        let mut content = row![agent_icon(tab), SingleLineLabel::new(label, 13.0)]
-            .spacing(7)
-            .align_y(Alignment::Center);
+        let mut summary = column![SingleLineLabel::new(label, 13.0)];
         if grouped {
-            content = content.push(text(ui.label(status.label())).size(10).style(move |theme: &Theme| text::Style {
+            summary = summary.push(text(ui.label(status.label())).size(10).style(move |theme: &Theme| text::Style {
                 color: Some(status.color(theme)),
             }));
         }
         list = list.push(sidebar_button(
-            content.height(23),
+            row![agent_icon(tab), summary].spacing(7).align_y(Alignment::Center),
             ui.msg(Action::SelectSession(SessionKey {
                 project: project_id.clone(),
                 session: tab.session.id.clone(),

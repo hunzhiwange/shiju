@@ -48,6 +48,29 @@ fn cli_workbench_sidebar_defaults_to_twenty_percent_and_clamps_to_ten() {
     assert_eq!(*ratio, 0.10);
 }
 
+#[test]
+fn cli_workbench_sidebar_shows_new_and_untracked_agents() {
+    use view::AgentStatus;
+    use vw_api_types::cli_workbench::CliWorkbenchAgentActivity;
+
+    let project = project("a", Vec::new());
+    let mut tab = Tab::new(session("a", "agent", Process::Ready));
+    assert_eq!(AgentStatus::for_tab(&project, &tab), Some(AgentStatus::Ready));
+
+    tab.session.target = CliWorkbenchTarget::NativeCli { app_id: "codex".into() };
+    tab.session.state = Process::Running;
+    assert_eq!(AgentStatus::for_tab(&project, &tab), Some(AgentStatus::Running));
+
+    tab.session.agent_activity = Some(CliWorkbenchAgentActivity::NeedsInput);
+    assert_eq!(AgentStatus::for_tab(&project, &tab), Some(AgentStatus::NeedsInput));
+
+    tab.session.agent_activity = Some(CliWorkbenchAgentActivity::Idle);
+    assert_eq!(AgentStatus::for_tab(&project, &tab), Some(AgentStatus::Idle));
+
+    tab.session.target = CliWorkbenchTarget::Shell;
+    assert_eq!(AgentStatus::for_tab(&project, &tab), None);
+}
+
 fn message(target: &str, revision: u64, output: &str) -> CliWorkbenchMessage {
     CliWorkbenchMessage {
         id: CliWorkbenchMessageId {

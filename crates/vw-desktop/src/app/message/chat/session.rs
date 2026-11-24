@@ -676,6 +676,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     }
     match message {
         ChatMessage::SendPressed => {
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(mode) = super::media_shortcuts::active_mode(app) {
+                return super::media_jobs::send(app, mode);
+            }
             if app.current_session_runtime().acp_options_state.source_pending.is_some()
                 || app.current_session_runtime().acp_options_state.pending
             {

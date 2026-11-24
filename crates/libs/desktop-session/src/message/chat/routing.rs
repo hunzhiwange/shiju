@@ -9,7 +9,7 @@ pub enum Route {
     Context,
     Session,
 }
-impl<M, P, V, D, T, G> ChatMessage<M, P, V, D, T, G> {
+impl<M, P, V, D, T, G, Media> ChatMessage<M, P, V, D, T, G, Media> {
     pub fn route(&self) -> Route {
         match self {
             ChatMessage::AcpModelInputDraftChanged(_)
@@ -29,6 +29,7 @@ impl<M, P, V, D, T, G> ChatMessage<M, P, V, D, T, G> {
             | ChatMessage::SelectShijuSkill(_)
             | ChatMessage::InputEditorAction(_)
             | ChatMessage::MediaModeSelected(_)
+            | ChatMessage::Media(_)
             | ChatMessage::MediaAttachmentsPicked { .. }
             | ChatMessage::OpenMediaAppStudio
             | ChatMessage::OpenMediaVideoEditor
@@ -256,7 +257,7 @@ impl<M, P, V, D, T, G> ChatMessage<M, P, V, D, T, G> {
     }
 }
 
-impl<M, P, V, D, T, G> ChatMessage<M, P, V, D, T, G> {
+impl<M, P, V, D, T, G, Media> ChatMessage<M, P, V, D, T, G, Media> {
     pub fn tracks_stream_thinking(&self) -> bool {
         matches!(
             self,

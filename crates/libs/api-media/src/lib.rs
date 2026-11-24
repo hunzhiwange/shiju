@@ -18,7 +18,7 @@ pub const MAX_MEDIA_ASSETS: usize = 16;
 const MAX_MEDIA_INPUTS: usize = 8;
 const MAX_MEDIA_TEXT_BYTES: usize = 32 * 1024;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MediaOperation {
     ImageGenerate,

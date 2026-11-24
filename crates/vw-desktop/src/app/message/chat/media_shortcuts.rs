@@ -15,7 +15,7 @@ pub(crate) fn active_mode(app: &App) -> Option<MediaMode> {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn view(app: &App) -> iced::Element<'static, Message> {
-    media_shortcuts::view(
+    let shortcuts = media_shortcuts::view(
         crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         active_mode(app),
         |shortcut| {
@@ -26,7 +26,69 @@ pub(crate) fn view(app: &App) -> iced::Element<'static, Message> {
             })
         },
         Message::Chat(ChatMessage::MediaModeSelected(None)),
-    )
+    );
+    if let Some(mode) = active_mode(app) {
+        iced::widget::column![shortcuts, model_control(app, mode)].spacing(6).into()
+    } else {
+        shortcuts
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn model_control(app: &App, mode: MediaMode) -> iced::Element<'static, Message> {
+    use super::media_jobs::{self, Catalog, Event};
+    use crate::app::components::system_settings_common::{
+        rounded_action_btn_style, settings_select,
+    };
+    use iced::widget::{button, row, text};
+
+    let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
+    let label = |key| text(i18n.__(key).to_owned()).size(13);
+    let button_for = |key, event| {
+        button(label(key))
+            .padding([5, 9])
+            .style(rounded_action_btn_style)
+            .on_press(media_jobs::message(event))
+    };
+    if app.session_state.active_session_id.is_none() {
+        if media_jobs::creating_session(app) {
+            return label("正在创建媒体会话…").into();
+        }
+        if app.navigation_tabs.project_path.is_none() {
+            return label("未选择项目，无法创建会话").into();
+        }
+        return button_for("创建会话并加载媒体模型", Event::PrepareSession).into();
+    }
+    let refresh = || button_for("刷新", Event::RefreshModels);
+    let Some((key, session)) = media_jobs::active_session(app) else {
+        return button_for("加载媒体模型", Event::RefreshModels).into();
+    };
+    match &session.catalog {
+        Catalog::Idle => button_for("加载媒体模型", Event::RefreshModels).into(),
+        Catalog::Loading => label("正在加载媒体模型…").into(),
+        Catalog::Failed(error) => {
+            row![label(error), refresh()].spacing(7).align_y(iced::Alignment::Center).into()
+        }
+        Catalog::Ready(_) => {
+            let operation = match media_jobs::composer_operation(app, mode) {
+                Ok(operation) => operation,
+                Err(error) => return label(error).into(),
+            };
+            let options = media_jobs::model_options(session, operation);
+            if options.is_empty() {
+                return row![label("没有支持当前操作的媒体模型"), refresh()]
+                    .spacing(7)
+                    .align_y(iced::Alignment::Center)
+                    .into();
+            }
+            let selected = media_jobs::selected_model(session, operation);
+            settings_select(options, selected, move |model| {
+                media_jobs::message(Event::ModelSelected(key.clone(), operation, model))
+            })
+            .placeholder(i18n.__("选择媒体模型"))
+            .into()
+        }
+    }
 }
 
 pub(super) fn select(app: &mut App, mode: Option<MediaMode>) -> Task<Message> {
@@ -40,7 +102,12 @@ pub(super) fn select(app: &mut App, mode: Option<MediaMode>) -> Task<Message> {
     app.input_suggestions.clear_files();
     app.input_suggestions.clear_slash();
     app.focus_area = crate::app::FocusArea::None;
-    iced::widget::operation::focus(app.session_state.input_editor_id.clone())
+    let focus = iced::widget::operation::focus(app.session_state.input_editor_id.clone());
+    #[cfg(not(target_arch = "wasm32"))]
+    if mode.is_some() {
+        return Task::batch([focus, super::media_jobs::load_models(app)]);
+    }
+    focus
 }
 
 #[cfg(not(target_arch = "wasm32"))]

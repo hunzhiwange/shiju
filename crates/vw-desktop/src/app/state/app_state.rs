@@ -29,6 +29,8 @@ pub struct App {
     pub(crate) usage_center: crate::app::views::usage::center::state::State,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) voice: crate::app::message::voice::State,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) media_jobs: crate::app::message::chat::media_jobs::State,
     pub(crate) session_ui_projection: crate::app::session::ui_projection::SessionUiProjection,
     /// 原生端本地服务启动状态，用于门控主界面。
     #[cfg(not(target_arch = "wasm32"))]

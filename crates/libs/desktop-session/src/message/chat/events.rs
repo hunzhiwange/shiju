@@ -21,7 +21,7 @@ pub struct ForkSessionLoaded<PreparedOpen> {
 /// 定义了聊天界面中所有可能的消息类型，用于在不同组件间传递状态变化和用户操作。
 /// 这些消息会被路由到对应的子模块处理函数进行状态更新和副作用执行。
 #[derive(Debug, Clone)]
-pub enum ChatMessage<Measurement, PreparedOpen, PanelMode, DetailsTab, TodoPlacement, GitAction> {
+pub enum ChatMessage<Measurement, PreparedOpen, PanelMode, DetailsTab, TodoPlacement, GitAction, Media = ()> {
     /// 输入内容变化
     ///
     /// 当用户在输入框中输入、删除或修改文本时触发
@@ -33,6 +33,7 @@ pub enum ChatMessage<Measurement, PreparedOpen, PanelMode, DetailsTab, TodoPlace
         mode: crate::session::agent::MediaMode,
         paths: Vec<String>,
     },
+    Media(Media),
     OpenMediaAppStudio,
     OpenMediaVideoEditor,
 

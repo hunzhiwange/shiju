@@ -61,6 +61,7 @@ pub(crate) fn is_composer_event(message: &ChatMessage) -> bool {
         ChatMessage::InputChanged(_)
             | ChatMessage::InputEditorAction(_)
             | ChatMessage::MediaModeSelected(_)
+            | ChatMessage::Media(_)
             | ChatMessage::MediaAttachmentsPicked { .. }
             | ChatMessage::OpenMediaAppStudio
             | ChatMessage::OpenMediaVideoEditor
@@ -89,6 +90,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.session_state.input_text = value;
             Task::none()
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        ChatMessage::Media(event) => super::media_jobs::update(app, event),
         ChatMessage::MediaModeSelected(mode) => super::media_shortcuts::select(app, mode),
         ChatMessage::MediaAttachmentsPicked { session_id, project_path, mode, paths } => {
             super::media_shortcuts::attachments_picked(app, session_id, project_path, mode, paths)

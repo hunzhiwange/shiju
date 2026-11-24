@@ -1,4 +1,6 @@
 //! Host snapshot assembly and cross-domain message routing.
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) mod media;
 mod markdown_links;
 mod markdown_selection;
 pub(in crate::app::components) use markdown_selection::selectable_titled_text;

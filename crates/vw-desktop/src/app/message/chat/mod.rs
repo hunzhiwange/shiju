@@ -25,6 +25,8 @@ use std::time::Duration;
 mod acp_options;
 pub mod context;
 pub mod input;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod media_jobs;
 pub(crate) mod media_shortcuts;
 mod processing_timing;
 pub mod session;
@@ -186,6 +188,11 @@ pub type ForkSessionLoaded = desktop_session::message::chat::events::ForkSession
     crate::app::session::PreparedSessionOpen,
 >;
 
+#[cfg(not(target_arch = "wasm32"))]
+type MediaEvent = media_jobs::Event;
+#[cfg(target_arch = "wasm32")]
+type MediaEvent = ();
+
 pub type ChatMessage = desktop_session::message::chat::events::ChatMessage<
     ChatMessageMeasurement,
     crate::app::session::PreparedSessionOpen,
@@ -193,6 +200,7 @@ pub type ChatMessage = desktop_session::message::chat::events::ChatMessage<
     crate::app::state::TrajectoryDetailsTab,
     TodoPanelPlacement,
     crate::app::state::QuickMessageGitCommitAction,
+    MediaEvent,
 >;
 
 /// 处理聊天消息并更新应用状态

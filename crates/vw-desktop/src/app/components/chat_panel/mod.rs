@@ -56,10 +56,14 @@ use self::utils::chat_context_menu;
 use self::virtualizer::ChatVirtualWindow;
 
 fn chat_global_status_reading_column(app: &App) -> Element<'_, Message> {
-    desktop_chat_view::panel::status_reading_column(
-        message_view::recovery_notice_view(app),
-        chat_global_status_view(app),
-    )
+    let status = chat_global_status_view(app);
+    #[cfg(not(target_arch = "wasm32"))]
+    let status = if let Some(media) = message_view::media::view(app) {
+        iced::widget::column![status, media].spacing(6).into()
+    } else {
+        status
+    };
+    desktop_chat_view::panel::status_reading_column(message_view::recovery_notice_view(app), status)
 }
 
 pub(crate) fn chat_panel_virtual_window(app: &App) -> ChatVirtualWindow {

@@ -116,6 +116,10 @@ pub(crate) fn open_project_session(
         .unwrap_or_default();
     let open_generation = app.session_state.session_view_cache.begin_open(&id);
     app.mark_active_session_viewed();
+    #[cfg(not(target_arch = "wasm32"))]
+    let media = crate::app::message::chat::media_jobs::restore(app);
+    #[cfg(target_arch = "wasm32")]
+    let media = iced::Task::none();
     if let Some(snapshot) = app.session_state.session_view_cache.take(&id) {
         let commit_started_at = Instant::now();
         snapshot.restore_into(app);
@@ -147,6 +151,7 @@ pub(crate) fn open_project_session(
             restore_scroll_task,
             employee_label,
             queued,
+            media,
             iced::Task::done(Message::Chat(crate::app::message::ChatMessage::LoadInputPanelTodos)),
         ]);
     }
@@ -207,6 +212,7 @@ pub(crate) fn open_project_session(
         open_task,
         requesting_cache_prewarm_task,
         history_load_task,
+        media,
         iced::Task::done(Message::Chat(crate::app::message::ChatMessage::LoadInputPanelTodos)),
     ])
 }

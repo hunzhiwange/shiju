@@ -139,6 +139,8 @@ impl App {
             // ========== 输入和模型配置 ==========
             #[cfg(not(target_arch = "wasm32"))]
             voice: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            media_jobs: Default::default(),
             session_state: desktop_session::session::state::State::new(&cfg, cfg_acp_agent.clone(), acp_agents),
 
             acp_settings: super::state::AcpSettingsState::default(),

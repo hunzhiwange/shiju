@@ -41,8 +41,8 @@ pub enum StreamMessage {
     PlanRunSessionWaiting(String),
 }
 
-impl<M, P, V, D, T, G> From<StreamMessage>
-    for crate::message::chat::events::ChatMessage<M, P, V, D, T, G>
+impl<M, P, V, D, T, G, Media> From<StreamMessage>
+    for crate::message::chat::events::ChatMessage<M, P, V, D, T, G, Media>
 {
     fn from(event: StreamMessage) -> Self {
         use crate::message::chat::events::ChatMessage;

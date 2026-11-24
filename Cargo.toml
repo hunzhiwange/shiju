@@ -630,6 +630,49 @@ serde_yaml = { package = "yaml_serde", version = "0.10.7" }
 # Preserve checked SQLite conversions for u64 and usize across native crates.
 rusqlite = { version = "0.41.1", features = ["fallible_uint"] }
 
+# Keep request and provider features from the pinned SDK's full feature set.
+# ShiJu renders its own prompts and has no SDK template consumers.
+[workspace.dependencies.aisdk]
+git = "https://github.com/hunzhiwange/aisdk.git"
+rev = "4a41a5326f8bf0591642d41be2e35c82d30ce463"
+package = "vibewindow-aisdk"
+version = ">=0.7.1"
+default-features = false
+features = [
+    "302ai", "abacus", "abliteration-ai", "above", "agentrouter", "agnes", "ai-router", "ai21",
+    "aiand", "aihubmix", "aimlapi", "ainetcafe", "aixy", "aki-io", "alibaba", "alibaba-cn",
+    "alibaba-coding-plan", "alibaba-coding-plan-cn", "alibaba-token-plan", "alibaba-token-plan-cn",
+    "amazon-bedrock", "ambient", "amd", "anthropic", "anyapi", "arcee", "atomic-chat", "auriko",
+    "bailing", "baseten", "bee", "berget", "blueclaw", "bothub", "boundless", "chutes", "clarifai",
+    "claudinio", "cline-pass", "cloudferro-sherlock", "cloudflare-ai-gateway",
+    "cloudflare-workers-ai", "commandcode", "coralbricks", "cortecs", "crof", "crossmodel",
+    "crusoe", "daoxe", "databricks", "deepseek", "digitalocean", "dinference", "drun", "ebcloud",
+    "echo", "edenai", "embedding-model-request", "empiriolabs", "engy", "evroc", "fastrouter",
+    "fireworks-ai", "firmware", "friendli", "frogbot", "github-copilot", "github-models",
+    "gmicloud", "google", "greenpt", "groq", "helicone", "hetzner", "hpc-ai", "huggingface",
+    "hyper", "iflowcn", "image-model-request", "impossibl", "inception", "inceptron", "inco",
+    "inference", "inferx", "infomaniak", "io-net", "iteracompute", "jalapeno", "jiekou", "kenari",
+    "kilo", "kimi-code-plan-cn", "kimi-code-plan-global", "klokintegration", "kosmik",
+    "kuae-cloud-coding-plan", "language-model-request", "lilac", "liquid", "llama", "llmgateway",
+    "llmgateway-providers", "llmtech", "llmtr", "lmstudio", "longcat", "lowrouter", "lucidquery",
+    "lynkr", "meganova", "melious", "mistral", "mixlayer", "moark", "modal", "model-oracle-ai",
+    "modelis", "modelscope", "moonshotai", "moonshotai-cn", "morph", "nan", "nano-gpt", "nearai",
+    "nebius", "neon", "neuralwatt", "nova", "novita-ai", "nvidia", "oci", "ofox", "ollama-cloud",
+    "openai", "openaichatcompletions", "openaicompatible", "opencode", "opencode-go", "openreason",
+    "openrouter", "opper", "orcarouter", "ovhcloud", "pareto", "pendra", "pioneer", "poe",
+    "poolside", "prime", "privatemode-ai", "qihang-ai", "qiniu-ai", "reflection", "regolo-ai",
+    "requesty", "routing-run", "runinfra", "sakana", "sambanova", "sarvam", "scaleway",
+    "scnet-token-plan", "scx-ai", "sensenova", "siliconflow", "siliconflow-cn", "snowflake-cortex",
+    "stackit", "standardcompute", "stepfun", "stepfun-ai", "stepfun-ai-step-plan",
+    "stepfun-step-plan", "submodel", "synthetic", "tempr", "tencent-coding-plan",
+    "tencent-token-plan", "tencent-tokenhub", "tensorx", "the-grid-ai", "tinfoil", "togetherai",
+    "tokengo", "tokenrouter", "trustedrouter", "umans-ai", "umans-ai-coding-plan", "unorouter",
+    "upstage", "vancine", "vercel", "vispark", "volcengine", "volcengine-coding-plan", "vultr",
+    "wafer.ai", "wallaby", "wandb", "xai", "xiaomi", "xiaomi-token-plan-ams",
+    "xiaomi-token-plan-cn", "xiaomi-token-plan-sgp", "xpersona", "zai", "zai-coding-plan", "zeldoc",
+    "zenifra", "zenmux", "zhipuai", "zhipuai-coding-plan",
+]
+
 [workspace.package]
 # Inherited by release packages only. Internal crates pin their own versions.
 version = "0.7.12"

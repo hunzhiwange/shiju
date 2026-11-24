@@ -135,7 +135,12 @@ impl From<TerminalSize> for WindowSize {
     }
 }
 
+#[path = "working_directory.rs"]
+mod working_directory;
+use working_directory::WorkingDirectory;
+
 pub struct Backend {
+    working_directory: WorkingDirectory,
     term: Arc<FairMutex<Term<EventProxy>>>,
     size: TerminalSize,
     notifier: Notifier,
@@ -149,6 +154,10 @@ impl Backend {
         pty_event_proxy_sender: mpsc::Sender<Event>,
         settings: BackendSettings,
     ) -> Result<Self> {
+        let initial_directory = settings
+            .working_directory
+            .clone()
+            .or_else(|| std::env::current_dir().ok());
         let pty_config = tty::Options {
             shell: Some(tty::Shell::new(settings.program, settings.args)),
             working_directory: settings.working_directory,
@@ -160,7 +169,11 @@ impl Backend {
         let terminal_size = TerminalSize::default();
         let pty = tty::new(&pty_config, terminal_size.into(), id)?;
 
-        let event_proxy = EventProxy(pty_event_proxy_sender);
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        let working_directory = WorkingDirectory::new(initial_directory, pty.child().id());
+        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        let working_directory = WorkingDirectory::new(initial_directory);
+        let event_proxy = EventProxy(pty_event_proxy_sender, working_directory.clone());
 
         let mut term = Term::new(config, &terminal_size, event_proxy.clone());
 
@@ -186,11 +199,16 @@ impl Backend {
 
         Ok(Self {
             term: term.clone(),
+            working_directory,
             size: terminal_size,
             notifier,
             last_content: initial_content,
             url_regex: RegexSearch::new(URL_REGEX).expect("invalid url regexp"),
         })
+    }
+
+    pub(crate) fn working_directory(&self) -> Option<std::path::PathBuf> {
+        self.working_directory.get()
     }
 
     pub fn handle(&mut self, cmd: Command) -> Action {
@@ -658,10 +676,13 @@ impl Drop for Backend {
 }
 
 #[derive(Clone)]
-pub struct EventProxy(mpsc::Sender<Event>);
+pub struct EventProxy(mpsc::Sender<Event>, WorkingDirectory);
 
 impl EventListener for EventProxy {
     fn send_event(&self, event: Event) {
+        if matches!(event, Event::ChildExit(_) | Event::Exit) {
+            self.1.mark_exited();
+        }
         let _ = self.0.try_send(event);
     }
 }

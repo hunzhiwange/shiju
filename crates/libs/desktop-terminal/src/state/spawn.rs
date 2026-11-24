@@ -33,13 +33,18 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
         &self,
         cwd: Option<std::path::PathBuf>,
     ) -> Option<TerminalTab> {
-        let id = self.next_id;
+        self.spawn_interactive_tab(self.next_id, self.shell.into(), cwd)
+    }
 
-        let shell_path = self.shell.into().to_string();
-
+    pub(crate) fn spawn_interactive_tab(
+        &self,
+        id: u64,
+        shell_program: &'static str,
+        cwd: Option<std::path::PathBuf>,
+    ) -> Option<TerminalTab> {
         let settings = iced_term::settings::Settings {
             backend: iced_term::settings::BackendSettings {
-                program: shell_path,
+                program: shell_program.to_string(),
                 args: vec!["-i".to_string()],
                 env: terminal_env(),
                 working_directory: cwd,
@@ -55,6 +60,7 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
             id,
             title: format!("终端 {id}"),
             default_title: true,
+            shell_program,
             term,
             edit_title: None,
         })
@@ -70,11 +76,11 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
         let id = self.next_id;
         self.next_id = self.next_id.wrapping_add(1);
 
-        let shell_path = self.shell.into().to_string();
+        let shell_program = self.shell.into();
 
         let settings = iced_term::settings::Settings {
             backend: iced_term::settings::BackendSettings {
-                program: shell_path,
+                program: shell_program.to_string(),
                 args: vec!["-lc".to_string(), command],
                 env: terminal_env(),
                 working_directory: cwd,
@@ -89,7 +95,7 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
 
         self.push_tab(
             self.panes.focused,
-            TerminalTab { id, title, default_title: false, term, edit_title: None },
+            TerminalTab { id, title, default_title: false, shell_program, term, edit_title: None },
         );
         Some(id)
     }
@@ -130,7 +136,14 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
 
         self.push_tab(
             self.panes.focused,
-            TerminalTab { id, title, default_title: false, term, edit_title: None },
+            TerminalTab {
+                id,
+                title,
+                default_title: false,
+                shell_program: "/bin/bash",
+                term,
+                edit_title: None,
+            },
         );
         Some(id)
     }
@@ -204,7 +217,14 @@ fi
 
         self.push_tab(
             self.panes.focused,
-            TerminalTab { id, title, default_title: false, term, edit_title: None },
+            TerminalTab {
+                id,
+                title,
+                default_title: false,
+                shell_program: "/bin/zsh",
+                term,
+                edit_title: None,
+            },
         );
         Some(id)
     }

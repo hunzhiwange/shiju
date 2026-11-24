@@ -48,6 +48,8 @@ pub enum TerminalMessage {
     /// Drop terminals retired after iced cancelled their subscriptions.
     ReapRetired,
     #[cfg(not(target_arch = "wasm32"))]
+    CheckpointWorkspace,
+    #[cfg(not(target_arch = "wasm32"))]
     Event(iced_term::Event),
     #[cfg(target_arch = "wasm32")]
     Event(()),

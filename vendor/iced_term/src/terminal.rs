@@ -61,6 +61,11 @@ impl Terminal {
         })
     }
 
+    /// The latest known shell directory, falling back to its launch directory.
+    pub fn working_directory(&self) -> Option<std::path::PathBuf> {
+        self.backend.working_directory()
+    }
+
     pub fn widget_id(&self) -> &iced::widget::Id {
         &self.widget_id
     }

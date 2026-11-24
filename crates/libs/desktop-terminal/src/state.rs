@@ -217,6 +217,8 @@ pub struct TerminalState<S> {
     /// running can panic with "terminal event channel closed unexpected".
     #[cfg(not(target_arch = "wasm32"))]
     retiring: Vec<iced_term::Terminal>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) saved_workspace: Option<crate::workspace::Workspace>,
 }
 
 impl<S: Copy + Into<&'static str>> TerminalState<S> {
@@ -285,6 +287,8 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
             content_menu: None,
             #[cfg(not(target_arch = "wasm32"))]
             retiring: Vec::new(),
+            #[cfg(not(target_arch = "wasm32"))]
+            saved_workspace: None,
         }
     }
 

@@ -7,9 +7,19 @@ use iced::Task;
 pub mod config;
 pub mod event;
 pub mod tabs;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod workspace;
 pub(crate) use tabs::reap_retired_task;
 
 pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if matches!(message, TerminalMessage::CheckpointWorkspace) {
+        if !app.shutdown_requested {
+            workspace::checkpoint(app);
+        }
+        return Task::none();
+    }
+
     let fullscreen = app.terminal.is_fullscreen;
     let mut focused = app.focus_area == FocusArea::Terminal;
     let mut effects = Vec::new();

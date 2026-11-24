@@ -83,7 +83,7 @@ impl App {
     /// # 返回值
     ///
     /// - `true` - 新项目没有缓存的终端状态，创建了全新终端（通常需要初始化）
-    /// - `false` - 新项目有缓存状态并已恢复，或路径相同无需切换
+    /// - `false` - 已恢复内存或磁盘状态，或无需切换
     ///
     /// # 行为说明
     ///
@@ -109,6 +109,14 @@ impl App {
         let terminal_font_size = self.terminal.font_size;
         let terminal_height = self.terminal.height;
 
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            use crate::app::message::terminal::workspace;
+            if let Some(path) = previous_project_path.as_deref() {
+                workspace::save(path, &mut self.terminal);
+            }
+            workspace::remember_project(new_project_path.as_deref());
+        }
         self.terminal.set_fullscreen(false);
 
         // 如果存在前一个项目，保存其终端状态到映射表
@@ -153,6 +161,10 @@ impl App {
                     terminal_font_size,
                     terminal_height,
                 );
+                #[cfg(not(target_arch = "wasm32"))]
+                let restored = crate::app::message::terminal::workspace::restore(&path, &mut created);
+                #[cfg(target_arch = "wasm32")]
+                let restored = false;
                 if created.is_visible {
                     let _ = created.ensure_default_terminal(Some(std::path::PathBuf::from(&path)));
                 }
@@ -160,7 +172,7 @@ impl App {
                 self.terminal.absorb_replaced(old);
                 #[cfg(not(target_arch = "wasm32"))]
                 self.terminal.apply_app_theme(&self.appearance.app_theme);
-                true
+                !restored
             }
         } else {
             // 没有新项目路径，创建空白终端（保持设置）

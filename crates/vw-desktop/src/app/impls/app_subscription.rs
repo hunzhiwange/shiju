@@ -241,6 +241,14 @@ impl App {
             for t in &self.terminal.tabs {
                 subs.push(terminal_subscription(&t.term));
             }
+            if self.navigation_tabs.project_path.is_some()
+                && self.terminal.needs_workspace_checkpoint()
+                && !self.shutdown_requested
+            {
+                subs.push(iced::time::every(std::time::Duration::from_secs(2)).map(|_| {
+                    Message::Terminal(message::TerminalMessage::CheckpointWorkspace)
+                }));
+            }
             Subscription::batch(subs)
         };
         #[cfg(target_arch = "wasm32")]

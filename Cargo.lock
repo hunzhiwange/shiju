@@ -8051,6 +8051,7 @@ dependencies = [
  "iced_runtime",
  "iced_term",
  "portable-pty",
+ "serde",
  "serde_json",
  "tempfile",
  "tokio",
@@ -12497,6 +12498,7 @@ dependencies = [
  "iced",
  "iced_core",
  "iced_graphics",
+ "libc",
  "open",
  "tokio",
 ]

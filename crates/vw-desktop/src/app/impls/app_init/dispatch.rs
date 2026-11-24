@@ -56,6 +56,7 @@ pub(in crate::app) fn update(app: &mut App, message: Message) -> Update {
                 Task::done(Message::GatewayHealthTick),
                 Task::done(Message::Settings(message::SettingsMessage::ModelsRefresh)),
             ];
+            tasks.push(crate::app::message::terminal::workspace::reopen_project(app));
             tasks.push(app.load_startup_sessions());
             Task::batch(tasks)
         }),

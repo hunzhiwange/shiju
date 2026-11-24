@@ -57,6 +57,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 if !begin_shutdown(&mut app.shutdown_requested) {
                     return Task::none();
                 }
+                crate::app::message::terminal::workspace::flush(app);
                 let commit = crate::app::message::editor::metrics::commit(app, None);
                 let (routing_commit, routing_saves) =
                     crate::app::message::settings::routing_persistence::flush(app);
@@ -261,6 +262,7 @@ pub(crate) fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Ta
     app.voice.hotkeys.reload();
     crate::app::message::voice::cancel(app);
     arm_shutdown_exit_watchdog();
+    crate::app::message::terminal::workspace::flush(app);
     let requests = take_shutdown_stream_requests(app);
     let editor_commit = crate::app::message::editor::metrics::commit(app, None);
     let editor_saves = app.preview_state.editor_config_persistence.wait_for_idle();

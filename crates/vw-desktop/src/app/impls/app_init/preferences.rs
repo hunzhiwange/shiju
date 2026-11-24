@@ -53,7 +53,13 @@ impl App {
             &cfg,
         );
         self.file_manager.apply_preferences(&cfg);
-        if let Some(visible) = cfg.get("show_terminal").and_then(|v| v.as_bool()) {
+        #[cfg(not(target_arch = "wasm32"))]
+        let restore_terminal_visibility = !self.terminal.has_saved_workspace();
+        #[cfg(target_arch = "wasm32")]
+        let restore_terminal_visibility = true;
+        if restore_terminal_visibility
+            && let Some(visible) = cfg.get("show_terminal").and_then(|v| v.as_bool())
+        {
             self.terminal.set_visible(visible);
         }
         self.workspace_state.apply_preferences(&cfg);

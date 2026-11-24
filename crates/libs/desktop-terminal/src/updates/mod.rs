@@ -33,6 +33,8 @@ pub fn update(
     message: TerminalMessage,
 ) -> Task<TerminalMessage> {
     match message {
+        #[cfg(not(target_arch = "wasm32"))]
+        TerminalMessage::CheckpointWorkspace => Task::none(),
         TerminalMessage::Add
         | TerminalMessage::Select(_)
         | TerminalMessage::Close(_)

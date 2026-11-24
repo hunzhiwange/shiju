@@ -246,7 +246,7 @@ pub enum Message { Event(Event), Error(String), Success(String) }
 fn script_message(event: apps_usage_script::Message) -> Message {
     send(match event { apps_usage_script::Message::Event(e) => Event::Script(e), apps_usage_script::Message::Close => Event::Close, apps_usage_script::Message::OpenScript => Event::OpenScript })
 }
-pub fn update(editor: &mut Editor, scope: Option<Scope>, visible: bool, selected_provider: bool, endpoint: GatewayEndpoint, token: &str, event: Event) -> Task<Message> {
+pub fn update(i18n: desktop_i18n::I18n, editor: &mut Editor, scope: Option<Scope>, visible: bool, selected_provider: bool, endpoint: GatewayEndpoint, token: &str, event: Event) -> Task<Message> {
     if matches!(event, Event::Close) {
 
         if !editor
@@ -275,7 +275,7 @@ pub fn update(editor: &mut Editor, scope: Option<Scope>, visible: bool, selected
         if !selected_provider { return Task::none(); }
         let token = token.trim().to_owned();
         let Ok(client) = GatewayClient::new(endpoint) else {
-            return Task::done(Message::Error("无法连接额度设置网关".into()));
+            return Task::done(Message::Error(i18n.__("无法连接额度设置网关").into()));
         };
 
 
@@ -308,7 +308,7 @@ pub fn update(editor: &mut Editor, scope: Option<Scope>, visible: bool, selected
         {
             let token = token.trim().to_owned();
             let Ok(client) = GatewayClient::new(endpoint) else {
-                return Task::done(Message::Error("无法连接额度设置网关".into()));
+                return Task::done(Message::Error(i18n.__("无法连接额度设置网关").into()));
             };
 
             editor.sequence = editor.sequence.wrapping_add(1);
@@ -326,7 +326,7 @@ pub fn update(editor: &mut Editor, scope: Option<Scope>, visible: bool, selected
                     &mut editor.sequence,
                 ) {
                     Ok(task) => task.map(script_message),
-                    Err(hint) => Task::done(Message::Error(hint.into())),
+                    Err(hint) => Task::done(Message::Error(i18n.__(hint).into())),
                 };
             }
         }
@@ -339,7 +339,7 @@ pub fn update(editor: &mut Editor, scope: Option<Scope>, visible: bool, selected
                 }
                 Err(error) => {
                     modal.phase = Phase::LoadFailed;
-                    return Task::done(Message::Error(format!("读取额度设置失败 · {error}")));
+                    return Task::done(Message::Error(i18n.format("读取额度设置失败 · %s", &[(format!("{}", error)).into()]).expect("valid display template")));
                 }
             }
         }
@@ -351,9 +351,9 @@ pub fn update(editor: &mut Editor, scope: Option<Scope>, visible: bool, selected
                 return match result {
                     Ok(()) => {
                         editor.clear();
-                        Task::done(Message::Success("额度设置已保存".into()))
+                        Task::done(Message::Success(i18n.__("额度设置已保存").into()))
                     }
-                    Err(error) => Task::done(Message::Error(format!("保存额度设置失败 · {error}"))),
+                    Err(error) => Task::done(Message::Error(i18n.format("保存额度设置失败 · %s", &[(format!("{}", error)).into()]).expect("valid display template"))),
                 };
             }
         }
@@ -373,7 +373,7 @@ pub fn update(editor: &mut Editor, scope: Option<Scope>, visible: bool, selected
                         let Ok(settings) = draft.settings() else { return Task::none() };
                         let token = token.trim().to_owned();
                         let Ok(client) = GatewayClient::new(endpoint) else {
-                            return Task::done(Message::Error("无法连接额度设置网关".into()));
+                            return Task::done(Message::Error(i18n.__("无法连接额度设置网关").into()));
                         };
 
                         let selection = modal.selection.clone();

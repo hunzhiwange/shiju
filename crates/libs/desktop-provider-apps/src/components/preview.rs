@@ -29,12 +29,13 @@ pub fn card<'a>(
     form: &'a Form,
     help: Help<'_>,
 ) -> Element<'a, Message> {
+    let i18n = help.i18n;
     let ready = form.reading.is_none() && form.save.is_none();
     let can_close = form.save.is_none();
     let close = if can_close { message(Event::Close) } else { Message::None };
     let header = settings_modal_header(
         column![
-            help.heading("配置预览与冲突确认", "预览内容已脱敏。", 28),
+            help.heading(i18n.__("配置预览与冲突确认"), i18n.__("预览内容已脱敏。"), 28),
             text(&form.name).size(14).style(settings_muted_text_style),
         ]
         .spacing(4),
@@ -42,19 +43,19 @@ pub fn card<'a>(
     );
     let mut body = column![].spacing(12).width(Length::Fill);
     if form.reading.is_some() {
-        body = body.push(settings_panel(text("正在读取配置预览…")));
+        body = body.push(settings_panel(text(i18n.__("正在读取配置预览…"))));
     }
     if let Some(notice) = &form.notice {
-        body = body.push(settings_panel(text(notice).size(14)));
+        body = body.push(settings_panel(text(i18n.__(notice)).size(14)));
     }
     if let Some(save) = &form.save {
         let summary = match save.progress.as_ref() {
             Some(progress) => {
                 let phase = match progress.phase {
-                    ProviderOperationPhase::Preparing => "正在检查配置",
-                    ProviderOperationPhase::Publishing => "正在提交配置",
-                    ProviderOperationPhase::Settling => "正在完成已开始的提交",
-                    ProviderOperationPhase::Terminal => "正在确认结果",
+                    ProviderOperationPhase::Preparing => i18n.__("正在检查配置"),
+                    ProviderOperationPhase::Publishing => i18n.__("正在提交配置"),
+                    ProviderOperationPhase::Settling => i18n.__("正在完成已开始的提交"),
+                    ProviderOperationPhase::Terminal => i18n.__("正在确认结果"),
                 };
                 if progress.total == 0 {
                     phase.into()
@@ -62,12 +63,12 @@ pub fn card<'a>(
                     format!("{phase} · {}/{}", progress.completed, progress.total)
                 }
             }
-            None => "正在提交保存请求".into(),
+            None => i18n.__("正在提交保存请求").into(),
         };
         body = body.push(settings_panel(column![
             text(summary),
             text(if save.cancel_requested {
-                "已请求取消，等待确认。"
+                i18n.__("已请求取消，等待确认。")
             } else {
                 ""
             })
@@ -76,8 +77,8 @@ pub fn card<'a>(
     }
     if let Some(conflict) = &form.confirmation.conflict {
         let mut paths = column![
-            text("配置冲突").size(17),
-            text("请选择这些设置采用哪一方的改动。其他改动仍会保存。").size(14),
+            text(i18n.__("配置冲突")).size(17),
+            text(i18n.__("请选择这些设置采用哪一方的改动。其他改动仍会保存。")).size(14),
         ]
         .spacing(6);
         for path in &conflict.paths {
@@ -98,12 +99,12 @@ pub fn card<'a>(
         body = body.push(settings_panel(
             column![
                 text(if editor.current {
-                    "编辑 Claude 全局配置"
+                    i18n.__("编辑 Claude 全局配置")
                 } else {
-                    "编辑已保存的 Claude 配置"
+                    i18n.__("编辑已保存的 Claude 配置")
                 })
                 .size(16),
-                text("填写 JSON 改动列表。每项用 path 指定键路径，用 value 指定设置或删除。")
+                text(i18n.__("填写 JSON 改动列表。每项用 path 指定键路径，用 value 指定设置或删除。"))
                     .size(13),
                 text(r#"[{"path":["alwaysThinkingEnabled"],"value":{"kind":"set","value":true}}]"#)
                     .size(13),
@@ -117,31 +118,31 @@ pub fn card<'a>(
     if let Some(view) = &form.view {
         match view {
             Display::Native(preview) => {
-                let mut changes = column![text("预览差异").size(16)].spacing(6);
+                let mut changes = column![text(i18n.__("预览差异")).size(16)].spacing(6);
                 if preview.changes.is_empty() {
-                    changes = changes.push(text("没有配置差异。").size(14));
+                    changes = changes.push(text(i18n.__("没有配置差异。")).size(14));
                 }
                 for change in &preview.changes {
                     let kind = match change.kind {
-                        PreviewChangeKind::Added => "新增",
-                        PreviewChangeKind::Removed => "删除",
-                        PreviewChangeKind::Changed => "修改",
+                        PreviewChangeKind::Added => i18n.__("新增"),
+                        PreviewChangeKind::Removed => i18n.__("删除"),
+                        PreviewChangeKind::Changed => i18n.__("修改"),
                     };
                     changes = changes
                         .push(text(format!("{kind} · {}", change.path.join(" › "))).size(14));
                 }
                 for path in &preview.inactive {
-                    changes = changes.push(text(format!("未生效 · {}", path.join(" › "))).size(14));
+                    changes = changes.push(text(i18n.format("未生效 · %s", &[(format!("{}", path.join(" › "))).into()]).expect("valid display template")).size(14));
                 }
                 body = body.push(settings_panel(changes));
                 body = body.push(settings_panel(
-                    column![text("投影配置").size(16), text(pretty(&preview.settings)).size(14),]
+                    column![text(i18n.__("投影配置")).size(16), text(pretty(&preview.settings)).size(14),]
                         .spacing(6),
                 ));
             }
             Display::Saved(settings) => {
                 body = body.push(settings_panel(
-                    column![text("已保存的供应商配置").size(16), text(pretty(settings)).size(14),]
+                    column![text(i18n.__("已保存的供应商配置")).size(16), text(pretty(settings)).size(14),]
                         .spacing(6),
                 ));
             }
@@ -151,28 +152,28 @@ pub fn card<'a>(
         && !editor.current
     {
         body = body.push(settings_panel(
-            column![text("可编辑的已保存配置").size(16), text(pretty(&editor.settings)).size(14),]
+            column![text(i18n.__("可编辑的已保存配置")).size(16), text(pretty(&editor.settings)).size(14),]
                 .spacing(6),
         ));
     }
 
     let footer = if let Some(save) = &form.save {
         row![
-            action("取消保存", Event::CancelSave, !save.cancel_requested, false),
-            action("重试查询", Event::Check, !save.waiting, false),
+            action(i18n.__("取消保存"), Event::CancelSave, !save.cancel_requested, false),
+            action(i18n.__("重试查询"), Event::Check, !save.waiting, false),
         ]
     } else if form.confirmation.conflict.is_some() {
         row![
-            action("取消", Event::Close, true, false),
-            action("保留外部修改", Event::Save(EditorChoice::KeepTheirs), ready, false),
-            action("采用我的修改", Event::Save(EditorChoice::KeepMine), ready, true),
+            action(i18n.__("取消"), Event::Close, true, false),
+            action(i18n.__("保留外部修改"), Event::Save(EditorChoice::KeepTheirs), ready, false),
+            action(i18n.__("采用我的修改"), Event::Save(EditorChoice::KeepMine), ready, true),
         ]
     } else {
         row![
-            action("关闭", Event::Close, true, false),
-            action("重新预览", Event::Refresh, ready, false),
+            action(i18n.__("关闭"), Event::Close, true, false),
+            action(i18n.__("重新预览"), Event::Refresh, ready, false),
             action(
-                "保存改动",
+                i18n.__("保存改动"),
                 Event::Save(EditorChoice::Refuse),
                 ready && form.confirmation.editor.is_some(),
                 true

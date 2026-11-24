@@ -414,30 +414,27 @@ impl Cards {
         self.scope.as_ref() == Some(scope) && self.batch_pending.is_some()
     }
 
-    pub fn batch_lines(&self, scope: &Scope) -> Vec<String> {
+    pub fn batch_lines(&self, i18n: desktop_i18n::I18n, scope: &Scope) -> Vec<String> {
         if self.scope.as_ref() != Some(scope) {
             return Vec::new();
         }
         match self.batch_result.as_ref() {
             None => Vec::new(),
-            Some(Err(error)) => vec![error.label().into()],
+            Some(Err(error)) => vec![i18n.__(error.label()).into()],
             Some(Ok(items)) => {
                 let succeeded = items.iter().filter(|item| item.refresh_failure.is_none()).count();
-                let mut lines = vec![format!(
-                    "额度刷新 · {succeeded} 项成功，{} 项未完成",
-                    items.len() - succeeded
-                )];
+                let mut lines = vec![i18n.format("额度刷新 · %u 项成功，%u 项未完成", &[succeeded.into(), (items.len() - succeeded).into()]).expect("valid refresh counts")];
                 for item in items {
                     if let Some(error) =
                         item.refresh_failure.or_else(|| item.snapshot.as_ref().err().copied())
                     {
                         let selection = &item.selection;
-                        let account = selection.account_id.as_deref().unwrap_or("供应商凭据");
+                        let account = selection.account_id.as_deref().unwrap_or(i18n.__("供应商凭据"));
                         lines.push(format!(
                             "{:?} / {} / {account} · {}",
                             selection.app_id,
                             selection.provider_id,
-                            error.label()
+                            i18n.__(error.label())
                         ));
                     }
                 }

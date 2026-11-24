@@ -91,14 +91,14 @@ pub fn update(state: &mut State, event: Event) {
         Event::ToggleDetails => state.expanded = !state.expanded,
     }
 }
-pub fn view<'a>(
+pub fn view<'a>(i18n: desktop_i18n::I18n,
     state: &State,
     summary: Option<&UsageSummary>,
     loading: bool,
 ) -> Element<'a, Event> {
-    view_with_cost(state, summary, loading, None)
+    view_with_cost(i18n, state, summary, loading, None)
 }
-pub fn view_with_cost<'a>(
+pub fn view_with_cost<'a>(i18n: desktop_i18n::I18n,
     state: &State,
     summary: Option<&UsageSummary>,
     loading: bool,
@@ -125,9 +125,9 @@ pub fn view_with_cost<'a>(
         };
         let selected = state.metric == metric;
         let label: Element<'_, Event> = if selected {
-            text(metric.label()).size(13).into()
+            text(i18n.__(metric.label())).size(13).into()
         } else {
-            text(metric.label()).size(13).style(text::secondary).into()
+            text(i18n.__(metric.label())).size(13).style(text::secondary).into()
         };
         let cell = column![
             column![
@@ -149,18 +149,15 @@ pub fn view_with_cost<'a>(
             )
         ];
         let help = match metric {
-            Metric::Cost => format!(
-                "已知费用 {value}\n未知费用 {} 请求",
-                summary.map_or(0, |s| s.counts.unknown_cost_requests)
-            ),
+            Metric::Cost => i18n.format("已知费用 %s\n未知费用 %s 请求", &[(format!("{}", value)).into(), (format!("{}", summary.map_or(0, |s| s.counts.unknown_cost_requests))).into()]).expect("valid display template"),
             Metric::Tokens => {
-                "新增输入 + 输出 + 缓存写入 + 缓存命中；未知计数显示 —，不重复计算推理或缓存子集。"
+                i18n.__("新增输入 + 输出 + 缓存写入 + 缓存命中；未知计数显示 —，不重复计算推理或缓存子集。")
                     .into()
             }
             Metric::HitRate => {
-                "缓存命中 ÷（新增输入 + 缓存写入 + 缓存命中）；无输入时显示 —。".into()
+                i18n.__("缓存命中 ÷（新增输入 + 缓存写入 + 缓存命中）；无输入时显示 —。").into()
             }
-            Metric::Requests => "当前范围内全部请求，包含失败与未知状态。".into(),
+            Metric::Requests => i18n.__("当前范围内全部请求，包含失败与未知状态。").into(),
         };
         let help = if matches!(metric, Metric::Requests | Metric::Tokens) && !loading {
             format!(
@@ -213,7 +210,7 @@ pub fn view_with_cost<'a>(
                 style
             })
             .on_press(Event::ToggleDetails),
-        container(text("更多指标").size(12))
+        container(text(i18n.__("更多指标")).size(12))
             .padding([6, 12])
             .style(|theme: &iced::Theme| {
                 let palette = theme.palette();
@@ -233,10 +230,10 @@ pub fn view_with_cost<'a>(
         let totals = summary.map(UsageSummary::token_totals).unwrap_or_default();
         let mut details = row![].spacing(0);
         for (label, value) in [
-            ("新增输入", totals.fresh_input),
-            ("输出", totals.output),
-            ("缓存写入", totals.cache_creation),
-            ("缓存命中", totals.cache_read),
+            (i18n.__("新增输入"), totals.fresh_input),
+            (i18n.__("输出"), totals.output),
+            (i18n.__("缓存写入"), totals.cache_creation),
+            (i18n.__("缓存命中"), totals.cache_read),
         ] {
             let value = if loading {
                 "…".into()

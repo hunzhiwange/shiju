@@ -177,10 +177,7 @@ fn finish(
         }
         Ok(Outcome::Cleaned(result)) => {
             form.record_backup(result.backup_id);
-            let toast = super::provider_update::success(format!(
-                "已清理 {} 项，备份编号已填入。",
-                result.removed_definitions
-            ));
+            let toast = super::provider_update::success(desktop_i18n::settings_models::messages::Feedback::owned("已清理 %s 项，备份编号已填入。", vec![(format!("{}", result.removed_definitions))]));
             Task::batch([toast, update(state, current.clone(), token, Event::Refresh)])
         }
         Ok(Outcome::Restored(result)) => {

@@ -21,22 +21,23 @@ pub fn fields<'a>(
     draft: &'a Draft,
     help: Help<'_>,
 ) -> Element<'a, Message> {
+    let i18n = help.i18n;
     let enabled = !form.saving;
     let create = matches!(form.mode, Mode::Create);
     let event = |field| message(EditMessage::Kimi(field));
     let hint = |value| text(value).size(12).style(settings_muted_text_style);
     let mut fields = column![
         help.field(
-            "供应商声明",
-            "可编辑 provider.type、provider.base_url 和 models。API 密钥请在下方填写。"
+            i18n.__("供应商声明"),
+            i18n.__("可编辑 provider.type、provider.base_url 和 models。API 密钥请在下方填写。")
         ),
-        hint("官方授权和模型发现暂不可用。"),
+        hint(i18n.__("官方授权和模型发现暂不可用。")),
     ]
     .spacing(8)
-    .push(hint("保留执行端值标记代表隐藏字段。"));
+    .push(hint(i18n.__("保留执行端值标记代表隐藏字段。")));
     if create {
         fields = fields
-            .push(hint("models 使用模型标识作为键；需填写 model 与正整数 max_context_size。"));
+            .push(hint(i18n.__("models 使用模型标识作为键；需填写 model 与正整数 max_context_size。")));
     }
     let mut editor = text_editor(&draft.declaration)
         .height(Length::Fixed(250.))
@@ -51,27 +52,27 @@ pub fn fields<'a>(
         fields = fields
             .push(
                 checkbox(form.replace_key)
-                    .label("替换已保存的 API 密钥")
+                    .label(i18n.__("替换已保存的 API 密钥"))
                     .text_size(SETTINGS_CONTROL_TEXT_SIZE)
                     .style(settings_checkbox_style)
                     .on_toggle_maybe(enabled.then_some(|v| message(EditMessage::Replace(v)))),
             )
             .push(
                 checkbox(form.clear_key)
-                    .label("移除已保存的 API 密钥")
+                    .label(i18n.__("移除已保存的 API 密钥"))
                     .text_size(SETTINGS_CONTROL_TEXT_SIZE)
                     .style(settings_checkbox_style)
                     .on_toggle_maybe(enabled.then_some(|v| message(EditMessage::Clear(v)))),
             )
             .push(hint(
-                "更改 API 地址或协议时，请替换或移除已保存的密钥。执行端不会把已有请求头发送到新地址或协议。",
+                i18n.__("更改 API 地址或协议时，请替换或移除已保存的密钥。执行端不会把已有请求头发送到新地址或协议。"),
             ));
     }
     if !draft.has_saved_key || form.replace_key {
         fields = fields.push(
             column![
-                settings_field_label("API 密钥"),
-                text_input("可选", &form.key)
+                settings_field_label(i18n.__("API 密钥")),
+                text_input(i18n.__("可选"), &form.key)
                     .secure(true)
                     .padding(SETTINGS_CONTROL_PADDING)
                     .size(SETTINGS_CONTROL_TEXT_SIZE)
@@ -83,15 +84,15 @@ pub fn fields<'a>(
     }
     let fields = fields.push(settings_divider()).push(
         checkbox(draft.apply)
-            .label(if create { "保存后添加到 Kimi" } else { "已添加时同步更新 Kimi" })
+            .label(if create { i18n.__("保存后添加到 Kimi") } else { i18n.__("已添加时同步更新 Kimi") })
             .text_size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_checkbox_style)
             .on_toggle_maybe(enabled.then_some(move |value| event(Field::Apply(value)))),
     );
     column![
         help.group(
-            "Kimi 原生供应商节点",
-            "编辑 config.toml 的单个 provider 与关联 models 节点的 TOML，保存时由执行端校验。"
+            i18n.__("Kimi 原生供应商节点"),
+            i18n.__("编辑 config.toml 的单个 provider 与关联 models 节点的 TOML，保存时由执行端校验。")
         ),
         settings_panel(fields)
     ]

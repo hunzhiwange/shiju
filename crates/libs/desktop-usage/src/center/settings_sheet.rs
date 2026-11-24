@@ -52,19 +52,19 @@ impl std::fmt::Display for ScanInterval {
     }
 }
 
-fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
+fn scan_controls(i18n: desktop_i18n::I18n, state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
     let active = state.job.as_ref().is_some_and(|job| !scan::terminal(job));
     let preferences = state.preferences;
     let enabled = preferences.is_some_and(|preferences| preferences.enabled);
     let status = state.last_sync_time().map_or_else(
-        || "尚未完成同步".into(),
+        || i18n.__("尚未完成同步").into(),
         |time| time.format("%Y-%m-%d %H:%M:%S").to_string(),
     );
     let mut scanning = column![
         row![
             settings_hover_help_label(
-                text("自动扫描会话日志").size(15),
-                text("扫描可用的本地会话日志").size(12).into(),
+                text(i18n.__("自动扫描会话日志")).size(15),
+                text(i18n.__("扫描可用的本地会话日志")).size(12).into(),
             ),
             Space::new().width(Length::Fill),
             settings_toggle(enabled).on_toggle_maybe(
@@ -76,11 +76,11 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
                 })
             ),
         ].spacing(12).align_y(iced::Alignment::Center),
-        text("支持 Claude Code、Codex、Gemini CLI、Grok Build、OpenCode、Pi、Oh My Pi、MiniMax Code、Kimi Code、DeepSeek Harness 和 Antigravity 的日志格式。")
+        text(i18n.__("支持 Claude Code、Codex、Gemini CLI、Grok Build、OpenCode、Pi、Oh My Pi、MiniMax Code、Kimi Code、DeepSeek Harness 和 Antigravity 的日志格式。"))
             .size(12).style(text::secondary),
-        text(format!("启动和打开用量页时各触发一次同步，定时同步按所选间隔执行。上次同步：{status}"))
+        text(i18n.format("启动和打开用量页时各触发一次同步，定时同步按所选间隔执行。上次同步：%s", &[(format!("{}", status)).into()]).expect("valid display template"))
             .size(12).style(text::secondary),
-        text("Hermes、OpenClaw 暂不支持用量统计").size(12).style(text::secondary),
+        text(i18n.__("Hermes、OpenClaw 暂不支持用量统计")).size(12).style(text::secondary),
         row![
             settings_select(
                 SCAN_INTERVALS.map(ScanInterval),
@@ -89,11 +89,18 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
                     gateway_usage_scan::UsageScanPreferences { enabled, refresh_seconds: interval.0 },
                 ))),
             )
-            .placeholder("每 1 天同步")
+            .format_labels(|interval| match interval.0 {
+                seconds if seconds == 30 * DAY => i18n.__("每 1 月同步（30 天）").to_owned(),
+                seconds if seconds == 7 * DAY => i18n.__("每 1 星期同步").to_owned(),
+                seconds if seconds % DAY == 0 => i18n.format("每 %s 天同步", &[format!("{}", seconds / DAY).into()]).expect("valid interval"),
+                seconds if seconds % HOUR == 0 => i18n.format("每 %s 小时同步", &[format!("{}", seconds / HOUR).into()]).expect("valid interval"),
+                seconds => i18n.format("每 %s 分钟同步", &[format!("{}", seconds / 60).into()]).expect("valid interval"),
+            })
+            .placeholder(i18n.__("每 1 天同步"))
             .width(192)
             .disabled(!ready || !enabled),
             Space::new().width(Length::Fill),
-            action(if active { "任务进行中…" } else { "立即同步" }, Event::Run(Action::Sync), ready && !active),
+            action(if active { i18n.__("任务进行中…") } else { i18n.__("立即同步") }, Event::Run(Action::Sync), ready && !active),
         ].spacing(8).align_y(iced::Alignment::Center),
     ].spacing(10);
 
@@ -104,13 +111,13 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
             .get("phase")
             .or_else(|| job.progress.get("status"))
             .and_then(|value| value.as_str())
-            .unwrap_or("等待主机反馈");
-        scanning = scanning.push(text(format!("任务状态  {phase}")).size(12));
+            .unwrap_or(i18n.__("等待主机反馈"));
+        scanning = scanning.push(text(i18n.format("任务状态  %s", &[(format!("{}", phase)).into()]).expect("valid display template")).size(12));
         if active {
             scanning = scanning.push(
                 row![
-                    action("取消任务", Event::Run(Action::Cancel), ready),
-                    action("刷新进度", Event::Run(Action::Poll), ready),
+                    action(i18n.__("取消任务"), Event::Run(Action::Cancel), ready),
+                    action(i18n.__("刷新进度"), Event::Run(Action::Poll), ready),
                 ]
                 .spacing(8),
             );
@@ -118,12 +125,12 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
     }
     let routing = row![
         column![
-            text("记录请求用量").size(15),
-            text("在本地路由设置中查看记录状态。").size(12).style(text::secondary),
+            text(i18n.__("记录请求用量")).size(15),
+            text(i18n.__("在本地路由设置中查看记录状态。")).size(12).style(text::secondary),
         ]
         .spacing(4)
         .width(Length::Fill),
-        action("路由设置 ›", Event::Navigate(Navigation::Routing), ready),
+        action(i18n.__("路由设置 ›"), Event::Navigate(Navigation::Routing), ready),
     ]
     .spacing(12)
     .align_y(iced::Alignment::Center);
@@ -136,8 +143,8 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
         body = body.push(
             container(
                 column![
-                    settings_error_banner("操作失败，请重试或重新读取设置。"),
-                    action("重新读取设置", Event::Run(Action::Load), ready),
+                    settings_error_banner(i18n.__("操作失败，请重试或重新读取设置。")),
+                    action(i18n.__("重新读取设置"), Event::Run(Action::Load), ready),
                 ]
                 .spacing(8),
             )
@@ -147,7 +154,7 @@ fn scan_controls(state: &State, ready: bool) -> Element<'_, Outcome<Event>> {
     body.into()
 }
 
-pub fn overlay<'a, M: Clone + 'static>(
+pub fn overlay<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: &'a State,
     current: Option<Identity>,
     base: Element<'a, M>,
@@ -158,12 +165,12 @@ pub fn overlay<'a, M: Clone + 'static>(
         return base;
     }
     let ready = current.is_some() && state.scope == current && !state.pending;
-    let display_settings = action("币种与显示 ›", Event::Navigate(Navigation::Display), true);
-    let pricing = action("管理定价 ›", Event::Navigate(Navigation::Pricing), true);
+    let display_settings = action(i18n.__("币种与显示 ›"), Event::Navigate(Navigation::Display), true);
+    let pricing = action(i18n.__("管理定价 ›"), Event::Navigate(Navigation::Pricing), true);
     let body = column![
-        section("数据来源", scan_controls(state, ready).map(map)),
+        section(i18n.__("数据来源"), scan_controls(i18n, state, ready).map(map)),
         section(
-            "显示",
+            i18n.__("显示"),
             container(
                 column![
                     display,
@@ -174,10 +181,10 @@ pub fn overlay<'a, M: Clone + 'static>(
             .padding(14)
         ),
         section(
-            "定价",
+            i18n.__("定价"),
             container(
                 row![
-                    text("模型同步、计费规则与模型单价")
+                    text(i18n.__("模型同步、计费规则与模型单价"))
                         .size(13)
                         .style(text::secondary)
                         .width(Length::Fill),
@@ -192,7 +199,7 @@ pub fn overlay<'a, M: Clone + 'static>(
     .spacing(18);
     let close = map(Outcome::Event(Event::Close));
     let header = column![
-        settings_modal_header(text("用量设置").size(21), settings_close_button(close.clone())),
+        settings_modal_header(text(i18n.__("用量设置")).size(21), settings_close_button(close.clone())),
         rule::horizontal(1),
     ]
     .spacing(12);

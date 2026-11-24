@@ -86,18 +86,18 @@ const SOURCES: [(&str, Option<UsageSourceKind>); 4] = [
     ("识矩", Some(UsageSourceKind::Shiju)),
 ];
 
-pub fn view(query: &UsageQuery, open_menu: Option<FilterMenu>) -> Element<'_, Change> {
-    primary_filters(query, &[], open_menu)
+pub fn view(i18n: desktop_i18n::I18n, query: &UsageQuery, open_menu: Option<FilterMenu>) -> Element<'_, Change> {
+    primary_filters(i18n, query, &[], open_menu)
 }
 
-pub(super) fn primary_filters<'a>(
+pub(super) fn primary_filters<'a>(i18n: desktop_i18n::I18n,
     query: &'a UsageQuery,
     options: &[ScopeOption],
     open_menu: Option<FilterMenu>,
 ) -> Element<'a, Change> {
     let mut apps = row![
         button(
-            text("全部").size(13).height(Length::Fill).align_y(iced::alignment::Vertical::Center)
+            text(i18n.__("全部")).size(13).height(Length::Fill).align_y(iced::alignment::Vertical::Center)
         )
         .height(30)
         .padding([4, 9])
@@ -151,15 +151,15 @@ pub(super) fn primary_filters<'a>(
     ));
     row![
         container(apps).width(Length::Fill).max_width(448),
-        scope_menu(query, options, open_menu),
-        source_menu(query, open_menu),
+        scope_menu(i18n, query, options, open_menu),
+        source_menu(i18n, query, open_menu),
     ]
     .spacing(9)
     .align_y(iced::Alignment::Center)
     .into()
 }
 
-fn scope_menu<'a>(
+fn scope_menu<'a>(i18n: desktop_i18n::I18n,
     query: &UsageQuery,
     options: &[ScopeOption],
     open_menu: Option<FilterMenu>,
@@ -170,15 +170,15 @@ fn scope_menu<'a>(
     }).map(|option| option.label.as_str()).or_else(|| filter.request_model.as_deref()).or_else(|| {
         match filter.provider.as_ref() {
             Some(UsageProvider::Known { provider_id }) => Some(provider_id.as_str()),
-            Some(UsageProvider::Unknown) => Some("未知供应商"),
+            Some(UsageProvider::Unknown) => Some(i18n.__("未知供应商")),
             None => None,
         }
     });
-    filter_dropdown(
-        FilterMenu::Scope, open_menu, Icon::ListUl, current_scope.unwrap_or("供应商 / 模型"), 164,
+    filter_dropdown(i18n,
+        FilterMenu::Scope, open_menu, Icon::ListUl, current_scope.unwrap_or(i18n.__("供应商 / 模型")), 164,
         || {
             let mut items = column![menu_item(
-                "全部供应商 / 模型".into(), Change::Scope(None, None),
+                i18n.__("全部供应商 / 模型").into(), Change::Scope(None, None),
                 filter.provider.is_none() && filter.request_model.is_none(),
             )].spacing(2).width(Length::Fill);
             for option in options {
@@ -191,24 +191,24 @@ fn scope_menu<'a>(
                     scrollable::Scrollbar::new().width(4).scroller_width(4).spacing(3)
                 )),
                 rule::horizontal(1),
-                menu_item("清除所有筛选".into(), Change::Clear, false),
+                menu_item(i18n.__("清除所有筛选").into(), Change::Clear, false),
             ].spacing(4).into()
         },
     )
 }
 
-fn source_menu<'a>(query: &UsageQuery, open_menu: Option<FilterMenu>) -> Element<'a, Change> {
+fn source_menu<'a>(i18n: desktop_i18n::I18n, query: &UsageQuery, open_menu: Option<FilterMenu>) -> Element<'a, Change> {
     let active = query.filter.source_kind;
     let label = SOURCES.iter().find(|(_, source)| *source == active)
-        .map_or("全部来源", |(label, _)| *label);
-    filter_dropdown(FilterMenu::Source, open_menu, Icon::Funnel, label, 126, || {
+        .map_or(i18n.__("全部来源"), |(label, _)| *label);
+    filter_dropdown(i18n, FilterMenu::Source, open_menu, Icon::Funnel, i18n.__(label), 126, || {
         column(SOURCES.map(|(label, source)| {
-            menu_item(label.into(), Change::Source(source), source == active)
+            menu_item(i18n.__(label).into(), Change::Source(source), source == active)
         })).spacing(2).into()
     })
 }
 
-fn filter_dropdown<'a>(
+fn filter_dropdown<'a>(i18n: desktop_i18n::I18n,
     menu: FilterMenu,
     open_menu: Option<FilterMenu>,
     icon: Icon,

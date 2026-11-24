@@ -73,6 +73,8 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
         task,
         navigation,
         feedback.map_or_else(Task::none, |(success, message)| {
+            let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
+            let message = i18n.__(&message).to_owned();
             if success { app.show_success_toast(message) } else { app.show_error_toast(message) }
         }),
     ])
@@ -103,7 +105,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 /// The sidebar snapshot covers the local day independently of dashboard filters.
 pub(crate) fn today_summary(app: &App) -> Option<(String, String)> {
     let current = identity();
-    desktop_usage::center::display::sidebar_today(
+    desktop_usage::center::display::sidebar_today(desktop_i18n::I18n::new(app.general_settings.desktop_locale),
         &app.usage_center.display, current, app.usage_center.today.as_ref(),
     )
 }

@@ -51,7 +51,7 @@ fn supplements<'a>(
                 let id = &entry.provider.id;
                 let health = crate::app::message::agent_apps_health::selected(app, id)
                     .then(|| super::super::agent_apps_high_availability::health::view(app));
-                let usage = super::super::apps_usage_cards::provider_view(
+                let usage = super::super::apps_usage_cards::provider_view(help.i18n,
                     usage_scope.as_ref(),
                     &state.usage,
                     app_id,
@@ -82,7 +82,7 @@ pub(crate) fn page<'a>(
     title: Element<'a, Message>,
     page: desktop_provider_apps::components::list::Page<'a, Message>,
 ) -> Element<'a, Message> {
-    desktop_provider_apps::components::list::page(
+    desktop_provider_apps::components::list::page(help.i18n,
         map,
         list_state(state),
         supplements(state, help, app_id),
@@ -109,7 +109,7 @@ pub(crate) fn overlay_with_list<'a>(i18n: desktop_i18n::I18n,
         return base;
     };
     let list = if show_list {
-        let card = desktop_provider_apps::components::list::card(
+        let card = desktop_provider_apps::components::list::card(i18n,
             map,
             list_state(state),
             supplements(state, help, scope.app),
@@ -179,7 +179,7 @@ pub(crate) fn overlay_with_list<'a>(i18n: desktop_i18n::I18n,
         return super::edit::overlay_with_binding(form, help, list, binding, current);
     }
     if let Some(form) = &state.editor {
-        let card = desktop_provider_apps::components::list::editor_card(
+        let card = desktop_provider_apps::components::list::editor_card(i18n,
             &form.sort,
             &form.category,
             &form.notes,

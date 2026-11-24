@@ -98,13 +98,13 @@ async fn usage_usage_settings_save_button_requires_team_project() {
     };
     let base = || Space::new().width(Length::Fill).height(Length::Fill).into();
     let incomplete = Phase::Editing { draft: draft.clone(), saving: false };
-    let view = modal_view(&incomplete, &selection, base(), |e| e);
+    let view = modal_view(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &incomplete, &selection, base(), |e| e);
     let mut scene = Scene::new(view, &mut renderer);
     assert!(click(&mut scene, &mut renderer).is_empty());
 
     draft.edit(Field::Project, "team-project".into());
     let complete = Phase::Editing { draft, saving: false };
-    let view = modal_view(&complete, &selection, base(), |e| e);
+    let view = modal_view(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &complete, &selection, base(), |e| e);
     let mut scene = Scene::new(view, &mut renderer);
     let messages = click(&mut scene, &mut renderer);
     assert!(

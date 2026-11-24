@@ -176,14 +176,14 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Result<vw_ga
     }
     Task::none()
 }
-pub fn overlay<'a, M: Clone + 'static>(
+pub fn overlay<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: &'a State,
     current: Option<Identity>,
     base: Element<'a, M>,
     display: Element<'a, M>,
     map: fn(Outcome<Event>) -> M,
 ) -> Element<'a, M> {
-    super::settings_sheet::overlay(state, current, base, display, map)
+    super::settings_sheet::overlay(i18n, state, current, base, display, map)
 }
 
 #[cfg(test)]

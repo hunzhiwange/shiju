@@ -18,7 +18,7 @@ fn current(app: &App) -> Result<(GatewayClient, Context), String> {
     if app.app_providers.scope.as_ref() != Some(&scope)
         || scope.host.is_empty()
     {
-        return Err("应用列表已变化，请刷新后重试".into());
+        return Err(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("应用列表已变化，请刷新后重试").into());
     }
     let endpoint = client.endpoint().clone();
     Ok((

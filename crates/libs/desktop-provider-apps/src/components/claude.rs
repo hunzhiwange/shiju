@@ -21,9 +21,10 @@ pub fn fields<'a>(
     draft: &'a Draft,
     help: Help<'_>,
 ) -> Element<'a, Message> {
+    let i18n = help.i18n;
     if draft.kind == Kind::Unsupported {
         return settings_panel(
-            text("此档案使用其它配置类型。此表单仅可编辑基础资料，不会更改应用配置。")
+            text(i18n.__("此档案使用其它配置类型。此表单仅可编辑基础资料，不会更改应用配置。"))
                 .size(13)
                 .style(settings_muted_text_style),
         )
@@ -54,24 +55,24 @@ pub fn fields<'a>(
     };
     let hint = |label: &'static str| text(label).size(12).style(settings_muted_text_style);
     let mut fields =
-        column![row![mode("官方", false), mode("第三方", true)].spacing(8),].spacing(10);
+        column![row![mode(i18n.__("官方"), false), mode(i18n.__("第三方"), true)].spacing(8),].spacing(10);
     if draft.kind == Kind::Official {
-        fields = fields.push(hint("使用 Claude Code 已有的登录。账号授权与绑定暂不可用。"));
+        fields = fields.push(hint(i18n.__("使用 Claude Code 已有的登录。账号授权与绑定暂不可用。")));
         if draft.has_saved_key {
-            fields = fields.push(hint("切换到官方配置后，原第三方密钥将从此档案移除。"));
+            fields = fields.push(hint(i18n.__("切换到官方配置后，原第三方密钥将从此档案移除。")));
         }
     } else {
         fields = fields
             .push(
                 column![
-                    settings_field_label("API 地址 · ANTHROPIC_BASE_URL"),
+                    settings_field_label(i18n.__("API 地址 · ANTHROPIC_BASE_URL")),
                     input("https://…", &draft.base_url, Field::BaseUrl),
                 ]
                 .spacing(6),
             )
             .push(
                 checkbox(draft.api_key_header)
-                    .label("使用 ANTHROPIC_API_KEY（否则使用 ANTHROPIC_AUTH_TOKEN）")
+                    .label(i18n.__("使用 ANTHROPIC_API_KEY（否则使用 ANTHROPIC_AUTH_TOKEN）"))
                     .style(settings_checkbox_style)
                     .on_toggle_maybe(
                         active.then_some(|v| message(EditMessage::Claude(Field::ApiKeyHeader(v)))),
@@ -80,17 +81,17 @@ pub fn fields<'a>(
         if draft.has_saved_key {
             fields = fields.push(settings_control_with_hint(
                 checkbox(form.replace_key)
-                    .label("替换已保存的密钥")
+                    .label(i18n.__("替换已保存的密钥"))
                     .style(settings_checkbox_style)
                     .on_toggle_maybe(active.then_some(|v| message(EditMessage::Replace(v)))),
-                "默认保留原密钥。更改 API 地址时请提供新密钥。",
+                i18n.__("默认保留原密钥。更改 API 地址时请提供新密钥。"),
             ));
         }
         if !draft.has_saved_key || form.replace_key {
             fields = fields.push(
                 column![
-                    settings_field_label("新的完整密钥"),
-                    text_input("输入密钥", &form.key)
+                    settings_field_label(i18n.__("新的完整密钥")),
+                    text_input(i18n.__("输入密钥"), &form.key)
                         .secure(true)
                         .padding(SETTINGS_CONTROL_PADDING)
                         .size(SETTINGS_CONTROL_TEXT_SIZE)
@@ -104,9 +105,9 @@ pub fn fields<'a>(
     let fields = fields
         .push(
             column![
-                help.field("主模型 · ANTHROPIC_MODEL", "可手动填写模型标识。"),
-                input("可留空", &draft.model, Field::Model),
-                hint("模型发现与推荐暂不可用。"),
+                help.field(i18n.__("主模型 · ANTHROPIC_MODEL"), i18n.__("可手动填写模型标识。")),
+                input(i18n.__("可留空"), &draft.model, Field::Model),
+                hint(i18n.__("模型发现与推荐暂不可用。")),
             ]
             .spacing(6),
         )
@@ -114,16 +115,16 @@ pub fn fields<'a>(
         .push(
             checkbox(draft.apply)
                 .label(if create {
-                    "仅在尚无直连供应商时激活"
+                    i18n.__("仅在尚无直连供应商时激活")
                 } else {
-                    "如果此档案正在直连，同时应用配置"
+                    i18n.__("如果此档案正在直连，同时应用配置")
                 })
                 .style(settings_checkbox_style)
                 .on_toggle_maybe(
                     active.then_some(|v| message(EditMessage::Claude(Field::Apply(v)))),
                 ),
         );
-    column![text("Claude Code 配置").size(17), settings_panel(fields)]
+    column![text(i18n.__("Claude Code 配置")).size(17), settings_panel(fields)]
         .spacing(12)
         .width(Length::Fill)
         .into()

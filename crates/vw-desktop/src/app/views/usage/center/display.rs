@@ -18,7 +18,7 @@ pub(super) fn map(outcome: Outcome<Event>) -> Message {
     }
 }
 pub fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
-    domain::overlay(&app.usage_center.display, super::identity(), base, map)
+    domain::overlay(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), &app.usage_center.display, super::identity(), base, map)
 }
 pub fn amount(app: &App, usd: &str) -> String {
     domain::amount(&app.usage_center.display, super::identity(), usd)

@@ -209,7 +209,7 @@ pub fn deployments<'a>(
     let close = message(Event::Close);
     let editable = !form.busy();
     let deployment = form.deployment();
-    let search = text_input("搜索预设名称、别名或端点", &form.query)
+    let search = text_input(i18n.__("搜索预设名称、别名或端点"), &form.query)
         .on_input_maybe(editable.then_some(|query| message(Event::Query(query))))
         .on_submit_maybe(editable.then(|| message(Event::Search)))
         .padding(SETTINGS_CONTROL_PADDING)
@@ -218,8 +218,8 @@ pub fn deployments<'a>(
     let header = column![
         settings_modal_header(
             column![
-                text(format!("服务模型目录 · {:?}", form.context.scope.app)).size(20),
-                text(format!("供应商 {}", form.provider_id))
+                text(i18n.format("服务模型目录 · %s", &[(format!("{:?}", form.context.scope.app)).into()]).expect("valid display template")).size(20),
+                text(i18n.format("供应商 %s", &[(format!("{}", form.provider_id)).into()]).expect("valid display template"))
                     .size(13)
                     .style(settings_muted_text_style),
             ]
@@ -228,7 +228,7 @@ pub fn deployments<'a>(
         ),
         row![
             search,
-            button(text(if form.notice.is_some() && !form.searched { "重试" } else { "搜索" }))
+            button(text(if form.notice.is_some() && !form.searched { i18n.__("重试") } else { i18n.__("搜索") }))
                 .on_press_maybe(editable.then(|| message(Event::Search)))
                 .padding([8, 14])
                 .style(rounded_action_btn_style),
@@ -238,18 +238,18 @@ pub fn deployments<'a>(
     ]
     .spacing(12);
 
-    let endpoint = settings_text_input("例如 https://api.example.com/v1", &form.endpoint)
+    let endpoint = settings_text_input(i18n.__("例如 https://api.example.com/v1"), &form.endpoint)
         .on_input_maybe(editable.then_some(|value| message(Event::Endpoint(value))))
         .on_submit_maybe(
             (editable && !deployment.endpoint.is_empty()).then(|| message(Event::LoadCatalog)),
         );
     let id_label =
-        if form.edit_id.is_some() { "编辑模型 · 请求 ID" } else { "手工添加模型" };
+        if form.edit_id.is_some() { i18n.__("编辑模型 · 请求 ID") } else { i18n.__("手工添加模型") };
     let id = settings_responsive_row(id_label, "", move || -> Element<'a, Message> {
         if let Some(id) = &form.edit_id {
             text(id.as_ref()).wrapping(Wrapping::WordOrGlyph).into()
         } else {
-            settings_text_input("填写供应商使用的原始模型 ID", &form.manual_id)
+            settings_text_input(i18n.__("填写供应商使用的原始模型 ID"), &form.manual_id)
                 .on_input_maybe(editable.then_some(|value| message(Event::ManualId(value))))
                 .into()
         }
@@ -258,7 +258,7 @@ pub fn deployments<'a>(
     let alias_label = i18n.__("显示别名");
     let alias_help = i18n.__("别名仅用于显示，发送请求时使用原始模型 ID。");
     let alias = responsive(move |size| {
-        let input = settings_text_input("可留空", &form.alias).on_input_maybe(
+        let input = settings_text_input(i18n.__("可留空"), &form.alias).on_input_maybe(
             (editable && has_model).then_some(|value| message(Event::Alias(value))),
         );
         if size.width >= 600.0 {
@@ -285,9 +285,9 @@ pub fn deployments<'a>(
             row![
                 endpoint,
                 button(text(if form.catalog_loading {
-                    "正在读取…"
+                    i18n.__("正在读取…")
                 } else {
-                    "刷新已保存模型"
+                    i18n.__("刷新已保存模型")
                 }))
                 .on_press_maybe(
                     (editable && !deployment.endpoint.is_empty())
@@ -302,9 +302,9 @@ pub fn deployments<'a>(
         ),
         id,
         alias,
-        settings_responsive_row("默认模型", "", move || {
+        settings_responsive_row(i18n.__("默认模型"), "", move || {
             checkbox(form.make_default())
-                .label("设为此部署的默认模型")
+                .label(i18n.__("设为此部署的默认模型"))
                 .on_toggle_maybe(
                     (editable && has_model).then_some(|value| message(Event::MakeDefault(value))),
                 )
@@ -315,7 +315,7 @@ pub fn deployments<'a>(
     if form.edit_id.is_some() {
         fields = fields
             .push(
-                button(text("取消编辑"))
+                button(text(i18n.__("取消编辑")))
                     .on_press_maybe(editable.then(|| message(Event::CancelEdit)))
                     .padding([8, 12])
                     .style(rounded_action_btn_style),
@@ -330,9 +330,9 @@ pub fn deployments<'a>(
         body = body.push(settings_error_banner(notice.as_str()));
     }
     if let Some(catalog) = &form.catalog {
-        body = body.push(settings_field_label("已保存模型"));
+        body = body.push(settings_field_label(i18n.__("已保存模型")));
         if catalog.items.is_empty() {
-            body = body.push(text("此部署尚未保存模型").size(14).style(settings_muted_text_style));
+            body = body.push(text(i18n.__("此部署尚未保存模型")).size(14).style(settings_muted_text_style));
         }
         for entry in &catalog.items {
             let id = &entry.identity.model_id;
@@ -345,11 +345,11 @@ pub fn deployments<'a>(
             .align_y(Alignment::Center)
             .spacing(8);
             if catalog.default_model_id.as_ref() == Some(id) {
-                title = title.push(settings_value_badge("默认"));
+                title = title.push(settings_value_badge(i18n.__("默认")));
             }
             title =
                 title.push(
-                    button(text("编辑"))
+                    button(text(i18n.__("编辑")))
                         .on_press_maybe(editable.then(|| {
                             message(Event::EditModel { generation, model_id: id.clone() })
                         }))
@@ -359,7 +359,7 @@ pub fn deployments<'a>(
             let mut details = column![title].spacing(4);
             if entry.display_alias.is_some() {
                 details = details.push(
-                    text(format!("请求 ID：{}", id.as_ref()))
+                    text(i18n.format("请求 ID：%s", &[(format!("{}", id.as_ref())).into()]).expect("valid display template"))
                         .size(13)
                         .wrapping(Wrapping::WordOrGlyph)
                         .style(settings_muted_text_style),
@@ -369,11 +369,11 @@ pub fn deployments<'a>(
         }
     }
     let status = if form.loading {
-        Some("正在从服务搜索…")
+        Some(i18n.__("正在从服务搜索…"))
     } else if form.items.is_empty() && form.searched {
         Some(form.empty_label())
     } else if !form.searched && form.notice.is_none() {
-        Some("按回车或点击搜索查看预设")
+        Some(i18n.__("按回车或点击搜索查看预设"))
     } else {
         None
     };
@@ -393,7 +393,7 @@ pub fn deployments<'a>(
         let active = endpoint == Some(deployment.endpoint.as_str());
         let mut details = column![
             text(&preset.name).size(16).wrapping(Wrapping::WordOrGlyph),
-            text(endpoint.unwrap_or("此预设没有部署端点"))
+            text(endpoint.unwrap_or(i18n.__("此预设没有部署端点")))
                 .size(13)
                 .wrapping(Wrapping::WordOrGlyph)
                 .style(settings_muted_text_style),
@@ -401,7 +401,7 @@ pub fn deployments<'a>(
         .spacing(6);
         if endpoint.is_some() {
             details = details.push(
-                button(text(if active { "当前部署" } else { "选择此部署" }))
+                button(text(if active { i18n.__("当前部署") } else { i18n.__("选择此部署") }))
                     .on_press_maybe((!active && editable).then(|| {
                         message(Event::ChooseEndpoint { generation, preset: preset_index })
                     }))
@@ -436,11 +436,11 @@ pub fn deployments<'a>(
     let ready =
         editable && !deployment.endpoint.is_empty() && (has_model || !form.selected.is_empty());
     let actions = row![
-        button(text("关闭"))
+        button(text(i18n.__("关闭")))
             .on_press_maybe((!form.saving).then_some(close.clone()))
             .padding([8, 14])
             .style(rounded_action_btn_style),
-        button(text(if form.saving { "正在保存…" } else { "保存模型目录" }))
+        button(text(if form.saving { i18n.__("正在保存…") } else { i18n.__("保存模型目录") }))
             .on_press_maybe(ready.then(|| message(Event::Save)))
             .padding([8, 14])
             .style(primary_action_btn_style),

@@ -14,67 +14,68 @@ pub fn card<'a>(
     form: &'a Form,
     help: Help<'_>,
 ) -> Element<'a, Message> {
+    let i18n = help.i18n;
     let close = if form.saving { Message::None } else { message(Event::Close) };
     let header = settings_modal_header(
-        help.heading("配置目录", "查看 Claude Code 的配置文件。", 28),
+        help.heading(i18n.__("配置目录"), i18n.__("查看 Claude Code 的配置文件。"), 28),
         settings_close_button(close.clone()),
     );
     let ready = form.pending.is_none();
     let editable = ready;
     let mut body = column![].spacing(12).width(Length::Fill);
     if let Some(error) = form.error {
-        body = body.push(settings_error_banner(error));
+        body = body.push(settings_error_banner(i18n.__(error)));
     }
     if !ready {
         body = body.push(text(if form.saving {
-            "正在保存目录…"
+            i18n.__("正在保存目录…")
         } else {
-            "正在读取目录…"
+            i18n.__("正在读取目录…")
         }));
     }
     if let Some(paths) = &form.paths {
         body = body.push(settings_panel(
-            column![settings_field_label("当前配置目录"), text(&paths.directory)].spacing(8),
+            column![settings_field_label(i18n.__("当前配置目录")), text(&paths.directory)].spacing(8),
         ));
     }
-    let input = text_input("留空使用默认目录", &form.draft)
+    let input = text_input(i18n.__("留空使用默认目录"), &form.draft)
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style);
     body = body.push(settings_panel(column![
-        settings_field_label("覆盖目录"),
+        settings_field_label(i18n.__("覆盖目录")),
         if editable { input.on_input(|value| message(Event::Draft(value))) } else { input },
-        action("选择本机目录…", Event::PickFolder, editable && form.local_open, false),
+        action(i18n.__("选择本机目录…"), Event::PickFolder, editable && form.local_open, false),
         text(if form.local_open {
-            "取消选择会保留当前输入；选择后点击保存，由网关验证目录。"
+            i18n.__("取消选择会保留当前输入；选择后点击保存，由网关验证目录。")
         } else {
-            "请填写配置目录。保存时由网关验证。"
+            i18n.__("请填写配置目录。保存时由网关验证。")
         }).size(13).style(settings_muted_text_style),
-        text("目录须位于用户目录内，且已经存在。存在生效供应商或未完成事务时不可更改。")
+        text(i18n.__("目录须位于用户目录内，且已经存在。存在生效供应商或未完成事务时不可更改。"))
             .size(13).style(settings_muted_text_style),
     ].spacing(8)));
     if let Some(paths) = &form.paths {
-        let mut files = column![settings_field_label("配置文件")].spacing(8);
+        let mut files = column![settings_field_label(i18n.__("配置文件"))].spacing(8);
         for file in &paths.files {
             let state = match file.state {
-                ConfigPathState::Present => "存在",
-                ConfigPathState::Absent => "尚未创建",
-                ConfigPathState::Inaccessible => "无法访问",
+                ConfigPathState::Present => i18n.__("存在"),
+                ConfigPathState::Absent => i18n.__("尚未创建"),
+                ConfigPathState::Inaccessible => i18n.__("无法访问"),
             };
             files = files.push(text(format!("{state}　{}", file.path)));
         }
         body = body.push(settings_panel(files));
     }
     let footer = row![
-        action("取消", Event::Close, !form.saving, false),
-        action("重新读取", Event::Refresh, ready, false),
+        action(i18n.__("取消"), Event::Close, !form.saving, false),
+        action(i18n.__("重新读取"), Event::Refresh, ready, false),
         action(
-            "在本机打开",
+            i18n.__("在本机打开"),
             Event::OpenFolder,
             editable && form.local_open && form.paths.is_some(),
             false
         ),
-        action("保存", Event::Save, editable, true),
+        action(i18n.__("保存"), Event::Save, editable, true),
     ]
     .spacing(10);
     let card = settings_modal_layout(header, body, Some(footer.into())).width(650).height(560);

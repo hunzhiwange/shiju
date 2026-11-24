@@ -19,10 +19,11 @@ pub fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Mess
     if !app.usage_center.scan.open {
         return base;
     }
+    let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     let current = super::identity();
     let display =
-        desktop_usage::center::display::quick_settings(&app.usage_center.display, current.as_ref())
+        desktop_usage::center::display::quick_settings(i18n, &app.usage_center.display, current.as_ref())
             .map(super::display::map);
-    domain::overlay(&app.usage_center.scan, current, base, display, map)
+    domain::overlay(i18n, &app.usage_center.scan, current, base, display, map)
 }
 pub use domain::{Action, Reply};

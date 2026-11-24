@@ -17,7 +17,7 @@ fn action(label: &str, event: Event, enabled: bool) -> Element<'_, Message> {
         .on_press_maybe(enabled.then_some(message(event)))
         .into()
 }
-pub fn card<'a>(
+pub fn card<'a>(i18n: desktop_i18n::I18n,
     form: &'a Form,
     app: AppId,
 ) -> Element<'a, Message> {
@@ -29,35 +29,31 @@ pub fn card<'a>(
             .on_input_maybe((!form.busy).then_some(move |v| message(event(v))))
     };
     let mut body = column![
-        text("端点地址簿：保存地址，不切换当前端点；标记使用不代表请求成功。"),
+        text(i18n.__("端点地址簿：保存地址，不切换当前端点；标记使用不代表请求成功。")),
         input("https://example.test/v1/messages", &form.url, Event::Url),
         checkbox(form.full_url)
-            .label("完整请求 URL（保留路径及末尾斜杠）")
+            .label(i18n.__("完整请求 URL（保留路径及末尾斜杠）"))
             .style(settings_checkbox_style)
             .on_toggle_maybe((!form.busy).then_some(|v| message(Event::FullUrl(v)))),
-        action("添加端点", Event::Add, !form.busy),
+        action(i18n.__("添加端点"), Event::Add, !form.busy),
     ]
     .spacing(10);
     for endpoint in &form.rows {
         body = body.push(settings_panel(
             column![
                 text(&endpoint.url),
-                text(format!(
-                    "{} · 最后使用：{}",
-                    if endpoint.kind == AppProviderEndpointKind::FullUrl {
-                        "完整 URL"
+                text(i18n.format("%s · 最后使用：%s", &[(format!("{}", if endpoint.kind == AppProviderEndpointKind::FullUrl {
+                        i18n.__("完整 URL")
                     } else {
-                        "基础 URL"
-                    },
-                    endpoint.last_used.map(|v| v.to_string()).unwrap_or_else(|| "未使用".into())
-                )),
+                        i18n.__("基础 URL")
+                    })).into(), (format!("{}", endpoint.last_used.map(|v| v.to_string()).unwrap_or_else(|| i18n.__("未使用").into()))).into()]).expect("valid display template")),
                 row![
                     action(
-                        "标记使用",
+                        i18n.__("标记使用"),
                         Event::MarkUsed(endpoint.url.clone(), endpoint.kind),
                         !form.busy
                     ),
-                    action("删除", Event::Remove(endpoint.url.clone(), endpoint.kind), !form.busy)
+                    action(i18n.__("删除"), Event::Remove(endpoint.url.clone(), endpoint.kind), !form.busy)
                 ]
                 .spacing(8)
             ]
@@ -66,19 +62,15 @@ pub fn card<'a>(
     }
     if matches!(app, AppId::Claude | AppId::Codex) {
         body = body
-            .push(text("请求选项（只写）").size(18))
-            .push(text("留空保留；输入 {} 清除对应组。刷新只回读配置状态，不回填敏感值。"));
+            .push(text(i18n.__("请求选项（只写）")).size(18))
+            .push(text(i18n.__("留空保留；输入 {} 清除对应组。刷新只回读配置状态，不回填敏感值。")));
         if let Some(view) = &form.options {
-            body = body.push(text(format!(
-                "服务状态：普通头{}，代理覆盖{}；未应用",
-                if view.headers_configured { "已配置" } else { "未配置" },
-                if view.overrides_configured { "已配置" } else { "未配置" }
-            )));
+            body = body.push(text(i18n.format("服务状态：普通头%s，代理覆盖%s；未应用", &[(format!("{}", if view.headers_configured { i18n.__("已配置") } else { i18n.__("未配置") })).into(), (format!("{}", if view.overrides_configured { i18n.__("已配置") } else { i18n.__("未配置") })).into()]).expect("valid display template")));
         }
         body = body
-            .push(text("普通请求头：供原生适配消费；此入口仅保存，尚未投影到原生配置。"))
-            .push(input("{\"X-Title\":\"示例\"}", &form.headers, Event::Headers))
-            .push(text("代理覆盖：仅适用于路由/聚合代理；生产代理未接入，保存不代表生效。"))
+            .push(text(i18n.__("普通请求头：供原生适配消费；此入口仅保存，尚未投影到原生配置。")))
+            .push(input(i18n.__("{\"X-Title\":\"示例\"}"), &form.headers, Event::Headers))
+            .push(text(i18n.__("代理覆盖：仅适用于路由/聚合代理；生产代理未接入，保存不代表生效。")))
             .push(input(
                 "{\"headers\":{},\"body\":{\"temperature\":0.2}}",
                 &form.overrides,
@@ -86,29 +78,29 @@ pub fn card<'a>(
             ))
             .push(
                 checkbox(form.user_agent.is_some())
-                    .label("在本次覆盖中设置 User-Agent")
+                    .label(i18n.__("在本次覆盖中设置 User-Agent"))
                     .style(settings_checkbox_style)
                     .on_toggle_maybe((!form.busy).then_some(|v| message(Event::UserAgentEnabled(v)))),
             );
         if let Some(value) = &form.user_agent {
             body = body
-                .push(input("User-Agent（留空移除）", value, Event::UserAgent))
-                .push(text("此字段替换上方覆盖 JSON 中的 User-Agent；整个代理覆盖组一起保存，请同时填写需要保留的头和请求体。"));
+                .push(input(i18n.__("User-Agent（留空移除）"), value, Event::UserAgent))
+                .push(text(i18n.__("此字段替换上方覆盖 JSON 中的 User-Agent；整个代理覆盖组一起保存，请同时填写需要保留的头和请求体。")));
         }
-        body = body.push(text("保存时会校验请求头、请求体协议字段与 User-Agent。失败时保留草稿。"));
+        body = body.push(text(i18n.__("保存时会校验请求头、请求体协议字段与 User-Agent。失败时保留草稿。")));
     }
     if let Some(notice) = &form.notice {
-        body = body.push(text(notice));
+        body = body.push(text(i18n.__(notice)));
     }
     if form.busy {
-        body = body.push(text("正在等待服务响应…"));
+        body = body.push(text(i18n.__("正在等待服务响应…")));
     }
     let mut footer =
-        row![action("刷新", Event::Refresh, !form.busy), action("取消", Event::Cancel, !form.busy)]
+        row![action(i18n.__("刷新"), Event::Refresh, !form.busy), action(i18n.__("取消"), Event::Cancel, !form.busy)]
             .spacing(10);
     if matches!(app, AppId::Claude | AppId::Codex) {
         footer = footer.push(
-            button(text("保存请求选项"))
+            button(text(i18n.__("保存请求选项")))
                 .padding([8, 16])
                 .style(primary_action_btn_style)
                 .on_press_maybe(
@@ -119,7 +111,7 @@ pub fn card<'a>(
     let card = settings_modal_card(
         column![
             row![
-                text("端点与请求选项").size(22).width(Length::Fill),
+                text(i18n.__("端点与请求选项")).size(22).width(Length::Fill),
                 settings_close_button(message(Event::Cancel))
             ],
             scrollable(container(body).padding([0, 7]))

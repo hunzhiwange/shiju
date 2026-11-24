@@ -134,7 +134,7 @@ async fn usage_usage_details_returns_expected_result() {
         }),
     );
     let mut closed = Scene::new(
-        view(&official, &now(), false, Message::Toggle),
+        view(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &official, &now(), false, Message::Toggle),
         &mut renderer,
     );
     assert!(!closed.contains("短时"));
@@ -146,7 +146,7 @@ async fn usage_usage_details_returns_expected_result() {
         closed.send(&mut renderer, "展开额度明细", &click).as_slice(),
         [Message::Toggle]
     ));
-    let opened = Scene::new(view(&official, &now(), true, Message::Toggle), &mut renderer);
+    let opened = Scene::new(view(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &official, &now(), true, Message::Toggle), &mut renderer);
     for visible in [
         "官方额度",
         "fixture",
@@ -169,7 +169,7 @@ async fn usage_usage_details_returns_expected_result() {
         [("provider", "来源 · 供应商查询"), ("estimate", "来源 · 估算"), ("billing", "来源 · 账单")]
     {
         let wallet = wallet(source, LINK);
-        let mut opened = Scene::new(view(&wallet, &now(), true, Message::Toggle), &mut renderer);
+        let mut opened = Scene::new(view(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &wallet, &now(), true, Message::Toggle), &mut renderer);
         for visible in [label, "余额明细", "剩余 -3 CNY", "赠金 0 CNY", "充值 20 CNY"] {
             assert!(opened.contains(visible), "missing {visible}");
         }
@@ -209,8 +209,51 @@ async fn usage_usage_details_rejects_invalid_input() {
         "javascript:alert(1)",
     ] {
         let snapshot = wallet("provider", url);
-        let scene = Scene::new(view(&snapshot, &now(), true, Message::Toggle), &mut renderer);
+        let scene = Scene::new(view(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &snapshot, &now(), true, Message::Toggle), &mut renderer);
         assert!(scene.bounds("在浏览器核对额度").is_none(), "{url:?}");
         assert!(scene.contains("剩余 -3 CNY"));
     }
+}
+
+#[tokio::test]
+async fn desktop_gettext_usage_visible_copy() {
+    use config_ui::DesktopLocale::{English, SimplifiedChinese, TraditionalChinese};
+    use desktop_i18n::I18n;
+
+    let mut renderer = renderer().await;
+    let balance = snapshot("provider", json!({
+        "kind": "balance", "value": [{ "currency": "CNY" }]
+    }));
+    let script = snapshot("script", json!({
+        "kind": "custom_script", "value": [{
+            "planName": "模型-id/原始套餐", "isValid": false,
+            "invalidMessage": "原始脚本诊断", "remaining": 12
+        }]
+    }));
+    let subscription = snapshot("official", json!({
+        "kind": "official_subscription", "value": {
+            "windows": [], "resetCredits": [null, null]
+        }
+    }));
+    let before_balance = serde_json::to_value(&balance).unwrap();
+    let before_script = serde_json::to_value(&script).unwrap();
+    for (locale, toggle, unknown, resets) in [
+        (SimplifiedChinese, "收起额度明细", "余额未知", "可用重置 · 2 次"),
+        (English, "Collapse quota details", "Balance unknown", "Available resets · 2"),
+        (TraditionalChinese, "收起額度明細", "餘額未知", "可用重置 · 2 次"),
+    ] {
+        let i18n = I18n::new(locale);
+        let scene = Scene::new(view(i18n, &balance, &now(), true, Message::Toggle), &mut renderer);
+        assert!(scene.contains(toggle), "{locale:?}");
+        assert!(scene.contains(unknown), "{locale:?}");
+        assert!(scene.contains("fixture"));
+        assert!(scene.contains("CNY"));
+        let scene = Scene::new(view(i18n, &script, &now(), true, Message::Toggle), &mut renderer);
+        assert!(scene.contains("模型-id/原始套餐"));
+        assert!(scene.contains("原始脚本诊断"));
+        let scene = Scene::new(view(i18n, &subscription, &now(), true, Message::Toggle), &mut renderer);
+        assert!(scene.contains(resets), "{locale:?}");
+    }
+    assert_eq!(serde_json::to_value(&balance).unwrap(), before_balance);
+    assert_eq!(serde_json::to_value(&script).unwrap(), before_script);
 }

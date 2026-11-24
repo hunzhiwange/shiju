@@ -95,7 +95,7 @@ async fn usage_usage_script_returns_expected_result() {
     use iced::{Length, widget::Space};
     let editor = Editor::Ready(Box::new(super::Ready { draft, pending: None, packages: result }));
     let base = Space::new().width(Length::Fill).height(Length::Fill).into();
-    let scene = Scene::new(super::modal_view(&editor, &selection, base), &mut renderer().await);
+    let scene = Scene::new(super::modal_view(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &editor, &selection, base), &mut renderer().await);
     assert!(scene.bounds("Fixture plan · 剩余 0 USD").is_some());
 }
 

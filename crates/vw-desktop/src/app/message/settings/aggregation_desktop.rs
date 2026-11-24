@@ -7,7 +7,7 @@ fn current(app: &App) -> Result<(GatewayTransport, Binding), String> {
     if app.app_providers.scope.as_ref() != Some(&scope)
         || scope.host.is_empty()
     {
-        return Err("应用列表已变化，请刷新后重试".into());
+        return Err(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("应用列表已变化，请刷新后重试").into());
     }
     let project = vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref());
     let endpoint = client.endpoint().clone();

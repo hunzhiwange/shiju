@@ -313,9 +313,9 @@ fn values(title: String, stats: &GroupStats) -> [String; 7] {
     ]
 }
 
-pub(super) fn toolbar(state: &State, table: Table) -> Element<'_, Event> {
+pub(super) fn toolbar(i18n: desktop_i18n::I18n, state: &State, table: Table) -> Element<'_, Event> {
     let columns = table.columns();
-    column_menu(
+    column_menu(i18n,
         columns.iter().enumerate().skip(1).map(|(index, (_, label, _, _))| (index, *label)),
         |index| state.columns[table as usize].visible_in(columns, index),
         state.columns_menu == Some(table),
@@ -328,12 +328,12 @@ pub(super) fn toolbar(state: &State, table: Table) -> Element<'_, Event> {
 pub fn view(state: &State, i18n: I18n) -> Element<'_, Event> {
     let section = |table| {
         column![
-            container(toolbar(state, table)).align_right(Length::Fill).padding([0.0, TABLE_INSET]),
+            container(toolbar(i18n, state, table)).align_right(Length::Fill).padding([0.0, TABLE_INSET]),
             table_view(state, table, i18n),
         ]
     };
     let tables = column![section(Table::Providers), section(Table::Models)];
-    settings_right_drawer_overlay(tables.into(), detail_drawer(state))
+    settings_right_drawer_overlay(tables.into(), detail_drawer(i18n, state))
 }
 
 pub(super) fn table_view(state: &State, table: Table, i18n: I18n) -> Element<'_, Event> {
@@ -366,6 +366,7 @@ fn table_content(
     }
     let mut header = row![].spacing(COLUMN_GAP).align_y(iced::Alignment::Center);
     for &(index, label, width) in &visible {
+        let label = i18n.__(label);
         let title: Element<'_, Event> = match index {
             1 | 2 => {
                 let column = if index == 1 { SortColumn::Requests } else { SortColumn::Cost };
@@ -380,14 +381,14 @@ fn table_content(
                     .into()
             }
             5 => {
-                settings_selectable_help_label(i18n, None, label, text(label).size(12), SPEED_HELP)
+                settings_selectable_help_label(i18n, None, label, text(i18n.__(label)).size(12), i18n.__(SPEED_HELP))
                     .into()
             }
             6 => {
-                settings_selectable_help_label(i18n, None, label, text(label).size(12), FIRST_HELP)
+                settings_selectable_help_label(i18n, None, label, text(i18n.__(label)).size(12), i18n.__(FIRST_HELP))
                     .into()
             }
-            _ => text(label).size(12).into(),
+            _ => text(i18n.__(label)).size(12).into(),
         };
         header = header.push(container(title).width(width));
     }
@@ -411,16 +412,16 @@ fn table_content(
         _ => Vec::new(),
     };
     if state.loading {
-        rows = rows.push(container(text("正在加载分组…")).padding([10.0, TABLE_INSET]));
+        rows = rows.push(container(text(i18n.__("正在加载分组…"))).padding([10.0, TABLE_INSET]));
     }
     match &state.result {
         Some(Err(error)) => {
             rows = rows.push(
-                container(text(format!("分组加载失败：{error}"))).padding([10.0, TABLE_INSET]),
+                container(text(i18n.format("分组加载失败：%s", &[(format!("{}", error)).into()]).expect("valid display template"))).padding([10.0, TABLE_INSET]),
             );
         }
         Some(Ok(_)) if groups.is_empty() && !state.loading => {
-            rows = rows.push(container(text("暂无用量")).padding([18.0, TABLE_INSET]));
+            rows = rows.push(container(text(i18n.__("暂无用量"))).padding([18.0, TABLE_INSET]));
         }
         _ => {}
     }
@@ -455,7 +456,7 @@ fn table_content(
         .into()
 }
 
-pub(super) fn detail_drawer(state: &State) -> Option<(Event, Element<'_, Event>)> {
+pub(super) fn detail_drawer(i18n: desktop_i18n::I18n, state: &State) -> Option<(Event, Element<'_, Event>)> {
     let (table, title, stats) = state.detail.as_ref()?;
     let mut rows = column![].spacing(12);
     let entries = table
@@ -463,11 +464,11 @@ pub(super) fn detail_drawer(state: &State) -> Option<(Event, Element<'_, Event>)
         .iter()
         .map(|(_, label, _, _)| *label)
         .zip(values(title.clone(), stats))
-        .chain([("未知费用请求", metrics::format_count(stats.counts.unknown_cost_requests))]);
+        .chain([(i18n.__("未知费用请求"), metrics::format_count(stats.counts.unknown_cost_requests))]);
     for (label, value) in entries {
         rows = rows.push(
             row![
-                text(label).size(13).style(text::secondary).width(105),
+                text(i18n.__(label)).size(13).style(text::secondary).width(105),
                 text(value)
                     .size(14)
                     .width(Length::Fill)
@@ -478,11 +479,11 @@ pub(super) fn detail_drawer(state: &State) -> Option<(Event, Element<'_, Event>)
         );
     }
     let title = match table {
-        Table::Providers => "供应商详情",
-        Table::Models => "模型详情",
+        Table::Providers => i18n.__("供应商详情"),
+        Table::Models => i18n.__("模型详情"),
     };
     let body = container(rows).padding(14).width(Length::Fill).style(super::view::panel_style);
-    Some((Event::CloseDetail, usage_detail_drawer(title, Event::CloseDetail, body.into())))
+    Some((Event::CloseDetail, usage_detail_drawer(i18n, title, Event::CloseDetail, body.into())))
 }
 
 #[cfg(test)]

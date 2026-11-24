@@ -80,8 +80,8 @@ pub(in crate::app) fn update_at(
     let feedback = match notice {
         Some(desktop_provider_apps::Notice::Error(_)) if effects.preference_failed =>
             app.show_localized_toast(crate::app::state::ToastKind::Error, browser::PREFERENCE_ERROR, vec![]),
-        Some(desktop_provider_apps::Notice::Error(text)) => app.show_error_toast(text),
-        Some(desktop_provider_apps::Notice::Success(text)) => app.show_success_toast(text),
+        Some(desktop_provider_apps::Notice::Error(text)) => app.show_error_toast(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__(&text).to_owned()),
+        Some(desktop_provider_apps::Notice::Success(text)) => app.show_success_toast(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__(&text).to_owned()),
         None => Task::none(),
     };
     Task::batch([task, feedback])

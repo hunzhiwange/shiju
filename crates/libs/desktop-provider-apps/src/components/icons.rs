@@ -41,22 +41,22 @@ fn thumbnail(data: &str) -> Option<image::Handle> {
     Some(image::Handle::from_rgba(pixels.width(), pixels.height(), pixels.into_raw()))
 }
 
-fn preview(data: &str) -> Element<'static, Message> {
+fn preview(i18n: desktop_i18n::I18n, data: &str) -> Element<'static, Message> {
     match thumbnail(data) {
         Some(handle) => image(handle).width(32).height(32).into(),
-        None => text("预览不可用").size(12).style(settings_muted_text_style).into(),
+        None => text(i18n.__("预览不可用")).size(12).style(settings_muted_text_style).into(),
     }
 }
 
-pub fn card<'a>(form: &'a Form) -> Element<'a, Message> {
+pub fn card<'a>(i18n: desktop_i18n::I18n, form: &'a Form) -> Element<'a, Message> {
     let ready = !form.busy;
     let selecting = ready && form.draft.is_none();
     let current = match &form.current {
         Some(icon) if icon.data.is_some() => {
-            row![text("已保存："), preview(icon.data.as_deref().unwrap())]
+            row![text(i18n.__("已保存：")), preview(i18n, icon.data.as_deref().unwrap())]
         }
-        Some(_) => row![text("已保存：无自定义图标")],
-        None => row![text("当前图标尚未读取")],
+        Some(_) => row![text(i18n.__("已保存：无自定义图标"))],
+        None => row![text(i18n.__("当前图标尚未读取"))],
     }
     .align_y(Alignment::Center)
     .spacing(6);
@@ -68,15 +68,15 @@ pub fn card<'a>(form: &'a Form) -> Element<'a, Message> {
         _ => None,
     };
     let pending = match (&form.selection, selected) {
-        (Some(Change::Clear), _) => row![text("待保存：清除自定义图标")],
-        (_, Some(icon)) => row![text(format!("待保存：{}", icon.name)), preview(&icon.data)],
-        _ => row![text("没有待保存的选择")],
+        (Some(Change::Clear), _) => row![text(i18n.__("待保存：清除自定义图标"))],
+        (_, Some(icon)) => row![text(i18n.format("待保存：%s", &[(format!("{}", icon.name)).into()]).expect("valid display template")), preview(i18n, &icon.data)],
+        _ => row![text(i18n.__("没有待保存的选择"))],
     }
     .align_y(Alignment::Center)
     .spacing(6);
 
     let input = |name: &'a str| {
-        text_input("图标名称", name)
+        text_input(i18n.__("图标名称"), name)
             .padding(SETTINGS_CONTROL_PADDING)
             .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
@@ -84,8 +84,8 @@ pub fn card<'a>(form: &'a Form) -> Element<'a, Message> {
     };
     let mut fields = column![
         settings_panel(column![current, pending].spacing(6)),
-        text("我的图标").size(18),
-        text("库操作立即保存。删除库条目会保留供应商已保存的图标。")
+        text(i18n.__("我的图标")).size(18),
+        text(i18n.__("库操作立即保存。删除库条目会保留供应商已保存的图标。"))
             .size(13)
             .style(settings_muted_text_style),
     ]
@@ -94,23 +94,23 @@ pub fn card<'a>(form: &'a Form) -> Element<'a, Message> {
         Some(Draft::Upload { name, .. }) => {
             fields = fields.push(settings_panel(
                 column![
-                    text("上传 PNG · 名称"),
+                    text(i18n.__("上传 PNG · 名称")),
                     input(name),
-                    action("更换文件", Event::Pick, ready, false),
+                    action(i18n.__("更换文件"), Event::Pick, ready, false),
                 ]
                 .spacing(8),
             ));
         }
         Some(Draft::Rename { name, .. }) => {
             fields =
-                fields.push(settings_panel(column![text("重命名 · 名称"), input(name)].spacing(8)));
+                fields.push(settings_panel(column![text(i18n.__("重命名 · 名称")), input(name)].spacing(8)));
         }
         Some(Draft::Delete { name, .. }) => {
-            fields = fields.push(settings_panel(text(format!("从图标库删除「{name}」？"))));
+            fields = fields.push(settings_panel(text(i18n.format("从图标库删除「%s」？", &[(format!("{}", name)).into()]).expect("valid display template"))));
         }
         None => {
             fields = fields.push(action(
-                "选择 PNG 文件",
+                i18n.__("选择 PNG 文件"),
                 Event::Pick,
                 selecting && form.rows.is_some(),
                 false,
@@ -119,16 +119,16 @@ pub fn card<'a>(form: &'a Form) -> Element<'a, Message> {
     }
     if let Some(rows) = &form.rows {
         if rows.is_empty() {
-            fields = fields.push(text("图标库为空。"));
+            fields = fields.push(text(i18n.__("图标库为空。")));
         }
         for icon in rows {
             fields = fields.push(settings_panel(
                 row![
-                    preview(&icon.data),
+                    preview(i18n, &icon.data),
                     text(&icon.name).width(Length::Fill),
-                    action("选择", Event::Select(icon.id.clone()), selecting, false),
-                    action("重命名", Event::Rename(icon.id.clone()), selecting, false),
-                    action("删除", Event::Delete(icon.id.clone()), selecting, false),
+                    action(i18n.__("选择"), Event::Select(icon.id.clone()), selecting, false),
+                    action(i18n.__("重命名"), Event::Rename(icon.id.clone()), selecting, false),
+                    action(i18n.__("删除"), Event::Delete(icon.id.clone()), selecting, false),
                 ]
                 .align_y(Alignment::Center)
                 .spacing(8),
@@ -138,26 +138,26 @@ pub fn card<'a>(form: &'a Form) -> Element<'a, Message> {
 
     let footer = if let Some(draft) = &form.draft {
         let commit = match draft {
-            Draft::Upload { .. } => "上传到库",
-            Draft::Rename { .. } => "保存名称",
-            Draft::Delete { .. } => "确认删除",
+            Draft::Upload { .. } => i18n.__("上传到库"),
+            Draft::Rename { .. } => i18n.__("保存名称"),
+            Draft::Delete { .. } => i18n.__("确认删除"),
         };
         row![
-            action("返回", Event::CancelDraft, ready, false),
+            action(i18n.__("返回"), Event::CancelDraft, ready, false),
             action(commit, Event::CommitDraft, ready, true),
         ]
     } else {
         row![
-            action("刷新", Event::Refresh, ready, false),
+            action(i18n.__("刷新"), Event::Refresh, ready, false),
             action(
-                "清除图标",
+                i18n.__("清除图标"),
                 Event::Clear,
                 ready && form.current.as_ref().is_some_and(|icon| icon.data.is_some()),
                 false
             ),
-            action("取消", Event::Close, ready, false),
+            action(i18n.__("取消"), Event::Close, ready, false),
             action(
-                "保存图标",
+                i18n.__("保存图标"),
                 Event::Save,
                 ready && (selected.is_some() || matches!(form.selection, Some(Change::Clear))),
                 true,
@@ -167,16 +167,16 @@ pub fn card<'a>(form: &'a Form) -> Element<'a, Message> {
     .spacing(8);
     let mut layout = column![
         row![
-            text(format!("供应商图标 · {}", form.name)).size(22).width(Length::Fill),
+            text(i18n.format("供应商图标 · %s", &[(format!("{}", form.name)).into()]).expect("valid display template")).size(22).width(Length::Fill),
             settings_close_button(message(Event::Close)),
         ]
         .spacing(8),
     ]
     .spacing(12);
     if let Some(error) = &form.notice {
-        layout = layout.push(settings_panel(text(format!("图标操作失败：{error}")).size(13)));
+        layout = layout.push(settings_panel(text(i18n.format("图标操作失败：%s", &[(format!("{}", error)).into()]).expect("valid display template")).size(13)));
     } else if form.busy {
-        layout = layout.push(text("正在处理…").size(13).style(settings_muted_text_style));
+        layout = layout.push(text(i18n.__("正在处理…")).size(13).style(settings_muted_text_style));
     }
     let card = settings_modal_card(
         layout

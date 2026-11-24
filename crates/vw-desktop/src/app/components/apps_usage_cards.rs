@@ -25,21 +25,21 @@ fn map_view(event: desktop_usage::apps_usage_cards::ViewMessage) -> Message {
         }
     }
 }
-pub(crate) fn provider_view<'a>(
+pub(crate) fn provider_view<'a>(i18n: desktop_i18n::I18n,
     scope: Option<&Scope>,
     cards: &'a Cards,
     app: AppId,
     id: &str,
 ) -> Element<'a, Message> {
-    desktop_usage::apps_usage_cards::provider_view(scope, &cards.data, app, id).map(map_view)
+    desktop_usage::apps_usage_cards::provider_view(i18n, scope, &cards.data, app, id).map(map_view)
 }
-pub(crate) fn account_view<'a>(
+pub(crate) fn account_view<'a>(i18n: desktop_i18n::I18n,
     scope: Option<&Scope>,
     cards: &'a Cards,
     service: AuthService,
     id: &str,
 ) -> Element<'a, Message> {
-    desktop_usage::apps_usage_cards::account_view(scope, &cards.data, service, id).map(map_view)
+    desktop_usage::apps_usage_cards::account_view(i18n, scope, &cards.data, service, id).map(map_view)
 }
 pub(super) fn input(app: &mut App) -> desktop_usage::card_update::Input<'_> {
     use desktop_usage::card_update::{Catalog, Input, Providers, Tab};
@@ -79,7 +79,7 @@ fn run(
     let mut input = input(app);
     let task = f(&mut input).map(message_event);
     let error = input.error.take();
-    Task::batch([task, error.map_or_else(Task::none, |error| app.show_error_toast(error))])
+    Task::batch([task, error.map_or_else(Task::none, |error| app.show_error_toast(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__(&error).to_owned()))])
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     run(app, |input| desktop_usage::card_update::update(input, event))

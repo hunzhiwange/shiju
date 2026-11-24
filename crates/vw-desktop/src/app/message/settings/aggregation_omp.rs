@@ -10,7 +10,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         return Task::none();
     };
     let Ok((client, actual)) = list::current(app, AppId::Omp) else {
-        return app.show_error_toast("无法连接网关");
+        return app.show_error_toast(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("无法连接网关"));
     };
     if scope != actual {
         app.app_providers.omp_directory = None;

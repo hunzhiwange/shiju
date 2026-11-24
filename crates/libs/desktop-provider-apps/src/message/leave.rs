@@ -30,29 +30,29 @@ pub fn resume<M>(state:&mut LeaveState<M>,draft:bool,busy:bool)->Option<M>{
 if !draft {state.dirty=false;if state.saving {state.saving=false;return state.pending.take().map(|m|*m)}} else if !busy {state.saving=false;}
 None
 }
-pub fn overlay<'a, M: Clone + 'static>(pending: bool, busy: bool, base: Element<'a, M>, message: impl Fn(Choice)->M) -> Element<'a, M> {
+pub fn overlay<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n, pending: bool, busy: bool, base: Element<'a, M>, message: impl Fn(Choice)->M) -> Element<'a, M> {
     use desktop_ui_controls::system_settings_common::*;
     use iced::widget::{button, column, row, text};
     if !pending {
         return base;
     }
     let cancel = message(Choice::Cancel);
-    let mut discard = button(text("放弃并离开")).padding([9, 14]).style(rounded_action_btn_style);
-    let mut save = button(text("保存后离开")).padding([9, 14]).style(primary_action_btn_style);
+    let mut discard = button(text(i18n.__("放弃并离开"))).padding([9, 14]).style(rounded_action_btn_style);
+    let mut save = button(text(i18n.__("保存后离开"))).padding([9, 14]).style(primary_action_btn_style);
     if !busy {
         discard = discard.on_press(message(Choice::Discard));
         save = save.on_press(message(Choice::Save));
     }
     let card = settings_modal_card(
         column![
-            row![text("未保存的修改").size(20), settings_close_button(cancel.clone())].spacing(16),
+            row![text(i18n.__("未保存的修改")).size(20), settings_close_button(cancel.clone())].spacing(16),
             text(if busy {
-                "正在保存，请等待结果。"
+                i18n.__("正在保存，请等待结果。")
             } else {
-                "离开前是否保存当前修改？"
+                i18n.__("离开前是否保存当前修改？")
             }),
             row![
-                button(text("取消"))
+                button(text(i18n.__("取消")))
                     .padding([9, 14])
                     .style(rounded_action_btn_style)
                     .on_press(cancel.clone()),

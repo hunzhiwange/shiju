@@ -434,7 +434,7 @@ impl std::fmt::Display for RequestStatusOption {
     }
 }
 
-pub(super) fn toolbar(state: &State) -> Element<'_, Event> {
+pub(super) fn toolbar(i18n: desktop_i18n::I18n, state: &State) -> Element<'_, Event> {
     use super::log_columns::COLUMNS;
     let status = state.query.as_ref().and_then(|q| q.filter.status);
     let statuses = [
@@ -445,7 +445,7 @@ pub(super) fn toolbar(state: &State) -> Element<'_, Event> {
         Some(UsageRequestStatus::Unknown),
     ]
     .map(RequestStatusOption);
-    let columns = super::log_columns::column_menu(
+    let columns = super::log_columns::column_menu(i18n,
         COLUMNS.iter().enumerate().skip(1).map(|(index, (_, label, _, _))| (index, *label)),
         |index| state.columns.visible(index),
         state.columns_open,
@@ -457,6 +457,7 @@ pub(super) fn toolbar(state: &State) -> Element<'_, Event> {
         settings_select(statuses, Some(RequestStatusOption(status)), |option| {
             Event::Status(option.0)
         })
+        .format_labels(|value| i18n.__(&value.to_string()).to_owned())
         .toolbar_icon(Icon::Funnel)
         .width(120),
         container(rule::vertical(1)).height(18),
@@ -472,7 +473,7 @@ pub(super) fn request_count(state: &State) -> Option<u64> {
 }
 
 pub fn view(state: &State, i18n: I18n) -> Element<'_, Event> {
-    column![container(toolbar(state)).align_right(Length::Fill), table(state, i18n)].spacing(8).into()
+    column![container(toolbar(i18n, state)).align_right(Length::Fill), table(state, i18n)].spacing(8).into()
 }
 
 pub(super) fn table(state: &State, i18n: I18n) -> Element<'_, Event> {
@@ -509,20 +510,20 @@ fn table_content(state: &State, i18n: I18n, viewport_width: f32) -> Element<'_, 
     let mut rows = column![].spacing(0);
     let mut header = row![].spacing(COLUMN_GAP).align_y(iced::Alignment::Center);
     for &(index, label, width) in &visible {
-        let title = text(label).size(12);
+        let title = text(i18n.__(label)).size(12);
         let help = match index {
-            5 => Some("新增输入按来源语义扣除缓存；缺少必要数据时显示 —"),
-            9 => Some("缓存读取 /（新增输入 + 缓存读取 + 缓存创建）"),
+            5 => Some(i18n.__("新增输入按来源语义扣除缓存；缺少必要数据时显示 —")),
+            9 => Some(i18n.__("缓存读取 /（新增输入 + 缓存读取 + 缓存创建）")),
             10 => Some(
-                "速度怎么算：每秒输出的 token 数。≈ 表示根据会话日志时间戳估算，可能包含等待首字的时间；来源未提供时显示 —。",
+                i18n.__("速度怎么算：每秒输出的 token 数。≈ 表示根据会话日志时间戳估算，可能包含等待首字的时间；来源未提供时显示 —。"),
             ),
             11 | 12 => Some(
-                "时间怎么算：单位为秒。首字表示开始输出前的等待时间，总耗时表示请求持续时间。≈ 为日志时间戳估算，可能包含客户端准备时间；来源未提供时显示 —。",
+                i18n.__("时间怎么算：单位为秒。首字表示开始输出前的等待时间，总耗时表示请求持续时间。≈ 为日志时间戳估算，可能包含客户端准备时间；来源未提供时显示 —。"),
             ),
             _ => None,
         };
         let title: Element<'_, Event> = match help {
-            Some(help) => settings_selectable_help_label(i18n, None, label, title, help).into(),
+            Some(help) => settings_selectable_help_label(i18n, None, label, title, i18n.__(help)).into(),
             None => title.into(),
         };
         header = header.push(container(title).width(width));
@@ -531,17 +532,17 @@ fn table_content(state: &State, i18n: I18n, viewport_width: f32) -> Element<'_, 
         .style(table_header_style));
     rows = rows.push(rule::horizontal(1));
     if state.loading {
-        rows = rows.push(container(text("正在加载请求…")).padding([10.0, TABLE_INSET]));
+        rows = rows.push(container(text(i18n.__("正在加载请求…"))).padding([10.0, TABLE_INSET]));
     }
     match &state.result {
         Some(Err(error)) => {
             rows = rows.push(
-                container(text(format!("请求加载失败：{error}"))).padding([10.0, TABLE_INSET]),
+                container(text(i18n.format("请求加载失败：%s", &[(format!("{}", error)).into()]).expect("valid display template"))).padding([10.0, TABLE_INSET]),
             )
         }
         Some(Ok(result)) => {
             if result.page.items.is_empty() {
-                rows = rows.push(container(text("暂无请求")).padding([18.0, TABLE_INSET]));
+                rows = rows.push(container(text(i18n.__("暂无请求"))).padding([18.0, TABLE_INSET]));
             }
             let now = Instant::now();
             for detail in &result.page.items {
@@ -616,7 +617,7 @@ fn table_content(state: &State, i18n: I18n, viewport_width: f32) -> Element<'_, 
         .map_or_else(|| "/ —".into(), |_| format!("/ {}", super::metrics::format_count(last_page)));
     let can_jump = !state.loading && state.jump_target().is_some();
     let current_page = page.to_string();
-    let page_input = text_input("页码", state.page_input.as_deref().unwrap_or(&current_page))
+    let page_input = text_input(i18n.__("页码"), state.page_input.as_deref().unwrap_or(&current_page))
         .width(62)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .align_x(iced::alignment::Horizontal::Center)
@@ -634,12 +635,13 @@ fn table_content(state: &State, i18n: I18n, viewport_width: f32) -> Element<'_, 
         .on_submit_maybe(can_jump.then_some(Event::Jump));
     let footer = container(
         row![
-            text(format!("共 {total} 条记录")).size(12).style(text::secondary),
+            text(i18n.format("共 %s 条记录", &[(format!("{}", total)).into()]).expect("valid display template")).size(12).style(text::secondary),
             settings_select(
                 PAGE_SIZES.map(PageSizeOption),
                 Some(PageSizeOption(page_size)),
                 |size| { Event::PageSize(size.0) }
             )
+            .format_labels(|size| i18n.format("%u 条/页", &[size.0.into()]).expect("valid page size"))
             .width(140)
             .height(PAGINATION_CONTROL_HEIGHT),
             Space::new().width(Length::Fill),
@@ -647,7 +649,7 @@ fn table_content(state: &State, i18n: I18n, viewport_width: f32) -> Element<'_, 
             page_input,
             text(page_count).size(12).style(text::secondary),
             nav("›", Event::Next, !state.loading && page < last_page),
-            nav("跳转", Event::Jump, can_jump)
+            nav(i18n.__("跳转"), Event::Jump, can_jump)
         ]
         .spacing(6)
         .align_y(iced::Alignment::Center),
@@ -668,7 +670,7 @@ fn table_content(state: &State, i18n: I18n, viewport_width: f32) -> Element<'_, 
     let mut content = column![];
     if let Some(error) = &state.preference_error {
         content = content
-            .push(text(format!("列设置保存/加载失败：{error}")).size(12).style(text::danger));
+            .push(text(i18n.format("列设置保存/加载失败：%s", &[(format!("{}", error)).into()]).expect("valid display template")).size(12).style(text::danger));
     }
     content.push(table).push(footer).into()
 }
@@ -711,22 +713,22 @@ const DETAIL_FONT: Font = Font {
     ..Font::DEFAULT
 };
 
-pub(super) fn detail_drawer(state: &State) -> Option<(Event, Element<'_, Event>)> {
+pub(super) fn detail_drawer(i18n: desktop_i18n::I18n, state: &State) -> Option<(Event, Element<'_, Event>)> {
     if !state.detail_open {
         return None;
     }
     let body: Element<'_, Event> = match &state.detail {
-        None => text("正在加载详情…").font(DETAIL_FONT).style(text::secondary).into(),
-        Some(Err(error)) => text(format!("请求详情加载失败：{error}"))
+        None => text(i18n.__("正在加载详情…")).font(DETAIL_FONT).style(text::secondary).into(),
+        Some(Err(error)) => text(i18n.format("请求详情加载失败：%s", &[(format!("{}", error)).into()]).expect("valid display template"))
             .font(DETAIL_FONT)
             .style(text::danger)
             .into(),
-        Some(Ok(detail)) => detail_view(detail),
+        Some(Ok(detail)) => detail_view(i18n, detail),
     };
-    Some((Event::CloseDetail, usage_detail_drawer("请求详情", Event::CloseDetail, body)))
+    Some((Event::CloseDetail, usage_detail_drawer(i18n, i18n.__("请求详情"), Event::CloseDetail, body)))
 }
 
-pub(super) fn usage_detail_drawer<'a, M: Clone + 'static>(
+pub(super) fn usage_detail_drawer<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     title: &'static str,
     close: M,
     body: Element<'a, M>,
@@ -749,7 +751,7 @@ pub(super) fn usage_detail_drawer<'a, M: Clone + 'static>(
         .into()
 }
 
-fn detail_view(detail: &UsageLogDetail) -> Element<'_, Event> {
+fn detail_view(i18n: desktop_i18n::I18n, detail: &UsageLogDetail) -> Element<'_, Event> {
     fn section(
         title: &'static str,
         values: Vec<(&'static str, String)>,
@@ -784,50 +786,50 @@ fn detail_view(detail: &UsageLogDetail) -> Element<'_, Event> {
         .unwrap_or_else(|| "—".into());
     let mut body = column![
         section(
-            "基本信息",
+            i18n.__("基本信息"),
             vec![
-                ("时间", time),
-                ("应用", cell(detail, 1)),
-                ("供应商", cell(detail, 2)),
-                ("模型", cell(detail, 3)),
-                ("请求 ID", r.id.clone())
+                (i18n.__("时间"), time),
+                (i18n.__("应用"), cell(detail, 1)),
+                (i18n.__("供应商"), cell(detail, 2)),
+                (i18n.__("模型"), cell(detail, 3)),
+                (i18n.__("请求 ID"), r.id.clone())
             ]
         ),
         section(
-            "Tokens 用量",
+            i18n.__("Tokens 用量"),
             vec![
-                ("新增输入", exact(t.and_then(fresh))),
-                ("原始输入", exact(t.and_then(|t| t.input))),
-                ("输出", exact(t.and_then(|t| t.output))),
-                ("缓存命中", exact(t.and_then(|t| t.cache_read))),
-                ("缓存写入", exact(t.and_then(|t| t.cache_creation)))
+                (i18n.__("新增输入"), exact(t.and_then(fresh))),
+                (i18n.__("原始输入"), exact(t.and_then(|t| t.input))),
+                (i18n.__("输出"), exact(t.and_then(|t| t.output))),
+                (i18n.__("缓存命中"), exact(t.and_then(|t| t.cache_read))),
+                (i18n.__("缓存写入"), exact(t.and_then(|t| t.cache_creation)))
             ]
         ),
         section(
-            "成本（USD）",
+            i18n.__("成本（USD）"),
             vec![
-                ("合计", cell(detail, 4)),
-                ("计价说明", cost(&r.cost)),
-                ("定价模型", unknown(r.models.pricing_model.as_deref()))
+                (i18n.__("合计"), cell(detail, 4)),
+                (i18n.__("计价说明"), cost(&r.cost)),
+                (i18n.__("定价模型"), unknown(r.models.pricing_model.as_deref()))
             ]
         ),
         section(
-            "性能",
+            i18n.__("性能"),
             vec![
-                ("速度", cell(detail, 10)),
-                ("首字", cell(detail, 11)),
-                ("总耗时", cell(detail, 12)),
-                ("状态码", cell(detail, 13))
+                (i18n.__("速度"), cell(detail, 10)),
+                (i18n.__("首字"), cell(detail, 11)),
+                (i18n.__("总耗时"), cell(detail, 12)),
+                (i18n.__("状态码"), cell(detail, 13))
             ]
         ),
-        text("≈ 表示来源提供的估算值；— 表示暂无数据。费用分项尚未由账本提供。")
+        text(i18n.__("≈ 表示来源提供的估算值；— 表示暂无数据。费用分项尚未由账本提供。"))
             .size(12)
             .font(DETAIL_FONT)
             .style(text::secondary)
     ]
     .spacing(18);
     if let Some(error) = &detail.error_message {
-        body = body.push(section("错误信息", vec![("详情", error.clone())]));
+        body = body.push(section(i18n.__("错误信息"), vec![(i18n.__("详情"), error.clone())]));
     }
     body.into()
 }

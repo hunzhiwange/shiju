@@ -33,7 +33,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
                     if entry.credential_state == vw_api_app_auth::AuthCredentialState::Ready
                         && apps_usage_cards::binding_app(row.service).is_some() {
                         accounts.insert((row.service, entry.account_id.clone()),
-                            apps_usage_cards::account_view(scope.as_ref(), &s.usage, row.service, &entry.account_id)
+                            apps_usage_cards::account_view(desktop_i18n::I18n::new(app.general_settings.desktop_locale), scope.as_ref(), &s.usage, row.service, &entry.account_id)
                                 .map(Event::Usage));
                     }
                 }
@@ -43,7 +43,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     account::system_settings_auth::view(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &state(app), account::Usage {
         available: scope.is_some(),
         batch_pending: scope.as_ref().is_some_and(|scope| s.usage.batch_pending(scope)),
-        lines: scope.as_ref().map_or_else(Vec::new, |scope| s.usage.batch_lines(scope)),
+        lines: scope.as_ref().map_or_else(Vec::new, |scope| s.usage.batch_lines(desktop_i18n::I18n::new(app.general_settings.desktop_locale), scope)),
         accounts,
     }).map(map)
 }

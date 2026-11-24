@@ -123,7 +123,7 @@ async fn usage_usage_cards_returns_expected_result() {
     assert!(account[0].provider().is_empty());
     assert!(!provider[0].matches(&account[0]));
     assert_eq!(provider[0].snapshot, account[0].snapshot);
-    assert_eq!(view::summary(&account[0].snapshot), ["官方额度", "Pro", "5 小时 · 剩余 75%"]);
+    assert_eq!(view::summary(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &account[0].snapshot), ["官方额度", "Pro", "5 小时 · 剩余 75%"]);
     let missing_route = read(
         &client,
         &context,
@@ -183,10 +183,10 @@ async fn usage_usage_cards_refreshes_empty_snapshot_after_gateway_completion() {
     let context = context();
     let target = Target::Provider(AppId::Codex, "provider-a".into());
     let empty = read(&client, &context, &target, None).await.unwrap();
-    assert_eq!(view::summary(&empty[0].snapshot), ["暂无额度快照"]);
+    assert_eq!(view::summary(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &empty[0].snapshot), ["暂无额度快照"]);
     let refreshed = read(&client, &context, &target, Some("provider-a")).await.unwrap();
     assert_eq!(refreshed[0].refresh_failure, None);
-    assert_eq!(view::summary(&refreshed[0].snapshot), ["官方额度", "Pro", "5 小时 · 剩余 75%"]);
+    assert_eq!(view::summary(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &refreshed[0].snapshot), ["官方额度", "Pro", "5 小时 · 剩余 75%"]);
     server.join().unwrap();
 }
 
@@ -223,7 +223,7 @@ async fn usage_usage_cards_distinguishes_unsupported_refresh_from_empty_snapshot
     .await
     .unwrap();
     assert_eq!(result[0].refresh_failure, Some(Failure::Unsupported));
-    assert_eq!(view::summary(&result[0].snapshot), ["暂无额度快照"]);
+    assert_eq!(view::summary(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &result[0].snapshot), ["暂无额度快照"]);
     server.join().unwrap();
 }
 
@@ -285,21 +285,21 @@ fn usage_usage_events_updates_only_linked_card_snapshots() {
     provider_cards.apply_updates(&provider_scope, std::slice::from_ref(&updated));
     assert!(!provider_cards.finish(&provider, pending, Ok(vec![empty])));
     let items = provider_cards.entries[&provider].result.as_ref().unwrap().as_ref().unwrap();
-    assert_eq!(view::summary(&items[0].snapshot), ["官方额度", "Pro", "5 小时 · 剩余 75%"]);
+    assert_eq!(view::summary(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &items[0].snapshot), ["官方额度", "Pro", "5 小时 · 剩余 75%"]);
     assert_eq!(account_cards.entries[&account].pending, Some(account_pending));
     let items = account_cards.entries[&account].result.as_ref().unwrap().as_ref().unwrap();
-    assert_eq!(view::summary(&items[0].snapshot), ["暂无额度快照"]);
+    assert_eq!(view::summary(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &items[0].snapshot), ["暂无额度快照"]);
     let items = account_cards.entries[&other_account].result.as_ref().unwrap().as_ref().unwrap();
-    assert_eq!(view::summary(&items[0].snapshot), ["暂无额度快照"]);
+    assert_eq!(view::summary(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &items[0].snapshot), ["暂无额度快照"]);
 
     let mut failed = items[0].clone();
     failed.refresh_failure = Some(Failure::Reauth);
     account_cards.batch_result = Some(Ok(vec![updated, failed]));
     assert_eq!(
-        account_cards.batch_lines(&scope),
+        account_cards.batch_lines(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &scope),
         ["额度刷新 · 1 项成功，1 项未完成", "Codex / provider-a / account-b · 账号需要重新授权"]
     );
-    assert!(account_cards.batch_lines(&changed_scope).is_empty());
+    assert!(account_cards.batch_lines(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &changed_scope).is_empty());
 }
 
 #[path = "apps_usage_cards/usage_events_25_tests.rs"]

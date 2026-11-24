@@ -77,5 +77,5 @@ let busy=busy(app);let state=&mut app.app_providers;
 desktop_provider_apps::message::leave::resume(&mut state.leave,state.form.is_some()||state.editor.is_some(),busy).map_or_else(Task::none,Task::done)
 }
 pub(crate) fn overlay<'a>(app:&'a App,base:Element<'a,Message>)->Element<'a,Message>{
-desktop_provider_apps::message::leave::overlay(app.app_providers.leave.pending.is_some(),busy(app),base,|choice|list::message(ListMessage::Leave(choice)))
+desktop_provider_apps::message::leave::overlay(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), app.app_providers.leave.pending.is_some(),busy(app),base,|choice|list::message(ListMessage::Leave(choice)))
 }

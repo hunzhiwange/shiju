@@ -149,7 +149,7 @@ pub fn amount(state: &State, current: Option<Identity>, usd: &str) -> String {
         None => format!("{usd} USD（换算不可用）"),
     }
 }
-pub fn sidebar_today(
+pub fn sidebar_today(i18n: desktop_i18n::I18n,
     state: &State,
     current: Option<Identity>,
     today: Option<&(Identity, gateway_usage_read::UsageSummary)>,
@@ -180,8 +180,8 @@ pub fn sidebar_today(
                 } else {
                     full.split('（').next().unwrap_or(&full).to_owned()
                 };
-                let detail = if unknown == 0 { full } else { format!("{full} · {unknown} 条请求费用未知") };
-                ("已知费用", short, detail)
+                let detail = if unknown == 0 { full } else { i18n.format("%s · %s 条请求费用未知", &[(format!("{}", full)).into(), (format!("{}", unknown)).into()]).expect("valid display template") };
+                (i18n.__("已知费用"), short, detail)
             }
             TodayItem::Tokens | TodayItem::Requests | TodayItem::HitRate => {
                 let metric = match item {
@@ -198,20 +198,20 @@ pub fn sidebar_today(
                 (metric.label(), short, detail)
             }
         };
-        values.push((short, format!("{label} {detail}")));
+        values.push((short, format!("{} {detail}", i18n.__(label))));
     }
-    let badge = format!("今日 {}", values.first()?.0);
+    let badge = i18n.format("今日 %s", &[(format!("{}", values.first()?.0)).into()]).expect("valid display template");
     let tooltip = values.into_iter().map(|(_, detail)| detail).collect::<Vec<_>>().join(" · ");
-    Some((badge, format!("今日 · {tooltip}")))
+    Some((badge, i18n.format("今日 · %s", &[(format!("{}", tooltip)).into()]).expect("valid display template")))
 }
 
-pub fn status(state: &State, current: Option<Identity>) -> String {
+pub fn status(i18n: desktop_i18n::I18n, state: &State, current: Option<Identity>) -> String {
 
-    if current.as_ref() != state.scope.as_ref() { return "汇率未加载；显示 USD".into(); }
-    let Some(result) = &state.result else { return "汇率未加载；显示 USD".into(); };
+    if current.as_ref() != state.scope.as_ref() { return i18n.__("汇率未加载；显示 USD").into(); }
+    let Some(result) = &state.result else { return i18n.__("汇率未加载；显示 USD").into(); };
     let d = &result.display;
-    if !d.rate.is_finite() || d.rate <= 0.0 { return "汇率未知；显示 USD".into(); }
-    format!("{:?} · {:?} · 1 USD = {} {:?} · 来源 {} · 缓存{} · {}{} · 未知费用始终未知", result.settings.currency, result.settings.mode, d.rate, d.currency, d.source, if d.stale { "已过期" } else { "未过期" }, if d.degraded { "已降级" } else { "正常" }, d.error.as_ref().map(|e| format!(" · {e}")).unwrap_or_default())
+    if !d.rate.is_finite() || d.rate <= 0.0 { return i18n.__("汇率未知；显示 USD").into(); }
+    i18n.format("%s · %s · 1 USD = %s %s · 来源 %s · 缓存%s · %s%s · 未知费用始终未知", &[(format!("{:?}", result.settings.currency)).into(), (format!("{:?}", result.settings.mode)).into(), (format!("{}", d.rate)).into(), (format!("{:?}", d.currency)).into(), (format!("{}", d.source)).into(), (format!("{}", if d.stale { i18n.__("已过期") } else { i18n.__("未过期") })).into(), (format!("{}", if d.degraded { i18n.__("已降级") } else { i18n.__("正常") })).into(), (format!("{}", d.error.as_ref().map(|e| format!(" · {e}")).unwrap_or_default())).into()]).expect("valid display template")
 }
 fn action(label: &'static str, event: Event, enabled: bool) -> Element<'static, Outcome<Event>> {
     button(text(label).size(13))
@@ -266,19 +266,20 @@ impl std::fmt::Display for CurrencyOption {
     }
 }
 
-fn currency_picker(state: &State, enabled: bool) -> Element<'static, Outcome<Event>> {
+fn currency_picker(i18n: desktop_i18n::I18n, state: &State, enabled: bool) -> Element<'static, Outcome<Event>> {
     settings_select(
         [Currency::USD, Currency::CNY, Currency::EUR, Currency::JPY, Currency::TWD, Currency::TRY]
             .map(CurrencyOption),
         Some(CurrencyOption(state.currency)),
         |choice| message(Event::Currency(choice.0)),
     )
+    .format_labels(|choice| i18n.__(&choice.to_string()).to_owned())
     .disabled(!enabled)
     .width(Length::Fill)
     .into()
 }
 
-pub fn quick_settings<'a>(
+pub fn quick_settings<'a>(i18n: desktop_i18n::I18n,
     state: &'a State,
     current: Option<&Identity>,
 ) -> Element<'a, Outcome<Event>> {
@@ -286,31 +287,32 @@ pub fn quick_settings<'a>(
     let saved = state.result.as_ref().filter(|_| state.scope.as_ref() == current);
     let currency_changed = saved.is_some_and(|result| result.settings.currency != state.currency);
     let mut controls = column![
-        quick_row("币种", currency_picker(state, enabled && saved.is_some())),
+        quick_row(i18n.__("币种"), currency_picker(i18n, state, enabled && saved.is_some())),
         quick_row(
-            "趋势图样式",
+            i18n.__("趋势图样式"),
             settings_select(
-                ["柱形图", "折线图"],
-                Some(if state.preferences.area { "折线图" } else { "柱形图" }),
-                |label| message(Event::Trend(label == "折线图")),
+                [false, true],
+                Some(state.preferences.area),
+                |area| message(Event::Trend(area)),
             )
+            .format_labels(|area| i18n.__(if *area { "折线图" } else { "柱形图" }).to_owned())
             .disabled(state.busy)
             .width(Length::Fill)
             .into(),
         ),
-        quick_row("侧栏「今日」", today_controls(state, !state.busy)),
+        quick_row(i18n.__("侧栏「今日」"), today_controls(i18n, state, !state.busy)),
     ]
     .spacing(8);
     if currency_changed {
         if state.mode == RateMode::Manual && state.currency != Currency::USD {
             controls = controls.push(quick_row(
-                "手工汇率",
-                settings_text_input("1 USD 对应金额", &state.rate)
+                i18n.__("手工汇率"),
+                settings_text_input(i18n.__("1 USD 对应金额"), &state.rate)
                     .on_input_maybe(enabled.then_some(|v| message(Event::Rate(v))))
                     .into(),
             ));
         }
-        controls = controls.push(save_button("保存币种", enabled));
+        controls = controls.push(save_button(i18n.__("保存币种"), enabled));
     }
     if let Some(error) = &state.preferences_error {
         controls = controls.push(settings_error_banner(error));
@@ -334,7 +336,7 @@ fn quick_row<'a>(
     .into()
 }
 
-pub fn overlay<'a, M: Clone + 'static>(
+pub fn overlay<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: &'a State,
     current: Option<Identity>,
     base: Element<'a, M>,
@@ -348,44 +350,44 @@ pub fn overlay<'a, M: Clone + 'static>(
     let area = state.preferences.area;
     let editable_rate = enabled && !auto && state.currency != Currency::USD;
     let rate_modes = row![
-        choice_button("自动", (enabled && !auto).then_some(Event::Mode(RateMode::Auto)), auto),
-        choice_button("手工", (enabled && auto).then_some(Event::Mode(RateMode::Manual)), !auto),
+        choice_button(i18n.__("自动"), (enabled && !auto).then_some(Event::Mode(RateMode::Auto)), auto),
+        choice_button(i18n.__("手工"), (enabled && auto).then_some(Event::Mode(RateMode::Manual)), !auto),
     ]
     .spacing(6);
     let chart_styles = row![
-        choice_button("柱形图", (enabled && area).then_some(Event::Trend(false)), !area),
-        choice_button("曲线面积图", (enabled && !area).then_some(Event::Trend(true)), area),
+        choice_button(i18n.__("柱形图"), (enabled && area).then_some(Event::Trend(false)), !area),
+        choice_button(i18n.__("曲线面积图"), (enabled && !area).then_some(Event::Trend(true)), area),
     ]
     .spacing(6)
     .wrap();
 
     let currency = column![
-        settings_group_heading("币种与汇率", "换算仅供显示，账本及标注 USD 的金额保留原币种。"),
-        quick_row("显示币种", currency_picker(state, enabled)),
-        quick_row("汇率模式", rate_modes.into()),
+        settings_group_heading(i18n.__("币种与汇率"), i18n.__("换算仅供显示，账本及标注 USD 的金额保留原币种。")),
+        quick_row(i18n.__("显示币种"), currency_picker(i18n, state, enabled)),
+        quick_row(i18n.__("汇率模式"), rate_modes.into()),
         quick_row(
-            "1 USD 对应",
-            settings_text_input("目标币种金额", &state.rate)
+            i18n.__("1 USD 对应"),
+            settings_text_input(i18n.__("目标币种金额"), &state.rate)
                 .on_input_maybe(editable_rate.then_some(|value| message(Event::Rate(value))))
                 .into(),
         ),
-        text(status(state, current)).size(12).style(settings_muted_text_style),
+        text(status(i18n, state, current)).size(12).style(settings_muted_text_style),
         row![
-            action("刷新自动汇率", Event::Refresh, enabled),
-            action("重新加载", Event::Reload, enabled),
+            action(i18n.__("刷新自动汇率"), Event::Refresh, enabled),
+            action(i18n.__("重新加载"), Event::Reload, enabled),
         ]
         .spacing(8)
         .wrap(),
     ]
     .spacing(10);
     let display = column![
-        settings_group_heading("用量显示", "图表和侧栏偏好即时生效。"),
-        quick_row("趋势图样式", chart_styles.into()),
+        settings_group_heading(i18n.__("用量显示"), i18n.__("图表和侧栏偏好即时生效。")),
+        quick_row(i18n.__("趋势图样式"), chart_styles.into()),
         quick_row(
-            "侧栏「今日」",
+            i18n.__("侧栏「今日」"),
             settings_control_with_hint(
-                today_controls(state, enabled),
-                "最多选两项，全部取消后隐藏。",
+                today_controls(i18n, state, enabled),
+                i18n.__("最多选两项，全部取消后隐藏。"),
             ),
         ),
     ]
@@ -400,12 +402,12 @@ pub fn overlay<'a, M: Clone + 'static>(
 
     let close = message(Event::Close);
     let header = settings_modal_header(
-        text("币种与显示设置").size(22),
+        text(i18n.__("币种与显示设置")).size(22),
         settings_close_button(close.clone()),
     );
     let footer = column![
         settings_divider(),
-        container(save_button("保存币种与汇率", enabled && state.result.is_some()))
+        container(save_button(i18n.__("保存币种与汇率"), enabled && state.result.is_some()))
             .align_right(Length::Fill),
     ]
     .spacing(12);
@@ -478,7 +480,7 @@ impl Preferences {
         std::fs::rename(&temporary, path).map_err(|e| e.to_string())
     }
 }
-fn today_controls(state: &State, enabled: bool) -> Element<'static, Outcome<Event>> {
+fn today_controls(i18n: desktop_i18n::I18n, state: &State, enabled: bool) -> Element<'static, Outcome<Event>> {
     let mut controls = row![].spacing(8);
     for (item, _, label) in TODAY {
         let selected = state.preferences.today.contains(&item);

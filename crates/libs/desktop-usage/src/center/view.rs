@@ -25,26 +25,26 @@ pub fn view<'a>(
             .on_press(event)
     };
     if !state.open {
-        return action("第三方智能体用量统计 ›", Event::Load(super::range_picker::Preset::Month))
+        return action(i18n.__("第三方智能体用量统计 ›"), Event::Load(super::range_picker::Preset::Month))
             .into();
     }
     let sync_active = state.scan.is_syncing();
     let last_sync = state.scan.last_sync_time();
     let sync_label = if sync_active {
-        "同步中…".into()
+        i18n.__("同步中…").into()
     } else if let Some(time) = &last_sync {
         let format = if time.date_naive() == chrono::Local::now().date_naive() {
             "%H:%M:%S"
         } else {
             "%Y-%m-%d %H:%M:%S"
         };
-        format!("同步于 {}", time.format(format))
+        i18n.format("同步于 %s", &[(format!("{}", time.format(format))).into()]).expect("valid display template")
     } else {
-        "同步".into()
+        i18n.__("同步").into()
     };
     let sync_help = last_sync.map_or_else(
-        || "立即同步".into(),
-        |time| format!("立即同步 · 上次同步 {}", time.format("%Y-%m-%d %H:%M:%S")),
+        || i18n.__("立即同步").into(),
+        |time| i18n.format("立即同步 · 上次同步 %s", &[(format!("{}", time.format("%Y-%m-%d %H:%M:%S"))).into()]).expect("valid display template"),
     );
     let header_icon = |icon| {
         svg(get_icon(icon))
@@ -80,7 +80,7 @@ pub fn view<'a>(
             .padding([0, 10])
             .style(|theme, status| header_segment_style(theme, status, false))
             .on_press(Event::Scan(scan::Event::Open)),
-        text("用量设置").size(12),
+        text(i18n.__("用量设置")).size(12),
         tooltip::Position::Bottom,
     )
     .gap(6)
@@ -101,7 +101,7 @@ pub fn view<'a>(
             .width(22)
             .height(22)
             .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) }),
-        text("用量统计").size(24),
+        text(i18n.__("用量统计")).size(24),
     ]
     .spacing(9)
     .align_y(iced::Alignment::Center);
@@ -116,7 +116,7 @@ pub fn view<'a>(
     if let Some(Ok((providers, models))) = &state.groups.result {
         for provider in providers {
             let label = match &provider.provider {
-                vw_api_usage::UsageProvider::Unknown => "未知供应商".into(),
+                vw_api_usage::UsageProvider::Unknown => i18n.__("未知供应商").into(),
                 vw_api_usage::UsageProvider::Known { provider_id } => provider_id.clone(),
             };
             options.push(overview::ScopeOption {
@@ -140,27 +140,27 @@ pub fn view<'a>(
     let background = |content: Element<'a, Event>| {
         if popup_open { settings_inactive_view(content) } else { content }
     };
-    let filters = overview::primary_filters(&state.query, &options, state.filter_menu).map(Event::Filter);
+    let filters = overview::primary_filters(i18n, &state.query, &options, state.filter_menu).map(Event::Filter);
     let filters = if state.range_picker.open { settings_inactive_view(filters) } else { filters };
     let summary = state.result.as_ref().and_then(|r| r.as_ref().ok());
     let hero =
-        super::hero::view_with_cost(&state.hero, summary, state.loading && summary.is_none(), known_cost.as_deref())
+        super::hero::view_with_cost(i18n, &state.hero, summary, state.loading && summary.is_none(), known_cost.as_deref())
             .map(Event::Hero);
     let mut chart_section = column![].width(Length::Fill).spacing(8);
     match &state.result {
         Some(Err(error)) => {
-            chart_section = chart_section.push(text(format!("用量加载失败：{error}")).size(12));
+            chart_section = chart_section.push(text(i18n.format("用量加载失败：%s", &[(format!("{}", error)).into()]).expect("valid display template")).size(12));
         }
         Some(Ok(summary)) if summary.counts.unknown_cost_requests > 0 => {
             chart_section = chart_section.push(
-                text(format!("{} 个请求的费用未知", summary.counts.unknown_cost_requests))
+                text(i18n.format("%s 个请求的费用未知", &[(format!("{}", summary.counts.unknown_cost_requests)).into()]).expect("valid display template"))
                     .size(12)
                     .style(text::secondary),
             );
         }
         _ => {}
     }
-    let chart = super::charts::view_range(
+    let chart = super::charts::view_range(i18n,
         &state.charts,
         state.hero.metric,
         Some(matches!(&state.query.range, vw_api_usage::UsageRange::All)),
@@ -182,10 +182,10 @@ pub fn view<'a>(
         DetailTab::Models => Some(groups::Table::Models),
     };
     let tabs = responsive(move |size| {
-        let tabs = detail_tabs(state.tab, counts);
+        let tabs = detail_tabs(i18n, state.tab, counts);
         let toolbar = match group_table {
-            Some(table) => groups::toolbar(&state.groups, table).map(Event::Groups),
-            None => super::logs::toolbar(&state.logs).map(Event::Logs),
+            Some(table) => groups::toolbar(i18n, &state.groups, table).map(Event::Groups),
+            None => super::logs::toolbar(i18n, &state.logs).map(Event::Logs),
         };
         let toolbar = container(toolbar)
             .align_right(Length::Fill)
@@ -204,7 +204,7 @@ pub fn view<'a>(
     let details = container(column![tabs, rule::horizontal(1), detail])
         .width(Length::Fill)
         .style(panel_style);
-    let date = state.range_picker.view().map(Event::Range);
+    let date = state.range_picker.view(i18n).map(Event::Range);
     let date = if state.filter_menu.is_some() { settings_inactive_view(date) } else { date };
     let filters = row![
         date,
@@ -226,9 +226,9 @@ pub fn view<'a>(
         ))
         .height(Length::Fill);
     let drawer = match group_table {
-        Some(_) => groups::detail_drawer(&state.groups)
+        Some(_) => groups::detail_drawer(i18n, &state.groups)
             .map(|(close, drawer)| (Event::Groups(close), drawer.map(Event::Groups))),
-        None => super::logs::detail_drawer(&state.logs)
+        None => super::logs::detail_drawer(i18n, &state.logs)
             .map(|(close, drawer)| (Event::Logs(close), drawer.map(Event::Logs))),
     };
     settings_right_drawer_overlay(page.into(), drawer)
@@ -244,7 +244,7 @@ fn header_segment_style(theme: &Theme, status: button::Status, first: bool) -> b
     style
 }
 
-fn detail_tabs(active: DetailTab, counts: [Option<u64>; 3]) -> Element<'static, Event> {
+fn detail_tabs(i18n: desktop_i18n::I18n, active: DetailTab, counts: [Option<u64>; 3]) -> Element<'static, Event> {
     let mut tabs = row![].spacing(16).padding(iced::padding::left(super::logs::TABLE_INSET));
     for ((tab, label), count) in [
         (DetailTab::Logs, "请求日志"),

@@ -245,7 +245,7 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
                     )
                 })
             else {
-                return app.show_info_toast("请先安装或刷新此应用");
+                return app.show_info_toast(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("请先安装或刷新此应用"));
             };
             return crate::app::message::settings::apps_catalog::update(
                 app, crate::app::message::settings::AppsCatalogMessage::Launch(
@@ -392,7 +392,7 @@ fn catalog(
     event: desktop_provider_apps::state::list::CatalogEvent,
 ) -> Task<Message> {
     use desktop_provider_apps::state::list::CatalogEvent;
-    let current = id.map(|id| current(app, id)).unwrap_or_else(|| Err("无法连接网关".into()));
+    let current = id.map(|id| current(app, id)).unwrap_or_else(|| Err(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("无法连接网关").into()));
     let mut clear = false;
     let mut read = false;
     let mut error = None;
@@ -411,7 +411,7 @@ fn catalog(
     if clear {
         app.app_providers.usage.clear();
     }
-    let feedback = error.map_or_else(Task::none, |text| app.show_error_toast(text));
+    let feedback = error.map_or_else(Task::none, |text| app.show_error_toast(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__(&text).to_owned()));
     #[cfg(not(target_arch = "wasm32"))]
     let usage = if read {
         app.app_providers.scope.as_ref().map(|s| s.app).map_or_else(Task::none, |id| {

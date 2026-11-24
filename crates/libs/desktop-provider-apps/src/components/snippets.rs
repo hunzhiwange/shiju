@@ -41,11 +41,12 @@ pub fn card<'a>(
     app: AppId,
     help: Help<'_>,
 ) -> Element<'a, Message> {
+    let i18n = help.i18n;
     let ready = form.pending.is_none();
     let can_close = form.pending != Some(Operation::Save);
     let close = if can_close { message(Event::Close) } else { Message::None };
     let header = settings_modal_header(
-        help.heading("公共配置片段", "保存后更新应用的公共片段。", 28),
+        help.heading(i18n.__("公共配置片段"), i18n.__("保存后更新应用的公共片段。"), 28),
         settings_close_button(close.clone()),
     );
     let mut body = column![].spacing(12);
@@ -63,15 +64,15 @@ pub fn card<'a>(
                 .iter()
                 .find(|option| Some(&option.id) == form.provider_id.as_ref())
                 .cloned();
-            body = body.push(text("从已保存的供应商提取").size(16)).push(
+            body = body.push(text(i18n.__("从已保存的供应商提取")).size(16)).push(
                 row![
                     settings_select(options, selected, |option| message(Event::SelectProvider(
                         option.id
                     )))
-                    .placeholder("选择供应商")
+                    .placeholder(i18n.__("选择供应商"))
                     .width(Length::Fill)
                     .disabled(!ready),
-                    action("提取", Event::Extract, ready && form.provider_id.is_some(), false),
+                    action(i18n.__("提取"), Event::Extract, ready && form.provider_id.is_some(), false),
                 ]
                 .spacing(8),
             );
@@ -86,44 +87,44 @@ pub fn card<'a>(
         }
         body = body
             .push(help.heading(
-                if app == AppId::Codex { "片段草稿 · TOML" } else { "片段草稿 · JSON" },
-                "预览展示服务端校验和规范化后的内容。",
+                if app == AppId::Codex { i18n.__("片段草稿 · TOML") } else { i18n.__("片段草稿 · JSON") },
+                i18n.__("预览展示服务端校验和规范化后的内容。"),
                 16,
             ))
-            .push(text("留空可清除已保存的片段。").size(13).style(settings_muted_text_style))
+            .push(text(i18n.__("留空可清除已保存的片段。")).size(13).style(settings_muted_text_style))
             .push(editor);
     } else if ready {
-        body = body.push(action("重试读取", Event::RetryRead, true, false));
+        body = body.push(action(i18n.__("重试读取"), Event::RetryRead, true, false));
     }
     if let Some(operation) = form.pending {
         let progress = match operation {
-            Operation::Read => "正在读取公共片段…",
-            Operation::Extract => "正在提取公共片段…",
-            Operation::Preview => "正在校验草稿…",
-            Operation::Save => "正在保存公共片段…",
+            Operation::Read => i18n.__("正在读取公共片段…"),
+            Operation::Extract => i18n.__("正在提取公共片段…"),
+            Operation::Preview => i18n.__("正在校验草稿…"),
+            Operation::Save => i18n.__("正在保存公共片段…"),
         };
         body = body.push(text(progress).size(13));
     }
     if let Some(error) = &form.error {
-        body = body.push(settings_panel(text(format!("请求失败　{error}")).size(13)));
+        body = body.push(settings_panel(text(i18n.format("请求失败　%s", &[(format!("{}", error)).into()]).expect("valid display template")).size(13)));
     }
     if let Some((operation, snippet)) = &form.preview {
         let extracted = *operation == Operation::Extract;
         let mut result = column![
-            text(if extracted { "提取预览" } else { "服务预览" }).size(16),
-            text(snippet.content.as_deref().unwrap_or("（空片段）")).size(14),
+            text(if extracted { i18n.__("提取预览") } else { i18n.__("服务预览") }).size(16),
+            text(snippet.content.as_deref().unwrap_or(i18n.__("（空片段）"))).size(14),
         ]
         .spacing(8)
         .width(Length::Fill);
         if extracted {
-            result = result.push(action("用提取结果替换草稿", Event::AdoptExtracted, ready, false));
+            result = result.push(action(i18n.__("用提取结果替换草稿"), Event::AdoptExtracted, ready, false));
         }
         body = body.push(settings_panel(result));
     }
     let footer = row![
-        action("取消", Event::Close, can_close, false),
-        action("服务预览", Event::Preview, ready && form.loaded, false),
-        action("保存片段", Event::Save, ready && form.loaded, true),
+        action(i18n.__("取消"), Event::Close, can_close, false),
+        action(i18n.__("服务预览"), Event::Preview, ready && form.loaded, false),
+        action(i18n.__("保存片段"), Event::Save, ready && form.loaded, true),
     ]
     .spacing(10);
     let card = settings_modal_layout(header, body.width(Length::Fill), Some(footer.into()))

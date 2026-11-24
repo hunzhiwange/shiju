@@ -303,10 +303,10 @@ impl State {
         }
         None
     }
-    pub fn view(&self) -> Element<'_, Event> {
+    pub fn view(&self, i18n: desktop_i18n::I18n) -> Element<'_, Event> {
         let trigger = button(container(row![
             icon_svg(Icon::Calendar, 15.0),
-            text(self.preset.map_or("自定义时间", Preset::label)).size(13),
+            text(i18n.__(self.preset.map_or("自定义时间", Preset::label))).size(13),
             icon_svg(Icon::ChevronDown, 11.0),
         ].spacing(7).align_y(iced::Alignment::Center)).center_y(Length::Fill))
         .height(SETTINGS_CONTROL_HEIGHT)
@@ -315,7 +315,7 @@ impl State {
         .on_press(if self.open { Event::Cancel } else { Event::Open });
 
         if self.open {
-            BelowOverlay::new(trigger, self.dialog())
+            BelowOverlay::new(trigger, self.dialog(i18n))
                 .show(true)
                 .gap(6.0)
                 .on_close(Event::Cancel)
@@ -326,9 +326,9 @@ impl State {
         }
     }
 
-    fn dialog(&self) -> Element<'_, Event> {
+    fn dialog(&self, i18n: desktop_i18n::I18n) -> Element<'_, Event> {
         let action = |label: String, event| {
-            button(text(label).size(13))
+            button(text(i18n.__(label)).size(13))
                 .padding([6, 10])
                 .style(rounded_action_btn_style)
                 .on_press(event)
@@ -336,7 +336,7 @@ impl State {
         let mut presets = row![].spacing(5);
         for preset in Preset::ALL {
             let selected = self.preset == Some(preset);
-            presets = presets.push(action(preset.label().into(), Event::Preset(preset)).style(
+            presets = presets.push(action(i18n.__(preset.label()).into(), Event::Preset(preset)).style(
                 move |theme, status| {
                     let mut style = rounded_action_btn_style(theme, status);
                     if selected {
@@ -384,11 +384,11 @@ impl State {
             })
         };
         let fields = column![
-            text("自定义时间 · 最长 30 天").size(12).style(text::secondary),
-            input("开始时间", &self.start, Field::Start),
-            input("结束时间", &self.end, Field::End),
+            text(i18n.__("自定义时间 · 最长 30 天")).size(12).style(text::secondary),
+            input(i18n.__("开始时间"), &self.start, Field::Start),
+            input(i18n.__("结束时间"), &self.end, Field::End),
             checkbox(self.live)
-                .label("结束时间跟随当前时刻")
+                .label(i18n.__("结束时间跟随当前时刻"))
                 .size(16)
                 .text_size(13)
                 .style(settings_checkbox_style)
@@ -401,15 +401,15 @@ impl State {
             row![
                 action("‹".into(), Event::Month(-1)),
                 Space::new().width(Length::Fill),
-                action(self.month.format("%Y年%m月").to_string(), Event::Today),
+                action(self.month.format(i18n.__("%Y年%m月")).to_string(), Event::Today),
                 Space::new().width(Length::Fill),
                 action("›".into(), Event::Month(1))
             ]
             .align_y(iced::Alignment::Center),
-            ["日", "一", "二", "三", "四", "五", "六"].into_iter().fold(
+            [i18n.__("日"), i18n.__("一"), i18n.__("二"), i18n.__("三"), i18n.__("四"), i18n.__("五"), i18n.__("六")].into_iter().fold(
                 row![].spacing(2),
                 |days, label| days.push(
-                    container(text(label).size(12).style(text::secondary)).center_x(Length::Fill)
+                    container(text(i18n.__(label)).size(12).style(text::secondary)).center_x(Length::Fill)
                 )
             )
         ]
@@ -478,13 +478,13 @@ impl State {
             .width(Length::Fill);
         let footer = row![
             Space::new().width(Length::Fill),
-            action("取消".into(), Event::Cancel),
-            action("确定".into(), Event::Apply).style(primary_action_btn_style)
+            action(i18n.__("取消").into(), Event::Cancel),
+            action(i18n.__("确定").into(), Event::Apply).style(primary_action_btn_style)
         ]
         .spacing(8);
         let mut panel = column![presets.wrap(), rule::horizontal(1), body].spacing(8);
         if let Some(error) = &self.error {
-            panel = panel.push(text(error).size(12).style(text::danger));
+            panel = panel.push(text(i18n.__(error)).size(12).style(text::danger));
         }
         settings_modal_card(panel.push(footer).height(Length::Fill))
             .padding([12, 14])

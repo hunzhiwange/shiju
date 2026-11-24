@@ -18,38 +18,39 @@ pub fn card<'a>(
     form: &'a Form,
     help: Help<'_>,
 ) -> Element<'a, Message> {
+    let i18n = help.i18n;
     let ready = form.busy.is_none() && form.confirmation.is_none();
     let close = if form.writing() { Message::None } else { message(Event::Close) };
     let header = settings_modal_header(
-        help.heading("环境诊断", "检查静态 Shell 定义和继承环境。", 28),
+        help.heading(i18n.__("环境诊断"), i18n.__("检查静态 Shell 定义和继承环境。"), 28),
         settings_close_button(close.clone()),
     );
 
-    let mut body = column![text("清理前会创建备份。").size(13).style(settings_muted_text_style)]
+    let mut body = column![text(i18n.__("清理前会创建备份。")).size(13).style(settings_muted_text_style)]
         .spacing(12)
         .width(Length::Fill);
     if let Some(error) = form.error {
-        body = body.push(settings_error_banner(error));
+        body = body.push(settings_error_banner(i18n.__(error)));
     }
     if let Some(operation) = form.busy {
         let label = match operation {
-            Operation::Diagnose => "正在读取环境诊断…",
-            Operation::Write(Action::Clean) => "正在备份并清理所选定义…",
-            Operation::Write(Action::Restore) => "正在恢复环境备份…",
+            Operation::Diagnose => i18n.__("正在读取环境诊断…"),
+            Operation::Write(Action::Clean) => i18n.__("正在备份并清理所选定义…"),
+            Operation::Write(Action::Restore) => i18n.__("正在恢复环境备份…"),
         };
         body = body.push(settings_panel(text(label)));
     }
     if let Some(action) = form.confirmation {
         let notice = match action {
-            Action::Clean => format!("确认备份并清理所选的 {} 项定义？", form.selected.len()),
-            Action::Restore => "确认恢复此备份中的定义？文件有外部改动时会保留当前内容。".into(),
+            Action::Clean => i18n.format("确认备份并清理所选的 %s 项定义？", &[(format!("{}", form.selected.len())).into()]).expect("valid display template"),
+            Action::Restore => i18n.__("确认恢复此备份中的定义？文件有外部改动时会保留当前内容。").into(),
         };
-        body = body.push(settings_panel(text(notice)));
+        body = body.push(settings_panel(text(i18n.__(notice))));
     }
 
     let mut backup = column![
-        help.field("备份编号", "清理后会自动填入编号。可保留编号供日后恢复。"),
-        text_input("输入备份编号", &form.backup_id)
+        help.field(i18n.__("备份编号"), i18n.__("清理后会自动填入编号。可保留编号供日后恢复。")),
+        text_input(i18n.__("输入备份编号"), &form.backup_id)
             .padding(SETTINGS_CONTROL_PADDING)
             .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
@@ -58,32 +59,32 @@ pub fn card<'a>(
     .spacing(6);
     for item in &form.restored {
         let status = match item.status {
-            EnvRestoreStatus::Restored => "已恢复",
-            EnvRestoreStatus::AlreadyRestored => "已恢复过",
-            EnvRestoreStatus::NotCleaned => "未被清理",
-            EnvRestoreStatus::Conflict => "有外部改动，已保留当前内容",
-            EnvRestoreStatus::Unavailable => "无法读取文件",
+            EnvRestoreStatus::Restored => i18n.__("已恢复"),
+            EnvRestoreStatus::AlreadyRestored => i18n.__("已恢复过"),
+            EnvRestoreStatus::NotCleaned => i18n.__("未被清理"),
+            EnvRestoreStatus::Conflict => i18n.__("有外部改动，已保留当前内容"),
+            EnvRestoreStatus::Unavailable => i18n.__("无法读取文件"),
         };
         backup = backup.push(text(format!("{} · {status}", item.file.filename())).size(14));
     }
     body = body.push(settings_panel(backup));
 
-    let mut entries = column![settings_field_label("环境定义")].spacing(10);
+    let mut entries = column![settings_field_label(i18n.__("环境定义"))].spacing(10);
     if form.entries.is_empty() && form.busy.is_none() && form.error.is_none() {
-        entries = entries.push(text("没有发现相关的环境定义。").size(14));
+        entries = entries.push(text(i18n.__("没有发现相关的环境定义。")).size(14));
     }
     if form.selected.len() > MAX_SELECTIONS {
-        entries = entries.push(text(format!("每次最多可清理 {MAX_SELECTIONS} 项，请减少选择。")));
+        entries = entries.push(text(i18n.format("每次最多可清理 %s 项，请减少选择。", &[(format!("{}", MAX_SELECTIONS)).into()]).expect("valid display template")));
     }
     for (index, entry) in form.entries.iter().enumerate() {
         let source = match entry.source {
             EnvSource::UserShell { file, line } => {
-                format!("用户文件 · {} 第 {line} 行", file.filename())
+                i18n.format("用户文件 · %s 第 %s 行", &[(format!("{}", file.filename())).into(), (format!("{}", line)).into()]).expect("valid display template")
             }
             EnvSource::SystemShell { file, line } => {
-                format!("系统文件 · {} 第 {line} 行", file.filename())
+                i18n.format("系统文件 · %s 第 %s 行", &[(format!("{}", file.filename())).into(), (format!("{}", line)).into()]).expect("valid display template")
             }
-            EnvSource::ProcessInherited => "执行进程继承的环境".into(),
+            EnvSource::ProcessInherited => i18n.__("执行进程继承的环境").into(),
         };
         let details = if cleanup_selection(entry).is_some() {
             column![
@@ -98,7 +99,7 @@ pub fn card<'a>(
         } else {
             column![
                 text(&entry.variable).size(14),
-                text(format!("{source} · 只读")).size(13).style(settings_muted_text_style),
+                text(i18n.format("%s · 只读", &[(format!("{}", source)).into()]).expect("valid display template")).size(13).style(settings_muted_text_style),
             ]
         };
         entries = entries.push(settings_panel(details.spacing(4)));
@@ -107,11 +108,11 @@ pub fn card<'a>(
 
     let footer = if let Some(action) = form.confirmation {
         row![
-            action_button("取消", Event::Cancel, true, false),
+            action_button(i18n.__("取消"), Event::Cancel, true, false),
             action_button(
                 match action {
-                    Action::Clean => "确认清理",
-                    Action::Restore => "确认恢复",
+                    Action::Clean => i18n.__("确认清理"),
+                    Action::Restore => i18n.__("确认恢复"),
                 },
                 Event::Confirm,
                 true,
@@ -120,16 +121,16 @@ pub fn card<'a>(
         ]
     } else {
         row![
-            action_button("关闭", Event::Close, !form.writing(), false),
-            action_button("重新诊断", Event::Refresh, ready, false),
+            action_button(i18n.__("关闭"), Event::Close, !form.writing(), false),
+            action_button(i18n.__("重新诊断"), Event::Refresh, ready, false),
             action_button(
-                "恢复备份",
+                i18n.__("恢复备份"),
                 Event::Review(Action::Restore),
                 ready && !form.backup_id.trim().is_empty(),
                 false,
             ),
             action_button(
-                "清理所选项",
+                i18n.__("清理所选项"),
                 Event::Review(Action::Clean),
                 ready && form.can_clean(),
                 true

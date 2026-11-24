@@ -34,15 +34,15 @@ fn app_label(app: AppId) -> &'static str {
     }
 }
 
-fn reason_label(reason: UniversalSyncError) -> &'static str {
+fn reason_label(i18n: desktop_i18n::I18n, reason: UniversalSyncError) -> &'static str {
     match reason {
-        UniversalSyncError::UnsupportedApp => "此应用不支持统一投影",
-        UniversalSyncError::AppDisabled => "统一记录未启用此应用",
-        UniversalSyncError::InvalidTargetIdentity => "生成的档案标识无效",
-        UniversalSyncError::InvalidProfile => "供应商档案无效",
-        UniversalSyncError::TargetConflict => "档案标识与已有供应商冲突",
-        UniversalSyncError::StorageUnavailable => "目录存储暂不可用",
-        UniversalSyncError::ChangedDuringUpdate => "档案已被其他操作修改，请重试",
+        UniversalSyncError::UnsupportedApp => i18n.__("此应用不支持统一投影"),
+        UniversalSyncError::AppDisabled => i18n.__("统一记录未启用此应用"),
+        UniversalSyncError::InvalidTargetIdentity => i18n.__("生成的档案标识无效"),
+        UniversalSyncError::InvalidProfile => i18n.__("供应商档案无效"),
+        UniversalSyncError::TargetConflict => i18n.__("档案标识与已有供应商冲突"),
+        UniversalSyncError::StorageUnavailable => i18n.__("目录存储暂不可用"),
+        UniversalSyncError::ChangedDuringUpdate => i18n.__("档案已被其他操作修改，请重试"),
     }
 }
 
@@ -63,17 +63,18 @@ pub fn card<'a>(
     form: &'a Form,
     help: Help<'_>,
 ) -> Element<'a, Message> {
+    let i18n = help.i18n;
     let mut fields = column![].spacing(12);
     if let Some(records) = &form.records {
         if records.is_empty() {
-            fields = fields.push(text("没有已保存的统一供应商记录。"));
+            fields = fields.push(text(i18n.__("没有已保存的统一供应商记录。")));
         } else {
             let options = records.iter().map(|record| RecordOption {
                 id: record.id.clone(),
                 name: record.config.name.clone(),
             });
             let selected = form.selected_record();
-            fields = fields.push(text("统一供应商记录").size(16)).push(
+            fields = fields.push(text(i18n.__("统一供应商记录")).size(16)).push(
                 settings_select(
                     options,
                     selected.map(|record| RecordOption {
@@ -82,18 +83,18 @@ pub fn card<'a>(
                     }),
                     |option| message(Event::Select(option.id)),
                 )
-                .placeholder("选择已保存的记录")
+                .placeholder(i18n.__("选择已保存的记录"))
                 .width(Length::Fill)
                 .disabled(form.busy),
             );
             if let Some(record) = selected {
                 let config = &record.config;
                 let mut details =
-                    column![text("记录详情").size(16), text(&config.base_url).size(13)].spacing(6);
+                    column![text(i18n.__("记录详情")).size(16), text(&config.base_url).size(13)].spacing(6);
                 if let Some(notes) = &config.notes {
                     details = details.push(text(notes).size(13).style(settings_muted_text_style));
                 }
-                let mut apps = column![text("选择目标应用").size(16)].spacing(10);
+                let mut apps = column![text(i18n.__("选择目标应用")).size(16)].spacing(10);
                 for (app, enabled) in [
                     (AppId::Claude, config.apps.claude),
                     (AppId::Codex, config.apps.codex),
@@ -101,11 +102,7 @@ pub fn card<'a>(
                 ] {
                     apps = apps.push(
                         checkbox(form.apps.contains(&app))
-                            .label(format!(
-                                "{} · 记录{}",
-                                app_label(app),
-                                if enabled { "已启用" } else { "未启用" }
-                            ))
+                            .label(i18n.format("%s · 记录%s", &[(format!("{}", app_label(app))).into(), (format!("{}", if enabled { "已启用" } else { "未启用" })).into()]).expect("valid display template"))
                             .on_toggle_maybe(
                                 (!form.busy)
                                     .then_some(move |checked| message(Event::Toggle(app, checked))),
@@ -117,25 +114,25 @@ pub fn card<'a>(
             }
         }
     } else if form.busy {
-        fields = fields.push(text("正在读取统一供应商记录…"));
+        fields = fields.push(text(i18n.__("正在读取统一供应商记录…")));
     } else {
-        fields = fields.push(action("重试读取", Event::RetryList, true, false));
+        fields = fields.push(action(i18n.__("重试读取"), Event::RetryList, true, false));
     }
     if let Some(error) = &form.error {
-        fields = fields.push(settings_panel(text(format!("请求失败：{error}")).size(13)));
+        fields = fields.push(settings_panel(text(i18n.format("请求失败：%s", &[(format!("{}", error)).into()]).expect("valid display template")).size(13)));
     }
     if !form.results.is_empty() {
-        fields = fields.push(text("逐应用结果").size(16));
+        fields = fields.push(text(i18n.__("逐应用结果")).size(16));
     }
     for item in &form.results {
         let catalog = match item.catalog {
-            UniversalCatalogResult::Updated => "目录已更新".to_owned(),
+            UniversalCatalogResult::Updated => i18n.__("目录已更新").to_owned(),
             UniversalCatalogResult::Failed { code } => {
-                format!("目录更新失败：{}", reason_label(code))
+                i18n.format("目录更新失败：%s", &[(format!("{}", reason_label(i18n, code))).into()]).expect("valid display template")
             }
         };
         let live = match item.live {
-            UniversalLiveResult::NotAttempted => "原生配置未写入",
+            UniversalLiveResult::NotAttempted => i18n.__("原生配置未写入"),
         };
         let mut result = column![
             text(app_label(item.app_id)).size(16),
@@ -144,7 +141,7 @@ pub fn card<'a>(
         ]
         .spacing(6);
         if let Some(id) = &item.provider_id {
-            result = result.push(text(format!("档案标识：{id}")).size(13));
+            result = result.push(text(i18n.format("档案标识：%s", &[(format!("{}", id)).into()]).expect("valid display template")).size(13));
         }
         fields = fields.push(settings_panel(result));
     }
@@ -152,7 +149,7 @@ pub fn card<'a>(
     let card = settings_modal_card(
         column![
             row![
-                container(help.heading("统一供应商投影", "将已保存的记录投影到所选应用目录。", 22))
+                container(help.heading(i18n.__("统一供应商投影"), i18n.__("将已保存的记录投影到所选应用目录。"), 22))
                     .width(Length::Fill),
                 settings_close_button(close.clone())
             ]
@@ -163,12 +160,12 @@ pub fn card<'a>(
                 ))
                 .height(Length::Fill),
             row![
-                action("返回", Event::Close, !form.busy, false),
+                action(i18n.__("返回"), Event::Close, !form.busy, false),
                 action(
                     if form.busy && form.records.is_some() {
-                        "投影中…"
+                        i18n.__("投影中…")
                     } else {
-                        "保存投影"
+                        i18n.__("保存投影")
                     },
                     Event::Submit,
                     !form.busy && form.selected.is_some() && !form.apps.is_empty(),

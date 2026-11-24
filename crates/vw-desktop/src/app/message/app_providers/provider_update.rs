@@ -64,10 +64,10 @@ pub fn effect(app: &mut App, effect: Effect) -> Task<Message> {
         Effect::KimiMemberChanged {scope,generation,add,result} => super::kimi::membership_changed(app,scope,generation,add,result),
         Effect::Desktop(event) => super::desktop::update(app, event),
         Effect::DshMemberChanged {scope,generation,add,result} => super::dsh::membership_changed(app,scope,generation,add,result),
-        Effect::Error(text) => app.show_error_toast(text),
-        Effect::Info(text) => app.show_info_toast(text),
-        Effect::Success(text) => app.show_success_toast(text),
-        Effect::Warning(text) => app.show_warning_toast(text),
+        Effect::Error(text) => app.show_error_toast(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__( &text.display(app.general_settings.desktop_locale)).to_owned()),
+        Effect::Info(text) => app.show_info_toast(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__( &text.display(app.general_settings.desktop_locale)).to_owned()),
+        Effect::Success(text) => app.show_success_toast(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__( &text.display(app.general_settings.desktop_locale)).to_owned()),
+        Effect::Warning(text) => app.show_warning_toast(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__( &text.display(app.general_settings.desktop_locale)).to_owned()),
         Effect::Refresh {scope,generation} => {
             if !request_is_current(app,&scope,generation) {return Task::none()}
             super::list::update(app, super::list::ListMessage::Refresh)
@@ -118,6 +118,6 @@ pub fn kimi_changed(app:&mut App,current:Option<(GatewayClient,Scope)>,scope:Sco
 }
 
 pub fn list(app:&mut App,event:desktop_provider_apps::message::list::Event)->Task<Message>{
-let current=app.app_providers.scope.as_ref().ok_or_else(||"无法连接网关".to_string()).and_then(|s|super::list::current(app,s.app));
+let current=app.app_providers.scope.as_ref().ok_or_else(||desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("无法连接网关").to_string()).and_then(|s|super::list::current(app,s.app));
 run(app,|state,_,snapshot|desktop_provider_apps::message::list::update(state,current,snapshot,event))
 }

@@ -20,11 +20,11 @@ pub(crate) fn update(app: &mut App, event: Event) -> iced::Task<Message> {
         Event::Open(app_id, provider_id) => app.app_providers.snapshot.as_ref().is_some_and(|snapshot| snapshot.catalog.rows.iter().any(|row| &row.provider.app_id == app_id && &row.provider.id == provider_id)),
         _ => false,
     };
-    domain::update(&mut app.app_providers.usage.settings, scope, visible, selected, endpoint, &app.apps_catalog.token, event).map(map)
+    domain::update(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), &mut app.app_providers.usage.settings, scope, visible, selected, endpoint, &app.apps_catalog.token, event).map(map)
 }
 pub(crate) fn overlay<'a>(app: &'a App, base: iced::Element<'a, Message>) -> iced::Element<'a, Message> {
     let scope = (crate::app::components::third_party_settings::is_visible(app)).then(|| apps_usage_cards::current_scope(app, false)).flatten();
-    domain::overlay(&app.app_providers.usage.settings, scope, base, map)
+    domain::overlay(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), &app.app_providers.usage.settings, scope, base, map)
 }
 
 #[cfg(test)]

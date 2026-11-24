@@ -87,7 +87,7 @@ fn accent(theme: &Theme) -> Color {
     }
 }
 
-fn bucket_tooltip(
+fn bucket_tooltip(i18n: desktop_i18n::I18n,
     mark: impl Into<Element<'static, Event>>,
     bucket: &UsageSeriesBucket,
     metric: Metric,
@@ -95,7 +95,7 @@ fn bucket_tooltip(
 ) -> Element<'static, Event> {
     let summary = &bucket.summary;
     let (label, amount) = match metric {
-        Metric::Requests => ("请求数", format_count(summary.counts.total_requests)),
+        Metric::Requests => (i18n.__("请求数"), format_count(summary.counts.total_requests)),
         Metric::Tokens => (
             "Tokens",
             summary.token_totals().real_tokens.map_or_else(
@@ -103,8 +103,8 @@ fn bucket_tooltip(
                 format_count,
             ),
         ),
-        Metric::Cost => ("已知费用", format!("{} USD", summary.known_cost_usd)),
-        Metric::HitRate => ("缓存命中率", metric.format(value)),
+        Metric::Cost => (i18n.__("已知费用"), format!("{} USD", summary.known_cost_usd)),
+        Metric::HitRate => (i18n.__("缓存命中率"), metric.format(value)),
     };
     let swatch = container(Space::new().width(8).height(8)).style(|theme: &Theme| {
         container::Style::default().background(accent(theme)).border(border::rounded(2))
@@ -259,13 +259,13 @@ impl canvas::Program<Event> for Trend<'_> {
     }
 }
 
-fn trend_chart(series: &UsageSeries, metric: Metric, line: bool) -> Element<'_, Event> {
+fn trend_chart(i18n: desktop_i18n::I18n, series: &UsageSeries, metric: Metric, line: bool) -> Element<'_, Event> {
     let values: Vec<_> =
         series.buckets.iter().map(|bucket| metric.value(&bucket.summary)).collect();
     let mut targets = row![].width(Length::Fill);
     for (bucket, value) in series.buckets.iter().zip(&values) {
         let mark = Space::new().width(Length::Fill).height(CHART_HEIGHT - PLOT_TOP - PLOT_BOTTOM);
-        targets = targets.push(bucket_tooltip(mark, bucket, metric, *value));
+        targets = targets.push(bucket_tooltip(i18n, mark, bucket, metric, *value));
     }
     stack![
         canvas(Trend { series, values, metric, line }).width(Length::Fill).height(CHART_HEIGHT),
@@ -279,9 +279,9 @@ fn trend_chart(series: &UsageSeries, metric: Metric, line: bool) -> Element<'_, 
     .into()
 }
 
-fn heatmap_chart(series: &UsageSeries, metric: Metric) -> Element<'_, Event> {
+fn heatmap_chart(i18n: desktop_i18n::I18n, series: &UsageSeries, metric: Metric) -> Element<'_, Event> {
     let Some(first) = series.buckets.first() else {
-        return text("暂无用量记录").style(text::secondary).into();
+        return text(i18n.__("暂无用量记录")).style(text::secondary).into();
     };
     let values: Vec<_> =
         series.buckets.iter().map(|bucket| metric.value(&bucket.summary)).collect();
@@ -304,7 +304,7 @@ fn heatmap_chart(series: &UsageSeries, metric: Metric) -> Element<'_, Event> {
             };
             container::Style::default().background(color).border(border::rounded(3))
         });
-        week = week.push(bucket_tooltip(mark, bucket, metric, value));
+        week = week.push(bucket_tooltip(i18n, mark, bucket, metric, value));
         if (first_weekday + index + 1) % 7 == 0 {
             weeks = weeks.push(week);
             week = column![].spacing(3);
@@ -314,7 +314,7 @@ fn heatmap_chart(series: &UsageSeries, metric: Metric) -> Element<'_, Event> {
         weeks = weeks.push(week);
     }
     let mut days = column![].spacing(3);
-    for label in ["一", "", "三", "", "五", "", "日"] {
+    for label in [i18n.__("一"), "", i18n.__("三"), "", i18n.__("五"), "", i18n.__("日")] {
         days = days.push(text(label).size(10).height(12).style(text::secondary));
     }
     scrollable(container(row![days, weeks].spacing(7)).padding(7))
@@ -324,22 +324,22 @@ fn heatmap_chart(series: &UsageSeries, metric: Metric) -> Element<'_, Event> {
         .into()
 }
 
-pub fn view(state: &State) -> Element<'_, Event> {
-    view_metric(state, state.metric)
+pub fn view(i18n: desktop_i18n::I18n, state: &State) -> Element<'_, Event> {
+    view_metric(i18n, state, state.metric)
 }
 
-pub fn view_metric(state: &State, metric: Metric) -> Element<'_, Event> {
-    view_range(state, metric, None)
+pub fn view_metric(i18n: desktop_i18n::I18n, state: &State, metric: Metric) -> Element<'_, Event> {
+    view_range(i18n, state, metric, None)
 }
 
 /// The global page uses summary metrics as controls and shows the relevant chart.
-pub fn view_range(state: &State, metric: Metric, all: Option<bool>) -> Element<'_, Event> {
+pub fn view_range(i18n: desktop_i18n::I18n, state: &State, metric: Metric, all: Option<bool>) -> Element<'_, Event> {
     let mut body = column![].spacing(12).width(Length::Fill);
     if all.is_none() {
         let mut controls = row![].spacing(8);
         for item in Metric::ALL {
             controls = controls.push(
-                button(text(item.label()).size(12))
+                button(text(i18n.__(item.label())).size(12))
                     .padding([6, 10])
                     .style(rounded_action_btn_style)
                     .on_press(Event::Metric(item)),
@@ -349,23 +349,23 @@ pub fn view_range(state: &State, metric: Metric, all: Option<bool>) -> Element<'
     }
 
     if state.loading {
-        return body.push(text("正在加载图表…").style(text::secondary)).into();
+        return body.push(text(i18n.__("正在加载图表…")).style(text::secondary)).into();
     }
     match &state.result {
-        None => body.push(text("请选择用量范围")).into(),
-        Some(Err(error)) => body.push(text(format!("图表加载失败：{error}"))).into(),
+        None => body.push(text(i18n.__("请选择用量范围"))).into(),
+        Some(Err(error)) => body.push(text(i18n.format("图表加载失败：%s", &[(format!("{}", error)).into()]).expect("valid display template"))).into(),
         Some(Ok((trend, heatmap))) => {
             if all != Some(true) {
                 let interval = match trend.interval {
-                    UsageSeriesInterval::Day => "按天",
-                    UsageSeriesInterval::Hour => "按小时",
+                    UsageSeriesInterval::Day => i18n.__("按天"),
+                    UsageSeriesInterval::Hour => i18n.__("按小时"),
                 };
                 let unit = if metric == Metric::Cost { " · USD" } else { "" };
                 let header = row![
                     text(format!("{} · {interval}{unit}", metric.label())).size(14),
                     text(&trend.range.time_zone).size(11).style(text::secondary),
                     Space::new().width(Length::Fill),
-                    button(text(if state.line { "柱状图" } else { "折线图" }).size(12))
+                    button(text(if state.line { i18n.__("柱状图") } else { i18n.__("折线图") }).size(12))
                         .padding([5, 10])
                         .style(rounded_action_btn_style)
                         .on_press(Event::Line(!state.line)),
@@ -374,15 +374,15 @@ pub fn view_range(state: &State, metric: Metric, all: Option<bool>) -> Element<'
                 .align_y(Vertical::Center);
                 body = body.push(header);
                 if trend.buckets.is_empty() {
-                    body = body.push(text("暂无用量记录").style(text::secondary));
+                    body = body.push(text(i18n.__("暂无用量记录")).style(text::secondary));
                 } else {
-                    body = body.push(trend_chart(trend, metric, state.line));
+                    body = body.push(trend_chart(i18n, trend, metric, state.line));
                 }
             }
             if all != Some(false) {
                 body = body
-                    .push(text(format!("每日热力图 · {}", metric.label())).size(14))
-                    .push(heatmap_chart(heatmap, metric));
+                    .push(text(i18n.format("每日热力图 · %s", &[(format!("{}", metric.label())).into()]).expect("valid display template")).size(14))
+                    .push(heatmap_chart(i18n, heatmap, metric));
             }
             body.into()
         }

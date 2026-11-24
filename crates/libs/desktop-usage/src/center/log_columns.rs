@@ -94,7 +94,7 @@ impl Preferences {
     }
 }
 
-pub(super) fn column_menu<'a, M: Clone + 'a>(
+pub(super) fn column_menu<'a, M: Clone + 'a>(i18n: desktop_i18n::I18n,
     options_iter: impl IntoIterator<Item = (usize, &'static str)>,
     visible: impl Fn(usize) -> bool,
     open: bool,
@@ -113,7 +113,7 @@ pub(super) fn column_menu<'a, M: Clone + 'a>(
         let check: Element<'_, M> =
             if visible(index) { icon(Icon::Check).into() } else { Space::new().width(16).into() };
         options = options.push(
-            button(row![check, text(label).size(13)].spacing(9).align_y(iced::Alignment::Center))
+            button(row![check, text(i18n.__(label)).size(13)].spacing(9).align_y(iced::Alignment::Center))
                 .width(Length::Fill)
                 .padding([6, 9])
                 .style(|theme, status| {
@@ -164,7 +164,7 @@ pub(super) fn column_menu<'a, M: Clone + 'a>(
                 style
             })
             .on_press(toggle_menu),
-        text("显示列").size(12),
+        text(i18n.__("显示列")).size(12),
         tooltip::Position::Top,
     )
     .snap_within_viewport(true);

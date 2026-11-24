@@ -18,6 +18,11 @@ pub mod terminal_session;
 mod terminal_session_tests;
 
 #[cfg(unix)]
+pub mod workbench_pty;
+#[cfg(all(test, unix))]
+mod workbench_pty_tests;
+
+#[cfg(unix)]
 pub mod host;
 #[cfg(all(test, unix))]
 mod host_tests;

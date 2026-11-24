@@ -80,26 +80,12 @@ impl TerminalSession {
     /// Holds the command's owning material in the caller until all IO/child resources are reaped.
     pub fn run(self, command: &mut Command, started: impl FnOnce()) -> io::Result<ExitStatus> {
         let Self { stream, private } = self;
-        let (master, slave) = open_pty()?;
+        let (master, slave) = open_pty(24, 80)?;
         command
             .env("TMPDIR", private.path())
             .env("TERM", "xterm-256color")
             .env("COLUMNS", "80")
             .env("LINES", "24");
-        command
-            .stdin(Stdio::from(slave.try_clone()?))
-            .stdout(Stdio::from(slave.try_clone()?))
-            .stderr(Stdio::from(slave.try_clone()?));
-        let slave_fd = slave.as_raw_fd();
-        // SAFETY: only async-signal-safe libc calls occur between fork and exec; slave is live.
-        unsafe {
-            command.pre_exec(move || {
-                if libc::setsid() < 0 || libc::ioctl(slave_fd, libc::TIOCSCTTY as _, 0) < 0 {
-                    return Err(io::Error::last_os_error());
-                }
-                Ok(())
-            });
-        }
         stream.set_read_timeout(Some(Duration::from_millis(100)))?;
         stream.set_write_timeout(Some(Duration::from_millis(100)))?;
         // All fallible descriptor setup precedes starting copy workers.
@@ -107,46 +93,25 @@ impl TerminalSession {
         let input_master = master.try_clone()?;
         let output_socket = stream.try_clone()?;
         let output_master = master.try_clone()?;
-        let spawned = command.spawn();
-        // Release the command's retained slave descriptors as well as our original copy.
-        command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
-        drop(slave);
-        let mut child = ChildGroup { child: spawned?, active: true };
-        let pid = child.child.id() as libc::pid_t;
+        let mut child = ChildGroup::spawn(command, slave)?;
         let done = Arc::new(AtomicBool::new(false));
         let disconnected = Arc::new(AtomicBool::new(false));
         started();
         let input = pump(input_socket, input_master, true, done.clone(), disconnected.clone());
         let output = pump(output_master, output_socket, false, done.clone(), disconnected.clone());
         let outcome = loop {
-            // WNOWAIT retains the child PID until its whole process group has been stopped.
-            let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
-            let result = unsafe {
-                libc::waitid(
-                    libc::P_PID,
-                    pid as _,
-                    &mut info,
-                    libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
-                )
-            };
-            if result != 0 {
-                break Err(io::Error::last_os_error());
-            }
-            if info.si_signo != 0 {
-                break Ok(());
+            match child.has_exited() {
+                Ok(false) => {}
+                Ok(true) => break Ok(()),
+                Err(error) => break Err(error),
             }
             if disconnected.load(Ordering::SeqCst) {
                 break Ok(());
             }
             std::thread::sleep(Duration::from_millis(20));
         };
-        // Terminate remaining descendants even when the direct CLI has already exited.
-        // PID is still reserved by the unreaped child, so it cannot refer to a reused group.
-        unsafe {
-            libc::kill(-pid, libc::SIGKILL);
-        }
-        let result = child.child.wait();
-        child.active = false;
+        child.terminate();
+        let result = child.reap();
         // Let already-buffered PTY output reach the terminal before closing its socket.
         std::thread::sleep(Duration::from_millis(40));
         done.store(true, Ordering::SeqCst);
@@ -160,10 +125,10 @@ impl TerminalSession {
         result
     }
 }
-fn open_pty() -> io::Result<(File, File)> {
+pub(crate) fn open_pty(rows: u16, cols: u16) -> io::Result<(File, File)> {
     let mut master = -1;
     let mut slave = -1;
-    let mut size = libc::winsize { ws_row: 24, ws_col: 80, ws_xpixel: 0, ws_ypixel: 0 };
+    let mut size = libc::winsize { ws_row: rows, ws_col: cols, ws_xpixel: 0, ws_ypixel: 0 };
     // SAFETY: valid out-pointers and winsize; returned descriptors are consumed once.
     if unsafe {
         libc::openpty(
@@ -192,6 +157,25 @@ fn open_pty() -> io::Result<(File, File)> {
     }
     Ok(pair)
 }
+fn configure_pty_child(command: &mut Command, slave: &File) -> io::Result<()> {
+    command
+        .stdin(Stdio::from(slave.try_clone()?))
+        .stdout(Stdio::from(slave.try_clone()?))
+        .stderr(Stdio::from(slave.try_clone()?));
+    let slave_fd = slave.as_raw_fd();
+    // SAFETY: only async-signal-safe libc calls occur between fork and exec.
+    // ChildGroup::spawn keeps the slave descriptor live until spawn returns.
+    unsafe {
+        command.pre_exec(move || {
+            if libc::setsid() < 0 || libc::ioctl(slave_fd, libc::TIOCSCTTY as _, 0) < 0 {
+                return Err(io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    Ok(())
+}
+
 fn pump(
     mut reader: impl Read + Send + 'static,
     mut writer: impl Write + Send + 'static,
@@ -261,17 +245,66 @@ fn pump(
 }
 
 /// Unwinding or a transport setup failure must not leave a running credentialed child.
-struct ChildGroup {
+pub(crate) struct ChildGroup {
     child: std::process::Child,
     active: bool,
 }
+
+impl ChildGroup {
+    pub(crate) fn spawn(command: &mut Command, slave: File) -> io::Result<Self> {
+        configure_pty_child(command, &slave)?;
+        let spawned = command.spawn();
+        // Release the command's retained slave descriptors as well as our original copy.
+        command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+        drop(slave);
+        Ok(Self { child: spawned?, active: true })
+    }
+
+    pub(crate) fn id(&self) -> u32 {
+        self.child.id()
+    }
+
+    pub(crate) fn has_exited(&self) -> io::Result<bool> {
+        // WNOWAIT reserves the group leader's PID until the group has been stopped.
+        loop {
+            let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+            let result = unsafe {
+                libc::waitid(
+                    libc::P_PID,
+                    self.id(),
+                    &mut info,
+                    libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
+                )
+            };
+            if result == 0 {
+                return Ok(info.si_signo != 0);
+            }
+            let error = io::Error::last_os_error();
+            if error.kind() != io::ErrorKind::Interrupted {
+                return Err(error);
+            }
+        }
+    }
+
+    pub(crate) fn terminate(&self) {
+        // The unreaped leader still reserves the process group ID.
+        unsafe {
+            libc::kill(-(self.id() as libc::pid_t), libc::SIGKILL);
+        }
+    }
+
+    pub(crate) fn reap(&mut self) -> io::Result<ExitStatus> {
+        let result = self.child.wait();
+        self.active = false;
+        result
+    }
+}
+
 impl Drop for ChildGroup {
     fn drop(&mut self) {
         if self.active {
-            unsafe {
-                libc::kill(-(self.child.id() as libc::pid_t), libc::SIGKILL);
-            }
-            let _ = self.child.wait();
+            self.terminate();
+            let _ = self.reap();
         }
     }
 }

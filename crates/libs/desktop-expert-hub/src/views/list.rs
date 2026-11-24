@@ -1088,7 +1088,7 @@ pub fn view<'a>(app: &ViewInput<'a>, install: Element<'a, Message>) -> Element<'
                     let tags = settings_select(options, selected, |option| {
                         Message::SkillHub(SkillHubMessage::FilterTagChanged(option.id))
                     }).width(150);
-                    column![heading(i18n, "系统技能", "发现、安装和管理识矩技能"),
+                    column![heading(i18n, i18n.__("系统技能"), "发现、安装和管理识矩技能"),
                         row![list_search_input(i18n, &filter.keyword_draft), tags, filter_buttons(i18n)]
                             .spacing(8).align_y(Alignment::Center).wrap(),
                         system_content(&input, width, columns),

@@ -69,10 +69,10 @@ fn refresh(app: &mut App, kind: EmployeeKind) -> Task<Message> {
 
 pub(crate) fn open(app: &mut App) -> Task<Message> {
     if app.current_session_has_started() || employee_locked(app) {
-        return app.show_warning_toast("会话开始后不能更换数字员工");
+        return app.show_localized_toast(crate::app::state::ToastKind::Warning, "会话开始后不能更换数字员工", vec![]);
     }
     if app.account.active_account().is_none() {
-        return app.show_error_toast("请先登录识矩");
+        return app.show_localized_toast(crate::app::state::ToastKind::Error, "请先登录识矩", vec![]);
     }
     let kind = app
         .current_session_runtime_ref()
@@ -100,6 +100,7 @@ struct Choice<'a> {
 }
 
 fn choices(app: &App, kind: EmployeeKind) -> Vec<Choice<'_>> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     match kind {
         EmployeeKind::Private => app
             .digital_employees
@@ -115,9 +116,9 @@ fn choices(app: &App, kind: EmployeeKind) -> Vec<Choice<'_>> {
                     .and_then(|member| member.department.as_deref());
                 Some(Choice {
                     selection: chat::Selection::private(id.to_owned(), employee.name.clone()),
-                    role: "私有执行员工",
+                    role: i18n.__("私有执行员工"),
                     department,
-                    status: assistants_view::runtime_badge(employee),
+                    status: assistants_view::runtime_badge(i18n, employee),
                 })
             })
             .collect(),
@@ -129,19 +130,19 @@ fn choices(app: &App, kind: EmployeeKind) -> Vec<Choice<'_>> {
             .flat_map(|directory| &directory.employees)
             .filter(|employee| employee.can_chat())
             .map(|employee| {
-                let role = employee.role().unwrap_or_else(|| shared_view::kind_title(employee));
+                let role = employee.role().unwrap_or_else(|| shared_view::kind_title(i18n, employee));
                 let department = employee
                     .department()
                     .filter(|path| !path.trim_matches('/').is_empty())
                     .map_or("全公司", |path| {
                         departments::name(app.digital_employees.tasks.departments.as_deref(), path)
-                            .unwrap_or("部门共享")
+                            .unwrap_or(i18n.__("部门共享"))
                     });
                 Choice {
                     selection: chat::Selection::shared(employee),
                     role,
                     department: Some(department),
-                    status: shared_view::runtime_badge(employee),
+                    status: shared_view::runtime_badge(i18n, employee),
                 }
             })
             .collect(),
@@ -204,7 +205,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
                 .into_iter()
                 .find_map(|choice| (choice.selection.target == target).then_some(choice.selection))
             else {
-                return app.show_error_toast("该数字员工当前不可聊天，请刷新列表");
+                return app.show_localized_toast(crate::app::state::ToastKind::Error, "该数字员工当前不可聊天，请刷新列表", vec![]);
             };
             let before = app.digital_employees.chat_scope_request;
             let task = chat::check_scope(app, Some(chat::ChatIntent::Bind(selection)));
@@ -220,6 +221,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
 }
 
 pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let Some(picker) =
         app.digital_employees.chat_picker.as_ref().filter(|picker| current(app, picker))
     else {
@@ -240,11 +242,11 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
             )
     };
     let header = column![
-        settings_modal_header(text("选择数字员工").size(18), settings_close_button(close.clone())),
+        settings_modal_header(text(i18n.__("选择数字员工")).size(18), settings_close_button(close.clone())),
         row![
-            scope_button("私有员工", EmployeeKind::Private),
-            scope_button("共享员工", EmployeeKind::Shared),
-            settings_text_input("搜索姓名、岗位或部门", &picker.query)
+            scope_button(i18n.__("私有员工"), EmployeeKind::Private),
+            scope_button(i18n.__("共享员工"), EmployeeKind::Shared),
+            settings_text_input(i18n.__("搜索姓名、岗位或部门"), &picker.query)
                 .width(Length::Fixed(208.0))
                 .on_input_maybe((!pending).then_some(|value| message(Event::Search(value)))),
         ]
@@ -275,17 +277,17 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
     };
     let mut body = column![].spacing(8).width(Length::Fill);
     if pending {
-        body = body.push(label("正在验证识矩账号…", 13, Tone::Muted));
+        body = body.push(label(i18n.__("正在验证识矩账号…"), 13, Tone::Muted));
     } else if let Some(error) = error {
-        body = body.push(text(error)).push(
-            button(text("重试"))
+        body = body.push(text(error.render(i18n))).push(
+            button(text(i18n.__("重试")))
                 .padding([8, 12])
                 .style(rounded_action_btn_style)
                 .on_press(message(Event::Retry)),
         );
     } else if choices.is_empty() {
         body = body.push(label(
-            if loading { "正在加载员工…" } else { "没有匹配的可聊天员工" },
+            if loading { i18n.__("正在加载员工…") } else { i18n.__("没有匹配的可聊天员工") },
             13,
             Tone::Muted,
         ));

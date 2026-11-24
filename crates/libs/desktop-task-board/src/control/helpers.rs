@@ -290,7 +290,7 @@ pub(super) fn employee_summary(app: &ControlView<'_>, slot: &desktop_task_execut
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     format!(
         "{} [{}] · {} · {}={} · task={} · run={}",
-        activity.label,
+        if activity.key.as_deref() == Some(desktop_task_model::TASK_AGENT_MAIN) { i18n.__("主智能体") } else { &activity.label },
         activity.key.as_deref().unwrap_or("—"),
         i18n.__(if activity.available { "可用" } else { "不可用" }),
         i18n.__("当前任务数"),

@@ -143,11 +143,11 @@ struct Workflows {
 
 pub(crate) struct List {
     pub(super) page: WorkPage,
-    pub(super) counts: Result<Counts, String>,
+    pub(super) counts: Result<Counts, desktop_i18n::workflow::Feedback>,
     pub(super) paused_schedules: HashSet<String>,
 }
 
-pub(super) async fn list(key: &str, filters: Filters, page: usize) -> Result<List, String> {
+pub(super) async fn list(key: &str, filters: Filters, page: usize) -> Result<List, desktop_i18n::workflow::Feedback> {
     let client = Client::new(key)?;
     let mut query = vec![
         ("q", filters.keyword.trim()),
@@ -198,7 +198,7 @@ pub(super) async fn list(key: &str, filters: Filters, page: usize) -> Result<Lis
     Ok(List { page, counts, paused_schedules })
 }
 
-pub(super) async fn directory(key: &str) -> Result<Directory, String> {
+pub(super) async fn directory(key: &str) -> Result<Directory, desktop_i18n::workflow::Feedback> {
     let client = Client::new(key)?;
     let (employees, workflows) = tokio::join!(
         async {
@@ -215,7 +215,7 @@ pub(super) async fn directory(key: &str) -> Result<Directory, String> {
                 }
                 all.extend(page.employees);
                 if empty || all.len() >= page.total.unwrap_or(all.len()) {
-                    return Ok::<_, String>(all);
+                    return Ok::<_, desktop_i18n::workflow::Feedback>(all);
                 }
             }
         },
@@ -233,7 +233,7 @@ pub(super) async fn directory(key: &str) -> Result<Directory, String> {
                 }
                 all.extend(page.workflows);
                 if empty || all.len() >= page.total.unwrap_or(all.len()) {
-                    return Ok::<_, String>(all);
+                    return Ok::<_, desktop_i18n::workflow::Feedback>(all);
                 }
             }
         },
@@ -247,7 +247,7 @@ struct DepartmentRow {
     department_name: Option<String>,
 }
 
-pub(super) async fn departments(key: &str) -> Result<Vec<(String, String)>, String> {
+pub(super) async fn departments(key: &str) -> Result<Vec<(String, String)>, desktop_i18n::workflow::Feedback> {
     let page: IamPage<DepartmentRow> = Client::new(key)?.iam("departments", &[]).await?;
     Ok(department_choices(page))
 }
@@ -285,7 +285,7 @@ pub(crate) struct Schedules {
     pub(super) total: Option<usize>,
 }
 
-pub(super) async fn schedules(key: &str, page: usize) -> Result<Schedules, String> {
+pub(super) async fn schedules(key: &str, page: usize) -> Result<Schedules, desktop_i18n::workflow::Feedback> {
     let offset = page.saturating_mul(PAGE_SIZE).to_string();
     Client::new(key)?.get("schedules", &[("limit", "20"), ("offset", &offset)]).await
 }
@@ -363,17 +363,17 @@ pub(super) struct Trace {
 pub(crate) struct Record {
     pub(super) detail: Detail,
     pub(super) creator: Option<String>,
-    pub(super) collaboration: Result<Collaboration, String>,
-    pub(super) handoff: Result<Handoff, String>,
-    pub(super) events: Result<LogPage, String>,
-    pub(super) trace: Result<TracePage, String>,
+    pub(super) collaboration: Result<Collaboration, desktop_i18n::workflow::Feedback>,
+    pub(super) handoff: Result<Handoff, desktop_i18n::workflow::Feedback>,
+    pub(super) events: Result<LogPage, desktop_i18n::workflow::Feedback>,
+    pub(super) trace: Result<TracePage, desktop_i18n::workflow::Feedback>,
 }
 
 pub(super) async fn detail(
     key: &str,
     id: &str,
     previous: Option<Arc<Record>>,
-) -> Result<Record, String> {
+) -> Result<Record, desktop_i18n::workflow::Feedback> {
     let client = Client::new(key)?;
     let detail: Detail = client.task(id, None).await?;
     let events_path = ["tasks", id, "events"];
@@ -415,30 +415,30 @@ pub(super) async fn batch(
     key: &str,
     ids: Vec<String>,
     action: &str,
-) -> Result<BatchResult, String> {
+) -> Result<BatchResult, desktop_i18n::workflow::Feedback> {
     Client::new(key)?
         .post(&["tasks", "batch"], &json!({ "task_ids": ids, "action": action }), None)
         .await
 }
 
-pub(super) async fn retry(key: &str, id: &str) -> Result<(), String> {
+pub(super) async fn retry(key: &str, id: &str) -> Result<(), desktop_i18n::workflow::Feedback> {
     Client::new(key)?.post::<Value>(&["tasks", id, "actions", "retry"], &json!({}), None).await?;
     Ok(())
 }
 
-pub(super) async fn cancel(key: &str, id: &str, reason: &str) -> Result<(), String> {
+pub(super) async fn cancel(key: &str, id: &str, reason: &str) -> Result<(), desktop_i18n::workflow::Feedback> {
     let body =
         if reason.trim().is_empty() { json!({}) } else { json!({ "reason": reason.trim() }) };
     Client::new(key)?.post::<Value>(&["tasks", &format!("{id}:cancel")], &body, None).await?;
     Ok(())
 }
 
-pub(super) async fn run_now(key: &str, id: &str) -> Result<(), String> {
+pub(super) async fn run_now(key: &str, id: &str) -> Result<(), desktop_i18n::workflow::Feedback> {
     Client::new(key)?.post::<Value>(&["tasks", &format!("{id}:run-now")], &json!({}), None).await?;
     Ok(())
 }
 
-pub(super) async fn schedule_command(key: &str, id: &str, action: &str) -> Result<(), String> {
+pub(super) async fn schedule_command(key: &str, id: &str, action: &str) -> Result<(), desktop_i18n::workflow::Feedback> {
     Client::new(key)?
         .post::<Value>(&["schedules", id, "actions", action], &json!({}), None)
         .await?;
@@ -456,7 +456,7 @@ pub(super) async fn create(
     draft: Draft,
     version: String,
     time: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), desktop_i18n::workflow::Feedback> {
     let client = Client::new(key)?;
     let preview: Preview = client
         .get_path(&["workflows", &draft.workflow, "step-preview"], &[("version", "published")])

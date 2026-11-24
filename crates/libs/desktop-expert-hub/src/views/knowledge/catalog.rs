@@ -47,7 +47,7 @@ fn panel<'a, T>(
     let busy = matches!(page.status, LoadState::Loading { .. });
     let retry =
         if bases { KnowledgeMessage::RefreshBases } else { KnowledgeMessage::RefreshDocuments };
-    let empty = if bases { "暂无知识库" } else { "暂无文档" };
+    let empty = if bases { i18n.__("暂无知识库") } else { "暂无文档" };
     let mut content = column![].spacing(8);
     match &page.status {
         LoadState::Loading { .. } | LoadState::Idle => {
@@ -75,7 +75,7 @@ fn panel<'a, T>(
             }
         }
     }
-    let search = text_input(i18n.__(if bases { "搜索知识库" } else { "搜索文档" }), &page.query.q)
+    let search = text_input(i18n.__(if bases { i18n.__("搜索知识库") } else { "搜索文档" }), &page.query.q)
         .on_input(move |q| {
             message(if bases {
                 KnowledgeMessage::SearchBases(q)

@@ -29,14 +29,14 @@ pub enum GitMessage {
         path: String,
         generation: u64,
         result:
-            Result<crate::git_panel::repository_ops::RepositorySnapshot, String>,
+            Result<crate::git_panel::repository_ops::RepositorySnapshot, desktop_i18n::workflow::Feedback>,
     },
     SelectHistoryCommit(String),
     HistoryDetailReady {
         path: String,
         generation: u64,
         sha: String,
-        result: Result<crate::git_panel::repository_ops::HistoryDetail, String>,
+        result: Result<crate::git_panel::repository_ops::HistoryDetail, desktop_i18n::workflow::Feedback>,
     },
     SelectHistoryFile(usize),
     OpenHistoryFileMenu(usize),
@@ -47,7 +47,7 @@ pub enum GitMessage {
     RemoteFinished {
         path: String,
         action: crate::git_panel::repository_ops::RemoteAction,
-        result: Result<(), String>,
+        result: Result<(), desktop_i18n::workflow::Feedback>,
     },
     /// 刷新 Git 面板所需的全部数据
     RefreshGitPanelData,

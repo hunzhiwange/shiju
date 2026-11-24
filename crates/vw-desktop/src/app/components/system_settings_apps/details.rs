@@ -19,7 +19,7 @@ pub(crate) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a AppsCatalogState, ap
     let mut cross = column![].spacing(12);
     if let Some(scope) = vw_api_project_profiles::ProjectProfileScope::for_app(id) {
         cross = cross.push(settings_panel(
-            crate::app::components::project_profile_selection::view(&state.project_profiles, scope),
+            crate::app::components::project_profile_selection::view(i18n, &state.project_profiles, scope),
         ));
     }
     cross = cross

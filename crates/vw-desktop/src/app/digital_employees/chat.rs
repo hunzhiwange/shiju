@@ -162,7 +162,7 @@ pub(super) fn select(app: &mut App, page: Page, selection: Option<Selection>) ->
         return Task::none();
     }
     let Some(selection) = selection else {
-        return app.show_error_toast("该数字员工当前不可聊天，请刷新列表");
+        return app.show_localized_toast(crate::app::state::ToastKind::Error, "该数字员工当前不可聊天，请刷新列表", vec![]);
     };
     check_scope(app, Some(ChatIntent::Open(selection)))
 }
@@ -171,14 +171,14 @@ pub(crate) fn check_scope(app: &mut App, selection: Option<ChatIntent>) -> Task<
     let endpoint = crate::app::config::gateway_client_endpoint();
     let Some(account) = app.account.active_account() else {
         return if selection.is_some() {
-            app.show_error_toast("请先登录识矩")
+            app.show_localized_toast(crate::app::state::ToastKind::Error, "请先登录识矩", vec![])
         } else {
             Task::none()
         };
     };
     if !endpoint.is_loopback() {
         return if selection.is_some() {
-            app.show_error_toast("请连接本机网关")
+            app.show_localized_toast(crate::app::state::ToastKind::Error, "请连接本机网关", vec![])
         } else {
             Task::none()
         };
@@ -231,7 +231,7 @@ pub(crate) fn check_scope(app: &mut App, selection: Option<ChatIntent>) -> Task<
 pub(super) fn scope_checked(
     app: &mut App,
     request: u64,
-    result: Result<Scope, String>,
+    result: Result<Scope, desktop_i18n::workflow::Feedback>,
     selection: Option<ChatIntent>,
 ) -> Task<Message> {
     if request != app.digital_employees.chat_scope_request {
@@ -248,7 +248,7 @@ pub(super) fn scope_checked(
         }
         Ok(_) => return Task::none(),
         Err(error) => {
-            return if selection.is_some() { app.show_error_toast(error) } else { Task::none() };
+            return if selection.is_some() { app.show_message_toast(crate::app::state::ToastKind::Error, error.message()) } else { Task::none() };
         }
     }
     let selection = match selection {
@@ -276,7 +276,7 @@ pub(super) fn scope_checked(
 
 fn open_draft(app: &mut App, selection: Selection) -> Task<Message> {
     let Ok(id) = ordered_id::descending(ordered_id::Prefix::Session, None) else {
-        return app.show_error_toast("无法生成数字员工会话 ID，请重试");
+        return app.show_localized_toast(crate::app::state::ToastKind::Error, "无法生成数字员工会话 ID，请重试", vec![]);
     };
     let path = app
         .navigation_tabs
@@ -287,11 +287,11 @@ fn open_draft(app: &mut App, selection: Selection) -> Task<Message> {
         Some(path) => path,
         None => {
             let Some(dirs) = crate::app::project_dirs() else {
-                return app.show_error_toast("无法确定聊天目录，请先打开一个项目");
+                return app.show_localized_toast(crate::app::state::ToastKind::Error, "无法确定聊天目录，请先打开一个项目", vec![]);
             };
             let path = dirs.data_dir().join("employee-chat");
             if std::fs::create_dir_all(&path).is_err() {
-                return app.show_error_toast("无法创建聊天目录，请先打开一个项目");
+                return app.show_localized_toast(crate::app::state::ToastKind::Error, "无法创建聊天目录，请先打开一个项目", vec![]);
             }
             path.to_string_lossy().into_owned()
         }

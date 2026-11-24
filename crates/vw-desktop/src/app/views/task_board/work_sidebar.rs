@@ -42,9 +42,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ),
     );
     for (view, label, icon) in [
-        (BuiltinWorkView::MyTasks, "我的任务", Icon::CheckSquare),
-        (BuiltinWorkView::AgentExecuting, "我的智能体在做", Icon::Robot),
-        (BuiltinWorkView::AllTasks, "全部任务", Icon::Clipboard),
+        (BuiltinWorkView::MyTasks, i18n.__("我的任务"), Icon::CheckSquare),
+        (BuiltinWorkView::AgentExecuting, i18n.__("我的智能体在做"), Icon::Robot),
+        (BuiltinWorkView::AllTasks, i18n.__("全部任务"), Icon::Clipboard),
     ] {
         let tasks: Vec<_> = app
             .task_board

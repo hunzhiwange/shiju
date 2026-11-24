@@ -15,10 +15,10 @@ pub(crate) enum Metric {
 }
 
 impl Metric {
-    pub(super) fn title(self) -> &'static str {
+    pub(super) fn title(self, i18n: desktop_i18n::I18n) -> &'static str {
         match self {
-            Self::Tasks => "每天新建的任务量",
-            Self::SuccessRate => "任务成功率",
+            Self::Tasks => i18n.__("每天新建的任务量"),
+            Self::SuccessRate => i18n.__("任务成功率"),
         }
     }
 
@@ -29,10 +29,10 @@ impl Metric {
         }
     }
 
-    pub(super) fn format(self, value: Option<f64>) -> String {
+    pub(super) fn format(self, value: Option<f64>, i18n: desktop_i18n::I18n) -> String {
         match (self, value) {
             (_, None) => "—".into(),
-            (Self::Tasks, Some(n)) => format!("{n:.0} 个"),
+            (Self::Tasks, Some(n)) => i18n.format("%s 个", &[format!("{:.0}", n).into()]).expect("valid workbench template"),
             (Self::SuccessRate, Some(n)) if n.fract() == 0.0 => format!("{n:.0}%"),
             (Self::SuccessRate, Some(n)) => format!("{n:.1}%"),
         }
@@ -42,6 +42,7 @@ impl Metric {
 pub(super) struct Chart<'a> {
     pub trend: &'a Trend,
     pub metric: Metric,
+    pub i18n: desktop_i18n::I18n,
 }
 
 impl canvas::Program<Message> for Chart<'_> {
@@ -94,7 +95,7 @@ impl canvas::Program<Message> for Chart<'_> {
                 colors.border.scale_alpha(if tick == 0 { 0.8 } else { 0.48 }),
             );
             frame.fill_text(label(
-                self.metric.format(Some(value)),
+                self.metric.format(Some(value), self.i18n),
                 Point::new(left - 10.0, y),
                 Alignment::Right,
                 colors.muted,
@@ -166,7 +167,7 @@ impl canvas::Program<Message> for Chart<'_> {
                 (point.x - 3.0, Alignment::Right)
             };
             frame.fill_text(label(
-                self.metric.format(self.metric.value(self.trend, selected)),
+                self.metric.format(self.metric.value(self.trend, selected), self.i18n),
                 Point::new(x, point.y - 12.0),
                 align,
                 colors.ink,

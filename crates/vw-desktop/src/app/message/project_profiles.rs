@@ -20,8 +20,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let update = desktop_workspace::profile_update::update(&mut app.apps_catalog.project_profiles, &catalog,
         gateway_project_profile::GatewayProjectProfileClient::new(client.transport().clone()), event);
     let toast = match update.toast {
-        Some((true, text)) => app.show_error_toast(text),
-        Some((false, text)) => app.show_info_toast(text),
+        Some((true, text)) => app.show_localized_toast(crate::app::state::ToastKind::Error, text, vec![]),
+        Some((false, text)) => app.show_localized_toast(crate::app::state::ToastKind::Info, text, vec![]),
         None => Task::none(),
     };
     Task::batch([update.task.map(message), toast])

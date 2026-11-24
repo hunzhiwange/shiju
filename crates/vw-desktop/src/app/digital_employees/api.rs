@@ -7,14 +7,14 @@ use std::time::Duration;
 const API_BASE: &str = "https://gateway.shiju.cloud/sj/agent/api/v1/";
 const CONSOLE: &str = "https://ai.shiju.cloud/console/ai-agents";
 
-pub(super) async fn load(credential: &str) -> Result<Summary, String> {
+pub(super) async fn load(credential: &str) -> Result<Summary, desktop_i18n::workflow::Feedback> {
     Client::new(credential)?.get("workbench/summary", &[]).await
 }
 
 pub(super) struct Client(reqwest::Client);
 
 impl Client {
-    pub(super) fn new(credential: &str) -> Result<Self, String> {
+    pub(super) fn new(credential: &str) -> Result<Self, desktop_i18n::workflow::Feedback> {
         let mut key = HeaderValue::from_str(credential).map_err(|_| "识矩登录凭据格式无效")?;
         key.set_sensitive(true);
         let mut headers = reqwest::header::HeaderMap::new();
@@ -33,7 +33,7 @@ impl Client {
         &self,
         resource: &str,
         query: &[(&str, &str)],
-    ) -> Result<T, String> {
+    ) -> Result<T, desktop_i18n::workflow::Feedback> {
         Self::decode(self.get_response(path_url(resource.split('/')), query).await?).await
     }
 
@@ -41,7 +41,7 @@ impl Client {
         &self,
         resource: &str,
         query: &[(&str, &str)],
-    ) -> Result<T, String> {
+    ) -> Result<T, desktop_i18n::workflow::Feedback> {
         let url = Url::parse(&format!("https://gateway.shiju.cloud/sj/iam/api/v1/{resource}"))
             .expect("fixed IAM API URL");
         let envelope: IamResponse<T> = Self::decode(self.get_response(url, query).await?).await?;
@@ -53,7 +53,7 @@ impl Client {
 
     pub(super) async fn assistant_governance<T: serde::de::DeserializeOwned>(
         &self,
-    ) -> Result<Option<T>, String> {
+    ) -> Result<Option<T>, desktop_i18n::workflow::Feedback> {
         let response =
             self.get_response(path_url(["assistants"]), &[("view", "governance")]).await?;
         if response.status() == StatusCode::FORBIDDEN {
@@ -66,7 +66,7 @@ impl Client {
         &self,
         id: &str,
         collection: Option<&str>,
-    ) -> Result<T, String> {
+    ) -> Result<T, desktop_i18n::workflow::Feedback> {
         let url = path_url(["tasks", id].into_iter().chain(collection));
         Self::decode(self.get_response(url, &[]).await?).await
     }
@@ -75,7 +75,7 @@ impl Client {
         &self,
         segments: &[&str],
         query: &[(&str, &str)],
-    ) -> Result<T, String> {
+    ) -> Result<T, desktop_i18n::workflow::Feedback> {
         Self::decode(self.get_response(path_url(segments.iter().copied()), query).await?).await
     }
 
@@ -84,7 +84,7 @@ impl Client {
         segments: &[&str],
         body: &serde_json::Value,
         key: Option<&str>,
-    ) -> Result<T, String> {
+    ) -> Result<T, desktop_i18n::workflow::Feedback> {
         let mut request = self.0.post(path_url(segments.iter().copied())).json(body);
         if let Some(key) = key {
             request = request.header("Idempotency-Key", key);
@@ -97,7 +97,7 @@ impl Client {
         &self,
         id: &str,
         body: &serde_json::Value,
-    ) -> Result<&'static str, String> {
+    ) -> Result<&'static str, desktop_i18n::workflow::Feedback> {
         let response = self
             .0
             .delete(path_url(["employees", id]))
@@ -133,7 +133,7 @@ impl Client {
         }
     }
 
-    pub(super) async fn task_stream(&self, id: &str) -> Result<Response, String> {
+    pub(super) async fn task_stream(&self, id: &str) -> Result<Response, desktop_i18n::workflow::Feedback> {
         let response = self
             .0
             .get(path_url(["tasks", id, "events", "stream"]))
@@ -154,17 +154,17 @@ impl Client {
         Ok(response)
     }
 
-    async fn get_response(&self, url: Url, query: &[(&str, &str)]) -> Result<Response, String> {
+    async fn get_response(&self, url: Url, query: &[(&str, &str)]) -> Result<Response, desktop_i18n::workflow::Feedback> {
         self.0.get(url).query(query).send().await.map_err(|_| "无法连接数字员工服务，请重试".into())
     }
 
-    async fn decode<T: serde::de::DeserializeOwned>(response: Response) -> Result<T, String> {
+    async fn decode<T: serde::de::DeserializeOwned>(response: Response) -> Result<T, desktop_i18n::workflow::Feedback> {
         let status = response.status();
         match status {
             StatusCode::UNAUTHORIZED => return Err("识矩登录已失效，请重新登录".into()),
             StatusCode::FORBIDDEN => return Err("当前识矩账号没有查看此资源的权限".into()),
             _ if !status.is_success() => {
-                return Err(format!("数字员工服务请求失败（HTTP {status}）"));
+                return Err(desktop_i18n::workflow::Feedback::new("数字员工服务请求失败（HTTP %s）", vec![status.to_string()]));
             }
             _ => {}
         }

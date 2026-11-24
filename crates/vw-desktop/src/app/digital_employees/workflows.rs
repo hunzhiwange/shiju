@@ -27,7 +27,7 @@ pub(super) struct List {
 #[derive(Clone)]
 pub(crate) enum ListEvent {
     Refresh,
-    Loaded(u64, Result<Arc<Vec<Workflow>>, String>),
+    Loaded(u64, Result<Arc<Vec<Workflow>>, desktop_i18n::workflow::Feedback>),
     Search(String),
     Status(Option<Status>),
     Department(Department),
@@ -71,6 +71,14 @@ impl Department {
                 Self::Path(path) => super::departments::contains(prefix, &path),
                 _ => false,
             },
+        }
+    }
+
+    pub(super) fn localized_label<'a>(&self, i18n: desktop_i18n::I18n, directory: Option<&'a super::departments::Directory>) -> &'a str {
+        match self {
+            Self::All => i18n.__("全部可查看部门"),
+            Self::Company => i18n.__("全公司"),
+            Self::Path(path) => super::departments::name(directory, path).unwrap_or(i18n.__("部门名称未提供")),
         }
     }
 
@@ -280,7 +288,7 @@ pub(super) fn refresh(app: &mut App) -> Task<Message> {
     })
 }
 
-async fn load(credential: &str) -> Result<Vec<Workflow>, String> {
+async fn load(credential: &str) -> Result<Vec<Workflow>, desktop_i18n::workflow::Feedback> {
     let client = api::Client::new(credential)?;
     let mut items = Vec::new();
     let mut seen = HashSet::new();

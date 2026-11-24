@@ -155,7 +155,7 @@ fn table_row(
         Some("department") => ("指定部门", Color::from_rgb8(116, 103, 70)),
         Some("user") => ("指定员工", Color::from_rgb8(116, 103, 70)),
         Some("mixed") => ("指定部门和员工", Color::from_rgb8(116, 103, 70)),
-        Some("disabled") => ("不可见", Color::from_rgb8(163, 55, 52)),
+        Some("disabled") => (i18n.__("不可见"), Color::from_rgb8(163, 55, 52)),
         Some("unset") => ("未设置", Color::from_rgb8(163, 55, 52)),
         _ => ("—", Color::from_rgb8(95, 107, 130)),
     };

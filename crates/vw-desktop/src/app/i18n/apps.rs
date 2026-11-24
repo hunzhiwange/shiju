@@ -3,6 +3,7 @@ use super::I18n;
 /// Refresh only built-in hub titles; user-authored tab names remain unchanged.
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn refresh_hub_titles(app: &mut crate::app::App) {
+    crate::app::digital_employees::refresh_titles(app);
     use crate::app::message::{shiju_apps, skill_hub};
     let i18n = I18n::new(app.general_settings.desktop_locale);
     desktop_i18n::apps::refresh_hub_titles(

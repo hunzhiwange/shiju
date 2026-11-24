@@ -30,7 +30,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
     };
     let path = crate::app::components::git_panel::git_repo_path_for_app(app);
     let gateway = crate::app::gateway_client()
-        .map(|client| (client, crate::app::session_gateway::active_tenant_scope()));
+        .map(|client| (client, crate::app::session_gateway::active_tenant_scope())).map_err(Into::into);
     let mut effects = Vec::new();
     let task = repository::update(
         &mut app.git.git_repository,
@@ -77,13 +77,13 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                     content,
                 }))
             }
-            Effect::Toast { success, message } => app.show_toast(
+            Effect::Toast { success, message } => app.show_message_toast(
                 if success {
                     crate::app::state::ToastKind::Success
                 } else {
                     crate::app::state::ToastKind::Error
                 },
-                message,
+                message.message(),
             ),
             Effect::RefreshAfterMutation => {
                 shared::refresh_git_panel_data_after_repo_mutation_task(app)

@@ -303,7 +303,7 @@ pub struct BatchDraft {
     pub outer: String,
     pub inner: String,
     pub pending: Option<u64>,
-    pub feedback: Option<Result<(), String>>,
+    pub feedback: Option<Result<(), desktop_i18n::workflow::Feedback>>,
 }
 
 pub fn positive_batch(value: &str) -> Option<u32> {
@@ -317,7 +317,7 @@ pub struct ChildTaskDraft {
     pub prompt: iced::widget::text_editor::Content,
     pub batch: String,
     pub pending: bool,
-    pub error: Option<String>,
+    pub error: Option<desktop_i18n::workflow::Feedback>,
     pub task: Task,
 }
 

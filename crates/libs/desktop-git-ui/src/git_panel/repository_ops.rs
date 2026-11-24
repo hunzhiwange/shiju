@@ -25,7 +25,7 @@ pub struct RepositoryState {
     pub selected_file: Option<usize>,
     pub file_menu: Option<usize>,
     pub detail_loading: bool,
-    pub error: Option<String>,
+    pub error: Option<desktop_i18n::workflow::Feedback>,
     // 独立于视图刷新，切换仓库时仍保留正在执行的操作锁。
     pub remote_busy: bool,
     pub remote_action: Option<RemoteAction>,

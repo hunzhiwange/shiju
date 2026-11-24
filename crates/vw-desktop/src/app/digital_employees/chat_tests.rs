@@ -411,7 +411,7 @@ async fn employee_acp_desktop_chat_action_has_readable_text_in_both_themes() {
         assert!(style.text_color.is_readable_on(background));
 
         let button =
-            super::super::view::chat_action(Some(Message::DigitalEmployees(Event::Refresh)));
+            super::super::view::chat_action(desktop_i18n::I18n::new(Default::default()), Some(Message::DigitalEmployees(Event::Refresh)));
         let mut ui = UserInterface::build(button, size, Cache::new(), &mut renderer);
         let mut messages = Vec::new();
         let _ = ui.update(

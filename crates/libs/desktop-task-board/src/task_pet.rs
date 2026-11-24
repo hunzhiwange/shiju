@@ -321,7 +321,7 @@ fn task_pet_context_menu(i18n: desktop_i18n::I18n) -> Element<'static, Message> 
             column![
                 action("选择智能伙伴", Message::TaskPetOpenSettings),
                 action("自定义伙伴大小", Message::TaskPetSizeOpen),
-                action("隐藏伙伴", Message::TaskPetHideWindow),
+                action(i18n.__("隐藏伙伴"), Message::TaskPetHideWindow),
             ]
             .spacing(4)
             .width(180),

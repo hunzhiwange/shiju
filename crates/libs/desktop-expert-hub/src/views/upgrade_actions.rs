@@ -34,9 +34,9 @@ pub fn view(app: &ViewInput<'_>) -> Element<'static, Message> {
         );
     let main = button(
         text(i18n.__(if state.main_upgrade.is_some() {
-            "正在升级主技能…"
+            i18n.__("正在升级主技能…")
         } else {
-            "升级主技能"
+            i18n.__("升级主技能")
         }))
         .size(12),
     )

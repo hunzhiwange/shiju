@@ -4,6 +4,7 @@ use crate::page::Message;
 use crate::page::ViewContext;
 fn input<'a>(app: &ViewContext<'a>) -> domain::Input<'a, Message> {
     domain::Input {
+        i18n: desktop_i18n::I18n::new(app.desktop_locale),
         git_repository: &app.git.git_repository,
         repo_available: super::git_repo_path_for_app(app).is_some(),
         context_path: app.context_path.clone(),

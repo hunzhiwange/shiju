@@ -257,7 +257,7 @@ pub fn view<'a, M: Clone + Send + 'static>(
         }
 
         if state.video_edit.open {
-            layers.push(video_edit::modal(state).map(map_message));
+            layers.push(video_edit::modal(i18n, state).map(map_message));
         }
         return stack(layers).width(Length::Fill).height(Length::Fill).into();
     }
@@ -346,7 +346,7 @@ pub fn view<'a, M: Clone + Send + 'static>(
     }
 
     if state.video_edit.open {
-        layers.push(video_edit::modal(state).map(map_message));
+        layers.push(video_edit::modal(i18n, state).map(map_message));
     }
     stack(layers).width(Length::Fill).height(Length::Fill).into()
 }

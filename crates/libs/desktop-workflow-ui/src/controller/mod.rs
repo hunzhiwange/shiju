@@ -14,9 +14,9 @@ pub enum Effect {
     TextContext(desktop_ui_controls::text_editor_context_menu::TextContextEffect),
     TextSelection(String, usize, usize, Option<String>),
     None,
-    Error(String),
-    Warning(String),
-    Success(String),
+    Error(desktop_i18n::workflow::Feedback),
+    Warning(desktop_i18n::workflow::Feedback),
+    Success(desktop_i18n::workflow::Feedback),
     SaveError(desktop_i18n::workflow::Feedback),
     StartNativeVideoEdit,
     After(std::time::Duration, Box<WorkflowMessage>),
@@ -34,15 +34,15 @@ pub struct Context<'a> {
     pub gateway: fn() -> Result<gateway_workflow::GatewayWorkflowClient, String>,
 }
 impl Context<'_> {
-    fn show_error_toast(&self, error: impl ToString) -> Task<Output> {
-        Task::done(Output::Effect(Effect::Error(error.to_string())))
+    fn show_error_toast(&self, error: impl Into<desktop_i18n::workflow::Feedback>) -> Task<Output> {
+        Task::done(Output::Effect(Effect::Error(error.into())))
     }
 #[cfg(target_arch = "wasm32")]
-    fn show_warning_toast(&self, error: impl ToString) -> Task<Output> {
-        Task::done(Output::Effect(Effect::Warning(error.to_string())))
+    fn show_warning_toast(&self, error: impl Into<desktop_i18n::workflow::Feedback>) -> Task<Output> {
+        Task::done(Output::Effect(Effect::Warning(error.into())))
     }
-    fn show_success_toast(&self, error: impl ToString) -> Task<Output> {
-        Task::done(Output::Effect(Effect::Success(error.to_string())))
+    fn show_success_toast(&self, error: impl Into<desktop_i18n::workflow::Feedback>) -> Task<Output> {
+        Task::done(Output::Effect(Effect::Success(error.into())))
     }
 }
 pub(crate) fn sync_top_tab(app: &mut Context<'_>) {

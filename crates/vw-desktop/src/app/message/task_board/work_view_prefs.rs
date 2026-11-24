@@ -26,15 +26,15 @@ fn unique_id() -> String {
     )
 }
 
-fn read(path: &Path) -> Result<Preferences, String> {
+fn read(path: &Path) -> Result<Preferences, desktop_i18n::workflow::Feedback> {
     match std::fs::read(path) {
-        Ok(bytes) => serde_json::from_slice(&bytes).map_err(|e| format!("工作视图配置损坏：{e}")),
+        Ok(bytes) => serde_json::from_slice(&bytes).map_err(|e| desktop_i18n::workflow::Feedback::new("工作视图配置损坏：%s", vec![e.to_string()])),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Preferences::new()),
-        Err(e) => Err(format!("读取工作视图失败：{e}")),
+        Err(e) => Err(desktop_i18n::workflow::Feedback::new("读取工作视图失败：%s", vec![e.to_string()])),
     }
 }
 
-fn save(path: &Path, project: &str, prefs: ProjectPrefs) -> Result<(), String> {
+fn save(path: &Path, project: &str, prefs: ProjectPrefs) -> Result<(), desktop_i18n::workflow::Feedback> {
     // 每次先读取：损坏的原文件不能被默认值覆盖。
     let mut all = read(path)?;
     all.insert(project.to_owned(), prefs);
@@ -57,12 +57,12 @@ fn save(path: &Path, project: &str, prefs: ProjectPrefs) -> Result<(), String> {
     if result.is_err() {
         let _ = std::fs::remove_file(temporary);
     }
-    result
+    result.map_err(Into::into)
 }
 
-fn filter(app: &App) -> Result<WorkViewFilter, String> {
+fn filter(app: &App) -> Result<WorkViewFilter, desktop_i18n::workflow::Feedback> {
     let board = &app.task_board;
-    let number = |value: &str| -> Result<Option<u32>, String> {
+    let number = |value: &str| -> Result<Option<u32>, desktop_i18n::workflow::Feedback> {
         if value.trim().is_empty() {
             Ok(None)
         } else {
@@ -115,7 +115,7 @@ pub(super) fn update(app: &mut App, message: &TaskBoardMessage) -> Option<iced::
     let project = app.navigation_tabs.project_path.clone()?;
     let path = match crate::app::project_dirs() {
         Some(dirs) => dirs.config_dir().join("work_views.json"),
-        None => return Some(app.show_error_toast("无法定位工作视图配置目录")),
+        None => return Some(app.show_localized_toast(crate::app::state::ToastKind::Error, "无法定位工作视图配置目录", vec![])),
     };
     // 文件内以规范路径标识项目；界面标记仍以导航路径索引。
     let identity = std::fs::canonicalize(&project)
@@ -136,11 +136,11 @@ pub(super) fn update(app: &mut App, message: &TaskBoardMessage) -> Option<iced::
             }
             Err(error) => {
                 // 显示读取错误，仍允许当前业务消息继续处理。
-                let _ = app.show_error_toast(error);
+                let _ = app.show_message_toast(crate::app::state::ToastKind::Error, error.message());
             }
         }
     }
-    let result: Result<(), String> = (|| {
+    let result: Result<(), desktop_i18n::workflow::Feedback> = (|| {
         match message {
             TaskBoardMessage::OpenWorkViewEditor => {
                 app.task_board.work_editor_open = !app.task_board.work_editor_open;
@@ -306,7 +306,7 @@ pub(super) fn update(app: &mut App, message: &TaskBoardMessage) -> Option<iced::
             | TaskBoardMessage::TogglePersonalTask(_)
     );
     if let Err(error) = result {
-        return Some(app.show_error_toast(error));
+        return Some(app.show_message_toast(crate::app::state::ToastKind::Error, error.message()));
     }
     handled.then(iced::Task::none)
 }

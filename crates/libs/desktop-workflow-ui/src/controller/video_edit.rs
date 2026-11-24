@@ -104,7 +104,7 @@ pub(crate) fn handle(app: &mut Context<'_>, message: WorkflowMessage) -> Option<
                     }
                     app.workflow_state.video_edit.accept_record(record);
                 }
-                Err(e) => app.workflow_state.video_edit.error = Some(e),
+                Err(e) => app.workflow_state.video_edit.error = Some(e.into()),
             }
             Task::none()
         }
@@ -151,7 +151,7 @@ pub(crate) fn handle(app: &mut Context<'_>, message: WorkflowMessage) -> Option<
             let yaml = match state.validated_yaml() {
                 Ok(yaml) => yaml,
                 Err(e) if !restore => {
-                    state.error = Some(e);
+                    state.error = Some(e.into());
                     return Some(Task::none());
                 }
                 Err(_) => String::new(),
@@ -218,7 +218,7 @@ pub(crate) fn handle(app: &mut Context<'_>, message: WorkflowMessage) -> Option<
                     app.show_success_toast("模板已保存，下一次原生剪辑将读取此版本")
                 }
                 Err(e) => {
-                    state.error = Some(e.clone());
+                    state.error = Some(e.clone().into());
                     app.show_error_toast(e)
                 }
             }

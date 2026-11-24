@@ -35,11 +35,8 @@ fn workflow(app: &App) -> TaskWorkflow {
         .unwrap_or_else(|| TaskWorkflow::from(desktop_task_model::default_task_workflow()))
 }
 
-fn progress(value: &WorkPlanProgress) -> String {
-    format!(
-        "完成 {}/{} · 进行中 {} · 等待 {}",
-        value.completed, value.total, value.executing, value.waiting
-    )
+fn progress(i18n: desktop_i18n::I18n, value: &WorkPlanProgress) -> String {
+    i18n.format("完成 %s/%s · 进行中 %s · 等待 %s", &[format!("{}", value.completed).into(), format!("{}", value.total).into(), format!("{}", value.executing).into(), format!("{}", value.waiting).into()]).expect("valid workbench template")
 }
 
 fn sum<'a>(items: impl Iterator<Item = &'a WorkPlanProgress>) -> WorkPlanProgress {
@@ -69,37 +66,37 @@ fn scroll<'a>(body: Column<'a, Message>) -> scrollable::Scrollable<'a, Message> 
     )
 }
 
-fn blocker_label(blocker: &Blocker) -> String {
+fn blocker_label(i18n: desktop_i18n::I18n, blocker: &Blocker) -> String {
     match blocker {
         Blocker::WaitingForEarlierBatch { task_ids } => {
-            format!("等待前序批次 · {}", task_ids.join("、"))
+            i18n.format("等待前序批次 · %s", &[format!("{}", task_ids.join("、")).into()]).expect("valid workbench template")
         }
         Blocker::EarlierBatchFailed { task_ids } => {
-            format!("前序批次失败 · {}", task_ids.join("、"))
+            i18n.format("前序批次失败 · %s", &[format!("{}", task_ids.join("、")).into()]).expect("valid workbench template")
         }
         Blocker::ParentNotReleased { parent_task_id } => {
-            format!("等待父任务放行 · {parent_task_id}")
+            i18n.format("等待父任务放行 · %s", &[format!("{}", parent_task_id).into()]).expect("valid workbench template")
         }
         Blocker::LegacyWorkPlanRequiresResplit => vw_api_agent_scheduler::LEGACY_WORK_PLAN_RESPLIT_REASON.to_owned(),
-        Blocker::WorkPlanNotPublished => "等待启动工作计划".to_owned(),
+        Blocker::WorkPlanNotPublished => i18n.__("等待启动工作计划").to_owned(),
         Blocker::ExplicitDependency { task_ids } => {
-            format!("等待任务依赖 · {}", task_ids.join("、"))
+            i18n.format("等待任务依赖 · %s", &[format!("{}", task_ids.join("、")).into()]).expect("valid workbench template")
         }
         Blocker::WorkPlanChildrenIncomplete { children } => {
             let reasons = children.iter().map(|child| {
                 let status = match child.status.as_str() {
-                    "submitted" => "待审核或合并",
-                    "failed" => "失败",
-                    "cancelled" => "已取消",
-                    "paused" => "已暂停",
-                    "archived" => "已归档",
+                    "submitted" => i18n.__("待审核或合并"),
+                    "failed" => i18n.__("失败"),
+                    "cancelled" => i18n.__("已取消"),
+                    "paused" => i18n.__("已暂停"),
+                    "archived" => i18n.__("已归档"),
                     _ => &child.status_key,
                 };
                 format!("{}（{status}）", child.task_id)
             }).collect::<Vec<_>>();
-            format!("等待子任务完成 · {}", reasons.join("、"))
+            i18n.format("等待子任务完成 · %s", &[format!("{}", reasons.join("、")).into()]).expect("valid workbench template")
         }
-        Blocker::WorkPlanSummaryUnavailable => "汇总暂不可派发".into(),
+        Blocker::WorkPlanSummaryUnavailable => i18n.__("汇总暂不可派发").into(),
     }
 }
 
@@ -128,10 +125,10 @@ fn task_row<'a>(
     text(format!("{status} · {agent}")).size(11).style(settings_muted_text_style),
     ].spacing(4);
     if let Some(blocker) = snapshot.and_then(|snapshot| snapshot.blocker.as_ref()) {
-        body = body.push(text(blocker_label(blocker)).size(12).style(settings_muted_text_style));
+        body = body.push(text(blocker_label(i18n, blocker)).size(12).style(settings_muted_text_style));
     }
     if let Some(error) = task.last_error.as_deref().filter(|error| !error.is_empty()) {
-        body = body.push(text(format!("执行失败 · {error}")).size(12));
+        body = body.push(text(i18n.format("执行失败 · %s", &[format!("{}", error).into()]).expect("valid workbench template")).size(12));
     }
     button(body)
         .padding([7, 10])
@@ -142,8 +139,9 @@ fn task_row<'a>(
 }
 
 pub(super) fn project_view(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.general_settings.desktop_locale);
     let Some((project, plan)) = current(app) else {
-        return text("正在加载工作计划…").into();
+        return text(i18n.__("正在加载工作计划…")).into();
     };
     let board = &app.task_board;
     let search = plan.search.trim().to_lowercase();
@@ -156,18 +154,18 @@ pub(super) fn project_view(app: &App) -> Element<'_, Message> {
     let mut body = column![].spacing(8);
     if groups.values().all(|group| group.rows.is_empty()) {
         body = body.push(text(if board.task_board_loading {
-            "正在加载工作计划…"
+            i18n.__("正在加载工作计划…")
         } else if groups.is_empty() {
-            "当前项目暂无主任务"
+            i18n.__("当前项目暂无主任务")
         } else {
-            "没有匹配的主任务"
+            i18n.__("没有匹配的主任务")
         }));
     }
     if let Some(group) = groups.get(&None).filter(|group| !group.rows.is_empty()) {
         body = body.push(group_button(
             plan,
             Key::Ordinary,
-            format!("普通主任务 · {}", progress(&group.progress)),
+            i18n.format("普通主任务 · %s", &[format!("{}", progress(i18n, &group.progress)).into()]).expect("valid workbench template"),
         ));
         if !plan.collapsed.contains(&Key::Ordinary) {
             for task in &group.rows {
@@ -190,7 +188,7 @@ pub(super) fn project_view(app: &App) -> Element<'_, Message> {
         body = body.push(group_button(
             plan,
             key.clone(),
-            format!("外层批次 {outer} · {}", progress(&total)),
+            i18n.format("外层批次 %s · %s", &[format!("{}", outer).into(), format!("{}", progress(i18n, &total)).into()]).expect("valid workbench template"),
         ));
         if plan.collapsed.contains(&key) {
             continue;
@@ -201,7 +199,7 @@ pub(super) fn project_view(app: &App) -> Element<'_, Message> {
             contents = contents.push(group_button(
                 plan,
                 key.clone(),
-                format!("{outer}.{inner} · {}", progress(&group.progress)),
+                format!("{outer}.{inner} · {}", progress(i18n, &group.progress)),
             ));
             if !plan.collapsed.contains(&key) {
                 for task in &group.rows {
@@ -212,8 +210,8 @@ pub(super) fn project_view(app: &App) -> Element<'_, Message> {
         body = body.push(container(contents).padding([0, 12]));
     }
     column![
-        text("工作计划").size(20),
-        settings_text_input("搜索任务标题、编号或提示词", &plan.search)
+        text(i18n.__("工作计划")).size(20),
+        settings_text_input(i18n.__("搜索任务标题、编号或提示词"), &plan.search)
             .on_input(|value| message(TaskBoardMessage::WorkPlanSearchChanged(value))),
         scroll(body).height(Length::Fill),
     ]
@@ -246,15 +244,15 @@ pub(super) fn detail<'a>(app: &'a App, task: &Task) -> Option<Element<'a, Messag
     let snapshot = plan.tasks.get(&task.id)?;
     let mut body = column![].spacing(8);
     if let Some(blocker) = &snapshot.blocker {
-        body = body.push(text(blocker_label(blocker)).size(13));
+        body = body.push(text(blocker_label(i18n, blocker)).size(13));
     }
     if let Some(Placement::Child { parent_task_id, batch }) = &snapshot.placement {
         let parent = app.task_board.task_board_tasks.iter().find(|task| &task.id == parent_task_id);
         return Some(
             body.push(
                 row![
-                    text(format!("子任务批次 {batch}")).size(13),
-                    action(format!("返回父任务 {parent_task_id}"))
+                    text(i18n.format("子任务批次 %s", &[format!("{}", batch).into()]).expect("valid workbench template")).size(13),
+                    action(i18n.format("返回父任务 %s", &[format!("{}", parent_task_id).into()]).expect("valid workbench template"))
                         .on_press_maybe(parent.map(|_| open_detail(project, parent_task_id))),
                 ]
                 .spacing(8)
@@ -272,13 +270,13 @@ pub(super) fn detail<'a>(app: &'a App, task: &Task) -> Option<Element<'a, Messag
         && matches!(&snapshot.blocker, Some(Blocker::WorkPlanNotPublished));
     let total = sum(groups.values().map(|group| &group.progress));
     body = body
-        .push(settings_field_label("子任务"))
+        .push(settings_field_label(i18n.__("子任务")))
         .push(
             row![
-                action("新增子任务").on_press_maybe(
+                action(i18n.__("新增子任务")).on_press_maybe(
                     can_create.then_some(message(TaskBoardMessage::OpenWorkPlanChild))
                 ),
-                action(if publishing { "正在启动…" } else { "开始执行计划" })
+                action(if publishing { i18n.__("正在启动…") } else { i18n.__("开始执行计划") })
                     .style(primary_action_btn_style)
                     .on_press_maybe(can_start.then(|| message(TaskBoardMessage::StartWorkPlan {
                         project_path: project.into(),
@@ -289,14 +287,14 @@ pub(super) fn detail<'a>(app: &'a App, task: &Task) -> Option<Element<'a, Messag
             .wrap(),
         )
         .push(
-            text(if groups.is_empty() { "暂无子任务".into() } else { progress(&total) }).size(13),
+            text(if groups.is_empty() { i18n.__("暂无子任务").into() } else { progress(i18n, &total) }).size(13),
         );
     for (batch, group) in &groups {
         let key = Key::Child(task.id.clone(), *batch);
         body = body.push(group_button(
             plan,
             key.clone(),
-            format!("批次 {batch} · {}", progress(&group.progress)),
+            i18n.format("批次 %s · %s", &[format!("{}", batch).into(), format!("{}", progress(i18n, &group.progress)).into()]).expect("valid workbench template"),
         ));
         if !plan.collapsed.contains(&key) {
             for child in &group.rows {
@@ -308,48 +306,45 @@ pub(super) fn detail<'a>(app: &'a App, task: &Task) -> Option<Element<'a, Messag
 }
 
 pub(super) fn history<'a>(app: &'a App, task: &Task) -> Option<Element<'a, Message>> {
+    let i18n = I18n::new(app.general_settings.desktop_locale);
     let (_, plan) = current(app)?;
     let parent = plan.tasks.values().any(|snapshot| {
         matches!(&snapshot.placement, Some(Placement::Child { parent_task_id, .. }) if parent_task_id == &task.id)
     });
     let mut buttons = row![
-        action("当前任务执行记录")
+        action(i18n.__("当前任务执行记录"))
             .on_press(message(TaskBoardMessage::LoadWorkPlanHistory { include_children: false })),
     ]
     .spacing(8);
     if parent {
         buttons =
-            buttons.push(action("包含子任务").on_press(message(
+            buttons.push(action(i18n.__("包含子任务")).on_press(message(
                 TaskBoardMessage::LoadWorkPlanHistory { include_children: true },
             )));
     }
     let mut body = column![buttons.wrap()].spacing(6);
     if let Some(history) = plan.history.as_ref().filter(|history| history.task_id == task.id) {
         let scope =
-            if history.include_children { "当前任务及子任务" } else { "当前任务" };
-        body = body.push(text(format!("执行记录 · {scope}")).size(13));
+            if history.include_children { i18n.__("当前任务及子任务") } else { i18n.__("当前任务") };
+        body = body.push(text(i18n.format("执行记录 · %s", &[format!("{}", scope).into()]).expect("valid workbench template")).size(13));
         match history.result.as_ref() {
-            None => body = body.push(text("正在加载执行记录…").size(12)),
+            None => body = body.push(text(i18n.__("正在加载执行记录…")).size(12)),
             Some(Err(error)) => {
-                body = body.push(text(format!("加载执行记录失败 · {error}")).size(12))
+                body = body.push(text(i18n.format("加载执行记录失败 · %s", &[format!("{}", error).into()]).expect("valid workbench template")).size(12))
             }
             Some(Ok(records)) if records.is_empty() => {
-                body = body.push(text("暂无执行记录").size(12))
+                body = body.push(text(i18n.__("暂无执行记录")).size(12))
             }
             Some(Ok(records)) => {
                 let rows = records.iter().fold(column![].spacing(6), |rows, event| {
                     let source = if event.task_id.as_ref() == task.id.as_str() {
-                        "当前任务"
+                        i18n.__("当前任务")
                     } else {
-                        "子任务"
+                        i18n.__("子任务")
                     };
                     rows.push(
                         column![
-                            text(format!(
-                                "{source} {} · 运行 {}",
-                                event.task_id.as_ref(),
-                                event.run_id.as_deref().unwrap_or_default()
-                            ))
+                            text(i18n.format("%s %s · 运行 %s", &[format!("{}", source).into(), format!("{}", event.task_id.as_ref()).into(), format!("{}", event.run_id.as_deref().unwrap_or_default()).into()]).expect("valid workbench template"))
                             .size(12),
                             text(format!(
                                 "{} · {}",
@@ -378,13 +373,14 @@ pub(super) fn with_child_modal<'a>(
     app: &'a App,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
+    let i18n = I18n::new(app.general_settings.desktop_locale);
     let Some(draft) = current(app).and_then(|(_, plan)| plan.child_draft.as_ref()) else {
         return base;
     };
     let close = message(TaskBoardMessage::CloseWorkPlanChild);
     let submit = message(TaskBoardMessage::CreateWorkPlanChild);
     let mut prompt = settings_text_editor(&draft.prompt).id(CHILD_PROMPT_INPUT).height(112);
-    let mut batch = settings_text_input("正整数", &draft.batch);
+    let mut batch = settings_text_input(i18n.__("正整数"), &draft.batch);
     if !draft.pending {
         prompt =
             prompt.on_action(|action| message(TaskBoardMessage::WorkPlanChildPromptEdited(action)));
@@ -393,17 +389,17 @@ pub(super) fn with_child_modal<'a>(
             .on_submit(submit.clone());
     }
     let mut fields = column![
-        settings_field_label("任务提示词"),
+        settings_field_label(i18n.__("任务提示词")),
         prompt,
-        settings_field_label("子任务批次"),
+        settings_field_label(i18n.__("子任务批次")),
         batch,
     ]
     .spacing(8);
     if let Some(error) = &draft.error {
-        fields = fields.push(text(error.clone()).size(13));
+        fields = fields.push(text(error.render(i18n)).size(13));
     }
     let header = row![
-        text("新增子任务").size(18),
+        text(i18n.__("新增子任务")).size(18),
         iced::widget::Space::new().width(Length::Fill),
         settings_close_button(close.clone()),
     ]
@@ -412,7 +408,7 @@ pub(super) fn with_child_modal<'a>(
         column![
             header,
             container(scroll(fields).height(Length::Shrink)).max_height(260),
-            action(if draft.pending { "正在创建…" } else { "创建子任务" })
+            action(if draft.pending { i18n.__("正在创建…") } else { i18n.__("创建子任务") })
                 .style(primary_action_btn_style)
                 .on_press_maybe((!draft.pending).then_some(submit)),
         ]

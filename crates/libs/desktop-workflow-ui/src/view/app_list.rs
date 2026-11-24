@@ -206,7 +206,7 @@ pub(crate) fn build_saved_app_card(
     let uuid = app.uuid.clone();
     let title = saved_app_title(i18n, &app.name);
     let description = if app.uuid == state::video_edit::TEMPLATE_ID {
-        "随程序分发 · 当前租户可编辑 · 单视频运行，最多五路".to_string()
+        i18n.__("随程序分发 · 当前租户可编辑 · 单视频运行，最多五路").to_string()
     } else {
         saved_app_description(i18n, &app.description)
     };

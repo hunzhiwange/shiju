@@ -242,7 +242,7 @@ pub fn update(
         }
         TaskBoardMessage::OpenWorkProject(path) => {
             if !std::path::Path::new(path).is_dir() {
-                return app.show_error_toast("项目目录不存在或不可访问".to_string());
+                return app.show_localized_toast(crate::app::state::ToastKind::Error, "项目目录不存在或不可访问", vec![]);
             }
             let task = app.open_project_and_index(path.clone());
             app.task_board.show_task_board = true;
@@ -1012,14 +1012,14 @@ pub fn update(
                 task_id,
                 taskboard::update::rules::work_plan_from_outcome(planning_attempt_id, outcome),
             ),
-            Err(error) => app.show_error_toast(format!("任务拆分失败，请重试: {error}")),
+            Err(error) => app.show_localized_toast(crate::app::state::ToastKind::Error, "任务拆分失败，请重试: %s", vec![error.into()]),
         },
         TaskBoardMessage::ResplitLegacyWorkPlan { project_path, task_id } => {
             if !task_board_project_matches(app, &project_path) {
                 return iced::Task::none();
             }
             let Some(workflow) = app.task_board.task_board_settings.workflow() else {
-                return app.show_error_toast("找不到当前任务工作流".to_owned());
+                return app.show_localized_toast(crate::app::state::ToastKind::Error, "找不到当前任务工作流", vec![]);
             };
             let Some(source) = app.task_board.task_board_tasks.iter().find(|task| task.id == task_id)
                 .filter(|task| taskboard::work_views::can_resplit_legacy_work_plan(task, &workflow))
@@ -1030,7 +1030,7 @@ pub fn update(
             let Some(status) = workflow.statuses.iter().find(|status| {
                 status.enabled && status.role == desktop_task_model::workflow::StatusRole::Queued
             }) else {
-                return app.show_error_toast("当前工作流没有可用的排队状态".to_owned());
+                return app.show_localized_toast(crate::app::state::ToastKind::Error, "当前工作流没有可用的排队状态", vec![]);
             };
             if !app.task_board.work_plan.publishing.insert(task_id.clone()) {
                 return iced::Task::none();
@@ -1060,7 +1060,7 @@ pub fn update(
                         vec![],
                     ),
                 ]),
-                Err(error) => app.show_error_toast(format!("重新拆分失败: {error}")),
+                Err(error) => app.show_localized_toast(crate::app::state::ToastKind::Error, "重新拆分失败: %s", vec![error.into()]),
             }
         }
         TaskBoardMessage::StartWorkPlan { project_path, task_id } => {
@@ -1077,7 +1077,7 @@ pub fn update(
             }
             let manual = app.task_board.work_plan.publishing.remove(&task_id);
             match result {
-                Err(error) => app.show_error_toast(format!("发布工作计划失败，请重试: {error}")),
+                Err(error) => app.show_localized_toast(crate::app::state::ToastKind::Error, "发布工作计划失败，请重试: %s", vec![error.into()]),
                 Ok(result) => {
                     app.task_board.task_board_workflow_generation = next_agent_scheduler_status_generation();
                     let sync = sync_agent_scheduler_status(project_path);

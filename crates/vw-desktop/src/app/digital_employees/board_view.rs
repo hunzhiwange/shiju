@@ -21,61 +21,61 @@ use super::view::{
 
 const ORANGE: Color = Color::from_rgb(0.906, 0.475, 0.318);
 
-pub(super) fn view(board: &Board, width: f32, can_fullscreen: bool) -> Item<'_> {
-    let mut page = column![header(board, width, can_fullscreen)].spacing(20);
+pub(super) fn view(i18n: desktop_i18n::I18n, board: &Board, width: f32, can_fullscreen: bool) -> Item<'_> {
+    let mut page = column![header(i18n, board, width, can_fullscreen)].spacing(20);
     if let Some(error) = &board.error {
-        page = page.push(settings_error_banner(error.as_str()));
+        page = page.push(settings_error_banner(error.render(i18n)));
     } else if board.loading {
-        page = page.push(label("正在加载办公室…", 13, Tone::Muted));
+        page = page.push(label(i18n.__("正在加载办公室…"), 13, Tone::Muted));
     }
     let snapshot = board.snapshot.as_deref();
-    page = page.push(summary(snapshot, width));
+    page = page.push(summary(i18n, snapshot, width));
     if let Some(snapshot) = snapshot {
         if snapshot.summary.partial || snapshot.summary.roster.is_none() {
-            page = page.push(label("部分工作台数据暂不可用", 13, Tone::Red));
+            page = page.push(label(i18n.__("部分工作台数据暂不可用"), 13, Tone::Red));
         }
         page = page
             .push(segmented(
                 row![
-                    segment("数字员工办公室", !board.task_view, message(Event::TaskView(false))),
-                    segment("正在发生的工作", board.task_view, message(Event::TaskView(true))),
+                    segment(i18n.__("数字员工办公室"), !board.task_view, message(Event::TaskView(false))),
+                    segment(i18n.__("正在发生的工作"), board.task_view, message(Event::TaskView(true))),
                 ]
                 .spacing(2)
                 .wrap()
                 .into(),
             ))
             .push(if board.task_view {
-                tasks_panel(board, snapshot, width)
+                tasks_panel(i18n, board, snapshot, width)
             } else {
-                office(board, snapshot, width)
+                office(i18n, board, snapshot, width)
             });
     }
     page.width(Length::Fill).into()
 }
 
-fn header(board: &Board, width: f32, can_fullscreen: bool) -> Item<'_> {
-    let heading = strong("任务看板", 24, Tone::Ink).width(Length::Fill);
+fn header(i18n: desktop_i18n::I18n, board: &Board, width: f32, can_fullscreen: bool) -> Item<'_> {
+    let heading = strong(i18n.__("任务看板"), 24, Tone::Ink).width(Length::Fill);
     let controls = row![
         action(
-            "刷新",
+            i18n.__("刷新"),
             Some(Icon::ArrowRepeat),
             (!board.loading).then(|| message(Event::Refresh)),
             false
         ),
         action(
-            if board.still { "开启动效" } else { "暂停动效" },
+            if board.still { i18n.__("开启动效") } else { i18n.__("暂停动效") },
             None,
             Some(message(Event::ToggleMotion)),
             false
         ),
         action(
-            if board.tour { "关闭巡视" } else { "自动巡视" },
+            if board.tour { i18n.__("关闭巡视") } else { i18n.__("自动巡视") },
             None,
             Some(message(Event::ToggleTour)),
             false
         ),
         action(
-            if board.fullscreen { "退出全屏" } else { "全屏展示 ↗" },
+            if board.fullscreen { i18n.__("退出全屏") } else { i18n.__("全屏展示 ↗") },
             None,
             can_fullscreen.then(|| message(Event::ToggleFullscreen)),
             false
@@ -94,7 +94,7 @@ fn employees(data: &Snapshot) -> &[Employee] {
     data.summary.roster.as_ref().map(|roster| roster.rows.as_slice()).unwrap_or_default()
 }
 
-fn summary(data: Option<&Snapshot>, width: f32) -> Item<'_> {
+fn summary(i18n: desktop_i18n::I18n, data: Option<&Snapshot>, width: f32) -> Item<'_> {
     let counts = data
         .map(|data| {
             [
@@ -103,7 +103,7 @@ fn summary(data: Option<&Snapshot>, width: f32) -> Item<'_> {
                     roster
                         .rows
                         .iter()
-                        .filter(|person| work_state(person, &data.tasks).working)
+                        .filter(|person| work_state(i18n, person, &data.tasks).working)
                         .count()
                 }),
                 Some(data.tasks.iter().filter(|task| task.running()).count()),
@@ -115,14 +115,14 @@ fn summary(data: Option<&Snapshot>, width: f32) -> Item<'_> {
         .map(|data| {
             let kpi = &data.summary.kpi;
             [
-                kpi.employees_total.map(|n| format!("授权范围内共 {n} 位")),
-                kpi.employees_active.map(|n| format!("在岗 {n} 位")),
-                kpi.tasks_completed_today.map(|n| format!("今日已完成 {n} 项")),
-                kpi.approvals_pending.map(|n| format!("其中待审批 {n} 项")),
+                kpi.employees_total.map(|n| i18n.format("授权范围内共 %s 位", &[format!("{}", n).into()]).expect("valid workbench template")),
+                kpi.employees_active.map(|n| i18n.format("在岗 %s 位", &[format!("{}", n).into()]).expect("valid workbench template")),
+                kpi.tasks_completed_today.map(|n| i18n.format("今日已完成 %s 项", &[format!("{}", n).into()]).expect("valid workbench template")),
+                kpi.approvals_pending.map(|n| i18n.format("其中待审批 %s 项", &[format!("{}", n).into()]).expect("valid workbench template")),
             ]
         })
         .unwrap_or_default();
-    let cells: Vec<_> = ["画面中的员工", "正在工作的员工", "并行推进的任务", "等你拍板"]
+    let cells: Vec<_> = [i18n.__("画面中的员工"), i18n.__("正在工作的员工"), i18n.__("并行推进的任务"), i18n.__("等你拍板")]
         .into_iter()
         .zip(counts)
         .zip(notes)
@@ -130,7 +130,7 @@ fn summary(data: Option<&Snapshot>, width: f32) -> Item<'_> {
         .map(|(index, ((title, count), note))| {
             let value = row![
                 strong(count.map_or_else(|| "—".into(), |n| n.to_string()), 25, Tone::Ink),
-                label(if index < 2 { "位" } else { "项" }, 12, Tone::Muted),
+                label(if index < 2 { i18n.__("位") } else { i18n.__("项") }, 12, Tone::Muted),
             ]
             .spacing(5)
             .align_y(Alignment::Center);
@@ -161,46 +161,46 @@ struct WorkState<'a> {
     working: bool,
 }
 
-fn work_state<'a>(person: &'a Employee, tasks: &'a [WorkItem]) -> WorkState<'a> {
+fn work_state<'a>(i18n: desktop_i18n::I18n, person: &'a Employee, tasks: &'a [WorkItem]) -> WorkState<'a> {
     let owned = || {
         tasks.iter().filter(|task| task.owner_ref.as_deref() == Some(person.employee_id.as_str()))
     };
     let (name, action, tone, working) = if person.runtime.status == "none" {
         (
-            "容器未运行",
-            person.runtime.next_action.as_deref().unwrap_or("等待启动"),
+            i18n.__("容器未运行"),
+            person.runtime.next_action.as_deref().unwrap_or(i18n.__("等待启动")),
             Tone::Warning,
             false,
         )
     } else if matches!(person.runtime.status.as_str(), "enabling" | "disabling") {
         (
             person.runtime.label.as_str(),
-            person.runtime.next_action.as_deref().unwrap_or("等待运行状态确认"),
+            person.runtime.next_action.as_deref().unwrap_or(i18n.__("等待运行状态确认")),
             Tone::Warning,
             false,
         )
     } else if person.state == "abnormal" {
-        ("需要协助", person.runtime.cause.as_deref().unwrap_or("运行异常"), Tone::Red, false)
+        (i18n.__("需要协助"), person.runtime.cause.as_deref().unwrap_or(i18n.__("运行异常")), Tone::Red, false)
     } else if let Some(task) = owned().find(|task| task.running() && !task.paused()) {
-        ("工作中", nonempty(task.current_step.as_deref(), "执行任务"), Tone::Accent, true)
+        (i18n.__("工作中"), nonempty(task.current_step.as_deref(), i18n.__("执行任务")), Tone::Accent, true)
     } else if owned().any(WorkItem::paused) {
-        ("已暂停", "等待继续执行", Tone::Warning, false)
+        (i18n.__("已暂停"), i18n.__("等待继续执行"), Tone::Warning, false)
     } else if let Some(task) = owned().find(|task| task.waiting()) {
-        ("等你回复", nonempty(task.blocker.as_deref(), "等待人工处理"), Tone::Warning, false)
+        (i18n.__("等你回复"), nonempty(task.blocker.as_deref(), i18n.__("等待人工处理")), Tone::Warning, false)
     } else if person.agent_kind == "manager"
         && tasks.iter().any(|task| {
             task.running() && task.input_text("employee_id") == Some(person.employee_id.as_str())
         })
     {
-        ("团队执行中", "任务由团队推进", Tone::Accent, false)
+        (i18n.__("团队执行中"), i18n.__("任务由团队推进"), Tone::Accent, false)
     } else {
-        let name = if person.runtime.status == "on_duty" { "在岗" } else { "状态未确认" };
-        (name, nonempty(person.availability.as_deref(), "等待工作安排"), Tone::Green, false)
+        let name = if person.runtime.status == "on_duty" { i18n.__("在岗") } else { i18n.__("状态未确认") };
+        (name, nonempty(person.availability.as_deref(), i18n.__("等待工作安排")), Tone::Green, false)
     };
     WorkState { name, action, tone, working }
 }
 
-fn office<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
+fn office<'a>(i18n: desktop_i18n::I18n, board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
     let selected = employees(data)
         .iter()
         .find(|employee| Some(employee.employee_id.as_str()) == board.employee.as_deref());
@@ -210,11 +210,11 @@ fn office<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
     let focus =
         board.focus.as_ref().and_then(|id| data.tasks.iter().find(|task| &task.task_id == id));
     let title = column![
-        strong("数字员工办公室", 16, Tone::Ink),
+        strong(i18n.__("数字员工办公室"), 16, Tone::Ink),
         label(
             focus.map_or_else(
-                || "点击一位员工，看看 TA 正在忙什么".to_owned(),
-                |task| format!("正在聚焦：{}", task.title)
+                || i18n.__("点击一位员工，看看 TA 正在忙什么").to_owned(),
+                |task| i18n.format("正在聚焦：%s", &[format!("{}", task.title).into()]).expect("valid workbench template")
             ),
             12,
             Tone::Muted
@@ -223,10 +223,10 @@ fn office<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
     .spacing(5)
     .width(Length::Fill);
     let legend = row![
-        status("工作中", Tone::Accent),
-        status("在岗", Tone::Green),
-        status("需回应", Tone::Warning),
-        status("需要协助", Tone::Red),
+        status(i18n.__("工作中"), Tone::Accent),
+        status(i18n.__("在岗"), Tone::Green),
+        status(i18n.__("需回应"), Tone::Warning),
+        status(i18n.__("需要协助"), Tone::Red),
     ]
     .spacing(12);
     let mut panel =
@@ -263,17 +263,17 @@ fn office<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
                 Some(format!("{} → {}", name(from)?, name(to)?))
             });
         let caption = if let Some(dispatch) = dispatch {
-            format!("任务协作 · {dispatch}")
+            i18n.format("任务协作 · %s", &[format!("{}", dispatch).into()]).expect("valid workbench template")
         } else if people.is_empty() {
-            "参与员工不在当前工位名单中".to_owned()
+            i18n.__("参与员工不在当前工位名单中").to_owned()
         } else {
-            format!("参与员工 · {}", people.join(" · "))
+            i18n.format("参与员工 · %s", &[format!("{}", people.join(" · ")).into()]).expect("valid workbench template")
         };
         panel = panel.push(
             container(
                 row![
                     label(caption, 12, Tone::Ink).width(Length::Fill),
-                    link("查看整个办公室 ×", message(Event::Focus(None))),
+                    link(i18n.__("查看整个办公室 ×"), message(Event::Focus(None))),
                 ]
                 .spacing(8)
                 .align_y(Alignment::Center),
@@ -287,9 +287,9 @@ fn office<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
     let side_by_side = office_width >= 620.0;
     let worker_width =
         if side_by_side { office_width - manager_width - 12.0 } else { office_width };
-    let manager = zone("任务主管", true, 1, board, data, focus);
-    let worker = zone(
-        "员工工作区",
+    let manager = zone(i18n, i18n.__("任务主管"), true, 1, board, data, focus);
+    let worker = zone(i18n,
+        i18n.__("员工工作区"),
         false,
         if worker_width >= 700.0 {
             3
@@ -311,15 +311,15 @@ fn office<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
         panel
             .push(zones)
             .push(label(
-                format!("展示授权名单中的 {} 位员工", employees(data).len()),
+                i18n.format("展示授权名单中的 %s 位员工", &[format!("{}", employees(data).len()).into()]).expect("valid workbench template"),
                 12,
                 Tone::Muted,
             ))
             .padding(16),
     );
     let inspect = card(match selected {
-        Some(person) => inspector(board, data, person),
-        None => container(label("当前没有可展示的员工", 13, Tone::Muted)).padding(18).into(),
+        Some(person) => inspector(i18n, board, data, person),
+        None => container(label(i18n.__("当前没有可展示的员工"), 13, Tone::Muted)).padding(18).into(),
     });
     if wide {
         row![office, container(inspect).width(inspector_width)].spacing(20).into()
@@ -328,7 +328,7 @@ fn office<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
     }
 }
 
-fn zone<'a>(
+fn zone<'a>(i18n: desktop_i18n::I18n,
     title: &'static str,
     manager: bool,
     cols: usize,
@@ -339,7 +339,7 @@ fn zone<'a>(
     let people: Vec<_> = employees(data)
         .iter()
         .filter(|person| (person.agent_kind == "manager") == manager)
-        .map(|person| desk(board, data, person, manager, focus))
+        .map(|person| desk(i18n, board, data, person, manager, focus))
         .collect();
     container(
         column![
@@ -347,9 +347,9 @@ fn zone<'a>(
             if people.is_empty() {
                 label(
                     if manager {
-                        "当前范围暂无任务主管"
+                        i18n.__("当前范围暂无任务主管")
                     } else {
-                        "当前范围暂无执行员工"
+                        i18n.__("当前范围暂无执行员工")
                     },
                     12,
                     Tone::Muted,
@@ -367,16 +367,16 @@ fn zone<'a>(
     .into()
 }
 
-fn desk<'a>(
+fn desk<'a>(i18n: desktop_i18n::I18n,
     board: &'a Board,
     data: &'a Snapshot,
     person: &'a Employee,
     manager: bool,
     focus: Option<&WorkItem>,
 ) -> Item<'a> {
-    let state = work_state(person, &data.tasks);
+    let state = work_state(i18n, person, &data.tasks);
     let profile = data.profiles.get(&person.employee_id);
-    let role = role_title(profile, manager);
+    let role = role_title(i18n, profile, manager);
     let selected = board.employee.as_deref() == Some(person.employee_id.as_str());
     let participant = focus.is_some_and(|task| {
         let id = person.employee_id.as_str();
@@ -421,7 +421,7 @@ fn desk<'a>(
         .find(|task| task.owner_ref.as_deref() == Some(person.employee_id.as_str()))
         .map(|task| task.title.as_str())
         .or_else(|| person.current_work.as_ref().map(|work| work.task_name.as_str()))
-        .unwrap_or("在岗，可继续安排工作");
+        .unwrap_or(i18n.__("在岗，可继续安排工作"));
     let body = column![
         identity,
         status(state.name, state.tone),
@@ -455,11 +455,11 @@ fn desk<'a>(
         .into()
 }
 
-fn inspector<'a>(board: &'a Board, data: &'a Snapshot, person: &'a Employee) -> Item<'a> {
-    let state = work_state(person, &data.tasks);
+fn inspector<'a>(i18n: desktop_i18n::I18n, board: &'a Board, data: &'a Snapshot, person: &'a Employee) -> Item<'a> {
+    let state = work_state(i18n, person, &data.tasks);
     let manager = person.agent_kind == "manager";
     let profile = data.profiles.get(&person.employee_id);
-    let role = role_title(profile, manager);
+    let role = role_title(i18n, profile, manager);
     let portrait =
         portraits::avatar(&person.name, manager).map(|handle| image(handle).width(44).height(44));
     let header = row![
@@ -474,15 +474,15 @@ fn inspector<'a>(board: &'a Board, data: &'a Snapshot, person: &'a Employee) -> 
     .align_y(Alignment::Center)
     .spacing(10);
     let mut info = column![
-        label("部门", 11, Tone::Muted),
-        strong(nonempty(person.department_path.as_deref(), "部门未登记"), 13, Tone::Ink),
+        label(i18n.__("部门"), 11, Tone::Muted),
+        strong(nonempty(person.department_path.as_deref(), i18n.__("部门未登记")), 13, Tone::Ink),
     ]
     .spacing(6);
     if let Some(manager) = profile
         .and_then(|profile| profile.manager_name.as_deref())
         .filter(|name| !name.trim().is_empty())
     {
-        info = info.push(label("所属主管", 11, Tone::Muted)).push(strong(manager, 13, Tone::Ink));
+        info = info.push(label(i18n.__("所属主管"), 11, Tone::Muted)).push(strong(manager, 13, Tone::Ink));
     }
     let mut body = column![info].spacing(11);
     if let Some(profile) = profile {
@@ -498,7 +498,7 @@ fn inspector<'a>(board: &'a Board, data: &'a Snapshot, person: &'a Employee) -> 
         }
     }
     body = body.push(
-        column![strong("当前工作", 13, Tone::Ink), label(state.action, 12, Tone::Muted)].spacing(5),
+        column![strong(i18n.__("当前工作"), 13, Tone::Ink), label(state.action, 12, Tone::Muted)].spacing(5),
     );
     let related: Vec<_> = data
         .tasks
@@ -510,14 +510,14 @@ fn inspector<'a>(board: &'a Board, data: &'a Snapshot, person: &'a Employee) -> 
         .take(3)
         .collect();
     for task in related.iter().copied().filter(|task| task.running() || task.waiting()) {
-        let (caption, tone) = task_status(task);
+        let (caption, tone) = task_status(i18n, task);
         body = body.push(
             column![
                 status(caption, tone),
                 strong(task.title.as_str(), 13, Tone::Ink),
-                label(task_ref(&task.task_id), 11, Tone::Muted),
-                progress(task),
-                link("查看任务 ↗", web("/tasks", Some(("task", &task.task_id)))),
+                label(task_ref(i18n, &task.task_id), 11, Tone::Muted),
+                progress(i18n, task),
+                link(i18n.__("查看任务 ↗"), web("/tasks", Some(("task", &task.task_id)))),
             ]
             .spacing(7),
         );
@@ -545,28 +545,28 @@ fn inspector<'a>(board: &'a Board, data: &'a Snapshot, person: &'a Employee) -> 
                 }
                 if record.handoff.is_none() || record.collaboration.is_none() {
                     unavailable = true;
-                    body = body.push(link("重试证据", message(Event::Retry(task.task_id.clone()))));
+                    body = body.push(link(i18n.__("重试证据"), message(Event::Retry(task.task_id.clone()))));
                 }
             }
             Some(Some(Err(_))) => {
                 unavailable = true;
-                body = body.push(link("重试任务记录", message(Event::Retry(task.task_id.clone()))));
+                body = body.push(link(i18n.__("重试任务记录"), message(Event::Retry(task.task_id.clone()))));
             }
             _ => {}
         }
     }
     records.sort_by(|a, b| b.occurred_at.cmp(&a.occurred_at));
-    body = body.push(strong("最近协作记录", 13, Tone::Ink));
+    body = body.push(strong(i18n.__("最近协作记录"), 13, Tone::Ink));
     if incomplete || unavailable {
-        body = body.push(label("部分协作记录暂不可用", 11, Tone::Muted));
+        body = body.push(label(i18n.__("部分协作记录暂不可用"), 11, Tone::Muted));
     }
     for entry in records.into_iter().take(3) {
         let kind = match entry.kind.as_str() {
-            "DISPATCH" => "派工",
-            "ACKNOWLEDGEMENT" => "接单确认",
-            "EMPLOYEE_REPORT" => "员工回报",
-            "HUMAN_MESSAGE" => "人工消息",
-            _ => "协作记录",
+            "DISPATCH" => i18n.__("派工"),
+            "ACKNOWLEDGEMENT" => i18n.__("接单确认"),
+            "EMPLOYEE_REPORT" => i18n.__("员工回报"),
+            "HUMAN_MESSAGE" => i18n.__("人工消息"),
+            _ => i18n.__("协作记录"),
         };
         let mut entry_view = column![
             strong(format!("{kind} · {}", entry.actor.label), 12, Tone::Ink),
@@ -580,15 +580,15 @@ fn inspector<'a>(board: &'a Board, data: &'a Snapshot, person: &'a Employee) -> 
     }
     let count = outputs.len();
     body = body.push(row![
-        strong("参与任务的成果", 13, Tone::Ink).width(Length::Fill),
-        label(format!("{count} 份"), 11, Tone::Muted),
+        strong(i18n.__("参与任务的成果"), 13, Tone::Ink).width(Length::Fill),
+        label(i18n.format("%s 份", &[format!("{}", count).into()]).expect("valid workbench template"), 11, Tone::Muted),
     ]);
     for (task, output) in outputs.into_iter().take(3) {
-        let title = nonempty(output.name.as_deref(), "未命名成果");
+        let title = nonempty(output.name.as_deref(), i18n.__("未命名成果"));
         body = body.push(link(title, web("/tasks", Some(("task", &task.task_id)))));
     }
     body = body.push(action(
-        "查看员工资料 ↗",
+        i18n.__("查看员工资料 ↗"),
         None,
         Some(Message::View(ViewMessage::OpenUrlExternal(employee_config_url(&person.employee_id)))),
         false,
@@ -596,24 +596,24 @@ fn inspector<'a>(board: &'a Board, data: &'a Snapshot, person: &'a Employee) -> 
     column![header, body].spacing(16).padding(16).width(Length::Fill).into()
 }
 
-fn tasks_panel<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
+fn tasks_panel<'a>(i18n: desktop_i18n::I18n, board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a> {
     let controls = segmented(
         row![
-            segment("执行中", board.queue == Queue::Running, message(Event::Queue(Queue::Running))),
+            segment(i18n.__("执行中"), board.queue == Queue::Running, message(Event::Queue(Queue::Running))),
             segment(
-                "等你拍板",
+                i18n.__("等你拍板"),
                 board.queue == Queue::Waiting,
                 message(Event::Queue(Queue::Waiting))
             ),
-            segment("全部任务", board.queue == Queue::All, message(Event::Queue(Queue::All))),
+            segment(i18n.__("全部任务"), board.queue == Queue::All, message(Event::Queue(Queue::All))),
         ]
         .spacing(2)
         .wrap()
         .into(),
     );
     let title = column![
-        strong("正在发生的工作", 16, Tone::Ink),
-        label("任务中心的任务 · 查看整体进度、节点状态和每一步的负责人", 12, Tone::Muted),
+        strong(i18n.__("正在发生的工作"), 16, Tone::Ink),
+        label(i18n.__("任务中心的任务 · 查看整体进度、节点状态和每一步的负责人"), 12, Tone::Muted),
     ]
     .spacing(5)
     .width(Length::Fill);
@@ -623,10 +623,10 @@ fn tasks_panel<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a>
         .into_iter()
         .skip(board.page.saturating_mul(PAGE_SIZE))
         .take(PAGE_SIZE)
-        .map(|task| task_card(board, data, task))
+        .map(|task| task_card(i18n, board, data, task))
         .collect();
     let list = if cards.is_empty() {
-        label("当前没有符合条件的任务", 13, Tone::Muted).into()
+        label(i18n.__("当前没有符合条件的任务"), 13, Tone::Muted).into()
     } else {
         grid(
             cards,
@@ -648,14 +648,14 @@ fn tasks_panel<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a>
             container(
                 row![
                     action(
-                        "上一页",
+                        i18n.__("上一页"),
                         None,
                         board.page.checked_sub(1).map(|page| message(Event::Page(page))),
                         false
                     ),
                     label(format!("{} / {page_count}", board.page + 1), 12, Tone::Muted),
                     action(
-                        "下一页",
+                        i18n.__("下一页"),
                         None,
                         (board.page + 1 < page_count).then(|| message(Event::Page(board.page + 1))),
                         false
@@ -671,14 +671,14 @@ fn tasks_panel<'a>(board: &'a Board, data: &'a Snapshot, width: f32) -> Item<'a>
     content.into()
 }
 
-fn task_card<'a>(board: &'a Board, data: &'a Snapshot, task: &'a WorkItem) -> Item<'a> {
+fn task_card<'a>(i18n: desktop_i18n::I18n, board: &'a Board, data: &'a Snapshot, task: &'a WorkItem) -> Item<'a> {
     let workflow = task
         .input_text("workflow_id")
         .and_then(|id| data.workflows.get(id))
         .map(String::as_str)
         .or_else(|| task.input_text("workflow_name"))
-        .unwrap_or("协作任务");
-    let (state, tone) = task_status(task);
+        .unwrap_or(i18n.__("协作任务"));
+    let (state, tone) = task_status(i18n, task);
     let head = row![label(workflow, 12, Tone::Muted).width(Length::Fill), status(state, tone),]
         .spacing(8)
         .align_y(Alignment::Center);
@@ -687,32 +687,32 @@ fn task_card<'a>(board: &'a Board, data: &'a Snapshot, task: &'a WorkItem) -> It
     let active_steps: Vec<_> =
         current.into_iter().flatten().filter(|step| step.status == "RUNNING").collect();
     let mut current_node = column![label(
-        if active_steps.len() > 1 { "当前并行节点" } else { "当前节点" },
+        if active_steps.len() > 1 { i18n.__("当前并行节点") } else { i18n.__("当前节点") },
         11,
         Tone::Muted
     ),]
     .spacing(4);
     if active_steps.is_empty() {
         current_node = current_node.push(label(
-            nonempty(task.current_step.as_deref(), "暂无当前节点"),
+            nonempty(task.current_step.as_deref(), i18n.__("暂无当前节点")),
             13,
             Tone::Ink,
         ));
     } else {
         for step in active_steps {
-            let (state, _) = step_status(task, step);
-            let assignee = step_actor(data, task, step).unwrap_or("负责人未分配");
+            let (state, _) = step_status(i18n, task, step);
+            let assignee = step_actor(data, task, step).unwrap_or(i18n.__("负责人未分配"));
             current_node = current_node.push(label(
-                format!("{assignee} · {state} · {}", nonempty(step.name.as_deref(), "未命名节点")),
+                format!("{assignee} · {state} · {}", nonempty(step.name.as_deref(), i18n.__("未命名节点"))),
                 12,
                 Tone::Ink,
             ));
         }
     }
     let mut body = column![
-        strong(nonempty(Some(&task.title), "未命名任务"), 15, Tone::Ink),
-        label(task_ref(&task.task_id), 11, Tone::Muted),
-        progress(task),
+        strong(nonempty(Some(&task.title), i18n.__("未命名任务")), 15, Tone::Ink),
+        label(task_ref(i18n, &task.task_id), 11, Tone::Muted),
+        progress(i18n, task),
         current_node,
     ]
     .spacing(9);
@@ -724,15 +724,15 @@ fn task_card<'a>(board: &'a Board, data: &'a Snapshot, task: &'a WorkItem) -> It
         Some(Ok(record)) => {
             let steps = &record.detail.steps;
             if steps.is_empty() {
-                nodes = nodes.push(label("任务中心尚未提供节点记录", 12, Tone::Muted));
+                nodes = nodes.push(label(i18n.__("任务中心尚未提供节点记录"), 12, Tone::Muted));
             } else {
                 let done = steps.iter().filter(|step| step.status == "SUCCEEDED").count();
                 nodes = nodes.push(row![
-                    strong("任务节点", 13, Tone::Ink).width(Length::Fill),
-                    label(format!("已完成 {done} / {}", steps.len()), 11, Tone::Muted),
+                    strong(i18n.__("任务节点"), 13, Tone::Ink).width(Length::Fill),
+                    label(i18n.format("已完成 %s / %s", &[format!("{}", done).into(), format!("{}", steps.len()).into()]).expect("valid workbench template"), 11, Tone::Muted),
                 ]);
                 let entries = column(
-                    steps.iter().enumerate().map(|(index, step)| node(data, task, step, index)),
+                    steps.iter().enumerate().map(|(index, step)| node(i18n, data, task, step, index)),
                 )
                 .spacing(8)
                 .width(Length::Fill);
@@ -753,38 +753,38 @@ fn task_card<'a>(board: &'a Board, data: &'a Snapshot, task: &'a WorkItem) -> It
         }
         Some(Err(error)) => {
             nodes = nodes
-                .push(label(error.as_str(), 12, Tone::Red))
-                .push(link("重试节点", message(Event::Retry(task.task_id.clone()))));
+                .push(label(error.render(i18n), 12, Tone::Red))
+                .push(link(i18n.__("重试节点"), message(Event::Retry(task.task_id.clone()))));
         }
-        None => nodes = nodes.push(label("正在读取节点…", 12, Tone::Muted)),
+        None => nodes = nodes.push(label(i18n.__("正在读取节点…"), 12, Tone::Muted)),
     }
     let expanded = board.expanded.as_deref() == Some(task.task_id.as_str());
     body = body.push(nodes).push(link(
-        if expanded { "收起工作交接" } else { "工作交接" },
+        if expanded { i18n.__("收起工作交接") } else { i18n.__("工作交接") },
         message(Event::Expand(task.task_id.clone())),
     ));
     if expanded {
         let handoff =
             detail.and_then(|entry| entry.as_ref().ok()).and_then(|record| record.handoff.as_ref());
         body = body.push(match handoff {
-            Some(handoff) => handoff_view(handoff),
-            None if detail.is_none() => label("正在读取工作交接…", 12, Tone::Muted).into(),
-            None => link("重试工作交接", message(Event::Retry(task.task_id.clone()))),
+            Some(handoff) => handoff_view(i18n, handoff),
+            None if detail.is_none() => label(i18n.__("正在读取工作交接…"), 12, Tone::Muted).into(),
+            None => link(i18n.__("重试工作交接"), message(Event::Retry(task.task_id.clone()))),
         });
     }
     body = body.push(label(
-        format!("更新于 {}", format_time(task.updated_at.as_deref())),
+        i18n.format("更新于 %s", &[format!("{}", format_time(task.updated_at.as_deref())).into()]).expect("valid workbench template"),
         11,
         Tone::Muted,
     ));
     let footer = row![
         action(
-            "在办公室看协作",
+            i18n.__("在办公室看协作"),
             None,
             Some(message(Event::Focus(Some(task.task_id.clone())))),
             false
         ),
-        link("任务详情 ↗", web("/tasks", Some(("task", &task.task_id)))),
+        link(i18n.__("任务详情 ↗"), web("/tasks", Some(("task", &task.task_id)))),
     ]
     .spacing(8)
     .align_y(Alignment::Center)
@@ -812,11 +812,11 @@ fn step_actor<'a>(data: &'a Snapshot, task: &'a WorkItem, step: &'a Step) -> Opt
     })
 }
 
-fn node<'a>(data: &'a Snapshot, task: &'a WorkItem, step: &'a Step, index: usize) -> Item<'a> {
-    let (state, tone) = step_status(task, step);
+fn node<'a>(i18n: desktop_i18n::I18n, data: &'a Snapshot, task: &'a WorkItem, step: &'a Step, index: usize) -> Item<'a> {
+    let (state, tone) = step_status(i18n, task, step);
     let marker =
         if step.status == "SUCCEEDED" { "✓".to_owned() } else { format!("{:02}", index + 1) };
-    let name = step_actor(data, task, step).unwrap_or("尚未分配");
+    let name = step_actor(data, task, step).unwrap_or(i18n.__("尚未分配"));
     let actor = task
         .step_employee(step)
         .filter(|id| employees(data).iter().any(|person| person.employee_id == *id));
@@ -827,11 +827,11 @@ fn node<'a>(data: &'a Snapshot, task: &'a WorkItem, step: &'a Step, index: usize
     let human = matches!(step.kind.as_deref(), Some("approval" | "input" | "takeover" | "human"));
     let mut info = column![
         row![
-            label(nonempty(step.name.as_deref(), "未命名节点"), 13, Tone::Ink).width(Length::Fill),
+            label(nonempty(step.name.as_deref(), i18n.__("未命名节点")), 13, Tone::Ink).width(Length::Fill),
             label(state, 11, tone)
         ]
         .spacing(6),
-        row![label(if human { "处理人" } else { "执行员工" }, 11, Tone::Muted), actor]
+        row![label(if human { i18n.__("处理人") } else { i18n.__("执行员工") }, 11, Tone::Muted), actor]
             .spacing(7)
             .align_y(Alignment::Center),
     ]
@@ -852,58 +852,58 @@ fn node<'a>(data: &'a Snapshot, task: &'a WorkItem, step: &'a Step, index: usize
     .into()
 }
 
-fn task_status(task: &WorkItem) -> (&str, Tone) {
+fn task_status(i18n: desktop_i18n::I18n, task: &WorkItem) -> (&str, Tone) {
     if task.paused() {
-        return ("已暂停", Tone::Warning);
+        return (i18n.__("已暂停"), Tone::Warning);
     }
     match task.status.as_str() {
-        "CREATED" | "PENDING" => ("未开始", Tone::Muted),
-        "RUNNING" => ("执行中", Tone::Accent),
-        "QUEUED" => ("排队中", Tone::Muted),
-        "SCHEDULED" => ("定时待触发", Tone::Muted),
-        "SUCCEEDED" => ("已完成", Tone::Green),
-        "FAILED" => ("失败", Tone::Red),
-        "CANCELLED" => ("已取消", Tone::Muted),
-        "CANCEL_REQUESTED" => ("取消中", Tone::Muted),
-        "REJECTED" => ("被驳回", Tone::Red),
-        "WAITING_APPROVAL" => ("待人工审批", Tone::Warning),
-        "WAITING_INPUT" => ("待补充材料", Tone::Warning),
-        "HUMAN_TAKEOVER" => ("人工接管中", Tone::Warning),
-        _ => (nonempty(task.status_label.as_deref(), "状态未提供"), Tone::Muted),
+        "CREATED" | "PENDING" => (i18n.__("未开始"), Tone::Muted),
+        "RUNNING" => (i18n.__("执行中"), Tone::Accent),
+        "QUEUED" => (i18n.__("排队中"), Tone::Muted),
+        "SCHEDULED" => (i18n.__("定时待触发"), Tone::Muted),
+        "SUCCEEDED" => (i18n.__("已完成"), Tone::Green),
+        "FAILED" => (i18n.__("失败"), Tone::Red),
+        "CANCELLED" => (i18n.__("已取消"), Tone::Muted),
+        "CANCEL_REQUESTED" => (i18n.__("取消中"), Tone::Muted),
+        "REJECTED" => (i18n.__("被驳回"), Tone::Red),
+        "WAITING_APPROVAL" => (i18n.__("待人工审批"), Tone::Warning),
+        "WAITING_INPUT" => (i18n.__("待补充材料"), Tone::Warning),
+        "HUMAN_TAKEOVER" => (i18n.__("人工接管中"), Tone::Warning),
+        _ => (nonempty(task.status_label.as_deref(), i18n.__("状态未提供")), Tone::Muted),
     }
 }
 
-fn step_status(task: &WorkItem, step: &Step) -> (&'static str, Tone) {
+fn step_status(i18n: desktop_i18n::I18n, task: &WorkItem, step: &Step) -> (&'static str, Tone) {
     match step.status.as_str() {
-        "SUCCEEDED" => ("已完成", Tone::Green),
-        "FAILED" => ("失败", Tone::Red),
-        "PENDING" => ("未开始", Tone::Muted),
-        "WAITING" => ("等待中", Tone::Warning),
-        "SKIPPED" => ("已跳过", Tone::Muted),
-        "CANCELLED" => ("已取消", Tone::Muted),
-        "RUNNING" if task.paused() => ("已暂停", Tone::Warning),
+        "SUCCEEDED" => (i18n.__("已完成"), Tone::Green),
+        "FAILED" => (i18n.__("失败"), Tone::Red),
+        "PENDING" => (i18n.__("未开始"), Tone::Muted),
+        "WAITING" => (i18n.__("等待中"), Tone::Warning),
+        "SKIPPED" => (i18n.__("已跳过"), Tone::Muted),
+        "CANCELLED" => (i18n.__("已取消"), Tone::Muted),
+        "RUNNING" if task.paused() => (i18n.__("已暂停"), Tone::Warning),
         "RUNNING" => match step.kind.as_deref() {
-            Some("approval") => ("待人工审批", Tone::Warning),
-            Some("input") => ("待补充材料", Tone::Warning),
-            Some("takeover") => ("人工接管中", Tone::Warning),
-            _ => ("执行中", Tone::Accent),
+            Some("approval") => (i18n.__("待人工审批"), Tone::Warning),
+            Some("input") => (i18n.__("待补充材料"), Tone::Warning),
+            Some("takeover") => (i18n.__("人工接管中"), Tone::Warning),
+            _ => (i18n.__("执行中"), Tone::Accent),
         },
-        _ => ("状态未记录", Tone::Muted),
+        _ => (i18n.__("状态未记录"), Tone::Muted),
     }
 }
 
-fn progress(task: &WorkItem) -> Item<'_> {
+fn progress(i18n: desktop_i18n::I18n, task: &WorkItem) -> Item<'_> {
     let value = task.progress();
     let mut content = column![
         row![
             label(
-                if task.progress_estimated { "预估任务进度" } else { "任务进度" },
+                if task.progress_estimated { i18n.__("预估任务进度") } else { i18n.__("任务进度") },
                 12,
                 Tone::Muted
             )
             .width(Length::Fill),
             strong(
-                value.map_or_else(|| "未提供".to_owned(), |pct| format!("{pct:.0}%")),
+                value.map_or_else(|| i18n.__("未提供").to_owned(), |pct| format!("{pct:.0}%")),
                 14,
                 Tone::Ink
             ),
@@ -922,10 +922,10 @@ fn progress(task: &WorkItem) -> Item<'_> {
     content.into()
 }
 
-fn role_title(profile: Option<&Profile>, manager: bool) -> &str {
+fn role_title(i18n: desktop_i18n::I18n, profile: Option<&Profile>, manager: bool) -> &str {
     nonempty(
         profile.and_then(|profile| profile.role_title.as_deref()),
-        if manager { "任务主管" } else { "执行员工" },
+        if manager { i18n.__("任务主管") } else { i18n.__("执行员工") },
     )
 }
 
@@ -1037,18 +1037,18 @@ impl canvas::Program<Message> for Furniture {
     }
 }
 
-fn handoff_view(handoff: &Handoff) -> Item<'_> {
+fn handoff_view(i18n: desktop_i18n::I18n, handoff: &Handoff) -> Item<'_> {
     let mut content = column![].spacing(6);
     if !handoff.record_complete {
-        content = content.push(label("部分交接记录暂不可用", 11, Tone::Muted));
+        content = content.push(label(i18n.__("部分交接记录暂不可用"), 11, Tone::Muted));
     }
-    for (title, notes) in [("接到的要求", &handoff.inputs), ("最近工作回报", &handoff.reports)]
+    for (title, notes) in [(i18n.__("接到的要求"), &handoff.inputs), (i18n.__("最近工作回报"), &handoff.reports)]
     {
         if !notes.is_empty() {
             content = content.push(strong(title, 12, Tone::Ink));
             for note in notes.iter().rev().take(3) {
                 content = content.push(label(
-                    nonempty(note.summary.as_deref(), "正文未提供或不可见"),
+                    nonempty(note.summary.as_deref(), i18n.__("正文未提供或不可见")),
                     12,
                     Tone::Muted,
                 ));
@@ -1056,22 +1056,22 @@ fn handoff_view(handoff: &Handoff) -> Item<'_> {
         }
     }
     content =
-        content.push(strong(format!("交付成果 · {} 份", handoff.outputs.len()), 12, Tone::Ink));
+        content.push(strong(i18n.format("交付成果 · %s 份", &[format!("{}", handoff.outputs.len()).into()]).expect("valid workbench template"), 12, Tone::Ink));
     for output in handoff.outputs.iter().take(3) {
-        let name = nonempty(output.name.as_deref(), "未命名成果");
-        let producer = nonempty(output.producer.as_deref(), "提交人未记录");
+        let name = nonempty(output.name.as_deref(), i18n.__("未命名成果"));
+        let producer = nonempty(output.producer.as_deref(), i18n.__("提交人未记录"));
         content = content.push(label(format!("{name} · {producer}"), 12, Tone::Muted));
     }
     if !handoff.reviews.is_empty() {
-        content = content.push(strong("验收与修改意见", 12, Tone::Ink));
+        content = content.push(strong(i18n.__("验收与修改意见"), 12, Tone::Ink));
         for review in handoff.reviews.iter().rev().take(3) {
             let status = match review.outcome.as_str() {
-                "ACCEPTED" => "验收通过",
-                "REVISION_REQUESTED" => "需要修改",
-                _ => "结论未确认",
+                "ACCEPTED" => i18n.__("验收通过"),
+                "REVISION_REQUESTED" => i18n.__("需要修改"),
+                _ => i18n.__("结论未确认"),
             };
             content = content.push(label(
-                format!("{status} · {}", nonempty(review.summary.as_deref(), "未登记意见")),
+                format!("{status} · {}", nonempty(review.summary.as_deref(), i18n.__("未登记意见"))),
                 12,
                 Tone::Muted,
             ));

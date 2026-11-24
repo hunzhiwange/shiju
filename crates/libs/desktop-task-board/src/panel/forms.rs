@@ -118,7 +118,7 @@ pub(super) fn build_agent_options(app: PanelView<'_>, selected_key: &str) -> Vec
         options.push(TaskBoardAgentOption {
             key: entry.key.clone(),
             label: if entry.key == MAIN_AGENT_KEY {
-                "Main".to_string()
+                desktop_i18n::I18n::new(app.desktop_locale).__("主智能体").to_owned()
             } else {
                 entry.label.clone()
             },
@@ -128,7 +128,7 @@ pub(super) fn build_agent_options(app: PanelView<'_>, selected_key: &str) -> Vec
     if !options.iter().any(|option| option.key == MAIN_AGENT_KEY) {
         options.insert(
             0,
-            TaskBoardAgentOption { key: MAIN_AGENT_KEY.to_string(), label: "Main".to_string() },
+            TaskBoardAgentOption { key: MAIN_AGENT_KEY.to_string(), label: desktop_i18n::I18n::new(app.desktop_locale).__("主智能体").to_owned() },
         );
     }
 

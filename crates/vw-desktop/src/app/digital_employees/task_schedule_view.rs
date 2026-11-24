@@ -10,18 +10,18 @@ use super::tasks::{CenterEvent, message};
 use super::tasks_view::field;
 use super::view::{Item, Tone, label};
 
-pub(super) fn repeat_view(schedule: &RepeatSchedule, editable: bool) -> Item<'static> {
+pub(super) fn repeat_view(i18n: desktop_i18n::I18n, schedule: &RepeatSchedule, editable: bool) -> Item<'static> {
     let current = match schedule {
         RepeatSchedule::Pattern(pattern) => Some(*pattern),
         RepeatSchedule::Custom(_) => None,
     };
     let pattern = current.unwrap_or_default();
     let mode = field(
-        "重复周期",
-        settings_select(RepeatMode::ALL, current.map(|pattern| pattern.mode), move |mode| {
-            message(CenterEvent::DraftRepeat(RepeatPattern { mode, ..pattern }))
+        i18n.__("重复周期"),
+        settings_select(RepeatMode::ALL.map(|value| super::LocalizedOption::new(value, i18n)), current.map(|pattern| super::LocalizedOption::new(pattern.mode, i18n)), move |mode| {
+            message(CenterEvent::DraftRepeat(RepeatPattern { mode: mode.value, ..pattern }))
         })
-        .placeholder("保留原有时间安排")
+        .placeholder(i18n.__("保留原有时间安排"))
         .width(Length::Fill)
         .disabled(!editable)
         .into(),
@@ -29,7 +29,7 @@ pub(super) fn repeat_view(schedule: &RepeatSchedule, editable: bool) -> Item<'st
     if current.is_none() {
         return column![
             mode,
-            label("将按原有时间规则执行。选择新的周期会替换原规则。", 12, Tone::Muted),
+            label(i18n.__("将按原有时间规则执行。选择新的周期会替换原规则。"), 12, Tone::Muted),
         ]
         .spacing(8)
         .into();
@@ -37,26 +37,26 @@ pub(super) fn repeat_view(schedule: &RepeatSchedule, editable: bool) -> Item<'st
 
     let detail = match pattern.mode {
         RepeatMode::Weekly => Some(number_field(
-            "星期",
+            i18n.__("星期"),
             0..7,
             pattern.weekday,
-            |value| WEEKDAYS[value as usize].to_owned(),
+            |value| i18n.__(WEEKDAYS[value as usize]).to_owned(),
             move |weekday| RepeatPattern { weekday, ..pattern },
             editable,
         )),
         RepeatMode::Monthly => Some(number_field(
-            "每月几号",
+            i18n.__("每月几号"),
             1..=31,
             pattern.day,
-            |value| format!("{value} 日"),
+            |value| i18n.format("%s 日", &[format!("{}", value).into()]).expect("valid workbench template"),
             move |day| RepeatPattern { day, ..pattern },
             editable,
         )),
         RepeatMode::Hourly => Some(number_field(
-            "每小时第几分钟",
+            i18n.__("每小时第几分钟"),
             0..60,
             pattern.time.minute(),
-            |value| format!("{value} 分钟"),
+            |value| i18n.format("%s 分钟", &[format!("{}", value).into()]).expect("valid workbench template"),
             move |minute| RepeatPattern {
                 time: pattern.time.with_minute(minute).unwrap(),
                 ..pattern
@@ -64,12 +64,12 @@ pub(super) fn repeat_view(schedule: &RepeatSchedule, editable: bool) -> Item<'st
             editable,
         )),
         RepeatMode::Minutes => Some(number_field(
-            "间隔",
+            i18n.__("间隔"),
             INTERVALS
                 .into_iter()
                 .chain((!INTERVALS.contains(&pattern.interval)).then_some(pattern.interval)),
             pattern.interval,
-            |value| format!("{value} 分钟"),
+            |value| i18n.format("%s 分钟", &[format!("{}", value).into()]).expect("valid workbench template"),
             move |interval| RepeatPattern { interval, ..pattern },
             editable,
         )),
@@ -78,18 +78,18 @@ pub(super) fn repeat_view(schedule: &RepeatSchedule, editable: bool) -> Item<'st
     let mut form = column![row![mode, detail].spacing(8)].spacing(10);
     if !matches!(pattern.mode, RepeatMode::Hourly | RepeatMode::Minutes) {
         let hours = number_field(
-            "执行小时",
+            i18n.__("执行小时"),
             0..24,
             pattern.time.hour(),
-            |value| format!("{value:02} 时"),
+            |value| i18n.format("%s 时", &[format!("{:02}", value).into()]).expect("valid workbench template"),
             move |hour| RepeatPattern { time: pattern.time.with_hour(hour).unwrap(), ..pattern },
             editable,
         );
         let minutes = number_field(
-            "执行分钟",
+            i18n.__("执行分钟"),
             0..60,
             pattern.time.minute(),
-            |value| format!("{value:02} 分"),
+            |value| i18n.format("%s 分", &[format!("{:02}", value).into()]).expect("valid workbench template"),
             move |minute| RepeatPattern {
                 time: pattern.time.with_minute(minute).unwrap(),
                 ..pattern
@@ -99,11 +99,11 @@ pub(super) fn repeat_view(schedule: &RepeatSchedule, editable: bool) -> Item<'st
         form = form.push(row![hours, minutes].spacing(8));
     }
     let hint = match pattern.mode {
-        RepeatMode::Monthly if pattern.day > 28 => Some("没有这一天的月份会跳过。"),
-        RepeatMode::Minutes => Some("每个整点重新计时。"),
+        RepeatMode::Monthly if pattern.day > 28 => Some(i18n.__("没有这一天的月份会跳过。")),
+        RepeatMode::Minutes => Some(i18n.__("每个整点重新计时。")),
         _ => None,
     };
-    form.push(label(format!("{}（北京时间）", pattern.description()), 12, Tone::Muted))
+    form.push(label(i18n.format("%s（北京时间）", &[format!("{}", pattern.description(i18n)).into()]).expect("valid workbench template"), 12, Tone::Muted))
         .push(hint.map(|hint| label(hint, 12, Tone::Muted)))
         .into()
 }

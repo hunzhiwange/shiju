@@ -202,7 +202,7 @@ pub(super) struct Drawer {
     pub id: String,
     pub tab: DetailTab,
     pub record: Option<Arc<Record>>,
-    pub error: Option<String>,
+    pub error: Option<desktop_i18n::workflow::Feedback>,
     pub loading: bool,
     pub view_only: bool,
     pub live: bool,
@@ -222,7 +222,7 @@ pub(super) struct Center {
     pub list: Option<Arc<List>>,
     pub plans: Option<Arc<Schedules>>,
     pub directory: Option<Arc<Directory>>,
-    pub directory_error: Option<String>,
+    pub directory_error: Option<desktop_i18n::workflow::Feedback>,
     pub departments: Option<Arc<[(String, String)]>>,
     pub department_error: bool,
     pub department_menu: bool,
@@ -233,9 +233,9 @@ pub(super) struct Center {
     pub draft: Option<Draft>,
     pub loading: bool,
     pub busy: bool,
-    pub error: Option<String>,
-    pub command_error: Option<String>,
-    pub notice: Option<String>,
+    pub error: Option<desktop_i18n::workflow::Feedback>,
+    pub command_error: Option<desktop_i18n::workflow::Feedback>,
+    pub notice: Option<desktop_i18n::workflow::Feedback>,
     pub selected: HashSet<String>,
     list_revision: u64,
     detail_revision: u64,
@@ -313,15 +313,15 @@ pub(super) struct TaskConfirmation {
 pub(crate) enum CenterEvent {
     ViewSchedules(bool),
     Load,
-    ListLoaded(u64, Result<Arc<List>, String>),
-    SchedulesLoaded(u64, Result<Arc<Schedules>, String>),
-    DirectoryLoaded(u64, Result<Arc<Directory>, String>),
+    ListLoaded(u64, Result<Arc<List>, desktop_i18n::workflow::Feedback>),
+    SchedulesLoaded(u64, Result<Arc<Schedules>, desktop_i18n::workflow::Feedback>),
+    DirectoryLoaded(u64, Result<Arc<Directory>, desktop_i18n::workflow::Feedback>),
     Keyword(String),
     Query,
     Phase(Phase),
     Department(String),
     LoadDepartments,
-    DepartmentsLoaded(u64, Result<Arc<[(String, String)]>, String>),
+    DepartmentsLoaded(u64, Result<Arc<[(String, String)]>, desktop_i18n::workflow::Feedback>),
     DepartmentMenu(bool),
     DepartmentSearch(String),
     Employee(String),
@@ -335,7 +335,7 @@ pub(crate) enum CenterEvent {
     RowMenu(Option<String>),
     Close,
     DetailTab(DetailTab),
-    DetailLoaded(u64, Result<Arc<Record>, String>),
+    DetailLoaded(u64, Result<Arc<Record>, desktop_i18n::workflow::Feedback>),
     RefreshDetail,
     Reconnect,
     AutoRefresh,
@@ -362,9 +362,9 @@ pub(crate) enum CenterEvent {
     Select(String, bool),
     SelectPage(bool),
     BatchRetry,
-    BatchDone(u64, Result<Arc<task_api::BatchResult>, String>),
+    BatchDone(u64, Result<Arc<task_api::BatchResult>, desktop_i18n::workflow::Feedback>),
     Schedule(String, ScheduleAction),
-    CommandDone(u64, bool, Result<(), String>),
+    CommandDone(u64, bool, Result<(), desktop_i18n::workflow::Feedback>),
 }
 
 pub(super) fn message(event: CenterEvent) -> Message {
@@ -983,12 +983,9 @@ pub(super) fn update(app: &mut App, event: CenterEvent) -> Task<Message> {
             center.busy = false;
             match result {
                 Ok(result) => {
-                    center.notice = Some(format!(
-                        "批量重跑 · 成功 {}，已处理 {}，跳过 {}，失败 {}",
-                        result.succeeded,
-                        result.noops,
-                        result.skipped.len(),
-                        result.failed
+                    center.notice = Some(desktop_i18n::workflow::Feedback::new(
+                        "批量重跑 · 成功 %s，已处理 %s，跳过 %s，失败 %s",
+                        vec![result.succeeded.to_string(), result.noops.to_string(), result.skipped.len().to_string(), result.failed.to_string()]
                     ));
                     return load(app);
                 }
@@ -1085,7 +1082,7 @@ fn validate(center: &Center) -> Result<(Draft, String, Option<String>), &'static
 fn command<F, Fut>(app: &mut App, created: bool, run: F) -> Task<Message>
 where
     F: FnOnce(desktop_account::SecretSkey) -> Fut + Send + 'static,
-    Fut: Future<Output = Result<(), String>> + Send + 'static,
+    Fut: Future<Output = Result<(), desktop_i18n::workflow::Feedback>> + Send + 'static,
 {
     let Some(account) = app.account.active_account() else { return Task::none() };
     let key = account.skill_hub_credential();

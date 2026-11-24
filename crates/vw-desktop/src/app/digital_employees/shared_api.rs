@@ -189,7 +189,7 @@ pub(super) async fn operate(
     operation: Operation,
     version: Option<u64>,
     name: &str,
-) -> Result<&'static str, String> {
+) -> Result<&'static str, desktop_i18n::workflow::Feedback> {
     let client = Client::new(credential)?;
     if operation == Operation::SaveTemplate {
         let _: serde_json::Value = client
@@ -235,7 +235,7 @@ pub(super) struct TaskCounts {
     pub active: usize,
 }
 
-pub(super) async fn load(credential: &str) -> Result<Directory, String> {
+pub(super) async fn load(credential: &str) -> Result<Directory, desktop_i18n::workflow::Feedback> {
     let client = Client::new(credential)?;
     let (employees, templates, counts, access) = tokio::join!(
         employees(&client),
@@ -253,7 +253,7 @@ pub(super) async fn load(credential: &str) -> Result<Directory, String> {
     })
 }
 
-async fn employees(client: &Client) -> Result<Vec<SharedEmployee>, String> {
+async fn employees(client: &Client) -> Result<Vec<SharedEmployee>, desktop_i18n::workflow::Feedback> {
     let mut all = Vec::new();
     let mut seen = HashSet::new();
     let mut offset = 0;
@@ -280,7 +280,7 @@ async fn employees(client: &Client) -> Result<Vec<SharedEmployee>, String> {
     }
 }
 
-async fn task_counts(client: &Client) -> Result<HashMap<String, TaskCounts>, String> {
+async fn task_counts(client: &Client) -> Result<HashMap<String, TaskCounts>, desktop_i18n::workflow::Feedback> {
     let today = chrono::Local::now().date_naive();
     let mut counts: HashMap<String, TaskCounts> = HashMap::new();
     for task in board_api::load_tasks(client).await? {

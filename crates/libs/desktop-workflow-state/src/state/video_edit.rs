@@ -18,7 +18,7 @@ pub struct VideoEditUiState {
     pub path: String,
     pub restore_confirm: bool,
     pub busy: bool,
-    pub error: Option<String>,
+    pub error: Option<desktop_i18n::workflow::Feedback>,
 }
 impl VideoEditUiState {
     pub fn accept_record(&mut self, record: WorkflowRecord) {
@@ -36,13 +36,12 @@ impl VideoEditUiState {
         self.record = Some(record);
         self.busy = false;
     }
-    pub fn validated_yaml(&self) -> Result<String, String> {
+    pub fn validated_yaml(&self) -> Result<String, desktop_i18n::workflow::Feedback> {
         let source = self.editor.as_ref().ok_or("请先读取模板")?.text();
-        desktop_workflow_model::load_document_from_text(None, source.clone())
-            .map_err(|e| e.to_string())?;
+        desktop_workflow_model::load_document_from_text(None, source.clone())?;
         Ok(source)
     }
-    pub fn native_command(&self) -> Result<String, String> {
+    pub fn native_command(&self) -> Result<String, desktop_i18n::workflow::Feedback> {
         let path = self.path.trim();
         if path.is_empty() || path.contains(['"', '\n', '\r', '\0']) {
             return Err("请选择有效视频路径（不含双引号或换行）".into());

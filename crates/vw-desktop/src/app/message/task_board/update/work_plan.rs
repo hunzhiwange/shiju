@@ -145,7 +145,7 @@ pub(super) fn update(
                 .filter(|draft| draft.pending == Some(*request) && draft.task_id == *task_id);
             if let Some(draft) = draft {
                 draft.pending = None;
-                draft.feedback = Some(result.as_ref().map(|_| ()).map_err(|error| error.clone()));
+                draft.feedback = Some(result.as_ref().map(|_| ()).map_err(|error| error.clone().into()));
                 if let Ok(snapshot) = result {
                     draft.original.clone_from(&snapshot.placement);
                     if snapshot.placement.is_none() {
@@ -239,7 +239,7 @@ pub(super) fn update(
             if let Err(error) = result {
                 if let Some(draft) = active {
                     draft.pending = false;
-                    draft.error = Some(error.clone());
+                    draft.error = Some(error.clone().into());
                 }
                 return Some(iced::Task::none());
             }

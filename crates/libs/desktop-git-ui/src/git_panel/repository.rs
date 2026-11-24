@@ -1,4 +1,5 @@
 //! 历史日志和只读文件手风琴；所有仓库数据由网关提供。
+use desktop_i18n::I18n;
 use desktop_assets::assets::Icon;
 use super::repository_ops::{RemoteAction, remote_action_label};
 use desktop_ui_controls::system_settings_common::{
@@ -90,8 +91,9 @@ fn action<External: Clone + 'static>(
 }
 
 pub fn toolbar<External: Clone + 'static>(app: &Input<'_, External>) -> Element<'static, Message<External>> {
+    let i18n = app.i18n;
     if !app.repo_available {
-        return container(action(Icon::Pencil, "变更", Message::ShowHistory(false), true, true))
+        return container(action(Icon::Pencil, i18n.__("变更"), Message::ShowHistory(false), true, true))
             .padding([4, 7])
             .into();
     }
@@ -109,34 +111,34 @@ pub fn toolbar<External: Clone + 'static>(app: &Input<'_, External>) -> Element<
         String::new()
     };
     let controls = row![
-        action(Icon::Pencil, "变更", Message::ShowHistory(false), true, !state.history),
-        action(Icon::Clock, "历史", Message::ShowHistory(true), true, state.history),
+        action(Icon::Pencil, i18n.__("变更"), Message::ShowHistory(false), true, !state.history),
+        action(Icon::Clock, i18n.__("历史"), Message::ShowHistory(true), true, state.history),
         Space::new().width(Length::Fill),
         text(counts).size(12).style(settings_muted_text_style),
         action(
             Icon::ArrowRepeat,
-            "获取",
+            i18n.__("获取"),
             Message::RunRemote(RemoteAction::Fetch),
             enabled && snapshot.remote.is_some(),
             false
         ),
         action(
             Icon::CloudDownload,
-            "拉取",
+            i18n.__("拉取"),
             Message::RunRemote(RemoteAction::Pull),
             enabled && snapshot.upstream,
             false
         ),
         action(
             Icon::CloudUpload,
-            if snapshot.upstream { "推送" } else { "发布分支" },
+            if snapshot.upstream { i18n.__("推送") } else { i18n.__("发布分支") },
             Message::RunRemote(RemoteAction::Push),
             enabled && snapshot.remote.is_some() && snapshot.branch.is_some(),
             true
         ),
         action(
             Icon::ArrowRepeat,
-            "刷新",
+            i18n.__("刷新"),
             Message::RefreshRepository,
             !state.loading || !valid,
             false
@@ -146,10 +148,7 @@ pub fn toolbar<External: Clone + 'static>(app: &Input<'_, External>) -> Element<
     .align_y(Alignment::Center);
     let mut content = column![controls].spacing(9);
     if state.remote_busy {
-        let label = format!(
-            "正在{}远端更新…",
-            state.remote_action.map(remote_action_label).unwrap_or("同步")
-        );
+        let label = i18n.format("正在%s远端更新…", &[i18n.__(state.remote_action.map(remote_action_label).unwrap_or("同步")).into()]).expect("valid repository activity template");
         let position = state.remote_animation_frame as u32 % 40;
         let left = if position <= 20 { position } else { 40 - position } + 1;
         let activity = row![
@@ -196,7 +195,7 @@ pub fn toolbar<External: Clone + 'static>(app: &Input<'_, External>) -> Element<
         );
     }
     if let Some(error) = &state.error {
-        content = content.push(text(error.clone()).size(12));
+        content = content.push(text(error.render(i18n)).size(12));
     }
     container(content).padding([4, 7]).into()
 }
@@ -222,10 +221,11 @@ fn selected_style(selected: bool) -> impl Fn(&iced::Theme, button::Status) -> bu
 }
 
 pub fn view<'a, External: Clone + 'static>(app: Input<'a, External>) -> Element<'a, Message<External>> {
+    let i18n = app.i18n;
     if app.git_repository.repo_path.as_deref()
         != app.context_path.as_deref()
     {
-        return container(text("点击刷新读取当前仓库历史"))
+        return container(text(i18n.__("点击刷新读取当前仓库历史")))
             .center_x(Length::Fill)
             .center_y(Length::Fill)
             .into();
@@ -234,11 +234,13 @@ pub fn view<'a, External: Clone + 'static>(app: Input<'a, External>) -> Element<
 }
 
 fn columns<'a, External: Clone + 'static>(app: &Input<'a, External>, width: f32) -> Element<'a, Message<External>> {
+    let i18n = app.i18n;
+    let copy = history_copy(i18n, app.git_repository);
     let log_width = (width * 0.23).clamp(140.0, 240.0);
     let state = app.git_repository;
     let cells = ((log_width - 34.0) / 7.0).max(10.0) as usize;
     let mut commits =
-        column![text("提交历史").size(12).style(settings_muted_text_style)].spacing(6);
+        column![text(copy.title).size(12).style(settings_muted_text_style)].spacing(6);
     for commit in &state.snapshot.commits {
         let selected = state.selected.as_deref() == Some(&commit.sha);
         let time = chrono::DateTime::from_timestamp(commit.time, 0)
@@ -263,25 +265,25 @@ fn columns<'a, External: Clone + 'static>(app: &Input<'a, External>, width: f32)
         ));
     }
     if state.loading {
-        commits = commits.push(text("正在加载历史…").size(12));
+        commits = commits.push(text(copy.status.unwrap_or_default()).size(12));
     } else if state.snapshot.commits.is_empty() {
-        commits = commits.push(text("暂无提交历史").size(12));
+        commits = commits.push(text(copy.status.unwrap_or_default()).size(12));
     }
     if state.snapshot.has_more && state.limit < 10_000 {
         commits = commits.push(action(
             Icon::ArrowDown,
-            "加载更多",
+            i18n.__("加载更多"),
             Message::LoadMoreHistory,
             !state.loading,
             false,
         ));
     }
     let details: Element<'_, Message<External>> = if state.detail_loading {
-        container(text("正在加载提交详情…")).into()
+        container(text(i18n.__("正在加载提交详情…"))).into()
     } else if let Some(detail) = &state.detail {
         let mut files = column![
             text(&detail.message).size(13),
-            text(format!("{} 个变更文件 · 点击展开差异", detail.files.len()))
+            text(copy.changed_files.clone().unwrap_or_default())
                 .size(11)
                 .style(settings_muted_text_style)
         ]
@@ -291,7 +293,7 @@ fn columns<'a, External: Clone + 'static>(app: &Input<'a, External>, width: f32)
         }
         scroll(files)
     } else {
-        container(text("选择提交查看变更文件")).into()
+        container(text(i18n.__("选择提交查看变更文件"))).into()
     };
     row![container(scroll(commits)).width(log_width), container(details).width(Length::Fill)]
         .spacing(8)
@@ -301,9 +303,36 @@ fn columns<'a, External: Clone + 'static>(app: &Input<'a, External>, width: f32)
 
 /// Borrowed inputs used by this view.
 pub struct Input<'a, External: Clone + 'static> {
+ pub i18n: I18n,
  pub git_repository: &'a super::repository_ops::RepositoryState,
  pub repo_available: bool,
  pub context_path: Option<String>,
  pub git_commit_in_progress: bool,
  pub history_file: Box<dyn Fn(usize, &vw_api_git::GitHistoryFileDto) -> Element<'static, Message<External>> + 'a>,
+}
+
+/// Presentation is resolved on each redraw; repository payloads remain untouched.
+pub struct HistoryCopy {
+    pub title: &'static str,
+    pub status: Option<&'static str>,
+    pub changed_files: Option<String>,
+}
+
+pub fn history_copy(i18n: I18n, state: &super::repository_ops::RepositoryState) -> HistoryCopy {
+    HistoryCopy {
+        title: i18n.__("提交历史"),
+        status: if state.loading {
+            Some(i18n.__("正在加载历史…"))
+        } else if state.snapshot.commits.is_empty() {
+            Some(i18n.__("暂无提交历史"))
+        } else {
+            None
+        },
+        changed_files: state.detail.as_ref().map(|detail| {
+            let count = i18n.format("%u 个变更文件", &[detail.files.len().into()])
+                .expect("valid repository file count");
+            i18n.format("%s · 点击展开差异", &[count.into()])
+                .expect("valid repository details hint")
+        }),
+    }
 }

@@ -32,10 +32,10 @@ pub fn view(app: &App, show_trigger: bool) -> Element<'_, Message> {
     ).expect("valid work view summary template");
     let mut actions = row![].spacing(8);
     if show_trigger {
-        actions = actions.push(action("添加筛选 / 收起", TaskBoardMessage::OpenWorkViewEditor));
+        actions = actions.push(action(i18n.__("添加筛选 / 收起"), TaskBoardMessage::OpenWorkViewEditor));
     }
     if board.work_filter != desktop_task_board::work_views::WorkViewFilter::default() {
-        actions = actions.push(action("清除条件", TaskBoardMessage::ClearWorkFilter));
+        actions = actions.push(action(i18n.__("清除条件"), TaskBoardMessage::ClearWorkFilter));
     }
     let mut content = column![actions, text(summary).size(12)].spacing(8);
     if !board.work_filter.label_ids.is_empty() {
@@ -60,11 +60,11 @@ pub fn view(app: &App, show_trigger: bool) -> Element<'_, Message> {
         };
         let mut fields = column![
             text(i18n.__("多项状态或智能体用英文逗号分隔。若选中多个标签，匹配任一即可。所有属性条件须同时满足。")).size(12),
-            field("状态 key（空值不限）", &board.work_status_input, 1),
-            field("最低优先级", &board.work_min_input, 2),
-            field("最高优先级", &board.work_max_input, 3),
-            field("智能体：builtin:标识, acp:标识", &board.work_agent_input, 4),
-            field("保存视图名称（更新名称即可重命名）", &board.work_view_name, 0),
+            field(i18n.__("状态 key（空值不限）"), &board.work_status_input, 1),
+            field(i18n.__("最低优先级"), &board.work_min_input, 2),
+            field(i18n.__("最高优先级"), &board.work_max_input, 3),
+            field(i18n.__("智能体：builtin:标识, acp:标识"), &board.work_agent_input, 4),
+            field(i18n.__("保存视图名称（更新名称即可重命名）"), &board.work_view_name, 0),
         ]
         .spacing(8);
         let choices = board.task_labels.iter().filter_map(|label| {
@@ -90,7 +90,7 @@ pub fn view(app: &App, show_trigger: bool) -> Element<'_, Message> {
                 .push(super::properties::filter_editor(app));
         }
         let mut actions = row![
-            action("应用筛选", TaskBoardMessage::ApplyWorkFilter),
+            action(i18n.__("应用筛选"), TaskBoardMessage::ApplyWorkFilter),
             button(text(i18n.__("另存视图")).size(13))
                 .padding([7, 10])
                 .style(primary_action_btn_style)
@@ -99,8 +99,8 @@ pub fn view(app: &App, show_trigger: bool) -> Element<'_, Message> {
         .spacing(8);
         if board.selected_work_view.is_some() {
             actions = actions
-                .push(action("更新 / 重命名", TaskBoardMessage::SaveWorkView(false)))
-                .push(action("删除视图", TaskBoardMessage::DeleteWorkView));
+                .push(action(i18n.__("更新 / 重命名"), TaskBoardMessage::SaveWorkView(false)))
+                .push(action(i18n.__("删除视图"), TaskBoardMessage::DeleteWorkView));
         }
         content = content
             .push(scrollable(container(fields).padding([0, 7])).height(210).direction(

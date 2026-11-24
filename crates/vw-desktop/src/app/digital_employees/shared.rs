@@ -47,7 +47,7 @@ impl std::fmt::Display for Runtime {
 #[derive(Clone)]
 pub(crate) enum ListEvent {
     Refresh,
-    Loaded(u64, Result<std::sync::Arc<Directory>, String>),
+    Loaded(u64, Result<std::sync::Arc<Directory>, desktop_i18n::workflow::Feedback>),
     Search(String),
     Kind(Kind),
     Archived(bool),
@@ -63,7 +63,7 @@ pub(crate) enum ListEvent {
     TemplateName(String),
     CloseOperation,
     SubmitOperation,
-    Operated(u64, Result<&'static str, String>),
+    Operated(u64, Result<&'static str, desktop_i18n::workflow::Feedback>),
 }
 
 pub(super) struct Confirmation {
@@ -72,13 +72,13 @@ pub(super) struct Confirmation {
     pub operation: Operation,
     pub template_name: String,
     pub submitting: bool,
-    pub error: Option<String>,
+    pub error: Option<desktop_i18n::workflow::Feedback>,
 }
 
 pub(super) struct Shared {
     pub confirmation: Option<Confirmation>,
     pub directory: Option<std::sync::Arc<Directory>>,
-    pub error: Option<String>,
+    pub error: Option<desktop_i18n::workflow::Feedback>,
     pub loading: bool,
     generation: u64,
     pub query: String,
@@ -132,6 +132,7 @@ pub(super) fn message(event: ListEvent) -> Message {
 }
 
 pub(super) fn update(app: &mut App, event: ListEvent) -> Task<Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let state = &mut app.digital_employees.shared;
     match event {
         ListEvent::Refresh => {
@@ -192,7 +193,7 @@ pub(super) fn update(app: &mut App, event: ListEvent) -> Task<Message> {
                         employee_id: id,
                         employee_name: employee.name.clone(),
                         operation,
-                        template_name: format!("{}模板", employee.name),
+                        template_name: i18n.format("%s模板", &[employee.name.clone().into()]).expect("valid template name"),
                         submitting: false,
                         error: None,
                     });
@@ -221,7 +222,7 @@ pub(super) fn update(app: &mut App, event: ListEvent) -> Task<Message> {
                         Ok(notice) => {
                             state.confirmation = None;
                             let toast =
-                                app.show_toast(crate::app::state::ToastKind::Success, notice);
+                                app.show_localized_toast(crate::app::state::ToastKind::Success, notice, vec![]);
                             return Task::batch([toast, refresh(app)]);
                         }
                         Err(error) => {

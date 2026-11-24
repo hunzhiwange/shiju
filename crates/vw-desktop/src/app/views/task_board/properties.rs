@@ -78,9 +78,9 @@ fn control<'a>(
                 _ => None,
             };
             let placeholder = match (choices.is_empty(), property.options.is_empty()) {
-                (true, true) => "此属性没有可用选项",
-                (true, false) => "全部选项已归档",
-                _ => "请选择",
+                (true, true) => i18n.__("此属性没有可用选项"),
+                (true, false) => i18n.__("全部选项已归档"),
+                _ => i18n.__("请选择"),
             };
             settings_select(choices, selected, move |choice| {
                 Message::TaskBoard(change(Some(Value::SingleSelect(choice.id))))
@@ -94,8 +94,8 @@ fn control<'a>(
             let (placeholder, raw) = match (property.kind, value) {
                 (Kind::Date, Some(Value::Date(raw))) => ("YYYY-MM-DD", raw.as_str()),
                 (Kind::Date, _) => ("YYYY-MM-DD", ""),
-                (_, Some(Value::Text(raw))) => ("输入文本", raw.as_str()),
-                _ => ("输入文本", ""),
+                (_, Some(Value::Text(raw))) => (i18n.__("输入文本"), raw.as_str()),
+                _ => (i18n.__("输入文本"), ""),
             };
             let input = settings_text_input(i18n.__(placeholder), raw);
             if enabled {
@@ -120,7 +120,7 @@ fn clear<'a>(i18n: I18n, message: TaskBoardMessage, enabled: bool) -> iced::widg
         .on_press_maybe(enabled.then_some(Message::TaskBoard(message)))
 }
 
-fn batch_editor<'a>(app: &'a App, task: &desktop_task_model::Task) -> Option<Element<'a, Message>> {
+fn batch_editor<'a>(i18n: desktop_i18n::I18n, app: &'a App, task: &desktop_task_model::Task) -> Option<Element<'a, Message>> {
     use vw_api_agent_scheduler::AgentSchedulerTaskPlanPlacementDto as Placement;
 
     let (_, plan) = super::work_plan::current(app)?;
@@ -136,15 +136,15 @@ fn batch_editor<'a>(app: &'a App, task: &desktop_task_model::Task) -> Option<Ele
     let draft = plan.batch_draft.as_ref().filter(|draft| draft.task_id == task.id);
     let pending = draft.is_some_and(|draft| draft.pending.is_some()) || plan.pending_batches.contains_key(&task.id);
     let header = row![
-        text(stored.as_ref().map_or_else(|| "无批次".into(), |batch| format!("已保存批次 {batch}"))).size(13),
-        button(text(if draft.is_some() { "重新载入批次" } else { "安排批次" }).size(12))
+        text(stored.as_ref().map_or_else(|| i18n.__("无批次").into(), |batch| i18n.format("已保存批次 %s", &[format!("{}", batch).into()]).expect("valid workbench template"))).size(13),
+        button(text(if draft.is_some() { i18n.__("重新载入批次") } else { i18n.__("安排批次") }).size(12))
             .padding([6, 10]).style(rounded_action_btn_style)
             .on_press_maybe((!pending).then_some(Message::TaskBoard(TaskBoardMessage::EditWorkPlanBatch))),
     ].spacing(8).align_y(Alignment::Center);
     let mut body = column![header].spacing(6);
     if let Some(draft) = draft {
-        let mut outer = settings_text_input("外层批次", &draft.outer).id(super::work_plan::OUTER_INPUT);
-        let mut inner = settings_text_input("组内批次", &draft.inner);
+        let mut outer = settings_text_input(i18n.__("外层批次"), &draft.outer).id(super::work_plan::OUTER_INPUT);
+        let mut inner = settings_text_input(i18n.__("组内批次"), &draft.inner);
         let save = Message::TaskBoard(TaskBoardMessage::SaveWorkPlanBatch { clear: false });
         if !pending {
             outer = outer.on_input(|value| Message::TaskBoard(TaskBoardMessage::WorkPlanBatchChanged { outer: true, value }));
@@ -152,28 +152,28 @@ fn batch_editor<'a>(app: &'a App, task: &desktop_task_model::Task) -> Option<Ele
                 .on_submit(save.clone());
         }
         let feedback = if pending {
-            "正在提交批次…"
+            i18n.__("正在提交批次…").to_owned()
         } else {
             match &draft.feedback {
-                None => "批次草稿",
-                Some(Ok(())) => "批次已保存",
-                Some(Err(error)) => error,
+                None => i18n.__("批次草稿").to_owned(),
+                Some(Ok(())) => i18n.__("批次已保存").to_owned(),
+                Some(Err(error)) => error.render(i18n),
             }
         };
         body = body.push(row![
-            column![settings_field_label("外层批次"), outer].spacing(4),
-            column![settings_field_label("组内批次"), inner].spacing(4),
+            column![settings_field_label(i18n.__("外层批次")), outer].spacing(4),
+            column![settings_field_label(i18n.__("组内批次")), inner].spacing(4),
         ].spacing(8))
         .push(row![
-            button(text("保存批次").size(12)).padding([6, 10]).style(primary_action_btn_style)
+            button(text(i18n.__("保存批次")).size(12)).padding([6, 10]).style(primary_action_btn_style)
                 .on_press_maybe((!pending).then_some(save)),
-            button(text("清空批次").size(12)).padding([6, 10]).style(rounded_action_btn_style)
+            button(text(i18n.__("清空批次")).size(12)).padding([6, 10]).style(rounded_action_btn_style)
                 .on_press_maybe((!pending && (stored.is_some() || !draft.outer.is_empty() || !draft.inner.is_empty()))
                     .then_some(Message::TaskBoard(TaskBoardMessage::SaveWorkPlanBatch { clear: true }))),
             text(feedback).size(12),
         ].spacing(8).wrap());
     } else if pending {
-        body = body.push(text("正在提交批次…").size(12));
+        body = body.push(text(i18n.__("正在提交批次…")).size(12));
     }
     Some(body.into())
 }
@@ -181,7 +181,7 @@ fn batch_editor<'a>(app: &'a App, task: &desktop_task_model::Task) -> Option<Ele
 pub(super) fn task_editor<'a>(app: &'a App, task: &'a desktop_task_model::Task) -> Option<Element<'a, Message>> {
     let board = &app.task_board;
     let i18n = I18n::new(app.general_settings.desktop_locale);
-    let batch = batch_editor(app, task);
+    let batch = batch_editor(i18n, app, task);
     let enabled = board.task_property_save_in_progress.is_none();
     if !board.task_properties.iter().any(|property| {
         !property.archived || task.properties.contains_key(&property.id)

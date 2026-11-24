@@ -115,14 +115,14 @@ impl RepeatPattern {
         }
     }
 
-    pub(super) fn description(self) -> String {
+    pub(super) fn description(self, i18n: desktop_i18n::I18n) -> String {
         let time = self.time.format("%H:%M");
         match self.mode {
-            RepeatMode::Daily | RepeatMode::Weekdays => format!("{} {time} 执行", self.mode),
-            RepeatMode::Weekly => format!("每{} {time} 执行", WEEKDAYS[self.weekday as usize]),
-            RepeatMode::Monthly => format!("每月 {} 日 {time} 执行", self.day),
-            RepeatMode::Hourly => format!("每小时第 {} 分钟执行", self.time.minute()),
-            RepeatMode::Minutes => format!("每 {} 分钟执行", self.interval),
+            RepeatMode::Daily | RepeatMode::Weekdays => i18n.format("%s %s 执行", &[i18n.__(&self.mode.to_string()).to_owned().into(), format!("{}", time).into()]).expect("valid workbench template"),
+            RepeatMode::Weekly => i18n.format("每%s %s 执行", &[i18n.__(WEEKDAYS[self.weekday as usize]).to_owned().into(), format!("{}", time).into()]).expect("valid workbench template"),
+            RepeatMode::Monthly => i18n.format("每月 %s 日 %s 执行", &[format!("{}", self.day).into(), format!("{}", time).into()]).expect("valid workbench template"),
+            RepeatMode::Hourly => i18n.format("每小时第 %s 分钟执行", &[format!("{}", self.time.minute()).into()]).expect("valid workbench template"),
+            RepeatMode::Minutes => i18n.format("每 %s 分钟执行", &[format!("{}", self.interval).into()]).expect("valid workbench template"),
         }
     }
 }

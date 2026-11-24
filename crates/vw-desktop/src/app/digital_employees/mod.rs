@@ -60,14 +60,14 @@ pub(crate) struct State {
     workflows: workflows::List,
     summary: Option<Box<api::Summary>>,
     loading: bool,
-    error: Option<String>,
+    error: Option<desktop_i18n::workflow::Feedback>,
     trend_values: [bool; 2],
 }
 
 #[derive(Clone)]
 pub(crate) enum Event {
     Open,
-    ChatScopeChecked(u64, Result<chat::Scope, String>, Option<chat::ChatIntent>),
+    ChatScopeChecked(u64, Result<chat::Scope, desktop_i18n::workflow::Feedback>, Option<chat::ChatIntent>),
     ChatPicker(chat_picker::Event),
     HistoryLabelLoaded(chat::HistoryLabelRequest, Option<chat::EmployeeAppearance>),
     SelectPage(Page),
@@ -79,7 +79,7 @@ pub(crate) enum Event {
     Shared(shared::ListEvent),
     Workflows(workflows::ListEvent),
     Refresh,
-    Loaded(u64, Result<Box<api::Summary>, String>),
+    Loaded(u64, Result<Box<api::Summary>, desktop_i18n::workflow::Feedback>),
     ToggleValues(trend::Metric),
 }
 
@@ -239,4 +239,38 @@ fn refresh(app: &mut App) -> Task<Message> {
         async move { api::load(credential.expose()).await.map(Box::new) },
         move |result| Message::DigitalEmployees(Event::Loaded(generation, result)),
     )
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub(super) struct LocalizedOption<T> {
+    pub value: T,
+    label: String,
+}
+
+impl<T: std::fmt::Display> LocalizedOption<T> {
+    pub fn new(value: T, i18n: desktop_i18n::I18n) -> Self {
+        let label = i18n.__(&value.to_string()).to_owned();
+        Self { value, label }
+    }
+}
+impl<T: std::fmt::Display> std::fmt::Display for LocalizedOption<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.label)
+    }
+}
+
+/// Refresh built-in tabs already open when the locale changes.
+pub(crate) fn refresh_titles(app: &mut App) {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
+    for tab in &mut app.navigation_tabs.open_tabs {
+        if tab.id == TAB_ID {
+            tab.title = i18n.__("数字员工").to_owned();
+        }
+        if let Some(id) = tab.id.strip_prefix("find:") {
+            if let Some(result) = app.project_find.find_results_tabs.iter().find(|result| result.id == id) {
+                tab.title = i18n.format("查找结果 %u", &[result.matches.len().into()])
+                    .expect("valid search result title");
+            }
+        }
+    }
 }

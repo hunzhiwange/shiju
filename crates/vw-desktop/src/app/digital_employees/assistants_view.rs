@@ -14,12 +14,12 @@ use super::view::{
     strong, tint_style,
 };
 
-pub(super) fn view<'a>(state: &'a List, width: f32, actor: Option<&'a str>) -> Item<'a> {
+pub(super) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a List, width: f32, actor: Option<&'a str>) -> Item<'a> {
     let mut page = column![
         row![
-            strong("私有员工", 24, Tone::Ink).width(Length::Fill),
+            strong(i18n.__("私有员工"), 24, Tone::Ink).width(Length::Fill),
             action(
-                if state.loading { "刷新中…" } else { "刷新" },
+                if state.loading { i18n.__("刷新中…") } else { i18n.__("刷新") },
                 Some(Icon::ArrowRepeat),
                 (!state.loading).then(|| message(ListEvent::Refresh)),
                 false,
@@ -32,8 +32,8 @@ pub(super) fn view<'a>(state: &'a List, width: f32, actor: Option<&'a str>) -> I
     .width(Length::Fill);
     let Some(data) = state.data.as_deref() else {
         let content = match &state.error {
-            Some(error) => settings_error_banner(error.as_str()),
-            None => page_notice(label("正在加载私有员工…", 14, Tone::Muted)),
+            Some(error) => settings_error_banner(error.render(i18n)),
+            None => page_notice(label(i18n.__("正在加载私有员工…"), 14, Tone::Muted)),
         };
         return page.push(content).into();
     };
@@ -48,7 +48,7 @@ pub(super) fn view<'a>(state: &'a List, width: f32, actor: Option<&'a str>) -> I
                 && (search.is_empty()
                     || [
                         Some(assistant.name.as_str()),
-                        Some("私有执行员工"),
+                        Some(i18n.__("私有执行员工")),
                         assistant.owner_name(&data.members, actor),
                         assistant.creator_name(&data.members, actor),
                     ]
@@ -58,19 +58,19 @@ pub(super) fn view<'a>(state: &'a List, width: f32, actor: Option<&'a str>) -> I
         })
         .collect();
 
-    page = page.push(filters(state, data, width));
+    page = page.push(filters(i18n, state, data, width));
     if let Err(error) = &data.governance {
-        page = page.push(settings_error_banner(format!("组织内私有员工加载失败。{error}")));
+        page = page.push(settings_error_banner(i18n.format("组织内私有员工加载失败。%s", &[error.render(i18n).into()]).expect("valid workbench template")));
     }
     if matches.is_empty() {
         let empty = if state.organization && data.governance.is_err() {
-            "组织内私有员工暂不可用"
+            i18n.__("组织内私有员工暂不可用")
         } else if !search.is_empty() || state.filter != RunFilter::All {
-            "没有符合筛选条件的私有员工"
+            i18n.__("没有符合筛选条件的私有员工")
         } else if state.organization {
-            "可查看的范围内暂无私有员工"
+            i18n.__("可查看的范围内暂无私有员工")
         } else {
-            "你还没有私有员工"
+            i18n.__("你还没有私有员工")
         };
         return page.push(page_notice(label(empty, 14, Tone::Muted))).into();
     }
@@ -89,7 +89,7 @@ pub(super) fn view<'a>(state: &'a List, width: f32, actor: Option<&'a str>) -> I
     let mut grid = Column::new().spacing(16);
     for employees in matches[start..end].chunks(columns) {
         let mut group = Row::with_children(
-            employees.iter().map(|person| employee_card(person, data, actor, !state.loading)),
+            employees.iter().map(|person| employee_card(i18n, person, data, actor, !state.loading)),
         )
         .spacing(16)
         .width(Length::Fill);
@@ -99,19 +99,19 @@ pub(super) fn view<'a>(state: &'a List, width: f32, actor: Option<&'a str>) -> I
         grid = grid.push(group);
     }
     let mut footer =
-        row![label(format!("{}–{} / {} 人", start + 1, end, matches.len()), 12, Tone::Muted,)]
+        row![label(i18n.format("%s–%s / %s 人", &[format!("{}", start + 1).into(), format!("{}", end).into(), format!("{}", matches.len()).into()]).expect("valid workbench template"), 12, Tone::Muted,)]
             .spacing(10)
             .align_y(Alignment::Center);
     if total_pages > 1 {
         footer = footer
             .push(action(
-                "上一页",
+                i18n.__("上一页"),
                 Some(Icon::ChevronLeft),
                 selected_page.checked_sub(1).map(|page| message(ListEvent::Page(page))),
                 false,
             ))
             .push(action(
-                "下一页",
+                i18n.__("下一页"),
                 Some(Icon::ChevronRight),
                 (selected_page + 1 < total_pages)
                     .then(|| message(ListEvent::Page(selected_page + 1))),
@@ -121,7 +121,7 @@ pub(super) fn view<'a>(state: &'a List, width: f32, actor: Option<&'a str>) -> I
     page.push(grid).push(footer.wrap()).into()
 }
 
-pub(super) fn overlay<'a>(
+pub(super) fn overlay<'a>(i18n: desktop_i18n::I18n,
     base: Item<'a>,
     state: &'a List,
     actor: Option<&'a str>,
@@ -136,22 +136,20 @@ pub(super) fn overlay<'a>(
     let owner = employee
         .owner_name(&data.members, actor)
         .filter(|name| !name.trim().is_empty())
-        .unwrap_or("当前使用人");
-    let description = format!(
-        "当前使用人是{owner}。转交后，原使用人将立即失去对话、配置、发布和连接办公软件的权限，已连接的消息渠道会一并解绑。"
-    );
+        .unwrap_or(i18n.__("当前使用人"));
+    let description = i18n.format("当前使用人是%s。转交后，原使用人将立即失去对话、配置、发布和连接办公软件的权限，已连接的消息渠道会一并解绑。", &[format!("{}", owner).into()]).expect("valid workbench template");
 
-    let mut form = column![strong("新使用人", 14, Tone::Ink)].spacing(10);
+    let mut form = column![strong(i18n.__("新使用人"), 14, Tone::Ink)].spacing(10);
     if let Some(recipients) = &transfer.recipients {
         if recipients.is_empty() {
-            form = form.push(label("可指派的范围内暂无其他成员", 14, Tone::Muted));
+            form = form.push(label(i18n.__("可指派的范围内暂无其他成员"), 14, Tone::Muted));
         } else {
             let query = transfer.search.trim().to_lowercase();
             let choices: Vec<_> =
                 recipients.iter().filter(|recipient| recipient.matches(&query)).cloned().collect();
             let placeholder =
-                if choices.is_empty() { "没有匹配的成员" } else { "请选择使用人" };
-            let search = settings_text_input("搜索成员姓名或账号", &transfer.search)
+                if choices.is_empty() { i18n.__("没有匹配的成员") } else { i18n.__("请选择使用人") };
+            let search = settings_text_input(i18n.__("搜索成员姓名或账号"), &transfer.search)
                 .on_input_maybe(
                     (!transfer.submitting)
                         .then_some(|search| message(ListEvent::TransferSearch(search))),
@@ -167,11 +165,11 @@ pub(super) fn overlay<'a>(
             );
         }
     } else if transfer.error.is_none() {
-        form = form.push(label("正在读取成员…", 14, Tone::Muted));
+        form = form.push(label(i18n.__("正在读取成员…"), 14, Tone::Muted));
     }
     let notice = column![
         label(description, 14, Tone::Muted),
-        transfer.error.as_deref().map(|error| label(error, 13, Tone::Red)),
+        transfer.error.as_ref().map(|error| label(i18n.format("转交失败。%s。如员工资料已更新，请关闭弹窗并刷新列表。", &[error.render(i18n).into()]).expect("valid transfer error template"), 13, Tone::Red)),
     ]
     .spacing(10);
     let notice = container(
@@ -181,16 +179,16 @@ pub(super) fn overlay<'a>(
     .max_height((height - 280.0).clamp(32.0, 180.0))
     .width(Length::Fill);
     let header = row![
-        strong("转交使用人", 20, Tone::Ink).width(Length::Fill),
+        strong(i18n.__("转交使用人"), 20, Tone::Ink).width(Length::Fill),
         (!transfer.submitting).then(|| settings_close_button(close.clone())),
     ]
     .align_y(Alignment::Center)
     .spacing(12);
     let footer = row![
         Space::new().width(Length::Fill),
-        action("取消", None, (!transfer.submitting).then(|| close.clone()), false),
+        action(i18n.__("取消"), None, (!transfer.submitting).then(|| close.clone()), false),
         action(
-            if transfer.submitting { "正在转交…" } else { "确认转交" },
+            if transfer.submitting { i18n.__("正在转交…") } else { i18n.__("确认转交") },
             None,
             (transfer.selected.is_some() && !transfer.submitting)
                 .then(|| message(ListEvent::SubmitTransfer)),
@@ -205,27 +203,27 @@ pub(super) fn overlay<'a>(
     settings_modal_overlay_with_escape(base, close, dialog)
 }
 
-fn filters<'a>(state: &'a List, data: &Snapshot, width: f32) -> Item<'a> {
+fn filters<'a>(i18n: desktop_i18n::I18n, state: &'a List, data: &Snapshot, width: f32) -> Item<'a> {
     let mut scopes = row![segment(
-        format!("我的私有员工 {}", data.mine.len()),
+        i18n.format("我的私有员工 %s", &[format!("{}", data.mine.len()).into()]).expect("valid workbench template"),
         !state.organization,
         message(ListEvent::Scope(false)),
     )]
     .spacing(2);
     if let Ok(Some(governance)) = &data.governance {
         scopes = scopes.push(segment(
-            format!("组织内私有员工 {}", governance.len()),
+            i18n.format("组织内私有员工 %s", &[format!("{}", governance.len()).into()]).expect("valid workbench template"),
             state.organization,
             message(ListEvent::Scope(true)),
         ));
     }
-    let search = settings_text_input("搜索私有员工", &state.search)
+    let search = settings_text_input(i18n.__("搜索私有员工"), &state.search)
         .on_input(|input| message(ListEvent::Search(input)))
         .width(if width >= 595.0 { Length::Fixed(285.0) } else { Length::Fill });
     let run = settings_select(
-        [RunFilter::All, RunFilter::OnDuty, RunFilter::Abnormal],
-        Some(state.filter),
-        |value| message(ListEvent::Run(value)),
+        [RunFilter::All, RunFilter::OnDuty, RunFilter::Abnormal].map(|value| super::LocalizedOption::new(value, i18n)),
+        Some(super::LocalizedOption::new(state.filter, i18n)),
+        |value| message(ListEvent::Run(value.value)),
     )
     .width(156);
     let published = data.mine.iter().filter(|item| item.publish_status == "PUBLISHED").count();
@@ -234,10 +232,7 @@ fn filters<'a>(state: &'a List, data: &Snapshot, width: f32) -> Item<'a> {
         search,
         run,
         label(
-            format!(
-                "本人已发布 {published} · 草稿 {} · 今日执行 {runs}",
-                data.mine.len() - published
-            ),
+            i18n.format("本人已发布 %s · 草稿 %s · 今日执行 %s", &[format!("{}", published).into(), format!("{}", data.mine.len() - published).into(), format!("{}", runs).into()]).expect("valid workbench template"),
             12,
             Tone::Muted,
         ),
@@ -248,37 +243,37 @@ fn filters<'a>(state: &'a List, data: &Snapshot, width: f32) -> Item<'a> {
     column![segmented(scopes.wrap().into()), fields].spacing(10).into()
 }
 
-pub(super) fn runtime_badge(person: &Assistant) -> (&'static str, Tone) {
+pub(super) fn runtime_badge(i18n: desktop_i18n::I18n, person: &Assistant) -> (&'static str, Tone) {
     match person.runtime() {
-        "on_duty" => ("在岗", Tone::Green),
-        "abnormal" => ("异常", Tone::Red),
-        "enabling" => ("启用中", Tone::Warning),
-        "disabling" => ("停用中", Tone::Warning),
-        "none" => ("已停用", Tone::Muted),
+        "on_duty" => (i18n.__("在岗"), Tone::Green),
+        "abnormal" => (i18n.__("异常"), Tone::Red),
+        "enabling" => (i18n.__("启用中"), Tone::Warning),
+        "disabling" => (i18n.__("停用中"), Tone::Warning),
+        "none" => (i18n.__("已停用"), Tone::Muted),
         _ => ("—", Tone::Muted),
     }
 }
 
-fn employee_card<'a>(
+fn employee_card<'a>(i18n: desktop_i18n::I18n,
     person: &'a Assistant,
     data: &'a Snapshot,
     actor: Option<&'a str>,
     can_open: bool,
 ) -> Item<'a> {
-    let (runtime, runtime_tone) = runtime_badge(person);
+    let (runtime, runtime_tone) = runtime_badge(i18n, person);
     let (published, publish_tone) = match person.publish_status.as_str() {
-        "PUBLISHED" => ("已发布", Tone::Green),
-        "PUBLISHING" => ("发布中", Tone::Warning),
-        "DRAFT" => ("草稿", Tone::Warning),
-        "TESTING" => ("测试中", Tone::Warning),
-        status if status.contains("FAIL") => ("发布异常", Tone::Red),
-        _ => ("未知", Tone::Muted),
+        "PUBLISHED" => (i18n.__("已发布"), Tone::Green),
+        "PUBLISHING" => (i18n.__("发布中"), Tone::Warning),
+        "DRAFT" => (i18n.__("草稿"), Tone::Warning),
+        "TESTING" => (i18n.__("测试中"), Tone::Warning),
+        status if status.contains("FAIL") => (i18n.__("发布异常"), Tone::Red),
+        _ => (i18n.__("未知"), Tone::Muted),
     };
     let publish_tone = if matches!(publish_tone, Tone::Red) { Tone::Red } else { Tone::Muted };
     let status = row![
         status_label(runtime, runtime_tone),
-        label(format!("配置 · {published}"), 12, publish_tone),
-        (!person.owned_by_caller).then(|| label("组织内", 12, Tone::Muted)),
+        label(i18n.format("配置 · %s", &[format!("{}", published).into()]).expect("valid workbench template"), 12, publish_tone),
+        (!person.owned_by_caller).then(|| label(i18n.__("组织内"), 12, Tone::Muted)),
     ]
     .align_y(Alignment::Center)
     .spacing(10)
@@ -294,7 +289,7 @@ fn employee_card<'a>(
         picture,
         column![
             strong(person.name.as_str(), 17, Tone::Ink),
-            label("私有执行员工", 12, Tone::Muted),
+            label(i18n.__("私有执行员工"), 12, Tone::Muted),
         ]
         .spacing(3)
         .width(Length::Fill),
@@ -305,28 +300,25 @@ fn employee_card<'a>(
         data.members.get(id).and_then(|member| member.department.as_deref()).unwrap_or("")
     };
     let attribution = row![
-        member(
-            "使用人",
+        member(i18n,
+            i18n.__("使用人"),
             person.owner_name(&data.members, actor),
             department(&person.owner_user_id)
         ),
-        member("创建人", person.creator_name(&data.members, actor), department(&person.created_by)),
+        member(i18n, i18n.__("创建人"), person.creator_name(&data.members, actor), department(&person.created_by)),
     ]
     .spacing(10);
     let note = if person.owned_by_caller {
-        "仅你可使用"
+        i18n.__("仅你可使用")
     } else {
-        "仅使用人可使用 · 不参与团队任务"
+        i18n.__("仅使用人可使用 · 不参与团队任务")
     };
     card(
         column![
             identity,
             status,
             label(
-                format!(
-                    "技能 {} · 系统工具 {}",
-                    person.capability_summary.skill_count, person.capability_summary.mcp_count
-                ),
+                i18n.format("技能 %s · 系统工具 %s", &[format!("{}", person.capability_summary.skill_count).into(), format!("{}", person.capability_summary.mcp_count).into()]).expect("valid workbench template"),
                 12,
                 Tone::Muted,
             ),
@@ -334,13 +326,13 @@ fn employee_card<'a>(
             label(note, 12, Tone::Muted),
             divider(),
             row![
-                label("今日执行", 12, Tone::Muted),
+                label(i18n.__("今日执行"), 12, Tone::Muted),
                 strong(person.usage_count.to_string(), 13, Tone::Ink),
-                person.chat_id().map(|id| super::view::chat_action(
+                person.chat_id().map(|id| super::view::chat_action(i18n,
                     can_open.then(|| message(ListEvent::Chat(id.to_owned()))),
                 )),
                 person.transfer_id().map(|id| action(
-                    "转交使用人",
+                    i18n.__("转交使用人"),
                     None,
                     can_open.then(|| message(ListEvent::OpenTransfer(id.to_owned()))),
                     false,
@@ -355,11 +347,11 @@ fn employee_card<'a>(
     )
 }
 
-fn member<'a>(title: &'static str, name: Option<&'a str>, department: &'a str) -> Item<'a> {
+fn member<'a>(i18n: desktop_i18n::I18n, title: &'static str, name: Option<&'a str>, department: &'a str) -> Item<'a> {
     column![
         label(title, 11, Tone::Muted),
         strong(name.unwrap_or("—"), 13, Tone::Ink),
-        label(if department.is_empty() { "未登记" } else { department }, 11, Tone::Muted),
+        label(if department.is_empty() { i18n.__("未登记") } else { department }, 11, Tone::Muted),
     ]
     .spacing(2)
     .width(Length::Fill)

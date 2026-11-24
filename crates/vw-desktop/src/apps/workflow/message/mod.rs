@@ -9,9 +9,9 @@ pub fn update(app: &mut App, message: WorkflowMessage) -> Task<Message> {
             Effect::None => Task::none(),
             Effect::TextContext(effect) => Task::done(desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage::context(effect)),
             Effect::TextSelection(session, index, text_index, text) => Task::done(desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage::selection(session, index, text_index, text)),
-            Effect::Error(error) => app.show_error_toast(error),
-            Effect::Warning(error) => app.show_warning_toast(error),
-            Effect::Success(message) => app.show_success_toast(message),
+            Effect::Error(error) => app.show_message_toast(crate::app::state::ToastKind::Error, error.message()),
+            Effect::Warning(error) => app.show_message_toast(crate::app::state::ToastKind::Warning, error.message()),
+            Effect::Success(message) => app.show_message_toast(crate::app::state::ToastKind::Success, message.message()),
             Effect::After(duration, message) => {
                 crate::app::message::after(duration, Message::WorkflowTool(*message))
             }
@@ -64,20 +64,20 @@ fn workflow_gateway_client() -> Result<gateway_workflow::GatewayWorkflowClient, 
 fn start_native_video_edit(app: &mut App) -> Task<Message> {
     let command = match app.workflow_state.video_edit.native_command() {
         Ok(command) => command,
-        Err(e) => return app.show_error_toast(e),
+        Err(e) => return app.show_message_toast(crate::app::state::ToastKind::Error, e.message()),
     };
     if app.navigation_tabs.project_path.is_none() {
-        return app.show_error_toast("请先打开原生项目，再从模板发起剪辑");
+        return app.show_localized_toast(crate::app::state::ToastKind::Error, "请先打开原生项目，再从模板发起剪辑", vec![]);
     }
     if app.session_state.acp_agent.is_some() || app.current_session_runtime().acp_agent.is_some() {
-        return app.show_error_toast("请先切换原生会话，剪辑不支持 ACP");
+        return app.show_localized_toast(crate::app::state::ToastKind::Error, "请先切换原生会话，剪辑不支持 ACP", vec![]);
     }
     let runtime = app.current_session_runtime();
     if runtime.task_mode_enabled || runtime.workflow_mode_enabled || !app.session_state.files.is_empty() {
-        return app.show_error_toast("请使用普通原生聊天模式，并先处理已有附件后发起剪辑");
+        return app.show_localized_toast(crate::app::state::ToastKind::Error, "请使用普通原生聊天模式，并先处理已有附件后发起剪辑", vec![]);
     }
     if !app.current_session_runtime().input_editor.text().trim().is_empty() {
-        return app.show_error_toast("会话中已有未发送草稿，请先处理后再启动剪辑");
+        return app.show_localized_toast(crate::app::state::ToastKind::Error, "会话中已有未发送草稿，请先处理后再启动剪辑", vec![]);
     }
     app.workflow_state.video_edit.open = false;
     app.navigation_tabs.screen = crate::app::Screen::Project;

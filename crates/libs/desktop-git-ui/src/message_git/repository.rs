@@ -11,14 +11,14 @@ pub enum RepositoryMessage {
         path: String,
         generation: u64,
         result:
-            Result<repository_ops::RepositorySnapshot, String>,
+            Result<repository_ops::RepositorySnapshot, desktop_i18n::workflow::Feedback>,
     },
     SelectHistoryCommit(String),
     HistoryDetailReady {
         path: String,
         generation: u64,
         sha: String,
-        result: Result<repository_ops::HistoryDetail, String>,
+        result: Result<repository_ops::HistoryDetail, desktop_i18n::workflow::Feedback>,
     },
     SelectHistoryFile(usize),
     OpenHistoryFileMenu(usize),
@@ -29,13 +29,13 @@ pub enum RepositoryMessage {
     RemoteFinished {
         path: String,
         action: repository_ops::RemoteAction,
-        result: Result<(), String>,
+        result: Result<(), desktop_i18n::workflow::Feedback>,
     },
 }
 pub enum Effect {
     CopyCode(String),
     PreviewSnapshot { key: String, path: String, title: String, content: String },
-    Toast { success: bool, message: String },
+    Toast { success: bool, message: desktop_i18n::workflow::Feedback },
     RefreshAfterMutation,
     ScheduleAnimationTick,
 }
@@ -43,7 +43,7 @@ async fn gateway_context(
     client: &vw_gateway_client::GatewayClient,
     tenant_scope: &vw_api_project::TenantScopeDto,
     path: &str,
-) -> Result<desktop_workspace::project_message::gateway::GatewayFileContext, String> {
+) -> Result<desktop_workspace::project_message::gateway::GatewayFileContext, desktop_i18n::workflow::Feedback> {
     let context = desktop_workspace::project_message::gateway::resolve_gateway_file_context(client, tenant_scope, path).await?;
     if context.worktree_id.is_none() {
         let project = desktop_workspace::project_message::gateway::resolve_gateway_project(client, tenant_scope, path).await?;
@@ -60,7 +60,7 @@ pub fn update(
     selected_branch: &mut Option<String>,
     current_path: Option<String>,
     commit_in_progress: bool,
-    gateway: Result<(vw_gateway_client::GatewayClient, vw_api_project::TenantScopeDto), String>,
+    gateway: Result<(vw_gateway_client::GatewayClient, vw_api_project::TenantScopeDto), desktop_i18n::workflow::Feedback>,
     effects: &mut Vec<Effect>,
     message: RepositoryMessage,
 ) -> Task<RepositoryMessage> {
@@ -128,7 +128,7 @@ pub fn update(
                                     limit,
                                 },
                             )
-                            .await
+                            .await.map_err(Into::into)
                     }
                     .await;
                     (path, generation, result)
@@ -196,7 +196,7 @@ pub fn update(
                                     sha: sha.clone(),
                                 },
                             )
-                            .await
+                            .await.map_err(Into::into)
                     }
                     .await;
                     (path, generation, sha, result)
@@ -312,7 +312,7 @@ pub fn update(
                             if response.ok {
                                 Ok(())
                             } else {
-                                Err("网关未完成 Git 同步".to_owned())
+                                Err("网关未完成 Git 同步".into())
                             }
                         }
                         .await;
@@ -328,7 +328,11 @@ pub fn update(
             (*state).remote_busy = false;
             (*state).remote_action = None;
             let (success, message) = match result {
-                Ok(()) => (true, format!("{}完成", repository_ops::remote_action_label(action))),
+                Ok(()) => (true, desktop_i18n::workflow::Feedback::from(match action {
+                    repository_ops::RemoteAction::Fetch => "获取完成",
+                    repository_ops::RemoteAction::Pull => "拉取完成",
+                    repository_ops::RemoteAction::Push => "推送完成",
+                })),
                 Err(error) => (false, error),
             };
             effects.push(Effect::Toast { success, message });

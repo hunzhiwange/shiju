@@ -4,8 +4,8 @@ use crate::app::message::project_profiles::{Event, ApplyEvent, message};
 use desktop_workspace::components::project_profiles as domain;
 use vw_api_project_profiles::ProjectProfileScope;
 
-pub(crate) fn view(state: &State, scope: ProjectProfileScope) -> iced::Element<'_, Message> {
-    domain::view(state, scope).map(|event| message(match event {
+pub(crate) fn view(i18n: desktop_i18n::I18n, state: &State, scope: ProjectProfileScope) -> iced::Element<'_, Message> {
+    domain::view(i18n, state, scope).map(|event| message(match event {
         domain::Event::Apply(scope, event) => Event::Apply(scope, match event {
             domain::ApplyEvent::Open(id, version) => ApplyEvent::Open(id, version),
             domain::ApplyEvent::Close => ApplyEvent::Close,

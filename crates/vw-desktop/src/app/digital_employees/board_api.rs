@@ -171,7 +171,7 @@ pub(super) struct Review {
     pub summary: Option<String>,
 }
 
-pub(super) async fn load(credential: &str) -> Result<Snapshot, String> {
+pub(super) async fn load(credential: &str) -> Result<Snapshot, desktop_i18n::workflow::Feedback> {
     let client = Client::new(credential)?;
     let (summary, tasks, directory, workflows) = tokio::join!(
         client.get::<Summary>("workbench/summary", &[]),
@@ -197,7 +197,7 @@ pub(super) async fn load(credential: &str) -> Result<Snapshot, String> {
     })
 }
 
-pub(super) async fn load_tasks(client: &Client) -> Result<Vec<WorkItem>, String> {
+pub(super) async fn load_tasks(client: &Client) -> Result<Vec<WorkItem>, desktop_i18n::workflow::Feedback> {
     let mut tasks = Vec::new();
     let mut ids = HashSet::new();
     let mut cursors = HashSet::new();

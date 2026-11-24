@@ -20,7 +20,7 @@ pub(super) const PAGE_SIZE: usize = 9;
 pub(super) struct List {
     pub data: Option<Arc<Snapshot>>,
     pub loading: bool,
-    pub error: Option<String>,
+    pub error: Option<desktop_i18n::workflow::Feedback>,
     pub organization: bool,
     pub search: String,
     pub filter: RunFilter,
@@ -32,7 +32,7 @@ pub(super) struct List {
 #[derive(Clone)]
 pub(crate) enum ListEvent {
     Refresh,
-    Loaded(u64, Result<Arc<Snapshot>, String>),
+    Loaded(u64, Result<Arc<Snapshot>, desktop_i18n::workflow::Feedback>),
     Scope(bool),
     Search(String),
     Run(RunFilter),
@@ -40,11 +40,11 @@ pub(crate) enum ListEvent {
     Chat(String),
     OpenTransfer(String),
     CloseTransfer,
-    TransferMembers(u64, Result<Vec<Recipient>, String>),
+    TransferMembers(u64, Result<Vec<Recipient>, desktop_i18n::workflow::Feedback>),
     TransferSearch(String),
     TransferSelect(Recipient),
     SubmitTransfer,
-    TransferFinished(u64, Result<(), String>),
+    TransferFinished(u64, Result<(), desktop_i18n::workflow::Feedback>),
 }
 
 pub(super) struct Transfer {
@@ -53,7 +53,7 @@ pub(super) struct Transfer {
     pub selected: Option<Recipient>,
     pub search: String,
     pub submitting: bool,
-    pub error: Option<String>,
+    pub error: Option<desktop_i18n::workflow::Feedback>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -104,7 +104,7 @@ impl fmt::Display for RunFilter {
 
 pub(crate) struct Snapshot {
     pub(super) mine: Vec<Assistant>,
-    pub(super) governance: Result<Option<Vec<Assistant>>, String>,
+    pub(super) governance: Result<Option<Vec<Assistant>>, desktop_i18n::workflow::Feedback>,
     pub(super) members: HashMap<String, Member>,
 }
 
@@ -321,14 +321,12 @@ pub(super) fn update(app: &mut App, event: ListEvent) -> Task<Message> {
                         state.data = None;
                         state.page = 0;
                         return Task::batch([
-                            app.show_toast(crate::app::state::ToastKind::Success, "已转交使用人"),
+                            app.show_localized_toast(crate::app::state::ToastKind::Success, "已转交使用人", vec![]),
                             refresh(app),
                         ]);
                     }
                     Err(error) => {
-                        transfer.error = Some(format!(
-                            "转交失败。{error}。如员工资料已更新，请关闭弹窗并刷新列表。"
-                        ));
+                        transfer.error = Some(error);
                     }
                 }
             }
@@ -430,7 +428,7 @@ fn submit_transfer(app: &mut App) -> Task<Message> {
     )
 }
 
-async fn load_recipients(client: &Client, owner: &str) -> Result<Vec<Recipient>, String> {
+async fn load_recipients(client: &Client, owner: &str) -> Result<Vec<Recipient>, desktop_i18n::workflow::Feedback> {
     let mut page = 1;
     let mut scanned = 0;
     let mut recipients = Vec::new();
@@ -485,7 +483,7 @@ pub(super) fn refresh(app: &mut App) -> Task<Message> {
     })
 }
 
-async fn load(credential: &str) -> Result<Snapshot, String> {
+async fn load(credential: &str) -> Result<Snapshot, desktop_i18n::workflow::Feedback> {
     let client = Client::new(credential)?;
     let (mine, governance) = tokio::join!(
         client.get::<Response>("assistants", &[("view", "mine")]),
@@ -503,7 +501,7 @@ async fn load(credential: &str) -> Result<Snapshot, String> {
     Ok(Snapshot { mine, governance, members })
 }
 
-async fn load_governance(client: &Client) -> Result<Option<Response>, String> {
+async fn load_governance(client: &Client) -> Result<Option<Response>, desktop_i18n::workflow::Feedback> {
     let resource =
         client.iam::<IamResource>("me/resource", &[("service_code", "agent-worker")]).await?;
     if !resource
@@ -556,7 +554,7 @@ async fn load_members<'a>(
         .collect()
 }
 
-async fn load_user_page(client: &Client, page: usize) -> Result<IamPage<Member>, String> {
+async fn load_user_page(client: &Client, page: usize) -> Result<IamPage<Member>, desktop_i18n::workflow::Feedback> {
     client.iam("users", &[("page", &page.to_string()), ("page_size", "100")]).await
 }
 

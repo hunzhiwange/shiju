@@ -13,7 +13,7 @@ use super::view::{
 };
 use super::workflows::{Department, List, ListEvent, PAGE_SIZE, Sort, Status, Workflow, message};
 
-pub(super) fn view<'a>(
+pub(super) fn view<'a>(i18n: desktop_i18n::I18n,
     state: &'a List,
     directory: Option<&departments::Directory>,
     width: f32,
@@ -30,9 +30,9 @@ pub(super) fn view<'a>(
     };
     let page = column![
         row![
-            strong("工作流程", 24, Tone::Ink).width(Length::Fill),
+            strong(i18n.__("工作流程"), 24, Tone::Ink).width(Length::Fill),
             action(
-                if state.loading { "刷新中…" } else { "刷新" },
+                if state.loading { i18n.__("刷新中…") } else { i18n.__("刷新") },
                 Some(Icon::ArrowRepeat),
                 (!state.loading).then(|| message(ListEvent::Refresh)),
                 false,
@@ -40,15 +40,15 @@ pub(super) fn view<'a>(
         ]
         .spacing(10)
         .align_y(Alignment::Center),
-        filters(state, items, directory, [scoped.len(), published, drafts, offline], active, width),
+        filters(i18n, state, items, directory, [scoped.len(), published, drafts, offline], active, width),
     ]
     .spacing(20)
     .width(Length::Fill);
 
     let results = if state.loading {
-        page_notice(label("正在加载工作流程…", 14, Tone::Muted))
+        page_notice(label(i18n.__("正在加载工作流程…"), 14, Tone::Muted))
     } else if let Some(error) = &state.error {
-        settings_error_banner(error.as_str())
+        settings_error_banner(error.render(i18n))
     } else {
         let filtered = state.filtered(&scoped, directory);
         if filtered.is_empty() {
@@ -56,19 +56,19 @@ pub(super) fn view<'a>(
                 && state.status.is_none()
                 && state.department == Department::All
             {
-                "还没有工作流程"
+                i18n.__("还没有工作流程")
             } else {
-                "没有符合筛选条件的流程"
+                i18n.__("没有符合筛选条件的流程")
             };
             page_notice(label(title, 14, Tone::Muted))
         } else {
-            results(state, &filtered, directory, width)
+            results(i18n, state, &filtered, directory, width)
         }
     };
     page.push(results).into()
 }
 
-fn filters<'a>(
+fn filters<'a>(i18n: desktop_i18n::I18n,
     state: &'a List,
     items: &[Workflow],
     directory: Option<&departments::Directory>,
@@ -79,7 +79,7 @@ fn filters<'a>(
     let statuses = [None, Some(Status::Published), Some(Status::Draft), Some(Status::Offline)];
     let status_picker =
         Row::with_children(statuses.into_iter().zip(counts).map(|(status, count)| {
-            let title = status.map_or("全部", Status::label);
+            let title = status.map_or(i18n.__("全部"), |status| i18n.__(status.label()));
             let title =
                 if state.items.is_some() { format!("{title} {count}") } else { title.into() };
             segment(title, state.status == status, message(ListEvent::Status(status)))
@@ -87,13 +87,13 @@ fn filters<'a>(
         .spacing(2)
         .wrap();
     let choice = |value: Department| departments::Choice {
-        label: value.label(directory).to_owned(),
+        label: value.localized_label(i18n, directory).to_owned(),
         value,
     };
     let departments = std::iter::once(Department::All)
         .chain(items.iter().map(Workflow::department).collect::<BTreeSet<_>>())
         .map(choice);
-    let search = settings_text_input("搜索流程名称、说明或部门", &state.search)
+    let search = settings_text_input(i18n.__("搜索流程名称、说明或部门"), &state.search)
         .on_input(|value| message(ListEvent::Search(value)))
         .on_submit_maybe((!state.loading).then(|| message(ListEvent::Refresh)))
         .width(if width >= 750.0 { Length::Fixed(285.0) } else { Length::Fill });
@@ -103,12 +103,12 @@ fn filters<'a>(
             message(ListEvent::Department(option.value))
         })
         .width(248),
-        settings_select([Sort::Updated, Sort::Name, Sort::Runs], Some(state.sort), |value| {
-            message(ListEvent::Sort(value))
+        settings_select([Sort::Updated, Sort::Name, Sort::Runs].map(|value| super::LocalizedOption::new(value, i18n)), Some(super::LocalizedOption::new(state.sort, i18n)), |value| {
+            message(ListEvent::Sort(value.value))
         })
         .width(216),
         label(
-            active.map_or_else(|| "执行中任务 —".to_owned(), |count| format!("执行中任务 {count}")),
+            active.map_or_else(|| i18n.__("执行中任务 —").to_owned(), |count| i18n.format("执行中任务 %s", &[format!("{}", count).into()]).expect("valid workbench template")),
             12,
             Tone::Muted,
         ),
@@ -119,7 +119,7 @@ fn filters<'a>(
     column![segmented(status_picker.into()), fields].spacing(10).into()
 }
 
-fn results<'a>(
+fn results<'a>(i18n: desktop_i18n::I18n,
     state: &List,
     items: &[&'a Workflow],
     directory: Option<&departments::Directory>,
@@ -134,7 +134,7 @@ fn results<'a>(
     let mut grid = Column::new().spacing(16).width(Length::Fill);
     for cards in items[start..end].chunks(columns) {
         let mut group =
-            Row::with_children(cards.iter().map(|item| workflow_card(item, directory, card_width)))
+            Row::with_children(cards.iter().map(|item| workflow_card(i18n, item, directory, card_width)))
                 .spacing(16)
                 .width(Length::Fill);
         if cards.len() < columns {
@@ -142,20 +142,20 @@ fn results<'a>(
         }
         grid = grid.push(group);
     }
-    let mut footer = row![label(format!("共 {} 条", items.len()), 13, Tone::Muted)]
+    let mut footer = row![label(i18n.format("共 %s 条", &[format!("{}", items.len()).into()]).expect("valid workbench template"), 13, Tone::Muted)]
         .spacing(8)
         .align_y(Alignment::Center);
     if pages > 1 {
         footer = footer
             .push(action(
-                "上一页",
+                i18n.__("上一页"),
                 Some(Icon::ChevronLeft),
                 page.checked_sub(1).map(|n| message(ListEvent::Page(n))),
                 false,
             ))
             .push(label(format!("{} / {pages}", page + 1), 13, Tone::Muted))
             .push(action(
-                "下一页",
+                i18n.__("下一页"),
                 Some(Icon::ChevronRight),
                 (page + 1 < pages).then(|| message(ListEvent::Page(page + 1))),
                 false,
@@ -164,7 +164,7 @@ fn results<'a>(
     column![grid, footer.wrap()].spacing(12).into()
 }
 
-fn workflow_card<'a>(
+fn workflow_card<'a>(i18n: desktop_i18n::I18n,
     item: &'a Workflow,
     directory: Option<&departments::Directory>,
     width: f32,
@@ -178,7 +178,7 @@ fn workflow_card<'a>(
     let mut content = column![
         row![
             strong(item.name.as_str(), 17, Tone::Ink).width(Length::Fill),
-            status_label(status.label(), tone),
+            status_label(i18n.__(status.label()), tone),
         ]
         .spacing(8)
         .align_y(Alignment::Center),
@@ -208,8 +208,8 @@ fn workflow_card<'a>(
     }
     let version = item.version().map_or_else(|| "—".into(), |v| format!("v{v}"));
     let scope = match item.scope.as_deref() {
-        Some("department") => "部门私有",
-        Some("company") => "全公司可见",
+        Some("department") => i18n.__("部门私有"),
+        Some("company") => i18n.__("全公司可见"),
         _ => "—",
     };
     let runs = item.runs_30d.map_or_else(|| "—".into(), |n| n.to_string());
@@ -225,17 +225,17 @@ fn workflow_card<'a>(
             row![
                 label(version, 12, Tone::Muted),
                 label(scope, 12, Tone::Muted),
-                label(item.department().label(directory).to_owned(), 12, Tone::Muted),
+                label(item.department().localized_label(i18n, directory).to_owned(), 12, Tone::Muted),
             ]
             .spacing(8)
             .wrap(),
         )
         .push(
             row![
-                label(format!("近 30 天执行 {runs} 次"), 12, Tone::Muted),
-                label(format!("成功率 {success}"), 12, Tone::Muted),
+                label(i18n.format("近 30 天执行 %s 次", &[format!("{}", runs).into()]).expect("valid workbench template"), 12, Tone::Muted),
+                label(i18n.format("成功率 %s", &[format!("{}", success).into()]).expect("valid workbench template"), 12, Tone::Muted),
                 item.active_task_count.filter(|count| *count > 0).map(|count| label(
-                    format!("{count} 个任务执行中"),
+                    i18n.format("%s 个任务执行中", &[format!("{}", count).into()]).expect("valid workbench template"),
                     12,
                     Tone::Blue
                 )),

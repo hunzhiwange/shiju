@@ -20,18 +20,18 @@ use super::view::{
     segmented, status_label, strong, table_header_style, tint_style,
 };
 
-pub(super) fn view<'a>(
+pub(super) fn view<'a>(i18n: desktop_i18n::I18n,
     state: &'a Shared,
     departments: Option<&departments::Directory>,
     signed_in: bool,
     width: f32,
 ) -> Item<'a> {
-    let mut heading = row![strong("共享员工", 24, Tone::Ink), Space::new().width(Length::Fill)]
+    let mut heading = row![strong(i18n.__("共享员工"), 24, Tone::Ink), Space::new().width(Length::Fill)]
         .spacing(10)
         .align_y(Alignment::Center);
     if signed_in {
         heading = heading.push(action(
-            if state.loading { "刷新中…" } else { "刷新" },
+            if state.loading { i18n.__("刷新中…") } else { i18n.__("刷新") },
             Some(Icon::ArrowRepeat),
             (!state.loading).then(|| message(ListEvent::Refresh)),
             false,
@@ -42,9 +42,9 @@ pub(super) fn view<'a>(
         return page
             .push(page_notice(
                 column![
-                    label("登录识矩后查看共享员工", 15, Tone::Ink),
+                    label(i18n.__("登录识矩后查看共享员工"), 15, Tone::Ink),
                     action(
-                        "登录识矩",
+                        i18n.__("登录识矩"),
                         None,
                         Some(Message::Account(AccountMessage::StartBrowserLogin)),
                         true
@@ -56,11 +56,11 @@ pub(super) fn view<'a>(
             .into();
     }
     if let Some(error) = &state.error {
-        page = page.push(settings_error_banner(error.as_str()));
+        page = page.push(settings_error_banner(error.render(i18n)));
     }
     let Some(directory) = &state.directory else {
         if state.loading {
-            page = page.push(page_notice(label("正在加载共享员工…", 14, Tone::Muted)));
+            page = page.push(page_notice(label(i18n.__("正在加载共享员工…"), 14, Tone::Muted)));
         }
         return page.into();
     };
@@ -87,7 +87,7 @@ pub(super) fn view<'a>(
             workers.push(employee);
         }
     }
-    page = page.push(filters(
+    page = page.push(filters(i18n,
         state,
         directory,
         departments,
@@ -101,18 +101,18 @@ pub(super) fn view<'a>(
         Kind::Worker => &workers,
     };
     if selected.is_empty() {
-        return page.push(page_notice(label("当前筛选条件下没有共享员工", 14, Tone::Muted))).into();
+        return page.push(page_notice(label(i18n.__("当前筛选条件下没有共享员工"), 14, Tone::Muted))).into();
     }
     if state.table {
         let pagination = Pagination::new(selected.len(), state.page, state.table_size);
         return page
-            .push(table(pagination.slice(selected), &directory.access, departments, width))
-            .push(pager(pagination, false, true))
+            .push(table(i18n, pagination.slice(selected), &directory.access, departments, width))
+            .push(pager(i18n, pagination, false, true))
             .into();
     }
     if state.kind == Kind::All {
         for (title, employees, is_manager) in
-            [("任务主管", &managers, true), ("执行员工", &workers, false)]
+            [(i18n.__("任务主管"), &managers, true), (i18n.__("执行员工"), &workers, false)]
         {
             if !employees.is_empty() {
                 let index = if is_manager { state.manager_page } else { state.page };
@@ -120,8 +120,8 @@ pub(super) fn view<'a>(
                 page = page.push(
                     column![
                         strong(title, 16, Tone::Ink),
-                        cards(pagination.slice(employees), directory, width),
-                        pager(pagination, is_manager, false),
+                        cards(i18n, pagination.slice(employees), directory, width),
+                        pager(i18n, pagination, is_manager, false),
                     ]
                     .spacing(12),
                 );
@@ -130,13 +130,13 @@ pub(super) fn view<'a>(
     } else {
         let pagination = Pagination::new(selected.len(), state.page, state.card_size);
         page = page
-            .push(cards(pagination.slice(selected), directory, width))
-            .push(pager(pagination, false, false));
+            .push(cards(i18n, pagination.slice(selected), directory, width))
+            .push(pager(i18n, pagination, false, false));
     }
     page.into()
 }
 
-fn filters<'a>(
+fn filters<'a>(i18n: desktop_i18n::I18n,
     state: &'a Shared,
     directory: &Directory,
     department_directory: Option<&departments::Directory>,
@@ -149,7 +149,7 @@ fn filters<'a>(
     let choice = |path: Option<&str>| departments::Choice {
         value: path.map(str::to_owned),
         label: path
-            .map_or("全部部门", |path| department_label(department_directory, path))
+            .map_or(i18n.__("全部部门"), |path| department_label(i18n, department_directory, path))
             .to_owned(),
     };
     let options = std::iter::once(choice(None))
@@ -159,12 +159,12 @@ fn filters<'a>(
     })
     .width(248);
     let runtime = settings_select(
-        [Runtime::All, Runtime::OnDuty, Runtime::Abnormal],
-        Some(state.runtime),
-        |runtime| message(ListEvent::Runtime(runtime)),
+        [Runtime::All, Runtime::OnDuty, Runtime::Abnormal].map(|value| super::LocalizedOption::new(value, i18n)),
+        Some(super::LocalizedOption::new(state.runtime, i18n)),
+        |runtime| message(ListEvent::Runtime(runtime.value)),
     )
     .width(128);
-    let search = settings_text_input("搜索名称、岗位或能力", &state.query)
+    let search = settings_text_input(i18n.__("搜索名称、岗位或能力"), &state.query)
         .width(if width >= 660.0 {
             Length::Fixed((width - 486.0).min(340.0))
         } else {
@@ -176,28 +176,28 @@ fn filters<'a>(
         search,
         department,
         runtime,
-        label(format!("岗位模板 {}", value(directory.templates)), 13, Tone::Muted),
+        label(i18n.format("岗位模板 %s", &[format!("{}", value(directory.templates)).into()]).expect("valid workbench template"), 13, Tone::Muted),
     ]
     .spacing(8)
     .align_y(Alignment::Center)
     .wrap();
 
     let segments = group([
-        (format!("全部 {all}"), state.kind == Kind::All, ListEvent::Kind(Kind::All)),
+        (i18n.format("全部 %s", &[format!("{}", all).into()]).expect("valid workbench template"), state.kind == Kind::All, ListEvent::Kind(Kind::All)),
         (
-            format!("任务主管 {managers}"),
+            i18n.format("任务主管 %s", &[format!("{}", managers).into()]).expect("valid workbench template"),
             state.kind == Kind::Manager,
             ListEvent::Kind(Kind::Manager),
         ),
-        (format!("执行员工 {workers}"), state.kind == Kind::Worker, ListEvent::Kind(Kind::Worker)),
+        (i18n.format("执行员工 %s", &[format!("{}", workers).into()]).expect("valid workbench template"), state.kind == Kind::Worker, ListEvent::Kind(Kind::Worker)),
     ]);
     let archive = group([
-        ("在用".into(), !state.archived, ListEvent::Archived(false)),
-        (format!("已归档 {archived}"), state.archived, ListEvent::Archived(true)),
+        (i18n.__("在用").into(), !state.archived, ListEvent::Archived(false)),
+        (i18n.format("已归档 %s", &[format!("{}", archived).into()]).expect("valid workbench template"), state.archived, ListEvent::Archived(true)),
     ]);
     let views = group([
-        ("卡片".into(), !state.table, ListEvent::Table(false)),
-        ("列表".into(), state.table, ListEvent::Table(true)),
+        (i18n.__("卡片").into(), !state.table, ListEvent::Table(false)),
+        (i18n.__("列表").into(), state.table, ListEvent::Table(true)),
     ]);
     let mut modes = row![segments].spacing(8).align_y(Alignment::Center);
     if width >= 700.0 {
@@ -221,7 +221,7 @@ fn group(options: impl IntoIterator<Item = (String, bool, ListEvent)>) -> Item<'
     )
 }
 
-fn cards<'a>(employees: &[&'a SharedEmployee], directory: &Directory, width: f32) -> Item<'a> {
+fn cards<'a>(i18n: desktop_i18n::I18n, employees: &[&'a SharedEmployee], directory: &Directory, width: f32) -> Item<'a> {
     let columns = if width >= 890.0 {
         3
     } else if width >= 550.0 {
@@ -233,7 +233,7 @@ fn cards<'a>(employees: &[&'a SharedEmployee], directory: &Directory, width: f32
     for employees in employees.chunks(columns) {
         let mut line = Row::new().spacing(16);
         for employee in employees {
-            line = line.push(employee_card(employee, directory));
+            line = line.push(employee_card(i18n, employee, directory));
         }
         for _ in employees.len()..columns {
             line = line.push(Space::new().width(Length::Fill));
@@ -243,7 +243,7 @@ fn cards<'a>(employees: &[&'a SharedEmployee], directory: &Directory, width: f32
     grid.into()
 }
 
-fn employee_card<'a>(employee: &'a SharedEmployee, directory: &Directory) -> Item<'a> {
+fn employee_card<'a>(i18n: desktop_i18n::I18n, employee: &'a SharedEmployee, directory: &Directory) -> Item<'a> {
     let role = employee.role();
     let portrait: Item<'_> = match portraits::shared_avatar(
         &employee.name,
@@ -260,7 +260,7 @@ fn employee_card<'a>(employee: &'a SharedEmployee, directory: &Directory) -> Ite
         portrait,
         column![
             strong(employee.name.as_str(), 17, Tone::Ink),
-            metadata(role.unwrap_or_else(|| kind_title(employee)).to_owned()),
+            metadata(role.unwrap_or_else(|| kind_title(i18n, employee)).to_owned()),
         ]
         .spacing(3)
         .width(Length::Fill),
@@ -269,9 +269,9 @@ fn employee_card<'a>(employee: &'a SharedEmployee, directory: &Directory) -> Ite
     .align_y(Alignment::Center);
 
     let team = if employee.manager() {
-        format!("协作员工 {} 名", value(employee.worker_count))
+        i18n.format("协作员工 %s 名", &[format!("{}", value(employee.worker_count)).into()]).expect("valid workbench template")
     } else {
-        format!("任务主管 {}", employee.manager_name.as_deref().unwrap_or("—"))
+        i18n.format("任务主管 %s", &[format!("{}", employee.manager_name.as_deref().unwrap_or("—")).into()]).expect("valid workbench template")
     };
     let counts = directory.counts.as_ref();
     let local = counts.and_then(|counts| counts.get(&employee.employee_id));
@@ -284,7 +284,7 @@ fn employee_card<'a>(employee: &'a SharedEmployee, directory: &Directory) -> Ite
     let mut details = column![metadata(team)].spacing(5);
     if let Some(template) = employee.template_name.as_deref().filter(|name| !name.trim().is_empty())
     {
-        details = details.push(metadata(format!("岗位模板 · {template}")));
+        details = details.push(metadata(i18n.format("岗位模板 · %s", &[format!("{}", template).into()]).expect("valid workbench template")));
     }
     let capabilities = employee.capability_tags().collect::<Vec<_>>();
     if !capabilities.is_empty() {
@@ -293,16 +293,16 @@ fn employee_card<'a>(employee: &'a SharedEmployee, directory: &Directory) -> Ite
 
     let mut content = column![
         identity,
-        runtime_status(employee, true),
+        runtime_status(i18n, employee, true),
         details,
         divider(),
-        row![card_metric(today, "今日执行"), card_metric(active, "进行中任务")]
+        row![card_metric(today, i18n.__("今日执行")), card_metric(active, i18n.__("进行中任务"))]
             .spacing(16)
             .align_y(Alignment::Center)
             .wrap(),
     ]
     .spacing(10);
-    if let Some(actions) = employee_actions(employee, &directory.access) {
+    if let Some(actions) = employee_actions(i18n, employee, &directory.access) {
         content = content.push(actions);
     }
     container(content).padding(16).width(Length::Fill).style(panel_style).into()
@@ -319,7 +319,7 @@ fn metadata(value: String) -> Item<'static> {
     .into()
 }
 
-fn employee_actions(employee: &SharedEmployee, access: &Access) -> Option<Item<'static>> {
+fn employee_actions(i18n: desktop_i18n::I18n, employee: &SharedEmployee, access: &Access) -> Option<Item<'static>> {
     let id = &employee.employee_id;
     let can_dispatch = access.can_dispatch(employee);
     let can_configure = access.can_configure(employee);
@@ -330,11 +330,11 @@ fn employee_actions(employee: &SharedEmployee, access: &Access) -> Option<Item<'
     }
     let mut actions = Row::new().spacing(6).align_y(Alignment::Center);
     if employee.can_chat() {
-        actions = actions.push(super::view::chat_action(Some(message(ListEvent::Chat(id.clone())))));
+        actions = actions.push(super::view::chat_action(i18n, Some(message(ListEvent::Chat(id.clone())))));
     }
     if can_dispatch {
         actions = actions.push(action(
-            "派任务",
+            i18n.__("派任务"),
             None,
             Some(message(ListEvent::Dispatch(id.clone()))),
             true,
@@ -342,7 +342,7 @@ fn employee_actions(employee: &SharedEmployee, access: &Access) -> Option<Item<'
     }
     if can_configure {
         actions = actions.push(action(
-            "配置",
+            i18n.__("配置"),
             None,
             Some(message(ListEvent::Configure(id.clone()))),
             false,
@@ -351,29 +351,29 @@ fn employee_actions(employee: &SharedEmployee, access: &Access) -> Option<Item<'
     if !options.is_empty() {
         let id = id.clone();
         actions = actions.push(
-            settings_select(options, None::<Operation>, move |operation| {
-                message(ListEvent::OpenOperation(id.clone(), operation))
+            settings_select(options.into_iter().map(|value| super::LocalizedOption::new(value, i18n)), None::<super::LocalizedOption<Operation>>, move |operation| {
+                message(ListEvent::OpenOperation(id.clone(), operation.value))
             })
-            .placeholder("更多操作")
+            .placeholder(i18n.__("更多操作"))
             .width(176),
         );
     }
     Some(actions.wrap().into())
 }
 
-pub(super) fn overlay<'a>(base: Item<'a>, state: &'a Shared, width: f32) -> Item<'a> {
+pub(super) fn overlay<'a>(i18n: desktop_i18n::I18n, base: Item<'a>, state: &'a Shared, width: f32) -> Item<'a> {
     let Some(dialog) = &state.confirmation else { return base };
     let close = message(ListEvent::CloseOperation);
     let operation = dialog.operation;
     let description = match operation {
-        Operation::SaveTemplate => "将员工当前已发布的配置保存为企业岗位模板。",
-        Operation::Enable => "恢复员工为在用状态，是否可接任务以云端状态为准。",
-        Operation::Disable => "停用后员工无法接收新任务，配置和历史将保留。",
-        Operation::Archive => "归档后员工无法接收新任务，可在已归档列表中恢复。",
-        Operation::Delete => "删除不可撤销。若有未完成任务或流程引用，云端会拒绝删除。",
+        Operation::SaveTemplate => i18n.__("将员工当前已发布的配置保存为企业岗位模板。"),
+        Operation::Enable => i18n.__("恢复员工为在用状态，是否可接任务以云端状态为准。"),
+        Operation::Disable => i18n.__("停用后员工无法接收新任务，配置和历史将保留。"),
+        Operation::Archive => i18n.__("归档后员工无法接收新任务，可在已归档列表中恢复。"),
+        Operation::Delete => i18n.__("删除不可撤销。若有未完成任务或流程引用，云端会拒绝删除。"),
     };
     let heading = row![
-        strong(format!("{operation} · {}", dialog.employee_name), 17, Tone::Ink),
+        strong(format!("{} · {}", i18n.__(&operation.to_string()), dialog.employee_name), 17, Tone::Ink),
         Space::new().width(Length::Fill),
         settings_close_button(close.clone()),
     ]
@@ -381,31 +381,31 @@ pub(super) fn overlay<'a>(base: Item<'a>, state: &'a Shared, width: f32) -> Item
     .align_y(Alignment::Center);
     let mut content = column![heading, label(description, 14, Tone::Muted)].spacing(14);
     if operation == Operation::SaveTemplate {
-        let mut name = settings_text_input("模板名称", &dialog.template_name);
+        let mut name = settings_text_input(i18n.__("模板名称"), &dialog.template_name);
         if !dialog.submitting && dialog.error.is_none() {
             name = name.on_input(|name| message(ListEvent::TemplateName(name)));
         }
-        content = content.push(column![label("模板名称", 12, Tone::Muted), name].spacing(7));
+        content = content.push(column![label(i18n.__("模板名称"), 12, Tone::Muted), name].spacing(7));
     }
     if let Some(error) = &dialog.error {
-        content = content.push(label(error.as_str(), 13, Tone::Red));
+        content = content.push(label(error.render(i18n), 13, Tone::Red));
     }
     let ready = !dialog.submitting
         && dialog.error.is_none()
         && (operation != Operation::SaveTemplate || !dialog.template_name.trim().is_empty());
     let confirm = match operation {
-        _ if dialog.submitting => "提交中…",
-        Operation::SaveTemplate => "保存模板",
-        Operation::Enable => "确认启用",
-        Operation::Disable => "确认停用",
-        Operation::Archive => "确认归档",
-        Operation::Delete => "确认删除",
+        _ if dialog.submitting => i18n.__("提交中…"),
+        Operation::SaveTemplate => i18n.__("保存模板"),
+        Operation::Enable => i18n.__("确认启用"),
+        Operation::Disable => i18n.__("确认停用"),
+        Operation::Archive => i18n.__("确认归档"),
+        Operation::Delete => i18n.__("确认删除"),
     };
     let modal = settings_modal_card(
         content.push(
             row![
                 Space::new().width(Length::Fill),
-                action("取消", None, (!dialog.submitting).then(|| close.clone()), false),
+                action(i18n.__("取消"), None, (!dialog.submitting).then(|| close.clone()), false),
                 action(confirm, None, ready.then(|| message(ListEvent::SubmitOperation)), true),
             ]
             .spacing(8),
@@ -426,40 +426,40 @@ fn value(number: Option<usize>) -> String {
     number.map_or_else(|| "—".into(), |number| number.to_string())
 }
 
-fn publish(employee: &SharedEmployee) -> (&'static str, Tone) {
+fn publish(i18n: desktop_i18n::I18n, employee: &SharedEmployee) -> (&'static str, Tone) {
     match employee.publish_status.as_deref() {
-        Some("PUBLISHED") => ("已发布", Tone::Green),
-        Some("PUBLISHING") => ("发布中", Tone::Accent),
-        Some("TESTING") => ("测试中", Tone::Accent),
-        Some("PUBLISH_FAILED") => ("发布失败", Tone::Red),
-        _ => ("草稿", Tone::Muted),
+        Some("PUBLISHED") => (i18n.__("已发布"), Tone::Green),
+        Some("PUBLISHING") => (i18n.__("发布中"), Tone::Accent),
+        Some("TESTING") => (i18n.__("测试中"), Tone::Accent),
+        Some("PUBLISH_FAILED") => (i18n.__("发布失败"), Tone::Red),
+        _ => (i18n.__("草稿"), Tone::Muted),
     }
 }
 
-pub(super) fn kind_title(employee: &SharedEmployee) -> &'static str {
-    if employee.manager() { "任务主管" } else { "执行员工" }
+pub(super) fn kind_title(i18n: desktop_i18n::I18n, employee: &SharedEmployee) -> &'static str {
+    if employee.manager() { i18n.__("任务主管") } else { i18n.__("执行员工") }
 }
 
-pub(super) fn runtime_badge(employee: &SharedEmployee) -> (&str, Tone) {
+pub(super) fn runtime_badge(i18n: desktop_i18n::I18n, employee: &SharedEmployee) -> (&str, Tone) {
     let name = employee.runtime_status.as_deref();
     let (fallback, tone) = match name {
-        Some("on_duty") => ("在岗", Tone::Green),
-        Some("abnormal") => ("异常", Tone::Red),
-        Some("enabling") => ("启用中", Tone::Accent),
-        Some("disabling") => ("停用中", Tone::Accent),
-        Some("none") | None if employee.archived() => ("已归档", Tone::Muted),
-        Some("none") if employee.status.as_deref() == Some("ACTIVE") => ("容器未运行", Tone::Muted),
-        Some("none") => ("已停用", Tone::Muted),
+        Some("on_duty") => (i18n.__("在岗"), Tone::Green),
+        Some("abnormal") => (i18n.__("异常"), Tone::Red),
+        Some("enabling") => (i18n.__("启用中"), Tone::Accent),
+        Some("disabling") => (i18n.__("停用中"), Tone::Accent),
+        Some("none") | None if employee.archived() => (i18n.__("已归档"), Tone::Muted),
+        Some("none") if employee.status.as_deref() == Some("ACTIVE") => (i18n.__("容器未运行"), Tone::Muted),
+        Some("none") => (i18n.__("已停用"), Tone::Muted),
         _ if employee
             .status
             .as_deref()
             .is_some_and(|status| status.eq_ignore_ascii_case("DISABLED")) =>
         {
-            ("已停用", Tone::Muted)
+            (i18n.__("已停用"), Tone::Muted)
         }
         _ => ("—", Tone::Muted),
     };
-    let title = if matches!(fallback, "—" | "已归档" | "容器未运行") || name.is_none() {
+    let title = if (fallback == "—" || fallback == i18n.__("已归档") || fallback == i18n.__("容器未运行")) || name.is_none() {
         fallback
     } else {
         employee
@@ -471,16 +471,16 @@ pub(super) fn runtime_badge(employee: &SharedEmployee) -> (&str, Tone) {
     (title, tone)
 }
 
-fn runtime_status(employee: &SharedEmployee, show_publish: bool) -> Item<'_> {
-    let (title, tone) = runtime_badge(employee);
+fn runtime_status(i18n: desktop_i18n::I18n, employee: &SharedEmployee, show_publish: bool) -> Item<'_> {
+    let (title, tone) = runtime_badge(i18n, employee);
     let mut statuses = row![status_label(title, tone)].spacing(10).align_y(Alignment::Center);
     if employee.occupancy.as_ref().is_some_and(|occupancy| occupancy.busy) {
-        statuses = statuses.push(status_label("占用中", Tone::Warning));
+        statuses = statuses.push(status_label(i18n.__("占用中"), Tone::Warning));
     }
     if show_publish {
-        let (published, tone) = publish(employee);
+        let (published, tone) = publish(i18n, employee);
         let tone = if matches!(tone, Tone::Red) { Tone::Red } else { Tone::Muted };
-        statuses = statuses.push(label(format!("配置 · {published}"), 12, tone));
+        statuses = statuses.push(label(i18n.format("配置 · %s", &[format!("{}", published).into()]).expect("valid workbench template"), 12, tone));
     }
     let mut lines = column![statuses.wrap()].spacing(5);
     if matches!(tone, Tone::Red) {
@@ -497,19 +497,19 @@ fn runtime_status(employee: &SharedEmployee, show_publish: bool) -> Item<'_> {
     lines.into()
 }
 
-fn department_label<'a>(directory: Option<&'a departments::Directory>, path: &str) -> &'a str {
-    departments::name(directory, path).unwrap_or("部门名称未提供")
+fn department_label<'a>(i18n: desktop_i18n::I18n, directory: Option<&'a departments::Directory>, path: &str) -> &'a str {
+    departments::name(directory, path).unwrap_or(i18n.__("部门名称未提供"))
 }
 
-fn table<'a>(
+fn table<'a>(i18n: desktop_i18n::I18n,
     employees: &[&'a SharedEmployee],
     access: &Access,
     departments: Option<&departments::Directory>,
     width: f32,
 ) -> Item<'a> {
-    const HEADERS: [&str; 6] = ["名称", "类型", "部门", "发布状态", "运行状态", "更新时间"];
+    let HEADERS: [&str; 6] = [i18n.__("名称"), i18n.__("类型"), i18n.__("部门"), i18n.__("发布状态"), i18n.__("运行状态"), i18n.__("更新时间")];
     let actions =
-        employees.iter().map(|employee| employee_actions(employee, access)).collect::<Vec<_>>();
+        employees.iter().map(|employee| employee_actions(i18n, employee, access)).collect::<Vec<_>>();
     let show_actions = actions.iter().any(Option::is_some);
     let compact = width < if show_actions { 1020.0 } else { 720.0 };
     let mut body = Column::new().width(Length::Fill);
@@ -518,27 +518,27 @@ fn table<'a>(
         body = body.push(
             container(table_row(
                 header,
-                show_actions.then(|| strong("操作", 12, Tone::Muted).into()),
+                show_actions.then(|| strong(i18n.__("操作"), 12, Tone::Muted).into()),
             ))
             .style(table_header_style),
         );
     }
     for (index, (employee, actions)) in employees.iter().zip(actions).enumerate() {
-        let (published, tone) = publish(employee);
+        let (published, tone) = publish(i18n, employee);
         let items = [
             strong(employee.name.as_str(), 14, Tone::Ink).into(),
-            label(kind_title(employee), 13, Tone::Muted).into(),
+            label(kind_title(i18n, employee), 13, Tone::Muted).into(),
             label(
                 employee
                     .department()
-                    .map_or("全公司", |path| department_label(departments, path))
+                    .map_or(i18n.__("全公司"), |path| department_label(i18n, departments, path))
                     .to_owned(),
                 14,
                 Tone::Ink,
             )
             .into(),
             status_label(published, tone),
-            runtime_status(employee, false),
+            runtime_status(i18n, employee, false),
             label(format_time(employee.updated_at.as_deref()), 14, Tone::Ink).into(),
         ];
         if !compact || index > 0 {
@@ -600,20 +600,20 @@ impl Pagination {
     }
 }
 
-fn pager(pagination: Pagination, managers: bool, table: bool) -> Item<'static> {
+fn pager(i18n: desktop_i18n::I18n, pagination: Pagination, managers: bool, table: bool) -> Item<'static> {
     let Pagination { total, index, size } = pagination;
     let pages = total.div_ceil(size);
     let status = if pages > 1 {
-        format!("{}–{} / {total} 人", index * size + 1, ((index + 1) * size).min(total))
+        i18n.format("%s–%s / %s 人", &[format!("{}", index * size + 1).into(), format!("{}", ((index + 1) * size).min(total)).into(), format!("{}", total).into()]).expect("valid workbench template")
     } else {
-        format!("共 {total} 人")
+        i18n.format("共 %s 人", &[format!("{}", total).into()]).expect("valid workbench template")
     };
     let sizes = if table { vec![5, 10] } else { vec![3, 6, 9] };
     let page = |index| message(ListEvent::Page { managers, index });
     let mut controls = row![
         label(status, 12, Tone::Muted),
         row![
-            label("每页", 12, Tone::Muted),
+            label(i18n.__("每页"), 12, Tone::Muted),
             settings_select(sizes, Some(size), |size| message(ListEvent::PageSize(size)))
                 .width(104)
                 .height(34.0),
@@ -626,9 +626,9 @@ fn pager(pagination: Pagination, managers: bool, table: bool) -> Item<'static> {
     if pages > 1 {
         controls = controls.push(
             row![
-                action("上一页", None, index.checked_sub(1).map(page), false),
+                action(i18n.__("上一页"), None, index.checked_sub(1).map(page), false),
                 label(format!("{} / {pages}", index + 1), 12, Tone::Muted),
-                action("下一页", None, (index + 1 < pages).then(|| page(index + 1)), false),
+                action(i18n.__("下一页"), None, (index + 1 < pages).then(|| page(index + 1)), false),
             ]
             .spacing(8)
             .align_y(Alignment::Center),

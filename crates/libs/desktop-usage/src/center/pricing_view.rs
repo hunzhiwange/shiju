@@ -292,7 +292,7 @@ fn import_view(i18n: desktop_i18n::I18n,
                     .on_input(move |value| message(Event::ImportSearch(value))),
             );
             if !state.models.catalog_ready() {
-                body = body.push(text(i18n.__("models.dev 目录暂不可用")).size(13).style(text::secondary));
+                body = body.push(text(i18n.__("目录暂不可用（models.dev）")).size(13).style(text::secondary));
             } else {
                 let mut matches = state
                     .models

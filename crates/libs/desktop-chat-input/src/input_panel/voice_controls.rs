@@ -80,7 +80,7 @@ pub fn dictation_tooltip(i18n: I18n, label: &str) -> String {
     #[cfg(target_os = "macos")]
     if label == "听写" {
         return i18n.format(
-            "%s\n也可使用 macOS 系统听写：将光标放入输入框，按系统设置的听写快捷键（如连按两次 Fn/地球仪键）。可在‘系统设置 → 键盘 → 听写’中开启或修改。\n系统听写可用于支持文本输入的可编辑输入框。", &[i18n.__(label).into()]
+            "%s\n也可使用 macOS 系统听写：将光标放入输入框，按系统设置的听写快捷键（如连按两次 Fn/地球仪键）。\n可在‘系统设置 → 键盘 → 听写’中开启或修改。\n系统听写可用于支持文本输入的可编辑输入框。", &[i18n.__(label).into()]
         ).expect("valid dictation hint");
     }
     i18n.__(label).to_owned()

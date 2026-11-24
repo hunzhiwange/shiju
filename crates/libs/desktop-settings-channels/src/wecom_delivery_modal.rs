@@ -56,8 +56,8 @@ pub fn overlay<'a, M: Clone + 'a>(
             body = body.push(super::enterprise_channels::qr_authorization(app, "wecom"));
         }
         WeComDeliveryMode::Manual => {
-            body = body.push(text(i18n.__("Bot ID")));
-            let input = settings_text_input(i18n.__("Bot ID"), &draft.bot_id).width(Length::Fill);
+            body = body.push(text(i18n.__("机器人 ID")));
+            let input = settings_text_input(i18n.__("机器人 ID"), &draft.bot_id).width(Length::Fill);
             body = body.push(if draft.saving {
                 input
             } else {
@@ -65,7 +65,7 @@ pub fn overlay<'a, M: Clone + 'a>(
                     message(ChannelsMessage::WeComDeliveryChanged("bot_id".into(), v))
                 })
             });
-            body = body.push(text(i18n.__("Secret")));
+            body = body.push(text(i18n.__("机器人密钥")));
             let placeholder = if app.channels_settings.wecom.is_some() {
                 i18n.__("已配置，留空保留；输入新值替换")
             } else {

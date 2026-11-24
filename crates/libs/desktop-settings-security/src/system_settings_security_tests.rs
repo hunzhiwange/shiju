@@ -305,3 +305,42 @@ fn system_settings_security_tests_keep_planned_coverage_targets() {
         assert!(source_declares_symbol(name), "expected source to declare coverage target {name}");
     }
 }
+
+#[test]
+fn desktop_gettext_settings_visible_copy() {
+    use config_ui::DesktopLocale::{English, SimplifiedChinese, TraditionalChinese};
+    for (locale, heading, policy) in [
+        (SimplifiedChinese, "命令安全", "强制启用"),
+        (English, "Command security", "Force enable"),
+        (TraditionalChinese, "命令安全", "強制啟用"),
+    ] {
+        let mut fixture = test_app();
+        fixture.desktop_locale = locale;
+        fixture.security_settings.active_tab = SecuritySettingsTab::SandboxAndResources;
+        fixture.security_settings.sandbox_enabled_input = "true".into();
+        fixture.security_settings.sandbox_backend_input = "firejail".into();
+        fixture.security_settings.sandbox_firejail_args = vec!["--net=none".into()];
+        fixture.security_settings.otp_gated_actions = vec!["shell".into()];
+        fixture.security_settings.otp_gated_domains = vec!["内部.example".into()];
+        assert_eq!(security_tab_label(locale, SecuritySettingsTab::Bash), heading);
+        assert_eq!(sandbox_enabled_options(locale)[1].label, policy);
+        assert_eq!(sandbox_enabled_options(locale)[1].value, "true");
+        assert_eq!(sandbox_backend_options(locale, "false")[0].value, "none");
+        keep_element(view(&fixture.inputs()));
+        assert_eq!(fixture.security_settings.sandbox_backend_input, "firejail");
+        assert_eq!(fixture.security_settings.sandbox_firejail_args, ["--net=none"]);
+        assert_eq!(fixture.security_settings.otp_gated_actions, ["shell"]);
+        assert_eq!(fixture.security_settings.otp_gated_domains, ["内部.example"]);
+        use vw_api_computer_control::BrowserPermission;
+        for permission in [BrowserPermission::Ask, BrowserPermission::Allow, BrowserPermission::Deny] {
+            let label = crate::system_settings_computer_control::browser_permission_label(desktop_i18n::I18n::new(locale), permission);
+            assert!(!label.is_empty());
+            if locale == English { assert!(label.is_ascii()); }
+        }
+        let diagnostic = "HTTP 503 / 私有/%n/%s";
+        let source = format!("电脑操控请求失败：{diagnostic}。请刷新后重试。");
+        let message = desktop_i18n::settings::message(desktop_i18n::I18n::new(locale), &source);
+        assert!(message.contains(diagnostic));
+        assert_eq!(message.starts_with("Computer control request failed:"), locale == English);
+    }
+}

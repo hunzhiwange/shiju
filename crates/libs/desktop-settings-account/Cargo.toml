@@ -6,6 +6,7 @@ license = "MIT"
 [lib]
 doctest = false
 [dependencies]
+desktop-i18n = { path = "../desktop-i18n" }
 iced = { version = "0.14", features = ["svg", "advanced", "tokio"] }
 tokio = { version = "1", features = ["sync"] }
 reqwest = { version = "0.13", default-features = false }

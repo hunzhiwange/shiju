@@ -19,17 +19,8 @@ impl DeliveryChoice {
         }
     }
 }
-impl std::fmt::Display for DeliveryChoice {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Bot => f.write_str("企业微信智能机器人"),
-            Self::Webhook => f.write_str("企业微信群机器人（Webhook）"),
-            Self::Existing(channel) => write!(f, "当前通道：{channel}"),
-        }
-    }
-}
-
 pub fn view<'a>(app: &ViewData<'a>, draft: &'a CronJobDraft) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     if !draft.delivery_enabled {
         return column![].into();
     }
@@ -43,11 +34,13 @@ pub fn view<'a>(app: &ViewData<'a>, draft: &'a CronJobDraft) -> Element<'a, Mess
     if let Some(choice @ DeliveryChoice::Existing(_)) = &selected {
         options.push(choice.clone());
     }
+    let options: Vec<_> = options.into_iter().map(|value| LocalizedDeliveryChoice { label: match &value { DeliveryChoice::Bot => i18n.__("企业微信智能机器人").to_owned(), DeliveryChoice::Webhook => i18n.__("企业微信群机器人（Webhook）").to_owned(), DeliveryChoice::Existing(channel) => desktop_i18n::__!(i18n, "当前通道：%s", channel.as_str()).expect("valid delivery label") }, value }).collect();
+    let selected = selected.and_then(|value| options.iter().find(|option| option.value == value).cloned());
     let mut content = column![field_row(
-        "投递方式",
-        "智能机器人通过已认证连接发送到指定会话；群机器人通过 Webhook 发送到群。",
+        i18n.__("投递方式"),
+        i18n.__("智能机器人通过已认证连接发送到指定会话；群机器人通过 Webhook 发送到群。"),
         settings_select(options, selected, |choice| Message::Settings(
-            S::CronJobEditDeliveryChannelChanged(choice.channel().into())
+            S::CronJobEditDeliveryChannelChanged(choice.value.channel().into())
         ))
         .width(Length::Fill),
     )];
@@ -63,36 +56,36 @@ pub fn view<'a>(app: &ViewData<'a>, draft: &'a CronJobDraft) -> Element<'a, Mess
     };
     if let Some((mode, configured)) = mode {
         content = content.push(field_row(
-            "通知配置",
+            i18n.__("通知配置"),
             if configured {
-                "已保存凭据；连接与投递状态请查看运行记录。"
+                i18n.__("已保存凭据；连接与投递状态请查看运行记录。")
             } else if mode == WeComDeliveryMode::Webhook {
-                "尚未配置，请先保存通知机器人的 Webhook。"
+                i18n.__("尚未配置，请先保存通知机器人的 Webhook。")
             } else {
-                "请扫码或填写 Bot ID 和 Secret 连接智能机器人，再指定接收用户或会话。"
+                i18n.__("请扫码或填写 Bot ID 和 Secret 连接智能机器人，再指定接收用户或会话。")
             },
             secondary_button(
-                if configured { "修改配置" } else { "配置" },
+                if configured { i18n.__("修改配置") } else { i18n.__("配置") },
                 Message::Settings(S::OpenDelivery(mode)),
             ),
         ));
     }
     if draft.delivery_channel == "wecom_webhook" {
         content =
-            content.push(text("接收目标：Webhook 对应的企业微信群，无需用户或会话 ID").size(13));
+            content.push(text(i18n.__("接收目标：Webhook 对应的企业微信群，无需用户或会话 ID")).size(13));
     } else if !draft.delivery_channel.is_empty() {
         content = content.push(field_row(
-            "投递目标",
-            "填写接收用户 ID / 会话 ID；不会自动选择最近联系人。旧通道沿用原目标格式。",
-            text_field("接收目标 ID", &draft.delivery_to, |v| {
+            i18n.__("投递目标"),
+            i18n.__("填写接收用户 ID / 会话 ID；不会自动选择最近联系人。旧通道沿用原目标格式。"),
+            text_field(i18n.__("接收目标 ID"), &draft.delivery_to, |v| {
                 Message::Settings(S::CronJobEditDeliveryToChanged(v))
             }),
         ));
     }
     content
         .push(field_row(
-            "尽力投递",
-            "开启后失败记入历史但不改变任务状态；关闭后投递失败会将任务标记为失败。",
+            i18n.__("尽力投递"),
+            i18n.__("开启后失败记入历史但不改变任务状态；关闭后投递失败会将任务标记为失败。"),
             checkbox(draft.delivery_best_effort)
                 .label(I18n::new(app.desktop_locale).__("投递失败不影响任务状态"))
                 .on_toggle(|v| Message::Settings(S::CronJobEditDeliveryBestEffortToggled(v)))
@@ -100,3 +93,8 @@ pub fn view<'a>(app: &ViewData<'a>, draft: &'a CronJobDraft) -> Element<'a, Mess
         ))
         .into()
 }
+
+#[derive(Clone)]
+struct LocalizedDeliveryChoice { value: DeliveryChoice, label: String }
+impl PartialEq for LocalizedDeliveryChoice { fn eq(&self, other: &Self) -> bool { self.value == other.value } }
+impl std::fmt::Display for LocalizedDeliveryChoice { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str(&self.label) } }

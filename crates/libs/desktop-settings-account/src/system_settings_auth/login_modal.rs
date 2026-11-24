@@ -2,6 +2,7 @@
 
 use crate::{Event, LinkAction, types::*};
 use desktop_assets::assets::Icon;
+use desktop_i18n::I18n;
 use desktop_ui_controls::system_settings_common::*;
 
 fn message<U>(event: Event<U>) -> Event<U> {
@@ -29,6 +30,7 @@ impl LoginChallenge {
 }
 
 pub(super) fn overlay<'a, U: Clone + 'static>(
+    i18n: I18n,
     login: &'a Login,
     base: Element<'a, Event<U>>,
 ) -> Element<'a, Event<U>> {
@@ -39,14 +41,14 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
     let body: Element<'_, Event<U>> = match &login.phase {
         LoginPhase::Starting => {
             let detail = if is_device {
-                "正在请求设备码。"
+                i18n.__("正在请求设备码。")
             } else {
-                "正在请求授权链接。"
+                i18n.__("正在请求授权链接。")
             };
             status_panel(
                 column![
-                    status_heading("正在启动登录"),
-                    text(detail).size(13).style(settings_muted_text_style),
+                    status_heading(i18n.__("正在启动登录")),
+                    text(i18n.__(detail)).size(13).style(settings_muted_text_style),
                 ]
                 .spacing(8),
             )
@@ -57,8 +59,8 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
             let remaining = challenge.remaining_seconds(now());
             let mut status = column![
                 row![
-                    status_heading(if remaining > 0 { "等待授权" } else { "授权已过期" }),
-                    settings_value_badge(format!("剩余 {remaining} 秒")),
+                    status_heading(if remaining > 0 { i18n.__("等待授权") } else { i18n.__("授权已过期") }),
+                    settings_value_badge(desktop_i18n::__!(i18n, "剩余 %d 秒", remaining).expect("valid settings message")),
                 ]
                 .spacing(8)
                 .align_y(Alignment::Center)
@@ -68,9 +70,9 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
             if remaining > 0 {
                 status = status.push(
                     text(if is_device {
-                        "在验证页输入设备码，确认授权后此窗口会自动更新。"
+                        i18n.__("在验证页输入设备码，确认授权后此窗口会自动更新。")
                     } else {
-                        "在浏览器中完成登录和授权，此窗口会自动更新。"
+                        i18n.__("在浏览器中完成登录和授权，此窗口会自动更新。")
                     })
                     .size(13)
                     .style(settings_muted_text_style),
@@ -79,7 +81,7 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
             if let Some(code) = &challenge.user_code {
                 status = status.push(
                     row![
-                        settings_field_label("设备码"),
+                        settings_field_label(i18n.__("设备码")),
                         super::title(code.as_str(), 24).wrapping(Wrapping::WordOrGlyph),
                     ]
                     .spacing(10)
@@ -91,7 +93,7 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
                 status_panel(status),
                 row![
                     button(
-                        row![super::action_icon(Icon::Globe, 14.0), text("打开验证页").size(13)]
+                        row![super::action_icon(Icon::Globe, 14.0), text(i18n.__("打开验证页")).size(13)]
                             .spacing(6)
                             .align_y(Alignment::Center)
                     )
@@ -101,7 +103,7 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
                         (remaining > 0).then_some(Event::LoginLink(generation, LinkAction::Open,))
                     ),
                     button(
-                        row![super::action_icon(Icon::Copy, 14.0), text("复制登录链接").size(13)]
+                        row![super::action_icon(Icon::Copy, 14.0), text(i18n.__("复制登录链接")).size(13)]
                             .spacing(6)
                             .align_y(Alignment::Center)
                     )
@@ -115,8 +117,8 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
                 .wrap(),
                 column![
                     row![
-                        settings_field_label(label),
-                        text(detail).size(13).wrapping(Wrapping::WordOrGlyph),
+                        settings_field_label(i18n.__(label)),
+                        text(i18n.__(detail)).size(13).wrapping(Wrapping::WordOrGlyph),
                     ]
                     .spacing(8)
                     .align_y(Alignment::Center)
@@ -131,7 +133,7 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
             .spacing(12);
             if challenge.can_paste {
                 let mut input =
-                    settings_text_input("粘贴授权码或回调地址", &login.paste_input).secure(true);
+                    settings_text_input(i18n.__("粘贴授权码或回调地址"), &login.paste_input).secure(true);
                 if accepts_paste(login) {
                     input =
                         input.on_input(move |value| message(Event::PasteInput(generation, value)));
@@ -140,9 +142,9 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
                     }
                 }
                 fields = fields
-                    .push(settings_field_label("Claude 手工回填"))
+                    .push(settings_field_label(i18n.__("Claude 手工回填")))
                     .push(
-                        text("若浏览器没有自动完成授权，可在此提交授权码或回调地址。")
+                        text(i18n.__("若浏览器没有自动完成授权，可在此提交授权码或回调地址。"))
                             .size(13)
                             .style(settings_muted_text_style),
                     )
@@ -150,10 +152,10 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
             }
             fields.into()
         }
-        LoginPhase::Failed(reason) => settings_error_banner(*reason),
+        LoginPhase::Failed(reason) => settings_error_banner(i18n.__(*reason)),
     };
     let mut footer = row![
-        button(text("取消"))
+        button(text(i18n.__("取消")))
             .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press(close.clone()),
@@ -162,7 +164,7 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
     .align_y(Alignment::Center);
     if matches!(login.phase, LoginPhase::Failed(_)) {
         footer = footer.push(
-            button(text("重试"))
+            button(text(i18n.__("重试")))
                 .padding([8, 14])
                 .style(primary_action_btn_style)
                 .on_press(message(Event::RetryLogin)),
@@ -171,7 +173,7 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
         && challenge.can_paste
     {
         footer = footer.push(
-            button(text(if login.paste_submitting { "正在提交…" } else { "提交回填" }))
+            button(text(if login.paste_submitting { i18n.__("正在提交…") } else { i18n.__("提交回填") }))
                 .padding([8, 14])
                 .style(primary_action_btn_style)
                 .on_press_maybe(
@@ -181,8 +183,8 @@ pub(super) fn overlay<'a, U: Clone + 'static>(
     }
     let title = format!(
         "{} · {}",
-        super::service_name(login.target.service()),
-        if is_device { "设备码登录" } else { "浏览器登录" },
+        super::service_name(i18n, login.target.service()),
+        if is_device { i18n.__("设备码登录") } else { i18n.__("浏览器登录") },
     );
     let card = settings_modal_layout(
         settings_modal_header(super::title(title, 18), settings_close_button(close.clone())),

@@ -29,40 +29,40 @@ fn selected_run(state: &CronHistoryState) -> Option<&CronHistoryRunDto> {
     let key = state.selected_run.as_ref()?;
     state.runs.iter().find(|run| run_key(run) == *key)
 }
-fn status_label(status: &str) -> String {
+fn status_label(i18n: I18n, status: &str) -> String {
     match status {
-        "running" => "◌ 运行中".into(),
-        "ok" => "成功".into(),
-        "error" => "失败".into(),
-        other => format!("未知状态（{other}）"),
+        "running" => i18n.__("◌ 运行中").into(),
+        "ok" => i18n.__("成功").into(),
+        "error" => i18n.__("失败").into(),
+        other => desktop_i18n::__!(i18n, "未知状态（%s）", (other).to_string()).expect("valid settings message"),
     }
 }
-fn duration_label(run: &CronHistoryRunDto) -> String {
+fn duration_label(i18n: I18n, run: &CronHistoryRunDto) -> String {
     if run.status == "running" {
         return "—".into();
     }
     match run.duration_ms {
-        Some(ms) if ms >= 0 => format!("{}.{:03} 秒", ms / 1000, ms % 1000),
-        _ => "耗时不可用".into(),
+        Some(ms) if ms >= 0 => desktop_i18n::__!(i18n, "%s 秒", format!("{}.{:03}", ms / 1000, ms % 1000)).expect("valid settings message"),
+        _ => i18n.__("耗时不可用").into(),
     }
 }
-fn absolute_time(value: &str) -> String {
+fn absolute_time(i18n: I18n, value: &str) -> String {
     DateTime::parse_from_rfc3339(value)
         .map(|time| time.with_timezone(&Local).format("%Y-%m-%d %H:%M:%S %:z").to_string())
         .unwrap_or_else(|_| {
             if value.is_empty() {
-                "时间缺失".into()
+                i18n.__("时间缺失").into()
             } else {
-                format!("时间无效（{value}）")
+                desktop_i18n::__!(i18n, "时间无效（%s）", (value).to_string()).expect("valid settings message")
             }
         })
 }
-fn empty_label(state: &CronHistoryState) -> Option<&'static str> {
+fn empty_label(i18n: I18n, state: &CronHistoryState) -> Option<&'static str> {
     if state.visible_runs().next().is_some() {
         return None;
     }
     if state.loading {
-        return Some("正在加载运行记录…");
+        return Some(i18n.__("正在加载运行记录…"));
     }
     if state.error.is_some() {
         return None;
@@ -71,9 +71,9 @@ fn empty_label(state: &CronHistoryState) -> Option<&'static str> {
         || state.selected_job_id.is_some()
         || state.status_filter != CronHistoryStatus::All
     {
-        Some("此范围内无匹配记录")
+        Some(i18n.__("此范围内无匹配记录"))
     } else {
-        Some("此范围内暂无运行记录")
+        Some(i18n.__("此范围内暂无运行记录"))
     }
 }
 fn scroll<'a>(body: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
@@ -85,14 +85,14 @@ fn scroll<'a>(body: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
 fn cell<'a>(value: impl Into<String>, portion: u16) -> Element<'a, Message> {
     container(text(value.into()).size(13)).width(Length::FillPortion(portion)).into()
 }
-fn record_row(run: &CronHistoryRunDto, narrow: bool) -> Element<'_, Message> {
-    let details = small_button("查看详情", event(Event::DetailsOpened(run_key(run))), false);
+fn record_row(i18n: I18n, run: &CronHistoryRunDto, narrow: bool) -> Element<'_, Message> {
+    let details = small_button(i18n.__("查看详情"), event(Event::DetailsOpened(run_key(run))), false);
     if narrow {
         return settings_group_card(
             column![
-                text(CronHistoryState::display_name(run)).size(15),
-                text(format!("{} · 本地 · {}", status_label(&run.status), duration_label(run))),
-                text(format!("开始：{}", absolute_time(&run.started_at))).size(12),
+                text(if run.name.as_deref().is_none_or(|name| name.trim().is_empty()) { i18n.__("未命名任务") } else { CronHistoryState::display_name(run) }).size(15),
+                text(desktop_i18n::__!(i18n, "%s · 本地 · %s", (status_label(i18n, &run.status)).to_string(), (duration_label(i18n, run)).to_string()).expect("valid settings message")),
+                text(desktop_i18n::__!(i18n, "开始：%s", (absolute_time(i18n, &run.started_at)).to_string()).expect("valid settings message")).size(12),
                 details,
             ]
             .spacing(8),
@@ -100,11 +100,11 @@ fn record_row(run: &CronHistoryRunDto, narrow: bool) -> Element<'_, Message> {
         .into();
     }
     row![
-        cell(CronHistoryState::display_name(run), 3),
-        cell(status_label(&run.status), 2),
-        cell(absolute_time(&run.started_at), 3),
-        cell(duration_label(run), 2),
-        cell("本地", 1),
+        cell(if run.name.as_deref().is_none_or(|name| name.trim().is_empty()) { i18n.__("未命名任务") } else { CronHistoryState::display_name(run) }, 3),
+        cell(status_label(i18n, &run.status), 2),
+        cell(absolute_time(i18n, &run.started_at), 3),
+        cell(duration_label(i18n, run), 2),
+        cell(i18n.__("本地"), 1),
         container(details).width(Length::FillPortion(2))
     ]
     .spacing(10)
@@ -155,9 +155,9 @@ fn task_option(label: String, id: Option<String>, selected: bool) -> Element<'st
         .into()
 }
 
-fn task_picker<'a>(app: &ViewData<'a>, tr: I18n) -> Element<'a, Message> {
+fn task_picker<'a>(app: &ViewData<'a>, i18n: I18n) -> Element<'a, Message> {
     let state = &app.cron_settings.history;
-    let all_tasks = tr.__("全部任务");
+    let all_tasks = i18n.__("全部任务");
     let label = state
         .selected_job_id
         .as_ref()
@@ -218,7 +218,7 @@ fn task_picker<'a>(app: &ViewData<'a>, tr: I18n) -> Element<'a, Message> {
     )
     .max_height(180);
     let search = search_input(
-        tr.__("搜索任务名称"),
+        i18n.__("搜索任务名称"),
         &state.task_search,
         Event::TaskSearchChanged,
     );
@@ -262,11 +262,11 @@ fn search_input(
 }
 
 pub fn view<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     let state = &app.cron_settings.history;
-    let tr = I18n::new(app.desktop_locale);
     let refresh = button(
         container(
-            text(tr.__(if state.loading { "刷新中…" } else { "刷新" }))
+            text(i18n.__(if state.loading { i18n.__("刷新中…") } else { i18n.__("刷新") }))
                 .size(SETTINGS_CONTROL_TEXT_SIZE),
         )
         .center_y(Length::Fill),
@@ -275,45 +275,42 @@ pub fn view<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
     .padding([0, 14])
     .style(refresh_style)
     .on_press_maybe((!state.loading).then(|| event(Event::Refresh)));
+    let statuses = [CronHistoryStatus::All, CronHistoryStatus::Running, CronHistoryStatus::Success, CronHistoryStatus::Failed].map(|value| HistoryStatusOption { value, label: i18n.__(&value.to_string()).to_owned() });
+    let selected_status = statuses.iter().find(|option| option.value == state.status_filter).cloned();
     let toolbar = row![
         container(search_input(
-            tr.__("搜索定时任务/记录"),
+            i18n.__("搜索定时任务/记录"),
             &state.search,
             Event::SearchChanged,
         ))
         .width(236),
         settings_select(
-            [
-                CronHistoryStatus::All,
-                CronHistoryStatus::Running,
-                CronHistoryStatus::Success,
-                CronHistoryStatus::Failed
-            ],
-            Some(state.status_filter),
-            |value| event(Event::StatusChanged(value))
+            statuses,
+            selected_status,
+            |option| event(Event::StatusChanged(option.value))
         )
         .width(130),
-        task_picker(app, tr),
+        task_picker(app, i18n),
         refresh,
     ]
     .spacing(8)
     .align_y(Alignment::Center);
     let mut content = column![toolbar.wrap()].spacing(12);
-    content = content.push(text("最近 200 条已结束记录及当前运行任务，筛选仅作用于此范围；时间为本机时区（含 UTC 偏移）").size(12).style(settings_muted_text_style));
+    content = content.push(text(i18n.__("最近 200 条已结束记录及当前运行任务，筛选仅作用于此范围；时间为本机时区（含 UTC 偏移）")).size(12).style(settings_muted_text_style));
     if state.truncated {
-        content = content.push(text("存在更早的运行记录").size(12));
+        content = content.push(text(i18n.__("存在更早的运行记录")).size(12));
     }
     if let Some(error) = &state.error {
         content = content
-            .push(settings_error_banner(error.clone()))
-            .push(text("刷新失败，已有数据可能不是最新状态"))
-            .push(secondary_button("重试", event(Event::Refresh)));
+            .push(settings_error_banner(i18n.__(error).to_owned()))
+            .push(text(i18n.__("刷新失败，已有数据可能不是最新状态")))
+            .push(secondary_button(i18n.__("重试"), event(Event::Refresh)));
     }
-    if let Some(label) = empty_label(state) {
+    if let Some(label) = empty_label(i18n, state) {
         content = content.push(text(label));
     }
     if state.loading && !state.runs.is_empty() {
-        content = content.push(text("正在刷新运行记录…"));
+        content = content.push(text(i18n.__("正在刷新运行记录…")));
     }
     if state.visible_runs().next().is_none() {
         return content.height(Length::Fill).into();
@@ -324,59 +321,57 @@ pub fn view<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
         if !narrow {
             rows = rows.push(
                 row![
-                    cell("任务名称", 3),
-                    cell("状态", 2),
-                    cell("运行时间", 3),
-                    cell("耗时", 2),
-                    cell("任务类型", 1),
-                    cell("操作", 2)
+                    cell(i18n.__("任务名称"), 3),
+                    cell(i18n.__("状态"), 2),
+                    cell(i18n.__("运行时间"), 3),
+                    cell(i18n.__("耗时"), 2),
+                    cell(i18n.__("任务类型"), 1),
+                    cell(i18n.__("操作"), 2)
                 ]
                 .spacing(10),
             );
         }
         for run in state.visible_runs() {
-            rows = rows.push(record_row(run, narrow)).push(settings_divider());
+            rows = rows.push(record_row(i18n, run, narrow)).push(settings_divider());
         }
         scroll(rows)
     }));
     content.height(Length::Fill).into()
 }
 pub fn with_details<'a, M: Clone + 'static>(app: &ViewData<'a>, dialog: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
+    let i18n = I18n::new(app.desktop_locale);
     let state = &app.cron_settings.history;
     if state.selected_run.is_none() {
         return dialog;
     }
     let close = event(Event::DetailsClosed);
     let header =
-        settings_modal_header(text("运行详情").size(20), settings_close_button(close.clone()));
-    let mut actions = row![secondary_button("关闭", close.clone())].spacing(8);
+        settings_modal_header(text(i18n.__("运行详情")).size(20), settings_close_button(close.clone()));
+    let mut actions = row![secondary_button(i18n.__("关闭"), close.clone())].spacing(8);
     let body: Element<'_, Message> = if let Some(run) = selected_run(state) {
         if let Some(output) = &run.output {
             actions = actions
-                .push(secondary_button("复制输出", event(Event::CopyOutput(output.clone()))));
+                .push(secondary_button(i18n.__("复制输出"), event(Event::CopyOutput(output.clone()))));
         }
         column![
-            text(CronHistoryState::display_name(run)).size(18),
-            text(format!("状态：{} · 本地", status_label(&run.status))),
-            text(format!("开始：{}", absolute_time(&run.started_at))),
-            text(format!(
-                "结束：{}",
-                run.finished_at.as_deref().map(absolute_time).unwrap_or_else(|| {
+            text(if run.name.as_deref().is_none_or(|name| name.trim().is_empty()) { i18n.__("未命名任务") } else { CronHistoryState::display_name(run) }).size(18),
+            text(desktop_i18n::__!(i18n, "状态：%s · 本地", (status_label(i18n, &run.status)).to_string()).expect("valid settings message")),
+            text(desktop_i18n::__!(i18n, "开始：%s", (absolute_time(i18n, &run.started_at)).to_string()).expect("valid settings message")),
+            text(desktop_i18n::__!(i18n, "结束：%s", (run.finished_at.as_deref().map(|value| absolute_time(i18n, value)).unwrap_or_else(|| {
                     if run.status == "running" {
-                        "尚未结束".into()
+                        i18n.__("尚未结束").into()
                     } else {
-                        "时间缺失".into()
+                        i18n.__("时间缺失").into()
                     }
-                })
-            )),
-            text(format!("耗时：{}", duration_label(run))),
+                })).to_string()).expect("valid settings message")),
+            text(desktop_i18n::__!(i18n, "耗时：%s", (duration_label(i18n, run)).to_string()).expect("valid settings message")),
             settings_divider(),
-            text("输出（服务端保留的截断内容）").size(13),
+            text(i18n.__("输出（服务端保留的截断内容）")).size(13),
             text(run.output.as_deref().filter(|v| !v.is_empty()).unwrap_or(
                 if run.status == "running" {
-                    "运行中，尚未产生输出"
+                    i18n.__("运行中，尚未产生输出")
                 } else {
-                    "无输出"
+                    i18n.__("无输出")
                 }
             ))
             .size(13),
@@ -384,7 +379,7 @@ pub fn with_details<'a, M: Clone + 'static>(app: &ViewData<'a>, dialog: Element<
         .spacing(12)
         .into()
     } else {
-        text("该次运行记录已不可用，可能已删除或超出保留范围。请关闭后刷新。").into()
+        text(i18n.__("该次运行记录已不可用，可能已删除或超出保留范围。请关闭后刷新。")).into()
     };
     let card = settings_modal_layout(header, body, Some(actions.into()))
         .style(cron_modal_style)
@@ -395,3 +390,9 @@ pub fn with_details<'a, M: Clone + 'static>(app: &ViewData<'a>, dialog: Element<
 #[cfg(test)]
 #[path = "history_tests.rs"]
 mod tests;
+
+#[derive(Clone, PartialEq)]
+struct HistoryStatusOption { value: CronHistoryStatus, label: String }
+impl std::fmt::Display for HistoryStatusOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str(&self.label) }
+}

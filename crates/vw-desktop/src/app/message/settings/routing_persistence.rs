@@ -38,7 +38,7 @@ pub(super) fn saved(app: &mut App, revision: u64, result: Result<(), String>) ->
     }
     let next = outcome.task.map(message);
     if outcome.show_error {
-        return Task::batch([next, app.show_error_toast("路由分类配置保存失败，请重试")]);
+        return Task::batch([next, app.show_error_toast(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("路由分类配置保存失败，请重试"))]);
     }
     next
 }

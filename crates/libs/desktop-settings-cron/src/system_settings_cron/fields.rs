@@ -30,14 +30,14 @@ pub(super) fn field_row_with_help<'a>(
         app,
         i18n.__(label),
         settings_field_label(i18n.__(label)),
-        description,
+        match description.into() { std::borrow::Cow::Borrowed(value) => std::borrow::Cow::Borrowed(i18n.__(value)), std::borrow::Cow::Owned(value) => std::borrow::Cow::Owned(i18n.__(&value).to_owned()) },
     );
     container(column![label, control.into()].spacing(6)).padding([14, 0]).width(Length::Fill).into()
 }
 
 pub(super) fn at_field<'a>(app: &ViewData<'_>, value: &'a str, editing: bool) -> Element<'a, Message> {
     let label =
-        if value.is_empty() { "选择日期和时间".to_string() } else { value.to_string() };
+        if value.is_empty() { I18n::new(app.desktop_locale).__("选择日期和时间").to_string() } else { value.to_string() };
     field_row_with_help(
         app,
         "指定时间",
@@ -291,7 +291,7 @@ pub fn config_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
             container(settings_value_badge(
                 desktop_i18n::__!(
                     desktop_i18n::I18n::new(app.desktop_locale),
-                    "%u 条",
+                    i18n.__("%u 条"),
                     s.max_run_history
                 )
                 .expect("valid cron display template")
@@ -309,13 +309,13 @@ pub fn config_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
         ),
         settings_group_card(column![enabled_row, settings_divider(), history_row]),
         settings_group_card(field_row(
-            "定时任务群通知",
-            "独立配置企业微信群机器人的 Webhook，用于接收任务结果。请在需要通知的任务中开启结果投递。",
+            i18n.__("定时任务群通知"),
+            i18n.__("独立配置企业微信群机器人的 Webhook，用于接收任务结果。请在需要通知的任务中开启结果投递。"),
             secondary_button(
                 if app.delivery.webhook {
-                    "修改通知 Webhook"
+                    i18n.__("修改通知 Webhook")
                 } else {
-                    "配置通知 Webhook"
+                    i18n.__("配置通知 Webhook")
                 },
                 Message::Settings(message::SettingsMessage::OpenDelivery(crate::message::DeliveryMode::Webhook)),
             ),

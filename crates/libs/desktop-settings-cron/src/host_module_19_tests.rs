@@ -390,6 +390,6 @@ mod controller;
 mod templates {
     use super::*;
     pub fn view() -> Element<'static, Message> {
-        domain::templates::view().map(map)
+        domain::templates::view(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese)).map(map)
     }
 }

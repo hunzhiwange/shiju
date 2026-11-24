@@ -31,7 +31,14 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.appearance.active_custom_theme_id = id;
                 tasks.push(crate::app::message::view::update(app, crate::app::message::view::ViewMessage::AppThemeSelected(theme)));
             }
-            Effect::Toast(kind, source, arguments) => tasks.push(app.show_localized_toast(toast_kind(kind), &source, arguments)),
+            Effect::Toast(kind, source, mut arguments) => {
+                if source.contains("失败") {
+                    if let Some(desktop_i18n::format::Argument::Text(error)) = arguments.last_mut() {
+                        *error = desktop_i18n::settings::message(desktop_i18n::I18n::new(app.general_settings.desktop_locale), error);
+                    }
+                }
+                tasks.push(app.show_localized_toast(toast_kind(kind), &source, arguments));
+            },
         }
     }
     app.appearance.active_theme_skin = final_skin;

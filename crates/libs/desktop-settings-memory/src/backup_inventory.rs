@@ -80,30 +80,29 @@ pub fn update(state: &mut State, current: Option<Identity>, client: Option<Gatew
     }
 }
 
-pub fn view<'a>(state: &'a State, current: Option<Identity>) -> Element<'a, Event> {
+pub fn view<'a>(i18n: desktop_i18n::I18n, state: &'a State, current: Option<Identity>) -> Element<'a, Event> {
     use iced::widget::{button, column, text};
     use desktop_ui_controls::system_settings_common::{rounded_action_btn_style, settings_muted_text_style};
     let visible = current.is_some() && current.as_ref() == state.identity.as_ref();
     let loading = visible && state.loading;
     let mut content = column![
-        text("配置备份").size(16),
-        text("读取当前项目在执行主机上的备份元数据；恢复需另行校验各领域能力。")
+        text(i18n.__("配置备份")).size(16),
+        text(i18n.__("读取当前项目在执行主机上的备份元数据；恢复需另行校验各领域能力。"))
             .size(13).style(settings_muted_text_style),
-        button(text(if loading { "读取中…" } else { "读取配置备份" }))
+        button(text(if loading { i18n.__("读取中…") } else { i18n.__("读取配置备份") }))
             .padding([8, 14]).style(rounded_action_btn_style)
             .on_press_maybe((current.is_some() && !loading).then_some(Event::Refresh)),
     ].spacing(8);
     if visible {
-        if state.error { content = content.push(text("读取失败，可重试").size(13)); }
+        if state.error { content = content.push(text(i18n.__("读取失败，可重试")).size(13)); }
         if let Some(rows) = &state.rows {
-            if rows.is_empty() { content = content.push(text("当前范围内没有配置备份").size(13)); }
+            if rows.is_empty() { content = content.push(text(i18n.__("当前范围内没有配置备份")).size(13)); }
             for entry in rows {
-                content = content.push(text(format!("{} · {} 字节 · 创建时间 {} ms", entry.name,
-                    entry.size_bytes, entry.created_at_ms)).size(13));
+                content = content.push(text(desktop_i18n::__!(i18n, "%s · %u 字节 · 创建时间 %d ms", (entry.name).to_string(), entry.size_bytes, entry.created_at_ms).expect("valid settings message")).size(13));
             }
         }
     } else if current.is_none() {
-        content = content.push(text("网关不可用，请检查连接").size(13).style(settings_muted_text_style));
+        content = content.push(text(i18n.__("网关不可用，请检查连接")).size(13).style(settings_muted_text_style));
     }
     content.into()
 }

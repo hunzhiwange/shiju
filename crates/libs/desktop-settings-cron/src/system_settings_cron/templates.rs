@@ -5,8 +5,8 @@ use desktop_ui_controls::system_settings_common::icon_svg;
 use crate::state::CRON_TEMPLATES;
 use iced::widget::{column, responsive, text::Wrapping};
 
-pub fn view() -> Element<'static, Message> {
-    responsive(|size| {
+pub fn view(i18n: I18n) -> Element<'static, Message> {
+    responsive(move |size| {
         let columns = if size.width >= 900.0 {
             3
         } else if size.width >= 560.0 {
@@ -14,7 +14,7 @@ pub fn view() -> Element<'static, Message> {
         } else {
             1
         };
-        let mut cards = column![text("试试这些常用任务").size(18)].spacing(12);
+        let mut cards = column![text(i18n.__("试试这些常用任务")).size(18)].spacing(12);
         for group in CRON_TEMPLATES.chunks(columns) {
             let mut line = row![].spacing(12);
             for template in group {
@@ -23,8 +23,8 @@ pub fn view() -> Element<'static, Message> {
                         row![
                             icon_svg(Icon::Clock, 22.0),
                             column![
-                                text(template.title).size(15).wrapping(Wrapping::None),
-                                text(template.summary)
+                                text(i18n.__(template.title)).size(15).wrapping(Wrapping::None),
+                                text(i18n.__(template.summary))
                                     .size(12)
                                     .wrapping(Wrapping::None)
                                     .style(settings_muted_text_style)
@@ -51,12 +51,12 @@ pub fn view() -> Element<'static, Message> {
     .into()
 }
 
-pub(super) fn overlay<'a, M: Clone + 'static>(dialog: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
+pub(super) fn overlay<'a, M: Clone + 'static>(i18n: I18n, dialog: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
     let close = Message::Settings(message::SettingsMessage::CronTemplatesToggled(false));
     let header =
-        settings_modal_header(text("从模板添加").size(20), settings_close_button(close.clone()));
+        settings_modal_header(text(i18n.__("从模板添加")).size(20), settings_close_button(close.clone()));
     let card =
-        settings_modal_layout(header, view(), None).style(cron_modal_style).width(1000).height(700);
+        settings_modal_layout(header, view(i18n), None).style(cron_modal_style).width(1000).height(700);
     settings_modal_overlay(Some(dialog), map(close), Element::<Message>::from(container(card).padding([10, 12])).map(map))
 }
 

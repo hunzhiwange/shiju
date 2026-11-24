@@ -31,25 +31,25 @@ fn summary(job: &CronJobDto) -> String {
 }
 
 fn schedule_label(app: &ViewData<'_>, job: &CronJobDto) -> String {
-    let tr = I18n::new(app.desktop_locale);
+    let i18n = I18n::new(app.desktop_locale);
     let timezone = job.timezone.as_deref().unwrap_or("UTC");
     match job.schedule_kind.as_str() {
         "at" => format!(
             "{} · {} · {}",
-            tr.__("指定时间"),
+            i18n.__("指定时间"),
             format_cron_datetime(job.at.as_deref().unwrap_or(&job.expression)),
-            tr.__("本地时间")
+            i18n.__("本地时间")
         ),
         "every" => format!(
             "{} · {}",
-            tr.__("固定间隔"),
+            i18n.__("固定间隔"),
             job.every_ms.map(|ms| format!("{ms} ms")).unwrap_or_else(|| job.expression.clone())
         ),
         "biweekly" => match CronScheduleDraft::from_job(job) {
             Ok(draft) => {
-                format!("{} · {}", super::schedule::rule_summary(&draft.rule), draft.timezone)
+                format!("{} · {}", super::schedule::rule_summary(i18n, &draft.rule), draft.timezone)
             }
-            Err(error) => format!("{} · {error}", tr.__("每双周")),
+            Err(error) => format!("{} · {error}", i18n.__("每双周")),
         },
         "cron" | "" => {
             let fields: Vec<_> = job.expression.split_whitespace().collect();
@@ -59,11 +59,11 @@ fn schedule_label(app: &ViewData<'_>, job: &CronJobDto) -> String {
             };
             let frequency = CronFrequency::from_expression(&fields.join(" "));
             if frequency == CronFrequency::Daily {
-                format!("{} {:0>2}:{:0>2} · {timezone}", tr.__("每天"), fields[1], fields[0])
+                format!("{} {:0>2}:{:0>2} · {timezone}", i18n.__("每天"), fields[1], fields[0])
             } else if frequency == CronFrequency::Advanced {
                 format!("{} · {timezone}", job.expression)
             } else {
-                format!("{} · {} · {timezone}", tr.__(&frequency.to_string()), job.expression)
+                format!("{} · {} · {timezone}", i18n.__(&frequency.to_string()), job.expression)
             }
         }
         _ => job.expression.clone(),
@@ -72,7 +72,7 @@ fn schedule_label(app: &ViewData<'_>, job: &CronJobDto) -> String {
 
 pub fn job_row<'a>(app: &ViewData<'a>, job: &'a CronJobDto) -> Element<'a, Message> {
     let s = app.cron_settings;
-    let tr = I18n::new(app.desktop_locale);
+    let i18n = I18n::new(app.desktop_locale);
     let selected = s.selected_job_ids.iter().any(|id| id == &job.id);
     let details_expanded = s.expanded_job_ids.iter().any(|id| id == &job.id);
     let id_for_select = job.id.clone();
@@ -90,9 +90,10 @@ pub fn job_row<'a>(app: &ViewData<'a>, job: &'a CronJobDto) -> Element<'a, Messa
     let last_status = job
         .last_status
         .as_deref()
-        .unwrap_or(desktop_i18n::I18n::new(app.desktop_locale).__("未运行"));
+        .map(|status| match status { "running" => i18n.__("运行中"), "ok" => i18n.__("成功"), "error" => i18n.__("失败"), other => other })
+        .unwrap_or(i18n.__("未运行"));
     let ended = job_has_ended(job, chrono::Utc::now());
-    let next_run = if ended { "已结束".into() } else { format_cron_datetime(&job.next_run) };
+    let next_run = if ended { i18n.__("已结束").into() } else { format_cron_datetime(&job.next_run) };
     let last_run = desktop_i18n::I18n::new(app.desktop_locale)
         .__(&format_optional_cron_datetime(job.last_run.as_deref()))
         .to_string();
@@ -121,7 +122,7 @@ pub fn job_row<'a>(app: &ViewData<'a>, job: &'a CronJobDto) -> Element<'a, Messa
     }
     header = header
         .push(
-            text(job_title(job))
+            text(if job.name.as_deref().is_none_or(|name| name.trim().is_empty()) { i18n.__("未命名任务") } else { job_title(job) })
                 .size(16)
                 .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() })
                 .width(Length::Fill),
@@ -133,16 +134,16 @@ pub fn job_row<'a>(app: &ViewData<'a>, job: &'a CronJobDto) -> Element<'a, Messa
             ))
         }));
     let next = if ended {
-        tr.__("已结束").to_string()
+        i18n.__("已结束").to_string()
     } else if job.enabled {
         format!(
             "{} · {} · {}",
-            tr.__("下次运行"),
+            i18n.__("下次运行"),
             format_cron_datetime(&job.next_run),
-            tr.__("本地时间")
+            i18n.__("本地时间")
         )
     } else {
-        tr.__("已暂停").to_string()
+        i18n.__("已暂停").to_string()
     };
     let frequency = schedule_label(app, job);
     let timing = responsive(move |size| {
@@ -171,7 +172,7 @@ pub fn job_row<'a>(app: &ViewData<'a>, job: &'a CronJobDto) -> Element<'a, Messa
             text(desktop_i18n::I18n::new(app.desktop_locale).__("概况")).size(12).style(settings_muted_text_style),
             settings_value_badge(type_label),
             settings_value_badge(status_label),
-            settings_value_badge(delivery_label),
+            settings_value_badge(i18n.__(delivery_label)),
             settings_value_badge(last_status),
         ]
         .spacing(10)
@@ -265,7 +266,7 @@ pub fn job_row<'a>(app: &ViewData<'a>, job: &'a CronJobDto) -> Element<'a, Messa
     .spacing(8);
 
     let details = small_button(
-        tr.__(if details_expanded { "收起" } else { "展开" }),
+        i18n.__(if details_expanded { "收起" } else { "展开" }),
         Message::Settings(message::SettingsMessage::CronJobDetailsToggled(
             job.id.clone(),
             !details_expanded,
@@ -292,16 +293,16 @@ pub fn job_row<'a>(app: &ViewData<'a>, job: &'a CronJobDto) -> Element<'a, Messa
 }
 
 pub fn jobs_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
-    let tr = I18n::new(app.desktop_locale);
+    let i18n = I18n::new(app.desktop_locale);
     let s = app.cron_settings;
     let mut groups = row![].spacing(8);
     for (filter, label) in [
-        (CronListFilter::All, "全部"),
-        (CronListFilter::Enabled, "已启用"),
-        (CronListFilter::Paused, "已暂停"),
+        (CronListFilter::All, i18n.__("全部")),
+        (CronListFilter::Enabled, i18n.__("已启用")),
+        (CronListFilter::Paused, i18n.__("已暂停")),
     ] {
         groups = groups.push(
-            button(text(format!("{} ({})", tr.__(label), s.job_count(filter))).size(13))
+            button(text(format!("{} ({})", i18n.__(label), s.job_count(filter))).size(13))
                 .padding([8, 14])
                 .style(move |theme: &Theme, status| {
                     cron_segment_style(theme, status, filter == s.list_filter)
@@ -314,26 +315,26 @@ pub fn jobs_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
     let app_theme = app.app_theme;
     let help_content = app.help_content;
     let toolbar = responsive(move |size| {
-        let title = tr.__("当前任务");
-        let description = tr.__("默认展示已配置的定时任务，并支持单项或批量管理。");
-        let heading: Element<'_, Message> = desktop_ui_controls::system_settings_common::help::settings_hover_help_label(text(title).size(17), help_content(title, description.into(), Some(app_theme.palette().text), tr)).wrap().into();
+        let title = i18n.__("当前任务");
+        let description = i18n.__("默认展示已配置的定时任务，并支持单项或批量管理。");
+        let heading: Element<'_, Message> = desktop_ui_controls::system_settings_common::help::settings_hover_help_label(text(title).size(17), help_content(title, description.into(), Some(app_theme.palette().text), i18n)).wrap().into();
         let actions = row![
             small_button(
-                tr.__("刷新"),
+                i18n.__("刷新"),
                 Message::Settings(message::SettingsMessage::CronJobsRefresh),
                 false
             ),
             small_button(
-                tr.__(if s.batch_mode { "取消批量管理" } else { "批量管理" }),
+                i18n.__(if s.batch_mode { i18n.__("取消批量管理") } else { i18n.__("批量管理") }),
                 Message::Settings(message::SettingsMessage::CronBatchModeToggled(!s.batch_mode)),
                 false
             ),
             small_button(
-                "从模板新建",
+                i18n.__("从模板新建"),
                 Message::Settings(message::SettingsMessage::CronTemplatesToggled(true)),
                 false
             ),
-            compact_button(tr.__("新建定时任务"))
+            compact_button(i18n.__("新建定时任务"))
                 .style(primary_action_btn_style)
                 .on_press(Message::Settings(message::SettingsMessage::CronTabSelected(
                     CronSettingsTab::Add,
@@ -354,16 +355,16 @@ pub fn jobs_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
     let mut cards = column![].spacing(12).width(Length::Fill);
     if s.jobs_loading {
         cards = cards
-            .push(text(tr.__("正在加载定时任务...")).size(13).style(settings_muted_text_style));
+            .push(text(i18n.__("正在加载定时任务...")).size(13).style(settings_muted_text_style));
     } else if s.jobs.is_empty() {
         cards =
-            cards.push(text(tr.__("当前没有定时任务。")).size(13).style(settings_muted_text_style));
+            cards.push(text(i18n.__("当前没有定时任务。")).size(13).style(settings_muted_text_style));
         if s.save_error.is_none() {
-            cards = cards.push(super::templates::view());
+            cards = cards.push(super::templates::view(I18n::new(app.desktop_locale)));
         }
     } else if s.visible_jobs().next().is_none() {
         cards =
-            cards.push(text(tr.__("当前分组暂无任务")).size(13).style(settings_muted_text_style));
+            cards.push(text(i18n.__("当前分组暂无任务")).size(13).style(settings_muted_text_style));
     } else {
         let jobs: Vec<_> = s.visible_jobs().collect();
         for pair in jobs.chunks(2) {
@@ -388,8 +389,8 @@ pub fn jobs_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
         let all_selected =
             visible_count > 0 && s.visible_jobs().all(|job| s.selected_job_ids.contains(&job.id));
         let select_label =
-            desktop_i18n::__!(tr, "全选 %u 个任务", visible_count).expect("valid cron selection template");
-        let selected_label = format!("{}: {count}", tr.__("已选"));
+            desktop_i18n::__!(i18n, "全选 %u 个任务", visible_count).expect("valid cron selection template");
+        let selected_label = format!("{}: {count}", i18n.__("已选"));
         let controls = responsive(move |size| {
             let selection = row![
                 checkbox(all_selected)
@@ -404,11 +405,11 @@ pub fn jobs_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
             .align_y(Alignment::Center);
             let mut actions = row![].spacing(8);
             for (template, action, danger) in [
-                ("启用已选(%u)", message::SettingsMessage::CronSelectedJobsEnable, false),
-                ("禁用已选(%u)", message::SettingsMessage::CronSelectedJobsDisable, false),
-                ("删除已选(%u)", message::SettingsMessage::CronSelectedJobsDelete, true),
+                (i18n.__("启用已选(%u)"), message::SettingsMessage::CronSelectedJobsEnable, false),
+                (i18n.__("禁用已选(%u)"), message::SettingsMessage::CronSelectedJobsDisable, false),
+                (i18n.__("删除已选(%u)"), message::SettingsMessage::CronSelectedJobsDelete, true),
             ] {
-                let label = desktop_i18n::__!(tr, template, count).expect("valid cron batch template");
+                let label = desktop_i18n::__!(i18n, template, count).expect("valid cron batch template");
                 let btn = button(text(label).size(12)).padding([8, 12]).style(if danger {
                     danger_action_btn_style
                 } else {

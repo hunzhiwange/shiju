@@ -78,6 +78,7 @@ async fn mobile_shell_keeps_real_layout_and_draw_path() {
     use support::Message;
     for theme in [iced::Theme::Light, iced::Theme::Dark] {
         let page = crate::mobile_shell(
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             iced::widget::text("设置 / Settings").into(),
             None,
             Message::None,

@@ -309,6 +309,8 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             );
             #[cfg(not(target_arch = "wasm32"))]
             crate::app::desktop_lifecycle::refresh_tray_locale(locale);
+            #[cfg(target_os = "macos")]
+            super::computer_control::refresh_permission_guide_locale(locale);
             #[cfg(not(target_arch = "wasm32"))]
             if let Err(error) = app.work_browser_controller.set_locale(locale) {
                 tracing::warn!(%error, "failed to refresh browser locale");

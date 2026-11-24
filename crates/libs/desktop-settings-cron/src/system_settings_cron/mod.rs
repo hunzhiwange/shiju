@@ -196,7 +196,7 @@ fn save_error_banner<'a>(app: &ViewData<'a>) -> Option<Element<'a, Message>> {
                         .render(desktop_i18n::I18n::new(app.desktop_locale))
                         .expect("valid cron error template")
                 })
-                .unwrap_or_else(|| error.to_string()),
+                .unwrap_or_else(|| desktop_i18n::settings::message(I18n::new(app.desktop_locale), error)),
         )
         .into()
     })
@@ -215,6 +215,7 @@ fn with_access_confirmation<'a, M: Clone + 'static>(
     app: &ViewData<'a>,
     dialog: Element<'a, M>, map: fn(Message) -> M,
 ) -> Element<'a, M> {
+    let tr = I18n::new(app.desktop_locale);
     let state = app.cron_settings;
     let editing = state.editing_job_id.is_some();
     if !editing && !state.show_add_modal {
@@ -226,16 +227,16 @@ fn with_access_confirmation<'a, M: Clone + 'static>(
     }
     let cancel = Message::Settings(message::SettingsMessage::CronFullAccessCancel { editing });
     let header = settings_modal_header(
-        text("确认完全访问权限").size(20),
+        text(tr.__("确认完全访问权限")).size(20),
         settings_close_button(cancel.clone()),
     );
     let body = column![
-        text("仅为当前 Agent 定时任务启用完全访问。触发后可按完全访问执行工具，包括读写文件、运行命令和网络访问。请只授权可信的提示词与项目。").size(14),
-        text("ACP 额外未授权请求仍可能被非交互后台拒绝。取消会保持受限权限；确认后仍需保存任务才会生效。").size(13).style(settings_muted_text_style),
+        text(tr.__("仅为当前 Agent 定时任务启用完全访问。触发后可按完全访问执行工具，包括读写文件、运行命令和网络访问。请只授权可信的提示词与项目。")).size(14),
+        text(tr.__("ACP 额外未授权请求仍可能被非交互后台拒绝。取消会保持受限权限；确认后仍需保存任务才会生效。")).size(13).style(settings_muted_text_style),
     ].spacing(12);
     let actions = row![
-        secondary_button("取消授权", cancel.clone()),
-        button(text("确认授权").size(13))
+        secondary_button(tr.__("取消授权"), cancel.clone()),
+        button(text(tr.__("确认授权")).size(13))
             .padding([8, 14])
             .style(primary_action_btn_style)
             .on_press(Message::Settings(message::SettingsMessage::CronFullAccessConfirm {
@@ -399,7 +400,7 @@ fn picker_overlay<'a, M: Clone + 'static>(app: &ViewData<'a>, base: Element<'a, 
     let Some(picker) = &app.cron_settings.date_time_picker else { return base; };
     let draft = if picker.editing { &app.cron_settings.edit_draft } else { &app.cron_settings.add_draft };
     let timezone = draft.schedule_draft.as_ref().map(|d| d.timezone.as_str()).unwrap_or("UTC");
-    date_time::overlay(picker, timezone, base, map)
+    date_time::overlay(I18n::new(app.desktop_locale), picker, timezone, base, map)
 }
 
 #[cfg(test)]

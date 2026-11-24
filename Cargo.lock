@@ -7382,6 +7382,7 @@ name = "desktop-settings-account"
 version = "0.7.10"
 dependencies = [
  "desktop-assets",
+ "desktop-i18n",
  "desktop-ui-controls",
  "gateway-endpoint",
  "iced",

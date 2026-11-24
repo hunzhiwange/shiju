@@ -24,7 +24,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let visible = crate::app::message::settings::data_management::backup_list_ui::visible(app);
     let state = &app.apps_catalog.data_backups;
     let state = domain::ViewState { busy: state.busy, show_locations: state.show_locations, principal: &state.principal, name: &state.name, interval: &state.interval, retain: &state.retain, pending: state.pending.as_ref().map(|p| match p { desktop_settings_memory::data_management::backup_list_ui::Pending::Cleanup(id) => domain::Pending::Cleanup(id), desktop_settings_memory::data_management::backup_list_ui::Pending::Rename(row) => domain::Pending::Rename(&row.name), desktop_settings_memory::data_management::backup_list_ui::Pending::Delete(row) => domain::Pending::Delete(&row.name) }), rows: &state.rows };
-    domain::view(state, visible, available, super::recovery_ui::view(app), super::locations_ui::view(app), |id|
+    domain::view(desktop_i18n::I18n::new(app.general_settings.desktop_locale), state, visible, available, super::recovery_ui::view(app), super::locations_ui::view(app), |id|
         crate::app::message::settings::data_management::recovery_ui::message(
             desktop_settings_memory::data_management::recovery_ui::Event::OpenBackup(id)
         )

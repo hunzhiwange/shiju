@@ -182,7 +182,7 @@ fn profile_editor_body(account: &AccountState, locale: DesktopLocale) -> Element
             None,
         ),
         AccountProfileEditorState::Failed(error) => (
-            column![text(i18n.__("账户资料获取失败")).size(16), settings_error_banner(error)]
+            column![text(i18n.__("账户资料获取失败")).size(16), settings_error_banner(desktop_i18n::settings::message(i18n, error))]
                 .spacing(10)
                 .into(),
             Some(
@@ -255,7 +255,7 @@ fn password_editor_body(account: &AccountState, locale: DesktopLocale) -> Elemen
                         .padding([6, 10])
                         .style(rounded_action_btn_style),
                 ),
-                settings_error_banner(message),
+                settings_error_banner(desktop_i18n::settings::message(i18n, message)),
             ]
             .spacing(6),
         );

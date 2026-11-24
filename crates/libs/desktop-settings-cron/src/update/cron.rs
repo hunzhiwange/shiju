@@ -233,6 +233,10 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                 Ok(draft) => draft,
                 Err(error) => return app.show_error_toast(error),
             };
+            let i18n = desktop_i18n::I18n::new(app.desktop_locale);
+            draft.name = i18n.__(template.title).to_owned();
+            draft.prompt = i18n.__(template.prompt).to_owned();
+            draft.prompt_editor = text_editor::Content::with_text(&draft.prompt);
             draft.schedule_draft = match schedule_request(&draft)
                 .and_then(|request| crate::state::CronScheduleDraft::from_request(&request))
             {
@@ -1090,6 +1094,14 @@ pub cron_settings: &'a mut crate::state::CronSettingsState,
 }
 pub enum Notice { Error(String), Success(String) }
 impl Inputs<'_> {
- pub(super) fn show_error_toast(&mut self, text: impl Into<String>) -> Task<Message> { self.notices.push(Notice::Error(text.into())); Task::none() }
- fn show_success_toast(&mut self, text: impl Into<String>) -> Task<Message> { self.notices.push(Notice::Success(text.into())); Task::none() }
+ pub(super) fn show_error_toast(&mut self, text: impl Into<String>) -> Task<Message> {
+     let text = text.into();
+     self.notices.push(Notice::Error(desktop_i18n::settings::message(desktop_i18n::I18n::new(self.desktop_locale), &text)));
+     Task::none()
+ }
+ fn show_success_toast(&mut self, text: impl Into<String>) -> Task<Message> {
+     let text = text.into();
+     self.notices.push(Notice::Success(desktop_i18n::settings::message(desktop_i18n::I18n::new(self.desktop_locale), &text)));
+     Task::none()
+ }
 }

@@ -62,10 +62,17 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
     for effect in effects {
         use desktop_account_ui::update::Effect;
         tasks.push(match effect {
-            Effect::Toast(kind, source, args) => app.show_localized_toast(kind, source, args),
+            Effect::Toast(kind, source, args) => {
+                let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
+                let args = args.into_iter().map(|argument| match argument {
+                    desktop_i18n::format::Argument::Text(value) => desktop_i18n::format::Argument::Text(desktop_i18n::settings::message(i18n, &value)),
+                    other => other,
+                }).collect();
+                app.show_localized_toast(kind, source, args)
+            },
             #[cfg(not(target_arch = "wasm32"))]
             Effect::Host(message) => update(app, message),
-            Effect::Error(message) => app.show_error_toast(message),
+            Effect::Error(message) => app.show_error_toast(desktop_i18n::settings::message(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &message)),
             Effect::Validation(feedback) => model_validation_feedback(app, feedback),
             #[cfg(not(target_arch = "wasm32"))]
             Effect::RefreshDomains => crate::app::message::skill_hub::account_changed(app),

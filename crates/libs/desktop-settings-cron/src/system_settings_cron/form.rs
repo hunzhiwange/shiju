@@ -31,7 +31,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
     let mut form = column![
         field_row_with_help(
             app,
-            "任务名称",
+            i18n.__("任务名称"),
             i18n.__("可选，便于在列表中识别。"),
             text_field(i18n.__("可选名称"), &draft.name, |v| Message::Settings(
                 message::SettingsMessage::CronJobEditNameChanged(v)
@@ -39,7 +39,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
         ),
         field_row_with_help(
             app,
-            "任务类型",
+            i18n.__("任务类型"),
             i18n.__("Shell 执行命令，Agent 执行提示词任务。"),
             row![
                 segment_button(
@@ -70,7 +70,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
         ),
         field_row_with_help(
             app,
-            "项目路径",
+            i18n.__("项目路径"),
             i18n.__("可手工输入项目目录；留空使用默认工作区。"),
             text_field(i18n.__("项目目录路径"), &draft.project_path, |v| {
                 Message::Settings(message::SettingsMessage::CronJobEditProjectPathChanged(v))
@@ -82,7 +82,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
     form = match draft.job_type {
         CronAddJobType::Shell => form.push(field_row_with_help(
             app,
-            "执行命令",
+            i18n.__("执行命令"),
             i18n.__("按安全策略执行的 Shell 命令。"),
             text_editor(&draft.command_editor)
                 .placeholder(i18n.__("Shell 命令"))
@@ -99,7 +99,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
         CronAddJobType::Agent => form
             .push(field_row_with_help(
                 app,
-                "智能体",
+                i18n.__("智能体"),
                 i18n.__("默认使用 Main，套用代理配置中的 provider、模型和温度。"),
                 pick_field(
                     agent_options,
@@ -109,7 +109,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
             ))
             .push(field_row_with_help(
                 app,
-                "模型提供商",
+                i18n.__("模型提供商"),
                 i18n.__("与智能体配置中的模型选择一致。"),
                 pick_field(provider_options, selected_provider, |v| {
                     Message::Settings(message::SettingsMessage::CronJobEditModelProviderChanged(v))
@@ -117,7 +117,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
             ))
             .push(field_row_with_help(
                 app,
-                "模型下拉",
+                i18n.__("模型下拉"),
                 i18n.__("从当前提供商的模型列表选择，会写入 provider/model。"),
                 pick_field(
                     model_options,
@@ -140,7 +140,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
             ))
             .push(field_row_with_help(
                 app,
-                "模型手工输入",
+                i18n.__("模型手工输入"),
                 i18n.__("可选，留空使用代理或全局默认模型。"),
                 text_field("provider/model", &draft.model, |v| {
                     Message::Settings(message::SettingsMessage::CronJobEditModelChanged(v))
@@ -148,7 +148,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
             ))
             .push(field_row_with_help(
                 app,
-                "Agent 提示词",
+                i18n.__("Agent 提示词"),
                 i18n.__("创建 Agent 类型定时任务。"),
                 settings_text_editor(&draft.prompt_editor)
                     .placeholder(i18n.__("要让 Agent 执行的任务"))
@@ -161,15 +161,15 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
             ))
             .push(field_row_with_help(
                 app,
-                "ACP 代理",
-                "可选，保留已有 ACP 执行代理设置。",
+                i18n.__("ACP 代理"),
+                i18n.__("可选，保留已有 ACP 执行代理设置。"),
                 text_field("ACP agent", &draft.acp_agent, |v| {
                     Message::Settings(message::SettingsMessage::CronJobEditAcpAgentChanged(v))
                 }),
             ))
             .push(field_row_with_help(
                 app,
-                "回退模型",
+                i18n.__("回退模型"),
                 i18n.__("主模型失败后依次尝试，使用逗号或换行分隔。"),
                 text_field("provider/model, provider/model", &draft.fallbacks, |v| {
                     Message::Settings(message::SettingsMessage::CronJobEditFallbacksChanged(v))
@@ -177,7 +177,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
             ))
             .push(field_row(
                 i18n.__("完全访问"),
-                "默认受限：可能等待现有审批或被非交互后台拒绝。ACP 未获授权的调用会被拒绝，不保证离线人工恢复。失败后可从任务列表查看历史并编辑。",
+                i18n.__("默认受限：可能等待现有审批或被非交互后台拒绝。ACP 未获授权的调用会被拒绝，不保证离线人工恢复。失败后可从任务列表查看历史并编辑。"),
                 checkbox(draft.full_access)
                     .label(i18n.__("获取完全访问权限"))
                     .on_toggle(|v| {
@@ -197,7 +197,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
             ))
             .push(field_row_with_help(
                 app,
-                "唤醒",
+                i18n.__("唤醒"),
                 i18n.__("保留唤醒标记，供桌面侧识别需要关注的任务。"),
                 checkbox(draft.wake)
                     .label(i18n.__("任务运行时标记为需要关注"))
@@ -211,7 +211,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
     form = form
         .push(field_row_with_help(
             app,
-            "执行后删除",
+            i18n.__("执行后删除"),
             i18n.__("适合指定时间的一次性任务。"),
             checkbox(draft.delete_after_run)
                 .label(i18n.__("运行成功后删除任务"))
@@ -222,7 +222,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
         ))
         .push(field_row_with_help(
             app,
-            "结果投递",
+            i18n.__("结果投递"),
             i18n.__("将任务执行结果投递到配置好的通道。"),
             checkbox(draft.delivery_enabled)
                 .label(i18n.__("开启结果投递"))
@@ -237,7 +237,7 @@ pub fn view<'a>(app: &ViewData<'a>, editing: bool) -> Element<'a, Message> {
     form = form.push(super::delivery::view(app, draft));
 
     if let Err(error) = crate::delivery::validate(draft, app.delivery) {
-        form = form.push(settings_error_banner(error));
+        form = form.push(settings_error_banner(desktop_i18n::settings::message(i18n, &error)));
     }
     let element: Element<'_, Message> = settings_group_card(form).into();
     let submitting = draft.submitting;

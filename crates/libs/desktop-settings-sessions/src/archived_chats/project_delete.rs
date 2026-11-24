@@ -236,6 +236,7 @@ pub struct ProjectDeletePlan {
 }
 /// Accept only a current batch result, then describe host cache and gateway effects.
 pub fn prepare(
+    i18n: desktop_i18n::I18n,
     state: &mut ArchivedChatsState,
     message: ArchivedChatsMessage,
     current: &Identity,
@@ -275,12 +276,10 @@ pub fn prepare(
         let batch = state.project_delete.as_ref().unwrap();
         Some((
             batch.failed.is_empty() && batch.skipped == 0,
-            format!(
-                "归档聊天删除结果：成功 {}，失败 {}，状态变化跳过 {}。",
-                batch.succeeded,
-                batch.failed.len(),
-                batch.skipped
-            ),
+            desktop_i18n::__!(i18n,
+                "归档聊天删除结果：成功 %u，失败 %u，状态变化跳过 %u。",
+                batch.succeeded, batch.failed.len(), batch.skipped
+            ).expect("valid archived deletion summary"),
         ))
     } else {
         None

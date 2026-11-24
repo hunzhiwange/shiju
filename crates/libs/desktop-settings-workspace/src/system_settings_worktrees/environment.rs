@@ -44,7 +44,7 @@ pub fn view<'a>(state: &'a WorktreeEnvironmentState, i18n: I18n, local: bool) ->
         body = body.push(text(i18n.__("正在加载…")));
     }
     if let Some(error) = &state.list_error {
-        body = body.push(settings_error_banner(error.clone()));
+        body = body.push(settings_error_banner(desktop_i18n::settings::message(i18n, error)));
     }
     if state.projects.is_empty() && !state.projects_loading {
         body = body.push(text(i18n.__("暂无项目，请添加项目。")));
@@ -87,7 +87,7 @@ pub fn editor_with<'a, Host: Clone + 'a>(
     )]
     .spacing(10);
     if let Some(error) = &state.error {
-        header = header.push(settings_error_banner(error.clone()));
+        header = header.push(settings_error_banner(desktop_i18n::settings::message(i18n, error)));
     }
     let mut input = settings_text_editor(&state.editor).height(240);
     if !busy && state.loaded {
@@ -120,7 +120,7 @@ pub fn editor_with<'a, Host: Clone + 'a>(
             .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press_maybe((!state.saving).then_some(close.clone())),
-        button(text(i18n.__(if state.saving { "正在保存…" } else { "保存" })))
+        button(text(i18n.__(if state.saving { i18n.__("正在保存…") } else { i18n.__("保存") })))
             .padding([8, 14])
             .style(primary_action_btn_style)
             .on_press_maybe((!busy && state.loaded).then(|| event(Event::Save)))

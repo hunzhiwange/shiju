@@ -70,7 +70,7 @@ impl App {
             ]),
             SystemSettingsSaveFeedback::Failed => {
                 let error = result.expect_err("failed save feedback");
-                Task::batch([next, self.show_error_toast(format!("系统设置未保存：{error}"))])
+                Task::batch([next, self.show_error_toast(desktop_i18n::__!(desktop_i18n::I18n::new(self.general_settings.desktop_locale), "系统设置未保存：%s", error).expect("valid save feedback"))])
             }
             SystemSettingsSaveFeedback::None => next,
         }

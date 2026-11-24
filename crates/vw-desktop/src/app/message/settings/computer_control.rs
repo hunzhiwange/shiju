@@ -14,10 +14,10 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     #[cfg(target_os = "macos")]
     if let Event::OpenNativePermissionGuide { screen_recording } = &event {
         if !endpoint.is_loopback() {
-            return app.show_toast(ToastKind::Error, "请在运行网关的 Mac 上打开系统设置");
+            return app.show_toast(ToastKind::Error, desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("请在运行网关的 Mac 上打开系统设置"));
         }
-        if let Err(error) = permission_guide::show(*screen_recording) {
-            return app.show_toast(ToastKind::Error, error);
+        if let Err(error) = permission_guide::show(desktop_i18n::I18n::new(app.general_settings.desktop_locale), *screen_recording) {
+            return app.show_toast(ToastKind::Error, desktop_i18n::settings::message(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &error));
         }
         return Task::none();
     }
@@ -29,9 +29,14 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         &mut app.computer_control_settings, &endpoint,
         app.session_state.active_session_id.as_deref(), app.navigation_tabs.project_path.as_deref(), event);
     let toast = match notice {
-        Some(desktop_settings_security::computer_control_update::Notice::Error(value)) => app.show_toast(ToastKind::Error, value),
-        Some(desktop_settings_security::computer_control_update::Notice::Success(value)) => app.show_toast(ToastKind::Success, value),
+        Some(desktop_settings_security::computer_control_update::Notice::Error(value)) => app.show_toast(ToastKind::Error, desktop_i18n::settings::message(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &value)),
+        Some(desktop_settings_security::computer_control_update::Notice::Success(value)) => app.show_toast(ToastKind::Success, desktop_i18n::settings::message(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &value)),
         None => Task::none(),
     };
     Task::batch([task.map(message), toast])
+}
+
+#[cfg(target_os = "macos")]
+pub(super) fn refresh_permission_guide_locale(locale: config_ui::DesktopLocale) {
+    permission_guide::refresh_locale(desktop_i18n::I18n::new(locale));
 }

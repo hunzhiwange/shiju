@@ -77,7 +77,7 @@ pub fn page(state: &WorktreeSettingsState, i18n: I18n, local: bool) -> Element<'
             );
         }
     }
-    content.push(managed::view(&state.managed, i18n)).push(recovery::view(state)).into()
+    content.push(managed::view(&state.managed, i18n)).push(recovery::view(i18n, state)).into()
 }
 
 pub fn editor_with<'a, Host: Clone + 'a>(

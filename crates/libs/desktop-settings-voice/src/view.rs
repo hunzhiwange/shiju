@@ -20,9 +20,9 @@ pub fn view<'a>(state: &'a State, i18n: I18n, hotkey_status: String) -> Element<
         text(i18n.__("语音设置")).size(22),
         text(i18n.__("本机引擎无需语音 API Key；云端服务仅在显式选择云端后配置。")).style(settings_muted_text_style),
         { let b = button(text(i18n.__("编辑语音设置"))).padding([8, 14]).style(primary_action_btn_style); if state.busy { b } else { b.on_press(Event::Open) } },
-        button(text("跨应用听写：权限与试用")).on_press(Event::Onboarding).style(rounded_action_btn_style).padding([8, 14]),
-        text(hotkey_status).style(settings_muted_text_style),
-        action("立即停用全局热键（本机）".into(), Event::DisableHotkeys),
+        button(text(i18n.__("跨应用听写：权限与试用"))).on_press(Event::Onboarding).style(rounded_action_btn_style).padding([8, 14]),
+        text(desktop_i18n::settings::message(i18n, &hotkey_status)).style(settings_muted_text_style),
+        action(i18n.__("立即停用全局热键（本机）").into(), Event::DisableHotkeys),
     ].spacing(14).into()
 }
 #[derive(Clone, PartialEq)]
@@ -64,49 +64,49 @@ pub fn modal<'a>(
         vec![
             OptionLabel {
                 value: VoiceEngine::Local,
-                label: "macOS 本机（无需语音 API Key）".into(),
+                label: i18n.__("macOS 本机（无需语音 API Key）").into(),
             },
             OptionLabel {
                 value: VoiceEngine::Cloud,
-                label: "云端语音（需要网关与服务配置）".into(),
+                label: i18n.__("云端语音（需要网关与服务配置）").into(),
             },
         ]
     } else {
-        vec![OptionLabel { value: VoiceEngine::Cloud, label: "云端语音".into() }]
+        vec![OptionLabel { value: VoiceEngine::Cloud, label: i18n.__("云端语音").into() }]
     };
     let engine = engines.iter().find(|v| v.value == edit.local.engine).cloned();
     let form = column![
-        settings_field_label("语音引擎"),
+        settings_field_label(i18n.__("语音引擎")),
         settings_select(engines, engine, |v| msg(Event::Engine(v.value))).width(Length::Fill),
         settings_field_label(i18n.__("麦克风")),
         settings_select(devices, Some(selected), |v| msg(Event::Microphone(v.value)))
             .width(Length::Fill),
-        if edit.local.engine == VoiceEngine::Local { local::form(state) } else { cloud_form(state, i18n) },
+        if edit.local.engine == VoiceEngine::Local { local::form(i18n, state) } else { cloud_form(state, i18n) },
         checkbox(edit.local.retain_recordings)
-            .label("仅在本机留存最近二十段听写录音（最多 64 MiB）")
+            .label(i18n.__("仅在本机留存最近二十段听写录音（最多 64 MiB）"))
             .on_toggle(|v| msg(Event::RetainRecordings(v)))
             .style(settings_checkbox_style),
-        text("默认关闭；保存位置见语音设置页。关闭停止新增，已有录音请在最近本机录音中删除。")
+        text(i18n.__("默认关闭；保存位置见语音设置页。关闭停止新增，已有录音请在最近本机录音中删除。"))
             .style(settings_muted_text_style),
-        settings_field_label("全局语音快捷键（本机）"),
+        settings_field_label(i18n.__("全局语音快捷键（本机）")),
         checkbox(edit.local.hotkeys.enabled)
-            .label(if cfg!(target_os = "macos") { "启用全局快捷键" } else { "当前平台不支持全局快捷键" })
+            .label(if cfg!(target_os = "macos") { i18n.__("启用全局快捷键") } else { i18n.__("当前平台不支持全局快捷键") })
             .on_toggle(|v| msg(Event::HotkeysEnabled(v)))
             .style(settings_checkbox_style),
         row![
-            text(format!("听写：{}", edit.local.hotkeys.dictation.map(|v| v.label()).unwrap_or_else(|| "未设置".into()))).width(Length::Fill),
-            action("录制听写快捷键".into(), Event::RecordHotkey(Some(false))),
+            text(desktop_i18n::__!(i18n, "听写：%s", (edit.local.hotkeys.dictation.map(|v| v.label()).unwrap_or_else(|| "未设置".into())).to_string()).expect("valid settings message")).width(Length::Fill),
+            action(i18n.__("录制听写快捷键").into(), Event::RecordHotkey(Some(false))),
         ].spacing(8).align_y(Alignment::Center),
         row![
-            text(format!("语音聊天：{}", edit.local.hotkeys.chat.map(|v| v.label()).unwrap_or_else(|| "未设置".into()))).width(Length::Fill),
-            action("录制聊天快捷键".into(), Event::RecordHotkey(Some(true))),
+            text(desktop_i18n::__!(i18n, "语音聊天：%s", (edit.local.hotkeys.chat.map(|v| v.label()).unwrap_or_else(|| "未设置".into())).to_string()).expect("valid settings message")).width(Length::Fill),
+            action(i18n.__("录制聊天快捷键").into(), Event::RecordHotkey(Some(true))),
         ].spacing(8).align_y(Alignment::Center),
         text(if state.recording_hotkey.is_some() {
-            "请按修饰键加字母/空格；Escape 取消录制。不支持 Fn。"
+            i18n.__("请按修饰键加字母/空格；Escape 取消录制。不支持 Fn。")
         } else {
-            "按住听写，松开完成；280 毫秒内双击进入免提，再按完成，Escape 取消。独立快捷键启动语音聊天。保存后生效。"
+            i18n.__("按住听写，松开完成；280 毫秒内双击进入免提，再按完成，Escape 取消。独立快捷键启动语音聊天。保存后生效。")
         }).style(settings_muted_text_style),
-        action("检查/打开输入监控授权".into(), Event::HotkeyPermission),
+        action(i18n.__("检查/打开输入监控授权").into(), Event::HotkeyPermission),
 
     ]
     .spacing(12);
@@ -145,15 +145,15 @@ pub fn modal<'a>(
             settings_modal_layout(
                 settings_modal_header(
                     text(if chat {
-                        "录制语音聊天快捷键"
+                        i18n.__("录制语音聊天快捷键")
                     } else {
-                        "录制听写快捷键"
+                        i18n.__("录制听写快捷键")
                     })
                     .size(20),
                     settings_close_button(cancel),
                 ),
-                text("请按修饰键加字母或空格。Escape 取消；不支持 Fn。"),
-                Some(action("取消录制".into(), Event::RecordHotkey(None)).into()),
+                text(i18n.__("请按修饰键加字母或空格。Escape 取消；不支持 Fn。")),
+                Some(action(i18n.__("取消录制").into(), Event::RecordHotkey(None)).into()),
             )
             .width(500),
         )
@@ -164,20 +164,20 @@ pub fn modal<'a>(
 fn cloud_form<'a>(state: &'a State, i18n: I18n) -> Element<'a, Message> {
     if !state.cloud_ready {
         return column![
-            text("云端设置未加载；本机偏好仍可切换并保存。").style(settings_muted_text_style),
-            text(state.cloud_error.as_deref().unwrap_or("请检查网关连接与配对。")),
-            action("重新读取云端设置".into(), Event::Engine(VoiceEngine::Cloud)),
+            text(i18n.__("云端设置未加载；本机偏好仍可切换并保存。")).style(settings_muted_text_style),
+            text(desktop_i18n::settings::message(i18n, state.cloud_error.as_deref().unwrap_or("请检查网关连接与配对。"))),
+            action(i18n.__("重新读取云端设置").into(), Event::Engine(VoiceEngine::Cloud)),
         ]
         .spacing(12)
         .into();
     }
     let edit = state.edit.as_ref().expect("open voice edit");
     let languages = [
-        (RecognitionLanguage::Auto, "自动检测"),
-        (RecognitionLanguage::Zh, "中文"),
-        (RecognitionLanguage::En, "英语"),
-        (RecognitionLanguage::Es, "西班牙语"),
-        (RecognitionLanguage::Fr, "法语"),
+        (RecognitionLanguage::Auto, i18n.__("自动检测")),
+        (RecognitionLanguage::Zh, i18n.__("中文")),
+        (RecognitionLanguage::En, i18n.__("英语")),
+        (RecognitionLanguage::Es, i18n.__("西班牙语")),
+        (RecognitionLanguage::Fr, i18n.__("法语")),
     ]
     .map(|(value, label)| OptionLabel { value, label: i18n.__(label).to_owned() });
     let selected_language = languages.iter().find(|l| l.value == edit.config.language).cloned();

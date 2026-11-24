@@ -13,11 +13,11 @@ fn message(event: domain::Event) -> Message {
     })
 }
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
-    domain::view(crate::app::message::settings::data_management::identity::identity(app).is_some()).map(message)
+    domain::view(desktop_i18n::I18n::new(app.general_settings.desktop_locale), crate::app::message::settings::data_management::identity::identity(app).is_some()).map(message)
 }
 pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     if !crate::app::message::settings::data_management::recovery_ui::visible(app) { return base; }
     let state = &app.apps_catalog.recovery;
     let state = domain::ViewState { busy: state.busy, submitted: state.submitted, principal: &state.principal, diagnosis: &state.diagnosis, preview: &state.preview, progress: &state.progress, error: &state.error };
-    domain::overlay(state, true, base).map(|event| match event { domain::OverlayEvent::Local(event) => message(event), domain::OverlayEvent::External(message) => message })
+    domain::overlay(desktop_i18n::I18n::new(app.general_settings.desktop_locale), state, true, base).map(|event| match event { domain::OverlayEvent::Local(event) => message(event), domain::OverlayEvent::External(message) => message })
 }

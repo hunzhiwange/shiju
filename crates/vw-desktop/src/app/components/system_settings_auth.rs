@@ -40,15 +40,15 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             }
         }
     }
-    account::system_settings_auth::view(&state(app), account::Usage {
+    account::system_settings_auth::view(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &state(app), account::Usage {
         available: scope.is_some(),
         batch_pending: scope.as_ref().is_some_and(|scope| s.usage.batch_pending(scope)),
         lines: scope.as_ref().map_or_else(Vec::new, |scope| s.usage.batch_lines(scope)),
         accounts,
     }).map(map)
 }
-pub(crate) fn overlay<'a>(s: &'a crate::app::state::agent_apps_auth::State, base: Element<'a, Message>) -> Element<'a, Message> {
-    account::system_settings_auth::overlay(&project(s), base.map(Event::Usage)).map(map)
+pub(crate) fn overlay<'a>(i18n: desktop_i18n::I18n, s: &'a crate::app::state::agent_apps_auth::State, base: Element<'a, Message>) -> Element<'a, Message> {
+    account::system_settings_auth::overlay(i18n, &project(s), base.map(Event::Usage)).map(map)
 }
 fn map(event: Event<Message>) -> Message {
     use crate::app::message::agent_apps_auth::{self as auth, Event as E, actions::ActionEvent as A, browser::LinkAction as L};

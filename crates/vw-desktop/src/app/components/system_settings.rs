@@ -294,6 +294,7 @@ fn settings_shell(
 ) -> Element<'_, Message> {
     if app.mobile_layout.mode() == crate::app::state::LayoutMode::Mobile {
         return desktop_settings_shell::mobile_shell(
+            desktop_i18n::I18n::new(app.general_settings.desktop_locale),
             settings_content(app, active_tab),
             system_settings_help::help_button(app.general_settings.desktop_locale, help_tab),
             Message::View(message::ViewMessage::MobileBack),
@@ -427,7 +428,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     #[cfg(not(target_arch = "wasm32"))]
     if active_tab == SystemTab::Auth || (active_tab == SystemTab::Apps && app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Authorization) {
-        dialog = super::system_settings_auth::overlay(&app.agent_apps_auth, dialog);
+        dialog = super::system_settings_auth::overlay(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &app.agent_apps_auth, dialog);
     }
 
     if app.navigation_panels.system_settings_tab == SystemTab::Apps {

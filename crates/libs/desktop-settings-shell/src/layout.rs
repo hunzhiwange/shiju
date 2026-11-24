@@ -89,6 +89,7 @@ pub fn tabbed_page_owns_save_error(active_tab: SystemTab) -> bool {
 
 /// Mobile settings chrome; effects are chosen by the host.
 pub fn mobile_shell<'a, Message: Clone + 'a>(
+    i18n: desktop_i18n::I18n,
     content: Element<'a, Message>,
     help: Option<Element<'a, Message>>,
     back: Message,
@@ -99,7 +100,7 @@ pub fn mobile_shell<'a, Message: Clone + 'a>(
     };
     use iced::widget::{button, text};
     let back =
-        button(text("返回分类")).padding([10, 12]).style(rounded_action_btn_style).on_press(back);
+        button(text(i18n.__("返回分类"))).padding([10, 12]).style(rounded_action_btn_style).on_press(back);
     let mut header = row![back].spacing(8).align_y(iced::Alignment::Center);
     if let Some(help) = help {
         header = header.push(help);
@@ -109,11 +110,11 @@ pub fn mobile_shell<'a, Message: Clone + 'a>(
         page = page.push(
             column![
                 text(
-                    "有效输入自动保存；保存不代表已连接。连接失败时检查地址、认证及浏览器跨域配置。"
+                    i18n.__("有效输入自动保存；保存不代表已连接。连接失败时检查地址、认证及浏览器跨域配置。")
                 )
                 .size(12)
                 .style(settings_muted_text_style),
-                button(text("刷新连接 / 重试"))
+                button(text(i18n.__("刷新连接 / 重试")))
                     .padding([10, 12])
                     .style(rounded_action_btn_style)
                     .on_press(retry),

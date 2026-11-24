@@ -7,6 +7,7 @@ use crate::message::SettingsMessage as S;
 use crate::state::{CronJobDraft, CronScheduleDraft, CronScheduleRule as R, IntervalUnit};
 use crate::message::Message;
 use super::ViewData;
+use desktop_i18n::I18n;
 use chrono::{Datelike, NaiveDate, NaiveTime};
 use iced::widget::{button, column, row, text};
 use iced::{Element, Length};
@@ -65,7 +66,7 @@ fn selected(rule: &R) -> usize {
     }
 }
 
-fn date_select<'a>(
+fn date_select<'a>(i18n: I18n,
     date: NaiveDate,
     on_change: impl Fn(NaiveDate) -> Message + Clone + 'a,
 ) -> Element<'a, Message> {
@@ -82,10 +83,10 @@ fn date_select<'a>(
             y, month, day
         )))
         .width(96),
-        text("年"),
+        text(i18n.__("年")),
         settings_select(1..=12u32, Some(month), move |m| month_change(valid_date(year, m, day)))
             .width(70),
-        text("月"),
+        text(i18n.__("月")),
         settings_select(
             (1..=31u32)
                 .filter(|d| NaiveDate::from_ymd_opt(year, month, *d).is_some())
@@ -94,7 +95,7 @@ fn date_select<'a>(
             move |d| on_change(valid_date(year, month, d))
         )
         .width(70),
-        text("日"),
+        text(i18n.__("日")),
     ]
     .spacing(6)
     .align_y(iced::Alignment::Center)
@@ -127,6 +128,7 @@ pub(super) fn frequency_form<'a>(
     draft: &'a CronJobDraft,
     editing: bool,
 ) -> Element<'a, Message> {
+    let i18n = I18n::new(_app.desktop_locale);
     let current = schedule(draft);
     let today = chrono::Utc::now().date_naive();
     let time = time_of(&current.rule);
@@ -142,7 +144,7 @@ pub(super) fn frequency_form<'a>(
     ];
     let mut choices = row![].spacing(6);
     for (index, (label, rule)) in
-        ["单次", "固定间隔", "每天", "每周", "每双周", "每月", "每年", "高级 Cron"]
+        [i18n.__("单次"), i18n.__("固定间隔"), i18n.__("每天"), i18n.__("每周"), i18n.__("每双周"), i18n.__("每月"), i18n.__("每年"), i18n.__("高级 Cron")]
             .into_iter()
             .zip(rules)
             .enumerate()
@@ -151,18 +153,18 @@ pub(super) fn frequency_form<'a>(
         next.rule = rule;
         let active = index == selected(&current.rule);
         choices = choices.push(
-            button(text(label).size(13))
+            button(text(i18n.__(label)).size(13))
                 .padding([8, 10])
                 .style(move |theme, status| cron_segment_style(theme, status, active))
                 .on_press(changed(editing, next)),
         );
     }
     let mut form =
-        column![text("时间规则").size(15), choices.wrap()].spacing(12).width(Length::Fill);
+        column![text(i18n.__("时间规则")).size(15), choices.wrap()].spacing(12).width(Length::Fill);
     match &current.rule {
         R::At { date, time } => {
             form = form.push(super::secondary_button(
-                format!("{date} {} · 选择日期和时间", time.format("%H:%M")),
+                desktop_i18n::__!(i18n, "%s %s · 选择日期和时间", (date).to_string(), (time.format("%H:%M")).to_string()).expect("valid settings message"),
                 Message::Settings(S::CronPickerOpen { editing }),
             ));
         }
@@ -171,7 +173,7 @@ pub(super) fn frequency_form<'a>(
         }
         R::Every { amount, unit } => {
             let mut next = current.clone();
-            let input = settings_text_input("正整数", &amount.to_string())
+            let input = settings_text_input(i18n.__("正整数"), &amount.to_string())
                 .on_input(move |value| {
                     let mut next = next.clone();
                     if let R::Every { amount, .. } = &mut next.rule {
@@ -181,7 +183,7 @@ pub(super) fn frequency_form<'a>(
                 })
                 .width(130);
             next = current.clone();
-            let options = ["毫秒", "秒", "分钟", "小时", "天（24小时）"];
+            let options = [i18n.__("毫秒"), i18n.__("秒"), i18n.__("分钟"), i18n.__("小时"), i18n.__("天（24小时）")];
             let units = [
                 IntervalUnit::Milliseconds,
                 IntervalUnit::Seconds,
@@ -197,25 +199,25 @@ pub(super) fn frequency_form<'a>(
                 }
                 changed(editing, next)
             });
-            form = form.push(row![text("每"), input, unit].spacing(8).wrap());
+            form = form.push(row![text(i18n.__("每")), input, unit].spacing(8).wrap());
         }
         R::Advanced(expression) => {
             let next = current.clone();
             form = form
-                .push(settings_text_input("5 或 6 字段 Cron", expression).on_input(move |value| {
+                .push(settings_text_input(i18n.__("5 或 6 字段 Cron"), expression).on_input(move |value| {
                     let mut next = next.clone();
                     next.rule = R::Advanced(value);
                     changed(editing, next)
                 }))
                 .push(
-                    text("5 字段：分 时 日 月 星期；6 字段在最前增加秒。使用当前时区。").size(12),
+                    text(i18n.__("5 字段：分 时 日 月 星期；6 字段在最前增加秒。使用当前时区。")).size(12),
                 );
         }
         _ => {
             if let R::Weekly { weekdays, .. } | R::Biweekly { weekdays, .. } = &current.rule {
                 let mut days = row![].spacing(4);
                 for (index, label) in
-                    ["周一", "周二", "周三", "周四", "周五", "周六", "周日"].iter().enumerate()
+                    [i18n.__("周一"), i18n.__("周二"), i18n.__("周三"), i18n.__("周四"), i18n.__("周五"), i18n.__("周六"), i18n.__("周日")].iter().enumerate()
                 {
                     let value = index as u32 + 1;
                     let active = weekdays.contains(&value);
@@ -226,13 +228,13 @@ pub(super) fn frequency_form<'a>(
                         toggle(weekdays, value);
                     }
                     days = days.push(
-                        button(text(*label).size(13))
+                        button(text(i18n.__(*label)).size(13))
                             .padding([8, 10])
                             .style(move |t, s| cron_segment_style(t, s, active))
                             .on_press(changed(editing, next)),
                     );
                 }
-                form = form.push(text("星期（至少选择一天）")).push(days.wrap());
+                form = form.push(text(i18n.__("星期（至少选择一天）"))).push(days.wrap());
             }
             if let R::Biweekly { anchor, .. } = &current.rule {
                 let next = current.clone();
@@ -242,8 +244,8 @@ pub(super) fn frequency_form<'a>(
                     ))
                     .unwrap_or(*anchor);
                 form = form
-                    .push(text(format!("双周锚点 · 活动周从 {monday} 开始，隔周跳过")).size(12))
-                    .push(date_select(*anchor, move |date| {
+                    .push(text(desktop_i18n::__!(i18n, "双周锚点 · 活动周从 %s 开始，隔周跳过", (monday).to_string()).expect("valid settings message")).size(12))
+                    .push(date_select(i18n, *anchor, move |date| {
                         let mut next = next.clone();
                         if let R::Biweekly { anchor, .. } = &mut next.rule {
                             *anchor = date;
@@ -252,7 +254,7 @@ pub(super) fn frequency_form<'a>(
                     }));
             }
             if let R::Monthly { days, .. } = &current.rule {
-                form = form.push(text("日期（至少选择一天）"));
+                form = form.push(text(i18n.__("日期（至少选择一天）")));
                 for week in (1..=31u32).collect::<Vec<_>>().chunks(7) {
                     let mut buttons = row![].spacing(4);
                     for value in week {
@@ -291,10 +293,10 @@ pub(super) fn frequency_form<'a>(
                     changed(editing, next)
                 });
                 form = form
-                    .push(row![month_input, text("月"), day_input, text("日")].spacing(8).wrap());
+                    .push(row![month_input, text(i18n.__("月")), day_input, text(i18n.__("日"))].spacing(8).wrap());
             }
             let next = current.clone();
-            form = form.push(super::date_time::time_controls(time, move |time| {
+            form = form.push(super::date_time::time_controls(i18n, time, move |time| {
                 let mut next = next.clone();
                 set_time(&mut next.rule, time);
                 changed(editing, next)
@@ -302,7 +304,7 @@ pub(super) fn frequency_form<'a>(
         }
     }
     let next = current.clone();
-    form = form.push(text("时区（IANA）")).push(
+    form = form.push(text(i18n.__("时区（IANA）"))).push(
         settings_text_input("UTC / Asia/Shanghai", &current.timezone).on_input(move |value| {
             let mut next = next.clone();
             next.timezone = value;
@@ -310,7 +312,7 @@ pub(super) fn frequency_form<'a>(
         }),
     );
     if current.timezone.parse::<chrono_tz::Tz>().is_err() {
-        form = form.push(super::settings_error_banner("请选择有效的 IANA 时区"));
+        form = form.push(super::settings_error_banner(i18n.__("请选择有效的 IANA 时区")));
     }
     if !matches!(current.rule, R::At { .. } | R::AbsoluteAt(_)) {
         let start = boundary_date(&current, false);
@@ -322,22 +324,22 @@ pub(super) fn frequency_form<'a>(
         let mut range = current.clone();
         range.start_date = Some(Some(start.unwrap_or(today)));
         range.end_date = Some(Some(end.unwrap_or(today)));
-        form = form.push(text("有效期")).push(
+        form = form.push(text(i18n.__("有效期"))).push(
             row![
-                secondary_button("长期", changed(editing, long)),
-                secondary_button("日期范围", changed(editing, range))
+                secondary_button(i18n.__("长期"), changed(editing, long)),
+                secondary_button(i18n.__("日期范围"), changed(editing, range))
             ]
             .spacing(8),
         );
         if ranged {
             for (label, is_end, date) in
-                [("开始日期", false, start), ("结束日期（含当日）", true, end)]
+                [(i18n.__("开始日期"), false, start), (i18n.__("结束日期（含当日）"), true, end)]
             {
                 let mut next = current.clone();
                 next.start_date = Some(start);
                 next.end_date = Some(end);
                 form =
-                    form.push(text(label)).push(date_select(date.unwrap_or(today), move |date| {
+                    form.push(text(i18n.__(label))).push(date_select(i18n, date.unwrap_or(today), move |date| {
                         let mut next = next.clone();
                         if is_end {
                             next.end_date = Some(Some(date));
@@ -350,15 +352,15 @@ pub(super) fn frequency_form<'a>(
         }
         form = form.push(
             text(if ranged {
-                "包含起止日期；结束后不启动新运行。"
+                i18n.__("包含起止日期；结束后不启动新运行。")
             } else {
-                "长期有效"
+                i18n.__("长期有效")
             })
             .size(12),
         );
     }
     if let Err(error) = current.request() {
-        form = form.push(super::settings_error_banner(error));
+        form = form.push(super::settings_error_banner(i18n.__(error)));
     }
     form.into()
 }
@@ -382,44 +384,41 @@ pub(super) fn save_button<'a>(
         .into()
 }
 
-pub(super) fn rule_summary(rule: &R) -> String {
+pub(super) fn rule_summary(i18n: I18n, rule: &R) -> String {
     match rule {
-        R::At { date, time } => format!("单次 {date} {}", time.format("%H:%M")),
-        R::AbsoluteAt(value) => format!("单次 {value}"),
-        R::Every { amount, unit } => format!(
-            "间隔 {amount} {}",
-            match unit {
-                IntervalUnit::Milliseconds => "毫秒",
-                IntervalUnit::Seconds => "秒",
-                IntervalUnit::Minutes => "分钟",
-                IntervalUnit::Hours => "小时",
-                IntervalUnit::Days => "天（24小时）",
-            }
-        ),
-        R::Daily { time } => format!("每天 {}", time.format("%H:%M")),
-        R::Weekly { weekdays, time } => format!("每周 {weekdays:?} {}", time.format("%H:%M")),
+        R::At { date, time } => desktop_i18n::__!(i18n, "单次 %s %s", (date).to_string(), (time.format("%H:%M")).to_string()).expect("valid settings message"),
+        R::AbsoluteAt(value) => desktop_i18n::__!(i18n, "单次 %s", (value).to_string()).expect("valid settings message"),
+        R::Every { amount, unit } => desktop_i18n::__!(i18n, "间隔 %s %s", (amount).to_string(), (match unit {
+                IntervalUnit::Milliseconds => i18n.__("毫秒"),
+                IntervalUnit::Seconds => i18n.__("秒"),
+                IntervalUnit::Minutes => i18n.__("分钟"),
+                IntervalUnit::Hours => i18n.__("小时"),
+                IntervalUnit::Days => i18n.__("天（24小时）"),
+            }).to_string()).expect("valid settings message"),
+        R::Daily { time } => desktop_i18n::__!(i18n, "每天 %s", (time.format("%H:%M")).to_string()).expect("valid settings message"),
+        R::Weekly { weekdays, time } => desktop_i18n::__!(i18n, "每周 %s %s", format!("{:?}", weekdays), (time.format("%H:%M")).to_string()).expect("valid settings message"),
         R::Biweekly { anchor, weekdays, time } => {
-            format!("每双周 {weekdays:?} {} · 锚点 {anchor}", time.format("%H:%M"))
+            desktop_i18n::__!(i18n, "每双周 %s %s · 锚点 %s", format!("{:?}", weekdays), (time.format("%H:%M")).to_string(), (anchor).to_string()).expect("valid settings message")
         }
-        R::Monthly { days, time } => format!("每月 {days:?} 日 {}", time.format("%H:%M")),
+        R::Monthly { days, time } => desktop_i18n::__!(i18n, "每月 %s 日 %s", format!("{:?}", days), (time.format("%H:%M")).to_string()).expect("valid settings message"),
         R::Yearly { month, day, time } => {
-            format!("每年 {month} 月 {day} 日 {}", time.format("%H:%M"))
+            desktop_i18n::__!(i18n, "每年 %u 月 %u 日 %s", month, day, (time.format("%H:%M")).to_string()).expect("valid settings message")
         }
-        R::Advanced(expression) => format!("高级 Cron {expression}"),
+        R::Advanced(expression) => desktop_i18n::__!(i18n, "高级 Cron %s", (expression).to_string()).expect("valid settings message"),
     }
 }
 
-pub(super) fn preview<'a>(draft: &CronJobDraft, editing: bool) -> Element<'a, Message> {
+pub(super) fn preview<'a>(i18n: I18n, draft: &CronJobDraft, editing: bool) -> Element<'a, Message> {
     let current = schedule(draft);
     let mut output = column![
-        text(format!("规则：{} · 时区：{}", rule_summary(&current.rule), current.timezone))
+        text(desktop_i18n::__!(i18n, "规则：%s · 时区：%s", (rule_summary(i18n, &current.rule)).to_string(), (current.timezone).to_string()).expect("valid settings message"))
             .size(12),
-        text("短月缺日与非闰年 2 月 29 日跳过；DST 以网关预览为准。")
+        text(i18n.__("短月缺日与非闰年 2 月 29 日跳过；DST 以网关预览为准。"))
             .size(11)
             .style(settings_muted_text_style)
     ]
     .spacing(3);
-    let status = if draft.preview_loading { "正在请求预览…" } else { "预览未来 5 次" };
+    let status = if draft.preview_loading { i18n.__("正在请求预览…") } else { i18n.__("预览未来 5 次") };
     output = output.push(primary_button(
         status,
         if draft.preview_loading || draft.submitting {
@@ -430,7 +429,7 @@ pub(super) fn preview<'a>(draft: &CronJobDraft, editing: bool) -> Element<'a, Me
     ));
     match &draft.preview {
         Some(Ok(preview)) if preview.candidates.is_empty() => {
-            output = output.push(text("无未来触发，请修改规则或有效期。").size(12))
+            output = output.push(text(i18n.__("无未来触发，请修改规则或有效期。")).size(12))
         }
         Some(Ok(preview)) => {
             for value in preview.candidates.iter().take(5) {
@@ -445,9 +444,9 @@ pub(super) fn preview<'a>(draft: &CronJobDraft, editing: bool) -> Element<'a, Me
                 output = output.push(text(local).size(12));
             }
         }
-        Some(Err(error)) => output = output.push(text(format!("预览失败：{error}")).size(12)),
+        Some(Err(error)) => output = output.push(text(desktop_i18n::__!(i18n, "预览失败：%s", (error).to_string()).expect("valid settings message")).size(12)),
         None if !draft.preview_loading => {
-            output = output.push(text("规则修改后需重新预览，再保存。").size(12))
+            output = output.push(text(i18n.__("规则修改后需重新预览，再保存。")).size(12))
         }
         _ => {}
     }

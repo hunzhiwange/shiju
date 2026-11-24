@@ -11,6 +11,7 @@ use objc2_foundation::{NSArray, NSObjectProtocol, NSPoint, NSRect, NSSize, NSStr
 use std::cell::RefCell;
 
 thread_local! {
+    static SCREEN_RECORDING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static GUIDE: RefCell<Option<Retained<NSPanel>>> = const { RefCell::new(None) };
 }
 
@@ -61,27 +62,29 @@ define_class!(
     }
 );
 
-pub(super) fn show(screen_recording: bool) -> Result<(), String> {
-    let mtm = MainThreadMarker::new().ok_or("授权窗口须在主线程打开")?;
+pub(super) fn show(i18n: desktop_i18n::I18n, screen_recording: bool) -> Result<(), String> {
+    SCREEN_RECORDING.with(|value| value.set(screen_recording));
+    let mtm = MainThreadMarker::new().ok_or(i18n.__("授权窗口须在主线程打开"))?;
     let path = desktop_config::config_cli_bootstrap::installed_computer_use_app()?;
-    let path = NSString::from_str(path.to_str().ok_or("执行应用路径无法显示")?);
+    let path = NSString::from_str(path.to_str().ok_or(i18n.__("执行应用路径无法显示"))?);
     let file = NSURL::initFileURLWithPath_isDirectory(NSURL::alloc(), &path, true);
     let workspace = NSWorkspace::sharedWorkspace();
     let image = workspace.iconForFile(&path);
     let (pane, label) = if screen_recording {
-        ("Privacy_ScreenCapture", "拖入「录屏与系统录音」列表")
+        ("Privacy_ScreenCapture", i18n.__("拖入「录屏与系统录音」列表"))
     } else {
-        ("Privacy_Accessibility", "拖入「辅助功能」列表")
+        ("Privacy_Accessibility", i18n.__("拖入「辅助功能」列表"))
     };
     let url = NSString::from_str(&format!(
         "x-apple.systempreferences:com.apple.preference.security?{pane}"
     ));
-    let url = NSURL::URLWithString(&url).ok_or("无法定位系统权限设置")?;
+    let url = NSURL::URLWithString(&url).ok_or(i18n.__("无法定位系统权限设置"))?;
     if !workspace.openURL(&url) {
-        return Err("无法打开系统权限设置".into());
+        return Err(i18n.__("无法打开系统权限设置").into());
     }
 
-    let frame = NSRect::new(NSPoint::ZERO, NSSize::new(328.0, 88.0));
+    let panel_width = 460.0;
+    let frame = NSRect::new(NSPoint::ZERO, NSSize::new(panel_width, 88.0));
     let panel = NSPanel::initWithContentRect_styleMask_backing_defer(
         NSPanel::alloc(mtm),
         frame,
@@ -91,12 +94,12 @@ pub(super) fn show(screen_recording: bool) -> Result<(), String> {
         NSBackingStoreType::Buffered,
         false,
     );
-    panel.setTitle(&NSString::from_str("电脑操控授权"));
+    panel.setTitle(&NSString::from_str(i18n.__("电脑操控授权")));
     panel.setFloatingPanel(true);
     panel.setHidesOnDeactivate(false);
     // SAFETY: GUIDE retains the panel until it is closed or replaced.
     unsafe { panel.setReleasedWhenClosed(false) };
-    let content = panel.contentView().ok_or("无法显示授权窗口")?;
+    let content = panel.contentView().ok_or(i18n.__("无法显示授权窗口"))?;
 
     let icon_frame = NSRect::new(NSPoint::new(12.0, 12.0), NSSize::new(64.0, 64.0));
     let icon = ComputerUseDragIcon::alloc(mtm).set_ivars(file);
@@ -107,16 +110,16 @@ pub(super) fn show(screen_recording: bool) -> Result<(), String> {
     content.addSubview(&icon);
 
     let name = NSTextField::labelWithString(&NSString::from_str("ShiJu Computer Use"), mtm);
-    name.setFrame(NSRect::new(NSPoint::new(84.0, 48.0), NSSize::new(232.0, 20.0)));
+    name.setFrame(NSRect::new(NSPoint::new(84.0, 48.0), NSSize::new(panel_width - 96.0, 20.0)));
     content.addSubview(&name);
-    let hint = NSTextField::labelWithString(&NSString::from_str(label), mtm);
-    hint.setFrame(NSRect::new(NSPoint::new(84.0, 22.0), NSSize::new(232.0, 20.0)));
+    let hint = NSTextField::labelWithString(&NSString::from_str(i18n.__(label)), mtm);
+    hint.setFrame(NSRect::new(NSPoint::new(84.0, 22.0), NSSize::new(panel_width - 96.0, 20.0)));
     content.addSubview(&hint);
 
     if let Some(screen) = NSScreen::mainScreen(mtm) {
         let visible = screen.visibleFrame();
         panel.setFrameOrigin(NSPoint::new(
-            visible.origin.x + (visible.size.width - 344.0).max(0.0),
+            visible.origin.x + (visible.size.width - panel_width - 16.0).max(0.0),
             visible.origin.y + (visible.size.height - 152.0).max(0.0),
         ));
     }
@@ -124,4 +127,13 @@ pub(super) fn show(screen_recording: bool) -> Result<(), String> {
     GUIDE.with(|guide| guide.replace(Some(panel.clone())));
     panel.orderFrontRegardless();
     Ok(())
+}
+
+pub(super) fn refresh_locale(i18n: desktop_i18n::I18n) {
+    if GUIDE.with(|guide| guide.borrow().is_some()) {
+        let screen_recording = SCREEN_RECORDING.with(|value| value.get());
+        if let Err(error) = show(i18n, screen_recording) {
+            tracing::warn!(%error, "failed to refresh computer control permission guide");
+        }
+    }
 }

@@ -16,7 +16,7 @@ pub(crate) fn view_overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Ele
     let i18n = I18n::new(app.general_settings.desktop_locale);
     let base = editor(&app.worktree_settings, i18n, base);
     let base = desktop_settings_workspace::system_settings_worktrees::environment::editor_with(&app.worktree_settings.environment, i18n, base, message);
-    desktop_settings_workspace::system_settings_worktrees::overlay_with(&app.worktree_settings, base, message)
+    desktop_settings_workspace::system_settings_worktrees::overlay_with(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &app.worktree_settings, base, message)
 }
 #[cfg(test)]
 #[path = "system_settings_worktrees/managed_tests.rs"] mod managed_tests;

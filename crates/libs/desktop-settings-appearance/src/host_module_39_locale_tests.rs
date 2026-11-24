@@ -5,6 +5,7 @@ use config_ui::DesktopLocale;
 fn desktop_gettext_area_7_quick_message_error_switches_locale_without_changing_raw_error() {
     let raw = "使用者/%n/%s/原始错误";
     let effect = crate::quick_messages_update::update(
+        I18n::new(DesktopLocale::SimplifiedChinese),
         &mut Vec::new(),
         crate::quick_messages_update::QuickMessagesMessage::Saved(Err(raw.into())),
     );

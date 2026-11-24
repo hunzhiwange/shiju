@@ -924,7 +924,7 @@ mod system_settings_security_tests;
 
 pub fn security_tab_label(locale: DesktopLocale, tab: SecuritySettingsTab) -> &'static str {
     match tab {
-        SecuritySettingsTab::Bash => "Bash",
+        SecuritySettingsTab::Bash => security_text(locale, "命令安全"),
         SecuritySettingsTab::SandboxAndResources => security_text(locale, "沙箱与资源"),
         SecuritySettingsTab::Audit => security_text(locale, "审计"),
         SecuritySettingsTab::OtpAndEstop => security_text(locale, "OTP 与急停"),

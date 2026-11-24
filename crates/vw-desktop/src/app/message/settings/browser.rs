@@ -9,7 +9,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
  match browser::update(&mut app.browser_settings, message) {
   Effect::None => Task::none(),
   Effect::Success(text) => app.show_success_toast(text),
-  Effect::Error(text) => app.show_error_toast(text),
+  Effect::Error(text) => app.show_error_toast(desktop_i18n::settings::message(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &text)),
   Effect::Persist(browser) => spawn_gateway_task("browser", async move { patch_full_agent_config_async(serde_json::json!({ "browser": browser })).await }),
   Effect::Install(backend) => Task::perform(async move { gateway_desktop_settings::GatewayDesktopSettingsClient::new(crate::app::config::gateway_client()?.transport().clone()).browser_install(&backend).await }, |result| Message::Settings(SettingsMessage::Browser(BrowserMessage::InstallCompleted(result)))),
  }

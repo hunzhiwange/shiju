@@ -9,7 +9,7 @@ pub(super) fn update(
     use desktop_settings_sessions::archived_chats::project_delete::{
         add_reconcile_candidates, prepare,
     };
-    let plan = prepare(&mut app.archived_chats, message, current);
+    let plan = prepare(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &mut app.archived_chats, message, current);
     if let Some(ids) = plan.committed {
         sync_deleted_sessions(app, &ids);
     }

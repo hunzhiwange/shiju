@@ -92,7 +92,7 @@ fn cc_control_19_credential_debug_is_redacted() {
 fn cc_control_19_page_builds_for_loading_and_reported_states() {
     // Both paths must remain renderable while the server snapshot is unavailable or partial.
     let loading = ComputerControlSettingsState::default();
-    let _ = page(&loading);
+    let _ = page(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &loading);
     let loaded = loaded_state();
-    let _ = page(&loaded);
+    let _ = page(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &loaded);
 }

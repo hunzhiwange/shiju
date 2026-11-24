@@ -80,6 +80,7 @@ pub(super) mod quick {
             panic!("expected the edited template event")
         };
         let _ = desktop_settings_appearance::quick_messages_update::update(
+            desktop_i18n::I18n::new(app.desktop_locale),
             &mut app.quick_messages,
             desktop_settings_appearance::quick_messages_update::QuickMessagesMessage::TextChanged(
                 index, value,

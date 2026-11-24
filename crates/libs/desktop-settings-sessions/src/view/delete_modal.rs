@@ -40,13 +40,7 @@ pub fn overlay<'a>(
         let Some(batch) = &state.project_delete else {
             return base;
         };
-        format!(
-            "{} · {} 个已归档聊天\n已处理 {}/{}",
-            batch.name,
-            batch.targets.len(),
-            batch.next,
-            batch.targets.len()
-        )
+        desktop_i18n::__!(i18n, "%s · %u 个已归档聊天\n已处理 %u/%u", (batch.name).to_string(), batch.targets.len(), batch.next, batch.targets.len()).expect("valid settings message")
     } else {
         let target = state.delete_target.as_ref().unwrap();
         if target.row.title.trim().is_empty() {

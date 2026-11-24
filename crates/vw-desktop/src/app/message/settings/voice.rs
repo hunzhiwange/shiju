@@ -15,8 +15,8 @@ pub(crate) fn invalidate(app: &mut App) {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     invalidate(app);
     match event {
-        Event::Feedback(true, text) => return app.show_toast(crate::app::state::ToastKind::Success, text),
-        Event::Feedback(false, text) => return app.show_error_toast(text),
+        Event::Feedback(true, text) => return app.show_toast(crate::app::state::ToastKind::Success, desktop_i18n::settings::message(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &text)),
+        Event::Feedback(false, text) => return app.show_error_toast(desktop_i18n::settings::message(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &text)),
         Event::Onboarding => return super::super::voice::update(
             app, super::super::voice::Event::Onboarding(super::super::voice::OnboardingEvent::Open),
         ),

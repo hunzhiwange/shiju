@@ -11,11 +11,11 @@ pub enum Effect {
     Save(Vec<QuickMessageConfig>),
     Toast(ToastKind, &'static str, Vec<desktop_i18n::format::Argument>),
 }
-pub fn update(items: &mut Vec<QuickMessageConfig>, message: QuickMessagesMessage) -> Effect {
+pub fn update(i18n: desktop_i18n::I18n, items: &mut Vec<QuickMessageConfig>, message: QuickMessagesMessage) -> Effect {
     match message {
         QuickMessagesMessage::Add => {
             items.push(QuickMessageConfig {
-                text: "新快捷消息".to_string(),
+                text: i18n.__("新快捷消息").to_owned(),
                 group: QuickMessageGroup::General,
                 kind: QuickMessageKind::FillInput,
             });

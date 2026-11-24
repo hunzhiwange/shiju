@@ -1,5 +1,6 @@
 //! Cron 弹窗局部的日期时间临时选择；确认前不写入表单。
 use desktop_ui_controls::system_settings_common::{settings_close_button, settings_modal_header, settings_modal_layout, settings_muted_text_style, settings_select};
+use desktop_i18n::I18n;
 use super::{cron_segment_style, cron_modal_style, small_button, primary_button, secondary_button};
 use crate::message::{Message, SettingsMessage};
 use chrono::{Datelike, Days, Months, NaiveDate, NaiveTime, Timelike};
@@ -66,6 +67,7 @@ impl DateTimePicker {
 
 /// 选择器与周期表单共用同一套时分控件及设置样式。
 pub fn time_controls<'a, M: Clone + 'a>(
+    i18n: I18n,
     time: NaiveTime,
     changed: impl Fn(NaiveTime) -> M + Clone + 'a,
 ) -> Element<'a, M> {
@@ -73,17 +75,17 @@ pub fn time_controls<'a, M: Clone + 'a>(
     let minute = time.minute();
     let hour_changed = changed.clone();
     row![
-        text("时间"),
+        text(i18n.__("时间")),
         settings_select(0..=23, Some(hour), move |hour| hour_changed(
             NaiveTime::from_hms_opt(hour, minute, 0).unwrap()
         ))
         .width(80),
-        text("时"),
+        text(i18n.__("时")),
         settings_select(0..=59, Some(minute), move |minute| changed(
             NaiveTime::from_hms_opt(hour, minute, 0).unwrap()
         ))
         .width(80),
-        text("分"),
+        text(i18n.__("分")),
     ]
     .spacing(8)
     .align_y(Alignment::Center)
@@ -92,14 +94,16 @@ pub fn time_controls<'a, M: Clone + 'a>(
 }
 
 pub fn overlay<'a, M: Clone + 'a>(
+    i18n: I18n,
     picker: &DateTimePicker,
     timezone: &str,
     base: Element<'a, M>,
     on_message: fn(Message) -> M,
 ) -> Element<'a, M> {
-    picker_overlay(
+    picker_overlay_with_i18n(
+        i18n,
         picker,
-        format!("时区：{timezone}；确认后请预览校验执行时间。"),
+        desktop_i18n::__!(i18n, "时区：%s；确认后请预览校验执行时间。", (timezone).to_string()).expect("valid settings message"),
         base,
         move |event| {
             let message = match event {
@@ -125,7 +129,8 @@ pub enum PickerEvent {
     Confirm,
 }
 
-pub fn picker_overlay<'a, M: Clone + 'a>(
+pub fn picker_overlay_with_i18n<'a, M: Clone + 'a>(
+    i18n: I18n,
     picker: &DateTimePicker,
     note: impl Into<String>,
     base: Element<'a, M>,
@@ -134,11 +139,11 @@ pub fn picker_overlay<'a, M: Clone + 'a>(
     use desktop_ui_controls::system_settings_common::settings_modal_overlay_with_escape_and_backdrop_dismiss;
     let cancel = PickerEvent::Cancel;
     let header =
-        settings_modal_header(text("选择日期和时间").size(20), settings_close_button(cancel));
+        settings_modal_header(text(i18n.__("选择日期和时间")).size(20), settings_close_button(cancel));
     let navigation = row![
         small_button("«", PickerEvent::Navigate(-12), false),
         small_button("‹", PickerEvent::Navigate(-1), false),
-        text(format!("{}年{}月", picker.month.year(), picker.month.month()))
+        text(desktop_i18n::__!(i18n, "%d年%u月", picker.month.year(), picker.month.month()).expect("valid settings message"))
             .width(Length::Fill)
             .center(),
         small_button("›", PickerEvent::Navigate(1), false),
@@ -147,8 +152,8 @@ pub fn picker_overlay<'a, M: Clone + 'a>(
     .spacing(4)
     .align_y(Alignment::Center);
     let mut weekdays = row![].spacing(2);
-    for label in ["一", "二", "三", "四", "五", "六", "日"] {
-        weekdays = weekdays.push(container(text(label).size(13)).center_x(Length::Fill));
+    for label in [i18n.__("一"), i18n.__("二"), i18n.__("三"), i18n.__("四"), i18n.__("五"), i18n.__("六"), i18n.__("日")] {
+        weekdays = weekdays.push(container(text(i18n.__(label)).size(13)).center_x(Length::Fill));
     }
     let mut calendar = column![navigation, weekdays].spacing(8);
     for week in picker.days().chunks(7) {
@@ -172,16 +177,16 @@ pub fn picker_overlay<'a, M: Clone + 'a>(
         }
         calendar = calendar.push(cells);
     }
-    let time = time_controls(picker.time, PickerEvent::Time);
+    let time = time_controls(i18n, picker.time, PickerEvent::Time);
     let body = column![
         calendar,
         time,
-        text(format!("已选 {} {}", picker.date, picker.time.format("%H:%M"))).size(13),
+        text(desktop_i18n::__!(i18n, "已选 %s %s", (picker.date).to_string(), (picker.time.format("%H:%M")).to_string()).expect("valid settings message")).size(13),
         text(note.into()).size(12).style(settings_muted_text_style),
     ]
     .spacing(12);
     let footer =
-        row![secondary_button("取消", cancel), primary_button("确认", PickerEvent::Confirm),]
+        row![secondary_button(i18n.__("取消"), cancel), primary_button(i18n.__("确认"), PickerEvent::Confirm),]
             .spacing(10);
     let card = settings_modal_layout(header, body, Some(footer.into()))
         .style(cron_modal_style)
@@ -198,3 +203,8 @@ pub fn picker_overlay<'a, M: Clone + 'a>(
 #[cfg(test)]
 #[path = "date_time_tests.rs"]
 mod tests;
+
+/// Legacy consumers without settings locale retain their existing default language.
+pub fn picker_overlay<'a, M: Clone + 'a>(picker: &DateTimePicker, note: impl Into<String>, base: Element<'a, M>, on_message: impl Fn(PickerEvent) -> M + 'a) -> Element<'a, M> {
+    picker_overlay_with_i18n(I18n::new(config_ui::DesktopLocale::SimplifiedChinese), picker, note, base, on_message)
+}

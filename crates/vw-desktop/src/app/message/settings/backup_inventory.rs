@@ -12,11 +12,11 @@ fn identity(app: &App) -> Option<Identity> {
         host: app.apps_catalog.host.clone(), catalog: app.apps_catalog.generation })
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
-    if let Event::NotifyError(error) = event { return app.show_error_toast(error); }
+    if let Event::NotifyError(error) = event { return app.show_error_toast(desktop_i18n::I18n::new(app.general_settings.desktop_locale).__(error)); }
     let current = identity(app);
     domain::update(&mut app.apps_catalog.backups, current, crate::app::config::gateway_client().ok(), event)
         .map(|event| Message::Settings(SettingsMessage::BackupInventory(event)))
 }
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
-    domain::view(&app.apps_catalog.backups, identity(app)).map(|event| Message::Settings(SettingsMessage::BackupInventory(event)))
+    domain::view(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &app.apps_catalog.backups, identity(app)).map(|event| Message::Settings(SettingsMessage::BackupInventory(event)))
 }

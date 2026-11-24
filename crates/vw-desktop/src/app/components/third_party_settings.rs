@@ -950,7 +950,7 @@ pub(crate) fn standalone(app: &App) -> Element<'_, Message> {
     }
     #[cfg(not(target_arch = "wasm32"))]
     if app.apps_catalog.third_party_page == ThirdPartyPage::Authorization {
-        base = super::system_settings_auth::overlay(&app.agent_apps_auth, base);
+        base = super::system_settings_auth::overlay(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &app.agent_apps_auth, base);
     }
     crate::app::message::app_providers::leave::overlay(app, base)
 }

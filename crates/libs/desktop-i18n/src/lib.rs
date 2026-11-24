@@ -10,6 +10,7 @@ pub mod catalog;
 pub mod git;
 pub mod chat_time;
 pub mod settings_security;
+pub mod settings;
 pub mod project;
 pub mod editor;
 pub mod workflow;

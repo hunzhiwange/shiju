@@ -40,7 +40,7 @@ pub fn view<'a>(state: &'a ManagedWorktreesState, i18n: I18n) -> Element<'a, Mes
         content = content.push(text(i18n.__("正在加载…")).size(13));
     }
     if let Some(error) = &state.error {
-        content = content.push(settings_error_banner(error.clone()));
+        content = content.push(settings_error_banner(desktop_i18n::settings::message(i18n, error)));
     }
     if !state.loading && state.error.is_none() && state.groups.is_empty() {
         content = content
@@ -63,7 +63,7 @@ pub fn view<'a>(state: &'a ManagedWorktreesState, i18n: I18n) -> Element<'a, Mes
         .spacing(10);
         if !group.collapsed {
             if let Some(error) = &group.error {
-                body = body.push(settings_error_banner(error.clone()));
+                body = body.push(settings_error_banner(desktop_i18n::settings::message(i18n, error)));
             } else if group.items.is_empty() {
                 body = body.push(
                     text(i18n.__("暂无托管工作树。")).size(13).style(settings_muted_text_style),
@@ -79,11 +79,11 @@ pub fn view<'a>(state: &'a ManagedWorktreesState, i18n: I18n) -> Element<'a, Mes
                     .filter(|s| !s.trim().is_empty())
                     .unwrap_or(if item.title.is_empty() { &tree.name } else { &item.title });
                 let status = match tree.status {
-                    WorktreeStatus::Creating => "正在创建",
-                    WorktreeStatus::Ready => "就绪",
-                    WorktreeStatus::Busy => "正在使用",
-                    WorktreeStatus::Error => "异常",
-                    WorktreeStatus::Removed => "已移除",
+                    WorktreeStatus::Creating => i18n.__("正在创建"),
+                    WorktreeStatus::Ready => i18n.__("就绪"),
+                    WorktreeStatus::Busy => i18n.__("正在使用"),
+                    WorktreeStatus::Error => i18n.__("异常"),
+                    WorktreeStatus::Removed => i18n.__("已移除"),
                 };
                 let mut details = column![
                     text(title).size(14),
@@ -159,9 +159,9 @@ pub fn view<'a>(state: &'a ManagedWorktreesState, i18n: I18n) -> Element<'a, Mes
                 {
                     body = body.push(
                         text(i18n.__(if state.preflight.is_some() {
-                            "删除预检已完成，尚未删除工作树。"
+                            i18n.__("删除预检已完成，尚未删除工作树。")
                         } else {
-                            "正在检查删除条件…"
+                            i18n.__("正在检查删除条件…")
                         }))
                         .size(12)
                         .style(settings_muted_text_style),

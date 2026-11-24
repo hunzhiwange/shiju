@@ -11,5 +11,5 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let state = &app.apps_catalog.data_backups;
     let state = domain::ViewState { busy: state.busy, pending: state.pending.is_some(), principal: &state.principal, cleanup_result: &state.cleanup_result, locations: &state.locations };
     let local = crate::app::config::gateway_client().ok().is_some_and(|client| crate::app::message::settings::data_management::locations_ui::can_reveal(client.endpoint().is_loopback(), &app.apps_catalog.host));
-    domain::view(state, local, &app.apps_catalog.host).map(message)
+    domain::view(desktop_i18n::I18n::new(app.general_settings.desktop_locale), state, local, &app.apps_catalog.host).map(message)
 }

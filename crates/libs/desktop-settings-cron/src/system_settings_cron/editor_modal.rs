@@ -9,14 +9,14 @@ pub fn with_edit_modal<'a, M: Clone + 'static>(
 ) -> Element<'a, M> {
     let s = app.cron_settings;
     if s.show_cron_templates {
-        return templates::overlay(dialog, map);
+        return templates::overlay(I18n::new(app.desktop_locale), dialog, map);
     }
     let editing = s.editing_job_id.is_some();
     if !editing && !s.show_add_modal {
         return dialog;
     }
     let draft = if editing { &s.edit_draft } else { &s.add_draft };
-    let tr = desktop_i18n::I18n::new(app.desktop_locale);
+    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let close = if draft.submitting {
         Message::None
     } else {
@@ -24,18 +24,18 @@ pub fn with_edit_modal<'a, M: Clone + 'static>(
     };
     let header = settings_modal_header(
         column![
-            text(if editing { tr.__("编辑定时任务") } else { tr.__("新建定时任务") }).size(20),
-            text("配置执行内容、时间规则与有效期").size(13).style(settings_muted_text_style)
+            text(if editing { i18n.__("编辑定时任务") } else { i18n.__("新建定时任务") }).size(20),
+            text(i18n.__("配置执行内容、时间规则与有效期")).size(13).style(settings_muted_text_style)
         ]
         .spacing(4),
         settings_close_button(close.clone()),
     );
     let actions = row![
-        secondary_button(tr.__("取消"), close.clone()),
-        schedule::save_button(tr, draft, editing),
+        secondary_button(i18n.__("取消"), close.clone()),
+        schedule::save_button(i18n, draft, editing),
     ]
     .spacing(10);
-    let mut footer = column![schedule::preview(draft, editing)].spacing(8).width(Length::Fill);
+    let mut footer = column![schedule::preview(i18n, draft, editing)].spacing(8).width(Length::Fill);
     if let Some(error) = save_error_banner(app) {
         footer = footer.push(error);
     }

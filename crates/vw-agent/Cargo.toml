@@ -398,7 +398,7 @@ memory-sqlite = { path = "../libs/memory-sqlite" }
 memory-lucid = { path = "../libs/memory-lucid" }
 memory-response-cache = { path = "../libs/memory-response-cache" }
 memory-snapshot = { path = "../libs/memory-snapshot" }
-aisdk = { git = "https://github.com/hunzhiwange/aisdk.git", rev = "3401d28a7353c6e90cf4372f52c682cb2d02986b", package = "vibewindow-aisdk", version = ">=0.7.1", features = ["full"] }
+aisdk = { git = "https://github.com/hunzhiwange/aisdk.git", rev = "4a41a5326f8bf0591642d41be2e35c82d30ce463", package = "vibewindow-aisdk", version = ">=0.7.1", features = ["full"] }
 async-compression = { version = "0.4", features = ["brotli", "deflate", "gzip", "tokio", "zlib", "zstd"] }
 async-imap = { version = "0.11", features = ["runtime-tokio"], default-features = false }
 axum = { version = "0.8.8", features = ["json", "ws", "macros", "multipart"] }

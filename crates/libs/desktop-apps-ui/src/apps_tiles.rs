@@ -77,7 +77,7 @@ fn builtin_tile_titles() -> Vec<&'static str> {
     vec![
         "项目管理",
         #[cfg(not(target_arch = "wasm32"))]
-        "CLI 工作台",
+        "我的工作台",
         "添加网址",
         "知识库",
         "工作流",
@@ -143,11 +143,11 @@ pub fn render_tiles_grid<'a>(window_width: f32, query: &str, i18n: I18n, bookmar
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    if matches("CLI 工作台") {
+    if matches("我的工作台") {
         tiles.push(ui::tile(
             i18n,
             Icon::Terminal,
-            i18n.__("CLI 工作台").to_string(),
+            i18n.__("我的工作台").to_string(),
             Color::from_rgb8(0x15, 0x8E, 0xA5),
             vec![("打开", msg(Message::OpenCliWorkbench))],
             msg(Message::OpenCliWorkbench),

@@ -627,7 +627,7 @@ Examples:
         config_command: ConfigCommands,
     },
 
-    /// 在 CLI 工作台内发现会话并协作。
+    /// 在我的工作台内发现会话并协作。
     Workbench(WorkbenchArgs),
 
     /// 生成 shell 补全脚本到标准输出

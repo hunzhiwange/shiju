@@ -1,9 +1,9 @@
 ---
 name: cli-workbench
-description: 在识矩 CLI 工作台查找同项目会话、启动辅助 ACP Agent、发送协作任务并按请求 ID 核对结果。
+description: 在识矩「我的工作台」查找同项目会话、启动辅助 ACP Agent、发送协作任务并按请求 ID 核对结果。
 ---
 
-# CLI 工作台协作
+# 我的工作台协作
 
 在工作台内有权调用 `shiju` 的 Agent 可使用此技能。手动安装时，请用户将本目录复制到项目的 `.agents/skills/cli-workbench/` 或用户的 `~/.agents/skills/cli-workbench/`。如果所用 Agent 使用自己的技能目录，请由用户将本目录放到它支持的位置。
 

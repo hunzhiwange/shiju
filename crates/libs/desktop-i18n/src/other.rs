@@ -7,7 +7,7 @@ pub fn tab_label(i18n: I18n, id: &str, raw: &str) -> String {
     let source = match id {
         "home" => "首页",
         "apps" => "应用",
-        "cli_workbench" => "CLI 工作台",
+        "cli_workbench" => "我的工作台",
         "editor" => "编辑器",
         "usage" => "用量",
         "knowledge" => "知识库",

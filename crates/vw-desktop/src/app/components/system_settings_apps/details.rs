@@ -48,7 +48,7 @@ pub(crate) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a AppsCatalogState, ap
                 })
             });
             tools = tools.push(
-                button(text(i18n.__("在 CLI 工作台打开")).size(SETTINGS_CONTROL_TEXT_SIZE))
+                button(text(i18n.__("在我的工作台打开")).size(SETTINGS_CONTROL_TEXT_SIZE))
                     .padding([8, 12])
                     .style(rounded_action_btn_style)
                     .on_press(Message::CliWorkbench(crate::app::cli_workbench::Event::Open {

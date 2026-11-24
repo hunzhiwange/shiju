@@ -57,10 +57,10 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "fs", "io-util", "
 agent-database = { path = "../agent-database" }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
-rusqlite = { version = "0.37.0", features = ["bundled"] }
+rusqlite = { workspace = true, features = ["bundled"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
-rusqlite = "0.37.0"
+rusqlite.workspace = true
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }

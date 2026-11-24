@@ -18,7 +18,7 @@ vw-api-transport = { path = "../api-transport" }
 vw-api-usage = { path = "../api-usage" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
-rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
+rusqlite = { workspace = true, features = ["bundled", "hooks", "limits"] }
 sha2 = "0.11"
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 

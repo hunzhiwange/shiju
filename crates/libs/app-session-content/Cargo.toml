@@ -14,7 +14,7 @@ app-session-gemini = { path = "../app-session-gemini" }
 vw-api-external-session = { path = "../api-external-session" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
-rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
+rusqlite = { workspace = true, features = ["bundled", "hooks", "limits"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
 base64 = "0.23"
 zstd = "0.13"

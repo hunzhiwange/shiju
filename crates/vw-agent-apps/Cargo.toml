@@ -50,3 +50,7 @@ app-usage-subscriptions = { path = "../libs/app-usage-subscriptions" }
 app-openclaw = { path = "../libs/app-openclaw" }
 app-workspace-memory = { path = "../libs/app-workspace-memory" }
 app-workspace-paths = { path = "../libs/app-workspace-paths" }
+
+[dev-dependencies]
+serde_json = "1"
+vw-api-usage = { path = "../libs/api-usage" }

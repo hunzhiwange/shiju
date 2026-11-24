@@ -17,7 +17,7 @@ vw-api-task = { path = "../api-task" }
 
 [dev-dependencies]
 app-usage-store = { path = "../app-usage-store" }
-rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
+rusqlite = { workspace = true, features = ["bundled", "hooks", "limits"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 tempfile = "3"
 vw-api-transport = { path = "../api-transport" }

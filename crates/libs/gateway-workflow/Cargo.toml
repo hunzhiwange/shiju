@@ -43,4 +43,4 @@ tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
 hex = "0.4"
 sha2 = "0.11"
-rusqlite = "0.37.0"
+rusqlite.workspace = true

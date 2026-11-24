@@ -42,7 +42,6 @@ allow = [
 ]
 unused-allowed-license = "allow"
 exceptions = [
-    { allow = ["MITNFA"], crate = "hex_lit" },
     { allow = ["GPL-3.0-or-later"], crate = "html2md" },
     { allow = ["NCSA"], crate = "libfuzzer-sys" },
 ]

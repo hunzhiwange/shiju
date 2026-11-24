@@ -48,10 +48,10 @@ directories = "5"
 tempfile = { version = "3", optional = true }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
-rusqlite = { version = "0.37.0", features = ["bundled"] }
+rusqlite = { workspace = true, features = ["bundled"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
-rusqlite = "0.37.0"
+rusqlite.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 agent-database = { path = "../agent-database", features = ["test-support"] }

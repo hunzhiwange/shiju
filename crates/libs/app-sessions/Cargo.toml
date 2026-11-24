@@ -21,7 +21,7 @@ vw-api-external-session = { path = "../api-external-session" }
 vw-api-app-identity = { path = "../api-app-identity" }
 vw-api-transport = { path = "../api-transport" }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
-rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
+rusqlite = { workspace = true, features = ["bundled", "hooks", "limits"] }
 uuid = { version = "1.11", features = ["v4", "js"] }
 tempfile = "3"
 

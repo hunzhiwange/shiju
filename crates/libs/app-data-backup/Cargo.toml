@@ -21,4 +21,4 @@ vw-api-transport = { path = "../api-transport" }
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]
 app-usage-store = { path = "../app-usage-store" }
-rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
+rusqlite = { workspace = true, features = ["bundled", "hooks", "limits"] }

@@ -16,5 +16,5 @@ app-usage-store = { path = "../app-usage-store" }
 vw-api-transport = { path = "../api-transport" }
 vw-api-usage = { path = "../api-usage" }
 chrono = { version = "0.4", default-features = false, features = ["std"] }
-rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
+rusqlite = { workspace = true, features = ["bundled", "hooks", "limits"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }

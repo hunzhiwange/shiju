@@ -32,10 +32,10 @@ sha2 = "0.11"
 uuid = { version = "1.11", features = ["v4", "js"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
-rusqlite = { version = "0.37.0", features = ["bundled"] }
+rusqlite = { workspace = true, features = ["bundled"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
-rusqlite = "0.37.0"
+rusqlite.workspace = true
 
 [dev-dependencies]
 zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2-zlib-rs"] }

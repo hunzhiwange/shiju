@@ -66,7 +66,7 @@ glob = "0.3"
 
 [dev-dependencies]
 gateway-http = { path = "../gateway-http" }
-rusqlite = "0.37"
+rusqlite.workspace = true
 postgres = "0.19"
 tokio = { version = "1", features = ["macros", "test-util", "rt-multi-thread", "process"] }
 tempfile = "3"

@@ -58,7 +58,7 @@ tempfile = "3"
 [target.'cfg(target_os = "macos")'.dependencies]
 libc = "0.2"
 config-runtime-paths = { path = "../config-runtime-paths" }
-rusqlite = "0.37.0"
+rusqlite.workspace = true
 
 [dev-dependencies]
 gateway-app-read = { path = "../gateway-app-read" }

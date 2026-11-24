@@ -445,11 +445,11 @@ which = { version = "6.0" }
 zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
-rusqlite = { version = "0.37.0", features = ["bundled"] }
+rusqlite = { workspace = true, features = ["bundled"] }
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
-rusqlite = "0.37.0"
+rusqlite.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 gateway-openclaw-settings = { path = "../libs/gateway-openclaw-settings" }

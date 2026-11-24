@@ -343,7 +343,7 @@ impl Channel for NostrChannel {
 
         match protocol {
             NostrProtocol::Nip17 => {
-                // NIP-17：礼物包装私密消息（nostr-sdk 0.37 API）
+                // NIP-17：礼物包装私密消息
                 // 获取签名器，用于加密和签名
                 let signer = self.client.signer().await.context("客户端没有签名器")?;
 
@@ -352,7 +352,7 @@ impl Channel for NostrChannel {
                     .await
                     .context("构建 NIP-17 消息失败")?;
 
-                self.client.send_event(event).await.context("发送 NIP-17 消息失败")?;
+                self.client.send_event(&event).await.context("发送 NIP-17 消息失败")?;
 
                 tracing::debug!(
                     "已发送 NIP-17 消息到 {}",
@@ -437,7 +437,7 @@ impl Channel for NostrChannel {
             .kinds(vec![Kind::EncryptedDirectMessage, Kind::GiftWrap])
             .limit(10);
 
-        self.client.subscribe(vec![filter], None).await.context("订阅 Nostr 事件失败")?;
+        self.client.subscribe(filter, None).await.context("订阅 Nostr 事件失败")?;
 
         tracing::info!(
             "Nostr 通道开始监听，身份：{}",
@@ -491,7 +491,7 @@ impl Channel for NostrChannel {
                                         event.id.to_hex(),
                                         sender.to_hex(),
                                         content,
-                                        event.created_at.as_u64(),
+                                        event.created_at.as_secs(),
                                     ))
                                 }
                                 Err(e) => {
@@ -535,7 +535,7 @@ impl Channel for NostrChannel {
                                         event.id.to_hex(),
                                         sender.to_hex(),
                                         rumor.content.clone(),
-                                        rumor.created_at.as_u64(),
+                                        rumor.created_at.as_secs(),
                                     ))
                                 }
                                 Err(e) => {
@@ -572,11 +572,7 @@ impl Channel for NostrChannel {
                     tracing::info!("Nostr 中继池已关闭");
                     break;
                 }
-                // 忽略消息和认证通知
-                RelayPoolNotification::Message { .. }
-                | RelayPoolNotification::Authenticated { .. } => {}
-                // 忽略其他通知类型（RelayStatus 在 0.37 中已弃用）
-                _ => {}
+                RelayPoolNotification::Message { .. } => {}
             }
         }
 

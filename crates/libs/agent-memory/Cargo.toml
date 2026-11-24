@@ -44,10 +44,10 @@ reqwest = { version = "0.13", default-features = false, features = ["multipart",
 reqwest = { version = "0.13", features = ["json", "query", "multipart", "stream"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
-rusqlite = { version = "0.37.0", features = ["bundled"] }
+rusqlite = { workspace = true, features = ["bundled"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
-rusqlite = "0.37.0"
+rusqlite.workspace = true
 
 [dev-dependencies]
 directories = "6"

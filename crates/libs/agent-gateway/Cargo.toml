@@ -249,7 +249,7 @@ path = "../config-runtime-paths"
 path = "../config-gateway"
 
 [dev-dependencies.rusqlite]
-version = "0.37.0"
+workspace = true
 features = ["bundled"]
 
 [dev-dependencies.vw-api-hermes-memory]

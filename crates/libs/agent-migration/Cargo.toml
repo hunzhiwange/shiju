@@ -15,10 +15,10 @@ anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
-rusqlite = "0.37.0"
+rusqlite.workspace = true
 
 [target.'cfg(target_os = "windows")'.dependencies]
-rusqlite = { version = "0.37.0", features = ["bundled"] }
+rusqlite = { workspace = true, features = ["bundled"] }
 
 [dev-dependencies]
 agent-config = { path = "../agent-config", features = ["test-support"] }

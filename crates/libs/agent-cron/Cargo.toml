@@ -37,10 +37,10 @@ tempfile = "3"
 tokio = { version = "1", features = ["fs", "net", "io-util"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
-rusqlite = { version = "0.37.0", features = ["bundled"] }
+rusqlite = { workspace = true, features = ["bundled"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
-rusqlite = "0.37.0"
+rusqlite.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 channel-types = { path = "../channel-types" }

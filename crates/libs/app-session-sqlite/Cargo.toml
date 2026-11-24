@@ -12,4 +12,4 @@ app-session-core = { path = "../app-session-core" }
 vw-api-external-session = { path = "../api-external-session" }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 chrono = { version = "0.4", default-features = false, features = ["std"] }
-rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
+rusqlite = { workspace = true, features = ["bundled", "hooks", "limits"] }

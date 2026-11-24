@@ -37,10 +37,10 @@ tokio-util = { version = "0.7.18", features = ["compat"] }
 reqwest = { version = "0.13", default-features = false }
 
 [target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
-rusqlite = { version = "0.37.0", features = ["bundled"] }
+rusqlite = { workspace = true, features = ["bundled"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
-rusqlite = "0.37.0"
+rusqlite.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

@@ -1,17 +1,22 @@
 //! 每个连接器独立保存请求代次与授权流程，账号切换时全部失效。
 use super::skill_hub::SkillHubMessage;
-use desktop_skill_hub::skill_hub::{LoadState, connectors::{ConnectorForm, ConnectorWork}};
+use desktop_skill_hub::skill_hub::{
+    LoadState,
+    connectors::{ConnectorForm, ConnectorWork, ConnectorsTab},
+};
 use super::{SkillUpdate, Message, ToastKind};
 use iced::Task;
 use std::time::{Duration, Instant};
 use gateway_shiju_connector::{
     ShijuConnector, ShijuConnectorAuthorizationStatus, ShijuConnectorBinding,
-    ShijuConnectorChallenge, ShijuConnectorPoll,
+    ShijuConnectorCatalogEntry, ShijuConnectorChallenge, ShijuConnectorPoll,
 };
 
 #[derive(Clone)]
 pub enum ConnectorMessage {
     Refresh,
+    SelectTab(ConnectorsTab),
+    Search(String),
     Edit(u64),
     Cancel,
     CancelAuthorization(u64),
@@ -21,6 +26,7 @@ pub enum ConnectorMessage {
     Save,
     Authorize(u64),
     Loaded(u64, String, Result<Vec<ShijuConnector>, String>),
+    CatalogLoaded(u64, String, Result<Vec<ShijuConnectorCatalogEntry>, String>),
     Saved(u64, String, u64, Result<ShijuConnectorBinding, String>),
     Started(u64, String, u64, Result<ShijuConnectorChallenge, String>),
     Poll(u64, String, u64),
@@ -48,13 +54,24 @@ fn current(app: &SkillUpdate<'_>, generation: u64, account_id: &str, id: u64) ->
             .is_some_and(|operation| operation.generation == generation)
 }
 pub fn ensure_loaded(app: &mut SkillUpdate<'_>) -> Task<Message> {
-    if matches!(app.expert_hub.connectors.list, LoadState::Idle | LoadState::NeedsLogin) {
-        load(app)
-    } else {
-        Task::none()
+    let state = &app.expert_hub.connectors;
+    match state.tab {
+        ConnectorsTab::Accounts if matches!(state.list, LoadState::Idle | LoadState::NeedsLogin) => {
+            load_accounts(app)
+        }
+        ConnectorsTab::Catalog(_) if matches!(state.catalog, LoadState::Idle | LoadState::NeedsLogin) => {
+            load_catalog(app)
+        }
+        _ => Task::none(),
     }
 }
+
 pub fn load(app: &mut SkillUpdate<'_>) -> Task<Message> {
+    let accounts = load_accounts(app);
+    Task::batch([accounts, load_catalog(app)])
+}
+
+fn load_accounts(app: &mut SkillUpdate<'_>) -> Task<Message> {
     let Some(account) = app.active_account else {
         app.expert_hub.connectors.clear(None);
         return Task::none();
@@ -82,13 +99,62 @@ pub fn load(app: &mut SkillUpdate<'_>) -> Task<Message> {
         move |result| message(ConnectorMessage::Loaded(generation, account_id, result)),
     )
 }
+
+fn load_catalog(app: &mut SkillUpdate<'_>) -> Task<Message> {
+    let ConnectorsTab::Catalog(scope) = app.expert_hub.connectors.tab else {
+        return Task::none();
+    };
+    let Some(account) = app.active_account else {
+        app.expert_hub.connectors.clear(None);
+        return Task::none();
+    };
+    let account_id = account.id().to_string();
+    let credential = account.skill_hub_credential();
+    let state = &mut app.expert_hub.connectors;
+    if state.account_id.as_deref() != Some(&account_id) {
+        state.clear(Some(account_id.clone()));
+    }
+    state.generation = state.generation.wrapping_add(1);
+    let generation = state.generation;
+    state.catalog_generation = generation;
+    state.catalog_loading = true;
+    if !matches!(state.catalog, LoadState::Loaded(_)) {
+        state.catalog = LoadState::Loading { generation };
+    }
+    let gateway = app.gateway;
+    Task::perform(
+        async move {
+            let credential = credential.gateway_credential().map_err(|error| error.to_string())?;
+            gateway_shiju_connector::GatewayShijuConnectorClient::new(gateway()?)
+                .shiju_connector_catalog(&credential, scope)
+                .await
+        },
+        move |result| message(ConnectorMessage::CatalogLoaded(generation, account_id, result)),
+    )
+}
+
 pub fn update(app: &mut SkillUpdate<'_>, msg: ConnectorMessage) -> Task<Message> {
     match msg {
         ConnectorMessage::Refresh => {
-            if app.expert_hub.connectors.list_loading {
+            let state = &app.expert_hub.connectors;
+            return match state.tab {
+                ConnectorsTab::Accounts if !state.list_loading => load_accounts(app),
+                ConnectorsTab::Catalog(_) if !state.catalog_loading => load_catalog(app),
+                _ => Task::none(),
+            };
+        }
+        ConnectorMessage::SelectTab(tab) => {
+            let state = &mut app.expert_hub.connectors;
+            if state.tab == tab || state.form.is_some() {
                 return Task::none();
             }
-            return load(app);
+            state.tab = tab;
+            state.query.clear();
+            state.reset_catalog();
+            return ensure_loaded(app);
+        }
+        ConnectorMessage::Search(query) => {
+            app.expert_hub.connectors.query = query;
         }
         ConnectorMessage::Cancel => {
             if !app.expert_hub.connectors.form_is_saving() {
@@ -110,12 +176,8 @@ pub fn update(app: &mut SkillUpdate<'_>, msg: ConnectorMessage) -> Task<Message>
             if state.form_is_saving() || state.work.contains_key(&id) {
                 return Task::none();
             }
-            if let LoadState::Loaded(connectors) = &state.list {
-                state.form = connectors
-                    .iter()
-                    .find(|connector| connector.company_platform_id == id)
-                    .cloned()
-                    .map(ConnectorForm::new);
+            if let Some(connector) = state.active_connector(id) {
+                state.form = Some(ConnectorForm::new(connector.clone()));
             }
         }
         ConnectorMessage::AccountId(value) => {
@@ -153,6 +215,26 @@ pub fn update(app: &mut SkillUpdate<'_>, msg: ConnectorMessage) -> Task<Message>
                     }
                     app.expert_hub.connectors.list = LoadState::Error(error.into());
                 }
+            }
+        }
+        ConnectorMessage::CatalogLoaded(generation, account_id, result) => {
+            if !same_account(app, &account_id)
+                || app.expert_hub.connectors.catalog_generation != generation
+            {
+                return Task::none();
+            }
+            let state = &mut app.expert_hub.connectors;
+            state.catalog_loading = false;
+            match result {
+                Ok(items) => state.catalog = LoadState::Loaded(items),
+                Err(error) if matches!(state.catalog, LoadState::Loaded(_)) => {
+                    return app.show_localized_toast(
+                        ToastKind::Error,
+                        "连接器刷新失败：%s",
+                        vec![error.into()],
+                    );
+                }
+                Err(error) => state.catalog = LoadState::Error(error.into()),
             }
         }
         ConnectorMessage::Save => {
@@ -227,7 +309,7 @@ pub fn update(app: &mut SkillUpdate<'_>, msg: ConnectorMessage) -> Task<Message>
         ConnectorMessage::Authorize(id) => {
             let state = &app.expert_hub.connectors;
             if state.work.contains_key(&id)
-                || !matches!(&state.list, LoadState::Loaded(items) if items.iter().any(|item| item.company_platform_id == id && item.authorization_available))
+                || !state.active_connector(id).is_some_and(|item| item.authorization_available)
             {
                 return Task::none();
             }

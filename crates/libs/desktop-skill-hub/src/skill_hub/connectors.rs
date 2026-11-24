@@ -1,7 +1,17 @@
 //! 连接器列表、个人绑定草稿与授权流程的账号范围状态。
 use super::LoadState;
 use std::{collections::BTreeMap, time::Instant};
-use vw_gateway_client::{ShijuConnector, ShijuConnectorChallenge, ShijuConnectorSaveRequest};
+use vw_gateway_client::{
+    ShijuConnector, ShijuConnectorCatalogEntry, ShijuConnectorCatalogScope, ShijuConnectorChallenge,
+    ShijuConnectorSaveRequest,
+};
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ConnectorsTab {
+    #[default]
+    Accounts,
+    Catalog(ShijuConnectorCatalogScope),
+}
 
 #[derive(Clone)]
 pub struct ConnectorForm {
@@ -93,6 +103,11 @@ pub struct ConnectorsState {
     pub work: BTreeMap<u64, ConnectorOperation>,
     pub list_generation: u64,
     pub list_loading: bool,
+    pub tab: ConnectorsTab,
+    pub catalog: LoadState<Vec<ShijuConnectorCatalogEntry>>,
+    pub catalog_generation: u64,
+    pub catalog_loading: bool,
+    pub query: String,
     pub generation: u64,
     pub account_id: Option<String>,
 }
@@ -104,6 +119,11 @@ impl Default for ConnectorsState {
             work: BTreeMap::new(),
             list_generation: 0,
             list_loading: false,
+            tab: ConnectorsTab::Accounts,
+            catalog: LoadState::Idle,
+            catalog_generation: 0,
+            catalog_loading: false,
+            query: String::new(),
             generation: 0,
             account_id: None,
         }
@@ -118,6 +138,31 @@ impl ConnectorsState {
         self.work.clear();
         self.list_generation = self.generation;
         self.list_loading = false;
+        self.reset_catalog();
+        self.query.clear();
+    }
+
+    pub fn reset_catalog(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
+        self.catalog_generation = self.generation;
+        self.catalog_loading = false;
+        self.catalog = if self.account_id.is_some() { LoadState::Idle } else { LoadState::NeedsLogin };
+    }
+
+    pub fn active_connector(&self, id: u64) -> Option<&ShijuConnector> {
+        match self.tab {
+            ConnectorsTab::Accounts => match &self.list {
+                LoadState::Loaded(items) => items.iter().find(|item| item.company_platform_id == id),
+                _ => None,
+            },
+            ConnectorsTab::Catalog(_) => match &self.catalog {
+                LoadState::Loaded(items) => items
+                    .iter()
+                    .filter_map(|item| item.account.as_ref())
+                    .find(|item| item.company_platform_id == id),
+                _ => None,
+            },
+        }
     }
 }
 

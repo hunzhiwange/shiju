@@ -5,7 +5,10 @@ use super::ViewInput;
 use desktop_ui_controls::system_settings_common::*;
 use desktop_i18n::I18n;
 use crate::message::connectors::ConnectorMessage;
-use desktop_skill_hub::skill_hub::{ExpertHubSection, LoadState, connectors::{ConnectorForm, ConnectorWork}};
+use desktop_skill_hub::skill_hub::{
+    ExpertHubSection, LoadState,
+    connectors::{ConnectorForm, ConnectorWork, ConnectorsTab},
+};
 /// 宿主提供原有可选择帮助文本及其选择/复制消息。
 pub type HelpRenderer<M> = for<'a> fn(&'a str, std::borrow::Cow<'a, str>, Option<iced::Color>, I18n) -> Element<'a, M>;
 fn help_label<'a, M: Clone + 'static>(render: HelpRenderer<M>, i18n: I18n, theme: &Theme, title: &'a str, label: iced::widget::Text<'a>, description: impl Into<std::borrow::Cow<'a, str>>) -> iced::widget::Row<'a, M> {
@@ -15,7 +18,10 @@ use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::Position;
 use iced::widget::{Space, button, column, container, responsive, row, scrollable, text, tooltip};
 use iced::{Alignment, Background, Element, Length, Theme};
-use gateway_shiju_connector::ShijuConnector;
+use gateway_shiju_connector::{
+    ShijuConnector, ShijuConnectorCatalogEntry, ShijuConnectorCatalogScope,
+    ShijuConnectorCatalogStatus,
+};
 
 const GRID_COLUMNS: usize = 3;
 const CARD_GAP: u32 = 16;
@@ -28,8 +34,10 @@ fn scrollbar() -> Direction {
 pub fn view<'a, M: Clone + 'static>(app: &ViewInput<'a>, help: HelpRenderer<M>, message: fn(ConnectorMessage) -> M) -> Element<'a, M> {
     let i18n = I18n::new(app.desktop_locale);
     let state = &app.expert_hub.connectors;
-    let title = i18n.__("连接器账号");
-    let header = row![
+    let showing_accounts = state.tab == ConnectorsTab::Accounts;
+    let loading = if showing_accounts { state.list_loading } else { state.catalog_loading };
+    let title = i18n.__(if showing_accounts { "连接器账号" } else { "连接器" });
+    let heading: Element<'_, M> = if showing_accounts {
         help_label(
             help,
             i18n,
@@ -38,36 +46,88 @@ pub fn view<'a, M: Clone + 'static>(app: &ViewInput<'a>, help: HelpRenderer<M>, 
             text(title).size(22),
             i18n.__("查看并授权你自己的连接器账号。"),
         )
-        .wrap(),
-        Space::new().width(Length::Fill),
+        .wrap()
+        .into()
+    } else {
+        text(title).size(22).into()
+    };
+    let mut header = row![heading, Space::new().width(Length::Fill)]
+        .align_y(Alignment::Center)
+        .spacing(12);
+    if !showing_accounts {
+        header = header.push(
+            settings_text_input(i18n.__("搜索连接器"), &state.query)
+                .width(Length::Fixed(220.0))
+                .on_input(move |query| message(ConnectorMessage::Search(query))),
+        );
+    }
+    let header = header.push(
         button(
-            text(desktop_i18n::I18n::new(app.desktop_locale).__(if state.list_loading {
-                desktop_i18n::I18n::new(app.desktop_locale).__("刷新中…")
+            text(if loading {
+                i18n.__("刷新中…")
             } else {
-                desktop_i18n::I18n::new(app.desktop_locale).__("刷新")
-            }))
+                i18n.__("刷新")
+            })
             .size(13)
         )
         .padding([8, 16])
         .style(rounded_action_btn_style)
-        .on_press_maybe((!state.list_loading).then(|| message(ConnectorMessage::Refresh))),
-    ]
-    .align_y(Alignment::Center)
-    .spacing(12);
-    let body: Element<'_, M> = match &state.list {
+        .on_press_maybe((!loading).then(|| message(ConnectorMessage::Refresh))),
+    );
+    let mut tabs = row![].spacing(8).align_y(Alignment::Center);
+    for (label, tab) in [
+        ("连接器账号", ConnectorsTab::Accounts),
+        ("系统连接器", ConnectorsTab::Catalog(ShijuConnectorCatalogScope::System)),
+        ("自定义连接器", ConnectorsTab::Catalog(ShijuConnectorCatalogScope::Custom)),
+    ] {
+        let selected = state.tab == tab;
+        tabs = tabs.push(
+            button(text(i18n.__(label)).size(14))
+                .padding([8, 12])
+                .style(move |theme, status| styles::selected_tab_style(theme, status, selected))
+                .on_press(message(ConnectorMessage::SelectTab(tab))),
+        );
+    }
+    let body = if showing_accounts {
+        list_body(&state.list, i18n, true, message, |items| {
+            scrolling_grid(card_grid(app, items, message))
+        })
+    } else {
+        list_body(&state.catalog, i18n, false, message, |items| {
+            catalog_grid(app, items, message)
+        })
+    };
+    column![header, tabs.wrap(), body]
+        .spacing(18)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
+}
+
+fn list_body<'a, M: Clone + 'static, T>(
+    list: &'a LoadState<Vec<T>>,
+    i18n: I18n,
+    accounts: bool,
+    message: fn(ConnectorMessage) -> M,
+    render: impl FnOnce(&'a [T]) -> Element<'a, M>,
+) -> Element<'a, M> {
+    match list {
         LoadState::Idle | LoadState::Loading { .. } => {
-            status(desktop_i18n::I18n::new(app.desktop_locale).__("正在加载连接器账号…"))
+            status(i18n.__(if accounts { "正在加载连接器账号…" } else { "正在加载连接器…" }))
         }
         LoadState::NeedsLogin => status(
-            desktop_i18n::I18n::new(app.desktop_locale)
-                .__("请先登录识矩账户，再刷新连接器账号"),
+            i18n.__(if accounts {
+                "请先登录识矩账户，再刷新连接器账号"
+            } else {
+                "请先登录识矩账户，再刷新连接器"
+            }),
         ),
         LoadState::Error(error) => container(
             column![
-                text(desktop_i18n::I18n::new(app.desktop_locale).__("连接器账号加载失败"))
+                text(i18n.__(if accounts { "连接器账号加载失败" } else { "连接器目录加载失败" }))
                     .size(16),
-                text(error.render(desktop_i18n::I18n::new(app.desktop_locale))).size(14),
-                button(desktop_i18n::I18n::new(app.desktop_locale).__("重试"))
+                text(error.render(i18n)).size(14),
+                button(i18n.__("重试"))
                     .style(primary_action_btn_style)
                     .padding([8, 16])
                     .on_press(message(ConnectorMessage::Refresh))
@@ -78,15 +138,10 @@ pub fn view<'a, M: Clone + 'static>(app: &ViewInput<'a>, help: HelpRenderer<M>, 
         .center_y(Length::Fill)
         .into(),
         LoadState::Loaded(connectors) if connectors.is_empty() => {
-            status(desktop_i18n::I18n::new(app.desktop_locale).__("暂无可绑定连接器"))
+            status(i18n.__(if accounts { "暂无可绑定连接器" } else { "暂无连接器" }))
         }
-        LoadState::Loaded(connectors) => scrollable(card_grid(app, connectors, message))
-            .direction(scrollbar())
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into(),
-    };
-    column![header, body].spacing(18).width(Length::Fill).height(Length::Fill).into()
+        LoadState::Loaded(items) => render(items),
+    }
 }
 // 始终三列；末行补空位，内容两侧留出 4px 滚动条及间距。
 pub fn card_grid<'a, M: Clone + 'static>(
@@ -94,11 +149,18 @@ pub fn card_grid<'a, M: Clone + 'static>(
     connectors: &'a [ShijuConnector],
     message: fn(ConnectorMessage) -> M,
 ) -> Element<'a, M> {
+    grid(connectors, |connector| connector_card(app, connector, None, message))
+}
+
+fn grid<'a, 'items, T, M: Clone + 'static>(
+    items: &'items [T],
+    render: impl Fn(&'items T) -> Element<'a, M>,
+) -> Element<'a, M> {
     let mut grid = column![].spacing(CARD_GAP).width(Length::Fill);
-    for chunk in connectors.chunks(GRID_COLUMNS) {
+    for chunk in items.chunks(GRID_COLUMNS) {
         let mut cards = row![].spacing(CARD_GAP).width(Length::Fill);
-        for connector in chunk {
-            cards = cards.push(connector_card(app, connector, message));
+        for item in chunk {
+            cards = cards.push(render(item));
         }
         for _ in chunk.len()..GRID_COLUMNS {
             cards = cards.push(Space::new().width(Length::FillPortion(1)));
@@ -107,27 +169,108 @@ pub fn card_grid<'a, M: Clone + 'static>(
     }
     container(grid).padding([4, SCROLLABLE_SIDE_PADDING]).width(Length::Fill).into()
 }
+
+fn catalog_grid<'a, M: Clone + 'static>(
+    app: &ViewInput<'a>,
+    entries: &'a [ShijuConnectorCatalogEntry],
+    message: fn(ConnectorMessage) -> M,
+) -> Element<'a, M> {
+    let query = app.expert_hub.connectors.query.trim().to_lowercase();
+    let filtered: Vec<_> = entries
+        .iter()
+        .filter(|entry| {
+            query.is_empty()
+                || [&entry.name, &entry.code, &entry.description]
+                    .iter()
+                    .any(|value| value.to_lowercase().contains(&query))
+        })
+        .collect();
+    if filtered.is_empty() {
+        return status(I18n::new(app.desktop_locale).__("没有匹配的连接器"));
+    }
+    scrolling_grid(grid(&filtered, |&entry| catalog_card(app, entry, message)))
+}
+
+fn scrolling_grid<'a, M: Clone + 'static>(content: Element<'a, M>) -> Element<'a, M> {
+    scrollable(content)
+        .direction(scrollbar())
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
+}
+
+fn catalog_identity<'a, M: Clone + 'static>(entry: &ShijuConnectorCatalogEntry) -> Element<'a, M> {
+    let subtitle = match (entry.code.is_empty(), entry.description.is_empty()) {
+        (true, _) => entry.description.clone(),
+        (_, true) => entry.code.clone(),
+        _ => format!("{} · {}", entry.code, entry.description),
+    };
+    cards::identity(entry.platform_id, &entry.name, subtitle)
+}
+
+fn catalog_card<'a, M: Clone + 'static>(
+    app: &ViewInput<'a>,
+    entry: &'a ShijuConnectorCatalogEntry,
+    message: fn(ConnectorMessage) -> M,
+) -> Element<'a, M> {
+    if let Some(connector) = &entry.account {
+        return connector_card(app, connector, Some(entry), message);
+    }
+    let label = I18n::new(app.desktop_locale).__(match entry.status {
+        ShijuConnectorCatalogStatus::Unavailable => "公司未开通",
+        ShijuConnectorCatalogStatus::Disabled => "已停用",
+        ShijuConnectorCatalogStatus::NoBinding => "无需授权",
+        ShijuConnectorCatalogStatus::NoAccess | ShijuConnectorCatalogStatus::Bindable => "无权绑定",
+    });
+    cards::card_surface(
+        row![
+            catalog_identity(entry),
+            container(text(label).size(11)).padding([4, 8]).style(styles::meta_badge_style),
+        ]
+        .spacing(8)
+        .height(60)
+        .align_y(Alignment::Start),
+        false,
+    )
+    .into()
+}
+
 fn connector_card<'a, M: Clone + 'static>(
     app: &ViewInput<'a>,
     connector: &'a ShijuConnector,
+    catalog: Option<&ShijuConnectorCatalogEntry>,
     message: fn(ConnectorMessage) -> M,
 ) -> Element<'a, M> {
     let i18n = I18n::new(app.desktop_locale);
     let id = connector.company_platform_id;
     let operation = app.expert_hub.connectors.work.get(&id);
     let idle = operation.is_none();
-    let binding_status = match &connector.binding {
-        Some(binding) if binding.status == "enabled" => i18n.__("已绑定"),
-        Some(_) => i18n.__("已停用"),
-        None => i18n.__("未绑定"),
-    };
-    let identity = cards::identity(
-        connector.platform_id,
-        &connector.platform_name,
-        connector.platform_code.clone(),
+    let is_catalog = catalog.is_some();
+    let connected = connector.binding.as_ref().is_some_and(|binding| binding.status == "enabled");
+    let binding_status = i18n.__(match (is_catalog, &connector.binding) {
+        (true, Some(_)) if connected => "已连接",
+        (false, Some(_)) if connected => "已绑定",
+        (true, Some(binding)) if binding.status == "unbound" => "未连接",
+        (_, Some(_)) => "已停用",
+        (true, None) => "未连接",
+        (false, None) => "未绑定",
+    });
+    let identity = catalog.map_or_else(
+        || cards::identity(connector.platform_id, &connector.platform_name, connector.platform_code.clone()),
+        catalog_identity,
     );
     let mut binding_details = column![
-        container(text(binding_status).size(11)).padding([4, 8]).style(styles::meta_badge_style),
+        container(text(binding_status).size(11))
+            .padding([4, 8])
+            .style(move |theme| {
+                let mut style = styles::meta_badge_style(theme);
+                if is_catalog && connected {
+                    let success = theme.extended_palette().success.weak;
+                    style.background = Some(success.color.into());
+                    style.text_color = Some(success.text);
+                }
+                style
+            }),
     ]
     .spacing(4)
     .align_x(Alignment::End);
@@ -156,7 +299,23 @@ fn connector_card<'a, M: Clone + 'static>(
             );
         }
     }
-    let action = if connector.authorization_available {
+    let action = if is_catalog {
+        let action = if connector.authorization_available {
+            ConnectorMessage::Authorize(id)
+        } else {
+            ConnectorMessage::Edit(id)
+        };
+        button(text(i18n.__(if connected { "重新连接" } else { "连接" })).size(13))
+            .padding([8, 12])
+            .style(move |theme, status| {
+                if connected {
+                    rounded_action_btn_style(theme, status)
+                } else {
+                    primary_action_btn_style(theme, status)
+                }
+            })
+            .on_press_maybe(idle.then(|| message(action)))
+    } else if connector.authorization_available {
         button(text(i18n.__("账号授权")).size(13))
             .padding([8, 12])
             .style(primary_action_btn_style)

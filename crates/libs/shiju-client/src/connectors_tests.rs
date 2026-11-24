@@ -123,3 +123,37 @@ async fn connector_upstream_errors_do_not_echo_secrets() {
     assert!(!error.to_string().contains("upstream-secret"));
     requests.join().unwrap();
 }
+
+#[tokio::test]
+async fn connector_catalog_only_attaches_personal_binding_to_its_company_instance() {
+    use gateway_shiju_connector::{ShijuConnectorCatalogScope, ShijuConnectorCatalogStatus};
+
+    let mut account = connector();
+    account["company_platform_id"] = json!("7");
+    account["account_binding_variables"] = account["account_binding_variables"][0].clone();
+    let (base, requests) = fixture(vec![
+        envelope(json!({"list": [{
+            "platform_id": "1", "platform_name": "示例连接器", "account_binding_mode": "REQUIRED"
+        }], "total": 1})),
+        envelope(json!([account])),
+        envelope(json!({"list": [
+            {"platform_id": 1, "company_platform_id": 7, "company_platform_name": "当前实例"},
+            {"platform_id": 1, "company_platform_id": 8, "company_platform_name": "其他实例"}
+        ], "total": 2})),
+    ]);
+    let client = ShijuAccountClient::with_base_urls(&base, &base).unwrap();
+    let entries = client
+        .connector_catalog("personal-credential", ShijuConnectorCatalogScope::Custom)
+        .await
+        .unwrap();
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].status, ShijuConnectorCatalogStatus::Bindable);
+    let account = entries[0].account.as_ref().unwrap();
+    assert_eq!(account.company_platform_id, 7);
+    assert!(account.binding.as_ref().unwrap().binding_config.is_empty());
+    assert_eq!(entries[1].status, ShijuConnectorCatalogStatus::NoAccess);
+    assert!(entries[1].account.is_none());
+    let requests = requests.join().unwrap();
+    assert!(requests[0].starts_with("GET /data/api/v1/platforms?platform_scope=COMPANY&"));
+    assert!(requests[2].starts_with("GET /data/api/v1/company-platforms?page="));
+}

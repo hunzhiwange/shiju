@@ -17,7 +17,9 @@ pub struct ShijuConnectorVariable {
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ShijuConnectorBinding {
+    #[serde(default)]
     pub third_party_account_id: String,
+    #[serde(default)]
     pub third_party_account_name: String,
     #[serde(default)]
     pub binding_config: Map<String, Value>,
@@ -26,14 +28,70 @@ pub struct ShijuConnectorBinding {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ShijuConnector {
+    #[serde(deserialize_with = "deserialize_connector_id")]
     pub platform_id: u64,
+    #[serde(default)]
     pub platform_code: String,
     pub platform_name: String,
+    #[serde(deserialize_with = "deserialize_connector_id")]
     pub company_platform_id: u64,
+    #[serde(default)]
     pub authorization_available: bool,
     #[serde(default, deserialize_with = "nullable_variables")]
     pub account_binding_variables: Vec<ShijuConnectorVariable>,
     pub binding: Option<ShijuConnectorBinding>,
+}
+
+pub fn deserialize_connector_id<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<u64, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Id {
+        Number(u64),
+        String(String),
+    }
+
+    match Id::deserialize(deserializer)? {
+        Id::Number(id) => Ok(id),
+        Id::String(id) => id.parse().map_err(serde::de::Error::custom),
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ShijuConnectorCatalogScope {
+    System,
+    Custom,
+}
+
+impl ShijuConnectorCatalogScope {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::System => "system",
+            Self::Custom => "custom",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ShijuConnectorCatalogStatus {
+    Unavailable,
+    Disabled,
+    NoBinding,
+    NoAccess,
+    Bindable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShijuConnectorCatalogEntry {
+    pub platform_id: u64,
+    pub name: String,
+    pub code: String,
+    pub description: String,
+    pub status: ShijuConnectorCatalogStatus,
+    pub account: Option<ShijuConnector>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -96,6 +154,22 @@ redacted_debug!(
 );
 
 impl GatewayShijuConnectorClient {
+    pub async fn shiju_connector_catalog(
+        &self,
+        credential: &ShijuCredential,
+        scope: ShijuConnectorCatalogScope,
+    ) -> Result<Vec<ShijuConnectorCatalogEntry>, String> {
+        GatewayShijuAccountClient::new(self.transport.clone())
+            .shiju_account_sensitive_request::<(), _>(
+                reqwest::Method::GET,
+                "/v1/shiju/connectors/catalog",
+                &[("scope".to_string(), scope.as_str().to_string())],
+                None,
+                Some(credential),
+            )
+            .await
+    }
+
     pub async fn shiju_connectors(
         &self,
         credential: &ShijuCredential,
@@ -156,7 +230,18 @@ impl GatewayShijuConnectorClient {
 fn nullable_variables<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Vec<ShijuConnectorVariable>, D::Error> {
-    Ok(Option::<Vec<ShijuConnectorVariable>>::deserialize(deserializer)?.unwrap_or_default())
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Variables {
+        Many(Vec<ShijuConnectorVariable>),
+        One(ShijuConnectorVariable),
+    }
+
+    Ok(match Option::<Variables>::deserialize(deserializer)? {
+        Some(Variables::Many(variables)) => variables,
+        Some(Variables::One(variable)) => vec![variable],
+        None => Vec::new(),
+    })
 }
 #[cfg(test)]
 #[path = "shiju_connector_api_tests.rs"]

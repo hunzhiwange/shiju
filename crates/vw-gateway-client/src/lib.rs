@@ -199,8 +199,9 @@ pub use vw_api_workflow::{
 
 pub use client::{
     ShijuConnector, ShijuConnectorAuthorizationStatus, ShijuConnectorAuthorizeRequest,
-    ShijuConnectorBinding, ShijuConnectorChallenge, ShijuConnectorPoll, ShijuConnectorPollRequest,
-    ShijuConnectorSaveRequest, ShijuConnectorVariable,
+    ShijuConnectorBinding, ShijuConnectorCatalogEntry, ShijuConnectorCatalogScope,
+    ShijuConnectorChallenge, ShijuConnectorPoll, ShijuConnectorPollRequest, ShijuConnectorSaveRequest,
+    ShijuConnectorVariable,
 };
 
 /// Read-only SHIJU knowledge pagination, retrieval and document transport contract.

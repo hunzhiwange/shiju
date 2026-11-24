@@ -8,6 +8,9 @@ use gateway_shiju_connector::{
     ShijuConnectorPoll, ShijuConnectorSaveRequest,
 };
 
+#[path = "connector_catalog.rs"]
+mod catalog;
+
 const CONNECTORS_PATH: &str = "data/api/v1/me/account-binding-connectors";
 const BINDINGS_PATH: &str = "data/api/v1/me/account-bindings";
 const AUTHORIZATIONS_PATH: &str = "data/api/v1/me/account-binding-authorizations";

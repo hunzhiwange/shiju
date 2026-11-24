@@ -4,22 +4,41 @@ use gateway_types::ApiError;
 use shiju_client::account::ShijuAccountClient;
 use axum::{
     Json, Router,
-    extract::Extension,
+    extract::{Extension, Query},
     http::HeaderMap,
     routing::{get, post, put},
 };
 use std::sync::Arc;
 use gateway_shiju_connector::{
     ShijuConnector, ShijuConnectorAuthorizeRequest, ShijuConnectorBinding, ShijuConnectorChallenge,
-    ShijuConnectorPoll, ShijuConnectorPollRequest, ShijuConnectorSaveRequest,
+    ShijuConnectorCatalogEntry, ShijuConnectorCatalogScope, ShijuConnectorPoll,
+    ShijuConnectorPollRequest, ShijuConnectorSaveRequest,
 };
 
 pub(super) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
     Router::new()
         .route("/shiju/connectors", get(list))
+        .route("/shiju/connectors/catalog", get(catalog))
         .route("/shiju/connectors/binding", put(save))
         .route("/shiju/connectors/authorizations", post(authorize))
         .route("/shiju/connectors/authorizations/poll", post(poll))
+}
+
+#[derive(serde::Deserialize)]
+struct CatalogQuery {
+    scope: ShijuConnectorCatalogScope,
+}
+
+async fn catalog(
+    Extension(client): Extension<Arc<ShijuAccountClient>>,
+    headers: HeaderMap,
+    Query(query): Query<CatalogQuery>,
+) -> Result<Json<Vec<ShijuConnectorCatalogEntry>>, ApiError> {
+    client
+        .connector_catalog(credential_from_headers(&headers)?.expose(), query.scope)
+        .await
+        .map(Json)
+        .map_err(upstream_error)
 }
 async fn list(
     Extension(client): Extension<Arc<ShijuAccountClient>>,

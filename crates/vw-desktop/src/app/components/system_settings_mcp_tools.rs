@@ -17,11 +17,17 @@ fn message(event: ui::ToolsMessage) -> Message {
     })
 }
 pub(super) fn panel(app: &App) -> Element<'_, Message> {
-    ui::panel(catalog::visible(app)).map(message)
+    ui::panel(desktop_i18n::I18n::new(app.general_settings.desktop_locale), catalog::visible(app))
+        .map(message)
 }
 pub(crate) fn card(app: &App) -> Element<'_, Message> {
     let Some(state) = tools::visible(app) else {
         return column![].into();
     };
-    desktop_settings_mcp::management_tools::card(state, catalog::visible(app)).map(tools::message)
+    desktop_settings_mcp::management_tools::card(
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale),
+        state,
+        catalog::visible(app),
+    )
+    .map(tools::message)
 }

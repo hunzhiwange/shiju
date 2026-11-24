@@ -14,10 +14,17 @@ pub struct PluginInstallForm {
     pub update_id: Option<String>,
     pub request_id: u64,
     pub phase: PluginInstallPhase,
+    pub failure_translation: Option<desktop_i18n::format::Message>,
 }
 impl PluginInstallForm {
     pub fn new(request_id: u64, update_id: Option<String>) -> Self {
-        Self { source: String::new(), update_id, request_id, phase: PluginInstallPhase::Input }
+        Self {
+            source: String::new(),
+            update_id,
+            request_id,
+            phase: PluginInstallPhase::Input,
+            failure_translation: None,
+        }
     }
     pub fn begin_prepare(&mut self) -> Result<(), String> {
         if self.source.trim().is_empty() && self.update_id.is_none() {
@@ -26,6 +33,7 @@ impl PluginInstallForm {
         if self.busy() {
             return Err("正在处理，请等待当前操作完成".into());
         }
+        self.failure_translation = None;
         self.phase = PluginInstallPhase::Preparing;
         Ok(())
     }
@@ -37,6 +45,7 @@ impl PluginInstallForm {
         if id != self.request_id || !matches!(self.phase, PluginInstallPhase::Preparing) {
             return result.ok();
         }
+        self.failure_translation = None;
         self.phase = match result {
             Ok(preview) => PluginInstallPhase::Review(preview),
             Err(error) => PluginInstallPhase::Failed(error),

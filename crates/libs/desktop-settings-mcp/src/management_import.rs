@@ -93,23 +93,33 @@ impl ImportState {
         self.result = None;
     }
 }
-pub fn preview_labels(preview: &McpNativePreview) -> Vec<String> {
+pub fn preview_labels(i18n: desktop_i18n::I18n, preview: &McpNativePreview) -> Vec<String> {
     let mut labels = vec![
-        format!("原生状态：{:?}（脱敏预览）", preview.status),
-        "仅对比已有目录 ID；新项、定义差异与冲突由执行端在导入时判定。".into(),
+        desktop_i18n::__!(
+            i18n,
+            "原生状态：%s（脱敏预览）",
+            (format!("{:?}", preview.status)).to_string()
+        )
+        .expect("valid extension display template"),
+        i18n.__("仅对比已有目录 ID；新项、定义差异与冲突由执行端在导入时判定。").into(),
     ];
     for entry in &preview.entries {
-        labels.push(format!(
-            "{} · 目录已有项 · 原生 {:?} · {:?} · {}",
-            entry.id.0,
-            entry.status,
-            entry.transport,
-            match entry.enabled {
-                Some(false) => "来源禁用",
-                Some(true) => "来源启用",
-                None => "启用状态未读到",
-            }
-        ));
+        labels.push(
+            desktop_i18n::__!(
+                i18n,
+                "%s · 目录已有项 · 原生 %s · %s · %s",
+                (entry.id.0).to_string(),
+                (format!("{:?}", entry.status)).to_string(),
+                (format!("{:?}", entry.transport)).to_string(),
+                (match entry.enabled {
+                    Some(false) => i18n.__("来源禁用"),
+                    Some(true) => i18n.__("来源启用"),
+                    None => i18n.__("启用状态未读到"),
+                })
+                .to_string()
+            )
+            .expect("valid extension display template"),
+        );
     }
     labels
 }
@@ -171,10 +181,12 @@ pub async fn import(
 
 use crate::import as ui;
 pub fn panel(
+    i18n: desktop_i18n::I18n,
     state: &ImportState,
     targets: Vec<vw_api_mcp_management::McpAppTarget>,
 ) -> iced::Element<'_, ImportMessage> {
     ui::panel(
+        i18n,
         ui::ImportView {
             importing: state.importing,
             loading: state.loading,
@@ -191,12 +203,13 @@ pub fn panel(
         },
         targets,
         {
-            let mut labels = state.preview.as_ref().map(preview_labels).unwrap_or_default();
+            let mut labels =
+                state.preview.as_ref().map(|value| preview_labels(i18n, value)).unwrap_or_default();
             for (target, preview) in &state.previews {
                 labels.push(format!("{:?} · {}", target.app_id, target.installation_id.0));
                 match preview {
-                    Ok(p) => labels.extend(preview_labels(p)),
-                    Err(_) => labels.push("未读到：预览失败，请检查账号与权限".into()),
+                    Ok(p) => labels.extend(preview_labels(i18n, p)),
+                    Err(_) => labels.push(i18n.__("未读到：预览失败，请检查账号与权限").into()),
                 }
             }
             labels

@@ -479,26 +479,30 @@ fn message(event: ui::ResyncMessage) -> ResyncMessage {
     }
 }
 
-pub fn panel(state: Option<&ResyncState>) -> Element<'_, ResyncMessage> {
-    ui::panel(state.map(project)).map(message)
+pub fn panel(i18n: desktop_i18n::I18n, state: Option<&ResyncState>) -> Element<'_, ResyncMessage> {
+    ui::panel(i18n, state.map(project)).map(message)
 }
 pub fn card<'a>(
+    i18n: desktop_i18n::I18n,
     state: &'a ResyncState,
     selected: &[McpCatalogRecord],
     targets: Vec<McpAppTarget>,
 ) -> Element<'a, ResyncMessage> {
     let scope = if selected.is_empty() {
-        "当前租户".to_owned()
+        i18n.__("当前租户").to_owned()
     } else {
         match crate::distribution::project(selected) {
-            Ok(Some(p)) => format!("项目 {}", p.0),
-            Ok(None) => "当前租户".to_owned(),
-            Err(e) => format!("无效：{e}"),
+            Ok(Some(p)) => desktop_i18n::__!(i18n, "项目 %s", (p.0).to_string())
+                .expect("valid extension display template"),
+            Ok(None) => i18n.__("当前租户").to_owned(),
+            Err(e) => desktop_i18n::__!(i18n, "无效：%s", (e).to_string())
+                .expect("valid extension display template"),
         }
     };
-    ui::card(project(state), scope, targets).map(message)
+    ui::card(i18n, project(state), scope, targets).map(message)
 }
 pub fn overlay<'a>(
+    i18n: desktop_i18n::I18n,
     state: &'a ResyncState,
     selected: &[McpCatalogRecord],
     targets: Vec<McpAppTarget>,
@@ -507,7 +511,7 @@ pub fn overlay<'a>(
     desktop_ui_controls::system_settings_common::settings_modal_overlay(
         Some(dialog),
         ResyncMessage::Close,
-        card(state, selected, targets),
+        card(i18n, state, selected, targets),
     )
 }
 

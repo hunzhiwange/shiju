@@ -80,24 +80,24 @@ use crate::third_party::style;
 use desktop_ui_controls::system_settings_common::*;
 use iced::widget::{Space, button, checkbox, column, container, row, rule, scrollable, text};
 use iced::{Element, Length};
-pub fn view<'a, M: Clone + 'static>(
+pub fn view<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     s: &'a State,
     base: Element<'a, M>,
     message: fn(Event) -> M,
 ) -> Element<'a, M> {
-    view_with_icons(s, base, message, |_, _| iced::widget::Space::new().width(0).into())
+    view_with_icons(i18n, s, base, message, |_, _| iced::widget::Space::new().width(0).into())
 }
 
-pub fn view_with_icons<'a, M: Clone + 'static>(
+pub fn view_with_icons<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     s: &'a State,
     base: Element<'a, M>,
     message: fn(Event) -> M,
     icon: fn(AppId, f32) -> Element<'static, M>,
 ) -> Element<'a, M> {
-    view_with_app_names(s, base, message, icon, |id| format!("{id:?}"))
+    view_with_app_names(i18n, s, base, message, icon, |id| format!("{id:?}"))
 }
 
-pub fn view_with_app_names<'a, M: Clone + 'static>(
+pub fn view_with_app_names<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     s: &'a State,
     base: Element<'a, M>,
     message: fn(Event) -> M,
@@ -107,7 +107,7 @@ pub fn view_with_app_names<'a, M: Clone + 'static>(
     if !s.open {
         return base;
     }
-    let search = settings_text_input("搜索名称或来源", &s.query)
+    let search = settings_text_input(i18n.__("搜索名称或来源"), &s.query)
         .style(style::input)
         .on_input(move |v| message(Event::Query(v)));
     let selection = |label, value| {
@@ -117,8 +117,8 @@ pub fn view_with_app_names<'a, M: Clone + 'static>(
             .on_press_maybe((!s.busy).then_some(message(Event::SelectVisible(value))))
     };
     let mut body = column![
-        text("导入会复制技能，保留来源文件。").size(13).style(settings_muted_text_style),
-        row![style::search(search), selection("全选", true), selection("全不选", false)]
+        text(i18n.__("导入会复制技能，保留来源文件。")).size(13).style(settings_muted_text_style),
+        row![style::search(search), selection(i18n.__("全选"), true), selection(i18n.__("全不选"), false)]
             .spacing(8)
             .align_y(iced::Alignment::Center),
     ]
@@ -128,13 +128,13 @@ pub fn view_with_app_names<'a, M: Clone + 'static>(
         for skill in report.skills.iter().filter(|skill| matches_query(skill, &s.query)) {
             let id = skill.directory.clone();
             let reason = if skill.managed {
-                " · 已托管"
+                i18n.__(" · 已托管")
             } else if skill.conflict {
-                " · 来源冲突"
+                i18n.__(" · 来源冲突")
             } else if skill.external_link {
-                " · 外部链接"
+                i18n.__(" · 外部链接")
             } else if !eligible(skill) {
-                " · 无法导入"
+                i18n.__(" · 无法导入")
             } else {
                 ""
             };
@@ -152,10 +152,7 @@ pub fn view_with_app_names<'a, M: Clone + 'static>(
                             ),
                         column![
                             text(skill.name.clone()).size(14),
-                            text(format!(
-                                "来源 · {}{reason}",
-                                if source.is_empty() { skill.directory.as_str() } else { &source }
-                            ))
+                            text(desktop_i18n::__!(i18n, "来源 · %s%s", (if source.is_empty() { skill.directory.as_str() } else { &source }).to_string(), (reason).to_string()).expect("valid extension display template"))
                             .size(12)
                             .style(settings_muted_text_style),
                         ]
@@ -171,9 +168,9 @@ pub fn view_with_app_names<'a, M: Clone + 'static>(
             candidates = candidates.push(
                 container(
                     text(if report.skills.is_empty() {
-                        "未发现可导入的技能"
+                        i18n.__("未发现可导入的技能")
                     } else {
-                        "没有匹配的技能"
+                        i18n.__("没有匹配的技能")
                     })
                     .size(13)
                     .style(settings_muted_text_style),
@@ -185,7 +182,7 @@ pub fn view_with_app_names<'a, M: Clone + 'static>(
     } else {
         candidates = candidates.push(
             container(
-                text(if s.busy { "正在扫描技能…" } else { "选择来源后扫描技能" })
+                text(if s.busy { i18n.__("正在扫描技能…") } else { i18n.__("选择来源后扫描技能") })
                     .size(13)
                     .style(settings_muted_text_style),
             )
@@ -205,10 +202,10 @@ pub fn view_with_app_names<'a, M: Clone + 'static>(
         .max_height(192)
         .style(style::table),
     );
-    body = body.push(settings_field_label("导入后启用的应用"));
+    body = body.push(settings_field_label(i18n.__("导入后启用的应用")));
     if s.available_targets.is_empty() {
         body = body.push(
-            text("没有可选应用，只导入主副本。").size(12).style(settings_muted_text_style),
+            text(i18n.__("没有可选应用，只导入主副本。")).size(12).style(settings_muted_text_style),
         );
     }
     for pair in s.available_targets.chunks(2) {
@@ -251,13 +248,13 @@ pub fn view_with_app_names<'a, M: Clone + 'static>(
         None,
         move |source| message(Event::App(source.id, !s.apps.contains(&source.id))),
     )
-    .placeholder("切换扫描来源")
+    .placeholder(i18n.__("切换扫描来源"))
     .disabled(s.busy);
     let source_names = s.apps.iter().copied().map(&name).collect::<Vec<_>>().join("、");
     body = body.push(rule::horizontal(1)).push(
         row![
             column![
-                text("扫描来源").size(13),
+                text(i18n.__("扫描来源")).size(13),
                 text(if source_names.is_empty() {
                     s.host.clone()
                 } else {
@@ -269,7 +266,7 @@ pub fn view_with_app_names<'a, M: Clone + 'static>(
             .spacing(3)
             .width(Length::Fill),
             sources,
-            button(text("扫描").size(13))
+            button(text(i18n.__("扫描")).size(13))
                 .padding([6, 10])
                 .style(rounded_action_btn_style)
                 .on_press_maybe((!s.busy && !s.apps.is_empty()).then_some(message(Event::Scan))),
@@ -282,29 +279,29 @@ pub fn view_with_app_names<'a, M: Clone + 'static>(
             "{}：{}",
             id,
             match result {
-                Ok(()) => "已导入".to_owned(),
-                Err(error) => format!("失败，可重试：{error}"),
+                Ok(()) => i18n.__("已导入").to_owned(),
+                Err(error) => desktop_i18n::__!(i18n, "失败，可重试：%s", (error).to_string()).expect("valid extension display template"),
             }
         )));
     }
     if s.busy {
-        body = body.push(text("正在扫描或导入…"));
+        body = body.push(text(i18n.__("正在扫描或导入…")));
     }
     if let Some(error) = &s.error {
-        body = body.push(settings_error_banner(error.clone()));
+        body = body.push(settings_error_banner(desktop_i18n::settings_extensions::feedback(i18n, error)));
     }
     let close = message(Event::Close);
     let header = settings_modal_header(
-        text("导入已有 Skill").size(20),
+        text(i18n.__("导入已有 Skill")).size(20),
         settings_close_button(close.clone()),
     );
     let footer = row![
         Space::new().width(Length::Fill),
-        button("取消")
+        button(i18n.__("取消"))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press_maybe((!s.busy).then_some(close.clone())),
-        button(text(format!("导入 {} 个", s.selected.len())))
+        button(text(desktop_i18n::__!(i18n, "导入 %s 个", (s.selected.len()).to_string()).expect("valid extension display template")))
             .padding([8, 12])
             .style(style::primary)
             .on_press_maybe((!s.busy && !s.selected.is_empty()).then_some(message(Event::Import))),

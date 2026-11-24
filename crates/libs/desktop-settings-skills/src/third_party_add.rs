@@ -43,29 +43,46 @@ pub fn import_count(state: &import_modal::State, input: &Input) -> Option<usize>
 }
 /// Native select anchors its menu, captures outside clicks and restores keyboard focus.
 pub fn view<'a, M: Clone + 'a>(
+    i18n: desktop_i18n::I18n,
     input: &Input,
     count: Option<usize>,
     message: impl Fn(Action) -> M + 'a,
 ) -> Element<'a, M> {
-    let source =
-        if input.loopback { "本机".to_owned() } else { format!("远端主机 {}", input.host) };
+    let source = if input.loopback {
+        i18n.__("本机").to_owned()
+    } else {
+        desktop_i18n::__!(i18n, "远端主机 %s", (input.host).to_string())
+            .expect("valid extension display template")
+    };
     let label = match count {
-        Some(count) => format!("来源：{source} · 可导入 {count}"),
-        None => format!("来源：{source}"),
+        Some(count) => desktop_i18n::__!(
+            i18n,
+            "来源：%s · 可导入 %s",
+            (source).to_string(),
+            (count).to_string()
+        )
+        .expect("valid extension display template"),
+        None => desktop_i18n::__!(i18n, "来源：%s", (source).to_string())
+            .expect("valid extension display template"),
     };
     column![
         settings_select(
-            ["在发现里浏览".to_owned(), "从 ZIP 安装".to_owned(), format!("导入{source}已有")],
+            [
+                i18n.__("在发现里浏览").to_owned(),
+                i18n.__("从 ZIP 安装").to_owned(),
+                desktop_i18n::__!(i18n, "导入%s已有", (source).to_string())
+                    .expect("valid extension display template")
+            ],
             None,
-            move |label: String| message(if label == "在发现里浏览" {
+            move |label: String| message(if label == i18n.__("在发现里浏览") {
                 Action::Discover
-            } else if label == "从 ZIP 安装" {
+            } else if label == i18n.__("从 ZIP 安装") {
                 Action::Archive
             } else {
                 Action::Import
             })
         )
-        .placeholder("添加 Skill"),
+        .placeholder(i18n.__("添加 Skill")),
         text(label)
     ]
     .spacing(6)

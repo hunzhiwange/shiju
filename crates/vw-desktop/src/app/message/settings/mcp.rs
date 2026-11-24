@@ -107,13 +107,21 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     let locale = app.general_settings.desktop_locale;
                     Task::batch([
                         refresh_all_task(app.navigation_tabs.project_path.clone()),
-                        app.show_success_toast(desktop_i18n::settings_extensions::text(
-                            locale,
-                            "Chrome DevTools MCP 已安装",
-                        )),
+                        app.show_message_toast(
+                            crate::app::state::ToastKind::Success,
+                            desktop_i18n::settings_extensions::feedback_message(
+                                &(desktop_i18n::settings_extensions::text(
+                                    locale,
+                                    "Chrome DevTools MCP 已安装",
+                                )),
+                            ),
+                        ),
                     ])
                 }
-                Err(error) => app.show_error_toast(error),
+                Err(error) => app.show_message_toast(
+                    crate::app::state::ToastKind::Error,
+                    desktop_i18n::settings_extensions::feedback_message(&(error)),
+                ),
             };
         }
         McpMessage::InstallRustCodeGraph => {
@@ -146,15 +154,23 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     let locale = app.general_settings.desktop_locale;
                     Task::batch([
                         refresh_all_task(app.navigation_tabs.project_path.clone()),
-                        app.show_success_toast(desktop_i18n::settings_extensions::text(
-                            locale,
-                            "RustCodeGraph MCP 已安装",
-                        )),
+                        app.show_message_toast(
+                            crate::app::state::ToastKind::Success,
+                            desktop_i18n::settings_extensions::feedback_message(
+                                &(desktop_i18n::settings_extensions::text(
+                                    locale,
+                                    "RustCodeGraph MCP 已安装",
+                                )),
+                            ),
+                        ),
                     ])
                 }
                 Err(error) => {
                     app.mcp_settings.loading = false;
-                    app.show_error_toast(error)
+                    app.show_message_toast(
+                        crate::app::state::ToastKind::Error,
+                        desktop_i18n::settings_extensions::feedback_message(&(error)),
+                    )
                 }
             };
         }

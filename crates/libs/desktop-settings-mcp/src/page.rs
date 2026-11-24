@@ -121,7 +121,7 @@ pub(crate) fn capability_preview<'a, Message: Clone + 'static>(
         settings_divider(),
         value_preview_section(
             locale,
-            "Prompts",
+            tr(locale, "提示词"),
             &inspect.prompts,
             inspect.prompts_error.as_deref(),
             &["name", "title"],
@@ -147,7 +147,7 @@ pub(crate) fn server_save_error(locale: DesktopLocale, s: &State) -> Option<Stri
                     .render(I18n::new(locale))
                     .expect("valid MCP error template")
             })
-            .unwrap_or_else(|| I18n::new(locale).__(error).to_owned())
+            .unwrap_or_else(|| desktop_i18n::settings_extensions::feedback(I18n::new(locale), error))
     })
 }
 
@@ -238,7 +238,7 @@ pub fn view<'a, Message: Clone + 'static>(event: fn(McpMessage) -> Message, s: &
     .width(Length::Fill);
 
     if let Some(message) = &s.status_message {
-        content = content.push(settings_success_banner(message));
+        content = content.push(settings_success_banner(desktop_i18n::settings_extensions::feedback(i18n, message)));
     }
     if !(s.active_tab == McpSettingsTab::Servers && s.new_server_expanded)
         && let Some(error) = server_save_error(locale, s)

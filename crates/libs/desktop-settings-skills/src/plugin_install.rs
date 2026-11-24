@@ -1,10 +1,22 @@
 use iced::Task;
 pub use crate::plugin_state::{PluginInstallForm, PluginInstallPhase};
 #[derive(Clone, Debug)]
-pub enum ToastKind { Info, Success, Warning, Error }
-fn notice(kind: ToastKind, text: &str, _: Vec<()>) -> Task<Event> { Task::done(Event::Toast(kind, text.to_owned())) }
-pub struct State<'a> { pub plugin_operation_id: &'a mut u64, pub plugin_install: &'a mut Option<PluginInstallForm> }
-fn discard(token: String) -> Task<Event> { Task::done(Event::Discard(token)) }
+pub enum ToastKind {
+    Info,
+    Success,
+    Warning,
+    Error,
+}
+fn notice(kind: ToastKind, text: &str, _: Vec<()>) -> Task<Event> {
+    Task::done(Event::Toast(kind, desktop_i18n::format::Message::new(text, vec![])))
+}
+pub struct State<'a> {
+    pub plugin_operation_id: &'a mut u64,
+    pub plugin_install: &'a mut Option<PluginInstallForm>,
+}
+fn discard(token: String) -> Task<Event> {
+    Task::done(Event::Discard(token))
+}
 fn next_id(app: &mut State<'_>) -> u64 {
     *app.plugin_operation_id =
         app.plugin_operation_id.wrapping_add(1);
@@ -33,6 +45,7 @@ pub fn update(app: &mut State<'_>, message: Event) -> Task<Event> {
             }
             let token = form.preview().map(|p| p.token.clone());
             form.source = value;
+            form.failure_translation = None;
             form.phase = PluginInstallPhase::Input;
             token.map(discard).unwrap_or_else(Task::none)
         }
@@ -46,11 +59,9 @@ pub fn update(app: &mut State<'_>, message: Event) -> Task<Event> {
             form.request_id = id;
             if let Err(error) = form.begin_prepare() {
                 form.phase = PluginInstallPhase::Failed(error.clone());
-                return notice(
-                    ToastKind::Error,
-                    &error,
-                    vec![],
-                );
+                form.failure_translation =
+                    Some(desktop_i18n::format::Message::new(error.clone(), vec![]));
+                return notice(ToastKind::Error, &error, vec![]);
             }
             let source = form.source.clone();
             let update = form.update_id.clone();
@@ -67,12 +78,11 @@ pub fn update(app: &mut State<'_>, message: Event) -> Task<Event> {
                 return discard(stale.token);
             }
             if let Some(error) = failure {
-                if app
-                    .plugin_install
-                    .as_ref()
-                    .is_some_and(|f| f.request_id == request_id)
-                {
-                    return Task::done(Event::Toast(ToastKind::Error, error));
+                if app.plugin_install.as_ref().is_some_and(|f| f.request_id == request_id) {
+                    return Task::done(Event::Toast(
+                        ToastKind::Error,
+                        desktop_i18n::format::Message::new("插件安装失败：%s", vec![error.into()]),
+                    ));
                 }
             }
             if app.plugin_install.as_ref().is_some_and(|form| {
@@ -117,9 +127,13 @@ pub fn update(app: &mut State<'_>, message: Event) -> Task<Event> {
                     Task::batch([toast, refresh])
                 }
                 Err(error) => {
-                    app.plugin_install.as_mut().unwrap().phase =
-                        PluginInstallPhase::Failed(error.clone());
-                    Task::done(Event::Toast(ToastKind::Error, error))
+                    let form = app.plugin_install.as_mut().unwrap();
+                    form.failure_translation = None;
+                    form.phase = PluginInstallPhase::Failed(error.clone());
+                    Task::done(Event::Toast(
+                        ToastKind::Error,
+                        desktop_i18n::format::Message::new("插件安装失败：%s", vec![error.into()]),
+                    ))
                 }
             }
         }
@@ -178,5 +192,9 @@ pub enum Event {
     },
     PluginsInstallClose,
     PluginsPreviewDiscarded(Result<(), String>),
-Prepare(u64, String, Option<String>), Activate(u64, String, bool), Discard(String), Refresh, Toast(ToastKind, String),
+    Prepare(u64, String, Option<String>),
+    Activate(u64, String, bool),
+    Discard(String),
+    Refresh,
+    Toast(ToastKind, desktop_i18n::format::Message),
 }

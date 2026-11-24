@@ -7,7 +7,7 @@ pub(crate) fn message(event: Event) -> Message {
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     if let Event::Toast(error, text) = event {
-        return if error { app.show_error_toast(text) } else { app.show_success_toast(text) };
+        return if error { app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::settings_extensions::feedback_message(&text)) } else { app.show_message_toast(crate::app::state::ToastKind::Success, desktop_i18n::settings_extensions::feedback_message(&text)) };
     }
     let mut input = desktop_settings_skills::prompts::update::Input {
         client: crate::app::config::gateway_client(),

@@ -25,6 +25,7 @@ pub(super) fn view<'a>(
                 .is_ok_and(|client| client.endpoint().is_loopback())
     });
     desktop_settings_skills::storage_modal::view(
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale),
         storage,
         base,
         crate::app::message::settings::skills::storage_modal::message,

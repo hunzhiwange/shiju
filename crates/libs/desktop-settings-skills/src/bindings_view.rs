@@ -7,6 +7,7 @@ use iced::{
 use vw_api_app_skills::bindings_api::*;
 
 pub fn view<'a, M: Clone + 'static>(
+    i18n: desktop_i18n::I18n,
     s: ViewState<'a>,
     base: Element<'a, M>,
     message: fn(Event) -> M,
@@ -16,9 +17,11 @@ pub fn view<'a, M: Clone + 'static>(
     if !s.open {
         return base;
     }
-    let mut body =
-        column![text("全局分发不改变 ACP 会话的技能选择或授权。"), settings_field_label("技能")]
-            .spacing(12);
+    let mut body = column![
+        text(i18n.__("全局分发不改变 ACP 会话的技能选择或授权。")),
+        settings_field_label(i18n.__("技能"))
+    ]
+    .spacing(12);
     if let Some(inventory) = s.inventory {
         for skill in &inventory.skills {
             if !skill.present {
@@ -33,7 +36,7 @@ pub fn view<'a, M: Clone + 'static>(
             );
         }
     }
-    body = body.push(settings_field_label("应用与安装实例"));
+    body = body.push(settings_field_label(i18n.__("应用与安装实例")));
     if let Some(snapshot) = s.snapshot {
         for capability in &snapshot.capabilities {
             let catalog = applications.iter().find(|r| r.entry.id == capability.app_id);
@@ -47,7 +50,7 @@ pub fn view<'a, M: Clone + 'static>(
             let installations = catalog.and_then(|r| r.observation);
             if let Some(observation) = installations {
                 if observation.installations.is_empty() {
-                    body = body.push(text("未发现可用安装实例"));
+                    body = body.push(text(i18n.__("未发现可用安装实例")));
                 }
                 for installation in &observation.installations {
                     if installation.target_host_id != host {
@@ -68,15 +71,15 @@ pub fn view<'a, M: Clone + 'static>(
                     );
                 }
             } else {
-                body = body.push(text("应用实例尚未读取，请在应用设置中刷新"));
+                body = body.push(text(i18n.__("应用实例尚未读取，请在应用设置中刷新")));
             }
         }
     }
     for result in s.results {
         let status = match result.status {
-            SkillBindingStatus::Enabled => "已启用",
-            SkillBindingStatus::Disabled => "已停用",
-            SkillBindingStatus::Failed => "失败",
+            SkillBindingStatus::Enabled => i18n.__("已启用"),
+            SkillBindingStatus::Disabled => i18n.__("已停用"),
+            SkillBindingStatus::Failed => i18n.__("失败"),
         };
         body = body.push(text(format!(
             "{} / {}：{status}",
@@ -84,10 +87,13 @@ pub fn view<'a, M: Clone + 'static>(
         )));
     }
     if s.busy {
-        body = body.push(text("正在写入并重读，请稍候…"));
+        body = body.push(text(i18n.__("正在写入并重读，请稍候…")));
     }
     if let Some(error) = s.error {
-        body = body.push(settings_error_banner(error.clone()));
+        body = body.push(settings_error_banner(desktop_i18n::settings_extensions::feedback(
+            i18n,
+            &error.clone(),
+        )));
     }
     let action = |label, event, enabled| {
         button(label)
@@ -97,16 +103,18 @@ pub fn view<'a, M: Clone + 'static>(
     };
     let can_bind = s.selected.is_some() && !s.targets.is_empty();
     let footer = row![
-        action("刷新", Event::Refresh, true),
-        action("保存目标偏好", Event::Save, s.snapshot.is_some()),
-        action("启用所选", Event::Bind(true), can_bind),
-        action("停用所选", Event::Bind(false), can_bind),
-        action("重新同步", Event::Resync, !s.targets.is_empty())
+        action(i18n.__("刷新"), Event::Refresh, true),
+        action(i18n.__("保存目标偏好"), Event::Save, s.snapshot.is_some()),
+        action(i18n.__("启用所选"), Event::Bind(true), can_bind),
+        action(i18n.__("停用所选"), Event::Bind(false), can_bind),
+        action(i18n.__("重新同步"), Event::Resync, !s.targets.is_empty())
     ]
     .spacing(8);
     let close = message(Event::Close);
-    let header =
-        settings_modal_header(text("应用技能绑定").size(20), settings_close_button(close.clone()));
+    let header = settings_modal_header(
+        text(i18n.__("应用技能绑定")).size(20),
+        settings_close_button(close.clone()),
+    );
     let card = settings_modal_layout(header, body, Some(footer.into()))
         .style(super::modal_card_style)
         .width(860)

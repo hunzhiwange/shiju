@@ -743,12 +743,15 @@ pub fn wecom_panel(app: ViewState<'_>) -> Element<'_, Message> {
     ]
     .spacing(12)
     .push(
-        text("用于接收指令并与 Agent 对话。定时任务群通知请在任务的通知配置中设置 Webhook。")
-            .size(13),
+        text(tr(
+            app.desktop_locale,
+            "用于接收指令并与 Agent 对话。定时任务群通知请在任务的通知配置中设置 Webhook。",
+        ))
+        .size(13),
     );
     for (mode, label) in [
-        (WeComDeliveryMode::Qr, "扫码连接智能机器人"),
-        (WeComDeliveryMode::Manual, "手动连接智能机器人"),
+        (WeComDeliveryMode::Qr, tr(app.desktop_locale, "扫码连接智能机器人")),
+        (WeComDeliveryMode::Manual, tr(app.desktop_locale, "手动连接智能机器人")),
     ] {
         body = body.push(
             button(text(label)).padding([8, 12]).style(rounded_action_btn_style).on_press(

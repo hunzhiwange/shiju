@@ -5,38 +5,68 @@ use desktop_settings_agents::{acp_update, acp_update_message::{Message as Local,
 use desktop_settings_agents::acp::{EMPLOYEE_ACP_BACKEND, EMPLOYEE_ACP_PROFILE};
 use iced::Task;
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
- let SettingsMessage::Acp(message) = message else { return Task::none(); };
- if let super::AcpMessage::SetEnabledCompleted { agent, result: Ok(snapshot), .. } = &message
-     && agent == EMPLOYEE_ACP_BACKEND
-     && let Some(entry) = app.agents_settings.entries.iter_mut()
-         .find(|entry| entry.key == EMPLOYEE_ACP_PROFILE)
- {
-     entry.enabled = snapshot.enabled.contains_key(EMPLOYEE_ACP_BACKEND);
- }
- let refresh_chat_source = matches!(&message,
-     super::AcpMessage::InstallCompleted { id, agent, result: Ok(report) }
-         if report.success && app.acp_settings.install_id.as_deref() == Some(id.as_str())
-             && app.current_session_runtime_ref().is_some_and(|runtime| {
-                 runtime.acp_agent.as_deref() == Some(agent.as_str())
-             }) && !app.current_session_has_started()
- );
- let mut inputs = acp_update::Update { state: &mut app.acp_settings, acp_agents: &mut app.session_state.acp_agents, acp_agent: &mut app.session_state.acp_agent, access: crate::app::config::agent_config_access(), client: crate::app::config::gateway_client(), snapshot_applied: false, toasts: Vec::new() };
- let task = acp_update::update(&mut inputs, message);
- #[cfg(not(target_arch="wasm32"))]
- let applied = inputs.snapshot_applied;
- let toasts = std::mem::take(&mut inputs.toasts);
- drop(inputs);
- #[cfg(not(target_arch="wasm32"))]
- if applied { app.note_startup_setting_edit("acp_agents"); }
- let task = task.then(|event| match event { Local::Acp(message) => Task::done(Message::Settings(SettingsMessage::Acp(message))), Local::After(duration, message) => crate::app::message::after(duration, Message::Settings(SettingsMessage::Acp(message))) });
- let mut tasks = vec![task];
- if refresh_chat_source {
-     tasks.push(Task::done(Message::Chat(
-         crate::app::message::ChatMessage::AcpSourceRefresh,
-     )));
- }
- for toast in toasts { tasks.push(match toast { Toast::Error(text) => app.show_error_toast(text), Toast::Info(text) => app.show_info_toast(text), Toast::Success(text) => app.show_success_toast(text) }); }
- Task::batch(tasks)
+    let SettingsMessage::Acp(message) = message else {
+        return Task::none();
+    };
+    if let super::AcpMessage::SetEnabledCompleted { agent, result: Ok(snapshot), .. } = &message
+        && agent == EMPLOYEE_ACP_BACKEND
+        && let Some(entry) =
+            app.agents_settings.entries.iter_mut().find(|entry| entry.key == EMPLOYEE_ACP_PROFILE)
+    {
+        entry.enabled = snapshot.enabled.contains_key(EMPLOYEE_ACP_BACKEND);
+    }
+    let refresh_chat_source = matches!(&message,
+        super::AcpMessage::InstallCompleted { id, agent, result: Ok(report) }
+            if report.success && app.acp_settings.install_id.as_deref() == Some(id.as_str())
+                && app.current_session_runtime_ref().is_some_and(|runtime| {
+                    runtime.acp_agent.as_deref() == Some(agent.as_str())
+                }) && !app.current_session_has_started()
+    );
+    let mut inputs = acp_update::Update {
+        state: &mut app.acp_settings,
+        acp_agents: &mut app.session_state.acp_agents,
+        acp_agent: &mut app.session_state.acp_agent,
+        access: crate::app::config::agent_config_access(),
+        client: crate::app::config::gateway_client(),
+        snapshot_applied: false,
+        toasts: Vec::new(),
+    };
+    let task = acp_update::update(&mut inputs, message);
+    #[cfg(not(target_arch = "wasm32"))]
+    let applied = inputs.snapshot_applied;
+    let toasts = std::mem::take(&mut inputs.toasts);
+    drop(inputs);
+    #[cfg(not(target_arch = "wasm32"))]
+    if applied {
+        app.note_startup_setting_edit("acp_agents");
+    }
+    let task = task.then(|event| match event {
+        Local::Acp(message) => Task::done(Message::Settings(SettingsMessage::Acp(message))),
+        Local::After(duration, message) => {
+            crate::app::message::after(duration, Message::Settings(SettingsMessage::Acp(message)))
+        }
+    });
+    let mut tasks = vec![task];
+    if refresh_chat_source {
+        tasks.push(Task::done(Message::Chat(crate::app::message::ChatMessage::AcpSourceRefresh)));
+    }
+    for toast in toasts {
+        tasks.push(match toast {
+            Toast::Error(text) => app.show_message_toast(
+                crate::app::state::ToastKind::Error,
+                desktop_i18n::settings_extensions::feedback_message(&text),
+            ),
+            Toast::Info(text) => app.show_message_toast(
+                crate::app::state::ToastKind::Info,
+                desktop_i18n::settings_extensions::feedback_message(&text),
+            ),
+            Toast::Success(text) => app.show_message_toast(
+                crate::app::state::ToastKind::Success,
+                desktop_i18n::settings_extensions::feedback_message(&text),
+            ),
+        });
+    }
+    Task::batch(tasks)
 }
 
 #[cfg(test)]

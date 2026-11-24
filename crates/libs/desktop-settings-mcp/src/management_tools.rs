@@ -385,11 +385,13 @@ fn map_view_message(event: crate::tools::ToolsMessage) -> ToolsMessage {
 }
 
 pub fn card<'a>(
+    i18n: desktop_i18n::I18n,
     state: &'a ToolsState,
     catalog: Option<&'a Result<vw_api_mcp_management::McpCatalogResponse, String>>,
 ) -> iced::Element<'a, ToolsMessage> {
     let context = state.context.as_ref().expect("visible tool context");
     crate::tools::card(
+        i18n,
         crate::tools::ToolsView {
             record: &context.record,
             acp_session: &state.acp_session,

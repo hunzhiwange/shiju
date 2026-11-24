@@ -54,9 +54,9 @@ pub(crate) fn apply_effects(
     let mut tasks = vec![task];
     for effect in effects {
         tasks.push(match effect {
-            Effect::Info(value) => app.show_info_toast(value),
-            Effect::Error(value) => app.show_error_toast(value),
-            Effect::Success(value) => app.show_success_toast(value),
+            Effect::Info(value) => app.show_message_toast(crate::app::state::ToastKind::Info, desktop_i18n::settings_extensions::feedback_message(&value)),
+            Effect::Error(value) => app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::settings_extensions::feedback_message(&value)),
+            Effect::Success(value) => app.show_message_toast(crate::app::state::ToastKind::Success, desktop_i18n::settings_extensions::feedback_message(&value)),
             Effect::Refresh => super::mcp_management_list::update(
                 app,
                 super::mcp_management_list::CatalogMessage::Refresh,

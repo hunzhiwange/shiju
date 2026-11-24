@@ -37,13 +37,13 @@ pub fn start_functions(app: &mut SkillUpdate<'_>) -> Task<Message> {
         async move {
             let credential = credential
                 .gateway_credential()
-                .map_err(|_| SkillHubError::from("识矩账户凭据无效"))?;
+                .map_err(|_| SkillHubError::localized("识矩账户凭据无效", vec![]))?;
             // 在更改服务端前确认主技能存在，避免无法同步的半完成操作。
             let installation = tokio::task::spawn_blocking(shiju_installation)
                 .await
-                .map_err(|_| SkillHubError::from("主技能安装状态检查异常终止"))?
+                .map_err(|_| SkillHubError::localized("主技能安装状态检查异常终止", vec![]))?
                 .map_err(SkillHubError::from)?
-                .ok_or_else(|| SkillHubError::from("请先安装主技能后升级功能"))?;
+                .ok_or_else(|| SkillHubError::localized("请先安装主技能后升级功能", vec![]))?;
             let mut report = FunctionUpgradeReport::default();
             for skill_id in cache_retry.iter().filter(|id| !skill_ids.contains(id)) {
                 if sync_business_skill_cache(&installation.installed_dir, *skill_id).await.is_err()
@@ -58,7 +58,7 @@ pub fn start_functions(app: &mut SkillUpdate<'_>) -> Task<Message> {
                 let remote = async {
                     let detail = gateway_shiju_skill_detail_async(gateway, &credential, skill_id).await?;
                     if detail.id != skill_id || detail.current_version_id == 0 {
-                        return Err(SkillHubError::from("技能升级详情或版本无效"));
+                        return Err(SkillHubError::localized("技能升级详情或版本无效", vec![]));
                     }
                     gateway_shiju_skill_remote_install_version_async(
                         gateway, &credential,
@@ -219,7 +219,7 @@ pub fn finish_main_package(
                 install_shiju_package_for_targets(release, project_root, selections.clone())
                     .await?;
             if !install_report_matches_selections(&report, &selections) {
-                return Err(SkillHubError::from("识矩技能安装结果不完整"));
+                return Err(SkillHubError::localized("识矩技能安装结果不完整", vec![]));
             }
             Ok(report)
         },
@@ -271,7 +271,7 @@ pub fn finish_main(
                     .map_err(SkillHubError::from)
             })
             .await
-            .map_err(|_| SkillHubError::from("识矩登录信息同步任务异常终止"))?
+            .map_err(|_| SkillHubError::localized("识矩登录信息同步任务异常终止", vec![]))?
         },
         move |result| {
             Message::SkillHub(SkillHubMessage::MainUpgradeKeySynced {

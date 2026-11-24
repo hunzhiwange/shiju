@@ -505,7 +505,10 @@ pub fn uninstall_shiju_for_targets(
             .prefix(".shiju-removing-")
             .tempdir_in(&target.destination.skills_root)
             .with_context(|| {
-                format!("无法在 {} 创建卸载暂存目录", target.destination.skills_root.display())
+                super::SkillHubError::localized(
+                    "无法在 %s 创建卸载暂存目录",
+                    vec![(target.destination.skills_root.display()).to_string()],
+                )
             })?;
         removals.push(PreparedRemoval { target: target.destination.installed_dir.clone(), backup });
     }
@@ -575,7 +578,10 @@ pub fn sync_shiju_key_for_targets(
             .prefix(".shiju-env-")
             .tempfile_in(&destination.installed_dir)
             .with_context(|| {
-                format!("无法在 {} 创建环境临时文件", destination.installed_dir.display())
+                super::SkillHubError::localized(
+                    "无法在 %s 创建环境临时文件",
+                    vec![(destination.installed_dir.display()).to_string()],
+                )
             })?;
         temporary
             .write_all(updated.as_bytes())
@@ -601,7 +607,10 @@ pub fn sync_shiju_key_for_targets(
                     .prefix(".shiju-env-backup-")
                     .tempdir_in(&destination.installed_dir)
                     .with_context(|| {
-                        format!("无法在 {} 创建环境备份目录", destination.installed_dir.display())
+                        super::SkillHubError::localized(
+                            "无法在 %s 创建环境备份目录",
+                            vec![(destination.installed_dir.display()).to_string()],
+                        )
                     })?,
             )
         } else {

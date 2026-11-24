@@ -67,6 +67,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
                 .map(|r| &r.entry)
                 .collect::<Vec<_>>();
             let skills = desktop_settings_skills::third_party::view(
+                i18n,
                 &state.third_party_skills,
                 &applications,
                 desktop_settings_apps::system_settings_apps::list::brand_icon,
@@ -89,7 +90,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             return workspace(app, container(content).padding(24).into());
         }
         #[cfg(target_arch = "wasm32")]
-        ThirdPartyPage::Authorization => text("此平台不支持授权管理").into(),
+        ThirdPartyPage::Authorization => text(i18n.__("此平台不支持授权管理")).into(),
     };
     let mut workspace = column![].spacing(16);
     if state.third_party_page != ThirdPartyPage::Sessions {
@@ -119,6 +120,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
 }
 
 fn agent_workspace(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     use super::system_settings_apps;
     use desktop_settings_apps::system_settings_apps::{details, list, preferences};
 
@@ -159,11 +161,11 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                         .find(|row| row.provider.id == *id)
                         .map_or(id.as_str(), |row| row.provider.name.as_str());
                     let mode = match aggregation_mode {
-                        Some(AggregationMode::Aggregation) => "聚合",
-                        Some(AggregationMode::Routing) => "路由",
-                        _ if routing_attached => "路由",
-                        Some(AggregationMode::Direct) => "直连",
-                        None => "当前",
+                        Some(AggregationMode::Aggregation) => i18n.__("聚合"),
+                        Some(AggregationMode::Routing) => i18n.__("路由"),
+                        _ if routing_attached => i18n.__("路由"),
+                        Some(AggregationMode::Direct) => i18n.__("直连"),
+                        None => i18n.__("当前"),
                     };
                     title = title.push(settings_value_badge(format!("{mode} · {label}")));
                 }
@@ -174,9 +176,9 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
         let tabs = || {
             use desktop_ui_controls::system_settings_common::help::settings_hover_help_label;
             let modes: [(Tab, &str, bool); 3] = [
-                (Tab::Direct, "直连", true),
-                (Tab::Routing, "路由", routing::ROUTING_APPS.contains(&id)),
-                (Tab::Aggregation, "聚合", aggregation_list::supported(id)),
+                (Tab::Direct, i18n.__("直连"), true),
+                (Tab::Routing, i18n.__("路由"), routing::ROUTING_APPS.contains(&id)),
+                (Tab::Aggregation, i18n.__("聚合"), aggregation_list::supported(id)),
             ];
             let buttons = settings_tab_row(
                 modes.into_iter().filter(|(_, _, supported)| *supported).map(|(target, label, _)| {
@@ -193,10 +195,10 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
             let help = settings_hover_help_label(
                 text("").size(1),
                 column![
-                    text("连接模式").size(14),
-                    text("直连 · 智能体直接连接供应商。").size(13),
-                    text("路由 · 请求由路由服务转发，可配置备用队列。").size(13),
-                    text("聚合 · 将已添加供应商的模型发布到客户端目录。").size(13),
+                    text(i18n.__("连接模式")).size(14),
+                    text(i18n.__("直连 · 智能体直接连接供应商。")).size(13),
+                    text(i18n.__("路由 · 请求由路由服务转发，可配置备用队列。")).size(13),
+                    text(i18n.__("聚合 · 将已添加供应商的模型发布到客户端目录。")).size(13),
                 ]
                 .spacing(6)
                 .into(),
@@ -213,7 +215,7 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                         super::app_routing::config::timeout_button(id),
                         super::app_routing::outbound::entry(id),
                         super::app_routing::requests::entry(id),
-                        button(text("备用队列").size(13)).padding([8, 12])
+                        button(text(i18n.__("备用队列")).size(13)).padding([8, 12])
                             .style(rounded_action_btn_style)
                             .on_press(super::app_providers::list::map(
                                 desktop_provider_apps::components::list::ListMessage::Failover)),
@@ -231,9 +233,9 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                         &app.app_providers.query,
                     )
                     .map(aggregation_list::message),
-                    None if app.app_providers.loading => text("正在读取供应商…").into(),
+                    None if app.app_providers.loading => text(i18n.__("正在读取供应商…")).into(),
                     None => settings_panel(
-                        button(text("读取聚合目录").size(13))
+                        button(text(i18n.__("读取聚合目录")).size(13))
                             .padding([8, 12])
                             .style(rounded_action_btn_style)
                             .on_press(aggregation_list::message(aggregation_list::Event::Open)),
@@ -253,12 +255,14 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                     Some(
                         settings_panel(
                             row![
-                                text("当前连接仍由路由或聚合服务管理").size(13).width(Length::Fill),
+                                text(i18n.__("当前连接仍由路由或聚合服务管理"))
+                                    .size(13)
+                                    .width(Length::Fill),
                                 button(
                                     text(if can_preview_exit {
-                                        "预览恢复直连"
+                                        i18n.__("预览恢复直连")
                                     } else {
-                                        "查看路由"
+                                        i18n.__("查看路由")
                                     })
                                     .size(13)
                                 )
@@ -275,15 +279,21 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                 _ => None,
             };
             let tools = vec![
-                ("查看会话", message(AppsCatalogMessage::Navigate(ThirdPartyPage::Sessions))),
                 (
-                    "配置目录",
+                    i18n.__("查看会话"),
+                    message(AppsCatalogMessage::Navigate(ThirdPartyPage::Sessions)),
+                ),
+                (
+                    i18n.__("配置目录"),
                     message(AppsCatalogMessage::Navigate(ThirdPartyPage::Settings(
                         ThirdPartySettingsTab::Applications,
                     ))),
                 ),
-                ("安装与升级", select(Tab::Configuration)),
-                ("侧栏应用设置", system_settings_apps::domain_event(Action::PreferencesOpen)),
+                (i18n.__("安装与升级"), select(Tab::Configuration)),
+                (
+                    i18n.__("侧栏应用设置"),
+                    system_settings_apps::domain_event(Action::PreferencesOpen),
+                ),
             ];
             let can_launch =
                 desktop_settings_apps::system_settings_apps::presentation::preferred(agent)
@@ -320,8 +330,8 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
         if !configuration {
             use crate::app::message::app_providers::list::{self as providers, ListMessage};
             let empty = column![
-                text("供应商列表尚未加载").size(15),
-                button(text("加载供应商").size(13))
+                text(i18n.__("供应商列表尚未加载")).size(15),
+                button(text(i18n.__("加载供应商")).size(13))
                     .padding([8, 12])
                     .style(rounded_action_btn_style)
                     .on_press(providers::message(ListMessage::Open(agent.entry.id))),
@@ -339,7 +349,7 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                 column![
                     title(),
                     row![
-                        button(text("返回供应商").size(13))
+                        button(text(i18n.__("返回供应商")).size(13))
                             .padding([8, 12])
                             .style(rounded_action_btn_style)
                             .on_press(select(Tab::Direct)),
@@ -359,9 +369,9 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
         if visible.is_empty() {
             choices = choices.push(
                 text(if state.loading {
-                    "正在读取智能体…"
+                    i18n.__("正在读取智能体…")
                 } else {
-                    "没有可选的智能体"
+                    i18n.__("没有可选的智能体")
                 })
                 .size(13)
                 .style(settings_muted_text_style),
@@ -394,7 +404,7 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
             );
         }
         (
-            text("选择第三方智能体").size(22).into(),
+            text(i18n.__("选择第三方智能体")).size(22).into(),
             container(choices).width(Length::Fill).max_width(560).into(),
         )
     };
@@ -430,6 +440,7 @@ fn workspace<'a>(app: &'a App, content: Element<'a, Message>) -> Element<'a, Mes
 }
 
 fn sidebar(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let state = &app.apps_catalog;
     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     let showing_usage = usage::is_visible(app);
@@ -490,7 +501,11 @@ fn sidebar(app: &App) -> Element<'_, Message> {
 
     let header = row![
         text(i18n.__("第三方智能体")).size(15).width(Length::Fill),
-        icon_btn(Icon::ArrowClockwise, "刷新目录", Some(message(AppsCatalogMessage::Refresh))),
+        icon_btn(
+            Icon::ArrowClockwise,
+            i18n.__("刷新目录"),
+            Some(message(AppsCatalogMessage::Refresh))
+        ),
     ]
     .padding([2, 8])
     .spacing(6)
@@ -753,11 +768,16 @@ pub(crate) fn skills_update(
     ) {
         let page = &app.apps_catalog.third_party_skills;
         if page.awaiting_target_snapshot() || app.apps_catalog.loading {
-            return app.show_error_toast(if page.bindings.busy || app.apps_catalog.loading {
-                "正在读取当前项目的安装目标，请稍候"
-            } else {
-                "安装目标读取失败，请在「安装到」中重试或选择「仅主副本」"
-            });
+            return app.show_message_toast(
+                crate::app::state::ToastKind::Error,
+                desktop_i18n::settings_extensions::feedback_message(
+                    &(if page.bindings.busy || app.apps_catalog.loading {
+                        "正在读取当前项目的安装目标，请稍候"
+                    } else {
+                        "安装目标读取失败，请在「安装到」中重试或选择「仅主副本」"
+                    }),
+                ),
+            );
         }
     }
     let inventory_readback = matches!(&event.action, Action::Workspace(WorkspaceEvent::Loaded(_, Ok(_))));
@@ -786,8 +806,16 @@ pub(crate) fn skills_update(
         Effect::Binding { scope, catalog, effect } => match effect {
             bindings_view::Effect::None => Task::none(),
             bindings_view::Effect::Error(error) => {
-                let toast = app.show_error_toast(error);
-                let versions_changed = app.apps_catalog.third_party_skills.bindings.snapshot.as_ref()
+                let toast = app.show_message_toast(
+                    crate::app::state::ToastKind::Error,
+                    desktop_i18n::settings_extensions::feedback_message(&(error)),
+                );
+                let versions_changed = app
+                    .apps_catalog
+                    .third_party_skills
+                    .bindings
+                    .snapshot
+                    .as_ref()
                     .zip(app.apps_catalog.third_party_skills.workspace.inventory.as_ref())
                     .is_some_and(|(snapshot, inventory)| {
                         Some(snapshot.version) != snapshot_version && snapshot.version != inventory.version
@@ -798,7 +826,10 @@ pub(crate) fn skills_update(
                 toast
             }
             bindings_view::Effect::Success(notice) => Task::batch([
-                app.show_success_toast(notice),
+                app.show_message_toast(
+                    crate::app::state::ToastKind::Success,
+                    desktop_i18n::settings_extensions::feedback_message(&(notice)),
+                ),
                 crate::app::message::settings::skills::refresh_workspace(app),
             ]),
             bindings_view::Effect::Request { generation, scope: request_scope, change } => {

@@ -95,26 +95,27 @@ pub(crate) fn open_selected(app: &mut App) -> Task<Message> {
 }
 
 pub(crate) fn page(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let state = &app.apps_catalog;
     let selected = state.expanded.filter(|id| available(app, *id));
     let Some(item) = state.rows.iter().find(|item| Some(item.entry.id) == selected) else {
         let (status, retry) = if state.loading {
-            ("正在读取应用目录…", false)
+            (i18n.__("正在读取应用目录…"), false)
         } else if state.error.is_some() {
-            ("应用目录读取失败", true)
+            (i18n.__("应用目录读取失败"), true)
         } else {
-            ("当前主机没有可管理提示词的应用", true)
+            (i18n.__("当前主机没有可管理提示词的应用"), true)
         };
         let mut empty = column![text(status).size(16)].spacing(10).align_x(Alignment::Center);
         if retry {
             empty = empty.push(
-                button(text("刷新应用目录"))
+                button(text(i18n.__("刷新应用目录")))
                     .padding([7, 12])
                     .style(rounded_action_btn_style)
                     .on_press(system_settings_apps::message(AppsCatalogMessage::Refresh)),
             );
         }
-        return frame(container(empty).center(Length::Fill).into());
+        return frame(i18n, container(empty).center(Length::Fill).into());
     };
 
     let id = item.entry.id;
@@ -129,6 +130,7 @@ pub(crate) fn page(app: &App) -> Element<'_, Message> {
     });
     if scope_current && let Some(draft) = &state.prompts.editor {
         return desktop_settings_skills::prompts::editor::page(
+            i18n,
             draft,
             application,
             state.prompts.preview.as_ref().and_then(|preview| preview.display_path.as_deref()),
@@ -185,8 +187,8 @@ pub(crate) fn page(app: &App) -> Element<'_, Message> {
         );
     }
     let related = [
-        (AppId::ClaudeDesktop, "Claude Desktop 使用 Claude Code 的提示词"),
-        (AppId::OpenClaw, "在工作区管理 OpenClaw 提示词"),
+        (AppId::ClaudeDesktop, i18n.__("Claude Desktop 使用 Claude Code 的提示词")),
+        (AppId::OpenClaw, i18n.__("在工作区管理 OpenClaw 提示词")),
     ];
     if related.iter().any(|(id, _)| available(app, *id)) {
         items = items.push(settings_divider());
@@ -243,11 +245,12 @@ pub(crate) fn page(app: &App) -> Element<'_, Message> {
 
     match id {
         AppId::ClaudeDesktop => frame(
+            i18n,
             container(
                 column![
                     selector,
-                    text("Claude Desktop 使用 Claude Code 的提示词。").size(14),
-                    button(text("打开 Claude Code 提示词"))
+                    text(i18n.__("Claude Desktop 使用 Claude Code 的提示词。")).size(14),
+                    button(text(i18n.__("打开 Claude Code 提示词")))
                         .padding([7, 12])
                         .style(rounded_action_btn_style)
                         .on_press_maybe(available(app, AppId::Claude).then(|| {
@@ -262,10 +265,11 @@ pub(crate) fn page(app: &App) -> Element<'_, Message> {
             .into(),
         ),
         AppId::OpenClaw => frame(
+            i18n,
             container(
                 column![
                     selector,
-                    text("在工作区管理 OpenClaw 提示词。").size(14),
+                    text(i18n.__("在工作区管理 OpenClaw 提示词。")).size(14),
                     super::super::workspace_files::entry(),
                 ]
                 .spacing(12),
@@ -278,6 +282,7 @@ pub(crate) fn page(app: &App) -> Element<'_, Message> {
                 && crate::app::config::gateway_client()
                     .is_ok_and(|client| client.endpoint().is_loopback());
             let base = desktop_settings_skills::prompts::list::view(
+                i18n,
                 &state.prompts,
                 id,
                 application,
@@ -287,6 +292,7 @@ pub(crate) fn page(app: &App) -> Element<'_, Message> {
                 super::ui_message,
             );
             desktop_settings_skills::prompts::transfer::overlay(
+                i18n,
                 &state.prompts.transfer,
                 id,
                 state.prompts.mutating || state.prompts.loading,
@@ -295,19 +301,26 @@ pub(crate) fn page(app: &App) -> Element<'_, Message> {
             )
         }
         _ => frame(
-            container(column![selector, text("正在读取提示词…").size(14)].spacing(12))
+            i18n,
+            container(column![selector, text(i18n.__("正在读取提示词…")).size(14)].spacing(12))
                 .padding([12, 18])
                 .into(),
         ),
     }
 }
 
-fn frame(body: Element<'_, Message>) -> Element<'_, Message> {
+fn frame(i18n: desktop_i18n::I18n, body: Element<'_, Message>) -> Element<'_, Message> {
     column![
-        container(row![
-            icon_svg(Icon::FileText, 19.0).style(icon_btn_svg_style),
-            text("提示词").size(21),
-        ].spacing(8).align_y(Alignment::Center)).padding([12, 18]).width(Length::Fill),
+        container(
+            row![
+                icon_svg(Icon::FileText, 19.0).style(icon_btn_svg_style),
+                text(i18n.__("提示词")).size(21),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center)
+        )
+        .padding([12, 18])
+        .width(Length::Fill),
         settings_divider(),
         body,
     ]

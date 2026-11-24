@@ -23,7 +23,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             crate::app::message::view::ViewMessage::OpenUrlExternal(url),
         ),
         Effect::None => Task::none(),
-        Effect::Error(error) => app.show_error_toast(error),
+        Effect::Error(error) => app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::settings_extensions::feedback_message(&error)),
         Effect::Request { generation, added, directory, host, snapshot, change } => Task::perform(
             async move {
                 let scope = match snapshot.as_ref() {

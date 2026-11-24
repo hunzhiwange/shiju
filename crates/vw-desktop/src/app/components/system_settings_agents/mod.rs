@@ -225,7 +225,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     .expect("valid agent error template")
             })
             .unwrap_or_else(|| {
-                crate::app::i18n::I18n::new(app.general_settings.desktop_locale).__(error).to_owned()
+                desktop_i18n::settings_extensions::feedback(
+                    crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
+                    error,
+                )
             });
         page = page.push(settings_error_banner(rendered));
     }

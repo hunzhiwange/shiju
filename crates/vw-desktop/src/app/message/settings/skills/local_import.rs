@@ -9,7 +9,10 @@ pub(super) fn pick(app: &mut App, zip: bool) -> Task<Message> {
     }
     let endpoint = crate::app::config::gateway_client_endpoint();
     if !endpoint.is_loopback() {
-        return app.show_error_toast("本地技能导入需要连接本机网关");
+        return app.show_message_toast(
+            crate::app::state::ToastKind::Error,
+            desktop_i18n::settings_extensions::feedback_message(&("本地技能导入需要连接本机网关")),
+        );
     }
     app.skills_settings.local_import_busy = true;
     let project = app.navigation_tabs.project_path.clone();
@@ -87,13 +90,35 @@ pub(super) fn complete(
     let (count, errors) = match result {
         Ok(Some(outcome)) => outcome,
         Ok(None) => return Task::none(),
-        Err(error) => return app.show_error_toast(format!("技能导入失败：{error}")),
+        Err(error) => {
+            return app.show_message_toast(
+                crate::app::state::ToastKind::Error,
+                desktop_i18n::settings_extensions::feedback_message(
+                    &(format!("技能导入失败：{error}")),
+                ),
+            );
+        }
     };
     let toast = if let Some(error) = errors.first() {
         let message = format!("已导入 {count} 项技能，{} 项失败：{error}", errors.len());
-        if count == 0 { app.show_error_toast(message) } else { app.show_warning_toast(message) }
+        if count == 0 {
+            app.show_message_toast(
+                crate::app::state::ToastKind::Error,
+                desktop_i18n::settings_extensions::feedback_message(&(message)),
+            )
+        } else {
+            app.show_message_toast(
+                crate::app::state::ToastKind::Warning,
+                desktop_i18n::settings_extensions::feedback_message(&(message)),
+            )
+        }
     } else {
-        app.show_success_toast(format!("已导入 {count} 项技能"))
+        app.show_message_toast(
+            crate::app::state::ToastKind::Success,
+            desktop_i18n::settings_extensions::feedback_message(
+                &(format!("已导入 {count} 项技能")),
+            ),
+        )
     };
     if count == 0 {
         return toast;

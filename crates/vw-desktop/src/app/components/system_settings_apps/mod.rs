@@ -41,8 +41,16 @@ pub(crate) fn view_overlays<'a>(
     let base = crate::app::components::openclaw_env::overlay(&state.openclaw_env, base);
     let base = crate::app::components::openclaw_model::overlay(&state.openclaw_model, base);
     let base = crate::app::components::openclaw_defaults::overlay(&state.openclaw_defaults, base);
-    let base = crate::app::components::system_settings_prompts::templates::overlay(&state.prompts.templates, base);
-    let base = crate::app::components::system_settings_prompts::pi_files::overlay(&state.prompts.pi_files, base);
+    let base = crate::app::components::system_settings_prompts::templates::overlay(
+        i18n,
+        &state.prompts.templates,
+        base,
+    );
+    let base = crate::app::components::system_settings_prompts::pi_files::overlay(
+        i18n,
+        &state.prompts.pi_files,
+        base,
+    );
     use desktop_ui_controls::settings_navigation::{ThirdPartyPage, ThirdPartySettingsTab};
     let base = if state.third_party_page == ThirdPartyPage::Settings(ThirdPartySettingsTab::Routing)
     {

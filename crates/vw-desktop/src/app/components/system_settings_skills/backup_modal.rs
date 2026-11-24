@@ -19,6 +19,7 @@ pub(super) fn view<'a>(
 ) -> iced::Element<'a, Message> {
     let s = &app.skills_settings.backups;
     desktop_settings_skills::backup_modal::view(
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale),
         desktop_settings_skills::backup_modal::ViewState {
             delete_pending: s.delete_pending.as_ref(),
             format_date,

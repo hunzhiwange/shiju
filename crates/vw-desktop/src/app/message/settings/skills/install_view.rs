@@ -10,7 +10,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let input = super::update_input(app);
     match reduce(&mut app.skills_settings.install, &input, event) {
         Effect::None => Task::none(),
-        Effect::Error(error) => app.show_error_toast(error),
+        Effect::Error(error) => app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::settings_extensions::feedback_message(&error)),
         Effect::Refresh => Task::batch(vec![super::refresh_workspace(app), update(app, Event::Refresh), super::refresh_task(app.navigation_tabs.project_path.clone())]),
         Effect::Submitted(scope, id) => super::jobs_view::submitted(app, scope, id),
         Effect::Request { g, scope, request } => {

@@ -26,9 +26,18 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     };
     match reduce(&mut app.skills_settings.backups, &input, event) {
         Effect::None => Task::none(),
-        Effect::Error(error) => app.show_error_toast(error),
+        Effect::Error(error) => app.show_message_toast(
+            crate::app::state::ToastKind::Error,
+            desktop_i18n::settings_extensions::feedback_message(&(error)),
+        ),
         Effect::Changed { restored } => {
-            let mut tasks = vec![app.show_success_toast("备份操作完成"), update(app, Event::Refresh)];
+            let mut tasks = vec![
+                app.show_message_toast(
+                    crate::app::state::ToastKind::Success,
+                    desktop_i18n::settings_extensions::feedback_message(&("备份操作完成")),
+                ),
+                update(app, Event::Refresh),
+            ];
             if restored {
                 tasks.push(super::refresh_workspace(app));
                 let refresh_inventory = desktop_settings_skills::update::install_view::invalidate_inventory(&mut app.skills_settings.install);

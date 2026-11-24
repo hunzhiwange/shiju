@@ -97,6 +97,7 @@ use iced::widget::{button, column, container, row, text};
 use iced::{Element, Length};
 
 pub fn view<'a, M: Clone + 'static>(
+    i18n: desktop_i18n::I18n,
     s: &'a State,
     _host: &str,
     base: Element<'a, M>,
@@ -106,50 +107,88 @@ pub fn view<'a, M: Clone + 'static>(
         return base;
     }
     if let Some(id) = &s.uninstall_skill {
-        return uninstall_view(s, id, base, message);
+        return uninstall_view(i18n, s, id, base, message);
     }
-    let mut body = column![
-        text("更新校验已检查的当前哈希。卸载将备份受管内容并保留外部路径。")
-    ]
-    .spacing(10)
-    .width(Length::Fill);
+    let mut body =
+        column![text(i18n.__("更新校验已检查的当前哈希。卸载将备份受管内容并保留外部路径。"))]
+            .spacing(10)
+            .width(Length::Fill);
     if let Some(outcome) = &s.outcome {
         body = body.push(text(outcome.clone()));
     }
     if let Some(backup) = &s.backup {
         body = body
-            .push(text(format!("备份：{}", backup.backup_id)))
-            .push(text(format!("备份路径：{}", backup.backup_path.display())));
+            .push(text(
+                desktop_i18n::__!(i18n, "备份：%s", (backup.backup_id).to_string())
+                    .expect("valid extension display template"),
+            ))
+            .push(text(
+                desktop_i18n::__!(i18n, "备份路径：%s", (backup.backup_path.display()).to_string())
+                    .expect("valid extension display template"),
+            ));
         for path in &backup.preserved_paths {
-            body = body.push(text(format!("保留外部路径：{}", path.display())));
+            body = body.push(text(
+                desktop_i18n::__!(i18n, "保留外部路径：%s", (path.display()).to_string())
+                    .expect("valid extension display template"),
+            ));
         }
     }
     if let Some(error) = &s.error {
-        body = body.push(settings_error_banner(error.clone()));
+        body = body.push(settings_error_banner(desktop_i18n::settings_extensions::feedback(
+            i18n,
+            &error.clone(),
+        )));
     }
     if s.busy {
-        body = body.push(text("正在操作或刷新，请等待…"));
+        body = body.push(text(i18n.__("正在操作或刷新，请等待…")));
     }
     if let Some(inventory) = &s.inventory {
-        body = body.push(text(format!("库存版本：{}", inventory.version)));
+        body = body.push(text(
+            desktop_i18n::__!(i18n, "库存版本：%s", (inventory.version).to_string())
+                .expect("valid extension display template"),
+        ));
         for skill in &inventory.skills {
             let mut card = column![
                 text(skill.name.clone()),
-                text(format!("可用版本：{}", skill.version.as_deref().unwrap_or("未提供"))),
-                text(format!("当前哈希：{}", skill.content_hash.as_deref().unwrap_or("未提供")))
+                text(
+                    desktop_i18n::__!(
+                        i18n,
+                        "可用版本：%s",
+                        (skill.version.as_deref().unwrap_or(i18n.__("未提供"))).to_string()
+                    )
+                    .expect("valid extension display template")
+                ),
+                text(
+                    desktop_i18n::__!(
+                        i18n,
+                        "当前哈希：%s",
+                        (skill.content_hash.as_deref().unwrap_or(i18n.__("未提供"))).to_string()
+                    )
+                    .expect("valid extension display template")
+                )
             ]
             .spacing(6);
             if let Some(info) =
                 s.updates.as_ref().and_then(|u| u.updates.iter().find(|u| u.directory == skill.id))
             {
-                card = card.push(text(format!("远端哈希：{}", info.remote_hash))).push(
-                    button("确认更新").padding([8, 10]).style(style::primary).on_press_maybe(
-                        (!s.busy).then(|| message(Event::Run(Operation::Update(skill.id.clone())))),
-                    ),
-                );
+                card = card
+                    .push(text(
+                        desktop_i18n::__!(i18n, "远端哈希：%s", (info.remote_hash).to_string())
+                            .expect("valid extension display template"),
+                    ))
+                    .push(
+                        button(i18n.__("确认更新"))
+                            .padding([8, 10])
+                            .style(style::primary)
+                            .on_press_maybe(
+                                (!s.busy).then(|| {
+                                    message(Event::Run(Operation::Update(skill.id.clone())))
+                                }),
+                            ),
+                    );
             }
             card = card.push(
-                button("确认卸载并备份")
+                button(i18n.__("确认卸载并备份"))
                     .padding([8, 10])
                     .style(rounded_action_btn_style)
                     .on_press_maybe(
@@ -162,30 +201,47 @@ pub fn view<'a, M: Clone + 'static>(
     }
     if let Some(updates) = &s.updates {
         for failure in &updates.failures {
-            body = body.push(text(format!(
-                "失败仓库：{}/{} ({})：{:?}",
-                failure.owner, failure.name, failure.branch, failure.error
-            )));
+            body = body.push(text(
+                desktop_i18n::__!(
+                    i18n,
+                    "失败仓库：%s/%s (%s)：%s",
+                    (failure.owner).to_string(),
+                    (failure.name).to_string(),
+                    (failure.branch).to_string(),
+                    (format!("{:?}", failure.error)).to_string()
+                )
+                .expect("valid extension display template"),
+            ));
         }
         for failure in &updates.skill_failures {
-            body = body
-                .push(text(format!("技能检查失败：{}：{:?}", failure.directory, failure.error)));
+            body = body.push(text(
+                desktop_i18n::__!(
+                    i18n,
+                    "技能检查失败：%s：%s",
+                    (failure.directory).to_string(),
+                    (format!("{:?}", failure.error)).to_string()
+                )
+                .expect("valid extension display template"),
+            ));
         }
         for id in &updates.without_repository {
-            body = body.push(text(format!("无仓库来源：{id}")));
+            body = body.push(text(
+                desktop_i18n::__!(i18n, "无仓库来源：%s", (id).to_string())
+                    .expect("valid extension display template"),
+            ));
         }
     }
     let close = message(Event::Close);
     let header = settings_modal_header(
-        text("技能更新与卸载").size(20),
+        text(i18n.__("技能更新与卸载")).size(20),
         settings_close_button(close.clone()),
     );
     let footer = row![
-        button("刷新状态")
+        button(i18n.__("刷新状态"))
             .padding([8, 10])
             .style(rounded_action_btn_style)
             .on_press_maybe((!s.busy).then(|| message(Event::Refresh))),
-        button("关闭")
+        button(i18n.__("关闭"))
             .padding([8, 10])
             .style(rounded_action_btn_style)
             .on_press_maybe((!s.busy).then_some(close.clone()))
@@ -199,6 +255,7 @@ pub fn view<'a, M: Clone + 'static>(
 }
 
 fn uninstall_view<'a, M: Clone + 'static>(
+    i18n: desktop_i18n::I18n,
     s: &'a State,
     id: &str,
     base: Element<'a, M>,
@@ -211,21 +268,36 @@ fn uninstall_view<'a, M: Clone + 'static>(
     if let Some(outcome) = &s.outcome {
         body = body.push(text(outcome).size(14));
     } else if let Some(skill) = skill {
-        body = body.push(text(format!("卸载「{}」？", skill.name)).size(16)).push(
-            text("卸载会先创建备份，之后可从备份恢复。").size(13).style(settings_muted_text_style),
-        );
+        body = body
+            .push(
+                text(
+                    desktop_i18n::__!(i18n, "卸载「%s」？", (skill.name).to_string())
+                        .expect("valid extension display template"),
+                )
+                .size(16),
+            )
+            .push(
+                text(i18n.__("卸载会先创建备份，之后可从备份恢复。"))
+                    .size(13)
+                    .style(settings_muted_text_style),
+            );
     } else if s.busy {
-        body = body.push(text("正在读取技能…").size(13));
+        body = body.push(text(i18n.__("正在读取技能…")).size(13));
     }
     if let Some(error) = &s.error {
-        body = body.push(settings_error_banner(error.clone()));
+        body = body.push(settings_error_banner(desktop_i18n::settings_extensions::feedback(
+            i18n,
+            &error.clone(),
+        )));
     }
     let close = message(Event::Close);
-    let header =
-        settings_modal_header(text("卸载 Skill").size(20), settings_close_button(close.clone()));
+    let header = settings_modal_header(
+        text(i18n.__("卸载 Skill")).size(20),
+        settings_close_button(close.clone()),
+    );
     let mut footer = row![
         iced::widget::Space::new().width(Length::Fill),
-        button(if s.outcome.is_some() { "关闭" } else { "取消" })
+        button(if s.outcome.is_some() { i18n.__("关闭") } else { i18n.__("取消") })
             .padding([8, 10])
             .style(rounded_action_btn_style)
             .on_press_maybe((!s.busy).then_some(close.clone())),
@@ -233,10 +305,13 @@ fn uninstall_view<'a, M: Clone + 'static>(
     .spacing(8);
     if s.outcome.is_none() {
         footer = footer.push(
-            button("卸载并备份").padding([8, 10]).style(danger_action_btn_style).on_press_maybe(
-                (!s.busy && skill.is_some())
-                    .then(|| message(Event::Run(Operation::Uninstall(id.to_owned())))),
-            ),
+            button(i18n.__("卸载并备份"))
+                .padding([8, 10])
+                .style(danger_action_btn_style)
+                .on_press_maybe(
+                    (!s.busy && skill.is_some())
+                        .then(|| message(Event::Run(Operation::Uninstall(id.to_owned())))),
+                ),
         );
     }
     let card = settings_modal_layout(header, body, Some(footer.into()))

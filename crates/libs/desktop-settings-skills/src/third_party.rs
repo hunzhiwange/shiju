@@ -237,12 +237,13 @@ pub fn update(state: &mut State, input: &Input, message: Message) -> Effect {
 }
 
 pub fn view<'a>(
+    i18n: desktop_i18n::I18n,
     state: &'a State,
     applications: &[&vw_api_app_identity::AppCatalogEntry],
     icon: fn(AppId, f32) -> Element<'static, Message>,
 ) -> Element<'a, Message> {
     let Some(scope) = state.scope.as_ref() else {
-        return container(text("请打开项目后重试"))
+        return container(text(i18n.__("请打开项目后重试")))
             .center_x(Length::Fill)
             .center_y(Length::Fill)
             .into();
@@ -263,13 +264,26 @@ pub fn view<'a>(
         .map(|(_, name)| name.clone())
         .collect();
     let label = match selected_names.as_slice() {
-        [] if s.busy => "安装到 · 正在读取".to_owned(),
-        [] if state.awaiting_target_snapshot() => "安装到 · 待读取".to_owned(),
-        [] => "安装到 · 主副本".to_owned(),
-        names if names.len() == options.len() => format!("安装到 · 全部（{}）", names.len()),
-        [name] => format!("安装到 · {name}"),
-        [first, second] => format!("安装到 · {first}、{second}"),
-        [name, others @ ..] => format!("安装到 · {name} +{}", others.len()),
+        [] if s.busy => i18n.__("安装到 · 正在读取").to_owned(),
+        [] if state.awaiting_target_snapshot() => i18n.__("安装到 · 待读取").to_owned(),
+        [] => i18n.__("安装到 · 主副本").to_owned(),
+        names if names.len() == options.len() => {
+            desktop_i18n::__!(i18n, "安装到 · 全部（%s）", (names.len()).to_string())
+                .expect("valid extension display template")
+        }
+        [name] => desktop_i18n::__!(i18n, "安装到 · %s", (name).to_string())
+            .expect("valid extension display template"),
+        [first, second] => {
+            desktop_i18n::__!(i18n, "安装到 · %s、%s", (first).to_string(), (second).to_string())
+                .expect("valid extension display template")
+        }
+        [name, others @ ..] => desktop_i18n::__!(
+            i18n,
+            "安装到 · %s +%s",
+            (name).to_string(),
+            (others.len()).to_string()
+        )
+        .expect("valid extension display template"),
     };
     let picker = || {
         let choose = |label, all, enabled: bool| {
@@ -284,10 +298,10 @@ pub fn view<'a>(
         };
         let mut panel = column![
             row![
-                text("在这些应用中启用技能").size(13).width(Length::Fill),
-                choose("全选", true, selected_names.len() < options.len()),
+                text(i18n.__("在这些应用中启用技能")).size(13).width(Length::Fill),
+                choose(i18n.__("全选"), true, selected_names.len() < options.len()),
                 choose(
-                    "仅主副本",
+                    i18n.__("仅主副本"),
                     false,
                     !selected_names.is_empty() || state.awaiting_target_snapshot()
                 ),
@@ -328,9 +342,13 @@ pub fn view<'a>(
         }
         if options.is_empty() {
             panel = panel.push(
-                text(if s.busy { "正在读取应用…" } else { "没有可选应用" })
-                    .size(12)
-                    .style(settings_muted_text_style),
+                text(if s.busy {
+                    i18n.__("正在读取应用…")
+                } else {
+                    i18n.__("没有可选应用")
+                })
+                .size(12)
+                .style(settings_muted_text_style),
             );
         } else {
             panel = panel.push(scrollable(choices).height(Length::Shrink).direction(
@@ -341,12 +359,17 @@ pub fn view<'a>(
 
         }
         if let Some(error) = &s.error {
-            panel = panel.push(settings_error_banner(error.clone())).push(
-                button(text("重试").size(13))
-                    .padding([6, 10])
-                    .style(rounded_action_btn_style)
-                    .on_press(send(bindings::Event::Refresh)),
-            );
+            panel = panel
+                .push(settings_error_banner(desktop_i18n::settings_extensions::feedback(
+                    i18n,
+                    &error.clone(),
+                )))
+                .push(
+                    button(text(i18n.__("重试")).size(13))
+                        .padding([6, 10])
+                        .style(rounded_action_btn_style)
+                        .on_press(send(bindings::Event::Refresh)),
+                );
         }
         panel
     };
@@ -359,7 +382,11 @@ pub fn view<'a>(
             .map_or(id.as_str(), |skill| skill.name.as_str());
         let mut panel = column![
             settings_modal_header(
-                text(format!("{skill_name} · 应用绑定")).size(15),
+                text(
+                    desktop_i18n::__!(i18n, "%s · 应用绑定", (skill_name).to_string())
+                        .expect("valid extension display template")
+                )
+                .size(15),
                 settings_close_button(send(bindings::Event::Close))
             ),
             picker(),
@@ -367,9 +394,9 @@ pub fn view<'a>(
         .spacing(6);
         let mut controls = row![].spacing(8);
         for (label, event) in [
-            ("启用所选", bindings::Event::Bind(true)),
-            ("停用所选", bindings::Event::Bind(false)),
-            ("重新同步", bindings::Event::Resync),
+            (i18n.__("启用所选"), bindings::Event::Bind(true)),
+            (i18n.__("停用所选"), bindings::Event::Bind(false)),
+            (i18n.__("重新同步"), bindings::Event::Resync),
         ] {
             controls = controls.push(
                 button(text(label).size(13))
@@ -386,5 +413,5 @@ pub fn view<'a>(
         }
         container(panel).padding(10).width(Length::Fill).style(settings_section_card_style).into()
     });
-    workspace::view(state, label, picker().into(), bindings, &options, icon)
+    workspace::view(i18n, state, label, picker().into(), bindings, &options, icon)
 }

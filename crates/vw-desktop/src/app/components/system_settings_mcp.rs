@@ -98,6 +98,7 @@ fn catalog_event(value: catalog::Message) -> Message {
     }
 }
 fn configuration_transfer_panel(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     use crate::app::message::settings::mcp::transfer::message;
     use desktop_settings_mcp::{configuration_transfer::Message as Event, toolbar_button};
     use desktop_ui_controls::system_settings_common::settings_muted_text_style;
@@ -108,16 +109,16 @@ fn configuration_transfer_panel(app: &App) -> Element<'_, Message> {
     let mut actions = row![].spacing(8);
     if cfg!(not(target_arch = "wasm32")) {
         actions = actions
-            .push(toolbar_button("导入配置文件", ready.then(|| message(Event::Import))))
-            .push(toolbar_button("导出 JSON 备份", ready.then(|| message(Event::Export))));
+            .push(toolbar_button(i18n.__("导入配置文件"), ready.then(|| message(Event::Import))))
+            .push(toolbar_button(i18n.__("导出 JSON 备份"), ready.then(|| message(Event::Export))));
     }
     actions = actions
-        .push(toolbar_button("粘贴配置 JSON", ready.then(|| message(Event::Paste))))
-        .push(toolbar_button("复制 AI 修改提示词", Some(message(Event::CopyPrompt))));
+        .push(toolbar_button(i18n.__("粘贴配置 JSON"), ready.then(|| message(Event::Paste))))
+        .push(toolbar_button(i18n.__("复制 AI 修改提示词"), Some(message(Event::CopyPrompt))));
     let mut panel = column![actions.wrap()].spacing(6);
     if cfg!(not(target_arch = "wasm32")) {
         panel = panel.push(
-            text("支持 Codex config.toml、Claude Code .mcp.json、Cursor mcp.json 和识矩全局 MCP 备份。导入后检查草稿并保存。备份包含编辑器中的全局服务器配置，可能含有凭据。")
+            text(i18n.__("支持 Codex config.toml、Claude Code .mcp.json、Cursor mcp.json 和识矩全局 MCP 备份。导入后检查草稿并保存。备份包含编辑器中的全局服务器配置，可能含有凭据。"))
                 .size(12)
                 .style(settings_muted_text_style),
         );
@@ -217,7 +218,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
 pub(crate) fn third_party_panel(app: &App) -> Element<'_, Message> {
     use crate::app::message::settings::mcp_management_list as list;
     iced::widget::column![
-        catalog::panel(list::visible(app), list::loading(app)).map(catalog_event),
+        catalog::panel(
+            desktop_i18n::I18n::new(app.general_settings.desktop_locale),
+            list::visible(app),
+            list::loading(app)
+        )
+        .map(catalog_event),
         resync::panel(app),
         crate::app::components::agent_apps_diagnostics::mcp_panel::view(app),
         tools::panel(app),

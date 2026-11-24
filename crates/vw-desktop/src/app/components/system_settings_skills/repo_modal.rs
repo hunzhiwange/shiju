@@ -17,6 +17,7 @@ pub(super) fn view<'a>(
         None
     };
     desktop_settings_skills::repo_modal::view_with_discovery(
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale),
         repos,
         base,
         crate::app::message::settings::skills::repo_modal::message,

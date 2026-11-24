@@ -19,6 +19,7 @@ pub struct Draft {
     pub error: Option<String>,
 }
 pub fn overlay<'a, M: Clone + 'static, C: Clone + 'a>(
+    i18n: desktop_i18n::I18n,
     state: &'a super::State<C>,
     base: Element<'a, M>,
     message: fn(super::Event) -> M,
@@ -29,34 +30,47 @@ pub fn overlay<'a, M: Clone + 'static, C: Clone + 'a>(
     };
     let close = message_event(ImportEvent::Cancel);
     let mut body = column![
-        text(format!(
-            "目标应用：{:?} · 项目：{}",
-            scope.app_id, scope.project_id.as_ref()
-        )),
-        text(format!("来源应用：{:?}", draft.payload.source_app)),
+        text(
+            desktop_i18n::__!(
+                i18n,
+                "目标应用：%s · 项目：%s",
+                (format!("{:?}", scope.app_id)).to_string(),
+                (scope.project_id.as_ref()).to_string()
+            )
+            .expect("valid extension display template")
+        ),
+        text(
+            desktop_i18n::__!(
+                i18n,
+                "来源应用：%s",
+                (format!("{:?}", draft.payload.source_app)).to_string()
+            )
+            .expect("valid extension display template")
+        ),
         text(&draft.payload.name).size(18),
-        text(draft.payload.description.as_deref().unwrap_or("无描述")),
-        text("正文预览"),
+        text(draft.payload.description.as_deref().unwrap_or(i18n.__("无描述"))),
+        text(i18n.__("正文预览")),
         text(&draft.payload.content),
     ]
     .spacing(12);
-    let mut toggle =
-        checkbox(draft.enable_after_import).label("导入后激活").style(settings_checkbox_style);
+    let mut toggle = checkbox(draft.enable_after_import)
+        .label(i18n.__("导入后激活"))
+        .style(settings_checkbox_style);
     if !state.mutating {
         toggle = toggle.on_toggle(move |value| message_event(ImportEvent::Enable(value)));
     }
     body = body.push(toggle).push(text(if draft.enable_after_import {
-        "确认后创建条目并尝试替换目标应用当前提示词；版本冲突时保留停用副本，不自动重试。Pi 需 /reload，Hermes 在新会话生效。"
-    } else { "确认后仅创建停用副本，不更改当前激活内容。取消不写入。" }));
+        i18n.__("确认后创建条目并尝试替换目标应用当前提示词；版本冲突时保留停用副本，不自动重试。Pi 需 /reload，Hermes 在新会话生效。")
+    } else { i18n.__("确认后仅创建停用副本，不更改当前激活内容。取消不写入。") }));
     if let Some(error) = &draft.error {
-        body = body.push(text(error));
+        body = body.push(text(desktop_i18n::settings_extensions::feedback(i18n, error)));
     }
     let footer = row![
-        button(text("取消"))
+        button(text(i18n.__("取消")))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press_maybe((!state.mutating).then_some(close.clone())),
-        button(text("确认导入"))
+        button(text(i18n.__("确认导入")))
             .padding([8, 12])
             .style(primary_action_btn_style)
             .on_press_maybe((!state.mutating).then(|| message_event(ImportEvent::Confirm)))
@@ -66,7 +80,10 @@ pub fn overlay<'a, M: Clone + 'static, C: Clone + 'a>(
         Some(base),
         close.clone(),
         settings_modal_layout(
-            settings_modal_header(text("确认分享提示词").size(20), settings_close_button(close)),
+            settings_modal_header(
+                text(i18n.__("确认分享提示词")).size(20),
+                settings_close_button(close),
+            ),
             body,
             Some(footer.into()),
         )

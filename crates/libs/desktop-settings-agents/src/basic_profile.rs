@@ -114,7 +114,9 @@ pub fn view<'a>(
                     );
                 }
                 if let Some(error) = input.acp_error {
-                    controls = controls.push(settings_error_banner(error.clone()));
+                    controls = controls.push(settings_error_banner(
+                        desktop_i18n::settings_extensions::feedback(I18n::new(input.locale), error),
+                    ));
                 }
                 controls = controls.push(
                     button(

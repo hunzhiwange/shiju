@@ -3,5 +3,10 @@ use crate::app::message::settings::mcp_management_import::{self as import, Impor
 use crate::app::{App, Message};
 use iced::Element;
 pub(crate) fn panel<'a>(app: &App, state: &'a ImportState) -> Element<'a, Message> {
-    desktop_settings_mcp::management_import::panel(state, import::targets(app)).map(import::message)
+    desktop_settings_mcp::management_import::panel(
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale),
+        state,
+        import::targets(app),
+    )
+    .map(import::message)
 }

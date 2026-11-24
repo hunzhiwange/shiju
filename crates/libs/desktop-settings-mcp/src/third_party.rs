@@ -87,7 +87,7 @@ pub struct View<'a, 'b> {
     pub authorized: bool,
 }
 
-pub fn view<'a>(input: View<'a, '_>) -> Element<'a, Message> {
+pub fn view<'a>(i18n: desktop_i18n::I18n, input: View<'a, '_>) -> Element<'a, Message> {
     let scope = input.scope;
     let message = |action| Message { scope: scope.clone(), action };
     let catalog = &input.state.catalog;
@@ -97,24 +97,27 @@ pub fn view<'a>(input: View<'a, '_>) -> Element<'a, Message> {
     let selected = bindings.map(|state| state.selected.as_slice()).unwrap_or(&[]);
     let running = input.state.bindings.running;
     let mut body = column![
-        text("第三方 MCP").size(20),
-        text("目录为共享连接定义；启用或禁用仅发布到下方指定安装实例。识矩运行时与 ACP 的选择独立管理。")
+        text(i18n.__("第三方 MCP")).size(20),
+        text(i18n.__("目录为共享连接定义；启用或禁用仅发布到下方指定安装实例。识矩运行时与 ACP 的选择独立管理。"))
             .size(12).style(settings_muted_text_style),
-        crate::toolbar_button("刷新目录", (!loading).then(|| message(Action::Refresh))),
+        crate::toolbar_button(i18n.__("刷新目录"), (!loading).then(|| message(Action::Refresh))),
     ].spacing(10).width(Length::Fill);
     let result = visible.then_some(catalog.result.as_ref()).flatten();
     let catalog = match result {
         Some(Ok(catalog)) => catalog,
         Some(Err(error)) => {
-            return settings_panel(body.push(settings_error_banner(error.clone()))).into();
+            return settings_panel(body.push(settings_error_banner(
+                desktop_i18n::settings_extensions::feedback(i18n, &error.clone()),
+            )))
+            .into();
         }
         None => {
             return settings_panel(
                 body.push(
                     text(if loading {
-                        "正在加载共享 MCP 目录"
+                        i18n.__("正在加载共享 MCP 目录")
                     } else {
-                        "请刷新共享 MCP 目录"
+                        i18n.__("请刷新共享 MCP 目录")
                     })
                     .style(settings_muted_text_style),
                 ),
@@ -122,19 +125,25 @@ pub fn view<'a>(input: View<'a, '_>) -> Element<'a, Message> {
             .into();
         }
     };
-    body = body.push(text("共享 MCP 目录").size(16));
+    body = body.push(text(i18n.__("共享 MCP 目录")).size(16));
     if catalog.records.is_empty() {
-        body = body.push(text("当前目录为空").style(settings_muted_text_style));
+        body = body.push(text(i18n.__("当前目录为空")).style(settings_muted_text_style));
     }
     for record in &catalog.records {
         let record = record.clone();
         let origin = scope.clone();
         body = body.push(
             checkbox(selected.contains(&record))
-                .label(format!(
-                    "{} · {:?} · 修订 {}",
-                    record.name, record.transport, record.record.revision
-                ))
+                .label(
+                    desktop_i18n::__!(
+                        i18n,
+                        "%s · %s · 修订 %s",
+                        (record.name).to_string(),
+                        (format!("{:?}", record.transport)).to_string(),
+                        (record.record.revision).to_string()
+                    )
+                    .expect("valid extension display template"),
+                )
                 .style(settings_checkbox_style)
                 .on_toggle_maybe((!running && !loading).then_some(move |value| Message {
                     scope: origin.clone(),
@@ -143,7 +152,8 @@ pub fn view<'a>(input: View<'a, '_>) -> Element<'a, Message> {
         );
     }
     if let Some(reason) = scope.app_id.and_then(crate::distribution::unsupported_reason) {
-        return settings_panel(body.push(text(reason).style(settings_muted_text_style))).into();
+        return settings_panel(body.push(text(i18n.__(reason)).style(settings_muted_text_style)))
+            .into();
     }
     let supported = scope.app_id.is_none_or(|id| crate::distribution::supported(catalog, selected, id));
     let enabled = !running
@@ -153,7 +163,8 @@ pub fn view<'a>(input: View<'a, '_>) -> Element<'a, Message> {
         && crate::distribution::project(selected).is_ok();
     if !selected.is_empty() && !supported {
         body = body.push(
-            text("所选连接的传输不受目标应用支持或能力尚未验证").style(settings_muted_text_style),
+            text(i18n.__("所选连接的传输不受目标应用支持或能力尚未验证"))
+                .style(settings_muted_text_style),
         );
     }
     let mut found = false;
@@ -170,17 +181,32 @@ pub fn view<'a>(input: View<'a, '_>) -> Element<'a, Message> {
         };
         body = body.push(
             row![
-                text(format!("{:?} · 安装实例：{}", installation.app_id, installation.id.0)).size(13),
+                text(
+                    desktop_i18n::__!(
+                        i18n,
+                        "%s · 安装实例：%s",
+                        (format!("{:?}", installation.app_id)).to_string(),
+                        (installation.id.0).to_string()
+                    )
+                    .expect("valid extension display template")
+                )
+                .size(13),
                 crate::toolbar_button(
-                    "启用并发布",
-                    (enabled && input.authorized && crate::distribution::supported(catalog, selected, installation.app_id)).then(|| message(Action::Bindings(BindingsMessage::Apply(
+                    i18n.__("启用并发布"),
+                    (enabled
+                        && input.authorized
+                        && crate::distribution::supported(catalog, selected, installation.app_id))
+                    .then(|| message(Action::Bindings(BindingsMessage::Apply(
                         target.clone(),
                         true
                     ))))
                 ),
                 crate::toolbar_button(
-                    "禁用并发布",
-                    (enabled && input.authorized && crate::distribution::supported(catalog, selected, installation.app_id)).then(|| message(Action::Bindings(BindingsMessage::Apply(
+                    i18n.__("禁用并发布"),
+                    (enabled
+                        && input.authorized
+                        && crate::distribution::supported(catalog, selected, installation.app_id))
+                    .then(|| message(Action::Bindings(BindingsMessage::Apply(
                         target.clone(),
                         false
                     ))))
@@ -191,34 +217,45 @@ pub fn view<'a>(input: View<'a, '_>) -> Element<'a, Message> {
         );
         for binding in catalog.bindings.iter().filter(|binding| binding.target == target) {
             body = body.push(
-                text(format!(
-                    "{} · 修订 {} · 期望{} · 原生 {:?}（上次观察）",
-                    binding.record.id.0,
-                    binding.record.revision,
-                    if binding.enabled { "启用" } else { "禁用" },
-                    binding.native_status
-                ))
+                text(
+                    desktop_i18n::__!(
+                        i18n,
+                        "%s · 修订 %s · 期望%s · 原生 %s（上次观察）",
+                        (binding.record.id.0).to_string(),
+                        (binding.record.revision).to_string(),
+                        (if binding.enabled { i18n.__("启用") } else { i18n.__("禁用") })
+                            .to_string(),
+                        (format!("{:?}", binding.native_status)).to_string()
+                    )
+                    .expect("valid extension display template"),
+                )
                 .size(12)
                 .style(settings_muted_text_style),
             );
         }
     }
     if !found {
-        body = body.push(
-            text("尚未发现可信的 macOS 安装实例；请在应用管理中刷新，其它平台尚不支持发布。")
+        body =
+            body.push(
+                text(i18n.__(
+                    "尚未发现可信的 macOS 安装实例；请在应用管理中刷新，其它平台尚不支持发布。",
+                ))
                 .size(12)
                 .style(settings_muted_text_style),
         );
     }
     if running {
-        body = body.push(text("正在等待发布结果...").style(settings_muted_text_style));
+        body = body.push(text(i18n.__("正在等待发布结果...")).style(settings_muted_text_style));
     }
     if let Some(Ok(result)) = bindings.and_then(|state| state.result.as_ref()) {
         for item in result.items.iter().filter(|item| scope.contains(&item.target)) {
-            body = body.push(text(crate::distribution::item_label(item)).size(12));
+            body = body.push(text(crate::distribution::item_label(i18n, item)).size(12));
         }
     } else if let Some(Err(error)) = bindings.and_then(|state| state.result.as_ref()) {
-        body = body.push(settings_error_banner(error.clone()));
+        body = body.push(settings_error_banner(desktop_i18n::settings_extensions::feedback(
+            i18n,
+            &error.clone(),
+        )));
     }
     settings_panel(body).into()
 }

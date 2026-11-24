@@ -126,7 +126,14 @@ pub fn view<'a, M: desktop_ui_controls::selectable_text::markdown_selection::Sel
             )
         }
         PluginInstallPhase::Failed(error) => {
-            body = body.push(settings_error_banner(desktop_i18n::I18n::new(locale).__(error)))
+            body = body.push(settings_error_banner(
+                form.failure_translation
+                    .as_ref()
+                    .map(|message| {
+                        message.render(I18n::new(locale)).expect("valid plugin validation template")
+                    })
+                    .unwrap_or_else(|| super::plugins::failure_feedback(locale, error)),
+            ))
         }
         _ => {}
     }

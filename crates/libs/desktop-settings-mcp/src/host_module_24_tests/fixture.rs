@@ -352,14 +352,26 @@ use iced::widget::column;
 }
 pub fn tool_card(f: &Fixture) -> Element<'_, McpMessage> {
     tools::visible(f)
-        .map(|s| crate::management_tools::card(s, catalog::visible(f)).map(McpMessage::Tools))
+        .map(|s| {
+            crate::management_tools::card(
+                desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+                s,
+                catalog::visible(f),
+            )
+            .map(McpMessage::Tools)
+        })
         .unwrap_or_else(|| column![].into())
 }
 pub fn import_card<'a>(
     f: &Fixture,
     state: &'a crate::management_import::ImportState,
 ) -> Element<'a, McpMessage> {
-    crate::management_import::panel(state, imports::targets(f)).map(McpMessage::Import)
+    crate::management_import::panel(
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        state,
+        imports::targets(f),
+    )
+    .map(McpMessage::Import)
 }
 pub fn diagnostic_panel(f: &Fixture) -> Element<'_, McpMessage> {
     use desktop_apps_ui::agent_apps_diagnostics::{mcp_panel, mcp_results};
@@ -393,10 +405,19 @@ pub fn diagnostic_panel(f: &Fixture) -> Element<'_, McpMessage> {
 }
 pub fn view(f: &Fixture) -> Element<'_, McpMessage> {
     column![
-        crate::catalog::panel(catalog::visible(f), catalog::loading(f))
-            .map(|_| McpMessage::Refresh),
-        crate::management_resync::panel(Some(&f.state.resync)).map(McpMessage::Resync),
+        crate::catalog::panel(
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            catalog::visible(f),
+            catalog::loading(f)
+        )
+        .map(|_| McpMessage::Refresh),
+        crate::management_resync::panel(
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            Some(&f.state.resync)
+        )
+        .map(McpMessage::Resync),
         crate::bindings::panel(
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             catalog::visible(f),
             Some(crate::bindings::BindingsView {
                 selected: &f.state.bindings.selected,
@@ -418,13 +439,18 @@ pub fn view(f: &Fixture) -> Element<'_, McpMessage> {
         )
         .map(|_| McpMessage::Refresh),
         diagnostic_panel(f),
-        crate::tools::panel(catalog::visible(f)).map(|_| McpMessage::Refresh),
+        crate::tools::panel(
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            catalog::visible(f)
+        )
+        .map(|_| McpMessage::Refresh),
     ]
     .into()
 }
 pub fn overlay<'a>(f: &'a Fixture, dialog: Element<'a, McpMessage>) -> Element<'a, McpMessage> {
     if f.state.resync.open {
         return crate::management_resync::overlay(
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &f.state.resync,
             &f.state.bindings.selected,
             imports::targets(f),

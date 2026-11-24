@@ -98,6 +98,7 @@ const OPTION_INDENT: u32 = 26;
 const HEADING: Font = Font { weight: iced::font::Weight::Semibold, ..Font::DEFAULT };
 
 pub fn view<'a, M: Clone + 'static>(
+    i18n: desktop_i18n::I18n,
     s: &'a State,
     base: Element<'a, M>,
     message: fn(Event) -> M,
@@ -120,10 +121,10 @@ pub fn view<'a, M: Clone + 'static>(
         let selected_agents = s
             .pending
             .map_or(current_agents, |location| matches!(location, SkillStorageLocation::Agents));
-        let mut locations = column![text("主副本位置").font(HEADING).size(15)].spacing(11);
+        let mut locations = column![text(i18n.__("主副本位置")).font(HEADING).size(15)].spacing(11);
         for (agents, location, label) in [
-            (false, SkillStorageLocation::Runtime, "ShiJu 运行时目录"),
-            (true, SkillStorageLocation::Agents, "通用目录"),
+            (false, SkillStorageLocation::Runtime, i18n.__("ShiJu 运行时目录")),
+            (true, SkillStorageLocation::Agents, i18n.__("通用目录")),
         ] {
             let mut option = column![
                 radio(label, agents, Some(selected_agents), move |_| message(Event::Select(
@@ -142,7 +143,7 @@ pub fn view<'a, M: Clone + 'static>(
                         .align_y(Alignment::Center);
                 if can_open_directory {
                     path = path.push(
-                        button(text("打开").size(12))
+                        button(text(i18n.__("打开")).size(12))
                             .padding([3, 5])
                             .style(|theme, status| settings_tab_style(theme, status, false))
                             .on_press_maybe((!s.busy).then(|| message(Event::OpenDirectory))),
@@ -154,9 +155,9 @@ pub fn view<'a, M: Clone + 'static>(
             if agents {
                 option = option.push(
                     container(
-                        text(
+                        text(i18n.__(
                             "部分应用会直接读取通用目录，单独停用 Skill 可能不会阻止这些应用读取。",
-                        )
+                        ))
                         .size(12)
                         .style(|theme: &iced::Theme| text::Style {
                             color: Some(theme.extended_palette().warning.strong.color),
@@ -168,20 +169,32 @@ pub fn view<'a, M: Clone + 'static>(
             locations = locations.push(option);
         }
         let move_hint = skill_count.map_or_else(
-            || "切换位置会移动现有 Skill。".to_owned(),
-            |count| format!("切换位置会移动 {count} 个 Skill。"),
+            || i18n.__("切换位置会移动现有 Skill。").to_owned(),
+            |count| {
+                desktop_i18n::__!(i18n, "切换位置会移动 %s 个 Skill。", (count).to_string())
+                    .expect("valid extension display template")
+            },
         );
         if s.confirm_move {
             locations = locations.push(
                 row![
-                    text(format!(
-                        "确认移动到{}？",
-                        if selected_agents { "通用目录" } else { "ShiJu 运行时目录" }
-                    ))
+                    text(
+                        desktop_i18n::__!(
+                            i18n,
+                            "确认移动到%s？",
+                            (if selected_agents {
+                                i18n.__("通用目录")
+                            } else {
+                                i18n.__("ShiJu 运行时目录")
+                            })
+                            .to_string()
+                        )
+                        .expect("valid extension display template")
+                    )
                     .size(13)
                     .width(Length::Fill),
-                    control("取消", Event::CancelMove, true),
-                    button(text("确认迁移").size(13))
+                    control(i18n.__("取消"), Event::CancelMove, true),
+                    button(text(i18n.__("确认迁移")).size(13))
                         .padding([8, 12])
                         .style(style::primary)
                         .on_press_maybe((!s.busy).then(|| message(Event::ConfirmMove))),
@@ -193,7 +206,7 @@ pub fn view<'a, M: Clone + 'static>(
             locations = locations.push(
                 row![
                     muted(move_hint).width(Length::Fill),
-                    control("移动并切换", Event::Move, selected_agents != current_agents),
+                    control(i18n.__("移动并切换"), Event::Move, selected_agents != current_agents),
                 ]
                 .spacing(12)
                 .align_y(Alignment::Center),
@@ -206,11 +219,16 @@ pub fn view<'a, M: Clone + 'static>(
             SkillBindingMode::Symlink => 1,
             SkillBindingMode::Copy => 2,
         };
-        let mut modes = column![text("同步到应用的方式").font(HEADING).size(15)].spacing(10);
+        let mut modes =
+            column![text(i18n.__("同步到应用的方式")).font(HEADING).size(15)].spacing(10);
         for (index, (mode, label, hint)) in [
-            (SkillBindingMode::Auto, "自动", "优先使用软链接，失败时复制"),
-            (SkillBindingMode::Symlink, "只用软链接", "Windows 可能需要开启开发者模式"),
-            (SkillBindingMode::Copy, "只用复制", "占用更多空间，更新时重新复制"),
+            (SkillBindingMode::Auto, i18n.__("自动"), i18n.__("优先使用软链接，失败时复制")),
+            (
+                SkillBindingMode::Symlink,
+                i18n.__("只用软链接"),
+                i18n.__("Windows 可能需要开启开发者模式"),
+            ),
+            (SkillBindingMode::Copy, i18n.__("只用复制"), i18n.__("占用更多空间，更新时重新复制")),
         ]
         .into_iter()
         .enumerate()
@@ -231,14 +249,14 @@ pub fn view<'a, M: Clone + 'static>(
         }
         modes = modes.push(
             row![
-                text("新方式用于之后启用或更新的 Skill。已启用的 Skill 可立即重新同步。")
+                text(i18n.__("新方式用于之后启用或更新的 Skill。已启用的 Skill 可立即重新同步。"))
                     .size(12)
                     .style(settings_muted_text_style)
                     .width(Length::Fill),
                 button(
                     row![
                         icon_svg(Icon::ArrowClockwise, 14.0).style(icon_btn_svg_style),
-                        text("立即重新同步").size(13),
+                        text(i18n.__("立即重新同步")).size(13),
                     ]
                     .spacing(6)
                     .align_y(Alignment::Center)
@@ -252,30 +270,38 @@ pub fn view<'a, M: Clone + 'static>(
         );
         body = body.push(modes);
     } else if s.busy {
-        body = body.push(text("正在读取存储设置…").size(13).style(settings_muted_text_style));
+        body =
+            body.push(text(i18n.__("正在读取存储设置…")).size(13).style(settings_muted_text_style));
     }
     if let Some(error) = &s.error {
-        body = body.push(settings_error_banner(error.clone()));
+        body = body.push(settings_error_banner(desktop_i18n::settings_extensions::feedback(
+            i18n,
+            &error.clone(),
+        )));
     }
     if !s.results.is_empty() {
-        let mut feedback = column![text("操作结果").size(14).font(HEADING)].spacing(5);
+        let mut feedback = column![text(i18n.__("操作结果")).size(14).font(HEADING)].spacing(5);
         for result in &s.results {
-            feedback = feedback.push(text(result).size(12).style(settings_muted_text_style));
+            feedback = feedback.push(
+                text(desktop_i18n::settings_extensions::feedback(i18n, result))
+                    .size(12)
+                    .style(settings_muted_text_style),
+            );
         }
         body = body.push(settings_divider()).push(feedback);
     }
     if s.busy && s.current.is_some() {
-        body = body.push(text("正在处理…").size(12).style(settings_muted_text_style));
+        body = body.push(text(i18n.__("正在处理…")).size(12).style(settings_muted_text_style));
     }
     let close = message(Event::Close);
-    let header = container(text("存储与同步").size(20).font(HEADING)).padding([0, 7]);
+    let header = container(text(i18n.__("存储与同步")).size(20).font(HEADING)).padding([0, 7]);
     let mut footer = row![Space::new().width(Length::Fill)].spacing(8).align_y(Alignment::Center);
     if s.error.is_some() {
-        footer = footer.push(control("刷新状态", Event::Refresh, true));
+        footer = footer.push(control(i18n.__("刷新状态"), Event::Refresh, true));
     }
     let footer = container(
         footer.push(
-            button(text("完成").size(13))
+            button(text(i18n.__("完成")).size(13))
                 .padding([8, 16])
                 .style(style::primary)
                 .on_press_maybe((!s.busy).then_some(close.clone())),

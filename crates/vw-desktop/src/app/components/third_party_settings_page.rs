@@ -22,23 +22,26 @@ use vw_api_app_identity::AppId;
 pub(super) fn view(app: &App, tab: Tab) -> Element<'_, Message> {
     let i18n = I18n::new(app.general_settings.desktop_locale);
     let tabs = settings_tab_row(
-        [(Tab::Applications, "应用配置"), (Tab::Routing, "本地路由"), (Tab::Data, "数据")].map(
-            |(target, label)| {
-                settings_tab_button(
-                    i18n.__(label),
-                    tab == target,
-                    (tab != target).then_some(super::message(AppsCatalogMessage::Navigate(
-                        ThirdPartyPage::Settings(target),
-                    ))),
-                )
-                .into()
-            },
-        ),
+        [
+            (Tab::Applications, i18n.__("应用配置")),
+            (Tab::Routing, i18n.__("本地路由")),
+            (Tab::Data, i18n.__("数据")),
+        ]
+        .map(|(target, label)| {
+            settings_tab_button(
+                i18n.__(label),
+                tab == target,
+                (tab != target).then_some(super::message(AppsCatalogMessage::Navigate(
+                    ThirdPartyPage::Settings(target),
+                ))),
+            )
+            .into()
+        }),
     );
     let (icon, title) = match tab {
-        Tab::Routing => (Icon::Bezier, "本地路由"),
-        Tab::Data => (Icon::HddNetwork, "数据"),
-        Tab::Applications => (Icon::Sliders, "设置"),
+        Tab::Routing => (Icon::Bezier, i18n.__("本地路由")),
+        Tab::Data => (Icon::HddNetwork, i18n.__("数据")),
+        Tab::Applications => (Icon::Sliders, i18n.__("设置")),
     };
     let heading = row![
         container(desktop_ui_controls::icons::icon_svg(icon, 18.0))
@@ -83,10 +86,11 @@ pub(super) fn view(app: &App, tab: Tab) -> Element<'_, Message> {
 }
 
 fn applications(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let state = &app.apps_catalog;
     let apps = column![settings_group_heading(
-        "应用配置",
-        "管理供应商与应用设置。已探测的配置目录会显示在对应应用下。",
+        i18n.__("应用配置"),
+        i18n.__("管理供应商与应用设置。已探测的配置目录会显示在对应应用下。"),
     )]
     .spacing(12);
     let can_reveal = cfg!(not(target_arch = "wasm32"))
@@ -101,9 +105,9 @@ fn applications(app: &App) -> Element<'_, Message> {
         return apps
             .push(settings_panel(
                 text(if state.loading {
-                    "正在读取应用目录…"
+                    i18n.__("正在读取应用目录…")
                 } else {
-                    "请在「应用」中刷新目录。"
+                    i18n.__("请在「应用」中刷新目录。")
                 })
                 .size(13)
                 .style(settings_muted_text_style),
@@ -118,7 +122,7 @@ fn applications(app: &App) -> Element<'_, Message> {
         }
         let id = app.entry.id;
         let heading = app_heading(id, &app.entry.name);
-        let providers = button(text("供应商").size(SETTINGS_CONTROL_TEXT_SIZE))
+        let providers = button(text(i18n.__("供应商")).size(SETTINGS_CONTROL_TEXT_SIZE))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press_maybe((!state.loading).then(|| {
@@ -139,7 +143,7 @@ fn applications(app: &App) -> Element<'_, Message> {
             if let Some(desktop) = &observation.desktop
                 && !desktop.config_directories.is_empty()
             {
-                entry = entry.push(text("配置目录").size(13));
+                entry = entry.push(text(i18n.__("配置目录")).size(13));
                 for path in &desktop.config_directories {
                     let mut location = row![
                         text(path.as_str())
@@ -153,7 +157,7 @@ fn applications(app: &App) -> Element<'_, Message> {
                     if can_reveal {
                         location = location.push(icon_btn(
                             Icon::FolderOpen,
-                            "定位目录",
+                            i18n.__("定位目录"),
                             Some(Message::View(ViewMessage::OpenPathInFinder(path.clone()))),
                         ));
                     }
@@ -177,45 +181,53 @@ fn app_heading(id: AppId, name: &str) -> Element<'_, Message> {
 }
 
 fn routing(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let catalog = &app.apps_catalog;
     column![
-        column![text("服务").size(18), app_routing::lifecycle::inline_service(catalog)].spacing(12),
+        column![text(i18n.__("服务")).size(18), app_routing::lifecycle::inline_service(catalog)]
+            .spacing(12),
         routing_apps(app),
         failover(app),
-        request_rectification(),
+        request_rectification(i18n),
     ]
     .spacing(28)
     .width(Length::Fill)
     .into()
 }
 
-fn request_rectification() -> Element<'static, Message> {
+fn request_rectification(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
     let info = column![
-        text("匹配到以下上游错误时，路由可修复请求并向同一供应商重试一次。")
+        text(i18n.__("匹配到以下上游错误时，路由可修复请求并向同一供应商重试一次。"))
             .size(13)
             .style(settings_muted_text_style),
         settings_divider(),
-        settings_field_label("Thinking 签名整流"),
-        text("移除不兼容的 Thinking 内容。").size(13).style(settings_muted_text_style),
+        settings_field_label(i18n.__("Thinking 签名整流")),
+        text(i18n.__("移除不兼容的 Thinking 内容。")).size(13).style(settings_muted_text_style),
         settings_divider(),
-        settings_field_label("Thinking 预算整流"),
-        text("修复预算和输出长度约束。").size(13).style(settings_muted_text_style),
+        settings_field_label(i18n.__("Thinking 预算整流")),
+        text(i18n.__("修复预算和输出长度约束。")).size(13).style(settings_muted_text_style),
         settings_divider(),
-        settings_field_label("图片输入降级"),
-        text("用占位文本替换供应商无法接收的图片。").size(13).style(settings_muted_text_style),
+        settings_field_label(i18n.__("图片输入降级")),
+        text(i18n.__("用占位文本替换供应商无法接收的图片。"))
+            .size(13)
+            .style(settings_muted_text_style),
     ]
     .spacing(9);
-    column![text("请求整流").size(18), settings_group_card(info).padding([16, 22])]
+    column![text(i18n.__("请求整流")).size(18), settings_group_card(info).padding([16, 22])]
         .spacing(12)
         .into()
 }
 
 fn routing_apps(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let catalog = &app.apps_catalog;
     let observed = app_routing::lifecycle::attached_apps(catalog);
     let heading = match observed {
-        Some((apps, true)) => format!("正在使用路由的应用 · {}", apps.len()),
-        _ => "正在使用路由的应用".into(),
+        Some((apps, true)) => {
+            desktop_i18n::__!(i18n, "正在使用路由的应用 · %s", (apps.len()).to_string())
+                .expect("valid extension display template")
+        }
+        _ => i18n.__("正在使用路由的应用").into(),
     };
     let mut list = column![].spacing(10);
     if let Some((apps, _)) = observed {
@@ -235,13 +247,15 @@ fn routing_apps(app: &App) -> Element<'_, Message> {
         }
     }
     let note = match observed {
-        Some(([], true)) => Some("当前项目没有应用接入。可在应用页的「路由」或「聚合」中接入。"),
-        Some((_, false)) => Some("部分应用的接入状态暂不可读。刷新服务后可重试。"),
-        None if catalog.loading => Some("正在读取应用目录…"),
-        None if !catalog.host.is_empty() => {
-            Some("等待当前项目的接入状态。可通过刷新服务重新读取。")
+        Some(([], true)) => {
+            Some(i18n.__("当前项目没有应用接入。可在应用页的「路由」或「聚合」中接入。"))
         }
-        None => Some("连接执行主机后显示当前项目的接入应用。"),
+        Some((_, false)) => Some(i18n.__("部分应用的接入状态暂不可读。刷新服务后可重试。")),
+        None if catalog.loading => Some(i18n.__("正在读取应用目录…")),
+        None if !catalog.host.is_empty() => {
+            Some(i18n.__("等待当前项目的接入状态。可通过刷新服务重新读取。"))
+        }
+        None => Some(i18n.__("连接执行主机后显示当前项目的接入应用。")),
         _ => None,
     };
     if let Some(note) = note {
@@ -251,6 +265,7 @@ fn routing_apps(app: &App) -> Element<'_, Message> {
 }
 
 fn failover(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     use crate::app::message::agent_apps_high_availability_policy::{self as policy, Event};
 
     let catalog = &app.apps_catalog;
@@ -274,7 +289,7 @@ fn failover(app: &App) -> Element<'_, Message> {
         content = content.push(agent_apps_high_availability_policy::inline(state));
     } else if !available {
         content = content.push(
-            text("路由管理可用后，可按应用调整故障转移策略。")
+            text(i18n.__("路由管理可用后，可按应用调整故障转移策略。"))
                 .size(13)
                 .style(settings_muted_text_style),
         );
@@ -290,7 +305,7 @@ fn failover(app: &App) -> Element<'_, Message> {
             .wrap(),
         );
     }
-    column![text("自动故障转移").size(18), settings_group_card(content).padding([18, 22]),]
+    column![text(i18n.__("自动故障转移")).size(18), settings_group_card(content).padding([18, 22]),]
         .spacing(12)
         .into()
 }
@@ -306,8 +321,9 @@ fn routing_app_name(id: AppId) -> &'static str {
 }
 
 fn data_settings(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     column![
-        text("备份与恢复").size(18),
+        text(i18n.__("备份与恢复")).size(18),
         settings_group_card(
             column![
                 data::backup_list_ui::view(app),

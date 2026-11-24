@@ -26,7 +26,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
     match effect {
         Effect::None => Task::none(),
-        Effect::Error(error) => app.show_error_toast(error),
+        Effect::Error(error) => app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::settings_extensions::feedback_message(&error)),
         Effect::Refresh => Task::batch([super::refresh_workspace(app), super::refresh_task(app.navigation_tabs.project_path.clone())]),
         Effect::Request { generation, project, host, apps, targets, selected } => {
             let token = app.apps_catalog.token.clone();

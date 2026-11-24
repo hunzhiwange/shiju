@@ -8,6 +8,7 @@ use iced::{
 use vw_api_app_skills::claude_api::*;
 
 pub fn view<'a, M: Clone + 'static>(
+    i18n: desktop_i18n::I18n,
     s: ViewState<'a>,
     base: Element<'a, M>,
     message: fn(Event) -> M,
@@ -16,16 +17,22 @@ pub fn view<'a, M: Clone + 'static>(
         return base;
     }
     let (status, marker_hint) = match s.status {
-        None => ("尚未读取", "刷新后可查看受管标记的状态。"),
-        Some(ClaudeConfigStatus::Missing) => ("无配置文件", "启用时将写入受管标记。"),
-        Some(ClaudeConfigStatus::Invalid) => ("配置无效", "修复 Claude 配置文件后刷新。"),
+        None => (i18n.__("尚未读取"), i18n.__("刷新后可查看受管标记的状态。")),
+        Some(ClaudeConfigStatus::Missing) => {
+            (i18n.__("无配置文件"), i18n.__("启用时将写入受管标记。"))
+        }
+        Some(ClaudeConfigStatus::Invalid) => {
+            (i18n.__("配置无效"), i18n.__("修复 Claude 配置文件后刷新。"))
+        }
         Some(ClaudeConfigStatus::Valid { managed: true, .. }) => {
-            ("已启用", "Claude 插件的安装和启用状态单独管理。")
+            (i18n.__("已启用"), i18n.__("Claude 插件的安装和启用状态单独管理。"))
         }
         Some(ClaudeConfigStatus::Valid { primary_api_key_present: true, .. }) => {
-            ("存在外部凭据", "请先在原配置来源处理凭据冲突，再刷新。")
+            (i18n.__("存在外部凭据"), i18n.__("请先在原配置来源处理凭据冲突，再刷新。"))
         }
-        Some(ClaudeConfigStatus::Valid { .. }) => ("未启用", "此标记用于识别受管配置。"),
+        Some(ClaudeConfigStatus::Valid { .. }) => {
+            (i18n.__("未启用"), i18n.__("此标记用于识别受管配置。"))
+        }
     };
     let editable = !s.busy
         && matches!(
@@ -63,22 +70,27 @@ pub fn view<'a, M: Clone + 'static>(
     };
     let mut body = column![].spacing(12);
     if let Some(error) = s.error {
-        body = body.push(settings_error_banner(error.clone()));
+        body = body.push(settings_error_banner(desktop_i18n::settings_extensions::feedback(
+            i18n,
+            &error.clone(),
+        )));
     }
     if let Some(notice) = s.notice {
-        body = body.push(settings_success_banner(notice.as_str()));
+        body = body.push(settings_success_banner(desktop_i18n::settings_extensions::feedback(
+            i18n, notice,
+        )));
     }
     body = body
         .push(section(
             column![
-                row![settings_field_label("受管标记"), status]
+                row![settings_field_label(i18n.__("受管标记")), status]
                     .spacing(10)
                     .align_y(Alignment::Center)
                     .wrap(),
                 text(marker_hint).size(13).style(settings_muted_text_style),
                 row![
-                    control("启用受管标记", Event::Marker(ClaudeConfigAction::Enable)),
-                    control("清除受管标记", Event::Marker(ClaudeConfigAction::Disable)),
+                    control(i18n.__("启用受管标记"), Event::Marker(ClaudeConfigAction::Enable)),
+                    control(i18n.__("清除受管标记"), Event::Marker(ClaudeConfigAction::Disable)),
                 ]
                 .spacing(8)
                 .wrap(),
@@ -87,13 +99,16 @@ pub fn view<'a, M: Clone + 'static>(
         ))
         .push(section(
             column![
-                settings_field_label("首次启动确认"),
-                text("选择 Claude 首次启动时是否显示确认。此处暂无法查看当前设置。")
+                settings_field_label(i18n.__("首次启动确认")),
+                text(i18n.__("选择 Claude 首次启动时是否显示确认。此处暂无法查看当前设置。"))
                     .size(13)
                     .style(settings_muted_text_style),
                 row![
-                    control("跳过首次确认", Event::Onboarding(ClaudeConfigAction::Enable)),
-                    control("恢复首次确认", Event::Onboarding(ClaudeConfigAction::Disable)),
+                    control(i18n.__("跳过首次确认"), Event::Onboarding(ClaudeConfigAction::Enable)),
+                    control(
+                        i18n.__("恢复首次确认"),
+                        Event::Onboarding(ClaudeConfigAction::Disable)
+                    ),
                 ]
                 .spacing(8)
                 .wrap(),
@@ -107,18 +122,18 @@ pub fn view<'a, M: Clone + 'static>(
                 .center_x(40)
                 .center_y(40)
                 .style(settings_icon_tile_style),
-            text("Claude 配置").size(22),
+            text(i18n.__("Claude 配置")).size(22),
         ]
         .spacing(12)
         .align_y(Alignment::Center),
         settings_close_button(close.clone()),
     );
     let actions = row![
-        button(text("刷新状态").size(13))
+        button(text(i18n.__("刷新状态")).size(13))
             .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press_maybe((!s.busy).then_some(message(Event::Refresh))),
-        button(text("关闭").size(13))
+        button(text(i18n.__("关闭")).size(13))
             .padding([8, 14])
             .style(primary_action_btn_style)
             .on_press_maybe((!s.busy).then_some(close.clone())),
@@ -126,7 +141,8 @@ pub fn view<'a, M: Clone + 'static>(
     .spacing(8);
     let mut footer = row![].align_y(Alignment::Center).spacing(8);
     if s.busy {
-        footer = footer.push(text("正在同步配置…").size(13).style(settings_muted_text_style));
+        footer =
+            footer.push(text(i18n.__("正在同步配置…")).size(13).style(settings_muted_text_style));
     }
     let footer = footer.push(container(actions).align_right(Length::Fill));
     let card = settings_modal_layout(

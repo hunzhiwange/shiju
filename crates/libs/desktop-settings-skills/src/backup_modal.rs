@@ -7,6 +7,7 @@ use iced::{
 };
 
 pub fn view<'a, M: Clone + 'static>(
+    i18n: desktop_i18n::I18n,
     s: ViewState<'a>,
     base: Element<'a, M>,
     message: fn(Event) -> M,
@@ -22,16 +23,15 @@ pub fn view<'a, M: Clone + 'static>(
             .on_press_maybe((!s.busy).then_some(message(event)))
     };
     let has_backups = !s.backups.is_empty();
-    let mut body = column![
-        text("选择要恢复的技能备份。").size(13).style(settings_muted_text_style)
-    ]
-    .spacing(12)
-    .width(Length::Fill);
+    let mut body =
+        column![text(i18n.__("选择要恢复的技能备份。")).size(13).style(settings_muted_text_style)]
+            .spacing(12)
+            .width(Length::Fill);
     for backup in s.backups {
         let selected = s.selected.as_ref() == Some(&backup.backup_id);
         let entry = row![
             text(backup.name.clone()).size(14).width(Length::Fill),
-            text((s.format_date)(backup.created_at)).size(12).style(settings_muted_text_style),
+            text(i18n.__(&(s.format_date)(backup.created_at)).to_owned()).size(12).style(settings_muted_text_style),
         ]
         .spacing(8)
         .align_y(iced::Alignment::Center);
@@ -49,13 +49,13 @@ pub fn view<'a, M: Clone + 'static>(
         body = body.push(
             container(
                 text(if s.busy {
-                    "正在读取备份…"
+                    i18n.__("正在读取备份…")
                 } else if s.error.is_some() {
-                    "备份读取失败，请刷新"
+                    i18n.__("备份读取失败，请刷新")
                 } else if s.version.is_some() {
-                    "暂无可恢复的技能备份"
+                    i18n.__("暂无可恢复的技能备份")
                 } else {
-                    "尚未读取备份"
+                    i18n.__("尚未读取备份")
                 })
                 .size(14)
                 .style(settings_muted_text_style),
@@ -67,20 +67,29 @@ pub fn view<'a, M: Clone + 'static>(
     if let Some(id) = s.delete_pending {
         if let Some(backup) = s.backups.iter().find(|b| &b.backup_id == id) {
             body = body
-                .push(text(format!("确认永久删除备份「{}」？此操作不可撤销。", backup.name)))
+                .push(text(
+                    desktop_i18n::__!(
+                        i18n,
+                        "确认永久删除备份「%s」？此操作不可撤销。",
+                        (backup.name).to_string()
+                    )
+                    .expect("valid extension display template"),
+                ))
                 .push(
                     row![
-                        control("确认删除".into(), Event::ConfirmDelete),
-                        control("取消删除".into(), Event::CancelDelete)
+                        control(i18n.__("确认删除").into(), Event::ConfirmDelete),
+                        control(i18n.__("取消删除").into(), Event::CancelDelete)
                     ]
                     .spacing(8),
                 );
         }
     }
     if s.selected.is_some() {
-        body = body.push(settings_field_label("恢复后启用的应用"));
+        body = body.push(settings_field_label(i18n.__("恢复后启用的应用")));
         if s.available.is_empty() {
-            body = body.push(text("只恢复技能主副本。").size(12).style(settings_muted_text_style));
+            body = body.push(
+                text(i18n.__("只恢复技能主副本。")).size(12).style(settings_muted_text_style),
+            );
         }
         for target in s.available {
             let target = target.clone();
@@ -97,29 +106,37 @@ pub fn view<'a, M: Clone + 'static>(
         }
     }
     if let Some(error) = s.error {
-        body = body.push(settings_error_banner(error.clone()));
+        body = body.push(settings_error_banner(desktop_i18n::settings_extensions::feedback(
+            i18n,
+            &error.clone(),
+        )));
     }
     if s.busy {
-        body = body.push(text("正在处理…"));
+        body = body.push(text(i18n.__("正在处理…")));
     }
     let close = message(Event::Close);
-    let header =
-        settings_modal_header(text("从备份中恢复").size(20), settings_close_button(close.clone()));
+    let header = settings_modal_header(
+        text(i18n.__("从备份中恢复")).size(20),
+        settings_close_button(close.clone()),
+    );
     let mut footer = row![Space::new().width(Length::Fill)].spacing(8);
     if s.error.is_some() {
-        footer = footer.push(control("刷新".into(), Event::Refresh));
+        footer = footer.push(control(i18n.__("刷新").into(), Event::Refresh));
     }
     if has_backups {
         footer = footer.push(
-            button("删除所选").padding([8, 10]).style(rounded_action_btn_style).on_press_maybe(
-                (!s.busy && s.selected.is_some()).then_some(message(Event::Delete)),
-            ),
+            button(i18n.__("删除所选"))
+                .padding([8, 10])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(
+                    (!s.busy && s.selected.is_some()).then_some(message(Event::Delete)),
+                ),
         );
     }
-    footer = footer.push(control("关闭".into(), Event::Close));
+    footer = footer.push(control(i18n.__("关闭").into(), Event::Close));
     if has_backups {
         footer = footer.push(
-            button("恢复").padding([8, 10]).style(style::primary).on_press_maybe(
+            button(i18n.__("恢复")).padding([8, 10]).style(style::primary).on_press_maybe(
                 (!s.busy && s.selected.is_some() && s.version.is_some())
                     .then_some(message(Event::Restore)),
             ),

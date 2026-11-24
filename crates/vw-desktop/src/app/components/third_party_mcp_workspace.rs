@@ -57,6 +57,7 @@ pub(crate) fn refresh(app: &mut App) -> Task<Message> {
     )
 }
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     let Some(scope) = app
         .apps_catalog
         .third_party_mcp_scope
@@ -66,11 +67,13 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         return container(
             column![
                 text("MCP").size(23),
-                text("连接网关后刷新 MCP 目录").style(settings_muted_text_style),
+                text(i18n.__("连接网关后刷新 MCP 目录")).style(settings_muted_text_style),
                 icon_btn(
                     Icon::ArrowClockwise,
-                    "刷新目录",
-                    Some(Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::Refresh)))
+                    i18n.__("刷新目录"),
+                    Some(Message::Settings(SettingsMessage::AppsCatalog(
+                        AppsCatalogMessage::Refresh
+                    )))
                 ),
             ]
             .spacing(12),
@@ -82,7 +85,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     if let Some(draft) =
         app.mcp_settings.connection_form.as_ref().filter(|draft| draft.context == scope.context)
     {
-        return container(super::super::system_settings_mcp::connection_form_panel(draft))
+        return container(super::super::system_settings_mcp::connection_form_panel(i18n, draft))
             .padding([0, 7])
             .width(Length::Fill)
             .height(Length::Fill)
@@ -112,7 +115,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         menu.scope.as_ref() == Some(scope) && catalog.is_some_and(|c| c.records == menu.records);
     let more = icon_btn(
         Icon::DotsThreeVertical,
-        "更多 MCP 操作",
+        i18n.__("更多 MCP 操作"),
         Some(message(
             scope.clone(),
             Action::Menu(actions::MenuMessage::Action(actions::Message::More)),
@@ -122,7 +125,8 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         BelowOverlay::new(
             more,
             container(
-                actions::menu(menu).map(move |event| message(scope.clone(), Action::Menu(event))),
+                actions::menu(i18n, menu)
+                    .map(move |event| message(scope.clone(), Action::Menu(event))),
             )
             .padding(7)
             .width(288)
@@ -142,7 +146,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let toolbar_actions = row![
         toolbar_button(
             Icon::CheckSquare,
-            "检查连通性",
+            i18n.__("检查连通性"),
             (!ids.is_empty() && !diagnostics.active() && current.is_some()).then(|| {
                 crate::app::message::agent_apps_diagnostics::message(actions::ProbeMessage::Start(
                     ids,
@@ -152,7 +156,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         ),
         toolbar_button(
             Icon::ArrowDown,
-            "从应用导入",
+            i18n.__("从应用导入"),
             Some(settings::mcp_management_import::message(
                 settings::mcp_management_import::ImportMessage::Open
             )),
@@ -160,7 +164,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         ),
         toolbar_button(
             Icon::Plus,
-            "添加 MCP",
+            i18n.__("添加 MCP"),
             Some(settings::mcp_management_form::message(
                 settings::mcp_management_form::FormMessage::Open(None)
             )),
@@ -168,7 +172,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         ),
         icon_btn(
             Icon::ArrowClockwise,
-            "刷新目录",
+            i18n.__("刷新目录"),
             Some(Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::Refresh)))
         ),
         more,
@@ -187,6 +191,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     .align_y(Alignment::Center)
     .width(Length::Fill);
     let matrix = matrix::panel(
+        i18n,
         settings::mcp_management_list::visible(app),
         &app.mcp_settings.bindings.matrix,
         &targets,
@@ -334,11 +339,14 @@ pub(crate) fn overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<
             .and_then(|c| c.as_ref().ok())
             .is_some_and(|c| c.records == state.records);
     let base = if current && (state.delete.is_some() || state.export.is_some()) {
-        let overlay =
-            actions::overlay(state, Space::new().width(Length::Fill).height(Length::Fill).into())
-                .map(move |event| {
-                    message(scope.clone(), Action::Menu(actions::MenuMessage::Action(event)))
-                });
+        let overlay = actions::overlay(
+            desktop_i18n::I18n::new(app.general_settings.desktop_locale),
+            state,
+            Space::new().width(Length::Fill).height(Length::Fill).into(),
+        )
+        .map(move |event| {
+            message(scope.clone(), Action::Menu(actions::MenuMessage::Action(event)))
+        });
         stack![base, overlay].into()
     } else {
         base

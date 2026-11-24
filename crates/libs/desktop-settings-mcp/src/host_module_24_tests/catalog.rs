@@ -58,7 +58,11 @@ async fn cc_mcp_t44_chinese_catalog_shapes_and_draws_in_both_themes() {
         for (result, loading) in
             [(None, true), (Some(&empty), false), (Some(&error), false), (Some(&populated), false)]
         {
-            let element = crate::catalog::content(result, loading);
+            let element = crate::catalog::content(
+                desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+                result,
+                loading,
+            );
             let mut ui =
                 UserInterface::build(element, Size::new(800., 700.), Cache::new(), &mut renderer);
             ui.draw(

@@ -13,29 +13,51 @@ pub(super) fn map_effect(effect: Effect) -> Message {
  }
 }
 pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
- let SettingsMessage::Channels(message) = message else { return Task::none(); };
- if let ChannelsMessage::Effect(effect) = message {
-  return match *effect {
-   Effect::Channels(message) => update(app, SettingsMessage::Channels(message)),
-   Effect::Saved { tag, result } => Task::done(Message::Settings(SettingsMessage::AgentConfigSaved { tag, result })),
-   Effect::WeComDelivery(message) => super::wecom_delivery::update(app, message),
-   Effect::After(delay, message) => crate::app::message::after(delay, Message::Settings(SettingsMessage::Channels(message))),
-   Effect::Error(error) => app.show_error_toast(error),
-   Effect::Toast(kind, text, args) => {
-    use desktop_settings_channels::update::ToastKind;
-    let kind = match kind { ToastKind::Error => crate::app::state::ToastKind::Error, ToastKind::Warning => crate::app::state::ToastKind::Warning, ToastKind::Success => crate::app::state::ToastKind::Success };
-    app.show_localized_toast(kind, &text, args.into_iter().map(Into::into).collect())
-   }
-  };
- }
- // Delivery updates must mutate the draft before loading execution candidates.
- let delivery = desktop_settings_channels::update::updates::delivery_event(&app.channels_settings, &message);
- if let Some((delivery, reload)) = delivery {
-  let task = super::wecom_delivery::update(app, delivery);
-  return if reload { Task::batch([task, super::execution::load_active(app)]) } else { task };
- }
- let services = services(app);
- desktop_settings_channels::update::updates::update(&mut app.channels_settings, &services, message).map(map_effect)
+    let SettingsMessage::Channels(message) = message else {
+        return Task::none();
+    };
+    if let ChannelsMessage::Effect(effect) = message {
+        return match *effect {
+            Effect::Channels(message) => update(app, SettingsMessage::Channels(message)),
+            Effect::Saved { tag, result } => {
+                Task::done(Message::Settings(SettingsMessage::AgentConfigSaved { tag, result }))
+            }
+            Effect::WeComDelivery(message) => super::wecom_delivery::update(app, message),
+            Effect::After(delay, message) => crate::app::message::after(
+                delay,
+                Message::Settings(SettingsMessage::Channels(message)),
+            ),
+            Effect::Error(error) => app.show_message_toast(
+                crate::app::state::ToastKind::Error,
+                desktop_i18n::settings_extensions::feedback_message(&error),
+            ),
+            Effect::Toast(kind, text, args) => {
+                use desktop_settings_channels::update::ToastKind;
+                let kind = match kind {
+                    ToastKind::Error => crate::app::state::ToastKind::Error,
+                    ToastKind::Warning => crate::app::state::ToastKind::Warning,
+                    ToastKind::Success => crate::app::state::ToastKind::Success,
+                };
+                app.show_localized_toast(kind, &text, args.into_iter().map(Into::into).collect())
+            }
+        };
+    }
+    // Delivery updates must mutate the draft before loading execution candidates.
+    let delivery = desktop_settings_channels::update::updates::delivery_event(
+        &app.channels_settings,
+        &message,
+    );
+    if let Some((delivery, reload)) = delivery {
+        let task = super::wecom_delivery::update(app, delivery);
+        return if reload { Task::batch([task, super::execution::load_active(app)]) } else { task };
+    }
+    let services = services(app);
+    desktop_settings_channels::update::updates::update(
+        &mut app.channels_settings,
+        &services,
+        message,
+    )
+    .map(map_effect)
 }
 #[cfg(test)]
 #[path = "updates_tests.rs"]

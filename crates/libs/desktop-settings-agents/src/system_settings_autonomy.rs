@@ -676,7 +676,7 @@ pub fn view<'a>(app: &View<'a>) -> Element<'a, Message> {
                         .render(desktop_i18n::I18n::new(app.desktop_locale))
                         .expect("valid autonomy error template")
                 })
-                .unwrap_or_else(|| error.to_string()),
+                .unwrap_or_else(|| i18n.__(error).to_string()),
         ));
     }
 

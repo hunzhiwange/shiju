@@ -4,7 +4,11 @@ use crate::app::message::settings::{
 use crate::app::{App, Message};
 use iced::Element;
 pub(crate) fn panel(app: &App) -> Element<'_, Message> {
-    desktop_settings_mcp::management_resync::panel(resync::visible(app)).map(resync::message)
+    desktop_settings_mcp::management_resync::panel(
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale),
+        resync::visible(app),
+    )
+    .map(resync::message)
 }
 pub(crate) fn overlay<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     let Some(state) = resync::visible(app).filter(|s| s.open) else {
@@ -14,6 +18,7 @@ pub(crate) fn overlay<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element
         Some(dialog),
         resync::message(resync::ResyncMessage::Close),
         desktop_settings_mcp::management_resync::card(
+            desktop_i18n::I18n::new(app.general_settings.desktop_locale),
             state,
             &app.mcp_settings.bindings.selected,
             import::targets(app),

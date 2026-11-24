@@ -11,7 +11,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let input = super::update_input(app);
     match reduce(&mut app.skills_settings.market, &input, event) {
         Effect::None => Task::none(),
-        Effect::Error(error) => app.show_error_toast(error),
+        Effect::Error(error) => app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::settings_extensions::feedback_message(&error)),
         Effect::Request { generation, project, host, query } => {
             let token = app.apps_catalog.token.clone();
             Task::perform(async move { desktop_session::session_gateway::gateway_skills_market_request(crate::app::config::gateway_client_endpoint(),

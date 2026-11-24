@@ -3,8 +3,11 @@ use crate::app::Message;
 use crate::app::message::settings::mcp_management_form::{Draft, FormMessage, message};
 use desktop_settings_mcp::connection as ui;
 use iced::Element;
-pub(crate) fn connection_form_panel(draft: &Draft) -> Element<'_, Message> {
-    desktop_settings_mcp::management_form::panel(draft).map(|event| {
+pub(crate) fn connection_form_panel(
+    i18n: desktop_i18n::I18n,
+    draft: &Draft,
+) -> Element<'_, Message> {
+    desktop_settings_mcp::management_form::panel(i18n, draft).map(|event| {
         message(match event {
             ui::FormMessage::Replace(value) => FormMessage::Replace(value),
             ui::FormMessage::ArgAdd => FormMessage::ArgAdd,

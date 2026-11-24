@@ -30,11 +30,17 @@ pub(crate) fn execute(
                 url.clone(),
             )))
         } else {
-            app.show_error_toast("文档地址无效")
+            app.show_message_toast(
+                crate::app::state::ToastKind::Error,
+                desktop_i18n::settings_extensions::feedback_message(&("文档地址无效")),
+            )
         };
     }
     if let Effect::Error(error) = &effect {
-        return app.show_error_toast(error.clone());
+        return app.show_message_toast(
+            crate::app::state::ToastKind::Error,
+            desktop_i18n::settings_extensions::feedback_message(&(error.clone())),
+        );
     }
     if let Effect::Uninstall(id) = &effect {
         return crate::app::message::settings::skills::update(

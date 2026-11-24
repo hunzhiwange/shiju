@@ -39,7 +39,7 @@ fn fixture() -> McpCatalogResponse {
 #[test]
 fn cc_mcp_t44_catalog_distinguishes_scopes_and_observed_native_state() {
     let catalog = fixture();
-    let rendered = rows(&catalog).join("\n");
+    let rendered = rows(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &catalog).join("\n");
     assert!(rendered.contains("中文目录"), "catalog must display managed records");
     for label in ["原生应用", "识矩运行时", "ACP", "缺失", "旧修订"] {
         assert!(rendered.contains(label), "{rendered} missing {label}");
@@ -129,7 +129,7 @@ async fn cc_mcp_t44_sdk_read_preserves_empty_and_http_failure() {
         "不支持"
     );
     server.join().unwrap();
-    assert!(rows(&catalog).join("\n").contains("缺失"));
+    assert!(rows(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &catalog).join("\n").contains("缺失"));
 }
 
 #[test]
@@ -179,7 +179,7 @@ fn cc_mcp_t44_native_statuses_and_transport_capabilities_remain_explicit() {
             streamable_http: McpSupport::NotVerified,
             sse: McpSupport::Unsupported,
         });
-        let text = rows(&catalog).join("\n");
+        let text = rows(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &catalog).join("\n");
         for expected in [label, "期望禁用", "stdio 支持", "HTTP 未验证", "SSE 不支持"] {
             assert!(text.contains(expected), "{text}");
         }

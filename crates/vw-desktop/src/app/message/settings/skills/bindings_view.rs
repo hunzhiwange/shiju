@@ -10,8 +10,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let input = super::update_input(app);
     match reduce(&mut app.skills_settings.bindings, &input, event) {
         Effect::None => Task::none(),
-        Effect::Error(error) => app.show_error_toast(error),
-        Effect::Success(notice) => app.show_success_toast(notice),
+        Effect::Error(error) => app.show_message_toast(crate::app::state::ToastKind::Error, desktop_i18n::settings_extensions::feedback_message(&error)),
+        Effect::Success(notice) => app.show_message_toast(crate::app::state::ToastKind::Success, desktop_i18n::settings_extensions::feedback_message(&notice)),
         Effect::Request { generation, scope, change } => {
             let token = app.apps_catalog.token.clone();
             Task::perform(async move { desktop_session::session_gateway::gateway_skill_bindings_request(crate::app::config::gateway_client_endpoint(), scope, token, change).await }, move |result| message(Event::Completed(generation, result)))

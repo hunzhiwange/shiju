@@ -39,6 +39,7 @@ pub struct State {
     pub results: Vec<String>,
 }
 pub fn overlay<'a, M: Clone + 'static>(
+    i18n: desktop_i18n::I18n,
     state: &'a State,
     current: AppId,
     busy: bool,
@@ -51,7 +52,7 @@ pub fn overlay<'a, M: Clone + 'static>(
     }
     let close = message_event(TransferEvent::Close);
     let mut fields = column![text(
-        "仅复制到勾选的应用，副本保持停用。所有目标默认不选；同名条目也不会自动覆盖。"
+        i18n.__("仅复制到勾选的应用，副本保持停用。所有目标默认不选；同名条目也不会自动覆盖。")
     )]
     .spacing(12);
     for &target in TARGETS.iter().filter(|&&id| id != current) {
@@ -65,14 +66,14 @@ pub fn overlay<'a, M: Clone + 'static>(
         fields = fields.push(control);
     }
     for result in &state.results {
-        fields = fields.push(text(result));
+        fields = fields.push(text(desktop_i18n::settings_extensions::feedback(i18n, result)));
     }
     let footer = row![
-        button(text("关闭"))
+        button(text(i18n.__("关闭")))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press_maybe((!busy).then_some(close.clone())),
-        button(text("复制所选目标"))
+        button(text(i18n.__("复制所选目标")))
             .padding([8, 12])
             .style(primary_action_btn_style)
             .on_press_maybe(
@@ -81,7 +82,7 @@ pub fn overlay<'a, M: Clone + 'static>(
     ]
     .spacing(10);
     let header = settings_modal_header(
-        text("复制到其他应用").size(20),
+        text(i18n.__("复制到其他应用")).size(20),
         settings_close_button(close.clone()),
     );
     settings_modal_overlay(

@@ -15,6 +15,7 @@ pub(super) fn view<'a>(
 ) -> iced::Element<'a, Message> {
     let s = &app.skills_settings.claude_config;
     desktop_settings_skills::claude_view::view(
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale),
         desktop_settings_skills::claude_view::ViewState {
             open: s.open,
             busy: s.busy,

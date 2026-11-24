@@ -24,7 +24,9 @@ fn cc_mcp_t46_unsupported_applications_explain_native_distribution_rejection() {
             })
             .to_vec(),
     };
-    let labels = rows(&catalog).join("\n");
+    let labels =
+        rows(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &catalog)
+            .join("\n");
     assert!(
         labels.contains("上游不支持原生分发"),
         "unsupported applications need a reason: {labels}"
@@ -79,8 +81,20 @@ fn result() -> McpDistributionResult {
 fn cc_mcp_t46_partial_and_unverified_items_cannot_report_all_success() {
     let mut response = result();
     assert_ne!(summary(&response), "全部目标已应用");
-    assert!(item_label(&response.items[1]).contains("Conflict"));
-    assert!(item_label(&response.items[1]).contains("期望已保存"));
+    assert!(
+        item_label(
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            &response.items[1]
+        )
+        .contains("Conflict")
+    );
+    assert!(
+        item_label(
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            &response.items[1]
+        )
+        .contains("期望已保存")
+    );
     response.outcome = McpBatchOutcome::Succeeded;
     for native in [
         McpDistributionOutcome::NotVerified,

@@ -54,6 +54,7 @@ impl<C> State<C> {
     }
 }
 pub fn overlay<'a, M: Clone + 'static, C: Clone + 'a>(
+    i18n: desktop_i18n::I18n,
     state: &'a State<C>,
     base: Element<'a, M>,
     message: fn(super::Event) -> M,
@@ -63,23 +64,27 @@ pub fn overlay<'a, M: Clone + 'static, C: Clone + 'a>(
         return base;
     }
     let close = message_event(Event::Close);
-    let mut body = column![text(
+    let mut body = column![text(i18n.__(
         "同步保存的选择；关闭面板不影响后端操作。取消只阻止尚未开始的目标，已完成写入不会回滚。"
-    )]
+    ))]
     .spacing(10);
     if let Some(report) = &state.report {
-        body = body.push(text(format!(
-            "操作 {} · {:?} · 已返回 {} 个目标",
-            report.operation.operation_id.as_ref(),
-            report.operation.status,
-            report.targets.len()
-        )));
+        body = body.push(text(
+            desktop_i18n::__!(
+                i18n,
+                "操作 %s · %s · 已返回 %s 个目标",
+                (report.operation.operation_id.as_ref()).to_string(),
+                (format!("{:?}", report.operation.status)).to_string(),
+                (report.targets.len()).to_string()
+            )
+            .expect("valid extension display template"),
+        ));
         for target in &report.targets {
             let status = match target.status {
-                AgentAppPromptSyncTargetStatus::Succeeded => "已完成",
-                AgentAppPromptSyncTargetStatus::Failed => "失败",
-                AgentAppPromptSyncTargetStatus::Skipped => "已跳过",
-                AgentAppPromptSyncTargetStatus::NotExecuted => "未执行",
+                AgentAppPromptSyncTargetStatus::Succeeded => i18n.__("已完成"),
+                AgentAppPromptSyncTargetStatus::Failed => i18n.__("失败"),
+                AgentAppPromptSyncTargetStatus::Skipped => i18n.__("已跳过"),
+                AgentAppPromptSyncTargetStatus::NotExecuted => i18n.__("未执行"),
             };
             body = body.push(text(format!(
                 "{:?} · {} · {}{}",
@@ -87,37 +92,40 @@ pub fn overlay<'a, M: Clone + 'static, C: Clone + 'a>(
                 status,
                 target.reason.as_deref().unwrap_or(""),
                 if target.duplicate_selection {
-                    " · 多选警告：已按保存顺序采用首项"
+                    i18n.__(" · 多选警告：已按保存顺序采用首项")
                 } else {
                     ""
                 }
             )));
         }
     } else {
-        body = body.push(text("尚无操作结果；空结果不代表同步成功。"));
+        body = body.push(text(i18n.__("尚无操作结果；空结果不代表同步成功。")));
     }
     if state.busy {
-        body = body.push(text("正在请求后端…"));
+        body = body.push(text(i18n.__("正在请求后端…")));
     }
     if let Some(error) = &state.error {
-        body = body.push(text(error));
+        body = body.push(text(desktop_i18n::settings_extensions::feedback(i18n, error)));
     }
     let footer = row![
-        button(text("全部同步"))
+        button(text(i18n.__("全部同步")))
             .padding([8, 12])
             .style(primary_action_btn_style)
             .on_press_maybe((!state.busy && !state.submitted).then(|| message_event(Event::Start))),
-        button(text("刷新进度")).padding([8, 12]).style(rounded_action_btn_style).on_press_maybe(
-            (!state.busy && state.report.is_some()).then(|| message_event(Event::Refresh))
-        ),
-        button(text("取消剩余目标"))
+        button(text(i18n.__("刷新进度")))
+            .padding([8, 12])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(
+                (!state.busy && state.report.is_some()).then(|| message_event(Event::Refresh))
+            ),
+        button(text(i18n.__("取消剩余目标")))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press_maybe(
                 (!state.busy && state.report.is_some() && !state.terminal())
                     .then(|| message_event(Event::Cancel))
             ),
-        button(text("重试未完成目标"))
+        button(text(i18n.__("重试未完成目标")))
             .padding([8, 12])
             .style(rounded_action_btn_style)
             .on_press_maybe(
@@ -126,8 +134,10 @@ pub fn overlay<'a, M: Clone + 'static, C: Clone + 'a>(
             ),
     ]
     .spacing(8);
-    let header =
-        settings_modal_header(text("全部同步进度").size(20), settings_close_button(close.clone()));
+    let header = settings_modal_header(
+        text(i18n.__("全部同步进度")).size(20),
+        settings_close_button(close.clone()),
+    );
     settings_modal_overlay(
         Some(base),
         close,

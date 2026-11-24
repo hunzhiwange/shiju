@@ -457,17 +457,14 @@ fn apply_effects(app: &mut App, effects: Vec<Effect>) -> Task<Message> {
             Effect::EnsureKnowledge => knowledge::ensure_loaded(app),
             Effect::ReloadConnectors => connectors::load(app),
             Effect::ReloadKnowledge => knowledge::load(app),
-            Effect::Feedback(kind, message, locale) => {
+            Effect::Feedback(kind, message, _locale) => {
                 let kind = match kind {
                     desktop_expert_hub::message::ToastKind::Info => crate::app::state::ToastKind::Info,
                     desktop_expert_hub::message::ToastKind::Success => crate::app::state::ToastKind::Success,
                     desktop_expert_hub::message::ToastKind::Warning => crate::app::state::ToastKind::Warning,
                     desktop_expert_hub::message::ToastKind::Error => crate::app::state::ToastKind::Error,
                 };
-                let fallback = message.render(crate::app::i18n::I18n::new(locale)).expect("valid skill feedback");
-                let task = app.show_toast(kind, fallback);
-                if let Some(toast) = &mut app.toast_state.active_toast { toast.localized_message = Some(message); }
-                task
+                app.show_message_toast(kind, message)
             }
         });
     }

@@ -389,6 +389,7 @@ fn install(s: &mut State, candidate: Candidate, register: bool) -> Effect {
 }
 
 pub fn view<'a>(
+    i18n: desktop_i18n::I18n,
     page: &'a Page,
     target_label: String,
     targets: Element<'a, Message>,
@@ -397,7 +398,7 @@ pub fn view<'a>(
     icon: fn(AppId, f32) -> Element<'static, Message>,
 ) -> Element<'a, Message> {
     let Some(scope) = page.scope() else {
-        return container(text("请刷新应用目录"))
+        return container(text(i18n.__("请刷新应用目录")))
             .center_x(Length::Fill)
             .center_y(Length::Fill)
             .into();
@@ -421,7 +422,7 @@ pub fn view<'a>(
         button(
             row![
                 primary_icon(Icon::Plus, 16.0),
-                text("添加 Skill").size(14).align_y(iced::alignment::Vertical::Center),
+                text(i18n.__("添加 Skill")).size(14).align_y(iced::alignment::Vertical::Center),
                 primary_icon(Icon::ChevronDown, 11.0),
             ]
             .height(Length::Fill)
@@ -433,9 +434,9 @@ pub fn view<'a>(
         .style(style::primary)
         .on_press(send(Event::AddMenu)),
         column![
-            menu_item("在发现里浏览", send(Event::Tab(Tab::Repositories))),
-            menu_item("从 ZIP 安装", directory(DirectoryAction::Install)),
-            menu_item("导入已有技能", directory(DirectoryAction::Import)),
+            menu_item(i18n.__("在发现里浏览"), send(Event::Tab(Tab::Repositories))),
+            menu_item(i18n.__("从 ZIP 安装"), directory(DirectoryAction::Install)),
+            menu_item(i18n.__("导入已有技能"), directory(DirectoryAction::Import)),
         ],
         s.add_menu,
         close.clone(),
@@ -443,12 +444,12 @@ pub fn view<'a>(
     );
     let mut more_items = column![];
     for (label, entry) in [
-        ("管理技能仓库", DirectoryAction::Repositories),
-        ("存储与同步", DirectoryAction::Storage),
-        ("从备份中恢复", DirectoryAction::Backup),
-        ("更新与卸载", DirectoryAction::Updates),
-        ("任务进度", DirectoryAction::Jobs),
-        ("Claude 配置", DirectoryAction::Claude),
+        (i18n.__("管理技能仓库"), DirectoryAction::Repositories),
+        (i18n.__("存储与同步"), DirectoryAction::Storage),
+        (i18n.__("从备份中恢复"), DirectoryAction::Backup),
+        (i18n.__("更新与卸载"), DirectoryAction::Updates),
+        (i18n.__("任务进度"), DirectoryAction::Jobs),
+        (i18n.__("Claude 配置"), DirectoryAction::Claude),
     ] {
         more_items = more_items.push(menu_item(label, directory(entry)));
     }
@@ -462,8 +463,8 @@ pub fn view<'a>(
     let header = row![
         icon_svg(Icon::Journals, 20.0).style(icon_btn_svg_style),
         settings_hover_help_label(
-            text("Skills").size(23),
-            text("安装技能后，可以选择启用它的应用实例。").size(13).into(),
+            text(i18n.__("技能")).size(23),
+            text(i18n.__("安装技能后，可以选择启用它的应用实例。")).size(13).into(),
         ),
         Space::new().width(Length::Fill),
         add,
@@ -473,34 +474,40 @@ pub fn view<'a>(
     .align_y(iced::Alignment::Center);
     let mut tabs = row![
         tab(
-            count.map_or_else(|| "已安装".to_owned(), |count| format!("已安装 {count}")),
+            count.map_or_else(
+                || i18n.__("已安装").to_owned(),
+                |count| desktop_i18n::__!(i18n, "已安装 %s", (count).to_string())
+                    .expect("valid extension display template")
+            ),
             installed,
             send(Event::Tab(Tab::Installed)),
         ),
-        tab("发现".into(), !installed, send(Event::Tab(Tab::Repositories))),
+        tab(i18n.__("发现").into(), !installed, send(Event::Tab(Tab::Repositories))),
         Space::new().width(Length::Fill),
     ]
     .spacing(9)
     .align_y(iced::Alignment::Center);
     if !installed || count != Some(0) {
         let search = match s.tab {
-            Tab::Installed => settings_text_input("搜索名称、目录、描述或仓库", &s.query)
+            Tab::Installed => settings_text_input(i18n.__("搜索名称、目录、描述或仓库"), &s.query)
                 .on_input(move |query| send(Event::Query(query))),
-            Tab::Repositories => settings_text_input("搜索名称、描述或仓库", &s.query)
+            Tab::Repositories => settings_text_input(i18n.__("搜索名称、描述或仓库"), &s.query)
                 .on_input(move |query| send(Event::Query(query))),
-            Tab::Market => settings_text_input("搜索 skills.sh", &s.market_query)
+            Tab::Market => settings_text_input(i18n.__("搜索 skills.sh"), &s.market_query)
                 .on_input(move |query| send(Event::MarketQuery(query)))
                 .on_submit(send(Event::Search(0))),
         };
         tabs = tabs
             .push(container(style::search(search)).width(Length::FillPortion(2)).max_width(280));
         tabs = tabs.push(match s.tab {
-            Tab::Installed => toolbar_action("检查更新", Some(directory(DirectoryAction::Updates))),
+            Tab::Installed => {
+                toolbar_action(i18n.__("检查更新"), Some(directory(DirectoryAction::Updates)))
+            }
             Tab::Repositories => toolbar_action(
-                if s.busy[1] { "正在读取仓库…" } else { "刷新仓库" },
+                if s.busy[1] { i18n.__("正在读取仓库…") } else { i18n.__("刷新仓库") },
                 (!s.busy[1]).then(|| send(Event::Refresh)),
             ),
-            Tab::Market => action("搜索", Event::Search(0)),
+            Tab::Market => action(i18n.__("搜索"), Event::Search(0)),
         });
     }
 
@@ -522,9 +529,12 @@ pub fn view<'a>(
     {
         page_body = page_body.push(
             row![
-                settings_error_banner(error.clone()),
+                settings_error_banner(desktop_i18n::settings_extensions::feedback(
+                    i18n,
+                    &error.clone()
+                )),
                 action(
-                    "重试",
+                    i18n.__("重试"),
                     if s.errors[0].as_ref() == Some(error) {
                         Event::ReloadInventory
                     } else {
@@ -537,18 +547,31 @@ pub fn view<'a>(
         );
     }
     if let Some(notice) = &s.notice {
-        page_body = page_body.push(text(notice).size(13).style(settings_muted_text_style));
+        page_body = page_body.push(
+            text(desktop_i18n::settings_extensions::feedback(i18n, notice))
+                .size(13)
+                .style(settings_muted_text_style),
+        );
     }
     if s.installing {
-        page_body = page_body.push(text("正在安装技能…").size(13));
+        page_body = page_body.push(text(i18n.__("正在安装技能…")).size(13));
     }
     if let Some(c) = &s.pending {
         page_body = page_body.push(
             container(
                 row![
-                    text(format!("登记或启用 {}/{} 后安装？", c.owner, c.repo)).width(Length::Fill),
-                    action("确认并安装", Event::ConfirmRepository),
-                    action("取消", Event::CancelRepository),
+                    text(
+                        desktop_i18n::__!(
+                            i18n,
+                            "登记或启用 %s/%s 后安装？",
+                            (c.owner).to_string(),
+                            (c.repo).to_string()
+                        )
+                        .expect("valid extension display template")
+                    )
+                    .width(Length::Fill),
+                    action(i18n.__("确认并安装"), Event::ConfirmRepository),
+                    action(i18n.__("取消"), Event::CancelRepository),
                 ]
                 .spacing(8)
                 .align_y(iced::Alignment::Center),
@@ -563,11 +586,18 @@ pub fn view<'a>(
             page_body = page_body.push(
                 container(
                     row![
-                        text(format!("发现 {importable} 个可以导入的 Skill"))
-                            .size(13)
-                            .width(Length::Fill),
-                        control("查看并导入", directory(DirectoryAction::Import)),
-                        action("忽略", Event::HideImportNotice),
+                        text(
+                            desktop_i18n::__!(
+                                i18n,
+                                "发现 %s 个可以导入的 Skill",
+                                (importable).to_string()
+                            )
+                            .expect("valid extension display template")
+                        )
+                        .size(13)
+                        .width(Length::Fill),
+                        control(i18n.__("查看并导入"), directory(DirectoryAction::Import)),
+                        action(i18n.__("忽略"), Event::HideImportNotice),
                     ]
                     .spacing(8)
                     .align_y(iced::Alignment::Center),
@@ -582,7 +612,7 @@ pub fn view<'a>(
         let mut installed_sources = std::collections::BTreeSet::new();
         if let Some(data) = &s.inventory {
             for skill in data.skills.iter().filter(|skill| skill.present) {
-                let provenance = skill.source.as_deref().unwrap_or("来源未知");
+                let provenance = skill.source.as_deref().unwrap_or(i18n.__("来源未知"));
                 let source = provenance.split(" · ").next().unwrap_or(provenance);
                 installed_sources.insert(source.to_owned());
                 if s.installed_source.as_deref().is_some_and(|selected| selected != source) {
@@ -602,11 +632,14 @@ pub fn view<'a>(
                 let row_menu = menu(
                     more_button(send(Event::RowMenu(skill.id.clone()))),
                     column![
-                        menu_item("查看文档", send(Event::Detail(skill.id.clone()))),
-                        menu_item("打开目录", send(Event::OpenDirectory(skill.id.clone()))),
-                        menu_item("管理应用绑定", applications),
+                        menu_item(i18n.__("查看文档"), send(Event::Detail(skill.id.clone()))),
+                        menu_item(
+                            i18n.__("打开目录"),
+                            send(Event::OpenDirectory(skill.id.clone()))
+                        ),
+                        menu_item(i18n.__("管理应用绑定"), applications),
                         rule::horizontal(1),
-                        button(text("卸载").size(13))
+                        button(text(i18n.__("卸载")).size(13))
                             .width(Length::Fill)
                             .padding([7, 9])
                             .style(danger_action_btn_style)
@@ -651,7 +684,11 @@ pub fn view<'a>(
                         .center_x(APP_COLUMN_WIDTH),
                     );
                 }
-                entries.push(skill_row(&skill.name, source, description, controls.push(row_menu)));
+                entries.push(skill_row(&skill.name,
+                    source,
+                    description,
+                    controls.push(row_menu),
+                ));
             }
         }
         if let Some(bindings) = bindings {
@@ -668,7 +705,7 @@ pub fn view<'a>(
                     text(detail.name.clone()).size(19),
                     settings_close_button(dismiss.clone()),
                 ),
-                text(detail.markdown.clone().unwrap_or_else(|| "暂无详情".into())),
+                text(detail.markdown.clone().unwrap_or_else(|| i18n.__("暂无详情").into())),
                 None,
             )
             .style(style::dialog)
@@ -683,10 +720,10 @@ pub fn view<'a>(
         }
         if entries.is_empty() && (count.is_none() || count == Some(0)) {
             let (title, detail) = match count {
-                Some(0) => ("还没有 Skill", "可以去发现安装，或导入已有的技能。"),
-                Some(_) => ("没有匹配的技能", "试试其他名称、描述或来源。"),
-                None if s.busy[0] => ("正在读取技能…", ""),
-                None => ("技能列表暂不可用", ""),
+                Some(0) => (i18n.__("还没有 Skill"), i18n.__("可以去发现安装，或导入已有的技能。")),
+                Some(_) => (i18n.__("没有匹配的技能"), i18n.__("试试其他名称、描述或来源。")),
+                None if s.busy[0] => (i18n.__("正在读取技能…"), ""),
+                None => (i18n.__("技能列表暂不可用"), ""),
             };
             let mut empty =
                 column![text(title).size(18)].spacing(10).align_x(iced::Alignment::Center);
@@ -696,11 +733,16 @@ pub fn view<'a>(
             if count == Some(0) {
                 empty = empty.push(
                     row![
-                        action("去发现", Event::Tab(Tab::Repositories)),
+                        action(i18n.__("去发现"), Event::Tab(Tab::Repositories)),
                         control(
                             s.importable.map_or_else(
-                                || "导入已有技能".to_owned(),
-                                |count| format!("导入已有技能（{count}）")
+                                || i18n.__("导入已有技能").to_owned(),
+                                |count| desktop_i18n::__!(
+                                    i18n,
+                                    "导入已有技能（%s）",
+                                    (count).to_string()
+                                )
+                                .expect("valid extension display template")
                             ),
                             directory(DirectoryAction::Import)
                         ),
@@ -715,17 +757,26 @@ pub fn view<'a>(
         let source_picker = menu(
             dropdown_trigger(
                 s.installed_source.as_ref().map_or_else(
-                    || "来源 · 全部".to_owned(),
-                    |source| format!("来源 · {}", shorten_label(source, 16)),
+                    || i18n.__("来源 · 全部").to_owned(),
+                    |source| {
+                        desktop_i18n::__!(
+                            i18n,
+                            "来源 · %s",
+                            (shorten_label(source, 16)).to_string()
+                        )
+                        .expect("valid extension display template")
+                    },
                 ),
                 s.source_menu,
                 send(Event::SourceMenu),
             ),
             scrollable(column(
-                std::iter::once(menu_item("全部来源", send(Event::InstalledSource(None))).into())
-                    .chain(installed_sources.into_iter().map(|source| {
-                        menu_item(source.clone(), send(Event::InstalledSource(Some(source)))).into()
-                    })),
+                std::iter::once(
+                    menu_item(i18n.__("全部来源"), send(Event::InstalledSource(None))).into(),
+                )
+                .chain(installed_sources.into_iter().map(|source| {
+                    menu_item(source.clone(), send(Event::InstalledSource(Some(source)))).into()
+                })),
             ))
             .direction(scrollbar())
             .height(Length::Shrink),
@@ -735,10 +786,12 @@ pub fn view<'a>(
         );
         if entries.is_empty() {
             entries.push(
-                container(text("没有匹配的技能").size(13).style(settings_muted_text_style))
-                    .center_x(Length::Fill)
-                    .padding(24)
-                    .into(),
+                container(
+                    text(i18n.__("没有匹配的技能")).size(13).style(settings_muted_text_style),
+                )
+                .center_x(Length::Fill)
+                .padding(24)
+                .into(),
             );
         }
         let mut table_header =
@@ -785,12 +838,20 @@ pub fn view<'a>(
                 container(
                     row![
                         column![
-                            text(format!("{} 个仓库读取失败", data.failures.len())).size(14),
+                            text(
+                                desktop_i18n::__!(
+                                    i18n,
+                                    "%s 个仓库读取失败",
+                                    (data.failures.len()).to_string()
+                                )
+                                .expect("valid extension display template")
+                            )
+                            .size(14),
                             text(names).size(12).style(settings_muted_text_style),
                         ]
                         .spacing(3)
                         .width(Length::Fill),
-                        button("重试")
+                        button(i18n.__("重试"))
                             .padding([6, 10])
                             .style(rounded_action_btn_style)
                             .on_press_maybe((!s.busy[1]).then(|| send(Event::RetryDiscovery))),
@@ -810,7 +871,7 @@ pub fn view<'a>(
     }
     let mut filters = row![
         settings_compact_tab_button(
-            "仓库",
+            i18n.__("仓库"),
             s.tab == Tab::Repositories,
             send(Event::Tab(Tab::Repositories))
         ),
@@ -835,7 +896,7 @@ pub fn view<'a>(
                                 && failure.name == repo.name
                                 && failure.branch == repo.branch
                         }) {
-                            "读取失败".to_owned()
+                            i18n.__("读取失败").to_owned()
                         } else {
                             data.skills
                                 .iter()
@@ -872,13 +933,14 @@ pub fn view<'a>(
         sources = sources
             .push(rule::horizontal(1))
             .push(Space::new().height(4))
-            .push(menu_item("添加或管理仓库", directory(DirectoryAction::Repositories)));
+            .push(menu_item(i18n.__("添加或管理仓库"), directory(DirectoryAction::Repositories)));
         let source_label = if s.excluded_repos.is_empty() {
-            "来源 · 全部".to_owned()
+            i18n.__("来源 · 全部").to_owned()
         } else {
-            format!(
-                "来源 · {} 个",
-                s.repositories.as_ref().map_or(0, |repos| {
+            desktop_i18n::__!(
+                i18n,
+                "来源 · %s 个",
+                (s.repositories.as_ref().map_or(0, |repos| {
                     repos
                         .repos
                         .iter()
@@ -889,8 +951,10 @@ pub fn view<'a>(
                                     .contains(&format!("{}:{}", repo.owner, repo.name))
                         })
                         .count()
-                })
+                }))
+                .to_string()
             )
+            .expect("valid extension display template")
         };
         filters = filters.push(menu(
             dropdown_trigger(source_label, s.source_menu, send(Event::SourceMenu)),
@@ -903,7 +967,7 @@ pub fn view<'a>(
     filters = filters.push(
         container(
             checkbox(s.uninstalled)
-                .label("只看未安装")
+                .label(i18n.__("只看未安装"))
                 .size(15)
                 .spacing(8)
                 .text_size(13)
@@ -958,7 +1022,8 @@ pub fn view<'a>(
         .flat_map(|data| &data.skills)
         .map(|skill| Candidate {
             name: skill.name.clone(),
-            description: format!("{} 次安装", skill.installs),
+            description: desktop_i18n::__!(i18n, "%s 次安装", (skill.installs).to_string())
+                .expect("valid extension display template"),
             directory: skill.directory.clone(),
             owner: skill.repo_owner.clone(),
             repo: skill.repo_name.clone(),
@@ -979,11 +1044,11 @@ pub fn view<'a>(
         let mut controls = row![
             button(
                 text(if installed {
-                    "已安装"
+                    i18n.__("已安装")
                 } else if conflict {
-                    "来源冲突"
+                    i18n.__("来源冲突")
                 } else {
-                    "安装"
+                    i18n.__("安装")
                 })
                 .size(13)
             )
@@ -996,10 +1061,9 @@ pub fn view<'a>(
         ]
         .spacing(6);
         if let Some(url) = &candidate.url {
-            controls = controls.push(action("文档", Event::Documentation(url.clone())));
+            controls = controls.push(action(i18n.__("文档"), Event::Documentation(url.clone())));
         }
-        entries.push(skill_row(
-            &candidate.name,
+        entries.push(skill_row(&candidate.name,
             &format!("{}/{}", candidate.owner, candidate.repo),
             &candidate.description,
             controls,
@@ -1007,11 +1071,11 @@ pub fn view<'a>(
     }
     if entries.is_empty() {
         let status = if s.busy.iter().any(|busy| *busy) {
-            "正在读取技能…"
+            i18n.__("正在读取技能…")
         } else if s.tab == Tab::Market && s.market_query.is_empty() {
-            "输入关键词搜索 skills.sh"
+            i18n.__("输入关键词搜索 skills.sh")
         } else {
-            "没有找到匹配的技能"
+            i18n.__("没有找到匹配的技能")
         };
         return page_body
             .push(filters.style(settings_section_card_style))
@@ -1024,7 +1088,7 @@ pub fn view<'a>(
     }
     if has_more {
         entries.push(
-            container(action("加载更多", Event::LoadMoreDiscovery))
+            container(action(i18n.__("加载更多"), Event::LoadMoreDiscovery))
                 .center_x(Length::Fill)
                 .padding([10, 0])
                 .into(),
@@ -1033,18 +1097,24 @@ pub fn view<'a>(
     if s.tab == Tab::Market {
         entries.push(
             row![
-                button("上一页").padding([6, 10]).style(rounded_action_btn_style).on_press_maybe(
-                    (s.offset >= 50 && !s.busy[2])
-                        .then(|| send(Event::Search(s.offset.saturating_sub(50))))
-                ),
-                button("下一页").padding([6, 10]).style(rounded_action_btn_style).on_press_maybe(
-                    (!s.busy[2]
-                        && s.offset < 10_000
-                        && s.market
-                            .as_ref()
-                            .is_some_and(|market| s.offset + 50 < market.total_count))
-                    .then(|| send(Event::Search(s.offset + 50)))
-                ),
+                button(i18n.__("上一页"))
+                    .padding([6, 10])
+                    .style(rounded_action_btn_style)
+                    .on_press_maybe(
+                        (s.offset >= 50 && !s.busy[2])
+                            .then(|| send(Event::Search(s.offset.saturating_sub(50))))
+                    ),
+                button(i18n.__("下一页"))
+                    .padding([6, 10])
+                    .style(rounded_action_btn_style)
+                    .on_press_maybe(
+                        (!s.busy[2]
+                            && s.offset < 10_000
+                            && s.market
+                                .as_ref()
+                                .is_some_and(|market| s.offset + 50 < market.total_count))
+                        .then(|| send(Event::Search(s.offset + 50)))
+                    ),
             ]
             .spacing(8)
             .padding(8)

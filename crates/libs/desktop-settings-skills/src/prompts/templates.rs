@@ -41,6 +41,7 @@ pub struct State {
     pub error: Option<String>,
 }
 pub fn overlay<'a, M: Clone + 'static>(
+    i18n: desktop_i18n::I18n,
     state: &'a State,
     base: Element<'a, M>,
     message: fn(super::Event) -> M,
@@ -50,35 +51,35 @@ pub fn overlay<'a, M: Clone + 'static>(
         return base;
     }
     let close = message_event(Event::Close);
-    let mut body = column![text("Pi 原生模板 · 保存后请在 Pi 执行 /reload")].spacing(10);
+    let mut body = column![text(i18n.__("Pi 原生模板 · 保存后请在 Pi 执行 /reload"))].spacing(10);
     if let Some(error) = &state.error {
-        body = body.push(text(error));
+        body = body.push(text(desktop_i18n::settings_extensions::feedback(i18n, error)));
     }
     if state.busy {
-        body = body.push(text("正在加载…"));
+        body = body.push(text(i18n.__("正在加载…")));
     }
     let mut footer = row![].spacing(10);
     if let Some(draft) = &state.draft {
-        let mut slug = settings_text_input("命令名称", &draft.slug);
+        let mut slug = settings_text_input(i18n.__("命令名称"), &draft.slug);
         let mut editor = settings_text_editor(&draft.body).font(iced::Font::DEFAULT).height(300);
         if !state.busy {
             slug = slug.on_input(move |s| message_event(Event::Slug(s)));
             editor = editor.on_action(move |a| message_event(Event::Body(a)));
         }
         body = body
-            .push(text("命令名称（可改名）"))
+            .push(text(i18n.__("命令名称（可改名）")))
             .push(slug)
-            .push(text("原文（保留 frontmatter 与变量）"))
+            .push(text(i18n.__("原文（保留 frontmatter 与变量）")))
             .push(editor);
         footer = footer
             .push(
-                button(text("返回列表"))
+                button(text(i18n.__("返回列表")))
                     .padding([8, 12])
                     .style(rounded_action_btn_style)
                     .on_press_maybe((!state.busy).then(|| message_event(Event::Cancel))),
             )
             .push(
-                button(text("保存"))
+                button(text(i18n.__("保存")))
                     .padding([8, 12])
                     .style(primary_action_btn_style)
                     .on_press_maybe((!state.busy).then(|| message_event(Event::Save))),
@@ -91,21 +92,21 @@ pub fn overlay<'a, M: Clone + 'static>(
                 .push(text(entry.summary.description.as_deref().unwrap_or("")))
                 .push(
                     row![
-                        button(text("编辑 / 改名"))
+                        button(text(i18n.__("编辑 / 改名")))
                             .padding([8, 12])
                             .style(rounded_action_btn_style)
                             .on_press_maybe(
                                 (!state.busy)
                                     .then(|| message_event(Event::Edit(Some(entry.slug.clone()))))
                             ),
-                        button(text("复制命令"))
+                        button(text(i18n.__("复制命令")))
                             .padding([8, 12])
                             .style(rounded_action_btn_style)
                             .on_press(message_event(Event::Copy(entry.slug.clone()))),
                         button(text(if state.delete.as_ref() == Some(&entry.slug) {
-                            "确认删除"
+                            i18n.__("确认删除")
                         } else {
-                            "删除"
+                            i18n.__("删除")
                         }))
                         .padding([8, 12])
                         .style(rounded_action_btn_style)
@@ -118,13 +119,13 @@ pub fn overlay<'a, M: Clone + 'static>(
         }
         footer = footer
             .push(
-                button(text("刷新"))
+                button(text(i18n.__("刷新")))
                     .padding([8, 12])
                     .style(rounded_action_btn_style)
                     .on_press_maybe((!state.busy).then(|| message_event(Event::Load))),
             )
             .push(
-                button(text("新增模板"))
+                button(text(i18n.__("新增模板")))
                     .padding([8, 12])
                     .style(primary_action_btn_style)
                     .on_press_maybe(
@@ -133,15 +134,17 @@ pub fn overlay<'a, M: Clone + 'static>(
             );
         if state.undo.is_some() {
             footer = footer.push(
-                button(text("撤销删除"))
+                button(text(i18n.__("撤销删除")))
                     .padding([8, 12])
                     .style(rounded_action_btn_style)
                     .on_press_maybe((!state.busy).then(|| message_event(Event::Undo))),
             );
         }
     }
-    let header =
-        settings_modal_header(text("Pi 原生模板").size(20), settings_close_button(close.clone()));
+    let header = settings_modal_header(
+        text(i18n.__("Pi 原生模板")).size(20),
+        settings_close_button(close.clone()),
+    );
     settings_modal_overlay(
         Some(base),
         close,

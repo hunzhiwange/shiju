@@ -248,6 +248,7 @@ pub enum ViewMessage {
     ColumnMenu(Option<McpAppTarget>),
 }
 pub fn panel<'a>(
+    i18n: desktop_i18n::I18n,
     catalog: Option<&'a Result<McpCatalogResponse, String>>,
     state: &'a State,
     targets: &[McpAppTarget],
@@ -267,15 +268,22 @@ pub fn panel<'a>(
     let count = catalog.and_then(|c| c.as_ref().ok()).map(|c| {
         let visible = visible_records(c, &state.query).len();
         if state.query.trim().is_empty() {
-            format!("{visible} 个 MCP")
+            desktop_i18n::__!(i18n, "%s 个 MCP", (visible).to_string())
+                .expect("valid extension display template")
         } else {
-            format!("{visible} / {} 个 MCP", c.records.len())
+            desktop_i18n::__!(
+                i18n,
+                "%s / %s 个 MCP",
+                (visible).to_string(),
+                (c.records.len()).to_string()
+            )
+            .expect("valid extension display template")
         }
     });
     let search = container(
         row![
             icon_svg(Icon::Search, 16.0).style(icon_btn_svg_style),
-            text_input("搜索名称、命令或地址", &state.query)
+            text_input(i18n.__("搜索名称、命令或地址"), &state.query)
                 .on_input(|q| ViewMessage::Binding(Action::Search(q)))
                 .style(|theme, status| {
                     let mut style = settings_text_input_style(theme, status);
@@ -301,17 +309,24 @@ pub fn panel<'a>(
     }
     let mut body = column![toolbar.align_y(Alignment::Center)].spacing(12).width(Length::Fill);
     if loading {
-        return body.push(empty("正在加载目录…")).into();
+        return body.push(empty(i18n.__("正在加载目录…"))).into();
     }
     let catalog = match catalog {
         Some(Ok(c)) => c,
-        Some(Err(e)) => return body.push(settings_error_banner(e.clone())).into(),
-        None => return body.push(empty("尚未加载目录")).into(),
+        Some(Err(e)) => {
+            return body
+                .push(settings_error_banner(desktop_i18n::settings_extensions::feedback(
+                    i18n,
+                    &e.clone(),
+                )))
+                .into();
+        }
+        None => return body.push(empty(i18n.__("尚未加载目录"))).into(),
     };
     let records = visible_records(catalog, &state.query);
     let columns = columns(targets, shown, host);
     let table = responsive(move |size| {
-        matrix_table(catalog, state, &records, &columns, running, menu, size.width)
+        matrix_table(i18n, catalog, state, &records, &columns, running, menu, size.width)
     })
     .height(Length::Shrink);
     body = body.push(container(table).padding(1).width(Length::Fill).style(table_frame));
@@ -326,9 +341,16 @@ pub fn panel<'a>(
     if failures > 0 || !state.undo.is_empty() {
         let mut feedback = row![].spacing(8).align_y(Alignment::Center);
         if failures > 0 {
-            feedback = feedback.push(text(format!("{failures} 项写入失败")).size(13)).push(
-                crate::toolbar_button(
-                    "重试失败项",
+            feedback = feedback
+                .push(
+                    text(
+                        desktop_i18n::__!(i18n, "%s 项写入失败", (failures).to_string())
+                            .expect("valid extension display template"),
+                    )
+                    .size(13),
+                )
+                .push(crate::toolbar_button(
+                    i18n.__("重试失败项"),
                     (!running
                         && state.attempts.iter().any(|a| {
                             a.result.as_ref().is_ok_and(|i| {
@@ -341,7 +363,7 @@ pub fn panel<'a>(
         }
         if !state.undo.is_empty() {
             feedback = feedback.push(crate::toolbar_button(
-                "撤销本次改动",
+                i18n.__("撤销本次改动"),
                 (!running).then_some(ViewMessage::Binding(Action::Undo)),
             ));
         }
@@ -351,6 +373,7 @@ pub fn panel<'a>(
 }
 
 fn matrix_table<'a>(
+    i18n: desktop_i18n::I18n,
     catalog: &'a McpCatalogResponse,
     state: &'a State,
     records: &[&'a McpCatalogRecord],
@@ -371,14 +394,17 @@ fn matrix_table<'a>(
     };
 
     let mut header =
-        row![text("名称").size(13).style(settings_muted_text_style).width(Length::Fill)]
+        row![text(i18n.__("名称")).size(13).style(settings_muted_text_style).width(Length::Fill)]
             .align_y(Alignment::Center);
     for (app, target) in columns {
         let count = target.as_ref().map_or(0, |t| {
             records.iter().filter(|r| binding(catalog, r, t).is_some_and(|b| b.enabled)).count()
         });
         let label = target.as_ref().map_or_else(
-            || format!("{} · 无可信安装", app_label(*app)),
+            || {
+                desktop_i18n::__!(i18n, "%s · 无可信安装", (app_label(*app)).to_string())
+                    .expect("valid extension display template")
+            },
             |t| format!("{} · {}", app_label(*app), t.installation_id.0),
         );
         let content = column![
@@ -400,14 +426,14 @@ fn matrix_table<'a>(
                     let items = column![
                         text(app_label(*app)).size(12).style(settings_muted_text_style),
                         crate::toolbar_button(
-                            "启用筛选项",
+                            i18n.__("启用筛选项"),
                             Some(ViewMessage::Binding(Action::Column {
                                 target: target.clone(),
                                 enabled: true,
                             }))
                         ),
                         crate::toolbar_button(
-                            "关闭筛选项",
+                            i18n.__("关闭筛选项"),
                             Some(ViewMessage::Binding(Action::Column {
                                 target: target.clone(),
                                 enabled: false,
@@ -438,15 +464,15 @@ fn matrix_table<'a>(
     ];
     if records.is_empty() {
         grid = grid.push(rule::horizontal(1)).push(empty(if catalog.records.is_empty() {
-            "还没有 MCP，点击「添加 MCP」或从应用导入"
+            i18n.__("还没有 MCP，点击「添加 MCP」或从应用导入")
         } else {
-            "没有匹配的 MCP"
+            i18n.__("没有匹配的 MCP")
         }));
     }
     for &record in records {
         let summary = record.public_summary.as_deref().filter(|s| !s.is_empty()).unwrap_or(
             match record.transport {
-                vw_api_mcp_management::McpTransport::Stdio => "本地命令 · stdio",
+                vw_api_mcp_management::McpTransport::Stdio => i18n.__("本地命令 · stdio"),
                 vw_api_mcp_management::McpTransport::StreamableHttp => "HTTP",
                 vw_api_mcp_management::McpTransport::Sse => "SSE",
             },
@@ -500,13 +526,13 @@ fn matrix_table<'a>(
                 label = format!(
                     "{label} · {}\n{}",
                     target.installation_id.0,
-                    if enabled { "期望启用" } else { "期望关闭" }
+                    if enabled { i18n.__("期望启用") } else { i18n.__("期望关闭") }
                 );
                 if !supported {
-                    label.push_str("\n传输不支持或能力未验证");
+                    label.push_str(i18n.__("\n传输不支持或能力未验证"));
                 }
                 if pending {
-                    label.push_str("\n正在写入应用配置");
+                    label.push_str(i18n.__("\n正在写入应用配置"));
                 } else if let Some(attempt) = result {
                     failed = match &attempt.result {
                         Ok(item) => {
@@ -516,18 +542,18 @@ fn matrix_table<'a>(
                     };
                     label.push('\n');
                     label.push_str(&match &attempt.result {
-                        Ok(item) => crate::distribution::item_label(item),
+                        Ok(item) => crate::distribution::item_label(i18n, item),
                         Err(error) => error.clone(),
                     });
                 }
                 if let Some(binding) = observed {
                     use vw_api_mcp_management::McpNativeStatus::*;
                     label.push_str(match binding.native_status {
-                        Present => "\n上次观察：已存在",
-                        Missing => "\n上次观察：未找到",
-                        Unreadable => "\n上次观察：无法读取",
-                        NotVerified => "\n上次观察：未验证",
-                        Unsupported => "\n上次观察：不支持",
+                        Present => i18n.__("\n上次观察：已存在"),
+                        Missing => i18n.__("\n上次观察：未找到"),
+                        Unreadable => i18n.__("\n上次观察：无法读取"),
+                        NotVerified => i18n.__("\n上次观察：未验证"),
+                        Unsupported => i18n.__("\n上次观察：不支持"),
                     });
                 }
                 if pending {
@@ -548,7 +574,7 @@ fn matrix_table<'a>(
                         .into()
                 }
             } else {
-                label.push_str("\n无可信安装");
+                label.push_str(i18n.__("\n无可信安装"));
                 checkbox(false).size(17).style(settings_checkbox_style).into()
             };
             let control = if failed {
@@ -569,21 +595,21 @@ fn matrix_table<'a>(
         use crate::management_probe::actions::{self, MenuMessage};
         let trigger = icon_btn(
             Icon::DotsThreeVertical,
-            "MCP 操作",
+            i18n.__("MCP 操作"),
             (!running).then(|| ViewMessage::Menu(record.record.clone())),
         );
         let trigger = if let Some(state) = menu.filter(|s| s.row.as_ref() == Some(record)) {
             let reference = record.record.clone();
             let content = column![
                 crate::toolbar_button(
-                    "启用整行",
+                    i18n.__("启用整行"),
                     (!running).then_some(ViewMessage::Binding(Action::Row {
                         record: reference.clone(),
                         enabled: true,
                     }))
                 ),
                 crate::toolbar_button(
-                    "关闭整行",
+                    i18n.__("关闭整行"),
                     (!running).then_some(ViewMessage::Binding(Action::Row {
                         record: reference,
                         enabled: false,
@@ -610,7 +636,7 @@ fn matrix_table<'a>(
                 row![
                     icon_btn(
                         Icon::Pencil,
-                        "编辑 MCP",
+                        i18n.__("编辑 MCP"),
                         (!running).then(|| ViewMessage::Edit(record.record.clone()))
                     ),
                     trigger,

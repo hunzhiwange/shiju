@@ -13,6 +13,7 @@ fn message(event: desktop_settings_skills::deeplink::Event) -> Message {
 pub(super) fn view<'a>(app: &'a App) -> iced::Element<'a, Message> {
     let s = &app.skills_settings.repositories;
     desktop_settings_skills::deeplink::view(
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale),
         desktop_settings_skills::deeplink::ViewState {
             source_link: &s.source_link,
             busy: s.busy,

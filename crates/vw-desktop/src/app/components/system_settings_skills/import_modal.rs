@@ -5,6 +5,7 @@ pub(super) fn view<'a>(
     base: iced::Element<'a, Message>,
 ) -> iced::Element<'a, Message> {
     desktop_settings_skills::import_modal::view_with_app_names(
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale),
         &app.skills_settings.import,
         base,
         crate::app::message::settings::skills::import_modal::message,

@@ -27,6 +27,7 @@ pub(super) fn view<'a>(
         })
         .collect::<Vec<_>>();
     desktop_settings_skills::bindings_view::view(
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale),
         desktop_settings_skills::bindings_view::ViewState {
             open: s.open,
             busy: s.busy,

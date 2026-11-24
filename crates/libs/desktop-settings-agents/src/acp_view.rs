@@ -538,7 +538,9 @@ fn save_error(input: Input<'_>) -> Option<String> {
             .map(|message| {
                 message.render(I18n::new(input.locale)).expect("valid ACP error template")
             })
-            .unwrap_or_else(|| error.clone())
+            .unwrap_or_else(|| {
+                desktop_i18n::settings_extensions::feedback(I18n::new(input.locale), error)
+            })
     })
 }
 

@@ -239,48 +239,55 @@ pub enum MenuMessage {
     Tools(McpCatalogRecord),
     Documentation(String),
 }
-pub fn menu(state: &State) -> iced::Element<'_, MenuMessage> {
+pub fn menu(i18n: desktop_i18n::I18n, state: &State) -> iced::Element<'_, MenuMessage> {
     use iced::widget::{column, text};
     let mut body = column![].spacing(8);
     if state.more {
         body = body
-            .push(crate::toolbar_button("按当前开关重写应用配置", Some(MenuMessage::Rewrite)))
             .push(crate::toolbar_button(
-                "复制全部为 mcpServers JSON",
+                i18n.__("按当前开关重写应用配置"),
+                Some(MenuMessage::Rewrite),
+            ))
+            .push(crate::toolbar_button(
+                i18n.__("复制全部为 mcpServers JSON"),
                 Some(MenuMessage::Action(Message::CopyAll)),
             ));
     }
     if let Some(record) = &state.row {
         body = body
             .push(crate::toolbar_button(
-                "复制为 mcpServers JSON",
+                i18n.__("复制为 mcpServers JSON"),
                 Some(MenuMessage::Action(Message::CopyRow(record.clone()))),
             ))
-            .push(crate::toolbar_button("工具详情", Some(MenuMessage::Tools(record.clone()))));
+            .push(crate::toolbar_button(
+                i18n.__("工具详情"),
+                Some(MenuMessage::Tools(record.clone())),
+            ));
         if let Some(url) = record
             .documentation
             .as_ref()
             .filter(|u| u.starts_with("https://") || u.starts_with("http://"))
         {
             body = body.push(crate::toolbar_button(
-                "查看文档",
+                i18n.__("查看文档"),
                 Some(MenuMessage::Documentation(url.clone())),
             ));
         }
         body = body.push(crate::toolbar_button(
-            "删除…",
+            i18n.__("删除…"),
             Some(MenuMessage::Action(Message::Delete(record.clone()))),
         ));
     }
     if let Some(result) = &state.deleted {
         for item in &result.items {
-            body = body.push(text(crate::distribution::item_label(item)));
+            body = body.push(text(crate::distribution::item_label(i18n, item)));
         }
     }
     body.into()
 }
 /// Common modal overlay consumes background input; host mounts it above row menus.
 pub fn overlay<'a>(
+    i18n: desktop_i18n::I18n,
     state: &'a State,
     background: iced::Element<'a, Message>,
 ) -> iced::Element<'a, Message> {
@@ -290,13 +297,22 @@ pub fn overlay<'a>(
         Some(
             settings_modal_card(
                 column![
-                    text(format!("删除 {}？", record.name)),
-                    text("删除共享定义并清理受管目标；失败目标会单独报告。"),
-                    text(state.error.as_deref().unwrap_or("")),
+                    text(
+                        desktop_i18n::__!(i18n, "删除 %s？", (record.name).to_string())
+                            .expect("valid extension display template")
+                    ),
+                    text(i18n.__("删除共享定义并清理受管目标；失败目标会单独报告。")),
+                    text(desktop_i18n::settings_extensions::feedback(
+                        i18n,
+                        state.error.as_deref().unwrap_or("")
+                    )),
                     row![
-                        crate::toolbar_button("取消", (!state.busy).then_some(Message::Close)),
                         crate::toolbar_button(
-                            "确认删除",
+                            i18n.__("取消"),
+                            (!state.busy).then_some(Message::Close)
+                        ),
+                        crate::toolbar_button(
+                            i18n.__("确认删除"),
                             (!state.busy).then_some(Message::ConfirmDelete)
                         )
                     ]
@@ -313,38 +329,59 @@ pub fn overlay<'a>(
             .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
             .and_then(|v| v.get("mcpServers").and_then(|v| v.as_object()).map(|m| m.len()))
             .unwrap_or(0);
-        let mut body =
-            column![text(format!("可复制 {count} 项，跳过 {} 项", export.skipped.len()))]
-                .spacing(8);
+        let mut body = column![text(
+            desktop_i18n::__!(
+                i18n,
+                "可复制 %s 项，跳过 %s 项",
+                (count).to_string(),
+                (export.skipped.len()).to_string()
+            )
+            .expect("valid extension display template")
+        )]
+        .spacing(8);
         for skipped in &export.skipped {
-            body = body.push(text(format!("{}：{}", skipped.id.0, skip_label(skipped.reason))));
+            body = body.push(text(format!(
+                "{}：{}",
+                skipped.id.0,
+                i18n.__(skip_label(skipped.reason))
+            )));
         }
         if let Some(reason) = export.reason {
-            body = body.push(text(skip_label(reason)));
+            body = body.push(text(i18n.__(skip_label(reason))));
         }
         if let Some(error) = &state.error {
-            body = body.push(settings_error_banner(error.clone()));
+            body = body.push(settings_error_banner(desktop_i18n::settings_extensions::feedback(
+                i18n,
+                &error.clone(),
+            )));
         }
         let footer = row![
-            crate::toolbar_button("取消", (!state.busy).then_some(Message::Close)),
+            crate::toolbar_button(i18n.__("取消"), (!state.busy).then_some(Message::Close)),
             crate::toolbar_button(
-                "复制",
+                i18n.__("复制"),
                 (!state.busy && count > 0).then_some(Message::ConfirmCopy)
             )
         ]
         .spacing(8);
         Some(
-            settings_modal_layout(text("复制 mcpServers JSON").size(18), body, Some(footer.into()))
-                .width(680)
-                .height(540)
-                .into(),
+            settings_modal_layout(
+                text(i18n.__("复制 mcpServers JSON")).size(18),
+                body,
+                Some(footer.into()),
+            )
+            .width(680)
+            .height(540)
+            .into(),
         )
     } else if let Some(error) = &state.error {
         Some(
             settings_modal_card(
                 column![
-                    settings_error_banner(error.clone()),
-                    crate::toolbar_button("关闭", Some(Message::Close))
+                    settings_error_banner(desktop_i18n::settings_extensions::feedback(
+                        i18n,
+                        &error.clone()
+                    )),
+                    crate::toolbar_button(i18n.__("关闭"), Some(Message::Close))
                 ]
                 .spacing(10),
             )
@@ -392,6 +429,7 @@ pub fn update(app: &mut Update<'_>, event: ScopedMessage) -> Task<ScopedMessage>
 }
 
 pub fn menu_overlay<'a>(
+    i18n: desktop_i18n::I18n,
     state: &'a State,
     background: iced::Element<'a, MenuMessage>,
 ) -> iced::Element<'a, MenuMessage> {
@@ -400,7 +438,7 @@ pub fn menu_overlay<'a>(
         settings_modal_overlay(
             Some(background),
             MenuMessage::Action(Message::Close),
-            settings_modal_card(menu(state)).width(380),
+            settings_modal_card(menu(i18n, state)).width(380),
         )
     } else {
         background

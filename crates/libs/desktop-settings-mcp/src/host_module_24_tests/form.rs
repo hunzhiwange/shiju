@@ -77,7 +77,10 @@ async fn cc_mcp_t45_modal_shapes_and_draws_chinese_and_errors_in_light_and_dark(
         draft.toggle_json(json).unwrap();
         draft.error = Some("第 2 行，第 3 列：中文错误 😀".into());
         for theme in [Theme::Light, Theme::Dark] {
-            let element = crate::management_form::panel(&draft);
+            let element = crate::management_form::panel(
+                desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+                &draft,
+            );
             let mut ui =
                 UserInterface::build(element, Size::new(760., 700.), Cache::new(), &mut renderer);
             ui.draw(

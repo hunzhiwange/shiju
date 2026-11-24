@@ -471,3 +471,9 @@ pub struct ViewState<'a> {
  pub selected_plugin_id: &'a Option<String>, pub plugin_loading: bool,
  pub plugin_status_message: &'a Option<String>, pub plugin_status_message_translation: &'a Option<desktop_i18n::format::Message>, pub plugin_status_is_error: bool,
 }
+
+/// Text consumed by the plugin failure banner; diagnostics remain data.
+pub(crate) fn failure_feedback(locale: DesktopLocale, error: &str) -> String {
+    desktop_i18n::__!(I18n::new(locale), "插件安装失败：%s", error)
+        .expect("valid plugin failure template")
+}

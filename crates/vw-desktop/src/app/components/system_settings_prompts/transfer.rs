@@ -6,6 +6,7 @@ pub(crate) fn overlay<'a>(
     base: iced::Element<'a, crate::app::Message>,
 ) -> iced::Element<'a, crate::app::Message> {
     desktop_settings_skills::prompts::transfer::overlay(
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         state,
         current,
         busy,

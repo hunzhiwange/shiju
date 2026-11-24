@@ -16,24 +16,34 @@ pub fn summary(result: &McpDistributionResult) -> &'static str {
         "存在失败、取消或未验证目标，请查看逐项结果"
     }
 }
-pub fn item_label(item: &McpDistributionItem) -> String {
+pub fn item_label(i18n: desktop_i18n::I18n, item: &McpDistributionItem) -> String {
     let native = match item.native_outcome {
-        McpDistributionOutcome::Applied => "已应用".into(),
-        McpDistributionOutcome::Unchanged => "无需变更".into(),
-        McpDistributionOutcome::NotVerified => "未验证".into(),
-        McpDistributionOutcome::Unsupported => "不支持".into(),
-        McpDistributionOutcome::Cancelled => "已取消".into(),
-        McpDistributionOutcome::Failed { code } => format!("失败：{code:?}"),
+        McpDistributionOutcome::Applied => i18n.__("已应用").into(),
+        McpDistributionOutcome::Unchanged => i18n.__("无需变更").into(),
+        McpDistributionOutcome::NotVerified => i18n.__("未验证").into(),
+        McpDistributionOutcome::Unsupported => i18n.__("不支持").into(),
+        McpDistributionOutcome::Cancelled => i18n.__("已取消").into(),
+        McpDistributionOutcome::Failed { code } => {
+            desktop_i18n::__!(i18n, "失败：%s", (format!("{:?}", code)).to_string())
+                .expect("valid extension display template")
+        }
     };
-    format!(
-        "{} · {:?} / {} · 期望{} · {} · 原生{}",
-        item.record.id.0,
-        item.target.app_id,
-        item.target.installation_id.0,
-        if item.enabled { "启用" } else { "禁用" },
-        if item.desired_committed { "期望已保存" } else { "期望未保存" },
-        native
+    desktop_i18n::__!(
+        i18n,
+        "%s · %s / %s · 期望%s · %s · 原生%s",
+        (item.record.id.0).to_string(),
+        (format!("{:?}", item.target.app_id)).to_string(),
+        (item.target.installation_id.0).to_string(),
+        (if item.enabled { i18n.__("启用") } else { i18n.__("禁用") }).to_string(),
+        (if item.desired_committed {
+            i18n.__("期望已保存")
+        } else {
+            i18n.__("期望未保存")
+        })
+        .to_string(),
+        (native).to_string()
     )
+    .expect("valid extension display template")
 }
 pub fn terminal(status: &McpResyncOperationStatus) -> bool {
     status.operation.phase == AppOperationPhase::Terminal

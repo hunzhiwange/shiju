@@ -336,7 +336,9 @@ pub fn view<'a>(
         )
         .wrap(),
         directory_picker,
-        input.skill_catalog_error.as_ref().map(settings_error_banner),
+        input.skill_catalog_error.as_ref().map(|error| settings_error_banner(
+            desktop_i18n::settings_extensions::feedback(i18n, error)
+        )),
         row![
             scope_button(
                 tr(input.locale, "项目目录"),

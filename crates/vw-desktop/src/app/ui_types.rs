@@ -10,6 +10,11 @@ pub use desktop_navigation::ui_types::{FocusArea, TodoPanelPlacement, ClipboardS
 #[derive(Debug, Clone)]
 pub enum Message {
     #[cfg(not(target_arch = "wasm32"))]
+    #[allow(private_interfaces)]
+    CliWorkbench(crate::app::cli_workbench::Event),
+    #[cfg(not(target_arch = "wasm32"))]
+    NativeWindowEvent(iced::window::Id, desktop_navigation::global_events::Message),
+    #[cfg(not(target_arch = "wasm32"))]
     Voice(message::voice::Event),
     #[cfg(not(target_arch = "wasm32"))]
     StartupCliServiceBootstrapped(Result<(), String>),

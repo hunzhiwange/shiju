@@ -88,6 +88,12 @@ impl App {
     }
 
     pub fn title_for_window(&self, window: iced::window::Id) -> String {
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.cli_workbench.owns_window(window) {
+            return desktop_i18n::I18n::new(self.general_settings.desktop_locale)
+                .__("CLI 工作台")
+                .to_owned();
+        }
         if self.task_pet_window_id == Some(window) {
             desktop_i18n::I18n::new(self.general_settings.desktop_locale).__("VibeWindow 伙伴").to_owned()
         } else {

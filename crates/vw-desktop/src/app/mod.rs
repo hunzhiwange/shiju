@@ -10,6 +10,8 @@ pub mod assets;
 pub mod components;
 /// config 子模块，拆分当前领域的局部职责。
 pub mod config;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod cli_workbench;
 pub(crate) mod desktop_lifecycle;
 #[cfg(any(unix, windows))]
 pub mod single_instance;

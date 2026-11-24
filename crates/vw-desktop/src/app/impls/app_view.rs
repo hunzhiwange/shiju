@@ -37,6 +37,10 @@ pub(crate) enum MainWindowViewKind {
 
 impl App {
     pub fn view_window(&self, window: iced::window::Id) -> Element<'_, Message> {
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.cli_workbench.owns_window(window) {
+            return crate::app::cli_workbench::view(self, window);
+        }
         if self.task_pet_window_id == Some(window) {
             components::task_pet::window(self)
         } else {

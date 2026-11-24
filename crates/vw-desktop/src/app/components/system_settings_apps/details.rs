@@ -33,6 +33,18 @@ pub(crate) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a AppsCatalogState, ap
             )),
     ]
     .spacing(8);
+    #[cfg(not(target_arch = "wasm32"))]
+    if !state.loading
+        && app.entry.runtime_kinds.contains(&vw_api_app_identity::AppRuntimeKind::AcpAdapter)
+    {
+        let backend = desktop_settings_apps::system_settings_apps::presentation::key(id);
+        tools = tools.push(
+            button(text(i18n.__("在 CLI 工作台打开")).size(SETTINGS_CONTROL_TEXT_SIZE))
+                .padding([8, 12])
+                .style(rounded_action_btn_style)
+                .on_press(Message::CliWorkbench(crate::app::cli_workbench::Event::Open(backend))),
+        );
+    }
     if id == vw_api_app_identity::AppId::OpenClaw {
         tools = tools
             .push(crate::app::components::openclaw_model::entry(i18n, ))

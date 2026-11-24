@@ -148,9 +148,28 @@ fn map_global_event(
     status: iced::event::Status,
     id: iced::window::Id,
 ) -> Option<Message> {
-    desktop_navigation::global_events::map_global_event(event, status, id).map(adapt_global_event)
+    let event = desktop_navigation::global_events::map_global_event(event, status, id)?;
+    #[cfg(not(target_arch = "wasm32"))]
+    return Some(Message::NativeWindowEvent(id, event));
+    #[cfg(target_arch = "wasm32")]
+    Some(adapt_global_event(event))
 }
-fn adapt_global_event(event: desktop_navigation::global_events::Message) -> Message {
+
+#[cfg(not(target_arch = "wasm32"))]
+fn map_close_during_hotkey_recording(
+    event: iced::Event,
+    status: iced::event::Status,
+    id: iced::window::Id,
+) -> Option<Message> {
+    match event {
+        iced::Event::Window(iced::window::Event::CloseRequested | iced::window::Event::Closed) => {
+            map_global_event(event, status, id)
+        }
+        _ => None,
+    }
+}
+
+pub(super) fn adapt_global_event(event: desktop_navigation::global_events::Message) -> Message {
     use desktop_navigation::global_events::Message as Event;
     match event {
         Event::HoveredFilePath(path) => Message::View(message::ViewMessage::HoveredFilePath(path)),
@@ -219,10 +238,20 @@ impl App {
             #[cfg(target_arch = "wasm32")]
             Subscription::run(browser_layout_stream),
             crate::app::components::daily_memory::subscription(&self.apps_catalog.daily_memory),
+            #[cfg(not(target_arch = "wasm32"))]
+            if self.cli_workbench.window.is_some() {
+                iced::time::every(std::time::Duration::from_secs(3))
+                    .map(|_| Message::CliWorkbench(crate::app::cli_workbench::Event::Tick))
+            } else {
+                Subscription::none()
+            },
             {
                 #[cfg(not(target_arch = "wasm32"))]
                 if self.voice.settings.recording_hotkey.is_some() {
-                    crate::app::voice::hotkeys::record_subscription()
+                    Subscription::batch([
+                        crate::app::voice::hotkeys::record_subscription(),
+                        iced::event::listen_with(map_close_during_hotkey_recording),
+                    ])
                 } else {
                     iced::event::listen_with(map_global_event)
                 }

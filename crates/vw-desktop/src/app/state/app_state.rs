@@ -87,6 +87,8 @@ pub struct App {
     pub(crate) window_position: (f32, f32),
     /// 主窗口 ID
     pub(crate) main_window_id: Option<iced::window::Id>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) cli_workbench: crate::app::cli_workbench::Workbench,
     /// 主动释放后尚未收到 Closed 的窗口；迟到事件不能终止后台运行。
     pub(crate) released_main_windows: Vec<iced::window::Id>,
     /// 独立小宠物窗口 ID

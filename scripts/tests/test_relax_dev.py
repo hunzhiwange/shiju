@@ -168,6 +168,17 @@ class RelaxDevTests(unittest.TestCase):
             launch.assert_called_once()
             sleep.assert_not_called()
 
+    def test_desktop_exits_after_a_failed_run(self):
+        args, cwd, env = ['/tool/relax', 'run'], Path('/run'), {}
+        for status, expected in [(1, 1), (-signal.SIGILL, 128 + signal.SIGILL)]:
+            launch = Mock(return_value=status)
+            with self.subTest(status=status), \
+                    patch.dict('sys.modules', cargo_slot=SimpleNamespace(run_foreground=launch)), \
+                    patch.object(dev.time, 'sleep') as sleep:
+                self.assertEqual(dev.run_live(args, cwd, env, restart_on_error=False), expected)
+            launch.assert_called_once_with(args, cwd, env, shutdown_timeout=3)
+            sleep.assert_not_called()
+
     def test_macos_bundle_has_independent_identity_and_updates_runner(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -220,6 +231,7 @@ class RelaxDevTests(unittest.TestCase):
                 patch.object(dev, 'run_live') as execute:
             dev.main(['desktop'])
             self.assertEqual(execute.call_args.args[0][-3:], ['vw-desktop', '--bin', 'shi-ju'])
+            self.assertEqual(execute.call_args.kwargs, {'restart_on_error': False})
             self.assertNotIn('RELAX_O3', execute.call_args.args[2])
             self.assertNotIn('--unattended', execute.call_args.args[0])
 

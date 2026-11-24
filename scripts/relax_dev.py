@@ -240,7 +240,7 @@ def desktop_bundle(binary):
     return executable
 
 
-def run_live(args, cwd, env):
+def run_live(args, cwd, env, *, restart_on_error=True):
     from cargo_slot import run_foreground
 
     restart_delay = 3
@@ -250,6 +250,8 @@ def run_live(args, cwd, env):
             return 0
         if status in (-signal.SIGINT, -signal.SIGTERM):
             return 128 - status
+        if not restart_on_error:
+            return 128 - status if status < 0 else status
         reason = f'信号 {-status}' if status < 0 else f'退出码 {status}'
         print(f'Relax 异常退出（{reason}），{restart_delay} 秒后自动重启。', file=sys.stderr, flush=True)
         time.sleep(restart_delay)
@@ -303,6 +305,8 @@ def main(argv):
         os.execve(binary, args, env)
         return
     print(f'Relax 常驻开发：{package}；源码 {ROOT}', flush=True)
+    if argv[0] == 'desktop':
+        return run_live(args, cwd, env, restart_on_error=False)
     return run_live(args, cwd, env)
 
 

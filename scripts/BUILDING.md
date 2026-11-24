@@ -9,9 +9,9 @@ terminals. First use installs the pinned unpatched Relax automatically; `cargo d
 prepares it ahead of time. Requires Python 3.9+ and the existing Rust/native build toolchain.
 See [team setup and validation](../docs/dev/Relax开发验证.md#团队一键入口当前仓库).
 
-If either application's Relax process crashes or returns an error, the session
-restarts it after three seconds and keeps the same Cargo slot. A clean exit or an
-interrupt ends the session. Press Ctrl+C in the launching terminal to stop it.
+The desktop command exits with the Relax process's failure status. The gateway
+command restarts after three seconds on failure and keeps its build directory.
+Press Ctrl+C in the launching terminal to stop either session.
 
 To use a local Relax build, create the ignored `.cache/relax-dev/local.json`:
 
@@ -27,8 +27,9 @@ the current binary; after rebuilding Relax, restart `cargo dev-gateway`,
 Remove `local.json` to restore the pinned unpatched version. A configured invalid
 path fails explicitly.
 
-With a local Relax build that supports `RELAX_AUTO_RESTART`, `cargo dev-desktop`
-automatically relaunches the desktop after a source edit that requires it.
+With a local Relax build that checks source edits before auto-restarting,
+`cargo dev-desktop` relaunches the desktop only after the check passes. A failed
+check leaves the current desktop running and the next save can retry the check.
 Use `RELAX_AUTO_RESTART=0 cargo dev-desktop` to keep manual relaunches.
 Relaunching can reset in-memory desktop state.
 

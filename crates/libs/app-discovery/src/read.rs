@@ -45,10 +45,21 @@ fn cli_command(app: AppId) -> io::Result<String> {
 }
 
 fn cli_entries<'a>(
+    app: AppId,
     command: &'a str,
     env: &'a LocalReadEnvironment,
 ) -> impl Iterator<Item = io::Result<PathBuf>> + 'a {
-    env.search_paths.iter().filter_map(move |directory| {
+    // A desktop-launched gateway does not inherit the shell's application bundle PATH.
+    // Only use fixed Codex locations under the authorized Applications root.
+    let bundles = [
+        "Codex.app/Contents/Resources",
+        "ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS",
+    ]
+    .into_iter()
+    .filter(move |_| cfg!(target_os = "macos") && app == AppId::Codex)
+    .map(move |relative| env.applications.join(relative))
+    .filter(move |directory| !env.search_paths.contains(directory));
+    env.search_paths.iter().cloned().chain(bundles).filter_map(move |directory| {
         let path = directory.join(command);
         match path.symlink_metadata() {
             Ok(_) => Some(Ok(path)),
@@ -65,7 +76,7 @@ pub fn locate_cli(app: AppId, env: &LocalReadEnvironment) -> io::Result<PathBuf>
 
     validate_roots(env)?;
     let command = cli_command(app)?;
-    let path = cli_entries(&command, env)
+    let path = cli_entries(app, &command, env)
         .next()
         .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "CLI not installed"))??
         .canonicalize()?;
@@ -93,7 +104,7 @@ pub fn resolve_cli_installation(
 
     validate_roots(env)?;
     let command = cli_command(app)?;
-    for path in cli_entries(&command, env) {
+    for path in cli_entries(app, &command, env) {
         let path = path?;
         if installation_id(&env.host_id, &command, &path.to_string_lossy()) == *id {
             let metadata = match path.metadata() {
@@ -133,7 +144,7 @@ pub fn read(app: AppId, env: &LocalReadEnvironment) -> io::Result<AppReadRespons
     }
     let command = cli_command(app)?;
     let mut installations = Vec::new();
-    for path in cli_entries(&command, env) {
+    for path in cli_entries(app, &command, env) {
         let path = path?;
         let probe = version::probe_local_version(&path, Duration::from_secs(2))?;
         let entry = path.to_string_lossy().into_owned();
@@ -165,3 +176,7 @@ pub fn read(app: AppId, env: &LocalReadEnvironment) -> io::Result<AppReadRespons
         report::build(installations).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
     Ok(AppReadResponse { installations: report.installations, desktop: None })
 }
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "read_tests.rs"]
+mod tests;

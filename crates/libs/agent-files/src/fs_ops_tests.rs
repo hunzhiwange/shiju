@@ -207,6 +207,7 @@ fn list_empty_directory_selector_lists_root() {
 fn list_skips_default_ignored_entries() {
     let temp = tempfile::tempdir().expect("tempdir");
     fs::create_dir(temp.path().join("target")).expect("create target");
+    fs::create_dir_all(temp.path().join("target-dir/debug")).expect("create build output");
     fs::create_dir(temp.path().join("src")).expect("create src");
     fs::write(temp.path().join("src/main.rs"), "main").expect("write main");
     fs::write(temp.path().join("app.log"), "logs").expect("write logs");
@@ -214,7 +215,41 @@ fn list_skips_default_ignored_entries() {
     let nodes = list(temp.path(), None).expect("list root");
     let names = nodes.iter().map(|node| node.name.as_str()).collect::<Vec<_>>();
 
-    assert_eq!(names, vec!["src"]);
+    assert_eq!(names, vec!["src", "target-dir"]);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn list_respects_gitignore_and_keeps_tracked_entries() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let root = temp.path();
+    let repo = git2::Repository::init(root).expect("init repo");
+    fs::write(root.join(".gitignore"), "/target-dir/\n/fixtures/\n").expect("write root ignore");
+    fs::create_dir_all(root.join("target-dir/debug")).expect("create build output");
+    fs::create_dir_all(root.join("src/target-dir")).expect("create unignored directory");
+    fs::create_dir_all(root.join("src/generated")).expect("create nested output");
+    fs::write(root.join("src/.gitignore"), "generated/\n*.tmp\n!keep.tmp\n")
+        .expect("write nested ignore");
+    fs::write(root.join("src/keep.tmp"), "").expect("write unignored file");
+    fs::write(root.join("src/drop.tmp"), "").expect("write ignored file");
+    fs::create_dir(root.join("fixtures")).expect("create fixtures");
+    fs::write(root.join("fixtures/tracked.txt"), "").expect("write tracked file");
+    fs::write(root.join("fixtures/untracked.txt"), "").expect("write untracked file");
+    let mut index = repo.index().expect("open index");
+    index.add_path(std::path::Path::new("fixtures/tracked.txt")).expect("track fixture");
+    index.write().expect("write index");
+
+    let nodes = list(root, None).expect("list root");
+    let names = nodes.iter().map(|node| node.name.as_str()).collect::<Vec<_>>();
+    assert_eq!(names, vec!["fixtures", "src", ".gitignore"]);
+
+    let nodes = list(root, Some("src")).expect("list src");
+    let names = nodes.iter().map(|node| node.name.as_str()).collect::<Vec<_>>();
+    assert_eq!(names, vec!["target-dir", ".gitignore", "keep.tmp"]);
+
+    let nodes = list(root, Some("fixtures")).expect("list fixtures");
+    let names = nodes.iter().map(|node| node.name.as_str()).collect::<Vec<_>>();
+    assert_eq!(names, vec!["tracked.txt"]);
 }
 
 #[test]

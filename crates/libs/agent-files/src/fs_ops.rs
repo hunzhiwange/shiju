@@ -97,16 +97,24 @@ pub fn list(root: impl AsRef<Path>, dir: Option<&str>) -> Result<Vec<Node>, Erro
 
     let mut nodes = Vec::new();
     let entries = std::fs::read_dir(&resolved)?;
+    #[cfg(not(target_arch = "wasm32"))]
+    let git_ignore = git_ignore_for_directory(&resolved);
     for entry in entries.flatten() {
-        let name = entry.file_name().to_string_lossy().to_string();
+        let file_name = entry.file_name();
+        let name = file_name.to_string_lossy().into_owned();
         if name == ".git" || name == ".DS_Store" {
+            continue;
+        }
+
+        let is_dir = entry.file_type().ok().is_some_and(|file_type| file_type.is_dir());
+        #[cfg(not(target_arch = "wasm32"))]
+        if git_ignore.as_ref().is_some_and(|ignore| ignore(&file_name, is_dir)) {
             continue;
         }
 
         let full = entry.path();
         let rel = full.strip_prefix(root).unwrap_or(full.as_path());
         let rel = rel.to_string_lossy().to_string().replace('\\', "/");
-        let is_dir = entry.file_type().ok().is_some_and(|file_type| file_type.is_dir());
         let ty = if is_dir { NodeType::Directory } else { NodeType::File };
         let ignore_path =
             if is_dir { format!("{}/", rel.trim_end_matches('/')) } else { rel.clone() };
@@ -131,4 +139,41 @@ pub fn list(root: impl AsRef<Path>, dir: Option<&str>) -> Result<Vec<Node>, Erro
     });
 
     Ok(nodes)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn git_ignore_for_directory(dir: &Path) -> Option<impl Fn(&std::ffi::OsStr, bool) -> bool> {
+    let dir = dir.canonicalize().ok()?;
+    let repo = git2::Repository::discover(&dir).ok()?;
+    let workdir = repo.workdir()?.canonicalize().ok()?;
+    let relative_dir = dir.strip_prefix(&workdir).ok()?.to_path_buf();
+    let index = std::cell::OnceCell::new();
+
+    Some(move |name: &std::ffi::OsStr, is_dir| {
+        let path = relative_dir.join(name);
+        if !repo.status_should_ignore(&path).unwrap_or(false) {
+            return false;
+        }
+
+        // Git ignore patterns only hide untracked entries. If the index is
+        // unreadable, keep the entry visible.
+        let Some(index) = index.get_or_init(|| repo.index().ok()) else {
+            return false;
+        };
+        if (0..=3).any(|stage| index.get_path(&path, stage).is_some()) {
+            return false;
+        }
+        if is_dir {
+            let mut prefix = path.as_os_str().as_encoded_bytes().to_vec();
+            #[cfg(windows)]
+            for byte in &mut prefix {
+                if *byte == b'\\' {
+                    *byte = b'/';
+                }
+            }
+            prefix.push(b'/');
+            return matches!(index.find_prefix(prefix), Err(err) if err.code() == git2::ErrorCode::NotFound);
+        }
+        true
+    })
 }

@@ -156,6 +156,16 @@ impl StreamHost for Host {
         mut input: PromptInput,
         mut before_emit: impl FnMut(&session_port::PromptEvent) + Send + 'static,
     ) -> session_port::PromptTurn {
+        use super::super::cli_workbench;
+        let workbench_turn = input
+            .options
+            .as_object_mut()
+            .and_then(|options| options.remove(cli_workbench::TURN_OPTION));
+        if let Some(turn_id) = workbench_turn.as_ref().and_then(Value::as_str)
+            && let Some(assistant_id) = input.assistant_message_id.as_deref()
+        {
+            cli_workbench::bind_assistant_message(&tenant, &input.session, turn_id, assistant_id);
+        }
         let employee = input.employee.take().map(|(target, authorization)| {
             crate::session::llm::employee_context::Launch::new(
                 tenant.clone(), input.session.clone(), target, authorization.account_scope, authorization.credential, authorization.stop,

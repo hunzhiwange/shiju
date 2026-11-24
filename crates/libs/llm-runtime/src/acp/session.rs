@@ -369,6 +369,65 @@ pub async fn stop_incompatible_cached_clients<H: Host>(
     Ok(())
 }
 
+fn logical_session_clients(
+    tenant: &vw_api_transport::TenantScope,
+    session_id: &str,
+    directory: &str,
+) -> Vec<(String, Arc<CachedAcpClient>)> {
+    let identity = super::lifecycle::session_identity(tenant, session_id, directory);
+    let prefix = format!("{session_id}:acp-source-");
+    ACP_CLIENT_CACHE
+        .lock()
+        .iter()
+        .filter(|(_, client)| {
+            client.tenant == *tenant
+                && client
+                    .runtime_identity
+                    .as_deref()
+                    .and_then(|owner| owner.strip_prefix(prefix.as_str()))
+                    .and_then(|owner| owner.split_once(':'))
+                    .is_some_and(|(_, scope)| scope == identity.as_str())
+        })
+        .map(|(key, client)| (key.clone(), client.clone()))
+        .collect()
+}
+
+/// An idle cached peer may have exited since the last prompt completed.
+pub fn logical_session_exited(
+    tenant: &vw_api_transport::TenantScope,
+    session_id: &str,
+    directory: &str,
+) -> bool {
+    let mut exited = false;
+    for (_, client) in logical_session_clients(tenant, session_id, directory) {
+        let lifecycle = client.client.get_agent_lifecycle_snapshot();
+        if lifecycle.pid.is_some() {
+            return false;
+        }
+        exited |= lifecycle.last_exit.is_some();
+    }
+    exited
+}
+
+/// Close the cached peer processes belonging to one gateway session.
+pub async fn close_logical_session(
+    tenant: &vw_api_transport::TenantScope,
+    session_id: &str,
+    directory: &str,
+) -> Result<(), Error> {
+    let _lifecycle =
+        super::lifecycle::try_lock(tenant, session_id, directory).map_err(to_api_error)?;
+    for (key, client) in logical_session_clients(tenant, session_id, directory) {
+        let _prompt = client.prompt_lock.lock().await;
+        client.client.close().await.map_err(to_api_error)?;
+        let mut cache = ACP_CLIENT_CACHE.lock();
+        if cache.get(&key).is_some_and(|current| Arc::ptr_eq(current, &client)) {
+            cache.remove(&key);
+        }
+    }
+    Ok(())
+}
+
 /// 关闭一次性 ACP 客户端缓存项。
 ///
 /// 托管启动由请求独占，选项读取方的临时引用不能阻止进程退出；原生共享连接则只在

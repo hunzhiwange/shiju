@@ -150,6 +150,7 @@ pub(crate) fn handler_router() -> Router {
         .merge(handlers::git::router())
         // 项目路由：项目管理接口
         .merge(handlers::project::router())
+        .merge(handlers::cli_workbench::router())
         // 权限路由：访问控制管理
         .merge(handlers::permission::router())
         // 问答路由：问答交互接口

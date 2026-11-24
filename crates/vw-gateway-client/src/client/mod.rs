@@ -59,6 +59,7 @@ pub use apps_usage_write_api::{
     AppsUsageOperation, AppsUsageOperationItem, AppsUsageScriptTrial, AppsUsageWriteError,
 };
 mod channel_qr_api;
+mod cli_workbench;
 #[cfg(test)]
 #[path = "channel_qr_api_tests.rs"]
 mod channel_qr_api_tests;

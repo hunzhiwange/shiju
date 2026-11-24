@@ -361,6 +361,7 @@ pub(super) fn stateful_handler_router() -> Router<AppState> {
         .merge(api::handlers::misc::router())
         .merge(api::handlers::permission::router())
         .merge(api::handlers::project::router::<AppState>())
+        .merge(api::handlers::cli_workbench::router())
         .merge(api::handlers::provider::router())
         .merge(api::handlers::pty::router())
         .merge(api::handlers::question::router())

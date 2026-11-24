@@ -7,6 +7,7 @@ use tokio_util::sync::CancellationToken;
 use acp_host_io::permissions::PermissionConfirmation;
 
 use crate::agent::loop_::approval::await_non_cli_approval_decision;
+use crate::gateway::api::handlers::cli_workbench::approval_changed;
 use crate::approval::{
     ACP_APPROVAL_CHANNEL, ApprovalResponse,
 };
@@ -31,8 +32,10 @@ impl<'a> PromptApproval<'a> {
         let prompt_cancellation = cancellation.clone();
         let confirmation = context.map(|context| {
             let session_id = session_id.to_owned();
+            let tenant = crate::session::ui_store::current_tenant_scope();
             let confirm: PermissionConfirmation = Arc::new(move |title, arguments| {
                 let context = context.clone();
+                let tenant = tenant.clone();
                 let session_id = session_id.clone();
                 let cancellation = prompt_cancellation.clone();
                 Box::pin(async move {
@@ -59,7 +62,10 @@ impl<'a> PromptApproval<'a> {
                     );
                     let pending = agent_acp::prompt_approval::PendingPromptApproval::new(manager, request);
                     let request = pending.request();
-                    await_non_cli_approval_decision(
+                    approval_changed(
+                        &tenant, &session_id, context.message_id(), &request.request_id, true,
+                    );
+                    let decision = await_non_cli_approval_decision(
                         manager,
                         &request.request_id,
                         &request.requested_by,
@@ -67,8 +73,11 @@ impl<'a> PromptApproval<'a> {
                         &request.requested_reply_target,
                         Some(&cancellation),
                     )
-                    .await
-                        == ApprovalResponse::Yes
+                    .await;
+                    approval_changed(
+                        &tenant, &session_id, context.message_id(), &request.request_id, false,
+                    );
+                    decision == ApprovalResponse::Yes
                 })
             });
             confirm

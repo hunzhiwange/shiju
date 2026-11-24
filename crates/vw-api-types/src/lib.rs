@@ -46,6 +46,7 @@ pub mod agent_scheduler;
 pub mod app_routing;
 pub mod apps_usage;
 pub mod chat;
+pub mod cli_workbench;
 pub mod common;
 pub mod computer_control;
 pub mod error;

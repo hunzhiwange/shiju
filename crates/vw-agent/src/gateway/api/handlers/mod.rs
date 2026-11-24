@@ -51,6 +51,9 @@ pub mod auth;
 /// Channel QR-code authorization handlers.
 pub(crate) mod channel_qr;
 
+/// Gateway-owned CLI workbench sessions.
+pub(crate) mod cli_workbench;
+
 /// Agent Scheduler 路由处理器模块
 pub mod agent_scheduler;
 
@@ -436,3 +439,6 @@ pub(crate) use gateway_agent_apps::agent_apps_data as agent_apps_data;
 
 
 pub(crate) mod usage;
+
+#[cfg(test)]
+mod cli_workbench_tests;

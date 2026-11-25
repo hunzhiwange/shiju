@@ -200,7 +200,7 @@ def benchmark(target, output):
                     runner_image_version=os.environ.get('ImageVersion'))
     with slot() as (number, target_dir):
         metadata.update(slot=number, CARGO_TARGET_DIR=str(target_dir),
-                        configured_build_dir=str(ROOT / 'target'),
+                        configured_build_dir=str(target_dir),
                         initial_slot_files=len(sizes(target_dir)))
         write_json(output / 'environment.json', metadata)
         try:
@@ -234,8 +234,9 @@ def benchmark(target, output):
             if Path(cargo_metadata['target_directory']).resolve() != target_dir:
                 raise RuntimeError('Cargo target directory bypasses the shared slot')
             build_dir = cargo_metadata.get('build_directory')
-            if build_dir and Path(build_dir).resolve() != ROOT / 'target':
-                raise RuntimeError('Cargo build directory differs from the repository configuration')
+            if not build_dir or Path(build_dir).resolve() != target_dir:
+                raise RuntimeError(f'Cargo build directory must match the shared slot {target_dir}; '
+                                   f'Cargo reported {build_dir!r}')
             plan = json.loads(json.loads((output / 'dist_plan.json').read_text())['output'])
             metadata['dist_planned_bins'] = sorted({
                 asset['name'] for artifact in plan['artifacts'].values()
@@ -279,8 +280,7 @@ def benchmark(target, output):
             metadata['artifact_bytes'] = {
                 **sizes(ROOT / 'target/distrib'), **sizes(target_dir / 'distrib')}
             metadata['intermediate_directories'] = {
-                str(p): p.exists() for p in (ROOT / 'target', target_dir,
-                                              ROOT / 'target' / target / 'dist')}
+                str(p): p.exists() for p in (target_dir, target_dir / target / 'dist')}
             write_json(output / 'environment.json', metadata)
 
 

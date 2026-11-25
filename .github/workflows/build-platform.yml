@@ -50,7 +50,7 @@ jobs:
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           fi
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Acquire Cargo cache slot
@@ -82,7 +82,7 @@ jobs:
       - name: Restore trusted Cargo cache
         id: cargo-cache
         if: ${{ env.RELEASE_CACHE_MODE != 'off' }}
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ steps.cargo-cache-layout.outputs.paths }}
           key: ${{ steps.cargo-cache-layout.outputs.key }}
@@ -90,7 +90,7 @@ jobs:
       - name: Install dist
         run: ${{ fromJSON(inputs.platform).install_dist.run }}
       - name: Fetch the plan manifest
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: artifacts-plan-dist-manifest
           path: target/distrib/
@@ -140,7 +140,7 @@ jobs:
           done
       - name: Cache pinned macOS packaging tools
         if: ${{ github.event_name == 'pull_request' && contains(join(fromJSON(inputs.platform).targets, ','), 'apple-darwin') }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ runner.temp }}/macos-packaging-tools
           key: packaging-tools-${{ runner.os }}-${{ runner.arch }}-cargo-bundle-0.12.0
@@ -224,7 +224,7 @@ jobs:
           tar -cf "$inputs/binaries.tar" -C "$CARGO_TARGET_DIR" "${executables[@]}"
       - name: Upload prebuilt macOS release inputs
         if: ${{ github.event_name == 'push' && contains(join(fromJSON(inputs.platform).targets, ','), 'apple-darwin') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           # Keep intermediate files outside the artifacts-* release downloads.
           name: macos-release-inputs-${{ join(fromJSON(inputs.platform).targets, '_') }}
@@ -234,7 +234,7 @@ jobs:
 
       - name: "Upload artifacts"
         if: ${{ github.event_name != 'push' || !contains(join(fromJSON(inputs.platform).targets, ','), 'apple-darwin') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: artifacts-build-local-${{ join(fromJSON(inputs.platform).targets, '_') }}
           if-no-files-found: error
@@ -279,11 +279,11 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Download prebuilt macOS release inputs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: macos-release-inputs-${{ join(fromJSON(inputs.platform).targets, '_') }}
           path: ${{ runner.temp }}/macos-release-inputs
@@ -296,7 +296,7 @@ jobs:
           echo "CARGO_TARGET_DIR=$target_dir" >> "$GITHUB_ENV"
       - name: Restore pinned macOS packaging tools
         id: packaging-tools
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ runner.temp }}/macos-packaging-tools
           key: packaging-tools-${{ runner.os }}-${{ runner.arch }}-cargo-bundle-0.12.0
@@ -305,7 +305,7 @@ jobs:
         run: bash scripts/install_macos_packaging_tools.sh "$RUNNER_TEMP/macos-packaging-tools"
       - name: Save pinned macOS packaging tools before signing
         if: ${{ steps.packaging-tools.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ${{ runner.temp }}/macos-packaging-tools
           key: ${{ steps.packaging-tools.outputs.cache-primary-key }}
@@ -391,7 +391,7 @@ jobs:
             mv "$package" "$RUNNER_TEMP/macos-release-inputs/distrib/"
           done
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: artifacts-build-local-${{ join(fromJSON(inputs.platform).targets, '_') }}
           path: ${{ runner.temp }}/macos-release-inputs/distrib/

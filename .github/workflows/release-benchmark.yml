@@ -69,7 +69,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
           submodules: recursive
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Acquire Cargo cache slot
@@ -101,7 +101,7 @@ jobs:
       - name: Look for the current dependency cache
         id: cargo-cache-lookup
         if: github.event_name == 'push' || inputs.experiment == 'warm-cache'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ steps.cargo-cache-layout.outputs.paths }}
           key: ${{ steps.cargo-cache-layout.outputs.key }}
@@ -109,7 +109,7 @@ jobs:
       - name: Restore trusted Cargo cache
         id: cargo-cache
         if: ${{ env.RELEASE_CACHE_MODE != 'off' && steps.cargo-cache-lookup.outputs.cache-hit != 'true' }}
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ steps.cargo-cache-layout.outputs.paths }}
           key: ${{ steps.cargo-cache-layout.outputs.key }}
@@ -140,7 +140,7 @@ jobs:
           wix extension add --global WixToolset.UI.wixext/5.0.2
       - name: Cache pinned macOS packaging tools
         if: runner.os == 'macOS' && inputs.experiment == 'dist'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ runner.temp }}/macos-packaging-tools
           key: packaging-tools-${{ runner.os }}-${{ runner.arch }}-cargo-bundle-0.12.0
@@ -176,7 +176,7 @@ jobs:
           ${{ github.ref_protected && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
               && env.RELEASE_CACHE_MODE != 'off' && steps.cargo-cache-lookup.outputs.cache-hit != 'true'
               && steps.cargo-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ${{ steps.cargo-cache-layout.outputs.paths }}
           key: ${{ steps.cargo-cache-layout.outputs.key }}
@@ -184,7 +184,7 @@ jobs:
         if: >-
           ${{ (github.event_name == 'push' || inputs.experiment == 'warm-cache')
               && steps.cargo-cache-lookup.outputs.cache-hit != 'true' }}
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ steps.cargo-cache-layout.outputs.paths }}
           key: ${{ steps.cargo-cache-layout.outputs.key }}
@@ -260,7 +260,7 @@ jobs:
           PYTHON
       - name: Upload evidence even after failure
         if: ${{ always() && hashFiles('benchmark/**') != '' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-benchmark-${{ matrix.target }}-${{ github.sha }}
           path: benchmark/
@@ -287,7 +287,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
           submodules: recursive
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Install target standard library
@@ -389,7 +389,7 @@ jobs:
           PYTHON
       - name: Upload LTO evidence even after failure
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-lto-${{ matrix.target }}-${{ github.sha }}
           path: benchmark/
@@ -416,7 +416,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
           submodules: recursive
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Install dist on macOS
@@ -494,7 +494,7 @@ jobs:
           PYTHON
       - name: Upload precise comparison evidence even after failure
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-precise-${{ matrix.target }}-${{ github.sha }}
           path: benchmark/

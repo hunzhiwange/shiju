@@ -15,11 +15,12 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
+          package-manager-cache: false
           node-version: '22.x'
       - name: Test standalone Web packaging
         run: python3 -m unittest discover -s scripts/tests -p test_package_shiju_web.py
@@ -62,7 +63,7 @@ jobs:
           PY
       - name: Cache wasm-bindgen CLI
         id: bindgen-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ runner.temp }}/wasm-bindgen-cli
           key: web-bindgen-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.bindgen }}
@@ -90,7 +91,7 @@ jobs:
             --out-dir target/distrib --version "$APP_VERSION"
           (cd target/distrib && sha256sum -c "shiju-web-$APP_VERSION.zip.sha256")
       - name: Upload Web archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: artifacts-build-web
           if-no-files-found: error

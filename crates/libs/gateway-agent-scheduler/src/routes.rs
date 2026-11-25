@@ -3,6 +3,7 @@
 use anyhow::Result;
 use gateway_types::ApiError;
 use task_scheduler_core::domain::AgentSchedulerContext;
+use vw_api_agent_scheduler::{AgentSchedulerTaskDetailChange, AgentSchedulerTaskDetailDto};
 use vw_api_agent_scheduler::{
     AgentSchedulerTaskLabelDto, AgentSchedulerTaskLabelMutation, AgentSchedulerTaskPropertyDto,
     AgentSchedulerTaskPropertyMutation,
@@ -100,6 +101,11 @@ where
         .route(
             "/agent-scheduler/projects/{project_id}/tasks/{task_id}/metadata",
             patch(agent_scheduler_project_update_task_metadata),
+        )
+        .route(
+            "/agent-scheduler/projects/{project_id}/tasks/{task_id}/detail",
+            axum::routing::get(agent_scheduler_project_task_detail)
+                .patch(agent_scheduler_project_change_task_detail),
         )
         .route(
             "/agent-scheduler/projects/{project_id}/legacy-import",
@@ -272,6 +278,25 @@ async fn agent_scheduler_project_update_task_metadata(
 ) -> Result<Json<AgentSchedulerTaskMetadataUpdateResponse>, ApiError> {
     let project_path = resolve_project_context(tenant, &project_id).await?;
     gateway.update_task_metadata(project_id, project_path, task_id, body).await.map(Json)
+}
+
+async fn agent_scheduler_project_task_detail(
+    AxumPath((project_id, task_id)): AxumPath<(String, String)>,
+    Extension(tenant): Extension<TenantScope>,
+    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
+) -> Result<Json<AgentSchedulerTaskDetailDto>, ApiError> {
+    let context = resolve_project_context(tenant, &project_id).await?;
+    gateway.task_detail(context, task_id).await.map(Json)
+}
+
+async fn agent_scheduler_project_change_task_detail(
+    AxumPath((project_id, task_id)): AxumPath<(String, String)>,
+    Extension(tenant): Extension<TenantScope>,
+    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
+    Json(change): Json<AgentSchedulerTaskDetailChange>,
+) -> Result<Json<AgentSchedulerTaskDetailDto>, ApiError> {
+    let context = resolve_project_context(tenant, &project_id).await?;
+    gateway.change_task_detail(context, task_id, change).await.map(Json)
 }
 
 async fn agent_scheduler_project_legacy_import(

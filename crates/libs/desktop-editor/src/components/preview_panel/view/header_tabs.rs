@@ -126,6 +126,35 @@ pub fn tab_menu_anchor(menu_pos: Option<Point>) -> Point {
     menu_pos.unwrap_or(Point::ORIGIN)
 }
 
+pub fn preview_tab<'a, M: Clone + 'a>(
+    title: &str,
+    selected: bool,
+    select: M,
+    close: M,
+) -> Element<'a, M> {
+    let icon = file_icon_for(title);
+    let title = truncate_title(title, 40);
+    let close =
+        button(small_icon_svg(Icon::X)).on_press(close).padding(2).style(close_button_style);
+    let content = row![
+        container(file_tab_icon_svg(icon)).width(Length::Fixed(16.0)),
+        container(text(title).size(13))
+            .width(Length::Fill)
+            .align_y(iced::alignment::Vertical::Center),
+        container(close).width(Length::Shrink),
+    ]
+    .spacing(6)
+    .align_y(iced::Alignment::Center)
+    .width(Length::Fill);
+
+    button(container(content).padding([4, 6]).height(28).width(Length::Fill))
+        .on_press(select)
+        .style(move |theme, status| tab_button_style(theme, status, selected))
+        .padding(0)
+        .width(Length::Fill)
+        .into()
+}
+
 /// 构建预览面板的标签页头部组件
 ///
 /// 该函数根据当前应用状态构建预览面板顶部的标签页条，包含所有打开的预览标签页。
@@ -185,42 +214,8 @@ pub fn build_header_tabs<'a>(tabs_data: impl IntoIterator<Item = (&'a str, &'a s
         // 克隆路径用于菜单显示状态检查
         let path_for_menu_check = path.to_owned();
 
-        // 构建关闭按钮（X 图标）
-        let close = {
-            button(small_icon_svg(Icon::X))
-                .on_press(tab_close_message(path))
-                .padding(2)
-                .style(close_button_style)
-        };
-
-        // 截断过长的标题，最多保留 28 个字符
-        let title = truncate_title(title, 40);
-
-        // 构建标签页内容：文件图标 + 标题 + 关闭按钮
-        let tab_content = row![
-            // 文件图标容器，固定宽度 16px
-            container(file_tab_icon_svg(file_icon_for(&title))).width(Length::Fixed(16.0)),
-            // 标题文本容器，宽度自适应收缩
-            container(text(title).size(13))
-                .width(Length::Fill)
-                .align_y(iced::alignment::Vertical::Center),
-            // 关闭按钮容器，宽度自适应收缩
-            container(close).width(Length::Shrink),
-        ]
-        .spacing(6)
-        .align_y(iced::Alignment::Center)
-        .width(Length::Fill);
-
-        // 构建标签页按钮，包含内容容器
-        let tab_button: Element<'_, Message> = button(
-            container(tab_content).padding([4, 6]).height(Length::Fixed(28.0)).width(Length::Fill),
-        )
-        // 点击标签页时切换到对应的预览
-        .on_press(tab_select_message(path))
-        .style(move |theme: &iced::Theme, status| tab_button_style(theme, status, selected))
-        .padding(0)
-        .width(Length::Fill)
-        .into();
+        let tab_button =
+            preview_tab(title, selected, tab_select_message(path), tab_close_message(path));
 
         // 将标签页按钮包装为可拖拽区域
         let draggable_tab = Element::new(DraggableArea::new(tab_button, drag_start, drag_end));

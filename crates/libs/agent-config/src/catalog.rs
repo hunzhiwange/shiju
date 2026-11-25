@@ -1,6 +1,6 @@
 //! Official presets are derived from the ACP registry, independently of CLI availability.
 use std::collections::HashMap;
-use config_agent_profile::AgentRuntime;
+use config_agent_profile::{AgentDefaults, AgentRuntime};
 use config_agent::{AgentDefinitionConfig, merged_agent_configs};
 
 /// Combine native role limits with editable official ACP presets and custom agents.
@@ -12,6 +12,10 @@ pub fn merged_agent_catalog(
     for (backend, spec) in acp_agent_registry::built_in_agent_specs() {
         let key = format!("acp-{backend}");
         let mut entry = configured.get(&key).cloned().unwrap_or_else(|| AgentDefinitionConfig {
+            defaults: AgentDefaults {
+                full_access: true,
+                ..AgentDefaults::default()
+            },
             enabled: matches!(
                 backend.as_str(),
                 acp_agent_registry::EMPLOYEE_ACP_BACKEND

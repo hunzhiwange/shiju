@@ -95,6 +95,7 @@ pub(super) fn map_diff_message(
         Local::RevertDiffFile(file) => GitMessage::RevertDiffFile(file),
         Local::OpenDiffFileMenu(file) => GitMessage::OpenDiffFileMenu(file),
         Local::CloseDiffFileMenu => GitMessage::CloseDiffFileMenu,
+        Local::ToggleStageFile(file, selected) => GitMessage::ToggleStageFile(file, selected),
         Local::SelectAllFileLines(file) => GitMessage::SelectAllFileLines(file),
         Local::ClearAllFileLines(file) => GitMessage::ClearAllFileLines(file),
         Local::ToggleExpandFile(file) => GitMessage::ToggleExpandFile(file),

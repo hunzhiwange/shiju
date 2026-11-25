@@ -347,6 +347,8 @@ pub(super) fn task_board_task_read_model(
     status_key: &str,
 ) -> AgentSchedulerTaskBoardTaskReadModelDto {
     AgentSchedulerTaskBoardTaskReadModelDto {
+        assignee: metadata.get("assignee").and_then(Value::as_str).map(str::to_owned)
+            .or_else(|| task.assigned_to.as_ref().map(|assignee| assignee.as_str().to_owned())),
         dispatch_blocker: None,
         legacy_subtasks: metadata.get("subtasks")
             .filter(|value| value.as_array().is_some_and(|items| !items.is_empty()))
@@ -589,9 +591,13 @@ pub(super) fn task_graph_task_to_dto(
 }
 
 pub(super) fn task_to_dto(
-    task: StoredAgentTask,
+    mut task: StoredAgentTask,
     placement: Option<AgentSchedulerTaskPlanPlacementDto>,
 ) -> AgentTaskDto {
+    if let Some(metadata) = task.metadata.as_object_mut() {
+        metadata.remove(task_scheduler::task_board::detail::COLLABORATION_KEY);
+        metadata.remove(task_scheduler::task_board::detail::CREATOR_KEY);
+    }
     AgentTaskDto {
         placement,
         id: task.id.as_str().to_string(),

@@ -66,7 +66,9 @@ pub(super) fn update(
             let terminal = &mut *terminal;
             if matches!(
                 cmd,
-                iced_term::BackendCommand::Write(_) | iced_term::BackendCommand::Paste(_)
+                iced_term::BackendCommand::Write(_)
+                    | iced_term::BackendCommand::Paste(_)
+                    | iced_term::BackendCommand::ProcessLink(iced_term::LinkAction::Open, _)
             ) && (!terminal.is_visible
                 || terminal.active_id != Some(id)
                 || terminal.tabs.iter().any(|tab| tab.id == id && tab.edit_title.is_some()))
@@ -81,12 +83,14 @@ pub(super) fn update(
 
             // 查找匹配指定 ID 的终端标签页
             if let Some(tab) = terminal.tabs.iter_mut().find(|t| t.id == id) {
-                // 将命令代理到终端后端处理
-                // 如果返回 Shutdown 动作，表示终端进程已退出
-                if tab.term.handle(iced_term::Command::ProxyToBackend(cmd))
-                    == iced_term::actions::Action::Shutdown
-                {
-                    return super::tabs::close_tab(terminal, focused, effects, id);
+                use iced_term::actions::Action;
+                match tab.term.handle(iced_term::Command::ProxyToBackend(cmd)) {
+                    Action::Shutdown => return super::tabs::close_tab(terminal, focused, effects, id),
+                    Action::OpenPath(path) => effects.push(Effect::OpenPath {
+                        path,
+                        directory: tab.term.working_directory(),
+                    }),
+                    _ => {}
                 }
             }
             focus

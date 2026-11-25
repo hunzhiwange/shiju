@@ -73,9 +73,15 @@ pub(crate) fn invalidate(app: &mut App) {
 /// Retain a semantic message for known application feedback, and preserve service errors verbatim.
 pub(super) fn feedback(app: &mut App, kind: crate::app::state::ToastKind, raw: impl Into<String>) -> Task<Message> {
     let raw = raw.into();
-    if let Some(message) = desktop_voice_ui::feedback::message(&raw) {
+    let task = if let Some(message) = desktop_voice_ui::feedback::message(&raw) {
         app.show_message_toast(kind, message)
-    } else { app.show_toast(kind, raw) }
+    } else {
+        app.show_toast(kind, raw)
+    };
+    if app.pet_state.controls.voice_owned {
+        app.pet_state.controls.feedback_id = app.toast_state.active_toast.as_ref().map(|toast| toast.id);
+    }
+    task
 }
 fn fail(app: &mut App, message: String) -> Task<Message> {
     desktop_voice_ui::message::voice::fail(&mut app.voice);

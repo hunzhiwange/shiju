@@ -171,6 +171,12 @@ async fn cli_workbench_acp_routes_isolate_projects_and_correlate_approved_turns(
     let script = root.join("peer.py");
     let calls = root.join("prompts.txt");
     std::fs::write(&script, ACP_PEER).unwrap();
+    crate::config::update_global_for_tenant(
+        &tenant,
+        json!({"agents": {"acp-claude": {"defaults": {"full_access": false}}}}),
+    )
+    .await
+    .unwrap();
     crate::config::update_project_for_tenant(
         &tenant,
         &root,
@@ -250,6 +256,11 @@ async fn cli_workbench_acp_routes_isolate_projects_and_correlate_approved_turns(
         request(&tenant, "POST", &send, json!({"request_id": "third", "text": "third turn"})).await;
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(rejected["code"], "awaiting_approval");
+    let (status, listed) = request(&tenant, "GET", &sessions, Value::Null).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(listed[0]["recent_request_ids"], json!(["first", "second"]));
+    let (_, foreign) = request(&tenant, "GET", &foreign_sessions, Value::Null).await;
+    assert_eq!(foreign, json!([]));
     let permission = pending["approval_request_id"].as_str().unwrap();
     let query = url::form_urlencoded::Serializer::new(String::new())
         .append_pair("directory", root.to_str().unwrap())
@@ -266,6 +277,11 @@ async fn cli_workbench_acp_routes_isolate_projects_and_correlate_approved_turns(
     assert_eq!(second_result["output"], "second result");
     assert_eq!(second_result["approval_history"], json!([permission]));
     assert_eq!(request(&tenant, "GET", &first_path, Value::Null).await.1, first_result);
+    let (status, projects) = request(&tenant, "GET", "/v1/cli-workbench/projects", Value::Null).await;
+    assert_eq!(status, StatusCode::OK);
+    let entry = projects["projects"].as_array().unwrap().iter()
+        .find(|entry| entry["id"] == project.id.as_str()).unwrap();
+    assert_eq!(entry["sessions"][0]["recent_request_ids"], json!(["first", "second"]));
     assert_eq!(std::fs::read_to_string(calls).unwrap(), "first turn\nsecond turn\n");
 
     let (status, _) = request(&tenant, "POST", &format!("{route}/stop"), Value::Null).await;

@@ -16,7 +16,7 @@ pub const MAX_MEDIA_JSON_BYTES: usize = 1024 * 1024;
 pub const MAX_MEDIA_SUBMIT_BYTES: usize = MAX_MEDIA_UPLOAD_BYTES.div_ceil(3) * 4 + 256 * 1024;
 pub const MAX_MEDIA_ASSETS: usize = 16;
 const MAX_MEDIA_INPUTS: usize = 8;
-const MAX_MEDIA_TEXT_BYTES: usize = 32 * 1024;
+pub const MAX_MEDIA_TEXT_BYTES: usize = 32 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -65,7 +65,10 @@ pub struct MediaModelSelection {
 
 impl MediaModelSelection {
     pub fn validate(&self) -> Result<(), MediaErrorCode> {
-        if matches!(self.operation, MediaOperation::ImageGenerate | MediaOperation::VideoGenerate)
+        if matches!(
+            self.operation,
+            MediaOperation::ImageGenerate | MediaOperation::VideoGenerate | MediaOperation::ImageUnderstand
+        )
             && valid_reference(&self.deployment_id)
             && valid_reference(&self.model_id)
         {

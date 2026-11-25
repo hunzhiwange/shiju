@@ -56,16 +56,14 @@ fn window_builds_collapsed_and_expanded_variants() {
     app.task_pet_items = vec![task_item(1, TaskPetStatus::Running)];
     app.task_pet_collapsed = true;
     keep_element(window(app.view()));
-    keep_element(collapsed_window(app.view()));
 
     app.task_pet_collapsed = false;
-    app.task_pet_expand_progress = 1.0;
     app.task_pet_hovered_request_id = Some(1);
     keep_element(window(app.view()));
-    keep_element(expanded_window(app.view()));
+    keep_element(window(app.view()));
 
     app.task_pet_robot_hovered = true;
-    keep_element(expanded_window(app.view()));
+    keep_element(window(app.view()));
 }
 
 #[test]
@@ -73,22 +71,20 @@ fn pet_control_covers_avatar_badge_code_and_collapse_controls() {
     let mut app = test_app();
     app.task_pet_items = vec![task_item(1, TaskPetStatus::Running)];
     app.status_animation_frame = 11;
-    keep_element(pet_control(app.view(), PET_COLLAPSED_SIZE, true));
-    keep_element(pet_control(app.view(), PET_EXPANDED_SIZE, false));
+    keep_element(pet_control(app.view()));
 
     app.task_pet_robot_hovered = true;
-    keep_element(pet_control(app.view(), PET_COLLAPSED_SIZE, true));
-    keep_element(pet_control(app.view(), PET_EXPANDED_SIZE, false));
+    keep_element(pet_control(app.view()));
 
     app.task_pet_avatar_kind = TaskPetAvatarKind::Beauty;
-    keep_element(pet_sprite(app.view(), PET_EXPANDED_SIZE));
+    keep_element(pet_sprite(app.view(), PET_COLLAPSED_SIZE));
     app.task_pet_avatar_kind = TaskPetAvatarKind::Handsome;
-    keep_element(pet_sprite(app.view(), PET_EXPANDED_SIZE));
+    keep_element(pet_sprite(app.view(), PET_COLLAPSED_SIZE));
 
     app.task_pet_items = vec![task_item(2, TaskPetStatus::Completed)];
     app.task_pet_avatar_kind = TaskPetAvatarKind::Robot;
     app.task_pet_robot_hovered = false;
-    keep_element(pet_control(app.view(), PET_COLLAPSED_SIZE, true));
+    keep_element(pet_control(app.view()));
 }
 
 #[test]
@@ -121,6 +117,7 @@ fn task_card_builds_running_completed_hovered_and_replying_states() {
     let mut app = test_app();
     let running = task_item(1, TaskPetStatus::Running);
     let completed = task_item(2, TaskPetStatus::Completed);
+    app.task_pet_collapsed = false;
 
     keep_element(task_card(app.view(), &running));
     keep_element(task_card(app.view(), &completed));
@@ -185,7 +182,7 @@ fn human_motion_and_handle_follow_walking_hover_and_work_state() {
             PET_BEAUTY_LEFT_HANDLE.clone(),
             PET_BEAUTY_WORK_HANDLE.clone(),
         ),
-        PET_EXPANDED_SIZE,
+        PET_COLLAPSED_SIZE,
         human_motion_lift(app.view()),
     ));
 
@@ -198,7 +195,7 @@ fn human_motion_and_handle_follow_walking_hover_and_work_state() {
             PET_BEAUTY_LEFT_HANDLE.clone(),
             PET_BEAUTY_WORK_HANDLE.clone(),
         ),
-        PET_EXPANDED_SIZE,
+        PET_COLLAPSED_SIZE,
         human_motion_lift(app.view()),
     ));
 
@@ -210,7 +207,7 @@ fn human_motion_and_handle_follow_walking_hover_and_work_state() {
             PET_BEAUTY_LEFT_HANDLE.clone(),
             PET_BEAUTY_WORK_HANDLE.clone(),
         ),
-        PET_EXPANDED_SIZE,
+        PET_COLLAPSED_SIZE,
         human_motion_lift(app.view()),
     ));
 }
@@ -243,7 +240,8 @@ struct Fixture {
     task_pet_dragging: bool,
     task_pet_drag_direction: i8,
     status_animation_frame: usize,
-    task_pet_expand_progress: f32,
+    dock_mode: crate::pet_view::DockMode,
+    reminders_open: bool,
     task_pet_hovered_request_id: Option<u64>,
     task_pet_reply_request_id: Option<u64>,
     task_pet_reply_input: String,
@@ -260,7 +258,8 @@ impl Default for Fixture {
             task_pet_dragging: false,
             task_pet_drag_direction: 1,
             status_animation_frame: 0,
-            task_pet_expand_progress: 0.0,
+            dock_mode: crate::pet_view::DockMode::Actions,
+            reminders_open: true,
             task_pet_hovered_request_id: None,
             task_pet_reply_request_id: None,
             task_pet_reply_input: String::new(),
@@ -270,11 +269,28 @@ impl Default for Fixture {
 }
 
 impl Fixture {
+    fn reminder_height(&self) -> f32 {
+        if self.reminders_open {
+            reminder_height(&self.task_pet_items, self.task_pet_reply_request_id, !self.task_pet_collapsed)
+        } else {
+            0.0
+        }
+    }
+
     fn view(&self) -> crate::pet_view::PetView<'_> {
+        use crate::pet_view::DockView;
+        let size = self.dock_mode.size();
         crate::pet_view::PetView {
+            dock: DockView {
+                mode: self.dock_mode,
+                width: size.width,
+                height: size.height,
+                reminders_open: self.reminders_open && !self.task_pet_items.is_empty(),
+                reminder_height: self.reminder_height(),
+                ..Default::default()
+            },
             desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
             task_pet_items: &self.task_pet_items,
-            task_pet_collapsed: self.task_pet_collapsed,
             task_pet_avatar_kind: self.task_pet_avatar_kind,
             task_pet_context_menu_pos: None,
             task_pet_robot_hovered: self.task_pet_robot_hovered,
@@ -283,7 +299,7 @@ impl Fixture {
             task_pet_hovered_request_id: self.task_pet_hovered_request_id,
             task_pet_reply_input: &self.task_pet_reply_input,
             task_pet_scroll_id: &self.scroll_id,
-            render_collapsed: self.task_pet_collapsed && self.task_pet_expand_progress <= 0.0,
+            render_collapsed: self.task_pet_collapsed,
             preview_scale: 1.0,
             avatar_bounds: 104.0,
             active_count: self.task_pet_items.iter()

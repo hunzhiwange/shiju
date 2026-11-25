@@ -1,6 +1,6 @@
-//! Git 面板左侧面板组件
+//! Git 面板提交表单
 //!
-//! 本模块提供 Git 提交界面左侧面板的视图组件，用于构建用户友好的提交体验。
+//! 本模块提供 Git 面板底部提交表单。
 //! 支持约定式提交（Conventional Commits）规范，帮助团队保持一致的提交信息格式。
 //!
 //! # 主要功能
@@ -22,22 +22,18 @@
 
 use iced::advanced::widget::operation::{focusable, scope};
 use iced::advanced::widget::{Id, operate};
-use iced::widget::{column, container, row, text};
+use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element, Length};
 
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::status_animation::spinner_frame;
 use desktop_ui_controls::system_settings_common::{
-    icon_btn, settings_muted_text_style, settings_panel_style,
-    settings_select, settings_text_editor, settings_text_input,
+    icon_btn, primary_action_btn_style, rounded_action_btn_style, settings_muted_text_style,
+    settings_panel_style, settings_select, settings_text_editor, settings_text_input,
 };
 use desktop_i18n::I18n;
 use super::types::ConventionalCommitType;
 use super::messages::UiMessage as Message;
-
-use super::ui::{
-    disabled_square_content_button_tiny, disabled_square_icon_button_tiny, square_icon_button_tiny,
-};
 
 const COMMIT_FOCUS_SCOPE: &str = "git-commit-form";
 
@@ -150,9 +146,9 @@ pub fn commit_panel_state(app: &Input<'_>) -> CommitPanelState {
     }
 }
 
-/// 构建 Git 面板左侧面板视图
+/// 构建 Git 面板底部的提交表单。
 ///
-/// 该函数创建包含提交表单的完整左侧面板，根据应用状态动态调整界面布局：
+/// 根据应用状态动态调整界面布局：
 /// - 当启用差异摘要模式时，显示完整的约定式提交表单（类型 + 作用域 + 摘要）
 /// - 否则仅显示简化的摘要输入框
 ///
@@ -168,7 +164,7 @@ pub fn commit_panel_state(app: &Input<'_>) -> CommitPanelState {
 ///
 /// # 返回值
 ///
-/// 返回包含完整左侧面板的 `Element`，可嵌入到父容器中
+/// 返回完整提交表单的 `Element`。
 ///
 /// # 界面行为
 ///
@@ -184,62 +180,59 @@ pub fn commit_panel_state(app: &Input<'_>) -> CommitPanelState {
 /// let left_panel = view(&app);
 /// // 将 left_panel 嵌入到 Git 面板的主布局中
 /// ```
-pub fn view<'a, External: Clone + 'static>(app: &Input<'a>, help_label: Element<'a, Message<External>>) -> Element<'a, Message<External>> {
-
+pub fn view<'a, External: Clone + 'static>(
+    app: &Input<'a>,
+    help_label: Element<'a, Message<External>>,
+) -> Element<'a, Message<External>> {
     let i18n = I18n::new(app.desktop_locale);
-    let type_and_scope = app.show_git_diff_summary.then(|| {
-        let commit_type_pick =
-            settings_select(ConventionalCommitType::all(), app.git_commit_type, |commit_type| {
-                Message::CommitTypeSelected(commit_type)
-            })
-            .placeholder(i18n.__("类型（必选）"))
-            .width(Length::Fixed(148.0));
-        let scope = settings_text_input(i18n.__("scope（可选）"), app.git_commit_scope)
-            .on_input(|value| Message::CommitScopeChanged(value))
-            .width(Length::Fill);
-        row![commit_type_pick, scope].spacing(8).align_y(Alignment::Center)
+    let commit_type = app.show_git_diff_summary.then(|| {
+        settings_select(
+            ConventionalCommitType::all(),
+            app.git_commit_type,
+            Message::CommitTypeSelected,
+        )
+        .placeholder(i18n.__("类型（必选）"))
+        .width(148)
     });
-
+    let scope_input = app.show_git_diff_summary.then(|| {
+        settings_text_input(i18n.__("作用域"), app.git_commit_scope)
+            .on_input(Message::CommitScopeChanged)
+            .width(88)
+    });
     let summary_input = settings_text_input(i18n.__("摘要（Summary）"), app.git_commit_message)
-        .on_input(|value| Message::CommitMessageChanged(value))
+        .on_input(Message::CommitMessageChanged)
         .width(Length::Fill);
-    let desc_input = settings_text_editor(app.git_commit_description_editor)
-        .placeholder(i18n.__("描述（可选）"))
-        .on_action(|action| {
-            Message::CommitDescriptionEditorAction(action)
-        })
-        .height(Length::Fixed(88.0));
+    let description = app.show_git_commit_description.then(|| {
+        settings_text_editor(app.git_commit_description_editor)
+            .placeholder(i18n.__("描述（可选）"))
+            .on_action(Message::CommitDescriptionEditorAction)
+            .height(88)
+    });
+    let description_action = if app.show_git_commit_description {
+        "收起详细描述"
+    } else {
+        "展开详细描述"
+    };
+    let description_toggle = button(text(i18n.__(description_action)).size(11))
+        .padding([5, 8])
+        .style(rounded_action_btn_style)
+        .on_press(Message::ToggleCommitDescription);
 
     let commit_state = commit_panel_state(app);
-
-    // 根据条件构建提交按钮，动态显示不同的状态提示
-    let commit_btn = match commit_state.button {
-        CommitButtonState::InProgress => disabled_square_content_button_tiny(
-            container(text(spinner_frame(app.file_manager_refresh_frame)))
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .align_x(iced::alignment::Horizontal::Center)
-                .align_y(iced::alignment::Vertical::Center),
-            desktop_i18n::I18n::new(app.desktop_locale).__("正在提交…").to_owned(),
-        ),
-        CommitButtonState::NoSelection => disabled_square_icon_button_tiny(
-            Icon::Save,
-            desktop_i18n::I18n::new(app.desktop_locale).__("选择变更后可提交").to_owned(),
-        ),
-        CommitButtonState::MissingSummary => disabled_square_icon_button_tiny(
-            Icon::Save,
-            desktop_i18n::I18n::new(app.desktop_locale).__("填写摘要后可提交").to_owned(),
-        ),
-        CommitButtonState::MissingType => disabled_square_icon_button_tiny(
-            Icon::Save,
-            desktop_i18n::I18n::new(app.desktop_locale).__("请选择类型").to_owned(),
-        ),
-        CommitButtonState::Ready => square_icon_button_tiny(
-            Icon::Save,
-            desktop_i18n::I18n::new(app.desktop_locale).__("提交所选").to_owned(),
-            Message::CommitSelected,
-        ),
-    };
+    let committing = commit_state.button == CommitButtonState::InProgress;
+    let commit_btn = button(
+        row![
+            committing.then(|| text(spinner_frame(app.file_manager_refresh_frame)).size(12)),
+            text(i18n.__("提交所选")).size(12),
+        ]
+        .spacing(4)
+        .align_y(Alignment::Center),
+    )
+    .padding([5, 10])
+    .style(primary_action_btn_style)
+    .on_press_maybe(
+        (commit_state.button == CommitButtonState::Ready).then_some(Message::CommitSelected),
+    );
     let header_block = row![
         help_label,
         icon_btn(
@@ -251,57 +244,45 @@ pub fn view<'a, External: Clone + 'static>(app: &Input<'a>, help_label: Element<
     .spacing(6)
     .align_y(Alignment::Center);
 
-    let mut form_col = column![header_block].spacing(12);
-    if let Some(type_and_scope) = type_and_scope {
-        form_col = form_col.push(type_and_scope);
-    }
-    form_col = form_col.push(summary_input).push(
-        column![
-            text(desktop_i18n::I18n::new(app.desktop_locale).__("详细描述"))
-                .size(11)
-                .style(settings_muted_text_style),
-            desc_input,
-        ]
-        .spacing(6),
-    );
-
     let col = column![
-        form_col,
+        header_block,
+        commit_type,
+        row![scope_input, summary_input].spacing(6).align_y(Alignment::Center),
+        description,
         row![
-            container(
-                text(desktop_i18n::I18n::new(app.desktop_locale).__(commit_state.hint))
-                    .size(11)
-                    .style(settings_muted_text_style)
-            )
-            .width(Length::Fill)
-            .center_y(Length::Shrink),
-            container(commit_btn).center_x(Length::Shrink).center_y(Length::Shrink),
+            description_toggle,
+            text(i18n.__(commit_state.hint))
+                .size(11)
+                .style(settings_muted_text_style)
+                .width(Length::Fill),
+            commit_btn,
         ]
-        .spacing(8)
+        .spacing(6)
         .align_y(Alignment::Center)
     ]
-    .spacing(12);
+    .spacing(7);
 
     // 包装为容器并应用最终样式，返回完整的面板元素
     container(col)
         .id(COMMIT_FOCUS_SCOPE)
         .width(Length::Fill)
-        .padding([14, 16])
+        .padding([8, 12])
         .style(settings_panel_style)
         .into()
 }
 
 /// Borrowed inputs used by this view.
 pub struct Input<'a> {
- pub desktop_locale: config_ui::DesktopLocale,
- pub show_git_diff_summary: bool,
- pub git_commit_type: Option<ConventionalCommitType>,
- pub git_commit_scope: &'a str,
- pub git_commit_message: &'a str,
- pub git_commit_description_editor: &'a iced::widget::text_editor::Content,
- pub git_commit_in_progress: bool,
- pub file_manager_refresh_frame: usize,
- pub any_selected: bool,
+    pub desktop_locale: config_ui::DesktopLocale,
+    pub show_git_diff_summary: bool,
+    pub git_commit_type: Option<ConventionalCommitType>,
+    pub git_commit_scope: &'a str,
+    pub git_commit_message: &'a str,
+    pub git_commit_description_editor: &'a iced::widget::text_editor::Content,
+    pub show_git_commit_description: bool,
+    pub git_commit_in_progress: bool,
+    pub file_manager_refresh_frame: usize,
+    pub any_selected: bool,
 }
 
 pub fn mode_description(conventional: bool) -> &'static str {

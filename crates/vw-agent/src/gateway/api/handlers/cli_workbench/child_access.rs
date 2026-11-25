@@ -1,6 +1,9 @@
 //! Loopback gateway access bound to the launching session's project and user.
 
-use std::sync::Arc;
+use std::{
+    ffi::{OsStr, OsString},
+    sync::Arc,
+};
 
 use axum::{
     Router,
@@ -58,6 +61,23 @@ impl Drop for ChildAccess {
     fn drop(&mut self) {
         self.server.abort();
     }
+}
+
+/// Prefer the CLI shipped alongside this gateway over a different installation on PATH.
+pub(crate) fn cli_search_path(existing: Option<&OsStr>) -> Option<OsString> {
+    let gateway = std::env::current_exe().ok()?;
+    let bin = gateway.parent()?;
+    let cli = if cfg!(windows) { "shiju.exe" } else { "shiju" };
+    if !bin.join(cli).is_file() {
+        return None;
+    }
+    let fallback = existing.is_none().then(shell_command::effective_path_env).flatten();
+    let existing = existing.or_else(|| fallback.as_deref().map(OsStr::new));
+    let paths = existing
+        .into_iter()
+        .flat_map(std::env::split_paths)
+        .filter(|dir| dir != bin);
+    std::env::join_paths(std::iter::once(bin.to_owned()).chain(paths)).ok()
 }
 
 async fn authorize(

@@ -1,5 +1,5 @@
 use crate::{Shell, TerminalState, TerminalTheme};
-use iced::widget::pane_grid::{Axis, Direction, Node};
+use iced::widget::pane_grid::{Axis, Direction, Edge, Node, Target};
 use iced_term::{BackendCommand, Command};
 use std::time::{Duration, Instant};
 
@@ -48,6 +48,11 @@ fn project_workspace_restores_split_tabs_and_last_directories() {
     };
     let split = *id;
     original.panes.grid.resize(split, 0.37);
+    assert!(original.panes.dock_tab(first_pane, second_id, Target::Edge(Edge::Bottom)));
+    let Node::Split { id, axis: Axis::Horizontal, .. } = original.panes.grid.layout() else {
+        panic!("expected the dragged tab below the original split");
+    };
+    original.panes.grid.resize(*id, 0.63);
     assert!(original.select_terminal(first_id));
     original.height = 276.0;
     original.save_workspace(&snapshot).unwrap();
@@ -70,13 +75,18 @@ fn project_workspace_restores_split_tabs_and_last_directories() {
     let Node::Split { axis, ratio, a, b, .. } = grid.layout() else {
         panic!("expected restored split");
     };
+    assert_eq!((*axis, *ratio), (Axis::Horizontal, 0.63));
+    let (Node::Split { axis, ratio, a, b, .. }, Node::Pane(bottom)) = (&**a, &**b) else {
+        panic!("expected a nested split above the dragged tab");
+    };
     assert_eq!((*axis, *ratio), (Axis::Vertical, 0.37));
-    let (Node::Pane(first), Node::Pane(second)) = (&**a, &**b) else {
+    let (Node::Pane(first), Node::Pane(right)) = (&**a, &**b) else {
         panic!("expected restored left and right panes");
     };
     assert_eq!(restored.panes.focused, *first);
-    assert_eq!(grid.get(*first).unwrap().tabs, [first_id, second_id]);
-    assert_eq!(grid.get(*second).unwrap().tabs, [split_tab_id]);
+    assert_eq!(grid.get(*first).unwrap().tabs, [first_id]);
+    assert_eq!(grid.get(*right).unwrap().tabs, [split_tab_id]);
+    assert_eq!(grid.get(*bottom).unwrap().tabs, [second_id]);
 }
 
 #[test]

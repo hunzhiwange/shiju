@@ -16,7 +16,7 @@ async fn running_indicator_rotates_around_a_centered_breathing_dot() {
 
     for theme in [Theme::Light, Theme::Dark] {
         let mut render = |frame, breathe| {
-            let mut indicator = running_indicator(frame, breathe);
+            let mut indicator = running_indicator::<Message>(frame, breathe);
             let mut tree = Tree::new(indicator.as_widget());
             let node = indicator.as_widget_mut().layout(&mut tree, &renderer, &limits);
             assert_eq!(node.size(), size);

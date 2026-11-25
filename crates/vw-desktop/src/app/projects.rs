@@ -85,14 +85,13 @@ impl App {
         }
 
         let previous = self.terminal_project_path().map(str::to_owned);
-        let (visible, fullscreen, height) =
-            (self.terminal.is_visible, self.terminal.is_fullscreen, self.terminal.height);
+        let (visible, fullscreen) = (self.terminal.is_visible, self.terminal.is_fullscreen);
         self.replace_project_terminal(previous, Some(path.clone()));
         self.terminal_project_override = (self.navigation_tabs.project_path.as_ref() != Some(&path))
             .then_some(path.clone());
+        crate::app::message::terminal::workspace::remember_project(Some(&path));
         self.terminal.set_visible(visible);
         self.terminal.set_fullscreen(fullscreen);
-        self.terminal.height = height;
         if visible && self.terminal.ensure_default_terminal(Some(path.into())) {
             self.terminal.apply_app_theme(&self.appearance.app_theme);
         }
@@ -505,6 +504,8 @@ impl App {
             preferences_task,
             settings_refresh_task,
             worktree_settings_task,
+            #[cfg(not(target_arch = "wasm32"))]
+            crate::app::workbench_projects::ensure_terminal_projects(self),
         ])
     }
 

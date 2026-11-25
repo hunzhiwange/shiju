@@ -11,7 +11,9 @@ pub use catalog::{
     RUSTCODEGRAPH_MCP_SERVER_ID, is_builtin_mcp_server_id, is_builtin_required_tool_id,
     is_mcp_dynamic_tool_id,
 };
-pub use multimodal::{MultimodalConfig, MultimodalOcrConfig};
+pub use multimodal::{
+    MediaDefaultOperation, MediaModelDefaults, MediaModelRef, MultimodalConfig, MultimodalOcrConfig,
+};
 pub use network::{
     DEFAULT_USER_AGENT, HttpRequestConfig, WebFetchConfig, WebSearchConfig, resolve_user_agent,
 };

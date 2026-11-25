@@ -71,7 +71,7 @@ use iced::Task;
 pub(crate) use messages::{
     AcpMessage, AgentConfigTabMessage, AgentsMessage, ChannelsMessage, GatewayClientMessage,
     GeneralSettingsMessage, McpMessage,
-    ModelConfigTabMessage, ModelRoutesMessage,
+    ModelConfigTabMessage, ModelRoutesMessage, MultimodalMessage,
     QuickMessagesMessage, SettingsMessage, ThemesMessage,
 };
 
@@ -267,7 +267,18 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             update_config_panel(app, message, "channels_settings", channels::update)
         }
         SettingsRoute::Multimodal(message) => {
-            update_config_panel(app, message, "multimodal_settings", multimodal::update)
+            if matches!(
+                &message,
+                SettingsMessage::Multimodal(
+                    MultimodalMessage::MediaCatalogRefresh
+                        | MultimodalMessage::MediaCatalogLoaded { .. }
+                        | MultimodalMessage::MediaModelSaved { .. }
+                )
+            ) {
+                multimodal::update(app, message)
+            } else {
+                update_config_panel(app, message, "multimodal_settings", multimodal::update)
+            }
         }
         SettingsRoute::Acp(message) => acp::update(app, message),
         SettingsRoute::Mcp(message) => mcp::update(app, message),
@@ -359,7 +370,5 @@ pub(crate) use messages::GatewayMessage;
 pub(crate) use messages::HooksMessage;
 #[cfg(test)]
 pub(crate) use messages::MemoryMessage;
-#[cfg(test)]
-pub(crate) use messages::MultimodalMessage;
 #[cfg(test)]
 pub(crate) use messages::RuntimeMessage;

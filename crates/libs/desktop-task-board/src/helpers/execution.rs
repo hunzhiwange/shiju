@@ -367,6 +367,7 @@ fn create_task_request_with_workflow(
     let status_key_map = agent_scheduler_status_key_map(workflow_ref, task.status);
     let mut metadata = serde_json::json!({
         "priority": task.priority,
+        "assignee": task.assignee,
         "order_no": task.order,
         "model": task.model,
         "agent": task.agent,

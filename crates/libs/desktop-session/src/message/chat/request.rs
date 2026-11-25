@@ -199,7 +199,7 @@ pub enum QueueAction {
 
 pub enum QueueEffect {
     None,
-    Edit(String, Option<PendingMediaModel>),
+    Edit(String, Option<PendingMediaModel>, Vec<String>),
     Send(QueueItem),
     Copy(String),
 }
@@ -212,7 +212,10 @@ pub fn update_queue(queue: &mut Vec<QueueItem>, action: QueueAction) -> QueueEff
         QueueAction::Edit(i) => {
             if i < queue.len() {
                 let item = queue.remove(i);
-                return QueueEffect::Edit(item.query, item.media_model);
+                let attachments = item.media_model.as_ref().filter(|pending| {
+                    pending.selection.operation == vw_api_media::MediaOperation::ImageUnderstand
+                }).map_or_else(Vec::new, |_| item.attachments);
+                return QueueEffect::Edit(item.query, item.media_model, attachments);
             }
         }
         QueueAction::Guide(i) => {

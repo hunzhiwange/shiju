@@ -107,6 +107,7 @@ impl App {
                 self.task_board.task_board_bulk_acp_agent.clone_from(&self.session_state.acp_agent);
             }
         }
+        tasks.push(crate::app::workbench_projects::ensure_terminal_projects(self));
         Task::batch(tasks)
     }
 }

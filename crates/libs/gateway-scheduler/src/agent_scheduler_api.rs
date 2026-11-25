@@ -16,6 +16,7 @@ use vw_api_agent_scheduler::{
 };
 
 use super::GatewaySchedulerClient;
+use vw_api_agent_scheduler::{AgentSchedulerTaskDetailChange, AgentSchedulerTaskDetailDto};
 
 impl GatewaySchedulerClient {
     /// 创建或复用 Agent Scheduler 任务。
@@ -179,6 +180,25 @@ impl GatewaySchedulerClient {
         self.transport.patch_json(&path, &[], request).await
     }
 
+    pub async fn agent_scheduler_task_detail(
+        &self,
+        scope: &AgentSchedulerScopeDto,
+        task_id: &str,
+    ) -> Result<AgentSchedulerTaskDetailDto, String> {
+        self.ensure_scheduler_tenant_scope(scope)?;
+        self.transport.get_json(&agent_scheduler_task_detail_path(scope, task_id), &[]).await
+    }
+
+    pub async fn agent_scheduler_change_task_detail(
+        &self,
+        scope: &AgentSchedulerScopeDto,
+        task_id: &str,
+        change: &AgentSchedulerTaskDetailChange,
+    ) -> Result<AgentSchedulerTaskDetailDto, String> {
+        self.ensure_scheduler_tenant_scope(scope)?;
+        self.transport.patch_json(&agent_scheduler_task_detail_path(scope, task_id), &[], change).await
+    }
+
     /// 导入旧桌面任务到 Agent Scheduler。
     pub async fn agent_scheduler_import_legacy_tasks(
         &self,
@@ -302,6 +322,10 @@ fn agent_scheduler_task_metadata_path(scope: &AgentSchedulerScopeDto, task_id: &
         agent_scheduler_project_path(scope),
         encode_path_segment(task_id)
     )
+}
+
+fn agent_scheduler_task_detail_path(scope: &AgentSchedulerScopeDto, task_id: &str) -> String {
+    format!("{}/tasks/{}/detail", agent_scheduler_project_path(scope), encode_path_segment(task_id))
 }
 
 fn agent_scheduler_legacy_import_path(scope: &AgentSchedulerScopeDto) -> String {

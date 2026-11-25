@@ -21,19 +21,28 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    let return_from_ssh = matches!(&message, TerminalMessage::SelectGroup(_) | TerminalMessage::NewGroup)
+        && app.terminal_ssh.terminal_group_selected(app.terminal_project_path());
+    #[cfg(not(target_arch = "wasm32"))]
     match &message {
+        TerminalMessage::SelectGroup(_) | TerminalMessage::NewGroup => {
+            app.terminal_ssh.select_local_terminal_group();
+        }
         TerminalMessage::ToggleProjects => {
             app.terminal_projects_collapsed = !app.terminal_projects_collapsed;
-            return app.save_desktop_preference(
+            let save = app.save_desktop_preference(
                 "terminal_projects_collapsed",
                 app.terminal_projects_collapsed.into(),
             );
+            return Task::batch([save, crate::app::workbench_projects::ensure_terminal_projects(app)]);
         }
         TerminalMessage::SelectProject(path) => {
             let directory = std::path::Path::new(path);
             if !app.terminal.is_visible
                 || !(app.navigation_tabs.project_path.as_ref() == Some(path)
-                    || app.workspace_state.recent_projects.contains(path))
+                    || app.workspace_state.recent_projects.contains(path)
+                    || app.workbench_projects.terminal_projects().is_some_and(|projects| projects.contains_key(path)))
+                || app.workbench_projects.active_removed().is_some_and(|removed| removed.contains(path))
             {
                 return Task::none();
             }
@@ -58,6 +67,8 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     let project_path = app.navigation_tabs.project_path.as_deref();
     #[cfg(not(target_arch = "wasm32"))]
     let project_path = app.terminal_project_override.as_deref().or(project_path);
+    #[cfg(not(target_arch = "wasm32"))]
+    let dock_tab = matches!(message, TerminalMessage::DockTab(..));
     let fullscreen = app.terminal.is_fullscreen;
     let mut focused = app.focus_area == FocusArea::Terminal;
     let mut effects = Vec::new();
@@ -73,12 +84,20 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         message,
     )
     .map(Message::Terminal);
+    #[cfg(not(target_arch = "wasm32"))]
+    if dock_tab && !app.shutdown_requested {
+        workspace::checkpoint(app);
+    }
     if focused {
         app.focus_area = FocusArea::Terminal;
     } else if app.focus_area == FocusArea::Terminal {
         app.focus_area = FocusArea::None;
     }
     let mut tasks = vec![task];
+    #[cfg(not(target_arch = "wasm32"))]
+    if return_from_ssh {
+        tasks.push(event::focus_active_terminal(app));
+    }
     for effect in effects {
         use desktop_terminal::updates::Effect;
         tasks.push(match effect {
@@ -88,6 +107,14 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
                     tab.editor.inner.lose_focus();
                 }
                 Task::none()
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            Effect::OpenPath { path, directory } => {
+                if crate::app::config::gateway_client_endpoint().is_loopback() {
+                    open_path(&path, directory.as_deref())
+                } else {
+                    Task::none()
+                }
             }
             Effect::Delay(duration, message) => super::after(duration, Message::Terminal(message)),
             Effect::SaveConfig(patch) => {
@@ -131,5 +158,31 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     let _ = fullscreen;
     Task::batch(tasks)
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn open_path(path: &str, directory: Option<&std::path::Path>) -> Task<Message> {
+    use super::ViewMessage;
+    use desktop_chat_view::message_view::workspace_links::{LinkEffect, LinkTarget, link_click_message};
+
+    let target = if path.get(..7).is_some_and(|prefix| prefix.eq_ignore_ascii_case("file://")) {
+        LinkTarget::parse(path)
+    } else {
+        LinkTarget::local_path(path)
+    };
+    let directory = directory.and_then(std::path::Path::to_str);
+    match target.map(|target| link_click_message(target, directory)) {
+        Some(LinkEffect::OpenChatPath(path)) => {
+            Task::done(Message::View(ViewMessage::OpenChatPath(path)))
+        }
+        Some(LinkEffect::Unresolved(path)) => {
+            Task::done(Message::View(ViewMessage::ChatPathKindResolved {
+                path,
+                result: Err("无法确定本地路径的绝对位置".to_owned()),
+            }))
+        }
+        _ => Task::none(),
+    }
+}
+
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod focus_tests;

@@ -19,7 +19,6 @@ pub enum TaskBoardDetailTab {
     #[default]
     Basic,
     Logs,
-    Configuration,
 }
 use vw_api_agent_scheduler::{AgentSchedulerDispatchModeDto, AgentSchedulerTaskPropertyValue};
 
@@ -33,6 +32,7 @@ pub struct WorktreePoolMaintenanceOutcome {
 #[derive(Debug, Clone)]
 /// 描述 TaskBoardMessage 支持的离散状态或消息分支。
 pub enum TaskBoardMessage {
+    Detail(crate::detail::Event),
     OpenWorkViewEditor,
     ShowWorkDisplay(bool),
     SelectWorkDisplayMode(crate::work_views::TaskBoardViewMode),
@@ -53,6 +53,7 @@ pub enum TaskBoardMessage {
     },
     OpenWorkPlanChild,
     CloseWorkPlanChild,
+    WorkPlanChildTitleChanged(String),
     WorkPlanChildPromptEdited(iced::widget::text_editor::Action),
     WorkPlanChildBatchChanged(String),
     CreateWorkPlanChild,

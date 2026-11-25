@@ -26,6 +26,7 @@ use crate::app::{
 };
 use iced::{Task, Theme};
 
+mod companion;
 pub mod layout;
 pub mod panel;
 pub mod theme;
@@ -43,10 +44,11 @@ pub(crate) fn sync_task_pet_window(app: &mut App) -> Task<Message> {
     #[cfg(not(target_arch = "wasm32"))]
     match (app.companion_navigation.task_pet_visible, app.task_pet_window_id) {
         (true, None) => {
+            let size = app.task_pet_window_size();
             let (id, open) = iced::window::open(task_pet_window_settings(
-                app.task_pet_window_size(),
-                app.pet_state.task_pet_position,
+                size, app.pet_state.task_pet_position,
             ));
+            app.pet_state.controls.native_size = Some(size);
             app.task_pet_window_id = Some(id);
             open.map(|_| Message::None)
         }
@@ -180,6 +182,7 @@ pub enum ViewMessage {
     OpenUsage,
     /// 推进通用状态动画帧
     ActivityAnimationTick,
+    TaskPetMotionTick,
     /// 开启或关闭独立小宠物窗口
     TaskPetToggleWindow,
     /// 幂等显示或隐藏 Mini；关闭回调前保留窗口 ID。
@@ -187,6 +190,16 @@ pub enum ViewMessage {
     TaskPetHideWindow,
     /// 聚焦主窗口当前会话输入，不创建会话或发送内容。
     TaskPetWriteMessage,
+    TaskPetDockHover(bool),
+    TaskPetComposerChanged(String),
+    TaskPetComposerSubmit,
+    TaskPetComposerClose,
+    TaskPetStartVoice,
+    TaskPetVoiceMic,
+    TaskPetVoiceOrb(desktop_task_board::pet_view::VoiceOrbAction),
+    TaskPetToggleReminders,
+    TaskPetExpandReminders,
+    TaskPetOpenReminder(u64),
     /// 打开小宠物右键菜单
     TaskPetContextMenuOpened(f32, f32),
     /// 关闭小宠物右键菜单
@@ -688,6 +701,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 | ViewMessage::TaskPetHideWindow
                 | ViewMessage::TaskPetToggleWindow
                 | ViewMessage::TaskPetWriteMessage
+                | ViewMessage::TaskPetComposerSubmit
+                | ViewMessage::TaskPetStartVoice
+                | ViewMessage::TaskPetToggleReminders
+                | ViewMessage::TaskPetExpandReminders
+                | ViewMessage::TaskPetOpenReminder(_)
                 | ViewMessage::TaskPetToggleCollapsed
                 | ViewMessage::TaskPetContextMenuOpened(_, _)
                 | ViewMessage::TaskPetReplyPressed(_)
@@ -788,16 +806,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::ActivityAnimationTick => {
             app.advance_status_animation_frame();
-            if app.companion_navigation.task_pet_visible
-                && let Some(window_id) = app.task_pet_window_id
-                && let Some((size, position)) = app.advance_task_pet_expand_animation()
-            {
-                iced::window::resize(window_id, size)
-                    .chain(iced::window::move_to(window_id, position))
-            } else {
-                Task::none()
-            }
+            Task::none()
         }
+        ViewMessage::TaskPetMotionTick => app.refresh_task_pet_window(),
         ViewMessage::TaskPetToggleWindow => {
             let intent = if app.companion_navigation.task_pet_visible {
                 ViewMessage::TaskPetHideWindow
@@ -822,26 +833,31 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::TaskPetHideWindow => {
             desktop_navigation::panel::companion::update(&mut app.companion_navigation, desktop_navigation::panel::companion::Message::Hide);
-            Task::batch([sync_task_pet_window(app), app.save_task_pet_preferences()])
+            let stop = companion::hide(app);
+            Task::batch([stop, sync_task_pet_window(app), app.save_task_pet_preferences()])
         }
         ViewMessage::CloseRequested(id) if app.task_pet_window_id == Some(id) => {
             update(app, ViewMessage::TaskPetHideWindow)
         }
         ViewMessage::WindowClosed(id) if app.task_pet_window_id == Some(id) => {
             app.task_pet_window_id = None;
-            sync_task_pet_window(app)
+            let stop = companion::hide(app);
+            Task::batch([stop, sync_task_pet_window(app)])
         }
-        ViewMessage::TaskPetWriteMessage => {
-            desktop_navigation::panel::companion::update(&mut app.companion_navigation, desktop_navigation::panel::companion::Message::CloseContext);
-            app.navigation_panels.focus_chat();
-            app.navigation_tabs.show_project();
-            #[cfg(not(target_arch = "wasm32"))]
-            let focus = app.main_window_id.map_or_else(Task::none, |id| {
-                iced::window::minimize(id, false).chain(iced::window::gain_focus(id))
-            });
-            #[cfg(target_arch = "wasm32")]
-            let focus = Task::none();
-            focus.chain(iced::widget::operation::focus(app.session_state.input_editor_id.clone()))
+        message @ (ViewMessage::TaskPetWriteMessage
+        | ViewMessage::TaskPetDockHover(_)
+        | ViewMessage::TaskPetComposerChanged(_)
+        | ViewMessage::TaskPetComposerSubmit
+        | ViewMessage::TaskPetComposerClose
+        | ViewMessage::TaskPetStartVoice
+        | ViewMessage::TaskPetVoiceMic
+        | ViewMessage::TaskPetVoiceOrb(_)
+        | ViewMessage::TaskPetToggleReminders
+        | ViewMessage::TaskPetExpandReminders
+        | ViewMessage::TaskPetOpenReminder(_)) => companion::update(app, message),
+        ViewMessage::WindowUnfocused(id) if app.task_pet_window_id == Some(id) => {
+            companion::blur(app);
+            Task::none()
         }
         ViewMessage::TaskPetContextMenuOpened(x, y) => {
             desktop_navigation::panel::companion::update(&mut app.companion_navigation, desktop_navigation::panel::companion::Message::OpenContext(x, y));
@@ -854,9 +870,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::TaskPetToggleCollapsed => {
             desktop_navigation::panel::companion::update(&mut app.companion_navigation, desktop_navigation::panel::companion::Message::CloseContext);
             app.toggle_task_pet_collapsed();
+            app.pet_state.controls.reminders_open = !app.pet_state.task_pet_collapsed;
             Task::none()
         }
         ViewMessage::TaskPetDragStarted => {
+            app.pet_state.controls.composer = false;
             if let Some(window_id) = app.task_pet_window_id {
                 app.pulse_task_pet_motion();
                 iced::window::drag(window_id)
@@ -892,23 +910,21 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             update(app, ViewMessage::TaskPetOpenSettings)
         }
         ViewMessage::TaskPetSizePreview(scale) => {
-            let previous_size = app.task_pet_window_size();
             match desktop_task_board::task_pet::window::preview_size(
                 &mut app.pet_state.task_pet_size_draft, app.task_pet_size_pending.is_some(),
                 app.pet_state.task_pet_avatar_kind, scale,
             ) {
-                Ok(true) => app.resize_task_pet_preview(previous_size),
+                Ok(true) => app.refresh_task_pet_window(),
                 Ok(false) => Task::none(),
                 Err(error) => app.show_error_toast(error),
             }
         }
         ViewMessage::TaskPetSizeReset => update(app, ViewMessage::TaskPetSizePreview(1.0)),
         ViewMessage::TaskPetSizeCancel => {
-            let previous_size = app.task_pet_window_size();
             if !desktop_task_board::task_pet::window::cancel_size(
                 &mut app.pet_state.task_pet_size_draft, app.task_pet_size_pending.is_some(),
             ) { return Task::none(); }
-            app.resize_task_pet_preview(previous_size)
+            app.refresh_task_pet_window()
         }
         ViewMessage::TaskPetSizeSave => {
             use desktop_task_board::task_pet::window::{size_save, SizeSave};
@@ -953,8 +969,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::TaskPetReplyPressed(request_id) => {
+            app.pet_state.controls.composer = false;
             app.open_task_pet_reply(request_id);
-            Task::none()
+            iced::widget::operation::focus(desktop_task_board::task_pet::reply_id())
         }
         ViewMessage::TaskPetReplyInputChanged(value) => {
             app.update_task_pet_reply_input(value);
@@ -1194,6 +1211,12 @@ fn handle_global_key(
     key: iced::keyboard::Key,
     modifiers: iced::keyboard::Modifiers,
 ) -> Task<Message> {
+    if key == iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape)
+        && app.pet_state.controls.composer
+    {
+        companion::blur(app);
+        return Task::none();
+    }
     if app.pet_state.task_pet_size_draft.is_some() {
         return if key == iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape) {
             update(app, ViewMessage::TaskPetSizeCancel)

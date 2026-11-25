@@ -27,8 +27,56 @@ use crate::app::ui_types::ClipboardShortcutKind;
 use desktop_settings_network::bootstrap::selected_gateway_became_healthy;
 
 fn route_clipboard_shortcut(app: &App, kind: ClipboardShortcutKind) -> Task<Message> {
-    iced::widget::operation::is_focused(app.session_state.input_editor_id.clone())
-        .map(move |input_focused| Message::ClipboardShortcutRouted { kind, input_focused })
+    let input_id = app.session_state.input_editor_id.clone();
+    let fallback = move || {
+        iced::widget::operation::is_focused(input_id.clone())
+            .map(move |input_focused| Message::ClipboardShortcutRouted { kind, input_focused })
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some((widget_id, message)) = terminal_clipboard_shortcut(app, kind) {
+        return iced::widget::operation::is_focused(widget_id)
+            .collect()
+            .then(move |focus| {
+                if focus.contains(&true) {
+                    Task::done(message.clone())
+                } else {
+                    fallback()
+                }
+            });
+    }
+    fallback()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn terminal_clipboard_shortcut(
+    app: &App,
+    kind: ClipboardShortcutKind,
+) -> Option<(iced::widget::Id, Message)> {
+    use crate::app::cli_workbench::{Surface, terminal_panel_visible};
+    use desktop_terminal::message::{ContentAction, TerminalMessage};
+
+    let action = match kind {
+        ClipboardShortcutKind::Copy => ContentAction::Copy,
+        ClipboardShortcutKind::Paste => ContentAction::PasteText,
+        ClipboardShortcutKind::Cut => return None,
+    };
+    if let Some(surface) = Surface::from_screen(app.navigation_tabs.screen) {
+        return surface.clipboard_shortcut(app, action);
+    }
+    if !terminal_panel_visible(app) {
+        return None;
+    }
+    if app.terminal_ssh.terminal_group_selected(app.terminal_project_path()) {
+        return Surface::Terminal.clipboard_shortcut(app, action);
+    }
+    let tab = app.terminal.tabs.iter().find(|tab| {
+        app.terminal.active_id == Some(tab.id)
+            && app.terminal.panes.is_visible_tab(tab.id)
+            && tab.edit_title.is_none()
+    })?;
+    let widget_id = tab.term.widget_id().clone();
+    let message = Message::Terminal(TerminalMessage::ClipboardShortcut(widget_id.clone(), action));
+    Some((widget_id, message))
 }
 
 fn copy_shortcut_without_input(app: &mut App) -> Task<Message> {
@@ -144,6 +192,9 @@ impl App {
     /// ]));
     /// ```
     pub fn update(&mut self, message: Message) -> Task<Message> {
+        if matches!(message, Message::View(message::ViewMessage::TaskPetMotionTick)) {
+            return self.refresh_task_pet_window();
+        }
         #[cfg(not(target_arch = "wasm32"))]
         let message = match message {
             Message::CliWorkbench(event) => return crate::app::cli_workbench::update(self, event),
@@ -179,6 +230,8 @@ impl App {
         let usage_was_visible = crate::app::views::usage::center::is_visible(self);
         let refresh_pins = self.prepare_session_ui_projection(&message);
         let task = match message {
+            #[cfg(not(target_arch = "wasm32"))]
+            Message::WorkbenchProjects(event) => crate::app::workbench_projects::update(self, event),
             #[cfg(not(target_arch = "wasm32"))]
             message @ Message::CliWorkbench(_) => {
                 return self.update(message);
@@ -281,6 +334,9 @@ impl App {
 
             // 设置相关消息
             Message::Settings(msg) => message::settings::update(self, msg),
+            Message::TaskSettingsProjectSelected(path) => {
+                crate::app::components::system_settings::task_settings::select_project(self, path)
+            }
             Message::TaskPropertySettings(event) => {
                 crate::app::components::system_settings::task_settings::properties::update(self, event)
             }
@@ -289,6 +345,15 @@ impl App {
             }
 
             // 终端相关消息
+            #[cfg(not(target_arch = "wasm32"))]
+            Message::Terminal(
+                message::TerminalMessage::ClipboardShortcut(..)
+                | message::TerminalMessage::PasteResolved(..),
+            ) if !crate::app::cli_workbench::terminal_panel_visible(self)
+                || self.terminal_ssh.terminal_group_selected(self.terminal_project_path()) =>
+            {
+                Task::none()
+            }
             Message::Terminal(msg) => message::terminal::update(self, msg),
 
             // 预览相关消息
@@ -323,7 +388,7 @@ impl App {
             #[cfg(not(target_arch = "wasm32"))]
             Message::PreviewLspTick => message::preview::tick_lsp(self),
 
-            // 复制/剪切/粘贴：先判断聊天输入框是否聚焦，再路由到输入区或代码编辑器上下文
+            // Route clipboard menu actions to the focused terminal or editor.
             Message::CopyShortcut => route_clipboard_shortcut(self, ClipboardShortcutKind::Copy),
             Message::CutShortcut => route_clipboard_shortcut(self, ClipboardShortcutKind::Cut),
             Message::PasteShortcut => route_clipboard_shortcut(self, ClipboardShortcutKind::Paste),
@@ -454,7 +519,8 @@ impl App {
         } else {
             Task::none()
         };
-        let task = Task::batch([task, cleanup, tools_cleanup, cron_history, leave, usage_activity]);
+        let companion = self.refresh_task_pet_window();
+        let task = Task::batch([task, cleanup, tools_cleanup, cron_history, leave, usage_activity, companion]);
         if refresh_pins { Task::batch([task, self.refresh_session_pins_task()]) } else { task }
     }
 }

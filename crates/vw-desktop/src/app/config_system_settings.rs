@@ -36,7 +36,10 @@ impl App {
     ) -> (GatewayEndpoint, Task<Message>) {
         let (endpoint, task) = self.desktop_preferences_persistence.enqueue_gateway_client_snapshot(config);
         #[cfg(not(target_arch = "wasm32"))]
-        self.agent_apps_auth.select_endpoint(&endpoint);
+        {
+            self.agent_apps_auth.select_endpoint(&endpoint);
+            self.workbench_projects.bind_endpoint(&endpoint);
+        }
         (endpoint, task.map(super::desktop::preferences_message))
     }
 

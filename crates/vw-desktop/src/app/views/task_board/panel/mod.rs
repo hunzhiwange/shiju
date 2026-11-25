@@ -97,7 +97,7 @@ pub(super) fn build_panel(app: &App, edit: bool, over_detail: bool) -> iced::Ele
         detail,
     )
 }
-fn task_labels<'a>(app: &'a App, task: &'a desktop_task_model::Task) -> iced::Element<'a, Message> {
+pub(super) fn task_labels<'a>(app: &'a App, task: &'a desktop_task_model::Task) -> iced::Element<'a, Message> {
     use crate::app::components::system_settings_common::*;
     use crate::app::message::TaskBoardMessage;
     use iced::widget::{button, checkbox, column, container, row, scrollable, text};

@@ -5,7 +5,7 @@ use config_agent_profile::AgentRuntime;
 use config_agent::BUILTIN_AGENT_SPECS;
 
 #[test]
-fn agent_catalog_covers_thirty_unique_backends() {
+fn agent_catalog_covers_registered_backends_with_expected_access_defaults() {
     let catalog = load_agent_configs(&json!({}));
     let backends = catalog
         .values()
@@ -24,12 +24,17 @@ fn agent_catalog_covers_thirty_unique_backends() {
             .values()
             .filter(|entry| matches!(entry.runtime, AgentRuntime::Acp { .. }) && entry.enabled)
             .count(),
-        6
+        7
     );
     for backend in acp_agent_registry::built_in_agent_specs().keys() {
         let entry = &catalog[&format!("acp-{backend}")];
         assert!(entry.builtin);
         assert!(!entry.recommended_prompts.is_empty());
+        assert_eq!(
+            entry.defaults.full_access,
+            backend != acp_agent_registry::EMPLOYEE_ACP_BACKEND,
+            "{backend}",
+        );
     }
 }
 
@@ -52,13 +57,14 @@ fn agent_catalog_preserves_official_identity_and_editable_overrides() {
         "runtime": {"kind": "native"}, "enabled": false,
         "label": "My CLI", "description": "Edited", "system_prompt": "Rules",
         "recommended_prompts": ["Review"],
-        "defaults": {"skills": {"mode": "fixed", "value": []}}
+        "defaults": {"full_access": false, "skills": {"mode": "fixed", "value": []}}
     }}});
     let catalog = load_agent_configs(&config);
     let entry = &catalog["acp-codex"];
     assert!(entry.builtin);
     assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "codex".into() });
     assert!(!entry.enabled);
+    assert!(!entry.defaults.full_access);
     assert_eq!(entry.label.as_deref(), Some("My CLI"));
     assert_eq!(entry.description.as_deref(), Some("Edited"));
     assert_eq!(

@@ -21,7 +21,7 @@ use vw_api_acp_model::acp_model_source::AcpModelSource;
 pub use desktop_session::message::chat::session::PendingSessionSend;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn open_task_quick_action_draft(
+pub(crate) fn run_task_quick_action(
     app: &mut App,
     project_path: String,
     project: vw_api_project::ProjectDto,
@@ -36,7 +36,10 @@ pub(crate) fn open_task_quick_action_draft(
     }
     let blank = app.session_state.session_runtime_states.get(crate::app::session::EMPTY_SESSION_ID);
     if app.workspace_state.new_session_creating
-        || blank.is_some_and(|runtime| !runtime.input_editor.text().is_empty())
+        || blank.is_some_and(|runtime| {
+            !runtime.input_editor.text().is_empty()
+                || runtime.parked_input_files.as_ref().is_some_and(|files| !files.is_empty())
+        })
         || !app.session_state.files.is_empty()
     {
         return warning(app, "请先处理已有的新会话草稿或附件，再打开任务快捷操作");
@@ -58,7 +61,8 @@ pub(crate) fn open_task_quick_action_draft(
     app.task_board.show_task_board = false;
     app.navigation_tabs.screen = crate::app::Screen::Project;
     let fill = super::input::fill_task_quick_action_draft(app, draft);
-    Task::batch([open, fill])
+    let send = send_current_session_input(app);
+    Task::batch([open, fill, send])
 }
 
 fn clear_quick_message_handoff_for_request(app: &mut App, request_id: u64) {
@@ -613,6 +617,24 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
         if !app.session_state.files.is_empty() {
             return app.show_localized_toast(crate::app::state::ToastKind::Error, "数字员工聊天支持纯文本，请移除附件后重试", vec![]);
         }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    if app
+        .current_session_runtime_ref()
+        .and_then(|runtime| runtime.pending_media_model.as_ref())
+        .is_some_and(|pending| {
+            pending.selection.operation == vw_gateway_client::media::MediaOperation::ImageUnderstand
+        })
+        && (app.session_state.files.is_empty()
+            || !app.session_state.files.iter().all(|path| {
+                desktop_session::message::chat::session::is_supported_image_attachment(path)
+            }))
+    {
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "请添加要分析的图片，并移除其他类型的附件。",
+            vec![],
+        );
     }
     use desktop_session::message::chat::send_input::{SendInputEffect, prepare_send_input};
     let root = current_session_directory(app).or_else(|| app.navigation_tabs.project_path.clone());
@@ -1236,7 +1258,12 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 QueueEffect::None => Task::none(),
                 QueueEffect::Send(item) => dispatch_queue_item(app, item),
                 QueueEffect::Copy(query) => Task::done(Message::CopyCode(query)),
-                QueueEffect::Edit(query, media_model) => {
+                QueueEffect::Edit(query, media_model, attachments) => {
+                    for path in attachments {
+                        if !app.session_state.files.contains(&path) {
+                            app.session_state.files.push(path);
+                        }
+                    }
                     let runtime = app.current_session_runtime_mut();
                     runtime.input_editor = iced::widget::text_editor::Content::with_text(&query);
                     runtime.pending_media_model = media_model;

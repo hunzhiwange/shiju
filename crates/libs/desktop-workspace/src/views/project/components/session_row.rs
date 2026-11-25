@@ -132,7 +132,7 @@ pub(super) fn queued_status_color(breathe: f32) -> Color {
     running_status_color(breathe * 0.75)
 }
 
-fn running_indicator(frame: usize, breathe: f32) -> Element<'static, Message> {
+fn running_indicator<Message: 'static>(frame: usize, breathe: f32) -> Element<'static, Message> {
     let ring = svg(RUNNING_RING_ICONS[frame % RUNNING_RING_FRAMES].clone())
         .width(STATUS_SIZE)
         .height(STATUS_SIZE)
@@ -150,17 +150,27 @@ fn running_indicator(frame: usize, breathe: f32) -> Element<'static, Message> {
     stack![ring, container(dot).center(STATUS_SIZE)].into()
 }
 
-fn status_icon(id: &str, status: SessionRowStatus, frame: usize) -> Element<'static, Message> {
+pub fn running_session_indicator<Message: 'static>(
+    id: &str,
+    frame: usize,
+) -> Element<'static, Message> {
+    running_indicator(frame, status_breathing_phase(id))
+}
+
+fn status_breathing_phase(id: &str) -> f32 {
     let session_phase =
         id.bytes().fold(0u32, |acc, byte| acc.wrapping_mul(16777619).wrapping_add(byte as u32));
     let now = runtime_time::now_ms() as f64 / 1000.0;
     let phase =
         (now / 1.8 + f64::from(session_phase) / f64::from(u32::MAX)) * std::f64::consts::TAU;
-    let breathe = ((phase.sin() + 1.0) * 0.5) as f32;
+    ((phase.sin() + 1.0) * 0.5) as f32
+}
+
+fn status_icon(id: &str, status: SessionRowStatus, frame: usize) -> Element<'static, Message> {
     let indicator: Element<'static, Message> = match status {
-        SessionRowStatus::Running => running_indicator(frame, breathe),
+        SessionRowStatus::Running => running_session_indicator(id, frame),
         SessionRowStatus::Queued(_) => {
-            text("●").size(8.5).color(queued_status_color(breathe)).into()
+            text("●").size(8.5).color(queued_status_color(status_breathing_phase(id))).into()
         }
         SessionRowStatus::Updated => {
             text("●").size(11).color(Color::from_rgb8(46, 184, 114)).into()

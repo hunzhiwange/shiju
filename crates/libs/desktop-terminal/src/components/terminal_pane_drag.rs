@@ -3,17 +3,19 @@ use iced::widget::Id;
 use iced::widget::pane_grid::{Edge, Pane, Region, Target};
 use iced::{Point, Rectangle, Vector};
 
-use super::{TAB_STRIP_ID, TAB_TITLE_ID};
+use super::{TAB_STRIP_ID, tab_title_id};
 
 pub(super) struct TabTitleHit {
     cursor: Point,
     strip: Option<(Rectangle, Vector)>,
-    pub(super) hit: bool,
+    titles: Vec<(Id, u64)>,
+    pub(super) hit: Option<u64>,
 }
 
 impl TabTitleHit {
-    pub(super) fn new(cursor: Point) -> Self {
-        Self { cursor, strip: None, hit: false }
+    pub(super) fn new(cursor: Point, tabs: &[u64]) -> Self {
+        let titles = tabs.iter().map(|&tab| (tab_title_id(tab), tab)).collect();
+        Self { cursor, strip: None, titles, hit: None }
     }
 }
 
@@ -30,17 +32,18 @@ impl Operation for TabTitleHit {
     }
 
     fn container(&mut self, id: Option<&Id>, bounds: Rectangle) {
-        if id == Some(&Id::from(TAB_TITLE_ID))
+        if self.hit.is_none()
+            && let Some(id) = id
             && let Some((strip, translation)) = self.strip
             && strip.contains(self.cursor)
             && bounds.contains(self.cursor + translation)
         {
-            self.hit = true;
+            self.hit = self.titles.iter().find_map(|(title, tab)| (title == id).then_some(*tab));
         }
     }
 
     fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation)) {
-        if !self.hit {
+        if self.hit.is_none() {
             operate(self);
         }
     }
@@ -49,6 +52,7 @@ impl Operation for TabTitleHit {
 #[derive(Clone, Copy)]
 pub(super) struct TabDrag {
     pub(super) pane: Pane,
+    pub(super) tab: u64,
     pub(super) origin: Point,
     pub(super) moving: bool,
 }
@@ -57,25 +61,26 @@ pub(super) fn drop_target(
     cursor: Point,
     grid: Rectangle,
     source: Pane,
-    panes: impl Iterator<Item = (Pane, Rectangle)>,
+    can_split_source: bool,
+    mut panes: impl Iterator<Item = (Pane, Rectangle)>,
 ) -> Option<(Target, Rectangle)> {
     if !grid.contains(cursor) {
         return None;
     }
 
-    // An outer edge docks against the entire grid. Inside a pane, the center
-    // swaps panes and an edge docks beside the destination.
+    // An outer edge splits the entire grid. A pane edge creates a split beside it,
+    // and the center adds the dragged tab to that pane.
     let inset = grid.width.min(grid.height) * 0.04;
     if let Some(edge) = edge_at(grid, cursor, inset, inset) {
         return Some((Target::Edge(edge), edge_preview(grid, edge)));
     }
 
-    let (pane, bounds) =
-        panes.filter(|(pane, _)| *pane != source).find(|(_, b)| b.contains(cursor))?;
+    let (pane, bounds) = panes.find(|(_, b)| b.contains(cursor))?;
     if let Some(edge) = edge_at(bounds, cursor, bounds.width / 3.0, bounds.height / 3.0) {
-        Some((Target::Pane(pane, Region::Edge(edge)), edge_preview(bounds, edge)))
+        (pane != source || can_split_source)
+            .then(|| (Target::Pane(pane, Region::Edge(edge)), edge_preview(bounds, edge)))
     } else {
-        Some((Target::Pane(pane, Region::Center), bounds))
+        (pane != source).then_some((Target::Pane(pane, Region::Center), bounds))
     }
 }
 

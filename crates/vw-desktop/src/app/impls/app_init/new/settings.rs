@@ -96,7 +96,14 @@ pub(super) fn apply_bootstrap_agent_config(
         super::settings_builders::build_channels_settings(&full_agent_cfg.channels_config)
     );
     apply_section!(reliability_settings, build_reliability_settings(full_agent_cfg));
-    apply_section!(multimodal_settings, build_multimodal_settings(full_agent_cfg));
+    apply_section!(
+        multimodal_settings,
+        desktop_settings_runtime::state::MultimodalSettingsState {
+            media_catalog: app.multimodal_settings.media_catalog.take(),
+            media_catalog_request: app.multimodal_settings.media_catalog_request,
+            ..build_multimodal_settings(full_agent_cfg)
+        }
+    );
     apply_section!(security_settings, build_security_settings(full_agent_cfg));
     apply_section!(autonomy_settings, crate::app::state::AutonomySettingsState::from_config(&full_agent_cfg.autonomy));
     apply_section!(observability_settings, build_observability_settings(full_agent_cfg));

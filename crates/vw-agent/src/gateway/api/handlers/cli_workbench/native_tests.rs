@@ -81,10 +81,12 @@ fn cli_workbench_project_snapshot_only_attaches_sessions_in_scope() {
                 id: id.into(), project_id: project.into(), directory: "/fixture".into(),
                 capabilities: capabilities(&target), target,
                 agent_activity: None,
+                ssh_surface: None,
+                recent_request_ids: Vec::new(),
                 state: CliWorkbenchProcessState::Running,
             },
             turn: None,
-            #[cfg(target_os = "macos")]
+            #[cfg(unix)]
             terminal: None,
             #[cfg(not(target_arch = "wasm32"))]
             child_access: None,
@@ -130,6 +132,8 @@ async fn cli_workbench_native_drafts_are_scoped_and_manual() {
                     state: ProcessState::Running,
                     capabilities: capabilities(&target),
                     agent_activity: None,
+                    ssh_surface: None,
+                    recent_request_ids: Vec::new(),
                     target,
                 },
                 turn: None,

@@ -212,6 +212,7 @@ async fn execute(
             let request = StartCliWorkbenchSession {
                 target: target.into(),
                 directory: args.options.directory().map(str::to_owned),
+                ssh_surface: None,
             };
             encode(&client.cli_workbench_start(&project, &request).await?)
         }

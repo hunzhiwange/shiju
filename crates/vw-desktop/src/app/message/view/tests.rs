@@ -354,6 +354,23 @@ async fn mini_companion_reply_route_preserves_target_session() {
 }
 
 #[test]
+fn mini_companion_composer_loses_focus_and_retains_its_draft() {
+    use super::{ViewMessage, update};
+    let mut app = crate::app::App::new().0;
+    let window = iced::window::Id::unique();
+    app.task_pet_window_id = Some(window);
+    let _ = update(&mut app, ViewMessage::TaskPetWriteMessage);
+    let _ = update(&mut app, ViewMessage::TaskPetComposerChanged("继续执行".into()));
+    let _ = update(&mut app, ViewMessage::WindowUnfocused(window));
+    assert!(!app.pet_state.controls.composer);
+    assert!(!app.pet_state.controls.hovered);
+
+    let _ = update(&mut app, ViewMessage::TaskPetWriteMessage);
+    assert!(app.pet_state.controls.composer);
+    assert_eq!(app.pet_state.controls.draft, "继续执行");
+}
+
+#[test]
 fn mini_companion_size_cancel_restores_committed_value() {
     use super::{ViewMessage, update};
     let mut app = crate::app::App::new().0;

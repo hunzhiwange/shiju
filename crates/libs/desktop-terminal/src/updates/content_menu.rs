@@ -39,11 +39,25 @@ pub(super) fn update(
             terminal.content_menu = None;
             run_action(terminal, theme, project_path, locale, focused, effects, id, action)
         }
+        TerminalMessage::ClipboardShortcut(
+            widget_id,
+            action @ (ContentAction::Copy | ContentAction::PasteText),
+        ) => {
+            let Some(id) = terminal.tabs.iter().find(|tab| {
+                terminal.active_id == Some(tab.id)
+                    && terminal.panes.is_visible_tab(tab.id)
+                    && tab.term.widget_id() == &widget_id
+                    && tab.edit_title.is_none()
+            }).map(|tab| tab.id) else { return Task::none() };
+            run_action(terminal, theme, project_path, locale, focused, effects, id, action)
+        }
+        TerminalMessage::ClipboardShortcut(..) => Task::none(),
         TerminalMessage::PasteResolved(widget_id, text) => {
             if let Some(text) = text.filter(|text| !text.is_empty())
                 && terminal.is_visible
                 && let Some(tab) = terminal.tabs.iter_mut().find(|tab| {
                     terminal.active_id == Some(tab.id)
+                        && terminal.panes.is_visible_tab(tab.id)
                         && tab.term.widget_id() == &widget_id
                         && tab.edit_title.is_none()
                 })

@@ -86,13 +86,34 @@ fn filter(app: &App) -> Result<WorkViewFilter, desktop_i18n::workflow::Feedback>
             _ => return Err("智能体类型须为 builtin 或 acp".into()),
         });
     }
-    for value in board.work_property_values.values() {
-        if let vw_api_agent_scheduler::AgentSchedulerTaskPropertyValue::Date(date) = value {
-            let parsed = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d")
-                .map_err(|_| "日期筛选须填写有效日期（YYYY-MM-DD）")?;
-            if date.len() != 10 || date.starts_with("0000") || parsed.to_string() != *date {
-                return Err("日期筛选须填写有效日期（YYYY-MM-DD）".into());
+    use vw_api_agent_scheduler::AgentSchedulerTaskPropertyValue as Property;
+    let mut properties = board.work_property_values.clone();
+    for value in properties.values_mut() {
+        match value {
+            Property::Date(date) => {
+                let parsed = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d")
+                    .map_err(|_| "日期筛选须填写有效日期（YYYY-MM-DD）")?;
+                if date.len() != 10 || date.starts_with("0000") || parsed.to_string() != *date {
+                    return Err("日期筛选须填写有效日期（YYYY-MM-DD）".into());
+                }
             }
+            Property::Number(number) => {
+                *number = number.trim().parse::<serde_json::Number>()
+                    .map_err(|_| "数字筛选须填写有效数字")?.to_string();
+            }
+            Property::Member(id) | Property::Link(id) => *id = id.trim().to_owned(),
+            Property::MultiMember(items) | Property::LinkList(items) => {
+                for item in items {
+                    *item = item.trim().to_owned();
+                    if item.is_empty() {
+                        return Err("列表筛选项不能为空".into());
+                    }
+                }
+            }
+            Property::TextList(items) if items.iter().any(|item| item.trim().is_empty()) => {
+                return Err("列表筛选项不能为空".into());
+            }
+            _ => {}
         }
     }
     Ok(WorkViewFilter {
@@ -107,7 +128,7 @@ fn filter(app: &App) -> Result<WorkViewFilter, desktop_i18n::workflow::Feedback>
         priority_max: max,
         agents,
         label_ids: board.work_label_ids.clone(),
-        properties: board.work_property_values.clone(),
+        properties,
     })
 }
 

@@ -3,6 +3,7 @@ use super::types::*;
 #[derive(Debug, Clone)]
 pub enum UiMessage<External> {
     CommitDescriptionEditorAction(text_editor::Action),
+    ToggleCommitDescription,
     CommitHelpOpen,
     CommitMessageChanged(String),
     CommitScopeChanged(String),

@@ -1,7 +1,18 @@
 use super::types::ConventionalCommitType;
 use super::left_panel::Input;
 fn test_app(editor: &iced::widget::text_editor::Content) -> Input<'_> {
- Input { desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, show_git_diff_summary: false, git_commit_type: None, git_commit_scope: "", git_commit_message: "", git_commit_description_editor: editor, git_commit_in_progress: false, file_manager_refresh_frame: 0, any_selected: false }
+    Input {
+        desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
+        show_git_diff_summary: false,
+        git_commit_type: None,
+        git_commit_scope: "",
+        git_commit_message: "",
+        git_commit_description_editor: editor,
+        show_git_commit_description: false,
+        git_commit_in_progress: false,
+        file_manager_refresh_frame: 0,
+        any_selected: false,
+    }
 }
 fn assert_panel_state(app: &Input<'_>, hint: &'static str, button: super::left_panel::CommitButtonState) {
  let state = super::left_panel::commit_panel_state(app);

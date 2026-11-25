@@ -5,6 +5,7 @@ use desktop_ui_controls::right_click_area::RightClickArea;
 use desktop_ui_controls::system_settings_common::*;
 use desktop_ui_controls::system_settings_common::icons::{icon_btn_style, icon_btn_svg_style};
 use desktop_ui_controls::single_line_label::SingleLineLabel;
+use desktop_workspace::views::project::components::session_row::running_session_indicator;
 use gateway_interaction::PendingPermissionReplyDto;
 use iced::{
     Alignment, Border, Element, Length, Theme,
@@ -24,8 +25,8 @@ use super::{
     update::{Action, Event, draft_text},
 };
 use crate::app::components::workbench_sidebar::{
-    project_row, sidebar_button, sidebar_header, sidebar_note, sidebar_section, sidebar_surface,
-    vertical,
+    matches_project, project_header, project_query, project_row, sidebar_button, sidebar_header,
+    sidebar_note, sidebar_section, sidebar_surface, vertical, with_project_menu,
 };
 use crate::app::i18n::I18n;
 
@@ -36,26 +37,60 @@ const SIDEBAR_DIVIDER_HIT_WIDTH: f32 = 18.0;
 const TOOLBAR_BUTTON_INSET: f32 = 3.0;
 
 #[derive(Clone, Copy)]
-struct View {
+pub(super) struct View {
     window: window::Id,
     i18n: I18n,
     locale: config_ui::DesktopLocale,
     surface: Surface,
+    status_animation_frame: usize,
 }
 
 impl View {
-    fn msg(self, action: Action) -> Message {
+    pub(super) fn msg(self, action: Action) -> Message {
         self.surface.message(Event::Window(self.window, action))
     }
 
-    fn label(self, source: &'static str) -> &'static str {
+    pub(super) fn label(self, source: &'static str) -> &'static str {
         self.i18n.__(source)
     }
 }
 
+impl View {
+    fn new(app: &App, window: window::Id, surface: Surface) -> Self {
+        let locale = app.general_settings.desktop_locale;
+        Self {
+            window,
+            i18n: I18n::new(locale),
+            locale,
+            surface,
+            status_animation_frame: app.status_animation_frame,
+        }
+    }
+}
+
+pub(crate) fn terminal_group_view(app: &App) -> Option<Element<'_, Message>> {
+    let state = &app.terminal_ssh;
+    if !state.terminal_group_selected(app.terminal_project_path()) {
+        return None;
+    }
+    let (id, project) = state.selected_project()?;
+    let ui = View::new(app, app.main_window_id?, Surface::Terminal);
+    Some(workspace(ui, state, id, project, None, app.terminal.is_fullscreen))
+}
+
+pub(crate) fn terminal_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
+    let state = &app.terminal_ssh;
+    if super::terminal_panel_visible(app)
+        && state.terminal_directory.as_deref() == app.terminal_project_path()
+        && let Some(id) = app.main_window_id
+    {
+        return overlay(View::new(app, id, Surface::Terminal), state, base);
+    }
+    base
+}
+
 pub(crate) fn view(app: &App, id: window::Id, surface: Surface) -> Element<'_, Message> {
-    let locale = app.general_settings.desktop_locale;
-    let ui = View { window: id, i18n: I18n::new(locale), locale, surface };
+    let ui = View::new(app, id, surface);
     let state = surface.state(app);
     let return_to_project = if surface == Surface::AppTerminal {
         let project_tabs = app.navigation_tabs.open_tabs.iter().rev()
@@ -73,7 +108,7 @@ pub(crate) fn view(app: &App, id: window::Id, surface: Surface) -> Element<'_, M
             .as_ref()
             .and_then(|id| state.projects.get(id).map(|project| (id, project)));
         let main = || match selected {
-            Some((id, project)) => workspace(ui, state, id, project, return_to_project),
+            Some((id, project)) => workspace(ui, state, id, project, return_to_project, false),
             None => {
                 let prompt = container(text(ui.label("请选择项目")).size(16)).center(Length::Fill);
                 if surface == Surface::AppTerminal {
@@ -83,12 +118,12 @@ pub(crate) fn view(app: &App, id: window::Id, surface: Surface) -> Element<'_, M
                     ]
                     .into()
                 } else {
-                    prompt.into()
+                    column![container(ssh_button(ui)).padding([5, 7]), prompt].into()
                 }
             }
         };
         let content: Element<'_, Message> = if surface == Surface::Workbench && size.width < 680.0 {
-            let sidebar = sidebar(ui, state, tooltip::Position::Bottom);
+            let sidebar = sidebar(app, ui, state, tooltip::Position::Bottom);
             column![container(sidebar).height(146), main()].spacing(8).into()
         } else {
             let grid = pane_grid::PaneGrid::new(&state.sidebar_layout.workspace, |_, terminal, _| {
@@ -99,7 +134,7 @@ pub(crate) fn view(app: &App, id: window::Id, surface: Surface) -> Element<'_, M
                         .style(sidebar_surface)
                         .into()
                 } else {
-                    sidebar(ui, state, tooltip::Position::Right)
+                    sidebar(app, ui, state, tooltip::Position::Right)
                 };
                 pane_grid::Content::new(body)
             })
@@ -130,19 +165,25 @@ pub(crate) fn view(app: &App, id: window::Id, surface: Surface) -> Element<'_, M
             .width(Length::Fill)
             .height(Length::Fill)
             .into();
-        match &state.dialog {
-            Some(Dialog::ReadDraft(key, request)) => draft_dialog(ui, base, state, key, request),
-            Some(dialog) => dialog_view(
-                ui,
-                base,
-                dialog,
-                selected.map(|(_, project)| project),
-                state.terminal_available,
-            ),
-            None => base,
-        }
+        let base = with_project_menu(app, app.navigation_tabs.screen, base);
+        overlay(ui, state, base)
     })
     .into()
+}
+
+fn overlay<'a>(ui: View, state: &'a Workbench, base: Element<'a, Message>) -> Element<'a, Message> {
+    match &state.dialog {
+        Some(Dialog::Ssh(panel)) => super::ssh::view(ui, base, state, panel),
+        Some(Dialog::ReadDraft(key, request)) => draft_dialog(ui, base, state, key, request),
+        Some(dialog) => dialog_view(
+            ui,
+            base,
+            dialog,
+            state.selected_project().map(|(_, project)| project),
+            state,
+        ),
+        None => base,
+    }
 }
 
 fn control<'a>(
@@ -157,18 +198,19 @@ fn control<'a>(
 }
 
 fn sidebar<'a>(
+    app: &'a App,
     ui: View,
     state: &'a Workbench,
     project_tooltip_position: tooltip::Position,
 ) -> Element<'a, Message> {
     if state.surface == Surface::AppTerminal {
-        return sidebar_projects(ui, state, project_tooltip_position);
+        return sidebar_projects(app, ui, state, project_tooltip_position);
     }
     let grid = pane_grid::PaneGrid::new(&state.sidebar_layout.sections, |_, agents, _| {
         pane_grid::Content::new(if *agents {
             sidebar_agents(ui, state)
         } else {
-            sidebar_projects(ui, state, project_tooltip_position)
+            sidebar_projects(app, ui, state, project_tooltip_position)
         })
     })
     .spacing(SIDEBAR_DIVIDER_WIDTH)
@@ -199,7 +241,21 @@ fn app_terminal_navigation(
             Some(Message::View(crate::app::message::ViewMessage::TabSelected(id.to_owned()))),
         )
     });
-    row![].extend(back).push(projects_sidebar_toggle(ui, state)).spacing(4).into()
+    row![]
+        .extend(back)
+        .push(projects_sidebar_toggle(ui, state))
+        .push(ssh_button(ui))
+        .spacing(4)
+        .into()
+}
+
+fn ssh_button(ui: View) -> Element<'static, Message> {
+    toolbar_icon(
+        Icon::Globe,
+        ui.label("SSH 连接"),
+        TOOLBAR_BUTTON_INSET,
+        Some(ui.msg(Action::Ssh(super::ssh::Action::Open))),
+    )
 }
 
 fn projects_sidebar_toggle(ui: View, state: &Workbench) -> Element<'static, Message> {
@@ -217,36 +273,39 @@ fn projects_sidebar_toggle(ui: View, state: &Workbench) -> Element<'static, Mess
 }
 
 fn sidebar_projects<'a>(
+    app: &'a App,
     ui: View,
     state: &'a Workbench,
     tooltip_position: tooltip::Position,
 ) -> Element<'a, Message> {
-    let projects_header = sidebar_header(
-        ui.label("项目"),
-        icon_btn(
-            Icon::ArrowClockwise,
-            ui.label("刷新"),
-            (!state.discovering).then_some(ui.msg(Action::Refresh)),
-        ),
-    );
+    let projects_header = project_header(app, (!state.discovering).then_some(ui.msg(Action::Refresh)));
+    let query = project_query(app);
+    let mut matches = state.projects.iter().filter(|(_, project)| {
+        matches_project(&query, &project.name, &project.directory)
+    }).peekable();
     let mut projects = column![].spacing(3);
-    for (id, project) in &state.projects {
+    if matches.peek().is_none() {
+        let label = match (state.discovering, state.surface, query.is_empty()) {
+            (true, Surface::Workbench, _) => "正在读取工作台项目…",
+            (true, _, _) => "正在读取项目…",
+            (false, _, false) => "未找到匹配的项目",
+            (false, _, true) => "暂无项目",
+        };
+        projects = projects.push(sidebar_note(ui.label(label)));
+    }
+    for (id, project) in matches {
         let selected = state.selected.as_ref() == Some(id);
         projects = projects.push(project_row(
-            &project.name,
+            project.name.clone(),
             &project.directory,
+            Some(id),
             selected,
             Some(ui.msg(Action::SelectProject(id.clone()))),
             tooltip_position,
         ));
     }
-    if state.projects.is_empty() {
-        let label = match (state.discovering, state.surface) {
-            (true, Surface::Workbench) => "正在读取工作台项目…",
-            (true, Surface::AppTerminal) => "正在读取项目…",
-            (false, _) => "暂无项目",
-        };
-        projects = projects.push(sidebar_note(ui.label(label)));
+    if !query.is_empty() {
+        return sidebar_section(projects_header, projects);
     }
     if let Some(project_id) = &state.selected
         && let Some(project) = state.projects.get(project_id)
@@ -256,7 +315,7 @@ fn sidebar_projects<'a>(
         for (session, tab) in project.tabs.iter().filter(|(_, tab)| tab.hidden) {
             let key = SessionKey { project: project_id.clone(), session: session.clone() };
             projects = projects.push(
-                control(tab_label(tab), Some(ui.msg(Action::SelectSession(key))), false)
+                control(tab_label(state, tab), Some(ui.msg(Action::SelectSession(key))), false)
                     .width(Length::Fill),
             );
         }
@@ -271,7 +330,7 @@ fn sidebar_projects<'a>(
         for (project_id, project, session, tab, draft) in drafts {
             let key = SessionKey { project: project_id.clone(), session: session.clone() };
             projects = projects.push(control(
-                format!("{} · {} #{}", project.name, tab_label(tab), id_suffix(&draft.id.request_id)),
+                format!("{} · {} #{}", project.name, tab_label(state, tab), id_suffix(&draft.id.request_id)),
                 Some(ui.msg(Action::ShowDraft(key, draft.id.request_id.clone()))),
                 false,
             ).width(Length::Fill));
@@ -361,6 +420,17 @@ impl AgentStatus {
     }
 }
 
+fn agent_attention_dot<M: 'static>() -> Element<'static, M> {
+    container(Space::new())
+        .width(8)
+        .height(8)
+        .style(|theme| {
+            container::background(AgentStatus::NeedsInput.color(theme))
+                .border(Border::default().rounded(4))
+        })
+        .into()
+}
+
 fn agent_sessions<'a>(ui: View, state: &'a Workbench) -> Column<'a, Message> {
     let grouped = state.group_agents_by_project;
     let mut list = column![].spacing(3);
@@ -387,21 +457,34 @@ fn agent_sessions<'a>(ui: View, state: &'a Workbench) -> Column<'a, Message> {
         let section = if grouped { project_id.as_str() } else { status.label() };
         if previous != Some(section) {
             let label = if grouped { &project.name } else { ui.label(status.label()) };
-            list = list.push(container(sidebar_note(label)).padding([5, 6]));
+            let mut heading = sidebar_note(label);
+            if !grouped && matches!(status, AgentStatus::NeedsInput | AgentStatus::Working) {
+                heading = heading.style(move |theme: &Theme| text::Style {
+                    color: Some(status.color(theme)),
+                });
+            }
+            list = list.push(container(heading).padding([5, 6]));
             previous = Some(section);
         }
         let selected = state.selected.as_ref() == Some(project_id)
             && project.active_tab().is_some_and(|active| active.view_id == tab.view_id);
         let title = agent_title(state, tab);
         let label = if grouped { title } else { format!("{} · {title}", project.name) };
-        let mut summary = column![SingleLineLabel::new(label, 13.0)];
+        let mut summary = column![SingleLineLabel::new(label, 13.0)].width(Length::Fill);
         if grouped {
             summary = summary.push(text(ui.label(status.label())).size(10).style(move |theme: &Theme| text::Style {
                 color: Some(status.color(theme)),
             }));
         }
+        let mut content = row![agent_icon(tab), summary].spacing(7).align_y(Alignment::Center);
+        if status == AgentStatus::Working {
+            content = content.push(running_session_indicator(
+                &tab.session.id,
+                ui.status_animation_frame,
+            ));
+        }
         list = list.push(sidebar_button(
-            row![agent_icon(tab), summary].spacing(7).align_y(Alignment::Center),
+            content,
             Some(ui.msg(Action::SelectSession(SessionKey {
                 project: project_id.clone(),
                 session: tab.session.id.clone(),
@@ -421,15 +504,16 @@ fn agent_title(state: &Workbench, tab: &Tab) -> String {
             .find(|entry| entry.key == *agent).map(|entry| entry.label()),
         CliWorkbenchTarget::NativeCli { app_id } => state.native_apps.iter()
             .find(|entry| entry.id == *app_id).map(|entry| entry.name.as_str()),
-        CliWorkbenchTarget::Shell => None,
+        CliWorkbenchTarget::Shell | CliWorkbenchTarget::Ssh { .. } => None,
     };
-    name.map_or_else(|| tab_label(tab), str::to_owned)
+    name.map_or_else(|| tab_label(state, tab), str::to_owned)
 }
 
 fn agent_icon(tab: &Tab) -> svg::Svg<'static> {
     let key = match &tab.session.target {
         CliWorkbenchTarget::Acp { agent } => agent.strip_prefix("acp-").unwrap_or(agent),
         CliWorkbenchTarget::NativeCli { app_id } => app_id,
+        CliWorkbenchTarget::Ssh { .. } => return icon_svg(Icon::Globe, 17.0).style(icon_btn_svg_style),
         CliWorkbenchTarget::Shell => "",
     };
     let icon = match key {
@@ -461,7 +545,7 @@ impl std::fmt::Display for LaunchChoice {
 
 pub(super) fn launch_choices(state: &Workbench, i18n: I18n) -> Vec<LaunchChoice> {
     let mut choices = Vec::new();
-    if state.terminal_available {
+    if state.surface != Surface::Terminal && state.terminal_available {
         choices.push(LaunchChoice {
             target: CliWorkbenchTarget::Shell,
             label: i18n.__("新建 Shell").into(),
@@ -476,6 +560,12 @@ pub(super) fn launch_choices(state: &Workbench, i18n: I18n) -> Vec<LaunchChoice>
         choices.extend(apps.into_iter().map(|(id, name)| LaunchChoice {
             target: CliWorkbenchTarget::NativeCli { app_id: id.into() },
             label: format!("{name} · {}", i18n.__("终端")),
+        }));
+    }
+    if let Some(catalog) = &state.ssh.catalog {
+        choices.extend(catalog.saved.iter().map(|connection| LaunchChoice {
+            target: CliWorkbenchTarget::Ssh { connection_id: connection.id.clone() },
+            label: format!("SSH · {}", connection.fields.name),
         }));
     }
     if state.surface == Surface::Workbench {
@@ -495,6 +585,7 @@ fn workspace<'a>(
     project_id: &'a str,
     project: &'a Project,
     return_to_project: Option<&str>,
+    is_fullscreen: bool,
 ) -> Element<'a, Message> {
     let active = project.active_tab();
     let sendable = |tab: &Tab| {
@@ -551,7 +642,7 @@ fn workspace<'a>(
             if let Some(tab) = current {
                 let key = SessionKey { project: project_id.into(), session: tab.session.id.clone() };
                 let can_stop = !project.disconnected && tab.can_stop()
-                    && (!tab.session.capabilities.terminal || state.terminal_available);
+                    && (!tab.session.capabilities.terminal || state.pty_available(&tab.session.target));
                 controls = controls.push(toolbar_icon(
                     Icon::Square,
                     ui.label("停止会话"),
@@ -559,7 +650,23 @@ fn workspace<'a>(
                     can_stop.then_some(ui.msg(Action::Stop(key))),
                 ));
             }
-            if top_right {
+            if top_right && state.surface == Surface::Terminal {
+                use crate::app::message::{TerminalMessage, ViewMessage};
+                let (icon, label) = if is_fullscreen {
+                    (Icon::FullscreenExit, "退出全屏")
+                } else {
+                    (Icon::Fullscreen, "全屏")
+                };
+                controls = controls
+                    .push(toolbar_icon(
+                        Icon::EyeSlash, ui.label("隐藏终端面板"), TOOLBAR_BUTTON_INSET,
+                        Some(Message::View(ViewMessage::ToggleTerminalPanel)),
+                    ))
+                    .push(toolbar_icon(
+                        icon, ui.label(label), TOOLBAR_BUTTON_INSET,
+                        Some(Message::Terminal(TerminalMessage::ToggleFullscreen)),
+                    ));
+            } else if top_right {
                 controls = controls.push(toolbar_icon(
                     Icon::ArrowUp,
                     ui.label("发送消息"),
@@ -569,7 +676,18 @@ fn workspace<'a>(
                 ));
             }
             let header = terminal_panel::pane_header(
-                pane_state.tabs.iter().filter_map(|id| project.tab_for_view(*id).map(|tab| (*id, tab_label(tab)))),
+                pane_state.tabs.iter().filter_map(|&id| {
+                    let tab = project.tab_for_view(id)?;
+                    let indicator = match AgentStatus::for_tab(project, tab) {
+                        Some(AgentStatus::Working) => Some(running_session_indicator(
+                            &tab.session.id,
+                            ui.status_animation_frame,
+                        )),
+                        Some(AgentStatus::NeedsInput) => Some(agent_attention_dot()),
+                        _ => None,
+                    };
+                    Some((id, tab_label(state, tab), indicator))
+                }),
                 pane_state.active_id,
                 true,
                 project.tab_menu.map(|(id, _, _)| id),
@@ -582,7 +700,7 @@ fn workspace<'a>(
                 let key = SessionKey { project: project_id.into(), session: tab.session.id.clone() };
                 session_content(
                     ui, &key, tab,
-                    project.disconnected || (tab.session.capabilities.terminal && !state.terminal_available),
+                    project.disconnected || (tab.session.capabilities.terminal && !state.pty_available(&tab.session.target)),
                     project.content_menu,
                     layout,
                 )
@@ -592,20 +710,26 @@ fn workspace<'a>(
             (header, terminal_panel::pane_surface(body))
         },
     );
-    let projects_toggle = (state.surface == Surface::AppTerminal)
-        .then(|| app_terminal_navigation(ui, state, return_to_project));
+    let navigation = match state.surface {
+        Surface::AppTerminal => Some(app_terminal_navigation(ui, state, return_to_project)),
+        Surface::Workbench => Some(ssh_button(ui)),
+        Surface::Terminal => None,
+    };
+    let grid = container(grid)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .style(settings_divider_style);
+    if state.surface == Surface::Terminal {
+        return grid.into();
+    }
     let mut workspace = column![
-        layout_tabs(ui, project_id, project, projects_toggle),
+        layout_tabs(ui, project_id, project, navigation),
         settings_divider()
     ];
     if let Some(label) = empty_label {
         workspace = workspace.push(text(label).size(12).style(settings_muted_text_style));
     }
     // The shared grid leaves a one-pixel gap between its opaque pane surfaces.
-    let grid = container(grid)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .style(settings_divider_style);
     workspace.push(grid)
         .width(Length::Fill)
         .height(Length::Fill)
@@ -624,24 +748,41 @@ fn layout_tabs<'a>(
     for id in project.layout_ids() {
         let selected = id == project.active_layout;
         let label = layout_label(project, id);
-        let tab = button(
-            row![
-                icon_svg(Icon::Terminal, 13.0).style(move |theme: &Theme, _| svg::Style {
-                    color: Some(layout_tab_foreground(theme, selected)),
-                }),
-                text(label).size(13),
-            ]
-            .spacing(6)
-            .align_y(Alignment::Center),
-        )
-        .padding([5, 8])
-        .style(move |theme, status| {
-            let mut style = icon_btn_style(theme, status);
-            style.text_color = layout_tab_foreground(theme, selected);
-            style.border = Border::default().rounded(5);
-            style
-        })
-        .on_press(ui.msg(Action::SelectLayout(project_id.into(), id)));
+        let panes = if selected { Some(&project.panes) } else { project.parked_layouts.get(&id) };
+        let mut working_session = None;
+        let mut needs_input = false;
+        for tab in panes
+            .into_iter()
+            .flat_map(|panes| panes.grid.iter().flat_map(|(_, pane)| pane.tabs.iter()))
+            .filter_map(|&tab_id| project.tab_for_view(tab_id))
+        {
+            match AgentStatus::for_tab(project, tab) {
+                Some(AgentStatus::Working) => {
+                    working_session.get_or_insert(tab.session.id.as_str());
+                }
+                Some(AgentStatus::NeedsInput) => needs_input = true,
+                _ => {}
+            }
+        }
+        let content = row![
+            icon_svg(Icon::Terminal, 13.0).style(move |theme: &Theme, _| svg::Style {
+                color: Some(layout_tab_foreground(theme, selected)),
+            }),
+            text(label).size(13),
+        ]
+        .extend(working_session.map(|id| running_session_indicator(id, ui.status_animation_frame)))
+        .extend(needs_input.then(agent_attention_dot))
+        .spacing(6)
+        .align_y(Alignment::Center);
+        let tab = button(content)
+            .padding([5, 8])
+            .style(move |theme, status| {
+                let mut style = icon_btn_style(theme, status);
+                style.text_color = layout_tab_foreground(theme, selected);
+                style.border = Border::default().rounded(5);
+                style
+            })
+            .on_press(ui.msg(Action::SelectLayout(project_id.into(), id)));
         let mut item = row![tab].align_y(Alignment::Center);
         if selected && can_close {
             item = item.push(toolbar_icon(
@@ -853,11 +994,12 @@ fn session_content<'a>(
         content = content.push(settings_panel(body.push(buttons)));
     }
     for turn in &tab.turns {
-        let mut message = column![
-            text(ui.label("你")).size(12).style(settings_muted_text_style),
-            text(&turn.prompt).size(14).wrapping(Wrapping::Glyph),
-        ]
-        .spacing(5);
+        let label = if turn.prompt.is_some() { "你" } else { "协作任务" };
+        let mut message = column![text(ui.label(label)).size(12).style(settings_muted_text_style)]
+            .spacing(5);
+        if let Some(prompt) = &turn.prompt {
+            message = message.push(text(prompt).size(14).wrapping(Wrapping::Glyph));
+        }
         if let Some(snapshot) = &turn.snapshot {
             message = message.push(
                 text(ui.label(delivery_label(snapshot.state)))
@@ -875,8 +1017,9 @@ fn session_content<'a>(
                 message = message.push(text(ui.label(super::update::error_label(error))).size(12));
             }
         } else if turn.recover {
+            let label = if turn.prompt.is_some() { "正在发送消息…" } else { "正在加载请求…" };
             message = message
-                .push(text(ui.label("正在发送消息…")).size(12).style(settings_muted_text_style));
+                .push(text(ui.label(label)).size(12).style(settings_muted_text_style));
         }
         if let Some(error) = turn.error {
             message = message.push(text(ui.label(error)).size(12).wrapping(Wrapping::Glyph));
@@ -913,7 +1056,7 @@ fn dialog_view<'a>(
     base: Element<'a, Message>,
     dialog: &'a Dialog,
     project: Option<&'a Project>,
-    terminal_available: bool,
+    state: &'a Workbench,
 ) -> Element<'a, Message> {
     let close = ui.msg(Action::Dismiss);
     let confirm = ui.msg(Action::Confirm);
@@ -921,7 +1064,7 @@ fn dialog_view<'a>(
         Dialog::Rename(_, draft) | Dialog::RenameLayout(_, _, draft) => {
             (ui.label("重命名"), draft, !draft.trim().is_empty(), None)
         }
-        Dialog::ReadDraft(..) => return base,
+        Dialog::ReadDraft(..) | Dialog::Ssh(..) => return base,
         Dialog::Compose { target, draft } => {
             let targets: Vec<_> = project
                 .into_iter()
@@ -929,7 +1072,7 @@ fn dialog_view<'a>(
                     project.tabs.iter().filter(move |(_, tab)| {
                         !project.disconnected
                             && tab.can_send()
-                            && (!tab.session.capabilities.terminal || terminal_available)
+                            && (!tab.session.capabilities.terminal || state.terminal_available)
                     })
                 })
                 .map(|(id, _)| id.clone())
@@ -941,7 +1084,7 @@ fn dialog_view<'a>(
                     .format_labels(|id| {
                         project
                             .and_then(|project| project.tabs.get(id))
-                            .map_or_else(|| id.clone(), tab_label)
+                            .map_or_else(|| id.clone(), |tab| tab_label(state, tab))
                     })
                     .placeholder(ui.label("选择目标会话"))
                     .width(Length::Fill);
@@ -1040,7 +1183,7 @@ fn draft_dialog<'a>(
     settings_modal_overlay_with_escape(base, close, card)
 }
 
-pub(super) fn tab_label(tab: &Tab) -> String {
+pub(super) fn tab_label(state: &Workbench, tab: &Tab) -> String {
     if let Some(name) = &tab.name {
         return name.clone();
     }
@@ -1049,6 +1192,8 @@ pub(super) fn tab_label(tab: &Tab) -> String {
         CliWorkbenchTarget::NativeCli { app_id } if app_id == super::CODEX_APP_ID => "Codex",
         CliWorkbenchTarget::NativeCli { app_id } => app_id,
         CliWorkbenchTarget::Shell => "Shell",
+        CliWorkbenchTarget::Ssh { connection_id } => state.ssh.connection(connection_id)
+            .map_or("SSH", |entry| entry.fields.name.as_str()),
     };
     name.to_owned()
 }

@@ -266,6 +266,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.multimodal_settings.save_error = None;
                     app.model_settings.loading = true;
                     app.model_settings.save_error = None;
+                    #[cfg(not(target_arch = "wasm32"))]
+                    return Task::batch([models_refresh_task(), super::multimodal::refresh_media_catalog(app)]);
+                    #[cfg(target_arch = "wasm32")]
                     models_refresh_task()
                 }
             }

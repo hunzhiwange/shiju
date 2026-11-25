@@ -115,7 +115,7 @@ pub fn task_metadata_patch_for_gateway(
     status_role: Option<vw_api_task::TaskPoolWorkflowStatusRoleDto>,
 ) -> vw_api_agent_scheduler::AgentSchedulerTaskMetadataPatchDto {
     vw_api_agent_scheduler::AgentSchedulerTaskMetadataPatchDto {
-        title: Some(task.prompt.lines().next().unwrap_or(&task.id).chars().take(120).collect()),
+        title: Some(crate::board::task_title(task).chars().take(120).collect()),
         status_key: Some(status_key),
         status: Some(status),
         priority: Some(task.priority),
@@ -139,7 +139,6 @@ pub fn task_metadata_patch_for_gateway(
         }),
         status_role,
         metadata_merge: Some(serde_json::json!({
-            "assignee": &task.assignee,
             "description": &task.description,
             "auto_promote_delay_ms": task.auto_promote_delay_ms,
             "task_split_mode": task.task_split_mode.to_string_key(),
@@ -256,6 +255,15 @@ pub fn move_task_status_commands(
     workflow_id: &str,
     order_no: Option<i64>,
 ) -> Vec<vw_api_agent_scheduler::AgentSchedulerCommandRequest> {
+    vec![move_task_status_command(task_id, target_status, workflow_id, order_no)]
+}
+
+pub fn move_task_status_command(
+    task_id: &str,
+    target_status: TaskStatus,
+    workflow_id: &str,
+    order_no: Option<i64>,
+) -> vw_api_agent_scheduler::AgentSchedulerCommandRequest {
     let status_key = crate::helpers::execution::agent_scheduler_status_key_for_task_status(
         target_status,
         workflow_id,
@@ -264,7 +272,7 @@ pub fn move_task_status_commands(
         target_status,
         workflow_id,
     );
-    let command = agent_scheduler_command_request(
+    agent_scheduler_command_request(
         task_id,
         vw_api_agent_scheduler::AgentSchedulerCommandKindDto::Move,
         Some("手动移动任务".to_string()),
@@ -277,8 +285,7 @@ pub fn move_task_status_commands(
             }),
             ..Default::default()
         },
-    );
-    vec![command]
+    )
 }
 
 pub fn move_tasks_to_status_commands(

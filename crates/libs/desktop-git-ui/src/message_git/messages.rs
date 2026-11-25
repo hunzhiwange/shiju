@@ -321,6 +321,9 @@ pub enum GitMessage {
     /// 提交描述编辑器操作
     CommitDescriptionEditorAction(text_editor::Action),
 
+    /// 展开或收起详细提交描述
+    ToggleCommitDescription,
+
     /// 打开约定式提交帮助弹窗
     CommitHelpOpen,
 

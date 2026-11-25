@@ -35,7 +35,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         app.session_state.last_llm_full_access = None;
         app.reset_draft_full_access();
         let worktrees = super::worktrees::gateway_changed(app);
-        Task::batch([archived, worktrees, app.reload_project_chat_preferences(true)])
+        Task::batch([
+            archived,
+            worktrees,
+            app.reload_project_chat_preferences(true),
+            #[cfg(not(target_arch = "wasm32"))]
+            crate::app::workbench_projects::ensure_terminal_projects(app),
+        ])
     } else {
         Task::none()
     };
@@ -71,7 +77,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     let employee_scope = Task::none();
     #[cfg(not(target_arch = "wasm32"))]
     let media = if connection_changed || user_changed {
-        crate::app::message::chat::media_jobs::gateway_changed(app)
+        Task::batch([
+            crate::app::message::chat::media_jobs::gateway_changed(app),
+            super::multimodal::gateway_changed(app),
+        ])
     } else {
         Task::none()
     };

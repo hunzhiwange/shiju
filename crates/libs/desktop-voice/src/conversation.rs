@@ -130,6 +130,9 @@ impl Conversation {
             .map_err(|_| "无法启动语音通话。")?;
         Ok(Self { control, snapshot, worker: Some(worker), screen })
     }
+    pub fn phase(&self) -> Phase {
+        self.snapshot.lock().unwrap_or_else(|e| e.into_inner()).phase
+    }
     pub fn snapshot(&self) -> Snapshot {
         self.snapshot.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }

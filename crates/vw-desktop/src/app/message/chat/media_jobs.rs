@@ -231,7 +231,10 @@ pub(super) fn close_model_picker(app: &mut App) {
 
 fn open_model_picker(app: &mut App, operation: MediaOperation) -> Task<Message> {
     if !app.session_state.input_popovers.media_shortcuts
-        || !matches!(operation, MediaOperation::ImageGenerate | MediaOperation::VideoGenerate)
+        || !matches!(
+            operation,
+            MediaOperation::ImageGenerate | MediaOperation::VideoGenerate | MediaOperation::ImageUnderstand
+        )
     {
         return Task::none();
     }
@@ -286,11 +289,13 @@ fn pick_model(app: &mut App, selection: Option<MediaModelSelection>) -> Task<Mes
     };
     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     let operation = picker.operation;
-    let default_prompt = i18n.__(if operation == MediaOperation::ImageGenerate {
-        "帮我生成一张图片："
-    } else {
-        "帮我生成一段视频："
-    });
+    let (default_prompt, selected_prompt) = match operation {
+        MediaOperation::ImageGenerate => ("帮我生成一张图片：", Some("请用 %s 生成一张图片：")),
+        MediaOperation::VideoGenerate => ("帮我生成一段视频：", Some("请用 %s 生成一段视频：")),
+        MediaOperation::ImageUnderstand => ("请分析我提供的图片：", None),
+        _ => return Task::none(),
+    };
+    let default_prompt = i18n.__(default_prompt);
     let previous_prompt = app
         .current_session_runtime_ref()
         .and_then(|runtime| runtime.pending_media_model.as_ref())
@@ -311,14 +316,11 @@ fn pick_model(app: &mut App, selection: Option<MediaModelSelection>) -> Task<Mes
             else {
                 return Task::none();
             };
-            let label = if picker.operation == MediaOperation::ImageGenerate {
-                "请用 %s 生成一张图片："
-            } else {
-                "请用 %s 生成一段视频："
-            };
-            let prompt = i18n
-                .format(label, &[model.display_name.as_str().into()])
-                .expect("valid media prompt template");
+            let prompt = selected_prompt.map_or_else(
+                || default_prompt.to_owned(),
+                |label| i18n.format(label, &[model.display_name.as_str().into()])
+                    .expect("valid media prompt template"),
+            );
             let pending = desktop_session::message::chat::request::PendingMediaModel {
                 selection,
                 display_name: model.display_name.clone(),

@@ -3,7 +3,7 @@ pub use desktop_settings_shell::messages::{
     AcpMessage, AgentConfigTabMessage, AgentsMessage,
     BrowserMessage, ChannelsMessage, GatewayClientMessage, GatewayMessage,
     GeneralSettingsMessage, HooksMessage, HttpRequestMessage, McpMessage, MemoryMessage,
-    ModelConfigTabMessage, ModelRoutesMessage, QueryClassificationMessage,
+    ModelConfigTabMessage, ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage,
     QuickMessagesMessage, RuntimeMessage, ThemesMessage, WebSearchMessage,
 };
 pub type SettingsMessage = desktop_settings_shell::messages::SettingsMessage<
@@ -15,7 +15,5 @@ pub type SettingsMessage = desktop_settings_shell::messages::SettingsMessage<
 
 #[cfg(test)]
 pub use desktop_settings_shell::messages::EmbeddingRoutesMessage;
-#[cfg(test)]
-pub use desktop_settings_shell::messages::MultimodalMessage;
 #[cfg(test)]
 pub use desktop_settings_shell::messages::StorageMessage;

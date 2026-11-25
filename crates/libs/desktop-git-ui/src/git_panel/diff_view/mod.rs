@@ -37,6 +37,7 @@ pub enum DiffMessage {
     RevertDiffFile(String),
     OpenDiffFileMenu(String),
     CloseDiffFileMenu,
+    ToggleStageFile(String, bool),
     SelectAllFileLines(String),
     ClearAllFileLines(String),
     ToggleExpandFile(String),

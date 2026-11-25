@@ -70,17 +70,26 @@ fn current_open_think_body_stops_before_tool_output() {
 }
 
 #[test]
-fn task_pet_window_size_clamps_progress_and_eases_midpoint() {
-    let collapsed = task_pet_window_size_for_progress(-1.0);
-    let midpoint = task_pet_window_size_for_progress(0.5);
-    let expanded = task_pet_window_size_for_progress(2.0);
+fn task_pet_dock_keeps_native_frame_until_collapse_settles() {
+    use crate::pet_view::{DockMode, PetControls};
+    use iced::time::{Duration, Instant};
+    let mut controls = PetControls::default();
+    let now = Instant::now();
+    let settled = Duration::from_millis(220);
+    controls.composer = true;
+    controls.update(None, 0.0, now);
+    let wide = controls.window_size(104.0, 0.0, false, now);
+    controls.native_size = Some(wide);
+    let midway = controls.view(None, now + settled / 2);
+    assert_eq!(midway.mode, DockMode::Composer);
+    assert!(midway.width > DockMode::Idle.size().width);
+    assert!(midway.width < DockMode::Composer.size().width);
 
-    assert!((collapsed.width - 160.0).abs() < f32::EPSILON);
-    assert!((collapsed.height - 168.0).abs() < f32::EPSILON);
-    assert!((midpoint.width - 260.0).abs() < f32::EPSILON);
-    assert!((midpoint.height - 286.0).abs() < f32::EPSILON);
-    assert!((expanded.width - 360.0).abs() < f32::EPSILON);
-    assert!((expanded.height - 404.0).abs() < f32::EPSILON);
+    let close = now + settled;
+    controls.composer = false;
+    controls.update(None, 0.0, close);
+    assert_eq!(controls.window_size(104.0, 0.0, false, close), wide);
+    assert!(controls.window_size(104.0, 0.0, false, close + settled).width < wide.width);
 }
 
 #[test]

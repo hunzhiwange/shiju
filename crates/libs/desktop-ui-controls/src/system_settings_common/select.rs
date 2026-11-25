@@ -49,6 +49,7 @@ pub fn settings_select<'a, Message: Clone + 'a, T: Clone + PartialEq + ToString 
         on_open: None,
         width: Length::Fixed(280.0),
         toolbar_icon: None,
+        icon_only: false,
         trigger_height: None,
         menu_min_width: None,
         roomy_menu: false,
@@ -68,6 +69,7 @@ pub struct SettingsSelect<'a, T, Message> {
     on_open: Option<(String, Message)>,
     width: Length,
     toolbar_icon: Option<Icon>,
+    icon_only: bool,
     trigger_height: Option<f32>,
     menu_min_width: Option<f32>,
     roomy_menu: bool,
@@ -117,8 +119,14 @@ impl<T, Message> SettingsSelect<'_, T, Message> {
     /// Use an icon-only trigger while preserving room for the menu's action labels.
     pub fn menu_icon(mut self, icon: Icon, menu_min_width: f32) -> Self {
         self.toolbar_icon = Some(icon);
+        self.icon_only = true;
         self.menu_min_width = Some(menu_min_width);
         self.rebuild_trigger();
+        self
+    }
+
+    pub fn menu_min_width(mut self, width: f32) -> Self {
+        self.menu_min_width = Some(width);
         self
     }
 
@@ -144,7 +152,7 @@ impl<T, Message> SettingsSelect<'_, T, Message> {
     fn rebuild_trigger(&mut self) {
         let label = self.label.as_ref().unwrap_or(&self.placeholder);
         self.trigger = trigger(
-            label.clone(), self.label.is_none(), self.enabled, self.toolbar_icon, self.trigger_height, self.menu_min_width.is_some(),
+            label.clone(), self.label.is_none(), self.enabled, self.toolbar_icon, self.trigger_height, self.icon_only,
         );
     }
 }

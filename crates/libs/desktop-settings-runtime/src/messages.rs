@@ -35,6 +35,21 @@ pub enum MultimodalMessage {
     OcrEnabledToggled(bool),
     ModelSupportsImagesToggled(bool),
     OcrModelChanged(String),
+    MediaCatalogRefresh,
+    MediaCatalogLoaded {
+        request: u64,
+        result: Result<(vw_api_media::MediaModels, config_tools::MediaModelDefaults), ()>,
+    },
+    MediaModelChanged {
+        operation: config_tools::MediaDefaultOperation,
+        model: Option<config_tools::MediaModelRef>,
+    },
+    MediaModelSaved {
+        request: u64,
+        operation: config_tools::MediaDefaultOperation,
+        model: Option<config_tools::MediaModelRef>,
+        result: Result<(), String>,
+    },
 }
 
 #[derive(Debug, Clone)]

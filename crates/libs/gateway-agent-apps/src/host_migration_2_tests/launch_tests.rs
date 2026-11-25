@@ -16,6 +16,21 @@ use sha2::{Digest, Sha256};
 use std::os::unix::fs::PermissionsExt;
 use tower::ServiceExt;
 const TOKEN: &str = "fixture-launch-api-authorized-token";
+
+#[cfg(target_os = "macos")]
+#[test]
+fn cli_workbench_native_full_access_flags_are_selected_by_app() {
+    use crate::launch::workbench_native_args;
+    use vw_api_app_identity::AppId;
+
+    assert_eq!(
+        workbench_native_args(AppId::Codex),
+        ["--no-alt-screen", "--dangerously-bypass-approvals-and-sandbox"],
+    );
+    assert_eq!(workbench_native_args(AppId::Claude), ["--dangerously-skip-permissions"]);
+    assert!(workbench_native_args(AppId::Agy).is_empty());
+}
+
 fn terminal(preferred: Option<&str>, _: &Path, material: &LaunchMaterial) -> Result<(), String> {
     assert_eq!(preferred, Some("terminal"));
     attached_terminal(preferred, Path::new("/bin/sh"), material)

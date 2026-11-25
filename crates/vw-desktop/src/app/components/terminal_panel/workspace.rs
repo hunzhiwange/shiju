@@ -2,21 +2,26 @@ use desktop_assets::assets::Icon;
 use desktop_terminal::terminal_panel::{group_context_menu, rename_overlay};
 use desktop_ui_controls::overlays::PointBelowOverlay;
 use desktop_ui_controls::right_click_area::RightClickArea;
-use desktop_ui_controls::single_line_label::SingleLineLabel;
 use desktop_ui_controls::system_settings_common::icons::{icon_btn_style, icon_btn_svg_style};
 use desktop_ui_controls::system_settings_common::{
-    icon_svg, settings_divider, settings_divider_style, settings_muted_text_style,
+    icon_svg, settings_divider, settings_divider_style,
 };
-use desktop_ui_controls::tooltip::{project_tooltip, tooltip_dark_style};
+use desktop_ui_controls::tooltip::tooltip_dark_style;
 use desktop_workspace::views::project::layout::work_sidebar::project_label;
 use iced::widget::{Space, button, column, container, row, scrollable, text, tooltip};
 use iced::{Alignment, Border, Element, Length, Theme};
 
-use crate::app::cli_workbench::{Event, Surface};
+use crate::app::cli_workbench::{self, Action, Event, Surface};
+use crate::app::components::workbench_sidebar::{
+    matches_project, project_header, project_query, project_row, sidebar_note, sidebar_section,
+    with_project_menu,
+};
 use crate::app::message::TerminalMessage;
+use crate::app::workbench_projects;
 use crate::app::{App, Message};
 
 pub(super) fn view<'a>(app: &'a App, panes: Element<'a, Message>) -> Element<'a, Message> {
+    let panes = cli_workbench::terminal_group_view(app).unwrap_or(panes);
     let terminal = column![group_bar(app), settings_divider(), panes].height(Length::Fill);
     let content = if app.terminal_projects_collapsed {
         terminal.width(Length::Fill).into()
@@ -59,21 +64,16 @@ fn group_bar(app: &App) -> Element<'_, Message> {
     };
     let mut groups = row![].spacing(4).align_y(Alignment::Center);
     let can_close = app.terminal.groups().nth(1).is_some();
+    let directory = app.terminal_project_path();
+    let ssh_selected = app.terminal_ssh.terminal_group_selected(directory);
     for (id, selected) in app.terminal.groups() {
+        let selected = selected && !ssh_selected;
         let tab = button(text(group_title(app, id)).size(13))
             .on_press_maybe(
                 (!selected).then_some(Message::Terminal(TerminalMessage::SelectGroup(id))),
             )
             .padding([5, 8])
-            .style(move |theme: &Theme, status| {
-                let mut style = icon_btn_style(theme, status);
-                if selected {
-                    let palette = theme.extended_palette();
-                    style.background = Some(palette.background.weak.color.into());
-                    style.text_color = palette.primary.base.color;
-                }
-                style
-            });
+            .style(move |theme, status| group_style(theme, status, selected));
         groups = groups.push(Element::new(
             RightClickArea::new(
                 tab.into(),
@@ -90,6 +90,18 @@ fn group_bar(app: &App) -> Element<'_, Message> {
         }
     }
 
+    if let Some(id) = app.main_window_id
+        && app.terminal_ssh.terminal_group_available(directory)
+    {
+        groups = groups.push(
+            button(text("SSH").size(13))
+                .on_press_maybe((!ssh_selected).then(|| {
+                    Surface::Terminal.message(Event::Window(id, Action::ShowTerminalGroup))
+                }))
+                .padding([5, 8])
+                .style(move |theme, status| group_style(theme, status, ssh_selected)),
+        );
+    }
     let groups = scrollable(groups)
         .direction(scrollable::Direction::Horizontal(scrollbar()))
         .width(Length::Fill);
@@ -100,6 +112,11 @@ fn group_bar(app: &App) -> Element<'_, Message> {
                 Icon::Terminal,
                 i18n.__("应用终端"),
                 Surface::AppTerminal.message(Event::Open { backend: None, native_app: None }),
+            ),
+            icon_button(
+                Icon::Globe,
+                i18n.__("SSH 连接"),
+                Surface::Terminal.message(Event::OpenSsh),
             ),
             groups,
             icon_button(
@@ -138,6 +155,16 @@ fn group_bar(app: &App) -> Element<'_, Message> {
         .into()
 }
 
+fn group_style(theme: &Theme, status: button::Status, selected: bool) -> button::Style {
+    let mut style = icon_btn_style(theme, status);
+    if selected {
+        let palette = theme.extended_palette();
+        style.background = Some(palette.background.weak.color.into());
+        style.text_color = palette.primary.base.color;
+    }
+    style
+}
+
 fn group_title(app: &App, id: u64) -> &str {
     app.terminal
         .group_name(id)
@@ -153,64 +180,49 @@ fn group_title(app: &App, id: u64) -> &str {
 }
 
 fn projects(app: &App) -> Element<'_, Message> {
-    let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     let current = app.terminal_project_path();
     let navigation_path = app.navigation_tabs.project_path.as_deref();
     let recent = &app.workspace_state.recent_projects;
     let labels = &app.workspace_state.recent_projects_edits;
+    let removed = app.workbench_projects.active_removed();
+    let registered = app.workbench_projects.terminal_projects();
+    let mut seen = std::collections::HashSet::new();
     let paths = navigation_path
         .into_iter()
-        .chain(recent.iter().map(String::as_str).filter(|path| Some(*path) != navigation_path))
-        .chain(current.filter(|path| {
-            Some(*path) != navigation_path && !recent.iter().any(|recent| recent.as_str() == *path)
-        }));
+        .chain(recent.iter().map(String::as_str))
+        .chain(registered.into_iter().flat_map(|projects| projects.keys().map(String::as_str)))
+        .chain(current)
+        .filter(|path| removed.is_none_or(|removed| !removed.contains(*path)) && seen.insert(*path));
 
+    let query = project_query(app);
+    let mut matches = paths.filter_map(|path| {
+        let project = registered.and_then(|projects| projects.get(path));
+        let title = project.map_or_else(|| project_label(recent, labels, path), |project| project.name.clone());
+        matches_project(&query, &title, path).then_some((path, title, project))
+    }).peekable();
     let mut items = column![].spacing(3);
-    for path in paths {
+    if matches.peek().is_none() {
+        let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
+        let label = if app.workbench_projects.terminal_loading {
+            "加载中"
+        } else if !query.is_empty() {
+            "未找到匹配的项目"
+        } else {
+            "暂无项目"
+        };
+        items = items.push(sidebar_note(i18n.__(label)));
+    }
+    for (path, title, project) in matches {
         let selected = current == Some(path);
-        let title = project_label(recent, labels, path);
-        let icon = if selected { Icon::FolderOpen } else { Icon::FolderClosed };
-        let project =
-            button(
-                row![
-                    icon_svg(icon, 13.0).style(icon_btn_svg_style),
-                    SingleLineLabel::new(title.clone(), 13.0),
-                ]
-                .align_y(Alignment::Center)
-                .spacing(5),
-            )
-            .on_press_maybe(
-                (!selected)
-                    .then(|| Message::Terminal(TerminalMessage::SelectProject(path.to_owned()))),
-            )
-            .width(Length::Fill)
-            .padding([4, 5])
-            .style(move |theme: &Theme, status| {
-                let mut style = icon_btn_style(theme, status);
-                if selected {
-                    let palette = theme.extended_palette();
-                    style.background = Some(palette.background.weak.color.into());
-                    style.text_color = palette.primary.base.color;
-                }
-                style
-            });
-        items = items.push(project_tooltip(project, title, path, tooltip::Position::Right));
+        items = items.push(project_row(
+            title, path, project.map(|project| project.id.as_ref()), selected,
+            (!selected).then(|| Message::Terminal(TerminalMessage::SelectProject(path.to_owned()))),
+            tooltip::Position::Right,
+        ));
     }
 
-    container(
-        column![
-            text(i18n.__("项目")).size(12).style(settings_muted_text_style),
-            scrollable(items)
-                .direction(scrollable::Direction::Vertical(scrollbar()))
-                .height(Length::Fill),
-        ]
-        .spacing(4),
-    )
-    .padding(7)
-    .height(Length::Fill)
-    .width(Length::Fill)
-    .style(surface)
-    .into()
+    let refresh = Message::WorkbenchProjects(workbench_projects::Event::RefreshTerminal);
+    with_project_menu(app, app.navigation_tabs.screen, sidebar_section(project_header(app, Some(refresh)), items))
 }
 
 fn scrollbar() -> scrollable::Scrollbar {

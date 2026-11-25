@@ -22,6 +22,11 @@ use std::ops::{Index, RangeInclusive};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
+const MAX_WHEEL_REPORTS: u32 = 64;
+
+#[path = "path_links.rs"]
+mod path_links;
+
 const URL_REGEX: &str = r#"(ipfs:|ipns:|magnet:|mailto:|gemini://|gopher://|https://|http://|news:|file://|git://|ssh:|ftp://)[^\u{0000}-\u{001F}\u{007F}-\u{009F}<>"\s{-}\^⟨⟩`]+"#;
 
 #[derive(Debug, Clone)]
@@ -29,9 +34,16 @@ pub enum Command {
     Write(Vec<u8>),
     Paste(String),
     Scroll(i32),
+    WheelScroll {
+        lines: i32,
+        modifiers: Modifiers,
+        position: (f32, f32),
+    },
+    ScrollTo(usize),
     Resize(Option<Size<f32>>, Option<Size<f32>>),
     SelectStart(SelectionType, (f32, f32)),
     SelectUpdate((f32, f32)),
+    SelectScroll(i32, (f32, f32)),
     SelectAll,
     Clear,
     ProcessLink(LinkAction, Point),
@@ -57,7 +69,7 @@ impl From<TermMode> for MouseMode {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum MouseButton {
     LeftButton = 0,
     MiddleButton = 1,
@@ -368,6 +380,14 @@ impl Backend {
             Command::Scroll(delta) => {
                 self.scroll(&mut term, delta);
             },
+            Command::WheelScroll { lines, modifiers, position } => {
+                self.scroll_wheel(&mut term, lines, modifiers, position);
+            },
+            Command::ScrollTo(offset) => {
+                let offset = offset.min(term.history_size()) as i32;
+                let delta = offset - term.grid().display_offset() as i32;
+                term.scroll_display(Scroll::Delta(delta));
+            },
             Command::Resize(layout_size, font_measure) => {
                 self.resize(&mut term, layout_size, font_measure);
             },
@@ -376,6 +396,13 @@ impl Backend {
             },
             Command::SelectUpdate((x, y)) => {
                 self.update_selection(&mut term, x, y);
+            },
+            Command::SelectScroll(delta, (x, y)) => {
+                if term.selection.is_some() {
+                    // Resolve the drag endpoint in the newly scrolled viewport.
+                    term.grid_mut().scroll_display(Scroll::Delta(delta));
+                    self.update_selection(&mut term, x, y);
+                }
             },
             Command::SelectAll => {
                 let (start, end) = Self::buffer_bounds(&term);
@@ -396,10 +423,10 @@ impl Backend {
                 grid.cursor.point.line = Line(0);
             },
             Command::ProcessLink(link_action, point) => {
-                self.process_link_action(&term, link_action, point);
+                action = self.process_link_action(&term, link_action, point);
             },
             Command::MouseReport(button, modifiers, point, pressed) => {
-                self.process_mouse_report(button, modifiers, point, pressed);
+                self.process_mouse_report(*term.mode(), button, modifiers, point, pressed);
             },
         };
 
@@ -411,45 +438,37 @@ impl Backend {
         terminal: &Term<EventProxy>,
         link_action: LinkAction,
         point: Point,
-    ) {
-        match link_action {
-            LinkAction::Hover => {
-                self.last_content.hovered_hyperlink = self.regex_match_at(
-                    terminal,
-                    point,
-                    &mut self.url_regex.clone(),
-                );
-            },
-            LinkAction::Clear => {
-                self.last_content.hovered_hyperlink = None;
-            },
-            LinkAction::Open => {
-                self.open_link();
-            },
-        };
-    }
-
-    fn open_link(&self) {
-        if let Some(range) = &self.last_content.hovered_hyperlink {
-            let start = range.start();
-            let end = range.end();
-
-            let mut url = String::from(self.last_content.grid.index(*start).c);
-            for indexed in self.last_content.grid.iter_from(*start) {
-                url.push(indexed.c);
-                if indexed.point == *end {
-                    break;
-                }
-            }
-
-            open::that(url).unwrap_or_else(|_| {
-                panic!("link opening is failed");
-            })
+    ) -> Action {
+        if matches!(link_action, LinkAction::Clear) {
+            self.last_content.hovered_hyperlink = None;
+            return Action::Ignore;
         }
+
+        let url =
+            self.regex_match_at(terminal, point, &mut self.url_regex.clone());
+        // The point refers to the displayed grid, which can lag live PTY output.
+        let path = || path_links::path_at(&self.last_content.grid, point);
+        if matches!(link_action, LinkAction::Hover) {
+            self.last_content.hovered_hyperlink =
+                url.or_else(|| path().map(|(range, _)| range));
+        } else if let Some(range) = url {
+            let url = terminal.bounds_to_string(*range.start(), *range.end());
+            if url
+                .get(..7)
+                .is_some_and(|prefix| prefix.eq_ignore_ascii_case("file://"))
+            {
+                return Action::OpenPath(url);
+            }
+            let _ = open::that(url);
+        } else if let Some((_, path)) = path() {
+            return Action::OpenPath(path);
+        }
+        Action::Ignore
     }
 
     fn process_mouse_report(
         &mut self,
+        mode: TermMode,
         button: MouseButton,
         modifiers: Modifiers,
         point: Point,
@@ -462,11 +481,11 @@ impl Backend {
         if modifiers.contains(Modifiers::ALT) {
             mods += 8;
         }
-        if modifiers.contains(Modifiers::COMMAND) {
+        if modifiers.contains(Modifiers::CTRL) {
             mods += 16;
         }
 
-        match MouseMode::from(self.last_content.terminal_mode) {
+        match MouseMode::from(mode) {
             MouseMode::Sgr => {
                 self.sgr_mouse_report(point, button as u8 + mods, pressed)
             },
@@ -652,26 +671,50 @@ impl Backend {
         self.transport.write(input);
     }
 
-    fn scroll(&mut self, terminal: &mut Term<EventProxy>, delta_value: i32) {
-        if delta_value != 0 {
-            let scroll = Scroll::Delta(delta_value);
-            if terminal
-                .mode()
-                .contains(TermMode::ALTERNATE_SCROLL | TermMode::ALT_SCREEN)
-            {
-                let line_cmd = if delta_value > 0 { b'A' } else { b'B' };
-                let mut content = vec![];
-
-                for _ in 0..delta_value.abs() {
-                    content.push(0x1b);
-                    content.push(b'O');
-                    content.push(line_cmd);
-                }
-
-                self.write(content);
-            } else {
-                terminal.grid_mut().scroll_display(scroll);
+    fn scroll_wheel(
+        &mut self,
+        terminal: &mut Term<EventProxy>,
+        lines: i32,
+        modifiers: Modifiers,
+        (x, y): (f32, f32),
+    ) {
+        if lines == 0 {
+            return;
+        }
+        let mode = *terminal.mode();
+        if modifiers.shift() || terminal.grid().display_offset() != 0 {
+            Self::scroll_history(terminal, lines);
+        } else if mode.intersects(TermMode::MOUSE_MODE) {
+            // A fullscreen app with mouse tracking owns its transcript viewport.
+            let point = Self::selection_point(x, y, &self.size, 0);
+            let button = if lines > 0 { MouseButton::ScrollUp } else { MouseButton::ScrollDown };
+            for _ in 0..lines.unsigned_abs().min(MAX_WHEEL_REPORTS) {
+                self.process_mouse_report(mode, button, modifiers, point, true);
             }
+        } else {
+            self.scroll(terminal, lines);
+        }
+    }
+
+    fn scroll(&mut self, terminal: &mut Term<EventProxy>, lines: i32) {
+        if lines == 0 {
+            return;
+        }
+        let mode = *terminal.mode();
+        if mode.contains(TermMode::ALTERNATE_SCROLL | TermMode::ALT_SCREEN) {
+            let prefix = if mode.contains(TermMode::APP_CURSOR) { b'O' } else { b'[' };
+            let direction = if lines > 0 { b'A' } else { b'B' };
+            let count = lines.unsigned_abs().min(MAX_WHEEL_REPORTS) as usize;
+            self.write([0x1b, prefix, direction].repeat(count));
+        } else {
+            Self::scroll_history(terminal, lines);
+        }
+    }
+
+    fn scroll_history(terminal: &mut Term<EventProxy>, lines: i32) {
+        let history = terminal.history_size() as i32;
+        if history != 0 {
+            terminal.scroll_display(Scroll::Delta(lines.clamp(-history, history)));
         }
     }
 

@@ -7,6 +7,9 @@ use desktop_task_board as taskboard;
 use super::helpers::*;
 use super::*;
 
+#[path = "update/detail.rs"]
+mod detail_update;
+
 #[path = "update/execution_results.rs"]
 mod execution_results_update;
 #[path = "update/execution.rs"]
@@ -82,6 +85,10 @@ pub fn update(
     app: &mut crate::app::App,
     message: TaskBoardMessage,
 ) -> iced::Task<crate::app::Message> {
+    let message = match message {
+        TaskBoardMessage::Detail(event) => return detail_update::update(app, event),
+        message => message,
+    };
     if app.task_board.task_board_viewing_logs.is_some()
         && matches!(
             &message,
@@ -1162,10 +1169,8 @@ fn apply_local_effect(
             app.task_board.task_board_draft.property_changes.clear();
             close_logs_context_menu(app);
             set_viewing_logs(app, Some(task));
-            if app.task_board.task_board_detail_tab == TaskBoardDetailTab::Logs {
-                return apply_local_effect(app, LocalEffect::SyncLogs);
-            }
-            iced::Task::none()
+            let load = detail_update::open(app);
+            iced::Task::batch([load, apply_local_effect(app, LocalEffect::SyncLogs)])
         }
         LocalEffect::SyncLogs => {
             flush_running_task_logs_throttled(app, true, web_time::Instant::now());
@@ -1205,6 +1210,7 @@ fn apply_local_effect(
         },
         LocalEffect::None => iced::Task::none(),
         LocalEffect::CloseDetail => {
+            app.task_board.detail = Default::default();
             app.task_board.work_plan.close_detail();
             #[cfg(not(target_arch = "wasm32"))]
             app.task_quick_actions.board.close();

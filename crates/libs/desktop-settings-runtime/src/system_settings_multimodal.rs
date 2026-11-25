@@ -164,6 +164,131 @@ fn image_model_control<'a>(app: View<'a>) -> Element<'a, Message> {
     status.into()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone, PartialEq)]
+struct MediaModelOption {
+    model: Option<config_tools::MediaModelRef>,
+    label: String,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl std::fmt::Display for MediaModelOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.label)
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn media_model_option(model: config_tools::MediaModelRef) -> MediaModelOption {
+    let provider = model
+        .deployment_id
+        .rsplit_once(':')
+        .map_or(model.deployment_id.as_str(), |(provider, _)| provider);
+    let label = format!("{provider}/{}", model.model_id);
+    MediaModelOption { model: Some(model), label }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn media_model_defaults(app: View<'_>) -> Element<'_, Message> {
+    use config_tools::{MediaDefaultOperation as DefaultOperation, MediaModelRef};
+    use desktop_ui_controls::system_settings_common::{
+        rounded_action_btn_style, settings_flexible_row,
+    };
+    use iced::widget::button;
+    use vw_api_media::MediaOperation;
+
+    let i18n = I18n::new(app.desktop_locale);
+    let state = app.multimodal_settings;
+    let catalog = state.media_catalog.as_ref().and_then(|result| result.as_ref().ok());
+    let mut rows = column![].spacing(0);
+    for (index, (operation, capability, label)) in [
+        (DefaultOperation::ImageGenerate, MediaOperation::ImageGenerate, "生图模型"),
+        (DefaultOperation::VideoGenerate, MediaOperation::VideoGenerate, "生视频模型"),
+        (DefaultOperation::VideoUnderstand, MediaOperation::VideoUnderstand, "视频理解模型"),
+        (DefaultOperation::SpeechSynthesize, MediaOperation::SpeechSynthesize, "语音合成模型"),
+        (DefaultOperation::AudioTranscribe, MediaOperation::AudioTranscribe, "语音转写模型"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if index > 0 {
+            rows = rows.push(settings_divider());
+        }
+        let auto = MediaModelOption { model: None, label: i18n.__("自动选择").to_owned() };
+        let options = std::iter::once(auto.clone())
+            .chain(
+                catalog
+                    .into_iter()
+                    .flat_map(|catalog| &catalog.models)
+                    .filter(|model| model.operations.contains(&capability))
+                    .map(|model| {
+                        media_model_option(MediaModelRef {
+                            deployment_id: model.deployment_id.clone(),
+                            model_id: model.model_id.clone(),
+                        })
+                    }),
+            )
+            .collect::<Vec<_>>();
+        let selected = state.media_models.get(&operation).cloned().map_or(auto, media_model_option);
+        let unavailable = catalog.is_some() && !options.contains(&selected);
+        let no_models = catalog.is_some() && options.len() == 1 && !unavailable;
+        let mut control = column![
+            settings_select(options, Some(selected), move |option| {
+                Message::Settings(SettingsMessage::Multimodal(
+                    MultimodalMessage::MediaModelChanged { operation, model: option.model },
+                ))
+            })
+            .width(Length::Fill)
+            .disabled(state.saving_media_model || state.media_catalog.is_none())
+        ]
+        .spacing(6);
+        if let Some(status) = if unavailable {
+            Some("当前媒体模型不可用")
+        } else if no_models {
+            Some("没有支持当前操作的媒体模型")
+        } else {
+            None
+        } {
+            control = control.push(text(i18n.__(status)).size(11).style(settings_muted_text_style));
+        }
+        rows = rows.push(settings_flexible_row(i18n.__(label), "", 220.0, control));
+    }
+
+    let status = match &state.media_catalog {
+        None => Some("正在加载媒体模型…"),
+        Some(Err(())) => Some("无法加载媒体模型"),
+        Some(Ok(_)) => None,
+    };
+    let refresh = button(text(i18n.__("刷新")).size(SETTINGS_CONTROL_TEXT_SIZE))
+        .padding([5, 10])
+        .style(|theme, status| {
+            let mut style = rounded_action_btn_style(theme, status);
+            style.border.radius = 8.0.into();
+            style
+        })
+        .on_press_maybe((state.media_catalog.is_some() && !state.saving_media_model).then_some(
+            Message::Settings(SettingsMessage::Multimodal(MultimodalMessage::MediaCatalogRefresh)),
+        ));
+    let mut actions = row![refresh].spacing(8).align_y(Alignment::Center);
+    if let Some(status) = status {
+        actions = actions.push(text(i18n.__(status)).size(12).style(settings_muted_text_style));
+    }
+
+    column![
+        settings_group_heading_with_help(
+            app.render_help,
+            i18n,
+            app.app_theme,
+            i18n.__("媒体任务默认模型"),
+            i18n.__("聊天中未指定媒体模型时，网关按这里的设置选用模型。"),
+        ),
+        settings_group_card(rows),
+        actions,
+    ]
+    .spacing(8)
+    .into()
+}
+
 /// 构建或处理 `view` 对应的界面片段与交互数据。
 ///
 /// # 参数
@@ -189,7 +314,7 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
         settings_page_heading_with_help(app.render_help, i18n,
             theme,
             i18n.__("多模态配置"),
-            i18n.__("设置图片附件上限和远程图片抓取权限。"),
+            i18n.__("设置图片输入限制、视觉理解和媒体任务默认模型。"),
         ),
         settings_group_heading_with_help(app.render_help, i18n,
             theme,
@@ -289,6 +414,9 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let content = content.push(media_model_defaults(app));
 
     content.into()
 }

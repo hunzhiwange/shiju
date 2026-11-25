@@ -11,7 +11,7 @@ use vw_api_agent_scheduler::{
     AgentSchedulerDispatchBlockerDto as Blocker, AgentSchedulerTaskPlanPlacementDto as Placement,
 };
 
-const CHILD_PROMPT_INPUT: &str = "work-plan-child-prompt";
+const CHILD_TITLE_INPUT: &str = "work-plan-child-title";
 pub(super) const OUTER_INPUT: &str = "work-plan-outer-batch";
 
 fn message(value: TaskBoardMessage) -> Message {
@@ -336,27 +336,35 @@ pub(super) fn history<'a>(app: &'a App, task: &Task) -> Option<Element<'a, Messa
                 body = body.push(text(i18n.__("暂无执行记录")).size(12))
             }
             Some(Ok(records)) => {
-                let rows = records.iter().fold(column![].spacing(6), |rows, event| {
-                    let source = if event.task_id.as_ref() == task.id.as_str() {
+                use desktop_task_board::detail::Event;
+                let mut runs = Vec::<(&str, Vec<_>)>::new();
+                let mut indexes = std::collections::HashMap::new();
+                for event in records {
+                    let Some(id) = event.run_id.as_deref() else { continue; };
+                    let index = *indexes.entry(id).or_insert_with(|| {
+                        runs.push((id, Vec::new()));
+                        runs.len() - 1
+                    });
+                    runs[index].1.push(event);
+                }
+                for (id, steps) in runs {
+                    let latest = steps[0];
+                    let source = if latest.task_id.as_ref() == task.id.as_str() {
                         i18n.__("当前任务")
                     } else {
                         i18n.__("子任务")
                     };
-                    rows.push(
-                        column![
-                            text(i18n.format("%s %s · 运行 %s", &[format!("{}", source).into(), format!("{}", event.task_id.as_ref()).into(), format!("{}", event.run_id.as_deref().unwrap_or_default()).into()]).expect("valid workbench template"))
-                            .size(12),
-                            text(format!(
-                                "{} · {}",
-                                history_time(event.created_at_ms.0),
-                                event.message
-                            ))
-                            .size(12),
-                        ]
-                        .spacing(3),
-                    )
-                });
-                body = body.push(container(scroll(rows).height(Length::Shrink)).max_height(155));
+                    let expanded = app.task_board.detail.expanded_run.as_deref() == Some(id);
+                    let label = i18n.format("%s %s · 运行 %s", &[source.into(), latest.task_id.as_ref().into(), id.into()]).expect("valid workbench template");
+                    body = body.push(action(format!("{} {label}", if expanded { "▾" } else { "▸" }))
+                        .width(Length::Fill)
+                        .on_press(message(TaskBoardMessage::Detail(Event::ToggleRun(id.to_owned())))));
+                    let shown = if expanded { steps.as_slice() } else { &steps[..1] };
+                    for step in shown.iter().rev() {
+                        let line = format!("{}  {}", history_time(step.created_at_ms.0), step.message);
+                        body = body.push(text(line).size(12).wrapping(text::Wrapping::WordOrGlyph));
+                    }
+                }
             }
         }
     }
@@ -379,9 +387,11 @@ pub(super) fn with_child_modal<'a>(
     };
     let close = message(TaskBoardMessage::CloseWorkPlanChild);
     let submit = message(TaskBoardMessage::CreateWorkPlanChild);
-    let mut prompt = settings_text_editor(&draft.prompt).id(CHILD_PROMPT_INPUT).height(112);
+    let mut title = settings_text_input(i18n.__("任务标题"), &draft.title).id(CHILD_TITLE_INPUT);
+    let mut prompt = settings_text_editor(&draft.prompt).height(112);
     let mut batch = settings_text_input(i18n.__("正整数"), &draft.batch);
     if !draft.pending {
+        title = title.on_input(|value| message(TaskBoardMessage::WorkPlanChildTitleChanged(value)));
         prompt =
             prompt.on_action(|action| message(TaskBoardMessage::WorkPlanChildPromptEdited(action)));
         batch = batch
@@ -389,6 +399,8 @@ pub(super) fn with_child_modal<'a>(
             .on_submit(submit.clone());
     }
     let mut fields = column![
+        settings_field_label(i18n.__("任务标题")),
+        title,
         settings_field_label(i18n.__("任务提示词")),
         prompt,
         settings_field_label(i18n.__("子任务批次")),

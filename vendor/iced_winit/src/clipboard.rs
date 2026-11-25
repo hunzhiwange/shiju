@@ -54,7 +54,21 @@ impl Clipboard {
     pub fn read(&self, kind: Kind) -> Option<String> {
         match &self.state {
             State::Connected { clipboard, .. } => match kind {
-                Kind::Standard => clipboard.read().ok(),
+                Kind::Standard => {
+                    let text = clipboard.read().ok();
+
+                    // On macOS, also try reading the pasteboard item's plain
+                    // text representation when object-based reading fails.
+                    #[cfg(target_os = "macos")]
+                    if text.as_ref().is_none_or(String::is_empty)
+                        && let Ok(native_text) = arboard::Clipboard::new()
+                            .and_then(|mut clipboard| clipboard.get_text())
+                    {
+                        return Some(native_text);
+                    }
+
+                    text
+                }
                 Kind::Primary => clipboard.read_primary().and_then(Result::ok),
             },
             State::Unavailable => None,

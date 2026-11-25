@@ -6,17 +6,19 @@ use iced::{Task, widget::pane_grid, window};
 use desktop_terminal::panes::TerminalPanes;
 use vw_api_types::cli_workbench::{
     CliWorkbenchDeliveryCapability, CliWorkbenchDraft, CliWorkbenchError, CliWorkbenchMessage, CliWorkbenchNativeApp,
-    CliWorkbenchProcessState as Process, CliWorkbenchSession, CliWorkbenchTarget,
+    CliWorkbenchProcessState as Process, CliWorkbenchSession, CliWorkbenchTarget, SshSessionSurface,
 };
 
 use super::{App, Message};
 
+mod ssh;
 mod terminal;
 mod update;
 mod view;
+mod workspace;
 
-pub(crate) use update::Event;
-pub(crate) use view::view;
+pub(crate) use update::{Action, Event};
+pub(crate) use view::{terminal_group_view, terminal_overlay, view};
 
 const CODEX_APP_ID: &str = "codex";
 const APP_TERMINAL_SIDEBAR_COLLAPSED: &str = "app_terminal_sidebar_collapsed";
@@ -26,6 +28,7 @@ pub(crate) enum Surface {
     #[default]
     Workbench,
     AppTerminal,
+    Terminal,
 }
 
 impl Surface {
@@ -41,13 +44,44 @@ impl Surface {
         match self {
             Self::Workbench => &app.cli_workbench,
             Self::AppTerminal => &app.app_terminal,
+            Self::Terminal => &app.terminal_ssh,
         }
     }
 
     pub(crate) fn message(self, event: Event) -> Message {
+        Message::CliWorkbench(self.event(event))
+    }
+
+    pub(super) fn clipboard_shortcut(
+        self,
+        app: &App,
+        action: desktop_terminal::message::ContentAction,
+    ) -> Option<(iced::widget::Id, Message)> {
+        use desktop_terminal::message::{Message as Panel, TerminalMessage};
+
+        let state = self.state(app);
+        if state.dialog.is_some() {
+            return None;
+        }
+        let (project_id, project) = state.selected_project()?;
+        let tab = project.active_tab()?;
+        if !project.panes.is_visible_tab(tab.view_id) {
+            return None;
+        }
+        let widget_id = tab.terminal.view.as_ref()?.widget_id();
+        let event = Panel::Terminal(TerminalMessage::ClipboardShortcut(widget_id.clone(), action));
+        let message = self.message(Event::Window(
+            app.main_window_id?,
+            Action::Panel(project_id.to_owned(), project.active_layout, event),
+        ));
+        Some((widget_id, message))
+    }
+
+    fn event(self, event: Event) -> Event {
         match self {
-            Self::Workbench => Message::CliWorkbench(event),
-            Self::AppTerminal => Message::CliWorkbench(Event::AppTerminal(Box::new(event))),
+            Self::Workbench => event,
+            Self::AppTerminal => Event::AppTerminal(Box::new(event)),
+            Self::Terminal => Event::Terminal(Box::new(event)),
         }
     }
 
@@ -58,9 +92,29 @@ impl Surface {
         }
     }
 
-    fn includes_target(self, target: &CliWorkbenchTarget) -> bool {
-        self == Self::Workbench || !matches!(target, CliWorkbenchTarget::Acp { .. })
+    fn ssh_surface(self) -> SshSessionSurface {
+        match self {
+            Self::Workbench => SshSessionSurface::Workbench,
+            Self::AppTerminal => SshSessionSurface::AppTerminal,
+            Self::Terminal => SshSessionSurface::Terminal,
+        }
     }
+
+    fn includes_session(self, session: &CliWorkbenchSession) -> bool {
+        match &session.target {
+            CliWorkbenchTarget::Ssh { .. } => {
+                self.ssh_surface() == session.ssh_surface.unwrap_or(SshSessionSurface::AppTerminal)
+            }
+            CliWorkbenchTarget::Acp { .. } => self == Self::Workbench,
+            _ => self != Self::Terminal,
+        }
+    }
+}
+
+pub(crate) fn terminal_panel_visible(app: &App) -> bool {
+    app.navigation_tabs.screen == super::Screen::Project
+        && !app.navigation_panels.show_system_settings
+        && app.terminal.is_visible
 }
 
 #[derive(Default)]
@@ -70,13 +124,17 @@ pub(crate) struct Workbench {
     client: Option<vw_gateway_client::GatewayClient>,
     selected: Option<String>,
     preferred_directory: Option<String>,
+    terminal_directory: Option<String>,
+    terminal_group_selected: bool,
     projects: BTreeMap<String, Project>,
+    workspace: workspace::Store,
     legacy_projects: bool,
     legacy_poll_cursor: usize,
     backend: Option<String>,
     native_app: Option<String>,
     native_apps: Vec<CliWorkbenchNativeApp>,
     terminal_available: bool,
+    ssh: ssh::State,
     agents: Vec<update::Agent>,
     group_agents_by_project: bool,
     sidebar_layout: SidebarLayout,
@@ -86,6 +144,7 @@ pub(crate) struct Workbench {
     details_refreshing: bool,
     discovering: bool,
     starting: bool,
+    default_shell_pending: bool,
     epoch: u64,
     scope_generation: u64,
     projects_epoch: u64,
@@ -161,6 +220,7 @@ struct Project {
     active_layout: u64,
     next_layout: u64,
     layout_names: BTreeMap<u64, String>,
+    layout_loaded: bool,
     layout_menu: Option<(u64, iced::Point)>,
     tab_menu: Option<(u64, f32, f32)>,
     content_menu: Option<(u64, iced::Point)>,
@@ -185,7 +245,7 @@ struct Tab {
 
 struct Turn {
     request: String,
-    prompt: String,
+    prompt: Option<String>,
     snapshot: Option<CliWorkbenchMessage>,
     error: Option<&'static str>,
     recover: bool,
@@ -197,13 +257,14 @@ enum Dialog {
     RenameLayout(String, u64, String),
     Compose { target: Option<String>, draft: String },
     ReadDraft(SessionKey, String),
+    Ssh(ssh::Panel),
 }
 
 impl Tab {
     fn new(session: CliWorkbenchSession) -> Self {
         use std::sync::atomic::{AtomicU64, Ordering};
         static NEXT_VIEW_ID: AtomicU64 = AtomicU64::new(1);
-        Self {
+        let mut tab = Self {
             view_id: NEXT_VIEW_ID.fetch_add(1, Ordering::Relaxed),
             session,
             name: None,
@@ -216,6 +277,24 @@ impl Tab {
             terminal: terminal::Attachment::default(),
             drafts: Vec::new(),
             resolving_draft: None,
+        };
+        tab.discover_turns();
+        tab
+    }
+
+    fn discover_turns(&mut self) {
+        for request in &self.session.recent_request_ids {
+            if self.turns.iter().any(|turn| &turn.request == request) {
+                continue;
+            }
+            self.turns.push(Turn {
+                request: request.clone(),
+                prompt: None,
+                snapshot: None,
+                error: None,
+                recover: true,
+                submitting: None,
+            });
         }
     }
 
@@ -224,7 +303,7 @@ impl Tab {
             && match self.session.capabilities.delivery {
                 CliWorkbenchDeliveryCapability::Structured => {
                     self.session.state == Process::Ready
-                        && self.turns.iter().all(|turn| !turn.recover)
+                        && self.turns.iter().all(|turn| turn.prompt.is_none() || !turn.recover)
                 }
                 CliWorkbenchDeliveryCapability::Draft => self.session.state == Process::Running,
                 CliWorkbenchDeliveryCapability::Unavailable => false,
@@ -275,6 +354,7 @@ impl Project {
             active_layout: 1,
             next_layout: 2,
             layout_names: BTreeMap::new(),
+            layout_loaded: false,
             layout_menu: None,
             tab_menu: None,
             content_menu: None,
@@ -299,7 +379,8 @@ impl Project {
 
     fn new_layout(&mut self) {
         let id = self.next_layout;
-        self.next_layout += 1;
+        let Some(next) = id.checked_add(1) else { return };
+        self.next_layout = next;
         self.parked_layouts.insert(id, TerminalPanes::default());
         self.select_layout(id);
     }
@@ -418,8 +499,6 @@ impl Project {
     }
 
     fn merge_sessions(&mut self, sessions: Vec<CliWorkbenchSession>) {
-        let first_layout = self.parked_layouts.first_key_value()
-            .map_or(self.active_layout, |(&id, _)| id.min(self.active_layout));
         let confirmed: HashSet<_> = sessions.iter().map(|session| session.id.clone()).collect();
         for (id, tab) in &mut self.tabs {
             if !confirmed.contains(id) {
@@ -431,26 +510,72 @@ impl Project {
             let id = session.id.clone();
             if let Some(tab) = self.tabs.get_mut(&id) {
                 tab.session = session;
+                tab.discover_turns();
                 if tab.session.state != Process::WaitingForApproval {
                     tab.approval = None;
                 }
             } else if session.capabilities.available {
-                self.tabs.insert(id.clone(), Tab::new(session));
-                let view_id = self.tabs[&id].view_id;
-                if let Some(panes) = self.layout_mut(first_layout) {
-                    let focused = panes.focused;
-                    let active = panes.grid.get(focused).and_then(|pane| pane.active_id);
-                    panes.add(focused, view_id);
-                    if let Some(active) = active {
-                        panes.select(active);
-                    }
-                }
+                let tab = Tab::new(session);
+                let view_id = tab.view_id;
+                self.tabs.insert(id, tab);
+                self.add_discovered_tab(view_id);
             }
+        }
+    }
+
+    fn add_discovered_tab(&mut self, tab: u64) {
+        let first_layout = self.layout_ids().next().expect("project has an active layout");
+        let panes = self.layout_mut(first_layout).expect("first layout exists");
+        let focused = panes.focused;
+        let active = panes.grid.get(focused).and_then(|pane| pane.active_id);
+        panes.add(focused, tab);
+        if let Some(active) = active {
+            panes.select(active);
         }
     }
 }
 
 impl Workbench {
+    pub(crate) fn terminal_ssh() -> Self {
+        Self { surface: Surface::Terminal, ..Self::default() }
+    }
+
+    pub(crate) fn terminal_group_available(&self, directory: Option<&str>) -> bool {
+        directory.is_some()
+            && self.terminal_directory.as_deref() == directory
+            && self.selected_project().is_some_and(|(_, project)| {
+                project.tabs.values().any(|tab| !tab.hidden)
+            })
+    }
+
+    pub(crate) fn terminal_group_selected(&self, directory: Option<&str>) -> bool {
+        self.terminal_group_selected && self.terminal_group_available(directory)
+    }
+
+    pub(crate) fn terminal_needs_refresh(&self, directory: Option<&str>) -> bool {
+        directory.is_some()
+            && (self.terminal_directory.as_deref() != directory
+                || self.dialog.is_some()
+                || self.terminal_group_available(directory))
+    }
+
+    pub(crate) fn select_local_terminal_group(&mut self) {
+        self.terminal_group_selected = false;
+    }
+
+    fn selected_project(&self) -> Option<(&str, &Project)> {
+        let id = self.selected.as_deref()?;
+        Some((id, self.projects.get(id)?))
+    }
+
+    pub(crate) fn has_working_agent(&self) -> bool {
+        self.projects.values().any(|project| {
+            project.tabs.values().any(|tab| {
+                view::AgentStatus::for_tab(project, tab) == Some(view::AgentStatus::Working)
+            })
+        })
+    }
+
     pub(crate) fn app_terminal() -> Self {
         Self {
             surface: Surface::AppTerminal,
@@ -467,14 +592,26 @@ impl Workbench {
     }
 
     pub(super) fn has_visible_terminal(&self) -> bool {
-        self.terminal_available
-            && self.selected.as_ref().and_then(|id| self.projects.get(id)).is_some_and(|project| {
+        self.selected
+            .as_ref()
+            .and_then(|id| self.projects.get(id))
+            .is_some_and(|project| {
                 project.panes.grid.iter().any(|(_, pane)| {
                     pane.active_id.and_then(|id| project.tab_for_view(id)).is_some_and(|tab| {
-                        tab.session.capabilities.terminal && project.panes.is_visible_tab(tab.view_id)
+                        tab.session.capabilities.terminal
+                            && self.pty_available(&tab.session.target)
+                            && project.panes.is_visible_tab(tab.view_id)
                     })
                 })
             })
+    }
+
+    fn pty_available(&self, target: &CliWorkbenchTarget) -> bool {
+        if matches!(target, CliWorkbenchTarget::Ssh { .. }) {
+            self.ssh.catalog.is_some()
+        } else {
+            self.terminal_available
+        }
     }
 
     fn tab_mut(&mut self, key: &SessionKey) -> Option<&mut Tab> {
@@ -532,6 +669,28 @@ impl Workbench {
 
 pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
     update::update(app, event)
+}
+
+pub(super) fn refresh_projects(app: &mut App) -> Task<Message> {
+    let (Some(surface), Some(id)) = (Surface::from_screen(app.navigation_tabs.screen), app.main_window_id) else {
+        return Task::none();
+    };
+    update(app, surface.event(Event::Window(id, Action::Refresh)))
+}
+
+pub(super) fn remove_project(app: &mut App, directory: &str) {
+    for state in [&mut app.cli_workbench, &mut app.app_terminal, &mut app.terminal_ssh] {
+        if !update::current_scope(state) {
+            continue;
+        }
+        state.checkpoint_layout();
+        state.projects.retain(|_, project| project.directory != directory);
+        if state.selected.as_ref().is_some_and(|id| !state.projects.contains_key(id)) {
+            state.selected = None;
+            state.default_shell_pending = false;
+            state.dialog = None;
+        }
+    }
 }
 
 #[cfg(test)]

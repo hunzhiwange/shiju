@@ -214,7 +214,7 @@ pub fn build_uses_configured_optional_fields<H: crate::agent::AgentHost>() {
         max_images: 2,
         max_image_size_mb: 3,
         allow_remote_fetch: true,
-        ocr: Default::default(),
+        ..Default::default()
     };
 
     let agent = required_builder::<H>()

@@ -123,7 +123,8 @@ pub fn build_multimodal_settings(
             .map(str::trim)
             .unwrap_or_default()
             .to_string(),
-        save_error: None,
+        media_models: multimodal_cfg.media_models.clone(),
+        ..Default::default()
     }
 }
 

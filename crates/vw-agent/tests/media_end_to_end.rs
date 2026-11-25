@@ -26,10 +26,11 @@ use tokio::{net::TcpListener, sync::Notify, task::JoinHandle};
 use vw_agent::{config, gateway, project, session::ui_store};
 use vw_api_transport::TenantScope;
 use vw_gateway_client::{
-    GatewayClient,
+    GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayClient,
     media::{
-        MediaApiError, MediaAsset, MediaErrorCode as Code, MediaInput, MediaJobId, MediaJobState,
-        MediaModel, MediaOperation as Op, MediaResult, MediaSessionQuery, MediaSubmit,
+        MEDIA_MODEL_SELECTION_OPTION, MediaApiError, MediaAsset, MediaErrorCode as Code, MediaInput,
+        MediaJobId, MediaJobState, MediaModel, MediaModelSelection, MediaOperation as Op, MediaResult,
+        MediaSessionQuery, MediaSubmit,
     },
 };
 
@@ -405,6 +406,51 @@ fn reference(result: &MediaResult) -> MediaInput {
     MediaInput::Asset { asset_id: asset.id.clone() }
 }
 
+async fn assert_selected_vision_turn(owner: &GatewayClient, root: &Path, wire: &Wire, vision: &MediaModel) {
+    let file = root.join("project").join("input.png");
+    std::fs::write(&file, &wire.png).unwrap();
+    let selection = MediaModelSelection {
+        operation: Op::ImageUnderstand,
+        deployment_id: vision.deployment_id.clone(),
+        model_id: vision.model_id.clone(),
+    };
+    let request = GatewayChatStreamRequest {
+        acp_model_source: Default::default(),
+        session_id: Some(SESSION.into()),
+        messages: vec![json!({
+            "role": "user",
+            "content": format!("describe\n\n[IMAGE:{}]", file.display()),
+        })],
+        system: None,
+        model: Some(format!("alibaba-cn/{IMAGE}")),
+        reasoning_effort: None,
+        agent: None,
+        allowed_tools: None,
+        acp_allowed_tools: None,
+        options: Some(json!({(MEDIA_MODEL_SELECTION_OPTION): selection})),
+    };
+    let expected_model = format!("alibaba-cn/{VISION}");
+    let mut text = String::new();
+    let mut reported_model = false;
+    let mut persisted = false;
+    GatewayClient::stream_chat(owner.endpoint(), file.parent().unwrap().to_str(), &request, |event| {
+        match event {
+            GatewayChatStreamEvent::Delta(delta) => text.push_str(&delta),
+            GatewayChatStreamEvent::Other(value) if value["type"] == "chat.step_finish" => {
+                reported_model = value["model"] == expected_model.as_str();
+            }
+            GatewayChatStreamEvent::Done { message_id, .. } => persisted = message_id.is_some(),
+            GatewayChatStreamEvent::Error(error) => panic!("selected vision turn failed: {error}"),
+            _ => {}
+        }
+        true
+    })
+    .await
+    .unwrap();
+    assert_eq!(text, "image description");
+    assert!(reported_model && persisted);
+}
+
 #[tokio::test]
 async fn media_end_to_end_routes_providers_and_recovers_session_jobs() {
     let Some(root) = std::env::var_os(CHILD_ROOT) else {
@@ -416,6 +462,7 @@ async fn media_end_to_end_routes_providers_and_recovers_session_jobs() {
             .args(["--exact", "media_end_to_end_routes_providers_and_recovers_session_jobs"])
             .env_clear()
             .env(CHILD_ROOT, &root_path)
+            .env("HOME", &root_path)
             .env("VIBEWINDOW_TEST_ROOT", &root_path)
             .env(MANAGED_ENV, MANAGED_KEY)
             .env(DIRECT_ENV, DIRECT_KEY)
@@ -442,10 +489,26 @@ async fn media_end_to_end_routes_providers_and_recovers_session_jobs() {
     assert_eq!(vw_agent::global::paths().home, root);
     let (origin, wire, _upstream) = provider_fixture().await;
     configure(root, &origin).await;
-    let (addr, gateway_task) =
-        gateway::start(gateway::ServeOptions { port: 0, ..Default::default() }).await.unwrap();
-    let _gateway = Server(gateway_task);
-    let port = addr.port();
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+    let gateway_config = vw_agent::Config {
+        workspace_dir: root.join("project"),
+        config_path: root.join("config.json"),
+        ..Default::default()
+    };
+    let _gateway = Server(tokio::spawn(async move {
+        gateway::run_gateway("127.0.0.1", port, gateway_config).await.unwrap();
+    }));
+    let health = format!("http://127.0.0.1:{port}/v1/health");
+    let probe = reqwest::Client::builder().no_proxy().build().unwrap();
+    tokio::time::timeout(Duration::from_secs(8), async {
+        while !probe.get(&health).send().await.is_ok_and(|response| response.status().is_success()) {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .expect("full chat gateway did not start");
     let owner = client(port, Some(TOKEN));
     let session = scope(SESSION);
     let models = owner.media_models(&session).await.unwrap().models;
@@ -455,6 +518,13 @@ async fn media_end_to_end_routes_providers_and_recovers_session_jobs() {
     assert!(managed_image.operations.contains(&Op::ImageEdit));
     assert!(!direct_image.operations.contains(&Op::ImageEdit));
     assert!(!models.iter().any(|model| model.model_id == "ungranted-image"));
+    assert_selected_vision_turn(
+        &owner,
+        root,
+        &wire,
+        model(&models, "alibaba-cn", VISION, Op::ImageUnderstand),
+    )
+    .await;
 
     let draw = request(managed_image, Op::ImageGenerate, "draw");
     let mut ungranted = draw.clone();

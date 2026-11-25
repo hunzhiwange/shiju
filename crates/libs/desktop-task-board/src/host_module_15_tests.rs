@@ -44,8 +44,6 @@ fn task_pet_reply_pressed_again_closes_editor_and_clears_draft() {
         task_pet_drag_direction: &mut 1,
         task_pet_drag_start: &mut iced::Point::ORIGIN,
         task_pet_dragging: &mut false,
-        task_pet_expand_progress: &mut 0.0,
-        task_pet_expand_target: &mut None,
         task_pet_hovered_request_id: &mut None,
         task_pet_items: &mut Vec::new(),
         task_pet_position: &mut iced::Point::ORIGIN,

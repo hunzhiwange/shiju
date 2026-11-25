@@ -75,7 +75,7 @@ pub(super) fn update(app: &mut App, source: Source, message: GitMessage) -> Task
             Effect::PreviewSnapshot { key, path, title, content } => {
                 #[cfg(not(target_arch = "wasm32"))]
                 if !source.is_inline() {
-                    tasks.push(crate::app::git_workbench::preview_snapshot(app, title, content));
+                    tasks.push(crate::app::git_workbench::preview_snapshot(app, key, title, content));
                     continue;
                 }
                 Task::done(Message::Preview(crate::app::message::PreviewMessage::OpenSnapshot {

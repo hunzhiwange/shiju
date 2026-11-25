@@ -46,6 +46,7 @@ pub(in super::super) async fn start(
     directory: String,
     id: String,
     target: CliWorkbenchTarget,
+    ssh_surface: Option<SshSessionSurface>,
     authority: Authority,
 ) -> Result<(StatusCode, Json<CliWorkbenchSession>), WorkbenchError> {
     let child_access = if matches!(&target, CliWorkbenchTarget::NativeCli { .. }) {
@@ -56,24 +57,38 @@ pub(in super::super) async fn start(
     let context = child_access.as_ref().map(|access| access.context().to_owned());
     let (launch_scope, launch_target, cwd) = (scope.clone(), target.clone(), directory.clone());
     let process = tokio::task::spawn_blocking(move || {
-        let mut command = gateway_agent_apps::launch::workbench_command(
-            launch_scope.tenant_scope(),
-            &launch_target,
-            &cwd,
-        )
-        .map_err(|status| match status {
-            StatusCode::FORBIDDEN | StatusCode::UNAUTHORIZED => {
-                error(status, ErrorCode::Unauthorized, "native launch is not authorized")
+        let mut command = match &launch_target {
+            CliWorkbenchTarget::Ssh { connection_id } => {
+                ssh::command(launch_scope.tenant_scope(), connection_id, &cwd)
             }
-            StatusCode::UNPROCESSABLE_ENTITY => error(
-                status,
-                ErrorCode::InvalidRequest,
-                "native launch directory or installation is invalid",
-            ),
-            _ => unavailable(),
-        })?;
+            #[cfg(target_os = "macos")]
+            _ => gateway_agent_apps::launch::workbench_command(
+                launch_scope.tenant_scope(),
+                &launch_target,
+                &cwd,
+            )
+            .map_err(|status| match status {
+                StatusCode::FORBIDDEN | StatusCode::UNAUTHORIZED => {
+                    error(status, ErrorCode::Unauthorized, "native launch is not authorized")
+                }
+                StatusCode::UNPROCESSABLE_ENTITY => error(
+                    status,
+                    ErrorCode::InvalidRequest,
+                    "native launch directory or installation is invalid",
+                ),
+                _ => unavailable(),
+            }),
+            #[cfg(not(target_os = "macos"))]
+            _ => Err(unavailable()),
+        }?;
         if let Some(context) = context {
             command.env(vw_api_types::cli_workbench::CHILD_CONTEXT_ENV, context);
+            let path = command.get_envs().find_map(|(key, value)| {
+                (key == "PATH").then_some(value).flatten()
+            });
+            if let Some(path) = child_access::cli_search_path(path) {
+                command.env("PATH", path);
+            }
         }
         WorkbenchPty::spawn(command, &agent_paths::paths().state, PtySize { rows: 24, cols: 80 })
             .map_err(|_| unavailable())
@@ -86,6 +101,8 @@ pub(in super::super) async fn start(
         directory,
         capabilities: capabilities(&target),
         agent_activity: None,
+        ssh_surface,
+        recent_request_ids: Vec::new(),
         target,
         state: ProcessState::Running,
     };
@@ -148,9 +165,14 @@ fn terminal(
     tenant: TenantScope,
     project: String,
     session: &str,
+    authority: &Authority,
 ) -> Result<Arc<Pty>, WorkbenchError> {
     let scope = project_scope(tenant, project)?;
-    WORKBENCH.lock().session_mut(&scope, session)?.terminal.clone().ok_or_else(not_found)
+    authority.require_local_pty()?;
+    let mut workbench = WORKBENCH.lock();
+    let session = workbench.session_mut(&scope, session)?;
+    authority.require_target(&session.info.target)?;
+    session.terminal.clone().ok_or_else(not_found)
 }
 
 #[derive(Deserialize)]
@@ -165,8 +187,7 @@ pub(super) async fn output(
     authority: Authority,
     Query(query): Query<OutputQuery>,
 ) -> Result<Json<CliWorkbenchTerminalOutput>, WorkbenchError> {
-    authority.require()?;
-    let pty = terminal(tenant, project, &session)?;
+    let pty = terminal(tenant, project, &session, &authority)?;
     let mut attachment = pty.process.attach(query.cursor).map_err(io_error)?;
     let output = pty.process.read(&mut attachment, Duration::ZERO).map_err(io_error)?;
     Ok(Json(CliWorkbenchTerminalOutput {
@@ -184,7 +205,7 @@ pub(super) async fn input(
     authority: Authority,
     Json(input): Json<CliWorkbenchTerminalInput>,
 ) -> Result<Json<()>, WorkbenchError> {
-    authority.require()?;
+    let pty = terminal(tenant, project, &session, &authority)?;
     if input.bytes.len() > CLI_WORKBENCH_MAX_TERMINAL_INPUT
         || input.size.is_some_and(|size| size.rows == 0 || size.cols < 2)
     {
@@ -194,7 +215,6 @@ pub(super) async fn input(
             "invalid terminal input",
         ));
     }
-    let pty = terminal(tenant, project, &session)?;
     // The client sends one request at a time. Serialize writes from independent attachments too.
     let _guard = pty.input.lock().await;
     let attachment = pty.process.attach(0).map_err(io_error)?;

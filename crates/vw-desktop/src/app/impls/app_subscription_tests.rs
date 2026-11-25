@@ -235,20 +235,18 @@ fn subscription_builds_preview_lsp_enabled_and_disabled_states() {
 }
 
 #[test]
-fn mini_companion_hidden_stops_avatar_and_expansion_ticks() {
+fn mini_companion_only_ticks_activity_when_visible() {
     let mut app = test_app();
     app.navigation_tabs.screen = Screen::Home;
     app.task_pet_window_id = Some(window_id());
     app.companion_navigation.task_pet_visible = true;
     assert!(needs_activity_animation_tick(&app, false));
     app.companion_navigation.task_pet_visible = false;
-    app.pet_state.task_pet_expand_target = Some(1.0);
     assert!(!needs_activity_animation_tick(&app, false));
     app.companion_navigation.task_pet_visible = true;
     app.pet_state.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
-    app.pet_state.task_pet_expand_target = None;
     assert!(!needs_activity_animation_tick(&app, false));
-    app.pet_state.task_pet_expand_target = Some(1.0);
+    app.pet_state.task_pet_items = desktop_task_board::acceptance::items(1);
     assert!(needs_activity_animation_tick(&app, false));
 }
 

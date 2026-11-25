@@ -12,6 +12,7 @@ fn input<'a>(app: &ViewContext<'a>) -> domain::Input<'a> {
         git_commit_scope: &app.git.git_commit_scope,
         git_commit_message: &app.git.git_commit_message,
         git_commit_description_editor: &app.git.git_commit_description_editor,
+        show_git_commit_description: app.git.show_git_commit_description,
         git_commit_in_progress: app.git.git_commit_in_progress,
         file_manager_refresh_frame: app.refresh_frame,
         any_selected: has_selected_changes(app),

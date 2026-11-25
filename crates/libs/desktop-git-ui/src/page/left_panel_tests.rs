@@ -259,23 +259,25 @@ async fn git_commit_form_matches_general_language_select() {
             app.desktop_locale = locale;
             for width in [320, 640] {
                 app.git.git_commit_type = None;
-                let mut form = FormScene::new(super::view(&app.view()), &mut renderer, width);
-                let trigger = form.bounds(&[2, 0, 0, 1, 0]);
-                let scope = form.bounds(&[2, 0, 0, 1, 1]);
-                let summary = form.bounds(&[2, 0, 0, 2]);
-                let description = form.bounds(&[2, 0, 0, 3, 1]);
+                let mut form =
+                    FormScene::new(super::left_panel::view(&app.view()), &mut renderer, width);
+                let trigger = form.bounds(&[0, 1]);
+                let scope = form.bounds(&[0, 2, 0]);
+                let summary = form.bounds(&[0, 2, 1]);
                 assert_eq!(trigger.height, reference.height);
                 assert_eq!(trigger.height, scope.height);
                 assert_eq!(trigger.height, summary.height);
-                assert!(scope.width >= 120.0 && summary.width >= 280.0);
-                assert_eq!(description.height, 88.0);
+                assert_eq!(scope.y, summary.y);
+                assert_eq!(scope.width, 88.0);
+                assert!(summary.width > scope.width);
 
                 // Render the localized placeholder before selecting a type.
                 let placeholder = form.capture(&mut renderer, &theme);
                 drop(form);
 
                 app.git.git_commit_type = Some(ConventionalCommitType::Feat);
-                let mut form = FormScene::new(super::view(&app.view()), &mut renderer, width);
+                let mut form =
+                    FormScene::new(super::left_panel::view(&app.view()), &mut renderer, width);
                 assert_ne!(placeholder, form.capture(&mut renderer, &theme));
                 form.operate(&renderer, Box::new(focusable::focus_next()));
                 let closed = form.capture(&mut renderer, &theme);
@@ -334,6 +336,7 @@ fn apply_form_message(app: &mut Fixture, messages: Vec<Message>) {
             | GitMessage::CommitScopeChanged(_)
             | GitMessage::CommitMessageChanged(_)
             | GitMessage::CommitDescriptionEditorAction(_)
+            | GitMessage::ToggleCommitDescription
     ));
     assert!(iced_runtime::task::into_stream(update_form(app, message)).is_none());
 }
@@ -349,6 +352,9 @@ async fn git_commit_form_preserves_messages_and_validation() {
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     app.git.staged_files_selected.push("src/example.rs".into());
     assert_panel_state(&app, "填写摘要后即可提交", CommitButtonState::MissingSummary);
+    assert!(!app.git.show_git_commit_description);
+    toggle_description(&mut app, &mut renderer, "展开详细描述");
+    assert!(app.git.show_git_commit_description);
 
     let [type_focus, scope_focus, summary_focus, description_focus] =
         std::array::from_fn(|_| super::traverse_commit_focus(false));
@@ -390,6 +396,9 @@ async fn git_commit_form_preserves_messages_and_validation() {
     assert_eq!(app.git.git_commit_scope, "界");
     assert_eq!(app.git.git_commit_message, "修");
     assert_eq!(app.git.git_commit_description, "描");
+    toggle_description(&mut app, &mut renderer, "收起详细描述");
+    assert!(!app.git.show_git_commit_description);
+    assert_eq!(app.git.git_commit_description_editor.text(), "描");
     assert_panel_state(&app, "已满足提交条件，可直接提交", CommitButtonState::Ready);
 
     app.git.show_git_diff_summary = false;
@@ -402,6 +411,14 @@ async fn git_commit_form_preserves_messages_and_validation() {
     apply_form_message(&mut app, summary);
     assert_eq!(app.git.git_commit_message, "S");
     assert_panel_state(&app, "已满足提交条件，可直接提交", CommitButtonState::Ready);
+}
+
+fn toggle_description(app: &mut Fixture, renderer: &mut Renderer, label: &str) {
+    let mut form = FormScene::new(super::left_panel::view(&app.view()), renderer, 320);
+    let toggle = visible_label(&mut form, renderer, label).expect("description toggle");
+    let messages = form.click(renderer, toggle.center());
+    drop(form);
+    apply_form_message(app, messages);
 }
 
 const HELP_MODES: [(bool, &str); 2] = [
@@ -427,6 +444,40 @@ fn visible_label(form: &mut FormScene<'_>, renderer: &Renderer, label: &str) -> 
     let mut find = FindLabel(label, None);
     form.ui.operate(renderer, &mut find);
     find.1
+}
+
+#[tokio::test]
+async fn workbench_and_project_show_the_same_changes_above_the_commit_form() {
+    use crate::git_panel::utils::FileStatus;
+
+    let mut renderer = form_renderer().await;
+    let mut app = test_app();
+    app.git.show_git_diff_summary = true;
+    app.git.git_diff_file_metas = [("src/lib.rs", 1), ("assets/icon.png", 0)]
+        .into_iter()
+        .map(|(path, insertions)| super::DiffFileMeta {
+            path: path.into(),
+            status: FileStatus::Modified,
+            #[cfg(not(target_arch = "wasm32"))]
+            old_oid: None,
+            old_size: 0,
+            new_size: 0,
+            new_exists: true,
+            insertions,
+            deletions: 0,
+        })
+        .collect();
+
+    for page in [super::view(&app.view()), super::workbench_view(&app.view())] {
+        let mut form = FormScene::new(page, &mut renderer, 640);
+        let rust_file = visible_label(&mut form, &renderer, "src/lib.rs").expect("text change");
+        let image = visible_label(&mut form, &renderer, "assets/icon.png").expect("whole file change");
+        let commit = visible_label(&mut form, &renderer, "提交所选变更").expect("commit form");
+        assert!(rust_file.y < commit.y && image.y < commit.y);
+        assert!(form.click(&mut renderer, rust_file.center()).iter().any(|message| {
+            matches!(message, Message::Git(GitMessage::ToggleExpandFile(file)) if file == "src/lib.rs")
+        }));
+    }
 }
 
 fn help_point(form: &mut FormScene<'_>, renderer: &Renderer, i18n: I18n) -> Point {
@@ -475,7 +526,7 @@ async fn help_rollout_26_renders_contextual_help() {
                 visible_label(&mut form, &renderer, i18n.__(explanation)).is_none(),
                 "static mode explanation is visible before opening help: {explanation}"
             );
-            for label in ["详细描述", "填写摘要后即可提交"] {
+            for label in ["展开详细描述", "填写摘要后即可提交"] {
                 assert!(visible_label(&mut form, &renderer, i18n.__(label)).is_some(), "{label}");
             }
 
@@ -510,8 +561,8 @@ async fn help_rollout_26_renders_contextual_help() {
                 [Message::Git(GitMessage::CommitHelpOpen)]
             ));
 
-            let button =
-                if conventional { form.bounds(&[2, 0, 1, 1]) } else { form.bounds(&[0, 1, 1]) };
+            let button = visible_label(&mut form, &renderer, i18n.__("提交所选"))
+                .expect("commit button");
             assert!(
                 form.click(&mut renderer, button.center()).iter().all(|action| {
                     matches!(action, Message::Git(GitMessage::DiffDragSelectEnd))

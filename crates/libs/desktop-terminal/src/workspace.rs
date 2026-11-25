@@ -11,14 +11,13 @@ use std::path::{Path, PathBuf};
 pub(crate) struct Workspace {
     visible: bool,
     height: f32,
-    active_tab: Option<u64>,
-    maximized_tab: Option<u64>,
+    #[serde(flatten)]
+    active: SavedLayout<u64>,
     tabs: Vec<Tab>,
-    layout: Layout,
     #[serde(default = "first_group")]
     active_group: u64,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    parked_groups: BTreeMap<u64, SavedGroup>,
+    parked_groups: BTreeMap<u64, SavedLayout<u64>>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     group_names: BTreeMap<u64, String>,
 }
@@ -27,11 +26,11 @@ fn first_group() -> u64 {
     1
 }
 
-#[derive(PartialEq, Serialize, Deserialize)]
-struct SavedGroup {
-    active_tab: Option<u64>,
-    maximized_tab: Option<u64>,
-    layout: Layout,
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+pub struct SavedLayout<T> {
+    active_tab: Option<T>,
+    maximized_tab: Option<T>,
+    layout: Layout<T>,
 }
 
 #[derive(PartialEq, Serialize, Deserialize)]
@@ -43,49 +42,47 @@ struct Tab {
     directory: Option<OsString>,
 }
 
-#[derive(PartialEq, Serialize, Deserialize)]
-enum Layout {
-    Pane { tabs: Vec<u64>, active_tab: Option<u64> },
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+enum Layout<T> {
+    Pane { tabs: Vec<T>, active_tab: Option<T> },
     Split { vertical: bool, ratio: f32, first: Box<Self>, second: Box<Self> },
 }
 
-impl Layout {
-    fn capture(grid: &State<TerminalPane>, node: &Node) -> Self {
+impl<T> Layout<T> {
+    fn capture(grid: &State<TerminalPane>, node: &Node, key: &impl Fn(u64) -> T) -> Self {
         match node {
             Node::Pane(id) => {
                 let pane = grid.get(*id).expect("pane in terminal layout");
-                Self::Pane { tabs: pane.tabs.clone(), active_tab: pane.active_id }
+                Self::Pane {
+                    tabs: pane.tabs.iter().copied().map(key).collect(),
+                    active_tab: pane.active_id.map(key),
+                }
             }
             Node::Split { axis, ratio, a, b, .. } => Self::Split {
                 vertical: *axis == Axis::Vertical,
                 ratio: *ratio,
-                first: Box::new(Self::capture(grid, a)),
-                second: Box::new(Self::capture(grid, b)),
+                first: Box::new(Self::capture(grid, a, key)),
+                second: Box::new(Self::capture(grid, b, key)),
             },
         }
     }
 
-    fn collect_tabs(&self, ids: &mut HashSet<u64>) {
-        match self {
-            Self::Pane { tabs, .. } => ids.extend(tabs.iter().copied()),
-            Self::Split { first, second, .. } => {
-                first.collect_tabs(ids);
-                second.collect_tabs(ids);
-            }
-        }
-    }
-
-    fn configuration(&self, remaining: &mut HashSet<u64>) -> Option<Configuration<TerminalPane>> {
+    fn configuration(
+        &self,
+        resolve: &impl Fn(&T) -> Option<u64>,
+        remaining: &mut HashSet<u64>,
+    ) -> Option<Configuration<TerminalPane>> {
         match self {
             Self::Pane { tabs, active_tab } => {
-                let tabs: Vec<_> = tabs.iter().copied().filter(|id| remaining.remove(id)).collect();
+                let tabs: Vec<_> = tabs.iter().filter_map(resolve).filter(|id| remaining.remove(id)).collect();
                 let first = tabs.first().copied()?;
-                let active_id = active_tab.filter(|id| tabs.contains(id)).or(Some(first));
+                let active_id = active_tab.as_ref().and_then(resolve)
+                    .filter(|id| tabs.contains(id)).or(Some(first));
                 Some(Configuration::Pane(TerminalPane { tabs, active_id }))
             }
             Self::Split { vertical, ratio, first, second } => {
-                let first = first.configuration(remaining);
-                let second = second.configuration(remaining);
+                let first = first.configuration(resolve, remaining);
+                let second = second.configuration(resolve, remaining);
                 match (first, second) {
                     (Some(a), Some(b)) => Some(Configuration::Split {
                         axis: if *vertical { Axis::Vertical } else { Axis::Horizontal },
@@ -100,27 +97,48 @@ impl Layout {
     }
 }
 
-fn restore_panes(
-    layout: &Layout,
-    active_tab: Option<u64>,
-    maximized_tab: Option<u64>,
-    remaining: &mut HashSet<u64>,
-) -> TerminalPanes {
-    let Some(config) = layout.configuration(remaining) else {
-        return TerminalPanes::default();
-    };
-    let mut grid = State::with_configuration(config);
-    let owner = |id| grid.iter().find(|(_, pane)| pane.tabs.contains(&id)).map(|(key, _)| *key);
-    let maximized = maximized_tab.and_then(owner);
-    let focused = active_tab
-        .and_then(owner)
-        .or(maximized)
-        .or_else(|| grid.iter().next().map(|(id, _)| *id))
-        .expect("terminal layout has at least one pane");
-    if let Some(id) = maximized {
-        grid.maximize(id);
+impl Layout<u64> {
+    fn collect_tabs(&self, ids: &mut HashSet<u64>) {
+        match self {
+            Self::Pane { tabs, .. } => ids.extend(tabs.iter().copied()),
+            Self::Split { first, second, .. } => {
+                first.collect_tabs(ids);
+                second.collect_tabs(ids);
+            }
+        }
     }
-    TerminalPanes { grid, focused, ..TerminalPanes::default() }
+}
+
+impl<T> SavedLayout<T> {
+    pub fn capture(panes: &TerminalPanes, key: impl Fn(u64) -> T) -> Self {
+        let grid = &panes.grid;
+        Self {
+            active_tab: grid.get(panes.focused).and_then(|pane| pane.active_id).map(&key),
+            maximized_tab: grid.maximized().and_then(|pane| grid.get(pane)?.active_id).map(&key),
+            layout: Layout::capture(grid, grid.layout(), &key),
+        }
+    }
+
+    pub fn restore(
+        &self,
+        resolve: impl Fn(&T) -> Option<u64>,
+        remaining: &mut HashSet<u64>,
+    ) -> TerminalPanes {
+        let Some(config) = self.layout.configuration(&resolve, remaining) else {
+            return TerminalPanes::default();
+        };
+        let mut grid = State::with_configuration(config);
+        let owner = |id| grid.iter().find(|(_, pane)| pane.tabs.contains(&id)).map(|(key, _)| *key);
+        let maximized = self.maximized_tab.as_ref().and_then(&resolve).and_then(owner);
+        let focused = maximized
+            .or_else(|| self.active_tab.as_ref().and_then(&resolve).and_then(owner))
+            .or_else(|| grid.iter().next().map(|(id, _)| *id))
+            .expect("terminal layout has at least one pane");
+        if let Some(id) = maximized {
+            grid.maximize(id);
+        }
+        TerminalPanes { grid, focused, ..TerminalPanes::default() }
+    }
 }
 
 impl<S: Copy + Into<&'static str>> TerminalState<S> {
@@ -139,12 +157,10 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
         if !self.needs_workspace_checkpoint() && self.saved_workspace.is_none() {
             return Ok(());
         }
-        let grid = &self.panes.grid;
         let workspace = Workspace {
             visible: self.is_visible,
             height: self.height,
-            active_tab: self.active_id,
-            maximized_tab: grid.maximized().and_then(|id| grid.get(id)?.active_id),
+            active: SavedLayout::capture(&self.panes, |id| id),
             tabs: self
                 .tabs
                 .iter()
@@ -156,17 +172,11 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
                     directory: tab.term.working_directory().map(PathBuf::into_os_string),
                 })
                 .collect(),
-            layout: Layout::capture(grid, grid.layout()),
             active_group: self.active_group,
             group_names: self.group_names.clone(),
-            parked_groups: self.parked_groups.iter().map(|(&id, panes)| {
-                let grid = &panes.grid;
-                (id, SavedGroup {
-                    active_tab: grid.get(panes.focused).and_then(|pane| pane.active_id),
-                    maximized_tab: grid.maximized().and_then(|pane| grid.get(pane)?.active_id),
-                    layout: Layout::capture(grid, grid.layout()),
-                })
-            }).collect(),
+            parked_groups: self.parked_groups.iter()
+                .map(|(&id, panes)| (id, SavedLayout::capture(panes, |id| id)))
+                .collect(),
         };
         if self.saved_workspace.as_ref() != Some(&workspace) {
             write_json(path, &workspace)?;
@@ -181,7 +191,7 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
             return Ok(false);
         };
         let mut placed = HashSet::new();
-        workspace.layout.collect_tabs(&mut placed);
+        workspace.active.layout.collect_tabs(&mut placed);
         for (id, group) in &workspace.parked_groups {
             if *id != workspace.active_group {
                 group.layout.collect_tabs(&mut placed);
@@ -220,15 +230,13 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
         }
 
         let mut remaining = self.tabs.iter().map(|tab| tab.id).collect();
-        self.panes = restore_panes(
-            &workspace.layout, workspace.active_tab, workspace.maximized_tab, &mut remaining,
-        );
+        self.panes = workspace.active.restore(|&id| Some(id), &mut remaining);
         self.active_id = self.panes.grid.get(self.panes.focused).and_then(|pane| pane.active_id);
         self.active_group = workspace.active_group;
         self.parked_groups = workspace.parked_groups.iter()
             .filter(|(id, _)| **id != self.active_group)
             .map(|(&id, group)| {
-                (id, restore_panes(&group.layout, group.active_tab, group.maximized_tab, &mut remaining))
+                (id, group.restore(|&id| Some(id), &mut remaining))
             })
             .collect();
         self.group_names = workspace.group_names.iter()

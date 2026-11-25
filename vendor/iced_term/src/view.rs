@@ -1,19 +1,21 @@
 use crate::backend::{
     Backend, Command, LinkAction, MouseButton, RenderableContent,
 };
-use crate::bindings::{BindingAction, BindingsLayout, InputKind};
+use crate::bindings::{BindingAction, InputKind};
 use crate::terminal::{Event, Terminal};
 use crate::theme::TerminalStyle;
+use alacritty_terminal::grid::Dimensions;
 use alacritty_terminal::index::Point as TerminalGridPoint;
 use alacritty_terminal::selection::SelectionType;
 use alacritty_terminal::term::{cell, TermMode};
 use alacritty_terminal::vte::ansi::{self as ansi, NamedColor};
+use iced::advanced::renderer::{Quad, Renderer as _};
 use iced::alignment::Vertical;
 use iced::font::{Style as FontStyle, Weight as FontWeight};
 use iced::mouse::{Cursor, ScrollDelta};
 use iced::widget::canvas::{Path, Text};
 use iced::widget::container;
-use iced::{Color, Element, Length, Point, Rectangle, Size, Theme};
+use iced::{Border, Color, Element, Length, Point, Rectangle, Size, Theme, Vector};
 use iced_core::clipboard::Kind as ClipboardKind;
 use iced_core::input_method::{self, InputMethod, Preedit, Purpose};
 use iced::time::{Duration, Instant};
@@ -27,6 +29,64 @@ use iced_graphics::geometry::Stroke;
 
 const REPEAT_DELAY: Duration = Duration::from_millis(250);
 const REPEAT_INTERVAL: Duration = Duration::from_millis(20);
+const SELECTION_SCROLL_INTERVAL: Duration = Duration::from_millis(40);
+const LINK_CLICK_TOLERANCE: f32 = 4.0;
+const SCROLLBAR_WIDTH: f32 = 4.0;
+const SCROLLBAR_GUTTER: f32 = SCROLLBAR_WIDTH + 3.0;
+
+fn text_bounds(mut bounds: Rectangle) -> Rectangle {
+    bounds.width = (bounds.width - SCROLLBAR_GUTTER).max(0.0);
+    bounds
+}
+
+struct Scrollbar {
+    track: Rectangle,
+    thumb: Rectangle,
+    history: usize,
+}
+
+impl Scrollbar {
+    fn new(bounds: Rectangle, content: &RenderableContent) -> Option<Self> {
+        let grid = &content.grid;
+        let history = grid.history_size();
+        if history == 0 || bounds.width <= SCROLLBAR_GUTTER || bounds.height < 2.0 {
+            return None;
+        }
+        let track = Rectangle {
+            x: bounds.x + bounds.width - SCROLLBAR_WIDTH,
+            width: SCROLLBAR_WIDTH,
+            ..bounds
+        };
+        let thumb_height = (track.height * grid.screen_lines() as f32 / grid.total_lines() as f32)
+            .max(20.0_f32.min(track.height / 2.0));
+        let travel = track.height - thumb_height;
+        let thumb = Rectangle {
+            y: track.y + travel * (1.0 - grid.display_offset() as f32 / history as f32),
+            height: thumb_height,
+            ..track
+        };
+        Some(Self { track, thumb, history })
+    }
+
+    fn offset_at(&self, y: f32, grab: f32) -> usize {
+        let progress = (y - grab - self.track.y) / (self.track.height - self.thumb.height);
+        ((1.0 - progress.clamp(0.0, 1.0)) * self.history as f32).round() as usize
+    }
+
+    fn hit_bounds(&self) -> Rectangle {
+        Rectangle {
+            x: self.track.x - (SCROLLBAR_GUTTER - SCROLLBAR_WIDTH),
+            width: SCROLLBAR_GUTTER,
+            ..self.track
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SelectionScroll {
+    position: Point,
+    next_tick: Instant,
+}
 
 #[derive(Debug, Clone)]
 struct HeldKey {
@@ -54,25 +114,6 @@ impl<'a> TerminalView<'a> {
         iced::widget::operation::focus(id)
     }
 
-    fn is_cursor_in_layout(
-        &self,
-        cursor: Cursor,
-        layout: iced_graphics::core::Layout<'_>,
-    ) -> bool {
-        if let Some(cursor_position) = cursor.position() {
-            let layout_position = layout.position();
-            let layout_size = layout.bounds();
-            let is_triggered = cursor_position.x >= layout_position.x
-                && cursor_position.y >= layout_position.y
-                && cursor_position.x < (layout_position.x + layout_size.width)
-                && cursor_position.y < (layout_position.y + layout_size.height);
-
-            return is_triggered;
-        }
-
-        false
-    }
-
     fn is_cursor_hovered_hyperlink(&self, state: &TerminalViewState) -> bool {
         let content = self.term.backend.renderable_content();
         if let Some(hyperlink_range) = &content.hovered_hyperlink {
@@ -85,10 +126,9 @@ impl<'a> TerminalView<'a> {
     fn handle_resize(
         &mut self,
         state: &mut TerminalViewState,
-        layout: iced_graphics::core::Layout<'_>,
+        layout_size: Size,
         shell: &mut iced_graphics::core::Shell<'_, Event>,
     ) {
-        let layout_size = layout.bounds().size();
         if state.size != layout_size {
             state.size = layout_size;
             let cmd = Command::Resize(
@@ -97,6 +137,51 @@ impl<'a> TerminalView<'a> {
             );
             shell.publish(Event::BackendCall(self.term.id, cmd));
         }
+    }
+
+    fn handle_scrollbar(
+        &self,
+        state: &mut TerminalViewState,
+        bounds: Rectangle,
+        cursor: Option<Point>,
+        event: &mouse::Event,
+        shell: &mut iced_graphics::core::Shell<'_, Event>,
+    ) -> bool {
+        use mouse::{Button::Left, Event::*};
+
+        let content = self.term.backend.renderable_content();
+        let Some(bar) = Scrollbar::new(bounds, content) else {
+            state.scrollbar_grab = None;
+            return false;
+        };
+        let offset = match event {
+            ButtonPressed(Left) => {
+                let Some(position) = cursor.filter(|point| bar.hit_bounds().contains(*point)) else {
+                    return false;
+                };
+                let grab = if position.y >= bar.thumb.y
+                    && position.y < bar.thumb.y + bar.thumb.height
+                {
+                    position.y - bar.thumb.y
+                } else {
+                    bar.thumb.height / 2.0
+                };
+                state.cancel_drag();
+                state.scrollbar_grab = Some(grab);
+                Some(bar.offset_at(position.y, grab))
+            },
+            CursorMoved { position } if state.scrollbar_grab.is_some() => {
+                state.scrollbar_grab.map(|grab| bar.offset_at(position.y, grab))
+            },
+            ButtonReleased(Left) if state.scrollbar_grab.take().is_some() => None,
+            _ => return false,
+        };
+        if let Some(offset) = offset.filter(|&offset| offset != content.grid.display_offset()) {
+            shell.publish(Event::BackendCall(self.term.id, Command::ScrollTo(offset)));
+        }
+        shell.capture_event();
+        shell.request_redraw();
+        true
     }
 
     fn handle_focus(
@@ -145,69 +230,158 @@ impl<'a> TerminalView<'a> {
     fn handle_mouse_event(
         &self,
         state: &mut TerminalViewState,
-        layout_position: Point,
-        cursor_position: Point,
+        bounds: Rectangle,
+        cursor_in_layout: Option<Point>,
         event: &iced::mouse::Event,
+        shell: &mut iced_graphics::core::Shell<'_, Event>,
     ) -> Vec<Command> {
+        use iced_core::mouse::{Button::Left, Event::*};
+
         let mut commands = Vec::new();
-        let terminal_content = self.term.backend.renderable_content();
-        let terminal_mode = terminal_content.terminal_mode;
+        let content = self.term.backend.renderable_content();
+        let terminal_mode = content.terminal_mode;
+        let selecting = state.drag == Some(Drag::Selection);
 
         match event {
-            iced_core::mouse::Event::ButtonPressed(
-                iced_core::mouse::Button::Left,
-            ) => {
-                if !state.is_focused() {
-                    return Vec::default();
+            ButtonPressed(Left) if state.is_focused() => {
+                if let Some(position) = cursor_in_layout {
+                    state.link_press = (text_bounds(bounds).contains(position)
+                        && self.link_binding(state, terminal_mode))
+                    .then_some(position);
+                    Self::handle_left_button_pressed(
+                        state,
+                        &terminal_mode,
+                        position,
+                        bounds.position(),
+                        &mut commands,
+                    );
+                }
+            },
+            CursorMoved { position } if state.is_focused() => {
+                if state.link_press.is_some_and(|press| {
+                    press.distance(*position) > LINK_CLICK_TOLERANCE
+                }) {
+                    state.link_press = None;
+                }
+                if cursor_in_layout.is_some() && bounds.contains(*position) {
+                    Self::handle_cursor_moved(
+                        state,
+                        content,
+                        position,
+                        bounds.position(),
+                        &mut commands,
+                    );
+                } else if selecting {
+                    commands.push(Command::SelectUpdate((
+                        position.x - bounds.x,
+                        position.y - bounds.y,
+                    )));
                 }
 
-                Self::handle_left_button_pressed(
-                    state,
-                    &terminal_mode,
-                    cursor_position,
-                    layout_position,
-                    &mut commands,
-                );
-            },
-            iced_core::mouse::Event::CursorMoved { position } => {
-                if !state.is_focused() {
-                    return Vec::default();
+                if selecting
+                    && self
+                        .selection_scroll_command(bounds, *position)
+                        .is_some()
+                {
+                    // Keep the deadline when further motion arrives at the edge.
+                    let next_tick = state.selection_scroll.map_or_else(
+                        || Instant::now() + SELECTION_SCROLL_INTERVAL,
+                        |scroll| scroll.next_tick,
+                    );
+                    state.selection_scroll = Some(SelectionScroll {
+                        position: *position,
+                        next_tick,
+                    });
+                    shell.request_redraw_at(next_tick);
+                } else {
+                    state.selection_scroll = None;
                 }
-
-                Self::handle_cursor_moved(
-                    state,
-                    self.term.backend.renderable_content(),
-                    position,
-                    layout_position,
-                    &mut commands,
-                );
             },
-            iced_core::mouse::Event::ButtonReleased(
-                iced_core::mouse::Button::Left,
-            ) => {
-                if !state.is_focused() {
-                    return Vec::default();
+            ButtonReleased(Left) => {
+                if let Some(position) = cursor_in_layout.filter(|_| state.is_focused()) {
+                    let open_link = text_bounds(bounds).contains(position)
+                        && self.link_binding(state, terminal_mode)
+                        && state.link_press.is_some_and(|press| {
+                            press.distance(position) <= LINK_CLICK_TOLERANCE
+                        });
+                    if open_link {
+                        state.mouse_position_on_grid = Backend::selection_point(
+                            position.x - bounds.x,
+                            position.y - bounds.y,
+                            &content.terminal_size,
+                            content.grid.display_offset(),
+                        );
+                    }
+                    Self::handle_button_released(
+                        state,
+                        &terminal_mode,
+                        open_link,
+                        &mut commands,
+                    );
+                } else {
+                    state.cancel_drag();
+                    if selecting {
+                        shell.capture_event();
+                    }
                 }
-
-                Self::handle_button_released(
-                    state,
-                    &terminal_mode,
-                    &self.term.bindings,
-                    &mut commands,
-                );
             },
-            iced::mouse::Event::WheelScrolled { delta } => {
-                Self::handle_wheel_scrolled(
-                    state,
-                    *delta,
-                    &self.term.font.measure,
-                    &mut commands,
-                );
+            WheelScrolled { delta } => {
+                if let Some(position) = cursor_in_layout {
+                    state.link_press = None;
+                    let height = f32::from(content.terminal_size.cell_height).max(1.0);
+                    if let Some(lines) = state.wheel_lines(*delta, height) {
+                        shell.capture_event();
+                        if lines != 0 {
+                            commands.push(Command::WheelScroll {
+                                lines,
+                                modifiers: state.keyboard_modifiers,
+                                position: (position.x - bounds.x, position.y - bounds.y),
+                            });
+                        }
+                    }
+                }
             },
             _ => {},
         }
 
         commands
+    }
+
+    fn link_binding(
+        &self,
+        state: &TerminalViewState,
+        terminal_mode: TermMode,
+    ) -> bool {
+        self.term.bindings.get_action(
+            InputKind::Mouse(mouse::Button::Left),
+            state.keyboard_modifiers,
+            terminal_mode,
+        ) == BindingAction::LinkOpen
+    }
+
+    fn selection_scroll_command(
+        &self,
+        bounds: Rectangle,
+        position: Point,
+    ) -> Option<Command> {
+        let content = self.term.backend.renderable_content();
+        if bounds.height <= 0.0 {
+            return None;
+        }
+
+        let x = position.x - bounds.x;
+        let y = position.y - bounds.y;
+        let edge = (f32::from(content.terminal_size.cell_height) * 0.5)
+            .min(bounds.height * 0.25);
+        let offset = content.grid.display_offset();
+
+        if y <= edge && offset < content.grid.history_size() {
+            Some(Command::SelectScroll(1, (x, 0.0)))
+        } else if y >= bounds.height - edge && offset > 0 {
+            Some(Command::SelectScroll(-1, (x, bounds.height)))
+        } else {
+            None
+        }
     }
 
     fn handle_left_button_pressed(
@@ -217,7 +391,11 @@ impl<'a> TerminalView<'a> {
         layout_position: Point,
         commands: &mut Vec<Command>,
     ) {
-        let cmd = if terminal_mode.intersects(TermMode::MOUSE_MODE) {
+        // Shift-drag selects emulator text even when the TUI handles the mouse.
+        let cmd = if terminal_mode.intersects(TermMode::MOUSE_MODE)
+            && !state.keyboard_modifiers.shift()
+        {
+            state.drag = Some(Drag::Mouse);
             Command::MouseReport(
                 MouseButton::LeftButton,
                 state.keyboard_modifiers,
@@ -225,6 +403,7 @@ impl<'a> TerminalView<'a> {
                 true,
             )
         } else {
+            state.drag = Some(Drag::Selection);
             let current_click = Click::new(
                 cursor_position,
                 mouse::Button::Left,
@@ -245,7 +424,7 @@ impl<'a> TerminalView<'a> {
             )
         };
         commands.push(cmd);
-        state.is_dragged = true;
+        state.selection_scroll = None;
     }
 
     fn handle_cursor_moved(
@@ -264,27 +443,20 @@ impl<'a> TerminalView<'a> {
             terminal_content.grid.display_offset(),
         );
 
-        // Handle command or selection update based on terminal mode and modifiers
-        if state.is_dragged {
-            let terminal_mode = terminal_content.terminal_mode;
-            // Report drags when the app requested button-motion (1002) or
-            // any-motion (1003) tracking. Checking only MOUSE_MOTION left
-            // 1002-mode apps (e.g. tmux with `mouse on`) seeing press and
-            // release but never the drag, while the widget drew its own
-            // selection over the app's — two selection systems at once.
-            let cmd = if terminal_mode
-                .intersects(TermMode::MOUSE_DRAG | TermMode::MOUSE_MOTION)
+        // Keep each gesture with the receiver of the button press.
+        match state.drag {
+            Some(Drag::Mouse) if terminal_content.terminal_mode
+                .intersects(TermMode::MOUSE_DRAG | TermMode::MOUSE_MOTION) =>
             {
-                Command::MouseReport(
+                commands.push(Command::MouseReport(
                     MouseButton::LeftMove,
                     state.keyboard_modifiers,
                     state.mouse_position_on_grid,
                     true,
-                )
-            } else {
-                Command::SelectUpdate((cursor_x, cursor_y))
-            };
-            commands.push(cmd);
+                ));
+            },
+            Some(Drag::Selection) => commands.push(Command::SelectUpdate((cursor_x, cursor_y))),
+            _ => {},
         }
 
         // Handle link hover if applicable
@@ -299,12 +471,10 @@ impl<'a> TerminalView<'a> {
     fn handle_button_released(
         state: &mut TerminalViewState,
         terminal_mode: &TermMode,
-        bindings: &BindingsLayout, // Use the actual type of your bindings here
+        open_link: bool,
         commands: &mut Vec<Command>,
     ) {
-        state.is_dragged = false;
-
-        if terminal_mode.intersects(TermMode::MOUSE_MODE) {
+        if state.drag == Some(Drag::Mouse) && terminal_mode.intersects(TermMode::MOUSE_MODE) {
             commands.push(Command::MouseReport(
                 MouseButton::LeftButton,
                 state.keyboard_modifiers,
@@ -312,40 +482,13 @@ impl<'a> TerminalView<'a> {
                 false,
             ));
         }
+        state.cancel_drag();
 
-        if bindings.get_action(
-            InputKind::Mouse(iced_core::mouse::Button::Left),
-            state.keyboard_modifiers,
-            *terminal_mode,
-        ) == BindingAction::LinkOpen
-        {
+        if open_link {
             commands.push(Command::ProcessLink(
                 LinkAction::Open,
                 state.mouse_position_on_grid,
             ));
-        }
-    }
-
-    fn handle_wheel_scrolled(
-        state: &mut TerminalViewState,
-        delta: ScrollDelta,
-        font_measure: &Size<f32>,
-        commands: &mut Vec<Command>,
-    ) {
-        match delta {
-            ScrollDelta::Lines { y, .. } => {
-                let lines = y.signum() * y.abs().round();
-                commands.push(Command::Scroll(lines as i32));
-            },
-            ScrollDelta::Pixels { y, .. } => {
-                state.scroll_pixels += y;
-                let line_height = font_measure.height; // Assume this method exists and gives the height of a line
-                let lines = (state.scroll_pixels / line_height).trunc();
-                state.scroll_pixels %= line_height;
-                if lines != 0.0 {
-                    commands.push(Command::Scroll(lines as i32));
-                }
-            },
         }
     }
 
@@ -470,20 +613,20 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
         _theme: &Theme,
         _style: &iced::advanced::renderer::Style,
         layout: iced::advanced::Layout,
-        _cursor: Cursor,
+        cursor: Cursor,
         viewport: &Rectangle,
     ) {
         let state = tree.state.downcast_ref::<TerminalViewState>();
         let content = self.term.backend.renderable_content();
+        let bounds = layout.bounds();
+        let text_area = text_bounds(bounds);
+        let Some(clip) = text_area.intersection(viewport) else { return };
         let term_size = content.terminal_size;
         let cell_width = term_size.cell_width as f32;
         let cell_height = term_size.cell_height as f32;
         let font_size = self.term.font.size;
         let font_scale_factor = self.term.font.scale_factor;
-        let layout_offset_x = layout.position().x;
-        let layout_offset_y = layout.position().y;
-
-        let geom = self.term.cache.draw(renderer, viewport.size(), |frame| {
+        let geom = self.term.cache.draw(renderer, text_area.size(), |frame| {
             // Precompute constants used in the inner loop
             let display_offset = content.grid.display_offset() as f32;
             let cell_size = Size::new(cell_width, cell_height);
@@ -505,9 +648,8 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
                 let col = indexed.point.column.0 as f32;
 
                 // Resolve position point for this cell
-                let x = layout_offset_x + (col * cell_width);
-                let y = layout_offset_y
-                    + (((line as f32) + display_offset) * cell_height);
+                let x = col * cell_width;
+                let y = (line as f32 + display_offset) * cell_height;
                 let cell_center_y = y + half_h;
                 let cell_center_x = x + half_w;
 
@@ -533,8 +675,7 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
                     last_line = Some(line);
                     bg_batch_rect = BackgroundRect::default()
                         .with_cell_height(cell_height)
-                        .with_display_offset(display_offset)
-                        .with_layout_offset_y(layout_offset_y);
+                        .with_display_offset(display_offset);
                 }
 
                 // Handle dim, inverse, and selected text
@@ -571,7 +712,6 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
                         bg_batch_rect = BackgroundRect::default()
                             .with_cell_height(cell_height)
                             .with_display_offset(display_offset)
-                            .with_layout_offset_y(layout_offset_y)
                             .activate()
                             .with_color(bg)
                             .with_start_x(x)
@@ -583,8 +723,7 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
 
                     bg_batch_rect = BackgroundRect::default()
                         .with_cell_height(cell_height)
-                        .with_display_offset(display_offset)
-                        .with_layout_offset_y(layout_offset_y);
+                        .with_display_offset(display_offset);
                 }
 
                 // Draw hovered hyperlink underline (rare; keep per-cell for correctness)
@@ -668,7 +807,26 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
         });
 
         use iced::advanced::graphics::geometry::Renderer as _;
-        renderer.draw_geometry(geom);
+        // Cache pane-local coordinates so a moved pane stays inside its clip.
+        renderer.with_layer(clip, |renderer| {
+            renderer.with_translation(Vector::new(bounds.x, bounds.y), |renderer| {
+                renderer.draw_geometry(geom);
+            });
+        });
+        if let Some(bar) = Scrollbar::new(bounds, content) {
+            let foreground = self.term.theme.get_color(ansi::Color::Named(NamedColor::Foreground));
+            let highlighted = state.scrollbar_grab.is_some() || cursor.is_over(bar.hit_bounds());
+            renderer.with_layer(*viewport, |renderer| {
+                renderer.fill_quad(
+                    Quad { bounds: bar.track, border: Border::default().rounded(2), ..Quad::default() },
+                    foreground.scale_alpha(0.12),
+                );
+                renderer.fill_quad(
+                    Quad { bounds: bar.thumb, border: Border::default().rounded(2), ..Quad::default() },
+                    foreground.scale_alpha(if highlighted { 0.75 } else { 0.5 }),
+                );
+            });
+        }
     }
 
     fn update(
@@ -680,22 +838,30 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
         _renderer: &iced::Renderer,
         clipboard: &mut dyn iced_graphics::core::Clipboard,
         shell: &mut iced_graphics::core::Shell<'_, Event>,
-        _viewport: &Rectangle,
+        viewport: &Rectangle,
     ) {
         let state = tree.state.downcast_mut::<TerminalViewState>();
-        self.handle_resize(state, layout, shell);
-
-        let is_cursor_in_layout = self.is_cursor_in_layout(cursor, layout);
-        self.handle_focus(event, state, is_cursor_in_layout);
+        let bounds = layout.bounds();
+        self.handle_resize(state, text_bounds(bounds).size(), shell);
+        let cursor_in_layout = bounds.intersection(viewport).and_then(|area| cursor.position_over(area));
+        if let iced::Event::Mouse(event) = event {
+            if cursor.is_levitating() {
+                state.scrollbar_grab = None;
+            }
+            if self.handle_scrollbar(state, bounds, cursor_in_layout, event, shell) {
+                return;
+            }
+        }
+        self.handle_focus(event, state, cursor_in_layout.is_some());
 
         let commands = match event {
-            iced::Event::Mouse(mouse_event) if is_cursor_in_layout => self
-                .handle_mouse_event(
-                    state,
-                    layout.position(),
-                    cursor.position().unwrap(),
-                    mouse_event,
-                ),
+            iced::Event::Mouse(mouse_event) => self.handle_mouse_event(
+                state,
+                bounds,
+                cursor_in_layout,
+                mouse_event,
+                shell,
+            ),
             iced::Event::InputMethod(event)
                 if state.is_focused() && state.window_focused =>
             {
@@ -733,6 +899,7 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
             },
             iced::Event::Window(iced::window::Event::Unfocused) => {
                 state.window_focused = false;
+                state.cancel_drag();
                 state.held_key = None;
                 state.preedit = None;
                 shell.request_redraw();
@@ -756,6 +923,22 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
                     }
                     shell.request_redraw_at(held.next_repeat);
                 }
+                if let Some(scroll) = &mut state.selection_scroll {
+                    if let Some(command) =
+                        self.selection_scroll_command(bounds, scroll.position)
+                    {
+                        if *now >= scroll.next_tick {
+                            shell.publish(Event::BackendCall(
+                                self.term.id,
+                                command,
+                            ));
+                            scroll.next_tick = *now + SELECTION_SCROLL_INTERVAL;
+                        }
+                        shell.request_redraw_at(scroll.next_tick);
+                    } else {
+                        state.selection_scroll = None;
+                    }
+                }
                 shell.request_input_method(
                     &self.input_method(state, layout.bounds()),
                 );
@@ -763,6 +946,9 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
             },
             iced::Event::Keyboard(keyboard_event) => {
                 if !state.is_focused() {
+                    if let KeyEvent::ModifiersChanged(modifiers) = keyboard_event {
+                        state.keyboard_modifiers = *modifiers;
+                    }
                     return;
                 }
 
@@ -820,7 +1006,9 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
             _ => Vec::new(),
         };
 
-        if !commands.is_empty() {
+        if !commands.is_empty()
+            && !matches!(event, iced::Event::Keyboard(KeyEvent::ModifiersChanged(_)))
+        {
             shell.capture_event();
         }
 
@@ -834,15 +1022,23 @@ impl Widget<Event, Theme, iced::Renderer> for TerminalView<'_> {
         tree: &Tree,
         layout: iced_core::Layout<'_>,
         cursor: iced_core::mouse::Cursor,
-        _viewport: &Rectangle,
+        viewport: &Rectangle,
         _renderer: &iced::Renderer,
     ) -> iced_core::mouse::Interaction {
         let state = tree.state.downcast_ref::<TerminalViewState>();
+        let bounds = layout.bounds();
+        let content = self.term.backend.renderable_content();
+        if state.scrollbar_grab.is_some() {
+            return mouse::Interaction::Grabbing;
+        }
+        if cursor.is_over(*viewport)
+            && Scrollbar::new(bounds, content).is_some_and(|bar| cursor.is_over(bar.hit_bounds()))
+        {
+            return mouse::Interaction::Grab;
+        }
         let mut cursor_mode = iced_core::mouse::Interaction::Idle;
-        let terminal_mode =
-            self.term.backend.renderable_content().terminal_mode;
-        if self.is_cursor_in_layout(cursor, layout)
-            && !terminal_mode.contains(TermMode::SGR_MOUSE)
+        if cursor.is_over(text_bounds(bounds))
+            && !content.terminal_mode.contains(TermMode::SGR_MOUSE)
         {
             cursor_mode = iced_core::mouse::Interaction::Text;
         }
@@ -864,9 +1060,12 @@ impl<'a> From<TerminalView<'a>> for Element<'a, Event, Theme, iced::Renderer> {
 #[derive(Debug, Clone)]
 struct TerminalViewState {
     focus: bool,
-    is_dragged: bool,
+    drag: Option<Drag>,
+    selection_scroll: Option<SelectionScroll>,
+    scrollbar_grab: Option<f32>,
+    link_press: Option<Point>,
     last_click: Option<mouse::Click>,
-    scroll_pixels: f32,
+    scroll_lines: f32,
     keyboard_modifiers: Modifiers,
     size: Size<f32>,
     mouse_position_on_grid: TerminalGridPoint,
@@ -876,13 +1075,22 @@ struct TerminalViewState {
     held_key: Option<HeldKey>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Drag {
+    Selection,
+    Mouse,
+}
+
 impl TerminalViewState {
     fn new(widget_id: iced::widget::Id) -> Self {
         Self {
             focus: false,
-            is_dragged: false,
+            drag: None,
+            selection_scroll: None,
+            scrollbar_grab: None,
+            link_press: None,
             last_click: None,
-            scroll_pixels: 0.0,
+            scroll_lines: 0.0,
             keyboard_modifiers: Modifiers::empty(),
             size: Size::from([0.0, 0.0]),
             mouse_position_on_grid: TerminalGridPoint::default(),
@@ -891,6 +1099,27 @@ impl TerminalViewState {
             preedit: None,
             held_key: None,
         }
+    }
+
+    fn cancel_drag(&mut self) {
+        self.drag = None;
+        self.selection_scroll = None;
+        self.scrollbar_grab = None;
+        self.link_press = None;
+    }
+
+    fn wheel_lines(&mut self, delta: ScrollDelta, cell_height: f32) -> Option<i32> {
+        let delta = match delta {
+            ScrollDelta::Lines { y, .. } => y,
+            ScrollDelta::Pixels { y, .. } => y / cell_height,
+        };
+        if !delta.is_finite() || delta == 0.0 {
+            return None;
+        }
+        self.scroll_lines += delta;
+        let lines = self.scroll_lines.trunc();
+        self.scroll_lines -= lines;
+        Some(lines as i32)
     }
 }
 
@@ -905,6 +1134,7 @@ impl operation::Focusable for TerminalViewState {
 
     fn unfocus(&mut self) {
         self.focus = false;
+        self.cancel_drag();
         self.held_key = None;
         self.preedit = None;
     }
@@ -914,7 +1144,6 @@ impl operation::Focusable for TerminalViewState {
 struct BackgroundRect {
     display_offset: f32,
     cell_height: f32,
-    layout_offset_y: f32,
     is_active: bool,
     color: Color,
     start_x: f32,
@@ -929,11 +1158,6 @@ impl BackgroundRect {
 
     fn with_cell_height(mut self, value: f32) -> Self {
         self.cell_height = value;
-        self
-    }
-
-    fn with_layout_offset_y(mut self, value: f32) -> Self {
-        self.layout_offset_y = value;
         self
     }
 
@@ -958,8 +1182,7 @@ impl BackgroundRect {
     }
 
     fn build(&self, line: i32) -> Path {
-        let flush_y = self.layout_offset_y
-            + ((line as f32 + self.display_offset) * self.cell_height);
+        let flush_y = (line as f32 + self.display_offset) * self.cell_height;
         Path::rectangle(
             Point::new(self.start_x, flush_y),
             Size::new(self.width, self.cell_height),
@@ -980,6 +1203,18 @@ impl BackgroundRect {
         self.width += value;
     }
 }
+
+#[cfg(test)]
+#[path = "link_click_tests.rs"]
+mod link_click_tests;
+
+#[cfg(test)]
+#[path = "selection_scroll_tests.rs"]
+mod selection_scroll_tests;
+
+#[cfg(test)]
+#[path = "scrollback_tests.rs"]
+mod scrollback_tests;
 
 #[cfg(test)]
 mod tests {
@@ -1043,7 +1278,7 @@ mod tests {
                     true,
                 )
             ));
-            assert!(state.is_dragged);
+            assert_eq!(state.drag, Some(Drag::Mouse));
         }
 
         #[test]
@@ -1077,7 +1312,7 @@ mod tests {
                     commands[0],
                     Command::SelectStart(_selection_type, (150.0, 100.0))
                 ),);
-                assert!(state.is_dragged);
+                assert_eq!(state.drag, Some(Drag::Selection));
             }
         }
     }
@@ -1151,7 +1386,7 @@ mod tests {
         #[test]
         fn generates_drag_update_command_when_dragged() {
             let mut state = TerminalViewState::new(iced::widget::Id::unique());
-            state.is_dragged = true; // Simulate an ongoing drag operation
+            state.drag = Some(Drag::Selection);
             let terminal_content = RenderableContent::default();
             let layout_position = Point { x: 5.0, y: 5.0 };
             let cursor_position = Point { x: 100.0, y: 150.0 };
@@ -1175,7 +1410,7 @@ mod tests {
         #[test]
         fn generates_drag_update_command_when_dragged_in_mouse_motion_mode() {
             let mut state = TerminalViewState::new(iced::widget::Id::unique());
-            state.is_dragged = true; // Simulate an ongoing drag operation
+            state.drag = Some(Drag::Mouse);
             let mut terminal_content = RenderableContent::default();
             terminal_content.terminal_mode = TermMode::MOUSE_MOTION;
             let layout_position = Point { x: 5.0, y: 5.0 };
@@ -1212,7 +1447,7 @@ mod tests {
             // requests — must also report drags, not fall back to the
             // widget's own selection.
             let mut state = TerminalViewState::new(iced::widget::Id::unique());
-            state.is_dragged = true;
+            state.drag = Some(Drag::Mouse);
             let mut terminal_content = RenderableContent::default();
             terminal_content.terminal_mode = TermMode::MOUSE_DRAG;
             let layout_position = Point { x: 5.0, y: 5.0 };
@@ -1248,7 +1483,7 @@ mod tests {
         ) {
             let mut state = TerminalViewState::new(iced::widget::Id::unique());
             state.keyboard_modifiers = Modifiers::SHIFT;
-            state.is_dragged = true; // Simulate an ongoing drag operation
+            state.drag = Some(Drag::Selection);
             let mut terminal_content = RenderableContent::default();
             terminal_content.terminal_mode = TermMode::SGR_MOUSE;
             let layout_position = Point { x: 5.0, y: 5.0 };
@@ -1274,7 +1509,7 @@ mod tests {
         fn generates_drag_update_and_link_open() {
             let mut state = TerminalViewState::new(iced::widget::Id::unique());
             state.keyboard_modifiers = Modifiers::COMMAND;
-            state.is_dragged = true; // Simulate an ongoing drag operation
+            state.drag = Some(Drag::Selection);
             let mut terminal_content = RenderableContent::default();
             terminal_content.terminal_mode = TermMode::SGR_MOUSE;
             let layout_position = Point { x: 5.0, y: 5.0 };
@@ -1314,15 +1549,15 @@ mod tests {
         #[test]
         fn mouse_mode_activated() {
             let mut state = TerminalViewState::new(iced::widget::Id::unique());
+            state.drag = Some(Drag::Mouse);
             let terminal_mode = TermMode::MOUSE_MODE;
-            let bindings = BindingsLayout::new();
             let mut commands = Vec::new();
             let _modifiers = Modifiers::empty();
 
             TerminalView::handle_button_released(
                 &mut state,
                 &terminal_mode,
-                &bindings,
+                false,
                 &mut commands,
             );
 
@@ -1345,15 +1580,15 @@ mod tests {
         fn link_open_on_button_release() {
             let mut state = TerminalViewState::new(iced::widget::Id::unique());
             state.keyboard_modifiers = Modifiers::COMMAND;
+            state.drag = Some(Drag::Mouse);
             let terminal_mode = TermMode::MOUSE_MODE;
-            let bindings = BindingsLayout::new();
             let mut commands = Vec::new();
             let _modifiers = Modifiers::empty();
 
             TerminalView::handle_button_released(
                 &mut state,
                 &terminal_mode,
-                &bindings,
+                true,
                 &mut commands,
             );
 
@@ -1391,13 +1626,12 @@ mod tests {
                 column: Column(10),
             };
             let terminal_mode = TermMode::empty(); // Assume SGR_MOUSE mode doesn't affect link opening
-            let bindings = BindingsLayout::new();
             let mut commands = Vec::new();
 
             TerminalView::handle_button_released(
                 &mut state,
                 &terminal_mode,
-                &bindings,
+                true,
                 &mut commands,
             );
 
@@ -1412,82 +1646,6 @@ mod tests {
                     }
                 ),
             ));
-        }
-    }
-
-    mod handle_wheel_scrolled_tests {
-        use super::*;
-        use crate::font::TermFont;
-        use crate::settings::FontSettings;
-
-        #[test]
-        fn scroll_with_lines_downward() {
-            let mut state = TerminalViewState::new(iced::widget::Id::unique());
-            let font = TermFont::new(FontSettings::default());
-            let mut commands = Vec::new();
-
-            TerminalView::handle_wheel_scrolled(
-                &mut state,
-                ScrollDelta::Lines { y: 3.0, x: 0.0 }, // Scroll down 3 lines
-                &font.measure,
-                &mut commands,
-            );
-
-            assert_eq!(commands.len(), 1);
-            assert!(matches!(commands[0], Command::Scroll(3)));
-        }
-
-        #[test]
-        fn scroll_with_lines_upward() {
-            let mut state = TerminalViewState::new(iced::widget::Id::unique());
-            let font = TermFont::new(FontSettings::default());
-            let mut commands = Vec::new();
-
-            TerminalView::handle_wheel_scrolled(
-                &mut state,
-                ScrollDelta::Lines { y: -2.0, x: 0.0 },
-                &font.measure,
-                &mut commands,
-            );
-
-            assert_eq!(commands.len(), 1);
-            assert!(matches!(commands[0], Command::Scroll(-2)));
-        }
-
-        #[test]
-        fn scroll_with_pixels_accumulating_downward() {
-            let mut state = TerminalViewState::new(iced::widget::Id::unique());
-            let font = TermFont::new(FontSettings::default());
-            let mut commands = Vec::new();
-
-            TerminalView::handle_wheel_scrolled(
-                &mut state,
-                ScrollDelta::Pixels { y: 45.0, x: 0.0 },
-                &font.measure,
-                &mut commands,
-            );
-
-            assert_eq!(commands.len(), 1);
-            assert!(matches!(commands[0], Command::Scroll(2)));
-            assert_eq!(state.scroll_pixels, 8.600002);
-        }
-
-        #[test]
-        fn scroll_with_pixels_accumulating_upward() {
-            let mut state = TerminalViewState::new(iced::widget::Id::unique());
-            let font = TermFont::new(FontSettings::default());
-            let mut commands = Vec::new();
-
-            TerminalView::handle_wheel_scrolled(
-                &mut state,
-                ScrollDelta::Pixels { y: -60.0, x: 0.0 },
-                &font.measure,
-                &mut commands,
-            );
-
-            assert_eq!(commands.len(), 1);
-            assert!(matches!(commands[0], Command::Scroll(-3)));
-            assert_eq!(state.scroll_pixels, -5.4000034);
         }
     }
 }

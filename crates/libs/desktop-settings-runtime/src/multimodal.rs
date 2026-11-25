@@ -26,6 +26,7 @@ fn multimodal_config_from_state(
             model_supports_images: state.model_supports_images,
             model: ocr_model,
         },
+        media_models: state.media_models.clone(),
     })
 }
 
@@ -83,6 +84,10 @@ pub fn update(state: &mut MultimodalSettingsState, message: SettingsMessage) -> 
         MultimodalMessage::OcrModelChanged(value) => {
             state.ocr_model = value;
         }
+        MultimodalMessage::MediaCatalogRefresh
+        | MultimodalMessage::MediaCatalogLoaded { .. }
+        | MultimodalMessage::MediaModelChanged { .. }
+        | MultimodalMessage::MediaModelSaved { .. } => return None,
     }
 
     state.save_error = None;

@@ -150,3 +150,39 @@ async fn media_agent_tool_honors_explicit_eligible_deployment_and_reads_existing
     assert!(matches!(denied, Err(ToolCallError::Denied { .. })));
     assert_eq!(fixture.image_posts(), 2);
 }
+
+#[tokio::test]
+async fn media_agent_tool_uses_operation_default_until_the_turn_picks_another_model() {
+    let fixture = Fixture::new().await;
+    let context = fixture.tool_context(true).await.unwrap();
+    let context = Arc::new(
+        (*context).clone().with_message_id("assistant-turn").with_tool_call_id("default-image"),
+    );
+    crate::config::update_global_for_tenant(
+        &context.tenant_scope(),
+        json!({
+            "multimodal": { "media_models": { "image_generate": {
+                "deployment_id": fixture.model.deployment_id,
+                "model_id": "unavailable-default",
+            } } }
+        }),
+    )
+    .await
+    .unwrap();
+    let tools = registry(&fixture, &context);
+    let input = json!({"operation": "image_generate", "text": "draw"});
+    let unavailable = call(&tools, context.clone(), MEDIA_SUBMIT_TOOL_ID, input.clone()).await;
+    assert!(matches!(unavailable, Err(ToolCallError::Denied { .. })));
+    assert_eq!(fixture.image_posts(), 0);
+
+    let context = Arc::new((*context).clone().with_media_model_selection(
+        agent_gateway::api::media::MediaModelSelection {
+            operation: MediaOperation::ImageGenerate,
+            deployment_id: fixture.model.deployment_id.clone(),
+            model_id: fixture.model.model_id.clone(),
+        },
+    ));
+    let job = call(&tools, context, MEDIA_SUBMIT_TOOL_ID, input).await.unwrap();
+    assert!(matches!(fixture.wait(job.id).await, MediaJobState::Succeeded { .. }));
+    assert_eq!(fixture.image_posts(), 1);
+}

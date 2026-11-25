@@ -16,6 +16,9 @@ pub enum Message {
     #[allow(private_interfaces)]
     GitWorkbench(crate::app::git_workbench::Event),
     #[cfg(not(target_arch = "wasm32"))]
+    #[allow(private_interfaces)]
+    WorkbenchProjects(crate::app::workbench_projects::Event),
+    #[cfg(not(target_arch = "wasm32"))]
     Voice(message::voice::Event),
     #[cfg(not(target_arch = "wasm32"))]
     StartupCliServiceBootstrapped(Result<(), String>),
@@ -70,6 +73,7 @@ pub enum Message {
     View(message::ViewMessage),
     Search(message::SearchMessage),
     Settings(message::SettingsMessage),
+    TaskSettingsProjectSelected(String),
     TaskLabelSettings(crate::app::components::system_settings::task_settings::labels::Event),
     TaskPropertySettings(crate::app::components::system_settings::task_settings::properties::Event),
     Terminal(message::TerminalMessage),

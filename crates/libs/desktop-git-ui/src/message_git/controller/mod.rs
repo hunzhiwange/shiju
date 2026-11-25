@@ -169,6 +169,7 @@ pub fn update(
         | GitMessage::CommitScopeChanged(_)
         | GitMessage::CommitDescriptionChanged(_)
         | GitMessage::CommitDescriptionEditorAction(_)
+        | GitMessage::ToggleCommitDescription
         | GitMessage::CommitHelpOpen
         | GitMessage::CommitHelpClose
         | GitMessage::FilterHelpOpen
@@ -217,6 +218,7 @@ pub fn update_stage(
             expanded_hunks: &mut app.expanded_hunks,
             git_commit_description: &mut app.git_commit_description,
             git_commit_description_editor: &mut app.git_commit_description_editor,
+            show_git_commit_description: &mut app.show_git_commit_description,
             git_commit_in_progress: &mut app.git_commit_in_progress,
             git_commit_message: &mut app.git_commit_message,
             git_commit_scope: &mut app.git_commit_scope,

@@ -7,6 +7,16 @@ use crate::app::message::task_board::next_agent_scheduler_status_generation;
 use crate::app::views::workflow_manager::{load_project_workflow, select_project_workflow};
 use vw_api_agent_scheduler::AgentSchedulerSelectWorkflowRequest;
 pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Task<Message>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    let saved = matches!(&message, ProjectMessage::ProjectEditRuntimeSaved(Ok(())));
+    let previous_icon = if matches!(&message, ProjectMessage::ProjectEditSaved | ProjectMessage::ProjectEditWorkflowSaved(_, Ok(_))) {
+        app.project_editor.project_edit_path.as_deref().map(|path| {
+            app.workspace_state.recent_projects_meta.iter().find(|meta| meta.path == path)
+                .map(|meta| (meta.icon.clone(), meta.icon_color.clone())).unwrap_or_default()
+        })
+    } else {
+        None
+    };
     let mut workflow_task = iced::Task::none();
     let event = match message {
         ProjectMessage::ProjectEditWorkflowLoaded(generation, result) => {
@@ -186,27 +196,48 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Effect::SaveWorktree(path, enabled) => tasks.push(crate::app::message::settings::set_worktree_enabled(app, path, enabled)),
             Effect::SaveMeta => save_recent_projects_meta_background(app.workspace_state.recent_projects_meta.clone()),
             Effect::SaveRecent => save_recent_projects_background(app.workspace_state.recent_projects.clone()),
-            Effect::OpenFirst => tasks.push(app.open_first_recent_project_or_home()),
+            Effect::OpenFirst => {
+                #[cfg(not(target_arch = "wasm32"))]
+                if matches!(app.navigation_tabs.screen, crate::app::Screen::CliWorkbench | crate::app::Screen::AppTerminal | crate::app::Screen::GitWorkbench) {
+                    continue;
+                }
+                tasks.push(app.open_first_recent_project_or_home());
+            }
             Effect::Reveal(path) => {
                 #[cfg(not(target_arch = "wasm32"))]
                 { let _ = open::that(&path); }
                 #[cfg(target_arch = "wasm32")]
                 let _ = path;
             }
-            Effect::RuntimeError(err) => app.set_localized_input_error(crate::app::i18n::input::ErrorField::General, "保存项目扩展配置失败: %s", vec![format!("{}", err).into()]),
+            Effect::RuntimeError(err) => {
+                #[cfg(not(target_arch = "wasm32"))]
+                if matches!(app.navigation_tabs.screen, crate::app::Screen::CliWorkbench | crate::app::Screen::AppTerminal | crate::app::Screen::GitWorkbench)
+                    || app.terminal.is_fullscreen
+                {
+                    tasks.push(app.show_localized_toast(crate::app::state::ToastKind::Error, "保存项目扩展配置失败: %s", vec![err.into()]));
+                    continue;
+                }
+                app.set_localized_input_error(crate::app::i18n::input::ErrorField::General, "保存项目扩展配置失败: %s", vec![err.into()]);
+            }
             Effect::RuntimeUpdate { path, name, icon, icon_color, start_command } => {
+                let icon = (previous_icon.as_ref() != Some(&(icon.clone(), icon_color.clone())))
+                    .then_some(vw_api_project::IconUpdateDto { override_icon: icon, color: icon_color });
                 tasks.push(iced::Task::perform(async move {
                     let client = crate::app::gateway_client()?;
                     let project = crate::app::message::project::helpers::resolve_gateway_project(&path).await?;
                     let scope = desktop_session::session_gateway::active_project_scope(crate::app::config::gateway_client_endpoint(), project.id.clone())?;
                     gateway_project::GatewayProjectClient::new(client.transport().clone()).project_update(&scope, &vw_api_project::UpdateProjectRequest {
                         name: Some(name), active_worktree_id: None,
-                        icon: Some(vw_api_project::IconUpdateDto { override_icon: icon, color: icon_color }),
+                        icon,
                         commands: Some(vw_api_project::CommandsUpdateDto { start: start_command }),
                     }).await.map(|_| ())
                 }, |res| Message::Project(ProjectMessage::ProjectEditRuntimeSaved(res))));
             }
         }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    if saved {
+        tasks.push(crate::app::workbench_projects::refresh_lists(app));
     }
     Some(iced::Task::batch(tasks))
 }

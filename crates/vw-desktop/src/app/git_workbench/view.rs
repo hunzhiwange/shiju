@@ -1,33 +1,36 @@
 //! 原生工作台视图，沿用桌面主题、分栏和选择控件。
 use super::{Event, Workbench, files, git_busy, message};
 use crate::app::components::workbench_sidebar::{
-    project_row, sidebar_header, sidebar_note, sidebar_section,
+    matches_project, project_header, project_query, project_row, sidebar_note, sidebar_section,
+    with_project_menu,
 };
 use crate::app::message::git::GitMessage;
-use crate::app::{App, Message};
+use crate::app::{App, Message, Screen};
 use desktop_assets::assets::Icon;
+use desktop_editor::components::preview_panel::view::header_tabs;
+use desktop_git_ui::git_panel::types::GitWorktreeOption;
 use desktop_git_ui::page;
 use desktop_i18n::I18n;
 use desktop_ui_controls::icons::icon_svg;
+use desktop_ui_controls::single_line_label::SingleLineLabel;
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_btn, rounded_action_btn_style,
-    settings_divider_style, settings_muted_text_style, settings_select, settings_text_input_style,
+    rounded_action_btn_style, settings_divider_style, settings_muted_text_style,
+    settings_select,
 };
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::text::Wrapping;
 use iced::widget::{
-    button, column, container, keyed_column, pane_grid, responsive, row, scrollable, text,
-    text_input, tooltip,
+    button, column, container, pane_grid, responsive, row, scrollable, text, tooltip,
 };
 use iced::{Alignment, Element, Length, Theme};
 
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let state = &app.git_workbench;
     let i18n = I18n::new(app.general_settings.desktop_locale);
-    responsive(move |size| {
+    let base = responsive(move |size| {
         if size.width < 680.0 {
             return column![
-                container(projects(i18n, state, tooltip::Position::Bottom)).height(154),
+                container(projects(app, i18n, state, tooltip::Position::Bottom)).height(154),
                 workspace(app, i18n),
             ]
             .spacing(2)
@@ -38,7 +41,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             pane_grid::Content::new(if *main {
                 workspace(app, i18n)
             } else {
-                projects(i18n, state, tooltip::Position::Right)
+                projects(app, i18n, state, tooltip::Position::Right)
             })
         })
         .width(Length::Fill)
@@ -47,8 +50,8 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         .on_resize(8.0, |event| message(Event::Resize(event)))
         .style(divider);
         container(grid).style(settings_divider_style).into()
-    })
-    .into()
+    });
+    with_project_menu(app, Screen::GitWorkbench, base.into())
 }
 
 fn divider(theme: &Theme) -> pane_grid::Style {
@@ -59,62 +62,47 @@ fn divider(theme: &Theme) -> pane_grid::Style {
 }
 
 fn projects<'a>(
+    app: &'a App,
     i18n: I18n,
     state: &'a Workbench,
     tooltip_position: tooltip::Position,
 ) -> Element<'a, Message> {
-    let heading = sidebar_header(
-        i18n.__("项目"),
-        icon_btn(
-            Icon::ArrowClockwise,
-            i18n.__("刷新"),
-            (!state.busy() && !state.projects_loading).then_some(message(Event::RefreshProjects)),
-        ),
+    let heading = project_header(app,
+        (!state.busy() && !state.projects_loading).then_some(message(Event::RefreshProjects)),
     );
-    let search = text_input(i18n.__("搜索项目"), &state.query)
-        .on_input(|query| message(Event::SearchProjects(query)))
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style);
-    let query = state.query.trim().to_lowercase();
+    let query = project_query(app);
+    let mut matches = state.projects.iter().filter(|project| {
+        matches_project(&query, &project.name, &project.directory)
+    }).peekable();
     let mut rows = column![].spacing(3);
-    let mut visible = state
-        .projects
-        .iter()
-        .filter(|project| {
-            query.is_empty()
-                || project.name.to_lowercase().contains(&query)
-                || project.directory.to_lowercase().contains(&query)
-        })
-        .peekable();
-    let empty = visible.peek().is_none();
-    for project in visible {
-        let id = project.id.as_ref();
+    if matches.peek().is_none() {
+        let label = if state.projects_loading {
+            i18n.__("加载中")
+        } else if state.projects_error.is_some() {
+            i18n.__("读取项目失败")
+        } else if !query.is_empty() {
+            i18n.__("未找到匹配的项目")
+        } else {
+            i18n.__("暂无项目")
+        };
+        rows = rows.push(sidebar_note(label));
+    }
+    for project in matches {
+        let id = project.id.as_str();
         let selected = state.selected.as_deref() == Some(id);
         rows = rows.push(project_row(
-            &project.name,
+            project.name.clone(),
             &project.directory,
+            Some(id),
             selected,
             (!state.busy()).then(|| message(Event::SelectProject(id.to_owned()))),
             tooltip_position,
         ));
     }
-    if empty {
-        let label = if state.projects_loading {
-            i18n.__("加载中")
-        } else if state.projects_error.is_some() {
-            i18n.__("读取项目失败")
-        } else if state.projects.is_empty() {
-            i18n.__("暂无项目")
-        } else {
-            i18n.__("未找到匹配的项目")
-        };
-        rows = rows.push(sidebar_note(label));
-    }
     if let Some(error) = &state.projects_error {
         rows = rows.push(sidebar_note(error).wrapping(Wrapping::Glyph));
     }
-    sidebar_section(column![heading, container(search).padding([2, 7])].into(), rows)
+    sidebar_section(heading, rows)
 }
 
 fn workspace<'a>(app: &'a App, i18n: I18n) -> Element<'a, Message> {
@@ -133,96 +121,129 @@ fn workspace<'a>(app: &'a App, i18n: I18n) -> Element<'a, Message> {
         .spacing(4);
         let identity = row![
             icon_svg(Icon::FolderClosed, 16.0),
-            text(project.name.as_str()).size(17).width(Length::Fill).wrapping(Wrapping::Glyph),
+            SingleLineLabel::new(project.name.clone(), 17.0),
+            checkout_select(i18n, state, if size.width < 390.0 { 100.0 } else { 132.0 }),
+            action(
+                Icon::ArrowRepeat,
+                i18n.__("刷新"),
+                (!state.busy() && !state.repo_loading).then_some(Event::RefreshCheckout),
+            ),
             modes,
         ]
-        .spacing(8)
+        .spacing(5)
         .align_y(Alignment::Center);
-        let worktrees = &state.git.git_worktree_options;
-        let selected = worktrees
-            .iter()
-            .find(|item| Some(item.directory.as_str()) == state.checkout_directory())
-            .cloned();
-        let worktree = settings_select(worktrees.iter().cloned(), selected, move |option| {
-            state.source().message(GitMessage::SelectGitWorktree(option))
-        })
-        .format_labels(move |option| {
-            if Some(option.directory.as_str()) == state.project_directory() {
-                i18n.__("主工作区").to_owned()
-            } else {
-                option.label.split('·').next().unwrap_or(&option.label).trim().to_owned()
-            }
-        })
-        .placeholder(i18n.__("主工作区"))
-        .disabled(state.busy() || worktrees.len() < 2)
-        .height(29.0)
-        .width(Length::FillPortion(1));
-        let mut controls =
-            row![selector(i18n.__("工作树"), worktree.into()),].align_y(Alignment::End).spacing(8);
-        if !state.show_files {
-            let branch = settings_select(
-                state.git.branches.iter().cloned(),
-                state.git.selected_branch.clone(),
-                |branch| message(Event::SwitchBranch(branch)),
-            )
-            .placeholder(i18n.__("当前分支"))
-            .disabled(state.busy())
-            .height(29.0)
-            .width(Length::Fill);
-            controls = controls.push(selector(i18n.__("当前分支"), branch.into()));
-        }
-        controls = controls.push(action(
-            Icon::ArrowRepeat,
-            i18n.__("刷新"),
-            (!state.busy()).then_some(Event::RefreshCheckout),
-        ));
-        let body = if state.switching_branch {
+        let workspace = if state.switching_branch {
             centered(i18n.__("正在切换分支…"))
-        } else if state.show_files {
-            file_preview(i18n, state)
-        } else if state.repo.is_some() {
+        } else if !state.show_files && state.repo.is_some() {
             page::workbench_view(&git_input(app)).map(move |event| map_git(state, event))
         } else {
-            centered(if !state.local() {
-                i18n.__("Git 变更管理需要本机网关")
+            let body = if state.show_files {
+                file_preview(i18n, state)
+            } else if state.repo_loading {
+                centered(i18n.__("加载中"))
+            } else if !state.local() {
+                centered(i18n.__("Git 变更管理需要本机网关"))
             } else {
-                i18n.__("未检测到 Git 仓库")
-            })
-        };
-        let files = file_manager(app);
-        let workspace = if narrow {
-            Element::from(
+                centered(i18n.__("未检测到 Git 仓库"))
+            };
+            let files = file_manager(app);
+            if narrow {
                 column![
                     container(files).height(Length::FillPortion(1)),
                     container(body).height(Length::FillPortion(1)),
                 ]
                 .spacing(6)
-                .height(Length::Fill),
-            )
-        } else {
-            row![
-                container(files).width(270),
-                container(iced::widget::Space::new())
-                    .width(1)
-                    .height(Length::Fill)
-                    .style(settings_divider_style),
-                body,
-            ]
-            .spacing(6)
-            .height(Length::Fill)
-            .into()
+                .height(Length::Fill)
+                .into()
+            } else {
+                row![
+                    container(files).width(270),
+                    container(iced::widget::Space::new())
+                        .width(1)
+                        .height(Length::Fill)
+                        .style(settings_divider_style),
+                    body,
+                ]
+                .spacing(6)
+                .height(Length::Fill)
+                .into()
+            }
         };
-        panel(column![identity, controls, workspace].spacing(10), 10)
+        panel(column![identity, workspace].spacing(10), 10)
     })
     .into()
 }
 
-fn selector<'a>(title: &'a str, control: Element<'a, Message>) -> Element<'a, Message> {
-    column![text(title).size(11).style(settings_muted_text_style), control]
-        .spacing(4)
-        .width(Length::FillPortion(1))
-        .max_width(236)
-        .into()
+#[derive(Clone, PartialEq)]
+enum CheckoutOption {
+    Branch(String),
+    Worktree(GitWorktreeOption),
+}
+
+impl std::fmt::Display for CheckoutOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Branch(branch) => f.write_str(branch),
+            Self::Worktree(worktree) => f.write_str(&worktree.label),
+        }
+    }
+}
+
+fn checkout_select(i18n: I18n, state: &Workbench, width: f32) -> Element<'_, Message> {
+    let worktrees = &state.git.git_worktree_options;
+    let current_worktree =
+        worktrees.iter().find(|option| Some(option.directory.as_str()) == state.checkout_directory());
+    let current_branch = state
+        .git
+        .selected_branch
+        .as_ref()
+        .or_else(|| current_worktree.and_then(|option| option.branch.as_ref()));
+    let mut options = Vec::new();
+    if !state.show_files {
+        options.extend(state.git.branches.iter().cloned().map(CheckoutOption::Branch));
+    }
+    if worktrees.len() > 1 {
+        options.extend(worktrees.iter().cloned().map(CheckoutOption::Worktree));
+    }
+    let selected = current_worktree
+        .filter(|option| {
+            state.show_files
+                || state.git.branches.is_empty()
+                || current_branch.is_none()
+                || Some(option.directory.as_str()) != state.project_directory()
+        })
+        .cloned()
+        .map(CheckoutOption::Worktree)
+        .or_else(|| current_branch.cloned().map(CheckoutOption::Branch));
+    let label = |worktree: &GitWorktreeOption| {
+        if Some(worktree.directory.as_str()) == state.project_directory() {
+            i18n.__("主工作区").to_owned()
+        } else {
+            worktree.label.split('·').next().unwrap_or(&worktree.label).trim().to_owned()
+        }
+    };
+    let trigger = current_branch
+        .cloned()
+        .or_else(|| current_worktree.map(&label))
+        .unwrap_or_else(|| i18n.__("当前分支").to_owned());
+    settings_select(options, selected, move |option| match option {
+        CheckoutOption::Branch(branch) => message(Event::SwitchBranch(branch)),
+        CheckoutOption::Worktree(worktree) => {
+            state.source().message(GitMessage::SelectGitWorktree(worktree))
+        }
+    })
+    .format_labels(|option| match option {
+        CheckoutOption::Branch(branch) => branch.clone(),
+        CheckoutOption::Worktree(worktree) => {
+            format!("{} · {}", i18n.__("工作树"), label(worktree))
+        }
+    })
+    .trigger_label(trigger)
+    .disabled(state.busy() || state.repo_loading)
+    .height(28.0)
+    .width(width)
+    .menu_min_width(250.0)
+    .into()
 }
 
 fn file_manager(app: &App) -> Element<'_, Message> {
@@ -256,29 +277,39 @@ fn file_manager(app: &App) -> Element<'_, Message> {
         file_tree_menu_anchor: files.menu_anchor,
         can_paste: false,
     };
-    let filtered = page::filtered_workbench_changes(&git_input(app));
-    let changes = filtered.as_deref().unwrap_or(input.git_changed_files);
-    desktop_file_tree::view_file_manager_with_changes(input, changes).map(
-        move |event| match event {
-            desktop_file_tree::Message::Project(event) => {
-                state.file_message(files::Event::Tree(event))
-            }
-            desktop_file_tree::Message::None => Message::None,
-        },
-    )
+    desktop_file_tree::view_file_manager(input).map(move |event| match event {
+        desktop_file_tree::Message::Project(event) => state.file_message(files::Event::Tree(event)),
+        desktop_file_tree::Message::None => Message::None,
+    })
 }
 
 fn file_preview<'a>(i18n: I18n, state: &'a Workbench) -> Element<'a, Message> {
-    let Some(file) = &state.files.preview else {
+    let Some(file) = state.files.active_preview() else {
         return centered(i18n.__("未选择文件"));
     };
+    let tabs = row(state.files.previews.iter().map(|tab| {
+        let label =
+            tab.path().and_then(|path| path.rsplit('/').next()).unwrap_or(&tab.title);
+        header_tabs::preview_tab(
+            label,
+            tab.id == file.id,
+            state.file_message(files::Event::SelectPreview(tab.id)),
+            state.file_message(files::Event::ClosePreview(tab.id)),
+        )
+    }))
+    .spacing(4)
+    .height(28);
+    let tabs = scrollable(tabs)
+        .direction(Direction::Horizontal(Scrollbar::new().width(4).scroller_width(4)))
+        .width(Length::Fill)
+        .height(header_tabs::header_tabs_height(true));
     let title = row![
         text(file.title.as_str()).size(13).width(Length::Fill).wrapping(Wrapping::Glyph),
         file.location.map(|(line, column)| text(format!("{line}:{column}"))
             .size(11)
             .style(settings_muted_text_style)),
         file.truncated.then(|| text(i18n.__("已截断")).size(11).style(settings_muted_text_style)),
-        (state.local() && file.path.is_some() && matches!(&file.content, Some(Ok(_)))).then(|| {
+        (state.local() && file.path().is_some() && matches!(&file.content, Some(Ok(_)))).then(|| {
             action(
                 Icon::Pencil,
                 i18n.__("在编辑器中打开"),
@@ -296,11 +327,8 @@ fn file_preview<'a>(i18n: I18n, state: &'a Workbench) -> Element<'a, Message> {
         Some(Err(error)) => centered(error),
         None => centered(i18n.__("加载中")),
     };
-    panel(
-        column![title, keyed_column([(state.files.preview_request, body)]).height(Length::Fill)]
-            .spacing(8),
-        9,
-    )
+    // 普通 Column 会检查子控件类型，避免加载提示与滚动区共用状态。
+    panel(column![tabs, title, body].spacing(8), 9)
 }
 
 fn git_input(app: &App) -> page::ViewContext<'_> {
@@ -393,6 +421,7 @@ fn centered(label: &str) -> Element<'_, Message> {
 
 fn vertical<'a>(content: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
     scrollable(container(content).width(Length::Fill).padding(iced::Padding::ZERO.right(7)))
+        .id(files::PREVIEW_SCROLL_ID)
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .width(Length::Fill)
         .height(Length::Fill)
@@ -427,3 +456,7 @@ fn selected_style(theme: &Theme, status: button::Status, selected: bool) -> butt
     }
     style
 }
+
+#[cfg(test)]
+#[path = "view_tests.rs"]
+mod tests;

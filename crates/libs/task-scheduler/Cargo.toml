@@ -33,6 +33,7 @@ postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
 tracing = "0.1"
 session-port = { path = "../session-port" }
 tool-context = { path = "../tool-context" }
+url = "2"
 task-worktree-pool = { path = "../task-worktree-pool" }
 tokio = { version = "1", features = ["rt", "time", "macros"] }
 tokio-util = "0.7"

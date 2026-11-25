@@ -13,6 +13,8 @@ pub mod content_menu;
 pub enum Effect {
     #[cfg(not(target_arch = "wasm32"))]
     Focus,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenPath { path: String, directory: Option<std::path::PathBuf> },
     SaveConfig(serde_json::Value),
     Delay(std::time::Duration, TerminalMessage),
     Error(String),
@@ -131,7 +133,7 @@ pub fn update(
         | TerminalMessage::CloseSplitMenu
         | TerminalMessage::Split(..)
         | TerminalMessage::ResizePane(..)
-        | TerminalMessage::DockPane(..)
+        | TerminalMessage::DockTab(..)
         | TerminalMessage::TogglePaneMaximized(..) => panes::update(terminal, theme, project_path, focused, effects, message),
         TerminalMessage::Event(_) | TerminalMessage::DragStarted => event::update(terminal, cursor_y, focused, effects, message),
         #[cfg(not(target_arch = "wasm32"))]
@@ -140,6 +142,7 @@ pub fn update(
         TerminalMessage::ContentMenuOpen(..)
         | TerminalMessage::ContentMenuClose
         | TerminalMessage::ContentMenuAction(..)
+        | TerminalMessage::ClipboardShortcut(..)
         | TerminalMessage::PasteResolved(..) => content_menu::update(terminal, theme, project_path, locale, focused, effects, message),
     }
 

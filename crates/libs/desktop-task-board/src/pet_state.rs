@@ -1,5 +1,5 @@
-pub const TASK_PET_CARD_HEIGHT: f32 = 72.0;
-pub const TASK_PET_CARD_REPLY_HEIGHT: f32 = 120.0;
+pub const TASK_PET_CARD_HEIGHT: f32 = 62.0;
+pub const TASK_PET_CARD_REPLY_HEIGHT: f32 = 110.0;
 pub const TASK_PET_CARD_SPACING: f32 = 8.0;
 pub const TASK_PET_LIST_HEIGHT: f32 =
     TASK_PET_CARD_HEIGHT * 3.0 + TASK_PET_CARD_SPACING * 2.0;
@@ -81,16 +81,13 @@ pub fn apply_task_pet_preferences(
 
 /// Owned domain state held by the desktop host.
 pub struct State {
+    pub controls: crate::pet_view::PetControls,
     /// 小宠物任务列表滚动容器 ID
     pub task_pet_scroll_id: iced::widget::Id,
     /// 小宠物面板位置
     pub task_pet_position: iced::Point,
     /// 小宠物面板是否收起
     pub task_pet_collapsed: bool,
-    /// 小宠物展开动画进度（0.0 收起，1.0 展开）
-    pub task_pet_expand_progress: f32,
-    /// 小宠物展开动画目标
-    pub task_pet_expand_target: Option<f32>,
     /// 小宠物面板是否正在拖拽
     pub task_pet_dragging: bool,
     /// 小宠物拖拽锚点
@@ -121,11 +118,10 @@ pub struct State {
 impl State {
     pub fn new() -> Self {
         Self {
+            controls: crate::pet_view::PetControls::default(),
             task_pet_scroll_id: iced::widget::Id::new("task_pet"),
             task_pet_position: iced::Point::new(620.0, 96.0),
             task_pet_collapsed: true,
-            task_pet_expand_progress: 0.0,
-            task_pet_expand_target: None,
             task_pet_dragging: false,
             task_pet_drag_anchor: None,
             task_pet_drag_start: iced::Point::ORIGIN,
@@ -150,6 +146,29 @@ impl Default for State {
 }
 
 impl State {
+    pub fn window_size(&self, feedback: bool, now: iced::time::Instant) -> iced::Size {
+        let avatar = if self.task_pet_avatar_kind == TaskPetAvatarKind::None {
+            0.0
+        } else {
+            crate::pet_interaction::task_pet_avatar_bounds(
+                &self.task_pet_avatar_kind, &self.task_pet_scale, &self.task_pet_size_draft,
+            )
+        };
+        self.controls.window_size(avatar, self.reminder_height(), feedback, now)
+    }
+
+    pub fn reminder_height(&self) -> f32 {
+        if self.controls.reminders_open {
+            crate::task_pet::reminder_height(
+                &self.task_pet_items,
+                self.task_pet_reply_request_id,
+                !self.task_pet_collapsed,
+            )
+        } else {
+            0.0
+        }
+    }
+
     pub fn interaction<'a>(
         &'a mut self,
         robot_hovered: &'a mut bool,
@@ -164,8 +183,6 @@ impl State {
             task_pet_drag_direction: &mut self.task_pet_drag_direction,
             task_pet_drag_start: &mut self.task_pet_drag_start,
             task_pet_dragging: &mut self.task_pet_dragging,
-            task_pet_expand_progress: &mut self.task_pet_expand_progress,
-            task_pet_expand_target: &mut self.task_pet_expand_target,
             task_pet_hovered_request_id: &mut self.task_pet_hovered_request_id,
             task_pet_items: &mut self.task_pet_items,
             task_pet_position: &mut self.task_pet_position,

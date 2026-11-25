@@ -61,3 +61,4 @@ mod host_module_39_tests;
 pub mod work_views;
 #[cfg(test)]
 mod work_views_tests;
+pub mod detail;

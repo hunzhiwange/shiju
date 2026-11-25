@@ -100,7 +100,7 @@ impl Tool for MediaTool {
     fn description(&self) -> &str {
         match self {
             Self::Submit => {
-                "Generate or edit images, generate videos or speech, transcribe audio, or analyze images and videos. Specify a model or deployment only when the user requests a particular model for the media job. Otherwise the gateway prefers the manually selected conversation model when it supports the operation, then a compatible configured media model. Use media_status with the job ID to check progress or retrieve the result. Supply only asset IDs returned by media jobs in this session."
+                "Generate or edit images, generate videos or speech, transcribe audio, or analyze images and videos. Specify a model or deployment only when the user requests a particular model for the media job. Otherwise the gateway uses the configured default for the operation, then prefers the manually selected conversation model when it supports the operation, then a compatible media model. Use media_status with the job ID to check progress or retrieve the result. Supply only asset IDs returned by media jobs in this session."
             }
             Self::Status => {
                 "Read a session media job by ID. Returns its state, result text, and session asset references when available."

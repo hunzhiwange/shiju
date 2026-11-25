@@ -20,6 +20,8 @@ use crate::store::logs::AppendAgentTaskLogRequest;
 use crate::store::tasks::{AgentTaskBoardUpdate, NewAgentTask, StoredAgentTask, validate_task_label_ids};
 use crate::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 
+pub mod detail;
+
 const DEFAULT_IMPORT_MODEL: &str = "auto";
 
 /// 将原生任务映射为调度任务并持久化，必要时生成不冲突的新标识。
@@ -799,6 +801,7 @@ pub(super) fn apply_metadata_patch(
         };
         for (key, value) in merge {
             validate_task_plan_metadata_key(&key)?;
+            detail::validate_metadata_key(&key)?;
             if key == TASK_LABEL_IDS_METADATA_KEY {
                 bail!("use label_ids to update task labels");
             }
@@ -810,6 +813,7 @@ pub(super) fn apply_metadata_patch(
     }
     for key in patch.metadata_remove_keys {
         validate_task_plan_metadata_key(&key)?;
+        detail::validate_metadata_key(&key)?;
         if key == TASK_LABEL_IDS_METADATA_KEY {
             bail!("use label_ids to clear task labels");
         }
@@ -830,6 +834,8 @@ pub(super) fn new_task_from_legacy_import(
 ) -> Result<NewAgentTask> {
     let task_id = TaskId::new(legacy.task_id.as_ref().to_string())?;
     let mut metadata = object_metadata(legacy.metadata)?;
+    metadata.remove(detail::COLLABORATION_KEY);
+    metadata.remove(detail::CREATOR_KEY);
     metadata.insert("priority".to_string(), json!(legacy.priority));
     metadata.insert("order_no".to_string(), json!(legacy.order_no));
     metadata.insert(

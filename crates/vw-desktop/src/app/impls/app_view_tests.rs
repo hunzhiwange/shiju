@@ -266,7 +266,6 @@ fn mini_companion_routes_none_avatar_without_changing_main_window() {
     app.pet_state.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
     for collapsed in [true, false] {
         app.pet_state.task_pet_collapsed = collapsed;
-        app.pet_state.task_pet_expand_progress = if collapsed { 0.0 } else { 1.0 };
         let _ = app.view_window(mini);
         let _ = app.view_window(main);
         assert_eq!(app.main_window_id, Some(main));

@@ -146,6 +146,9 @@ pub struct UpdateProjectRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GetProjectResponse {
     pub project: ProjectDto,
+    /// Persisted icon overrides. Older gateways may omit this field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<IconUpdateDto>,
     /// Persisted worktree initialization command; absent means no command.
     #[serde(default)]
     pub commands: Option<CommandsUpdateDto>,

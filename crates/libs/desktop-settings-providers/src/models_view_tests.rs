@@ -65,6 +65,28 @@ fn model_filters_distinguish_visual_input_from_media_output() {
     }
 }
 
+#[test]
+fn utility_filter_includes_embeddings_and_models_with_tool_calling() {
+    use crate::state::ModelCapabilityFilter::{Chat, Utility};
+    let mut model = provider_summary().models.remove(0);
+    for (id, api_id, toolcall, utility, chat) in [
+        ("qwen3.7-text-embedding-flash", None, true, true, false),
+        ("qwen3.7-text-embedding", None, false, true, false),
+        ("my-vector-model", Some("Qwen/Qwen3-Embedding-4B"), false, true, false),
+        ("gpt-5", None, true, true, true),
+        ("embedded-chat", None, false, false, true),
+    ] {
+        model.id = id.to_owned();
+        model.toolcall = toolcall;
+        model.detail = json!({
+            "api": {"id": api_id},
+            "capabilities": {"input": {"text": true}, "output": {"text": true}},
+        });
+        assert_eq!(super::matches_capability(&model, Utility), utility, "{id}");
+        assert_eq!(super::matches_capability(&model, Chat), chat, "{id}");
+    }
+}
+
 fn provider_anthropic_summary() -> ProviderModelsSummary {
     ProviderModelsSummary {
         id: "anthropic".to_string(),

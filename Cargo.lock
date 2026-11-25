@@ -7683,6 +7683,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
+ "vw-api-media",
 ]
 
 [[package]]
@@ -12425,6 +12426,7 @@ dependencies = [
 name = "iced_winit"
 version = "0.14.0"
 dependencies = [
+ "arboard",
  "iced_debug",
  "iced_program",
  "js-sys",
@@ -19687,6 +19689,7 @@ dependencies = [
  "tokio-util",
  "tool-context",
  "tracing",
+ "url",
  "vw-api-acp-model",
  "vw-api-agent-scheduler",
  "vw-api-chat",

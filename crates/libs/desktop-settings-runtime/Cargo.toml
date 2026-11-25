@@ -18,6 +18,7 @@ config-tools = { path = "../config-tools" }
 config-routing = { path = "../config-routing" }
 gateway-desktop-settings = { path = "../gateway-desktop-settings" }
 config-observability = { path = "../config-observability" }
+vw-api-media = { path = "../api-media" }
 
 config-runtime = { path = "../config-runtime" }
 config-reliability = { path = "../config-reliability" }

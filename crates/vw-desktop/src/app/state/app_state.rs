@@ -94,7 +94,11 @@ pub struct App {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) app_terminal: crate::app::cli_workbench::Workbench,
     #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) terminal_ssh: crate::app::cli_workbench::Workbench,
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) git_workbench: crate::app::git_workbench::Workbench,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) workbench_projects: crate::app::workbench_projects::State,
     /// 主动释放后尚未收到 Closed 的窗口；迟到事件不能终止后台运行。
     pub(crate) released_main_windows: Vec<iced::window::Id>,
     /// 独立小宠物窗口 ID
@@ -259,6 +263,7 @@ pub struct App {
     pub(crate) shiju_apps: crate::app::shiju_apps::ShijuAppsState,
     pub(in crate::app) task_property_settings: crate::app::components::system_settings::task_settings::properties::State,
     pub(in crate::app) task_label_settings: crate::app::components::system_settings::task_settings::labels::State,
+    pub(in crate::app) task_settings_project: Option<String>,
     /// 工作流管理面板状态
     pub workflow_manager: crate::app::views::workflow_manager::WorkflowManagerState,
     pub task_board: desktop_task_board::state::State,

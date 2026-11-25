@@ -206,7 +206,11 @@ impl App {
             #[cfg(not(target_arch = "wasm32"))]
             app_terminal: crate::app::cli_workbench::Workbench::app_terminal(),
             #[cfg(not(target_arch = "wasm32"))]
+            terminal_ssh: crate::app::cli_workbench::Workbench::terminal_ssh(),
+            #[cfg(not(target_arch = "wasm32"))]
             git_workbench: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            workbench_projects: crate::app::workbench_projects::State::load(),
             released_main_windows: Vec::new(),
             task_pet_window_id: None,
             shutdown_requested: false,
@@ -372,6 +376,7 @@ impl App {
             },
             task_label_settings: Default::default(),
             task_property_settings: Default::default(),
+            task_settings_project: None,
             workflow_manager: crate::app::views::workflow_manager::WorkflowManagerState::default(),
 
             task_board: desktop_task_board::state::State::new(&cfg, cfg_acp_agent.clone(), init_ms as u64),

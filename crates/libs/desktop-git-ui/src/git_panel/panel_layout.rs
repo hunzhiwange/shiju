@@ -43,7 +43,7 @@ pub fn estimate_git_file_card_height(app: &FileListInput<'_>, meta: &DiffFileMet
         height += GIT_FILE_FOCUSED_EXTRA_HEIGHT;
     }
 
-    if !app.expanded_files_set.contains(&meta.path) {
+    if (meta.insertions == 0 && meta.deletions == 0) || !app.expanded_files_set.contains(&meta.path) {
         return height;
     }
 

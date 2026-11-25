@@ -15,6 +15,7 @@ pub struct UpdateInput<'a> {
     pub expanded_hunks: &'a mut Vec<(String, usize)>,
     pub git_commit_description: &'a mut String,
     pub git_commit_description_editor: &'a mut text_editor::Content,
+    pub show_git_commit_description: &'a mut bool,
     pub git_commit_in_progress: &'a mut bool,
     pub git_commit_message: &'a mut String,
     pub git_commit_scope: &'a mut String,
@@ -75,6 +76,9 @@ pub fn update(app: &mut UpdateInput<'_>, message: GitMessage) -> Vec<Effect> {
                 &mut *app.git_commit_description,
                 action,
             );
+        }
+        GitMessage::ToggleCommitDescription => {
+            *app.show_git_commit_description = !*app.show_git_commit_description;
         }
         GitMessage::CommitHelpOpen => {
             commit_help_open(&mut *app.show_git_commit_help_modal);
@@ -309,6 +313,7 @@ pub fn update(app: &mut UpdateInput<'_>, message: GitMessage) -> Vec<Effect> {
                         app.git_commit_description,
                         app.git_commit_description_editor,
                     );
+                    *app.show_git_commit_description = false;
                     effects.push(Effect::RefreshBranches);
                     effects.push(Effect::Notify { message: "提交完成", error: None });
                     {

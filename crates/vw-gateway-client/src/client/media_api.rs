@@ -41,6 +41,16 @@ impl fmt::Display for MediaApiError {
 impl std::error::Error for MediaApiError {}
 
 impl GatewayClient {
+    pub async fn global_media_models(&self) -> Result<MediaModels, MediaApiError> {
+        let response = self
+            .media_request(Method::GET, MEDIA_MODELS_PATH)
+            .query(&[("global", true)])
+            .send()
+            .await
+            .map_err(|_| MediaApiError::Transport)?;
+        media_json(response).await
+    }
+
     pub async fn media_models(
         &self,
         session: &MediaSessionQuery,

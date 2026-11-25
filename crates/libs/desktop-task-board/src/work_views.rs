@@ -149,7 +149,16 @@ impl WorkViewFilter {
             && (self.agents.is_empty() || self.agents.iter().any(|agent| agent.matches(task)))
             && (self.label_ids.is_empty()
                 || self.label_ids.iter().any(|id| task.label_ids.contains(id)))
-            && self.properties.iter().all(|(id, value)| task.properties.get(id) == Some(value))
+            && self.properties.iter().all(|(id, expected)| {
+                use vw_api_agent_scheduler::AgentSchedulerTaskPropertyValue::{MultiMember, MultiSelect};
+                match (task.properties.get(id), expected) {
+                    (Some(MultiSelect(actual)), MultiSelect(expected))
+                    | (Some(MultiMember(actual)), MultiMember(expected)) => {
+                        expected.iter().any(|value| actual.contains(value))
+                    }
+                    (actual, expected) => actual == Some(expected),
+                }
+            })
     }
 }
 
@@ -314,6 +323,7 @@ pub fn positive_batch(value: &str) -> Option<u32> {
 pub struct ChildTaskDraft {
     pub project: String,
     pub parent_id: String,
+    pub title: String,
     pub prompt: iced::widget::text_editor::Content,
     pub batch: String,
     pub pending: bool,
@@ -325,6 +335,7 @@ impl ChildTaskDraft {
     pub fn new(project: String, parent: &Task, status: desktop_task_model::TaskStatus) -> Self {
         let mut task = Task::new(parent.priority);
         task.status = status;
+        task.assignee.clone_from(&parent.assignee);
         task.model.clone_from(&parent.model);
         task.agent.clone_from(&parent.agent);
         task.acp_agent.clone_from(&parent.acp_agent);
@@ -333,6 +344,7 @@ impl ChildTaskDraft {
         Self {
             project,
             parent_id: parent.id.clone(),
+            title: String::new(),
             prompt: iced::widget::text_editor::Content::new(),
             batch: "1".into(),
             pending: false,
@@ -345,12 +357,11 @@ impl ChildTaskDraft {
         let batch = positive_batch(&self.batch)?;
         let prompt = self.prompt.text();
         let prompt = prompt.trim();
-        if prompt.is_empty() {
-            return None;
-        }
+        let title = self.title.trim();
+        let title = if title.is_empty() { prompt.lines().next()? } else { title };
         let mut task = self.task.clone();
-        task.prompt = prompt.to_owned();
-        task.description = prompt.lines().next()?.chars().take(120).collect();
+        task.prompt = if prompt.is_empty() { title } else { prompt }.to_owned();
+        task.description = title.chars().take(120).collect();
         Some((task, Placement::Child { parent_task_id: self.parent_id.clone(), batch }))
     }
 }

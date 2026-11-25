@@ -233,6 +233,8 @@ impl App {
             main_view
         };
 
+        #[cfg(not(target_arch = "wasm32"))]
+        let root_content = crate::app::cli_workbench::terminal_overlay(self, root_content);
         let root_content = views::task_board::with_create_modal(self, root_content);
 
         // 如果显示了"关于"模态框，则在根内容之上叠加
@@ -279,6 +281,8 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         let root_content = crate::app::digital_employees::chat_picker::with_modal(self, root_content);
         let root_content = app_view_modals::with_recent_project_remove_confirm(self, root_content);
+        #[cfg(not(target_arch = "wasm32"))]
+        let root_content = crate::app::workbench_projects::with_remove_confirmation(self, root_content);
         let root_content =
             components::system_settings_skills::with_plugin_install(self, root_content);
         // 确认对话框（问题模态框）

@@ -135,6 +135,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::none())
         }
         ProjectMessage::RecentProjectsLoaded(result) => {
+            use crate::app::components::system_settings::task_settings;
+            let previous = task_settings::project_path(app).map(str::to_owned);
             match result {
                 Ok(meta) => {
                     desktop_workspace::projects::replace_recent_project_views(&mut app.workspace_state.recent_projects, &mut app.workspace_state.recent_projects_edits, &mut app.workspace_state.recent_projects_meta, meta);
@@ -147,7 +149,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     );
                 }
             }
-            Some(iced::Task::none())
+            Some(if task_settings::project_path(app) != previous.as_deref() {
+                task_settings::active_tab(app).map_or_else(iced::Task::none, |tab| task_settings::load(app, tab))
+            } else {
+                iced::Task::none()
+            })
         }
 
         ProjectMessage::AttachmentFilesPick => {

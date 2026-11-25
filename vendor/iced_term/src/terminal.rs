@@ -216,6 +216,17 @@ impl Terminal {
                 }
                 return action;
             },
+            Command::ProxyToBackend(
+                cmd @ (backend::Command::SelectUpdate(..)
+                | backend::Command::SelectScroll(..)
+                | backend::Command::WheelScroll { .. }
+                | backend::Command::ScrollTo(..)),
+            ) => {
+                let action = self.backend.handle(cmd);
+                self.backend.sync();
+                self.redraw();
+                return action;
+            },
             Command::ProxyToBackend(cmd) => {
                 action = self.backend.handle(cmd);
             },

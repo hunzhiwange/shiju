@@ -360,6 +360,12 @@ pub async fn project_change_records_v1(
     Ok(Json(ListProjectChangeRecordsResponse { items }))
 }
 
+fn project_icon_settings(info: &project::Info) -> vw_api_project::IconUpdateDto {
+    info.icon.as_ref().map_or_else(vw_api_project::IconUpdateDto::default, |icon| {
+        vw_api_project::IconUpdateDto { override_icon: icon.override_icon.clone(), color: icon.color.clone() }
+    })
+}
+
 pub async fn project_get_v1(
     Extension(host): Extension<ProjectHost>,
     Extension(tenant): Extension<TenantScope>,
@@ -367,6 +373,7 @@ pub async fn project_get_v1(
 ) -> Result<Json<GetProjectResponse>, ApiError> {
     let scope = project_scope(tenant, project_id)?;
     let info = load_project(&scope).await?;
+    let icon = Some(project_icon_settings(&info));
     let commands = info
         .commands
         .as_ref()
@@ -374,7 +381,7 @@ pub async fn project_get_v1(
     let project = agent_database::run_isolated(move || map_project(&info, host))
         .await
         .map_err(|error| ApiError::internal(error.to_string()))?;
-    Ok(Json(GetProjectResponse { project, commands }))
+    Ok(Json(GetProjectResponse { project, icon, commands }))
 }
 
 pub async fn project_update_v1(
@@ -399,6 +406,7 @@ pub async fn project_update_v1(
     )
     .await
     .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    let icon = Some(project_icon_settings(&updated));
     let commands = updated
         .commands
         .as_ref()
@@ -406,7 +414,7 @@ pub async fn project_update_v1(
     let project = agent_database::run_isolated(move || map_project(&updated, host))
         .await
         .map_err(|error| ApiError::internal(error.to_string()))?;
-    Ok(Json(GetProjectResponse { project, commands }))
+    Ok(Json(GetProjectResponse { project, icon, commands }))
 }
 
 pub async fn project_worktrees_v1(

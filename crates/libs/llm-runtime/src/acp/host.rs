@@ -1,5 +1,5 @@
 //! Trusted host IO used at the original request sequence points.
-use std::{future::Future, pin::Pin, path::{Path, PathBuf}, sync::Arc};
+use std::{collections::HashMap, future::Future, pin::Pin, path::{Path, PathBuf}, sync::Arc};
 use agent_config::schema::{Config, AcpAgentConfig};
 use model_types as provider;
 use crate::Error;
@@ -51,9 +51,12 @@ pub trait Host: Send + Sync + 'static {
     fn model_source(options: &serde_json::Value) -> Result<vw_api_acp_model::acp_model_source::AcpModelSource, String>;
     fn config() -> HostFuture<'static, anyhow::Result<Config>>;
     fn project_id() -> Option<String>;
-    /// Return the bounded workbench connection for this authenticated turn, if any.
-    fn workbench_child_context(_session: &str, _cwd: &Path) -> Option<(&'static str, String)> {
-        None
+    /// Install the bounded workbench connection for this authenticated turn, if any.
+    fn apply_workbench_child_environment(
+        _session: &str,
+        _cwd: &Path,
+        _env: &mut HashMap<String, String>,
+    ) {
     }
     /// Return launch data only for this turn's authenticated employee binding.
     /// The gateway carries it across the stream worker boundary outside JSON options.

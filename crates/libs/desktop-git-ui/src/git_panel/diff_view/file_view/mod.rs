@@ -250,7 +250,9 @@ pub fn view_file(
     is_modified: bool,
 ) -> Element<'static, Message> {
     let (old_content, new_content) = contents.unwrap_or(("", ""));
-    let line_selection_state = if render_ctx.read_only {
+    let show_text_diff = render_ctx.read_only || insertions > 0 || deletions > 0;
+    let file_staged = render_ctx.is_file_staged(file);
+    let line_selection_state = if render_ctx.read_only || !show_text_diff || file_staged {
         FileLineSelectionState::None
     } else if contents.is_some() {
         let changed_line_sets = match status {
@@ -285,28 +287,6 @@ pub fn view_file(
             Message::OpenDiffFileMenu(file.to_string()),
         );
 
-        let (line_select_icon, line_select_tip, line_select_message) = match line_selection_state {
-            FileLineSelectionState::None => (
-                Some(Icon::Square),
-                desktop_i18n::I18n::new(app.desktop_locale).__("选中所有行").to_owned(),
-                Message::SelectAllFileLines(file.to_string()),
-            ),
-            FileLineSelectionState::Partial => (
-                Some(Icon::SquareHalf),
-                desktop_i18n::I18n::new(app.desktop_locale)
-                    .__("部分选中，点击选中所有行")
-                    .to_owned(),
-                Message::SelectAllFileLines(file.to_string()),
-            ),
-            FileLineSelectionState::All => (
-                Some(Icon::CheckSquare),
-                desktop_i18n::I18n::new(app.desktop_locale).__("取消所有行").to_owned(),
-                Message::ClearAllFileLines(file.to_string()),
-            ),
-        };
-        let line_select_btn =
-            small_plain_icon_button(line_select_icon, line_select_tip, line_select_message);
-
         let stat_badge = |value: String, positive: bool| {
             text(value).size(10).line_height(iced::widget::text::LineHeight::Relative(1.0)).style(
                 move |theme: &iced::Theme| {
@@ -317,12 +297,14 @@ pub fn view_file(
                 },
             )
         };
-        let stats = row![
-            stat_badge(format!("+{}", insertions), true),
-            stat_badge(format!("-{}", deletions), false)
-        ]
-        .spacing(3)
-        .align_y(iced::Alignment::Center);
+        let stats = show_text_diff.then(|| {
+            row![
+                stat_badge(format!("+{insertions}"), true),
+                stat_badge(format!("-{deletions}"), false),
+            ]
+            .spacing(3)
+            .align_y(iced::Alignment::Center)
+        });
 
         let status_dot =
             container(Space::new().width(Length::Fixed(6.0)).height(Length::Fixed(6.0)))
@@ -358,7 +340,7 @@ pub fn view_file(
             .width(Length::Fill)
             .padding([4, 6])
             .clip(true),
-            container(stats).padding([0, 4]).width(Length::Shrink)
+            stats.map(|stats| container(stats).padding([0, 4]))
         ]
         .spacing(10)
         .width(Length::FillPortion(1))
@@ -390,7 +372,7 @@ pub fn view_file(
         let expand_toggle = button(title_with_stats)
             .width(Length::FillPortion(1))
             .padding(0)
-            .on_press(Message::ToggleExpandFile(file.to_string()))
+            .on_press_maybe(show_text_diff.then(|| Message::ToggleExpandFile(file.to_owned())))
             .style(|_theme: &iced::Theme, _status| iced::widget::button::Style {
                 background: None,
                 border: Border::default(),
@@ -400,7 +382,34 @@ pub fn view_file(
 
         let mut content = row![];
         if !render_ctx.read_only {
-            content = content.push(container(line_select_btn).width(Length::Shrink));
+            let (icon, tip, action) = if show_text_diff && !file_staged {
+                match line_selection_state {
+                    FileLineSelectionState::None => (
+                        Icon::Square,
+                        "选中所有行",
+                        Message::SelectAllFileLines(file.to_owned()),
+                    ),
+                    FileLineSelectionState::Partial => (
+                        Icon::SquareHalf,
+                        "部分选中，点击选中所有行",
+                        Message::SelectAllFileLines(file.to_owned()),
+                    ),
+                    FileLineSelectionState::All => (
+                        Icon::CheckSquare,
+                        "取消所有行",
+                        Message::ClearAllFileLines(file.to_owned()),
+                    ),
+                }
+            } else {
+                let (icon, tip) = if file_staged {
+                    (Icon::CheckSquare, "取消选中整个文件")
+                } else {
+                    (Icon::Square, "选中整个文件")
+                };
+                (icon, tip, Message::ToggleStageFile(file.to_owned(), !file_staged))
+            };
+            let tip = desktop_i18n::I18n::new(app.desktop_locale).__(tip).to_owned();
+            content = content.push(small_plain_icon_button(Some(icon), tip, action));
         }
         let content = content
             .push(expand_toggle)
@@ -450,7 +459,7 @@ pub fn view_file(
         header.into()
     };
 
-    if expanded {
+    if expanded && show_text_diff {
         column![
             file_header,
             body::view_file_body(

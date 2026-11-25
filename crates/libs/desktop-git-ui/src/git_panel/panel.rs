@@ -34,6 +34,7 @@ pub struct ViewInput<'a> {
     pub git_custom_diff_title: &'a String,
     pub git_diff_contents_loading: &'a HashSet<String>,
     pub git_diff_file_metas: &'a Vec<DiffFileMeta>,
+    pub git_diff_file_metas_loading: bool,
     pub git_diff_scroll_id: &'a iced::widget::Id,
     pub git_filter_deleted: bool,
     pub git_filter_excluded: bool,
@@ -43,7 +44,6 @@ pub struct ViewInput<'a> {
     pub git_filter_query: &'a String,
     pub git_focused_file: &'a Option<String>,
     pub show_git_custom_diff_modal: bool,
-    pub show_git_diff_summary: bool,
     pub show_git_filter_options: bool,
     pub staged_files_selected: &'a Vec<String>,
     pub staged_hunks_selected: &'a Vec<(String, usize)>,
@@ -65,10 +65,9 @@ pub struct ViewSlots<'a, E> {
     pub header: Element<'a, ViewMessage<E>>,
     pub filter_options: Option<Element<'a, ViewMessage<E>>>,
     pub toolbar: Element<'a, ViewMessage<E>>,
-    pub left_panel: Option<Element<'a, ViewMessage<E>>>,
+    pub commit_panel: Option<Element<'a, ViewMessage<E>>>,
     pub custom_diff: Option<Element<'a, ViewMessage<E>>>,
     pub chat_diff: Option<Element<'a, ViewMessage<E>>>,
-    pub focus_only: bool,
 }
 pub struct FileProjection {
     pub diff_files: Vec<DiffFileMeta>,
@@ -268,43 +267,26 @@ pub fn view<'a, E: Clone + 'static>(app: &ViewInput<'a>, projection: FileProject
     // 渲染聊天文本 diff 视图（如果有）
     if let Some(elem) = slots.chat_diff.take() { list = list.push(elem); }
 
-    let focus_only = slots.focus_only;
-    let focused = app.git_focused_file.as_deref();
-    let renderable_diff_files: Vec<&DiffFileMeta> = diff_files.iter()
-        .filter(|meta| !focus_only || focused == Some(meta.path.as_str()))
-        .filter(|meta| meta.insertions > 0 || meta.deletions > 0)
-        .collect();
-
-    if renderable_diff_files.is_empty() && !app.has_chat_diff {
+    if diff_files.is_empty() && !app.has_chat_diff {
         let i18n = desktop_i18n::I18n::new(app.desktop_locale);
-        let label = if !focus_only || diff_files.is_empty() {
-            i18n.__("无变更")
-        } else if focused.is_some_and(|path| diff_files.iter().any(|meta| meta.path == path)) {
-            i18n.__("没有可显示的文本差异")
-        } else {
-            i18n.__("选择文件查看差异")
-        };
-        list = list.push(text(label));
+        let label = if app.git_diff_file_metas_loading { "加载中" } else { "无变更" };
+        list = list.push(text(i18n.__(label)));
     }
 
-    if !renderable_diff_files.is_empty() {
-        let use_virtualization = renderable_diff_files.len() >= GIT_FILE_VIRTUALIZATION_MIN_ITEMS
+    if !diff_files.is_empty() {
+        let use_virtualization = diff_files.len() >= GIT_FILE_VIRTUALIZATION_MIN_ITEMS
             && !app.show_git_custom_diff_modal
             && !app.has_chat_diff;
         let file_heights = if use_virtualization {
-            {
-                renderable_diff_files
-                    .iter()
-                    .map(|meta| estimate_git_file_card_height(&app.file_list(), meta))
-                    .collect::<Vec<_>>()
-            }
+            let input = app.file_list();
+            diff_files.iter().map(|meta| estimate_git_file_card_height(&input, meta)).collect()
         } else {
-            Default::default()
+            Vec::new()
         };
         let (start_idx, end_idx, top_spacer_h, bottom_spacer_h) = if use_virtualization {
             compute_git_file_virtual_window(&app.file_list(), &file_heights)
         } else {
-            (0, renderable_diff_files.len(), 0.0, 0.0)
+            (0, diff_files.len(), 0.0, 0.0)
         };
 
         let mut file_cards = column![].spacing(GIT_FILE_CARD_GAP).width(Length::Fill);
@@ -312,9 +294,7 @@ pub fn view<'a, E: Clone + 'static>(app: &ViewInput<'a>, projection: FileProject
             file_cards = file_cards.push(Space::new().height(Length::Fixed(top_spacer_h)));
         }
 
-        for m in
-            renderable_diff_files.iter().skip(start_idx).take(end_idx.saturating_sub(start_idx))
-        {
+        for m in &diff_files[start_idx..end_idx] {
             let file = m.path.clone();
             let status = m.status;
             let insertions = m.insertions;
@@ -376,21 +356,8 @@ pub fn view<'a, E: Clone + 'static>(app: &ViewInput<'a>, projection: FileProject
         list = list.push(file_cards);
     }
 
-    // 组合头部和主列表
-    let mut col = column![header, slots.toolbar].spacing(10);
-
-    // 如果显示 diff 汇总，添加左侧面板
-    if app.show_git_diff_summary {
-        col = col.push(slots.left_panel.take().expect("visible commit panel"));
-    }
-
-    // 添加可滚动的主内容区域
-    let diff = scrollable(container(list).width(Length::Fill).padding(iced::Padding {
-            top: 0.0,
-            right: 8.0,
-            bottom: 0.0,
-            left: 8.0,
-        }))
+    // 提交表单位于滚动区域下方，浏览变更时仍可操作。
+    let diff = scrollable(container(list).width(Length::Fill).padding([0, 7]))
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .id(app.git_diff_scroll_id.clone())
         .on_scroll(|viewport| {
@@ -401,7 +368,7 @@ pub fn view<'a, E: Clone + 'static>(app: &ViewInput<'a>, projection: FileProject
         })
         .height(Length::Fill)
         .width(Length::Fill);
-    col = col.push(diff);
+    let col = column![header, slots.toolbar, diff, slots.commit_panel].spacing(10);
 
     // 包装为 MouseArea 以处理拖拽选择结束事件
     let base_content: Element<'_, ViewMessage<E>> = iced::widget::MouseArea::new(col.height(Length::Fill))

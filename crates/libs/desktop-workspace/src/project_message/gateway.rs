@@ -316,12 +316,20 @@ pub async fn gateway_delete_path(client: &vw_gateway_client::GatewayClient, tena
 }
 
 pub async fn load_recent_projects(client: &vw_gateway_client::GatewayClient, tenant_scope: &vw_api_project::TenantScopeDto) -> Result<Vec<ProjectDto>, String> {
-    let mut projects = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_list(
-            tenant_scope,
-            &ListProjectsRequest { cursor: None, limit: Some(100), query: None, status: None },
-        )
-        .await?
-        .items;
+    let client = gateway_project::GatewayProjectClient::new(client.transport().clone());
+    let mut query = ListProjectsRequest { limit: Some(100), ..Default::default() };
+    let mut projects = Vec::new();
+    let mut cursors = std::collections::HashSet::new();
+    let mut seen = std::collections::HashSet::new();
+    loop {
+        let page = client.project_list(tenant_scope, &query).await?;
+        projects.extend(page.items.into_iter().filter(|project| seen.insert(project.id.clone())));
+        let Some(cursor) = page.next_cursor.filter(|cursor| !cursor.is_empty()) else { break };
+        if !cursors.insert(cursor.clone()) {
+            return Err("项目分页游标重复，请刷新。".into());
+        }
+        query.cursor = Some(cursor);
+    }
     projects.sort_by(|left, right| {
         right
             .updated_at_ms

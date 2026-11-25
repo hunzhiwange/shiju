@@ -75,7 +75,7 @@ pub fn compose_query_with_session_context(
     if trimmed.is_empty() { context } else { format!("{trimmed}\n\n{context}") }
 }
 
-fn is_supported_image_attachment(path: &str) -> bool {
+pub fn is_supported_image_attachment(path: &str) -> bool {
     Path::new(path)
         .extension()
         .and_then(|ext| ext.to_str())

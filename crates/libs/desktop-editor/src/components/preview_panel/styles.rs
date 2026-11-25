@@ -77,15 +77,15 @@ pub fn menu_button_style(
 /// - `icon`: 图标枚举值，指定要渲染的图标类型
 ///
 /// # 返回值
-/// 返回配置好尺寸的 `Svg<'static>` 组件
-pub fn small_icon_svg(icon: Icon) -> Svg<'static> {
+/// 返回配置好尺寸的 `Svg` 组件
+pub fn small_icon_svg<'a>(icon: Icon) -> Svg<'a> {
     Svg::new(assets::get_icon(icon))
         .width(Length::Fixed(14.0))
         .height(Length::Fixed(14.0))
         .style(|theme: &iced::Theme, _status| svg::Style { color: Some(theme.palette().text) })
 }
 
-pub fn file_tab_icon_svg(icon: Icon) -> Svg<'static> {
+pub fn file_tab_icon_svg<'a>(icon: Icon) -> Svg<'a> {
     Svg::new(assets::get_icon(icon)).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)).style(
         |theme: &iced::Theme, _status| {
             let palette = theme.extended_palette();

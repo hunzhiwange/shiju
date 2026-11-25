@@ -18,6 +18,8 @@ pub(crate) enum Event {
     FolderReady(u64, String, Result<Vec<FileNodeDto>, String>),
     RemoteChangesReady(Result<Vec<String>, String>),
     Opened(u64, Result<(String, bool), String>),
+    SelectPreview(u64),
+    ClosePreview(u64),
     OpenInEditor,
     RefreshTick,
     SearchReady(Box<desktop_workspace::project_message::tasks::SearchCompletion>),
@@ -33,7 +35,8 @@ pub(super) struct State {
     pub(super) menu_path: Option<String>,
     pub(super) menu_source: Option<String>,
     pub(super) menu_anchor: Option<Point>,
-    pub(super) preview: Option<Preview>,
+    pub(super) previews: Vec<Preview>,
+    active_preview_id: Option<u64>,
     pub(super) refresh_frame: usize,
     pub(super) changes_refreshing: bool,
     pub(super) files_refreshing: bool,
@@ -41,18 +44,88 @@ pub(super) struct State {
     loaded: HashSet<String>,
     loading: HashSet<String>,
     listing_generation: u64,
-    pub(super) preview_request: u64,
+    preview_request: u64,
 }
 
 pub(super) struct Preview {
+    pub(super) id: u64,
     pub(super) title: String,
-    pub(super) path: Option<String>,
     pub(super) content: Option<Result<String, String>>,
     pub(super) truncated: bool,
     pub(super) location: Option<(usize, usize)>,
+    source: PreviewSource,
+    request: u64,
 }
 
+#[derive(PartialEq, Eq)]
+enum PreviewSource {
+    File(String),
+    Snapshot(String),
+}
+
+impl Preview {
+    pub(super) fn path(&self) -> Option<&str> {
+        match &self.source {
+            PreviewSource::File(path) => Some(path.as_str()),
+            PreviewSource::Snapshot(_) => None,
+        }
+    }
+}
+
+pub(super) const PREVIEW_SCROLL_ID: &str = "git-workbench-preview";
+
 impl State {
+    pub(super) fn active_preview(&self) -> Option<&Preview> {
+        self.previews.iter().find(|tab| Some(tab.id) == self.active_preview_id)
+    }
+
+    fn select_preview(&mut self, id: u64) -> Task<Message> {
+        if self.active_preview_id == Some(id) || !self.previews.iter().any(|tab| tab.id == id) {
+            return Task::none();
+        }
+        self.active_preview_id = Some(id);
+        Self::reset_preview_scroll()
+    }
+
+    fn close_preview(&mut self, id: u64) -> Task<Message> {
+        let Some(index) = self.previews.iter().position(|tab| tab.id == id) else {
+            return Task::none();
+        };
+        self.previews.remove(index);
+        if self.active_preview_id != Some(id) {
+            return Task::none();
+        }
+        self.active_preview_id =
+            self.previews.get(index).or_else(|| self.previews.last()).map(|tab| tab.id);
+        Self::reset_preview_scroll()
+    }
+
+    fn reset_preview_scroll() -> Task<Message> {
+        iced::widget::operation::snap_to(
+            PREVIEW_SCROLL_ID,
+            iced::widget::scrollable::RelativeOffset::START,
+        )
+    }
+
+    fn finish_preview(
+        &mut self,
+        request: u64,
+        result: Result<(String, bool), String>,
+    ) -> Task<Message> {
+        let Some(tab) = self.previews.iter_mut().find(|tab| tab.request == request) else {
+            return Task::none();
+        };
+        tab.content = Some(result.map(|(content, truncated)| {
+            tab.truncated = truncated;
+            content
+        }));
+        if self.active_preview_id == Some(tab.id) {
+            Self::reset_preview_scroll()
+        } else {
+            Task::none()
+        }
+    }
+
     pub(super) fn expand_changes(&mut self, paths: &[String]) {
         self.expanded.extend(desktop_file_tree::tree_list::change_list_expand_keys(
             paths.iter().map(String::as_str),
@@ -143,20 +216,15 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
                 Err(_) => {}
             }
         }
-        Event::Opened(request, result) if request == state.files.preview_request => {
-            if let Some(preview) = &mut state.files.preview {
-                preview.content = Some(result.map(|(content, truncated)| {
-                    preview.truncated = truncated;
-                    content
-                }));
-            }
-        }
+        Event::Opened(request, result) => return state.files.finish_preview(request, result),
+        Event::SelectPreview(id) => return state.files.select_preview(id),
+        Event::ClosePreview(id) => return state.files.close_preview(id),
         Event::OpenInEditor => {
             if state.local()
                 && state.client().is_ok()
                 && let Some(root) = state.checkout_directory()
-                && let Some(preview) = &state.files.preview
-                && let Some(relative) = &preview.path
+                && let Some(preview) = state.files.active_preview()
+                && let Some(relative) = preview.path()
             {
                 let path = absolute_path(root, relative);
                 app.preview_state.pending_preview_goto = preview.location.map(|(line, column)| {
@@ -172,7 +240,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             }
         }
         Event::SearchReady(completion) => super::find::complete(state, *completion),
-        Event::FolderReady(..) | Event::Opened(..) => {}
+        Event::FolderReady(..) => {}
     }
     Task::none()
 }
@@ -431,15 +499,24 @@ pub(super) fn open_file(
     }
     state.show_files = true;
     let client = state.client();
-    state.files.preview = Some(Preview {
+    state.files.preview_request = state.files.preview_request.wrapping_add(1);
+    let request = state.files.preview_request;
+    let existing = state.files.previews.iter_mut().find(|tab| tab.path() == Some(path.as_str()));
+    let preview = Preview {
+        id: existing.as_ref().map_or(request, |tab| tab.id),
         title: path.clone(),
-        path: Some(path.clone()),
         content: None,
         truncated: false,
         location,
-    });
-    state.files.preview_request = state.files.preview_request.wrapping_add(1);
-    let request = state.files.preview_request;
+        source: PreviewSource::File(path.clone()),
+        request,
+    };
+    state.files.active_preview_id = Some(preview.id);
+    if let Some(tab) = existing {
+        *tab = preview;
+    } else {
+        state.files.previews.push(preview);
+    }
     let epoch = state.epoch;
     Task::perform(
         async move {
@@ -486,12 +563,30 @@ pub(crate) fn preview_diff_file(app: &mut App, path: String) -> Task<Message> {
     Task::batch([browse, expand, open_file(state, relative, None)])
 }
 
-pub(crate) fn preview_snapshot(app: &mut App, title: String, content: String) -> Task<Message> {
+pub(crate) fn preview_snapshot(
+    app: &mut App,
+    key: String,
+    title: String,
+    content: String,
+) -> Task<Message> {
     let state = &mut app.git_workbench;
     let browse = select_mode(state, true);
+    let source = PreviewSource::Snapshot(key);
+    if let Some(id) = state.files.previews.iter().find(|tab| tab.source == source).map(|tab| tab.id)
+    {
+        return Task::batch([browse, state.files.select_preview(id)]);
+    }
     state.files.preview_request = state.files.preview_request.wrapping_add(1);
+    let id = state.files.preview_request;
     let (content, truncated) = preview_content::format_text_preview_content(&content);
-    state.files.preview =
-        Some(Preview { title, path: None, content: Some(Ok(content)), truncated, location: None });
-    browse
+    state.files.previews.push(Preview {
+        id,
+        title,
+        content: Some(Ok(content)),
+        truncated,
+        location: None,
+        source,
+        request: id,
+    });
+    Task::batch([browse, state.files.select_preview(id)])
 }

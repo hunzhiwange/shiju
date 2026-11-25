@@ -208,6 +208,13 @@ impl StreamHost for Host {
                     request,
                     move |request, mut emit| {
                         let _approval_prompt_rx = prompt_rx;
+                        #[cfg(not(target_arch = "wasm32"))]
+                        use super::super::media::image_turn;
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let Some(selection) = image_turn::selection(&request.options) {
+                            image_turn::run(selection, &request, emit);
+                            return;
+                        }
                         crate::session::llm::employee_context::with_processor_launch(employee, || {
                             crate::session::processor::run_with_persisted_history(
                                 request,

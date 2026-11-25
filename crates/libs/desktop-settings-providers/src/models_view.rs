@@ -20,21 +20,34 @@ const CAPABILITY_FILTERS: [(ModelCapabilityFilter, &str); 6] = [
 
 fn matches_capability(model: &ModelSummary, filter: ModelCapabilityFilter) -> bool {
     use ModelCapabilityFilter::{All, Audio, Chat, Generation, Utility, Vision};
-    if filter == All {
+    if filter == All || (filter == Utility && model.toolcall) {
         return true;
     }
     let input = &model.detail["capabilities"]["input"];
     let output = &model.detail["capabilities"]["output"];
     let has = |io: &serde_json::Value, kind: &str| io[kind].as_bool() == Some(true);
+    // The catalog can report text output for embeddings and has no vector output field.
+    let embedding = [Some(model.id.as_str()), model.detail["api"]["id"].as_str()]
+        .into_iter()
+        .flatten()
+        .any(|id| {
+            id.split(|c: char| !c.is_ascii_alphanumeric()).any(|part| {
+                ["embed", "embedding", "embeddings"]
+                    .iter()
+                    .any(|kind| part.eq_ignore_ascii_case(kind))
+            })
+        });
     let category = if has(output, "image") || has(output, "video") {
         Generation
     } else if has(output, "audio") {
         Audio
-    } else if output.as_object().is_some_and(|fields| {
-        !fields.is_empty() && fields.values().all(|enabled| enabled.as_bool() == Some(false))
-    }) && input.as_object().is_some_and(|fields| {
-        fields.values().any(|enabled| enabled.as_bool() == Some(true))
-    }) {
+    } else if embedding
+        || (output.as_object().is_some_and(|fields| {
+            !fields.is_empty() && fields.values().all(|enabled| enabled.as_bool() == Some(false))
+        }) && input.as_object().is_some_and(|fields| {
+            fields.values().any(|enabled| enabled.as_bool() == Some(true))
+        }))
+    {
         Utility
     } else if ["image", "video", "pdf"].iter().any(|kind| has(input, kind)) {
         Vision

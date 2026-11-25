@@ -7,6 +7,7 @@ fn input(editor: &iced::widget::text_editor::Content) -> left_panel::Input<'_> {
         git_commit_scope: "",
         git_commit_message: "",
         git_commit_description_editor: editor,
+        show_git_commit_description: false,
         git_commit_in_progress: false,
         file_manager_refresh_frame: 0,
         any_selected: false,

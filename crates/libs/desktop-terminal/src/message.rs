@@ -40,7 +40,7 @@ pub enum TerminalMessage {
     #[cfg(not(target_arch = "wasm32"))]
     ResizePane(Id, ResizeEvent),
     #[cfg(not(target_arch = "wasm32"))]
-    DockPane(Id, Pane, Target),
+    DockTab(Id, Pane, u64, Target),
     #[cfg(not(target_arch = "wasm32"))]
     TogglePaneMaximized(Id, Pane),
     Select(u64),
@@ -89,6 +89,8 @@ pub enum TerminalMessage {
     ContentMenuClose,
     #[cfg(not(target_arch = "wasm32"))]
     ContentMenuAction(u64, ContentAction),
+    #[cfg(not(target_arch = "wasm32"))]
+    ClipboardShortcut(Id, ContentAction),
     #[cfg(not(target_arch = "wasm32"))]
     PasteResolved(iced::widget::Id, Option<String>),
     DragStarted,

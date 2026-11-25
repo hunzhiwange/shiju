@@ -4,7 +4,7 @@ use crate::app::{App, Message, Screen};
 use desktop_git_ui::state::State as GitState;
 use iced::Task;
 use iced::widget::pane_grid;
-use vw_api_project::ProjectDto;
+use vw_api_types::cli_workbench::CliWorkbenchErrorCode;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
 mod files;
@@ -19,13 +19,13 @@ pub(crate) const TAB_ID: &str = "git_workbench";
 pub(crate) enum Event {
     Open,
     RefreshProjects,
-    ProjectsReady(u64, Result<Vec<ProjectDto>, String>),
+    ProjectsReady(u64, Result<Vec<Project>, String>),
     SelectProject(String),
     SelectInlineProject(String),
-    SearchProjects(String),
     Resize(pane_grid::ResizeEvent),
     ShowFiles(bool),
     RefreshCheckout,
+    RepositoryReady(u64, Option<String>),
     SwitchBranch(String),
     BranchesReady(u64, Result<Vec<String>, String>),
     BranchSwitched(u64, Result<(), String>),
@@ -40,20 +40,28 @@ impl std::fmt::Debug for Event {
     }
 }
 
+#[derive(Clone)]
+pub(crate) struct Project {
+    id: String,
+    name: String,
+    directory: String,
+}
+
 pub(crate) struct Workbench {
     endpoint: Option<GatewayEndpoint>,
-    projects: Vec<ProjectDto>,
+    projects: Vec<Project>,
     projects_request: u64,
     projects_loading: bool,
+    projects_dirty: bool,
     projects_error: Option<String>,
     selected: Option<String>,
-    query: String,
     layout: pane_grid::State<bool>,
     show_files: bool,
     files: files::State,
     pub(crate) git: GitState,
     epoch: u64,
     repo: Option<String>,
+    repo_loading: bool,
     switching_branch: bool,
 }
 
@@ -68,24 +76,25 @@ impl Default for Workbench {
             projects: Vec::new(),
             projects_request: 0,
             projects_loading: false,
+            projects_dirty: false,
             projects_error: None,
             selected: None,
-            query: String::new(),
             layout,
             show_files: false,
             files: Default::default(),
             git: GitState::new(true, true),
             epoch: 0,
             repo: None,
+            repo_loading: false,
             switching_branch: false,
         }
     }
 }
 
 impl Workbench {
-    fn project(&self) -> Option<&ProjectDto> {
+    fn project(&self) -> Option<&Project> {
         let selected = self.selected.as_deref()?;
-        self.projects.iter().find(|project| project.id.as_ref() == selected)
+        self.projects.iter().find(|project| project.id == selected)
     }
 
     pub(crate) fn project_directory(&self) -> Option<&str> {
@@ -151,6 +160,7 @@ impl Workbench {
         self.files.show_all_files = show_all_files;
         self.show_files = show_all_files;
         self.repo = None;
+        self.repo_loading = false;
     }
 }
 
@@ -194,10 +204,6 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Event::ProjectsReady(request, result) => apply_projects(app, request, result),
         Event::SelectProject(id) => select_project(&mut app.git_workbench, id),
         Event::SelectInlineProject(path) => select_inline_project(app, path),
-        Event::SearchProjects(query) => {
-            app.git_workbench.query = query;
-            Task::none()
-        }
         Event::Resize(event) => {
             app.git_workbench.layout.resize(event.split, event.ratio.clamp(0.08, 0.44));
             Task::none()
@@ -206,6 +212,31 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Event::RefreshCheckout => {
             let activation = activate(app);
             Task::batch([activation, refresh_checkout(&mut app.git_workbench)])
+        }
+        Event::RepositoryReady(epoch, repo) if epoch == app.git_workbench.epoch => {
+            let state = &mut app.git_workbench;
+            state.repo_loading = false;
+            state.repo = repo;
+            let refresh = Task::done(state.source().message(GitMessage::RefreshGitPanelData));
+            let Some(directory) = state.repo.clone() else {
+                state.git.branches.clear();
+                return refresh;
+            };
+            let branches = Task::perform(
+                crate::app::message::spawn_blocking_opt(move || {
+                    Some(
+                        desktop_git_ui::git_panel::ops::list_branches(&directory)
+                            .map_err(|error| error.to_string()),
+                    )
+                }),
+                move |result| {
+                    message(Event::BranchesReady(
+                        epoch,
+                        result.unwrap_or_else(|| Err("无法读取本地分支".into())),
+                    ))
+                },
+            );
+            Task::batch([refresh, branches])
         }
         Event::SwitchBranch(branch) => switch_branch(app, branch),
         Event::BranchesReady(epoch, result) if epoch == app.git_workbench.epoch => {
@@ -245,18 +276,43 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Event::Files(epoch, event) if epoch == app.git_workbench.epoch => files::update(app, event),
         Event::Git(..)
         | Event::Files(..)
+        | Event::RepositoryReady(..)
         | Event::BranchesReady(..)
         | Event::BranchSwitched(..) => Task::none(),
     }
 }
 
 pub(crate) fn activate(app: &mut App) -> Task<Message> {
-    if app.git_workbench.endpoint.as_ref().is_none_or(|endpoint| {
+    if app.git_workbench.projects_dirty || app.git_workbench.endpoint.as_ref().is_none_or(|endpoint| {
         !same_endpoint(endpoint, &crate::app::config::gateway_client_endpoint())
     }) {
         load_projects(app)
     } else {
         Task::none()
+    }
+}
+
+pub(super) fn projects_changed(app: &mut App) -> Task<Message> {
+    app.git_workbench.projects_dirty = true;
+    if app.navigation_tabs.screen == Screen::GitWorkbench {
+        load_projects(app)
+    } else {
+        Task::none()
+    }
+}
+
+pub(super) fn remove_project(app: &mut App, directory: &str) {
+    let state = &mut app.git_workbench;
+    if state.endpoint.as_ref().is_none_or(|endpoint| {
+        !same_endpoint(endpoint, &crate::app::config::gateway_client_endpoint())
+    }) {
+        return;
+    }
+    let was_selected = state.project_directory() == Some(directory);
+    state.projects.retain(|project| project.directory != directory);
+    if was_selected && !state.busy() {
+        state.selected = None;
+        state.reset_checkout(false);
     }
 }
 
@@ -276,23 +332,45 @@ fn load_projects(app: &mut App) -> Task<Message> {
     }
     state.projects_request = state.projects_request.wrapping_add(1);
     state.projects_loading = true;
+    state.projects_dirty = false;
     state.projects_error = None;
     let request = state.projects_request;
     let recent = app.workspace_state.recent_projects.clone();
     Task::perform(
         async move {
             let client = GatewayClient::new(endpoint)?;
-            desktop_settings_workspace::environment::load_projects(&client, recent).await
+            match client.cli_workbench_projects(None).await {
+                Ok(snapshot) => Ok(snapshot
+                    .projects
+                    .into_iter()
+                    .map(|project| Project {
+                        id: project.id,
+                        name: project.name,
+                        directory: project.directory,
+                    })
+                    .collect()),
+                Err(error) if error.code == CliWorkbenchErrorCode::NotFound => {
+                    desktop_settings_workspace::environment::load_projects(&client, recent)
+                        .await
+                        .map(|projects| {
+                            projects
+                                .into_iter()
+                                .map(|project| Project {
+                                    id: project.id.as_ref().to_owned(),
+                                    name: project.name,
+                                    directory: project.directory,
+                                })
+                                .collect()
+                        })
+                }
+                Err(error) => Err(error.message),
+            }
         },
         move |result| message(Event::ProjectsReady(request, result)),
     )
 }
 
-fn apply_projects(
-    app: &mut App,
-    request: u64,
-    result: Result<Vec<ProjectDto>, String>,
-) -> Task<Message> {
+fn apply_projects(app: &mut App, request: u64, result: Result<Vec<Project>, String>) -> Task<Message> {
     let state = &mut app.git_workbench;
     if request != state.projects_request {
         return Task::none();
@@ -303,7 +381,10 @@ fn apply_projects(
     }) {
         return load_projects(app);
     }
-    let projects = match result {
+    if state.projects_dirty && !state.busy() {
+        return load_projects(app);
+    }
+    let mut projects = match result {
         Ok(projects) => projects,
         Err(error) => {
             state.projects_error = Some(error);
@@ -312,6 +393,9 @@ fn apply_projects(
     };
     if state.busy() {
         return Task::none();
+    }
+    if let Some(removed) = state.endpoint.as_ref().and_then(|endpoint| app.workbench_projects.removed(endpoint)) {
+        projects.retain(|project| !removed.contains(&project.directory));
     }
     let previous_dir = state.project_directory().map(str::to_owned);
     state.projects = projects;
@@ -329,7 +413,7 @@ fn apply_projects(
             Some(project.directory.as_str()) == app.navigation_tabs.project_path.as_deref()
         })
         .or_else(|| state.projects.first())
-        .map(|project| project.id.as_ref().to_owned());
+        .map(|project| project.id.clone());
     if let Some(id) = next {
         select_project(state, id)
     } else {
@@ -341,7 +425,7 @@ fn apply_projects(
 fn select_project(state: &mut Workbench, id: String) -> Task<Message> {
     if state.busy()
         || state.selected.as_deref() == Some(&id)
-        || !state.projects.iter().any(|project| project.id.as_ref() == id)
+        || !state.projects.iter().any(|project| project.id == id)
     {
         return Task::none();
     }
@@ -376,19 +460,25 @@ fn refresh_checkout(state: &mut Workbench) -> Task<Message> {
         return Task::none();
     }
     state.files.root = state.checkout_directory().map(str::to_owned);
-    state.repo = if state.local() {
-        desktop_git_ui::git_panel::ops::git_repo_path(
-            state.git.selected_git_worktree_directory.as_deref(),
-            None,
-            state.project_directory(),
-        )
-    } else {
-        None
-    };
     let source = state.source();
     let mut tasks = Vec::new();
     if state.local() {
-        tasks.push(Task::done(source.message(GitMessage::RefreshGitPanelData)));
+        if !state.repo_loading {
+            state.repo_loading = true;
+            let epoch = state.epoch;
+            let worktree = state.git.selected_git_worktree_directory.clone();
+            let project = state.project_directory().map(str::to_owned);
+            tasks.push(Task::perform(
+                crate::app::message::spawn_blocking_opt(move || {
+                    desktop_git_ui::git_panel::ops::git_repo_path(
+                        worktree.as_deref(),
+                        None,
+                        project.as_deref(),
+                    )
+                }),
+                move |repo| message(Event::RepositoryReady(epoch, repo)),
+            ));
+        }
     } else {
         if !state.git.git_worktree_options_loading
             && let Some(path) = state.project_directory().map(str::to_owned)
@@ -416,23 +506,6 @@ fn refresh_checkout(state: &mut Workbench) -> Task<Message> {
             ));
         }
         tasks.push(files::refresh_remote_changes(state));
-    }
-    if let Some(directory) = state.repo.clone() {
-        let epoch = state.epoch;
-        tasks.push(Task::perform(
-            crate::app::message::spawn_blocking_opt(move || {
-                Some(
-                    desktop_git_ui::git_panel::ops::list_branches(&directory)
-                        .map_err(|error| error.to_string()),
-                )
-            }),
-            move |result| {
-                message(Event::BranchesReady(
-                    epoch,
-                    result.unwrap_or_else(|| Err("无法读取本地分支".into())),
-                ))
-            },
-        ));
     }
     if state.show_files {
         tasks.push(files::refresh_tree(state));

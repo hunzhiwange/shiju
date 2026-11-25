@@ -129,6 +129,10 @@ pub struct MultimodalSettingsState {
     pub ocr_enabled: bool,
     pub model_supports_images: bool,
     pub ocr_model: String,
+    pub media_models: config_tools::MediaModelDefaults,
+    pub media_catalog: Option<Result<vw_api_media::MediaModels, ()>>,
+    pub media_catalog_request: u64,
+    pub saving_media_model: bool,
     pub save_error: Option<String>,
 }
 impl Default for MultimodalSettingsState {
@@ -140,6 +144,10 @@ impl Default for MultimodalSettingsState {
             ocr_enabled: false,
             model_supports_images: true,
             ocr_model: String::new(),
+            media_models: Default::default(),
+            media_catalog: None,
+            media_catalog_request: 0,
+            saving_media_model: false,
             save_error: None,
         }
     }

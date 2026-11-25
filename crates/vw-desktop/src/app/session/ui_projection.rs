@@ -100,6 +100,12 @@ fn preserves_projection(message: &Message) -> bool {
         Message::Project(ProjectMessage::SessionUiPrepared { .. }) => true,
         #[cfg(not(target_arch = "wasm32"))]
         Message::PreviewLspTick => true,
+        #[cfg(not(target_arch = "wasm32"))]
+        Message::WorkbenchProjects(
+            crate::app::workbench_projects::Event::SearchToggled(_)
+            | crate::app::workbench_projects::Event::SearchChanged(..)
+            | crate::app::workbench_projects::Event::SearchClosed(_),
+        ) => true,
         _ => false,
     }
 }

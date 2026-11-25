@@ -8,7 +8,7 @@ use vw_api_agent_scheduler::{
 };
 
 const OUTER_INPUT: &str = "work-plan-outer-batch";
-const CHILD_PROMPT_INPUT: &str = "work-plan-child-prompt";
+const CHILD_TITLE_INPUT: &str = "work-plan-child-title";
 
 pub(super) fn update(
     app: &mut crate::app::App,
@@ -179,9 +179,14 @@ pub(super) fn update(
                 .and_then(|workflow| workflow.statuses.into_iter().find(|status| status.enabled))
                 .map_or(TaskStatus::Pool, |status| status.status);
             plan.child_draft = Some(ChildTaskDraft::new(project, parent, status));
-            return Some(iced::widget::operation::focus(CHILD_PROMPT_INPUT));
+            return Some(iced::widget::operation::focus(CHILD_TITLE_INPUT));
         }
         TaskBoardMessage::CloseWorkPlanChild => plan.child_draft = None,
+        TaskBoardMessage::WorkPlanChildTitleChanged(value) => {
+            let draft = plan.child_draft.as_mut().filter(|draft| !draft.pending)?;
+            draft.title.clone_from(value);
+            draft.error = None;
+        }
         TaskBoardMessage::WorkPlanChildPromptEdited(action) => {
             let draft = plan.child_draft.as_mut().filter(|draft| !draft.pending)?;
             draft.prompt.perform(action.clone());
@@ -198,12 +203,13 @@ pub(super) fn update(
                 return Some(iced::Task::none());
             }
             let Some((task, placement)) = draft.build() else {
-                draft.error = Some("请填写任务提示词和正整数批次".into());
+                draft.error = Some("请填写任务标题或提示词，并输入正整数批次".into());
                 return Some(iced::Task::none());
             };
             draft.pending = true;
             let mut request =
                 agent_scheduler_create_task_request(&task, &board.task_board_settings.workflow_id);
+            request.title.clone_from(&task.description);
             request.placement = Some(placement.clone());
             let path = project.clone();
             return Some(iced::Task::perform(
@@ -326,7 +332,7 @@ async fn load_history(
     let client = crate::app::config::gateway_client()?;
     let client = gateway_scheduler::GatewaySchedulerClient::new(client.transport().clone());
     let mut cursor = None;
-    let mut runs = std::collections::HashMap::new();
+    let mut records = Vec::new();
     loop {
         let page = client.agent_scheduler_events(&scope, cursor).await?;
         if page.events.is_empty() {
@@ -337,14 +343,11 @@ async fn load_history(
         }
         cursor = Some(page.cursor);
         for event in page.events {
-            if let Some(run_id) = event.run_id.as_ref()
-                && task_ids.contains(event.task_id.as_ref())
-            {
-                runs.insert((event.task_id.0.clone(), run_id.clone()), event);
+            if event.run_id.is_some() && task_ids.contains(event.task_id.as_ref()) {
+                records.push(event);
             }
         }
     }
-    let mut records: Vec<_> = runs.into_values().collect();
     records.sort_by_key(|record| std::cmp::Reverse(record.cursor));
     Ok(records)
 }

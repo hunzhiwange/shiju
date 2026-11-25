@@ -109,6 +109,10 @@ version = "0.2"
 optional = true
 default-features = false
 
+[target.'cfg(target_os = "macos")'.dependencies.arboard]
+version = "3.6"
+default-features = false
+
 [lints.clippy]
 default_trait_access = "deny"
 filter_map_next = "deny"

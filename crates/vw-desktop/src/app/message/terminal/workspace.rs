@@ -57,6 +57,9 @@ pub(crate) fn flush(app: &mut App) {
     for (project, terminal) in &mut app.terminals_by_project {
         save(project, terminal);
     }
+    app.cli_workbench.checkpoint_layout();
+    app.app_terminal.checkpoint_layout();
+    app.terminal_ssh.checkpoint_layout();
 }
 
 pub(crate) fn reopen_project(app: &mut App) -> Task<Message> {

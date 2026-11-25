@@ -2,7 +2,7 @@
 
 
 use iced::widget::Id;
-use iced::widget::pane_grid::{Axis, Direction, Node, Pane, ResizeEvent, State, Target};
+use iced::widget::pane_grid::{Axis, Direction, Node, Pane, Region, ResizeEvent, State, Target};
 
 
 pub const PANE_SPACING: f32 = 1.0;
@@ -11,6 +11,15 @@ pub const PANE_SPACING: f32 = 1.0;
 pub struct TerminalPane {
     pub tabs: Vec<u64>,
     pub active_id: Option<u64>,
+}
+
+impl TerminalPane {
+    fn remove(&mut self, id: u64) {
+        self.tabs.retain(|tab| *tab != id);
+        if self.active_id == Some(id) {
+            self.active_id = self.tabs.first().copied();
+        }
+    }
 }
 
 pub struct TerminalPanes {
@@ -67,10 +76,7 @@ impl TerminalPanes {
     pub fn remove(&mut self, id: u64) -> Option<u64> {
         if let Some(pane) = self.owner(id) {
             let state = self.grid.get_mut(pane).expect("tab owner");
-            state.tabs.retain(|tab| *tab != id);
-            if state.active_id == Some(id) {
-                state.active_id = state.tabs.first().copied();
-            }
+            state.remove(id);
             if state.tabs.is_empty()
                 && let Some((_, sibling)) = self.grid.close(pane)
             {
@@ -102,21 +108,45 @@ impl TerminalPanes {
         }
     }
 
-    pub fn dock(&mut self, pane: Pane, target: Target) {
-        if self.grid.len() < 2
-            || self.grid.get(pane).is_none()
-            || matches!(target, Target::Pane(id, _) if id == pane || self.grid.get(id).is_none())
+    pub fn dock_tab(&mut self, pane: Pane, tab: u64, target: Target) -> bool {
+        let Some(source) = self.grid.get(pane) else { return false };
+        if self.grid.maximized().is_some() || !source.tabs.contains(&tab)
+            || matches!(target, Target::Pane(id, _) if self.grid.get(id).is_none())
         {
-            return;
+            return false;
+        }
+        if let Target::Pane(destination, Region::Center) = target {
+            if pane == destination {
+                return false;
+            }
+            self.place(destination, tab);
+            self.split_menu = None;
+            return true;
         }
 
         let mut candidate = self.grid.clone();
-        candidate.drop(pane, target);
-        if candidate.panes == self.grid.panes
-            && !same_arrangement(candidate.layout(), self.grid.layout())
-        {
-            self.grid = candidate;
+        let moving = if source.tabs.len() == 1 {
+            if self.grid.len() < 2 || matches!(target, Target::Pane(id, _) if id == pane) {
+                return false;
+            }
+            pane
+        } else {
+            // Isolate the tab in a leaf so Iced can dock it without moving its siblings.
+            let state = TerminalPane { tabs: vec![tab], active_id: Some(tab) };
+            let Some((new, _)) = candidate.split(Axis::Vertical, pane, state) else {
+                return false;
+            };
+            candidate.get_mut(pane).expect("source pane exists").remove(tab);
+            new
+        };
+        candidate.drop(moving, target);
+        if candidate.get(moving).is_none() || same_arrangement(candidate.layout(), self.grid.layout()) {
+            return false;
         }
+        self.grid = candidate;
+        self.focused = moving;
+        self.split_menu = None;
+        true
     }
 }
 

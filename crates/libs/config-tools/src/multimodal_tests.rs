@@ -16,7 +16,7 @@ fn multimodal_config_defaults_and_effective_limits_are_safe() {
         max_images: 0,
         max_image_size_mb: 0,
         allow_remote_fetch: false,
-        ocr: super::MultimodalOcrConfig::default(),
+        ..Default::default()
     };
     assert_eq!(too_small.effective_limits(), (1, 1));
 
@@ -24,7 +24,7 @@ fn multimodal_config_defaults_and_effective_limits_are_safe() {
         max_images: 99,
         max_image_size_mb: 99,
         allow_remote_fetch: true,
-        ocr: super::MultimodalOcrConfig::default(),
+        ..Default::default()
     };
     assert_eq!(too_large.effective_limits(), (16, 20));
 }

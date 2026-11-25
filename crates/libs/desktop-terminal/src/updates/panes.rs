@@ -41,10 +41,16 @@ pub(super) fn update(
             }
             Task::none()
         }
-        TerminalMessage::DockPane(instance, pane, target) => {
+        TerminalMessage::DockTab(instance, pane, tab, target) => {
             let terminal = &mut *terminal;
-            if terminal.is_visible && terminal.panes.instance == instance {
-                terminal.panes.dock(pane, target);
+            if terminal.is_visible && terminal.panes.instance == instance
+                && terminal.panes.dock_tab(pane, tab, target)
+            {
+                terminal.active_id = Some(tab);
+                terminal.tab_context_menu_id = None;
+                terminal.tab_context_menu_pos = None;
+                terminal.content_menu = None;
+                return super::event::focus_active_terminal(terminal, focused, effects);
             }
             Task::none()
         }

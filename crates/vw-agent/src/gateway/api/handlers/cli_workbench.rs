@@ -30,8 +30,12 @@ use super::session::stream::Host;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod child_access;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use child_access::cli_search_path;
 
 mod drafts;
+#[cfg(unix)]
+mod ssh;
 mod terminal;
 pub(crate) use terminal::LocalWorkbenchGateway;
 
@@ -39,6 +43,7 @@ const SESSIONS: &str = "/projects/{project}/cli-workbench/sessions";
 pub(crate) const TURN_OPTION: &str = "cli_workbench_turn_id";
 const MAX_SESSIONS_PER_PROJECT: usize = 256;
 const MAX_REQUESTS_PER_PROJECT: usize = 4096;
+const RECENT_REQUESTS_PER_SESSION: usize = 16;
 const MAX_TEXT: usize = 64 * 1024;
 const MAX_OUTPUT: usize = 16 * 1024;
 const TURN_TIMEOUT: Duration = Duration::from_secs(30 * 60);
@@ -57,7 +62,7 @@ struct Session {
     scope: ProjectScope,
     info: CliWorkbenchSession,
     turn: Option<Turn>,
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     terminal: Option<std::sync::Arc<terminal::Pty>>,
     #[cfg(not(target_arch = "wasm32"))]
     child_access: Option<child_access::ChildAccess>,
@@ -73,7 +78,7 @@ struct Turn {
 
 impl Session {
     fn refresh_process_state(&mut self) {
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         if let Some(pty) = &self.terminal {
             self.info.state = match pty.exit_status() {
                 Ok(Some(_)) => ProcessState::Exited,
@@ -272,13 +277,20 @@ async fn list(
 
 fn capabilities(target: &CliWorkbenchTarget) -> CliWorkbenchCapabilities {
     let acp = matches!(target, CliWorkbenchTarget::Acp { .. });
+    let has_pty = match target {
+        CliWorkbenchTarget::Acp { .. } => false,
+        CliWorkbenchTarget::Ssh { .. } => cfg!(unix),
+        _ => cfg!(target_os = "macos"),
+    };
     CliWorkbenchCapabilities {
-        available: acp || cfg!(target_os = "macos"),
-        terminal: !acp && cfg!(target_os = "macos"),
+        available: acp || has_pty,
+        terminal: has_pty,
         delivery: match target {
             CliWorkbenchTarget::Acp { .. } => CliWorkbenchDeliveryCapability::Structured,
             CliWorkbenchTarget::NativeCli { .. } => CliWorkbenchDeliveryCapability::Draft,
-            CliWorkbenchTarget::Shell => CliWorkbenchDeliveryCapability::Unavailable,
+            CliWorkbenchTarget::Shell | CliWorkbenchTarget::Ssh { .. } => {
+                CliWorkbenchDeliveryCapability::Unavailable
+            }
         },
     }
 }
@@ -291,8 +303,9 @@ async fn start(
 ) -> Result<(StatusCode, Json<CliWorkbenchSession>), WorkbenchError> {
     let scope = project_scope(tenant.clone(), project)?;
     let capabilities = capabilities(&request.target);
-    if !matches!(&request.target, CliWorkbenchTarget::Acp { .. }) {
-        authority.require()?;
+    authority.require_target(&request.target)?;
+    if request.ssh_surface.is_some() && !matches!(&request.target, CliWorkbenchTarget::Ssh { .. }) {
+        return Err(error(StatusCode::BAD_REQUEST, ErrorCode::InvalidRequest, "surface requires SSH"));
     }
     let project = gateway_project::load_project(&scope).await.map_err(|_| not_found())?;
     let directory = match request.directory {
@@ -325,7 +338,7 @@ async fn start(
         )
     })?;
     let CliWorkbenchTarget::Acp { agent } = &request.target else {
-        return terminal::start(scope, project.id, directory, id, request.target, authority).await;
+        return terminal::start(scope, project.id, directory, id, request.target, request.ssh_surface, authority).await;
     };
     let workspace = directory.clone();
     let expected_project = project.id.clone();
@@ -377,12 +390,14 @@ async fn start(
         state: ProcessState::Ready,
         capabilities,
         agent_activity: None,
+        ssh_surface: None,
+        recent_request_ids: Vec::new(),
     };
     let session = Session {
         scope,
         info,
         turn: None,
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         terminal: None,
         #[cfg(not(target_arch = "wasm32"))]
         child_access: Some(child_access),
@@ -396,7 +411,7 @@ fn insert_session(
 ) -> Result<(StatusCode, Json<CliWorkbenchSession>), WorkbenchError> {
     let mut workbench = WORKBENCH.lock();
     if let Some(authority) = authority {
-        authority.require()?;
+        authority.require_target(&session.info.target)?;
     }
     if workbench.sessions.values().filter(|other| other.scope == session.scope).count()
         >= MAX_SESSIONS_PER_PROJECT
@@ -411,14 +426,14 @@ fn insert_session(
 async fn stop(
     Extension(tenant): Extension<TenantScope>,
     Path((project, session_id)): Path<(String, String)>,
-    #[cfg(target_os = "macos")] authority: terminal::Authority,
+    #[cfg(unix)] authority: terminal::Authority,
 ) -> Result<Json<CliWorkbenchSession>, WorkbenchError> {
     let scope = project_scope(tenant.clone(), project)?;
     let mut workbench = WORKBENCH.lock();
     let session = workbench.session_mut(&scope, &session_id)?;
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     if session.info.capabilities.terminal {
-        authority.require()?;
+        authority.require_target(&session.info.target)?;
         return Ok(Json(terminal::stop(session)));
     }
     if !matches!(session.info.state, ProcessState::Exited | ProcessState::Stopping) {
@@ -560,6 +575,11 @@ async fn send(
     let CliWorkbenchTarget::Acp { agent } = &session.info.target else { return Err(unavailable()) };
     let directory = session.info.directory.clone();
     let agent = agent.clone();
+    let recent = &mut session.info.recent_request_ids;
+    if recent.len() == RECENT_REQUESTS_PER_SESSION {
+        recent.remove(0);
+    }
+    recent.push(message.id.request_id.clone());
     let cancel = CancellationToken::new();
     session.info.state = ProcessState::Running;
     session.turn = Some(Turn {

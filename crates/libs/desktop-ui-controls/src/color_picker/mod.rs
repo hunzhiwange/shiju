@@ -20,7 +20,7 @@ pub use conversion::{
 };
 pub use hsv::Hsv;
 pub use pickers::{AlphaPicker, HuePicker, SaturationValuePicker};
-pub use render_full::render_color_picker;
+pub use render_full::{render_color_picker, render_opaque_color_picker};
 pub use render_mini::render_mini_color_picker;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

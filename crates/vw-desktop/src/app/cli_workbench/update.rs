@@ -20,7 +20,7 @@ use vw_gateway_client::GatewayClient;
 use vw_api_project::{ListProjectsRequest, ResolveProjectRequest};
 
 use super::{
-    APP_TERMINAL_SIDEBAR_COLLAPSED, App, Dialog, Message, Project, SessionKey, Surface, Turn,
+    ssh, APP_TERMINAL_SIDEBAR_COLLAPSED, App, Dialog, Message, Project, SessionKey, Surface, Turn,
     Workbench,
 };
 
@@ -78,7 +78,9 @@ pub(crate) struct ProjectUpdate {
 #[derive(Debug, Clone)]
 pub(crate) enum Event {
     AppTerminal(Box<Event>),
+    Terminal(Box<Event>),
     Open { backend: Option<String>, native_app: Option<String> },
+    OpenSsh,
     Tick,
     TerminalTick,
     Window(window::Id, Action),
@@ -87,6 +89,8 @@ pub(crate) enum Event {
 
 #[derive(Clone)]
 pub(crate) enum Action {
+    Ssh(ssh::Action),
+    ShowTerminalGroup,
     Refresh,
     ProjectsLoaded(u64, u64, Result<(CliWorkbenchProjects, bool), Code>),
     NativeAppsLoaded(u64, CliWorkbenchTerminalCapability),
@@ -129,7 +133,7 @@ pub(crate) enum Action {
     OpenLayoutMenu(String, u64, iced::Point),
     CloseLayoutMenu(String),
     RenameLayout(String, u64, String),
-    TerminalClipboard(SessionKey, Option<String>),
+    TerminalClipboard(SessionKey, u64, Option<String>),
 }
 
 // UI events may contain message drafts, project paths or approval details.
@@ -147,24 +151,33 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
         Event::AppTerminal(event) => update_surface(app, Surface::AppTerminal, *event)
             .map(|message| Surface::AppTerminal.route_message(message)),
+        Event::Terminal(event) => update_surface(app, Surface::Terminal, *event)
+            .map(|message| Surface::Terminal.route_message(message)),
         event => update_surface(app, Surface::Workbench, event),
     }
 }
 
-fn update_surface(app: &mut App, surface: Surface, event: Event) -> Task<Message> {
+fn update_surface(app: &mut App, surface: Surface, mut event: Event) -> Task<Message> {
     use crate::app::Screen;
 
-    let (screen, tab_id, title) = match surface {
-        Surface::Workbench => (Screen::CliWorkbench, TAB_ID, "我的工作台"),
-        Surface::AppTerminal => (Screen::AppTerminal, "app_terminal", "应用终端"),
+    let navigation_target = match surface {
+        Surface::Workbench => Some((Screen::CliWorkbench, TAB_ID, "我的工作台")),
+        Surface::AppTerminal => Some((Screen::AppTerminal, "app_terminal", "应用终端")),
+        Surface::Terminal => None,
     };
-    let visible = app.navigation_tabs.screen == screen;
+    let embedded = surface == Surface::Terminal;
+    let visible = navigation_target.map_or_else(
+        || super::terminal_panel_visible(app),
+        |(screen, _, _)| app.navigation_tabs.screen == screen,
+    );
     let id = match (app.main_window_id, &event) {
         (Some(id), _) => id,
         (None, Event::Response(id, ..)) => *id,
         (None, _) => return Task::none(),
     };
-    if matches!(&event, Event::Open { .. }) {
+    if let Some((screen, tab_id, title)) = navigation_target
+        && matches!(&event, Event::Open { .. })
+    {
         let navigation = &mut app.navigation_tabs;
         if !navigation.open_tabs.iter().any(|tab| tab.id == tab_id) {
             navigation.open_tabs.push(desktop_navigation::components::top_bar::types::AppTab {
@@ -178,16 +191,58 @@ fn update_surface(app: &mut App, surface: Surface, event: Event) -> Task<Message
         navigation.screen = screen;
         app.navigation_panels.show_system_settings = false;
     }
+    let open_ssh = matches!(&event, Event::OpenSsh);
+    let terminal_directory = if embedded {
+        app.terminal_project_path().map(str::to_owned)
+    } else {
+        None
+    };
+    let terminal_directory = terminal_directory.as_deref();
     let terminal_tick = matches!(&event, Event::TerminalTick);
-    let theme = (terminal_tick && visible).then(|| app.theme());
+    let terminal_visible = visible
+        && (!embedded || app.terminal_ssh.terminal_group_selected(terminal_directory));
+    let theme = (terminal_tick && terminal_visible).then(|| app.theme());
+    if let Event::Response(_, _,
+        Action::ProjectsLoaded(_, _, Ok((snapshot, _))) | Action::SessionsLoaded(_, _, Ok(snapshot)),
+    ) = &mut event
+        && let Some(removed) = app.workbench_projects.active_removed()
+    {
+        snapshot.projects.retain(|project| !removed.contains(&project.directory));
+    }
     let state = match surface {
         Surface::Workbench => &mut app.cli_workbench,
         Surface::AppTerminal => &mut app.app_terminal,
+        Surface::Terminal => &mut app.terminal_ssh,
     };
+    if embedded {
+        if visible && matches!(&event, Event::Tick | Event::OpenSsh) {
+            let scope_changed = bind_scope(state);
+            let project_changed = state.terminal_directory.as_deref() != terminal_directory;
+            if project_changed {
+                state.terminal_directory = terminal_directory.map(str::to_owned);
+                state.terminal_group_selected = false;
+                state.selected = None;
+                state.dialog = None;
+            }
+            if open_ssh {
+                ssh::show(state);
+            }
+            if scope_changed || project_changed || open_ssh {
+                return reload_projects(state, id);
+            }
+        }
+        if matches!(&event, Event::Open { .. } | Event::OpenSsh)
+            || (matches!(&event, Event::Window(..))
+                && state.terminal_directory.as_deref() != terminal_directory)
+        {
+            return Task::none();
+        }
+    }
     if let Event::Open { backend, native_app } = event {
         state.backend = backend;
         state.native_app = native_app;
         bind_scope(state);
+        state.default_shell_pending = true;
         state.preferred_directory = if state.selected.is_none() {
             app.navigation_tabs.project_path.clone()
         } else {
@@ -232,6 +287,7 @@ fn update_surface(app: &mut App, surface: Surface, event: Event) -> Task<Message
             {
                 return reload_projects(state, id);
             }
+            state.checkpoint_layout();
             refresh_sessions(state, id)
         }
         Event::Window(_, _) if !visible => Task::none(),
@@ -255,7 +311,34 @@ fn update_surface(app: &mut App, surface: Surface, event: Event) -> Task<Message
             {
                 return reload_projects(state, id);
             }
-            update_window(state, id, action, visible)
+            if !terminal_visible
+                && matches!(&action, Action::TerminalEvent(..) | Action::Panel(..) | Action::Start(..))
+            {
+                return Task::none();
+            }
+            let visible = match &action {
+                Action::TerminalOutput(..) | Action::TerminalWritten(..) | Action::TerminalClipboard(..) => terminal_visible,
+                _ => visible && (!embedded || state.terminal_directory.as_deref() == terminal_directory),
+            };
+            let show_start_error = embedded && visible && matches!(&action, Action::Started(..));
+            let dismiss = matches!(&action, Action::Dismiss);
+            let task = update_window(state, id, action, visible);
+            if show_start_error && let Some(error) = state.error {
+                return Task::batch([
+                    task,
+                    app.show_localized_toast(crate::app::state::ToastKind::Error, error, vec![]),
+                ]);
+            }
+            if embedded && visible
+                && (dismiss || terminal_visible)
+                && !state.terminal_group_selected(terminal_directory)
+            {
+                return Task::batch([
+                    task,
+                    crate::app::message::terminal::event::focus_active_terminal(app),
+                ]);
+            }
+            task
         }
         _ => Task::none(),
     }
@@ -270,9 +353,13 @@ fn bind_scope(state: &mut Workbench) -> bool {
     if state.scope.as_ref() == Some(&scope) && state.client.is_some() {
         return false;
     }
+    state.checkpoint_layout();
+    state.workspace = super::workspace::Store::open(&scope.0, state.surface);
     state.client = GatewayClient::new(scope.0.clone()).ok();
     state.scope = Some(scope);
     state.terminal_available = false;
+    state.terminal_group_selected = false;
+    state.ssh = ssh::State::default();
     state.native_apps.clear();
     state.scope_generation += 1;
     state.projects.clear();
@@ -286,6 +373,7 @@ fn bind_scope(state: &mut Workbench) -> bool {
     state.details_refreshing = false;
     state.discovering = false;
     state.starting = false;
+    state.default_shell_pending = false;
     state.agents_loading = false;
     state.epoch += 1;
     state.agents_epoch += 1;
@@ -297,7 +385,11 @@ pub(super) fn client(state: &Workbench) -> Option<GatewayClient> {
 }
 
 fn reload_projects(state: &mut Workbench, id: window::Id) -> Task<Message> {
-    let preferred = state.preferred_directory.clone();
+    let preferred = if state.surface == Surface::Terminal {
+        state.terminal_directory.clone()
+    } else {
+        state.preferred_directory.clone()
+    };
     bind_scope(state);
     state.preferred_directory.clone_from(&preferred);
     state.discovering = true;
@@ -307,7 +399,9 @@ fn reload_projects(state: &mut Workbench, id: window::Id) -> Task<Message> {
     let generation = state.scope_generation;
     state.error = None;
     let client = client(state);
-    let catalog_client = client.clone().filter(|client| client.endpoint().is_loopback());
+    let catalog_client = client.clone().filter(|client| {
+        state.surface != Surface::Terminal && client.endpoint().is_loopback()
+    });
     let catalog = catalog_client.map_or_else(Task::none, |client| {
         Task::perform(
             async move { client.cli_workbench_terminal_catalog().await.unwrap_or_default() },
@@ -327,7 +421,8 @@ fn reload_projects(state: &mut Workbench, id: window::Id) -> Task<Message> {
         },
         move |result| response(id, generation, Action::ProjectsLoaded(epoch, session_epoch, result)),
     );
-    Task::batch([catalog, projects])
+    let ssh = ssh::load(state, id);
+    Task::batch([catalog, projects, ssh])
 }
 
 async fn legacy_projects(
@@ -376,7 +471,7 @@ async fn legacy_projects(
 }
 
 fn load_agents(state: &mut Workbench, id: window::Id) -> Task<Message> {
-    if state.surface == Surface::AppTerminal {
+    if state.surface != Surface::Workbench {
         return Task::none();
     }
     state.agents_epoch += 1;
@@ -588,14 +683,15 @@ pub(super) fn apply_projects(
     let known: HashSet<_> = snapshot.projects.iter().map(|project| project.id.as_str()).collect();
     state.projects.retain(|id, _| known.contains(id.as_str()));
     for project in snapshot.projects {
-        let entry = state.projects.entry(project.id)
+        let entry = state.projects.entry(project.id.clone())
             .or_insert_with(|| Project::new(project.name.clone(), project.directory.clone()));
         entry.name = project.name;
         entry.directory = project.directory;
         if apply_sessions {
-            entry.merge_sessions(project.sessions.into_iter().filter(|session| {
-                state.surface.includes_target(&session.target)
-            }).collect());
+            let sessions = project.sessions.into_iter()
+                .filter(|session| state.surface.includes_session(session))
+                .collect();
+            state.workspace.merge_sessions(&project.id, entry, sessions);
             entry.disconnected = false;
             if !entry.tabs.values().any(|tab| tab.session.state == Process::WaitingForApproval) {
                 entry.approval_error = false;
@@ -603,7 +699,15 @@ pub(super) fn apply_projects(
         }
     }
     state.selected = snapshot.preferred_project.filter(|id| state.projects.contains_key(id))
-        .or_else(|| state.selected.take().filter(|id| state.projects.contains_key(id)));
+        .or_else(|| state.selected.take().filter(|id| state.projects.contains_key(id)))
+        .or_else(|| {
+            if state.surface == Surface::Terminal {
+                return None;
+            }
+            state.workspace.selected()
+                .filter(|id| state.projects.contains_key(*id))
+                .map(str::to_owned)
+        });
     state.terminal_available = snapshot.terminal_available;
 }
 
@@ -634,6 +738,13 @@ fn apply_projects_updates(state: &mut Workbench, batch: Vec<ProjectUpdate>) {
 
 fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible: bool) -> Task<Message> {
     match action {
+        Action::Ssh(action) => return ssh::update(state, id, action),
+        Action::ShowTerminalGroup if state.surface == Surface::Terminal
+            && state.terminal_group_available(state.terminal_directory.as_deref()) =>
+        {
+            state.terminal_group_selected = true;
+            return super::terminal::focus(state);
+        }
         Action::Refresh if !state.discovering => return reload_projects(state, id),
         Action::ProjectsLoaded(epoch, session_epoch, result) if epoch == state.projects_epoch => {
             state.discovering = false;
@@ -642,11 +753,20 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
                     if state.preferred_directory.take().is_none() {
                         snapshot.preferred_project = None;
                     }
+                    if state.surface == Surface::Terminal {
+                        state.selected = None;
+                    }
                     state.legacy_projects = legacy;
                     state.legacy_poll_cursor = 0;
-                    apply_projects(state, snapshot, !legacy && session_epoch == state.epoch);
+                    let apply_sessions = !legacy && session_epoch == state.epoch;
+                    apply_projects(state, snapshot, apply_sessions);
+                    let shell = if apply_sessions {
+                        start_default_shell(state, id, visible)
+                    } else {
+                        Task::none()
+                    };
                     let sessions = if legacy { refresh_sessions(state, id) } else { refresh_details(state, id) };
-                    return Task::batch([load_agents(state, id), sessions]);
+                    return Task::batch([load_agents(state, id), sessions, shell]);
                 }
                 Err(code @ (Code::Unauthorized | Code::Disconnected)) => state.error = Some(error_label(code)),
                 Err(_) => state.error = Some("无法读取工作台项目"),
@@ -661,7 +781,10 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
                 match result {
                     Ok(snapshot) => {
                         apply_projects(state, snapshot, true);
-                        return refresh_details(state, id);
+                        return Task::batch([
+                            refresh_details(state, id),
+                            start_default_shell(state, id, visible),
+                        ]);
                     }
                     Err(()) => {
                         for project in state.projects.values_mut() {
@@ -678,9 +801,10 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
                     let Some(project) = state.projects.get_mut(&id) else { continue };
                     match result {
                         Ok(sessions) => {
-                            project.merge_sessions(sessions.into_iter().filter(|session| {
-                                state.surface.includes_target(&session.target)
-                            }).collect());
+                            let sessions = sessions.into_iter()
+                                .filter(|session| state.surface.includes_session(session))
+                                .collect();
+                            state.workspace.merge_sessions(&id, project, sessions);
                             project.disconnected = false;
                             if state.selected.as_ref() == Some(&id)
                                 && state.error == Some("当前网关未提供工作台会话接口，请更新网关")
@@ -696,7 +820,10 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
                         }
                     }
                 }
-                return refresh_details(state, id);
+                return Task::batch([
+                    refresh_details(state, id),
+                    start_default_shell(state, id, visible),
+                ]);
             }
         }
         Action::SessionDetailsLoaded(epoch, updates) => {
@@ -711,19 +838,28 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
             }
         }
         Action::SelectProject(project) if state.projects.contains_key(&project) => {
+            state.default_shell_pending = true;
             if state.selected.as_ref() != Some(&project) {
                 state.selected = Some(project);
                 state.preferred_directory = None;
                 state.dialog = None;
-                if state.legacy_projects {
-                    return Task::batch([load_agents(state, id), refresh_sessions(state, id)]);
-                }
-                return load_agents(state, id);
+                let sessions = if state.legacy_projects {
+                    refresh_sessions(state, id)
+                } else {
+                    Task::none()
+                };
+                return Task::batch([
+                    load_agents(state, id),
+                    sessions,
+                    start_default_shell(state, id, visible),
+                ]);
             }
+            return start_default_shell(state, id, visible);
         }
         Action::SelectSession(key) => {
             let changed = state.selected.as_ref() != Some(&key.project);
             if state.locate(&key) {
+                state.default_shell_pending = false;
                 if changed {
                     state.dialog = None;
                     return Task::batch([load_agents(state, id), super::terminal::focus(state)]);
@@ -757,10 +893,15 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
             state.starting = false;
             state.epoch += 1;
             match result {
-                Ok(session) if session.project_id == project_id && session.target == target => {
+                Ok(session) if session.project_id == project_id && session.target == target
+                    && state.surface.includes_session(&session) =>
+                {
                     if let Some(project) = state.projects.get_mut(&project_id) {
                         let terminal = project.place_started(session, layout, pane, direction);
                         if terminal && state.selected.as_ref() == Some(&project_id) {
+                            if visible && state.surface == Surface::Terminal {
+                                state.terminal_group_selected = true;
+                            }
                             return Task::done(Message::CliWorkbench(Event::TerminalTick));
                         }
                     }
@@ -772,6 +913,12 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
         Action::Hide(key) => {
             if let Some(project) = state.projects.get_mut(&key.project) {
                 project.hide(&key.session);
+                if state.selected.as_ref() == Some(&key.project) {
+                    state.default_shell_pending = false;
+                }
+            }
+            if state.surface == Surface::Terminal && !state.terminal_group_available(state.terminal_directory.as_deref()) {
+                state.select_local_terminal_group();
             }
             return super::terminal::focus(state);
         }
@@ -783,8 +930,8 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
             }
         }
         Action::Rename(key) => {
-            if let Some(tab) = state.tab_mut(&key) {
-                let name = tab.name.clone().unwrap_or_else(|| super::view::tab_label(tab));
+            if let Some(tab) = state.projects.get(&key.project).and_then(|project| project.tabs.get(&key.session)) {
+                let name = super::view::tab_label(state, tab);
                 state.dialog = Some(Dialog::Rename(key, name));
                 return iced::widget::operation::focus(super::view::DIALOG_INPUT);
             }
@@ -892,6 +1039,7 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
         }
         Action::CloseLayout(project, layout) if state.selected.as_ref() == Some(&project) => {
             if state.projects.get_mut(&project).is_some_and(|project| project.close_layout(layout)) {
+                state.default_shell_pending = false;
                 return super::terminal::focus(state);
             }
         }
@@ -923,9 +1071,11 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
                 return iced::widget::operation::focus(super::view::DIALOG_INPUT);
             }
         }
-        Action::TerminalClipboard(key, text) => {
+        Action::TerminalClipboard(key, terminal_id, text) if visible => {
             if let Some(text) = text {
-                return super::terminal::backend_action(state, id, key, iced_term::BackendCommand::Paste(text));
+                return super::terminal::event(state, id, key, iced_term::Event::BackendCall(
+                    terminal_id, iced_term::BackendCommand::Paste(text),
+                ));
             }
         }
         _ => {}
@@ -980,8 +1130,19 @@ fn panel(
         Term::ContentMenuOpen(view_id, position) => {
             project.panes.select(view_id);
             project.content_menu = Some((view_id, position));
+            return super::terminal::focus(state);
         }
         Term::ContentMenuClose => project.content_menu = None,
+        Term::ClipboardShortcut(widget_id, action) => {
+            let Some(tab) = project.active_tab().filter(|tab| project.panes.is_visible_tab(tab.view_id)) else {
+                return Task::none();
+            };
+            let Some(view) = tab.terminal.view.as_ref().filter(|view| view.widget_id() == widget_id) else {
+                return Task::none();
+            };
+            let key = SessionKey { project: project_id.into(), session: tab.session.id.clone() };
+            return terminal_clipboard(id, state.scope_generation, key, view, action);
+        }
         Term::ToggleSplitMenu(pane) => {
             project.panes.split_menu = (project.panes.split_menu != Some(pane)).then_some(pane);
         }
@@ -989,8 +1150,13 @@ fn panel(
         Term::ResizePane(instance, event) if instance == project.panes.instance => {
             project.panes.resize(event);
         }
-        Term::DockPane(instance, pane, target) if instance == project.panes.instance => {
-            project.panes.dock(pane, target);
+        Term::DockTab(instance, pane, tab, target) if instance == project.panes.instance => {
+            if project.panes.dock_tab(pane, tab, target) {
+                project.tab_menu = None;
+                project.content_menu = None;
+                state.checkpoint_layout();
+                return super::terminal::focus(state);
+            }
         }
         Term::TogglePaneMaximized(instance, pane) if instance == project.panes.instance => {
             if project.panes.grid.get(pane).is_some() {
@@ -1014,19 +1180,25 @@ fn panel(
             project.content_menu = None;
             let pane = project.panes.focused;
             match action {
-                ContentAction::NewTerminal => return start(state, id, CliWorkbenchTarget::Shell, pane, None),
-                ContentAction::Split(direction) => return start(state, id, CliWorkbenchTarget::Shell, pane, Some(direction)),
-                ContentAction::CloseTab => return update_window(state, id, Action::Hide(key), true),
-                ContentAction::Copy => {
-                    if let Some(view) = project.tab_for_view(view_id).and_then(|tab| tab.terminal.view.as_ref()) {
-                        return iced::clipboard::write(view.terminal().selected_text());
-                    }
+                ContentAction::NewTerminal | ContentAction::Split(_) => {
+                    let direction = match action {
+                        ContentAction::Split(direction) => Some(direction),
+                        _ => None,
+                    };
+                    let target = project.tab_for_view(view_id)
+                        .map(|tab| &tab.session.target)
+                        .filter(|target| matches!(target, CliWorkbenchTarget::Ssh { .. }))
+                        .cloned()
+                        .unwrap_or(CliWorkbenchTarget::Shell);
+                    return start(state, id, target, pane, direction);
                 }
-                ContentAction::Paste | ContentAction::PasteText => {
-                    let generation = state.scope_generation;
-                    return iced::clipboard::read().map(move |text| {
-                        response(id, generation, Action::TerminalClipboard(key.clone(), text))
-                    });
+                ContentAction::CloseTab => return update_window(state, id, Action::Hide(key), true),
+                ContentAction::Copy | ContentAction::Paste | ContentAction::PasteText => {
+                    if let Some(view) = project.active_tab().filter(|tab| tab.view_id == view_id)
+                        .and_then(|tab| tab.terminal.view.as_ref())
+                    {
+                        return terminal_clipboard(id, state.scope_generation, key, view, action);
+                    }
                 }
                 ContentAction::SelectAll | ContentAction::Clear => {
                     let command = if matches!(action, ContentAction::SelectAll) {
@@ -1044,9 +1216,35 @@ fn panel(
     Task::none()
 }
 
+fn terminal_clipboard(
+    id: window::Id,
+    generation: u64,
+    key: SessionKey,
+    view: &desktop_terminal::attached::AttachedTerminal,
+    action: desktop_terminal::message::ContentAction,
+) -> Task<Message> {
+    use desktop_terminal::message::ContentAction;
+
+    match action {
+        ContentAction::Copy => {
+            let text = view.terminal().selected_text();
+            if text.is_empty() { Task::none() } else { iced::clipboard::write(text) }
+        }
+        ContentAction::Paste | ContentAction::PasteText => {
+            let terminal_id = view.terminal().id;
+            iced::clipboard::read().map(move |text| {
+                response(id, generation, Action::TerminalClipboard(key.clone(), terminal_id, text))
+            })
+        }
+        _ => Task::none(),
+    }
+}
+
 pub(super) fn split_target(state: &Workbench, project: &Project, pane: pane_grid::Pane) -> Option<CliWorkbenchTarget> {
     let current = project.tab_for_view(project.panes.grid.get(pane)?.active_id?)?;
-    let target = if state.terminal_available {
+    let target = if matches!(current.session.target, CliWorkbenchTarget::Ssh { .. }) {
+        current.session.target.clone()
+    } else if state.terminal_available {
         CliWorkbenchTarget::Shell
     } else {
         current.session.target.clone()
@@ -1055,22 +1253,45 @@ pub(super) fn split_target(state: &Workbench, project: &Project, pane: pane_grid
 }
 
 pub(super) fn launch_target_available(state: &Workbench, target: &CliWorkbenchTarget) -> bool {
-    if !state.surface.includes_target(target) {
-        return false;
-    }
     match target {
-        CliWorkbenchTarget::Shell => state.terminal_available,
+        CliWorkbenchTarget::Shell => state.surface != Surface::Terminal && state.terminal_available,
+        CliWorkbenchTarget::Ssh { connection_id } => state.ssh.connection(connection_id).is_some(),
         CliWorkbenchTarget::NativeCli { app_id } => {
             // Keep the workbench's older gateway fallback. The gateway authorizes the launch.
             let legacy_codex = state.surface == Surface::Workbench && app_id == super::CODEX_APP_ID;
-            state.terminal_available
+            state.surface != Surface::Terminal && state.terminal_available
                 && (legacy_codex || state.native_apps.iter().any(|app| &app.id == app_id))
         }
-        CliWorkbenchTarget::Acp { agent } => state.agents.iter().any(|profile| &profile.key == agent),
+        CliWorkbenchTarget::Acp { agent } => {
+            state.surface == Surface::Workbench && state.agents.iter().any(|profile| &profile.key == agent)
+        }
     }
 }
 
-fn start(
+fn start_default_shell(state: &mut Workbench, id: window::Id, visible: bool) -> Task<Message> {
+    if !visible || !state.default_shell_pending || state.discovering {
+        return Task::none();
+    }
+    let Some(project) = state.selected.as_ref().and_then(|id| state.projects.get(id)) else {
+        return Task::none();
+    };
+    if !project.layout_loaded || project.disconnected {
+        return Task::none();
+    }
+
+    if state.dialog.is_some() || project.tabs.values().any(|tab| !tab.hidden) {
+        state.default_shell_pending = false;
+        return Task::none();
+    }
+    if state.starting {
+        return Task::none();
+    }
+    let pane = project.panes.focused;
+    state.default_shell_pending = false;
+    start(state, id, CliWorkbenchTarget::Shell, pane, None)
+}
+
+pub(super) fn start(
     state: &mut Workbench,
     id: window::Id,
     target: CliWorkbenchTarget,
@@ -1097,7 +1318,9 @@ fn start(
     state.starting = true;
     let generation = state.scope_generation;
     state.error = None;
-    let request = StartCliWorkbenchSession { target, directory };
+    let ssh_surface = (matches!(&target, CliWorkbenchTarget::Ssh { .. })
+        && state.surface != Surface::AppTerminal).then(|| state.surface.ssh_surface());
+    let request = StartCliWorkbenchSession { target, directory, ssh_surface };
     Task::perform(
         async move {
             let result = client.cli_workbench_start(&project, &request).await;
@@ -1113,10 +1336,10 @@ fn stop(state: &mut Workbench, id: window::Id, key: SessionKey) -> Task<Message>
     if state.projects.get(&key.project).is_none_or(|project| project.disconnected) {
         return Task::none();
     }
-    let terminal_available = state.terminal_available;
-    let Some(tab) =
-        state.tab_mut(&key).filter(|tab| !tab.session.capabilities.terminal || terminal_available)
-    else {
+    let allowed = state.projects.get(&key.project)
+        .and_then(|project| project.tabs.get(&key.session))
+        .is_some_and(|tab| !tab.session.capabilities.terminal || state.pty_available(&tab.session.target));
+    let Some(tab) = state.tab_mut(&key).filter(|_| allowed) else {
         return Task::none();
     };
     if !tab.begin_stop() {
@@ -1175,7 +1398,7 @@ fn confirm(state: &mut Workbench, id: window::Id) -> Task<Message> {
             tab.action_error = None;
             tab.turns.push(Turn {
                 request: request.clone(),
-                prompt: prompt.clone(),
+                prompt: Some(prompt.clone()),
                 snapshot: None,
                 error: None,
                 recover: true,

@@ -2,6 +2,25 @@ use super::{BindingAction, BindingsLayout};
 use alacritty_terminal::term::TermMode;
 use iced_core::keyboard::{key::Named, Key, Modifiers};
 
+#[test]
+fn clipboard_bindings_apply_in_fullscreen_tuis() {
+    let bindings = BindingsLayout::new();
+    let shortcut_modifiers = if cfg!(target_os = "macos") {
+        Modifiers::COMMAND
+    } else {
+        Modifiers::COMMAND | Modifiers::SHIFT
+    };
+    for (key, modifiers, expected) in [
+        (Key::Character("c".into()), shortcut_modifiers, BindingAction::Copy),
+        (Key::Character("v".into()), shortcut_modifiers, BindingAction::Paste),
+        (Key::Named(Named::Copy), Modifiers::empty(), BindingAction::Copy),
+        (Key::Named(Named::Paste), Modifiers::empty(), BindingAction::Paste),
+        (Key::Named(Named::Insert), Modifiers::SHIFT, BindingAction::Paste),
+    ] {
+        assert_eq!(bindings.key_action(&key, modifiers, None, TermMode::ALT_SCREEN), expected);
+    }
+}
+
 fn bytes(
     key: Key,
     modifiers: Modifiers,

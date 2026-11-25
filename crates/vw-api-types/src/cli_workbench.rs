@@ -18,6 +18,46 @@ pub enum CliWorkbenchTarget {
     Acp { agent: String },
     NativeCli { app_id: String },
     Shell,
+    Ssh { connection_id: String },
+}
+
+/// Desktop surface that owns an SSH tab. Older sessions belong to the app terminal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SshSessionSurface {
+    Terminal,
+    AppTerminal,
+    Workbench,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SshConnectionFields {
+    pub name: String,
+    pub host: String,
+    pub port: Option<u16>,
+    pub identity_file: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SshConnection {
+    pub id: String,
+    pub from_config: bool,
+    pub fields: SshConnectionFields,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SshConnections {
+    pub saved: Vec<SshConnection>,
+    pub aliases: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
+pub enum SshConnectionChange {
+    Save { id: Option<String>, fields: SshConnectionFields },
+    Import { aliases: Vec<String> },
+    Delete { id: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -66,6 +106,11 @@ pub struct CliWorkbenchSession {
     pub capabilities: CliWorkbenchCapabilities,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_activity: Option<CliWorkbenchAgentActivity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ssh_surface: Option<SshSessionSurface>,
+    /// Recent structured deliveries, in submission order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub recent_request_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -89,6 +134,8 @@ pub struct StartCliWorkbenchSession {
     pub target: CliWorkbenchTarget,
     /// Defaults to the registered project root. May also name a registered worktree.
     pub directory: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ssh_surface: Option<SshSessionSurface>,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]

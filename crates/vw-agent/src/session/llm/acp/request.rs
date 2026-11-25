@@ -28,14 +28,29 @@ impl Host for RuntimeHost {
     fn config() -> HostFuture<'static, anyhow::Result<config::schema::Config>> { Box::pin(async { Ok(config::get_current().await?) }) }
     fn project_id() -> Option<String> { crate::project::instance::project().map(|project| project.id) }
     #[cfg(not(target_arch = "wasm32"))]
-    fn workbench_child_context(session: &str, cwd: &Path) -> Option<(&'static str, String)> {
-        let context = Self::tool_context()?;
-        if context.session() != session {
-            return None;
+    fn apply_workbench_child_environment(
+        session: &str,
+        cwd: &Path,
+        env: &mut std::collections::HashMap<String, String>,
+    ) {
+        use crate::gateway::api::handlers::cli_workbench::{acp_child_context, cli_search_path};
+        use std::ffi::OsStr;
+        let Some(context) = Self::tool_context().filter(|context| context.session() == session) else {
+            return;
+        };
+        let Some(connection) = context.message_id().and_then(|message| {
+            acp_child_context(&Self::tenant(), session, message, cwd)
+        }) else {
+            return;
+        };
+        env.insert(vw_api_types::cli_workbench::CHILD_CONTEXT_ENV.into(), connection);
+        let path_key = env.keys().find(|key| {
+            *key == "PATH" || (cfg!(windows) && key.eq_ignore_ascii_case("PATH"))
+        });
+        let path = path_key.and_then(|key| env.get(key)).map(OsStr::new);
+        if let Some(path) = cli_search_path(path).and_then(|path| path.into_string().ok()) {
+            env.insert(path_key.cloned().unwrap_or_else(|| "PATH".into()), path);
         }
-        crate::gateway::api::handlers::cli_workbench::acp_child_context(
-            &Self::tenant(), session, context.message_id()?, cwd,
-        ).map(|context| (vw_api_types::cli_workbench::CHILD_CONTEXT_ENV, context))
     }
     #[cfg(not(target_arch = "wasm32"))]
     fn employee_acp_launch(session: &str) -> Option<llm_runtime::acp::host::EmployeeAcpLaunch> {

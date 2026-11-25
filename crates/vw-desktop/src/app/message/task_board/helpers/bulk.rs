@@ -118,13 +118,20 @@ pub(crate) async fn move_task_status_via_gateway(
     workflow_id: &str,
     order_no: Option<i64>,
 ) -> Result<(), String> {
-    let commands = desktop_task_board::bulk::move_task_status_commands(
+    let command = desktop_task_board::bulk::move_task_status_command(
         task_id,
         target_status,
         workflow_id,
         order_no,
     );
-    submit_agent_scheduler_bulk_command(project_path, commands, "手动移动任务").await
+    let scope = resolve_task_board_scheduler_scope(project_path).await?;
+    let client = crate::app::config::gateway_client()?;
+    let response = client.agent_scheduler_command(&scope, &command).await?;
+    if response.accepted {
+        Ok(())
+    } else {
+        Err("gateway rejected the task status change".into())
+    }
 }
 
 pub(crate) async fn move_tasks_to_status_via_gateway(

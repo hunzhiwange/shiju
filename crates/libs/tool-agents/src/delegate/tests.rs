@@ -769,7 +769,7 @@ fn delegate_builders_store_multimodal_config() {
         max_images: 7,
         max_image_size_mb: 9,
         allow_remote_fetch: true,
-        ocr: Default::default(),
+        ..Default::default()
     };
     let tool = DelegateTool::new(sample_agents(), None, test_security())
         .with_multimodal_config(multimodal);

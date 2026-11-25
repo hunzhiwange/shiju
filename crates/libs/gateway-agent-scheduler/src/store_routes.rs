@@ -1,5 +1,6 @@
 //! Store-backed scheduler gateway API actions.
 use super::*;
+use vw_api_agent_scheduler::{AgentSchedulerTaskDetailChange, AgentSchedulerTaskDetailDto};
 #[async_trait]
 impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentSchedulerGateway<H> {
     async fn create_task(
@@ -21,6 +22,17 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         let task_id = task.id.clone();
         let existed =
             self.store.load_task(&context, &task_id).map_err(map_scheduler_error)?.is_some();
+        if !existed {
+            if task.metadata.is_null() {
+                task.metadata = json!({});
+            }
+            if let Some(metadata) = task.metadata.as_object_mut() {
+                metadata.insert(
+                    task_scheduler::task_board::detail::CREATOR_KEY.to_owned(),
+                    json!(context.scope().project_scope().user_id().as_ref()),
+                );
+            }
+        }
         if !existed && placement.is_some() {
             if task.kind != AgentTaskKind::Finite {
                 return Err(ApiError::bad_request("only finite tasks can be placed in a work plan"));
@@ -535,6 +547,34 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         Ok(AgentSchedulerTaskMetadataUpdateResponse { task, event: Some(event) })
     }
 
+    async fn task_detail(
+        &self,
+        context: AgentSchedulerContext,
+        task_id: String,
+    ) -> Result<AgentSchedulerTaskDetailDto, ApiError> {
+        let id = TaskId::new(task_id).map_err(map_bad_request)?;
+        AgentTaskBoardService::new(&self.store)
+            .task_detail(&context, &id)
+            .map_err(map_scheduler_error)?
+            .ok_or_else(|| ApiError::not_found("task not found"))
+    }
+
+    async fn change_task_detail(
+        &self,
+        context: AgentSchedulerContext,
+        task_id: String,
+        change: AgentSchedulerTaskDetailChange,
+    ) -> Result<AgentSchedulerTaskDetailDto, ApiError> {
+        let id = TaskId::new(task_id).map_err(map_bad_request)?;
+        let author = context.scope().project_scope().user_id();
+        let lock = self.project_dispatch_lock(&context);
+        let _guard = lock.lock().await;
+        AgentTaskBoardService::new(&self.store)
+            .change_task_detail(&context, &id, author.as_ref(), change, current_timestamp_ms())
+            .map_err(map_task_board_error)?
+            .ok_or_else(|| ApiError::not_found("task not found"))
+    }
+
     async fn import_legacy_tasks(
         &self,
         project_id: String,
@@ -697,9 +737,9 @@ fn mutate_label_directory(
 ) -> Result<(), ApiError> {
     use AgentSchedulerTaskLabelMutation::{Archive, Create, Update};
 
-    let (id, name, color) = match request {
-        Create { name, color } => (None, Some(name), Some(color)),
-        Update { id, name, color } => (Some(id), name, color),
+    let (id, name, color, description) = match request {
+        Create { name, color, description } => (None, Some(name), Some(color), Some(description)),
+        Update { id, name, color, description } => (Some(id), name, color, description),
         Archive { id } => {
             let label = labels.iter_mut().find(|label| label.id == id)
                 .ok_or_else(|| ApiError::not_found("task label not found"))?;
@@ -719,13 +759,8 @@ fn mutate_label_directory(
             return Err(ApiError::conflict("task label name already exists"));
         }
     }
-    let color = color.as_deref().map(str::trim);
-    if color.is_some_and(|color| {
-        color.len() != 7 || !color.starts_with('#')
-            || !color.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit)
-    }) {
-        return Err(ApiError::bad_request("task label color must use #RRGGBB"));
-    }
+    let color = color.map(|color| validate_catalog_color(color, "task label")).transpose()?;
+    let description = description.map(|text| text.trim().to_owned());
     if let Some(id) = id {
         let label = labels.iter_mut().find(|label| label.id == id)
             .ok_or_else(|| ApiError::not_found("task label not found"))?;
@@ -733,17 +768,32 @@ fn mutate_label_directory(
             label.name = name.to_owned();
         }
         if let Some(color) = color {
-            label.color = color.to_ascii_uppercase();
+            label.color = color;
+        }
+        if let Some(description) = description {
+            label.description = description;
         }
     } else if let (Some(name), Some(color)) = (name, color) {
         labels.push(AgentSchedulerTaskLabelDto {
             id: uuid::Uuid::new_v4().to_string(),
             name: name.to_owned(),
-            color: color.to_ascii_uppercase(),
+            color,
+            description: description.unwrap_or_default(),
             archived: false,
         });
     }
     Ok(())
+}
+
+fn validate_catalog_color(color: String, field: &str) -> Result<String, ApiError> {
+    let color = color.trim();
+    if color.len() != 7
+        || !color.starts_with('#')
+        || !color.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit)
+    {
+        return Err(ApiError::bad_request(format!("{field} color must use #RRGGBB")));
+    }
+    Ok(color.to_ascii_uppercase())
 }
 
 fn mutate_property_directory(
@@ -753,22 +803,24 @@ fn mutate_property_directory(
     use AgentSchedulerTaskPropertyMutation::{Archive, Create, Update};
 
     match request {
-        Create { name, kind, options } => {
+        Create { name, kind, icon, description, options } => {
             let name = validate_property_name(properties, None, name)?;
-            if kind == AgentSchedulerTaskPropertyKind::SingleSelect && options.is_empty() {
-                return Err(ApiError::bad_request("single select properties require options"));
+            if kind.has_options() && options.is_empty() {
+                return Err(ApiError::bad_request("select properties require options"));
             }
             let mut property = AgentSchedulerTaskPropertyDto {
                 id: uuid::Uuid::new_v4().to_string(),
                 name,
                 kind,
+                icon,
+                description: description.trim().to_owned(),
                 options: Vec::new(),
                 archived: false,
             };
             add_property_options(&mut property, options)?;
             properties.push(property);
         }
-        Update { id, name, new_options, option_changes } => {
+        Update { id, name, icon, description, new_options, option_changes } => {
             let name = name.map(|name| validate_property_name(properties, Some(&id), name))
                 .transpose()?;
             let property = properties.iter_mut().find(|property| property.id == id)
@@ -779,14 +831,23 @@ fn mutate_property_directory(
             if let Some(name) = name {
                 property.name = name;
             }
+            if let Some(icon) = icon {
+                property.icon = icon;
+            }
+            if let Some(description) = description {
+                property.description = description.trim().to_owned();
+            }
             for (id, change) in option_changes {
                 let option = property.options.iter_mut().find(|option| option.id == id)
                     .ok_or_else(|| ApiError::not_found("task property option not found"))?;
+                if option.archived && (change.name.is_some() || change.color.is_some()) {
+                    return Err(ApiError::conflict("task property option is archived"));
+                }
                 if let Some(name) = change.name {
-                    if option.archived {
-                        return Err(ApiError::conflict("task property option is archived"));
-                    }
                     option.name = non_empty(name.trim().to_owned(), "task property option name")?;
+                }
+                if let Some(color) = change.color {
+                    option.color = Some(validate_catalog_color(color, "task property option")?);
                 }
                 option.archived |= change.archive;
             }
@@ -818,15 +879,21 @@ fn validate_property_name(
 
 fn add_property_options(
     property: &mut AgentSchedulerTaskPropertyDto,
-    new_options: Vec<String>,
+    new_options: Vec<vw_api_agent_scheduler::AgentSchedulerTaskPropertyOptionInput>,
 ) -> Result<(), ApiError> {
-    if property.kind != AgentSchedulerTaskPropertyKind::SingleSelect && !new_options.is_empty() {
-        return Err(ApiError::bad_request("only single select properties accept options"));
+    use vw_api_agent_scheduler::AgentSchedulerTaskPropertyOptionInput::{Colored, Name};
+    if !property.kind.has_options() && !new_options.is_empty() {
+        return Err(ApiError::bad_request("only select properties accept options"));
     }
     for option in new_options {
+        let (name, color) = match option {
+            Name(name) => (name, None),
+            Colored { name, color } => (name, Some(validate_catalog_color(color, "task property option")?)),
+        };
         property.options.push(AgentSchedulerTaskPropertyOption {
             id: uuid::Uuid::new_v4().to_string(),
-            name: non_empty(option.trim().to_owned(), "task property option name")?,
+            name: non_empty(name.trim().to_owned(), "task property option name")?,
+            color,
             archived: false,
         });
     }

@@ -6,6 +6,9 @@ pub(super) fn map(value: UiMessage<Message>) -> Message {
         UiMessage::CommitDescriptionEditorAction(value) => {
             Message::Git(message::GitMessage::CommitDescriptionEditorAction(value))
         }
+        UiMessage::ToggleCommitDescription => {
+            Message::Git(message::GitMessage::ToggleCommitDescription)
+        }
         UiMessage::CommitHelpOpen => Message::Git(message::GitMessage::CommitHelpOpen),
         UiMessage::CommitMessageChanged(value) => {
             Message::Git(message::GitMessage::CommitMessageChanged(value))

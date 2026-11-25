@@ -195,6 +195,9 @@ fn apply_agent_scheduler_task_snapshot(
         task.description.clone_from(title);
     }
     task.priority = snapshot.priority;
+    if let Some(assignee) = &snapshot.read_model.assignee {
+        task.assignee.clone_from(assignee);
+    }
     task.label_ids.clone_from(&snapshot.read_model.label_ids);
     task.properties.clone_from(&snapshot.read_model.properties);
     task.order = runtime_order_no_to_task_order(snapshot.order_no);
@@ -339,6 +342,9 @@ pub fn apply_agent_scheduler_status(
         {
             task.label_ids.clone_from(&snapshot.read_model.label_ids);
             task.properties.clone_from(&snapshot.read_model.properties);
+            if let Some(assignee) = &snapshot.read_model.assignee {
+                task.assignee.clone_from(assignee);
+            }
             updated_task_ids.push(task_id);
             updated_tasks.push(task.clone());
             next_tasks.push(task);

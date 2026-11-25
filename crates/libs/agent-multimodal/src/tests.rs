@@ -169,7 +169,7 @@ mod cases {
             max_images: 1,
             max_image_size_mb: 5,
             allow_remote_fetch: false,
-            ocr: Default::default(),
+            ..Default::default()
         };
 
         let error = prepare_messages_for_provider(&messages, &config)
@@ -203,7 +203,7 @@ mod cases {
             max_images: 4,
             max_image_size_mb: 5,
             allow_remote_fetch: true,
-            ocr: Default::default(),
+            ..Default::default()
         };
         let client = Client::new();
 
@@ -296,7 +296,7 @@ mod cases {
             max_images: 4,
             max_image_size_mb: 1,
             allow_remote_fetch: false,
-            ocr: Default::default(),
+            ..Default::default()
         };
 
         let error = prepare_messages_for_provider(&messages, &config)

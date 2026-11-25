@@ -4,7 +4,7 @@ use crate::pet_state::*;
 use crate::pet_interaction::TaskPetState;
 
 #[test]
-fn task_pet_window_animation_drag_and_avatar_state_transitions() {
+fn task_pet_drag_and_avatar_state_transitions() {
     let mut app = TaskPetState {
 task_pet_avatar_kind: &mut TaskPetAvatarKind::Robot,
 task_pet_collapsed: &mut false,
@@ -13,8 +13,6 @@ task_pet_drag_anchor: &mut None,
 task_pet_drag_direction: &mut 1,
 task_pet_drag_start: &mut iced::Point::ORIGIN,
 task_pet_dragging: &mut false,
-task_pet_expand_progress: &mut 1.0,
-task_pet_expand_target: &mut None,
 task_pet_hovered_request_id: &mut None,
 task_pet_items: &mut Vec::new(),
 task_pet_position: &mut iced::Point::ORIGIN,
@@ -28,33 +26,17 @@ window_size: (500.0, 420.0), now_ms: 1000,
 };
     app.window_size = (500.0, 420.0);
     (*app.task_pet_position) = iced::Point::new(300.0, 220.0);
-    (*app.task_pet_expand_progress) = 1.0;
     (*app.task_pet_collapsed) = false;
 
     app.toggle_task_pet_collapsed();
     assert!((*app.task_pet_collapsed));
-    assert!(!app.task_pet_render_collapsed());
-
-    let (size, position) = app.advance_task_pet_expand_animation().unwrap();
-    assert!(size.width < 360.0);
-    assert!(position.x > 300.0);
-    assert!((*app.task_pet_expand_target).is_some());
-
-    (*app.task_pet_expand_progress) = 0.1;
-    (*app.task_pet_expand_target) = Some(0.0);
-    let _ = app.advance_task_pet_expand_animation().unwrap();
-    assert_eq!((*app.task_pet_expand_progress), 0.0);
-    assert!((*app.task_pet_expand_target).is_none());
-    assert!(app.task_pet_render_collapsed());
-
-    assert!(app.advance_task_pet_expand_animation().is_none());
-
     app.start_task_pet_drag();
     assert!((*app.task_pet_dragging));
-    app.drag_task_pet_to(100.0, 100.0);
+    let size = iced::Size::new(160.0, 168.0);
+    app.drag_task_pet_to(100.0, 100.0, size);
     assert_eq!((*app.task_pet_drag_anchor), Some(iced::Point::new(100.0, 100.0)));
     let before = *app.task_pet_position;
-    app.drag_task_pet_to(-200.0, 600.0);
+    app.drag_task_pet_to(-200.0, 600.0, size);
     assert!(app.task_pet_position.x <= before.x);
     assert!(app.task_pet_facing_left());
     assert!(app.task_pet_is_walking());
@@ -83,8 +65,6 @@ task_pet_drag_anchor: &mut None,
 task_pet_drag_direction: &mut 1,
 task_pet_drag_start: &mut iced::Point::ORIGIN,
 task_pet_dragging: &mut false,
-task_pet_expand_progress: &mut 1.0,
-task_pet_expand_target: &mut None,
 task_pet_hovered_request_id: &mut None,
 task_pet_items: &mut Vec::new(),
 task_pet_position: &mut iced::Point::ORIGIN,
@@ -182,8 +162,6 @@ task_pet_drag_anchor: &mut None,
 task_pet_drag_direction: &mut 1,
 task_pet_drag_start: &mut iced::Point::ORIGIN,
 task_pet_dragging: &mut false,
-task_pet_expand_progress: &mut 1.0,
-task_pet_expand_target: &mut None,
 task_pet_hovered_request_id: &mut None,
 task_pet_items: &mut Vec::new(),
 task_pet_position: &mut iced::Point::ORIGIN,
@@ -233,8 +211,6 @@ task_pet_drag_anchor: &mut None,
 task_pet_drag_direction: &mut 1,
 task_pet_drag_start: &mut iced::Point::ORIGIN,
 task_pet_dragging: &mut false,
-task_pet_expand_progress: &mut 1.0,
-task_pet_expand_target: &mut None,
 task_pet_hovered_request_id: &mut None,
 task_pet_items: &mut Vec::new(),
 task_pet_position: &mut iced::Point::ORIGIN,

@@ -190,6 +190,9 @@ fn default_keyboard_bindings() -> Vec<(Binding<InputKind>, BindingAction)> {
         Escape;    BindingAction::Char('\x1b');
         Tab;       BindingAction::Char('\x09');
         Insert;    BindingAction::Esc("\x1b[2~".into());
+        Insert, Modifiers::SHIFT; BindingAction::Paste;
+        Copy;      BindingAction::Copy;
+        Paste;     BindingAction::Paste;
         Delete;    BindingAction::Esc("\x1b[3~".into());
         PageUp;    BindingAction::Esc("\x1b[5~".into());
         PageDown;  BindingAction::Esc("\x1b[6~".into());

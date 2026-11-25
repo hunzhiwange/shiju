@@ -97,12 +97,18 @@ pub fn prepare_send_input<R>(
         send_behavior
     };
     let attachments = std::mem::take(files);
-    let query = compose_query_with_session_context(
-        &query,
-        &selected_tools,
-        &selected_skills,
-        &selected_shiju_skills,
-    );
+    let query = if media_model.as_ref().is_some_and(|pending| {
+        pending.selection.operation == vw_api_media::MediaOperation::ImageUnderstand
+    }) {
+        query
+    } else {
+        compose_query_with_session_context(
+            &query,
+            &selected_tools,
+            &selected_skills,
+            &selected_shiju_skills,
+        )
+    };
     runtime.tool_selector.clear_manual_context_selection();
     if runtime.task_mode_enabled && media_model.is_none() {
         return SendInputEffect::AddTask {

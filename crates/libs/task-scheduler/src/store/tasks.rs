@@ -170,6 +170,9 @@ impl AgentSchedulerStore {
         placement: Option<TaskPlanPlacement>,
     ) -> Result<StoredAgentTask> {
         validate_new_task(&task)?;
+        if task.metadata.get(crate::task_board::detail::COLLABORATION_KEY).is_some() {
+            bail!("use the task detail API to change collaboration data");
+        }
         if let Some(metadata) = task.metadata.as_object() {
             for key in metadata.keys() {
                 crate::task_board::validate_task_plan_metadata_key(key)?;
@@ -783,13 +786,13 @@ pub(super) fn apply_task_property_changes(
         .map(|value| serde_json::from_value(value.clone()).context("read task property values"))
         .transpose()?
         .unwrap_or_default();
-    for (id, value) in changes {
+    for (id, mut value) in changes {
         let field = directory.iter().find(|field| field.id == id)
             .context("task property does not belong to this project")?;
         if field.archived {
             bail!("task property is archived");
         }
-        match (value.as_ref(), field.kind) {
+        match (value.as_mut(), field.kind) {
             (None, _) => {
                 values.remove(&id);
             }
@@ -801,10 +804,51 @@ pub(super) fn apply_task_property_changes(
                 }
             }
             (Some(Property::SingleSelect(option)), Kind::SingleSelect) => {
-                let choice = field.options.iter().find(|choice| &choice.id == option)
+                let choice = field.options.iter().find(|choice| choice.id == *option)
                     .context("option does not belong to this task property")?;
                 if choice.archived {
                     bail!("task property option is archived");
+                }
+            }
+            (Some(Property::MultiSelect(options)), Kind::MultiSelect) => {
+                let previous = match values.get(&id) {
+                    Some(Property::MultiSelect(previous)) => previous.as_slice(),
+                    _ => &[],
+                };
+                options.sort_unstable();
+                options.dedup();
+                for option in options {
+                    let choice = field.options.iter().find(|choice| &choice.id == option)
+                        .context("option does not belong to this task property")?;
+                    if choice.archived && !previous.contains(option) {
+                        bail!("task property option is archived");
+                    }
+                }
+            }
+            (Some(Property::Number(number)), Kind::Number) => {
+                *number = number.trim().parse::<serde_json::Number>()
+                    .context("task property number must be a finite number")?.to_string();
+            }
+            (Some(Property::Checkbox(_)), Kind::Checkbox) => {}
+            (Some(Property::Link(link)), Kind::Link) => validate_task_property_link(link)?,
+            (Some(Property::Member(member)), Kind::Member) => validate_task_property_member(member)?,
+            (Some(Property::MultiMember(members)), Kind::MultiMember) => {
+                for member in members.iter_mut() {
+                    validate_task_property_member(member)?;
+                }
+                let mut seen = std::collections::HashSet::new();
+                members.retain(|member| seen.insert(member.clone()));
+            }
+            (Some(Property::TextList(items)), Kind::TextList) => {
+                for item in items {
+                    if item.trim().is_empty() {
+                        bail!("task property list items must not be empty");
+                    }
+                }
+            }
+            (Some(Property::LinkList(links)), Kind::LinkList) => {
+                for link in links {
+                    validate_task_property_link(link)?;
                 }
             }
             (Some(Property::Text(_)), Kind::Text) => {}
@@ -820,6 +864,27 @@ pub(super) fn apply_task_property_changes(
     } else {
         metadata.insert(TASK_PROPERTY_VALUES_METADATA_KEY.to_owned(), serde_json::to_value(values)?);
     }
+    Ok(())
+}
+
+fn validate_task_property_member(member: &mut String) -> Result<()> {
+    let id = member.trim();
+    if id.is_empty() || id.chars().any(char::is_whitespace) {
+        bail!("task property member must be a member ID");
+    }
+    *member = id.to_owned();
+    Ok(())
+}
+
+fn validate_task_property_link(link: &mut String) -> Result<()> {
+    let value = link.trim();
+    let url = url::Url::parse(value).context("task property link must be a valid URL")?;
+    if !matches!(url.scheme(), "http" | "https") || !url.has_host()
+        || !url.username().is_empty() || url.password().is_some()
+    {
+        bail!("task property link must be an HTTP or HTTPS URL without credentials");
+    }
+    *link = value.to_owned();
     Ok(())
 }
 
@@ -844,7 +909,13 @@ pub(crate) fn validate_task_label_ids(
 }
 
 pub(super) fn preserve_task_board_fields(current: &Value, metadata: &mut Value) {
-    for key in [TASK_LABEL_IDS_METADATA_KEY, TASK_PROPERTY_VALUES_METADATA_KEY] {
+    for key in [
+        TASK_LABEL_IDS_METADATA_KEY,
+        TASK_PROPERTY_VALUES_METADATA_KEY,
+        crate::task_board::detail::COLLABORATION_KEY,
+        crate::task_board::detail::CREATOR_KEY,
+        "assignee",
+    ] {
         if let Some(value) = current.get(key) {
             if !metadata.is_object() {
                 *metadata = json!({});

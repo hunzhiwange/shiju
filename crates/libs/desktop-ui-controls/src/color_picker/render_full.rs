@@ -105,21 +105,19 @@ fn parse_hsla_channel_input(input: &str) -> Option<u16> {
     input.parse::<u16>().ok()
 }
 
-/// 渲染对应的设计界面片段。
-///
-/// 返回 Iced 元素；输入为空或不支持时由调用方保留现有界面兜底。
-pub fn render_color_picker<'a, F, F2>(
+/// Reuses the color tracks for settings that store opaque RGB values.
+pub fn render_opaque_color_picker<'a>(
     color: Color,
-    format: ColorFormat,
-    picking: bool,
-    on_change: F,
-    on_format_change: F2,
-    on_eyedropper: impl Fn() -> Message + Clone + 'static,
-) -> Element<'a, Message>
-where
-    F: Fn(Color) -> Message + Clone + 'static,
-    F2: Fn(ColorFormat) -> Message + 'static,
-{
+    on_change: impl Fn(Color) -> Message + Clone + 'static,
+) -> Element<'a, Message> {
+    let (saturation, hue) = color_tracks(Color { a: 1.0, ..color }, on_change);
+    column![saturation, hue].spacing(10).into()
+}
+
+fn color_tracks<'a>(
+    color: Color,
+    on_change: impl Fn(Color) -> Message + Clone + 'static,
+) -> (Element<'a, Message>, Element<'a, Message>) {
     let hsv = Hsv::from_color(color);
     let a = color.a;
 
@@ -168,6 +166,27 @@ where
     .height(16)
     .padding(1)
     .style(rounded_track_style);
+
+    (sv_picker.into(), hue_picker.into())
+}
+
+/// 渲染对应的设计界面片段。
+///
+/// 返回 Iced 元素；输入为空或不支持时由调用方保留现有界面兜底。
+pub fn render_color_picker<'a, F, F2>(
+    color: Color,
+    format: ColorFormat,
+    picking: bool,
+    on_change: F,
+    on_format_change: F2,
+    on_eyedropper: impl Fn() -> Message + Clone + 'static,
+) -> Element<'a, Message>
+where
+    F: Fn(Color) -> Message + Clone + 'static,
+    F2: Fn(ColorFormat) -> Message + 'static,
+{
+    let a = color.a;
+    let (sv_picker, hue_picker) = color_tracks(color, on_change.clone());
 
     let alpha_percent = conversion::format_percent(a * 100.0);
     let alpha_bar = container(stack![

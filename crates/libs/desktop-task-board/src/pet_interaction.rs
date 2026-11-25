@@ -3,13 +3,8 @@ use super::pet_state::*;
 use iced::Point;
 use std::{cmp::Reverse, collections::HashSet, path::Path};
 
-const PET_PANEL_WIDTH: f32 = 360.0;
-const PET_PANEL_HEIGHT: f32 = 404.0;
-const PET_COLLAPSED_WIDTH: f32 = 160.0;
-const PET_COLLAPSED_HEIGHT: f32 = 168.0;
 const PET_MARGIN: f32 = 12.0;
 const PET_DOUBLE_CLICK_MS: u128 = 500;
-const PET_EXPAND_ANIMATION_STEP: f32 = 0.24;
 const PET_WALK_ANIMATION_MS: u64 = 360;
 
 #[derive(Debug, Clone)]
@@ -99,19 +94,6 @@ pub fn current_open_think_body(value: &str) -> Option<String> {
     Some(tail[..end].trim_end().to_string())
 }
 
-fn task_pet_window_size_for_progress(progress: f32) -> iced::Size {
-    let eased = smooth_progress(progress.clamp(0.0, 1.0));
-    iced::Size::new(
-    PET_COLLAPSED_WIDTH + (PET_PANEL_WIDTH - PET_COLLAPSED_WIDTH) * eased,
-    PET_COLLAPSED_HEIGHT + (PET_PANEL_HEIGHT - PET_COLLAPSED_HEIGHT) * eased,
-    )
-}
-
-fn smooth_progress(value: f32) -> f32 {
-    value * value * (3.0 - 2.0 * value)
-}
-
-
 pub struct TaskPetState<'a> {
     pub task_pet_avatar_kind: &'a mut TaskPetAvatarKind,
     pub task_pet_collapsed: &'a mut bool,
@@ -120,8 +102,6 @@ pub struct TaskPetState<'a> {
     pub task_pet_drag_direction: &'a mut i8,
     pub task_pet_drag_start: &'a mut Point,
     pub task_pet_dragging: &'a mut bool,
-    pub task_pet_expand_progress: &'a mut f32,
-    pub task_pet_expand_target: &'a mut Option<f32>,
     pub task_pet_hovered_request_id: &'a mut Option<u64>,
     pub task_pet_items: &'a mut Vec<TaskPetItem>,
     pub task_pet_position: &'a mut Point,
@@ -144,51 +124,12 @@ impl TaskPetState<'_> {
         task_pet_avatar_bounds(&*self.task_pet_avatar_kind, &*self.task_pet_scale, &*self.task_pet_size_draft)
     }
 
-    pub fn task_pet_window_size(&self) -> iced::Size {
-        task_pet_window_size(&*self.task_pet_avatar_kind, &*self.task_pet_expand_progress, &*self.task_pet_items, &*self.task_pet_reply_request_id, &*self.task_pet_scale, &*self.task_pet_size_draft)
-    }
-
-    pub fn task_pet_render_collapsed(&self) -> bool {
-        task_pet_render_collapsed(&*self.task_pet_collapsed, &*self.task_pet_expand_progress)
-    }
-
-    pub fn request_task_pet_resize(&mut self) {
-        // Reuse the existing animation subscription for one geometry update.
-        if (*self.task_pet_expand_target).is_none() {
-            *self.task_pet_expand_target = Some(*self.task_pet_expand_progress);
-        }
-    }
-
     pub fn task_pet_active_count(&self) -> usize {
         task_pet_active_count(&*self.task_pet_items)
     }
 
     pub fn toggle_task_pet_collapsed(&mut self) {
-        *self.task_pet_collapsed = !(*self.task_pet_collapsed);
-        *self.task_pet_expand_target = Some(if *self.task_pet_collapsed { 0.0 } else { 1.0 });
-    }
-
-    pub fn advance_task_pet_expand_animation(
-    &mut self,
-    ) -> Option<(iced::Size, iced::Point)> {
-        let target = (*self.task_pet_expand_target)?;
-        let old_size = self.task_pet_window_size();
-        let delta = target - (*self.task_pet_expand_progress);
-        if delta.abs() <= PET_EXPAND_ANIMATION_STEP {
-            *self.task_pet_expand_progress = target;
-            *self.task_pet_expand_target = None;
-        } else {
-            *self.task_pet_expand_progress += PET_EXPAND_ANIMATION_STEP.copysign(delta);
-        }
-        *self.task_pet_expand_progress = (*self.task_pet_expand_progress).clamp(0.0, 1.0);
-
-        let new_size = self.task_pet_window_size();
-        let new_position = iced::Point::new(
-        (self.task_pet_position.x + old_size.width - new_size.width).max(0.0),
-        (self.task_pet_position.y + old_size.height - new_size.height).max(0.0),
-        );
-        *self.task_pet_position = new_position;
-        Some((new_size, new_position))
+        *self.task_pet_collapsed = !*self.task_pet_collapsed;
     }
 
     pub fn start_task_pet_drag(&mut self) {
@@ -198,16 +139,16 @@ impl TaskPetState<'_> {
         *self.task_pet_walk_until_ms = self.now_ms + PET_WALK_ANIMATION_MS;
     }
 
-    pub fn drag_task_pet_to(&mut self, x: f32, y: f32) {
+    pub fn drag_task_pet_to(&mut self, x: f32, y: f32, pet_size: iced::Size) {
         if (*self.task_pet_drag_anchor).is_none() {
             *self.task_pet_drag_anchor = Some(iced::Point::new(x, y));
             return;
         }
         let anchor = (*self.task_pet_drag_anchor).unwrap_or(iced::Point::new(x, y));
-        let panel_width = self.task_pet_window_size().width;
+        let panel_width = pet_size.width;
         let max_x = (self.window_size.0 - panel_width - PET_MARGIN).max(PET_MARGIN);
         let max_y =
-        (self.window_size.1 - self.task_pet_window_size().height - PET_MARGIN).max(PET_MARGIN);
+        (self.window_size.1 - pet_size.height - PET_MARGIN).max(PET_MARGIN);
         let position = iced::Point::new(
         (self.task_pet_drag_start.x + x - anchor.x).clamp(PET_MARGIN, max_x),
         (self.task_pet_drag_start.y + y - anchor.y).clamp(PET_MARGIN, max_y),
@@ -273,7 +214,6 @@ impl TaskPetState<'_> {
             *self.task_pet_reply_request_id = None;
             (*self.task_pet_reply_input).clear();
         }
-        self.request_task_pet_resize();
     }
 
     pub fn set_task_pet_hovered(&mut self, request_id: Option<u64>) {
@@ -281,7 +221,6 @@ impl TaskPetState<'_> {
     }
 
     pub fn open_task_pet_reply(&mut self, request_id: u64) {
-        self.request_task_pet_resize();
         if *self.task_pet_reply_request_id == Some(request_id) {
             *self.task_pet_reply_request_id = None;
             (*self.task_pet_reply_input).clear();
@@ -306,7 +245,6 @@ impl TaskPetState<'_> {
         let session_id = item.session_id.clone();
         *self.task_pet_reply_request_id = None;
         (*self.task_pet_reply_input).clear();
-        self.request_task_pet_resize();
         Some((session_id, input))
     }
 
@@ -391,53 +329,12 @@ pub fn task_pet_is_walking(task_pet_dragging: &bool, task_pet_walk_until_ms: &u6
     (*task_pet_dragging) || now_ms <= (*task_pet_walk_until_ms)
 }
 
-pub fn task_pet_window_size(task_pet_avatar_kind: &TaskPetAvatarKind, task_pet_expand_progress: &f32, task_pet_items: &Vec<TaskPetItem>, task_pet_reply_request_id: &Option<u64>, task_pet_scale: &f32, task_pet_size_draft: &Option<f32>) -> iced::Size {
-    let progress = smooth_progress((*task_pet_expand_progress).clamp(0.0, 1.0));
-    let mut size = task_pet_window_size_for_progress(*task_pet_expand_progress);
-    let count = (*task_pet_items).len();
-    if count == 0 {
-        size.height = PET_COLLAPSED_HEIGHT;
-    } else {
-        size.width = 320.0 + (PET_PANEL_WIDTH - 320.0) * progress;
-        let reply_extra = if (*task_pet_reply_request_id).is_some() {
-            TASK_PET_CARD_REPLY_HEIGHT - TASK_PET_CARD_HEIGHT
-        } else {
-            0.0
-        };
-        let collapsed_height = TASK_PET_CARD_HEIGHT
-        + (count.min(TASK_PET_STACK_DEPTH) - 1) as f32 * TASK_PET_STACK_OFFSET
-        + if (*task_pet_items).first().map(|item| item.request_id)
-        == (*task_pet_reply_request_id)
-        {
-            reply_extra
-        } else {
-            0.0
-        };
-        let expanded_height = (count as f32 * (TASK_PET_CARD_HEIGHT + TASK_PET_CARD_SPACING)
-        - TASK_PET_CARD_SPACING
-        + reply_extra)
-        .min(TASK_PET_LIST_HEIGHT);
-        size.height = PET_COLLAPSED_HEIGHT
-        + 6.0
-        + collapsed_height * (1.0 - progress)
-        + expanded_height * progress;
-    }
-    let extra = task_pet_avatar_bounds(task_pet_avatar_kind, task_pet_scale, task_pet_size_draft) - 104.0;
-    size.width = size.width.max(task_pet_avatar_bounds(task_pet_avatar_kind, task_pet_scale, task_pet_size_draft) + 16.0);
-    size.height += extra;
-    size
-}
-
 pub fn task_pet_preview_scale(task_pet_scale: &f32, task_pet_size_draft: &Option<f32>) -> f32 {
     (*task_pet_size_draft).unwrap_or(*task_pet_scale)
 }
 
 pub fn task_pet_active_count(task_pet_items: &Vec<TaskPetItem>) -> usize {
     (*task_pet_items).iter().filter(|item| item.status == TaskPetStatus::Running).count()
-}
-
-pub fn task_pet_render_collapsed(task_pet_collapsed: &bool, task_pet_expand_progress: &f32) -> bool {
-    (*task_pet_collapsed) && (*task_pet_expand_progress) <= 0.0
 }
 
 pub fn task_pet_facing_left(task_pet_drag_direction: &i8) -> bool {
@@ -469,10 +366,13 @@ pub fn newest_open_thinking_text<'a>(
     })
 }
 
+/// Keep the center and bottom anchored when a wider or taller surface opens.
 pub fn preview_position(position: Point, previous: iced::Size, size: iced::Size) -> Point {
+    let x = position.x + (previous.width - size.width) / 2.0;
+    let y = position.y + previous.height - size.height;
     Point::new(
-        (position.x + previous.width - size.width).max(0.0),
-        (position.y + previous.height - size.height).max(0.0),
+        if position.x >= 0.0 { x.max(0.0) } else { x },
+        if position.y >= 0.0 { y.max(0.0) } else { y },
     )
 }
 

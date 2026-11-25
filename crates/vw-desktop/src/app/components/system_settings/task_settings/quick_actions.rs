@@ -1,7 +1,6 @@
+use super::catalog as ui;
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_close_button,
-    settings_error_banner, settings_field_label, settings_help_button_with_locale,
-    settings_modal_header, settings_modal_layout, settings_muted_text_style,
+    settings_divider, settings_error_banner, settings_group_card, settings_help_button_with_locale,
     settings_page_heading, settings_text_editor, settings_text_input, with_settings_help_modal,
 };
 use crate::app::i18n::I18n;
@@ -9,9 +8,10 @@ use crate::app::message::task_quick_actions::{self as domain, Origin};
 use crate::app::message::{SettingsMessage, ViewMessage, settings::AgentConfigTabMessage};
 use crate::app::state::AgentConfigTab;
 use crate::app::{App, Message};
+use desktop_assets::assets::Icon;
 use desktop_settings_shell::SystemTab;
-use desktop_ui_controls::system_settings_common::panels::settings_modal_overlay_with_escape;
-use iced::widget::{button, column, operation, row, text, text_editor};
+use desktop_ui_controls::system_settings_common::panels::settings_responsive_row;
+use iced::widget::{column, container, operation, row, text, text_editor};
 use iced::{Alignment, Element, Length, Task};
 use task_file_store::task_quick_actions::{self as catalog, TaskQuickAction};
 
@@ -31,15 +31,12 @@ pub enum Event {
     Edit(u64),
     Archive(u64),
     Name(String),
+    Search(String),
     Prompt(text_editor::Action),
     Save,
     Close,
     Help(bool),
-    Finished {
-        request: u64,
-        mutation: bool,
-        result: Result<Vec<TaskQuickAction>, &'static str>,
-    },
+    Finished { request: u64, mutation: bool, result: Result<Vec<TaskQuickAction>, &'static str> },
 }
 
 #[derive(Default)]
@@ -47,10 +44,18 @@ pub(crate) struct State {
     origin: Option<Origin>,
     request: u64,
     busy: bool,
+    saving: bool,
     actions: Vec<TaskQuickAction>,
+    query: String,
     editor: Option<Editor>,
     error: Option<&'static str>,
     help: bool,
+}
+
+impl State {
+    pub(super) fn saving(&self) -> bool {
+        self.saving
+    }
 }
 
 struct Editor {
@@ -89,6 +94,7 @@ fn run(
     operation: impl FnOnce(&std::path::Path) -> std::io::Result<Vec<TaskQuickAction>> + Send + 'static,
 ) -> Task<Message> {
     state.busy = true;
+    state.saving = mutation;
     state.error = None;
     state.request = state.request.wrapping_add(1);
     let request = state.request;
@@ -117,9 +123,13 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         return Task::none();
     };
     let path = super::project_path(app);
+    if matches!(event, Event::Finished { .. }) && !origin.matches(app, path) {
+        app.task_quick_actions.settings.busy = false;
+        app.task_quick_actions.settings.saving = false;
+        return Task::none();
+    }
     if !origin.visible_in(app, path)
-        || (matches!(event, Event::Save | Event::Archive(_) | Event::Finished { .. })
-            && !origin.matches(app, path))
+        || (matches!(event, Event::Save | Event::Archive(_)) && !origin.matches(app, path))
     {
         return domain::warning(app, "项目已切换，请重新加载快捷操作");
     }
@@ -127,12 +137,17 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let state = &mut app.task_quick_actions.settings;
     if let Event::Finished { mutation, result, .. } = event {
         state.busy = false;
+        state.saving = false;
         return match result {
             Ok(actions) => {
                 state.actions = actions;
                 state.editor = None;
                 if mutation {
-                    app.show_localized_toast(crate::app::state::ToastKind::Success, "已更新任务快捷操作", vec![])
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "已更新任务快捷操作",
+                        vec![],
+                    )
                 } else {
                     Task::none()
                 }
@@ -143,24 +158,32 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             }
         };
     }
+    if let Event::Search(query) = event {
+        state.query = query;
+        return Task::none();
+    }
     if state.busy {
         return Task::none();
     }
     match event {
         Event::New => {
+            state.error = None;
             state.editor = Some(Editor::new(None, "", ""));
             return operation::focus(NAME_INPUT);
         }
         Event::Example(index) => {
             if let Some(&(name, prompt)) = EXAMPLES.get(index) {
                 let i18n = I18n::new(locale);
+                state.error = None;
                 state.editor = Some(Editor::new(None, i18n.__(name), i18n.__(prompt)));
                 return operation::focus(NAME_INPUT);
             }
         }
         Event::Edit(id) => {
             if let Some(action) = state.actions.iter().find(|action| action.id == id) {
-                state.editor = Some(Editor::new(Some(action.clone()), &action.name, &action.prompt));
+                state.error = None;
+                state.editor =
+                    Some(Editor::new(Some(action.clone()), &action.name, &action.prompt));
                 return operation::focus(NAME_INPUT);
             }
         }
@@ -192,7 +215,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             }
         }
         Event::Close => state.editor = None,
-        Event::Help(_) | Event::Load | Event::Finished { .. } => {}
+        Event::Help(_) | Event::Search(_) | Event::Load | Event::Finished { .. } => {}
     }
     Task::none()
 }
@@ -211,16 +234,20 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let current = state.origin.as_ref().is_some_and(|origin| origin.visible_in(app, path));
     let chat_settings = Message::Batch(vec![
         Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Agents)),
-        Message::Settings(SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(AgentConfigTab::QuickMessages))),
+        Message::Settings(SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
+            AgentConfigTab::QuickMessages,
+        ))),
     ]);
-    let mut page = column![title, action(i18n.__("聊天快捷消息"), Some(chat_settings))].spacing(12);
-    if let Some(path) = path {
-        page = page.push(text(path).size(12).style(settings_muted_text_style));
+    let heading = row![
+        container(title).width(Length::Fill),
+        ui::action(i18n.__("聊天快捷消息"), Some(chat_settings)),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    let mut page = column![heading].spacing(18);
+    if path.is_some() {
         page = page.push(catalog_view(i18n, state, current));
-    } else {
-        page = page.push(text(i18n.__("请先选择项目")));
     }
-
     page.into()
 }
 
@@ -229,53 +256,83 @@ pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
     if state.help {
         let close = message(Event::Help(false));
         let modal = with_settings_help_modal(app, base, TITLE, HELP, close.clone());
-        return desktop_ui_controls::system_settings_common::panels::with_settings_modal_escape(modal, close);
+        return desktop_ui_controls::system_settings_common::panels::with_settings_modal_escape(
+            modal, close,
+        );
     }
     if state.origin.as_ref().is_some_and(|origin| origin.visible_in(app, super::project_path(app)))
         && let Some(editor) = &state.editor
     {
         let i18n = I18n::new(app.general_settings.desktop_locale);
-        return editor_modal(i18n, base, editor, !state.busy);
+        return editor_modal(i18n, base, editor, !state.busy, state.error);
     }
     base
 }
 
 fn catalog_view(i18n: I18n, state: &State, current: bool) -> Element<'_, Message> {
-    let reload = || action(i18n.__("加载快捷操作"), Some(message(Event::Load)));
+    let enabled = !state.busy;
+    let reload = || ui::action(i18n.__("加载快捷操作"), enabled.then_some(message(Event::Load)));
     if !current {
         return reload().into();
     }
-    if state.busy && state.actions.is_empty() && state.editor.is_none() {
-        return text(i18n.__("正在加载快捷操作…")).into();
-    }
-
-    let mut items = column![].spacing(8);
+    let search = settings_text_input(i18n.__("搜索快捷操作"), &state.query)
+        .on_input(|query| message(Event::Search(query)));
+    let create =
+        ui::primary(i18n.__("新建操作"), Some(Icon::Plus), enabled.then_some(message(Event::New)));
+    let mut content = column![ui::toolbar(search.into(), create)].spacing(12);
     if let Some(error) = state.error {
-        items = items.push(settings_error_banner(i18n.__(error))).push(reload());
+        content = content.push(
+            row![container(settings_error_banner(i18n.__(error))).width(Length::Fill), reload(),]
+                .spacing(8)
+                .align_y(Alignment::Center),
+        );
     }
-    let enabled = !state.busy;
-    items = items.push(action(i18n.__("新建操作"), enabled.then_some(message(Event::New))));
-    if state.actions.is_empty() {
-        items = items.push(text(i18n.__("尚未保存操作，可从示例开始。")).size(13));
-        for (index, &(name, _)) in EXAMPLES.iter().enumerate() {
-            items = items.push(action(i18n.__(name), enabled.then_some(message(Event::Example(index)))));
-        }
-    }
-    for item in &state.actions {
-        items = items.push(row![
-            text(&item.name).width(Length::Fill),
-            action(i18n.__("编辑"), enabled.then_some(message(Event::Edit(item.id)))),
-            action(i18n.__("归档"), enabled.then_some(message(Event::Archive(item.id)))),
-        ].align_y(Alignment::Center).spacing(8));
-    }
-    items.into()
-}
 
-fn action(label: &str, on_press: Option<Message>) -> iced::widget::Button<'_, Message> {
-    button(text(label).size(13))
-        .padding([8, 12])
-        .style(rounded_action_btn_style)
-        .on_press_maybe(on_press)
+    let query = state.query.trim().to_lowercase();
+    let mut list = column![ui::record(
+        [(ui::cell(i18n.__("名称")).into(), 2), (ui::cell(i18n.__("提示词")).into(), 3),],
+        None
+    )];
+    let mut has_results = false;
+    for item in &state.actions {
+        if !ui::matches_search(&item.name, &query) && !ui::matches_search(&item.prompt, &query) {
+            continue;
+        }
+        has_results = true;
+        let name = row![ui::glyph(Icon::ArrowRepeat, 15.0), text(&item.name).size(14),]
+            .spacing(8)
+            .align_y(Alignment::Center);
+        let menu = ui::menu(
+            vec![
+                (i18n.__("编辑"), message(Event::Edit(item.id))),
+                (i18n.__("归档"), message(Event::Archive(item.id))),
+            ],
+            enabled,
+        );
+        list = list.push(settings_divider()).push(ui::record(
+            [(name.into(), 2), (ui::cell(ui::preview(&item.prompt)).into(), 3)],
+            Some(menu),
+        ));
+    }
+
+    if !has_results {
+        let label = if !enabled {
+            "正在加载快捷操作…"
+        } else if query.is_empty() {
+            "尚未保存操作，可从示例开始。"
+        } else {
+            "没有匹配的结果"
+        };
+        let mut empty = column![ui::cell(i18n.__(label))].spacing(10);
+        if enabled && state.actions.is_empty() && query.is_empty() {
+            let examples = EXAMPLES.iter().enumerate().map(|(index, (name, _))| {
+                ui::action(i18n.__(name), Some(message(Event::Example(index)))).into()
+            });
+            empty = empty.push(row(examples).spacing(8).wrap());
+        }
+        list = list.push(settings_divider()).push(container(empty).padding([18, 0]));
+    }
+    content.push(settings_group_card(list)).into()
 }
 
 fn editor_modal<'a>(
@@ -283,31 +340,53 @@ fn editor_modal<'a>(
     base: Element<'a, Message>,
     editor: &'a Editor,
     enabled: bool,
+    error: Option<&'static str>,
 ) -> Element<'a, Message> {
-    let close = message(Event::Close);
-    let title = if editor.previous.is_some() { "编辑任务快捷操作" } else { "新建任务快捷操作" };
-    let header = settings_modal_header(
-        text(i18n.__(title)).size(18),
-        settings_close_button(close.clone()),
-    );
-    let body = column![
-        settings_field_label(i18n.__("操作名称")),
-        settings_text_input(i18n.__("例如：总结进展"), &editor.name)
-            .id(NAME_INPUT)
-            .on_input(|name| message(Event::Name(name)))
-            .on_submit_maybe(enabled.then_some(message(Event::Save))),
-        settings_field_label(i18n.__("提示词")),
-        settings_text_editor(&editor.prompt).height(180).on_action(|action| message(Event::Prompt(action))),
-    ].spacing(8);
-    let save = button(text(i18n.__(if enabled { "保存" } else { "正在保存…" })).size(13))
-        .padding([8, 12])
-        .style(primary_action_btn_style)
-        .on_press_maybe(enabled.then_some(message(Event::Save)));
-    let footer = row![action(i18n.__("取消"), enabled.then_some(close.clone())), save].spacing(8);
-    let card = settings_modal_layout(header, body, Some(footer.into()))
-        .width(Length::Fill)
-        .max_width(560)
-        .height(Length::Fill)
-        .max_height(460);
-    settings_modal_overlay_with_escape(base, close, card)
+    let title = if editor.previous.is_some() {
+        "编辑任务快捷操作"
+    } else {
+        "新建任务快捷操作"
+    };
+    let valid =
+        enabled && !editor.name.trim().is_empty() && !editor.prompt.text().trim().is_empty();
+    let mut body = column![
+        settings_responsive_row(i18n.__("操作名称"), "", move || {
+            let input = settings_text_input(i18n.__("例如：总结进展"), &editor.name).id(NAME_INPUT);
+            if enabled {
+                input
+                    .on_input(|name| message(Event::Name(name)))
+                    .on_submit_maybe(valid.then_some(message(Event::Save)))
+            } else {
+                input
+            }
+        }),
+        settings_divider(),
+        settings_responsive_row(
+            i18n.__("提示词"),
+            i18n.__("运行时先预览，再打开可编辑的会话草稿。"),
+            move || {
+                let input = settings_text_editor(&editor.prompt)
+                    .height(162)
+                    .placeholder(i18n.__("填写任务详情中要预览的提示词"));
+                if enabled {
+                    input.on_action(|action| message(Event::Prompt(action)))
+                } else {
+                    input
+                }
+            }
+        ),
+    ]
+    .spacing(8);
+    if let Some(error) = error {
+        body = body.push(settings_error_banner(i18n.__(error)));
+    }
+    ui::modal(
+        i18n,
+        base,
+        i18n.__(title),
+        body,
+        415.0,
+        message(Event::Close),
+        valid.then_some(message(Event::Save)),
+    )
 }

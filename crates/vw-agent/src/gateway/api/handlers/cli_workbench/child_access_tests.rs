@@ -36,11 +36,13 @@ async fn cli_workbench_child_access_restricts_project_identity_and_routes() {
                 directory: "/fixture".to_owned(),
                 capabilities: capabilities(&target),
                 agent_activity: None,
+                ssh_surface: None,
+                recent_request_ids: Vec::new(),
                 target,
                 state: ProcessState::Running,
             },
             turn: None,
-            #[cfg(target_os = "macos")]
+            #[cfg(unix)]
             terminal: None,
             child_access: Some(access),
         },

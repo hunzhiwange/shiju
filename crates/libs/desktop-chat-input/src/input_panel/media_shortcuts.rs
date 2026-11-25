@@ -14,7 +14,7 @@ use super::quick_styles as styles;
 
 const PROMPTS: [(&str, Icon, &str); 3] = [
     ("生语音", Icon::ChatTextFill, "请把下面这段文字合成为语音："),
-    ("识图/视频", Icon::Eye, "请分析我提供的图片或视频："),
+    ("理解视频", Icon::Eye, "请分析我提供的视频："),
     ("识语音", Icon::FileText, "请转写我提供的音频或视频："),
 ];
 
@@ -73,6 +73,11 @@ fn operations(app: QuickInput<'_>) -> Element<'_, Message> {
             Icon::ArrowRight,
             Some(Message::OpenMediaModelPicker(MediaOperation::VideoGenerate))
         ),
+        item(
+            app.i18n.__("识图"),
+            Icon::Eye,
+            Some(Message::OpenMediaModelPicker(MediaOperation::ImageUnderstand))
+        ),
     ]
     .spacing(3);
     for (label, icon, prompt) in PROMPTS {
@@ -93,10 +98,11 @@ fn operations(app: QuickInput<'_>) -> Element<'_, Message> {
 }
 
 fn model_list(i18n: I18n, picker: MediaModelPicker<'_>) -> Element<'_, Message> {
-    let title = if picker.operation == MediaOperation::ImageGenerate {
-        "生图模型"
-    } else {
-        "生视频模型"
+    let title = match picker.operation {
+        MediaOperation::ImageGenerate => "生图模型",
+        MediaOperation::VideoGenerate => "生视频模型",
+        MediaOperation::ImageUnderstand => "识图模型",
+        _ => return column![].into(),
     };
     let back = button(super::icons::icon_svg(Icon::ChevronLeft, 13.0))
         .padding([5, 7])

@@ -5,7 +5,7 @@ use axum::{
     extract::{ConnectInfo, FromRequestParts},
     http::{HeaderMap, header, request::Parts},
 };
-use vw_api_types::cli_workbench::CliWorkbenchTerminalCapability;
+use vw_api_types::cli_workbench::{CliWorkbenchTerminalCapability, SshSessionSurface};
 
 use super::*;
 
@@ -15,7 +15,7 @@ pub(crate) struct LocalWorkbenchGateway(CancellationToken);
 impl LocalWorkbenchGateway {
     pub(crate) async fn shutdown(&self) {
         self.0.cancel();
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         native::shutdown().await;
     }
 }
@@ -42,8 +42,24 @@ fn direct_local(peer: Option<SocketAddr>, headers: &HeaderMap) -> bool {
 }
 
 impl Authority {
+    fn local(&self) -> bool {
+        self.0.as_ref().is_some_and(|local| !local.0.is_cancelled())
+    }
+
     pub(super) fn available(&self) -> bool {
-        cfg!(target_os = "macos") && self.0.as_ref().is_some_and(|local| !local.0.is_cancelled())
+        cfg!(target_os = "macos") && self.local()
+    }
+
+    pub(super) fn require_local_pty(&self) -> Result<(), WorkbenchError> {
+        if cfg!(unix) && self.local() { Ok(()) } else { Err(unavailable()) }
+    }
+
+    pub(super) fn require_target(&self, target: &CliWorkbenchTarget) -> Result<(), WorkbenchError> {
+        match target {
+            CliWorkbenchTarget::Acp { .. } => Ok(()),
+            CliWorkbenchTarget::Ssh { .. } => self.require_local_pty(),
+            _ => self.require(),
+        }
     }
 
     pub(super) fn require(&self) -> Result<(), WorkbenchError> {
@@ -53,8 +69,8 @@ impl Authority {
 
 pub(super) fn routes<S: Clone + Send + Sync + 'static>() -> Router<S> {
     let router = Router::new().route("/cli-workbench/terminal-capability", get(capability));
-    #[cfg(target_os = "macos")]
-    let router = router.route(
+    #[cfg(unix)]
+    let router = router.merge(ssh::routes()).route(
         &format!("{SESSIONS}/{{session}}/terminal"),
         get(native::output).post(native::input).layer(axum::extract::DefaultBodyLimit::max(
             4 * vw_api_types::cli_workbench::CLI_WORKBENCH_MAX_TERMINAL_INPUT + 512,
@@ -91,18 +107,19 @@ async fn capability(
     Ok(Json(CliWorkbenchTerminalCapability { available, native_apps }))
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(unix)]
 mod native;
-#[cfg(target_os = "macos")]
+#[cfg(unix)]
 pub(super) use native::{Pty, start, stop};
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(unix))]
 pub(super) async fn start(
     _: ProjectScope,
     _: String,
     _: String,
     _: String,
     _: CliWorkbenchTarget,
+    _: Option<SshSessionSurface>,
     _: Authority,
 ) -> Result<(StatusCode, Json<CliWorkbenchSession>), WorkbenchError> {
     Err(unavailable())

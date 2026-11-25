@@ -1,5 +1,6 @@
 //! 类型化任务属性控件，由任务编辑和工作视图共用。
 
+use crate::app::components::system_settings::task_settings::{catalog, properties::property_icon};
 use crate::app::components::system_settings_common::*;
 use crate::app::i18n::I18n;
 use crate::app::message::TaskBoardMessage;
@@ -31,12 +32,30 @@ fn option_label(i18n: I18n, option: &PropertyOption) -> String {
     }
 }
 
+fn find_option<'a>(property: Option<&'a Property>, id: &str) -> Option<&'a PropertyOption> {
+    property?.options.iter().find(|option| option.id == id)
+}
+
+fn selected_label(i18n: I18n, property: Option<&Property>, id: &str) -> String {
+    find_option(property, id)
+        .map_or_else(|| i18n.__("选项已不存在").into(), |option| option_label(i18n, option))
+}
+
 fn value_label(i18n: I18n, property: Option<&Property>, value: &Value) -> String {
     match value {
-        Value::SingleSelect(id) => property
-            .and_then(|property| property.options.iter().find(|option| &option.id == id))
-            .map_or_else(|| i18n.__("选项已不存在").into(), |option| option_label(i18n, option)),
-        Value::Date(date) | Value::Text(date) => date.clone(),
+        Value::SingleSelect(id) => selected_label(i18n, property, id),
+        Value::MultiSelect(ids) => {
+            ids.iter().map(|id| selected_label(i18n, property, id)).collect::<Vec<_>>().join(" · ")
+        }
+        Value::Checkbox(checked) => i18n.__(if *checked { "已勾选" } else { "未勾选" }).into(),
+        Value::Date(raw)
+        | Value::Text(raw)
+        | Value::Number(raw)
+        | Value::Link(raw)
+        | Value::Member(raw) => raw.clone(),
+        Value::MultiMember(items) | Value::TextList(items) | Value::LinkList(items) => {
+            items.join(" · ")
+        }
     }
 }
 
@@ -51,6 +70,151 @@ pub(super) fn task_summary<'a>(
     })
 }
 
+fn option_color(property: &Property, id: &str) -> Option<iced::Color> {
+    find_option(Some(property), id)?.color.as_deref().and_then(catalog::palette_color)
+}
+
+fn choice_control<'a>(
+    i18n: I18n,
+    property: &'a Property,
+    value: Option<&'a Value>,
+    enabled: bool,
+    include_archived_options: bool,
+    change: impl Fn(Option<Value>) -> TaskBoardMessage + 'a,
+) -> Element<'a, Message> {
+    let multi = match value {
+        Some(Value::MultiSelect(ids)) => ids.as_slice(),
+        _ => &[],
+    };
+    let choices = property
+        .options
+        .iter()
+        .filter(|option| !option.archived || include_archived_options)
+        .filter(|option| !multi.contains(&option.id))
+        .map(|option| Choice { id: option.id.clone(), name: option_label(i18n, option) })
+        .collect::<Vec<_>>();
+    let selected = match value {
+        Some(Value::SingleSelect(id)) => {
+            Some(Choice { id: id.clone(), name: selected_label(i18n, Some(property), id) })
+        }
+        _ => None,
+    };
+    let selected_color = selected.as_ref().and_then(|choice| option_color(property, &choice.id));
+    let placeholder = if choices.is_empty() {
+        i18n.__("此属性没有可用选项")
+    } else if property.kind == Kind::MultiSelect {
+        i18n.__("添加选项")
+    } else {
+        i18n.__("请选择")
+    };
+    let change = std::rc::Rc::new(change);
+    let on_select = change.clone();
+    let picker = settings_select(choices, selected, move |choice| {
+        let value = if property.kind == Kind::MultiSelect {
+            let mut next = multi.to_vec();
+            next.push(choice.id);
+            next.sort_unstable();
+            Value::MultiSelect(next)
+        } else {
+            Value::SingleSelect(choice.id)
+        };
+        Message::TaskBoard(on_select(Some(value)))
+    })
+    .placeholder(placeholder)
+    .width(Length::Fill)
+    .disabled(!enabled);
+    let mut control = row![].spacing(8).align_y(Alignment::Center).width(Length::Fill);
+    if let Some(color) = selected_color {
+        control = control.push(catalog::color_dot(color, 10.0));
+    }
+    control = control.push(picker);
+    if multi.is_empty() {
+        return control.into();
+    }
+    let chips = multi.iter().enumerate().map(|(index, id)| {
+        let mut chip = row![].spacing(5).align_y(Alignment::Center);
+        if let Some(color) = option_color(property, id) {
+            chip = chip.push(catalog::color_dot(color, 8.0));
+        }
+        chip = chip
+            .push(text(selected_label(i18n, Some(property), id)).size(12))
+            .push(catalog::glyph(desktop_assets::assets::Icon::X, 11.0));
+        let remove = enabled.then(|| {
+            let mut next = multi.to_vec();
+            next.remove(index);
+            Message::TaskBoard(change((!next.is_empty()).then_some(Value::MultiSelect(next))))
+        });
+        button(chip).padding([5, 8]).style(rounded_action_btn_style).on_press_maybe(remove).into()
+    });
+    column![control, row(chips).spacing(5).wrap()].spacing(6).into()
+}
+
+fn list_control<'a>(
+    i18n: I18n,
+    kind: Kind,
+    value: Option<&'a Value>,
+    enabled: bool,
+    change: impl Fn(Option<Value>) -> TaskBoardMessage + 'a,
+) -> Element<'a, Message> {
+    let items = match value {
+        Some(Value::TextList(items) | Value::LinkList(items) | Value::MultiMember(items)) => {
+            items.as_slice()
+        }
+        _ => &[],
+    };
+    let (placeholder, wrap): (_, fn(Vec<String>) -> Value) = match kind {
+        Kind::LinkList => ("https://…", Value::LinkList),
+        Kind::MultiMember => (i18n.__("输入成员 ID"), Value::MultiMember),
+        _ => (i18n.__("输入文本"), Value::TextList),
+    };
+    let change = std::rc::Rc::new(move |items: Vec<String>| {
+        Message::TaskBoard(change((!items.is_empty()).then(|| wrap(items))))
+    });
+    let mut fields = column![].width(Length::Fill).spacing(5);
+    for (index, item) in items.iter().enumerate() {
+        let input = settings_text_input(placeholder, item).width(Length::Fill);
+        let input = if enabled {
+            let change = change.clone();
+            input.on_input(move |text| {
+                let mut next = items.to_vec();
+                next[index] = text;
+                change(next)
+            })
+        } else {
+            input
+        };
+        let remove = enabled.then(|| {
+            let mut next = items.to_vec();
+            next.remove(index);
+            change(next)
+        });
+        fields = fields.push(
+            row![
+                input,
+                button(catalog::glyph(desktop_assets::assets::Icon::X, 13.0))
+                    .padding(7)
+                    .style(rounded_action_btn_style)
+                    .on_press_maybe(remove),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center),
+        );
+    }
+    let add = (enabled && items.iter().all(|item| !item.trim().is_empty())).then(|| {
+        let mut next = items.to_vec();
+        next.push(String::new());
+        change(next)
+    });
+    fields
+        .push(
+            button(text(i18n.__("添加条目")).size(12))
+                .padding([5, 9])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(add),
+        )
+        .into()
+}
+
 fn control<'a>(
     i18n: I18n,
     property: &'a Property,
@@ -60,52 +224,53 @@ fn control<'a>(
     change: impl Fn(Option<Value>) -> TaskBoardMessage + 'a,
 ) -> Element<'a, Message> {
     match property.kind {
-        Kind::SingleSelect => {
-            let choices = property.options.iter()
-                .filter(|option| !option.archived || include_archived_options)
-                .map(|option| Choice {
-                    id: option.id.clone(),
-                    name: option_label(i18n, option),
-                })
-                .collect::<Vec<_>>();
+        Kind::SingleSelect | Kind::MultiSelect => {
+            choice_control(i18n, property, value, enabled, include_archived_options, change)
+        }
+        Kind::Checkbox => {
             let selected = match value {
-                Some(Value::SingleSelect(id)) => Some(
-                    choices.iter().find(|choice| &choice.id == id).cloned().unwrap_or_else(|| Choice {
-                        id: id.clone(),
-                        name: value_label(i18n, Some(property), &Value::SingleSelect(id.clone())),
-                    }),
-                ),
+                Some(Value::Checkbox(checked)) => Some(*checked),
                 _ => None,
             };
-            let placeholder = match (choices.is_empty(), property.options.is_empty()) {
-                (true, true) => i18n.__("此属性没有可用选项"),
-                (true, false) => i18n.__("全部选项已归档"),
-                _ => i18n.__("请选择"),
-            };
-            settings_select(choices, selected, move |choice| {
-                Message::TaskBoard(change(Some(Value::SingleSelect(choice.id))))
+            settings_select([true, false], selected, move |checked| {
+                Message::TaskBoard(change(Some(Value::Checkbox(checked))))
             })
-            .placeholder(i18n.__(placeholder))
+            .format_labels(move |checked| {
+                i18n.__(if *checked { "已勾选" } else { "未勾选" }).to_owned()
+            })
+            .placeholder(i18n.__("未设置"))
             .width(Length::Fill)
             .disabled(!enabled)
             .into()
         }
-        Kind::Date | Kind::Text => {
-            let (placeholder, raw) = match (property.kind, value) {
-                (Kind::Date, Some(Value::Date(raw))) => ("YYYY-MM-DD", raw.as_str()),
-                (Kind::Date, _) => ("YYYY-MM-DD", ""),
-                (_, Some(Value::Text(raw))) => (i18n.__("输入文本"), raw.as_str()),
-                _ => (i18n.__("输入文本"), ""),
+        Kind::TextList | Kind::LinkList | Kind::MultiMember => {
+            list_control(i18n, property.kind, value, enabled, change)
+        }
+        kind => {
+            let raw = match value {
+                Some(
+                    Value::Date(raw)
+                    | Value::Text(raw)
+                    | Value::Number(raw)
+                    | Value::Link(raw)
+                    | Value::Member(raw),
+                ) => raw.as_str(),
+                _ => "",
             };
-            let input = settings_text_input(i18n.__(placeholder), raw);
+            let (placeholder, wrap): (_, fn(String) -> Value) = match kind {
+                Kind::Date => ("YYYY-MM-DD", Value::Date),
+                Kind::Number => (i18n.__("输入数字"), Value::Number),
+                Kind::Link => ("https://…", Value::Link),
+                Kind::Member => (i18n.__("输入成员 ID"), Value::Member),
+                _ => (i18n.__("输入文本"), Value::Text),
+            };
+            let input = settings_text_input(placeholder, raw);
             if enabled {
-                input.on_input(move |value| {
-                    let value = (!value.is_empty()).then(|| match property.kind {
-                        Kind::Date => Value::Date(value),
-                        _ => Value::Text(value),
-                    });
-                    Message::TaskBoard(change(value))
-                }).into()
+                input
+                    .on_input(move |value| {
+                        Message::TaskBoard(change((!value.is_empty()).then(|| wrap(value))))
+                    })
+                    .into()
             } else {
                 input.into()
             }
@@ -113,14 +278,22 @@ fn control<'a>(
     }
 }
 
-fn clear<'a>(i18n: I18n, message: TaskBoardMessage, enabled: bool) -> iced::widget::Button<'a, Message> {
+fn clear<'a>(
+    i18n: I18n,
+    message: TaskBoardMessage,
+    enabled: bool,
+) -> iced::widget::Button<'a, Message> {
     button(text(i18n.__("清空")).size(12))
         .padding([6, 10])
         .style(rounded_action_btn_style)
         .on_press_maybe(enabled.then_some(Message::TaskBoard(message)))
 }
 
-fn batch_editor<'a>(i18n: desktop_i18n::I18n, app: &'a App, task: &desktop_task_model::Task) -> Option<Element<'a, Message>> {
+fn batch_editor<'a>(
+    i18n: desktop_i18n::I18n,
+    app: &'a App,
+    task: &desktop_task_model::Task,
+) -> Option<Element<'a, Message>> {
     use vw_api_agent_scheduler::AgentSchedulerTaskPlanPlacementDto as Placement;
 
     let (_, plan) = super::work_plan::current(app)?;
@@ -130,25 +303,56 @@ fn batch_editor<'a>(i18n: desktop_i18n::I18n, app: &'a App, task: &desktop_task_
     }
     let stored = match &snapshot.placement {
         Some(Placement::Child { .. }) => return None,
-        Some(Placement::Root { outer_batch, inner_batch }) => Some(format!("{outer_batch}.{inner_batch}")),
+        Some(Placement::Root { outer_batch, inner_batch }) => {
+            Some(format!("{outer_batch}.{inner_batch}"))
+        }
         None => None,
     };
     let draft = plan.batch_draft.as_ref().filter(|draft| draft.task_id == task.id);
-    let pending = draft.is_some_and(|draft| draft.pending.is_some()) || plan.pending_batches.contains_key(&task.id);
+    let pending = draft.is_some_and(|draft| draft.pending.is_some())
+        || plan.pending_batches.contains_key(&task.id);
     let header = row![
-        text(stored.as_ref().map_or_else(|| i18n.__("无批次").into(), |batch| i18n.format("已保存批次 %s", &[format!("{}", batch).into()]).expect("valid workbench template"))).size(13),
-        button(text(if draft.is_some() { i18n.__("重新载入批次") } else { i18n.__("安排批次") }).size(12))
-            .padding([6, 10]).style(rounded_action_btn_style)
-            .on_press_maybe((!pending).then_some(Message::TaskBoard(TaskBoardMessage::EditWorkPlanBatch))),
-    ].spacing(8).align_y(Alignment::Center);
+        text(stored.as_ref().map_or_else(
+            || i18n.__("无批次").into(),
+            |batch| {
+                i18n.format("已保存批次 %s", &[format!("{}", batch).into()])
+                    .expect("valid workbench template")
+            }
+        ))
+        .size(13),
+        button(
+            text(if draft.is_some() {
+                i18n.__("重新载入批次")
+            } else {
+                i18n.__("安排批次")
+            })
+            .size(12)
+        )
+        .padding([6, 10])
+        .style(rounded_action_btn_style)
+        .on_press_maybe(
+            (!pending).then_some(Message::TaskBoard(TaskBoardMessage::EditWorkPlanBatch))
+        ),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
     let mut body = column![header].spacing(6);
     if let Some(draft) = draft {
-        let mut outer = settings_text_input(i18n.__("外层批次"), &draft.outer).id(super::work_plan::OUTER_INPUT);
+        let mut outer = settings_text_input(i18n.__("外层批次"), &draft.outer)
+            .id(super::work_plan::OUTER_INPUT);
         let mut inner = settings_text_input(i18n.__("组内批次"), &draft.inner);
         let save = Message::TaskBoard(TaskBoardMessage::SaveWorkPlanBatch { clear: false });
         if !pending {
-            outer = outer.on_input(|value| Message::TaskBoard(TaskBoardMessage::WorkPlanBatchChanged { outer: true, value }));
-            inner = inner.on_input(|value| Message::TaskBoard(TaskBoardMessage::WorkPlanBatchChanged { outer: false, value }))
+            outer = outer.on_input(|value| {
+                Message::TaskBoard(TaskBoardMessage::WorkPlanBatchChanged { outer: true, value })
+            });
+            inner = inner
+                .on_input(|value| {
+                    Message::TaskBoard(TaskBoardMessage::WorkPlanBatchChanged {
+                        outer: false,
+                        value,
+                    })
+                })
                 .on_submit(save.clone());
         }
         let feedback = if pending {
@@ -160,44 +364,77 @@ fn batch_editor<'a>(i18n: desktop_i18n::I18n, app: &'a App, task: &desktop_task_
                 Some(Err(error)) => error.render(i18n),
             }
         };
-        body = body.push(row![
-            column![settings_field_label(i18n.__("外层批次")), outer].spacing(4),
-            column![settings_field_label(i18n.__("组内批次")), inner].spacing(4),
-        ].spacing(8))
-        .push(row![
-            button(text(i18n.__("保存批次")).size(12)).padding([6, 10]).style(primary_action_btn_style)
-                .on_press_maybe((!pending).then_some(save)),
-            button(text(i18n.__("清空批次")).size(12)).padding([6, 10]).style(rounded_action_btn_style)
-                .on_press_maybe((!pending && (stored.is_some() || !draft.outer.is_empty() || !draft.inner.is_empty()))
-                    .then_some(Message::TaskBoard(TaskBoardMessage::SaveWorkPlanBatch { clear: true }))),
-            text(feedback).size(12),
-        ].spacing(8).wrap());
+        body = body
+            .push(
+                row![
+                    column![settings_field_label(i18n.__("外层批次")), outer].spacing(4),
+                    column![settings_field_label(i18n.__("组内批次")), inner].spacing(4),
+                ]
+                .spacing(8),
+            )
+            .push(
+                row![
+                    button(text(i18n.__("保存批次")).size(12))
+                        .padding([6, 10])
+                        .style(primary_action_btn_style)
+                        .on_press_maybe((!pending).then_some(save)),
+                    button(text(i18n.__("清空批次")).size(12))
+                        .padding([6, 10])
+                        .style(rounded_action_btn_style)
+                        .on_press_maybe(
+                            (!pending
+                                && (stored.is_some()
+                                    || !draft.outer.is_empty()
+                                    || !draft.inner.is_empty()))
+                            .then_some(Message::TaskBoard(TaskBoardMessage::SaveWorkPlanBatch {
+                                clear: true
+                            }))
+                        ),
+                    text(feedback).size(12),
+                ]
+                .spacing(8)
+                .wrap(),
+            );
     } else if pending {
         body = body.push(text(i18n.__("正在提交批次…")).size(12));
     }
     Some(body.into())
 }
 
-pub(super) fn task_editor<'a>(app: &'a App, task: &'a desktop_task_model::Task) -> Option<Element<'a, Message>> {
+pub(super) fn task_editor<'a>(
+    app: &'a App,
+    task: &'a desktop_task_model::Task,
+) -> Option<Element<'a, Message>> {
     let board = &app.task_board;
     let i18n = I18n::new(app.general_settings.desktop_locale);
     let batch = batch_editor(i18n, app, task);
     let enabled = board.task_property_save_in_progress.is_none();
-    if !board.task_properties.iter().any(|property| {
-        !property.archived || task.properties.contains_key(&property.id)
-    }) {
-        return batch.map(|batch| column![settings_field_label(i18n.__("属性")), batch].spacing(4).into());
+    if !board
+        .task_properties
+        .iter()
+        .any(|property| !property.archived || task.properties.contains_key(&property.id))
+    {
+        return batch
+            .map(|batch| column![settings_field_label(i18n.__("属性")), batch].spacing(4).into());
     }
     let mut fields = column![].spacing(8);
     for property in &board.task_properties {
         let stored = task.properties.get(&property.id);
         if property.archived {
             if let Some(stored) = stored {
-                fields = fields.push(column![
-                    settings_field_label(&property.name),
-                    text(format!("{} · {}", value_label(i18n, Some(property), stored), i18n.__("已归档")))
-                        .size(12).style(settings_muted_text_style),
-                ].spacing(4));
+                fields = fields.push(
+                    column![
+                        settings_field_label(&property.name),
+                        text(format!(
+                            "{} · {}",
+                            value_label(i18n, Some(property), stored),
+                            i18n.__("已归档")
+                        ))
+                        .size(12)
+                        .style(settings_muted_text_style),
+                    ]
+                    .spacing(4),
+                );
             }
             continue;
         }
@@ -218,25 +455,41 @@ pub(super) fn task_editor<'a>(app: &'a App, task: &'a desktop_task_model::Task) 
                     field_id: property.id.clone(),
                 })
             }));
-        fields = fields.push(column![
-            settings_field_label(&property.name),
-            row![
-                control(i18n, property, value, enabled, false, change),
-                clear(i18n, clear_message, enabled && value.is_some()),
-                save,
-            ].spacing(8).align_y(Alignment::Center),
-        ].spacing(4));
+        fields = fields.push(
+            column![
+                row![
+                    catalog::glyph(property_icon(property.icon), 14.0),
+                    settings_field_label(&property.name)
+                ]
+                .spacing(6)
+                .align_y(Alignment::Center),
+                row![
+                    control(i18n, property, value, enabled, false, change),
+                    clear(i18n, clear_message, enabled && value.is_some()),
+                    save,
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+            ]
+            .spacing(4),
+        );
     }
-    Some(column![
-        settings_field_label(i18n.__("属性")),
-        container(
-            scrollable(container(fields).padding([0, 7]))
-                .height(Length::Shrink)
-                .direction(scrollable::Direction::Vertical(
-                    scrollable::Scrollbar::new().width(4).scroller_width(4),
-                ))
-        ).max_height(160),
-    ].extend(batch).spacing(6).into())
+    Some(
+        column![
+            settings_field_label(i18n.__("属性")),
+            container(
+                scrollable(container(fields).padding([0, 7])).height(Length::Shrink).direction(
+                    scrollable::Direction::Vertical(
+                        scrollable::Scrollbar::new().width(4).scroller_width(4),
+                    )
+                )
+            )
+            .max_height(160),
+        ]
+        .extend(batch)
+        .spacing(6)
+        .into(),
+    )
 }
 
 pub(super) fn filter_editor(app: &App) -> Element<'_, Message> {
@@ -245,27 +498,37 @@ pub(super) fn filter_editor(app: &App) -> Element<'_, Message> {
     let mut fields = column![].spacing(8);
     for property in &board.task_properties {
         let value = board.work_property_values.get(&property.id);
-        let change = move |value| TaskBoardMessage::WorkViewPropertyChanged(property.id.clone(), value);
+        let change =
+            move |value| TaskBoardMessage::WorkViewPropertyChanged(property.id.clone(), value);
         let clear_message = change(None);
         let name = if property.archived {
             format!("{} · {}", property.name, i18n.__("已归档"))
         } else {
             property.name.clone()
         };
-        fields = fields.push(column![
-            text(name).size(13),
-            row![
-                control(i18n, property, value, true, true, change),
-                clear(i18n, clear_message, value.is_some()),
-            ].spacing(8).align_y(Alignment::Center),
-        ].spacing(4));
+        fields = fields.push(
+            column![
+                text(name).size(13),
+                row![
+                    control(i18n, property, value, true, true, change),
+                    clear(i18n, clear_message, value.is_some()),
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+            ]
+            .spacing(4),
+        );
     }
     for id in board.work_property_values.keys() {
         if !board.task_properties.iter().any(|property| &property.id == id) {
-            fields = fields.push(row![
-                text(i18n.__("属性已不存在")).size(13).style(settings_muted_text_style),
-                clear(i18n, TaskBoardMessage::WorkViewPropertyChanged(id.clone(), None), true),
-            ].spacing(8).align_y(Alignment::Center));
+            fields = fields.push(
+                row![
+                    text(i18n.__("属性已不存在")).size(13).style(settings_muted_text_style),
+                    clear(i18n, TaskBoardMessage::WorkViewPropertyChanged(id.clone(), None), true),
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+            );
         }
     }
     fields.into()
@@ -276,7 +539,8 @@ pub(super) fn filter_summary(app: &App) -> Element<'_, Message> {
     let i18n = I18n::new(app.general_settings.desktop_locale);
     let filters = board.work_filter.properties.iter().map(|(id, value)| {
         let property = board.task_properties.iter().find(|property| &property.id == id);
-        let name = property.map_or(i18n.__("属性已不存在"), |property| property.name.as_str());
+        let name =
+            property.map_or(i18n.__("属性已不存在"), |property| property.name.as_str());
         text(format!("{name} · {}", value_label(i18n, property, value))).size(12).into()
     });
     row(filters).spacing(8).wrap().into()

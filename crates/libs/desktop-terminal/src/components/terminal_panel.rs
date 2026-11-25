@@ -44,8 +44,12 @@ mod pane_drag;
 #[path = "terminal_split_menu.rs"]
 mod split_menu;
 
-const TAB_TITLE_ID: &str = "terminal-tab-title";
 const TAB_STRIP_ID: &str = "terminal-tab-strip";
+
+#[cfg(not(target_arch = "wasm32"))]
+fn tab_title_id(id: u64) -> iced::widget::Id {
+    iced::widget::Id::from(format!("terminal-tab-title-{id}"))
+}
 
 const TAB_HEADER_HEIGHT: f32 = 34.0;
 const TAB_SCROLLBAR_WIDTH: f32 = 4.0;
@@ -207,7 +211,7 @@ fn pane_view<'a>(
             } else {
                 tab.title.clone()
             };
-            (tab.id, title)
+            (tab.id, title, None)
         }),
         active_id,
         can_close_tabs,
@@ -254,7 +258,7 @@ fn pane_view<'a>(
 }
 
 pub fn pane_header<'a, M: Clone + 'a>(
-    tabs: impl IntoIterator<Item = (u64, String)>,
+    tabs: impl IntoIterator<Item = (u64, String, Option<Element<'a, Message>>)>,
     active_id: Option<u64>,
     can_close_tabs: bool,
     tab_context_menu_id: Option<u64>,
@@ -271,7 +275,7 @@ pub fn pane_header<'a, M: Clone + 'a>(
     let mut tabs_row = row![].align_y(iced::Alignment::Center);
 
     // 遍历所有终端标签页，逐个构建 UI 元素
-    for (index, (tab_id, title)) in tabs.into_iter().enumerate() {
+    for (index, (tab_id, title, indicator)) in tabs.into_iter().enumerate() {
         // 判断当前标签页是否为激活状态
         // 如果没有指定激活 ID，则默认第一个标签页为激活
         let active = terminal_tab_is_active(active_id, tab_id, index);
@@ -290,9 +294,16 @@ pub fn pane_header<'a, M: Clone + 'a>(
 
         // ---------- 构建标签页选择按钮 ----------
         // 单击选择标签；双击放大由窗格处理，拖动仍可调整布局。
+        let label = container(
+            row![SingleLineLabel::new(title, 13.0).centered()]
+                .extend(indicator)
+                .spacing(6)
+                .align_y(iced::Alignment::Center),
+        );
+        #[cfg(not(target_arch = "wasm32"))]
+        let label = label.id(tab_title_id(tab_id));
         let select_btn = button(
-            container(SingleLineLabel::new(title, 13.0).centered())
-                .id(TAB_TITLE_ID)
+            label
                 .padding([0, 10])
                 .width(Length::Fill)
                 .height(Length::Fill)

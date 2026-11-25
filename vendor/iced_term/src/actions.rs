@@ -2,6 +2,7 @@
 pub enum Action {
     Shutdown,
     ChangeTitle(String),
+    OpenPath(String),
     #[default]
     Ignore,
 }

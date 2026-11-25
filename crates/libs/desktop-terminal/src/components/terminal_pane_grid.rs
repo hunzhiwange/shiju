@@ -115,7 +115,7 @@ struct GridMemory {
     instance: Id,
     grid: Tree,
     drag: Option<TabDrag>,
-    title_click: Option<(Pane, mouse::Click)>,
+    title_click: Option<(u64, mouse::Click)>,
 }
 
 impl<M: Clone> TerminalGrid<'_, M> {
@@ -125,7 +125,13 @@ impl<M: Clone> TerminalGrid<'_, M> {
         layout: Layout<'_>,
         cursor: mouse::Cursor,
     ) -> Option<(Target, Rectangle)> {
-        if self.panes.grid.maximized().is_some() {
+        let grid = &self.panes.grid;
+        let source = grid.get(drag.pane)?;
+        let can_split_source = source.tabs.len() > 1;
+        if grid.maximized().is_some()
+            || !source.tabs.contains(&drag.tab)
+            || (grid.len() == 1 && !can_split_source)
+        {
             return None;
         }
         let bounds = layout.bounds();
@@ -134,6 +140,7 @@ impl<M: Clone> TerminalGrid<'_, M> {
             cursor.position()?,
             bounds,
             drag.pane,
+            can_split_source,
             self.regions.iter().map(|(pane, region)| (*pane, *region + offset)),
         )
     }
@@ -301,13 +308,13 @@ impl<M: Clone> Widget<M, Theme, Renderer> for TerminalGrid<'_, M> {
             if !resizing(interaction)
                 && let Some(origin) = cursor.position_over(layout.bounds())
             {
-                let mut hit = TabTitleHit::new(origin);
-                self.grid.operate(grid, layout, renderer, &mut hit);
-                if hit.hit {
-                    let local = origin - Vector::new(layout.bounds().x, layout.bounds().y);
-                    *drag = self.regions.iter().find_map(|(&pane, region)| {
-                        region.contains(local).then_some(TabDrag { pane, origin, moving: false })
-                    });
+                let local = origin - Vector::new(layout.bounds().x, layout.bounds().y);
+                if let Some((&pane, _)) = self.regions.iter().find(|(_, region)| region.contains(local))
+                    && let Some(state) = self.panes.grid.get(pane)
+                {
+                    let mut hit = TabTitleHit::new(origin, &state.tabs);
+                    self.grid.operate(grid, layout, renderer, &mut hit);
+                    *drag = hit.hit.map(|tab| TabDrag { pane, tab, origin, moving: false });
                 }
             }
             // Preserve the focused terminal when pressing a divider or a tab title.
@@ -331,12 +338,11 @@ impl<M: Clone> Widget<M, Theme, Renderer> for TerminalGrid<'_, M> {
             && let Some(pressed) = drag.take()
         {
             if pressed.moving {
-                if self.panes.grid.maximized().is_none()
-                    && let Some((target, _)) = self.target(pressed, layout, cursor)
-                {
-                    shell.publish((self.on_message)(TerminalMessage::DockPane(
+                if let Some((target, _)) = self.target(pressed, layout, cursor) {
+                    shell.publish((self.on_message)(TerminalMessage::DockTab(
                         self.panes.instance.clone(),
                         pressed.pane,
+                        pressed.tab,
                         target,
                     )));
                 }
@@ -347,7 +353,7 @@ impl<M: Clone> Widget<M, Theme, Renderer> for TerminalGrid<'_, M> {
                 && pressed.origin.distance(position) < DRAG_THRESHOLD
             {
                 let previous =
-                    title_click.filter(|(pane, _)| *pane == pressed.pane).map(|(_, click)| click);
+                    title_click.filter(|(tab, _)| *tab == pressed.tab).map(|(_, click)| click);
                 let click = mouse::Click::new(position, Button::Left, previous);
                 if click.kind() == mouse::click::Kind::Double {
                     shell.publish((self.on_message)(TerminalMessage::TogglePaneMaximized(
@@ -356,7 +362,7 @@ impl<M: Clone> Widget<M, Theme, Renderer> for TerminalGrid<'_, M> {
                     )));
                     *title_click = None;
                 } else {
-                    *title_click = Some((pressed.pane, click));
+                    *title_click = Some((pressed.tab, click));
                 }
             }
         }

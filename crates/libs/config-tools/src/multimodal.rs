@@ -1,5 +1,36 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum MediaDefaultOperation {
+    ImageGenerate,
+    VideoGenerate,
+    VideoUnderstand,
+    SpeechSynthesize,
+    AudioTranscribe,
+}
+
+impl MediaDefaultOperation {
+    pub const fn config_key(self) -> &'static str {
+        match self {
+            Self::ImageGenerate => "image_generate",
+            Self::VideoGenerate => "video_generate",
+            Self::VideoUnderstand => "video_understand",
+            Self::SpeechSynthesize => "speech_synthesize",
+            Self::AudioTranscribe => "audio_transcribe",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct MediaModelRef {
+    pub deployment_id: String,
+    pub model_id: String,
+}
+
+pub type MediaModelDefaults = BTreeMap<MediaDefaultOperation, MediaModelRef>;
 
 /// 多模态 OCR 图片模型配置（`[multimodal.ocr]` 配置段）。
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -40,6 +71,9 @@ pub struct MultimodalConfig {
     /// 图片 OCR 降级配置。
     #[serde(default)]
     pub ocr: MultimodalOcrConfig,
+    /// Default deployment and model for each media operation.
+    #[serde(default)]
+    pub media_models: MediaModelDefaults,
 }
 
 fn default_multimodal_max_images() -> usize {
@@ -70,6 +104,7 @@ impl Default for MultimodalConfig {
             max_image_size_mb: default_multimodal_max_image_size_mb(),
             allow_remote_fetch: default_allow_remote_fetch(),
             ocr: MultimodalOcrConfig::default(),
+            media_models: BTreeMap::new(),
         }
     }
 }

@@ -2,6 +2,7 @@
 
 mod deployments;
 mod frames;
+pub(super) mod image_turn;
 
 use std::{
     collections::BTreeMap,
@@ -192,6 +193,8 @@ fn query_session(
 struct CatalogQuery {
     session_id: Option<String>,
     project_id: Option<String>,
+    #[serde(default)]
+    global: bool,
 }
 
 async fn models(
@@ -204,19 +207,21 @@ async fn models(
 
             let _slot = REQUESTS.try_acquire().map_err(|_| Code::Backpressure)?;
             let Query(query) = query.map_err(|_| Code::InvalidRequest)?;
-            let directory = match (query.session_id, query.project_id) {
-                (Some(session_id), None) => {
-                    identity.session(MediaSessionQuery { session_id }).await?.directory
+            let routes = match (query.global, query.session_id, query.project_id) {
+                (true, None, None) => deployments::global_routes(identity.tenant).await?,
+                (false, Some(session_id), None) => {
+                    let context = identity.session(MediaSessionQuery { session_id }).await?;
+                    deployments::routes(identity.tenant, context.directory, None).await?
                 }
-                (None, Some(project_id)) => {
+                (false, None, Some(project_id)) => {
                     let scope = ProjectScope::new(identity.tenant.clone(), ProjectId::from(project_id))
                         .map_err(|_| Code::InvalidRequest)?;
-                    crate::project::get(&scope).await.map_err(|_| Code::Unavailable)?
-                        .ok_or(Code::NotFound)?.worktree
+                    let directory = crate::project::get(&scope).await.map_err(|_| Code::Unavailable)?
+                        .ok_or(Code::NotFound)?.worktree;
+                    deployments::routes(identity.tenant, directory, None).await?
                 }
                 _ => return Err(Code::InvalidRequest),
             };
-            let routes = deployments::routes(identity.tenant, directory, None).await?;
             let mut models = BTreeMap::<_, MediaModel>::new();
             let can_extract = deployments::frame_extractor().is_some();
             for Route { model, capability, .. } in routes {
@@ -322,6 +327,21 @@ pub(crate) async fn submit_for_tool(
         Err(Code::NotFound) => {}
         Err(code) => return Err(code),
     }
+    if submission.deployment_id.is_none()
+        && submission.model_id.is_none()
+        && let Some(operation) = default_operation(submission.operation)
+    {
+        let config = crate::config::get_project_for_tenant(
+            &identity.tenant,
+            std::path::Path::new(&context.directory),
+        )
+        .await
+        .map_err(|_| Code::Unavailable)?;
+        if let Some(model) = config.multimodal.media_models.get(&operation) {
+            submission.deployment_id = Some(model.deployment_id.clone());
+            submission.model_id = Some(model.model_id.clone());
+        }
+    }
     let selected = submission.deployment_id.clone().zip(submission.model_id.clone());
     let mut routes =
         deployments::routes(identity.tenant, context.directory.clone(), selected).await?;
@@ -355,6 +375,19 @@ pub(crate) async fn submit_for_tool(
     };
     let (request, context, files) = prepare(context, request).await?;
     reserve(request, context, files, selection, runtime.clone()).await.map(|(_, job)| job)
+}
+
+fn default_operation(operation: MediaOperation) -> Option<config_tools::MediaDefaultOperation> {
+    use config_tools::MediaDefaultOperation as DefaultOperation;
+
+    Some(match operation {
+        MediaOperation::ImageGenerate => DefaultOperation::ImageGenerate,
+        MediaOperation::VideoGenerate => DefaultOperation::VideoGenerate,
+        MediaOperation::VideoUnderstand => DefaultOperation::VideoUnderstand,
+        MediaOperation::SpeechSynthesize => DefaultOperation::SpeechSynthesize,
+        MediaOperation::AudioTranscribe => DefaultOperation::AudioTranscribe,
+        _ => return None,
+    })
 }
 
 pub(crate) async fn job_for_tool(

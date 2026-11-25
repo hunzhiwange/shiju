@@ -3,7 +3,7 @@ use desktop_terminal::attached::AttachedTerminal;
 use iced::{Task, Theme, window};
 use vw_api_types::cli_workbench::{
     CliWorkbenchError, CliWorkbenchErrorCode as Code, CliWorkbenchProcessState as Process,
-    CliWorkbenchTerminalInput, CliWorkbenchTerminalOutput, CliWorkbenchTerminalSize,
+    CliWorkbenchTarget, CliWorkbenchTerminalInput, CliWorkbenchTerminalOutput, CliWorkbenchTerminalSize,
 };
 
 use super::{
@@ -76,9 +76,12 @@ fn visible(state: &Workbench, key: &SessionKey) -> bool {
 }
 
 fn writable(state: &Workbench, key: &SessionKey) -> bool {
-    state.terminal_available
-        && visible(state, key)
-        && state.projects.get(&key.project).is_some_and(|project| !project.disconnected)
+    visible(state, key)
+        && state.projects.get(&key.project).is_some_and(|project| {
+            !project.disconnected && project.tabs.get(&key.session).is_some_and(|tab| {
+                state.pty_available(&tab.session.target)
+            })
+        })
 }
 
 pub(super) fn focus(state: &Workbench) -> Task<Message> {
@@ -96,9 +99,8 @@ pub(super) fn tick(state: &mut Workbench, id: window::Id, theme: &Theme) -> Task
     let (Some(project), Some(gateway)) = (state.selected.clone(), client(state)) else {
         return Task::none();
     };
-    if !state.terminal_available {
-        return Task::none();
-    }
+    let native_available = state.terminal_available;
+    let ssh_available = state.ssh.catalog.is_some();
     let Some(current) = state.projects.get_mut(&project) else { return Task::none() };
     if current.disconnected {
         return Task::none();
@@ -112,7 +114,12 @@ pub(super) fn tick(state: &mut Workbench, id: window::Id, theme: &Theme) -> Task
             continue;
         }
         let Some((session, tab)) = current.tabs.iter_mut().find(|(_, tab)| tab.view_id == view_id) else { continue };
-        if !tab.session.capabilities.terminal || tab.session.state == Process::Disconnected {
+        let available = if matches!(tab.session.target, CliWorkbenchTarget::Ssh { .. }) {
+            ssh_available
+        } else {
+            native_available
+        };
+        if !available || !tab.session.capabilities.terminal || tab.session.state == Process::Disconnected {
             continue;
         }
         let terminal = &mut tab.terminal;
@@ -218,6 +225,8 @@ pub(super) fn event(
     }
     let Event::BackendCall(_, ref command) = event;
     let resize = matches!(command, Command::Resize(..));
+    let scrollbar = matches!(command, Command::ScrollTo(..));
+    let scroll = scrollbar || matches!(command, Command::WheelScroll { .. });
     if state.dialog.is_some() && !resize {
         return Task::none();
     }
@@ -237,14 +246,21 @@ pub(super) fn event(
         project.select(&key.session);
     }
     let active = project.active_tab().is_some_and(|tab| tab.session.id == key.session);
-    if !resize && !active {
+    if !resize && !scroll && !active {
         return Task::none();
     }
-    let Some(view) = project.tabs.get_mut(&key.session).and_then(|tab| tab.terminal.view.as_mut())
-    else {
+    let Some(tab) = project.tabs.get_mut(&key.session) else { return Task::none() };
+    let Some(view) = tab.terminal.view.as_mut() else { return Task::none() };
+    if let iced_term::actions::Action::OpenPath(path) = view.handle(event) {
+        if matches!(tab.session.target, CliWorkbenchTarget::Ssh { .. }) {
+            return Task::none();
+        }
+        let directory = view.terminal().working_directory();
+        return crate::app::message::terminal::open_path(&path, directory.as_deref());
+    }
+    if scrollbar {
         return Task::none();
-    };
-    view.handle(event);
+    }
     let focus = if clicked { focus(state) } else { Task::none() };
     Task::batch([focus, flush(state, id, key)])
 }

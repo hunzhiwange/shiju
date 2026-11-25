@@ -218,7 +218,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 return Task::none();
             };
             return match result {
-                Ok(project) => crate::app::message::chat::session::open_task_quick_action_draft(
+                Ok(project) => crate::app::message::chat::session::run_task_quick_action(
                     app, origin.path, project, draft,
                 ),
                 Err(error) => domain::warning(app, error),
@@ -280,11 +280,11 @@ pub(crate) fn view_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Elem
         Stage::Preview { action, draft, verifying, .. } => {
             body = column![
                 text(&action.name).size(16),
-                text(i18n.__("确认后将打开可编辑的草稿，需手动发送。")).size(13).style(settings_muted_text_style),
+                text(i18n.__("确认后将在新会话中运行。")).size(13).style(settings_muted_text_style),
                 text(draft),
             ].spacing(12);
             footer = footer.push(
-                button(text(i18n.__(if *verifying { "正在核对任务…" } else { "打开会话草稿" })).size(13))
+                button(text(i18n.__(if *verifying { "正在核对任务…" } else { "运行快捷操作" })).size(13))
                     .padding([8, 12])
                     .style(primary_action_btn_style)
                     .on_press_maybe((!*verifying).then_some(message(Event::Confirm))),

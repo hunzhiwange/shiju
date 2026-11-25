@@ -166,45 +166,58 @@ async fn terminal_drag_divider_resizes_nested_panes() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test(flavor = "multi_thread")]
-async fn terminal_drag_header_docks_panes_without_capturing_terminal_selection() {
+async fn terminal_drag_moves_only_the_pressed_tab_without_capturing_terminal_selection() {
     use iced::Point;
     use iced::widget::pane_grid::Direction;
 
     let mut panel = DragPanel::new().await;
     let first = panel.app.terminal.panes.focused;
+    let first_tab = panel.app.terminal.active_id.unwrap();
     let right = panel.split(first, Direction::Right);
+    let right_tab = panel.app.terminal.active_id.unwrap();
     let bottom = panel.split(first, Direction::Down);
     panel.app.terminal.tabs[0].default_title = false;
     panel.app.terminal.tabs[0].title = "开发环境的长终端标签".repeat(15);
+    assert!(panel.app.terminal.add_terminal_to_pane(first, None));
+    let dragged_tab = panel.app.terminal.active_id.unwrap();
+    assert!(panel.app.terminal.select_terminal(first_tab));
+
     let before = panel.bounds(first);
     let target = panel.bounds(right);
-    let title = panel.tab_title(first);
+    let title = Point::new(before.x + 300.0, before.y + 14.0);
     panel.drag(title, target.center());
-    assert_eq!(panel.bounds(first), target);
-    assert_eq!(panel.bounds(right), before);
+    assert_eq!(panel.bounds(first), before);
+    assert_eq!(panel.bounds(right), target);
+    assert_eq!(panel.app.terminal.panes.grid.get(first).unwrap().tabs, [first_tab]);
+    assert_eq!(panel.app.terminal.panes.grid.get(right).unwrap().tabs, [right_tab, dragged_tab]);
+    assert_eq!(panel.app.terminal.active_id, Some(dragged_tab));
 
-    let title = panel.tab_title(first);
+    let title = Point::new(target.x + 135.0, target.y + 14.0);
     panel.drag(title, Point::new(100.0, 300.0));
-    let docked = panel.bounds(first);
+    let moved = panel.app.terminal.panes.focused;
+    assert_ne!(moved, right);
+    assert_eq!(panel.app.terminal.panes.grid.get(right).unwrap().tabs, [right_tab]);
+    assert_eq!(panel.app.terminal.panes.grid.get(moved).unwrap().tabs, [dragged_tab]);
+    let docked = panel.bounds(moved);
     assert!(docked.x < panel.bounds(bottom).x);
     assert_eq!(docked.y, panel.bounds(bottom).y);
 
-    let title = panel.tab_title(first);
+    let title = panel.tab_title(moved);
     panel.drag(title, Point::new(798.0, 250.0));
-    let edge = panel.bounds(first);
+    let edge = panel.bounds(moved);
     assert_eq!(edge.height, DragPanel::SIZE.height);
     assert_eq!(edge.x + edge.width, DragPanel::SIZE.width);
 
-    let title = panel.tab_title(first);
+    let title = panel.tab_title(moved);
     panel.drag(title, Point::new(900.0, 350.0));
-    assert_eq!(panel.bounds(first), edge);
+    assert_eq!(panel.bounds(moved), edge);
     panel.drag(title, Point::new(799.0, 250.0));
-    assert_eq!(panel.bounds(first), edge);
+    assert_eq!(panel.bounds(moved), edge);
 
     // Clicking the title still activates the tab. Dragging inside the terminal selects text.
     panel.drag(title, title);
-    assert_eq!(panel.app.terminal.panes.focused, first);
-    assert_eq!(panel.bounds(first), edge);
+    assert_eq!(panel.app.terminal.panes.focused, moved);
+    assert_eq!(panel.bounds(moved), edge);
     use iced::mouse::{Button, Event};
     panel.event(Event::ButtonPressed(Button::Left), Point::new(edge.x + 45.0, 54.0));
     let inside = Point::new(edge.x + 120.0, 74.0);
@@ -212,7 +225,7 @@ async fn terminal_drag_header_docks_panes_without_capturing_terminal_selection()
     let other_pane = Point::new(100.0, 80.0);
     panel.event(Event::CursorMoved { position: other_pane }, other_pane);
     panel.event(Event::ButtonReleased(Button::Left), inside);
-    assert_eq!(panel.bounds(first), edge);
-    let tab = &panel.app.terminal.tabs[0];
+    assert_eq!(panel.bounds(moved), edge);
+    let tab = panel.app.terminal.tabs.iter().find(|tab| tab.id == dragged_tab).unwrap();
     assert!(tab.term.has_selection(), "terminal body should still process mouse selection");
 }

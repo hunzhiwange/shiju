@@ -6,6 +6,17 @@ use vw_api_types::cli_workbench::*;
 use super::GatewayClient;
 
 impl GatewayClient {
+    pub async fn cli_workbench_ssh_connections(&self) -> Result<SshConnections, CliWorkbenchError> {
+        self.cli_workbench_request(reqwest::Method::GET, "/v1/cli-workbench/ssh", None::<&()>).await
+    }
+
+    pub async fn cli_workbench_change_ssh_connection(
+        &self,
+        change: &SshConnectionChange,
+    ) -> Result<SshConnections, CliWorkbenchError> {
+        self.cli_workbench_request(reqwest::Method::POST, "/v1/cli-workbench/ssh", Some(change)).await
+    }
+
     pub async fn cli_workbench_projects(
         &self,
         preferred_directory: Option<&str>,

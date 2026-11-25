@@ -4,6 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use gateway_types::ApiError;
 use task_scheduler_core::domain::AgentSchedulerContext;
+use vw_api_agent_scheduler::{AgentSchedulerTaskDetailChange, AgentSchedulerTaskDetailDto};
 use vw_api_agent_scheduler::{
     AgentSchedulerTaskLabelDto, AgentSchedulerTaskLabelMutation, AgentSchedulerTaskPropertyDto,
     AgentSchedulerTaskPropertyMutation,
@@ -198,6 +199,23 @@ pub trait AgentSchedulerGateway: Send + Sync {
         _request: AgentSchedulerTaskMetadataUpdateRequest,
     ) -> Result<AgentSchedulerTaskMetadataUpdateResponse, ApiError> {
         Err(ApiError::internal("agent scheduler task board metadata gateway is not configured"))
+    }
+
+    async fn task_detail(
+        &self,
+        _context: AgentSchedulerContext,
+        _task_id: String,
+    ) -> Result<AgentSchedulerTaskDetailDto, ApiError> {
+        Err(ApiError::internal("agent scheduler task detail gateway is not configured"))
+    }
+
+    async fn change_task_detail(
+        &self,
+        _context: AgentSchedulerContext,
+        _task_id: String,
+        _change: AgentSchedulerTaskDetailChange,
+    ) -> Result<AgentSchedulerTaskDetailDto, ApiError> {
+        Err(ApiError::internal("agent scheduler task detail gateway is not configured"))
     }
 
     async fn import_legacy_tasks(

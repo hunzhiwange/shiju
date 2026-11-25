@@ -1,5 +1,8 @@
 use crate::app::components::system_settings_common::{
-    icon_svg, rounded_action_btn_style, settings_divider, settings_muted_text_style,
+    icon_svg, primary_action_btn_style, rounded_action_btn_style, settings_close_button,
+    settings_divider, settings_error_banner, settings_modal_card, settings_modal_header,
+    settings_modal_layout, settings_muted_text_style, settings_select, settings_text_editor,
+    settings_text_input,
 };
 use crate::app::i18n::{I18n, tasks::status_label};
 use crate::app::message::TaskBoardMessage;
@@ -7,6 +10,7 @@ use crate::app::state::TaskBoardDetailTab;
 use crate::app::{App, Message};
 use desktop_assets::assets::Icon;
 use desktop_task_board::board::{task_label_badge, task_status_marker, task_title};
+use desktop_task_board::detail::{Event, Field, Operation};
 use desktop_task_board::helpers::{execution::truncate_for_ui, logs::localized_log_message};
 use desktop_task_model::{SubTaskStatus, Task, TaskStatus, TaskWorkflow};
 use desktop_ui_controls::system_settings_common::{
@@ -57,11 +61,12 @@ fn layout<'a>(app: &'a App, task: &'a Task, wide: bool) -> Element<'a, Message> 
         )
         .width(Length::Fill)
         .clip(true),
-        action(
-            Icon::Pencil,
-            i18n.__("编辑"),
-            TaskBoardMessage::SelectDetailTab(TaskBoardDetailTab::Configuration),
-        ),
+        button(row![icon(Icon::ArrowClockwise), text(i18n.__("刷新")).size(13)].spacing(6))
+            .padding([6, 10])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(
+                app.task_board.detail.request.is_none().then_some(event(Event::Reload))
+            ),
     ]
     .spacing(10)
     .align_y(Alignment::Center);
@@ -82,8 +87,19 @@ fn layout<'a>(app: &'a App, task: &'a Task, wide: bool) -> Element<'a, Message> 
             .spacing(9),
         );
     }
-    if !task.subtasks.is_empty() {
-        content = content.push(checklist(i18n, task));
+    if !task.subtasks.is_empty() || super::work_plan::current(app).is_some() {
+        let collapsed = app.task_board.detail.subtasks_collapsed;
+        content = content.push(action(
+            if collapsed { Icon::ChevronRight } else { Icon::ChevronDown },
+            i18n.__("子任务"),
+            TaskBoardMessage::Detail(Event::ToggleSubtasks),
+        ));
+        if !collapsed {
+            if !task.subtasks.is_empty() {
+                content = content.push(checklist(i18n, task));
+            }
+            content = content.extend(super::work_plan::detail(app, task));
+        }
     }
     let reason = match task.status {
         TaskStatus::Failed => task.last_error.as_deref(),
@@ -105,26 +121,33 @@ fn layout<'a>(app: &'a App, task: &'a Task, wide: bool) -> Element<'a, Message> 
             .style(surface),
         );
     }
-    content = content
-        .extend(super::work_plan::detail(app, task))
-        .push(settings_divider())
-        .push(activity(i18n, task));
+    content = content.push(settings_divider()).push(activity(app, i18n, task));
 
     let properties = properties(app, task, project, &project_name, workflow.as_ref());
+    let composer = comment_composer(app, i18n, task);
     let body: Element<'_, Message> = if wide {
         row![
-            scroll(
-                container(container(content).width(Length::Fill).max_width(820).padding(24))
-                    .center_x(Length::Fill)
-            ),
+            column![
+                scroll(
+                    container(container(content).width(Length::Fill).max_width(820).padding(24))
+                        .center_x(Length::Fill)
+                ),
+                container(container(composer).width(Length::Fill).max_width(820).padding([10, 24]))
+                    .center_x(Length::Fill),
+            ]
+            .width(Length::Fill)
+            .height(Length::Fill),
             container(Space::new()).width(1).height(Length::Fill).style(settings_divider_style),
-            container(scroll(container(properties).padding([18, 12]))).width(250),
+            container(scroll(container(properties).padding([18, 12]))).width(282),
         ]
         .height(Length::Fill)
         .into()
     } else {
-        scroll(container(content.push(settings_divider()).push(properties)).padding([18, 10]))
-            .into()
+        scroll(
+            container(content.push(composer).push(settings_divider()).push(properties))
+                .padding([18, 10]),
+        )
+        .into()
     };
 
     container(column![header, settings_divider(), body].height(Length::Fill))
@@ -184,13 +207,7 @@ fn checklist<'a>(i18n: I18n, task: &'a Task) -> Element<'a, Message> {
     let completed = task.subtasks.iter().filter(|item| item.completed).count();
     let mut items = column![].width(Length::Fill);
     for (index, item) in task.subtasks.iter().enumerate() {
-        let status = match item.status {
-            _ if item.completed => TaskStatus::Completed,
-            SubTaskStatus::Pending => TaskStatus::Pool,
-            SubTaskStatus::Running => TaskStatus::Running,
-            SubTaskStatus::Completed => TaskStatus::Completed,
-            SubTaskStatus::Failed => TaskStatus::Failed,
-        };
+        let status = checklist_status(item);
         if index > 0 {
             items = items.push(settings_divider());
         }
@@ -218,6 +235,16 @@ fn checklist<'a>(i18n: I18n, task: &'a Task) -> Element<'a, Message> {
     .into()
 }
 
+fn checklist_status(item: &desktop_task_model::SubTask) -> TaskStatus {
+    match item.status {
+        _ if item.completed => TaskStatus::Completed,
+        SubTaskStatus::Pending => TaskStatus::Pool,
+        SubTaskStatus::Running => TaskStatus::Running,
+        SubTaskStatus::Completed => TaskStatus::Completed,
+        SubTaskStatus::Failed => TaskStatus::Failed,
+    }
+}
+
 fn time(timestamp: u64) -> String {
     if timestamp == 0 {
         "—".into()
@@ -226,46 +253,178 @@ fn time(timestamp: u64) -> String {
     }
 }
 
-fn activity<'a>(i18n: I18n, task: &'a Task) -> Element<'a, Message> {
-    let mut entries = column![].width(Length::Fill);
-    for entry in task.logs.iter().rev().take(6) {
-        let lead =
-            entry.status_to.map_or_else(|| Element::from(icon(Icon::Journals)), task_status_marker);
-        entries = entries
-            .push(
-                container(
-                    row![
-                        lead,
-                        column![
-                            muted(time(entry.timestamp_ms)),
-                            text(truncate_for_ui(&localized_log_message(i18n, entry), 1000))
-                                .size(13)
-                                .wrapping(text::Wrapping::WordOrGlyph),
-                        ]
-                        .width(Length::Fill)
-                        .spacing(5),
-                    ]
-                    .spacing(10),
-                )
-                .padding([10, 12])
-                .width(Length::Fill),
-            )
-            .push(settings_divider());
+fn event(message: Event) -> Message {
+    TaskBoardMessage::Detail(message).into()
+}
+
+fn comment_composer<'a>(app: &'a App, i18n: I18n, task: &Task) -> Element<'a, Message> {
+    let state = &app.task_board.detail;
+    if task.archived || task.deleted {
+        return Space::new().into();
     }
-    entries = entries.push(
-        container(
+    if state.load_failed {
+        return settings_error_banner(i18n.__("无法加载任务详情，请刷新后重试。"));
+    }
+    let pending = state.request.is_some_and(|(_, operation)| operation == Operation::PostComment);
+    let placeholder = if state.reply_to.is_some() { "输入回复…" } else { "留下评论…" };
+    let mut input = settings_text_editor(&state.comment)
+        .id("task-detail-comment")
+        .placeholder(i18n.__(placeholder))
+        .height(78);
+    if !pending && state.data.is_some() {
+        input = input.on_action(|action| event(Event::EditComment(action)));
+    }
+    let mut footer = row![Space::new().width(Length::Fill)].spacing(8).align_y(Alignment::Center);
+    if state.reply_to.is_some() {
+        footer = footer.push(
+            button(text(i18n.__("取消回复")).size(12))
+                .padding([6, 10])
+                .style(rounded_action_btn_style)
+                .on_press_maybe((!pending).then_some(event(Event::ReplyTo(None)))),
+        );
+    }
+    let label = if pending {
+        "正在发送…"
+    } else if state.reply_to.is_some() {
+        "发送回复"
+    } else {
+        "发表评论"
+    };
+    let send = button(
+        row![text(i18n.__(label)).size(13), icon(Icon::ArrowUp)]
+            .spacing(7)
+            .align_y(Alignment::Center),
+    )
+    .padding([7, 12])
+    .style(primary_action_btn_style)
+    .on_press_maybe(
+        (state.data.is_some()
+            && state.request.is_none()
+            && !state.comment.text().trim().is_empty())
+        .then_some(event(Event::PostComment)),
+    );
+    column![input, footer.push(send)].spacing(7).width(Length::Fill).into()
+}
+
+fn activity<'a>(app: &'a App, i18n: I18n, task: &'a Task) -> Element<'a, Message> {
+    let state = &app.task_board.detail;
+    let toggle = if state.activity_expanded { Icon::ChevronDown } else { Icon::ChevronRight };
+    let mut entries = column![
+        row![
+            heading(i18n.__("动态"), 17).width(Length::Fill),
+            button(row![icon(toggle), text(i18n.__("状态与执行动态")).size(13)].spacing(6))
+                .style(rounded_action_btn_style)
+                .padding([6, 8])
+                .on_press(event(Event::ToggleActivity)),
+        ]
+        .align_y(Alignment::Center),
+    ]
+    .spacing(10);
+    if state.activity_expanded {
+        let log_entries = task.logs.iter().rev().take(30).map(|entry| {
+            let lead = entry
+                .status_to
+                .map_or_else(|| Element::from(icon(Icon::Journals)), task_status_marker);
+            row![
+                lead,
+                text(truncate_for_ui(&localized_log_message(i18n, entry), 1000))
+                    .size(13)
+                    .width(Length::Fill)
+                    .wrapping(text::Wrapping::WordOrGlyph),
+                muted(time(entry.timestamp_ms)),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center)
+            .into()
+        });
+        let created_at = state.data.as_ref().map_or(task.created_at_ms, |detail| {
+            u64::try_from(detail.created_at_ms.0).unwrap_or_default()
+        });
+        let timeline = column(log_entries).spacing(9).push(
             row![
                 icon(Icon::Clock),
                 text(i18n.__("任务创建")).size(13).width(Length::Fill),
-                muted(time(task.created_at_ms)),
+                muted(time(created_at))
             ]
-            .spacing(10)
+            .spacing(8)
             .align_y(Alignment::Center),
-        )
-        .padding([10, 12])
-        .width(Length::Fill),
-    );
-    column![heading(i18n.__("动态"), 17), container(entries).style(surface),].spacing(10).into()
+        );
+        entries = entries
+            .push(container(timeline).padding(12).width(Length::Fill).style(surface))
+            .extend(super::work_plan::history(app, task));
+    }
+    if let Some(detail) = &state.data {
+        let mut replies = std::collections::HashMap::<&str, Vec<_>>::new();
+        for comment in &detail.collaboration.comments {
+            if let Some(parent) = &comment.reply_to {
+                replies.entry(parent.as_str()).or_default().push(comment);
+            }
+        }
+        for comment in
+            detail.collaboration.comments.iter().filter(|comment| comment.reply_to.is_none())
+        {
+            let mut thread = column![comment_body(i18n, comment)].spacing(10);
+            if let Some(replies) = replies.get(comment.id.as_str()) {
+                thread = thread.push(settings_divider()).extend(
+                    replies
+                        .iter()
+                        .map(|reply| container(comment_body(i18n, reply)).padding([0, 14]).into()),
+                );
+            }
+            if !task.archived && !task.deleted {
+                let replying = state.reply_to.as_ref() == Some(&comment.id);
+                thread = thread.push(
+                    button(text(i18n.__(if replying { "正在回复" } else { "回复" })).size(12))
+                        .padding([5, 9])
+                        .style(rounded_action_btn_style)
+                        .on_press_maybe(
+                            (!replying).then(|| event(Event::ReplyTo(Some(comment.id.clone())))),
+                        ),
+                );
+            }
+            entries =
+                entries.push(container(thread).padding(13).width(Length::Fill).style(surface));
+        }
+        if detail.collaboration.comments.is_empty() {
+            entries = entries.push(muted(i18n.__("暂无评论")));
+        }
+    } else if !state.load_failed {
+        entries = entries.push(muted(i18n.__("正在加载任务详情…")));
+    }
+    entries.into()
+}
+
+fn display_author<'a>(i18n: I18n, id: &'a str) -> &'a str {
+    if id == vw_api_transport::id::DEFAULT_USER_ID { i18n.__("本地用户") } else { id }
+}
+
+fn comment_body(
+    i18n: I18n,
+    comment: &vw_api_agent_scheduler::AgentSchedulerTaskCommentDto,
+) -> Element<'_, Message> {
+    let timestamp = u64::try_from(comment.created_at_ms.0).unwrap_or_default();
+    let author = display_author(i18n, &comment.author);
+    let first = author.chars().next().unwrap_or('?');
+    let avatar = container(text(first.to_uppercase().to_string()).size(13))
+        .center_x(24)
+        .center_y(24)
+        .style(|theme: &Theme| container::Style {
+            background: Some(theme.palette().primary.scale_alpha(0.14).into()),
+            border: Border { radius: 12.0.into(), ..Default::default() },
+            ..Default::default()
+        });
+    column![
+        row![avatar, heading(author, 13).width(Length::Fill), muted(time(timestamp))]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        text(&comment.body)
+            .size(14)
+            .line_height(1.5)
+            .width(Length::Fill)
+            .wrapping(text::Wrapping::WordOrGlyph),
+    ]
+    .spacing(8)
+    .into()
 }
 
 fn field<'a>(
@@ -279,6 +438,70 @@ fn field<'a>(
         .into()
 }
 
+#[derive(Clone)]
+struct StatusChoice(TaskStatus, String);
+
+impl PartialEq for StatusChoice {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl std::fmt::Display for StatusChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.1)
+    }
+}
+
+fn status_picker<'a>(
+    i18n: I18n,
+    task: &Task,
+    workflow: Option<&TaskWorkflow>,
+) -> Element<'a, Message> {
+    let label = |status| {
+        workflow.and_then(|workflow| workflow.status_definition(status)).map_or_else(
+            || status_label(i18n, status),
+            |definition| {
+                if matches!(status, TaskStatus::Custom(_)) {
+                    definition.label.clone()
+                } else {
+                    i18n.__(&definition.label).to_owned()
+                }
+            },
+        )
+    };
+    let options = workflow
+        .into_iter()
+        .flat_map(|workflow| &workflow.statuses)
+        .filter(|definition| definition.enabled)
+        .map(|definition| StatusChoice(definition.status, label(definition.status)))
+        .collect::<Vec<_>>();
+    let task_id = task.id.clone();
+    let control = settings_select(
+        options,
+        Some(StatusChoice(task.status, label(task.status))),
+        move |choice| {
+            TaskBoardMessage::TaskStatusChanged { task_id: task_id.clone(), new_status: choice.0 }
+                .into()
+        },
+    )
+    .disabled(task.archived || task.deleted)
+    .width(Length::Fill);
+    row![task_status_marker(task.status), control].spacing(7).align_y(Alignment::Center).into()
+}
+
+fn edit_property<'a>(
+    value: impl Into<String>,
+    target: Field,
+    enabled: bool,
+) -> Element<'a, Message> {
+    button(text(value.into()).size(13).wrapping(text::Wrapping::WordOrGlyph))
+        .padding([6, 8])
+        .style(rounded_action_btn_style)
+        .on_press_maybe(enabled.then_some(event(Event::EditField(Some(target)))))
+        .into()
+}
+
 fn properties<'a>(
     app: &'a App,
     task: &'a Task,
@@ -286,62 +509,169 @@ fn properties<'a>(
     project_name: &str,
     workflow: Option<&TaskWorkflow>,
 ) -> Column<'a, Message> {
+    use desktop_ui_controls::text_editor_context_menu::TextContextEffect;
+    use vw_api_agent_scheduler::AgentSchedulerTaskPlanPlacementDto as Placement;
+
     let i18n = I18n::new(app.general_settings.desktop_locale);
-    let status = workflow.and_then(|workflow| workflow.status_definition(task.status)).map_or_else(
-        || status_label(i18n, task.status),
-        |status| {
-            if matches!(task.status, TaskStatus::Custom(_)) {
-                status.label.clone()
-            } else {
-                i18n.__(&status.label).to_owned()
-            }
-        },
-    );
-    let assignee =
-        if task.assignee.trim().is_empty() { i18n.__("未分配") } else { &task.assignee };
+    let state = &app.task_board.detail;
+    let editable = !task.archived && !task.deleted && state.request.is_none();
+    let data = state.data.as_ref();
+    let assignee = data.and_then(|detail| detail.assignee.as_deref()).unwrap_or(&task.assignee);
+    let assignee = if assignee.trim().is_empty() { i18n.__("未分配") } else { assignee };
+    let priority = data.and_then(|detail| detail.priority).unwrap_or(task.priority);
     let workflow_name =
         workflow.map_or_else(|| "—".into(), |workflow| i18n.__(workflow.label()).to_owned());
+    let workflow_link = button(text(workflow_name).size(13))
+        .padding([6, 8])
+        .style(rounded_action_btn_style)
+        .on_press(Message::View(crate::app::message::ViewMessage::OpenWorkflowManager));
     let mut fields = column![
         heading(i18n.__("属性"), 16),
-        field(
-            i18n.__("状态"),
-            row![task_status_marker(task.status), text(status).size(13)]
-                .spacing(7)
-                .align_y(Alignment::Center)
-        ),
-        field(i18n.__("负责人"), text(assignee).size(13)),
+        field(i18n.__("状态"), status_picker(i18n, task, workflow)),
+        field(i18n.__("负责人"), edit_property(assignee, Field::Assignee, editable)),
         field(i18n.__("项目"), text(project_name.to_owned()).size(13)),
-        field(i18n.__("工作流"), text(workflow_name).size(13)),
-        field(i18n.__("优先级"), text(format!("P{}", task.priority)).size(13)),
-        field(i18n.__("模型"), text(desktop_task_board::model_selector::model_display_label(i18n, &task.model)).size(13)),
+        field(i18n.__("工作流"), workflow_link),
+        field(i18n.__("优先级"), edit_property(format!("P{priority}"), Field::Priority, editable)),
+        field(
+            i18n.__("模型"),
+            text(desktop_task_board::model_selector::model_display_label(i18n, &task.model))
+                .size(13)
+        ),
     ]
-    .spacing(12)
+    .spacing(9)
     .width(Length::Fill);
+    if let Some(detail) = data {
+        for (label, date, target) in [
+            ("开始日期", detail.collaboration.start_date.as_deref(), Field::StartDate),
+            ("截止日期", detail.collaboration.due_date.as_deref(), Field::DueDate),
+        ] {
+            if let Some(date) = date {
+                fields = fields.push(field(i18n.__(label), edit_property(date, target, editable)));
+            }
+        }
+    }
     let labels =
         app.task_board.task_labels.iter().filter(|label| task.label_ids.contains(&label.id));
-    if !task.label_ids.is_empty() {
-        fields = fields.push(row(labels.map(task_label_badge)).spacing(4).wrap());
+    let mut label_row = row(labels.map(task_label_badge)).spacing(4);
+    if !app.task_board.task_labels.is_empty() {
+        label_row = label_row.push(edit_property(i18n.__("标签"), Field::Labels, editable));
+        fields = fields.push(label_row.wrap());
     }
     for (name, value) in super::properties::task_summary(app, task) {
         fields = fields.push(field(name, text(value).size(13).width(Length::Fill)));
     }
+    fields = fields.push(
+        button(row![icon(Icon::Plus), text(i18n.__("添加属性")).size(13)].spacing(6))
+            .padding([6, 8])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(editable.then_some(event(Event::EditField(Some(Field::Properties))))),
+    );
     let personal =
         app.task_board.personal_tasks.get(project).is_some_and(|ids| ids.contains(&task.id));
-    let mut actions = column![heading(i18n.__("快捷操作"), 15)].spacing(7).push(action(
+    let actions = column![heading(i18n.__("快捷操作"), 15)].spacing(7).push(action(
         Icon::CheckSquare,
         i18n.__(if personal { "移出我的任务" } else { "加入我的任务" }),
         TaskBoardMessage::TogglePersonalTask(task.id.clone()),
     ));
     #[cfg(not(target_arch = "wasm32"))]
-    {
-        actions = actions.extend(super::modals::quick_actions::entry(app, &task.id));
+    let actions = actions.extend(super::modals::quick_actions::entry(app, &task.id));
+
+    let mut children = column![heading(i18n.__("子任务"), 15)].spacing(7);
+    let mut count = 0;
+    if let Some((project, plan)) = super::work_plan::current(app) {
+        for child in app.task_board.task_board_tasks.iter().filter(|child| {
+            !child.deleted && plan.tasks.get(&child.id).is_some_and(|snapshot| {
+                matches!(&snapshot.placement, Some(Placement::Child { parent_task_id, .. }) if parent_task_id == &task.id)
+            })
+        }) {
+            count += 1;
+            children = children.push(button(
+                row![task_status_marker(child.status), text(task_title(child)).size(13).width(Length::Fill)]
+                    .spacing(7).align_y(Alignment::Center)
+                ).padding([6, 8]).style(rounded_action_btn_style)
+                .on_press(super::work_plan::open_detail(project, &child.id)));
+        }
     }
+    if count == 0 && task.subtasks.is_empty() {
+        children = children.push(muted(i18n.__("暂无子任务")));
+    }
+    for item in &task.subtasks {
+        children = children.push(
+            row![
+                task_status_marker(checklist_status(item)),
+                text(&item.content)
+                    .size(13)
+                    .width(Length::Fill)
+                    .wrapping(text::Wrapping::WordOrGlyph),
+            ]
+            .spacing(7)
+            .align_y(Alignment::Center),
+        );
+    }
+    let mut pull_requests = column![
+        row![
+            heading("Pull Request", 15).width(Length::Fill),
+            button(row![icon(Icon::Plus), text(i18n.__("关联 PR")).size(12)].spacing(6))
+                .padding([6, 8])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(
+                    (editable && data.is_some())
+                        .then_some(event(Event::EditField(Some(Field::PullRequest))))
+                ),
+        ]
+        .align_y(Alignment::Center)
+    ]
+    .spacing(7);
+    if let Some(detail) = data {
+        for link in &detail.collaboration.pull_requests {
+            let open = crate::app::components::text_editor_context_menu::text_context_message(
+                TextContextEffect::OpenUrl(link.clone()),
+            );
+            pull_requests = pull_requests.push(
+                row![
+                    button(
+                        row![
+                            icon(Icon::Link),
+                            text(link)
+                                .size(12)
+                                .width(Length::Fill)
+                                .wrapping(text::Wrapping::WordOrGlyph)
+                        ]
+                        .spacing(6)
+                        .align_y(Alignment::Center)
+                    )
+                    .width(Length::Fill)
+                    .padding([6, 8])
+                    .style(rounded_action_btn_style)
+                    .on_press(open),
+                    button(text(i18n.__("解除关联")).size(12))
+                        .padding([6, 8])
+                        .style(rounded_action_btn_style)
+                        .on_press_maybe(
+                            editable.then(|| event(Event::UnlinkPullRequest(link.clone())))
+                        ),
+                ]
+                .spacing(4)
+                .align_y(Alignment::Center),
+            );
+        }
+    }
+
     let logs = action(
         Icon::Journals,
         i18n.__("查看日志"),
         TaskBoardMessage::SelectDetailTab(TaskBoardDetailTab::Logs),
     );
-    let mut execution = column![heading(i18n.__("执行日志"), 15), logs].spacing(8);
+    let mut execution = column![
+        heading(i18n.__("执行日志"), 15),
+        logs,
+        action(
+            Icon::ChevronRight,
+            i18n.__("查看执行过程"),
+            TaskBoardMessage::Detail(Event::ShowExecution)
+        ),
+    ]
+    .spacing(8);
     if let Some(duration_ms) = task.display_execution_duration_ms(runtime_time::now_ms()) {
         let duration = display_format::format_duration((duration_ms / 1000) as i64);
         let duration = if duration.is_empty() { "0s".into() } else { duration };
@@ -352,8 +682,163 @@ fn properties<'a>(
     {
         execution = execution.push(field(i18n.__("工作树"), text(branch).size(13)));
     }
-    execution = execution.extend(super::work_plan::history(app, task));
-    column![fields, settings_divider(), actions, settings_divider(), execution]
-        .spacing(16)
-        .width(Length::Fill)
+    let mut details = column![heading(i18n.__("详情"), 15)].spacing(9);
+    if let Some(detail) = data {
+        details = details
+            .push(field(
+                i18n.__("创建者"),
+                text(detail.created_by.as_deref().map_or("—", |id| display_author(i18n, id)))
+                    .size(13)
+                    .wrapping(text::Wrapping::WordOrGlyph),
+            ))
+            .push(field(
+                i18n.__("创建时间"),
+                text(time(u64::try_from(detail.created_at_ms.0).unwrap_or_default())).size(13),
+            ))
+            .push(field(
+                i18n.__("更新时间"),
+                text(time(
+                    task.updated_at_ms
+                        .max(u64::try_from(detail.updated_at_ms.0).unwrap_or_default()),
+                ))
+                .size(13),
+            ));
+    }
+    column![
+        fields,
+        settings_divider(),
+        actions,
+        settings_divider(),
+        children,
+        settings_divider(),
+        pull_requests,
+        settings_divider(),
+        execution,
+        settings_divider(),
+        details,
+    ]
+    .spacing(14)
+    .width(Length::Fill)
+}
+
+pub(super) fn with_field_modal<'a>(
+    app: &'a App,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
+    use desktop_ui_controls::system_settings_common::panels::settings_modal_overlay_with_escape;
+    let state = &app.task_board.detail;
+    let Some((field, task)) = state.editor.zip(app.task_board.task_board_viewing_logs.as_ref())
+    else {
+        return base;
+    };
+    if state.task_id != task.id
+        || app.navigation_tabs.project_path.as_deref() != Some(state.project.as_str())
+        || app.navigation_panels.show_system_settings
+    {
+        return base;
+    }
+    let i18n = I18n::new(app.general_settings.desktop_locale);
+    let close = event(Event::EditField(None));
+    let (title, placeholder) = match field {
+        Field::Assignee => ("负责人", "输入负责人"),
+        Field::Priority => ("优先级", "输入数字"),
+        Field::StartDate => ("开始日期", "YYYY-MM-DD"),
+        Field::DueDate => ("截止日期", "YYYY-MM-DD"),
+        Field::PullRequest => ("关联 PR", "粘贴 PR 链接"),
+        Field::Labels => ("标签", ""),
+        Field::Properties => ("添加属性", ""),
+    };
+    let header =
+        settings_modal_header(heading(i18n.__(title), 17), settings_close_button(close.clone()));
+    let card = match field {
+        Field::Properties => {
+            let body = super::properties::task_editor(app, task)
+                .unwrap_or_else(|| muted(i18n.__("请在任务设置中创建属性。")).into());
+            let choices = row![
+                edit_property(i18n.__("开始日期"), Field::StartDate, state.data.is_some()),
+                edit_property(i18n.__("截止日期"), Field::DueDate, state.data.is_some()),
+                edit_property(
+                    i18n.__("标签"),
+                    Field::Labels,
+                    !app.task_board.task_labels.is_empty()
+                ),
+            ]
+            .spacing(6)
+            .wrap();
+            let settings = button(text(i18n.__("管理任务属性")).size(13))
+                .padding([7, 12])
+                .style(rounded_action_btn_style)
+                .on_press(Message::View(crate::app::message::ViewMessage::OpenSystemSettingsTab(
+                    desktop_settings_shell::SystemTab::TaskProperties,
+                )));
+            settings_modal_layout(header, column![choices, body].spacing(12), Some(settings.into()))
+                .height(350)
+        }
+        Field::Labels => {
+            settings_modal_card(column![header, super::panel::task_labels(app, task)].spacing(14))
+        }
+        _ => {
+            let pending = state.request.is_some();
+            let valid = match field {
+                Field::Priority => state.input.trim().parse::<u32>().is_ok(),
+                Field::PullRequest => !state.input.trim().is_empty(),
+                _ => true,
+            };
+            let mut input =
+                settings_text_input(i18n.__(placeholder), &state.input).width(Length::Fill);
+            if !pending {
+                input = input.on_input(|value| event(Event::FieldInput(value)));
+                if valid {
+                    input = input.on_submit(event(Event::SaveField));
+                }
+            }
+            let mut footer = row![].spacing(8).align_y(Alignment::Center);
+            if matches!(field, Field::Assignee | Field::StartDate | Field::DueDate) {
+                footer = footer.push(
+                    button(text(i18n.__("清空")).size(13))
+                        .padding([7, 12])
+                        .style(rounded_action_btn_style)
+                        .on_press_maybe((!pending).then_some(event(Event::ClearField))),
+                );
+            }
+            let save_label = if field == Field::PullRequest { "关联" } else { "保存" };
+            footer = footer.push(Space::new().width(Length::Fill)).push(
+                button(text(i18n.__(save_label)).size(13))
+                    .padding([7, 12])
+                    .style(primary_action_btn_style)
+                    .on_press_maybe((!pending && valid).then_some(event(Event::SaveField))),
+            );
+            let mut body = column![header, input].spacing(14);
+            if field == Field::Assignee {
+                let query = state.input.trim().to_lowercase();
+                let names = app
+                    .task_board
+                    .task_board_tasks
+                    .iter()
+                    .map(|task| task.assignee.as_str())
+                    .chain(app.agents_settings.entries.iter().map(|entry| entry.label.as_str()))
+                    .filter(|name| {
+                        !name.trim().is_empty()
+                            && (name.to_lowercase().contains(&query)
+                                || *name == task.assignee.as_str())
+                    })
+                    .collect::<std::collections::BTreeSet<_>>();
+                body = body.push(
+                    row(names.into_iter().take(10).map(|name| {
+                        button(text(name).size(13))
+                            .padding([6, 8])
+                            .style(rounded_action_btn_style)
+                            .on_press_maybe(
+                                (!pending).then(|| event(Event::FieldInput(name.to_owned()))),
+                            )
+                            .into()
+                    }))
+                    .spacing(6)
+                    .wrap(),
+                );
+            }
+            settings_modal_card(body.push(footer))
+        }
+    };
+    settings_modal_overlay_with_escape(base, close, card.width(Length::Fill).max_width(460))
 }

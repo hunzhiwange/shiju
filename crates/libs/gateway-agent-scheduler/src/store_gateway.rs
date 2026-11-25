@@ -15,7 +15,7 @@ use vw_api_agent_scheduler::{
     AgentSchedulerTaskPlanChangeDto, AgentSchedulerTaskPlanPlacementDto,
     AgentSchedulerTaskPlanUpdateRequest,
     AgentSchedulerSelectWorkflowRequest, AgentSchedulerTaskLabelDto, AgentSchedulerTaskLabelMutation,
-    AgentSchedulerTaskPropertyDto, AgentSchedulerTaskPropertyKind, AgentSchedulerTaskPropertyMutation,
+    AgentSchedulerTaskPropertyDto, AgentSchedulerTaskPropertyMutation,
     AgentSchedulerTaskPropertyOption, TASK_LABEL_IDS_METADATA_KEY, TASK_PROPERTY_VALUES_METADATA_KEY,
 };
 use vw_api_chat_identity::ReasoningEffortDto;

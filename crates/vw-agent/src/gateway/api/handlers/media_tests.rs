@@ -223,6 +223,14 @@ impl Fixture {
             .query(&[("project_id", project.id.as_ref())])
             .send().await.unwrap().error_for_status().unwrap().json::<MediaModels>().await.unwrap();
         assert_eq!(project_models, models);
+        let global_models = client
+            .get(format!("{}{MEDIA_MODELS_PATH}", gateway.base))
+            .bearer_auth(TOKEN)
+            .header("x-platform-id", &platform)
+            .header("x-company-id", "owner")
+            .query(&[("global", true)])
+            .send().await.unwrap().error_for_status().unwrap().json::<MediaModels>().await.unwrap();
+        assert_eq!(global_models, models);
         let model = models
             .models
             .into_iter()

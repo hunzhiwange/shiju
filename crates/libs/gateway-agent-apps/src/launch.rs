@@ -335,11 +335,16 @@ pub fn workbench_command(
                 args: Vec::new(),
                 skip_permissions: false,
             };
-            validate_launch_request(
+            let mut material = validate_launch_request(
                 &request, &host.id, &observed.installations, std::slice::from_ref(&root), false,
-            ).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?
+            ).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+            // These fixed arguments belong to the authorized local workbench launcher.
+            material.args.extend(workbench_native_args(app_id).iter().map(|&flag| flag.to_owned()));
+            material
         }
-        CliWorkbenchTarget::Acp { .. } => return Err(StatusCode::UNPROCESSABLE_ENTITY),
+        CliWorkbenchTarget::Acp { .. } | CliWorkbenchTarget::Ssh { .. } => {
+            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        }
     };
     let mut command = vw_agent_apps::apps::launch::host::command(material, &root, &host.search_paths)
         .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
@@ -349,4 +354,16 @@ pub fn workbench_command(
         command.env("LC_CTYPE", "en_US.UTF-8");
     }
     Ok(command)
+}
+
+#[cfg(target_os = "macos")]
+pub(super) fn workbench_native_args(app_id: vw_api_app_identity::AppId) -> &'static [&'static str] {
+    use vw_api_app_identity::AppId;
+
+    match app_id {
+        // Preserve the embedded terminal transcript in scrollback.
+        AppId::Codex => &["--no-alt-screen", "--dangerously-bypass-approvals-and-sandbox"],
+        AppId::Claude => &["--dangerously-skip-permissions"],
+        _ => &[],
+    }
 }

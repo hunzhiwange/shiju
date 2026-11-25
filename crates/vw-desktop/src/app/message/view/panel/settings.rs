@@ -179,7 +179,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             #[cfg(not(target_arch = "wasm32"))]
             if app.terminal.is_visible {
                 let focus = crate::app::message::terminal::event::focus_active_terminal(app);
-                return Task::batch([save, focus]);
+                return Task::batch([save, focus, crate::app::workbench_projects::ensure_terminal_projects(app)]);
             }
             save
         }
@@ -653,6 +653,7 @@ fn update_navigation(
                 let tab = app.navigation_panels.system_settings_tab;
                 crate::app::components::system_settings::task_settings::load(app, tab)
             } else {
+                app.task_settings_project = None;
                 crate::app::message::editor::metrics::commit(app, None)
             }
         }

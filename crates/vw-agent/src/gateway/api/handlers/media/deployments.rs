@@ -33,6 +33,12 @@ pub(super) async fn routes(
     .map_err(|_| Code::Unavailable)?
 }
 
+pub(super) async fn global_routes(
+    tenant: vw_api_transport::TenantScope,
+) -> Result<Vec<Route>, Code> {
+    crate::session::ui_store::with_tenant_scope(tenant, project_routes(None)).await
+}
+
 async fn project_routes(selected: Option<(String, String)>) -> Result<Vec<Route>, Code> {
     let providers = crate::provider::provider::list().await.map_err(|_| Code::Unavailable)?;
     let catalog = provider_model_cache::get().await;

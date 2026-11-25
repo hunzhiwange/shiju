@@ -66,7 +66,7 @@ fn mini_companion_scaled_bounds_include_controls() {
     let mut state = crate::pet_state::State::new();
     for scale in [0.5, 1.0, 2.0] {
         state.task_pet_scale = scale;
-        let bounds = state.interaction(&mut false, (960.0, 800.0), 0).task_pet_window_size();
+        let bounds = state.window_size(false, iced::time::Instant::now());
         assert!(bounds.width >= 160.0);
         assert!(bounds.height >= 104.0 * scale.max(1.0) + 6.0 + 36.0 + 16.0);
     }
@@ -77,15 +77,16 @@ fn mini_companion_size_preview_preserves_bottom_edge_and_card_dimensions() {
     let mut state = crate::pet_state::State::new();
     state.task_pet_position = iced::Point::new(500.0, 500.0);
     state.task_pet_items = vec![mini_task(1, TaskPetStatus::Running)];
-    for progress in [0.0, 0.5, 1.0] {
-        state.task_pet_expand_progress = progress;
+    state.controls.reminders_open = true;
+    for collapsed in [true, false] {
+        state.task_pet_collapsed = collapsed;
         state.task_pet_scale = 1.0;
-        let original = state.interaction(&mut false, (960.0, 800.0), 0).task_pet_window_size();
+        let original = state.window_size(false, iced::time::Instant::now());
         let bottom = state.task_pet_position.y + original.height;
         state.task_pet_size_draft = Some(2.0);
-        let enlarged = state.interaction(&mut false, (960.0, 800.0), 0).task_pet_window_size();
+        let enlarged = state.window_size(false, iced::time::Instant::now());
         state.task_pet_position = preview_position(state.task_pet_position, original, enlarged);
-        let enlarged = state.interaction(&mut false, (960.0, 800.0), 0).task_pet_window_size();
+        let enlarged = state.window_size(false, iced::time::Instant::now());
         assert_eq!(enlarged.height - original.height, 104.0);
         assert_eq!(enlarged.width, original.width);
         assert_eq!(state.task_pet_position.y + enlarged.height, bottom);
@@ -151,7 +152,7 @@ fn mini_companion_dismiss_updates_top_card() {
 fn mini_companion_none_keeps_controls() {
     let mut state = crate::pet_state::State::new();
     state.task_pet_avatar_kind = crate::pet_state::TaskPetAvatarKind::None;
-    assert_eq!(state.interaction(&mut false, (960.0, 800.0), 0).task_pet_window_size(), iced::Size::new(160.0, 168.0));
+    assert_eq!(state.window_size(false, iced::time::Instant::now()), iced::Size::new(160.0, 60.0));
     state.interaction(&mut false, (960.0, 800.0), 0).toggle_task_pet_collapsed();
     assert!(!state.task_pet_collapsed);
     assert_eq!(state.task_pet_avatar_kind, crate::pet_state::TaskPetAvatarKind::None);

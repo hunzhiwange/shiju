@@ -7,17 +7,21 @@ mod cards;
 mod controls;
 
 #[cfg(test)]
-use cards::*;
+use cards::{
+    centered_button_label, completed_status_icon, reply_button, reply_button_style, reply_input,
+    reply_input_style, running_status_icon, task_card, task_card_style, task_detail_line,
+    task_status_slot, tiny_action_button_style, truncate_for_card,
+};
 
+use crate::pet_state::TaskPetAvatarKind;
+use crate::pet_view::{
+    ACTIONS_WIDTH, DOCK_HEIGHT, PetMessage as Message, PetView, REMINDER_WIDTH, WINDOW_PADDING,
+};
 use desktop_ui_controls::overlays::PointBelowOverlay;
 use desktop_ui_controls::right_click_area::RightClickArea;
-use crate::pet_state::TaskPetAvatarKind;
-use crate::pet_view::{PetView, PetMessage as Message};
 
 const PET_COLLAPSED_SIZE: f32 = 74.0;
-const PET_EXPANDED_SIZE: f32 = PET_COLLAPSED_SIZE;
-const PET_CONTROL_SIZE: f32 = 104.0;
-const PET_CONTROL_GAP: f32 = 6.0;
+const PET_CONTROL_GAP: f32 = 4.0;
 static PET_WINK_HANDLE: Lazy<svg::Handle> =
     Lazy::new(|| svg::Handle::from_memory(PET_WINK_SVG.as_bytes()));
 static PET_HOVER_HANDLE: Lazy<svg::Handle> =
@@ -219,76 +223,41 @@ const PET_WALK_RIGHT_BODY_1: &str = r##"
   <rect x="90" y="82" width="9" height="4" fill="#8cf3ff"/>
 "##;
 
+pub use cards::{reminder_height, reply_id};
+pub use controls::composer_id;
+
 pub fn window<'a>(app: PetView<'a>) -> Element<'a, Message> {
-    if app.render_collapsed { collapsed_window(app) } else { expanded_window(app) }
-}
-
-fn expanded_window<'a>(app: PetView<'a>) -> Element<'a, Message> {
-    let mut content = column![pet_control(app, PET_EXPANDED_SIZE, false)]
-        .spacing(PET_CONTROL_GAP)
-        .align_x(Alignment::Center);
-    if !app.task_pet_items.is_empty() {
-        content = content.push(cards::expanded_list(app));
+    let mut content = column![].align_x(Alignment::Center);
+    if app.dock.reminder_height > 0.0 && !app.task_pet_items.is_empty() {
+        let cards = if app.render_collapsed {
+            cards::collapsed_stack(app)
+        } else {
+            cards::expanded_list(app, app.dock.reminder_height)
+        };
+        content = content.push(
+            container(cards)
+                .width(REMINDER_WIDTH)
+                .height(app.dock.reminder_height)
+                .align_y(iced::alignment::Vertical::Bottom)
+                .clip(true),
+        );
     }
-    container(content)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .padding(8)
-        .style(transparent_pet_window_style)
-        .into()
-}
-
-fn collapsed_window<'a>(app: PetView<'a>) -> Element<'a, Message> {
-    let mut content = column![pet_control(app, PET_COLLAPSED_SIZE, true)]
-        .spacing(PET_CONTROL_GAP)
-        .align_x(Alignment::Center);
-    if !app.task_pet_items.is_empty() {
-        content = content.push(cards::collapsed_stack(app));
-    }
-    container(content)
+    content = content.push(pet_control(app));
+    let content = container(content)
         .center_x(Length::Fill)
         .height(Length::Fill)
-        .padding(8)
-        .style(transparent_pet_window_style)
-        .into()
-}
-
-fn pet_control<'a>(app: PetView<'a>, size: f32, _collapsed: bool) -> Element<'a, Message> {
-    let avatar: Element<'a, Message> = if app.task_pet_avatar_kind == TaskPetAvatarKind::None {
-        Space::new().height(PET_CONTROL_SIZE).into()
+        .align_y(iced::alignment::Vertical::Bottom)
+        .padding(WINDOW_PADDING)
+        .style(transparent_pet_window_style);
+    let content: Element<'a, Message> = if app.dock.mode == crate::pet_view::DockMode::Composer {
+        mouse_area(content).on_press(Message::TaskPetComposerClose).into()
     } else {
-        let mut sprite = iced::widget::stack![pet_sprite(app, size * app.preview_scale)];
-        if app.task_pet_avatar_kind == TaskPetAvatarKind::Robot
-            && app.active_count > 0
-            && !app.is_walking
-        {
-            sprite = sprite.push(
-                container(code_effect(app.status_animation_frame))
-                    .center_x(Length::Fill)
-                    .height(Length::Fill)
-                    .align_y(iced::alignment::Vertical::Bottom),
-            );
-        }
-        let avatar = mouse_area(
-            container(sprite)
-                .center_x(Length::Fixed(app.avatar_bounds))
-                .center_y(Length::Fixed(app.avatar_bounds)),
-        )
-        .on_press(Message::TaskPetDragStarted)
-        .on_enter(Message::TaskPetRobotHover(true))
-        .on_exit(Message::TaskPetRobotHover(false));
-        avatar.into()
+        content.into()
     };
-    let content =
-        column![avatar, controls::toolbar(app)].spacing(PET_CONTROL_GAP).align_x(Alignment::Center);
     let content = Element::new(
         RightClickArea::new(
-            content.into(),
-            Box::new(|position| {
-                Message::TaskPetContextMenuOpened(
-                    position.x, position.y,
-                )
-            }),
+            content,
+            Box::new(|position| Message::TaskPetContextMenuOpened(position.x, position.y)),
         )
         .preserve_on_right_click(),
     );
@@ -301,35 +270,90 @@ fn pet_control<'a>(app: PetView<'a>, size: f32, _collapsed: bool) -> Element<'a,
         .anchor(Point::new(x, y))
         .gap(2.0)
         .on_close(Message::TaskPetContextMenuClosed)
+        .close_on_target_click(true)
+        .capture_keyboard()
         .into()
     } else {
         content
     }
 }
 
+fn pet_control<'a>(app: PetView<'a>) -> Element<'a, Message> {
+    let mut content = column![].spacing(PET_CONTROL_GAP).align_x(Alignment::Center);
+    if app.task_pet_avatar_kind != TaskPetAvatarKind::None {
+        let mut sprite =
+            iced::widget::stack![pet_sprite(app, PET_COLLAPSED_SIZE * app.preview_scale)];
+        if app.task_pet_avatar_kind == TaskPetAvatarKind::Robot
+            && app.active_count > 0
+            && !app.is_walking
+        {
+            sprite = sprite.push(
+                container(code_effect(app.status_animation_frame))
+                    .center_x(Length::Fill)
+                    .height(Length::Fill)
+                    .align_y(iced::alignment::Vertical::Bottom),
+            );
+        }
+        content = content.push(
+            mouse_area(container(sprite).center_x(app.avatar_bounds).center_y(app.avatar_bounds))
+                .on_press(Message::TaskPetDragStarted)
+                .on_enter(Message::TaskPetRobotHover(true))
+                .on_exit(Message::TaskPetRobotHover(false)),
+        );
+    }
+    // Keep the approach region stable while the dock morphs. The cards above
+    // are outside this region and keep the dock pinned while open.
+    let hover_width = app.avatar_bounds.max(ACTIONS_WIDTH).max(app.dock.width);
+    let controls = container(controls::toolbar(app)).center_x(hover_width).height(DOCK_HEIGHT);
+    mouse_area(content.push(controls))
+        .on_enter(Message::TaskPetDockHover(true))
+        .on_exit(Message::TaskPetDockHover(false))
+        .into()
+}
+
 fn task_pet_context_menu(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
-    use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
-    let action = |label, intent| {
-        button(text(i18n.__(label)).size(13))
+    use desktop_assets::assets::Icon;
+    use desktop_ui_controls::system_settings_common::{icon_svg, rounded_action_btn_style};
+
+    let action = |icon, label, intent| {
+        let icon = icon_svg(icon, 16.0)
+            .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) });
+        button(row![icon, text(i18n.__(label)).size(13)].spacing(8).align_y(Alignment::Center))
             .width(Length::Fill)
-            .padding([8, 12])
-            .style(rounded_action_btn_style)
+            .padding([6, 8])
+            .style(|theme: &Theme, status| {
+                let mut style = rounded_action_btn_style(theme, status);
+                style.border = Border::default().rounded(8);
+                style.background = match status {
+                    button::Status::Hovered => {
+                        Some(theme.palette().primary.scale_alpha(0.24).into())
+                    }
+                    button::Status::Pressed => {
+                        Some(theme.palette().primary.scale_alpha(0.36).into())
+                    }
+                    _ => None,
+                };
+                style
+            })
             .on_press(intent)
     };
-    mouse_area(
-        container(
-            column![
-                action("选择智能伙伴", Message::TaskPetOpenSettings),
-                action("自定义伙伴大小", Message::TaskPetSizeOpen),
-                action(i18n.__("隐藏伙伴"), Message::TaskPetHideWindow),
-            ]
-            .spacing(4)
-            .width(180),
-        )
-        .padding(4)
-        .style(container::rounded_box),
+
+    container(
+        column![
+            action(Icon::Gear, "选择智能伙伴", Message::TaskPetOpenSettings),
+            action(Icon::Sliders, "自定义伙伴大小", Message::TaskPetSizeOpen),
+            action(Icon::EyeSlash, "隐藏伙伴", Message::TaskPetHideWindow),
+        ]
+        .spacing(2)
+        .width(142),
     )
-    .on_exit(Message::TaskPetContextMenuClosed)
+    .padding(5)
+    .style(|theme| {
+        let mut style = controls::surface(theme, 14.0, false);
+        let opacity = if theme.extended_palette().is_dark { 0.72 } else { 0.82 };
+        style.background = style.background.map(|background| background.scale_alpha(opacity));
+        style
+    })
     .into()
 }
 
@@ -348,8 +372,7 @@ pub fn avatar_preview(avatar: TaskPetAvatarKind, size: f32) -> Element<'static, 
 }
 
 fn pet_sprite<'a>(app: PetView<'a>, size: f32) -> Element<'a, Message> {
-    if !app.is_walking && !app.task_pet_robot_hovered && app.active_count == 0
-    {
+    if !app.is_walking && !app.task_pet_robot_hovered && app.active_count == 0 {
         return avatar_preview(app.task_pet_avatar_kind, size);
     }
     match app.task_pet_avatar_kind {

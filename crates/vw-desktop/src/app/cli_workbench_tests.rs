@@ -11,6 +11,8 @@ fn session(project: &str, id: &str, state: Process) -> CliWorkbenchSession {
         target: CliWorkbenchTarget::Acp { agent: "acp-codex".into() },
         state,
         agent_activity: None,
+        ssh_surface: None,
+        recent_request_ids: Vec::new(),
         capabilities: CliWorkbenchCapabilities {
             available: true,
             terminal: false,
@@ -172,7 +174,7 @@ fn cli_workbench_window_applies_newer_updates_to_a_background_tab() {
 
     workbench.tab_mut(&other).unwrap().turns.push(Turn {
         request: "req".into(),
-        prompt: "hello".into(),
+        prompt: Some("hello".into()),
         snapshot: None,
         error: None,
         recover: true,
@@ -186,6 +188,29 @@ fn cli_workbench_window_applies_newer_updates_to_a_background_tab() {
     assert_eq!(project.active_tab().map(|tab| tab.session.id.as_str()), Some("front"));
     assert!(project.tabs["front"].turns.is_empty());
     assert_eq!(project.tabs["other"].turns[0].snapshot.as_ref().unwrap().output, "new result",);
+}
+
+#[test]
+fn cli_workbench_window_discovers_cli_turns_without_duplicating_them() {
+    let mut target = session("a", "other", Process::Ready);
+    target.recent_request_ids = vec!["req".into()];
+    let mut workbench = Workbench::default();
+    workbench.projects.insert("a".into(), project("a", vec![target.clone()]));
+    let other = key("a", "other");
+    let first = &workbench.tab_mut(&other).unwrap().turns[0];
+    assert!(first.recover);
+    assert!(first.prompt.is_none());
+    workbench.apply_turn(&other, "req", Ok(message("other", 3, "external result")), false);
+
+    target.recent_request_ids.push("next".into());
+    let project = workbench.projects.get_mut("a").unwrap();
+    project.merge_sessions(vec![target]);
+    let turns = &project.tabs["other"].turns;
+    assert_eq!(turns.len(), 2);
+    assert_eq!(turns[0].snapshot.as_ref().unwrap().output, "external result");
+    assert!(!turns[0].recover);
+    assert_eq!(turns[1].request, "next");
+    assert!(turns[1].recover);
 }
 
 #[test]
@@ -248,7 +273,7 @@ fn cli_workbench_window_routes_terminal_drafts_only_to_native_cli() {
     snapshot.state = CliWorkbenchMessageState::PendingSubmission;
     tab.turns.push(Turn {
         request: "req".into(),
-        prompt: "review changes".into(),
+        prompt: Some("review changes".into()),
         snapshot: Some(snapshot.clone()),
         error: None,
         recover: true,
@@ -340,6 +365,163 @@ fn app_terminal_keeps_its_own_project_groups() {
     assert_ne!(project.active_layout, layout);
     assert!(project.active_tab().is_none());
     assert!(app.cli_workbench.projects.is_empty());
+}
+
+fn ssh_session(id: &str, surface: Option<SshSessionSurface>) -> CliWorkbenchSession {
+    let mut session = session("a", id, Process::Running);
+    session.target = CliWorkbenchTarget::Ssh { connection_id: "host".into() };
+    session.ssh_surface = surface;
+    session.capabilities.terminal = true;
+    session.capabilities.delivery = CliWorkbenchDeliveryCapability::Unavailable;
+    session
+}
+
+#[test]
+fn ssh_sessions_from_project_snapshots_only_open_on_their_own_surface() {
+    use vw_api_types::cli_workbench::{CliWorkbenchProject, CliWorkbenchProjects};
+
+    let snapshot = CliWorkbenchProjects {
+        preferred_project: Some("a".into()),
+        terminal_available: false,
+        projects: vec![CliWorkbenchProject {
+            id: "a".into(),
+            name: "A".into(),
+            directory: "/projects/a".into(),
+            sessions: vec![
+                ssh_session("regular", Some(SshSessionSurface::Terminal)),
+                ssh_session("workbench", Some(SshSessionSurface::Workbench)),
+                ssh_session("app-terminal", Some(SshSessionSurface::AppTerminal)),
+                ssh_session("legacy", None),
+            ],
+        }],
+    };
+
+    for (mut state, expected) in [
+        (Workbench::terminal_ssh(), vec!["regular"]),
+        (Workbench::default(), vec!["workbench"]),
+        (Workbench::app_terminal(), vec!["app-terminal", "legacy"]),
+    ] {
+        update::apply_projects(&mut state, snapshot.clone(), true);
+        let tabs: Vec<_> = state.projects["a"].tabs.keys().map(String::as_str).collect();
+        assert_eq!(tabs, expected);
+    }
+}
+
+#[test]
+fn ordinary_terminal_ssh_opens_the_manager_and_new_tab_in_place() {
+    use crate::app::Screen;
+    use vw_api_types::cli_workbench::{CliWorkbenchProject, CliWorkbenchProjects};
+
+    let mut app = App::new().0;
+    let main = window::Id::unique();
+    app.register_window_ids(main, None);
+    app.navigation_tabs.screen = Screen::Project;
+    app.navigation_tabs.project_path = Some("/projects/a".into());
+    app.terminal.set_visible(true);
+
+    let _ = app.update(Surface::Terminal.message(Event::OpenSsh));
+    assert_eq!(app.navigation_tabs.screen, Screen::Project);
+    assert!(matches!(app.terminal_ssh.dialog, Some(Dialog::Ssh(_))));
+
+    let state = &mut app.terminal_ssh;
+    update::apply_projects(
+        state,
+        CliWorkbenchProjects {
+            preferred_project: Some("a".into()),
+            terminal_available: false,
+            projects: vec![CliWorkbenchProject {
+                id: "a".into(),
+                name: "A".into(),
+                directory: "/projects/a".into(),
+                sessions: vec![],
+            }],
+        },
+        true,
+    );
+    state.dialog = None;
+    let project = &state.projects["a"];
+    let session = ssh_session("new", Some(SshSessionSurface::Terminal));
+    let started = Event::Response(
+        main,
+        state.scope_generation,
+        Action::Started(
+            "a".into(),
+            project.active_layout,
+            session.target.clone(),
+            project.panes.focused,
+            None,
+            Ok(session),
+        ),
+    );
+    let _ = app.update(Surface::Terminal.message(started));
+    assert_eq!(app.navigation_tabs.screen, Screen::Project);
+    assert!(app.terminal_ssh.terminal_group_selected(app.terminal_project_path()));
+    assert_eq!(app.terminal_ssh.projects["a"].active_tab().unwrap().session.id, "new");
+    assert!(app.app_terminal.projects.is_empty());
+    assert!(app.cli_workbench.projects.is_empty());
+
+    app.navigation_tabs.project_path = Some("/projects/b".into());
+    assert!(!app.terminal_ssh.terminal_group_selected(app.terminal_project_path()));
+}
+
+#[test]
+fn empty_projects_start_a_shell_on_open_but_not_on_background_refresh() {
+    use vw_api_types::cli_workbench::{CliWorkbenchProject, CliWorkbenchProjects};
+
+    for surface in [Surface::Workbench, Surface::AppTerminal] {
+        let mut app = App::new().0;
+        let main = window::Id::unique();
+        app.register_window_ids(main, None);
+        app.navigation_tabs.project_path = Some("/projects/a".into());
+        let _ = app.update(surface.message(Event::Open { backend: None, native_app: None }));
+        let state = surface.state(&app);
+        let (generation, projects_epoch, epoch) =
+            (state.scope_generation, state.projects_epoch, state.epoch);
+        let respond = |action| surface.message(Event::Response(main, generation, action));
+        let select = |project: &str| {
+            surface.message(Event::Window(main, update::Action::SelectProject(project.into())))
+        };
+
+        let mut shell = session("a", "shell", Process::Running);
+        shell.target = CliWorkbenchTarget::Shell;
+        shell.capabilities.terminal = true;
+        shell.capabilities.delivery = CliWorkbenchDeliveryCapability::Unavailable;
+        let snapshot = |sessions| CliWorkbenchProjects {
+            preferred_project: Some("a".into()),
+            terminal_available: true,
+            projects: vec![CliWorkbenchProject {
+                id: "a".into(),
+                name: "A".into(),
+                directory: "/projects/a".into(),
+                sessions,
+            }],
+        };
+        let _ = app.update(respond(update::Action::ProjectsLoaded(
+            projects_epoch, epoch, Ok((snapshot(vec![]), false)),
+        )));
+        let state = surface.state(&app);
+        assert!(state.starting);
+        let project = &state.projects["a"];
+        let (layout, pane) = (project.active_layout, project.panes.focused);
+        let _ = app.update(respond(update::Action::Started(
+            "a".into(), layout, CliWorkbenchTarget::Shell, pane, None, Ok(shell.clone()),
+        )));
+        let _ = app.update(select("a"));
+        assert!(!surface.state(&app).starting);
+
+        let hide = update::Action::Hide(key("a", "shell"));
+        let _ = app.update(surface.message(Event::Window(main, hide)));
+        let epoch = surface.state(&app).epoch;
+        let _ = app.update(respond(update::Action::SessionsLoaded(
+            epoch, projects_epoch, Ok(snapshot(vec![shell])),
+        )));
+        let state = surface.state(&app);
+        assert!(!state.starting);
+        assert!(state.projects["a"].active_tab().is_none());
+
+        let _ = app.update(select("a"));
+        assert!(surface.state(&app).starting);
+    }
 }
 
 #[test]
@@ -506,6 +688,100 @@ fn cli_workbench_layout_switch_restores_nested_split_geometry_and_focus() {
     assert_eq!(project.panes.grid.layout().pane_regions(PANE_SPACING, 0.0, size), regions);
     assert_eq!(project.panes.focused, bottom);
     assert_eq!(project.active_tab().unwrap().session.id, "bottom");
+}
+
+#[test]
+fn workbench_surfaces_restore_docked_sessions_and_split_ratios_from_disk() {
+    use iced::widget::pane_grid::{Axis, Edge, Node, Target};
+    use vw_api_types::cli_workbench::{CliWorkbenchProject, CliWorkbenchProjects};
+
+    let temp = tempfile::tempdir().unwrap();
+    for surface in [Surface::Workbench, Surface::AppTerminal] {
+        let mut state = match surface {
+            Surface::Workbench => Workbench::default(),
+            Surface::AppTerminal => Workbench::app_terminal(),
+            Surface::Terminal => Workbench::terminal_ssh(),
+        };
+        let path = temp.path().join(match surface {
+            Surface::Workbench => "workbench.json",
+            Surface::AppTerminal => "app-terminal.json",
+            Surface::Terminal => "terminal-ssh.json",
+        });
+        state.workspace = workspace::Store::load(path.clone());
+        let snapshot = |preferred: Option<&str>, ids: &[&str]| CliWorkbenchProjects {
+            preferred_project: preferred.map(str::to_owned),
+            terminal_available: true,
+            projects: vec![CliWorkbenchProject {
+                id: "a".into(),
+                name: "A".into(),
+                directory: "/projects/a".into(),
+                sessions: ids.iter().map(|id| {
+                    let mut session = session("a", id, Process::Running);
+                    if surface == Surface::AppTerminal {
+                        session.target = CliWorkbenchTarget::Shell;
+                    }
+                    session
+                }).collect(),
+            }],
+        };
+        update::apply_projects(
+            &mut state, snapshot(Some("a"), &["top", "bottom", "hidden", "right"]), true,
+        );
+        let project = state.projects.get_mut("a").unwrap();
+        project.hide("hidden");
+        let first_layout = project.active_layout;
+        let top = project.panes.focused;
+        let bottom_tab = project.tabs["bottom"].view_id;
+        assert!(project.panes.dock_tab(top, bottom_tab, Target::Edge(Edge::Bottom)));
+        assert!(project.panes.dock_tab(top, project.tabs["right"].view_id, Target::Edge(Edge::Right)));
+        let Node::Split { id: root, a, .. } = project.panes.grid.layout() else {
+            panic!("expected the full-height right pane");
+        };
+        let Node::Split { id: nested, .. } = a.as_ref() else {
+            panic!("expected top and bottom panes");
+        };
+        let (root, nested) = (*root, *nested);
+        project.panes.grid.resize(root, 0.42);
+        project.panes.grid.resize(nested, 0.63);
+        project.select("bottom");
+        project.panes.grid.maximize(project.panes.focused);
+        project.layout_names.insert(first_layout, "Build".into());
+        project.new_layout();
+        let second_layout = project.active_layout;
+        state.checkpoint_layout();
+
+        let mut restored = Workbench { surface, workspace: workspace::Store::load(path), ..Default::default() };
+        update::apply_projects(
+            &mut restored, snapshot(None, &["right", "hidden", "bottom", "top", "new"]), true,
+        );
+        assert_eq!(restored.selected.as_deref(), Some("a"));
+        let project = restored.projects.get_mut("a").unwrap();
+        assert_ne!(project.tabs["bottom"].view_id, bottom_tab);
+        assert_eq!(project.active_layout, second_layout);
+        assert_eq!(project.layout_names[&first_layout], "Build");
+        assert!(project.tabs["hidden"].hidden);
+        assert!(project.select_layout(first_layout));
+        assert_eq!(project.active_tab().unwrap().session.id, "bottom");
+        assert_eq!(project.panes.grid.maximized(), Some(project.panes.focused));
+
+        let grid = &project.panes.grid;
+        let Node::Split { axis: Axis::Vertical, ratio, a, b, .. } = grid.layout() else {
+            panic!("expected a left and right split");
+        };
+        assert_eq!(*ratio, 0.42);
+        let Node::Split { axis: Axis::Horizontal, ratio, a: top, b: bottom, .. } = a.as_ref() else {
+            panic!("expected a top and bottom split");
+        };
+        assert_eq!(*ratio, 0.63);
+        let (Node::Pane(top), Node::Pane(bottom), Node::Pane(right)) =
+            (top.as_ref(), bottom.as_ref(), b.as_ref())
+        else {
+            panic!("expected three terminal panes");
+        };
+        assert_eq!(grid.get(*top).unwrap().tabs, [project.tabs["top"].view_id]);
+        assert_eq!(grid.get(*bottom).unwrap().tabs, [project.tabs["bottom"].view_id, project.tabs["new"].view_id]);
+        assert_eq!(grid.get(*right).unwrap().tabs, [project.tabs["right"].view_id]);
+    }
 }
 
 #[test]

@@ -83,6 +83,17 @@ fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> 
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    if app.main_window_id.is_some()
+        && match app.navigation_tabs.screen {
+            Screen::CliWorkbench => app.cli_workbench.has_working_agent(),
+            Screen::AppTerminal => app.app_terminal.has_working_agent(),
+            _ => false,
+        }
+    {
+        return true;
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     if app.preview_state.installing_lsp.is_some()
         && (app.navigation_panels.show_settings
             || app.navigation_panels.show_system_settings
@@ -102,7 +113,7 @@ fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> 
             && app.task_pet_window_id.is_some(),
         companion_animating: app.pet_state.task_pet_avatar_kind
             != crate::app::state::TaskPetAvatarKind::None
-            || app.pet_state.task_pet_expand_target.is_some(),
+            || app.pet_state.task_pet_items.iter().any(|item| item.status == desktop_task_board::pet_state::TaskPetStatus::Running),
         diagnostic_active: (app.navigation_panels.show_settings
             || app.navigation_panels.show_system_settings)
             && app.acp_settings.diagnostic_id.is_some(),
@@ -232,7 +243,14 @@ impl App {
             .unwrap_or_else(Subscription::none);
 
         #[cfg(not(target_arch = "wasm32"))]
-        let workbench_surface = crate::app::cli_workbench::Surface::from_screen(self.navigation_tabs.screen);
+        let workbench_surface = {
+            use crate::app::cli_workbench::{Surface, terminal_panel_visible};
+            Surface::from_screen(self.navigation_tabs.screen).or_else(|| {
+                (terminal_panel_visible(self)
+                    && self.terminal_ssh.terminal_needs_refresh(self.terminal_project_path()))
+                    .then_some(Surface::Terminal)
+            })
+        };
 
         let events = Subscription::batch([
             #[cfg(target_arch = "wasm32")]
@@ -249,6 +267,8 @@ impl App {
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(surface) = workbench_surface
                 && surface.state(self).has_visible_terminal()
+                && (surface != crate::app::cli_workbench::Surface::Terminal
+                    || self.terminal_ssh.terminal_group_selected(self.terminal_project_path()))
             {
                 iced::time::every(std::time::Duration::from_millis(80))
                     .with(surface)
@@ -335,6 +355,15 @@ impl App {
             } else {
                 Subscription::none()
             };
+
+        let task_pet_motion = if self.task_pet_window_id.is_some()
+            && self.pet_state.controls.animating(iced::time::Instant::now())
+        {
+            iced::time::every(iced::time::Duration::from_millis(16))
+                .map(|_| Message::View(message::ViewMessage::TaskPetMotionTick))
+        } else {
+            Subscription::none()
+        };
 
         let task_board_ui_tick = if self.navigation_tabs.screen == Screen::TaskBoard {
             iced::time::every(std::time::Duration::from_secs(1))
@@ -482,6 +511,7 @@ impl App {
             permission_poll,
             todo_poll,
             activity_animation_tick,
+            task_pet_motion,
             task_board_ui_tick,
             #[cfg(not(target_arch = "wasm32"))]
             if self.agent_apps_auth.login.as_ref().is_some_and(|login| {

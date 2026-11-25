@@ -81,6 +81,17 @@ pub enum ModelConfigTab {
     Multimodal,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ModelCapabilityFilter {
+    #[default]
+    All,
+    Chat,
+    Vision,
+    Generation,
+    Audio,
+    Utility,
+}
+
 /// 模型设置面板状态
 ///
 /// 管理模型设置页面的状态，包括模型列表、
@@ -100,6 +111,7 @@ pub struct ModelSettingsState {
     pub input_collapsed_provider_ids: std::collections::BTreeSet<String>,
     /// 搜索查询
     pub query: String,
+    pub capability_filter: ModelCapabilityFilter,
     /// 提供者模型列表
     pub providers: Vec<ProviderModelsSummary>,
     /// 保存错误信息

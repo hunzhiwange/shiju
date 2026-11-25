@@ -183,6 +183,7 @@ pub enum SettingsMessage<SettingsTab, SearchTarget, AppsCatalog, AppProviders> {
         result: Result<String, String>,
     },
     ModelQueryChanged(String),
+    ModelCapabilityFilterSelected(desktop_settings_providers::state::ModelCapabilityFilter),
     ModelToggle(String, String, bool),
     ModelDetailOpen(String, String),
     ModelDetailClose,

@@ -1,8 +1,15 @@
 //! 远端模型与静态目录的合并。
 
 use std::collections::{BTreeSet, HashMap, HashSet};
-use model_types::{ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost, ModelCostCache, ModelLimit, default_adapter};
+use model_types::{ApiInfo, Info, Model, ModelCost, ModelCostCache, ModelLimit, default_adapter};
+use serde_json::{Map, Value};
 use crate::{DiscoveryError, discover_openai_compatible_models, is_real_bearer};
+use crate::http::{DiscoveryLimits, ModelEntry, discover_openai_compatible_entries, model_id};
+
+#[path = "shiju_metadata.rs"]
+mod shiju_metadata;
+
+const SHIJU_API_BASE: &str = "https://router.shiju.cloud/v1";
 
 /// 选择配置 API 基址；未配置时仅接受唯一明确的兼容模型部署。
 pub fn resolve_api_base(provider: &Info, configured_api: Option<&str>) -> Option<String> {
@@ -31,28 +38,30 @@ pub fn merge_remote_models(
     remote_ids: Vec<String>,
     catalog: &HashMap<String, provider_model_catalog::Provider>,
 ) -> usize {
-    let mut changed = 0;
-    for remote_id in remote_ids {
-        let existing_id = if provider.models.contains_key(&remote_id) {
-            Some(remote_id.clone())
-        } else {
-            provider
-                .models
-                .iter()
-                .filter(|(_, model)| model.api.id == remote_id)
-                .map(|(id, _)| id.clone())
-                .min()
-        };
+    merge_remote_model_ids(provider, api_base, remote_ids, catalog, |id| {
+        explicit_model_ids.contains(id)
+    }).len()
+}
 
-        if let Some(existing_id) = existing_id {
-            if explicit_model_ids.contains(&existing_id) {
+fn merge_remote_model_ids(
+    provider: &mut Info,
+    api_base: &str,
+    remote_ids: Vec<String>,
+    catalog: &HashMap<String, provider_model_catalog::Provider>,
+    is_configured: impl Fn(&str) -> bool,
+) -> HashSet<String> {
+    let mut changed = HashSet::new();
+    for remote_id in remote_ids {
+        if let Some(existing_id) = existing_model_id(provider, &remote_id) {
+            if is_configured(existing_id) {
                 continue;
             }
+            let existing_id = existing_id.to_owned();
             if let Some(model) = provider.models.get_mut(&existing_id)
                 && model.status != "active"
             {
                 model.status = "active".to_string();
-                changed += 1;
+                changed.insert(existing_id);
             }
             continue;
         }
@@ -89,17 +98,26 @@ pub fn merge_remote_models(
             model.limit = matched.limit;
             model.release_date = matched.release_date;
         }
+        changed.insert(remote_id.clone());
         provider.models.insert(remote_id, model);
-        changed += 1;
     }
     changed
+}
+
+fn existing_model_id<'a>(provider: &'a Info, remote_id: &str) -> Option<&'a str> {
+    provider.models.get_key_value(remote_id).map(|(id, _)| id.as_str()).or_else(|| {
+        provider.models.iter()
+            .filter(|(_, model)| model.api.id == remote_id)
+            .map(|(id, _)| id.as_str())
+            .min()
+    })
 }
 
 /// 发现并合并单个 provider；无真实凭据或 API 基址时直接跳过。
 pub async fn discover_and_merge_provider(
     provider: &mut Info,
     configured_api: Option<&str>,
-    explicit_model_ids: &HashSet<String>,
+    configured_models: Option<&Map<String, Value>>,
     bearer: &str,
 ) -> Result<usize, DiscoveryError> {
     if !is_real_bearer(bearer) {
@@ -114,9 +132,54 @@ pub async fn discover_and_merge_provider(
     let Some(api_base) = resolve_api_base(provider, configured_api) else {
         return Ok(0);
     };
+    if provider.id == "shiju" && api_base == SHIJU_API_BASE {
+        let entries =
+            discover_openai_compatible_entries(&api_base, bearer, DiscoveryLimits::default()).await?;
+        let catalog = provider_model_cache::get().await;
+        return merge_shiju_models(provider, configured_models, &entries, &catalog);
+    }
+
     let remote_ids = discover_openai_compatible_models(&api_base, bearer).await?;
     let catalog = provider_model_cache::get().await;
-    Ok(merge_remote_models(provider, &api_base, explicit_model_ids, remote_ids, &catalog))
+    Ok(merge_remote_model_ids(provider, &api_base, remote_ids, &catalog, |id| {
+        configured_models.is_some_and(|models| models.contains_key(id))
+    }).len())
+}
+
+pub(crate) fn merge_shiju_models(
+    provider: &mut Info,
+    configured_models: Option<&Map<String, Value>>,
+    entries: &[ModelEntry],
+    catalog: &HashMap<String, provider_model_catalog::Provider>,
+) -> Result<usize, DiscoveryError> {
+    let mut unique = HashMap::new();
+    for entry in entries {
+        let id = model_id(entry.id.as_deref())
+            .ok_or_else(|| DiscoveryError::new("invalid_response"))?;
+        // Conflicting rows still establish an ID, but supply no metadata.
+        unique.entry(id).and_modify(|entry| *entry = None).or_insert(Some(entry));
+    }
+    let previous_count = provider.models.len();
+    provider.models.retain(|_, model| {
+        model.api.url.trim_end_matches('/') != SHIJU_API_BASE
+            || unique.contains_key(model.api.id.as_str())
+    });
+    let removed_count = previous_count - provider.models.len();
+    let remote_ids = unique.keys().map(|id| (*id).to_owned()).collect();
+    let mut changed = merge_remote_model_ids(provider, SHIJU_API_BASE, remote_ids, catalog, |id| {
+        configured_models.is_some_and(|models| models.contains_key(id))
+    });
+    for (remote_id, entry) in unique {
+        let Some(entry) = entry else { continue };
+        let Some(id) = existing_model_id(provider, remote_id).map(str::to_owned) else { continue };
+        let model = provider.models.get_mut(&id).expect("resolved model exists");
+        if model.api.id == remote_id && model.api.url.trim_end_matches('/') == SHIJU_API_BASE
+            && shiju_metadata::apply(model, entry, configured_models.and_then(|models| models.get(&id)))
+        {
+            changed.insert(id);
+        }
+    }
+    Ok(removed_count + changed.len())
 }
 
 fn safe_remote_model(provider_id: &str, api_base: &str, model_id: String) -> Model {
@@ -131,30 +194,7 @@ fn safe_remote_model(provider_id: &str, api_base: &str, model_id: String) -> Mod
         },
         name: model_id,
         family: None,
-        capabilities: Capabilities {
-            native_tool_search: false,
-            catalog_execution: None,
-            temperature: false,
-            reasoning: false,
-            reasoning_options: None,
-            attachment: false,
-            toolcall: true,
-            input: CapabilityIO {
-                text: true,
-                audio: false,
-                image: false,
-                video: false,
-                pdf: false,
-            },
-            output: CapabilityIO {
-                text: true,
-                audio: false,
-                image: false,
-                video: false,
-                pdf: false,
-            },
-            interleaved: InterleavedCapability::Bool(false),
-        },
+        capabilities: model_state::default_model_capabilities(),
         cost: ModelCost {
             input: 0.0,
             output: 0.0,

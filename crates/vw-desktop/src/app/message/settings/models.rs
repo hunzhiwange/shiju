@@ -36,10 +36,15 @@ mod models_tests;
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn models_refresh_task() -> Task<Message> {
+    load_models_task(false)
+}
+
+fn load_models_task(refresh: bool) -> Task<Message> {
     Task::perform(
         async move {
             desktop_settings_providers::model_tasks::load_models_for_settings(
                 config::gateway_client_endpoint(),
+                refresh,
             )
             .await
         },
@@ -57,6 +62,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::ModelsRefresh => domain::ModelMessage::ModelsRefresh,
         SettingsMessage::ModelsRefreshed(v0) => domain::ModelMessage::ModelsRefreshed(v0),
         SettingsMessage::ModelQueryChanged(v0) => domain::ModelMessage::ModelQueryChanged(v0),
+        SettingsMessage::ModelCapabilityFilterSelected(filter) => {
+            domain::ModelMessage::ModelCapabilityFilterSelected(filter)
+        }
         SettingsMessage::ModelToggle(v0, v1, v2) => domain::ModelMessage::ModelToggle(v0, v1, v2),
         SettingsMessage::ModelsSetAll(v0) => domain::ModelMessage::ModelsSetAll(v0),
         SettingsMessage::ProviderModelsSetAll(v0, v1) => {
@@ -79,7 +87,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     };
     match domain::update(&mut app.model_settings, message) {
         domain::ModelEffect::None => Task::none(),
-        domain::ModelEffect::Refresh => models_refresh_task(),
+        domain::ModelEffect::Refresh => load_models_task(true),
         effect @ domain::ModelEffect::Save(_) => persist_status_effect(app, effect),
         effect @ domain::ModelEffect::Reset(_, _) => persist_status_effect(app, effect),
         domain::ModelEffect::QueryChanged if app.popover_visibility.model => {

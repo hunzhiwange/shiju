@@ -3,10 +3,14 @@ use gateway_endpoint::GatewayEndpoint;
 use desktop_i18n::settings_models::messages::Feedback;
 use crate::models::{ModelMessage, ModelStatusChange, ModelsLoaded, summarize_models, model_status_patch, provider_model_status_reset_patch};
 
-pub async fn load_models_for_settings(endpoint: GatewayEndpoint) -> ModelsLoaded {
+pub async fn load_models_for_settings(endpoint: GatewayEndpoint, refresh: bool) -> ModelsLoaded {
     let client = vw_gateway_client::GatewayClient::new(endpoint).map_err(Feedback::gateway)?;
-    let response = gateway_model_provider::GatewayModelProviderClient::new(client.transport().clone())
-        .provider_list(None).await.map_err(Feedback::gateway)?;
+    let provider = gateway_model_provider::GatewayModelProviderClient::new(client.transport().clone());
+    let response = if refresh {
+        provider.refresh_provider_list().await
+    } else {
+        provider.provider_list(None).await
+    }.map_err(Feedback::gateway)?;
     Ok(summarize_models(response.all.into_iter().map(|provider| (provider.id.clone(), provider)).collect()))
 }
 pub async fn save_statuses(endpoint: GatewayEndpoint, changes: Vec<ModelStatusChange>) -> ModelMessage {
@@ -21,7 +25,7 @@ pub async fn reset_statuses(endpoint: GatewayEndpoint, provider_id: String, chan
         if let Some(patch) = provider_model_status_reset_patch(&full_config, &provider_id) {
             config.patch_full_agent_config_async(patch).await.map_err(Feedback::gateway)?;
         }
-        load_models_for_settings(endpoint).await
+        load_models_for_settings(endpoint, false).await
     }.await;
     ModelMessage::ProviderModelsResetCompleted(changes, result)
 }

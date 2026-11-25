@@ -20,9 +20,9 @@ pub async fn list_for_settings() -> Result<std::collections::HashMap<String, Inf
     ensure_host();
     agent_provider::provider::list_for_settings().await
 }
-pub async fn settings_provider_list() -> Result<(std::collections::HashMap<String, Info>, std::collections::HashMap<String, String>), CatalogError> {
+pub async fn settings_provider_list(refresh: bool) -> Result<(std::collections::HashMap<String, Info>, std::collections::HashMap<String, String>), CatalogError> {
     ensure_host();
-    agent_provider::provider::settings_provider_list().await
+    agent_provider::provider::settings_provider_list(refresh).await
 }
 pub async fn invalidate_cache() {
     ensure_host();

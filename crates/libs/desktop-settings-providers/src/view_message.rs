@@ -58,6 +58,7 @@ pub enum SettingsMessage {
     ModelDetailOpen(String, String),
     ModelDetailToggleRaw,
     ModelQueryChanged(String),
+    ModelCapabilityFilterSelected(crate::state::ModelCapabilityFilter),
     ModelRoutes(ModelRoutesMessage),
     ModelToggle(String, String, bool),
     ModelsRefresh,

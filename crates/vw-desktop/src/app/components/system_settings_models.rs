@@ -143,6 +143,9 @@ pub(crate) fn map_view_message(message: domain::Message) -> crate::app::Message 
         domain::SettingsMessage::ModelDetailOpen(v0,v1) => SettingsMessage::ModelDetailOpen(v0,v1),
         domain::SettingsMessage::ModelDetailToggleRaw => SettingsMessage::ModelDetailToggleRaw,
         domain::SettingsMessage::ModelQueryChanged(v0) => SettingsMessage::ModelQueryChanged(v0),
+        domain::SettingsMessage::ModelCapabilityFilterSelected(filter) => {
+            SettingsMessage::ModelCapabilityFilterSelected(filter)
+        }
         domain::SettingsMessage::ModelRoutes(message) => SettingsMessage::ModelRoutes(match message {
             domain::ModelRoutesMessage::AddRoute => ModelRoutesMessage::AddRoute,
             domain::ModelRoutesMessage::RemoveRoute(v0) => ModelRoutesMessage::RemoveRoute(v0),

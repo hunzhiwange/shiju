@@ -20,13 +20,15 @@ pub type HostFuture<T> = Pin<Box<dyn Future<Output = T> + Send + 'static>>;
 #[derive(Debug, Deserialize)]
 pub struct InstanceQuery {
     pub directory: Option<String>,
+    #[serde(default)]
+    pub refresh: bool,
 }
 
 /// Binds the existing tenant and project instance contexts without spawning work.
 pub type SettingsProviderList = (HashMap<String, provider::provider::Info>, HashMap<String, String>);
 
 pub trait ProviderHost: Send + Sync + 'static {
-    fn settings_provider_list() -> HostFuture<Result<SettingsProviderList, provider::provider::CatalogError>>;
+    fn settings_provider_list(refresh: bool) -> HostFuture<Result<SettingsProviderList, provider::provider::CatalogError>>;
     fn resolve_directory(query: &InstanceQuery, headers: &HeaderMap) -> String;
     fn with_context<T: Send + 'static>(
         tenant: TenantScope,
@@ -63,7 +65,7 @@ pub async fn provider_list<H: ProviderHost>(
         tenant,
         dir, move || {
             Box::pin(async move {
-                let (providers, mut defaults) = H::settings_provider_list()
+                let (providers, mut defaults) = H::settings_provider_list(query.refresh)
                     .await
                     .map_err(|error| ApiError::internal(error.to_string()))?;
                 let mut out = Vec::new();

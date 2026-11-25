@@ -35,7 +35,7 @@ pub struct DiscoveryError {
 }
 
 impl DiscoveryError {
-    fn new(category: &'static str) -> Self {
+    pub(crate) fn new(category: &'static str) -> Self {
         Self { category }
     }
 
@@ -60,10 +60,12 @@ struct ModelsResponse {
 }
 
 #[derive(Deserialize)]
-struct ModelEntry {
-    id: Option<String>,
+pub(crate) struct ModelEntry {
+    pub(crate) id: Option<String>,
     owned_by: Option<Value>,
-    supported_endpoint_types: Option<Value>,
+    pub(crate) supported_endpoint_types: Option<Value>,
+    #[serde(flatten)]
+    pub(crate) metadata: serde_json::Map<String, Value>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -92,6 +94,19 @@ pub(crate) async fn discover_openai_compatible_models_with_limits(
     bearer: &str,
     limits: DiscoveryLimits,
 ) -> Result<Vec<String>, DiscoveryError> {
+    let entries = discover_openai_compatible_entries(api_base, bearer, limits).await?;
+    let mut ids: Vec<_> =
+        entries.iter().filter_map(|entry| model_id(entry.id.as_deref())).map(str::to_owned).collect();
+    ids.sort_unstable();
+    ids.dedup();
+    Ok(ids)
+}
+
+pub(crate) async fn discover_openai_compatible_entries(
+    api_base: &str,
+    bearer: &str,
+    limits: DiscoveryLimits,
+) -> Result<Vec<ModelEntry>, DiscoveryError> {
     if !is_real_bearer(bearer) {
         return Ok(Vec::new());
     }
@@ -115,7 +130,7 @@ pub(crate) async fn discover_openai_compatible_models_with_limits(
                 error
             }
         })?;
-    Ok(parse_models(&body, false)?.into_iter().map(|model| model.id).collect())
+    parse_response(&body)?.data.ok_or_else(|| DiscoveryError::new("invalid_response"))
 }
 
 /// Read per-model media endpoint grants from the account's OpenAI-compatible catalog.
@@ -132,8 +147,7 @@ pub async fn discover_media_endpoint_types(
     headers.insert(AUTHORIZATION, value);
     let body = fetch_at(&[url], &headers, DiscoveryLimits::default(), Client::builder().no_proxy())
         .await?;
-    let parsed: ModelsResponse =
-        serde_json::from_slice(&body).map_err(|_| DiscoveryError::new("invalid_response"))?;
+    let parsed = parse_response(&body)?;
     let entries = parsed.data.ok_or_else(|| DiscoveryError::new("invalid_response"))?;
     let mut result = std::collections::HashMap::new();
     let mut seen = std::collections::HashSet::new();
@@ -158,7 +172,7 @@ pub async fn discover_catalog_models(
 ) -> Result<Vec<DiscoveredModel>, DiscoveryError> {
     let limits = DiscoveryLimits { timeout: CATALOG_TIMEOUT, ..DiscoveryLimits::default() };
     let body = fetch_at(candidates, headers, limits, Client::builder().no_proxy()).await?;
-    parse_models(&body, true)
+    parse_catalog_models(&body)
 }
 
 async fn fetch_at(
@@ -209,12 +223,12 @@ async fn read_body(
     Ok(body)
 }
 
-fn parse_models(
-    body: &[u8],
-    include_catalog_entries: bool,
-) -> Result<Vec<DiscoveredModel>, DiscoveryError> {
-    let response: ModelsResponse =
-        serde_json::from_slice(body).map_err(|_| DiscoveryError::new("invalid_response"))?;
+fn parse_response(body: &[u8]) -> Result<ModelsResponse, DiscoveryError> {
+    serde_json::from_slice(body).map_err(|_| DiscoveryError::new("invalid_response"))
+}
+
+fn parse_catalog_models(body: &[u8]) -> Result<Vec<DiscoveredModel>, DiscoveryError> {
+    let response = parse_response(body)?;
     let mut models: Vec<_> = match (response.data, response.models) {
         (Some(data), _) => data
             .into_iter()
@@ -228,7 +242,7 @@ fn parse_models(
                 })
             })
             .collect(),
-        (None, Some(Value::Array(entries))) if include_catalog_entries => {
+        (None, Some(Value::Array(entries))) => {
             entries.iter().filter_map(catalog_entry).collect()
         }
         _ => return Err(DiscoveryError::new("invalid_response")),
@@ -246,7 +260,7 @@ fn catalog_entry(entry: &Value) -> Option<DiscoveredModel> {
     Some(DiscoveredModel { id: id.to_owned(), owned_by: None })
 }
 
-fn model_id(value: Option<&str>) -> Option<&str> {
+pub(crate) fn model_id(value: Option<&str>) -> Option<&str> {
     value.map(str::trim).filter(|id| !id.is_empty())
 }
 

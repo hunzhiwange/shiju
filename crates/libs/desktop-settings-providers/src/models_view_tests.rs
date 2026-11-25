@@ -47,6 +47,24 @@ fn provider_summary() -> ProviderModelsSummary {
     }
 }
 
+#[test]
+fn model_filters_distinguish_visual_input_from_media_output() {
+    use crate::state::ModelCapabilityFilter::{Audio, Chat, Generation, Utility, Vision};
+    let mut model = provider_summary().models.remove(0);
+    for (input, output, expected, chat) in [
+        (json!({"image": true, "text": true}), json!({"text": true}), Vision, true),
+        (json!({"image": true}), json!({"video": true}), Generation, false),
+        (json!({"text": true}), json!({"image": true}), Generation, false),
+        (json!({"audio": true}), json!({"text": true}), Audio, false),
+        (json!({"text": true}), json!({"audio": true}), Audio, false),
+        (json!({"text": true}), json!({"text": false}), Utility, false),
+    ] {
+        model.detail = json!({"capabilities": {"input": input, "output": output}});
+        assert!(super::matches_capability(&model, expected));
+        assert_eq!(super::matches_capability(&model, Chat), chat);
+    }
+}
+
 fn provider_anthropic_summary() -> ProviderModelsSummary {
     ProviderModelsSummary {
         id: "anthropic".to_string(),

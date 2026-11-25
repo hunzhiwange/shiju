@@ -273,12 +273,10 @@ impl<H: QueryEngineHost> QueryEngine<H> {
         .await;
         let model_limit = match model_limit {
             Ok(model) => model.limit,
-            Err(error @ agent_provider::provider::CatalogError::Configuration(_)) => {
-                return Err(error.into());
-            }
             Err(agent_provider::provider::CatalogError::ModelNotFound(_)) => {
                 agent_provider::provider::ModelLimit { context: 0, input: None, output: 0 }
             }
+            Err(error) => return Err(error.into()),
         };
 
         let skill_session = Some(agent_loop::core::skills::CoreSkillSession::<H>::from_config(

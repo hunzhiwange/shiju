@@ -118,6 +118,37 @@ fn shiju_discovery_prefers_own_catalog_and_does_not_enrich_unrelated_providers()
 }
 
 #[test]
+fn shiju_account_discovery_filters_official_models_and_keeps_explicit_status() {
+    let mut provider = test_provider();
+    provider.id = "shiju".into();
+    for id in ["entitled", "unentitled"] {
+        let mut model = test_model(id, "disabled");
+        model.api.url = "https://router.shiju.cloud/v1".into();
+        provider.models.insert(id.into(), model);
+    }
+    let entries = serde_json::from_value::<Vec<crate::http::ModelEntry>>(json!([
+        {"id": "entitled", "context_window": 128_000},
+        {"id": "new-video", "supported_endpoint_types": ["openai-video"]},
+        {"id": "with-conflict", "context_window": 128_000},
+        {"id": "with-conflict", "context_window": 96_000}
+    ])).unwrap();
+    let configured = json!({"entitled": {"status": "disabled"}});
+    crate::merge::merge_shiju_models(
+        &mut provider,
+        configured.as_object(),
+        &entries,
+        &HashMap::new(),
+    ).unwrap();
+
+    assert!(!provider.models.contains_key("unentitled"));
+    assert!(provider.models.contains_key("static-model"));
+    assert_eq!(provider.models["entitled"].status, "disabled");
+    assert_eq!(provider.models["entitled"].limit.context, 128_000);
+    assert!(provider.models["new-video"].capabilities.output.video);
+    assert_eq!(provider.models["with-conflict"].limit.context, 0);
+}
+
+#[test]
 fn model_protocol_010_discovery_requires_unambiguous_deployment() {
     let raw: provider_model_catalog::Provider = serde_json::from_value(json!({
         "id":"fixture", "api":"https://one.example/v1", "models":{
@@ -149,12 +180,12 @@ async fn model_protocol_010_remote_discovery_preserves_explicit_protocols_and_st
     .unwrap();
     let mut provider = model_state::from_models_dev_provider(raw);
     provider.models.get_mut("m").unwrap().status = "disabled".into();
-    let explicit = HashSet::from(["m".to_string()]);
+    let configured = json!({"m": {"status": "disabled"}});
     assert_eq!(
         crate::discover_and_merge_provider(
             &mut provider,
             Some(&server.api_base),
-            &explicit,
+            configured.as_object(),
             "fixture-key"
         )
         .await
@@ -182,7 +213,7 @@ async fn model_protocol_010_dedicated_sdk_skips_bearer_discovery() {
         crate::discover_and_merge_provider(
             &mut provider,
             None,
-            &HashSet::new(),
+            None,
             "fixture-key"
         )
         .await

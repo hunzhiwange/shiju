@@ -1,12 +1,73 @@
 use desktop_ui_controls::system_settings_common::*;
 use desktop_assets::assets::Icon;
 use desktop_i18n::settings_models::{self, text as model_text};
+use crate::state::{ModelCapabilityFilter, ModelSummary};
 use crate::view_message::{Message, SettingsMessage};
 use crate::view_message as message;
 use crate::view_style::ViewStyle;
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::widget::text::Wrapping;
 use iced::{Alignment, Background, Element, Length};
+
+const CAPABILITY_FILTERS: [(ModelCapabilityFilter, &str); 6] = [
+    (ModelCapabilityFilter::All, "全部"),
+    (ModelCapabilityFilter::Chat, "对话与推理"),
+    (ModelCapabilityFilter::Vision, "视觉与多模态"),
+    (ModelCapabilityFilter::Generation, "生图与生视频"),
+    (ModelCapabilityFilter::Audio, "语音 TTS / ASR"),
+    (ModelCapabilityFilter::Utility, "向量与工具"),
+];
+
+fn matches_capability(model: &ModelSummary, filter: ModelCapabilityFilter) -> bool {
+    use ModelCapabilityFilter::{All, Audio, Chat, Generation, Utility, Vision};
+    if filter == All {
+        return true;
+    }
+    let input = &model.detail["capabilities"]["input"];
+    let output = &model.detail["capabilities"]["output"];
+    let has = |io: &serde_json::Value, kind: &str| io[kind].as_bool() == Some(true);
+    let category = if has(output, "image") || has(output, "video") {
+        Generation
+    } else if has(output, "audio") {
+        Audio
+    } else if output.as_object().is_some_and(|fields| {
+        !fields.is_empty() && fields.values().all(|enabled| enabled.as_bool() == Some(false))
+    }) && input.as_object().is_some_and(|fields| {
+        fields.values().any(|enabled| enabled.as_bool() == Some(true))
+    }) {
+        Utility
+    } else if ["image", "video", "pdf"].iter().any(|kind| has(input, kind)) {
+        Vision
+    } else if has(input, "audio") {
+        Audio
+    } else {
+        Chat
+    };
+    filter == category || (filter == Chat && category == Vision)
+}
+
+fn model_io_metadata(model: &ModelSummary, locale: config_ui::DesktopLocale) -> String {
+    let mut parts = Vec::new();
+    for (side, modality_label, limit_label) in [
+        ("input", "输入模态", "输入上限"),
+        ("output", "输出模态", "输出上限"),
+    ] {
+        let io = &model.detail["capabilities"][side];
+        let modalities = ["text", "image", "video", "audio", "pdf"]
+            .into_iter()
+            .filter(|&kind| io[kind].as_bool() == Some(true))
+            .map(|kind| settings_models::modality_label(locale, kind))
+            .collect::<Vec<_>>();
+        if !modalities.is_empty() {
+            parts.push(format!("{} {}", model_text(locale, modality_label), modalities.join(", ")));
+        }
+        if let Some(limit) = model.detail["limit"][side].as_u64().filter(|&limit| limit > 0) {
+            parts.push(format!("{} {}", model_text(locale, limit_label), format_context_limit(limit)));
+        }
+    }
+    parts.join(" · ")
+}
+
 pub fn main_view<'a>(s: &'a crate::state::ModelSettingsState, style: ViewStyle<'a>) -> Element<'a, Message> {
     let q = s.query.trim().to_ascii_lowercase();
     let busy = s.loading || s.saving;
@@ -27,17 +88,11 @@ pub fn main_view<'a>(s: &'a crate::state::ModelSettingsState, style: ViewStyle<'
         let pname_lower = p.name.to_ascii_lowercase();
         let provider_match = !q.is_empty() && (pid_lower.contains(&q) || pname_lower.contains(&q));
 
-        let models = if q.is_empty() || provider_match {
-            p.models.iter().collect::<Vec<_>>()
-        } else {
-            p.models
-                .iter()
-                .filter(|m| {
-                    m.id.to_ascii_lowercase().contains(&q)
-                        || m.name.to_ascii_lowercase().contains(&q)
-                })
-                .collect::<Vec<_>>()
-        };
+        let models = p.models.iter().filter(|model| {
+            (q.is_empty() || provider_match || model.id.to_ascii_lowercase().contains(&q)
+                || model.name.to_ascii_lowercase().contains(&q))
+                && matches_capability(model, s.capability_filter)
+        }).collect::<Vec<_>>();
 
         if models.is_empty() {
             continue;
@@ -144,18 +199,28 @@ pub fn main_view<'a>(s: &'a crate::state::ModelSettingsState, style: ViewStyle<'
                     m.attachment,
                     &format_context_limit(m.context_limit),
                 );
+                let mut description = column![
+                    text(&m.name).size(15).wrapping(Wrapping::WordOrGlyph),
+                    text(&m.id)
+                        .size(13)
+                        .wrapping(Wrapping::WordOrGlyph)
+                        .style(settings_muted_text_style),
+                    text(metadata).size(12).style(settings_muted_text_style),
+                ]
+                .spacing(4)
+                .width(Length::Fill);
+                let io_metadata = model_io_metadata(m, style.locale);
+                if !io_metadata.is_empty() {
+                    description = description.push(
+                        text(io_metadata)
+                            .size(12)
+                            .wrapping(Wrapping::WordOrGlyph)
+                            .style(settings_muted_text_style),
+                    );
+                }
                 let item = container(
                     row![
-                        column![
-                            text(&m.name).size(15).wrapping(Wrapping::WordOrGlyph),
-                            text(&m.id)
-                                .size(13)
-                                .wrapping(Wrapping::WordOrGlyph)
-                                .style(settings_muted_text_style),
-                            text(metadata).size(12).style(settings_muted_text_style),
-                        ]
-                        .spacing(4)
-                        .width(Length::Fill),
+                        description,
                         icon_btn(
                             Icon::QuestionCircle,
                             model_text(style.locale, "更多"),
@@ -180,11 +245,15 @@ pub fn main_view<'a>(s: &'a crate::state::ModelSettingsState, style: ViewStyle<'
     if !any {
         let empty_title = if s.loading {
             model_text(style.locale, "正在刷新模型目录…")
+        } else if !q.is_empty() || s.capability_filter != ModelCapabilityFilter::All {
+            model_text(style.locale, "没有匹配的模型")
         } else {
             model_text(style.locale, "暂无已连接的提供商或模型")
         };
         let empty_description = if s.loading {
             model_text(style.locale, "稍后会展示当前已发现的 provider 与模型。")
+        } else if !q.is_empty() || s.capability_filter != ModelCapabilityFilter::All {
+            model_text(style.locale, "请调整搜索关键词或能力筛选。")
         } else {
             model_text(style.locale, "请先完成 provider 连接，或调整搜索关键字后重试。")
         };
@@ -215,25 +284,45 @@ pub fn main_view<'a>(s: &'a crate::state::ModelSettingsState, style: ViewStyle<'
     .padding([8, 14])
     .style(rounded_action_btn_style);
 
+    let mut filters = row![].spacing(8).align_y(Alignment::Center);
+    for (filter, label) in CAPABILITY_FILTERS {
+        let selected = filter == s.capability_filter;
+        filters = filters.push(
+            button(text(model_text(style.locale, label)).size(12))
+                .on_press(Message::Settings(SettingsMessage::ModelCapabilityFilterSelected(filter)))
+                .padding([6, 10])
+                .style(move |theme, status| {
+                    if selected {
+                        primary_action_btn_style(theme, status)
+                    } else {
+                        rounded_action_btn_style(theme, status)
+                    }
+                }),
+        );
+    }
     let filter_content = settings_group_card(
         container(
-            row![
-                query_input,
+            column![
+                filters.wrap(),
                 row![
-                    settings_value_badge(settings_models::provider_count(
-                        style.locale,
-                        matched_provider_count,
-                    )),
-                    settings_value_badge(settings_models::model_count(
-                        style.locale,
-                        matched_model_count,
-                    )),
+                    query_input,
+                    row![
+                        settings_value_badge(settings_models::provider_count(
+                            style.locale,
+                            matched_provider_count,
+                        )),
+                        settings_value_badge(settings_models::model_count(
+                            style.locale,
+                            matched_model_count,
+                        )),
+                    ]
+                    .spacing(8)
+                    .align_y(Alignment::Center),
                 ]
-                .spacing(8)
+                .spacing(12)
                 .align_y(Alignment::Center),
             ]
-            .spacing(12)
-            .align_y(Alignment::Center),
+            .spacing(12),
         )
         .padding([14, 0]),
     );
@@ -256,7 +345,7 @@ pub fn main_view<'a>(s: &'a crate::state::ModelSettingsState, style: ViewStyle<'
             model_text(style.locale, "搜索与过滤"),
             model_text(
                 style.locale,
-                "按 provider 名称、provider ID、模型名称或模型 ID 过滤结果。",
+                "按提供商、模型名称、ID 或模型能力筛选。",
             ),
         ),
         filter_content,

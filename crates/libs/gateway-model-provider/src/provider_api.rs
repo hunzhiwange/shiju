@@ -69,6 +69,10 @@ impl GatewayModelProviderClient {
         self.transport.get_json("/v1/provider", &directory_query(directory)).await
     }
 
+    pub async fn refresh_provider_list(&self) -> Result<ProviderListResponse, String> {
+        self.transport.get_json("/v1/provider", &[("refresh".into(), "true".into())]).await
+    }
+
     /// 获取全部 provider 的可用认证方式。
     pub async fn provider_auth_methods(&self) -> Result<ProviderAuthMethodsResponse, String> {
         self.transport.get_json("/v1/provider/auth", &[]).await

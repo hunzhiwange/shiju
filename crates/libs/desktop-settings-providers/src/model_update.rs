@@ -8,6 +8,7 @@ pub enum ModelMessage {
     ModelsRefresh,
     ModelsRefreshed(ModelsLoaded),
     ModelQueryChanged(String),
+    ModelCapabilityFilterSelected(crate::state::ModelCapabilityFilter),
     ModelToggle(String, String, bool),
     ModelsSetAll(bool),
     ProviderModelsSetAll(String, bool),
@@ -55,6 +56,10 @@ pub fn update(state: &mut crate::state::ModelSettingsState, message: ModelMessag
             let changed = state.query != v;
             state.query = v;
             if changed { ModelEffect::QueryChanged } else { ModelEffect::None }
+        }
+        ModelMessage::ModelCapabilityFilterSelected(filter) => {
+            state.capability_filter = filter;
+            ModelEffect::None
         }
         ModelMessage::ModelToggle(provider_id, model_id, enabled) => {
             let change = state

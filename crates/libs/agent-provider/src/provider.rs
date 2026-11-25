@@ -33,8 +33,6 @@ use agent_project::instance;
 use agent_log as log;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
-#[cfg(not(target_arch = "wasm32"))]
-use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, LazyLock};
 #[cfg(not(target_arch = "wasm32"))]
@@ -73,6 +71,8 @@ pub enum CatalogError {
     Configuration(#[from] config::Error),
     #[error(transparent)]
     ModelNotFound(#[from] ModelNotFoundError),
+    #[error("识矩模型发现失败：{0}")]
+    ShijuDiscovery(&'static str),
 }
 
 struct CatalogSnapshot {
@@ -149,7 +149,7 @@ fn instance_state()
     )
 }
 
-async fn catalog_state() -> Result<Arc<CatalogSnapshot>, CatalogError> {
+async fn catalog_state(refresh: bool) -> Result<Arc<CatalogSnapshot>, CatalogError> {
     let cell = instance_state()().await;
     // 同作用域从读取到发布串行执行；旧初始化不能覆盖较新的配置快照。
     let mut cached = cell.lock().await;
@@ -161,9 +161,9 @@ async fn catalog_state() -> Result<Arc<CatalogSnapshot>, CatalogError> {
         revision.hash(&mut hasher);
     }
     let fingerprint = ConfigFingerprint(hasher.finish());
-    if cached.as_ref().is_none_or(|state| state.fingerprint != fingerprint) {
+    if refresh || cached.as_ref().is_none_or(|state| state.fingerprint != fingerprint) {
         // 指纹和目录构建共用本次读取，失败不会初始化为空目录。
-        let mut runtime = load_state_from_config(config, false).await;
+        let mut runtime = load_state_from_config(config, false, refresh).await?;
         let defaults = model_catalog::project_runtime(&mut runtime, &catalogs);
         let mut settings = State { providers: runtime.providers.clone() };
         model_catalog::project_aliases(&mut settings, &catalogs);
@@ -179,17 +179,17 @@ async fn catalog_state() -> Result<Arc<CatalogSnapshot>, CatalogError> {
 
 /// 获取当前作用域内已启用的提供商；配置读取失败时返回原始配置错误。
 pub async fn list() -> Result<HashMap<String, Info>, CatalogError> {
-    Ok(catalog_state().await?.filtered.providers.clone())
+    Ok(catalog_state(false).await?.filtered.providers.clone())
 }
 
 /// 获取包含未启用模型的设置页目录。
 pub async fn list_for_settings() -> Result<HashMap<String, Info>, CatalogError> {
-    Ok(catalog_state().await?.settings.providers.clone())
+    Ok(catalog_state(false).await?.settings.providers.clone())
 }
 
-pub async fn settings_provider_list()
+pub async fn settings_provider_list(refresh: bool)
 -> Result<(HashMap<String, Info>, HashMap<String, String>), CatalogError> {
-    let snapshot = catalog_state().await?;
+    let snapshot = catalog_state(refresh).await?;
     Ok((snapshot.settings.providers.clone(), snapshot.defaults.clone()))
 }
 
@@ -224,7 +224,7 @@ pub fn config_fingerprint_with_shiju_auth(
 ///
 /// 配置加载成功时返回 `Ok(Some(Info))` 或 `Ok(None)`；加载失败返回配置错误。
 pub async fn get_provider(provider_id: &str) -> Result<Option<Info>, CatalogError> {
-    Ok(catalog_state().await?.filtered.providers.get(provider_id).cloned())
+    Ok(catalog_state(false).await?.filtered.providers.get(provider_id).cloned())
 }
 
 /// 获取指定模型信息
@@ -246,7 +246,7 @@ pub async fn get_provider(provider_id: &str) -> Result<Option<Info>, CatalogErro
 /// - 提供商不存在时返回错误，并包含相似提供商建议
 /// - 模型不存在时返回错误，并包含相似模型建议
 pub async fn get_model(provider_id: &str, model_id: &str) -> Result<Model, CatalogError> {
-    let snapshot = catalog_state().await?;
+    let snapshot = catalog_state(false).await?;
     let state = &snapshot.filtered;
 
     // 首先查找提供商
@@ -318,7 +318,7 @@ pub async fn default_model() -> Result<ParsedModelRef, String> {
     }
 
     // 回退到第一个可用提供商的第一个模型
-    let snapshot = catalog_state().await.map_err(|error| error.to_string())?;
+    let snapshot = catalog_state(false).await.map_err(|error| error.to_string())?;
     let mut candidates = snapshot.filtered.providers.values().collect::<Vec<_>>();
     candidates.sort_by(|a, b| a.id.cmp(&b.id));
 
@@ -361,7 +361,7 @@ pub async fn default_model() -> Result<ParsedModelRef, String> {
 ///
 /// 对于特定提供商会有调整（如 GitHub Copilot 会优先使用 GPT Mini）
 pub async fn get_small_model(provider_id: &str) -> Result<Option<Model>, CatalogError> {
-    let snapshot = catalog_state().await?;
+    let snapshot = catalog_state(false).await?;
     let state = &snapshot.filtered;
     let Some(provider) = state.providers.get(provider_id) else { return Ok(None) };
 
@@ -435,11 +435,19 @@ pub async fn load_state_impl(apply_enabled_filter: bool) -> State {
     load_state_from_config(
         provider_config().await.expect("test configuration"),
         apply_enabled_filter,
+        false,
     )
     .await
+    .expect("discovery errors fall back to the bundled catalog")
 }
 
-async fn load_state_from_config(config: config::Config, apply_enabled_filter: bool) -> State {
+async fn load_state_from_config(
+    config: config::Config,
+    apply_enabled_filter: bool,
+    refresh: bool,
+) -> Result<State, CatalogError> {
+    #[cfg(target_arch = "wasm32")]
+    let _ = refresh;
     // 初始化模型基线数据源
     super::models::init();
     let models_dev = super::models::get().await;
@@ -708,11 +716,9 @@ async fn load_state_from_config(config: config::Config, apply_enabled_filter: bo
             .and_then(|value| value.get("api"))
             .and_then(Value::as_str)
             .map(str::to_string);
-        let explicit_model_ids = configured
+        let configured_models = configured
             .and_then(|value| value.get("models"))
-            .and_then(Value::as_object)
-            .map(|models| models.keys().cloned().collect::<HashSet<_>>())
-            .unwrap_or_default();
+            .and_then(Value::as_object);
         let bearer =
             provider.key.as_deref().filter(|key| is_real_bearer(key)).map(str::to_string).or_else(
                 || {
@@ -731,11 +737,14 @@ async fn load_state_from_config(config: config::Config, apply_enabled_filter: bo
         if let Err(error) = discover_and_merge_provider(
             provider,
             configured_api.as_deref(),
-            &explicit_model_ids,
+            configured_models,
             &bearer,
         )
         .await
         {
+            if refresh && provider_id == "shiju" {
+                return Err(CatalogError::ShijuDiscovery(error.category()));
+            }
             LOGGER.debug(
                 "remote_model_discovery_failed",
                 Some({
@@ -768,7 +777,7 @@ async fn load_state_from_config(config: config::Config, apply_enabled_filter: bo
         providers.insert(provider_id, provider);
     }
 
-    State { providers }
+    Ok(State { providers })
 }
 
 /// 初始化 provider 模块

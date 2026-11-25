@@ -126,8 +126,8 @@ pub async fn handle_set_model(
     } else {
         let declared = match provider::get_model(&current.provider, &model).await {
             Ok(model) => model,
-            Err(provider::CatalogError::Configuration(error)) => return format!("模型配置读取失败：{error}"),
             Err(provider::CatalogError::ModelNotFound(_)) => return "模型未在当前 provider 目录中声明。使用 /models 查看可用模型；路由与历史保持不变。".into(),
+            Err(error) => return error.to_string(),
         };
         if declared.status == "deprecated" {
             return "该模型已停用。使用 /models 查看可用模型；路由与历史保持不变。".into();
@@ -297,12 +297,10 @@ pub async fn handle_effort(
     }
     let model = match provider::get_model(&current.provider, &current.model).await {
         Ok(model) => model,
-        Err(provider::CatalogError::Configuration(error)) => {
-            return format!("模型配置读取失败：{error}");
-        }
         Err(provider::CatalogError::ModelNotFound(_)) => {
             return "当前模型无能力目录，无法设置推理强度；路由与历史保持不变。".into();
         }
+        Err(error) => return error.to_string(),
     };
     let levels = effort_levels(&model);
     if level.is_empty() {

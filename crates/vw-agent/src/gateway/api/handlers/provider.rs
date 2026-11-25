@@ -7,11 +7,11 @@ use vw_api_transport::id::TenantScope;
 struct Host;
 
 impl ProviderHost for Host {
-    fn settings_provider_list() -> HostFuture<Result<
+    fn settings_provider_list(refresh: bool) -> HostFuture<Result<
         SettingsProviderList,
         agent_provider::provider::CatalogError,
     >> {
-        Box::pin(crate::provider::provider::settings_provider_list())
+        Box::pin(crate::provider::provider::settings_provider_list(refresh))
     }
 
     fn resolve_directory(query: &InstanceQuery, headers: &HeaderMap) -> String {

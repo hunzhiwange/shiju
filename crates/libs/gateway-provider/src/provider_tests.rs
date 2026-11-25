@@ -34,7 +34,10 @@ async fn provider_list_returns_defaults_and_sorted_connections() {
 
     let Json(response) = provider_list(
         Extension(TenantScope::default()),
-        Query(InstanceQuery { directory: Some(temp.path().to_string_lossy().to_string()) }),
+        Query(InstanceQuery {
+            directory: Some(temp.path().to_string_lossy().to_string()),
+            refresh: false,
+        }),
         HeaderMap::new(),
     )
     .await

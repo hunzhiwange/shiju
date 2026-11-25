@@ -4,7 +4,7 @@ use provider_config_reader as config;
 use provider_model_cache as models;
 use provider_auth_reader as auth;
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 /// 抓取当前环境变量快照，供 provider 能力判断使用。
 fn snapshot_env() -> HashMap<String, String> {
@@ -87,11 +87,9 @@ pub(crate) async fn load_state_impl(apply_enabled_filter: bool) -> State {
             .and_then(|value| value.get("api"))
             .and_then(Value::as_str)
             .map(str::to_string);
-        let explicit_model_ids = configured
+        let configured_models = configured
             .and_then(|value| value.get("models"))
-            .and_then(Value::as_object)
-            .map(|models| models.keys().cloned().collect::<HashSet<_>>())
-            .unwrap_or_default();
+            .and_then(Value::as_object);
         let bearer = provider
             .key
             .as_deref()
@@ -112,7 +110,7 @@ pub(crate) async fn load_state_impl(apply_enabled_filter: bool) -> State {
         if let Err(error) = provider_model_discovery::discover_and_merge_provider(
             provider,
             configured_api.as_deref(),
-            &explicit_model_ids,
+            configured_models,
             &bearer,
         )
         .await

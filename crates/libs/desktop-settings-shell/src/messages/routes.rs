@@ -192,6 +192,7 @@ impl<SettingsTab, SearchTarget, AppsCatalog, AppProviders>
         | SettingsMessage::ProviderModelsExpansionToggled(_)
         | SettingsMessage::ModelStatusesSaved(_, _)
         | SettingsMessage::ModelQueryChanged(_)
+        | SettingsMessage::ModelCapabilityFilterSelected(_)
         | SettingsMessage::ModelToggle(_, _, _)
         | SettingsMessage::ModelDetailOpen(_, _)
         | SettingsMessage::ModelDetailClose

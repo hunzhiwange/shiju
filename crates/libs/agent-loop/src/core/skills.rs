@@ -93,10 +93,8 @@ impl<H: CoreSkillHost> CoreSkillSession<H> {
             match H::get_model(&parsed.provider_id, &parsed.model_id).await
             {
                 Ok(model) => usize::try_from(model.limit.context).unwrap_or(usize::MAX),
-                Err(error @ agent_provider::provider::CatalogError::Configuration(_)) => {
-                    return Err(error.into());
-                }
                 Err(agent_provider::provider::CatalogError::ModelNotFound(_)) => 0,
+                Err(error) => return Err(error.into()),
             };
         Ok(())
     }

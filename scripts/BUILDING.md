@@ -362,6 +362,10 @@ its own architecture's build job uploads the inputs. If signing, notarization,
 or DMG creation fails, open that packaging job and select **Re-run this job**.
 GitHub reuses the retained build inputs and reruns dependent release jobs.
 
+For Windows x64 and ARM64 CI builds, `package-windows` uses the executables
+uploaded by the matching build job to create the MSI with WiX. If packaging
+fails, use **Re-run this job** on `package-windows` to reuse those inputs.
+
 **Release benchmark** checks both macOS cache keys when Cargo configuration or
 dependency files change on the protected default branch. It builds and saves a
 cache only for a missing key. The keys include the target, Rust toolchain,

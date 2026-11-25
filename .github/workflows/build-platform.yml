@@ -169,18 +169,6 @@ jobs:
               scripts/bundle_macos.sh
             fi
           done
-      - name: Build Windows MSI
-        if: ${{ contains(join(fromJSON(inputs.platform).targets, ','), 'pc-windows-msvc') }}
-        shell: bash
-        run: |
-          dotnet tool install --global wix --version 5.0.2 || dotnet tool update --global wix --version 5.0.2
-          export PATH="$HOME/.dotnet/tools:$PATH"
-          wix extension add --global WixToolset.UI.wixext/5.0.2
-          for target in ${{ join(fromJSON(inputs.platform).targets, ' ') }}; do
-            if [[ "$target" == *pc-windows-msvc ]]; then
-              TARGET="$target" PROFILE=dist SKIP_BUILD=1 OUT_DIR=target/distrib CREATE_ZIP=0 CREATE_MSI=1 INCLUDE_CLI_IN_APP=1 INCLUDE_ACP_IN_APP=1 scripts/bundle_windows.sh
-            fi
-          done
       - id: cargo-dist
         name: Post-build
         # We force bash here just because github makes it really hard to get values up
@@ -232,8 +220,46 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
+      - name: Stage prebuilt Windows release inputs
+        if: ${{ contains(join(fromJSON(inputs.platform).targets, ','), 'pc-windows-msvc') }}
+        shell: bash
+        env:
+          DIST_ARTIFACTS: ${{ steps.cargo-dist.outputs.paths }}
+        run: |
+          set -euo pipefail
+          inputs="$(cygpath -u "$RUNNER_TEMP")/windows-release-inputs"
+          mkdir -p "$inputs/distrib"
+          : "${DIST_ARTIFACTS:?Missing cargo-dist release artifacts}"
+          while IFS= read -r artifact; do
+            if [[ -n "$artifact" ]]; then
+              cp "$artifact" "$inputs/distrib/"
+            fi
+          done <<< "$DIST_ARTIFACTS"
+          cp "$BUILD_MANIFEST_NAME" "$inputs/distrib/"
+
+          executables=()
+          for target in $CACHE_TARGETS; do
+            if [[ "$target" == *pc-windows-msvc ]]; then
+              for binary in shi-ju.exe vw-webview.exe shiju.exe acp.exe; do
+                executable="$target/dist/$binary"
+                test -s "$CARGO_TARGET_DIR/$executable"
+                executables+=("$executable")
+              done
+            fi
+          done
+          tar -cf "$inputs/binaries.tar" -C "$(cygpath -u "$CARGO_TARGET_DIR")" "${executables[@]}"
+
+      - name: Upload prebuilt Windows release inputs
+        if: ${{ contains(join(fromJSON(inputs.platform).targets, ','), 'pc-windows-msvc') }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: windows-release-inputs-${{ join(fromJSON(inputs.platform).targets, '_') }}
+          path: ${{ runner.temp }}/windows-release-inputs/
+          if-no-files-found: error
+          compression-level: 0
+
       - name: "Upload artifacts"
-        if: ${{ github.event_name != 'push' || !contains(join(fromJSON(inputs.platform).targets, ','), 'apple-darwin') }}
+        if: ${{ !contains(join(fromJSON(inputs.platform).targets, ','), 'pc-windows-msvc') && (github.event_name != 'push' || !contains(join(fromJSON(inputs.platform).targets, ','), 'apple-darwin')) }}
         uses: actions/upload-artifact@v6
         with:
           name: artifacts-build-local-${{ join(fromJSON(inputs.platform).targets, '_') }}
@@ -243,7 +269,6 @@ jobs:
             target/distrib/*.deb
             target/distrib/*.dmg
             target/distrib/ShiJu-macos*.zip
-            target/distrib/*.msi
             target/distrib/*.rpm
             ${{ env.BUILD_MANIFEST_NAME }}
 
@@ -264,6 +289,60 @@ jobs:
               owner.unlink()
               lock.rmdir()
           PYTHON
+
+  package-windows:
+    needs: build
+    if: ${{ contains(join(fromJSON(inputs.platform).targets, ','), 'pc-windows-msvc') }}
+    runs-on: ${{ fromJSON(inputs.platform).runner }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Download prebuilt Windows release inputs
+        uses: actions/download-artifact@v7
+        with:
+          name: windows-release-inputs-${{ join(fromJSON(inputs.platform).targets, '_') }}
+          path: ${{ runner.temp }}/windows-release-inputs
+      - name: Build Windows MSI from prebuilt executables
+        shell: bash
+        env:
+          TARGETS: ${{ join(fromJSON(inputs.platform).targets, ' ') }}
+          PROFILE: dist
+          SKIP_BUILD: '1'
+          CREATE_ZIP: '0'
+          CREATE_MSI: '1'
+          INCLUDE_CLI_IN_APP: '1'
+          INCLUDE_ACP_IN_APP: '1'
+        run: |
+          set -euo pipefail
+          temp_dir=$(cygpath -u "$RUNNER_TEMP")
+          inputs="$temp_dir/windows-release-inputs"
+          export CARGO_TARGET_DIR="$temp_dir/windows-package-target"
+          mkdir -p "$CARGO_TARGET_DIR"
+          tar -xf "$inputs/binaries.tar" -C "$CARGO_TARGET_DIR"
+
+          dotnet tool install --global wix --version 5.0.2 || dotnet tool update --global wix --version 5.0.2
+          export PATH="$HOME/.dotnet/tools:$PATH"
+          wix extension add --global WixToolset.UI.wixext/5.0.2
+          for target in $TARGETS; do
+            if [[ "$target" == *pc-windows-msvc ]]; then
+              out_dir="$temp_dir/windows-packages/$target"
+              TARGET="$target" OUT_DIR="$out_dir" scripts/bundle_windows.sh
+              package="$out_dir/ShiJu-$target-$PROFILE.msi"
+              test -s "$package"
+              mv "$package" "$inputs/distrib/"
+            fi
+          done
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: artifacts-build-local-${{ join(fromJSON(inputs.platform).targets, '_') }}
+          path: ${{ runner.temp }}/windows-release-inputs/distrib/
+          if-no-files-found: error
 
   # Sign on a fresh runner once this architecture has uploaded its inputs.
   package-macos:

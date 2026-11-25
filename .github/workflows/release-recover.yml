@@ -58,11 +58,12 @@ jobs:
               or startswith("build-web-artifacts")
               or startswith("package-macos (")
               or (startswith("build-local-artifacts (") and
-                  ((endswith(" / package-macos") | not) or contains("-apple-darwin"))))
+                  ((endswith(" / package-macos") | not) or contains("-apple-darwin")) and
+                  ((endswith(" / package-windows") | not) or contains("-pc-windows-msvc"))))
             | .conclusion' > "$RUNNER_TEMP/build-results.txt"
           test "$(wc -l < "$RUNNER_TEMP/build-results.txt")" -gt 0
           if grep -vx 'success' "$RUNNER_TEMP/build-results.txt"; then
-            echo 'Source builds and macOS packaging did not all succeed' >&2
+            echo 'Source builds and platform packaging did not all succeed' >&2
             exit 1
           fi
       - name: Download existing artifacts

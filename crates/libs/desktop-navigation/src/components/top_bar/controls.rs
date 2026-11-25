@@ -115,7 +115,7 @@ pub fn project_view_tools(app: &State) -> Element<'static, Message> {
         #[cfg(not(target_arch = "wasm32"))]
         let tools = tools.push(icon_toggle_button(
             Icon::Robot,
-            desktop_i18n::I18n::new(app.desktop_locale).__("切换小宠物"),
+            desktop_i18n::I18n::new(app.desktop_locale).__("智能伙伴"),
             TooltipPosition::Bottom,
             app.pet_visible,
             Message::TaskPetToggleWindow,

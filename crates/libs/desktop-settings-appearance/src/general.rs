@@ -71,7 +71,7 @@ pub const GENERAL_TABS: &[TabDescriptor<GeneralSettingsTab>] = &[
     ),
     TabDescriptor::new(
         GeneralSettingsTab::Companion,
-        "迷你界面和智能伙伴",
+        "智能伙伴",
         &["mini", "companion", "pet", "伙伴", "头像"],
     ),
 ];

@@ -830,17 +830,17 @@ mod tab_appearance {
             (
                 DesktopLocale::SimplifiedChinese,
                 "zh-CN",
-                ["界面", "终端", "编辑器", "主题", "迷你界面和智能伙伴"],
+                ["界面", "终端", "编辑器", "主题", "智能伙伴"],
             ),
             (
                 DesktopLocale::TraditionalChinese,
                 "zh-TW",
-                ["介面", "終端機", "編輯器", "主題", "迷你介面和智慧夥伴"],
+                ["介面", "終端機", "編輯器", "主題", "智慧夥伴"],
             ),
             (
                 DesktopLocale::English,
                 "en",
-                ["Interface", "Terminal", "Editor", "Themes", "Mini and companions"],
+                ["Interface", "Terminal", "Editor", "Themes", "Smart companion"],
             ),
         ] {
             app.desktop_locale = locale;

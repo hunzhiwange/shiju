@@ -199,7 +199,7 @@ async fn mini_companion_settings_english_labels_render_without_actions_in_previe
     app.task_pet_visible = false;
     let (rendered, messages) = scene(&app, 520.0, Some("Mini toolbar")).await;
     assert!(messages.is_empty());
-    assert!(rendered.bounds("Mini and companions").width > 0.0);
+    assert!(rendered.bounds("Smart companion").width > 0.0);
     assert!(rendered.bounds("Show Mini").width > 0.0);
     for &(_, name, description) in &COMPANIONS {
         let i18n = I18n::new(app.desktop_locale);

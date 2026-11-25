@@ -17,7 +17,7 @@ pub const LABELS: [(&str, &str); 4] = [
 pub fn content<'a, K: Copy + PartialEq + 'static, Message: Clone + 'static>(app: &View<K>, avatars: [K; 4], event: fn(Action<K>) -> Message, avatar_preview: fn(K, f32) -> Element<'static, Message>) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
     let header = row![
-        text(i18n.__("迷你界面和智能伙伴")).size(22).width(Length::Fill),
+        text(i18n.__("智能伙伴")).size(22).width(Length::Fill),
         button(
             text(i18n.__(if app.task_pet_visible { "隐藏 Mini" } else { "显示 Mini" })).size(13)
         )
@@ -32,7 +32,11 @@ pub fn content<'a, K: Copy + PartialEq + 'static, Message: Clone + 'static>(app:
         // 预览只显示外观，不接受工具栏或操作系统窗口事件。
         container(text(i18n.__("迷你工具栏")).size(13))
             .padding([8, 16])
-            .style(container::rounded_box),
+            .style(|theme| {
+                let mut style = container::rounded_box(theme);
+                style.border.radius = 22.0.into();
+                style
+            }),
     ]
     .spacing(8)
     .align_x(Alignment::Center);

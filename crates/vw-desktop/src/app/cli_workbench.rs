@@ -298,6 +298,13 @@ impl Tab {
         }
     }
 
+    fn is_agent(&self) -> bool {
+        matches!(
+            self.session.target,
+            CliWorkbenchTarget::Acp { .. } | CliWorkbenchTarget::NativeCli { .. }
+        )
+    }
+
     fn can_send(&self) -> bool {
         !self.stopping
             && match self.session.capabilities.delivery {

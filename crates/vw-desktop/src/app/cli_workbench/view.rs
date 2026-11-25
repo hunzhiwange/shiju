@@ -619,7 +619,7 @@ fn workspace<'a>(
                 ui.msg(Action::Start(project_id.into(), layout, choice.target, pane))
             })
             .menu_icon(Icon::Plus, 220.0)
-            .width(TAB_TOOLBAR_BUTTON_WIDTH)
+            .width(TAB_TOOLBAR_BUTTON_WIDTH - 2.0 * TOOLBAR_BUTTON_INSET)
             .height(TAB_HEIGHT - 2.0 * TOOLBAR_BUTTON_INSET)
             .disabled(!can_start);
             let launch = container(launch).center_x(TAB_TOOLBAR_BUTTON_WIDTH).center_y(TAB_HEIGHT);
@@ -639,7 +639,9 @@ fn workspace<'a>(
                     toolbar_tooltip(split, ui.label("分屏"))
                 });
             }
-            if let Some(tab) = current {
+            if let Some(tab) =
+                current.filter(|tab| state.surface != Surface::Workbench || tab.is_agent())
+            {
                 let key = SessionKey { project: project_id.into(), session: tab.session.id.clone() };
                 let can_stop = !project.disconnected && tab.can_stop()
                     && (!tab.session.capabilities.terminal || state.pty_available(&tab.session.target));
@@ -666,7 +668,9 @@ fn workspace<'a>(
                         icon, ui.label(label), TOOLBAR_BUTTON_INSET,
                         Some(Message::Terminal(TerminalMessage::ToggleFullscreen)),
                     ));
-            } else if top_right {
+            } else if top_right
+                && (state.surface != Surface::Workbench || active.is_some_and(Tab::is_agent))
+            {
                 controls = controls.push(toolbar_icon(
                     Icon::ArrowUp,
                     ui.label("发送消息"),

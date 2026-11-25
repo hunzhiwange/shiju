@@ -18,7 +18,7 @@ use desktop_assets::assets::Icon;
 use iced::advanced::widget::operation::focusable::Focusable;
 use iced::advanced::{Clipboard, Layout, Shell, Widget, layout, mouse, overlay, renderer, widget};
 use iced::keyboard::{Event as KeyEvent, Key, key::Named};
-use iced::widget::{button, row};
+use iced::widget::{button, container, row};
 use iced::{Alignment, Element, Event, Length, Rectangle, Renderer, Size, Theme, Vector};
 use std::rc::Rc;
 
@@ -165,20 +165,31 @@ fn trigger(
     trigger_height: Option<f32>,
     icon_only: bool,
 ) -> Element<'static, ()> {
+    if let Some(icon) = toolbar_icon.filter(|_| icon_only) {
+        let content = container(icon_svg(icon, 14.0).style(styles::icon))
+            .center_x(Length::Fill)
+            .center_y(Length::Fill);
+        return button(content)
+            .on_press_maybe(enabled.then_some(()))
+            .padding(0)
+            .width(Length::Fill)
+            .height(trigger_height.unwrap_or(30.0))
+            .style(super::icons::icon_btn_style)
+            .into();
+    }
+
     let mut content = row![];
     if let Some(icon) = toolbar_icon {
         content = content.push(icon_svg(icon, 14.0).style(styles::icon));
     }
-    if !icon_only {
-        content = content.push(label::Label::new(value))
-            .push(icon_svg(Icon::ChevronDown, 12.0).style(move |theme, status| {
-                if enabled {
-                    styles::icon(theme, status)
-                } else {
-                    iced::widget::svg::Style { color: Some(styles::label(theme, false, false)) }
-                }
-            }));
-    }
+    content = content.push(label::Label::new(value))
+        .push(icon_svg(Icon::ChevronDown, 12.0).style(move |theme, status| {
+            if enabled {
+                styles::icon(theme, status)
+            } else {
+                iced::widget::svg::Style { color: Some(styles::label(theme, false, false)) }
+            }
+        }));
     let content = content.spacing(if toolbar_icon.is_some() { 6 } else { 12 })
         .height(Length::Fill)
         .align_y(Alignment::Center);
@@ -190,14 +201,9 @@ fn trigger(
         .padding([vertical_padding, horizontal_padding])
         .width(Length::Fill)
         .height(custom_height.unwrap_or(SETTINGS_CONTROL_HEIGHT))
-        .style(move |theme: &Theme, status| {
-            if icon_only {
-                return super::icons::icon_btn_style(theme, status);
-            }
-            button::Style {
-                text_color: styles::label(theme, placeholder, enabled),
-                ..Default::default()
-            }
+        .style(move |theme: &Theme, _| button::Style {
+            text_color: styles::label(theme, placeholder, enabled),
+            ..Default::default()
         })
         .into()
 }
@@ -398,16 +404,18 @@ impl<T: PartialEq + 'static, Message: Clone> Widget<Message, Theme, Renderer> fo
         use iced::advanced::Renderer as _;
         let state = tree.state.downcast_ref::<State<T>>();
         let hovered = cursor.is_over(layout.bounds()) && cursor.is_over(*viewport);
-        let (border, background) = if self.toolbar_icon.is_some() {
-            styles::toolbar_trigger(theme, self.enabled, state.menu.open, state.focused, hovered)
-        } else {
-            let style = styles::trigger(theme, self.enabled, state.menu.open, state.focused, hovered);
-            (style.border, style.background)
-        };
-        renderer.fill_quad(
-            renderer::Quad { bounds: layout.bounds(), border, ..Default::default() },
-            background,
-        );
+        if !self.icon_only || !hovered {
+            let (border, background) = if self.toolbar_icon.is_some() {
+                styles::toolbar_trigger(theme, self.enabled, state.menu.open, state.focused, hovered)
+            } else {
+                let style = styles::trigger(theme, self.enabled, state.menu.open, state.focused, hovered);
+                (style.border, style.background)
+            };
+            renderer.fill_quad(
+                renderer::Quad { bounds: layout.bounds(), border, ..Default::default() },
+                background,
+            );
+        }
         self.trigger.as_widget().draw(
             &tree.children[0],
             renderer,

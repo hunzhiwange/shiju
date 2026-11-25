@@ -68,7 +68,7 @@ pub struct ViewSlots<'a, E> {
     pub left_panel: Option<Element<'a, ViewMessage<E>>>,
     pub custom_diff: Option<Element<'a, ViewMessage<E>>>,
     pub chat_diff: Option<Element<'a, ViewMessage<E>>>,
-    pub change_list: Option<Element<'a, ViewMessage<E>>>,
+    pub focus_only: bool,
 }
 pub struct FileProjection {
     pub diff_files: Vec<DiffFileMeta>,
@@ -268,7 +268,7 @@ pub fn view<'a, E: Clone + 'static>(app: &ViewInput<'a>, projection: FileProject
     // 渲染聊天文本 diff 视图（如果有）
     if let Some(elem) = slots.chat_diff.take() { list = list.push(elem); }
 
-    let focus_only = slots.change_list.is_some();
+    let focus_only = slots.focus_only;
     let focused = app.git_focused_file.as_deref();
     let renderable_diff_files: Vec<&DiffFileMeta> = diff_files.iter()
         .filter(|meta| !focus_only || focused == Some(meta.path.as_str()))
@@ -380,7 +380,7 @@ pub fn view<'a, E: Clone + 'static>(app: &ViewInput<'a>, projection: FileProject
     let mut col = column![header, slots.toolbar].spacing(10);
 
     // 如果显示 diff 汇总，添加左侧面板
-    if app.show_git_diff_summary && !focus_only {
+    if app.show_git_diff_summary {
         col = col.push(slots.left_panel.take().expect("visible commit panel"));
     }
 
@@ -401,11 +401,7 @@ pub fn view<'a, E: Clone + 'static>(app: &ViewInput<'a>, projection: FileProject
         })
         .height(Length::Fill)
         .width(Length::Fill);
-    col = if let Some(change_list) = slots.change_list {
-        col.push(row![change_list, diff].spacing(6).height(Length::Fill))
-    } else {
-        col.push(diff)
-    };
+    col = col.push(diff);
 
     // 包装为 MouseArea 以处理拖拽选择结束事件
     let base_content: Element<'_, ViewMessage<E>> = iced::widget::MouseArea::new(col.height(Length::Fill))

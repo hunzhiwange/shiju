@@ -401,7 +401,7 @@ async fn file_find_text_lists_reads_and_statuses_directory() {
     let temp = tempfile::tempdir().expect("temp dir");
     let root = temp.path().canonicalize().expect("canonical temp dir");
     std::fs::create_dir(root.join("src")).expect("src dir");
-    std::fs::write(root.join("src/main.rs"), "fn main() {\n    println!(\"needle\");\n}\n")
+    std::fs::write(root.join("src/main.rs"), "fn main() {\n    println!(\"needle needle\");\n}\n")
         .expect("source file");
     std::fs::write(root.join("README.md"), "needle readme\n").expect("readme");
     std::fs::create_dir(root.join(".git")).expect("git dir");
@@ -412,6 +412,8 @@ async fn file_find_text_lists_reads_and_statuses_directory() {
         Query(FindTextQuery {
             directory: Some(root.to_string_lossy().to_string()),
             pattern: "needle".to_string(),
+            scope: None,
+            all_matches: None,
         }),
         headers.clone(),
     )
@@ -421,10 +423,27 @@ async fn file_find_text_lists_reads_and_statuses_directory() {
     assert!(matches.iter().any(|item| item.path == "README.md"));
     assert!(matches.iter().any(|item| item.path == "src/main.rs"));
 
+    let Json(matches) = file_find_text::<crate::file::file_tests::TestHost>(
+        Query(FindTextQuery {
+            directory: Some(root.to_string_lossy().to_string()),
+            pattern: "needle".to_string(),
+            scope: Some("src".into()),
+            all_matches: Some(true),
+        }),
+        headers.clone(),
+    )
+    .await
+    .expect("search checkout subdirectory");
+    assert_eq!(matches.len(), 2);
+    assert!(matches.iter().all(|item| item.path == "src/main.rs"));
+    assert_eq!(matches[1].start - matches[0].start, "needle ".len());
+
     let err = file_find_text::<crate::file::file_tests::TestHost>(
         Query(FindTextQuery {
             directory: Some(root.to_string_lossy().to_string()),
             pattern: "(".to_string(),
+            scope: None,
+            all_matches: None,
         }),
         headers.clone(),
     )

@@ -3193,6 +3193,7 @@
   "作用域必须是项目内的相对路径": "Scope must be a relative path within the project",
   "正则表达式错误: %s": "Regular expression error: %s",
   "搜索失败": "Search failed",
+  "搜索失败: %s": "Search failed: %s",
   "创建图片附件目录失败：%s（%s）": "Failed to create image attachment directory: %s (%s)",
   "复制图片附件失败：%s（%s）": "Failed to copy image attachment: %s (%s)",
   "读取失败：%s（%s）": "Failed to read: %s (%s)",

@@ -104,6 +104,13 @@ pub(crate) fn scroll_surface(scroll: Scrollable<'_, Message>, drag_targets: bool
 /// sidebar.push(file_manager);
 /// ```
 pub fn view_file_manager(app: FileTreeView<'_>) -> Element<'_, Message> {
+    view_file_manager_with_changes(app, app.git_changed_files)
+}
+
+pub fn view_file_manager_with_changes<'a>(
+    app: FileTreeView<'a>,
+    changes: &[String],
+) -> Element<'a, Message> {
     // 工作模式直接复用本函数；构建视图只读取文件管理器状态，不改写代码模式面板开关。
     if app.project_path.is_none() {
         return column![text(desktop_i18n::I18n::new(app.desktop_locale).__("未打开项目"))]
@@ -155,7 +162,7 @@ pub fn view_file_manager(app: FileTreeView<'_>) -> Element<'_, Message> {
 
     // 构建更改按钮的标签文本
     // 根据更改文件数量和加载状态显示不同的文本
-    let changes_count = app.git_changed_files.len();
+    let changes_count = changes.len();
     let changes_label = if changes_count > 0 {
         desktop_i18n::I18n::new(app.desktop_locale)
             .format("%u 更改", &[changes_count.into()])
@@ -263,7 +270,10 @@ pub fn view_file_manager(app: FileTreeView<'_>) -> Element<'_, Message> {
         find_results::build_find_results_list(app)
     } else if app.file_manager_show_changes {
         // 如果启用了"显示更改"，显示 Git 更改的文件列表
-        scroll_tree(container(tree_list::build_changes_list(app)).width(Length::Fill).into(), false)
+        scroll_tree(
+            container(tree_list::build_changes_list_for(app, changes)).width(Length::Fill).into(),
+            false,
+        )
     } else {
         // 否则显示完整的文件树
         scroll_tree(
@@ -271,7 +281,7 @@ pub fn view_file_manager(app: FileTreeView<'_>) -> Element<'_, Message> {
                 .padding([0, 7])
                 .width(Length::Fill)
                 .into(),
-            true,
+            !app.browse_only,
         )
     };
 

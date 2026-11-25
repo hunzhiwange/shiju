@@ -102,7 +102,10 @@ pub fn file_tree_menu_overlay<'a>(
         .anchor(app.file_tree_menu_anchor.unwrap_or(Point::ORIGIN))
         .on_close(Message::Project(ProjectMessage::FileTreeMenuClose))
         .on_key_press(move |key, modifiers| {
-            file_tree_menu_shortcut(key, modifiers, app.can_paste)
+            file_tree_menu_shortcut(key, modifiers, app.can_paste).filter(|message| {
+                !app.browse_only
+                    || matches!(message, Message::Project(ProjectMessage::FileTreeAction(FileTreeAction::Open)))
+            })
         })
         .capture_keyboard()
         .into()
@@ -224,6 +227,24 @@ pub fn build_file_tree_menu<'a>(
             .style(file_tree_menu_separator_style)
             .into()
     };
+
+    if app.browse_only {
+        let mut content = column![menu_btn("打开", FileTreeAction::Open)];
+        if include_find_in_folder {
+            content = content.push(menu_btn("在文件夹中查找", FileTreeAction::FindInFolder));
+        }
+        return container(
+            content
+                .push(separator())
+                .push(menu_btn("复制路径", FileTreeAction::CopyPath))
+                .push(menu_btn("复制相对路径", FileTreeAction::CopyRelativePath))
+                .width(Length::Fixed(180.0))
+                .padding(2)
+                .spacing(1),
+        )
+        .style(file_tree_menu_container_style)
+        .into();
+    }
 
     // 构建菜单内容
     // 基础菜单项：打开、在 Finder 中显示、在终端中打开、添加到对话

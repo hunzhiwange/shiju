@@ -122,6 +122,12 @@ struct FindTextQuery {
     /// 搜索模式/关键词
     /// 支持正则表达式语法（由 ripgrep 提供）
     pattern: String,
+
+    /// 可选的工作目录内搜索路径。
+    scope: Option<String>,
+
+    /// 保留旧调用的十条结果及每行一次匹配。
+    all_matches: Option<bool>,
 }
 
 /// Ripgrep 匹配结果
@@ -159,7 +165,7 @@ struct RipgrepMatch {
 /// # 返回
 ///
 /// 返回匹配结果列表，每个结果包含文件路径、行号、匹配内容和位置信息。
-/// 最多返回 10 个匹配结果。
+/// 默认最多返回 10 个匹配行。文件管理器可请求逐次匹配。
 ///
 /// # 错误
 ///
@@ -168,7 +174,7 @@ async fn file_find_text<H: crate::Host>(
     Query(query): Query<FindTextQuery>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<RipgrepMatch>>, ApiError> {
-    let FindTextQuery { directory, pattern } = query;
+    let FindTextQuery { directory, pattern, scope, all_matches } = query;
 
     // 解析并验证目录路径
     let dir = resolve_directory(&InstanceQuery { directory }, &headers);
@@ -176,17 +182,28 @@ async fn file_find_text<H: crate::Host>(
     // 在实例上下文中执行搜索
     let result = with_instance::<H, _>(dir, move || {
         Box::pin(async move {
-            // 获取当前工作目录
-            let cwd = PathBuf::from(instance::directory());
-
-            // 执行 ripgrep 搜索
-            let matches = file::ripgrep::search(file::ripgrep::SearchInput {
-                cwd,
+            let root = PathBuf::from(instance::directory());
+            let all_matches = all_matches.unwrap_or_default();
+            let scope = resolve_workspace_path(&root, scope.as_deref().unwrap_or(""))?;
+            let scope = scope.strip_prefix(&root)
+                .map_err(|error| ApiError::bad_request(error.to_string()))?
+                .to_path_buf();
+            let input = file::ripgrep::SearchInput {
+                cwd: root,
                 pattern,
-                glob: None,      // 不限制文件类型
-                limit: Some(10), // 限制最多 10 个结果
-                follow: None,    // 不跟随符号链接
+                glob: None,
+                limit: Some(if all_matches { 3001 } else { 10 }),
+                follow: None,
+            };
+            let matches = tokio::task::spawn_blocking(move || {
+                if all_matches {
+                    file::ripgrep::search_all_matches(input, &scope)
+                } else {
+                    file::ripgrep::search(input)
+                }
             })
+            .await
+            .map_err(|e| ApiError::bad_request(e.to_string()))?
             .map_err(|e| ApiError::bad_request(e.to_string()))?;
 
             // 转换为 API 响应格式

@@ -51,6 +51,16 @@ pub struct DirectoryFileReadResponse {
     pub content: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct DirectoryTextMatch {
+    pub path: String,
+    #[serde(rename = "lineNumber")]
+    pub line_number: usize,
+    pub line: String,
+    pub start: usize,
+    pub end: usize,
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct DirectoryFileWriteRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -78,6 +88,22 @@ pub struct DirectoryFileWriteResponse {
 }
 
 impl GatewayFilesClient {
+    /// 在指定检出目录中搜索，返回每个命中的字节位置。
+    pub async fn search_directory_text(
+        &self,
+        directory: &str,
+        scope: &str,
+        pattern: String,
+    ) -> Result<Vec<DirectoryTextMatch>, String> {
+        let mut query = optional_directory_query(Some(directory));
+        query.extend([
+            ("scope".to_string(), scope.to_string()),
+            ("pattern".to_string(), pattern),
+            ("all_matches".to_string(), "true".to_string()),
+        ]);
+        self.transport.get_json("/v1/find", &query).await
+    }
+
     /// 在目录上下文中按文本模式搜索文件内容。
     pub async fn file_find_text_in_directory(
         &self,

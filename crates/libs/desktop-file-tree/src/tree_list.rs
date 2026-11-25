@@ -159,6 +159,9 @@ fn directory_drop_area<'a>(
     content: Element<'a, Message>,
     target: String,
 ) -> Element<'a, Message> {
+    if app.browse_only {
+        return content;
+    }
     let mut area = RightClickArea::new(content, Box::new(|_| Message::None), None, None);
     if let Some(project_path) = &app.project_path {
         let root = project_path.clone();
@@ -297,11 +300,11 @@ pub fn build_file_tree_list(app: FileTreeView<'_>) -> Element<'_, Message> {
                             pos.y,
                         ))
                     }),
-                    Some(Message::Project(ProjectMessage::FileTreeInternalDragStart {
+                    (!app.browse_only).then(|| Message::Project(ProjectMessage::FileTreeInternalDragStart {
                         project_path: project_root.to_string(),
                         source_path: abs_path.clone(),
                     })),
-                    Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
+                    (!app.browse_only).then_some(Message::Project(ProjectMessage::FileTreeDragEnd)),
                 )
                 .on_select({
                     let path = abs_path.clone();
@@ -379,11 +382,11 @@ pub fn build_file_tree_list(app: FileTreeView<'_>) -> Element<'_, Message> {
                             pos.y,
                         ))
                     }),
-                    Some(Message::Project(ProjectMessage::FileTreeInternalDragStart {
+                    (!app.browse_only).then(|| Message::Project(ProjectMessage::FileTreeInternalDragStart {
                         project_path: project_root.to_string(),
                         source_path: abs.clone(),
                     })),
-                    Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
+                    (!app.browse_only).then_some(Message::Project(ProjectMessage::FileTreeDragEnd)),
                 )
                 .on_select({
                     let path = abs.clone();
@@ -474,7 +477,13 @@ pub fn build_file_tree_list(app: FileTreeView<'_>) -> Element<'_, Message> {
 /// let changes_element = build_changes_list(inputs);
 /// ```
 pub fn build_changes_list(app: FileTreeView<'_>) -> Element<'_, Message> {
-    let files = app.git_changed_files;
+    build_changes_list_for(app, app.git_changed_files)
+}
+
+pub(crate) fn build_changes_list_for<'a>(
+    app: FileTreeView<'a>,
+    files: &[String],
+) -> Element<'a, Message> {
     // 处理空列表情况
     if files.is_empty() {
         if app.git_changed_files_loading {
@@ -558,11 +567,11 @@ pub fn build_changes_list(app: FileTreeView<'_>) -> Element<'_, Message> {
                             pos.y,
                         ))
                     }),
-                    Some(Message::Project(ProjectMessage::FileTreeDragStart(
+                    (!app.browse_only).then(|| Message::Project(ProjectMessage::FileTreeDragStart(
                         abs_path.clone(),
                         None,
                     ))),
-                    Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
+                    (!app.browse_only).then_some(Message::Project(ProjectMessage::FileTreeDragEnd)),
                 )
                 .for_row("changes-dir", abs_path.clone()),
             );
@@ -629,8 +638,8 @@ pub fn build_changes_list(app: FileTreeView<'_>) -> Element<'_, Message> {
                             pos.y,
                         ))
                     }),
-                    Some(Message::Project(ProjectMessage::FileTreeDragStart(abs.clone(), None))),
-                    Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
+                    (!app.browse_only).then(|| Message::Project(ProjectMessage::FileTreeDragStart(abs.clone(), None))),
+                    (!app.browse_only).then_some(Message::Project(ProjectMessage::FileTreeDragEnd)),
                 )
                 .for_row("changes-file", abs.clone()),
             );

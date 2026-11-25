@@ -142,7 +142,9 @@ pub fn list(root: impl AsRef<Path>, dir: Option<&str>) -> Result<Vec<Node>, Erro
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn git_ignore_for_directory(dir: &Path) -> Option<impl Fn(&std::ffi::OsStr, bool) -> bool> {
+pub(crate) fn git_ignore_for_directory(
+    dir: &Path,
+) -> Option<impl Fn(&std::ffi::OsStr, bool) -> bool> {
     let dir = dir.canonicalize().ok()?;
     let repo = git2::Repository::discover(&dir).ok()?;
     let workdir = repo.workdir()?.canonicalize().ok()?;

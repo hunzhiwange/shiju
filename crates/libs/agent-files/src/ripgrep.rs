@@ -221,6 +221,18 @@ pub struct MatchData {
 /// 正则编译失败会转换为 `std::io::Error`；无法以 UTF-8 读取的文件会被跳过，避免
 /// 二进制文件或权限问题中断整个搜索。
 pub fn search(input: SearchInput) -> Result<Vec<MatchData>, std::io::Error> {
+    search_matches(input, None)
+}
+
+/// 返回同行中的每个命中，供文件管理器定位。
+pub fn search_all_matches(
+    input: SearchInput,
+    scope: &Path,
+) -> Result<Vec<MatchData>, std::io::Error> {
+    search_matches(input, Some(scope))
+}
+
+fn search_matches(input: SearchInput, scope: Option<&Path>) -> Result<Vec<MatchData>, std::io::Error> {
     let re = Regex::new(&input.pattern)
         .map_err(std::io::Error::other)?;
     let files = files(FilesInput {
@@ -233,16 +245,26 @@ pub fn search(input: SearchInput) -> Result<Vec<MatchData>, std::io::Error> {
 
     let mut out = Vec::new();
     let limit = input.limit.unwrap_or(100);
-    for rel in files {
+    let per_line = if scope.is_some() { usize::MAX } else { 1 };
+    #[cfg(not(target_arch = "wasm32"))]
+    let git_ignore = scope.and_then(|_| crate::fs_ops::git_ignore_for_directory(&input.cwd));
+    'files: for rel in files {
         if out.len() >= limit {
             break;
+        }
+        if scope.is_some_and(|scope| !Path::new(&rel).starts_with(scope)) {
+            continue;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        if git_ignore.as_ref().is_some_and(|ignore| ignore(std::ffi::OsStr::new(&rel), false)) {
+            continue;
         }
         let full = input.cwd.join(&rel);
         let Ok(content) = std::fs::read_to_string(&full) else {
             continue;
         };
         for (i, line) in content.lines().enumerate() {
-            if let Some(m) = re.find(line) {
+            for m in re.find_iter(line).take(per_line) {
                 out.push(MatchData {
                     path: rel.clone(),
                     line_number: i + 1,
@@ -251,7 +273,7 @@ pub fn search(input: SearchInput) -> Result<Vec<MatchData>, std::io::Error> {
                     end: m.end(),
                 });
                 if out.len() >= limit {
-                    break;
+                    break 'files;
                 }
             }
         }

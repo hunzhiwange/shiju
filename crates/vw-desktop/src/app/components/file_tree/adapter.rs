@@ -2,6 +2,7 @@ use crate::app::{App, Message};
 use crate::app::message::ProjectMessage;
 pub(super) fn inputs(app: &App) -> desktop_file_tree::FileTreeView<'_> {
     desktop_file_tree::FileTreeView {
+        browse_only: false,
         file_tree_drop_target: &app.file_tree_interaction.file_tree_drop_target,
         file_tree_operation_in_progress: app.file_tree_interaction.file_tree_operation_in_progress,
         file_tree_selection: &app.file_tree_interaction.file_tree_selection,
@@ -29,7 +30,7 @@ pub(super) fn inputs(app: &App) -> desktop_file_tree::FileTreeView<'_> {
         can_paste: app.file_tree_interaction.file_tree_clipboard.is_some(),
     }
 }
-pub(super) fn map(message: desktop_file_tree::Message) -> Message {
+pub(crate) fn map(message: desktop_file_tree::Message) -> Message {
     use desktop_file_tree::ProjectMessage as Local;
     match message {
         desktop_file_tree::Message::None => Message::None,

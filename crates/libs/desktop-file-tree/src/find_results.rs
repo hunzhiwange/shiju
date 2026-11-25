@@ -977,11 +977,11 @@ pub fn build_find_results_list(app: FileTreeView<'_>) -> Element<'_, Message> {
                         pos.y,
                     ))
                 }),
-                Some(Message::Project(ProjectMessage::FileTreeDragStart(
+                (!app.browse_only).then(|| Message::Project(ProjectMessage::FileTreeDragStart(
                     drag_path,
                     Some((line, column)),
                 ))),
-                Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
+                (!app.browse_only).then_some(Message::Project(ProjectMessage::FileTreeDragEnd)),
             ));
 
             // 检查是否需要显示右键菜单

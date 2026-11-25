@@ -14,6 +14,7 @@ mod message;
 pub use message::{FileTreeAction, Message, ProjectMessage};
 #[derive(Clone, Copy)]
 pub struct FileTreeView<'a> {
+    pub browse_only: bool,
     pub file_tree_drop_target: &'a Option<String>,
     pub file_tree_operation_in_progress: bool,
     pub file_tree_selection: &'a selection::FileTreeSelection,
@@ -55,7 +56,7 @@ mod widgets_tests;
 
 pub mod tree_list;
 mod view;
-pub use view::{view, view_file_manager};
+pub use view::{view, view_file_manager, view_file_manager_with_changes};
 
 use view::{scroll_tree, scroll_surface};
 

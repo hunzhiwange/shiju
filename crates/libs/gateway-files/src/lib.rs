@@ -1,7 +1,7 @@
 //! 文件与目录的网关领域客户端。
 
 mod file_api;
-pub use file_api::{DirectoryFileReadResponse, DirectoryFileWriteResponse};
+pub use file_api::{DirectoryFileReadResponse, DirectoryFileWriteResponse, DirectoryTextMatch};
 
 /// 显式复用网关传输及其连接池。
 #[derive(Debug, Clone)]

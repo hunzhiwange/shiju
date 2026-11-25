@@ -1,4 +1,6 @@
 mod adapter;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use adapter::map as map_message;
 pub(crate) mod inline_rename;
 pub(crate) mod model;
 pub(crate) mod selection;

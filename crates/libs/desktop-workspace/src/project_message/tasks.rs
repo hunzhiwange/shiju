@@ -1,6 +1,7 @@
 //! Project background work; completion remains scoped to its originating request.
 use desktop_file_tree::state::FindInFolderMatch;
 use iced::Task;
+#[derive(Clone)]
 pub struct SearchCompletion {
     pub tab_id: String,
     pub title: String,

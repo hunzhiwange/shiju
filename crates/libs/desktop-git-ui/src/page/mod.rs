@@ -24,7 +24,6 @@ use iced::Length;
 use iced::widget::column;
 
 mod diff_view;
-mod workbench;
 mod filter_options;
 mod header;
 mod left_panel;
@@ -216,28 +215,35 @@ fn view_input<'a>(app: &ViewContext<'a>) -> domain::ViewInput<'a> {
     }
 }
 pub fn view<'a>(app: &ViewContext<'a>) -> Element<'a, Message> {
-    view_layout(app, None, false, false)
+    view_layout(app, None, false)
 }
 
 pub fn view_with_project_picker<'a>(
     app: &ViewContext<'a>,
     picker: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    view_layout(app, Some(picker), false, false)
+    view_layout(app, Some(picker), false)
 }
 
-pub fn workbench_view<'a>(
-    app: &ViewContext<'a>,
-    show_change_list: bool,
-) -> Element<'a, Message> {
-    view_layout(app, None, true, show_change_list)
+pub fn workbench_view<'a>(app: &ViewContext<'a>) -> Element<'a, Message> {
+    view_layout(app, None, true)
+}
+
+pub fn filtered_workbench_changes(app: &ViewContext<'_>) -> Option<Vec<String>> {
+    let input = view_input(app);
+    (input.git_filter_included
+        || input.git_filter_excluded
+        || input.git_filter_new
+        || input.git_filter_modified
+        || input.git_filter_deleted
+        || !input.git_filter_query.trim().is_empty())
+        .then(|| domain::project_files(&input).diff_files.into_iter().map(|file| file.path).collect())
 }
 
 fn view_layout<'a>(
     app: &ViewContext<'a>,
     project_picker: Option<Element<'a, Message>>,
     workbench: bool,
-    show_change_list: bool,
 ) -> Element<'a, Message> {
     if app.git.git_repository.history && git_repo_path_for_app(app).is_some() {
         return with_git_overlays(
@@ -277,6 +283,21 @@ fn view_layout<'a>(
         )
         .map(Local::External)
     });
+    let selected_file = if workbench {
+        app.git.git_focused_file.as_ref().filter(|path| {
+            projection.diff_files.iter().any(|file| &file.path == *path)
+        }).map(|path| {
+            let selected = app.git.staged_files_selected.contains(path);
+            let path = path.clone();
+            iced::widget::checkbox(selected)
+                .label(desktop_i18n::I18n::new(app.desktop_locale).__("已包含到提交"))
+                .size(14)
+                .style(desktop_ui_controls::system_settings_common::settings_checkbox_style)
+                .on_toggle(move |checked| Message::Git(message::GitMessage::ToggleStageFile(path.clone(), checked)))
+        })
+    } else {
+        None
+    };
     let slots = domain::ViewSlots {
         header: header::view(
             app,
@@ -296,19 +317,15 @@ fn view_layout<'a>(
             )
             .map(Local::External)
         }),
-        toolbar: repository::toolbar(app).map(Local::External),
-        left_panel: (app.git.show_git_diff_summary && !show_change_list)
-            .then(|| left_panel::view(app).map(Local::External)),
+        toolbar: match selected_file {
+            Some(control) => Element::from(column![repository::toolbar(app), control].spacing(6)),
+            None => repository::toolbar(app),
+        }
+        .map(Local::External),
+        left_panel: app.git.show_git_diff_summary.then(|| left_panel::view(app).map(Local::External)),
         custom_diff,
         chat_diff,
-        change_list: show_change_list.then(|| {
-            workbench::change_list(
-                app,
-                &projection.diff_files,
-                app.git.show_git_diff_summary.then(|| left_panel::view(app)),
-            )
-            .map(Local::External)
-        }),
+        focus_only: workbench,
     };
     let base = domain::view(&input, projection, slots).map(|event| match event {
         Local::External(event) => event,

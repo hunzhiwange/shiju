@@ -8,6 +8,7 @@ use vw_api_project::ProjectDto;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
 mod files;
+mod find;
 mod view;
 pub(crate) use files::{preview_diff_file, preview_snapshot};
 pub(crate) use view::{inline_project_picker, view, with_overlays};
@@ -30,7 +31,7 @@ pub(crate) enum Event {
     BranchSwitched(u64, Result<(), String>),
     ToggleSummary,
     Git(u64, Box<GitMessage>),
-    Files(files::Event),
+    Files(u64, files::Event),
 }
 
 impl std::fmt::Debug for Event {
@@ -61,7 +62,7 @@ impl Default for Workbench {
         let (mut layout, sidebar) = pane_grid::State::new(false);
         let (_, divider) =
             layout.split(pane_grid::Axis::Vertical, sidebar, true).expect("project sidebar exists");
-        layout.resize(divider, 0.22);
+        layout.resize(divider, 0.11);
         Self {
             endpoint: None,
             projects: Vec::new(),
@@ -145,7 +146,10 @@ impl Workbench {
         }
         self.git.git_diff_scroll_id = iced::widget::Id::unique();
         self.epoch = self.epoch.wrapping_add(1);
+        let show_all_files = self.files.show_all_files;
         self.files = files::State::default();
+        self.files.show_all_files = show_all_files;
+        self.show_files = show_all_files;
         self.repo = None;
     }
 }
@@ -195,17 +199,10 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             Task::none()
         }
         Event::Resize(event) => {
-            app.git_workbench.layout.resize(event.split, event.ratio.clamp(0.16, 0.44));
+            app.git_workbench.layout.resize(event.split, event.ratio.clamp(0.08, 0.44));
             Task::none()
         }
-        Event::ShowFiles(show) => {
-            let state = &mut app.git_workbench;
-            state.show_files = show;
-            if show && state.files.needs_listing() {
-                return files::list_folder(state, String::new());
-            }
-            Task::none()
-        }
+        Event::ShowFiles(show) => files::select_mode(&mut app.git_workbench, show),
         Event::RefreshCheckout => {
             let activation = activate(app);
             Task::batch([activation, refresh_checkout(&mut app.git_workbench)])
@@ -245,8 +242,11 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             Task::none()
         }
         Event::Git(epoch, event) if epoch == app.git_workbench.epoch => update_git(app, *event),
-        Event::Files(event) => files::update(app, event),
-        Event::Git(..) | Event::BranchesReady(..) | Event::BranchSwitched(..) => Task::none(),
+        Event::Files(epoch, event) if epoch == app.git_workbench.epoch => files::update(app, event),
+        Event::Git(..)
+        | Event::Files(..)
+        | Event::BranchesReady(..)
+        | Event::BranchSwitched(..) => Task::none(),
     }
 }
 
@@ -375,6 +375,7 @@ fn refresh_checkout(state: &mut Workbench) -> Task<Message> {
     if state.busy() || state.project().is_none() {
         return Task::none();
     }
+    state.files.root = state.checkout_directory().map(str::to_owned);
     state.repo = if state.local() {
         desktop_git_ui::git_panel::ops::git_repo_path(
             state.git.selected_git_worktree_directory.as_deref(),
@@ -389,7 +390,32 @@ fn refresh_checkout(state: &mut Workbench) -> Task<Message> {
     if state.local() {
         tasks.push(Task::done(source.message(GitMessage::RefreshGitPanelData)));
     } else {
-        tasks.push(Task::done(source.message(GitMessage::RefreshWorktreeOptions)));
+        if !state.git.git_worktree_options_loading
+            && let Some(path) = state.project_directory().map(str::to_owned)
+        {
+            state.git.git_worktree_options_loading = true;
+            state.git.git_worktree_options_project_path = Some(path.clone());
+            let client = state.client();
+            tasks.push(Task::perform(
+                async move {
+                    let result = async {
+                        let client = client?;
+                        desktop_git_ui::message_git::shared::load_git_worktree_options(
+                            &client,
+                            client.endpoint().tenant_scope(),
+                            path.clone(),
+                        )
+                        .await
+                    }
+                    .await;
+                    (path, result)
+                },
+                move |(project_path, result)| {
+                    source.message(GitMessage::WorktreeOptionsReady { project_path, result })
+                },
+            ));
+        }
+        tasks.push(files::refresh_remote_changes(state));
     }
     if let Some(directory) = state.repo.clone() {
         let epoch = state.epoch;
@@ -409,8 +435,7 @@ fn refresh_checkout(state: &mut Workbench) -> Task<Message> {
         ));
     }
     if state.show_files {
-        let directory = state.files.directory.clone();
-        tasks.push(files::list_folder(state, directory));
+        tasks.push(files::refresh_tree(state));
     }
     Task::batch(tasks)
 }
@@ -485,9 +510,24 @@ fn update_git(app: &mut App, event: GitMessage) -> Task<Message> {
         _ => {}
     }
     let source = state.source();
+    let changes_ready = matches!(&event, GitMessage::ChangedFilesReady { repo_path, .. } if repo_path == &state.repo);
     let scroll =
         matches!(&event, GitMessage::FocusFile(_)).then(|| state.git.git_diff_scroll_id.clone());
     let task = git::update_from(app, source, event);
+    if changes_ready {
+        let state = &mut app.git_workbench;
+        state.files.expand_changes(&state.git.git_changed_files);
+        if std::mem::take(&mut state.files.changes_refreshing) {
+            return Task::batch([
+                task,
+                app.show_localized_toast(
+                    crate::app::state::ToastKind::Success,
+                    "Git 更改已刷新",
+                    vec![],
+                ),
+            ]);
+        }
+    }
     if let Some(id) = scroll {
         Task::batch([
             task,

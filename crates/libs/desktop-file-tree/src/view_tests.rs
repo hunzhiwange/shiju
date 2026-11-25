@@ -36,6 +36,7 @@ pub(crate) struct ViewState {
 impl ViewState {
     fn inputs(&self) -> FileTreeView<'_> {
         FileTreeView {
+            browse_only: false,
             file_tree_drop_target: &self.file_tree_drop_target,
             file_tree_operation_in_progress: self.file_tree_operation_in_progress,
             file_tree_selection: &self.file_tree_selection,

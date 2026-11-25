@@ -1,37 +1,44 @@
 //! 原生工作台视图，沿用桌面主题、分栏和选择控件。
 use super::{Event, Workbench, files, git_busy, message};
+use crate::app::components::workbench_sidebar::{
+    project_row, sidebar_header, sidebar_note, sidebar_section,
+};
 use crate::app::message::git::GitMessage;
 use crate::app::{App, Message};
 use desktop_assets::assets::Icon;
 use desktop_git_ui::page;
 use desktop_i18n::I18n;
+use desktop_ui_controls::icons::icon_svg;
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_svg, rounded_action_btn_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_btn, rounded_action_btn_style,
     settings_divider_style, settings_muted_text_style, settings_select, settings_text_input_style,
 };
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::text::Wrapping;
 use iced::widget::{
-    button, column, container, pane_grid, responsive, row, scrollable, text, text_input, tooltip,
+    button, column, container, keyed_column, pane_grid, responsive, row, scrollable, text,
+    text_input, tooltip,
 };
 use iced::{Alignment, Element, Length, Theme};
-use vw_api_file::file::FileNodeKind;
 
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let state = &app.git_workbench;
     let i18n = I18n::new(app.general_settings.desktop_locale);
     responsive(move |size| {
         if size.width < 680.0 {
-            return column![container(projects(i18n, state)).height(154), workspace(app, i18n),]
-                .spacing(2)
-                .height(Length::Fill)
-                .into();
+            return column![
+                container(projects(i18n, state, tooltip::Position::Bottom)).height(154),
+                workspace(app, i18n),
+            ]
+            .spacing(2)
+            .height(Length::Fill)
+            .into();
         }
         let grid = pane_grid::PaneGrid::new(&state.layout, |_, main, _| {
             pane_grid::Content::new(if *main {
                 workspace(app, i18n)
             } else {
-                projects(i18n, state)
+                projects(i18n, state, tooltip::Position::Right)
             })
         })
         .width(Length::Fill)
@@ -51,23 +58,26 @@ fn divider(theme: &Theme) -> pane_grid::Style {
     style
 }
 
-fn projects<'a>(i18n: I18n, state: &'a Workbench) -> Element<'a, Message> {
-    let heading = row![
-        text(i18n.__("项目")).size(14).width(Length::Fill),
-        action(
-            Icon::ArrowRepeat,
+fn projects<'a>(
+    i18n: I18n,
+    state: &'a Workbench,
+    tooltip_position: tooltip::Position,
+) -> Element<'a, Message> {
+    let heading = sidebar_header(
+        i18n.__("项目"),
+        icon_btn(
+            Icon::ArrowClockwise,
             i18n.__("刷新"),
-            Some(Event::RefreshProjects).filter(|_| !state.busy() && !state.projects_loading)
+            (!state.busy() && !state.projects_loading).then_some(message(Event::RefreshProjects)),
         ),
-    ]
-    .align_y(Alignment::Center);
+    );
     let search = text_input(i18n.__("搜索项目"), &state.query)
         .on_input(|query| message(Event::SearchProjects(query)))
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style);
     let query = state.query.trim().to_lowercase();
-    let mut rows = column![].spacing(2).width(Length::Fill);
+    let mut rows = column![].spacing(3);
     let mut visible = state
         .projects
         .iter()
@@ -81,20 +91,12 @@ fn projects<'a>(i18n: I18n, state: &'a Workbench) -> Element<'a, Message> {
     for project in visible {
         let id = project.id.as_ref();
         let selected = state.selected.as_deref() == Some(id);
-        let labels = column![
-            text(project.name.as_str()).size(13).wrapping(Wrapping::Glyph),
-            text(project.display_path.as_str())
-                .size(11)
-                .style(settings_muted_text_style)
-                .wrapping(Wrapping::Glyph),
-        ]
-        .spacing(3)
-        .width(Length::Fill);
-        rows = rows.push(select_row(
-            Icon::FolderClosed,
-            labels.into(),
-            (!state.busy()).then(|| Event::SelectProject(id.to_owned())),
+        rows = rows.push(project_row(
+            &project.name,
+            &project.directory,
             selected,
+            (!state.busy()).then(|| message(Event::SelectProject(id.to_owned()))),
+            tooltip_position,
         ));
     }
     if empty {
@@ -107,12 +109,12 @@ fn projects<'a>(i18n: I18n, state: &'a Workbench) -> Element<'a, Message> {
         } else {
             i18n.__("未找到匹配的项目")
         };
-        rows = rows.push(text(label).size(12).style(settings_muted_text_style));
+        rows = rows.push(sidebar_note(label));
     }
     if let Some(error) = &state.projects_error {
-        rows = rows.push(text(error.as_str()).size(12).wrapping(Wrapping::Glyph));
+        rows = rows.push(sidebar_note(error).wrapping(Wrapping::Glyph));
     }
-    panel(column![heading, search, vertical(rows)].spacing(8), 9)
+    sidebar_section(column![heading, container(search).padding([2, 7])].into(), rows)
 }
 
 fn workspace<'a>(app: &'a App, i18n: I18n) -> Element<'a, Message> {
@@ -177,10 +179,9 @@ fn workspace<'a>(app: &'a App, i18n: I18n) -> Element<'a, Message> {
         let body = if state.switching_branch {
             centered(i18n.__("正在切换分支…"))
         } else if state.show_files {
-            file_workspace(i18n, state, narrow)
+            file_preview(i18n, state)
         } else if state.repo.is_some() {
-            page::workbench_view(&git_input(app), size.width >= 740.0)
-                .map(move |event| map_git(state, event))
+            page::workbench_view(&git_input(app)).map(move |event| map_git(state, event))
         } else {
             centered(if !state.local() {
                 i18n.__("Git 变更管理需要本机网关")
@@ -188,7 +189,30 @@ fn workspace<'a>(app: &'a App, i18n: I18n) -> Element<'a, Message> {
                 i18n.__("未检测到 Git 仓库")
             })
         };
-        panel(column![identity, controls, body].spacing(10), 10)
+        let files = file_manager(app);
+        let workspace = if narrow {
+            Element::from(
+                column![
+                    container(files).height(Length::FillPortion(1)),
+                    container(body).height(Length::FillPortion(1)),
+                ]
+                .spacing(6)
+                .height(Length::Fill),
+            )
+        } else {
+            row![
+                container(files).width(270),
+                container(iced::widget::Space::new())
+                    .width(1)
+                    .height(Length::Fill)
+                    .style(settings_divider_style),
+                body,
+            ]
+            .spacing(6)
+            .height(Length::Fill)
+            .into()
+        };
+        panel(column![identity, controls, workspace].spacing(10), 10)
     })
     .into()
 }
@@ -201,55 +225,47 @@ fn selector<'a>(title: &'a str, control: Element<'a, Message>) -> Element<'a, Me
         .into()
 }
 
-fn file_workspace<'a>(i18n: I18n, state: &'a Workbench, narrow: bool) -> Element<'a, Message> {
+fn file_manager(app: &App) -> Element<'_, Message> {
+    let state = &app.git_workbench;
     let files = &state.files;
-    let current = files.directory.as_str();
-    let parent = current.rsplit_once('/').map_or("", |(parent, _)| parent);
-    let title = if current.is_empty() { i18n.__("根目录") } else { current };
-    let heading = row![
-        text(title).size(12).width(Length::Fill).wrapping(Wrapping::Glyph),
-        action(
-            Icon::ArrowLeft,
-            i18n.__("上一级"),
-            (!current.is_empty()).then(|| Event::Files(files::Event::Folder(parent.to_owned()))),
-        ),
-    ]
-    .spacing(4)
-    .align_y(Alignment::Center);
-    let mut rows = column![].spacing(2);
-    match &files.listing {
-        Some(Ok(entries)) if !entries.is_empty() => {
-            for file in entries {
-                let folder = file.kind == FileNodeKind::Directory;
-                let selected = files.preview.as_ref().and_then(|preview| preview.path.as_deref())
-                    == Some(file.path.as_str());
-                rows = rows.push(select_row(
-                    if folder { Icon::FolderClosed } else { Icon::FileText },
-                    text(file.name.as_str()).size(13).wrapping(Wrapping::Glyph).into(),
-                    Some(Event::Files(if folder {
-                        files::Event::Folder(file.path.clone())
-                    } else {
-                        files::Event::Open(file.path.clone())
-                    })),
-                    selected,
-                ));
+    let input = desktop_file_tree::FileTreeView {
+        browse_only: true,
+        file_tree_drop_target: &None,
+        file_tree_operation_in_progress: false,
+        file_tree_selection: &files.selection,
+        file_tree_expanded_set: &files.expanded,
+        git_changed_files: &state.git.git_changed_files,
+        git_changed_files_loading: state.git.git_changed_files_loading,
+        git_focused_file: &state.git.git_focused_file,
+        file_manager_refresh_frame: files.refresh_frame,
+        file_manager_changes_refreshing: files.changes_refreshing,
+        file_manager_file_tree_refreshing: files.files_refreshing,
+        file_manager_show_changes: !files.show_all_files,
+        file_index: &[],
+        file_tree_model: Some(&files.tree),
+        desktop_locale: app.general_settings.desktop_locale,
+        project_path: &files.root,
+        find_results_tabs: &files.find.find_results_tabs,
+        active_find_results_tab_id: &files.find.active_find_results_tab_id,
+        find_results_tab_menu_id: &files.find.find_results_tab_menu_id,
+        find_results_tab_menu_pos: files.find.find_results_tab_menu_pos,
+        file_tree_rename_value: "",
+        file_tree_rename_path: &None,
+        file_tree_menu_path: &files.menu_path,
+        file_tree_menu_source: &files.menu_source,
+        file_tree_menu_anchor: files.menu_anchor,
+        can_paste: false,
+    };
+    let filtered = page::filtered_workbench_changes(&git_input(app));
+    let changes = filtered.as_deref().unwrap_or(input.git_changed_files);
+    desktop_file_tree::view_file_manager_with_changes(input, changes).map(
+        move |event| match event {
+            desktop_file_tree::Message::Project(event) => {
+                state.file_message(files::Event::Tree(event))
             }
-        }
-        Some(Ok(_)) => {
-            rows = rows.push(text(i18n.__("目录为空")).size(12).style(settings_muted_text_style))
-        }
-        Some(Err(error)) => {
-            rows = rows.push(text(error.as_str()).size(12).wrapping(Wrapping::Glyph))
-        }
-        None => rows = rows.push(text(i18n.__("加载中")).size(12).style(settings_muted_text_style)),
-    }
-    let file_list = panel(column![heading, vertical(rows)].spacing(5), 7);
-    let preview = file_preview(i18n, state);
-    if narrow {
-        column![container(file_list).height(145), preview].spacing(5).height(Length::Fill).into()
-    } else {
-        row![container(file_list).width(225), preview].spacing(6).height(Length::Fill).into()
-    }
+            desktop_file_tree::Message::None => Message::None,
+        },
+    )
 }
 
 fn file_preview<'a>(i18n: I18n, state: &'a Workbench) -> Element<'a, Message> {
@@ -258,12 +274,15 @@ fn file_preview<'a>(i18n: I18n, state: &'a Workbench) -> Element<'a, Message> {
     };
     let title = row![
         text(file.title.as_str()).size(13).width(Length::Fill).wrapping(Wrapping::Glyph),
+        file.location.map(|(line, column)| text(format!("{line}:{column}"))
+            .size(11)
+            .style(settings_muted_text_style)),
         file.truncated.then(|| text(i18n.__("已截断")).size(11).style(settings_muted_text_style)),
         (state.local() && file.path.is_some() && matches!(&file.content, Some(Ok(_)))).then(|| {
             action(
                 Icon::Pencil,
                 i18n.__("在编辑器中打开"),
-                Some(Event::Files(files::Event::OpenInEditor)),
+                Some(Event::Files(state.epoch, files::Event::OpenInEditor)),
             )
         }),
     ]
@@ -277,7 +296,11 @@ fn file_preview<'a>(i18n: I18n, state: &'a Workbench) -> Element<'a, Message> {
         Some(Err(error)) => centered(error),
         None => centered(i18n.__("加载中")),
     };
-    panel(column![title, body].spacing(8), 9)
+    panel(
+        column![title, keyed_column([(state.files.preview_request, body)]).height(Length::Fill)]
+            .spacing(8),
+        9,
+    )
 }
 
 fn git_input(app: &App) -> page::ViewContext<'_> {
@@ -394,24 +417,6 @@ fn tab<'a>(icon: Icon, label: &'a str, selected: bool, event: Event) -> Element<
         .style(move |theme, status| selected_style(theme, status, selected))
         .on_press(message(event))
         .into()
-}
-
-fn select_row<'a>(
-    icon: Icon,
-    label: Element<'a, Message>,
-    event: Option<Event>,
-    selected: bool,
-) -> Element<'a, Message> {
-    button(
-        row![icon_svg(icon, 14.0), container(label).width(Length::Fill)]
-            .spacing(7)
-            .align_y(Alignment::Center),
-    )
-    .padding([6, 7])
-    .width(Length::Fill)
-    .style(move |theme, status| selected_style(theme, status, selected))
-    .on_press_maybe(event.map(message))
-    .into()
 }
 
 fn selected_style(theme: &Theme, status: button::Status, selected: bool) -> button::Style {

@@ -9,7 +9,10 @@ use sha2::{Digest, Sha256};
 
 use super::{Code, MediaModel, MediaOperation};
 
+pub(super) const SHIJU_PROVIDER_ID: &str = "shiju";
+
 pub(super) struct Route {
+    pub provider_id: String,
     pub model: MediaModel,
     pub capability: Cap,
     pub endpoint: MediaEndpoint,
@@ -36,7 +39,7 @@ async fn project_routes(selected: Option<(String, String)>) -> Result<Vec<Route>
     let mut routes = Vec::new();
     for (provider_id, provider) in providers {
         let Some(bearer) = credential(&provider) else { continue };
-        let managed = provider_id == "shiju";
+        let managed = provider_id == SHIJU_PROVIDER_ID;
         let mut account_grants = HashMap::new();
         for (model_id, model) in &provider.models {
             if !compatible(model) || model.provider_id != provider.id || model.api.id.is_empty() {
@@ -154,6 +157,7 @@ async fn project_routes(selected: Option<(String, String)>) -> Result<Vec<Route>
                         continue;
                     }
                     routes.push(Route {
+                        provider_id: provider_id.clone(),
                         model: MediaModel {
                             deployment_id: deployment_id.clone(),
                             model_id: model_id.clone(),

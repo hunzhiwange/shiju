@@ -11,6 +11,7 @@ test-support = []
 doctest = false
 
 [dependencies]
+vw-api-media = { path = "../api-media" }
 desktop-config = { path = "../desktop-config" }
 desktop-settings-apps = { path = "../desktop-settings-apps" }
 desktop-settings-skills = { path = "../desktop-settings-skills" }

@@ -13,6 +13,7 @@ fn usage(input_tokens: i64, output_tokens: i64) -> TokenUsage {
 
 fn agent_request(id: u64, session_id: &str) -> std::sync::Arc<AgentRequest> {
     std::sync::Arc::new(AgentRequest {
+        media_model: None,
         id,
         session: session_id.to_string(),
         query: String::new(),

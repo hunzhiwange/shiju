@@ -6843,6 +6843,7 @@ dependencies = [
  "tokio",
  "vw-api-acp-model",
  "vw-api-chat-identity",
+ "vw-api-media",
 ]
 
 [[package]]
@@ -7302,6 +7303,7 @@ dependencies = [
  "vw-api-app-identity",
  "vw-api-app-skills",
  "vw-api-chat-identity",
+ "vw-api-media",
  "vw-api-project",
  "vw-api-session",
  "vw-api-task",
@@ -18574,6 +18576,7 @@ dependencies = [
  "vw-api-acp-model",
  "vw-api-chat",
  "vw-api-chat-identity",
+ "vw-api-media",
  "vw-api-session",
  "vw-api-todo",
  "vw-api-tools",
@@ -20605,6 +20608,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tool-types",
+ "vw-api-media",
  "vw-api-tools",
  "vw-api-transport",
 ]

@@ -1,5 +1,6 @@
 //! 会话请求与排队输入的唯一数据所有者。
 use session_ui_types::ChatMessage;
+pub use vw_api_media::MediaModelSelection;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AcpHistoryReplayMode {
@@ -81,6 +82,7 @@ impl ChatSendBehavior {
 /// 「正在规划」就报「未收到网关完成信号」。
 #[derive(Debug, Clone)]
 pub struct AgentRequest {
+    pub media_model: Option<MediaModelSelection>,
     /// 请求的唯一标识符
     pub id: u64,
     /// 所属会话的标识符
@@ -125,12 +127,20 @@ impl PartialEq for AgentRequest {
 
 impl Eq for AgentRequest {}
 
+#[derive(Debug, Clone)]
+pub struct PendingMediaModel {
+    pub selection: MediaModelSelection,
+    pub display_name: String,
+    pub prompt: String,
+}
+
 /// 请求队列项
 ///
 /// 表示队列中等待处理的请求项，
 /// 记录了请求的创建时间、查询内容和配置信息。
 #[derive(Debug, Clone)]
 pub struct QueueItem {
+    pub media_model: Option<PendingMediaModel>,
     /// 请求创建的时间戳（毫秒）
     pub created_ms: u64,
     /// 用户的查询文本
@@ -189,7 +199,7 @@ pub enum QueueAction {
 
 pub enum QueueEffect {
     None,
-    Edit(String),
+    Edit(String, Option<PendingMediaModel>),
     Send(QueueItem),
     Copy(String),
 }
@@ -200,7 +210,10 @@ pub fn update_queue(queue: &mut Vec<QueueItem>, action: QueueAction) -> QueueEff
             if i < queue.len() { queue.remove(i); }
         }
         QueueAction::Edit(i) => {
-            if i < queue.len() { return QueueEffect::Edit(queue.remove(i).query); }
+            if i < queue.len() {
+                let item = queue.remove(i);
+                return QueueEffect::Edit(item.query, item.media_model);
+            }
         }
         QueueAction::Guide(i) => {
             if i < queue.len() {
@@ -280,6 +293,7 @@ impl QueueItem {
         full_access_enabled: Option<bool>,
     ) -> AgentRequest {
         AgentRequest {
+            media_model: self.media_model.map(|pending| pending.selection),
             id, session, query, history, full_access_enabled,
             root: self.root,
             model: self.model,

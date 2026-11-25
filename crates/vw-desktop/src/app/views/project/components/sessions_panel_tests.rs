@@ -45,6 +45,7 @@ fn child_session(id: &str, parent_id: &str, updated: u64) -> Info {
 
 fn agent_request(id: u64, session_id: &str) -> std::sync::Arc<AgentRequest> {
     std::sync::Arc::new(AgentRequest {
+        media_model: None,
         id,
         session: session_id.to_string(),
         query: "执行计划".to_string(),
@@ -71,6 +72,7 @@ fn agent_request(id: u64, session_id: &str) -> std::sync::Arc<AgentRequest> {
 
 fn queue_item(query: &str) -> QueueItem {
     QueueItem {
+        media_model: None,
         created_ms: 1,
         query: query.to_string(),
         attachments: Vec::new(),

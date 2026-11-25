@@ -19,7 +19,8 @@
 //! // 宿主传入 EditorState、内容与主题样式。
 //! ```
 
-use iced::widget::{button, column, container, text, text_editor};
+use iced::advanced::text::highlighter::PlainText;
+use iced::widget::{TextEditor, button, column, container, text, text_editor};
 use iced::{Background, Border, Color, Element, Length, Theme};
 
 use desktop_editor::components::input_mention_highlighter::{
@@ -52,6 +53,19 @@ pub const INPUT_LINE_HEIGHT: f32 = 20.0;
 /// 应用于编辑器内容区域的顶部和底部内边距，确保文本不会紧贴边缘。
 pub const INPUT_VERTICAL_PADDING: f32 = 4.0;
 pub const INPUT_HORIZONTAL_PADDING: f32 = 16.0;
+
+pub fn composer_editor<Message: Clone>(
+    content: &text_editor::Content,
+) -> (TextEditor<'_, PlainText, Message>, f32) {
+    let lines = content.text().split('\n').count().clamp(INPUT_MIN_LINES, INPUT_MAX_LINES);
+    let height = lines as f32 * INPUT_LINE_HEIGHT + INPUT_VERTICAL_PADDING * 2.0;
+    let editor = text_editor(content)
+        .size(14.0)
+        .padding([INPUT_VERTICAL_PADDING, INPUT_HORIZONTAL_PADDING])
+        .height(Length::Fixed(height))
+        .style(|theme, status| super::surface_styles::editor_style(theme, status, false, None));
+    (editor, height)
+}
 
 #[cfg(target_arch = "wasm32")]
 pub fn binding_from_key_press(
@@ -208,28 +222,13 @@ pub fn build_input_editor<'a>(
     style: impl Fn(&Theme, text_editor::Status) -> text_editor::Style + 'a,
     _task_mode_enabled: bool,
 ) -> (Element<'a, Message>, f32) {
-    // 根据文本行数计算编辑器行数，限制在 [INPUT_MIN_LINES, INPUT_MAX_LINES] 范围内
-    let input_line_count =
-        input_editor.text().split('\n').count().clamp(INPUT_MIN_LINES, INPUT_MAX_LINES) as f32;
-
-    // 计算编辑器总高度：行数 * 单行高度 + 上下内边距
-    let editor_height = input_line_count * INPUT_LINE_HEIGHT + (INPUT_VERTICAL_PADDING * 2.0);
-    // 构建文本编辑器组件
+    let (editor, editor_height) = composer_editor(input_editor);
     let key_state = app.clone();
-    let editor = text_editor(input_editor)
+    let editor = editor
         .id(app.input_editor_id.clone())
         .placeholder(app.i18n.__(app.placeholder))
         .on_action(Message::InputEditorAction)
         .key_binding(move |kp| binding_from_key_press(&key_state, kp))
-        .size(14.0)
-        // 设置编辑器内边距：上下压缩，左右留出更舒适的输入空间。
-        .padding(iced::Padding {
-            top: INPUT_VERTICAL_PADDING,
-            right: INPUT_HORIZONTAL_PADDING,
-            bottom: INPUT_VERTICAL_PADDING,
-            left: INPUT_HORIZONTAL_PADDING,
-        })
-        .height(Length::Fixed(editor_height))
         // 应用编辑器样式：根据请求状态调整外观
         .style(style)
         // 启用 @ 提及高亮功能

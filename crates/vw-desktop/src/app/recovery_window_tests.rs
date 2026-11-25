@@ -59,6 +59,7 @@ impl Harness {
         self.app.chat_view.chat_render_cache.clear();
         self.app.toast_state.active_toast = None;
         let request = Arc::new(AgentRequest {
+            media_model: None,
             id: self.scenario as u64 + 100,
             session: session.clone(),
             query: format!("{case}-{theme}"),

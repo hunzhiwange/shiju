@@ -17,6 +17,17 @@ fn input(app: &App) -> domain::QuickInput<'_> {
         #[cfg(not(target_arch = "wasm32"))]
         shiju_skill: app.session_state.input_popovers.shiju_skill,
         #[cfg(not(target_arch = "wasm32"))]
+        media_shortcuts: app
+            .current_session_runtime_ref()
+            .is_none_or(|runtime| runtime.acp_agent.is_none() && !runtime.is_employee_chat())
+            .then_some(app.session_state.input_popovers.media_shortcuts),
+        #[cfg(not(target_arch = "wasm32"))]
+        media_models: crate::app::message::chat::media_jobs::model_picker(app),
+        #[cfg(not(target_arch = "wasm32"))]
+        selected_media_model: app.current_session_runtime_ref()
+            .and_then(|runtime| runtime.pending_media_model.as_ref())
+            .map(|pending| pending.display_name.as_str()),
+        #[cfg(not(target_arch = "wasm32"))]
         installed: &app.expert_hub.installed,
         #[cfg(not(target_arch = "wasm32"))]
         package_status: &app.expert_hub.package_status,
@@ -29,6 +40,24 @@ fn map_message(msg: desktop_chat_input::input_panel::quick_message::Message) -> 
     match msg {
         Local::QuickMessageSelected(value) => Message::Chat(message::ChatMessage::QuickMessageSelected(value)),
         Local::QuickMessageGroupChanged(value) => Message::Chat(message::ChatMessage::QuickMessageGroupChanged(value)),
+        #[cfg(not(target_arch = "wasm32"))]
+        Local::MediaShortcutMenuChanged(open) => Message::Chat(message::ChatMessage::MediaShortcutMenuChanged(open)),
+        #[cfg(not(target_arch = "wasm32"))]
+        Local::MediaPromptSelected(prompt) => Message::Chat(message::ChatMessage::MediaPromptSelected(prompt)),
+        #[cfg(not(target_arch = "wasm32"))]
+        Local::OpenMediaModelPicker(operation) => crate::app::message::chat::media_jobs::message(
+            crate::app::message::chat::media_jobs::Event::OpenModelPicker(operation),
+        ),
+        #[cfg(not(target_arch = "wasm32"))]
+        Local::BackFromMediaModelPicker => crate::app::message::chat::media_jobs::message(
+            crate::app::message::chat::media_jobs::Event::BackFromModelPicker,
+        ),
+        #[cfg(not(target_arch = "wasm32"))]
+        Local::MediaModelPicked(selection) => crate::app::message::chat::media_jobs::message(
+            crate::app::message::chat::media_jobs::Event::ModelPicked(selection),
+        ),
+        #[cfg(not(target_arch = "wasm32"))]
+        Local::SelectVideoEditorSkill => Message::Chat(message::ChatMessage::SelectVideoEditorSkill),
         #[cfg(not(target_arch = "wasm32"))]
         Local::SelectShijuSkill(value) => Message::Chat(message::ChatMessage::SelectShijuSkill(value)),
         Local::AgentRecommendedPromptSelected(value) => Message::Chat(message::ChatMessage::AgentRecommendedPromptSelected(value)),

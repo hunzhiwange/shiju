@@ -113,6 +113,7 @@ fn projects_list_builds_with_queue_attention() {
 
     let mut runtime = SessionRuntimeState::new();
     runtime.request_lifecycle.queue = vec![crate::app::state::QueueItem {
+        media_model: None,
         created_ms: 1000,
         query: "test query".to_string(),
         attachments: vec![],

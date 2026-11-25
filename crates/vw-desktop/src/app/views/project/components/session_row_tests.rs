@@ -68,6 +68,7 @@ fn running_draft_title_uses_first_non_empty_input_line() {
     });
     runtime.request_lifecycle.is_requesting = true;
     runtime.request_lifecycle.active_agent_request = Some(std::sync::Arc::new(AgentRequest {
+        media_model: None,
         id: 1,
         session: "draft".into(),
         query: " \r\n\t\n  首轮中文问题  \r\n补充说明".into(),

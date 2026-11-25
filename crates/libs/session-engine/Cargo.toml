@@ -11,6 +11,7 @@ test-support = []
 doctest = false
 
 [dependencies]
+vw-api-media = { path = "../api-media" }
 vw-api-session = { path = "../api-session" }
 vw-api-todo = { path = "../api-todo" }
 agent-log = { path = "../agent-log" }

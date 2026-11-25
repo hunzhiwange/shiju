@@ -89,6 +89,14 @@ pub(crate) struct Fixture {
 
 impl Fixture {
     pub(crate) async fn new() -> Self {
+        Self::with_provider(None).await
+    }
+
+    pub(crate) async fn new_shiju() -> Self {
+        Self::with_provider(Some(deployments::SHIJU_PROVIDER_ID)).await
+    }
+
+    async fn with_provider(provider: Option<&str>) -> Self {
         let serial = FIXTURES.lock().await;
         let mut image = Cursor::new(Vec::new());
         image::DynamicImage::new_rgb8(2, 3).write_to(&mut image, image::ImageFormat::Png).unwrap();
@@ -99,6 +107,13 @@ impl Fixture {
         let video_polled = Arc::new(Notify::new());
         let video_canceled = Arc::new(Notify::new());
         let upstream = Server::start(Router::new()
+            .route("/v1/models", get(|headers: HeaderMap| async move {
+                assert_eq!(headers[header::AUTHORIZATION].to_str().unwrap(), format!("Bearer {SECRET}"));
+                Json(json!({"data": [{
+                    "id": "fixture-multimodal-model",
+                    "supported_endpoint_types": ["image-generation", "openai-video"]
+                }]}))
+            }))
             .route("/v1/images/generations", post({
                 let posts = image_posts.clone();
                 move |headers: HeaderMap, Json(input): Json<Value>| {
@@ -139,7 +154,7 @@ impl Fixture {
 
         let unique = MediaJobId::new_v4().simple().to_string();
         let platform = format!("media-{unique}");
-        let provider = format!("media-fixture-{unique}");
+        let provider = provider.map_or_else(|| format!("media-fixture-{unique}"), str::to_owned);
         let owner = TenantScope::new(&platform, "owner").unwrap();
         let other = TenantScope::new(&platform, "other").unwrap();
         let workspace = tempfile::tempdir().unwrap();
@@ -200,6 +215,14 @@ impl Fixture {
             .json::<MediaModels>()
             .await
             .unwrap();
+        let project_models = client
+            .get(format!("{}{MEDIA_MODELS_PATH}", gateway.base))
+            .bearer_auth(TOKEN)
+            .header("x-platform-id", &platform)
+            .header("x-company-id", "owner")
+            .query(&[("project_id", project.id.as_ref())])
+            .send().await.unwrap().error_for_status().unwrap().json::<MediaModels>().await.unwrap();
+        assert_eq!(project_models, models);
         let model = models
             .models
             .into_iter()

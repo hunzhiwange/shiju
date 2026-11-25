@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+vw-api-media = { path = "../api-media" }
 iced = { version = "0.14", features = ["image", "svg", "advanced"] }
 desktop-assets = { path = "../desktop-assets" }
 desktop-i18n = { path = "../desktop-i18n" }

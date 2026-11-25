@@ -2,7 +2,7 @@
 //! 同时约束限定模型名、裸模型名、Unicode 截断及刷新时保留旧目录的回退。
 
 use super::{
-    model_is_selected, model_matches_query, model_provider_icon_id,
+    model_is_selected, model_matches_query, model_media_labels, model_provider_icon_id,
     model_toggle_label, normalize_model_input, truncated_model_name,
 };
 use desktop_settings_providers::state::{ModelSummary, ProviderModelsSummary};
@@ -39,6 +39,19 @@ fn model_matches_query_searches_provider_and_model_fields() {
     assert!(model_matches_query("gpt", "openai", "OpenAI", "gpt-4.1", "Other"));
     assert!(model_matches_query("vision", "openai", "OpenAI", "x", "Vision Model"));
     assert!(!model_matches_query("claude", "openai", "OpenAI", "gpt-4.1", "GPT 4.1"));
+}
+
+#[test]
+fn media_labels_distinguish_input_and_output() {
+    let mut model = model("multimodal", "Multimodal", true);
+    assert_eq!(model_media_labels(&model).count(), 0);
+    model.detail = serde_json::json!({
+        "capabilities": {
+            "input": {"image": true, "video": false},
+            "output": {"image": false, "video": true},
+        }
+    });
+    assert_eq!(model_media_labels(&model).collect::<Vec<_>>(), ["图片输入", "视频输出"]);
 }
 
 #[test]

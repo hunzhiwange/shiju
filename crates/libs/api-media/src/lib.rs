@@ -54,6 +54,33 @@ impl MediaSessionQuery {
     }
 }
 
+pub const MEDIA_MODEL_SELECTION_OPTION: &str = "media_model_selection";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MediaModelSelection {
+    pub operation: MediaOperation,
+    pub deployment_id: String,
+    pub model_id: String,
+}
+
+impl MediaModelSelection {
+    pub fn validate(&self) -> Result<(), MediaErrorCode> {
+        if matches!(self.operation, MediaOperation::ImageGenerate | MediaOperation::VideoGenerate)
+            && valid_reference(&self.deployment_id)
+            && valid_reference(&self.model_id)
+        {
+            Ok(())
+        } else {
+            Err(MediaErrorCode::InvalidRequest)
+        }
+    }
+
+    pub fn applies_to(&self, operation: MediaOperation) -> bool {
+        self.operation == operation
+            || (self.operation == MediaOperation::ImageGenerate && operation == MediaOperation::ImageEdit)
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum MediaInput {

@@ -91,6 +91,7 @@ fn queue_item(
     send_behavior: crate::app::state::ChatSendBehavior,
 ) -> crate::app::QueueItem {
     crate::app::QueueItem {
+        media_model: None,
         created_ms: 10,
         query: query.to_string(),
         attachments: Vec::new(),
@@ -118,6 +119,7 @@ fn queue_item(
 
 fn agent_request(id: u64, session: &str) -> std::sync::Arc<crate::app::AgentRequest> {
     std::sync::Arc::new(crate::app::AgentRequest {
+        media_model: None,
         id,
         session: session.to_string(),
         query: "active".to_string(),

@@ -35,7 +35,7 @@ async fn call(
 
 #[tokio::test]
 async fn media_agent_tool_discovers_checks_permissions_and_submits_once() {
-    let fixture = Fixture::new().await;
+    let fixture = Fixture::new_shiju().await;
     let context = fixture.tool_context(true).await.unwrap();
     let context = Arc::new(
         (*context).clone().with_message_id("assistant-turn").with_tool_call_id("call-image"),
@@ -79,7 +79,15 @@ async fn media_agent_tool_discovers_checks_permissions_and_submits_once() {
     assert!(matches!(denied, Err(ToolCallError::Denied { .. })));
     assert_eq!(fixture.image_posts(), 0);
 
-    // A retry of the same runtime tool call has the same journal ID.
+    let context = Arc::new((*context).clone().with_media_model_selection(
+        agent_gateway::api::media::MediaModelSelection {
+            operation: MediaOperation::ImageGenerate,
+            deployment_id: fixture.model.deployment_id.clone(),
+            model_id: fixture.model.model_id.clone(),
+        },
+    ));
+    // The turn selection overrides guessed tool arguments, while retries keep the same journal ID.
+    let input = json!({"operation": "image_generate", "text": "draw", "model_id": "not-entitled"});
     let (first, second) = tokio::join!(
         call(&tools, context.clone(), MEDIA_SUBMIT_TOOL_ID, input.clone()),
         call(&tools, context.clone(), MEDIA_SUBMIT_TOOL_ID, input),
@@ -98,7 +106,7 @@ async fn media_agent_tool_discovers_checks_permissions_and_submits_once() {
 }
 
 #[tokio::test]
-async fn media_agent_tool_reads_desktop_job_without_submitting_again() {
+async fn media_agent_tool_honors_explicit_eligible_deployment_and_reads_existing_job() {
     let fixture = Fixture::new().await;
     let request = fixture.submission(MediaOperation::ImageGenerate, "draw");
     assert_eq!(fixture.submit(&request).await.status(), reqwest::StatusCode::ACCEPTED);
@@ -106,7 +114,24 @@ async fn media_agent_tool_reads_desktop_job_without_submitting_again() {
     assert!(matches!(expected, MediaJobState::Succeeded { .. }));
 
     let context = fixture.tool_context(true).await.unwrap();
+    let context = Arc::new(
+        (*context).clone().with_message_id("assistant-turn").with_tool_call_id("call-direct"),
+    );
     let tools = registry(&fixture, &context);
+    let generated = call(
+        &tools,
+        context.clone(),
+        MEDIA_SUBMIT_TOOL_ID,
+        json!({
+            "operation": "image_generate", "text": "draw",
+            "deployment_id": fixture.model.deployment_id, "model_id": fixture.model.model_id
+        }),
+    )
+    .await
+    .unwrap();
+    assert_ne!(generated.id, request.request_id);
+    assert!(matches!(fixture.wait(generated.id).await, MediaJobState::Succeeded { .. }));
+
     let input = json!({"job_id": request.request_id});
     let result = call(&tools, context.clone(), MEDIA_STATUS_TOOL_ID, input.clone()).await.unwrap();
     assert_eq!(result.state, expected);
@@ -123,5 +148,5 @@ async fn media_agent_tool_reads_desktop_job_without_submitting_again() {
     );
     let denied = call(&tools, child, MEDIA_STATUS_TOOL_ID, input).await;
     assert!(matches!(denied, Err(ToolCallError::Denied { .. })));
-    assert_eq!(fixture.image_posts(), 1);
+    assert_eq!(fixture.image_posts(), 2);
 }

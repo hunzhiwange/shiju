@@ -45,6 +45,7 @@ async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {
 
 fn queue_item(send_behavior: ChatSendBehavior) -> QueueItem {
     QueueItem {
+        media_model: None,
         created_ms: 1,
         query: "query".to_string(),
         attachments: Vec::new(),
@@ -72,6 +73,7 @@ fn queue_item(send_behavior: ChatSendBehavior) -> QueueItem {
 
 fn agent_request(id: u64, session_id: &str) -> Arc<AgentRequest> {
     Arc::new(AgentRequest {
+        media_model: None,
         id,
         session: session_id.to_string(),
         query: "query".to_string(),

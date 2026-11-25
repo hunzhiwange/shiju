@@ -16,6 +16,7 @@ fn message(role: ChatRole, content: &str) -> ChatMessage {
 }
 fn agent_request(id: u64, session_id: &str) -> Arc<AgentRequest> {
     Arc::new(AgentRequest {
+        media_model: None,
         id,
         session: session_id.to_string(),
         query: "query".to_string(),

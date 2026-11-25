@@ -156,6 +156,7 @@ fn session_runtime_defaults_goal_mode_enabled() {
 use std::sync::Arc;
 fn agent_request(id: u64, session: &str) -> Arc<crate::message::chat::request::AgentRequest> {
     Arc::new(crate::message::chat::request::AgentRequest {
+        media_model: None,
         id,
         session: session.to_string(),
         query: "hello".to_string(),

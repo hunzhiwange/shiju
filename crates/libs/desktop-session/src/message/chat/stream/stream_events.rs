@@ -359,6 +359,7 @@ pub fn continuation_item(
     now: u64,
 ) -> QueueItem {
     QueueItem {
+        media_model: None,
         created_ms: now,
         query: continuation_label_from_history(&resume_history),
         attachments: Vec::new(),

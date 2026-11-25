@@ -26,6 +26,7 @@ fn queue_item(
     send_behavior: crate::message::chat::request::ChatSendBehavior,
 ) -> crate::message::chat::request::QueueItem {
     crate::message::chat::request::QueueItem {
+        media_model: None,
         created_ms: 10,
         query: query.to_string(),
         attachments: Vec::new(),

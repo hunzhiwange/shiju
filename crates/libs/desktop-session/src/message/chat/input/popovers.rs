@@ -4,6 +4,7 @@ pub struct InputPopoverState {
     pub recommended_prompt: bool,
     pub quick_message_group: Option<config_ui::QuickMessageGroup>,
     pub shiju_skill: bool,
+    pub media_shortcuts: bool,
     pub agent_sessions: bool,
 }
 
@@ -13,6 +14,7 @@ impl InputPopoverState {
         if open {
             self.quick_message_group = None;
             self.shiju_skill = false;
+            self.media_shortcuts = false;
         }
     }
 
@@ -20,6 +22,7 @@ impl InputPopoverState {
         if group.is_some() {
             self.recommended_prompt = false;
             self.shiju_skill = false;
+            self.media_shortcuts = false;
         }
         self.quick_message_group = group;
     }
@@ -29,8 +32,18 @@ impl InputPopoverState {
         if self.shiju_skill {
             self.quick_message_group = None;
             self.recommended_prompt = false;
+            self.media_shortcuts = false;
         }
         self.shiju_skill
+    }
+
+    pub fn set_media_shortcuts(&mut self, open: bool) {
+        self.media_shortcuts = open;
+        if open {
+            self.quick_message_group = None;
+            self.recommended_prompt = false;
+            self.shiju_skill = false;
+        }
     }
 
     pub fn toggle_agent_sessions(&mut self, has_running_children: bool) {

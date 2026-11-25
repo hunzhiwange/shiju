@@ -41,6 +41,7 @@ fn preview_tab(path: &str) -> PreviewTab {
 
 fn agent_request(id: u64, session: &str) -> Arc<crate::app::AgentRequest> {
     Arc::new(crate::app::AgentRequest {
+        media_model: None,
         id,
         session: session.to_string(),
         query: "hello".to_string(),

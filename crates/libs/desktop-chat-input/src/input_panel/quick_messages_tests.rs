@@ -324,6 +324,7 @@ fn input_strip_places_shiju_before_general_actions() {
         vec![
             InputStripControl::Shiju,
             InputStripControl::GeneralActions,
+            InputStripControl::MediaShortcuts(false),
             InputStripControl::GitActions,
         ]
     );
@@ -338,6 +339,7 @@ fn input_strip_places_shiju_before_general_actions() {
             InputStripControl::Workspace,
             InputStripControl::Shiju,
             InputStripControl::GeneralActions,
+            InputStripControl::MediaShortcuts(false),
             InputStripControl::GitActions,
         ]
     );

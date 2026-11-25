@@ -1,5 +1,5 @@
 //! 模型标识、搜索及展示标签。
-use desktop_settings_providers::state::ProviderModelsSummary;
+use desktop_settings_providers::state::{ModelSummary, ProviderModelsSummary};
 
 pub(crate) fn normalize_model_input(model: &str) -> String {
     let trimmed = model.trim();
@@ -20,6 +20,20 @@ pub(crate) fn model_matches_query(
         || provider_name.to_ascii_lowercase().contains(query)
         || model_id.to_ascii_lowercase().contains(query)
         || model_name.to_ascii_lowercase().contains(query)
+}
+
+pub(super) fn model_media_labels(model: &ModelSummary) -> impl Iterator<Item = &'static str> {
+    let declared = |pointer| {
+        model.detail.pointer(pointer).and_then(serde_json::Value::as_bool) == Some(true)
+    };
+    [
+        ("图片输入", model.attachment || declared("/capabilities/input/image")),
+        ("图片输出", declared("/capabilities/output/image")),
+        ("视频输入", declared("/capabilities/input/video")),
+        ("视频输出", declared("/capabilities/output/video")),
+    ]
+    .into_iter()
+    .filter_map(|(label, supported)| supported.then_some(label))
 }
 
 pub(crate) fn model_is_selected(current: &str, provider_id: &str, model_id: &str) -> bool {

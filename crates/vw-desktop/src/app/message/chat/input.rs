@@ -16,6 +16,9 @@ mod tool_detail;
 mod file_search_tests;
 #[cfg(test)]
 mod input_tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "media_shortcuts_tests.rs"]
+mod media_shortcuts_tests;
 #[cfg(test)]
 mod shared_tests;
 #[cfg(test)]
@@ -47,6 +50,39 @@ pub(super) fn fill_task_quick_action_draft(app: &mut App, draft: String) -> Task
     shared::focus_input_editor(app)
 }
 
+pub(super) fn append_media_prompt(
+    app: &mut App,
+    prompt: String,
+    selection: Option<desktop_session::message::chat::request::PendingMediaModel>,
+    replace_prompt: Option<&str>,
+) -> Task<Message> {
+    use iced::widget::text_editor;
+
+    app.session_state.input_popovers.set_media_shortcuts(false);
+    app.input_suggestions.clear_files();
+    app.input_suggestions.clear_slash();
+    app.focus_area = crate::app::FocusArea::None;
+    let fallback_editor = app
+        .current_session_runtime_ref()
+        .is_none()
+        .then(|| app.session_state.input_editor.clone());
+    let runtime = app.current_session_runtime_mut();
+    if let Some(fallback) = fallback_editor {
+        runtime.input_editor = fallback;
+    }
+    let editor = &mut runtime.input_editor;
+    if let Some(previous) = replace_prompt.filter(|previous| editor.text().contains(*previous)) {
+        *editor = text_editor::Content::with_text(&editor.text().replacen(previous, &prompt, 1));
+        editor.perform(text_editor::Action::Move(text_editor::Motion::DocumentEnd));
+    } else {
+        desktop_chat_input::input_panel::quick_actions::apply_draft(editor, &prompt, false);
+    }
+    runtime.pending_media_model = selection;
+    app.session_state.input_text = editor.text().to_string();
+    shared::sync_global_input_editor_if_needed(app);
+    shared::focus_input_editor(app)
+}
+
 fn git_quick_action_path(app: &App) -> Option<String> {
     desktop_session::message::chat::input::interactions::git_quick_action_path(
         crate::app::components::git_panel::git_repo_path_for_app(app), app.navigation_tabs.project_path.as_deref(),
@@ -60,11 +96,10 @@ pub(crate) fn is_composer_event(message: &ChatMessage) -> bool {
         message,
         ChatMessage::InputChanged(_)
             | ChatMessage::InputEditorAction(_)
-            | ChatMessage::MediaModeSelected(_)
             | ChatMessage::Media(_)
-            | ChatMessage::MediaAttachmentsPicked { .. }
-            | ChatMessage::OpenMediaAppStudio
-            | ChatMessage::OpenMediaVideoEditor
+            | ChatMessage::MediaShortcutMenuChanged(_)
+            | ChatMessage::MediaPromptSelected(_)
+            | ChatMessage::SelectVideoEditorSkill
             | ChatMessage::OpenInputContextMenu { .. }
             | ChatMessage::CloseInputContextMenu
             | ChatMessage::CopyInputSelection
@@ -92,12 +127,52 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         #[cfg(not(target_arch = "wasm32"))]
         ChatMessage::Media(event) => super::media_jobs::update(app, event),
-        ChatMessage::MediaModeSelected(mode) => super::media_shortcuts::select(app, mode),
-        ChatMessage::MediaAttachmentsPicked { session_id, project_path, mode, paths } => {
-            super::media_shortcuts::attachments_picked(app, session_id, project_path, mode, paths)
+        ChatMessage::MediaShortcutMenuChanged(open) => {
+            app.session_state.input_popovers.set_media_shortcuts(open);
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                super::media_jobs::close_model_picker(app);
+                if open {
+                    return crate::app::message::skill_hub::update(
+                        app,
+                        message::SkillHubMessage::EnsureInstalledSkillsLoaded,
+                    );
+                }
+            }
+            Task::none()
         }
-        ChatMessage::OpenMediaAppStudio => super::media_shortcuts::open_app_studio(app),
-        ChatMessage::OpenMediaVideoEditor => super::media_shortcuts::open_video_editor(app),
+        ChatMessage::MediaPromptSelected(prompt) => append_media_prompt(app, prompt, None, None),
+        #[cfg(not(target_arch = "wasm32"))]
+        ChatMessage::SelectVideoEditorSkill => {
+            use crate::app::skill_hub::LoadState;
+
+            app.session_state.input_popovers.set_media_shortcuts(false);
+            let LoadState::Loaded(skills) = &app.expert_hub.installed else {
+                return update(app, ChatMessage::ToggleShijuSkillMenu);
+            };
+            let mut matches = skills.iter().filter(|skill| skill.slug == "cutvideo");
+            let Some(skill) = matches.next() else {
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Info,
+                    "请在识矩技能中安装识矩剪辑",
+                    vec![],
+                );
+            };
+            if matches.next().is_some() {
+                return update(app, ChatMessage::ToggleShijuSkillMenu);
+            }
+            let skill_id = skill.skill_id;
+            if app.current_session_runtime_ref().is_some_and(|runtime| {
+                runtime.tool_selector.is_shiju_skill_selected(skill_id)
+            }) {
+                return Task::none();
+            }
+            let select = update(app, ChatMessage::SelectShijuSkill(skill_id));
+            Task::batch([
+                select,
+                Task::done(Message::Account(message::AccountMessage::PrepareNativeShijuSkill)),
+            ])
+        }
         ChatMessage::QuickMessageSelected(index) => {
             app.session_state.input_popovers.quick_message_group = None;
             let Some(item) = app.general_settings.quick_messages.get(index).cloned() else {
@@ -173,7 +248,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         #[cfg(target_arch = "wasm32")]
-        ChatMessage::ToggleShijuSkillMenu | ChatMessage::SelectShijuSkill(_) => {
+        ChatMessage::ToggleShijuSkillMenu | ChatMessage::SelectShijuSkill(_) | ChatMessage::SelectVideoEditorSkill => {
             app.show_localized_toast(crate::app::state::ToastKind::Warning, "识矩原生技能管理请使用桌面端", vec![])
         }
         ChatMessage::ToggleAgentSessionsPopover => {

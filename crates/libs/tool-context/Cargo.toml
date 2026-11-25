@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+vw-api-media = { path = "../api-media" }
 serde_json = "1"
 tool-types = { path = "../tool-types" }
 vw-api-tools = { path = "../api-tools" }

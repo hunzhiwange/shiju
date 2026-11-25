@@ -32,6 +32,9 @@ impl Fixture {
  recent_projects: &self.recent_projects, recent_projects_edits: &self.recent_projects_edits,
  project_path: self.project_path.as_deref(), work_space_picker_open: self.work_space_picker_open,
  shiju_skill: self.input_popovers.shiju_skill, installed: &self.expert_hub.installed,
+ media_shortcuts: Some(false),
+ media_models: None,
+ selected_media_model: None,
  package_status: &self.expert_hub.package_status, tool_selector: Some(&self.runtime.tool_selector),
  } }
 }

@@ -100,10 +100,10 @@ impl Tool for MediaTool {
     fn description(&self) -> &str {
         match self {
             Self::Submit => {
-                "Start one new job in the authenticated session. Call this tool directly. For an existing job (including one +                started by the desktop), use media_status with its job ID. Supply only asset +                IDs returned by jobs in this session. If the job is pending, use media_status +                to read its progress and result."
+                "Generate or edit images, generate videos or speech, transcribe audio, or analyze images and videos. Specify a model or deployment only when the user requests a particular model for the media job. Otherwise the gateway prefers the manually selected conversation model when it supports the operation, then a compatible configured media model. Use media_status with the job ID to check progress or retrieve the result. Supply only asset IDs returned by media jobs in this session."
             }
             Self::Status => {
-                "Read a session media job by ID. Returns its state, result text, +                and session asset references when available."
+                "Read a session media job by ID. Returns its state, result text, and session asset references when available."
             }
         }
     }
@@ -129,8 +129,8 @@ impl Tool for MediaTool {
                         "type": "array", "maxItems": 8, "items": { "type": "string" },
                         "description": "Current session media asset IDs."
                     },
-                    "deployment_id": { "type": "string", "description": "Optional authorized deployment ID." },
-                    "model_id": { "type": "string", "description": "Optional authorized model ID." }
+                    "deployment_id": { "type": "string", "description": "Optional authorized media deployment ID." },
+                    "model_id": { "type": "string", "description": "Optional media model ID that supports the operation." }
                 }
             }),
             Self::Status => json!({
@@ -173,8 +173,17 @@ impl Tool for MediaTool {
     }
 
     async fn call(&self, input: Value) -> Result<ToolCallResult> {
-        let job = serde_json::to_value(self.run(input).await?)?;
-        Ok(ToolCallResult { data: job.clone(), model_result: job, ..Default::default() })
+        let job = self.run(input).await?;
+        let metadata = json!({
+            "media_job": { "id": job.id, "operation": job.operation, "session_id": job.session_id },
+        });
+        let job = serde_json::to_value(job)?;
+        Ok(ToolCallResult {
+            data: job.clone(),
+            model_result: job,
+            render_hint: Some(tool_types::ToolRenderHint { metadata, ..Default::default() }),
+            ..Default::default()
+        })
     }
 }
 

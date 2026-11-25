@@ -11,17 +11,7 @@ pub async fn pick_file() -> Option<String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn pick_attachments() -> Option<Vec<String>> {
-    pick_attachment_files(rfd::AsyncFileDialog::new()).await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn pick_media_attachments(label: String, extensions: Vec<&'static str>) -> Option<Vec<String>> {
-    pick_attachment_files(rfd::AsyncFileDialog::new().add_filter(label, &extensions)).await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-async fn pick_attachment_files(dialog: rfd::AsyncFileDialog) -> Option<Vec<String>> {
-    dialog.pick_files().await.map(|handles| {
+    rfd::AsyncFileDialog::new().pick_files().await.map(|handles| {
         handles.into_iter().map(|file| file.path().to_string_lossy().to_string()).collect()
     })
 }

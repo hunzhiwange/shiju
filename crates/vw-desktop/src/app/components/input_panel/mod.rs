@@ -218,17 +218,11 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let input_editor = runtime.map(|r| &r.input_editor).unwrap_or(&app.session_state.input_editor);
     let selected_acp_agent = runtime.and_then(|r| r.acp_agent.clone());
     let reasoning_effort = runtime.map(|r| r.reasoning_effort).unwrap_or(app.session_state.reasoning_effort);
-    #[cfg(not(target_arch = "wasm32"))]
-    let media_mode = message::chat::media_shortcuts::active_mode(app);
-    #[cfg(not(target_arch = "wasm32"))]
-    let media_active = media_mode.is_some();
-    #[cfg(target_arch = "wasm32")]
-    let media_active = false;
     let full_access_enabled = app.current_session_full_access();
     let workflow_mode_enabled = runtime.map(|r| r.workflow_mode_enabled).unwrap_or(false);
 
     // 任务模式相关状态
-    let task_mode_enabled = !media_active && runtime.is_some_and(|r| r.task_mode_enabled);
+    let task_mode_enabled = runtime.is_some_and(|r| r.task_mode_enabled);
     let task_mode_priority = runtime.map(|r| r.task_mode_priority.as_str()).unwrap_or("999");
     let task_mode_model = runtime.map(|r| r.task_mode_model.as_str()).unwrap_or("auto");
     let task_mode_task_split_mode = runtime
@@ -263,14 +257,10 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     // 组合模型按钮和弹出框为覆盖层组件
     let mobile = app.mobile_layout.mode() == crate::app::state::LayoutMode::Mobile;
-    let model_btn = if media_active {
-        Space::new().into()
-    } else {
-        desktop_chat_input::input_panel::model_views::with_model_popover(
-            model_toggle, model_pop_content, app.popover_visibility.model,
-            Message::View(message::ViewMessage::CloseModelPopover),
-        )
-    };
+    let model_btn = desktop_chat_input::input_panel::model_views::with_model_popover(
+        model_toggle, model_pop_content, app.popover_visibility.model,
+        Message::View(message::ViewMessage::CloseModelPopover),
+    );
 
     // 构建附件按钮
     let attach_btn = attachment::attachment_button(app);
@@ -340,18 +330,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     // 构建发送按钮
     let send = send_button(app, enabled, can_send, is_requesting);
-    #[cfg(not(target_arch = "wasm32"))]
-    let send = if let Some(mode) = media_mode {
-        let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
-        iced::widget::button(iced::widget::text(i18n.__("提交媒体任务")).size(13))
-            .padding([6, 10])
-            .style(super::system_settings_common::primary_action_btn_style)
-            .on_press_maybe(message::chat::media_jobs::can_send(app, mode, &input_text)
-                .then_some(Message::Chat(message::ChatMessage::SendPressed)))
-            .into()
-    } else {
-        send
-    };
 
     // 如果正在请求中，显示取消按钮
     let cancel = if is_requesting {
@@ -364,7 +342,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         desktop_chat_input::input_panel::layout::Controls {
             agent_tab_btn, skills_tab_btn, workflow_btn, model_btn, usage_btn, attach_btn, send, tools_tab_btn, acp_btn, reasoning_btn, permission_btn, pool_btn, cancel,
-            mobile_model_content: if mobile && !media_active { model_popover::model_popover_content(app, auto_model, &model) } else { Space::new().into() },
+            mobile_model_content: if mobile { model_popover::model_popover_content(app, auto_model, &model) } else { Space::new().into() },
         }, mobile,
         app.popover_visibility.model || app.popover_visibility.session_tool_selector
             || app.popover_visibility.acp || app.popover_visibility.reasoning_effort || app.popover_visibility.usage,
@@ -457,10 +435,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
             voice: None,
             agent_sessions: agent_sessions::agent_sessions_entry(app, &running_agent_sessions),
             quick_messages: quick_messages::view(app),
-            #[cfg(not(target_arch = "wasm32"))]
-            media_shortcuts: Some(message::chat::media_shortcuts::view(app)),
-            #[cfg(target_arch = "wasm32")]
-            media_shortcuts: None,
         },
         desktop_chat_input::input_panel::layout::SurfaceMessages {
             close_file_search: Message::Chat(message::ChatMessage::FileSearchInputChanged(String::new())),

@@ -516,6 +516,7 @@ fn gateway_stream_retries_incomplete_attempts_until_terminal() {
     );
 
     let request = super::AgentRequest {
+        media_model: None,
         id: 91,
         session: "private-session".to_string(),
         query: "private request body".to_string(),
@@ -547,6 +548,7 @@ fn gateway_stream_retries_incomplete_attempts_until_terminal() {
 #[test]
 fn autonomous_agent_tool_request_does_not_add_desktop_prompt_or_requirement() {
     let request = super::AgentRequest {
+        media_model: None,
         id: 92,
         session: "subagent-session".to_string(),
         query: "delegate".to_string(),
@@ -1498,6 +1500,7 @@ async fn stream_workflow_chat_messages_returns_status_errors() {
 #[test]
 fn agent_stream_wrapper_returns_stream_without_polling() {
     let req = super::AgentRequest {
+        media_model: None,
         id: 42,
         session: "session".to_string(),
         query: "hello".to_string(),
@@ -2177,6 +2180,7 @@ async fn workflow_mode_without_project_root_emits_error_without_network() {
     use iced::futures::StreamExt;
 
     let req = super::AgentRequest {
+        media_model: None,
         id: 43,
         session: "workflow-session".to_string(),
         query: "规划并执行任务".to_string(),
@@ -2218,6 +2222,7 @@ fn sample_agent_request(
     root: Option<&str>,
 ) -> super::AgentRequest {
     super::AgentRequest {
+        media_model: None,
         id: 77,
         session: "route-session".to_string(),
         query: "do the work".to_string(),

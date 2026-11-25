@@ -676,10 +676,6 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     }
     match message {
         ChatMessage::SendPressed => {
-            #[cfg(not(target_arch = "wasm32"))]
-            if let Some(mode) = super::media_shortcuts::active_mode(app) {
-                return super::media_jobs::send(app, mode);
-            }
             if app.current_session_runtime().acp_options_state.source_pending.is_some()
                 || app.current_session_runtime().acp_options_state.pending
             {
@@ -1240,9 +1236,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 QueueEffect::None => Task::none(),
                 QueueEffect::Send(item) => dispatch_queue_item(app, item),
                 QueueEffect::Copy(query) => Task::done(Message::CopyCode(query)),
-                QueueEffect::Edit(query) => {
-                    app.current_session_runtime_mut().input_editor =
-                        iced::widget::text_editor::Content::with_text(&query);
+                QueueEffect::Edit(query, media_model) => {
+                    let runtime = app.current_session_runtime_mut();
+                    runtime.input_editor = iced::widget::text_editor::Content::with_text(&query);
+                    runtime.pending_media_model = media_model;
                     if app.session_state.active_session_id.is_none() {
                         app.session_state.input_editor = app.current_session_runtime().input_editor;
                     }

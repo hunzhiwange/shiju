@@ -26,6 +26,7 @@ pub fn apply_inline_mode_command<R>(
 ) {
     runtime.task_mode_enabled = command == InlineModeCommand::TaskMode;
     runtime.input_editor = iced::widget::text_editor::Content::new();
+    runtime.pending_media_model = None;
 }
 
 pub fn prepare_send_input<R>(
@@ -43,6 +44,7 @@ pub fn prepare_send_input<R>(
             return SendInputEffect::None;
         }
         return SendInputEffect::Send(QueueItem {
+            media_model: None,
             created_ms,
             query,
             attachments: Vec::new(),
@@ -81,12 +83,19 @@ pub fn prepare_send_input<R>(
     {
         return SendInputEffect::None;
     }
-    let workflow_mode_enabled = runtime.workflow_mode_enabled && !plan_run_child;
     let goal_mode_enabled = !plan_run_child;
     if let Some(command) = parse_inline_mode_command(&query) {
         apply_inline_mode_command(runtime, command);
         return SendInputEffect::InlineMode;
     }
+    let media_model = runtime.pending_media_model.take()
+        .filter(|_| runtime.acp_agent.is_none());
+    let workflow_mode_enabled = runtime.workflow_mode_enabled && !plan_run_child && media_model.is_none();
+    let send_behavior = if media_model.is_some() && send_behavior == ChatSendBehavior::Guide {
+        ChatSendBehavior::Queue
+    } else {
+        send_behavior
+    };
     let attachments = std::mem::take(files);
     let query = compose_query_with_session_context(
         &query,
@@ -95,7 +104,7 @@ pub fn prepare_send_input<R>(
         &selected_shiju_skills,
     );
     runtime.tool_selector.clear_manual_context_selection();
-    if runtime.task_mode_enabled {
+    if runtime.task_mode_enabled && media_model.is_none() {
         return SendInputEffect::AddTask {
             content: compose_query_with_attachments(&query, &attachments),
             priority: runtime.task_mode_priority.clone(),
@@ -138,6 +147,7 @@ pub fn prepare_send_input<R>(
         "desktop chat request prepared"
     );
     SendInputEffect::Send(QueueItem {
+        media_model,
         created_ms,
         query,
         attachments,

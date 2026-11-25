@@ -151,7 +151,20 @@ pub fn model_popover_content<'a, Message: Clone + 'static>(
                 .models
                 .iter()
                 .filter(|m| m.enabled)
-                .filter(|m| model_matches_query(&query, &p.id, &p.name, &m.id, &m.name))
+                .filter(|m| {
+                    model_matches_query(&query, &p.id, &p.name, &m.id, &m.name)
+                        || model_media_labels(m).any(|label| {
+                            let operation = match label {
+                                "图片输出" => "生图",
+                                "视频输出" => "生视频",
+                                _ => label,
+                            };
+                            [label, operation].into_iter().any(|key| {
+                                key.contains(query.as_str())
+                                    || i18n.__(key).to_ascii_lowercase().contains(query.as_str())
+                            })
+                        })
+                })
                 .collect::<Vec<_>>();
             if models.is_empty() {
                 continue;
@@ -200,14 +213,24 @@ pub fn model_popover_content<'a, Message: Clone + 'static>(
                     Space::new().width(14).into()
                 };
 
-                // 模型选择按钮
+                let media_labels = model_media_labels(m)
+                    .map(|label| i18n.__(label))
+                    .collect::<Vec<_>>()
+                    .join(" · ");
+                let mut label = column![SettingsSelectLabel::new(truncated_model_name(&m.name))]
+                    .spacing(2)
+                    .width(Length::Fill);
+                let height = if media_labels.is_empty() {
+                    Length::Fixed(36.0)
+                } else {
+                    label = label.push(text(media_labels).size(11).style(settings_muted_text_style));
+                    Length::Shrink
+                };
                 let select_btn = button(
-                    row![SettingsSelectLabel::new(truncated_model_name(&m.name)), selected_badge]
-                        .spacing(8)
-                        .align_y(Alignment::Center),
+                    row![label, selected_badge].spacing(8).align_y(Alignment::Center),
                 )
                 .padding([6, 8])
-                .height(36)
+                .height(height)
                 .width(Length::Fill)
                 .style(move |theme: &Theme, status: iced::widget::button::Status| {
                     let mut style = selectable_list_button_style(theme, status, selected);

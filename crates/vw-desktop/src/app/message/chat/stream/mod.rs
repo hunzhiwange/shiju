@@ -259,6 +259,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         ChatMessage::AgentToolLifecycle(id, event) => {
+            #[cfg(not(target_arch = "wasm32"))]
+            let media_task = super::media_jobs::track_tool_job(app, id, &event);
+            #[cfg(target_arch = "wasm32")]
+            let media_task = Task::none();
             let mut app_task = Task::none();
             #[cfg(not(target_arch = "wasm32"))]
             if event.kind == gateway_chat_stream::GatewayChatToolEventKind::Complete
@@ -324,7 +328,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     )
                 })
                 .unwrap_or_else(Task::none);
-            Task::batch([timing_task, delta_task, refresh_task, app_task])
+            Task::batch([timing_task, delta_task, refresh_task, app_task, media_task])
         }
         ChatMessage::AgentModelRecovery(id, event) => {
             stream_events::handle_agent_model_recovery(app, id, event)

@@ -357,6 +357,9 @@ fn gateway_request_options(
     use serde_json::{Value, json};
 
     let mut options = serde_json::Map::new();
+    if let Some(selection) = &req.media_model {
+        options.insert(vw_api_media::MEDIA_MODEL_SELECTION_OPTION.to_string(), json!(selection));
+    }
     if let Some(full_access) = req.full_access_enabled {
         options.insert("full_access".to_string(), json!(full_access));
     }

@@ -40,6 +40,7 @@ fn session_info(id: &str, title: &str, directory: &str) -> session_info::Info {
 
 fn agent_request(id: u64, session_id: &str) -> std::sync::Arc<crate::app::state::AgentRequest> {
     std::sync::Arc::new(crate::app::state::AgentRequest {
+        media_model: None,
         id,
         session: session_id.to_string(),
         query: "query".to_string(),
@@ -62,6 +63,43 @@ fn agent_request(id: u64, session_id: &str) -> std::sync::Arc<crate::app::state:
         goal_mode_enabled: false,
         history: Vec::new(),
     })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn media_tool_completion_tracks_only_the_request_session() {
+    use gateway_chat_stream::{GatewayChatToolEvent, GatewayChatToolEventKind, GatewayChatToolStatus};
+    use vw_gateway_client::media::{MediaJobId, MediaOperation};
+
+    let mut app = crate::app::App::new().0;
+    app.get_session_runtime_mut("origin").request_lifecycle.active_agent_request =
+        Some(agent_request(42, "origin"));
+    app.session_state.active_session_id = Some("other".into());
+    let id = MediaJobId::new_v4();
+    let mut event = GatewayChatToolEvent {
+        step_index: 0,
+        call_id: "call".into(),
+        name: "media_submit".into(),
+        kind: GatewayChatToolEventKind::Complete,
+        status: GatewayChatToolStatus::Completed,
+        occurred_ms: 0,
+        payload: serde_json::json!({
+            "metadata": {
+                "media_job": { "id": id, "operation": MediaOperation::ImageGenerate, "session_id": "origin" }
+            }
+        }),
+    };
+    let _ = super::super::media_jobs::track_tool_job(&mut app, 42, &event);
+    assert!(super::super::media_jobs::active_jobs(&app).is_none());
+
+    event.payload["metadata"]["media_job"]["id"] = serde_json::json!(MediaJobId::new_v4());
+    event.payload["metadata"]["media_job"]["session_id"] = serde_json::json!("other");
+    let _ = super::super::media_jobs::track_tool_job(&mut app, 42, &event);
+
+    app.session_state.active_session_id = Some("origin".into());
+    let (_, jobs) = super::super::media_jobs::active_jobs(&app).unwrap();
+    assert_eq!(jobs.len(), 1);
+    assert_eq!(jobs[0].reference.id, id);
 }
 
 #[test]

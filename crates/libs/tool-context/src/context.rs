@@ -49,6 +49,7 @@ pub struct ToolUseContext<H: ContextHost> {
     tenant_scope: vw_api_transport::TenantScope,
     #[cfg(not(target_arch = "wasm32"))]
     media_authority: Option<([u8; 32], tokio::runtime::Handle)>,
+    media_model_selection: Option<vw_api_media::MediaModelSelection>,
     hook_input: Option<serde_json::Value>,
     hook_contexts: Arc<Mutex<Vec<String>>>,
     pub async_hooks: Arc<H::AsyncHooks>,
@@ -101,6 +102,7 @@ impl<H: ContextHost> Clone for ToolUseContext<H> {
             tenant_scope: self.tenant_scope.clone(),
             #[cfg(not(target_arch = "wasm32"))]
             media_authority: self.media_authority.clone(),
+            media_model_selection: self.media_model_selection.clone(),
             hook_input: self.hook_input.clone(),
             hook_contexts: self.hook_contexts.clone(),
             async_hooks: self.async_hooks.clone(),
@@ -213,6 +215,7 @@ impl<H: ContextHost> ToolUseContext<H> {
             tenant_scope: H::current_tenant_scope(),
             #[cfg(not(target_arch = "wasm32"))]
             media_authority: None,
+            media_model_selection: None,
             hook_input: None,
             hook_contexts: Arc::new(Mutex::new(Vec::new())),
             async_hooks: Arc::default(),
@@ -284,9 +287,12 @@ impl<H: ContextHost> ToolUseContext<H> {
     }
 
     pub fn for_child(mut self, session: String, tools: Vec<String>) -> Self {
-        #[cfg(not(target_arch = "wasm32"))]
         if session != self.session {
-            self.media_authority = None;
+            self.media_model_selection = None;
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                self.media_authority = None;
+            }
         }
         self.session = session.clone();
         self.delegated_tools = Some(Arc::new(tools.into_iter().collect()));
@@ -389,6 +395,15 @@ impl<H: ContextHost> ToolUseContext<H> {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn media_authority(&self) -> Option<&([u8; 32], tokio::runtime::Handle)> {
         self.media_authority.as_ref()
+    }
+
+    pub fn with_media_model_selection(mut self, selection: vw_api_media::MediaModelSelection) -> Self {
+        self.media_model_selection = Some(selection);
+        self
+    }
+
+    pub fn media_model_selection(&self) -> Option<&vw_api_media::MediaModelSelection> {
+        self.media_model_selection.as_ref()
     }
 
     /// 返回当前会话 ID。

@@ -188,15 +188,35 @@ fn query_session(
     query.map(|Query(query)| query).map_err(|_| Code::InvalidRequest)
 }
 
+#[derive(serde::Deserialize)]
+struct CatalogQuery {
+    session_id: Option<String>,
+    project_id: Option<String>,
+}
+
 async fn models(
     Extension(identity): Extension<Identity>,
-    query: Result<Query<MediaSessionQuery>, QueryRejection>,
+    query: Result<Query<CatalogQuery>, QueryRejection>,
 ) -> Response {
     respond(
         async {
+            use vw_api_transport::id::{ProjectId, ProjectScope};
+
             let _slot = REQUESTS.try_acquire().map_err(|_| Code::Backpressure)?;
-            let context = identity.session(query_session(query)?).await?;
-            let routes = deployments::routes(identity.tenant, context.directory, None).await?;
+            let Query(query) = query.map_err(|_| Code::InvalidRequest)?;
+            let directory = match (query.session_id, query.project_id) {
+                (Some(session_id), None) => {
+                    identity.session(MediaSessionQuery { session_id }).await?.directory
+                }
+                (None, Some(project_id)) => {
+                    let scope = ProjectScope::new(identity.tenant.clone(), ProjectId::from(project_id))
+                        .map_err(|_| Code::InvalidRequest)?;
+                    crate::project::get(&scope).await.map_err(|_| Code::Unavailable)?
+                        .ok_or(Code::NotFound)?.worktree
+                }
+                _ => return Err(Code::InvalidRequest),
+            };
+            let routes = deployments::routes(identity.tenant, directory, None).await?;
             let mut models = BTreeMap::<_, MediaModel>::new();
             let can_extract = deployments::frame_extractor().is_some();
             for Route { model, capability, .. } in routes {
@@ -276,10 +296,21 @@ pub(crate) struct ToolSubmission {
 
 pub(crate) async fn submit_for_tool(
     context: &crate::tools::ToolUseContext,
-    submission: ToolSubmission,
+    mut submission: ToolSubmission,
 ) -> Result<MediaJob, Code> {
+    if let Some(selection) = context.media_model_selection()
+        && selection.applies_to(submission.operation)
+    {
+        submission.deployment_id = Some(selection.deployment_id.clone());
+        submission.model_id = Some(selection.model_id.clone());
+    }
     let _slot = REQUESTS.try_acquire().map_err(|_| Code::Backpressure)?;
     let (identity, runtime) = Identity::from_tool_context(context)?;
+    let preferred_model = if context.model_selected_by_auto() {
+        None
+    } else {
+        context.provider().zip(context.model())
+    };
     let context = identity
         .session(MediaSessionQuery { session_id: context.session().into() })
         .await?;
@@ -292,7 +323,16 @@ pub(crate) async fn submit_for_tool(
         Err(code) => return Err(code),
     }
     let selected = submission.deployment_id.clone().zip(submission.model_id.clone());
-    let routes = deployments::routes(identity.tenant, context.directory.clone(), selected).await?;
+    let mut routes =
+        deployments::routes(identity.tenant, context.directory.clone(), selected).await?;
+    if submission.deployment_id.is_none() && submission.model_id.is_none() {
+        routes.sort_by_key(|route| {
+            let selected = preferred_model.is_some_and(|(provider, model)| {
+                provider == route.provider_id.as_str() && model == route.model.model_id.as_str()
+            });
+            (!selected, route.provider_id != deployments::SHIJU_PROVIDER_ID)
+        });
+    }
     let selection = deployments::select(
         routes,
         submission.operation,

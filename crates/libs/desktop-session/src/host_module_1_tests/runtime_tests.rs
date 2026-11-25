@@ -122,6 +122,7 @@ impl Fixture {
 }
 fn agent_request(id: u64, session: &str) -> std::sync::Arc<AgentRequest> {
     std::sync::Arc::new(AgentRequest {
+        media_model: None,
         id,
         session: session.to_string(),
         query: "query".to_string(),
@@ -461,6 +462,7 @@ fn current_session_started_covers_chat_active_request_and_queue() {
     let runtime = app.current_session_runtime_mut();
     runtime.request_lifecycle.active_agent_request = None;
     runtime.request_lifecycle.queue.push(crate::message::chat::request::QueueItem {
+        media_model: None,
         created_ms: 10,
         query: "queued".to_string(),
         attachments: Vec::new(),

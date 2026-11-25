@@ -35,6 +35,7 @@ fn catalog_skill(id: &str, title: &str) -> SkillsCatalogItem {
 
 fn queue_item(query: &str) -> QueueItem {
     QueueItem {
+        media_model: None,
         created_ms: 0,
         query: query.to_string(),
         attachments: Vec::new(),

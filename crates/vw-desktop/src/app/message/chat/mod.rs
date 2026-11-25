@@ -27,7 +27,6 @@ pub mod context;
 pub mod input;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod media_jobs;
-pub(crate) mod media_shortcuts;
 mod processing_timing;
 pub mod session;
 pub mod stream;

@@ -37,8 +37,7 @@ fn job_view<'a>(i18n: I18n, key: &SessionKey, entry: &'a JobEntry) -> Element<'a
             Some(media_jobs::message(Event::Cancel(key.clone(), id))),
         ));
     }
-    if !entry.submitting
-        && !entry.refreshing
+    if !entry.refreshing
         && !entry.canceling
         && (entry.error.is_some()
             || entry
@@ -111,7 +110,6 @@ fn status(i18n: I18n, entry: &JobEntry) -> String {
         return i18n.__("正在取消媒体任务…").to_owned();
     }
     let label = match entry.snapshot.as_ref().map(|job| &job.state) {
-        None if entry.submitting => "正在提交媒体任务…",
         None => "正在查询媒体任务…",
         Some(MediaJobState::Submitted) => "媒体任务已提交",
         Some(MediaJobState::Running { progress_percent: None }) => "媒体任务处理中",

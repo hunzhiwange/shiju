@@ -55,6 +55,7 @@ fn session(id: &str, directory: &str) -> Info {
 
 fn queue_item(query: &str) -> QueueItem {
     QueueItem {
+        media_model: None,
         created_ms: 1,
         query: query.to_string(),
         attachments: Vec::new(),

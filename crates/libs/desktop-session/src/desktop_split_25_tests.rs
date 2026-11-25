@@ -33,6 +33,7 @@ fn session_info(id: &str, title: &str, directory: &str) -> session_info::Info {
 }
 fn queue_item(send_behavior: ChatSendBehavior) -> QueueItem {
     QueueItem {
+        media_model: None,
         created_ms: 1,
         query: "query".to_string(),
         attachments: Vec::new(),

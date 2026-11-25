@@ -55,6 +55,16 @@ impl GatewayClient {
         media_json(response).await
     }
 
+    pub async fn media_models_for_project(&self, project_id: &str) -> Result<MediaModels, MediaApiError> {
+        let response = self
+            .media_request(Method::GET, MEDIA_MODELS_PATH)
+            .query(&[("project_id", project_id)])
+            .send()
+            .await
+            .map_err(|_| MediaApiError::Transport)?;
+        media_json(response).await
+    }
+
     /// Submit once. Even a malformed success response may mean the job exists.
     pub async fn media_submit(&self, request: &MediaSubmit) -> Result<MediaJob, MediaApiError> {
         request.validate().map_err(MediaApiError::Service)?;

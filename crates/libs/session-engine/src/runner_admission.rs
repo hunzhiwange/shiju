@@ -25,6 +25,19 @@ where H::CtxHost: ContextHost<EffectiveDefaults = agent_defaults::EffectiveDefau
     .with_turn_id(
         req.assistant_message_id.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
     );
+    if let Some(value) = req.options.get(vw_api_media::MEDIA_MODEL_SELECTION_OPTION) {
+        let selection: Result<vw_api_media::MediaModelSelection, _> =
+            serde_json::from_value(value.clone());
+        let Ok(selection) = selection else {
+            sink(StreamEvent::Error("无效的媒体模型选择".into()));
+            return None;
+        };
+        if selection.validate().is_err() {
+            sink(StreamEvent::Error("无效的媒体模型选择".into()));
+            return None;
+        }
+        tool_use_context = tool_use_context.with_media_model_selection(selection);
+    }
     if let Some(name) = agent_key.as_deref() {
         tool_use_context = tool_use_context.with_agent_name(name);
     }

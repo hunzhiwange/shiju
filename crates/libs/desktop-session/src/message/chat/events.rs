@@ -26,16 +26,10 @@ pub enum ChatMessage<Measurement, PreparedOpen, PanelMode, DetailsTab, TodoPlace
     ///
     /// 当用户在输入框中输入、删除或修改文本时触发
     InputChanged(String),
-    MediaModeSelected(Option<crate::session::agent::MediaMode>),
-    MediaAttachmentsPicked {
-        session_id: Option<String>,
-        project_path: Option<String>,
-        mode: crate::session::agent::MediaMode,
-        paths: Vec<String>,
-    },
     Media(Media),
-    OpenMediaAppStudio,
-    OpenMediaVideoEditor,
+    MediaShortcutMenuChanged(bool),
+    MediaPromptSelected(String),
+    SelectVideoEditorSkill,
 
     /// 发送按钮按下
     ///

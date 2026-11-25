@@ -1,6 +1,20 @@
 //! 输入面板内容布局；跨领域子视图由桌面装配。
-use iced::widget::{Space, column};
-use iced::{Element, Length};
+use iced::widget::{Container, Space, column, container};
+use iced::{Element, Length, Padding};
+
+pub const COMPOSER_TOOLBAR_PADDING: Padding =
+    Padding { top: 3.0, right: 12.0, bottom: 6.0, left: 12.0 };
+
+pub fn composer_card<'a, Message: 'a>(
+    content: impl Into<Element<'a, Message>>,
+    hovered: bool,
+    chrome: Option<desktop_theme::ChromeStyleOverrides>,
+) -> Container<'a, Message> {
+    container(content)
+        .style(move |theme| super::surface_styles::input_card_style(theme, hovered, chrome.as_ref()))
+        .padding(0)
+        .width(Length::Fill)
+}
 
 pub struct Content<'a, Message> {
     pub attachment_strip: Element<'a, Message>,
@@ -74,7 +88,6 @@ pub struct Surface<'a, Message> {
     pub voice: Option<Element<'a, Message>>,
     pub agent_sessions: Option<Element<'a, Message>>,
     pub quick_messages: Option<Element<'a, Message>>,
-    pub media_shortcuts: Option<Element<'a, Message>>,
 }
 
 pub struct SurfaceMessages<Message> {
@@ -91,7 +104,6 @@ pub fn view<'a, Message: Clone + 'a>(
     messages: SurfaceMessages<Message>,
 ) -> Element<'a, Message> {
     use desktop_ui_controls::overlays::AboveOverlay;
-    use iced::widget::container;
     let content = AboveOverlay::new(content(content_parts), parts.file_search)
         .show(parts.show_file_search)
         .gap(6.0)
@@ -108,11 +120,7 @@ pub fn view<'a, Message: Clone + 'a>(
     )
     .on_native_drop(messages.native_drop);
     let hovered = parts.input_drop_hovered && parts.dragging;
-    let chrome = parts.chrome;
-    let card = container(Element::new(drop_area))
-        .style(move |theme| super::surface_styles::input_card_style(theme, hovered, Some(&chrome)))
-        .padding(0)
-        .width(Length::Fill);
+    let card = composer_card(Element::new(drop_area), hovered, Some(parts.chrome));
     let card = desktop_theme::with_panel_background(card.into(), parts.background, parts.fit);
     let mut panel = column![].spacing(6).width(Length::Fill);
     if let Some(voice) = parts.voice {
@@ -125,9 +133,6 @@ pub fn view<'a, Message: Clone + 'a>(
         panel = panel.push(quick_messages);
     }
     panel = panel.push(card);
-    if let Some(shortcuts) = parts.media_shortcuts {
-        panel = panel.push(shortcuts);
-    }
     desktop_chat_view::panel::conversation_reading_column(
         panel,
         iced::Padding { top: 0.0, right: 2.0, bottom: 0.0, left: 2.0 },

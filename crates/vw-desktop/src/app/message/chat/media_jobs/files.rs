@@ -2,11 +2,11 @@ use super::JobRef;
 use gateway_endpoint::GatewayEndpoint;
 use iced::futures::TryStreamExt;
 use sha2::{Digest, Sha256};
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use vw_gateway_client::{
     GatewayClient,
-    media::{MAX_MEDIA_UPLOAD_BYTES, MediaAsset, MediaInput, MediaJobId, MediaSessionQuery},
+    media::{MediaAsset, MediaJobId, MediaSessionQuery},
 };
 
 pub(super) fn job_index(endpoint: &GatewayEndpoint, session_id: &str) -> Option<PathBuf> {
@@ -29,13 +29,6 @@ fn job_file(index: &Path, id: MediaJobId) -> PathBuf {
 
 pub(super) fn remember_job(index: &Path, job: JobRef) -> io::Result<()> {
     desktop_terminal::workspace::write_json(&job_file(index, job.id), &job)
-}
-
-pub(super) fn forget_job(index: &Path, id: MediaJobId) -> io::Result<()> {
-    match std::fs::remove_file(job_file(index, id)) {
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
-        result => result,
-    }
 }
 
 pub(super) fn read_job_refs(index: &Path) -> io::Result<Vec<JobRef>> {
@@ -91,38 +84,8 @@ const MEDIA_TYPES: &[(&str, &str)] = &[
     ("webm", "audio/webm"),
 ];
 
-pub(super) fn attachment_mime(path: &Path) -> Option<&'static str> {
-    let extension = path.extension()?.to_str()?;
-    MEDIA_TYPES.iter().find(|(ext, _)| ext.eq_ignore_ascii_case(extension)).map(|(_, mime)| *mime)
-}
-
 pub(crate) fn asset_extension(mime: &str) -> &'static str {
     MEDIA_TYPES.iter().find(|(_, candidate)| *candidate == mime).map_or("media", |(ext, _)| *ext)
-}
-
-pub(super) fn read_inputs(
-    files: Vec<(PathBuf, &'static str)>,
-) -> Result<Vec<MediaInput>, &'static str> {
-    let mut remaining = MAX_MEDIA_UPLOAD_BYTES;
-    files
-        .into_iter()
-        .map(|(path, mime)| {
-            let unreadable = "无法读取媒体附件";
-            let metadata = path.metadata().map_err(|_| unreadable)?;
-            if !metadata.is_file() {
-                return Err(unreadable);
-            }
-            let too_large = "媒体附件总大小不能超过 16 MB";
-            if metadata.len() > remaining as u64 {
-                return Err(too_large);
-            }
-            let file = std::fs::File::open(path).map_err(|_| unreadable)?;
-            let mut bytes = Vec::new();
-            file.take(remaining as u64 + 1).read_to_end(&mut bytes).map_err(|_| unreadable)?;
-            remaining = remaining.checked_sub(bytes.len()).ok_or(too_large)?;
-            MediaInput::upload(mime.to_owned(), &bytes).map_err(super::service_error)
-        })
-        .collect()
 }
 
 pub(super) async fn download_asset(

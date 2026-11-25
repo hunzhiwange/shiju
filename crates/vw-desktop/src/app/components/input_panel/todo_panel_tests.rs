@@ -23,6 +23,7 @@ fn todo(id: &str, status: &str, content: &str) -> Todo {
 
 fn agent_request(query: &str) -> std::sync::Arc<AgentRequest> {
     std::sync::Arc::new(AgentRequest {
+        media_model: None,
         id: 1,
         session: "session".to_string(),
         query: query.to_string(),

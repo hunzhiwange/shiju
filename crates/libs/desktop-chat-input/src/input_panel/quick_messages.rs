@@ -28,6 +28,8 @@ enum InputStripControl {
     #[cfg(not(target_arch = "wasm32"))]
     Shiju,
     GeneralActions,
+    #[cfg(not(target_arch = "wasm32"))]
+    MediaShortcuts(bool),
     GitActions,
 }
 
@@ -112,7 +114,7 @@ fn toggled_group(
     (open_group != Some(clicked_group)).then_some(clicked_group)
 }
 
-fn dropdown_icon<'a>() -> Element<'a, Message> {
+pub(super) fn dropdown_icon<'a>() -> Element<'a, Message> {
     container(super::icons::icon_svg(Icon::ChevronDown, 10.0))
         .width(Length::Fixed(14.0))
         .height(Length::Fixed(14.0))
@@ -216,7 +218,7 @@ fn group_menu<'a>(
     let next_group = toggled_group(app.quick_message_group, group);
     let trigger = button(
         row![
-            text(group.label()).size(12),
+            text(app.i18n.__(group.label())).size(12),
             text(format!("({})", indices.len())).size(11).style(|theme: &Theme| {
                 iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.58)) }
             }),
@@ -817,7 +819,7 @@ fn workspace_menu(app: QuickInput<'_>) -> Element<'_, Message> {
 
 fn input_strip_control_order(app: QuickInput<'_>) -> Vec<InputStripControl> {
     let show_workspace = app.show_workspace;
-    let mut controls = Vec::with_capacity(4);
+    let mut controls = Vec::with_capacity(5);
     if show_workspace {
         controls.push(InputStripControl::Workspace);
     }
@@ -825,9 +827,13 @@ fn input_strip_control_order(app: QuickInput<'_>) -> Vec<InputStripControl> {
     controls.push(InputStripControl::Shiju);
     if !app.quick_messages.is_empty() {
         controls.push(InputStripControl::GeneralActions);
-        if app.project_is_git_repo {
-            controls.push(InputStripControl::GitActions);
-        }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(open) = app.media_shortcuts {
+        controls.push(InputStripControl::MediaShortcuts(open));
+    }
+    if !app.quick_messages.is_empty() && app.project_is_git_repo {
+        controls.push(InputStripControl::GitActions);
     }
     controls
 }
@@ -843,6 +849,10 @@ pub fn view(app: QuickInput<'_>) -> Option<Element<'_, Message>> {
             InputStripControl::Shiju => controls.push(shiju_menu(app)),
             InputStripControl::GeneralActions => {
                 controls.push(group_menu(app, QuickMessageGroup::General, &general))
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            InputStripControl::MediaShortcuts(open) => {
+                controls.push(super::media_shortcuts::menu(app, open))
             }
             InputStripControl::GitActions => {
                 controls.push(group_menu(app, QuickMessageGroup::Git, &git))
@@ -880,6 +890,12 @@ pub struct QuickInput<'a> {
     pub work_space_picker_open: bool,
     #[cfg(not(target_arch = "wasm32"))]
     pub shiju_skill: bool,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub media_shortcuts: Option<bool>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub media_models: Option<super::media_shortcuts::MediaModelPicker<'a>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub selected_media_model: Option<&'a str>,
     #[cfg(not(target_arch = "wasm32"))]
     pub installed: &'a LoadState<Vec<InstalledSkill>>,
     #[cfg(not(target_arch = "wasm32"))]

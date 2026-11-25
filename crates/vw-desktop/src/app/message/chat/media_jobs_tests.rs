@@ -1,123 +1,67 @@
-use super::composer::{operation, submit, validate_prompt};
-use super::files::remember_job;
 use super::*;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpListener;
-use vw_gateway_client::media::MediaSubmit;
+use vw_gateway_client::media::{MediaModel, MediaModels, MediaSubmit};
 
 #[test]
-fn media_job_ui_validates_media_operation_and_keeps_model_deployments_distinct() {
-    assert_eq!(operation(MediaMode::Image, &[]), Ok(MediaOperation::ImageGenerate));
-    assert_eq!(operation(MediaMode::Image, &["image/png"]), Ok(MediaOperation::ImageEdit));
-    assert_eq!(operation(MediaMode::Vision, &["video/mp4"]), Ok(MediaOperation::VideoUnderstand));
-    assert!(operation(MediaMode::Vision, &["video/mp4", "image/png"]).is_err());
-    assert!(operation(MediaMode::Speech, &["audio/wav"]).is_err());
-    assert!(operation(MediaMode::Transcription, &[]).is_err());
-    assert!(operation(MediaMode::Video, &["image/png", "image/png"]).is_err());
-    assert_eq!(validate_prompt(MediaMode::Image, "  "), Err("请输入媒体任务提示词"));
-    assert!(validate_prompt(MediaMode::Transcription, "").is_ok());
-
-    let hosted = ModelChoice {
-        deployment_id: "hosted".into(),
-        model_id: "shared".into(),
-        name: "Shared".into(),
+fn media_picker_filters_operations_and_keeps_selection_with_normal_send() {
+    use desktop_chat_input::input_panel::media_shortcuts::MediaModelCatalog;
+    use desktop_session::message::chat::{
+        request::ChatSendBehavior,
+        send_input::{SendInputEffect, prepare_send_input},
     };
-    let direct = ModelChoice { deployment_id: "direct".into(), ..hosted.clone() };
-    assert_ne!(direct, hosted);
-    assert_ne!(direct.to_string(), hosted.to_string());
-}
-
-#[test]
-fn media_end_to_end_shortcut_models_follow_the_session_input() {
-    use MediaOperation as Op;
-    use desktop_chat_input::input_panel::media_shortcuts::Shortcut;
-
-    let cases: &[(MediaMode, &[&str], Op, &[&str])] = &[
-        (MediaMode::Image, &[], Op::ImageGenerate, &["voice.wav"]),
-        (MediaMode::Image, &["frame.png"], Op::ImageEdit, &["clip.mp4"]),
-        (MediaMode::Video, &["frame.png"], Op::VideoGenerate, &["a.png", "b.png"]),
-        (MediaMode::Speech, &[], Op::SpeechSynthesize, &["voice.wav"]),
-        (MediaMode::Vision, &["frame.png"], Op::ImageUnderstand, &[]),
-        (MediaMode::Vision, &["clip.mp4"], Op::VideoUnderstand, &["frame.png", "clip.mp4"]),
-        (MediaMode::Transcription, &["voice.mp3"], Op::AudioTranscribe, &["a.mp3", "b.mp3"]),
-        (MediaMode::Transcription, &["clip.mp4"], Op::AudioTranscribe, &["clip.mov"]),
-    ];
-    assert_eq!(
-        Shortcut::ALL,
-        [
-            Shortcut::AppStudio,
-            Shortcut::VideoEditor,
-            Shortcut::Media(MediaMode::Image),
-            Shortcut::Media(MediaMode::Video),
-            Shortcut::Media(MediaMode::Speech),
-            Shortcut::Media(MediaMode::Vision),
-            Shortcut::Media(MediaMode::Transcription),
-        ]
-    );
 
     let mut app = App::new().0;
-    app.session_state.active_session_id = Some("media-shortcut-matrix".into());
-    let key = SessionKey::active(&app).unwrap();
-    let catalog = MediaModels {
-        models: [
-            Op::ImageGenerate,
-            Op::ImageEdit,
-            Op::VideoGenerate,
-            Op::SpeechSynthesize,
-            Op::ImageUnderstand,
-            Op::VideoUnderstand,
-            Op::AudioTranscribe,
-        ]
-        .into_iter()
-        .map(|operation| MediaModel {
-            deployment_id: "managed".into(),
-            model_id: format!("{operation:?}"),
-            display_name: "Managed fixture".into(),
-            operations: vec![operation],
-        })
-        .chain([MediaModel {
-            deployment_id: "direct".into(),
-            model_id: format!("{:?}", Op::ImageGenerate),
-            display_name: "Direct fixture".into(),
-            operations: vec![Op::ImageGenerate],
-        }])
-        .collect(),
+    app.session_state.active_session_id = Some("media-picker-session".into());
+    app.session_state.input_popovers.set_media_shortcuts(true);
+    let runtime = app.current_session_runtime_mut();
+    runtime.model = "chat-provider/chat-model".into();
+    runtime.auto_model = false;
+    runtime.input_editor = iced::widget::text_editor::Content::with_text("保留这段草稿");
+
+    let operation = MediaOperation::VideoGenerate;
+    let _ = update(&mut app, Event::OpenModelPicker(operation));
+    let key = app.media_jobs.picker.as_ref().unwrap().key.clone();
+    let video = MediaModel {
+        deployment_id: "custom:video".into(),
+        model_id: "video-model".into(),
+        display_name: "Video Model".into(),
+        operations: vec![operation],
     };
-    for &(mode, files, operation, rejected) in cases {
-        let _ = app.update(Message::Chat(ChatMessage::MediaModeSelected(Some(mode))));
-        let _ = update(&mut app, Event::ModelsLoaded(key.clone(), Ok(catalog.clone())));
-        assert_eq!(media_shortcuts::active_mode(&app), Some(mode));
-        app.session_state.files = files.iter().map(|file| (*file).into()).collect();
-        assert_eq!(composer_operation(&app, mode), Ok(operation));
+    let image = MediaModel {
+        deployment_id: "shiju:image".into(),
+        model_id: "image-model".into(),
+        display_name: "Image Model".into(),
+        operations: vec![MediaOperation::ImageGenerate],
+    };
+    let _ = update(
+        &mut app,
+        Event::ModelPickerLoaded(key, Ok(MediaModels { models: vec![image, video.clone()] })),
+    );
+    let MediaModelCatalog::Ready(models) = model_picker(&app).unwrap().catalog else {
+        panic!("expected filtered media models");
+    };
+    assert_eq!(models, [video.clone()]);
 
-        let (_, session) = active_session(&app).unwrap();
-        let options = model_options(session, operation);
-        assert_eq!(options.len(), if operation == Op::ImageGenerate { 2 } else { 1 });
-        if operation == Op::ImageGenerate {
-            assert!(!can_send(&app, mode, "prompt"));
-            for choice in options {
-                let _ = update(&mut app, Event::ModelSelected(key.clone(), operation, choice.clone()));
-                let (_, session) = active_session(&app).unwrap();
-                assert_eq!(selected_model(session, operation), Some(choice));
-                assert!(can_send(&app, mode, "prompt"));
-            }
-        } else {
-            assert!(can_send(&app, mode, "prompt"));
-        }
-
-        app.session_state.files = rejected.iter().map(|file| (*file).into()).collect();
-        assert!(composer_operation(&app, mode).is_err());
-        assert!(!can_send(&app, mode, "prompt"));
-    }
-}
-
-#[test]
-fn media_job_ui_keeps_edited_drafts_and_accepts_unchanged_drafts() {
-    let draft = Draft { editor: "prompt".into(), files: vec!["frame.png".into()], navigation: 42 };
-    assert!(draft.matches("prompt", &["frame.png".into()], 42));
-    assert!(!draft.matches("new prompt", &["frame.png".into()], 42));
-    assert!(!draft.matches("prompt", &["replacement.png".into()], 42));
-    assert!(!draft.matches("prompt", &["frame.png".into()], 43));
+    let selection = MediaModelSelection {
+        operation,
+        deployment_id: video.deployment_id,
+        model_id: video.model_id,
+    };
+    let _ = update(&mut app, Event::ModelPicked(Some(selection.clone())));
+    assert!(model_picker(&app).is_none());
+    let runtime = app.current_session_runtime_mut();
+    assert!(runtime.input_editor.text().contains("保留这段草稿"));
+    runtime.input_editor = iced::widget::text_editor::Content::with_text("生成海边日落的视频");
+    let effect =
+        prepare_send_input(runtime, &mut vec![], None, None, false, ChatSendBehavior::Guide, 1);
+    let SendInputEffect::Send(item) = effect else {
+        panic!("expected a normal chat request");
+    };
+    assert_eq!(item.send_behavior, ChatSendBehavior::Queue);
+    assert_eq!(item.model.as_deref(), Some("chat-provider/chat-model"));
+    assert_eq!(item.media_model.unwrap().selection, selection);
+    assert!(runtime.pending_media_model.is_none());
 }
 
 #[test]
@@ -145,56 +89,6 @@ fn media_job_ui_restores_scoped_results_and_never_regresses_a_canceled_job() {
     assert!(entry.accept(&a, MediaJob { state: MediaJobState::Canceled, ..running.clone() }));
     assert!(!entry.accept(&a, running));
     assert_eq!(entry.snapshot.unwrap().state, MediaJobState::Canceled);
-}
-
-#[test]
-fn media_job_ui_keeps_background_completion_on_its_origin_session() {
-    let mut app = App::new().0;
-    let operation = MediaOperation::ImageUnderstand;
-    let reference = JobRef { id: MediaJobId::new_v4(), operation };
-    app.session_state.active_session_id = Some("media-job-a".into());
-    let key = SessionKey::active(&app).unwrap();
-    let session = session_mut(&mut app, &key).unwrap();
-    session.submitting = Some(reference.id);
-    let mut entry = JobEntry::new(reference);
-    entry.submitting = true;
-    session.jobs.insert(reference.id, entry);
-
-    app.session_state.active_session_id = Some("media-job-b".into());
-    app.current_session_runtime_mut().input_editor =
-        iced::widget::text_editor::Content::with_text("other draft");
-    app.session_state.files = vec!["other.png".into()];
-    let _ = update(
-        &mut app,
-        Event::Submitted {
-            key: key.clone(),
-            reference,
-            mode: MediaMode::Vision,
-            draft: Draft {
-                editor: "origin prompt".into(),
-                files: vec!["origin.png".into()],
-                navigation: 0,
-            },
-            result: Ok(snapshot(
-                &key.query(),
-                reference.id,
-                operation,
-                MediaJobState::Succeeded {
-                    result: MediaResult { text: Some("origin result".into()), assets: vec![] },
-                },
-            )),
-        },
-    );
-    assert!(active_jobs(&app).is_none());
-    assert_eq!(
-        app.current_session_runtime_ref().unwrap().input_editor.text().trim(),
-        "other draft"
-    );
-    assert_eq!(app.session_state.files, ["other.png"]);
-
-    app.session_state.active_session_id = Some(key.session_id.clone());
-    let (_, jobs) = active_jobs(&app).unwrap();
-    assert_eq!(jobs[0].result().unwrap().text.as_deref(), Some("origin result"));
 }
 
 #[test]
@@ -387,10 +281,8 @@ async fn media_job_ui_fixture_transports_identity_and_scopes_submit_progress_can
     let folder = tempfile::tempdir().unwrap();
     let index = folder.path().join("media-ref-index");
     let reference = JobRef { id, operation };
-    assert!(entry.accept(
-        &request_scope,
-        submit(&client, Some(index.clone()), request, reference, vec![]).await.unwrap()
-    ));
+    assert!(entry.accept(&request_scope, client.media_submit(&request).await.unwrap()));
+    remember_job(&index, reference).unwrap();
     assert_eq!(read_job_refs(&index).unwrap(), [reference]);
     assert!(entry.accept(
         &request_scope,

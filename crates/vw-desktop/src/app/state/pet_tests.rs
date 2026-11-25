@@ -27,6 +27,7 @@ fn agent_request(
     root: Option<&str>,
 ) -> std::sync::Arc<AgentRequest> {
     std::sync::Arc::new(AgentRequest {
+        media_model: None,
         id,
         session: session.to_string(),
         query: query.to_string(),

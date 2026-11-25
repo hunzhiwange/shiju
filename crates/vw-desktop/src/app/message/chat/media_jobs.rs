@@ -1,17 +1,10 @@
-//! Session-scoped media composer and gateway job lifecycle.
+//! Session-scoped gateway media job results.
 
-mod composer;
 mod files;
 
-pub(crate) use self::composer::{
-    can_send, composer_operation, creating_session, model_options, selected_model,
-};
-pub(super) use self::composer::{load_models, send};
-use self::composer::{prepare_session, session_prepared};
-use self::files::{asset_extension, download_asset, job_index, read_job_refs};
-use super::{ChatMessage, media_shortcuts};
+use self::files::{asset_extension, download_asset, job_index, read_job_refs, remember_job};
+use super::ChatMessage;
 use crate::app::{App, Message, state::ToastKind};
-use desktop_chat_input::input_panel::media_shortcuts::MediaMode;
 use gateway_endpoint::GatewayEndpoint;
 use iced::Task;
 use serde::{Deserialize, Serialize};
@@ -25,7 +18,8 @@ use vw_gateway_client::{
     GatewayClient,
     media::{
         MediaApiError, MediaAsset, MediaAssetSource, MediaErrorCode, MediaJob, MediaJobId,
-        MediaJobState, MediaModel, MediaModels, MediaOperation, MediaResult, MediaSessionQuery,
+        MediaJobState, MediaModel, MediaModelSelection, MediaModels, MediaOperation, MediaResult,
+        MediaSessionQuery,
     },
 };
 
@@ -35,38 +29,40 @@ const MAX_POLL_FAILURES: u8 = 4;
 #[derive(Default)]
 pub(crate) struct State {
     epoch: u64,
-    creating_session: Option<u64>,
     sessions: HashMap<String, Session>,
+    picker_generation: u64,
+    picker: Option<Picker>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PickerKey {
+    epoch: u64,
+    generation: u64,
+    navigation: u64,
+    session_id: Option<String>,
+    project_path: Option<String>,
+}
+
+impl PickerKey {
+    fn is_current(&self, app: &App) -> bool {
+        self.epoch == app.media_jobs.epoch
+            && self.navigation == app.session_state.session_view_cache.navigation_generation
+            && self.session_id == app.session_state.active_session_id
+            && self.project_path == app.navigation_tabs.project_path
+            && app.session_state.input_popovers.media_shortcuts
+            && app.media_jobs.picker.as_ref().is_some_and(|picker| picker.key == *self)
+    }
+}
+
+struct Picker {
+    key: PickerKey,
+    operation: MediaOperation,
+    catalog: Option<Result<Vec<MediaModel>, MediaApiError>>,
 }
 
 #[derive(Default)]
 pub(crate) struct Session {
-    pub(crate) catalog: Catalog,
-    selected: HashMap<MediaOperation, ModelChoice>,
     jobs: HashMap<MediaJobId, JobEntry>,
-    submitting: Option<MediaJobId>,
-}
-
-#[derive(Default)]
-pub(crate) enum Catalog {
-    #[default]
-    Idle,
-    Loading,
-    Ready(Vec<MediaModel>),
-    Failed(&'static str),
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct ModelChoice {
-    deployment_id: String,
-    model_id: String,
-    name: String,
-}
-
-impl std::fmt::Display for ModelChoice {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} · {} · {}", self.name, self.deployment_id, self.model_id)
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -103,7 +99,6 @@ pub(crate) struct JobEntry {
     pub(crate) reference: JobRef,
     pub(crate) snapshot: Option<MediaJob>,
     pub(crate) error: Option<&'static str>,
-    pub(crate) submitting: bool,
     pub(crate) canceling: bool,
     pub(crate) refreshing: bool,
     failures: u8,
@@ -119,7 +114,6 @@ impl JobEntry {
             reference,
             snapshot: None,
             error: None,
-            submitting: false,
             canceling: false,
             refreshing: false,
             failures: 0,
@@ -169,19 +163,6 @@ fn terminal(state: &MediaJobState) -> bool {
     )
 }
 
-#[derive(Clone, Debug)]
-pub(crate) struct Draft {
-    editor: String,
-    files: Vec<String>,
-    navigation: u64,
-}
-
-impl Draft {
-    fn matches(&self, editor: &str, files: &[String], navigation: u64) -> bool {
-        self.navigation == navigation && self.editor == editor && self.files == files
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum AssetAction {
     Preview,
@@ -201,24 +182,11 @@ pub(crate) fn asset_actions(asset: &MediaAsset) -> [AssetAction; 2] {
 
 #[derive(Clone, Debug)]
 pub(crate) enum Event {
-    PrepareSession,
-    SessionPrepared {
-        navigation: u64,
-        epoch: u64,
-        project: String,
-        result: Result<Box<session_info::Info>, &'static str>,
-    },
-    RefreshModels,
-    ModelsLoaded(SessionKey, Result<MediaModels, MediaApiError>),
-    ModelSelected(SessionKey, MediaOperation, ModelChoice),
+    OpenModelPicker(MediaOperation),
+    BackFromModelPicker,
+    ModelPickerLoaded(PickerKey, Result<MediaModels, MediaApiError>),
+    ModelPicked(Option<MediaModelSelection>),
     HistoryLoaded(SessionKey, Result<Vec<JobRef>, &'static str>),
-    Submitted {
-        key: SessionKey,
-        reference: JobRef,
-        mode: MediaMode,
-        draft: Draft,
-        result: Result<MediaJob, SubmitError>,
-    },
     Refresh(SessionKey, MediaJobId),
     Cancel(SessionKey, MediaJobId),
     Updated(SessionKey, MediaJobId, bool, Result<MediaJob, MediaApiError>),
@@ -239,14 +207,133 @@ pub(crate) enum LocalAsset {
     Saved,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum SubmitError {
-    Local(&'static str),
-    Gateway(MediaApiError),
-}
-
 pub(crate) fn message(event: Event) -> Message {
     Message::Chat(ChatMessage::Media(event))
+}
+
+pub(crate) fn model_picker(
+    app: &App,
+) -> Option<desktop_chat_input::input_panel::media_shortcuts::MediaModelPicker<'_>> {
+    use desktop_chat_input::input_panel::media_shortcuts::{MediaModelCatalog, MediaModelPicker};
+
+    let picker = app.media_jobs.picker.as_ref().filter(|picker| picker.key.is_current(app))?;
+    let catalog = match &picker.catalog {
+        None => MediaModelCatalog::Loading,
+        Some(Err(_)) => MediaModelCatalog::Failed,
+        Some(Ok(models)) => MediaModelCatalog::Ready(models),
+    };
+    Some(MediaModelPicker { operation: picker.operation, catalog })
+}
+
+pub(super) fn close_model_picker(app: &mut App) {
+    app.media_jobs.picker = None;
+}
+
+fn open_model_picker(app: &mut App, operation: MediaOperation) -> Task<Message> {
+    if !app.session_state.input_popovers.media_shortcuts
+        || !matches!(operation, MediaOperation::ImageGenerate | MediaOperation::VideoGenerate)
+    {
+        return Task::none();
+    }
+    app.media_jobs.picker_generation = app.media_jobs.picker_generation.wrapping_add(1);
+    let key = PickerKey {
+        epoch: app.media_jobs.epoch,
+        generation: app.media_jobs.picker_generation,
+        navigation: app.session_state.session_view_cache.navigation_generation,
+        session_id: app.session_state.active_session_id.clone(),
+        project_path: app.navigation_tabs.project_path.clone(),
+    };
+    app.media_jobs.picker = Some(Picker { key: key.clone(), operation, catalog: None });
+    let endpoint = crate::app::config::gateway_client_endpoint();
+    let project_id = key.project_path.as_ref().and_then(|path| {
+        desktop_session::message::chat::lifecycle::inferred_project_id(
+            app.workspace_state.project_id.as_deref(),
+            path,
+            app.workspace_state.project_sessions.get(path).into_iter().flatten(),
+            app.session_state.sessions.iter(),
+        )
+    });
+    let request_key = key.clone();
+    Task::perform(
+        async move {
+            let client = gateway_client(endpoint)?;
+            if let Some(session_id) = request_key.session_id {
+                return client.media_models(&MediaSessionQuery { session_id }).await;
+            }
+            let project_id = match project_id {
+                Some(project_id) => project_id,
+                None => {
+                    let path = request_key
+                        .project_path
+                        .ok_or(MediaApiError::Service(MediaErrorCode::NotFound))?;
+                    crate::app::message::project::helpers::resolve_gateway_project(&path)
+                        .await
+                        .map_err(|_| MediaApiError::Transport)?
+                        .id
+                        .0
+                }
+            };
+            client.media_models_for_project(&project_id).await
+        },
+        move |result| message(Event::ModelPickerLoaded(key.clone(), result)),
+    )
+}
+
+fn pick_model(app: &mut App, selection: Option<MediaModelSelection>) -> Task<Message> {
+    let Some(picker) = app.media_jobs.picker.as_ref().filter(|picker| picker.key.is_current(app))
+    else {
+        return Task::none();
+    };
+    let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
+    let operation = picker.operation;
+    let default_prompt = i18n.__(if operation == MediaOperation::ImageGenerate {
+        "帮我生成一张图片："
+    } else {
+        "帮我生成一段视频："
+    });
+    let previous_prompt = app
+        .current_session_runtime_ref()
+        .and_then(|runtime| runtime.pending_media_model.as_ref())
+        .filter(|pending| pending.selection.operation == operation)
+        .map_or_else(|| default_prompt.to_owned(), |pending| pending.prompt.clone());
+    let (prompt, pending) = match selection {
+        Some(selection) => {
+            let Some(model) =
+                picker.catalog.as_ref().and_then(|catalog| catalog.as_ref().ok()).and_then(
+                    |models| {
+                        models.iter().find(|model| {
+                            selection.operation == picker.operation
+                                && model.deployment_id == selection.deployment_id
+                                && model.model_id == selection.model_id
+                        })
+                    },
+                )
+            else {
+                return Task::none();
+            };
+            let label = if picker.operation == MediaOperation::ImageGenerate {
+                "请用 %s 生成一张图片："
+            } else {
+                "请用 %s 生成一段视频："
+            };
+            let prompt = i18n
+                .format(label, &[model.display_name.as_str().into()])
+                .expect("valid media prompt template");
+            let pending = desktop_session::message::chat::request::PendingMediaModel {
+                selection,
+                display_name: model.display_name.clone(),
+                prompt: prompt.clone(),
+            };
+            (prompt, Some(pending))
+        }
+        None => (default_prompt.to_owned(), None),
+    };
+    close_model_picker(app);
+    let task = super::input::append_media_prompt(app, prompt, pending, Some(&previous_prompt));
+    let runtime = app.current_session_runtime_mut();
+    runtime.task_mode_enabled = false;
+    runtime.workflow_mode_enabled = false;
+    task
 }
 
 fn session_mut<'a>(app: &'a mut App, key: &SessionKey) -> Option<&'a mut Session> {
@@ -256,7 +343,7 @@ fn session_mut<'a>(app: &'a mut App, key: &SessionKey) -> Option<&'a mut Session
     Some(app.media_jobs.sessions.entry(key.session_id.clone()).or_default())
 }
 
-pub(crate) fn active_session(app: &App) -> Option<(SessionKey, &Session)> {
+fn active_session(app: &App) -> Option<(SessionKey, &Session)> {
     let key = SessionKey::active(app)?;
     let session = app.media_jobs.sessions.get(&key.session_id)?;
     Some((key, session))
@@ -276,13 +363,55 @@ pub(crate) fn gateway_changed(app: &mut App) -> Task<Message> {
     restore(app)
 }
 
+pub(super) fn track_tool_job(
+    app: &mut App,
+    request_id: u64,
+    event: &gateway_chat_stream::GatewayChatToolEvent,
+) -> Task<Message> {
+    use gateway_chat_stream::{GatewayChatToolEventKind, GatewayChatToolStatus};
+
+    if !matches!(event.name.as_str(), "media_submit" | "media_status")
+        || event.kind != GatewayChatToolEventKind::Complete
+        || event.status != GatewayChatToolStatus::Completed
+    {
+        return Task::none();
+    }
+    let Some(session_id) = app.find_session_by_request_id(request_id) else {
+        return Task::none();
+    };
+    let reference = if let Some(metadata) = event.payload.pointer("/metadata/media_job") {
+        if metadata.get("session_id").and_then(serde_json::Value::as_str)
+            != Some(session_id.as_str())
+        {
+            return Task::none();
+        }
+        serde_json::from_value(metadata.clone()).ok()
+    } else {
+        event
+            .payload
+            .get("output")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|output| serde_json::from_str::<MediaJob>(output).ok())
+            .filter(|job| job.session_id == session_id)
+            .map(|job| JobRef { id: job.id, operation: job.operation })
+    };
+    let Some(reference): Option<JobRef> = reference else { return Task::none() };
+    let key = SessionKey { epoch: app.media_jobs.epoch, session_id };
+    let session = app.media_jobs.sessions.entry(key.session_id.clone()).or_default();
+    if let std::collections::hash_map::Entry::Vacant(entry) = session.jobs.entry(reference.id) {
+        entry.insert(JobEntry::new(reference));
+        return fetch_job(app, key, reference.id, false, Duration::ZERO);
+    }
+    Task::none()
+}
+
 pub(crate) fn restore(app: &mut App) -> Task<Message> {
     let Some(key) = SessionKey::active(app) else { return Task::none() };
     let endpoint = crate::app::config::gateway_client_endpoint();
     let index = job_index(&endpoint, &key.session_id).filter(|path| path.is_dir());
     let has_active_entries =
         active_session(app).is_some_and(|(_, session)| !session.jobs.is_empty());
-    let history = if index.is_some() || has_active_entries {
+    if index.is_some() || has_active_entries {
         Task::perform(
             async move {
                 let result = tokio::task::spawn_blocking(move || {
@@ -298,68 +427,7 @@ pub(crate) fn restore(app: &mut App) -> Task<Message> {
         )
     } else {
         Task::none()
-    };
-    if media_shortcuts::active_mode(app).is_some() {
-        Task::batch([history, load_models(app)])
-    } else {
-        history
     }
-}
-
-fn submitted(
-    app: &mut App,
-    key: SessionKey,
-    reference: JobRef,
-    mode: MediaMode,
-    draft: Draft,
-    result: Result<MediaJob, SubmitError>,
-) -> Task<Message> {
-    let Some(session) = session_mut(app, &key) else { return Task::none() };
-    if session.submitting != Some(reference.id) {
-        return Task::none();
-    }
-    session.submitting = None;
-    let Some(entry) = session.jobs.get_mut(&reference.id) else { return Task::none() };
-    entry.submitting = false;
-    match result {
-        Ok(job) => {
-            entry.accept(&key.query(), job);
-        }
-        Err(SubmitError::Gateway(MediaApiError::SubmissionUnknown { job_id }))
-            if job_id == reference.id =>
-        {
-            entry.error = Some("媒体任务提交结果未知，正在查询");
-        }
-        Err(error) => {
-            session.jobs.remove(&reference.id);
-            return if key.is_active(app) {
-                toast(
-                    app,
-                    match error {
-                        SubmitError::Local(error) => error,
-                        SubmitError::Gateway(error) => api_error(error),
-                    },
-                )
-            } else {
-                Task::none()
-            };
-        }
-    }
-    if key.is_active(app)
-        && media_shortcuts::active_mode(app) == Some(mode)
-        && app.current_session_runtime_ref().is_some_and(|runtime| {
-            draft.matches(
-                &runtime.input_editor.text(),
-                &app.session_state.files,
-                app.session_state.session_view_cache.navigation_generation,
-            )
-        })
-    {
-        app.current_session_runtime_mut().input_editor = iced::widget::text_editor::Content::new();
-        app.session_state.input_text.clear();
-        app.session_state.files.clear();
-    }
-    continue_poll(app, key, reference.id)
 }
 
 fn continue_poll(app: &mut App, key: SessionKey, id: MediaJobId) -> Task<Message> {
@@ -393,7 +461,7 @@ fn fetch_job(
     let Some(entry) = session_mut(app, &key).and_then(|session| session.jobs.get_mut(&id)) else {
         return Task::none();
     };
-    if entry.submitting || if cancel { !entry.can_cancel() } else { entry.refreshing } {
+    if (cancel && !entry.can_cancel()) || (!cancel && entry.refreshing) {
         return Task::none();
     }
     if cancel {
@@ -453,9 +521,13 @@ fn updated(
     } else {
         entry.refreshing = false;
     }
+    let mut remember = None;
     match result {
         Ok(job) => {
-            entry.accept(&key.query(), job);
+            let first_snapshot = entry.snapshot.is_none();
+            if entry.accept(&key.query(), job) && first_snapshot {
+                remember = Some(entry.reference);
+            }
         }
         Err(error) if cancel => {
             let notice =
@@ -488,7 +560,25 @@ fn updated(
             };
         }
     }
-    continue_poll(app, key, id)
+    let persist = remember
+        .and_then(|reference| {
+            let endpoint = crate::app::config::gateway_client_endpoint();
+            job_index(&endpoint, &key.session_id).map(|index| (index, reference))
+        })
+        .map_or_else(Task::none, |(index, reference)| {
+            Task::perform(
+                async move {
+                    if !matches!(
+                        tokio::task::spawn_blocking(move || remember_job(&index, reference)).await,
+                        Ok(Ok(()))
+                    ) {
+                        tracing::warn!("Could not save media job reference");
+                    }
+                },
+                |()| Message::None,
+            )
+        });
+    Task::batch([continue_poll(app, key, id), persist])
 }
 
 fn asset_task(
@@ -559,29 +649,26 @@ async fn materialize_asset(
 
 pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
-        Event::PrepareSession => prepare_session(app),
-        Event::SessionPrepared { navigation, epoch, project, result } => {
-            session_prepared(app, navigation, epoch, project, result)
-        }
-        Event::RefreshModels => load_models(app),
-        Event::ModelsLoaded(key, result) => {
-            if let Some(session) = session_mut(app, &key) {
-                session.catalog = match result {
-                    Ok(models) => Catalog::Ready(models.models),
-                    Err(error) => Catalog::Failed(api_error(error)),
-                };
-            }
+        Event::OpenModelPicker(operation) => open_model_picker(app, operation),
+        Event::BackFromModelPicker => {
+            close_model_picker(app);
             Task::none()
         }
-        Event::ModelSelected(key, operation, model) => {
-            if key.is_active(app)
-                && let Some(session) = session_mut(app, &key)
-                && model_options(session, operation).contains(&model)
+        Event::ModelPickerLoaded(key, result) => {
+            if key.is_current(app)
+                && let Some(picker) = app.media_jobs.picker.as_mut()
             {
-                session.selected.insert(operation, model);
+                picker.catalog = Some(result.map(|catalog| {
+                    catalog
+                        .models
+                        .into_iter()
+                        .filter(|model| model.operations.contains(&picker.operation))
+                        .collect()
+                }));
             }
             Task::none()
         }
+        Event::ModelPicked(selection) => pick_model(app, selection),
         Event::HistoryLoaded(key, result) => {
             if !key.is_active(app) {
                 return Task::none();
@@ -598,9 +685,6 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             Task::batch(
                 ids.into_iter().map(|id| fetch_job(app, key.clone(), id, false, Duration::ZERO)),
             )
-        }
-        Event::Submitted { key, reference, mode, draft, result } => {
-            submitted(app, key, reference, mode, draft, result)
         }
         Event::Refresh(key, id) => fetch_job(app, key, id, false, Duration::ZERO),
         Event::Cancel(key, id) => fetch_job(app, key, id, true, Duration::ZERO),
@@ -660,7 +744,7 @@ fn toast(app: &mut App, error: &'static str) -> Task<Message> {
 
 pub(crate) fn service_error(error: MediaErrorCode) -> &'static str {
     match error {
-        MediaErrorCode::Unauthorized | MediaErrorCode::Forbidden => "当前身份未获媒体服务授权",
+        MediaErrorCode::Unauthorized | MediaErrorCode::Forbidden => "无法访问此媒体任务",
         MediaErrorCode::NotFound => "找不到媒体任务或文件",
         MediaErrorCode::PayloadTooLarge => "媒体输入或产物超出大小限制",
         MediaErrorCode::UnsupportedMedia => "网关不支持此媒体格式",

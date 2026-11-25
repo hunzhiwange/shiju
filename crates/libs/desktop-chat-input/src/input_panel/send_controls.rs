@@ -796,7 +796,7 @@ pub fn bottom_bar<'a, Message: Clone + 'a>(
     // 设置垂直对齐和内边距，返回最终布局
     bar.spacing(4)
         .align_y(Alignment::Center)
-        .padding(iced::Padding { top: 3.0, right: 12.0, bottom: 6.0, left: 12.0 })
+        .padding(super::layout::COMPOSER_TOOLBAR_PADDING)
         .into()
 }
 

@@ -95,12 +95,12 @@ fn group_bar(app: &App) -> Element<'_, Message> {
         .width(Length::Fill);
     let strip = container(
         row![
+            icon_button(icon, label, Message::Terminal(TerminalMessage::ToggleProjects)),
             icon_button(
                 Icon::Terminal,
                 i18n.__("应用终端"),
                 Surface::AppTerminal.message(Event::Open { backend: None, native_app: None }),
             ),
-            icon_button(icon, label, Message::Terminal(TerminalMessage::ToggleProjects)),
             groups,
             icon_button(
                 Icon::Plus,

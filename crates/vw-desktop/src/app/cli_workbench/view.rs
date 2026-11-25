@@ -23,6 +23,10 @@ use super::{
     App, Dialog, Message, Project, SessionKey, Surface, Tab, Workbench,
     update::{Action, Event, draft_text},
 };
+use crate::app::components::workbench_sidebar::{
+    project_row, sidebar_button, sidebar_header, sidebar_note, sidebar_section, sidebar_surface,
+    vertical,
+};
 use crate::app::i18n::I18n;
 
 pub(super) const DIALOG_INPUT: &str = "cli-workbench-dialog-input";
@@ -84,7 +88,8 @@ pub(crate) fn view(app: &App, id: window::Id, surface: Surface) -> Element<'_, M
             }
         };
         let content: Element<'_, Message> = if surface == Surface::Workbench && size.width < 680.0 {
-            column![container(sidebar(ui, state)).height(146), main()].spacing(8).into()
+            let sidebar = sidebar(ui, state, tooltip::Position::Bottom);
+            column![container(sidebar).height(146), main()].spacing(8).into()
         } else {
             let grid = pane_grid::PaneGrid::new(&state.sidebar_layout.workspace, |_, terminal, _| {
                 let body = if *terminal {
@@ -94,7 +99,7 @@ pub(crate) fn view(app: &App, id: window::Id, surface: Surface) -> Element<'_, M
                         .style(sidebar_surface)
                         .into()
                 } else {
-                    sidebar(ui, state)
+                    sidebar(ui, state, tooltip::Position::Right)
                 };
                 pane_grid::Content::new(body)
             })
@@ -151,18 +156,20 @@ fn control<'a>(
         .on_press_maybe(action)
 }
 
-fn vertical<'a>(content: Column<'a, Message>) -> scrollable::Scrollable<'a, Message> {
-    scrollable(container(content).padding([2, 7]).width(Length::Fill)).direction(
-        scrollable::Direction::Vertical(scrollable::Scrollbar::new().width(4).scroller_width(4)),
-    )
-}
-
-fn sidebar<'a>(ui: View, state: &'a Workbench) -> Element<'a, Message> {
+fn sidebar<'a>(
+    ui: View,
+    state: &'a Workbench,
+    project_tooltip_position: tooltip::Position,
+) -> Element<'a, Message> {
     if state.surface == Surface::AppTerminal {
-        return sidebar_projects(ui, state);
+        return sidebar_projects(ui, state, project_tooltip_position);
     }
     let grid = pane_grid::PaneGrid::new(&state.sidebar_layout.sections, |_, agents, _| {
-        pane_grid::Content::new(if *agents { sidebar_agents(ui, state) } else { sidebar_projects(ui, state) })
+        pane_grid::Content::new(if *agents {
+            sidebar_agents(ui, state)
+        } else {
+            sidebar_projects(ui, state, project_tooltip_position)
+        })
     })
     .spacing(SIDEBAR_DIVIDER_WIDTH)
     .on_resize(SIDEBAR_DIVIDER_HIT_WIDTH - SIDEBAR_DIVIDER_WIDTH, move |event| {
@@ -177,13 +184,6 @@ fn sidebar_divider(theme: &Theme) -> pane_grid::Style {
     style.picked_split.width = 2.0;
     style.hovered_split.width = 2.0;
     style
-}
-
-fn sidebar_surface(theme: &Theme) -> container::Style {
-    container::Style {
-        background: Some(theme.extended_palette().background.base.color.into()),
-        ..Default::default()
-    }
 }
 
 fn app_terminal_navigation(
@@ -216,7 +216,11 @@ fn projects_sidebar_toggle(ui: View, state: &Workbench) -> Element<'static, Mess
     )
 }
 
-fn sidebar_projects<'a>(ui: View, state: &'a Workbench) -> Element<'a, Message> {
+fn sidebar_projects<'a>(
+    ui: View,
+    state: &'a Workbench,
+    tooltip_position: tooltip::Position,
+) -> Element<'a, Message> {
     let projects_header = sidebar_header(
         ui.label("项目"),
         icon_btn(
@@ -228,23 +232,12 @@ fn sidebar_projects<'a>(ui: View, state: &'a Workbench) -> Element<'a, Message> 
     let mut projects = column![].spacing(3);
     for (id, project) in &state.projects {
         let selected = state.selected.as_ref() == Some(id);
-        let icon = icon_svg(if selected { Icon::FolderOpen } else { Icon::FolderClosed }, 15.0)
-            .style(|theme: &Theme, _| svg::Style {
-                color: Some(theme.extended_palette().primary.strong.color),
-            });
-        let badge = container(icon).center_x(23).center_y(23).style(|theme: &Theme| {
-            container::Style {
-                background: Some(theme.extended_palette().primary.base.color.scale_alpha(0.12).into()),
-                border: Border::default().rounded(6),
-                ..Default::default()
-            }
-        });
-        projects = projects.push(sidebar_button(
-            row![badge, SingleLineLabel::new(project.name.clone(), 13.0)]
-                .spacing(7)
-                .align_y(Alignment::Center),
-            ui.msg(Action::SelectProject(id.clone())),
+        projects = projects.push(project_row(
+            &project.name,
+            &project.directory,
             selected,
+            Some(ui.msg(Action::SelectProject(id.clone()))),
+            tooltip_position,
         ));
     }
     if state.projects.is_empty() {
@@ -302,44 +295,6 @@ fn sidebar_agents<'a>(ui: View, state: &'a Workbench) -> Element<'a, Message> {
         toolbar_tooltip(sort.into(), ui.label("智能体排序")),
     );
     sidebar_section(agents_header, agent_sessions(ui, state))
-}
-
-fn sidebar_section<'a>(header: Element<'a, Message>, rows: Column<'a, Message>) -> Element<'a, Message> {
-    container(column![header, vertical(rows).height(Length::Fill)])
-        .style(sidebar_surface)
-        .padding([2, 2])
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
-}
-
-fn sidebar_header<'a>(title: &'static str, action: Element<'a, Message>) -> Element<'a, Message> {
-    container(row![sidebar_note(title).width(Length::Fill), action].align_y(Alignment::Center))
-        .padding([3, 7])
-        .width(Length::Fill)
-        .into()
-}
-
-fn sidebar_note(label: &str) -> iced::widget::Text<'_> {
-    text(label).size(12).style(settings_muted_text_style)
-}
-
-fn sidebar_button<'a>(
-    content: iced::widget::Row<'a, Message>,
-    action: Message,
-    selected: bool,
-) -> button::Button<'a, Message> {
-    button(content)
-        .padding([4, 6])
-        .width(Length::Fill)
-        .on_press(action)
-        .style(move |theme, status| {
-            let mut style = icon_btn_style(theme, status);
-            if selected && status == button::Status::Active {
-                style.background = Some(theme.extended_palette().primary.base.color.scale_alpha(0.12).into());
-            }
-            style
-        })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -447,10 +402,10 @@ fn agent_sessions<'a>(ui: View, state: &'a Workbench) -> Column<'a, Message> {
         }
         list = list.push(sidebar_button(
             row![agent_icon(tab), summary].spacing(7).align_y(Alignment::Center),
-            ui.msg(Action::SelectSession(SessionKey {
+            Some(ui.msg(Action::SelectSession(SessionKey {
                 project: project_id.clone(),
                 session: tab.session.id.clone(),
-            })),
+            }))),
             selected,
         ));
     }
@@ -563,28 +518,6 @@ fn workspace<'a>(
     let layout = project.active_layout;
     let on_panel = move |message| ui.msg(Action::Panel(project_id.into(), layout, message));
     let focus = active.and_then(|tab| tab.terminal.view.as_ref()).map(|view| view.terminal().widget_id());
-    let switch_app = (state.surface == Surface::AppTerminal).then(|| {
-        let apps = choices.iter().filter(|choice| {
-            matches!(&choice.target, CliWorkbenchTarget::NativeCli { .. })
-        });
-        let selected = active.and_then(|tab| {
-            apps.clone().find(|choice| choice.target == tab.session.target)
-        });
-        let placeholder = if apps.clone().next().is_some() {
-            "切换应用"
-        } else {
-            "暂无可用应用"
-        };
-        let selector = settings_select(apps.cloned(), selected.cloned(), move |choice| {
-            ui.msg(Action::SwitchApp(project_id.into(), layout, choice.target))
-        })
-        .placeholder(ui.label(placeholder))
-        .width(150)
-        .height(TAB_HEIGHT - 2.0 * TOOLBAR_BUTTON_INSET)
-        .disabled(!can_start);
-        let selector = container(selector).center_y(TAB_HEIGHT);
-        toolbar_tooltip(selector.into(), ui.label("切换应用"))
-    });
     let grid = terminal_panel::shared_grid(
         &project.panes,
         state.dialog.is_none().then_some(focus).flatten(),
@@ -662,7 +595,7 @@ fn workspace<'a>(
     let projects_toggle = (state.surface == Surface::AppTerminal)
         .then(|| app_terminal_navigation(ui, state, return_to_project));
     let mut workspace = column![
-        layout_tabs(ui, project_id, project, projects_toggle, switch_app),
+        layout_tabs(ui, project_id, project, projects_toggle),
         settings_divider()
     ];
     if let Some(label) = empty_label {
@@ -684,7 +617,6 @@ fn layout_tabs<'a>(
     project_id: &str,
     project: &Project,
     projects_toggle: Option<Element<'a, Message>>,
-    switch_app: Option<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     let button_inset = if ui.surface == Surface::AppTerminal { TOOLBAR_BUTTON_INSET } else { 0.0 };
     let mut tabs = row![].spacing(4).align_y(Alignment::Center);
@@ -754,7 +686,6 @@ fn layout_tabs<'a>(
             button_inset,
             Some(ui.msg(Action::NewLayout(project_id.into()))),
         ))
-        .extend(switch_app)
         .spacing(8)
         .align_y(Alignment::Center);
     let strip = container(controls)

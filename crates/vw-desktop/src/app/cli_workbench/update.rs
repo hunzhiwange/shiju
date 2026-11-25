@@ -97,7 +97,6 @@ pub(crate) enum Action {
     SelectSession(SessionKey),
     AgentsLoaded(u64, Result<Vec<Agent>, ()>),
     Start(String, u64, CliWorkbenchTarget, pane_grid::Pane),
-    SwitchApp(String, u64, CliWorkbenchTarget),
     Started(String, u64, CliWorkbenchTarget, pane_grid::Pane, Option<pane_grid::Direction>, Result<CliWorkbenchSession, CliWorkbenchError>),
     Hide(SessionKey),
     Stop(SessionKey),
@@ -745,22 +744,6 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
             if state.selected.as_ref() == Some(&project)
                 && state.projects.get(&project).is_some_and(|project| project.active_layout == layout) =>
         {
-            return start(state, id, target, pane, None);
-        }
-        Action::SwitchApp(project, layout, target)
-            if state.surface == Surface::AppTerminal
-                && matches!(&target, CliWorkbenchTarget::NativeCli { .. })
-                && state.selected.as_ref() == Some(&project) =>
-        {
-            let Some(project) = state.projects.get_mut(&project).filter(|project| {
-                project.active_layout == layout && !project.disconnected
-            }) else {
-                return Task::none();
-            };
-            if project.switch_app(&target) {
-                return super::terminal::focus(state);
-            }
-            let pane = project.panes.focused;
             return start(state, id, target, pane, None);
         }
         Action::TerminalEvent(key, event) => return super::terminal::event(state, id, key, event),

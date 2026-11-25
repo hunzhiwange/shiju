@@ -291,21 +291,6 @@ impl Project {
         self.tab_for_view(self.panes.grid.get(self.panes.focused)?.active_id?)
     }
 
-    fn switch_app(&mut self, target: &CliWorkbenchTarget) -> bool {
-        let matches = |tab: &&Tab| {
-            &tab.session.target == target && tab.session.state == Process::Running && !tab.stopping
-        };
-        let Some(view_id) = self.active_tab().filter(matches).or_else(|| {
-            self.panes.grid.iter()
-                .flat_map(|(_, pane)| pane.tabs.iter())
-                .filter_map(|&view_id| self.tab_for_view(view_id))
-                .find(matches)
-        }).map(|tab| tab.view_id) else {
-            return false;
-        };
-        self.panes.select(view_id)
-    }
-
     fn layout_ids(&self) -> impl Iterator<Item = u64> + '_ {
         self.parked_layouts.range(..self.active_layout).map(|(&id, _)| id)
             .chain(std::iter::once(self.active_layout))

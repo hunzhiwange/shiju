@@ -298,7 +298,7 @@ fn cli_workbench_catalog_uses_one_main_tab_and_preserves_sessions_when_closed() 
 }
 
 #[test]
-fn app_terminal_switches_apps_within_its_own_project_group() {
+fn app_terminal_keeps_its_own_project_groups() {
     use crate::app::Screen;
     use vw_api_types::cli_workbench::{CliWorkbenchProject, CliWorkbenchProjects};
 
@@ -315,7 +315,7 @@ fn app_terminal_switches_apps_within_its_own_project_group() {
 
     let codex = CliWorkbenchTarget::NativeCli { app_id: "codex".into() };
     let mut first = session("a", "codex", Process::Running);
-    first.target = codex.clone();
+    first.target = codex;
     let mut second = session("a", "shell", Process::Running);
     second.target = CliWorkbenchTarget::Shell;
     update::apply_projects(&mut app.app_terminal, CliWorkbenchProjects {
@@ -333,8 +333,7 @@ fn app_terminal_switches_apps_within_its_own_project_group() {
     project.select("shell");
     let layout = project.active_layout;
     let action = |action| Surface::AppTerminal.message(Event::Window(main, action));
-    let _ = app.update(action(update::Action::SwitchApp("a".into(), layout, codex)));
-    assert_eq!(app.app_terminal.projects["a"].active_tab().unwrap().session.id, "codex");
+    assert_eq!(project.active_tab().unwrap().session.id, "shell");
 
     let _ = app.update(action(update::Action::NewLayout("a".into())));
     let project = &app.app_terminal.projects["a"];

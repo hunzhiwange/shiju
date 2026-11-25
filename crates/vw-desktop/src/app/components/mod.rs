@@ -95,6 +95,9 @@ pub mod file_tree;
 /// 提供版本控制相关功能，包括查看变更、提交、分支管理等 Git 操作界面。
 pub mod git_panel;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod workbench_sidebar;
+
 /// 输入提及高亮器组件
 ///
 /// 为输入框中的 @提及、#标签等特殊语法提供高亮显示。

@@ -28,10 +28,6 @@ COVERAGE_DIR ?= coverage
 PACKAGE ?=
 TEST_ARGS ?=
 RELEASE_CHECK_CLEAN ?= 0
-RELEASE_CHECK_DENY ?= 0
-RELEASE_CHECK_DIST ?= 1
-RELEASE_CHECK_PUBLISH ?= 0
-RELEASE_CHECK_WASM ?= 1
 TARGET_DIR := $(CARGO_TARGET_DIR)
 LOCAL_TARGET := $(shell rustc -vV 2>/dev/null | awk '/^host:/ { print $$2 }')
 CLOC ?= cloc
@@ -58,6 +54,9 @@ LINUX_ARM64_GNU := aarch64-unknown-linux-gnu
 LINUX_ARM64_MUSL := aarch64-unknown-linux-musl
 WINDOWS_X64 := x86_64-pc-windows-msvc
 WINDOWS_ARM := aarch64-pc-windows-msvc
+RELEASE_CHECK_TARGETS := $(MACOS_ARM) $(MACOS_X64) $(WINDOWS_ARM) $(WINDOWS_X64) $(LINUX_ARM64_GNU) $(LINUX_X64_GNU) wasm32-unknown-unknown
+# The default directory is for other Make targets. Let this check claim a slot.
+RELEASE_CHECK_SLOT_ENV := $(if $(filter file,$(origin CARGO_TARGET_DIR)),env -u CARGO_TARGET_DIR)
 
 # 伪目标
 .PHONY: help \
@@ -122,8 +121,7 @@ help: ## 显示帮助信息
 	@echo "$(GREEN)环境变量:$(RESET)"
 	@echo "  PROFILE=$(PROFILE) OUT_DIR=$(OUT_DIR) RELEASE_DIR=$(RELEASE_DIR) PACKAGE=$(PACKAGE) TEST_ARGS=$(TEST_ARGS)"
 	@echo "  RELEASE_KIND=$(RELEASE_KIND) RELEASE_TARGET=$(RELEASE_TARGET) RELEASE_BUILD_FLAGS=$(RELEASE_BUILD_FLAGS)"
-	@echo "  RELEASE_CHECK_CLEAN=$(RELEASE_CHECK_CLEAN) RELEASE_CHECK_DENY=$(RELEASE_CHECK_DENY) RELEASE_CHECK_DIST=$(RELEASE_CHECK_DIST)"
-	@echo "  RELEASE_CHECK_PUBLISH=$(RELEASE_CHECK_PUBLISH) RELEASE_CHECK_WASM=$(RELEASE_CHECK_WASM)"
+	@echo "  RELEASE_CHECK_CLEAN=$(RELEASE_CHECK_CLEAN) (release-check-clean)"
 
 info: ## 显示构建信息
 	@echo "版本: $(VERSION)"
@@ -209,34 +207,8 @@ release-goreleaser-snapshot: ## 用 GoReleaser 在本地生成 snapshot 发布�
 	@command -v goreleaser >/dev/null || { echo "$(RED)Error: goreleaser not found.$(RESET)"; exit 1; }
 	goreleaser release --snapshot --clean --skip=publish
 
-release-check: release-check-clean release-check-fetch release-check-version ## 发版前本地校验
-	@failed=0; \
-	$(MAKE) release-check-clippy || failed=1; \
-	if [ "$(RELEASE_CHECK_WASM)" = "1" ]; then \
-		$(MAKE) release-check-wasm || failed=1; \
-	else \
-		echo "$(YELLOW)Skipping wasm release check (RELEASE_CHECK_WASM=0).$(RESET)"; \
-	fi; \
-	if [ "$(RELEASE_CHECK_DIST)" = "1" ]; then \
-		$(MAKE) release-check-dist-plan || failed=1; \
-	else \
-		echo "$(YELLOW)Skipping cargo-dist release check (RELEASE_CHECK_DIST=0).$(RESET)"; \
-	fi; \
-	if [ "$(RELEASE_CHECK_DENY)" = "1" ]; then \
-		$(MAKE) release-check-deny || failed=1; \
-	else \
-		echo "$(YELLOW)Skipping cargo-deny release check (RELEASE_CHECK_DENY=0).$(RESET)"; \
-	fi; \
-	if [ "$(RELEASE_CHECK_PUBLISH)" = "1" ]; then \
-		$(MAKE) release-check-publish-dry-run || failed=1; \
-	else \
-		echo "$(YELLOW)Skipping cargo publish dry-run (RELEASE_CHECK_PUBLISH=0).$(RESET)"; \
-	fi; \
-	if [ "$$failed" -ne 0 ]; then \
-		echo "$(RED)Release check failed.$(RESET)"; \
-		exit 1; \
-	fi; \
-	echo "$(GREEN)Release check passed.$(RESET)"
+release-check: ## 检查 macOS、Windows、Linux 双架构和 WebAssembly，只输出构建错误
+	@$(RELEASE_CHECK_SLOT_ENV) python3 scripts/cargo_slot.py python3 scripts/release_check.py $(RELEASE_CHECK_TARGETS)
 
 release-check-clean: ## 可选检查 git 工作区是否干净: RELEASE_CHECK_CLEAN=1
 	@if [ "$(RELEASE_CHECK_CLEAN)" = "1" ]; then \
@@ -265,8 +237,8 @@ release-check-test: ## 单独运行 workspace lib/bin/tests 测试
 	CARGO_HOME="$${CARGO_HOME:-$$HOME/.cargo}" RUSTUP_HOME="$${RUSTUP_HOME:-$$HOME/.rustup}" HOME="$(CURDIR)/target/test-home" RUST_TEST_THREADS=1 perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo nextest run --workspace --exclude vw-agent --exclude vw-desktop --lib --bins --tests
 	CARGO_HOME="$${CARGO_HOME:-$$HOME/.cargo}" RUSTUP_HOME="$${RUSTUP_HOME:-$$HOME/.rustup}" HOME="$(CURDIR)/target/test-home" RUST_TEST_THREADS=1 perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo test -p vw-agent -p vw-desktop --lib --bins --tests
 
-release-check-wasm: ensure-wasm-target ## 对齐 CI wasm 构建
-	cargo build --locked -p vw-desktop --target wasm32-unknown-unknown --bin shi-ju
+release-check-wasm: ## 单独执行 CI WebAssembly 构建检查
+	@$(RELEASE_CHECK_SLOT_ENV) python3 scripts/cargo_slot.py python3 scripts/release_check.py wasm32-unknown-unknown
 
 release-check-dist-plan: ## 校验 cargo-dist 发布矩阵和配置
 	@command -v dist >/dev/null || { echo "$(RED)Error: dist not found. Install cargo-dist first.$(RESET)"; exit 1; }

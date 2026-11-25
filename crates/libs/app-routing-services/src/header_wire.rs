@@ -79,7 +79,7 @@ impl HeaderWire {
 }
 
 fn is_allowed(name: &HeaderName) -> bool {
-    matches!(*name, header::ACCEPT | header::ACCEPT_LANGUAGE | header::USER_AGENT)
+    *name == header::ACCEPT || *name == header::ACCEPT_LANGUAGE || *name == header::USER_AGENT
 }
 
 fn write_field(head: &mut Vec<u8>, name: &str, value: &HeaderValue) {

@@ -24,12 +24,12 @@ const READY_ICON: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0
     <path d="m3.5 8 3 3 6-6" fill="none" stroke="black" stroke-width="1.6"
         stroke-linecap="round" stroke-linejoin="round"/>
 </svg>"#;
-const WARNING_ICON: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56">
+const WARNING_ICON: &[u8] = br##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56">
     <path d="M23.8 7.7a4.8 4.8 0 0 1 8.4 0l21 36.5a4.8 4.8 0 0 1-4.2 7.2H7a4.8 4.8 0 0 1-4.2-7.2Z"
         fill="#ffc52e" stroke="#fff4cf" stroke-width="2.6" stroke-linejoin="round"/>
     <path d="M28 19v13" stroke="#593700" stroke-width="4" stroke-linecap="round"/>
     <circle cx="28" cy="40" r="2.2" fill="#593700"/>
-</svg>"#;
+</svg>"##;
 
 #[derive(Debug, PartialEq, Eq)]
 enum RingState {
@@ -177,7 +177,7 @@ fn progress_ring(state: &RingState, glyph: &'static str) -> Element<'static, Mes
     stack![arc, container(glyph).center(Length::Fill)].width(SIZE).height(SIZE).into()
 }
 
-pub(super) fn with_install_confirmation<'a>(
+pub(in crate::app::impls) fn with_install_confirmation<'a>(
     app: &'a App,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {

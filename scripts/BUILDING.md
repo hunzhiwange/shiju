@@ -150,6 +150,20 @@ Local packaging and relocated Node server checks (no publishing):
 python3 -m unittest discover -s scripts/tests -p test_package_shiju_web.py
 ```
 
+## Release build checks
+
+Run `make release-check` from macOS with the Apple SDK, Rustup, Python 3, LLVM
+(including `clang`, `llvm-ar` and `llvm-ranlib`), `pkg-config`, `cargo-xwin`, and
+Docker available. It checks macOS, Windows and Linux on ARM64 and x64 with the
+`dist` profile, then builds the WebAssembly binary using the release build command.
+Windows ARM64 uses cargo-xwin's clang-cl backend and adjusts the SDK include flag
+for `ring`'s assembly compiler. The first Linux checks cache the two Ubuntu 22.04
+sysroots in `target/release-check`. Cargo builds reuse the slot cache.
+
+Each target runs even if an earlier target fails. The command reports build
+errors and returns a nonzero status if any target fails. The existing version,
+dist-plan, test and dependency checks have individual `release-check-*` targets.
+
 ## Release versions
 
 Run `scripts/switch_version.sh <version>` before tagging a release. Only the

@@ -8,7 +8,7 @@ use desktop_ui_controls::system_settings_common::{
 };
 use desktop_ui_controls::tooltip::tooltip_dark_style;
 use desktop_workspace::views::project::layout::work_sidebar::project_label;
-use iced::widget::{Space, button, column, container, row, scrollable, text, tooltip};
+use iced::widget::{Space, button, column, container, row, scrollable, svg, text, tooltip};
 use iced::{Alignment, Border, Element, Length, Theme};
 
 use crate::app::cli_workbench::{self, Action, Event, Surface};
@@ -237,7 +237,14 @@ fn surface(theme: &Theme) -> container::Style {
 }
 
 fn icon_button(icon: Icon, label: &'static str, message: Message) -> Element<'static, Message> {
-    let glyph = container(icon_svg(icon, 14.0).style(icon_btn_svg_style)).center_x(27).center_y(24);
+    let glyph = icon_svg(icon, 14.0).style(move |theme: &Theme, status| {
+        let mut style = icon_btn_svg_style(theme, status);
+        if matches!(icon, Icon::X) && matches!(status, svg::Status::Hovered) {
+            style.color = Some(theme.extended_palette().danger.base.color);
+        }
+        style
+    });
+    let glyph = container(glyph).center_x(27).center_y(24);
     let control = button(glyph).on_press(message).padding(0).style(|theme, status| {
         button::Style { border: Border::default().rounded(5), ..icon_btn_style(theme, status) }
     });

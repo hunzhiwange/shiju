@@ -27,10 +27,12 @@ the current binary; after rebuilding Relax, restart `cargo dev-gateway`,
 Remove `local.json` to restore the pinned unpatched version. A configured invalid
 path fails explicitly.
 
-With a local Relax build that checks source edits before auto-restarting,
-`cargo dev-desktop` relaunches the desktop only after the check passes. A failed
-check leaves the current desktop running and the next save can retry the check.
-Use `RELAX_AUTO_RESTART=0 cargo dev-desktop` to keep manual relaunches.
+Both entries hot-patch supported edits in place. When Relax reports a restart
+is required, the launcher checks the new sources with the selected runner. On
+success, it stops the old process group and starts the app with the same
+arguments. On failure, it keeps the app running and retries after the next
+workspace source save. This works with the pinned runner and local builds.
+Set `RELAX_AUTO_RESTART=0` on either command to keep manual relaunches.
 Relaunching can reset in-memory desktop state.
 
 The entry detects the environment interface from the selected Relax source tree.

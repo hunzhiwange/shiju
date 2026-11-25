@@ -148,7 +148,8 @@ def stop_on_signal(stop):
             signal.signal(signum, handler)
 
 
-def run_foreground(command, cwd, env, *, shutdown_timeout=10):
+@contextmanager
+def foreground_process(command, cwd, env, *, shutdown_timeout=10):
     child = None
     interrupted = False
     cleaning_up = False
@@ -165,7 +166,7 @@ def run_foreground(command, cwd, env, *, shutdown_timeout=10):
             child = subprocess.Popen(command, cwd=cwd, env=env, start_new_session=True)
             if interrupted:
                 raise KeyboardInterrupt
-            return child.wait()
+            yield child
         finally:
             cleaning_up = True
             if child is not None:
@@ -183,6 +184,11 @@ def run_foreground(command, cwd, env, *, shutdown_timeout=10):
             cleaning_up = False
             if interrupted:
                 raise KeyboardInterrupt
+
+
+def run_foreground(command, cwd, env, *, shutdown_timeout=10):
+    with foreground_process(command, cwd, env, shutdown_timeout=shutdown_timeout) as child:
+        return child.wait()
 
 
 def run(command, root=ROOT, number=None):

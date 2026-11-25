@@ -24,10 +24,18 @@ use agent_gateway::bootstrap::gateway_provider;
 
 /// Run the HTTP gateway using axum with proper HTTP/1.1 compliance.
 pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
-    run_gateway_until(host, port, config, async {
-        crate::daemon::wait_for_shutdown_signal().await.map(|_| ())
-    })
-    .await
+    run_gateway_until(host, port, config, gateway_shutdown()).await
+}
+
+async fn gateway_shutdown() -> Result<()> {
+    if let Some(path) = std::env::var_os("SHIJU_RELAX_GATEWAY_SHUTDOWN") {
+        // The Relax launcher signals shutdown without invoking JIT signal handlers.
+        while !tokio::fs::try_exists(&path).await.context("checking Relax gateway shutdown")? {
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
+        return Ok(());
+    }
+    crate::daemon::wait_for_shutdown_signal().await.map(|_| ())
 }
 
 pub(crate) async fn run_gateway_until(

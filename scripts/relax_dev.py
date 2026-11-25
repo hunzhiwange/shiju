@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Repository-local Relax installation and live development entry points."""
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -11,6 +12,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -240,12 +242,129 @@ def desktop_bundle(binary):
     return executable
 
 
+def restart_inputs():
+    # Once Relax asks for a restart, watch the workspace inputs even if its
+    # patcher has stopped handling edits (for example after a manifest change).
+    paths = subprocess.check_output(
+        ['git', 'ls-files', '-z', '--cached', '--others', '--exclude-standard', '--',
+         'crates', 'assets', '.cargo', 'Cargo.toml', 'Cargo.lock',
+         'rust-toolchain', 'rust-toolchain.toml'], cwd=ROOT)
+    stamps = {}
+    for name in set(paths.split(b'\0')) - {b''}:
+        try:
+            entry = (ROOT / os.fsdecode(name)).stat()
+        except (FileNotFoundError, NotADirectoryError):
+            continue
+        stamps[name] = (entry.st_ino, entry.st_size, entry.st_mtime_ns, entry.st_ctime_ns)
+    return stamps
+
+
+def restart_requested(log):
+    requested = False
+    while True:
+        start = log.tell()
+        line = log.readline()
+        if not line.endswith(b'\n'):
+            log.seek(start)
+            return requested
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(event, dict) and (
+                event.get('event') == 'restart_offered' or event.get('restart_required') is True):
+            requested = True
+
+
+@contextmanager
+def live_process(args, cwd, env):
+    from cargo_slot import foreground_process
+
+    if env.get('SHIJU_RELAX_GATEWAY') != '1':
+        with foreground_process(args, cwd, env, shutdown_timeout=3) as child:
+            yield child
+        return
+
+    # Relax can crash in the guest's signal-hook handler. Request graceful
+    # shutdown before the process-group cleanup sends any signals.
+    with tempfile.TemporaryDirectory(prefix='shiju-relax-gateway-') as folder:
+        shutdown = Path(folder) / 'shutdown'
+        gateway_env = dict(env, SHIJU_RELAX_GATEWAY_SHUTDOWN=str(shutdown))
+        with foreground_process(args, cwd, gateway_env, shutdown_timeout=3) as child:
+            try:
+                yield child
+            finally:
+                if child.poll() is None:
+                    shutdown.touch()
+                    try:
+                        child.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        pass
+
+
+def run_with_source_restart(args, cwd, env, log_key):
+    from cargo_slot import run_foreground
+
+    check = [*args[:2], '--check', '--no-live', *args[2:]]
+    check_env = env.copy()
+    log_path = Path(check_env.pop(log_key))
+    # Read only events written during this launch. A successful fallback ends
+    # the whole old group before the next process can bind the port or app lock.
+    with log_path.open('a+b') as log, live_process(args, cwd, env) as child:
+        pending = False
+        attempted = None
+        while child.poll() is None:
+            pending |= restart_requested(log)
+            if pending:
+                before = restart_inputs()
+                if before != attempted:
+                    attempted = before
+                    print('Relax：修改需要完整重启，正在检查新版。', flush=True)
+                    status = run_foreground(check, cwd, check_env, shutdown_timeout=3)
+                    if child.poll() is not None:
+                        break
+                    if status == 0:
+                        if restart_inputs() == before:
+                            print('Relax：检查通过，正在切换到新版。', flush=True)
+                            return None
+                        print('Relax：检查期间有新修改，正在等待重新检查。', flush=True)
+                    else:
+                        print('Relax：新版检查失败，保留当前进程。保存后自动重试。',
+                              file=sys.stderr, flush=True)
+            try:
+                return child.wait(timeout=1 if pending else 0.25)
+            except subprocess.TimeoutExpired:
+                pass
+        return child.returncode
+
+
 def run_live(args, cwd, env, *, restart_on_error=True):
+    for prefix in ('RELAX_', 'MAKEPAD_RUN_'):
+        if env.get(prefix + 'AUTO_RESTART') == '1':
+            with tempfile.TemporaryDirectory(prefix='shiju-relax-') as folder:
+                live_env = env.copy()
+                log_key = prefix + 'LIVE_LOG'
+                live_env[log_key] = str(cwd / (live_env.get(log_key) or Path(folder) / 'live.jsonl'))
+                # The launcher owns source restarts for both Relax interfaces.
+                live_env[prefix + 'AUTO_RESTART'] = '0'
+                return supervise_live(args, cwd, live_env, restart_on_error, log_key)
+    return supervise_live(args, cwd, env, restart_on_error)
+
+
+def supervise_live(args, cwd, env, restart_on_error, log_key=None):
     from cargo_slot import run_foreground
 
     restart_delay = 3
     while True:
-        status = run_foreground(args, cwd, env, shutdown_timeout=3)
+        if log_key is not None:
+            status = run_with_source_restart(args, cwd, env, log_key)
+            if status is None:
+                continue
+        elif env.get('SHIJU_RELAX_GATEWAY') == '1':
+            with live_process(args, cwd, env) as child:
+                status = child.wait()
+        else:
+            status = run_foreground(args, cwd, env, shutdown_timeout=3)
         if status == 0:
             return 0
         if status in (-signal.SIGINT, -signal.SIGTERM):
@@ -289,8 +408,9 @@ def main(argv):
         if argv[0] == 'gateway' or len(argv) > 1:
             args += ['--'] + (['gateway'] if argv[0] == 'gateway' else []) + argv[1:]
     env, prefix = relax_environment(tool)
-    if argv[0] == 'desktop' and prefix == 'RELAX_':
-        env.setdefault('RELAX_AUTO_RESTART', '1')
+    if argv[0] in ('desktop', 'gateway'):
+        auto_restart = env.setdefault(prefix + 'AUTO_RESTART', '1')
+        print(f'Relax：源码重启设置 RELAX_AUTO_RESTART={auto_restart}', flush=True)
     if argv[0] == 'desktop' and platform.system() == 'Darwin':
         env['SHIJU_RELAX_DESKTOP'] = '1'
     if argv[0] == 'gateway':

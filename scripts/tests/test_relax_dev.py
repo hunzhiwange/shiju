@@ -1,5 +1,7 @@
 """Focused checks for installer integrity and live-launch routing."""
+from contextlib import contextmanager
 import importlib.util
+import io
 import json
 from pathlib import Path
 import signal
@@ -139,7 +141,8 @@ class RelaxDevTests(unittest.TestCase):
             self.assertEqual((source / 'src/lib.rs').read_text(), original)
 
     def test_gateway_launch_keeps_live_mode_and_forwards_arguments(self):
-        with patch.object(dev, 'prepare', return_value=(Path('/tool/relax'), Path('/tool/source'), Path('/run'))), \
+        with patch.dict(dev.os.environ, {}, clear=True), \
+                patch.object(dev, 'prepare', return_value=(Path('/tool/relax'), Path('/tool/source'), Path('/run'))), \
                 patch.object(dev, 'run_live') as execute:
             dev.main(['gateway', '--port', '54771'])
             args, cwd, env = execute.call_args.args
@@ -147,7 +150,69 @@ class RelaxDevTests(unittest.TestCase):
             self.assertEqual(args[-4:], ['--', 'gateway', '--port', '54771'])
             self.assertNotIn('--unattended', args)
             self.assertEqual(env['RELAX_STD'], '/tool/source/libs/relax/compiler/std')
+            self.assertEqual(env['RELAX_AUTO_RESTART'], '1')
             self.assertEqual(cwd, Path('/run'))
+
+    def test_pinned_runner_enables_launcher_restart_for_both_entries(self):
+        for mode in ('desktop', 'gateway'):
+            with self.subTest(mode=mode), patch.dict(dev.os.environ, {}, clear=True), \
+                    patch.object(dev, 'relax_environment_prefix', return_value='MAKEPAD_RUN_'), \
+                    patch.object(dev, 'prepare', return_value=(Path('/tool/relax'), Path('/tool/source'), Path('/run'))), \
+                    patch.object(dev, 'desktop_bundle', return_value=Path('/tool/relax')), \
+                    patch.object(dev, 'run_live') as execute:
+                dev.main([mode])
+                self.assertEqual(execute.call_args.args[2]['MAKEPAD_RUN_AUTO_RESTART'], '1')
+
+    def test_restart_log_ignores_applied_patches_and_waits_for_complete_records(self):
+        log = io.BytesIO(b'{"event":"edit","rung":"patch"}\n'
+                         b'{"event":"restart_off')
+        self.assertFalse(dev.restart_requested(log))
+        start = log.tell()
+        log.seek(0, 2)
+        log.write(b'ered"}\n')
+        log.seek(start)
+        self.assertTrue(dev.restart_requested(log))
+        self.assertFalse(dev.restart_requested(log))
+        self.assertTrue(dev.restart_requested(io.BytesIO(b'{"restart_required":true}\n')))
+
+    def test_source_restart_waits_for_a_successful_check_of_the_latest_save(self):
+        with tempfile.TemporaryDirectory() as folder:
+            cwd = Path(folder)
+            log = cwd / 'live.jsonl'
+            env = {'RELAX_LIVE_LOG': str(log), 'RELAX_AUTO_RESTART': '0'}
+            args = ['/tool/relax', 'run', 'vw-cli', '--bin', 'shiju', '--', 'gateway']
+            child = Mock()
+            child.poll.return_value = None
+            child.wait.side_effect = dev.subprocess.TimeoutExpired(args, 1)
+            check = Mock(side_effect=[1, 0, 0])
+            order = []
+
+            @contextmanager
+            def foreground(*_args, **_kwargs):
+                log.write_bytes(b'{"restart_required":true}\n')
+                yield child
+                order.append('old group stopped')
+
+            with patch.dict('sys.modules', cargo_slot=SimpleNamespace(
+                    foreground_process=foreground, run_foreground=check)), \
+                    patch.object(dev, 'restart_inputs', side_effect=[
+                        'broken', 'broken', 'saving', 'saved', 'saved', 'saved']), \
+                    patch('builtins.print'):
+                self.assertIsNone(dev.run_with_source_restart(args, cwd, env, 'RELAX_LIVE_LOG'))
+            check_args = ['/tool/relax', 'run', '--check', '--no-live', *args[2:]]
+            self.assertEqual(check.call_args_list, [
+                call(check_args, cwd, {'RELAX_AUTO_RESTART': '0'}, shutdown_timeout=3)] * 3)
+            self.assertEqual(order, ['old group stopped'])
+
+    def test_restart_relaunches_desktop_without_treating_it_as_a_crash(self):
+        launch = Mock(side_effect=[None, 0])
+        with patch.object(dev, 'run_with_source_restart', launch), \
+                patch.object(dev.time, 'sleep') as sleep:
+            self.assertEqual(dev.run_live(['/tool/relax', 'run'], Path('/run'),
+                                          {'RELAX_AUTO_RESTART': '1'}, restart_on_error=False), 0)
+        self.assertEqual(launch.call_count, 2)
+        self.assertEqual(launch.call_args.args[2]['RELAX_AUTO_RESTART'], '0')
+        sleep.assert_not_called()
 
     def test_live_run_restarts_after_crash_and_nonzero_exit(self):
         launch = Mock(side_effect=[-signal.SIGILL, 1, 0])

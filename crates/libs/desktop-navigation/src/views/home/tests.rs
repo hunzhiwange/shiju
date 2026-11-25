@@ -65,6 +65,7 @@ impl Fixture {
     pub fn state(&self) -> super::recent::State<'_> {
         super::recent::State {
             desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
+            window_width: 1024.0,
             recent_projects: &self.recent_projects,
             recent_projects_edits: &self.recent_projects_edits,
             recent_projects_meta: &self.recent_projects_meta,

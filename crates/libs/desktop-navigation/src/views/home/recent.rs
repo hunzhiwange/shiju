@@ -2,33 +2,44 @@
 //!
 //! 本模块只负责视图组合与样式适配，不持有业务状态，也不扩大外部能力边界。
 
-use iced::widget::{Image, Space, button, column, container, row, scrollable, text};
-use iced::{Alignment, Background, Border, Color, Element, Length, Theme, Vector};
+use iced::widget::scrollable::{Direction, Scrollbar};
+use iced::widget::{Grid, Image, Space, button, column, container, hover, row, scrollable, text};
+use iced::{Alignment, Background, Border, Color, Element, Length, Pixels, Theme, Vector};
 
 use desktop_assets::assets::{self, Icon};
-use desktop_ui_controls::system_settings_common::settings_panel_style;
+use desktop_i18n::I18n;
+use desktop_ui_controls::system_settings_common::{
+    settings_muted_text_style, settings_panel_style,
+};
 use desktop_workspace::project_message::edit_meta::RecentProjectMeta;
+
+use super::common::{
+    home_cjk_emphasis_font, home_emphasis_font, icon_svg, is_dark_theme, parse_hex_color,
+    primary_button, project_accent_color, project_avatar, secondary_button,
+};
+
+const SHORTCUT_ICON_SIZE: f32 = 94.0;
 
 #[derive(Debug, Clone)]
 pub enum Message {
     OpenFolderPressed,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenCliWorkbench,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenGitWorkbench,
+    OpenThirdPartyAgents,
     OpenRecentPressed(String),
 }
 
 /// 首页实际使用的只读工作区字段，不持有或复制宿主状态。
 pub struct State<'a> {
     pub desktop_locale: config_ui::DesktopLocale,
+    pub window_width: f32,
     pub recent_projects: &'a [String],
     pub recent_projects_edits: &'a [String],
     pub recent_projects_meta: &'a [RecentProjectMeta],
     pub project_path: Option<&'a str>,
 }
-
-
-use super::common::{
-    home_cjk_emphasis_font, home_emphasis_font, is_dark_theme, parse_hex_color, primary_button,
-    project_accent_color, project_avatar,
-};
 
 /// 渲染对应界面。
 ///
@@ -41,139 +52,120 @@ use super::common::{
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 pub fn render_body<'a>(app: &State<'_>) -> Element<'a, Message> {
-    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
-    if app.recent_projects.is_empty() {
-        render_empty_state(i18n).into()
+    let i18n = I18n::new(app.desktop_locale);
+    let recent = if app.recent_projects.is_empty() {
+        container(text(i18n.__("暂无最近项目")).size(14).style(settings_muted_text_style))
+            .center_x(Length::Fill)
+            .padding([24, 7])
+            .into()
     } else {
-        render_recent_projects_body(app)
-    }
+        render_recent_projects_body(app, i18n)
+    };
+    let section =
+        column![render_shortcuts(i18n, app.window_width), recent].spacing(18).width(Length::Fill);
+
+    scrollable(container(section).padding([18, 16]).width(Length::Fill))
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fill)
+        .into()
 }
 
-fn render_empty_state<'a>(i18n: desktop_i18n::I18n) -> iced::widget::Container<'a, Message> {
-    let logo = container(
-        Image::new(assets::get_image(Icon::Logo))
-            .width(Length::Fixed(180.0))
-            .height(Length::Fixed(180.0)),
-    )
-    .width(Length::Fixed(180.0))
-    .height(Length::Fixed(180.0))
-    .clip(true)
-    .style(|_theme: &Theme| iced::widget::container::Style {
-        background: None,
-        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 90.0.into() },
+fn render_shortcuts(i18n: I18n, window_width: f32) -> Element<'static, Message> {
+    let columns = if window_width < 588.0 {
+        1
+    } else if cfg!(not(target_arch = "wasm32")) && window_width >= 1152.0 {
+        4
+    } else {
+        2
+    };
+    let logo = Image::new(assets::get_image(Icon::Logo))
+        .width(SHORTCUT_ICON_SIZE)
+        .height(SHORTCUT_ICON_SIZE);
+    let shortcuts =
+        Grid::new().columns(columns).spacing(12).height(Length::Shrink).push(shortcut_card(
+            logo.into(),
+            i18n.__("识矩"),
+            i18n.__("选择一个文件夹开始"),
+            primary_button(i18n.__("选择文件夹"), Message::OpenFolderPressed),
+        ));
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let shortcuts = shortcuts
+        .push(shortcut_card(
+            shortcut_icon(Icon::Terminal, iced::color!(0x158ea5)),
+            i18n.__("我的工作台"),
+            i18n.__("使用终端与智能体"),
+            secondary_button(i18n.__("打开"), Message::OpenCliWorkbench),
+        ))
+        .push(shortcut_card(
+            shortcut_icon(Icon::GitBranch, iced::color!(0x2b8877)),
+            i18n.__("Git 工作台"),
+            i18n.__("查看变更和分支"),
+            secondary_button(i18n.__("打开"), Message::OpenGitWorkbench),
+        ));
+
+    shortcuts
+        .push(shortcut_card(
+            shortcut_icon(Icon::Robot, iced::color!(0x7568d8)),
+            i18n.__("第三方智能体"),
+            i18n.__("安装和管理智能体"),
+            secondary_button(i18n.__("打开"), Message::OpenThirdPartyAgents),
+        ))
+        .into()
+}
+
+fn shortcut_icon(icon: Icon, accent: Color) -> Element<'static, Message> {
+    container(icon_svg(icon, 52.0).style(move |_theme: &Theme, _| iced::widget::svg::Style {
+        color: Some(accent),
+    }))
+    .center(SHORTCUT_ICON_SIZE)
+    .style(move |_theme: &Theme| iced::widget::container::Style {
+        background: Some(accent.scale_alpha(0.14).into()),
+        border: Border { radius: (SHORTCUT_ICON_SIZE / 2.0).into(), ..Default::default() },
         ..Default::default()
-    });
-
-    container(
-        column![
-            container(logo).width(Length::Fill).center_x(Length::Fill),
-            Space::new().height(Length::Fixed(16.0)),
-            text(i18n.__("暂无最近项目")).size(16).style(|theme: &Theme| {
-                let color = if is_dark_theme(theme) {
-                    theme.extended_palette().background.base.text
-                } else {
-                    theme.palette().text
-                };
-                text::Style { color: Some(color) }
-            }),
-            Space::new().height(Length::Fixed(6.0)),
-            text(i18n.__("点击右上角\"选择文件夹\"开始")).size(12).style(|theme: &Theme| {
-                let color = if is_dark_theme(theme) {
-                    theme.extended_palette().background.base.text
-                } else {
-                    theme.extended_palette().secondary.base.text
-                };
-                text::Style { color: Some(color) }
-            }),
-        ]
-        .align_x(iced::alignment::Horizontal::Center)
-        .spacing(0),
-    )
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .center_x(Length::Fill)
-    .center_y(Length::Fill)
-    .padding(40)
+    })
+    .into()
 }
 
-fn render_recent_projects_body<'a>(app: &State<'_>) -> Element<'a, Message> {
-    const HERO_LOGO_SIZE: f32 = 94.0;
+fn shortcut_card(
+    icon: Element<'static, Message>,
+    title: &'static str,
+    description: &'static str,
+    action: Element<'static, Message>,
+) -> Element<'static, Message> {
+    let details = column![
+        text(title).size(19).line_height(Pixels(22.0)).font(home_cjk_emphasis_font()),
+        text(description).size(14).line_height(Pixels(17.0)).style(settings_muted_text_style),
+    ]
+    .spacing(3);
+    let content = column![details, Space::new().height(Length::Fill), action]
+        .width(Length::Fill)
+        .height(SHORTCUT_ICON_SIZE);
+    let card = container(row![icon, content].spacing(10))
+        .width(Length::Fill)
+        .padding([14, 12])
+        .style(settings_panel_style);
+    let highlight = container(Space::new())
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .style(|theme: &Theme| {
+            let opacity = if is_dark_theme(theme) { 0.14 } else { 0.07 };
+            iced::widget::container::Style {
+                background: Some(theme.palette().primary.scale_alpha(opacity).into()),
+                border: Border {
+                    radius: settings_panel_style(theme).border.radius,
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+        });
+    hover(card, highlight)
+}
 
-    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
-    let hero_logo = container(
-        Image::new(assets::get_image(Icon::Logo))
-            .width(Length::Fixed(HERO_LOGO_SIZE))
-            .height(Length::Fixed(HERO_LOGO_SIZE)),
-    )
-    .width(Length::Fixed(HERO_LOGO_SIZE))
-    .height(Length::Fixed(HERO_LOGO_SIZE))
-    .clip(true)
-    .style(|theme: &Theme| {
-        let palette = theme.extended_palette();
-        iced::widget::container::Style {
-            background: Some(Background::Color(palette.background.base.color)),
-            border: Border {
-                width: 0.0,
-                color: Color::TRANSPARENT,
-                radius: (HERO_LOGO_SIZE / 2.0).into(),
-            },
-            ..Default::default()
-        }
-    });
-
-    let hero = container(
-        row![
-            hero_logo,
-            column![
-                text(desktop_i18n::I18n::new(app.desktop_locale).__("识矩"))
-                    .size(22)
-                    .font(home_cjk_emphasis_font())
-                    .style(|theme: &Theme| {
-                        let color = if is_dark_theme(theme) {
-                            theme.extended_palette().background.base.text
-                        } else {
-                            theme.palette().text
-                        };
-                        text::Style { color: Some(color) }
-                    }),
-                text(i18n.__("选择文件夹开始一个项目，或从下方最近项目继续。")).size(12).style(
-                    |theme: &Theme| {
-                        let color = if is_dark_theme(theme) {
-                            theme.extended_palette().background.base.text
-                        } else {
-                            theme.extended_palette().secondary.base.text
-                        };
-                        text::Style { color: Some(color) }
-                    }
-                ),
-            ]
-            .spacing(4),
-            container(Space::new()).width(Length::Fill),
-            primary_button(
-                i18n.__("选择文件夹"),
-                Message::OpenFolderPressed,
-            ),
-        ]
-        .spacing(12)
-        .align_y(Alignment::Center),
-    )
-    .padding(16)
-    .width(Length::Fill)
-    .style(|theme: &Theme| {
-        let mut style = settings_panel_style(theme);
-        style.border.radius = 22.0.into();
-        style.background = Some(Background::Color(if is_dark_theme(theme) {
-            theme.extended_palette().background.base.color.scale_alpha(0.94)
-        } else {
-            Color::WHITE.scale_alpha(0.92)
-        }));
-        style
-    });
-
+fn render_recent_projects_body<'a>(app: &State<'_>, i18n: I18n) -> Element<'a, Message> {
     let recent_count = container(
         text(
-            desktop_i18n::I18n::new(app.desktop_locale)
-                .format("%u 个项目", &[app.recent_projects.len().into()])
+            i18n.format("%u 个项目", &[app.recent_projects.len().into()])
                 .expect("valid project count"),
         )
         .size(11),
@@ -202,8 +194,7 @@ fn render_recent_projects_body<'a>(app: &State<'_>) -> Element<'a, Message> {
         recent_list = recent_list.push(recent_project_row(app, index, path));
     }
 
-    let section = column![
-        hero,
+    column![
         row![
             column![
                 text(i18n.__("最近项目")).size(15).font(home_cjk_emphasis_font()),
@@ -222,9 +213,8 @@ fn render_recent_projects_body<'a>(app: &State<'_>) -> Element<'a, Message> {
         recent_list,
     ]
     .spacing(14)
-    .width(Length::Fill);
-
-    scrollable(container(section).padding([18, 16]).width(Length::Fill)).height(Length::Fill).into()
+    .width(Length::Fill)
+    .into()
 }
 
 fn recent_project_row<'a>(app: &State<'_>, index: usize, path: &str) -> Element<'a, Message> {

@@ -10,6 +10,7 @@ use crate::app::skill_hub::ExpertHubSection;
 pub fn view(app: &App) -> iced::Element<'_, Message> {
     let state = desktop_navigation::views::home::recent::State {
         desktop_locale: app.general_settings.desktop_locale,
+        window_width: app.window_size.0,
         recent_projects: &app.workspace_state.recent_projects,
         recent_projects_edits: &app.workspace_state.recent_projects_edits,
         recent_projects_meta: &app.workspace_state.recent_projects_meta,
@@ -28,8 +29,17 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
                     Message::View(message::ViewMessage::OpenCron),
                 Home::Header(header::Message::OpenApps) =>
                     Message::View(message::ViewMessage::OpenApps),
-                Home::Header(header::Message::OpenThirdPartyAgents) =>
+                Home::Recent(recent::Message::OpenThirdPartyAgents) =>
                     Message::View(message::ViewMessage::OpenThirdPartyAgents),
+                #[cfg(not(target_arch = "wasm32"))]
+                Home::Recent(recent::Message::OpenCliWorkbench) =>
+                    Message::CliWorkbench(crate::app::cli_workbench::Event::Open {
+                        backend: None,
+                        native_app: None,
+                    }),
+                #[cfg(not(target_arch = "wasm32"))]
+                Home::Recent(recent::Message::OpenGitWorkbench) =>
+                    Message::GitWorkbench(crate::app::git_workbench::Event::Open),
                 #[cfg(not(target_arch = "wasm32"))]
                 Home::Header(header::Message::OpenShijuSkills) =>
                     Message::SkillHub(message::SkillHubMessage::OpenShijuSkills),

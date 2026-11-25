@@ -105,13 +105,10 @@ fn app_chip_button_style_covers_light_interaction_states() {
     let pressed = super::app_chip_button_style(&theme, button::Status::Pressed, accent);
     let disabled = super::app_chip_button_style(&theme, button::Status::Disabled, accent);
 
-    assert_eq!(background_color(active.background), Color::WHITE.scale_alpha(0.82));
-    assert_eq!(background_color(hovered.background), Color::WHITE.scale_alpha(0.94));
-    assert_eq!(
-        background_color(pressed.background),
-        palette.background.weak.color.scale_alpha(0.92)
-    );
-    assert_eq!(background_color(disabled.background), Color::WHITE.scale_alpha(0.82));
+    assert_eq!(background_color(active.background), accent.scale_alpha(0.14));
+    assert_eq!(background_color(hovered.background), accent.scale_alpha(0.22));
+    assert_eq!(background_color(pressed.background), accent.scale_alpha(0.30));
+    assert_eq!(background_color(disabled.background), accent.scale_alpha(0.14));
     assert_eq!(hovered.border.color, accent.scale_alpha(0.34));
     assert_eq!(active.border.color, palette.background.strong.color.scale_alpha(0.72));
     assert_eq!(active.border.radius.top_left, 999.0);
@@ -122,24 +119,14 @@ fn app_chip_button_style_covers_light_interaction_states() {
 #[test]
 fn app_chip_button_style_covers_dark_interaction_states() {
     let theme = Theme::Dark;
-    let palette = theme.extended_palette();
     let accent = Color::from_rgb8(0x35, 0x85, 0xD6);
     let active = super::app_chip_button_style(&theme, button::Status::Active, accent);
     let hovered = super::app_chip_button_style(&theme, button::Status::Hovered, accent);
     let pressed = super::app_chip_button_style(&theme, button::Status::Pressed, accent);
 
-    assert_eq!(
-        background_color(active.background),
-        palette.background.base.color.scale_alpha(0.60)
-    );
-    assert_eq!(
-        background_color(hovered.background),
-        palette.background.weak.color.scale_alpha(0.86)
-    );
-    assert_eq!(
-        background_color(pressed.background),
-        palette.background.strong.color.scale_alpha(0.92)
-    );
+    assert_eq!(background_color(active.background), accent.scale_alpha(0.14));
+    assert_eq!(background_color(hovered.background), accent.scale_alpha(0.22));
+    assert_eq!(background_color(pressed.background), accent.scale_alpha(0.30));
     assert_eq!(active.shadow.color, Color::BLACK.scale_alpha(0.14));
     assert_eq!(active.shadow.offset, Vector::new(0.0, 8.0));
     assert_eq!(active.shadow.blur_radius, 16.0);

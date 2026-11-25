@@ -9,7 +9,8 @@ use crate::app::views::workflow_manager::{self, WorkflowManagerMessage};
 use crate::app::{App, Message};
 use desktop_assets::assets::Icon;
 use desktop_settings_shell::SystemTab;
-use iced::widget::{button, column, container, row, text};
+use desktop_ui_controls::tooltip::project_tooltip;
+use iced::widget::{button, column, container, row, text, tooltip};
 use iced::{Alignment, Element, Length, Task};
 
 pub(in crate::app) mod catalog;
@@ -75,7 +76,7 @@ fn saving_catalog(app: &App) -> bool {
     saving
 }
 
-fn project_picker(app: &App) -> Element<'_, Message> {
+fn project_picker(app: &App, tab: SystemTab) -> Element<'_, Message> {
     let i18n = I18n::new(app.general_settings.desktop_locale);
     let mut paths = Vec::new();
     for path in projects(app) {
@@ -91,9 +92,10 @@ fn project_picker(app: &App) -> Element<'_, Message> {
             .map(|project| project.name.as_str())
     };
     let options = paths.iter().map(|path| (*path).to_owned()).collect::<Vec<_>>();
+    let selected = project_path(app);
     let picker = settings_select(
         options,
-        project_path(app).map(str::to_owned),
+        selected.map(str::to_owned),
         Message::TaskSettingsProjectSelected,
     )
     .format_labels(|path| match display_name(path) {
@@ -105,6 +107,12 @@ fn project_picker(app: &App) -> Element<'_, Message> {
     .placeholder(i18n.__("暂无可用项目"))
     .width(Length::Fill)
     .disabled(saving_catalog(app));
+    let picker = if let (SystemTab::TaskWorkflow, Some(path)) = (tab, selected) {
+        let name = path.rsplit(['/', '\\']).find(|part| !part.is_empty()).unwrap_or(path);
+        project_tooltip(picker.trigger_label(name), name, path, tooltip::Position::Right)
+    } else {
+        picker.into()
+    };
     row![
         catalog::glyph(Icon::FolderClosed, 16.0),
         settings_field_label(i18n.__("当前项目")),
@@ -131,7 +139,7 @@ pub(in crate::app) fn load(app: &mut App, tab: SystemTab) -> Task<Message> {
 
 pub(super) fn view(app: &App, tab: SystemTab) -> Element<'_, Message> {
     if tab == SystemTab::TaskWorkflow {
-        return column![container(project_picker(app)).padding([8, 24]), workflow(app),]
+        return column![container(project_picker(app, tab)).padding([8, 24]), workflow(app),]
             .spacing(8)
             .height(Length::Fill)
             .into();
@@ -152,7 +160,7 @@ pub(super) fn view(app: &App, tab: SystemTab) -> Element<'_, Message> {
         }
         _ => unreachable!("task settings tab"),
     };
-    column![project_picker(app), content].spacing(18).width(Length::Fill).into()
+    column![project_picker(app, tab), content].spacing(18).width(Length::Fill).into()
 }
 
 fn workflow(app: &App) -> Element<'_, Message> {

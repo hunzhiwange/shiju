@@ -57,6 +57,46 @@ pub fn update(
             ])
         }
         #[cfg(not(target_arch = "wasm32"))]
+        TerminalMessage::GroupMenuOpen(..)
+        | TerminalMessage::GroupMenuClose
+        | TerminalMessage::RenameGroupStart(..)
+        | TerminalMessage::RenameGroupChanged(_)
+        | TerminalMessage::RenameGroupSave
+        | TerminalMessage::RenameGroupCancel => {
+            match message {
+                TerminalMessage::GroupMenuOpen(id, point) if terminal.has_group(id) => {
+                    terminal.tab_context_menu_id = None;
+                    terminal.tab_context_menu_pos = None;
+                    terminal.content_menu = None;
+                    terminal.panes.split_menu = None;
+                    terminal.group_menu = Some((id, point));
+                }
+                TerminalMessage::GroupMenuClose => terminal.group_menu = None,
+                TerminalMessage::RenameGroupStart(id, title) if terminal.has_group(id) => {
+                    terminal.group_menu = None;
+                    terminal.group_rename = Some((id, title));
+                    return iced::widget::operation::focus(crate::terminal_panel::RENAME_INPUT);
+                }
+                TerminalMessage::RenameGroupChanged(title) => {
+                    if let Some((_, draft)) = &mut terminal.group_rename {
+                        *draft = title;
+                    }
+                }
+                TerminalMessage::RenameGroupSave => {
+                    if let Some((id, draft)) = terminal.group_rename.take() {
+                        terminal.rename_group(id, &draft);
+                    }
+                    return event::focus_active_terminal(terminal, focused, effects);
+                }
+                TerminalMessage::RenameGroupCancel => {
+                    terminal.group_rename = None;
+                    return event::focus_active_terminal(terminal, focused, effects);
+                }
+                _ => {}
+            }
+            Task::none()
+        }
+        #[cfg(not(target_arch = "wasm32"))]
         TerminalMessage::PtyEvent(widget, pty_event) => {
             if !terminal.tabs.iter().any(|tab| tab.term.widget_id() == &widget) {
                 return Task::none();

@@ -1,20 +1,24 @@
 use desktop_assets::assets::Icon;
+use desktop_terminal::terminal_panel::{group_context_menu, rename_overlay};
+use desktop_ui_controls::overlays::PointBelowOverlay;
+use desktop_ui_controls::right_click_area::RightClickArea;
 use desktop_ui_controls::single_line_label::SingleLineLabel;
 use desktop_ui_controls::system_settings_common::icons::{icon_btn_style, icon_btn_svg_style};
 use desktop_ui_controls::system_settings_common::{
     icon_svg, settings_divider, settings_divider_style, settings_muted_text_style,
 };
-use desktop_ui_controls::tooltip::tooltip_dark_style;
+use desktop_ui_controls::tooltip::{project_tooltip, tooltip_dark_style};
 use desktop_workspace::views::project::layout::work_sidebar::project_label;
-use iced::widget::{button, column, container, row, scrollable, text, tooltip};
+use iced::widget::{Space, button, column, container, row, scrollable, text, tooltip};
 use iced::{Alignment, Border, Element, Length, Theme};
 
+use crate::app::cli_workbench::{Event, Surface};
 use crate::app::message::TerminalMessage;
 use crate::app::{App, Message};
 
 pub(super) fn view<'a>(app: &'a App, panes: Element<'a, Message>) -> Element<'a, Message> {
     let terminal = column![group_bar(app), settings_divider(), panes].height(Length::Fill);
-    if app.terminal_projects_collapsed {
+    let content = if app.terminal_projects_collapsed {
         terminal.width(Length::Fill).into()
     } else {
         // The workbench reserves 20% of its width for the project and agent sidebar.
@@ -29,7 +33,21 @@ pub(super) fn view<'a>(app: &'a App, panes: Element<'a, Message>) -> Element<'a,
         .height(Length::Fill)
         .style(settings_divider_style)
         .into()
+    };
+    if let Some((_, draft)) = &app.terminal.group_rename {
+        return rename_overlay(
+            content,
+            app.general_settings.desktop_locale,
+            app.terminal.height < 190.0,
+            ("重命名分屏组", draft),
+            (
+                Message::Terminal(TerminalMessage::RenameGroupCancel),
+                Message::Terminal(TerminalMessage::RenameGroupSave),
+            ),
+            |value| Message::Terminal(TerminalMessage::RenameGroupChanged(value)),
+        );
     }
+    content
 }
 
 fn group_bar(app: &App) -> Element<'_, Message> {
@@ -42,8 +60,7 @@ fn group_bar(app: &App) -> Element<'_, Message> {
     let mut groups = row![].spacing(4).align_y(Alignment::Center);
     let can_close = app.terminal.groups().nth(1).is_some();
     for (id, selected) in app.terminal.groups() {
-        let title = i18n.sprintf("分屏组 %u", &[id.into()]);
-        let tab = button(text(title).size(13))
+        let tab = button(text(group_title(app, id)).size(13))
             .on_press_maybe(
                 (!selected).then_some(Message::Terminal(TerminalMessage::SelectGroup(id))),
             )
@@ -57,12 +74,18 @@ fn group_bar(app: &App) -> Element<'_, Message> {
                 }
                 style
             });
-        groups = groups.push(tab);
+        groups = groups.push(Element::new(
+            RightClickArea::new(
+                tab.into(),
+                Box::new(move |point| Message::Terminal(TerminalMessage::GroupMenuOpen(id, point))),
+            )
+            .use_global_position(),
+        ));
         if selected && can_close {
             groups = groups.push(icon_button(
                 Icon::X,
                 i18n.__("关闭分屏组"),
-                TerminalMessage::CloseGroup(id),
+                Message::Terminal(TerminalMessage::CloseGroup(id)),
             ));
         }
     }
@@ -70,19 +93,63 @@ fn group_bar(app: &App) -> Element<'_, Message> {
     let groups = scrollable(groups)
         .direction(scrollable::Direction::Horizontal(scrollbar()))
         .width(Length::Fill);
-    container(
+    let strip = container(
         row![
-            icon_button(icon, label, TerminalMessage::ToggleProjects),
+            icon_button(
+                Icon::Terminal,
+                i18n.__("应用终端"),
+                Surface::AppTerminal.message(Event::Open { backend: None, native_app: None }),
+            ),
+            icon_button(icon, label, Message::Terminal(TerminalMessage::ToggleProjects)),
             groups,
-            icon_button(Icon::Plus, i18n.__("新建分屏组"), TerminalMessage::NewGroup),
+            icon_button(
+                Icon::Plus,
+                i18n.__("新建分屏组"),
+                Message::Terminal(TerminalMessage::NewGroup),
+            ),
         ]
         .align_y(Alignment::Center)
         .spacing(4),
     )
     .width(Length::Fill)
     .padding([2, 7])
-    .style(surface)
-    .into()
+    .style(surface);
+    let (menu, point) = match app.terminal.group_menu {
+        Some((id, point)) => (
+            group_context_menu(
+                app.general_settings.desktop_locale,
+                Message::Terminal(TerminalMessage::RenameGroupStart(
+                    id,
+                    group_title(app, id).to_owned(),
+                )),
+                can_close.then_some(Message::Terminal(TerminalMessage::CloseGroup(id))),
+            ),
+            point,
+        ),
+        None => (Space::new().into(), iced::Point::ORIGIN),
+    };
+    PointBelowOverlay::new(strip, menu)
+        .show(app.terminal.group_menu.is_some())
+        .global_anchor(point)
+        .gap(2.0)
+        .close_on_target_click(true)
+        .capture_keyboard()
+        .on_close(Message::Terminal(TerminalMessage::GroupMenuClose))
+        .into()
+}
+
+fn group_title(app: &App, id: u64) -> &str {
+    app.terminal
+        .group_name(id)
+        .or_else(|| {
+            app.terminal_project_path()?
+                .trim_end_matches(['/', '\\'])
+                .rsplit(['/', '\\'])
+                .find(|name| !name.trim().is_empty())
+        })
+        .unwrap_or_else(|| {
+            crate::app::i18n::I18n::new(app.general_settings.desktop_locale).__("终端")
+        })
 }
 
 fn projects(app: &App) -> Element<'_, Message> {
@@ -107,7 +174,7 @@ fn projects(app: &App) -> Element<'_, Message> {
             button(
                 row![
                     icon_svg(icon, 13.0).style(icon_btn_svg_style),
-                    SingleLineLabel::new(title, 13.0),
+                    SingleLineLabel::new(title.clone(), 13.0),
                 ]
                 .align_y(Alignment::Center)
                 .spacing(5),
@@ -127,7 +194,7 @@ fn projects(app: &App) -> Element<'_, Message> {
                 }
                 style
             });
-        items = items.push(project);
+        items = items.push(project_tooltip(project, title, path, tooltip::Position::Right));
     }
 
     container(
@@ -157,16 +224,11 @@ fn surface(theme: &Theme) -> container::Style {
     }
 }
 
-fn icon_button(
-    icon: Icon,
-    label: &'static str,
-    message: TerminalMessage,
-) -> Element<'static, Message> {
+fn icon_button(icon: Icon, label: &'static str, message: Message) -> Element<'static, Message> {
     let glyph = container(icon_svg(icon, 14.0).style(icon_btn_svg_style)).center_x(27).center_y(24);
-    let control =
-        button(glyph).on_press(Message::Terminal(message)).padding(0).style(|theme, status| {
-            button::Style { border: Border::default().rounded(5), ..icon_btn_style(theme, status) }
-        });
+    let control = button(glyph).on_press(message).padding(0).style(|theme, status| {
+        button::Style { border: Border::default().rounded(5), ..icon_btn_style(theme, status) }
+    });
     tooltip(control, text(label).size(12), tooltip::Position::Bottom)
         .gap(5)
         .padding(6)

@@ -60,6 +60,18 @@ pub enum TerminalMessage {
     #[cfg(not(target_arch = "wasm32"))]
     CloseGroup(u64),
     #[cfg(not(target_arch = "wasm32"))]
+    GroupMenuOpen(u64, iced::Point),
+    #[cfg(not(target_arch = "wasm32"))]
+    GroupMenuClose,
+    #[cfg(not(target_arch = "wasm32"))]
+    RenameGroupStart(u64, String),
+    #[cfg(not(target_arch = "wasm32"))]
+    RenameGroupChanged(String),
+    #[cfg(not(target_arch = "wasm32"))]
+    RenameGroupSave,
+    #[cfg(not(target_arch = "wasm32"))]
+    RenameGroupCancel,
+    #[cfg(not(target_arch = "wasm32"))]
     PtyEvent(Id, iced_term::Event),
     #[cfg(not(target_arch = "wasm32"))]
     Event(iced_term::Event),

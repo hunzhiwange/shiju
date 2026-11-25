@@ -445,6 +445,22 @@ pub fn tab_context_menu<'a, M: Clone + 'a>(
     rename: M,
     close: Option<M>,
 ) -> Element<'a, M> {
+    rename_context_menu(locale, rename, (close, "关闭"))
+}
+
+pub fn group_context_menu<'a, M: Clone + 'a>(
+    locale: config_ui::DesktopLocale,
+    rename: M,
+    delete: Option<M>,
+) -> Element<'a, M> {
+    rename_context_menu(locale, rename, (delete, "删除"))
+}
+
+fn rename_context_menu<'a, M: Clone + 'a>(
+    locale: config_ui::DesktopLocale,
+    rename: M,
+    (remove, remove_label): (Option<M>, &'static str),
+) -> Element<'a, M> {
     let i18n = I18n::new(locale);
     let menu_item = |icon, label, action: Option<M>, danger| {
         let enabled = action.is_some();
@@ -470,7 +486,7 @@ pub fn tab_context_menu<'a, M: Clone + 'a>(
     };
     container(column![
         menu_item(Icon::Pencil, i18n.__("重命名"), Some(rename), false),
-        menu_item(Icon::Trash, i18n.__("关闭"), close, true),
+        menu_item(Icon::Trash, i18n.__(remove_label), remove, true),
     ].spacing(2))
     .width(Length::Fixed(108.0))
     .padding(6)
@@ -563,58 +579,74 @@ pub fn with_rename_overlay<'a, M: Clone + 'static>(
         && let Some(t) = app.tabs.iter().find(|t| t.id == active_id)
         && let Some(edit_title) = &t.edit_title
     {
-        let i18n = I18n::new(app.desktop_locale);
         let cancel = on_message(Message::Terminal(message::TerminalMessage::RenameCancel(active_id)));
         let save = on_message(Message::Terminal(message::TerminalMessage::RenameSave(active_id)));
-        let mut heading = column![text(i18n.__("重命名终端")).size(18)].spacing(4);
-        // The terminal can be shortened independently of the window.
-        let compact = app.height < 190.0;
-        if !compact {
-            heading = heading.push(
-                text(i18n.__("输入一个便于识别的新名称")).size(13).style(settings_muted_text_style),
-            );
-        }
-        let header = settings_modal_header(heading, settings_close_button(cancel.clone()));
-        let rename_input = text_input(i18n.__("输入新名称"), edit_title)
-            .on_input(move |value| {
-                on_message(Message::Terminal(message::TerminalMessage::RenameChanged(active_id, value)))
-            })
-            .on_submit(save.clone())
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .width(Length::Fill)
-            .style(settings_text_input_style);
-
-        let actions = row![
-            button(text(i18n.__("取消")).size(14))
-                .on_press(cancel.clone())
-                .padding([8, 18])
-                .height(38)
-                .style(rounded_action_btn_style),
-            button(text(i18n.__("确定")).size(14))
-                .on_press(save)
-                .padding([8, 18])
-                .height(38)
-                .style(primary_action_btn_style),
-        ]
-        .spacing(10)
-        .align_y(iced::Alignment::Center);
-
-        let (dialog, vertical_padding) = if compact {
-            let controls = row![rename_input, actions].spacing(10).align_y(iced::Alignment::Center);
-            (column![header, controls].spacing(6), 5)
-        } else {
-            let footer = container(actions).align_right(Length::Fill);
-            (column![header, rename_input, footer].spacing(10), 12)
-        };
-        let card = settings_modal_card(dialog)
-            .padding([vertical_padding, 20])
-            .width(Length::Fill)
-            .max_width(420.0);
-        return settings_modal_overlay_with_backdrop_dismiss(content, cancel, card);
+        return rename_overlay(
+            content,
+            app.desktop_locale,
+            app.height < 190.0,
+            ("重命名终端", edit_title),
+            (cancel, save),
+            move |value| on_message(Message::Terminal(message::TerminalMessage::RenameChanged(active_id, value))),
+        );
     }
-
     content
+}
+
+pub const RENAME_INPUT: &str = "terminal-rename-input";
+
+pub fn rename_overlay<'a, M: Clone + 'static>(
+    content: Element<'a, M>,
+    locale: config_ui::DesktopLocale,
+    compact: bool,
+    (title, value): (&'static str, &str),
+    (cancel, save): (M, M),
+    on_input: impl Fn(String) -> M + 'a,
+) -> Element<'a, M> {
+    let i18n = I18n::new(locale);
+    let mut heading = column![text(i18n.__(title)).size(18)].spacing(4);
+    if !compact {
+        heading = heading.push(
+            text(i18n.__("输入一个便于识别的新名称")).size(13).style(settings_muted_text_style),
+        );
+    }
+    let header = settings_modal_header(heading, settings_close_button(cancel.clone()));
+    let rename_input = text_input(i18n.__("输入新名称"), value)
+        .id(RENAME_INPUT)
+        .on_input(on_input)
+        .on_submit(save.clone())
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .width(Length::Fill)
+        .style(settings_text_input_style);
+
+    let actions = row![
+        button(text(i18n.__("取消")).size(14))
+            .on_press(cancel.clone())
+            .padding([8, 18])
+            .height(38)
+            .style(rounded_action_btn_style),
+        button(text(i18n.__("确定")).size(14))
+            .on_press(save)
+            .padding([8, 18])
+            .height(38)
+            .style(primary_action_btn_style),
+    ]
+    .spacing(10)
+    .align_y(iced::Alignment::Center);
+
+    let (dialog, vertical_padding) = if compact {
+        let controls = row![rename_input, actions].spacing(10).align_y(iced::Alignment::Center);
+        (column![header, controls].spacing(6), 5)
+    } else {
+        let footer = container(actions).align_right(Length::Fill);
+        (column![header, rename_input, footer].spacing(10), 12)
+    };
+    let card = settings_modal_card(dialog)
+        .padding([vertical_padding, 20])
+        .width(Length::Fill)
+        .max_width(420.0);
+    settings_modal_overlay_with_backdrop_dismiss(content, cancel, card)
 }
 
 #[cfg(test)]

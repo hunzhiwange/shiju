@@ -92,6 +92,8 @@ fn project_workspace_restores_active_and_parked_groups() {
     assert!(original.new_group());
     assert!(original.ensure_default_terminal(Some(project.clone())));
     let second_group_tab = original.active_id.unwrap();
+    original.rename_group(1, "  Backend  ");
+    original.rename_group(2, "Worker");
     original.save_workspace(&snapshot).unwrap();
     drop(original);
 
@@ -99,11 +101,14 @@ fn project_workspace_restores_active_and_parked_groups() {
     assert!(restored.restore_workspace(&snapshot, &project).unwrap());
     assert_eq!(restored.groups().collect::<Vec<_>>(), [(1, false), (2, true)]);
     assert_eq!(restored.active_id, Some(second_group_tab));
+    assert_eq!(restored.group_name(1), Some("Backend"));
+    assert_eq!(restored.group_name(2), Some("Worker"));
     assert_eq!(restored.panes.grid.len(), 1);
     assert!(restored.select_group(1));
     assert_eq!(restored.panes.grid.len(), 2);
     assert!(restored.select_terminal(first_id));
     assert!(restored.close_group(2));
+    assert_eq!(restored.group_name(2), None);
     assert_eq!(restored.tabs.len(), 2);
     assert_eq!(restored.groups().collect::<Vec<_>>(), [(1, true)]);
 }

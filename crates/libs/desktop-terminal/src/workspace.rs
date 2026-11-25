@@ -19,6 +19,8 @@ pub(crate) struct Workspace {
     active_group: u64,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     parked_groups: BTreeMap<u64, SavedGroup>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    group_names: BTreeMap<u64, String>,
 }
 
 fn first_group() -> u64 {
@@ -127,7 +129,7 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
     }
 
     pub fn needs_workspace_checkpoint(&self) -> bool {
-        !self.tabs.is_empty() || !self.parked_groups.is_empty()
+        !self.tabs.is_empty() || !self.parked_groups.is_empty() || !self.group_names.is_empty()
             || self.saved_workspace.as_ref().is_some_and(|workspace| {
                 !workspace.tabs.is_empty() || !workspace.parked_groups.is_empty()
             })
@@ -156,6 +158,7 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
                 .collect(),
             layout: Layout::capture(grid, grid.layout()),
             active_group: self.active_group,
+            group_names: self.group_names.clone(),
             parked_groups: self.parked_groups.iter().map(|(&id, panes)| {
                 let grid = &panes.grid;
                 (id, SavedGroup {
@@ -227,6 +230,10 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
             .map(|(&id, group)| {
                 (id, restore_panes(&group.layout, group.active_tab, group.maximized_tab, &mut remaining))
             })
+            .collect();
+        self.group_names = workspace.group_names.iter()
+            .filter(|(id, name)| self.has_group(**id) && !name.trim().is_empty())
+            .map(|(&id, name)| (id, name.clone()))
             .collect();
         self.set_visible(workspace.visible);
         if workspace.height.is_finite() && workspace.height > 0.0 {

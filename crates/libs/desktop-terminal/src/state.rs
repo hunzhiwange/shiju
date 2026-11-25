@@ -199,6 +199,12 @@ pub struct TerminalState<S> {
     pub(crate) parked_groups: std::collections::BTreeMap<u64, panes::TerminalPanes>,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) active_group: u64,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) group_names: std::collections::BTreeMap<u64, String>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub group_menu: Option<(u64, iced::Point)>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub group_rename: Option<(u64, String)>,
     pub active_id: Option<u64>,
     pub next_id: u64,
     pub height: f32,
@@ -277,6 +283,12 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
             parked_groups: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             active_group: 1,
+            #[cfg(not(target_arch = "wasm32"))]
+            group_names: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            group_menu: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            group_rename: None,
             active_id: None,
             next_id: 1,
             height,
@@ -427,6 +439,8 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
         #[cfg(not(target_arch = "wasm32"))]
         {
             self.panes.split_menu = None;
+            self.group_menu = None;
+            self.group_rename = None;
         }
         if self.is_fullscreen == fullscreen {
             return;

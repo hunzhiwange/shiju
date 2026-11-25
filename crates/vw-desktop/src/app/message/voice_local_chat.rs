@@ -25,7 +25,7 @@ fn ready_to_send(app: &App) -> Result<(), &'static str> {
         approval_pending: app.session_state.permission_modal_request_id.is_some() || app.session_state.question_modal_request_id.is_some(),
     })
 }
-pub(super) fn start(app: &mut App, preferences: Preferences) -> Task<Message> {
+pub(super) fn start(app: &mut App, preferences: Preferences, start_muted: bool) -> Task<Message> {
     if let Some(chat) = app.voice.local_conversation.as_mut() {
         chat.show = true;
         return Task::none();
@@ -44,7 +44,9 @@ pub(super) fn start(app: &mut App, preferences: Preferences) -> Task<Message> {
     let session = scope.session_id().map(str::to_owned);
     app.voice.conversation_endpoint = Some(crate::app::gateway_client_endpoint());
     app.voice.conversation_scope = Some(scope.clone());
-    app.voice.local_conversation = Some(desktop_voice_ui::message::voice_local_chat::new(session, preferences));
+    let mut chat = desktop_voice_ui::message::voice_local_chat::new(session, preferences);
+    chat.muted = start_muted;
+    app.voice.local_conversation = Some(chat);
     Task::none()
 }
 /// Capture the old authenticated endpoint before scope invalidation clears it.

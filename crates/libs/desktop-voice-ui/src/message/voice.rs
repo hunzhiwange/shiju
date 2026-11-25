@@ -220,9 +220,20 @@ pub fn end_cloud(state: &mut State) {
 pub fn cancel_dictation(state: &mut State) {
     stop(state); state.draft.cancel(); state.endpoint = None; state.cursor = None;
 }
-pub fn start_cloud(state: &mut State, scope: Scope, endpoint: GatewayEndpoint, load_microphone: fn() -> Result<Option<String>, String>) -> Result<(), String> {
+pub fn start_cloud(
+    state: &mut State,
+    scope: Scope,
+    endpoint: GatewayEndpoint,
+    start_muted: bool,
+    load_microphone: fn() -> Result<Option<String>, String>,
+) -> Result<(), String> {
     let session = scope.session_id().ok_or("云端语音聊天需要已建立的聊天会话。")?;
-    let conversation = desktop_voice::conversation::Conversation::start(endpoint.clone(), session.to_owned(), load_microphone)?;
+    let conversation = desktop_voice::conversation::Conversation::start(
+        endpoint.clone(),
+        session.to_owned(),
+        start_muted,
+        load_microphone,
+    )?;
     state.conversation_error_reported = false; state.conversation = Some(conversation);
     state.conversation_scope = Some(scope); state.conversation_endpoint = Some(endpoint);
     Ok(())

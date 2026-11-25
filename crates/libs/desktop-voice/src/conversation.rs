@@ -98,8 +98,13 @@ pub struct Conversation {
     screen: tokio::sync::mpsc::Sender<(super::screen_context::Ticket, VoiceCounter, ScreenPayload)>,
 }
 impl Conversation {
-    pub fn start(endpoint: GatewayEndpoint, session: String, load_microphone: fn() -> Result<Option<String>, String>) -> Result<Self, &'static str> {
-        let (control, receiver) = watch::channel(Control::default());
+    pub fn start(
+        endpoint: GatewayEndpoint,
+        session: String,
+        start_muted: bool,
+        load_microphone: fn() -> Result<Option<String>, String>,
+    ) -> Result<Self, &'static str> {
+        let (control, receiver) = watch::channel(Control { muted: start_muted, ..Control::default() });
         let (screen, screen_rx) = tokio::sync::mpsc::channel(1);
         let snapshot = Arc::new(Mutex::new(Snapshot::default()));
         let output = snapshot.clone();
@@ -247,19 +252,23 @@ async fn connected(
     let mut stream = VoiceStream::connect(&endpoint, &start)
         .await
         .map_err(|_| "无法建立语音通道，请检查网关语音设置。")?;
+    pump(&mut stream, load_microphone, control, output, screen).await
+}
+
+fn start_live_capture(
+    load_microphone: fn() -> Result<Option<String>, String>,
+) -> Result<LiveCapture, &'static str> {
     use super::permissions::{Permission, SystemPermissions, VoicePermissions};
     VoicePermissions::new(SystemPermissions)
         .request_from_user_action(Permission::Microphone)
         .map_err(|_| "请允许麦克风访问后重试。")?;
     let device =
         load_microphone().map_err(|_| "无法读取本机语音设置。")?;
-    let live =
-        LiveCapture::start_device(device).map_err(|_| "无法采集麦克风，请检查权限或设备。")?;
-    pump(&mut stream, live, control, output, screen).await
+    LiveCapture::start_device(device).map_err(|_| "无法采集麦克风，请检查权限或设备。")
 }
 async fn pump(
     stream: &mut VoiceStream,
-    live: LiveCapture,
+    load_microphone: fn() -> Result<Option<String>, String>,
     control: &mut watch::Receiver<Control>,
     output: Arc<Mutex<Snapshot>>,
     screen: &mut tokio::sync::mpsc::Receiver<(
@@ -268,9 +277,19 @@ async fn pump(
         ScreenPayload,
     )>,
 ) -> Result<(), &'static str> {
-    let (capture, live) = live.into_parts();
-    let mut media = Media { capture: Some(capture), playback: None };
-    let mut last = Control::default();
+    let mut last = control.borrow_and_update().clone();
+    let mut media = Media { capture: None, playback: None };
+    // A muted start does not acquire the microphone until the user unmutes.
+    let mut live = if last.muted {
+        stream.send(stream.generation(), VoiceEvent::InputMute { muted: true })
+            .await
+            .map_err(|_| "语音静音操作失败。")?;
+        None
+    } else {
+        let (capture, frames) = start_live_capture(load_microphone)?.into_parts();
+        media.capture = Some(capture);
+        Some(frames)
+    };
     let mut response: Option<VoiceId> = None;
     let mut audio_item: Option<(VoiceId, u32)> = None;
     let mut response_done = true;
@@ -284,8 +303,13 @@ async fn pump(
             changed = control.changed() => {
                 if changed.is_err() { return Ok(()); }
                 let next = control.borrow_and_update().clone();
-                live.clear();
                 if next.end { return Ok(()); }
+                if let Some(live) = &live { live.clear(); }
+                if !next.muted && live.is_none() {
+                    let (capture, frames) = start_live_capture(load_microphone)?.into_parts();
+                    media.capture = Some(capture);
+                    live = Some(frames);
+                }
                 if next.muted != last.muted {
                     stream.send(stream.generation(), VoiceEvent::InputMute { muted: next.muted }).await.map_err(|_| "语音静音操作失败。")?;
                 }
@@ -315,11 +339,14 @@ async fn pump(
                 let frame = frame?;
                 match frame.event {
                     VoiceEvent::GenerationChanged { .. } => {
-                        media.interrupt(); live.clear(); awaiting_interrupt = false;
+                        media.interrupt();
+                        if let Some(live) = &live { live.clear(); }
+                        awaiting_interrupt = false;
                         response = None; audio_item = None; response_done = true;
                     }
                     VoiceEvent::ResponseStarted { response_id } if !awaiting_interrupt => {
-                        response = Some(response_id); response_done = false; live.clear();
+                        response = Some(response_id); response_done = false;
+                        if let Some(live) = &live { live.clear(); }
                     }
                     VoiceEvent::AudioDelta { response_id, item_id, content_index, audio, .. } if !awaiting_interrupt => {
                         if response.as_ref() != Some(&response_id) { return Err("语音回答标识不匹配。"); }
@@ -330,7 +357,7 @@ async fn pump(
                             media.playback.as_mut().ok_or("扬声器不可用。")?
                         };
                         playback.push_pcm(&STANDARD.decode(audio).map_err(|_| "语音音频格式无效。")?).map_err(|_| "语音播放缓冲区溢出或设备断开。")?;
-                        live.clear();
+                        if let Some(live) = &live { live.clear(); }
                     }
                     VoiceEvent::ResponseDone { response_id, .. } if response.as_ref() == Some(&response_id) => { response_done = true; }
                     VoiceEvent::TranscriptDelta { role, item_id, content_index, delta } if !awaiting_interrupt => {
@@ -359,19 +386,21 @@ async fn pump(
                 } else if response_done && !awaiting_interrupt { response = None; }
                 let playing = media.playback.as_ref().is_some_and(Playback::pending);
                 let sending = !last.muted && response.is_none() && !awaiting_interrupt;
-                if !sending || !was_sending { live.clear(); }
-                was_sending = sending;
-                // Half-duplex echo protection: never upload while generating/playing speech.
-                for _ in 0..50 {
-                    let Some(pcm) = live.next_frame() else { break; };
-                    if sending && !control.borrow().muted {
-                        let bytes: Vec<u8> = pcm.iter().flat_map(|s| s.to_le_bytes()).collect();
-                        stream.send(stream.generation(), VoiceEvent::AudioAppend(AudioPayload { audio: STANDARD.encode(bytes), samples_per_channel: pcm.len() })).await.map_err(|_| "麦克风音频发送失败。")?;
+                if let Some(live) = &live {
+                    if !sending || !was_sending { live.clear(); }
+                    // Half-duplex echo protection: never upload while generating/playing speech.
+                    for _ in 0..50 {
+                        let Some(pcm) = live.next_frame() else { break; };
+                        if sending && !control.borrow().muted {
+                            let bytes: Vec<u8> = pcm.iter().flat_map(|s| s.to_le_bytes()).collect();
+                            stream.send(stream.generation(), VoiceEvent::AudioAppend(AudioPayload { audio: STANDARD.encode(bytes), samples_per_channel: pcm.len() })).await.map_err(|_| "麦克风音频发送失败。")?;
+                        }
                     }
                 }
+                was_sending = sending;
                 let mut snapshot = output.lock().unwrap_or_else(|e| e.into_inner());
                 snapshot.generation = Some(stream.generation());
-                snapshot.microphone = true; snapshot.sending = sending; snapshot.playing = playing;
+                snapshot.microphone = media.capture.is_some(); snapshot.sending = sending; snapshot.playing = playing;
                 snapshot.phase = if last.muted { Phase::Muted } else if response.is_some() { Phase::Speaking } else { Phase::Listening };
             }
         }

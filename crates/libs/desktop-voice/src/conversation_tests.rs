@@ -158,7 +158,7 @@ async fn voice_task_11_end_cancels_pending_gateway_connection() {
             }
         }
     });
-    let mut conversation = Conversation::start(endpoint, "chat".into(), || Ok(None)).unwrap();
+    let mut conversation = Conversation::start(endpoint, "chat".into(), false, || Ok(None)).unwrap();
     tokio::time::timeout(Duration::from_secs(5), waiting).await.unwrap().unwrap();
     conversation.end();
     assert!(!conversation.snapshot().microphone);

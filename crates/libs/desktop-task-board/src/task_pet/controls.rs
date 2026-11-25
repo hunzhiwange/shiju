@@ -324,8 +324,6 @@ pub(super) fn surface(theme: &Theme, radius: f32, notice: bool) -> container::St
 fn voice_orb(voice: PetVoice) -> Element<'static, Message> {
     let (size, top, bottom) = if voice.connecting {
         (11.0, Color::WHITE, Color::from_rgb8(195, 216, 251))
-    } else if voice.muted {
-        (29.0, Color::from_rgb8(112, 132, 155), Color::from_rgb8(222, 227, 235))
     } else {
         (29.0, Color::from_rgb8(56, 111, 236), Color::from_rgb8(199, 234, 255))
     };

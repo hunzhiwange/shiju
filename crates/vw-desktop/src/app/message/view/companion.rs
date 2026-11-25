@@ -142,7 +142,7 @@ fn submit(app: &mut App) -> Task<Message> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn start_voice(app: &mut App) -> Task<Message> {
-    use crate::app::message::voice::{self, Event};
+    use crate::app::message::voice;
     if app.voice.chat_active() {
         return app.reopen_main_window();
     }
@@ -155,12 +155,10 @@ fn start_voice(app: &mut App) -> Task<Message> {
         );
         return Task::batch([show, feedback]);
     }
-    let task = voice::update(app, Event::ChatStart);
+    voice::invalidate(app);
+    let task = voice::start_chat(app, true);
     app.pet_state.controls.voice_owned = app.voice.chat_active();
-    if app.voice.local_conversation.is_some() {
-        let record = voice::update(app, Event::Local(voice::local_chat::Event::Begin));
-        Task::batch([task, record])
-    } else if app.pet_state.controls.voice_owned {
+    if app.pet_state.controls.voice_owned {
         task
     } else {
         Task::batch([task, app.reopen_main_window()])

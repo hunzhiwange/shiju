@@ -129,6 +129,35 @@ fn check_start(app: &mut App, chat: bool) -> Option<Task<Message>> {
         StartCheck::Info(info) => Some(feedback(app, crate::app::state::ToastKind::Info, info)),
     }
 }
+pub(crate) fn start_chat(app: &mut App, start_muted: bool) -> Task<Message> {
+    if let Some(task) = check_start(app, true) {
+        return task;
+    }
+    let preferences = match crate::app::voice::preferences::load() {
+        Ok(p) => p,
+        Err(error) => return super::voice::feedback(app, crate::app::state::ToastKind::Error, error),
+    };
+    if preferences.engine == crate::app::voice::preferences::VoiceEngine::Local {
+        return local_chat::start(app, preferences, start_muted);
+    }
+    let Some(scope) = scope(app) else {
+        return fail(app, "请先选择聊天会话。".into());
+    };
+    let endpoint = crate::app::gateway_client_endpoint();
+    if scope.session_id().is_none() {
+        return fail(app, "云端语音聊天需要已建立的聊天会话。".into());
+    }
+    match desktop_voice_ui::message::voice::start_cloud(
+        &mut app.voice,
+        scope,
+        endpoint,
+        start_muted,
+        || crate::app::voice::preferences::load().map(|p| p.microphone),
+    ) {
+        Ok(()) => Task::none(),
+        Err(error) => super::voice::feedback(app, crate::app::state::ToastKind::Error, error),
+    }
+}
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     invalidate(app);
     match event {
@@ -150,34 +179,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             );
             capture_step(app, step)
         }
-        Event::ChatStart => {
-            if let Some(task) = check_start(app, true) {
-                return task;
-            }
-            let preferences = match crate::app::voice::preferences::load() {
-                Ok(p) => p,
-                Err(error) => return super::voice::feedback(app, crate::app::state::ToastKind::Error, error),
-            };
-            if preferences.engine == crate::app::voice::preferences::VoiceEngine::Local {
-                return local_chat::start(app, preferences);
-            }
-            let Some(scope) = scope(app) else {
-                return fail(app, "请先选择聊天会话。".into());
-            };
-            let endpoint = crate::app::gateway_client_endpoint();
-            if scope.session_id().is_none() {
-                return fail(app, "云端语音聊天需要已建立的聊天会话。".into());
-            }
-            match desktop_voice_ui::message::voice::start_cloud(
-                &mut app.voice,
-                scope,
-                endpoint,
-                || crate::app::voice::preferences::load().map(|p| p.microphone),
-            ) {
-                Ok(()) => Task::none(),
-                Err(error) => super::voice::feedback(app, crate::app::state::ToastKind::Error, error),
-            }
-        }
+        Event::ChatStart => start_chat(app, false),
         Event::ChatMute => {
             if app.voice.local_conversation.is_some() {
                 return local_chat::mute(app);

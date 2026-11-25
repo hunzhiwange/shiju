@@ -1,13 +1,16 @@
 //! 构建账号状态入口、账号切换菜单及相关主题样式。
 
 use crate::message::AccountMessage;
+use desktop_assets::assets::Icon;
 use desktop_i18n::I18n;
+use desktop_ui_controls::icons::{icon_svg, is_dark_mode};
 use desktop_ui_controls::overlays::AboveOverlay;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_divider, settings_muted_text_style,
     settings_text_input_style,
 };
+use desktop_ui_controls::tooltip::tooltip_dark_style;
 
 use crate::state::AccountState;
 use crate::state::MonthlyQuotaState;
@@ -16,18 +19,21 @@ use config_ui::DesktopLocale;
 pub enum Message {
     Account(AccountMessage),
     OpenInstallGuide,
+    OpenSettings,
 }
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::text::Wrapping;
+use iced::widget::text::{Shaping, Wrapping};
 use iced::widget::tooltip::{Position, Tooltip};
-use iced::widget::{button, column, container, row, scrollable, text, text_input};
-use iced::{Background, Border, Color, Element, Length, Shadow, Theme};
+use iced::widget::{button, column, container, row, scrollable, svg, text, text_input};
+use iced::{Background, Border, Color, Element, Font, Length, Shadow, Theme, font};
 
 #[path = "account_quota_ring.rs"]
 mod quota_ring;
 
 /// 账号菜单统一使用的滚动条宽度。
 pub const ACCOUNT_SCROLLBAR_WIDTH: u32 = 4;
+const AVATAR_SIZE: f32 = 24.0;
+const ACCOUNT_LABEL_FONT: Font = Font { weight: font::Weight::Bold, ..Font::DEFAULT };
 
 fn account_message(message: AccountMessage) -> Message {
     Message::Account(message)
@@ -89,19 +95,43 @@ fn menu_style(theme: &Theme) -> iced::widget::container::Style {
     }
 }
 
-fn trigger_style(
+fn avatar_style(
     theme: &Theme,
-    status: iced::widget::button::Status,
-) -> iced::widget::button::Style {
+    status: button::Status,
+    signed_in: bool,
+    menu_open: bool,
+) -> button::Style {
     let palette = theme.extended_palette();
-    let background = match status {
-        iced::widget::button::Status::Hovered => palette.background.strong.color,
-        _ => palette.background.weak.color,
+    let highlighted =
+        menu_open || matches!(status, button::Status::Hovered | button::Status::Pressed);
+    let colors = if signed_in { palette.primary.base } else { palette.background.weak };
+    let (background, text_color, border_color, border_width) = if highlighted {
+        if is_dark_mode(theme) {
+            (Color::from_rgb8(55, 72, 105), Color::WHITE, Color::from_rgb8(151, 185, 243), 1.5)
+        } else {
+            (
+                Color::from_rgb8(224, 235, 255),
+                Color::from_rgb8(23, 41, 73),
+                Color::from_rgb8(65, 103, 173),
+                1.5,
+            )
+        }
+    } else {
+        (
+            colors.color,
+            colors.text,
+            palette.background.strong.color,
+            if signed_in { 0.0 } else { 1.0 },
+        )
     };
-    iced::widget::button::Style {
-        background: Some(Background::Color(background)),
-        text_color: palette.background.base.text,
-        border: Border { color: palette.background.strong.color, width: 1.0, radius: 9.0.into() },
+    button::Style {
+        background: Some(background.into()),
+        text_color,
+        border: Border {
+            color: border_color,
+            width: border_width,
+            radius: (AVATAR_SIZE / 2.0).into(),
+        },
         ..Default::default()
     }
 }
@@ -145,11 +175,19 @@ fn delete_account_button_style(
 }
 
 pub fn menu(account: &AccountState, locale: DesktopLocale) -> Element<'_, Message> {
-    container(inline_menu(account, locale)).width(Length::Fixed(320.0)).into()
+    container(account_menu(account, locale, true)).width(Length::Fixed(320.0)).into()
 }
 
 /// 移动账号页使用可收缩的同一套登录与账号操作。
 pub fn inline_menu(account: &AccountState, locale: DesktopLocale) -> Element<'_, Message> {
+    account_menu(account, locale, false)
+}
+
+fn account_menu(
+    account: &AccountState,
+    locale: DesktopLocale,
+    is_popup: bool,
+) -> Element<'_, Message> {
     let i18n = desktop_i18n::I18n::new(locale);
     let busy = account.operation.is_busy();
     let can_submit_manual = !busy && !account.manual_input.expose().trim().is_empty();
@@ -236,8 +274,15 @@ pub fn inline_menu(account: &AccountState, locale: DesktopLocale) -> Element<'_,
         browser = browser.on_press(account_message(AccountMessage::StartBrowserLogin));
     }
 
+    let title = if is_popup && (active_id.is_some() || busy) {
+        trigger_label(account, locale)
+    } else if active_id.is_some() {
+        i18n.__("账户").to_string()
+    } else {
+        i18n.__("登录账户系统").to_string()
+    };
     let mut content = column![
-        text(if active_id.is_some() { i18n.__("账户") } else { i18n.__("登录账户系统") }).size(14),
+        text(title).size(14).shaping(Shaping::Advanced).wrapping(Wrapping::WordOrGlyph),
         accounts,
         settings_divider(),
         row![input, confirm].spacing(6).align_y(iced::Alignment::Center),
@@ -245,7 +290,7 @@ pub fn inline_menu(account: &AccountState, locale: DesktopLocale) -> Element<'_,
     ]
     .spacing(8)
     .width(Length::Fill);
-    if active_id.is_some() {
+    let sign_out = if active_id.is_some() {
         let mut details = button(text(i18n.__("账户信息")).size(13))
             .width(Length::Fill)
             .padding([9, 10])
@@ -274,30 +319,100 @@ pub fn inline_menu(account: &AccountState, locale: DesktopLocale) -> Element<'_,
         {
             content = content.push(install_guide);
         }
-        content = content.push(sign_out);
+        Some(sign_out.into())
+    } else {
+        None
+    };
+    if is_popup {
+        content = content.push(
+            button(
+                row![icon_svg(Icon::Gear, 14.0), text(i18n.__("设置")).size(13)]
+                    .spacing(8)
+                    .align_y(iced::Alignment::Center),
+            )
+            .width(Length::Fill)
+            .padding([9, 10])
+            .style(rounded_action_btn_style)
+            .on_press(Message::OpenSettings),
+        );
     }
+    let content = content.extend(sign_out);
 
     container(content).width(Length::Fill).padding(12).style(menu_style).into()
 }
 
 /// 构建账号入口；菜单关闭时只返回触发按钮，打开时附加上层弹窗。
 pub fn view(account: &AccountState, locale: DesktopLocale) -> Element<'_, Message> {
-    let trigger =
-        button(
-            row![
-                text("◉").size(12),
-                text(trigger_label(account, locale)).size(12),
-                text("⌃").size(10),
-            ]
-            .spacing(6)
-            .align_y(iced::Alignment::Center),
-        )
+    let active = account.active_account();
+    let signed_in = active.is_some();
+    let menu_open = account.menu_open;
+    let avatar: Element<'_, Message> = if let Some(active) = active {
+        let name =
+            active.profile().map_or(active.identity().company_name(), |profile| profile.name());
+        let initials: String = name
+            .split_whitespace()
+            .filter_map(|word| word.chars().next())
+            .take(2)
+            .map(|initial| initial.to_ascii_uppercase())
+            .collect();
+        text(initials)
+            .size(10)
+            .font(ACCOUNT_LABEL_FONT)
+            .shaping(Shaping::Advanced)
+            .wrapping(Wrapping::None)
+            .into()
+    } else {
+        icon_svg(Icon::Person, 14.0)
+            .style(|theme, _| svg::Style {
+                color: Some(if is_dark_mode(theme) { Color::WHITE } else { Color::BLACK }),
+            })
+            .into()
+    };
+    let trigger = button(container(avatar).center_x(AVATAR_SIZE).center_y(AVATAR_SIZE))
         .on_press(account_message(AccountMessage::ToggleMenu))
-        .padding([5, 9])
-        .style(trigger_style);
+        .padding(0)
+        .style(move |theme, status| avatar_style(theme, status, signed_in, menu_open));
+
+    let trigger: Element<'_, Message> = if menu_open {
+        trigger.into()
+    } else {
+        let mut details = column![].spacing(3);
+        if let Some(active) = active {
+            if let Some(profile) = active.profile() {
+                details = details.push(
+                    text(profile.name())
+                        .size(13)
+                        .font(ACCOUNT_LABEL_FONT)
+                        .color(Color::WHITE)
+                        .shaping(Shaping::Advanced)
+                        .wrapping(Wrapping::WordOrGlyph),
+                );
+            }
+            details = details.push(
+                text(active.identity().company_name())
+                    .size(12)
+                    .color(Color::from_rgb8(216, 221, 230))
+                    .shaping(Shaping::Advanced)
+                    .wrapping(Wrapping::WordOrGlyph),
+            );
+        }
+        if !signed_in || account.operation.label().is_some() {
+            details = details.push(
+                text(trigger_label(account, locale))
+                    .size(12)
+                    .font(ACCOUNT_LABEL_FONT)
+                    .color(Color::WHITE),
+            );
+        }
+        Tooltip::new(trigger, container(details).max_width(260), Position::Top)
+            .gap(6.0)
+            .padding(8.0)
+            .style(tooltip_dark_style)
+            .into()
+    };
 
     AboveOverlay::new(trigger, menu(account, locale))
-        .show(account.menu_open)
+        .show(menu_open)
         .gap(5.0)
         .snap_within_viewport(true)
         .on_close(account_message(AccountMessage::CloseMenu))

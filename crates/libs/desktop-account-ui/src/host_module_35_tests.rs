@@ -379,6 +379,10 @@ async fn ui_refresh_31_layout_and_interaction() {
         assert_fits(input, size);
         assert_centered(input, positions.label(I18n::new(locale).__("确认")));
         assert_fits(positions.label(I18n::new(locale).__("暂无本地账户")), size);
+        assert!(matches!(
+            click_label(&mut ui, &mut renderer, I18n::new(locale).__("设置")).as_slice(),
+            [Message::OpenSettings]
+        ));
         drop(ui);
 
         // A previously open menu must remain behind the modal and outside its focus order.
@@ -498,7 +502,7 @@ async fn ui_refresh_31_login_menu_preserves_account_actions() {
     let mut app = fixture();
     let mut renderer = renderer().await;
     let size = Size::new(420, 450);
-    let trigger = Point::new(390.0, 438.0);
+    let trigger = Point::new(408.0, 438.0);
     app.desktop_locale = DesktopLocale::English;
     let i18n = I18n::new(app.desktop_locale);
     let mut ui = scene(login_view(&app), &mut renderer, size);
@@ -514,6 +518,9 @@ async fn ui_refresh_31_login_menu_preserves_account_actions() {
     let other_id = app.account.accounts()[1].id();
     let mut ui = scene(login_view(&app), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
+    assert!(positions.labels.windows(2).any(|labels| {
+        labels[0].0 == i18n.__("设置") && labels[1].0 == i18n.__("退出登录")
+    }));
     let input = positions.input(&masked(SKEY));
     assert!(matches!(
         backspace_after_end(&mut ui, &mut renderer, input).as_slice(),
@@ -551,6 +558,10 @@ async fn ui_refresh_31_login_menu_preserves_account_actions() {
     assert!(matches!(
         click_label(&mut ui, &mut renderer, i18n.__("安装识矩技能")).as_slice(),
         [Message::OpenInstallGuide]
+    ));
+    assert!(matches!(
+        click_label(&mut ui, &mut renderer, i18n.__("设置")).as_slice(),
+        [Message::OpenSettings]
     ));
 
     let mut hovered = Vec::new();

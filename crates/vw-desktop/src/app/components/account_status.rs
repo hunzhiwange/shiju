@@ -4,6 +4,12 @@ use iced::Element;
 pub(crate) fn map(message: desktop_account_ui::view::Message) -> Message {
     match message {
         desktop_account_ui::view::Message::Account(message) => Message::Account(message),
+        desktop_account_ui::view::Message::OpenSettings => Message::Batch(vec![
+            Message::Account(crate::app::message::AccountMessage::CloseMenu),
+            Message::View(crate::app::message::ViewMessage::OpenSystemSettingsTab(
+                crate::app::components::system_settings::SystemTab::General,
+            )),
+        ]),
         desktop_account_ui::view::Message::OpenInstallGuide => {
             #[cfg(not(target_arch = "wasm32"))]
             {

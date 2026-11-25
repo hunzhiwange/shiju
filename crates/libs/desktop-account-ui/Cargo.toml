@@ -10,6 +10,7 @@ iced = { version = "0.14", features = ["svg", "advanced", "tokio"] }
 web-time = "1"
 chrono = "0.4"
 desktop-account = { path = "../desktop-account" }
+desktop-assets = { path = "../desktop-assets" }
 desktop-skill-hub = { path = "../desktop-skill-hub" }
 desktop-ui-controls = { path = "../desktop-ui-controls" }
 desktop-i18n = { path = "../desktop-i18n" }
@@ -18,7 +19,6 @@ gateway-shiju-account = { path = "../gateway-shiju-account" }
 
 [dev-dependencies]
 iced = { version = "0.14", features = ["tiny-skia"] }
-desktop-assets = { path = "../desktop-assets" }
 iced_runtime = "0.14"
 tempfile = "3"
 serde_json = "1"

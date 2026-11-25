@@ -261,13 +261,15 @@ async fn git_commit_form_matches_general_language_select() {
                 app.git.git_commit_type = None;
                 let mut form =
                     FormScene::new(super::left_panel::view(&app.view()), &mut renderer, width);
-                let trigger = form.bounds(&[0, 1]);
-                let scope = form.bounds(&[0, 2, 0]);
-                let summary = form.bounds(&[0, 2, 1]);
+                let trigger = form.bounds(&[0, 1, 0]);
+                let scope = form.bounds(&[0, 1, 1]);
+                let summary = form.bounds(&[0, 1, 2]);
                 assert_eq!(trigger.height, reference.height);
                 assert_eq!(trigger.height, scope.height);
                 assert_eq!(trigger.height, summary.height);
+                assert_eq!(trigger.y, scope.y);
                 assert_eq!(scope.y, summary.y);
+                assert_eq!(trigger.width, 100.0);
                 assert_eq!(scope.width, 88.0);
                 assert!(summary.width > scope.width);
 
@@ -292,7 +294,8 @@ async fn git_commit_form_matches_general_language_select() {
                     menu_sample(&open),
                     "focused Enter should open the type menu"
                 );
-                assert_eq!(mark_pixels(&open, width, trigger), reference_marks);
+                let menu_anchor = Rectangle { width: 120.0, ..trigger };
+                assert_eq!(mark_pixels(&open, width, menu_anchor), reference_marks);
 
                 assert!(form.key(&mut renderer, Named::End).is_empty());
                 let scrolled = form.capture(&mut renderer, &theme);
@@ -353,7 +356,7 @@ async fn git_commit_form_preserves_messages_and_validation() {
     app.git.staged_files_selected.push("src/example.rs".into());
     assert_panel_state(&app, "填写摘要后即可提交", CommitButtonState::MissingSummary);
     assert!(!app.git.show_git_commit_description);
-    toggle_description(&mut app, &mut renderer, "展开详细描述");
+    toggle_description(&mut app, &mut renderer);
     assert!(app.git.show_git_commit_description);
 
     let [type_focus, scope_focus, summary_focus, description_focus] =
@@ -396,7 +399,7 @@ async fn git_commit_form_preserves_messages_and_validation() {
     assert_eq!(app.git.git_commit_scope, "界");
     assert_eq!(app.git.git_commit_message, "修");
     assert_eq!(app.git.git_commit_description, "描");
-    toggle_description(&mut app, &mut renderer, "收起详细描述");
+    toggle_description(&mut app, &mut renderer);
     assert!(!app.git.show_git_commit_description);
     assert_eq!(app.git.git_commit_description_editor.text(), "描");
     assert_panel_state(&app, "已满足提交条件，可直接提交", CommitButtonState::Ready);
@@ -413,9 +416,10 @@ async fn git_commit_form_preserves_messages_and_validation() {
     assert_panel_state(&app, "已满足提交条件，可直接提交", CommitButtonState::Ready);
 }
 
-fn toggle_description(app: &mut Fixture, renderer: &mut Renderer, label: &str) {
+fn toggle_description(app: &mut Fixture, renderer: &mut Renderer) {
+    let footer_index = if app.git.show_git_commit_description { 3 } else { 2 };
     let mut form = FormScene::new(super::left_panel::view(&app.view()), renderer, 320);
-    let toggle = visible_label(&mut form, renderer, label).expect("description toggle");
+    let toggle = form.bounds(&[0, footer_index, 0]);
     let messages = form.click(renderer, toggle.center());
     drop(form);
     apply_form_message(app, messages);
@@ -527,7 +531,7 @@ async fn help_rollout_26_renders_contextual_help() {
                 "static mode explanation is visible before opening help: {explanation}"
             );
             for label in ["展开详细描述", "填写摘要后即可提交"] {
-                assert!(visible_label(&mut form, &renderer, i18n.__(label)).is_some(), "{label}");
+                assert!(visible_label(&mut form, &renderer, i18n.__(label)).is_none(), "{label}");
             }
 
             let icon = help_point(&mut form, &renderer, i18n);
@@ -624,7 +628,9 @@ async fn help_rollout_26_menu_uses_static_explanations() {
         }
 
         assert!(form.key(&mut renderer, Named::Escape).is_empty());
-        let commit = form.bounds(&[0, 1, 1]).center();
+        let commit = visible_label(&mut form, &renderer, i18n.__("提交所选"))
+            .expect("commit button")
+            .center();
         assert!(matches!(
             form.click(&mut renderer, commit).as_slice(),
             [Message::Git(GitMessage::CommitSelected)]

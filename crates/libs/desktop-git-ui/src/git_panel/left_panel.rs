@@ -22,15 +22,17 @@
 
 use iced::advanced::widget::operation::{focusable, scope};
 use iced::advanced::widget::{Id, operate};
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{Space, button, column, container, row, text, tooltip};
 use iced::{Alignment, Element, Length};
 
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::status_animation::spinner_frame;
+use desktop_ui_controls::system_settings_common::icons::icon_btn_svg_style;
 use desktop_ui_controls::system_settings_common::{
-    icon_btn, primary_action_btn_style, rounded_action_btn_style, settings_muted_text_style,
+    icon_btn, icon_svg, primary_action_btn_style, rounded_action_btn_style,
     settings_panel_style, settings_select, settings_text_editor, settings_text_input,
 };
+use desktop_ui_controls::tooltip::tooltip_dark_style;
 use desktop_i18n::I18n;
 use super::types::ConventionalCommitType;
 use super::messages::UiMessage as Message;
@@ -191,15 +193,16 @@ pub fn view<'a, External: Clone + 'static>(
             app.git_commit_type,
             Message::CommitTypeSelected,
         )
-        .placeholder(i18n.__("类型（必选）"))
-        .width(148)
+        .placeholder(i18n.__("类型"))
+        .width(100)
+        .menu_min_width(120.0)
     });
     let scope_input = app.show_git_diff_summary.then(|| {
         settings_text_input(i18n.__("作用域"), app.git_commit_scope)
             .on_input(Message::CommitScopeChanged)
             .width(88)
     });
-    let summary_input = settings_text_input(i18n.__("摘要（Summary）"), app.git_commit_message)
+    let summary_input = settings_text_input(i18n.__("摘要"), app.git_commit_message)
         .on_input(Message::CommitMessageChanged)
         .width(Length::Fill);
     let description = app.show_git_commit_description.then(|| {
@@ -208,15 +211,21 @@ pub fn view<'a, External: Clone + 'static>(
             .on_action(Message::CommitDescriptionEditorAction)
             .height(88)
     });
-    let description_action = if app.show_git_commit_description {
-        "收起详细描述"
+    let (description_icon, description_action) = if app.show_git_commit_description {
+        (Icon::ChevronUp, "收起详细描述")
     } else {
-        "展开详细描述"
+        (Icon::ChevronDown, "展开详细描述")
     };
-    let description_toggle = button(text(i18n.__(description_action)).size(11))
-        .padding([5, 8])
-        .style(rounded_action_btn_style)
-        .on_press(Message::ToggleCommitDescription);
+    let description_toggle = tooltip(
+        button(icon_svg(description_icon, 14.0).style(icon_btn_svg_style))
+            .padding([5, 8])
+            .style(rounded_action_btn_style)
+            .on_press(Message::ToggleCommitDescription),
+        text(i18n.__(description_action)).size(12),
+        tooltip::Position::Top,
+    )
+    .gap(6)
+    .style(tooltip_dark_style);
 
     let commit_state = commit_panel_state(app);
     let committing = commit_state.button == CommitButtonState::InProgress;
@@ -233,6 +242,13 @@ pub fn view<'a, External: Clone + 'static>(
     .on_press_maybe(
         (commit_state.button == CommitButtonState::Ready).then_some(Message::CommitSelected),
     );
+    let commit_btn = tooltip(
+        commit_btn,
+        text(i18n.__(commit_state.hint)).size(12),
+        tooltip::Position::Top,
+    )
+    .gap(6)
+    .style(tooltip_dark_style);
     let header_block = row![
         help_label,
         icon_btn(
@@ -246,19 +262,11 @@ pub fn view<'a, External: Clone + 'static>(
 
     let col = column![
         header_block,
-        commit_type,
-        row![scope_input, summary_input].spacing(6).align_y(Alignment::Center),
+        row![commit_type, scope_input, summary_input].spacing(6).align_y(Alignment::Center),
         description,
-        row![
-            description_toggle,
-            text(i18n.__(commit_state.hint))
-                .size(11)
-                .style(settings_muted_text_style)
-                .width(Length::Fill),
-            commit_btn,
-        ]
-        .spacing(6)
-        .align_y(Alignment::Center)
+        row![description_toggle, Space::new().width(Length::Fill), commit_btn]
+            .spacing(6)
+            .align_y(Alignment::Center)
     ]
     .spacing(7);
 

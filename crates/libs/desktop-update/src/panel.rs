@@ -37,6 +37,10 @@ pub enum PanelMessage {
     #[cfg(not(target_arch = "wasm32"))]
     AppUpdatePrepared(Result<crate::app::installer_update::PreparedDesktopUpdate, String>),
     OpenAppInstaller,
+    #[cfg(not(target_arch = "wasm32"))]
+    RequestAppInstallerConfirmation,
+    #[cfg(not(target_arch = "wasm32"))]
+    ResolveAppInstallerConfirmation { install: bool },
     OpenAppInstallerDirectory,
     AppInstallerDirectoryOpened(Result<(), String>),
     AppUpdateProgressTick,
@@ -47,6 +51,8 @@ pub enum PanelMessage {
 /// Update-modal projection transferred by value by the desktop shell.
 #[derive(Default)]
 pub struct PanelState {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub app_installer_confirmation_request: Option<u64>,
     pub show_cli_install_modal: bool,
     pub cli_install_modal_title: String,
     pub cli_install_modal_message: String,
@@ -499,6 +505,21 @@ pub fn update(
                     app_update_error(panel, state, effects, error)
                 }
             }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        PanelMessage::RequestAppInstallerConfirmation => {
+            if !state.busy && state.ready.is_some() {
+                panel.app_installer_confirmation_request = Some(state.request);
+            }
+            Task::none()
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        PanelMessage::ResolveAppInstallerConfirmation { install } => {
+            let request = panel.app_installer_confirmation_request.take();
+            if install && request == Some(state.request) {
+                return update(panel, state, effects, version, locale, PanelMessage::OpenAppInstaller);
+            }
+            Task::none()
         }
         PanelMessage::OpenAppInstaller => {
             if state.busy {

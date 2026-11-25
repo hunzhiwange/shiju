@@ -141,6 +141,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::AppUpdatePrepared(v0) => {
             update_panel(app, PanelMessage::AppUpdatePrepared(v0))
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        ViewMessage::OpenAppInstaller => {
+            update_panel(app, PanelMessage::RequestAppInstallerConfirmation)
+        }
+        #[cfg(target_arch = "wasm32")]
         ViewMessage::OpenAppInstaller => update_panel(app, PanelMessage::OpenAppInstaller),
         ViewMessage::OpenAppInstallerDirectory => {
             update_panel(app, PanelMessage::OpenAppInstallerDirectory)
@@ -463,7 +468,11 @@ fn panel_message(message: PanelMessage) -> ViewMessage {
         #[cfg(not(target_arch = "wasm32"))]
         message @ (PanelMessage::AutomaticDownloadTick(_)
             | PanelMessage::AutomaticConditionsChecked(..)
-            | PanelMessage::CachedInstallerChecked(..)) => ViewMessage::AppUpdateAutomation(message),
+            | PanelMessage::CachedInstallerChecked(..)
+            | PanelMessage::RequestAppInstallerConfirmation
+            | PanelMessage::ResolveAppInstallerConfirmation { .. }) => {
+            ViewMessage::AppUpdateAutomation(message)
+        }
         PanelMessage::InstallCliTool => ViewMessage::InstallCliTool,
         PanelMessage::RunInstallCliTool => ViewMessage::RunInstallCliTool,
         PanelMessage::CheckCliToolUpdate => ViewMessage::CheckCliToolUpdate,

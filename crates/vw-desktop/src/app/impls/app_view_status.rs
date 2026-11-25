@@ -6,6 +6,8 @@ pub(crate) use desktop_navigation::status_bar::STATUS_BAR_HEIGHT;
 #[cfg(not(target_arch = "wasm32"))]
 #[path = "app_update_ring.rs"]
 mod app_update_ring;
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) use app_update_ring::with_install_confirmation;
 
 pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
     #[cfg(not(target_arch = "wasm32"))]

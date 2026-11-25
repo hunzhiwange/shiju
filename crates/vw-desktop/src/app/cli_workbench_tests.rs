@@ -408,7 +408,7 @@ fn ssh_sessions_from_project_snapshots_only_open_on_their_own_surface() {
 }
 
 #[test]
-fn ordinary_terminal_ssh_opens_the_manager_and_new_tab_in_place() {
+fn ordinary_terminal_ssh_stays_with_the_group_that_started_it() {
     use crate::app::Screen;
     use vw_api_types::cli_workbench::{CliWorkbenchProject, CliWorkbenchProjects};
 
@@ -418,6 +418,8 @@ fn ordinary_terminal_ssh_opens_the_manager_and_new_tab_in_place() {
     app.navigation_tabs.screen = Screen::Project;
     app.navigation_tabs.project_path = Some("/projects/a".into());
     app.terminal.set_visible(true);
+    assert!(app.terminal.new_group());
+    let ssh_group = app.terminal.active_group();
 
     let _ = app.update(Surface::Terminal.message(Event::OpenSsh));
     assert_eq!(app.navigation_tabs.screen, Screen::Project);
@@ -439,6 +441,7 @@ fn ordinary_terminal_ssh_opens_the_manager_and_new_tab_in_place() {
         true,
     );
     state.dialog = None;
+    state.sync_terminal_group(Some("/projects/a"), &app.terminal, None);
     let project = &state.projects["a"];
     let session = ssh_session("new", Some(SshSessionSurface::Terminal));
     let started = Event::Response(
@@ -453,15 +456,25 @@ fn ordinary_terminal_ssh_opens_the_manager_and_new_tab_in_place() {
             Ok(session),
         ),
     );
+    assert!(app.terminal.select_group(1));
+    app.terminal_ssh.sync_terminal_group(Some("/projects/a"), &app.terminal, None);
     let _ = app.update(Surface::Terminal.message(started));
     assert_eq!(app.navigation_tabs.screen, Screen::Project);
-    assert!(app.terminal_ssh.terminal_group_selected(app.terminal_project_path()));
+    assert!(!app.terminal_ssh.terminal_ssh_visible(app.terminal_project_path(), 1));
+
+    assert!(app.terminal.select_group(ssh_group));
+    app.terminal_ssh.sync_terminal_group(Some("/projects/a"), &app.terminal, None);
+    assert!(app.terminal_ssh.terminal_ssh_visible(app.terminal_project_path(), ssh_group));
     assert_eq!(app.terminal_ssh.projects["a"].active_tab().unwrap().session.id, "new");
     assert!(app.app_terminal.projects.is_empty());
     assert!(app.cli_workbench.projects.is_empty());
 
     app.navigation_tabs.project_path = Some("/projects/b".into());
-    assert!(!app.terminal_ssh.terminal_group_selected(app.terminal_project_path()));
+    assert!(!app.terminal_ssh.terminal_ssh_visible(app.terminal_project_path(), ssh_group));
+
+    assert!(app.terminal.close_group(ssh_group));
+    app.terminal_ssh.sync_terminal_group(Some("/projects/a"), &app.terminal, Some(ssh_group));
+    assert!(app.terminal_ssh.projects["a"].tabs["new"].hidden);
 }
 
 #[test]

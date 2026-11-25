@@ -268,7 +268,9 @@ impl App {
             if let Some(surface) = workbench_surface
                 && surface.state(self).has_visible_terminal()
                 && (surface != crate::app::cli_workbench::Surface::Terminal
-                    || self.terminal_ssh.terminal_group_selected(self.terminal_project_path()))
+                    || self.terminal_ssh.terminal_ssh_visible(
+                        self.terminal_project_path(), self.terminal.active_group(),
+                    ))
             {
                 iced::time::every(std::time::Duration::from_millis(80))
                     .with(surface)

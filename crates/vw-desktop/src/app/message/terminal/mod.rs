@@ -21,13 +21,7 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    let return_from_ssh = matches!(&message, TerminalMessage::SelectGroup(_) | TerminalMessage::NewGroup)
-        && app.terminal_ssh.terminal_group_selected(app.terminal_project_path());
-    #[cfg(not(target_arch = "wasm32"))]
     match &message {
-        TerminalMessage::SelectGroup(_) | TerminalMessage::NewGroup => {
-            app.terminal_ssh.select_local_terminal_group();
-        }
         TerminalMessage::ToggleProjects => {
             app.terminal_projects_collapsed = !app.terminal_projects_collapsed;
             let save = app.save_desktop_preference(
@@ -69,6 +63,12 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     let project_path = app.terminal_project_override.as_deref().or(project_path);
     #[cfg(not(target_arch = "wasm32"))]
     let dock_tab = matches!(message, TerminalMessage::DockTab(..));
+    #[cfg(not(target_arch = "wasm32"))]
+    let group_change = match &message {
+        TerminalMessage::NewGroup | TerminalMessage::SelectGroup(_) => Some(None),
+        TerminalMessage::CloseGroup(id) => Some(Some(*id)),
+        _ => None,
+    };
     let fullscreen = app.terminal.is_fullscreen;
     let mut focused = app.focus_area == FocusArea::Terminal;
     let mut effects = Vec::new();
@@ -95,8 +95,13 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     }
     let mut tasks = vec![task];
     #[cfg(not(target_arch = "wasm32"))]
-    if return_from_ssh {
-        tasks.push(event::focus_active_terminal(app));
+    if let Some(closed) = group_change {
+        let directory = app.terminal_project_path().map(str::to_owned);
+        app.terminal_ssh.sync_terminal_group(
+            directory.as_deref(),
+            &app.terminal,
+            closed,
+        );
     }
     for effect in effects {
         use desktop_terminal::updates::Effect;

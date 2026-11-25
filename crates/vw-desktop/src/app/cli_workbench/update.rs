@@ -90,7 +90,6 @@ pub(crate) enum Event {
 #[derive(Clone)]
 pub(crate) enum Action {
     Ssh(ssh::Action),
-    ShowTerminalGroup,
     Refresh,
     ProjectsLoaded(u64, u64, Result<(CliWorkbenchProjects, bool), Code>),
     NativeAppsLoaded(u64, CliWorkbenchTerminalCapability),
@@ -198,9 +197,10 @@ fn update_surface(app: &mut App, surface: Surface, mut event: Event) -> Task<Mes
         None
     };
     let terminal_directory = terminal_directory.as_deref();
+    let terminal_group = app.terminal.active_group();
     let terminal_tick = matches!(&event, Event::TerminalTick);
     let terminal_visible = visible
-        && (!embedded || app.terminal_ssh.terminal_group_selected(terminal_directory));
+        && (!embedded || app.terminal_ssh.terminal_ssh_visible(terminal_directory, terminal_group));
     let theme = (terminal_tick && terminal_visible).then(|| app.theme());
     if let Event::Response(_, _,
         Action::ProjectsLoaded(_, _, Ok((snapshot, _))) | Action::SessionsLoaded(_, _, Ok(snapshot)),
@@ -220,7 +220,6 @@ fn update_surface(app: &mut App, surface: Surface, mut event: Event) -> Task<Mes
             let project_changed = state.terminal_directory.as_deref() != terminal_directory;
             if project_changed {
                 state.terminal_directory = terminal_directory.map(str::to_owned);
-                state.terminal_group_selected = false;
                 state.selected = None;
                 state.dialog = None;
             }
@@ -322,7 +321,17 @@ fn update_surface(app: &mut App, surface: Surface, mut event: Event) -> Task<Mes
             };
             let show_start_error = embedded && visible && matches!(&action, Action::Started(..));
             let dismiss = matches!(&action, Action::Dismiss);
+            let sync_group = embedded
+                && matches!(
+                    &action,
+                    Action::ProjectsLoaded(..)
+                        | Action::SessionsLoaded(..)
+                        | Action::LegacySessionsLoaded(..)
+                );
             let task = update_window(state, id, action, visible);
+            if sync_group {
+                state.sync_terminal_group(terminal_directory, &app.terminal, None);
+            }
             if show_start_error && let Some(error) = state.error {
                 return Task::batch([
                     task,
@@ -331,7 +340,7 @@ fn update_surface(app: &mut App, surface: Surface, mut event: Event) -> Task<Mes
             }
             if embedded && visible
                 && (dismiss || terminal_visible)
-                && !state.terminal_group_selected(terminal_directory)
+                && !state.terminal_ssh_visible(terminal_directory, terminal_group)
             {
                 return Task::batch([
                     task,
@@ -358,7 +367,6 @@ fn bind_scope(state: &mut Workbench) -> bool {
     state.client = GatewayClient::new(scope.0.clone()).ok();
     state.scope = Some(scope);
     state.terminal_available = false;
-    state.terminal_group_selected = false;
     state.ssh = ssh::State::default();
     state.native_apps.clear();
     state.scope_generation += 1;
@@ -739,12 +747,6 @@ fn apply_projects_updates(state: &mut Workbench, batch: Vec<ProjectUpdate>) {
 fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible: bool) -> Task<Message> {
     match action {
         Action::Ssh(action) => return ssh::update(state, id, action),
-        Action::ShowTerminalGroup if state.surface == Surface::Terminal
-            && state.terminal_group_available(state.terminal_directory.as_deref()) =>
-        {
-            state.terminal_group_selected = true;
-            return super::terminal::focus(state);
-        }
         Action::Refresh if !state.discovering => return reload_projects(state, id),
         Action::ProjectsLoaded(epoch, session_epoch, result) if epoch == state.projects_epoch => {
             state.discovering = false;
@@ -899,9 +901,6 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
                     if let Some(project) = state.projects.get_mut(&project_id) {
                         let terminal = project.place_started(session, layout, pane, direction);
                         if terminal && state.selected.as_ref() == Some(&project_id) {
-                            if visible && state.surface == Surface::Terminal {
-                                state.terminal_group_selected = true;
-                            }
                             return Task::done(Message::CliWorkbench(Event::TerminalTick));
                         }
                     }
@@ -916,9 +915,6 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
                 if state.selected.as_ref() == Some(&key.project) {
                     state.default_shell_pending = false;
                 }
-            }
-            if state.surface == Surface::Terminal && !state.terminal_group_available(state.terminal_directory.as_deref()) {
-                state.select_local_terminal_group();
             }
             return super::terminal::focus(state);
         }

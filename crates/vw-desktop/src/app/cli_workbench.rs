@@ -18,7 +18,7 @@ mod view;
 mod workspace;
 
 pub(crate) use update::{Action, Event};
-pub(crate) use view::{terminal_group_view, terminal_overlay, view};
+pub(crate) use view::{terminal_overlay, terminal_ssh_view, view};
 
 const CODEX_APP_ID: &str = "codex";
 const APP_TERMINAL_SIDEBAR_COLLAPSED: &str = "app_terminal_sidebar_collapsed";
@@ -125,7 +125,6 @@ pub(crate) struct Workbench {
     selected: Option<String>,
     preferred_directory: Option<String>,
     terminal_directory: Option<String>,
-    terminal_group_selected: bool,
     projects: BTreeMap<String, Project>,
     workspace: workspace::Store,
     legacy_projects: bool,
@@ -547,27 +546,61 @@ impl Workbench {
         Self { surface: Surface::Terminal, ..Self::default() }
     }
 
-    pub(crate) fn terminal_group_available(&self, directory: Option<&str>) -> bool {
+    pub(crate) fn terminal_ssh_visible(&self, directory: Option<&str>, group: u64) -> bool {
         directory.is_some()
             && self.terminal_directory.as_deref() == directory
             && self.selected_project().is_some_and(|(_, project)| {
-                project.tabs.values().any(|tab| !tab.hidden)
+                project.active_layout == group
+                    && project.panes.grid.iter().any(|(_, pane)| !pane.tabs.is_empty())
             })
-    }
-
-    pub(crate) fn terminal_group_selected(&self, directory: Option<&str>) -> bool {
-        self.terminal_group_selected && self.terminal_group_available(directory)
     }
 
     pub(crate) fn terminal_needs_refresh(&self, directory: Option<&str>) -> bool {
         directory.is_some()
             && (self.terminal_directory.as_deref() != directory
                 || self.dialog.is_some()
-                || self.terminal_group_available(directory))
+                || self.selected_project().is_some_and(|(_, project)| {
+                    project.tabs.values().any(|tab| !tab.hidden)
+                }))
     }
 
-    pub(crate) fn select_local_terminal_group(&mut self) {
-        self.terminal_group_selected = false;
+    pub(crate) fn sync_terminal_group(
+        &mut self,
+        directory: Option<&str>,
+        terminal: &super::TerminalState,
+        closed: Option<u64>,
+    ) {
+        let Some(directory) = directory else { return };
+        if self.terminal_directory.as_deref() != Some(directory) {
+            return;
+        }
+        let project_id = self.selected.as_deref().or_else(|| {
+            self.projects.iter().find_map(|(id, project)| {
+                (project.directory == directory).then_some(id.as_str())
+            })
+        });
+        let Some(project) = project_id.and_then(|id| self.projects.get_mut(id)) else {
+            return;
+        };
+        let group = terminal.active_group();
+        if project.active_layout != group {
+            if project.active_layout == 1
+                && project.parked_layouts.is_empty()
+                && closed.is_none()
+                && terminal.groups().all(|(id, _)| id != 1)
+            {
+                // Legacy SSH sessions were all saved under layout 1.
+                project.active_layout = group;
+            } else {
+                project.parked_layouts.entry(group).or_default();
+                project.select_layout(group);
+            }
+        }
+        if let Some(closed) = closed.filter(|id| terminal.groups().all(|(group, _)| group != *id))
+            && project.close_layout(closed)
+        {
+            self.checkpoint_layout();
+        }
     }
 
     fn selected_project(&self) -> Option<(&str, &Project)> {

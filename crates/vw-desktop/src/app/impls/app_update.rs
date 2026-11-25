@@ -33,50 +33,58 @@ fn route_clipboard_shortcut(app: &App, kind: ClipboardShortcutKind) -> Task<Mess
             .map(move |input_focused| Message::ClipboardShortcutRouted { kind, input_focused })
     };
     #[cfg(not(target_arch = "wasm32"))]
-    if let Some((widget_id, message)) = terminal_clipboard_shortcut(app, kind) {
-        return iced::widget::operation::is_focused(widget_id)
+    {
+        let shortcuts = terminal_clipboard_shortcuts(app, kind);
+        if !shortcuts.is_empty() {
+            return Task::batch(shortcuts.into_iter().map(|(widget_id, message)| {
+                iced::widget::operation::is_focused(widget_id)
+                    .map(move |focused| focused.then(|| message.clone()))
+            }))
             .collect()
-            .then(move |focus| {
-                if focus.contains(&true) {
-                    Task::done(message.clone())
-                } else {
-                    fallback()
-                }
+            .then(move |messages| match messages.into_iter().flatten().next() {
+                Some(message) => Task::done(message),
+                None => fallback(),
             });
+        }
     }
     fallback()
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn terminal_clipboard_shortcut(
+fn terminal_clipboard_shortcuts(
     app: &App,
     kind: ClipboardShortcutKind,
-) -> Option<(iced::widget::Id, Message)> {
+) -> Vec<(iced::widget::Id, Message)> {
     use crate::app::cli_workbench::{Surface, terminal_panel_visible};
     use desktop_terminal::message::{ContentAction, TerminalMessage};
 
     let action = match kind {
         ClipboardShortcutKind::Copy => ContentAction::Copy,
         ClipboardShortcutKind::Paste => ContentAction::PasteText,
-        ClipboardShortcutKind::Cut => return None,
+        ClipboardShortcutKind::Cut => return Vec::new(),
     };
     if let Some(surface) = Surface::from_screen(app.navigation_tabs.screen) {
-        return surface.clipboard_shortcut(app, action);
+        return surface.clipboard_shortcut(app, action).into_iter().collect();
     }
     if !terminal_panel_visible(app) {
-        return None;
+        return Vec::new();
     }
-    if app.terminal_ssh.terminal_group_selected(app.terminal_project_path()) {
-        return Surface::Terminal.clipboard_shortcut(app, action);
+    let mut shortcuts = Vec::new();
+    if app.terminal_ssh.terminal_ssh_visible(app.terminal_project_path(), app.terminal.active_group())
+        && let Some(shortcut) = Surface::Terminal.clipboard_shortcut(app, action)
+    {
+        shortcuts.push(shortcut);
     }
-    let tab = app.terminal.tabs.iter().find(|tab| {
+    if let Some(tab) = app.terminal.tabs.iter().find(|tab| {
         app.terminal.active_id == Some(tab.id)
             && app.terminal.panes.is_visible_tab(tab.id)
             && tab.edit_title.is_none()
-    })?;
-    let widget_id = tab.term.widget_id().clone();
-    let message = Message::Terminal(TerminalMessage::ClipboardShortcut(widget_id.clone(), action));
-    Some((widget_id, message))
+    }) {
+        let widget_id = tab.term.widget_id().clone();
+        let message = Message::Terminal(TerminalMessage::ClipboardShortcut(widget_id.clone(), action));
+        shortcuts.push((widget_id, message));
+    }
+    shortcuts
 }
 
 fn copy_shortcut_without_input(app: &mut App) -> Task<Message> {
@@ -349,8 +357,7 @@ impl App {
             Message::Terminal(
                 message::TerminalMessage::ClipboardShortcut(..)
                 | message::TerminalMessage::PasteResolved(..),
-            ) if !crate::app::cli_workbench::terminal_panel_visible(self)
-                || self.terminal_ssh.terminal_group_selected(self.terminal_project_path()) =>
+            ) if !crate::app::cli_workbench::terminal_panel_visible(self) =>
             {
                 Task::none()
             }

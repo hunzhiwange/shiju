@@ -2,6 +2,10 @@ use crate::TerminalState;
 use crate::panes::TerminalPanes;
 
 impl<S: Copy + Into<&'static str>> TerminalState<S> {
+    pub fn active_group(&self) -> u64 {
+        self.active_group
+    }
+
     pub fn groups(&self) -> impl Iterator<Item = (u64, bool)> + '_ {
         self.parked_groups
             .range(..self.active_group)

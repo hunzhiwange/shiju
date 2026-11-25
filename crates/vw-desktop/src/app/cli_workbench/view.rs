@@ -68,14 +68,14 @@ impl View {
     }
 }
 
-pub(crate) fn terminal_group_view(app: &App) -> Option<Element<'_, Message>> {
+pub(crate) fn terminal_ssh_view(app: &App) -> Option<Element<'_, Message>> {
     let state = &app.terminal_ssh;
-    if !state.terminal_group_selected(app.terminal_project_path()) {
+    if !state.terminal_ssh_visible(app.terminal_project_path(), app.terminal.active_group()) {
         return None;
     }
     let (id, project) = state.selected_project()?;
     let ui = View::new(app, app.main_window_id?, Surface::Terminal);
-    Some(workspace(ui, state, id, project, None, app.terminal.is_fullscreen))
+    Some(workspace(ui, state, id, project, None))
 }
 
 pub(crate) fn terminal_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
@@ -108,7 +108,7 @@ pub(crate) fn view(app: &App, id: window::Id, surface: Surface) -> Element<'_, M
             .as_ref()
             .and_then(|id| state.projects.get(id).map(|project| (id, project)));
         let main = || match selected {
-            Some((id, project)) => workspace(ui, state, id, project, return_to_project, false),
+            Some((id, project)) => workspace(ui, state, id, project, return_to_project),
             None => {
                 let prompt = container(text(ui.label("请选择项目")).size(16)).center(Length::Fill);
                 if surface == Surface::AppTerminal {
@@ -585,7 +585,6 @@ fn workspace<'a>(
     project_id: &'a str,
     project: &'a Project,
     return_to_project: Option<&str>,
-    is_fullscreen: bool,
 ) -> Element<'a, Message> {
     let active = project.active_tab();
     let sendable = |tab: &Tab| {
@@ -652,23 +651,7 @@ fn workspace<'a>(
                     can_stop.then_some(ui.msg(Action::Stop(key))),
                 ));
             }
-            if top_right && state.surface == Surface::Terminal {
-                use crate::app::message::{TerminalMessage, ViewMessage};
-                let (icon, label) = if is_fullscreen {
-                    (Icon::FullscreenExit, "退出全屏")
-                } else {
-                    (Icon::Fullscreen, "全屏")
-                };
-                controls = controls
-                    .push(toolbar_icon(
-                        Icon::EyeSlash, ui.label("隐藏终端面板"), TOOLBAR_BUTTON_INSET,
-                        Some(Message::View(ViewMessage::ToggleTerminalPanel)),
-                    ))
-                    .push(toolbar_icon(
-                        icon, ui.label(label), TOOLBAR_BUTTON_INSET,
-                        Some(Message::Terminal(TerminalMessage::ToggleFullscreen)),
-                    ));
-            } else if top_right
+            if top_right && state.surface != Surface::Terminal
                 && (state.surface != Surface::Workbench || active.is_some_and(Tab::is_agent))
             {
                 controls = controls.push(toolbar_icon(

@@ -11,7 +11,7 @@ use desktop_workspace::views::project::layout::work_sidebar::project_label;
 use iced::widget::{Space, button, column, container, row, scrollable, svg, text, tooltip};
 use iced::{Alignment, Border, Element, Length, Theme};
 
-use crate::app::cli_workbench::{self, Action, Event, Surface};
+use crate::app::cli_workbench::{self, Event, Surface};
 use crate::app::components::workbench_sidebar::{
     matches_project, project_header, project_query, project_row, sidebar_note, sidebar_section,
     with_project_menu,
@@ -21,7 +21,13 @@ use crate::app::workbench_projects;
 use crate::app::{App, Message};
 
 pub(super) fn view<'a>(app: &'a App, panes: Element<'a, Message>) -> Element<'a, Message> {
-    let panes = cli_workbench::terminal_group_view(app).unwrap_or(panes);
+    let mut side_by_side =
+        row![container(panes).width(Length::FillPortion(1)).height(Length::Fill)].spacing(1);
+    if let Some(ssh) = cli_workbench::terminal_ssh_view(app) {
+        side_by_side =
+            side_by_side.push(container(ssh).width(Length::FillPortion(1)).height(Length::Fill));
+    }
+    let panes = container(side_by_side).style(settings_divider_style);
     let terminal = column![group_bar(app), settings_divider(), panes].height(Length::Fill);
     let content = if app.terminal_projects_collapsed {
         terminal.width(Length::Fill).into()
@@ -64,10 +70,7 @@ fn group_bar(app: &App) -> Element<'_, Message> {
     };
     let mut groups = row![].spacing(4).align_y(Alignment::Center);
     let can_close = app.terminal.groups().nth(1).is_some();
-    let directory = app.terminal_project_path();
-    let ssh_selected = app.terminal_ssh.terminal_group_selected(directory);
     for (id, selected) in app.terminal.groups() {
-        let selected = selected && !ssh_selected;
         let tab = button(text(group_title(app, id)).size(13))
             .on_press_maybe(
                 (!selected).then_some(Message::Terminal(TerminalMessage::SelectGroup(id))),
@@ -90,18 +93,6 @@ fn group_bar(app: &App) -> Element<'_, Message> {
         }
     }
 
-    if let Some(id) = app.main_window_id
-        && app.terminal_ssh.terminal_group_available(directory)
-    {
-        groups = groups.push(
-            button(text("SSH").size(13))
-                .on_press_maybe((!ssh_selected).then(|| {
-                    Surface::Terminal.message(Event::Window(id, Action::ShowTerminalGroup))
-                }))
-                .padding([5, 8])
-                .style(move |theme, status| group_style(theme, status, ssh_selected)),
-        );
-    }
     let groups = scrollable(groups)
         .direction(scrollable::Direction::Horizontal(scrollbar()))
         .width(Length::Fill);

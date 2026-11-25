@@ -19,6 +19,7 @@
 use crate::DiffTheme;
 use crate::message_git::messages as message;
 use crate::page::help::with_settings_help_modal;
+use desktop_ui_controls::system_settings_common::help::selectable_settings_help_modal;
 use iced::Element;
 use iced::Length;
 use iced::widget::column;
@@ -328,10 +329,11 @@ fn with_git_overlays<'a>(
     let mut base = base_content;
 
     if app.git.show_git_commit_help_modal {
-        base = with_settings_help_modal(
-            app,
+        base = selectable_settings_help_modal(
+            app.desktop_locale,
+            app.last_copied_code_hash,
             base,
-            desktop_i18n::I18n::new(app.desktop_locale).__(left_panel::COMMIT_HELP_TITLE),
+            left_panel::COMMIT_HELP_TITLE,
             left_panel::COMMIT_HELP_TEXT,
             Message::Git(message::GitMessage::CommitHelpClose),
         );

@@ -5,7 +5,7 @@ use desktop_settings_agents::dialogue_flow_message::{
     DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded,
 };
 use desktop_settings_cron::state::{
-    CronAddJobType, CronAddScheduleKind, CronFrequency, CronListFilter, CronSettingsTab,
+    CronAddJobType, CronAddScheduleKind, CronEditorPickerAction, CronEditorTab, CronFrequency, CronListFilter, CronSettingsTab,
 };
 /// Embedding 路由设置页消息。
 pub use desktop_settings_providers::embedding_view_message::EmbeddingRoutesMessage;
@@ -314,6 +314,23 @@ pub enum SettingsMessage<SettingsTab, SearchTarget, AppsCatalog, AppProviders> {
     CronMaxRunHistoryChanged(u32),
     CronTabSelected(CronSettingsTab),
     CronTemplatesToggled(bool),
+    CronEditorTabSelected {
+        editing: bool,
+        tab: CronEditorTab,
+    },
+    CronEditorPickerChanged {
+        editing: bool,
+        action: CronEditorPickerAction,
+    },
+    CronEditorSkillToggled {
+        editing: bool,
+        id: String,
+    },
+    CronAddFromConversation,
+    CronSkillCatalogLoaded {
+        revision: u64,
+        result: Result<Vec<desktop_settings_cron::system_settings_cron::SkillChoice>, String>,
+    },
     CronTemplateSelected(desktop_settings_cron::state::CronTemplateId),
     CronHistory(desktop_settings_cron::message::HistoryMessage),
     CronListFilterChanged(CronListFilter),

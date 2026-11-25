@@ -5,21 +5,34 @@ use iced::widget::text;
 pub(super) struct TestApp {
     pub(super) cron_settings: CronSettingsState,
     pub(super) app_theme: Theme,
-    project_path: Option<String>, recent_projects: Vec<String>, acp_agents: Vec<String>,
-    agents_settings: Agents,
+    project_path: Option<String>,
+    recent_projects: Vec<String>,
+    acp_agents: Vec<String>,
     scheduler_settings: Scheduler,
 }
-#[derive(Default)] struct Scheduler { save_error: Option<String> }
-#[derive(Default)] struct Agents { provider_models: Vec<Provider> }
-struct Provider { id: String, models: Vec<Model> }
-struct Model { id: String }
-fn test_app() -> TestApp { TestApp::default() }
+#[derive(Default)]
+struct Scheduler {
+    save_error: Option<String>,
+}
+fn test_app() -> TestApp {
+    TestApp::default()
+}
 pub(super) fn data(app: &TestApp) -> ViewData<'_> {
-    ViewData { cron_settings: &app.cron_settings, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
-    app_theme: &app.app_theme, project_path: app.project_path.as_deref(), recent_projects: &app.recent_projects,
-    agents: vec![], providers: app.agents_settings.provider_models.iter().map(|p| ProviderOptions { id: &p.id, models: p.models.iter().map(|m|m.id.as_str()).collect() }).collect(),
-    delivery: DeliveryAvailability::default(), scheduler_error: app.scheduler_settings.save_error.as_deref(), last_copied_code_hash: None,
-    help_content: |_, body, _, _| text(body).into() }
+    ViewData {
+        cron_settings: &app.cron_settings,
+        desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
+        app_theme: &app.app_theme,
+        project_path: app.project_path.as_deref(),
+        recent_projects: &app.recent_projects,
+        agents: vec![],
+        models: vec![],
+        skills: vec![],
+        conversation_available: false,
+        delivery: DeliveryAvailability::default(),
+        scheduler_error: app.scheduler_settings.save_error.as_deref(),
+        last_copied_code_hash: None,
+        help_content: |_, body, _, _| text(body).into(),
+    }
 }
 fn keep_element(element: Element<'_,Message>) { std::hint::black_box(element); }
 pub(super) fn job(id: &str) -> CronJobDto {
@@ -97,7 +110,6 @@ fn app_backed_option_helpers_include_current_selection() {
 
     assert!(project_options(&data(&app), "/tmp/selected").contains(&"/tmp/selected".to_string()));
     assert!(project_options(&data(&app), "").contains(&"/tmp/current".to_string()));
-    assert!(models_for_provider(&data(&app), "missing").is_empty());
 }
 #[test]
 fn job_helpers_handle_fallback_labels_and_types() {
@@ -146,18 +158,7 @@ fn with_selected_option_skips_already_present_selection() {
     let result = with_selected_option(vec!["a".to_string(), "b".to_string()], "a");
     assert_eq!(result, vec!["a", "b"]);
 }
-#[test]
-fn models_for_provider_returns_models_when_provider_found() {
-    let mut app = test_app();
-    app.agents_settings.provider_models = vec![Provider {
-        id: "openai".to_string(),
-        models: vec![Model {
-            id: "gpt-5".to_string(),
-        }],
-    }];
-    assert_eq!(models_for_provider(&data(&app), "openai"), vec!["gpt-5".to_string()]);
-    assert!(models_for_provider(&data(&app), "missing").is_empty());
-}
+
 #[test]
 fn job_title_trims_surrounding_whitespace() {
     let mut job = job("id-fallback");
@@ -200,4 +201,15 @@ fn cron_save_error_banner_follows_tabs() {
     assert_eq!(view(&data(&app), text("").into(), std::convert::identity).as_widget().children().len(), 4);
 }
 
-impl Default for TestApp { fn default() -> Self { Self { cron_settings: Default::default(), app_theme: iced::Theme::Light, project_path: Default::default(), recent_projects: Default::default(), acp_agents: Default::default(), agents_settings: Default::default(), scheduler_settings: Default::default() } } }
+impl Default for TestApp {
+    fn default() -> Self {
+        Self {
+            cron_settings: Default::default(),
+            app_theme: iced::Theme::Light,
+            project_path: Default::default(),
+            recent_projects: Default::default(),
+            acp_agents: Default::default(),
+            scheduler_settings: Default::default(),
+        }
+    }
+}

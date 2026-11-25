@@ -85,6 +85,32 @@ fn sorted(values: &[u32], max: u32) -> Result<Vec<u32>, String> {
 }
 const WEEKDAYS: [&str; 7] = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
+impl CronScheduleRule {
+    pub(crate) fn wall_time(&self) -> Option<NaiveTime> {
+        match self {
+            Self::At { time, .. }
+            | Self::Daily { time }
+            | Self::Weekly { time, .. }
+            | Self::Biweekly { time, .. }
+            | Self::Monthly { time, .. }
+            | Self::Yearly { time, .. } => Some(*time),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn set_wall_time(&mut self, value: NaiveTime) {
+        match self {
+            Self::At { time, .. }
+            | Self::Daily { time }
+            | Self::Weekly { time, .. }
+            | Self::Biweekly { time, .. }
+            | Self::Monthly { time, .. }
+            | Self::Yearly { time, .. } => *time = value,
+            _ => {}
+        }
+    }
+}
+
 impl CronScheduleDraft {
     pub fn request(&self) -> Result<CronPreviewRequest, String> {
         if self.timezone.trim().is_empty() {

@@ -26,7 +26,7 @@ async fn select_text_and_icons_are_centered_in_trigger_and_menu_rows() {
         let node = select.layout(&mut tree, &renderer, &limits);
         assert_row_centered(Layout::new(&node));
     }
-    let mut content = menu::content(&labels, Some(0), None);
+    let mut content = menu::content(&labels, Some(0), None, menu::ROW_HEIGHT);
     let mut tree = widget::Tree::new(content.as_widget());
     let node = content.as_widget_mut().layout(&mut tree, &renderer, &limits);
     let scroll = Layout::new(&node).children().next().expect("scrollable");

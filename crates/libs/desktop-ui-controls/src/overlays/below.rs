@@ -319,6 +319,21 @@ where
     RendererT: iced::advanced::Renderer,
     Message: Clone,
 {
+    fn overlay<'a>(
+        &'a mut self,
+        layout: Layout<'a>,
+        renderer: &RendererT,
+    ) -> Option<overlay::Element<'a, Message, ThemeT, RendererT>> {
+        let content = layout.children().next()?;
+        self.overlay.as_widget_mut().overlay(
+            self.tree,
+            content,
+            renderer,
+            &content.bounds(),
+            Vector::ZERO,
+        )
+    }
+
     fn layout(&mut self, renderer: &RendererT, bounds: Size) -> layout::Node {
         let viewport = Rectangle::with_size(bounds);
 

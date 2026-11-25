@@ -177,13 +177,9 @@ pub(super) async fn list(key: &str, filters: Filters, page: usize) -> Result<Lis
     let paused_schedules = iced::futures::future::join_all(schedule_ids.into_iter().map(|id| {
         let client = &client;
         async move {
-            #[derive(Deserialize)]
-            struct Response {
-                schedule: Schedule,
-            }
             let response = tokio::time::timeout(
                 Duration::from_secs(3),
-                client.get_path::<Response>(&["schedules", id], &[]),
+                client.get_path::<ScheduleResponse>(&["schedules", id], &[]),
             )
             .await
             .ok()?
@@ -267,8 +263,8 @@ fn department_choices(page: IamPage<DepartmentRow>) -> Vec<(String, String)> {
         .collect()
 }
 
-#[derive(Deserialize)]
-pub(super) struct Schedule {
+#[derive(Clone, Deserialize)]
+pub(crate) struct Schedule {
     pub(super) schedule_id: String,
     pub(super) title: String,
     pub(super) cron: Option<String>,
@@ -276,6 +272,19 @@ pub(super) struct Schedule {
     pub(super) timezone: Option<String>,
     pub(super) enabled: bool,
     pub(super) control_state: Option<String>,
+    pub(super) version: Option<i64>,
+    pub(super) input: Option<Value>,
+}
+
+impl Schedule {
+    pub(super) fn input_text(&self, key: &str) -> Option<&str> {
+        self.input.as_ref()?.get(key)?.as_str().filter(|value| !value.trim().is_empty())
+    }
+}
+
+#[derive(Deserialize)]
+struct ScheduleResponse {
+    schedule: Schedule,
 }
 
 #[derive(Deserialize)]
@@ -288,6 +297,26 @@ pub(crate) struct Schedules {
 pub(super) async fn schedules(key: &str, page: usize) -> Result<Schedules, desktop_i18n::workflow::Feedback> {
     let offset = page.saturating_mul(PAGE_SIZE).to_string();
     Client::new(key)?.get("schedules", &[("limit", "20"), ("offset", &offset)]).await
+}
+
+pub(super) async fn schedule(key: &str, id: &str) -> Result<Schedule, desktop_i18n::workflow::Feedback> {
+    let response: ScheduleResponse = Client::new(key)?.get_path(&["schedules", id], &[]).await?;
+    Ok(response.schedule)
+}
+
+pub(super) async fn update_schedule(
+    key: &str,
+    id: &str,
+    version: i64,
+    cron: &str,
+    timezone: &str,
+) -> Result<Schedule, desktop_i18n::workflow::Feedback> {
+    let response: ScheduleResponse = Client::new(key)?.patch_schedule(id, &json!({
+        "expected_version": version,
+        "cron": cron,
+        "timezone": timezone,
+    })).await?;
+    Ok(response.schedule)
 }
 
 #[derive(Deserialize)]
@@ -457,6 +486,18 @@ pub(super) async fn create(
     version: String,
     time: Option<String>,
 ) -> Result<(), desktop_i18n::workflow::Feedback> {
+    let cron = (draft.trigger == Trigger::Cron).then(|| draft.repeat.cron());
+    create_with_timing(key, draft, version, time, cron, TIMEZONE.name()).await
+}
+
+pub(super) async fn create_with_timing(
+    key: &str,
+    draft: Draft,
+    version: String,
+    time: Option<String>,
+    cron: Option<String>,
+    timezone: &str,
+) -> Result<(), desktop_i18n::workflow::Feedback> {
     let client = Client::new(key)?;
     let preview: Preview = client
         .get_path(&["workflows", &draft.workflow, "step-preview"], &[("version", "published")])
@@ -508,11 +549,11 @@ pub(super) async fn create(
     }
     if let Some(time) = time {
         body["once_at"] = json!(time);
-        body["timezone"] = json!(TIMEZONE.name());
+        body["timezone"] = json!(timezone);
     }
-    if draft.trigger == Trigger::Cron {
-        body["cron"] = json!(draft.repeat.cron());
-        body["timezone"] = json!(TIMEZONE.name());
+    if let Some(cron) = cron {
+        body["cron"] = json!(cron);
+        body["timezone"] = json!(timezone);
     }
     client.post::<Value>(&["tasks"], &body, Some(&draft.key)).await?;
     Ok(())

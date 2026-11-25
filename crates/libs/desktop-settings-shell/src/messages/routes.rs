@@ -290,6 +290,11 @@ impl<SettingsTab, SearchTarget, AppsCatalog, AppProviders>
         | SettingsMessage::CronMaxRunHistoryChanged(_)
         | SettingsMessage::CronTabSelected(_)
         | SettingsMessage::CronTemplatesToggled(_)
+        | SettingsMessage::CronEditorTabSelected { .. }
+        | SettingsMessage::CronEditorPickerChanged { .. }
+        | SettingsMessage::CronEditorSkillToggled { .. }
+        | SettingsMessage::CronAddFromConversation
+        | SettingsMessage::CronSkillCatalogLoaded { .. }
         | SettingsMessage::CronTemplateSelected(_)
         | SettingsMessage::CronListFilterChanged(_)
         | SettingsMessage::CronBatchModeToggled(_)

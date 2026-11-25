@@ -419,6 +419,8 @@ pub async fn update_cron_job_async(
         task_pool,
     )
     .await?;
+    // Agent forms send an empty override to restore the executor's default.
+    let model = if job_type == "agent" { Some(model.unwrap_or_default()) } else { model };
     let mut request = CronUpdateRequest {
         name,
         job_type: Some(job_type),

@@ -212,15 +212,28 @@ fn data(app: &Fixture) -> domain::ViewData<'_> {
         app_theme: &app.app_theme,
         project_path: app.project_path.as_deref(),
         recent_projects: &app.recent_projects,
-        agents: app.acp_agents.iter().map(String::as_str).collect(),
-        providers: app
+        agents: app.acp_agents.iter().map(|id| domain::AgentChoice {
+            id: id.clone(),
+            label: id.clone(),
+            model: String::new(),
+            backend: None,
+            installed: None,
+            requires_employee_target: false,
+        }).collect(),
+        models: app
             .providers
             .iter()
-            .map(|(id, models)| domain::ProviderOptions {
-                id,
-                models: models.iter().map(String::as_str).collect(),
+            .map(|(provider, models)| domain::ModelGroup {
+                id: provider.clone(),
+                label: provider.clone(),
+                models: models.iter().map(|id| domain::ModelChoice {
+                    id: format!("{provider}/{id}"),
+                    label: id.clone(),
+                }).collect(),
             })
             .collect(),
+        skills: Vec::new(),
+        conversation_available: false,
         delivery: app.delivery,
         scheduler_error: app.scheduler_settings.save_error.as_deref(),
         last_copied_code_hash: None,
@@ -232,6 +245,7 @@ fn map(event: LocalMessage) -> Message {
         LocalMessage::None => Message::None,
         LocalMessage::CopyCode(value) => Message::CopyCode(value),
         LocalMessage::Settings(event) => Message::Settings(match event {
+            Event::CronOpenEmployeeSchedule => return Message::None,
             Event::CronPickerOpen { editing } => SettingsMessage::CronPickerOpen { editing },
             Event::CronFullAccessConfirm { editing } => {
                 SettingsMessage::CronFullAccessConfirm { editing }
@@ -256,6 +270,16 @@ fn map(event: LocalMessage) -> Message {
             Event::CronMaxRunHistoryChanged(v0) => SettingsMessage::CronMaxRunHistoryChanged(v0),
             Event::CronTabSelected(v0) => SettingsMessage::CronTabSelected(v0),
             Event::CronTemplatesToggled(v0) => SettingsMessage::CronTemplatesToggled(v0),
+            Event::CronEditorTabSelected { editing, tab } => {
+                SettingsMessage::CronEditorTabSelected { editing, tab }
+            }
+            Event::CronEditorPickerChanged { editing, action } => {
+                SettingsMessage::CronEditorPickerChanged { editing, action }
+            }
+            Event::CronEditorSkillToggled { editing, id } => {
+                SettingsMessage::CronEditorSkillToggled { editing, id }
+            }
+            Event::CronAddFromConversation => SettingsMessage::CronAddFromConversation,
             Event::CronTemplateSelected(v0) => SettingsMessage::CronTemplateSelected(v0),
             Event::CronHistory(v0) => SettingsMessage::CronHistory(v0),
             Event::CronListFilterChanged(v0) => SettingsMessage::CronListFilterChanged(v0),

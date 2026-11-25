@@ -19,7 +19,7 @@ impl DeliveryChoice {
         }
     }
 }
-pub fn view<'a>(app: &ViewData<'a>, draft: &'a CronJobDraft) -> Element<'a, Message> {
+pub fn view<'a>(app: &ViewData<'_>, draft: &'a CronJobDraft) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
     if !draft.delivery_enabled {
         return column![].into();
@@ -39,7 +39,7 @@ pub fn view<'a>(app: &ViewData<'a>, draft: &'a CronJobDraft) -> Element<'a, Mess
     let mut content = column![field_row(
         i18n.__("投递方式"),
         i18n.__("智能机器人通过已认证连接发送到指定会话；群机器人通过 Webhook 发送到群。"),
-        settings_select(options, selected, |choice| Message::Settings(
+        editor_select(options, selected, |choice| Message::Settings(
             S::CronJobEditDeliveryChannelChanged(choice.value.channel().into())
         ))
         .width(Length::Fill),

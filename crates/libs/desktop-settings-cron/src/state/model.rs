@@ -9,6 +9,7 @@ pub enum CronSettingsTab {
     #[default]
     Jobs,
     History,
+    Employee,
     Config,
     Scheduler,
     Add,
@@ -53,6 +54,31 @@ impl CronAddScheduleKind {
 }
 
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum CronEditorTab {
+    #[default]
+    Basic,
+    Advanced,
+    Delivery,
+    Preview,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CronEditorPicker {
+    Model,
+    Agent,
+    Skills,
+}
+
+#[derive(Debug, Clone)]
+pub enum CronEditorPickerAction {
+    Toggle(CronEditorPicker),
+    Close,
+    Search(String),
+    ModelSelected(String),
+    AgentSelected { id: String, backend: Option<String> },
+}
+
 #[derive(Debug, Clone)]
 pub struct CronJobDraft {
     pub schedule_draft: Option<CronScheduleDraft>,
@@ -71,6 +97,10 @@ pub struct CronJobDraft {
     pub command: String,
     pub command_editor: text_editor::Content,
     pub prompt: String,
+    pub skills: Vec<String>,
+    pub editor_tab: CronEditorTab,
+    pub editor_picker: Option<CronEditorPicker>,
+    pub editor_picker_query: String,
     pub prompt_editor: text_editor::Content,
     pub session_target: String,
     pub agent: String,
@@ -109,6 +139,10 @@ impl Default for CronJobDraft {
             command: String::new(),
             command_editor: text_editor::Content::new(),
             prompt: String::new(),
+            skills: Vec::new(),
+            editor_tab: CronEditorTab::Basic,
+            editor_picker: None,
+            editor_picker_query: String::new(),
             prompt_editor: text_editor::Content::new(),
             session_target: "isolated".to_string(),
             agent: "main".to_string(),
@@ -153,6 +187,10 @@ impl CronListFilter {
 pub struct CronSettingsState {
     pub show_add_modal: bool,
     pub show_cron_templates: bool,
+    pub skill_catalog: Vec<crate::system_settings_cron::SkillChoice>,
+    pub skill_catalog_request: Option<iced::task::Handle>,
+    pub skill_catalog_revision: u64,
+    pub skill_catalog_failed: bool,
     pub date_time_picker:
         Option<crate::system_settings_cron::date_time::DateTimePicker>,
     /// 是否启用定时任务
@@ -221,6 +259,10 @@ impl Default for CronSettingsState {
         Self {
             show_add_modal: false,
             show_cron_templates: false,
+            skill_catalog: Vec::new(),
+            skill_catalog_request: None,
+            skill_catalog_revision: 0,
+            skill_catalog_failed: false,
             date_time_picker: None,
             enabled: true,
             max_run_history: 50,
@@ -249,7 +291,51 @@ impl Default for CronSettingsState {
 }
 
 
+/// References use the same names the gateway resolves from user prompts.
+pub fn valid_skill_reference(id: &str) -> bool {
+    !id.is_empty()
+        && id.chars().all(|ch| ch.is_alphanumeric() || matches!(ch, '-' | '_' | ':' | '@' | '.'))
+}
+
 impl CronJobDraft {
+    /// Returns the typed schedule, including schedules saved in the legacy fields.
+    pub fn effective_schedule(&self) -> CronScheduleDraft {
+        self.schedule_draft.clone().unwrap_or_else(|| {
+            let request = gateway_cron::CronPreviewRequest {
+                schedule_kind: self.schedule_kind.as_api_value().into(),
+                schedule: Some(self.schedule.clone()),
+                at: Some(self.at.clone()),
+                every_ms: self.every_ms.parse().ok(),
+                ..Default::default()
+            };
+            CronScheduleDraft::from_request(&request).unwrap_or_default()
+        })
+    }
+
+    pub fn load_prompt(&mut self, saved: &str) {
+        self.skills.clear();
+        self.prompt = saved.to_owned();
+        if let Some((references, prompt)) = saved.split_once("\n\n") {
+            let skills = references
+                .lines()
+                .map(|line| line.strip_prefix('$').filter(|id| valid_skill_reference(id)))
+                .collect::<Option<Vec<_>>>();
+            if let Some(skills) = skills.filter(|ids| !ids.is_empty()) {
+                self.skills = skills.into_iter().map(str::to_owned).collect();
+                self.prompt = prompt.to_owned();
+            }
+        }
+        self.prompt_editor = text_editor::Content::with_text(&self.prompt);
+    }
+
+    pub(crate) fn prompt_for_gateway(&self) -> String {
+        if self.job_type != CronAddJobType::Agent || self.skills.is_empty() {
+            return self.prompt.clone();
+        }
+        let references = self.skills.iter().map(|id| format!("${id}")).collect::<Vec<_>>();
+        format!("{}\n\n{}", references.join("\n"), self.prompt)
+    }
+
     /// 切换类型时丢弃上一类型的目标，避免把用户 ID 当作群引用。
     pub(crate) fn select_delivery_channel(&mut self, channel: String) {
         if self.delivery_channel != channel {

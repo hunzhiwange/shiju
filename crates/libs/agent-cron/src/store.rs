@@ -356,7 +356,7 @@ pub fn update_job(config: &Config, job_id: &str, patch: CronJobPatch) -> Result<
         job.delivery = delivery;
     }
     if let Some(model) = patch.model {
-        job.model = Some(model);
+        job.model = Some(model).filter(|value| !value.trim().is_empty());
     }
     if let Some(target) = patch.session_target {
         job.session_target = target;

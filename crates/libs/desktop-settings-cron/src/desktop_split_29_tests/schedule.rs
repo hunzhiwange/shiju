@@ -96,6 +96,8 @@ fn wb_schedule_picker_cancel_preserves_draft() {
 #[test]
 fn wb_schedule_picker_confirm_commits_and_invalidates_preview() {
     let mut app = app();
+    app.add_draft.schedule_kind = CronAddScheduleKind::At;
+    app.add_draft.at = "2030-01-02T10:11:00Z".into();
     app.add_draft.preview = Some(Err("stale".into()));
     let _ = update(&mut app, SettingsMessage::CronPickerOpen { editing: false });
     let date = chrono::NaiveDate::from_ymd_opt(2031, 3, 4).unwrap();
@@ -108,6 +110,26 @@ fn wb_schedule_picker_confirm_commits_and_invalidates_preview() {
     assert_eq!(request.timezone.as_deref(), Some("UTC"));
     assert_eq!(app.add_draft.schedule_revision, 1);
     assert!(app.add_draft.preview.is_none());
+}
+
+#[test]
+fn wb_schedule_picker_updates_recurring_time_without_changing_rule() {
+    use crate::state::{CronScheduleDraft, CronScheduleRule};
+    let mut app = app();
+    let time = "09:00:00".parse().unwrap();
+    app.add_draft.schedule_draft = Some(CronScheduleDraft {
+        rule: CronScheduleRule::Monthly { days: vec![10, 25], time },
+        timezone: "Asia/Shanghai".into(),
+        ..Default::default()
+    });
+    let _ = update(&mut app, SettingsMessage::CronPickerOpen { editing: false });
+    assert!(app.date_time_picker.as_ref().unwrap().time_only);
+    let _ = update(&mut app, SettingsMessage::CronPickerTime { hour: 17, minute: 30 });
+    let _ = update(&mut app, SettingsMessage::CronPickerConfirm);
+    let schedule = app.add_draft.schedule_draft.unwrap();
+    assert_eq!(schedule.timezone, "Asia/Shanghai");
+    assert!(matches!(schedule.rule, CronScheduleRule::Monthly { days, time }
+        if days == vec![10, 25] && time.to_string() == "17:30:00"));
 }
 
 #[test]

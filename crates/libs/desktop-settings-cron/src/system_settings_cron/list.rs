@@ -1,7 +1,8 @@
 //! Current jobs own their scroll viewport so batch actions remain visible.
 use super::*;
-use desktop_ui_controls::system_settings_common::settings_toggle;
 use crate::state::{CronFrequency, CronListFilter, CronScheduleDraft};
+use desktop_assets::assets::Icon;
+use desktop_ui_controls::system_settings_common::{icon_svg, settings_toggle};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, column, responsive, scrollable};
 
@@ -314,6 +315,7 @@ pub fn jobs_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
     }
     let app_theme = app.app_theme;
     let help_content = app.help_content;
+    let conversation_available = app.conversation_available;
     let toolbar = responsive(move |size| {
         let title = i18n.__("当前任务");
         let description = i18n.__("默认展示已配置的定时任务，并支持单项或批量管理。");
@@ -329,16 +331,7 @@ pub fn jobs_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
                 Message::Settings(message::SettingsMessage::CronBatchModeToggled(!s.batch_mode)),
                 false
             ),
-            small_button(
-                i18n.__("从模板新建"),
-                Message::Settings(message::SettingsMessage::CronTemplatesToggled(true)),
-                false
-            ),
-            compact_button(i18n.__("新建定时任务"))
-                .style(primary_action_btn_style)
-                .on_press(Message::Settings(message::SettingsMessage::CronTabSelected(
-                    CronSettingsTab::Add,
-                ))),
+            new_task_button(i18n, conversation_available),
         ]
         .spacing(8)
         .align_y(Alignment::Center);
@@ -432,6 +425,47 @@ pub fn jobs_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
         page = page.push(container(footer).padding([12, 7]).width(Length::Fill));
     }
     page.into()
+}
+
+fn new_task_button(i18n: I18n, conversation_available: bool) -> Element<'static, Message> {
+    use message::SettingsMessage as S;
+
+    let mut options = Vec::new();
+    if conversation_available {
+        options.push(i18n.__("从对话新建"));
+    }
+    let template = i18n.__("从模板新建");
+    options.push(template);
+    let menu = settings_select(options, None, move |selected| {
+        Message::Settings(if selected == template {
+            S::CronTemplatesToggled(true)
+        } else {
+            S::CronAddFromConversation
+        })
+    })
+    .width(36)
+    .height(36.0)
+    .menu_icon(Icon::ChevronDown, 180.0);
+    row![
+        button(
+            row![icon_svg(Icon::Plus, 14.0), text(i18n.__("新建")).size(13)]
+                .spacing(6)
+                .align_y(Alignment::Center)
+        )
+        .padding([8, 12])
+        .height(36)
+        .style(primary_action_btn_style)
+        .on_press(Message::Settings(S::CronTabSelected(CronSettingsTab::Add))),
+        iced::widget::tooltip(
+            menu,
+            text(i18n.__("新建方式")).size(12),
+            iced::widget::tooltip::Position::Bottom
+        )
+        .style(settings_modal_card_style),
+    ]
+    .spacing(2)
+    .align_y(Alignment::Center)
+    .into()
 }
 
 fn job_has_ended(job: &CronJobDto, now: chrono::DateTime<chrono::Utc>) -> bool {

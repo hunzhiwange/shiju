@@ -624,3 +624,17 @@ fn cron_modal_double_submit_is_ignored() {
     assert_eq!(task.units(), 0);
     assert!(app.add_draft.submitting);
 }
+
+#[test]
+fn cron_skill_chips_roundtrip_with_prompt() {
+    let mut draft = crate::state::CronJobDraft::default();
+    let initial = "$developer-tools:review\n$release-notes\n\n整理更新说明";
+    draft.load_prompt(initial);
+    assert_eq!(draft.prompt, "整理更新说明");
+    assert_eq!(draft.skills, ["developer-tools:review", "release-notes"]);
+    assert_eq!(draft.prompt_for_gateway(), initial);
+
+    draft.load_prompt("历史任务\n\n保留原始提示词");
+    assert_eq!(draft.prompt_for_gateway(), "历史任务\n\n保留原始提示词");
+    assert!(draft.skills.is_empty());
+}

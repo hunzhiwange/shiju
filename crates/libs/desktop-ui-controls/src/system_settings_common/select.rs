@@ -51,6 +51,7 @@ pub fn settings_select<'a, Message: Clone + 'a, T: Clone + PartialEq + ToString 
         toolbar_icon: None,
         trigger_height: None,
         menu_min_width: None,
+        roomy_menu: false,
     }
 }
 
@@ -69,6 +70,7 @@ pub struct SettingsSelect<'a, T, Message> {
     toolbar_icon: Option<Icon>,
     trigger_height: Option<f32>,
     menu_min_width: Option<f32>,
+    roomy_menu: bool,
 }
 
 impl<T, Message> SettingsSelect<'_, T, Message> {
@@ -76,6 +78,13 @@ impl<T, Message> SettingsSelect<'_, T, Message> {
     pub fn format_labels(mut self, label: impl Fn(&T) -> String) -> Self {
         self.labels = self.options.iter().map(&label).collect();
         self.label = self.selected_value.as_ref().map(label);
+        self.rebuild_trigger();
+        self
+    }
+
+    /// Customize the selected value shown on the trigger without changing menu labels.
+    pub fn trigger_label(mut self, label: impl Into<String>) -> Self {
+        self.label = Some(label.into());
         self.rebuild_trigger();
         self
     }
@@ -89,6 +98,12 @@ impl<T, Message> SettingsSelect<'_, T, Message> {
     pub fn height(mut self, height: f32) -> Self {
         self.trigger_height = Some(height);
         self.rebuild_trigger();
+        self
+    }
+
+    /// Use taller options and allow the menu to extend beyond its scroll area.
+    pub fn roomy_menu(mut self, roomy: bool) -> Self {
+        self.roomy_menu = roomy;
         self
     }
 
@@ -426,7 +441,17 @@ impl<T: PartialEq + 'static, Message: Clone> Widget<Message, Theme, Renderer> fo
             return None;
         }
         let anchor = layout.bounds() + translation;
-        let content = menu::content(&self.labels, self.selected, state.menu.keyboard_option);
+        if self.roomy_menu && anchor.intersection(viewport).is_none() {
+            state.menu.open = false;
+            return None;
+        }
+        let row_height = if self.roomy_menu { 42.0 } else { menu::ROW_HEIGHT };
+        let content = menu::content(
+            &self.labels,
+            self.selected,
+            state.menu.keyboard_option,
+            row_height,
+        );
         tree.children[1].diff(content.as_widget());
         Some(overlay::Element::new(Box::new(menu::SelectMenu {
             content,
@@ -438,6 +463,8 @@ impl<T: PartialEq + 'static, Message: Clone> Widget<Message, Theme, Renderer> fo
             viewport: *viewport,
             on_selected: self.on_selected.as_ref(),
             option_count: self.labels.len(),
+            row_height,
+            roomy: self.roomy_menu,
         })))
     }
 }

@@ -8,6 +8,7 @@ mod board_api;
 mod board_view;
 pub(crate) mod chat;
 pub(crate) mod chat_picker;
+pub(crate) mod cron_schedules;
 mod departments;
 mod portraits;
 mod shared;
@@ -51,6 +52,7 @@ pub(crate) struct State {
     chat_request_floor: u64,
     chat_scope: Option<chat::Scope>,
     chat_picker: Option<chat_picker::Picker>,
+    cron_schedules: cron_schedules::State,
     history_label_request: Option<chat::HistoryLabelRequest>,
     page: Page,
     assistants: assistants::List,
@@ -69,6 +71,7 @@ pub(crate) enum Event {
     Open,
     ChatScopeChecked(u64, Result<chat::Scope, desktop_i18n::workflow::Feedback>, Option<chat::ChatIntent>),
     ChatPicker(chat_picker::Event),
+    CronSchedules(cron_schedules::Event),
     HistoryLabelLoaded(chat::HistoryLabelRequest, Option<chat::EmployeeAppearance>),
     SelectPage(Page),
     Assistants(assistants::ListEvent),
@@ -89,6 +92,7 @@ impl std::fmt::Debug for Event {
             Self::Open => "Open",
             Self::ChatScopeChecked(..) => "ChatScopeChecked",
             Self::ChatPicker(_) => "ChatPicker",
+            Self::CronSchedules(_) => "CronSchedules",
             Self::HistoryLabelLoaded(..) => "HistoryLabelLoaded",
             Self::SelectPage(_) => "SelectPage",
             Self::Assistants(_) => "Assistants",
@@ -111,6 +115,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             return chat::scope_checked(app, request, result, selection);
         }
         Event::ChatPicker(event) => return chat_picker::update(app, event),
+        Event::CronSchedules(event) => return cron_schedules::update(app, event),
         Event::HistoryLabelLoaded(request, name) => chat::apply_history_label(app, request, name),
         Event::SelectPage(page) => return select_page(app, page),
         Event::Assistants(event) => return assistants::update(app, event),
@@ -171,13 +176,21 @@ pub(crate) fn account_changed(app: &mut App) -> Task<Message> {
     let shared = app.digital_employees.shared.reset_account();
     let workflows = app.digital_employees.workflows.account_reset();
     let tasks = app.digital_employees.tasks.reset_account();
+    let cron_schedules = app.digital_employees.cron_schedules.reset_account();
     app.digital_employees =
-        State { generation, chat_scope_request, chat_request_floor, page, board, tasks, assistants, shared, workflows, ..State::default() };
+        State { generation, chat_scope_request, chat_request_floor, page, board, tasks, assistants, shared, workflows, cron_schedules, ..State::default() };
     let scope = chat::check_scope(app, None);
+    let employee_schedules = if crate::app::components::system_settings_cron::visible(app)
+        && app.cron_settings.active_tab == desktop_settings_cron::state::CronSettingsTab::Employee
+    {
+        cron_schedules::refresh(app)
+    } else {
+        Task::none()
+    };
     if app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == TAB_ID) {
-        return Task::batch([scope, refresh_visible(app)]);
+        return Task::batch([scope, employee_schedules, refresh_visible(app)]);
     }
-    scope
+    Task::batch([scope, employee_schedules])
 }
 
 fn select_page(app: &mut App, page: Page) -> Task<Message> {

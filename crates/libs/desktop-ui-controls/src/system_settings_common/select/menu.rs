@@ -1,11 +1,11 @@
-use super::{MenuState, forward_shell, label::Label, option::MenuOption, styles};
 use super::super::icons::icon_svg;
+use super::{MenuState, forward_shell, label::Label, option::MenuOption, styles};
 use desktop_assets::assets::Icon;
 use iced::advanced::{Clipboard, Layout, Shell, layout, mouse, overlay, renderer, widget};
 use iced::widget::{Space, button, column, container, row, scrollable};
 use iced::{Alignment, Element, Event, Length, Point, Rectangle, Renderer, Size, Theme};
 
-const ROW_HEIGHT: f32 = 36.0;
+pub(super) const ROW_HEIGHT: f32 = 36.0;
 const ROW_SPACING: f32 = 2.0;
 const MENU_PADDING: f32 = 6.0;
 const GAP: f32 = 6.0;
@@ -16,6 +16,7 @@ pub(super) fn content(
     labels: &[String],
     selected: Option<usize>,
     keyboard: Option<usize>,
+    row_height: f32,
 ) -> Element<'static, usize> {
     let items = labels.iter().enumerate().map(|(index, label)| {
         let mark: Element<'static, usize> = if selected == Some(index) {
@@ -31,7 +32,7 @@ pub(super) fn content(
         )
         .on_press(index)
         .width(Length::Fill)
-        .height(ROW_HEIGHT)
+        .height(row_height)
         .padding([6, 10])
         .style(|theme: &Theme, _| button::Style {
             text_color: theme.palette().text,
@@ -65,6 +66,8 @@ pub(super) struct SelectMenu<'a, Message> {
     pub viewport: Rectangle,
     pub on_selected: &'a dyn Fn(usize) -> Message,
     pub option_count: usize,
+    pub row_height: f32,
+    pub roomy: bool,
 }
 
 impl<Message> SelectMenu<'_, Message> {
@@ -77,18 +80,23 @@ impl<Message> SelectMenu<'_, Message> {
 
 impl<Message> overlay::Overlay<Message, Theme, Renderer> for SelectMenu<'_, Message> {
     fn layout(&mut self, renderer: &Renderer, bounds: Size) -> layout::Node {
-        let viewport =
-            self.viewport.intersection(&Rectangle::with_size(bounds)).unwrap_or_default();
+        let window = Rectangle::with_size(bounds);
+        let viewport = if self.roomy {
+            window
+        } else {
+            self.viewport.intersection(&window).unwrap_or_default()
+        };
         let below =
             (viewport.y + viewport.height - EDGE - self.anchor.y - self.anchor.height - GAP)
                 .max(0.0);
         let above = (self.anchor.y - GAP - viewport.y - EDGE).max(0.0);
-        let wanted = (self.option_count as f32 * (ROW_HEIGHT + ROW_SPACING) - ROW_SPACING
+        let wanted = (self.option_count as f32 * (self.row_height + ROW_SPACING) - ROW_SPACING
             + MENU_PADDING * 2.0)
-            .min(320.0);
+            .min(if self.roomy { 400.0 } else { 320.0 });
         let upwards = below < wanted && above > below;
         let height = wanted.min(if upwards { above } else { below });
-        let width = self.anchor.width.max(self.min_width).min((viewport.width - EDGE * 2.0).max(0.0));
+        let width =
+            self.anchor.width.max(self.min_width).min((viewport.width - EDGE * 2.0).max(0.0));
         let node = self.content.as_widget_mut().layout(
             self.tree,
             renderer,
@@ -107,8 +115,9 @@ impl<Message> overlay::Overlay<Message, Theme, Renderer> for SelectMenu<'_, Mess
         if self.state.scroll_to_option {
             self.state.scroll_to_option = false;
             let index = self.state.keyboard_option.unwrap_or(0);
-            let offset =
-                (index as f32 * (ROW_HEIGHT + ROW_SPACING) - (height - ROW_HEIGHT) / 2.0).max(0.0);
+            let offset = (index as f32 * (self.row_height + ROW_SPACING)
+                - (height - self.row_height) / 2.0)
+                .max(0.0);
             let mut operation = widget::operation::scrollable::scroll_to::<()>(
                 widget::Id::from(SCROLL_ID),
                 widget::operation::scrollable::AbsoluteOffset { x: None, y: Some(offset) },
@@ -228,15 +237,10 @@ impl<Message> overlay::Overlay<Message, Theme, Renderer> for SelectMenu<'_, Mess
         layout: Layout<'_>,
         cursor: mouse::Cursor,
     ) {
-        self.content.as_widget().draw(
-            self.tree,
-            renderer,
-            theme,
-            defaults,
-            layout,
-            cursor,
-            &self.viewport,
-        );
+        let viewport = if self.roomy { layout.bounds() } else { self.viewport };
+        self.content
+            .as_widget()
+            .draw(self.tree, renderer, theme, defaults, layout, cursor, &viewport);
     }
     fn mouse_interaction(
         &self,
@@ -245,9 +249,10 @@ impl<Message> overlay::Overlay<Message, Theme, Renderer> for SelectMenu<'_, Mess
         renderer: &Renderer,
     ) -> mouse::Interaction {
         if cursor.is_over(layout.bounds()) {
+            let viewport = if self.roomy { layout.bounds() } else { self.viewport };
             self.content
                 .as_widget()
-                .mouse_interaction(self.tree, layout, cursor, &self.viewport, renderer)
+                .mouse_interaction(self.tree, layout, cursor, &viewport, renderer)
                 .max(mouse::Interaction::Idle)
         } else {
             mouse::Interaction::Idle

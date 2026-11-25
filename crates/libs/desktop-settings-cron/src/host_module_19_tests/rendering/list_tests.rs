@@ -132,7 +132,7 @@ async fn cron_list_controls_dispatch_correct_job_ids() {
         [Message::Settings(SettingsMessage::CronListFilterChanged(CronListFilter::Enabled))]
     ));
     assert!(matches!(
-        click(&mut ui, &mut renderer, positions.label("新建定时任务").center()).as_slice(),
+        click(&mut ui, &mut renderer, positions.label("新建").center()).as_slice(),
         [Message::Settings(SettingsMessage::CronTabSelected(CronSettingsTab::Add))]
     ));
     drop(ui);

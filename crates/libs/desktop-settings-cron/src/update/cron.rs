@@ -5,7 +5,10 @@ use desktop_config::config_cron_jobs::{
     set_cron_job_enabled_async, set_cron_jobs_enabled_async,
     update_cron_job_async,
 };
-use crate::state::{CronAddJobType, CronAddScheduleKind, CronFrequency, CronSettingsTab};
+use crate::state::{
+    CronAddJobType, CronAddScheduleKind, CronEditorPicker, CronEditorPickerAction, CronEditorTab,
+    CronFrequency, CronSettingsTab,
+};
 use super::messages::Message;
 use desktop_config::ConfigAccess;
 use iced::Task;
@@ -30,6 +33,87 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
         }
     }
     match message {
+        SettingsMessage::CronEditorTabSelected { editing, tab } => {
+            let state = &mut app.cron_settings;
+            let draft = if editing && state.editing_job_id.is_some() {
+                &mut state.edit_draft
+            } else if !editing && state.show_add_modal && state.editing_job_id.is_none() {
+                &mut state.add_draft
+            } else {
+                return Task::none();
+            };
+            if draft.editor_tab == tab {
+                return Task::none();
+            }
+            draft.editor_tab = tab;
+            draft.editor_picker = None;
+            draft.editor_picker_query.clear();
+            state.date_time_picker = None;
+            iced::widget::operation::snap_to(
+                crate::system_settings_cron::EDITOR_SCROLL_ID,
+                iced::widget::operation::RelativeOffset::START,
+            )
+        }
+        SettingsMessage::CronEditorPickerChanged { editing, action } => {
+            let state = &mut app.cron_settings;
+            let draft = if editing && state.editing_job_id.is_some() {
+                &mut state.edit_draft
+            } else if !editing && state.show_add_modal && state.editing_job_id.is_none() {
+                &mut state.add_draft
+            } else {
+                return Task::none();
+            };
+            if draft.editor_tab != CronEditorTab::Basic || draft.job_type != CronAddJobType::Agent {
+                return Task::none();
+            }
+            match action {
+                CronEditorPickerAction::Toggle(picker) => {
+                    draft.editor_picker = (draft.editor_picker != Some(picker)).then_some(picker);
+                    draft.editor_picker_query.clear();
+                }
+                CronEditorPickerAction::Close => draft.editor_picker = None,
+                CronEditorPickerAction::Search(query) if draft.editor_picker.is_some() => {
+                    draft.editor_picker_query = query;
+                }
+                CronEditorPickerAction::ModelSelected(model)
+                    if draft.editor_picker == Some(CronEditorPicker::Model) =>
+                {
+                    draft.model_provider = model_provider_from_model(&model);
+                    draft.model = model;
+                    draft.editor_picker = None;
+                }
+                CronEditorPickerAction::AgentSelected { id, backend }
+                    if draft.editor_picker == Some(CronEditorPicker::Agent) =>
+                {
+                    draft.agent = id;
+                    draft.acp_agent = backend.unwrap_or_default();
+                    draft.editor_picker = None;
+                }
+                _ => return Task::none(),
+            }
+            if draft.editor_picker.is_some() {
+                iced::widget::operation::snap_to(
+                    crate::system_settings_cron::EDITOR_PICKER_SCROLL_ID,
+                    iced::widget::operation::RelativeOffset::START,
+                )
+            } else {
+                draft.editor_picker_query.clear();
+                Task::none()
+            }
+        }
+        SettingsMessage::CronEditorSkillToggled { editing, id } => {
+            let draft = if editing {
+                &mut app.cron_settings.edit_draft
+            } else {
+                &mut app.cron_settings.add_draft
+            };
+            if let Some(index) = draft.skills.iter().position(|skill| skill == &id) {
+                draft.skills.remove(index);
+            } else if crate::state::valid_skill_reference(&id) {
+                draft.skills.push(id);
+            }
+            Task::none()
+        }
         SettingsMessage::CronFullAccessConfirm { editing } => {
             let state = &mut app.cron_settings;
             let active = if editing {
@@ -66,8 +150,9 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             if draft.submitting {
                 return Task::none();
             }
-            let timezone =
-                draft.schedule_draft.as_ref().map(|d| d.timezone.as_str()).unwrap_or("UTC");
+            use crate::state::CronScheduleRule as Rule;
+            let current = draft.effective_schedule();
+            let timezone = &current.timezone;
             let tz = match timezone.parse::<runtime_time::zones::NamedTimeZone>() {
                 Ok(tz) => tz,
                 Err(_) => {
@@ -77,26 +162,34 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                 }
             };
             let now = chrono::Utc::now().with_timezone(&tz);
-            let absolute = match draft.schedule_draft.as_ref().map(|d| &d.rule) {
-                Some(crate::state::CronScheduleRule::AbsoluteAt(value)) => {
-                    Some(value.as_str())
-                }
-                _ => Some(draft.at.as_str()),
-            }
-            .and_then(|v| chrono::DateTime::parse_from_rfc3339(v).ok())
-            .map(|v| v.with_timezone(&tz));
-            let (date, time) = match draft.schedule_draft.as_ref().map(|d| &d.rule) {
-                Some(crate::state::CronScheduleRule::At { date, time }) => (*date, *time),
-                _ => absolute.map(|v| (v.date_naive(), v.time())).unwrap_or((
-                    now.date_naive(),
-                    chrono::NaiveTime::from_hms_opt(9, 0, 0).unwrap(),
-                )),
+            let time_only = matches!(
+                current.rule,
+                Rule::Daily { .. }
+                    | Rule::Weekly { .. }
+                    | Rule::Biweekly { .. }
+                    | Rule::Monthly { .. }
+                    | Rule::Yearly { .. }
+            );
+            let time = current
+                .rule
+                .wall_time()
+                .unwrap_or_else(|| chrono::NaiveTime::from_hms_opt(9, 0, 0).unwrap());
+            let (date, time) = match &current.rule {
+                Rule::At { date, time } => (*date, *time),
+                Rule::AbsoluteAt(value) => chrono::DateTime::parse_from_rfc3339(value)
+                    .map(|value| {
+                        let local = value.with_timezone(&tz);
+                        (local.date_naive(), local.time())
+                    })
+                    .unwrap_or((now.date_naive(), time)),
+                _ => (now.date_naive(), time),
             };
             let mut picker =
                 crate::system_settings_cron::date_time::DateTimePicker::new(
                     editing, date, time,
                 );
             picker.revision = draft.schedule_revision;
+            picker.time_only = time_only;
             // 时分精度显式归一化，避免绝对时间中的秒在确认后被隐藏保留。
             use chrono::Timelike;
             picker.set_time(time.hour(), time.minute());
@@ -135,14 +228,15 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                 if target.submitting || target.schedule_revision != picker.revision {
                     return Task::none();
                 }
-                let mut schedule = target.schedule_draft.clone().unwrap_or_default();
-                schedule.rule = crate::state::CronScheduleRule::At {
-                    date: picker.date,
-                    time: picker.time,
-                };
-                target.schedule_kind = CronAddScheduleKind::At;
-                // 同步旧表单的展示值，实际请求始终由强类型草稿生成。
-                target.at = format!("{}T{}", picker.date, picker.time.format("%H:%M"));
+                let mut schedule = target.effective_schedule();
+                if picker.time_only {
+                    schedule.rule.set_wall_time(picker.time);
+                } else {
+                    schedule.rule =
+                        crate::state::CronScheduleRule::At { date: picker.date, time: picker.time };
+                    target.schedule_kind = CronAddScheduleKind::At;
+                    target.at = format!("{}T{}", picker.date, picker.time.format("%H:%M"));
+                }
                 target.schedule_draft = Some(schedule);
                 invalidate_schedule(target);
             }
@@ -436,13 +530,19 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                 app.cron_settings.edit_draft.command = job.command.clone();
                 app.cron_settings.edit_draft.command_editor =
                     text_editor::Content::with_text(&app.cron_settings.edit_draft.command);
-                app.cron_settings.edit_draft.prompt = job.prompt.clone().unwrap_or_default();
-                app.cron_settings.edit_draft.prompt_editor =
-                    text_editor::Content::with_text(&app.cron_settings.edit_draft.prompt);
+                app.cron_settings.edit_draft.load_prompt(job.prompt.as_deref().unwrap_or_default());
+                app.cron_settings.edit_draft.editor_tab = CronEditorTab::Basic;
+                app.cron_settings.edit_draft.editor_picker = None;
+                app.cron_settings.edit_draft.editor_picker_query.clear();
                 app.cron_settings.edit_draft.session_target = "isolated".to_string();
-                app.cron_settings.edit_draft.agent =
-                    job.agent.clone().unwrap_or_else(|| "main".to_string());
                 app.cron_settings.edit_draft.acp_agent = job.acp_agent.clone().unwrap_or_default();
+                app.cron_settings.edit_draft.agent = job.agent.clone().unwrap_or_else(|| {
+                    if app.cron_settings.edit_draft.acp_agent.trim().is_empty() {
+                        "main".to_owned()
+                    } else {
+                        String::new()
+                    }
+                });
                 app.cron_settings.edit_draft.project_path =
                     job.project_path.clone().unwrap_or_default();
                 app.cron_settings.edit_draft.model = job.model.clone().unwrap_or_default();
@@ -692,7 +792,7 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                     app.cron_settings.edit_draft.at.clone(),
                     app.cron_settings.edit_draft.every_ms.clone(),
                     app.cron_settings.edit_draft.command.clone(),
-                    app.cron_settings.edit_draft.prompt.clone(),
+                    app.cron_settings.edit_draft.prompt_for_gateway(),
                     "isolated".to_string(),
                     app.cron_settings.edit_draft.agent.clone(),
                     app.cron_settings.edit_draft.acp_agent.clone(),
@@ -973,7 +1073,7 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                     app.cron_settings.add_draft.at.clone(),
                     app.cron_settings.add_draft.every_ms.clone(),
                     app.cron_settings.add_draft.command.clone(),
-                    app.cron_settings.add_draft.prompt.clone(),
+                    app.cron_settings.add_draft.prompt_for_gateway(),
                     "isolated".to_string(),
                     app.cron_settings.add_draft.agent.clone(),
                     app.cron_settings.add_draft.acp_agent.clone(),

@@ -35,20 +35,6 @@ pub(super) fn field_row_with_help<'a>(
     container(column![label, control.into()].spacing(6)).padding([14, 0]).width(Length::Fill).into()
 }
 
-pub(super) fn at_field<'a>(app: &ViewData<'_>, value: &'a str, editing: bool) -> Element<'a, Message> {
-    let label =
-        if value.is_empty() { I18n::new(app.desktop_locale).__("选择日期和时间").to_string() } else { value.to_string() };
-    field_row_with_help(
-        app,
-        "指定时间",
-        "选择日期及小时、分钟；确认后预览校验。",
-        secondary_button(
-            label,
-            Message::Settings(message::SettingsMessage::CronPickerOpen { editing }),
-        ),
-    )
-}
-
 pub(super) fn cron_segment_style(theme: &Theme, status: button::Status, is_active: bool) -> button::Style {
     let mut style = settings_segment_button_style(theme, status, is_active);
     if is_active {
@@ -142,14 +128,6 @@ pub(super) fn with_selected_option(mut options: Vec<String>, selected: &str) -> 
     options
 }
 
-pub(super) fn models_for_provider(app: &ViewData<'_>, provider_id: &str) -> Vec<String> {
-    app.providers
-        .iter()
-        .find(|provider| provider.id == provider_id)
-        .map(|provider| provider.models.iter().map(|model| (*model).to_string()).collect())
-        .unwrap_or_default()
-}
-
 pub(super) fn project_options(app: &ViewData<'_>, selected: &str) -> Vec<String> {
     let mut options = app.recent_projects.to_vec();
     if let Some(path) = app.project_path.filter(|value| !value.trim().is_empty()) {
@@ -173,30 +151,41 @@ impl std::fmt::Display for ProjectChoice {
     }
 }
 
-pub(crate) fn project_field<'a>(
+pub(crate) fn project_field_builder<'a, F>(
     app: &ViewData<'_>,
     path: &str,
-    on_selected: impl Fn(String) -> Message + 'a,
-) -> Element<'a, Message> {
+    on_selected: F,
+) -> impl Fn() -> Element<'a, Message> + use<'a, F>
+where
+    F: Fn(String) -> Message + Clone + 'a,
+{
     let empty = ProjectChoice::None(I18n::new(app.desktop_locale).__("选择项目"));
     let path = path.trim();
     let selected = if path.is_empty() { empty.clone() } else { ProjectChoice::Path(path.into()) };
-    let options = std::iter::once(empty).chain(
-        project_options(app, path)
-            .into_iter()
-            .filter(|path| !path.trim().is_empty())
-            .map(ProjectChoice::Path),
-    );
-    settings_select(options, Some(selected), move |choice| {
-        on_selected(match choice {
-            ProjectChoice::None(_) => String::new(),
-            ProjectChoice::Path(path) => path,
+    let options: Vec<_> = std::iter::once(empty)
+        .chain(
+            project_options(app, path)
+                .into_iter()
+                .filter(|path| !path.trim().is_empty())
+                .map(ProjectChoice::Path),
+        )
+        .collect();
+    move || {
+        let on_selected = on_selected.clone();
+        editor_select(options.iter().cloned(), Some(selected.clone()), move |choice| {
+            on_selected(match choice {
+                ProjectChoice::None(_) => String::new(),
+                ProjectChoice::Path(path) => path,
+            })
         })
-    })
-    .width(Length::Fill)
-    .into()
+        .toolbar_icon(desktop_assets::assets::Icon::FolderClosed)
+        .height(34.0)
+        .width(Length::Fill)
+        .into()
+    }
 }
 
+#[cfg(test)]
 pub(crate) fn pick_field<'a>(
     options: Vec<String>,
     selected: Option<String>,

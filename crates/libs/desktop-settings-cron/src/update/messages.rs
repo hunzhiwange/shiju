@@ -43,6 +43,19 @@ pub enum SettingsMessage {
     CronMaxRunHistoryChanged(u32),
     CronTabSelected(CronSettingsTab),
     CronTemplatesToggled(bool),
+    CronEditorTabSelected {
+        editing: bool,
+        tab: CronEditorTab,
+    },
+    CronEditorPickerChanged {
+        editing: bool,
+        action: CronEditorPickerAction,
+    },
+    CronEditorSkillToggled {
+        editing: bool,
+        id: String,
+    },
+    CronAddFromConversation,
     CronTemplateSelected(crate::state::CronTemplateId),
     CronHistory(crate::message::HistoryMessage),
     CronListFilterChanged(CronListFilter),

@@ -24,9 +24,31 @@ use iced::widget::{button, checkbox, column, container, row, slider, text, text_
 use iced::{Alignment, Background, Element, Length, Theme};
 use gateway_cron::CronJobDto;
 
-pub struct ProviderOptions<'a> {
-    pub id: &'a str,
-    pub models: Vec<&'a str>,
+#[derive(Clone, Debug)]
+pub struct SkillChoice {
+    pub id: String,
+    pub label: String,
+    pub description: String,
+}
+
+pub struct ModelGroup {
+    pub id: String,
+    pub label: String,
+    pub models: Vec<ModelChoice>,
+}
+
+pub struct ModelChoice {
+    pub id: String,
+    pub label: String,
+}
+
+pub struct AgentChoice {
+    pub id: String,
+    pub label: String,
+    pub model: String,
+    pub backend: Option<String>,
+    pub installed: Option<bool>,
+    pub requires_employee_target: bool,
 }
 #[derive(Clone, Copy, Default)]
 pub struct DeliveryAvailability {
@@ -47,8 +69,10 @@ pub struct ViewData<'a> {
     pub app_theme: &'a Theme,
     pub project_path: Option<&'a str>,
     pub recent_projects: &'a [String],
-    pub agents: Vec<&'a str>,
-    pub providers: Vec<ProviderOptions<'a>>,
+    pub agents: Vec<AgentChoice>,
+    pub models: Vec<ModelGroup>,
+    pub skills: Vec<SkillChoice>,
+    pub conversation_available: bool,
     pub delivery: DeliveryAvailability,
     pub scheduler_error: Option<&'a str>,
     pub last_copied_code_hash: Option<u64>,
@@ -70,6 +94,8 @@ fn settings_flexible_row_with_help<'a>(app: &ViewData<'_>, title: &'a str, descr
     desktop_ui_controls::system_settings_common::settings_flexible_row_with_label(label,width,control)
 }
 
+mod composer;
+mod composer_picker;
 pub mod date_time;
 mod delivery;
 mod editor_modal;
@@ -82,7 +108,17 @@ pub mod templates;
 
 use list::jobs_tab;
 
+pub(crate) const EDITOR_SCROLL_ID: &str = "cron-editor-content";
+pub(crate) const EDITOR_PICKER_SCROLL_ID: &str = "cron-editor-picker-list";
 const RUN_HISTORY_PREVIEW_LINES: usize = 3;
+
+fn editor_select<'a, M: Clone + 'a, T: Clone + PartialEq + ToString + 'static>(
+    options: impl IntoIterator<Item = T>,
+    selected: Option<T>,
+    on_selected: impl Fn(T) -> M + 'a,
+) -> desktop_ui_controls::system_settings_common::select::SettingsSelect<'a, T, M> {
+    settings_select(options, selected, on_selected).roomy_menu(true)
+}
 
 pub const CRON_TABS: &[(CronSettingsTab, &str, &[&str])] = &[
     (
@@ -95,6 +131,7 @@ pub const CRON_TABS: &[(CronSettingsTab, &str, &[&str])] = &[
         "运行记录",
         &["history", "运行中", "成功", "失败"],
     ),
+    (CronSettingsTab::Employee, "员工排程", &["employee", "数字员工"]),
     (
         CronSettingsTab::Config,
         "配置",
@@ -119,10 +156,10 @@ pub const CRON_TABS: &[(CronSettingsTab, &str, &[&str])] = &[
 mod fields;
 use fields::*;
 #[cfg(test)]
-pub(crate) use fields::{project_field, pick_field};
+pub(crate) use fields::{pick_field, project_field_builder};
 pub use fields::{job_is_agent, edit_form, add_tab, config_tab};
 
-pub fn view<'a, M: Clone + 'static>(app: &ViewData<'a>, scheduler_content: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
+pub fn view<'a, M: Clone + 'static>(app: &ViewData<'a>, host_content: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
     let s = app.cron_settings;
     let help_btn = settings_help_button(
         app.desktop_locale,
@@ -132,7 +169,10 @@ pub fn view<'a, M: Clone + 'static>(app: &ViewData<'a>, scheduler_content: Eleme
     let tabs = settings_tab_row(
         CRON_TABS
             .iter()
-            .filter(|descriptor| descriptor.0 != CronSettingsTab::Add)
+            .filter(|descriptor| {
+                descriptor.0 != CronSettingsTab::Add
+                    && (!cfg!(target_arch = "wasm32") || descriptor.0 != CronSettingsTab::Employee)
+            })
             .map(|descriptor| tab_button(descriptor.0, s.active_tab, i18n.__(descriptor.1))),
     )
     .wrap();
@@ -141,9 +181,7 @@ pub fn view<'a, M: Clone + 'static>(app: &ViewData<'a>, scheduler_content: Eleme
         CronSettingsTab::Jobs => jobs_tab(app).map(map),
         CronSettingsTab::History => history_tab(app).map(map),
         CronSettingsTab::Config => config_tab(app).map(map),
-        CronSettingsTab::Scheduler => {
-            scheduler_content
-        }
+        CronSettingsTab::Scheduler | CronSettingsTab::Employee => host_content,
         CronSettingsTab::Add => jobs_tab(app).map(map),
     };
 
@@ -152,9 +190,6 @@ pub fn view<'a, M: Clone + 'static>(app: &ViewData<'a>, scheduler_content: Eleme
             text(i18n.__("定时任务"))
                 .size(24)
                 .font(iced::Font { weight: iced::font::Weight::Bold, ..iced::Font::DEFAULT }),
-            text(i18n.__("配置 Cron 子系统的开关与历史保留策略。"))
-                .size(14)
-                .style(settings_muted_text_style),
         ]
         .spacing(4)
         .width(Length::Fill),
@@ -175,7 +210,7 @@ pub fn view<'a, M: Clone + 'static>(app: &ViewData<'a>, scheduler_content: Eleme
         ).map(map));
     }
 
-    if matches!(s.active_tab, CronSettingsTab::Jobs | CronSettingsTab::History) {
+    if matches!(s.active_tab, CronSettingsTab::Jobs | CronSettingsTab::History | CronSettingsTab::Employee) {
         col = col.height(Length::Fill);
     }
     col.into()
@@ -308,7 +343,7 @@ pub fn view_overlays<'a, M: Clone + 'static>(app: &ViewData<'a>, dialog: Element
     let dialog = history::with_details(app, dialog, map);
 
     if !s.show_help_modal {
-        return with_access_confirmation(app, picker_overlay(app, dialog, map), map);
+        return with_access_confirmation(app, dialog, map);
     }
 
     let help_text = r#"定时任务配置说明
@@ -393,13 +428,6 @@ pub fn view_overlays<'a, M: Clone + 'static>(app: &ViewData<'a>, dialog: Element
 /// 运行记录的筛选入口与当前加载状态。
 fn history_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
     history::view(app)
-}
-
-fn picker_overlay<'a, M: Clone + 'static>(app: &ViewData<'a>, base: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
-    let Some(picker) = &app.cron_settings.date_time_picker else { return base; };
-    let draft = if picker.editing { &app.cron_settings.edit_draft } else { &app.cron_settings.add_draft };
-    let timezone = draft.schedule_draft.as_ref().map(|d| d.timezone.as_str()).unwrap_or("UTC");
-    date_time::overlay(I18n::new(app.desktop_locale), picker, timezone, base, map)
 }
 
 #[cfg(test)]

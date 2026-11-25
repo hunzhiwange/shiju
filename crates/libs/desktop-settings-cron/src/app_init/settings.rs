@@ -6,31 +6,9 @@ pub fn build_cron_settings(
     let cron_cfg = &full_agent_cfg.cron;
 
     crate::state::CronSettingsState {
-        show_add_modal: false,
-        show_cron_templates: false,
-        date_time_picker: None,
         enabled: cron_cfg.enabled,
         max_run_history: cron_cfg.max_run_history.clamp(1, 10_000),
-        active_tab: crate::state::CronSettingsTab::default(),
-        history: crate::state::CronHistoryState::default(),
-        jobs_loading: false,
-        jobs: Vec::new(),
-        list_filter: crate::state::CronListFilter::default(),
-        batch_mode: false,
-        selected_job_ids: Vec::new(),
-        expanded_job_ids: Vec::new(),
-        editing_job_id: None,
-        edit_draft: crate::state::CronJobDraft::default(),
-        add_draft: crate::state::CronJobDraft::default(),
-        runs_modal_job_id: None,
-        runs_modal_loading: false,
-        runs_modal_error: None,
-        runs_modal: Vec::new(),
-        runs_modal_editor: iced::widget::text_editor::Content::new(),
-        show_help_modal: false,
-        save_error: None,
-        save_error_translation: None,
-        action_status: None,
+        ..Default::default()
     }
 }
 

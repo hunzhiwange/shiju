@@ -177,15 +177,17 @@ mod modal_render {
                             save.y >= 0.0 && save.y + save.height <= size.height as f32,
                             "save clipped: {save:?}"
                         );
-                        assert!(
-                            geometry
-                                .labels
-                                .iter()
-                                .any(|(label, _)| label.contains("时区：Asia/Shanghai"))
-                        );
+                        let preview_tab = geometry
+                            .labels
+                            .iter()
+                            .find(|(label, _)| label == "预览未来")
+                            .expect("fixed preview tab")
+                            .1;
+                        assert!(preview_tab.y + preview_tab.height <= geometry.scrolls[0].y);
+                        assert!(geometry.labels.iter().all(|(label, _)| !label.contains("时区：Asia/Shanghai")));
                         assert!(!geometry.scrolls.is_empty());
                         assert_eq!(
-                            geometry.labels.iter().any(|(label, _)| label == "有效期"),
+                            geometry.labels.iter().any(|(label, _)| label == "开始日期"),
                             index != 0
                         );
                         if index == 3 || index == 4 {

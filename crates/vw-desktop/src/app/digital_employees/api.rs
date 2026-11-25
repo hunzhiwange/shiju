@@ -93,6 +93,19 @@ impl Client {
         Self::decode(response).await
     }
 
+    pub(super) async fn patch_schedule<T: serde::de::DeserializeOwned>(
+        &self,
+        id: &str,
+        body: &serde_json::Value,
+    ) -> Result<T, desktop_i18n::workflow::Feedback> {
+        let response = self.0.patch(path_url(["schedules", id])).json(body).send().await
+            .map_err(|_| "无法连接数字员工服务，请重试")?;
+        if response.status() == StatusCode::CONFLICT {
+            return Err("排程已被修改，请重新打开后再保存。".into());
+        }
+        Self::decode(response).await
+    }
+
     pub(super) async fn delete_employee(
         &self,
         id: &str,

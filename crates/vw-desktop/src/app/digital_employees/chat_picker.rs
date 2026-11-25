@@ -92,14 +92,22 @@ pub(crate) fn open(app: &mut App) -> Task<Message> {
     refresh(app, kind)
 }
 
-struct Choice<'a> {
-    selection: chat::Selection,
+pub(super) struct Choice<'a> {
+    pub(super) selection: chat::Selection,
     role: &'a str,
     department: Option<&'a str>,
     status: (&'a str, Tone),
 }
 
-fn choices(app: &App, kind: EmployeeKind) -> Vec<Choice<'_>> {
+pub(super) fn choices(app: &App, kind: EmployeeKind) -> Vec<Choice<'_>> {
+    choices_for(app, kind, false)
+}
+
+pub(super) fn schedule_choices(app: &App) -> Vec<Choice<'_>> {
+    choices_for(app, EmployeeKind::Shared, true)
+}
+
+fn choices_for(app: &App, kind: EmployeeKind, scheduling: bool) -> Vec<Choice<'_>> {
     let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     match kind {
         EmployeeKind::Private => app
@@ -127,8 +135,9 @@ fn choices(app: &App, kind: EmployeeKind) -> Vec<Choice<'_>> {
             .shared
             .directory
             .iter()
-            .flat_map(|directory| &directory.employees)
-            .filter(|employee| employee.can_chat())
+            .flat_map(|directory| directory.employees.iter().filter(move |employee| {
+                if scheduling { directory.access.can_dispatch(employee) } else { employee.can_chat() }
+            }))
             .map(|employee| {
                 let role = employee.role().unwrap_or_else(|| shared_view::kind_title(i18n, employee));
                 let department = employee
@@ -261,10 +270,7 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
     let choices = choices(app, picker.kind)
         .into_iter()
         .filter(|choice| {
-            [Some(choice.selection.name.as_str()), Some(choice.role), choice.department]
-                .into_iter()
-                .flatten()
-                .any(|value| value.to_lowercase().contains(&query))
+            choice.matches(&query)
         })
         .collect::<Vec<_>>();
     let (loading, error) = match picker.kind {
@@ -295,7 +301,8 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
     let mut grid = row![].spacing(8).width(Length::Fill);
     for choice in choices {
         let selected = selected == Some(&choice.selection.target);
-        grid = grid.push(employee_card(choice, selected, pending));
+        let select = (!pending).then(|| message(Event::Select(choice.selection.target.clone())));
+        grid = grid.push(employee_card(choice, selected, select));
     }
     body = body.push(grid.wrap());
     let card = settings_modal_layout(header, body, None)
@@ -306,7 +313,16 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
     settings_modal_overlay_with_escape(base, close, card)
 }
 
-fn employee_card(choice: Choice<'_>, selected: bool, pending: bool) -> Item<'_> {
+impl Choice<'_> {
+    pub(super) fn matches(&self, query: &str) -> bool {
+        [Some(self.selection.name.as_str()), Some(self.role), self.department]
+            .into_iter()
+            .flatten()
+            .any(|value| value.to_lowercase().contains(query))
+    }
+}
+
+pub(super) fn employee_card(choice: Choice<'_>, selected: bool, select: Option<Message>) -> Item<'_> {
     let avatar: Item<'_> = match choice.selection.portrait {
         Some(handle) => image(handle).width(32).height(32).into(),
         None => container(icon(Icon::Person, 15, Tone::Accent))
@@ -353,6 +369,6 @@ fn employee_card(choice: Choice<'_>, selected: bool, pending: bool) -> Item<'_> 
             }
             style
         })
-        .on_press_maybe((!pending).then_some(message(Event::Select(choice.selection.target))))
+        .on_press_maybe(select)
         .into()
 }

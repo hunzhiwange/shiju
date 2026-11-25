@@ -148,7 +148,7 @@ pub(super) struct Draft {
 }
 
 impl Draft {
-    fn new(trigger: Trigger, work: Option<&Work>, employee: String) -> Self {
+    pub(super) fn new(trigger: Trigger, work: Option<&Work>, employee: String) -> Self {
         Self {
             trigger,
             title: work.map(|work| work.title.clone()).unwrap_or_default(),
@@ -183,7 +183,7 @@ impl Draft {
     }
 }
 
-fn new_key() -> String {
+pub(super) fn new_key() -> String {
     format!("task-{:032x}", rand::random::<u128>())
 }
 

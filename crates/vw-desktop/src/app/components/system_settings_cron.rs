@@ -37,29 +37,107 @@ fn help_content<'a>(
         _ => unreachable!("selectable help without a chat only emits copy or no-op events"),
     })
 }
+pub(crate) fn skill_choice(
+    skill: &desktop_settings_skills::types::SkillsCatalogItem,
+) -> Option<domain::SkillChoice> {
+    if !skill.installed || !skill.enabled {
+        return None;
+    }
+    let id = if skill.source == "plugin" {
+        let (plugin, _): (String, String) =
+            serde_json::from_str(skill.id.strip_prefix("plugin:")?).ok()?;
+        format!("{plugin}:{}", skill.title)
+    } else {
+        skill.id.clone()
+    };
+    desktop_settings_cron::state::valid_skill_reference(&id).then(|| domain::SkillChoice {
+        id,
+        label: skill.title.clone(),
+        description: skill.description.clone(),
+    })
+}
+
+pub(crate) fn conversation_prompt(app: &App) -> Option<&str> {
+    let session = app.current_session_runtime_ref()?;
+    if app.session_state.active_session_id.is_none()
+        || session.acp_agent.is_some()
+        || session.is_employee_chat()
+    {
+        return None;
+    }
+    app.chat_view
+        .chat
+        .iter()
+        .rev()
+        .filter(|entry| entry.role == crate::app::models::ChatRole::User)
+        .map(|entry| entry.content.trim())
+        .find(|content| !content.is_empty())
+}
+
 fn data(app: &App) -> domain::ViewData<'_> {
+    use desktop_settings_agents::acp::{EMPLOYEE_ACP_BACKEND, EMPLOYEE_ACP_PROFILE};
+
+    let locale = app.general_settings.desktop_locale;
+    let mut agents: Vec<_> = app
+        .agents_settings
+        .entries
+        .iter()
+        .filter(|entry| entry.can_start_session())
+        .map(|entry| {
+            let backend = match &entry.runtime {
+                config_agent_profile::AgentRuntime::Native => None,
+                config_agent_profile::AgentRuntime::Acp { backend } => Some(backend.clone()),
+            };
+            domain::AgentChoice {
+                id: entry.key.clone(),
+                label: entry.label.clone(),
+                model: entry.model.clone(),
+                installed: backend.as_ref().and_then(|backend| app.acp_settings.installed.get(backend).copied()),
+                requires_employee_target: backend.as_deref() == Some(EMPLOYEE_ACP_BACKEND),
+                backend,
+            }
+        })
+        .collect();
+    if !agents.iter().any(|agent| agent.requires_employee_target) {
+        agents.push(domain::AgentChoice {
+            id: EMPLOYEE_ACP_PROFILE.into(),
+            label: desktop_i18n::I18n::new(locale).__("识矩数字员工").into(),
+            model: String::new(),
+            backend: Some(EMPLOYEE_ACP_BACKEND.into()),
+            installed: app.acp_settings.installed.get(EMPLOYEE_ACP_BACKEND).copied(),
+            requires_employee_target: true,
+        });
+    }
     domain::ViewData {
         cron_settings: &app.cron_settings,
-        desktop_locale: app.general_settings.desktop_locale,
+        desktop_locale: locale,
         app_theme: &app.appearance.app_theme,
         project_path: app.navigation_tabs.project_path.as_deref(),
         recent_projects: &app.workspace_state.recent_projects,
-        agents: app
-            .agents_settings
-            .entries
+        agents,
+        models: app
+            .model_settings
+            .providers
             .iter()
-            .filter(|e| e.enabled)
-            .map(|e| e.key.as_str())
-            .collect(),
-        providers: app
-            .agents_settings
-            .provider_models
-            .iter()
-            .map(|p| domain::ProviderOptions {
-                id: &p.id,
-                models: p.models.iter().map(|m| m.id.as_str()).collect(),
+            .filter_map(|provider| {
+                let mut models: Vec<_> =
+                    provider.models.iter().filter(|model| model.enabled).collect();
+                if models.is_empty() {
+                    return None;
+                }
+                models.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.id.cmp(&b.id)));
+                Some(domain::ModelGroup {
+                    id: provider.id.clone(),
+                    label: provider.name.clone(),
+                    models: models.into_iter().map(|model| domain::ModelChoice {
+                        id: format!("{}/{}", provider.id, model.id),
+                        label: model.name.clone(),
+                    }).collect(),
+                })
             })
             .collect(),
+        skills: app.cron_settings.skill_catalog.clone(),
+        conversation_available: conversation_prompt(app).is_some(),
         delivery: availability(app),
         scheduler_error: app.scheduler_settings.save_error.as_deref(),
         last_copied_code_hash: app.clipboard_state.last_copied_code_hash,
@@ -71,6 +149,14 @@ fn map(event: LocalMessage) -> Message {
         LocalMessage::None => Message::None,
         LocalMessage::CopyCode(value) => Message::CopyCode(value),
         LocalMessage::Settings(event) => Message::Settings(match event {
+            Event::CronOpenEmployeeSchedule => {
+                #[cfg(not(target_arch = "wasm32"))]
+                return Message::DigitalEmployees(crate::app::digital_employees::Event::CronSchedules(
+                    crate::app::digital_employees::cron_schedules::Event::New { from_cron_form: true },
+                ));
+                #[cfg(target_arch = "wasm32")]
+                return Message::None;
+            }
             Event::CronPickerOpen { editing } => SettingsMessage::CronPickerOpen { editing },
             Event::CronFullAccessConfirm { editing } => {
                 SettingsMessage::CronFullAccessConfirm { editing }
@@ -95,6 +181,16 @@ fn map(event: LocalMessage) -> Message {
             Event::CronMaxRunHistoryChanged(v0) => SettingsMessage::CronMaxRunHistoryChanged(v0),
             Event::CronTabSelected(v0) => SettingsMessage::CronTabSelected(v0),
             Event::CronTemplatesToggled(v0) => SettingsMessage::CronTemplatesToggled(v0),
+            Event::CronEditorTabSelected { editing, tab } => {
+                SettingsMessage::CronEditorTabSelected { editing, tab }
+            }
+            Event::CronEditorPickerChanged { editing, action } => {
+                SettingsMessage::CronEditorPickerChanged { editing, action }
+            }
+            Event::CronEditorSkillToggled { editing, id } => {
+                SettingsMessage::CronEditorSkillToggled { editing, id }
+            }
+            Event::CronAddFromConversation => SettingsMessage::CronAddFromConversation,
             Event::CronTemplateSelected(v0) => SettingsMessage::CronTemplateSelected(v0),
             Event::CronHistory(v0) => SettingsMessage::CronHistory(v0),
             Event::CronListFilterChanged(v0) => SettingsMessage::CronListFilterChanged(v0),
@@ -212,7 +308,7 @@ pub(crate) fn visible(app: &App) -> bool {
 pub(crate) fn page(app: &App) -> Element<'_, Message> {
     let owns_scroll = matches!(
         app.cron_settings.active_tab,
-        CronSettingsTab::Jobs | CronSettingsTab::History | CronSettingsTab::Add
+        CronSettingsTab::Jobs | CronSettingsTab::History | CronSettingsTab::Employee | CronSettingsTab::Add
     );
     let content = desktop_settings_shell::content_page(
         iced::widget::column![view(app)],
@@ -228,15 +324,19 @@ pub(crate) fn page(app: &App) -> Element<'_, Message> {
 }
 
 fn view(app: &App) -> Element<'_, Message> {
-    let scheduler = if app.cron_settings.active_tab == CronSettingsTab::Scheduler {
-        crate::app::components::system_settings_scheduler::embedded_view(app)
-    } else {
-        iced::widget::Space::new().into()
+    let host_content = match app.cron_settings.active_tab {
+        CronSettingsTab::Scheduler => crate::app::components::system_settings_scheduler::embedded_view(app),
+        #[cfg(not(target_arch = "wasm32"))]
+        CronSettingsTab::Employee => crate::app::digital_employees::cron_schedules::view(app),
+        _ => iced::widget::Space::new().into(),
     };
-    domain::view(&data(app), scheduler, map)
+    domain::view(&data(app), host_content, map)
 }
 pub fn view_overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
-    domain::view_overlays(&data(app), base, map)
+    let base = domain::view_overlays(&data(app), base, map);
+    #[cfg(not(target_arch = "wasm32"))]
+    let base = crate::app::digital_employees::cron_schedules::with_overlay(app, base);
+    base
 }
 #[cfg(test)]
 #[path = "system_settings_cron_ui_refresh_27_tests.rs"]

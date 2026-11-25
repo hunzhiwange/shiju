@@ -270,9 +270,9 @@ async fn cron_project_selector_clears_selected_path() {
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     let size = Size::new(420, 260);
     let mut ui = scene(
-        domain::project_field(&data(&app), PROJECT, |path| {
+        domain::project_field_builder(&data(&app), PROJECT, |path| {
             LocalMessage::Settings(crate::message::SettingsMessage::CronJobEditProjectPathChanged(path))
-        }).map(map),
+        })().map(map),
         &mut renderer,
         size,
     );
@@ -353,6 +353,7 @@ async fn ui_refresh_27_preserves_values_and_disabled_states() {
     app.cron_settings.show_add_modal = true;
     app.cron_settings.add_draft.project_path = PROJECT.into();
     app.cron_settings.add_draft.job_type = CronAddJobType::Shell;
+    app.cron_settings.add_draft.editor_tab = CronEditorTab::Delivery;
     app.cron_settings.add_draft.delivery_enabled = true;
     app.cron_settings.add_draft.delivery_channel = "telegram".into();
     app.cron_settings.add_draft.delivery_to = "fixture-recipient".into();
@@ -369,13 +370,10 @@ async fn ui_refresh_27_preserves_values_and_disabled_states() {
         let size = Size::new(width, 2100);
         let mut ui = scene(frame(add_tab(&app)), &mut renderer, size);
         let positions = geometry(&mut ui, &renderer);
-        let project = positions.input(PROJECT);
         let target = positions.input("fixture-recipient");
-        assert!(project.width > 0.0);
         assert!(target.width > 0.0);
-        assert!((project.x - positions.label(tr.__("项目路径")).x).abs() < 1.0);
-        assert!((target.x - positions.label("投递目标").x).abs() < 1.0);
-        assert!((project.x - target.x).abs() < 1.0);
+        assert!((target.x - positions.label(tr.__("投递目标")).x).abs() < 1.0);
+        assert!(positions.inputs.iter().all(|(value, _)| value != PROJECT));
         capture(
             &mut ui,
             &mut renderer,
@@ -727,11 +725,16 @@ async fn help_rollout_15_renders_contextual_help() {
         drop(ui);
 
         app.cron_settings.editing_job_id = Some(JOB_ID.into());
+        app.cron_settings.edit_draft.editor_tab = CronEditorTab::Basic;
         let mut ui = scene(view_overlays(&app, frame(view(&app))), &mut renderer, size);
         let positions = geometry(&mut ui, &renderer);
         assert_fits(positions.label(error), size);
         assert!(positions.input(expression).width > 0.0);
         positions.label("5 字段：分 时 日 月 星期；6 字段在最前增加秒。使用当前时区。");
+        drop(ui);
+
+        app.cron_settings.edit_draft.editor_tab = CronEditorTab::Advanced;
+        let mut ui = scene(view_overlays(&app, frame(view(&app))), &mut renderer, size);
         assert_schedule_help(
             &app,
             &mut ui,
@@ -822,14 +825,7 @@ async fn help_rollout_15_cron_add_config_and_scheduler_render_help() {
     }
     let mut renderer = renderer().await;
     let mut app = fixture();
-    app.cron_settings.add_draft.schedule_kind = CronAddScheduleKind::Every;
-    app.cron_settings.add_draft.schedule_draft = Some(crate::state::CronScheduleDraft {
-        rule: crate::state::CronScheduleRule::Every {
-            amount: 71,
-            unit: crate::state::IntervalUnit::Seconds,
-        },
-        ..Default::default()
-    });
+    app.cron_settings.add_draft.editor_tab = CronEditorTab::Advanced;
     app.scheduler_settings.enabled = false;
     app.scheduler_settings.max_tasks = 63;
     for (locale, theme) in [
@@ -854,9 +850,6 @@ async fn help_rollout_15_cron_add_config_and_scheduler_render_help() {
             let content = if tab == CronSettingsTab::Add { add_tab(&app) } else { view(&app) };
             let mut ui = scene(frame(content), &mut renderer, size);
             let positions = geometry(&mut ui, &renderer);
-            if tab == CronSettingsTab::Add {
-                assert_fits(positions.input("71"), size);
-            }
             if tab == CronSettingsTab::Scheduler {
                 assert_fits(positions.label("63"), size);
             }
@@ -943,6 +936,8 @@ fn gap_10_fixture(editing: bool) -> Fixture {
     let mut app = fixture();
     app.cron_settings.jobs_loading = false;
     app.cron_settings.save_error = Some("Fixture schedule error".into());
+    app.cron_settings.add_draft.editor_tab = CronEditorTab::Advanced;
+    app.cron_settings.edit_draft.editor_tab = CronEditorTab::Advanced;
     if editing {
         app.cron_settings.active_tab = CronSettingsTab::Jobs;
         app.cron_settings.jobs = vec![super::views::job(JOB_ID)];
@@ -1051,38 +1046,17 @@ async fn settings_help_gap_10_add_shell_hides_task_type_explanation() {
     let mut ui = scene(gap_10_view(&app), &mut renderer, size);
     for help in [
         ("任务类型", JOB_TYPE_HELP),
-        ("任务名称", "可选，便于在列表中识别。"),
         ("项目路径", "可手工输入项目目录；留空使用默认工作区。"),
-        ("执行命令", "按安全策略执行的 Shell 命令。"),
         ("执行后删除", "适合指定时间的一次性任务。"),
-        ("结果投递", "将任务执行结果投递到配置好的通道。"),
     ] {
         assert_gap_10_help(&app, &mut ui, &mut renderer, size, help);
     }
     let positions = geometry(&mut ui, &renderer);
-    for label in [
-        "Fixture schedule error",
-        tr.__("选择任务执行所在项目，Shell 和 Agent 都会切到该目录。"),
-        tr.__("运行成功后删除任务"),
-    ] {
+    for label in ["Fixture schedule error", tr.__("运行成功后删除任务")] {
         assert!(positions.label(label).width > 0.0);
     }
 
     let project = positions.input(PROJECT);
-    let project_picker = positions
-        .focusables
-        .iter()
-        .rev()
-        .find(|bounds| bounds.x == project.x && bounds.y < project.y)
-        .unwrap();
-    let trigger = reveal_form_point(&mut ui, &mut renderer, project_picker.center());
-    assert!(click(&mut ui, &mut renderer, trigger).is_empty());
-    assert!(key_at(&mut ui, &mut renderer, Named::Home).is_empty());
-    assert!(matches!(
-        key_at(&mut ui, &mut renderer, Named::Enter).as_slice(),
-        [Message::Settings(SettingsMessage::CronAddProjectPathChanged(value))] if value.is_empty()
-    ));
-
     let point = reveal_form_point(&mut ui, &mut renderer, project.center());
     assert!(click(&mut ui, &mut renderer, point).is_empty());
     assert!(key_at(&mut ui, &mut renderer, Named::End).is_empty());
@@ -1112,24 +1086,28 @@ async fn settings_help_gap_10_edit_agent_hides_fallback_explanation() {
     let mut ui = scene(gap_10_view(&app), &mut renderer, size);
     for help in [
         ("回退模型", FALLBACK_HELP),
-        ("智能体", "默认使用 Main，套用代理配置中的 provider、模型和温度。"),
-        ("Agent 提示词", "创建 Agent 类型定时任务。"),
-        ("模型提供商", "与智能体配置中的模型选择一致。"),
-        ("模型下拉", "从当前提供商的模型列表选择，会写入 provider/model。"),
-        ("模型手工输入", "可选，留空使用代理或全局默认模型。"),
         ("唤醒", "保留唤醒标记，供桌面侧识别需要关注的任务。"),
     ] {
         assert_gap_10_help(&app, &mut ui, &mut renderer, size, help);
     }
     let positions = geometry(&mut ui, &renderer);
-    for label in [
-        "Fixture schedule error",
-        tr.__("获取完全访问权限"),
-        tr.__("开启后触发时投递到项目任务池，由任务看板接管执行。"),
-    ] {
+    for label in
+        ["Fixture schedule error", tr.__("开启后触发时投递到项目任务池，由任务看板接管执行。")]
+    {
         assert!(positions.label(label).width > 0.0);
     }
     assert!(positions.labels.iter().all(|(label, _)| label != tr.__("投递目标")));
+
+    let delivery_tab = positions.label(tr.__("结果投递")).center();
+    let messages = click(&mut ui, &mut renderer, delivery_tab);
+    assert!(matches!(messages.as_slice(), [Message::Settings(SettingsMessage::CronEditorTabSelected {
+        editing: true, tab: CronEditorTab::Delivery,
+    })]));
+    drop(ui);
+    let [Message::Settings(event)] = messages.as_slice() else { unreachable!() };
+    drop(update(&mut app, event.clone()));
+    let mut ui = scene(gap_10_view(&app), &mut renderer, size);
+    let positions = geometry(&mut ui, &renderer);
     let toggle =
         reveal_form_point(&mut ui, &mut renderer, positions.label(tr.__("开启结果投递")).center());
     assert!(matches!(
@@ -1186,6 +1164,7 @@ async fn settings_help_gap_10_advanced_hides_workday_example() {
     for editing in [false, true] {
         let mut app = gap_10_fixture(editing);
         let draft = gap_10_draft(&mut app, editing);
+        draft.editor_tab = CronEditorTab::Basic;
         draft.schedule_draft = Some(crate::state::CronScheduleDraft {
             rule: crate::state::CronScheduleRule::Advanced("0 9 * * MON-FRI".into()),
             ..Default::default()
@@ -1207,31 +1186,34 @@ async fn settings_help_gap_10_advanced_hides_workday_example() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn cron_agent_and_model_choices_render_below_project() {
-    if !isolated("cron_agent_and_model_choices_render_below_project") {
+async fn cron_agent_and_model_choices_share_composer() {
+    if !isolated("cron_agent_and_model_choices_share_composer") {
         return;
     }
     let mut renderer = renderer().await;
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     app.cron_settings.active_tab = CronSettingsTab::Add;
+    app.cron_settings.show_add_modal = true;
     app.cron_settings.add_draft.project_path = PROJECT.into();
-    app.acp_agents = vec!["codex".into(), "claude".into()];
+    app.cron_settings.add_draft.editor_picker = Some(CronEditorPicker::Model);
+    app.acp_agents = vec!["main".into(), "codex".into()];
+    app.providers = vec![("DeepSeek".into(), vec!["deepseek-v4".into()])];
     assert_eq!(app.cron_settings.add_draft.job_type, CronAddJobType::Agent);
     let size = Size::new(960, 2800);
     for theme in [Theme::Light, Theme::Dark] {
         app.app_theme = theme.clone();
-        let mut ui = scene(frame(add_tab(&app)), &mut renderer, size);
+        let mut ui = scene(gap_10_view(&app), &mut renderer, size);
         let positions = geometry(&mut ui, &renderer);
-        assert!(!positions.labels.iter().any(|(label, _)| label == "ACP 智能体"));
-        let mut previous = positions.label("项目路径");
-        for label in ["智能体", "模型提供商", "模型下拉", "模型手工输入", "Agent 提示词"]
-        {
-            let bounds = positions.label(label);
-            assert_fits(bounds, size);
-            assert!(bounds.y > previous.y, "{label} must follow the project execution choices");
-            previous = bounds;
+        for label in ["技能", "手工填写模型", "自动模型", "DeepSeek", "deepseek-v4"] {
+            assert_fits(positions.label(label), size);
         }
+        assert!(matches!(
+            click(&mut ui, &mut renderer, positions.label("deepseek-v4").center()).as_slice(),
+            [Message::Settings(SettingsMessage::CronEditorPickerChanged {
+                editing: false, action: CronEditorPickerAction::ModelSelected(id),
+            })] if id == "DeepSeek/deepseek-v4"
+        ));
         capture(
             &mut ui,
             &mut renderer,
@@ -1252,13 +1234,17 @@ async fn cron_edit_form_omits_separate_acp_selector() {
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     app.acp_agents = vec!["codex".into(), "claude".into()];
+    app.cron_settings.editing_job_id = Some(JOB_ID.into());
     app.cron_settings.edit_draft.job_type = CronAddJobType::Agent;
+    app.cron_settings.edit_draft.editor_picker = Some(CronEditorPicker::Agent);
     let size = Size::new(960, 2800);
     for theme in [Theme::Light, Theme::Dark] {
-        let mut ui = scene(frame(edit_form(&app)), &mut renderer, size);
+        let mut ui = scene(gap_10_view(&app), &mut renderer, size);
         let positions = geometry(&mut ui, &renderer);
         assert!(!positions.labels.iter().any(|(label, _)| label == "ACP 智能体"));
-        assert_fits(positions.label("智能体"), size);
+        for label in ["智能体", "codex", "claude"] {
+            assert_fits(positions.label(label), size);
+        }
         capture(
             &mut ui,
             &mut renderer,
@@ -1280,6 +1266,8 @@ async fn cron_modal_renders_add_and_edit() {
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     let size = Size::new(900, 700);
+    app.cron_settings.add_draft.editor_tab = CronEditorTab::Advanced;
+    app.cron_settings.edit_draft.editor_tab = CronEditorTab::Advanced;
     for editing in [false, true] {
         app.cron_settings.show_add_modal = !editing;
         app.cron_settings.editing_job_id = editing.then(|| "job".into());
@@ -1313,6 +1301,54 @@ async fn cron_modal_renders_add_and_edit() {
     }
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn cron_time_popover_keeps_form_fixed_and_opens_nested_menu() {
+    if !isolated("cron_time_popover_keeps_form_fixed_and_opens_nested_menu") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.cron_settings.show_add_modal = true;
+    app.cron_settings.add_draft.schedule_draft = Some(CronScheduleDraft {
+        rule: CronScheduleRule::Daily { time: "09:15:00".parse().unwrap() },
+        ..Default::default()
+    });
+    let size = Size::new(900, 700);
+    let mut ui = scene(gap_10_view(&app), &mut renderer, size);
+    let base = geometry(&mut ui, &renderer);
+    let time = base.label("时间 · 09:15");
+    assert!(matches!(
+        click(&mut ui, &mut renderer, time.center()).as_slice(),
+        [Message::Settings(SettingsMessage::CronPickerOpen { editing: false })]
+    ));
+    drop(ui);
+    drop(update(&mut app, SettingsMessage::CronPickerOpen { editing: false }));
+
+    let mut ui = scene(gap_10_view(&app), &mut renderer, size);
+    let popup = geometry(&mut ui, &renderer);
+    assert_eq!(popup.label("时间 · 09:15"), time);
+    assert_eq!(popup.label("保存"), base.label("保存"));
+    let hour = popup
+        .focusables
+        .iter()
+        .filter(|bounds| bounds.width == 80.0)
+        .min_by(|a, b| a.x.total_cmp(&b.x))
+        .expect("hour select in popover");
+    assert!(click(&mut ui, &mut renderer, hour.center()).is_empty());
+    let menu = geometry(&mut ui, &renderer);
+    assert!(menu.scrolls.len() > popup.scrolls.len());
+    assert!(menu.scrolls.last().unwrap().height > 220.0);
+    assert!(key_at(&mut ui, &mut renderer, Named::ArrowDown).is_empty());
+    assert!(matches!(
+        key_at(&mut ui, &mut renderer, Named::Enter).as_slice(),
+        [Message::Settings(SettingsMessage::CronPickerTime { hour: 10, minute: 15 })]
+    ));
+    assert!(matches!(
+        click(&mut ui, &mut renderer, base.label("高级设置").center()).as_slice(),
+        [Message::Settings(SettingsMessage::CronPickerCancel)]
+    ));
+}
+
 /// Layout and input regression without screenshot capture or a native window.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cron_template_acceptance_modal_sizes_and_cancel() {
@@ -1333,6 +1369,7 @@ async fn cron_template_acceptance_modal_sizes_and_cancel() {
                 } else {
                     &mut app.cron_settings.add_draft
                 };
+                draft.editor_tab = CronEditorTab::Advanced;
                 draft.name = "中文动态任务名称 🧭".into();
                 draft.prompt = "请整理今日工作并保留所有重要信息。".repeat(100);
                 draft.prompt_editor = iced::widget::text_editor::Content::with_text(&draft.prompt);

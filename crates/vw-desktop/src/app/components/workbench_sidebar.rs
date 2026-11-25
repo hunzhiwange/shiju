@@ -59,7 +59,7 @@ pub(crate) fn project_header<'a>(
         border: Border::default().rounded(6),
         ..Default::default()
     });
-    let popup: Element<'a, Message> = if let Some(search) = search.filter(|search| search.open) {
+    let search_button: Element<'a, Message> = if let Some(search) = search.filter(|search| search.open) {
         let input = settings_text_input(label, &search.query)
             .id(SEARCH_INPUT)
             .on_input(move |query| Message::WorkbenchProjects(Event::SearchChanged(screen, query)))
@@ -75,13 +75,14 @@ pub(crate) fn project_header<'a>(
     } else {
         trigger.into()
     };
-    container(row![
-        sidebar_note(i18n.__("项目")),
+    let actions = row![
+        search_button,
         icon_btn(Icon::ArrowClockwise, i18n.__("刷新"), refresh),
         icon_btn(Icon::Plus, i18n.__("新增项目"), add),
-        popup,
-    ].spacing(3).align_y(Alignment::Center).wrap())
-        .padding([3, 7]).width(Length::Fill).into()
+    ]
+    .spacing(3)
+    .align_y(Alignment::Center);
+    sidebar_header(i18n.__("项目"), actions.into())
 }
 
 pub(crate) fn project_query(app: &App) -> String {

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 const PRODUCTION_BASE: &str = "https://gateway.shiju.cloud/sj/agent/api/v1/";
 const MAX_RESPONSE_BYTES: usize = 8 << 20;
 const MAX_CONFLICT_BYTES: usize = 16 << 10;
+const MAX_TURN_EVENT_BYTES: usize = 256 << 10;
 
 #[cfg(all(feature = "employee-acp-test-support", debug_assertions))]
 pub(crate) fn fixture_address() -> Result<Option<std::net::SocketAddr>, Error> {
@@ -119,6 +120,56 @@ pub struct ConversationSubmission {
     pub message: ConversationMessage,
     pub turn: ConversationTurn,
     pub idempotent: bool,
+    #[serde(default)]
+    pub turn_events: bool,
+}
+
+#[derive(Deserialize)]
+pub struct ConversationTurnUpdate {
+    pub turn: ConversationTurn,
+    pub reply: Option<ConversationMessage>,
+}
+
+pub struct EmployeeTurnEvents {
+    response: Response,
+    buffered: Vec<u8>,
+    data: Vec<u8>,
+}
+
+impl EmployeeTurnEvents {
+    pub async fn next_update(&mut self) -> Result<Option<ConversationTurnUpdate>, Error> {
+        loop {
+            if let Some(end) = self.buffered.iter().position(|byte| *byte == b'\n') {
+                let line = &self.buffered[..end];
+                let line = line.strip_suffix(b"\r").unwrap_or(line);
+                if line.is_empty() && !self.data.is_empty() {
+                    let data = std::mem::take(&mut self.data);
+                    self.buffered.drain(..=end);
+                    return serde_json::from_slice(&data)
+                        .map(Some)
+                        .map_err(|_| Error::InvalidResponse);
+                }
+                if let Some(data) = line.strip_prefix(b"data:") {
+                    if !self.data.is_empty() {
+                        self.data.push(b'\n');
+                    }
+                    self.data.extend(data.strip_prefix(b" ").unwrap_or(data));
+                    if self.data.len() > MAX_TURN_EVENT_BYTES {
+                        return Err(Error::InvalidResponse);
+                    }
+                }
+                self.buffered.drain(..=end);
+                continue;
+            }
+            let Some(chunk) = self.response.chunk().await.map_err(|_| Error::Unavailable)? else {
+                return Ok(None);
+            };
+            if self.buffered.len().saturating_add(chunk.len()) > MAX_TURN_EVENT_BYTES {
+                return Err(Error::InvalidResponse);
+            }
+            self.buffered.extend_from_slice(&chunk);
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -236,6 +287,40 @@ impl EmployeeConversationClient {
     pub async fn history(&self, conversation_id: &str) -> Result<ConversationHistory, Error> {
         let url = self.url(&["conversations", conversation_id, "messages"])?;
         Self::decode(self.request(Method::GET, url), StatusCode::OK).await
+    }
+
+    pub async fn turn_events(
+        &self,
+        conversation_id: &str,
+        turn_id: &str,
+    ) -> Result<EmployeeTurnEvents, Error> {
+        let mut url = self.url(&["conversations", conversation_id, "messages"])?;
+        url.query_pairs_mut().append_pair("turn_id", turn_id);
+        let response = self
+            .http
+            .get(url)
+            .header("X-Api-Key", self.api_key.clone())
+            .header("Accept", "text/event-stream")
+            .timeout(Duration::from_secs(65))
+            .send()
+            .await
+            .map_err(|_| Error::Unavailable)?;
+        match response.status() {
+            StatusCode::OK => {}
+            StatusCode::UNAUTHORIZED => return Err(Error::Unauthorized),
+            StatusCode::FORBIDDEN => return Err(Error::Forbidden),
+            StatusCode::NOT_FOUND => return Err(Error::NotFound),
+            _ => return Err(Error::Unavailable),
+        }
+        let content_type = response
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.split(';').next());
+        if content_type != Some("text/event-stream") {
+            return Err(Error::InvalidResponse);
+        }
+        Ok(EmployeeTurnEvents { response, buffered: Vec::new(), data: Vec::new() })
     }
 
     pub async fn send_message(

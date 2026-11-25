@@ -35,6 +35,8 @@ pub(crate) struct PendingSend {
 pub(crate) struct ConfirmedSend {
     pub turn_id: String,
     pub user_message_id: String,
+    #[serde(default)]
+    pub turn_events: bool,
 }
 
 impl SessionState {

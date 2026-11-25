@@ -19,7 +19,7 @@
 
 ## 正文和停止语义
 
-支持增量的 QwenPaw Worker 生成正文时，Agent Cloud 的历史接口随 `RESPONDING` 轮次返回累计前缀 `partial_reply`。员工 ACP 从中提取新增文本，以 `agent_message_chunk` 通知推送到桌面。轮次完成时补齐最终正文的剩余部分。重新打开会话时读取已确认的最终消息。未提供 `partial_reply` 的部署仍在轮次完成后展示最终回复。
+新版 QwenPaw Worker 直接传递可见正文。Agent Cloud 以 SSE 推送指定轮次的正文快照，员工 ACP 将新增部分转为 `agent_message_chunk`，断线重连时复用已显示正文以避免重复。轮次完成时补齐最终正文，重新打开会话时读取已确认的历史。未声明 SSE 能力的部署继续使用历史接口。
 
 流式需要升级 Agent Cloud 和 QwenPaw Worker，并应用 `20261125_add_conversation_reply_progress.sql`。私有直聊经 Controller 查询时也要升级 Controller。验收时请用较长回复确认生成中出现多个正文片段，且最终正文没有重复。
 

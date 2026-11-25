@@ -401,6 +401,7 @@ impl<U: SessionUpdateSink> Connection<U> {
             pending.confirmed = Some(ConfirmedSend {
                 turn_id: submission.turn.turn_id,
                 user_message_id: submission.turn.user_message_id,
+                turn_events: submission.turn_events,
             });
             pending.cancel_requested = active.cancelled.get();
             self.agent.store.write(id, &state)?;
@@ -450,6 +451,13 @@ impl<U: SessionUpdateSink> Connection<U> {
         let mut delay = POLL_MIN;
         let mut cancel_deadline = None;
         let mut emitted = String::new();
+        if confirmed.turn_events
+            && !status.is_some_and(terminal)
+            && let Some(outcome) =
+                self.wait_for_turn_events(id, cloud, confirmed, active, &mut emitted).await?
+        {
+            return Ok(outcome);
+        }
         loop {
             match status {
                 Some(TurnStatus::Cancelled) => return Ok(TurnOutcome::Cancelled),
@@ -518,22 +526,7 @@ impl<U: SessionUpdateSink> Connection<U> {
                                     && message.reply_to_message_id.as_deref()
                                         == Some(confirmed.user_message_id.as_str())
                             }) {
-                                if !valid_message(&reply) {
-                                    return Err(cloud_error(CloudError::InvalidResponse));
-                                }
-                                let chunk = if emitted.is_empty() {
-                                    message_chunk(reply)
-                                } else {
-                                    let text = match reply.body.strip_prefix(emitted.as_str()) {
-                                        Some("") => return Ok(TurnOutcome::Completed),
-                                        Some(suffix) => suffix.to_owned(),
-                                        // ACP chunks are append-only. Include the confirmed reply
-                                        // when the runtime revised the prefix already displayed.
-                                        None => format!("\n\n{}", reply.body),
-                                    };
-                                    ContentChunk::new(text.into())
-                                };
-                                self.send_reply_chunk(id, chunk).await?;
+                                self.send_final_reply(id, reply, &emitted).await?;
                                 return Ok(TurnOutcome::Completed);
                             }
                         }
@@ -563,6 +556,114 @@ impl<U: SessionUpdateSink> Connection<U> {
         self.updates
             .send(SessionNotification::new(id.to_owned(), SessionUpdate::AgentMessageChunk(chunk)))
             .await
+    }
+
+    async fn wait_for_turn_events(
+        &self,
+        id: &str,
+        cloud: &str,
+        confirmed: &ConfirmedSend,
+        active: &ActivePrompt,
+        emitted: &mut String,
+    ) -> Result<Option<TurnOutcome>> {
+        while !active.cancelled.get() {
+            let result = tokio::select! {
+                biased;
+                _ = active.changed.notified() => return Ok(None),
+                result = self.agent.client.turn_events(cloud, &confirmed.turn_id) => result,
+            };
+            let mut events = match result {
+                Ok(events) => events,
+                Err(error @ (CloudError::Unauthorized | CloudError::Forbidden)) => {
+                    return Err(cloud_error(error));
+                }
+                Err(_) => return Ok(None),
+            };
+            let mut received = false;
+            loop {
+                if active.cancelled.get() {
+                    return Ok(None);
+                }
+                let result = tokio::select! {
+                    biased;
+                    _ = active.changed.notified() => return Ok(None),
+                    result = events.next_update() => result,
+                };
+                let update = match result {
+                    Ok(Some(update)) => update,
+                    Ok(None) | Err(CloudError::Unavailable) => break,
+                    Err(error) => return Err(cloud_error(error)),
+                };
+                let turn = update.turn;
+                if turn.turn_id != confirmed.turn_id
+                    || turn.user_message_id != confirmed.user_message_id
+                {
+                    return Err(cloud_error(CloudError::InvalidResponse));
+                }
+                received = true;
+                match turn.status {
+                    TurnStatus::Cancelled => return Ok(Some(TurnOutcome::Cancelled)),
+                    TurnStatus::Failed => return Ok(Some(TurnOutcome::Failed)),
+                    TurnStatus::Completed => {
+                        let Some(reply) = update.reply else {
+                            return Ok(None);
+                        };
+                        if reply.sender != MessageSender::Employee
+                            || reply.reply_to_message_id.as_deref()
+                                != Some(confirmed.user_message_id.as_str())
+                        {
+                            return Err(cloud_error(CloudError::InvalidResponse));
+                        }
+                        self.send_final_reply(id, reply, emitted).await?;
+                        return Ok(Some(TurnOutcome::Completed));
+                    }
+                    TurnStatus::Responding => {
+                        if turn.partial_reply.len() > MAX_MESSAGE_BYTES {
+                            return Err(cloud_error(CloudError::InvalidResponse));
+                        }
+                        if let Some(suffix) = turn.partial_reply.strip_prefix(emitted.as_str())
+                            && !suffix.is_empty()
+                        {
+                            self.send_reply_chunk(id, ContentChunk::new(suffix.to_owned().into()))
+                                .await?;
+                            emitted.push_str(suffix);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if !received {
+                return Ok(None);
+            }
+            tokio::select! {
+                _ = active.changed.notified() => return Ok(None),
+                _ = time::sleep(POLL_MIN) => {}
+            }
+        }
+        Ok(None)
+    }
+
+    async fn send_final_reply(
+        &self,
+        id: &str,
+        reply: ConversationMessage,
+        emitted: &str,
+    ) -> Result<()> {
+        if !valid_message(&reply) {
+            return Err(cloud_error(CloudError::InvalidResponse));
+        }
+        let chunk = if emitted.is_empty() {
+            message_chunk(reply)
+        } else {
+            let text = match reply.body.strip_prefix(emitted) {
+                Some("") => return Ok(()),
+                Some(suffix) => suffix.to_owned(),
+                // Preserve the canonical answer if the runtime rewrote already displayed text.
+                None => format!("\n\n{}", reply.body),
+            };
+            ContentChunk::new(text.into())
+        };
+        self.send_reply_chunk(id, chunk).await
     }
 }
 

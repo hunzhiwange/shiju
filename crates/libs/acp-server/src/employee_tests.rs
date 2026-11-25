@@ -96,7 +96,8 @@ fn cancel() -> String {
 
 struct Exchange {
     request: String,
-    response: Option<(u16, Value)>,
+    response: Option<(u16, String)>,
+    content_type: &'static str,
     received: Option<oneshot::Sender<()>>,
     release: Option<oneshot::Receiver<()>>,
 }
@@ -105,7 +106,24 @@ impl Exchange {
     fn new(method: &str, path: String, status: u16, body: Value) -> Self {
         Self {
             request: format!("{method} {path} HTTP/1.1"),
-            response: Some((status, body)),
+            response: Some((status, body.to_string())),
+            content_type: "application/json",
+            received: None,
+            release: None,
+        }
+    }
+
+    fn events(turn_id: &str, updates: &[Value]) -> Self {
+        Self {
+            request: format!("GET {}?turn_id={turn_id} HTTP/1.1", messages()),
+            response: Some((
+                200,
+                updates
+                    .iter()
+                    .map(|value| format!("event: conversation.turn\r\ndata: {value}\r\n\r\n"))
+                    .collect(),
+            )),
+            content_type: "text/event-stream",
             received: None,
             release: None,
         }
@@ -170,9 +188,9 @@ async fn fixture(
                 release.await.unwrap();
             }
             if let Some((status, body)) = exchange.response {
-                let body = body.to_string();
                 let header = format!(
-                    "HTTP/1.1 {status} Fixture\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    "HTTP/1.1 {status} Fixture\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    exchange.content_type,
                     body.len()
                 );
                 if stream.get_mut().write_all(header.as_bytes()).await.is_ok() {
@@ -394,6 +412,39 @@ async fn employee_acp_streams_partial_reply_before_completion() {
     })
     .await;
     assert_eq!(http.await.unwrap().len(), 5);
+}
+
+#[tokio::test]
+async fn employee_acp_resumes_turn_event_stream_without_repeating_text() {
+    let kind = EmployeeKind::Shared;
+    let mut created = submission(kind, 1, "DELIVERED", false);
+    created["turn_events"] = json!(true);
+    let mut partial = turn(1, "RESPONDING");
+    partial["partial_reply"] = json!("ans");
+    let first = json!({"turn": partial});
+    let last = json!({"turn": turn(1, "COMPLETED"), "reply": message(1, true)});
+    let (final_stream, requested, release) =
+        Exchange::events(&uuid(13), &[first.clone(), last]).gated();
+    let (client, http) = fixture(vec![
+        Exchange::new("POST", collection(kind), 201, created),
+        Exchange::events(&uuid(13), &[first]),
+        final_stream,
+    ])
+    .await;
+    let root = tempfile::tempdir().unwrap();
+    let cwd = tempfile::tempdir().unwrap();
+    session(agent(&client, root.path(), kind, ACCOUNT), |mut rpc| async move {
+        rpc.initialize().await;
+        let id = rpc.new_session(cwd.path()).await;
+        rpc.prompt(&id, 1).await;
+        assert_eq!(rpc.read().await["params"]["update"]["content"]["text"], "ans");
+        requested.await.unwrap();
+        release.send(()).unwrap();
+        assert_eq!(rpc.read().await["params"]["update"]["content"]["text"], "wer 1");
+        assert_eq!(rpc.read().await["result"]["stopReason"], "end_turn");
+    })
+    .await;
+    assert_eq!(http.await.unwrap().len(), 3);
 }
 
 #[tokio::test]

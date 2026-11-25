@@ -412,18 +412,9 @@ impl<U: SessionUpdateSink> Connection<U> {
             .as_ref()
             .and_then(|pending| pending.confirmed.as_ref())
             .ok_or_else(pending_error)?;
-        let outcome = self.wait_for_turn(cloud, confirmed, status, active).await?;
+        let outcome = self.wait_for_turn(id, cloud, confirmed, status, active).await?;
         let result = match outcome {
-            TurnOutcome::Reply(message) => {
-                let chunk = message_chunk(message);
-                self.updates
-                    .send(SessionNotification::new(
-                        id.to_owned(),
-                        SessionUpdate::AgentMessageChunk(chunk),
-                    ))
-                    .await?;
-                Ok(PromptResponse::new(StopReason::EndTurn))
-            }
+            TurnOutcome::Completed => Ok(PromptResponse::new(StopReason::EndTurn)),
             TurnOutcome::Cancelled => Ok(PromptResponse::new(StopReason::Cancelled)),
             TurnOutcome::Failed => Err(Error::new(-32603, "Employee could not complete this turn")),
         };
@@ -450,6 +441,7 @@ impl<U: SessionUpdateSink> Connection<U> {
 
     async fn wait_for_turn(
         &self,
+        id: &str,
         cloud: &str,
         confirmed: &ConfirmedSend,
         mut status: Option<TurnStatus>,
@@ -457,6 +449,7 @@ impl<U: SessionUpdateSink> Connection<U> {
     ) -> Result<TurnOutcome> {
         let mut delay = POLL_MIN;
         let mut cancel_deadline = None;
+        let mut emitted = String::new();
         loop {
             match status {
                 Some(TurnStatus::Cancelled) => return Ok(TurnOutcome::Cancelled),
@@ -506,6 +499,17 @@ impl<U: SessionUpdateSink> Connection<U> {
                 Ok(history) => {
                     if !completed && let Some(turn) = find_turn(&history, confirmed) {
                         status = Some(turn.status);
+                        if turn.status == TurnStatus::Responding
+                            && !active.cancelled.get()
+                            && turn.partial_reply.len() <= MAX_MESSAGE_BYTES
+                            && let Some(suffix) = turn.partial_reply.strip_prefix(emitted.as_str())
+                            && !suffix.is_empty()
+                        {
+                            self.send_reply_chunk(id, ContentChunk::new(suffix.to_owned().into()))
+                                .await?;
+                            emitted.push_str(suffix);
+                            delay = POLL_MIN;
+                        }
                     }
                     match status {
                         Some(TurnStatus::Completed) => {
@@ -517,7 +521,20 @@ impl<U: SessionUpdateSink> Connection<U> {
                                 if !valid_message(&reply) {
                                     return Err(cloud_error(CloudError::InvalidResponse));
                                 }
-                                return Ok(TurnOutcome::Reply(reply));
+                                let chunk = if emitted.is_empty() {
+                                    message_chunk(reply)
+                                } else {
+                                    let text = match reply.body.strip_prefix(emitted.as_str()) {
+                                        Some("") => return Ok(TurnOutcome::Completed),
+                                        Some(suffix) => suffix.to_owned(),
+                                        // ACP chunks are append-only. Include the confirmed reply
+                                        // when the runtime revised the prefix already displayed.
+                                        None => format!("\n\n{}", reply.body),
+                                    };
+                                    ContentChunk::new(text.into())
+                                };
+                                self.send_reply_chunk(id, chunk).await?;
+                                return Ok(TurnOutcome::Completed);
                             }
                         }
                         Some(TurnStatus::Cancelled | TurnStatus::Failed) => continue,
@@ -541,10 +558,16 @@ impl<U: SessionUpdateSink> Connection<U> {
             delay = (delay * 2).min(POLL_MAX);
         }
     }
+
+    async fn send_reply_chunk(&self, id: &str, chunk: ContentChunk) -> Result<()> {
+        self.updates
+            .send(SessionNotification::new(id.to_owned(), SessionUpdate::AgentMessageChunk(chunk)))
+            .await
+    }
 }
 
 enum TurnOutcome {
-    Reply(ConversationMessage),
+    Completed,
     Cancelled,
     Failed,
 }

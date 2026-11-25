@@ -19,7 +19,9 @@
 
 ## 正文和停止语义
 
-当前实现从产品历史读取已完成轮次的一条最终员工正文，经 ACP 的 `agent_message_chunk` 通知送入聊天。真实 Worker 即使逐段生成，桌面首版也在产品确认完成后展示最终正文。ACP 通知的名称并不表示产品逐段推送。
+支持增量的 QwenPaw Worker 生成正文时，Agent Cloud 的历史接口随 `RESPONDING` 轮次返回累计前缀 `partial_reply`。员工 ACP 从中提取新增文本，以 `agent_message_chunk` 通知推送到桌面。轮次完成时补齐最终正文的剩余部分。重新打开会话时读取已确认的最终消息。未提供 `partial_reply` 的部署仍在轮次完成后展示最终回复。
+
+流式需要升级 Agent Cloud 和 QwenPaw Worker，并应用 `20261125_add_conversation_reply_progress.sql`。私有直聊经 Controller 查询时也要升级 Controller。验收时请用较长回复确认生成中出现多个正文片段，且最终正文没有重复。
 
 桌面停止请求经网关到达 ACP 子进程。子进程通过产品取消接口确认轮次状态，聊天随确认结果结束。如果产品已先完成，仍可收到最终正文。产品确认取消表示该轮以取消状态结束，晚到回复不应成为该轮正文。要确认 Worker 是否实际中止推理，须单独核对 Worker 侧执行记录。
 

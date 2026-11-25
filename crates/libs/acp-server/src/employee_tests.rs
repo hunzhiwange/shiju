@@ -359,6 +359,44 @@ async fn employee_acp_shared_two_turns_and_reopen() {
 }
 
 #[tokio::test]
+async fn employee_acp_streams_partial_reply_before_completion() {
+    let kind = EmployeeKind::Shared;
+    let mut first = history(&["RESPONDING"]);
+    first["turns"][0]["partial_reply"] = json!("ans");
+    let mut second = first.clone();
+    second["turns"][0]["partial_reply"] = json!("answer");
+    let (complete, requested, release) =
+        Exchange::new("GET", messages(), 200, history(&["COMPLETED"])).gated();
+    let (client, http) = fixture(vec![
+        Exchange::new("POST", collection(kind), 201, submission(kind, 1, "DELIVERED", false)),
+        Exchange::new("GET", messages(), 200, first.clone()),
+        Exchange::new("GET", messages(), 200, first),
+        Exchange::new("GET", messages(), 200, second),
+        complete,
+    ])
+    .await;
+    let root = tempfile::tempdir().unwrap();
+    let cwd = tempfile::tempdir().unwrap();
+    session(agent(&client, root.path(), kind, ACCOUNT), |mut rpc| async move {
+        rpc.initialize().await;
+        let id = rpc.new_session(cwd.path()).await;
+        rpc.prompt(&id, 1).await;
+        let partial = rpc.read().await;
+        assert_eq!(partial["params"]["sessionId"], id);
+        assert_eq!(partial["params"]["update"]["sessionUpdate"], "agent_message_chunk");
+        assert_eq!(partial["params"]["update"]["content"]["text"], "ans");
+        assert_eq!(rpc.read().await["params"]["update"]["content"]["text"], "wer");
+        requested.await.unwrap();
+        release.send(()).unwrap();
+        let suffix = rpc.read().await;
+        assert_eq!(suffix["params"]["update"]["content"]["text"], " 1");
+        assert_eq!(rpc.read().await["result"]["stopReason"], "end_turn");
+    })
+    .await;
+    assert_eq!(http.await.unwrap().len(), 5);
+}
+
+#[tokio::test]
 async fn employee_acp_lost_post_reuses_key_after_restart() {
     let kind = EmployeeKind::Private;
     let mut lost = Exchange::new("POST", collection(kind), 201, Value::Null);

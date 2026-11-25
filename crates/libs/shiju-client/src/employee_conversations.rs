@@ -100,6 +100,8 @@ pub struct ConversationTurn {
     pub user_message_id: String,
     pub employee_version_id: String,
     pub status: TurnStatus,
+    #[serde(default)]
+    pub partial_reply: String,
     pub error_code: Option<String>,
     pub created_at: String,
     pub updated_at: String,

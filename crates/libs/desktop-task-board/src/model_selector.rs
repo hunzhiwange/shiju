@@ -29,6 +29,7 @@ use iced::widget::{
 use iced::{Alignment, Color, Element, Length, Theme};
 
 use desktop_assets::assets::{self, Icon};
+use desktop_chat_input::input_panel::surface_styles::selector_pill_button_style;
 use desktop_ui_controls::overlays::BelowOverlay;
 use desktop_ui_controls::system_settings_common::{
     SettingsSelectLabel, settings_field_label, settings_muted_text_style, settings_text_input,
@@ -130,6 +131,7 @@ fn build_selector<'a>(app: SelectorView<'a>, kind: TaskBoardModelSelectorKind) -
         .style(chevron_style);
 
     let open = kind.is_open(app);
+    let composer = matches!(kind, TaskBoardModelSelectorKind::Draft);
     let model_toggle = button(
         row![
             build_model_icon(auto_model, app, model),
@@ -139,19 +141,25 @@ fn build_selector<'a>(app: SelectorView<'a>, kind: TaskBoardModelSelectorKind) -
         .spacing(6)
         .align_y(Alignment::Center),
     )
-    .style(move |theme, status| selector_trigger_style(theme, status, open))
+    .style(move |theme, status| {
+        if composer {
+            selector_pill_button_style(theme, status, open)
+        } else {
+            selector_trigger_style(theme, status, open)
+        }
+    })
     .padding([6, 8])
-    .width(Length::Fill)
-    .height(38)
+    .width(if composer { Length::Fixed(166.0) } else { Length::Fill })
+    .height(if composer { 30 } else { 38 })
     .on_press(kind.toggle_message());
 
     let model_pop_content = build_model_popover(app, kind, auto_model, model);
 
-    BelowOverlay::new(model_toggle, model_pop_content)
+    let overlay = BelowOverlay::new(model_toggle, model_pop_content)
         .show(open)
         .gap(6.0)
-        .on_close(kind.close_message())
-        .into()
+        .on_close(kind.close_message());
+    if composer { overlay.within_window().dismiss_on_escape().into() } else { overlay.into() }
 }
 
 fn build_toggle_label(app: SelectorView<'_>, auto_model: bool, model: &str) -> String {

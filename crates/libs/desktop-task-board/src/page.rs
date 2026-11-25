@@ -1,38 +1,28 @@
-use iced::widget::{column, container, responsive, row, scrollable, stack};
+use iced::widget::{column, container, scrollable, stack};
 use iced::{Element, Length, Theme};
 use desktop_ui_controls::system_settings_common::{
     panels::settings_right_drawer_overlay, settings_modal_overlay,
 };
 #[derive(Clone, Copy)]
-pub struct PageView { pub task_board_create_modal_open: bool, pub task_board_worktree_pixel_office: bool, pub kanban: bool, pub viewing_logs: bool, pub task_board_settings_modal_open: bool }
-pub struct PageSlots<'a, M> { pub header: Element<'a, M>, pub board: Option<Element<'a, M>>, pub drag: Element<'a, M>, pub create_panel: Option<Element<'a, M>>, pub detail_panel: Option<Element<'a, M>>, pub settings: Option<Element<'a, M>>, pub context_closed: M, pub close_logs: M, pub close_settings: M }
-/// 渲染对应界面。
-///
-/// # 参数
-/// - `app`: 当前视图构建所需的状态、配置或消息。
-///
-/// # 返回
-/// 返回可直接嵌入父级视图的 Iced 控件或样式闭包。
-///
-/// # 错误
-/// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub fn view<'a, M: Clone + 'static>(app: PageView, slots: impl Fn(Option<Length>) -> Element<'a, M> + 'a) -> Element<'a, M> {
-    if app.task_board_create_modal_open {
-        responsive(move |size| {
-            let width = if size.width < 800.0 {
-                Length::Fill
-            } else {
-                Length::Fixed((size.width / 3.0).clamp(320.0, 600.0))
-            };
-            slots(Some(width))
-        })
-        .into()
-    } else {
-        slots(None)
-    }
+pub struct PageView {
+    pub task_board_worktree_pixel_office: bool,
+    pub kanban: bool,
+    pub viewing_logs: bool,
+    pub task_board_settings_modal_open: bool,
 }
 
-pub fn build_view<'a, M: Clone + 'static>(app: PageView, create_width: Option<Length>, slots: PageSlots<'a, M>) -> Element<'a, M> {
+struct PageSlots<'a, M> {
+    header: Element<'a, M>,
+    board: Option<Element<'a, M>>,
+    drag: Element<'a, M>,
+    detail_panel: Option<Element<'a, M>>,
+    settings: Option<Element<'a, M>>,
+    context_closed: M,
+    close_logs: M,
+    close_settings: M,
+}
+
+fn build_view<'a, M: Clone + 'static>(app: PageView, slots: PageSlots<'a, M>) -> Element<'a, M> {
     let header = slots.header;
     let content = if app.task_board_worktree_pixel_office {
         column![header].spacing(0).width(Length::Fill).height(Length::Fill)
@@ -67,31 +57,15 @@ pub fn build_view<'a, M: Clone + 'static>(app: PageView, create_width: Option<Le
         .padding(16)
         .style(task_board_container_style);
 
-    let drag_preview_layer = slots.drag;
-
-    let main_content: Element<'_, M> = if let Some(width) = create_width {
-        let panel = slots.create_panel.expect("visible create_panel slot");
-        if width == Length::Fill {
-            panel
-        } else {
-            row![
-                container(stack![base, drag_preview_layer])
-                    .width(Length::Fill)
-                    .height(Length::Fill),
-                container(panel).width(width),
-            ]
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
-        }
-    } else if app.viewing_logs {
+    let base = stack![base, slots.drag].into();
+    let main_content = if app.viewing_logs {
         let detail_panel = slots.detail_panel.expect("visible detail_panel slot");
         settings_right_drawer_overlay(
-            stack![base, drag_preview_layer].into(),
+            base,
             Some((slots.close_logs, container(detail_panel).padding(16).into())),
         )
     } else {
-        stack![base, drag_preview_layer].into()
+        base
     };
 
     if app.task_board_settings_modal_open {
@@ -112,27 +86,26 @@ fn task_board_container_style(theme: &Theme) -> container::Style {
     }
 }
 
-/// Lazy content factories keep responsive page assembly in the domain.
+/// Lazy content factories keep page assembly in the domain.
 pub struct PageBuilders<'a, M> {
     pub header: Box<dyn Fn() -> Element<'a, M> + 'a>,
     pub board: Box<dyn Fn() -> Element<'a, M> + 'a>,
     pub drag: Box<dyn Fn() -> Element<'a, M> + 'a>,
-    pub panel: Box<dyn Fn(bool) -> Element<'a, M> + 'a>,
+    pub detail: Box<dyn Fn() -> Element<'a, M> + 'a>,
     pub settings: Box<dyn Fn() -> Element<'a, M> + 'a>,
     pub context_closed: M,
     pub close_logs: M,
     pub close_settings: M,
 }
 pub fn assemble<'a, M: Clone + 'static>(input: PageView, builders: PageBuilders<'a, M>) -> Element<'a, M> {
-    view(input, move |width| build_view(input, width, PageSlots {
+    build_view(input, PageSlots {
         header: (builders.header)(),
         board: (!input.task_board_worktree_pixel_office).then(|| (builders.board)()),
         drag: (builders.drag)(),
-        create_panel: width.is_some().then(|| (builders.panel)(false)),
-        detail_panel: (width.is_none() && input.viewing_logs).then(|| (builders.panel)(true)),
+        detail_panel: input.viewing_logs.then(|| (builders.detail)()),
         settings: input.task_board_settings_modal_open.then(|| (builders.settings)()),
-        context_closed: builders.context_closed.clone(),
-        close_logs: builders.close_logs.clone(),
-        close_settings: builders.close_settings.clone(),
-    }))
+        context_closed: builders.context_closed,
+        close_logs: builders.close_logs,
+        close_settings: builders.close_settings,
+    })
 }

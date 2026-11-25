@@ -1,4 +1,4 @@
-//! 任务看板侧栏面板模块，负责任务编辑、执行器选择和日志弹窗界面。
+//! 任务看板的新建弹窗、详情面板和日志视图。
 //!
 //! 本模块只负责视图组合与样式适配，不持有业务状态，也不扩大外部能力边界。
 
@@ -12,8 +12,8 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
-    settings_field_label, settings_panel, settings_segment_button_style,
-    settings_select,
+    settings_field_label, settings_modal_header, settings_modal_layout, settings_panel,
+    settings_segment_button_style, settings_select,
 };
 use desktop_i18n::I18n;
 use crate::message::TaskBoardMessage;
@@ -159,27 +159,14 @@ fn build_task_panel_with_content<'a, M: Clone + 'a>(
     map: impl Fn(Message) -> M + Copy + 'a,
     detail: Option<Element<'a, M>>,
 ) -> Element<'a, M> {
-    let current_task = if is_edit_mode { app.task_board_viewing_logs.as_ref() } else { None };
-    let (panel_title, panel_description, task_id_text, close_msg) = if is_edit_mode {
-        let title = "任务详情";
-        let id = current_task.map(|t| t.id.as_str()).unwrap_or("");
-        (
-            title,
-            "查看运行状态、调整执行参数，并保持日志与子任务在同一侧面板内。",
-            Some(id),
-            TaskBoardMessage::CloseTaskLogs,
-        )
-    } else {
-        (
-            "新建任务",
-            "集中填写提示词、模型、执行器与导入内容。",
-            None,
-            TaskBoardMessage::CreateTaskCancelled,
-        )
-    };
+    if !is_edit_mode {
+        return build_create_modal(app, slots).map(map);
+    }
 
+    let current_task = app.task_board_viewing_logs.as_ref();
+    let task_id_text = Some(current_task.map(|task| task.id.as_str()).unwrap_or(""));
     let i18n = I18n::new(app.desktop_locale);
-    let title = i18n.__(panel_title);
+    let title = i18n.__("任务详情");
     let title_label = text(title)
         .size(16)
         .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
@@ -188,119 +175,81 @@ fn build_task_panel_with_content<'a, M: Clone + 'a>(
         app.app_theme,
         title,
         title_label,
-        i18n.__(panel_description),
+        i18n.__("查看运行状态、调整执行参数，并保持日志与子任务在同一侧面板内。"),
     );
-    let header_row =
-        build_header_row(i18n, title, task_id_text, current_task, build_close_button(close_msg));
-    let mut header = column![header_row, Space::new().height(18.0)].width(Length::Fill);
+    let header_row = build_header_row(
+        i18n,
+        title,
+        task_id_text,
+        current_task,
+        build_close_button(TaskBoardMessage::CloseTaskLogs),
+    );
+    let header = column![header_row, Space::new().height(18.0), build_detail_tabs(app)]
+        .width(Length::Fill);
     let mut main_col = column![].width(Length::Fill);
 
-    if is_edit_mode {
-        header = header.push(build_detail_tabs(app));
-
-        if app.task_board_detail_tab == TaskBoardDetailTab::Logs {
-            main_col = main_col.push(build_task_logs(app));
-        } else {
-            if let Some(reason_row) = current_task.and_then(|task| {
-                build_failed_reason_row(desktop_i18n::I18n::new(app.desktop_locale), task)
-            }) {
-                main_col = main_col.push(reason_row).push(Space::new().height(12.0));
-            }
-            if let Some(task) = current_task
-                && let Some(worktree_row) = build_selected_worktree_row(
-                    desktop_i18n::I18n::new(app.desktop_locale),
-                    task,
-                )
-            {
-                main_col = main_col.push(worktree_row).push(Space::new().height(12.0));
-            }
-            if let Some(task) = current_task
-                && let Some(merge_lock_row) = build_merge_lock_row(app, task)
-            {
-                main_col = main_col.push(merge_lock_row).push(Space::new().height(12.0));
-            }
-
-            let i18n = desktop_i18n::I18n::new(app.desktop_locale);
-            let control = |label, field| {
-                column![
-                    input_label(i18n.__(label)),
-                    container(field).center_y(42).width(Length::Fill),
-                ]
-                .spacing(6)
-                .width(Length::FillPortion(1))
-            };
-            let priority_field = control("优先级", build_priority_field(app, true));
-            let model_field = control("模型", slots.model.expect("visible model selector"));
-            let agent_field = control("代理", build_agent_field(app, true));
-            let executor_field = control("执行器", slots.executor.expect("visible executor selector"));
-            let reasoning_effort_field =
-                slots.reasoning.map(|field| control("推理强度", field));
-            let task_split_field = control("任务拆分", build_task_split_mode_selector(app, true));
-            let prompt_field = build_prompt_field(app);
-
-            main_col = main_col.push(section_block(
-                app,
-                "任务配置",
-                "编辑提示词、模型、代理、执行器、任务拆分与优先级。",
-                column![
-                    prompt_field,
-                    settings_divider(),
-                    row![agent_field, executor_field]
-                        .extend(reasoning_effort_field.map(Into::into))
-                        .spacing(12)
-                        .align_y(Alignment::End),
-                    row![model_field, task_split_field, priority_field]
-                        .spacing(12)
-                        .align_y(Alignment::End),
-                ]
-                .spacing(14),
-            ));
-
-            if let Some(task) = current_task {
-                main_col = build_edit_mode_content(app, task, main_col);
-            }
-        }
+    let showing_logs = app.task_board_detail_tab == TaskBoardDetailTab::Logs;
+    if showing_logs {
+        main_col = main_col.push(build_task_logs(app));
     } else {
-        main_col = main_col.push(build_mode_toggle(app)).push(Space::new().height(12.0));
-        if app.task_board_is_import_mode {
-            main_col = main_col.push(section_block(
-                app,
-                "批量导入",
-                "支持 JSON、CSV、TSV，适合一次性导入多条任务。",
-                build_import_field(app),
-            ));
-        } else {
-            let priority_field = build_priority_field(app, false);
-            let model_field = slots.model.expect("visible model selector");
-            let agent_field = build_agent_field(app, false);
-            let executor_field = slots.executor.expect("visible executor selector");
-            let reasoning_effort_field = slots.reasoning;
-            let task_split_field = build_task_split_mode_selector(app, false);
-            let prompt_field = build_prompt_field(app);
-            main_col = main_col.push(section_block(
-                app,
-                "任务配置",
-                "填写提示词并选择模型、代理、执行器、任务拆分与优先级。",
-                column![prompt_field, settings_divider(), agent_field, executor_field,]
-                    .extend(reasoning_effort_field)
-                    .push(model_field)
-                    .push(task_split_field)
-                    .push(
-                        column![
-                            settings_field_label(
-                                desktop_i18n::I18n::new(app.desktop_locale).__("优先级")
-                            ),
-                            priority_field,
-                        ]
-                        .spacing(6),
-                    )
-                    .spacing(14),
-            ));
+        if let Some(reason_row) = current_task.and_then(|task| {
+            build_failed_reason_row(desktop_i18n::I18n::new(app.desktop_locale), task)
+        }) {
+            main_col = main_col.push(reason_row).push(Space::new().height(12.0));
         }
-        main_col = build_draft_mode_content(app, main_col);
+        if let Some(task) = current_task
+            && let Some(worktree_row) = build_selected_worktree_row(
+                desktop_i18n::I18n::new(app.desktop_locale),
+                task,
+            )
+        {
+            main_col = main_col.push(worktree_row).push(Space::new().height(12.0));
+        }
+        if let Some(task) = current_task
+            && let Some(merge_lock_row) = build_merge_lock_row(app, task)
+        {
+            main_col = main_col.push(merge_lock_row).push(Space::new().height(12.0));
+        }
+
+        let control = |label, field| {
+            column![
+                input_label(i18n.__(label)),
+                container(field).center_y(42).width(Length::Fill),
+            ]
+            .spacing(6)
+            .width(Length::FillPortion(1))
+        };
+        let priority_field = control("优先级", build_priority_field(app, true));
+        let model_field = control("模型", slots.model.expect("visible model selector"));
+        let agent_field = control("代理", build_agent_field(app, true));
+        let executor_field = control("执行器", slots.executor.expect("visible executor selector"));
+        let reasoning_effort_field = slots.reasoning.map(|field| control("推理强度", field));
+        let task_split_field = control("任务拆分", build_task_split_mode_selector(app, true));
+        let prompt_field = build_prompt_field(app);
+
+        main_col = main_col.push(section_block(
+            app,
+            "任务配置",
+            "编辑提示词、模型、代理、执行器、任务拆分与优先级。",
+            column![
+                prompt_field,
+                settings_divider(),
+                row![agent_field, executor_field]
+                    .extend(reasoning_effort_field.map(Into::into))
+                    .spacing(12)
+                    .align_y(Alignment::End),
+                row![model_field, task_split_field, priority_field]
+                    .spacing(12)
+                    .align_y(Alignment::End),
+            ]
+            .spacing(14),
+        ));
+
+        if let Some(task) = current_task {
+            main_col = build_edit_mode_content(app, task, main_col);
+        }
     }
 
-    let showing_logs = is_edit_mode && app.task_board_detail_tab == TaskBoardDetailTab::Logs;
     let panel_body: Element<'_, Message> = main_col.into();
     let panel_header: Element<'_, Message> = header.into();
     let main_col = column![].extend(detail).push(panel_body.map(map)).spacing(12).width(Length::Fill);
@@ -322,22 +271,40 @@ fn build_task_panel_with_content<'a, M: Clone + 'a>(
         .into()
     };
     let mut content = column![panel_header.map(map), content].spacing(12).height(Length::Fill);
-    if !showing_logs && (!is_edit_mode || current_task.is_some()) {
-        content = content.push(build_action_buttons(app, is_edit_mode).map(map));
+    if !showing_logs && current_task.is_some() {
+        content = content.push(build_action_buttons(app, true).map(map));
     }
-    let panel_width = if is_edit_mode { Length::Fixed(560.0) } else { Length::Fill };
 
     let panel = container(content)
         .padding(20)
         .style(panel_container_style)
-        .width(panel_width)
+        .width(560)
         .height(Length::Fill);
-    if is_edit_mode {
-        // Mark the whole sidebar surface as interactive so the stack shields the board.
-        iced::widget::mouse_area(panel).interaction(iced::mouse::Interaction::Idle).into()
+    // Mark the whole sidebar surface as interactive so the stack shields the board.
+    iced::widget::mouse_area(panel).interaction(iced::mouse::Interaction::Idle).into()
+}
+
+fn build_create_modal<'a>(app: PanelView<'a>, slots: PanelSlots<'a>) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let header = column![
+        settings_modal_header(
+            text(i18n.__("新建任务"))
+                .size(18)
+                .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
+            build_close_button(TaskBoardMessage::CreateTaskCancelled),
+        ),
+        build_mode_toggle(app),
+    ]
+    .spacing(12);
+    let (body, height) = if app.task_board_is_import_mode {
+        (build_import_field(app), 660)
     } else {
-        panel.into()
-    }
+        (build_create_form(app, slots), 412)
+    };
+    settings_modal_layout(header, body, Some(build_action_buttons(app, false)))
+        .width(760)
+        .height(height)
+        .into()
 }
 
 fn build_close_button(close_msg: TaskBoardMessage) -> iced::Element<'static, Message> {
@@ -622,19 +589,6 @@ fn build_edit_mode_content<'a>(
         );
     }
     main_col.push(Space::new().height(16.0)).push(build_edit_options_row(app))
-}
-
-fn build_draft_mode_content<'a>(
-    app: PanelView<'a>,
-    main_col: iced::widget::Column<'a, Message>,
-) -> iced::widget::Column<'a, Message> {
-    if app.task_board_is_import_mode {
-        main_col
-    } else {
-        main_col
-            .push(Space::new().height(12.0))
-            .push(build_create_options_row(app))
-    }
 }
 
 #[cfg(test)]

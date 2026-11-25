@@ -325,6 +325,7 @@ async fn ui_refresh_34_layout_and_interaction() {
                 let geometry = labels(&mut ui, &renderer);
                 let submit = geometry.bounds(i18n.__(action));
                 let viewport = geometry.scroll.last().unwrap().0;
+                assert!((viewport.center_x() - width as f32 / 2.0).abs() < 1.0);
                 assert!(viewport.y + viewport.height < submit.y);
                 assert!(submit.x + submit.width <= width as f32 && submit.width > 0.0);
                 capture(
@@ -335,6 +336,14 @@ async fn ui_refresh_34_layout_and_interaction() {
                     &format!("{language}-{mode}-{screen}"),
                     mouse::Cursor::Unavailable,
                 );
+                if import {
+                    let title = geometry.bounds(i18n.__("新建任务"));
+                    scroll(&mut ui, &mut renderer, viewport, -210.0);
+                    let scrolled = labels(&mut ui, &renderer);
+                    assert!(scrolled.scroll.last().unwrap().1.y > 0.0);
+                    assert_eq!(scrolled.bounds(i18n.__("新建任务")), title);
+                    assert_eq!(scrolled.bounds(i18n.__(action)), submit);
+                }
             }
             app.task_board_create_modal_open = false;
         }
@@ -369,15 +378,10 @@ async fn ui_refresh_34_preserves_values_and_disabled_states() {
     capture(&mut ui, &mut renderer, &theme, size, "single", mouse::Cursor::Unavailable);
     let submit = before.bounds(i18n.__("创建任务"));
     let viewport = before.scroll.last().unwrap().0;
-    scroll(&mut ui, &mut renderer, viewport, -210.0);
-    let after = labels(&mut ui, &renderer);
-    assert!(after.scroll.last().unwrap().1.y > 0.0);
-    assert_eq!(submit, after.bounds(i18n.__("创建任务")));
-    let priority = after.inputs.iter().find(|(value, _)| value == "42").unwrap().1;
-    let point = Point::new(
-        priority.x + priority.width - 9.0,
-        priority.center_y() - after.scroll.last().unwrap().1.y,
-    );
+    assert!((viewport.center_x() - size.width as f32 / 2.0).abs() < 1.0);
+    assert!(click(&mut ui, &mut renderer, Point::new(1.0, 1.0)).is_empty());
+    let priority = before.inputs.iter().find(|(value, _)| value == "42").unwrap().1;
+    let point = Point::new(priority.x + priority.width - 9.0, priority.center_y());
     assert!(click(&mut ui, &mut renderer, point).is_empty());
     assert!(matches!(
         key(&mut ui, &mut renderer, Key::Character("7".into()), Some("7")).as_slice(),
@@ -388,7 +392,6 @@ async fn ui_refresh_34_preserves_values_and_disabled_states() {
         click(&mut ui, &mut renderer, submit.center()).as_slice(),
         [Message::TaskBoard(TaskBoardMessage::CreateTaskSubmitted)]
     ));
-    scroll(&mut ui, &mut renderer, viewport, 900.0);
     let messages = press_label(&mut ui, &mut renderer, i18n.__("批量导入"));
     drop(ui);
     assert!(matches!(
@@ -464,6 +467,10 @@ async fn ui_refresh_34_preserves_values_and_disabled_states() {
     let mut ui = scene(super::panel_fixture::page(&app), &mut renderer, size);
     assert!(matches!(
         press_label(&mut ui, &mut renderer, i18n.__("取消")).as_slice(),
+        [Message::TaskBoard(TaskBoardMessage::CreateTaskCancelled)]
+    ));
+    assert!(matches!(
+        key(&mut ui, &mut renderer, Key::Named(Named::Escape), None).as_slice(),
         [Message::TaskBoard(TaskBoardMessage::CreateTaskCancelled)]
     ));
 }

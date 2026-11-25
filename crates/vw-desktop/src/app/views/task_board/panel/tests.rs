@@ -21,6 +21,7 @@ mod help_rollout {
             return;
         };
         let mut renderer = renderer().await;
+        app.navigation_tabs.screen = crate::app::Screen::TaskBoard;
         app.task_board.task_board_draft.priority = "173".into();
         for (locale, theme, width) in LAYOUTS {
             app.general_settings.desktop_locale = locale;
@@ -29,19 +30,9 @@ mod help_rollout {
             let size = Size::new(width, 1040);
             app.task_board.task_board_create_modal_open = true;
             app.task_board.task_board_is_import_mode = false;
-            let mut ui = scene(crate::app::views::task_board::view(&app), &mut renderer, size);
-            for (title, description, artifact) in [
-                ("新建任务", "集中填写提示词、模型、执行器与导入内容。", "create"),
-                (
-                    "任务配置",
-                    "填写提示词并选择模型、代理、执行器、任务拆分与优先级。",
-                    "create-config",
-                ),
-                ("创建行为", "控制创建完成后的默认收尾动作。", "create-options"),
-            ] {
-                check_help(&mut ui, &mut renderer, &app, size, title, description, artifact);
-            }
+            let mut ui = scene(app.view(), &mut renderer, size);
             let bounds = geometry(&mut ui, &renderer);
+            locate(&bounds.labels, i18n.__("新建任务"));
             locate(&bounds.inputs, "173");
             assert!(matches!(
                 click(&mut ui, &mut renderer, locate(&bounds.labels, i18n.__("创建任务")).center())
@@ -56,16 +47,7 @@ mod help_rollout {
             drop(ui);
 
             app.task_board.task_board_is_import_mode = true;
-            let mut ui = scene(crate::app::views::task_board::view(&app), &mut renderer, size);
-            check_help(
-                &mut ui,
-                &mut renderer,
-                &app,
-                size,
-                "批量导入",
-                "支持 JSON、CSV、TSV，适合一次性导入多条任务。",
-                "import",
-            );
+            let mut ui = scene(app.view(), &mut renderer, size);
             let bounds = geometry(&mut ui, &renderer);
             assert!(bounds.labels.iter().any(|(label, _)| {
                 label.contains("priority, prompt") && label.contains("CSV/TSV")

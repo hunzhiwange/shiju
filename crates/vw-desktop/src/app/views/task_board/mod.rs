@@ -1,6 +1,6 @@
 use crate::app::message::TaskBoardMessage;
 use crate::app::state::TaskBoardDetailTab;
-use crate::app::{App, Message};
+use crate::app::{App, Message, Screen};
 use iced::Length;
 use iced::widget::{Space, column, responsive, row};
 mod board;
@@ -19,10 +19,9 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
     let task = app.task_board.task_board_viewing_logs.as_ref();
     let show_detail = task.is_some() && !app.task_board.task_board_worktree_pixel_office;
     let input = desktop_task_board::page::PageView {
-        task_board_create_modal_open: app.task_board.task_board_create_modal_open,
         task_board_worktree_pixel_office: app.task_board.task_board_worktree_pixel_office,
         kanban: true,
-        viewing_logs: task.is_some()
+        viewing_logs: !app.task_board.task_board_create_modal_open && task.is_some()
             && (!show_detail || app.task_board.task_board_detail_tab != TaskBoardDetailTab::Basic),
         task_board_settings_modal_open: app.task_board.task_board_settings_modal_open,
     };
@@ -30,7 +29,7 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
         input,
         desktop_task_board::page::PageBuilders {
             header: Box::new(move || {
-                if show_detail && !app.task_board.task_board_create_modal_open {
+                if show_detail {
                     Space::new().into()
                 } else {
                     control::build_control_buttons(app)
@@ -64,7 +63,7 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
                 .into()
             }),
             drag: Box::new(|| drag::build_drag_preview_layer(app)),
-            panel: Box::new(move |edit| panel::build_panel(app, edit, edit && show_detail)),
+            detail: Box::new(move || panel::build_panel(app, true, show_detail)),
             settings: Box::new(|| modals::build_task_settings_modal(app)),
             context_closed: Message::TaskBoard(TaskBoardMessage::ContextMenuClosed),
             close_logs: Message::TaskBoard(if show_detail {
@@ -76,4 +75,23 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
         },
     );
     work_plan::with_child_modal(app, page)
+}
+
+pub(in crate::app) fn with_create_modal<'a>(
+    app: &'a App,
+    base: iced::Element<'a, Message>,
+) -> iced::Element<'a, Message> {
+    if app.navigation_tabs.screen != Screen::TaskBoard
+        || app.navigation_panels.show_system_settings
+        || !app.task_board.task_board_create_modal_open
+        || app.task_board.task_board_settings_modal_open
+    {
+        return base;
+    }
+
+    desktop_ui_controls::system_settings_common::settings_modal_overlay_with_escape(
+        base,
+        Message::TaskBoard(TaskBoardMessage::CreateTaskCancelled),
+        panel::build_panel(app, false, false),
+    )
 }

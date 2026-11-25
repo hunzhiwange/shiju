@@ -11,6 +11,7 @@ pub struct ReasoningView<'a> {
 use std::fmt;
 
 use iced::{Element, Length};
+use desktop_assets::assets::Icon;
 use vw_api_chat_identity::ReasoningEffortDto;
 
 use desktop_chat_input::input_panel::reasoning_selector::{
@@ -93,14 +94,13 @@ fn build_selector<'a>(app: ReasoningView<'a>, kind: TaskBoardReasoningSelectorKi
     }
     let selected = TaskBoardReasoningEffortOption(kind.current(app), app.desktop_locale);
 
-    Some(
-        settings_select(options, Some(selected), move |option| {
-            kind.select_message(option.0)
-        })
-        .placeholder(desktop_i18n::I18n::new(app.desktop_locale).__("推理强度"))
-        .width(Length::Fill)
-        .into(),
-    )
+    let select = settings_select(options, Some(selected), move |option| kind.select_message(option.0))
+        .placeholder(desktop_i18n::I18n::new(app.desktop_locale).__("推理强度"));
+    Some(if kind == TaskBoardReasoningSelectorKind::Draft {
+        select.toolbar_icon(Icon::Speedometer2).width(136).into()
+    } else {
+        select.width(Length::Fill).into()
+    })
 }
 
 #[cfg(test)]

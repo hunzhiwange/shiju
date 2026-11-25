@@ -178,13 +178,12 @@ pub(super) fn build_task_panel(
 pub(super) fn page(app: &PanelFixture) -> iced::Element<'_, crate::panel::PanelMessage> {
     use crate::{message::TaskBoardMessage as B, page::*, panel::PanelMessage as M};
     let input = PageView {
-        task_board_create_modal_open: app.task_board_create_modal_open,
         task_board_worktree_pixel_office: app.task_board_worktree_pixel_office,
         kanban: true,
-        viewing_logs: app.task_board_viewing_logs.is_some(),
+        viewing_logs: !app.task_board_create_modal_open && app.task_board_viewing_logs.is_some(),
         task_board_settings_modal_open: app.task_board_settings_modal_open,
     };
-    assemble(
+    let base = assemble(
         input,
         PageBuilders {
             header: Box::new(|| {
@@ -217,7 +216,7 @@ pub(super) fn page(app: &PanelFixture) -> iced::Element<'_, crate::panel::PanelM
                 })
                 .map(M::TaskBoard)
             }),
-            panel: Box::new(|edit| build_task_panel(app, edit)),
+            detail: Box::new(|| build_task_panel(app, true)),
             settings: Box::new(|| {
                 crate::modals::build_task_settings_modal(
                     crate::modals::SettingsView {
@@ -236,7 +235,16 @@ pub(super) fn page(app: &PanelFixture) -> iced::Element<'_, crate::panel::PanelM
             close_logs: M::TaskBoard(B::CloseTaskLogs),
             close_settings: M::TaskBoard(B::CloseSettingsModal),
         },
-    )
+    );
+    if app.task_board_create_modal_open && !app.task_board_settings_modal_open {
+        desktop_ui_controls::system_settings_common::settings_modal_overlay_with_escape(
+            base,
+            M::TaskBoard(B::CreateTaskCancelled),
+            build_task_panel(app, false),
+        )
+    } else {
+        base
+    }
 }
 fn board(app: &PanelFixture) -> iced::Element<'_, crate::panel::PanelMessage> {
     use crate::panel::PanelMessage as M;

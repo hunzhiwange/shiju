@@ -17,6 +17,7 @@ use iced::{Alignment, Element, Length, Theme};
 
 use desktop_assets::assets::{self, Icon};
 use desktop_chat_input::input_panel::icons::acp_agent_icon;
+use desktop_chat_input::input_panel::surface_styles::selector_pill_button_style;
 use desktop_ui_controls::overlays::BelowOverlay;
 use desktop_ui_controls::system_settings_common::SettingsSelectLabel;
 use crate::message::TaskBoardMessage;
@@ -115,6 +116,7 @@ fn build_selector<'a>(app: ExecutorView<'a>, kind: TaskBoardExecutorSelectorKind
     });
 
     let open = kind.is_open(app);
+    let composer = matches!(kind, TaskBoardExecutorSelectorKind::Draft);
     let executor_toggle = button(
         row![
             acp_agent_icon(
@@ -132,19 +134,25 @@ fn build_selector<'a>(app: ExecutorView<'a>, kind: TaskBoardExecutorSelectorKind
         .spacing(6)
         .align_y(Alignment::Center),
     )
-    .style(move |theme, status| selector_trigger_style(theme, status, open))
+    .style(move |theme, status| {
+        if composer {
+            selector_pill_button_style(theme, status, open)
+        } else {
+            selector_trigger_style(theme, status, open)
+        }
+    })
     .padding([6, 8])
-    .width(Length::Fill)
-    .height(38)
+    .width(if composer { Length::Fixed(142.0) } else { Length::Fill })
+    .height(if composer { 30 } else { 38 })
     .on_press(kind.toggle_message());
 
     let executor_pop_content = build_executor_popover(current_executor, app, kind);
 
-    BelowOverlay::new(executor_toggle, executor_pop_content)
+    let overlay = BelowOverlay::new(executor_toggle, executor_pop_content)
         .show(open)
         .gap(6.0)
-        .on_close(kind.close_message())
-        .into()
+        .on_close(kind.close_message());
+    if composer { overlay.within_window().dismiss_on_escape().into() } else { overlay.into() }
 }
 
 fn build_executor_popover<'a>(

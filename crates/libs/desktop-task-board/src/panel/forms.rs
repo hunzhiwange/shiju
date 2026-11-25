@@ -1,5 +1,10 @@
 //! 任务字段、导入内容与提交选项。
 use super::*;
+use desktop_assets::assets::Icon;
+use desktop_chat_input::input_panel::{
+    input_editor::composer_editor,
+    layout::{COMPOSER_TOOLBAR_PADDING, composer_card},
+};
 use iced::widget::column;
 
 pub(super) fn build_priority_field<'a>(app: PanelView<'a>, is_edit_mode: bool) -> iced::Element<'a, Message> {
@@ -67,16 +72,19 @@ pub(super) fn build_agent_field(app: PanelView<'_>, is_edit_mode: bool) -> iced:
         .cloned()
         .or_else(|| options.iter().find(|option| option.key == MAIN_AGENT_KEY).cloned());
 
-    settings_select(options, selected, move |option| {
+    let select = settings_select(options, selected, move |option| {
         Message::TaskBoard(if is_edit_mode {
             TaskBoardMessage::UpdateEditingTaskAgent(Some(option.key))
         } else {
             TaskBoardMessage::UpdateDraftAgent(Some(option.key))
         })
     })
-    .placeholder(desktop_i18n::I18n::new(app.desktop_locale).__("选择代理"))
-    .width(Length::Fill)
-    .into()
+    .placeholder(desktop_i18n::I18n::new(app.desktop_locale).__("选择代理"));
+    if is_edit_mode {
+        select.width(Length::Fill).into()
+    } else {
+        select.toolbar_icon(Icon::Hexagon).width(132).into()
+    }
 }
 
 pub fn build_bulk_agent_selector(app: PanelView<'_>) -> iced::Element<'_, Message> {
@@ -151,6 +159,45 @@ pub(super) fn build_prompt_field<'a>(app: PanelView<'a>) -> iced::Element<'a, Me
     .spacing(6)
     .width(Length::Fill)
     .into()
+}
+
+pub(super) fn build_create_form<'a>(app: PanelView<'a>, slots: PanelSlots<'a>) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let (editor, _) = composer_editor(app.task_board_prompt_editor);
+    let editor = editor
+        .placeholder(i18n.__("输入大模型提示词..."))
+        .on_action(|action| Message::TaskBoard(TaskBoardMessage::PromptEditorAction(action)));
+    let toolbar = row![
+        build_agent_field(app, false),
+        slots.executor.expect("visible executor selector"),
+    ]
+    .extend(slots.reasoning)
+    .push(slots.model.expect("visible model selector"))
+    .spacing(4)
+    .align_y(Alignment::Center)
+    .wrap();
+    let composer = composer_card(
+        column![editor, container(toolbar).padding(COMPOSER_TOOLBAR_PADDING)],
+        false,
+        None,
+    )
+    .padding(iced::Padding { top: 8.0, ..iced::Padding::ZERO });
+
+    let parameters = row![
+        column![
+            settings_field_label(i18n.__("任务拆分")),
+            build_task_split_mode_selector(app, false),
+        ]
+        .width(164)
+        .spacing(6),
+        column![settings_field_label(i18n.__("优先级")), build_priority_field(app, false)]
+            .width(144)
+            .spacing(6),
+    ]
+    .spacing(12)
+    .wrap();
+
+    column![composer, parameters, build_create_options_row(app)].spacing(14).into()
 }
 
 pub(super) fn build_mode_toggle(app: PanelView<'_>) -> iced::Element<'_, Message> {
@@ -232,17 +279,21 @@ pub(super) fn build_import_field<'a>(app: PanelView<'a>) -> iced::Element<'a, Me
     .placeholder(desktop_i18n::I18n::new(app.desktop_locale).__("插入示例到表单"))
     .width(Length::Fill);
 
-    let import_editor = text_editor(app.task_board_import_editor)
+    let (import_editor, _) = composer_editor(app.task_board_import_editor);
+    let import_editor = import_editor
         .placeholder(
             desktop_i18n::I18n::new(app.desktop_locale)
                 .__("粘贴 JSON 数组或 CSV 内容...")
                 .to_owned(),
         )
         .on_action(|a| Message::TaskBoard(TaskBoardMessage::ImportEditorAction(a)))
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .padding(SETTINGS_CONTROL_PADDING)
-        .height(Length::Fixed(300.0))
-        .style(editor_style);
+        .height(200);
+    let import_composer = composer_card(
+        column![import_editor, container(import_tools).padding(COMPOSER_TOOLBAR_PADDING)],
+        false,
+        None,
+    )
+    .padding(iced::Padding { top: 8.0, ..iced::Padding::ZERO });
 
     let help_text = text(desktop_i18n::I18n::new(app.desktop_locale).__("支持 JSON 数组（priority, prompt, model, executor, reasoning_effort, task_split_mode）\n或 CSV/TSV（首行需包含 priority, prompt，建议同时包含 model, executor, reasoning_effort, task_split_mode）"))
     .size(12)
@@ -333,9 +384,8 @@ pub(super) fn build_import_field<'a>(app: PanelView<'a>) -> iced::Element<'a, Me
 
     column![
         input_label(desktop_i18n::I18n::new(app.desktop_locale).__("批量导入内容")),
-        import_tools,
         examples,
-        import_editor,
+        import_composer,
         help_text,
         input_label(desktop_i18n::I18n::new(app.desktop_locale).__("大模型提示词模板")),
         prompt_tabs,
@@ -389,15 +439,11 @@ pub(super) fn build_close_after_edit_checkbox(app: PanelView<'_>) -> iced::Eleme
 }
 
 pub(super) fn build_create_options_row(app: PanelView<'_>) -> iced::Element<'_, Message> {
-    section_block(
-        app,
-        "创建行为",
-        "控制创建完成后的默认收尾动作。",
-        row![build_close_after_create_checkbox(app), build_clear_prompt_checkbox(app),]
-            .spacing(16)
-            .align_y(Alignment::Center)
-            .wrap(),
-    )
+    row![build_close_after_create_checkbox(app), build_clear_prompt_checkbox(app)]
+        .spacing(16)
+        .align_y(Alignment::Center)
+        .wrap()
+        .into()
 }
 
 pub(super) fn build_edit_options_row(app: PanelView<'_>) -> iced::Element<'_, Message> {

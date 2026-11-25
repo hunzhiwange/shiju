@@ -228,6 +228,8 @@ impl App {
             main_view
         };
 
+        let root_content = views::task_board::with_create_modal(self, root_content);
+
         // 如果显示了"关于"模态框，则在根内容之上叠加
         let root_content: Element<'_, Message> = if self.navigation_panels.show_about_modal {
             iced::widget::stack![root_content, components::about_modal::view(self)].into()

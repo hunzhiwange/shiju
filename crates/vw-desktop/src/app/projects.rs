@@ -70,6 +70,35 @@ pub(crate) fn project_settings_refresh_task(project_path: String) -> Task<Messag
 }
 
 impl App {
+    pub(crate) fn terminal_project_path(&self) -> Option<&str> {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(path) = &self.terminal_project_override {
+            return Some(path);
+        }
+        self.navigation_tabs.project_path.as_deref()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn select_terminal_project(&mut self, path: String) -> bool {
+        if self.terminal_project_path() == Some(path.as_str()) {
+            return false;
+        }
+
+        let previous = self.terminal_project_path().map(str::to_owned);
+        let (visible, fullscreen, height) =
+            (self.terminal.is_visible, self.terminal.is_fullscreen, self.terminal.height);
+        self.replace_project_terminal(previous, Some(path.clone()));
+        self.terminal_project_override = (self.navigation_tabs.project_path.as_ref() != Some(&path))
+            .then_some(path.clone());
+        self.terminal.set_visible(visible);
+        self.terminal.set_fullscreen(fullscreen);
+        self.terminal.height = height;
+        if visible && self.terminal.ensure_default_terminal(Some(path.into())) {
+            self.terminal.apply_app_theme(&self.appearance.app_theme);
+        }
+        true
+    }
+
     /// 切换项目对应的终端状态
     ///
     /// 实现项目级终端隔离：每个项目维护独立的终端会话。
@@ -101,6 +130,23 @@ impl App {
             return false;
         }
 
+        #[cfg(not(target_arch = "wasm32"))]
+        let previous_project_path = {
+            crate::app::message::terminal::workspace::remember_project(new_project_path.as_deref());
+            self.terminal_project_override.take().or(previous_project_path)
+        };
+        self.replace_project_terminal(previous_project_path, new_project_path)
+    }
+
+    fn replace_project_terminal(
+        &mut self,
+        previous_project_path: Option<String>,
+        new_project_path: Option<String>,
+    ) -> bool {
+        if previous_project_path == new_project_path {
+            return false;
+        }
+
         // 保存当前终端的运行时配置，用于创建占位符或新建终端
         let terminal_is_visible = self.terminal.is_visible;
         let terminal_shell = self.terminal.shell;
@@ -115,7 +161,6 @@ impl App {
             if let Some(path) = previous_project_path.as_deref() {
                 workspace::save(path, &mut self.terminal);
             }
-            workspace::remember_project(new_project_path.as_deref());
         }
         self.terminal.set_fullscreen(false);
 

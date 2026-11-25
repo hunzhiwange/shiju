@@ -28,6 +28,9 @@ fn screen_variants_exclude_removed_apps() {
             super::Screen::Preview => "Preview",
             super::Screen::Apps => "Apps",
             super::Screen::CliWorkbench => "CliWorkbench",
+            super::Screen::AppTerminal => "AppTerminal",
+            #[cfg(not(target_arch = "wasm32"))]
+            super::Screen::GitWorkbench => "GitWorkbench",
             super::Screen::Usage => "Usage",
             super::Screen::Knowledge => "Knowledge",
             super::Screen::WorkflowTool => "WorkflowTool",
@@ -49,6 +52,9 @@ fn screen_variants_exclude_removed_apps() {
         super::Screen::Preview,
         super::Screen::Apps,
         super::Screen::CliWorkbench,
+        super::Screen::AppTerminal,
+        #[cfg(not(target_arch = "wasm32"))]
+        super::Screen::GitWorkbench,
         super::Screen::Usage,
         super::Screen::Knowledge,
         super::Screen::WorkflowTool,

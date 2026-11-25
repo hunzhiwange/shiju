@@ -757,6 +757,16 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         msg @ ViewMessage::AppUpdateDownloadPrepared(_, _) => panel::update(app, msg),
         ViewMessage::GlobalKeyPressed(key, modifiers) => handle_global_key(app, key, modifiers),
         ViewMessage::TraverseFormFocus(window, reverse) => {
+            #[cfg(not(target_arch = "wasm32"))]
+            if app.navigation_tabs.screen == crate::app::Screen::GitWorkbench
+                && !app.navigation_panels.show_system_settings
+            {
+                return if app.main_window_id == Some(window) && app.git_workbench.commit_form_visible() {
+                    crate::app::components::git_panel::traverse_commit_focus(reverse)
+                } else {
+                    Task::none()
+                };
+            }
             if app.task_pet_window_id == Some(window)
                 || app.main_window_id.is_some_and(|id| id != window)
             {

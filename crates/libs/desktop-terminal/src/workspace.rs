@@ -1,8 +1,8 @@
 //! Local project terminal layout. Restored tabs start interactive shells.
-use crate::{TerminalState, panes::TerminalPane};
+use crate::{TerminalState, panes::{TerminalPane, TerminalPanes}};
 use iced::widget::pane_grid::{Axis, Configuration, Node, State};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::ffi::OsString;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -14,6 +14,21 @@ pub(crate) struct Workspace {
     active_tab: Option<u64>,
     maximized_tab: Option<u64>,
     tabs: Vec<Tab>,
+    layout: Layout,
+    #[serde(default = "first_group")]
+    active_group: u64,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    parked_groups: BTreeMap<u64, SavedGroup>,
+}
+
+fn first_group() -> u64 {
+    1
+}
+
+#[derive(PartialEq, Serialize, Deserialize)]
+struct SavedGroup {
+    active_tab: Option<u64>,
+    maximized_tab: Option<u64>,
     layout: Layout,
 }
 
@@ -83,18 +98,43 @@ impl Layout {
     }
 }
 
+fn restore_panes(
+    layout: &Layout,
+    active_tab: Option<u64>,
+    maximized_tab: Option<u64>,
+    remaining: &mut HashSet<u64>,
+) -> TerminalPanes {
+    let Some(config) = layout.configuration(remaining) else {
+        return TerminalPanes::default();
+    };
+    let mut grid = State::with_configuration(config);
+    let owner = |id| grid.iter().find(|(_, pane)| pane.tabs.contains(&id)).map(|(key, _)| *key);
+    let maximized = maximized_tab.and_then(owner);
+    let focused = active_tab
+        .and_then(owner)
+        .or(maximized)
+        .or_else(|| grid.iter().next().map(|(id, _)| *id))
+        .expect("terminal layout has at least one pane");
+    if let Some(id) = maximized {
+        grid.maximize(id);
+    }
+    TerminalPanes { grid, focused, ..TerminalPanes::default() }
+}
+
 impl<S: Copy + Into<&'static str>> TerminalState<S> {
     pub fn has_saved_workspace(&self) -> bool {
         self.saved_workspace.is_some()
     }
 
     pub fn needs_workspace_checkpoint(&self) -> bool {
-        !self.tabs.is_empty()
-            || self.saved_workspace.as_ref().is_some_and(|workspace| !workspace.tabs.is_empty())
+        !self.tabs.is_empty() || !self.parked_groups.is_empty()
+            || self.saved_workspace.as_ref().is_some_and(|workspace| {
+                !workspace.tabs.is_empty() || !workspace.parked_groups.is_empty()
+            })
     }
 
     pub fn save_workspace(&mut self, path: &Path) -> io::Result<()> {
-        if self.tabs.is_empty() && self.saved_workspace.is_none() {
+        if !self.needs_workspace_checkpoint() && self.saved_workspace.is_none() {
             return Ok(());
         }
         let grid = &self.panes.grid;
@@ -115,6 +155,15 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
                 })
                 .collect(),
             layout: Layout::capture(grid, grid.layout()),
+            active_group: self.active_group,
+            parked_groups: self.parked_groups.iter().map(|(&id, panes)| {
+                let grid = &panes.grid;
+                (id, SavedGroup {
+                    active_tab: grid.get(panes.focused).and_then(|pane| pane.active_id),
+                    maximized_tab: grid.maximized().and_then(|pane| grid.get(pane)?.active_id),
+                    layout: Layout::capture(grid, grid.layout()),
+                })
+            }).collect(),
         };
         if self.saved_workspace.as_ref() != Some(&workspace) {
             write_json(path, &workspace)?;
@@ -130,6 +179,11 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
         };
         let mut placed = HashSet::new();
         workspace.layout.collect_tabs(&mut placed);
+        for (id, group) in &workspace.parked_groups {
+            if *id != workspace.active_group {
+                group.layout.collect_tabs(&mut placed);
+            }
+        }
 
         for saved in &workspace.tabs {
             if saved.id == u64::MAX || !placed.remove(&saved.id) {
@@ -163,24 +217,17 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
         }
 
         let mut remaining = self.tabs.iter().map(|tab| tab.id).collect();
-        if let Some(config) = workspace.layout.configuration(&mut remaining) {
-            let mut grid = State::with_configuration(config);
-            let owner =
-                |id| grid.iter().find(|(_, pane)| pane.tabs.contains(&id)).map(|(key, _)| *key);
-            let maximized = workspace.maximized_tab.and_then(owner);
-            let focused = workspace
-                .active_tab
-                .and_then(owner)
-                .or(maximized)
-                .or_else(|| grid.iter().next().map(|(id, _)| *id))
-                .expect("terminal layout has at least one pane");
-            self.panes.focused = focused;
-            self.active_id = grid.get(focused).and_then(|pane| pane.active_id);
-            if let Some(id) = maximized {
-                grid.maximize(id);
-            }
-            self.panes.grid = grid;
-        }
+        self.panes = restore_panes(
+            &workspace.layout, workspace.active_tab, workspace.maximized_tab, &mut remaining,
+        );
+        self.active_id = self.panes.grid.get(self.panes.focused).and_then(|pane| pane.active_id);
+        self.active_group = workspace.active_group;
+        self.parked_groups = workspace.parked_groups.iter()
+            .filter(|(id, _)| **id != self.active_group)
+            .map(|(&id, group)| {
+                (id, restore_panes(&group.layout, group.active_tab, group.maximized_tab, &mut remaining))
+            })
+            .collect();
         self.set_visible(workspace.visible);
         if workspace.height.is_finite() && workspace.height > 0.0 {
             self.height = workspace.height;

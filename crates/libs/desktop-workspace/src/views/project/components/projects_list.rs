@@ -435,22 +435,20 @@ fn navigation_badge<'a>(
         .style(move |theme: &Theme, status| {
             let p = theme.extended_palette();
             let is_dark = super::super::badge_styles::is_dark_theme(theme);
-            if selected {
-                let accent = p.primary.base.color;
-                let tint = if status == iced::widget::button::Status::Hovered { 0.26 } else { 0.16 };
-                return iced::widget::button::Style {
-                    background: Some(Background::Color(mix_color(p.background.base.color, accent, tint))),
-                    text_color: p.background.base.text,
-                    border: iced::Border { width: 2.0, color: accent, radius: 16.0.into() },
-                    ..Default::default()
-                };
-            }
             // 根据主题计算悬停背景色
             let hover_bg = if is_dark {
                 p.background.weak.color
             } else {
                 mix_color(p.background.base.color, p.background.weak.color, 0.35)
             };
+            if selected {
+                return iced::widget::button::Style {
+                    background: Some(Background::Color(hover_bg)),
+                    text_color: p.background.base.text,
+                    border: iced::Border { radius: 16.0.into(), ..Default::default() },
+                    ..Default::default()
+                };
+            }
             // 计算悬停文字颜色
             let hover_text =
                 if is_dark { p.primary.base.color } else { Color::from_rgb8(20, 20, 20) };

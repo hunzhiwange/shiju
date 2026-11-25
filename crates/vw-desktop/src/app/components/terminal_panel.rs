@@ -1,8 +1,13 @@
 //! Terminal view assembly and local message mapping.
 use crate::app::{App, Message};
 use crate::app::message::ViewMessage;
+#[cfg(not(target_arch = "wasm32"))]
+mod workspace;
+
 pub fn view(app: &App) -> iced::Element<'_, Message> {
-    desktop_terminal::terminal_panel::view(desktop_terminal::ViewInput {
+    use desktop_terminal::terminal_panel;
+
+    let input = desktop_terminal::ViewInput {
         tabs: &app.terminal.tabs,
         active_id: app.terminal.active_id,
         is_visible: app.terminal.is_visible,
@@ -17,7 +22,14 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
         content_menu: app.terminal.content_menu,
         #[cfg(not(target_arch = "wasm32"))]
         is_fullscreen: app.terminal.is_fullscreen,
-    }).map(map_message)
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    if input.is_visible {
+        let panes = terminal_panel::panes_view(input).map(map_message);
+        let content = workspace::view(app, panes);
+        return terminal_panel::with_rename_overlay(input, content, map_message);
+    }
+    terminal_panel::view(input).map(map_message)
 }
 fn map_message(message: desktop_terminal::message::Message) -> Message {
     use desktop_terminal::message::Message as Local;

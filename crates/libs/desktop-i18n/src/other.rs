@@ -8,6 +8,7 @@ pub fn tab_label(i18n: I18n, id: &str, raw: &str) -> String {
         "home" => "首页",
         "apps" => "应用",
         "cli_workbench" => "我的工作台",
+        "app_terminal" => "应用终端",
         "editor" => "编辑器",
         "usage" => "用量",
         "knowledge" => "知识库",

@@ -24,6 +24,7 @@ use iced::Length;
 use iced::widget::column;
 
 mod diff_view;
+mod workbench;
 mod filter_options;
 mod header;
 mod left_panel;
@@ -215,10 +216,37 @@ fn view_input<'a>(app: &ViewContext<'a>) -> domain::ViewInput<'a> {
     }
 }
 pub fn view<'a>(app: &ViewContext<'a>) -> Element<'a, Message> {
+    view_layout(app, None, false, false)
+}
+
+pub fn view_with_project_picker<'a>(
+    app: &ViewContext<'a>,
+    picker: Element<'a, Message>,
+) -> Element<'a, Message> {
+    view_layout(app, Some(picker), false, false)
+}
+
+pub fn workbench_view<'a>(
+    app: &ViewContext<'a>,
+    show_change_list: bool,
+) -> Element<'a, Message> {
+    view_layout(app, None, true, show_change_list)
+}
+
+fn view_layout<'a>(
+    app: &ViewContext<'a>,
+    project_picker: Option<Element<'a, Message>>,
+    workbench: bool,
+    show_change_list: bool,
+) -> Element<'a, Message> {
     if app.git.git_repository.history && git_repo_path_for_app(app).is_some() {
         return with_git_overlays(
             app,
-            column![header::view(app, vec![]), repository::toolbar(app), repository::view(app)]
+            column![
+                (!workbench).then(|| header::view(app, vec![], project_picker, true)),
+                repository::toolbar(app),
+                repository::view(app),
+            ]
                 .spacing(10)
                 .height(Length::Fill)
                 .into(),
@@ -253,6 +281,8 @@ pub fn view<'a>(app: &ViewContext<'a>) -> Element<'a, Message> {
         header: header::view(
             app,
             projection.diff_files.iter().map(|meta| meta.path.clone()).collect(),
+            project_picker,
+            !workbench,
         )
         .map(Local::External),
         filter_options: app.git.show_git_filter_options.then(|| {
@@ -267,12 +297,18 @@ pub fn view<'a>(app: &ViewContext<'a>) -> Element<'a, Message> {
             .map(Local::External)
         }),
         toolbar: repository::toolbar(app).map(Local::External),
-        left_panel: app
-            .git
-            .show_git_diff_summary
+        left_panel: (app.git.show_git_diff_summary && !show_change_list)
             .then(|| left_panel::view(app).map(Local::External)),
         custom_diff,
         chat_diff,
+        change_list: show_change_list.then(|| {
+            workbench::change_list(
+                app,
+                &projection.diff_files,
+                app.git.show_git_diff_summary.then(|| left_panel::view(app)),
+            )
+            .map(Local::External)
+        }),
     };
     let base = domain::view(&input, projection, slots).map(|event| match event {
         Local::External(event) => event,
@@ -357,6 +393,7 @@ mod help;
 #[derive(Debug, Clone)]
 pub enum Message {
     Git(crate::message_git::messages::GitMessage),
+    SelectProject(String),
     None,
     OpenTerminal,
     ToggleSummary,

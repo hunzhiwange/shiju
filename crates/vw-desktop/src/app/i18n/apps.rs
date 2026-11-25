@@ -32,6 +32,8 @@ pub(crate) fn refresh_builtin_titles(app: &mut crate::app::App) {
         &[
             ("cron", "定时任务"),
             ("projects", "项目管理"),
+            #[cfg(not(target_arch = "wasm32"))]
+            (crate::app::git_workbench::TAB_ID, "Git 工作台"),
             (desktop_navigation::panel::tabs::EDITOR_TAB_ID, "编辑器"),
         ],
     );

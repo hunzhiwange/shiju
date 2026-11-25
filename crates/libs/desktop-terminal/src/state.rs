@@ -195,6 +195,10 @@ pub struct TerminalState<S> {
     pub tabs: Vec<TerminalTab>,
     #[cfg(not(target_arch = "wasm32"))]
     pub panes: panes::TerminalPanes,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) parked_groups: std::collections::BTreeMap<u64, panes::TerminalPanes>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) active_group: u64,
     pub active_id: Option<u64>,
     pub next_id: u64,
     pub height: f32,
@@ -269,6 +273,10 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
             tabs: vec![],
             #[cfg(not(target_arch = "wasm32"))]
             panes: panes::TerminalPanes::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            parked_groups: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            active_group: 1,
             active_id: None,
             next_id: 1,
             height,
@@ -313,7 +321,7 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
     #[cfg(not(target_arch = "wasm32"))]
     /// 在没有标签时创建默认终端；已存在标签时不重复创建。
     pub fn ensure_default_terminal(&mut self, cwd: Option<std::path::PathBuf>) -> bool {
-        if !self.tabs.is_empty() {
+        if self.active_id.is_some() {
             return false;
         }
         self.add_terminal(cwd.or_else(|| std::env::current_dir().ok()))
@@ -449,6 +457,9 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 self.active_id = self.panes.remove(id);
+                for panes in self.parked_groups.values_mut() {
+                    panes.remove(id);
+                }
             }
             #[cfg(target_arch = "wasm32")]
             if self.active_id == Some(id) {

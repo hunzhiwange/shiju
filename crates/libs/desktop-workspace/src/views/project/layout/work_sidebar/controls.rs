@@ -29,19 +29,8 @@ pub(super) fn navigation_selection_style(
     status: button::Status,
     selected: bool,
 ) -> button::Style {
-    let mut style = navigation_button_style(theme, status);
-    if selected {
-        let palette = theme.extended_palette();
-        let tint = if status == button::Status::Hovered { 0.26 } else { 0.16 };
-        style.background = Some(Background::Color(crate::views::project::utils::mix_color(
-            palette.background.base.color,
-            palette.primary.base.color,
-            tint,
-        )));
-        style.border.color = palette.primary.base.color;
-        style.border.width = 1.0;
-    }
-    style
+    let status = if selected { button::Status::Hovered } else { status };
+    navigation_button_style(theme, status)
 }
 
 pub(super) fn header_icon(icon: Icon) -> svg::Svg<'static> {

@@ -259,7 +259,12 @@ fn worktree_menu<'a, External: Clone + 'static>(app: &Input<'_>) -> Element<'a, 
 /// 4. **摘要输入框开关**: 显示或隐藏 Git diff 摘要输入框
 /// 5. **过滤选项**: 打开或关闭 Git 过滤选项面板
 ///
-pub fn view<External: Clone + 'static>(app: &Input<'_>, files_list: Vec<String>) -> Element<'static, Message<External>> {
+pub fn view<'a, External: Clone + 'static>(
+    app: &Input<'_>,
+    files_list: Vec<String>,
+    project_picker: Option<Element<'a, Message<External>>>,
+    show_repository_controls: bool,
+) -> Element<'a, Message<External>> {
     // 获取当前分支名称，如果未选择则显示 "-"
     let full_branch_name = app.selected_branch.clone().unwrap_or_else(|| "-".to_string());
     let branch_name = truncate_label(&full_branch_name, HEADER_BRANCH_LABEL_CHARS);
@@ -391,11 +396,16 @@ pub fn view<External: Clone + 'static>(app: &Input<'_>, files_list: Vec<String>)
         .into();
 
     // 构建头部内容行：分支名称 + 弹性空间 + 操作按钮
-    let leading: Element<'_, Message<External>> = if let Some(worktree_picker) = worktree_picker {
-        row![worktree_picker, branch].spacing(8).align_y(iced::Alignment::Center).into()
-    } else {
-        branch
-    };
+    let mut leading = row![].spacing(8).align_y(iced::Alignment::Center);
+    if let Some(picker) = project_picker {
+        leading = leading.push(picker);
+    }
+    if show_repository_controls {
+        if let Some(picker) = worktree_picker {
+            leading = leading.push(picker);
+        }
+        leading = leading.push(branch);
+    }
 
     let content = row![leading, Space::new().width(Length::Fill), actions]
         .spacing(10)

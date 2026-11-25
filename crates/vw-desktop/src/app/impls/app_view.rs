@@ -126,10 +126,15 @@ impl App {
             Screen::Preview => components::preview_panel::view(self),
             Screen::Apps => views::apps::view(self),
             #[cfg(not(target_arch = "wasm32"))]
-            Screen::CliWorkbench => self.main_window_id.map_or_else(
-                || iced::widget::Space::new().into(),
-                |id| crate::app::cli_workbench::view(self, id),
-            ),
+            screen @ (Screen::CliWorkbench | Screen::AppTerminal) => {
+                use crate::app::cli_workbench::{Surface, view};
+                match (self.main_window_id, Surface::from_screen(screen)) {
+                    (Some(id), Some(surface)) => view(self, id, surface),
+                    _ => iced::widget::Space::new().into(),
+                }
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            Screen::GitWorkbench => crate::app::git_workbench::view(self),
             Screen::Usage => views::usage::view(self),
             Screen::Knowledge => views::knowledge::view(self),
             Screen::WorkflowTool => crate::apps::workflow::view(self),
@@ -165,7 +170,7 @@ impl App {
 
         // 当系统设置打开时，仅保留顶部菜单栏，其余区域全部由设置面板占满
         #[cfg(not(target_arch = "wasm32"))]
-        let workbench_active = self.navigation_tabs.screen == Screen::CliWorkbench;
+        let workbench_active = matches!(self.navigation_tabs.screen, Screen::CliWorkbench | Screen::AppTerminal | Screen::GitWorkbench);
         #[cfg(target_arch = "wasm32")]
         let workbench_active = false;
         let main_view: Element<'_, Message> = if !workbench_active && self.mobile_layout.mode()

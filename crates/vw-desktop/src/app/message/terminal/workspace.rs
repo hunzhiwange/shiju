@@ -47,7 +47,7 @@ pub(crate) fn remember_project(project: Option<&str>) {
 }
 
 pub(crate) fn checkpoint(app: &mut App) {
-    if let Some(project) = app.navigation_tabs.project_path.as_deref() {
+    if let Some(project) = app.terminal_project_override.as_deref().or(app.navigation_tabs.project_path.as_deref()) {
         save(project, &mut app.terminal);
     }
 }

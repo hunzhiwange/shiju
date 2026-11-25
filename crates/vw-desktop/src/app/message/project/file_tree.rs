@@ -298,11 +298,15 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         // 确定要打开终端的目录（如果是文件则使用其父目录）
                         let dir = if target.is_dir() { Some(target) } else { target.parent() };
                         if let Some(dir) = dir {
+                            if let Some(project) = app.navigation_tabs.project_path.clone() {
+                                app.select_terminal_project(project);
+                            }
                             // 添加新终端并应用当前主题
                             if app.terminal.add_terminal(Some(dir.to_path_buf())) {
                                 app.terminal.apply_app_theme(&app.appearance.app_theme);
                                 app.terminal.is_visible = true;
                                 return Some(iced::Task::batch([
+                                    crate::app::message::terminal::reap_retired_task(app),
                                     crate::app::message::terminal::event::focus_active_terminal(
                                         app,
                                     ),

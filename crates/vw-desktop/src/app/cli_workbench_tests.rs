@@ -49,6 +49,55 @@ fn cli_workbench_sidebar_defaults_to_twenty_percent_and_clamps_to_ten() {
 }
 
 #[test]
+fn app_terminal_project_sidebar_starts_at_half_width_and_drags_in_both_directions() {
+    use iced::widget::pane_grid::{Node, ResizeEvent};
+
+    let mut terminal = Workbench::app_terminal();
+    let Node::Split { id, ratio, .. } = terminal.sidebar_layout.workspace.layout() else {
+        panic!("expected a project divider");
+    };
+    let split = *id;
+    assert_eq!(*ratio, 0.10);
+
+    for ratio in [0.08, 0.25] {
+        terminal.sidebar_layout.resize_width(ResizeEvent { split, ratio });
+        let Node::Split { ratio: current, .. } = terminal.sidebar_layout.workspace.layout() else {
+            panic!("expected a project divider after resizing");
+        };
+        assert_eq!(*current, ratio);
+    }
+}
+
+#[test]
+fn app_terminal_restores_sidebar_preference_and_keeps_resized_width() {
+    use iced::widget::pane_grid::{Node, ResizeEvent};
+
+    let mut terminal = Workbench::app_terminal();
+    assert!(!terminal.sidebar_layout.collapsed());
+    let Node::Split { id, .. } = terminal.sidebar_layout.workspace.layout() else {
+        panic!("expected a project divider");
+    };
+    let split = *id;
+    terminal.sidebar_layout.resize_width(ResizeEvent { split, ratio: 0.25 });
+
+    terminal.restore_app_terminal_preferences(&serde_json::json!({
+        "app_terminal_sidebar_collapsed": true
+    }));
+    assert!(terminal.sidebar_layout.collapsed());
+    terminal.restore_app_terminal_preferences(&serde_json::json!({}));
+    assert!(terminal.sidebar_layout.collapsed());
+
+    terminal.restore_app_terminal_preferences(&serde_json::json!({
+        "app_terminal_sidebar_collapsed": false
+    }));
+    assert!(!terminal.sidebar_layout.collapsed());
+    let Node::Split { ratio, .. } = terminal.sidebar_layout.workspace.layout() else {
+        panic!("expected the restored project divider");
+    };
+    assert_eq!(*ratio, 0.25);
+}
+
+#[test]
 fn cli_workbench_sidebar_shows_new_and_untracked_agents() {
     use view::AgentStatus;
     use vw_api_types::cli_workbench::CliWorkbenchAgentActivity;
@@ -246,6 +295,52 @@ fn cli_workbench_catalog_uses_one_main_tab_and_preserves_sessions_when_closed() 
     let session = app.cli_workbench.tab_mut(&target).unwrap();
     assert_eq!(session.name.as_deref(), Some("Build"));
     assert_eq!(session.session.state, Process::Running);
+}
+
+#[test]
+fn app_terminal_switches_apps_within_its_own_project_group() {
+    use crate::app::Screen;
+    use vw_api_types::cli_workbench::{CliWorkbenchProject, CliWorkbenchProjects};
+
+    let mut app = App::new().0;
+    let main = window::Id::unique();
+    app.register_window_ids(main, None);
+    let open = Event::Open { backend: None, native_app: None };
+    let _ = app.update(Surface::Workbench.message(open.clone()));
+    let _ = app.update(Surface::AppTerminal.message(open));
+    assert_eq!(app.navigation_tabs.screen, Screen::AppTerminal);
+    assert_eq!(app.navigation_tabs.open_tabs.iter().filter(|tab| {
+        matches!(tab.screen, Screen::CliWorkbench | Screen::AppTerminal)
+    }).count(), 2);
+
+    let codex = CliWorkbenchTarget::NativeCli { app_id: "codex".into() };
+    let mut first = session("a", "codex", Process::Running);
+    first.target = codex.clone();
+    let mut second = session("a", "shell", Process::Running);
+    second.target = CliWorkbenchTarget::Shell;
+    update::apply_projects(&mut app.app_terminal, CliWorkbenchProjects {
+        preferred_project: Some("a".into()),
+        terminal_available: true,
+        projects: vec![CliWorkbenchProject {
+            id: "a".into(),
+            name: "A".into(),
+            directory: "/projects/a".into(),
+            sessions: vec![first, second, session("a", "acp", Process::Ready)],
+        }],
+    }, true);
+    let project = app.app_terminal.projects.get_mut("a").unwrap();
+    assert_eq!(project.tabs.len(), 2);
+    project.select("shell");
+    let layout = project.active_layout;
+    let action = |action| Surface::AppTerminal.message(Event::Window(main, action));
+    let _ = app.update(action(update::Action::SwitchApp("a".into(), layout, codex)));
+    assert_eq!(app.app_terminal.projects["a"].active_tab().unwrap().session.id, "codex");
+
+    let _ = app.update(action(update::Action::NewLayout("a".into())));
+    let project = &app.app_terminal.projects["a"];
+    assert_ne!(project.active_layout, layout);
+    assert!(project.active_tab().is_none());
+    assert!(app.cli_workbench.projects.is_empty());
 }
 
 #[test]

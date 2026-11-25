@@ -22,6 +22,12 @@ fn map(message: page::Message) -> Message {
     match message {
         page::Message::Git(value) => Message::Git(value),
         page::Message::None => Message::None,
+        #[cfg(not(target_arch = "wasm32"))]
+        page::Message::SelectProject(path) => Message::GitWorkbench(
+            crate::app::git_workbench::Event::SelectInlineProject(path),
+        ),
+        #[cfg(target_arch = "wasm32")]
+        page::Message::SelectProject(_) => Message::None,
         page::Message::OpenTerminal => Message::View(message::ViewMessage::OpenTerminalPressed),
         page::Message::ToggleSummary => Message::View(message::ViewMessage::ToggleGitDiffSummary),
         page::Message::CopyCode(text) => Message::CopyCode(text),
@@ -30,6 +36,10 @@ fn map(message: page::Message) -> Message {
     }
 }
 pub fn view(app: &App) -> iced::Element<'_, Message> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(picker) = crate::app::git_workbench::inline_project_picker(app) {
+        return page::view_with_project_picker(&input(app), picker).map(map);
+    }
     page::view(&input(app)).map(map)
 }
 pub(crate) fn diff_comment_modal(app: &App) -> Option<iced::Element<'_, Message>> {

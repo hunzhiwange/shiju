@@ -203,6 +203,10 @@ impl App {
             main_window_id: None,
             #[cfg(not(target_arch = "wasm32"))]
             cli_workbench: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            app_terminal: crate::app::cli_workbench::Workbench::app_terminal(),
+            #[cfg(not(target_arch = "wasm32"))]
+            git_workbench: Default::default(),
             released_main_windows: Vec::new(),
             task_pet_window_id: None,
             shutdown_requested: false,
@@ -217,6 +221,10 @@ impl App {
             terminal_config_persistence: Default::default(),
             terminal: TerminalState::with_system_settings(cfg_show_terminal, &system_settings_cfg),
             terminals_by_project: HashMap::new(),
+            #[cfg(not(target_arch = "wasm32"))]
+            terminal_project_override: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            terminal_projects_collapsed: false,
             appearance: desktop_settings_appearance::theme_state::State::new(&system_settings_cfg),
             input_feedback: Default::default(),
 

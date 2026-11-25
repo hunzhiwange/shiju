@@ -76,7 +76,7 @@ fn render_tiles_grid_arranges_builtin_tiles_across_complete_and_partial_rows() {
     let mut app = test_app();
     app.window_size = (800.0, 700.0);
 
-    let tail = if cfg!(target_arch = "wasm32") { 1 } else { 2 };
+    let tail = if cfg!(target_arch = "wasm32") { 1 } else { 3 };
     assert_eq!(grid_row_tile_counts(&app, false), vec![4, tail]);
 }
 
@@ -89,6 +89,17 @@ fn cli_workbench_is_searchable_as_an_independent_tool() {
     assert_eq!(grid_row_tile_counts(&app, false), vec![1]);
     assert_eq!(first_tile_action_count(&app), 1);
     assert_eq!(grid_row_tile_counts(&app, true), vec![1]);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn app_terminal_is_searchable_as_an_independent_tool() {
+    let mut app = test_app();
+    for query in ["应用终端", "app_terminal"] {
+        app.apps_search_query = query.into();
+        assert_eq!(grid_row_tile_counts(&app, false), vec![1]);
+        assert_eq!(first_tile_action_count(&app), 1);
+    }
 }
 
 #[test]

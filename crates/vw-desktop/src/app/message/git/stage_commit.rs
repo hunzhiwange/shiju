@@ -1,20 +1,27 @@
 //! 提交领域效果的宿主装配。
-use super::{GitMessage, shared};
+use super::{GitMessage, Source, shared};
 use crate::app::{App, Message};
 use desktop_git_ui::message_git::stage_commit::Effect;
 use iced::Task;
-pub(super) fn apply(app: &mut App, effect: Effect) -> Task<Message> {
+pub(super) fn apply(app: &mut App, source: Source, effect: Effect) -> Task<Message> {
     match effect {
         Effect::StageAll(path) => {
-            Task::perform(shared::execute_stage_all_via_gateway(path), |result| {
-                Message::Git(GitMessage::StageAllFinished(result))
-            })
+            let client = source.client(app);
+            Task::perform(async move {
+                let client = client?;
+                desktop_git_ui::message_git::shared::execute_stage_all_via_gateway(
+                    &client, client.endpoint().tenant_scope(), path,
+                ).await
+            }, move |result| source.message(GitMessage::StageAllFinished(result)))
         }
         Effect::Commit { path, request, animate } => {
-            let task = Task::perform(
-                shared::execute_selected_commit_via_gateway(path, request),
-                |result| Message::Git(GitMessage::CommitSelectedFinished(result)),
-            );
+            let client = source.client(app);
+            let task = Task::perform(async move {
+                let client = client?;
+                desktop_git_ui::message_git::shared::execute_selected_commit_via_gateway(
+                    &client, client.endpoint().tenant_scope(), path, request,
+                ).await
+            }, move |result| source.message(GitMessage::CommitSelectedFinished(result)));
             if animate {
                 Task::batch([task, shared::schedule_commit_button_animation_tick()])
             } else {
@@ -51,10 +58,12 @@ pub(super) fn apply(app: &mut App, effect: Effect) -> Task<Message> {
             error.into_iter().map(Into::into).collect(),
         ),
         Effect::RefreshAfterMutation => {
-            shared::refresh_git_panel_data_after_repo_mutation_task(app)
+            source.after_mutation(app)
         }
         Effect::RefreshBranches => {
-            app.refresh_branches();
+            if source.is_inline() {
+                app.refresh_branches();
+            }
             Task::none()
         }
     }

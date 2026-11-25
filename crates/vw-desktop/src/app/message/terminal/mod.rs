@@ -20,6 +20,44 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         return Task::none();
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    match &message {
+        TerminalMessage::ToggleProjects => {
+            app.terminal_projects_collapsed = !app.terminal_projects_collapsed;
+            return app.save_desktop_preference(
+                "terminal_projects_collapsed",
+                app.terminal_projects_collapsed.into(),
+            );
+        }
+        TerminalMessage::SelectProject(path) => {
+            let directory = std::path::Path::new(path);
+            if !app.terminal.is_visible
+                || !(app.navigation_tabs.project_path.as_ref() == Some(path)
+                    || app.workspace_state.recent_projects.contains(path))
+            {
+                return Task::none();
+            }
+            if !directory.is_absolute() || !directory.is_dir() {
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "项目目录不存在或不可访问",
+                    vec![],
+                );
+            }
+            if !app.select_terminal_project(path.clone()) {
+                return Task::none();
+            }
+            return Task::batch([
+                reap_retired_task(app),
+                event::focus_active_terminal(app),
+            ]);
+        }
+        _ => {}
+    }
+
+    let project_path = app.navigation_tabs.project_path.as_deref();
+    #[cfg(not(target_arch = "wasm32"))]
+    let project_path = app.terminal_project_override.as_deref().or(project_path);
     let fullscreen = app.terminal.is_fullscreen;
     let mut focused = app.focus_area == FocusArea::Terminal;
     let mut effects = Vec::new();
@@ -27,7 +65,7 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         &mut app.terminal,
         &mut app.terminal_config_persistence,
         &app.appearance.app_theme,
-        app.navigation_tabs.project_path.as_deref(),
+        project_path,
         app.general_settings.desktop_locale,
         app.cursor_position.y,
         &mut focused,

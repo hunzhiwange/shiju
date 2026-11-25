@@ -6,10 +6,9 @@ use iced::widget::{Id, responsive, row};
 use iced::{Border, Element, Event, Length, Rectangle, Renderer, Size, Theme, Vector};
 
 use super::pane_drag::{TabDrag, TabTitleHit, drop_target};
-use super::{
-    TAB_HEADER_HEIGHT, fullscreen_button, hide_button, pane_view, split_menu, toolbar_icon_button,
-};
+use super::{fullscreen_button, pane_view, split_menu, toolbar_icon_button, toolbar_tooltip};
 use desktop_assets::assets::Icon;
+use desktop_i18n::I18n;
 use crate::message::TerminalMessage;
 use crate::panes::{PANE_SPACING, TerminalPanes};
 use crate::{ViewInput, message::Message};
@@ -33,16 +32,21 @@ pub(super) fn view<'a>(app: ViewInput<'a>) -> Element<'a, Message> {
                 .iter()
                 .filter_map(|id| app.tabs.iter().find(|tab| tab.id == *id))
                 .collect();
-            let mut controls = row![toolbar_icon_button(
-                Icon::Plus,
-                Message::Terminal(TerminalMessage::AddToPane(pane)),
+            let i18n = I18n::new(app.desktop_locale);
+            let mut controls = row![toolbar_tooltip(
+                toolbar_icon_button(Icon::Plus, Message::Terminal(TerminalMessage::AddToPane(pane))),
+                i18n.__("新建终端"),
             )];
             if state.active_id.is_some() {
                 controls = controls.push(split_menu::split_button(app, pane));
             }
             if top_right {
-                controls =
-                    controls.push(hide_button()).push(fullscreen_button(app, TAB_HEADER_HEIGHT));
+                controls = controls
+                    .push(toolbar_tooltip(
+                        toolbar_icon_button(Icon::EyeSlash, Message::Hide),
+                        i18n.__("隐藏终端面板"),
+                    ))
+                    .push(fullscreen_button(app));
             }
 
             let (header, body) = pane_view(app, tabs, state.active_id, controls);

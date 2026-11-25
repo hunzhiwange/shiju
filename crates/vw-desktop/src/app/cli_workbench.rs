@@ -6,7 +6,7 @@ use iced::{Task, widget::pane_grid, window};
 use desktop_terminal::panes::TerminalPanes;
 use vw_api_types::cli_workbench::{
     CliWorkbenchDeliveryCapability, CliWorkbenchDraft, CliWorkbenchError, CliWorkbenchMessage, CliWorkbenchNativeApp,
-    CliWorkbenchProcessState as Process, CliWorkbenchSession,
+    CliWorkbenchProcessState as Process, CliWorkbenchSession, CliWorkbenchTarget,
 };
 
 use super::{App, Message};
@@ -19,9 +19,53 @@ pub(crate) use update::Event;
 pub(crate) use view::view;
 
 const CODEX_APP_ID: &str = "codex";
+const APP_TERMINAL_SIDEBAR_COLLAPSED: &str = "app_terminal_sidebar_collapsed";
+
+#[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub(crate) enum Surface {
+    #[default]
+    Workbench,
+    AppTerminal,
+}
+
+impl Surface {
+    pub(crate) fn from_screen(screen: super::Screen) -> Option<Self> {
+        match screen {
+            super::Screen::CliWorkbench => Some(Self::Workbench),
+            super::Screen::AppTerminal => Some(Self::AppTerminal),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn state(self, app: &App) -> &Workbench {
+        match self {
+            Self::Workbench => &app.cli_workbench,
+            Self::AppTerminal => &app.app_terminal,
+        }
+    }
+
+    pub(crate) fn message(self, event: Event) -> Message {
+        match self {
+            Self::Workbench => Message::CliWorkbench(event),
+            Self::AppTerminal => Message::CliWorkbench(Event::AppTerminal(Box::new(event))),
+        }
+    }
+
+    fn route_message(self, message: Message) -> Message {
+        match message {
+            Message::CliWorkbench(event) => self.message(event),
+            message => message,
+        }
+    }
+
+    fn includes_target(self, target: &CliWorkbenchTarget) -> bool {
+        self == Self::Workbench || !matches!(target, CliWorkbenchTarget::Acp { .. })
+    }
+}
 
 #[derive(Default)]
 pub(crate) struct Workbench {
+    surface: Surface,
     scope: Option<update::Scope>,
     client: Option<vw_gateway_client::GatewayClient>,
     selected: Option<String>,
@@ -51,7 +95,9 @@ pub(crate) struct Workbench {
 
 struct SidebarLayout {
     workspace: pane_grid::State<bool>,
+    terminal_pane: pane_grid::Pane,
     sections: pane_grid::State<bool>,
+    minimum_width_ratio: f32,
 }
 
 impl SidebarLayout {
@@ -59,26 +105,44 @@ impl SidebarLayout {
     const MIN_WIDTH_RATIO: f32 = 0.10;
     const MAX_WIDTH_RATIO: f32 = 0.65;
 
+    fn collapsed(&self) -> bool {
+        self.workspace.maximized() == Some(self.terminal_pane)
+    }
+
+    fn set_collapsed(&mut self, collapsed: bool) {
+        if collapsed {
+            self.workspace.maximize(self.terminal_pane);
+        } else {
+            self.workspace.restore();
+        }
+    }
+
     fn resize_width(&mut self, event: pane_grid::ResizeEvent) {
         self.workspace.resize(
             event.split,
-            event.ratio.clamp(Self::MIN_WIDTH_RATIO, Self::MAX_WIDTH_RATIO),
+            event.ratio.clamp(self.minimum_width_ratio, Self::MAX_WIDTH_RATIO),
         );
     }
 }
 
 impl Default for SidebarLayout {
     fn default() -> Self {
+        Self::new(Self::DEFAULT_WIDTH_RATIO, Self::MIN_WIDTH_RATIO)
+    }
+}
+
+impl SidebarLayout {
+    fn new(width_ratio: f32, minimum_width_ratio: f32) -> Self {
         let (mut workspace, sidebar) = pane_grid::State::new(false);
-        let (_, split) = workspace.split(pane_grid::Axis::Vertical, sidebar, true)
+        let (terminal_pane, split) = workspace.split(pane_grid::Axis::Vertical, sidebar, true)
             .expect("the sidebar pane exists");
-        workspace.resize(split, Self::DEFAULT_WIDTH_RATIO);
+        workspace.resize(split, width_ratio);
 
         let (mut sections, projects) = pane_grid::State::new(false);
         sections.split(pane_grid::Axis::Horizontal, projects, true)
             .expect("the projects pane exists");
 
-        Self { workspace, sections }
+        Self { workspace, terminal_pane, sections, minimum_width_ratio }
     }
 }
 
@@ -225,6 +289,21 @@ impl Project {
 
     fn active_tab(&self) -> Option<&Tab> {
         self.tab_for_view(self.panes.grid.get(self.panes.focused)?.active_id?)
+    }
+
+    fn switch_app(&mut self, target: &CliWorkbenchTarget) -> bool {
+        let matches = |tab: &&Tab| {
+            &tab.session.target == target && tab.session.state == Process::Running && !tab.stopping
+        };
+        let Some(view_id) = self.active_tab().filter(matches).or_else(|| {
+            self.panes.grid.iter()
+                .flat_map(|(_, pane)| pane.tabs.iter())
+                .filter_map(|&view_id| self.tab_for_view(view_id))
+                .find(matches)
+        }).map(|tab| tab.view_id) else {
+            return false;
+        };
+        self.panes.select(view_id)
     }
 
     fn layout_ids(&self) -> impl Iterator<Item = u64> + '_ {
@@ -387,6 +466,21 @@ impl Project {
 }
 
 impl Workbench {
+    pub(crate) fn app_terminal() -> Self {
+        Self {
+            surface: Surface::AppTerminal,
+            sidebar_layout: SidebarLayout::new(SidebarLayout::DEFAULT_WIDTH_RATIO / 2.0, 0.07),
+            ..Self::default()
+        }
+    }
+
+    pub(crate) fn restore_app_terminal_preferences(&mut self, cfg: &serde_json::Value) {
+        if let Some(collapsed) = cfg.get(APP_TERMINAL_SIDEBAR_COLLAPSED).and_then(|value| value.as_bool())
+        {
+            self.sidebar_layout.set_collapsed(collapsed);
+        }
+    }
+
     pub(super) fn has_visible_terminal(&self) -> bool {
         self.terminal_available
             && self.selected.as_ref().and_then(|id| self.projects.get(id)).is_some_and(|project| {

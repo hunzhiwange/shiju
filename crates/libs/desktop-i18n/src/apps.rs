@@ -10,6 +10,8 @@ pub fn matches_navigation(i18n: I18n, source: &str, query: &str) -> bool {
         "工作流" => "workflow",
         "任务编排" => "workflow_manager",
         "第三方智能体" => "third_party_agents",
+        "应用终端" => "app_terminal",
+        "Git 工作台" => "git_workbench",
         _ => source,
     };
     query.is_empty()

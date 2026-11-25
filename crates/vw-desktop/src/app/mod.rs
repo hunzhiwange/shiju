@@ -12,6 +12,8 @@ pub mod components;
 pub mod config;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod cli_workbench;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod git_workbench;
 pub(crate) mod desktop_lifecycle;
 #[cfg(any(unix, windows))]
 pub mod single_instance;

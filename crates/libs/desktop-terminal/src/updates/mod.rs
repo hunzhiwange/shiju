@@ -34,7 +34,35 @@ pub fn update(
 ) -> Task<TerminalMessage> {
     match message {
         #[cfg(not(target_arch = "wasm32"))]
-        TerminalMessage::CheckpointWorkspace => Task::none(),
+        TerminalMessage::CheckpointWorkspace
+        | TerminalMessage::SelectProject(_)
+        | TerminalMessage::ToggleProjects => Task::none(),
+        #[cfg(not(target_arch = "wasm32"))]
+        TerminalMessage::NewGroup | TerminalMessage::SelectGroup(_) | TerminalMessage::CloseGroup(_) => {
+            let changed = match message {
+                TerminalMessage::NewGroup => terminal.new_group(),
+                TerminalMessage::SelectGroup(id) => terminal.select_group(id),
+                TerminalMessage::CloseGroup(id) => terminal.close_group(id),
+                _ => unreachable!(),
+            };
+            if !changed {
+                return Task::none();
+            }
+            if terminal.ensure_default_terminal(project_path.map(std::path::PathBuf::from)) {
+                terminal.apply_app_theme(theme);
+            }
+            Task::batch([
+                tabs::reap_retired_task(terminal),
+                event::focus_active_terminal(terminal, focused, effects),
+            ])
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        TerminalMessage::PtyEvent(widget, pty_event) => {
+            if !terminal.tabs.iter().any(|tab| tab.term.widget_id() == &widget) {
+                return Task::none();
+            }
+            event::update(terminal, cursor_y, focused, effects, TerminalMessage::Event(pty_event))
+        }
         TerminalMessage::Add
         | TerminalMessage::Select(_)
         | TerminalMessage::Close(_)

@@ -50,6 +50,18 @@ pub enum TerminalMessage {
     #[cfg(not(target_arch = "wasm32"))]
     CheckpointWorkspace,
     #[cfg(not(target_arch = "wasm32"))]
+    SelectProject(String),
+    #[cfg(not(target_arch = "wasm32"))]
+    ToggleProjects,
+    #[cfg(not(target_arch = "wasm32"))]
+    NewGroup,
+    #[cfg(not(target_arch = "wasm32"))]
+    SelectGroup(u64),
+    #[cfg(not(target_arch = "wasm32"))]
+    CloseGroup(u64),
+    #[cfg(not(target_arch = "wasm32"))]
+    PtyEvent(Id, iced_term::Event),
+    #[cfg(not(target_arch = "wasm32"))]
     Event(iced_term::Event),
     #[cfg(target_arch = "wasm32")]
     Event(()),
@@ -73,4 +85,8 @@ pub enum TerminalMessage {
 }
 
 #[derive(Debug, Clone)]
-pub enum Message { Terminal(TerminalMessage), Batch(Vec<Message>), Hide }
+pub enum Message {
+    Terminal(TerminalMessage),
+    Batch(Vec<Message>),
+    Hide,
+}

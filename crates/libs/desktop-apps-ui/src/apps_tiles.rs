@@ -33,6 +33,10 @@ pub enum Event {
     OpenWorkflowTool, OpenThirdPartyAgents, AppsSearchChanged(String),
     #[cfg(not(target_arch = "wasm32"))]
     OpenCliWorkbench,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenAppTerminal,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenGitWorkbench,
 }
 use Event as Message;
 use iced::widget::{Space, button, column, container, row, stack, text, text_input};
@@ -78,6 +82,10 @@ fn builtin_tile_titles() -> Vec<&'static str> {
         "项目管理",
         #[cfg(not(target_arch = "wasm32"))]
         "我的工作台",
+        #[cfg(not(target_arch = "wasm32"))]
+        "应用终端",
+        #[cfg(not(target_arch = "wasm32"))]
+        "Git 工作台",
         "添加网址",
         "知识库",
         "工作流",
@@ -151,6 +159,30 @@ pub fn render_tiles_grid<'a>(window_width: f32, query: &str, i18n: I18n, bookmar
             Color::from_rgb8(0x15, 0x8E, 0xA5),
             vec![("打开", msg(Message::OpenCliWorkbench))],
             msg(Message::OpenCliWorkbench),
+        ));
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    if matches("应用终端") {
+        tiles.push(ui::tile(
+            i18n,
+            Icon::Terminal,
+            i18n.__("应用终端").to_string(),
+            Color::from_rgb8(0x3C, 0x78, 0xCC),
+            vec![("打开", msg(Message::OpenAppTerminal))],
+            msg(Message::OpenAppTerminal),
+        ));
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    if matches("Git 工作台") {
+        tiles.push(ui::tile(
+            i18n,
+            Icon::GitBranch,
+            i18n.__("Git 工作台").to_string(),
+            Color::from_rgb8(0x2B, 0x88, 0x77),
+            vec![("打开", msg(Message::OpenGitWorkbench))],
+            msg(Message::OpenGitWorkbench),
         ));
     }
 

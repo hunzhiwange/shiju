@@ -1,10 +1,10 @@
 //! Git 历史与同步的宿主消息及跨域效果映射。
-use super::{GitMessage, shared};
+use super::{GitMessage, Source};
 use crate::app::{App, Message};
 use desktop_git_ui::message_git::repository::{self, Effect, RepositoryMessage as Local};
 use iced::Task;
 
-pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
+pub(super) fn update(app: &mut App, source: Source, message: GitMessage) -> Task<Message> {
     let message = match message {
         GitMessage::RemoteAnimationTick => Local::RemoteAnimationTick,
         GitMessage::ShowHistory(value) => Local::ShowHistory(value),
@@ -28,21 +28,24 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
         }
         _ => unreachable!("unexpected repository message"),
     };
-    let path = crate::app::components::git_panel::git_repo_path_for_app(app);
-    let gateway = crate::app::gateway_client()
-        .map(|client| (client, crate::app::session_gateway::active_tenant_scope())).map_err(Into::into);
+    let path = source.repo_path(app);
+    let gateway = source.client(app).map(|client| {
+        let scope = client.endpoint().tenant_scope().clone();
+        (client, scope)
+    }).map_err(Into::into);
     let mut effects = Vec::new();
+    let git = source.state_mut(app);
     let task = repository::update(
-        &mut app.git.git_repository,
-        &mut app.git.selected_branch,
+        &mut git.git_repository,
+        &mut git.selected_branch,
         path,
-        app.git.git_commit_in_progress,
+        git.git_commit_in_progress,
         gateway,
         &mut effects,
         message,
     )
-    .map(|message| {
-        Message::Git(match message {
+    .map(move |message| {
+        source.message(match message {
             Local::RemoteAnimationTick => GitMessage::RemoteAnimationTick,
             Local::ShowHistory(value) => GitMessage::ShowHistory(value),
             Local::RefreshRepository => GitMessage::RefreshRepository,
@@ -67,9 +70,14 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
     });
     let mut tasks = vec![task];
     for effect in effects {
-        tasks.push(match effect {
+        let task = match effect {
             Effect::CopyCode(content) => Task::done(Message::CopyCode(content)),
             Effect::PreviewSnapshot { key, path, title, content } => {
+                #[cfg(not(target_arch = "wasm32"))]
+                if !source.is_inline() {
+                    tasks.push(crate::app::git_workbench::preview_snapshot(app, title, content));
+                    continue;
+                }
                 Task::done(Message::Preview(crate::app::message::PreviewMessage::OpenSnapshot {
                     key,
                     path,
@@ -86,15 +94,16 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                 message.message(),
             ),
             Effect::RefreshAfterMutation => {
-                shared::refresh_git_panel_data_after_repo_mutation_task(app)
+                source.after_mutation(app)
             }
             Effect::ScheduleAnimationTick => crate::app::message::after(
                 std::time::Duration::from_millis(
                     crate::app::components::status_animation::ACTIVITY_ANIMATION_INTERVAL_MS,
                 ),
-                Message::Git(GitMessage::RemoteAnimationTick),
+                source.message(GitMessage::RemoteAnimationTick),
             ),
-        });
+        };
+        tasks.push(task);
     }
     Task::batch(tasks)
 }

@@ -2,5 +2,5 @@
 use super::GitMessage;
 use crate::app::{App, Message};
 pub(super) fn update(app: &mut App, message: GitMessage) -> iced::Task<Message> {
-    super::effects::update(app, message, desktop_git_ui::message_git::controller::diff::update)
+    super::effects::update(app, super::Source::Inline, message, desktop_git_ui::message_git::controller::diff::update)
 }

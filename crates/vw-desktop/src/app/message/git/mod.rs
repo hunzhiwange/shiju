@@ -21,7 +21,79 @@ mod stage_commit;
 
 pub use desktop_git_ui::message_git::messages::{ExpandDirection, GitMessage};
 
+#[derive(Clone, Copy)]
+pub(crate) enum Source {
+    Inline,
+    #[cfg(not(target_arch = "wasm32"))]
+    Workbench(u64),
+}
+
+impl Source {
+    fn is_inline(self) -> bool {
+        matches!(self, Self::Inline)
+    }
+
+    pub(crate) fn message(self, message: GitMessage) -> Message {
+        match self {
+            Self::Inline => Message::Git(message),
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Workbench(epoch) => Message::GitWorkbench(
+                crate::app::git_workbench::Event::Git(epoch, Box::new(message)),
+            ),
+        }
+    }
+
+    fn state_mut(self, app: &mut App) -> &mut desktop_git_ui::state::State {
+        match self {
+            Self::Inline => &mut app.git,
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Workbench(_) => &mut app.git_workbench.git,
+        }
+    }
+
+    fn project_path(self, app: &App) -> Option<String> {
+        match self {
+            Self::Inline => app.navigation_tabs.project_path.clone(),
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Workbench(_) => app.git_workbench.project_directory().map(str::to_owned),
+        }
+    }
+
+    fn repo_path(self, app: &App) -> Option<String> {
+        match self {
+            Self::Inline => crate::app::components::git_panel::git_repo_path_for_app(app),
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Workbench(_) => app.git_workbench.repo_path(),
+        }
+    }
+
+    fn context_path(self, app: &App) -> Option<String> {
+        match self {
+            Self::Inline => shared::git_context_path_for_app(app),
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Workbench(_) => self.repo_path(app),
+        }
+    }
+
+    fn client(self, app: &App) -> Result<vw_gateway_client::GatewayClient, String> {
+        match self {
+            Self::Inline => crate::app::gateway_client(),
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Workbench(_) => app.git_workbench.client(),
+        }
+    }
+
+    fn after_mutation(self, app: &mut App) -> Task<Message> {
+        desktop_git_ui::message_git::controller::after_mutation(self.state_mut(app))
+            .map(move |message| self.message(message))
+    }
+}
+
 pub fn update(app: &mut App, message: GitMessage) -> Task<Message> {
+    update_from(app, Source::Inline, message)
+}
+
+pub(crate) fn update_from(app: &mut App, source: Source, message: GitMessage) -> Task<Message> {
     match message {
         message @ (GitMessage::RemoteAnimationTick
         | GitMessage::ShowHistory(_)
@@ -36,8 +108,8 @@ pub fn update(app: &mut App, message: GitMessage) -> Task<Message> {
         | GitMessage::CopyHistoryFile(_)
         | GitMessage::SelectHistoryFile(_)
         | GitMessage::RunRemote(_)
-        | GitMessage::RemoteFinished { .. }) => repository::update(app, message),
-        message => effects::update(app, message, desktop_git_ui::message_git::controller::update),
+        | GitMessage::RemoteFinished { .. }) => repository::update(app, source, message),
+        message => effects::update(app, source, message, desktop_git_ui::message_git::controller::update),
     }
 }
 

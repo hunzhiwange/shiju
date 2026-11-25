@@ -35,6 +35,13 @@ impl App {
 
     pub(in crate::app) fn apply_bootstrap_app_config(&mut self, mut cfg: serde_json::Value) {
         self.retain_unedited_desktop_preferences(&mut cfg);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.app_terminal.restore_app_terminal_preferences(&cfg);
+            if let Some(collapsed) = cfg.get("terminal_projects_collapsed").and_then(|v| v.as_bool()) {
+                self.terminal_projects_collapsed = collapsed;
+            }
+        }
         self.apply_task_pet_preferences(&cfg);
         self.desktop_update.restore_preferences(&cfg);
         self.session_state.restore_access_preferences(&cfg);

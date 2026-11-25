@@ -123,6 +123,24 @@ impl GatewayFilesClient {
         self.transport.get_json("/v1/file", &query).await
     }
 
+    /// 读取单层目录并转换为文件节点，不递归枚举子目录。
+    pub async fn directory_file_entries(
+        &self,
+        directory: &str,
+        path: &str,
+    ) -> Result<Vec<FileNodeDto>, String> {
+        let entries: Vec<LegacyFileNode> = self.transport
+            .get_json("/v1/file", &legacy_file_list_query(directory, path))
+            .await?;
+        Ok(entries.into_iter().map(|entry| FileNodeDto {
+            path: entry.path,
+            name: entry.name,
+            kind: entry.kind.into(),
+            size_bytes: None,
+            children: None,
+        }).collect())
+    }
+
     /// 读取目录上下文中的完整文件内容。
     pub async fn file_content_in_directory(
         &self,

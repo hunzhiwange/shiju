@@ -19,6 +19,12 @@ fn preserves_projection(message: &Message) -> bool {
     match message {
         Message::Chat(event) if crate::app::message::chat::input::is_composer_event(event) => true,
         // These handlers update local UI/transport state, not session metadata.
+        #[cfg(not(target_arch = "wasm32"))]
+        Message::GitWorkbench(event) => {
+            !matches!(event, crate::app::git_workbench::Event::SelectInlineProject(_))
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        Message::Terminal(crate::app::message::TerminalMessage::PtyEvent(..)) => true,
         Message::Terminal(crate::app::message::TerminalMessage::Event(_))
         | Message::View(ViewMessage::WorkBrowserRuntimeTick)
         | Message::GatewayHealthTick => true,

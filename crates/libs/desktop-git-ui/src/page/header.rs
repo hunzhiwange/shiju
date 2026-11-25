@@ -14,8 +14,19 @@ fn input<'a>(app: &ViewContext<'a>) -> domain::Input<'a> {
         code_mode: app.code_mode,
     }
 }
-pub fn view<'a>(app: &ViewContext<'a>, files: Vec<String>) -> iced::Element<'a, Message> {
-    domain::view(&input(app), files).map(super::view_messages::map)
+pub fn view<'a>(
+    app: &ViewContext<'a>,
+    files: Vec<String>,
+    project_picker: Option<iced::Element<'a, Message>>,
+    show_repository_controls: bool,
+) -> iced::Element<'a, Message> {
+    domain::view(
+        &input(app),
+        files,
+        project_picker.map(|picker| picker.map(crate::git_panel::messages::UiMessage::External)),
+        show_repository_controls,
+    )
+    .map(super::view_messages::map)
 }
 #[cfg(test)]
 pub(super) fn worktree_menu_toggle_message(open: bool) -> Message {

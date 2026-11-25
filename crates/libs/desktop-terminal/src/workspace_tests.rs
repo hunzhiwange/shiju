@@ -52,6 +52,9 @@ fn project_workspace_restores_split_tabs_and_last_directories() {
     original.height = 276.0;
     original.save_workspace(&snapshot).unwrap();
     drop(original);
+    let mut legacy: serde_json::Value = super::read_json(&snapshot).unwrap().unwrap();
+    legacy.as_object_mut().unwrap().remove("active_group");
+    super::write_json(&snapshot, &legacy).unwrap();
     std::fs::remove_dir(&removed_dir).unwrap();
 
     let mut restored = new_state();
@@ -74,4 +77,33 @@ fn project_workspace_restores_split_tabs_and_last_directories() {
     assert_eq!(restored.panes.focused, *first);
     assert_eq!(grid.get(*first).unwrap().tabs, [first_id, second_id]);
     assert_eq!(grid.get(*second).unwrap().tabs, [split_tab_id]);
+}
+
+#[test]
+fn project_workspace_restores_active_and_parked_groups() {
+    let temp = tempfile::tempdir().unwrap();
+    let project = temp.path().canonicalize().unwrap();
+    let snapshot = project.join("groups.json");
+    let mut original = new_state();
+
+    assert!(original.add_terminal(Some(project.clone())));
+    let first_id = original.active_id.unwrap();
+    original.split_terminal(original.panes.focused, Direction::Right, Some(project.clone())).unwrap();
+    assert!(original.new_group());
+    assert!(original.ensure_default_terminal(Some(project.clone())));
+    let second_group_tab = original.active_id.unwrap();
+    original.save_workspace(&snapshot).unwrap();
+    drop(original);
+
+    let mut restored = new_state();
+    assert!(restored.restore_workspace(&snapshot, &project).unwrap());
+    assert_eq!(restored.groups().collect::<Vec<_>>(), [(1, false), (2, true)]);
+    assert_eq!(restored.active_id, Some(second_group_tab));
+    assert_eq!(restored.panes.grid.len(), 1);
+    assert!(restored.select_group(1));
+    assert_eq!(restored.panes.grid.len(), 2);
+    assert!(restored.select_terminal(first_id));
+    assert!(restored.close_group(2));
+    assert_eq!(restored.tabs.len(), 2);
+    assert_eq!(restored.groups().collect::<Vec<_>>(), [(1, true)]);
 }

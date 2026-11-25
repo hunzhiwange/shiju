@@ -20,8 +20,8 @@ use vw_api_types::cli_workbench::{
 };
 
 use super::{
-    App, Dialog, Message, Project, SessionKey, Tab, Workbench,
-    update::{Action, draft_text, event},
+    App, Dialog, Message, Project, SessionKey, Surface, Tab, Workbench,
+    update::{Action, Event, draft_text},
 };
 use crate::app::i18n::I18n;
 
@@ -29,17 +29,19 @@ pub(super) const DIALOG_INPUT: &str = "cli-workbench-dialog-input";
 
 const SIDEBAR_DIVIDER_WIDTH: f32 = 1.0;
 const SIDEBAR_DIVIDER_HIT_WIDTH: f32 = 18.0;
+const TOOLBAR_BUTTON_INSET: f32 = 3.0;
 
 #[derive(Clone, Copy)]
 struct View {
     window: window::Id,
     i18n: I18n,
     locale: config_ui::DesktopLocale,
+    surface: Surface,
 }
 
 impl View {
     fn msg(self, action: Action) -> Message {
-        event(self.window, action)
+        self.surface.message(Event::Window(self.window, action))
     }
 
     fn label(self, source: &'static str) -> &'static str {
@@ -47,20 +49,41 @@ impl View {
     }
 }
 
-pub(crate) fn view(app: &App, id: window::Id) -> Element<'_, Message> {
+pub(crate) fn view(app: &App, id: window::Id, surface: Surface) -> Element<'_, Message> {
     let locale = app.general_settings.desktop_locale;
-    let ui = View { window: id, i18n: I18n::new(locale), locale };
-    let state = &app.cli_workbench;
+    let ui = View { window: id, i18n: I18n::new(locale), locale, surface };
+    let state = surface.state(app);
+    let return_to_project = if surface == Surface::AppTerminal {
+        let project_tabs = app.navigation_tabs.open_tabs.iter().rev()
+            .filter(|tab| tab.screen == crate::app::Screen::Project);
+        let current_project = app.navigation_tabs.project_path.as_ref();
+        project_tabs.clone().find(|tab| tab.project_path.as_ref() == current_project)
+            .or_else(|| project_tabs.into_iter().next())
+            .map(|tab| tab.id.as_str())
+    } else {
+        None
+    };
     responsive(move |size| {
         let selected = state
             .selected
             .as_ref()
             .and_then(|id| state.projects.get(id).map(|project| (id, project)));
         let main = || match selected {
-            Some((id, project)) => workspace(ui, state, id, project),
-            None => container(text(ui.label("请选择项目")).size(16)).center(Length::Fill).into(),
+            Some((id, project)) => workspace(ui, state, id, project, return_to_project),
+            None => {
+                let prompt = container(text(ui.label("请选择项目")).size(16)).center(Length::Fill);
+                if surface == Surface::AppTerminal {
+                    column![
+                        container(app_terminal_navigation(ui, state, return_to_project)).padding([5, 7]),
+                        prompt,
+                    ]
+                    .into()
+                } else {
+                    prompt.into()
+                }
+            }
         };
-        let content: Element<'_, Message> = if size.width < 680.0 {
+        let content: Element<'_, Message> = if surface == Surface::Workbench && size.width < 680.0 {
             column![container(sidebar(ui, state)).height(146), main()].spacing(8).into()
         } else {
             let grid = pane_grid::PaneGrid::new(&state.sidebar_layout.workspace, |_, terminal, _| {
@@ -80,6 +103,7 @@ pub(crate) fn view(app: &App, id: window::Id) -> Element<'_, Message> {
                 ui.msg(Action::ResizeSidebarWidth(event))
             })
             .style(sidebar_divider);
+            let grid = if surface == Surface::AppTerminal { grid.min_size(0) } else { grid };
             container(grid).style(settings_divider_style).into()
         };
         let error = state.error.or_else(|| {
@@ -134,6 +158,9 @@ fn vertical<'a>(content: Column<'a, Message>) -> scrollable::Scrollable<'a, Mess
 }
 
 fn sidebar<'a>(ui: View, state: &'a Workbench) -> Element<'a, Message> {
+    if state.surface == Surface::AppTerminal {
+        return sidebar_projects(ui, state);
+    }
     let grid = pane_grid::PaneGrid::new(&state.sidebar_layout.sections, |_, agents, _| {
         pane_grid::Content::new(if *agents { sidebar_agents(ui, state) } else { sidebar_projects(ui, state) })
     })
@@ -157,6 +184,36 @@ fn sidebar_surface(theme: &Theme) -> container::Style {
         background: Some(theme.extended_palette().background.base.color.into()),
         ..Default::default()
     }
+}
+
+fn app_terminal_navigation(
+    ui: View,
+    state: &Workbench,
+    return_to_project: Option<&str>,
+) -> Element<'static, Message> {
+    let back = return_to_project.map(|id| {
+        toolbar_icon(
+            Icon::ArrowLeft,
+            ui.label("返回项目"),
+            TOOLBAR_BUTTON_INSET,
+            Some(Message::View(crate::app::message::ViewMessage::TabSelected(id.to_owned()))),
+        )
+    });
+    row![].extend(back).push(projects_sidebar_toggle(ui, state)).spacing(4).into()
+}
+
+fn projects_sidebar_toggle(ui: View, state: &Workbench) -> Element<'static, Message> {
+    let (icon, label) = if state.sidebar_layout.collapsed() {
+        (Icon::LayoutSidebarReverse, "展开侧边栏")
+    } else {
+        (Icon::LayoutSidebar, "收起侧边栏")
+    };
+    toolbar_icon(
+        icon,
+        ui.label(label),
+        TOOLBAR_BUTTON_INSET,
+        Some(ui.msg(Action::ToggleProjectsSidebar)),
+    )
 }
 
 fn sidebar_projects<'a>(ui: View, state: &'a Workbench) -> Element<'a, Message> {
@@ -191,7 +248,11 @@ fn sidebar_projects<'a>(ui: View, state: &'a Workbench) -> Element<'a, Message> 
         ));
     }
     if state.projects.is_empty() {
-        let label = if state.discovering { "正在读取工作台项目…" } else { "暂无项目" };
+        let label = match (state.discovering, state.surface) {
+            (true, Surface::Workbench) => "正在读取工作台项目…",
+            (true, Surface::AppTerminal) => "正在读取项目…",
+            (false, _) => "暂无项目",
+        };
         projects = projects.push(sidebar_note(ui.label(label)));
     }
     if let Some(project_id) = &state.selected
@@ -453,7 +514,7 @@ pub(super) fn launch_choices(state: &Workbench, i18n: I18n) -> Vec<LaunchChoice>
         let mut apps: Vec<_> = state.native_apps.iter()
             .map(|app| (app.id.as_str(), app.name.as_str()))
             .collect();
-        if !apps.iter().any(|(id, _)| *id == super::CODEX_APP_ID) {
+        if state.surface == Surface::Workbench && !apps.iter().any(|(id, _)| *id == super::CODEX_APP_ID) {
             apps.push((super::CODEX_APP_ID, "Codex"));
         }
         apps.sort_by_key(|(id, _)| state.native_app.as_deref() != Some(*id));
@@ -462,12 +523,14 @@ pub(super) fn launch_choices(state: &Workbench, i18n: I18n) -> Vec<LaunchChoice>
             label: format!("{name} · {}", i18n.__("终端")),
         }));
     }
-    choices.extend(state.agents.iter()
-        .filter(|agent| !state.terminal_available || agent.matching_backend(Some(super::CODEX_APP_ID)).is_none())
-        .map(|agent| LaunchChoice {
-            target: CliWorkbenchTarget::Acp { agent: agent.key.clone() },
-            label: format!("{} · {}", agent.label(), i18n.__("ACP 对话")),
-        }));
+    if state.surface == Surface::Workbench {
+        choices.extend(state.agents.iter()
+            .filter(|agent| !state.terminal_available || agent.matching_backend(Some(super::CODEX_APP_ID)).is_none())
+            .map(|agent| LaunchChoice {
+                target: CliWorkbenchTarget::Acp { agent: agent.key.clone() },
+                label: format!("{} · {}", agent.label(), i18n.__("ACP 对话")),
+            }));
+    }
     choices
 }
 
@@ -476,6 +539,7 @@ fn workspace<'a>(
     state: &'a Workbench,
     project_id: &'a str,
     project: &'a Project,
+    return_to_project: Option<&str>,
 ) -> Element<'a, Message> {
     let active = project.active_tab();
     let sendable = |tab: &Tab| {
@@ -487,7 +551,9 @@ fn workspace<'a>(
     let can_start = !state.starting && !project.disconnected;
     let choices = launch_choices(state, ui.i18n);
     let empty_label = choices.is_empty().then(|| {
-        if state.agents_loading {
+        if state.surface == Surface::AppTerminal {
+            ui.label("当前网关未启用终端")
+        } else if state.agents_loading {
             ui.label("正在读取 ACP 智能体…")
         } else {
             ui.label("此项目暂无可用的 ACP 智能体")
@@ -497,6 +563,28 @@ fn workspace<'a>(
     let layout = project.active_layout;
     let on_panel = move |message| ui.msg(Action::Panel(project_id.into(), layout, message));
     let focus = active.and_then(|tab| tab.terminal.view.as_ref()).map(|view| view.terminal().widget_id());
+    let switch_app = (state.surface == Surface::AppTerminal).then(|| {
+        let apps = choices.iter().filter(|choice| {
+            matches!(&choice.target, CliWorkbenchTarget::NativeCli { .. })
+        });
+        let selected = active.and_then(|tab| {
+            apps.clone().find(|choice| choice.target == tab.session.target)
+        });
+        let placeholder = if apps.clone().next().is_some() {
+            "切换应用"
+        } else {
+            "暂无可用应用"
+        };
+        let selector = settings_select(apps.cloned(), selected.cloned(), move |choice| {
+            ui.msg(Action::SwitchApp(project_id.into(), layout, choice.target))
+        })
+        .placeholder(ui.label(placeholder))
+        .width(150)
+        .height(TAB_HEIGHT - 2.0 * TOOLBAR_BUTTON_INSET)
+        .disabled(!can_start);
+        let selector = container(selector).center_y(TAB_HEIGHT);
+        toolbar_tooltip(selector.into(), ui.label("切换应用"))
+    });
     let grid = terminal_panel::shared_grid(
         &project.panes,
         state.dialog.is_none().then_some(focus).flatten(),
@@ -508,12 +596,19 @@ fn workspace<'a>(
             })
             .menu_icon(Icon::Plus, 220.0)
             .width(TAB_TOOLBAR_BUTTON_WIDTH)
-            .height(TAB_HEIGHT)
+            .height(TAB_HEIGHT - 2.0 * TOOLBAR_BUTTON_INSET)
             .disabled(!can_start);
+            let launch = container(launch).center_x(TAB_TOOLBAR_BUTTON_WIDTH).center_y(TAB_HEIGHT);
             let mut controls = row![toolbar_tooltip(launch.into(), ui.label("新建会话"))]
                 .align_y(Alignment::Center);
             if super::update::split_target(state, project, pane).is_some() {
-                let split = terminal_panel::split_control(&project.panes, ui.locale, pane).map(on_panel);
+                let split = terminal_panel::split_control(
+                    &project.panes,
+                    ui.locale,
+                    pane,
+                    TOOLBAR_BUTTON_INSET,
+                )
+                .map(on_panel);
                 controls = controls.push(if project.panes.split_menu == Some(pane) {
                     split
                 } else {
@@ -527,7 +622,7 @@ fn workspace<'a>(
                 controls = controls.push(toolbar_icon(
                     Icon::Square,
                     ui.label("停止会话"),
-                    0.0,
+                    TOOLBAR_BUTTON_INSET,
                     can_stop.then_some(ui.msg(Action::Stop(key))),
                 ));
             }
@@ -535,7 +630,7 @@ fn workspace<'a>(
                 controls = controls.push(toolbar_icon(
                     Icon::ArrowUp,
                     ui.label("发送消息"),
-                    3.0,
+                    TOOLBAR_BUTTON_INSET,
                     project.tabs.values().any(sendable)
                         .then(|| ui.msg(Action::Compose(active_target.clone()))),
                 ));
@@ -564,7 +659,12 @@ fn workspace<'a>(
             (header, terminal_panel::pane_surface(body))
         },
     );
-    let mut workspace = column![layout_tabs(ui, project_id, project), settings_divider()];
+    let projects_toggle = (state.surface == Surface::AppTerminal)
+        .then(|| app_terminal_navigation(ui, state, return_to_project));
+    let mut workspace = column![
+        layout_tabs(ui, project_id, project, projects_toggle, switch_app),
+        settings_divider()
+    ];
     if let Some(label) = empty_label {
         workspace = workspace.push(text(label).size(12).style(settings_muted_text_style));
     }
@@ -579,7 +679,14 @@ fn workspace<'a>(
         .into()
 }
 
-fn layout_tabs<'a>(ui: View, project_id: &str, project: &Project) -> Element<'a, Message> {
+fn layout_tabs<'a>(
+    ui: View,
+    project_id: &str,
+    project: &Project,
+    projects_toggle: Option<Element<'a, Message>>,
+    switch_app: Option<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    let button_inset = if ui.surface == Surface::AppTerminal { TOOLBAR_BUTTON_INSET } else { 0.0 };
     let mut tabs = row![].spacing(4).align_y(Alignment::Center);
     let can_close = !project.parked_layouts.is_empty();
     for id in project.layout_ids() {
@@ -608,7 +715,7 @@ fn layout_tabs<'a>(ui: View, project_id: &str, project: &Project) -> Element<'a,
             item = item.push(toolbar_icon(
                 Icon::X,
                 ui.label("关闭分屏组"),
-                0.0,
+                button_inset,
                 Some(ui.msg(Action::CloseLayout(project_id.into(), id))),
             ));
         }
@@ -633,23 +740,24 @@ fn layout_tabs<'a>(ui: View, project_id: &str, project: &Project) -> Element<'a,
             .use_global_position(),
         ));
     }
-    let strip = container(
-        row![
-            scrollable(tabs)
-                .direction(scrollable::Direction::Horizontal(
-                    scrollable::Scrollbar::new().width(4).scroller_width(4),
-                ))
-                .width(Length::Fill),
-            toolbar_icon(
-                Icon::Plus,
-                ui.label("新建分屏组"),
-                0.0,
-                Some(ui.msg(Action::NewLayout(project_id.into()))),
-            ),
-        ]
+    let tabs = scrollable(tabs)
+        .direction(scrollable::Direction::Horizontal(
+            scrollable::Scrollbar::new().width(4).scroller_width(4),
+        ))
+        .width(Length::Fill);
+    let controls = row![]
+        .extend(projects_toggle)
+        .push(tabs)
+        .push(toolbar_icon(
+            Icon::Plus,
+            ui.label("新建分屏组"),
+            button_inset,
+            Some(ui.msg(Action::NewLayout(project_id.into()))),
+        ))
+        .extend(switch_app)
         .spacing(8)
-        .align_y(Alignment::Center),
-    )
+        .align_y(Alignment::Center);
+    let strip = container(controls)
     .padding([5, 7])
     .width(Length::Fill)
     .style(|theme| container::Style {
@@ -678,14 +786,15 @@ fn layout_tabs<'a>(ui: View, project_id: &str, project: &Project) -> Element<'a,
 }
 
 fn layout_label(project: &Project, id: u64) -> String {
-    let name = project.layout_names.get(&id).map(String::as_str).unwrap_or_else(|| {
-        project.directory.trim_end_matches(['/', '\\'])
-            .rsplit(['/', '\\'])
-            .next()
-            .filter(|name| !name.trim().is_empty())
-            .unwrap_or(&project.name)
-    });
-    name.to_owned()
+    if let Some(name) = project.layout_names.get(&id) {
+        return name.clone();
+    }
+    project.directory.trim_end_matches(['/', '\\'])
+        .rsplit(['/', '\\'])
+        .next()
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or(&project.name)
+        .to_owned()
 }
 
 fn layout_tab_foreground(theme: &Theme, selected: bool) -> iced::Color {

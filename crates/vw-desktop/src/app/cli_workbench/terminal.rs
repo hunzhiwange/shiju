@@ -154,8 +154,9 @@ pub(super) fn output(
     key: SessionKey,
     cursor: u64,
     result: Result<CliWorkbenchTerminalOutput, CliWorkbenchError>,
+    surface_visible: bool,
 ) -> Task<Message> {
-    let reply = writable(state, &key);
+    let reply = surface_visible && writable(state, &key);
     let Some(tab) = state.tab_mut(&key) else { return Task::none() };
     let terminal = &mut tab.terminal;
     terminal.reading = false;
@@ -196,7 +197,12 @@ pub(super) fn output(
             return Task::none();
         }
     }
-    flush(state, id, key)
+    if surface_visible {
+        flush(state, id, key)
+    } else {
+        terminal.size_pending = terminal.size.is_some();
+        Task::none()
+    }
 }
 
 pub(super) fn event(
@@ -248,6 +254,7 @@ pub(super) fn written(
     id: window::Id,
     key: SessionKey,
     result: Result<(), CliWorkbenchError>,
+    surface_visible: bool,
 ) -> Task<Message> {
     let Some(tab) = state.tab_mut(&key) else { return Task::none() };
     tab.terminal.writing = false;
@@ -256,7 +263,12 @@ pub(super) fn written(
         tab.terminal.error = Some(super::update::error_label(error.code));
         return Task::none();
     }
-    flush(state, id, key)
+    if surface_visible {
+        flush(state, id, key)
+    } else {
+        tab.terminal.size_pending = tab.terminal.size.is_some();
+        Task::none()
+    }
 }
 
 pub(super) fn backend_action(

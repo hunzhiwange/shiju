@@ -268,6 +268,8 @@ impl App {
 
             // Git 版本控制相关消息
             Message::Git(msg) => message::git::update(self, msg),
+            #[cfg(not(target_arch = "wasm32"))]
+            Message::GitWorkbench(event) => crate::app::git_workbench::update(self, event),
 
             // 聊天功能相关消息
             #[cfg(not(target_arch = "wasm32"))]

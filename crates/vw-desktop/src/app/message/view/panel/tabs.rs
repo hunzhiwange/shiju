@@ -141,6 +141,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         _ => Task::none(),
     };
+    #[cfg(not(target_arch = "wasm32"))]
+    if selects_tab && app.navigation_tabs.screen == Screen::GitWorkbench {
+        return Task::batch([task, effect, crate::app::git_workbench::activate(app)]);
+    }
     Task::batch([task, effect])
 }
 #[cfg(test)]

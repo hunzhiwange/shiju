@@ -30,7 +30,7 @@ pub fn subscription(term: &iced_term::Terminal) -> iced::Subscription<crate::mes
     // Tab numbers restart for each project; subscriptions must follow the PTY instance.
     term.subscription()
         .with(term.widget_id().clone())
-        .map(|(_, event)| crate::message::TerminalMessage::Event(event))
+        .map(|(widget, event)| crate::message::TerminalMessage::PtyEvent(widget, event))
 }
 
 #[cfg(test)]

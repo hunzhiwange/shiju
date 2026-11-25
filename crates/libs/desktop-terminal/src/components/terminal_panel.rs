@@ -15,15 +15,15 @@ use iced::widget::{
 use iced::{Background, Border, Color, Element, Font, Length, Point, Theme};
 
 use desktop_assets::assets::{self, Icon};
-#[cfg(not(target_arch = "wasm32"))]
 use desktop_ui_controls::tooltip::tooltip_dark_style;
 use desktop_ui_controls::overlays::point_below::PointBelowOverlay;
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_svg, primary_action_btn_style,
     rounded_action_btn_style, settings_close_button, settings_modal_card, settings_modal_header,
     settings_modal_overlay_with_backdrop_dismiss, settings_muted_text_style,
     settings_text_input_style,
 };
+use desktop_ui_controls::system_settings_common::icons::{icon_btn_style, icon_btn_svg_style};
 use desktop_ui_controls::{right_click_area::RightClickArea, single_line_label::SingleLineLabel};
 use desktop_i18n::I18n;
 use crate::TerminalTab;
@@ -151,61 +151,41 @@ fn terminal_content_padding(tab_id: u64) -> iced::Padding {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn fullscreen_button(app: ViewInput<'_>, header_height: f32) -> Element<'static, Message> {
-    use iced::widget::tooltip::{Position, Tooltip};
-
+fn fullscreen_button(app: ViewInput<'_>) -> Element<'static, Message> {
     let i18n = I18n::new(app.desktop_locale);
     let (icon, label) = if app.is_fullscreen {
         (Icon::FullscreenExit, i18n.__("退出全屏"))
     } else {
         (Icon::Fullscreen, i18n.__("全屏"))
     };
-    let icon = svg::Svg::new(assets::get_icon(icon))
-        .width(14.0)
-        .height(14.0)
-        .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) });
-    let control = button(icon)
-        .padding(5)
-        .style(toolbar_button_style)
-        .on_press(Message::Terminal(message::TerminalMessage::ToggleFullscreen));
-    let tooltip = Tooltip::new(
-        control,
-        container(text(label).size(12)).padding([6, 8]).style(tooltip_dark_style),
-        Position::Bottom,
+    toolbar_tooltip(
+        toolbar_icon_button(icon, Message::Terminal(message::TerminalMessage::ToggleFullscreen)),
+        label,
     )
-    .gap(6);
-
-    container(tooltip).center_x(32.0).center_y(header_height).into()
 }
 
-fn toolbar_button_style(theme: &Theme, status: button::Status) -> button::Style {
-    let background = if status == button::Status::Hovered {
-        theme.extended_palette().background.strong.color.scale_alpha(0.2)
-    } else {
-        Color::TRANSPARENT
-    };
-    button::Style {
-        background: Some(Background::Color(background)),
-        border: Border { radius: 12.0.into(), ..Default::default() },
-        text_color: theme.palette().text,
-        ..Default::default()
-    }
+fn toolbar_tooltip(
+    control: impl Into<Element<'static, Message>>,
+    label: &'static str,
+) -> Element<'static, Message> {
+    use iced::widget::tooltip::{Position, Tooltip};
+
+    Tooltip::new(control, text(label).size(12), Position::Bottom)
+        .gap(6)
+        .padding(7)
+        .style(tooltip_dark_style)
+        .into()
 }
 
-fn toolbar_icon_button(icon: Icon, on_press: Message) -> Element<'static, Message> {
-    let icon = svg::Svg::new(assets::get_icon(icon))
-        .width(12.0)
-        .height(12.0)
-        .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) });
-    let control = button(container(icon).center_x(24.0).center_y(24.0))
+fn toolbar_icon_button(icon: Icon, on_press: Message) -> button::Button<'static, Message> {
+    let size = if matches!(icon, Icon::Plus) { 16.0 } else { 14.0 };
+    let icon = container(icon_svg(icon, size).style(icon_btn_svg_style))
+        .center_x(TAB_TOOLBAR_BUTTON_WIDTH)
+        .center_y(TAB_HEIGHT);
+    button(icon)
         .on_press(on_press)
         .padding(0)
-        .style(toolbar_button_style);
-    container(control).center_x(32.0).center_y(TAB_HEADER_HEIGHT).into()
-}
-
-fn hide_button() -> Element<'static, Message> {
-    toolbar_icon_button(Icon::EyeSlash, Message::Hide)
+        .style(icon_btn_style)
 }
 
 fn pane_view<'a>(
@@ -215,6 +195,10 @@ fn pane_view<'a>(
     controls: iced::widget::Row<'a, Message>,
 ) -> (Element<'a, Message>, Element<'a, Message>) {
     let locale = app.desktop_locale;
+    #[cfg(not(target_arch = "wasm32"))]
+    let can_close_tabs = app.panes.grid.iter().map(|(_, pane)| pane.tabs.len()).sum::<usize>() > 1;
+    #[cfg(target_arch = "wasm32")]
+    let can_close_tabs = app.tabs.len() > 1;
     let header = pane_header(
         tabs.iter().map(|tab| {
             let title = if tab.default_title {
@@ -226,11 +210,11 @@ fn pane_view<'a>(
             (tab.id, title)
         }),
         active_id,
-        app.tabs.len() > 1,
+        can_close_tabs,
         app.tab_context_menu_id,
         app.tab_context_menu_pos,
         locale,
-        controls,
+        controls.height(TAB_HEADER_HEIGHT).align_y(iced::Alignment::Center),
         |message| message,
     );
 
@@ -280,6 +264,7 @@ pub fn pane_header<'a, M: Clone + 'a>(
     on_message: impl Fn(Message) -> M + 'a,
 ) -> Element<'a, M> {
     let tab_header_height = TAB_HEIGHT;
+    let i18n = I18n::new(locale);
 
     // ==================== 构建标签页行 ====================
 
@@ -348,6 +333,11 @@ pub fn pane_header<'a, M: Clone + 'a>(
         .width(Length::Fixed(close_btn_size))
         .padding(0)
         .style(|_, _| button::Style::default());
+        let close_btn = if can_close_tabs && tab_context_menu_id != Some(tab_id) {
+            toolbar_tooltip(close_btn, i18n.__("关闭终端标签页"))
+        } else {
+            close_btn.into()
+        };
 
         // ---------- 组装单个标签页项 ----------
         // 结构：[选择按钮 | 关闭按钮] + 底部指示条
@@ -523,6 +513,10 @@ pub use split_menu::split_control;
 
 /// 渲染终端窗格以及覆盖整个面板的重命名模态框。
 pub fn view<'a>(app: ViewInput<'a>) -> Element<'a, Message> {
+    with_rename_overlay(app, panes_view(app), |message| message)
+}
+
+pub fn panes_view<'a>(app: ViewInput<'a>) -> Element<'a, Message> {
     if !app.is_visible {
         return container(column![]).into();
     }
@@ -531,13 +525,20 @@ pub fn view<'a>(app: ViewInput<'a>) -> Element<'a, Message> {
     let content = pane_grid::view(app);
     #[cfg(target_arch = "wasm32")]
     let content = {
+        let i18n = I18n::new(app.desktop_locale);
         let (header, out) = pane_view(
             app,
             app.tabs.iter().collect(),
             app.active_id,
             row![
-                toolbar_icon_button(Icon::Plus, Message::Terminal(message::TerminalMessage::Add)),
-                hide_button()
+                toolbar_tooltip(
+                    toolbar_icon_button(Icon::Plus, Message::Terminal(message::TerminalMessage::Add)),
+                    i18n.__("新建终端"),
+                ),
+                toolbar_tooltip(
+                    toolbar_icon_button(Icon::EyeSlash, Message::Hide),
+                    i18n.__("隐藏终端面板"),
+                ),
             ],
         );
         column![header, out].width(Length::Fill).height(Length::Fill)
@@ -549,17 +550,22 @@ pub fn view<'a>(app: ViewInput<'a>) -> Element<'a, Message> {
                 ..Default::default()
             }
         });
+    main_content.into()
+}
 
-    // ==================== 重命名模态框 ====================
-
-    // 如果当前激活的标签页正在编辑标题，显示重命名模态框
-    if let Some(active_id) = app.active_id
+pub fn with_rename_overlay<'a, M: Clone + 'static>(
+    app: ViewInput<'a>,
+    content: Element<'a, M>,
+    on_message: impl Fn(Message) -> M + 'a,
+) -> Element<'a, M> {
+    if app.is_visible
+        && let Some(active_id) = app.active_id
         && let Some(t) = app.tabs.iter().find(|t| t.id == active_id)
         && let Some(edit_title) = &t.edit_title
     {
         let i18n = I18n::new(app.desktop_locale);
-        let cancel = Message::Terminal(message::TerminalMessage::RenameCancel(active_id));
-        let save = Message::Terminal(message::TerminalMessage::RenameSave(active_id));
+        let cancel = on_message(Message::Terminal(message::TerminalMessage::RenameCancel(active_id)));
+        let save = on_message(Message::Terminal(message::TerminalMessage::RenameSave(active_id)));
         let mut heading = column![text(i18n.__("重命名终端")).size(18)].spacing(4);
         // The terminal can be shortened independently of the window.
         let compact = app.height < 190.0;
@@ -571,7 +577,7 @@ pub fn view<'a>(app: ViewInput<'a>) -> Element<'a, Message> {
         let header = settings_modal_header(heading, settings_close_button(cancel.clone()));
         let rename_input = text_input(i18n.__("输入新名称"), edit_title)
             .on_input(move |value| {
-                Message::Terminal(message::TerminalMessage::RenameChanged(active_id, value))
+                on_message(Message::Terminal(message::TerminalMessage::RenameChanged(active_id, value)))
             })
             .on_submit(save.clone())
             .padding(SETTINGS_CONTROL_PADDING)
@@ -594,22 +600,21 @@ pub fn view<'a>(app: ViewInput<'a>) -> Element<'a, Message> {
         .spacing(10)
         .align_y(iced::Alignment::Center);
 
-        let (content, vertical_padding) = if compact {
+        let (dialog, vertical_padding) = if compact {
             let controls = row![rename_input, actions].spacing(10).align_y(iced::Alignment::Center);
             (column![header, controls].spacing(6), 5)
         } else {
             let footer = container(actions).align_right(Length::Fill);
             (column![header, rename_input, footer].spacing(10), 12)
         };
-        let card = settings_modal_card(content)
+        let card = settings_modal_card(dialog)
             .padding([vertical_padding, 20])
             .width(Length::Fill)
             .max_width(420.0);
-        return settings_modal_overlay_with_backdrop_dismiss(main_content.into(), cancel, card);
+        return settings_modal_overlay_with_backdrop_dismiss(content, cancel, card);
     }
 
-    // 无模态框时直接返回主内容
-    main_content.into()
+    content
 }
 
 #[cfg(test)]

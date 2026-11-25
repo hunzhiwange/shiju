@@ -68,6 +68,7 @@ pub struct ViewSlots<'a, E> {
     pub left_panel: Option<Element<'a, ViewMessage<E>>>,
     pub custom_diff: Option<Element<'a, ViewMessage<E>>>,
     pub chat_diff: Option<Element<'a, ViewMessage<E>>>,
+    pub change_list: Option<Element<'a, ViewMessage<E>>>,
 }
 pub struct FileProjection {
     pub diff_files: Vec<DiffFileMeta>,
@@ -267,11 +268,23 @@ pub fn view<'a, E: Clone + 'static>(app: &ViewInput<'a>, projection: FileProject
     // 渲染聊天文本 diff 视图（如果有）
     if let Some(elem) = slots.chat_diff.take() { list = list.push(elem); }
 
-    let renderable_diff_files: Vec<&DiffFileMeta> =
-        diff_files.iter().filter(|m| m.insertions > 0 || m.deletions > 0).collect();
+    let focus_only = slots.change_list.is_some();
+    let focused = app.git_focused_file.as_deref();
+    let renderable_diff_files: Vec<&DiffFileMeta> = diff_files.iter()
+        .filter(|meta| !focus_only || focused == Some(meta.path.as_str()))
+        .filter(|meta| meta.insertions > 0 || meta.deletions > 0)
+        .collect();
 
     if renderable_diff_files.is_empty() && !app.has_chat_diff {
-        list = list.push(text(desktop_i18n::I18n::new(app.desktop_locale).__("无变更")));
+        let i18n = desktop_i18n::I18n::new(app.desktop_locale);
+        let label = if !focus_only || diff_files.is_empty() {
+            i18n.__("无变更")
+        } else if focused.is_some_and(|path| diff_files.iter().any(|meta| meta.path == path)) {
+            i18n.__("没有可显示的文本差异")
+        } else {
+            i18n.__("选择文件查看差异")
+        };
+        list = list.push(text(label));
     }
 
     if !renderable_diff_files.is_empty() {
@@ -367,13 +380,12 @@ pub fn view<'a, E: Clone + 'static>(app: &ViewInput<'a>, projection: FileProject
     let mut col = column![header, slots.toolbar].spacing(10);
 
     // 如果显示 diff 汇总，添加左侧面板
-    if app.show_git_diff_summary {
+    if app.show_git_diff_summary && !focus_only {
         col = col.push(slots.left_panel.take().expect("visible commit panel"));
     }
 
     // 添加可滚动的主内容区域
-    col = col.push(
-        scrollable(container(list).width(Length::Fill).padding(iced::Padding {
+    let diff = scrollable(container(list).width(Length::Fill).padding(iced::Padding {
             top: 0.0,
             right: 8.0,
             bottom: 0.0,
@@ -387,8 +399,13 @@ pub fn view<'a, E: Clone + 'static>(app: &ViewInput<'a>, projection: FileProject
                 viewport_h: viewport.bounds().height,
             }
         })
-        .height(Length::Fill),
-    );
+        .height(Length::Fill)
+        .width(Length::Fill);
+    col = if let Some(change_list) = slots.change_list {
+        col.push(row![change_list, diff].spacing(6).height(Length::Fill))
+    } else {
+        col.push(diff)
+    };
 
     // 包装为 MouseArea 以处理拖拽选择结束事件
     let base_content: Element<'_, ViewMessage<E>> = iced::widget::MouseArea::new(col.height(Length::Fill))

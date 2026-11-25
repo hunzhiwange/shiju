@@ -42,6 +42,8 @@ pub struct ViewInput<'a> {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod workspace;
+#[cfg(not(target_arch = "wasm32"))]
+mod groups;
 pub mod state;
 pub use state::{
     TerminalState, TerminalTheme, build_palette, truncate_string_to_limit, truncate_terminal_content,

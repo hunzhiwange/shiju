@@ -1,10 +1,11 @@
 //! 领域更新的上下文投影与系统、跨域效果执行。
-use super::{GitMessage, shared};
+use super::{GitMessage, Source, shared};
 use crate::app::{App, Message};
 use desktop_git_ui::message_git::controller::{Context, Effect};
 use iced::Task;
 pub(super) fn update(
     app: &mut App,
+    source: Source,
     message: GitMessage,
     handler: fn(
         &mut desktop_git_ui::state::State,
@@ -14,28 +15,45 @@ pub(super) fn update(
     ) -> Task<GitMessage>,
 ) -> Task<Message> {
     let ctx = Context {
-        project_path: app.navigation_tabs.project_path.clone(),
-        repo_path: crate::app::components::git_panel::git_repo_path_for_app(app),
+        project_path: source.project_path(app),
+        repo_path: source.repo_path(app),
         editor_theme: app.effective_editor_theme(),
         font_size: app.preview_state.current_font_size,
         line_height: app.preview_state.current_line_height,
         language: crate::app::i18n::editor::language(app.general_settings.desktop_locale),
-        context_path: shared::git_context_path_for_app(app),
-        animate: !app.file_manager.file_manager_changes_refreshing
+        context_path: source.context_path(app),
+        animate: source.is_inline() && !app.file_manager.file_manager_changes_refreshing
             && !app.file_manager.file_manager_file_tree_refreshing,
-        manual_refresh: app.file_manager.file_manager_changes_refreshing,
+        manual_refresh: source.is_inline() && app.file_manager.file_manager_changes_refreshing,
     };
     let mut effects = Vec::new();
-    let task = handler(&mut app.git, &ctx, &mut effects, message).map(Message::Git);
+    let task = handler(source.state_mut(app), &ctx, &mut effects, message).map(move |message| source.message(message));
     let mut tasks = vec![task];
     for effect in effects {
-        tasks.push(apply(app, effect));
+        tasks.push(apply(app, source, effect));
     }
     Task::batch(tasks)
 }
-fn apply(app: &mut App, effect: Effect) -> Task<Message> {
+fn apply(app: &mut App, source: Source, effect: Effect) -> Task<Message> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if !source.is_inline() {
+        match effect {
+            Effect::DismissPreview | Effect::ClearPreview | Effect::ShowDiff { .. }
+            | Effect::Fullscreen(_) | Effect::PersistHighlight(_) | Effect::ClearManualRefresh
+            | Effect::ChangedFilesApplied => return Task::none(),
+            Effect::Preview(path) => return crate::app::git_workbench::preview_diff_file(app, path),
+            Effect::InputError { message, error } => {
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    message,
+                    vec![error.into()],
+                );
+            }
+            _ => {}
+        }
+    }
     match effect {
-        Effect::Commit(effect) => super::stage_commit::apply(app, effect),
+        Effect::Commit(effect) => super::stage_commit::apply(app, source, effect),
         Effect::PersistHighlight(value) => {
             app.save_desktop_preference("show_git_diff_highlight", serde_json::Value::Bool(value))
         }
@@ -87,22 +105,36 @@ fn apply(app: &mut App, effect: Effect) -> Task<Message> {
             Task::done(Message::Chat(crate::app::message::ChatMessage::AppendText(text)))
         }
         Effect::Discard(action) => {
+            let path = if source.is_inline() {
+                app.navigation_tabs.project_path.clone()
+            } else {
+                source.repo_path(app)
+            };
             desktop_git_ui::message_git::diff::discard(
-                app.navigation_tabs.project_path.as_deref(),
+                path.as_deref(),
                 match app.terminal.shell { desktop_terminal::Shell::Bash => desktop_git::Shell::Bash, desktop_terminal::Shell::Zsh => desktop_git::Shell::Zsh },
                 action,
             );
             Task::none()
         }
-        Effect::LoadWorktrees(project_path) => Task::perform(
-            async move {
-                let result = shared::load_git_worktree_options(project_path.clone()).await;
-                (project_path, result)
-            },
-            |(project_path, result)| {
-                Message::Git(GitMessage::WorktreeOptionsReady { project_path, result })
-            },
-        ),
+        Effect::LoadWorktrees(project_path) => {
+            let client = source.client(app);
+            Task::perform(
+                async move {
+                    let result = async {
+                        let client = client?;
+                        desktop_git_ui::message_git::shared::load_git_worktree_options(
+                            &client, client.endpoint().tenant_scope(), project_path.clone(),
+                        )
+                        .await
+                    }.await;
+                    (project_path, result)
+                },
+                move |(project_path, result)| {
+                    source.message(GitMessage::WorktreeOptionsReady { project_path, result })
+                },
+            )
+        }
         Effect::LoadChangedFiles(path) => Task::perform(
             async move {
                 let repo_path = path.clone();
@@ -113,8 +145,8 @@ fn apply(app: &mut App, effect: Effect) -> Task<Message> {
                 .unwrap_or_default();
                 (path, files)
             },
-            |(repo_path, files)| {
-                Message::Git(GitMessage::ChangedFilesReady { repo_path: Some(repo_path), files })
+            move |(repo_path, files)| {
+                source.message(GitMessage::ChangedFilesReady { repo_path: Some(repo_path), files })
             },
         ),
         Effect::LoadDiffMetas(path) => Task::perform(
@@ -129,8 +161,8 @@ fn apply(app: &mut App, effect: Effect) -> Task<Message> {
                 .unwrap_or_default();
                 (path, metas)
             },
-            |(repo_path, metas)| {
-                Message::Git(GitMessage::DiffFileMetasReady { repo_path: Some(repo_path), metas })
+            move |(repo_path, metas)| {
+                source.message(GitMessage::DiffFileMetasReady { repo_path: Some(repo_path), metas })
             },
         ),
         Effect::LoadDiff { repo_path, file, meta } => Task::perform(
@@ -146,8 +178,8 @@ fn apply(app: &mut App, effect: Effect) -> Task<Message> {
                     .unwrap_or_default();
                 (repo_path, file, old_content, new_content)
             },
-            |(repo_path, file, old_content, new_content)| {
-                Message::Git(GitMessage::DiffContentReady {
+            move |(repo_path, file, old_content, new_content)| {
+                source.message(GitMessage::DiffContentReady {
                     repo_path: Some(repo_path),
                     file,
                     old_content,

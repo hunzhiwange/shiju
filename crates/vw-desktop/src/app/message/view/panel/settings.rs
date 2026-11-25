@@ -167,9 +167,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.terminal.toggle_panel();
             if app.terminal.is_visible {
                 #[cfg(not(target_arch = "wasm32"))]
-                app.terminal.ensure_default_terminal(
-                    app.navigation_tabs.project_path.as_ref().map(std::path::PathBuf::from),
-                );
+                {
+                    let cwd = app.terminal_project_path().map(std::path::PathBuf::from);
+                    app.terminal.ensure_default_terminal(cwd);
+                }
 
                 #[cfg(not(target_arch = "wasm32"))]
                 app.terminal.apply_app_theme(&app.appearance.app_theme);

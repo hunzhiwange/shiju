@@ -57,6 +57,10 @@ pub enum Screen {
     Apps,
     #[cfg(not(target_arch = "wasm32"))]
     CliWorkbench,
+    #[cfg(not(target_arch = "wasm32"))]
+    AppTerminal,
+    #[cfg(not(target_arch = "wasm32"))]
+    GitWorkbench,
     Usage,
     Knowledge,
     WorkflowTool,

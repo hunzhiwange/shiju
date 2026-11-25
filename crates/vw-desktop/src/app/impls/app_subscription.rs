@@ -231,23 +231,28 @@ impl App {
             .map(|req| Subscription::run_with(req, workflow_run_stream))
             .unwrap_or_else(Subscription::none);
 
+        #[cfg(not(target_arch = "wasm32"))]
+        let workbench_surface = crate::app::cli_workbench::Surface::from_screen(self.navigation_tabs.screen);
+
         let events = Subscription::batch([
             #[cfg(target_arch = "wasm32")]
             Subscription::run(browser_layout_stream),
             crate::app::components::daily_memory::subscription(&self.apps_catalog.daily_memory),
             #[cfg(not(target_arch = "wasm32"))]
-            if self.navigation_tabs.screen == crate::app::Screen::CliWorkbench {
+            if let Some(surface) = workbench_surface {
                 iced::time::every(std::time::Duration::from_secs(3))
-                    .map(|_| Message::CliWorkbench(crate::app::cli_workbench::Event::Tick))
+                    .with(surface)
+                    .map(|(surface, _)| surface.message(crate::app::cli_workbench::Event::Tick))
             } else {
                 Subscription::none()
             },
             #[cfg(not(target_arch = "wasm32"))]
-            if self.navigation_tabs.screen == crate::app::Screen::CliWorkbench
-                && self.cli_workbench.has_visible_terminal()
+            if let Some(surface) = workbench_surface
+                && surface.state(self).has_visible_terminal()
             {
                 iced::time::every(std::time::Duration::from_millis(80))
-                    .map(|_| Message::CliWorkbench(crate::app::cli_workbench::Event::TerminalTick))
+                    .with(surface)
+                    .map(|(surface, _)| surface.message(crate::app::cli_workbench::Event::TerminalTick))
             } else {
                 Subscription::none()
             },
@@ -276,7 +281,7 @@ impl App {
             for t in &self.terminal.tabs {
                 subs.push(terminal_subscription(&t.term));
             }
-            if self.navigation_tabs.project_path.is_some()
+            if self.terminal_project_path().is_some()
                 && self.terminal.needs_workspace_checkpoint()
                 && !self.shutdown_requested
             {

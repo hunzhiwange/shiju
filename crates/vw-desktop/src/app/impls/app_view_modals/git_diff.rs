@@ -5,5 +5,13 @@ pub(crate) fn with_git_diff_comment<'a>(app: &'a App, root: Element<'a, Message>
     desktop_git_ui::modal_overlays::with_git_diff_comment(crate::app::components::git_panel::diff_comment_modal(app), root)
 }
 pub(crate) fn with_git_diff_overlays<'a>(app: &'a App, root: Element<'a, Message>) -> Element<'a, Message> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if app.navigation_tabs.screen == crate::app::Screen::GitWorkbench {
+        return if app.navigation_panels.show_system_settings {
+            root
+        } else {
+            crate::app::git_workbench::with_overlays(app, root)
+        };
+    }
     desktop_git_ui::modal_overlays::with_git_diff_overlays(crate::app::components::git_panel::diff_comment_modal(app), crate::app::components::git_panel::discard_file_modal(app), root)
 }

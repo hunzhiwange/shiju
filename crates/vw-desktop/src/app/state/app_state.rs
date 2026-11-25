@@ -91,6 +91,10 @@ pub struct App {
     pub(crate) main_window_id: Option<iced::window::Id>,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) cli_workbench: crate::app::cli_workbench::Workbench,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) app_terminal: crate::app::cli_workbench::Workbench,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) git_workbench: crate::app::git_workbench::Workbench,
     /// 主动释放后尚未收到 Closed 的窗口；迟到事件不能终止后台运行。
     pub(crate) released_main_windows: Vec<iced::window::Id>,
     /// 独立小宠物窗口 ID
@@ -119,6 +123,10 @@ pub struct App {
     pub(crate) project_editor: desktop_workspace::project_message::edit::Editor,
     /// 终端状态（主终端）
     pub terminal: TerminalState,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) terminal_project_override: Option<String>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) terminal_projects_collapsed: bool,
     /// 终端偏好设置写入队列；切换项目时仍持续保存。
     pub(crate) terminal_config_persistence:
         crate::app::message::terminal::config::ConfigPersistence,

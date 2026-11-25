@@ -21,6 +21,12 @@ fn map(event: Event) -> Message {
             backend: None,
             native_app: None,
         }),
+        #[cfg(not(target_arch = "wasm32"))]
+        Event::OpenAppTerminal => crate::app::cli_workbench::Surface::AppTerminal.message(
+            crate::app::cli_workbench::Event::Open { backend: None, native_app: None },
+        ),
+        #[cfg(not(target_arch = "wasm32"))]
+        Event::OpenGitWorkbench => Message::GitWorkbench(crate::app::git_workbench::Event::Open),
         Event::AppsSearchChanged(query) => Message::View(ViewMessage::AppsSearchChanged(query)),
     }
 }

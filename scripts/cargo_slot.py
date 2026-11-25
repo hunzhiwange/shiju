@@ -140,7 +140,9 @@ def signal_group(pid, signum):
 def stop_on_signal(stop):
     previous = {}
     try:
-        for signum in (signal.SIGINT, signal.SIGTERM):
+        # A closed terminal sends SIGHUP to the supervisor. Children in their
+        # own session need the same cleanup as on Ctrl+C.
+        for signum in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
             previous[signum] = signal.signal(signum, stop)
         yield
     finally:

@@ -9,6 +9,7 @@ pub(crate) const ACTIONS_WIDTH: f32 = 144.0;
 pub(crate) const REMINDER_WIDTH: f32 = 344.0;
 pub const FEEDBACK_HEIGHT: f32 = 72.0;
 const DOCK_GAP: f32 = 4.0;
+const PROJECT_MENU_SPACE: f32 = 224.0;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum DockMode {
@@ -26,7 +27,7 @@ impl DockMode {
             Self::Idle => Size::new(26.0, 8.0),
             Self::Actions | Self::VoiceConnecting => Size::new(ACTIONS_WIDTH, DOCK_HEIGHT),
             Self::Composer => Size::new(344.0, DOCK_HEIGHT),
-            Self::Voice => Size::new(240.0, DOCK_HEIGHT),
+            Self::Voice => Size::new(244.0, DOCK_HEIGHT),
         }
     }
 }
@@ -48,6 +49,8 @@ pub struct DockView<'a> {
     pub reminder_height: f32,
     pub reminders_open: bool,
     pub draft: &'a str,
+    pub project_path: Option<&'a str>,
+    pub project_query: Option<&'a str>,
     pub voice: Option<PetVoice>,
 }
 
@@ -56,6 +59,8 @@ pub struct PetControls {
     pub hovered: bool,
     pub composer: bool,
     pub draft: String,
+    pub project_path: Option<String>,
+    pub project_query: Option<String>,
     pub reminders_open: bool,
     pub voice_owned: bool,
     pub feedback_id: Option<usize>,
@@ -76,6 +81,8 @@ impl Default for PetControls {
             hovered: false,
             composer: false,
             draft: String::new(),
+            project_path: None,
+            project_query: None,
             reminders_open: false,
             voice_owned: false,
             feedback_id: None,
@@ -89,6 +96,11 @@ impl Default for PetControls {
 }
 
 impl PetControls {
+    pub fn close_composer(&mut self) {
+        self.composer = false;
+        self.project_query = None;
+    }
+
     pub fn update(&mut self, voice: Option<PetVoice>, reminder_height: f32, now: Instant) {
         self.mode = if self.composer {
             DockMode::Composer
@@ -125,6 +137,8 @@ impl PetControls {
             reminder_height: self.reminders.interpolate_with(|height| height, now),
             reminders_open: self.reminders_open,
             draft: &self.draft,
+            project_path: self.project_path.as_deref(),
+            project_query: self.project_query.as_deref(),
             voice,
         }
     }
@@ -143,6 +157,7 @@ impl PetControls {
             if reminder_height > 0.0 || feedback { width.max(REMINDER_WIDTH) } else { width };
         let height = dock_window_height(avatar)
             + reminder_height
+            + if self.composer && self.project_query.is_some() { PROJECT_MENU_SPACE } else { 0.0 }
             + if feedback { FEEDBACK_HEIGHT } else { 0.0 };
         let target = Size::new(width + WINDOW_PADDING * 2.0, height);
         match self.native_size {
@@ -171,6 +186,9 @@ pub struct PetView<'a> {
     pub dock: DockView<'a>,
     pub desktop_locale: config_ui::DesktopLocale,
     pub task_pet_items: &'a [super::pet_state::TaskPetItem],
+    pub project_paths: &'a [String],
+    pub project_labels: &'a [String],
+    pub can_restore_reminder: bool,
     pub task_pet_avatar_kind: TaskPetAvatarKind,
     pub task_pet_context_menu_pos: Option<(f32, f32)>,
     pub task_pet_robot_hovered: bool,
@@ -194,6 +212,10 @@ pub enum PetMessage {
     TaskPetComposerChanged(String),
     TaskPetComposerSubmit,
     TaskPetComposerClose,
+    TaskPetProjectMenuToggle,
+    TaskPetProjectMenuClose,
+    TaskPetProjectQueryChanged(String),
+    TaskPetProjectSelected(String),
     TaskPetStartVoice,
     TaskPetVoiceMic,
     TaskPetVoiceOrb(VoiceOrbAction),
@@ -208,8 +230,10 @@ pub enum PetMessage {
     TaskPetSizeOpen,
     TaskPetHideWindow,
     TaskPetRemove(u64),
+    TaskPetRestoreReminder,
     TaskPetReplyPressed(u64),
     TaskPetReplyInputChanged(String),
     TaskPetReplySubmit,
+    TaskPetReplyClose,
     TaskPetHover(Option<u64>),
 }

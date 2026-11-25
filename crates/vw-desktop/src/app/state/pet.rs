@@ -134,11 +134,27 @@ impl App {
             })
             .collect::<Vec<_>>();
 
-        pet_interaction::sync_items(&mut self.pet_state.task_pet_items, active.into_iter().map(|(request, snapshot)| (request.id, request.session.clone(), request.root.clone(), snapshot)).collect());
-        if self.pet_state.task_pet_reply_request_id.is_some_and(|id| {
-            !self.pet_state.task_pet_items.iter().any(|item| item.request_id == id)
-        }) {
-            self.pet_state.task_pet_reply_request_id = None;
+        let session_for = |request_id| {
+            self.pet_state.task_pet_items.iter()
+                .find(|item| Some(item.request_id) == request_id)
+                .map(|item| item.session_id.clone())
+        };
+        let replying = session_for(self.pet_state.task_pet_reply_request_id);
+        let hovered = session_for(self.pet_state.task_pet_hovered_request_id);
+        pet_interaction::sync_items(
+            &mut self.pet_state.task_pet_items,
+            active.into_iter().map(|(request, snapshot)| {
+                (request.id, request.session.clone(), request.root.clone(), snapshot)
+            }).collect(),
+        );
+        let request_for = |session: Option<String>| {
+            self.pet_state.task_pet_items.iter()
+                .find(|item| Some(item.session_id.as_str()) == session.as_deref())
+                .map(|item| item.request_id)
+        };
+        self.pet_state.task_pet_reply_request_id = request_for(replying);
+        self.pet_state.task_pet_hovered_request_id = request_for(hovered);
+        if self.pet_state.task_pet_reply_request_id.is_none() {
             self.pet_state.task_pet_reply_input.clear();
         }
     }
@@ -203,7 +219,24 @@ impl App {
     }
 
     pub(crate) fn dismiss_task_pet_item(&mut self, request_id: u64) {
-        self.task_pet_state().dismiss_task_pet_item(request_id)
+        if let Some(item) = self.pet_state.task_pet_items.iter().find(|item| item.request_id == request_id) {
+            self.pet_state.last_dismissed_reminder = Some(item.clone());
+        }
+        self.task_pet_state().dismiss_task_pet_item(request_id);
+    }
+
+    pub(crate) fn restore_task_pet_reminder(&mut self) {
+        let Some(mut item) = self.pet_state.last_dismissed_reminder.take() else {
+            return;
+        };
+        self.pet_state.task_pet_dismissed_request_ids.remove(&item.request_id);
+        item.last_click_at = None;
+        if !self.pet_state.task_pet_items.iter().any(|current| current.session_id == item.session_id) {
+            self.pet_state.task_pet_items.push(item);
+        }
+        self.sync_task_pet_from_runtime();
+        self.pet_state.controls.reminders_open = true;
+        self.pet_state.task_pet_collapsed = false;
     }
 
     pub(crate) fn set_task_pet_hovered(&mut self, request_id: Option<u64>) {

@@ -106,6 +106,7 @@ pub struct State {
     pub task_pet_size_draft: Option<f32>,
     /// 小宠物展示的任务条目
     pub task_pet_items: Vec<TaskPetItem>,
+    pub last_dismissed_reminder: Option<TaskPetItem>,
     /// 当前鼠标悬停的小宠物任务请求 ID
     pub task_pet_hovered_request_id: Option<u64>,
     /// 当前正在回复的小宠物任务请求 ID
@@ -131,6 +132,7 @@ impl State {
             task_pet_scale: 1.0,
             task_pet_size_draft: None,
             task_pet_items: Vec::new(),
+            last_dismissed_reminder: None,
             task_pet_hovered_request_id: None,
             task_pet_reply_request_id: None,
             task_pet_reply_input: String::new(),

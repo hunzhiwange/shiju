@@ -224,7 +224,7 @@ const PET_WALK_RIGHT_BODY_1: &str = r##"
 "##;
 
 pub use cards::{reminder_height, reply_id};
-pub use controls::composer_id;
+pub use controls::{composer_id, project_search_id};
 
 pub fn window<'a>(app: PetView<'a>) -> Element<'a, Message> {
     let mut content = column![].align_x(Alignment::Center);
@@ -264,7 +264,7 @@ pub fn window<'a>(app: PetView<'a>) -> Element<'a, Message> {
     if let Some((x, y)) = app.task_pet_context_menu_pos {
         PointBelowOverlay::new(
             content,
-            task_pet_context_menu(desktop_i18n::I18n::new(app.desktop_locale)),
+            task_pet_context_menu(desktop_i18n::I18n::new(app.desktop_locale), app.can_restore_reminder),
         )
         .show(true)
         .anchor(Point::new(x, y))
@@ -311,7 +311,7 @@ fn pet_control<'a>(app: PetView<'a>) -> Element<'a, Message> {
         .into()
 }
 
-fn task_pet_context_menu(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
+fn task_pet_context_menu(i18n: desktop_i18n::I18n, can_restore: bool) -> Element<'static, Message> {
     use desktop_assets::assets::Icon;
     use desktop_ui_controls::system_settings_common::{icon_svg, rounded_action_btn_style};
 
@@ -338,14 +338,18 @@ fn task_pet_context_menu(i18n: desktop_i18n::I18n) -> Element<'static, Message> 
             .on_press(intent)
     };
 
+    let mut actions = column![
+        action(Icon::Gear, "选择智能伙伴", Message::TaskPetOpenSettings),
+        action(Icon::Sliders, "自定义伙伴大小", Message::TaskPetSizeOpen),
+    ];
+    if can_restore {
+        actions = actions.push(action(Icon::ArrowLeft, "恢复提醒", Message::TaskPetRestoreReminder));
+    }
     container(
-        column![
-            action(Icon::Gear, "选择智能伙伴", Message::TaskPetOpenSettings),
-            action(Icon::Sliders, "自定义伙伴大小", Message::TaskPetSizeOpen),
-            action(Icon::EyeSlash, "隐藏伙伴", Message::TaskPetHideWindow),
-        ]
-        .spacing(2)
-        .width(142),
+        actions
+            .push(action(Icon::EyeSlash, "隐藏伙伴", Message::TaskPetHideWindow))
+            .spacing(2)
+            .width(142),
     )
     .padding(5)
     .style(|theme| {

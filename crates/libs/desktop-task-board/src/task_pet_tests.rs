@@ -133,9 +133,10 @@ fn task_card_builds_running_completed_hovered_and_replying_states() {
 #[test]
 fn leaf_widgets_and_status_icons_build() {
     keep_element(robot_pet_sprite(test_app().view(), PET_COLLAPSED_SIZE));
-    keep_element(task_pet_context_menu(desktop_i18n::I18n::new(
-        config_ui::DesktopLocale::English,
-    )));
+    keep_element(task_pet_context_menu(
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::English),
+        true,
+    ));
     keep_element(human_pet_sprite(PET_BEAUTY_HANDLE.clone(), PET_COLLAPSED_SIZE, 4.0));
     keep_element(code_effect(7));
     keep_element(reply_button(
@@ -291,6 +292,9 @@ impl Fixture {
             },
             desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
             task_pet_items: &self.task_pet_items,
+            project_paths: &[],
+            project_labels: &[],
+            can_restore_reminder: false,
             task_pet_avatar_kind: self.task_pet_avatar_kind,
             task_pet_context_menu_pos: None,
             task_pet_robot_hovered: self.task_pet_robot_hovered,

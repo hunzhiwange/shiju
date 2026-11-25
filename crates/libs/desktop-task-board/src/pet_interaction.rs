@@ -297,19 +297,12 @@ pub fn sync_items(items: &mut Vec<TaskPetItem>, active: Vec<(u64, String, Option
     }
 
     for (request_id, session_id, root, snapshot) in active {
-        let existing_idx =
-        items.iter().position(|item| item.request_id == request_id).or_else(
-        || {
-            items.iter().position(|item| {
-                item.session_id == session_id && item.title == snapshot.title
-            })
-        },
-        );
-        if let Some(idx) = existing_idx {
-            let existing = &mut items[idx];
+        if let Some(existing) = items.iter_mut()
+            .filter(|item| item.session_id == session_id)
+            .max_by_key(|item| item.request_id)
+        {
             existing.request_id = request_id;
             existing.title = snapshot.title;
-            existing.session_id = session_id.clone();
             if let Some(detail) = snapshot.detail {
                 existing.detail_feedback = None;
                 existing.detail = detail;
@@ -321,8 +314,10 @@ pub fn sync_items(items: &mut Vec<TaskPetItem>, active: Vec<(u64, String, Option
         }
     }
 
-    items
-    .sort_by_key(|item| (item.status != TaskPetStatus::Running, Reverse(item.request_id)));
+    items.sort_by_key(|item| (item.status != TaskPetStatus::Running, Reverse(item.request_id)));
+    // A list built before session grouping can still contain older turns.
+    let mut sessions = HashSet::new();
+    items.retain(|item| sessions.insert(item.session_id.clone()));
 }
 
 pub fn task_pet_is_walking(task_pet_dragging: &bool, task_pet_walk_until_ms: &u64, now_ms: u64) -> bool {

@@ -157,8 +157,8 @@ async fn mini_companion_expanded_cards_keep_actions_and_scroll() {
         .collect();
     app.task_pet_hovered_request_id = Some(1);
     for (point, expected) in [
-        (iced::Point::new(30.0, 53.0), 0),
-        (iced::Point::new(310.0, 53.0), 1),
+        (iced::Point::new(24.0, 18.0), 0),
+        (iced::Point::new(310.0, 39.0), 1),
         (iced::Point::new(70.0, 95.0), 2),
     ] {
         let messages = mini_click(&app, point).await;
@@ -190,9 +190,16 @@ async fn mini_companion_expanded_cards_keep_actions_and_scroll() {
     app.task_pet_reply_request_id = Some(1);
     app.task_pet_hovered_request_id = Some(1);
     app.task_pet_reply_input = "请继续处理中文长标题对应的任务".into();
-    let messages = mini_click(&app, iced::Point::new(320.0, 92.0)).await;
+    let messages = mini_click(&app, iced::Point::new(288.0, 92.0)).await;
     assert!(messages.iter().any(|m| matches!(m, Message::TaskPetReplySubmit)));
     assert!(!messages.iter().any(|m| matches!(m, Message::TaskPetOpenReminder(_))));
+
+    let messages = mini_click(&app, iced::Point::new(320.0, 92.0)).await;
+    assert!(messages.iter().any(|m| matches!(m, Message::TaskPetReplyClose)));
+    assert!(!messages.iter().any(|m| matches!(
+        m,
+        Message::TaskPetReplySubmit | Message::TaskPetOpenReminder(_)
+    )));
 }
 
 impl Fixture {

@@ -11,13 +11,19 @@ use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_text_input_style,
 };
+use desktop_i18n::I18n;
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
-    Space, button, column, container, mouse_area, row, scrollable, svg, text, text_input,
+    Space, button, column, container, mouse_area, row, scrollable, svg, text, text_input, tooltip,
 };
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 const REMINDER_DOCK_GAP: f32 = 8.0;
+const REMOVE_BUTTON_SIZE: f32 = 22.0;
+const REPLY_BUTTON_SIZE: f32 = 36.0;
+const CLOSE_REPLY_BUTTON_SIZE: f32 = 30.0;
+static REPLY_ARROW: once_cell::sync::Lazy<svg::Handle> =
+    once_cell::sync::Lazy::new(|| super::controls::stroke("<path d='M21 5v6a3 3 0 0 1-3 3H4m5-5-5 5 5 5'/>"));
 
 #[cfg(test)]
 pub(super) const TASK_STATUS_SLOT_WIDTH: f32 = 20.0;
@@ -106,19 +112,8 @@ pub(super) fn task_card<'a>(app: PetView<'a>, item: &'a TaskPetItem) -> Element<
     let request_id = item.request_id;
     let hovered = app.task_pet_hovered_request_id == Some(request_id);
     let replying = app.task_pet_reply_request_id == Some(request_id);
-    let show_actions = !app.render_collapsed && (hovered || replying);
-
-    let remove = button(
-        svg::Svg::new(assets::get_icon(Icon::X))
-            .width(Length::Fixed(7.0))
-            .height(Length::Fixed(7.0))
-            .style(|_theme: &Theme, _status| svg::Style { color: Some(_theme.palette().text) }),
-    )
-    .width(Length::Fixed(15.0))
-    .height(Length::Fixed(15.0))
-    .padding(0)
-    .style(tiny_action_button_style)
-    .on_press(Message::TaskPetRemove(request_id));
+    let show_actions = !app.render_collapsed;
+    let i18n = I18n::new(app.desktop_locale);
 
     let title = text(truncate_for_card(&item.title, 18))
         .wrapping(iced::widget::text::Wrapping::None)
@@ -128,11 +123,10 @@ pub(super) fn task_card<'a>(app: PetView<'a>, item: &'a TaskPetItem) -> Element<
     let detail = item
         .detail_feedback
         .as_ref()
-        .map(|feedback| feedback.render(desktop_i18n::I18n::new(app.desktop_locale), &item.detail))
+        .map(|feedback| feedback.render(i18n, &item.detail))
         .unwrap_or_else(|| item.detail.clone());
     let detail_limit = if show_actions { 16 } else { 20 };
-    let detail = container(detail_line(&detail, detail_limit))
-        .padding(iced::Padding::default().right(if show_actions { 50.0 } else { 0.0 }));
+    let detail = detail_line(&detail, detail_limit);
     let body =
         row![status_icon, column![title, detail].spacing(3)].spacing(8).align_y(Alignment::Start);
 
@@ -145,7 +139,13 @@ pub(super) fn task_card<'a>(app: PetView<'a>, item: &'a TaskPetItem) -> Element<
         container(body)
             .width(Length::Fill)
             .height(PET_CARD_HEIGHT)
-            .padding([10, 16])
+            .padding(
+                iced::Padding::default()
+                    .top(10)
+                    .bottom(10)
+                    .left(if show_actions { 26.0 } else { 16.0 })
+                    .right(if show_actions { REPLY_BUTTON_SIZE + 16.0 } else { 16.0 }),
+            )
             .clip(true)
             .style(move |theme: &Theme| {
                 let mut style = task_card_style(theme);
@@ -161,22 +161,22 @@ pub(super) fn task_card<'a>(app: PetView<'a>, item: &'a TaskPetItem) -> Element<
     .on_press(action);
     let card = iced::widget::stack![face];
     let card = if show_actions {
-        card.push(
-            container(remove)
-                .width(Length::Fill)
-                .height(Length::Fixed(PET_CARD_HEIGHT))
-                .align_x(iced::alignment::Horizontal::Left)
-                .align_y(iced::alignment::Vertical::Bottom)
-                .padding(iced::Padding::default().top(0).right(0).bottom(10).left(8)),
-        )
-        .push(
-            container(reply_button(desktop_i18n::I18n::new(app.desktop_locale), request_id))
-                .width(Length::Fill)
-                .height(Length::Fixed(PET_CARD_HEIGHT))
-                .align_x(iced::alignment::Horizontal::Right)
-                .align_y(iced::alignment::Vertical::Bottom)
-                .padding(iced::Padding::default().top(0).right(8).bottom(6).left(0)),
-        )
+        let remove = icon_action(
+            super::controls::vector(assets::get_icon(Icon::X), 11.0, 1.0),
+            i18n.__("移除提醒"),
+            Message::TaskPetRemove(request_id),
+            REMOVE_BUTTON_SIZE,
+            tiny_action_button_style,
+        );
+        card.push(container(remove))
+            .push(
+                container(reply_button(i18n, request_id))
+                    .width(Length::Fill)
+                    .height(Length::Fixed(PET_CARD_HEIGHT))
+                    .align_x(Alignment::End)
+                    .align_y(Alignment::Center)
+                    .padding(iced::Padding::default().right(12)),
+            )
     } else {
         card
     };
@@ -184,7 +184,7 @@ pub(super) fn task_card<'a>(app: PetView<'a>, item: &'a TaskPetItem) -> Element<
     let content: Element<'a, Message> = if replying {
         column![
             container(card).height(Length::Fixed(PET_CARD_HEIGHT)),
-            reply_input(desktop_i18n::I18n::new(app.desktop_locale), app.task_pet_reply_input),
+            reply_input(i18n, app.task_pet_reply_input),
         ]
         .spacing(6)
         .into()
@@ -199,21 +199,44 @@ pub(super) fn task_card<'a>(app: PetView<'a>, item: &'a TaskPetItem) -> Element<
         .into()
 }
 
-pub(super) fn reply_button(i18n: desktop_i18n::I18n, request_id: u64) -> Element<'static, Message> {
-    button(centered_button_label(i18n.__("回复"), 12))
-        .width(Length::Fixed(42.0))
-        .height(Length::Fixed(22.0))
-        .padding(0)
-        .style(reply_button_style)
-        .on_press(Message::TaskPetReplyPressed(request_id))
-        .into()
+pub(super) fn reply_button(i18n: I18n, request_id: u64) -> Element<'static, Message> {
+    icon_action(
+        super::controls::vector((*REPLY_ARROW).clone(), 18.0, 1.0),
+        i18n.__("回复"),
+        Message::TaskPetReplyPressed(request_id),
+        REPLY_BUTTON_SIZE,
+        reply_button_style,
+    )
+}
+
+fn icon_action(
+    icon: Element<'static, Message>,
+    label: &'static str,
+    intent: Message,
+    size: f32,
+    style: fn(&Theme, button::Status) -> button::Style,
+) -> Element<'static, Message> {
+    tooltip(
+        button(container(icon).center_x(Length::Fill).center_y(Length::Fill))
+            .width(size)
+            .height(size)
+            .padding(0)
+            .style(style)
+            .on_press(intent),
+        text(label).size(11),
+        tooltip::Position::Top,
+    )
+    .style(container::rounded_box)
+    .delay(iced::time::Duration::from_millis(450))
+    .padding(5)
+    .into()
 }
 
 pub fn reply_id() -> iced::widget::Id {
     iced::widget::Id::new("task-pet-reply")
 }
 
-pub(super) fn reply_input<'a>(i18n: desktop_i18n::I18n, value: &'a str) -> Element<'a, Message> {
+pub(super) fn reply_input<'a>(i18n: I18n, value: &'a str) -> Element<'a, Message> {
     row![
         text_input(i18n.__("继续说点什么..."), value)
             .id(reply_id())
@@ -229,6 +252,13 @@ pub(super) fn reply_input<'a>(i18n: desktop_i18n::I18n, value: &'a str) -> Eleme
             .padding(0)
             .style(primary_action_btn_style)
             .on_press(Message::TaskPetReplySubmit),
+        icon_action(
+            super::controls::vector(assets::get_icon(Icon::X), 12.0, 1.0),
+            i18n.__("关闭回复"),
+            Message::TaskPetReplyClose,
+            CLOSE_REPLY_BUTTON_SIZE,
+            |theme, status| circle_action_style(theme, status, CLOSE_REPLY_BUTTON_SIZE, 0.14),
+        ),
     ]
     .spacing(6)
     .align_y(Alignment::Center)
@@ -318,11 +348,28 @@ pub(super) fn task_card_style(theme: &Theme) -> container::Style {
 }
 
 pub(super) fn tiny_action_button_style(theme: &Theme, status: button::Status) -> button::Style {
-    rounded_action_btn_style(theme, status)
+    circle_action_style(theme, status, REMOVE_BUTTON_SIZE, 0.20)
 }
 
 pub(super) fn reply_button_style(theme: &Theme, status: button::Status) -> button::Style {
-    rounded_action_btn_style(theme, status)
+    circle_action_style(theme, status, REPLY_BUTTON_SIZE, 0.05)
+}
+
+fn circle_action_style(
+    theme: &Theme,
+    status: button::Status,
+    size: f32,
+    rest_alpha: f32,
+) -> button::Style {
+    let mut style = rounded_action_btn_style(theme, status);
+    let alpha = match status {
+        button::Status::Hovered => 0.30,
+        button::Status::Pressed => 0.38,
+        _ => rest_alpha,
+    };
+    style.background = Some(theme.palette().text.scale_alpha(alpha).into());
+    style.border = Border::default().rounded(size / 2.0);
+    style
 }
 
 #[cfg(test)]

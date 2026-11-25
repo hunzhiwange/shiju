@@ -36,6 +36,10 @@ fn task_pet_view_messages_update_interaction_state() {
 
     let _ = super::update(&mut app, ViewMessage::TaskPetContextMenuClosed);
     assert_eq!(app.companion_navigation.task_pet_context_menu_pos, None);
+
+    let _ = super::update(&mut app, ViewMessage::TaskPetReplyClose);
+    assert!(app.pet_state.task_pet_reply_request_id.is_none());
+    assert!(app.pet_state.task_pet_reply_input.is_empty());
 }
 
 
@@ -73,11 +77,30 @@ fn update_handles_task_pet_drag_remove_and_empty_reply_submit() {
     let _ = super::update(&mut app, ViewMessage::TaskPetDragStarted);
     assert!(app.pet_state.task_pet_dragging);
 
+    app.pet_state.task_pet_items.push(crate::app::state::TaskPetItem {
+        request_id: 77,
+        session_id: "session".into(),
+        title: "任务".into(),
+        detail: "已完成".into(),
+        detail_feedback: None,
+        project: None,
+        status: crate::app::state::TaskPetStatus::Completed,
+        last_click_at: None,
+    });
     let _ = super::update(&mut app, ViewMessage::TaskPetRemove(77));
     assert!(app.pet_state.task_pet_dismissed_request_ids.contains(&77));
+    assert!(app.pet_state.task_pet_items.is_empty());
 
     let _ = super::update(&mut app, ViewMessage::TaskPetReplySubmit);
     assert!(app.pet_state.task_pet_reply_request_id.is_none());
+
+    let _ = super::update(&mut app, ViewMessage::TaskPetRestoreReminder);
+    let _ = super::update(&mut app, ViewMessage::TaskPetRestoreReminder);
+    assert!(!app.pet_state.task_pet_dismissed_request_ids.contains(&77));
+    assert_eq!(app.pet_state.task_pet_items.len(), 1);
+    assert_eq!(app.pet_state.task_pet_items[0].request_id, 77);
+    assert!(app.pet_state.controls.reminders_open);
+    assert!(!app.pet_state.task_pet_collapsed);
 }
 
 #[test]
@@ -354,20 +377,36 @@ async fn mini_companion_reply_route_preserves_target_session() {
 }
 
 #[test]
-fn mini_companion_composer_loses_focus_and_retains_its_draft() {
+fn mini_companion_composer_retains_draft_and_project_after_focus_loss() {
     use super::{ViewMessage, update};
     let mut app = crate::app::App::new().0;
     let window = iced::window::Id::unique();
     app.task_pet_window_id = Some(window);
+    let current = "/workspace/current";
+    let other = "/workspace/other";
+    app.navigation_tabs.project_path = Some(current.into());
+    app.workspace_state.recent_projects = vec![current.into(), other.into()];
+
     let _ = update(&mut app, ViewMessage::TaskPetWriteMessage);
+    assert_eq!(app.pet_state.controls.project_path.as_deref(), Some(current));
     let _ = update(&mut app, ViewMessage::TaskPetComposerChanged("继续执行".into()));
+    let _ = update(&mut app, ViewMessage::TaskPetProjectMenuToggle);
+    let _ = update(&mut app, ViewMessage::TaskPetProjectQueryChanged("other".into()));
+    assert_eq!(app.pet_state.controls.project_query.as_deref(), Some("other"));
+    let _ = update(&mut app, ViewMessage::TaskPetProjectSelected(other.into()));
+    assert!(app.pet_state.controls.project_query.is_none());
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some(current));
+
+    let _ = update(&mut app, ViewMessage::TaskPetProjectMenuToggle);
     let _ = update(&mut app, ViewMessage::WindowUnfocused(window));
     assert!(!app.pet_state.controls.composer);
     assert!(!app.pet_state.controls.hovered);
+    assert!(app.pet_state.controls.project_query.is_none());
 
     let _ = update(&mut app, ViewMessage::TaskPetWriteMessage);
     assert!(app.pet_state.controls.composer);
     assert_eq!(app.pet_state.controls.draft, "继续执行");
+    assert_eq!(app.pet_state.controls.project_path.as_deref(), Some(other));
 }
 
 #[test]

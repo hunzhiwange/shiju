@@ -94,6 +94,9 @@ fn sync_task_pet_from_runtime_adds_updates_completes_and_sorts_items() {
     assert_eq!(app.pet_state.task_pet_items[0].detail, "正在检查文件");
     assert_eq!(app.pet_state.task_pet_items[0].project.as_deref(), Some("project-one"));
 
+    app.session_state.sessions.retain(|session| session.id != "s1");
+    app.open_task_pet_reply(7);
+    app.update_task_pet_reply_input("回复草稿".into());
     let runtime =
         app.session_state.session_runtime_states.get_mut("s1").expect("runtime should exist");
     runtime.request_lifecycle.active_agent_request =
@@ -104,7 +107,11 @@ fn sync_task_pet_from_runtime_adds_updates_completes_and_sorts_items() {
 
     assert_eq!(app.pet_state.task_pet_items.len(), 1);
     assert_eq!(app.pet_state.task_pet_items[0].request_id, 8);
+    assert_eq!(app.pet_state.task_pet_items[0].title, "replacement query");
     assert_eq!(app.pet_state.task_pet_items[0].detail, "正在检查文件");
+    assert_eq!(app.pet_state.task_pet_reply_request_id, Some(8));
+    assert_eq!(app.pet_state.task_pet_hovered_request_id, Some(8));
+    assert_eq!(app.pet_state.task_pet_reply_input, "回复草稿");
     assert_eq!(app.pet_state.task_pet_items[0].project.as_deref(), Some("project-two"));
 
     app.session_state

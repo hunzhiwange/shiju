@@ -1,12 +1,15 @@
 //! Companion dock, composer and compact voice controls.
 use desktop_assets::assets::{self, Icon};
 use desktop_i18n::I18n;
+use desktop_ui_controls::overlays::BelowOverlay;
 use desktop_ui_controls::system_settings_common::theme::is_dark_theme;
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-    rounded_action_btn_style, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SettingsSelectLabel,
+    primary_action_btn_style, rounded_action_btn_style, settings_muted_text_style,
+    settings_panel_style, settings_text_input, settings_text_input_style,
 };
-use iced::widget::{stack, text_input, tooltip};
+use iced::widget::scrollable::{Direction, Scrollbar};
+use iced::widget::{scrollable, stack, text_input, tooltip};
 use iced::{Degrees, Gradient, Shadow, Vector, gradient};
 
 use super::*;
@@ -16,20 +19,25 @@ pub fn composer_id() -> iced::widget::Id {
     iced::widget::Id::new("task-pet-composer")
 }
 
+pub fn project_search_id() -> iced::widget::Id {
+    iced::widget::Id::new("task-pet-project-search")
+}
+
 pub(super) fn toolbar<'a>(app: PetView<'a>) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
     let dock = app.dock;
     let size = dock.mode.size();
     let notice = !app.task_pet_items.is_empty();
-    let morphing = (dock.width - size.width).abs() > 1.0 || (dock.height - size.height).abs() > 1.0;
+    let morphing = dock.width != size.width || dock.height != size.height;
+    let split = !morphing
+        && matches!(dock.mode, DockMode::Actions | DockMode::VoiceConnecting | DockMode::Voice);
     let content = match dock.mode {
         // Mount the composer immediately so the focus operation can find it.
-        DockMode::Composer => composer(i18n, dock.draft),
+        DockMode::Composer => composer(i18n, app),
         DockMode::Voice if !morphing => voice_controls(app, i18n),
         DockMode::Idle if dock.height <= 22.0 => Space::new().into(),
-        _ => actions(app, i18n),
+        _ => actions(app, i18n, split),
     };
-    let voice_split = dock.mode == DockMode::Voice && !morphing;
     let pill = container(content)
         .width(dock.width)
         .height(dock.height)
@@ -37,7 +45,7 @@ pub(super) fn toolbar<'a>(app: PetView<'a>) -> Element<'a, Message> {
         .center_y(dock.height)
         .clip(true)
         .style(move |theme: &Theme| {
-            if voice_split {
+            if split {
                 container::Style::default()
             } else if notice && dock.height <= 13.0 {
                 surface(theme, dock.height / 2.0, true)
@@ -53,10 +61,11 @@ pub(super) fn toolbar<'a>(app: PetView<'a>) -> Element<'a, Message> {
     container(pill).center_x(Length::Fill).center_y(DOCK_HEIGHT).into()
 }
 
-fn actions<'a>(app: PetView<'a>, i18n: I18n) -> Element<'a, Message> {
+fn actions<'a>(app: PetView<'a>, i18n: I18n, split: bool) -> Element<'a, Message> {
     let dock = app.dock;
     let width = (dock.width.min(ACTIONS_WIDTH) - 4.0) / 3.0;
     let opacity = ((dock.height - 20.0) / 24.0).clamp(0.0, 1.0);
+    let middle_width = if split { DOCK_HEIGHT } else { width };
     let connecting = matches!(dock.mode, DockMode::VoiceConnecting | DockMode::Voice);
     let middle = if connecting {
         let stop = if dock
@@ -67,22 +76,32 @@ fn actions<'a>(app: PetView<'a>, i18n: I18n) -> Element<'a, Message> {
         } else {
             VoiceOrbAction::End
         };
-        action(voice_dot(opacity), i18n.__("正在连接"), Some(Message::TaskPetVoiceOrb(stop)), width)
+        action(
+            voice_dot(opacity),
+            i18n.__("正在连接"),
+            Some(Message::TaskPetVoiceOrb(stop)),
+            middle_width,
+        )
     } else {
         action(
             line_icon(&WAVE, 18.0, opacity),
             i18n.__("语音聊天"),
             Some(Message::TaskPetStartVoice),
-            width,
+            middle_width,
         )
     };
+    if split {
+        return row![
+            capsule(new_chat_button(i18n, DOCK_HEIGHT, opacity)),
+            capsule(middle),
+            capsule(reminders(app, i18n, DOCK_HEIGHT, opacity)),
+        ]
+        .spacing((ACTIONS_WIDTH - 3.0 * DOCK_HEIGHT) / 2.0)
+        .align_y(Alignment::Center)
+        .into();
+    }
     row![
-        action(
-            icon(Icon::Pencil, 16.0, opacity),
-            i18n.__("新建聊天"),
-            Some(Message::TaskPetWriteMessage),
-            width
-        ),
+        new_chat_button(i18n, width, opacity),
         divider(),
         middle,
         divider(),
@@ -91,6 +110,15 @@ fn actions<'a>(app: PetView<'a>, i18n: I18n) -> Element<'a, Message> {
     .spacing(1)
     .align_y(Alignment::Center)
     .into()
+}
+
+fn new_chat_button(i18n: I18n, size: f32, opacity: f32) -> Element<'static, Message> {
+    action(
+        icon(Icon::Pencil, 16.0, opacity),
+        i18n.__("新建聊天"),
+        Some(Message::TaskPetWriteMessage),
+        size,
+    )
 }
 
 fn voice_dot(opacity: f32) -> Element<'static, Message> {
@@ -105,7 +133,8 @@ fn voice_dot(opacity: f32) -> Element<'static, Message> {
         .into()
 }
 
-fn composer<'a>(i18n: I18n, draft: &'a str) -> Element<'a, Message> {
+fn composer<'a>(i18n: I18n, app: PetView<'a>) -> Element<'a, Message> {
+    let draft = app.dock.draft;
     let input = text_input(i18n.__("开始新聊天"), draft)
         .id(composer_id())
         .on_input(Message::TaskPetComposerChanged)
@@ -129,15 +158,105 @@ fn composer<'a>(i18n: I18n, draft: &'a str) -> Element<'a, Message> {
             style.border.radius = 14.0.into();
             style
         });
-    let add = action(
-        glyph(Icon::Plus, 15.0),
-        i18n.__("新建聊天"),
-        Some(Message::TaskPetWriteMessage),
-        28.0,
-    );
-    container(row![add, input, send].align_y(Alignment::Center).spacing(2))
+    let project = project_select(i18n, app);
+    container(row![project, input, send].align_y(Alignment::Center).spacing(4))
         .padding([0, 8])
         .width(Length::Fill)
+        .into()
+}
+
+fn project_select<'a>(i18n: I18n, app: PetView<'a>) -> Element<'a, Message> {
+    let name_for = |path: &str| {
+        app.project_paths
+            .iter()
+            .position(|candidate| candidate == path)
+            .and_then(|index| app.project_labels.get(index))
+            .filter(|label| !label.is_empty())
+            .cloned()
+            .unwrap_or_else(|| {
+                std::path::Path::new(path).file_name().and_then(|name| name.to_str())
+                    .unwrap_or(path).to_owned()
+            })
+    };
+    let label = app.dock.project_path.map(name_for)
+        .unwrap_or_else(|| i18n.__("选择项目").to_owned());
+    let trigger = button(
+        row![SettingsSelectLabel::new(label), glyph(Icon::ChevronDown, 10.0)]
+            .spacing(4)
+            .align_y(Alignment::Center),
+    )
+    .on_press(Message::TaskPetProjectMenuToggle)
+    .width(112)
+    .height(30)
+    .padding([0, 7])
+    .style(|theme, status| {
+        let mut style = rounded_action_btn_style(theme, status);
+        style.border.radius = 15.0.into();
+        style
+    });
+    let Some(query) = app.dock.project_query else {
+        return trigger.into();
+    };
+    let search = settings_text_input(i18n.__("搜索项目"), query)
+        .id(project_search_id())
+        .on_input(Message::TaskPetProjectQueryChanged)
+        .width(Length::Fill);
+    let query = query.trim().to_lowercase();
+    let selected = app.dock.project_path;
+    let current_unlisted = selected.filter(|path| !app.project_paths.iter().any(|p| p == *path));
+    let mut choices: Vec<Element<'a, Message>> = Vec::new();
+    for path in current_unlisted.into_iter().chain(app.project_paths.iter().map(String::as_str)) {
+        let label = name_for(path);
+        if !label.to_lowercase().contains(&query) && !path.to_lowercase().contains(&query) {
+            continue;
+        }
+        let is_selected = selected == Some(path);
+        let choice = button(
+            column![
+                row![
+                    SettingsSelectLabel::new(label),
+                    if is_selected { glyph(Icon::Check, 12.0) } else { Space::new().width(12).into() },
+                ]
+                .spacing(6)
+                .align_y(Alignment::Center),
+                text(path).size(11).wrapping(iced::widget::text::Wrapping::None)
+                    .style(settings_muted_text_style),
+            ]
+            .spacing(2),
+        )
+        .width(Length::Fill)
+        .padding([5, 8])
+        .clip(true)
+        .style(rounded_action_btn_style)
+        .on_press(Message::TaskPetProjectSelected(path.to_owned()));
+        choices.push(choice.into());
+    }
+    if choices.is_empty() {
+        let label = if query.is_empty() { "暂无项目" } else { "未找到匹配的项目" };
+        choices.push(
+            container(text(i18n.__(label)).size(12).style(settings_muted_text_style))
+                .padding([6, 8])
+                .into(),
+        );
+    }
+    let menu = container(column![
+        search,
+        scrollable(iced::widget::Column::with_children(choices).spacing(4))
+            .width(Length::Fill)
+            .height(Length::Shrink)
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4).spacing(3))),
+    ]
+    .spacing(6))
+        .width(280)
+        .max_height(210)
+        .padding(7)
+        .style(settings_panel_style);
+    BelowOverlay::new(trigger, menu)
+        .show(true)
+        .gap(6.0)
+        .within_window()
+        .dismiss_on_escape()
+        .on_close(Message::TaskPetProjectMenuClose)
         .into()
 }
 
@@ -177,14 +296,9 @@ fn voice_controls<'a>(app: PetView<'a>, i18n: I18n) -> Element<'a, Message> {
         28.0,
     );
     row![
-        capsule(action(
-            glyph(Icon::Pencil, 16.0),
-            i18n.__("新建聊天"),
-            Some(Message::TaskPetWriteMessage),
-            40.0
-        )),
+        capsule(new_chat_button(i18n, DOCK_HEIGHT, 1.0)),
         capsule(row![mic, divider(), orb, divider(), speaker, end].align_y(Alignment::Center)),
-        capsule(reminders(app, i18n, 40.0, 1.0)),
+        capsule(reminders(app, i18n, DOCK_HEIGHT, 1.0)),
     ]
     .spacing(8)
     .align_y(Alignment::Center)
@@ -241,15 +355,16 @@ fn action(
     intent: Option<Message>,
     width: f32,
 ) -> Element<'static, Message> {
+    let height = width.min(DOCK_HEIGHT);
     tooltip(
         button(centered(icon))
             .on_press_maybe(intent)
             .width(width)
-            .height(width.min(36.0))
+            .height(height)
             .padding(0)
-            .style(|theme: &Theme, status| {
+            .style(move |theme: &Theme, status| {
                 let mut style = rounded_action_btn_style(theme, status);
-                style.border = Border::default().rounded(20);
+                style.border = Border::default().rounded(height / 2.0);
                 style.shadow = Shadow::default();
                 style.background = match status {
                     button::Status::Hovered => Some(theme.palette().text.scale_alpha(0.10).into()),
@@ -282,7 +397,7 @@ fn divider() -> Element<'static, Message> {
 }
 
 fn capsule<'a>(content: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
-    container(content).center_y(DOCK_HEIGHT).style(|theme| surface(theme, 22.0, false)).into()
+    container(content).center_y(DOCK_HEIGHT).style(|theme| surface(theme, DOCK_HEIGHT / 2.0, false)).into()
 }
 
 pub(super) fn surface(theme: &Theme, radius: f32, notice: bool) -> container::Style {
@@ -358,7 +473,7 @@ static SPEAKER: LineIcon = Lazy::new(|| {
     stroke("<path d='M3 9h4l5-4v14l-5-4H3zm13-1a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14'/>")
 });
 
-fn stroke(body: &str) -> svg::Handle {
+pub(super) fn stroke(body: &str) -> svg::Handle {
     svg::Handle::from_memory(format!(
         "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><g fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'>{body}</g></svg>"
     ).into_bytes())
@@ -368,7 +483,7 @@ fn line_icon(icon: &LineIcon, size: f32, opacity: f32) -> Element<'static, Messa
     vector((**icon).clone(), size, opacity)
 }
 
-fn vector(handle: svg::Handle, size: f32, opacity: f32) -> Element<'static, Message> {
+pub(super) fn vector(handle: svg::Handle, size: f32, opacity: f32) -> Element<'static, Message> {
     svg::Svg::new(handle)
         .width(size)
         .height(size)

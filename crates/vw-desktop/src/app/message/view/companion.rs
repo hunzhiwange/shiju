@@ -9,7 +9,11 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::TaskPetDockHover(value) => app.pet_state.controls.hovered = value,
         ViewMessage::TaskPetWriteMessage => {
             app.companion_navigation.task_pet_context_menu_pos = None;
-            app.pet_state.controls.composer = true;
+            let controls = &mut app.pet_state.controls;
+            if !controls.composer && (controls.draft.is_empty() || controls.project_path.is_none()) {
+                controls.project_path = app.navigation_tabs.project_path.clone();
+            }
+            controls.composer = true;
             app.pet_state.task_pet_reply_request_id = None;
             app.pet_state.task_pet_reply_input.clear();
             return iced::widget::operation::focus(desktop_task_board::task_pet::composer_id());
@@ -17,8 +21,31 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::TaskPetComposerChanged(value) if app.pet_state.controls.composer => {
             app.pet_state.controls.draft = value;
         }
-        ViewMessage::TaskPetComposerClose => app.pet_state.controls.composer = false,
+        ViewMessage::TaskPetComposerClose => app.pet_state.controls.close_composer(),
         ViewMessage::TaskPetComposerSubmit => return submit(app),
+        ViewMessage::TaskPetProjectMenuToggle if app.pet_state.controls.composer => {
+            if app.pet_state.controls.project_query.is_some() {
+                return close_project_menu(app);
+            }
+            app.pet_state.controls.project_query = Some(String::new());
+            return iced::widget::operation::focus(desktop_task_board::task_pet::project_search_id());
+        }
+        ViewMessage::TaskPetProjectMenuClose => return close_project_menu(app),
+        ViewMessage::TaskPetProjectQueryChanged(query) => {
+            if let Some(current) = &mut app.pet_state.controls.project_query {
+                *current = query;
+            }
+        }
+        ViewMessage::TaskPetProjectSelected(path)
+            if app.pet_state.controls.composer && app.pet_state.controls.project_query.is_some() =>
+        {
+            if app.workspace_state.recent_projects.contains(&path)
+                || app.pet_state.controls.project_path.as_ref() == Some(&path)
+            {
+                app.pet_state.controls.project_path = Some(path);
+                return close_project_menu(app);
+            }
+        }
         ViewMessage::TaskPetToggleReminders => {
             let open =
                 !app.pet_state.controls.reminders_open && !app.pet_state.task_pet_items.is_empty();
@@ -30,7 +57,7 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
         }
         ViewMessage::TaskPetExpandReminders if app.pet_state.controls.reminders_open => {
-            app.pet_state.controls.composer = false;
+            app.pet_state.controls.close_composer();
             app.pet_state.task_pet_collapsed = false;
         }
         ViewMessage::TaskPetOpenReminder(id) if !app.pet_state.task_pet_collapsed => {
@@ -51,8 +78,16 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     Task::none()
 }
 
+fn close_project_menu(app: &mut App) -> Task<Message> {
+    if app.pet_state.controls.project_query.take().is_some() && app.pet_state.controls.composer {
+        iced::widget::operation::focus(desktop_task_board::task_pet::composer_id())
+    } else {
+        Task::none()
+    }
+}
+
 pub(super) fn blur(app: &mut App) {
-    app.pet_state.controls.composer = false;
+    app.pet_state.controls.close_composer();
     app.pet_state.controls.hovered = false;
     app.companion_navigation.task_pet_robot_hovered = false;
     app.companion_navigation.task_pet_context_menu_pos = None;
@@ -85,13 +120,17 @@ fn submit(app: &mut App) -> Task<Message> {
     #[cfg(not(target_arch = "wasm32"))]
     {
         let current = app.navigation_tabs.project_path.clone();
-        let Some(project) = current.clone().or_else(desktop_workspace::basic::pick_folder) else {
+        let Some(project) = app.pet_state.controls.project_path.clone()
+            .or_else(|| current.clone())
+            .or_else(desktop_workspace::basic::pick_folder)
+        else {
             return Task::none();
         };
         let stop = voice_action(app, Some(VoiceOrbAction::End));
         blur(app);
         close_reminders(app);
         app.pet_state.controls.draft.clear();
+        app.pet_state.controls.project_path = None;
 
         let directory = if current.as_ref() == Some(&project) {
             app.session_state

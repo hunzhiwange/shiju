@@ -194,6 +194,10 @@ pub enum ViewMessage {
     TaskPetComposerChanged(String),
     TaskPetComposerSubmit,
     TaskPetComposerClose,
+    TaskPetProjectMenuToggle,
+    TaskPetProjectMenuClose,
+    TaskPetProjectQueryChanged(String),
+    TaskPetProjectSelected(String),
     TaskPetStartVoice,
     TaskPetVoiceMic,
     TaskPetVoiceOrb(desktop_task_board::pet_view::VoiceOrbAction),
@@ -228,6 +232,7 @@ pub enum ViewMessage {
     TaskPetItemClicked(u64),
     /// 主动删除小宠物任务条目
     TaskPetRemove(u64),
+    TaskPetRestoreReminder,
     /// 小宠物任务条目悬停状态改变
     TaskPetHover(Option<u64>),
     /// 展开小宠物任务回复输入
@@ -236,6 +241,7 @@ pub enum ViewMessage {
     TaskPetReplyInputChanged(String),
     /// 提交小宠物任务回复
     TaskPetReplySubmit,
+    TaskPetReplyClose,
     /// 切换指定菜单的展开/折叠状态
     ///
     /// # 参数
@@ -702,6 +708,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 | ViewMessage::TaskPetToggleWindow
                 | ViewMessage::TaskPetWriteMessage
                 | ViewMessage::TaskPetComposerSubmit
+                | ViewMessage::TaskPetProjectMenuToggle
+                | ViewMessage::TaskPetProjectSelected(_)
                 | ViewMessage::TaskPetStartVoice
                 | ViewMessage::TaskPetToggleReminders
                 | ViewMessage::TaskPetExpandReminders
@@ -712,6 +720,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 | ViewMessage::TaskPetReplySubmit
                 | ViewMessage::TaskPetItemClicked(_)
                 | ViewMessage::TaskPetRemove(_)
+                | ViewMessage::TaskPetRestoreReminder
+                | ViewMessage::TaskPetReplyClose
         )
     {
         return Task::none();
@@ -849,6 +859,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::TaskPetComposerChanged(_)
         | ViewMessage::TaskPetComposerSubmit
         | ViewMessage::TaskPetComposerClose
+        | ViewMessage::TaskPetProjectMenuToggle
+        | ViewMessage::TaskPetProjectMenuClose
+        | ViewMessage::TaskPetProjectQueryChanged(_)
+        | ViewMessage::TaskPetProjectSelected(_)
         | ViewMessage::TaskPetStartVoice
         | ViewMessage::TaskPetVoiceMic
         | ViewMessage::TaskPetVoiceOrb(_)
@@ -874,7 +888,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::TaskPetDragStarted => {
-            app.pet_state.controls.composer = false;
+            app.pet_state.controls.close_composer();
             if let Some(window_id) = app.task_pet_window_id {
                 app.pulse_task_pet_motion();
                 iced::window::drag(window_id)
@@ -964,17 +978,27 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.dismiss_task_pet_item(request_id);
             Task::none()
         }
+        ViewMessage::TaskPetRestoreReminder => {
+            app.companion_navigation.task_pet_context_menu_pos = None;
+            app.restore_task_pet_reminder();
+            Task::none()
+        }
         ViewMessage::TaskPetHover(request_id) => {
             app.set_task_pet_hovered(request_id);
             Task::none()
         }
         ViewMessage::TaskPetReplyPressed(request_id) => {
-            app.pet_state.controls.composer = false;
+            app.pet_state.controls.close_composer();
             app.open_task_pet_reply(request_id);
             iced::widget::operation::focus(desktop_task_board::task_pet::reply_id())
         }
         ViewMessage::TaskPetReplyInputChanged(value) => {
             app.update_task_pet_reply_input(value);
+            Task::none()
+        }
+        ViewMessage::TaskPetReplyClose => {
+            app.pet_state.task_pet_reply_request_id = None;
+            app.pet_state.task_pet_reply_input.clear();
             Task::none()
         }
         ViewMessage::TaskPetReplySubmit => {
@@ -1214,6 +1238,9 @@ fn handle_global_key(
     if key == iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape)
         && app.pet_state.controls.composer
     {
+        if app.pet_state.controls.project_query.is_some() {
+            return companion::update(app, ViewMessage::TaskPetProjectMenuClose);
+        }
         companion::blur(app);
         return Task::none();
     }

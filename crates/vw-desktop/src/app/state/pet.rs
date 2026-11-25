@@ -134,9 +134,10 @@ impl App {
             })
             .collect::<Vec<_>>();
 
-        let session_for = |request_id| {
+        let session_for = |request_id: Option<u64>| {
+            let request_id = request_id?;
             self.pet_state.task_pet_items.iter()
-                .find(|item| Some(item.request_id) == request_id)
+                .find(|item| item.request_id == request_id)
                 .map(|item| item.session_id.clone())
         };
         let replying = session_for(self.pet_state.task_pet_reply_request_id);
@@ -147,13 +148,14 @@ impl App {
                 (request.id, request.session.clone(), request.root.clone(), snapshot)
             }).collect(),
         );
-        let request_for = |session: Option<String>| {
+        let request_for = |session: Option<&str>| {
+            let session = session?;
             self.pet_state.task_pet_items.iter()
-                .find(|item| Some(item.session_id.as_str()) == session.as_deref())
+                .find(|item| item.session_id == session)
                 .map(|item| item.request_id)
         };
-        self.pet_state.task_pet_reply_request_id = request_for(replying);
-        self.pet_state.task_pet_hovered_request_id = request_for(hovered);
+        self.pet_state.task_pet_reply_request_id = request_for(replying.as_deref());
+        self.pet_state.task_pet_hovered_request_id = request_for(hovered.as_deref());
         if self.pet_state.task_pet_reply_request_id.is_none() {
             self.pet_state.task_pet_reply_input.clear();
         }

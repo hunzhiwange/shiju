@@ -147,6 +147,10 @@ fn submit(app: &mut App) -> Task<Message> {
         } else {
             project.clone()
         };
+        if let Some(id) = app.session_state.active_session_id.clone() {
+            let files = std::mem::take(&mut app.session_state.files);
+            app.get_session_runtime_mut(&id).parked_input_files = Some(files);
+        }
         let switch = if current.as_ref() == Some(&project) {
             app.navigation_tabs.show_project();
             Task::none()
@@ -154,10 +158,6 @@ fn submit(app: &mut App) -> Task<Message> {
             app.open_project_and_index(project.clone())
         };
         app.navigation_panels.focus_chat();
-        if let Some(id) = app.session_state.active_session_id.clone() {
-            let files = std::mem::take(&mut app.session_state.files);
-            app.get_session_runtime_mut(&id).parked_input_files = Some(files);
-        }
         let draft = crate::app::message::project::open_session_draft(app, project, directory);
         // The compact composer sends just its own text, even if the old
         // composer parked attachments or a draft before this window opened.

@@ -15,41 +15,55 @@ pub enum FilePreview {
     Text { content: String, truncated: bool },
 }
 
-pub fn unsupported_preview_kind(path: &str) -> Option<UnsupportedPreviewKind> {
-    let ext = std::path::Path::new(path)
+fn lowercase_extension(path: &str) -> String {
+    std::path::Path::new(path)
         .extension()
         .and_then(|s| s.to_str())
-        .map(|s| s.to_lowercase())
-        .unwrap_or_default();
+        .map(str::to_ascii_lowercase)
+        .unwrap_or_default()
+}
 
-    if matches!(ext.as_str(), "zip" | "tar" | "gz" | "rar" | "7z" | "bz2" | "xz") {
-        Some(UnsupportedPreviewKind::Archive)
-    } else if ext == "pdf" {
-        Some(UnsupportedPreviewKind::Pdf)
-    } else {
-        None
+pub fn unsupported_preview_kind(path: &str) -> Option<UnsupportedPreviewKind> {
+    match lowercase_extension(path).as_str() {
+        "zip" | "tar" | "gz" | "rar" | "7z" | "bz2" | "xz" => Some(UnsupportedPreviewKind::Archive),
+        "pdf" => Some(UnsupportedPreviewKind::Pdf),
+        _ => None,
     }
 }
 
+const SAMPLE_BYTES: usize = 4096;
+const UTF8_LOOKAHEAD_BYTES: usize = char::MAX.len_utf8() - 1;
+
 fn read_preview_sample(path: &str) -> Option<Vec<u8>> {
     use std::fs::File;
-    use std::io::{Read, Take};
-
-    const SAMPLE_BYTES: u64 = 4096;
+    use std::io::Read;
 
     let file = File::open(path).ok()?;
     let mut sample = Vec::new();
-    let mut take: Take<File> = file.take(SAMPLE_BYTES);
-    take.read_to_end(&mut sample).ok()?;
+    file.take((SAMPLE_BYTES + UTF8_LOOKAHEAD_BYTES) as u64).read_to_end(&mut sample).ok()?;
     Some(sample)
 }
 
 pub fn file_looks_like_text(path: &str) -> bool {
+    match lowercase_extension(path).as_str() {
+        // The text preview already decodes invalid UTF-8 lossily.
+        "txt" | "md" | "markdown" | "mdx" | "rst" | "adoc" | "log" | "csv" | "tsv" | "json"
+        | "jsonc" | "jsonl" | "toml" | "yaml" | "yml" | "ini" | "cfg" | "conf" | "xml" | "html"
+        | "htm" | "css" | "scss" | "js" | "mjs" | "cjs" | "jsx" | "ts" | "tsx" | "vue"
+        | "svelte" | "rs" | "go" | "py" | "rb" | "php" | "lua" | "java" | "kt" | "swift" | "cs"
+        | "c" | "h" | "cpp" | "hpp" | "sh" | "bash" | "zsh" | "ps1" | "sql" => return true,
+        _ => {}
+    }
+
     let Some(sample) = read_preview_sample(path) else {
         return true;
     };
 
-    std::str::from_utf8(&sample).is_ok()
+    // Look past the sample boundary only to complete a UTF-8 character that starts within it.
+    match std::str::from_utf8(&sample) {
+        Ok(_) => true,
+        Err(error) => error.valid_up_to() >= SAMPLE_BYTES,
+    }
 }
 
 pub fn read_preview_text(path: &str) -> (String, bool) {
@@ -119,12 +133,7 @@ pub fn read_preview_text(path: &str) -> (String, bool) {
 pub fn read_file_preview(path: &str) -> FilePreview {
     let mut truncated = false;
 
-    // 获取文件扩展名（转小写）
-    let ext = std::path::Path::new(path)
-        .extension()
-        .and_then(|s| s.to_str())
-        .map(|s| s.to_lowercase())
-        .unwrap_or_default();
+    let ext = lowercase_extension(path);
 
     // 检测文件类型
     let is_image = matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "gif" | "bmp" | "webp");

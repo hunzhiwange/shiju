@@ -396,11 +396,11 @@ fn tree_event(app: &mut App, event: ProjectMessage) -> Task<Message> {
 
 fn open_changed(app: &mut App, path: String) -> Task<Message> {
     let state = &mut app.git_workbench;
-    if state.repo.is_some()
-        && state.git.git_diff_file_metas.iter().any(|file| file.path == path && !file.new_exists)
-    {
+    if state.repo.is_some() {
         state.show_editor = false;
+        state.files.editor_popover = None;
         state.git.git_repository.history = false;
+        state.git.git_diff_scroll_offset_y = 0.0;
         return update_git(app, GitMessage::FocusFile(path));
     }
     open_file(state, path, None)

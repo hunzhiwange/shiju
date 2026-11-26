@@ -47,11 +47,16 @@ async fn file_preview_reconciles_loading_content_errors_and_tab_switches() {
     let _ = update(&mut app, Event::ShowEditor(true));
     let tree = |event| files::Event::Tree(event);
     use desktop_file_tree::ProjectMessage;
+    let select_tree_file = || {
+        tree(ProjectMessage::FileTreeSelected {
+            project_path: "/tmp/demo".into(),
+            path: "/tmp/demo/a.rs".into(),
+            directory: false,
+            modifiers: iced::keyboard::Modifiers::empty(),
+        })
+    };
     dispatch(&mut app, tree(ProjectMessage::FileManagerShowChanges(false)));
-    dispatch(&mut app, tree(ProjectMessage::FileManagerShowChanges(true)));
-    assert!(app.git_workbench.show_editor);
-    assert!(!app.git_workbench.files.show_all_files);
-    dispatch(&mut app, tree(ProjectMessage::OpenChangedFile("a.rs".into())));
+    dispatch(&mut app, select_tree_file());
     let first = app.git_workbench.files.active_preview().unwrap().id;
     render(&app);
     dispatch(&mut app, files::Event::Opened(first, Ok(("fn main() {}".into(), false))));
@@ -81,14 +86,23 @@ async fn file_preview_reconciles_loading_content_errors_and_tab_switches() {
         &mut app,
         files::Event::Editor(first, iced_code_editor::Message::Paste("// edit\n".into())),
     );
-    dispatch(&mut app, tree(ProjectMessage::FileManagerShowChanges(false)));
     dispatch(&mut app, tree(ProjectMessage::FileManagerShowChanges(true)));
+    app.git_workbench.git.git_repository.history = true;
+    app.git_workbench.git.git_focused_file = None;
     dispatch(&mut app, tree(ProjectMessage::OpenChangedFile("a.rs".into())));
+    assert!(!app.git_workbench.show_editor);
+    assert!(!app.git_workbench.git.git_repository.history);
+    assert_eq!(app.git_workbench.git.git_focused_file.as_deref(), Some("a.rs"));
+    assert!(app.git_workbench.git.expanded_files_set.contains("a.rs"));
+    assert!(!app.git_workbench.files.show_all_files);
+
+    dispatch(&mut app, tree(ProjectMessage::FileManagerShowChanges(false)));
+    dispatch(&mut app, select_tree_file());
     let preview = app.git_workbench.files.active_preview().unwrap();
     assert_eq!(preview.id, first);
     assert!(preview.editor().unwrap().dirty);
     assert!(app.git_workbench.show_editor);
-    assert!(!app.git_workbench.files.show_all_files);
+    assert!(app.git_workbench.files.show_all_files);
 
     let _ = files::open_file(&mut app.git_workbench, "docs/说明.md".into(), None);
     let second = app.git_workbench.files.active_preview().unwrap().id;

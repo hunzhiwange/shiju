@@ -250,7 +250,13 @@ fn view_layout<'a>(
     }
     use domain::ViewMessage as Local;
     let input = view_input(app);
-    let projection = domain::project_files(&input);
+    let mut projection = domain::project_files(&input);
+    if workbench
+        && let Some(focused) = app.git.git_focused_file.as_deref()
+        && let Some(index) = projection.diff_files.iter().position(|file| file.path == focused)
+    {
+        projection.diff_files[..=index].rotate_right(1);
+    }
     let custom_diff = app.git.show_git_custom_diff_modal.then(|| {
         embedded_custom_text_diff_view(
             app,

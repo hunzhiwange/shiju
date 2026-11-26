@@ -2,7 +2,6 @@
 //! UTF-8 边界、越界高亮和仅空白变化用于防止字符串切片回归。
 
 use iced::Color;
-use iced::advanced::Widget;
 
 use crate::DiffTheme;
 
@@ -145,7 +144,7 @@ fn word_diff_ranges_cover_whole_text_insertions_and_deletions() {
 }
 
 #[test]
-fn render_line_content_builds_rows_for_plain_syntax_and_highlighted_ranges() {
+fn render_line_content_accepts_plain_syntax_and_highlighted_ranges() {
     let base = Color::from_rgb8(1, 2, 3);
     let highlight = Color::from_rgb8(4, 5, 6);
 
@@ -180,18 +179,11 @@ fn render_line_content_accepts_empty_content_and_ranges_beyond_content() {
 }
 
 #[test]
-fn render_line_content_splits_disjoint_highlight_ranges_at_exact_boundaries() {
-    let row = render_line_content::<() >(
-        "abcdef",
-        Lang::Other,
-        DiffTheme::GitHub,
-        false,
-        &[1..3, 4..6],
-        Color::TRANSPARENT,
-        Color::BLACK,
-    );
-
-    assert_eq!(Widget::children(&row).len(), 4);
+fn line_content_parts_splits_disjoint_highlight_ranges_at_exact_boundaries() {
+    let parts = line_content_parts("abcdef", Lang::Other, DiffTheme::GitHub, false, &[1..3, 4..6]);
+    let ranges: Vec<_> =
+        parts.iter().map(|part| (part.start..part.end, part.is_highlighted)).collect();
+    assert_eq!(ranges, [(0..1, false), (1..3, true), (3..4, false), (4..6, true)]);
 }
 
 

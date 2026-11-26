@@ -18,8 +18,8 @@
 
 use std::ops::Range;
 
-use iced::widget::{container, row, text};
-use iced::{Background, Color};
+use iced::widget::{container, rich_text, span, text};
+use iced::{Color, Element};
 
 use crate::DiffTheme;
 
@@ -452,43 +452,31 @@ pub(crate) fn line_content_parts(
     parts
 }
 
-fn build_line_content_row<Message: 'static>(
+fn build_line_content<Message: 'static>(
     content: &str,
     parts: &[LineContentPart],
     base_bg: Color,
     highlight_bg: Color,
-) -> iced::widget::Row<'static, Message> {
-    let mut row = row![];
+) -> Element<'static, Message> {
+    // Shape the full line so wrapping can start each continuation at the left edge.
+    let spans: Vec<_> = parts
+        .iter()
+        .map(|part| {
+            let background = if part.is_highlighted { highlight_bg } else { base_bg };
+            span::<(), iced::Font>(content[part.start..part.end].to_owned())
+                .color_maybe(part.color)
+                .background_maybe((background.a > 0.0).then_some(background))
+        })
+        .collect();
 
-    for part in parts {
-        let chunk_text = &content[part.start..part.end];
-        // Iced's basic shaping draws a missing glyph for tabs instead of blank indentation.
-        let shaping =
-            if chunk_text.contains('\t') { text::Shaping::Advanced } else { text::Shaping::Auto };
-        let bg = if part.is_highlighted { highlight_bg } else { base_bg };
-        row = row.push(
-            container(
-                if let Some(color) = part.color {
-                    text(chunk_text.to_owned()).color(color)
-                } else {
-                    text(chunk_text.to_owned())
-                }
-                .size(13)
-                .shaping(shaping)
-                .line_height(iced::widget::text::LineHeight::Relative(1.2)),
-            )
-            .padding([2, 0])
-            .style(move |_| iced::widget::container::Style {
-                text_color: None,
-                background: Some(Background::Color(bg)),
-                border: iced::Border::default(),
-                shadow: iced::Shadow::default(),
-                snap: false,
-            }),
-        );
-    }
-
-    row
+    container(
+        rich_text(spans)
+            .size(13)
+            .line_height(text::LineHeight::Relative(1.2))
+            .wrapping(text::Wrapping::WordOrGlyph),
+    )
+    .padding([2, 0])
+    .into()
 }
 
 pub fn render_line_content<Message: 'static>(
@@ -499,9 +487,9 @@ pub fn render_line_content<Message: 'static>(
     ranges: &[Range<usize>],
     base_bg: Color,
     highlight_bg: Color,
-) -> iced::widget::Row<'static, Message> {
+) -> Element<'static, Message> {
     let parts = line_content_parts(content, lang, theme, highlight_syntax, ranges);
-    build_line_content_row(content, &parts, base_bg, highlight_bg)
+    build_line_content(content, &parts, base_bg, highlight_bg)
 }
 
 /// 获取差异视图的配色方案

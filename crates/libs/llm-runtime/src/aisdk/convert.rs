@@ -305,6 +305,22 @@ fn legacy_request_info(
                     if wire.get("role").and_then(Value::as_str) == Some("developer") {
                         wire.insert("role".into(), Value::String("system".into()));
                     }
+                    // The raw Chat override bypasses the SDK's user image conversion.
+                    if wire.get("role").and_then(Value::as_str) == Some("user")
+                        && let Some(content) = source.get("content").and_then(Value::as_str)
+                    {
+                        let (text, images) = agent_multimodal::parse_image_markers(content);
+                        if !images.is_empty() {
+                            let mut parts = Vec::new();
+                            if !text.is_empty() {
+                                parts.push(serde_json::json!({"type":"text", "text":text}));
+                            }
+                            parts.extend(images.into_iter().map(|url| {
+                                serde_json::json!({"type":"image_url", "image_url":{"url":url}})
+                            }));
+                            wire.insert("content".into(), Value::Array(parts));
+                        }
+                    }
                     Some(Value::Object(wire))
                 })
                 .collect(),

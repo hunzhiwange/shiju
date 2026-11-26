@@ -199,8 +199,8 @@ pub fn build_chat_messages(system: &[String], msgs: &[Value], model: &provider::
 /// 确保 OpenAI 工具调用序列的合法性
 ///
 /// 根据 OpenAI API 的要求，当 assistant 消息包含 tool_calls 时，
-/// 必须紧随对应的 tool 消息作为响应。此函数会检查并自动补齐
-/// 缺失的 tool 响应消息。
+/// 必须紧随对应的 tool 消息作为响应。此函数会恢复被上下文消息隔开的
+/// 工具结果，并自动补齐缺失的 tool 响应消息。
 ///
 /// # 参数
 ///
@@ -210,7 +210,7 @@ pub fn build_chat_messages(system: &[String], msgs: &[Value], model: &provider::
 ///
 /// 1. 遍历所有 assistant 消息，提取其中的 tool_calls ID
 /// 2. 检查紧随其后是否有对应的 tool 响应消息
-/// 3. 如果缺失，自动插入占位的 tool 响应消息
+/// 3. 恢复被上下文分隔的完整结果，或为缺失的结果插入占位消息
 /// 4. 确保每个 tool_call 都有对应的 tool 响应
 ///
 /// # 注意
@@ -285,14 +285,30 @@ pub fn ensure_openai_tool_call_sequence(msgs: &mut Vec<Value>) {
             j += 1;
         }
 
-        // 检查是否有缺失的 tool 响应
-        if seen.len() != ids.len() {
-            // 收集所有缺失的 tool_call_id
-            let mut missing = Vec::new();
-            for id in &ids {
-                if !seen.contains(id) {
-                    missing.push(id.clone());
+        let missing: Vec<_> = ids.iter().filter(|id| !seen.contains(*id)).collect();
+        if !missing.is_empty() {
+            // 截图等工具输出可以附带用户消息。仅在同一批结果齐全时，
+            // 将工具结果移到这些消息之前，保留两组消息各自的顺序。
+            let mut pending: std::collections::HashSet<&str> =
+                missing.iter().map(|id| id.as_str()).collect();
+            let mut end = j;
+            while !pending.is_empty()
+                && let Some(message) = msgs.get(end)
+            {
+                match message["role"].as_str() {
+                    Some("user" | "system" | "developer") => {}
+                    Some("tool")
+                        if message["tool_call_id"]
+                            .as_str()
+                            .is_some_and(|id| pending.remove(id)) => {}
+                    _ => break,
                 }
+                end += 1;
+            }
+            if pending.is_empty() {
+                msgs[j..end].sort_by_key(|message| message["role"] != "tool");
+                i = end;
+                continue;
             }
 
             // 为每个缺失的 tool_call_id 插入占位的 tool 响应消息

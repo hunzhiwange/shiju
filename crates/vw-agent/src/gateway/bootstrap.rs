@@ -232,6 +232,12 @@ async fn serve_gateway(
     } else {
         app
     };
+    #[cfg(not(target_arch = "wasm32"))]
+    let app = if local_only {
+        app.layer(axum::Extension(api::handlers::media::LocalMediaCatalog))
+    } else {
+        app
+    };
 
     #[cfg(target_os = "macos")]
     let refresh_service = api::handlers::agent_apps::init_usage_refresh().await;

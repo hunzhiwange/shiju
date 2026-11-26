@@ -7,6 +7,7 @@ pub(super) mod image_turn;
 use std::{
     collections::BTreeMap,
     io::{Read, Write},
+    net::SocketAddr,
     path::PathBuf,
     sync::OnceLock,
 };
@@ -25,7 +26,9 @@ use agent_multimodal::assets::{ImageAssetScope, ImageAssetStore};
 use axum::{
     Extension, Json, Router,
     body::{Body, Bytes},
-    extract::{DefaultBodyLimit, FromRequest, Path, Query, Request, rejection::QueryRejection},
+    extract::{
+        ConnectInfo, DefaultBodyLimit, FromRequest, Path, Query, Request, rejection::QueryRejection,
+    },
     http::{HeaderMap, StatusCode, header},
     middleware::{Next, from_fn},
     response::{IntoResponse, Response},
@@ -46,10 +49,13 @@ static WORKERS: Semaphore = Semaphore::const_new(MAX_ACTIVE_WORKERS);
 static READERS: Semaphore = Semaphore::const_new(MAX_ASSET_READERS);
 static REQUESTS: Semaphore = Semaphore::const_new(MAX_ACTIVE_WORKERS);
 
+/// Installed only on a direct loopback listener with tunneling disabled.
+#[derive(Clone, Copy)]
+pub(crate) struct LocalMediaCatalog;
+
 pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
     let api_path = |path: &'static str| path.strip_prefix("/api").expect("media contract prefix");
     Router::new()
-        .route(api_path(MEDIA_MODELS_PATH), get(models))
         .route(
             api_path(MEDIA_JOBS_PATH),
             post(submit).layer(DefaultBodyLimit::max(MAX_MEDIA_SUBMIT_BYTES)),
@@ -57,6 +63,7 @@ pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
         .route(api_path(MEDIA_JOB_ROUTE), get(job).delete(cancel))
         .route(api_path(MEDIA_ASSET_ROUTE), get(asset))
         .route_layer(from_fn(authenticate))
+        .route(api_path(MEDIA_MODELS_PATH), get(models))
 }
 
 #[derive(Clone)]
@@ -197,25 +204,59 @@ struct CatalogQuery {
     global: bool,
 }
 
+fn is_unpaired_local_catalog(
+    query: &Result<Query<CatalogQuery>, QueryRejection>,
+    tenant: &TenantScope,
+    local: Option<Extension<LocalMediaCatalog>>,
+    peer: Option<Extension<ConnectInfo<SocketAddr>>>,
+    headers: &HeaderMap,
+) -> bool {
+    matches!(query, Ok(Query(CatalogQuery { global: true, session_id: None, project_id: None })))
+        && tenant == &TenantScope::default()
+        && local.is_some()
+        && peer.is_some_and(|Extension(ConnectInfo(peer))| peer.ip().is_loopback())
+        && !headers.contains_key(header::AUTHORIZATION)
+        && !headers.keys().any(|key| {
+            key == header::FORWARDED || key.as_str().starts_with("x-forwarded-")
+        })
+}
+
 async fn models(
-    Extension(identity): Extension<Identity>,
+    Extension(tenant): Extension<TenantScope>,
+    local: Option<Extension<LocalMediaCatalog>>,
+    peer: Option<Extension<ConnectInfo<SocketAddr>>>,
+    headers: HeaderMap,
     query: Result<Query<CatalogQuery>, QueryRejection>,
 ) -> Response {
     respond(
         async {
             use vw_api_transport::id::{ProjectId, ProjectScope};
 
+            let identity = if is_unpaired_local_catalog(&query, &tenant, local, peer, &headers) {
+                let config = agent_config::runtime::get_global_for_tenant(&tenant)
+                    .await
+                    .map_err(|_| Code::Unavailable)?;
+                if config.gateway.auth_enabled {
+                    return Err(Code::Unauthorized);
+                }
+                None
+            } else {
+                Some(authenticate_headers(tenant.clone(), &headers).await?)
+            };
             let _slot = REQUESTS.try_acquire().map_err(|_| Code::Backpressure)?;
             let Query(query) = query.map_err(|_| Code::InvalidRequest)?;
             let routes = match (query.global, query.session_id, query.project_id) {
-                (true, None, None) => deployments::global_routes(identity.tenant).await?,
+                (true, None, None) => deployments::global_routes(tenant).await?,
                 (false, Some(session_id), None) => {
+                    let identity = identity.ok_or(Code::Unauthorized)?;
                     let context = identity.session(MediaSessionQuery { session_id }).await?;
                     deployments::routes(identity.tenant, context.directory, None).await?
                 }
                 (false, None, Some(project_id)) => {
-                    let scope = ProjectScope::new(identity.tenant.clone(), ProjectId::from(project_id))
-                        .map_err(|_| Code::InvalidRequest)?;
+                    let identity = identity.ok_or(Code::Unauthorized)?;
+                    let scope =
+                        ProjectScope::new(identity.tenant.clone(), ProjectId::from(project_id))
+                            .map_err(|_| Code::InvalidRequest)?;
                     let directory = crate::project::get(&scope).await.map_err(|_| Code::Unavailable)?
                         .ok_or(Code::NotFound)?.worktree;
                     deployments::routes(identity.tenant, directory, None).await?

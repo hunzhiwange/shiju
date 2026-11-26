@@ -1,6 +1,37 @@
 use super::*;
 
 #[test]
+fn unpaired_catalog_requires_a_direct_local_default_scope_request() {
+    let tenant = TenantScope::default();
+    let other_tenant = TenantScope::new("media-fixture", "other").unwrap();
+    let local = Some(Extension(LocalMediaCatalog));
+    let loopback = Some(Extension(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 1234)))));
+    let remote = Some(Extension(ConnectInfo(SocketAddr::from(([192, 0, 2, 1], 1234)))));
+    let global = Query::try_from_uri(&"/?global=true".parse().unwrap());
+    let session = Query::try_from_uri(&"/?session_id=fixture".parse().unwrap());
+    let project = Query::try_from_uri(&"/?project_id=fixture".parse().unwrap());
+    let mut headers = HeaderMap::new();
+
+    assert!(is_unpaired_local_catalog(&global, &tenant, local, loopback, &headers));
+    for (query, tenant, local, peer) in [
+        (&session, &tenant, local, loopback),
+        (&project, &tenant, local, loopback),
+        (&global, &other_tenant, local, loopback),
+        (&global, &tenant, None, loopback),
+        (&global, &tenant, local, None),
+        (&global, &tenant, local, remote),
+    ] {
+        assert!(!is_unpaired_local_catalog(query, tenant, local, peer, &headers));
+    }
+
+    headers.insert("x-forwarded-for", "192.0.2.1".parse().unwrap());
+    assert!(!is_unpaired_local_catalog(&global, &tenant, local, loopback, &headers));
+    headers.clear();
+    headers.insert(header::AUTHORIZATION, "Bearer fixture".parse().unwrap());
+    assert!(!is_unpaired_local_catalog(&global, &tenant, local, loopback, &headers));
+}
+
+#[test]
 fn media_gateway_flow_rechecks_input_shape() {
     let file = |mime: &str| MediaFile { mime: mime.into(), bytes: vec![1] };
     assert_eq!(

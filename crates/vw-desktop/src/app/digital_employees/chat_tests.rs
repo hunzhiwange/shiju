@@ -128,7 +128,17 @@ async fn check_entry(kind: &str) {
     app.workspace_state.project_id = Some("fixture-project".into());
     app.current_session_runtime_mut().input_editor =
         iced::widget::text_editor::Content::with_text("你好");
-    let _ = app.update(Message::Chat(ChatMessage::SendPressed));
+    let expected_message = if kind == "shared" {
+        let _ = app.update(Message::Chat(ChatMessage::EmployeeCommandSelected {
+            input: "/new",
+            needs_argument: false,
+        }));
+        assert_eq!(app.current_session_runtime().input_editor.text(), "你好");
+        "/new"
+    } else {
+        let _ = app.update(Message::Chat(ChatMessage::SendPressed));
+        "你好"
+    };
     let runtime = app.current_session_runtime();
     let request = runtime.request_lifecycle.active_agent_request.expect("employee chat request");
     let selection = chat::Selection {
@@ -180,7 +190,7 @@ async fn check_entry(kind: &str) {
     assert_eq!(body["agent"], "acp-employee-acp");
     assert_eq!(body["session_id"], request.session);
     assert_eq!(body["options"]["employee_target"], json!({"employee_id":"worker-1","kind":kind}));
-    assert_eq!(body["messages"], json!([{"role":"user","content":"你好"}]));
+    assert_eq!(body["messages"], json!([{"role":"user","content":expected_message}]));
     assert!(recorded[2].path.ends_with("/stop"));
 
     let info = session_info::Info {

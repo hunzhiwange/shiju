@@ -6,9 +6,10 @@ fn input(app: &App) -> domain::QuickInput<'_> {
         i18n: crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         quick_messages: &app.general_settings.quick_messages,
         quick_message_group: app.session_state.input_popovers.quick_message_group,
+        employee_commands: crate::app::message::chat::input::employee_commands_available(app)
+            .then_some(app.session_state.input_popovers.employee_commands),
         recommended_prompt: app.session_state.input_popovers.recommended_prompt,
         recommended_prompts: app.agents_settings.entries.iter().find(|e| e.key == key).map(|e| e.recommended_prompts.as_slice()),
-        show_workspace: app.navigation_mode.workspace_mode == crate::app::state::WorkspaceMode::Work,
         project_is_git_repo: app.workspace_state.project_is_git_repo,
         recent_projects: &app.workspace_state.recent_projects,
         recent_projects_edits: &app.workspace_state.recent_projects_edits,
@@ -40,6 +41,9 @@ fn map_message(msg: desktop_chat_input::input_panel::quick_message::Message) -> 
     match msg {
         Local::QuickMessageSelected(value) => Message::Chat(message::ChatMessage::QuickMessageSelected(value)),
         Local::QuickMessageGroupChanged(value) => Message::Chat(message::ChatMessage::QuickMessageGroupChanged(value)),
+        Local::EmployeeCommandMenuChanged(open) => Message::Chat(message::ChatMessage::EmployeeCommandMenuChanged(open)),
+        Local::EmployeeCommandSelected { input, needs_argument } =>
+            Message::Chat(message::ChatMessage::EmployeeCommandSelected { input, needs_argument }),
         #[cfg(not(target_arch = "wasm32"))]
         Local::MediaShortcutMenuChanged(open) => Message::Chat(message::ChatMessage::MediaShortcutMenuChanged(open)),
         #[cfg(not(target_arch = "wasm32"))]
@@ -58,6 +62,8 @@ fn map_message(msg: desktop_chat_input::input_panel::quick_message::Message) -> 
         ),
         #[cfg(not(target_arch = "wasm32"))]
         Local::SelectVideoEditorSkill => Message::Chat(message::ChatMessage::SelectVideoEditorSkill),
+        #[cfg(not(target_arch = "wasm32"))]
+        Local::SelectAppDevelopmentSkill => Message::Chat(message::ChatMessage::SelectAppDevelopmentSkill),
         #[cfg(not(target_arch = "wasm32"))]
         Local::SelectShijuSkill(value) => Message::Chat(message::ChatMessage::SelectShijuSkill(value)),
         Local::AgentRecommendedPromptSelected(value) => Message::Chat(message::ChatMessage::AgentRecommendedPromptSelected(value)),

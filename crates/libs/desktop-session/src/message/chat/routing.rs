@@ -24,6 +24,8 @@ impl<M, P, V, D, T, G, Media> ChatMessage<M, P, V, D, T, G, Media> {
             ChatMessage::InputChanged(_)
             | ChatMessage::QuickMessageSelected(_)
             | ChatMessage::QuickMessageGroupChanged(_)
+            | ChatMessage::EmployeeCommandMenuChanged(_)
+            | ChatMessage::EmployeeCommandSelected { .. }
             | ChatMessage::RecommendedPromptMenuChanged(_)
             | ChatMessage::ToggleShijuSkillMenu
             | ChatMessage::SelectShijuSkill(_)
@@ -32,6 +34,7 @@ impl<M, P, V, D, T, G, Media> ChatMessage<M, P, V, D, T, G, Media> {
             | ChatMessage::MediaShortcutMenuChanged(_)
             | ChatMessage::MediaPromptSelected(_)
             | ChatMessage::SelectVideoEditorSkill
+            | ChatMessage::SelectAppDevelopmentSkill
             | ChatMessage::OpenInputContextMenu { .. }
             | ChatMessage::CloseInputContextMenu
             | ChatMessage::CopyInputSelection

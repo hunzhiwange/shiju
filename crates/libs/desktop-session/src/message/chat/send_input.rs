@@ -43,6 +43,7 @@ pub fn prepare_send_input<R>(
         if query.trim().is_empty() {
             return SendInputEffect::None;
         }
+        let stop_current_turn = query.trim() == "/stop" && runtime.request_lifecycle.is_requesting;
         return SendInputEffect::Send(QueueItem {
             media_model: None,
             created_ms,
@@ -62,9 +63,10 @@ pub fn prepare_send_input<R>(
             acp_history_mode: super::request::AcpHistoryReplayMode::Discard,
             acp_recent_count: 3,
             full_access_enabled: false,
-            send_behavior: match send_behavior {
-                ChatSendBehavior::Guide => ChatSendBehavior::Queue,
-                behavior => behavior,
+            send_behavior: match (stop_current_turn, send_behavior) {
+                (true, _) => ChatSendBehavior::StopAndSend,
+                (false, ChatSendBehavior::Guide) => ChatSendBehavior::Queue,
+                (false, behavior) => behavior,
             },
             request_history_override: None,
             resume_history_only: false,

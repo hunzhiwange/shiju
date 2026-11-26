@@ -30,6 +30,7 @@ pub enum ChatMessage<Measurement, PreparedOpen, PanelMode, DetailsTab, TodoPlace
     MediaShortcutMenuChanged(bool),
     MediaPromptSelected(String),
     SelectVideoEditorSkill,
+    SelectAppDevelopmentSkill,
 
     /// 发送按钮按下
     ///
@@ -41,6 +42,8 @@ pub enum ChatMessage<Measurement, PreparedOpen, PanelMode, DetailsTab, TodoPlace
 
     /// 点击切换或关闭输入框上方的快捷消息分组菜单
     QuickMessageGroupChanged(Option<config_ui::QuickMessageGroup>),
+    EmployeeCommandMenuChanged(bool),
+    EmployeeCommandSelected { input: &'static str, needs_argument: bool },
 
     /// 切换输入框上方的识矩技能菜单
     ToggleShijuSkillMenu,

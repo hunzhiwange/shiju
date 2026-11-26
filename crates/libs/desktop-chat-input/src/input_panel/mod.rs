@@ -35,6 +35,7 @@ mod input_editor_tests;
 mod icons_tests;
 
 pub mod quick_messages;
+mod employee_commands;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod media_shortcuts;
 pub mod quick_message;

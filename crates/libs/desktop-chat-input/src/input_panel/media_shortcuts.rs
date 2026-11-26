@@ -94,6 +94,12 @@ fn operations(app: QuickInput<'_>) -> Element<'_, Message> {
             (!matches!(app.installed, LoadState::Loading { .. }))
                 .then_some(Message::SelectVideoEditorSkill),
         ))
+        .push(item(
+            app.i18n.__("应用开发"),
+            Icon::Code,
+            (!matches!(app.installed, LoadState::Loading { .. }))
+                .then_some(Message::SelectAppDevelopmentSkill),
+        ))
         .into()
 }
 

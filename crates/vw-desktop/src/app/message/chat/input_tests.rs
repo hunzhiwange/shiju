@@ -177,6 +177,32 @@ fn agent_sessions_popover_stop_rejects_missing_and_mismatched_plan_run_targets()
     );
 }
 
+#[test]
+fn employee_command_with_argument_replaces_draft_and_waits_for_input() {
+    use desktop_session::session::agent::{EmployeeKind, EmployeeTarget};
+    use iced::widget::text_editor::Content;
+
+    let (mut app, _) = crate::app::App::new();
+    let runtime = app.current_session_runtime_mut();
+    runtime.employee_target = Some(EmployeeTarget {
+        employee_id: "shared-employee".into(),
+        kind: EmployeeKind::Shared,
+    });
+    runtime.input_editor = Content::with_text("旧草稿");
+    app.session_state.files.push("old.txt".into());
+    app.session_state.input_popovers.set_employee_commands(true);
+
+    let _ = super::update(&mut app, ChatMessage::EmployeeCommandSelected {
+        input: "/model shiju-direct:",
+        needs_argument: true,
+    });
+
+    assert_eq!(app.current_session_runtime().input_editor.text(), "/model shiju-direct:");
+    assert!(app.session_state.files.is_empty());
+    assert!(!app.session_state.input_popovers.employee_commands);
+    assert!(app.chat_view.chat.is_empty());
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
     let (mut app, _) = crate::app::App::new();

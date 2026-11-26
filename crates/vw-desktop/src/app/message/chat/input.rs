@@ -89,6 +89,14 @@ fn git_quick_action_path(app: &App) -> Option<String> {
     )
 }
 
+pub(crate) fn employee_commands_available(app: &App) -> bool {
+    app.current_session_runtime_ref().is_some_and(|runtime| {
+        runtime.is_employee_chat()
+            && (runtime.employee_target.is_some()
+                || (app.session_state.active_session_id.is_some() && runtime.draft.is_none()))
+    })
+}
+
 /// Composer edits do not change the transcript or its visible window. Keep them
 /// out of transcript chunk preparation, even while the streaming tail is dirty.
 pub(crate) fn is_composer_event(message: &ChatMessage) -> bool {
@@ -99,7 +107,10 @@ pub(crate) fn is_composer_event(message: &ChatMessage) -> bool {
             | ChatMessage::Media(_)
             | ChatMessage::MediaShortcutMenuChanged(_)
             | ChatMessage::MediaPromptSelected(_)
+            | ChatMessage::EmployeeCommandMenuChanged(_)
+            | ChatMessage::EmployeeCommandSelected { needs_argument: true, .. }
             | ChatMessage::SelectVideoEditorSkill
+            | ChatMessage::SelectAppDevelopmentSkill
             | ChatMessage::OpenInputContextMenu { .. }
             | ChatMessage::CloseInputContextMenu
             | ChatMessage::CopyInputSelection
@@ -143,9 +154,14 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::MediaPromptSelected(prompt) => append_media_prompt(app, prompt, None, None),
         #[cfg(not(target_arch = "wasm32"))]
-        ChatMessage::SelectVideoEditorSkill => {
+        ChatMessage::SelectVideoEditorSkill | ChatMessage::SelectAppDevelopmentSkill => {
             use crate::app::skill_hub::LoadState;
 
+            let (slug, install_hint) = if matches!(message, ChatMessage::SelectAppDevelopmentSkill) {
+                ("shiju-app-admin", "请在识矩技能中安装识矩应用管理")
+            } else {
+                ("cutvideo", "请在识矩技能中安装识矩剪辑")
+            };
             app.session_state.input_popovers.set_media_shortcuts(false);
             let LoadState::Loaded(skills) = &app.expert_hub.installed else {
                 return update(app, ChatMessage::ToggleShijuSkillMenu);
@@ -154,7 +170,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let Some(skill) = matches.next() else {
                 return app.show_localized_toast(
                     crate::app::state::ToastKind::Info,
-                    "请在识矩技能中安装识矩剪辑",
+                    install_hint,
                     vec![],
                 );
             };
@@ -214,6 +230,42 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.session_state.input_popovers.set_quick_message_group(group);
             Task::none()
         }
+        ChatMessage::EmployeeCommandMenuChanged(open) => {
+            let open = open && employee_commands_available(app);
+            app.session_state.input_popovers.set_employee_commands(open);
+            Task::none()
+        }
+        ChatMessage::EmployeeCommandSelected { input, needs_argument } => {
+            use iced::widget::text_editor;
+
+            app.session_state.input_popovers.set_employee_commands(false);
+            if !employee_commands_available(app) {
+                return Task::none();
+            }
+            let mut editor = text_editor::Content::with_text(input);
+            editor.perform(text_editor::Action::Move(text_editor::Motion::DocumentEnd));
+            let runtime = app.current_session_runtime_mut();
+            let previous_editor = std::mem::replace(&mut runtime.input_editor, editor);
+            let previous_media_model = runtime.pending_media_model.take();
+            if needs_argument {
+                app.input_suggestions.clear_files();
+                app.input_suggestions.clear_slash();
+                app.session_state.files.clear();
+                app.session_state.input_text = input.to_owned();
+                shared::sync_global_input_editor_if_needed(app);
+                app.focus_area = crate::app::FocusArea::None;
+                shared::focus_input_editor(app)
+            } else {
+                let previous_files = std::mem::take(&mut app.session_state.files);
+                let task = super::session::update(app, ChatMessage::SendPressed);
+                let runtime = app.current_session_runtime_mut();
+                runtime.input_editor = previous_editor;
+                runtime.pending_media_model = previous_media_model;
+                app.session_state.files = previous_files;
+                shared::sync_global_input_editor_if_needed(app);
+                task
+            }
+        }
         #[cfg(not(target_arch = "wasm32"))]
         ChatMessage::ToggleShijuSkillMenu => {
             if !app.session_state.input_popovers.toggle_shiju_skill() {
@@ -248,7 +300,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         #[cfg(target_arch = "wasm32")]
-        ChatMessage::ToggleShijuSkillMenu | ChatMessage::SelectShijuSkill(_) | ChatMessage::SelectVideoEditorSkill => {
+        ChatMessage::ToggleShijuSkillMenu
+        | ChatMessage::SelectShijuSkill(_)
+        | ChatMessage::SelectVideoEditorSkill
+        | ChatMessage::SelectAppDevelopmentSkill => {
             app.show_localized_toast(crate::app::state::ToastKind::Warning, "识矩原生技能管理请使用桌面端", vec![])
         }
         ChatMessage::ToggleAgentSessionsPopover => {

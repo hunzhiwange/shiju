@@ -111,6 +111,7 @@ impl App {
     pub(crate) fn close_session_transient_ui(&mut self) {
         self.session_state.input_popovers.recommended_prompt = false;
         self.session_state.input_popovers.media_shortcuts = false;
+        self.session_state.input_popovers.employee_commands = false;
         self.chat_interaction.chat_think_hovered_idx = None;
         self.chat_interaction.chat_tool_file_hovered = None;
         self.chat_interaction.chat_tool_hovered_idx = None;

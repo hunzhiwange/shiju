@@ -812,17 +812,15 @@ fn workspace_menu(app: QuickInput<'_>) -> Element<'_, Message> {
 
     AboveOverlay::new(trigger, workspace_menu_view(app))
         .show(active)
+        .block_background_events(true)
         .gap(2.0)
         .on_close(Message::WorkSpacePickerClosed)
         .into()
 }
 
 fn input_strip_control_order(app: QuickInput<'_>) -> Vec<InputStripControl> {
-    let show_workspace = app.show_workspace;
     let mut controls = Vec::with_capacity(5);
-    if show_workspace {
-        controls.push(InputStripControl::Workspace);
-    }
+    controls.push(InputStripControl::Workspace);
     #[cfg(not(target_arch = "wasm32"))]
     controls.push(InputStripControl::Shiju);
     if !app.quick_messages.is_empty() {
@@ -859,6 +857,9 @@ pub fn view(app: QuickInput<'_>) -> Option<Element<'_, Message>> {
             }
         };
     }
+    if let Some(open) = app.employee_commands {
+        controls = controls.push(super::employee_commands::menu(app.i18n, open));
+    }
     if app.recommended_prompts.is_some() {
         let indices = recommended_indices(app);
         if !indices.is_empty() {
@@ -880,9 +881,9 @@ pub struct QuickInput<'a> {
     pub i18n: desktop_i18n::I18n,
     pub quick_messages: &'a [QuickMessageConfig],
     pub quick_message_group: Option<QuickMessageGroup>,
+    pub employee_commands: Option<bool>,
     pub recommended_prompt: bool,
     pub recommended_prompts: Option<&'a [String]>,
-    pub show_workspace: bool,
     pub project_is_git_repo: bool,
     pub recent_projects: &'a [String],
     pub recent_projects_edits: &'a [String],

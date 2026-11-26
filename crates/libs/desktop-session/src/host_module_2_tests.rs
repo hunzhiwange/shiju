@@ -332,6 +332,32 @@ fn restore_cached_chat_for_session_resets_ids_when_cached_ids_have_wrong_len() {
 }
 
 #[test]
+fn employee_stop_prioritizes_cancellation_over_queued_messages() {
+    use crate::message::chat::lifecycle::{DispatchEffect, dispatch};
+    use crate::message::chat::send_input::{SendInputEffect, prepare_send_input};
+    use crate::session::agent::{EMPLOYEE_CHAT_PROFILE, SessionRuntimeState};
+    use iced::widget::text_editor::Content;
+
+    let mut runtime = SessionRuntimeState::<()> {
+        agent: Some(EMPLOYEE_CHAT_PROFILE.into()),
+        input_editor: Content::with_text("/stop"),
+        ..Default::default()
+    };
+    runtime.request_lifecycle.is_requesting = true;
+    let SendInputEffect::Send(item) = prepare_send_input(
+        &mut runtime, &mut Vec::new(), None, None, false, ChatSendBehavior::Queue, 100,
+    ) else {
+        panic!("expected employee command");
+    };
+    let mut queued = item.clone();
+    queued.query = "下一条消息".into();
+    runtime.request_lifecycle.queue.push(queued);
+    assert!(matches!(dispatch(&mut runtime, item, true), DispatchEffect::StopDraft));
+    assert_eq!(runtime.request_lifecycle.queue[0].query, "/stop");
+    assert_eq!(runtime.request_lifecycle.queue[1].query, "下一条消息");
+}
+
+#[test]
 fn expert_package_selection_is_consumed_once() {
     let mut runtime = crate::session::agent::SessionRuntimeState::<()>::default();
     let id = "skillhub--skillset--fixture-suite";

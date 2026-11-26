@@ -173,3 +173,22 @@ fn local_runner_explicit_step_action_is_fenced_and_uses_configured_target() -> R
     );
     Ok(())
 }
+
+#[test]
+fn workflow_metadata_removal_cannot_bypass_step_ownership() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let (store, id) = setup(dir.path())?;
+    move_to(&store, dir.path(), &id, "agent")?;
+    let before = store.load_task(dir.path(), &id)?.unwrap();
+    for key in ["task_board.status_key", "task_board.entry_revision", "task_board.active_run_id", "agent", "acp_agent", "assignee"] {
+        let patch = vw_api_agent_scheduler::AgentSchedulerTaskMetadataPatchDto {
+            metadata_remove_keys: vec![key.into()], ..Default::default()
+        };
+        assert!(AgentTaskBoardService::new(&store).update_metadata(dir.path(), &id, patch, None, TimestampMs(200)).is_err());
+        assert_eq!(store.load_task(dir.path(), &id)?.unwrap().metadata, before.metadata);
+    }
+    move_to(&store, dir.path(), &id, "human")?;
+    let human = store.load_task(dir.path(), &id)?.unwrap();
+    assert!(human.metadata.get("task_board.step_instructions").is_none());
+    Ok(())
+}

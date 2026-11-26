@@ -354,11 +354,11 @@ fn wake_agent_scheduler_create_requests_include_pool_and_filter_terminal_tasks()
 
     assert_eq!(requests.len(), 2);
     assert_eq!(requests[0].task_id, "T-pool");
-    assert_eq!(requests[0].status, Some(AgentTaskStatusDto::Draft));
+    assert!(requests[0].status.is_none());
     let request = &requests[1];
     assert_eq!(request.task_id, "T-pending-register");
     assert_eq!(request.kind, AgentTaskKindDto::Finite);
-    assert_eq!(request.status, Some(AgentTaskStatusDto::Queued));
+    assert!(request.status.is_none());
     assert_eq!(request.metadata["priority"], 9);
     assert_eq!(request.metadata["order_no"], 4);
     assert_eq!(request.metadata["model"], "gpt-helper");
@@ -370,12 +370,8 @@ fn wake_agent_scheduler_create_requests_include_pool_and_filter_terminal_tasks()
         desktop_task_model::DEFAULT_TASK_WORKFLOW_ID
     );
     assert_eq!(request.metadata["task_board.status_key"], "pending");
-    assert_eq!(request.metadata["task_board.status_role"], "queued");
-    assert_eq!(request.metadata["task_board.status_key_map"]["running"], "running");
-    assert_eq!(request.metadata["task_board.status_key_map"]["assigned"], "pending");
-    assert_eq!(request.metadata["task_board.status_key_map"]["dispatched"], "pending");
-    assert_eq!(request.metadata["task_board.status_key_map"]["acknowledged"], "pending");
-    assert!(request.metadata["task_board.status_key_map"].get("submitted").is_none());
+    assert!(request.metadata.get("task_board.status_role").is_none());
+    assert!(request.metadata.get("task_board.status_key_map").is_none());
 }
 
 #[test]

@@ -9361,6 +9361,7 @@ dependencies = [
  "serde_json",
  "session-port",
  "shell-command",
+ "task-lifecycle",
  "task-scheduler",
  "task-scheduler-core",
  "tempfile",
@@ -9375,6 +9376,7 @@ dependencies = [
  "vw-api-chat",
  "vw-api-chat-identity",
  "vw-api-task",
+ "vw-api-task-lifecycle",
  "vw-api-transport",
 ]
 

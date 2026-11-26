@@ -25,7 +25,7 @@ use {
 use vw_api_project::ListProjectsRequest;
 use vw_api_project::TenantScopeDto;
 use vw_api_task::{
-    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
+    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto,
 };
 
 use crate::client::test_support;

@@ -60,7 +60,48 @@ fn agent_scheduler_snapshot_preserves_task_pending_persistence() {
     let mut tasks = vec![task];
     pending.insert("T-guarded".to_string());
 
-    apply_agent_scheduler_status(&mut tasks, &pending, &mut desktop_task_executor::executor::state::TaskExecutorState::default(), response("T-guarded", "running"));
+    apply_agent_scheduler_status(
+        &mut tasks,
+        &pending,
+        &mut desktop_task_executor::executor::state::TaskExecutorState::default(),
+        response("T-guarded", "running"),
+    );
 
     assert_eq!(tasks[0].status, TaskStatus::Completed);
+}
+
+#[test]
+fn workflow_step_survives_running_success_and_failure_snapshots() {
+    use vw_api_agent_scheduler::AgentTaskStatusDto;
+    for key in ["pending", "queued", "ops-review"] {
+        for runtime in
+            [AgentTaskStatusDto::Running, AgentTaskStatusDto::Completed, AgentTaskStatusDto::Failed]
+        {
+            let mut value = snapshot("task-step", key);
+            value.status = Some(runtime);
+            value.run_stage = Some("running".into());
+            assert_eq!(
+                task_status_from_agent_scheduler_snapshot(&value),
+                TaskStatus::parse_key(key).unwrap()
+            );
+        }
+    }
+}
+
+#[test]
+fn workflow_step_refresh_applies_member_handoff_and_terminal_category() {
+    let mut tasks = Vec::new();
+    let mut value = response("task-step", "ops-human");
+    value.tasks[0].read_model.assignee = Some("login-user".into());
+    value.tasks[0].status = Some(vw_api_agent_scheduler::AgentTaskStatusDto::Draft);
+    let mut executor = desktop_task_executor::executor::state::TaskExecutorState::default();
+    apply_agent_scheduler_status(&mut tasks, &Default::default(), &mut executor, value);
+    assert_eq!(tasks[0].status, TaskStatus::Custom("ops-human"));
+    assert_eq!(tasks[0].assignee, "login-user");
+    let mut value = response("task-step", "ops-done");
+    value.tasks[0].read_model.status_category =
+        Some(vw_api_task::TaskPoolWorkflowStatusCategoryDto::Done);
+    value.tasks[0].status = Some(vw_api_agent_scheduler::AgentTaskStatusDto::Completed);
+    apply_agent_scheduler_status(&mut tasks, &Default::default(), &mut executor, value);
+    assert_eq!(tasks[0].status, TaskStatus::Custom("ops-done"));
 }

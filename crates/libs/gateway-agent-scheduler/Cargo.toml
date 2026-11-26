@@ -48,3 +48,6 @@ tokio-util = "0.7"
 vw-api-chat = { path = "../api-chat" }
 session-port = { path = "../session-port" }
 task-scheduler = { path = "../task-scheduler", features = ["test-support"] }
+
+task-lifecycle = { path = "../task-lifecycle" }
+vw-api-task-lifecycle = { path = "../api-task-lifecycle" }

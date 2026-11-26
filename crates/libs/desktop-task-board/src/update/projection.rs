@@ -1,22 +1,6 @@
 //! 调度快照、日志与本地运行状态的任务投影。
 use desktop_task_model::{StatusRole, Task, TaskLogEntry, TaskStatus};
 
-fn task_status_from_agent_scheduler_key(status_key: &str) -> Option<TaskStatus> {
-    match status_key.trim() {
-        "draft" => Some(TaskStatus::Pool),
-        "queued" | "active" | "assigned" | "dispatched" | "acknowledged" => {
-            Some(TaskStatus::Pending)
-        }
-        "running" => Some(TaskStatus::Running),
-        "submitted" | "revision" => Some(TaskStatus::CodeComplete),
-        "blocked" | "paused" => Some(TaskStatus::Paused),
-        "completed" => Some(TaskStatus::Completed),
-        "failed" => Some(TaskStatus::Failed),
-        "cancelled" | "archived" => Some(TaskStatus::Archived),
-        value => TaskStatus::parse_key(value),
-    }
-}
-
 fn task_status_from_agent_scheduler_status(
     status: vw_api_agent_scheduler::AgentTaskStatusDto,
 ) -> TaskStatus {
@@ -38,17 +22,6 @@ fn task_status_from_agent_scheduler_status(
     }
 }
 
-fn status_key_is_stale_pending_projection(
-    status_key_status: TaskStatus,
-    agent_status: TaskStatus,
-) -> bool {
-    status_key_status == TaskStatus::Pending && agent_status != TaskStatus::Pending
-}
-
-fn run_stage_is_running(run_stage: Option<&str>) -> bool {
-    matches!(run_stage.map(str::trim), Some("running"))
-}
-
 fn task_status_from_agent_scheduler_snapshot(
     snapshot: &vw_api_agent_scheduler::AgentSchedulerTaskBoardTaskDto,
 ) -> TaskStatus {
@@ -58,16 +31,8 @@ fn task_status_from_agent_scheduler_snapshot(
         snapshot.read_model.workflow_id.as_deref(),
     );
     if !status_key.is_empty()
-        && let Some(status) = task_status_from_agent_scheduler_key(status_key)
+        && let Some(status) = TaskStatus::parse_key(status_key)
     {
-        if status == TaskStatus::Pending && run_stage_is_running(snapshot.run_stage.as_deref()) {
-            return TaskStatus::Running;
-        }
-        if let Some(agent_status) = agent_status
-            && status_key_is_stale_pending_projection(status, agent_status)
-        {
-            return agent_status;
-        }
         return status;
     }
     agent_status.unwrap_or(TaskStatus::Pool)
@@ -81,7 +46,7 @@ fn task_status_from_agent_scheduler_log(
     status_key
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .and_then(task_status_from_agent_scheduler_key)
+        .and_then(TaskStatus::parse_key)
         .or_else(|| status.map(task_status_from_agent_scheduler_status))
 }
 

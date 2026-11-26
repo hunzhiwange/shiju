@@ -771,6 +771,7 @@ pub fn apply_workflow_status(
     let revision = metadata.get("task_board.entry_revision").and_then(Value::as_u64).unwrap_or(0);
     metadata.insert("task_board.entry_revision".into(), json!(revision.checked_add(1).context("step revision exhausted")?));
     metadata.remove("task_board.active_run_id");
+    metadata.remove("task_board.step_instructions");
     match &bridge.step(key)?.handoff {
         TaskPoolWorkflowStepHandoffDto::KeepAssignee => {},
         TaskPoolWorkflowStepHandoffDto::Member { member_id } => {
@@ -832,6 +833,9 @@ pub(super) fn apply_metadata_patch(
     }
     for key in patch.metadata_remove_keys {
         detail::validate_metadata_key(&key)?;
+        if key.starts_with("task_board.") || matches!(key.as_str(), "agent" | "acp_agent" | "assignee") {
+            bail!("workflow execution metadata requires a dedicated command");
+        }
         if key == TASK_LABEL_IDS_METADATA_KEY {
             bail!("use label_ids to clear task labels");
         }

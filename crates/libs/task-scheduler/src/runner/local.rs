@@ -444,7 +444,10 @@ where
             .load_run(project_path, run_id)?
             .context("execution run disappeared during shutdown")?;
         let latest_run = self.store.load_latest_run_for_task(project_path, &task.id)?;
-        if current_task.as_ref().is_some_and(|task| task.status == AgentTaskStatus::Cancelled)
+        if current_task.as_ref().is_some_and(|task| {
+            task.status == AgentTaskStatus::Cancelled
+                && task.metadata.get("task_board.active_run_id").and_then(Value::as_str) == Some(run_id.as_str())
+        })
             && current_run.status == crate::domain::AgentRunStatus::Running
         {
             return self

@@ -472,43 +472,18 @@ fn default_status_entrypoint_and_builtin_list_expose_stable_order() {
 }
 
 #[test]
-fn gateway_snapshot_maps_all_development_roles_and_transition_targets_to_keys() {
+fn gateway_snapshot_preserves_step_order_and_progress_categories() {
     let workflow = TaskWorkflow::from(&DEV_LIFECYCLE_WORKFLOW);
-
     let snapshot = task_workflow_snapshot_for_gateway(&workflow);
-
-    let expected_roles = [
-        ("pool", TaskPoolWorkflowStatusRoleDto::Backlog),
-        ("pending", TaskPoolWorkflowStatusRoleDto::Queued),
-        ("running", TaskPoolWorkflowStatusRoleDto::Executing),
-        ("failed", TaskPoolWorkflowStatusRoleDto::Failed),
-        ("paused", TaskPoolWorkflowStatusRoleDto::Paused),
-        ("code_complete", TaskPoolWorkflowStatusRoleDto::ReviewReady),
-        ("pr_submitted", TaskPoolWorkflowStatusRoleDto::Merging),
-        ("completed", TaskPoolWorkflowStatusRoleDto::Done),
-        ("archived", TaskPoolWorkflowStatusRoleDto::Archived),
-    ];
-
-    for (key, role) in expected_roles {
-        let status = snapshot
-            .statuses
-            .iter()
-            .find(|status| status.key == key)
-            .unwrap_or_else(|| panic!("gateway snapshot should include status {key}"));
-        assert_eq!(status.role, role, "gateway role mismatch for status {key}");
-    }
-
-    let completed = snapshot
-        .statuses
-        .iter()
-        .find(|status| status.key == "completed")
-        .expect("completed status");
-    assert_eq!(completed.next.as_deref(), Some("archived"));
-
-    let archived =
-        snapshot.statuses.iter().find(|status| status.key == "archived").expect("archived status");
-    assert!(archived.terminal);
-    assert!(archived.next.is_none());
+    let lifecycle = crate::workflow::registry::lifecycle_dto_from_task_workflow(workflow, false);
+    assert_eq!(snapshot, vw_api_task::TaskPoolWorkflowSnapshotDto::from(lifecycle));
+    assert_eq!(snapshot.initial_status_key, "pool");
+    assert_eq!(snapshot.steps.iter().map(|step| step.status_key.as_str()).collect::<Vec<_>>(),
+        snapshot.statuses.iter().map(|status| status.key.as_str()).collect::<Vec<_>>());
+    assert_eq!(snapshot.statuses.iter().find(|status| status.key == "completed").unwrap().category,
+        vw_api_task::TaskPoolWorkflowStatusCategoryDto::Done);
+    assert_eq!(snapshot.statuses.iter().find(|status| status.key == "archived").unwrap().category,
+        vw_api_task::TaskPoolWorkflowStatusCategoryDto::Closed);
 }
 
 #[test]

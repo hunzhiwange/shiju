@@ -1,5 +1,5 @@
 use desktop_task_model::{Task, TaskStatus, TaskBoardSettings};
-use desktop_task_model::workflow::{DEFAULT_TASK_WORKFLOW_ID, StatusRole, TaskWorkflow, task_workflow_by_id};
+use desktop_task_model::workflow::{DEFAULT_TASK_WORKFLOW_ID, TaskWorkflow, task_workflow_by_id};
 use desktop_task_executor::TaskLogStream;
 /// TASK_LOG_UI_MAX_ENTRY_CHARS 使用的固定配置值。
 pub const TASK_LOG_UI_MAX_ENTRY_CHARS: usize = 1200;
@@ -101,197 +101,6 @@ pub fn agent_scheduler_status_key_for_task_status(
     workflow_status_key(workflow.as_ref(), status)
 }
 
-fn task_pool_workflow_status_role_dto(
-    role: StatusRole,
-) -> vw_api_task::TaskPoolWorkflowStatusRoleDto {
-    use vw_api_task::TaskPoolWorkflowStatusRoleDto;
-
-    match role {
-        StatusRole::Backlog => TaskPoolWorkflowStatusRoleDto::Backlog,
-        StatusRole::Queued => TaskPoolWorkflowStatusRoleDto::Queued,
-        StatusRole::Planning => TaskPoolWorkflowStatusRoleDto::Planning,
-        StatusRole::Executing => TaskPoolWorkflowStatusRoleDto::Executing,
-        StatusRole::Failed => TaskPoolWorkflowStatusRoleDto::Failed,
-        StatusRole::Paused => TaskPoolWorkflowStatusRoleDto::Paused,
-        StatusRole::ReviewReady => TaskPoolWorkflowStatusRoleDto::ReviewReady,
-        StatusRole::Review => TaskPoolWorkflowStatusRoleDto::Review,
-        StatusRole::Merging => TaskPoolWorkflowStatusRoleDto::Merging,
-        StatusRole::Done => TaskPoolWorkflowStatusRoleDto::Done,
-        StatusRole::Archived => TaskPoolWorkflowStatusRoleDto::Archived,
-        StatusRole::Custom => TaskPoolWorkflowStatusRoleDto::Custom,
-    }
-}
-
-pub fn agent_scheduler_status_role_for_task_status(
-    status: TaskStatus,
-    workflow_id: &str,
-) -> Option<vw_api_task::TaskPoolWorkflowStatusRoleDto> {
-    let workflow = task_workflow_for_agent_scheduler(workflow_id)?;
-    workflow.status_role(status).map(task_pool_workflow_status_role_dto)
-}
-
-fn status_key_with_role(workflow: &TaskWorkflow, role: StatusRole) -> Option<String> {
-    workflow
-        .statuses()
-        .iter()
-        .find(|definition| definition.role() == role)
-        .map(|definition| definition.key().to_string())
-}
-
-fn status_role_metadata_key(role: StatusRole) -> &'static str {
-    match role {
-        StatusRole::Backlog => "backlog",
-        StatusRole::Queued => "queued",
-        StatusRole::Planning => "planning",
-        StatusRole::Executing => "executing",
-        StatusRole::Failed => "failed",
-        StatusRole::Paused => "paused",
-        StatusRole::ReviewReady => "review_ready",
-        StatusRole::Review => "review",
-        StatusRole::Merging => "merging",
-        StatusRole::Done => "done",
-        StatusRole::Archived => "archived",
-        StatusRole::Custom => "custom",
-    }
-}
-
-fn status_key_for_agent_status(
-    workflow: &TaskWorkflow,
-    current_status: TaskStatus,
-    roles: &[StatusRole],
-) -> Option<String> {
-    let current_role = workflow.status_role(current_status);
-    if current_role.is_some_and(|role| roles.contains(&role)) {
-        return Some(workflow_status_key(Some(workflow), current_status));
-    }
-    roles.iter().find_map(|role| status_key_with_role(workflow, *role))
-}
-
-fn insert_agent_status_keys(
-    map: &mut serde_json::Map<String, serde_json::Value>,
-    agent_statuses: &[&str],
-    status_key: Option<String>,
-) {
-    let Some(status_key) = status_key else {
-        return;
-    };
-    for agent_status in agent_statuses {
-        map.insert((*agent_status).to_string(), serde_json::Value::String(status_key.clone()));
-    }
-}
-
-fn agent_scheduler_status_key_map(
-    workflow: Option<&TaskWorkflow>,
-    current_status: TaskStatus,
-) -> serde_json::Map<String, serde_json::Value> {
-    let mut map = serde_json::Map::new();
-    let Some(workflow) = workflow else {
-        return map;
-    };
-
-    insert_agent_status_keys(
-        &mut map,
-        &["draft"],
-        status_key_for_agent_status(workflow, current_status, &[StatusRole::Backlog]),
-    );
-    insert_agent_status_keys(
-        &mut map,
-        &["queued", "active"],
-        status_key_for_agent_status(workflow, current_status, &[StatusRole::Queued]),
-    );
-    insert_agent_status_keys(
-        &mut map,
-        &["assigned", "dispatched", "acknowledged"],
-        status_key_for_agent_status(workflow, current_status, &[StatusRole::Queued]),
-    );
-    insert_agent_status_keys(
-        &mut map,
-        &["running"],
-        status_key_for_agent_status(workflow, current_status, &[StatusRole::Executing]),
-    );
-    insert_agent_status_keys(
-        &mut map,
-        &["submitted"],
-        status_key_for_agent_status(
-            workflow,
-            current_status,
-            &[StatusRole::ReviewReady, StatusRole::Review, StatusRole::Merging],
-        ),
-    );
-    insert_agent_status_keys(
-        &mut map,
-        &["revision"],
-        status_key_for_agent_status(workflow, current_status, &[StatusRole::Review]),
-    );
-    insert_agent_status_keys(
-        &mut map,
-        &["blocked", "failed"],
-        status_key_for_agent_status(workflow, current_status, &[StatusRole::Failed]),
-    );
-    insert_agent_status_keys(
-        &mut map,
-        &["paused"],
-        status_key_for_agent_status(workflow, current_status, &[StatusRole::Paused]),
-    );
-    insert_agent_status_keys(
-        &mut map,
-        &["completed"],
-        status_key_for_agent_status(workflow, current_status, &[StatusRole::Done]),
-    );
-    insert_agent_status_keys(
-        &mut map,
-        &["cancelled", "archived"],
-        status_key_for_agent_status(workflow, current_status, &[StatusRole::Archived]),
-    );
-    map
-}
-
-fn task_status_to_agent_scheduler_status(
-    status: TaskStatus,
-    workflow: Option<&TaskWorkflow>,
-) -> vw_api_agent_scheduler::AgentTaskStatusDto {
-    use vw_api_agent_scheduler::AgentTaskStatusDto;
-
-    if let Some(role) = workflow.and_then(|workflow| workflow.status_role(status)) {
-        return match role {
-            StatusRole::Backlog => AgentTaskStatusDto::Draft,
-            StatusRole::Queued | StatusRole::Planning => AgentTaskStatusDto::Queued,
-            StatusRole::Executing => AgentTaskStatusDto::Running,
-            StatusRole::Failed => AgentTaskStatusDto::Failed,
-            StatusRole::Paused => AgentTaskStatusDto::Paused,
-            StatusRole::ReviewReady | StatusRole::Review | StatusRole::Merging => {
-                AgentTaskStatusDto::Submitted
-            }
-            StatusRole::Done => AgentTaskStatusDto::Completed,
-            StatusRole::Archived => AgentTaskStatusDto::Archived,
-            StatusRole::Custom => AgentTaskStatusDto::Queued,
-        };
-    }
-
-    match status {
-        TaskStatus::Pool => AgentTaskStatusDto::Draft,
-        TaskStatus::Pending | TaskStatus::Custom(_) => {
-            AgentTaskStatusDto::Queued
-        }
-        TaskStatus::Running => AgentTaskStatusDto::Running,
-        TaskStatus::Failed => AgentTaskStatusDto::Failed,
-        TaskStatus::Paused => AgentTaskStatusDto::Paused,
-        TaskStatus::CodeComplete | TaskStatus::PrSubmitted => {
-            AgentTaskStatusDto::Submitted
-        }
-        TaskStatus::Completed => AgentTaskStatusDto::Completed,
-        TaskStatus::Archived => AgentTaskStatusDto::Archived,
-    }
-}
-
-pub fn agent_scheduler_status_for_task_status(
-    status: TaskStatus,
-    workflow_id: &str,
-) -> vw_api_agent_scheduler::AgentTaskStatusDto {
-    let workflow = task_workflow_for_agent_scheduler(workflow_id);
-    task_status_to_agent_scheduler_status(status, workflow.as_ref())
-}
-
 fn task_title_for_agent_scheduler(task: &Task) -> String {
     task.prompt
         .lines()
@@ -326,11 +135,6 @@ fn create_task_request_with_workflow(
             }
         });
     let status_key = workflow_status_key(workflow_ref, task.status);
-    let status_role = workflow_ref
-        .and_then(|workflow| workflow.status_role(task.status))
-        .map(status_role_metadata_key)
-        .unwrap_or("custom");
-    let status_key_map = agent_scheduler_status_key_map(workflow_ref, task.status);
     let metadata = serde_json::json!({
         "priority": task.priority,
         "assignee": task.assignee,
@@ -349,14 +153,12 @@ fn create_task_request_with_workflow(
         "selected_worktree_branch": task.selected_worktree_branch,
         "task_board.workflow_id": workflow_metadata_id,
         "task_board.status_key": status_key,
-        "task_board.status_role": status_role,
-        "task_board.status_key_map": status_key_map,
     });
     vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest {
         task_id: task_id.clone(),
         title: task_title_for_agent_scheduler(task),
         kind: vw_api_agent_scheduler::AgentTaskKindDto::Finite,
-        status: Some(task_status_to_agent_scheduler_status(task.status, workflow_ref)),
+        status: None,
         spec_uri: format!("task-board/{task_id}/spec.md"),
         meta_uri: format!("task-board/{task_id}/meta.json"),
         assigned_to: None,
@@ -389,13 +191,7 @@ pub fn scheduler_pending_task_requests(
 ) -> Vec<vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest> {
     tasks
         .iter()
-        .filter(|task| {
-            workflow.status_enabled(task.status) && workflow.status_role(task.status).is_some_and(
-                |role| {
-                    matches!(role, StatusRole::Backlog | StatusRole::Queued | StatusRole::Planning)
-                },
-            )
-        })
+        .filter(|task| workflow.status_definition(task.status).is_some_and(|status| status.enabled && !status.is_terminal))
         .map(|task| create_task_request_with_workflow(task, workflow.id(), Some(workflow)))
         .collect()
 }

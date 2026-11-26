@@ -17,7 +17,7 @@ use vw_api_agent_scheduler::{
     AgentTaskStatusDto,
 };
 use vw_api_task::{
-    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
+    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto,
 };
 use vw_api_transport::common::TimestampMs;
 use {
@@ -294,8 +294,7 @@ async fn agent_scheduler_client_uses_task_board_contract_paths() {
     let metadata_request = AgentSchedulerTaskMetadataUpdateRequest {
         patch: AgentSchedulerTaskMetadataPatchDto {
             status_key: Some("content_writing".to_string()),
-            status_role: Some(TaskPoolWorkflowStatusRoleDto::Executing),
-            metadata_merge: Some(json!({"task_board.workflow_id": "content_publishing"})),
+            metadata_merge: Some(json!({"description": "Writing content"})),
             ..AgentSchedulerTaskMetadataPatchDto::default()
         },
         reason: Some("sync projection".to_string()),

@@ -94,83 +94,16 @@ fn worktree_recycle_failure_log_explains_gateway_cleanup_ownership() {
 }
 
 #[test]
-fn scheduler_status_mapping_covers_every_builtin_task_status() {
+fn scheduler_status_key_preserves_unknown_step_keys() {
     use desktop_task_model::TaskStatus;
-    use vw_api_agent_scheduler::AgentTaskStatusDto;
-
-    for (status, expected) in [
-        (TaskStatus::Pool, AgentTaskStatusDto::Draft),
-        (TaskStatus::Pending, AgentTaskStatusDto::Queued),
-        (TaskStatus::Running, AgentTaskStatusDto::Running),
-        (TaskStatus::Failed, AgentTaskStatusDto::Failed),
-        (TaskStatus::Paused, AgentTaskStatusDto::Paused),
-        (TaskStatus::CodeComplete, AgentTaskStatusDto::Submitted),
-        (TaskStatus::PrSubmitted, AgentTaskStatusDto::Submitted),
-        (TaskStatus::Completed, AgentTaskStatusDto::Completed),
-        (TaskStatus::Archived, AgentTaskStatusDto::Archived),
-    ] {
-        assert_eq!(super::agent_scheduler_status_for_task_status(status, ""), expected);
-    }
-    assert_eq!(
-        super::agent_scheduler_status_for_task_status(TaskStatus::Custom("unknown"), "missing"),
-        AgentTaskStatusDto::Queued
-    );
+    assert_eq!(super::agent_scheduler_status_key_for_task_status(
+        TaskStatus::Custom("ops-review"), "missing"), "ops-review");
 }
 
 #[test]
-fn scheduler_status_key_and_role_fall_back_to_default_workflow() {
-    use desktop_task_model::TaskStatus;
-    use vw_api_task::TaskPoolWorkflowStatusRoleDto;
-
-    assert_eq!(
-        super::agent_scheduler_status_key_for_task_status(TaskStatus::CodeComplete, "missing"),
-        TaskStatus::CodeComplete.to_string_key()
-    );
-    assert_eq!(
-        super::agent_scheduler_status_role_for_task_status(TaskStatus::PrSubmitted, "missing"),
-        None
-    );
-    assert_eq!(
-        super::agent_scheduler_status_role_for_task_status(
-            TaskStatus::PrSubmitted,
-            "dev_lifecycle"
-        ),
-        Some(TaskPoolWorkflowStatusRoleDto::Merging)
-    );
-    assert_eq!(
-        super::agent_scheduler_status_role_for_task_status(TaskStatus::Custom("unknown"), ""),
-        None
-    );
-}
-
-#[test]
-fn scheduler_status_metadata_helpers_cover_roles_and_missing_workflow_maps() {
-    use desktop_task_model::TaskStatus;
-    use desktop_task_model::workflow::{DEFAULT_TASK_WORKFLOW_ID, StatusRole, task_workflow_by_id};
-
-    let workflow = task_workflow_by_id(DEFAULT_TASK_WORKFLOW_ID).expect("default workflow");
-    assert_eq!(super::status_role_metadata_key(StatusRole::Backlog), "backlog");
-    assert_eq!(super::status_role_metadata_key(StatusRole::Custom), "custom");
-    assert_eq!(
-        super::status_key_with_role(&workflow, StatusRole::Done).as_deref(),
-        Some("completed")
-    );
-    assert_eq!(
-        super::status_key_for_agent_status(
-            &workflow,
-            TaskStatus::Running,
-            &[StatusRole::Executing]
-        )
-        .as_deref(),
-        Some("running")
-    );
-    assert!(super::agent_scheduler_status_key_map(None, TaskStatus::Running).is_empty());
-}
-
-#[test]
-fn wake_scheduler_requests_include_pool_and_queued_tasks() {
+fn wake_scheduler_requests_register_all_nonterminal_steps() {
     use desktop_task_model::{Task, TaskStatus};
-    use vw_api_agent_scheduler::{AgentTaskKindDto, AgentTaskStatusDto};
+    use vw_api_agent_scheduler::AgentTaskKindDto;
 
     let mut pending = Task::new(1);
     pending.id = "pending".to_string();
@@ -187,13 +120,13 @@ fn wake_scheduler_requests_include_pool_and_queued_tasks() {
         desktop_task_model::workflow::DEFAULT_TASK_WORKFLOW_ID,
     );
 
-    assert_eq!(requests.len(), 2);
+    assert_eq!(requests.len(), 3);
     assert_eq!(requests[0].task_id, "pool");
-    assert_eq!(requests[0].status, Some(AgentTaskStatusDto::Draft));
+    assert!(requests[0].status.is_none());
     assert_eq!(requests[1].task_id, "pending");
     assert!(requests.iter().all(|request| request.kind == AgentTaskKindDto::Finite));
     assert!(
-        requests[1..].iter().all(|request| { request.status == Some(AgentTaskStatusDto::Queued) })
+        requests[1..].iter().all(|request| { request.status.is_none() })
     );
 }
 
@@ -227,7 +160,6 @@ fn scheduler_create_request_uses_prompt_title_and_saturates_timestamp() {
 #[test]
 fn agent_scheduler_request_uses_lifecycle_cache_metadata() {
     use desktop_task_model::{Task, TaskStatus, update_runtime_task_lifecycle_cache};
-    use vw_api_agent_scheduler::AgentTaskStatusDto;
     use vw_api_task_lifecycle::{TaskLifecycleStatusCategoryDto, TaskLifecycleWorkflowDto};
 
     let _cache_lock = desktop_task_model::runtime_task_lifecycle_cache_test_lock();
@@ -281,23 +213,11 @@ fn agent_scheduler_request_uses_lifecycle_cache_metadata() {
 
     let request = super::agent_scheduler_create_task_request(&task, "scheduler_ops");
     let metadata = request.metadata.as_object().expect("metadata should be an object");
-    let status_key_map = metadata["task_board.status_key_map"]
-        .as_object()
-        .expect("status key map should be an object");
-
-    assert_eq!(request.status, Some(AgentTaskStatusDto::Running));
+    assert!(request.status.is_none());
     assert_eq!(metadata["task_board.workflow_id"], "scheduler_ops");
     assert_eq!(metadata["task_board.status_key"], "ops_active");
-    assert_eq!(metadata["task_board.status_role"], "executing");
-    assert_eq!(status_key_map["draft"], "ops_backlog");
-    assert_eq!(status_key_map["queued"], "ops_ready");
-    assert_eq!(status_key_map["assigned"], "ops_ready");
-    assert_eq!(status_key_map["dispatched"], "ops_ready");
-    assert_eq!(status_key_map["acknowledged"], "ops_ready");
-    assert_eq!(status_key_map["running"], "ops_active");
-    assert_eq!(status_key_map["submitted"], "ops_review");
-    assert_eq!(status_key_map["failed"], "ops_blocked");
-    assert_eq!(status_key_map["completed"], "ops_done");
+    assert!(!metadata.contains_key("task_board.status_role"));
+    assert!(!metadata.contains_key("task_board.status_key_map"));
 }
 
 fn lifecycle_status(

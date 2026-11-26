@@ -2123,7 +2123,7 @@ async fn scheduler_task_board_command_payload_errors_are_reported_before_store_m
     }
 }
 
-fn create_task_request(task_id: &str) -> AgentSchedulerCreateTaskRequest {
+pub(super) fn create_task_request(task_id: &str) -> AgentSchedulerCreateTaskRequest {
     AgentSchedulerCreateTaskRequest {
         task_id: task_id.to_string(),
         title: "Create through gateway".to_string(),

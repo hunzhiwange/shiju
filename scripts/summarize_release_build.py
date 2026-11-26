@@ -16,7 +16,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGES = ('vw-acp', 'vw-cli', 'vw-desktop', 'vw-webview')
-BINS = ('acp', 'shiju', 'vibe-agent', 'shi-ju', 'vw-webview')
+BINS = ('acp', 'aionrs-acp', 'shiju', 'vibe-agent', 'shi-ju', 'vw-webview')
 TARGETS = ('x86_64-apple-darwin', 'aarch64-pc-windows-msvc',
            'aarch64-apple-darwin', 'x86_64-pc-windows-msvc',
            'x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu')
@@ -242,8 +242,13 @@ def benchmark(target, output):
                 asset['name'] for artifact in plan['artifacts'].values()
                 if target in artifact.get('target_triples', [])
                 for asset in artifact.get('assets', []) if asset.get('kind') == 'executable'})
-            if set(metadata['dist_planned_bins']) != set(BINS):
-                raise RuntimeError('dist plan binary selection differs from benchmark expectations')
+            planned_bins = set(metadata['dist_planned_bins'])
+            expected_bins = set(BINS)
+            if planned_bins != expected_bins:
+                raise RuntimeError(
+                    f'dist plan binary selection differs from benchmark expectations for {target}: '
+                    f'missing {sorted(expected_bins - planned_bins)}, '
+                    f'unexpected {sorted(planned_bins - expected_bins)}')
             metadata['bins'] = {p['name']: [t['name'] for t in p['targets'] if 'bin' in t['kind']]
                                 for p in cargo_metadata['packages'] if p['name'] in PACKAGES}
             started = time.monotonic()

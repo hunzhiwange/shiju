@@ -10,6 +10,7 @@ on:
       - rust-toolchain.toml
       - dist-workspace.toml
       - scripts/release_cargo_cache.py
+      - scripts/summarize_release_build.py
       - .github/workflows/release-benchmark.yml
   workflow_dispatch:
     inputs:

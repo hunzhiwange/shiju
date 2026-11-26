@@ -145,6 +145,7 @@ pub struct StoreBackedAgentSchedulerGateway<H: GatewayExecutorHost> {
     pub store: AgentSchedulerStore,
     executor: Arc<dyn LocalAgentExecutor + Send + Sync>,
     dispatch_locks: ProjectDispatchLocks,
+    reply_queues: task_replies::ReplyQueues,
 }
 
 impl<H: GatewayExecutorHost> Default for StoreBackedAgentSchedulerGateway<H> {
@@ -154,6 +155,7 @@ impl<H: GatewayExecutorHost> Default for StoreBackedAgentSchedulerGateway<H> {
             host: std::marker::PhantomData,
             executor: Arc::new(GatewayLocalAgentExecutor::<H>::new(store.clone())),
             dispatch_locks: ProjectDispatchLocks::default(),
+            reply_queues: Default::default(),
             store,
         }
     }
@@ -170,6 +172,7 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
             store: AgentSchedulerStore::new(),
             executor: Arc::new(executor),
             dispatch_locks: ProjectDispatchLocks::default(),
+            reply_queues: Default::default(),
         }
     }
 
@@ -243,6 +246,8 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
 
 #[path = "store_routes.rs"]
 mod routes;
+#[path = "task_replies.rs"]
+mod task_replies;
 
 impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
     async fn apply_policy_tick(

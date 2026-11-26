@@ -59,6 +59,19 @@ impl GatewayChatStreamClient for RealGatewayChatStreamClient {
             })
         })
     }
+
+    fn collect_task_reply<'a>(
+        &'a self,
+        tenant: vw_api_transport::id::TenantScope,
+        workspace_path: String,
+        body: GatewayChatStreamRequest,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> GatewayFuture<'a, GatewayChatStreamCollected> {
+        Box::pin(crate::session::ui_store::with_tenant_scope(tenant, async move {
+            self.collect_with_observer(workspace_path, body, cancellation, Box::new(|_| {}))
+                .await
+        }))
+    }
 }
 
 #[cfg(test)]

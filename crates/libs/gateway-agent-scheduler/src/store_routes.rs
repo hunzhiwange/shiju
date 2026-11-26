@@ -454,10 +454,14 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         task_id: String,
     ) -> Result<AgentSchedulerTaskDetailDto, ApiError> {
         let id = TaskId::new(task_id).map_err(map_bad_request)?;
-        AgentTaskBoardService::new(&self.store)
+        let lock = self.project_dispatch_lock(&context);
+        let _guard = lock.lock().await;
+        let mut detail = AgentTaskBoardService::new(&self.store)
             .task_detail(&context, &id)
             .map_err(map_scheduler_error)?
-            .ok_or_else(|| ApiError::not_found("task not found"))
+            .ok_or_else(|| ApiError::not_found("task not found"))?;
+        self.reply_queues.project(&context, &id, &mut detail);
+        Ok(detail)
     }
 
     async fn change_task_detail(
@@ -467,13 +471,9 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         change: AgentSchedulerTaskDetailChange,
     ) -> Result<AgentSchedulerTaskDetailDto, ApiError> {
         let id = TaskId::new(task_id).map_err(map_bad_request)?;
-        let author = context.scope().project_scope().user_id();
         let lock = self.project_dispatch_lock(&context);
         let _guard = lock.lock().await;
-        AgentTaskBoardService::new(&self.store)
-            .change_task_detail(&context, &id, author.as_ref(), change, current_timestamp_ms())
-            .map_err(map_task_board_error)?
-            .ok_or_else(|| ApiError::not_found("task not found"))
+        self.save_detail_change(context, id, change)
     }
 
     async fn import_legacy_tasks(

@@ -1,8 +1,7 @@
 use crate::app::components::system_settings_common::{
     icon_svg, primary_action_btn_style, rounded_action_btn_style, settings_close_button,
     settings_divider, settings_error_banner, settings_modal_card, settings_modal_header,
-    settings_modal_layout, settings_muted_text_style, settings_select, settings_text_editor,
-    settings_text_input,
+    settings_modal_layout, settings_muted_text_style, settings_select, settings_text_input,
 };
 use crate::app::i18n::{I18n, tasks::status_label};
 use crate::app::message::TaskBoardMessage;
@@ -10,7 +9,7 @@ use crate::app::state::TaskBoardDetailTab;
 use crate::app::{App, Message};
 use desktop_assets::assets::Icon;
 use desktop_task_board::board::{task_label_badge, task_status_marker, task_title};
-use desktop_task_board::detail::{Event, Field, Operation};
+use desktop_task_board::detail::{ATTACHMENT_INPUT_ID, Event, Field};
 use desktop_task_board::helpers::{execution::truncate_for_ui, logs::localized_log_message};
 use desktop_task_model::{Task, TaskStatus, TaskWorkflow};
 use desktop_ui_controls::system_settings_common::{
@@ -22,6 +21,9 @@ use iced::widget::{
 };
 use iced::{Alignment, Border, Element, Font, Length, Theme};
 use std::hash::{DefaultHasher, Hash, Hasher};
+
+#[path = "detail/discussion.rs"]
+mod discussion;
 
 pub(super) fn view<'a>(app: &'a App, task: &'a Task) -> Element<'a, Message> {
     let mut hasher = DefaultHasher::new();
@@ -65,7 +67,7 @@ fn layout<'a>(app: &'a App, task: &'a Task, wide: bool) -> Element<'a, Message> 
             .padding([6, 10])
             .style(rounded_action_btn_style)
             .on_press_maybe(
-                app.task_board.detail.request.is_none().then_some(event(Event::Reload))
+                (!app.task_board.detail.write_pending()).then_some(event(Event::Reload))
             ),
     ]
     .spacing(10)
@@ -113,10 +115,13 @@ fn layout<'a>(app: &'a App, task: &'a Task, wide: bool) -> Element<'a, Message> 
             .expect("valid dependency message");
         content = content.push(text(label).size(13).wrapping(text::Wrapping::WordOrGlyph));
     }
-    content = content.push(settings_divider()).push(activity(app, i18n, task));
+    content = content
+        .push(settings_divider())
+        .push(activity(app, i18n, task))
+        .push(discussion::comments(app, i18n, task));
 
     let properties = properties(app, task, project, &project_name, workflow.as_ref());
-    let composer = comment_composer(app, i18n, task);
+    let composer = discussion::composer(app, i18n, task);
     let body: Element<'_, Message> = if wide {
         row![
             column![
@@ -124,8 +129,14 @@ fn layout<'a>(app: &'a App, task: &'a Task, wide: bool) -> Element<'a, Message> 
                     container(container(content).width(Length::Fill).max_width(820).padding(24))
                         .center_x(Length::Fill)
                 ),
-                container(container(composer).width(Length::Fill).max_width(820).padding([10, 24]))
-                    .center_x(Length::Fill),
+                container(
+                    container(
+                        container(composer).width(Length::Fill).max_width(820).padding([10, 24])
+                    )
+                    .center_x(Length::Fill)
+                )
+                .padding([0, 7])
+                .width(Length::Fill),
             ]
             .width(Length::Fill)
             .height(Length::Fill),
@@ -195,8 +206,6 @@ fn action<'a>(
         .on_press(message.into())
 }
 
-
-
 fn time(timestamp: u64) -> String {
     if timestamp == 0 {
         "—".into()
@@ -207,55 +216,6 @@ fn time(timestamp: u64) -> String {
 
 fn event(message: Event) -> Message {
     TaskBoardMessage::Detail(message).into()
-}
-
-fn comment_composer<'a>(app: &'a App, i18n: I18n, task: &Task) -> Element<'a, Message> {
-    let state = &app.task_board.detail;
-    if task.archived || task.deleted {
-        return Space::new().into();
-    }
-    if state.load_failed {
-        return settings_error_banner(i18n.__("无法加载任务详情，请刷新后重试。"));
-    }
-    let pending = state.request.is_some_and(|(_, operation)| operation == Operation::PostComment);
-    let placeholder = if state.reply_to.is_some() { "输入回复…" } else { "留下评论…" };
-    let mut input = settings_text_editor(&state.comment)
-        .id("task-detail-comment")
-        .placeholder(i18n.__(placeholder))
-        .height(78);
-    if !pending && state.data.is_some() {
-        input = input.on_action(|action| event(Event::EditComment(action)));
-    }
-    let mut footer = row![Space::new().width(Length::Fill)].spacing(8).align_y(Alignment::Center);
-    if state.reply_to.is_some() {
-        footer = footer.push(
-            button(text(i18n.__("取消回复")).size(12))
-                .padding([6, 10])
-                .style(rounded_action_btn_style)
-                .on_press_maybe((!pending).then_some(event(Event::ReplyTo(None)))),
-        );
-    }
-    let label = if pending {
-        "正在发送…"
-    } else if state.reply_to.is_some() {
-        "发送回复"
-    } else {
-        "发表评论"
-    };
-    let send = button(
-        row![text(i18n.__(label)).size(13), icon(Icon::ArrowUp)]
-            .spacing(7)
-            .align_y(Alignment::Center),
-    )
-    .padding([7, 12])
-    .style(primary_action_btn_style)
-    .on_press_maybe(
-        (state.data.is_some()
-            && state.request.is_none()
-            && !state.comment.text().trim().is_empty())
-        .then_some(event(Event::PostComment)),
-    );
-    column![input, footer.push(send)].spacing(7).width(Length::Fill).into()
 }
 
 fn activity<'a>(app: &'a App, i18n: I18n, task: &'a Task) -> Element<'a, Message> {
@@ -301,81 +261,13 @@ fn activity<'a>(app: &'a App, i18n: I18n, task: &'a Task) -> Element<'a, Message
             .spacing(8)
             .align_y(Alignment::Center),
         );
-        entries = entries
-            .push(container(timeline).padding(12).width(Length::Fill).style(surface));
-    }
-    if let Some(detail) = &state.data {
-        let mut replies = std::collections::HashMap::<&str, Vec<_>>::new();
-        for comment in &detail.collaboration.comments {
-            if let Some(parent) = &comment.reply_to {
-                replies.entry(parent.as_str()).or_default().push(comment);
-            }
-        }
-        for comment in
-            detail.collaboration.comments.iter().filter(|comment| comment.reply_to.is_none())
-        {
-            let mut thread = column![comment_body(i18n, comment)].spacing(10);
-            if let Some(replies) = replies.get(comment.id.as_str()) {
-                thread = thread.push(settings_divider()).extend(
-                    replies
-                        .iter()
-                        .map(|reply| container(comment_body(i18n, reply)).padding([0, 14]).into()),
-                );
-            }
-            if !task.archived && !task.deleted {
-                let replying = state.reply_to.as_ref() == Some(&comment.id);
-                thread = thread.push(
-                    button(text(i18n.__(if replying { "正在回复" } else { "回复" })).size(12))
-                        .padding([5, 9])
-                        .style(rounded_action_btn_style)
-                        .on_press_maybe(
-                            (!replying).then(|| event(Event::ReplyTo(Some(comment.id.clone())))),
-                        ),
-                );
-            }
-            entries =
-                entries.push(container(thread).padding(13).width(Length::Fill).style(surface));
-        }
-        if detail.collaboration.comments.is_empty() {
-            entries = entries.push(muted(i18n.__("暂无评论")));
-        }
-    } else if !state.load_failed {
-        entries = entries.push(muted(i18n.__("正在加载任务详情…")));
+        entries = entries.push(container(timeline).padding(12).width(Length::Fill).style(surface));
     }
     entries.into()
 }
 
 fn display_author<'a>(i18n: I18n, id: &'a str) -> &'a str {
     if id == vw_api_transport::id::DEFAULT_USER_ID { i18n.__("本地用户") } else { id }
-}
-
-fn comment_body(
-    i18n: I18n,
-    comment: &vw_api_agent_scheduler::AgentSchedulerTaskCommentDto,
-) -> Element<'_, Message> {
-    let timestamp = u64::try_from(comment.created_at_ms.0).unwrap_or_default();
-    let author = display_author(i18n, &comment.author);
-    let first = author.chars().next().unwrap_or('?');
-    let avatar = container(text(first.to_uppercase().to_string()).size(13))
-        .center_x(24)
-        .center_y(24)
-        .style(|theme: &Theme| container::Style {
-            background: Some(theme.palette().primary.scale_alpha(0.14).into()),
-            border: Border { radius: 12.0.into(), ..Default::default() },
-            ..Default::default()
-        });
-    column![
-        row![avatar, heading(author, 13).width(Length::Fill), muted(time(timestamp))]
-            .spacing(8)
-            .align_y(Alignment::Center),
-        text(&comment.body)
-            .size(14)
-            .line_height(1.5)
-            .width(Length::Fill)
-            .wrapping(text::Wrapping::WordOrGlyph),
-    ]
-    .spacing(8)
-    .into()
 }
 
 fn field<'a>(
@@ -464,7 +356,7 @@ fn properties<'a>(
 
     let i18n = I18n::new(app.general_settings.desktop_locale);
     let state = &app.task_board.detail;
-    let editable = !task.archived && !task.deleted && state.request.is_none();
+    let editable = !task.archived && !task.deleted && !state.write_pending();
     let data = state.data.as_ref();
     let assignee = data.and_then(|detail| detail.assignee.as_deref()).unwrap_or(&task.assignee);
     let assignee = if assignee.trim().is_empty() { i18n.__("未分配") } else { assignee };
@@ -663,10 +555,33 @@ pub(super) fn with_field_modal<'a>(
         Field::PullRequest => ("关联 PR", "粘贴 PR 链接"),
         Field::Labels => ("标签", ""),
         Field::Properties => ("添加属性", ""),
+        Field::Attachment => ("添加附件链接", "粘贴链接"),
     };
     let header =
         settings_modal_header(heading(i18n.__(title), 17), settings_close_button(close.clone()));
     let card = match field {
+        Field::Attachment => {
+            let valid = crate::app::message::task_board::attachment_link(&state.input).is_some();
+            let mut input = settings_text_input(i18n.__(placeholder), &state.input)
+                .id(ATTACHMENT_INPUT_ID)
+                .width(Length::Fill)
+                .on_input(|value| event(Event::FieldInput(value)));
+            if valid {
+                input = input.on_submit(event(Event::AddAttachment));
+            }
+            let mut body = column![header, input].spacing(12);
+            if !valid && !state.input.trim().is_empty() {
+                body =
+                    body.push(settings_error_banner(i18n.__("请输入有效的 HTTP 或 HTTPS 链接。")));
+            }
+            settings_modal_card(body.push(row![
+                    Space::new().width(Length::Fill),
+                    button(text(i18n.__("添加")).size(13))
+                        .padding([7, 12])
+                        .style(primary_action_btn_style)
+                        .on_press_maybe(valid.then_some(event(Event::AddAttachment)))
+                ]))
+        }
         Field::Properties => {
             let body = super::properties::task_editor(app, task)
                 .unwrap_or_else(|| muted(i18n.__("请在任务设置中创建属性。")).into());
@@ -694,7 +609,7 @@ pub(super) fn with_field_modal<'a>(
             settings_modal_card(column![header, super::panel::task_labels(app, task)].spacing(14))
         }
         _ => {
-            let pending = state.request.is_some();
+            let pending = state.write_pending();
             let valid = match field {
                 Field::Priority => state.input.trim().parse::<u32>().is_ok(),
                 Field::PullRequest => !state.input.trim().is_empty(),

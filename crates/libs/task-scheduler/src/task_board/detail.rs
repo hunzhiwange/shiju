@@ -5,6 +5,7 @@ use super::{
 use anyhow::{Context, Result, bail, ensure};
 use serde_json::{Value, json};
 use vw_api_agent_scheduler::{
+    AgentSchedulerTaskAgentTurnDto, AgentSchedulerTaskAgentTurnStatus,
     AgentSchedulerTaskCollaborationDto, AgentSchedulerTaskCommentDto,
     AgentSchedulerTaskDetailChange, AgentSchedulerTaskDetailDto,
 };
@@ -33,21 +34,62 @@ impl AgentTaskBoardService<'_> {
         id: &TaskId,
         author: &str,
         change: AgentSchedulerTaskDetailChange,
+        agent_turn: Option<AgentSchedulerTaskAgentTurnDto>,
         now: TimestampMs,
-    ) -> Result<Option<AgentSchedulerTaskDetailDto>> {
-        let changed =
-            self.store.edit_task_board_task(context, id, Default::default(), |task| {
-                ensure!(!deleted(task), "task has been deleted");
-                let mut metadata = object_metadata(task.metadata.clone())?;
-                apply_change(&mut metadata, author, change, now)?;
-                Ok(AgentTaskBoardUpdate {
-                    title: None,
-                    status: None,
-                    metadata: Value::Object(metadata),
-                    updated_at_ms: TimestampMs(now.0.max(task.updated_at_ms.0)),
-                })
-            })?;
-        changed.as_ref().map(|(_, task)| project_detail(task)).transpose()
+    ) -> Result<Option<(AgentSchedulerTaskDetailDto, bool)>> {
+        let mut inserted = false;
+        let changed = self.store.edit_task_board_task(context, id, Default::default(), |task| {
+            ensure!(!deleted(task), "task has been deleted");
+            if matches!(&change, AgentSchedulerTaskDetailChange::Comment { .. }) {
+                ensure!(
+                    !task
+                        .metadata
+                        .get("task_board.archived")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
+                    "task has been archived"
+                );
+            }
+            let mut metadata = object_metadata(task.metadata.clone())?;
+            inserted = apply_change(&mut metadata, author, change, agent_turn, now)?;
+            Ok(AgentTaskBoardUpdate {
+                title: None,
+                status: None,
+                metadata: Value::Object(metadata),
+                updated_at_ms: TimestampMs(now.0.max(task.updated_at_ms.0)),
+            })
+        })?;
+        changed.as_ref().map(|(_, task)| Ok((project_detail(task)?, inserted))).transpose()
+    }
+
+    pub fn update_reply_turn(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        id: &TaskId,
+        comment_id: &str,
+        status: AgentSchedulerTaskAgentTurnStatus,
+        response: String,
+    ) -> Result<()> {
+        self.store.edit_task_board_task(context, id, Default::default(), |task| {
+            let mut metadata = object_metadata(task.metadata.clone())?;
+            let mut detail = read_collaboration(metadata.get(COLLABORATION_KEY))?;
+            let turn = detail
+                .comments
+                .iter_mut()
+                .find(|comment| comment.id == comment_id)
+                .and_then(|comment| comment.agent_turn.as_mut())
+                .context("task reply turn not found")?;
+            turn.status = status;
+            turn.response = response;
+            metadata.insert(COLLABORATION_KEY.to_owned(), serde_json::to_value(detail)?);
+            Ok(AgentTaskBoardUpdate {
+                title: None,
+                status: None,
+                metadata: Value::Object(metadata),
+                updated_at_ms: task.updated_at_ms,
+            })
+        })?;
+        Ok(())
     }
 }
 
@@ -72,6 +114,9 @@ fn project_detail(task: &StoredAgentTask) -> Result<AgentSchedulerTaskDetailDto>
             .and_then(Value::as_u64)
             .and_then(|priority| u32::try_from(priority).ok()),
         collaboration: read_collaboration(task.metadata.get(COLLABORATION_KEY))?,
+        reply_agent: crate::runner::local::execution_acp_agent(task),
+        reply_session: Default::default(),
+        reply_active_turn_id: None,
     })
 }
 
@@ -87,9 +132,11 @@ fn apply_change(
     metadata: &mut serde_json::Map<String, Value>,
     author: &str,
     change: AgentSchedulerTaskDetailChange,
+    agent_turn: Option<AgentSchedulerTaskAgentTurnDto>,
     now: TimestampMs,
-) -> Result<()> {
+) -> Result<bool> {
     let mut detail = read_collaboration(metadata.get(COLLABORATION_KEY))?;
+    let mut inserted = false;
     match change {
         AgentSchedulerTaskDetailChange::SetAssignee { assignee } => {
             let assignee = assignee.trim();
@@ -98,13 +145,13 @@ fn apply_change(
                 "invalid task assignee"
             );
             metadata.insert("assignee".to_owned(), json!(assignee));
-            return Ok(());
+            return Ok(false);
         }
         AgentSchedulerTaskDetailChange::SetPriority { priority } => {
             metadata.insert("priority".to_owned(), json!(priority));
-            return Ok(());
+            return Ok(false);
         }
-        AgentSchedulerTaskDetailChange::Comment { id, reply_to, body } => {
+        AgentSchedulerTaskDetailChange::Comment { id, reply_to, body, attachments, delivery } => {
             ensure!(
                 !id.is_empty()
                     && id.len() <= 80
@@ -112,19 +159,24 @@ fn apply_change(
                 "invalid comment ID"
             );
             let body = body.trim();
+            let attachments = parse_attachment_links(attachments)?;
             ensure!(
-                !body.is_empty() && body.chars().count() <= 4000,
-                "comment must contain 1 to 4000 characters"
+                (!body.is_empty() || !attachments.is_empty()) && body.chars().count() <= 4000,
+                "comment must contain text or a link and at most 4000 characters"
             );
             if let Some(existing) = detail.comments.iter().find(|comment| comment.id == id) {
                 ensure!(
                     existing.author == author
                         && existing.body == body
-                        && existing.reply_to == reply_to,
+                        && existing.reply_to == reply_to
+                        && existing.attachments == attachments
+                        && existing.agent_turn.as_ref().map(|turn| &turn.agent)
+                            == delivery.as_ref().map(|delivery| &delivery.agent),
                     "comment ID already exists"
                 );
-                return Ok(());
+                return Ok(false);
             }
+            ensure!(delivery.is_some() == agent_turn.is_some(), "invalid task reply delivery");
             if let Some(parent) = &reply_to {
                 ensure!(
                     detail
@@ -141,7 +193,10 @@ fn apply_change(
                 author: author.to_owned(),
                 body: body.to_owned(),
                 created_at_ms: now,
+                attachments,
+                agent_turn,
             });
+            inserted = true;
         }
         AgentSchedulerTaskDetailChange::SetStartDate { date } => {
             detail.start_date = validate_date(date)?
@@ -159,6 +214,9 @@ fn apply_change(
         AgentSchedulerTaskDetailChange::UnlinkPullRequest { url } => {
             detail.pull_requests.retain(|link| link != &url);
         }
+        AgentSchedulerTaskDetailChange::StopReply { .. } => {
+            bail!("stop reply requires the running ACP session")
+        }
     }
     if let (Some(start), Some(due)) = (&detail.start_date, &detail.due_date)
         && start > due
@@ -166,7 +224,32 @@ fn apply_change(
         bail!("task start date must be on or before its due date");
     }
     metadata.insert(COLLABORATION_KEY.to_owned(), serde_json::to_value(detail)?);
-    Ok(())
+    Ok(inserted)
+}
+
+fn parse_attachment_links(attachments: Vec<String>) -> Result<Vec<String>> {
+    ensure!(attachments.len() <= 5, "up to five attachment links are allowed");
+    let mut links = Vec::with_capacity(attachments.len());
+    for attachment in attachments {
+        let value = attachment.trim();
+        ensure!(
+            value.len() <= 2048 && !value.chars().any(char::is_control),
+            "invalid attachment link"
+        );
+        let url = url::Url::parse(value).context("expected an HTTP or HTTPS attachment link")?;
+        ensure!(
+            matches!(url.scheme(), "http" | "https")
+                && url.host_str().is_some()
+                && url.username().is_empty()
+                && url.password().is_none(),
+            "expected an HTTP or HTTPS attachment link without credentials"
+        );
+        let link = url.to_string();
+        if !links.contains(&link) {
+            links.push(link);
+        }
+    }
+    Ok(links)
 }
 
 fn validate_date(date: Option<String>) -> Result<Option<String>> {

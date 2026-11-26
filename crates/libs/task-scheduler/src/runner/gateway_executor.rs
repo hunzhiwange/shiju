@@ -76,6 +76,16 @@ pub trait GatewayChatStreamClient: std::fmt::Debug + Send + Sync {
         cancellation: tokio_util::sync::CancellationToken,
         observe_payload: GatewayPayloadObserver<'a>,
     ) -> GatewayFuture<'a, GatewayChatStreamCollected>;
+
+    fn collect_task_reply<'a>(
+        &'a self,
+        _tenant: vw_api_transport::id::TenantScope,
+        _workspace_path: String,
+        _body: GatewayChatStreamRequest,
+        _cancellation: tokio_util::sync::CancellationToken,
+    ) -> GatewayFuture<'a, GatewayChatStreamCollected> {
+        Box::pin(async { bail!("task reply sessions are unavailable") })
+    }
 }
 
 #[derive(Debug, Clone)]

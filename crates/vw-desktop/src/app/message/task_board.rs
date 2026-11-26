@@ -35,6 +35,19 @@ pub use message::TaskBoardMessage;
 pub(crate) use message::WorktreePoolMaintenanceOutcome;
 pub use update::update;
 
+pub(in crate::app) fn attachment_link(input: &str) -> Option<String> {
+    let value = input.trim();
+    if value.len() > 2048 || value.chars().any(char::is_control) {
+        return None;
+    }
+    let url = reqwest::Url::parse(value).ok()?;
+    (matches!(url.scheme(), "http" | "https")
+        && url.host_str().is_some()
+        && url.username().is_empty()
+        && url.password().is_none())
+    .then(|| url.to_string())
+}
+
 #[cfg(test)]
 #[path = "task_board_tests.rs"]
 mod task_board_tests;

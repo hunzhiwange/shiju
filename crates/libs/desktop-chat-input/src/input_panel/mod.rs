@@ -15,6 +15,7 @@ pub fn session_lock_tooltip<'a, Message: Clone + 'a>(content: impl Into<iced::El
 }
 pub mod model_views;
 pub mod icons;
+pub use desktop_ui_controls::composer_icons;
 pub mod agent_children;
 pub mod agent_sessions;
 
@@ -35,6 +36,7 @@ mod input_editor_tests;
 mod icons_tests;
 
 pub mod quick_messages;
+pub mod starter;
 mod employee_commands;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod media_shortcuts;

@@ -41,6 +41,7 @@ fn overlay(app: &Fixture) -> Element<'_, Message> {
             false,
             "fixture/model-00",
             true,
+            None,
             Message::Model,
         ),
         app.popover(),

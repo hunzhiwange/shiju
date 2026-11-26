@@ -303,6 +303,7 @@ pub enum ViewMessage {
     WorkSpacePickerToggled,
     /// 关闭输入区空间选择器
     WorkSpacePickerClosed,
+    WorkSpacePickerQueryChanged(String),
     /// 更新工作模式对话区占可用内容宽度的比例
     WorkSplitRatioChanged(f32),
     /// 开始拖动工作模式左栏宽度
@@ -333,10 +334,10 @@ pub enum ViewMessage {
     ToggleSendModePopover,
     /// 切换文件选择弹窗
     ToggleFilePopover,
+    SelectFileMenuSection(Option<desktop_chat_input::popovers::FileMenuSection>),
     /// 切换 ACP 选择弹窗
     ToggleAcpPopover,
     /// 切换推理强度选择弹窗
-    ToggleReasoningEffortPopover,
     /// 切换使用量详情弹窗
     ToggleUsagePopover,
     /// 切换会话工具选择弹窗
@@ -358,7 +359,6 @@ pub enum ViewMessage {
     /// 关闭 ACP 选择弹窗
     CloseAcpPopover,
     /// 关闭推理强度选择弹窗
-    CloseReasoningEffortPopover,
     /// 关闭使用量详情弹窗
     CloseUsagePopover,
     /// 关闭执行器选择弹窗
@@ -1099,8 +1099,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::CloseWorkspaceModePopover
         | ViewMessage::WorkspaceModeSelected(_)
         | ViewMessage::ToggleFilePopover
+        | ViewMessage::SelectFileMenuSection(_)
         | ViewMessage::ToggleAcpPopover
-        | ViewMessage::ToggleReasoningEffortPopover
         | ViewMessage::ToggleUsagePopover
         | ViewMessage::ToggleSessionToolSelectorPopover
         | ViewMessage::ToggleSendModePopover
@@ -1111,7 +1111,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::CloseModePopover
         | ViewMessage::CloseFilePopover
         | ViewMessage::CloseAcpPopover
-        | ViewMessage::CloseReasoningEffortPopover
         | ViewMessage::CloseUsagePopover
         | ViewMessage::CloseSendModePopover
         | ViewMessage::CloseExecutorPopover
@@ -1136,6 +1135,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(_)
         | ViewMessage::WorkSpacePickerToggled
         | ViewMessage::WorkSpacePickerClosed
+        | ViewMessage::WorkSpacePickerQueryChanged(_)
         | ViewMessage::WorkSplitRatioChanged(_)
         | ViewMessage::WorkResourceFullscreenToggled
         | ViewMessage::WorkResourceHalfFullscreenToggled

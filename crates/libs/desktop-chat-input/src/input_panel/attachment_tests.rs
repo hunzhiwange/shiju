@@ -130,12 +130,12 @@ fn attachment_chip_styles_follow_theme_and_hover_contracts() {
     for theme in [Theme::Light, Theme::Dark] {
         let chip = chip_style(&theme);
         assert!(chip.background.is_some());
-        assert_eq!(chip.border.width, 1.0);
+        assert_eq!(chip.border.width, 0.0);
         assert_eq!(chip.text_color, Some(theme.palette().text));
 
         let thumbnail = chip_thumb_style(&theme);
         assert!(thumbnail.background.is_some());
-        assert_eq!(thumbnail.border.width, 1.0);
+        assert_eq!(thumbnail.border.width, 0.0);
 
         let idle_close = chip_close_style(&theme, button::Status::Active);
         let hovered_close = chip_close_style(&theme, button::Status::Hovered);

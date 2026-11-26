@@ -244,6 +244,13 @@ pub fn update(app: &mut State, current_project: &Option<String>, message: Event)
             app.loading = false;
             match result {
                 Ok(items) => {
+                    app.expert_skill_ids = items.iter().filter(|item| {
+                        item.namespace.as_deref() == Some("skillset")
+                            && item.package_type.as_deref() == Some("meta-skill")
+                            && item.source_pack.as_ref().is_some_and(|pack| {
+                                item.id == format!("{}--skillset--{pack}", item.source)
+                            })
+                    }).map(|item| item.id.clone()).collect();
                     app.catalog = map_catalog_items(items);
                     if app.selected_skill_id.as_deref().is_some_and(|selected| {
                         !app.catalog.iter().any(|skill| skill.id == selected)
@@ -254,6 +261,7 @@ pub fn update(app: &mut State, current_project: &Option<String>, message: Event)
                 }
                 Err(err) => {
                     app.catalog.clear();
+                    app.expert_skill_ids.clear();
                     set_status_localized(app, "读取技能目录失败: %s", vec![(err).into()], true);
                 }
             }

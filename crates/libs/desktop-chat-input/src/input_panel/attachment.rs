@@ -17,9 +17,13 @@ use iced::widget::{Space, button, container, rich_text, row, scrollable, span, t
 use iced::{Color, ContentFit, Element, Length, Theme};
 
 use desktop_assets::assets::Icon;
+use super::composer_icons::ComposerIcon;
 use super::icons::icon_svg;
+use super::surface_styles::{BOTTOM_BAR_ICON_BUTTON_SIZE, BOTTOM_BAR_ICON_SIZE};
 use desktop_ui_controls::tooltip::tooltip_dark_style;
 use desktop_i18n::I18n;
+
+mod add_icon;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Message {
@@ -28,12 +32,7 @@ pub enum Message {
     Remove(String),
 }
 
-const BOTTOM_BAR_ICON_BUTTON_SIZE: f32 = 24.0;
-const BOTTOM_BAR_ICON_SIZE: f32 = 12.0;
-const BOTTOM_BAR_LARGE_ICON_SIZE: f32 = 14.0;
-
 const ATTACH_BUTTON_SIZE: f32 = BOTTOM_BAR_ICON_BUTTON_SIZE;
-const ATTACH_ICON_SIZE: f32 = BOTTOM_BAR_LARGE_ICON_SIZE;
 const ATTACHMENT_NAME_MAX_CHARS: usize = 20;
 const ATTACHMENT_NAME_ELLIPSIS: &str = "...";
 
@@ -60,6 +59,12 @@ impl AttachmentDisplayItem {
         };
         Self { path, display_name: None, kind }
     }
+
+    pub(super) fn name(&self) -> &str {
+        self.display_name.as_deref().or_else(|| {
+            Path::new(&self.path).file_name().and_then(std::ffi::OsStr::to_str)
+        }).unwrap_or(&self.path)
+    }
 }
 
 fn is_supported_image_attachment(path: &str) -> bool {
@@ -76,30 +81,18 @@ fn is_supported_image_attachment(path: &str) -> bool {
 }
 
 fn chip_style(theme: &Theme) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
     iced::widget::container::Style {
-        background: Some(iced::Background::Color(palette.background.weak.color.scale_alpha(0.78))),
-        border: iced::Border {
-            radius: 10.0.into(),
-            width: 1.0,
-            color: palette.background.strong.color.scale_alpha(0.9),
-        },
+        background: Some(iced::Background::Color(theme.palette().text.scale_alpha(0.06))),
+        border: iced::Border { radius: 12.0.into(), ..iced::Border::default() },
         text_color: Some(theme.palette().text),
         ..Default::default()
     }
 }
 
 fn chip_thumb_style(theme: &Theme) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
     iced::widget::container::Style {
-        background: Some(iced::Background::Color(
-            palette.background.strong.color.scale_alpha(0.72),
-        )),
-        border: iced::Border {
-            radius: 8.0.into(),
-            width: 1.0,
-            color: palette.background.strong.color.scale_alpha(0.96),
-        },
+        background: Some(iced::Background::Color(theme.palette().primary.scale_alpha(0.12))),
+        border: iced::Border { radius: 8.0.into(), ..iced::Border::default() },
         ..Default::default()
     }
 }
@@ -128,11 +121,24 @@ pub fn attachment_button(
     i18n: I18n, files: &[String], max_images: usize, max_image_size_mb: usize,
     button_style: fn(&Theme, iced::widget::button::Status, bool) -> iced::widget::button::Style,
 ) -> Element<'static, Message> {
+    attachment_trigger(i18n, files, max_images, max_image_size_mb, button_style, None, Message::Pick)
+}
+
+pub fn attachment_trigger<M: Clone + 'static>(
+    i18n: I18n,
+    files: &[String],
+    max_images: usize,
+    max_image_size_mb: usize,
+    button_style: fn(&Theme, button::Status, bool) -> button::Style,
+    expanded: Option<bool>,
+    on_press: M,
+) -> Element<'static, M> {
     let image_count = files.iter().filter(|path| is_supported_image_attachment(path)).count();
     let max_images = max_images.clamp(1, 16);
 
+    let expanded_now = expanded == Some(true);
     let attach_btn = button(
-        container(icon_svg(Icon::Plus, ATTACH_ICON_SIZE))
+        container(Element::new(add_icon::AddIcon::new(expanded_now)))
             .width(Length::Fixed(ATTACH_BUTTON_SIZE))
             .height(Length::Fixed(ATTACH_BUTTON_SIZE))
             .align_x(Horizontal::Center)
@@ -140,11 +146,19 @@ pub fn attachment_button(
     )
     .padding(0)
     .style(move |theme: &Theme, status| button_style(theme, status, true))
-    .on_press(Message::Pick);
+    .on_press(on_press);
+
+    // 开关菜单时保留同一棵控件树，旋转可以从当前角度反向继续。
+    if expanded_now {
+        return tooltip(attach_btn, Space::new().width(0).height(0), Position::Top)
+            .padding(0)
+            .style(|_| iced::widget::container::Style::default())
+            .into();
+    }
 
     let attach_tip = container(
         iced::widget::column![
-            text(i18n.__("附件"))
+            text(i18n.__(if expanded.is_some() { "添加文件、专家或技能" } else { "附件" }))
                 .size(12)
                 .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
             text(
@@ -171,12 +185,16 @@ pub fn attachment_button(
     tooltip(attach_btn, attach_tip, Position::Top).into()
 }
 
-fn attachment_thumbnail(path: String, kind: AttachmentDisplayKind) -> Element<'static, Message> {
+pub(super) fn attachment_thumbnail<Message: 'static>(
+    path: String,
+    kind: AttachmentDisplayKind,
+) -> Element<'static, Message> {
     match kind {
         AttachmentDisplayKind::Image if Path::new(&path).exists() => container(
             Image::new(ImageHandle::from_path(path))
                 .width(Length::Fixed(28.0))
                 .height(Length::Fixed(28.0))
+                .border_radius(8.0)
                 .content_fit(ContentFit::Cover),
         )
         .width(Length::Fixed(28.0))
@@ -246,15 +264,8 @@ fn attachment_chip(
     item: AttachmentDisplayItem,
     remove_message: Option<Message>,
 ) -> Element<'static, Message> {
-    let AttachmentDisplayItem { path, display_name, kind } = item;
-    let name = display_name.unwrap_or_else(|| {
-        Path::new(&path)
-            .file_name()
-            .and_then(|file| file.to_str())
-            .map(ToOwned::to_owned)
-            .unwrap_or_else(|| path.clone())
-    });
-    let truncated_name = truncate_attachment_name_middle(&name, ATTACHMENT_NAME_MAX_CHARS);
+    let truncated_name = truncate_attachment_name_middle(item.name(), ATTACHMENT_NAME_MAX_CHARS);
+    let AttachmentDisplayItem { path, kind, .. } = item;
     let label = match kind {
         AttachmentDisplayKind::Image => "图片",
         AttachmentDisplayKind::Document => "文件",
@@ -281,7 +292,7 @@ fn attachment_chip(
 
     if let Some(remove_message) = remove_message {
         let remove = button(
-            container(icon_svg(Icon::X, BOTTOM_BAR_ICON_SIZE))
+            container(icon_svg(Icon::X, 12.0))
                 .width(Length::Fixed(16.0))
                 .height(Length::Fixed(16.0))
                 .align_x(Horizontal::Center)
@@ -293,17 +304,19 @@ fn attachment_chip(
         chip_row = chip_row.push(remove);
     }
 
-    let content = container(chip_row).padding([6, 10]).style(chip_style);
+    let content = container(chip_row).padding([5, 8]).style(chip_style);
 
     let tip = container(
         text(path)
             .size(12)
+            .wrapping(text::Wrapping::WordOrGlyph)
             .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
     )
     .style(tooltip_dark_style)
+    .max_width(360)
     .padding([6, 8]);
 
-    tooltip(content, tip, Position::Top).into()
+    tooltip(content, tip, Position::Top).gap(6).snap_within_viewport(true).into()
 }
 
 pub fn attachment_preview_strip(

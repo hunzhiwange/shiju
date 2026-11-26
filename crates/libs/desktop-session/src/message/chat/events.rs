@@ -2,6 +2,7 @@
 use iced::widget::text_editor;
 use super::fork::ForkSessionAnchor;
 use super::input::clipboard::ClipboardPastePayload;
+use super::input::popovers::ComposerScene;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ForkSessionTarget {
@@ -135,6 +136,9 @@ pub enum ChatMessage<Measurement, PreparedOpen, PanelMode, DetailsTab, TodoPlace
     ReasoningEffortSelected(Option<vw_api_chat_identity::ReasoningEffortDto>),
     SessionAgentSelected(Option<String>),
     AgentRecommendedPromptSelected(usize),
+    ComposerSceneSelected(ComposerScene),
+    ComposerCategorySelected(ComposerScene, Option<usize>),
+    ComposerPromptSelected(ComposerScene, Option<usize>, usize),
     AgentInstallationStatusesLoaded(Result<std::collections::BTreeMap<String, bool>, String>),
     AgentInstallationChecked {
         session_id: Option<String>,

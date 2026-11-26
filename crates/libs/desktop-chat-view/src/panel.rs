@@ -13,6 +13,7 @@ use desktop_session::session::active::UserQuestionMarker;
 pub enum Message { ScrollToBottom, LocateChatMessageIndex(usize) }
 const MAX_USER_QUESTION_MARKERS: usize = 40;
 pub const CONVERSATION_READING_COLUMN_MAX_WIDTH: f32 = 880.0;
+pub const CONVERSATION_GUTTER: Padding = Padding { top: 0.0, right: 18.0, bottom: 0.0, left: 18.0 };
 
 pub fn chat_message_column<'a, Message: Clone + 'static>() -> iced::widget::Column<'a, Message> {
     column![]
@@ -450,7 +451,7 @@ pub fn started_view<'a, Message: Clone + 'static>(header: Element<'a, Message>, 
 pub fn placeholder_view<'a, Message: Clone + 'static>(content: Element<'a, Message>, controls: Element<'a, Message>, status: Element<'a, Message>) -> Element<'a, Message> {
     iced::widget::column![
         iced::widget::stack![
-            conversation_reading_column(content, Padding { top: 0.0, right: 18.0, bottom: 0.0, left: 18.0 }).height(Length::Fill), controls
+            conversation_reading_column(content, CONVERSATION_GUTTER).height(Length::Fill), controls
         ].width(Length::Fill).height(Length::Fill), status
     ].width(Length::Fill).height(Length::Fill).into()
 }
@@ -538,7 +539,7 @@ pub fn conversation_window<'a, M: Clone + 'static>(
     }
     iced::widget::scrollable(conversation_reading_column(
         chat_virtual_content(messages, window.top_spacer_h, window.bottom_spacer_h),
-        Padding { top: 0.0, right: 18.0, bottom: 0.0, left: 18.0 },
+        CONVERSATION_GUTTER,
     ))
     .direction(crate::utils::theme::chat_scroll_direction())
     .id(input.scroll_id)
@@ -612,7 +613,7 @@ pub fn status_reading_column<'a, M: Clone + 'static>(
 ) -> Element<'a, M> {
     conversation_reading_column(
         column![recovery, status].spacing(6),
-        Padding { top: 0.0, right: 18.0, bottom: 0.0, left: 18.0 },
+        CONVERSATION_GUTTER,
     )
     .into()
 }

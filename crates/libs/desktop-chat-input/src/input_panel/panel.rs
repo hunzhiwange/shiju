@@ -5,6 +5,7 @@ use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{button, container, row, column, text};
 use iced::{Element, Length, Alignment, Color, Theme};
 use super::{surface_styles as styles, icons::{self, icon_svg}};
+use super::composer_icons::ComposerIcon;
 use desktop_chat_tools::state::SessionToolSelectorTab;
 pub use desktop_chat_tools::selector_style::{agent_option, popover_style as agent_popover_style};
 #[cfg(test)]
@@ -35,12 +36,11 @@ pub(super) fn bottom_bar_round_toggle<'a, Message: Clone + 'a>(
     Tooltip::new(toggle, dark_tooltip_content(tooltip_label), TooltipPosition::Top).gap(6.0).into()
 }
 
-fn session_tool_tab_icon(tab: SessionToolSelectorTab) -> Icon {
-    // 与 slash 面板语义对齐：技能=星标、工具=终端；代理用六边形身份标记，避免像聊天气泡。
+fn session_tool_tab_icon(tab: SessionToolSelectorTab) -> ComposerIcon {
     match tab {
-        SessionToolSelectorTab::Agent => Icon::Hexagon,
-        SessionToolSelectorTab::Tools => Icon::Terminal,
-        SessionToolSelectorTab::Skills => Icon::Star,
+        SessionToolSelectorTab::Agent => ComposerIcon::Agent,
+        SessionToolSelectorTab::Tools => ComposerIcon::Tools,
+        SessionToolSelectorTab::Skills => ComposerIcon::Skill,
     }
 }
 
@@ -115,6 +115,7 @@ pub fn selected_context_card<'a, Message: Clone + 'a>(
 }
 
 pub fn session_tool_tab_toggle<'a, Message: Clone + 'a>(
+    i18n: I18n,
     tab: SessionToolSelectorTab,
     highlight: bool,
     agent_label: String,
@@ -126,12 +127,18 @@ pub fn session_tool_tab_toggle<'a, Message: Clone + 'a>(
         return agent_toggle(highlight, agent_label, acp_agent, portrait, on_press);
     }
     let icon: Element<'_, Message> =
-        icon_svg(session_tool_tab_icon(tab), styles::BOTTOM_BAR_ICON_SIZE)
+        session_tool_tab_icon(tab).svg(styles::BOTTOM_BAR_ICON_SIZE)
             .style(move |theme: &Theme, _| iced::widget::svg::Style {
                 color: Some(styles::selector_text_color(theme, highlight)),
             })
             .into();
-    bottom_bar_round_toggle(icon, tab.label(), on_press)
+    let toggle = button(container(icon).center(styles::BOTTOM_BAR_ICON_BUTTON_SIZE))
+        .padding(0)
+        .style(move |theme, status| styles::composer_selector_button_style(theme, status, highlight))
+        .on_press(on_press);
+    Tooltip::new(toggle, dark_tooltip_content(i18n.__(tab.label())), TooltipPosition::Top)
+        .gap(6.0)
+        .into()
 }
 
 pub fn agent_toggle<'a, Message: Clone + 'a>(
@@ -146,19 +153,20 @@ pub fn agent_toggle<'a, Message: Clone + 'a>(
     } else if let Some(backend) = acp_agent {
         icons::acp_agent_icon(backend, styles::BOTTOM_BAR_ICON_SIZE)
     } else {
-        icon_svg(session_tool_tab_icon(SessionToolSelectorTab::Agent), styles::BOTTOM_BAR_ICON_SIZE)
+        ComposerIcon::Agent.svg(styles::BOTTOM_BAR_ICON_SIZE)
             .style(move |theme: &Theme, _| iced::widget::svg::Style {
                 color: Some(styles::selector_text_color(theme, highlight)),
             })
             .into()
     };
     button(
-        row![icon, text(label).size(styles::BOTTOM_BAR_LABEL_SIZE)]
+        container(row![icon, text(label).size(styles::BOTTOM_BAR_LABEL_SIZE)]
             .spacing(6)
-            .align_y(Alignment::Center),
+            .align_y(Alignment::Center))
+            .center_y(styles::BOTTOM_BAR_ICON_BUTTON_SIZE),
     )
-    .padding([4, 10])
-    .style(move |theme, status| styles::selector_pill_button_style(theme, status, highlight))
+    .padding([0, 10])
+    .style(move |theme, status| styles::composer_selector_button_style(theme, status, highlight))
     .on_press(on_press)
     .into()
 }
@@ -223,9 +231,14 @@ pub fn skill_title<'a>(skill_id: &str, mut titles: impl Iterator<Item = (&'a str
     titles.find(|(id, _)| *id == skill_id).map(|(_, title)| title.to_owned()).unwrap_or_else(|| skill_id.to_owned())
 }
 
-pub fn session_tool_tab_highlight(tab: SessionToolSelectorTab, popover_open: bool, active_tab: SessionToolSelectorTab, agent_selected: bool, selector: &desktop_chat_tools::state::SessionToolSelectorState) -> bool {
+pub fn session_tool_tab_highlight(
+    tab: SessionToolSelectorTab,
+    popover_open: bool,
+    active_tab: SessionToolSelectorTab,
+    selector: &desktop_chat_tools::state::SessionToolSelectorState,
+) -> bool {
     (popover_open && active_tab == tab) || match tab {
-        SessionToolSelectorTab::Agent => agent_selected,
+        SessionToolSelectorTab::Agent => false,
         SessionToolSelectorTab::Tools => !selector.selected_manual_tools().is_empty(),
         SessionToolSelectorTab::Skills => !selector.selected_manual_skills().is_empty() || !selector.selected_shiju_skills().is_empty(),
     }

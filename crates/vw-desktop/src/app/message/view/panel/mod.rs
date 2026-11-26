@@ -64,7 +64,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::WorkSidebarLoadMorePressed
         | ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(_)
         | ViewMessage::WorkSpacePickerToggled
-        | ViewMessage::WorkSpacePickerClosed => work_sidebar::update(app, message),
+        | ViewMessage::WorkSpacePickerClosed
+        | ViewMessage::WorkSpacePickerQueryChanged(_) => work_sidebar::update(app, message),
 
         ViewMessage::WorkBrowserAddressChanged(_)
         | ViewMessage::WorkBrowserNavigate
@@ -124,8 +125,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::ToggleModePopover
         | ViewMessage::ToggleSendModePopover
         | ViewMessage::ToggleFilePopover
+        | ViewMessage::SelectFileMenuSection(_)
         | ViewMessage::ToggleAcpPopover
-        | ViewMessage::ToggleReasoningEffortPopover
         | ViewMessage::ToggleUsagePopover
         | ViewMessage::ToggleSessionToolSelectorPopover
         | ViewMessage::ToggleSessionActionsPopover
@@ -136,7 +137,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::CloseSendModePopover
         | ViewMessage::CloseFilePopover
         | ViewMessage::CloseAcpPopover
-        | ViewMessage::CloseReasoningEffortPopover
         | ViewMessage::CloseUsagePopover
         | ViewMessage::CloseExecutorPopover
         | ViewMessage::ModelPopoverHoverChanged(_)

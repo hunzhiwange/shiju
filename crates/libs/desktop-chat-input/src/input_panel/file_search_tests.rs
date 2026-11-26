@@ -8,7 +8,7 @@ use super::file_search::{
 };
 
 use iced::widget::{button, svg};
-use iced::{Background, Color, Theme};
+use iced::Theme;
 
 #[test]
 fn file_search_query_and_paths_are_normalized_for_display() {
@@ -36,13 +36,12 @@ fn file_search_entry_style_highlights_hovered_or_selected_rows() {
         let idle = file_search_entry_style(&theme, button::Status::Active, false);
         let hovered = file_search_entry_style(&theme, button::Status::Hovered, false);
         let selected = file_search_entry_style(&theme, button::Status::Active, true);
-        let expected = Some(Background::Color(theme.extended_palette().background.weak.color));
 
         assert!(idle.background.is_none());
-        assert_eq!(hovered.background, expected);
-        assert_eq!(selected.background, expected);
-        assert_eq!(idle.text_color, theme.palette().text);
-        assert_eq!(idle.border.radius, 6.0.into());
+        assert!(hovered.background.is_some());
+        assert!(selected.background.is_some());
+        assert_eq!(selected.border.width, 0.0);
+        assert_eq!(idle.border.radius, 9.0.into());
     }
 }
 
@@ -58,12 +57,8 @@ fn file_search_styles_follow_light_and_dark_theme_palettes() {
         assert_eq!(empty_text.color, Some(palette.secondary.base.text));
         assert_eq!(query_text.color, Some(theme.palette().primary));
         assert_eq!(icon.color, Some(theme.palette().text.scale_alpha(0.65)));
-        assert_eq!(overlay.background, Some(Background::Color(palette.background.base.color)));
+        assert!(overlay.background.is_some());
         assert_eq!(overlay.border.width, 1.0);
-        assert_eq!(overlay.border.color, palette.background.strong.color);
-        assert_eq!(overlay.border.radius, 12.0.into());
-        assert_eq!(overlay.shadow.color, Color::BLACK.scale_alpha(0.12));
-        assert_eq!(overlay.shadow.offset, iced::Vector::new(0.0, 4.0));
-        assert_eq!(overlay.shadow.blur_radius, 12.0);
+        assert_eq!(overlay.border.radius, 18.0.into());
     }
 }

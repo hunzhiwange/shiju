@@ -39,6 +39,32 @@ use std::time::Duration;
 
 pub(crate) use desktop_session::message::chat::input::scroll::ChatScrollUpdateOutcome;
 
+pub(super) fn fill_recommended_prompt(app: &mut App, prompt: Option<&str>) -> Task<Message> {
+    app.session_state.input_popovers.set_recommended_prompt(false);
+    let fallback = app
+        .current_session_runtime_ref()
+        .is_none()
+        .then(|| app.session_state.input_editor.clone());
+    let runtime = app.current_session_runtime_mut();
+    if let Some(editor) = fallback {
+        runtime.input_editor = editor;
+    }
+    match desktop_chat_input::input_panel::quick_actions::fill_recommendation(
+        &mut runtime.input_editor,
+        prompt,
+    ) {
+        Ok(Some(prompt)) => {
+            app.session_state.input_text = prompt;
+            shared::sync_global_input_editor_if_needed(app);
+            Task::none()
+        }
+        Ok(None) => Task::none(),
+        Err(source) => {
+            app.show_localized_toast(crate::app::state::ToastKind::Warning, source, vec![])
+        }
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) fn fill_task_quick_action_draft(app: &mut App, draft: String) -> Task<Message> {
     let runtime = app.current_session_runtime_mut();

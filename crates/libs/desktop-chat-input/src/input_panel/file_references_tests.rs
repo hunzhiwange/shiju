@@ -189,8 +189,8 @@ fn file_reference_styles_cover_hovered_and_idle_states() {
 
     assert!(hovered.background.is_some());
     assert!(idle.background.is_some());
-    assert_ne!(hovered.border.color, idle.border.color);
-    assert_eq!(hovered.border.width, 1.0);
+    assert_ne!(hovered.background, idle.background);
+    assert_eq!(hovered.border.width, 0.0);
 }
 
 #[test]
@@ -246,7 +246,7 @@ fn file_reference_card_and_list_render_expected_outer_shapes() {
         &[],
         None,
     );
-    assert_size(&empty, Length::Shrink, Length::Shrink);
+    assert_size(&empty, Length::Shrink, Length::Fixed(0.0));
 
     let mentions = vec!["src/main.rs:10".to_string(), "README.md".to_string()];
     let rendered = render_file_references(

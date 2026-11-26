@@ -207,15 +207,15 @@ fn quick_message_strip_keeps_shiju_visible_and_renders_defaults_in_general_group
     let mut app = Fixture::new().0;
     app.project_is_git_repo = true;
     app.quick_messages.clear();
-    let empty = view(app.input()).expect("workspace and shortcut controls should render");
-    assert_eq!(Tree::new(empty.as_widget()).children.len(), 3);
+    let empty = view(app.input(), None);
+    assert_eq!(Tree::new(empty.as_widget()).children.len(), 2);
     drop(empty);
 
     app.quick_messages = AppSystemSettingsConfig::default().quick_messages;
     assert_eq!(app.quick_messages[3].kind, QuickMessageKind::SummarizeAndCreateNewSession);
-    let element = view(app.input()).expect("default quick messages should render");
+    let element = view(app.input(), None);
     let tree = Tree::new(element.as_widget());
-    assert_eq!(tree.children.len(), 5);
+    assert_eq!(tree.children.len(), 4);
     assert_eq!(
         grouped_indices(&app.quick_messages),
         ((0..27).collect::<Vec<_>>(), (27..33).collect::<Vec<_>>())
@@ -231,13 +231,13 @@ fn quick_message_strip_renders_both_groups_with_original_button_indices() {
         config("通用", QuickMessageGroup::General, QuickMessageKind::Message),
     ];
 
-    let element = view(app.input()).expect("mixed quick messages should render");
+    let element = view(app.input(), None);
     let tree = Tree::new(element.as_widget());
-    assert_eq!(tree.children.len(), 5);
+    assert_eq!(tree.children.len(), 4);
     drop(element);
 
     app.input_popovers.quick_message_group = Some(QuickMessageGroup::Git);
-    assert!(view(app.input()).is_some());
+    assert!(!Tree::new(view(app.input(), None).as_widget()).children.is_empty());
 }
 
 #[test]
@@ -250,11 +250,11 @@ fn quick_message_strip_hides_git_actions_for_non_git_projects() {
     app.project_is_git_repo = false;
     app.input_popovers.quick_message_group = Some(QuickMessageGroup::Git);
 
-    let controls = input_strip_control_order(app.input());
+    let controls = input_strip_control_order(app.input(), None);
     assert!(!controls.contains(&InputStripControl::GitActions));
     assert!(controls.contains(&InputStripControl::GeneralActions));
     assert!(controls.contains(&InputStripControl::Shiju));
-    let element = view(app.input()).expect("non-git projects should keep other controls visible");
+    let element = view(app.input(), None);
     assert_eq!(Tree::new(element.as_widget()).children.len(), controls.len());
 }
 
@@ -265,10 +265,8 @@ fn space_picker_routes_selection_and_renders_without_quick_messages() {
     app.recent_projects = vec!["/workspace/alpha".into(), "/workspace/beta".into()];
     app.project_path = Some("/workspace/alpha".into());
 
-    assert_eq!(
-        input_strip_control_order(app.input()).first(),
-        Some(&InputStripControl::Workspace)
-    );
+    let picker = workspace_menu(app.input());
+    assert!(!Tree::new(picker.as_widget()).children.is_empty());
     let Message::Batch(messages) = workspace_select_message("/workspace/beta".to_string()) else {
         panic!("workspace selection should close the picker and switch the project");
     };
@@ -288,7 +286,7 @@ fn space_picker_add_project_closes_and_opens_folder() {
     app.quick_messages.clear();
     app.recent_projects.clear();
 
-    assert!(view(app.input()).is_some());
+    assert!(!Tree::new(workspace_menu(app.input()).as_widget()).children.is_empty());
     let Message::Batch(messages) = workspace_add_message() else {
         panic!("add project should close the picker and open a folder dialog");
     };
@@ -302,7 +300,7 @@ fn space_picker_add_project_closes_and_opens_folder() {
 }
 
 #[test]
-fn input_strip_places_workspace_and_shiju_before_general_actions() {
+fn input_strip_places_categories_directly_after_media() {
     let mut app = Fixture::new().0;
     app.project_is_git_repo = true;
     app.quick_messages = vec![
@@ -310,18 +308,19 @@ fn input_strip_places_workspace_and_shiju_before_general_actions() {
         config("Git", QuickMessageGroup::Git, QuickMessageKind::Message),
     ];
 
-    let controls = input_strip_control_order(app.input());
+    let starter = Some((ComposerScene::Office, Some(0)));
+    let controls = input_strip_control_order(app.input(), starter);
     assert_eq!(
         controls,
         vec![
-            InputStripControl::Workspace,
             InputStripControl::Shiju,
             InputStripControl::GeneralActions,
             InputStripControl::MediaShortcuts(false),
+            InputStripControl::Categories(ComposerScene::Office, Some(0)),
             InputStripControl::GitActions,
         ]
     );
-    let element = view(app.input()).expect("workspace and shortcut controls should render");
+    let element = view(app.input(), starter);
     assert_eq!(Tree::new(element.as_widget()).children.len(), controls.len());
 }
 
@@ -561,11 +560,11 @@ fn session_entry_recommendations_collapse_to_one_trigger() {
     app.quick_messages.clear();
     app.agents_settings.entries.iter_mut().find(|e| e.key == "main").unwrap().recommended_prompts =
         vec!["".into(), "第一条中文推荐会话".into(), "  ".into(), "第二条很长的中文推荐会话".into()];
-    assert_eq!(Tree::new(view(app.input()).unwrap().as_widget()).children.len(), 4);
+    assert_eq!(Tree::new(view(app.input(), None).as_widget()).children.len(), 3);
     assert_eq!(recommended_indices(app.input()), vec![1, 3]);
     app.agents_settings.entries.iter_mut().find(|e| e.key == "main").unwrap().recommended_prompts =
         vec![" ".into()];
-    assert_eq!(Tree::new(view(app.input()).unwrap().as_widget()).children.len(), 3);
+    assert_eq!(Tree::new(view(app.input(), None).as_widget()).children.len(), 2);
 }
 
 #[tokio::test(flavor = "multi_thread")]

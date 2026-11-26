@@ -5,7 +5,8 @@ use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
 
 use super::quick_message::Message;
-use super::{quick_messages::dropdown_icon, quick_styles};
+use super::quick_messages::{dropdown_icon, shortcut_trigger};
+use super::quick_styles;
 
 const MODEL_COMMANDS: &[(&str, &str, bool)] = &[
     ("/model", "查看当前模型", false),
@@ -30,16 +31,13 @@ const CONVERSATION_COMMANDS: &[(&str, &str, bool)] = &[
 ];
 
 pub(super) fn menu(i18n: I18n, open: bool) -> Element<'static, Message> {
-    let trigger = button(
+    let trigger = shortcut_trigger(
         row![text(i18n.__("数字员工指令")).size(12), dropdown_icon()]
             .spacing(5)
             .align_y(Alignment::Center),
-    )
-    .on_press(Message::EmployeeCommandMenuChanged(!open))
-    .padding([6, 10])
-    .style(move |theme, status| {
-        quick_styles::quick_message_group_button_style(theme, status, open)
-    });
+        Message::EmployeeCommandMenuChanged(!open),
+        open,
+    );
 
     let mut items = column![].spacing(3).width(Length::Fill);
     for (title, commands) in [("模型命令", MODEL_COMMANDS), ("对话命令", CONVERSATION_COMMANDS)]

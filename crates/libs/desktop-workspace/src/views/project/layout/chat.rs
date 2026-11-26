@@ -4,7 +4,7 @@
 //! 该模块是项目视图布局系统的核心组成部分，为用户提供交互式聊天体验。
 
 use iced::border::Border;
-use iced::widget::{column, container};
+use iced::widget::{Space, column, container};
 use iced::{Background, Element, Length, Theme};
 
 use desktop_theme::theme_catalog::ChromeStyleOverrides;
@@ -41,14 +41,14 @@ use super::styles::work_surface_style;
 /// - 四角使用统一的圆角，避免聊天区左上角出现直角接缝
 pub fn chat_area<'a, Message: 'a>(
     chat: Element<'a, Message>, input: Element<'a, Message>, work_mode: bool, chrome: ChromeStyleOverrides,
-    _spacing: f32,
+    empty: bool,
     corner_radius: f32,
     chat_content_pad: f32,
 ) -> Element<'a, Message> {
     // 构建聊天消息视图容器
     let chat_view_base = container(chat)
         .width(Length::Fill)
-        .height(Length::Fill)
+        .height(Length::FillPortion(2))
         .padding(chat_content_pad);
     let chat_view: Element<'a, Message> = chat_view_base.into();
 
@@ -59,11 +59,10 @@ pub fn chat_area<'a, Message: 'a>(
     let chat_area = column![
         chat_view,
         container(input).width(Length::Fill).padding(iced::Padding {
-            top: 0.0,
-            right: 16.0,
-            bottom: 8.0,
-            left: 16.0
-        })
+            bottom: 16.0,
+            ..iced::Padding::ZERO
+        }),
+        Space::new().height(if empty { Length::FillPortion(1) } else { Length::Fixed(0.0) }),
     ]
     .width(Length::Fill)
     .height(Length::Fill);
@@ -87,29 +86,16 @@ fn chat_area_style(
     radius: f32,
     chrome: Option<&ChromeStyleOverrides>,
 ) -> container::Style {
-    let palette = theme.extended_palette();
-    let is_dark =
-        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
-            < 1.5;
     let default_bg = desktop_theme::theme_catalog::panel_surface_color(theme, 0.985);
     let background = chrome.and_then(|c| c.panel_bg).unwrap_or(default_bg);
+    let border = chrome.and_then(|c| c.panel_border);
     container::Style {
         background: Some(Background::Color(background)),
         border: Border {
-            width: 1.0,
-            color: if is_dark {
-                palette.background.strong.color.scale_alpha(0.74)
-            } else {
-                palette.background.strong.color.scale_alpha(0.55)
-            },
-            radius: iced::border::Radius {
-                top_left: radius,
-                top_right: radius,
-                bottom_right: radius,
-                bottom_left: radius,
-            },
+            width: if border.is_some() { 1.0 } else { 0.0 },
+            color: border.unwrap_or(iced::Color::TRANSPARENT),
+            radius: radius.into(),
         },
-        shadow: iced::Shadow::default(),
         ..Default::default()
     }
 }

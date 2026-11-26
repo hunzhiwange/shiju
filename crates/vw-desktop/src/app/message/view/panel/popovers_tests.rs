@@ -13,21 +13,19 @@ fn set_all_popovers(app: &mut App, visible: bool) {
     app.popover_visibility.send_mode = visible;
     app.popover_visibility.file = visible;
     app.popover_visibility.acp = visible;
-    app.popover_visibility.reasoning_effort = visible;
     app.popover_visibility.usage = visible;
     app.popover_visibility.session_tool_selector = visible;
     app.popover_visibility.session_actions = visible;
     app.popover_visibility.executor = visible;
 }
 
-fn visibility(app: &App) -> [bool; 10] {
+fn visibility(app: &App) -> [bool; 9] {
     [
         app.popover_visibility.model,
         app.popover_visibility.mode,
         app.popover_visibility.send_mode,
         app.popover_visibility.file,
         app.popover_visibility.acp,
-        app.popover_visibility.reasoning_effort,
         app.popover_visibility.usage,
         app.popover_visibility.session_tool_selector,
         app.popover_visibility.session_actions,
@@ -42,5 +40,27 @@ fn unrelated_view_message_leaves_popover_state_unchanged() {
 
     let _ = update(&mut app, ViewMessage::OpenKnowledge);
 
-    assert_eq!(visibility(&app), [true; 10]);
+    assert_eq!(visibility(&app), [true; 9]);
+}
+
+#[test]
+fn attachment_submenu_switches_on_the_open_menu_and_resets_on_dismissal() {
+    use desktop_chat_input::popovers::FileMenuSection;
+
+    let mut app = test_app();
+    let files = ViewMessage::SelectFileMenuSection(Some(FileMenuSection::Files));
+    let _ = update(&mut app, files.clone());
+    assert_eq!(app.popover_visibility.file_section, None);
+
+    let _ = update(&mut app, ViewMessage::ToggleFilePopover);
+    let _ = update(&mut app, files);
+    assert_eq!(app.popover_visibility.file_section, Some(FileMenuSection::Files));
+    let _ = update(&mut app, ViewMessage::SelectFileMenuSection(None));
+    assert!(app.popover_visibility.file);
+    assert_eq!(app.popover_visibility.file_section, None);
+
+    let _ = update(&mut app, ViewMessage::SelectFileMenuSection(Some(FileMenuSection::Files)));
+    let _ = update(&mut app, ViewMessage::CloseFilePopover);
+    assert!(!app.popover_visibility.file);
+    assert_eq!(app.popover_visibility.file_section, None);
 }

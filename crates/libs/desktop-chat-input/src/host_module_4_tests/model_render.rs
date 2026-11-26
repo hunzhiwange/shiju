@@ -62,6 +62,7 @@ impl Fixture {
             false,
             &self.model,
             self.source(),
+            None,
             Event::Model,
         )
     }
@@ -142,6 +143,7 @@ async fn acp_model_source_ui_controls_render_chinese_labels_in_both_themes() {
                 let mut element: iced::Element<'_, Event> = iced::widget::container(
                     iced::widget::column![
                         crate::input_panel::panel::session_tool_tab_toggle(
+                            i18n(),
                             desktop_chat_tools::state::SessionToolSelectorTab::Agent,
                             false,
                             app.label.clone(),
@@ -156,6 +158,7 @@ async fn acp_model_source_ui_controls_render_chinese_labels_in_both_themes() {
                             false,
                             "custom/model",
                             true,
+                            None,
                             Event::Model
                         ),
                         app.popover(),

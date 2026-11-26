@@ -108,8 +108,11 @@ fn work_space_picker_messages_open_and_close_popover() {
     let _task = update(&mut app, Message::WorkSpacePickerToggled);
     assert!(app.work_space_picker_open);
 
+    update(&mut app, Message::WorkSpacePickerQueryChanged("src".into()));
+    assert_eq!(app.work_space_picker_query, "src");
     let _task = update(&mut app, Message::WorkSpacePickerClosed);
     assert!(!app.work_space_picker_open);
+    assert!(app.work_space_picker_query.is_empty());
 }
 
 #[test]

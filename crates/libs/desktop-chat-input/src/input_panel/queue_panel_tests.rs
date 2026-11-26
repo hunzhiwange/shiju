@@ -1,10 +1,13 @@
 //! 验证队列面板的任务分组、状态展示、操作消息与空态渲染。
 //! 队列 fixture 固定发送行为和历史策略，便于单独验证顺序与移动可用性。
 
+use super::attachment::AttachmentDisplayItem;
 use super::queue_panel::{
-    is_dark_theme, queue_item_label, queue_item_style, queue_move_availability, queue_panel_style,
+    QueuePreview, is_dark_theme, queue_attachment_previews, queue_item_label, queue_item_style,
+    queue_move_availability, queue_panel_style, queue_preview_label,
 };
 
+use desktop_i18n::I18n;
 use iced::{Background, Color, Theme};
 
 fn background_color(background: Option<Background>) -> Color {
@@ -47,6 +50,40 @@ fn queue_item_label_handles_empty_input_and_ascii_overflow() {
 }
 
 #[test]
+fn attachment_only_queue_titles_distinguish_images_and_documents() {
+    let i18n = I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
+    let mut item = QueuePreview {
+        query: String::new(),
+        is_guide: false,
+        attachments: (0..8)
+            .map(|index| AttachmentDisplayItem::from_local_path(format!("{index}.png")))
+            .collect(),
+    };
+    assert_eq!(queue_preview_label(i18n, &item), "8 张图片");
+    item.attachments[0] = AttachmentDisplayItem::from_local_path("notes.pdf");
+    assert_eq!(queue_preview_label(i18n, &item), "8 个附件");
+    item.attachments.truncate(1);
+    assert_eq!(queue_preview_label(i18n, &item), "notes.pdf");
+    item.query = "Summarize the attachments".into();
+    assert_eq!(queue_preview_label(i18n, &item), "Summarize the attachments");
+}
+
+#[test]
+fn attachment_rows_reserve_the_second_slot_for_overflow() {
+    let i18n = I18n::new(config_ui::DesktopLocale::SimplifiedChinese);
+    let attachments: Vec<_> = (0..8)
+        .map(|index| AttachmentDisplayItem::from_local_path(format!("{index}.png")))
+        .collect();
+    assert!(queue_attachment_previews(i18n, &[]).is_none());
+    for (length, slots) in [(1, 1), (2, 2), (8, 2)] {
+        let previews = queue_attachment_previews(i18n, &attachments[..length]).unwrap();
+        let children = previews.as_widget().children();
+        assert_eq!(children.len(), slots);
+    }
+    assert_eq!(attachments.len(), 8);
+}
+
+#[test]
 fn queue_move_availability_disables_only_boundary_directions() {
     assert_eq!(queue_move_availability(0, 0), (false, false));
     assert_eq!(queue_move_availability(0, 1), (false, false));
@@ -63,48 +100,21 @@ fn queue_theme_detection_distinguishes_light_and_dark() {
 }
 
 #[test]
-fn queue_item_style_changes_for_next_item_and_theme() {
-    let next_dark = queue_item_style(&Theme::Dark, true);
-    let waiting_dark = queue_item_style(&Theme::Dark, false);
-    let next_light = queue_item_style(&Theme::Light, true);
-    let waiting_light = queue_item_style(&Theme::Light, false);
-
-    assert_eq!(background_color(next_dark.background), Color::from_rgba8(27, 35, 50, 0.98));
-    assert_eq!(background_color(waiting_dark.background), Color::from_rgba8(25, 27, 32, 0.96));
-    assert_eq!(background_color(next_light.background), Color::from_rgba8(242, 247, 255, 1.0));
-    assert_eq!(background_color(waiting_light.background), Color::from_rgba8(251, 252, 253, 1.0));
-    assert_eq!(next_dark.border.color, Color::from_rgba8(93, 140, 255, 0.78));
-    assert_eq!(waiting_dark.border.color, Color::from_rgba8(54, 58, 66, 0.94));
-    assert_eq!(next_light.border.color, Color::from_rgba8(111, 150, 255, 0.42));
-    assert_eq!(
-        waiting_light.border.color,
-        Theme::Light.extended_palette().background.strong.color.scale_alpha(0.72)
-    );
-    assert_eq!(next_dark.border.width, 1.0);
-    assert_eq!(next_dark.border.radius, 12.0.into());
-    assert_eq!(next_dark.shadow.blur_radius, 12.0);
-    assert_eq!(next_dark.shadow.color, Color::BLACK.scale_alpha(0.18));
-    assert_eq!(next_light.shadow.color, Color::BLACK.scale_alpha(0.04));
+fn queue_item_style_highlights_next_item_without_an_outline() {
+    for theme in [Theme::Light, Theme::Dark] {
+        let next = queue_item_style(&theme, true);
+        let waiting = queue_item_style(&theme, false);
+        assert_ne!(next.background, waiting.background);
+        assert_eq!(next.border.width, 0.0);
+        assert_eq!(waiting.border.width, 0.0);
+    }
 }
 
 #[test]
-fn queue_panel_style_uses_theme_specific_container_background() {
-    let dark = queue_panel_style(&Theme::Dark);
-    let light = queue_panel_style(&Theme::Light);
-
-    assert_eq!(background_color(dark.background), Color::from_rgba8(15, 17, 21, 0.96));
-    assert_eq!(
-        background_color(light.background),
-        Theme::Light.extended_palette().background.base.color.scale_alpha(0.94)
-    );
-    assert_eq!(dark.border.color, Color::from_rgba8(47, 51, 59, 0.96));
-    assert_eq!(
-        light.border.color,
-        Theme::Light.extended_palette().background.strong.color.scale_alpha(0.82)
-    );
-    assert_eq!(dark.border.width, 1.0);
-    assert_eq!(dark.border.radius, 14.0.into());
-    assert_eq!(dark.shadow.blur_radius, 10.0);
-    assert_eq!(dark.shadow.color, Color::BLACK.scale_alpha(0.22));
-    assert_eq!(light.shadow.color, Color::BLACK.scale_alpha(0.06));
+fn queue_panel_style_uses_theme_text_for_its_surface_tint() {
+    for theme in [Theme::Light, Theme::Dark] {
+        let style = queue_panel_style(&theme);
+        assert_eq!(background_color(style.background), theme.palette().text.scale_alpha(0.045),);
+        assert_eq!(style.border.width, 0.0);
+    }
 }

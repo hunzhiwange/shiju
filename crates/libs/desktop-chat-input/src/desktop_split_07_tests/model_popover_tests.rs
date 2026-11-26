@@ -50,6 +50,7 @@ fn model_toggle_button_uses_auto_label_and_expanded_state() {
         true,
         "openai/gpt-4.1",
         false,
+        None,
         std::convert::identity::<Action>,
     );
     let expanded = model_views::model_toggle_button(
@@ -59,6 +60,7 @@ fn model_toggle_button_uses_auto_label_and_expanded_state() {
         false,
         "openai/gpt-4.1",
         true,
+        None,
         std::convert::identity::<Action>,
     );
 
@@ -84,6 +86,7 @@ fn model_toggle_button_resolves_provider_model_and_bare_model_names() {
         false,
         "openai/gpt-4.1",
         false,
+        None,
         std::convert::identity::<Action>,
     );
     let bare_model = model_views::model_toggle_button(
@@ -93,6 +96,7 @@ fn model_toggle_button_resolves_provider_model_and_bare_model_names() {
         false,
         "gpt-4.1",
         false,
+        None,
         std::convert::identity::<Action>,
     );
     let fallback = model_views::model_toggle_button(
@@ -102,6 +106,7 @@ fn model_toggle_button_resolves_provider_model_and_bare_model_names() {
         false,
         "custom/model",
         false,
+        None,
         std::convert::identity::<Action>,
     );
     let bare_fallback = model_views::model_toggle_button(
@@ -111,6 +116,7 @@ fn model_toggle_button_resolves_provider_model_and_bare_model_names() {
         false,
         "unknown",
         false,
+        None,
         std::convert::identity::<Action>,
     );
 
@@ -118,6 +124,50 @@ fn model_toggle_button_resolves_provider_model_and_bare_model_names() {
     assert_eq!(bare_model.as_widget().size().width, Length::Shrink);
     assert_eq!(fallback.as_widget().size().width, Length::Shrink);
     assert_eq!(bare_fallback.as_widget().size().width, Length::Shrink);
+}
+
+#[tokio::test]
+async fn model_toggle_keeps_one_line_and_reserves_the_chevron_at_narrow_widths() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, layout, widget::Tree};
+    use iced::{Font, Pixels, Size};
+
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("renderer");
+    let mut toggle = model_views::model_toggle_button(
+        i18n(),
+        &[],
+        false,
+        false,
+        "xiaomi/Xiaomi MiMo-V2.6-Pro Extended\nPreview",
+        false,
+        Some("极高"),
+        std::convert::identity::<Action>,
+    );
+    let mut tree = Tree::new(toggle.as_widget());
+    let mut layout_at = |width| {
+        toggle.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, Size::new(width, 96.0)),
+        )
+    };
+
+    let wide = layout_at(300.0);
+    let narrow = layout_at(112.0);
+    assert!(narrow.size().width < wide.size().width);
+    assert_eq!(narrow.size().height, wide.size().height);
+
+    let height_wrapper = Layout::new(&narrow).children().next().expect("button content");
+    let row = height_wrapper.children().next().expect("model row");
+    let label = row.children().nth(1).expect("label and chevron");
+    let mut layers = label.children();
+    let name = layers.next().unwrap().children().next().unwrap().bounds();
+    let chevron = layers.next().unwrap().children().next().unwrap().bounds();
+    assert_eq!(chevron.width, 11.0);
+    assert!(name.x + name.width < chevron.x);
 }
 
 #[test]
@@ -138,6 +188,7 @@ fn model_popover_content_renders_loading_empty_and_filtered_states() {
         true,
         "auto",
         iced::widget::Space::new().into(),
+        None,
         std::convert::identity::<Action>,
     );
     assert_eq!(loading.as_widget().size().width, Length::Fixed(320.0));
@@ -157,6 +208,7 @@ fn model_popover_content_renders_loading_empty_and_filtered_states() {
         false,
         "missing",
         iced::widget::Space::new().into(),
+        None,
         std::convert::identity::<Action>,
     );
     assert_eq!(empty.as_widget().size().width, Length::Fixed(320.0));
@@ -192,6 +244,7 @@ fn model_popover_content_renders_loading_empty_and_filtered_states() {
         true,
         "gpt-4.1",
         iced::widget::Space::new().into(),
+        None,
         std::convert::identity::<Action>,
     );
     assert_eq!(unfiltered.as_widget().size().width, Length::Fixed(320.0));
@@ -211,6 +264,7 @@ fn model_popover_content_renders_loading_empty_and_filtered_states() {
         false,
         "openai/gpt-4.1",
         iced::widget::Space::new().into(),
+        None,
         std::convert::identity::<Action>,
     );
     assert_eq!(filtered.as_widget().size().width, Length::Fixed(320.0));
@@ -230,6 +284,7 @@ fn model_popover_content_renders_loading_empty_and_filtered_states() {
         false,
         "openai/vision",
         iced::widget::Space::new().into(),
+        None,
         std::convert::identity::<Action>,
     );
     assert_eq!(capability_flags.as_widget().size().width, Length::Fixed(320.0));
@@ -248,6 +303,7 @@ fn model_popover_content_renders_loading_empty_and_filtered_states() {
         false,
         "gpt-4.1",
         iced::widget::Space::new().into(),
+        None,
         std::convert::identity::<Action>,
     );
     assert_eq!(bare_selected.as_widget().size().width, Length::Fixed(320.0));
@@ -267,6 +323,7 @@ fn model_popover_content_renders_loading_empty_and_filtered_states() {
         false,
         "openai/gpt-4.1",
         iced::widget::Space::new().into(),
+        None,
         std::convert::identity::<Action>,
     );
     assert_eq!(no_match.as_widget().size().width, Length::Fixed(320.0));
@@ -293,6 +350,7 @@ fn model_popover_content_keeps_available_models_visible_while_refreshing() {
         false,
         "openai/gpt-4.1",
         iced::widget::Space::new().into(),
+        None,
         std::convert::identity::<Action>,
     );
 

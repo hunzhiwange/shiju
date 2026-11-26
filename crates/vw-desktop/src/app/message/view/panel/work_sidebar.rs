@@ -40,10 +40,27 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(project_path) => domain::Message::WorkSidebarSpaceTasksLoadMorePressed(project_path),
         ViewMessage::WorkSpacePickerToggled => domain::Message::WorkSpacePickerToggled,
         ViewMessage::WorkSpacePickerClosed => domain::Message::WorkSpacePickerClosed,
+        ViewMessage::WorkSpacePickerQueryChanged(query) => {
+            domain::Message::WorkSpacePickerQueryChanged(query)
+        },
         _ => return Task::none(),
     };
+    let opening_picker = matches!(&message, domain::Message::WorkSpacePickerToggled);
+    let query_changed = matches!(&message, domain::Message::WorkSpacePickerQueryChanged(_));
     let result = domain::update(&mut app.navigation_sidebar, message);
-    if let Some(collapsed) = result { return app.save_desktop_preference("work_sidebar_collapsed", collapsed.into()); }
+    if let Some(collapsed) = result {
+        return app.save_desktop_preference("work_sidebar_collapsed", collapsed.into());
+    }
+    if app.navigation_sidebar.work_space_picker_open {
+        use desktop_chat_input::input_panel::quick_messages;
+        use iced::widget::operation;
+        if opening_picker {
+            return operation::focus(quick_messages::workspace_search_id());
+        }
+        if query_changed {
+            return operation::snap_to(quick_messages::workspace_results_id(), operation::RelativeOffset::START);
+        }
+    }
     Task::none()
 }
 

@@ -3,13 +3,17 @@
 use desktop_assets::assets::Icon;
 use desktop_i18n::I18n;
 use desktop_skill_hub::skill_hub::LoadState;
-use desktop_ui_controls::overlays::AboveOverlay;
-use iced::widget::{button, column, container, row, scrollable, text};
-use iced::{Alignment, Element, Length};
+use desktop_ui_controls::single_line_label::SingleLineLabel;
+use desktop_ui_controls::system_settings_common::settings_muted_text_style;
+use iced::widget::{Column, button, column, container, row, stack, svg, text};
+use iced::{Alignment, Element, Length, Padding, Theme};
 use vw_api_media::{MediaModel, MediaModelSelection, MediaOperation};
 
 use super::quick_message::Message;
-use super::quick_messages::{QuickInput, dropdown_icon};
+use super::quick_messages::{
+    DROPDOWN_ICON_BOX_SIZE, QuickInput, dropdown_icon, shortcut_menu, shortcut_menu_items,
+    shortcut_trigger,
+};
 use super::quick_styles as styles;
 
 const PROMPTS: [(&str, Icon, &str); 3] = [
@@ -37,74 +41,74 @@ pub(super) fn menu(app: QuickInput<'_>, open: bool) -> Element<'_, Message> {
         || label.to_owned(),
         |name| format!("{label} · {}", super::model_popover::truncated_model_name(name)),
     );
-    let trigger =
-        button(row![text(label).size(12), dropdown_icon()].spacing(5).align_y(Alignment::Center))
-            .padding([6, 10])
-            .style(move |theme, status| {
-                styles::quick_message_group_button_style(theme, status, open)
-            })
-            .on_press(Message::MediaShortcutMenuChanged(!open));
+    let label = container(SingleLineLabel::new(label, 12.0).shrink())
+        .padding(Padding { right: DROPDOWN_ICON_BOX_SIZE + 5.0, ..Padding::ZERO });
+    let trigger = shortcut_trigger(
+        stack![
+            label,
+            container(dropdown_icon()).align_right(Length::Fill).center_y(Length::Fill),
+        ],
+        Message::MediaShortcutMenuChanged(!open),
+        open,
+    );
 
-    let (items, width) = match app.media_models {
-        Some(picker) => (model_list(app.i18n, picker), 304.0),
-        None => (operations(app), 164.0),
+    if !open {
+        return trigger.into();
+    }
+
+    let items = match app.media_models {
+        Some(picker) => model_list(app.i18n, picker),
+        None => operations(app),
     };
-    let popup = container(items)
-        .padding(6)
-        .width(Length::Fixed(width))
-        .style(styles::quick_message_menu_style);
-    AboveOverlay::new(trigger, popup)
-        .show(open)
-        .gap(2.0)
-        .block_background_events(true)
-        .on_close(Message::MediaShortcutMenuChanged(false))
-        .into()
+    shortcut_menu(trigger, items, Message::MediaShortcutMenuChanged(false))
 }
 
 fn operations(app: QuickInput<'_>) -> Element<'_, Message> {
     let can_select_skill = !matches!(app.installed, LoadState::Loading { .. });
-    let mut items = column![
+    let mut items = vec![
         item(
             app.i18n.__("生图"),
             Icon::Image,
-            Some(Message::OpenMediaModelPicker(MediaOperation::ImageGenerate))
+            Some(Message::OpenMediaModelPicker(MediaOperation::ImageGenerate)),
         ),
         item(
             app.i18n.__("生视频"),
             Icon::ArrowRight,
-            Some(Message::OpenMediaModelPicker(MediaOperation::VideoGenerate))
+            Some(Message::OpenMediaModelPicker(MediaOperation::VideoGenerate)),
         ),
         item(
             app.i18n.__("识图"),
             Icon::Eye,
-            Some(Message::OpenMediaModelPicker(MediaOperation::ImageUnderstand))
+            Some(Message::OpenMediaModelPicker(MediaOperation::ImageUnderstand)),
         ),
-    ]
-    .spacing(3);
-    for (label, icon, prompt) in PROMPTS {
-        items = items.push(item(
+    ];
+    items.extend(PROMPTS.into_iter().map(|(label, icon, prompt)| {
+        item(
             app.i18n.__(label),
             icon,
-            Some(Message::MediaPromptSelected(app.i18n.__(prompt).to_owned())),
-        ));
-    }
-    items
-        .push(item(
+            Some(Message::MediaPromptSelected(app.i18n.__(prompt).into())),
+        )
+    }));
+    items.extend([
+        item(
             app.i18n.__("识矩剪辑"),
             Icon::Scissors,
             can_select_skill.then_some(Message::SelectVideoEditorSkill),
-        ))
-        .push(item(
+        ),
+        item(
             app.i18n.__("应用开发"),
             Icon::Code,
             can_select_skill.then_some(Message::SelectAppDevelopmentSkill),
-        ))
-        .push(item(
+        ),
+        item(
             app.i18n.__("应用管理"),
             Icon::Sliders,
             can_select_skill.then_some(Message::SelectAppManagementSkill),
-        ))
-        .into()
+        ),
+    ]);
+    let count = items.len();
+    let items = Column::with_children(items).spacing(3).width(Length::Fill);
+    shortcut_menu_items(items, count).into()
 }
 
 fn model_list(i18n: I18n, picker: MediaModelPicker<'_>) -> Element<'_, Message> {
@@ -115,12 +119,17 @@ fn model_list(i18n: I18n, picker: MediaModelPicker<'_>) -> Element<'_, Message> 
         _ => return column![].into(),
     };
     let back = button(super::icons::icon_svg(Icon::ChevronLeft, 13.0))
-        .padding([5, 7])
-        .style(|theme, status| styles::quick_message_group_button_style(theme, status, false))
+        .padding([6, 8])
+        .style(|theme, status| styles::quick_message_button_style(theme, status, false))
         .on_press(Message::BackFromMediaModelPicker);
-    let header = row![back, text(i18n.__(title)).size(13)].spacing(7).align_y(Alignment::Center);
+    let header =
+        row![back, text(i18n.__(title)).size(13).font(super::styles::selector_label_font()),]
+            .spacing(7)
+            .align_y(Alignment::Center);
     let auto = item(i18n.__("自动选择"), Icon::Sliders, Some(Message::MediaModelPicked(None)));
-    let status = |label| container(text(i18n.__(label)).size(12)).padding([5, 8]);
+    let status = |label| {
+        container(text(i18n.__(label)).size(12).style(settings_muted_text_style)).padding([8, 10])
+    };
     let list: Element<'_, Message> = match picker.catalog {
         MediaModelCatalog::Loading => status("正在加载媒体模型…").into(),
         MediaModelCatalog::Failed => status("无法加载媒体模型").into(),
@@ -136,12 +145,21 @@ fn model_list(i18n: I18n, picker: MediaModelPicker<'_>) -> Element<'_, Message> 
                 let subtitle = format!("{provider_name} · {}", model.model_id);
                 rows = rows.push(
                     button(
-                        column![text(&model.display_name).size(12), text(subtitle).size(10)]
-                            .spacing(2),
+                        column![
+                            text(&model.display_name)
+                                .size(12)
+                                .wrapping(text::Wrapping::WordOrGlyph),
+                            text(subtitle)
+                                .size(11)
+                                .wrapping(text::Wrapping::WordOrGlyph)
+                                .style(settings_muted_text_style),
+                        ]
+                        .spacing(3)
+                        .width(Length::Fill),
                     )
-                    .padding([6, 8])
+                    .padding([8, 10])
                     .width(Length::Fill)
-                    .style(|theme, status| styles::shiju_skill_button_style(theme, status, false))
+                    .style(|theme, status| styles::quick_message_button_style(theme, status, false))
                     .on_press(Message::MediaModelPicked(Some(
                         MediaModelSelection {
                             operation: picker.operation,
@@ -151,25 +169,37 @@ fn model_list(i18n: I18n, picker: MediaModelPicker<'_>) -> Element<'_, Message> 
                     ))),
                 );
             }
-            container(scrollable(rows).direction(scrollable::Direction::Vertical(
-                scrollable::Scrollbar::new().width(4).scroller_width(4).spacing(7),
-            )))
-            .max_height(224)
-            .into()
+            container(shortcut_menu_items(rows, models.len())).max_height(224).into()
         }
     };
     column![header, auto, list].spacing(5).width(Length::Fill).into()
 }
 
 fn item(label: &str, icon: Icon, message: Option<Message>) -> Element<'_, Message> {
-    button(
-        row![super::icons::icon_svg(icon, 13.0), text(label).size(12)]
-            .spacing(8)
-            .align_y(Alignment::Center),
-    )
-    .padding([7, 10])
-    .width(Length::Fill)
-    .style(|theme, status| styles::quick_message_group_button_style(theme, status, false))
-    .on_press_maybe(message)
-    .into()
+    let enabled = message.is_some();
+    let icon = super::icons::icon_svg(icon, 14.0).style(move |theme: &Theme, _| svg::Style {
+        color: Some(theme.palette().text.scale_alpha(if enabled { 0.72 } else { 0.38 })),
+    });
+    let mut content =
+        row![icon, text(label).size(12).width(Length::Fill)].spacing(8).align_y(Alignment::Center);
+    if matches!(&message, Some(Message::OpenMediaModelPicker(_))) {
+        content = content.push(super::icons::icon_svg(Icon::ChevronRight, 11.0).style(
+            |theme: &Theme, _| svg::Style {
+                color: Some(super::styles::selector_chevron_color(theme, false)),
+            },
+        ));
+    }
+
+    button(content)
+        .padding([8, 10])
+        .width(Length::Fill)
+        .style(move |theme, status| {
+            let mut style = styles::quick_message_button_style(theme, status, false);
+            if !enabled {
+                style.text_color = theme.palette().text.scale_alpha(0.45);
+            }
+            style
+        })
+        .on_press_maybe(message)
+        .into()
 }

@@ -15,6 +15,7 @@ fn input(app: &App) -> domain::QuickInput<'_> {
         recent_projects_edits: &app.workspace_state.recent_projects_edits,
         project_path: app.navigation_tabs.project_path.as_deref(),
         work_space_picker_open: app.navigation_sidebar.work_space_picker_open,
+        workspace_query: &app.navigation_sidebar.work_space_picker_query,
         #[cfg(not(target_arch = "wasm32"))]
         shiju_skill: app.session_state.input_popovers.shiju_skill,
         #[cfg(not(target_arch = "wasm32"))]
@@ -70,6 +71,10 @@ fn map_message(msg: desktop_chat_input::input_panel::quick_message::Message) -> 
         Local::SelectShijuSkill(value) => Message::Chat(message::ChatMessage::SelectShijuSkill(value)),
         Local::AgentRecommendedPromptSelected(value) => Message::Chat(message::ChatMessage::AgentRecommendedPromptSelected(value)),
         Local::RecommendedPromptMenuChanged(value) => Message::Chat(message::ChatMessage::RecommendedPromptMenuChanged(value)),
+        Local::ComposerCategorySelected(scene, category) =>
+            Message::Chat(message::ChatMessage::ComposerCategorySelected(scene, category)),
+        Local::ComposerPromptSelected(scene, category, index) =>
+            Message::Chat(message::ChatMessage::ComposerPromptSelected(scene, category, index)),
         Local::SwitchWorkSpacePressed(value) => Message::Project(message::ProjectMessage::SwitchWorkSpacePressed(value)),
         #[cfg(not(target_arch = "wasm32"))]
         Local::ToggleShijuSkillMenu => Message::Chat(message::ChatMessage::ToggleShijuSkillMenu),
@@ -81,10 +86,25 @@ fn map_message(msg: desktop_chat_input::input_panel::quick_message::Message) -> 
         Local::PrepareNativeShijuSkill => Message::Account(message::AccountMessage::PrepareNativeShijuSkill),
         Local::WorkSpacePickerClosed => Message::View(message::ViewMessage::WorkSpacePickerClosed),
         Local::WorkSpacePickerToggled => Message::View(message::ViewMessage::WorkSpacePickerToggled),
+        Local::WorkSpacePickerQueryChanged(query) => Message::View(message::ViewMessage::WorkSpacePickerQueryChanged(query)),
         Local::OpenFolderPressed => Message::Project(message::ProjectMessage::OpenFolderPressed),
         Local::Batch(messages) => Message::Batch(messages.into_iter().map(map_message).collect()),
     }
 }
-pub(super) fn view(app: &App) -> Option<iced::Element<'_, Message>> {
-    domain::view(input(app)).map(|view| view.map(map_message))
+pub(super) fn view(
+    app: &App,
+    show_categories: bool,
+) -> iced::Element<'_, Message> {
+    let popovers = &app.session_state.input_popovers;
+    let starter = show_categories.then_some((popovers.scene, popovers.category));
+    domain::view(input(app), starter).map(map_message)
+}
+
+pub(super) fn starter_recommendations(app: &App) -> iced::Element<'_, Message> {
+    let popovers = &app.session_state.input_popovers;
+    domain::starter_recommendations(input(app), popovers.scene, popovers.category).map(map_message)
+}
+
+pub(super) fn workspace(app: &App) -> iced::Element<'_, Message> {
+    domain::workspace_menu(input(app)).map(map_message)
 }

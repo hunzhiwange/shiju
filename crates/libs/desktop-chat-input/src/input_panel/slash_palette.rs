@@ -5,7 +5,7 @@
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;
 use iced::widget::{Space, button, column, container, row, scrollable, text};
-use iced::{Background, Border, Color, Element, Length, Padding, Theme};
+use iced::{Element, Length, Padding, Theme};
 
 use desktop_assets::assets::{self, Icon};
 use desktop_session::message::chat::input::slash_palette::SlashPaletteSection;
@@ -15,7 +15,7 @@ pub enum Message { Select { kind: SlashPaletteKind, id: String }, Expand(SlashPa
 
 
 const SCROLLBAR_WIDTH: f32 = 4.0;
-const OVERLAY_WIDTH: f32 = 360.0;
+const OVERLAY_WIDTH: f32 = 520.0;
 const LIST_HEIGHT: f32 = 320.0;
 
 fn kind_icon(kind: SlashPaletteKind) -> Icon {
@@ -48,52 +48,10 @@ fn icon_style(theme: &Theme, _status: svg::Status) -> svg::Style {
     svg::Style { color: Some(theme.palette().text.scale_alpha(0.70)) }
 }
 
-fn entry_style(
-    theme: &Theme,
-    status: iced::widget::button::Status,
-    selected: bool,
-) -> iced::widget::button::Style {
-    let palette = theme.extended_palette();
-    let hovered = matches!(status, iced::widget::button::Status::Hovered);
-    let background = if hovered || selected {
-        Some(Background::Color(palette.background.weak.color))
-    } else {
-        None
-    };
-    iced::widget::button::Style {
-        background,
-        border: Border { radius: 6.0.into(), ..Default::default() },
-        text_color: theme.palette().text,
-        ..Default::default()
-    }
-}
-
-fn show_more_style(
-    theme: &Theme,
-    status: iced::widget::button::Status,
-) -> iced::widget::button::Style {
-    let hovered = matches!(status, iced::widget::button::Status::Hovered);
-    iced::widget::button::Style {
-        background: hovered
-            .then_some(Background::Color(theme.extended_palette().background.weak.color)),
-        border: Border { radius: 6.0.into(), ..Default::default() },
-        text_color: theme.palette().text.scale_alpha(0.72),
-        ..Default::default()
-    }
-}
-
-fn overlay_style(theme: &Theme) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
-    iced::widget::container::Style {
-        background: Some(Background::Color(palette.background.base.color)),
-        border: Border { width: 1.0, color: palette.background.strong.color, radius: 12.0.into() },
-        shadow: iced::Shadow {
-            color: Color::BLACK.scale_alpha(0.12),
-            offset: iced::Vector::new(0.0, 4.0),
-            blur_radius: 12.0,
-        },
-        ..Default::default()
-    }
+fn show_more_style(theme: &Theme, status: button::Status) -> button::Style {
+    let mut style = super::styles::selectable_list_button_style(theme, status, false);
+    style.text_color = theme.palette().text.scale_alpha(0.72);
+    style
 }
 
 fn highlighted_slash_query(query: &str) -> String {
@@ -171,7 +129,9 @@ pub fn slash_palette_overlay(i18n: desktop_i18n::I18n, sections: &[SlashPaletteS
                 let btn = button(row_content)
                     .width(Length::Fill)
                     .padding([6, 10])
-                    .style(move |theme: &Theme, status| entry_style(theme, status, selected))
+                    .style(move |theme, status| {
+                        super::styles::selectable_list_button_style(theme, status, selected)
+                    })
                     .on_press(Message::Select { kind, id });
                 list = list.push(btn);
             }
@@ -210,6 +170,6 @@ pub fn slash_palette_overlay(i18n: desktop_i18n::I18n, sections: &[SlashPaletteS
     )
     .padding([6, 8])
     .width(Length::Fixed(OVERLAY_WIDTH))
-    .style(overlay_style)
+    .style(super::styles::popover_style)
     .into()
 }

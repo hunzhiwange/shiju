@@ -3,6 +3,21 @@ use crate::types::{SkillsDirectoryScope, SkillsSettingsTab};
 use config_skills::SkillsPromptInjectionMode;
 use crate::update::test_support::{Harness, input};
 fn app() -> Harness<State> { Harness { state: State::default(), input: input() } }
+
+#[test]
+fn catalog_keeps_only_canonical_expert_ids_for_the_composer() {
+    let mut app = app();
+    let mut expert = catalog_item("builtin--skillset--designer", "personal");
+    expert.namespace = Some("skillset".into());
+    expert.package_type = Some("meta-skill".into());
+    expert.source_pack = Some("designer".into());
+    let mut unrelated = expert.clone();
+    unrelated.id = "builtin--skillset--other".into();
+
+    let _ = update(&mut app.state, &app.input.directory, Event::SkillsLoaded(Ok(vec![expert, unrelated])));
+    assert_eq!(app.state.expert_skill_ids.into_iter().collect::<Vec<_>>(), ["builtin--skillset--designer"]);
+}
+
 fn catalog_item(id: &str, kind: &str) -> DesktopSkillCatalogEntryDto {
     DesktopSkillCatalogEntryDto {
         id: id.to_string(),

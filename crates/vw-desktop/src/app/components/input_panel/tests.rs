@@ -2,7 +2,7 @@
 //! 入口测试还用无运行时会话和不同视口宽度守住聊天列对齐与安全回退。
 
 use super::{
-    reasoning_effort_selector, selected_context_card,
+    selected_context_card,
     selected_context_summary, session_tool_tab_buttons, view,
 };
 use crate::app::state::{
@@ -78,7 +78,7 @@ fn optional_selector_buttons_reflect_app_state() {
     let mut app = crate::app::App::new().0;
     app.current_session_runtime_mut().acp_agent = None;
     assert!(session_tool_tab_buttons(&app).1.is_some());
-    assert!(reasoning_effort_selector(&app, None, None).is_none());
+    assert!(super::reasoning_selector::session_reasoning(&app, &app.session_state.model).is_none());
     app.current_session_runtime_mut().tool_selector.toggle_manual_tool("read");
     assert!(selected_context_summary(&app).is_some());
 
@@ -87,6 +87,61 @@ fn optional_selector_buttons_reflect_app_state() {
         assert!(session_tool_tab_buttons(&app).1.is_none());
         assert!(selected_context_summary(&app).is_none());
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn attachment_icon_reverses_without_resetting_when_the_menu_closes() {
+    use iced::advanced::{Shell, clipboard, widget::tree::Tag};
+    use iced::animation::Animation;
+    use iced::time::{Duration, Instant};
+    use iced::{Event, Rectangle, mouse, window};
+    use std::f32::consts::FRAC_PI_4;
+
+    fn animation(tree: &Tree) -> Option<&Animation<bool>> {
+        if tree.tag == Tag::of::<Animation<bool>>() {
+            Some(tree.state.downcast_ref())
+        } else {
+            tree.children.iter().find_map(animation)
+        }
+    }
+
+    let mut app = crate::app::App::new().0;
+    let renderer = <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+        .await
+        .expect("renderer");
+    let mut tree = Tree::empty();
+    let size = Size::new(320.0, 240.0);
+    let mut frame = |expanded, now| {
+        app.popover_visibility.file = expanded;
+        let mut widget = super::attachment::attachment_button(&app, false);
+        tree.diff(widget.as_widget());
+        let node = widget.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, size),
+        );
+        widget.as_widget_mut().update(
+            &mut tree,
+            &Event::Window(window::Event::RedrawRequested(now)),
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &renderer,
+            &mut clipboard::Null,
+            &mut Shell::new(&mut Vec::new()),
+            &Rectangle::with_size(size),
+        );
+        animation(&tree).expect("attachment animation").interpolate(0.0, FRAC_PI_4, now)
+    };
+
+    let start = Instant::now();
+    assert_eq!(frame(false, start), 0.0);
+    assert_eq!(frame(true, start), 0.0);
+    let halfway = start + Duration::from_millis(100);
+    let angle = frame(true, halfway);
+    assert!(angle > 0.0 && angle < FRAC_PI_4);
+    assert!((frame(false, halfway) - angle).abs() <= f32::EPSILON);
+    assert_eq!(frame(false, halfway + Duration::from_millis(200)), 0.0);
 }
 
 // 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
@@ -514,6 +569,37 @@ fn agent_unified_selection_prompt_preserves_existing_draft() {
     );
     assert_eq!(app.current_session_runtime().input_editor.text(), "我的草稿");
     assert!(app.chat_view.chat.is_empty());
+}
+
+#[test]
+fn scene_recommendations_fill_the_draft_without_sending() {
+    use desktop_chat_input::input_panel::starter::prompt_draft;
+    use desktop_session::message::chat::input::popovers::ComposerScene;
+
+    let (mut app, _) = crate::app::App::new();
+    let scene = ComposerScene::Design;
+    app.session_state.input_popovers.set_recommended_prompt(true);
+    let _ = app.update(Message::Chat(message::ChatMessage::ComposerSceneSelected(scene)));
+    assert_eq!(app.session_state.input_popovers.scene, scene);
+    assert!(!app.session_state.input_popovers.recommended_prompt);
+
+    let category = Some(1);
+    let _ = app.update(Message::Chat(message::ChatMessage::ComposerCategorySelected(scene, category)));
+    assert_eq!(app.session_state.input_popovers.category, category);
+    let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
+    let prompt = prompt_draft(i18n, scene, category, 0).expect("design category recommendation");
+    assert_ne!(Some(prompt), prompt_draft(i18n, scene, None, 0));
+    let _ = app.update(Message::Chat(message::ChatMessage::ComposerPromptSelected(scene, None, 0)));
+    assert!(app.current_session_runtime().input_editor.text().is_empty());
+    let _ = app.update(Message::Chat(message::ChatMessage::ComposerPromptSelected(scene, category, 0)));
+    assert_eq!(app.current_session_runtime().input_editor.text(), prompt);
+    assert_eq!(app.session_state.input_editor.text(), prompt);
+    let _ = app.update(Message::Chat(message::ChatMessage::ComposerPromptSelected(scene, category, 1)));
+    assert_eq!(app.current_session_runtime().input_editor.text(), prompt);
+    assert!(app.chat_view.chat.is_empty());
+
+    let _ = app.update(Message::Chat(message::ChatMessage::ComposerSceneSelected(ComposerScene::Office)));
+    assert_eq!(app.session_state.input_popovers.category, None);
 }
 
 #[cfg(not(target_arch = "wasm32"))]

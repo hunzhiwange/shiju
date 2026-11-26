@@ -15,11 +15,13 @@ use iced::widget::{Space, button, container, row, text, tooltip};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use desktop_assets::assets::Icon;
+use super::composer_icons::ComposerIcon;
 use super::icons::icon_svg;
 use super::surface_styles::{
     BOTTOM_BAR_CHEVRON_ICON_SIZE, BOTTOM_BAR_ICON_BUTTON_SIZE, BOTTOM_BAR_ICON_SIZE, popover_style,
     round_icon_button_style, selectable_list_button_style, selector_chevron_color,
-    selector_label_font, selector_text_color, square_icon_button_style, tooltip_dark_style,
+    selector_label_font, selector_pill_button_style, selector_text_color, square_icon_button_style,
+    tooltip_dark_style,
 };
 use desktop_ui_controls::overlays::AboveOverlay;
 use desktop_ui_controls::system_settings_common::styles::settings_segment_button_style;
@@ -29,7 +31,6 @@ use vw_api_chat_identity::ReasoningEffortDto;
 
 const MAIN_SEND_BUTTON_SIZE: f32 = BOTTOM_BAR_ICON_BUTTON_SIZE;
 const MAIN_SEND_ICON_SIZE: f32 = BOTTOM_BAR_ICON_SIZE;
-const ATTACH_TO_ACTION_GAP: f32 = 3.0;
 const SECONDARY_BUTTON_SIZE: f32 = BOTTOM_BAR_ICON_BUTTON_SIZE;
 const SECONDARY_ICON_SIZE: f32 = BOTTOM_BAR_ICON_SIZE;
 const SEND_MODE_ICON_SIZE: f32 = BOTTOM_BAR_CHEVRON_ICON_SIZE;
@@ -275,7 +276,7 @@ pub fn pool_button(
     task_mode_model: String,
     task_mode_reasoning_effort: Option<ReasoningEffortDto>,
 ) -> Element<'static, Message> {
-    let pool_icon: Element<'_, Message> = icon_svg(Icon::Grid1x2, SECONDARY_ICON_SIZE)
+    let pool_icon: Element<'_, Message> = ComposerIcon::Queue.svg(SECONDARY_ICON_SIZE)
         .style(move |theme: &Theme, _| svg::Style {
             color: Some(if enabled {
                 theme.palette().text.scale_alpha(if is_dark_theme(theme) { 0.92 } else { 0.88 })
@@ -294,7 +295,7 @@ pub fn pool_button(
             .align_y(iced::alignment::Vertical::Center),
     )
     .padding(0)
-    .style(move |theme: &Theme, status| square_icon_button_style(theme, status, enabled));
+    .style(move |theme: &Theme, status| round_icon_button_style(theme, status, enabled));
 
     // 根据启用状态和任务模式设置按钮的点击行为
     let pool_btn = if enabled {
@@ -371,33 +372,13 @@ pub fn full_access_button(
     enabled: bool,
     active: bool,
 ) -> Element<'static, Message> {
-    let shield_icon: Element<'_, Message> = icon_svg(Icon::ShieldLock, SECONDARY_ICON_SIZE)
-        .style(move |theme: &Theme, _| svg::Style {
-            color: Some(if active {
-                prominent_action_foreground(theme)
-            } else if enabled {
-                theme.palette().text.scale_alpha(if is_dark_theme(theme) { 0.92 } else { 0.88 })
-            } else {
-                theme.palette().text.scale_alpha(if is_dark_theme(theme) { 0.36 } else { 0.42 })
-            }),
-        })
-        .into();
-
-    let button_content = container(shield_icon)
-        .width(Length::Fixed(SECONDARY_BUTTON_SIZE))
-        .height(Length::Fixed(SECONDARY_BUTTON_SIZE))
-        .align_x(iced::alignment::Horizontal::Center)
-        .align_y(iced::alignment::Vertical::Center);
-
-    let access_button = button(button_content).padding(0).style(move |theme: &Theme, status| {
-        permission_access_button_style(theme, status, enabled, active)
-    });
-
-    let access_button = if enabled {
-        access_button.on_press(Message::ToggleFullAccessPermission)
-    } else {
-        access_button
-    };
+    let access_button = permission_trigger(
+        i18n,
+        enabled,
+        active,
+        None,
+        enabled.then_some(Message::ToggleFullAccessPermission),
+    );
 
     let tooltip_label = if active {
         "关闭完全访问权限"
@@ -415,11 +396,124 @@ pub fn full_access_button(
     .into()
 }
 
+fn permission_trigger<'a, M: Clone + 'a>(
+    i18n: desktop_i18n::I18n,
+    enabled: bool,
+    active: bool,
+    expanded: Option<bool>,
+    action: Option<M>,
+) -> Element<'a, M> {
+    let label = i18n.__(if active { "完全访问权限" } else { "审批模式" });
+    let shield = ComposerIcon::Permission.svg(BOTTOM_BAR_ICON_SIZE).style(move |theme: &Theme, _| {
+        svg::Style { color: Some(permission_label_color(theme, enabled, active)) }
+    });
+    let mut label = row![shield, text(label).size(12)].spacing(6).align_y(Alignment::Center);
+    if let Some(expanded) = expanded {
+        let icon = if expanded { Icon::ChevronUp } else { Icon::ChevronDown };
+        label = label.push(
+            icon_svg(icon, BOTTOM_BAR_CHEVRON_ICON_SIZE).style(move |theme: &Theme, _| {
+                svg::Style {
+                    color: Some(permission_label_color(theme, enabled, active).scale_alpha(0.82)),
+                }
+            }),
+        );
+    }
+
+    button(container(label).center_y(BOTTOM_BAR_ICON_BUTTON_SIZE))
+        .padding([0, 9])
+        .style(move |theme, status| {
+            let mut style = selector_pill_button_style(theme, status, expanded == Some(true));
+            style.text_color = permission_label_color(theme, enabled, active);
+            style
+        })
+        .on_press_maybe(action)
+        .into()
+}
+
+/// 打开权限选择时只展示状态。切换由明确选择另一项触发。
+pub fn permission_mode<'a, M: Clone + 'a>(
+    i18n: desktop_i18n::I18n,
+    enabled: bool,
+    active: bool,
+    expanded: bool,
+    toggle: M,
+    close: M,
+    change: M,
+) -> Element<'a, M> {
+    use iced::widget::column;
+    let trigger = permission_trigger(i18n, enabled, active, Some(expanded), Some(toggle));
+    if !expanded {
+        return trigger;
+    }
+
+    let mut choices = column![].spacing(3);
+    for (full_access, title, description) in [
+        (false, "审批模式", "需要审批的工具会先请求确认。"),
+        (true, "完全访问权限", "允许工具免审批运行，仅用于你信任的任务。"),
+    ] {
+        let selected = full_access == active;
+        let mut label = row![
+            column![
+                text(i18n.__(title)).size(13),
+                text(i18n.__(description)).size(11).style(
+                    desktop_ui_controls::system_settings_common::settings_muted_text_style,
+                ),
+            ]
+            .spacing(4)
+            .width(Length::Fill),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center);
+        if selected {
+            label = label.push(icon_svg(Icon::Check, 13.0));
+        }
+        let action = if selected { Some(close.clone()) } else { enabled.then(|| change.clone()) };
+        choices = choices.push(
+            button(label)
+                .on_press_maybe(action)
+                .width(Length::Fill)
+                .padding([8, 10])
+                .style(move |theme, status| selectable_list_button_style(theme, status, selected)),
+        );
+    }
+    if !enabled {
+        choices = choices.push(
+            container(
+                text(i18n.__("当前无法更改会话权限。"))
+                    .size(11)
+                    .style(desktop_ui_controls::system_settings_common::settings_muted_text_style),
+            )
+            .padding([5, 10]),
+        );
+    }
+
+    let menu = container(choices).width(Length::Fixed(272.0)).padding(8).style(popover_style);
+    AboveOverlay::new(trigger, menu)
+        .show(true)
+        .block_background_events(true)
+        .flip_if_clipped()
+        .gap(7.0)
+        .on_close(close)
+        .into()
+}
+
+fn permission_label_color(theme: &Theme, enabled: bool, active: bool) -> Color {
+    if active {
+        if is_dark_theme(theme) {
+            Color::from_rgb8(255, 172, 166)
+        } else {
+            Color::from_rgb8(153, 45, 43)
+        }
+    } else {
+        theme.palette().text.scale_alpha(if enabled { 0.82 } else { 0.55 })
+    }
+}
+
 pub fn workflow_mode_button(
     i18n: desktop_i18n::I18n,
     active: bool,
 ) -> Element<'static, Message> {
-    let workflow_icon: Element<'_, Message> = icon_svg(Icon::Grid1x2, SECONDARY_ICON_SIZE)
+    let workflow_icon: Element<'_, Message> = ComposerIcon::Workflow.svg(SECONDARY_ICON_SIZE)
         .style(move |theme: &Theme, _| svg::Style {
             color: Some(if active {
                 prominent_action_foreground(theme)
@@ -438,7 +532,11 @@ pub fn workflow_mode_button(
     let button = button(button_content)
         .padding(0)
         .style(move |theme: &Theme, status| {
-            permission_access_button_style(theme, status, true, active)
+            if active {
+                prominent_action_style(theme, status, true)
+            } else {
+                round_icon_button_style(theme, status, true)
+            }
         })
         .on_press(Message::WorkflowModeToggled(!active));
 
@@ -485,7 +583,6 @@ pub fn send_button<'a>(
     #[cfg(target_arch = "wasm32")]
     let voice_primary = false;
     let action_enabled = if voice_primary { voice_available } else { can_send };
-    let main_icon = if is_requesting { send_behavior_icon(behavior) } else { Icon::ArrowUp };
     let main_tooltip = if voice_primary {
         if voice_available {
             "开始新的语音聊天"
@@ -503,8 +600,10 @@ pub fn send_button<'a>(
     let icon = if voice_primary {
         svg(svg::Handle::from_memory(br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 10v4m4-8v12m4-15v18m4-15v12m4-8v4"/></svg>"#))
             .width(MAIN_SEND_ICON_SIZE).height(MAIN_SEND_ICON_SIZE)
+    } else if is_requesting {
+        icon_svg(send_behavior_icon(behavior), MAIN_SEND_ICON_SIZE)
     } else {
-        icon_svg(main_icon, MAIN_SEND_ICON_SIZE)
+        ComposerIcon::Send.svg(MAIN_SEND_ICON_SIZE)
     };
     let main_send_icon: Element<'_, Message> = icon
         .style(move |theme: &Theme, _| svg::Style {
@@ -657,141 +756,61 @@ pub fn cancel_button(i18n: desktop_i18n::I18n, submit_anim: u8) -> Element<'stat
     tooltip(cancel_btn, cancel_tip, Position::Top).into()
 }
 
-/// 创建底部工具栏
-///
-/// 该函数组装输入面板底部的所有控制按钮，形成一个完整的工具栏。
-/// 根据任务模式的启用状态，工具栏会显示不同的按钮组合。
-///
-/// # 参数
-///
-/// * `model_btn` - 模型选择按钮元素
-/// * `usage_btn` - 使用情况按钮元素
-/// * `attach_btn` - 附件按钮元素
-/// * `pool_btn` - 可选的任务池按钮元素
-/// * `cancel_btn` - 可选的取消按钮元素
-/// * `send_btn` - 可选的发送按钮元素
-/// * `task_mode_enabled` - 是否启用了任务模式
-///
-/// # 返回值
-///
-/// 返回一个包含所有按钮的底部工具栏元素
-///
-/// # 布局说明
-///
-/// 工具栏采用水平布局，从左到右依次为：
-/// 1. 完全访问权限按钮（如果提供）
-/// 2. 工作流按钮
-/// 3. 代理 / 工具 / 技能 TAB 入口（如果提供）
-/// 4. ACP 按钮（如果提供）
-/// 5. 推理强度按钮（如果提供）
-/// 6. 模型按钮（左侧固定）
-/// 7. 弹性空白（占据中间空间）
-/// 8. 使用情况按钮
-/// 9. 附件按钮
-/// 10. 任务池按钮（如果提供）
-/// 11. 取消和发送按钮（仅在非任务模式下显示）
-pub fn bottom_bar<'a, Message: Clone + 'a>(
+/// 附件在左，发送与模型在右，工具选项在可用宽度内换行。
+pub(crate) fn bottom_bar<'a, Message: Clone + 'a>(
     agent_tab_btn: Option<Element<'a, Message>>,
     tools_tab_btn: Option<Element<'a, Message>>,
     skills_tab_btn: Option<Element<'a, Message>>,
     acp_btn: Option<Element<'a, Message>>,
-    reasoning_btn: Option<Element<'a, Message>>,
-    permission_btn: Option<Element<'a, Message>>,
     workflow_btn: Element<'a, Message>,
     model_btn: Element<'a, Message>,
     usage_btn: Element<'a, Message>,
     attach_btn: Element<'a, Message>,
+    voice_btn: Option<Element<'a, Message>>,
     pool_btn: Option<Element<'a, Message>>,
     cancel_btn: Option<Element<'a, Message>>,
     send_btn: Option<Element<'a, Message>>,
     task_mode_enabled: bool,
 ) -> Element<'a, Message> {
-    // 创建基础布局：完全访问 + 工作流 + 会话 TAB + ACP + 模型 + 弹性空白 + 使用情况
-    let mut bar = row![].spacing(4);
-
-    if let Some(permission_btn) = permission_btn {
-        bar = bar.push(permission_btn);
+    let mut options = row![]
+        .spacing(5)
+        .align_y(Alignment::Center)
+        .width(Length::FillPortion(5));
+    options = options.push(workflow_btn);
+    for option in [agent_tab_btn, tools_tab_btn, skills_tab_btn, acp_btn]
+        .into_iter()
+        .flatten()
+    {
+        options = options.push(option);
     }
 
-    bar = bar.push(workflow_btn);
-
-    if let Some(agent_tab_btn) = agent_tab_btn {
-        bar = bar.push(agent_tab_btn);
+    let mut actions = row![usage_btn, model_btn].spacing(6).align_y(Alignment::Center);
+    if let Some(voice_btn) = voice_btn {
+        actions = actions.push(voice_btn);
     }
-    if let Some(tools_tab_btn) = tools_tab_btn {
-        bar = bar.push(tools_tab_btn);
-    }
-    if let Some(skills_tab_btn) = skills_tab_btn {
-        bar = bar.push(skills_tab_btn);
-    }
-
-    if let Some(acp_btn) = acp_btn {
-        bar = bar.push(acp_btn);
-    }
-
-    if let Some(reasoning_btn) = reasoning_btn {
-        bar = bar.push(reasoning_btn);
-    }
-
-    bar = bar.push(model_btn);
-    bar = bar.push(Space::new().width(Length::Fill));
-
-    let mut attach_btn = Some(attach_btn);
-    let mut utility_controls = row![usage_btn].spacing(4).align_y(Alignment::Center);
-
-    if task_mode_enabled
-        && let Some(attach_btn) = attach_btn.take() {
-            utility_controls = utility_controls.push(attach_btn);
-        }
-
     if let Some(pool_btn) = pool_btn {
-        utility_controls = utility_controls.push(pool_btn);
+        actions = actions.push(pool_btn);
     }
-
-    bar = bar.push(container(utility_controls).padding(iced::Padding {
-        top: 1.0,
-        right: 5.0,
-        bottom: 1.0,
-        left: 5.0,
-    }));
-
-    // 在非任务模式下，添加取消和发送按钮
     if !task_mode_enabled {
-        let mut action_controls = row![].spacing(4).align_y(Alignment::Center);
-        let mut has_action_control = false;
-        let has_following_action = cancel_btn.is_some() || send_btn.is_some();
-
-        if let Some(attach_btn) = attach_btn.take() {
-            let attach_btn = if has_following_action {
-                container(attach_btn).padding(iced::Padding {
-                    top: 0.0,
-                    right: ATTACH_TO_ACTION_GAP,
-                    bottom: 0.0,
-                    left: 0.0,
-                })
-            } else {
-                container(attach_btn)
-            };
-
-            action_controls = action_controls.push(attach_btn);
-            has_action_control = true;
-        }
-
-        if let Some(cancel_btn) = cancel_btn {
-            action_controls = action_controls.push(cancel_btn);
-            has_action_control = true;
-        }
-        if let Some(send_btn) = send_btn {
-            action_controls = action_controls.push(send_btn);
-            has_action_control = true;
-        }
-        if has_action_control {
-            bar = bar.push(action_controls);
+        for action in [cancel_btn, send_btn].into_iter().flatten() {
+            actions = actions.push(action);
         }
     }
 
-    // 设置垂直对齐和内边距，返回最终布局
-    super::layout::composer_toolbar(bar).into()
+    let actions = container(
+        actions
+            .wrap()
+            .vertical_spacing(5)
+            .align_x(iced::alignment::Horizontal::Right),
+    )
+    .align_right(Length::FillPortion(4));
+
+    row![attach_btn, options.wrap().vertical_spacing(5), actions]
+        .width(Length::Fill)
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .padding([7, 13])
+        .into()
 }
 
 /// 只接受当前会话目录与项目目录，不借用宿主状态。

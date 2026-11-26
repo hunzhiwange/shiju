@@ -17,6 +17,7 @@ pub enum Message {
     WorkSidebarSpaceTasksLoadMorePressed(String),
     WorkSpacePickerToggled,
     WorkSpacePickerClosed,
+    WorkSpacePickerQueryChanged(String),
 }
 pub struct State {
     pub work_sidebar_visible_tasks: usize,
@@ -31,6 +32,7 @@ pub struct State {
     pub work_sidebar_filter_time: WorkSidebarFilterTime,
     pub work_sidebar_tab: WorkSidebarTab,
     pub work_space_picker_open: bool,
+    pub work_space_picker_query: String,
 }
 fn reset_visible_items(app: &mut State) {
     app.work_sidebar_visible_tasks = WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS;
@@ -108,9 +110,16 @@ pub fn update(app: &mut State, message: Message) -> Option<bool> {
         }
         Message::WorkSpacePickerToggled => {
             app.work_space_picker_open = !app.work_space_picker_open;
+            app.work_space_picker_query.clear();
         }
         Message::WorkSpacePickerClosed => {
             app.work_space_picker_open = false;
+            app.work_space_picker_query.clear();
+        }
+        Message::WorkSpacePickerQueryChanged(query) => {
+            if app.work_space_picker_open {
+                app.work_space_picker_query = query;
+            }
         }
     }
 
@@ -132,6 +141,7 @@ impl Default for State {
             work_sidebar_filter_time: WorkSidebarFilterTime::default(),
             work_sidebar_tab: WorkSidebarTab::default(),
             work_space_picker_open: false,
+            work_space_picker_query: String::new(),
         }
     }
 }

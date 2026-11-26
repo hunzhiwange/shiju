@@ -10,6 +10,7 @@ pub mod status_animation;
 mod status_animation_tests;
 pub mod svg_path;
 pub mod single_line_label;
+pub mod composer_icons;
 
 pub mod text_editor_context_menu;
 pub mod text_editor_scroll_panel;

@@ -10,7 +10,7 @@ use iced::widget::{Space, button as action, column, container, row, text};
 use iced::{Alignment, Element, Length, Theme};
 
 use super::styles::selectable_list_button_style;
-use vw_api_acp_model::acp_session::{AcpOptionKind, AcpSessionSelection};
+use vw_api_acp_model::acp_session::{AcpOptionKind, AcpSessionOption, AcpSessionOptions, AcpSessionSelection};
 
 #[derive(Debug, Clone)]
 pub enum Action {
@@ -37,6 +37,65 @@ pub struct OptionsState<'a> {
 
 pub const OPTIONS_SCROLL: &str = "acp_session_options_scroll";
 
+pub fn reasoning_effort_option(options: &AcpSessionOptions) -> Option<&AcpSessionOption> {
+    options.options.iter().find(|option| {
+        !option.choices.is_empty()
+            && matches!(
+                &option.kind,
+                AcpOptionKind::Config { id }
+                    if matches!(id.as_str(), "reasoning_effort" | "thought_level" | "effort")
+            )
+    })
+}
+
+fn options_editable(runtime: &OptionsState<'_>) -> bool {
+    !runtime.acp_options_pending && !runtime.is_requesting && !runtime.source_pending
+}
+
+fn can_confirm_current_option(runtime: &OptionsState<'_>, kind: &AcpOptionKind) -> bool {
+    // Copilot may display the first level before an explicit selection has been saved.
+    runtime.acp_agent == Some("copilot")
+        && runtime.acp_options.acp_model_source
+            == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
+        && matches!(kind, AcpOptionKind::Config { id } if id == "reasoning_effort")
+}
+
+pub fn reasoning_effort_control<Message: Clone + 'static>(
+    runtime: &OptionsState<'_>,
+    emit: fn(Action) -> Message,
+) -> Option<Element<'static, Message>> {
+    let option = reasoning_effort_option(runtime.acp_options)?;
+    let can_edit = options_editable(runtime);
+    let can_confirm_current = can_confirm_current_option(runtime, &option.kind);
+    let choices = row(option.choices.iter().map(|choice| {
+        let selected = choice.id == option.current;
+        action(text(choice.name.clone()).size(12))
+            .padding([5, 8])
+            .style(move |theme, status| {
+                let mut style = selectable_list_button_style(theme, status, selected);
+                if !can_edit && !selected {
+                    style.text_color = theme.palette().text.scale_alpha(0.55);
+                }
+                style
+            })
+            .on_press_maybe((can_edit && (!selected || can_confirm_current)).then(|| {
+                emit(Action::AcpOptionSelected(AcpSessionSelection {
+                    kind: option.kind.clone(),
+                    value: choice.id.clone(),
+                }))
+            }))
+            .into()
+    }));
+    Some(container(column![
+        text(runtime.i18n.__("推理强度")).size(12).style(settings_muted_text_style),
+        choices.spacing(4).wrap().vertical_spacing(4),
+    ].spacing(6))
+        .padding([8, 10])
+        .width(Length::Fill)
+        .style(super::reasoning_selector::reasoning_control_surface)
+        .into())
+}
+
 pub fn entry<'a, Message: Clone + 'static>(
     i18n: I18n, visible: bool, enabled: bool, emit: fn(Action) -> Message,
 ) -> Option<Element<'a, Message>> {
@@ -44,7 +103,7 @@ pub fn entry<'a, Message: Clone + 'static>(
     Some(
         action(text(i18n.__("ACP 选项")).size(13))
             .padding([6, 10])
-            .style(rounded_action_btn_style)
+            .style(|theme, status| super::surface_styles::composer_selector_button_style(theme, status, false))
             .on_press_maybe(
                 enabled
                 .then_some(emit(Action::AcpOptionsOpen)),
@@ -75,17 +134,11 @@ pub fn with_modal<'a, Message: Clone + 'static>(
         };
         fields = fields.push(text(i18n.__(hint)).size(13).style(settings_muted_text_style));
     }
-    let can_select = !runtime.acp_options_pending
-        && !runtime.is_requesting
-        && !runtime.source_pending;
+    let can_select = options_editable(runtime);
     for option in options {
         let model_locked = option.kind == AcpOptionKind::Model
             || matches!(&option.kind, AcpOptionKind::Config { id } if id == "model");
-        // Copilot may display the first level before an explicit selection has been saved.
-        let can_confirm_current = runtime.acp_agent == Some("copilot")
-            && runtime.acp_options.acp_model_source
-                == vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel
-            && matches!(&option.kind, AcpOptionKind::Config { id } if id == "reasoning_effort");
+        let can_confirm_current = can_confirm_current_option(runtime, &option.kind);
         let mut choices = column![settings_field_label(&option.name)].spacing(6);
         if can_confirm_current {
             choices = choices.push(

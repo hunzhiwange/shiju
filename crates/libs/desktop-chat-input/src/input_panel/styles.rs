@@ -10,43 +10,18 @@ pub fn square_icon_button_style(
     enabled: bool,
 ) -> button::Style {
     let is_dark = is_dark_theme(theme);
-    let idle_bg = if is_dark {
-        Color::from_rgba8(24, 25, 29, 0.92)
-    } else {
-        Color::from_rgba8(247, 248, 250, 1.0)
-    };
-    let hover_bg = if is_dark {
-        Color::from_rgba8(31, 33, 38, 0.96)
-    } else {
-        Color::from_rgba8(241, 243, 246, 1.0)
-    };
-    let pressed_bg = if is_dark {
-        Color::from_rgba8(36, 38, 44, 0.98)
-    } else {
-        Color::from_rgba8(232, 236, 241, 1.0)
-    };
-    let idle_border = if is_dark {
-        Color::from_rgba8(45, 48, 54, 0.95)
-    } else {
-        Color::from_rgba8(226, 231, 237, 1.0)
-    };
-    let active_border = if is_dark {
-        Color::from_rgba8(63, 67, 75, 0.95)
-    } else {
-        Color::from_rgba8(210, 216, 224, 1.0)
-    };
-    let (background, border_color) = match status {
-        button::Status::Pressed => (pressed_bg, active_border),
-        button::Status::Hovered => (hover_bg, active_border),
-        _ => (idle_bg, idle_border),
-    };
+    let text = theme.palette().text;
     button::Style {
-        background: Some(Background::Color(background)),
-        border: Border { radius: 10.0.into(), width: 1.0, color: border_color },
+        background: match status {
+            button::Status::Hovered => Some(text.scale_alpha(0.09).into()),
+            button::Status::Pressed => Some(text.scale_alpha(0.14).into()),
+            _ => None,
+        },
+        border: Border { radius: 8.0.into(), ..Border::default() },
         text_color: if enabled {
-            theme.palette().text.scale_alpha(if is_dark { 0.92 } else { 0.88 })
+            selector_text_color(theme, false)
         } else {
-            theme.palette().text.scale_alpha(if is_dark { 0.36 } else { 0.42 })
+            text.scale_alpha(if is_dark { 0.36 } else { 0.42 })
         },
         ..Default::default()
     }
@@ -77,81 +52,18 @@ pub fn selector_pill_button_style(
     status: button::Status,
     highlighted: bool,
 ) -> button::Style {
-    let is_dark = is_dark_theme(theme);
-    let idle_bg = if highlighted {
-        if is_dark {
-            Color::from_rgba8(28, 30, 35, 0.97)
-        } else {
-            Color::from_rgba8(244, 246, 249, 1.0)
-        }
-    } else if is_dark {
-        Color::from_rgba8(24, 25, 29, 0.92)
-    } else {
-        Color::from_rgba8(248, 249, 251, 1.0)
-    };
-    let hover_bg = if highlighted {
-        if is_dark {
-            Color::from_rgba8(34, 36, 42, 0.98)
-        } else {
-            Color::from_rgba8(238, 241, 245, 1.0)
-        }
-    } else if is_dark {
-        Color::from_rgba8(31, 33, 38, 0.96)
-    } else {
-        Color::from_rgba8(241, 243, 246, 1.0)
-    };
-    let pressed_bg = if highlighted {
-        if is_dark {
-            Color::from_rgba8(38, 40, 46, 1.0)
-        } else {
-            Color::from_rgba8(232, 236, 241, 1.0)
-        }
-    } else if is_dark {
-        Color::from_rgba8(36, 38, 44, 0.98)
-    } else {
-        Color::from_rgba8(233, 236, 241, 1.0)
-    };
-    let idle_border = if highlighted {
-        if is_dark {
-            Color::from_rgba8(70, 74, 83, 0.96)
-        } else {
-            Color::from_rgba8(206, 213, 223, 1.0)
-        }
-    } else if is_dark {
-        Color::from_rgba8(45, 48, 54, 0.92)
-    } else {
-        Color::from_rgba8(226, 231, 237, 1.0)
-    };
-    let active_border = if highlighted {
-        if is_dark {
-            Color::from_rgba8(84, 88, 98, 0.98)
-        } else {
-            Color::from_rgba8(194, 202, 214, 1.0)
-        }
-    } else if is_dark {
-        Color::from_rgba8(63, 67, 75, 0.95)
-    } else {
-        Color::from_rgba8(210, 216, 224, 1.0)
-    };
-    let (background, border_color) = match status {
-        button::Status::Pressed => (pressed_bg, active_border),
-        button::Status::Hovered => (hover_bg, active_border),
-        _ => (idle_bg, idle_border),
+    let palette = theme.palette();
+    let background = match status {
+        button::Status::Pressed => Some(palette.text.scale_alpha(0.15)),
+        button::Status::Hovered => Some(palette.text.scale_alpha(0.10)),
+        _ if highlighted => Some(palette.primary.scale_alpha(0.12)),
+        _ => None,
     };
 
     button::Style {
-        background: Some(Background::Color(background)),
-        border: Border { radius: 12.0.into(), width: 1.0, color: border_color },
+        background: background.map(Background::Color),
+        border: Border { radius: 999.0.into(), ..Border::default() },
         text_color: selector_text_color(theme, highlighted),
-        shadow: if highlighted {
-            iced::Shadow {
-                color: Color::BLACK.scale_alpha(if is_dark { 0.10 } else { 0.035 }),
-                offset: iced::Vector::new(0.0, 6.0),
-                blur_radius: 16.0,
-            }
-        } else {
-            iced::Shadow::default()
-        },
         ..Default::default()
     }
 }

@@ -5,7 +5,7 @@
 //!
 //! # 主要功能
 //!
-//! - **自适应高度**：根据输入内容行数自动调整编辑器高度（3-8 行）
+//! - **自适应高度**：根据换行后的实际内容调整聊天编辑器高度
 //! - **智能键盘绑定**：支持普通输入模式和文件搜索模式的不同键盘行为
 //! - **文件搜索导航**：在文件搜索激活时，支持上下箭头、Enter、Tab 和 Escape 键导航
 //! - **快捷发送**：在普通模式下按 Enter 键发送消息（不按任何修饰键）
@@ -19,9 +19,12 @@
 //! // 宿主传入 EditorState、内容与主题样式。
 //! ```
 
+use std::cell::Cell;
+use std::rc::Rc;
+
 use iced::advanced::text::highlighter::PlainText;
 use iced::widget::{TextEditor, button, column, container, text, text_editor};
-use iced::{Background, Border, Color, Element, Length, Theme};
+use iced::{Background, Border, Color, Element, Length, Padding, Pixels, Theme};
 
 use desktop_editor::components::input_mention_highlighter::{
     MentionHighlighter, Settings as MentionHighlightSettings, mention_format,
@@ -30,6 +33,19 @@ use desktop_editor::components::input_mention_highlighter::{
 use super::slice_message::Message;
 use desktop_ui_controls::overlays::PointBelowOverlay;
 use desktop_ui_controls::right_click_area::RightClickArea;
+
+mod viewport;
+
+const CHAT_TEXT_SIZE: Pixels = Pixels(16.0);
+const CHAT_LINE_PIXELS: f32 = 26.0;
+const CHAT_LINE_HEIGHT: iced::widget::text::LineHeight =
+    iced::widget::text::LineHeight::Absolute(Pixels(CHAT_LINE_PIXELS));
+const CHAT_MAX_VISIBLE_LINES: usize = 11;
+const CHAT_PADDING: Padding = Padding { top: 11.0, right: 25.0, bottom: 6.0, left: 16.0 };
+const CHAT_MIN_HEIGHT: f32 =
+    INPUT_MIN_LINES as f32 * CHAT_LINE_PIXELS + CHAT_PADDING.top + CHAT_PADDING.bottom;
+const CHAT_MAX_HEIGHT: f32 =
+    CHAT_MAX_VISIBLE_LINES as f32 * CHAT_LINE_PIXELS + CHAT_PADDING.top + CHAT_PADDING.bottom;
 
 /// 输入框最小显示行数
 ///
@@ -215,28 +231,36 @@ pub fn binding_from_key_press(
 /// 样式设置和提及高亮功能。
 ///
 /// 输入只包含编辑器需要的状态；宿主注入当前主题样式。
-/// 返回局部消息视图与按原行数限制计算的高度。
 pub fn build_input_editor<'a>(
     app: EditorState,
     input_editor: &'a text_editor::Content,
     style: impl Fn(&Theme, text_editor::Status) -> text_editor::Style + 'a,
     _task_mode_enabled: bool,
-) -> (Element<'a, Message>, f32) {
-    let (editor, editor_height) = composer_editor(input_editor);
+) -> Element<'a, Message> {
     let key_state = app.clone();
-    let editor = editor
+    let page_lines = Rc::new(Cell::new(CHAT_MAX_VISIBLE_LINES - 1));
+    let editor_page_lines = Rc::clone(&page_lines);
+    let editor = text_editor(input_editor)
+        .size(CHAT_TEXT_SIZE)
+        .line_height(CHAT_LINE_HEIGHT)
+        .height(Length::Shrink)
+        .min_height(INPUT_MIN_LINES as f32 * CHAT_LINE_PIXELS)
+        .padding(CHAT_PADDING)
+        .wrapping(text::Wrapping::WordOrGlyph)
         .id(app.input_editor_id.clone())
         .placeholder(app.i18n.__(app.placeholder))
         .on_action(Message::InputEditorAction)
-        .key_binding(move |kp| binding_from_key_press(&key_state, kp))
+        .key_binding(move |kp| {
+            binding_from_key_press(&key_state, kp)
+                .map(|binding| viewport::fit_page_motion(binding, editor_page_lines.get()))
+        })
         // 应用编辑器样式：根据请求状态调整外观
         .style(style)
         // 启用 @ 提及高亮功能
         .highlight_with::<MentionHighlighter>(MentionHighlightSettings, mention_format);
 
-    // 将编辑器包装在容器中，宽度填充父容器
     let input: Element<'a, Message> = RightClickArea::new(
-        editor.into(),
+        viewport::composer_viewport(input_editor, editor.into(), page_lines),
         Box::new(|point| Message::OpenInputContextMenu { x: point.x, y: point.y }),
     )
     .into();
@@ -256,9 +280,7 @@ pub fn build_input_editor<'a>(
         input
     };
 
-    let input = container(input).width(Length::Fill).into();
-
-    (input, editor_height)
+    container(input).width(Length::Fill).into()
 }
 
 pub fn input_context_menu<'a>(i18n: desktop_i18n::I18n) -> Element<'a, Message> {

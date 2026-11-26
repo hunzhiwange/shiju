@@ -15,6 +15,8 @@ use crate::selector_style::{
 use crate::selector_style::session_lock_tooltip;
 
 use desktop_ui_controls::system_settings_common::rounded_action_btn_style;
+use desktop_ui_controls::composer_icons::ComposerIcon;
+use desktop_ui_controls::single_line_label::SingleLineLabel;
 use crate::state::{
  SessionToolGroup, SessionToolSelectorTab,
     tool_display_name, tool_group,
@@ -118,6 +120,10 @@ pub fn selector_search_bar(
     i18n: desktop_i18n::I18n,
     query: String,
 ) -> Element<'static, Message> {
+    search_bar(i18n.__("搜索当前列表"), query)
+}
+
+fn search_bar(placeholder: &'static str, query: String) -> Element<'static, Message> {
     container(
         row![
             icon_svg(Icon::Search).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)).style(
@@ -125,7 +131,7 @@ pub fn selector_search_bar(
                     color: Some(theme.palette().text.scale_alpha(0.60)),
                 }
             ),
-            iced::widget::TextInput::new(i18n.__("搜索当前列表"), query.as_str())
+            iced::widget::TextInput::new(placeholder, query.as_str())
                 .on_input(|value| {
                     Message::SessionToolSelectorSearchChanged(value)
                 })
@@ -245,7 +251,34 @@ pub fn skill_scope_button(
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
 pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'static, Message> {
+    selector_view(input, None)
+}
+
+pub fn session_tool_selector_picker(
+    input: SelectorInput<'_>,
+    placeholder: &'static str,
+    experts: bool,
+) -> Element<'static, Message> {
+    selector_view(input, Some((placeholder, experts)))
+}
+
+fn selector_list(list: iced::widget::Column<'static, Message>, picker: bool) -> Element<'static, Message> {
+    let height = if picker { Length::Shrink } else { Length::Fixed(SESSION_SELECTOR_LIST_MAX_HEIGHT) };
+    container(
+        scrollable(container(list).padding(iced::Padding::ZERO.right(SESSION_SELECTOR_LIST_RIGHT_PADDING)))
+            .direction(Direction::Vertical(
+                Scrollbar::new().width(SESSION_SELECTOR_SCROLLBAR_WIDTH)
+                    .scroller_width(SESSION_SELECTOR_SCROLLBAR_WIDTH),
+            ))
+            .height(height),
+    )
+    .max_height(if picker { 224.0 } else { SESSION_SELECTOR_LIST_MAX_HEIGHT })
+    .into()
+}
+
+fn selector_view(input: SelectorInput<'_>, picker: Option<(&'static str, bool)>) -> Element<'static, Message> {
     let i18n = input.i18n;
+    let experts = picker.is_some_and(|(_, experts)| experts);
     let runtime = input;
     let show_tools = runtime.show_tools;
     let active_tab = runtime.active_tab;
@@ -387,11 +420,7 @@ pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'stati
                     format!("{} / {}", engine, entry.model)
                 };
                 let identity_icon: Element<'_, Message> = match &entry.runtime {
-                    config_agent_profile::AgentRuntime::Native => icon_svg(Icon::Hexagon)
-                        .width(Length::Fixed(16.0))
-                        .height(Length::Fixed(16.0))
-                        .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
-                        .into(),
+                    config_agent_profile::AgentRuntime::Native => ComposerIcon::Agent.svg(17.0).into(),
                     config_agent_profile::AgentRuntime::Acp { backend } => {
                         (runtime.agent_icon)(backend, 16.0)
                     }
@@ -423,19 +452,7 @@ pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'stati
                     .padding([4, 2]),
                 );
             }
-            scrollable(container(list).padding(iced::Padding {
-                top: 0.0,
-                right: SESSION_SELECTOR_LIST_RIGHT_PADDING,
-                bottom: 0.0,
-                left: 0.0,
-            }))
-            .direction(Direction::Vertical(
-                Scrollbar::new()
-                    .width(SESSION_SELECTOR_SCROLLBAR_WIDTH)
-                    .scroller_width(SESSION_SELECTOR_SCROLLBAR_WIDTH),
-            ))
-            .height(Length::Fixed(SESSION_SELECTOR_LIST_MAX_HEIGHT))
-            .into()
+            selector_list(list, picker.is_some())
         }
         SessionToolSelectorTab::Tools => {
             if filtered_manual_tools.is_empty() {
@@ -583,19 +600,7 @@ pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'stati
                     groups = groups.push(section);
                 }
 
-                scrollable(container(groups).padding(iced::Padding {
-                    top: 0.0,
-                    right: SESSION_SELECTOR_LIST_RIGHT_PADDING,
-                    bottom: 0.0,
-                    left: 0.0,
-                }))
-                .direction(Direction::Vertical(
-                    Scrollbar::new()
-                        .width(SESSION_SELECTOR_SCROLLBAR_WIDTH)
-                        .scroller_width(SESSION_SELECTOR_SCROLLBAR_WIDTH),
-                ))
-                .height(Length::Fixed(SESSION_SELECTOR_LIST_MAX_HEIGHT))
-                .into()
+                selector_list(groups, picker.is_some())
             }
         }
         SessionToolSelectorTab::Skills => {
@@ -610,7 +615,7 @@ pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'stati
                 .padding([4, 2])
                 .into()
             } else {
-                let skill_scope = runtime.tool_selector.skill_directory_scope();
+                let skill_scope = if experts { SkillsDirectoryScope::All } else { runtime.tool_selector.skill_directory_scope() };
                 let scope_tabs = row![
                     skill_scope_button(i18n, SkillsDirectoryScope::Project, skill_scope),
                     skill_scope_button(i18n, SkillsDirectoryScope::Ancestor, skill_scope),
@@ -646,6 +651,8 @@ pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'stati
                     let selected = runtime.tool_selector.is_manual_skill_selected(&skill_id);
                     let subtitle = if skill.description.trim().is_empty() {
                         skill.id.clone()
+                    } else if picker.is_some() {
+                        skill.description.clone()
                     } else {
                         format!(
                             "{} · {}",
@@ -656,13 +663,13 @@ pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'stati
                             )
                         )
                     };
-                    let tooltip_content = skill_tooltip_content(
+                    let tooltip_content = picker.is_none().then(|| skill_tooltip_content(
                         i18n,
                         skill.title.clone(),
                         skill_id.clone(),
                         skill.source.clone(),
                         skill.description.clone(),
-                    );
+                    ));
                     let check: Element<'_, Message> = if selected {
                         icon_svg(Icon::Check)
                             .width(Length::Fixed(14.0))
@@ -674,33 +681,20 @@ pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'stati
                     } else {
                         Space::new().width(Length::Fixed(14.0)).into()
                     };
+                    let label = |value, size, alpha| {
+                        container(SingleLineLabel::new(value, size)).style(move |theme: &Theme| {
+                            iced::widget::container::Style {
+                                text_color: Some(context_row_text_color(theme, selected, alpha)),
+                                ..Default::default()
+                            }
+                        })
+                    };
                     let skill_button = button(
                         row![
-                            icon_svg(Icon::Star)
-                                .width(Length::Fixed(16.0))
-                                .height(Length::Fixed(16.0))
-                                .style(|theme: &Theme, _| svg::Style {
-                                    color: Some(theme.palette().text),
-                                }),
+                            (if experts { ComposerIcon::Expert } else { ComposerIcon::Skill }).svg(17.0),
                             column![
-                                text(ellipsize_text(&skill.title, 34))
-                                    .size(13)
-                                    .width(Length::Fill)
-                                    .wrapping(iced::widget::text::Wrapping::None)
-                                    .style(move |theme: &Theme| {
-                                        iced::widget::text::Style {
-                                            color: Some(context_row_text_color(
-                                                theme, selected, 0.90,
-                                            )),
-                                        }
-                                    }),
-                                text(subtitle)
-                                    .size(11)
-                                    .width(Length::Fill)
-                                    .wrapping(iced::widget::text::Wrapping::None)
-                                    .style(move |theme: &Theme| iced::widget::text::Style {
-                                        color: Some(context_row_text_color(theme, selected, 0.66)),
-                                    })
+                                label(skill.title.clone(), 13.0, 0.90),
+                                label(subtitle, 11.0, 0.66),
                             ]
                             .spacing(3)
                             .width(Length::Fill),
@@ -715,14 +709,19 @@ pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'stati
                         context_list_button_style(theme, status, selected)
                     })
                     .on_press(Message::SessionSkillSelected(skill_id));
-                    list = list.push(
-                        Tooltip::new(skill_button, tooltip_content, TooltipPosition::Right)
-                            .gap(8.0),
-                    );
+                    list = if let Some(tooltip_content) = tooltip_content {
+                        list.push(Tooltip::new(skill_button, tooltip_content, TooltipPosition::Right).gap(8.0))
+                    } else {
+                        list.push(skill_button)
+                    };
                 }
 
                 if !has_skills {
-                    let empty_message = if runtime.skills.is_empty() {
+                    let empty_message = if experts && runtime.skills.is_empty() {
+                        i18n.__("当前没有已启用的专家包。")
+                    } else if experts {
+                        i18n.__("没有匹配的专家。")
+                    } else if runtime.skills.is_empty() {
                         i18n.__("技能目录尚未加载。")
                     } else if !has_scope_skills {
                         i18n
@@ -740,27 +739,19 @@ pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'stati
                     );
                 }
 
-                let content = column![
-                    scope_tabs,
-                    scrollable(container(list).padding(iced::Padding {
-                        top: 0.0,
-                        right: SESSION_SELECTOR_LIST_RIGHT_PADDING,
-                        bottom: 0.0,
-                        left: 0.0,
-                    }))
-                    .direction(Direction::Vertical(
-                        Scrollbar::new()
-                            .width(SESSION_SELECTOR_SCROLLBAR_WIDTH)
-                            .scroller_width(SESSION_SELECTOR_SCROLLBAR_WIDTH),
-                    ),)
-                    .height(Length::Fixed(SESSION_SELECTOR_LIST_MAX_HEIGHT))
-                ]
-                .spacing(8);
-
-                content.into()
+                let list = selector_list(list, picker.is_some());
+                if experts {
+                    list
+                } else {
+                    column![scope_tabs.wrap(), list].spacing(8).into()
+                }
             }
         }
     };
+
+    if let Some((placeholder, _)) = picker {
+        return column![search_bar(placeholder, query), body].spacing(8).into();
+    }
 
     container(
         column![

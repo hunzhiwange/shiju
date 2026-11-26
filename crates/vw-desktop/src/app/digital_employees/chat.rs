@@ -319,7 +319,6 @@ fn bind_selection(app: &mut App, selection: Selection) {
     runtime.goal_mode_enabled = false;
     app.invalidate_project_chat_preferences_read();
     app.session_state.acp_agent = Some("employee-acp".into());
-    app.popover_visibility.reasoning_effort = false;
     app.sync_active_session_preferences();
 }
 

@@ -29,7 +29,7 @@ impl Fixture {
  recommended_prompts: Some(&self.agents_settings.entries[0].recommended_prompts),
  project_is_git_repo: self.project_is_git_repo,
  recent_projects: &self.recent_projects, recent_projects_edits: &self.recent_projects_edits,
- project_path: self.project_path.as_deref(), work_space_picker_open: self.work_space_picker_open,
+ project_path: self.project_path.as_deref(), work_space_picker_open: self.work_space_picker_open, workspace_query: "",
  shiju_skill: self.input_popovers.shiju_skill, installed: &self.expert_hub.installed,
  media_shortcuts: Some(false),
  media_models: None,

@@ -43,7 +43,7 @@ fn slash_palette_overlay_renders_empty_state() {
     app.state.slash_palette_query = "zzz-no-match".to_string();
 
     let overlay = slash_palette_overlay(&app);
-    assert_eq!(overlay.as_widget().size().width, Length::Fixed(360.0));
+    assert_eq!(overlay.as_widget().size().width, Length::Fixed(520.0));
     assert_eq!(overlay_list_len(&app), 1);
 }
 
@@ -61,7 +61,7 @@ fn slash_palette_overlay_renders_section_headers_and_show_more() {
     ];
 
     let overlay = slash_palette_overlay(&app);
-    assert_eq!(overlay.as_widget().size().width, Length::Fixed(360.0));
+    assert_eq!(overlay.as_widget().size().width, Length::Fixed(520.0));
     drop(overlay);
 
     // Skills header + 3 entries + Show more + spacer, plus other sections.

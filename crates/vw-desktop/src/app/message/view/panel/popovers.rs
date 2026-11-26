@@ -26,10 +26,23 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::ToggleModePopover => domain::Message::Toggle(Popover::Mode),
         ViewMessage::ToggleSendModePopover => domain::Message::Toggle(Popover::SendMode),
         ViewMessage::ToggleFilePopover => domain::Message::Toggle(Popover::File),
-        ViewMessage::ToggleAcpPopover => domain::Message::Toggle(Popover::Acp),
-        ViewMessage::ToggleReasoningEffortPopover => {
-            domain::Message::Toggle(Popover::ReasoningEffort)
+        ViewMessage::SelectFileMenuSection(section) => {
+            use desktop_chat_input::popovers::FileMenuSection;
+            use desktop_chat_tools::state::SessionToolSelectorTab;
+            if !app.popover_visibility.file || app.popover_visibility.file_section == section {
+                return Task::none();
+            }
+            app.popover_visibility.file_section = section;
+            let tab = match section {
+                Some(FileMenuSection::Agent) => SessionToolSelectorTab::Agent,
+                Some(FileMenuSection::Tools) => SessionToolSelectorTab::Tools,
+                Some(FileMenuSection::Experts | FileMenuSection::Skills) => SessionToolSelectorTab::Skills,
+                _ => return Task::none(),
+            };
+            app.current_session_runtime_mut().tool_selector.set_query(String::new());
+            return crate::app::message::chat::update(app, crate::app::message::ChatMessage::SessionToolSelectorTabSelected(tab));
         }
+        ViewMessage::ToggleAcpPopover => domain::Message::Toggle(Popover::Acp),
         ViewMessage::ToggleUsagePopover => domain::Message::Toggle(Popover::Usage),
         ViewMessage::ToggleSessionToolSelectorPopover => {
             domain::Message::Toggle(Popover::SessionToolSelector)
@@ -43,9 +56,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::CloseSendModePopover => domain::Message::Close(Popover::SendMode),
         ViewMessage::CloseFilePopover => domain::Message::Close(Popover::File),
         ViewMessage::CloseAcpPopover => domain::Message::Close(Popover::Acp),
-        ViewMessage::CloseReasoningEffortPopover => {
-            domain::Message::Close(Popover::ReasoningEffort)
-        }
         ViewMessage::CloseUsagePopover => domain::Message::Close(Popover::Usage),
         ViewMessage::CloseExecutorPopover => domain::Message::Close(Popover::Executor),
         ViewMessage::ClosePopovers => domain::Message::CloseAll,
@@ -53,6 +63,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::ModelPopoverHoverChanged(hover) => domain::Message::HoverChanged(hover),
         _ => return Task::none(),
     };
+    let focus_model = matches!(&message, domain::Message::Toggle(Popover::Model))
+        && !app.popover_visibility.model
+        && app.mobile_layout.mode() != crate::app::state::LayoutMode::Mobile;
     let inputs = domain::Inputs {
         requesting: app.current_session_is_requesting(),
         models_empty: app.model_settings.providers.is_empty(),
@@ -68,7 +81,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         inputs,
         message,
     );
-    match effect {
+    let task = match effect {
         None => Task::none(),
         Some(domain::Effect::SaveCollapsedProviders(value)) => {
             app.save_desktop_preference("input_model_collapsed_provider_ids", value)
@@ -99,7 +112,16 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             },
             Message::BootstrapAcpAgentsLoaded,
         ),
+    };
+    if focus_model && app.popover_visibility.model {
+        return Task::batch([
+            task,
+            iced::widget::operation::focus(
+                desktop_chat_input::input_panel::model_views::model_search_id(),
+            ),
+        ]);
     }
+    task
 }
 #[cfg(test)]
 #[path = "popovers_tests.rs"]

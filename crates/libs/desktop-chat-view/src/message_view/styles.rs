@@ -41,7 +41,7 @@ pub fn message_surface_contract(is_user: bool) -> MessageSurfaceContract {
             padding: Padding { top: 8.0, right: 14.0, bottom: 8.0, left: 14.0 },
             width: Length::Fill,
             max_width: None,
-            corner_radius: 12.0,
+            corner_radius: 16.0,
             has_background: true,
         }
     } else {
@@ -94,24 +94,10 @@ pub fn message_surface_style(
         };
     }
 
-    let is_dark = is_dark_theme(theme);
-    let background = if is_dark {
-        Color::from_rgba8(255, 255, 255, 0.055)
-    } else {
-        Color::from_rgba8(246, 247, 249, 1.0)
-    };
+    let tint = if is_dark_theme(theme) { 0.095 } else { 0.065 };
     container::Style {
-        background: Some(Background::Color(background)),
-        border: Border {
-            width: 1.0,
-            color: if is_dark {
-                Color::from_rgba8(255, 255, 255, 0.07)
-            } else {
-                Color::from_rgba8(15, 23, 42, 0.06)
-            },
-            radius: contract.corner_radius.into(),
-        },
-        shadow: iced::Shadow::default(),
+        background: Some(Background::Color(theme.palette().text.scale_alpha(tint))),
+        border: Border { radius: contract.corner_radius.into(), ..Border::default() },
         ..Default::default()
     }
 }

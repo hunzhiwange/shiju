@@ -9,5 +9,5 @@ work_chat_half_fullscreen: app.navigation_workspace.work_chat_half_fullscreen,
 work_resource_fullscreen: app.navigation_workspace.work_resource_fullscreen,
 work_resource_half_fullscreen: app.navigation_workspace.work_resource_half_fullscreen,
 work_split_ratio: app.navigation_workspace.work_split_ratio,
-}, super::work_sidebar::view(app), super::chat::chat_area(app,spacing,radius,chat_pad), super::work_resources::view(app,radius), crate::app::components::chat_panel::tool_dialog_overlay(app).unwrap_or_else(|| iced::widget::Space::new().width(iced::Length::Fill).height(iced::Length::Fill).into()), if app.terminal.is_visible {Some(super::bottom::bottom_panel(app))} else {None}, Message::View(ViewMessage::WorkSplitDragStarted), Message::View(ViewMessage::WorkSidebarDragStarted),radius,spacing)
+}, super::work_sidebar::view(app), super::chat::chat_area(app,radius,chat_pad), super::work_resources::view(app,radius), crate::app::components::chat_panel::tool_dialog_overlay(app).unwrap_or_else(|| iced::widget::Space::new().width(iced::Length::Fill).height(iced::Length::Fill).into()), if app.terminal.is_visible {Some(super::bottom::bottom_panel(app))} else {None}, Message::View(ViewMessage::WorkSplitDragStarted), Message::View(ViewMessage::WorkSidebarDragStarted),radius,spacing)
 }

@@ -42,11 +42,6 @@ pub fn pool_button(
     task_mode_model: String,
     task_mode_reasoning_effort: Option<ReasoningEffortDto>,
 ) -> Element<'static, Message> { controls::pool_button(i18n, enabled, task_mode_enabled, input_text, task_mode_priority, task_mode_model, task_mode_reasoning_effort).map(map) }
-pub fn full_access_button(
-    i18n: crate::app::i18n::I18n,
-    enabled: bool,
-    active: bool,
-) -> Element<'static, Message> { controls::full_access_button(i18n, enabled, active).map(map) }
 pub fn workflow_mode_button(
     i18n: crate::app::i18n::I18n,
     active: bool,

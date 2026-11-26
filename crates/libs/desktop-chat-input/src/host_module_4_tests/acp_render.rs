@@ -177,6 +177,7 @@ impl Fixture {
             false,
             "fixture/model-00",
             self.source(),
+            None,
             Message::Model,
         );
         let toggle = model_views::model_toggle_button(
@@ -186,6 +187,7 @@ impl Fixture {
             false,
             "fixture/model-00",
             true,
+            None,
             Message::Model,
         );
         let overlay = desktop_ui_controls::overlays::AboveOverlay::new(toggle, popover)

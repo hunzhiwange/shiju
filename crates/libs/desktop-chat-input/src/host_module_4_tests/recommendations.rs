@@ -21,6 +21,7 @@ impl Fixture {
             recent_projects_edits: &[],
             project_path: None,
             work_space_picker_open: false,
+            workspace_query: "",
             shiju_skill: false,
             media_shortcuts: None,
             media_models: None,

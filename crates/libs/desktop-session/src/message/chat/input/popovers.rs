@@ -1,6 +1,16 @@
-//! 输入框上方互斥菜单的局部状态。
+//! 输入区互斥菜单和新会话推荐场景。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ComposerScene {
+    #[default]
+    Office,
+    Development,
+    Design,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct InputPopoverState {
+    pub scene: ComposerScene,
+    pub category: Option<usize>,
     pub recommended_prompt: bool,
     pub quick_message_group: Option<config_ui::QuickMessageGroup>,
     pub employee_commands: bool,

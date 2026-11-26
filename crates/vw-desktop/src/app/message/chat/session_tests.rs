@@ -614,7 +614,6 @@ fn preference_messages_update_runtime_and_global_chat_defaults() {
     app.popover_visibility.model = true;
     app.popover_visibility.mode = true;
     app.popover_visibility.acp = true;
-    app.popover_visibility.reasoning_effort = true;
     app.current_session_runtime_mut().task_mode_model = "manual-model".to_string();
 
     super::update(&mut app, super::ChatMessage::AutoModelToggled(true));
@@ -648,7 +647,6 @@ fn preference_messages_update_runtime_and_global_chat_defaults() {
     assert_eq!(app.session_state.acp_agent.as_deref(), Some("agent-a"));
     assert_eq!(app.current_session_runtime().acp_agent.as_deref(), Some("agent-a"));
     assert!(!app.popover_visibility.acp);
-    assert!(!app.popover_visibility.reasoning_effort);
 
     super::update(&mut app, super::ChatMessage::AcpHistoryRecentCountChanged(" 200 ".to_string()));
     assert_eq!(app.session_state.acp_recent_count, 20);

@@ -1,11 +1,9 @@
 //! 验证推理等级选择器的选项映射、当前值与弹窗交互。
 //! 未指定等级和不支持推理的模型用于确认选择器的隐藏与回退规则。
 
-use super::reasoning_selector::{
-    reasoning_effort_selector,
-};
-use crate::app::message::chat;
+use super::reasoning_selector::session_reasoning;
 use crate::app::message;
+use crate::app::message::chat;
 use vw_api_chat_identity::ReasoningEffortDto;
 
 // 宿主保留：宿主模型能力投影、ACP 确认及聊天更新契约。
@@ -14,11 +12,6 @@ fn acp_session_options_follow_capabilities_ignore_legacy_reasoning_selection() {
     let (mut app, _task) = crate::app::App::new();
     app.session_state.active_session_id = Some("session-a".to_string());
     app.get_session_runtime_mut("session-a").acp_agent = Some("codex".to_string());
-    let _ = crate::app::message::view::update(
-        &mut app,
-        message::ViewMessage::ToggleReasoningEffortPopover,
-    );
-    assert!(app.popover_visibility.reasoning_effort);
     let _ = chat::update(
         &mut app,
         message::ChatMessage::ReasoningEffortSelected(Some(ReasoningEffortDto::Xhigh)),
@@ -35,20 +28,7 @@ fn acp_session_options_follow_capabilities_ignore_legacy_reasoning_selection() {
     assert_eq!(app.get_session_runtime("session-a").reasoning_effort, None);
     assert_eq!(app.get_session_runtime("session-b").reasoning_effort, None);
 
-    assert!(reasoning_effort_selector(&app, Some("claude"), None).is_none());
-    assert!(reasoning_effort_selector(&app, None, None).is_none());
-}
-
-
-
-// 宿主保留：宿主模型能力投影、ACP 确认及聊天更新契约。
-#[test]
-fn acp_session_options_follow_capabilities_hide_unconnected_reasoning() {
-    let (mut app, _task) = crate::app::App::new();
-    app.popover_visibility.reasoning_effort = true;
-
-    assert!(reasoning_effort_selector(&app, Some("codex cli"), None).is_none());
-    assert!(reasoning_effort_selector(&app, Some("unknown"), None).is_none());
+    assert!(session_reasoning(&app, &app.session_state.model).is_none());
 }
 
 // 宿主保留：宿主模型能力投影、ACP 确认及聊天更新契约。
@@ -82,13 +62,15 @@ fn model_reasoning_effort_options_follow_configured_capability_and_provider() {
     assert_eq!(model_reasoning_effort_options(&app, "auto"), [None]);
     app.session_state.model = "provider/model".into();
     app.session_state.active_session_id = None;
-    app.current_session_runtime_mut().model = "provider/model".into();
-    assert!(reasoning_effort_selector(&app, None, None).is_some());
+    let runtime = app.current_session_runtime_mut();
+    runtime.model = "provider/model".into();
+    runtime.reasoning_effort = Some(ReasoningEffortDto::High);
+    let reasoning = session_reasoning(&app, "provider/model").expect("supported reasoning");
+    assert_eq!(reasoning.current, Some(ReasoningEffortDto::High));
     app.model_settings.providers[0].models[0].detail["capabilities"]["reasoning"] = false.into();
     assert_eq!(model_reasoning_effort_options(&app, "provider/model"), [None]);
-    assert!(reasoning_effort_selector(&app, None, None).is_none());
+    assert!(session_reasoning(&app, "provider/model").is_none());
 }
-
 
 // 宿主保留：宿主模型能力投影、ACP 确认及聊天更新契约。
 #[test]
@@ -103,13 +85,12 @@ fn model_change_clears_stale_reasoning_selection() {
     assert_eq!(app.current_session_runtime().task_mode_reasoning_effort, None);
 }
 
-
 // 宿主保留：宿主模型能力投影、ACP 确认及聊天更新契约。
 #[test]
 fn acp_session_options_follow_capabilities_before_connection() {
     let (app, _) = crate::app::App::new();
     assert!(
-        reasoning_effort_selector(&app, Some("codex"), None).is_none(),
+        session_reasoning(&app, &app.session_state.model).is_none(),
         "unconnected ACP sessions must not invent capabilities"
     );
 }
@@ -121,8 +102,7 @@ fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
     let (mut app, _) = crate::app::App::new();
     app.session_state.active_session_id = Some("options-a".into());
     let options = AcpSessionOptions {
-        acp_model_source:
-            vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
+        acp_model_source: vw_api_acp_model::acp_model_source::AcpModelSource::SessionModel,
         model_source_capabilities: Vec::new(),
         selected_model: None,
         verified_cli_release: None,
@@ -173,7 +153,10 @@ fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
     );
     assert_eq!(app.get_session_runtime("options-a").acp_options_state.options, confirmed);
     assert!(!app.get_session_runtime("options-a").full_access_enabled);
-    assert_eq!(app.get_session_runtime("options-b").acp_options_state.options, AcpSessionOptions::default());
+    assert_eq!(
+        app.get_session_runtime("options-b").acp_options_state.options,
+        AcpSessionOptions::default()
+    );
 }
 
 // 宿主保留：宿主模型能力投影、ACP 确认及聊天更新契约。
@@ -194,23 +177,18 @@ fn acp_session_options_follow_capabilities_reject_unadvertised_selection() {
     assert!(app.current_session_runtime().acp_options_state.options.options.is_empty());
 }
 
-
-
 // 宿主保留：宿主模型能力投影、ACP 确认及聊天更新契约。
 #[test]
 fn reasoning_slider_keeps_popover_open_and_resets_to_default() {
     let (mut app, _) = crate::app::App::new();
     app.session_state.active_session_id = Some("reasoning-slider".into());
-    app.popover_visibility.reasoning_effort = true;
+    app.popover_visibility.model = true;
     for value in [Some(ReasoningEffortDto::Low), Some(ReasoningEffortDto::High), None] {
         let _ = chat::update(&mut app, message::ChatMessage::ReasoningEffortSelected(value));
-        assert!(app.popover_visibility.reasoning_effort);
+        assert!(app.popover_visibility.model);
         assert_eq!(app.current_session_runtime().reasoning_effort, value);
         assert_eq!(app.session_state.reasoning_effort, value);
     }
-    let _ = crate::app::message::view::update(
-        &mut app,
-        message::ViewMessage::CloseReasoningEffortPopover,
-    );
-    assert!(!app.popover_visibility.reasoning_effort);
+    let _ = crate::app::message::view::update(&mut app, message::ViewMessage::CloseModelPopover);
+    assert!(!app.popover_visibility.model);
 }

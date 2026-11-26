@@ -1,6 +1,4 @@
-use crate::input_panel::reasoning_selector::{
-    ReasoningInput, reasoning_effort_options, reasoning_effort_popover,
-};
+use crate::input_panel::reasoning_selector::{reasoning_effort_control, reasoning_effort_options};
 
 #[tokio::test(flavor = "multi_thread")]
 async fn reasoning_slider_renders_non_ascii_labels_and_all_positions_in_both_themes() {
@@ -15,14 +13,9 @@ async fn reasoning_slider_renders_non_ascii_labels_and_all_positions_in_both_the
                 .await
                 .expect("headless renderer");
         for current in options {
-            let mut element = reasoning_effort_popover(
-                ReasoningInput {
-                    providers: &[],
-                    model: "",
-                    expanded: false,
-                    i18n: desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-                    session_id: None,
-                },
+            let mut element = reasoning_effort_control(
+                desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+                None,
                 "provider/中文模型 GPT-6",
                 options,
                 *current,
@@ -34,7 +27,7 @@ async fn reasoning_slider_renders_non_ascii_labels_and_all_positions_in_both_the
                 &renderer,
                 &layout::Limits::new(Size::ZERO, bounds),
             );
-            assert_eq!(node.bounds().width, 260.0);
+            assert_eq!(node.bounds().width, 320.0);
             assert!(node.bounds().height <= 110.0);
             element.as_widget().draw(
                 &tree,

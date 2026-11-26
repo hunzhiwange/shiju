@@ -89,11 +89,11 @@ use crate::app::components::overlays::AboveOverlay;
 
 use crate::app::{App, Message, TodoPanelPlacement, message};
 use file_references::{extract_file_mentions, render_file_references};
-use iced::widget::Space;
-use iced::{Element, Length};
-use reasoning_selector::reasoning_effort_selector;
+use iced::widget::{Space, button, container, row, text, tooltip};
+use iced::{Alignment, Element};
+use desktop_chat_view::panel::PanelPhase;
 use send_controls::{
-    cancel_button, full_access_button, pool_button, send_button, workflow_mode_button,
+    cancel_button, pool_button, send_button, workflow_mode_button,
 };
 use task_mode::task_mode_form;
 
@@ -105,7 +105,7 @@ pub(super) fn session_tool_tab_button<'a>(
     let active_tab = runtime.visible_session_tool_selector_tab();
     let popover_open = app.popover_visibility.session_tool_selector;
     let highlight = desktop_chat_input::input_panel::panel::session_tool_tab_highlight(
-        tab, popover_open, active_tab, runtime.agent.is_some(), &runtime.tool_selector,
+        tab, popover_open, active_tab, &runtime.tool_selector,
     );
     let key = runtime.agent.as_deref().unwrap_or(crate::app::state::MAIN_AGENT_KEY);
     let label = runtime.employee_chat_label().unwrap_or_else(|| {
@@ -114,6 +114,7 @@ pub(super) fn session_tool_tab_button<'a>(
         )
     });
     let toggle = desktop_chat_input::input_panel::panel::session_tool_tab_toggle(
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         tab, highlight, label, runtime.acp_agent.as_deref(), runtime.employee_portrait,
         Message::Chat(message::ChatMessage::OpenSessionToolSelectorTab(tab)),
     );
@@ -122,6 +123,7 @@ pub(super) fn session_tool_tab_button<'a>(
         AboveOverlay::new(toggle, session_tool_selector_popover(app))
             .show(true)
             .block_background_events(true)
+            .flip_if_clipped()
             .gap(6.0)
             .on_close(Message::View(message::ViewMessage::ClosePopovers))
             .into()
@@ -211,12 +213,10 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     // 这些状态控制UI的显示和交互行为
     let is_requesting = runtime.map(|r| r.request_lifecycle.is_requesting).unwrap_or(false);
     let submit_anim = runtime.map(|r| r.request_lifecycle.submit_anim).unwrap_or(0);
-    let queue = runtime.map(|r| r.request_lifecycle.queue.clone()).unwrap_or_default();
+    let queue = runtime.map(|r| r.request_lifecycle.queue.as_slice()).unwrap_or_default();
     let auto_model = runtime.map(|r| r.auto_model).unwrap_or(app.session_state.auto_model);
     let model = runtime.map(|r| r.model.clone()).unwrap_or_else(|| app.session_state.model.clone());
     let input_editor = runtime.map(|r| &r.input_editor).unwrap_or(&app.session_state.input_editor);
-    let selected_acp_agent = runtime.and_then(|r| r.acp_agent.clone());
-    let reasoning_effort = runtime.map(|r| r.reasoning_effort).unwrap_or(app.session_state.reasoning_effort);
     let full_access_enabled = app.current_session_full_access();
     let workflow_mode_enabled = runtime.map(|r| r.workflow_mode_enabled).unwrap_or(false);
 
@@ -233,7 +233,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         model_popover::model_toggle_button(app, auto_model, &model, app.popover_visibility.model);
 
     // 构建输入编辑器组件
-    let (input, _editor_height) =
+    let input =
         input_editor::build_input_editor(app, input_editor, is_requesting, task_mode_enabled);
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -247,32 +247,37 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         input
     };
 
-    // 构建模型选择弹出框内容
-    let model_pop_content: Element<'_, Message> =
-        model_popover::model_popover_content(app, auto_model, &model);
-
-    // 组合模型按钮和弹出框为覆盖层组件
     let mobile = app.mobile_layout.mode() == crate::app::state::LayoutMode::Mobile;
-    let model_btn = desktop_chat_input::input_panel::model_views::with_model_popover(
-        model_toggle, model_pop_content, app.popover_visibility.model,
-        Message::View(message::ViewMessage::CloseModelPopover),
-    );
+    let expanded = app.popover_visibility.model || app.popover_visibility.session_tool_selector
+        || app.popover_visibility.acp || app.popover_visibility.usage;
+    let model_btn = if !mobile && app.popover_visibility.model {
+        desktop_chat_input::input_panel::model_views::with_model_popover(
+            model_toggle,
+            model_popover::model_popover_content(app, auto_model, &model),
+            true,
+            Message::View(message::ViewMessage::CloseModelPopover),
+        )
+    } else {
+        model_toggle
+    };
 
     // 构建附件按钮
-    let attach_btn = attachment::attachment_button(app);
+    let attach_btn = attachment::attachment_button(app, mobile);
     #[cfg(not(target_arch = "wasm32"))]
-    let attach_btn = iced::widget::row![attach_btn, voice_controls::view(app)]
-        .spacing(3)
-        .align_y(iced::Alignment::Center)
-        .into();
+    let voice_btn = Some(voice_controls::view(app));
+    #[cfg(target_arch = "wasm32")]
+    let voice_btn = None;
     let (agent_tab_btn, tools_tab_btn, skills_tab_btn) = session_tool_tab_buttons(app);
 
     let acp_btn = app.session_state.active_session_id.as_ref().and_then(|_| acp_options::entry(app, runtime));
     #[cfg(not(target_arch = "wasm32"))]
     let acp_btn = if runtime.is_some_and(|runtime| runtime.is_employee_chat()) {
         (!crate::app::digital_employees::chat_picker::employee_locked(app)).then(|| {
-            iced::widget::button(iced::widget::text(crate::app::i18n::I18n::new(app.general_settings.desktop_locale).__("更换员工")).size(13))
-                .padding([6, 10])
+            let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
+            let label = container(iced::widget::text(i18n.__("更换员工")).size(13))
+                .center_y(styles::BOTTOM_BAR_ICON_BUTTON_SIZE);
+            iced::widget::button(label)
+                .padding([0, 10])
                 .style(super::system_settings_common::rounded_action_btn_style)
                 .on_press(Message::Chat(message::ChatMessage::SessionAgentSelected(Some(
                     desktop_session::session::agent::EMPLOYEE_CHAT_PROFILE.into(),
@@ -282,19 +287,40 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     } else {
         acp_btn
     };
-    let reasoning_btn = if selected_acp_agent.is_some() {
-        None
-    } else {
-        reasoning_effort_selector(app, None, reasoning_effort)
-    };
-    let permission_btn = Some(full_access_button(
-        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
-        desktop_chat_input::input_panel::send_controls::permission_change_allowed(
-            has_permission_context, runtime.is_some_and(|r| r.full_access_saving),
-            runtime.is_some_and(|r| r.draft.is_some()), runtime.is_some_and(|r| r.request_lifecycle.is_requesting),
-        ),
+    let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
+    let permission_change_allowed = desktop_chat_input::input_panel::send_controls::permission_change_allowed(
+        has_permission_context,
+        runtime.is_some_and(|r| r.full_access_saving),
+        runtime.is_some_and(|r| r.draft.is_some()),
+        is_requesting,
+    );
+    let close_mode = Message::View(message::ViewMessage::CloseModePopover);
+    let permission_mode = desktop_chat_input::input_panel::send_controls::permission_mode(
+        i18n,
+        permission_change_allowed,
         full_access_enabled,
-    ));
+        app.popover_visibility.mode,
+        Message::View(message::ViewMessage::ToggleModePopover),
+        close_mode.clone(),
+        Message::Batch(vec![
+            close_mode,
+            Message::Chat(message::ChatMessage::ToggleFullAccessPermission),
+        ]),
+    );
+    let is_new_chat = super::chat_panel::phase(app) == PanelPhase::Empty;
+    let mut context_controls = row![quick_messages::workspace(app), permission_mode];
+    if is_new_chat {
+        context_controls = context_controls.push(quick_messages::starter_recommendations(app));
+    }
+    let context = container(
+        context_controls
+            .spacing(10)
+            .align_y(Alignment::Center)
+            .wrap()
+            .vertical_spacing(4),
+    )
+    .padding([4, 10])
+    .into();
     let workflow_btn = workflow_mode_button(
         crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         workflow_mode_enabled,
@@ -336,21 +362,17 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let bottom_bar = desktop_chat_input::input_panel::layout::controls(
         crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         desktop_chat_input::input_panel::layout::Controls {
-            agent_tab_btn, skills_tab_btn, workflow_btn, model_btn, usage_btn, attach_btn, send, tools_tab_btn, acp_btn, reasoning_btn, permission_btn, pool_btn, cancel,
-            mobile_model_content: if mobile { model_popover::model_popover_content(app, auto_model, &model) } else { Space::new().into() },
+            agent_tab_btn, skills_tab_btn, workflow_btn, model_btn, usage_btn, attach_btn, voice_btn, send, tools_tab_btn, acp_btn, pool_btn, cancel,
+            mobile_model_content: if mobile && expanded { model_popover::model_popover_content(app, auto_model, &model) } else { Space::new().into() },
         }, mobile,
-        app.popover_visibility.model || app.popover_visibility.session_tool_selector
-            || app.popover_visibility.acp || app.popover_visibility.reasoning_effort || app.popover_visibility.usage,
+        expanded,
         task_mode_enabled,
         Message::View(message::ViewMessage::ToggleModelPopover),
         Message::View(message::ViewMessage::ClosePopovers),
     );
 
-    // 占位分隔符
-    let divider = Space::new().height(Length::Fixed(0.0));
-
-    // 构建任务模式配置表单（仅在任务模式启用且有运行时时显示）
-    let task_mode_form: Element<'_, Message> = if runtime.is_some() {
+    // 隐藏的任务表单不占列间距。
+    let task_mode_form: Element<'_, Message> = if task_mode_enabled {
         task_mode_form(
             app,
             task_mode_enabled,
@@ -360,7 +382,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
             task_mode_reasoning_effort,
         )
     } else {
-        Space::new().into()
+        Space::new().height(0).into()
     };
 
     // 提取并渲染输入文本中的文件引用
@@ -389,7 +411,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let queue_panel = (supplement == Supplement::Queue).then(||
         queue_panel::queue_panel(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), queue, is_requesting));
     let content = desktop_chat_input::input_panel::layout::Content {
-        attachment_strip, file_refs, task_mode_form, input, divider: divider.into(), bottom_bar,
+        attachment_strip, file_refs, task_mode_form, input, bottom_bar,
         context_card: selected_context_card(app), todo_panel, queue_panel,
     };
 
@@ -428,7 +450,9 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
             #[cfg(target_arch = "wasm32")]
             voice: None,
             agent_sessions: agent_sessions::agent_sessions_entry(app, &running_agent_sessions),
-            quick_messages: quick_messages::view(app),
+            quick_messages: quick_messages::view(app, is_new_chat),
+            companion: companion_button(app, mobile),
+            context,
         },
         desktop_chat_input::input_panel::layout::SurfaceMessages {
             close_file_search: Message::Chat(message::ChatMessage::FileSearchInputChanged(String::new())),
@@ -438,6 +462,51 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
                     Message::Chat(message::ChatMessage::InputAreaDragHoverChanged(false))),
             native_drop: |path| Message::View(message::ViewMessage::DroppedFilePath(path.to_string_lossy().into_owned())),
         },
+    )
+}
+
+fn companion_button(app: &App, mobile: bool) -> Option<Element<'static, Message>> {
+    use desktop_task_board::pet_state::TaskPetAvatarKind;
+
+    let avatar = app.pet_state.task_pet_avatar_kind;
+    if avatar == TaskPetAvatarKind::None {
+        return None;
+    }
+    let size = match super::chat_panel::phase(app) {
+        PanelPhase::Empty => if mobile { 44.0 } else { 66.0 },
+        PanelPhase::Started => if mobile { 27.0 } else { 34.0 },
+        PanelPhase::Loading => return None,
+    };
+
+    let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
+    let control = button(super::task_pet::composer_avatar(avatar, size))
+        .padding([0, 4])
+        .style(|theme, status| {
+            let mut style = super::system_settings_common::rounded_action_btn_style(theme, status);
+            if status == button::Status::Active {
+                style.background = None;
+            }
+            style.border.width = 0.0;
+            style.border.radius = 16.0.into();
+            style
+        })
+        .on_press(Message::View(message::ViewMessage::OpenSystemSettingsTarget(
+            desktop_settings_shell::search::SystemSettingsSearchTarget::General(
+                crate::app::state::GeneralSettingsTab::Companion,
+            ),
+        )));
+
+    Some(
+        tooltip(
+            control,
+            container(text(i18n.__("选择智能伙伴")).size(12))
+                .padding([6, 8])
+                .style(desktop_ui_controls::tooltip::tooltip_dark_style),
+            tooltip::Position::Top,
+        )
+        .gap(6)
+        .snap_within_viewport(true)
+        .into(),
     )
 }
 
@@ -464,6 +533,7 @@ fn slice_message(message: desktop_chat_input::input_panel::slice_message::Messag
         Local::CutInputSelection => message::ChatMessage::CutInputSelection,
         Local::SelectAllInput => message::ChatMessage::SelectAllInput,
         Local::QueueGuide(v) => message::ChatMessage::QueueGuide(v),
+        Local::QueueAttachmentOpen(path) => return Message::Preview(message::PreviewMessage::Open(path)),
         Local::QueueEdit(v) => message::ChatMessage::QueueEdit(v),
         Local::QueueCopy(v) => message::ChatMessage::QueueCopy(v),
         Local::QueueUp(v) => message::ChatMessage::QueueUp(v),

@@ -1,7 +1,9 @@
 //! Dictation controls use the same theme-aware button style as the composer toolbar.
 use super::surface_styles::{
-    BOTTOM_BAR_ICON_BUTTON_SIZE, BOTTOM_BAR_ICON_SIZE, square_icon_button_style, tooltip_dark_style,
+    BOTTOM_BAR_ICON_BUTTON_SIZE, BOTTOM_BAR_ICON_SIZE, round_icon_button_style,
+    square_icon_button_style, tooltip_dark_style,
 };
+use super::composer_icons::ComposerIcon;
 use desktop_i18n::I18n;
 use desktop_voice_ui::message::voice_draft::Phase;
 #[derive(Debug, Clone)]
@@ -9,7 +11,7 @@ pub enum Event { Start, Finish, Cancel, Apply }
 #[derive(Clone, Copy)]
 pub struct Input { pub phase: Phase, pub pending: bool, pub ready: bool }
 
-use iced::widget::{button, container, row, svg, text, tooltip};
+use iced::widget::{button, container, row, text, tooltip};
 use iced::{Alignment, Element, Length};
 
 pub fn action(phase: Phase, pending: bool) -> (Event, &'static str) {
@@ -33,28 +35,14 @@ pub fn view(i18n: I18n, input: Input) -> Element<'static, Event> {
     } else {
         action(phase, pending)
     };
-    let data = match phase {
-        Phase::Recording => {
-            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M6 6h12v12H6z"/></svg>"#
-        }
-        Phase::Transcribing => {
-            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" d="M6 6l12 12M6 18L18 6"/></svg>"#
-        }
-        _ => {
-            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0014 0v-2M12 19v3M8 22h8"/></g></svg>"#
-        }
-    };
-    let icon = svg(svg::Handle::from_memory(data.as_bytes()))
-        .width(BOTTOM_BAR_ICON_SIZE)
-        .height(BOTTOM_BAR_ICON_SIZE)
-        .style(|theme: &iced::Theme, _| svg::Style { color: Some(theme.palette().text) });
+    let icon = ComposerIcon::Microphone.svg(BOTTOM_BAR_ICON_SIZE);
     let content: Element<'static, Event> =
         if pending { text(i18n.__(label)).size(12).into() } else { icon.into() };
     let control = button(container(content).center_x(Length::Fill).center_y(Length::Fill))
         .height(BOTTOM_BAR_ICON_BUTTON_SIZE)
         .width(if pending { Length::Shrink } else { Length::Fixed(BOTTOM_BAR_ICON_BUTTON_SIZE) })
         .padding([4, 6])
-        .style(|theme, status| square_icon_button_style(theme, status, true))
+        .style(|theme, status| round_icon_button_style(theme, status, true))
         .on_press(event);
     let hint = dictation_tooltip(i18n, label);
     let hint_width = if hint.contains('\n') { Length::Fixed(320.0) } else { Length::Shrink };

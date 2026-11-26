@@ -1,41 +1,21 @@
 //! 聊天输入栏的会话级推理强度选择器。
 
-use iced::widget::svg;
+use desktop_assets::assets::Icon;
+use desktop_i18n::I18n;
+use desktop_settings_providers::state::ProviderModelsSummary;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{button, column, container, row, text};
-use iced::{Alignment, Element, Length, Theme};
+use iced::widget::{Space, button, column, container, row, text};
+use iced::{Alignment, Border, Element, Length, Theme};
 use vw_api_chat_identity::ReasoningEffortDto;
 
-
 use super::icons::icon_svg;
-use super::styles::{
-    popover_style,
-    selector_chevron_color, selector_label_font, selector_pill_button_style, selector_text_color,
-};
-use desktop_assets::assets::Icon;
-use desktop_ui_controls::overlays::AboveOverlay;
-use desktop_ui_controls::system_settings_common::{
-    SettingsSelectLabel, rounded_action_btn_style, settings_field_label,
-};
-use desktop_settings_providers::state::ProviderModelsSummary;
 use super::reasoning_message::{Message, dark_tooltip_content};
-const BOTTOM_BAR_CHEVRON_ICON_SIZE: f32 = 11.0;
-const BOTTOM_BAR_ICON_SIZE: f32 = 12.0;
-const BOTTOM_BAR_LABEL_SIZE: f32 = 12.0;
-#[derive(Clone, Copy)]
-pub struct ReasoningInput<'a> {
-    pub providers: &'a [ProviderModelsSummary],
-    pub model: &'a str,
-    pub expanded: bool,
-    pub i18n: desktop_i18n::I18n,
-    pub session_id: Option<&'a str>,
-}
+use super::styles::{selector_label_font, square_icon_button_style};
+use desktop_ui_controls::system_settings_common::settings_muted_text_style;
 
 #[path = "reasoning_slider.rs"]
 mod reasoning_slider;
 
-const SELECTOR_WIDTH: f32 = 260.0;
-const SLIDER_WIDTH: f32 = SELECTOR_WIDTH - 24.0;
 const SLIDER_HEIGHT: f32 = 28.0;
 const HANDLE_RADIUS: f32 = 13.0;
 
@@ -152,115 +132,48 @@ pub(crate) fn reasoning_effort_message(value: Option<ReasoningEffortDto>) -> Mes
     Message::Selected(value)
 }
 
-pub fn reasoning_effort_selector<'a>(
-    app: ReasoningInput<'a>,
-    agent: Option<&str>,
-    current: Option<ReasoningEffortDto>,
-) -> Option<Element<'a, Message>> {
-    if agent.is_some() {
-        return None;
-    }
-    let model = app.model;
-    let options = match agent {
-        Some(agent) => reasoning_effort_options(agent).to_vec(),
-        None => model_reasoning_effort_options(app.providers, model),
-    };
-    if agent.is_none() && options.len() <= 1 {
-        return None;
-    }
-    let expanded = app.expanded;
-    let icon = icon_svg(Icon::BarChartFill, BOTTOM_BAR_ICON_SIZE).style(move |theme: &Theme, _| {
-        svg::Style { color: Some(selector_text_color(theme, expanded || current.is_some())) }
-    });
-    let chevron = icon_svg(
-        if expanded { Icon::ChevronUp } else { Icon::ChevronDown },
-        BOTTOM_BAR_CHEVRON_ICON_SIZE,
-    )
-    .style(move |theme: &Theme, _| svg::Style {
-        color: Some(selector_chevron_color(theme, expanded)),
-    });
-    let toggle = button(
-        row![
-            icon,
-            text(localized_reasoning_effort_label(
-                app.i18n,
-                current
-            ))
-            .size(BOTTOM_BAR_LABEL_SIZE)
-            .font(selector_label_font()),
-            chevron,
-        ]
-        .spacing(6)
-        .align_y(Alignment::Center),
-    )
-    .padding([4, 10])
-    .style(move |theme: &Theme, status| {
-        selector_pill_button_style(theme, status, expanded || current.is_some())
-    })
-    .on_press(Message::Toggle);
-    let toggle: Element<'_, Message> = Tooltip::new(
-        toggle,
-        dark_tooltip_content(
-            app.i18n.__("选择本会话的推理强度"),
-        ),
-        TooltipPosition::Top,
-    )
-    .gap(6.0)
-    .into();
-
-    let popover = reasoning_effort_popover(app, model, &options, current);
-
-    Some(
-        AboveOverlay::new(toggle, popover)
-            .show(expanded)
-            .block_background_events(true)
-            .gap(6.0)
-            .on_close(Message::Close)
-            .into(),
-    )
-}
-
-/// 保留弹层以便连续拖动；点击外部或入口按钮时关闭。
-pub fn reasoning_effort_popover<'a>(
-    app: ReasoningInput<'a>,
+pub fn reasoning_effort_control(
+    i18n: I18n,
+    session_id: Option<&str>,
     model: &str,
     options: &[Option<ReasoningEffortDto>],
     current: Option<ReasoningEffortDto>,
-) -> Element<'a, Message> {
-    let i18n = app.i18n;
+) -> Element<'static, Message> {
     let items = reasoning_effort_items(options, current);
     let selected = items.iter().position(|item| item.selected).unwrap_or(0);
     let control = reasoning_slider::ReasoningSlider {
         selected,
         options: options.to_vec(),
-        identity: format!("{:?}:{model}:{options:?}", app.session_id),
+        identity: format!("{session_id:?}:{model}:{options:?}"),
     };
     let reset = Tooltip::new(
-        button(icon_svg(Icon::ArrowCounterClockwise, 14.0))
-            .padding(5)
-            .style(rounded_action_btn_style)
-            .on_press(reasoning_effort_message(None)),
-        dark_tooltip_content(i18n.__("默认")),
+        button(container(icon_svg(Icon::ArrowCounterClockwise, 14.0)).center(24.0))
+            .padding(0)
+            .style(move |theme, status| square_icon_button_style(theme, status, current.is_some()))
+            .on_press_maybe(current.map(|_| reasoning_effort_message(None))),
+        dark_tooltip_content(i18n.__("恢复默认")),
         TooltipPosition::Top,
     );
-    let model_name =
-        super::model_popover::model_toggle_label(app.providers, false, model);
     let heading = row![
-        icon_svg(Icon::BarChartFill, 16.0),
-        column![
-            settings_field_label(localized_reasoning_effort_label(i18n, current))
-                .font(selector_label_font()),
-            SettingsSelectLabel::new(model_name),
-        ]
-        .spacing(2)
-        .width(Length::Fill),
+        text(i18n.__("推理强度")).size(12).style(settings_muted_text_style),
+        Space::new().width(Length::Fill),
+        text(localized_reasoning_effort_label(i18n, current)).size(13).font(selector_label_font()),
         reset,
     ]
-    .spacing(6)
+    .spacing(8)
     .align_y(Alignment::Center);
-    container(column![heading, control].spacing(12))
-        .padding(12)
-        .width(Length::Fixed(SELECTOR_WIDTH))
-        .style(popover_style)
+
+    container(column![heading, control].spacing(6))
+        .padding([8, 10])
+        .width(Length::Fill)
+        .style(reasoning_control_surface)
         .into()
+}
+
+pub(super) fn reasoning_control_surface(theme: &Theme) -> container::Style {
+    container::Style {
+        background: Some(theme.palette().text.scale_alpha(0.06).into()),
+        border: Border::default().rounded(12.0),
+        ..Default::default()
+    }
 }

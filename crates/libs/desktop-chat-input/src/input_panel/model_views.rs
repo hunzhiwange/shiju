@@ -14,19 +14,22 @@
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;
 use iced::widget::{
-    Space, button, column, container, mouse_area, row, scrollable, text, text_input,
+    Space, button, column, container, mouse_area, row, scrollable, stack, text, text_input,
 };
-use iced::{Alignment, Element, Length, Theme};
+use iced::{Alignment, Element, Length, Padding, Theme};
 
 use desktop_assets::assets::Icon;
+use super::composer_icons::ComposerIcon;
+use super::surface_styles::{BOTTOM_BAR_ICON_BUTTON_SIZE, BOTTOM_BAR_ICON_SIZE, composer_selector_button_style};
 use super::icons::{
     auto_icon, icon_svg, provider_logo_handle, themed_svg_handle,
 };
 use super::styles::{
     popover_style,
     selectable_list_button_style, selector_chevron_color, selector_label_font,
-    selector_pill_button_style, selector_text_color, square_icon_button_style,
+    square_icon_button_style,
 };
+use desktop_ui_controls::single_line_label::SingleLineLabel;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SettingsSelectLabel, settings_divider,
     settings_field_label, settings_muted_text_style, settings_text_input_style, settings_toggle,
@@ -51,16 +54,20 @@ pub struct ModelPopoverInput<'a> {
 pub fn model_toggle_button<Message: Clone + 'static>(
     i18n: I18n, providers: &[desktop_settings_providers::state::ProviderModelsSummary],
     cli_local: bool, auto_model: bool, model: &str, expanded: bool,
+    reasoning_label: Option<&str>,
     emit: fn(Action) -> Message,
 ) -> Element<'static, Message> {
-    let highlight_toggle = expanded || (auto_model && !cli_local);
+    const MODEL_LABEL_MAX_WIDTH: f32 = 148.0;
+    const LEVEL_LABEL_MAX_WIDTH: f32 = 64.0;
+    const CHEVRON_SIZE: f32 = 11.0;
+    const GAP: f32 = 6.0;
     // 下拉箭头图标的样式：使用半透明的文字颜色
     let chevron_style = move |theme: &Theme, _| svg::Style {
-        color: Some(selector_chevron_color(theme, highlight_toggle)),
+        color: Some(selector_chevron_color(theme, expanded)),
     };
     let chevron_model = icon_svg(
         if expanded { Icon::ChevronUp } else { Icon::ChevronDown },
-        11.0,
+        CHEVRON_SIZE,
     )
     .style(chevron_style);
 
@@ -75,45 +82,75 @@ pub fn model_toggle_button<Message: Clone + 'static>(
 
     // 根据当前状态确定按钮图标
     let model_icon_svg = if cli_local {
-        icon_svg(Icon::Hexagon, 12.0)
+        ComposerIcon::Agent.svg(BOTTOM_BAR_ICON_SIZE)
     } else if auto_model {
         // 自动模型模式使用自动图标
-        themed_svg_handle(auto_icon(), 12.0)
+        themed_svg_handle(auto_icon(), BOTTOM_BAR_ICON_SIZE)
     } else {
         // 手动模式根据 provider 确定图标
         let provider_id = model_provider_icon_id(providers, model);
-        themed_svg_handle(provider_logo_handle(&provider_id), 12.0)
+        themed_svg_handle(provider_logo_handle(&provider_id), BOTTOM_BAR_ICON_SIZE)
     };
 
-    // 构建按钮：图标 + 文本 + 下拉箭头
-    button(
-        row![
-            model_icon_svg,
-            text(toggle_label).size(12.0).font(selector_label_font()).style(
-                move |theme: &Theme| iced::widget::text::Style {
-                    color: Some(selector_text_color(theme, highlight_toggle))
-                }
-            ),
-            chevron_model
-        ]
-        .spacing(6)
-        .align_y(Alignment::Center),
-    )
-    .style(move |theme: &Theme, status| selector_pill_button_style(theme, status, highlight_toggle))
-    .padding([4, 10])
-    .on_press(emit(Action::ToggleModelPopover))
-    .into()
+    // 给箭头预留空间，模型名和档位各自保持单行。
+    let trailing_width = CHEVRON_SIZE + GAP;
+    let model_name = SingleLineLabel::new(toggle_label, 12.0)
+        .font(selector_label_font())
+        .shrink();
+    let (label_content, label_max_width): (Element<'static, Message>, f32) =
+        if let Some(level) = reasoning_label {
+            let level = container(SingleLineLabel::new(level.to_owned(), 11.0).shrink())
+                .max_width(LEVEL_LABEL_MAX_WIDTH)
+                .style(|theme: &Theme| container::Style {
+                    text_color: Some(theme.palette().text.scale_alpha(0.62)),
+                    ..Default::default()
+                });
+            (
+                row![
+                    container(model_name).max_width(MODEL_LABEL_MAX_WIDTH),
+                    level,
+                ]
+                .spacing(GAP)
+                .align_y(Alignment::Center)
+                .into(),
+                MODEL_LABEL_MAX_WIDTH + GAP + LEVEL_LABEL_MAX_WIDTH,
+            )
+        } else {
+            (model_name.into(), MODEL_LABEL_MAX_WIDTH)
+        };
+    let label = stack![
+        container(label_content)
+            .max_width(label_max_width + trailing_width)
+            .padding(Padding { right: trailing_width, ..Padding::ZERO }),
+        container(chevron_model).align_right(Length::Fill).center_y(Length::Fill),
+    ];
+
+    button(container(row![model_icon_svg, label].spacing(GAP).align_y(Alignment::Center))
+        .center_y(BOTTOM_BAR_ICON_BUTTON_SIZE))
+        .style(move |theme: &Theme, status| composer_selector_button_style(theme, status, expanded))
+        .padding([0, 10])
+        .on_press(emit(Action::ToggleModelPopover))
+        .into()
+}
+
+pub fn model_search_id() -> iced::widget::Id {
+    iced::widget::Id::new("composer-model-search")
 }
 
 pub fn model_popover_content<'a, Message: Clone + 'static>(
     input: ModelPopoverInput<'a>, auto_model: bool, model: &str,
-    source: Element<'a, Message>, emit: fn(Action) -> Message,
+    source: Element<'a, Message>, reasoning: Option<Element<'a, Message>>, emit: fn(Action) -> Message,
 ) -> Element<'a, Message> {
     let popup_width = 320.0;
     let query = input.settings.query.trim().to_ascii_lowercase();
     if input.cli_local {
-        return container(scrollable(container(source).padding([0, 7]))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))))
+        let mut content = column![].spacing(10);
+        if let Some(reasoning) = reasoning {
+            content = content.push(reasoning);
+        }
+        let source = scrollable(container(source).padding([0, 7]))
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)));
+        return container(content.push(source))
             .style(popover_style).padding(10).width(Length::Fixed(popup_width)).max_height(420).into();
     }
     let i18n = input.i18n;
@@ -126,6 +163,7 @@ pub fn model_popover_content<'a, Message: Clone + 'static>(
         i18n.__("搜索模型…"),
         &input.settings.query,
     )
+    .id(model_search_id())
     .on_input(move |v| emit(Action::ModelQueryChanged(v)))
     .padding(SETTINGS_CONTROL_PADDING)
     .size(SETTINGS_CONTROL_TEXT_SIZE)
@@ -275,35 +313,22 @@ pub fn model_popover_content<'a, Message: Clone + 'static>(
         }
     }
 
-    // "管理模型" 按钮
-    let manage_btn: Element<'_, Message> = {
-        let btn = button(
-            container(icon_svg(Icon::Sliders, 16.0))
-                .width(Length::Fixed(36.0))
-                .height(Length::Fixed(36.0))
-                .align_x(iced::alignment::Horizontal::Center)
-                .align_y(iced::alignment::Vertical::Center),
+    let footer_button = |icon, label, action| {
+        button(
+            row![icon_svg(icon, 14.0), text(i18n.__(label)).size(12)]
+                .spacing(6)
+                .align_y(Alignment::Center),
         )
-        .padding(0)
-        .style(|theme: &Theme, status| square_icon_button_style(theme, status, true))
-        .on_press(emit(Action::ManageModels));
-        btn.into()
+        .padding([5, 8])
+        .style(|theme, status| square_icon_button_style(theme, status, true))
+        .on_press(emit(action))
     };
-
-    // "连接供应商" 按钮
-    let providers_btn: Element<'_, Message> = {
-        let btn = button(
-            container(icon_svg(Icon::Plus, 16.0))
-                .width(Length::Fixed(36.0))
-                .height(Length::Fixed(36.0))
-                .align_x(iced::alignment::Horizontal::Center)
-                .align_y(iced::alignment::Vertical::Center),
-        )
-        .padding(0)
-        .style(|theme: &Theme, status| square_icon_button_style(theme, status, true))
-        .on_press(emit(Action::ConnectProvider));
-        btn.into()
-    };
+    let footer = row![
+        footer_button(Icon::Plus, "连接供应商", Action::ConnectProvider),
+        footer_button(Icon::Sliders, "管理模型", Action::ManageModels),
+    ]
+    .spacing(6)
+    .wrap();
 
     let auto = row![
         themed_svg_handle(auto_icon(), 18.0),
@@ -350,28 +375,20 @@ pub fn model_popover_content<'a, Message: Clone + 'static>(
     if is_acp {
         controls = controls.push(settings_divider()).push(source);
     }
-    let body = if query.is_empty() {
-        column![controls, settings_divider(), model_list]
-    } else {
-        column![model_list, settings_divider(), controls]
-    }
-    .spacing(10);
+    let body = column![model_list, settings_divider(), controls].spacing(10);
     let body = scrollable(container(body).padding([0, 7]))
+        .height(Length::Fill)
         .id(iced::widget::Id::new("input_panel_model_popover_scroll"))
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)));
-    container(
-        column![
-            row![search.width(Length::Fill), providers_btn, manage_btn]
-                .spacing(8)
-                .align_y(Alignment::Center),
-            body,
-        ]
-        .spacing(10),
-    )
+    let mut content = column![].spacing(10);
+    if let Some(reasoning) = reasoning {
+        content = content.push(container(reasoning).padding([0, 7]).width(Length::Fill));
+    }
+    container(content.push(search.width(Length::Fill)).push(body).push(footer))
     .style(popover_style)
     .padding(10)
     .width(Length::Fixed(popup_width))
-    .max_height(520)
+    .height(Length::Fixed(500.0))
     .into()
 }
 
@@ -384,5 +401,11 @@ pub fn can_select_model(runtime: &super::acp_options::OptionsState<'_>, started:
 
 pub fn with_model_popover<'a, Message: Clone + 'a>(toggle: Element<'a, Message>, content: Element<'a, Message>, expanded: bool, close: Message) -> Element<'a, Message> {
     desktop_ui_controls::overlays::AboveOverlay::new(toggle, content)
-        .show(expanded).block_background_events(true).gap(6.0).on_close(close).into()
+        .show(expanded)
+        .align_x(iced::alignment::Horizontal::Right)
+        .block_background_events(true)
+        .flip_if_clipped()
+        .gap(7.0)
+        .on_close(close)
+        .into()
 }

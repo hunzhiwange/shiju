@@ -404,12 +404,11 @@ fn bottom_bar_places_optional_prefix_utility_and_action_controls() {
         Some(spacer()),
         Some(spacer()),
         Some(spacer()),
-        Some(spacer()),
-        Some(spacer()),
         spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
         button(text("attach")).into(),
+        None,
         Some(spacer()),
         Some(spacer()),
         Some(spacer()),
@@ -418,9 +417,9 @@ fn bottom_bar_places_optional_prefix_utility_and_action_controls() {
     let children = normal.as_widget().children();
 
     assert_eq!(normal.as_widget().size().width, Length::Fill);
-    assert_eq!(children.len(), 11);
-    assert_eq!(children[9].children.len(), 2);
-    assert_eq!(children[10].children.len(), 3);
+    assert_eq!(children.len(), 3);
+    assert_eq!(children[1].children.len(), 5);
+    assert_eq!(children[2].children.len(), 5);
 }
 
 #[test]
@@ -430,12 +429,11 @@ fn bottom_bar_keeps_minimal_non_task_utility_and_attachment_clusters() {
         None,
         None,
         None,
-        None,
-        None,
         spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
         button(text("attach")).into(),
+        None,
         None,
         None,
         None,
@@ -443,16 +441,14 @@ fn bottom_bar_keeps_minimal_non_task_utility_and_attachment_clusters() {
     );
     let children = normal.as_widget().children();
 
-    assert_eq!(children.len(), 5);
-    assert_eq!(children[3].children[0].children.len(), 1);
-    assert_eq!(children[4].children.len(), 1);
+    assert_eq!(children.len(), 3);
+    assert_eq!(children[1].children.len(), 1);
+    assert_eq!(children[2].children.len(), 2);
 }
 
 #[test]
-fn bottom_bar_task_mode_moves_attachment_into_utility_and_omits_actions() {
+fn bottom_bar_task_mode_keeps_pool_and_omits_send_actions() {
     let task_mode = bottom_bar(
-        None,
-        None,
         None,
         None,
         None,
@@ -461,6 +457,7 @@ fn bottom_bar_task_mode_moves_attachment_into_utility_and_omits_actions() {
         button(text("model")).into(),
         button(text("usage")).into(),
         button(text("attach")).into(),
+        None,
         Some(spacer()),
         Some(spacer()),
         Some(spacer()),
@@ -469,15 +466,13 @@ fn bottom_bar_task_mode_moves_attachment_into_utility_and_omits_actions() {
     let children = task_mode.as_widget().children();
 
     assert_eq!(task_mode.as_widget().size().width, Length::Fill);
-    assert_eq!(children.len(), 4);
-    assert_eq!(children[3].children.len(), 3);
+    assert_eq!(children.len(), 3);
+    assert_eq!(children[2].children.len(), 3);
 }
 
 #[test]
-fn bottom_bar_task_mode_without_pool_keeps_usage_and_attachment_only() {
+fn bottom_bar_task_mode_without_pool_keeps_usage_model_and_attachment() {
     let task_mode = bottom_bar(
-        None,
-        None,
         None,
         None,
         None,
@@ -487,12 +482,13 @@ fn bottom_bar_task_mode_without_pool_keeps_usage_and_attachment_only() {
         button(text("usage")).into(),
         button(text("attach")).into(),
         None,
+        None,
         Some(spacer()),
         Some(spacer()),
         true,
     );
     let children = task_mode.as_widget().children();
 
-    assert_eq!(children.len(), 4);
-    assert_eq!(children[3].children.len(), 2);
+    assert_eq!(children.len(), 3);
+    assert_eq!(children[2].children.len(), 2);
 }

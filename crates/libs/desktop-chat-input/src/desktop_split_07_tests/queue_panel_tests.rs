@@ -4,7 +4,7 @@
 use crate::input_panel::queue_panel::{QueuePreview, queue_panel};
 use iced::Length;
 fn queue_item(query: &str, _created_ms: u64) -> QueuePreview {
-    QueuePreview { query: query.to_string(), is_guide: false }
+    QueuePreview { query: query.to_string(), is_guide: false, attachments: Vec::new() }
 }
 
 #[test]

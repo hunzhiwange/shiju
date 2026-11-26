@@ -53,9 +53,9 @@ pub fn selectable_list_button_style(
     let hovered = matches!(status, button::Status::Hovered);
     let pressed = matches!(status, button::Status::Pressed);
     let neutral_hover = if is_dark {
-        Color::from_rgba8(31, 33, 38, 0.94)
+        theme.palette().text.scale_alpha(0.08)
     } else {
-        Color::from_rgba8(241, 243, 246, 1.0)
+        theme.palette().text.scale_alpha(0.06)
     };
     let selected_bg = Color::from_rgba(
         theme.palette().primary.r,
@@ -76,25 +76,9 @@ pub fn selectable_list_button_style(
     } else {
         None
     };
-    let border_color = if selected {
-        theme.palette().primary.scale_alpha(if is_dark { 0.42 } else { 0.24 })
-    } else if hovered || pressed {
-        if is_dark {
-            Color::from_rgba8(58, 61, 69, 0.92)
-        } else {
-            Color::from_rgba8(218, 223, 230, 1.0)
-        }
-    } else {
-        Color::TRANSPARENT
-    };
-
     button::Style {
         background,
-        border: Border {
-            radius: 8.0.into(),
-            width: if selected || hovered || pressed { 1.0 } else { 0.0 },
-            color: border_color,
-        },
+        border: Border { radius: 9.0.into(), ..Border::default() },
         text_color: if selected {
             selector_text_color(theme, true)
         } else {
@@ -106,9 +90,9 @@ pub fn selectable_list_button_style(
 pub fn popover_style(theme: &Theme) -> container::Style {
     let is_dark = is_dark_theme(theme);
     let background = if is_dark {
-        Color::from_rgba8(20, 21, 24, 0.985)
+        Color::from_rgb8(30, 33, 40)
     } else {
-        Color::from_rgba8(252, 252, 253, 0.985)
+        Color::from_rgb8(252, 252, 253)
     };
     let border = if is_dark {
         Color::from_rgba8(44, 47, 53, 0.96)
@@ -117,7 +101,7 @@ pub fn popover_style(theme: &Theme) -> container::Style {
     };
     container::Style {
         background: Some(Background::Color(background)),
-        border: Border { radius: 14.0.into(), width: 1.0, color: border },
+        border: Border { radius: 18.0.into(), width: 1.0, color: border },
         shadow: iced::Shadow {
             color: Color::BLACK.scale_alpha(if is_dark { 0.22 } else { 0.08 }),
             offset: iced::Vector::new(0.0, 10.0),

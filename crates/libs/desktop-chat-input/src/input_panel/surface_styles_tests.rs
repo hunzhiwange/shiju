@@ -25,8 +25,8 @@ fn assert_color(actual: Color, expected: Color) {
 
 #[test]
 fn bottom_bar_constants_keep_compact_control_dimensions() {
-    assert_eq!(BOTTOM_BAR_ICON_BUTTON_SIZE, 24.0);
-    assert_eq!(BOTTOM_BAR_ICON_SIZE, 12.0);
+    assert_eq!(BOTTOM_BAR_ICON_BUTTON_SIZE, 34.0);
+    assert_eq!(BOTTOM_BAR_ICON_SIZE, 17.0);
     assert_eq!(BOTTOM_BAR_LARGE_ICON_SIZE, 14.0);
     assert_eq!(BOTTOM_BAR_CHEVRON_ICON_SIZE, 11.0);
     assert_eq!(BOTTOM_BAR_LABEL_SIZE, 12.0);
@@ -39,9 +39,8 @@ fn quick_message_button_style_keeps_light_and_dark_actions_distinguishable() {
         let action = quick_message_button_style(&theme, button::Status::Active, true);
 
         assert_ne!(message.background, action.background);
-        assert_ne!(message.border.color, action.border.color);
-        assert_eq!(message.border.radius.top_left, 999.0);
-        assert_eq!(action.border.width, 1.0);
+        assert_eq!(message.border.radius.top_left, 9.0);
+        assert_eq!(action.border.width, 0.0);
     }
 }
 
@@ -71,8 +70,7 @@ fn shiju_menu_styles_support_light_and_dark_themes() {
 
         assert_ne!(idle.background, selected.background);
         assert_ne!(idle.background, hovered.background);
-        assert_eq!(selected.border.width, 1.0);
-        assert_ne!(selected.border.color, Color::TRANSPARENT);
+        assert_eq!(selected.border.width, 0.0);
         assert!(selected.text_color.a >= 0.88);
 
         let menu = quick_message_menu_style(&theme);
@@ -110,45 +108,21 @@ fn tooltip_dark_style_is_theme_independent() {
 #[test]
 fn square_icon_button_style_maps_theme_status_and_enabled_state() {
     for (theme, is_dark) in [(Theme::Light, false), (Theme::Dark, true)] {
-        let (idle_bg, hover_bg, pressed_bg, idle_border, active_border) = if is_dark {
-            (
-                Color::from_rgba8(24, 25, 29, 0.92),
-                Color::from_rgba8(31, 33, 38, 0.96),
-                Color::from_rgba8(36, 38, 44, 0.98),
-                Color::from_rgba8(45, 48, 54, 0.95),
-                Color::from_rgba8(63, 67, 75, 0.95),
-            )
-        } else {
-            (
-                Color::from_rgba8(247, 248, 250, 1.0),
-                Color::from_rgba8(241, 243, 246, 1.0),
-                Color::from_rgba8(232, 236, 241, 1.0),
-                Color::from_rgba8(226, 231, 237, 1.0),
-                Color::from_rgba8(210, 216, 224, 1.0),
-            )
-        };
-
-        for (status, expected_bg, expected_border) in [
-            (button::Status::Active, idle_bg, idle_border),
-            (button::Status::Hovered, hover_bg, active_border),
-            (button::Status::Pressed, pressed_bg, active_border),
-            (button::Status::Disabled, idle_bg, idle_border),
+        let text = theme.palette().text;
+        for (status, background) in [
+            (button::Status::Active, None),
+            (button::Status::Hovered, Some(text.scale_alpha(0.09).into())),
+            (button::Status::Pressed, Some(text.scale_alpha(0.14).into())),
+            (button::Status::Disabled, None),
         ] {
             let style = square_icon_button_style(&theme, status, true);
-            assert_color(background_color(&style.background), expected_bg);
-            assert_color(style.border.color, expected_border);
-            assert_eq!(style.border.width, 1.0);
-            assert_color(
-                style.text_color,
-                theme.palette().text.scale_alpha(if is_dark { 0.92 } else { 0.88 }),
-            );
+            assert_eq!(style.background, background);
+            assert_eq!(style.border.width, 0.0);
+            assert_color(style.text_color, selector_text_color(&theme, false));
         }
 
         let disabled = square_icon_button_style(&theme, button::Status::Active, false);
-        assert_color(
-            disabled.text_color,
-            theme.palette().text.scale_alpha(if is_dark { 0.36 } else { 0.42 }),
-        );
+        assert_color(disabled.text_color, text.scale_alpha(if is_dark { 0.36 } else { 0.42 }));
     }
 }
 
@@ -221,62 +195,21 @@ fn selector_typography_and_colors_map_theme_and_highlight_state() {
 
 #[test]
 fn selector_pill_button_style_covers_all_surface_branches() {
-    for (theme, is_dark) in [(Theme::Light, false), (Theme::Dark, true)] {
+    for theme in [Theme::Light, Theme::Dark] {
+        let palette = theme.palette();
         for highlighted in [false, true] {
-            let (idle_bg, hover_bg, pressed_bg, idle_border, active_border) =
-                match (is_dark, highlighted) {
-                    (true, true) => (
-                        Color::from_rgba8(28, 30, 35, 0.97),
-                        Color::from_rgba8(34, 36, 42, 0.98),
-                        Color::from_rgba8(38, 40, 46, 1.0),
-                        Color::from_rgba8(70, 74, 83, 0.96),
-                        Color::from_rgba8(84, 88, 98, 0.98),
-                    ),
-                    (true, false) => (
-                        Color::from_rgba8(24, 25, 29, 0.92),
-                        Color::from_rgba8(31, 33, 38, 0.96),
-                        Color::from_rgba8(36, 38, 44, 0.98),
-                        Color::from_rgba8(45, 48, 54, 0.92),
-                        Color::from_rgba8(63, 67, 75, 0.95),
-                    ),
-                    (false, true) => (
-                        Color::from_rgba8(244, 246, 249, 1.0),
-                        Color::from_rgba8(238, 241, 245, 1.0),
-                        Color::from_rgba8(232, 236, 241, 1.0),
-                        Color::from_rgba8(206, 213, 223, 1.0),
-                        Color::from_rgba8(194, 202, 214, 1.0),
-                    ),
-                    (false, false) => (
-                        Color::from_rgba8(248, 249, 251, 1.0),
-                        Color::from_rgba8(241, 243, 246, 1.0),
-                        Color::from_rgba8(233, 236, 241, 1.0),
-                        Color::from_rgba8(226, 231, 237, 1.0),
-                        Color::from_rgba8(210, 216, 224, 1.0),
-                    ),
-                };
-
-            for (status, expected_bg, expected_border) in [
-                (button::Status::Active, idle_bg, idle_border),
-                (button::Status::Hovered, hover_bg, active_border),
-                (button::Status::Pressed, pressed_bg, active_border),
-                (button::Status::Disabled, idle_bg, idle_border),
+            let idle = highlighted.then(|| Background::Color(palette.primary.scale_alpha(0.12)));
+            for (status, background) in [
+                (button::Status::Active, idle),
+                (button::Status::Hovered, Some(palette.text.scale_alpha(0.10).into())),
+                (button::Status::Pressed, Some(palette.text.scale_alpha(0.15).into())),
+                (button::Status::Disabled, idle),
             ] {
                 let style = selector_pill_button_style(&theme, status, highlighted);
-                assert_color(background_color(&style.background), expected_bg);
-                assert_color(style.border.color, expected_border);
-                assert_eq!(style.border.width, 1.0);
+                assert_eq!(style.background, background);
+                assert_eq!(style.border.width, 0.0);
+                assert_eq!(style.shadow, iced::Shadow::default());
                 assert_color(style.text_color, selector_text_color(&theme, highlighted));
-
-                if highlighted {
-                    assert_color(
-                        style.shadow.color,
-                        Color::BLACK.scale_alpha(if is_dark { 0.10 } else { 0.035 }),
-                    );
-                    assert_eq!(style.shadow.offset, iced::Vector::new(0.0, 6.0));
-                    assert_eq!(style.shadow.blur_radius, 16.0);
-                } else {
-                    assert_eq!(style.shadow.blur_radius, 0.0);
-                }
             }
         }
     }
@@ -286,21 +219,11 @@ fn selector_pill_button_style_covers_all_surface_branches() {
 fn selectable_list_button_style_covers_selection_and_pointer_states() {
     for (theme, is_dark) in [(Theme::Light, false), (Theme::Dark, true)] {
         let primary = theme.palette().primary;
-        let neutral_hover = if is_dark {
-            Color::from_rgba8(31, 33, 38, 0.94)
-        } else {
-            Color::from_rgba8(241, 243, 246, 1.0)
-        };
-        let neutral_border = if is_dark {
-            Color::from_rgba8(58, 61, 69, 0.92)
-        } else {
-            Color::from_rgba8(218, 223, 230, 1.0)
-        };
+        let neutral_hover = theme.palette().text.scale_alpha(if is_dark { 0.08 } else { 0.06 });
 
         let idle = selectable_list_button_style(&theme, button::Status::Active, false);
         assert!(idle.background.is_none());
         assert_eq!(idle.border.width, 0.0);
-        assert_eq!(idle.border.color, Color::TRANSPARENT);
         assert_color(
             idle.text_color,
             theme.palette().text.scale_alpha(if is_dark { 0.90 } else { 0.88 }),
@@ -309,13 +232,11 @@ fn selectable_list_button_style_covers_selection_and_pointer_states() {
         let disabled = selectable_list_button_style(&theme, button::Status::Disabled, false);
         assert!(disabled.background.is_none());
         assert_eq!(disabled.border.width, 0.0);
-        assert_eq!(disabled.border.color, Color::TRANSPARENT);
 
         for status in [button::Status::Hovered, button::Status::Pressed] {
             let style = selectable_list_button_style(&theme, status, false);
             assert_color(background_color(&style.background), neutral_hover);
-            assert_eq!(style.border.width, 1.0);
-            assert_color(style.border.color, neutral_border);
+            assert_eq!(style.border.width, 0.0);
         }
 
         let selected = selectable_list_button_style(&theme, button::Status::Active, true);
@@ -323,7 +244,6 @@ fn selectable_list_button_style_covers_selection_and_pointer_states() {
             background_color(&selected.background),
             primary.scale_alpha(if is_dark { 0.15 } else { 0.10 }),
         );
-        assert_color(selected.border.color, primary.scale_alpha(if is_dark { 0.42 } else { 0.24 }));
         assert_color(selected.text_color, selector_text_color(&theme, true));
 
         for status in [button::Status::Hovered, button::Status::Pressed] {
@@ -332,7 +252,7 @@ fn selectable_list_button_style_covers_selection_and_pointer_states() {
                 background_color(&style.background),
                 primary.scale_alpha(if is_dark { 0.19 } else { 0.13 }),
             );
-            assert_eq!(style.border.width, 1.0);
+            assert_eq!(style.border.width, 0.0);
         }
     }
 }
@@ -342,9 +262,9 @@ fn popover_style_maps_dark_and_light_surfaces() {
     for (theme, is_dark) in [(Theme::Light, false), (Theme::Dark, true)] {
         let style = popover_style(&theme);
         let expected_background = if is_dark {
-            Color::from_rgba8(20, 21, 24, 0.985)
+            Color::from_rgb8(30, 33, 40)
         } else {
-            Color::from_rgba8(252, 252, 253, 0.985)
+            Color::from_rgb8(252, 252, 253)
         };
         let expected_border = if is_dark {
             Color::from_rgba8(44, 47, 53, 0.96)
@@ -452,8 +372,7 @@ fn manual_context_card_style_tints_surface_by_theme() {
         let style = manual_context_card_style(&theme);
 
         assert_color(background_color(&style.background), expected_background);
-        assert_eq!(style.border.width, 1.0);
-        assert_color(style.border.color, primary.scale_alpha(if is_dark { 0.34 } else { 0.24 }));
+        assert_eq!(style.border.width, 0.0);
     }
 }
 
@@ -484,7 +403,6 @@ fn editor_style_maps_requesting_and_theme_colors() {
         let idle = editor_style(&theme, text_editor::Status::Active, false, None);
         assert_eq!(idle.background, Background::Color(Color::TRANSPARENT));
         assert_eq!(idle.border.width, 0.0);
-        assert_eq!(idle.border.color, Color::TRANSPARENT);
         assert_color(
             idle.value,
             theme.palette().text.scale_alpha(if is_dark { 0.96 } else { 0.94 }),
@@ -524,14 +442,16 @@ fn input_panel_style_falls_back_without_active_chrome() {
         assert_color(with_none.border.color, with_empty.border.color);
         assert_eq!(with_none.border.radius, with_empty.border.radius);
 
-        let editor_none = editor_style(&theme, text_editor::Status::Active, false, None);
-        let editor_empty = editor_style(
+        let editor_none = chat_editor_style(&theme, false, None);
+        let editor_empty = chat_editor_style(
             &theme,
-            text_editor::Status::Active,
             false,
             Some(&desktop_theme::theme_catalog::ChromeStyleOverrides::default()),
         );
         assert_color(editor_none.value, editor_empty.value);
+        assert_color(editor_none.placeholder, theme.palette().text.scale_alpha(0.60));
+        assert_eq!(editor_none.border.width, 0.0);
+        assert_eq!(editor_none.background, Background::Color(Color::TRANSPARENT));
     }
 }
 

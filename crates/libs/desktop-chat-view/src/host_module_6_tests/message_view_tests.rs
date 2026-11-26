@@ -87,7 +87,7 @@ fn message_visual_contract_keeps_assistant_flat_and_user_full_width() {
     assert!(matches!(user.width, Length::Fill));
     assert_eq!(user.max_width, None);
     assert_eq!(user.padding, iced::Padding::from([8, 14]));
-    assert_eq!(user.corner_radius, 12.0);
+    assert_eq!(user.corner_radius, 16.0);
     assert!(user.has_background);
     assert!(matches!(assistant.width, Length::Fill));
     assert_eq!(assistant.max_width, None);

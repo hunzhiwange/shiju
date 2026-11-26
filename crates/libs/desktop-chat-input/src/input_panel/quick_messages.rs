@@ -1,7 +1,12 @@
 //! 聊天输入编辑器上方的分组快捷消息条。
 
 use desktop_assets::assets::Icon;
-use desktop_ui_controls::overlays::AboveOverlay;
+use desktop_ui_controls::overlays::{AboveOverlay, BelowOverlay};
+use desktop_session::message::chat::input::popovers::ComposerScene;
+use desktop_ui_controls::system_settings_common::{
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_divider, settings_muted_text_style,
+    settings_text_input_style,
+};
 #[cfg(not(target_arch = "wasm32"))]
 use desktop_skill_hub::skill_hub::{
     InstalledSkill, LoadState, ShijuPackageRefreshState, ShijuPackageStatus, version_is_newer,
@@ -9,14 +14,16 @@ use desktop_skill_hub::skill_hub::{
 
 use super::quick_message::Message;
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, button, column, container, row, scrollable, text};
+use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
 #[cfg(not(target_arch = "wasm32"))]
 use iced::widget::{Tooltip, tooltip::Position as TooltipPosition};
 use iced::{Element, Length, Theme};
 use config_ui::{QuickMessageConfig, QuickMessageGroup};
 
 use super::quick_styles as styles;
+use super::surface_styles::BOTTOM_BAR_ICON_BUTTON_SIZE;
 
+pub(super) const DROPDOWN_ICON_BOX_SIZE: f32 = 14.0;
 const QUICK_MESSAGE_MENU_MAX_VISIBLE_ITEMS: usize = 8;
 const QUICK_MESSAGE_MENU_MAX_HEIGHT: f32 = 280.0;
 const QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH: f32 = 4.0;
@@ -24,12 +31,12 @@ const QUICK_MESSAGE_MENU_SCROLLBAR_GAP: f32 = 6.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum InputStripControl {
-    Workspace,
     #[cfg(not(target_arch = "wasm32"))]
     Shiju,
     GeneralActions,
     #[cfg(not(target_arch = "wasm32"))]
     MediaShortcuts(bool),
+    Categories(ComposerScene, Option<usize>),
     GitActions,
 }
 
@@ -114,12 +121,20 @@ fn toggled_group(
     (open_group != Some(clicked_group)).then_some(clicked_group)
 }
 
+pub(super) fn shortcut_trigger<'a>(
+    content: impl Into<Element<'a, Message>>,
+    action: Message,
+    active: bool,
+) -> iced::widget::Button<'a, Message> {
+    button(container(content).center_y(BOTTOM_BAR_ICON_BUTTON_SIZE))
+        .padding([0, 10])
+        .style(move |theme, status| styles::quick_message_group_button_style(theme, status, active))
+        .on_press(action)
+}
+
 pub(super) fn dropdown_icon<'a>() -> Element<'a, Message> {
     container(super::icons::icon_svg(Icon::ChevronDown, 10.0))
-        .width(Length::Fixed(14.0))
-        .height(Length::Fixed(14.0))
-        .align_x(iced::alignment::Horizontal::Center)
-        .align_y(iced::alignment::Vertical::Center)
+        .center(DROPDOWN_ICON_BOX_SIZE)
         .into()
 }
 
@@ -135,7 +150,42 @@ fn menu_height(item_count: usize) -> Length {
     }
 }
 
-fn menu_view<'a>(app: QuickInput<'a>, indices: &[usize]) -> Element<'a, Message> {
+pub(super) fn shortcut_menu_items<'a>(
+    items: impl Into<Element<'a, Message>>,
+    count: usize,
+) -> iced::widget::Scrollable<'a, Message> {
+    let scrollbar = Scrollbar::new()
+        .width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH)
+        .scroller_width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH);
+    let scrollbar = if menu_requires_scrolling(count) {
+        scrollbar.spacing(QUICK_MESSAGE_MENU_SCROLLBAR_GAP)
+    } else {
+        scrollbar
+    };
+    scrollable(items)
+        .height(menu_height(count))
+        .direction(Direction::Vertical(scrollbar))
+}
+
+pub(super) fn shortcut_menu<'a>(
+    trigger: impl Into<Element<'a, Message>>,
+    items: impl Into<Element<'a, Message>>,
+    close: Message,
+) -> Element<'a, Message> {
+    let popup = container(items)
+        .padding(6)
+        .width(Length::Fixed(300.0))
+        .style(styles::quick_message_menu_style);
+    AboveOverlay::new(trigger, popup)
+        .show(true)
+        .block_background_events(true)
+        .flip_if_clipped()
+        .gap(6.0)
+        .on_close(close)
+        .into()
+}
+
+fn menu_items<'a>(app: QuickInput<'a>, indices: &[usize]) -> Element<'a, Message> {
     let mut items = column![].spacing(3).width(Length::Fill);
     #[cfg(not(target_arch = "wasm32"))]
     if app.package_status.local_version.is_none() {
@@ -190,23 +240,10 @@ fn menu_view<'a>(app: QuickInput<'a>, indices: &[usize]) -> Element<'a, Message>
         );
     }
 
-    let scrollbar = Scrollbar::new()
-        .width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH)
-        .scroller_width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH);
-    let scrollbar = if menu_requires_scrolling(indices.len()) {
-        scrollbar.spacing(QUICK_MESSAGE_MENU_SCROLLBAR_GAP)
-    } else {
-        scrollbar
-    };
-    let items = scrollable(items)
-        .height(menu_height(indices.len()))
-        .direction(Direction::Vertical(scrollbar));
-
-    container(items)
-        .padding(6)
-        .width(Length::Fixed(300.0))
-        .style(styles::quick_message_menu_style)
-        .into()
+    let count = indices.len().max(1);
+    #[cfg(not(target_arch = "wasm32"))]
+    let count = count + usize::from(app.package_status.local_version.is_none());
+    shortcut_menu_items(items, count).into()
 }
 
 fn group_menu<'a>(
@@ -216,7 +253,7 @@ fn group_menu<'a>(
 ) -> Element<'a, Message> {
     let active = app.quick_message_group == Some(group);
     let next_group = toggled_group(app.quick_message_group, group);
-    let trigger = button(
+    let trigger = shortcut_trigger(
         row![
             text(app.i18n.__(group.label())).size(12),
             text(format!("({})", indices.len())).size(11).style(|theme: &Theme| {
@@ -226,18 +263,15 @@ fn group_menu<'a>(
         ]
         .spacing(5)
         .align_y(iced::Alignment::Center),
-    )
-    .on_press(group_state_message(next_group))
-    .padding([6, 10])
-    .style(move |theme: &Theme, status| {
-        styles::quick_message_group_button_style(theme, status, active)
-    });
+        group_state_message(next_group),
+        active,
+    );
 
-    AboveOverlay::new(trigger, menu_view(app, indices))
-        .show(active)
-        .gap(2.0)
-        .on_close(group_state_message(None))
-        .into()
+    if active {
+        shortcut_menu(trigger, menu_items(app, indices), group_state_message(None))
+    } else {
+        trigger.into()
+    }
 }
 
 pub fn recommended_indices(app: QuickInput<'_>) -> Vec<usize> {
@@ -245,31 +279,36 @@ pub fn recommended_indices(app: QuickInput<'_>) -> Vec<usize> {
         .filter_map(|(index, prompt)| (!prompt.trim().is_empty()).then_some(index)).collect()
 }
 
-fn recommendations_menu_view<'a>(app: QuickInput<'a>, indices: &[usize]) -> Element<'a, Message> {
-    let entry = app.recommended_prompts;
-    let mut items = column![].spacing(3).width(Length::Fill);
-    if let Some(entry) = entry {
-        for &index in indices {
-            if let Some(prompt) = entry.get(index) {
-                items = items.push(
-                    button(
-                        text(prompt)
-                            .size(12)
-                            .width(Length::Fill)
-                            .wrapping(iced::widget::text::Wrapping::Word),
-                    )
-                    .on_press(Message::AgentRecommendedPromptSelected(
-                        index,
-                    ))
-                    .padding([8, 10])
-                    .width(Length::Fill)
-                    .style(|theme, status| {
-                        styles::quick_message_button_style(theme, status, false)
-                    }),
-                );
-            }
-        }
-    }
+fn recommendation_rows<'a>(
+    app: QuickInput<'a>,
+    indices: &[usize],
+) -> iced::widget::Column<'a, Message> {
+    let prompts = app.recommended_prompts.unwrap_or_default();
+    column![].spacing(3).width(Length::Fill).extend(
+        indices.iter().filter_map(|&index| {
+            let prompt = prompts.get(index)?;
+            Some(recommendation_row(prompt, Message::AgentRecommendedPromptSelected(index)).into())
+        }),
+    )
+}
+
+fn recommendation_row(label: &str, action: Message) -> iced::widget::Button<'_, Message> {
+    button(
+        row![
+            text(label).size(12).width(Length::Fill)
+                .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+            super::icons::icon_svg(Icon::ArrowRight, 12.0),
+        ]
+        .spacing(8)
+        .align_y(iced::Alignment::Center),
+    )
+    .on_press(action)
+    .padding([8, 10])
+    .width(Length::Fill)
+    .style(|theme, status| styles::quick_message_button_style(theme, status, false))
+}
+
+fn recommendation_popup(items: iced::widget::Column<'_, Message>) -> Element<'_, Message> {
     let scrollbar = Scrollbar::new()
         .width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH)
         .scroller_width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH)
@@ -286,23 +325,74 @@ fn recommendations_menu_view<'a>(app: QuickInput<'a>, indices: &[usize]) -> Elem
         .into()
 }
 
-pub fn recommendations_menu<'a>(app: QuickInput<'a>, indices: &[usize]) -> Element<'a, Message> {
+fn recommendations_menu_view<'a>(app: QuickInput<'a>, indices: &[usize]) -> Element<'a, Message> {
+    recommendation_popup(recommendation_rows(app, indices))
+}
+
+fn recommendation_trigger<'a>(
+    app: QuickInput<'a>,
+    count: usize,
+) -> iced::widget::Button<'a, Message> {
     let active = app.recommended_prompt;
-    let trigger = button(
+    let chevron = if active { Icon::ChevronUp } else { Icon::ChevronDown };
+    shortcut_trigger(
         row![
             text(app.i18n.__("推荐会话")).size(12),
-            text(format!("({})", indices.len())).size(11),
-            dropdown_icon()
+            text(format!("({count})")).size(11).style(|theme: &Theme| {
+                text::Style { color: Some(theme.palette().text.scale_alpha(0.58)) }
+            }),
+            container(super::icons::icon_svg(chevron, 10.0)).center(DROPDOWN_ICON_BOX_SIZE),
         ]
         .spacing(5)
         .align_y(iced::Alignment::Center),
+        Message::RecommendedPromptMenuChanged(!active),
+        active,
     )
-    .on_press(Message::RecommendedPromptMenuChanged(!active))
-    .padding([6, 10])
-    .style(move |theme, status| styles::quick_message_group_button_style(theme, status, active));
-    AboveOverlay::new(trigger, recommendations_menu_view(app, indices))
-        .show(active)
-        .gap(2.0)
+}
+
+pub fn recommendations_menu<'a>(app: QuickInput<'a>, indices: &[usize]) -> Element<'a, Message> {
+    AboveOverlay::new(
+        recommendation_trigger(app, indices.len()),
+        recommendations_menu_view(app, indices),
+    )
+    .show(app.recommended_prompt)
+    .block_background_events(true)
+    .flip_if_clipped()
+    .gap(6.0)
+    .on_close(Message::RecommendedPromptMenuChanged(false))
+    .into()
+}
+
+pub fn starter_recommendations(
+    app: QuickInput<'_>,
+    scene: ComposerScene,
+    category: Option<usize>,
+) -> Element<'_, Message> {
+    let indices = if category.is_none() { recommended_indices(app) } else { Vec::new() };
+    let presets = super::starter::prompts(scene, category);
+    let count = indices.len() + presets.len();
+    let popup = if app.recommended_prompt {
+        let presets = presets.iter().enumerate().map(|(index, prompt)| {
+            recommendation_row(
+                app.i18n.__(prompt.title),
+                Message::ComposerPromptSelected(scene, category, index),
+            )
+            .into()
+        });
+        let items = column![].spacing(3).width(Length::Fill).extend(presets);
+        let items = if indices.is_empty() {
+            items
+        } else {
+            items.push(settings_divider()).push(recommendation_rows(app, &indices))
+        };
+        recommendation_popup(items)
+    } else {
+        Space::new().into()
+    };
+    BelowOverlay::new(recommendation_trigger(app, count), popup)
+        .show(app.recommended_prompt)
+        .gap(6.0)
+        .dismiss_on_escape()
         .on_close(Message::RecommendedPromptMenuChanged(false))
         .into()
 }
@@ -645,12 +735,11 @@ fn shiju_menu(app: QuickInput<'_>) -> Element<'_, Message> {
                 .expect("valid upgrade count"),
         ));
     }
-    let trigger_button = button(trigger_content.push(dropdown_icon()))
-        .on_press(Message::ToggleShijuSkillMenu)
-        .padding([6, 10])
-        .style(move |theme: &Theme, status| {
-            styles::quick_message_group_button_style(theme, status, active)
-        });
+    let trigger_button = shortcut_trigger(
+        trigger_content.push(dropdown_icon()),
+        Message::ToggleShijuSkillMenu,
+        active,
+    );
     let trigger = Tooltip::new(
         trigger_button,
         shiju_trigger_tooltip(
@@ -664,7 +753,9 @@ fn shiju_menu(app: QuickInput<'_>) -> Element<'_, Message> {
 
     AboveOverlay::new(trigger, shiju_menu_view(app))
         .show(active)
-        .gap(2.0)
+        .block_background_events(true)
+        .flip_if_clipped()
+        .gap(6.0)
         .on_close(Message::ToggleShijuSkillMenu)
         .into()
 }
@@ -726,46 +817,77 @@ fn workspace_add_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
     .on_press(workspace_add_message())
     .padding([8, 10])
     .width(Length::Fill)
-    .style(|theme: &Theme, status| styles::quick_message_group_button_style(theme, status, false))
+    .style(|theme: &Theme, status| styles::shiju_skill_button_style(theme, status, false))
     .into()
 }
 
+pub fn workspace_search_id() -> iced::widget::Id {
+    iced::widget::Id::new("composer-workspace-search")
+}
+
+pub fn workspace_results_id() -> iced::widget::Id {
+    iced::widget::Id::new("composer-workspace-results")
+}
+
 fn workspace_menu_view(app: QuickInput<'_>) -> Element<'_, Message> {
+    let query = app.workspace_query.trim().to_lowercase();
+    let matches: Vec<_> = app
+        .recent_projects
+        .iter()
+        .map(|path| (path, workspace_label(app, path)))
+        .filter(|(path, label)| {
+            query.is_empty()
+                || label.to_lowercase().contains(&query)
+                || path.to_lowercase().contains(&query)
+        })
+        .collect();
+    let search = text_input(app.i18n.__("搜索项目"), app.workspace_query)
+        .id(workspace_search_id())
+        .on_input(Message::WorkSpacePickerQueryChanged)
+        .on_submit_maybe((matches.len() == 1).then(|| workspace_select_message(matches[0].0.clone())))
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .style(settings_text_input_style);
     let mut items = column![].spacing(3).width(Length::Fill);
-    if app.recent_projects.is_empty() {
+
+    if matches.is_empty() {
+        let label = if query.is_empty() { "暂无空间" } else { "没有匹配的项目" };
         items = items.push(
-            container(
-                text(app.i18n.__("暂无空间"))
-                    .size(12)
-                    .style(|theme: &Theme| iced::widget::text::Style {
-                        color: Some(theme.palette().text.scale_alpha(0.58)),
-                    }),
-            )
-            .padding([9, 10]),
+            container(text(app.i18n.__(label)).size(12).style(settings_muted_text_style))
+                .padding([9, 10]),
         );
     }
-
-    for path in app.recent_projects {
+    for (path, label) in matches {
         let selected = app.project_path == Some(path.as_str());
-        let label = workspace_label(app, path);
-        let mut content = row![text(label).size(12).width(Length::Fill)]
-            .spacing(8)
-            .align_y(iced::Alignment::Center);
+        let mut content = row![
+            super::icons::icon_svg(Icon::FolderOpen, 13.0),
+            text(label.clone())
+                .size(13)
+                .wrapping(iced::widget::text::Wrapping::WordOrGlyph)
+                .width(Length::Fill),
+        ]
+        .spacing(8)
+        .align_y(iced::Alignment::Center);
         if selected {
             content = content.push(super::icons::icon_svg(Icon::Check, 13.0));
         }
-        items = items.push(
-            button(content)
-                .on_press(workspace_select_message(path.clone()))
-                .padding([8, 10])
-                .width(Length::Fill)
-                .style(move |theme: &Theme, status| {
-                    styles::quick_message_group_button_style(theme, status, selected)
-                }),
-        );
+        let option = button(content)
+            .on_press(workspace_select_message(path.clone()))
+            .padding([8, 10])
+            .width(Length::Fill)
+            .style(move |theme, status| styles::shiju_skill_button_style(theme, status, selected));
+        items = items.push(desktop_ui_controls::tooltip::project_tooltip(
+            option,
+            label,
+            path,
+            iced::widget::tooltip::Position::Right,
+        ));
     }
 
-    let items = scrollable(items).height(menu_height(app.recent_projects.len())).direction(
+    let items = scrollable(container(items).padding([0, 7]))
+        .id(workspace_results_id())
+        .height(Length::Fill)
+        .direction(
         Direction::Vertical(
             Scrollbar::new()
                 .width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH)
@@ -773,54 +895,82 @@ fn workspace_menu_view(app: QuickInput<'_>) -> Element<'_, Message> {
                 .spacing(QUICK_MESSAGE_MENU_SCROLLBAR_GAP),
         ),
     );
+    let list_height = (app.recent_projects.len().max(1) as f32 * 36.0)
+        .min(QUICK_MESSAGE_MENU_MAX_HEIGHT);
     container(
         column![
+            search,
             items,
             workspace_menu_divider(),
             workspace_add_button(app.i18n)
         ]
-        .spacing(3)
+        .spacing(6)
         .width(Length::Fill),
     )
-    .padding(6)
+    .padding(8)
+    .height(Length::Fixed(97.0 + list_height))
     .width(Length::Fixed(300.0))
     .style(styles::quick_message_menu_style)
     .into()
 }
 
-fn workspace_menu(app: QuickInput<'_>) -> Element<'_, Message> {
+pub fn workspace_menu(app: QuickInput<'_>) -> Element<'_, Message> {
     let active = app.work_space_picker_open;
     let label =
         app.project_path.map(|path| workspace_label(app, path)).unwrap_or_else(|| {
             app.i18n.__("选择空间").to_string()
         });
-    let trigger =
-        button(
-            row![
-                super::icons::icon_svg(Icon::FolderOpen, 13.0),
-                text(label).size(12),
-                dropdown_icon(),
-            ]
-            .spacing(5)
-            .align_y(iced::Alignment::Center),
-        )
-        .on_press(Message::WorkSpacePickerToggled)
-        .padding([6, 10])
-        .style(move |theme: &Theme, status| {
-            styles::quick_message_group_button_style(theme, status, active)
+    let short_label = desktop_chat_tools::text_layout::truncate_chars(&label, 25);
+    let workspace_icon = super::icons::icon_svg(Icon::FolderOpen, 14.0)
+        .style(move |theme: &Theme, _| iced::widget::svg::Style {
+            color: Some(super::styles::selector_text_color(theme, active).scale_alpha(0.88)),
         });
+    let chevron =
+        super::icons::icon_svg(if active { Icon::ChevronUp } else { Icon::ChevronDown }, 10.0)
+            .style(move |theme: &Theme, _| iced::widget::svg::Style {
+                color: Some(super::styles::selector_chevron_color(theme, active)),
+            });
+    let trigger = button(
+        container(
+            row![workspace_icon, text(short_label).size(12), chevron]
+                .spacing(7)
+                .align_y(iced::Alignment::Center),
+        )
+        .center_y(BOTTOM_BAR_ICON_BUTTON_SIZE),
+    )
+    .on_press(Message::WorkSpacePickerToggled)
+    .padding([0, 9])
+    .style(move |theme: &Theme, status| {
+        super::styles::selector_pill_button_style(theme, status, active)
+    });
+    let trigger = match app.project_path.filter(|_| !active) {
+        Some(path) => desktop_ui_controls::tooltip::project_tooltip(
+            trigger,
+            label,
+            path,
+            iced::widget::tooltip::Position::Top,
+        ),
+        None => trigger.into(),
+    };
 
-    AboveOverlay::new(trigger, workspace_menu_view(app))
-        .show(active)
-        .block_background_events(true)
-        .gap(2.0)
-        .on_close(Message::WorkSpacePickerClosed)
-        .into()
+    if active {
+        AboveOverlay::new(trigger, workspace_menu_view(app))
+            .show(true)
+            .block_background_events(true)
+            .flip_if_clipped()
+            .gap(6.0)
+            .on_close(Message::WorkSpacePickerClosed)
+            .into()
+    } else {
+        trigger.into()
+    }
 }
 
-fn input_strip_control_order(app: QuickInput<'_>) -> Vec<InputStripControl> {
+fn input_strip_control_order(
+    app: QuickInput<'_>,
+    starter: Option<(ComposerScene, Option<usize>)>,
+) -> Vec<InputStripControl> {
     let mut controls = Vec::with_capacity(5);
-    controls.push(InputStripControl::Workspace);
     #[cfg(not(target_arch = "wasm32"))]
     controls.push(InputStripControl::Shiju);
     if !app.quick_messages.is_empty() {
@@ -830,19 +980,24 @@ fn input_strip_control_order(app: QuickInput<'_>) -> Vec<InputStripControl> {
     if let Some(open) = app.media_shortcuts {
         controls.push(InputStripControl::MediaShortcuts(open));
     }
+    if let Some((scene, category)) = starter {
+        controls.push(InputStripControl::Categories(scene, category));
+    }
     if !app.quick_messages.is_empty() && app.project_is_git_repo {
         controls.push(InputStripControl::GitActions);
     }
     controls
 }
 
-/// 按平台能力渲染工作区、原生识矩技能、通用和 Git 快捷控件。
-pub fn view(app: QuickInput<'_>) -> Option<Element<'_, Message>> {
+/// 渲染快捷控件，把场景分类放在多模态入口之后。
+pub fn view(
+    app: QuickInput<'_>,
+    starter: Option<(ComposerScene, Option<usize>)>,
+) -> Element<'_, Message> {
     let (general, git) = grouped_indices(app.quick_messages);
     let mut controls = row![].spacing(6).align_y(iced::Alignment::Center);
-    for control in input_strip_control_order(app) {
+    for control in input_strip_control_order(app, starter) {
         controls = match control {
-            InputStripControl::Workspace => controls.push(workspace_menu(app)),
             #[cfg(not(target_arch = "wasm32"))]
             InputStripControl::Shiju => controls.push(shiju_menu(app)),
             InputStripControl::GeneralActions => {
@@ -852,6 +1007,9 @@ pub fn view(app: QuickInput<'_>) -> Option<Element<'_, Message>> {
             InputStripControl::MediaShortcuts(open) => {
                 controls.push(super::media_shortcuts::menu(app, open))
             }
+            InputStripControl::Categories(scene, category) => {
+                controls.push(super::starter::category_selector(app.i18n, scene, category))
+            }
             InputStripControl::GitActions => {
                 controls.push(group_menu(app, QuickMessageGroup::Git, &git))
             }
@@ -860,19 +1018,15 @@ pub fn view(app: QuickInput<'_>) -> Option<Element<'_, Message>> {
     if let Some(open) = app.employee_commands {
         controls = controls.push(super::employee_commands::menu(app.i18n, open));
     }
-    if app.recommended_prompts.is_some() {
+    if starter.is_none() {
         let indices = recommended_indices(app);
         if !indices.is_empty() {
             controls = controls.push(recommendations_menu(app, &indices));
         }
     }
-    Some(
-        container(controls.wrap())
-            .width(Length::Fill)
-            .align_x(iced::alignment::Horizontal::Left)
-            .align_y(iced::alignment::Vertical::Center)
-            .into(),
-    )
+    container(controls.wrap().vertical_spacing(5))
+        .width(Length::Fill)
+        .into()
 }
 
 
@@ -889,6 +1043,7 @@ pub struct QuickInput<'a> {
     pub recent_projects_edits: &'a [String],
     pub project_path: Option<&'a str>,
     pub work_space_picker_open: bool,
+    pub workspace_query: &'a str,
     #[cfg(not(target_arch = "wasm32"))]
     pub shiju_skill: bool,
     #[cfg(not(target_arch = "wasm32"))]

@@ -94,18 +94,54 @@ fn session_loading_panel(app: &App) -> Element<'_, Message> {
     )
 }
 
-/// Assemble session snapshots and cross-domain view ports for the conversation.
-pub fn view(app: &App) -> Element<'_, Message> {
-    let phase = desktop_chat_view::panel::panel_phase(
+pub(crate) fn phase(app: &App) -> desktop_chat_view::panel::PanelPhase {
+    desktop_chat_view::panel::panel_phase(
         app.session_state.active_session_id.is_some(),
         app.chat_view.active_session_view_state.ui_preparing,
         app.chat_view.active_session_view_state.base_ready,
         app.chat_view.chat.len(),
-    );
-    if phase == desktop_chat_view::panel::PanelPhase::Loading {
-        return session_loading_panel(app);
+    )
+}
+
+/// Assemble session snapshots and cross-domain view ports for the conversation.
+pub fn view(app: &App) -> Element<'_, Message> {
+    use desktop_chat_view::panel::PanelPhase;
+    match phase(app) {
+        PanelPhase::Loading => return session_loading_panel(app),
+        PanelPhase::Empty => {
+            return desktop_chat_view::panel::placeholder_view(
+                empty_session_placeholder(app),
+                empty_fullscreen_controls(app),
+                chat_global_status_reading_column(app),
+            );
+        }
+        PanelPhase::Started => {}
     }
 
+    let body = match app.chat_view.chat_panel_mode {
+        ChatPanelMode::Conversation => conversation(app),
+        ChatPanelMode::Trajectory => trajectory::view(app),
+    };
+    let skin = app.appearance.active_theme_skin.as_ref();
+    let body_background = skin.and_then(|skin| skin.chat_body_path.as_deref());
+    let fit = skin
+        .and_then(|skin| {
+            crate::app::theme_catalog::PanelImageFit::parse(
+                skin.chrome.chat_body_image_fit.as_deref(),
+            )
+            .ok()
+        })
+        .unwrap_or_default();
+    let body = with_panel_background(body, body_background, fit);
+    let panel = desktop_chat_view::panel::started_view(
+        chat_header_view(app),
+        body,
+        chat_global_status_reading_column(app),
+    );
+    chat_panel_context_menu_overlay(app, panel)
+}
+
+fn conversation(app: &App) -> Element<'_, Message> {
     let window = chat_panel_virtual_window(app);
     let runtime = app.current_session_runtime_ref();
     #[cfg(test)]
@@ -149,51 +185,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
             })
         },
     );
-
-    if phase == desktop_chat_view::panel::PanelPhase::Started {
-        let header = chat_header_view(app);
-        let question_jump_button = user_question_nav_overlay(
+    desktop_chat_view::panel::conversation_body(
+        scroll_content,
+        user_question_nav_overlay(
             app,
             &app.chat_view.active_session_view_state.user_question_markers,
             window.visible_start_idx,
             window.visible_end_idx,
-        );
-        let jump_button = jump_to_bottom_button(app);
-        let todo_overlay = chat_todo_overlay(app);
-        let body_base: Element<'_, Message> = match app.chat_view.chat_panel_mode {
-            ChatPanelMode::Conversation => desktop_chat_view::panel::conversation_body(
-                scroll_content,
-                question_jump_button,
-                jump_button,
-                todo_overlay,
-            ),
-            ChatPanelMode::Trajectory => trajectory::view(app),
-        };
-        let body_bg =
-            app.appearance.active_theme_skin.as_ref().and_then(|skin| skin.chat_body_path.as_deref());
-        let fit = app.appearance.active_theme_skin
-            .as_ref()
-            .map(|skin| {
-                crate::app::theme_catalog::PanelImageFit::parse(
-                    skin.chrome.chat_body_image_fit.as_deref(),
-                )
-                .unwrap_or_default()
-            })
-            .unwrap_or_default();
-        let body = with_panel_background(body_base, body_bg, fit);
-        let panel_base = desktop_chat_view::panel::started_view(
-            header,
-            body,
-            chat_global_status_reading_column(app),
-        );
-        chat_panel_context_menu_overlay(app, panel_base)
-    } else {
-        desktop_chat_view::panel::placeholder_view(
-            empty_session_placeholder(app),
-            empty_fullscreen_controls(app),
-            chat_global_status_reading_column(app),
-        )
-    }
+        ),
+        jump_to_bottom_button(app),
+        chat_todo_overlay(app),
+    )
 }
 
 fn chat_todo_overlay<'a>(app: &'a App) -> Element<'a, Message> {

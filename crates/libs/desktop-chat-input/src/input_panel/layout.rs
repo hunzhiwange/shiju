@@ -1,6 +1,6 @@
 //! 输入面板内容布局；跨领域子视图由桌面装配。
-use iced::widget::{Container, Space, column, container};
-use iced::{Element, Length, Padding};
+use iced::widget::{Container, column, container, row};
+use iced::{Alignment, Element, Length, Padding};
 
 pub const COMPOSER_TOOLBAR_PADDING: Padding =
     Padding { top: 3.0, right: 12.0, bottom: 6.0, left: 12.0 };
@@ -25,7 +25,6 @@ pub struct Content<'a, Message> {
     pub file_refs: Element<'a, Message>,
     pub task_mode_form: Element<'a, Message>,
     pub input: Element<'a, Message>,
-    pub divider: Element<'a, Message>,
     pub bottom_bar: Element<'a, Message>,
     pub context_card: Option<Element<'a, Message>>,
     pub todo_panel: Option<Element<'a, Message>>,
@@ -38,7 +37,6 @@ pub fn content<'a, Message: 'a>(parts: Content<'a, Message>) -> Element<'a, Mess
         file_refs,
         task_mode_form,
         input,
-        divider,
         bottom_bar,
         context_card,
         todo_panel,
@@ -50,14 +48,13 @@ pub fn content<'a, Message: 'a>(parts: Content<'a, Message>) -> Element<'a, Mess
         if let Some(context_card) = context_card {
             input_block = input_block.push(context_card);
         }
-        input_block = input_block.push(input).push(divider).push(bottom_bar);
+        input_block = input_block.push(input).push(bottom_bar);
 
         column![attachment_strip, file_refs, task_mode_form, input_block].spacing(3)
     } else if let Some(queue_panel) = queue_panel {
         // 队列布局：队列面板 + 标准内容
         let mut queued = column![
             queue_panel,
-            Space::new().height(Length::Fixed(4.0)),
             attachment_strip,
             file_refs,
             task_mode_form
@@ -66,14 +63,14 @@ pub fn content<'a, Message: 'a>(parts: Content<'a, Message>) -> Element<'a, Mess
         if let Some(context_card) = context_card {
             queued = queued.push(context_card);
         }
-        queued.push(input).push(divider).push(bottom_bar)
+        queued.push(column![input, bottom_bar])
     } else {
         // 标准布局：文件引用 + 任务模式表单 + 输入框 + 底部栏
         let mut standard = column![attachment_strip, file_refs, task_mode_form].spacing(6);
         if let Some(context_card) = context_card {
             standard = standard.push(context_card);
         }
-        standard.push(input).push(divider).push(bottom_bar)
+        standard.push(column![input, bottom_bar])
     }
     .into()
 }
@@ -91,7 +88,9 @@ pub struct Surface<'a, Message> {
     pub fit: desktop_theme::PanelImageFit,
     pub voice: Option<Element<'a, Message>>,
     pub agent_sessions: Option<Element<'a, Message>>,
-    pub quick_messages: Option<Element<'a, Message>>,
+    pub quick_messages: Element<'a, Message>,
+    pub companion: Option<Element<'a, Message>>,
+    pub context: Element<'a, Message>,
 }
 
 pub struct SurfaceMessages<Message> {
@@ -108,7 +107,8 @@ pub fn view<'a, Message: Clone + 'a>(
     messages: SurfaceMessages<Message>,
 ) -> Element<'a, Message> {
     use desktop_ui_controls::overlays::AboveOverlay;
-    let content = AboveOverlay::new(content(content_parts), parts.file_search)
+    let content = container(content(content_parts)).padding(Padding { top: 4.0, ..Padding::ZERO });
+    let content = AboveOverlay::new(content, parts.file_search)
         .show(parts.show_file_search)
         .gap(6.0)
         .on_close(messages.close_file_search);
@@ -124,22 +124,49 @@ pub fn view<'a, Message: Clone + 'a>(
     )
     .on_native_drop(messages.native_drop);
     let hovered = parts.input_drop_hovered && parts.dragging;
-    let card = composer_card(Element::new(drop_area), hovered, Some(parts.chrome));
-    let card = desktop_theme::with_panel_background(card.into(), parts.background, parts.fit);
-    let mut panel = column![].spacing(6).width(Length::Fill);
+    let chrome = parts.chrome;
+    let body_chrome = chrome.clone();
+    let context_chrome = chrome.clone();
+    let body = container(Element::new(drop_area))
+        .width(Length::Fill)
+        .style(move |theme| super::surface_styles::composer_body_style(theme, hovered, &body_chrome));
+    let body = desktop_theme::with_panel_background(body.into(), parts.background, parts.fit);
+    let context = container(parts.context)
+        .width(Length::Fill)
+        .style(move |theme| super::surface_styles::composer_context_style(theme, &context_chrome));
+    let composer = container(column![body, context])
+        .width(Length::Fill)
+        .padding(super::surface_styles::COMPOSER_RIM)
+        .style(move |theme| super::surface_styles::chat_composer_style(theme, hovered, &chrome));
+
+    let companion_visible = parts.companion.is_some();
+    let shortcuts = container(parts.quick_messages).width(Length::Fill).padding(Padding {
+        bottom: if companion_visible { 6.0 } else { 0.0 },
+        ..Padding::ZERO
+    });
+    let mut header = row![shortcuts]
+        .spacing(12)
+        .padding([0, 8])
+        .align_y(Alignment::End);
+    if let Some(companion) = parts.companion {
+        header = header.push(companion);
+    }
+
+    let mut panel = column![].spacing(8).width(Length::Fill);
     if let Some(voice) = parts.voice {
         panel = panel.push(voice);
     }
     if let Some(entry) = parts.agent_sessions {
         panel = panel.push(entry);
     }
-    if let Some(quick_messages) = parts.quick_messages {
-        panel = panel.push(quick_messages);
-    }
-    panel = panel.push(card);
+    panel = panel.push(
+        column![header, composer]
+            .spacing(if companion_visible { 0 } else { 6 })
+            .width(Length::Fill),
+    );
     desktop_chat_view::panel::conversation_reading_column(
         panel,
-        iced::Padding { top: 0.0, right: 2.0, bottom: 0.0, left: 2.0 },
+        desktop_chat_view::panel::CONVERSATION_GUTTER,
     )
     .into()
 }
@@ -152,11 +179,10 @@ pub struct Controls<'a, Message> {
     pub model_btn: Element<'a, Message>,
     pub usage_btn: Element<'a, Message>,
     pub attach_btn: Element<'a, Message>,
+    pub voice_btn: Option<Element<'a, Message>>,
     pub send: Element<'a, Message>,
     pub tools_tab_btn: Option<Element<'a, Message>>,
     pub acp_btn: Option<Element<'a, Message>>,
-    pub reasoning_btn: Option<Element<'a, Message>>,
-    pub permission_btn: Option<Element<'a, Message>>,
     pub pool_btn: Option<Element<'a, Message>>,
     pub cancel: Option<Element<'a, Message>>,
     pub mobile_model_content: Element<'a, Message>,
@@ -179,11 +205,10 @@ pub fn controls<'a, Message: Clone + 'a>(
         model_btn,
         usage_btn,
         attach_btn,
+        voice_btn,
         send,
         tools_tab_btn,
         acp_btn,
-        reasoning_btn,
-        permission_btn,
         pool_btn,
         cancel,
         mobile_model_content,
@@ -199,18 +224,12 @@ pub fn controls<'a, Message: Clone + 'a>(
         if let Some(control) = acp_btn {
             options = options.push(control);
         }
-        if let Some(control) = reasoning_btn {
-            options = options.push(control);
-        }
-        if let Some(control) = permission_btn {
-            options = options.push(control);
-        }
         options = options.push(workflow_btn).push(usage_btn);
         let menu =
             container(column![options.wrap(), mobile_model_content].spacing(8).width(Length::Fill))
                 .padding(7)
                 .width(Length::Fixed(334.0))
-                .style(|theme| super::surface_styles::input_card_style(theme, false, None));
+                .style(super::surface_styles::popover_style);
         let icon = super::icons::icon_svg(desktop_assets::assets::Icon::Sliders, 14.0)
             .style(|theme: &iced::Theme, _| iced::widget::svg::Style {
                 color: Some(theme.palette().text),
@@ -219,22 +238,27 @@ pub fn controls<'a, Message: Clone + 'a>(
         let toggle: Element<'_, Message> = AboveOverlay::new(toggle, menu)
             .show(expanded)
             .block_background_events(true)
+            .flip_if_clipped()
             .gap(6.0)
             .on_close(close_popovers)
             .into();
-        super::panel::mobile_controls(toggle, attach_btn, pool_btn, cancel, send)
+        let attachment = if let Some(voice_btn) = voice_btn {
+            row![attach_btn, voice_btn].spacing(3).align_y(Alignment::Center).into()
+        } else {
+            attach_btn
+        };
+        super::panel::mobile_controls(toggle, attachment, pool_btn, cancel, send)
     } else {
         super::send_controls::bottom_bar(
             Some(agent_tab_btn),
             tools_tab_btn,
             Some(skills_tab_btn),
             acp_btn,
-            reasoning_btn,
-            permission_btn,
             workflow_btn,
             model_btn,
             usage_btn,
             attach_btn,
+            voice_btn,
             pool_btn,
             cancel,
             Some(send),

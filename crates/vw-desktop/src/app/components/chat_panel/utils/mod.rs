@@ -1,6 +1,6 @@
 //! 聊天面板工具函数模块
 //!
-//! 本模块按职责拆分聊天面板辅助函数，并保持原有对外导出不变。
+//! 本模块按职责拆分聊天面板辅助函数。
 
 mod app_state;
 mod path;
@@ -9,9 +9,7 @@ mod theme;
 mod time;
 mod ui;
 
-pub use app_state::{
-    current_branch_label, current_project_path_label, get_session_title, is_recent_copy,
-};
+pub use app_state::{current_branch_label, get_session_title, is_recent_copy};
 pub use path::{
     normalize_file_reference_to_path, normalize_file_url_to_path, relative_to_project_root,
     resolve_path,

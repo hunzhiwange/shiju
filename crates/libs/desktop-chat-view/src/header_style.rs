@@ -62,38 +62,18 @@ pub fn chat_mode_button_style(
     status: iced::widget::button::Status,
     active: bool,
 ) -> iced::widget::button::Style {
-    let palette = theme.extended_palette();
-    let hovered = matches!(
-        status,
-        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed
-    );
-    let background = if active {
-        palette.primary.weak.color.scale_alpha(if theme_is_dark(theme) { 0.38 } else { 0.24 })
-    } else if hovered {
-        palette.background.strong.color.scale_alpha(if theme_is_dark(theme) { 0.42 } else { 0.28 })
-    } else {
-        Color::TRANSPARENT
+    let palette = theme.palette();
+    let background = match status {
+        button::Status::Pressed => palette.text.scale_alpha(0.16),
+        button::Status::Hovered if active => palette.primary.scale_alpha(0.23),
+        button::Status::Hovered => palette.text.scale_alpha(0.08),
+        _ if active => palette.primary.scale_alpha(0.16),
+        _ => Color::TRANSPARENT,
     };
-    iced::widget::button::Style {
+    button::Style {
         background: Some(Background::Color(background)),
-        border: Border {
-            width: 1.0,
-            color: if active {
-                palette.primary.base.color.scale_alpha(0.66)
-            } else {
-                palette.background.strong.color.scale_alpha(0.42)
-            },
-            radius: 5.0.into(),
-        },
-        text_color: if active {
-            if theme_is_dark(theme) {
-                theme.palette().text.scale_alpha(0.96)
-            } else {
-                palette.primary.base.color
-            }
-        } else {
-            theme.palette().text.scale_alpha(0.72)
-        },
+        border: Border { radius: 999.0.into(), ..Border::default() },
+        text_color: palette.text.scale_alpha(if active { 1.0 } else { 0.76 }),
         ..Default::default()
     }
 }

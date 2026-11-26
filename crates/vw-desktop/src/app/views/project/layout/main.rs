@@ -11,5 +11,5 @@ pub fn main_area(app: &App, spacing: f32, content_pad: f32, chat_pad: f32, radiu
         split_ratio: app.layout_drag.split_ratio,
         show_diff: app.navigation_panels.show_diff,
         show_file_manager: app.file_manager.show_file_manager,
-    }, super::chat::chat_area(app, spacing, radius, chat_pad), preview_panel::view(app), || file_tree::view_file_manager(app), Message::View(ViewMessage::SplitDragStarted), Message::View(ViewMessage::FileManagerDragStarted), spacing, content_pad)
+    }, super::chat::chat_area(app, radius, chat_pad), preview_panel::view(app), || file_tree::view_file_manager(app), Message::View(ViewMessage::SplitDragStarted), Message::View(ViewMessage::FileManagerDragStarted), spacing, content_pad)
 }

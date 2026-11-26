@@ -4,8 +4,8 @@ use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Background, Color, Font, Pixels, Rectangle, Size, Theme};
 
-fn chat_area(spacing:f32, radius:f32, padding:f32) -> iced::Element<'static,()> {
-    super::chat_area(iced::widget::text("chat").into(),iced::widget::text("input").into(),false,desktop_theme::theme_catalog::ChromeStyleOverrides::default(),spacing,radius,padding)
+fn chat_area(radius:f32, padding:f32) -> iced::Element<'static,()> {
+    super::chat_area(iced::widget::text("chat").into(),iced::widget::text("input").into(),false,desktop_theme::theme_catalog::ChromeStyleOverrides::default(),false,radius,padding)
 }
 
 #[test]
@@ -15,25 +15,25 @@ fn test_module_is_wired() {
     assert!(module.ends_with("chat_tests"));
 }
 
-fn render_chat_area(spacing: f32, corner_radius: f32, chat_content_pad: f32) {
-    let element = chat_area( spacing, corner_radius, chat_content_pad);
+fn render_chat_area(corner_radius: f32, chat_content_pad: f32) {
+    let element = chat_area(corner_radius, chat_content_pad);
 
     std::hint::black_box(element);
 }
 
 #[test]
 fn chat_area_builds_with_regular_layout_values() {
-    render_chat_area(8.0, 12.0, 16.0);
+    render_chat_area(12.0, 16.0);
 }
 
 #[test]
 fn chat_area_builds_with_zero_layout_values() {
-    render_chat_area(0.0, 0.0, 0.0);
+    render_chat_area(0.0, 0.0);
 }
 
 #[test]
 fn chat_area_builds_with_negative_radius() {
-    render_chat_area(4.0, -2.0, 8.0);
+    render_chat_area(-2.0, 8.0);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -42,7 +42,7 @@ async fn chat_area_draws_captured_surface_style() {
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("tiny-skia headless renderer should be available");
-    let mut element = chat_area( 8.0, 12.0, 16.0);
+    let mut element = chat_area(12.0, 16.0);
 
     draw_element(&mut element, &mut renderer, &Theme::Dark);
 }
@@ -53,11 +53,7 @@ fn chat_area_style_uses_light_theme_surface() {
     let expected = desktop_theme::theme_catalog::panel_surface_color(&Theme::Light, 0.985);
 
     assert_eq!(style.background, Some(Background::Color(expected)));
-    assert_eq!(style.border.width, 1.0);
-    assert_eq!(
-        style.border.color,
-        Theme::Light.extended_palette().background.strong.color.scale_alpha(0.55)
-    );
+    assert_eq!(style.border.width, 0.0);
     assert_eq!(style.border.radius.top_left, 16.0);
     assert_eq!(style.border.radius.top_right, 16.0);
     assert_eq!(style.border.radius.bottom_right, 16.0);
@@ -70,11 +66,7 @@ fn chat_area_style_uses_dark_theme_surface() {
     let expected = desktop_theme::theme_catalog::panel_surface_color(&Theme::Dark, 0.985);
 
     assert_eq!(style.background, Some(Background::Color(expected)));
-    assert_eq!(style.border.width, 1.0);
-    assert_ne!(
-        style.border.color,
-        Theme::Light.extended_palette().background.strong.color.scale_alpha(0.55)
-    );
+    assert_eq!(style.border.width, 0.0);
     assert_eq!(style.border.radius.top_left, 4.0);
     assert_eq!(style.border.radius.top_right, 4.0);
     assert_eq!(style.border.radius.bottom_right, 4.0);

@@ -132,22 +132,21 @@ async fn ui_refresh_42_layout_and_interaction() {
         let mut ui = scene(container(form).padding(12).into(), &mut renderer, size);
         capture(&mut ui, &mut renderer, &theme, size, &format!("task-{width}"), Point::ORIGIN);
 
-        let popover = reasoning_selector::reasoning_effort_popover(
-            reasoning_selector::ReasoningInput {
-                providers: &app.model_settings.providers,
-                model: "fixture/model-00",
-                expanded: true,
-                i18n,
-                session_id: Some("fixture-a"),
-            },
+        let reasoning = reasoning_selector::reasoning_effort_control(
+            i18n,
+            Some("fixture-a"),
             "fixture/model-00",
             &[None, Some(ReasoningEffortDto::High)],
             None,
         );
-        let mut ui = scene(popover.map(Message::Reasoning), &mut renderer, size);
+        let mut ui = scene(
+            container(reasoning.map(Message::Reasoning)).width(260).into(),
+            &mut renderer,
+            size,
+        );
         capture(&mut ui, &mut renderer, &theme, size, &format!("reasoning-{width}"), Point::ORIGIN);
         assert!(matches!(
-            click(&mut ui, &mut renderer, Point::new(234.0, 73.0)).as_slice(),
+            click(&mut ui, &mut renderer, Point::new(234.0, 52.0)).as_slice(),
             [Message::Reasoning(crate::input_panel::reasoning_message::Message::Selected(Some(
                 ReasoningEffortDto::High
             )))]

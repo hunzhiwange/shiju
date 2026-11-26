@@ -6,7 +6,7 @@ use iced::widget::svg;
 /// 重新导出 use iced::widget::{button, column, container, row, scrollable, text}，让上层模块通过稳定路径访问。
 use iced::widget::{button, column, container, row, scrollable, text};
 /// 重新导出 use iced::{Background, Border, Color, Element, Length, Theme}，让上层模块通过稳定路径访问。
-use iced::{Background, Border, Color, Element, Length, Theme};
+use iced::{Element, Length, Theme};
 
 use super::slice_message::Message;
 /// 重新导出 use desktop_assets::assets::{self, Icon}，让上层模块通过稳定路径访问。
@@ -37,44 +37,13 @@ pub fn file_search_icon_style(theme: &Theme, _status: svg::Status) -> svg::Style
     svg::Style { color: Some(theme.palette().text.scale_alpha(0.65)) }
 }
 
-pub fn file_search_entry_style(
-    theme: &Theme,
-    status: iced::widget::button::Status,
-    selected: bool,
-) -> iced::widget::button::Style {
-    let palette = theme.extended_palette();
-    let hovered = matches!(status, iced::widget::button::Status::Hovered);
-    let background = if hovered || selected {
-        Some(Background::Color(palette.background.weak.color))
-    } else {
-        None
-    };
-
-    iced::widget::button::Style {
-        background,
-        border: Border { radius: 6.0.into(), ..Default::default() },
-        text_color: theme.palette().text,
-        ..Default::default()
-    }
-}
+pub use super::styles::selectable_list_button_style as file_search_entry_style;
 
 pub fn file_search_query_text_style(theme: &Theme) -> iced::widget::text::Style {
     iced::widget::text::Style { color: Some(theme.palette().primary) }
 }
 
-pub fn file_search_overlay_style(theme: &Theme) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
-    iced::widget::container::Style {
-        background: Some(Background::Color(palette.background.base.color)),
-        border: Border { width: 1.0, color: palette.background.strong.color, radius: 12.0.into() },
-        shadow: iced::Shadow {
-            color: Color::BLACK.scale_alpha(0.12),
-            offset: iced::Vector::new(0.0, 4.0),
-            blur_radius: 12.0,
-        },
-        ..Default::default()
-    }
-}
+pub use super::styles::popover_style as file_search_overlay_style;
 
 /// 构建或定位 file search overlay，用于把浮层稳定附着到目标控件。
 ///

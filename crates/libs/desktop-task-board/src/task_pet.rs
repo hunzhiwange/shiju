@@ -1,6 +1,6 @@
 use iced::widget::image::{Handle as ImageHandle, Image};
 use iced::widget::{Space, button, column, container, mouse_area, row, svg, text};
-use iced::{Alignment, Background, Border, Color, Element, Length, Point, Theme};
+use iced::{Alignment, Background, Border, Color, Element, Length, Point, Rectangle, Theme};
 use once_cell::sync::Lazy;
 
 mod cards;
@@ -22,10 +22,14 @@ use desktop_ui_controls::right_click_area::RightClickArea;
 
 const PET_COLLAPSED_SIZE: f32 = 74.0;
 const PET_CONTROL_GAP: f32 = 4.0;
+const COMPOSER_PORTRAIT_HEIGHT_RATIO: f32 = 68.0 / 112.0;
+const COMPOSER_ROBOT_HEIGHT_RATIO: f32 = 72.0 / 112.0;
 static PET_WINK_HANDLE: Lazy<svg::Handle> =
     Lazy::new(|| svg::Handle::from_memory(PET_WINK_SVG.as_bytes()));
 static PET_HOVER_HANDLE: Lazy<svg::Handle> =
     Lazy::new(|| svg::Handle::from_memory(PET_HOVER_SVG.as_bytes()));
+static COMPOSER_ROBOT_IDLE: Lazy<svg::Handle> = Lazy::new(|| composer_robot_handle(PET_WINK_SVG));
+static COMPOSER_ROBOT_HOVER: Lazy<svg::Handle> = Lazy::new(|| composer_robot_handle(PET_HOVER_SVG));
 static PET_HOVER_JUMP_HANDLE: Lazy<svg::Handle> =
     Lazy::new(|| svg::Handle::from_memory(PET_HOVER_JUMP_SVG.as_bytes()));
 static PET_BEAUTY_HANDLE: Lazy<ImageHandle> = Lazy::new(|| {
@@ -372,6 +376,53 @@ pub fn avatar_preview(avatar: TaskPetAvatarKind, size: f32) -> Element<'static, 
         TaskPetAvatarKind::Beauty => human_pet_sprite(PET_BEAUTY_LEFT_HANDLE.clone(), size, 0.0),
         TaskPetAvatarKind::Handsome => {
             human_pet_sprite(PET_HANDSOME_LEFT_HANDLE.clone(), size, 0.0)
+        }
+    }
+}
+
+fn composer_robot_handle(source: &str) -> svg::Handle {
+    svg::Handle::from_memory(
+        source
+            .replacen(
+                r#"viewBox="0 0 128 128" shape-rendering="crispEdges">"#,
+                r##"viewBox="8 15 112 72" shape-rendering="crispEdges">
+  <defs>
+    <clipPath id="head-and-arms">
+      <path d="M0 0h128v72H0z M0 76h38v12H0z M90 76h38v12H90z"/>
+    </clipPath>
+  </defs>
+  <rect x="49" y="67" width="30" height="14" fill="#5c8cff" stroke="#061047" stroke-width="3"/>
+  <rect x="40" y="80" width="48" height="16" fill="#4f7dff" stroke="#061047" stroke-width="4"/>
+  <g clip-path="url(#head-and-arms)">"##,
+                1,
+            )
+            .replacen("</svg>", "</g></svg>", 1)
+            .into_bytes(),
+    )
+}
+
+/// 聊天输入框上的伙伴预览。悬停反馈只影响此处的形象。
+pub fn composer_avatar(avatar: TaskPetAvatarKind, size: f32) -> Element<'static, Message> {
+    let portrait_height = size * COMPOSER_PORTRAIT_HEIGHT_RATIO;
+    let portrait = |handle, y| {
+        Image::new(handle)
+            .crop(Rectangle { x: 0, y, width: 256, height: 174 })
+            .width(size)
+            .height(portrait_height)
+            .into()
+    };
+
+    match avatar {
+        TaskPetAvatarKind::None => Space::new().width(size).height(portrait_height).into(),
+        TaskPetAvatarKind::Beauty => portrait(PET_BEAUTY_LEFT_HANDLE.clone(), 12),
+        TaskPetAvatarKind::Handsome => portrait(PET_HANDSOME_LEFT_HANDLE.clone(), 13),
+        TaskPetAvatarKind::Robot => {
+            let height = size * COMPOSER_ROBOT_HEIGHT_RATIO;
+            let sprite = |handle| svg::Svg::new(handle).width(size).height(height);
+            iced::widget::hover(
+                sprite(COMPOSER_ROBOT_IDLE.clone()),
+                sprite(COMPOSER_ROBOT_HOVER.clone()),
+            )
         }
     }
 }

@@ -113,18 +113,20 @@ fn chat_mode_control<'a>(app: &HeaderInput<'_>) -> Element<'a, HeaderAction> {
             .style(move |theme, status| chat_mode_button_style(theme, status, active))
             .on_press(HeaderAction::Mode(mode))
     };
-    row![
-        mode_button(
-            I18n::new(app.desktop_locale).__("对话"),
-            false
-        ),
-        mode_button(
-            I18n::new(app.desktop_locale).__("轨迹"),
-            true
-        ),
-    ]
-    .spacing(3)
-    .align_y(Alignment::Center)
+    container(
+        row![
+            mode_button(I18n::new(app.desktop_locale).__("对话"), false),
+            mode_button(I18n::new(app.desktop_locale).__("轨迹"), true),
+        ]
+        .spacing(2)
+        .align_y(Alignment::Center),
+    )
+    .padding(2)
+    .style(|theme: &Theme| iced::widget::container::Style {
+        background: Some(theme.palette().text.scale_alpha(0.055).into()),
+        border: iced::border::rounded(999),
+        ..Default::default()
+    })
     .into()
 }
 

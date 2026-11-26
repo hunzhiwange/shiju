@@ -8,8 +8,8 @@ use iced::{Background, Border, Color, Theme};
 
 use desktop_theme::theme_catalog::ChromeStyleOverrides;
 
-pub const BOTTOM_BAR_ICON_BUTTON_SIZE: f32 = 24.0;
-pub const BOTTOM_BAR_ICON_SIZE: f32 = 12.0;
+pub const BOTTOM_BAR_ICON_BUTTON_SIZE: f32 = 34.0;
+pub const BOTTOM_BAR_ICON_SIZE: f32 = 17.0;
 pub const BOTTOM_BAR_LARGE_ICON_SIZE: f32 = 14.0;
 pub const BOTTOM_BAR_CHEVRON_ICON_SIZE: f32 = 11.0;
 pub const BOTTOM_BAR_LABEL_SIZE: f32 = 12.0;
@@ -22,25 +22,7 @@ pub use super::quick_styles::*;
 
 pub use desktop_ui_controls::tooltip::tooltip_dark_style;
 
-/// 生成方形图标按钮样式
-///
-/// 根据按钮状态和启用状态返回相应的样式配置。
-/// 悬停时显示弱背景色，按下时显示强背景色，支持禁用状态视觉反馈。
-///
-/// # 参数
-///
-/// * `theme` - iced 主题引用，用于获取调色板颜色
-/// * `status` - 按钮当前状态（Active、Hovered、Pressed、Disabled）
-/// * `enabled` - 按钮是否启用，影响文字颜色
-///
-/// # 返回值
-///
-/// 返回配置好的 `button::Style` 实例：
-/// - 悬停状态：弱背景色（35% 透明度）
-/// - 按下状态：强背景色（45% 透明度）
-/// - 其他状态：透明背景
-/// - 6px 圆角，无边框
-/// - 启用时使用主题文字颜色，禁用时使用弱背景文字颜色
+/// 无描边的图标按钮，悬停与按下时显示底色。
 pub use super::styles::square_icon_button_style;
 
 /// 生成无边框圆形图标按钮样式
@@ -56,23 +38,21 @@ pub use super::styles::selector_chevron_color;
 
 pub use super::styles::selector_pill_button_style;
 
+pub fn composer_selector_button_style(
+    theme: &Theme,
+    status: button::Status,
+    highlighted: bool,
+) -> button::Style {
+    if highlighted {
+        selector_pill_button_style(theme, status, true)
+    } else {
+        round_icon_button_style(theme, status, status != button::Status::Disabled)
+    }
+}
+
 pub use super::styles::selectable_list_button_style;
 
-/// 生成弹出框容器样式
-///
-/// 返回适用于弹出菜单、下拉面板等浮动组件的容器样式。
-/// 样式包含高不透明度背景和细边框，与主题颜色协调。
-///
-/// # 参数
-///
-/// * `theme` - iced 主题引用，用于获取调色板颜色
-///
-/// # 返回值
-///
-/// 返回配置好的 `container::Style` 实例：
-/// - 背景：主题背景色（98% 不透明度）
-/// - 1px 强背景色边框
-/// - 8px 圆角
+/// 模型、技能和快捷操作共用的不透明弹出菜单表面。
 pub use super::styles::popover_style;
 
 /// 生成输入卡片容器样式
@@ -98,10 +78,7 @@ pub fn input_card_style(
     chrome: Option<&ChromeStyleOverrides>,
 ) -> container::Style {
     let is_dark = is_dark_theme(theme);
-    let default_bg =
-        desktop_theme::theme_catalog::input_surface_color(theme, if is_dark { 0.96 } else { 1.0 });
-    let chrome_bg = chrome.and_then(|c| c.input_bg.or(c.panel_bg));
-    let base_bg = chrome_bg.unwrap_or(default_bg);
+    let base_bg = input_surface(theme, chrome);
     let palette = theme.extended_palette();
     let default_border = if is_dark {
         palette.background.strong.color.scale_alpha(0.72)
@@ -137,6 +114,87 @@ pub fn input_card_style(
     }
 }
 
+fn input_surface(theme: &Theme, chrome: Option<&ChromeStyleOverrides>) -> Color {
+    chrome.and_then(|c| c.input_bg.or(c.panel_bg)).unwrap_or_else(|| {
+        desktop_theme::theme_catalog::input_surface_color(
+            theme,
+            if is_dark_theme(theme) { 0.96 } else { 1.0 },
+        )
+    })
+}
+
+pub(super) const COMPOSER_RIM: f32 = 1.0;
+
+fn composer_radius(chrome: &ChromeStyleOverrides) -> f32 {
+    chrome.radius_px.unwrap_or(22.0)
+}
+
+pub(super) fn chat_composer_style(
+    theme: &Theme,
+    drop_hovered: bool,
+    chrome: &ChromeStyleOverrides,
+) -> container::Style {
+    let is_dark = is_dark_theme(theme);
+    let border = chrome.input_border.or(chrome.panel_border);
+    let color = if drop_hovered {
+        theme.palette().primary.scale_alpha(0.82)
+    } else {
+        border.unwrap_or_else(|| theme.palette().text.scale_alpha(if is_dark { 0.11 } else { 0.09 }))
+    };
+    container::Style {
+        border: Border {
+            width: COMPOSER_RIM,
+            color,
+            radius: composer_radius(chrome).into(),
+        },
+        shadow: iced::Shadow {
+            color: Color::BLACK.scale_alpha(if is_dark { 0.24 } else { 0.08 }),
+            offset: iced::Vector::new(0.0, 8.0),
+            blur_radius: 26.0,
+        },
+        ..Default::default()
+    }
+}
+
+pub(super) fn composer_body_style(
+    theme: &Theme,
+    drop_hovered: bool,
+    chrome: &ChromeStyleOverrides,
+) -> container::Style {
+    let input = input_card_style(theme, drop_hovered, Some(chrome));
+    container::Style {
+        background: input.background,
+        border: Border {
+            radius: iced::border::top((composer_radius(chrome) - COMPOSER_RIM).max(0.0)),
+            ..Border::default()
+        },
+        ..Default::default()
+    }
+}
+
+pub(super) fn composer_context_style(
+    theme: &Theme,
+    chrome: &ChromeStyleOverrides,
+) -> container::Style {
+    let base = input_surface(theme, Some(chrome));
+    let text = chrome.input_text.unwrap_or_else(|| theme.palette().text);
+    let tint = if is_dark_theme(theme) { 0.055 } else { 0.032 };
+    let tone = Color::from_rgba(
+        base.r + (text.r - base.r) * tint,
+        base.g + (text.g - base.g) * tint,
+        base.b + (text.b - base.b) * tint,
+        base.a,
+    );
+    container::Style {
+        background: Some(Background::Color(tone)),
+        border: Border {
+            radius: iced::border::bottom((composer_radius(chrome) - COMPOSER_RIM).max(0.0)),
+            ..Border::default()
+        },
+        ..Default::default()
+    }
+}
+
 pub fn manual_context_card_style(theme: &Theme) -> container::Style {
     let is_dark = is_dark_theme(theme);
     let primary = theme.palette().primary;
@@ -155,10 +213,9 @@ pub fn manual_context_card_style(theme: &Theme) -> container::Style {
             1.0,
         )
     };
-    let border = if is_dark { primary.scale_alpha(0.34) } else { primary.scale_alpha(0.24) };
     container::Style {
         background: Some(Background::Color(background)),
-        border: Border { width: 1.0, color: border, radius: 12.0.into() },
+        border: Border { radius: 12.0.into(), ..Border::default() },
         ..Default::default()
     }
 }
@@ -191,21 +248,21 @@ pub fn manual_context_card_button_style(theme: &Theme, status: button::Status) -
 /// # 参数
 ///
 /// * `theme` - iced 主题引用，用于获取调色板颜色
-/// * `_status` - 编辑器状态（当前未使用）
+/// * `status` - 编辑器焦点状态
 /// * `requesting` - 是否正在发送请求，影响文字颜色
 /// * `chrome` - 可选的活动主题控件皮肤覆盖
 ///
 /// # 返回值
 ///
 /// 返回配置好的 `text_editor::Style` 实例：
-/// - 透明背景，无边框
+/// - 聚焦时在输入区内部显示主题色反馈
 /// - 普通状态：主题文字颜色
 /// - 请求中状态：次要色文字颜色
 /// - 选中文本：主色背景（30% 透明度）
 /// - 占位符：根据主题亮度自动调整（深色主题 60% 透明度，浅色主题 80% 透明度）
 pub fn editor_style(
     theme: &Theme,
-    _status: text_editor::Status,
+    status: text_editor::Status,
     requesting: bool,
     chrome: Option<&ChromeStyleOverrides>,
 ) -> text_editor::Style {
@@ -225,11 +282,34 @@ pub fn editor_style(
     } else {
         p.secondary.base.text.scale_alpha(0.56)
     };
+    let focused = matches!(status, text_editor::Status::Focused { .. });
     text_editor::Style {
-        background: Background::Color(Color::TRANSPARENT),
-        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 0.0.into() },
+        background: Background::Color(if focused {
+            palette.primary.scale_alpha(if is_dark { 0.045 } else { 0.028 })
+        } else {
+            Color::TRANSPARENT
+        }),
+        border: Border {
+            width: if focused { 1.0 } else { 0.0 },
+            color: if focused { palette.primary.scale_alpha(0.42) } else { Color::TRANSPARENT },
+            radius: 13.0.into(),
+        },
         value,
         selection: theme.palette().primary.scale_alpha(if is_dark { 0.26 } else { 0.18 }),
         placeholder,
     }
+}
+
+/// 聊天编辑区沿用外层卡片的轮廓，聚焦时通过光标呈现输入状态。
+pub fn chat_editor_style(
+    theme: &Theme,
+    requesting: bool,
+    chrome: Option<&ChromeStyleOverrides>,
+) -> text_editor::Style {
+    let mut style = editor_style(theme, text_editor::Status::Active, requesting, chrome);
+    style.placeholder = chrome
+        .and_then(|skin| skin.input_text)
+        .unwrap_or_else(|| theme.palette().text)
+        .scale_alpha(0.60);
+    style
 }

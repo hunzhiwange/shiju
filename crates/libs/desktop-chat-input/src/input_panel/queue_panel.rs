@@ -5,7 +5,7 @@
 //!
 //! # 主要功能
 //!
-//! - 渲染任务队列列表，每个任务项仅展示单行内容预览与图标操作
+//! - 渲染任务队列列表，每条任务有单行摘要与限量附件预览
 //! - 自动截断过长的查询文本（超过42个字符时显示省略号）
 //! - 悬停时在右侧浮层展示完整内容
 //! - 区分引导与下一条任务，使用不同的图标和颜色
@@ -27,8 +27,11 @@ use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
+use super::attachment::{AttachmentDisplayItem, AttachmentDisplayKind, attachment_thumbnail};
 use super::icons::icon_svg;
 use desktop_assets::assets::Icon;
+use desktop_i18n::I18n;
+use desktop_ui_controls::single_line_label::SingleLineLabel;
 
 use super::slice_message::Message;
 
@@ -40,72 +43,31 @@ const QUEUE_SCROLLBAR_WIDTH: u32 = 4;
 const MAX_QUEUE_LABEL_CHARS: usize = 42;
 const QUEUE_ACTION_BUTTON_SIZE: f32 = 22.0;
 const QUEUE_CONTENT_TOOLTIP_MAX_WIDTH: f32 = 360.0;
+const ATTACHMENT_PREVIEW_SLOTS: usize = 2;
+const MAX_OVERFLOW_NAMES: usize = 6;
 
 pub fn is_dark_theme(theme: &Theme) -> bool {
     theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
 }
 
 pub fn queue_item_style(theme: &Theme, is_next: bool) -> iced::widget::container::Style {
-    let is_dark = is_dark_theme(theme);
+    let palette = theme.palette();
     let background = if is_next {
-        if is_dark {
-            Color::from_rgba8(27, 35, 50, 0.98)
-        } else {
-            Color::from_rgba8(242, 247, 255, 1.0)
-        }
-    } else if is_dark {
-        Color::from_rgba8(25, 27, 32, 0.96)
+        palette.primary.scale_alpha(if is_dark_theme(theme) { 0.18 } else { 0.12 })
     } else {
-        Color::from_rgba8(251, 252, 253, 1.0)
+        palette.text.scale_alpha(0.045)
     };
-    let border_color = if is_next {
-        if is_dark {
-            Color::from_rgba8(93, 140, 255, 0.78)
-        } else {
-            Color::from_rgba8(111, 150, 255, 0.42)
-        }
-    } else if is_dark {
-        Color::from_rgba8(54, 58, 66, 0.94)
-    } else {
-        theme.extended_palette().background.strong.color.scale_alpha(0.72)
-    };
-
     iced::widget::container::Style {
         background: Some(Background::Color(background)),
-        border: Border { width: 1.0, color: border_color, radius: 12.0.into() },
-        shadow: iced::Shadow {
-            color: Color::BLACK.scale_alpha(if is_dark { 0.18 } else { 0.04 }),
-            offset: iced::Vector::new(0.0, 4.0),
-            blur_radius: 12.0,
-        },
+        border: Border { radius: 10.0.into(), ..Border::default() },
         ..Default::default()
     }
 }
 
 pub fn queue_panel_style(theme: &Theme) -> iced::widget::container::Style {
-    let is_dark = is_dark_theme(theme);
-    let palette = theme.extended_palette();
-
     iced::widget::container::Style {
-        background: Some(Background::Color(if is_dark {
-            Color::from_rgba8(15, 17, 21, 0.96)
-        } else {
-            palette.background.base.color.scale_alpha(0.94)
-        })),
-        border: Border {
-            width: 1.0,
-            color: if is_dark {
-                Color::from_rgba8(47, 51, 59, 0.96)
-            } else {
-                palette.background.strong.color.scale_alpha(0.82)
-            },
-            radius: 14.0.into(),
-        },
-        shadow: iced::Shadow {
-            color: Color::BLACK.scale_alpha(if is_dark { 0.22 } else { 0.06 }),
-            offset: iced::Vector::new(0.0, 2.0),
-            blur_radius: 10.0,
-        },
+        background: Some(Background::Color(theme.palette().text.scale_alpha(0.045))),
+        border: Border { radius: 14.0.into(), ..Border::default() },
         ..Default::default()
     }
 }
@@ -130,6 +92,84 @@ fn queue_content_tooltip(query: String) -> Element<'static, Message> {
     .padding([6, 8])
     .max_width(QUEUE_CONTENT_TOOLTIP_MAX_WIDTH)
     .into()
+}
+
+fn attachment_count(i18n: I18n, attachments: &[AttachmentDisplayItem]) -> String {
+    let key = if attachments.iter().all(|item| item.kind == AttachmentDisplayKind::Image) {
+        "%u 张图片"
+    } else {
+        "%u 个附件"
+    };
+    i18n.format(key, &[attachments.len().into()]).expect("valid queue attachment count")
+}
+
+pub(super) fn queue_preview_label(i18n: I18n, item: &QueuePreview) -> String {
+    if !item.query.trim().is_empty() || item.attachments.is_empty() {
+        return queue_item_label(&item.query);
+    }
+    match item.attachments.as_slice() {
+        [image] if image.kind == AttachmentDisplayKind::Image => i18n.__("图片").to_owned(),
+        [file] => file.name().to_owned(),
+        attachments => attachment_count(i18n, attachments),
+    }
+}
+
+pub(super) fn queue_attachment_previews(
+    i18n: I18n,
+    attachments: &[AttachmentDisplayItem],
+) -> Option<Element<'static, Message>> {
+    if attachments.is_empty() {
+        return None;
+    }
+    let thumbnail_count = if attachments.len() > ATTACHMENT_PREVIEW_SLOTS {
+        ATTACHMENT_PREVIEW_SLOTS - 1
+    } else {
+        attachments.len()
+    };
+    let (visible, hidden) = attachments.split_at(thumbnail_count);
+    let mut previews = row![].spacing(4).align_y(Alignment::Center);
+    for attachment in visible {
+        let thumb = button(attachment_thumbnail(attachment.path.clone(), attachment.kind.clone()))
+            .padding(0)
+            .style(|theme, status| square_icon_button_style(theme, status, true))
+            .on_press(Message::QueueAttachmentOpen(attachment.path.clone()));
+        previews = previews.push(
+            Tooltip::new(
+                thumb,
+                queue_content_tooltip(attachment.name().to_owned()),
+                TooltipPosition::Top,
+            )
+            .gap(5.0),
+        );
+    }
+    if !hidden.is_empty() {
+        let mut summary = attachment_count(i18n, attachments);
+        for attachment in hidden.iter().take(MAX_OVERFLOW_NAMES) {
+            summary.push('\n');
+            summary.extend(
+                attachment
+                    .name()
+                    .chars()
+                    .take(96)
+                    .map(|character| if character.is_control() { ' ' } else { character }),
+            );
+        }
+        if hidden.len() > MAX_OVERFLOW_NAMES {
+            summary.push_str(&format!("\n+{}", hidden.len() - MAX_OVERFLOW_NAMES));
+        }
+        let count = container(text(format!("+{}", hidden.len())).size(11))
+            .padding([0, 6])
+            .center_y(28.0)
+            .style(|theme: &Theme| iced::widget::container::Style {
+                background: Some(theme.palette().text.scale_alpha(0.08).into()),
+                border: Border::default().rounded(8.0),
+                ..Default::default()
+            });
+        previews = previews.push(
+            Tooltip::new(count, queue_content_tooltip(summary), TooltipPosition::Top).gap(5.0),
+        );
+    }
+    Some(previews.into())
 }
 
 pub fn queue_move_availability(index: usize, queue_len: usize) -> (bool, bool) {
@@ -167,7 +207,7 @@ fn queue_action_button(
 /// 该函数创建一个可滚动的任务队列列表，显示所有待处理的查询任务。
 /// 每个任务项包含：
 /// - 状态图标（引导 / 下一条 / 等待）
-/// - 任务序号和单行查询内容预览
+/// - 单行查询与附件预览
 /// - 悬停时右侧展示完整内容
 ///
 /// # 参数
@@ -206,7 +246,7 @@ fn queue_action_button(
 ///                 └── 操作按钮
 /// ```
 pub fn queue_panel(
-    i18n: desktop_i18n::I18n,
+    i18n: I18n,
     queue: Vec<QueuePreview>,
     is_requesting: bool,
 ) -> Element<'static, Message> {
@@ -215,11 +255,6 @@ pub fn queue_panel(
 
     // 遍历队列中的每个任务项，构建对应的 UI 卡片
     for (i, item) in queue.iter().enumerate() {
-        // 获取查询文本的第一行作为显示标签
-        // 如果第一行为空则使用空字符串
-        let label = queue_item_label(&item.query);
-        let full_query = item.query.clone();
-
         let is_next = is_requesting && i == 0;
         let is_guide = item.is_guide;
 
@@ -243,12 +278,14 @@ pub fn queue_panel(
         let status = icon_svg(status_icon, 13.0)
             .style(move |_theme: &Theme, _| svg::Style { color: Some(status_color) });
 
-        // 构建标题文本，格式为 "序号. 查询内容"；悬停时在右侧展示完整内容
-        let title = text(format!("{}. {}", i + 1, label)).size(12).line_height(1.0);
-        let info = container(
-            Tooltip::new(title, queue_content_tooltip(full_query), TooltipPosition::Right).gap(8.0),
-        )
-        .width(Length::Fill);
+        let title = SingleLineLabel::new(queue_preview_label(i18n, item), 13.0);
+        let info: Element<'static, Message> = if item.query.trim().is_empty() {
+            title.into()
+        } else {
+            Tooltip::new(title, queue_content_tooltip(item.query.clone()), TooltipPosition::Right)
+                .gap(8.0)
+                .into()
+        };
         let (can_move_up, can_move_down) = queue_move_availability(i, queue.len());
         let guide_button = queue_action_button(
             Icon::ChatTextFill,
@@ -282,8 +319,11 @@ pub fn queue_panel(
         .spacing(3)
         .align_y(Alignment::Center);
 
-        // 构建行布局：状态图标 + 单行内容（填充剩余宽度）+ 图标操作
-        let row = row![status, info, actions].spacing(8).align_y(Alignment::Center);
+        let mut row = row![status].spacing(8).align_y(Alignment::Center);
+        if let Some(previews) = queue_attachment_previews(i18n, &item.attachments) {
+            row = row.push(previews);
+        }
+        let row = row.push(info).push(actions);
 
         let item_card = container(row)
             .padding([5, 10])
@@ -295,12 +335,14 @@ pub fn queue_panel(
     }
 
     // 构建滚动容器，内容较少时自适应，高度超出后再滚动
-    let queue_list = scrollable(container(queue_items).width(Length::Fill).padding([0, 0]))
-        .width(Length::Fill)
-        .direction(Direction::Vertical(
-            Scrollbar::new().width(QUEUE_SCROLLBAR_WIDTH).scroller_width(QUEUE_SCROLLBAR_WIDTH),
-        ))
-        .height(Length::Shrink);
+    let queue_list = scrollable(
+        container(queue_items).width(Length::Fill).padding(iced::Padding::ZERO.right(7)),
+    )
+    .width(Length::Fill)
+    .direction(Direction::Vertical(
+        Scrollbar::new().width(QUEUE_SCROLLBAR_WIDTH).scroller_width(QUEUE_SCROLLBAR_WIDTH),
+    ))
+    .height(Length::Shrink);
 
     // 构建外层面板容器，仅限制最大高度，避免少量任务时出现空白区域
     container(queue_list)
@@ -315,4 +357,5 @@ pub fn queue_panel(
 pub struct QueuePreview {
     pub query: String,
     pub is_guide: bool,
+    pub attachments: Vec<AttachmentDisplayItem>,
 }

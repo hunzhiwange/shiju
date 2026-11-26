@@ -914,7 +914,6 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
         }
         ChatMessage::AgentRecommendedPromptSelected(index) => {
-            app.session_state.input_popovers.recommended_prompt = false;
             let runtime = app.current_session_runtime();
             let key = runtime.agent.as_deref().unwrap_or(MAIN_AGENT_KEY);
             let prompt = app
@@ -924,14 +923,36 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 .find(|entry| entry.key == key)
                 .and_then(|entry| entry.recommended_prompts.get(index))
                 .cloned();
-            match desktop_chat_input::input_panel::quick_actions::fill_recommendation(
-                &mut app.current_session_runtime_mut().input_editor, prompt.as_deref(),
-            ) {
-                Ok(Some(prompt)) => app.session_state.input_text = prompt,
-                Ok(None) => {},
-                Err(source) => return app.show_localized_toast(crate::app::state::ToastKind::Warning, source, vec![]),
+            super::input::fill_recommended_prompt(app, prompt.as_deref())
+        }
+        ChatMessage::ComposerSceneSelected(scene) => {
+            let popovers = &mut app.session_state.input_popovers;
+            if popovers.scene != scene {
+                popovers.scene = scene;
+                popovers.category = None;
+            }
+            popovers.set_recommended_prompt(false);
+            Task::none()
+        }
+        ChatMessage::ComposerCategorySelected(scene, category) => {
+            let popovers = &mut app.session_state.input_popovers;
+            if popovers.scene == scene
+                && desktop_chat_input::input_panel::starter::category_available(scene, category)
+            {
+                popovers.category = category;
+                popovers.set_recommended_prompt(false);
             }
             Task::none()
+        }
+        ChatMessage::ComposerPromptSelected(scene, category, index) => {
+            let popovers = &app.session_state.input_popovers;
+            if (popovers.scene, popovers.category) != (scene, category) {
+                return Task::none();
+            }
+            let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
+            let prompt =
+                desktop_chat_input::input_panel::starter::prompt_draft(i18n, scene, category, index);
+            super::input::fill_recommended_prompt(app, prompt)
         }
         ChatMessage::SessionAgentSelected(agent) => {
             app.session_state.input_popovers.recommended_prompt = false;
@@ -997,7 +1018,6 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.invalidate_project_chat_preferences_read();
             app.session_state.acp_agent = acp_agent.clone();
             app.popover_visibility.acp = false;
-            app.popover_visibility.reasoning_effort = false;
             app.popover_visibility.session_tool_selector = false;
             if let Some(backend) = acp_agent {
                 Task::batch([
@@ -1144,9 +1164,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.popover_visibility.model = false;
             app.popover_visibility.mode = false;
             app.popover_visibility.send_mode = false;
-            app.popover_visibility.file = false;
+            app.popover_visibility = desktop_chat_input::popovers::close(
+                app.popover_visibility,
+                desktop_chat_input::popovers::Popover::File,
+            );
             app.popover_visibility.acp = false;
-            app.popover_visibility.reasoning_effort = false;
             app.popover_visibility.usage = false;
             app.popover_visibility.session_actions = false;
             app.popover_visibility.executor = false;

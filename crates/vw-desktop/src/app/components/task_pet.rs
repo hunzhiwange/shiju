@@ -88,3 +88,7 @@ pub(super) fn avatar_preview(
 ) -> iced::Element<'static, Message> {
     desktop_task_board::task_pet::avatar_preview(avatar, size).map(map)
 }
+
+pub(super) fn composer_avatar(avatar: TaskPetAvatarKind, size: f32) -> iced::Element<'static, Message> {
+    desktop_task_board::task_pet::composer_avatar(avatar, size).map(map)
+}

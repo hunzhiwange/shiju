@@ -1,11 +1,8 @@
-//! 验证空会话占位内容、工作区标题及明暗主题胶囊样式。
+//! 验证空会话占位内容、工作区标题及明暗主题。
 //! 亮度阈值两侧和恰好位于阈值的主题 fixture 用于锁定严格比较语义。
 
-use super::{
-    empty_session_title, is_dark_theme, login_greeting,
-    placeholder_chip_style,
-};
-use iced::{Background, Color, Theme, theme::Palette};
+use super::{empty_session_title, is_dark_theme, login_greeting};
+use iced::{Color, Theme, theme::Palette};
 
 #[test]
 fn empty_session_title_matches_workspace_mode() {
@@ -30,36 +27,13 @@ fn is_dark_theme_detects_dark_mode() {
 }
 
 #[test]
-fn placeholder_chip_style_light_theme_has_expected_structure() {
-    let style = placeholder_chip_style(&Theme::Light);
-    assert!(style.background.is_some());
-    assert_eq!(style.border.width, 1.0);
-}
-
-#[test]
-fn placeholder_chip_style_dark_theme_has_expected_structure() {
-    let style = placeholder_chip_style(&Theme::Dark);
-    assert!(style.background.is_some());
-    assert_eq!(style.border.width, 1.0);
-}
-
-#[test]
-fn placeholder_chip_style_preserves_pill_radius_and_theme_surfaces() {
-    let light = placeholder_chip_style(&Theme::Light);
-    let dark = placeholder_chip_style(&Theme::Dark);
-
-    assert_eq!(light.background, Some(Background::Color(Color::from_rgba8(247, 248, 250, 1.0))));
-    assert_eq!(dark.background, Some(Background::Color(Color::from_rgba8(24, 25, 29, 0.92))));
-    assert_eq!(light.border.radius, 999.0.into());
-    assert_eq!(dark.border.radius, 999.0.into());
-}
-
-#[test]
-fn placeholder_chip_style_keeps_lightweight_defaults() {
-    let style = placeholder_chip_style(&Theme::Light);
-
-    assert_eq!(style.text_color, None);
-    assert_eq!(style.shadow, iced::Shadow::default());
+fn workspace_details_use_muted_text_in_both_themes() {
+    for theme in [Theme::Light, Theme::Dark] {
+        assert_eq!(
+            super::context_text(&theme).color,
+            Some(theme.palette().text.scale_alpha(0.72)),
+        );
+    }
 }
 
 #[test]

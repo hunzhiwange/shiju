@@ -25,6 +25,10 @@ pub(super) fn entry<'a>(app: &'a App, runtime: Option<&crate::app::state::Sessio
     shared::entry(I18n::new(app.general_settings.desktop_locale), true,
         !runtime.request_lifecycle.is_requesting && !runtime.acp_options_state.pending && runtime.acp_options_state.source_pending.is_none(), emit)
 }
+pub(super) fn reasoning_control(app: &App, runtime: &crate::app::state::SessionRuntimeState) -> Option<Element<'static, Message>> {
+    app.session_state.active_session_id.as_ref()?;
+    shared::reasoning_effort_control(&state(app, runtime), emit)
+}
 pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
     let runtime = app.current_session_runtime();
     source_controls_for(app, &runtime)

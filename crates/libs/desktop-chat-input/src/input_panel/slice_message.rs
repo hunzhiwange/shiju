@@ -20,6 +20,7 @@ pub enum Message {
     CutInputSelection,
     SelectAllInput,
     QueueGuide(usize),
+    QueueAttachmentOpen(String),
     QueueEdit(usize),
     QueueCopy(usize),
     QueueUp(usize),

@@ -2,7 +2,6 @@
 //! 键盘 fixture 区分文件搜索接管与编辑器默认行为，并覆盖原生平台快捷键。
 
 use super::input_editor::{
-    INPUT_LINE_HEIGHT, INPUT_MAX_LINES, INPUT_MIN_LINES, INPUT_VERTICAL_PADDING,
     binding_from_key_press, build_input_editor, input_context_menu,
     input_context_menu_button_style, input_context_menu_style,
 };
@@ -52,22 +51,38 @@ fn assert_custom_chat(binding: Option<Binding<Message>>, expected: fn(&Message) 
     }
 }
 
-#[test]
-fn editor_height_clamps_between_minimum_and_maximum_lines() {
+#[tokio::test(flavor = "multi_thread")]
+async fn editor_height_follows_visual_lines_and_caps_the_scroll_viewport() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{layout, widget::Tree};
+    use iced::{Font, Pixels, Size};
+
     let app = editor_state();
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("renderer");
+    let layout = |draft: &str, width, height| {
+        let content = Content::with_text(draft);
+        let mut editor = build_editor(&app, &content);
+        let mut tree = Tree::new(editor.as_widget());
+        editor.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, Size::new(width, height)),
+        )
+    };
 
-    let (_, empty_height) = build_editor(&app, &Content::new(), false, false);
-    assert_eq!(
-        empty_height,
-        INPUT_MIN_LINES as f32 * INPUT_LINE_HEIGHT + INPUT_VERTICAL_PADDING * 2.0
-    );
+    assert_eq!(layout("", 600.0, 800.0).size().height, 95.0);
+    assert_eq!(layout("one\ntwo\nthree\nfour", 600.0, 800.0).size().height, 121.0);
 
-    let many_lines = Content::with_text("1\n2\n3\n4\n5\n6\n7\n8\n9\n10");
-    let (_, max_height) = build_editor(&app, &many_lines, true, true);
-    assert_eq!(
-        max_height,
-        INPUT_MAX_LINES as f32 * INPUT_LINE_HEIGHT + INPUT_VERTICAL_PADDING * 2.0
-    );
+    let wrapped = layout(&"wrapped".repeat(18), 160.0, 800.0);
+    assert!(wrapped.size().height > 95.0);
+    let long = "one\n".repeat(20);
+    let capped = layout(&long, 600.0, 800.0);
+    assert_eq!(capped.size().height, 303.0);
+    assert!(capped.children()[0].children()[0].size().height > capped.size().height);
+    assert_eq!(layout(&long, 600.0, 300.0).size().height, 180.0);
 }
 
 #[test]
@@ -77,10 +92,9 @@ fn build_input_editor_wraps_context_menu_when_open() {
     app.context_menu_open = true;
     let content = Content::with_text("hello\nworld");
 
-    let (element, height) = build_editor(&app, &content, false, false);
+    let element = build_editor(&app, &content);
 
     assert_eq!(element.as_widget().size().width, Length::Fill);
-    assert_eq!(height, 3.0 * INPUT_LINE_HEIGHT + INPUT_VERTICAL_PADDING * 2.0);
 }
 
 #[test]
@@ -90,10 +104,9 @@ fn build_input_editor_ignores_context_menu_anchor_when_closed() {
     app.context_menu_open = false;
     let content = Content::with_text("one\ntwo\nthree\nfour\nfive");
 
-    let (element, height) = build_editor(&app, &content, false, false);
+    let element = build_editor(&app, &content);
 
     assert_eq!(element.as_widget().size().width, Length::Fill);
-    assert_eq!(height, 5.0 * INPUT_LINE_HEIGHT + INPUT_VERTICAL_PADDING * 2.0);
 }
 
 #[test]
@@ -299,16 +312,6 @@ fn native_enter_with_each_non_shift_modifier_delegates_to_editor() {
     }
 }
 
-#[test]
-fn editor_style_callbacks_can_be_invoked_through_construction_inputs() {
-    let app = editor_state();
-    let content = Content::with_text("one\ntwo\nthree\nfour");
-    let (_, height) = build_editor(&app, &content, true, false);
-
-    assert_eq!(height, 4.0 * INPUT_LINE_HEIGHT + INPUT_VERTICAL_PADDING * 2.0);
-    assert!(Theme::Dark.palette().background.r < Theme::Light.palette().background.r);
-}
-
 fn editor_state() -> super::input_editor::EditorState {
     super::input_editor::EditorState {
         show_slash_palette: false,
@@ -323,13 +326,6 @@ fn editor_state() -> super::input_editor::EditorState {
 fn build_editor<'a>(
     state: &super::input_editor::EditorState,
     content: &'a Content,
-    _requesting: bool,
-    task: bool,
-) -> (iced::Element<'a, Message>, f32) {
-    build_input_editor(
-        state.clone(),
-        content,
-        iced::widget::text_editor::default,
-        task,
-    )
+) -> iced::Element<'a, Message> {
+    build_input_editor(state.clone(), content, iced::widget::text_editor::default, false)
 }

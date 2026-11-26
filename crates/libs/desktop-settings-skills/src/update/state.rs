@@ -26,6 +26,7 @@ pub struct State {
     pub local_import_busy: bool,
     /// 当前展示的技能目录项
     pub catalog: Vec<SkillsCatalogItem>,
+    pub expert_skill_ids: std::collections::BTreeSet<String>,
     /// 当前展示的插件目录项
     pub plugin_catalog: Vec<PluginCatalogItem>,
     pub plugin_install: Option<crate::plugin_state::PluginInstallForm>,
@@ -79,6 +80,7 @@ impl Default for State {
             loading: false,
             local_import_busy: false,
             catalog: Vec::new(),
+            expert_skill_ids: Default::default(),
             plugin_catalog: Vec::new(),
             plugin_install: None,
             plugin_operation_id: 0,

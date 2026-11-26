@@ -7,14 +7,9 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use desktop_assets::assets::{self, Icon};
 use crate::presentation::{bold_font, icon_svg, is_dark_theme};
-fn muted_icon_color(theme: &Theme) -> Color {
-    if is_dark_theme(theme) { theme.palette().text.scale_alpha(0.75) }
-    else { theme.extended_palette().secondary.base.text.scale_alpha(0.85) }
-}
 pub struct EmptySessionInput {
     pub greeting: Option<String>,
     pub title: String,
-    pub path: String,
     pub git: Option<(String, String)>,
 }
 
@@ -29,27 +24,6 @@ pub fn empty_session_title(work_mode: bool) -> &'static str {
 fn login_greeting(name: &str, hour: u32) -> String {
     let greeting = if hour < 12 { "上午好" } else { "下午好" };
     format!("{greeting}，{name}")
-}
-
-fn placeholder_chip_style(theme: &Theme) -> iced::widget::container::Style {
-    let is_dark = is_dark_theme(theme);
-    iced::widget::container::Style {
-        background: Some(Background::Color(if is_dark {
-            Color::from_rgba8(24, 25, 29, 0.92)
-        } else {
-            Color::from_rgba8(247, 248, 250, 1.0)
-        })),
-        border: Border {
-            width: 1.0,
-            color: if is_dark {
-                Color::from_rgba8(45, 48, 54, 0.92)
-            } else {
-                Color::from_rgba8(226, 231, 237, 1.0)
-            },
-            radius: 999.0.into(),
-        },
-        ..Default::default()
-    }
 }
 
 /// 执行 session_loading_placeholder 对应的模块功能。
@@ -211,78 +185,70 @@ pub fn session_loading_placeholder<'a, Message: Clone + 'static>(label: &'a str)
     .into()
 }
 
-/// 执行 empty_session_placeholder 对应的模块功能。
-///
-/// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
-pub fn empty_session_placeholder<'a, Message: Clone + 'static>(input: EmptySessionInput) -> Element<'a, Message> {
-    let logo = container(
-        Image::new(assets::get_image(Icon::Logo))
-            .width(Length::Fixed(96.0))
-            .height(Length::Fixed(96.0)),
-    )
-    .width(Length::Fixed(96.0))
-    .height(Length::Fixed(96.0));
+/// Keep the welcome and scene selector readable when a split pane is resized.
+pub fn empty_session_placeholder<'a, Message: Clone + 'static>(
+    input: EmptySessionInput,
+    scene_selector: impl Fn(bool) -> Element<'a, Message> + 'a,
+) -> Element<'a, Message> {
+    iced::widget::responsive(move |available| {
+        let compact = available.width < 510.0 || available.height < 208.0;
+        let mut content = column![].spacing(if compact { 6 } else { 10 }).align_x(Alignment::Center);
+        if available.height >= 150.0 {
+            let logo_size = if compact { 36 } else { 52 };
+            content = content.push(
+                Image::new(assets::get_image(Icon::Logo)).width(logo_size).height(logo_size),
+            );
+        }
 
-    let path_text = input.path;
-    let mut content = column![logo].spacing(12).align_x(iced::alignment::Horizontal::Center);
-    if let Some(greeting) = input.greeting {
-        content = content.push(
-            text(greeting)
-            .size(26)
-            .font(bold_font()),
-        );
-    }
-    content = content
-        .push(
-            text(input.title)
-            .size(26)
-            .font(bold_font()),
-        )
-        .push(text(path_text).size(14).style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.palette().text.scale_alpha(0.72)),
-        }));
+        if let Some(greeting) = &input.greeting {
+            content = content.push(
+                text(greeting.clone())
+                    .size(if compact { 13 } else { 16 })
+                    .align_x(Alignment::Center)
+                    .style(context_text),
+            );
+        }
+        content = content
+            .push(
+                text(input.title.clone())
+                    .size(if compact { 29 } else { 38 })
+                    .font(bold_font())
+                    .wrapping(text::Wrapping::WordOrGlyph)
+                    .align_x(Alignment::Center),
+            )
+            .push(scene_selector(available.width < 310.0));
 
-    if let Some((branch_text, modified_text)) = input.git {
-        let branch_row = container(
-            row![
-                icon_svg(Icon::GitBranch).style(|theme: &Theme, _status| svg::Style {
-                    color: Some(muted_icon_color(theme))
-                }),
-                text(branch_text).size(15),
-            ]
-            .spacing(6)
-            .align_y(Alignment::Center),
-        )
-        .padding([6, 10])
-        .style(placeholder_chip_style);
-        let modified_row = container(
-            row![
-                icon_svg(Icon::Clock).style(|theme: &Theme, _status| svg::Style {
-                    color: Some(muted_icon_color(theme))
-                }),
-                text(modified_text).size(15),
-            ]
-            .spacing(6)
-            .align_y(Alignment::Center),
-        )
-        .padding([6, 10])
-        .style(placeholder_chip_style);
+        if let Some((branch, modified)) = &input.git {
+            let detail = |icon, label: String| {
+                row![
+                    icon_svg(icon).style(|theme: &Theme, _| svg::Style { color: context_text(theme).color }),
+                    text(label).size(12).wrapping(text::Wrapping::WordOrGlyph).style(context_text),
+                ]
+                .spacing(6)
+                .align_y(Alignment::Center)
+            };
+            content = content.push(
+                row![detail(Icon::GitBranch, branch.clone()), detail(Icon::Clock, modified.clone())]
+                    .spacing(if compact { 10 } else { 16 })
+                    .wrap()
+                    .vertical_spacing(5)
+                    .align_x(iced::alignment::Horizontal::Center),
+            );
+        }
 
-        content = content.push(
-            column![branch_row, modified_row]
-                .spacing(10)
-                .align_x(iced::alignment::Horizontal::Center),
-        );
-    }
-
-    container(container(content).padding([30, 34]))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .center_x(Length::Fill)
-        .center_y(Length::Fill)
-        .padding(28)
-        .into()
+        container(content)
+            .center_x(Length::Fill)
+            .center_y(Length::Fill)
+            .padding([8, 10])
+            .into()
+    })
+    .into()
 }
+
+fn context_text(theme: &Theme) -> text::Style {
+    text::Style { color: Some(theme.palette().text.scale_alpha(0.72)) }
+}
+
 #[cfg(test)]
 #[path = "empty_tests.rs"]
 mod empty_tests;
@@ -293,7 +259,6 @@ impl EmptySessionInput {
         name: Option<&str>,
         hour: u32,
         work_mode: bool,
-        path: String,
         git: Option<(String, String)>,
     ) -> Self {
         Self {
@@ -302,7 +267,6 @@ impl EmptySessionInput {
                     .expect("valid greeting template")
             }),
             title: i18n.__(empty_session_title(work_mode)).to_owned(),
-            path,
             git: git.map(|(branch, modified)| {
                 (i18n.format("分支 %s", &[branch.into()]).expect("valid branch template"), modified)
             }),

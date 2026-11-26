@@ -28,21 +28,19 @@ fn set_all_popovers(app: &mut PopoverFixture, visible: bool) {
     app.input_popovers.send_mode = visible;
     app.input_popovers.file = visible;
     app.input_popovers.acp = visible;
-    app.input_popovers.reasoning_effort = visible;
     app.input_popovers.usage = visible;
     app.input_popovers.session_tool_selector = visible;
     app.input_popovers.session_actions = visible;
     app.input_popovers.executor = visible;
 }
 
-fn visibility(app: &PopoverFixture) -> [bool; 10] {
+fn visibility(app: &PopoverFixture) -> [bool; 9] {
     [
         app.input_popovers.model,
         app.input_popovers.mode,
         app.input_popovers.send_mode,
         app.input_popovers.file,
         app.input_popovers.acp,
-        app.input_popovers.reasoning_effort,
         app.input_popovers.usage,
         app.input_popovers.session_tool_selector,
         app.input_popovers.session_actions,
@@ -75,7 +73,7 @@ fn opening_acp_popover_with_empty_inventory_requests_bootstrap_and_closes_peers(
 
     assert_eq!(
         visibility(&app),
-        [false, false, false, false, true, false, false, false, false, false]
+        [false, false, false, false, true, false, false, false, false]
     );
     assert!(app.acp_agents.is_empty());
 }
@@ -89,7 +87,7 @@ fn close_popovers_clears_every_popover_and_model_hover() {
 
     let _ = update(&mut app, domain::Message::CloseAll);
 
-    assert_eq!(visibility(&app), [false; 10]);
+    assert_eq!(visibility(&app), [false; 9]);
     assert!(app.model_popover_hover.is_none());
 }
 
@@ -101,9 +99,8 @@ fn individual_close_messages_only_close_their_target() {
         (domain::Message::Close(Popover::SendMode), 2),
         (domain::Message::Close(Popover::File), 3),
         (domain::Message::Close(Popover::Acp), 4),
-        (domain::Message::Close(Popover::ReasoningEffort), 5),
-        (domain::Message::Close(Popover::Usage), 6),
-        (domain::Message::Close(Popover::Executor), 9),
+        (domain::Message::Close(Popover::Usage), 5),
+        (domain::Message::Close(Popover::Executor), 8),
     ];
 
     for (message, closed_index) in cases {
@@ -112,7 +109,7 @@ fn individual_close_messages_only_close_their_target() {
 
         let _ = update(&mut app, message);
 
-        let mut expected = [true; 10];
+        let mut expected = [true; 9];
         expected[closed_index] = false;
         assert_eq!(visibility(&app), expected);
     }

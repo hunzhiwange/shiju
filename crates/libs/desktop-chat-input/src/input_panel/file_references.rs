@@ -231,37 +231,14 @@ pub fn tooltip_dark_style(_theme: &Theme) -> iced::widget::container::Style {
     }
 }
 
-/// 文件引用卡片样式
-///
-/// 根据悬停状态动态调整背景透明度和边框颜色。
-/// 悬停时显示主题色边框，增强交互反馈。
-///
-/// # 参数
-///
-/// - `theme` - 当前主题
-/// - `is_hovered` - 是否处于悬停状态
-///
-/// # 返回值
-///
-/// 返回配置好的容器样式
+/// 区分文件引用的静止与悬停状态。
 pub fn file_reference_style(theme: &Theme, is_hovered: bool) -> iced::widget::container::Style {
-    let p = theme.extended_palette();
-    // 悬停时背景更不透明
-    let bg = if is_hovered {
-        p.background.weak.color.scale_alpha(0.9)
-    } else {
-        p.background.weak.color.scale_alpha(0.6)
-    };
-    // 悬停时显示主题色边框
-    let border_color = if is_hovered {
-        theme.palette().primary.scale_alpha(0.45)
-    } else {
-        p.background.strong.color.scale_alpha(0.9)
-    };
+    let palette = theme.palette();
+    let bg = if is_hovered { palette.primary.scale_alpha(0.14) } else { palette.text.scale_alpha(0.06) };
     iced::widget::container::Style {
         background: Some(Background::Color(bg)),
-        border: Border { radius: 8.0.into(), width: 1.0, color: border_color },
-        text_color: Some(theme.palette().text),
+        border: Border { radius: 10.0.into(), ..Border::default() },
+        text_color: Some(palette.text),
         ..Default::default()
     }
 }
@@ -270,7 +247,7 @@ pub fn file_reference_style(theme: &Theme, is_hovered: bool) -> iced::widget::co
 ///
 /// 卡片显示文件名和位置信息，悬停时：
 /// - 显示删除按钮替代文件图标
-/// - 边框变为主题色
+/// - 背景带主题色
 /// - 显示完整路径的工具提示
 ///
 /// # 参数
@@ -456,9 +433,8 @@ pub fn render_file_references<'a>(
     file_mentions: &[String],
     hovered_index: Option<usize>,
 ) -> Element<'a, Message> {
-    // 空列表返回空白组件
     if file_mentions.is_empty() {
-        return iced::widget::Space::new().into();
+        return iced::widget::Space::new().height(Length::Fixed(0.0)).into();
     }
 
     // 构建卡片行

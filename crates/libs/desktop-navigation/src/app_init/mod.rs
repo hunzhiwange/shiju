@@ -124,6 +124,7 @@ pub fn sidebar(cfg: &serde_json::Value) -> crate::panel::work_sidebar::State {
         work_sidebar_filter_time: crate::presentation::WorkSidebarFilterTime::default(),
         work_sidebar_tab: crate::presentation::WorkSidebarTab::default(),
         work_space_picker_open: false,
+        work_space_picker_query: String::new(),
     }
 }
 

@@ -133,6 +133,7 @@ fn build_selector<'a>(app: SelectorView<'a>, kind: TaskBoardModelSelectorKind) -
             auto_model,
             model,
             open,
+            None,
             |_| SelectorMessage::ToggleModelPopover,
         )
     } else {

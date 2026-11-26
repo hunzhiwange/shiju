@@ -6,7 +6,7 @@ use desktop_ui_controls::system_settings_common::{
 };
 use desktop_i18n::I18n;
 use super::message::{Message, ViewMessage, HelpRenderer, settings_hover_help_label};
-use desktop_web_install::Event;
+use desktop_web_install::{Event, ReleaseCheck};
 pub struct Input<'a> {
  pub web_install: &'a desktop_web_install::State,
  pub desktop_update: &'a desktop_update::app::desktop_update::DesktopUpdate,
@@ -61,6 +61,29 @@ pub fn with_modal<'a>(app: Input<'a>, help: HelpRenderer) -> (Message, Element<'
     let mut body =
         column![column![settings_field_label(i18n.__("升级来源")), source_control].spacing(6)]
             .spacing(14);
+    match &state.release_check {
+        Some(ReleaseCheck::Checking) => {
+            body = body.push(text(i18n.__("检测中...")).size(13));
+        }
+        Some(ReleaseCheck::Finished(Ok(versions))) => {
+            let version_label = |key, version: &str| {
+                text(desktop_i18n::modals::render(i18n, key, &[version.into()])).size(13)
+            };
+            let mut versions_row = row![].spacing(8);
+            if let Some(current) = &versions.current {
+                versions_row = versions_row.push(version_label("当前版本 %s", current));
+            }
+            body = body.push(
+                versions_row.push(version_label("服务器版本 %s", &versions.latest)).wrap(),
+            );
+        }
+        Some(ReleaseCheck::Finished(Err(error))) => {
+            body = body
+                .push(text(i18n.__("检测失败")).size(13))
+                .push(text(error.render(i18n).unwrap_or_default()).size(13));
+        }
+        None => {}
+    }
     if let Some(path) = &state.path {
         body = body
             .push(

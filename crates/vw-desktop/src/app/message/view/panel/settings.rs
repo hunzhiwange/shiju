@@ -122,6 +122,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::AppUpdateAutomation(message) => update_panel(app, message),
         ViewMessage::OpenAppUpdateModal => update_panel(app, PanelMessage::OpenAppUpdateModal),
         ViewMessage::AppUpdateSourceSelected(v0) => {
+            #[cfg(not(target_arch = "wasm32"))]
+            if app.web_install.visible {
+                if app.web_install.busy || app.shutdown_requested {
+                    return Task::none();
+                }
+                return update_panel(app, PanelMessage::WebUpdateSourceSelected(v0));
+            }
             update_panel(app, PanelMessage::AppUpdateSourceSelected(v0))
         }
         ViewMessage::AppUpdateSourceSaved(v0) => {
@@ -434,12 +441,22 @@ fn update_panel(app: &mut App, message: PanelMessage) -> Task<Message> {
                 app.navigation_panels.close_menu();
                 Task::none()
             }
-            Effect::SaveSource(source) => Task::perform(
-                crate::app::config::save_app_config_async(
-                    crate::app::desktop_update::source_patch(source),
-                ),
-                |result| Message::View(ViewMessage::AppUpdateSourceSaved(result)),
-            ),
+            Effect::SaveSource(source) => {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    app.web_install.release_check = None;
+                }
+                Task::perform(
+                    crate::app::config::save_app_config_async(
+                        crate::app::desktop_update::source_patch(source),
+                    ),
+                    |result| Message::View(ViewMessage::AppUpdateSourceSaved(result)),
+                )
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            Effect::CheckWebUpdate => {
+                crate::app::web_install::update(app, crate::app::web_install::Event::CheckUpdate)
+            }
             Effect::SaveDownloadPolicy(patch) => Task::perform(
                 crate::app::config::save_app_config_async(patch),
                 |result| Message::View(ViewMessage::AppUpdateAutomation(
@@ -483,6 +500,8 @@ fn panel_message(message: PanelMessage) -> ViewMessage {
         }
         PanelMessage::OpenAppUpdateModal => ViewMessage::OpenAppUpdateModal,
         PanelMessage::AppUpdateSourceSelected(v0) => ViewMessage::AppUpdateSourceSelected(v0),
+        #[cfg(not(target_arch = "wasm32"))]
+        PanelMessage::WebUpdateSourceSelected(v0) => ViewMessage::AppUpdateSourceSelected(v0),
         PanelMessage::AppUpdateSourceSaved(v0) => ViewMessage::AppUpdateSourceSaved(v0),
         PanelMessage::CheckAppUpdate => ViewMessage::CheckAppUpdate,
         PanelMessage::CheckAppUpdateFinished(v0, v1, v2) => {

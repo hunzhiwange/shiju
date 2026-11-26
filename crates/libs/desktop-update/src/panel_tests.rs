@@ -82,7 +82,10 @@ fn app_update_source_switch_invalidates_pending_release() {
     let _ = update_fixture(&mut app, ViewMessage::OpenAppUpdateModal);
     let _ = update_fixture(&mut app, ViewMessage::CheckAppUpdate);
     let request = app.desktop_update.request;
-    let _ = update_fixture(&mut app, ViewMessage::AppUpdateSourceSelected(UpdateSource::Github));
+    let switched = update_fixture(&mut app, ViewMessage::AppUpdateSourceSelected(UpdateSource::Github));
+    assert_eq!(switched.units(), 1);
+    assert!(app.desktop_update.checking);
+    assert!(app.cli_install_modal_is_checking_update);
     let _ = update_fixture(
         &mut app,
         ViewMessage::CheckAppUpdateFinished(
@@ -96,6 +99,7 @@ fn app_update_source_switch_invalidates_pending_release() {
         ),
     );
     assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));
+    assert!(app.desktop_update.checking);
     assert!(app.desktop_update.release.is_none());
     assert!(!app.cli_install_modal_show_install_action);
 }
@@ -105,10 +109,16 @@ fn app_update_old_request_from_same_source_cannot_override_new_check() {
     use super::PanelMessage as ViewMessage;
     use desktop_release::UpdateSource;
     let mut app = Fixture::new();
-    let _ = update_fixture(&mut app, ViewMessage::CheckAppUpdate);
+    let _ = update_fixture(&mut app, ViewMessage::OpenAppUpdateModal);
     let old = app.desktop_update.request;
+    let _ = update_fixture(&mut app, ViewMessage::AppUpdateSourceSelected(UpdateSource::Github));
+    let _ = update_fixture(&mut app, ViewMessage::AppUpdateSourceSaved(Ok(())));
     let _ = update_fixture(&mut app, ViewMessage::AppUpdateSourceSelected(UpdateSource::Shiju));
-    let _ = update_fixture(&mut app, ViewMessage::CheckAppUpdate);
+    let _ = update_fixture(&mut app, ViewMessage::AppUpdateSourceSaved(Ok(())));
+    let request = app.desktop_update.request;
+    let duplicate = update_fixture(&mut app, ViewMessage::AppUpdateSourceSelected(UpdateSource::Shiju));
+    assert_eq!(duplicate.units(), 0);
+    assert_eq!(app.desktop_update.request, request);
     let _ = update_fixture(
         &mut app,
         ViewMessage::CheckAppUpdateFinished(old, UpdateSource::Shiju, Err("obsolete".into())),
@@ -122,16 +132,26 @@ fn cli_update_ignores_result_after_source_switch() {
     use super::PanelMessage as ViewMessage;
     use desktop_release::UpdateSource;
     let mut app = Fixture::new();
+    app.show_cli_install_modal = true;
     let _ = update_fixture(&mut app, ViewMessage::CheckCliToolUpdate);
     let request = app.desktop_update.request;
-    let _ = update_fixture(&mut app, ViewMessage::AppUpdateSourceSelected(UpdateSource::Github));
+    let switched = update_fixture(&mut app, ViewMessage::AppUpdateSourceSelected(UpdateSource::Github));
+    assert_eq!(switched.units(), 1);
+    assert!(app.desktop_update.checking);
     let _ = update_fixture(
         &mut app,
         ViewMessage::CheckCliToolUpdateFinished(request, UpdateSource::Shiju, Ok("99.0.0".into())),
     );
     assert_eq!(app.cli_install_modal_server_version, "未检测");
-    assert!(!app.desktop_update.checking);
+    assert!(app.desktop_update.checking);
     assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));
+    let request = app.desktop_update.request;
+    let _ = update_fixture(
+        &mut app,
+        ViewMessage::CheckCliToolUpdateFinished(request, UpdateSource::Github, Ok("2.0.0".into())),
+    );
+    assert_eq!(app.cli_install_modal_server_version, "2.0.0");
+    assert!(!app.desktop_update.checking);
 }
 
 #[cfg(not(target_arch = "wasm32"))]

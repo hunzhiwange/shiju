@@ -104,15 +104,31 @@ fn release_urls(source: UpdateSource, payload: &[u8]) -> Result<(String, String)
     }
 }
 
-pub(super) fn install(source: UpdateSource, progress_tx: &Sender<Event>) -> Result<PathBuf> {
-    let _ = progress_tx.send(Event::Status("正在读取 Web 安装状态…"));
-    let client = client()?;
+fn latest_release(client: &reqwest::blocking::Client, source: UpdateSource) -> Result<(String, String)> {
     let endpoint = match source {
         UpdateSource::Shiju => SHIJU_MANIFEST,
         UpdateSource::Github => RELEASE_API,
     };
-    let payload = download(&client, endpoint, 4 * 1024 * 1024)?;
-    let (name, zip_url) = release_urls(source, &payload)?;
+    let payload = download(client, endpoint, 4 * 1024 * 1024)?;
+    release_urls(source, &payload)
+}
+
+pub(super) fn check_update(source: UpdateSource) -> Result<super::ReleaseVersions> {
+    let (name, _) = latest_release(&client()?, source)?;
+    let latest = name.trim_start_matches("shiju-web-").trim_end_matches(".zip").to_owned();
+    let current = installed()
+        .ok()
+        .flatten()
+        .and_then(|path| fs::read(path.join("package.json")).ok())
+        .and_then(|data| serde_json::from_slice::<serde_json::Value>(&data).ok())
+        .and_then(|package| package["version"].as_str().map(str::to_owned));
+    Ok(super::ReleaseVersions { current, latest })
+}
+
+pub(super) fn install(source: UpdateSource, progress_tx: &Sender<Event>) -> Result<PathBuf> {
+    let _ = progress_tx.send(Event::Status("正在读取 Web 安装状态…"));
+    let client = client()?;
+    let (name, zip_url) = latest_release(&client, source)?;
     let _ = progress_tx.send(Event::Status("正在从所选来源下载并安装 Web 版本…"));
     let response = client.get(&zip_url).send()?.error_for_status()?;
     let archive = read_archive(response, &name, &zip_url, progress_tx)?;

@@ -23,6 +23,8 @@ pub enum PanelMessage {
     #[cfg(not(target_arch = "wasm32"))]
     CachedInstallerChecked(u64, Option<PreparedDesktopUpdate>),
     AppUpdateSourceSelected(desktop_release::UpdateSource),
+    #[cfg(not(target_arch = "wasm32"))]
+    WebUpdateSourceSelected(desktop_release::UpdateSource),
     AppUpdateSourceSaved(Result<(), String>),
     CheckAppUpdate,
     CheckAppUpdateFinished(
@@ -71,6 +73,8 @@ pub struct PanelState {
 pub enum Effect {
     CloseMenu,
     SaveSource(desktop_release::UpdateSource),
+    #[cfg(not(target_arch = "wasm32"))]
+    CheckWebUpdate,
     SaveDownloadPolicy(serde_json::Value),
     Error(String),
     LocalizedError(&'static str, Vec<desktop_i18n::format::Argument>),
@@ -311,29 +315,29 @@ pub fn update(
             )
         }
         PanelMessage::AppUpdateSourceSelected(source) => {
-            if state.busy || state.saving {
+            if !select_source(panel, state, effects, source) || !panel.show_cli_install_modal {
                 return Task::none();
             }
-            state.source = Some(source);
-            state.error = None;
-            state.selected_by_user = true;
-            state.saving = true;
-            state.request += 1;
-            state.checking = false;
-            state.release = None;
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                state.ready = None;
+            let check = if panel.cli_install_modal_use_app_update_action {
+                PanelMessage::CheckAppUpdate
+            } else {
+                PanelMessage::CheckCliToolUpdate
+            };
+            update(
+                panel,
+                state,
+                effects,
+                version,
+                #[cfg(not(target_arch = "wasm32"))]
+                locale,
+                check,
+            )
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        PanelMessage::WebUpdateSourceSelected(source) => {
+            if select_source(panel, state, effects, source) {
+                effects.push(Effect::CheckWebUpdate);
             }
-            panel.app_update_progress = None;
-            panel.app_update_progress_rx = None;
-            panel.cli_install_modal_server_version = "未检测".into();
-            panel.cli_install_modal_show_install_action =
-                !panel.cli_install_modal_use_app_update_action;
-            panel.cli_install_modal_is_checking_update = false;
-            panel.cli_install_message = None;
-            panel.cli_install_modal_message = "来源已切换，请重新检测更新。".into();
-            effects.push(Effect::SaveSource(source));
             Task::none()
         }
         PanelMessage::AppUpdateSourceSaved(result) => {
@@ -695,6 +699,41 @@ pub fn update(
         }
     }
 }
+
+fn select_source(
+    panel: &mut PanelState,
+    state: &mut DesktopUpdate,
+    effects: &mut Vec<Effect>,
+    source: desktop_release::UpdateSource,
+) -> bool {
+    if state.busy || state.saving || state.source == Some(source) {
+        return false;
+    }
+    state.source = Some(source);
+    state.error = None;
+    state.selected_by_user = true;
+    state.saving = true;
+    state.request += 1;
+    state.checking = false;
+    state.release = None;
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        state.ready = None;
+    }
+    panel.app_update_progress = None;
+    panel.app_update_progress_rx = None;
+    panel.cli_install_modal_server_version = "未检测".into();
+    panel.cli_install_modal_show_install_action = !panel.cli_install_modal_use_app_update_action;
+    panel.cli_install_modal_is_checking_update = false;
+    panel.cli_install_message = None;
+    if panel.cli_install_modal_use_app_update_action {
+        panel.cli_install_modal_title = "检测更新".into();
+    }
+    panel.cli_install_modal_message = "未检测".into();
+    effects.push(Effect::SaveSource(source));
+    true
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 const AUTOMATIC_RETRY_DELAY: std::time::Duration = std::time::Duration::from_secs(15 * 60);
 

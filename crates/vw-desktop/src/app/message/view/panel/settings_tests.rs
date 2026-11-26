@@ -253,6 +253,24 @@ fn app_update_save_failure_keeps_selection_and_shows_unsaved_toast() {
     assert!(app.toast_state.active_toast.as_ref().unwrap().message.contains("未保存"));
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn web_update_source_selection_checks_the_web_release() {
+    use crate::app::message::ViewMessage;
+    use desktop_release::UpdateSource;
+    use desktop_web_install::ReleaseCheck;
+
+    let mut app = crate::app::App::new().0;
+    app.desktop_update.source = Some(UpdateSource::Shiju);
+    app.web_install.visible = true;
+    let _ = super::update(&mut app, ViewMessage::AppUpdateSourceSelected(UpdateSource::Github));
+
+    assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));
+    assert!(app.desktop_update.saving);
+    assert!(!app.desktop_update.checking);
+    assert!(matches!(app.web_install.release_check, Some(ReleaseCheck::Checking)));
+}
+
 #[test]
 fn terminal_modes_toggle_preserves_session_and_height_across_mode_roundtrip() {
     use crate::app::message::ViewMessage;

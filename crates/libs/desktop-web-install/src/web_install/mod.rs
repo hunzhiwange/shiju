@@ -4,6 +4,8 @@ mod copy;
 mod runtime;
 
 use anyhow::Result;
+use desktop_i18n::format::Message;
+use desktop_release::UpdateSource;
 use self::copy::ProductContext as _;
 use iced::Task;
 use std::path::PathBuf;
@@ -21,6 +23,20 @@ pub struct State {
     pub path: Option<PathBuf>,
     pub url: Option<String>,
     pub runtime: Arc<runtime::Runtime>,
+    pub release_check: Option<ReleaseCheck>,
+    release_check_request: u64,
+}
+
+#[derive(Debug)]
+pub enum ReleaseCheck {
+    Checking,
+    Finished(Result<ReleaseVersions, Message>),
+}
+
+#[derive(Debug, Clone)]
+pub struct ReleaseVersions {
+    pub current: Option<String>,
+    pub latest: String,
 }
 
 #[derive(Debug, Clone)]
@@ -30,6 +46,8 @@ pub enum Event {
     Status(&'static str),
     Open,
     Close,
+    CheckUpdate,
+    CheckUpdateFinished(u64, UpdateSource, Result<ReleaseVersions, Message>),
     InstallAndStart,
     OpenDirectory,
     Start,
@@ -48,7 +66,7 @@ pub struct Snapshot {
 pub fn update(
     state: &mut State,
     event: Event,
-    source: Option<desktop_release::UpdateSource>,
+    source: Option<UpdateSource>,
     shutdown_requested: bool,
 ) -> (Task<Event>, Option<desktop_i18n::format::Message>) {
     match event {
@@ -69,6 +87,34 @@ pub fn update(
             state.visible = false;
             return (Task::none(), None);
         }
+        Event::CheckUpdate => {
+            let Some(source) = source.filter(|_| !state.busy && !shutdown_requested) else {
+                return (Task::none(), None);
+            };
+            state.release_check_request += 1;
+            let request = state.release_check_request;
+            state.release_check = Some(ReleaseCheck::Checking);
+            let task = Task::perform(
+                async move {
+                    tokio::task::spawn_blocking(move || installer::check_update(source))
+                        .await
+                        .product_context("检测失败")
+                        .and_then(|result| result)
+                        .map_err(|error| copy::message(&error))
+                },
+                move |result| Event::CheckUpdateFinished(request, source, result),
+            );
+            return (task, None);
+        }
+        Event::CheckUpdateFinished(request, checked_source, result) => {
+            if request == state.release_check_request
+                && source == Some(checked_source)
+                && matches!(state.release_check, Some(ReleaseCheck::Checking))
+            {
+                state.release_check = Some(ReleaseCheck::Finished(result));
+            }
+            return (Task::none(), None);
+        }
         Event::Finished(snapshot) => {
             state.busy = false;
             state.progress_rx = None;
@@ -87,6 +133,9 @@ pub fn update(
     }
     if state.busy || shutdown_requested {
         return (Task::none(), None);
+    }
+    if matches!(event, Event::InstallAndStart) {
+        state.release_check = None;
     }
     state.busy = true;
     state.operation_error = None;

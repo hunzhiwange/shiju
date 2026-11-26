@@ -3,4 +3,4 @@
 
 mod web_install;
 
-pub use web_install::{Event, Snapshot, State, update};
+pub use web_install::{Event, ReleaseCheck, ReleaseVersions, Snapshot, State, update};

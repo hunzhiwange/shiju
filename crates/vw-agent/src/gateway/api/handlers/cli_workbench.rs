@@ -16,10 +16,11 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
+use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
 use vw_api_chat::chat::GatewayChatStreamRequest;
 use vw_api_transport::{ProjectScope, TenantScope};
 use vw_api_types::cli_workbench::{
-    CliWorkbenchCapabilities, CliWorkbenchDeliveryCapability, CliWorkbenchError,
+    CliWorkbenchAcpOptions, CliWorkbenchCapabilities, CliWorkbenchDeliveryCapability, CliWorkbenchError,
     CliWorkbenchErrorCode as ErrorCode, CliWorkbenchMessage, CliWorkbenchMessageId,
     CliWorkbenchMessageState as MessageState, CliWorkbenchProcessState as ProcessState,
     CliWorkbenchProject, CliWorkbenchProjects,
@@ -61,6 +62,7 @@ struct Workbench {
 struct Session {
     scope: ProjectScope,
     info: CliWorkbenchSession,
+    acp: Option<CliWorkbenchAcpOptions>,
     turn: Option<Turn>,
     #[cfg(unix)]
     terminal: Option<std::sync::Arc<terminal::Pty>>,
@@ -354,6 +356,35 @@ async fn start(
     if request.ssh_surface.is_some() && !matches!(&request.target, CliWorkbenchTarget::Ssh { .. }) {
         return Err(error(StatusCode::BAD_REQUEST, ErrorCode::InvalidRequest, "surface requires SSH"));
     }
+    if matches!(&request.target, CliWorkbenchTarget::Acp { .. }) != request.acp.is_some() {
+        return Err(error(
+            StatusCode::BAD_REQUEST,
+            ErrorCode::InvalidRequest,
+            "ACP options are required for ACP targets and forbidden for terminal targets",
+        ));
+    }
+    if let Some(acp) = &request.acp
+        && let Some(model) = acp.model.as_deref()
+    {
+        if acp.model_source != AcpModelSource::SessionModel {
+            return Err(error(
+                StatusCode::BAD_REQUEST,
+                ErrorCode::InvalidRequest,
+                "model requires the session_model source",
+            ));
+        }
+        if model.chars().any(|c| c.is_whitespace() || c.is_control())
+            || !model
+                .split_once('/')
+                .is_some_and(|(provider, id)| !provider.is_empty() && !id.is_empty())
+        {
+            return Err(error(
+                StatusCode::BAD_REQUEST,
+                ErrorCode::InvalidRequest,
+                "model must be a provider/model reference",
+            ));
+        }
+    }
     let project = gateway_project::load_project(&scope).await.map_err(|_| not_found())?;
     let directory = match request.directory {
         Some(path) if !FsPath::new(&path).is_absolute() => return Err(not_found()),
@@ -384,13 +415,15 @@ async fn start(
             "could not allocate session ID",
         )
     })?;
-    let CliWorkbenchTarget::Acp { agent } = &request.target else {
+    let (CliWorkbenchTarget::Acp { agent }, Some(acp)) = (&request.target, request.acp) else {
         return terminal::start(scope, project.id, directory, id, request.target, request.ssh_surface, authority).await;
     };
     let workspace = directory.clone();
     let expected_project = project.id.clone();
     let selected = agent.clone();
     let session_id = id.clone();
+    let source = acp.model_source;
+    let model = acp.model.clone();
     Host::with_tenant_instance(tenant, directory.clone(), move || {
         Box::pin(async move {
             if agent_project::instance::project().is_none_or(|actual| actual.id != expected_project)
@@ -403,18 +436,17 @@ async fn start(
             let config_agent_profile::AgentRuntime::Acp { backend } = profile.runtime else {
                 return Err(gateway_types::ApiError::bad_request("ACP profile required"));
             };
-            use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
             if !llm_runtime::acp::model_source::drivers::capabilities(&backend)
-                .contains(&AcpModelSourceCapability::Supported { source: AcpModelSource::CliLocal })
+                .contains(&AcpModelSourceCapability::Supported { source })
             {
                 return Err(gateway_types::ApiError::bad_request(
-                    "ACP local model source unavailable",
+                    "ACP model source unavailable",
                 ));
             }
             Host::prepare_binding(
                 &session_id,
                 Some(&selected),
-                None,
+                model.as_deref(),
                 FsPath::new(&workspace),
                 session_engine::admission::EmployeeAdmission::Unverified,
             )
@@ -443,6 +475,7 @@ async fn start(
     let session = Session {
         scope,
         info,
+        acp: Some(acp),
         turn: None,
         #[cfg(unix)]
         terminal: None,
@@ -622,6 +655,7 @@ async fn send(
     let CliWorkbenchTarget::Acp { agent } = &session.info.target else { return Err(unavailable()) };
     let directory = session.info.directory.clone();
     let agent = agent.clone();
+    let acp = session.acp.clone().ok_or_else(unavailable)?;
     let recent = &mut session.info.recent_request_ids;
     if recent.len() == RECENT_REQUESTS_PER_SESSION {
         recent.remove(0);
@@ -642,6 +676,7 @@ async fn send(
         session_id,
         directory,
         agent,
+        acp,
         message.turn_id.clone(),
         request.text,
         cancel,
@@ -770,6 +805,7 @@ async fn run_turn(
     session_id: String,
     directory: String,
     agent: String,
+    acp: CliWorkbenchAcpOptions,
     turn_id: String,
     text: String,
     cancel: CancellationToken,
@@ -778,7 +814,8 @@ async fn run_turn(
     let body = GatewayChatStreamRequest {
         session_id: Some(session_id.clone().into()),
         agent: Some(agent),
-        acp_model_source: vw_api_acp_model::acp_model_source::AcpModelSource::CliLocal,
+        acp_model_source: acp.model_source,
+        model: acp.model,
         messages: vec![json!({ "role": "user", "content": text })],
         options: Some(json!({ (TURN_OPTION): turn_id.as_str(), "cwd": directory.as_str() })),
         ..Default::default()

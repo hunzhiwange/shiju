@@ -30,6 +30,7 @@ async fn cli_workbench_child_access_restricts_project_identity_and_routes() {
         session_id.to_owned(),
         Session {
             scope,
+            acp: None,
             info: CliWorkbenchSession {
                 id: session_id.to_owned(),
                 project_id: project.to_owned(),

@@ -51,6 +51,39 @@ async fn cli_workbench_acp_lists_sessions_for_registered_project() {
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body, json!([]));
 
+    let (status, body) = request(
+        &tenant,
+        "POST",
+        &path,
+        json!({"target": {"kind": "acp", "agent": "acp-codex"}}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body["code"], "invalid_request");
+
+    for model in ["", "auto", "provider/", "/model", "provider/model "] {
+        let (status, body) = request(
+            &tenant,
+            "POST",
+            &path,
+            json!({"target": {"kind": "acp", "agent": "acp-codex"},
+                "acp": {"model_source": "session_model", "model": model}}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert_eq!(body["message"], "model must be a provider/model reference");
+    }
+    let (status, body) = request(
+        &tenant,
+        "POST",
+        &path,
+        json!({"target": {"kind": "acp", "agent": "acp-codex"},
+            "acp": {"model_source": "cli_local", "model": "provider/model"}}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body["message"], "model requires the session_model source");
+
     let directory = gateway_project::encode_path_segment(&project.worktree);
     let path = format!("/v1/cli-workbench/projects?directory={directory}");
     let (status, body) = request(&tenant, "GET", &path, Value::Null).await;
@@ -242,16 +275,22 @@ async fn cli_workbench_acp_routes_isolate_projects_and_correlate_approved_turns(
     let sessions = format!("/v1/projects/{}/cli-workbench/sessions", project.id);
     let foreign_sessions = format!("/v1/projects/{}/cli-workbench/sessions", other.id);
     let target = json!({"kind": "acp", "agent": "acp-claude"});
-    let (status, _) =
-        request(&tenant, "POST", &sessions, json!({"target": target, "directory": foreign_root}))
-            .await;
+    let acp = json!({"model_source": "cli_local"});
+    let (status, _) = request(
+        &tenant,
+        "POST",
+        &sessions,
+        json!({"target": target, "directory": foreign_root, "acp": acp}),
+    )
+    .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     for target in [json!({"kind": "shell"}), json!({"kind": "native_cli", "app_id": "claude"})] {
         let (status, body) = request(&tenant, "POST", &sessions, json!({"target": target})).await;
         assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
         assert_eq!(body["code"], "unavailable");
     }
-    let (status, session) = request(&tenant, "POST", &sessions, json!({"target": target})).await;
+    let (status, session) =
+        request(&tenant, "POST", &sessions, json!({"target": target, "acp": acp})).await;
     assert_eq!(status, StatusCode::CREATED, "{session}");
     let id = session["id"].as_str().unwrap();
     let route = format!("{sessions}/{id}");

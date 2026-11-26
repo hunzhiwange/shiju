@@ -572,7 +572,7 @@ fn cli_workbench_codex_launch_uses_native_pty_even_without_a_gateway_catalog() {
     let choices = view::launch_choices(&workbench, locale);
     assert_eq!(choices[0].target, CliWorkbenchTarget::Shell);
     let codex_choice = choices.iter().find(|choice| choice.target == codex).unwrap();
-    assert_eq!(codex_choice.to_string(), format!("Codex · {}", locale.__("终端")));
+    assert_eq!(codex_choice.to_string(), locale.__("新建 Codex"));
     assert!(update::launch_target_available(&workbench, &codex_choice.target));
     assert!(!choices.iter().any(|choice| choice.target == acp_codex));
     assert!(choices.iter().any(|choice| choice.target == acp_claude));
@@ -582,7 +582,80 @@ fn cli_workbench_codex_launch_uses_native_pty_even_without_a_gateway_catalog() {
 
     workbench.terminal_available = false;
     assert!(view::launch_choices(&workbench, locale).iter().all(|choice| choice.target != codex));
+    assert!(view::launch_choices(&workbench, locale).iter().any(|choice| {
+        choice.target == acp_codex && choice.to_string() == locale.__("新建 Codex")
+    }));
     assert!(!update::launch_target_available(&workbench, &codex));
+}
+
+#[test]
+fn cli_workbench_agent_launch_uses_the_selected_profiles_model_source_capabilities() {
+    use vw_api_acp_model::acp_model_source::{AcpModelSource as Source, AcpModelSourceCapability};
+
+    let project = project("a", vec![]);
+    let model = "deepseek/deepseek-flash".to_owned();
+    let mut dialog = AgentLaunch {
+        acp_agent: None,
+        project: "a".into(),
+        layout: project.active_layout,
+        pane: project.panes.focused,
+        direction: None,
+        epoch: 1,
+        use_acp: false,
+        source: Source::SessionModel,
+        models: Some(Ok(vec![model.clone()])),
+        model: None,
+    };
+    let mut workbench = Workbench {
+        terminal_available: true,
+        selected: Some("a".into()),
+        projects: BTreeMap::from([("a".into(), project)]),
+        agents: serde_json::from_value(serde_json::json!([
+            {"key": "acp-codex", "runtime": {"kind": "acp", "backend": "codex"}},
+            {"key": "acp-claude", "runtime": {"kind": "acp", "backend": "claude"}}
+        ])).unwrap(),
+        ..Workbench::default()
+    };
+    workbench.agents[0].sources = vec![
+        AcpModelSourceCapability::Supported { source: Source::CliLocal },
+        AcpModelSourceCapability::Supported { source: Source::SessionModel },
+    ];
+    assert_eq!(update::agent_launch_options(&workbench, &dialog), Some((update::native_codex_target(), None)));
+
+    dialog.use_acp = true;
+    assert!(update::agent_launch_options(&workbench, &dialog).is_none());
+    dialog.model = Some(model.clone());
+    let (target, acp) = update::agent_launch_options(&workbench, &dialog).unwrap();
+    assert_eq!(target, CliWorkbenchTarget::Acp { agent: "acp-codex".into() });
+    let acp = acp.unwrap();
+    assert_eq!(acp.model_source, Source::SessionModel);
+    assert_eq!(acp.model.as_ref(), Some(&model));
+
+    dialog.source = Source::CliLocal;
+    let acp = update::agent_launch_options(&workbench, &dialog).unwrap().1.unwrap();
+    assert_eq!(acp.model_source, Source::CliLocal);
+    assert!(acp.model.is_none());
+
+    dialog.acp_agent = Some("acp-claude".into());
+    workbench.agents[1].sources = vec![AcpModelSourceCapability::Supported {
+        source: Source::SessionModel,
+    }];
+    assert!(update::agent_launch_options(&workbench, &dialog).is_none());
+    dialog.source = Source::SessionModel;
+    let (target, acp) = update::agent_launch_options(&workbench, &dialog).unwrap();
+    assert_eq!(target, CliWorkbenchTarget::Acp { agent: "acp-claude".into() });
+    assert_eq!(acp.unwrap().model, Some(model));
+
+    workbench.agents[1].sources.push(AcpModelSourceCapability::Supported { source: Source::CliLocal });
+    dialog.source = Source::CliLocal;
+    let (target, acp) = update::agent_launch_options(&workbench, &dialog).unwrap();
+    assert_eq!(target, CliWorkbenchTarget::Acp { agent: "acp-claude".into() });
+    let acp = acp.unwrap();
+    assert_eq!(acp.model_source, Source::CliLocal);
+    assert!(acp.model.is_none());
+
+    workbench.selected = Some("other".into());
+    assert!(update::agent_launch_options(&workbench, &dialog).is_none());
 }
 
 #[test]

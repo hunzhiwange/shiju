@@ -110,6 +110,7 @@ pub(in super::super) async fn start(
         Session {
             scope,
             info,
+            acp: None,
             turn: None,
             terminal: Some(Arc::new(Pty { process, input: Default::default() })),
             child_access,

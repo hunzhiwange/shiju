@@ -149,6 +149,7 @@ pub(crate) struct Workbench {
     projects_epoch: u64,
     agents_epoch: u64,
     agents_loading: bool,
+    agent_launch_epoch: u64,
 }
 
 struct SidebarLayout {
@@ -256,7 +257,22 @@ enum Dialog {
     RenameLayout(String, u64, String),
     Compose { target: Option<String>, draft: String },
     ReadDraft(SessionKey, String),
+    LaunchAgent(AgentLaunch),
     Ssh(ssh::Panel),
+}
+
+struct AgentLaunch {
+    /// A fixed ACP profile. The Codex chooser can also select the native terminal.
+    acp_agent: Option<String>,
+    project: String,
+    layout: u64,
+    pane: pane_grid::Pane,
+    direction: Option<pane_grid::Direction>,
+    epoch: u64,
+    use_acp: bool,
+    source: vw_api_acp_model::acp_model_source::AcpModelSource,
+    models: Option<Result<Vec<String>, ()>>,
+    model: Option<String>,
 }
 
 impl Tab {
@@ -574,12 +590,11 @@ impl Workbench {
         if self.terminal_directory.as_deref() != Some(directory) {
             return;
         }
-        let project_id = self.selected.as_deref().or_else(|| {
-            self.projects.iter().find_map(|(id, project)| {
-                (project.directory == directory).then_some(id.as_str())
-            })
-        });
-        let Some(project) = project_id.and_then(|id| self.projects.get_mut(id)) else {
+        let project = match self.selected.as_deref() {
+            Some(id) => self.projects.get_mut(id),
+            None => self.projects.values_mut().find(|project| project.directory == directory),
+        };
+        let Some(project) = project else {
             return;
         };
         let group = terminal.active_group();

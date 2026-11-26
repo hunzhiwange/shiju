@@ -1,6 +1,6 @@
 ---
 name: shiju-cli-workbench
-description: 在识矩「我的工作台」用 shiju 命令协调同项目的 Codex、Claude Code 等 ACP 会话，适用于并行派工、追问、收集结果及子会话之间的直接交接。
+description: 在识矩「我的工作台」使用原生 Codex 终端，或通过 shiju 协调同项目的 ACP 会话。适用于会话启动、任务投递、结果回收和交接。
 ---
 
 # 我的工作台协作
@@ -16,7 +16,13 @@ shiju workbench list --directory "/项目目录的绝对路径"
 
 切换项目需要用户授予相应网关权限。请在目标项目的工作台内发起协作，或由用户在外部显式指定已授权的身份和项目。
 
-## 从主会话并行派工
+## 选择 Codex 入口
+
+- 用户说「我的工作台新建 Codex」时，默认使用原生终端。工作台菜单选择 **Codex · 终端**。已连接对应项目网关且获得启动授权时，也可运行 `shiju workbench start codex --yes`。检查返回的 `directory` 与目标工作目录一致。原生 Codex 使用工作台发现的本机安装及其登录和模型设置。向原生会话执行 `workbench send` 会投放草稿，用户可在终端提交。
+- 用户明确要求受管 Codex ACP，或需要通过工作台自动提交和结构化回收时，运行 `shiju workbench start codex --engine acp --yes` 并使用下文 ACP 投递流程。`--engine acp` 固定走网关受管模式。可选 `--model provider/model` 覆盖具体模型，省略时由网关选模。遇到模型不支持时，分别核对原生 CLI 和 ACP 引擎版本，以及各自的模型来源。
+- 用户明确要求 `acpx` 时，通过它自己的 ACP 客户端调用已配置的 Codex 适配器。核对适配器实际启动的引擎和工作目录。单独运行的 `acpx` 会话由它自己管理，识矩的 `workbench list`、`wait` 和 `read` 查询工作台网关中的会话。
+
+## 从主会话并行派发 ACP 任务
 
 在工作台打开主会话，并确保它能通过原有权限调用 PATH 中的 `shiju`。例如，在工作台原生 Codex 或 Claude Code 终端直接输入主会话提示词，也可在工作台向 ACP 主会话发送该提示词。普通聊天会话不会自动获得工作台连接。先运行 `shiju workbench list` 确认连接可用。
 
@@ -37,7 +43,7 @@ shiju workbench list --directory "/项目目录的绝对路径"
 ## 发送并核对结果
 
 1. 运行 `shiju workbench list`，从 `result` 选择同项目可用会话。使用返回的 `id`，并检查 `capabilities.delivery` 与 `state`。
-2. 在用户授权范围内运行 `shiju workbench start acp acp-claude --yes`。将示例中的 `acp-claude` 替换为用户已配置的 ACP 配置 ID。记录 `result.id`。ACP 进程可在第一次投递时启动。
+2. 在用户授权范围内启动目标会话，例如 `shiju workbench start acp acp-claude --model-source cli-local --yes`。将示例中的 `acp-claude` 替换为用户已配置的 ACP 配置 ID，并指定该配置支持的模型来源。记录 `result.id`。ACP 进程可在第一次投递时启动。
 3. 在用户授权范围内发送任务，记录网关回传的 `result.id`。发送前生成唯一的请求 ID，以便响应丢失时仍可查询。
 
    ```sh

@@ -15,13 +15,14 @@ use iced::{
     },
     window,
 };
+use vw_api_acp_model::acp_model_source::AcpModelSource;
 use vw_api_types::cli_workbench::{
     CliWorkbenchAgentActivity, CliWorkbenchDraftAction, CliWorkbenchMessageState as Delivery,
     CliWorkbenchProcessState as Process, CliWorkbenchTarget,
 };
 
 use super::{
-    App, Dialog, Message, Project, SessionKey, Surface, Tab, Workbench,
+    App, AgentLaunch, Dialog, Message, Project, SessionKey, Surface, Tab, Workbench,
     update::{Action, Event, draft_text},
 };
 use crate::app::components::workbench_sidebar::{
@@ -175,6 +176,7 @@ fn overlay<'a>(ui: View, state: &'a Workbench, base: Element<'a, Message>) -> El
     match &state.dialog {
         Some(Dialog::Ssh(panel)) => super::ssh::view(ui, base, state, panel),
         Some(Dialog::ReadDraft(key, request)) => draft_dialog(ui, base, state, key, request),
+        Some(Dialog::LaunchAgent(dialog)) => agent_launch_dialog(ui, base, state, dialog),
         Some(dialog) => dialog_view(
             ui,
             base,
@@ -559,7 +561,11 @@ pub(super) fn launch_choices(state: &Workbench, i18n: I18n) -> Vec<LaunchChoice>
         apps.sort_by_key(|(id, _)| state.native_app.as_deref() != Some(*id));
         choices.extend(apps.into_iter().map(|(id, name)| LaunchChoice {
             target: CliWorkbenchTarget::NativeCli { app_id: id.into() },
-            label: format!("{name} · {}", i18n.__("终端")),
+            label: if state.surface == Surface::Workbench && id == super::CODEX_APP_ID {
+                i18n.__("新建 Codex").into()
+            } else {
+                format!("{name} · {}", i18n.__("终端"))
+            },
         }));
     }
     if let Some(catalog) = &state.ssh.catalog {
@@ -569,8 +575,15 @@ pub(super) fn launch_choices(state: &Workbench, i18n: I18n) -> Vec<LaunchChoice>
         }));
     }
     if state.surface == Surface::Workbench {
+        let codex = super::update::codex_agent(state);
+        if !state.terminal_available && let Some(agent) = codex {
+            choices.push(LaunchChoice {
+                target: CliWorkbenchTarget::Acp { agent: agent.key.clone() },
+                label: i18n.__("新建 Codex").into(),
+            });
+        }
         choices.extend(state.agents.iter()
-            .filter(|agent| !state.terminal_available || agent.matching_backend(Some(super::CODEX_APP_ID)).is_none())
+            .filter(|agent| codex.is_none_or(|codex| agent.key != codex.key))
             .map(|agent| LaunchChoice {
                 target: CliWorkbenchTarget::Acp { agent: agent.key.clone() },
                 label: format!("{} · {}", agent.label(), i18n.__("ACP 对话")),
@@ -1051,7 +1064,7 @@ fn dialog_view<'a>(
         Dialog::Rename(_, draft) | Dialog::RenameLayout(_, _, draft) => {
             (ui.label("重命名"), draft, !draft.trim().is_empty(), None)
         }
-        Dialog::ReadDraft(..) | Dialog::Ssh(..) => return base,
+        Dialog::ReadDraft(..) | Dialog::LaunchAgent(..) | Dialog::Ssh(..) => return base,
         Dialog::Compose { target, draft } => {
             let targets: Vec<_> = project
                 .into_iter()
@@ -1108,6 +1121,73 @@ fn dialog_view<'a>(
     )
     .width(Length::Fill)
     .max_width(480);
+    settings_modal_overlay_with_escape(base, close, card)
+}
+
+fn agent_launch_dialog<'a>(
+    ui: View,
+    base: Element<'a, Message>,
+    state: &'a Workbench,
+    dialog: &'a AgentLaunch,
+) -> Element<'a, Message> {
+    let agent = super::update::agent_launch_profile(state, dialog.acp_agent.as_deref());
+    let mut fields = column![].spacing(8);
+    let title = if dialog.acp_agent.is_none() {
+        let native = super::update::launch_target_available(state, &super::update::native_codex_target());
+        let modes = [false, true].into_iter().filter(|acp| if *acp { agent.is_some() } else { native });
+        let mode = settings_select(modes, Some(dialog.use_acp), move |acp| ui.msg(Action::LaunchMode(acp)))
+            .format_labels(move |acp| ui.label(if *acp { "ACP 对话" } else { "原生终端" }).into())
+            .width(Length::Fill);
+        fields = fields.push(settings_field_label(ui.label("运行方式"))).push(mode);
+        ui.label("新建 Codex").to_owned()
+    } else {
+        agent.map_or_else(
+            || ui.label("新建 ACP 会话").to_owned(),
+            |profile| format!("{} · {}", profile.label(), ui.label("ACP 对话")),
+        )
+    };
+    if dialog.use_acp {
+        let sources = [false, true].into_iter().filter(|gateway| {
+            let source = if *gateway { AcpModelSource::SessionModel } else { AcpModelSource::CliLocal };
+            agent.is_some_and(|agent| agent.supports(source))
+        });
+        let gateway = dialog.source == AcpModelSource::SessionModel;
+        let source = settings_select(sources, Some(gateway), move |gateway| {
+            ui.msg(Action::LaunchModelSource(if gateway { AcpModelSource::SessionModel } else { AcpModelSource::CliLocal }))
+        })
+        .format_labels(move |gateway| ui.label(if *gateway { "网关模型" } else { "CLI 本地模型" }).into())
+        .width(Length::Fill);
+        fields = fields.push(settings_field_label(ui.label("模型来源"))).push(source);
+        if gateway {
+            fields = fields.push(settings_field_label(ui.label("模型")));
+            let model: Element<'a, Message> = match &dialog.models {
+                Some(Ok(models)) if !models.is_empty() => settings_select(
+                    models.iter().cloned(), dialog.model.clone(), move |model| ui.msg(Action::LaunchModel(model)),
+                )
+                .placeholder(ui.label("选择网关模型"))
+                .width(Length::Fill)
+                .into(),
+                Some(Ok(_)) => text(ui.label("此项目暂无可用的网关模型")).size(13).into(),
+                Some(Err(())) => settings_error_banner(ui.label("无法读取网关模型").to_owned()).into(),
+                None => text(ui.label("正在读取网关模型…")).size(13).into(),
+            };
+            fields = fields.push(model);
+        }
+    }
+    let close = ui.msg(Action::Dismiss);
+    let enabled = super::update::agent_launch_options(state, dialog).is_some();
+    let card = settings_modal_card(
+        column![
+            row![text(title).size(17).width(Length::Fill), settings_close_button(close.clone())]
+                .align_y(Alignment::Center),
+            fields,
+            row![
+                Space::new().width(Length::Fill),
+                control(ui.label("取消"), Some(close.clone()), false),
+                control(ui.label("启动"), enabled.then(|| ui.msg(Action::Confirm)), true),
+            ].spacing(6),
+        ].spacing(12),
+    ).width(Length::Fill).max_width(480);
     settings_modal_overlay_with_escape(base, close, card)
 }
 

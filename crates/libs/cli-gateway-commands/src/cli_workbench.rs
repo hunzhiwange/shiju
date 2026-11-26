@@ -4,16 +4,16 @@ use std::io::{Read, Write};
 use std::time::Duration;
 
 use anyhow::Result;
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 use cli_api_core::{ApiOptions, context::ApiContext, ensure_confirmed, output::write_json};
 use serde::Serialize;
 use serde_json::Value;
 use tokio::time::{Instant, timeout_at};
 use vw_api_transport::UserId;
 use vw_gateway_client::cli_workbench::{
-    CHILD_CONTEXT_ENV, CliWorkbenchChildContext, CliWorkbenchError, CliWorkbenchErrorCode,
-    CliWorkbenchMessage, CliWorkbenchMessageState, CliWorkbenchTarget, SendCliWorkbenchMessage,
-    StartCliWorkbenchSession,
+    AcpModelSource, CHILD_CONTEXT_ENV, CliWorkbenchAcpOptions, CliWorkbenchChildContext,
+    CliWorkbenchError, CliWorkbenchErrorCode, CliWorkbenchMessage, CliWorkbenchMessageState,
+    CliWorkbenchTarget, SendCliWorkbenchMessage, StartCliWorkbenchSession,
 };
 use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};
 
@@ -69,21 +69,78 @@ enum WorkbenchCommand {
 
 #[derive(Debug, Subcommand)]
 enum StartTarget {
+    /// Start Codex in the workbench. Defaults to the native terminal.
+    Codex {
+        #[arg(long, value_enum, default_value = "native")]
+        engine: CodexEngine,
+        /// Override the configured gateway model as provider/model. Requires --engine acp.
+        #[arg(long)]
+        model: Option<String>,
+    },
     /// Start an auxiliary session using a configured ACP agent profile.
-    Acp { agent: String },
+    Acp {
+        agent: String,
+        #[arg(long, value_enum)]
+        model_source: ModelSource,
+        /// Configured gateway model as provider/model. Requires the session-model source.
+        #[arg(long)]
+        model: Option<String>,
+    },
     /// Start a supported native CLI by application ID.
     NativeCli { app_id: String },
     /// Start a shell.
     Shell,
 }
 
-impl From<StartTarget> for CliWorkbenchTarget {
-    fn from(target: StartTarget) -> Self {
-        match target {
-            StartTarget::Acp { agent } => Self::Acp { agent },
-            StartTarget::NativeCli { app_id } => Self::NativeCli { app_id },
-            StartTarget::Shell => Self::Shell,
-        }
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum CodexEngine {
+    Native,
+    Acp,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum ModelSource {
+    SessionModel,
+    CliLocal,
+}
+
+impl ModelSource {
+    fn options(self, model: Option<String>) -> Result<CliWorkbenchAcpOptions, Failure> {
+        let model_source = match self {
+            Self::SessionModel => AcpModelSource::SessionModel,
+            Self::CliLocal if model.is_none() => AcpModelSource::CliLocal,
+            Self::CliLocal => return Err(Failure::invalid("--model requires --model-source session-model")),
+        };
+        Ok(CliWorkbenchAcpOptions { model_source, model })
+    }
+}
+
+impl StartTarget {
+    fn into_request(self, directory: Option<&str>) -> Result<StartCliWorkbenchSession, Failure> {
+        let (target, acp) = match self {
+            Self::Codex { engine: CodexEngine::Native, model: None } => {
+                (CliWorkbenchTarget::NativeCli { app_id: "codex".into() }, None)
+            }
+            Self::Codex { engine: CodexEngine::Native, .. } => {
+                return Err(Failure::invalid("--model requires --engine acp"));
+            }
+            Self::Codex { engine: CodexEngine::Acp, model } => (
+                CliWorkbenchTarget::Acp { agent: "acp-codex".into() },
+                Some(CliWorkbenchAcpOptions { model_source: AcpModelSource::SessionModel, model }),
+            ),
+            Self::Acp { agent, model_source, model } => (
+                CliWorkbenchTarget::Acp { agent },
+                Some(model_source.options(model)?),
+            ),
+            Self::NativeCli { app_id } => (CliWorkbenchTarget::NativeCli { app_id }, None),
+            Self::Shell => (CliWorkbenchTarget::Shell, None),
+        };
+        Ok(StartCliWorkbenchSession {
+            target,
+            directory: directory.map(str::to_owned),
+            ssh_surface: None,
+            acp,
+        })
     }
 }
 
@@ -232,11 +289,7 @@ async fn execute(
     match args.command {
         WorkbenchCommand::List => encode(&client.cli_workbench_list(&project).await?),
         WorkbenchCommand::Start { target } => {
-            let request = StartCliWorkbenchSession {
-                target: target.into(),
-                directory: args.options.directory().map(str::to_owned),
-                ssh_surface: None,
-            };
+            let request = target.into_request(args.options.directory())?;
             encode(&client.cli_workbench_start(&project, &request).await?)
         }
         WorkbenchCommand::Send { session_id, request_id } => {

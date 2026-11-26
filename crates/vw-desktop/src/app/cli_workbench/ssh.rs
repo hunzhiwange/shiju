@@ -248,6 +248,7 @@ pub(super) fn update(state: &mut Workbench, id: window::Id, action: Action) -> T
                 CliWorkbenchTarget::Ssh { connection_id },
                 pane,
                 None,
+                None,
             );
         }
         action => {

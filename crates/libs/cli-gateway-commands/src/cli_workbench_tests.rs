@@ -45,15 +45,21 @@ async fn cli_workbench_command_lists_starts_and_reads_the_same_delivery() {
     assert_eq!(request.path, SESSIONS);
     assert!(request.headers.iter().any(|h| h.eq_ignore_ascii_case("x-user-id: fixture-user")));
 
-    let (result, started) =
-        run(port, &["start", "acp", "acp-claude", "--yes", "--directory", "/demo"], b"", None)
-            .await;
+    let (result, started) = run(
+        port,
+        &["start", "acp", "acp-claude", "--model-source", "cli-local", "--yes", "--directory", "/demo"],
+        b"",
+        None,
+    )
+    .await;
     result.unwrap();
     assert_eq!(started["result"], session);
     let request = next_request(&requests);
     assert_eq!(request.method, "POST");
     assert_eq!(request.path, SESSIONS);
-    assert_eq!(request.body, json!({"target": session["target"], "directory": "/demo"}));
+    assert_eq!(request.body, json!({
+        "target": session["target"], "directory": "/demo", "acp": {"model_source": "cli_local"}
+    }));
 
     let (result, sent) = run(
         port,
@@ -81,6 +87,64 @@ async fn cli_workbench_command_lists_starts_and_reads_the_same_delivery() {
         assert_eq!(request.method, "GET");
         assert_eq!(request.path, expected);
     }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn cli_workbench_codex_defaults_to_native_and_supports_managed_models() {
+    let native = json!({"kind": "native_cli", "app_id": "codex"});
+    let acp = json!({"kind": "acp", "agent": "acp-codex"});
+    let acp_session = json!({
+        "id": SESSION_ID, "project_id": "demo", "directory": "/demo",
+        "target": acp, "state": "ready",
+        "capabilities": {"available": true, "terminal": false, "delivery": "structured"}
+    });
+    let (port, requests) = serve([
+        Reply::json("201 Created", json!({
+            "id": SESSION_ID, "project_id": "demo", "directory": "/demo",
+            "target": native, "state": "running",
+            "capabilities": {"available": true, "terminal": true, "delivery": "draft"}
+        })),
+        Reply::json("201 Created", acp_session.clone()),
+        Reply::json("201 Created", acp_session),
+    ]);
+
+    let (result, output) =
+        run(port, &["start", "codex", "--model", "custom/team/model", "--yes"], b"", None).await;
+    assert!(result.is_err());
+    assert_eq!(output["error"]["code"], "invalid_request");
+
+    let (result, output) = run(
+        port,
+        &["start", "acp", "acp-claude", "--model-source", "cli-local", "--model", "custom/team/model", "--yes"],
+        b"",
+        None,
+    ).await;
+    assert!(result.is_err());
+    assert_eq!(output["error"]["code"], "invalid_request");
+
+    let (result, _) = run(port, &["start", "codex", "--yes"], b"", None).await;
+    result.unwrap();
+    assert_eq!(next_request(&requests).body, json!({"target": native, "directory": null}));
+
+    let (result, _) = run(port, &["start", "codex", "--engine", "acp", "--yes"], b"", None).await;
+    result.unwrap();
+    assert_eq!(next_request(&requests).body, json!({
+        "target": acp, "directory": null, "acp": {"model_source": "session_model"}
+    }));
+
+    let (result, _) = run(
+        port,
+        &["start", "codex", "--engine", "acp", "--model", "custom/team/model", "--yes"],
+        b"",
+        None,
+    )
+    .await;
+    result.unwrap();
+    assert_eq!(
+        next_request(&requests).body,
+        json!({"target": acp, "directory": null,
+            "acp": {"model_source": "session_model", "model": "custom/team/model"}})
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]

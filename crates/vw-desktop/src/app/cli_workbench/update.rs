@@ -11,7 +11,8 @@ use iced::{
 };
 use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
 use vw_api_types::cli_workbench::{
-    CliWorkbenchProjects, CliWorkbenchDraft, CliWorkbenchDraftAction, CliWorkbenchError, CliWorkbenchErrorCode as Code,
+    CliWorkbenchAcpOptions, CliWorkbenchProjects, CliWorkbenchDraft, CliWorkbenchDraftAction,
+    CliWorkbenchError, CliWorkbenchErrorCode as Code,
     CliWorkbenchMessage, CliWorkbenchProcessState as Process, CliWorkbenchSession,
     CliWorkbenchTarget, CliWorkbenchTerminalCapability, CliWorkbenchTerminalOutput, SendCliWorkbenchMessage,
     StartCliWorkbenchSession,
@@ -20,8 +21,8 @@ use vw_gateway_client::GatewayClient;
 use vw_api_project::{ListProjectsRequest, ResolveProjectRequest};
 
 use super::{
-    ssh, APP_TERMINAL_SIDEBAR_COLLAPSED, App, Dialog, Message, Project, SessionKey, Surface, Turn,
-    Workbench,
+    ssh, APP_TERMINAL_SIDEBAR_COLLAPSED, App, AgentLaunch, Dialog, Message, Project, SessionKey,
+    Surface, Turn, Workbench,
 };
 
 pub(super) const TAB_ID: &str = "cli_workbench";
@@ -47,11 +48,17 @@ pub(crate) struct Agent {
     label: Option<String>,
     #[serde(default)]
     runtime: config_agent_profile::AgentRuntime,
+    #[serde(skip)]
+    pub(super) sources: Vec<AcpModelSourceCapability>,
 }
 
 impl Agent {
     pub(super) fn label(&self) -> &str {
         self.label.as_deref().unwrap_or(&self.key)
+    }
+
+    pub(super) fn supports(&self, source: AcpModelSource) -> bool {
+        self.sources.contains(&AcpModelSourceCapability::Supported { source })
     }
 
     pub(super) fn matching_backend(&self, filter: Option<&str>) -> Option<&str> {
@@ -63,6 +70,21 @@ impl Agent {
             }
             _ => None,
         }
+    }
+}
+
+pub(super) fn codex_agent(state: &Workbench) -> Option<&Agent> {
+    state.agents.iter()
+        .filter(|agent| agent.matching_backend(Some(super::CODEX_APP_ID)).is_some())
+        .min_by(|left, right| {
+            (left.key != "acp-codex", &left.key).cmp(&(right.key != "acp-codex", &right.key))
+        })
+}
+
+pub(super) fn agent_launch_profile<'a>(state: &'a Workbench, agent: Option<&str>) -> Option<&'a Agent> {
+    match agent {
+        Some(key) => state.agents.iter().find(|profile| profile.key == key),
+        None => codex_agent(state),
     }
 }
 
@@ -100,6 +122,10 @@ pub(crate) enum Action {
     SelectSession(SessionKey),
     AgentsLoaded(u64, Result<Vec<Agent>, ()>),
     Start(String, u64, CliWorkbenchTarget, pane_grid::Pane),
+    LaunchMode(bool),
+    LaunchModelSource(AcpModelSource),
+    LaunchModel(String),
+    LaunchModelsLoaded(u64, Result<Vec<String>, ()>),
     Started(String, u64, CliWorkbenchTarget, pane_grid::Pane, Option<pane_grid::Direction>, Result<CliWorkbenchSession, CliWorkbenchError>),
     Hide(SessionKey),
     Stop(SessionKey),
@@ -510,30 +536,25 @@ fn load_agents(state: &mut Workbench, id: window::Id) -> Task<Message> {
                     let client = client.clone();
                     async move {
                         let capabilities = client.acp_model_source_capabilities(&backend).await?;
-                        let supported = capabilities.model_source_capabilities.contains(
-                            &AcpModelSourceCapability::Supported { source: AcpModelSource::CliLocal },
-                        );
-                        Ok::<_, String>((backend, supported))
+                        Ok::<_, String>((backend, capabilities.model_source_capabilities))
                     }
                 })
                 .buffer_unordered(6)
                 .collect::<Vec<_>>()
                 .await;
-            let supported: HashSet<_> = results
-                .iter()
-                .filter_map(|result| match result {
-                    Ok((backend, true)) => Some(backend.as_str()),
-                    _ => None,
-                })
-                .collect();
-            if supported.is_empty() && results.iter().any(Result::is_err) {
+            agents.retain_mut(|agent| {
+                let Some(backend) = agent.matching_backend(backend_filter.as_deref()) else {
+                    return false;
+                };
+                let Some((_, sources)) = results.iter().filter_map(|entry| entry.as_ref().ok())
+                    .find(|(key, _)| key == backend) else { return false };
+                agent.sources.clone_from(sources);
+                agent.supports(AcpModelSource::CliLocal)
+                    || agent.supports(AcpModelSource::SessionModel)
+            });
+            if agents.is_empty() && results.iter().any(Result::is_err) {
                 return Err(());
             }
-            agents.retain(|agent| {
-                agent
-                    .matching_backend(backend_filter.as_deref())
-                    .is_some_and(|backend| supported.contains(backend))
-            });
             agents.sort_by(|left, right| {
                 left.label().cmp(right.label()).then(left.key.cmp(&right.key))
             });
@@ -882,7 +903,54 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
             if state.selected.as_ref() == Some(&project)
                 && state.projects.get(&project).is_some_and(|project| project.active_layout == layout) =>
         {
-            return start(state, id, target, pane, None);
+            if state.surface == Surface::Workbench {
+                match &target {
+                    CliWorkbenchTarget::NativeCli { app_id } if app_id == super::CODEX_APP_ID => {
+                        return open_agent_launch(state, id, project, layout, pane, None, None);
+                    }
+                    CliWorkbenchTarget::Acp { agent } => {
+                        let fixed_profile = (!codex_agent(state).is_some_and(|profile| &profile.key == agent))
+                            .then(|| agent.clone());
+                        return open_agent_launch(state, id, project, layout, pane, None, fixed_profile);
+                    }
+                    _ => {}
+                }
+            }
+            return start(state, id, target, pane, None, None);
+        }
+        Action::LaunchMode(use_acp) => {
+            let local_only = codex_agent(state).is_some_and(|agent| !agent.supports(AcpModelSource::SessionModel));
+            if let Some(Dialog::LaunchAgent(dialog)) = state.dialog.as_mut()
+                && dialog.acp_agent.is_none()
+            {
+                dialog.use_acp = use_acp;
+                if use_acp && local_only {
+                    dialog.source = AcpModelSource::CliLocal;
+                }
+            }
+        }
+        Action::LaunchModelSource(source) => {
+            if matches!(&state.dialog, Some(Dialog::LaunchAgent(dialog)) if
+                agent_launch_profile(state, dialog.acp_agent.as_deref()).is_some_and(|agent| agent.supports(source)))
+                && let Some(Dialog::LaunchAgent(dialog)) = state.dialog.as_mut()
+            {
+                dialog.source = source;
+            }
+        }
+        Action::LaunchModel(model) => {
+            if let Some(Dialog::LaunchAgent(dialog)) = state.dialog.as_mut()
+                && let Some(Ok(models)) = &dialog.models
+                && models.contains(&model)
+            {
+                dialog.model = Some(model);
+            }
+        }
+        Action::LaunchModelsLoaded(epoch, result) => {
+            if let Some(Dialog::LaunchAgent(dialog)) = state.dialog.as_mut()
+                && dialog.epoch == epoch
+            {
+                dialog.models = Some(result);
+            }
         }
         Action::TerminalEvent(key, event) => return super::terminal::event(state, id, key, event),
         Action::TerminalOutput(key, cursor, result) => {
@@ -1168,7 +1236,12 @@ fn panel(
         Term::Split(instance, pane, direction) if instance == project.panes.instance => {
             project.panes.split_menu = None;
             if let Some(target) = split_target(state, &state.projects[project_id], pane) {
-                return start(state, id, target, pane, Some(direction));
+                if let CliWorkbenchTarget::Acp { agent } = target {
+                    return open_agent_launch(
+                        state, id, project_id.into(), layout, pane, Some(direction), Some(agent),
+                    );
+                }
+                return start(state, id, target, pane, Some(direction), None);
             }
         }
         Term::ContentMenuAction(view_id, action) => {
@@ -1186,7 +1259,7 @@ fn panel(
                         .filter(|target| matches!(target, CliWorkbenchTarget::Ssh { .. }))
                         .cloned()
                         .unwrap_or(CliWorkbenchTarget::Shell);
-                    return start(state, id, target, pane, direction);
+                    return start(state, id, target, pane, direction, None);
                 }
                 ContentAction::CloseTab => return update_window(state, id, Action::Hide(key), true),
                 ContentAction::Copy | ContentAction::Paste | ContentAction::PasteText => {
@@ -1284,7 +1357,108 @@ fn start_default_shell(state: &mut Workbench, id: window::Id, visible: bool) -> 
     }
     let pane = project.panes.focused;
     state.default_shell_pending = false;
-    start(state, id, CliWorkbenchTarget::Shell, pane, None)
+    start(state, id, CliWorkbenchTarget::Shell, pane, None, None)
+}
+
+pub(super) fn native_codex_target() -> CliWorkbenchTarget {
+    CliWorkbenchTarget::NativeCli { app_id: super::CODEX_APP_ID.into() }
+}
+
+fn open_agent_launch(
+    state: &mut Workbench,
+    id: window::Id,
+    project: String,
+    layout: u64,
+    pane: pane_grid::Pane,
+    direction: Option<pane_grid::Direction>,
+    acp_agent: Option<String>,
+) -> Task<Message> {
+    let (Some(client), Some(project_state)) = (client(state), state.projects.get(&project)) else {
+        return Task::none();
+    };
+    let Some(pane_state) = project_state.panes.grid.get(pane) else { return Task::none() };
+    if state.starting || state.dialog.is_some() || project_state.disconnected {
+        return Task::none();
+    }
+    let directory = if direction.is_some() {
+        let Some(tab) = pane_state.active_id.and_then(|id| project_state.tab_for_view(id)) else {
+            return Task::none();
+        };
+        tab.session.directory.clone()
+    } else {
+        project_state.directory.clone()
+    };
+    let generation = state.scope_generation;
+    state.agent_launch_epoch += 1;
+    let epoch = state.agent_launch_epoch;
+    let profile = agent_launch_profile(state, acp_agent.as_deref());
+    let use_acp = acp_agent.is_some() || !launch_target_available(state, &native_codex_target());
+    let source = if profile.is_some_and(|profile| {
+        profile.supports(AcpModelSource::CliLocal)
+            && (acp_agent.is_some() || !profile.supports(AcpModelSource::SessionModel))
+    }) {
+        AcpModelSource::CliLocal
+    } else {
+        AcpModelSource::SessionModel
+    };
+    let load_models = profile.is_some_and(|profile| profile.supports(AcpModelSource::SessionModel))
+        || (acp_agent.is_none() && state.agents_loading);
+    state.dialog = Some(Dialog::LaunchAgent(AgentLaunch {
+        acp_agent, project, layout, pane, direction, epoch, use_acp, source, models: None, model: None,
+    }));
+    if !load_models {
+        return Task::none();
+    }
+    Task::perform(
+        async move {
+            let catalog = client.provider_list(Some(&directory)).await.map_err(|_| ())?;
+            let connected = catalog.connected;
+            let mut models = catalog.all.into_iter()
+                .filter(|provider| provider.id != "acp" && connected.contains(&provider.id))
+                .flat_map(|provider| provider.models.into_values())
+                .filter(|model| model.status == "active" && model.capabilities.toolcall && model.capabilities.input.text)
+                .map(|model| format!("{}/{}", model.provider_id, model.id))
+                .collect::<Vec<_>>();
+            models.sort_unstable();
+            models.dedup();
+            Ok(models)
+        },
+        move |result| response(id, generation, Action::LaunchModelsLoaded(epoch, result)),
+    )
+}
+
+pub(super) fn agent_launch_options(
+    state: &Workbench,
+    dialog: &AgentLaunch,
+) -> Option<(CliWorkbenchTarget, Option<CliWorkbenchAcpOptions>)> {
+    if state.starting || state.selected.as_ref() != Some(&dialog.project)
+        || !state.projects.get(&dialog.project).is_some_and(|project| {
+            !project.disconnected && project.active_layout == dialog.layout
+                && project.panes.grid.get(dialog.pane).is_some()
+        })
+    {
+        return None;
+    }
+    if !dialog.use_acp && dialog.acp_agent.is_none() {
+        let target = native_codex_target();
+        return launch_target_available(state, &target).then_some((target, None));
+    }
+    let agent = agent_launch_profile(state, dialog.acp_agent.as_deref())
+        .filter(|agent| agent.supports(dialog.source))?;
+    let model = match dialog.source {
+        AcpModelSource::CliLocal => None,
+        AcpModelSource::SessionModel => {
+            let model = dialog.model.as_ref()?;
+            if !matches!(&dialog.models, Some(Ok(models)) if models.contains(model)) {
+                return None;
+            }
+            Some(model.clone())
+        }
+    };
+    Some((
+        CliWorkbenchTarget::Acp { agent: agent.key.clone() },
+        Some(CliWorkbenchAcpOptions { model_source: dialog.source, model }),
+    ))
 }
 
 pub(super) fn start(
@@ -1293,6 +1467,7 @@ pub(super) fn start(
     target: CliWorkbenchTarget,
     pane: pane_grid::Pane,
     direction: Option<pane_grid::Direction>,
+    acp: Option<CliWorkbenchAcpOptions>,
 ) -> Task<Message> {
     let (Some(project), Some(client)) = (state.selected.clone(), client(state)) else {
         return Task::none();
@@ -1310,13 +1485,23 @@ pub(super) fn start(
     } else {
         None
     };
+    let acp = match (&target, acp) {
+        (CliWorkbenchTarget::Acp { agent }, Some(options)) => {
+            if !state.agents.iter().any(|profile| &profile.key == agent && profile.supports(options.model_source)) {
+                return Task::none();
+            }
+            Some(options)
+        }
+        (CliWorkbenchTarget::Acp { .. }, None) => return Task::none(),
+        (_, _) => None,
+    };
     let layout = project_state.active_layout;
     state.starting = true;
     let generation = state.scope_generation;
     state.error = None;
     let ssh_surface = (matches!(&target, CliWorkbenchTarget::Ssh { .. })
         && state.surface != Surface::AppTerminal).then(|| state.surface.ssh_surface());
-    let request = StartCliWorkbenchSession { target, directory, ssh_surface };
+    let request = StartCliWorkbenchSession { target, directory, ssh_surface, acp };
     Task::perform(
         async move {
             let result = client.cli_workbench_start(&project, &request).await;
@@ -1353,6 +1538,13 @@ fn stop(state: &mut Workbench, id: window::Id, key: SessionKey) -> Task<Message>
 
 fn confirm(state: &mut Workbench, id: window::Id) -> Task<Message> {
     match state.dialog.as_ref() {
+        Some(Dialog::LaunchAgent(dialog)) => {
+            let Some((target, acp)) = agent_launch_options(state, dialog) else { return Task::none() };
+            let pane = dialog.pane;
+            let direction = dialog.direction;
+            state.dialog = None;
+            return start(state, id, target, pane, direction, acp);
+        }
         Some(Dialog::Rename(_, draft)) if !draft.trim().is_empty() => {
             if let Some(Dialog::Rename(key, draft)) = state.dialog.take()
                 && let Some(tab) = state.tab_mut(&key)

@@ -77,6 +77,7 @@ fn cli_workbench_project_snapshot_only_attaches_sessions_in_scope() {
         let target = CliWorkbenchTarget::Acp { agent: "fixture".into() };
         workbench.sessions.insert(id.into(), Session {
             scope: project_scope(scope, project.into()).ok().unwrap(),
+            acp: None,
             info: CliWorkbenchSession {
                 id: id.into(), project_id: project.into(), directory: "/fixture".into(),
                 capabilities: capabilities(&target), target,
@@ -125,6 +126,7 @@ async fn cli_workbench_native_drafts_are_scoped_and_manual() {
         let (status, Json(session)) = insert_session(
             Session {
                 scope: scope.clone(),
+                acp: None,
                 info: CliWorkbenchSession {
                     id: id.into(),
                     project_id: project.into(),

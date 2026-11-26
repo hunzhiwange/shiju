@@ -1,5 +1,6 @@
 //! Project-scoped CLI workbench contracts.
 use serde::{Deserialize, Serialize};
+pub use vw_api_acp_model::acp_model_source::AcpModelSource;
 
 /// Process-local connection to the session's workbench-only gateway listener.
 pub const CHILD_CONTEXT_ENV: &str = "SHIJU_WORKBENCH_CONTEXT";
@@ -136,6 +137,18 @@ pub struct StartCliWorkbenchSession {
     pub directory: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ssh_surface: Option<SshSessionSurface>,
+    /// Required for ACP targets.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acp: Option<CliWorkbenchAcpOptions>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CliWorkbenchAcpOptions {
+    pub model_source: AcpModelSource,
+    /// Optional session-model override, as `provider/model`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]

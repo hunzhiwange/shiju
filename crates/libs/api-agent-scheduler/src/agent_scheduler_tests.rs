@@ -9,7 +9,7 @@ use crate::{
     AgentSchedulerBulkCommandResponse, AgentSchedulerCommandKindDto,
     AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest, AgentSchedulerCommandResponse,
     AgentSchedulerCreateTaskRequest, AgentSchedulerCreateTaskResponse,
-    AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,
+    AgentSchedulerLegacyImportRequest,
     AgentSchedulerLegacyImportResponse, AgentSchedulerLegacyTaskImportDto,
     AgentSchedulerMoveTaskPayloadDto, AgentSchedulerOutboxDrainRequest,
     AgentSchedulerOutboxDrainResponse, AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerScope,

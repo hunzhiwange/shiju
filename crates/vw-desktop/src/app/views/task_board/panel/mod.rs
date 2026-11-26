@@ -14,11 +14,8 @@ fn input(app: &App) -> desktop_task_board::panel::PanelView<'_> {
  agents_settings: &app.agents_settings,
  project_path: &app.navigation_tabs.project_path,
  task_board_bulk_agent: &app.task_board.task_board_bulk_agent,
- task_board_bulk_task_split_mode: app.task_board.task_board_bulk_task_split_mode,
  task_board_detail_tab: app.task_board.task_board_detail_tab,
  task_board_draft: &app.task_board.task_board_draft,
- task_board_import_prompt_format: app.task_board.task_board_import_prompt_format,
- task_board_settings: &app.task_board.task_board_settings,
  task_board_viewing_logs: &app.task_board.task_board_viewing_logs,
  task_board_worktree_snapshot: &app.task_board.task_board_worktree_snapshot,
  task_board_logs_editor_id: &app.task_board.task_board_logs_editor_id,
@@ -33,7 +30,6 @@ fn input(app: &App) -> desktop_task_board::panel::PanelView<'_> {
  task_board_close_after_edit: app.task_board.task_board_close_after_edit,
  task_board_create_submit_success: app.task_board.task_board_create_submit_success,
  task_board_edit_submit_success: app.task_board.task_board_edit_submit_success,
- task_board_import_prompt_collapsed: app.task_board.task_board_import_prompt_collapsed,
  task_board_is_import_mode: app.task_board.task_board_is_import_mode,
  task_board_logs_context_menu_open: app.task_board.task_board_logs_context_menu_open,
  }
@@ -61,7 +57,7 @@ pub(super) fn build_panel(app: &App, edit: bool, over_detail: bool) -> iced::Ele
         edit && app.task_board.task_board_editing_task_id.as_ref() == Some(&task.id)
     }).and_then(|task| {
         if app.task_board.task_board_detail_tab == TaskBoardDetailTab::Logs {
-            return super::work_plan::history(app, task);
+            return None;
         }
         if over_detail {
             return Some(column![task_labels(app, task)]
@@ -83,7 +79,6 @@ pub(super) fn build_panel(app: &App, edit: bool, over_detail: bool) -> iced::Ele
         let actions = actions.extend(super::modals::quick_actions::entry(app, &task.id));
         Some(column![actions.wrap(), task_labels(app, task)]
             .extend(super::properties::task_editor(app, task))
-            .extend(super::work_plan::detail(app, task))
             .spacing(12).into())
     });
     desktop_task_board::panel::build_with_controls_and_content(
@@ -151,7 +146,6 @@ pub(super) fn task_labels<'a>(app: &'a App, task: &'a desktop_task_model::Task) 
     ].spacing(4).into()
 }
 
-pub(crate) fn build_bulk_task_split_selector(app: &App) -> iced::Element<'_, Message> { desktop_task_board::panel::build_bulk_task_split_selector(input(app)).map(map) }
 pub(crate) fn build_bulk_agent_selector(app: &App) -> iced::Element<'_, Message> { desktop_task_board::panel::build_bulk_agent_selector(input(app)).map(map) }
 
 #[cfg(test)]

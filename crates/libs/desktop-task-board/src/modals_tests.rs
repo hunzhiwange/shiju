@@ -7,7 +7,6 @@ use desktop_task_model::{Task, TaskStatus};
 use crate::slice_view_fixture::Fixture;
 use crate::message::TaskBoardMessage as Message;
 use iced::{Element, Length};
-use vw_api_agent_scheduler::AgentSchedulerDispatchModeDto;
 
 fn test_app() -> Fixture {
     let (app, _task) = Fixture::new();

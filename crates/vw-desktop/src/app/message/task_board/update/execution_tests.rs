@@ -16,9 +16,7 @@ async fn task_pool_desktop_non_git_can_start_and_retry() {
     let (mut app, _) = crate::app::App::new();
     app.navigation_tabs.project_path = Some(directory.path().to_string_lossy().into_owned());
     app.workspace_state.project_is_git_repo = false;
-    let prior_review_deadline = app.task_board.task_board_next_auto_review_tick_at_ms;
     let _ = super::update(&mut app, super::TaskBoardMessage::StartExecution);
-    assert_eq!(app.task_board.task_board_next_auto_review_tick_at_ms, prior_review_deadline);
     assert!(app.task_board.task_board_executor_running);
     for status in [crate::app::task::TaskStatus::Pending, crate::app::task::TaskStatus::Failed] {
         let mut task = crate::app::task::Task::new(1);
@@ -209,93 +207,4 @@ fn task_pool_acceptance_capacity_and_employee_interactions_match_baseline() {
     assert_eq!(app.task_board.task_board_worktree_desired_capacity, Some(17));
     assert!(!project.path().join(".git").exists());
     assert_eq!(std::fs::read_dir(project.path()).unwrap().count(), 0);
-}
-
-
-#[tokio::test]
-async fn work_plan_publish_desktop_uses_gateway_handoff() {
-    use desktop_task_executor::executor::runner::TaskPlanGenerationOutcome;
-    use iced_runtime::futures::futures::StreamExt;
-
-    let _guard = RECORDING_GATEWAY.lock().await;
-    let gateway = DesktopRecordingGateway::start();
-    let original = tempfile::tempdir().unwrap();
-    let other = tempfile::tempdir().unwrap();
-    let original_path = original.path().display().to_string();
-    let (mut app, _) = crate::app::App::new();
-    app.navigation_tabs.project_path = Some(other.path().display().to_string());
-    let subtasks = vw_api_agent_scheduler::parse_create_task_plans_prompt(
-        "## 任务 1: 子任务 【批次 1】 依赖批次 无\n计划元数据: {\"acceptance_criteria\":[\"通过检查\"]}\n```text\n执行子任务\n```",
-    ).unwrap();
-    let task = super::update(&mut app, super::TaskBoardMessage::TaskPlanningCompleted {
-        project_path: original_path.clone(),
-        task_id: "desktop-task".into(),
-        planning_attempt_id: "run-plan".into(),
-        result: Ok(TaskPlanGenerationOutcome {
-            subtasks,
-            raw_output: String::new(),
-            plan_dir: String::new(),
-            prompt_md_path: String::new(),
-        }),
-    });
-    let mut stream = iced_runtime::task::into_stream(task).unwrap();
-    let completed = tokio::time::timeout(std::time::Duration::from_secs(10), stream.next())
-        .await.unwrap();
-    let Some(iced_runtime::Action::Output(crate::app::Message::TaskBoard(
-        super::TaskBoardMessage::WorkPlanPublished { project_path, result, .. },
-    ))) = completed else {
-        panic!("expected gateway publication response");
-    };
-    assert_eq!(project_path, original_path);
-    assert_eq!(result.unwrap().child_task_ids, vec!["desktop-task:plan:1"]);
-    assert!(!app.task_board.task_board_executor.is_running("desktop-task"));
-    let requests = gateway.finish();
-    assert!(requests.iter().any(|(path, body)| {
-        path.contains("projects/resolve") && body["directory"] == original_path
-    }));
-    assert!(requests.iter().any(|(path, body)| {
-        path.ends_with("/tasks/desktop-task/work-plan")
-            && body["plan"]["planning_attempt_id"] == "run-plan"
-            && body["plan"]["subtasks"][0]["acceptance_criteria"] == serde_json::json!(["通过检查"])
-    }));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn work_plan_legacy_execution_never_replays_old_children() {
-    use crate::app::task::{SubTask, Task, TaskSplitMode, TaskStatus};
-    use desktop_task_board::{update::forms, work_views};
-    use desktop_task_executor::executor::runner::{GatewayPromptSessionMode, execute_task_blocking_in_mode};
-
-    fn unexpected_gateway() -> vw_gateway_client::GatewayEndpoint {
-        panic!("legacy execution must stop before opening a gateway session")
-    }
-
-    let workflow = desktop_task_model::TaskWorkflow::from(desktop_task_model::default_task_workflow());
-    let mut task = Task::new(1);
-    task.status = TaskStatus::Pending;
-    task.prompt = "原始需求".into();
-    let mut completed = SubTask::new("已完成的历史记录".into());
-    completed.mark_completed_at(2);
-    task.subtasks.push(completed);
-    task.subtasks.push(SubTask::new("旧批次中的未完成任务".into()));
-    for mode in [GatewayPromptSessionMode::Fresh, GatewayPromptSessionMode::ContinueExisting] {
-        let (id, result) = execute_task_blocking_in_mode(
-            unexpected_gateway, "/unused".into(), task.clone(), "/unused".into(), None, mode,
-        );
-        assert_eq!(id, task.id);
-        assert_eq!(result.unwrap_err(), vw_api_agent_scheduler::LEGACY_WORK_PLAN_RESPLIT_REASON);
-    }
-
-    assert!(work_views::can_resplit_legacy_work_plan(&task, &workflow));
-    task.status = TaskStatus::Running;
-    assert!(!work_views::can_resplit_legacy_work_plan(&task, &workflow));
-    task.status = TaskStatus::Failed;
-    assert!(work_views::can_resplit_legacy_work_plan(&task, &workflow));
-    let new_task = forms::resplit_legacy_task(task.clone(), TaskStatus::Pending);
-    assert_ne!(new_task.id, task.id);
-    assert_eq!(new_task.prompt, task.prompt);
-    assert_eq!(new_task.task_split_mode, TaskSplitMode::Enabled);
-    assert!(new_task.subtasks.is_empty());
-    assert!(task.subtasks[0].completed);
 }

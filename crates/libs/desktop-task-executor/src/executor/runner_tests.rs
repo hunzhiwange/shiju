@@ -265,10 +265,6 @@ mod task_board_execution_worktree_gateway_runner {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn task_plan_root_path(home: &std::path::Path) -> std::path::PathBuf {
-    config_runtime_paths::task_plan_storage_dir(home)
-}
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
@@ -690,46 +686,8 @@ fn spawn_failure_then_idle_timeout_falls_through_to_continue_retry() {
     );
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn write_task_plan_files_uses_task_folder_with_subtask_files() {
-    let home = tempfile::TempDir::new().expect("temp home should be created");
-    let mut task = desktop_task_model::Task::new(1);
-    task.id = "T20260529.0001".to_string();
-    task.prompt = "Implement task pool split".to_string();
 
-    let mut first = desktop_task_model::SubTask::new("Create plan structure".to_string());
-    first.id = "SUB-one".to_string();
-    first.boundary = "Only plan file layout".to_string();
-    first.acceptance_criteria = vec!["plan.md exists".to_string()];
-    first.target_files = vec!["crates/vw-desktop/src/app/task/executor/runner.rs".to_string()];
-    let mut second = desktop_task_model::SubTask::new("Execute subtask request".to_string());
-    second.id = "SUB-two".to_string();
-    task.subtasks = vec![first, second];
 
-    super::write_task_plan_files_in_home(home.path(), &task).expect("plan files should write");
-
-    let plan_root = task_plan_root_path(home.path());
-    let task_dir = plan_root.join("task-T20260529-0001");
-    assert!(task_dir.join("plan.md").exists());
-    assert!(task_dir.join("001-SUB-one.md").exists());
-    assert!(task_dir.join("002-SUB-two.md").exists());
-    assert!(!plan_root.join("plan.md").exists());
-    assert!(!plan_root.join("T20260529.0001.md").exists());
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn format_task_plan_started_at_uses_readable_seconds() {
-    assert_eq!(super::format_task_plan_started_at(None), "-");
-    assert_eq!(super::format_task_plan_started_at(Some(0)), "1970-01-01 00:00:00");
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn format_task_plan_started_at_rejects_out_of_range_timestamp() {
-    assert_eq!(super::format_task_plan_started_at(Some(u64::MAX)), "-");
-}
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
@@ -781,221 +739,17 @@ fn gateway_stream_requires_done_before_success() {
     ));
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn task_plan_paths_use_user_storage_directory() {
-    let home = std::path::Path::new("/tmp/vibewindow-home");
-    let root = super::task_plan_root_dir(home);
-    let dir = super::task_plan_dir(home, "T1.unsafe/中文");
-    let file = super::task_plan_file_path(home, "T1.unsafe/中文");
 
-    let plan_root = config_runtime_paths::task_plan_storage_dir(home);
-    let task_dir = plan_root.join("task-T1-unsafe");
-    assert_eq!(root, plan_root);
-    assert_eq!(dir, task_dir);
-    assert_eq!(file, task_dir.join("plan.md"));
-}
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn sanitize_task_plan_file_part_removes_unsafe_characters() {
-    assert_eq!(super::sanitize_task_plan_file_part("SUB.1 abc/中文"), "SUB-1abc");
-    assert_eq!(super::sanitize_task_plan_file_part("中文/ /"), "subtask");
-}
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn subtask_plan_file_name_uses_one_based_index_and_sanitized_id() {
-    let mut subtask = desktop_task_model::SubTask::new("Do work".to_string());
-    subtask.id = "SUB.001/unsafe".to_string();
 
-    assert_eq!(super::subtask_plan_file_name(0, &subtask), "001-SUB-001unsafe.md");
-}
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn format_task_plan_duration_handles_none_seconds_and_minutes() {
-    assert_eq!(super::format_task_plan_duration(None), "-");
-    assert_eq!(super::format_task_plan_duration(Some(999)), "0s");
-    assert_eq!(super::format_task_plan_duration(Some(65_000)), "1m5s");
-}
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn subtask_status_label_covers_all_statuses() {
-    use desktop_task_model::SubTaskStatus;
 
-    assert_eq!(super::subtask_status_label(SubTaskStatus::Pending), "pending");
-    assert_eq!(super::subtask_status_label(SubTaskStatus::Running), "running");
-    assert_eq!(super::subtask_status_label(SubTaskStatus::Completed), "completed");
-    assert_eq!(super::subtask_status_label(SubTaskStatus::Failed), "failed");
-}
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn format_markdown_list_uses_empty_text_or_trimmed_items() {
-    assert_eq!(super::format_markdown_list(&[], "none"), "- none\n");
-    assert_eq!(
-        super::format_markdown_list(&[" one ".to_string(), "two".to_string()], "none"),
-        "- one\n- two\n"
-    );
-}
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn build_task_plan_markdown_lists_subtasks_and_metadata() {
-    let mut task = desktop_task_model::Task::new(1);
-    task.id = "T1".to_string();
-    task.description = "Test plan".to_string();
-    task.prompt = "Original prompt".to_string();
-    task.status = desktop_task_model::TaskStatus::Planning;
-    let mut subtask = desktop_task_model::SubTask::new("First".to_string());
-    subtask.id = "SUB-one".to_string();
-    subtask.boundary = "Only first".to_string();
-    subtask.target_files = vec!["src/lib.rs".to_string()];
-    task.subtasks = vec![subtask];
 
-    let markdown = super::build_task_plan_markdown(&task);
 
-    assert!(markdown.contains("# T1"));
-    assert!(markdown.contains("- 状态: 任务拆分"));
-    assert!(markdown.contains("Original prompt"));
-    assert!(markdown.contains("[First](001-SUB-one.md)"));
-    assert!(markdown.contains("目标文件: src/lib.rs"));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn task_plan_markdown_includes_subtask_batches() {
-    let mut task = desktop_task_model::Task::new(1);
-    task.id = "T1".to_string();
-    task.prompt = "Prompt".to_string();
-
-    let mut first = desktop_task_model::SubTask::new("First".to_string());
-    first.id = "SUB-one".to_string();
-    first.batch = 1;
-
-    let mut second = desktop_task_model::SubTask::new("Second".to_string());
-    second.id = "SUB-two".to_string();
-    second.batch = 2;
-    second.depends_on_batches = vec![1];
-    task.subtasks = vec![first, second];
-
-    let overview = super::build_task_plan_markdown(&task);
-    assert!(overview.contains("批次: 1"));
-    assert!(overview.contains("依赖批次: 无"));
-    assert!(overview.contains("批次: 2"));
-    assert!(overview.contains("依赖批次: 1"));
-
-    let second_md = super::build_subtask_plan_markdown(&task, &task.subtasks[1], 1, 2);
-    assert!(second_md.contains("- 批次: 2"));
-    assert!(second_md.contains("- 依赖批次: 1"));
-
-    let first_md = super::build_subtask_plan_markdown(&task, &task.subtasks[0], 0, 2);
-    assert!(first_md.contains("- 批次: 1"));
-    assert!(first_md.contains("- 依赖批次: 无"));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn build_subtask_plan_markdown_uses_defaults_for_empty_fields() {
-    let mut task = desktop_task_model::Task::new(1);
-    task.id = "T1".to_string();
-    task.prompt = "Prompt".to_string();
-    let mut subtask = desktop_task_model::SubTask::new("First".to_string());
-    subtask.id = "SUB-one".to_string();
-
-    let markdown = super::build_subtask_plan_markdown(&task, &subtask, 0, 1);
-
-    assert!(markdown.contains("# 子任务 001: First"));
-    assert!(markdown.contains("- 任务ID: T1"));
-    assert!(markdown.contains("完成本子任务标题所描述的范围"));
-    assert!(markdown.contains("- 未指定，由执行者按边界判断"));
-    assert!(markdown.contains("- 完成后能用本子任务边界中的行为或检查方式验证"));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn write_task_plan_files_removes_stale_markdown_files() {
-    let home = tempfile::TempDir::new().expect("temp home should be created");
-    let mut task = desktop_task_model::Task::new(1);
-    task.id = "T-stale".to_string();
-    task.prompt = "Prompt".to_string();
-    let mut subtask = desktop_task_model::SubTask::new("First".to_string());
-    subtask.id = "SUB-one".to_string();
-    task.subtasks = vec![subtask];
-    let task_dir = task_plan_root_path(home.path()).join("task-T-stale");
-    std::fs::create_dir_all(&task_dir).expect("task dir should exist");
-    std::fs::write(task_dir.join("999-stale.md"), "old").expect("stale md should be written");
-    std::fs::write(task_dir.join("notes.txt"), "keep").expect("txt should be written");
-
-    super::write_task_plan_files_in_home(home.path(), &task).expect("plan files should write");
-
-    assert!(!task_dir.join("999-stale.md").exists());
-    assert!(task_dir.join("notes.txt").exists());
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn build_task_split_prompt_uses_create_task_plans_template_batches_and_fixed_output_dir() {
-    let mut task = desktop_task_model::Task::new(1);
-    task.id = "T1".to_string();
-    task.description = "Build tests".to_string();
-    task.prompt = "Need coverage".to_string();
-
-    let home = std::path::Path::new("/tmp/vibewindow-home");
-    let plan_dir = super::task_split_plan_abs_dir(home, &task);
-    let prompt = super::build_task_split_prompt(&task, &plan_dir);
-
-    // 框架运行时 create-task-plans 规范，不再依赖根目录 skills。
-    assert!(prompt.contains("create-task-plans-runtime"));
-    assert!(prompt.contains("do-task-plans-runtime"));
-    assert!(
-        prompt.contains("crates/vw-agent/assets/runtime-skills/create-task-plans-runtime/SKILL.md")
-    );
-    assert!(
-        prompt.contains("crates/vw-agent/assets/runtime-skills/do-task-plans-runtime/SKILL.md")
-    );
-    assert!(!prompt.contains("../../../../../../skills/"));
-    assert!(!prompt.contains("只输出 JSON"));
-    assert!(!prompt.contains("不要把一个任务机械拆成"));
-
-    // 确定性计划目录与 create-task-plans 产物。
-    assert!(prompt.contains(plan_dir.to_string_lossy().as_ref()));
-    assert!(plan_dir.is_absolute());
-    assert!(prompt.contains(&format!("计划目录固定使用绝对路径 `{}/`", plan_dir.display())));
-    assert!(prompt.contains(&super::task_split_plan_dir_name(&task)));
-    assert!(prompt.contains("plan.md"));
-    assert!(prompt.contains("prompt.md"));
-    assert!(prompt.contains("tasks.json"));
-    assert!(prompt.contains("Markdown 文件一一对应"));
-
-    // 批次与依赖批次规则。
-    assert!(prompt.contains("当前批次"));
-    assert!(prompt.contains("依赖批次"));
-    assert!(prompt.contains("同一批次"));
-
-    // 自动化排障：不询问用户，先用仓库上下文自行收敛。
-    assert!(prompt.contains("不要询问用户"));
-
-    // 工具护栏与任务身份。
-    assert!(prompt.contains("node_repl"));
-    assert!(prompt.contains("任务ID: T1"));
-    assert!(prompt.contains("标题: Build tests"));
-    assert!(prompt.contains("Need coverage"));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn task_split_plan_dir_name_is_deterministic_from_task_id() {
-    let mut task = desktop_task_model::Task::new(1);
-    task.id = "T20260628.0001".to_string();
-
-    let name = super::task_split_plan_dir_name(&task);
-
-    assert!(name.contains("T20260628-0001"));
-    assert_eq!(name, super::task_split_plan_dir_name(&task));
-}
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
@@ -1023,106 +777,11 @@ fn gateway_merge_conflict_classifier_blocks_conflicts_from_retry_policy() {
     assert!(super::is_retryable_gateway_error("connection reset by peer"));
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn subtask_dependency_batch_labels_preserve_order_and_empty_state() {
-    assert_eq!(super::format_subtask_depends_on_batches(&[]), "无");
-    assert_eq!(super::format_subtask_depends_on_batches(&[3, 1, 2]), "3, 1, 2");
-}
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn task_plan_reads_ignore_legacy_project_cache() {
-    let home = tempfile::TempDir::new().expect("temp home should be created");
-    let project = tempfile::TempDir::new().expect("temp project should be created");
-    let mut task = desktop_task_model::Task::new(1);
-    task.id = "T.legacy/中文".to_string();
-    task.prompt = "Current prompt".to_string();
-    let mut subtask = desktop_task_model::SubTask::new("Current subtask".to_string());
-    subtask.id = "SUB-one".to_string();
-    task.subtasks = vec![subtask.clone()];
 
-    let legacy_dir = project.path().join(".plans").join("task-T-legacy");
-    std::fs::create_dir_all(&legacy_dir).expect("legacy plan directory should be created");
-    std::fs::write(legacy_dir.join("prompt.md"), "legacy prompt")
-        .expect("legacy prompt should be written");
-    std::fs::write(legacy_dir.join("plan.md"), "legacy plan")
-        .expect("legacy plan should be written");
-    std::fs::write(legacy_dir.join("001-SUB-one.md"), "legacy subtask")
-        .expect("legacy subtask should be written");
-    std::fs::write(legacy_dir.join("tasks.json"), "legacy tasks")
-        .expect("legacy tasks should be written");
 
-    let current_dir = super::task_split_plan_abs_dir(home.path(), &task);
-    std::fs::create_dir_all(&current_dir).expect("current plan directory should be created");
-    std::fs::write(current_dir.join("prompt.md"), "current prompt")
-        .expect("current prompt should be written");
 
-    let prompt =
-        super::read_task_plan_prompt_md(&current_dir).expect("current prompt should be read");
-    let plan = super::build_task_plan_markdown(&task);
-    let subtask_plan = super::build_subtask_plan_markdown(&task, &subtask, 0, 1);
 
-    assert_eq!(prompt, "current prompt");
-    assert!(plan.contains("Current prompt"));
-    assert!(subtask_plan.contains("Current subtask"));
-    assert!(!plan.contains("legacy plan"));
-    assert!(!subtask_plan.contains("legacy subtask"));
-    assert!(!current_dir.join("tasks.json").exists());
-    assert_eq!(
-        std::fs::read_to_string(legacy_dir.join("tasks.json"))
-            .expect("legacy cache should remain untouched"),
-        "legacy tasks"
-    );
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn parse_create_task_plans_prompt_dedupes_sorts_and_rejects_self_dependency() {
-    let prompt_md = "## 任务 1: A 【批次 2】 依赖批次 2,1,1\n\n```text\n执行 A\n```\n";
-
-    // 依赖批次包含当前批次（自依赖）必须明确失败。
-    assert!(super::parse_create_task_plans_prompt(prompt_md).is_err());
-
-    let ok = "## 任务 1: A 【批次 3】 依赖批次 2,1,1\n\n```text\n执行 A\n```\n";
-    let parsed = super::parse_create_task_plans_prompt(ok).expect("应能解析");
-    // 去重并升序排序。
-    assert_eq!(parsed[0].depends_on_batches, vec![1, 2]);
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn parse_create_task_plans_prompt_rejects_missing_code_block() {
-    let prompt_md = "## 任务 1: A 【批次 1】 依赖批次 无\n\n这里缺少 text 代码块。\n";
-
-    // 缺失代码块的任务必须返回明确错误，不伪造成功子任务。
-    assert!(super::parse_create_task_plans_prompt(prompt_md).is_err());
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn parse_create_task_plans_prompt_rejects_empty_prompt() {
-    // prompt.md 没有任何 `## 任务 N` 时明确失败。
-    assert!(super::parse_create_task_plans_prompt("# 标题\n\n没有任务。\n").is_err());
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn execute_task_plan_reports_missing_prompt_md_explicitly() {
-    let home = tempfile::tempdir().expect("临时 home");
-    let mut task = desktop_task_model::Task::new(1);
-    task.prompt = "Original".to_string();
-
-    // 计划目录存在但缺少 prompt.md：必须返回包含 prompt.md 路径的明确错误，
-    // 不静默回退旧 JSON 解析。
-    let plan_dir = super::task_split_plan_abs_dir(home.path(), &task);
-    std::fs::create_dir_all(&plan_dir).expect("创建计划目录");
-
-    let err =
-        super::read_task_plan_prompt_md(&plan_dir).expect_err("缺失 prompt.md 必须报错");
-    assert!(err.contains("prompt.md"), "错误信息应包含 prompt.md: {err}");
-    assert!(err.contains(plan_dir.to_string_lossy().as_ref()));
-}
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
@@ -1364,76 +1023,10 @@ fn fail_gateway_stream_flushes_pending_output_and_emits_failed_exit() {
     ));
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn parse_task_heading_supports_chinese_punctuation_and_sorted_dependencies() {
-    let parsed = super::parse_task_heading("## 任务 7： 状态机收口 【批次 4】 依赖批次 3、1，2 1")
-        .expect("heading should parse");
 
-    assert_eq!(parsed.0, "状态机收口");
-    assert_eq!(parsed.1, 4);
-    assert_eq!(parsed.2, vec![1, 2, 3]);
-}
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn parse_task_heading_rejects_malformed_batch_and_dependencies() {
-    for (heading, expected_error) in [
-        ("## 工作 1: A 【批次 1】 依赖批次 无", "缺少“任务”前缀"),
-        ("## 任务 1: A", "缺少“【批次 N】”"),
-        ("## 任务 1: 【批次 1】 依赖批次 无", "任务标题为空"),
-        ("## 任务 1: A 【批次 x】 依赖批次 无", "无法解析批次编号"),
-        ("## 任务 1: A 【批次 2】 依赖批次 3", "不能大于当前批次"),
-        ("## 任务 1: A 【批次 2】 依赖批次 x", "无法解析依赖批次"),
-        ("## 任务 1: A 【批次 2", "格式不正确"),
-    ] {
-        let error = super::parse_task_heading(heading).expect_err("heading should be rejected");
-        assert!(
-            error.contains(expected_error),
-            "expected {expected_error:?} in error for {heading:?}, got {error:?}"
-        );
-    }
-}
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn task_heading_detection_requires_hash_prefix_task_word_and_number() {
-    assert!(super::is_task_heading("  ## 任务 12: Valid"));
-    assert!(!super::is_task_heading("任务 12: Missing hashes"));
-    assert!(!super::is_task_heading("## 任务说明"));
-    assert!(!super::is_task_heading("## 工作 12: Wrong marker"));
-}
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn parse_create_task_plans_prompt_rejects_unclosed_or_empty_code_blocks() {
-    let unclosed = "## 任务 1: A 【批次 1】 依赖批次 无\n\n```text\n执行 A\n";
-    let empty = "## 任务 1: A 【批次 1】 依赖批次 无\n\n```text\n  \n```\n";
-
-    let unclosed_error =
-        super::parse_create_task_plans_prompt(unclosed).expect_err("unclosed block should fail");
-    assert!(unclosed_error.contains("代码块未闭合"));
-    let empty_error =
-        super::parse_create_task_plans_prompt(empty).expect_err("empty block should fail");
-    assert!(empty_error.contains("执行提示代码块为空"));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn read_task_plan_prompt_md_returns_exact_generated_content() {
-    let home = tempfile::tempdir().expect("temporary home should be created");
-    let mut task = desktop_task_model::Task::new(1);
-    task.id = "T-read-plan".to_string();
-    let plan_dir = super::task_split_plan_abs_dir(home.path(), &task);
-    std::fs::create_dir_all(&plan_dir).expect("plan directory should be created");
-    std::fs::write(plan_dir.join("prompt.md"), "# generated\n\ncontent\n")
-        .expect("prompt should be written");
-
-    let content =
-        super::read_task_plan_prompt_md(&plan_dir).expect("prompt should be read");
-
-    assert_eq!(content, "# generated\n\ncontent\n");
-}
 
 #[cfg(not(target_arch = "wasm32"))]
 mod agent_routing {

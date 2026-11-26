@@ -11,13 +11,11 @@ doctest = false
 test-support = []
 
 [dependencies]
-vw-api-agent-scheduler = { path = "../api-agent-scheduler" }
 vw-api-acp-model = { path = "../api-acp-model" }
 session-text = { path = "../session-text" }
 gateway-session = { path = "../gateway-session" }
 config-runtime-paths = { path = "../config-runtime-paths" }
 once_cell = "1"
-time = { version = "0.3", features = ["formatting"] }
 vw-api-chat-identity = { path = "../api-chat-identity" }
 vw-api-transport = { path = "../api-transport" }
 vw-api-task = { path = "../api-task" }

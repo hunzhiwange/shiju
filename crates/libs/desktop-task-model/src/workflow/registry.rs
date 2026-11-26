@@ -268,7 +268,10 @@ pub fn is_builtin_task_workflow_id(id: &str) -> bool {
         .unwrap_or_else(|| builtin_task_workflows().iter().any(|workflow| workflow.id == id))
 }
 
-pub fn update_runtime_task_lifecycle_cache(workflows: Vec<TaskLifecycleWorkflowDto>) -> Result<()> {
+pub fn update_runtime_task_lifecycle_cache(mut workflows: Vec<TaskLifecycleWorkflowDto>) -> Result<()> {
+    for workflow in &mut workflows {
+        workflow.remove_legacy_code_review();
+    }
     validate_lifecycle_cache(&workflows)?;
     let mut cache =
         RUNTIME_TASK_LIFECYCLE_CACHE.write().map_err(|_| anyhow!("任务生命周期 cache 锁已损坏"))?;

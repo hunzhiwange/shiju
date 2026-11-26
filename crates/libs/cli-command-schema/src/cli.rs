@@ -704,12 +704,6 @@ pub enum TaskCommands {
         /// 执行器 ID：internal、opencode、claude、codex
         #[arg(long)]
         executor: Option<String>,
-        /// 任务拆分模式：follow-system、on、off
-        #[arg(long = "task-split", value_enum)]
-        task_split: Option<TaskSplitCliMode>,
-        /// 子任务项（可重复指定）
-        #[arg(long = "subtask")]
-        subtasks: Vec<String>,
     },
     /// 读取任务
     Read {
@@ -731,13 +725,6 @@ pub enum TaskCommands {
     },
 }
 
-/// CLI 任务拆分模式。
-#[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
-pub enum TaskSplitCliMode {
-    FollowSystem,
-    On,
-    Off,
-}
 
 /// 紧急停止子命令
 #[derive(Subcommand, Debug)]

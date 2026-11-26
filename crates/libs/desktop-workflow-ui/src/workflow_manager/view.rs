@@ -1,4 +1,4 @@
-use super::status_catalog::{StatusCatalogRow, status_behavior, status_catalog};
+use super::status_catalog::{StatusCatalogRow, status_catalog};
 use super::*;
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage;
@@ -288,7 +288,7 @@ fn build_status_catalog<'a>(
     let mut groups = column![].spacing(16);
     if let Some(workflow) = workflow {
         for (group, rows) in status_catalog(workflow) {
-            let mut section = column![text(i18n.__(group.label())).size(15)].spacing(8);
+            let mut section = column![text(group.label(i18n)).size(15)].spacing(8);
             if rows.is_empty() {
                 section = section.push(
                     text(i18n.__("此组暂无状态")).size(12).style(settings_muted_text_style),
@@ -355,7 +355,7 @@ fn build_status_catalog<'a>(
         header = header.push(field_help(
             i18n,
             i18n.__("状态分组规则"),
-            i18n.__("首版将自定义语义角色归到已开始。分组用于浏览，调度仍按工作流配置执行。"),
+            i18n.__("状态行为为「其他」时，归入「已开始」。"),
             12,
         ));
     }
@@ -443,10 +443,12 @@ fn build_workflow_list<'a>(
         let badge = if workflow.is_builtin { i18n.__("内置") } else { i18n.__("用户") };
         let button_style: fn(&Theme, button::Status) -> button::Style =
             if selected { primary_action_btn_style } else { rounded_action_btn_style };
+        let badge = text(badge).size(11);
+        let badge = if selected { badge } else { badge.style(settings_muted_text_style) };
         items = items.push(
             button(column![
                 text(workflow.definition.label.as_str()).size(13),
-                text(badge).size(11).style(settings_muted_text_style),
+                badge,
             ].spacing(3))
             .width(Length::Fill)
             .padding([10, 12])
@@ -570,13 +572,28 @@ fn build_editor<'a>(
         }
     }
 
-    let mut flow = column![].spacing(10);
-    for status in &workflow.statuses {
-        let editable = state.workflows.iter().any(|item| {
-            item.definition.id == workflow.id
-                && item.definition.statuses.iter().any(|entry| entry.key == status.key)
-        });
-        flow = flow.push(build_workflow_status_view(i18n, workflow, status, editable, show_project));
+    let mut flow = column![].spacing(16);
+    for (group, rows) in status_catalog(workflow) {
+        let mut section = column![text(group.label(i18n)).size(15)].spacing(8);
+        if rows.is_empty() {
+            section = section.push(
+                text(i18n.__("此组暂无状态")).size(12).style(settings_muted_text_style),
+            );
+        }
+        for entry in rows {
+            let editable = state.workflows.iter().any(|item| {
+                item.definition.id == workflow.id
+                    && item.definition.statuses.iter().any(|status| status.key == entry.status.key)
+            });
+            section = section.push(build_workflow_status_view(
+                i18n,
+                workflow,
+                entry,
+                editable,
+                show_project,
+            ));
+        }
+        flow = flow.push(section);
     }
 
     settings_panel(
@@ -598,20 +615,28 @@ fn workflow_action(
     action: WorkflowManagerMessage,
     style: fn(&Theme, button::Status) -> button::Style,
 ) -> Element<'static, Message> {
+    workflow_action_button(label, style)
+        .on_press(Message::WorkflowManager(action))
+        .into()
+}
+
+fn workflow_action_button(
+    label: &'static str,
+    style: fn(&Theme, button::Status) -> button::Style,
+) -> button::Button<'static, Message> {
     button(text(label).size(13))
         .padding([8, 12])
         .style(style)
-        .on_press(Message::WorkflowManager(action))
-        .into()
 }
 
 fn build_workflow_status_view<'a>(
     i18n: desktop_i18n::I18n,
     workflow: &TaskWorkflow,
-    status: &'a OwnedStatusDefinition,
+    entry: StatusCatalogRow<'a>,
     editable: bool,
     show_project: bool,
 ) -> Element<'a, Message> {
+    let status = entry.status;
     let mut header = row![text(status.label.as_str()).size(15), Space::new().width(Length::Fill)]
         .spacing(6)
         .align_y(Alignment::Center);
@@ -626,10 +651,9 @@ fn build_workflow_status_view<'a>(
         ));
     }
 
-    let behavior = status_behavior(workflow, status);
     let mut details = column![
         header,
-        text(i18n.__(behavior.summary)).size(12).style(settings_muted_text_style),
+        text(i18n.__(entry.behavior.summary)).size(12).style(settings_muted_text_style),
     ].spacing(6);
     if status.enabled {
         let actor = match status.role {
@@ -890,7 +914,12 @@ fn build_status_row<'a>(
                     .width(Length::Fill),
             ))
             .push(input_row(
-                field_help(i18n, i18n.__("语义角色"), i18n.__("调度和执行只依赖角色语义。"), 13),
+                field_help(
+                    i18n,
+                    i18n.__("状态行为"),
+                    i18n.__("决定任务在这个状态下如何调度和执行。"),
+                    13,
+                ),
                 role_pick,
             ))
             .push(row![
@@ -899,15 +928,11 @@ fn build_status_row<'a>(
                     WorkflowManagerMessage::ToggleDraftStatusEnabled(index),
                     rounded_action_btn_style,
                 ),
-                button(text(i18n.__("上移")).size(12))
-                    .padding([7, 10])
-                    .style(rounded_action_btn_style)
+                workflow_action_button(i18n.__("上移"), rounded_action_btn_style)
                     .on_press_maybe((index > 0).then_some(Message::WorkflowManager(
                         WorkflowManagerMessage::MoveDraftStatusUp(index),
                     ))),
-                button(text(i18n.__("下移")).size(12))
-                    .padding([7, 10])
-                    .style(rounded_action_btn_style)
+                workflow_action_button(i18n.__("下移"), rounded_action_btn_style)
                     .on_press_maybe((index + 1 < draft.statuses.len()).then_some(
                         Message::WorkflowManager(WorkflowManagerMessage::MoveDraftStatusDown(index)),
                     )),

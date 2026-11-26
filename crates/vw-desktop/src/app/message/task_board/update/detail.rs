@@ -156,14 +156,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             return request(app, Operation::Unlink, Some(Change::UnlinkPullRequest { url }));
         }
         Event::ToggleActivity => state.activity_expanded = !state.activity_expanded,
-        Event::ShowExecution => {
-            state.activity_expanded = true;
-            return super::update(
-                app,
-                TaskBoardMessage::LoadWorkPlanHistory { include_children: false },
-            );
-        }
-        Event::ToggleSubtasks => state.subtasks_collapsed = !state.subtasks_collapsed,
+        Event::ShowExecution => state.activity_expanded = true,
         Event::ToggleRun(id) => {
             state.expanded_run = (state.expanded_run.as_ref() != Some(&id)).then_some(id);
         }

@@ -47,7 +47,7 @@ pub enum StatusRole {
     Backlog,
     /// 等待进入执行的排队任务。
     Queued,
-    /// 正在拆分规划。
+    /// 正在准备执行计划。
     Planning,
     /// 正在执行，占用并发执行槽位。
     Executing,
@@ -55,9 +55,9 @@ pub enum StatusRole {
     Failed,
     /// 暂停，不参与自动调度。
     Paused,
-    /// 执行产物就绪、等待进入审核。
+    /// 执行产物就绪，等待下一阶段。
     ReviewReady,
-    /// 正在代码审核。
+    /// 审核中。
     Review,
     /// 正在合并代码。
     Merging,
@@ -282,14 +282,8 @@ pub enum TaskTransitionIntent {
     ExecutionSucceeded,
     /// 执行失败：`Running -> Failed`。
     ExecutionFailed,
-    /// 进入代码审核：`CodeComplete -> CodeReview`。
-    EnterReview,
-    /// 跳过代码审核直接合并：`CodeComplete -> PrSubmitted`。
-    SkipReview,
-    /// 审核通过：`CodeReview -> PrSubmitted`。
-    ReviewApproved,
-    /// 审核驳回：`CodeReview -> Failed`。
-    ReviewBlocked,
+    /// 进入合并阶段：`CodeComplete -> PrSubmitted`。
+    EnterMerge,
     /// 合并成功：`PrSubmitted -> Completed`。
     MergeSucceeded,
     /// 合并失败：`PrSubmitted -> Failed`。
@@ -304,15 +298,11 @@ impl TaskTransitionIntent {
     fn outcome(self) -> Option<StatusOutcome> {
         match self {
             Self::ManualMove => None,
-            Self::ExecutionFailed | Self::ReviewBlocked | Self::MergeFailed => {
-                Some(StatusOutcome::failed())
-            }
-            Self::SkipReview => Some(StatusOutcome::manual()),
+            Self::ExecutionFailed | Self::MergeFailed => Some(StatusOutcome::failed()),
             Self::AutoPromote
             | Self::StartExecution
             | Self::ExecutionSucceeded
-            | Self::EnterReview
-            | Self::ReviewApproved
+            | Self::EnterMerge
             | Self::MergeSucceeded
             | Self::Archive
             | Self::Simulation => Some(StatusOutcome::succeed()),
@@ -347,11 +337,6 @@ const DEV_LIFECYCLE_TRANSITIONS: &[TaskStatusTransition] = &[
         intent: TaskTransitionIntent::StartExecution,
     },
     TaskStatusTransition {
-        from: TaskStatus::Planning,
-        to: TaskStatus::Running,
-        intent: TaskTransitionIntent::StartExecution,
-    },
-    TaskStatusTransition {
         from: TaskStatus::Failed,
         to: TaskStatus::Running,
         intent: TaskTransitionIntent::StartExecution,
@@ -373,23 +358,8 @@ const DEV_LIFECYCLE_TRANSITIONS: &[TaskStatusTransition] = &[
     },
     TaskStatusTransition {
         from: TaskStatus::CodeComplete,
-        to: TaskStatus::CodeReview,
-        intent: TaskTransitionIntent::EnterReview,
-    },
-    TaskStatusTransition {
-        from: TaskStatus::CodeComplete,
         to: TaskStatus::PrSubmitted,
-        intent: TaskTransitionIntent::SkipReview,
-    },
-    TaskStatusTransition {
-        from: TaskStatus::CodeReview,
-        to: TaskStatus::PrSubmitted,
-        intent: TaskTransitionIntent::ReviewApproved,
-    },
-    TaskStatusTransition {
-        from: TaskStatus::CodeReview,
-        to: TaskStatus::Failed,
-        intent: TaskTransitionIntent::ReviewBlocked,
+        intent: TaskTransitionIntent::EnterMerge,
     },
     TaskStatusTransition {
         from: TaskStatus::PrSubmitted,
@@ -456,7 +426,6 @@ impl std::error::Error for TaskTransitionError {}
 /// ));
 /// assert!(!machine.can_transition(
 ///     TaskStatus::Pending,
-///     TaskStatus::Planning,
 ///     TaskTransitionIntent::AutoPromote,
 /// ));
 ///
@@ -564,7 +533,7 @@ impl TaskStateMachine {
     /// 判断 `to` 是否为从 `from` 出发、沿工作流前进方向可达的真实状态变化。
     ///
     /// 不接受 `ManualMove` 的任意跨列移动，也不接受状态倒流。执行器结果可能在一次回调内
-    /// 连续推进多步（如 `Running -> CodeComplete -> CodeReview`），交接记录的首尾状态并非
+    /// 连续推进多步（如 `Running -> CodeComplete -> PrSubmitted`），交接记录的首尾状态并非
     /// 单步边，因此按默认线性 `next` 链做前向可达性判断：能从 `from` 顺序走到 `to` 即认可。
     /// 用于在不知道具体来源意图时校验“该状态变化是否被状态机前向认可”，例如员工交接消息。
     pub fn is_known_transition(&self, from: TaskStatus, to: TaskStatus) -> bool {

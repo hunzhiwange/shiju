@@ -2,7 +2,7 @@
 //! 长行和不同日志级别用于验证预览截断及主题样式的绘制边界。
 use iced::{Background, Color, Element, Length, Theme};
 
-use desktop_task_model::{SubTask, SubTaskStatus, Task, TaskLogEntry};
+use desktop_task_model::{Task, TaskLogEntry};
 use crate::slice_view_fixture::Fixture;
 use crate::message::TaskBoardMessage as Message;
 
@@ -53,13 +53,6 @@ fn task_with_logs() -> Task {
     task
 }
 
-fn subtask(id: &str, content: &str, status: SubTaskStatus, created_at_ms: u64) -> SubTask {
-    let mut subtask = SubTask::new(content.to_string());
-    subtask.id = id.to_string();
-    subtask.status = status;
-    subtask.created_at_ms = created_at_ms;
-    subtask
-}
 
 #[test]
 fn test_module_is_wired() {
@@ -72,12 +65,7 @@ fn test_module_is_wired() {
 fn task_logs_modal_builds_public_and_content_entries() {
     let (app, _task) = Fixture::new();
 
-    let mut task = task_with_logs();
-    task.subtasks = vec![
-        subtask("sub-1", "准备", SubTaskStatus::Pending, 0),
-        subtask("sub-2", "执行", SubTaskStatus::Running, 3_600_000),
-        subtask("sub-3", "验收", SubTaskStatus::Completed, 7_200_000),
-    ];
+    let task = task_with_logs();
 
     let public_modal = build_task_logs_modal_content(desktop_i18n::I18n::new(app.desktop_locale), &task);
     assert_eq!(public_modal.as_widget().size().width, Length::FillPortion(1));
@@ -93,37 +81,7 @@ fn task_logs_modal_builds_public_and_content_entries() {
     keep_element(content_modal);
 }
 
-#[test]
-fn task_logs_modal_omits_subtask_section_when_empty() {
-    let task = task_with_logs();
 
-    let modal = build_task_logs_modal_content(
-        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        &task,
-    );
-
-    assert_eq!(modal.as_widget().size().width, Length::FillPortion(1));
-    keep_element(modal);
-}
-
-#[test]
-fn subtask_section_renders_historical_statuses() {
-    let mut task = Task { id: "task-subtasks".to_string(), ..Task::default() };
-    task.subtasks = vec![
-        subtask("first", "first item", SubTaskStatus::Pending, 0),
-        subtask("middle", "middle item", SubTaskStatus::Running, 60_000),
-        subtask("last", "last item", SubTaskStatus::Failed, 120_000),
-    ];
-
-    let column: Element<'_, Message> = build_subtasks_section(
-        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        &task,
-        iced::widget::column![],
-    )
-    .into();
-
-    assert_eq!(column.as_widget().children().len(), 4);
-}
 
 #[test]
 fn logs_section_formats_empty_and_multi_line_logs() {
@@ -153,8 +111,6 @@ fn helper_formatters_preserve_existing_time_contracts() {
     };
 
     assert_eq!(format_log_entry(&log), "61:1 - one hour plus");
-    assert_eq!(format_subtask_created_date(0), "1970-1 0:0");
-    assert_eq!(format_subtask_created_date(86_400_000 * 40 + 3_660_000), "1970-2 1:1");
 }
 
 #[test]
@@ -181,11 +137,6 @@ fn style_helpers_cover_modal_and_log_surfaces() {
     let id_text = task_id_text_style(&theme);
     assert_eq!(id_text.color, Some(palette.background.base.text));
 
-    let created_at = subtask_created_at_text_style(&Theme::Light);
-    assert_color_close(
-        created_at.color.expect("created-at color"),
-        Color::from_rgb8(156, 163, 175),
-    );
 
 
     let logs = logs_container_style(&theme);

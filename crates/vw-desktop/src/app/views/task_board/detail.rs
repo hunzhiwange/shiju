@@ -12,7 +12,7 @@ use desktop_assets::assets::Icon;
 use desktop_task_board::board::{task_label_badge, task_status_marker, task_title};
 use desktop_task_board::detail::{Event, Field, Operation};
 use desktop_task_board::helpers::{execution::truncate_for_ui, logs::localized_log_message};
-use desktop_task_model::{SubTaskStatus, Task, TaskStatus, TaskWorkflow};
+use desktop_task_model::{Task, TaskStatus, TaskWorkflow};
 use desktop_ui_controls::system_settings_common::{
     icons::icon_btn_svg_style, settings_divider_style,
 };
@@ -87,20 +87,6 @@ fn layout<'a>(app: &'a App, task: &'a Task, wide: bool) -> Element<'a, Message> 
             .spacing(9),
         );
     }
-    if !task.subtasks.is_empty() || super::work_plan::current(app).is_some() {
-        let collapsed = app.task_board.detail.subtasks_collapsed;
-        content = content.push(action(
-            if collapsed { Icon::ChevronRight } else { Icon::ChevronDown },
-            i18n.__("子任务"),
-            TaskBoardMessage::Detail(Event::ToggleSubtasks),
-        ));
-        if !collapsed {
-            if !task.subtasks.is_empty() {
-                content = content.push(checklist(i18n, task));
-            }
-            content = content.extend(super::work_plan::detail(app, task));
-        }
-    }
     let reason = match task.status {
         TaskStatus::Failed => task.last_error.as_deref(),
         TaskStatus::Paused => task.pause_reason.as_deref(),
@@ -120,6 +106,12 @@ fn layout<'a>(app: &'a App, task: &'a Task, wide: bool) -> Element<'a, Message> 
             .width(Length::Fill)
             .style(surface),
         );
+    }
+    if let Some(dependencies) = app.task_board.blocked_task_dependencies.get(&task.id) {
+        let label = i18n
+            .format("等待任务依赖 · %s", &[dependencies.join("、").into()])
+            .expect("valid dependency message");
+        content = content.push(text(label).size(13).wrapping(text::Wrapping::WordOrGlyph));
     }
     content = content.push(settings_divider()).push(activity(app, i18n, task));
 
@@ -203,47 +195,7 @@ fn action<'a>(
         .on_press(message.into())
 }
 
-fn checklist<'a>(i18n: I18n, task: &'a Task) -> Element<'a, Message> {
-    let completed = task.subtasks.iter().filter(|item| item.completed).count();
-    let mut items = column![].width(Length::Fill);
-    for (index, item) in task.subtasks.iter().enumerate() {
-        let status = checklist_status(item);
-        if index > 0 {
-            items = items.push(settings_divider());
-        }
-        items = items.push(
-            container(
-                row![
-                    task_status_marker(status),
-                    text(&item.content).size(13).width(Length::Fill),
-                    muted(status_label(i18n, status))
-                ]
-                .spacing(10)
-                .align_y(Alignment::Center),
-            )
-            .padding([9, 12])
-            .width(Length::Fill),
-        );
-    }
-    column![
-        row![heading(i18n.__("子任务"), 16), muted(format!("{completed}/{}", task.subtasks.len()))]
-            .spacing(9)
-            .align_y(Alignment::Center),
-        container(items).style(surface),
-    ]
-    .spacing(9)
-    .into()
-}
 
-fn checklist_status(item: &desktop_task_model::SubTask) -> TaskStatus {
-    match item.status {
-        _ if item.completed => TaskStatus::Completed,
-        SubTaskStatus::Pending => TaskStatus::Pool,
-        SubTaskStatus::Running => TaskStatus::Running,
-        SubTaskStatus::Completed => TaskStatus::Completed,
-        SubTaskStatus::Failed => TaskStatus::Failed,
-    }
-}
 
 fn time(timestamp: u64) -> String {
     if timestamp == 0 {
@@ -350,8 +302,7 @@ fn activity<'a>(app: &'a App, i18n: I18n, task: &'a Task) -> Element<'a, Message
             .align_y(Alignment::Center),
         );
         entries = entries
-            .push(container(timeline).padding(12).width(Length::Fill).style(surface))
-            .extend(super::work_plan::history(app, task));
+            .push(container(timeline).padding(12).width(Length::Fill).style(surface));
     }
     if let Some(detail) = &state.data {
         let mut replies = std::collections::HashMap::<&str, Vec<_>>::new();
@@ -510,7 +461,6 @@ fn properties<'a>(
     workflow: Option<&TaskWorkflow>,
 ) -> Column<'a, Message> {
     use desktop_ui_controls::text_editor_context_menu::TextContextEffect;
-    use vw_api_agent_scheduler::AgentSchedulerTaskPlanPlacementDto as Placement;
 
     let i18n = I18n::new(app.general_settings.desktop_locale);
     let state = &app.task_board.detail;
@@ -576,38 +526,6 @@ fn properties<'a>(
     #[cfg(not(target_arch = "wasm32"))]
     let actions = actions.extend(super::modals::quick_actions::entry(app, &task.id));
 
-    let mut children = column![heading(i18n.__("子任务"), 15)].spacing(7);
-    let mut count = 0;
-    if let Some((project, plan)) = super::work_plan::current(app) {
-        for child in app.task_board.task_board_tasks.iter().filter(|child| {
-            !child.deleted && plan.tasks.get(&child.id).is_some_and(|snapshot| {
-                matches!(&snapshot.placement, Some(Placement::Child { parent_task_id, .. }) if parent_task_id == &task.id)
-            })
-        }) {
-            count += 1;
-            children = children.push(button(
-                row![task_status_marker(child.status), text(task_title(child)).size(13).width(Length::Fill)]
-                    .spacing(7).align_y(Alignment::Center)
-                ).padding([6, 8]).style(rounded_action_btn_style)
-                .on_press(super::work_plan::open_detail(project, &child.id)));
-        }
-    }
-    if count == 0 && task.subtasks.is_empty() {
-        children = children.push(muted(i18n.__("暂无子任务")));
-    }
-    for item in &task.subtasks {
-        children = children.push(
-            row![
-                task_status_marker(checklist_status(item)),
-                text(&item.content)
-                    .size(13)
-                    .width(Length::Fill)
-                    .wrapping(text::Wrapping::WordOrGlyph),
-            ]
-            .spacing(7)
-            .align_y(Alignment::Center),
-        );
-    }
     let mut pull_requests = column![
         row![
             heading("Pull Request", 15).width(Length::Fill),
@@ -708,8 +626,6 @@ fn properties<'a>(
         fields,
         settings_divider(),
         actions,
-        settings_divider(),
-        children,
         settings_divider(),
         pull_requests,
         settings_divider(),

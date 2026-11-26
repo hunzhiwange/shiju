@@ -9,7 +9,6 @@ mod bulk;
 mod draft;
 mod execution;
 mod logs;
-mod review;
 mod settings;
 
 /// 对外暴露当前模块需要复用的能力。

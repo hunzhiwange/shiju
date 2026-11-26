@@ -18,12 +18,10 @@ use agent_database::GlobalDatabase;
 use agent_project::store::ProjectStore;
 
 // Worker/team 存储已移出调度器；这里独立列出当前结构，避免复用实现常量掩盖回归。
-const SQLITE_SCHEDULER_TABLES: [&str; 12] = [
+const SQLITE_SCHEDULER_TABLES: [&str; 10] = [
     "scheduler_meta",
     "scheduler_tasks",
     "scheduler_task_dependencies",
-    "scheduler_task_plans",
-    "scheduler_task_plan_publications",
     "scheduler_runs",
     "scheduler_task_logs",
     "scheduler_task_artifacts",
@@ -33,12 +31,10 @@ const SQLITE_SCHEDULER_TABLES: [&str; 12] = [
     "scheduler_outbox_messages",
 ];
 
-const POSTGRES_SCHEDULER_TABLES: [&str; 12] = [
+const POSTGRES_SCHEDULER_TABLES: [&str; 10] = [
     "scheduler_meta",
     "scheduler_tasks",
     "scheduler_task_dependencies",
-    "scheduler_task_plans",
-    "scheduler_task_plan_publications",
     "scheduler_runs",
     "scheduler_task_logs",
     "scheduler_task_artifacts",
@@ -59,17 +55,12 @@ const LEGACY_SCHEDULER_TABLES: [&str; 8] = [
     "resource_leases",
 ];
 
-const SQLITE_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 12] = [
+const SQLITE_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 10] = [
     ("scheduler_meta", &["platform_id", "company_id", "project_id", "key"]),
     ("scheduler_tasks", &["platform_id", "company_id", "project_id", "id"]),
     (
         "scheduler_task_dependencies",
         &["platform_id", "company_id", "project_id", "predecessor_task_id", "successor_task_id"],
-    ),
-    ("scheduler_task_plans", &["platform_id", "company_id", "project_id", "task_id"]),
-    (
-        "scheduler_task_plan_publications",
-        &["platform_id", "company_id", "project_id", "parent_task_id"],
     ),
     ("scheduler_runs", &["platform_id", "company_id", "project_id", "id"]),
     ("scheduler_task_logs", &["platform_id", "company_id", "project_id", "task_id", "seq_no"]),
@@ -80,17 +71,12 @@ const SQLITE_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 12] = [
     ("scheduler_outbox_messages", &["platform_id", "company_id", "project_id", "id"]),
 ];
 
-const POSTGRES_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 12] = [
+const POSTGRES_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 10] = [
     ("scheduler_meta", &["platform_id", "company_id", "project_id", "key"]),
     ("scheduler_tasks", &["platform_id", "company_id", "project_id", "id"]),
     (
         "scheduler_task_dependencies",
         &["platform_id", "company_id", "project_id", "predecessor_task_id", "successor_task_id"],
-    ),
-    ("scheduler_task_plans", &["platform_id", "company_id", "project_id", "task_id"]),
-    (
-        "scheduler_task_plan_publications",
-        &["platform_id", "company_id", "project_id", "parent_task_id"],
     ),
     ("scheduler_runs", &["platform_id", "company_id", "project_id", "id"]),
     ("scheduler_task_logs", &["platform_id", "company_id", "project_id", "task_id", "seq_no"]),

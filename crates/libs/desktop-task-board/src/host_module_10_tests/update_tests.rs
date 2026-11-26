@@ -9,7 +9,6 @@ fn snapshot(
     };
 
     AgentSchedulerTaskBoardTaskDto {
-        placement: None,
         project_id: "project-test".into(),
         task_id: task_id.to_string().into(),
         status_key: status_key.to_string(),
@@ -72,7 +71,7 @@ fn persistence_ack_releases_snapshot_guard() {
 }
 
 #[test]
-fn work_plan_detail_entry_selects_basic_and_preserves_log_entry() {
+fn detail_entry_selects_basic_and_preserves_log_entry() {
     use crate::message::{TaskBoardDetailTab, TaskBoardMessage};
     use crate::update::local::{LocalEffect, update_local};
 

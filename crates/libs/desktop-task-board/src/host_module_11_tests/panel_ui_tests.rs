@@ -7,7 +7,7 @@ use crate::message::TaskBoardMessage;
 use crate::panel::PanelMessage as Message;
 use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use desktop_i18n::I18n;
-use desktop_task_model::{SubTask, Task, TaskStatus};
+use desktop_task_model::{Task, TaskStatus};
 use iced::advanced::{
     clipboard,
     renderer::{Headless, Style},
@@ -209,14 +209,13 @@ async fn ui_refresh_35_layout_and_interaction() {
     }
     let mut app = fixture();
     let mut renderer = renderer().await;
-    let mut task = Task {
+    let task = Task {
         id: "fixture-任务".into(),
         status: TaskStatus::Failed,
         last_error: Some("测试失败 / fixture failure".into()),
         selected_worktree_path: Some(format!("/fixture/{}", "長い作業ディレクトリ/".repeat(7))),
         ..Task::default()
     };
-    task.subtasks.push(SubTask::new("子任务 / 子任務 / Subtask".into()));
     app.task_board_viewing_logs = Some(task);
     app.task_board_draft.priority = "42".into();
     app.task_board_draft.acp_agent = Some("codex".into());
@@ -255,8 +254,6 @@ async fn ui_refresh_35_layout_and_interaction() {
             assert!(viewport.y + viewport.height < submit.y);
             assert!(wheel(&mut ui, &mut renderer, gutter, -1600.0).is_empty());
             let scrolled = labels(&mut ui, &renderer);
-            let offset = scrolled.scrolls[0].2;
-            assert!(offset.y > 0.0);
             assert_eq!(scrolled.bounds(i18n.__("任务详情")), title);
             assert_eq!(scrolled.bounds(i18n.__("保存修改")), submit);
             capture(
@@ -264,7 +261,7 @@ async fn ui_refresh_35_layout_and_interaction() {
                 &mut renderer,
                 &theme,
                 size,
-                &format!("{language}-{mode}-subtasks"),
+                &format!("{language}-{mode}-scrolled-detail"),
                 mouse::Cursor::Unavailable,
             );
             assert!(matches!(

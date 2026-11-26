@@ -1,4 +1,4 @@
-use crate::{AgentSchedulerTaskPlanPlacementDto, AgentTaskStatusDto, AgentEventKindDto, AgentOutboxMessageDto};
+use crate::{AgentTaskStatusDto, AgentEventKindDto, AgentOutboxMessageDto};
 use vw_api_chat_identity::ReasoningEffortDto;
 use vw_api_transport::{common::TimestampMs, id::{ProjectId, TaskId}};
 use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
@@ -46,24 +46,11 @@ pub enum AgentSchedulerCommandKindDto {
     ImportLegacyTask,
 }
 
-/// Agent Scheduler 分发模式。
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AgentSchedulerDispatchModeDto {
-    /// 本地 gateway runner 直接执行任务。
-    #[default]
-    Local,
-    /// 由本地运行时自动选择执行时机。
-    Auto,
-}
-
 /// Agent Scheduler 桌面任务板命令请求。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentSchedulerCommandRequest {
     pub task_id: TaskId,
     pub command: AgentSchedulerCommandKindDto,
-    #[serde(default, skip_serializing_if = "is_default_dispatch_mode")]
-    pub dispatch_mode: AgentSchedulerDispatchModeDto,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_concurrent: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -233,8 +220,6 @@ pub struct AgentSchedulerWorkspaceContextDto {
 /// Agent Scheduler 桌面任务板任务快照。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentSchedulerTaskBoardTaskDto {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub placement: Option<AgentSchedulerTaskPlanPlacementDto>,
     pub project_id: ProjectId,
     pub task_id: TaskId,
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -283,11 +268,7 @@ pub struct AgentSchedulerTaskBoardTaskReadModelDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assignee: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub legacy_subtasks: Option<Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dispatch_blocker: Option<AgentSchedulerDispatchBlockerDto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub task_split_mode: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -309,21 +290,7 @@ pub struct AgentSchedulerTaskBoardTaskReadModelDto {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AgentSchedulerDispatchBlockerDto {
-    WaitingForEarlierBatch { task_ids: Vec<String> },
-    EarlierBatchFailed { task_ids: Vec<String> },
-    ParentNotReleased { parent_task_id: String },
-    WorkPlanNotPublished,
-    LegacyWorkPlanRequiresResplit,
-    WorkPlanChildrenIncomplete { children: Vec<AgentSchedulerWorkPlanChildBlockerDto> },
-    WorkPlanSummaryUnavailable,
     ExplicitDependency { task_ids: Vec<String> },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AgentSchedulerWorkPlanChildBlockerDto {
-    pub task_id: String,
-    pub status: String,
-    pub status_key: String,
 }
 
 impl AgentSchedulerTaskBoardTaskReadModelDto {
@@ -649,23 +616,6 @@ pub struct AgentSchedulerBulkCommandResponse {
     pub results: Vec<AgentSchedulerCommandResponse>,
 }
 
-/// 对任务批次执行显式编辑。缺省操作保留现有编排。
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct AgentSchedulerTaskPlanUpdateRequest {
-    #[serde(default)]
-    pub placement: AgentSchedulerTaskPlanChangeDto,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
-pub enum AgentSchedulerTaskPlanChangeDto {
-    #[default]
-    Keep,
-    Set { placement: AgentSchedulerTaskPlanPlacementDto },
-    Clear,
-}
-
 /// Agent Scheduler 任务元数据更新请求。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentSchedulerTaskMetadataUpdateRequest {
@@ -707,16 +657,10 @@ pub struct AgentSchedulerLegacyImportResponse {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentSchedulerWakeRequest {
     pub now_ms: TimestampMs,
-    #[serde(default, skip_serializing_if = "is_default_dispatch_mode")]
-    pub dispatch_mode: AgentSchedulerDispatchModeDto,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_concurrent: Option<u32>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub auto_promote_pool_tasks: bool,
-}
-
-fn is_default_dispatch_mode(mode: &AgentSchedulerDispatchModeDto) -> bool {
-    *mode == AgentSchedulerDispatchModeDto::default()
 }
 
 fn is_false(value: &bool) -> bool {

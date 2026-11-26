@@ -224,9 +224,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let task_mode_enabled = runtime.is_some_and(|r| r.task_mode_enabled);
     let task_mode_priority = runtime.map(|r| r.task_mode_priority.as_str()).unwrap_or("999");
     let task_mode_model = runtime.map(|r| r.task_mode_model.as_str()).unwrap_or("auto");
-    let task_mode_task_split_mode = runtime
-        .map(|r| r.task_mode_task_split_mode)
-        .unwrap_or(crate::app::task::TaskSplitMode::FollowSystem);
     let task_mode_executor = runtime.and_then(|r| r.task_mode_executor.clone());
     let task_mode_reasoning_effort = runtime.and_then(|r| r.task_mode_reasoning_effort);
     let has_permission_context = send_controls::has_permission_context(app);
@@ -321,7 +318,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
             task_mode_priority.to_string(),
             task_mode_model.to_string(),
             task_mode_reasoning_effort,
-            task_mode_task_split_mode,
         ))
     } else {
         None
@@ -360,7 +356,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
             task_mode_enabled,
             task_mode_priority,
             task_mode_model,
-            task_mode_task_split_mode,
             task_mode_executor,
             task_mode_reasoning_effort,
         )

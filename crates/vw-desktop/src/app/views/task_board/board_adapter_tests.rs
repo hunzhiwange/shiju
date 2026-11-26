@@ -5,7 +5,7 @@ use crate::app::task::{Task, TaskStatus};
 #[test]
 fn board_composes_host_bulk_selectors() {
     let (mut app, _) = App::new();
-    for status in [TaskStatus::Planning, TaskStatus::PrSubmitted] {
+    for status in [TaskStatus::PrSubmitted] {
         let mut task = Task::new(20);
         task.status = status;
         app.task_board.task_board_selected_tasks.insert(task.id.clone());

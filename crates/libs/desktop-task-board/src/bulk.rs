@@ -60,7 +60,6 @@ pub fn agent_scheduler_command_request(
     vw_api_agent_scheduler::AgentSchedulerCommandRequest {
         task_id: task_id.to_string().into(),
         command,
-        dispatch_mode: vw_api_agent_scheduler::AgentSchedulerDispatchModeDto::Local,
         max_concurrent: None,
         reason: reason.into(),
         payload,
@@ -141,7 +140,6 @@ pub fn task_metadata_patch_for_gateway(
         metadata_merge: Some(serde_json::json!({
             "description": &task.description,
             "auto_promote_delay_ms": task.auto_promote_delay_ms,
-            "task_split_mode": task.task_split_mode.to_string_key(),
         })),
         metadata_remove_keys: task.acp_agent.is_none().then(|| "acp_agent".to_owned())
             .into_iter().collect(),

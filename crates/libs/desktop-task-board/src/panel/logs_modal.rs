@@ -12,10 +12,7 @@ use desktop_task_model::Task;
 use desktop_task_model::TaskLogEntry;
 use crate::message::TaskBoardMessage as Message;
 
-use super::styles::{
-    panel_container_style, subtask_card_style, subtask_status_icon, subtask_status_label,
-    subtask_status_pill_style, subtask_status_text_style,
-};
+use super::styles::panel_container_style;
 
 /// 构建对应界面片段。
 ///
@@ -45,9 +42,6 @@ pub fn build_task_logs_modal_content<'a>(
 
     let mut main_col = column![header, Space::new().height(12.0)].spacing(0).width(Length::Fill);
 
-    if !task.subtasks.is_empty() {
-        main_col = build_subtasks_section(i18n, task, main_col);
-    }
 
     main_col = build_logs_section(i18n, task, main_col);
 
@@ -75,76 +69,8 @@ fn modal_panel_style(theme: &Theme) -> iced::widget::container::Style {
     style
 }
 
-pub(super) fn build_subtasks_section<'a, M: 'a>(
-    i18n: desktop_i18n::I18n,
-    task: &'a Task,
-    mut main_col: iced::widget::Column<'a, M>,
-) -> iced::widget::Column<'a, M> {
-    let subtasks_title = text(i18n.__("旧子任务记录"))
-        .size(13)
-        .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
-    main_col = main_col.push(subtasks_title).push(Space::new().height(8.0));
 
-    let mut subtasks_col = column![].spacing(4);
-    let now_ms = runtime_time::now_ms();
-    for subtask in &task.subtasks {
-        let status = subtask.status;
-        let created_date = format_subtask_created_date(subtask.created_at_ms);
 
-        let status_icon = container(
-            text(subtask_status_icon(status, now_ms))
-                .size(10)
-                .style(move |theme: &Theme| subtask_status_text_style(theme, status)),
-        )
-        .width(Length::Fixed(18.0))
-        .height(Length::Fixed(18.0))
-        .center_x(Length::Fill)
-        .center_y(Length::Fill);
-        let status_label = container(
-            text(i18n.__(subtask_status_label(status)))
-                .size(10)
-                .style(move |theme: &Theme| subtask_status_text_style(theme, status)),
-        )
-        .padding([2, 6])
-        .style(move |theme: &Theme| subtask_status_pill_style(theme, status));
-        let started = subtask.execution_started_at_ms.and_then(|ms| {
-            let seconds = i64::try_from(ms / 1000).ok()?;
-            let date = time::OffsetDateTime::from_unix_timestamp(seconds).ok()?;
-            i18n.format("开始 %s", &[date.to_string().into()]).ok()
-        });
-        let duration = subtask.last_execution_duration_ms
-            .and_then(|ms| i18n.format("耗时 %us", &[(ms / 1000).into()]).ok());
-        let summary = row![status_icon, text(&subtask.content).size(11).width(Length::Fill), status_label]
-            .spacing(6)
-            .align_y(Alignment::Center);
-        let timing = row![text(created_date).size(9).style(subtask_created_at_text_style)]
-            .extend(started.into_iter().chain(duration).map(|value| text(value).size(10).into()))
-            .spacing(8)
-            .wrap();
-        subtasks_col = subtasks_col.push(
-            container(column![summary, timing].spacing(4))
-                .padding([6, 10])
-                .width(Length::Fill)
-                .style(subtask_card_style),
-        );
-    }
-    main_col.push(subtasks_col).push(Space::new().height(12.0))
-}
-
-fn format_subtask_created_date(created_at_ms: u64) -> String {
-    let created_secs = created_at_ms / 1000;
-    format!(
-        "{}-{} {}:{}",
-        (created_secs / 86400 / 365 + 1970),
-        (created_secs / 86400 % 365) / 30 + 1,
-        (created_secs % 86400) / 3600,
-        (created_secs % 3600) / 60
-    )
-}
-
-fn subtask_created_at_text_style(_theme: &Theme) -> iced::widget::text::Style {
-    iced::widget::text::Style { color: Some(Color::from_rgb8(156, 163, 175)) }
-}
 
 fn build_logs_section<'a>(
     i18n: desktop_i18n::I18n,

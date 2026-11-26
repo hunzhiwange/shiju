@@ -3,7 +3,6 @@
 use iced::widget::{button, text_editor, text_input};
 use iced::{Background, Color, Theme};
 
-use desktop_task_model::SubTaskStatus;
 
 use super::*;
 
@@ -90,109 +89,4 @@ fn icon_buttons_apply_enabled_and_disabled_contracts() {
     let disabled = square_icon_button_style(&theme, button::Status::Pressed, false);
     assert_close(disabled.border.radius.top_left, 12.0);
     assert_color_close(disabled.text_color, palette.background.weak.text);
-}
-
-#[test]
-fn subtask_card_style_follows_theme_palette() {
-    let dark_palette = Theme::Dark.extended_palette();
-
-    let dark_card = subtask_card_style(&Theme::Dark);
-    assert_color_close(
-        color_background(dark_card.background),
-        dark_palette.background.weak.color.scale_alpha(0.18),
-    );
-    assert_color_close(
-        dark_card.border.color,
-        dark_palette.background.strong.color.scale_alpha(0.72),
-    );
-    assert_close(dark_card.border.radius.top_left, 16.0);
-    assert_close(dark_card.border.width, 1.0);
-
-    let light_card = subtask_card_style(&Theme::Light);
-    assert_color_close(color_background(light_card.background), Color::WHITE.scale_alpha(0.82));
-}
-
-#[test]
-fn subtask_status_icon_and_label_cover_all_statuses() {
-    assert_eq!(subtask_status_icon(SubTaskStatus::Pending, 0), ".");
-    assert_eq!(subtask_status_icon(SubTaskStatus::Completed, 0), "✓");
-    assert_eq!(subtask_status_icon(SubTaskStatus::Failed, 0), "x");
-
-    assert_eq!(subtask_status_icon(SubTaskStatus::Running, 0), "◐");
-    assert_eq!(subtask_status_icon(SubTaskStatus::Running, 250), "◓");
-    assert_eq!(subtask_status_icon(SubTaskStatus::Running, 500), "◑");
-    assert_eq!(subtask_status_icon(SubTaskStatus::Running, 750), "◒");
-    assert_eq!(subtask_status_icon(SubTaskStatus::Running, 1000), "◐");
-
-    assert_eq!(subtask_status_label(SubTaskStatus::Pending), "待执行");
-    assert_eq!(subtask_status_label(SubTaskStatus::Running), "执行中");
-    assert_eq!(subtask_status_label(SubTaskStatus::Completed), "执行成功");
-    assert_eq!(subtask_status_label(SubTaskStatus::Failed), "执行失败");
-}
-
-#[test]
-fn subtask_status_colors_cover_light_and_dark_branches() {
-    let cases = [
-        (
-            SubTaskStatus::Pending,
-            Color::from_rgba8(243, 244, 246, 0.92),
-            Color::from_rgb8(209, 213, 219),
-            Color::from_rgb8(75, 85, 99),
-        ),
-        (
-            SubTaskStatus::Running,
-            Color::from_rgb8(243, 232, 255),
-            Color::from_rgb8(192, 132, 252),
-            Color::from_rgb8(126, 34, 206),
-        ),
-        (
-            SubTaskStatus::Completed,
-            Color::from_rgb8(220, 252, 231),
-            Color::from_rgb8(74, 222, 128),
-            Color::from_rgb8(22, 101, 52),
-        ),
-        (
-            SubTaskStatus::Failed,
-            Color::from_rgb8(254, 226, 226),
-            Color::from_rgb8(248, 113, 113),
-            Color::from_rgb8(185, 28, 28),
-        ),
-    ];
-
-    for (status, expected_bg, expected_border, expected_text) in cases {
-        let (bg, border, text) = subtask_status_colors(&Theme::Light, status);
-        assert_color_close(bg, expected_bg);
-        assert_color_close(border, expected_border);
-        assert_color_close(text, expected_text);
-
-        let text_style = subtask_status_text_style(&Theme::Light, status);
-        assert_eq!(text_style.color, Some(expected_text));
-
-        let pill = subtask_status_pill_style(&Theme::Light, status);
-        assert_color_close(color_background(pill.background), expected_bg);
-        assert_color_close(pill.border.color, expected_border);
-        assert_eq!(pill.text_color, Some(expected_text));
-        assert_close(pill.border.radius.top_left, 999.0);
-        assert_close(pill.border.width, 1.0);
-    }
-
-    let dark_palette = Theme::Dark.extended_palette();
-    let (pending_bg, pending_border, pending_text) =
-        subtask_status_colors(&Theme::Dark, SubTaskStatus::Pending);
-    assert_color_close(pending_bg, dark_palette.background.weak.color.scale_alpha(0.18));
-    assert_color_close(pending_border, dark_palette.background.strong.color.scale_alpha(0.72));
-    assert_color_close(pending_text, dark_palette.background.base.text);
-
-    let (running_bg, _, running_text) = subtask_status_colors(&Theme::Dark, SubTaskStatus::Running);
-    assert_color_close(running_bg, Color::from_rgba8(168, 85, 247, 0.22));
-    assert_color_close(running_text, Color::from_rgb8(216, 180, 254));
-
-    let (completed_bg, _, completed_text) =
-        subtask_status_colors(&Theme::Dark, SubTaskStatus::Completed);
-    assert_color_close(completed_bg, Color::from_rgba8(34, 197, 94, 0.18));
-    assert_color_close(completed_text, Color::from_rgb8(187, 247, 208));
-
-    let (failed_bg, _, failed_text) = subtask_status_colors(&Theme::Dark, SubTaskStatus::Failed);
-    assert_color_close(failed_bg, Color::from_rgba8(239, 68, 68, 0.18));
-    assert_color_close(failed_text, Color::from_rgb8(254, 202, 202));
 }

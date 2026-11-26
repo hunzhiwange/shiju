@@ -120,7 +120,6 @@ fn session_runtime_with_defaults_preserves_model_and_initializes_idle_state() {
     assert!(!runtime.workflow_mode_enabled);
     assert!(runtime.goal_mode_enabled);
     assert_eq!(runtime.task_mode_priority, "999");
-    assert_eq!(runtime.task_mode_task_split_mode, desktop_task_model::TaskSplitMode::FollowSystem);
     assert_eq!(runtime.acp_history_mode, AcpHistoryReplayMode::Discard);
     assert_eq!(runtime.acp_recent_count, 3);
     assert!(!runtime.full_access_enabled);

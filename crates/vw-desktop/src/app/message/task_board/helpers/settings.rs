@@ -84,17 +84,6 @@ pub(crate) fn schedule_scheduler_tick(app: &crate::app::App) -> iced::Task<crate
     )
 }
 
-/// 执行 schedule_auto_review_tick 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub(crate) fn schedule_auto_review_tick() -> iced::Task<crate::app::Message> {
-    crate::app::message::after(
-        std::time::Duration::from_secs(TASK_AUTO_CODE_REVIEW_TICK_INTERVAL_SECS),
-        crate::app::Message::TaskBoard(TaskBoardMessage::AutoCodeReviewTick),
-    )
-}
-
 /// 执行 schedule_auto_merge_tick 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
@@ -118,20 +107,6 @@ pub(crate) fn schedule_scheduler_tick_with_deadline(
         &app.task_board.task_board_settings,
     );
     schedule_scheduler_tick(app)
-}
-
-/// 执行 schedule_auto_review_tick_with_deadline 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub(crate) fn schedule_auto_review_tick_with_deadline(
-    app: &mut crate::app::App,
-) -> iced::Task<crate::app::Message> {
-    desktop_task_board::helpers::settings::fixed_deadline(
-        &mut app.task_board.task_board_next_auto_review_tick_at_ms,
-        TASK_AUTO_CODE_REVIEW_TICK_INTERVAL_SECS,
-    );
-    schedule_auto_review_tick()
 }
 
 /// 执行 schedule_auto_merge_tick_with_deadline 对应的领域操作。

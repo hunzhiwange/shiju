@@ -111,17 +111,6 @@ impl GatewayClient {
             .agent_scheduler_mutate_task_properties(scope, request).await
     }
 
-    /// 更新任务的批次编排。
-    pub async fn agent_scheduler_update_task_plan(
-        &self,
-        scope: &AgentSchedulerScopeDto,
-        task_id: &str,
-        request: &vw_api_agent_scheduler::AgentSchedulerTaskPlanUpdateRequest,
-    ) -> Result<vw_api_agent_scheduler::AgentSchedulerTaskBoardTaskDto, String> {
-        gateway_scheduler::GatewaySchedulerClient::new(self.transport().clone())
-            .agent_scheduler_update_task_plan(scope, task_id, request)
-            .await
-    }
 
     /// 更新 Agent Scheduler 任务板任务元数据投影。
     pub async fn agent_scheduler_update_task_metadata(

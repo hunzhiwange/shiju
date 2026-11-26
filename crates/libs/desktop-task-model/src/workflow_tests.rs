@@ -10,7 +10,7 @@ fn default_task_workflow_preserves_existing_status_contract() {
     // 工作流状态顺序必须与现有 TaskStatus::all() 完全一致。
     let workflow_statuses: Vec<TaskStatus> = workflow.statuses.iter().map(|d| d.status).collect();
     assert_eq!(workflow_statuses, TaskStatus::all().to_vec());
-    assert_eq!(workflow.statuses.len(), 11);
+    assert_eq!(workflow.statuses.len(), 9);
 
     // 每个状态定义的 key、label 与现有枚举映射一致。
     for definition in workflow.statuses.iter() {
@@ -104,11 +104,6 @@ fn state_machine_allows_default_lifecycle_intents() {
         TaskTransitionIntent::StartExecution
     ));
     assert!(machine.can_transition(
-        TaskStatus::Planning,
-        TaskStatus::Running,
-        TaskTransitionIntent::StartExecution
-    ));
-    assert!(machine.can_transition(
         TaskStatus::Failed,
         TaskStatus::Running,
         TaskTransitionIntent::StartExecution
@@ -124,14 +119,9 @@ fn state_machine_allows_default_lifecycle_intents() {
         TaskTransitionIntent::ExecutionFailed
     ));
     assert!(machine.can_transition(
-        TaskStatus::CodeReview,
+        TaskStatus::CodeComplete,
         TaskStatus::PrSubmitted,
-        TaskTransitionIntent::ReviewApproved
-    ));
-    assert!(machine.can_transition(
-        TaskStatus::CodeReview,
-        TaskStatus::Failed,
-        TaskTransitionIntent::ReviewBlocked
+        TaskTransitionIntent::EnterMerge
     ));
     assert!(machine.can_transition(
         TaskStatus::PrSubmitted,
@@ -178,7 +168,7 @@ fn state_machine_rejects_invalid_automatic_transition() {
     // AutoPromote 只允许 Pool -> Pending，其他来源或目标都拒绝。
     assert!(!machine.can_transition(
         TaskStatus::Pending,
-        TaskStatus::Planning,
+        TaskStatus::Running,
         TaskTransitionIntent::AutoPromote
     ));
     assert!(!machine.can_transition(
@@ -205,12 +195,12 @@ fn state_machine_rejects_invalid_automatic_transition() {
     let err = machine
         .validate_transition(
             TaskStatus::Pending,
-            TaskStatus::Planning,
+            TaskStatus::Running,
             TaskTransitionIntent::AutoPromote,
         )
         .expect_err("invalid automatic transition must be rejected");
     assert_eq!(err.from, TaskStatus::Pending);
-    assert_eq!(err.to, TaskStatus::Planning);
+    assert_eq!(err.to, TaskStatus::Running);
     assert_eq!(err.intent, TaskTransitionIntent::AutoPromote);
     assert_eq!(err.workflow_id, "dev_lifecycle");
 
@@ -244,16 +234,14 @@ fn transition_error_display_preserves_rejected_transition_context() {
 fn builtin_statuses_bind_expected_roles() {
     let workflow = &DEV_LIFECYCLE_WORKFLOW;
 
-    // 内置 11 状态各自绑定到唯一且语义正确的角色。
+    // 内置 9 状态各自绑定到唯一且语义正确的角色。
     let expected = [
         (TaskStatus::Pool, StatusRole::Backlog),
         (TaskStatus::Pending, StatusRole::Queued),
-        (TaskStatus::Planning, StatusRole::Planning),
         (TaskStatus::Running, StatusRole::Executing),
         (TaskStatus::Failed, StatusRole::Failed),
         (TaskStatus::Paused, StatusRole::Paused),
         (TaskStatus::CodeComplete, StatusRole::ReviewReady),
-        (TaskStatus::CodeReview, StatusRole::Review),
         (TaskStatus::PrSubmitted, StatusRole::Merging),
         (TaskStatus::Completed, StatusRole::Done),
         (TaskStatus::Archived, StatusRole::Archived),
@@ -272,7 +260,7 @@ fn builtin_statuses_bind_expected_roles() {
         );
     }
 
-    // 引擎角色互不相同：11 个内置状态映射出 11 个互异角色。
+    // 引擎角色互不相同：11 个内置状态映射出 10 个互异角色。
     let mut roles: Vec<StatusRole> = expected.iter().map(|(_, role)| *role).collect();
     let total = roles.len();
     roles.sort_unstable_by_key(|role| format!("{role:?}"));
@@ -346,17 +334,14 @@ fn role_derived_scheduling_semantics_match_builtin_flags() {
         );
     }
     assert!(workflow.role_is_timeout_monitored(TaskStatus::Running));
-    assert!(!workflow.role_is_timeout_monitored(TaskStatus::Planning));
 
     // 占槽角色覆盖 Executing 与 Planning：Running 与 Planning 占槽，其余不占。
     assert!(workflow.role_occupies_execution_slot(TaskStatus::Running));
-    assert!(workflow.role_occupies_execution_slot(TaskStatus::Planning));
     assert!(!workflow.role_occupies_execution_slot(TaskStatus::Pool));
 
     // 调度积压角色覆盖 Backlog/Queued/Planning：Pool、Pending、Planning 属积压。
     assert!(workflow.role_is_scheduling_backlog(TaskStatus::Pool));
     assert!(workflow.role_is_scheduling_backlog(TaskStatus::Pending));
-    assert!(workflow.role_is_scheduling_backlog(TaskStatus::Planning));
     assert!(!workflow.role_is_scheduling_backlog(TaskStatus::Running));
 }
 
@@ -495,12 +480,10 @@ fn gateway_snapshot_maps_all_development_roles_and_transition_targets_to_keys() 
     let expected_roles = [
         ("pool", TaskPoolWorkflowStatusRoleDto::Backlog),
         ("pending", TaskPoolWorkflowStatusRoleDto::Queued),
-        ("planning", TaskPoolWorkflowStatusRoleDto::Planning),
         ("running", TaskPoolWorkflowStatusRoleDto::Executing),
         ("failed", TaskPoolWorkflowStatusRoleDto::Failed),
         ("paused", TaskPoolWorkflowStatusRoleDto::Paused),
         ("code_complete", TaskPoolWorkflowStatusRoleDto::ReviewReady),
-        ("code_review", TaskPoolWorkflowStatusRoleDto::Review),
         ("pr_submitted", TaskPoolWorkflowStatusRoleDto::Merging),
         ("completed", TaskPoolWorkflowStatusRoleDto::Done),
         ("archived", TaskPoolWorkflowStatusRoleDto::Archived),
@@ -534,9 +517,7 @@ fn task_pool_schedule_desktop_default_matches_generic_lifecycle() {
     assert_eq!(workflow.id, "generic_task");
     assert_eq!(workflow.next_status(TaskStatus::Running), Some(TaskStatus::Completed));
     assert!(workflow.status_definition(TaskStatus::Completed).unwrap().is_terminal);
-    assert_eq!(TaskStatus::all().len(), 11);
-    assert_eq!(TaskStatus::CodeReview.to_string_key(), "code_review");
-    assert!(!TaskStatus::CodeReview.label().is_empty());
+    assert_eq!(TaskStatus::all().len(), 9);
     assert_eq!(
         task_workflow_by_id("dev_lifecycle").unwrap().next_status(TaskStatus::Running),
         Some(TaskStatus::CodeComplete)

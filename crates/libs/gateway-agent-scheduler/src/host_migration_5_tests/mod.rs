@@ -163,7 +163,6 @@ impl AgentSchedulerGateway for FakeAgentSchedulerGateway {
         request: AgentSchedulerCreateTaskRequest,
     ) -> Result<AgentSchedulerCreateTaskResponse, ApiError> {
         let task = AgentTaskDto {
-            placement: None,
             id: request.task_id,
             title: request.title,
             kind: request.kind,

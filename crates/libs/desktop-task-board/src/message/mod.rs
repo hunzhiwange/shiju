@@ -3,9 +3,8 @@
 //! 注释说明当前文件的职责边界，帮助调用方理解数据流与错误传播，
 //! 不改变任何运行时行为。
 
-use desktop_task_model::{Task, TaskBoardSettings, TaskImportPromptFormat, TaskSplitMode, TaskStatus};
+use desktop_task_model::{Task, TaskBoardSettings, TaskStatus};
 use desktop_task_executor::executor::state::WorktreePoolSnapshot;
-use desktop_task_executor::executor::runner::TaskPlanGenerationOutcome;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TaskBoardSettingsModalTab {
@@ -20,7 +19,7 @@ pub enum TaskBoardDetailTab {
     Basic,
     Logs,
 }
-use vw_api_agent_scheduler::{AgentSchedulerDispatchModeDto, AgentSchedulerTaskPropertyValue};
+use vw_api_agent_scheduler::AgentSchedulerTaskPropertyValue;
 
 #[derive(Debug, Clone)]
 pub struct WorktreePoolMaintenanceOutcome {
@@ -39,36 +38,6 @@ pub enum TaskBoardMessage {
     ChangeWorkDisplay(crate::work_views::WorkDisplay),
     SearchWorkTasks(String),
     ToggleWorkDisplayGroup(crate::work_views::WorkDisplayGroup),
-    OpenWorkPlanView,
-    WorkPlanSearchChanged(String),
-    ToggleWorkPlanGroup(crate::work_views::WorkPlanGroupKey),
-    EditWorkPlanBatch,
-    WorkPlanBatchChanged { outer: bool, value: String },
-    SaveWorkPlanBatch { clear: bool },
-    WorkPlanBatchSaved {
-        project_path: String,
-        task_id: String,
-        request: u64,
-        result: Result<vw_api_agent_scheduler::AgentSchedulerTaskBoardTaskDto, String>,
-    },
-    OpenWorkPlanChild,
-    CloseWorkPlanChild,
-    WorkPlanChildTitleChanged(String),
-    WorkPlanChildPromptEdited(iced::widget::text_editor::Action),
-    WorkPlanChildBatchChanged(String),
-    CreateWorkPlanChild,
-    WorkPlanChildCreated {
-        project_path: String,
-        task: Task,
-        placement: vw_api_agent_scheduler::AgentSchedulerTaskPlanPlacementDto,
-        result: Result<(), String>,
-    },
-    LoadWorkPlanHistory { include_children: bool },
-    WorkPlanHistoryLoaded {
-        project_path: String,
-        request: u64,
-        result: Result<Vec<vw_api_agent_scheduler::AgentSchedulerTaskBoardEventDto>, String>,
-    },
     WorkViewFieldChanged(u8, String),
     ToggleWorkViewLabel(String),
     WorkViewPropertyChanged(String, Option<AgentSchedulerTaskPropertyValue>),
@@ -95,7 +64,6 @@ pub enum TaskBoardMessage {
         priority: String,
         model: String,
         reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
-        task_split_mode: TaskSplitMode,
     },
     CreateTaskCancelled,
     OpenSettingsModal,
@@ -107,7 +75,6 @@ pub enum TaskBoardMessage {
     UpdateDraftAgent(Option<String>),
     UpdateDraftExecutor(Option<String>),
     UpdateDraftReasoningEffort(Option<vw_api_chat_identity::ReasoningEffortDto>),
-    UpdateDraftTaskSplitMode(TaskSplitMode),
     UpdateDraftDescription(String),
     UpdateDraftPrompt(String),
     UpdateDraftAutoPromoteDelay(String),
@@ -132,7 +99,6 @@ pub enum TaskBoardMessage {
     InvertTaskSelectionInStatus(TaskStatus),
     UpdateBulkPriorityInput(String),
     UpdateBulkModelInput(String),
-    UpdateBulkTaskSplitMode(TaskSplitMode),
     BulkAgentSelected(String),
     UpdateBulkReasoningEffort(Option<vw_api_chat_identity::ReasoningEffortDto>),
     BulkSetPriorityInStatus(TaskStatus),
@@ -145,10 +111,6 @@ pub enum TaskBoardMessage {
     BulkSetReasoningEffortInStatus {
         status: TaskStatus,
         reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
-    },
-    BulkSetTaskSplitModeInStatus {
-        status: TaskStatus,
-        task_split_mode: TaskSplitMode,
     },
     ToggleBulkExecutorPopover,
     BulkExecutorSelected(Option<String>),
@@ -197,7 +159,6 @@ pub enum TaskBoardMessage {
     UpdateEditingTaskAgent(Option<String>),
     UpdateEditingTaskExecutor(Option<String>),
     UpdateEditingTaskReasoningEffort(Option<vw_api_chat_identity::ReasoningEffortDto>),
-    UpdateEditingTaskSplitMode(TaskSplitMode),
     UpdateEditingTaskPrompt(String),
     SaveEditingTask,
     ToggleEditingTaskLabel(String),
@@ -233,7 +194,6 @@ pub enum TaskBoardMessage {
     SetRunningTimeoutMinutes(u32),
     ToggleRecycleWorktreeOnTaskFinish(bool),
     SetPrSubmittedStallTimeoutSeconds(u32),
-    SetAgentSchedulerDispatchMode(AgentSchedulerDispatchModeDto),
     StartExecution,
     StopExecution,
     ExecutionTick,
@@ -245,7 +205,6 @@ pub enum TaskBoardMessage {
         project_path: String,
         result: Result<Option<WorktreePoolSnapshot>, String>,
     },
-    AutoCodeReviewTick,
     AutoMergeTick,
     UiTick,
     SimulateStep {
@@ -255,32 +214,6 @@ pub enum TaskBoardMessage {
         task_id: String,
     },
     TaskExecutionCompleted {
-        project_path: String,
-        task_id: String,
-        result: Result<String, String>,
-    },
-    TaskPlanningCompleted {
-        project_path: String,
-        task_id: String,
-        planning_attempt_id: String,
-        result: Result<TaskPlanGenerationOutcome, String>,
-    },
-    ResplitLegacyWorkPlan { project_path: String, task_id: String },
-    LegacyWorkPlanResplit {
-        project_path: String,
-        task_id: String,
-        result: Result<(), String>,
-    },
-    StartWorkPlan {
-        project_path: String,
-        task_id: String,
-    },
-    WorkPlanPublished {
-        project_path: String,
-        task_id: String,
-        result: Result<vw_api_agent_scheduler::WorkPlanPublishResponse, String>,
-    },
-    TaskCodeReviewCompleted {
         project_path: String,
         task_id: String,
         result: Result<String, String>,
@@ -351,11 +284,6 @@ pub enum TaskBoardMessage {
         project_path: String,
         task_id: String,
     },
-    AgentSchedulerMergeReadyPersisted {
-        project_path: String,
-        task: Task,
-        result: Result<(), String>,
-    },
     AgentSchedulerStatusLoaded {
         project_path: String,
         generation: u64,
@@ -420,9 +348,6 @@ pub enum TaskBoardMessage {
     ImportFilePicked(Option<String>),
     ImportFileLoaded(Result<String, String>),
     InsertDemoData(String),
-    SetImportPromptFormat(TaskImportPromptFormat),
-    ToggleImportPromptCollapsed,
-    CopyImportPromptTemplate,
     ClearImportEditor,
     ImportTasksSubmitted,
 }

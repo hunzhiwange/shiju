@@ -10,7 +10,7 @@ fn test_app() -> DragFixture {
 fn task_board_drag_starts_only_after_threshold_is_exceeded() {
     let mut app = test_app();
     app.task_board_drag_pending =
-        Some(("task-1".to_owned(), desktop_task_model::TaskStatus::Planning, iced::Point::ORIGIN));
+        Some(("task-1".to_owned(), desktop_task_model::TaskStatus::Running, iced::Point::ORIGIN));
 
     crate::drag::promote_pending_drag(
         &mut app.task_board_drag_pending,
@@ -28,7 +28,7 @@ fn task_board_drag_starts_only_after_threshold_is_exceeded() {
     assert!(app.task_board_drag_pending.is_none());
     assert_eq!(
         app.task_board_dragging,
-        Some(("task-1".to_owned(), desktop_task_model::TaskStatus::Planning))
+        Some(("task-1".to_owned(), desktop_task_model::TaskStatus::Running))
     );
 }
 

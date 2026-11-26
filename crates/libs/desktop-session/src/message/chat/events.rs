@@ -239,10 +239,6 @@ pub enum ChatMessage<Measurement, PreparedOpen, PanelMode, DetailsTab, TodoPlace
     /// 支持手工填写任务模式使用的模型标识符
     TaskModeModelChanged(String),
 
-    /// 任务模式任务拆分策略变化
-    ///
-    /// 控制当前任务是否跟随系统设置、强制开启或关闭任务拆分
-    TaskModeTaskSplitModeChanged(desktop_task_model::TaskSplitMode),
 
     /// 从队列中移除消息
     ///

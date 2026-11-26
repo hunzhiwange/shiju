@@ -23,7 +23,6 @@ pub struct LocalState<'a> {
     pub bulk_executor_popover: &'a mut bool,
     pub bulk_priority_input: &'a mut String,
     pub bulk_reasoning_effort: &'a mut Option<vw_api_chat_identity::ReasoningEffortDto>,
-    pub bulk_task_split_mode: &'a mut desktop_task_model::TaskSplitMode,
     pub column_has_vertical_scrollbar: &'a mut HashMap<desktop_task_model::TaskStatus, bool>,
     pub context_menu: &'a mut Option<(String, f32, f32)>,
     pub create_submit_success: &'a mut bool,
@@ -36,8 +35,6 @@ pub struct LocalState<'a> {
     pub filter_priority: &'a mut Option<(u32, u32)>,
     pub filter_status: &'a mut Option<desktop_task_model::TaskStatus>,
     pub import_editor: &'a mut text_editor::Content,
-    pub import_prompt_collapsed: &'a mut bool,
-    pub import_prompt_format: &'a mut desktop_task_model::TaskImportPromptFormat,
     pub is_import_mode: &'a mut bool,
     pub last_acp_agent: &'a mut Option<String>,
     pub logs_context_menu_open: &'a mut bool,
@@ -60,7 +57,6 @@ pub enum LocalEffect {
     Persist(desktop_task_model::Task),
     OpenSession(String),
     SyncLogs,
-    Clipboard(String),
     Import(Result<Vec<desktop_task_model::Task>, String>),
     ImportLoaded(Result<(), String>),
     Preference(&'static str, bool),
@@ -146,18 +142,6 @@ pub fn update_local(
         TaskBoardMessage::ToggleWorktreePanelExpanded => {
             *state.worktree_panel_expanded = !*state.worktree_panel_expanded;
             return Ok(LocalEffect::RefreshSnapshot);
-        }
-        TaskBoardMessage::CopyImportPromptTemplate => {
-            let priority = crate::draft::parse_priority_or_default(
-                &state.draft.priority,
-                state.settings.default_priority,
-            );
-            return Ok(LocalEffect::Clipboard(crate::draft::import_prompt_template(
-                *state.import_prompt_format,
-                priority,
-                &state.draft.model,
-                state.draft.acp_agent.as_deref(),
-            )));
         }
         TaskBoardMessage::ImportFileLoaded(result) => {
             return Ok(LocalEffect::ImportLoaded(result.map(|content| {
@@ -355,9 +339,6 @@ pub fn update_local(
         TaskBoardMessage::UpdateDraftReasoningEffort(reasoning_effort) => {
             state.draft.reasoning_effort = reasoning_effort;
         }
-        TaskBoardMessage::UpdateDraftTaskSplitMode(mode) => {
-            state.draft.task_split_mode = mode;
-        }
         TaskBoardMessage::UpdateDraftDescription(v) => {
             state.draft.description = v;
         }
@@ -375,9 +356,6 @@ pub fn update_local(
         }
         TaskBoardMessage::UpdateEditingTaskReasoningEffort(reasoning_effort) => {
             state.draft.reasoning_effort = reasoning_effort;
-        }
-        TaskBoardMessage::UpdateEditingTaskSplitMode(mode) => {
-            state.draft.task_split_mode = mode;
         }
         TaskBoardMessage::UpdateEditingTaskPrompt(prompt) => {
             state.draft.prompt = prompt;
@@ -416,9 +394,6 @@ pub fn update_local(
         TaskBoardMessage::UpdateBulkPriorityInput(value) => {
             (*state.bulk_priority_input) = value;
         }
-        TaskBoardMessage::UpdateBulkTaskSplitMode(mode) => {
-            (*state.bulk_task_split_mode) = mode;
-        }
         TaskBoardMessage::BulkAgentSelected(agent) => {
             (*state.bulk_agent) =
                 if agent.trim().is_empty() { main_agent_key.to_string() } else { agent };
@@ -451,12 +426,6 @@ pub fn update_local(
         }
         TaskBoardMessage::ToggleImportMode(enabled) => {
             (*state.is_import_mode) = enabled;
-        }
-        TaskBoardMessage::SetImportPromptFormat(format) => {
-            (*state.import_prompt_format) = format;
-        }
-        TaskBoardMessage::ToggleImportPromptCollapsed => {
-            (*state.import_prompt_collapsed) = !(*state.import_prompt_collapsed);
         }
         TaskBoardMessage::ImportEditorAction(action) => {
             (*state.import_editor).perform(action);

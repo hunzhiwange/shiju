@@ -14,7 +14,6 @@ fn view(app: &App) -> BoardView<'_, Message> {
         task_board_bulk_priority_input: &app.task_board.task_board_bulk_priority_input,
         task_board_bulk_acp_agent: &app.task_board.task_board_bulk_acp_agent,
         task_board_bulk_reasoning_effort: app.task_board.task_board_bulk_reasoning_effort,
-        task_board_bulk_task_split_mode: app.task_board.task_board_bulk_task_split_mode,
         task_board_dragging: &app.task_board.task_board_dragging,
         cursor_position: app.cursor_position,
         task_board_context_menu: &app.task_board.task_board_context_menu,
@@ -25,7 +24,6 @@ fn view(app: &App) -> BoardView<'_, Message> {
             agent: Rc::new(move || super::panel::build_bulk_agent_selector(app)),
             executor: Rc::new(move || super::panel::build_bulk_executor_selector(app)),
             reasoning_effort: Rc::new(move || super::panel::build_bulk_reasoning_effort_selector(app)),
-            task_split: Rc::new(move || super::panel::build_bulk_task_split_selector(app)),
             context_menu: Rc::new(move |task| super::modals::build_context_menu(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), task)),
         },
     }
@@ -43,14 +41,12 @@ pub fn build_work_display(app: &App) -> iced::Element<'_, Message> {
         mode: board.task_board_view_mode,
         options: board.work_display,
         collapsed: &board.collapsed_work_groups,
-        plan: super::work_plan::current(app).map(|(_, plan)| plan),
         agent_labels: app.agents_settings.entries.iter()
             .map(|entry| (entry.key.as_str(), entry.label.as_str()))
             .collect(),
         allow_legacy_reorder: board.work_display.sort == Default::default()
             && !board.work_display.ascending
-            && board.work_search.trim().is_empty()
-            && board.work_display.show_children,
+            && board.work_search.trim().is_empty(),
     })
 }
 

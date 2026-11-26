@@ -15,7 +15,6 @@ pub enum SendInputEffect {
         priority: String,
         model: String,
         reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
-        task_split_mode: desktop_task_model::TaskSplitMode,
     },
     Send(QueueItem),
 }
@@ -118,7 +117,6 @@ pub fn prepare_send_input<R>(
             priority: runtime.task_mode_priority.clone(),
             model: runtime.task_mode_model.clone(),
             reasoning_effort: runtime.task_mode_reasoning_effort,
-            task_split_mode: runtime.task_mode_task_split_mode,
         };
     }
     let acp_model_source = runtime.acp_model_source;

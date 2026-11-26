@@ -13,7 +13,7 @@ use desktop_ui_controls::system_settings_common::{
     rounded_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
     settings_field_label, settings_group_card,
     settings_modal_header, settings_modal_layout, settings_muted_text_style,
-    settings_segment_button_style, settings_tab_button, settings_tab_row, settings_text_input,
+    settings_tab_button, settings_tab_row, settings_text_input,
     settings_toggle,
 };
 use desktop_i18n::I18n;
@@ -21,7 +21,6 @@ use crate::message::TaskBoardMessage;
 use crate::message::TaskBoardSettingsModalTab;
 use desktop_task_model::Task;
 use crate::message::TaskBoardMessage as Message;
-use vw_api_agent_scheduler::AgentSchedulerDispatchModeDto;
 
 use super::common::button_style_secondary;
 
@@ -128,23 +127,7 @@ pub fn build_task_settings_modal<'a, M: Clone + 'static>(app: SettingsView<'a>, 
         .align_y(Alignment::Center),
     );
 
-    let dispatch_mode = app.task_board_settings.agent_scheduler_dispatch_mode;
-    let dispatch_mode_button = |label: &'static str, mode: AgentSchedulerDispatchModeDto| {
-        let active = dispatch_mode == mode;
-        button(text(label).size(12))
-            .on_press(map_message(TaskBoardMessage::SetAgentSchedulerDispatchMode(mode)))
-            .padding([8, 12])
-            .style(move |theme, status| settings_segment_button_style(theme, status, active))
-    };
-    let dispatch_mode_row = field_row(
-        i18n.__("调度方式"),
-        row![
-            dispatch_mode_button(i18n.__("本地"), AgentSchedulerDispatchModeDto::Local),
-            dispatch_mode_button(i18n.__("自动"), AgentSchedulerDispatchModeDto::Auto),
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center),
-    );
+    let dispatch_mode_row = field_row(i18n.__("调度方式"), settings_field_label(i18n.__("本地")));
 
     let refresh_interval_row = field_row(
         i18n.__("刷新间隔(秒)"),

@@ -13,10 +13,9 @@ fn normalized_bulk_model_input_trims_values_and_defaults_blank_input() {
 }
 
 #[test]
-fn agent_scheduler_command_request_sets_local_defaults_and_payload() {
+fn agent_scheduler_command_request_sets_defaults_and_payload() {
     use vw_api_agent_scheduler::{
         AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto,
-        AgentSchedulerDispatchModeDto,
     };
 
     let payload = AgentSchedulerCommandPayloadDto {
@@ -32,7 +31,6 @@ fn agent_scheduler_command_request_sets_local_defaults_and_payload() {
 
     assert_eq!(request.task_id.as_ref(), "T-command");
     assert_eq!(request.command, AgentSchedulerCommandKindDto::Pause);
-    assert_eq!(request.dispatch_mode, AgentSchedulerDispatchModeDto::Local);
     assert_eq!(request.max_concurrent, None);
     assert_eq!(request.reason.as_deref(), Some("manual pause"));
     assert_eq!(request.payload, payload);

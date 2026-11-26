@@ -39,51 +39,9 @@ pub fn task_board_write_command(command: AgentSchedulerCommandKindDto) -> bool {
     )
 }
 
-pub(super) fn placement_from_dto(
-    dto: AgentSchedulerTaskPlanPlacementDto,
-) -> Result<TaskPlanPlacement, ApiError> {
-    Ok(match dto {
-        AgentSchedulerTaskPlanPlacementDto::Root { outer_batch, inner_batch } => {
-            TaskPlanPlacement::Root { outer_batch, inner_batch }
-        }
-        AgentSchedulerTaskPlanPlacementDto::Child { parent_task_id, batch } => {
-            let parent_task_id = TaskId::new(parent_task_id).map_err(map_bad_request)?;
-            TaskPlanPlacement::Child { parent_task_id, batch }
-        }
-    })
-}
 
-pub(super) fn placement_to_dto(placement: TaskPlanPlacement) -> AgentSchedulerTaskPlanPlacementDto {
-    match placement {
-        TaskPlanPlacement::Root { outer_batch, inner_batch } => {
-            AgentSchedulerTaskPlanPlacementDto::Root { outer_batch, inner_batch }
-        }
-        TaskPlanPlacement::Child { parent_task_id, batch } => {
-            AgentSchedulerTaskPlanPlacementDto::Child {
-                parent_task_id: parent_task_id.as_str().to_owned(),
-                batch,
-            }
-        }
-    }
-}
 
-pub(super) fn load_placement_dto(
-    store: &AgentSchedulerStore,
-    context: &(impl AgentSchedulerStorageContext + ?Sized),
-    task_id: &TaskId,
-) -> Result<Option<AgentSchedulerTaskPlanPlacementDto>, ApiError> {
-    Ok(store.load_task_placement(context, task_id).map_err(map_scheduler_error)?
-        .map(placement_to_dto))
-}
 
-pub(super) fn project_placements(
-    store: &AgentSchedulerStore,
-    context: &(impl AgentSchedulerStorageContext + ?Sized),
-) -> Result<HashMap<TaskId, AgentSchedulerTaskPlanPlacementDto>, ApiError> {
-    Ok(store.list_task_plan(context).map_err(map_scheduler_error)?.into_iter()
-        .map(|entry| (entry.task_id, placement_to_dto(entry.placement)))
-        .collect())
-}
 
 pub(super) fn new_task_from_request(
     request: AgentSchedulerCreateTaskRequest,
@@ -143,14 +101,14 @@ pub(super) fn append_task_created_event(
     Ok(())
 }
 
-pub(super) fn wake_response_from_outcome(outcome: Option<DispatchOutcome>) -> AgentSchedulerWakeResponse {
+pub(super) fn wake_response_from_outcome(outcome: Option<LocalAgentRunnerOutcome>) -> AgentSchedulerWakeResponse {
     match outcome {
         Some(outcome) => AgentSchedulerWakeResponse {
             dispatched: true,
             task_id: Some(outcome.task_id.as_str().to_string()),
-            run_id: Some(outcome.run_id.as_str().to_string()),
+            run_id: Some(outcome.run.id.as_str().to_string()),
             worker_id: None,
-            outbox_message_id: outcome.outbox_message_id,
+            outbox_message_id: None,
         },
         None => AgentSchedulerWakeResponse {
             dispatched: false,
@@ -212,13 +170,6 @@ pub fn add_ms_or_saturate(timestamp: TimestampMs, delta_ms: i64) -> TimestampMs 
     TimestampMs(timestamp.0.saturating_add(delta_ms).max(timestamp.0))
 }
 
-pub(super) fn dispatch_mode_from_dto(dispatch_mode: AgentSchedulerDispatchModeDto) -> DispatchMode {
-    match dispatch_mode {
-        AgentSchedulerDispatchModeDto::Local => DispatchMode::Local,
-        AgentSchedulerDispatchModeDto::Auto => DispatchMode::Auto,
-    }
-}
-
 pub(super) fn append_command_event(
     store: &AgentSchedulerStore,
     project_path: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -276,8 +227,7 @@ pub(super) fn task_board_task_to_dto_with_latest_run(
 ) -> Result<AgentSchedulerTaskBoardTaskDto, ApiError> {
     let run =
         store.load_latest_run_for_task(project_path, &task.id).map_err(map_scheduler_error)?;
-    let placement = load_placement_dto(store, project_path, &task.id)?;
-    task_board_task_to_dto(store, project_id, project_path, task, run.as_ref(), placement)
+    task_board_task_to_dto(store, project_id, project_path, task, run.as_ref())
 }
 
 pub(super) fn task_board_task_to_dto(
@@ -286,7 +236,6 @@ pub(super) fn task_board_task_to_dto(
     project_path: &(impl AgentSchedulerStorageContext + ?Sized),
     task: StoredAgentTask,
     run: Option<&StoredAgentRun>,
-    placement: Option<AgentSchedulerTaskPlanPlacementDto>,
 ) -> Result<AgentSchedulerTaskBoardTaskDto, ApiError> {
     let metadata = &task.metadata;
     let workspace = run
@@ -313,7 +262,6 @@ pub(super) fn task_board_task_to_dto(
     let read_model = task_board_task_read_model(&task, metadata, &status_key);
 
     Ok(AgentSchedulerTaskBoardTaskDto {
-        placement,
         project_id: project_id.into(),
         task_id: task.id.as_str().into(),
         status_key,
@@ -350,10 +298,6 @@ pub(super) fn task_board_task_read_model(
         assignee: metadata.get("assignee").and_then(Value::as_str).map(str::to_owned)
             .or_else(|| task.assigned_to.as_ref().map(|assignee| assignee.as_str().to_owned())),
         dispatch_blocker: None,
-        legacy_subtasks: metadata.get("subtasks")
-            .filter(|value| value.as_array().is_some_and(|items| !items.is_empty()))
-            .cloned(),
-        task_split_mode: string_field(metadata, "task_split_mode"),
         title: Some(task.title.clone()),
         workflow_id: string_field(metadata, "task_board.workflow_id"),
         status_label: string_field(metadata, "task_board.status_label"),
@@ -401,25 +345,26 @@ pub(super) fn task_metadata_object(value: Value) -> Result<Map<String, Value>, A
 }
 
 pub fn task_board_status_key(status: AgentTaskStatus, metadata: &Value) -> String {
-    task_board_status_key_from_metadata(status, metadata)
-        .unwrap_or_else(|| legacy_task_board_status_key(status).to_string())
+    let key = task_board_status_key_from_metadata(status, metadata)
+        .unwrap_or_else(|| legacy_task_board_status_key(status));
+    let workflow_id = metadata.get("task_board.workflow_id").and_then(Value::as_str);
+    vw_api_task::TaskPoolStatus::canonical_status_key(key, workflow_id).to_string()
 }
 
 pub(super) fn task_board_status_key_from_metadata(
     status: AgentTaskStatus,
     metadata: &Value,
-) -> Option<String> {
+) -> Option<&str> {
     if let Some(status_key) =
         metadata.get("task_board.status_key").and_then(Value::as_str).and_then(non_empty_str)
     {
-        return Some(status_key.to_string());
+        return Some(status_key);
     }
     let status_key_map = metadata.get("task_board.status_key_map").and_then(Value::as_object)?;
     status_key_map
         .get(status.as_str())
         .and_then(Value::as_str)
         .and_then(non_empty_str)
-        .map(str::to_string)
 }
 
 pub fn legacy_task_board_status_key(status: AgentTaskStatus) -> &'static str {
@@ -521,37 +466,6 @@ pub(super) fn dispatch_blocker_to_dto(blocker: DispatchBlocker) -> AgentSchedule
         task_ids.into_iter().map(|id| id.as_str().to_owned()).collect()
     };
     match blocker {
-        DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::WaitingForEarlierBatch { task_ids }) => {
-            AgentSchedulerDispatchBlockerDto::WaitingForEarlierBatch { task_ids: ids(task_ids) }
-        }
-        DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::EarlierBatchFailed { task_ids }) => {
-            AgentSchedulerDispatchBlockerDto::EarlierBatchFailed { task_ids: ids(task_ids) }
-        }
-        DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::ParentNotReleased { parent_task_id }) => {
-            AgentSchedulerDispatchBlockerDto::ParentNotReleased {
-                parent_task_id: parent_task_id.as_str().to_owned(),
-            }
-        }
-        DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::LegacyWorkPlanRequiresResplit) => {
-            AgentSchedulerDispatchBlockerDto::LegacyWorkPlanRequiresResplit
-        }
-        DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::WorkPlanNotPublished) => {
-            AgentSchedulerDispatchBlockerDto::WorkPlanNotPublished
-        }
-        DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::WorkPlanChildrenIncomplete { children }) => {
-            AgentSchedulerDispatchBlockerDto::WorkPlanChildrenIncomplete {
-                children: children.into_iter().map(|(task_id, status, status_key)| {
-                    vw_api_agent_scheduler::AgentSchedulerWorkPlanChildBlockerDto {
-                        task_id: task_id.as_str().to_owned(),
-                        status,
-                        status_key,
-                    }
-                }).collect(),
-            }
-        }
-        DispatchBlocker::TaskPlan(TaskPlanDispatchBlocker::WorkPlanSummaryUnavailable) => {
-            AgentSchedulerDispatchBlockerDto::WorkPlanSummaryUnavailable
-        }
         DispatchBlocker::ExplicitDependency { task_ids } => {
             AgentSchedulerDispatchBlockerDto::ExplicitDependency { task_ids: ids(task_ids) }
         }
@@ -592,14 +506,12 @@ pub(super) fn task_graph_task_to_dto(
 
 pub(super) fn task_to_dto(
     mut task: StoredAgentTask,
-    placement: Option<AgentSchedulerTaskPlanPlacementDto>,
 ) -> AgentTaskDto {
     if let Some(metadata) = task.metadata.as_object_mut() {
         metadata.remove(task_scheduler::task_board::detail::COLLABORATION_KEY);
         metadata.remove(task_scheduler::task_board::detail::CREATOR_KEY);
     }
     AgentTaskDto {
-        placement,
         id: task.id.as_str().to_string(),
         title: task.title,
         kind: task_kind_to_dto(task.kind),
@@ -952,12 +864,7 @@ pub fn map_bad_request(error: anyhow::Error) -> ApiError {
 }
 
 pub(super) fn map_scheduler_error(error: anyhow::Error) -> ApiError {
-    match error.downcast_ref::<TaskPlanError>() {
-        Some(TaskPlanError::Invalid(message)) => ApiError::bad_request(message.clone()),
-        Some(TaskPlanError::NotFound(message)) => ApiError::not_found(message.clone()),
-        Some(TaskPlanError::Conflict(message)) => ApiError::conflict(message.clone()),
-        None => ApiError::internal(error.to_string()),
-    }
+    ApiError::internal(error.to_string())
 }
 
 pub fn map_scheduler_command_error(error: anyhow::Error) -> ApiError {
@@ -969,8 +876,5 @@ pub fn map_scheduler_command_error(error: anyhow::Error) -> ApiError {
 }
 
 pub fn map_task_board_error(error: anyhow::Error) -> ApiError {
-    if error.is::<TaskPlanError>() {
-        return map_scheduler_error(error);
-    }
     ApiError::bad_request(error.to_string())
 }

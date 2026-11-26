@@ -3,7 +3,7 @@
 
 use anyhow::{Context, Result, bail};
 
-use super::super::schema::{LEGACY_SCHEDULER_TABLES, SCHEDULER_TABLES, TASK_PLAN_SCHEMA};
+use super::super::schema::{LEGACY_SCHEDULER_TABLES, SCHEDULER_TABLES};
 
 pub(super) fn reject_unsupported_schema(
     connection: &mut impl ::postgres::GenericClient,
@@ -71,7 +71,6 @@ pub(super) fn initialize_schema(connection: &mut impl ::postgres::GenericClient)
     connection
         .batch_execute(AGENT_SCHEDULER_SCHEMA)
         .context("initialize PostgreSQL agent scheduler schema")?;
-    connection.batch_execute(TASK_PLAN_SCHEMA).context("initialize task plan schema")?;
     Ok(())
 }
 

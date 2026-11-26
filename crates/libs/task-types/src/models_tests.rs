@@ -65,8 +65,7 @@ fn task_status_order_and_keys_are_stable() {
         (super::TaskStatus::Running, Some(super::TaskStatus::CodeComplete)),
         (super::TaskStatus::Failed, Some(super::TaskStatus::Pending)),
         (super::TaskStatus::Paused, None),
-        (super::TaskStatus::CodeComplete, Some(super::TaskStatus::CodeReview)),
-        (super::TaskStatus::CodeReview, Some(super::TaskStatus::PrSubmitted)),
+        (super::TaskStatus::CodeComplete, Some(super::TaskStatus::PrSubmitted)),
         (super::TaskStatus::PrSubmitted, Some(super::TaskStatus::Completed)),
         (super::TaskStatus::Completed, Some(super::TaskStatus::Archived)),
         (super::TaskStatus::Archived, None),
@@ -91,7 +90,7 @@ fn task_status_accepts_pascal_case_keys() {
         ("Paused", super::TaskStatus::Paused),
         ("CodeComplete", super::TaskStatus::CodeComplete),
         ("PrSubmitted", super::TaskStatus::PrSubmitted),
-        ("CodeReview", super::TaskStatus::CodeReview),
+        ("CodeReview", super::TaskStatus::CodeComplete),
         ("Completed", super::TaskStatus::Completed),
         ("Archived", super::TaskStatus::Archived),
     ];
@@ -165,8 +164,6 @@ fn task_board_settings_deserialize_applies_new_field_defaults() {
     .expect("settings should deserialize with serde defaults");
 
     assert!(!settings.auto_execute);
-    assert!(!settings.code_review_enabled);
-    assert!(!settings.task_split_enabled);
     assert_eq!(settings.max_concurrent, 2);
     assert_eq!(settings.default_priority, 5);
     assert!(!settings.auto_promote_pool_tasks);
@@ -201,7 +198,6 @@ fn task_default_initializes_persistent_fields() {
     assert_eq!(task.merge_source_branch, None);
     assert_eq!(task.merge_target_branch, None);
     assert_eq!(task.selected_worktree_path, None);
-    assert_eq!(task.task_split_mode, super::TaskSplitMode::FollowSystem);
 }
 
 #[test]
@@ -399,7 +395,6 @@ fn task_deserialize_applies_added_field_defaults() {
             "order": 2,
             "deleted": false,
             "archived": false,
-            "subtasks": [],
             "auto_promote_delay_ms": null
         }"#,
     )
@@ -432,70 +427,8 @@ fn task_log_entry_builders_set_expected_fields() {
     assert_eq!(message.message, "note");
 }
 
-#[test]
-fn subtask_new_initializes_defaults() {
-    let subtask = super::SubTask::new("do work".to_string());
 
-    assert!(subtask.id.starts_with("SUB-"));
-    assert_eq!(subtask.content, "do work");
-    assert_eq!(subtask.boundary, "");
-    assert!(subtask.acceptance_criteria.is_empty());
-    assert!(subtask.target_files.is_empty());
-    assert_eq!(subtask.order, 0);
-    assert!(!subtask.completed);
-    assert_eq!(subtask.status, super::SubTaskStatus::Pending);
-    assert_eq!(subtask.execution_started_at_ms, None);
-    assert_eq!(subtask.last_execution_duration_ms, None);
-}
 
-#[test]
-fn subtask_execution_lifecycle_updates_status_and_duration() {
-    let mut subtask = super::SubTask::new("do work".to_string());
-
-    subtask.start_execution();
-    assert_eq!(subtask.status, super::SubTaskStatus::Running);
-    assert!(!subtask.completed);
-    assert!(subtask.execution_started_at_ms.is_some());
-    assert_eq!(subtask.last_execution_duration_ms, None);
-    assert_eq!(subtask.display_execution_duration_ms(0), Some(0));
-
-    subtask.execution_started_at_ms = Some(u64::MAX);
-    subtask.mark_completed();
-    assert_eq!(subtask.status, super::SubTaskStatus::Completed);
-    assert!(subtask.completed);
-    assert_eq!(subtask.execution_started_at_ms, None);
-    assert_eq!(subtask.last_execution_duration_ms, Some(0));
-    assert_eq!(subtask.display_execution_duration_ms(500), Some(0));
-
-    subtask.start_execution();
-    subtask.execution_started_at_ms = Some(u64::MAX);
-    subtask.mark_failed();
-    assert_eq!(subtask.status, super::SubTaskStatus::Failed);
-    assert!(!subtask.completed);
-    assert_eq!(subtask.execution_started_at_ms, None);
-    assert_eq!(subtask.last_execution_duration_ms, Some(0));
-}
-
-#[test]
-fn subtask_deserialize_applies_defaults() {
-    let subtask: super::SubTask = serde_json::from_str(
-        r#"{
-            "id": "SUB-1.00001",
-            "content": "do work",
-            "created_at_ms": 10,
-            "order": 1,
-            "completed": true
-        }"#,
-    )
-    .expect("subtask should deserialize with serde defaults");
-
-    assert_eq!(subtask.boundary, "");
-    assert!(subtask.acceptance_criteria.is_empty());
-    assert!(subtask.target_files.is_empty());
-    assert_eq!(subtask.status, super::SubTaskStatus::Pending);
-    assert_eq!(subtask.execution_started_at_ms, None);
-    assert_eq!(subtask.last_execution_duration_ms, None);
-}
 
 #[test]
 fn task_index_initializes_every_status_bucket() {
@@ -520,58 +453,12 @@ fn task_draft_default_initializes_editable_strings() {
     assert_eq!(draft.executor, super::TaskExecutorBackend::Internal);
     assert_eq!(draft.description, "");
     assert_eq!(draft.prompt, "");
-    assert_eq!(draft.subtasks, vec![String::new(), String::new(), String::new()]);
-    assert_eq!(draft.task_split_mode, super::TaskSplitMode::FollowSystem);
     assert_eq!(draft.auto_promote_delay_seconds, "0");
 }
 
-#[test]
-fn task_import_prompt_format_default_is_json() {
-    assert_eq!(super::TaskImportPromptFormat::default(), super::TaskImportPromptFormat::Json);
-    assert_ne!(super::TaskImportPromptFormat::Csv, super::TaskImportPromptFormat::Tsv);
-}
 
-#[test]
-fn task_split_mode_all_labels_and_keys_are_stable() {
-    use super::TaskSplitMode;
-    let all = TaskSplitMode::all();
-    assert_eq!(all, [TaskSplitMode::FollowSystem, TaskSplitMode::Enabled, TaskSplitMode::Disabled]);
 
-    assert_eq!(TaskSplitMode::FollowSystem.label(), "遵循系统");
-    assert_eq!(TaskSplitMode::Enabled.label(), "开启");
-    assert_eq!(TaskSplitMode::Disabled.label(), "关闭");
 
-    assert_eq!(TaskSplitMode::FollowSystem.to_string_key(), "follow_system");
-    assert_eq!(TaskSplitMode::Enabled.to_string_key(), "enabled");
-    assert_eq!(TaskSplitMode::Disabled.to_string_key(), "disabled");
-
-    // Display 复用 label。
-    assert_eq!(TaskSplitMode::Enabled.to_string(), "开启");
-}
-
-#[test]
-fn task_split_mode_parse_key_accepts_aliases_and_rejects_unknown() {
-    use super::TaskSplitMode;
-    for value in ["follow_system", "follow-system", "system", "default", " INHERIT "] {
-        assert_eq!(TaskSplitMode::parse_key(value), Some(TaskSplitMode::FollowSystem));
-    }
-    for value in ["enabled", "enable", "on", "true", "yes", "1"] {
-        assert_eq!(TaskSplitMode::parse_key(value), Some(TaskSplitMode::Enabled));
-    }
-    for value in ["disabled", "disable", "off", "false", "no", "0"] {
-        assert_eq!(TaskSplitMode::parse_key(value), Some(TaskSplitMode::Disabled));
-    }
-    assert_eq!(TaskSplitMode::parse_key("unknown"), None);
-}
-
-#[test]
-fn task_split_mode_enabled_with_system_resolves_override() {
-    use super::TaskSplitMode;
-    assert!(TaskSplitMode::FollowSystem.enabled_with_system(true));
-    assert!(!TaskSplitMode::FollowSystem.enabled_with_system(false));
-    assert!(TaskSplitMode::Enabled.enabled_with_system(false));
-    assert!(!TaskSplitMode::Disabled.enabled_with_system(true));
-}
 
 #[test]
 fn task_status_next_advances_through_pipeline() {
@@ -581,8 +468,7 @@ fn task_status_next_advances_through_pipeline() {
     assert_eq!(TaskStatus::Running.next(), Some(TaskStatus::CodeComplete));
     assert_eq!(TaskStatus::Failed.next(), Some(TaskStatus::Pending));
     assert_eq!(TaskStatus::Paused.next(), None);
-    assert_eq!(TaskStatus::CodeComplete.next(), Some(TaskStatus::CodeReview));
-    assert_eq!(TaskStatus::CodeReview.next(), Some(TaskStatus::PrSubmitted));
+    assert_eq!(TaskStatus::CodeComplete.next(), Some(TaskStatus::PrSubmitted));
     assert_eq!(TaskStatus::PrSubmitted.next(), Some(TaskStatus::Completed));
     assert_eq!(TaskStatus::Completed.next(), Some(TaskStatus::Archived));
     assert_eq!(TaskStatus::Archived.next(), None);
@@ -600,26 +486,4 @@ fn generated_task_id_uses_date_prefixed_format() {
     assert!(date.chars().all(|c| c.is_ascii_digit()), "date must be digits: {date}");
     assert_eq!(seq.len(), 4, "seq segment should be 4 chars: {seq}");
     assert!(seq.chars().all(|c| c.is_ascii_digit()), "seq must be digits: {seq}");
-}
-
-#[test]
-fn subtask_display_duration_reports_none_when_idle() {
-    // 非 Running 且无历史时长时返回 None。
-    let subtask = super::SubTask::new("内容".to_string());
-    assert_eq!(subtask.status, super::SubTaskStatus::Pending);
-    assert_eq!(subtask.display_execution_duration_ms(1000), None);
-}
-
-#[test]
-fn subtask_mark_failed_without_start_keeps_duration_none() {
-    let mut subtask = super::SubTask::new("内容".to_string());
-    subtask.mark_failed();
-    assert_eq!(subtask.status, super::SubTaskStatus::Failed);
-    assert!(!subtask.completed);
-    assert_eq!(subtask.last_execution_duration_ms, None);
-}
-
-#[test]
-fn subtask_default_status_is_pending() {
-    assert_eq!(super::SubTaskStatus::default(), super::SubTaskStatus::Pending);
 }

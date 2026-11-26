@@ -12,7 +12,6 @@ use super::styles::square_icon_button_style;
 use super::send_message::Message;
 use desktop_assets::assets::Icon;
 use desktop_session::message::chat::request::ChatSendBehavior;
-use desktop_task_model::models::TaskSplitMode;
 use iced::widget::{Space, button, text};
 use iced::{Background, Color, Element, Length, Theme};
 
@@ -292,7 +291,6 @@ fn pool_button_constructs_disabled_simple_and_task_mode_branches() {
         "1".into(),
         "auto".into(),
         None,
-        TaskSplitMode::FollowSystem,
     );
     let disabled = pool_button(
         desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
@@ -302,7 +300,6 @@ fn pool_button_constructs_disabled_simple_and_task_mode_branches() {
         "1".into(),
         "auto".into(),
         None,
-        TaskSplitMode::FollowSystem,
     );
     let simple = pool_button(
         desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
@@ -312,7 +309,6 @@ fn pool_button_constructs_disabled_simple_and_task_mode_branches() {
         "1".into(),
         "auto".into(),
         None,
-        TaskSplitMode::FollowSystem,
     );
     let task_mode = pool_button(
         desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
@@ -322,7 +318,6 @@ fn pool_button_constructs_disabled_simple_and_task_mode_branches() {
         "5".into(),
         "provider/model".into(),
         Some(vw_api_chat_identity::ReasoningEffortDto::High),
-        TaskSplitMode::Enabled,
     );
 
     assert_eq!(disabled_without_task_mode.as_widget().children().len(), 2);

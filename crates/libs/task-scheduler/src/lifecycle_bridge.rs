@@ -274,6 +274,7 @@ pub fn status_role_key(role: TaskPoolWorkflowStatusRoleDto) -> &'static str {
 pub(crate) fn normalize_workflow_transitions(
     mut workflow: TaskPoolWorkflowSnapshotDto,
 ) -> TaskPoolWorkflowSnapshotDto {
+    workflow.remove_legacy_code_review();
     let failed_key = {
         let mut failed = workflow.statuses.iter().filter(|status| {
             status.enabled && status.role == TaskPoolWorkflowStatusRoleDto::Failed

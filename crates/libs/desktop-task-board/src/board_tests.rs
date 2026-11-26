@@ -1,7 +1,7 @@
 //! 任务看板主体的测试，覆盖列生成、卡片排序、状态标签与拖拽绘制。
 //! fixture 包含自定义工作流和归档任务，用于验证筛选及未知配置回退。
 use desktop_task_model::{
-    OwnedStatusDefinition, OwnedTaskWorkflow, StatusRole, SubTask, Task, TaskStatus,
+    OwnedStatusDefinition, OwnedTaskWorkflow, StatusRole, Task, TaskStatus,
     register_runtime_task_workflow,
 };
 use crate::message::TaskBoardMessage as Message;
@@ -51,12 +51,10 @@ fn task_status_tag_colors_cover_builtin_and_custom_statuses() {
     let cases = [
         (TaskStatus::Pool, rgb(107, 114, 128), rgb(243, 244, 246)),
         (TaskStatus::Pending, rgb(37, 99, 235), rgb(219, 234, 254)),
-        (TaskStatus::Planning, rgb(79, 70, 229), rgb(224, 231, 255)),
         (TaskStatus::Running, rgb(147, 51, 234), rgb(243, 232, 255)),
         (TaskStatus::Failed, rgb(220, 38, 38), rgb(254, 226, 226)),
         (TaskStatus::Paused, rgb(202, 138, 4), rgb(254, 249, 195)),
         (TaskStatus::CodeComplete, rgb(5, 150, 105), rgb(209, 250, 229)),
-        (TaskStatus::CodeReview, rgb(217, 119, 6), rgb(254, 243, 199)),
         (TaskStatus::PrSubmitted, rgb(8, 145, 178), rgb(207, 250, 254)),
         (TaskStatus::Completed, rgb(22, 163, 74), rgb(220, 252, 231)),
         (TaskStatus::Archived, rgb(100, 116, 139), rgb(241, 245, 249)),
@@ -234,10 +232,10 @@ async fn kanban_board_draws_dragging_card_and_column_styles() {
 #[test]
 fn status_column_builds_empty_and_selected_bulk_modes() {
     let mut app = app();
-    app.task_board_bulk_active_status = Some(TaskStatus::Planning);
-    keep_element(super::build_status_column(&app.view(), TaskStatus::Planning, 1_000));
+    app.task_board_bulk_active_status = Some(TaskStatus::Pending);
+    keep_element(super::build_status_column(&app.view(), TaskStatus::Pending, 1_000));
 
-    let selected = task("selected-planning", TaskStatus::Planning, 20);
+    let selected = task("selected-pending", TaskStatus::Pending, 20);
     app.task_board_selected_tasks.insert(selected.id.clone());
     app.task_board_tasks = vec![selected];
     app.task_board_bulk_priority_input = "42".to_string();
@@ -245,7 +243,7 @@ fn status_column_builds_empty_and_selected_bulk_modes() {
     app.task_board_bulk_agent = "agent-specialist".to_string();
     app.task_board_bulk_acp_agent = Some("codex".to_string());
 
-    keep_element(super::build_status_column(&app.view(), TaskStatus::Planning, 1_000));
+    keep_element(super::build_status_column(&app.view(), TaskStatus::Pending, 1_000));
 }
 
 #[test]
@@ -278,7 +276,6 @@ fn task_card_builds_running_failed_paused_and_context_menu_variants() {
     running.model = "auto".to_string();
     running.execution_started_at_ms = Some(1_000);
     running.retry_count = 2;
-    running.subtasks = vec![completed_subtask("done"), SubTask::new("todo".to_string())];
     keep_element(super::build_task_card(
         &app.view(),
         &running,
@@ -341,7 +338,6 @@ fn task_card_builds_completed_code_complete_and_plain_priority_variants() {
 
     let mut code_complete = task("code-complete", TaskStatus::CodeComplete, 500);
     code_complete.model = "standalone-model".to_string();
-    code_complete.subtasks.clear();
     keep_element(super::build_task_card(
         &app.view(),
         &code_complete,
@@ -369,11 +365,6 @@ fn task(id: &str, status: TaskStatus, priority: u32) -> Task {
     task
 }
 
-fn completed_subtask(content: &str) -> SubTask {
-    let mut subtask = SubTask::new(content.to_string());
-    subtask.completed = true;
-    subtask
-}
 
 fn custom_status(key: &'static str) -> TaskStatus {
     TaskStatus::parse_key(key).expect("custom status key should parse")
@@ -468,7 +459,6 @@ struct App {
     task_board_bulk_priority_input: String,
     task_board_bulk_acp_agent: Option<String>,
     task_board_bulk_reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
-    task_board_bulk_task_split_mode: desktop_task_model::TaskSplitMode,
     task_board_dragging: Option<(String, TaskStatus)>,
     cursor_position: iced::Point,
     task_board_context_menu: Option<(String, f32, f32)>,
@@ -487,7 +477,6 @@ impl App { fn view(&self) -> BoardView<'_, Message> { BoardView {
     task_board_bulk_priority_input: &self.task_board_bulk_priority_input,
     task_board_bulk_acp_agent: &self.task_board_bulk_acp_agent,
     task_board_bulk_reasoning_effort: self.task_board_bulk_reasoning_effort,
-    task_board_bulk_task_split_mode: self.task_board_bulk_task_split_mode,
     task_board_dragging: &self.task_board_dragging,
     cursor_position: self.cursor_position,
     task_board_context_menu: &self.task_board_context_menu,
@@ -498,6 +487,5 @@ slots: BoardSlots {
     agent: Rc::new(|| iced::widget::Space::new().into()),
     executor: Rc::new(|| iced::widget::Space::new().into()),
     reasoning_effort: Rc::new(|| None),
-    task_split: Rc::new(|| iced::widget::Space::new().into()),
     context_menu: Rc::new(|_| iced::widget::Space::new().into()),
 } } } }

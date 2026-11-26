@@ -12,8 +12,6 @@ use serde_json::{Map, Value, json};
 use tokio::sync::Mutex as AsyncMutex;
 use vw_api_agent_scheduler::{
     AgentSchedulerDispatchBlockerDto, AgentSchedulerDispatchedRunDto,
-    AgentSchedulerTaskPlanChangeDto, AgentSchedulerTaskPlanPlacementDto,
-    AgentSchedulerTaskPlanUpdateRequest,
     AgentSchedulerSelectWorkflowRequest, AgentSchedulerTaskLabelDto, AgentSchedulerTaskLabelMutation,
     AgentSchedulerTaskPropertyDto, AgentSchedulerTaskPropertyMutation,
     AgentSchedulerTaskPropertyOption, TASK_LABEL_IDS_METADATA_KEY, TASK_PROPERTY_VALUES_METADATA_KEY,
@@ -27,7 +25,7 @@ use vw_api_agent_scheduler::{
     AgentSchedulerCommandRequest as AgentSchedulerProjectCommandRequest,
     AgentSchedulerCommandResponse as AgentSchedulerProjectCommandResponse,
     AgentSchedulerCreateTaskRequest, AgentSchedulerCreateTaskResponse,
-    AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,
+    AgentSchedulerLegacyImportRequest,
     AgentSchedulerLegacyImportResponse,
     AgentSchedulerOutboxDrainRequest as AgentSchedulerProjectOutboxDrainRequest,
     AgentSchedulerOutboxDrainResponse as AgentSchedulerProjectOutboxDrainResponse,
@@ -53,7 +51,7 @@ use vw_api_agent_scheduler::{
     AgentSchedulerCommandRequest as AgentSchedulerProjectCommandRequest,
     AgentSchedulerCommandResponse as AgentSchedulerProjectCommandResponse,
     AgentSchedulerCreateTaskRequest, AgentSchedulerCreateTaskResponse,
-    AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,
+    AgentSchedulerLegacyImportRequest,
     AgentSchedulerLegacyImportResponse,
     AgentSchedulerOutboxDrainRequest as AgentSchedulerProjectOutboxDrainRequest,
     AgentSchedulerOutboxDrainResponse as AgentSchedulerProjectOutboxDrainResponse,
@@ -79,7 +77,7 @@ use task_scheduler::domain::{
     AgentRunStatus, AgentSchedulerContext, AssigneeId, RunId, TaskId, TeamId,
 };
 use task_scheduler::engine::dispatch::{
-    DispatchBlocker, DispatchEngine, DispatchMode, DispatchOutcome, DispatchReadinessSnapshot,
+    DispatchBlocker, DispatchReadinessSnapshot,
     load_dispatch_workflow,
     ready_queued_finite_task, task_lifecycle_allows_dispatch,
 };
@@ -101,7 +99,6 @@ use task_scheduler::store::logs::{
 };
 use task_scheduler::store::outbox::{OutboxMessageStatus, StoredOutboxMessage};
 use task_scheduler::store::runs::StoredAgentRun;
-use task_scheduler::store::task_plan::{TaskPlanDispatchBlocker, TaskPlanError, TaskPlanPlacement};
 use task_scheduler::store::tasks::{
     AgentTaskBoardUpdate, AgentTaskDagNode, AgentTaskFilter, NewAgentTask, StoredAgentTask,
 };
@@ -247,28 +244,11 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
         task: &StoredAgentTask,
         command: AgentSchedulerCommandKindDto,
-        dispatch_mode: AgentSchedulerDispatchModeDto,
         max_concurrent: Option<u32>,
         now_ms: TimestampMs,
     ) -> Result<Option<StoredAgentRun>, ApiError> {
-        if matches!(command, AgentSchedulerCommandKindDto::Start
-            | AgentSchedulerCommandKindDto::Promote | AgentSchedulerCommandKindDto::Retry)
-            && vw_api_agent_scheduler::has_legacy_work_plan(&task.metadata)
-        {
-            return Err(ApiError::bad_request(vw_api_agent_scheduler::LEGACY_WORK_PLAN_RESPLIT_REASON));
-        }
         match command {
             AgentSchedulerCommandKindDto::Start | AgentSchedulerCommandKindDto::Promote => {
-                if task.status == AgentTaskStatus::Blocked
-                    && self.store.work_plan_is_published(project_path, &task.id)
-                        .map_err(map_scheduler_error)?
-                {
-                    self.store.queue_completed_work_plans(project_path, now_ms)
-                        .map_err(map_scheduler_error)?;
-                    return self.run_or_dispatch_project_task(
-                        project_path, &task.id, now_ms, dispatch_mode, max_concurrent,
-                    ).await;
-                }
                 if start_command_is_idempotent_for_status(task.status) {
                     return Ok(None);
                 }
@@ -277,11 +257,10 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
                     let _guard = lock.lock().await;
                     self.queue_task_for_command(project_path, task, "success", now_ms)?;
                 }
-                self.run_or_dispatch_project_task(
+                self.run_project_task(
                     project_path,
                     &task.id,
                     now_ms,
-                    dispatch_mode,
                     max_concurrent,
                 )
                 .await
@@ -295,11 +274,10 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
                     let _guard = lock.lock().await;
                     self.queue_task_for_command(project_path, task, "retry", now_ms)?;
                 }
-                self.run_or_dispatch_project_task(
+                self.run_project_task(
                     project_path,
                     &task.id,
                     now_ms,
-                    dispatch_mode,
                     max_concurrent,
                 )
                 .await
@@ -432,12 +410,6 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
             }
         }
         .ok_or_else(|| ApiError::not_found("task not found"))?;
-        if command == AgentSchedulerCommandKindDto::Move
-            && outcome.task.status == AgentTaskStatus::Completed
-            && let Err(error) = self.store.queue_completed_work_plans(project_path, now_ms)
-        {
-            tracing::warn!(%error, "work plan completion scan will be retried on project wake");
-        }
         let task = task_board_task_to_dto_with_latest_run(
             &self.store,
             project_id,
@@ -494,18 +466,16 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         }
     }
 
-    async fn run_or_dispatch_project_task(
+    async fn run_project_task(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
         task_id: &TaskId,
         now_ms: TimestampMs,
-        dispatch_mode: AgentSchedulerDispatchModeDto,
         max_concurrent: Option<u32>,
     ) -> Result<Option<StoredAgentRun>, ApiError> {
         tracing::info!(
             project_path = %project_path.storage_project_path().display(),
             task_id = task_id.as_str(),
-            dispatch_mode = ?dispatch_mode,
             now_ms = now_ms.0,
             "agent scheduler project command dispatch requested"
         );
@@ -522,53 +492,24 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         if !task_lifecycle_allows_dispatch(project_path, &task, &workflow) {
             return Ok(None);
         }
-        if dispatch_mode == AgentSchedulerDispatchModeDto::Local {
-            return self
-                .run_local_task(
-                    owned_scheduler_context(project_path)?,
-                    task_id.clone(),
-                    now_ms,
-                    max_concurrent,
-                )
-                .await
-                .map(|outcome| outcome.map(|outcome| outcome.run));
-        }
-
-        let outcome =
-            self.dispatch_project_task_once(project_path, task_id, now_ms, dispatch_mode, max_concurrent).await?;
-        match outcome {
-            Some(outcome) => {
-                tracing::info!(
-                    project_path = %project_path.storage_project_path().display(),
-                    task_id = outcome.task_id.as_str(),
-                    run_id = outcome.run_id.as_str(),
-                    outbox_message_id = ?outcome.outbox_message_id.as_deref(),
-                    "agent scheduler project command dispatch outcome"
-                );
-                self.store.load_run(project_path, &outcome.run_id).map_err(map_scheduler_error)
-            }
-            None => {
-                tracing::info!(
-                    project_path = %project_path.storage_project_path().display(),
-                    task_id = task_id.as_str(),
-                    dispatch_mode = ?dispatch_mode,
-                    "agent scheduler project command dispatch produced no outcome"
-                );
-                Ok(None)
-            }
-        }
+        self.run_local_task(
+            owned_scheduler_context(project_path)?,
+            task_id.clone(),
+            now_ms,
+            max_concurrent,
+        )
+        .await
+        .map(|outcome| outcome.map(|outcome| outcome.run))
     }
 
     async fn fill_project_slots(
         &self,
         context: &AgentSchedulerContext,
         now_ms: TimestampMs,
-        dispatch_mode: AgentSchedulerDispatchModeDto,
         max_concurrent: usize,
     ) -> Result<Vec<AgentSchedulerDispatchedRunDto>, ApiError> {
         let lock = self.project_dispatch_lock(context);
         let _guard = lock.lock().await;
-        self.store.queue_completed_work_plans(context, now_ms).map_err(map_scheduler_error)?;
         let mut runs = Vec::new();
         let mut missed = false;
         while runs.len() < max_concurrent {
@@ -581,23 +522,13 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
                 }
                 Err(error) => return Err(map_scheduler_error(error)),
             };
-            let run = if dispatch_mode == AgentSchedulerDispatchModeDto::Local {
-                self.run_local_task(context.clone(), task.id, now_ms, max_concurrent)
-                    .await
-                    .map(|outcome| outcome.map(|outcome| AgentSchedulerDispatchedRunDto {
-                        task_id: outcome.task_id.as_str().to_owned(),
-                        run_id: outcome.run.id.as_str().to_owned(),
-                        outbox_message_id: None,
-                    }))
-            } else {
-                self.dispatch_project_task_once(context, &task.id, now_ms, dispatch_mode, max_concurrent)
-                    .await
-                    .map(|outcome| outcome.map(|outcome| AgentSchedulerDispatchedRunDto {
-                        task_id: outcome.task_id.as_str().to_owned(),
-                        run_id: outcome.run_id.as_str().to_owned(),
-                        outbox_message_id: outcome.outbox_message_id,
-                    }))
-            };
+            let run = self.run_local_task(context.clone(), task.id, now_ms, max_concurrent)
+                .await
+                .map(|outcome| outcome.map(|outcome| AgentSchedulerDispatchedRunDto {
+                    task_id: outcome.task_id.as_str().to_owned(),
+                    run_id: outcome.run.id.as_str().to_owned(),
+                    outbox_message_id: None,
+                }));
             match run {
                 Ok(Some(run)) => {
                     runs.push(run);
@@ -613,29 +544,6 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
             }
         }
         Ok(runs)
-    }
-
-    async fn dispatch_project_task_once(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-        now_ms: TimestampMs,
-        dispatch_mode: AgentSchedulerDispatchModeDto,
-        max_concurrent: usize,
-    ) -> Result<Option<DispatchOutcome>, ApiError> {
-        tracing::info!(
-            project_path = %project_path.storage_project_path().display(),
-            task_id = task_id.as_str(),
-            dispatch_mode = ?dispatch_mode,
-            now_ms = now_ms.0,
-            "agent scheduler dispatch project task once"
-        );
-        DispatchEngine::new(&self.store)
-            .with_dispatch_mode(dispatch_mode_from_dto(dispatch_mode))
-            .with_max_concurrent(max_concurrent)
-            .dispatch_task_once(project_path, task_id, now_ms)
-            .await
-            .map_err(map_scheduler_error)
     }
 
     fn queue_task_for_command(
@@ -773,7 +681,6 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
             if let Err(error) = gateway.fill_project_slots(
                 &context,
                 current_timestamp_ms(),
-                AgentSchedulerDispatchModeDto::Local,
                 max_concurrent,
             ).await {
                 tracing::warn!(%error, "scheduler local completion refill failed");

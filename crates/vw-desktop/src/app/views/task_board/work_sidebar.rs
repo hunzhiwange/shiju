@@ -24,23 +24,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if board.task_board_loading {
         content = content.push(text(i18n.__("正在加载任务…")).size(12));
     }
-    let plan_open = super::work_plan::current(app).is_some_and(|(_, plan)| plan.open);
-    content = content.push(
-        button(
-            row![
-                icon_svg(Icon::Calendar, 14.0).style(icon_btn_svg_style),
-                text(i18n.__("工作计划")).size(13)
-            ]
-            .spacing(7)
-            .align_y(Alignment::Center),
-        )
-        .padding([8, 10])
-        .style(move |theme, status| settings_segment_button_style(theme, status, plan_open))
-        .width(Length::Fill)
-        .on_press_maybe(
-            (!project.is_empty()).then_some(Message::TaskBoard(TaskBoardMessage::OpenWorkPlanView)),
-        ),
-    );
     for (view, label, icon) in [
         (BuiltinWorkView::MyTasks, i18n.__("我的任务"), Icon::CheckSquare),
         (BuiltinWorkView::AgentExecuting, i18n.__("我的智能体在做"), Icon::Robot),
@@ -52,7 +35,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .iter()
             .filter(|task| app.task_board.work_task_matches(project, view, task))
             .collect();
-        let selected = !plan_open && board.work_view == view && board.selected_work_view.is_none();
+        let selected = board.work_view == view && board.selected_work_view.is_none();
         content = content.push(
             button(
                 row![
@@ -103,7 +86,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             content.push(text(i18n.__("暂无保存视图")).size(12).style(settings_muted_text_style));
     }
     for view in &app.task_board.saved_work_views {
-        let selected = !plan_open && board.selected_work_view.as_ref() == Some(&view.id);
+        let selected = board.selected_work_view.as_ref() == Some(&view.id);
         content = content.push(
             button(text(&view.name).size(13))
                 .padding([8, 10])

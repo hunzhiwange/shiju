@@ -113,8 +113,6 @@ pub struct SessionRuntimeState<RenderState> {
     /// 任务模式使用的推理强度；`None` 表示沿用模型或 ACP 智能体默认值
     pub task_mode_reasoning_effort:
         Option<vw_api_chat_identity::ReasoningEffortDto>,
-    /// 任务模式的任务拆分策略
-    pub task_mode_task_split_mode: desktop_task_model::TaskSplitMode,
     pub agent: Option<String>,
     pub agent_label: Option<String>,
     pub acp_agent: Option<String>,
@@ -195,7 +193,6 @@ impl<RenderState: Default> SessionRuntimeState<RenderState> {
             task_mode_model,
             task_mode_executor: None,
             task_mode_reasoning_effort: None,
-            task_mode_task_split_mode: desktop_task_model::TaskSplitMode::FollowSystem,
             agent: None,
             agent_label: None,
             acp_agent: None,

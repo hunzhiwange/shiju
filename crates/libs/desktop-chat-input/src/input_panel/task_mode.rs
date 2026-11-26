@@ -30,10 +30,10 @@ use super::styles::{
 };
 use desktop_ui_controls::overlays::AboveOverlay;
 use desktop_settings_providers::state::ProviderModelsSummary;
-use desktop_task_model::{TASK_MODEL_ACP_NATIVE, TASK_MODEL_AUTO, TaskSplitMode};
+use desktop_task_model::{TASK_MODEL_ACP_NATIVE, TASK_MODEL_AUTO};
 #[derive(Debug, Clone)]
 pub enum Message {
- PriorityChanged(String), ModelChanged(String), TaskSplitModeChanged(TaskSplitMode),
+ PriorityChanged(String), ModelChanged(String),
  ExecutorChanged(Option<String>), ReasoningEffortChanged(Option<ReasoningEffortDto>),
  ToggleExecutorPopover, CloseExecutorPopover,
  None, Copy(String), Append(String), OpenUrl(String),
@@ -80,13 +80,6 @@ impl fmt::Display for TaskModeReasoningEffortOption {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct TaskSplitOption(TaskSplitMode, &'static str);
-impl fmt::Display for TaskSplitOption {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(self.1)
-    }
-}
 
 pub fn task_mode_reasoning_effort_options(
     providers: &[ProviderModelsSummary],
@@ -120,7 +113,6 @@ pub fn task_mode_form<'a>(
     task_mode_enabled: bool,
     task_mode_priority: &str,
     task_mode_model: &str,
-    task_mode_task_split_mode: TaskSplitMode,
     task_mode_executor: Option<String>,
     task_mode_reasoning_effort: Option<ReasoningEffortDto>,
 ) -> Element<'a, Message> {
@@ -185,31 +177,6 @@ pub fn task_mode_form<'a>(
     .align_y(Alignment::Center)
     .spacing(10);
 
-    let task_split_field = settings_select(
-        TaskSplitMode::all()
-            .into_iter()
-            .map(|mode| {
-                TaskSplitOption(
-                    mode,
-                    input.i18n.__(mode.label()),
-                )
-            })
-            .collect::<Vec<_>>(),
-        Some(TaskSplitOption(
-            task_mode_task_split_mode,
-            input.i18n.__(task_mode_task_split_mode.label()),
-        )),
-        |mode| Message::TaskSplitModeChanged(mode.0),
-    )
-    .width(Length::Fixed(180.0));
-
-    let task_split_row = row![
-        settings_field_label(input.i18n.__("任务拆分")),
-        Space::new().width(Length::Fill),
-        task_split_field
-    ]
-    .align_y(Alignment::Center)
-    .spacing(10);
 
     let effective_acp_agent = task_mode_executor.clone();
     let selected_for_default = effective_acp_agent.is_none();
@@ -387,7 +354,7 @@ pub fn task_mode_form<'a>(
     .spacing(10);
 
     // 组装完整的表单布局
-    let form = column![priority_row, model_row, task_split_row, executor_row,]
+    let form = column![priority_row, model_row, executor_row,]
         .extend(show_effort.then_some(reasoning_effort_row.into()))
         .spacing(6)
         .width(Length::Fill);

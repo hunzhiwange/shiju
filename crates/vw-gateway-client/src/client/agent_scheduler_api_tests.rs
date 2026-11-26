@@ -9,7 +9,7 @@ use vw_api_agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_agent_scheduler::{
     AgentEventKindDto, AgentSchedulerBulkCommandRequest, AgentSchedulerCommandKindDto,
     AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest, AgentSchedulerCreateTaskRequest,
-    AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,
+    AgentSchedulerLegacyImportRequest,
     AgentSchedulerLegacyTaskImportDto, AgentSchedulerMoveTaskPayloadDto,
     AgentSchedulerOutboxDrainRequest, AgentSchedulerReplaceTaskGraphRequest,
     AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskGraphEdgeDto,

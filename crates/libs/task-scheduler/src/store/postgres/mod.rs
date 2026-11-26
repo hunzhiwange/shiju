@@ -14,7 +14,6 @@ mod outbox;
 mod resources;
 mod runs;
 mod schema;
-mod task_plan;
 mod tasks;
 
 #[derive(Debug)]
@@ -94,3 +93,20 @@ fn ensure_parent_project(
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod tests;
+
+pub(super) fn lock_project_for_task_update(
+    tx: &mut ::postgres::Transaction<'_>,
+    scope: &vw_api_agent_scheduler::AgentSchedulerScope,
+) -> anyhow::Result<()> {
+    let project = scope.project_scope();
+    tx.query_one(
+        "SELECT project_id FROM projects
+         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 FOR NO KEY UPDATE",
+        &[
+            &project.platform_id().as_ref(),
+            &project.company_id().as_ref(),
+            &project.project_id().as_ref(),
+        ],
+    )?;
+    Ok(())
+}

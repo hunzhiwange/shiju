@@ -6,8 +6,6 @@ use std::io;
 #[cfg(target_arch = "wasm32")]
 use time::OffsetDateTime;
 
-#[cfg(target_arch = "wasm32")]
-use desktop_task_model::models::{SubTask, SubTaskStatus};
 use desktop_task_model::models::{Task, TaskStatus};
 
 #[cfg(target_arch = "wasm32")]
@@ -77,16 +75,7 @@ pub fn create_task(project_path: &str, task: Task) -> io::Result<Task> {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-fn reset_subtask_for_rebuild(mut subtask: SubTask) -> SubTask {
-    subtask.completed = false;
-    subtask.status = SubTaskStatus::Pending;
-    subtask.execution_started_at_ms = None;
-    subtask.last_execution_duration_ms = None;
-    subtask
-}
-
-/// 从当前分支重建失败任务，并重置子任务运行状态与结果。
+/// 从当前分支重建失败任务。
 pub fn rebuild_failed_task_from_current_branch(
     project_path: &str,
     old_task: Task,
@@ -108,8 +97,6 @@ pub fn rebuild_failed_task_from_current_branch(
         task.description = old_task.description;
         task.prompt = old_task.prompt;
         task.status = TaskStatus::Pool;
-        task.subtasks = old_task.subtasks.into_iter().map(reset_subtask_for_rebuild).collect();
-        task.task_split_mode = old_task.task_split_mode;
         task.auto_promote_delay_ms = old_task.auto_promote_delay_ms;
         delete_task_file(project_path, &old_task_id)?;
         let log_directory = get_task_log_dir(project_path);

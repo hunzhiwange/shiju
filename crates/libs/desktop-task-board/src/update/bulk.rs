@@ -8,7 +8,6 @@ pub struct BulkState<'a> {
     pub task_board_bulk_model_input: &'a mut String,
     pub task_board_bulk_priority_input: &'a mut String,
     pub task_board_bulk_reasoning_effort: &'a mut Option<vw_api_chat_identity::ReasoningEffortDto>,
-    pub task_board_bulk_task_split_mode: &'a mut desktop_task_model::TaskSplitMode,
     pub task_board_context_menu: &'a mut Option<(String, f32, f32)>,
     pub task_board_draft: &'a mut desktop_task_model::TaskDraft,
     pub task_board_editing_task_id: &'a mut Option<String>,
@@ -179,38 +178,6 @@ pub fn update_bulk(
 
             BulkEffect::Persist(tasks, "批量设置推理强度")
         }
-        TaskBoardMessage::BulkSetTaskSplitModeInStatus { status, task_split_mode } => {
-            (*state.task_board_context_menu) = None;
-            let task_ids = crate::bulk::selected_task_ids_for_status(
-                state.task_board_tasks,
-                state.task_board_selected_tasks,
-                status,
-            );
-            if task_ids.is_empty() {
-                return Ok((BulkEffect::None, sync_logs));
-            }
-
-            (*state.task_board_bulk_task_split_mode) = task_split_mode;
-
-            let tasks = crate::update::rules::set_bulk_split_mode(
-                &mut (*state.task_board_tasks),
-                &task_ids,
-                task_split_mode,
-            );
-
-            for task_id in &task_ids {
-                sync_logs.push(task_id.clone());
-            }
-            if (*state.task_board_editing_task_id)
-                .as_ref()
-                .is_some_and(|editing_task_id| task_ids.contains(editing_task_id))
-            {
-                state.task_board_draft.task_split_mode = task_split_mode;
-            }
-            crate::bulk::clear_selected_task_ids(state.task_board_selected_tasks, &task_ids);
-
-            BulkEffect::Persist(tasks, "批量设置任务拆分")
-        }
         TaskBoardMessage::BulkArchiveTasksInStatus(status) => {
             (*state.task_board_context_menu) = None;
             let task_ids = crate::bulk::selected_task_ids_for_status(
@@ -288,7 +255,6 @@ impl BulkState<'_> {
             self.task_board_draft.agent.clone().unwrap_or_else(|| main_agent_key.to_string());
         *self.task_board_bulk_acp_agent = self.task_board_last_acp_agent.clone();
         *self.task_board_bulk_reasoning_effort = self.task_board_draft.reasoning_effort;
-        *self.task_board_bulk_task_split_mode = self.task_board_draft.task_split_mode;
     }
     pub fn deactivate(&mut self) {
         if let Some(status) = self.task_board_bulk_active_status.take() {

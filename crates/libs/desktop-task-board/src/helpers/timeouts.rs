@@ -1,11 +1,11 @@
-//! 有界超时扫描与评审候选选择。
+//! 有界超时扫描。
 use desktop_task_model::{Task, TaskStatus, TaskBoardSettings};
 use runtime_time::now_ms;
 use super::execution::{
     TASK_EXECUTION_SCAN_BUDGET_MS, TASK_TIMEOUT_SCAN_BATCH,
     TASK_RUNNING_TIMEOUT_GRACE_LOG_MARKER, minutes_to_ms, failed_retry_max_attempts,
     running_timeout_anchor_ms, task_has_current_timeout_grace,
-    record_task_worktree_recycle_after_failure, model_timeout_retry_wait_elapsed,
+    record_task_worktree_recycle_after_failure,
     retry_backoff_minutes,
 };
 
@@ -53,7 +53,7 @@ pub fn apply_execution_timeouts(
         }
         match task.status {
             TaskStatus::Failed => {}
-            TaskStatus::Planning | TaskStatus::Running => {
+            TaskStatus::Running => {
                 let timeout_anchor = running_timeout_anchor_ms(task);
                 if now.saturating_sub(timeout_anchor) >= running_timeout_ms {
                     if !task_has_current_timeout_grace(task) {
@@ -153,32 +153,4 @@ pub fn apply_execution_timeouts(
     }
 
     (changed_tasks, finished_task_ids)
-}
-
-pub fn pick_next_code_review_task(
-    tasks: &[Task], settings: &TaskBoardSettings,
-    exclude_ids: &[String],
-) -> Option<String> {
-    let now = now_ms();
-    let max_attempts = failed_retry_max_attempts(settings);
-
-    tasks
-        .iter()
-        .filter(|task| {
-            !task.deleted
-                && !task.archived
-                && task.status == TaskStatus::CodeReview
-                && !exclude_ids.contains(&task.id)
-                && model_timeout_retry_wait_elapsed(
-                    task,
-                    now,
-                    minutes_to_ms(retry_backoff_minutes(
-                        settings.failed_retry_minutes,
-                        task.retry_count,
-                    )),
-                    max_attempts,
-                )
-        })
-        .min_by_key(|task| (task.priority, task.order))
-        .map(|task| task.id.clone())
 }

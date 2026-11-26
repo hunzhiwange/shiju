@@ -1,5 +1,4 @@
 use desktop_session::message::chat::input::task_mode as domain;
-use desktop_task_model::TaskSplitMode;
 #[test]
 fn task_mode_tests_module_is_wired() {
     assert!(module_path!().ends_with("task_mode_tests"));
@@ -27,10 +26,6 @@ fn task_mode_scalar_settings_update_current_runtime() {
         &mut app.task_mode_reasoning_effort,
         Some(vw_api_chat_identity::ReasoningEffortDto::High),
     );
-    domain::handle_task_mode_task_split_mode_changed(
-        &mut app.task_mode_task_split_mode,
-        TaskSplitMode::Enabled,
-    );
 
     let runtime = &app;
     assert!(runtime.task_mode_enabled);
@@ -42,7 +37,6 @@ fn task_mode_scalar_settings_update_current_runtime() {
         runtime.task_mode_reasoning_effort,
         Some(vw_api_chat_identity::ReasoningEffortDto::High)
     );
-    assert_eq!(runtime.task_mode_task_split_mode, TaskSplitMode::Enabled);
 
     domain::handle_task_mode_model_changed(
         &mut app.task_mode_executor,
@@ -52,15 +46,10 @@ fn task_mode_scalar_settings_update_current_runtime() {
         &[],
     );
     domain::handle_task_mode_executor_changed(&mut app.task_mode_executor, None);
-    domain::handle_task_mode_task_split_mode_changed(
-        &mut app.task_mode_task_split_mode,
-        TaskSplitMode::Disabled,
-    );
 
     let runtime = &app;
     assert_eq!(runtime.task_mode_model, "auto");
     assert_eq!(runtime.task_mode_executor, None);
-    assert_eq!(runtime.task_mode_task_split_mode, TaskSplitMode::Disabled);
 }
 
 #[test]

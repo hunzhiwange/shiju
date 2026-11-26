@@ -20,8 +20,6 @@ pub const TASK_BOARD_REFRESH_INTERVAL_SECS: u64 = 60;
 #[allow(dead_code)]
 /// TASK_SCHEDULER_TICK_INTERVAL_SECS 使用的固定配置值。
 pub const TASK_SCHEDULER_TICK_INTERVAL_SECS: u64 = 1;
-/// TASK_AUTO_CODE_REVIEW_TICK_INTERVAL_SECS 使用的固定配置值。
-pub const TASK_AUTO_CODE_REVIEW_TICK_INTERVAL_SECS: u64 = 30;
 /// TASK_AUTO_MERGE_TICK_INTERVAL_SECS 使用的固定配置值。
 pub const TASK_AUTO_MERGE_TICK_INTERVAL_SECS: u64 = 10;
 /// Agent Scheduler 命令飞行中状态同步延迟，避免命令卡住时日志面板也停住。
@@ -65,15 +63,6 @@ pub fn format_task_log_stream_for_ui(
             }
             Some(truncate_for_ui(line, max_chars))
         }
-        TaskLogStream::SubTaskStarted { content, .. } => {
-            Some(truncate_for_ui(&format!("子任务开始: {}", content), max_chars))
-        }
-        TaskLogStream::SubTaskCompleted { subtask_id, .. } => {
-            Some(format!("子任务完成: {}", subtask_id))
-        }
-        TaskLogStream::SubTaskFailed { subtask_id, error, .. } => {
-            Some(truncate_for_ui(&format!("子任务失败: {} {}", subtask_id, error), max_chars))
-        }
         TaskLogStream::ExitStatus { success, code, signal, .. } => Some(if *success {
             format!("执行成功 code={:?}", code)
         } else {
@@ -85,33 +74,10 @@ pub fn format_task_log_stream_for_ui(
     }
 }
 
-pub fn append_task_log_stream(task: &mut Task, log: &TaskLogStream) -> bool {
-    let mut plan_changed = false;
-    match log {
-        TaskLogStream::SubTaskStarted { subtask_id, timestamp_ms, .. } => {
-            if let Some(subtask) = task.subtasks.iter_mut().find(|item| item.id == *subtask_id) {
-                subtask.start_execution_at(*timestamp_ms);
-                plan_changed = true;
-            }
-        }
-        TaskLogStream::SubTaskCompleted { subtask_id, timestamp_ms } => {
-            if let Some(subtask) = task.subtasks.iter_mut().find(|item| item.id == *subtask_id) {
-                subtask.mark_completed_at(*timestamp_ms);
-                plan_changed = true;
-            }
-        }
-        TaskLogStream::SubTaskFailed { subtask_id, timestamp_ms, .. } => {
-            if let Some(subtask) = task.subtasks.iter_mut().find(|item| item.id == *subtask_id) {
-                subtask.mark_failed_at(*timestamp_ms);
-                plan_changed = true;
-            }
-        }
-        _ => {}
-    }
+pub fn append_task_log_stream(task: &mut Task, log: &TaskLogStream) {
     if let Some(line) = format_task_log_stream_for_ui(log, TASK_LOG_UI_MAX_ENTRY_CHARS) {
         task.add_log(line);
     }
-    plan_changed
 }
 
 fn task_workflow_for_agent_scheduler(workflow_id: &str) -> Option<TaskWorkflow> {
@@ -304,13 +270,13 @@ fn task_status_to_agent_scheduler_status(
 
     match status {
         TaskStatus::Pool => AgentTaskStatusDto::Draft,
-        TaskStatus::Pending | TaskStatus::Planning | TaskStatus::Custom(_) => {
+        TaskStatus::Pending | TaskStatus::Custom(_) => {
             AgentTaskStatusDto::Queued
         }
         TaskStatus::Running => AgentTaskStatusDto::Running,
         TaskStatus::Failed => AgentTaskStatusDto::Failed,
         TaskStatus::Paused => AgentTaskStatusDto::Paused,
-        TaskStatus::CodeComplete | TaskStatus::CodeReview | TaskStatus::PrSubmitted => {
+        TaskStatus::CodeComplete | TaskStatus::PrSubmitted => {
             AgentTaskStatusDto::Submitted
         }
         TaskStatus::Completed => AgentTaskStatusDto::Completed,
@@ -365,7 +331,7 @@ fn create_task_request_with_workflow(
         .map(status_role_metadata_key)
         .unwrap_or("custom");
     let status_key_map = agent_scheduler_status_key_map(workflow_ref, task.status);
-    let mut metadata = serde_json::json!({
+    let metadata = serde_json::json!({
         "priority": task.priority,
         "assignee": task.assignee,
         "order_no": task.order,
@@ -374,7 +340,6 @@ fn create_task_request_with_workflow(
         "acp_agent": task.acp_agent,
         "reasoning_effort": task.reasoning_effort,
         "prompt": task.prompt,
-        "task_split_mode": task.task_split_mode.to_string_key(),
         "last_error": task.last_error,
         "pause_reason": task.pause_reason,
         "merge_source_branch": task.merge_source_branch,
@@ -387,11 +352,7 @@ fn create_task_request_with_workflow(
         "task_board.status_role": status_role,
         "task_board.status_key_map": status_key_map,
     });
-    if !task.subtasks.is_empty() {
-        metadata["subtasks"] = serde_json::json!(task.subtasks);
-    }
     vw_api_agent_scheduler::AgentSchedulerCreateTaskRequest {
-        placement: None,
         task_id: task_id.clone(),
         title: task_title_for_agent_scheduler(task),
         kind: vw_api_agent_scheduler::AgentTaskKindDto::Finite,
@@ -497,41 +458,11 @@ pub fn record_task_worktree_recycle_after_failure(
     );
 }
 
-pub fn is_model_response_timeout_error(error: &str) -> bool {
-    let normalized = error.to_ascii_lowercase();
-    normalized.contains("模型响应超时")
-        || normalized.contains("llm response timed out")
-        || normalized.contains("llm response timeout")
-        || normalized.contains("model response timed out")
-        || normalized.contains("model response timeout")
-        || normalized.contains("request timed out while waiting for the model")
-        || normalized.contains("gateway stream idle timeout")
-        || normalized.contains("gateway 响应超时")
-}
-
-pub(super) fn model_timeout_retry_wait_elapsed(
-    task: &Task,
-    now: u64,
-    model_timeout_retry_wait_ms: u64,
-    max_attempts: u32,
-) -> bool {
-    let Some(error) = task.last_error.as_deref() else {
-        return true;
-    };
-    if !is_model_response_timeout_error(error) {
-        return true;
-    }
-    if task.retry_count >= max_attempts.clamp(0, 10) {
-        return false;
-    }
-    now.saturating_sub(task.last_active_at_ms) >= model_timeout_retry_wait_ms
-}
-
 #[cfg(test)]
 #[path = "execution_tests.rs"]
 mod execution_tests;
 
-pub use super::timeouts::{apply_execution_timeouts, pick_next_code_review_task};
+pub use super::timeouts::apply_execution_timeouts;
 
 /// 轮询运行任务日志；计划文件写入通过窄回调交给宿主。
 pub fn flush_running_task_logs(
@@ -539,7 +470,6 @@ pub fn flush_running_task_logs(
     executor: &mut desktop_task_executor::executor::state::TaskExecutorState,
     cursor: &mut usize,
     tick_started_at: web_time::Instant,
-    mut on_plan_changed: impl FnMut(&Task),
 ) {
     let running = executor.running_tasks.clone();
     if running.is_empty() {
@@ -564,11 +494,9 @@ pub fn flush_running_task_logs(
         let task_id = running[idx].clone();
         let task_logs = executor.poll_task_logs(&task_id);
         if let Some(task) = logs.task_board_tasks.iter_mut().find(|t| t.id == task_id) {
-            let mut plan_changed = false;
             for log in &task_logs {
-                plan_changed |= append_task_log_stream(task, log);
+                append_task_log_stream(task, log);
             }
-            if plan_changed { on_plan_changed(task); }
         }
         if viewing_task_id.as_deref() == Some(task_id.as_str()) {
             super::logs::sync_viewing_logs(logs, &task_id);
@@ -601,10 +529,10 @@ pub fn flush_running_task_logs_throttled(
     logs: &mut super::logs::TaskLogsState<'_>,
     executor: &mut desktop_task_executor::executor::state::TaskExecutorState,
     cursor: &mut usize, last_flush: &mut u64, force: bool,
-    tick_started_at: web_time::Instant, on_plan_changed: impl FnMut(&Task),
+    tick_started_at: web_time::Instant,
 ) {
     let now = runtime_time::now_ms();
     if !log_flush_due(*last_flush, force, now) { return; }
-    flush_running_task_logs(logs, executor, cursor, tick_started_at, on_plan_changed);
+    flush_running_task_logs(logs, executor, cursor, tick_started_at);
     *last_flush = now;
 }

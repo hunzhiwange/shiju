@@ -24,7 +24,6 @@ use super::surface_styles::{
 use desktop_ui_controls::overlays::AboveOverlay;
 use desktop_ui_controls::system_settings_common::styles::settings_segment_button_style;
 use desktop_session::message::chat::request::ChatSendBehavior;
-use desktop_task_model::models::TaskSplitMode;
 use super::send_message::Message;
 use vw_api_chat_identity::ReasoningEffortDto;
 
@@ -275,7 +274,6 @@ pub fn pool_button(
     task_mode_priority: String,
     task_mode_model: String,
     task_mode_reasoning_effort: Option<ReasoningEffortDto>,
-    task_mode_task_split_mode: TaskSplitMode,
 ) -> Element<'static, Message> {
     let pool_icon: Element<'_, Message> = icon_svg(Icon::Grid1x2, SECONDARY_ICON_SIZE)
         .style(move |theme: &Theme, _| svg::Style {
@@ -307,7 +305,6 @@ pub fn pool_button(
                 priority: task_mode_priority,
                 model: task_mode_model,
                 reasoning_effort: task_mode_reasoning_effort,
-                task_split_mode: task_mode_task_split_mode,
             })
         } else {
             // 任务模式未启用：发送简单的添加任务消息

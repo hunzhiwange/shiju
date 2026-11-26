@@ -25,41 +25,7 @@ pub(super) fn build_priority_field<'a>(app: PanelView<'a>, is_edit_mode: bool) -
     .into()
 }
 
-pub(super) fn build_task_split_mode_selector(app: PanelView<'_>, is_edit_mode: bool) -> iced::Element<'_, Message> {
-    let selected = desktop_task_model::i18n::SplitOption(
-        app.task_board_draft.task_split_mode,
-        app.desktop_locale,
-    );
-    let options = TaskSplitMode::all()
-        .map(|mode| desktop_task_model::i18n::SplitOption(mode, app.desktop_locale))
-        .to_vec();
-    settings_select(options, Some(selected), move |mode| {
-        Message::TaskBoard(if is_edit_mode {
-            TaskBoardMessage::UpdateEditingTaskSplitMode(mode.0)
-        } else {
-            TaskBoardMessage::UpdateDraftTaskSplitMode(mode.0)
-        })
-    })
-    .placeholder(desktop_i18n::I18n::new(app.desktop_locale).__("任务拆分"))
-    .width(Length::Fill)
-    .into()
-}
 
-pub fn build_bulk_task_split_selector(app: PanelView<'_>) -> iced::Element<'_, Message> {
-    let selected = desktop_task_model::i18n::SplitOption(
-        app.task_board_bulk_task_split_mode,
-        app.desktop_locale,
-    );
-    let options = TaskSplitMode::all()
-        .map(|mode| desktop_task_model::i18n::SplitOption(mode, app.desktop_locale))
-        .to_vec();
-    settings_select(options, Some(selected), |mode| {
-        Message::TaskBoard(TaskBoardMessage::UpdateBulkTaskSplitMode(mode.0))
-    })
-    .placeholder(desktop_i18n::I18n::new(app.desktop_locale).__("任务拆分"))
-    .width(Length::Fill)
-    .into()
-}
 
 pub(super) fn build_agent_field(app: PanelView<'_>, is_edit_mode: bool) -> iced::Element<'_, Message> {
     let selected_key =
@@ -183,21 +149,14 @@ pub(super) fn build_create_form<'a>(app: PanelView<'a>, slots: PanelSlots<'a>) -
     )
     .padding(iced::Padding { top: 8.0, ..iced::Padding::ZERO });
 
-    let parameters = row![
-        column![
-            settings_field_label(i18n.__("任务拆分")),
-            build_task_split_mode_selector(app, false),
-        ]
-        .width(164)
-        .spacing(6),
-        column![settings_field_label(i18n.__("优先级")), build_priority_field(app, false)]
-            .width(144)
-            .spacing(6),
+    let priority = column![
+        settings_field_label(i18n.__("优先级")),
+        build_priority_field(app, false),
     ]
-    .spacing(12)
-    .wrap();
+    .width(144)
+    .spacing(6);
 
-    column![composer, parameters, build_create_options_row(app)].spacing(14).into()
+    column![composer, priority, build_create_options_row(app)].spacing(14).into()
 }
 
 pub(super) fn build_mode_toggle(app: PanelView<'_>) -> iced::Element<'_, Message> {
@@ -221,35 +180,6 @@ pub(super) fn build_mode_toggle(app: PanelView<'_>) -> iced::Element<'_, Message
 }
 
 pub(super) fn build_import_field<'a>(app: PanelView<'a>) -> iced::Element<'a, Message> {
-    fn tab_button<'a>(
-        title: &'a str,
-        selected: bool,
-        format: desktop_task_model::TaskImportPromptFormat,
-    ) -> iced::widget::Button<'a, Message> {
-        button(text(title).size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::SetImportPromptFormat(format)))
-            .padding([5, 10])
-            .style(move |theme: &Theme, status| {
-                settings_segment_button_style(theme, status, selected)
-            })
-    }
-
-    let selected_priority = app
-        .task_board_draft
-        .priority
-        .trim()
-        .parse::<u32>()
-        .ok()
-        .filter(|value| *value > 0)
-        .unwrap_or(app.task_board_settings.default_priority);
-    let selected_model = app.task_board_draft.model.as_str();
-    let prompt_template = crate::draft::import_prompt_template(
-        app.task_board_import_prompt_format,
-        selected_priority,
-        selected_model,
-        app.task_board_draft.acp_agent.as_deref(),
-    );
-
     let import_tools = row![
         button(text(desktop_i18n::I18n::new(app.desktop_locale).__("上传文件")).size(13))
             .on_press(Message::TaskBoard(TaskBoardMessage::ImportFilePick))
@@ -295,101 +225,17 @@ pub(super) fn build_import_field<'a>(app: PanelView<'a>) -> iced::Element<'a, Me
     )
     .padding(iced::Padding { top: 8.0, ..iced::Padding::ZERO });
 
-    let help_text = text(desktop_i18n::I18n::new(app.desktop_locale).__("支持 JSON 数组（priority, prompt, model, executor, reasoning_effort, task_split_mode）\n或 CSV/TSV（首行需包含 priority, prompt，建议同时包含 model, executor, reasoning_effort, task_split_mode）"))
+    let help_text = text(desktop_i18n::I18n::new(app.desktop_locale).__("支持 JSON 数组（priority, prompt, model, acp_agent, reasoning_effort）\n或 CSV/TSV（首行需包含 priority, prompt，建议同时包含 model, acp_agent, reasoning_effort）"))
     .size(12)
     .style(|theme: &Theme| iced::widget::text::Style {
         color: Some(theme.extended_palette().background.base.text.scale_alpha(0.8)),
     });
-
-    let prompt_tabs = row![
-        tab_button(
-            "JSON",
-            app.task_board_import_prompt_format == desktop_task_model::TaskImportPromptFormat::Json,
-            desktop_task_model::TaskImportPromptFormat::Json
-        ),
-        tab_button(
-            "CSV",
-            app.task_board_import_prompt_format == desktop_task_model::TaskImportPromptFormat::Csv,
-            desktop_task_model::TaskImportPromptFormat::Csv
-        ),
-        tab_button(
-            "TSV",
-            app.task_board_import_prompt_format == desktop_task_model::TaskImportPromptFormat::Tsv,
-            desktop_task_model::TaskImportPromptFormat::Tsv
-        ),
-        button(text(desktop_i18n::I18n::new(app.desktop_locale).__("复制")).size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::CopyImportPromptTemplate))
-            .padding([5, 10])
-            .style(rounded_action_btn_style),
-        button(
-            text(
-                desktop_i18n::I18n::new(app.desktop_locale)
-                    .__(if app.task_board_import_prompt_collapsed { "展开" } else { "折叠" })
-            )
-            .size(12)
-        )
-        .on_press(Message::TaskBoard(TaskBoardMessage::ToggleImportPromptCollapsed))
-        .padding([5, 10])
-        .style(rounded_action_btn_style)
-    ]
-    .spacing(6)
-    .align_y(Alignment::Center)
-    .wrap();
-
-    let prompt_template_text = text(prompt_template)
-        .size(12)
-        .wrapping(iced::widget::text::Wrapping::Word)
-        .style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.extended_palette().background.base.text.scale_alpha(0.82)),
-        });
-
-    let prompt_template_block: Element<'_, Message> = if app.task_board_import_prompt_collapsed {
-        container(
-            text(desktop_i18n::I18n::new(app.desktop_locale).__("已折叠，点击“展开”查看模板"))
-                .size(12),
-        )
-        .padding([8, 10])
-        .width(Length::Fill)
-        .style(|theme: &Theme| {
-            let p = theme.extended_palette();
-            iced::widget::container::Style {
-                background: Some(Background::Color(p.background.weak.color.scale_alpha(0.24))),
-                border: Border {
-                    radius: 14.0.into(),
-                    width: 1.0,
-                    color: p.background.strong.color.scale_alpha(0.42),
-                },
-                ..Default::default()
-            }
-        })
-        .into()
-    } else {
-        container(prompt_template_text)
-            .padding([8, 10])
-            .width(Length::Fill)
-            .style(|theme: &Theme| {
-                let p = theme.extended_palette();
-                iced::widget::container::Style {
-                    background: Some(Background::Color(p.background.weak.color.scale_alpha(0.20))),
-                    border: Border {
-                        radius: 14.0.into(),
-                        width: 1.0,
-                        color: p.background.strong.color.scale_alpha(0.42),
-                    },
-                    ..Default::default()
-                }
-            })
-            .into()
-    };
 
     column![
         input_label(desktop_i18n::I18n::new(app.desktop_locale).__("批量导入内容")),
         examples,
         import_composer,
         help_text,
-        input_label(desktop_i18n::I18n::new(app.desktop_locale).__("大模型提示词模板")),
-        prompt_tabs,
-        prompt_template_block,
     ]
     .spacing(6)
     .width(Length::Fill)

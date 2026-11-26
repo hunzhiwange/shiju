@@ -25,7 +25,7 @@ use vw_api_agent_scheduler::{
     AgentSchedulerSelectWorkflowRequest,
     AgentSchedulerTaskGraphResponse,
     AgentSchedulerTaskLogsResponse,
-    AgentSchedulerTaskBoardTaskDto, AgentSchedulerTaskPlanUpdateRequest,
+    AgentSchedulerTaskBoardTaskDto,
     AgentSchedulerTaskMetadataUpdateRequest,
     AgentSchedulerTaskMetadataUpdateResponse,
 };
@@ -89,14 +89,6 @@ where
             "/agent-scheduler/projects/{project_id}/task-graph",
             axum::routing::get(agent_scheduler_project_task_graph)
                 .put(agent_scheduler_project_replace_task_graph),
-        )
-        .route(
-            "/agent-scheduler/projects/{project_id}/tasks/{task_id}/placement",
-            axum::routing::put(agent_scheduler_project_update_task_plan),
-        )
-        .route(
-            "/agent-scheduler/projects/{project_id}/tasks/{task_id}/work-plan",
-            post(agent_scheduler_project_publish_work_plan),
         )
         .route(
             "/agent-scheduler/projects/{project_id}/tasks/{task_id}/metadata",
@@ -250,25 +242,7 @@ pub async fn agent_scheduler_project_replace_task_graph(
     gateway.replace_task_graph(project_id, project_path, body).await.map(Json)
 }
 
-async fn agent_scheduler_project_update_task_plan(
-    AxumPath((project_id, task_id)): AxumPath<(String, String)>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Json(body): Json<AgentSchedulerTaskPlanUpdateRequest>,
-) -> Result<Json<AgentSchedulerTaskBoardTaskDto>, ApiError> {
-    let context = resolve_project_context(tenant, &project_id).await?;
-    gateway.update_task_plan(project_id, context, task_id, body).await.map(Json)
-}
 
-async fn agent_scheduler_project_publish_work_plan(
-    AxumPath((project_id, task_id)): AxumPath<(String, String)>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Json(body): Json<vw_api_agent_scheduler::WorkPlanPublishRequest>,
-) -> Result<Json<vw_api_agent_scheduler::WorkPlanPublishResponse>, ApiError> {
-    let context = resolve_project_context(tenant, &project_id).await?;
-    gateway.publish_work_plan(context, task_id, body).await.map(Json)
-}
 
 async fn agent_scheduler_project_update_task_metadata(
     AxumPath((project_id, task_id)): AxumPath<(String, String)>,

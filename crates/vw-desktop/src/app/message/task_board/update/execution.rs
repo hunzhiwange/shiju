@@ -15,7 +15,6 @@ fn wake_agent_scheduler_after_registering_pending(
         return iced::Task::none();
     };
     let now_ms = crate::app::time::now_ms();
-    let dispatch_mode = app.task_board.task_board_settings.agent_scheduler_dispatch_mode;
     let max_concurrent = Some(app.task_board.task_board_settings.max_concurrent.clamp(1, 10));
     let pending_create_requests = taskboard::helpers::execution::scheduler_pending_task_requests(
         &app.task_board.task_board_tasks, &workflow,
@@ -31,7 +30,6 @@ fn wake_agent_scheduler_after_registering_pending(
                     &scope,
                     &vw_api_agent_scheduler::AgentSchedulerWakeRequest {
                         now_ms: TimestampMs(i64::try_from(now_ms).unwrap_or(i64::MAX)),
-                        dispatch_mode,
                         max_concurrent,
                         auto_promote_pool_tasks: true,
                     },
@@ -85,7 +83,7 @@ pub(super) fn update(app: &mut crate::app::App, message: TaskBoardMessage) -> ic
             ExecutionEffect::ScheduleMerge => tasks.push(schedule_auto_merge_tick_with_deadline(app)),
             ExecutionEffect::SyncStatus(path) => tasks.push(sync_agent_scheduler_status(path)),
             ExecutionEffect::SyncInFlight(path, id) => tasks.push(schedule_agent_scheduler_command_in_flight_status_sync(path, id)),
-            ExecutionEffect::Command(path, task, workflow, kind, mode, max, reason) => tasks.push(send_agent_scheduler_command(path, task, workflow, kind, mode, max, reason)),
+            ExecutionEffect::Command(path, task, workflow, kind, max, reason) => tasks.push(send_agent_scheduler_command(path, task, workflow, kind, max, reason)),
             ExecutionEffect::Wake(kind) => tasks.push(wake_agent_scheduler_after_registering_pending(app, match kind {
                 WakeKind::Execution => TaskBoardMessage::AgentSchedulerExecutionWakeCompleted,
                 WakeKind::Promote => TaskBoardMessage::AgentSchedulerPoolWakeCompleted,

@@ -11,7 +11,6 @@ pub(crate) fn flush_running_task_logs_throttled(
     force: bool,
     tick_started_at: web_time::Instant,
 ) {
-    let project_path = app.navigation_tabs.project_path.clone();
     let mut logs = desktop_task_board::helpers::logs::TaskLogsState {
         task_board_logs_editor: &mut app.task_board.task_board_logs_editor,
         task_board_logs_auto_scroll: &mut app.task_board.task_board_logs_auto_scroll,
@@ -33,11 +32,6 @@ pub(crate) fn flush_running_task_logs_throttled(
         &mut app.task_board.task_board_last_log_flush_at_ms,
         force,
         tick_started_at,
-        |task| {
-            if let Some(path) = project_path.as_deref() {
-                let _ = crate::app::task::write_task_plan_files(path, task);
-            }
-        },
     );
 }
 pub(crate) fn schedule_worktree_action_log_tick() -> iced::Task<crate::app::Message> {
@@ -230,7 +224,6 @@ pub(crate) fn send_agent_scheduler_command(
     task: Task,
     workflow_id: String,
     command: vw_api_agent_scheduler::AgentSchedulerCommandKindDto,
-    dispatch_mode: vw_api_agent_scheduler::AgentSchedulerDispatchModeDto,
     max_concurrent: Option<u32>,
     reason: Option<String>,
 ) -> iced::Task<crate::app::Message> {
@@ -261,7 +254,6 @@ pub(crate) fn send_agent_scheduler_command(
                         &vw_api_agent_scheduler::AgentSchedulerCommandRequest {
                             task_id: vw_api_transport::TaskId(task_id.clone()),
                             command,
-                            dispatch_mode,
                             max_concurrent,
                             reason,
                             payload: Default::default(),

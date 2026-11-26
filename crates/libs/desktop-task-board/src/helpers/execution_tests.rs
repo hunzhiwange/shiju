@@ -1,39 +1,3 @@
-#[test]
-fn append_task_log_stream_updates_subtask_execution_status() {
-    let mut task = desktop_task_model::Task::new(1);
-    let mut first = desktop_task_model::SubTask::new("first".to_string());
-    first.id = "SUB-first".to_string();
-    let mut second = desktop_task_model::SubTask::new("second".to_string());
-    second.id = "SUB-second".to_string();
-    task.subtasks = vec![first, second];
-
-    let started = desktop_task_executor::TaskLogStream::SubTaskStarted {
-        subtask_id: "SUB-first".to_string(),
-        content: "first".to_string(),
-        timestamp_ms: 1_000,
-    };
-    assert!(super::append_task_log_stream(&mut task, &started));
-    assert_eq!(task.subtasks[0].status, desktop_task_model::SubTaskStatus::Running);
-    assert!(!task.subtasks[0].completed);
-
-    let completed = desktop_task_executor::TaskLogStream::SubTaskCompleted {
-        subtask_id: "SUB-first".to_string(),
-        timestamp_ms: 2_500,
-    };
-    assert!(super::append_task_log_stream(&mut task, &completed));
-    assert_eq!(task.subtasks[0].status, desktop_task_model::SubTaskStatus::Completed);
-    assert!(task.subtasks[0].completed);
-    assert_eq!(task.subtasks[0].last_execution_duration_ms, Some(1_500));
-
-    let failed = desktop_task_executor::TaskLogStream::SubTaskFailed {
-        subtask_id: "SUB-second".to_string(),
-        error: "boom".to_string(),
-        timestamp_ms: 4_000,
-    };
-    assert!(super::append_task_log_stream(&mut task, &failed));
-    assert_eq!(task.subtasks[1].status, desktop_task_model::SubTaskStatus::Failed);
-    assert!(!task.subtasks[1].completed);
-}
 
 #[test]
 fn start_command_skips_created_in_flight_task() {
@@ -79,16 +43,6 @@ fn retry_backoff_minutes_grows_exponentially_and_caps_at_one_day() {
 }
 
 #[test]
-fn gateway_idle_timeout_is_treated_as_model_timeout_retry() {
-    assert!(super::is_model_response_timeout_error(
-        "gateway 调度失败: gateway stream idle timeout after 60s without response"
-    ));
-    assert!(super::is_model_response_timeout_error(
-        "gateway 响应超时；已在同一会话发送重试但仍失败"
-    ));
-}
-
-#[test]
 fn truncate_for_ui_counts_unicode_characters_and_preserves_short_values() {
     assert_eq!(super::truncate_for_ui("任务日志", 4), "任务日志");
     assert_eq!(super::truncate_for_ui("任务日志", 2), "任务 ...(已截断，共4字符)");
@@ -96,7 +50,7 @@ fn truncate_for_ui_counts_unicode_characters_and_preserves_short_values() {
 }
 
 #[test]
-fn format_task_log_stream_for_ui_covers_empty_subtask_and_exit_variants() {
+fn format_task_log_stream_for_ui_covers_empty_text_and_exit_variants() {
     use desktop_task_executor::TaskLogStream;
 
     assert_eq!(
@@ -106,35 +60,6 @@ fn format_task_log_stream_for_ui_covers_empty_subtask_and_exit_variants() {
     assert_eq!(
         super::format_task_log_stream_for_ui(&TaskLogStream::Stderr("abcdef".into()), 3),
         Some("abc ...(已截断，共6字符)".to_string())
-    );
-    assert_eq!(
-        super::format_task_log_stream_for_ui(
-            &TaskLogStream::SubTaskStarted {
-                subtask_id: "sub-1".into(),
-                content: "prepare".into(),
-                timestamp_ms: 1,
-            },
-            100,
-        ),
-        Some("子任务开始: prepare".to_string())
-    );
-    assert_eq!(
-        super::format_task_log_stream_for_ui(
-            &TaskLogStream::SubTaskCompleted { subtask_id: "sub-1".into(), timestamp_ms: 2 },
-            1,
-        ),
-        Some("子任务完成: sub-1".to_string())
-    );
-    assert_eq!(
-        super::format_task_log_stream_for_ui(
-            &TaskLogStream::SubTaskFailed {
-                subtask_id: "sub-1".into(),
-                error: "boom".into(),
-                timestamp_ms: 3,
-            },
-            100,
-        ),
-        Some("子任务失败: sub-1 boom".to_string())
     );
     assert_eq!(
         super::format_task_log_stream_for_ui(
@@ -159,19 +84,6 @@ fn format_task_log_stream_for_ui_covers_empty_subtask_and_exit_variants() {
     );
 }
 
-#[test]
-fn unmatched_subtask_log_is_rendered_without_mutating_plan_state() {
-    let mut task = desktop_task_model::Task::new(1);
-    let initial_log_count = task.logs.len();
-    let log = desktop_task_executor::TaskLogStream::SubTaskCompleted {
-        subtask_id: "missing".to_string(),
-        timestamp_ms: 10,
-    };
-
-    assert!(!super::append_task_log_stream(&mut task, &log));
-    assert_eq!(task.logs.len(), initial_log_count + 1);
-    assert_eq!(task.logs.last().map(|entry| entry.message.as_str()), Some("子任务完成: missing"));
-}
 
 #[test]
 fn worktree_recycle_failure_log_explains_gateway_cleanup_ownership() {
@@ -193,12 +105,10 @@ fn scheduler_status_mapping_covers_every_builtin_task_status() {
     for (status, expected) in [
         (TaskStatus::Pool, AgentTaskStatusDto::Draft),
         (TaskStatus::Pending, AgentTaskStatusDto::Queued),
-        (TaskStatus::Planning, AgentTaskStatusDto::Queued),
         (TaskStatus::Running, AgentTaskStatusDto::Running),
         (TaskStatus::Failed, AgentTaskStatusDto::Failed),
         (TaskStatus::Paused, AgentTaskStatusDto::Paused),
         (TaskStatus::CodeComplete, AgentTaskStatusDto::Submitted),
-        (TaskStatus::CodeReview, AgentTaskStatusDto::Submitted),
         (TaskStatus::PrSubmitted, AgentTaskStatusDto::Submitted),
         (TaskStatus::Completed, AgentTaskStatusDto::Completed),
         (TaskStatus::Archived, AgentTaskStatusDto::Archived),
@@ -217,8 +127,8 @@ fn scheduler_status_key_and_role_fall_back_to_default_workflow() {
     use vw_api_task::TaskPoolWorkflowStatusRoleDto;
 
     assert_eq!(
-        super::agent_scheduler_status_key_for_task_status(TaskStatus::CodeReview, "missing"),
-        TaskStatus::CodeReview.to_string_key()
+        super::agent_scheduler_status_key_for_task_status(TaskStatus::CodeComplete, "missing"),
+        TaskStatus::CodeComplete.to_string_key()
     );
     assert_eq!(
         super::agent_scheduler_status_role_for_task_status(TaskStatus::PrSubmitted, "missing"),
@@ -262,16 +172,13 @@ fn scheduler_status_metadata_helpers_cover_roles_and_missing_workflow_maps() {
 }
 
 #[test]
-fn wake_scheduler_requests_include_pool_queued_and_planning_tasks() {
+fn wake_scheduler_requests_include_pool_and_queued_tasks() {
     use desktop_task_model::{Task, TaskStatus};
     use vw_api_agent_scheduler::{AgentTaskKindDto, AgentTaskStatusDto};
 
     let mut pending = Task::new(1);
     pending.id = "pending".to_string();
     pending.status = TaskStatus::Pending;
-    let mut planning = Task::new(2);
-    planning.id = "planning".to_string();
-    planning.status = TaskStatus::Planning;
     let mut running = Task::new(3);
     running.id = "running".to_string();
     running.status = TaskStatus::Running;
@@ -280,15 +187,14 @@ fn wake_scheduler_requests_include_pool_queued_and_planning_tasks() {
     pool.status = TaskStatus::Pool;
 
     let requests = super::agent_scheduler_wake_create_task_requests(
-        &[pool, pending, planning, running],
+        &[pool, pending, running],
         desktop_task_model::workflow::DEFAULT_TASK_WORKFLOW_ID,
     );
 
-    assert_eq!(requests.len(), 3);
+    assert_eq!(requests.len(), 2);
     assert_eq!(requests[0].task_id, "pool");
     assert_eq!(requests[0].status, Some(AgentTaskStatusDto::Draft));
     assert_eq!(requests[1].task_id, "pending");
-    assert_eq!(requests[2].task_id, "planning");
     assert!(requests.iter().all(|request| request.kind == AgentTaskKindDto::Finite));
     assert!(
         requests[1..].iter().all(|request| { request.status == Some(AgentTaskStatusDto::Queued) })

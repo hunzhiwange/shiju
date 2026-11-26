@@ -1,7 +1,7 @@
-//! 执行、审核与合并结果的局部状态更新；宿主执行持久化和计时效果。
+//! 执行与合并结果的局部状态更新；宿主执行持久化和计时效果。
 use desktop_task_model::{Task, TaskStatus, task_workflow_by_id};
 use crate::message::TaskBoardMessage;
-use crate::helpers::{execution::*, review::*};
+use crate::helpers::{execution::*, output::split_output_and_git_metadata};
 pub struct ResultState<'a> {
     pub project_path: &'a mut Option<String>,
     pub task_board_tasks: &'a mut Vec<Task>,
@@ -94,8 +94,6 @@ pub fn update(
                         } else {
                             task.add_localized_log("任务已完成", vec![]);
                         }
-                        if matches!(task.status, TaskStatus::CodeReview | TaskStatus::PrSubmitted) {
-                        }
                     }
                     Err(error) => {
                         let recycle_detail = format!("任务执行失败: {}", error);
@@ -136,106 +134,6 @@ pub fn update(
         let tasks = vec![staff_handoff_task, vec![ResultEffect::ScheduleTick]];
         batch(tasks)
         },
-    TaskBoardMessage::TaskCodeReviewCompleted { project_path, task_id, result } => {
-        if !super::projection::task_board_project_matches((*app.project_path).as_deref(), &project_path) {
-            return vec![];
-        }
-        let final_logs = (*app.task_board_executor).poll_task_logs_all(&task_id);
-        (*app.task_board_executor).finish_task(&task_id);
-        let mut task_to_persist: Option<Task> = None;
-        let mut should_recycle_worktree = false;
-        let mut recycle_reason: Option<String> = None;
-        let staff_handoff_task = vec![];
-        if let Some(task) = (*app.task_board_tasks).iter_mut().find(|t| t.id == task_id) {
-            for log in final_logs {
-                append_task_log_stream(task, &log);
-            }
-            if task.status != TaskStatus::CodeReview {
-                task.add_localized_log("任务状态已变化，忽略本次审核结果", vec![]);
-            } else {
-                match result {
-                    Ok(output) => {
-                        let review_output = output.trim().to_string();
-                        if !review_output.is_empty() {
-                            task.add_localized_log("审核结果: %s", vec![(truncate_for_ui(&review_output, TASK_LOG_UI_MAX_DETAIL_CHARS)).to_string().into()]);
-                        } else {
-                            task.add_localized_log("审核结果: 无输出", vec![]);
-                        }
-                        match parse_review_decision(&output) {
-                            Ok(()) => {
-                                task.add_localized_log("合并前校验: source=%s target=%s worktree=%s project_path=%s", vec![(task.merge_source_branch.as_deref().unwrap_or("none")).to_string().into(), (task.merge_target_branch.as_deref().unwrap_or("none")).to_string().into(), (task.selected_worktree_path.as_deref().unwrap_or("none")).to_string().into(), ((*app.project_path).as_deref().unwrap_or("none")).to_string().into()]);
-                                match validate_ready_for_merge(task, (*app.project_path).as_deref()) {
-                                    Ok(()) => {
-                                        task.add_localized_log("代码审核通过，进入合并阶段", vec![]);
-                                        let _ = task.apply_task_transition(
-                                            TaskStatus::PrSubmitted,
-                                            desktop_task_model::TaskTransitionIntent::ReviewApproved,
-                                        );
-                                    }
-                                    Err(reason) => {
-                                        task.mark_paused(reason);
-                                        should_recycle_worktree = true;
-                                        recycle_reason = task.pause_reason.clone();
-                                    }
-                                }
-                            }
-                            Err(reason) => {
-                                task.mark_paused(reason);
-                                should_recycle_worktree = true;
-                                recycle_reason = task.pause_reason.clone();
-                            }
-                        }
-                    }
-                    Err(error) => {
-                        let detail = truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS);
-                        let reason = if is_model_response_timeout_error(&error) {
-                            format!("代码审核模型响应超时: {detail}")
-                        } else {
-                            format!("代码审核执行失败: {detail}")
-                        };
-                        task.mark_paused(reason);
-                        should_recycle_worktree = true;
-                        recycle_reason = task.pause_reason.clone();
-                    }
-                }
-            }
-            task_to_persist = Some(task.clone());
-        }
-        if should_recycle_worktree {
-            if let Some(task) = (*app.task_board_tasks).iter_mut().find(|task| task.id == task_id) {
-                let reason = recycle_reason
-                    .as_deref()
-                    .map(|reason| truncate_for_ui(reason, TASK_LOG_UI_MAX_DETAIL_CHARS))
-                    .unwrap_or_else(|| "代码审核结束".to_string());
-                task.add_localized_log("%s，等待网关运行时清理 worktree 槽位", vec![reason.into()]);
-                task_to_persist = Some(task.clone());
-            }
-            app.effects.push(ResultEffect::SyncLogs(app.task_board_tasks.iter().find(|task| task.id == task_id).cloned()));
-            if let (Some(project_path), Some(task_clone)) = (&(*app.project_path), task_to_persist.clone()) {
-                (*app.task_board_tasks_pending_persistence).insert(task_id.clone());
-                let persist_task = persist_result(
-                    project_path.clone(),
-                    app.task_board_settings.workflow_id.clone(),
-                    task_clone,
-                    "保存审核结果",
-                );
-                return batch(vec![persist_task, staff_handoff_task]);
-            }
-            return staff_handoff_task;
-        }
-        app.effects.push(ResultEffect::SyncLogs(app.task_board_tasks.iter().find(|task| task.id == task_id).cloned()));
-        if let (Some(project_path), Some(task_clone)) = (&(*app.project_path), task_to_persist.clone()) {
-            (*app.task_board_tasks_pending_persistence).insert(task_id.clone());
-            let persist_task = persist_result(
-                project_path.clone(),
-                app.task_board_settings.workflow_id.clone(),
-                task_clone,
-                "保存审核结果",
-            );
-            return batch(vec![persist_task, staff_handoff_task]);
-        }
-        staff_handoff_task
-    },
     TaskBoardMessage::TaskMergeCompleted { project_path, task_id, result } => {
         if !super::projection::task_board_project_matches((*app.project_path).as_deref(), &project_path) {
             return vec![];

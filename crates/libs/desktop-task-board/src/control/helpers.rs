@@ -43,9 +43,6 @@ pub(super) fn task_status_tag_colors(status: desktop_task_model::TaskStatus) -> 
         desktop_task_model::TaskStatus::Pending => {
             (Color::from_rgb8(37, 99, 235), Color::from_rgb8(219, 234, 254))
         }
-        desktop_task_model::TaskStatus::Planning => {
-            (Color::from_rgb8(79, 70, 229), Color::from_rgb8(224, 231, 255))
-        }
         desktop_task_model::TaskStatus::Running => {
             (Color::from_rgb8(147, 51, 234), Color::from_rgb8(243, 232, 255))
         }
@@ -57,9 +54,6 @@ pub(super) fn task_status_tag_colors(status: desktop_task_model::TaskStatus) -> 
         }
         desktop_task_model::TaskStatus::CodeComplete => {
             (Color::from_rgb8(5, 150, 105), Color::from_rgb8(209, 250, 229))
-        }
-        desktop_task_model::TaskStatus::CodeReview => {
-            (Color::from_rgb8(217, 119, 6), Color::from_rgb8(254, 243, 199))
         }
         desktop_task_model::TaskStatus::PrSubmitted => {
             (Color::from_rgb8(8, 145, 178), Color::from_rgb8(207, 250, 254))

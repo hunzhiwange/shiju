@@ -5,7 +5,6 @@ use vw_api_agent_scheduler::{
     AgentTaskDto,
     AgentEventDto,
     AgentOutboxMessageDto,
-    AgentSchedulerDispatchModeDto,
 };
 use vw_api_transport::common::TimestampMs;
 
@@ -23,8 +22,6 @@ pub struct AgentSchedulerTasksResponse {
 pub struct AgentSchedulerWakeRequest {
     pub project_path: String,
     pub now_ms: TimestampMs,
-    #[serde(default, skip_serializing_if = "is_default_dispatch_mode")]
-    pub dispatch_mode: AgentSchedulerDispatchModeDto,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_concurrent: Option<u32>,
     #[serde(default, skip_serializing_if = "is_false")]
@@ -96,10 +93,6 @@ pub struct AgentSchedulerProjectEventsQuery {
     pub after_cursor: Option<i64>,
     #[serde(default)]
     pub limit: Option<usize>,
-}
-
-fn is_default_dispatch_mode(dispatch_mode: &AgentSchedulerDispatchModeDto) -> bool {
-    *dispatch_mode == AgentSchedulerDispatchModeDto::default()
 }
 
 fn is_false(value: &bool) -> bool {

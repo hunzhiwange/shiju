@@ -21,9 +21,6 @@ pub mod programs;
 pub enum TaskLogStream {
     Stdout(String),
     Stderr(String),
-    SubTaskStarted { subtask_id: String, content: String, timestamp_ms: u64 },
-    SubTaskCompleted { subtask_id: String, timestamp_ms: u64 },
-    SubTaskFailed { subtask_id: String, error: String, timestamp_ms: u64 },
     ExitStatus { success: bool, code: Option<i32>, signal: Option<i32> },
 }
 

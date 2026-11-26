@@ -1,20 +1,6 @@
-use crate::i18n::SplitOption;
-use crate::models::TaskSplitMode;
 use config_ui::DesktopLocale;
 use desktop_i18n::I18n;
 
-#[test]
-fn desktop_gettext_area_12_split_option_keeps_value() {
-    for (locale, expected) in [
-        (DesktopLocale::English, "Follow system"),
-        (DesktopLocale::TraditionalChinese, "遵循系統"),
-        (DesktopLocale::SimplifiedChinese, "遵循系统"),
-    ] {
-        let option = SplitOption(TaskSplitMode::FollowSystem, locale);
-        assert_eq!(option.0, TaskSplitMode::FollowSystem);
-        assert_eq!(option.to_string(), expected);
-    }
-}
 
 #[test]
 fn desktop_gettext_area_12_status_log_keeps_semantics_and_raw_output() {

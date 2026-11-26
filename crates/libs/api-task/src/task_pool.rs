@@ -14,8 +14,8 @@ pub enum TaskPoolStatus {
     Running,
     Failed,
     Paused,
+    #[serde(alias = "code_review")]
     CodeComplete,
-    CodeReview,
     PrSubmitted,
     Completed,
     Archived,
@@ -32,7 +32,6 @@ impl TaskPoolStatus {
             TaskPoolStatus::Failed => "failed",
             TaskPoolStatus::Paused => "paused",
             TaskPoolStatus::CodeComplete => "code_complete",
-            TaskPoolStatus::CodeReview => "code_review",
             TaskPoolStatus::PrSubmitted => "pr_submitted",
             TaskPoolStatus::Completed => "completed",
             TaskPoolStatus::Archived => "archived",
@@ -48,12 +47,20 @@ impl TaskPoolStatus {
             "running" => Some(TaskPoolStatus::Running),
             "failed" => Some(TaskPoolStatus::Failed),
             "paused" => Some(TaskPoolStatus::Paused),
-            "code_complete" => Some(TaskPoolStatus::CodeComplete),
-            "code_review" => Some(TaskPoolStatus::CodeReview),
+            "code_complete" | "code_review" => Some(TaskPoolStatus::CodeComplete),
             "pr_submitted" => Some(TaskPoolStatus::PrSubmitted),
             "completed" => Some(TaskPoolStatus::Completed),
             "archived" => Some(TaskPoolStatus::Archived),
             _ => None,
+        }
+    }
+
+    /// 兼容旧开发流程的任务状态，同时保留自定义工作流的状态键。
+    pub fn canonical_status_key<'a>(key: &'a str, workflow_id: Option<&str>) -> &'a str {
+        if key == "code_review" && workflow_id.is_none_or(|id| id == "dev_lifecycle") {
+            "code_complete"
+        } else {
+            key
         }
     }
 }
@@ -111,6 +118,43 @@ pub struct TaskPoolWorkflowSnapshotDto {
 }
 
 impl TaskPoolWorkflowSnapshotDto {
+    /// 将旧版内置开发流程的审核节点从已保存的快照中移除。
+    pub fn remove_legacy_code_review(&mut self) {
+        if self.id != "dev_lifecycle" {
+            return;
+        }
+        let Some(index) = self.statuses.iter().position(|status| {
+            status.key == "code_review" && status.role == TaskPoolWorkflowStatusRoleDto::Review
+        }) else {
+            return;
+        };
+        let removed = self.statuses.remove(index);
+        let successor = removed
+            .transitions
+            .iter()
+            .find(|transition| {
+                let outcome = transition.outcome.trim();
+                outcome.eq_ignore_ascii_case("success") || outcome.eq_ignore_ascii_case("succeed")
+            })
+            .map(|transition| &transition.target)
+            .or(removed.next.as_ref())
+            .filter(|target| *target != &removed.key);
+        for status in &mut self.statuses {
+            if status.next.as_deref() == Some(removed.key.as_str()) {
+                status.next = successor.cloned();
+            }
+            status.transitions.retain_mut(|transition| {
+                if transition.target == removed.key {
+                    let Some(next) = successor else {
+                        return false;
+                    };
+                    transition.target.clone_from(next);
+                }
+                true
+            });
+        }
+    }
+
     /// 校验调度所需的最小 workflow 结构约束。
     pub fn validate_for_schedule(&self) -> Result<(), String> {
         if self.id.trim().is_empty() {

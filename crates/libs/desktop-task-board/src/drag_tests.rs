@@ -59,12 +59,10 @@ fn status_tag_colors_cover_builtin_and_custom_statuses() {
     let expected = [
         (TaskStatus::Pool, color(107, 114, 128), color(243, 244, 246)),
         (TaskStatus::Pending, color(37, 99, 235), color(219, 234, 254)),
-        (TaskStatus::Planning, color(79, 70, 229), color(224, 231, 255)),
         (TaskStatus::Running, color(147, 51, 234), color(243, 232, 255)),
         (TaskStatus::Failed, color(220, 38, 38), color(254, 226, 226)),
         (TaskStatus::Paused, color(202, 138, 4), color(254, 249, 195)),
         (TaskStatus::CodeComplete, color(5, 150, 105), color(209, 250, 229)),
-        (TaskStatus::CodeReview, color(217, 119, 6), color(254, 243, 199)),
         (TaskStatus::PrSubmitted, color(8, 145, 178), color(207, 250, 254)),
         (TaskStatus::Completed, color(22, 163, 74), color(220, 252, 231)),
         (TaskStatus::Archived, color(100, 116, 139), color(241, 245, 249)),
@@ -197,7 +195,7 @@ fn drag_preview_layer_builds_empty_layer_when_dragged_task_is_missing() {
 #[test]
 fn drag_preview_layer_builds_card_for_matching_dragged_task() {
     let (mut app, _task) = crate::slice_view_fixture::Fixture::new();
-    let task = task_with(42, "drag me", TaskStatus::Planning);
+    let task = task_with(42, "drag me", TaskStatus::Pending);
     app.task_board_dragging = Some((task.id.clone(), task.status));
     app.task_board_tasks = vec![task];
     app.cursor_position = Point::new(9_999.0, -20.0);

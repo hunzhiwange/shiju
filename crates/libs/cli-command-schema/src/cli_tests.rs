@@ -488,18 +488,12 @@ fn task_commands_parse_create_and_read_defaults_and_overrides() {
         "ship it",
         "--priority",
         "4",
-        "--task-split",
-        "follow-system",
-        "--subtask",
-        "first",
-        "--subtask",
-        "second",
     ])
     .expect("task create options should parse");
     let crate::cli::Commands::Task {
         project_dir,
         task_command:
-            crate::cli::TaskCommands::Create { priority, prompt, task_split, subtasks, .. },
+            crate::cli::TaskCommands::Create { priority, prompt,   .. },
     } = create.command
     else {
         panic!("expected task create command");
@@ -507,8 +501,6 @@ fn task_commands_parse_create_and_read_defaults_and_overrides() {
     assert_eq!(project_dir, "/tmp/project");
     assert_eq!(priority, 4);
     assert_eq!(prompt.as_deref(), Some("ship it"));
-    assert_eq!(task_split, Some(crate::cli::TaskSplitCliMode::FollowSystem));
-    assert_eq!(subtasks, ["first", "second"]);
 
     let read = crate::cli::Cli::try_parse_from(["vibewindow", "task", "read"])
         .expect("task read defaults should parse");

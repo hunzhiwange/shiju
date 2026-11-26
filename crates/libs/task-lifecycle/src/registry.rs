@@ -30,6 +30,7 @@ impl TaskLifecycleRegistry {
 
     /// 注册单个自定义工作流；重复标识或无效状态图会被拒绝。
     pub fn register(&mut self, mut workflow: TaskLifecycleWorkflowDto) -> Result<()> {
+        workflow.remove_legacy_code_review();
         validate_custom_workflow(&workflow)?;
         if self.custom_workflows.iter().any(|existing| existing.id == workflow.id) {
             bail!("lifecycle workflow id already exists: {}", workflow.id);
@@ -42,10 +43,11 @@ impl TaskLifecycleRegistry {
     /// 原子校验并替换全部自定义工作流。
     pub fn replace_custom_workflows(
         &mut self,
-        workflows: Vec<TaskLifecycleWorkflowDto>,
+        mut workflows: Vec<TaskLifecycleWorkflowDto>,
     ) -> Result<()> {
         let mut seen = HashSet::new();
-        for workflow in &workflows {
+        for workflow in &mut workflows {
+            workflow.remove_legacy_code_review();
             validate_custom_workflow(workflow)?;
             if !seen.insert(workflow.id.as_str()) {
                 bail!("lifecycle workflow id duplicated: {}", workflow.id);

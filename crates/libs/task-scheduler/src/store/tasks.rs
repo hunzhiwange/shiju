@@ -26,11 +26,6 @@ use super::{
     open_locked_initialized_connection, postgres_provider, scope_params,
 };
 
-use super::events::insert_event_with_conn;
-use super::task_plan::{
-    PlacementWrite, TaskPlanEdit, TaskPlanPlacement, became_hidden, load_plan_members, placement_event,
-    sqlite_publication_exists, validate_hiding, validate_metadata_completion, validate_summary_child_update, write_placement,
-};
 
 const TASK_COLUMNS: &str = "id, kind, status, title, spec_uri, meta_uri, assigned_to, team_id, \
 room_id, project_room_id, delegated_to_team, schedule, timezone, next_scheduled_at, \
@@ -154,29 +149,16 @@ impl AgentSchedulerStore {
         Ok(None)
     }
 
-    /// 在作用域内创建唯一任务，并返回规范化后的持久化快照。
+
+    /// 在当前作用域内创建任务。
     pub fn create_task(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: NewAgentTask,
-    ) -> Result<StoredAgentTask> {
-        self.create_task_with_placement(context, task, None)
-    }
-
-    pub(super) fn create_task_with_placement(
-        &self,
-        context: &(impl AgentSchedulerStorageContext + ?Sized),
         mut task: NewAgentTask,
-        placement: Option<TaskPlanPlacement>,
     ) -> Result<StoredAgentTask> {
         validate_new_task(&task)?;
         if task.metadata.get(crate::task_board::detail::COLLABORATION_KEY).is_some() {
             bail!("use the task detail API to change collaboration data");
-        }
-        if let Some(metadata) = task.metadata.as_object() {
-            for key in metadata.keys() {
-                crate::task_board::validate_task_plan_metadata_key(key)?;
-            }
         }
         if task.metadata.get(TASK_PROPERTY_VALUES_METADATA_KEY).is_some() {
             bail!("use property_changes to set task properties");
@@ -188,7 +170,7 @@ impl AgentSchedulerStore {
             task.metadata[TASK_LABEL_IDS_METADATA_KEY] = json!(ids);
         }
         if let Some(store) = postgres_provider(self, context)? {
-            return store.create_task(context, task, placement);
+            return store.create_task(context, task);
         }
         let scope = context.storage_scope()?;
         let (platform_id, company_id, project_id) = scope_params(&scope);
@@ -197,7 +179,7 @@ impl AgentSchedulerStore {
         let dag_json = serialize_dag(&task.dag)?;
         let metadata_json =
             serde_json::to_string(&task.metadata).context("serialize task metadata")?;
-        let inserted = tx.execute(
+        tx.execute(
             "INSERT OR IGNORE INTO scheduler_tasks (
                  platform_id, company_id, project_id, id, kind, status, title, spec_uri, meta_uri,
                  assigned_to, team_id, room_id, project_room_id, delegated_to_team, schedule,
@@ -234,20 +216,6 @@ impl AgentSchedulerStore {
         )?;
         let stored = load_task_with_conn(&tx, context, &task.id)?
             .with_context(|| format!("task disappeared after create: {}", task.id.as_str()))?;
-        if let Some(placement) = placement.as_ref() {
-            let mode = if inserted == 0 {
-                PlacementWrite::RetryCreate
-            } else {
-                PlacementWrite::Create
-            };
-            if write_placement(&tx, context, &scope, &stored, Some(placement), mode)? {
-                insert_event_with_conn(
-                    &tx,
-                    &scope,
-                    placement_event(&stored, Some(placement), true),
-                )?;
-            }
-        }
         tx.commit()?;
 
         Ok(stored)
@@ -398,7 +366,8 @@ impl AgentSchedulerStore {
         Ok(outcome.map(|(_, updated)| updated))
     }
 
-    /// Apply a partial edit to the row locked by the write transaction.
+
+
     pub(crate) fn edit_task_board_task(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -406,29 +375,8 @@ impl AgentSchedulerStore {
         property_changes: AgentSchedulerTaskPropertyChanges,
         edit: impl FnOnce(&StoredAgentTask) -> Result<AgentTaskBoardUpdate> + Send,
     ) -> Result<Option<(StoredAgentTask, StoredAgentTask)>> {
-        self.edit_task_with_placement(context, task_id, property_changes, TaskPlanEdit::Preserve, edit)
-    }
-
-    pub(crate) fn edit_task_board_metadata(
-        &self,
-        context: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-        property_changes: AgentSchedulerTaskPropertyChanges,
-        edit: impl FnOnce(&StoredAgentTask) -> Result<AgentTaskBoardUpdate> + Send,
-    ) -> Result<Option<(StoredAgentTask, StoredAgentTask)>> {
-        self.edit_task_with_placement(context, task_id, property_changes, TaskPlanEdit::Metadata, edit)
-    }
-
-    pub(super) fn edit_task_with_placement(
-        &self,
-        context: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-        property_changes: AgentSchedulerTaskPropertyChanges,
-        plan_edit: TaskPlanEdit,
-        edit: impl FnOnce(&StoredAgentTask) -> Result<AgentTaskBoardUpdate> + Send,
-    ) -> Result<Option<(StoredAgentTask, StoredAgentTask)>> {
         if let Some(store) = postgres_provider(self, context)? {
-            return store.edit_task_with_placement(context, task_id, property_changes, plan_edit, edit);
+            return store.edit_task_board_task(context, task_id, property_changes, edit);
         }
         let scope = context.storage_scope()?;
         let (platform_id, company_id, project_id) = scope_params(&scope);
@@ -450,40 +398,6 @@ impl AgentSchedulerStore {
             None => current.title.clone(),
         };
         let status = update.status.unwrap_or(current.status);
-        validate_summary_child_update(&tx, &scope, &current, status, &update.metadata)?;
-        let hiding = became_hidden(&current, status, &update.metadata);
-        if hiding {
-            let archived_published_parent = status == AgentTaskStatus::Archived
-                && !bool_metadata_field(&update.metadata, "task_board.deleted")
-                && sqlite_publication_exists(&tx, &scope, task_id)?;
-            validate_hiding(
-                &load_plan_members(&tx, &scope, task_id)?, task_id, archived_published_parent,
-            )?;
-        }
-        if matches!(&plan_edit, TaskPlanEdit::Metadata)
-            && status == AgentTaskStatus::Completed
-            && (current.status != status
-                || crate::task_board::task_board_status_key(&current)
-                    != crate::task_board::task_board_status_key_for(status, &update.metadata))
-        {
-            validate_metadata_completion(&load_plan_members(&tx, &scope, task_id)?, task_id)?;
-        }
-        let placement_changed = if let TaskPlanEdit::Replace(replacement) = &plan_edit {
-            let changed = write_placement(
-                &tx,
-                context,
-                &scope,
-                &current,
-                replacement.as_ref(),
-                PlacementWrite::Edit,
-            )?;
-            if changed && hiding {
-                bail!("cannot change placement while hiding task {}", task_id.as_str());
-            }
-            changed
-        } else {
-            false
-        };
         let metadata_json =
             serde_json::to_string(&update.metadata).context("serialize task metadata")?;
         tx.execute(
@@ -504,13 +418,6 @@ impl AgentSchedulerStore {
         let updated = load_task_with_conn(&tx, context, task_id)?.with_context(|| {
             format!("task disappeared after task board update: {}", task_id.as_str())
         })?;
-        if placement_changed && let TaskPlanEdit::Replace(replacement) = &plan_edit {
-            insert_event_with_conn(
-                &tx,
-                &scope,
-                placement_event(&updated, replacement.as_ref(), false),
-            )?;
-        }
         tx.commit()?;
         Ok(Some((current, updated)))
     }
@@ -533,22 +440,8 @@ impl AgentSchedulerStore {
         let Some(current) = load_task_with_conn(&tx, context, task_id)? else {
             return Ok(None);
         };
-        let pausing_plan = to_status == AgentTaskStatus::Paused
-            && matches!(current.status, AgentTaskStatus::Blocked | AgentTaskStatus::Queued)
-            && sqlite_publication_exists(&tx, &scope, task_id)?;
-        if !pausing_plan {
-            ensure_transition(current.kind, current.status, to_status)?;
-        }
+        ensure_transition(current.kind, current.status, to_status)?;
         let metadata = task_board_projection_metadata(current.metadata.clone(), to_status);
-        validate_summary_child_update(&tx, &scope, &current, to_status, &metadata)?;
-        if became_hidden(&current, to_status, &metadata) {
-            let archived_published_parent = to_status == AgentTaskStatus::Archived
-                && !bool_metadata_field(&metadata, "task_board.deleted")
-                && sqlite_publication_exists(&tx, &scope, task_id)?;
-            validate_hiding(
-                &load_plan_members(&tx, &scope, task_id)?, task_id, archived_published_parent,
-            )?;
-        }
         let metadata_json = serde_json::to_string(&metadata).context("serialize task metadata")?;
         tx.execute(
             "UPDATE scheduler_tasks SET status = ?1, metadata_json = ?2, updated_at_ms = ?3
@@ -597,15 +490,6 @@ impl AgentSchedulerStore {
         };
         ensure_transition(current.kind, current.status, to_status)?;
         preserve_task_board_fields(&current.metadata, &mut metadata);
-        validate_summary_child_update(&tx, &scope, &current, to_status, &metadata)?;
-        if became_hidden(&current, to_status, &metadata) {
-            let archived_published_parent = to_status == AgentTaskStatus::Archived
-                && !bool_metadata_field(&metadata, "task_board.deleted")
-                && sqlite_publication_exists(&tx, &scope, task_id)?;
-            validate_hiding(
-                &load_plan_members(&tx, &scope, task_id)?, task_id, archived_published_parent,
-            )?;
-        }
         let metadata_json = serde_json::to_string(&metadata).context("serialize task metadata")?;
         tx.execute(
             "UPDATE scheduler_tasks SET status = ?1, metadata_json = ?2, updated_at_ms = ?3
@@ -1236,7 +1120,7 @@ fn task_board_projection_status(status: AgentTaskStatus) -> AgentTaskStatus {
     if agent_scheduler_control_status(status) { AgentTaskStatus::Queued } else { status }
 }
 
-pub(super) fn bool_metadata_field(value: &Value, key: &str) -> bool {
+pub(crate) fn bool_metadata_field(value: &Value, key: &str) -> bool {
     value.get(key).and_then(Value::as_bool).unwrap_or_default()
 }
 

@@ -1,34 +1,5 @@
 //! 桌面网关配置与工作区生命周期适配。
 use super::*;
-pub use desktop_task_executor::executor::runner::{
-    TaskPlanGenerationOutcome, TaskPlanSubTask, write_task_plan_files,
-};
-pub async fn execute_task_plan_async(
-    task: Task,
-    project_path: String,
-    log_sender: Option<Sender<TaskLogStream>>,
-) -> (String, Result<TaskPlanGenerationOutcome, String>) {
-    desktop_task_executor::executor::runner::execute_task_plan_async(
-        crate::app::config::gateway_client_endpoint,
-        task,
-        project_path,
-        log_sender,
-    )
-    .await
-}
-pub async fn execute_task_review_async(
-    task: Task,
-    project_path: String,
-    log_sender: Option<Sender<TaskLogStream>>,
-) -> (String, Result<String, String>) {
-    desktop_task_executor::executor::runner::execute_task_review_async(
-        crate::app::config::gateway_client_endpoint,
-        task,
-        project_path,
-        log_sender,
-    )
-    .await
-}
 pub async fn execute_task_merge_async(
     task: Task,
     project_path: String,

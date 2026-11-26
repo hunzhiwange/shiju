@@ -7,7 +7,6 @@ use crate::app::state::TaskBoardSettingsModalTab;
 use crate::app::task::{Task, TaskStatus};
 use crate::app::{App, Message};
 use iced::{Element, Length};
-use vw_api_agent_scheduler::AgentSchedulerDispatchModeDto;
 
 fn test_app() -> App {
     let (app, _task) = App::new();
@@ -30,11 +29,8 @@ async fn settings_tabs_peripheral_appearance_task_board() {
         test_app,
         |scene, app| {
             let _ = app.update(Message::TaskBoard(TaskBoardMessage::OpenSettingsModal));
-            app.task_board.task_board_settings.agent_scheduler_dispatch_mode =
-                AgentSchedulerDispatchModeDto::Local;
             let i18n = I18n::new(app.general_settings.desktop_locale);
             let tabs = ["刷新与自动化", "并发与保护"].map(|label| i18n.__(label));
-            scene.check_selected_segment(super::super::view(app), i18n.__("本地"));
             scene.save_preview(app, super::super::view(app), "task-settings");
             let message = scene.check_message(app, super::super::view(app), &tabs, 1, 14);
             assert!(matches!(
@@ -45,10 +41,6 @@ async fn settings_tabs_peripheral_appearance_task_board() {
             ));
             let _ = app.update(message);
             assert_eq!(app.task_board.task_board_settings_modal_tab, TaskBoardSettingsModalTab::Scheduling);
-            assert_eq!(
-                app.task_board.task_board_settings.agent_scheduler_dispatch_mode,
-                AgentSchedulerDispatchModeDto::Local
-            );
             let message = scene.click_message(super::super::view(app), tabs[0]);
             let _ = app.update(message);
             assert_eq!(app.task_board.task_board_settings_modal_tab, TaskBoardSettingsModalTab::Refresh);

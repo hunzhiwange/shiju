@@ -80,7 +80,6 @@ impl AgentSchedulerGateway for MinimalGateway {
         request: AgentSchedulerCreateTaskRequest,
     ) -> Result<AgentSchedulerCreateTaskResponse, ApiError> {
         let task = AgentTaskDto {
-            placement: None,
             id: request.task_id,
             title: request.title,
             kind: request.kind,
@@ -126,7 +125,6 @@ impl AgentSchedulerGateway for MinimalGateway {
 
 fn create_task_request(task_id: &str) -> AgentSchedulerCreateTaskRequest {
     AgentSchedulerCreateTaskRequest {
-        placement: None,
         task_id: task_id.to_string(),
         title: "Create through gateway".to_string(),
         kind: AgentTaskKindDto::Finite,

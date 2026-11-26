@@ -250,6 +250,7 @@ impl App {
         self.task_board.task_label_save_in_progress = None;
         self.task_board.task_board_draft.label_ids = None;
         self.task_board.task_board_tasks.clear();
+        self.task_board.blocked_task_dependencies.clear();
         self.task_board.task_board_tasks_pending_persistence.clear();
         self.task_board.task_board_selected_tasks.clear();
         self.task_board.task_board_bulk_active_status = None;
@@ -264,7 +265,6 @@ impl App {
         self.task_board.task_board_executor = crate::app::task::TaskExecutorState::new();
         self.task_board.task_board_executor_running = false;
         self.task_board.task_board_next_scheduler_tick_at_ms = 0;
-        self.task_board.task_board_next_auto_review_tick_at_ms = 0;
         self.task_board.task_board_next_auto_promote_tick_at_ms = 0;
         self.task_board.task_board_next_auto_merge_tick_at_ms = 0;
         self.task_board.task_board_worktree_desired_capacity = None;

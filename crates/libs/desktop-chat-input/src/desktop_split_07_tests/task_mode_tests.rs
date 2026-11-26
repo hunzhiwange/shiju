@@ -1,7 +1,6 @@
 //! 验证任务模式表单的执行器选项和布局。
 
 use crate::input_panel::task_mode::{Input, Message, task_mode_form};
-use desktop_task_model::TaskSplitMode;
 
 use iced::Length;
 use vw_api_chat_identity::ReasoningEffortDto;
@@ -47,7 +46,6 @@ fn disabled_task_mode_returns_placeholder_element() {
         false,
         "5",
         "auto",
-        TaskSplitMode::FollowSystem,
         None,
         None,
     );
@@ -66,7 +64,6 @@ fn enabled_task_mode_builds_with_default_executor() {
         true,
         "1",
         "provider/model",
-        TaskSplitMode::FollowSystem,
         None,
         None,
     ));
@@ -81,7 +78,6 @@ fn enabled_task_mode_builds_with_selected_executor() {
         true,
         "99",
         "auto",
-        TaskSplitMode::Enabled,
         Some("claude".to_string()),
         Some(ReasoningEffortDto::Max),
     ));
@@ -96,7 +92,6 @@ fn enabled_task_mode_with_no_agents_fills_available_width() {
         true,
         "",
         "",
-        TaskSplitMode::FollowSystem,
         None,
         None,
     );
@@ -114,7 +109,6 @@ fn enabled_task_mode_builds_when_selected_executor_is_not_in_agent_list() {
         true,
         "3",
         "auto",
-        TaskSplitMode::FollowSystem,
         Some("external-agent".to_string()),
         Some(ReasoningEffortDto::Medium),
     );

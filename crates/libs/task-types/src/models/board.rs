@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use super::{TaskStatus, TaskExecutorBackend, TaskSplitMode, TASK_MODEL_AUTO};
+use super::{TaskStatus, TaskExecutorBackend, TASK_MODEL_AUTO};
 
 /// TaskIndex 数据结构承载该模块对外传递的 TaskIndex 状态。
 ///
@@ -34,10 +34,6 @@ impl TaskIndex {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskBoardSettings {
     pub auto_execute: bool,
-    #[serde(default = "default_code_review_enabled")]
-    pub code_review_enabled: bool,
-    #[serde(default = "default_task_split_enabled")]
-    pub task_split_enabled: bool,
     pub max_concurrent: u32,
     pub default_priority: u32,
     pub auto_promote_pool_tasks: bool,
@@ -69,8 +65,6 @@ impl TaskBoardSettings {
     pub fn new() -> Self {
         Self {
             auto_execute: true,
-            code_review_enabled: false,
-            task_split_enabled: false,
             max_concurrent: 3,
             default_priority: 999,
             auto_promote_pool_tasks: true,
@@ -109,14 +103,6 @@ impl Default for TaskBoardSettings {
     fn default() -> Self {
         Self::new()
     }
-}
-
-const fn default_code_review_enabled() -> bool {
-    false
-}
-
-const fn default_task_split_enabled() -> bool {
-    false
 }
 
 const fn default_task_board_auto_refresh() -> bool {
@@ -166,8 +152,6 @@ pub struct TaskDraft {
     pub executor: TaskExecutorBackend,
     pub description: String,
     pub prompt: String,
-    pub subtasks: Vec<String>,
-    pub task_split_mode: TaskSplitMode,
     pub auto_promote_delay_seconds: String,
 }
 
@@ -180,8 +164,6 @@ impl Default for TaskDraft {
             executor: TaskExecutorBackend::default(),
             description: String::new(),
             prompt: String::new(),
-            subtasks: vec![String::new(), String::new(), String::new()],
-            task_split_mode: TaskSplitMode::FollowSystem,
             auto_promote_delay_seconds: "0".to_string(),
         }
     }

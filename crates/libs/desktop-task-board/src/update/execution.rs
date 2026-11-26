@@ -1,7 +1,7 @@
 //! Execution decisions with explicit transport, timer and notification effects.
 use desktop_task_model::{Task, TaskStatus, task_workflow_by_id};
 use crate::message::TaskBoardMessage;
-use vw_api_agent_scheduler::{AgentSchedulerCommandKindDto, AgentSchedulerDispatchModeDto, AgentSchedulerWakeResponse};
+use vw_api_agent_scheduler::{AgentSchedulerCommandKindDto, AgentSchedulerWakeResponse};
 pub struct ExecutionState<'a> {
     pub project_path: &'a mut Option<String>,
     pub task_board_settings: &'a mut desktop_task_model::TaskBoardSettings,
@@ -20,13 +20,13 @@ pub enum WakeKind { Execution, Promote, Merge }
 pub enum ExecutionEffect {
     Message(TaskBoardMessage), Error(String), SyncLogs(Option<Task>), Maintain(String),
     ScheduleTick, SchedulePromote, ScheduleMerge, SyncStatus(String), SyncInFlight(String, String), Wake(WakeKind), WakeCompleted(WakeKind),
-    Command(String, Task, String, AgentSchedulerCommandKindDto, AgentSchedulerDispatchModeDto, Option<u32>, Option<String>),
+    Command(String, Task, String, AgentSchedulerCommandKindDto, Option<u32>, Option<String>),
 }
 fn batch(tasks: Vec<Vec<ExecutionEffect>>) -> Vec<ExecutionEffect> { tasks.into_iter().flatten().collect() }
 fn done(message: TaskBoardMessage) -> Vec<ExecutionEffect> { vec![ExecutionEffect::Message(message)] }
 fn error_toast(error: String) -> Vec<ExecutionEffect> { vec![ExecutionEffect::Error(error)] }
-fn command(path: String, task: Task, workflow: String, kind: AgentSchedulerCommandKindDto, mode: AgentSchedulerDispatchModeDto, max: Option<u32>, reason: Option<String>) -> Vec<ExecutionEffect> {
-    vec![ExecutionEffect::Command(path, task, workflow, kind, mode, max, reason)]
+fn command(path: String, task: Task, workflow: String, kind: AgentSchedulerCommandKindDto, max: Option<u32>, reason: Option<String>) -> Vec<ExecutionEffect> {
+    vec![ExecutionEffect::Command(path, task, workflow, kind, max, reason)]
 }
 fn dispatch_wake(kind: WakeKind, _response: AgentSchedulerWakeResponse) -> Vec<ExecutionEffect> {
     vec![ExecutionEffect::WakeCompleted(kind)]
@@ -122,52 +122,6 @@ pub fn update(
             vec![ExecutionEffect::SyncInFlight(project_path, task_id)],
         ])
     },
-    TaskBoardMessage::AgentSchedulerMergeReadyPersisted { project_path, task, result } => {
-        if !super::projection::task_board_project_matches((*app.project_path).as_deref(), &project_path) {
-            return vec![];
-        }
-        let task_id = task.id.clone();
-        if let Some(task_in_list) = (*app.task_board_tasks).iter_mut().find(|item| item.id == task_id)
-        {
-            match result {
-                Ok(()) => {
-                    add_agent_scheduler_command_log_once(
-                        task_in_list,
-                        "已发送 Agent Scheduler 合并命令",
-                    );
-                }
-                Err(error) => {
-                    task_in_list.mark_paused(format!(
-                        "本地合并状态保存失败，未发送 Agent Scheduler 合并命令: {error}"
-                    ));
-                    app.effects.push(ExecutionEffect::SyncLogs(app.task_board_tasks.iter().find(|task| task.id == task_id).cloned()));
-                    return vec![];
-                }
-            }
-        }
-            app.effects.push(ExecutionEffect::SyncLogs(app.task_board_tasks.iter().find(|task| task.id == task_id).cloned()));
-            if app.task_board_settings.workflow().is_none()
-                && let Some(error) = agent_scheduler_lifecycle_error(&app.task_board_settings.workflow_id)
-            {
-                if let Some(task) = (*app.task_board_tasks).iter_mut().find(|t| t.id == task_id) {
-                    task.mark_paused(error.clone());
-                }
-                return error_toast(error);
-            }
-            batch(vec![
-                command(
-                    project_path.clone(),
-                    task,
-                    app.task_board_settings.workflow_id.clone(),
-                AgentSchedulerCommandKindDto::Merge,
-                app.task_board_settings.agent_scheduler_dispatch_mode,
-                None,
-                Some("自动审核已跳过，进入合并阶段".to_string()),
-            ),
-            vec![ExecutionEffect::SyncInFlight(project_path, task_id)],
-        ])
-    },
-    TaskBoardMessage::AutoCodeReviewTick => { vec![] }
     TaskBoardMessage::SimulateStep { task_id } => {
         if !(*app.task_board_executor_running) {
             return vec![];
@@ -225,9 +179,6 @@ pub fn update(
         },
         TaskBoardMessage::ExecuteTask { task_id } => {
             if let Some(task) = (*app.task_board_tasks).iter().find(|t| t.id == task_id).cloned() {
-                if !task.subtasks.is_empty() {
-                    return error_toast(vw_api_agent_scheduler::LEGACY_WORK_PLAN_RESPLIT_REASON.to_owned());
-                }
                 if let Some(project_path) = &(*app.project_path) {
                     let path = project_path.clone();
                     if (*app.task_board_executor).is_running(&task_id) {
@@ -274,7 +225,6 @@ pub fn update(
                         task,
                         app.task_board_settings.workflow_id.clone(),
                         command,
-                        app.task_board_settings.agent_scheduler_dispatch_mode,
                         Some(app.task_board_settings.max_concurrent.clamp(1, 10)),
                         None,
                     );

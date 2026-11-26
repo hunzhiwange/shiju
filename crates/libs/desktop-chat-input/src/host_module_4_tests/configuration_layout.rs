@@ -4,7 +4,6 @@ use crate::input_panel::{reasoning_selector, task_mode};
 use config_ui::DesktopLocale;
 use desktop_i18n::I18n;
 use desktop_settings_providers::state::{ModelSettingsState, ModelSummary, ProviderModelsSummary};
-use desktop_task_model::TaskSplitMode;
 use iced::advanced::widget::Id;
 use iced::keyboard::{Key, key::Named};
 use iced::widget::container;
@@ -126,39 +125,12 @@ async fn ui_refresh_42_layout_and_interaction() {
             true,
             "10",
             "fixture/model-00",
-            TaskSplitMode::FollowSystem,
             Some("codex".into()),
             None,
         )
         .map(Message::Task);
         let mut ui = scene(container(form).padding(12).into(), &mut renderer, size);
         capture(&mut ui, &mut renderer, &theme, size, &format!("task-{width}"), Point::ORIGIN);
-        let layout = bounds(&mut ui, &renderer);
-        let split_label = label(&layout, i18n.__("任务拆分"));
-        let split = layout
-            .focusable
-            .iter()
-            .find(|bounds| (bounds.center_y() - split_label.center_y()).abs() < 0.5)
-            .expect("task split selector aligned with its field label");
-        inside(*split, viewport(size));
-        let point = split.center();
-        assert!(click(&mut ui, &mut renderer, point).is_empty());
-        assert!(key(&mut ui, &mut renderer, point, Key::Named(Named::ArrowDown), None).is_empty());
-        capture(&mut ui, &mut renderer, &theme, size, &format!("task-menu-{width}"), point);
-        let menu = bounds(&mut ui, &renderer)
-            .scrolls
-            .into_iter()
-            .find(|(id, _, _)| id.as_ref() == Some(&Id::from("settings-select-menu")))
-            .unwrap()
-            .1;
-        inside(menu, viewport(size));
-        assert!(key(&mut ui, &mut renderer, point, Key::Named(Named::Escape), None).is_empty());
-        assert!(click(&mut ui, &mut renderer, point).is_empty());
-        assert!(key(&mut ui, &mut renderer, point, Key::Named(Named::ArrowDown), None).is_empty());
-        assert!(matches!(
-            key(&mut ui, &mut renderer, point, Key::Named(Named::Enter), None).as_slice(),
-            [Message::Task(task_mode::Message::TaskSplitModeChanged(TaskSplitMode::Enabled))]
-        ));
 
         let popover = reasoning_selector::reasoning_effort_popover(
             reasoning_selector::ReasoningInput {

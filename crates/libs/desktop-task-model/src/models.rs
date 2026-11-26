@@ -6,10 +6,9 @@ use crate::workflow::{TaskStateMachine, TaskTransitionError, TaskTransitionInten
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use time::OffsetDateTime;
 use vw_api_chat_identity::ReasoningEffortDto;
-use vw_api_agent_scheduler::AgentSchedulerDispatchModeDto;
 
 /// 公开的 TASK_MODEL_AUTO 常量，集中保存该模块复用的稳定取值。
 pub const TASK_MODEL_AUTO: &str = "auto";
@@ -21,7 +20,6 @@ pub const CLAUDE_DEFAULT_MODEL_ALIAS: &str = "default";
 pub const CLAUDE_SUPPORTED_MODEL_ALIASES: &[&str] =
     &[CLAUDE_DEFAULT_MODEL_ALIAS, "sonnet", "opus", "haiku"];
 
-static SUBTASK_ID_SEQUENCE: AtomicU32 = AtomicU32::new(0);
 static LAST_TASK_ID_MILLIS: AtomicU64 = AtomicU64::new(0);
 
 /// 公开的 normalize_task_model_input 函数。
@@ -135,15 +133,6 @@ impl TaskExecutorBackend {
     }
 }
 
-/// 公开的 TaskImportPromptFormat 枚举，描述该模块支持的一组离散状态或事件。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum TaskImportPromptFormat {
-    #[default]
-    Json,
-    Csv,
-    Tsv,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TaskImportRecord {
     pub priority: Option<u32>,
@@ -152,7 +141,6 @@ pub struct TaskImportRecord {
     pub agent: Option<String>,
     pub acp_agent: Option<String>,
     pub reasoning_effort: Option<ReasoningEffortDto>,
-    pub task_split_mode: Option<TaskSplitMode>,
 }
 
 fn parse_import_reasoning_effort(
@@ -205,11 +193,6 @@ pub fn parse_task_import_content(content: &str) -> Result<Vec<TaskImportRecord>,
                     reasoning_effort: parse_import_reasoning_effort_value(
                         object.get("reasoning_effort"),
                     )?,
-                    task_split_mode: object
-                        .get("task_split_mode")
-                        .or_else(|| object.get("task_split"))
-                        .and_then(serde_json::Value::as_str)
-                        .and_then(TaskSplitMode::parse_key),
                 })
             })
             .collect();
@@ -231,7 +214,6 @@ pub fn parse_task_import_content(content: &str) -> Result<Vec<TaskImportRecord>,
     let agent_idx = column(&["agent", "代理"]);
     let acp_agent_idx = column(&["acp_agent", "智能体", "acp智能体"]);
     let reasoning_effort_idx = column(&["reasoning_effort", "推理强度"]);
-    let task_split_idx = column(&["task_split_mode", "task_split", "任务拆分"]);
     lines
         .filter(|line| !line.trim().is_empty())
         .map(|line| {
@@ -256,67 +238,9 @@ pub fn parse_task_import_content(content: &str) -> Result<Vec<TaskImportRecord>,
                     .filter(|value| !value.is_empty())
                     .map(str::to_string),
                 reasoning_effort: parse_import_reasoning_effort(cell(reasoning_effort_idx))?,
-                task_split_mode: cell(task_split_idx).and_then(TaskSplitMode::parse_key),
             })
         })
         .collect()
-}
-
-/// 公开的 TaskSplitMode 枚举，描述任务拆分开关如何覆盖系统设置。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum TaskSplitMode {
-    #[default]
-    FollowSystem,
-    Enabled,
-    Disabled,
-}
-
-impl TaskSplitMode {
-    pub fn all() -> [TaskSplitMode; 3] {
-        [TaskSplitMode::FollowSystem, TaskSplitMode::Enabled, TaskSplitMode::Disabled]
-    }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            TaskSplitMode::FollowSystem => "遵循系统",
-            TaskSplitMode::Enabled => "开启",
-            TaskSplitMode::Disabled => "关闭",
-        }
-    }
-
-    pub fn to_string_key(self) -> &'static str {
-        match self {
-            TaskSplitMode::FollowSystem => "follow_system",
-            TaskSplitMode::Enabled => "enabled",
-            TaskSplitMode::Disabled => "disabled",
-        }
-    }
-
-    pub fn parse_key(value: &str) -> Option<Self> {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "follow_system" | "follow-system" | "system" | "default" | "inherit" => {
-                Some(TaskSplitMode::FollowSystem)
-            }
-            "enabled" | "enable" | "on" | "true" | "yes" | "1" => Some(TaskSplitMode::Enabled),
-            "disabled" | "disable" | "off" | "false" | "no" | "0" => Some(TaskSplitMode::Disabled),
-            _ => None,
-        }
-    }
-
-    pub fn enabled_with_system(self, system_enabled: bool) -> bool {
-        match self {
-            TaskSplitMode::FollowSystem => system_enabled,
-            TaskSplitMode::Enabled => true,
-            TaskSplitMode::Disabled => false,
-        }
-    }
-}
-
-impl fmt::Display for TaskSplitMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.label())
-    }
 }
 
 /// 进程级自定义状态 key 驻留表。
@@ -342,7 +266,7 @@ fn intern_status_key(key: &str) -> &'static str {
 
 /// 公开的 TaskStatus 枚举，描述该模块支持的一组离散状态或事件。
 ///
-/// 11 个内置变体是引擎规范词汇；`Custom` 承载用户自定义状态的稳定 key，
+/// 9 个内置变体是引擎规范词汇；`Custom` 承载用户自定义状态的稳定 key，
 /// 以驻留得到的 `&'static str` 保持整体 `Copy`。序列化对内置变体保持历史
 /// PascalCase 线格式（旧 JSON 存档兼容），对 `Custom` 直接写出其原始 key 字符串。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -350,12 +274,10 @@ pub enum TaskStatus {
     #[default]
     Pool,
     Pending,
-    Planning,
     Running,
     Failed,
     Paused,
     CodeComplete,
-    CodeReview,
     PrSubmitted,
     Completed,
     Archived,
@@ -366,10 +288,10 @@ pub enum TaskStatus {
 impl TaskStatus {
     /// 公开的 all 函数。
     ///
-    /// 委托到内置枚举目录，返回完整有序状态集合，保持外部签名与顺序不变。
-    pub fn all() -> [TaskStatus; 11] {
+    /// 委托到内置枚举目录，返回完整有序状态集合。
+    pub fn all() -> [TaskStatus; 9] {
         let definitions = crate::workflow::default_task_workflow_statuses();
-        let mut statuses = [TaskStatus::Pool; 11];
+        let mut statuses = [TaskStatus::Pool; 9];
         for (slot, definition) in statuses.iter_mut().zip(definitions.iter()) {
             *slot = definition.status;
         }
@@ -447,13 +369,11 @@ impl TaskStatus {
         match s {
             "pool" | "Pool" => Some(TaskStatus::Pool),
             "pending" | "Pending" => Some(TaskStatus::Pending),
-            "planning" | "Planning" => Some(TaskStatus::Planning),
             "running" | "Running" => Some(TaskStatus::Running),
             "failed" | "Failed" => Some(TaskStatus::Failed),
             "paused" | "Paused" => Some(TaskStatus::Paused),
-            "code_complete" | "CodeComplete" => Some(TaskStatus::CodeComplete),
+            "code_complete" | "CodeComplete" | "CodeReview" => Some(TaskStatus::CodeComplete),
             "pr_submitted" | "PrSubmitted" => Some(TaskStatus::PrSubmitted),
-            "code_review" | "CodeReview" => Some(TaskStatus::CodeReview),
             "completed" | "Completed" => Some(TaskStatus::Completed),
             "archived" | "Archived" => Some(TaskStatus::Archived),
             "" => None,
@@ -481,12 +401,10 @@ impl TaskStatus {
         match self {
             TaskStatus::Pool => "Pool",
             TaskStatus::Pending => "Pending",
-            TaskStatus::Planning => "Planning",
             TaskStatus::Running => "Running",
             TaskStatus::Failed => "Failed",
             TaskStatus::Paused => "Paused",
             TaskStatus::CodeComplete => "CodeComplete",
-            TaskStatus::CodeReview => "CodeReview",
             TaskStatus::PrSubmitted => "PrSubmitted",
             TaskStatus::Completed => "Completed",
             TaskStatus::Archived => "Archived",
@@ -533,25 +451,6 @@ impl<'de> Deserialize<'de> for TaskStatus {
     }
 }
 
-/// 子任务执行状态。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum SubTaskStatus {
-    #[default]
-    Pending,
-    Running,
-    Completed,
-    Failed,
-}
-
-fn default_subtask_status() -> SubTaskStatus {
-    SubTaskStatus::Pending
-}
-
-const fn default_subtask_batch() -> u32 {
-    1
-}
-
 fn now_ms() -> u64 {
     runtime_time::now_ms()
 }
@@ -585,101 +484,6 @@ pub struct TaskLogEntry {
     pub status_from: Option<TaskStatus>,
     pub status_to: Option<TaskStatus>,
     pub message: String,
-}
-
-/// 公开的 SubTask 结构体，承载该模块边界内传递的结构化状态。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SubTask {
-    pub id: String,
-    pub content: String,
-    #[serde(default)]
-    pub boundary: String,
-    #[serde(default)]
-    pub acceptance_criteria: Vec<String>,
-    #[serde(default)]
-    pub target_files: Vec<String>,
-    pub created_at_ms: u64,
-    pub order: u32,
-    pub completed: bool,
-    #[serde(default = "default_subtask_batch")]
-    pub batch: u32,
-    #[serde(default)]
-    pub depends_on_batches: Vec<u32>,
-    #[serde(default = "default_subtask_status")]
-    pub status: SubTaskStatus,
-    #[serde(default)]
-    pub execution_started_at_ms: Option<u64>,
-    #[serde(default)]
-    pub last_execution_duration_ms: Option<u64>,
-}
-
-impl SubTask {
-    /// 公开的 new 函数。
-    ///
-    /// 参数由调用方提供，返回值表达该步骤的计算结果；遇到不可恢复的外部状态时通过现有返回类型向上层传播错误或空结果。
-    pub fn new(content: String) -> Self {
-        let ms = now_ms();
-        let seq = SUBTASK_ID_SEQUENCE.fetch_add(1, Ordering::Relaxed) % 100000;
-        Self {
-            id: format!("SUB-{ms}.{seq:05}"),
-            content,
-            boundary: String::new(),
-            acceptance_criteria: Vec::new(),
-            target_files: Vec::new(),
-            created_at_ms: ms,
-            order: 0,
-            completed: false,
-            batch: 1,
-            depends_on_batches: Vec::new(),
-            status: SubTaskStatus::Pending,
-            execution_started_at_ms: None,
-            last_execution_duration_ms: None,
-        }
-    }
-
-    pub fn start_execution_at(&mut self, started_at_ms: u64) {
-        self.status = SubTaskStatus::Running;
-        self.completed = false;
-        self.execution_started_at_ms = Some(started_at_ms);
-    }
-
-    pub fn start_execution(&mut self) {
-        self.start_execution_at(now_ms());
-    }
-
-    pub fn mark_completed_at(&mut self, completed_at_ms: u64) {
-        if let Some(started_at) = self.execution_started_at_ms {
-            self.last_execution_duration_ms = Some(completed_at_ms.saturating_sub(started_at));
-        }
-        self.execution_started_at_ms = None;
-        self.status = SubTaskStatus::Completed;
-        self.completed = true;
-    }
-
-    pub fn mark_completed(&mut self) {
-        self.mark_completed_at(now_ms());
-    }
-
-    pub fn mark_failed_at(&mut self, failed_at_ms: u64) {
-        if let Some(started_at) = self.execution_started_at_ms {
-            self.last_execution_duration_ms = Some(failed_at_ms.saturating_sub(started_at));
-        }
-        self.execution_started_at_ms = None;
-        self.status = SubTaskStatus::Failed;
-        self.completed = false;
-    }
-
-    pub fn mark_failed(&mut self) {
-        self.mark_failed_at(now_ms());
-    }
-
-    pub fn display_execution_duration_ms(&self, now_ms: u64) -> Option<u64> {
-        if self.status == SubTaskStatus::Running {
-            let started_at = self.execution_started_at_ms.unwrap_or(self.created_at_ms);
-            return Some(now_ms.saturating_sub(started_at));
-        }
-        self.last_execution_duration_ms
-    }
 }
 
 impl TaskLogEntry {
@@ -736,9 +540,7 @@ pub struct Task {
     pub order: u32,
     pub deleted: bool,
     pub archived: bool,
-    pub subtasks: Vec<SubTask>,
     #[serde(default)]
-    pub task_split_mode: TaskSplitMode,
     pub auto_promote_delay_ms: Option<u64>,
     #[serde(default)]
     pub last_error: Option<String>,
@@ -785,8 +587,6 @@ impl Default for Task {
             order: 0,
             deleted: false,
             archived: false,
-            subtasks: Vec::new(),
-            task_split_mode: TaskSplitMode::FollowSystem,
             auto_promote_delay_ms: None,
             last_error: None,
             pause_reason: None,
@@ -831,8 +631,6 @@ impl Task {
             order: 0,
             deleted: false,
             archived: false,
-            subtasks: Vec::new(),
-            task_split_mode: TaskSplitMode::FollowSystem,
             auto_promote_delay_ms: None,
             last_error: None,
             pause_reason: None,
@@ -914,7 +712,7 @@ impl Task {
 
     /// 公开的 start_execution 函数。
     ///
-    /// 先经状态机校验 `StartExecution` 来源状态（仅 Pending/Planning/Failed 合法），
+    /// 先经状态机校验 `StartExecution` 来源状态（仅 Pending/Failed 合法），
     /// 通过后才推进到 Running 并维护重试、分支与执行起始时间字段；来源非法时不改状态、
     /// 不消耗重试次数，写拒绝日志并返回错误，由调用方决定安全默认，不伪装已开始执行。
     pub fn start_execution(&mut self, trigger_log: String) -> Result<(), TaskTransitionError> {
@@ -1067,8 +865,6 @@ pub struct TaskBoardSettings {
     pub recycle_worktree_on_task_finish: bool,
     #[serde(default = "default_pr_submitted_stall_timeout_seconds")]
     pub pr_submitted_stall_timeout_seconds: u32,
-    #[serde(default)]
-    pub agent_scheduler_dispatch_mode: AgentSchedulerDispatchModeDto,
     /// 项目选用的任务工作流 id，默认 `generic_task`；旧配置缺字段时落默认。
     #[serde(default = "default_task_workflow_id")]
     pub workflow_id: String,
@@ -1079,8 +875,11 @@ pub struct TaskBoardSettings {
 impl TaskBoardSettings {
     pub fn apply_workflow_snapshot(
         &mut self,
-        snapshot: Option<crate::workflow::TaskPoolWorkflowSnapshotDto>,
+        mut snapshot: Option<crate::workflow::TaskPoolWorkflowSnapshotDto>,
     ) {
+        if let Some(workflow) = &mut snapshot {
+            workflow.remove_legacy_code_review();
+        }
         self.workflow_id = snapshot.as_ref().map_or_else(default_task_workflow_id, |workflow| workflow.id.clone());
         self.workflow_snapshot = snapshot;
     }
@@ -1112,7 +911,6 @@ impl TaskBoardSettings {
             running_timeout_minutes: default_running_timeout_minutes(),
             recycle_worktree_on_task_finish: default_recycle_worktree_on_task_finish(),
             pr_submitted_stall_timeout_seconds: default_pr_submitted_stall_timeout_seconds(),
-            agent_scheduler_dispatch_mode: AgentSchedulerDispatchModeDto::Local,
             workflow_id: default_task_workflow_id(),
             workflow_snapshot: None,
         }
@@ -1198,7 +996,6 @@ pub struct TaskDraft {
     pub reasoning_effort: Option<ReasoningEffortDto>,
     pub description: String,
     pub prompt: String,
-    pub task_split_mode: TaskSplitMode,
     pub auto_promote_delay_seconds: String,
 }
 
@@ -1215,7 +1012,6 @@ impl Default for TaskDraft {
             reasoning_effort: None,
             description: String::new(),
             prompt: String::new(),
-            task_split_mode: TaskSplitMode::FollowSystem,
             auto_promote_delay_seconds: "0".to_string(),
         }
     }

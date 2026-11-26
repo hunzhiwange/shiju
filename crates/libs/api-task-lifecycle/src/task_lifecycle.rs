@@ -67,6 +67,43 @@ pub struct TaskLifecycleWorkflowDto {
 }
 
 impl TaskLifecycleWorkflowDto {
+    /// 从旧版内置开发流程的租户覆盖中移除审核节点及其引用。
+    pub fn remove_legacy_code_review(&mut self) {
+        if self.id != "dev_lifecycle" {
+            return;
+        }
+        let Some(index) = self.statuses.iter().position(|status| {
+            status.key == "code_review" && status.role == TaskLifecycleStatusRoleDto::Review
+        }) else {
+            return;
+        };
+        let removed = self.statuses.remove(index);
+        let successor = removed
+            .transitions
+            .iter()
+            .find(|transition| {
+                let outcome = transition.outcome.trim();
+                outcome.eq_ignore_ascii_case("success") || outcome.eq_ignore_ascii_case("succeed")
+            })
+            .map(|transition| &transition.target)
+            .or(removed.next.as_ref())
+            .filter(|target| *target != &removed.key);
+        for status in &mut self.statuses {
+            if status.next.as_deref() == Some(removed.key.as_str()) {
+                status.next = successor.cloned();
+            }
+            status.transitions.retain_mut(|transition| {
+                if transition.target == removed.key {
+                    let Some(next) = successor else {
+                        return false;
+                    };
+                    transition.target.clone_from(next);
+                }
+                true
+            });
+        }
+    }
+
     /// 校验跨网关保存和读取所需的最小 workflow 结构约束。
     pub fn validate(&self) -> Result<(), String> {
         if self.id.trim().is_empty() {

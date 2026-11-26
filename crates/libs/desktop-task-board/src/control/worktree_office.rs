@@ -115,11 +115,6 @@ pub(super) fn build_worktree_pixel_office<'a>(
             TaskStatus::Pending,
         ),
         build_task_status_summary_strip(
-            desktop_i18n::I18n::new(app.desktop_locale).__("拆分"),
-            visible_task_status_count(app, TaskStatus::Planning),
-            TaskStatus::Planning,
-        ),
-        build_task_status_summary_strip(
             desktop_i18n::I18n::new(app.desktop_locale).__("执行中"),
             visible_task_status_count(app, TaskStatus::Running),
             TaskStatus::Running,
@@ -138,11 +133,6 @@ pub(super) fn build_worktree_pixel_office<'a>(
             desktop_i18n::I18n::new(app.desktop_locale).__("完成"),
             visible_task_status_count(app, TaskStatus::CodeComplete),
             TaskStatus::CodeComplete,
-        ),
-        build_task_status_summary_strip(
-            desktop_i18n::I18n::new(app.desktop_locale).__("审核"),
-            visible_task_status_count(app, TaskStatus::CodeReview),
-            TaskStatus::CodeReview,
         ),
         build_task_status_summary_strip(
             desktop_i18n::I18n::new(app.desktop_locale).__("合并"),

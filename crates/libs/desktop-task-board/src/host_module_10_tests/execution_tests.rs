@@ -183,35 +183,6 @@ fn running_timeout_second_scan_fails_without_recycling() {
     }));
 }
 
-// 消息与任务边界：确认输入消息产生预期状态或返回任务。
-// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
-#[test]
-fn code_review_model_timeout_retry_waits_before_dispatch() {
-    let mut app = super::Fixture::default();
-    app.task_board_settings.failed_retry_minutes = 1;
-
-    let mut waiting = desktop_task_model::Task::new(1);
-    waiting.id = "waiting-review-timeout".to_string();
-    waiting.status = desktop_task_model::TaskStatus::CodeReview;
-    waiting.last_error = Some("模型响应超时".to_string());
-    waiting.last_active_at_ms = runtime_time::now_ms();
-    app.task_board_tasks = vec![waiting];
-
-    assert!(super::pick_next_code_review_task(&app, &[]).is_none());
-
-    let mut ready = desktop_task_model::Task::new(2);
-    ready.id = "ready-review-timeout".to_string();
-    ready.status = desktop_task_model::TaskStatus::CodeReview;
-    ready.last_error = Some("模型响应超时".to_string());
-    ready.last_active_at_ms = 0;
-    app.task_board_tasks.push(ready);
-
-    assert_eq!(
-        super::pick_next_code_review_task(&app, &[]).as_deref(),
-        Some("ready-review-timeout")
-    );
-}
-
 #[test]
 fn worktree_action_log_keeps_only_the_newest_bounded_lines() {
     let mut app = super::Fixture::default();
@@ -441,7 +412,7 @@ fn worktree_snapshot_from_gateway_preserves_counts_locks_and_slot_state() {
 }
 
 #[test]
-fn timeout_helpers_clamp_configuration_and_recognize_only_timeout_errors() {
+fn timeout_helpers_clamp_configuration() {
     let mut app = super::Fixture::default();
 
     assert_eq!(super::minutes_to_ms(0), 60_000);
@@ -450,38 +421,4 @@ fn timeout_helpers_clamp_configuration_and_recognize_only_timeout_errors() {
     assert_eq!(super::failed_retry_max_attempts(&app.task_board_settings), 10);
     app.task_board_settings.failed_retry_max_attempts = 0;
     assert_eq!(super::failed_retry_max_attempts(&app.task_board_settings), 0);
-    assert!(super::is_model_response_timeout_error("LLM RESPONSE TIMED OUT"));
-    assert!(super::is_model_response_timeout_error(
-        "request timed out while waiting for the model"
-    ));
-    assert!(!super::is_model_response_timeout_error("connection refused"));
 }
-
-#[test]
-fn code_review_selection_honors_exclusions_and_priority_order() {
-    use desktop_task_model::{Task, TaskStatus};
-
-    let mut app = super::Fixture::default();
-    let mut later = Task::new(5);
-    later.id = "later".to_string();
-    later.status = TaskStatus::CodeReview;
-    later.order = 1;
-    let mut first = Task::new(1);
-    first.id = "first".to_string();
-    first.status = TaskStatus::CodeReview;
-    first.order = 8;
-    let mut deleted = Task::new(0);
-    deleted.id = "deleted".to_string();
-    deleted.status = TaskStatus::CodeReview;
-    deleted.deleted = true;
-    app.task_board_tasks = vec![later, first, deleted];
-
-    assert_eq!(super::pick_next_code_review_task(&app, &[]).as_deref(), Some("first"));
-    assert_eq!(
-        super::pick_next_code_review_task(&app, &["first".to_string()]).as_deref(),
-        Some("later")
-    );
-}
-
-// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
-// 完成、失败与过期响应均按当前场景的既定契约处理。

@@ -7,7 +7,7 @@ use vw_agent::agent_scheduler::store::AgentSchedulerStore;
 use vw_agent::agent_scheduler::task_board::{
     create_native_task, list_native_tasks, load_native_task,
 };
-use task_types::{SubTask, Task, TaskExecutorBackend, TaskSplitMode, TaskStatus};
+use task_types::{Task, TaskExecutorBackend, TaskStatus};
 
 /// 执行本地项目任务命令。
 pub fn handle_command(project_dir: &str, task_command: TaskCommands) -> Result<()> {
@@ -22,31 +22,20 @@ pub fn handle_command(project_dir: &str, task_command: TaskCommands) -> Result<(
             assignee,
             model,
             executor,
-            task_split,
-            subtasks,
         } => {
             // 清理和准备任务内容
             let prompt = prompt.map(|value| value.trim().to_string());
             let description = description.map(|value| value.trim().to_string());
-            let cleaned_subtasks = subtasks
-                .into_iter()
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .collect::<Vec<_>>();
 
-            // 确定任务的种子内容（从 prompt、description 或 subtasks 中获取第一个非空行）
             let mut task_seed = first_non_empty_line(prompt.as_deref().unwrap_or_default());
             if task_seed.is_empty() {
                 task_seed =
                     first_non_empty_line(description.as_deref().unwrap_or_default());
             }
-            if task_seed.is_empty() {
-                task_seed = cleaned_subtasks.first().cloned().unwrap_or_default();
-            }
             // 确保至少有一种内容来源
             if task_seed.is_empty() {
                 bail!(
-                    "task content is empty; provide at least one of --prompt, --description, or --subtask"
+                    "task content is empty; provide --prompt or --description"
                 );
             }
 
@@ -79,15 +68,6 @@ pub fn handle_command(project_dir: &str, task_command: TaskCommands) -> Result<(
                     })?;
                 task.executor = parsed;
             }
-            if let Some(task_split) = task_split {
-                task.task_split_mode = match task_split {
-                    cli::TaskSplitCliMode::FollowSystem => TaskSplitMode::FollowSystem,
-                    cli::TaskSplitCliMode::On => TaskSplitMode::Enabled,
-                    cli::TaskSplitCliMode::Off => TaskSplitMode::Disabled,
-                };
-            }
-            // 设置子任务列表
-            task.subtasks = cleaned_subtasks.into_iter().map(SubTask::new).collect();
 
             // 设置任务的提示内容
             match prompt {
@@ -98,13 +78,6 @@ pub fn handle_command(project_dir: &str, task_command: TaskCommands) -> Result<(
                     task.prompt = first_non_empty_line(&task.description);
                 }
             }
-            // 如果 prompt 仍为空，使用第一个子任务的内容
-            if task.prompt.is_empty()
-                && let Some(subtask) = task.subtasks.first()
-            {
-                task.prompt = subtask.content.clone();
-            }
-
             // 创建任务并打印结果
             let scheduler = AgentSchedulerStore::new();
             let created =

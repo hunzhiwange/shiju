@@ -158,36 +158,6 @@ fn get_all_running_logs_leaves_non_running_task_logs_queued() {
     ));
 }
 
-#[test]
-fn task_log_stream_variants_keep_payloads() {
-    let variants = [super::TaskLogStream::SubTaskStarted {
-            subtask_id: "s1".to_string(),
-            content: "do work".to_string(),
-            timestamp_ms: 10,
-        },
-        super::TaskLogStream::SubTaskCompleted { subtask_id: "s2".to_string(), timestamp_ms: 20 },
-        super::TaskLogStream::SubTaskFailed {
-            subtask_id: "s3".to_string(),
-            error: "bad".to_string(),
-            timestamp_ms: 30,
-        }];
-
-    assert!(matches!(
-        &variants[0],
-        super::TaskLogStream::SubTaskStarted { subtask_id, content, timestamp_ms }
-            if subtask_id == "s1" && content == "do work" && *timestamp_ms == 10
-    ));
-    assert!(matches!(
-        &variants[1],
-        super::TaskLogStream::SubTaskCompleted { subtask_id, timestamp_ms }
-            if subtask_id == "s2" && *timestamp_ms == 20
-    ));
-    assert!(matches!(
-        &variants[2],
-        super::TaskLogStream::SubTaskFailed { subtask_id, error, timestamp_ms }
-            if subtask_id == "s3" && error == "bad" && *timestamp_ms == 30
-    ));
-}
 
 #[test]
 fn worktree_state_is_copy_and_comparable() {

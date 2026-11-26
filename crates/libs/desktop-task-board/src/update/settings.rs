@@ -53,9 +53,6 @@ pub fn update_settings(state: SettingsState<'_>, message: TaskBoardMessage) -> R
         TaskBoardMessage::SetPrSubmittedStallTimeoutSeconds(seconds) => {
             state.settings.pr_submitted_stall_timeout_seconds = seconds.clamp(5, 3600);
         }
-        TaskBoardMessage::SetAgentSchedulerDispatchMode(dispatch_mode) => {
-            state.settings.agent_scheduler_dispatch_mode = dispatch_mode;
-        }
         TaskBoardMessage::SettingsUpdated(mut settings) => {
             settings = settings.sanitized();
             (*state.settings) = settings;

@@ -36,7 +36,7 @@ impl AgentTaskBoardService<'_> {
         now: TimestampMs,
     ) -> Result<Option<AgentSchedulerTaskDetailDto>> {
         let changed =
-            self.store.edit_task_board_metadata(context, id, Default::default(), |task| {
+            self.store.edit_task_board_task(context, id, Default::default(), |task| {
                 ensure!(!deleted(task), "task has been deleted");
                 let mut metadata = object_metadata(task.metadata.clone())?;
                 apply_change(&mut metadata, author, change, now)?;

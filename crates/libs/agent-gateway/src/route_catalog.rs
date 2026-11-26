@@ -325,11 +325,6 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
             "bulk scheduler commands",
         ),
         client_route(
-            "PUT",
-            "/v1/agent-scheduler/projects/{project_id}/tasks/{task_id}/placement",
-            "update task placement",
-        ),
-        client_route(
             "PATCH",
             "/v1/agent-scheduler/projects/{project_id}/tasks/{task_id}/metadata",
             "update task metadata",

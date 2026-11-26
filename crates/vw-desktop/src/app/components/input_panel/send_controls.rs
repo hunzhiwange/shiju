@@ -1,7 +1,6 @@
 //! Desktop orchestration and message mapping for send controls.
 use crate::app::{App, Message, message};
 use iced::Element;
-use crate::app::task::TaskSplitMode;
 use vw_api_chat_identity::ReasoningEffortDto;
 use desktop_chat_input::input_panel::{send_controls as controls, send_message::Message as Event};
 pub(super) fn map(event: Event) -> Message {
@@ -16,7 +15,7 @@ pub(super) fn map(event: Event) -> Message {
         #[cfg(not(target_arch = "wasm32"))]
         Event::VoiceChatStart => Message::Voice(crate::app::message::voice::Event::ChatStart),
         Event::AddTaskFromInput(value) => Message::TaskBoard(message::TaskBoardMessage::AddTaskFromInput(value)),
-        Event::AddTaskFromInputWithOptions { content, priority, model, reasoning_effort, task_split_mode } => Message::TaskBoard(message::TaskBoardMessage::AddTaskFromInputWithOptions { content, priority, model, reasoning_effort, task_split_mode }),
+        Event::AddTaskFromInputWithOptions { content, priority, model, reasoning_effort } => Message::TaskBoard(message::TaskBoardMessage::AddTaskFromInputWithOptions { content, priority, model, reasoning_effort }),
     }
 }
 pub(super) fn has_permission_context(app: &App) -> bool {
@@ -42,8 +41,7 @@ pub fn pool_button(
     task_mode_priority: String,
     task_mode_model: String,
     task_mode_reasoning_effort: Option<ReasoningEffortDto>,
-    task_mode_task_split_mode: TaskSplitMode,
-) -> Element<'static, Message> { controls::pool_button(i18n, enabled, task_mode_enabled, input_text, task_mode_priority, task_mode_model, task_mode_reasoning_effort, task_mode_task_split_mode).map(map) }
+) -> Element<'static, Message> { controls::pool_button(i18n, enabled, task_mode_enabled, input_text, task_mode_priority, task_mode_model, task_mode_reasoning_effort).map(map) }
 pub fn full_access_button(
     i18n: crate::app::i18n::I18n,
     enabled: bool,

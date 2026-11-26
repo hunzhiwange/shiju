@@ -24,13 +24,6 @@ pub fn handle_task_mode_model_changed(task_mode_executor: &mut Option<String>, t
     (*task_mode_model) =
         if trimmed.is_empty() { "auto".to_string() } else { trimmed.to_string() };
 }
-pub fn handle_task_mode_task_split_mode_changed(
-    task_mode_task_split_mode: &mut desktop_task_model::TaskSplitMode,
-    mode: desktop_task_model::TaskSplitMode,
-) {
-
-    (*task_mode_task_split_mode) = mode;
-}
 pub fn handle_task_mode_executor_changed(
     task_mode_executor: &mut Option<String>,
     executor: Option<String>,

@@ -1,159 +1,16 @@
-//! 协调任务就绪检查、运行租约与本地派发的原子流程。
+//! 检查任务就绪状态和本地派发条件。
 
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
-use vw_api_transport::common::TimestampMs;
 use vw_api_task::TaskPoolWorkflowSnapshotDto;
 
-use crate::adapters::local::LocalDispatchRequest;
-use crate::domain::{RunId, TaskId};
+use crate::domain::TaskId;
 use crate::lifecycle_bridge::builtin_task_workflow_snapshot;
 use crate::lifecycle_bridge::{LifecycleBridge, LifecycleDispatchEligibility};
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
-use crate::store::runs::{ClaimReadyTaskRunRequest, StoredAgentRun};
-use crate::store::task_plan::{PlanDispatchSnapshot, TaskPlanDispatchBlocker, hidden};
-use crate::store::tasks::{AgentTaskFilter, StoredAgentTask, task_dispatch_sort_key};
+use crate::store::tasks::{AgentTaskFilter, StoredAgentTask, bool_metadata_field, task_dispatch_sort_key};
 use crate::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 use crate::task_graph::{TaskGraph, TaskGraphReadiness};
-
-pub const DEFAULT_RUN_LEASE_DURATION_MS: i64 = 30 * 60 * 1_000;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-/// 成功派发后确定的任务、运行、节点、目标和可选发件箱消息。
-pub struct DispatchOutcome {
-    pub task_id: TaskId,
-    pub run_id: RunId,
-    pub target: DispatchTarget,
-    pub outbox_message_id: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-/// 本地直连派发目标。
-pub enum DispatchTarget {
-    Local(LocalDispatchRequest),
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-/// 对派发目标的自动选择或强制覆盖策略。
-pub enum DispatchMode {
-    #[default]
-    Auto,
-    Local,
-}
-
-/// 协调存储、控制器和工作节点选择的单轮派发引擎。
-pub struct DispatchEngine<'a> {
-    store: &'a AgentSchedulerStore,
-    lease_duration_ms: i64,
-    dispatch_mode: DispatchMode,
-    max_concurrent: Option<usize>,
-}
-
-impl<'a> DispatchEngine<'a> {
-    pub fn new(store: &'a AgentSchedulerStore) -> Self {
-        Self {
-            store,
-            lease_duration_ms: DEFAULT_RUN_LEASE_DURATION_MS,
-            dispatch_mode: DispatchMode::default(),
-            max_concurrent: None,
-        }
-    }
-
-    pub fn with_dispatch_mode(mut self, dispatch_mode: DispatchMode) -> Self {
-        self.dispatch_mode = dispatch_mode;
-        self
-    }
-
-    pub fn with_max_concurrent(mut self, max_concurrent: usize) -> Self {
-        self.max_concurrent = Some(max_concurrent);
-        self
-    }
-
-    /// 查找首个就绪任务并尝试派发；没有可派发任务时返回 `Ok(None)`。
-    pub async fn dispatch_once(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        now_ms: TimestampMs,
-    ) -> Result<Option<DispatchOutcome>> {
-        tracing::info!(project_path = %project_path.storage_project_path().display(), dispatch_mode = ?self.dispatch_mode, now_ms = now_ms.0, "agent scheduler dispatch wake started");
-        let Some(task) = self.next_pending_task(project_path)? else {
-            tracing::info!(project_path = %project_path.storage_project_path().display(), dispatch_mode = ?self.dispatch_mode, "agent scheduler dispatch wake found no queued finite task");
-            return Ok(None);
-        };
-        self.dispatch_task(project_path, task, now_ms).await
-    }
-
-    /// 仅尝试指定任务，任务不存在或尚未就绪时返回 `Ok(None)`。
-    pub async fn dispatch_task_once(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-        now_ms: TimestampMs,
-    ) -> Result<Option<DispatchOutcome>> {
-        tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task_id.as_str(), dispatch_mode = ?self.dispatch_mode, now_ms = now_ms.0, "agent scheduler task dispatch started");
-        let Some(task) = ready_queued_finite_task(self.store, project_path, Some(task_id))? else {
-            tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task_id.as_str(), "agent scheduler task dispatch skipped non-ready queued finite task");
-            return Ok(None);
-        };
-        self.dispatch_task(project_path, task, now_ms).await
-    }
-
-    async fn dispatch_task(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: StoredAgentTask,
-        now_ms: TimestampMs,
-    ) -> Result<Option<DispatchOutcome>> {
-        let Some(run) = self.claim_ready_run(project_path, &task, now_ms)? else {
-            tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task.id.as_str(), "agent scheduler task became unavailable before ready claim");
-            return Ok(None);
-        };
-        let target = DispatchTarget::Local(LocalDispatchRequest {
-            task_id: task.id.clone(),
-            run_id: run.id.clone(),
-            requested_at_ms: now_ms,
-        });
-        tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task.id.as_str(), run_id = run.id.as_str(), "agent scheduler local dispatch claimed");
-        Ok(Some(DispatchOutcome {
-            task_id: task.id,
-            run_id: run.id,
-            target,
-            outbox_message_id: None,
-        }))
-    }
-
-    fn next_pending_task(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-    ) -> Result<Option<StoredAgentTask>> {
-        ready_queued_finite_task(self.store, project_path, None)
-    }
-
-    fn claim_ready_run(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: &StoredAgentTask,
-        now_ms: TimestampMs,
-    ) -> Result<Option<StoredAgentRun>> {
-        let lease_expires_at_ms = TimestampMs(
-            now_ms
-                .0
-                .checked_add(self.lease_duration_ms)
-                .context("run lease expiry timestamp overflow")?,
-        );
-        let run_id = RunId::new(format!("run-{}-{}", task.id.as_str(), now_ms.0))?;
-        self.store.claim_ready_task_run_with_limit(
-            project_path,
-            ClaimReadyTaskRunRequest {
-                run_id,
-                task_id: task.id.clone(),
-                lease_acquired_at_ms: now_ms,
-                lease_expires_at_ms: Some(lease_expires_at_ms),
-            },
-            self.max_concurrent,
-        )
-    }
-}
 
 pub fn load_dispatch_workflow(
     store: &AgentSchedulerStore,
@@ -204,7 +61,9 @@ pub fn task_lifecycle_dispatch_eligibility(
             task.status.as_str()
         );
     }
-    eligibility.eligible &= !hidden(task.status, &task.metadata);
+    eligibility.eligible &= task.status != AgentTaskStatus::Archived
+        && !bool_metadata_field(&task.metadata, "task_board.archived")
+        && !bool_metadata_field(&task.metadata, "task_board.deleted");
     Ok(eligibility)
 }
 
@@ -245,14 +104,12 @@ pub fn legacy_dispatch_status_key(status: AgentTaskStatus) -> &'static str {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DispatchBlocker {
-    TaskPlan(TaskPlanDispatchBlocker),
     ExplicitDependency { task_ids: Vec<TaskId> },
 }
 
 /// Read model for explaining what blocks new dispatches of queued tasks.
 pub struct DispatchReadinessSnapshot {
     workflow: TaskPoolWorkflowSnapshotDto,
-    plan: PlanDispatchSnapshot,
     graph: TaskGraph,
 }
 
@@ -263,15 +120,11 @@ impl DispatchReadinessSnapshot {
     ) -> Result<Self> {
         Ok(Self {
             workflow: load_dispatch_workflow(store, context)?,
-            plan: store.load_plan_dispatch_snapshot(context)?,
             graph: store.load_task_graph(context)?,
         })
     }
 
     pub fn blocker_for(&self, task_id: &TaskId) -> Result<Option<DispatchBlocker>> {
-        if let Some(blocker) = self.plan.blocker_for(task_id, &self.workflow) {
-            return Ok(Some(DispatchBlocker::TaskPlan(blocker)));
-        }
         if !self.graph.dependencies().iter().any(|edge| &edge.successor == task_id) {
             return Ok(None);
         }

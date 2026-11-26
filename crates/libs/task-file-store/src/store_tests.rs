@@ -69,10 +69,6 @@ fn native_task_artifact_operations_fail_closed_as_unsupported() {
             .expect_err("native execution result save must be disabled"),
         load_task_execution_result(&project_path, "task")
             .expect_err("native execution result load must be disabled"),
-        save_task_code_review_result(&project_path, "task", &payload)
-            .expect_err("native review result save must be disabled"),
-        load_task_code_review_result(&project_path, "task")
-            .expect_err("native review result load must be disabled"),
     ];
 
     assert!(errors.iter().all(|error| error.kind() == io::ErrorKind::Unsupported));

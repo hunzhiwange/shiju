@@ -222,7 +222,7 @@ fn status_outcome_labels_and_transition_labels_cover_builtin_and_custom_results(
     let explicit = OwnedStatusTransition {
         outcome: StatusOutcome::manual(),
         label: Some("  人工审核  ".to_string()),
-        target: TaskStatus::CodeReview,
+        target: TaskStatus::PrSubmitted,
     };
     assert_eq!(fallback.display_label(), "失败后");
     assert_eq!(explicit.display_label(), "人工审核");

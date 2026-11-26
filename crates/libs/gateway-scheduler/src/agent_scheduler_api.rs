@@ -9,7 +9,7 @@ use vw_api_agent_scheduler::{
     AgentSchedulerScopeDto, AgentSchedulerSelectWorkflowRequest, AgentSchedulerTaskArtifactsResponse,
     AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskBoardStatusResponse,
     AgentSchedulerTaskBoardWorkflowResponse, AgentSchedulerTaskGraphResponse,
-    AgentSchedulerTaskBoardTaskDto, AgentSchedulerTaskPlanUpdateRequest,
+    AgentSchedulerTaskBoardTaskDto,
     AgentSchedulerTaskLogsResponse, AgentSchedulerTaskMetadataUpdateRequest,
     AgentSchedulerTaskMetadataUpdateResponse, AgentSchedulerWakeRequest,
     AgentSchedulerWakeResponse,
@@ -138,35 +138,7 @@ impl GatewaySchedulerClient {
         self.transport.post_json(&format!("{}/properties", agent_scheduler_project_path(scope)), &[], request).await
     }
 
-    pub async fn agent_scheduler_publish_work_plan(
-        &self,
-        scope: &AgentSchedulerScopeDto,
-        task_id: &str,
-        request: &vw_api_agent_scheduler::WorkPlanPublishRequest,
-    ) -> Result<vw_api_agent_scheduler::WorkPlanPublishResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = format!(
-            "{}/{}/work-plan",
-            agent_scheduler_tasks_path(scope),
-            encode_path_segment(task_id),
-        );
-        self.transport.post_json(&path, &[], request).await
-    }
 
-    pub async fn agent_scheduler_update_task_plan(
-        &self,
-        scope: &AgentSchedulerScopeDto,
-        task_id: &str,
-        request: &AgentSchedulerTaskPlanUpdateRequest,
-    ) -> Result<AgentSchedulerTaskBoardTaskDto, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = format!(
-            "{}/{}/placement",
-            agent_scheduler_tasks_path(scope),
-            encode_path_segment(task_id),
-        );
-        self.transport.put_json(&path, &[], request).await
-    }
 
     /// 更新 Agent Scheduler 任务板任务元数据投影。
     pub async fn agent_scheduler_update_task_metadata(

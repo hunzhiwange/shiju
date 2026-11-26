@@ -25,7 +25,6 @@ pub enum Event {
     UnlinkPullRequest(String),
     ToggleActivity,
     ShowExecution,
-    ToggleSubtasks,
     ToggleRun(String),
     Loaded { request: u64, result: Result<AgentSchedulerTaskDetailDto, String> },
 }
@@ -51,6 +50,5 @@ pub struct State {
     pub editor: Option<Field>,
     pub input: String,
     pub activity_expanded: bool,
-    pub subtasks_collapsed: bool,
     pub expanded_run: Option<String>,
 }

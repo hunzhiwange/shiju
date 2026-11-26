@@ -19,7 +19,7 @@ use desktop_i18n::I18n;
 use crate::message::TaskBoardMessage;
 use desktop_settings_agents::state::MAIN_AGENT_KEY;
 use crate::message::TaskBoardDetailTab;
-use desktop_task_model::{Task, TaskSplitMode};
+use desktop_task_model::Task;
 use self::PanelMessage as Message;
 use config_agent::is_retired_builtin_agent_key;
 
@@ -32,7 +32,7 @@ pub mod styles;
 mod task_logs;
 mod forms;
 use forms::*;
-pub use forms::{build_bulk_agent_selector, build_bulk_task_split_selector};
+pub use forms::build_bulk_agent_selector;
 use styles::{editor_style, input_label, input_style, panel_container_style};
 use task_logs::build_task_logs;
 
@@ -59,9 +59,6 @@ fn task_status_tag_colors(status: desktop_task_model::TaskStatus) -> (Color, Col
         desktop_task_model::TaskStatus::Pending => {
             (Color::from_rgb8(37, 99, 235), Color::from_rgb8(219, 234, 254))
         }
-        desktop_task_model::TaskStatus::Planning => {
-            (Color::from_rgb8(79, 70, 229), Color::from_rgb8(224, 231, 255))
-        }
         desktop_task_model::TaskStatus::Running => {
             (Color::from_rgb8(147, 51, 234), Color::from_rgb8(243, 232, 255))
         }
@@ -73,9 +70,6 @@ fn task_status_tag_colors(status: desktop_task_model::TaskStatus) -> (Color, Col
         }
         desktop_task_model::TaskStatus::CodeComplete => {
             (Color::from_rgb8(5, 150, 105), Color::from_rgb8(209, 250, 229))
-        }
-        desktop_task_model::TaskStatus::CodeReview => {
-            (Color::from_rgb8(217, 119, 6), Color::from_rgb8(254, 243, 199))
         }
         desktop_task_model::TaskStatus::PrSubmitted => {
             (Color::from_rgb8(8, 145, 178), Color::from_rgb8(207, 250, 254))
@@ -175,7 +169,7 @@ fn build_task_panel_with_content<'a, M: Clone + 'a>(
         app.app_theme,
         title,
         title_label,
-        i18n.__("查看运行状态、调整执行参数，并保持日志与子任务在同一侧面板内。"),
+        i18n.__("查看运行状态、日志和执行参数。"),
     );
     let header_row = build_header_row(
         i18n,
@@ -224,13 +218,12 @@ fn build_task_panel_with_content<'a, M: Clone + 'a>(
         let agent_field = control("代理", build_agent_field(app, true));
         let executor_field = control("执行器", slots.executor.expect("visible executor selector"));
         let reasoning_effort_field = slots.reasoning.map(|field| control("推理强度", field));
-        let task_split_field = control("任务拆分", build_task_split_mode_selector(app, true));
         let prompt_field = build_prompt_field(app);
 
         main_col = main_col.push(section_block(
             app,
             "任务配置",
-            "编辑提示词、模型、代理、执行器、任务拆分与优先级。",
+            "编辑提示词、模型、代理、执行器和优先级。",
             column![
                 prompt_field,
                 settings_divider(),
@@ -238,15 +231,15 @@ fn build_task_panel_with_content<'a, M: Clone + 'a>(
                     .extend(reasoning_effort_field.map(Into::into))
                     .spacing(12)
                     .align_y(Alignment::End),
-                row![model_field, task_split_field, priority_field]
+                row![model_field, priority_field]
                     .spacing(12)
                     .align_y(Alignment::End),
             ]
             .spacing(14),
         ));
 
-        if let Some(task) = current_task {
-            main_col = build_edit_mode_content(app, task, main_col);
+        if current_task.is_some() {
+            main_col = main_col.push(Space::new().height(16.0)).push(build_edit_options_row(app));
         }
     }
 
@@ -576,20 +569,6 @@ fn build_merge_lock_row<'a>(
     )
 }
 
-fn build_edit_mode_content<'a>(
-    app: PanelView<'a>,
-    task: &'a desktop_task_model::Task,
-    mut main_col: iced::widget::Column<'a, Message>,
-) -> iced::widget::Column<'a, Message> {
-    if !task.subtasks.is_empty() {
-        main_col = logs_modal::build_subtasks_section(
-            desktop_i18n::I18n::new(app.desktop_locale),
-            task,
-            main_col.push(Space::new().height(12.0)),
-        );
-    }
-    main_col.push(Space::new().height(16.0)).push(build_edit_options_row(app))
-}
 
 #[cfg(test)]
 mod tests;
@@ -601,11 +580,8 @@ pub struct PanelView<'a> {
     pub agents_settings: &'a desktop_settings_agents::agents_state::AgentsSettingsState,
     pub project_path: &'a Option<String>,
     pub task_board_bulk_agent: &'a String,
-    pub task_board_bulk_task_split_mode: desktop_task_model::TaskSplitMode,
     pub task_board_detail_tab: crate::message::TaskBoardDetailTab,
     pub task_board_draft: &'a desktop_task_model::TaskDraft,
-    pub task_board_import_prompt_format: desktop_task_model::TaskImportPromptFormat,
-    pub task_board_settings: &'a desktop_task_model::TaskBoardSettings,
     pub task_board_viewing_logs: &'a Option<desktop_task_model::Task>,
     pub task_board_worktree_snapshot: &'a Option<desktop_task_executor::executor::state::WorktreePoolSnapshot>,
     pub task_board_logs_editor_id: &'a iced::widget::Id,
@@ -620,7 +596,6 @@ pub struct PanelView<'a> {
     pub task_board_close_after_edit: bool,
     pub task_board_create_submit_success: bool,
     pub task_board_edit_submit_success: bool,
-    pub task_board_import_prompt_collapsed: bool,
     pub task_board_is_import_mode: bool,
     pub task_board_logs_context_menu_open: bool,
 }

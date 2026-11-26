@@ -165,3 +165,39 @@ fn task_pool_schedule_explicit_workflow_result_controls_completion() {
         AgentTaskStatus::Paused
     );
 }
+
+#[test]
+fn legacy_development_snapshot_routes_code_complete_to_merge() {
+    use TaskPoolWorkflowStatusRoleDto::{Merging, Review, ReviewReady};
+
+    let workflow = TaskPoolWorkflowSnapshotDto {
+        id: "dev_lifecycle".into(),
+        label: "开发生命周期".into(),
+        statuses: vec![
+            status(
+                "code_complete",
+                ReviewReady,
+                Some(transition("success", "code_review")),
+                Some("code_review"),
+                true,
+            ),
+            status(
+                "code_review",
+                Review,
+                Some(transition("succeed", "pr_submitted")),
+                None,
+                true,
+            ),
+            status("pr_submitted", Merging, None, None, true),
+        ],
+    };
+    let workflow = super::lifecycle_bridge::normalize_workflow_transitions(workflow);
+    workflow.validate_for_schedule().unwrap();
+
+    let bridge = LifecycleBridge::new(&workflow);
+    assert!(bridge.status("code_review").is_err());
+    assert_eq!(bridge.status("code_complete").unwrap().next.as_deref(), Some("pr_submitted"));
+    let target = bridge.resolve_outcome("code_complete", "success").unwrap();
+    assert_eq!(target.status_key, "pr_submitted");
+    assert_eq!(target.status_role, Merging);
+}

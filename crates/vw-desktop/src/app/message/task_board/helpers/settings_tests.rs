@@ -67,9 +67,7 @@ fn save_settings_creates_project_meta_for_new_project_path() {
 fn standalone_schedulers_produce_deferred_actions() {
     let (app, _task) = crate::app::App::new();
 
-    for task in
-        [schedule_scheduler_tick(&app), schedule_auto_review_tick(), schedule_auto_merge_tick()]
-    {
+    for task in [schedule_scheduler_tick(&app), schedule_auto_merge_tick()] {
         assert!(iced_runtime::task::into_stream(task.collect()).is_some());
     }
 }

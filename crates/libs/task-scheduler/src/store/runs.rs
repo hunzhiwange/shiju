@@ -9,7 +9,6 @@ use crate::domain::{AgentRunStatus, RunId, TaskId};
 use crate::engine::dispatch::{effective_dispatch_workflow, task_lifecycle_allows_dispatch};
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
 
-use super::task_plan::{claim_summary, load_plan_dispatch_snapshot};
 use super::tasks::{load_task_with_conn, load_workflow_with_conn};
 use super::{
     AgentSchedulerStorageContext, AgentSchedulerStore, open_initialized_connection,
@@ -124,13 +123,6 @@ impl AgentSchedulerStore {
             return Ok(None);
         }
 
-        let workflow = effective_dispatch_workflow(load_workflow_with_conn(&tx, &scope)?)?;
-        if load_plan_dispatch_snapshot(&tx, &scope, Some(&request.task_id))?
-            .blocker_for(&request.task_id, &workflow)
-            .is_some()
-        {
-            return Ok(None);
-        }
 
         let attempt = next_attempt(&tx, context, &request.task_id)?;
         tx.execute(
@@ -205,9 +197,6 @@ impl AgentSchedulerStore {
         }
         let workflow = effective_dispatch_workflow(load_workflow_with_conn(&tx, &scope)?)?;
         if !task_lifecycle_allows_dispatch(context, &task, &workflow)
-            || load_plan_dispatch_snapshot(&tx, &scope, Some(&request.task_id))?
-                .blocker_for(&request.task_id, &workflow)
-                .is_some()
         {
             return Ok(None);
         }
@@ -250,7 +239,6 @@ impl AgentSchedulerStore {
             ],
         )?;
 
-        claim_summary(&tx, &scope, &request.task_id, &request.run_id)?;
         let stored = load_run_with_conn(&tx, context, &request.run_id)?.with_context(|| {
             format!("run disappeared after ready claim: {}", request.run_id.as_str())
         })?;

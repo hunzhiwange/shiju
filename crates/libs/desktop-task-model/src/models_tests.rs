@@ -71,7 +71,7 @@ fn executor_backend_from_id_accepts_all_legacy_aliases() {
 #[test]
 fn task_status_keys_labels_and_next_states_cover_all_variants() {
     let statuses = super::TaskStatus::all();
-    assert_eq!(statuses.len(), 11);
+    assert_eq!(statuses.len(), 9);
     for status in statuses {
         let key = status.to_string_key();
         assert_eq!(super::TaskStatus::parse_key(key), Some(status));
@@ -94,12 +94,10 @@ fn builtin_status_serialization_is_unchanged() {
     let cases = [
         (super::TaskStatus::Pool, "\"Pool\"", "pool"),
         (super::TaskStatus::Pending, "\"Pending\"", "pending"),
-        (super::TaskStatus::Planning, "\"Planning\"", "planning"),
         (super::TaskStatus::Running, "\"Running\"", "running"),
         (super::TaskStatus::Failed, "\"Failed\"", "failed"),
         (super::TaskStatus::Paused, "\"Paused\"", "paused"),
         (super::TaskStatus::CodeComplete, "\"CodeComplete\"", "code_complete"),
-        (super::TaskStatus::CodeReview, "\"CodeReview\"", "code_review"),
         (super::TaskStatus::PrSubmitted, "\"PrSubmitted\"", "pr_submitted"),
         (super::TaskStatus::Completed, "\"Completed\"", "completed"),
         (super::TaskStatus::Archived, "\"Archived\"", "archived"),
@@ -116,6 +114,11 @@ fn builtin_status_serialization_is_unchanged() {
         assert_eq!(status.to_string_key(), expected_key, "{status:?} 稳定 key 不能变化");
         assert_eq!(super::TaskStatus::parse_key(expected_key), Some(status));
     }
+
+    assert_eq!(
+        serde_json::from_str::<super::TaskStatus>(r#""CodeReview""#).unwrap(),
+        super::TaskStatus::CodeComplete
+    );
 
     // 旧 SQLite/日志列以 snake_case key 持久化，PascalCase 变体名也曾被接受，二者都要继续解析。
     assert_eq!(super::TaskStatus::parse_key("Pool"), Some(super::TaskStatus::Pool));
@@ -149,49 +152,7 @@ fn unknown_status_key_round_trips_as_custom() {
     assert!(!super::TaskStatus::all().contains(&custom));
 }
 
-#[test]
-fn subtask_execution_lifecycle_tracks_status_and_duration() {
-    let mut subtask = super::SubTask::new("write tests".into());
-    assert!(subtask.id.starts_with("SUB-"));
-    assert_eq!(subtask.status, super::SubTaskStatus::Pending);
-    assert_eq!(subtask.display_execution_duration_ms(subtask.created_at_ms + 10), None);
 
-    subtask.start_execution();
-    let started_at = subtask.execution_started_at_ms.expect("start timestamp");
-    assert_eq!(subtask.status, super::SubTaskStatus::Running);
-    assert_eq!(subtask.display_execution_duration_ms(started_at + 25), Some(25));
-
-    subtask.mark_completed();
-    assert_eq!(subtask.status, super::SubTaskStatus::Completed);
-    assert!(subtask.completed);
-    assert!(subtask.last_execution_duration_ms.is_some());
-    let completed_duration = subtask.last_execution_duration_ms;
-
-    subtask.start_execution();
-    assert_eq!(subtask.last_execution_duration_ms, completed_duration);
-    subtask.mark_failed();
-    assert_eq!(subtask.status, super::SubTaskStatus::Failed);
-    assert!(!subtask.completed);
-}
-
-#[test]
-fn subtask_batch_fields_default_for_legacy_payloads() {
-    let legacy = r#"{
-        "id": "SUB-1",
-        "content": "legacy",
-        "created_at_ms": 1,
-        "order": 0,
-        "completed": false
-    }"#;
-    let subtask: super::SubTask =
-        serde_json::from_str(legacy).expect("legacy subtask payload should deserialize");
-    assert_eq!(subtask.batch, 1);
-    assert!(subtask.depends_on_batches.is_empty());
-
-    let fresh = super::SubTask::new("fresh".into());
-    assert_eq!(fresh.batch, 1);
-    assert!(fresh.depends_on_batches.is_empty());
-}
 
 #[test]
 fn task_lifecycle_preserves_and_sets_execution_fields() {
@@ -379,17 +340,14 @@ fn task_board_settings_sanitizes_workflow_id() {
 
     // 旧配置缺字段时反序列化落默认值。
     let legacy: super::TaskBoardSettings = serde_json::from_str(
-        "{\"auto_execute\":true,\"max_concurrent\":3,\"default_priority\":999,\"auto_promote_pool_tasks\":true,\"auto_promote_delay_seconds\":30}",
+        "{\"auto_execute\":true,\"max_concurrent\":3,\"default_priority\":999,\"auto_promote_pool_tasks\":true,\"auto_promote_delay_seconds\":30,\"agent_scheduler_dispatch_mode\":\"auto\"}",
     )
     .expect("legacy settings without workflow_id should decode");
     assert_eq!(legacy.workflow_id, crate::DEFAULT_TASK_WORKFLOW_ID);
-    assert_eq!(
-        legacy.agent_scheduler_dispatch_mode,
-        vw_api_agent_scheduler::AgentSchedulerDispatchModeDto::Local
-    );
     let encoded = serde_json::to_value(&legacy).expect("legacy settings should serialize");
     assert!(encoded.get("auto_execute").is_none());
     assert!(encoded.get("auto_promote_pool_tasks").is_none());
+    assert!(encoded.get("agent_scheduler_dispatch_mode").is_none());
 }
 
 #[test]
@@ -399,7 +357,6 @@ fn task_draft_defaults_match_task_creation_defaults() {
     assert_eq!(draft.assignee, "VibeWindow");
     assert_eq!(draft.model, super::TASK_MODEL_AUTO);
     assert_eq!(draft.agent.as_deref(), Some(super::TASK_AGENT_MAIN));
-    assert_eq!(draft.task_split_mode, super::TaskSplitMode::FollowSystem);
     assert_eq!(draft.auto_promote_delay_seconds, "0");
 }
 
@@ -448,45 +405,6 @@ fn task_reasoning_effort_imports_roundtrip() {
     assert_eq!(legacy.reasoning_effort, None);
 }
 
-#[test]
-fn task_split_mode_aliases_labels_and_system_override_are_stable() {
-    let cases = [
-        (
-            super::TaskSplitMode::FollowSystem,
-            "follow_system",
-            "遵循系统",
-            &["follow_system", "follow-system", "system", "default", "inherit"] as &[&str],
-        ),
-        (
-            super::TaskSplitMode::Enabled,
-            "enabled",
-            "开启",
-            &["enabled", "enable", "on", "true", "yes", "1"] as &[&str],
-        ),
-        (
-            super::TaskSplitMode::Disabled,
-            "disabled",
-            "关闭",
-            &["disabled", "disable", "off", "false", "no", "0"] as &[&str],
-        ),
-    ];
-
-    assert_eq!(super::TaskSplitMode::all().len(), cases.len());
-    for (mode, key, label, aliases) in cases {
-        assert_eq!(mode.to_string_key(), key);
-        assert_eq!(mode.label(), label);
-        assert_eq!(mode.to_string(), label);
-        for alias in aliases {
-            assert_eq!(super::TaskSplitMode::parse_key(&format!(" {alias} ")), Some(mode));
-        }
-    }
-
-    assert_eq!(super::TaskSplitMode::parse_key("occasionally"), None);
-    assert!(!super::TaskSplitMode::FollowSystem.enabled_with_system(false));
-    assert!(super::TaskSplitMode::FollowSystem.enabled_with_system(true));
-    assert!(super::TaskSplitMode::Enabled.enabled_with_system(false));
-    assert!(!super::TaskSplitMode::Disabled.enabled_with_system(true));
-}
 
 #[test]
 fn task_import_json_maps_optional_fields_and_rejects_invalid_shapes() {
@@ -500,8 +418,7 @@ fn task_import_json_maps_optional_fields_and_rejects_invalid_shapes() {
                 "model": " gpt-5 ",
                 "agent": " main ",
                 "acp_agent": " codex ",
-                "reasoning_effort": " HIGH ",
-                "task_split": "ON"
+                "reasoning_effort": " HIGH "
             },
             {"priority": 4294967296, "prompt": 3, "reasoning_effort": null}
         ]"#,
@@ -515,7 +432,6 @@ fn task_import_json_maps_optional_fields_and_rejects_invalid_shapes() {
     assert_eq!(records[0].agent.as_deref(), Some("main"));
     assert_eq!(records[0].acp_agent.as_deref(), Some("codex"));
     assert_eq!(records[0].reasoning_effort, Some(ReasoningEffortDto::High));
-    assert_eq!(records[0].task_split_mode, Some(super::TaskSplitMode::Enabled));
     assert_eq!(records[1].priority, None);
     assert!(records[1].prompt.is_empty());
     assert_eq!(records[1].reasoning_effort, None);
@@ -540,7 +456,7 @@ fn task_import_delimited_content_supports_localized_headers_and_reports_missing_
     use vw_api_chat_identity::ReasoningEffortDto;
 
     let records = super::parse_task_import_content(
-        "优先级\t提示词\t模型\t代理\t智能体\t推理强度\t任务拆分\n12\t 写测试 \t auto \t main \t codex \t low \t no\n\ninvalid\t second ",
+        "优先级\t提示词\t模型\t代理\t智能体\t推理强度\n12\t 写测试 \t auto \t main \t codex \t low \t no\n\ninvalid\t second ",
     )
     .expect("localized TSV should import");
 
@@ -551,7 +467,6 @@ fn task_import_delimited_content_supports_localized_headers_and_reports_missing_
     assert_eq!(records[0].agent.as_deref(), Some("main"));
     assert_eq!(records[0].acp_agent.as_deref(), Some("codex"));
     assert_eq!(records[0].reasoning_effort, Some(ReasoningEffortDto::Low));
-    assert_eq!(records[0].task_split_mode, Some(super::TaskSplitMode::Disabled));
     assert_eq!(records[1].priority, None);
     assert_eq!(records[1].prompt, "second");
     assert_eq!(records[1].model, None);
@@ -580,7 +495,6 @@ fn task_status_workflow_helpers_use_selected_workflow_and_default_fallback() {
         vec![
             super::TaskStatus::Pool,
             super::TaskStatus::Pending,
-            super::TaskStatus::Planning,
             super::TaskStatus::Running,
             super::TaskStatus::Failed,
             super::TaskStatus::Paused,
@@ -606,30 +520,6 @@ fn task_status_deserialization_rejects_empty_and_non_string_values() {
     assert!(non_string.to_string().contains("task status key string"));
 }
 
-#[test]
-fn subtask_explicit_timestamps_cover_saturation_and_terminal_state_fields() {
-    let mut subtask = super::SubTask::new("deterministic".into());
-    subtask.start_execution_at(100);
-    assert_eq!(subtask.status, super::SubTaskStatus::Running);
-    assert_eq!(subtask.display_execution_duration_ms(90), Some(0));
-
-    subtask.mark_completed_at(140);
-    assert_eq!(subtask.last_execution_duration_ms, Some(40));
-    assert_eq!(subtask.execution_started_at_ms, None);
-    assert_eq!(subtask.status, super::SubTaskStatus::Completed);
-    assert!(subtask.completed);
-
-    subtask.start_execution_at(200);
-    subtask.mark_failed_at(150);
-    assert_eq!(subtask.last_execution_duration_ms, Some(0));
-    assert_eq!(subtask.execution_started_at_ms, None);
-    assert_eq!(subtask.status, super::SubTaskStatus::Failed);
-    assert!(!subtask.completed);
-
-    let mut never_started = super::SubTask::new("not started".into());
-    never_started.mark_completed_at(500);
-    assert_eq!(never_started.last_execution_duration_ms, None);
-}
 
 #[test]
 fn task_log_constructors_and_auto_merge_blank_checks_preserve_semantics() {
@@ -667,7 +557,6 @@ fn task_private_date_formatter_and_task_legacy_defaults_are_stable() {
         "agent",
         "acp_agent",
         "reasoning_effort",
-        "task_split_mode",
         "last_error",
         "pause_reason",
         "retry_count",
@@ -688,7 +577,6 @@ fn task_private_date_formatter_and_task_legacy_defaults_are_stable() {
     assert_eq!(decoded.agent.as_deref(), None);
     assert_eq!(decoded.acp_agent, None);
     assert_eq!(decoded.reasoning_effort, None);
-    assert_eq!(decoded.task_split_mode, super::TaskSplitMode::FollowSystem);
     assert_eq!(decoded.retry_count, 0);
     assert!(decoded.last_active_at_ms > 0);
     assert_eq!(decoded.execution_started_at_ms, None);

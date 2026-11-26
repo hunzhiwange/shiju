@@ -12,7 +12,6 @@ pub(in crate::app) mod modals;
 mod panel;
 mod properties;
 mod work_display;
-mod work_plan;
 mod work_sidebar;
 mod work_view_editor;
 pub fn view(app: &App) -> iced::Element<'_, Message> {
@@ -49,14 +48,7 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
                 }
                 row![
                     work_sidebar::view(app),
-                    column![if work_plan::current(app).is_some_and(|(_, plan)| plan.open) {
-                        column![work_view_editor::view(app, true), work_plan::project_view(app),]
-                            .into()
-                    } else {
-                        work_display::view(app)
-                    }]
-                    .width(iced::Length::Fill)
-                    .height(iced::Length::Fill)
+                    column![work_display::view(app)].width(Length::Fill).height(Length::Fill)
                 ]
                 .spacing(12)
                 .height(iced::Length::Fill)
@@ -74,7 +66,7 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
             close_settings: Message::TaskBoard(TaskBoardMessage::CloseSettingsModal),
         },
     );
-    work_plan::with_child_modal(app, detail::with_field_modal(app, page))
+    detail::with_field_modal(app, page)
 }
 
 pub(in crate::app) fn with_create_modal<'a>(

@@ -105,9 +105,7 @@ pub fn sync_task_logs_editor(app: &mut TaskLogsState<'_>, task: Option<&Task>) {
 pub fn task_logs_should_stay_in_memory(status: TaskStatus) -> bool {
     matches!(
         status,
-        TaskStatus::Planning
-            | TaskStatus::Running
-            | TaskStatus::CodeReview
+        TaskStatus::Running
             | TaskStatus::PrSubmitted
     )
 }

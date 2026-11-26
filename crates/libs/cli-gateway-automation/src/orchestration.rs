@@ -2,7 +2,7 @@
 
 use vw_api_agent_scheduler::{
     AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest,
-    AgentSchedulerDispatchModeDto, AgentSchedulerScopeDto, AgentSchedulerTaskArtifactsResponse,
+    AgentSchedulerScopeDto, AgentSchedulerTaskArtifactsResponse,
     AgentSchedulerTaskGraphResponse, AgentSchedulerTaskLogsResponse, AgentTaskStatusDto,
 };
 
@@ -211,7 +211,6 @@ pub fn control_owned_task_blocking(
     let request = AgentSchedulerCommandRequest {
         task_id: task_id.into(),
         command: task_control_command(action),
-        dispatch_mode: AgentSchedulerDispatchModeDto::Local,
         max_concurrent: None,
         reason: Some("requested from TUI canonical task panel".to_string()),
         payload: AgentSchedulerCommandPayloadDto::default(),

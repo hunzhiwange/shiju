@@ -19,17 +19,13 @@ fn task(id: &str, priority: u32, order: u32) -> super::models::Task {
 fn simulate_task_execution_step_covers_all_status_transitions() {
     use super::TaskStatus;
 
-    // 默认通用流程跳过开发审核阶段，未包含的状态没有模拟下一步。
+    // 默认通用流程未包含的状态没有模拟下一步。
     assert_eq!(
         super::simulate_task_execution_step("/repo", "task", TaskStatus::Pool),
         Some(TaskStatus::Pending)
     );
     assert_eq!(
         super::simulate_task_execution_step("/repo", "task", TaskStatus::Pending),
-        Some(TaskStatus::Running)
-    );
-    assert_eq!(
-        super::simulate_task_execution_step("/repo", "task", TaskStatus::Planning),
         Some(TaskStatus::Running)
     );
     assert_eq!(
@@ -42,10 +38,6 @@ fn simulate_task_execution_step_covers_all_status_transitions() {
     );
     assert_eq!(
         super::simulate_task_execution_step("/repo", "task", TaskStatus::CodeComplete),
-        None
-    );
-    assert_eq!(
-        super::simulate_task_execution_step("/repo", "task", TaskStatus::CodeReview),
         None
     );
     assert_eq!(
@@ -101,14 +93,13 @@ fn count_helpers_sum_expected_status_buckets() {
 
     let mut tasks_by_status = std::collections::HashMap::new();
     tasks_by_status.insert(TaskStatus::Running, vec![task("r1", 1, 1), task("r2", 1, 2)]);
-    tasks_by_status.insert(TaskStatus::Planning, vec![task("pl1", 1, 3)]);
     tasks_by_status.insert(TaskStatus::Pending, vec![task("p1", 1, 4), task("p2", 1, 5)]);
     tasks_by_status.insert(TaskStatus::Pool, vec![task("pool1", 1, 6)]);
     tasks_by_status.insert(TaskStatus::Completed, vec![task("done", 1, 7)]);
 
-    assert_eq!(super::count_running_tasks(&tasks_by_status), 3);
-    assert_eq!(super::get_pool_and_pending_count(&tasks_by_status), 4);
-    assert_eq!(super::get_total_task_count(&tasks_by_status), 7);
+    assert_eq!(super::count_running_tasks(&tasks_by_status), 2);
+    assert_eq!(super::get_pool_and_pending_count(&tasks_by_status), 3);
+    assert_eq!(super::get_total_task_count(&tasks_by_status), 6);
 }
 
 #[test]

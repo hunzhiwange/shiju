@@ -24,7 +24,7 @@ use vw_api_agent_scheduler::{
     AgentSchedulerSelectWorkflowRequest,
     AgentSchedulerTaskGraphResponse,
     AgentSchedulerTaskLogsResponse,
-    AgentSchedulerTaskBoardTaskDto, AgentSchedulerTaskPlanUpdateRequest,
+    AgentSchedulerTaskBoardTaskDto,
     AgentSchedulerTaskMetadataUpdateRequest,
     AgentSchedulerTaskMetadataUpdateResponse,
 };
@@ -172,24 +172,7 @@ pub trait AgentSchedulerGateway: Send + Sync {
         Err(ApiError::internal("agent scheduler task graph gateway is not configured"))
     }
 
-    async fn publish_work_plan(
-        &self,
-        _context: AgentSchedulerContext,
-        _task_id: String,
-        _request: vw_api_agent_scheduler::WorkPlanPublishRequest,
-    ) -> Result<vw_api_agent_scheduler::WorkPlanPublishResponse, ApiError> {
-        Err(ApiError::bad_request("work plan publication is unavailable"))
-    }
 
-    async fn update_task_plan(
-        &self,
-        _project_id: String,
-        _context: AgentSchedulerContext,
-        _task_id: String,
-        _request: AgentSchedulerTaskPlanUpdateRequest,
-    ) -> Result<AgentSchedulerTaskBoardTaskDto, ApiError> {
-        Err(ApiError::internal("agent scheduler task plan gateway is not configured"))
-    }
 
     async fn update_task_metadata(
         &self,

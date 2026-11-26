@@ -29,7 +29,6 @@ pub struct BoardView<'a, M> {
     pub task_board_bulk_priority_input: &'a String,
     pub task_board_bulk_acp_agent: &'a Option<String>,
     pub task_board_bulk_reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
-    pub task_board_bulk_task_split_mode: desktop_task_model::TaskSplitMode,
     pub task_board_dragging: &'a Option<(String, TaskStatus)>,
     pub cursor_position: iced::Point,
     pub task_board_context_menu: &'a Option<(String, f32, f32)>,
@@ -76,7 +75,6 @@ pub struct BoardSlots<'a, M> {
     pub agent: std::rc::Rc<dyn Fn() -> Element<'a, M> + 'a>,
     pub executor: std::rc::Rc<dyn Fn() -> Element<'a, M> + 'a>,
     pub reasoning_effort: std::rc::Rc<dyn Fn() -> Option<Element<'a, M>> + 'a>,
-    pub task_split: std::rc::Rc<dyn Fn() -> Element<'a, M> + 'a>,
     pub context_menu: std::rc::Rc<dyn Fn(Task) -> Element<'a, M> + 'a>,
 }
 mod display;
@@ -129,14 +127,12 @@ fn task_status_tag_colors(status: TaskStatus) -> (Color, Color) {
     match status {
         TaskStatus::Pool => (Color::from_rgb8(107, 114, 128), Color::from_rgb8(243, 244, 246)),
         TaskStatus::Pending => (Color::from_rgb8(37, 99, 235), Color::from_rgb8(219, 234, 254)),
-        TaskStatus::Planning => (Color::from_rgb8(79, 70, 229), Color::from_rgb8(224, 231, 255)),
         TaskStatus::Running => (Color::from_rgb8(147, 51, 234), Color::from_rgb8(243, 232, 255)),
         TaskStatus::Failed => (Color::from_rgb8(220, 38, 38), Color::from_rgb8(254, 226, 226)),
         TaskStatus::Paused => (Color::from_rgb8(202, 138, 4), Color::from_rgb8(254, 249, 195)),
         TaskStatus::CodeComplete => {
             (Color::from_rgb8(5, 150, 105), Color::from_rgb8(209, 250, 229))
         }
-        TaskStatus::CodeReview => (Color::from_rgb8(217, 119, 6), Color::from_rgb8(254, 243, 199)),
         TaskStatus::PrSubmitted => (Color::from_rgb8(8, 145, 178), Color::from_rgb8(207, 250, 254)),
         TaskStatus::Completed => (Color::from_rgb8(22, 163, 74), Color::from_rgb8(220, 252, 231)),
         TaskStatus::Archived => (Color::from_rgb8(100, 116, 139), Color::from_rgb8(241, 245, 249)),
@@ -414,22 +410,6 @@ fn status_column<'a, M: Clone + From<TaskBoardMessage> + 'a>(
             .width(Length::Fill)
         });
 
-        let task_split_rows = column![
-            (app.slots.task_split)(),
-            row![
-                button(text(desktop_i18n::I18n::new(app.desktop_locale).__("应用")).size(10))
-                    .padding([5, 8])
-                    .style(button_style_success)
-                    .on_press(M::from(TaskBoardMessage::BulkSetTaskSplitModeInStatus {
-                        status,
-                        task_split_mode: app.task_board_bulk_task_split_mode,
-                    })),
-            ]
-            .spacing(6)
-            .align_y(Alignment::Center)
-        ]
-        .spacing(6)
-        .width(Length::Fill);
 
         header = header
             .push(Space::new().height(8.0))
@@ -471,10 +451,6 @@ fn status_column<'a, M: Clone + From<TaskBoardMessage> + 'a>(
             .push(text(desktop_i18n::I18n::new(app.desktop_locale).__("批量推理强度")).size(10))
             .push(Space::new().height(4.0))
             .extend(reasoning_effort_rows.map(Into::into))
-            .push(Space::new().height(6.0))
-            .push(text(desktop_i18n::I18n::new(app.desktop_locale).__("批量任务拆分")).size(10))
-            .push(Space::new().height(4.0))
-            .push(task_split_rows)
             .push(Space::new().height(6.0));
 
         if status == TaskStatus::PrSubmitted {
@@ -814,27 +790,6 @@ fn build_task_card<'a, M: Clone + From<TaskBoardMessage> + 'a>(
     .spacing(4)
     .align_y(Alignment::Center);
 
-    let subtask_count = task.subtasks.len();
-    let subtask_info = if subtask_count > 0 {
-        let completed_count = task.subtasks.iter().filter(|s| s.completed).count();
-        Some(
-            row![
-                text("📋").size(10),
-                text(format!("{}/{}", completed_count, subtask_count)).size(10).style(
-                    |theme: &Theme| {
-                        iced::widget::text::Style {
-                            color: Some(theme.extended_palette().background.base.text),
-                        }
-                    }
-                ),
-            ]
-            .spacing(4)
-            .align_y(Alignment::Center),
-        )
-    } else {
-        None
-    };
-
     let mut content_col = column![
         header_row,
         Space::new().height(4.0),
@@ -918,9 +873,6 @@ fn build_task_card<'a, M: Clone + From<TaskBoardMessage> + 'a>(
         content_col = content_col.push(container(reason_text).width(Length::Fill));
     }
 
-    if let Some(subtask_row) = subtask_info {
-        content_col = content_col.push(subtask_row);
-    }
 
     let card =
         container(content_col).width(Length::Fill).padding([12, 12]).style(move |theme: &Theme| {

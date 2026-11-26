@@ -39,19 +39,6 @@ fn scheduler_deadline_is_refreshed_after_expiry() {
 fn fixed_interval_schedulers_refresh_their_deadlines() {
     let (mut app, _task) = super::fixture_pair();
 
-    let review_start_ms = now_ms();
-    crate::helpers::settings::fixed_deadline(
-        &mut app.task_board_next_auto_review_tick_at_ms,
-        TASK_AUTO_CODE_REVIEW_TICK_INTERVAL_SECS,
-    );
-    let review_end_ms = now_ms();
-    assert_deadline_in_window(
-        app.task_board_next_auto_review_tick_at_ms,
-        review_start_ms,
-        review_end_ms,
-        TASK_AUTO_CODE_REVIEW_TICK_INTERVAL_SECS,
-    );
-
     let merge_start_ms = now_ms();
     crate::helpers::settings::fixed_deadline(
         &mut app.task_board_next_auto_merge_tick_at_ms,

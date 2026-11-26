@@ -85,26 +85,25 @@ pub mod store;
 // - execute_task_async：异步执行任务
 // - execute_task_command：执行任务的命令行版本
 // - execute_task_merge_async：异步执行任务合并操作
-// - execute_task_review_async：异步执行任务代码审查
 // - get_next_tasks_for_execution：获取下一批待执行的任务
 // - get_pool_and_pending_count：获取工作树池和待处理任务计数
 // - get_total_task_count：获取任务总数
 // - simulate_task_execution_step：模拟任务执行的单个步骤（用于测试）
 
 pub use executor::{
-    ExecutorCommand, ExecutorEvent, TaskExecutorState, TaskLogStream, TaskPlanGenerationOutcome,
-    TaskPlanSubTask, WorktreePoolSnapshot, WorktreeSlotSnapshot, WorktreeState,
+    ExecutorCommand, ExecutorEvent, TaskExecutorState, TaskLogStream,
+    WorktreePoolSnapshot, WorktreeSlotSnapshot, WorktreeState,
     assign_task_execution_worktree, build_executor_command, build_review_diff_context,
     commit_merge_all_worktrees, commit_merge_all_worktrees_async,
     commit_merge_all_worktrees_async_with_logs, commit_merge_all_worktrees_with_logs,
     count_running_tasks, delete_all_managed_worktrees, delete_all_managed_worktrees_async,
     delete_all_managed_worktrees_async_with_logs, delete_all_managed_worktrees_with_logs,
     execute_gateway_prompt_with_streaming, execute_task_async, execute_task_command,
-    execute_task_command_with_streaming, execute_task_merge_async, execute_task_plan_async,
-    execute_task_retry_async, execute_task_review_async, get_next_tasks_for_execution,
+    execute_task_command_with_streaming, execute_task_merge_async,
+    execute_task_retry_async, get_next_tasks_for_execution,
     get_pool_and_pending_count, get_total_task_count, reset_all_managed_worktrees,
     reset_all_managed_worktrees_async, reset_all_managed_worktrees_async_with_logs,
-    reset_all_managed_worktrees_with_logs, simulate_task_execution_step, write_task_plan_files,
+    reset_all_managed_worktrees_with_logs, simulate_task_execution_step,
 };
 
 // =============================================================================
@@ -112,20 +111,18 @@ pub use executor::{
 // =============================================================================
 //
 // 导出的类型：
-// - SubTask：子任务实体，表示任务的细分工作项
 // - Task：任务实体，表示一个完整的工作单元
 // - TaskBoardSettings：任务看板配置
 // - TaskDraft：任务草稿，用于创建新任务
 // - TaskExecutorBackend：任务执行器后端类型
-// - TaskImportPromptFormat：任务导入时的提示词格式
 // - TaskIndex：任务索引，用于快速检索
 // - TaskLogEntry：任务日志条目
 // - TaskStatus：任务状态枚举
 
 pub use models::{
-    CLAUDE_DEFAULT_MODEL_ALIAS, CLAUDE_SUPPORTED_MODEL_ALIASES, SubTask, SubTaskStatus,
+    CLAUDE_DEFAULT_MODEL_ALIAS, CLAUDE_SUPPORTED_MODEL_ALIASES,
     TASK_AGENT_MAIN, TASK_MODEL_AUTO, Task, TaskBoardSettings, TaskDraft, TaskExecutorBackend,
-    TaskImportPromptFormat, TaskIndex, TaskLogEntry, TaskSplitMode, TaskStatus, claude_model_alias,
+    TaskIndex, TaskLogEntry, TaskStatus, claude_model_alias,
     legacy_executor_to_task_acp_agent, normalize_task_acp_agent_input, normalize_task_model_input,
 };
 

@@ -9,7 +9,7 @@ use vw_api_agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_agent_scheduler::{
     AgentEventKindDto, AgentSchedulerBulkCommandRequest, AgentSchedulerCommandKindDto,
     AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest, AgentSchedulerCreateTaskRequest,
-    AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,
+    AgentSchedulerLegacyImportRequest,
     AgentSchedulerLegacyTaskImportDto, AgentSchedulerMoveTaskPayloadDto,
     AgentSchedulerOutboxDrainRequest, AgentSchedulerReplaceTaskGraphRequest,
     AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskGraphEdgeDto,
@@ -157,7 +157,6 @@ async fn agent_scheduler_client_creates_tasks_with_native_scheduler_path() {
         }),
     )]);
     let request = AgentSchedulerCreateTaskRequest {
-        placement: None,
         task_id: "task/create".to_string(),
         title: "Create through Agent Scheduler".to_string(),
         kind: AgentTaskKindDto::Finite,
@@ -266,7 +265,6 @@ async fn agent_scheduler_client_uses_task_board_contract_paths() {
     let move_command = AgentSchedulerCommandRequest {
         task_id: "task/custom".into(),
         command: AgentSchedulerCommandKindDto::Move,
-        dispatch_mode: AgentSchedulerDispatchModeDto::Local,
         max_concurrent: None,
         reason: Some("drag".to_string()),
         payload: AgentSchedulerCommandPayloadDto {

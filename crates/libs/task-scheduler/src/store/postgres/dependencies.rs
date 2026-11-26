@@ -36,7 +36,7 @@ impl PostgresAgentSchedulerStore {
             let mut connection = self.database.connect_postgres()?;
             let mut transaction =
                 connection.transaction().context("begin PostgreSQL task dependency replacement")?;
-            super::task_plan::lock_task_plan_project(&mut transaction, &scope)?;
+            super::lock_project_for_task_update(&mut transaction, &scope)?;
             let existing_dependencies =
                 list_task_dependencies_with_client(&mut transaction, &scope)?;
             let task_ids = dependency_task_ids(&existing_dependencies, &dependencies);

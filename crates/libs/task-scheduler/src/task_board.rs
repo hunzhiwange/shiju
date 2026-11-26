@@ -9,7 +9,7 @@ use vw_api_agent_scheduler::{
     TASK_LABEL_IDS_METADATA_KEY, TASK_PROPERTY_VALUES_METADATA_KEY,
 };
 use vw_api_transport::common::TimestampMs;
-use vw_api_task::TaskPoolWorkflowSnapshotDto;
+use vw_api_task::{TaskPoolStatus, TaskPoolWorkflowSnapshotDto};
 
 use crate::domain::TaskId;
 use crate::events::AgentEventKind;
@@ -32,7 +32,7 @@ pub fn create_native_task(
 ) -> Result<task_types::Task> {
     task.id = next_native_task_id(store, context, &task.id)?;
     let task_id = TaskId::new(task.id.clone())?;
-    let metadata = native_task_metadata(&task)?;
+    let metadata = native_task_metadata(&task);
     let created = store.create_task(
         context,
         NewAgentTask {
@@ -143,8 +143,8 @@ fn native_task_title(task: &task_types::Task) -> String {
         .unwrap_or_else(|| task.id.clone())
 }
 
-fn native_task_metadata(task: &task_types::Task) -> Result<Value> {
-    Ok(json!({
+fn native_task_metadata(task: &task_types::Task) -> Value {
+    json!({
         "task_board.status_key": task.status.to_string_key(),
         "priority": task.priority,
         "order_no": task.order,
@@ -155,8 +155,6 @@ fn native_task_metadata(task: &task_types::Task) -> Result<Value> {
         "prompt": task.prompt,
         "deleted": task.deleted,
         "archived": task.archived,
-        "subtasks": serde_json::to_value(&task.subtasks)?,
-        "task_split_mode": task.task_split_mode.to_string_key(),
         "auto_promote_delay_ms": task.auto_promote_delay_ms,
         "last_error": task.last_error,
         "pause_reason": task.pause_reason,
@@ -167,7 +165,7 @@ fn native_task_metadata(task: &task_types::Task) -> Result<Value> {
         "merge_source_branch": task.merge_source_branch,
         "merge_target_branch": task.merge_target_branch,
         "selected_worktree_path": task.selected_worktree_path,
-    }))
+    })
 }
 
 fn stored_native_task(
@@ -218,16 +216,6 @@ fn stored_native_task(
         order: metadata_u32(fields, "order_no"),
         deleted: metadata_bool(fields, "deleted"),
         archived: metadata_bool(fields, "archived"),
-        subtasks: fields
-            .get("subtasks")
-            .cloned()
-            .map(serde_json::from_value)
-            .transpose()
-            .context("parse native task subtasks from scheduler metadata")?
-            .unwrap_or_default(),
-        task_split_mode: metadata_string(fields, "task_split_mode")
-            .and_then(task_types::TaskSplitMode::parse_key)
-            .unwrap_or_default(),
         auto_promote_delay_ms: metadata_u64_optional(fields, "auto_promote_delay_ms"),
         last_error: metadata_owned_string(fields, "last_error"),
         pause_reason: metadata_owned_string(fields, "pause_reason"),
@@ -364,7 +352,7 @@ impl<'a> AgentTaskBoardService<'a> {
             Vec::new()
         };
         let property_changes = std::mem::take(&mut patch.property_changes);
-        let outcome = self.store.edit_task_board_metadata(project_path, task_id, property_changes, |current| {
+        let outcome = self.store.edit_task_board_task(project_path, task_id, property_changes, |current| {
             let from_status_key = task_board_status_key(current);
             let title = optional_required_text(patch.title.clone(), "task title")?;
             let mut status = patch.status.clone().map(task_status_from_dto);
@@ -761,14 +749,6 @@ pub fn apply_workflow_status(
     Ok(runtime_status)
 }
 
-pub(crate) fn validate_task_plan_metadata_key(key: &str) -> Result<()> {
-    if key == "task_plan" || key.starts_with("task_plan.") {
-        return Err(crate::store::task_plan::TaskPlanError::Invalid(
-            "use the placement API to update work plan data".to_owned(),
-        ).into());
-    }
-    Ok(())
-}
 
 pub(super) fn apply_metadata_patch(
     metadata: &mut Map<String, Value>,
@@ -800,7 +780,6 @@ pub(super) fn apply_metadata_patch(
             bail!("metadata_merge must be a JSON object");
         };
         for (key, value) in merge {
-            validate_task_plan_metadata_key(&key)?;
             detail::validate_metadata_key(&key)?;
             if key == TASK_LABEL_IDS_METADATA_KEY {
                 bail!("use label_ids to update task labels");
@@ -812,7 +791,6 @@ pub(super) fn apply_metadata_patch(
         }
     }
     for key in patch.metadata_remove_keys {
-        validate_task_plan_metadata_key(&key)?;
         detail::validate_metadata_key(&key)?;
         if key == TASK_LABEL_IDS_METADATA_KEY {
             bail!("use label_ids to clear task labels");
@@ -855,7 +833,9 @@ pub(super) fn new_task_from_legacy_import(
         set_metadata_string(&mut metadata, "task_board.workflow_id", Some(workflow_id))?;
     }
     if let Some(status_key) = legacy.status_key {
-        set_metadata_string(&mut metadata, "task_board.status_key", Some(status_key))?;
+        let workflow_id = metadata.get("task_board.workflow_id").and_then(Value::as_str);
+        let status_key = TaskPoolStatus::canonical_status_key(&status_key, workflow_id);
+        set_metadata_string(&mut metadata, "task_board.status_key", Some(status_key.to_string()))?;
     }
     if !legacy.prompt.trim().is_empty() {
         metadata.insert("prompt".to_string(), json!(legacy.prompt));
@@ -902,24 +882,25 @@ pub fn task_board_status_key(task: &StoredAgentTask) -> String {
 pub(crate) fn task_board_status_key_for(status: AgentTaskStatus, metadata: &Value) -> String {
     if agent_scheduler_control_status(status) {
         return task_board_status_key_from_map(AgentTaskStatus::Queued, metadata)
-            .unwrap_or_else(|| legacy_task_board_status_key(AgentTaskStatus::Queued).to_string());
+            .unwrap_or_else(|| legacy_task_board_status_key(AgentTaskStatus::Queued))
+            .to_string();
     }
-    metadata
+    let status_key = metadata
         .get("task_board.status_key")
         .and_then(Value::as_str)
         .and_then(non_empty_str)
-        .map(str::to_string)
         .or_else(|| task_board_status_key_from_map(status, metadata))
-        .unwrap_or_else(|| legacy_task_board_status_key(status).to_string())
+        .unwrap_or_else(|| legacy_task_board_status_key(status));
+    let workflow_id = metadata.get("task_board.workflow_id").and_then(Value::as_str);
+    TaskPoolStatus::canonical_status_key(status_key, workflow_id).to_string()
 }
 
-fn task_board_status_key_from_map(status: AgentTaskStatus, metadata: &Value) -> Option<String> {
+fn task_board_status_key_from_map(status: AgentTaskStatus, metadata: &Value) -> Option<&str> {
     let status_key_map = metadata.get("task_board.status_key_map").and_then(Value::as_object)?;
     status_key_map
         .get(status.as_str())
         .and_then(Value::as_str)
         .and_then(non_empty_str)
-        .map(str::to_string)
 }
 
 fn legacy_task_board_status_key(status: AgentTaskStatus) -> &'static str {
@@ -937,7 +918,7 @@ fn agent_status_from_status_key(status_key: &str) -> Option<AgentTaskStatus> {
     match status_key {
         "pool" | "draft" => Some(AgentTaskStatus::Draft),
         "pending" | "queued" => Some(AgentTaskStatus::Queued),
-        "planning" | "assigned" => Some(AgentTaskStatus::Assigned),
+        "assigned" => Some(AgentTaskStatus::Assigned),
         "running" | "active" => Some(AgentTaskStatus::Running),
         "failed" => Some(AgentTaskStatus::Failed),
         "paused" => Some(AgentTaskStatus::Paused),

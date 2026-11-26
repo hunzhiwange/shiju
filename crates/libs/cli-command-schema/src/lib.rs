@@ -5,7 +5,7 @@ mod temperature;
 
 pub use cli::{
     Cli, Commands, CompletionShell, ConfigCommands, DoctorCommands, EmployeeAcpKind, EstopLevelArg,
-    EstopSubcommands, SecurityCommands, TaskCommands, TaskSplitCliMode, write_shell_completion,
+    EstopSubcommands, SecurityCommands, TaskCommands, write_shell_completion,
 };
 use temperature::parse_temperature;
 

@@ -1,3 +1,4 @@
+use desktop_i18n::I18n;
 use desktop_task_model::{
     OwnedStatusDefinition, StatusOutcome, StatusRole, TaskWorkflow, builtin_task_workflows,
 };
@@ -29,12 +30,15 @@ impl StatusGroup {
         }
     }
 
-    pub(super) fn label(self) -> &'static str {
+    pub(super) fn label(self, i18n: I18n) -> &'static str {
         match self {
-            Self::Unstarted => "未开始",
-            Self::Started => "已开始",
-            Self::Done => "已完成",
-            Self::Closed => "已关闭",
+            Self::Unstarted => i18n.__("未开始"),
+            Self::Started => i18n.__("已开始"),
+            Self::Done => i18n.__("已完成"),
+            // The unqualified translation refers to a disabled setting.
+            Self::Closed => i18n
+                .__("已关闭（工作流状态）")
+                .trim_end_matches("（工作流状态）"),
         }
     }
 }
@@ -91,7 +95,7 @@ pub(super) fn status_behavior(workflow: &TaskWorkflow, status: &OwnedStatusDefin
             "等待规划",
             "允许调度后，有可用执行名额时可以开始规划。",
         ),
-        StatusRole::Planning => ("准备执行计划", "这一步用于拆分任务和准备执行计划。"),
+        StatusRole::Planning => ("准备执行计划", "这一步用于准备执行计划。"),
         StatusRole::Executing => ("正在执行", "这一步记录任务的执行进度。"),
         StatusRole::Failed if has_retry_target(workflow, status) => (
             "失败后按项目设置重试",

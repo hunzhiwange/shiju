@@ -108,7 +108,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
     .height(Length::Fill)
     .spacing(10);
     if board.work_editor_open {
-        content = content.push(super::work_view_editor::view(app, false));
+        content = content.push(super::work_view_editor::view(app));
     }
     content.push(super::board::build_work_display(app)).into()
 }
@@ -172,12 +172,6 @@ fn options(app: &App, i18n: I18n) -> Element<'_, Message> {
                 ),
             ]
         ),
-        settings_toggle(display.show_children)
-            .label(i18n.__("显示子任务"))
-            .text_size(13)
-            .on_toggle(move |show_children| {
-                TaskBoardMessage::ChangeWorkDisplay(WorkDisplay { show_children, ..display }).into()
-            }),
     ]
     .spacing(12);
 
@@ -202,18 +196,6 @@ fn options(app: &App, i18n: I18n) -> Element<'_, Message> {
                     .on_toggle(move |table_group_status| {
                         TaskBoardMessage::ChangeWorkDisplay(WorkDisplay {
                             table_group_status,
-                            ..display
-                        })
-                        .into()
-                    }),
-            )
-            .push(
-                settings_toggle(display.table_hierarchy)
-                    .label(i18n.__("嵌套显示子任务"))
-                    .text_size(13)
-                    .on_toggle(move |table_hierarchy| {
-                        TaskBoardMessage::ChangeWorkDisplay(WorkDisplay {
-                            table_hierarchy,
                             ..display
                         })
                         .into()

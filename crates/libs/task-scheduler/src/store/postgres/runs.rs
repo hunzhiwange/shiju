@@ -7,7 +7,6 @@ use vw_api_agent_scheduler::AgentSchedulerScope;
 use vw_api_transport::common::TimestampMs;
 
 use super::PostgresAgentSchedulerStore;
-use super::task_plan::{claim_summary, load_plan_dispatch_snapshot, lock_task_plan_project};
 use super::tasks::{load_task_for_update, load_workflow_with_client};
 use crate::domain::{AgentRunStatus, RunId, TaskId};
 use crate::engine::dispatch::{effective_dispatch_workflow, task_lifecycle_allows_dispatch};
@@ -81,7 +80,7 @@ impl PostgresAgentSchedulerStore {
             let project = scope.project_scope();
             let mut connection = self.database.connect_postgres()?;
             let mut transaction = connection.transaction().context("begin PostgreSQL run claim")?;
-            lock_task_plan_project(&mut transaction, &scope)?;
+            super::lock_project_for_task_update(&mut transaction, &scope)?;
             let task_status = transaction
                 .query_opt(
                     "SELECT status FROM scheduler_tasks
@@ -127,14 +126,6 @@ impl PostgresAgentSchedulerStore {
             }
 
             if has_unsatisfied_dependencies(&mut transaction, &scope, &request.task_id)? {
-                return Ok(None);
-            }
-            let workflow =
-                effective_dispatch_workflow(load_workflow_with_client(&mut transaction, &scope)?)?;
-            if load_plan_dispatch_snapshot(&mut transaction, &scope, Some(&request.task_id))?
-                .blocker_for(&request.task_id, &workflow)
-                .is_some()
-            {
                 return Ok(None);
             }
 
@@ -198,7 +189,7 @@ impl PostgresAgentSchedulerStore {
             let mut connection = self.database.connect_postgres()?;
             let mut transaction =
                 connection.transaction().context("begin PostgreSQL ready task run claim")?;
-            lock_task_plan_project(&mut transaction, &scope)?;
+            super::lock_project_for_task_update(&mut transaction, &scope)?;
             if let Some(limit) = max_concurrent {
                 let active: i64 = transaction.query_one(
                     &format!("{FINITE_EXECUTION_SLOT_COUNT_SQL} AND t.platform_id = $1
@@ -226,9 +217,6 @@ impl PostgresAgentSchedulerStore {
             let workflow =
                 effective_dispatch_workflow(load_workflow_with_client(&mut transaction, &scope)?)?;
             if !task_lifecycle_allows_dispatch(context, &task, &workflow)
-                || load_plan_dispatch_snapshot(&mut transaction, &scope, Some(&request.task_id))?
-                    .blocker_for(&request.task_id, &workflow)
-                    .is_some()
             {
                 return Ok(None);
             }
@@ -294,7 +282,6 @@ impl PostgresAgentSchedulerStore {
                 .with_context(|| {
                     format!("insert scoped PostgreSQL ready run claim: {}", request.run_id.as_str())
                 })?;
-            claim_summary(&mut transaction, &scope, &request.task_id, &request.run_id)?;
             let stored = load_run_with_client(&mut transaction, &scope, &request.run_id)?
                 .with_context(|| {
                     format!(

@@ -72,68 +72,21 @@ fn import_demo_content_returns_each_supported_format_and_rejects_unknown_names()
     assert!(json.contains("\"reasoning_effort\": \"high\""));
 
     let csv = super::import_demo_content("CSV 示例").expect("CSV demo should exist");
-    assert!(csv.starts_with("priority,prompt,model,acp_agent,reasoning_effort,task_split_mode\n"));
     assert!(csv.contains(",auto,claude,max,follow_system"));
 
     let tsv = super::import_demo_content("TSV 示例").expect("TSV demo should exist");
     assert!(
-        tsv.starts_with("priority\tprompt\tmodel\tacp_agent\treasoning_effort\ttask_split_mode\n")
+        tsv.starts_with("priority\tprompt\tmodel\tacp_agent\treasoning_effort\n")
     );
     assert!(tsv.contains("\tauto\topencode\thigh\tfollow_system"));
 
     assert_eq!(super::import_demo_content("YAML 示例"), None);
 }
 
-#[test]
-fn json_import_prompt_uses_selected_values_and_includes_reasoning_effort() {
-    let prompt = super::import_prompt_template(
-        desktop_task_model::TaskImportPromptFormat::Json,
-        321,
-        "  gpt-5  ",
-        Some("claude"),
-    );
-
-    assert!(prompt.contains("priority 使用数字，建议优先使用 321"));
-    assert!(prompt.contains("model 默认使用 gpt-5"));
-    assert!(prompt.contains("acp_agent 默认使用 claude"));
-    assert!(prompt.contains("\"reasoning_effort\": null"));
-    assert!(prompt.contains("reasoning_effort 可留空表示默认"));
-}
 
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
 // 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
-#[test]
-fn csv_import_prompt_uses_auto_and_default_fallbacks_with_extended_header() {
-    let prompt = super::import_prompt_template(
-        desktop_task_model::TaskImportPromptFormat::Csv,
-        700,
-        "   ",
-        None,
-    );
 
-    assert!(prompt.contains("priority,prompt,model,acp_agent,reasoning_effort,task_split_mode"));
-    assert!(prompt.contains("model 默认使用 auto"));
-    assert!(prompt.contains("acp_agent 默认使用 default"));
-    assert!(prompt.contains(",auto,default,,follow_system"));
-}
-
-#[test]
-fn tsv_import_prompt_inserts_empty_reasoning_effort_column() {
-    let prompt = super::import_prompt_template(
-        desktop_task_model::TaskImportPromptFormat::Tsv,
-        900,
-        "auto",
-        Some("opencode"),
-    );
-
-    assert!(prompt.contains(
-        "priority<TAB>prompt<TAB>model<TAB>acp_agent<TAB>reasoning_effort<TAB>task_split_mode"
-    ));
-    assert!(
-        prompt.contains("priority\tprompt\tmodel\tacp_agent\treasoning_effort\ttask_split_mode")
-    );
-    assert!(prompt.contains("\tauto\topencode\t\tfollow_system"));
-}
 
 #[test]
 fn initial_task_status_uses_first_status_for_selected_workflow() {

@@ -8,8 +8,7 @@ mod paths;
 mod persistence;
 
 pub use artifacts::{
-    save_task_code_review_result_artifact, save_task_execution_result_artifact,
-    write_task_code_review_result_log, write_task_execution_result_log,
+    save_task_execution_result_artifact, write_task_execution_result_log,
 };
 pub use operations::{
     create_task, load_tasks_by_status, rebuild_failed_task_from_current_branch,

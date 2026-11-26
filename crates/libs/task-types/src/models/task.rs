@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
-use super::{now_ms, SubTask, TaskExecutorBackend, TaskSplitMode, TASK_MODEL_AUTO};
+use super::{now_ms, TaskExecutorBackend, TASK_MODEL_AUTO};
 
 /// TaskStatus 枚举描述该模块支持的 TaskStatus 取值集合。
 ///
@@ -13,8 +13,8 @@ pub enum TaskStatus {
     Running,
     Failed,
     Paused,
+    #[serde(alias = "CodeReview", alias = "code_review")]
     CodeComplete,
-    CodeReview,
     PrSubmitted,
     Completed,
     Archived,
@@ -24,7 +24,7 @@ impl TaskStatus {
     /// 提供 all 功能。
     ///
     /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
-    pub fn all() -> [TaskStatus; 10] {
+    pub fn all() -> [TaskStatus; 9] {
         [
             TaskStatus::Pool,
             TaskStatus::Pending,
@@ -32,7 +32,6 @@ impl TaskStatus {
             TaskStatus::Failed,
             TaskStatus::Paused,
             TaskStatus::CodeComplete,
-            TaskStatus::CodeReview,
             TaskStatus::PrSubmitted,
             TaskStatus::Completed,
             TaskStatus::Archived,
@@ -50,7 +49,6 @@ impl TaskStatus {
             TaskStatus::Failed => "执行失败",
             TaskStatus::Paused => "暂停中",
             TaskStatus::CodeComplete => "代码完成",
-            TaskStatus::CodeReview => "代码审核",
             TaskStatus::PrSubmitted => "合并代码",
             TaskStatus::Completed => "任务完成",
             TaskStatus::Archived => "任务归档",
@@ -67,8 +65,7 @@ impl TaskStatus {
             TaskStatus::Running => Some(TaskStatus::CodeComplete),
             TaskStatus::Failed => Some(TaskStatus::Pending),
             TaskStatus::Paused => None,
-            TaskStatus::CodeComplete => Some(TaskStatus::CodeReview),
-            TaskStatus::CodeReview => Some(TaskStatus::PrSubmitted),
+            TaskStatus::CodeComplete => Some(TaskStatus::PrSubmitted),
             TaskStatus::PrSubmitted => Some(TaskStatus::Completed),
             TaskStatus::Completed => Some(TaskStatus::Archived),
             TaskStatus::Archived => None,
@@ -85,9 +82,8 @@ impl TaskStatus {
             "running" | "Running" => Some(TaskStatus::Running),
             "failed" | "Failed" => Some(TaskStatus::Failed),
             "paused" | "Paused" => Some(TaskStatus::Paused),
-            "code_complete" | "CodeComplete" => Some(TaskStatus::CodeComplete),
+            "code_complete" | "CodeComplete" | "code_review" | "CodeReview" => Some(TaskStatus::CodeComplete),
             "pr_submitted" | "PrSubmitted" => Some(TaskStatus::PrSubmitted),
-            "code_review" | "CodeReview" => Some(TaskStatus::CodeReview),
             "completed" | "Completed" => Some(TaskStatus::Completed),
             "archived" | "Archived" => Some(TaskStatus::Archived),
             _ => None,
@@ -106,7 +102,6 @@ impl TaskStatus {
             TaskStatus::Paused => "paused",
             TaskStatus::CodeComplete => "code_complete",
             TaskStatus::PrSubmitted => "pr_submitted",
-            TaskStatus::CodeReview => "code_review",
             TaskStatus::Completed => "completed",
             TaskStatus::Archived => "archived",
         }
@@ -178,9 +173,7 @@ pub struct Task {
     pub order: u32,
     pub deleted: bool,
     pub archived: bool,
-    pub subtasks: Vec<SubTask>,
     #[serde(default)]
-    pub task_split_mode: TaskSplitMode,
     pub auto_promote_delay_ms: Option<u64>,
     #[serde(default)]
     pub last_error: Option<String>,
@@ -219,8 +212,6 @@ impl Default for Task {
             order: 0,
             deleted: false,
             archived: false,
-            subtasks: Vec::new(),
-            task_split_mode: TaskSplitMode::FollowSystem,
             auto_promote_delay_ms: None,
             last_error: None,
             pause_reason: None,
@@ -256,8 +247,6 @@ impl Task {
             order: 0,
             deleted: false,
             archived: false,
-            subtasks: Vec::new(),
-            task_split_mode: TaskSplitMode::FollowSystem,
             auto_promote_delay_ms: None,
             last_error: None,
             pause_reason: None,

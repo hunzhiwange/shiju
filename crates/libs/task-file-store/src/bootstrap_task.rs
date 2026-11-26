@@ -100,6 +100,18 @@ pub fn create_task(project_path: &str, mut task: Task) -> std::io::Result<Task> 
     let mut conn = open_task_connection(&task_dir)?;
     let tx = conn.transaction().map_err(sqlite_to_io_error)?;
 
+    let has_removed_column = tx
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('tasks') WHERE name = 'subtasks_json')",
+            [],
+            |row| row.get::<_, bool>(0),
+        )
+        .map_err(sqlite_to_io_error)?;
+    if has_removed_column {
+        tx.execute_batch("ALTER TABLE tasks DROP COLUMN subtasks_json")
+            .map_err(sqlite_to_io_error)?;
+    }
+
     let now = Utc::now();
     let date = format!("{:04}{:02}{:02}", now.year(), now.month(), now.day());
     let next_seq = next_task_sequence(&tx, &date)?;
@@ -110,19 +122,18 @@ pub fn create_task(project_path: &str, mut task: Task) -> std::io::Result<Task> 
     let model = normalize_model(&task.model);
     let agent = trimmed_optional(task.agent.clone()).or_else(|| Some("main".to_string()));
     let acp_agent = trimmed_optional(task.acp_agent.clone());
-    let subtasks_json = "[]";
 
     tx.execute(
         "INSERT OR REPLACE INTO tasks (
             id, priority, assignee, model, agent, acp_agent, description, prompt, status_key,
-            created_at_ms, updated_at_ms, order_no, deleted, archived, subtasks_json,
+            created_at_ms, updated_at_ms, order_no, deleted, archived,
             auto_promote_delay_ms, last_error, pause_reason, retry_count, last_active_at_ms,
             execution_started_at_ms, last_execution_duration_ms, merge_source_branch,
             merge_target_branch, selected_worktree_path
         ) VALUES (
             ?1, ?2, 'VibeWindow', ?3, ?4, ?5, '', ?6, ?7,
-            ?8, ?9, ?10, 0, 0, ?11,
-            NULL, NULL, NULL, 0, ?12,
+            ?8, ?9, ?10, 0, 0,
+            NULL, NULL, NULL, 0, ?11,
             NULL, NULL, NULL, NULL, NULL
         )",
         params![
@@ -136,7 +147,6 @@ pub fn create_task(project_path: &str, mut task: Task) -> std::io::Result<Task> 
             now_ms,
             now_ms,
             order_no,
-            subtasks_json,
             now_ms,
         ],
     )
@@ -383,7 +393,6 @@ fn open_task_connection(task_dir: &Path) -> io::Result<Connection> {
              order_no INTEGER NOT NULL,
              deleted INTEGER NOT NULL,
              archived INTEGER NOT NULL,
-             subtasks_json TEXT NOT NULL,
              auto_promote_delay_ms INTEGER,
              last_error TEXT,
              pause_reason TEXT,

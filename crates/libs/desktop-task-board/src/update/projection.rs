@@ -1,5 +1,5 @@
 //! 调度快照、日志与本地运行状态的任务投影。
-use desktop_task_model::{StatusRole, SubTask, Task, TaskLogEntry, TaskStatus};
+use desktop_task_model::{StatusRole, Task, TaskLogEntry, TaskStatus};
 
 fn task_status_from_agent_scheduler_key(status_key: &str) -> Option<TaskStatus> {
     match status_key.trim() {
@@ -8,7 +8,7 @@ fn task_status_from_agent_scheduler_key(status_key: &str) -> Option<TaskStatus> 
             Some(TaskStatus::Pending)
         }
         "running" => Some(TaskStatus::Running),
-        "submitted" | "revision" => Some(TaskStatus::CodeReview),
+        "submitted" | "revision" => Some(TaskStatus::CodeComplete),
         "blocked" | "paused" => Some(TaskStatus::Paused),
         "completed" => Some(TaskStatus::Completed),
         "failed" => Some(TaskStatus::Failed),
@@ -30,22 +30,11 @@ fn task_status_from_agent_scheduler_status(
         | AgentTaskStatusDto::Dispatched
         | AgentTaskStatusDto::Acknowledged => TaskStatus::Pending,
         AgentTaskStatusDto::Running => TaskStatus::Running,
-        AgentTaskStatusDto::Submitted | AgentTaskStatusDto::Revision => TaskStatus::CodeReview,
+        AgentTaskStatusDto::Submitted | AgentTaskStatusDto::Revision => TaskStatus::CodeComplete,
         AgentTaskStatusDto::Blocked | AgentTaskStatusDto::Paused => TaskStatus::Paused,
         AgentTaskStatusDto::Completed => TaskStatus::Completed,
         AgentTaskStatusDto::Failed => TaskStatus::Failed,
         AgentTaskStatusDto::Cancelled | AgentTaskStatusDto::Archived => TaskStatus::Archived,
-    }
-}
-
-fn task_status_from_agent_scheduler_snapshot_status(
-    status: vw_api_agent_scheduler::AgentTaskStatusDto,
-) -> TaskStatus {
-    use vw_api_agent_scheduler::AgentTaskStatusDto;
-
-    match status {
-        AgentTaskStatusDto::Submitted => TaskStatus::CodeComplete,
-        other => task_status_from_agent_scheduler_status(other),
     }
 }
 
@@ -63,9 +52,11 @@ fn run_stage_is_running(run_stage: Option<&str>) -> bool {
 fn task_status_from_agent_scheduler_snapshot(
     snapshot: &vw_api_agent_scheduler::AgentSchedulerTaskBoardTaskDto,
 ) -> TaskStatus {
-    let agent_status =
-        snapshot.status.clone().map(task_status_from_agent_scheduler_snapshot_status);
-    let status_key = snapshot.status_key.trim();
+    let agent_status = snapshot.status.clone().map(task_status_from_agent_scheduler_status);
+    let status_key = vw_api_task::TaskPoolStatus::canonical_status_key(
+        snapshot.status_key.trim(),
+        snapshot.read_model.workflow_id.as_deref(),
+    );
     if !status_key.is_empty()
         && let Some(status) = task_status_from_agent_scheduler_key(status_key)
     {
@@ -82,16 +73,6 @@ fn task_status_from_agent_scheduler_snapshot(
     agent_status.unwrap_or(TaskStatus::Pool)
 }
 
-pub fn work_plan_task(
-    snapshot: &vw_api_agent_scheduler::AgentSchedulerTaskBoardTaskDto,
-) -> crate::work_views::WorkPlanTask {
-    crate::work_views::WorkPlanTask {
-        placement: snapshot.placement.clone(),
-        status: task_status_from_agent_scheduler_snapshot(snapshot),
-        status_label: snapshot.read_model.status_label.clone(),
-        blocker: snapshot.read_model.dispatch_blocker.clone(),
-    }
-}
 
 fn task_status_from_agent_scheduler_log(
     status_key: Option<&str>,
@@ -148,35 +129,6 @@ fn merge_agent_scheduler_task_logs(
     changed
 }
 
-/// 按批次汇总子任务，生成形如「批次 1: 2 个; 批次 2(依赖 1): 1 个」的简短摘要。
-///
-/// 仅用于规划完成后的任务日志展示，按批次号升序输出；依赖批次取该批次内任一子任务声明的
-/// 依赖批次（同批次依赖批次一致），无依赖时省略括号。
-pub(super) fn summarize_subtask_batches(subtasks: &[SubTask]) -> String {
-    use std::collections::BTreeMap;
-
-    let mut counts: BTreeMap<u32, usize> = BTreeMap::new();
-    let mut depends: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
-    for subtask in subtasks {
-        *counts.entry(subtask.batch).or_default() += 1;
-        depends.entry(subtask.batch).or_insert_with(|| subtask.depends_on_batches.clone());
-    }
-
-    counts
-        .into_iter()
-        .map(|(batch, count)| {
-            let dependency = depends.get(&batch).filter(|values| !values.is_empty());
-            match dependency {
-                Some(values) => {
-                    let joined = values.iter().map(u32::to_string).collect::<Vec<_>>().join(", ");
-                    format!("批次 {batch}(依赖 {joined}): {count} 个")
-                }
-                None => format!("批次 {batch}: {count} 个"),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("; ")
-}
 
 fn runtime_order_no_to_task_order(order_no: i64) -> u32 {
     u32::try_from(order_no.max(0)).unwrap_or(u32::MAX)
@@ -206,14 +158,6 @@ fn apply_agent_scheduler_task_snapshot(
     task.acp_agent = snapshot.acp_agent.clone();
     task.reasoning_effort = snapshot.reasoning_effort;
     task.prompt = snapshot.prompt.clone();
-    if let Some(subtasks) = &snapshot.read_model.legacy_subtasks
-        && let Ok(subtasks) = serde_json::from_value(subtasks.clone())
-    {
-        task.subtasks = subtasks;
-    }
-    task.task_split_mode = snapshot.read_model.task_split_mode.as_deref()
-        .and_then(desktop_task_model::TaskSplitMode::parse_key)
-        .unwrap_or_default();
     task.retry_count = snapshot.retry_count;
     task.last_error = snapshot.last_error.clone();
     task.pause_reason = snapshot.pause_reason.clone();
@@ -402,21 +346,6 @@ pub fn apply_agent_scheduler_logs(
     (updated_tasks, updated_task_ids)
 }
 
-fn scheduler_followup_ticks(
-    workflow: &desktop_task_model::TaskWorkflow,
-    updated_tasks: &[Task],
-) -> (bool, bool) {
-    let should_schedule_review = updated_tasks.iter().any(|task| {
-        workflow.status_role(task.status)
-            .is_some_and(|role| matches!(role, StatusRole::ReviewReady | StatusRole::Review))
-    });
-    let should_schedule_merge = updated_tasks.iter().any(|task| {
-        workflow.status_role(task.status)
-            .is_some_and(|role| matches!(role, StatusRole::Merging))
-    });
-    (should_schedule_review, should_schedule_merge)
-}
-
 pub fn task_board_project_matches(current_project_path: Option<&str>, project_path: &str) -> bool {
     current_project_path == Some(project_path)
 }
@@ -478,14 +407,13 @@ impl BoardProjection<'_> {
     }
 }
 
-pub fn scheduler_followups_for_runtime(
+pub fn should_schedule_merge(
     settings: &desktop_task_model::TaskBoardSettings,
     tasks: &[Task],
     running: bool,
-) -> (bool, bool) {
-    if running && let Some(workflow) = settings.workflow() {
-        scheduler_followup_ticks(&workflow, tasks)
-    } else {
-        (false, false)
-    }
+) -> bool {
+    running
+        && settings.workflow().is_some_and(|workflow| {
+            tasks.iter().any(|task| workflow.status_role(task.status) == Some(StatusRole::Merging))
+        })
 }

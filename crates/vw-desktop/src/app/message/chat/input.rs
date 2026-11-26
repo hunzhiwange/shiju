@@ -166,7 +166,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let LoadState::Loaded(skills) = &app.expert_hub.installed else {
                 return update(app, ChatMessage::ToggleShijuSkillMenu);
             };
-            let mut matches = skills.iter().filter(|skill| skill.slug == "cutvideo");
+            let mut matches = skills.iter().filter(|skill| skill.slug == slug);
             let Some(skill) = matches.next() else {
                 return app.show_localized_toast(
                     crate::app::state::ToastKind::Info,
@@ -712,9 +712,6 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::TaskModeModelChanged(model) => {
             task_mode::handle_task_mode_model_changed(app, model)
-        }
-        ChatMessage::TaskModeTaskSplitModeChanged(mode) => {
-            task_mode::handle_task_mode_task_split_mode_changed(app, mode)
         }
         ChatMessage::TaskModeExecutorChanged(executor) => {
             task_mode::handle_task_mode_executor_changed(app, executor)

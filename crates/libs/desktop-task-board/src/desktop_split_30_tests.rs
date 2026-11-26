@@ -1,4 +1,4 @@
-use desktop_task_model::{Task, TaskSplitMode, TaskStatus};
+use desktop_task_model::{Task, TaskStatus};
 use vw_api_agent_scheduler::AgentTaskStatusDto;
 use vw_api_task::TaskPoolWorkflowStatusRoleDto;
 fn task(id: &str, status: TaskStatus) -> Task {
@@ -18,7 +18,6 @@ fn task_metadata_patch_trims_workflow_and_copies_task_fields() {
     task.acp_agent = Some("codex".to_string());
     task.assignee = "Alice".to_string();
     task.description = "description".to_string();
-    task.task_split_mode = TaskSplitMode::Enabled;
     task.auto_promote_delay_ms = Some(5_000);
 
     let patch = crate::bulk::task_metadata_patch_for_gateway(
@@ -46,7 +45,6 @@ fn task_metadata_patch_trims_workflow_and_copies_task_fields() {
             "assignee": "Alice",
             "description": "description",
             "auto_promote_delay_ms": 5_000,
-            "task_split_mode": "enabled",
         }))
     );
     assert!(patch.metadata_remove_keys.is_empty());
@@ -215,7 +213,7 @@ mod logs {
     #[test]
     fn refresh_task_log_cache_by_id_updates_only_existing_task() {
         let mut app = LogsFixture {
-            task_board_tasks: vec![task("active", TaskStatus::Planning, vec![log(1, "planning")])],
+            task_board_tasks: vec![task("active", TaskStatus::Running, vec![log(1, "planning")])],
             ..Default::default()
         };
         app.task_board_log_cache.insert("untouched".to_string(), vec![log(2, "keep")]);
@@ -272,7 +270,7 @@ mod logs {
         let mut app = LogsFixture::default();
         app.task_board_tasks = vec![
             task("viewed", TaskStatus::Running, vec![log(1_000, "updated viewed")]),
-            task("other", TaskStatus::Planning, vec![log(2_000, "updated other")]),
+            task("other", TaskStatus::Running, vec![log(2_000, "updated other")]),
         ];
         app.task_board_viewing_logs = Some(task("viewed", TaskStatus::Running, Vec::new()));
 

@@ -1,4 +1,4 @@
-//! 生成任务执行与审查产物，并按平台边界写入日志目录。
+//! 生成任务执行产物，并按平台边界写入日志目录。
 
 #[cfg(any(target_arch = "wasm32", test))]
 use std::fmt::Write as _;
@@ -35,30 +35,6 @@ fn execution_result_content(task: &Task, result: &Result<String, String>) -> Str
     content
 }
 
-#[cfg(any(target_arch = "wasm32", test))]
-fn review_result_content(
-    task: &Task,
-    result: &Result<String, String>,
-    full_system_prompt: Option<&str>,
-) -> String {
-    let mut content = String::new();
-    let _ = writeln!(content, "task_id={}", task.id);
-    let _ = writeln!(content, "acp_agent={}", stored_task_executor_name(task));
-    let _ = writeln!(content, "model={}", task.model);
-    if let Some(prompt) = full_system_prompt {
-        let _ = writeln!(content, "review_system_prompt_full:\n{prompt}");
-    }
-    match result {
-        Ok(output) => {
-            let _ = writeln!(content, "review_result=success\nreview_output:\n{output}");
-        }
-        Err(error) => {
-            let _ = writeln!(content, "review_result=error\nreview_error:\n{error}");
-        }
-    }
-    content
-}
-
 /// 将任务执行结果写入日志；原生端迁移后返回明确的不支持错误。
 pub fn write_task_execution_result_log(
     project_path: &str,
@@ -80,28 +56,6 @@ pub fn write_task_execution_result_log(
     }
 }
 
-/// 将代码审查结果和可选系统提示写入任务日志。
-pub fn write_task_code_review_result_log(
-    project_path: &str,
-    task: &Task,
-    result: &Result<String, String>,
-    full_system_prompt: Option<&str>,
-) -> io::Result<PathBuf> {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let _ = (project_path, task, result, full_system_prompt);
-        Err(native_cutover_error())
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        let directory = get_task_log_dir(project_path);
-        std::fs::create_dir_all(&directory)?;
-        let path = directory.join(format!("[{}].review.log", task.id));
-        std::fs::write(&path, review_result_content(task, result, full_system_prompt))?;
-        Ok(path)
-    }
-}
-
 /// 将执行结果保存为调用方指定的产物文件。
 pub fn save_task_execution_result_artifact(
     project_path: &str,
@@ -110,21 +64,6 @@ pub fn save_task_execution_result_artifact(
     file_path: Option<&Path>,
 ) -> io::Result<()> {
     let _ = (project_path, task, result, file_path);
-    #[cfg(not(target_arch = "wasm32"))]
-    return Err(native_cutover_error());
-    #[cfg(target_arch = "wasm32")]
-    Ok(())
-}
-
-/// 将代码审查结果保存为调用方指定的产物文件。
-pub fn save_task_code_review_result_artifact(
-    project_path: &str,
-    task: &Task,
-    result: &Result<String, String>,
-    full_system_prompt: Option<&str>,
-    file_path: Option<&Path>,
-) -> io::Result<()> {
-    let _ = (project_path, task, result, full_system_prompt, file_path);
     #[cfg(not(target_arch = "wasm32"))]
     return Err(native_cutover_error());
     #[cfg(target_arch = "wasm32")]

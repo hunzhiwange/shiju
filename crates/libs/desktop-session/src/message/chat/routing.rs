@@ -114,7 +114,6 @@ impl<M, P, V, D, T, G, Media> ChatMessage<M, P, V, D, T, G, Media> {
             | ChatMessage::TaskModeExecutorChanged(_)
             | ChatMessage::TaskModeReasoningEffortChanged(_)
             | ChatMessage::TaskModeModelChanged(_)
-            | ChatMessage::TaskModeTaskSplitModeChanged(_)
             | ChatMessage::OpenForkSessionDialog(_)
             | ChatMessage::CloseForkSessionDialog
             | ChatMessage::ToggleResetMenu(_)

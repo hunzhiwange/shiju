@@ -1,5 +1,5 @@
 //! 任务详情面板组合测试，覆盖选中任务、空状态和各折叠区块。
-//! fixture 串联执行器、模型、日志与子任务控件，验证消息路由和布局。
+//! fixture 串联执行器、模型、日志控件，验证消息路由和布局。
 use super::*;
 use desktop_settings_agents::state::DelegateAgentSettingsEntry;
 use desktop_task_model::TaskStatus;
@@ -52,7 +52,6 @@ fn task_status_colors_cover_builtin_and_custom_statuses() {
     let cases = [
         (TaskStatus::Pool, (Color::from_rgb8(107, 114, 128), Color::from_rgb8(243, 244, 246))),
         (TaskStatus::Pending, (Color::from_rgb8(37, 99, 235), Color::from_rgb8(219, 234, 254))),
-        (TaskStatus::Planning, (Color::from_rgb8(79, 70, 229), Color::from_rgb8(224, 231, 255))),
         (TaskStatus::Running, (Color::from_rgb8(147, 51, 234), Color::from_rgb8(243, 232, 255))),
         (TaskStatus::Failed, (Color::from_rgb8(220, 38, 38), Color::from_rgb8(254, 226, 226))),
         (TaskStatus::Paused, (Color::from_rgb8(202, 138, 4), Color::from_rgb8(254, 249, 195))),
@@ -60,7 +59,6 @@ fn task_status_colors_cover_builtin_and_custom_statuses() {
             TaskStatus::CodeComplete,
             (Color::from_rgb8(5, 150, 105), Color::from_rgb8(209, 250, 229)),
         ),
-        (TaskStatus::CodeReview, (Color::from_rgb8(217, 119, 6), Color::from_rgb8(254, 243, 199))),
         (TaskStatus::PrSubmitted, (Color::from_rgb8(8, 145, 178), Color::from_rgb8(207, 250, 254))),
         (TaskStatus::Completed, (Color::from_rgb8(22, 163, 74), Color::from_rgb8(220, 252, 231))),
         (TaskStatus::Archived, (Color::from_rgb8(100, 116, 139), Color::from_rgb8(241, 245, 249))),
@@ -272,9 +270,6 @@ fn field_and_action_builders_cover_draft_edit_and_bulk_message_paths() {
 
     keep_element(build_priority_field(app.view(), false));
     keep_element(build_priority_field(app.view(), true));
-    keep_element(build_task_split_mode_selector(app.view(), false));
-    keep_element(build_task_split_mode_selector(app.view(), true));
-    keep_element(build_bulk_task_split_selector(app.view()));
     keep_element(build_agent_field(app.view(), false));
     keep_element(build_agent_field(app.view(), true));
     keep_element(build_bulk_agent_selector(app.view()));
@@ -296,9 +291,7 @@ fn task_panel_builds_create_import_edit_and_logs_layouts() {
     keep_element(test_panel(&app, false));
 
     app.task_board_is_import_mode = true;
-    app.task_board_import_prompt_collapsed = false;
     keep_element(test_panel(&app, false));
-    app.task_board_import_prompt_collapsed = true;
     keep_element(test_panel(&app, false));
 
     let mut task = Task { id: "task-panel".to_string(), ..Task::default() };
@@ -377,22 +370,8 @@ fn supporting_panel_builders_construct_tabs_headers_and_completion_options() {
 }
 
 #[test]
-fn import_field_builds_each_template_format_and_priority_fallback() {
-    let mut app = test_app();
-    app.task_board_is_import_mode = true;
-    app.task_board_draft.priority = "not-a-number".to_string();
-    app.task_board_import_prompt_collapsed = false;
-
-    for format in [
-        desktop_task_model::TaskImportPromptFormat::Json,
-        desktop_task_model::TaskImportPromptFormat::Csv,
-        desktop_task_model::TaskImportPromptFormat::Tsv,
-    ] {
-        app.task_board_import_prompt_format = format;
-        keep_element(build_import_field(app.view()));
-    }
-
-    app.task_board_import_prompt_collapsed = true;
+fn import_field_builds_with_examples_and_editor() {
+    let app = test_app();
     keep_element(build_import_field(app.view()));
 }
 
@@ -401,33 +380,4 @@ fn test_panel(app: &App, edit: bool) -> Element<'_, Message> {
  let selector = crate::model_selector::SelectorView { draft_model: &app.task_board_draft.model, draft_acp_agent: None, bulk_has_acp_tasks: false, bulk_model: "", task_board_model_popover: false, task_board_bulk_model_popover: false, desktop_locale: app.desktop_locale, model_settings: &app.model_settings };
  let executor = executor_selector::ExecutorView { task_board_draft: &app.task_board_draft, task_board_bulk_acp_agent: &None, task_board_executor_popover: false, task_board_bulk_executor_popover: false, desktop_locale: app.desktop_locale, acp_agents: &[] };
  build_task_panel(app.view(), edit, PanelSlots { model: Some(crate::model_selector::build_model_selector(selector, edit).map(Message::Model)), executor: Some(executor_selector::build_executor_selector(executor, edit).map(Message::TaskBoard)), reasoning: reasoning_selector::build_reasoning_effort_selector(reasoning_selector::ReasoningView { draft: &app.task_board_draft, bulk_agent: None, bulk_effort: None, model_options: &[None], desktop_locale: app.desktop_locale }, edit).map(|e| e.map(Message::TaskBoard)) })
-}
-
-#[test]
-fn work_plan_legacy_detail_is_read_only() {
-    let mut task = Task::new(1);
-    let mut completed = desktop_task_model::SubTask::new("已完成的旧子任务".into());
-    completed.mark_completed_at(2);
-    task.subtasks.push(completed);
-
-    let history: Element<'_, Message> = super::logs_modal::build_subtasks_section(
-        I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
-        &task,
-        iced::widget::column![],
-    ).into();
-    let children = history.as_widget().children();
-    let [_, _, rows, _] = children.as_slice() else {
-        panic!("expected heading, historical rows and spacing");
-    };
-    let [record] = rows.children.as_slice() else {
-        panic!("expected one historical record");
-    };
-    let [card] = record.children.as_slice() else {
-        panic!("expected read-only historical card");
-    };
-    let [summary, _timing] = card.children.as_slice() else {
-        panic!("expected record summary and timing");
-    };
-    assert_eq!(summary.children.len(), 3);
-    assert!(task.subtasks[0].completed);
 }

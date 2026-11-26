@@ -289,117 +289,6 @@ fn clear<'a>(
         .on_press_maybe(enabled.then_some(Message::TaskBoard(message)))
 }
 
-fn batch_editor<'a>(
-    i18n: desktop_i18n::I18n,
-    app: &'a App,
-    task: &desktop_task_model::Task,
-) -> Option<Element<'a, Message>> {
-    use vw_api_agent_scheduler::AgentSchedulerTaskPlanPlacementDto as Placement;
-
-    let (_, plan) = super::work_plan::current(app)?;
-    let snapshot = plan.tasks.get(&task.id)?;
-    if task.archived || task.deleted {
-        return None;
-    }
-    let stored = match &snapshot.placement {
-        Some(Placement::Child { .. }) => return None,
-        Some(Placement::Root { outer_batch, inner_batch }) => {
-            Some(format!("{outer_batch}.{inner_batch}"))
-        }
-        None => None,
-    };
-    let draft = plan.batch_draft.as_ref().filter(|draft| draft.task_id == task.id);
-    let pending = draft.is_some_and(|draft| draft.pending.is_some())
-        || plan.pending_batches.contains_key(&task.id);
-    let header = row![
-        text(stored.as_ref().map_or_else(
-            || i18n.__("无批次").into(),
-            |batch| {
-                i18n.format("已保存批次 %s", &[format!("{}", batch).into()])
-                    .expect("valid workbench template")
-            }
-        ))
-        .size(13),
-        button(
-            text(if draft.is_some() {
-                i18n.__("重新载入批次")
-            } else {
-                i18n.__("安排批次")
-            })
-            .size(12)
-        )
-        .padding([6, 10])
-        .style(rounded_action_btn_style)
-        .on_press_maybe(
-            (!pending).then_some(Message::TaskBoard(TaskBoardMessage::EditWorkPlanBatch))
-        ),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
-    let mut body = column![header].spacing(6);
-    if let Some(draft) = draft {
-        let mut outer = settings_text_input(i18n.__("外层批次"), &draft.outer)
-            .id(super::work_plan::OUTER_INPUT);
-        let mut inner = settings_text_input(i18n.__("组内批次"), &draft.inner);
-        let save = Message::TaskBoard(TaskBoardMessage::SaveWorkPlanBatch { clear: false });
-        if !pending {
-            outer = outer.on_input(|value| {
-                Message::TaskBoard(TaskBoardMessage::WorkPlanBatchChanged { outer: true, value })
-            });
-            inner = inner
-                .on_input(|value| {
-                    Message::TaskBoard(TaskBoardMessage::WorkPlanBatchChanged {
-                        outer: false,
-                        value,
-                    })
-                })
-                .on_submit(save.clone());
-        }
-        let feedback = if pending {
-            i18n.__("正在提交批次…").to_owned()
-        } else {
-            match &draft.feedback {
-                None => i18n.__("批次草稿").to_owned(),
-                Some(Ok(())) => i18n.__("批次已保存").to_owned(),
-                Some(Err(error)) => error.render(i18n),
-            }
-        };
-        body = body
-            .push(
-                row![
-                    column![settings_field_label(i18n.__("外层批次")), outer].spacing(4),
-                    column![settings_field_label(i18n.__("组内批次")), inner].spacing(4),
-                ]
-                .spacing(8),
-            )
-            .push(
-                row![
-                    button(text(i18n.__("保存批次")).size(12))
-                        .padding([6, 10])
-                        .style(primary_action_btn_style)
-                        .on_press_maybe((!pending).then_some(save)),
-                    button(text(i18n.__("清空批次")).size(12))
-                        .padding([6, 10])
-                        .style(rounded_action_btn_style)
-                        .on_press_maybe(
-                            (!pending
-                                && (stored.is_some()
-                                    || !draft.outer.is_empty()
-                                    || !draft.inner.is_empty()))
-                            .then_some(Message::TaskBoard(TaskBoardMessage::SaveWorkPlanBatch {
-                                clear: true
-                            }))
-                        ),
-                    text(feedback).size(12),
-                ]
-                .spacing(8)
-                .wrap(),
-            );
-    } else if pending {
-        body = body.push(text(i18n.__("正在提交批次…")).size(12));
-    }
-    Some(body.into())
-}
 
 pub(super) fn task_editor<'a>(
     app: &'a App,
@@ -407,15 +296,13 @@ pub(super) fn task_editor<'a>(
 ) -> Option<Element<'a, Message>> {
     let board = &app.task_board;
     let i18n = I18n::new(app.general_settings.desktop_locale);
-    let batch = batch_editor(i18n, app, task);
     let enabled = board.task_property_save_in_progress.is_none();
     if !board
         .task_properties
         .iter()
         .any(|property| !property.archived || task.properties.contains_key(&property.id))
     {
-        return batch
-            .map(|batch| column![settings_field_label(i18n.__("属性")), batch].spacing(4).into());
+        return None;
     }
     let mut fields = column![].spacing(8);
     for property in &board.task_properties {
@@ -486,7 +373,6 @@ pub(super) fn task_editor<'a>(
             )
             .max_height(160),
         ]
-        .extend(batch)
         .spacing(6)
         .into(),
     )

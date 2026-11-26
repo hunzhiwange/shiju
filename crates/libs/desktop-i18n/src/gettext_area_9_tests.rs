@@ -22,7 +22,6 @@ fn desktop_gettext_area_9_display_keys_are_covered() {
         "主工作区",
         "主工作区禁止删除",
         "主工作区禁止重置",
-        "任务拆分",
         "任务模式",
         "任务池",
         "优先级",

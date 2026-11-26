@@ -51,9 +51,7 @@ fn task_logs_viewer_text_keeps_only_latest_visible_entries() {
 
 #[test]
 fn task_logs_should_stay_in_memory_matches_active_lifecycle_states() {
-    for status in
-        [TaskStatus::Planning, TaskStatus::Running, TaskStatus::CodeReview, TaskStatus::PrSubmitted]
-    {
+    for status in [TaskStatus::Running, TaskStatus::PrSubmitted] {
         assert!(super::task_logs_should_stay_in_memory(status));
     }
 

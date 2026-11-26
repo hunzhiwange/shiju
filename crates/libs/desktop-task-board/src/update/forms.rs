@@ -13,11 +13,6 @@ pub fn duplicate_task(source_task: Task, initial_status: TaskStatus) -> Task {
     copied_task.prompt = source_task.prompt;
     copied_task.status = initial_status;
     copied_task.auto_promote_delay_ms = source_task.auto_promote_delay_ms;
-    copied_task.task_split_mode = if source_task.subtasks.is_empty() {
-        source_task.task_split_mode
-    } else {
-        desktop_task_model::TaskSplitMode::Enabled
-    };
     copied_task
 }
 
@@ -44,7 +39,6 @@ pub fn task_from_draft(draft: &TaskDraft, initial_status: TaskStatus, main_agent
         draft.agent.clone().or_else(|| Some(main_agent_key.to_string()));
     set_task_executor_selection(&mut task, draft.acp_agent.clone());
     task.reasoning_effort = draft.reasoning_effort;
-    task.task_split_mode = draft.task_split_mode;
     task.prompt = draft.prompt.clone();
     task.auto_promote_delay_ms =
         if auto_promote_delay_ms > 0 { Some(auto_promote_delay_ms) } else { None };
@@ -58,7 +52,6 @@ pub fn apply_task_draft(task: &mut Task, draft: &TaskDraft, main_agent_key: &str
         draft.agent.clone().or_else(|| Some(main_agent_key.to_string()));
     set_task_executor_selection(task, draft.acp_agent.clone());
     task.reasoning_effort = draft.reasoning_effort;
-    task.task_split_mode = draft.task_split_mode;
     task.prompt = draft.prompt.clone();
     task.updated_at_ms = now_ms;
 }
@@ -84,8 +77,6 @@ fn tasks_from_import(imported: Vec<TaskImportRecord>, default_priority: u32, dra
                 );
                 task.reasoning_effort =
                     record.reasoning_effort.or(draft.reasoning_effort);
-                task.task_split_mode =
-                    record.task_split_mode.unwrap_or(draft.task_split_mode);
                 tasks_to_create.push(task);
             }
 
@@ -107,8 +98,6 @@ pub fn draft_from_task(draft: &mut TaskDraft, task: &Task, main_agent_key: &str)
         draft,
         task.acp_agent.clone(),
     );
-    draft.task_split_mode =
-        task.task_split_mode;
     draft.prompt =
         task.prompt.clone();
 }
@@ -124,7 +113,6 @@ pub struct InputTaskOptions {
     pub priority: String,
     pub model: String,
     pub reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
-    pub task_split_mode: desktop_task_model::TaskSplitMode,
 }
 pub fn task_from_input(
     content: &str, default_priority: u32, initial_status: TaskStatus,
@@ -137,10 +125,9 @@ pub fn task_from_input(
         .unwrap_or(default_priority);
     let mut task = Task::new(priority);
     task.status = initial_status;
-    task.prompt = crate::helpers::review::build_task_prompt_from_input(raw, Some(priority), &[]);
+    task.prompt = crate::helpers::output::build_task_prompt_from_input(raw, Some(priority));
     if let Some(options) = options {
         task.reasoning_effort = options.reasoning_effort;
-        task.task_split_mode = options.task_split_mode;
         if selection.task_mode_enabled {
             task.model = normalize_task_model(&options.model);
         } else if !selection.auto_model && !selection.model.trim().is_empty() {

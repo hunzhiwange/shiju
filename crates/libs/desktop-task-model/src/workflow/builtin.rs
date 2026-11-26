@@ -14,7 +14,7 @@ use recruiting::RECRUITING_WORKFLOW;
 /// 默认工作流的有序状态定义。
 ///
 /// 顺序、key、label 与 `TaskStatus` 现有契约完全一致；`next` 保留现有
-/// `Pool -> Pending -> Planning -> Running -> CodeComplete -> CodeReview ->
+/// `Pool -> Pending -> Running -> CodeComplete ->
 /// PrSubmitted -> Completed -> Archived` 主路径，以及 `Failed -> Pending` 重试分支与
 /// `Paused` 末端。自动执行候选排除终态、暂停态。
 const DEV_LIFECYCLE_STATUSES: &[TaskStatusDefinition] = &[
@@ -37,17 +37,6 @@ const DEV_LIFECYCLE_STATUSES: &[TaskStatusDefinition] = &[
         is_terminal: false,
         auto_execution_candidate: true,
         occupies_execution_slot: false,
-        is_scheduling_backlog: true,
-        next: Some(TaskStatus::Planning),
-    },
-    TaskStatusDefinition {
-        status: TaskStatus::Planning,
-        role: StatusRole::Planning,
-        key: "planning",
-        label: "任务拆分",
-        is_terminal: false,
-        auto_execution_candidate: true,
-        occupies_execution_slot: true,
         is_scheduling_backlog: true,
         next: Some(TaskStatus::Running),
     },
@@ -89,17 +78,6 @@ const DEV_LIFECYCLE_STATUSES: &[TaskStatusDefinition] = &[
         role: StatusRole::ReviewReady,
         key: "code_complete",
         label: "代码完成",
-        is_terminal: false,
-        auto_execution_candidate: true,
-        occupies_execution_slot: false,
-        is_scheduling_backlog: false,
-        next: Some(TaskStatus::CodeReview),
-    },
-    TaskStatusDefinition {
-        status: TaskStatus::CodeReview,
-        role: StatusRole::Review,
-        key: "code_review",
-        label: "代码审核",
         is_terminal: false,
         auto_execution_candidate: true,
         occupies_execution_slot: false,
@@ -149,13 +127,12 @@ pub(super) const DEV_LIFECYCLE_WORKFLOW: TaskWorkflowDefinition = TaskWorkflowDe
 
 const GENERIC_TASK_STATUSES: &[TaskStatusDefinition] = &[
     DEV_LIFECYCLE_STATUSES[0],
-    TaskStatusDefinition { next: Some(TaskStatus::Running), ..DEV_LIFECYCLE_STATUSES[1] },
-    DEV_LIFECYCLE_STATUSES[2],
-    TaskStatusDefinition { next: Some(TaskStatus::Completed), ..DEV_LIFECYCLE_STATUSES[3] },
+    DEV_LIFECYCLE_STATUSES[1],
+    TaskStatusDefinition { next: Some(TaskStatus::Completed), ..DEV_LIFECYCLE_STATUSES[2] },
+    DEV_LIFECYCLE_STATUSES[3],
     DEV_LIFECYCLE_STATUSES[4],
-    DEV_LIFECYCLE_STATUSES[5],
-    TaskStatusDefinition { is_terminal: true, next: None, ..DEV_LIFECYCLE_STATUSES[9] },
-    DEV_LIFECYCLE_STATUSES[10],
+    TaskStatusDefinition { is_terminal: true, next: None, ..DEV_LIFECYCLE_STATUSES[7] },
+    DEV_LIFECYCLE_STATUSES[8],
 ];
 const GENERIC_TASK_WORKFLOW: TaskWorkflowDefinition = TaskWorkflowDefinition {
     id: DEFAULT_TASK_WORKFLOW_ID,

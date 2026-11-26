@@ -359,27 +359,6 @@ pub fn load_task_execution_result(
     Err(native_cutover_error())
 }
 
-/// 原生代码审查结果已迁移到 Agent Scheduler，本兼容入口始终拒绝写入。
-#[cfg(not(target_arch = "wasm32"))]
-pub fn save_task_code_review_result(
-    project_path: &str,
-    task_id: &str,
-    payload: &serde_json::Value,
-) -> io::Result<()> {
-    let _ = (project_path, task_id, payload);
-    Err(native_cutover_error())
-}
-
-/// 原生代码审查结果已迁移到 Agent Scheduler，本兼容入口始终拒绝读取。
-#[cfg(not(target_arch = "wasm32"))]
-pub fn load_task_code_review_result(
-    project_path: &str,
-    task_id: &str,
-) -> io::Result<Option<serde_json::Value>> {
-    let _ = (project_path, task_id);
-    Err(native_cutover_error())
-}
-
 /// 返回旧任务池的日志目录，仅用于兼容路径定位。
 pub fn get_task_logs_dir(project_path: &str) -> PathBuf {
     get_task_log_dir(project_path)

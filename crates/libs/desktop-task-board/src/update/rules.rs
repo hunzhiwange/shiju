@@ -1,17 +1,8 @@
-//! 规划结果与批量任务元数据的局部转换。
+//! 批量任务元数据的局部转换。
 use desktop_task_model::{Task, TaskStatus};
 use crate::draft::{set_task_executor_selection, task_acp_agent_label};
 use crate::helpers::execution::{truncate_for_ui, TASK_LOG_UI_MAX_DETAIL_CHARS};
 
-pub fn work_plan_from_outcome(
-    planning_attempt_id: String,
-    outcome: desktop_task_executor::executor::runner::TaskPlanGenerationOutcome,
-) -> vw_api_agent_scheduler::WorkPlanPublication {
-    vw_api_agent_scheduler::WorkPlanPublication::Generated {
-        planning_attempt_id,
-        subtasks: outcome.subtasks,
-    }
-}
 
 pub fn set_bulk_priority(tasks: &mut [Task], priority: u32) {
     for task in tasks {
@@ -92,25 +83,6 @@ pub fn set_bulk_reasoning_effort(all_tasks: &mut [Task], task_ids: &[String], re
     tasks
 }
 
-pub fn set_bulk_split_mode(all_tasks: &mut [Task], task_ids: &[String], task_split_mode: desktop_task_model::TaskSplitMode) -> Vec<Task> {
-    let mut tasks = Vec::new();
-    for task_id in task_ids {
-        if let Some(task) = all_tasks.iter_mut().find(|task| &task.id == task_id)
-        {
-            let previous_mode = task.task_split_mode;
-            task.task_split_mode = task_split_mode;
-            task.add_localized_log(
-                "批量设置任务拆分: %s -> %s",
-                vec![
-                    (previous_mode.label()).to_string().into(),
-                    (task_split_mode.label()).to_string().into(),
-                ],
-            );
-            tasks.push(task.clone());
-        }
-    }
-    tasks
-}
 
 pub fn completed_task_ids(tasks: &[Task]) -> Vec<String> {
     tasks.iter().filter(|task| !task.deleted && !task.archived && task.status == desktop_task_model::TaskStatus::Completed)
@@ -132,9 +104,8 @@ pub fn log_worktree_maintenance_failure(tasks: &mut [Task], error: &str) -> bool
     let mut changed = false;
     for task in tasks {
         if task.status == TaskStatus::Pending
-            || task.status == TaskStatus::Planning
             || task.status == TaskStatus::Running
-            || task.status == TaskStatus::CodeReview
+            || task.status == TaskStatus::CodeComplete
             || task.status == TaskStatus::PrSubmitted
         {
             task.add_localized_log(

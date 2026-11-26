@@ -48,7 +48,6 @@ fn task_pool_status_keys_round_trip_for_all_builtin_statuses() {
         TaskPoolStatus::Failed,
         TaskPoolStatus::Paused,
         TaskPoolStatus::CodeComplete,
-        TaskPoolStatus::CodeReview,
         TaskPoolStatus::PrSubmitted,
         TaskPoolStatus::Completed,
         TaskPoolStatus::Archived,
@@ -57,6 +56,18 @@ fn task_pool_status_keys_round_trip_for_all_builtin_statuses() {
     for status in statuses {
         assert_eq!(TaskPoolStatus::from_status_key(status.status_key()), Some(status));
     }
+    assert_eq!(
+        TaskPoolStatus::from_status_key("code_review"),
+        Some(TaskPoolStatus::CodeComplete)
+    );
+    assert_eq!(
+        TaskPoolStatus::canonical_status_key("code_review", Some("dev_lifecycle")),
+        "code_complete"
+    );
+    assert_eq!(
+        TaskPoolStatus::canonical_status_key("code_review", Some("custom_workflow")),
+        "code_review"
+    );
     assert_eq!(TaskPoolStatus::from_status_key("custom_review"), None);
 }
 

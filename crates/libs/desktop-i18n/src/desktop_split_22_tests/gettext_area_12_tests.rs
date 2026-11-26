@@ -30,7 +30,6 @@ fn desktop_gettext_area_12_catalog_covers_display_calls() {
         include_str!("../../../../vw-desktop/src/app/message/task_board/helpers.rs"),
         include_str!("../../../../vw-desktop/src/app/message/task_board/update/execution.rs"),
         include_str!("../../../../vw-desktop/src/app/message/task_board/update/execution_results.rs"),
-        include_str!("../../../../vw-desktop/src/app/message/task_board/helpers/review.rs"),
         include_str!("../../../../vw-desktop/src/app/message/task_board/helpers/bulk.rs"),
         include_str!("../../../../vw-desktop/src/app/message/task_board/helpers/execution.rs"),
         include_str!("../../../../vw-desktop/src/app/message/task_board/helpers/draft.rs"),

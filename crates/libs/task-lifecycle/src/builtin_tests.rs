@@ -83,13 +83,14 @@ fn failed_statuses_with_next_target_expose_retry_transition() {
 #[test]
 fn built_in_workflows_preserve_domain_specific_terminal_and_role_shape() {
     let expected = [
-        ("dev_lifecycle", "开发生命周期", "archived", "failed", "pending"),
+        ("dev_lifecycle", "开发生命周期", "archived", "failed", "pending", 9),
         (
             "content_publishing",
             "内容创作与多平台发布",
             "content_archived",
             "content_revision",
             "content_queued",
+            11,
         ),
         (
             "marketing_campaign",
@@ -97,6 +98,7 @@ fn built_in_workflows_preserve_domain_specific_terminal_and_role_shape() {
             "campaign_archived",
             "campaign_blocked",
             "campaign_queued",
+            11,
         ),
         (
             "customer_support",
@@ -104,6 +106,7 @@ fn built_in_workflows_preserve_domain_specific_terminal_and_role_shape() {
             "support_archived",
             "support_blocked",
             "support_queued",
+            11,
         ),
         (
             "recruiting_pipeline",
@@ -111,13 +114,14 @@ fn built_in_workflows_preserve_domain_specific_terminal_and_role_shape() {
             "recruiting_archived",
             "recruiting_blocked",
             "recruiting_queued",
+            11,
         ),
     ];
 
-    for (workflow_id, label, terminal_key, failed_key, retry_target) in expected {
+    for (workflow_id, label, terminal_key, failed_key, retry_target, status_count) in expected {
         let workflow = built_in_workflow_by_id(workflow_id).expect("built-in workflow");
         assert_eq!(workflow.label, label);
-        assert_eq!(workflow.statuses.len(), 11);
+        assert_eq!(workflow.statuses.len(), status_count);
 
         let terminal = workflow
             .statuses
@@ -162,4 +166,9 @@ fn task_pool_schedule_default_catalog_preserves_explicit_development_flow() {
         development.statuses.iter().find(|s| s.key == "running").unwrap().next.as_deref(),
         Some("code_complete")
     );
+    assert_eq!(
+        development.statuses.iter().find(|s| s.key == "code_complete").unwrap().next.as_deref(),
+        Some("pr_submitted")
+    );
+    assert!(development.statuses.iter().all(|status| status.key != "code_review"));
 }

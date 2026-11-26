@@ -1,4 +1,4 @@
-use desktop_task_model::{Task, TaskSplitMode, TaskStatus};
+use desktop_task_model::{Task, TaskStatus};
 fn task(id: &str, status: TaskStatus) -> Task {
     let mut task = Task::new(1);
     task.id = id.to_string();
@@ -10,7 +10,6 @@ fn reset_bulk_operation_inputs_copies_draft_and_recent_choices() {
     let mut app = super::Fixture::default();
     app.task_board_draft.priority = " 17 ".to_string();
     app.task_board_draft.agent = Some("specialist".to_string());
-    app.task_board_draft.task_split_mode = TaskSplitMode::Disabled;
     app.task_board_last_model = "  provider/model  ".to_string();
     app.task_board_last_acp_agent = Some("codex".to_string());
 
@@ -21,7 +20,6 @@ fn reset_bulk_operation_inputs_copies_draft_and_recent_choices() {
     assert_eq!(app.task_board_bulk_agent, "specialist");
     assert_eq!(app.task_board_bulk_acp_agent.as_deref(), Some("codex"));
     assert_eq!(app.task_board_bulk_reasoning_effort, app.task_board_draft.reasoning_effort);
-    assert_eq!(app.task_board_bulk_task_split_mode, TaskSplitMode::Disabled);
 }
 
 #[test]

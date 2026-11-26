@@ -28,9 +28,9 @@ pub use git::build_review_diff_context;
 pub use programs::{ExecutorCommand, build_executor_command};
 /// 对外暴露当前模块需要复用的能力。
 pub use runner::{
-    TaskPlanGenerationOutcome, TaskPlanSubTask, execute_gateway_prompt_with_streaming,
-    execute_task_async, execute_task_merge_async, execute_task_plan_async,
-    execute_task_retry_async, execute_task_review_async, write_task_plan_files,
+    execute_gateway_prompt_with_streaming,
+    execute_task_async, execute_task_merge_async,
+    execute_task_retry_async,
 };
 /// 对外暴露当前模块需要复用的能力。
 pub use scheduling::{

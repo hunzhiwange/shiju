@@ -36,15 +36,6 @@ let options =
  domain::handle_task_mode_model_changed(&mut runtime.task_mode_executor, &mut runtime.task_mode_reasoning_effort, &mut runtime.task_mode_model, model, &options);
  Task::none()
 }
-pub(super) fn handle_task_mode_task_split_mode_changed(
-    app: &mut App,
-    mode: crate::app::task::TaskSplitMode,
-) -> Task<Message> {
-
- let runtime = app.current_session_runtime_mut();
- domain::handle_task_mode_task_split_mode_changed(&mut runtime.task_mode_task_split_mode, mode);
- Task::none()
-}
 pub(super) fn handle_task_mode_executor_changed(
     app: &mut App,
     executor: Option<String>,

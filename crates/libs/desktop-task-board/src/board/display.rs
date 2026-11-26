@@ -4,17 +4,16 @@ use super::{
 };
 use crate::message::TaskBoardMessage;
 use crate::work_views::{
-    LaneGrouping, TaskBoardViewMode, WorkDisplay, WorkDisplayGroup, WorkPlanView, WorkSort,
+    LaneGrouping, TaskBoardViewMode, WorkDisplay, WorkDisplayGroup, WorkSort,
 };
 use desktop_i18n::{I18n, chat_time::format_chat_time_label};
 use desktop_task_model::{TASK_AGENT_MAIN, Task, TaskStatus, normalize_task_acp_agent_input};
 use desktop_ui_controls::system_settings_common::{
     settings_muted_text_style, settings_segment_button_style,
 };
-use iced::widget::{Column, Space, button, column, container, row, scrollable, text};
+use iced::widget::{Column, button, column, container, row, scrollable, text};
 use iced::{Alignment, Border, Element, Font, Length, Theme};
 use std::collections::{BTreeMap, HashMap, HashSet};
-use vw_api_agent_scheduler::AgentSchedulerTaskPlanPlacementDto::Child;
 
 const COLUMN_WIDTH: f32 = 240.0;
 const COLUMN_GAP: f32 = 12.0;
@@ -23,7 +22,6 @@ pub struct DisplayView<'a> {
     pub mode: TaskBoardViewMode,
     pub options: WorkDisplay,
     pub collapsed: &'a HashSet<WorkDisplayGroup>,
-    pub plan: Option<&'a WorkPlanView>,
     pub agent_labels: HashMap<&'a str, &'a str>,
     pub allow_legacy_reorder: bool,
 }
@@ -150,42 +148,7 @@ fn group_button<'a, M: Clone + From<TaskBoardMessage> + 'a>(
     .into()
 }
 
-fn parent_id<'a>(plan: Option<&'a WorkPlanView>, task: &Task) -> Option<&'a str> {
-    match plan?.placement(&task.id)? {
-        Child { parent_task_id, .. } => Some(parent_task_id),
-        _ => None,
-    }
-}
 
-fn table_order<'a>(tasks: &[&'a Task], plan: Option<&WorkPlanView>) -> Vec<(&'a Task, usize)> {
-    let ids = tasks.iter().map(|task| task.id.as_str()).collect::<HashSet<_>>();
-    let mut roots = Vec::new();
-    let mut children = HashMap::<&str, Vec<&Task>>::new();
-    for &task in tasks {
-        if let Some(parent) = parent_id(plan, task).filter(|id| ids.contains(id)) {
-            children.entry(parent).or_default().push(task);
-        } else {
-            roots.push(task);
-        }
-    }
-
-    let mut traversal = Vec::with_capacity(tasks.len());
-    let mut seen = HashSet::new();
-    let mut stack = Vec::new();
-    // Start detached or cyclic groups as roots too, so a stale placement cannot hide a task.
-    for task in roots.into_iter().chain(tasks.iter().copied()) {
-        stack.push((task, 0));
-        while let Some((task, level)) = stack.pop() {
-            if seen.insert(task.id.as_str()) {
-                traversal.push((task, level));
-                if let Some(children) = children.get(task.id.as_str()) {
-                    stack.extend(children.iter().rev().map(|child| (*child, level + 1)));
-                }
-            }
-        }
-    }
-    traversal
-}
 
 fn table_style(theme: &Theme, header: bool) -> container::Style {
     container::Style {
@@ -249,14 +212,14 @@ fn rows_view<'a, M: Clone + From<TaskBoardMessage> + 'a>(
                 collapsed,
             ));
             if !collapsed {
-                body = append_rows(body, app, display, &labels, &members, table);
+                body = append_rows(body, app, &labels, &members, table);
             }
         }
         if tasks.is_empty() && (display.options.hide_empty_statuses || columns.is_empty()) {
             body = body.push(empty(app.desktop_locale));
         }
     } else {
-        body = append_rows(body, app, display, &labels, tasks, table);
+        body = append_rows(body, app, &labels, tasks, table);
     }
     let body = scrollable(container(body).width(Length::Fill).padding([0, 7]))
         .direction(scrollable::Direction::Vertical(scrollbar()))
@@ -283,7 +246,6 @@ fn rows_view<'a, M: Clone + From<TaskBoardMessage> + 'a>(
 fn append_rows<'a, M: Clone + From<TaskBoardMessage> + 'a>(
     mut body: Column<'a, M>,
     app: &BoardView<'a, M>,
-    display: &DisplayView<'a>,
     labels: &HashMap<TaskStatus, String>,
     tasks: &[&'a Task],
     table: bool,
@@ -291,12 +253,7 @@ fn append_rows<'a, M: Clone + From<TaskBoardMessage> + 'a>(
     if tasks.is_empty() {
         return body.push(empty(app.desktop_locale));
     }
-    let rows = if table && display.options.table_hierarchy {
-        table_order(tasks, display.plan)
-    } else {
-        tasks.iter().map(|&task| (task, 0)).collect()
-    };
-    for (task, depth) in rows {
+    for &task in tasks {
         let assignee = if task.assignee.trim().is_empty() { "—" } else { &task.assignee };
         let title = text(task_title(task)).size(13).wrapping(text::Wrapping::None);
         let id =
@@ -309,7 +266,6 @@ fn append_rows<'a, M: Clone + From<TaskBoardMessage> + 'a>(
             row![
                 cell(
                     row![
-                        Space::new().width((depth.min(5) * 12) as f32),
                         container(id).width(78).clip(true),
                         container(title).width(Length::Fill).clip(true),
                     ]

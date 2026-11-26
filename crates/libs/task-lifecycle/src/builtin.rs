@@ -68,16 +68,6 @@ const DEV_LIFECYCLE_STATUSES: &[StatusSpec] = &[
         true,
         false,
         true,
-        Some("planning"),
-    ),
-    status(
-        "planning",
-        "任务拆分",
-        TaskLifecycleStatusRoleDto::Planning,
-        false,
-        true,
-        true,
-        true,
         Some("running"),
     ),
     status(
@@ -105,16 +95,6 @@ const DEV_LIFECYCLE_STATUSES: &[StatusSpec] = &[
         "code_complete",
         "代码完成",
         TaskLifecycleStatusRoleDto::ReviewReady,
-        false,
-        true,
-        false,
-        false,
-        Some("code_review"),
-    ),
-    status(
-        "code_review",
-        "代码审核",
-        TaskLifecycleStatusRoleDto::Review,
         false,
         true,
         false,
@@ -607,13 +587,12 @@ const RECRUITING_STATUSES: &[StatusSpec] = &[
 
 const GENERIC_TASK_STATUSES: &[StatusSpec] = &[
     DEV_LIFECYCLE_STATUSES[0],
-    StatusSpec { next: Some("running"), ..DEV_LIFECYCLE_STATUSES[1] },
-    DEV_LIFECYCLE_STATUSES[2],
-    StatusSpec { next: Some("completed"), ..DEV_LIFECYCLE_STATUSES[3] },
+    DEV_LIFECYCLE_STATUSES[1],
+    StatusSpec { next: Some("completed"), ..DEV_LIFECYCLE_STATUSES[2] },
+    DEV_LIFECYCLE_STATUSES[3],
     DEV_LIFECYCLE_STATUSES[4],
-    DEV_LIFECYCLE_STATUSES[5],
-    StatusSpec { terminal: true, next: None, ..DEV_LIFECYCLE_STATUSES[9] },
-    DEV_LIFECYCLE_STATUSES[10],
+    StatusSpec { terminal: true, next: None, ..DEV_LIFECYCLE_STATUSES[7] },
+    DEV_LIFECYCLE_STATUSES[8],
 ];
 
 const BUILT_IN_WORKFLOW_SPECS: &[WorkflowSpec] = &[

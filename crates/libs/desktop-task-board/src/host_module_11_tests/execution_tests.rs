@@ -61,10 +61,6 @@ fn execution_and_periodic_ticks_return_without_touching_state_when_disabled() {
 
     let _ =
         crate::update::execution::update(&mut app, crate::message::TaskBoardMessage::ExecutionTick);
-    let _ = crate::update::execution::update(
-        &mut app,
-        crate::message::TaskBoardMessage::AutoCodeReviewTick,
-    );
     let _ =
         crate::update::execution::update(&mut app, crate::message::TaskBoardMessage::AutoMergeTick);
 

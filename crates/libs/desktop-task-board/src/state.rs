@@ -7,8 +7,8 @@ pub use crate::work_views::TaskBoardViewMode;
 
 pub struct State {
     pub work_prefs_project: Option<String>,
-    pub work_plan: crate::work_views::WorkPlanView,
     pub detail: crate::detail::State,
+    pub blocked_task_dependencies: HashMap<String, Vec<String>>,
     pub saved_work_views: Vec<crate::work_views::SavedWorkView>,
     pub selected_work_view: Option<String>,
     pub work_filter: crate::work_views::WorkViewFilter,
@@ -66,8 +66,6 @@ pub struct State {
     pub task_board_bulk_acp_agent: Option<String>,
     /// 任务看板批量设置推理强度
     pub task_board_bulk_reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
-    /// 任务看板批量设置任务拆分模式
-    pub task_board_bulk_task_split_mode: desktop_task_model::models::TaskSplitMode,
     /// 任务看板手动批量合并队列
     pub task_board_manual_merge_queue: Vec<String>,
     /// 任务看板选中的任务 ID
@@ -103,8 +101,6 @@ pub struct State {
     pub task_board_next_refresh_at_ms: u64,
     /// 任务看板下次调度器触发时间（毫秒时间戳）
     pub task_board_next_scheduler_tick_at_ms: u64,
-    /// 任务看板下次自动审核触发时间（毫秒时间戳）
-    pub task_board_next_auto_review_tick_at_ms: u64,
     /// 任务看板下次自动晋升触发时间（毫秒时间戳）
     pub task_board_next_auto_promote_tick_at_ms: u64,
     /// 任务看板下次自动合并触发时间（毫秒时间戳）
@@ -192,10 +188,7 @@ pub struct State {
     pub task_board_is_import_mode: bool,
     /// 任务看板导入编辑器
     pub task_board_import_editor: text_editor::Content,
-    /// 任务看板导入提示词格式
-    pub task_board_import_prompt_format: desktop_task_model::models::TaskImportPromptFormat,
     /// 任务看板导入提示词面板是否折叠
-    pub task_board_import_prompt_collapsed: bool,
     /// 任务看板每个状态列是否显示纵向滚动条
     pub task_board_column_has_vertical_scrollbar:
         HashMap<desktop_task_model::models::TaskStatus, bool>,
@@ -206,8 +199,8 @@ impl State {
         Self {
             // ========== 任务板基础状态 ==========
             work_prefs_project: None,
-            work_plan: Default::default(),
             detail: Default::default(),
+            blocked_task_dependencies: HashMap::new(),
             saved_work_views: Vec::new(),
             selected_work_view: None,
             work_filter: Default::default(),
@@ -244,9 +237,6 @@ impl State {
             // ========== 任务导入 ==========
             task_board_is_import_mode: false,
             task_board_import_editor: iced::widget::text_editor::Content::new(),
-            task_board_import_prompt_format:
-                desktop_task_model::models::TaskImportPromptFormat::Json,
-            task_board_import_prompt_collapsed: true,
             task_board_column_has_vertical_scrollbar: std::collections::HashMap::new(),
 
             // ========== 任务草稿和执行 ==========
@@ -260,8 +250,6 @@ impl State {
             task_board_bulk_agent: desktop_task_model::models::TASK_AGENT_MAIN.to_string(),
             task_board_bulk_acp_agent: acp_agent.clone(),
             task_board_bulk_reasoning_effort: None,
-            task_board_bulk_task_split_mode:
-                desktop_task_model::models::TaskSplitMode::FollowSystem,
             task_board_manual_merge_queue: Vec::new(),
             task_board_selected_task: None,
             task_board_viewing_logs: None,
@@ -289,8 +277,6 @@ impl State {
             task_board_next_refresh_at_ms: init_ms.saturating_add(60_000),
             // 下次调度器tick（1秒后）
             task_board_next_scheduler_tick_at_ms: init_ms.saturating_add(1_000),
-            // 下次自动审查tick（30秒后）
-            task_board_next_auto_review_tick_at_ms: init_ms.saturating_add(30_000),
             // 下次自动提升tick（30秒后）
             task_board_next_auto_promote_tick_at_ms: init_ms.saturating_add(30_000),
             // 下次自动合并tick（10秒后）
@@ -372,12 +358,8 @@ impl State {
 
 impl State {
     pub fn work_display_task_visible(&self, project: &str, task: &desktop_task_model::Task) -> bool {
-        use vw_api_agent_scheduler::AgentSchedulerTaskPlanPlacementDto::Child;
 
         self.work_task_visible(project, task)
-            && (self.work_display.show_children
-                || self.work_plan.project.as_deref() != Some(project)
-                || !matches!(self.work_plan.placement(&task.id), Some(Child { .. })))
             && crate::work_views::task_matches_search(task, &self.work_search)
     }
 

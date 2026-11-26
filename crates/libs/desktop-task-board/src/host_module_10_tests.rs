@@ -1,5 +1,4 @@
 //! 任务看板宿主迁移行为证据。
-use crate::draft::import_prompt_template;
 use crate::message::TaskBoardSettingsModalTab;
 mod bulk_tests;
 mod draft_adapter_tests;
@@ -26,8 +25,6 @@ struct Fixture {
     task_board_filter_priority: Option<(u32, u32)>,
     task_board_filter_status: Option<desktop_task_model::TaskStatus>,
     task_board_import_editor: iced::widget::text_editor::Content,
-    task_board_import_prompt_collapsed: bool,
-    task_board_import_prompt_format: desktop_task_model::TaskImportPromptFormat,
     task_board_is_import_mode: bool,
     task_board_prompt_editor: iced::widget::text_editor::Content,
     task_board_selected_task: Option<String>,
@@ -39,7 +36,6 @@ struct Fixture {
     task_board_tasks_pending_persistence: HashSet<String>,
     task_board_loading: bool,
     task_board_next_scheduler_tick_at_ms: u64,
-    task_board_next_auto_review_tick_at_ms: u64,
     task_board_next_auto_merge_tick_at_ms: u64,
     task_board_next_auto_promote_tick_at_ms: u64,
     current_line_height: f32,
@@ -51,7 +47,6 @@ struct Fixture {
     task_board_bulk_model_input: String,
     task_board_bulk_priority_input: String,
     task_board_bulk_reasoning_effort: Option<vw_api_chat_identity::ReasoningEffortDto>,
-    task_board_bulk_task_split_mode: desktop_task_model::TaskSplitMode,
     task_board_context_menu: Option<(String, f32, f32)>,
     task_board_draft: desktop_task_model::TaskDraft,
     task_board_editing_task_id: Option<String>,
@@ -96,7 +91,6 @@ fn bulk_state(app: &mut Fixture) -> crate::update::bulk::BulkState<'_> {
         task_board_bulk_model_input: &mut app.task_board_bulk_model_input,
         task_board_bulk_priority_input: &mut app.task_board_bulk_priority_input,
         task_board_bulk_reasoning_effort: &mut app.task_board_bulk_reasoning_effort,
-        task_board_bulk_task_split_mode: &mut app.task_board_bulk_task_split_mode,
         task_board_context_menu: &mut app.task_board_context_menu,
         task_board_draft: &mut app.task_board_draft,
         task_board_editing_task_id: &mut app.task_board_editing_task_id,
@@ -156,13 +150,6 @@ fn apply_execution_timeouts(
         app.project_path.as_deref(),
         &mut app.task_board_timeout_scan_cursor,
         started,
-    )
-}
-fn pick_next_code_review_task(app: &Fixture, excludes: &[String]) -> Option<String> {
-    crate::helpers::execution::pick_next_code_review_task(
-        &app.task_board_tasks,
-        &app.task_board_settings,
-        excludes,
     )
 }
 fn push_worktree_action_log(app: &mut Fixture, line: String) {
@@ -228,7 +215,6 @@ fn flush_running_task_logs(app: &mut Fixture, started: web_time::Instant) {
         &mut app.task_board_executor,
         &mut app.task_board_log_scan_cursor,
         started,
-        |_| {},
     );
 }
 fn flush_running_task_logs_throttled(app: &mut Fixture, force: bool, started: web_time::Instant) {
@@ -253,7 +239,6 @@ fn flush_running_task_logs_throttled(app: &mut Fixture, force: bool, started: we
         &mut app.task_board_last_log_flush_at_ms,
         force,
         started,
-        |_| {},
     );
 }
 
@@ -308,7 +293,6 @@ fn local_state(app: &mut Fixture) -> crate::update::local::LocalState<'_> {
         bulk_executor_popover: &mut app.task_board_bulk_executor_popover,
         bulk_priority_input: &mut app.task_board_bulk_priority_input,
         bulk_reasoning_effort: &mut app.task_board_bulk_reasoning_effort,
-        bulk_task_split_mode: &mut app.task_board_bulk_task_split_mode,
         column_has_vertical_scrollbar: &mut app.task_board_column_has_vertical_scrollbar,
         context_menu: &mut app.task_board_context_menu,
         create_submit_success: &mut app.task_board_create_submit_success,
@@ -321,8 +305,6 @@ fn local_state(app: &mut Fixture) -> crate::update::local::LocalState<'_> {
         filter_priority: &mut app.task_board_filter_priority,
         filter_status: &mut app.task_board_filter_status,
         import_editor: &mut app.task_board_import_editor,
-        import_prompt_collapsed: &mut app.task_board_import_prompt_collapsed,
-        import_prompt_format: &mut app.task_board_import_prompt_format,
         is_import_mode: &mut app.task_board_is_import_mode,
         last_acp_agent: &mut app.task_board_last_acp_agent,
         logs_context_menu_open: &mut app.task_board_logs_context_menu_open,

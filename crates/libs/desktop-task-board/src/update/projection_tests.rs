@@ -9,7 +9,6 @@ fn snapshot(
     };
 
     AgentSchedulerTaskBoardTaskDto {
-        placement: None,
         project_id: "project-test".into(),
         task_id: task_id.to_string().into(),
         status_key: status_key.to_string(),

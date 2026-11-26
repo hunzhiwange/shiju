@@ -169,12 +169,10 @@ fn office_counts_visible_tasks_and_ignores_deleted_or_archived_tasks() {
     let statuses = [
         TaskStatus::Pool,
         TaskStatus::Pending,
-        TaskStatus::Planning,
         TaskStatus::Running,
         TaskStatus::Paused,
         TaskStatus::Failed,
         TaskStatus::CodeComplete,
-        TaskStatus::CodeReview,
         TaskStatus::PrSubmitted,
         TaskStatus::Completed,
     ];

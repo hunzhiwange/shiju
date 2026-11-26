@@ -83,7 +83,6 @@ fn task_status_tag_colors_cover_builtin_and_custom_statuses() {
             iced::Color::from_rgb8(219, 234, 254),
         ),
         (
-            desktop_task_model::TaskStatus::Planning,
             iced::Color::from_rgb8(79, 70, 229),
             iced::Color::from_rgb8(224, 231, 255),
         ),
@@ -106,11 +105,6 @@ fn task_status_tag_colors_cover_builtin_and_custom_statuses() {
             desktop_task_model::TaskStatus::CodeComplete,
             iced::Color::from_rgb8(5, 150, 105),
             iced::Color::from_rgb8(209, 250, 229),
-        ),
-        (
-            desktop_task_model::TaskStatus::CodeReview,
-            iced::Color::from_rgb8(217, 119, 6),
-            iced::Color::from_rgb8(254, 243, 199),
         ),
         (
             desktop_task_model::TaskStatus::PrSubmitted,

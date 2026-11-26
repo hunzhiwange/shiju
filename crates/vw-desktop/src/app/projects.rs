@@ -278,11 +278,7 @@ impl App {
         self.task_board.task_board_model_popover = false;
         self.task_board.task_board_worktree_maintenance_in_flight = false;
         self.task_board.task_board_worktree_snapshot_loading = false;
-        self.task_board.task_board_worktree_manual_action_kind = None;
-        self.task_board.task_board_worktree_manual_confirm_kind = None;
-        self.task_board.task_board_worktree_action_logs.clear();
-        self.task_board.task_board_worktree_action_logs_visible_until_ms = None;
-        self.task_board.task_board_worktree_action_log_rx = None;
+        self.task_board.task_board_worktree_slot_recycle_in_flight = false;
         self.task_board.task_board_worktree_snapshot = None;
         self.task_board.task_board_last_worktree_snapshot_at_ms = 0;
         self.task_board.task_board_context_menu = None;

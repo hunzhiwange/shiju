@@ -7,14 +7,14 @@ async fn desktop_gettext_area_12_feedback_switches_language() {
     let (mut app, _) = crate::app::App::new();
     let _ = crate::app::message::task_board::update(
         &mut app,
-        TaskBoardMessage::DeleteAllWorktreesCompleted(Ok(3)),
+        TaskBoardMessage::WorktreeSlotRecycled { slot_id: "slot-3".into(), result: Ok(()) },
     );
     let message =
         app.toast_state.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
     for (locale, expected) in [
-        (DesktopLocale::SimplifiedChinese, "已删除 3 个 worktree"),
-        (DesktopLocale::TraditionalChinese, "已刪除 3 個 worktree"),
-        (DesktopLocale::English, "Deleted 3 worktrees"),
+        (DesktopLocale::SimplifiedChinese, "已回收 worktree slot-3"),
+        (DesktopLocale::TraditionalChinese, "已回收 worktree slot-3"),
+        (DesktopLocale::English, "Recycled worktree slot-3"),
     ] {
         assert_eq!(message.render(I18n::new(locale)).unwrap(), expected);
     }

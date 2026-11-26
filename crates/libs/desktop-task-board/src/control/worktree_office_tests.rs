@@ -197,13 +197,15 @@ fn task_pool_office_non_git_displays_agents_and_runs() {
     let project = tempfile::tempdir().unwrap();
     app.project_path = Some(project.path().to_string_lossy().into_owned());
     app.project_is_git_repo = false;
-    assert!(super::super::should_render_worktree_controls(&app.view()));
+    app.task_board_worktree_pixel_office = true;
     let mut employee = slot("logical-1", WorktreeState::Busy);
     employee.agent_id = Some("main".into());
     employee.run_id = Some("run-1".into());
     let summary = super::super::helpers::employee_summary(&app.view(), &employee);
     assert!(summary.contains("run-1"));
     assert!(summary.contains("main"));
+    app.task_board_worktree_snapshot = Some(snapshot(vec![employee]));
+    let _ = super::super::build_control_buttons(&app.view());
 }
 
 #[test]

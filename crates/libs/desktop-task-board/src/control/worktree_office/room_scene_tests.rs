@@ -150,18 +150,6 @@ fn pixel_card_builds_all_states_with_fixed_card_geometry() {
 }
 
 #[test]
-fn pixel_card_builds_collapsed_and_expanded_panel_variants() {
-    let idle = slot("panel", WorktreeState::Idle);
-    let mut app = test_app(1_440.0);
-
-    app.task_board_worktree_panel_expanded = false;
-    keep_element(build_worktree_pixel_card(&app.view(), &idle));
-
-    app.task_board_worktree_panel_expanded = true;
-    keep_element(build_worktree_pixel_card(&app.view(), &idle));
-}
-
-#[test]
 fn busy_room_builds_with_unassigned_owner_fallback() {
     let app = test_app(1_440.0);
     let mut busy = slot("unassigned", WorktreeState::Busy);

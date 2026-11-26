@@ -70,15 +70,9 @@ struct Fixture {
     task_board_tasks: Vec<desktop_task_model::Task>,
     task_board_timeout_scan_cursor: usize,
     task_board_viewing_logs: Option<desktop_task_model::Task>,
-    task_board_worktree_action_log_rx:
-        Option<std::sync::mpsc::Receiver<desktop_task_executor::TaskLogStream>>,
-    task_board_worktree_action_logs: Vec<String>,
-    task_board_worktree_action_logs_visible_until_ms: Option<u64>,
     task_board_worktree_desired_capacity: Option<u32>,
     task_board_worktree_maintenance_in_flight: bool,
-    task_board_worktree_manual_action_kind: Option<&'static str>,
-    task_board_worktree_manual_confirm_kind: Option<&'static str>,
-    task_board_worktree_panel_expanded: bool,
+    task_board_worktree_slot_recycle_in_flight: bool,
     task_board_worktree_snapshot:
         Option<desktop_task_executor::executor::state::WorktreePoolSnapshot>,
     task_board_worktree_snapshot_loading: bool,
@@ -101,17 +95,6 @@ fn bulk_state(app: &mut Fixture) -> crate::update::bulk::BulkState<'_> {
         task_board_tasks: &mut app.task_board_tasks,
     }
 }
-fn worktree_logs_state(app: &mut Fixture) -> crate::helpers::worktree_logs::WorktreeActionLogs<'_> {
-    crate::helpers::worktree_logs::WorktreeActionLogs {
-        task_board_worktree_manual_action_kind: &mut app.task_board_worktree_manual_action_kind,
-        task_board_worktree_manual_confirm_kind: &mut app.task_board_worktree_manual_confirm_kind,
-        task_board_worktree_action_logs: &mut app.task_board_worktree_action_logs,
-        task_board_worktree_action_logs_visible_until_ms: &mut app
-            .task_board_worktree_action_logs_visible_until_ms,
-        task_board_worktree_action_log_rx: &mut app.task_board_worktree_action_log_rx,
-    }
-}
-
 use crate::helpers::execution::*;
 use desktop_task_model::{Task, TaskStatus};
 fn reset_bulk_operation_inputs(app: &mut Fixture) {
@@ -152,21 +135,6 @@ fn apply_execution_timeouts(
         started,
     )
 }
-fn push_worktree_action_log(app: &mut Fixture, line: String) {
-    crate::helpers::worktree_logs::push_worktree_action_log(&mut worktree_logs_state(app), line);
-}
-fn clear_worktree_action_logs(app: &mut Fixture) {
-    crate::helpers::worktree_logs::clear_worktree_action_logs(&mut worktree_logs_state(app));
-}
-fn finish_worktree_action_logs(app: &mut Fixture) {
-    crate::helpers::worktree_logs::finish_worktree_action_logs(&mut worktree_logs_state(app));
-}
-fn poll_worktree_action_logs(app: &mut Fixture) {
-    crate::helpers::worktree_logs::poll_worktree_action_logs(&mut worktree_logs_state(app));
-}
-fn worktree_snapshot_refresh_interval_ms(app: &Fixture) -> u64 {
-    crate::update::worktree::refresh_interval(app.task_board_worktree_panel_expanded)
-}
 fn maybe_schedule_worktree_snapshot_refresh(app: &mut Fixture, force: bool) -> bool {
     crate::update::worktree::SnapshotState {
         snapshot: &mut app.task_board_worktree_snapshot,
@@ -175,7 +143,6 @@ fn maybe_schedule_worktree_snapshot_refresh(app: &mut Fixture, force: bool) -> b
     }
     .request(
         app.project_path.as_deref(),
-        app.task_board_worktree_panel_expanded,
         force,
         runtime_time::now_ms(),
     )
@@ -183,7 +150,7 @@ fn maybe_schedule_worktree_snapshot_refresh(app: &mut Fixture, force: bool) -> b
 fn schedule_worktree_pool_maintenance(app: &mut Fixture, _: &str, _: usize) -> bool {
     crate::update::worktree::begin_maintenance(
         &mut app.task_board_worktree_maintenance_in_flight,
-        app.task_board_worktree_manual_action_kind,
+        app.task_board_worktree_slot_recycle_in_flight,
         app.task_board_worktree_desired_capacity,
         app.task_board_settings.max_concurrent,
     )
@@ -275,7 +242,6 @@ fn projection_state(app: &mut Fixture) -> crate::update::projection::BoardProjec
 
 fn local_state(app: &mut Fixture) -> crate::update::local::LocalState<'_> {
     crate::update::local::LocalState {
-        worktree_panel_expanded: &mut app.task_board_worktree_panel_expanded,
         worktree_pixel_office: &mut app.task_board_worktree_pixel_office,
         project_path: app.project_path.as_deref(),
         clear_prompt_after_create: &mut app.task_board_clear_prompt_after_create,
@@ -316,7 +282,6 @@ fn local_state(app: &mut Fixture) -> crate::update::local::LocalState<'_> {
         settings_modal_tab: &mut app.task_board_settings_modal_tab,
         sort_ascending: &mut app.task_board_sort_ascending,
         sort_by_priority: &mut app.task_board_sort_by_priority,
-        worktree_manual_confirm_kind: &mut app.task_board_worktree_manual_confirm_kind,
     }
 }
 

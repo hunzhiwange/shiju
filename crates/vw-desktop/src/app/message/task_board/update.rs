@@ -333,7 +333,6 @@ pub fn update(
 
     let message = match taskboard::update::local::update_local(
         taskboard::update::local::LocalState {
-            worktree_panel_expanded: &mut app.task_board.task_board_worktree_panel_expanded,
             worktree_pixel_office: &mut app.task_board.task_board_worktree_pixel_office,
             project_path: app.navigation_tabs.project_path.as_deref(),
             clear_prompt_after_create: &mut app.task_board.task_board_clear_prompt_after_create,
@@ -374,7 +373,6 @@ pub fn update(
             settings_modal_tab: &mut app.task_board.task_board_settings_modal_tab,
             sort_ascending: &mut app.task_board.task_board_sort_ascending,
             sort_by_priority: &mut app.task_board.task_board_sort_by_priority,
-            worktree_manual_confirm_kind: &mut app.task_board.task_board_worktree_manual_confirm_kind,
         },
         message,
         MAIN_AGENT_KEY,
@@ -459,12 +457,8 @@ pub fn update(
     let project_path = app.navigation_tabs.project_path.clone();
     let message = match taskboard::update::manual_worktree::update_manual_worktree(
         taskboard::update::manual_worktree::ManualWorktreeState {
-            task_board_worktree_action_log_rx: &mut app.task_board.task_board_worktree_action_log_rx,
-            task_board_worktree_action_logs: &mut app.task_board.task_board_worktree_action_logs,
-            task_board_worktree_action_logs_visible_until_ms: &mut app.task_board.task_board_worktree_action_logs_visible_until_ms,
-            task_board_worktree_manual_action_kind: &mut app.task_board.task_board_worktree_manual_action_kind,
-            task_board_worktree_manual_confirm_kind: &mut app.task_board.task_board_worktree_manual_confirm_kind,
-            task_board_worktree_snapshot: &mut app.task_board.task_board_worktree_snapshot,
+            slot_recycle_in_flight: &mut app.task_board.task_board_worktree_slot_recycle_in_flight,
+            task_board_worktree_snapshot: app.task_board.task_board_worktree_snapshot.as_ref(),
         },
         project_path,
         message,
@@ -1065,7 +1059,6 @@ fn apply_local_effect(
         LocalEffect::Preference(key, value) => {
             app.save_desktop_preference(key, serde_json::Value::Bool(value))
         }
-        LocalEffect::RefreshSnapshot => maybe_schedule_worktree_snapshot_refresh(app, true),
         LocalEffect::ImportLoaded(result) => {
             match result {
                 Ok(()) => app.push_localized_notification("已将文件内容填入导入表单", vec![]),
@@ -1202,25 +1195,6 @@ fn apply_worktree_effects(
                 app.notification_state.notifications_expanded = true;
                 iced::Task::none()
             }
-            WorktreeEffect::Cleanup(path, sender) => iced::Task::perform(
-                async move {
-                    drop(sender);
-                    cleanup_office_contexts(path).await
-                },
-                |r| Message::TaskBoard(TaskBoardMessage::CleanAllWorktreesCompleted(r)),
-            ),
-            WorktreeEffect::Delete => iced::Task::perform(
-                async {
-                    Err("办公室不直接删除目录；请配置显式删除任务或工作流".to_string())
-                },
-                |r| Message::TaskBoard(TaskBoardMessage::DeleteAllWorktreesCompleted(r)),
-            ),
-            WorktreeEffect::Merge => iced::Task::perform(
-                async {
-                    Err("办公室不直接合并分支；请配置显式 Git 任务或工作流".to_string())
-                },
-                |r| Message::TaskBoard(TaskBoardMessage::CommitMergeAllWorktreesCompleted(r)),
-            ),
             WorktreeEffect::Recycle(path, id) => iced::Task::perform(
                 recycle_worktree_slot_via_gateway(path, id),
                 |(slot_id, result)| {
@@ -1228,7 +1202,6 @@ fn apply_worktree_effects(
                 },
             ),
             WorktreeEffect::Refresh(force) => maybe_schedule_worktree_snapshot_refresh(app, force),
-            WorktreeEffect::LogTick => schedule_worktree_action_log_tick(),
         };
         tasks.push(task);
     }

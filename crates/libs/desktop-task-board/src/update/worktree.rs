@@ -1,20 +1,11 @@
 //! 工作树快照的加载状态与刷新节流。
-use super::super::helpers::execution::{
-    TASK_BOARD_WORKTREE_SNAPSHOT_EXPANDED_INTERVAL_MS, TASK_BOARD_WORKTREE_SNAPSHOT_INTERVAL_MS,
-};
+use crate::helpers::execution::TASK_BOARD_WORKTREE_SNAPSHOT_INTERVAL_MS;
 use desktop_task_executor::executor::state::WorktreePoolSnapshot;
 
 pub struct SnapshotState<'a> {
     pub snapshot: &'a mut Option<WorktreePoolSnapshot>,
     pub loading: &'a mut bool,
     pub last_refresh: &'a mut u64,
-}
-pub fn refresh_interval(expanded: bool) -> u64 {
-    if expanded {
-        TASK_BOARD_WORKTREE_SNAPSHOT_EXPANDED_INTERVAL_MS
-    } else {
-        TASK_BOARD_WORKTREE_SNAPSHOT_INTERVAL_MS
-    }
 }
 impl SnapshotState<'_> {
     pub fn clear(&mut self) {
@@ -25,7 +16,6 @@ impl SnapshotState<'_> {
     pub fn request(
         &mut self,
         project: Option<&str>,
-        expanded: bool,
         force: bool,
         now: u64,
     ) -> bool {
@@ -36,7 +26,7 @@ impl SnapshotState<'_> {
         if *self.loading {
             return false;
         }
-        if !force && now.saturating_sub(*self.last_refresh) < refresh_interval(expanded) {
+        if !force && now.saturating_sub(*self.last_refresh) < TASK_BOARD_WORKTREE_SNAPSHOT_INTERVAL_MS {
             return false;
         }
         *self.loading = true;
@@ -97,11 +87,11 @@ impl SnapshotState<'_> {
 }
 pub fn begin_maintenance(
     in_flight: &mut bool,
-    manual_action: Option<&str>,
+    slot_recycle_in_flight: bool,
     desired: Option<u32>,
     max_concurrent: u32,
 ) -> Option<u32> {
-    if *in_flight || manual_action.is_some() {
+    if *in_flight || slot_recycle_in_flight {
         return None;
     }
     *in_flight = true;
@@ -112,17 +102,4 @@ pub enum MaintenanceEffect {
     None,
     Refresh,
     Persist,
-}
-
-/// 清理动作只针对污染或已失效的受管槽位。
-pub fn cleanup_slot_ids(
-    snapshot: &desktop_task_executor::executor::state::WorktreePoolSnapshot,
-) -> Vec<String> {
-    use desktop_task_executor::executor::state::WorktreeState;
-    snapshot
-        .slots
-        .iter()
-        .filter(|slot| matches!(slot.state, WorktreeState::Tainted | WorktreeState::Dead))
-        .map(|slot| slot.id.clone())
-        .collect()
 }

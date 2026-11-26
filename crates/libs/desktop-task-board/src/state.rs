@@ -125,24 +125,13 @@ pub struct State {
     pub task_board_worktree_maintenance_in_flight: bool,
     /// 任务看板 worktree 快照是否正在加载
     pub task_board_worktree_snapshot_loading: bool,
-    /// 任务看板手动 worktree 操作类型（cleanup / merge）
-    pub task_board_worktree_manual_action_kind: Option<&'static str>,
-    /// 任务看板手动 worktree 二次确认操作类型（cleanup / merge）
-    pub task_board_worktree_manual_confirm_kind: Option<&'static str>,
-    /// 任务看板手动 worktree 操作日志
-    pub task_board_worktree_action_logs: Vec<String>,
-    /// 任务看板手动 worktree 操作日志自动隐藏截止时间（毫秒时间戳）
-    pub task_board_worktree_action_logs_visible_until_ms: Option<u64>,
-    /// 任务看板手动 worktree 操作日志接收器
-    pub task_board_worktree_action_log_rx:
-        Option<std::sync::mpsc::Receiver<desktop_task_executor::executor::state::TaskLogStream>>,
+    /// 任务看板单槽回收是否进行中
+    pub task_board_worktree_slot_recycle_in_flight: bool,
     /// 任务看板 worktree 池快照
     pub task_board_worktree_snapshot:
         Option<desktop_task_executor::executor::state::WorktreePoolSnapshot>,
     /// 任务看板上次 worktree 快照时间（毫秒时间戳）
     pub task_board_last_worktree_snapshot_at_ms: u64,
-    /// 任务看板 worktree 面板是否展开
-    pub task_board_worktree_panel_expanded: bool,
     /// 任务看板是否显示像素办公室
     pub task_board_worktree_pixel_office: bool,
     /// 任务看板上下文菜单（任务 ID，X，Y）
@@ -294,14 +283,9 @@ impl State {
             task_board_bulk_model_popover: false,
             task_board_worktree_maintenance_in_flight: false,
             task_board_worktree_snapshot_loading: false,
-            task_board_worktree_manual_action_kind: None,
-            task_board_worktree_manual_confirm_kind: None,
-            task_board_worktree_action_logs: Vec::new(),
-            task_board_worktree_action_logs_visible_until_ms: None,
-            task_board_worktree_action_log_rx: None,
+            task_board_worktree_slot_recycle_in_flight: false,
             task_board_worktree_snapshot: None,
             task_board_last_worktree_snapshot_at_ms: 0,
-            task_board_worktree_panel_expanded: false,
             task_board_worktree_pixel_office: cfg
                 .get("task_board_worktree_pixel_office")
                 .and_then(|v: &serde_json::Value| v.as_bool())

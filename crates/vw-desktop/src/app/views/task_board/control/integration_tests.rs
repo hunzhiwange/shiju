@@ -1,4 +1,4 @@
-// Task 20 ownership: Retain host worktree command lifecycle: update dispatches confirmations, async completion logs and control composition across executor and board.
+//! 员工视图与任务看板更新的集成测试。
 use crate::app::{App, task::{WorktreeSlotSnapshot, WorktreePoolSnapshot, WorktreeState}};
 fn test_app() -> App { App::new().0 }
 fn slot(id: &str, state: WorktreeState) -> WorktreeSlotSnapshot {
@@ -70,7 +70,7 @@ fn task_pool_office_receives_logical_slots_for_non_git_projects() {
 }
 
 #[test]
-fn task_pool_office_capacity_and_all_employee_interactions_are_preserved() {
+fn task_pool_office_recycles_available_slots_and_preserves_capacity() {
     let mut app = test_app();
     let project = tempfile::tempdir().unwrap();
     app.navigation_tabs.project_path = Some(project.path().to_string_lossy().into_owned());
@@ -83,57 +83,23 @@ fn task_pool_office_capacity_and_all_employee_interactions_are_preserved() {
     ]));
     use crate::app::message::{TaskBoardMessage, task_board::update};
     app.task_board.task_board_worktree_desired_capacity = Some(17);
-    for (message, kind) in [
-        (TaskBoardMessage::CleanAllWorktreesPressed, "cleanup"),
-        (TaskBoardMessage::DeleteAllWorktreesPressed, "delete"),
-        (TaskBoardMessage::CommitMergeAllWorktreesPressed, "merge"),
-    ] {
-        let _ = update(&mut app, message);
-        assert_eq!(app.task_board.task_board_worktree_manual_confirm_kind, Some(kind));
-        let _ = update(&mut app, TaskBoardMessage::CancelWorktreeManualConfirm);
-        assert_eq!(app.task_board.task_board_worktree_manual_confirm_kind, None);
-        assert_eq!(app.task_board.task_board_worktree_desired_capacity, Some(17));
-        let press = || match kind {
-            "cleanup" => TaskBoardMessage::CleanAllWorktreesPressed,
-            "delete" => TaskBoardMessage::DeleteAllWorktreesPressed,
-            _ => TaskBoardMessage::CommitMergeAllWorktreesPressed,
-        };
-        let _ = update(&mut app, press());
-        let _ = update(&mut app, press());
-        assert_eq!(app.task_board.task_board_worktree_manual_action_kind, Some(kind));
-        assert!(!app.task_board.task_board_worktree_action_logs.is_empty());
-        let error = Err("显式任务未配置".to_string());
-        let completed = match kind {
-            "cleanup" => TaskBoardMessage::CleanAllWorktreesCompleted(error),
-            "delete" => TaskBoardMessage::DeleteAllWorktreesCompleted(error),
-            _ => TaskBoardMessage::CommitMergeAllWorktreesCompleted(error),
-        };
-        let _ = update(&mut app, completed);
-        assert!(app.task_board.task_board_worktree_manual_action_kind.is_none());
-        assert!(
-            app.task_board.task_board_worktree_action_logs.iter().any(|line| line.contains("显式任务未配置"))
-        );
-        assert_eq!(app.task_board.task_board_worktree_desired_capacity, Some(17));
-    }
+    app.task_board.task_board_worktree_pixel_office = true;
     let _ =
         update(&mut app, TaskBoardMessage::RecycleWorktreeSlotPressed { slot_id: "busy".into() });
-    assert!(app.task_board.task_board_worktree_manual_action_kind.is_none());
+    assert!(!app.task_board.task_board_worktree_slot_recycle_in_flight);
     let _ =
         update(&mut app, TaskBoardMessage::RecycleWorktreeSlotPressed { slot_id: "dead".into() });
-    assert_eq!(app.task_board.task_board_worktree_manual_action_kind, Some("slot_recycle"));
-    // 丢弃未轮询的异步命令，测试不连接生产网关。
-    app.task_board.task_board_worktree_manual_action_kind = None;
-    let expanded = app.task_board.task_board_worktree_panel_expanded;
-    let _ = update(&mut app, TaskBoardMessage::ToggleWorktreePanelExpanded);
-    assert_eq!(app.task_board.task_board_worktree_panel_expanded, !expanded);
+    assert!(app.task_board.task_board_worktree_slot_recycle_in_flight);
+    let _ = super::build_control_buttons(&app);
+    let _ = update(
+        &mut app,
+        TaskBoardMessage::WorktreeSlotRecycled { slot_id: "dead".into(), result: Ok(()) },
+    );
+    assert!(!app.task_board.task_board_worktree_slot_recycle_in_flight);
+    assert_eq!(app.task_board.task_board_worktree_desired_capacity, Some(17));
+
     let _ = update(&mut app, TaskBoardMessage::ToggleWorktreePixelOffice(false));
     assert!(!app.task_board.task_board_worktree_pixel_office);
-    for expanded in [false, true] {
-        for pixel in [false, true] {
-            app.task_board.task_board_worktree_panel_expanded = expanded;
-            app.task_board.task_board_worktree_pixel_office = pixel;
-            let _ = super::build_control_buttons(&app);
-            assert_eq!(app.task_board.task_board_worktree_snapshot.as_ref().unwrap().slots.len(), 5);
-        }
-    }
+    let _ = super::build_control_buttons(&app);
+    assert_eq!(app.task_board.task_board_worktree_snapshot.as_ref().unwrap().slots.len(), 5);
 }

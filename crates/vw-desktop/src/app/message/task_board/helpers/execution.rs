@@ -34,13 +34,6 @@ pub(crate) fn flush_running_task_logs_throttled(
         tick_started_at,
     );
 }
-pub(crate) fn schedule_worktree_action_log_tick() -> iced::Task<crate::app::Message> {
-    crate::app::message::after(
-        std::time::Duration::from_millis(TASK_BOARD_WORKTREE_ACTION_LOG_TICK_MS),
-        crate::app::Message::TaskBoard(TaskBoardMessage::WorktreeActionLogTick),
-    )
-}
-
 pub(crate) async fn resolve_task_board_project_id(
     project_path: &str,
 ) -> Result<vw_api_transport::ProjectId, String> {
@@ -295,22 +288,6 @@ fn worktree_snapshot_from_gateway(
     crate::app::task::WorktreePoolSnapshot::from_gateway_response(snapshot)
 }
 
-pub(crate) async fn cleanup_office_contexts(project_path: String) -> Result<usize, String> {
-    let project_id = resolve_task_board_project_id(&project_path).await?;
-    let client = crate::app::config::gateway_client()?;
-    let snapshot = gateway_task_pool::GatewayTaskPoolClient::new(client.transport().clone())
-        .task_pool_worktree_snapshot(&vw_api_task::TaskPoolWorktreeSnapshotRequest { project_id })
-        .await?;
-    let snapshot = worktree_snapshot_from_gateway(snapshot);
-    let mut count = 0;
-    for slot_id in desktop_task_board::update::worktree::cleanup_slot_ids(&snapshot) {
-        let (_, result) = recycle_worktree_slot_via_gateway(project_path.clone(), slot_id).await;
-        result?;
-        count += 1;
-    }
-    Ok(count)
-}
-
 pub(crate) async fn recycle_worktree_slot_via_gateway(
     project_path: String,
     slot_id: String,
@@ -365,7 +342,7 @@ pub(crate) fn schedule_worktree_pool_maintenance(
 
     let Some(desired_capacity) = desktop_task_board::update::worktree::begin_maintenance(
         &mut app.task_board.task_board_worktree_maintenance_in_flight,
-        app.task_board.task_board_worktree_manual_action_kind,
+        app.task_board.task_board_worktree_slot_recycle_in_flight,
         app.task_board.task_board_worktree_desired_capacity,
         app.task_board.task_board_settings.max_concurrent,
     ) else {
@@ -406,8 +383,7 @@ pub(crate) fn maybe_schedule_worktree_snapshot_refresh(
     use crate::app::Message;
 
     let project_path = app.navigation_tabs.project_path.clone();
-    let expanded = app.task_board.task_board_worktree_panel_expanded;
-    if !snapshot_state(app).request(project_path.as_deref(), expanded, force, now_ms()) {
+    if !snapshot_state(app).request(project_path.as_deref(), force, now_ms()) {
         return iced::Task::none();
     }
     let Some(path) = project_path else {

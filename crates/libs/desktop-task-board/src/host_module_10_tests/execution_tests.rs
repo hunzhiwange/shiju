@@ -184,83 +184,6 @@ fn running_timeout_second_scan_fails_without_recycling() {
 }
 
 #[test]
-fn worktree_action_log_keeps_only_the_newest_bounded_lines() {
-    let mut app = super::Fixture::default();
-
-    for index in 0..=super::TASK_BOARD_WORKTREE_ACTION_LOG_MAX_LINES {
-        super::push_worktree_action_log(&mut app, format!("line-{index}"));
-    }
-
-    assert_eq!(
-        app.task_board_worktree_action_logs.len(),
-        super::TASK_BOARD_WORKTREE_ACTION_LOG_MAX_LINES
-    );
-    assert_eq!(app.task_board_worktree_action_logs.first().map(String::as_str), Some("line-1"));
-    assert_eq!(app.task_board_worktree_action_logs.last().map(String::as_str), Some("line-14"));
-}
-
-#[test]
-fn clear_and_finish_worktree_action_logs_reset_transient_state() {
-    let mut app = super::Fixture::default();
-    let (_sender, receiver) = std::sync::mpsc::channel();
-    app.task_board_worktree_manual_action_kind = Some("cleanup");
-    app.task_board_worktree_manual_confirm_kind = Some("cleanup");
-    app.task_board_worktree_action_logs = vec!["working".to_string()];
-    app.task_board_worktree_action_logs_visible_until_ms = Some(1);
-    app.task_board_worktree_action_log_rx = Some(receiver);
-
-    super::clear_worktree_action_logs(&mut app);
-
-    assert!(app.task_board_worktree_manual_action_kind.is_none());
-    assert!(app.task_board_worktree_manual_confirm_kind.is_none());
-    assert!(app.task_board_worktree_action_logs.is_empty());
-    assert!(app.task_board_worktree_action_logs_visible_until_ms.is_none());
-    assert!(app.task_board_worktree_action_log_rx.is_none());
-
-    app.task_board_worktree_manual_action_kind = Some("merge");
-    app.task_board_worktree_manual_confirm_kind = Some("merge");
-    app.task_board_worktree_action_logs.push("done".to_string());
-    super::finish_worktree_action_logs(&mut app);
-
-    assert!(app.task_board_worktree_manual_action_kind.is_none());
-    assert!(app.task_board_worktree_manual_confirm_kind.is_none());
-    assert!(app.task_board_worktree_action_logs_visible_until_ms.is_some());
-
-    app.task_board_worktree_action_logs.clear();
-    super::finish_worktree_action_logs(&mut app);
-    assert!(app.task_board_worktree_action_logs_visible_until_ms.is_none());
-}
-
-#[test]
-fn poll_worktree_action_logs_filters_blank_lines_and_clears_disconnected_receiver() {
-    use desktop_task_executor::TaskLogStream;
-
-    let mut app = super::Fixture::default();
-    let (sender, receiver) = std::sync::mpsc::channel();
-    sender.send(TaskLogStream::Stdout("visible".to_string())).expect("log queued");
-    sender.send(TaskLogStream::Stderr("   ".to_string())).expect("blank log queued");
-    drop(sender);
-    app.task_board_worktree_action_log_rx = Some(receiver);
-
-    super::poll_worktree_action_logs(&mut app);
-
-    assert_eq!(app.task_board_worktree_action_logs, vec!["visible"]);
-    assert!(app.task_board_worktree_action_log_rx.is_none());
-}
-
-#[test]
-fn poll_worktree_action_logs_keeps_receiver_when_channel_is_empty() {
-    let mut app = super::Fixture::default();
-    let (_sender, receiver) = std::sync::mpsc::channel();
-    app.task_board_worktree_action_log_rx = Some(receiver);
-
-    super::poll_worktree_action_logs(&mut app);
-
-    assert!(app.task_board_worktree_action_logs.is_empty());
-    assert!(app.task_board_worktree_action_log_rx.is_some());
-}
-
-#[test]
 fn flushing_without_running_tasks_resets_log_scan_cursor() {
     let mut app = super::Fixture {
         task_board_log_scan_cursor: 9,
@@ -288,22 +211,6 @@ fn throttled_log_flush_respects_interval_unless_forced() {
     super::flush_running_task_logs_throttled(&mut app, true, web_time::Instant::now());
     assert_eq!(app.task_board_log_scan_cursor, 0);
     assert!(app.task_board_last_log_flush_at_ms > 0);
-}
-
-#[test]
-fn worktree_snapshot_refresh_interval_tracks_panel_visibility() {
-    let mut app = super::Fixture::default();
-
-    app.task_board_worktree_panel_expanded = false;
-    assert_eq!(
-        super::worktree_snapshot_refresh_interval_ms(&app),
-        super::TASK_BOARD_WORKTREE_SNAPSHOT_INTERVAL_MS
-    );
-    app.task_board_worktree_panel_expanded = true;
-    assert_eq!(
-        super::worktree_snapshot_refresh_interval_ms(&app),
-        super::TASK_BOARD_WORKTREE_SNAPSHOT_EXPANDED_INTERVAL_MS
-    );
 }
 
 #[test]
@@ -344,7 +251,7 @@ fn worktree_snapshot_refresh_skips_loading_and_interval_but_force_schedules() {
 }
 
 #[test]
-fn worktree_maintenance_respects_in_flight_and_manual_action_guards() {
+fn worktree_maintenance_skips_when_maintenance_or_recycle_is_in_flight() {
     let mut app = super::Fixture::default();
     app.task_board_settings.max_concurrent = 0;
 
@@ -353,11 +260,11 @@ fn worktree_maintenance_respects_in_flight_and_manual_action_guards() {
     assert!(!in_flight);
 
     app.task_board_worktree_maintenance_in_flight = false;
-    app.task_board_worktree_manual_action_kind = Some("cleanup");
-    let manual = super::schedule_worktree_pool_maintenance(&mut app, "/tmp/project", 0);
-    assert!(!manual);
+    app.task_board_worktree_slot_recycle_in_flight = true;
+    let recycling = super::schedule_worktree_pool_maintenance(&mut app, "/tmp/project", 0);
+    assert!(!recycling);
 
-    app.task_board_worktree_manual_action_kind = None;
+    app.task_board_worktree_slot_recycle_in_flight = false;
     let scheduled = super::schedule_worktree_pool_maintenance(&mut app, "/tmp/project", 0);
     assert!(scheduled);
     assert!(app.task_board_worktree_maintenance_in_flight);

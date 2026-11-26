@@ -442,7 +442,6 @@ pub(super) fn build_worktree_pixel_card<'a>(
     app: &ControlView<'a>,
     slot: &'a WorktreeSlotSnapshot,
 ) -> Element<'a, Message> {
-    let expanded = app.task_board_worktree_panel_expanded;
     let room_plate = worktree_room_plate(&slot.id, slot.state);
     let recycle_btn =
         button(text(desktop_i18n::I18n::new(app.desktop_locale).__("回收")).size(10))
@@ -489,13 +488,7 @@ pub(super) fn build_worktree_pixel_card<'a>(
         iced::widget::container::Style {
             background: Some(Background::Color(bg)),
             border: Border {
-                width: if expanded
-                    || slot.state == WorktreeState::Busy
-                {
-                    2.0
-                } else {
-                    1.0
-                },
+                width: if slot.state == WorktreeState::Busy { 2.0 } else { 1.0 },
                 color: border_color,
                 radius: 2.0.into(),
             },

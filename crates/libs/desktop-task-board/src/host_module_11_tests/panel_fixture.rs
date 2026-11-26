@@ -44,10 +44,7 @@ pub(super) struct PanelFixture {
         std::collections::HashMap<TaskStatus, bool>,
     pub(super) window_size: (f32, f32),
     pub(super) task_board_executor_running: bool,
-    pub(super) task_board_worktree_manual_action_kind: Option<&'static str>,
-    pub(super) task_board_worktree_manual_confirm_kind: Option<&'static str>,
-    pub(super) task_board_worktree_panel_expanded: bool,
-    pub(super) task_board_worktree_action_logs: Vec<String>,
+    pub(super) task_board_worktree_slot_recycle_in_flight: bool,
     pub(super) task_board_create_modal_open: bool,
     pub(super) task_board_settings_modal_open: bool,
     pub(super) task_board_settings_modal_tab: crate::message::TaskBoardSettingsModalTab,
@@ -66,10 +63,7 @@ impl Default for PanelFixture {
             task_board_column_has_vertical_scrollbar: Default::default(),
             window_size: (1200.0, 800.0),
             task_board_executor_running: Default::default(),
-            task_board_worktree_manual_action_kind: Default::default(),
-            task_board_worktree_manual_confirm_kind: Default::default(),
-            task_board_worktree_panel_expanded: Default::default(),
-            task_board_worktree_action_logs: Default::default(),
+            task_board_worktree_slot_recycle_in_flight: Default::default(),
             task_board_create_modal_open: Default::default(),
             task_board_settings_modal_open: Default::default(),
             task_board_settings_modal_tab: Default::default(),
@@ -183,14 +177,10 @@ pub(super) fn page(app: &PanelFixture) -> iced::Element<'_, crate::panel::PanelM
                     project_path: app.project_path.as_deref(),
                     task_board_tasks: &app.task_board_tasks,
                     task_board_executor_running: app.task_board_executor_running,
-                    task_board_worktree_manual_action_kind: app
-                        .task_board_worktree_manual_action_kind,
-                    task_board_worktree_manual_confirm_kind: app
-                        .task_board_worktree_manual_confirm_kind,
-                    task_board_worktree_panel_expanded: app.task_board_worktree_panel_expanded,
+                    task_board_worktree_slot_recycle_in_flight: app
+                        .task_board_worktree_slot_recycle_in_flight,
                     task_board_worktree_pixel_office: app.task_board_worktree_pixel_office,
                     task_board_worktree_snapshot: app.task_board_worktree_snapshot.as_ref(),
-                    task_board_worktree_action_logs: &app.task_board_worktree_action_logs,
                     agent_entries: vec![],
                 })
                 .map(M::TaskBoard)
@@ -295,7 +285,6 @@ impl PanelFixture {
         };
         let _ = crate::update::local::update_local(
             crate::update::local::LocalState {
-                worktree_panel_expanded: &mut self.task_board_worktree_panel_expanded,
                 worktree_pixel_office: &mut self.task_board_worktree_pixel_office,
                 project_path: self.project_path.as_deref(),
                 clear_prompt_after_create: &mut self.task_board_clear_prompt_after_create,
@@ -336,7 +325,6 @@ impl PanelFixture {
                 settings_modal_tab: &mut self.task_board_settings_modal_tab,
                 sort_ascending: &mut Default::default(),
                 sort_by_priority: &mut Default::default(),
-                worktree_manual_confirm_kind: &mut self.task_board_worktree_manual_confirm_kind,
             },
             message,
             "main",

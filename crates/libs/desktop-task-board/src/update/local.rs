@@ -5,7 +5,6 @@ use std::collections::{HashMap, HashSet};
 
 /// 本地交互更新借用的看板字段；不包含应用或跨域状态。
 pub struct LocalState<'a> {
-    pub worktree_panel_expanded: &'a mut bool,
     pub worktree_pixel_office: &'a mut bool,
     pub project_path: Option<&'a str>,
     pub clear_prompt_after_create: &'a mut bool,
@@ -46,7 +45,6 @@ pub struct LocalState<'a> {
     pub settings_modal_tab: &'a mut TaskBoardSettingsModalTab,
     pub sort_ascending: &'a mut bool,
     pub sort_by_priority: &'a mut bool,
-    pub worktree_manual_confirm_kind: &'a mut Option<&'static str>,
 }
 
 /// 日志编辑器同步由既有日志状态入口完成。
@@ -60,7 +58,6 @@ pub enum LocalEffect {
     Import(Result<Vec<desktop_task_model::Task>, String>),
     ImportLoaded(Result<(), String>),
     Preference(&'static str, bool),
-    RefreshSnapshot,
 
     Create(desktop_task_model::Task),
     Delete(String),
@@ -138,10 +135,6 @@ pub fn update_local(
         TaskBoardMessage::ToggleWorktreePixelOffice(value) => {
             *state.worktree_pixel_office = value;
             return Ok(LocalEffect::Preference("task_board_worktree_pixel_office", value));
-        }
-        TaskBoardMessage::ToggleWorktreePanelExpanded => {
-            *state.worktree_panel_expanded = !*state.worktree_panel_expanded;
-            return Ok(LocalEffect::RefreshSnapshot);
         }
         TaskBoardMessage::ImportFileLoaded(result) => {
             return Ok(LocalEffect::ImportLoaded(result.map(|content| {
@@ -325,7 +318,6 @@ pub fn update_local(
         }
         TaskBoardMessage::ContextMenuClosed => {
             (*state.context_menu) = None;
-            (*state.worktree_manual_confirm_kind) = None;
         }
         TaskBoardMessage::UpdateDraftPriority(v) => {
             state.draft.priority = v;

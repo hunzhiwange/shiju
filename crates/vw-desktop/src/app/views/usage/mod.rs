@@ -44,32 +44,17 @@ mod tests;
 /// // 将 element 返回给 iced 框架进行渲染
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
-    let usage_data = data::from_app(app);
     let content: Element<'_, Message> = if app.usage_center.open {
         center::view(app)
     } else {
-        let column = iced::widget::column![center::view(app)];
-        #[cfg(not(target_arch = "wasm32"))]
-        let column = column.push(external_usage_entry());
-        column.push(layout::build_usage_view(app, &usage_data)).spacing(8).into()
+        let usage_data = data::from_app(app);
+        layout::build_usage_view(app, &usage_data)
     };
     if let Some(modal) = raw_modal::view(app) {
         iced::widget::stack![content, modal].into()
     } else {
         content
     }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn external_usage_entry() -> Element<'static, Message> {
-    desktop_usage::entry::external_usage_entry().map(|navigation| {
-        use crate::app::components::system_settings::SystemTab;
-        let tab = match navigation {
-            desktop_usage::entry::Navigation::Auth => SystemTab::Auth,
-            desktop_usage::entry::Navigation::Apps => SystemTab::Apps,
-        };
-        Message::View(crate::app::message::ViewMessage::OpenSystemSettingsTab(tab))
-    })
 }
 
 fn view_input(app: &App) -> desktop_usage::view_types::ViewInput<'_> {

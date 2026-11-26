@@ -18,16 +18,6 @@ pub fn view<'a>(
     i18n: desktop_i18n::I18n,
     animation_frame: usize,
 ) -> Element<'a, Event> {
-    let action = |label: &'static str, event| {
-        button(text(label).size(13))
-            .padding([6, 10])
-            .style(rounded_action_btn_style)
-            .on_press(event)
-    };
-    if !state.open {
-        return action(i18n.__("第三方智能体用量统计 ›"), Event::Load(super::range_picker::Preset::Month))
-            .into();
-    }
     let sync_active = state.scan.is_syncing();
     let last_sync = state.scan.last_sync_time();
     let sync_label = if sync_active {

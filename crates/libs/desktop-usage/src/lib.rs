@@ -20,7 +20,6 @@ pub mod steps;
 pub mod session_menu;
 pub mod raw_modal;
 pub mod styles;
-pub mod entry;
 #[cfg(test)]
 mod view_test_fixture;
 

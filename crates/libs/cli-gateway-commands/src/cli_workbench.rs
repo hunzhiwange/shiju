@@ -24,11 +24,12 @@ pub struct WorkbenchArgs {
     #[command(flatten)]
     options: ApiOptions,
 
-    /// Registered project ID. Required outside a workbench child.
+    /// Registered project ID. Outside a workbench child, defaults to the project
+    /// containing --directory or the current directory, registering it if needed.
     #[arg(long, global = true)]
     project: Option<String>,
 
-    /// Explicit gateway user ID for calls outside a workbench child.
+    /// Override the default gateway user (0) for calls outside a workbench child.
     #[arg(long, global = true)]
     user: Option<String>,
 
@@ -150,7 +151,7 @@ async fn run_with_io(
     }
 }
 
-fn connection(
+async fn connection(
     args: &WorkbenchArgs,
     child_context: Option<std::ffi::OsString>,
 ) -> Result<(GatewayClient, String), Failure> {
@@ -178,16 +179,38 @@ fn connection(
         return Ok((client, context.project_id));
     }
 
-    let user = args.user.as_deref().ok_or_else(|| Failure::invalid("--user is required"))?;
-    let user = UserId::new(user).map_err(|e| Failure::invalid(e.to_string()))?;
-    let project = args
-        .project
-        .as_ref()
-        .filter(|id| !id.trim().is_empty())
-        .ok_or_else(|| Failure::invalid("--project is required"))?;
-    let context =
-        ApiContext::for_user(&args.options, user).map_err(|e| Failure::invalid(e.to_string()))?;
-    Ok((context.client().clone(), project.clone()))
+    let context = match args.user.as_deref() {
+        Some(user) => {
+            let user = UserId::new(user).map_err(|e| Failure::invalid(e.to_string()))?;
+            ApiContext::for_user(&args.options, user)
+        }
+        None => ApiContext::from_options(&args.options),
+    }
+    .map_err(|e| Failure::invalid(e.to_string()))?;
+    let client = context.client().clone();
+    if let Some(project) = &args.project {
+        if project.trim().is_empty() {
+            return Err(Failure::invalid("--project must not be blank"));
+        }
+        return Ok((client, project.clone()));
+    }
+
+    let current_directory;
+    let directory = match context.directory() {
+        Some(directory) if directory.trim().is_empty() => {
+            return Err(Failure::invalid("--directory must not be blank"));
+        }
+        Some(directory) => directory,
+        None => {
+            current_directory = std::env::current_dir()
+                .map_err(|e| Failure::invalid(format!("could not read current directory: {e}")))?;
+            current_directory
+                .to_str()
+                .ok_or_else(|| Failure::invalid("current directory is not UTF-8"))?
+        }
+    };
+    let project = client.cli_workbench_resolve_project(directory).await?;
+    Ok((client, project))
 }
 
 async fn execute(
@@ -195,7 +218,6 @@ async fn execute(
     stdin: &mut impl Read,
     child_context: Option<std::ffi::OsString>,
 ) -> Result<Value, Failure> {
-    let (client, project) = connection(&args, child_context)?;
     let operation = match &args.command {
         WorkbenchCommand::Start { .. } => Some("workbench start"),
         WorkbenchCommand::Send { .. } => Some("workbench send"),
@@ -205,6 +227,7 @@ async fn execute(
         ensure_confirmed(args.options.yes(), operation)
             .map_err(|e| Failure::invalid(e.to_string()))?;
     }
+    let (client, project) = connection(&args, child_context).await?;
 
     match args.command {
         WorkbenchCommand::List => encode(&client.cli_workbench_list(&project).await?),

@@ -191,6 +191,7 @@ impl Turn {
 pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
     collaboration_routes()
         .route("/cli-workbench/projects", get(projects))
+        .route("/cli-workbench/projects/resolve", post(resolve_project))
         .merge(terminal::routes())
         .merge(drafts::routes())
         .route(&format!("{SESSIONS}/{{session}}/stop"), post(stop))
@@ -208,13 +209,17 @@ async fn projects(
     Query(query): Query<ProjectsQuery>,
 ) -> Result<Json<CliWorkbenchProjects>, WorkbenchError> {
     let records = agent_project::list(&tenant).await.map_err(|_| unavailable())?;
-    let preferred_project = query.directory.as_deref().and_then(|directory| {
-        records
-            .iter()
-            .find(|record| record.worktree == directory)
-            .or_else(|| records.iter().find(|record| gateway_project::project_owns_directory(record, directory)))
-            .map(|record| record.id.as_str().to_owned())
-    });
+    let mut preferred_project = query.directory.as_deref()
+        .and_then(|directory| registered_project_at(&records, FsPath::new(directory)));
+    if let Some(directory) =
+        query.directory.as_deref().filter(|directory| FsPath::new(directory).is_absolute())
+        && preferred_project.is_none()
+        && let Ok(canonical) = tokio::fs::canonicalize(directory).await
+        && tokio::fs::metadata(&canonical).await.is_ok_and(|metadata| metadata.is_dir())
+    {
+        preferred_project = canonical.ancestors()
+            .find_map(|directory| registered_project_at(&records, directory));
+    }
     let mut projects: Vec<_> = records.iter().map(|record| {
         let directory = gateway_project::project_context_directory(record).unwrap_or_default();
         CliWorkbenchProject {
@@ -226,6 +231,48 @@ async fn projects(
     }).collect();
     attach_project_sessions(&mut WORKBENCH.lock(), &tenant, &mut projects);
     Ok(Json(CliWorkbenchProjects { projects, preferred_project, terminal_available: terminal.available() }))
+}
+
+fn registered_project_at(records: &[agent_project::Info], directory: &FsPath) -> Option<String> {
+    let directory = directory.to_str()?;
+    records.iter()
+        .find(|record| record.worktree == directory)
+        .or_else(|| records.iter().find(|record| gateway_project::project_owns_directory(record, directory)))
+        .map(|record| record.id.as_str().to_owned())
+}
+
+async fn resolve_project(
+    Extension(tenant): Extension<TenantScope>,
+    Json(query): Json<ProjectsQuery>,
+) -> Result<Json<String>, WorkbenchError> {
+    let invalid_directory = || error(
+        StatusCode::BAD_REQUEST,
+        ErrorCode::InvalidRequest,
+        "workbench directory must be an existing absolute directory on the gateway",
+    );
+    let directory = query.directory.as_deref()
+        .map(FsPath::new)
+        .filter(|directory| directory.is_absolute())
+        .ok_or_else(invalid_directory)?;
+    let canonical = tokio::fs::canonicalize(directory).await.map_err(|_| invalid_directory())?;
+    if canonical.to_str().is_none()
+        || !tokio::fs::metadata(&canonical).await.is_ok_and(|metadata| metadata.is_dir())
+    {
+        return Err(invalid_directory());
+    }
+    let find_project = |records: &[agent_project::Info]| {
+        canonical.ancestors().find_map(|directory| registered_project_at(records, directory))
+    };
+    let records = agent_project::list(&tenant).await.map_err(|_| unavailable())?;
+    if let Some(project) = find_project(&records) {
+        return Ok(Json(project));
+    }
+    if let Ok((project, _)) = agent_project::from_directory(&tenant, &canonical).await {
+        return Ok(Json(project.id.as_str().to_owned()));
+    }
+    // Another request may have registered the same directory while this one was creating it.
+    let records = agent_project::list(&tenant).await.map_err(|_| unavailable())?;
+    find_project(&records).map(Json).ok_or_else(unavailable)
 }
 
 fn attach_project_sessions(

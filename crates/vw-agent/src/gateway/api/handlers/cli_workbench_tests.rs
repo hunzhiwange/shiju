@@ -60,6 +60,54 @@ async fn cli_workbench_acp_lists_sessions_for_registered_project() {
         .find(|entry| entry["id"] == project.id.as_str()).unwrap();
     assert_eq!(entry["sessions"], json!([]));
     assert!(entry.get("git").is_none());
+
+    let nested = root.path().join("nested directory");
+    std::fs::create_dir(&nested).unwrap();
+    let directory = gateway_project::encode_path_segment(nested.to_str().unwrap());
+    let path = format!("/v1/cli-workbench/projects?directory={directory}");
+    let (status, body) = request(&tenant, "GET", &path, Value::Null).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["preferred_project"], json!(project.id.as_str()));
+}
+
+#[tokio::test]
+async fn cli_workbench_resolves_unregistered_directory_once() {
+    let _guard = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let tenant = TenantScope::new("workbench-fixture", "resolve").unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let directory = root.path().canonicalize().unwrap();
+    let nested = directory.join("nested");
+    std::fs::create_dir(&nested).unwrap();
+    assert!(agent_project::list(&tenant).await.unwrap().is_empty());
+
+    let route = "/v1/cli-workbench/projects/resolve";
+    let body = json!({"directory": directory});
+    let ((status, project), concurrent) = tokio::join!(
+        request(&tenant, "POST", route, body.clone()),
+        request(&tenant, "POST", route, body),
+    );
+    assert_eq!(status, StatusCode::OK, "{project}");
+    assert_eq!(concurrent, (StatusCode::OK, project.clone()));
+    let id = project.as_str().unwrap();
+    let (status, resolved) = request(&tenant, "POST", route, json!({"directory": nested})).await;
+    assert_eq!(status, StatusCode::OK, "{resolved}");
+    assert_eq!(resolved, project);
+    let missing = directory.join("missing");
+    let (status, rejected) = request(&tenant, "POST", route, json!({"directory": missing})).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(rejected["code"], "invalid_request");
+
+    let projects = agent_project::list(&tenant).await.unwrap();
+    assert_eq!(projects.len(), 1);
+    assert_eq!(projects[0].id.as_str(), id);
+    assert_eq!(projects[0].worktree, directory.to_str().unwrap());
+    let sessions = format!("/v1/projects/{id}/cli-workbench/sessions");
+    assert_eq!(request(&tenant, "GET", &sessions, Value::Null).await, (StatusCode::OK, json!([])));
 }
 
 #[cfg(unix)]

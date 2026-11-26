@@ -29,6 +29,18 @@ impl GatewayClient {
         self.cli_workbench_request(reqwest::Method::GET, &path, None::<&()>).await
     }
 
+    pub async fn cli_workbench_resolve_project(
+        &self,
+        directory: &str,
+    ) -> Result<String, CliWorkbenchError> {
+        self.cli_workbench_request(
+            reqwest::Method::POST,
+            "/v1/cli-workbench/projects/resolve",
+            Some(&serde_json::json!({ "directory": directory })),
+        )
+        .await
+    }
+
     pub async fn cli_workbench_list(
         &self,
         project_id: &str,

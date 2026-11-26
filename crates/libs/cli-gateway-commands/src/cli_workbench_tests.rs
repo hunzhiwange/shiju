@@ -12,6 +12,7 @@ use crate::session_tests::{RecordedRequest, read_request};
 use crate::test_cli::{Cli, Commands};
 
 const SESSIONS: &str = "/v1/projects/demo/cli-workbench/sessions";
+const RESOLVE_PROJECT: &str = "/v1/cli-workbench/projects/resolve";
 const SESSION_ID: &str = "session-a";
 const REQUEST_ID: &str = "review-01";
 
@@ -191,13 +192,68 @@ async fn cli_workbench_command_child_connection_is_project_bound_and_fails_close
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn cli_workbench_command_external_connection_requires_explicit_user() {
-    let cli = Cli::try_parse_from(["shiju", "workbench", "list", "--project", "demo"]).unwrap();
+async fn cli_workbench_command_defaults_to_local_user_and_resolves_project() {
+    let (port, requests) = serve([
+        Reply::json("200 OK", json!([])),
+        Reply::json("200 OK", json!("demo")),
+        Reply::json("200 OK", json!([])),
+        Reply::json("200 OK", json!("demo")),
+        Reply::json("200 OK", json!([])),
+        Reply::json(
+            "400 Bad Request",
+            json!({"code": "invalid_request", "message": "invalid directory"}),
+        ),
+    ]);
+
+    let (result, output) = run_command(port, &["list", "--project", "demo"], b"", None).await;
+    result.unwrap();
+    assert_eq!(output["result"], json!([]));
+    let request = next_request(&requests);
+    assert_eq!(request.path, SESSIONS);
+    assert!(request.headers.iter().any(|h| h.eq_ignore_ascii_case("x-user-id: 0")));
+
+    let (result, output) = run_command(port, &["list"], b"", None).await;
+    result.unwrap();
+    assert_eq!(output["result"], json!([]));
+    let request = next_request(&requests);
+    assert_eq!(request.method, "POST");
+    assert_eq!(request.path, RESOLVE_PROJECT);
+    let directory = std::env::current_dir().unwrap();
+    assert_eq!(request.body, json!({"directory": directory.to_str().unwrap()}));
+    assert!(request.headers.iter().any(|h| h.eq_ignore_ascii_case("x-user-id: 0")));
+    assert_eq!(next_request(&requests).path, SESSIONS);
+
+    let (result, output) =
+        run_command(port, &["list", "--directory", "/demo/project path"], b"", None).await;
+    result.unwrap();
+    assert_eq!(output["result"], json!([]));
+    let request = next_request(&requests);
+    assert_eq!(request.path, RESOLVE_PROJECT);
+    assert_eq!(request.body, json!({"directory": "/demo/project path"}));
+    assert_eq!(next_request(&requests).path, SESSIONS);
+
+    let (result, output) =
+        run_command(port, &["list", "--directory", "/missing"], b"", None).await;
+    assert!(result.is_err());
+    assert_eq!(output["error"]["code"], "invalid_request");
+    let request = next_request(&requests);
+    assert_eq!(request.path, RESOLVE_PROJECT);
+    assert_eq!(request.body, json!({"directory": "/missing"}));
+}
+
+async fn run_command(
+    port: u16,
+    command: &[&str],
+    input: &[u8],
+    child: Option<OsString>,
+) -> (anyhow::Result<()>, Value) {
+    let port = port.to_string();
+    let args = ["shiju", "workbench", "--port", port.as_str()];
+    let cli = Cli::try_parse_from(args.into_iter().chain(command.iter().copied())).unwrap();
     let Commands::Workbench(args) = cli.command else { panic!("expected workbench command") };
     let mut output = Vec::new();
-    assert!(run_with_io(args, &mut std::io::empty(), &mut output, None).await.is_err());
-    let output: Value = serde_json::from_slice(&output).unwrap();
-    assert_eq!(output["error"]["message"], "--user is required");
+    let result = run_with_io(args, &mut Cursor::new(input), &mut output, child).await;
+    (result, serde_json::from_slice(&output).unwrap())
 }
 
 async fn run(
@@ -206,17 +262,12 @@ async fn run(
     input: &[u8],
     child: Option<OsString>,
 ) -> (anyhow::Result<()>, Value) {
-    let port = port.to_string();
-    let mut args = vec!["shiju", "workbench", "--port", port.as_str()];
+    let mut args = Vec::new();
     if child.is_none() {
         args.extend(["--user", "fixture-user", "--project", "demo"]);
     }
     args.extend_from_slice(command);
-    let cli = Cli::try_parse_from(args).unwrap();
-    let Commands::Workbench(args) = cli.command else { panic!("expected workbench command") };
-    let mut output = Vec::new();
-    let result = run_with_io(args, &mut Cursor::new(input), &mut output, child).await;
-    (result, serde_json::from_slice(&output).unwrap())
+    run_command(port, &args, input, child).await
 }
 
 fn delivery_path() -> String {

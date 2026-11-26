@@ -185,6 +185,9 @@ fn iced_settings() -> iced::Settings {
 }
 
 fn boot_app() -> (app::App, iced::Task<app::Message>) {
+    #[cfg(target_os = "macos")]
+    app::deep_links::install_document_handler();
+
     let (mut app, startup_task) = app::App::new();
     let (main_window_id, main_window_task) = iced::window::open(main_window_settings());
 
@@ -264,7 +267,7 @@ pub fn main() -> iced::Result {
     }
 
     #[cfg(target_os = "macos")]
-    app::deep_links::install_apple_event_handlers();
+    app::deep_links::install_url_handler();
 
     let result = iced::daemon(boot_app, app::App::update, app::App::view_window)
         .title(app::App::title_for_window)

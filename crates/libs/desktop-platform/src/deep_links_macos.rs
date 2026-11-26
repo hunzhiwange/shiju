@@ -1,9 +1,10 @@
-//! Apple Event bridge, installed before Iced starts pumping AppKit events.
+//! AppKit bridge for URL and document opens.
 use std::ffi::{c_char, c_void};
 use std::sync::Once;
 use objc2::{class, msg_send, sel};
 use objc2::runtime::{AnyClass, AnyObject, Sel};
-use objc2_foundation::NSString;
+use objc2_app_kit::{NSApplication, NSApplicationDelegateReply};
+use objc2_foundation::{NSArray, NSString};
 
 #[link(name = "objc")]
 unsafe extern "C" {
@@ -35,54 +36,33 @@ unsafe extern "C" fn receive_url(
 unsafe extern "C" fn receive_documents(
     _this: *mut AnyObject,
     _selector: Sel,
-    event: *mut AnyObject,
-    _reply: *mut AnyObject,
+    app: &NSApplication,
+    filenames: &NSArray<NSString>,
 ) {
-    if event.is_null() {
-        return;
-    }
-    // SAFETY: The open-documents event carries a one-based descriptor list.
-    unsafe {
-        let documents: *mut AnyObject =
-            msg_send![event, paramDescriptorForKeyword: u32::from_be_bytes(*b"----")];
-        if documents.is_null() {
-            return;
-        }
-        let count: isize = msg_send![documents, numberOfItems];
-        let mut paths = Vec::new();
-        for index in 1..=count {
-            let descriptor: *mut AnyObject = msg_send![documents, descriptorAtIndex: index];
-            if descriptor.is_null() {
-                continue;
-            }
-            let url: *mut AnyObject = msg_send![descriptor, fileURLValue];
-            if url.is_null() {
-                continue;
-            }
-            let path: *mut NSString = msg_send![url, path];
-            if let Some(path) = path.as_ref() {
-                paths.push(path.to_string());
-            }
-        }
-        if super::super::single_instance::queue_open_files(paths).is_err() {
+    let paths = (0..filenames.count())
+        .map(|index| filenames.objectAtIndex(index).to_string())
+        .collect();
+    let reply = match super::super::single_instance::queue_open_files(paths) {
+        Ok(()) => NSApplicationDelegateReply::Success,
+        Err(_) => {
             tracing::error!("failed to retain desktop document event");
+            NSApplicationDelegateReply::Failure
         }
-    }
+    };
+    app.replyToOpenOrPrint(reply);
 }
 
 /// Must be called on the GUI main thread before entering the event loop.
 /// The registered target intentionally lives until process exit.
-pub fn install_apple_event_handlers() {
+pub fn install_url_handler() {
     static INSTALL: Once = Once::new();
     INSTALL.call_once(|| unsafe {
         let main_thread = objc2::MainThreadMarker::new().expect("Apple Events require the main thread");
-        let _app = objc2_app_kit::NSApplication::sharedApplication(main_thread);
+        let _app = NSApplication::sharedApplication(main_thread);
         let class = objc_allocateClassPair(class!(NSObject), c"ShiJuURLReceiver".as_ptr(), 0);
         assert!(!class.is_null(), "could not allocate URL receiver class");
         let selector = sel!(handleGetURL:withReplyEvent:);
         assert!(class_addMethod(class, selector, receive_url as *const () as *const c_void, c"v@:@@".as_ptr()));
-        let open_documents = sel!(handleOpenDocuments:withReplyEvent:);
-        assert!(class_addMethod(class, open_documents, receive_documents as *const () as *const c_void, c"v@:@@".as_ptr()));
         objc_registerClassPair(class);
         let target: *mut AnyObject = msg_send![&*class, new];
         assert!(!target.is_null(), "could not allocate URL receiver");
@@ -93,11 +73,28 @@ pub fn install_apple_event_handlers() {
             forEventClass: 0x4755524cu32,
             andEventID: 0x4755524cu32
         ];
-        let _: () = msg_send![manager,
-            setEventHandler: target,
-            andSelector: open_documents,
-            forEventClass: u32::from_be_bytes(*b"aevt"),
-            andEventID: u32::from_be_bytes(*b"odoc")
-        ];
     });
+}
+
+/// Called after Winit sets the application delegate and before AppKit opens startup documents.
+pub fn install_document_handler() {
+    let main_thread = objc2::MainThreadMarker::new().expect("AppKit requires the main thread");
+    let app = NSApplication::sharedApplication(main_thread);
+    let Some(delegate) = app.delegate() else {
+        tracing::error!("cannot install desktop document handler without an AppKit delegate");
+        return;
+    };
+    let delegate: &AnyObject = (*delegate).as_ref();
+    // SAFETY: The callback matches AppKit's application:openFiles: selector and ABI.
+    let installed = unsafe {
+        class_addMethod(
+            std::ptr::from_ref(delegate.class()).cast_mut(),
+            sel!(application:openFiles:),
+            receive_documents as *const () as *const c_void,
+            c"v@:@@".as_ptr(),
+        )
+    };
+    if !installed {
+        tracing::warn!("AppKit delegate already implements application:openFiles:");
+    }
 }

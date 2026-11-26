@@ -8,5 +8,5 @@ Exec=shi-ju %F
 Icon=shiju
 Terminal=false
 Categories=Development;Utility;
-MimeType=text/plain;text/markdown;text/x-markdown;text/html;text/css;application/json;application/xml;image/png;image/jpeg;image/gif;image/bmp;image/webp;image/svg+xml;
+MimeType=text/plain;text/markdown;text/x-markdown;text/x-rst;text/x-log;text/csv;text/tab-separated-values;text/html;text/css;text/x-scss;text/javascript;text/jsx;application/typescript;text/tsx;application/json;application/xml;application/toml;application/yaml;application/sql;text/rust;text/x-go;text/x-python;text/x-python3;text/x-asm;text/x-csrc;text/x-chdr;text/x-c++src;text/x-c++hdr;text/x-csharp;text/x-cmake;text/x-java;text/x-kotlin;text/x-scala;text/x-swift;text/x-zig;text/x-haskell;text/x-elixir;text/x-lua;text/x-r;text/x-shellscript;application/x-perl;application/x-php;application/x-ruby;application/x-powershell;application/vnd.dart;image/png;image/jpeg;image/gif;image/bmp;image/webp;image/svg+xml;
 StartupWMClass=ShiJu

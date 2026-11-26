@@ -39,6 +39,7 @@
       <ComponentRef Id="DesktopShortcut" />
       <ComponentRef Id="PathEnvironment" />
       <ComponentRef Id="InstallLocation" />
+      <ComponentRef Id="DesktopFileAssociations" />
     </Feature>
 
     <StandardDirectory Id="ProgramFiles64Folder">
@@ -63,6 +64,24 @@
         </Component>
         <Component Id="InstallLocation" Guid="DA978BE7-343B-4492-A50C-B8B7904756C0">
           <RegistryValue Root="HKLM" Key="Software\ShiJu" Name="InstallLocation" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+        </Component>
+        <Component Id="DesktopFileAssociations" Guid="*">
+          <RegistryKey Root="HKLM" Key="Software\Classes\Applications\shi-ju.exe">
+            <RegistryValue Name="FriendlyAppName" Type="string" Value="ShiJu" />
+            <RegistryValue Key="shell\open\command" Type="string" Value="&quot;[#DesktopExecutableFile]&quot; &quot;%1&quot;" KeyPath="yes" />
+          </RegistryKey>
+          <RegistryKey Root="HKLM" Key="Software\Classes\ShiJu.Text">
+            <RegistryValue Type="string" Value="ShiJu" />
+            <RegistryValue Key="shell\open\command" Type="string" Value="&quot;[#DesktopExecutableFile]&quot; &quot;%1&quot;" />
+          </RegistryKey>
+          <!-- Common extensions appear in Open with. The shell verb also handles unregistered extensions and extensionless files. -->
+          <?foreach TextExtension in adoc;asm;bash;c;cc;cfg;cjs;clj;cmake;conf;cpp;cs;css;csv;cxx;dart;ex;exs;fs;go;h;hpp;hs;htm;html;ini;java;js;json;jsonc;jsonl;jsx;kt;kts;log;lua;markdown;md;mdx;mjs;php;pl;ps1;py;r;rb;rs;rst;scala;scss;sh;sql;svelte;swift;toml;ts;tsv;tsx;txt;vue;xml;yaml;yml;zig;zsh ?>
+          <RegistryValue Root="HKLM" Key="Software\Classes\.$(TextExtension)\OpenWithProgids" Name="ShiJu.Text" Type="string" Value="" />
+          <?endforeach?>
+          <RegistryKey Root="HKLM" Key="Software\Classes\*\shell\ShiJu.Open">
+            <RegistryValue Name="MUIVerb" Type="string" Value="ShiJu" />
+            <RegistryValue Key="command" Type="string" Value="&quot;[#DesktopExecutableFile]&quot; &quot;%1&quot;" />
+          </RegistryKey>
         </Component>
       </Directory>
     </StandardDirectory>

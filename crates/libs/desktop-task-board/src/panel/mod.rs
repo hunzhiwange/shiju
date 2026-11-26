@@ -12,7 +12,7 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
-    settings_field_label, settings_modal_header, settings_modal_layout, settings_panel,
+    settings_modal_card, settings_modal_header, settings_modal_layout, settings_panel,
     settings_segment_button_style, settings_select,
 };
 use desktop_i18n::I18n;
@@ -215,7 +215,7 @@ fn build_task_panel_with_content<'a, M: Clone + 'a>(
         };
         let priority_field = control("优先级", build_priority_field(app, true));
         let model_field = control("模型", slots.model.expect("visible model selector"));
-        let agent_field = control("代理", build_agent_field(app, true));
+        let agent_field = control("代理", build_agent_field(app));
         let executor_field = control("执行器", slots.executor.expect("visible executor selector"));
         let reasoning_effort_field = slots.reasoning.map(|field| control("推理强度", field));
         let prompt_field = build_prompt_field(app);
@@ -279,25 +279,36 @@ fn build_task_panel_with_content<'a, M: Clone + 'a>(
 
 fn build_create_modal<'a>(app: PanelView<'a>, slots: PanelSlots<'a>) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
-    let header = column![
-        settings_modal_header(
-            text(i18n.__("新建任务"))
-                .size(18)
-                .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
+    let header = settings_modal_header(
+        text(i18n.__("新建任务"))
+            .size(18)
+            .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
+        row![
+            build_mode_toggle(app),
             build_close_button(TaskBoardMessage::CreateTaskCancelled),
-        ),
-        build_mode_toggle(app),
-    ]
-    .spacing(12);
-    let (body, height) = if app.task_board_is_import_mode {
-        (build_import_field(app), 660)
-    } else {
-        (build_create_form(app, slots), 412)
-    };
-    settings_modal_layout(header, body, Some(build_action_buttons(app, false)))
+        ]
+        .spacing(12)
+        .align_y(Alignment::Center),
+    );
+    if app.task_board_is_import_mode {
+        settings_modal_layout(
+            header,
+            build_import_field(app),
+            Some(build_action_buttons(app, false)),
+        )
         .width(760)
-        .height(height)
+        .height(660)
         .into()
+    } else {
+        settings_modal_card(
+            column![header, build_create_form(app, slots), build_create_footer(app)]
+                .spacing(16)
+                .height(Length::Fill),
+        )
+        .width(760)
+        .height(430)
+        .into()
+    }
 }
 
 fn build_close_button(close_msg: TaskBoardMessage) -> iced::Element<'static, Message> {
@@ -653,7 +664,12 @@ pub fn build_with_controls_and_content<'a, M: Clone + 'a>(
             crate::model_selector::build_model_selector(model, edit).map(PanelMessage::Model)
         }),
         executor: controls.then(|| {
-            executor_selector::build_executor_selector(executor, edit).map(PanelMessage::TaskBoard)
+            if edit {
+                executor_selector::build_edit_executor_selector(executor)
+            } else {
+                executor_selector::build_draft_agent_selector(executor, &input.agents_settings.entries)
+            }
+            .map(PanelMessage::TaskBoard)
         }),
         reasoning: controls.then(reasoning).flatten().map(|view| view.map(PanelMessage::TaskBoard)),
     };

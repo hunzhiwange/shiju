@@ -16,8 +16,12 @@ use iced::widget::{Space, button, column, container, row, scrollable, svg};
 use iced::{Alignment, Element, Length, Theme};
 
 use desktop_assets::assets::{self, Icon};
-use desktop_chat_input::input_panel::icons::acp_agent_icon;
-use desktop_chat_input::input_panel::surface_styles::selector_pill_button_style;
+use config_agent::{AgentRuntime, is_retired_builtin_agent_key};
+use desktop_chat_input::input_panel::icons::{acp_agent_icon, icon_svg};
+use desktop_chat_input::input_panel::panel::{agent_option, agent_popover_style, agent_toggle};
+use desktop_i18n::I18n;
+use desktop_settings_agents::acp::EMPLOYEE_ACP_BACKEND;
+use desktop_settings_agents::state::{DelegateAgentSettingsEntry, MAIN_AGENT_KEY};
 use desktop_ui_controls::overlays::BelowOverlay;
 use desktop_ui_controls::system_settings_common::SettingsSelectLabel;
 use crate::message::TaskBoardMessage;
@@ -32,7 +36,6 @@ const DEFAULT_TASK_EXECUTOR_LABEL: &str = "未使用 ACP";
 
 #[derive(Clone, Copy)]
 enum TaskBoardExecutorSelectorKind {
-    Draft,
     Edit,
     Bulk,
 }
@@ -40,59 +43,42 @@ enum TaskBoardExecutorSelectorKind {
 impl TaskBoardExecutorSelectorKind {
     fn current_executor(&self, app: ExecutorView<'_>) -> Option<String> {
         match self {
-            Self::Draft | Self::Edit => app.task_board_draft.acp_agent.clone(),
+            Self::Edit => app.task_board_draft.acp_agent.clone(),
             Self::Bulk => (*app.task_board_bulk_acp_agent).clone(),
         }
     }
 
     fn toggle_message(&self) -> TaskBoardMessage {
         match self {
-            Self::Draft | Self::Edit => TaskBoardMessage::ToggleExecutorPopover,
+            Self::Edit => TaskBoardMessage::ToggleExecutorPopover,
             Self::Bulk => TaskBoardMessage::ToggleBulkExecutorPopover,
         }
     }
 
     fn close_message(&self) -> TaskBoardMessage {
         match self {
-            Self::Draft | Self::Edit => TaskBoardMessage::ToggleExecutorPopover,
+            Self::Edit => TaskBoardMessage::CloseExecutorPopover,
             Self::Bulk => TaskBoardMessage::CloseBulkExecutorPopover,
         }
     }
 
     fn is_open(&self, app: ExecutorView<'_>) -> bool {
         match self {
-            Self::Draft | Self::Edit => app.task_board_executor_popover,
+            Self::Edit => app.task_board_executor_popover,
             Self::Bulk => app.task_board_bulk_executor_popover,
         }
     }
 
     fn select_message(&self, executor: Option<String>) -> TaskBoardMessage {
         match self {
-            Self::Draft => TaskBoardMessage::UpdateDraftExecutor(executor),
             Self::Edit => TaskBoardMessage::UpdateEditingTaskExecutor(executor),
             Self::Bulk => TaskBoardMessage::BulkExecutorSelected(executor),
         }
     }
 }
 
-/// 构建对应界面片段。
-///
-/// # 参数
-/// - `app`: 当前视图构建所需的状态、配置或消息。
-/// - `is_edit_mode`: 当前视图构建所需的状态、配置或消息。
-///
-/// # 返回
-/// 返回可直接嵌入父级视图的 Iced 控件或样式闭包。
-///
-/// # 错误
-/// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub fn build_executor_selector<'a>(app: ExecutorView<'a>, is_edit_mode: bool) -> Element<'a, Message> {
-    let kind = if is_edit_mode {
-        TaskBoardExecutorSelectorKind::Edit
-    } else {
-        TaskBoardExecutorSelectorKind::Draft
-    };
-    build_selector(app, kind)
+pub(super) fn build_edit_executor_selector(app: ExecutorView<'_>) -> Element<'_, Message> {
+    build_selector(app, TaskBoardExecutorSelectorKind::Edit)
 }
 
 /// 构建对应界面片段。
@@ -116,7 +102,6 @@ fn build_selector<'a>(app: ExecutorView<'a>, kind: TaskBoardExecutorSelectorKind
     });
 
     let open = kind.is_open(app);
-    let composer = matches!(kind, TaskBoardExecutorSelectorKind::Draft);
     let executor_toggle = button(
         row![
             acp_agent_icon(
@@ -134,25 +119,149 @@ fn build_selector<'a>(app: ExecutorView<'a>, kind: TaskBoardExecutorSelectorKind
         .spacing(6)
         .align_y(Alignment::Center),
     )
-    .style(move |theme, status| {
-        if composer {
-            selector_pill_button_style(theme, status, open)
-        } else {
-            selector_trigger_style(theme, status, open)
-        }
-    })
+    .style(move |theme, status| selector_trigger_style(theme, status, open))
     .padding([6, 8])
-    .width(if composer { Length::Fixed(142.0) } else { Length::Fill })
-    .height(if composer { 30 } else { 38 })
+    .width(Length::Fill)
+    .height(38)
     .on_press(kind.toggle_message());
 
     let executor_pop_content = build_executor_popover(current_executor, app, kind);
 
-    let overlay = BelowOverlay::new(executor_toggle, executor_pop_content)
+    BelowOverlay::new(executor_toggle, executor_pop_content)
         .show(open)
         .gap(6.0)
-        .on_close(kind.close_message());
-    if composer { overlay.within_window().dismiss_on_escape().into() } else { overlay.into() }
+        .on_close(kind.close_message())
+        .into()
+}
+
+struct DraftAgentChoice<'a> {
+    key: &'a str,
+    backend: Option<&'a str>,
+    label: String,
+}
+
+fn draft_agent_choices<'a>(
+    app: ExecutorView<'a>,
+    entries: &'a [DelegateAgentSettingsEntry],
+) -> Vec<DraftAgentChoice<'a>> {
+    let i18n = I18n::new(app.desktop_locale);
+    let mut choices = vec![DraftAgentChoice {
+        key: MAIN_AGENT_KEY,
+        backend: None,
+        label: i18n.__("主智能体").to_owned(),
+    }];
+    choices.extend(entries.iter().filter_map(|entry| {
+        if entry.key == MAIN_AGENT_KEY || !entry.enabled || is_retired_builtin_agent_key(&entry.key)
+        {
+            return None;
+        }
+        let backend = match &entry.runtime {
+            AgentRuntime::Native => None,
+            AgentRuntime::Acp { backend }
+                if entry.can_start_session() && backend != EMPLOYEE_ACP_BACKEND =>
+            {
+                Some(backend.as_str())
+            }
+            AgentRuntime::Acp { .. } => return None,
+        };
+        Some(DraftAgentChoice { key: &entry.key, backend, label: entry.label.clone() })
+    }));
+    choices.extend(app.acp_agents.iter().filter_map(|backend| {
+        // A backend's default profile and its direct entry resolve to the same gateway route.
+        let default_profile = format!("acp-{backend}");
+        if backend == EMPLOYEE_ACP_BACKEND
+            || entries.iter().any(|entry| entry.key == default_profile)
+        {
+            return None;
+        }
+        Some(DraftAgentChoice {
+            key: MAIN_AGENT_KEY,
+            backend: Some(backend),
+            label: crate::draft::task_acp_agent_label(Some(backend)),
+        })
+    }));
+    choices
+}
+
+pub(super) fn build_draft_agent_selector<'a>(
+    app: ExecutorView<'a>,
+    entries: &'a [DelegateAgentSettingsEntry],
+) -> Element<'a, Message> {
+    let open = app.task_board_executor_popover;
+    let draft = app.task_board_draft;
+    let key = draft.agent.as_deref().unwrap_or(MAIN_AGENT_KEY);
+    let backend = draft.acp_agent.as_deref();
+    let default_profile = backend.map(|backend| format!("acp-{backend}"));
+    let choices = draft_agent_choices(app, entries);
+    let selected = choices.iter().position(|choice| {
+        choice.backend == backend
+            && (choice.key == key
+                || (key == MAIN_AGENT_KEY && default_profile.as_deref() == Some(choice.key)))
+    });
+    let label = selected.map(|index| choices[index].label.clone()).unwrap_or_else(|| {
+        if key == MAIN_AGENT_KEY {
+            crate::draft::task_acp_agent_label(backend)
+        } else {
+            entries.iter().find(|entry| entry.key == key)
+                .map_or_else(|| key.to_owned(), |entry| entry.label.clone())
+        }
+    });
+    let toggle = agent_toggle(
+        open || key != MAIN_AGENT_KEY || backend.is_some(),
+        label,
+        backend,
+        None,
+        TaskBoardMessage::ToggleExecutorPopover,
+    );
+    if !open {
+        return toggle;
+    }
+
+    let i18n = I18n::new(app.desktop_locale);
+    let list = column(choices.into_iter().enumerate().map(|(index, choice)| {
+        let (icon, subtitle) = match choice.backend {
+            Some(backend) => (acp_agent_icon(backend, 16.0), format!("ACP · {backend}")),
+            None => (
+                icon_svg(Icon::Hexagon, 16.0)
+                    .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
+                    .into(),
+                i18n.__("识矩原生").to_owned(),
+            ),
+        };
+        agent_option(
+            choice.label,
+            subtitle,
+            icon,
+            selected == Some(index),
+            Some(TaskBoardMessage::SelectDraftAgent {
+                agent: choice.key.to_owned(),
+                acp_agent: choice.backend.map(str::to_owned),
+            }),
+        )
+        .into()
+    }))
+    .spacing(6);
+    let menu = container(
+        scrollable(container(list).padding([0.0, ACP_SELECTOR_LIST_GUTTER]))
+            .direction(Direction::Vertical(
+                Scrollbar::new()
+                    .width(ACP_SELECTOR_SCROLLBAR_WIDTH)
+                    .scroller_width(ACP_SELECTOR_SCROLLBAR_WIDTH),
+            ))
+            .height(Length::Shrink),
+    )
+    .style(agent_popover_style)
+    .padding([6, 0])
+    .max_height(ACP_SELECTOR_MAX_HEIGHT)
+    .width(Length::Fixed(300.0));
+
+    BelowOverlay::new(toggle, menu)
+        .show(true)
+        .gap(6.0)
+        .within_window()
+        .dismiss_on_escape()
+        .on_close(TaskBoardMessage::CloseExecutorPopover)
+        .into()
 }
 
 fn build_executor_popover<'a>(

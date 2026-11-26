@@ -6,6 +6,7 @@ use iced::widget::{button, container, row, column, text};
 use iced::{Element, Length, Alignment, Color, Theme};
 use super::{surface_styles as styles, icons::{self, icon_svg}};
 use desktop_chat_tools::state::SessionToolSelectorTab;
+pub use desktop_chat_tools::selector_style::{agent_option, popover_style as agent_popover_style};
 #[cfg(test)]
 pub(super) fn popover_item_style(
     theme: &Theme,
@@ -121,33 +122,45 @@ pub fn session_tool_tab_toggle<'a, Message: Clone + 'a>(
     portrait: Option<iced::widget::image::Handle>,
     on_press: Message,
 ) -> Element<'a, Message> {
+    if tab == SessionToolSelectorTab::Agent {
+        return agent_toggle(highlight, agent_label, acp_agent, portrait, on_press);
+    }
     let icon: Element<'_, Message> =
         icon_svg(session_tool_tab_icon(tab), styles::BOTTOM_BAR_ICON_SIZE)
             .style(move |theme: &Theme, _| iced::widget::svg::Style {
                 color: Some(styles::selector_text_color(theme, highlight)),
             })
             .into();
-    if tab == SessionToolSelectorTab::Agent {
-        let label = agent_label;
-        let icon = if let Some(portrait) = portrait {
-            iced::widget::image(portrait).width(18).height(18).into()
-        } else {
-            acp_agent.map(|backend| icons::acp_agent_icon(backend, styles::BOTTOM_BAR_ICON_SIZE)).unwrap_or(icon)
-        };
-        button(
-            row![icon, text(label).size(styles::BOTTOM_BAR_LABEL_SIZE)]
-                .spacing(6)
-                .align_y(Alignment::Center),
-        )
-        .padding([4, 10])
-        .style(move |theme: &Theme, status| {
-            styles::selector_pill_button_style(theme, status, highlight)
-        })
-        .on_press(on_press)
-        .into()
+    bottom_bar_round_toggle(icon, tab.label(), on_press)
+}
+
+pub fn agent_toggle<'a, Message: Clone + 'a>(
+    highlight: bool,
+    label: String,
+    acp_agent: Option<&str>,
+    portrait: Option<iced::widget::image::Handle>,
+    on_press: Message,
+) -> Element<'a, Message> {
+    let icon: Element<'_, Message> = if let Some(portrait) = portrait {
+        iced::widget::image(portrait).width(18).height(18).into()
+    } else if let Some(backend) = acp_agent {
+        icons::acp_agent_icon(backend, styles::BOTTOM_BAR_ICON_SIZE)
     } else {
-        bottom_bar_round_toggle(icon, tab.label(), on_press)
-    }
+        icon_svg(session_tool_tab_icon(SessionToolSelectorTab::Agent), styles::BOTTOM_BAR_ICON_SIZE)
+            .style(move |theme: &Theme, _| iced::widget::svg::Style {
+                color: Some(styles::selector_text_color(theme, highlight)),
+            })
+            .into()
+    };
+    button(
+        row![icon, text(label).size(styles::BOTTOM_BAR_LABEL_SIZE)]
+            .spacing(6)
+            .align_y(Alignment::Center),
+    )
+    .padding([4, 10])
+    .style(move |theme, status| styles::selector_pill_button_style(theme, status, highlight))
+    .on_press(on_press)
+    .into()
 }
 
 pub fn selected_context_summary(i18n: I18n, tool_names: &[String], skill_names: &[String], shiju_names: &[String]) -> Option<String> {

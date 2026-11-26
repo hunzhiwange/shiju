@@ -1,7 +1,49 @@
-use iced::{Background, Border, Color, Theme};
-use iced::widget::{button,container, text};
+use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+use iced::widget::{Space, button, column, container, row, svg, text};
+use desktop_assets::assets::Icon;
 use crate::card_style::is_dark_theme;
 pub use desktop_ui_controls::tooltip::tooltip_dark_style;
+
+pub fn agent_option<'a, Message: Clone + 'a>(
+    label: String,
+    subtitle: String,
+    identity_icon: Element<'a, Message>,
+    selected: bool,
+    on_press: Option<Message>,
+) -> button::Button<'a, Message> {
+    let check: Element<'_, Message> = if selected {
+        crate::card_style::icon_svg(Icon::Check)
+            .width(14)
+            .height(14)
+            .style(|theme: &Theme, _| svg::Style {
+                color: Some(theme.palette().text.scale_alpha(0.92)),
+            })
+            .into()
+    } else {
+        Space::new().width(14).into()
+    };
+    button(
+        row![
+            identity_icon,
+            column![
+                text(label).size(13),
+                text(subtitle).size(11).style(|theme: &Theme| text::Style {
+                    color: Some(theme.palette().text.scale_alpha(0.62)),
+                }),
+            ]
+            .spacing(3)
+            .width(Length::Fill),
+            check,
+        ]
+        .spacing(10)
+        .align_y(Alignment::Center),
+    )
+    .padding([8, 10])
+    .width(Length::Fill)
+    .style(move |theme, status| selectable_list_button_style(theme, status, selected))
+    .on_press_maybe(on_press)
+}
+
 pub fn selectable_list_button_style(
     theme: &Theme,
     status: button::Status,

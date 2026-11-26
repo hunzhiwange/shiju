@@ -3406,6 +3406,7 @@
   "重试次数": "Retry count",
   "单个任务": "Single task",
   "批量导入": "Bulk import",
+  "继续创建": "Keep creating",
   "批量导入内容": "Bulk import content",
   "粘贴 JSON 数组或 CSV 内容...": "Paste a JSON array or CSV content...",
   "输入大模型提示词...": "Enter a model prompt...",

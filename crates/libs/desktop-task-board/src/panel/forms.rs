@@ -1,9 +1,8 @@
 //! 任务字段、导入内容与提交选项。
 use super::*;
-use desktop_assets::assets::Icon;
 use desktop_chat_input::input_panel::{
     input_editor::composer_editor,
-    layout::{COMPOSER_TOOLBAR_PADDING, composer_card},
+    layout::{COMPOSER_TOOLBAR_PADDING, composer_card, composer_toolbar},
 };
 use iced::widget::column;
 
@@ -27,7 +26,7 @@ pub(super) fn build_priority_field<'a>(app: PanelView<'a>, is_edit_mode: bool) -
 
 
 
-pub(super) fn build_agent_field(app: PanelView<'_>, is_edit_mode: bool) -> iced::Element<'_, Message> {
+pub(super) fn build_agent_field(app: PanelView<'_>) -> iced::Element<'_, Message> {
     let selected_key =
         app.task_board_draft.agent.clone().unwrap_or_else(|| MAIN_AGENT_KEY.to_string());
     let options = build_agent_options(app, &selected_key);
@@ -38,19 +37,12 @@ pub(super) fn build_agent_field(app: PanelView<'_>, is_edit_mode: bool) -> iced:
         .cloned()
         .or_else(|| options.iter().find(|option| option.key == MAIN_AGENT_KEY).cloned());
 
-    let select = settings_select(options, selected, move |option| {
-        Message::TaskBoard(if is_edit_mode {
-            TaskBoardMessage::UpdateEditingTaskAgent(Some(option.key))
-        } else {
-            TaskBoardMessage::UpdateDraftAgent(Some(option.key))
-        })
+    settings_select(options, selected, |option| {
+        Message::TaskBoard(TaskBoardMessage::UpdateEditingTaskAgent(Some(option.key)))
     })
-    .placeholder(desktop_i18n::I18n::new(app.desktop_locale).__("选择代理"));
-    if is_edit_mode {
-        select.width(Length::Fill).into()
-    } else {
-        select.toolbar_icon(Icon::Hexagon).width(132).into()
-    }
+    .placeholder(I18n::new(app.desktop_locale).__("选择代理"))
+    .width(Length::Fill)
+    .into()
 }
 
 pub fn build_bulk_agent_selector(app: PanelView<'_>) -> iced::Element<'_, Message> {
@@ -128,35 +120,47 @@ pub(super) fn build_prompt_field<'a>(app: PanelView<'a>) -> iced::Element<'a, Me
 }
 
 pub(super) fn build_create_form<'a>(app: PanelView<'a>, slots: PanelSlots<'a>) -> Element<'a, Message> {
+    use iced::widget::scrollable::{Direction, Scrollbar};
+
     let i18n = I18n::new(app.desktop_locale);
     let (editor, _) = composer_editor(app.task_board_prompt_editor);
     let editor = editor
         .placeholder(i18n.__("输入大模型提示词..."))
+        .height(212)
         .on_action(|action| Message::TaskBoard(TaskBoardMessage::PromptEditorAction(action)));
-    let toolbar = row![
-        build_agent_field(app, false),
-        slots.executor.expect("visible executor selector"),
+    let body = scrollable(container(editor).padding([0, 7]).width(Length::Fill))
+        .direction(Direction::Vertical(
+            Scrollbar::new().width(4).scroller_width(4),
+        ))
+        .width(Length::Fill)
+        .height(Length::Fill);
+
+    let priority = row![
+        input_label(i18n.__("优先级")),
+        container(build_priority_field(app, false)).width(104),
     ]
-    .extend(slots.reasoning)
-    .push(slots.model.expect("visible model selector"))
-    .spacing(4)
-    .align_y(Alignment::Center)
-    .wrap();
-    let composer = composer_card(
-        column![editor, container(toolbar).padding(COMPOSER_TOOLBAR_PADDING)],
-        false,
-        None,
+    .spacing(6)
+    .align_y(Alignment::Center);
+    let toolbar = composer_toolbar(
+        row![slots.executor.expect("visible agent selector")]
+            .extend(slots.reasoning)
+            .push(slots.model.expect("visible model selector"))
+            .push(priority),
     )
-    .padding(iced::Padding { top: 8.0, ..iced::Padding::ZERO });
+    .wrap();
+    composer_card(column![body, toolbar].height(Length::Fill), false, None)
+        .padding(iced::Padding::ZERO.top(8))
+        .into()
+}
 
-    let priority = column![
-        settings_field_label(i18n.__("优先级")),
-        build_priority_field(app, false),
+pub(super) fn build_create_footer(app: PanelView<'_>) -> Element<'_, Message> {
+    row![
+        container(build_create_options_row(app)).width(Length::Fill),
+        build_submit_button(app, false),
     ]
-    .width(144)
-    .spacing(6);
-
-    column![composer, priority, build_create_options_row(app)].spacing(14).into()
+    .spacing(12)
+    .align_y(Alignment::Center)
+    .into()
 }
 
 pub(super) fn build_mode_toggle(app: PanelView<'_>) -> iced::Element<'_, Message> {
@@ -243,31 +247,25 @@ pub(super) fn build_import_field<'a>(app: PanelView<'a>) -> iced::Element<'a, Me
 }
 
 pub(super) fn build_clear_prompt_checkbox(app: PanelView<'_>) -> iced::Element<'_, Message> {
-    row![
-        checkbox(app.task_board_clear_prompt_after_create)
-            .on_toggle(|enabled| {
-                Message::TaskBoard(TaskBoardMessage::ToggleClearPromptAfterCreate(enabled))
-            })
-            .style(settings_checkbox_style),
-        text(desktop_i18n::I18n::new(app.desktop_locale).__("创建后自动清空提示词")).size(13),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center)
-    .into()
+    checkbox(app.task_board_clear_prompt_after_create)
+        .label(I18n::new(app.desktop_locale).__("创建后自动清空提示词"))
+        .text_size(13)
+        .on_toggle(|enabled| {
+            Message::TaskBoard(TaskBoardMessage::ToggleClearPromptAfterCreate(enabled))
+        })
+        .style(settings_checkbox_style)
+        .into()
 }
 
-pub(super) fn build_close_after_create_checkbox(app: PanelView<'_>) -> iced::Element<'_, Message> {
-    row![
-        checkbox(app.task_board_close_after_create)
-            .on_toggle(|enabled| {
-                Message::TaskBoard(TaskBoardMessage::ToggleCloseAfterCreate(enabled))
-            })
-            .style(settings_checkbox_style),
-        text(desktop_i18n::I18n::new(app.desktop_locale).__("创建后关闭")).size(13),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center)
-    .into()
+pub(super) fn build_continue_creating_toggle(app: PanelView<'_>) -> iced::Element<'_, Message> {
+    desktop_ui_controls::system_settings_common::settings_toggle(!app.task_board_close_after_create)
+        .label(I18n::new(app.desktop_locale).__("继续创建"))
+        .text_size(13)
+        .width(Length::Shrink)
+        .on_toggle(|enabled| {
+            Message::TaskBoard(TaskBoardMessage::ToggleCloseAfterCreate(!enabled))
+        })
+        .into()
 }
 
 pub(super) fn build_close_after_edit_checkbox(app: PanelView<'_>) -> iced::Element<'_, Message> {
@@ -285,7 +283,7 @@ pub(super) fn build_close_after_edit_checkbox(app: PanelView<'_>) -> iced::Eleme
 }
 
 pub(super) fn build_create_options_row(app: PanelView<'_>) -> iced::Element<'_, Message> {
-    row![build_close_after_create_checkbox(app), build_clear_prompt_checkbox(app)]
+    row![build_continue_creating_toggle(app), build_clear_prompt_checkbox(app)]
         .spacing(16)
         .align_y(Alignment::Center)
         .wrap()
@@ -301,7 +299,7 @@ pub(super) fn build_edit_options_row(app: PanelView<'_>) -> iced::Element<'_, Me
     )
 }
 
-pub(super) fn build_action_buttons(app: PanelView<'_>, is_edit_mode: bool) -> iced::Element<'static, Message> {
+fn build_submit_button(app: PanelView<'_>, is_edit_mode: bool) -> iced::widget::Button<'static, Message> {
     let (submit_text, submit_msg) = if is_edit_mode {
         if app.task_board_edit_submit_success {
             ("保存成功", TaskBoardMessage::SaveEditingTask)
@@ -321,7 +319,16 @@ pub(super) fn build_action_buttons(app: PanelView<'_>, is_edit_mode: bool) -> ic
         app.task_board_create_submit_success
     };
     let submit_style = if succeeded { button_style_success } else { primary_action_btn_style };
+    let enabled = is_edit_mode
+        || app.task_board_is_import_mode
+        || !app.task_board_draft.prompt.trim().is_empty();
+    button(text(I18n::new(app.desktop_locale).__(submit_text)).size(14))
+        .on_press_maybe(enabled.then_some(Message::TaskBoard(submit_msg)))
+        .padding([8, 14])
+        .style(submit_style)
+}
 
+pub(super) fn build_action_buttons(app: PanelView<'_>, is_edit_mode: bool) -> iced::Element<'static, Message> {
     row![
         button(text(desktop_i18n::I18n::new(app.desktop_locale).__("取消")).size(14))
             .on_press(Message::TaskBoard(if is_edit_mode {
@@ -332,10 +339,7 @@ pub(super) fn build_action_buttons(app: PanelView<'_>, is_edit_mode: bool) -> ic
             .padding([8, 14])
             .style(rounded_action_btn_style),
         Space::new().width(Length::Fill),
-        button(text(desktop_i18n::I18n::new(app.desktop_locale).__(submit_text)).size(14))
-            .on_press(Message::TaskBoard(submit_msg))
-            .padding([8, 14])
-            .style(submit_style),
+        build_submit_button(app, is_edit_mode),
     ]
     .spacing(8)
     .width(Length::Fill)

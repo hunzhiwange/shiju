@@ -29,7 +29,7 @@ use iced::widget::{
 use iced::{Alignment, Color, Element, Length, Theme};
 
 use desktop_assets::assets::{self, Icon};
-use desktop_chat_input::input_panel::surface_styles::selector_pill_button_style;
+use desktop_chat_input::input_panel::model_views::model_toggle_button;
 use desktop_ui_controls::overlays::BelowOverlay;
 use desktop_ui_controls::system_settings_common::{
     SettingsSelectLabel, settings_field_label, settings_muted_text_style, settings_text_input,
@@ -123,35 +123,41 @@ fn build_selector<'a>(app: SelectorView<'a>, kind: TaskBoardModelSelectorKind) -
     let auto_model = model_value == "auto";
     let model = model_value.as_str();
 
-    let chevron_style =
-        |theme: &Theme, _| svg::Style { color: Some(theme.palette().text.scale_alpha(0.65)) };
-    let chevron_model = svg::Svg::<iced::Theme>::new(assets::get_icon(Icon::ChevronDown))
-        .width(Length::Fixed(12.0))
-        .height(Length::Fixed(12.0))
-        .style(chevron_style);
-
     let open = kind.is_open(app);
     let composer = matches!(kind, TaskBoardModelSelectorKind::Draft);
-    let model_toggle = button(
-        row![
-            build_model_icon(auto_model, app, model),
-            SettingsSelectLabel::new(build_toggle_label(app, auto_model, model)),
-            chevron_model
-        ]
-        .spacing(6)
-        .align_y(Alignment::Center),
-    )
-    .style(move |theme, status| {
-        if composer {
-            selector_pill_button_style(theme, status, open)
-        } else {
-            selector_trigger_style(theme, status, open)
-        }
-    })
-    .padding([6, 8])
-    .width(if composer { Length::Fixed(166.0) } else { Length::Fill })
-    .height(if composer { 30 } else { 38 })
-    .on_press(kind.toggle_message());
+    let model_toggle: Element<'a, Message> = if composer {
+        model_toggle_button(
+            desktop_i18n::I18n::new(app.desktop_locale),
+            &app.model_settings.providers,
+            model == TASK_MODEL_ACP_NATIVE,
+            auto_model,
+            model,
+            open,
+            |_| SelectorMessage::ToggleModelPopover,
+        )
+    } else {
+        let chevron_model = svg::Svg::<iced::Theme>::new(assets::get_icon(Icon::ChevronDown))
+            .width(12)
+            .height(12)
+            .style(|theme: &Theme, _| svg::Style {
+                color: Some(theme.palette().text.scale_alpha(0.65)),
+            });
+        button(
+            row![
+                build_model_icon(auto_model, app, model),
+                SettingsSelectLabel::new(build_toggle_label(app, auto_model, model)),
+                chevron_model,
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center),
+        )
+        .style(move |theme, status| selector_trigger_style(theme, status, open))
+        .padding([6, 8])
+        .width(Length::Fill)
+        .height(38)
+        .on_press(kind.toggle_message())
+        .into()
+    };
 
     let model_pop_content = build_model_popover(app, kind, auto_model, model);
 

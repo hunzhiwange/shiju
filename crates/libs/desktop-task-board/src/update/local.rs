@@ -325,9 +325,6 @@ pub fn update_local(
         TaskBoardMessage::UpdateDraftAssignee(v) => {
             state.draft.assignee = v;
         }
-        TaskBoardMessage::UpdateDraftAgent(agent) => {
-            state.draft.agent = agent.or_else(|| Some(main_agent_key.to_string()));
-        }
         TaskBoardMessage::UpdateDraftReasoningEffort(reasoning_effort) => {
             state.draft.reasoning_effort = reasoning_effort;
         }
@@ -376,6 +373,9 @@ pub fn update_local(
                 (*state.bulk_executor_popover) = false;
             }
         }
+        TaskBoardMessage::CloseExecutorPopover => {
+            *state.executor_popover = false;
+        }
         TaskBoardMessage::ToggleTaskSelection { task_id, selected } => {
             if selected {
                 (*state.selected_tasks).insert(task_id);
@@ -418,6 +418,7 @@ pub fn update_local(
         }
         TaskBoardMessage::ToggleImportMode(enabled) => {
             (*state.is_import_mode) = enabled;
+            *state.executor_popover = false;
         }
         TaskBoardMessage::ImportEditorAction(action) => {
             (*state.import_editor).perform(action);
@@ -448,11 +449,14 @@ pub fn update_local(
             }
             (*state.executor_popover) = false;
         }
-        TaskBoardMessage::UpdateDraftExecutor(executor) => {
-            crate::draft::set_draft_executor_selection(state.draft, executor);
-            if state.draft.acp_agent.is_some() {
-                state.draft.agent = Some(main_agent_key.to_owned());
+        TaskBoardMessage::SelectDraftAgent { agent, acp_agent } => {
+            if state.draft.agent.as_deref() != Some(agent.as_str())
+                || state.draft.acp_agent != acp_agent
+            {
+                state.draft.reasoning_effort = None;
             }
+            state.draft.agent = Some(agent);
+            crate::draft::set_draft_executor_selection(state.draft, acp_agent);
             (*state.last_acp_agent) = state.draft.acp_agent.clone();
             (*state.last_model).clone_from(&state.draft.model);
             (*state.executor_popover) = false;
@@ -501,6 +505,7 @@ fn close_detail(state: &mut LocalState<'_>) -> LocalEffect {
 }
 
 fn reset_draft(state: &mut LocalState<'_>) {
+    *state.executor_popover = false;
     crate::draft::reset_create_draft(
         state.draft,
         state.prompt_editor,

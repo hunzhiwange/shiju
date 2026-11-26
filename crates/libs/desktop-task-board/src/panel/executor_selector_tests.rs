@@ -16,6 +16,7 @@ fn test_app() -> Fixture {
 fn assert_task_board_message(message: TaskBoardMessage, expected: TaskBoardMessage) {
     match (message, expected) {
         (TaskBoardMessage::ToggleExecutorPopover, TaskBoardMessage::ToggleExecutorPopover)
+        | (TaskBoardMessage::CloseExecutorPopover, TaskBoardMessage::CloseExecutorPopover)
         | (
             TaskBoardMessage::ToggleBulkExecutorPopover,
             TaskBoardMessage::ToggleBulkExecutorPopover,
@@ -25,10 +26,6 @@ fn assert_task_board_message(message: TaskBoardMessage, expected: TaskBoardMessa
             TaskBoardMessage::CloseBulkExecutorPopover,
         ) => {}
         (
-            TaskBoardMessage::UpdateDraftExecutor(actual),
-            TaskBoardMessage::UpdateDraftExecutor(expected),
-        )
-        | (
             TaskBoardMessage::UpdateEditingTaskExecutor(actual),
             TaskBoardMessage::UpdateEditingTaskExecutor(expected),
         )
@@ -58,10 +55,6 @@ fn selector_kind_reads_current_executor_from_expected_app_state() {
     app.task_board_bulk_acp_agent = Some("bulk-agent".to_string());
 
     assert_eq!(
-        TaskBoardExecutorSelectorKind::Draft.current_executor(app.executor()),
-        Some("draft-agent".to_string())
-    );
-    assert_eq!(
         TaskBoardExecutorSelectorKind::Edit.current_executor(app.executor()),
         Some("draft-agent".to_string())
     );
@@ -77,14 +70,9 @@ fn selector_kind_maps_open_close_toggle_and_select_messages() {
     app.task_board_executor_popover = true;
     app.task_board_bulk_executor_popover = false;
 
-    assert!(TaskBoardExecutorSelectorKind::Draft.is_open(app.executor()));
     assert!(TaskBoardExecutorSelectorKind::Edit.is_open(app.executor()));
     assert!(!TaskBoardExecutorSelectorKind::Bulk.is_open(app.executor()));
 
-    assert_task_board_message(
-        TaskBoardExecutorSelectorKind::Draft.toggle_message(),
-        TaskBoardMessage::ToggleExecutorPopover,
-    );
     assert_task_board_message(
         TaskBoardExecutorSelectorKind::Edit.toggle_message(),
         TaskBoardMessage::ToggleExecutorPopover,
@@ -95,22 +83,14 @@ fn selector_kind_maps_open_close_toggle_and_select_messages() {
     );
 
     assert_task_board_message(
-        TaskBoardExecutorSelectorKind::Draft.close_message(),
-        TaskBoardMessage::ToggleExecutorPopover,
-    );
-    assert_task_board_message(
         TaskBoardExecutorSelectorKind::Edit.close_message(),
-        TaskBoardMessage::ToggleExecutorPopover,
+        TaskBoardMessage::CloseExecutorPopover,
     );
     assert_task_board_message(
         TaskBoardExecutorSelectorKind::Bulk.close_message(),
         TaskBoardMessage::CloseBulkExecutorPopover,
     );
 
-    assert_task_board_message(
-        TaskBoardExecutorSelectorKind::Draft.select_message(Some("codex".to_string())),
-        TaskBoardMessage::UpdateDraftExecutor(Some("codex".to_string())),
-    );
     assert_task_board_message(
         TaskBoardExecutorSelectorKind::Edit.select_message(None),
         TaskBoardMessage::UpdateEditingTaskExecutor(None),
@@ -143,8 +123,8 @@ fn build_selector_variants_create_elements_for_draft_edit_and_bulk_states() {
     app.task_board_executor_popover = true;
     app.task_board_bulk_executor_popover = true;
 
-    keep_element(build_executor_selector(app.executor(), false));
-    keep_element(build_executor_selector(app.executor(), true));
+    keep_element(build_draft_agent_selector(app.executor(), &[]));
+    keep_element(build_edit_executor_selector(app.executor()));
     keep_element(build_bulk_executor_selector(app.executor()));
 }
 
@@ -153,7 +133,7 @@ fn build_executor_popover_covers_default_selected_agent_selected_and_agent_unsel
     let mut app = test_app();
     app.acp_agents = vec!["codex".to_string(), "claude".to_string()];
 
-    let default_selected = build_executor_popover(None, app.executor(), TaskBoardExecutorSelectorKind::Draft);
+    let default_selected = build_executor_popover(None, app.executor(), TaskBoardExecutorSelectorKind::Edit);
     assert_eq!(default_selected.as_widget().children().len(), 1);
 
     let agent_selected = build_executor_popover(
@@ -179,4 +159,35 @@ fn build_executor_popover_accepts_empty_agent_catalog() {
 
     assert_eq!(popover.as_widget().children().len(), 1);
     keep_element(popover);
+}
+
+#[test]
+fn draft_agent_choices_merge_profiles_and_backends() {
+    let mut app = test_app();
+    app.acp_agents = vec!["codex".into(), "claude".into(), "opencode".into(), EMPLOYEE_ACP_BACKEND.into()];
+    let profile = |key, backend: &str, enabled| {
+        DelegateAgentSettingsEntry::from_config(
+            key,
+            Some(config_agent::DelegateAgentConfig {
+                enabled,
+                runtime: AgentRuntime::Acp { backend: backend.to_owned() },
+                ..Default::default()
+            }),
+        )
+    };
+    let entries = [
+        profile("acp-codex", "codex", true),
+        profile("acp-claude", "claude", false),
+        profile("custom", "opencode", true),
+    ];
+    let options = draft_agent_choices(app.executor(), &entries);
+    assert_eq!(
+        options.iter().map(|choice| (choice.key, choice.backend)).collect::<Vec<_>>(),
+        [
+            (MAIN_AGENT_KEY, None),
+            ("acp-codex", Some("codex")),
+            ("custom", Some("opencode")),
+            (MAIN_AGENT_KEY, Some("opencode")),
+        ],
+    );
 }

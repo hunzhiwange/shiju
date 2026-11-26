@@ -270,8 +270,7 @@ fn field_and_action_builders_cover_draft_edit_and_bulk_message_paths() {
 
     keep_element(build_priority_field(app.view(), false));
     keep_element(build_priority_field(app.view(), true));
-    keep_element(build_agent_field(app.view(), false));
-    keep_element(build_agent_field(app.view(), true));
+    keep_element(build_agent_field(app.view()));
     keep_element(build_bulk_agent_selector(app.view()));
     keep_element(build_action_buttons(app.view(), false));
     keep_element(build_action_buttons(app.view(), true));
@@ -360,7 +359,7 @@ fn supporting_panel_builders_construct_tabs_headers_and_completion_options() {
     keep_element(build_prompt_field(app.view()));
     keep_element(build_mode_toggle(app.view()));
     keep_element(build_clear_prompt_checkbox(app.view()));
-    keep_element(build_close_after_create_checkbox(app.view()));
+    keep_element(build_continue_creating_toggle(app.view()));
     keep_element(build_close_after_edit_checkbox(app.view()));
     keep_element(build_create_options_row(app.view()));
     keep_element(build_edit_options_row(app.view()));
@@ -379,5 +378,16 @@ fn import_field_builds_with_examples_and_editor() {
 fn test_panel(app: &App, edit: bool) -> Element<'_, Message> {
  let selector = crate::model_selector::SelectorView { draft_model: &app.task_board_draft.model, draft_acp_agent: None, bulk_has_acp_tasks: false, bulk_model: "", task_board_model_popover: false, task_board_bulk_model_popover: false, desktop_locale: app.desktop_locale, model_settings: &app.model_settings };
  let executor = executor_selector::ExecutorView { task_board_draft: &app.task_board_draft, task_board_bulk_acp_agent: &None, task_board_executor_popover: false, task_board_bulk_executor_popover: false, desktop_locale: app.desktop_locale, acp_agents: &[] };
- build_task_panel(app.view(), edit, PanelSlots { model: Some(crate::model_selector::build_model_selector(selector, edit).map(Message::Model)), executor: Some(executor_selector::build_executor_selector(executor, edit).map(Message::TaskBoard)), reasoning: reasoning_selector::build_reasoning_effort_selector(reasoning_selector::ReasoningView { draft: &app.task_board_draft, bulk_agent: None, bulk_effort: None, model_options: &[None], desktop_locale: app.desktop_locale }, edit).map(|e| e.map(Message::TaskBoard)) })
+ build_with_controls(app.view(), edit, selector, executor, || {
+     reasoning_selector::build_reasoning_effort_selector(
+         reasoning_selector::ReasoningView {
+             draft: &app.task_board_draft,
+             bulk_agent: None,
+             bulk_effort: None,
+             model_options: &[None],
+             desktop_locale: app.desktop_locale,
+         },
+         edit,
+     )
+ })
 }

@@ -10,7 +10,7 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use crate::card_style::icon_svg;
 use desktop_assets::assets::Icon;
 use crate::selector_style::{
-    popover_style, selectable_list_button_style, tooltip_dark_style,
+    agent_option, popover_style, selectable_list_button_style, tooltip_dark_style,
 };
 use crate::selector_style::session_lock_tooltip;
 
@@ -386,17 +386,6 @@ pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'stati
                 } else {
                     format!("{} / {}", engine, entry.model)
                 };
-                let check: Element<'_, Message> = if selected {
-                    icon_svg(Icon::Check)
-                        .width(Length::Fixed(14.0))
-                        .height(Length::Fixed(14.0))
-                        .style(|theme: &Theme, _status| svg::Style {
-                            color: Some(theme.palette().text.scale_alpha(0.92)),
-                        })
-                        .into()
-                } else {
-                    Space::new().width(Length::Fixed(14.0)).into()
-                };
                 let identity_icon: Element<'_, Message> = match &entry.runtime {
                     config_agent_profile::AgentRuntime::Native => icon_svg(Icon::Hexagon)
                         .width(Length::Fixed(16.0))
@@ -409,30 +398,13 @@ pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'stati
                 };
                 let agent_for_press =
                     if entry.key == runtime.main_agent_key { None } else { Some(entry.key.clone()) };
-                let control = button(
-                    row![
-                        identity_icon,
-                        column![
-                            text(entry.label.clone()).size(13),
-                            text(subtitle).size(11).style(|theme: &Theme| {
-                                iced::widget::text::Style {
-                                    color: Some(theme.palette().text.scale_alpha(0.62)),
-                                }
-                            })
-                        ]
-                        .spacing(3)
-                        .width(Length::Fill),
-                        check
-                    ]
-                    .spacing(10)
-                    .align_y(Alignment::Center),
-                )
-                .padding([8, 10])
-                .width(Length::Fill)
-                .style(move |theme: &Theme, status| {
-                    selectable_list_button_style(theme, status, selected)
-                })
-                .on_press_maybe((!started).then_some(Message::SessionAgentSelected(agent_for_press),));
+                let control = agent_option(
+                    entry.label.clone(),
+                    subtitle,
+                    identity_icon,
+                    selected,
+                    (!started).then_some(Message::SessionAgentSelected(agent_for_press)),
+                );
                 list = list.push(session_lock_tooltip(control, i18n, started));
             }
             if !has_agents {

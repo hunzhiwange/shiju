@@ -791,10 +791,7 @@ pub fn bottom_bar<'a, Message: Clone + 'a>(
     }
 
     // 设置垂直对齐和内边距，返回最终布局
-    bar.spacing(4)
-        .align_y(Alignment::Center)
-        .padding(super::layout::COMPOSER_TOOLBAR_PADDING)
-        .into()
+    super::layout::composer_toolbar(bar).into()
 }
 
 /// 只接受当前会话目录与项目目录，不借用宿主状态。

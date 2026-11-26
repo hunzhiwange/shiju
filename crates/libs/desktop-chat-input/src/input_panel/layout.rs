@@ -5,6 +5,10 @@ use iced::{Element, Length, Padding};
 pub const COMPOSER_TOOLBAR_PADDING: Padding =
     Padding { top: 3.0, right: 12.0, bottom: 6.0, left: 12.0 };
 
+pub fn composer_toolbar<Message>(bar: iced::widget::Row<'_, Message>) -> iced::widget::Row<'_, Message> {
+    bar.spacing(4).align_y(iced::Alignment::Center).padding(COMPOSER_TOOLBAR_PADDING)
+}
+
 pub fn composer_card<'a, Message: 'a>(
     content: impl Into<Element<'a, Message>>,
     hovered: bool,

@@ -60,3 +60,35 @@ fn task_created_ignores_other_projects_and_closes_create_form_for_current_projec
     assert!(state.task_board_draft.prompt.is_empty());
     assert!(state.task_board_prompt_editor.text().is_empty());
 }
+
+#[test]
+fn create_task_keeps_the_selected_acp_profile_and_switches_back_to_native() {
+    let mut state = Fixture::default();
+    state.task_board_draft.prompt = "draft".into();
+    state.task_board_executor_popover = true;
+    let selected = update_local(
+        local_state(&mut state),
+        TaskBoardMessage::SelectDraftAgent { agent: "coding-profile".into(), acp_agent: Some("codex".into()) },
+        "main",
+    );
+    assert!(matches!(selected, Ok(LocalEffect::None)));
+    assert!(!state.task_board_executor_popover);
+    let created = update_local(local_state(&mut state), TaskBoardMessage::CreateTaskSubmitted, "main");
+    assert!(matches!(created, Ok(LocalEffect::Create(task))
+        if task.agent.as_deref() == Some("coding-profile") && task.acp_agent.as_deref() == Some("codex")));
+
+    state.task_board_draft.model = desktop_task_model::TASK_MODEL_ACP_NATIVE.into();
+    state.task_board_draft.reasoning_effort = Some(vw_api_chat_identity::ReasoningEffortDto::High);
+    let selected = update_local(
+        local_state(&mut state),
+        TaskBoardMessage::SelectDraftAgent { agent: "main".into(), acp_agent: None },
+        "main",
+    );
+    assert!(matches!(selected, Ok(LocalEffect::None)));
+    assert!(state.task_board_last_acp_agent.is_none());
+    assert!(state.task_board_draft.reasoning_effort.is_none());
+    let created = update_local(local_state(&mut state), TaskBoardMessage::CreateTaskSubmitted, "main");
+    assert!(matches!(created, Ok(LocalEffect::Create(task))
+        if task.agent.as_deref() == Some("main") && task.acp_agent.is_none()
+            && task.model == desktop_task_model::TASK_MODEL_AUTO));
+}

@@ -82,6 +82,14 @@ pub fn update(
         TaskBoardMessage::Detail(event) => return detail_update::update(app, event),
         message => message,
     };
+    if matches!(
+        &message,
+        TaskBoardMessage::CreateTask
+            | TaskBoardMessage::CreateTaskCancelled
+            | TaskBoardMessage::ToggleImportMode(_)
+    ) {
+        app.task_board.task_board_model_popover = false;
+    }
     if app.task_board.task_board_viewing_logs.is_some()
         && matches!(
             &message,

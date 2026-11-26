@@ -103,7 +103,6 @@ fn special_keys_emit_terminal_sequences() {
     for (key, modifiers, expected) in [
         (Named::Tab, Modifiers::SHIFT, "\x1b[Z"),
         (Named::Backspace, Modifiers::CTRL, "\x08"),
-        (Named::Space, Modifiers::CTRL, "\0"),
         (Named::Insert, Modifiers::ALT, "\x1b[2;3~"),
         (Named::F1, Modifiers::CTRL, "\x1b[1;5P"),
         (Named::F2, Modifiers::CTRL, "\x1b[1;5Q"),
@@ -123,6 +122,33 @@ fn special_keys_emit_terminal_sequences() {
             TermMode::empty()
         ),
         b"\x1c"
+    );
+}
+
+#[test]
+fn input_source_shortcuts_follow_platform_bindings() {
+    let bindings = BindingsLayout::new();
+    let space = Key::Named(Named::Space);
+    let mode = TermMode::empty();
+    assert_eq!(
+        bindings.key_action(&space, Modifiers::empty(), None, mode),
+        BindingAction::Char(' ')
+    );
+
+    #[cfg(target_os = "macos")]
+    for key in [space, Key::Character(" ".into())] {
+        for modifiers in [Modifiers::CTRL, Modifiers::CTRL | Modifiers::ALT] {
+            assert_eq!(
+                bindings.key_action(&key, modifiers, Some(" "), mode),
+                BindingAction::Ignore
+            );
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    assert_eq!(
+        bindings.key_action(&space, Modifiers::CTRL, None, mode),
+        BindingAction::Char('\0')
     );
 }
 

@@ -128,6 +128,16 @@ impl BindingsLayout {
         text: Option<&str>,
         terminal_mode: TermMode,
     ) -> BindingAction {
+        // macOS uses Ctrl+Space and Ctrl+Option+Space to switch input sources.
+        #[cfg(target_os = "macos")]
+        if (matches!(key, Key::Named(Named::Space))
+            || matches!(key, Key::Character(c) if c == " "))
+            && (modifiers == Modifiers::CTRL
+                || modifiers == (Modifiers::CTRL | Modifiers::ALT))
+        {
+            return BindingAction::Ignore;
+        }
+
         let input = match key {
             Key::Character(c) if c == "\r" || c == "\n" => {
                 InputKind::KeyCode(Named::Enter)

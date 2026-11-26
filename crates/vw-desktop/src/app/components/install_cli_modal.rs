@@ -12,6 +12,10 @@ pub(super) fn map(event: domain::Message) -> Message {
             E::OpenAppInstaller => ViewMessage::OpenAppInstaller,
             E::OpenAppInstallerDirectory => ViewMessage::OpenAppInstallerDirectory,
             E::CancelAppUpdate => ViewMessage::CancelAppUpdate,
+            #[cfg(not(target_arch = "wasm32"))]
+            E::SetAppDownloadPaused(paused) => ViewMessage::AppUpdateAutomation(
+                desktop_update::panel::PanelMessage::SetAppDownloadPaused(paused),
+            ),
             E::RunAppUpdate => ViewMessage::RunAppUpdate,
             E::RunInstallCliTool => ViewMessage::RunInstallCliTool,
             E::SkipAppUpdate => ViewMessage::SkipAppUpdate,

@@ -42,20 +42,25 @@ fn update_ring_measures_download_bytes_and_waits_for_verification() {
         bytes_per_second: 0.0,
         average_bytes_per_second: 0.0,
     };
-    assert_eq!(RingState::downloading(None), RingState::Downloading(None));
-    assert_eq!(RingState::downloading(Some(&progress)), RingState::Downloading(None));
+    assert_eq!(RingState::downloading(None, false), RingState::Downloading(None));
+    assert_eq!(RingState::downloading(Some(&progress), false), RingState::Downloading(None));
 
     progress.total_bytes = Some(1024);
-    let downloading = RingState::downloading(Some(&progress));
+    let downloading = RingState::downloading(Some(&progress), false);
     assert_eq!(downloading, RingState::Downloading(Some(50)));
     assert_eq!(downloading.percent(), 50);
-    assert!(downloading.action().is_none());
+    assert!(matches!(downloading.action(), Some(ViewMessage::OpenAppUpdateModal)));
+
+    let paused = RingState::downloading(Some(&progress), true);
+    assert_eq!(paused, RingState::Paused(Some(50)));
+    assert_eq!(paused.percent(), 50);
+    assert!(matches!(paused.action(), Some(ViewMessage::OpenAppUpdateModal)));
 
     progress.downloaded_bytes = 1024;
-    let verifying = RingState::downloading(Some(&progress));
+    let verifying = RingState::downloading(Some(&progress), false);
     assert_eq!(verifying, RingState::Verifying);
     assert_eq!(verifying.percent(), 100);
-    assert!(verifying.action().is_none());
+    assert!(matches!(verifying.action(), Some(ViewMessage::OpenAppUpdateModal)));
 }
 
 #[test]

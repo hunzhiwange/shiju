@@ -249,7 +249,10 @@ pub fn view_inner<'a>(
         };
 
     let actions: Option<Element<'a, Message>> = if has_version_info {
-        let detect_label = if is_checking && !installing { "检测中..." } else { "检测更新" };
+        let downloading = use_app_update_action
+            && desktop_update.is_some_and(|state| state.download_abort.is_some());
+        let detect_label =
+            if is_checking && !installing && !downloading { "检测中..." } else { "检测更新" };
         let detect_message = if use_app_update_action {
             ViewMessage::CheckAppUpdate
         } else {
@@ -302,9 +305,23 @@ pub fn view_inner<'a>(
         } else {
             action_row
         };
-        let action_row = if use_app_update_action
-            && desktop_update.is_some_and(|state| state.download_abort.is_some())
-        {
+        #[cfg(not(target_arch = "wasm32"))]
+        let action_row = if downloading {
+            let paused = desktop_update.is_some_and(|state| state.download_paused());
+            let verifying = update_progress.is_some_and(|progress| {
+                progress.total_bytes.is_some_and(|total| progress.downloaded_bytes >= total)
+            });
+            let label = if paused { "继续下载" } else { "暂停下载" };
+            let action_row = if paused || !verifying {
+                action_row.push(
+                    button(text(i18n.__(label)).size(13))
+                        .on_press(Message::View(ViewMessage::SetAppDownloadPaused(!paused)))
+                        .padding([8, 16])
+                        .style(primary_action_btn_style),
+                )
+            } else {
+                action_row
+            };
             action_row.push(
                 button(text(i18n.__("取消下载")).size(13))
                     .on_press(Message::View(ViewMessage::CancelAppUpdate))

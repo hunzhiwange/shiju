@@ -259,6 +259,86 @@ async fn desktop_release_download_is_atomic_and_reports_progress_without_content
 }
 
 #[tokio::test]
+async fn desktop_release_paused_download_checks_range_before_appending() {
+    use std::io::{BufRead, BufReader};
+    use std::net::TcpStream;
+    use tokio::sync::oneshot;
+
+    fn read_request(stream: &TcpStream) -> String {
+        stream.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+        let mut reader = BufReader::new(stream);
+        let mut headers = String::new();
+        loop {
+            let mut line = String::new();
+            assert_ne!(reader.read_line(&mut line).unwrap(), 0);
+            if line == "\r\n" {
+                return headers.to_ascii_lowercase();
+            }
+            headers.push_str(&line);
+        }
+    }
+
+    let release = parse_desktop_release(UpdateSource::Shiju, manifests().0).unwrap();
+    for (resume_response, succeeds) in [
+        (b"HTTP/1.1 206 Partial Content\r\nContent-Range: bytes 2-3/4\r\nContent-Length: 2\r\nConnection: close\r\n\r\nta".to_vec(), true),
+        (response(b"data", Some(4)), true),
+        (b"HTTP/1.1 206 Partial Content\r\nContent-Range: bytes 1-2/4\r\nContent-Length: 2\r\nConnection: close\r\n\r\nta".to_vec(), false),
+    ] {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let (disconnected, wait_for_disconnect) = oneshot::channel();
+        let server = std::thread::spawn(move || {
+            let (mut first, _) = listener.accept().unwrap();
+            assert!(!read_request(&first).contains("range:"));
+            first.write_all(&response(b"da", Some(4))).unwrap();
+            // Keep the body incomplete until pausing drops the HTTP connection.
+            assert_eq!(first.read(&mut [0]).unwrap(), 0);
+            disconnected.send(()).unwrap();
+
+            let (mut resumed, _) = listener.accept().unwrap();
+            assert!(read_request(&resumed).contains("\r\nrange: bytes=2-\r\n"));
+            let _ = resumed.write_all(&resume_response);
+        });
+        let directory = tempfile::tempdir().unwrap();
+        let client = http_client(Duration::from_secs(3)).unwrap();
+        let (pause, paused) = watch::channel(false);
+        let mut paused_once = false;
+        let download = download_installer_with_pause_at(
+            &release.assets[0],
+            &url,
+            directory.path(),
+            |progress| {
+                if progress.downloaded_bytes == 2 && !paused_once {
+                    paused_once = true;
+                    pause.send(true).unwrap();
+                }
+            },
+            &client,
+            paused,
+        );
+        let resume = async {
+            wait_for_disconnect.await.unwrap();
+            assert!(*pause.borrow());
+            pause.send(false).unwrap();
+        };
+        let (result, ()) = tokio::time::timeout(Duration::from_secs(5), async {
+            tokio::join!(download, resume)
+        })
+        .await
+        .unwrap();
+        server.join().unwrap();
+
+        if succeeds {
+            assert_eq!(std::fs::read(result.unwrap()).unwrap(), b"data");
+            assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+        } else {
+            assert!(result.unwrap_err().to_string().contains("Content-Range"));
+            assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+        }
+    }
+}
+
+#[tokio::test]
 async fn desktop_release_failed_downloads_remove_temporary_files() {
     for (body, length, delay) in [
         (&b"bad!"[..], Some(4), Duration::ZERO),

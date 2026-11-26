@@ -34,6 +34,8 @@ pub struct DesktopUpdate {
     pub checking: bool,
     pub busy: bool,
     pub download_abort: Option<iced::task::Handle>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) download_pause: Option<tokio::sync::watch::Sender<bool>>,
     pub release: Option<DesktopRelease>,
     #[cfg(not(target_arch = "wasm32"))]
     pub ready: Option<super::installer_update::PreparedDesktopUpdate>,
@@ -72,6 +74,8 @@ impl DesktopUpdate {
             checking: false,
             busy: false,
             download_abort: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            download_pause: None,
             release: None,
             #[cfg(not(target_arch = "wasm32"))]
             ready: None,
@@ -92,6 +96,13 @@ impl DesktopUpdate {
             Some(release.source) == self.source
                 && release.is_newer_than(update_types::current_version()).unwrap_or(false)
         })
+    }
+
+    pub fn download_paused(&self) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        return self.download_pause.as_ref().is_some_and(|pause| *pause.borrow());
+        #[cfg(target_arch = "wasm32")]
+        false
     }
 }
 

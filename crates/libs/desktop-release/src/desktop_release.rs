@@ -11,6 +11,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::{Duration, Instant};
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::sync::watch;
 
 const SHIJU_ROOT: &str = "https://www.shiju.cloud/agents/shiju-agent";
 /// Public ShiJu release resource, also used as a fixed proxy reachability target.
@@ -322,69 +324,147 @@ pub async fn download_desktop_installer<F>(
 where
     F: FnMut(UpdateProgress) + Send,
 {
+    let (_pause, paused) = watch::channel(false);
+    download_desktop_installer_with_pause(release, target, kind, destination, on_progress, paused)
+        .await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn download_desktop_installer_with_pause<F>(
+    release: &DesktopRelease,
+    target: &str,
+    kind: InstallerKind,
+    destination: &Path,
+    on_progress: F,
+    paused: watch::Receiver<bool>,
+) -> Result<PathBuf>
+where
+    F: FnMut(UpdateProgress) + Send,
+{
     let asset = release.installer_for_target(target, kind)?;
-    download_installer_at(
+    download_installer_with_pause_at(
         asset,
         &asset.url,
         destination,
         on_progress,
         &http_client(Duration::from_secs(30 * 60))?,
+        paused,
     )
     .await
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 async fn download_installer_at<F>(
     asset: &DesktopInstaller,
     url: &str,
     destination: &Path,
-    mut on_progress: F,
+    on_progress: F,
     client: &reqwest::Client,
 ) -> Result<PathBuf>
 where
     F: FnMut(UpdateProgress) + Send,
 {
+    let (_pause, paused) = watch::channel(false);
+    download_installer_with_pause_at(asset, url, destination, on_progress, client, paused).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn download_installer_with_pause_at<F>(
+    asset: &DesktopInstaller,
+    url: &str,
+    destination: &Path,
+    mut on_progress: F,
+    client: &reqwest::Client,
+    mut paused: watch::Receiver<bool>,
+) -> Result<PathBuf>
+where
+    F: FnMut(UpdateProgress) + Send,
+{
+    use reqwest::{StatusCode, header};
+
     let final_path = destination.join(&asset.name);
     if final_path.symlink_metadata().is_ok() {
         bail!("Installer destination already exists");
     }
-    let mut response = client.get(url).send().await?.error_for_status()?;
-    if response.content_length().is_some_and(|length| length != asset.size) {
-        bail!("Installer Content-Length differs from manifest");
-    }
     let mut temporary = tempfile::NamedTempFile::new_in(destination)?;
     let mut digest = Sha256::new();
-    let start = Instant::now();
-    let mut last_tick = start;
     let mut downloaded_bytes = 0_u64;
-    on_progress(UpdateProgress {
+    let progress = |downloaded_bytes, bytes_per_second, average_bytes_per_second| UpdateProgress {
         asset_name: asset.name.clone(),
         download_url: asset.url.clone(),
         downloaded_bytes,
         total_bytes: Some(asset.size),
-        bytes_per_second: 0.0,
-        average_bytes_per_second: 0.0,
-    });
-    while let Some(chunk) = response.chunk().await? {
-        downloaded_bytes =
-            downloaded_bytes.checked_add(chunk.len() as u64).context("Installer size overflow")?;
-        if downloaded_bytes > asset.size {
-            bail!("Installer exceeds manifest size");
+        bytes_per_second,
+        average_bytes_per_second,
+    };
+    on_progress(progress(0, 0.0, 0.0));
+    'download: loop {
+        paused.wait_for(|paused| !*paused).await.context("Installer download control closed")?;
+        let mut request = client.get(url).header(header::ACCEPT_ENCODING, "identity");
+        if downloaded_bytes > 0 {
+            request = request.header(header::RANGE, format!("bytes={downloaded_bytes}-"));
         }
-        temporary.write_all(&chunk)?;
-        digest.update(&chunk);
-        let now = Instant::now();
-        on_progress(UpdateProgress {
-            asset_name: asset.name.clone(),
-            download_url: asset.url.clone(),
-            downloaded_bytes,
-            total_bytes: Some(asset.size),
-            bytes_per_second: chunk.len() as f64
-                / now.duration_since(last_tick).as_secs_f64().max(f64::EPSILON),
-            average_bytes_per_second: downloaded_bytes as f64
-                / now.duration_since(start).as_secs_f64().max(f64::EPSILON),
-        });
-        last_tick = now;
+        let mut response = tokio::select! {
+            biased;
+            result = paused.wait_for(|paused| *paused) => {
+                result.context("Installer download control closed")?;
+                continue 'download;
+            }
+            result = request.send() => result?.error_for_status()?,
+        };
+        let start = match (response.status(), downloaded_bytes) {
+            (StatusCode::OK, 0) => 0,
+            (StatusCode::OK, _) => {
+                temporary = tempfile::NamedTempFile::new_in(destination)?;
+                digest = Sha256::new();
+                downloaded_bytes = 0;
+                on_progress(progress(0, 0.0, 0.0));
+                0
+            }
+            (StatusCode::PARTIAL_CONTENT, offset) if offset > 0 => {
+                let expected = format!("bytes {offset}-{}/{}", asset.size - 1, asset.size);
+                if response.headers().get(header::CONTENT_RANGE).and_then(|value| value.to_str().ok())
+                    != Some(expected.as_str())
+                {
+                    bail!("Installer Content-Range differs from requested range");
+                }
+                offset
+            }
+            (status, _) => bail!("Unexpected installer download response: {status}"),
+        };
+        if response.content_length().is_some_and(|length| length != asset.size - start) {
+            bail!("Installer Content-Length differs from manifest");
+        }
+
+        let started_at = Instant::now();
+        let mut last_tick = started_at;
+        loop {
+            let chunk = tokio::select! {
+                biased;
+                result = paused.wait_for(|paused| *paused), if downloaded_bytes < asset.size => {
+                    result.context("Installer download control closed")?;
+                    continue 'download;
+                }
+                result = response.chunk() => result?,
+            };
+            let Some(chunk) = chunk else { break 'download };
+            downloaded_bytes = downloaded_bytes
+                .checked_add(chunk.len() as u64)
+                .context("Installer size overflow")?;
+            if downloaded_bytes > asset.size {
+                bail!("Installer exceeds manifest size");
+            }
+            temporary.write_all(&chunk)?;
+            digest.update(&chunk);
+            let now = Instant::now();
+            on_progress(progress(
+                downloaded_bytes,
+                chunk.len() as f64 / now.duration_since(last_tick).as_secs_f64().max(f64::EPSILON),
+                (downloaded_bytes - start) as f64
+                    / now.duration_since(started_at).as_secs_f64().max(f64::EPSILON),
+            ));
+            last_tick = now;
+        }
     }
     if downloaded_bytes != asset.size || hex::encode(digest.finalize()) != asset.sha256 {
         bail!("Installer size or SHA-256 verification failed");

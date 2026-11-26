@@ -31,6 +31,8 @@ pub enum PanelMessage {
         Result<desktop_release::DesktopRelease, String>,
     ),
     RunAppUpdate,
+    #[cfg(not(target_arch = "wasm32"))]
+    SetAppDownloadPaused(bool),
     CancelAppUpdate,
     #[cfg(not(target_arch = "wasm32"))]
     AppUpdateDownloadPrepared(u64, Result<crate::app::installer_update::PreparedDesktopUpdate, String>),
@@ -278,7 +280,11 @@ pub fn update(
             if state.busy {
                 panel.cli_install_modal_show_install_action = false;
                 if state.download_abort.is_some() {
-                    panel.cli_install_modal_message = "正在下载并校验安装包...".into();
+                    panel.cli_install_modal_message = if state.download_paused() {
+                        "下载已暂停".into()
+                    } else {
+                        "正在下载并校验安装包...".into()
+                    };
                 } else {
                     panel.cli_install_modal_title = "更新中…".into();
                     panel.cli_install_modal_message =
@@ -433,6 +439,7 @@ pub fn update(
                     panel.cli_install_modal_server_version = release.version.clone();
                 }
                 let (progress_tx, progress_rx) = std::sync::mpsc::channel();
+                let (pause, paused) = tokio::sync::watch::channel(false);
                 state.busy = true;
                 panel.cli_install_modal_is_checking_update = true;
                 panel.cli_install_modal_show_install_action = false;
@@ -444,19 +451,46 @@ pub fn update(
                 let request = state.request;
                 let (task, handle) = Task::perform(
                     async move {
-                        crate::app::installer_update::prepare_desktop_update(&release, progress_tx)
-                            .await
-                            .map_err(|error| error.to_string())
+                        crate::app::installer_update::prepare_desktop_update_with_pause(
+                            &release,
+                            progress_tx,
+                            paused,
+                        )
+                        .await
+                        .map_err(|error| error.to_string())
                     },
                     move |result| PanelMessage::AppUpdateDownloadPrepared(request, result),
                 ).abortable();
                 state.download_abort = Some(handle);
+                state.download_pause = Some(pause);
                 task
             }
             #[cfg(target_arch = "wasm32")]
             {
                 app_update_error(panel, state, effects, "当前平台不支持应用更新".into())
             }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        PanelMessage::SetAppDownloadPaused(paused) => {
+            let verifying = panel.app_update_progress.as_ref().is_some_and(|progress| {
+                progress.total_bytes.is_some_and(|total| progress.downloaded_bytes >= total)
+            });
+            if let Some(pause) = &state.download_pause
+                && (!paused || !verifying)
+                && pause.send(paused).is_ok()
+            {
+                // A user-controlled download no longer follows automatic download conditions.
+                state.automatic_download_active = false;
+                panel.cli_install_modal_message = if paused {
+                    if let Some(progress) = &mut panel.app_update_progress {
+                        progress.bytes_per_second = 0.0;
+                    }
+                    "下载已暂停".into()
+                } else {
+                    "正在下载并校验安装包...".into()
+                };
+            }
+            Task::none()
         }
         PanelMessage::CancelAppUpdate => {
             #[cfg(not(target_arch = "wasm32"))]
@@ -480,6 +514,7 @@ pub fn update(
             }
             let automatic = std::mem::take(&mut state.automatic_download_active);
             state.download_abort = None;
+            state.download_pause = None;
             state.busy = false;
             panel.cli_install_modal_is_checking_update = false;
             // The completion message may arrive before the next progress subscription tick.
@@ -579,7 +614,12 @@ pub fn update(
                         break;
                     };
                     match current_receiver.try_recv() {
-                        Ok(progress) => panel.app_update_progress = Some(progress),
+                        Ok(mut progress) => {
+                            if state.download_paused() {
+                                progress.bytes_per_second = 0.0;
+                            }
+                            panel.app_update_progress = Some(progress);
+                        }
                         Err(std::sync::mpsc::TryRecvError::Empty) => break,
                         Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                             active_receiver = None;
@@ -678,6 +718,7 @@ fn cancel_download(panel: &mut PanelState, state: &mut DesktopUpdate) {
         return;
     };
     handle.abort();
+    state.download_pause = None;
     state.automatic_download_active = false;
     state.request += 1;
     state.busy = false;

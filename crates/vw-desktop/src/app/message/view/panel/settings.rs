@@ -470,6 +470,7 @@ fn panel_message(message: PanelMessage) -> ViewMessage {
         message @ (PanelMessage::AutomaticDownloadTick(_)
             | PanelMessage::AutomaticConditionsChecked(..)
             | PanelMessage::CachedInstallerChecked(..)
+            | PanelMessage::SetAppDownloadPaused(_)
             | PanelMessage::RequestAppInstallerConfirmation
             | PanelMessage::ResolveAppInstallerConfirmation { .. }) => {
             ViewMessage::AppUpdateAutomation(message)

@@ -35,40 +35,48 @@ const WARNING_ICON: &[u8] = br##"<svg xmlns="http://www.w3.org/2000/svg" viewBox
 enum RingState {
     Available,
     Downloading(Option<u8>),
+    Paused(Option<u8>),
     Verifying,
     Ready,
     Installing,
 }
 
 impl RingState {
-    fn downloading(progress: Option<&UpdateProgress>) -> Self {
+    fn downloading(progress: Option<&UpdateProgress>, paused: bool) -> Self {
         let Some((downloaded, total)) = progress.and_then(|progress| {
             progress
                 .total_bytes
                 .filter(|total| *total > 0)
                 .map(|total| (progress.downloaded_bytes, total))
         }) else {
-            return Self::Downloading(None);
+            return if paused { Self::Paused(None) } else { Self::Downloading(None) };
         };
+        let percent = (u128::from(downloaded.min(total)) * 100 / u128::from(total)) as u8;
+        if paused {
+            return Self::Paused(Some(percent));
+        }
         if downloaded >= total {
             Self::Verifying
         } else {
-            Self::Downloading(Some((u128::from(downloaded) * 100 / u128::from(total)) as u8))
+            Self::Downloading(Some(percent))
         }
     }
 
     fn action(&self) -> Option<ViewMessage> {
         match self {
             Self::Available => Some(ViewMessage::RunAppUpdate),
+            Self::Downloading(_) | Self::Paused(_) | Self::Verifying => {
+                Some(ViewMessage::OpenAppUpdateModal)
+            }
             Self::Ready => Some(ViewMessage::OpenAppInstaller),
-            Self::Downloading(_) | Self::Verifying | Self::Installing => None,
+            Self::Installing => None,
         }
     }
 
     fn percent(&self) -> u8 {
         match self {
             Self::Available => 100,
-            Self::Downloading(percent) => percent.unwrap_or(0),
+            Self::Downloading(percent) | Self::Paused(percent) => percent.unwrap_or(0),
             Self::Verifying | Self::Ready | Self::Installing => 100,
         }
     }
@@ -83,7 +91,9 @@ fn ring_state(app: &App) -> Option<(&str, RingState)> {
     };
     let state = if update.busy {
         if update.download_abort.is_some() {
-            RingState::downloading(app.update_panel.app_update_progress.as_ref())
+            RingState::downloading(
+                app.update_panel.app_update_progress.as_ref(), update.download_paused(),
+            )
         } else {
             RingState::Installing
         }
@@ -106,24 +116,35 @@ pub(super) fn view(app: &App) -> Option<Element<'_, Message>> {
             ("↓", format!("{} {percent}%", i18n.__("下载进度")))
         }
         RingState::Downloading(None) => ("↓", i18n.__("正在下载并校验安装包...").to_owned()),
+        RingState::Paused(Some(percent)) => ("Ⅱ", format!("{} {percent}%", i18n.__("下载已暂停"))),
+        RingState::Paused(None) => ("Ⅱ", i18n.__("下载已暂停").to_owned()),
         RingState::Verifying => ("…", i18n.__("正在校验安装包…").to_owned()),
         RingState::Ready => ("", i18n.__("安装更新").to_owned()),
         RingState::Installing => ("…", i18n.__("更新中…").to_owned()),
     };
 
     let trigger: Element<'_, Message> = if let Some(action) = state.action() {
-        let icon = if state == RingState::Available { DOWNLOAD_ICON } else { READY_ICON };
-        let icon = svg::Svg::new(svg::Handle::from_memory(icon))
-            .width(12)
-            .height(12)
-            .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().background) });
-        let badge = container(icon).center(BADGE_SIZE).style(|theme: &Theme| container::Style {
-            background: Some(theme.palette().text.into()),
-            border: iced::border::rounded(BADGE_SIZE / 2.0),
-            ..Default::default()
-        });
-        button(badge)
-            .padding(4)
+        let shows_progress =
+            matches!(state, RingState::Downloading(_) | RingState::Paused(_) | RingState::Verifying);
+        let content = if shows_progress {
+            progress_ring(&state, glyph)
+        } else {
+            let icon = if state == RingState::Available { DOWNLOAD_ICON } else { READY_ICON };
+            let icon = svg::Svg::new(svg::Handle::from_memory(icon))
+                .width(12)
+                .height(12)
+                .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().background) });
+            container(icon)
+                .center(BADGE_SIZE)
+                .style(|theme: &Theme| container::Style {
+                    background: Some(theme.palette().text.into()),
+                    border: iced::border::rounded(BADGE_SIZE / 2.0),
+                    ..Default::default()
+                })
+                .into()
+        };
+        button(content)
+            .padding(if shows_progress { 2 } else { 4 })
             .style(|theme, status| {
                 let mut style = rounded_action_btn_style(theme, status);
                 style.border = iced::border::rounded(8);
@@ -193,7 +214,7 @@ pub(in crate::app::impls) fn with_install_confirmation<'a>(
         };
         let cancel = resolve(false);
         let actions = row![
-            button(text(i18n.__("取消")).center())
+            button(text(i18n.__("稍后安装")).center())
                 .width(Length::FillPortion(1))
                 .padding([8, 12])
                 .style(|theme, status| {

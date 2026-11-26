@@ -6,6 +6,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
+use tokio::sync::watch;
 use update_types::UpdateProgress;
 
 /// Only the verified download path can produce this result. Fields stay private so
@@ -84,6 +85,15 @@ pub async fn prepare_desktop_update(
     release: &DesktopRelease,
     progress_tx: Sender<UpdateProgress>,
 ) -> Result<PreparedDesktopUpdate> {
+    let (_pause, paused) = watch::channel(false);
+    prepare_desktop_update_with_pause(release, progress_tx, paused).await
+}
+
+pub(crate) async fn prepare_desktop_update_with_pause(
+    release: &DesktopRelease,
+    progress_tx: Sender<UpdateProgress>,
+    paused: watch::Receiver<bool>,
+) -> Result<PreparedDesktopUpdate> {
     let target = desktop_target(std::env::consts::OS, std::env::consts::ARCH)?;
     let kind = installer_kind(std::env::consts::OS)?;
     let asset = release.installer_for_target(target, kind)?;
@@ -100,7 +110,7 @@ pub async fn prepare_desktop_update(
     }
     fs::create_dir_all(&cache)?;
     let attempt = create_attempt(&cache, &release.version)?;
-    let path = desktop_release::download_desktop_installer(
+    let path = desktop_release::download_desktop_installer_with_pause(
         release,
         target,
         kind,
@@ -108,6 +118,7 @@ pub async fn prepare_desktop_update(
         |progress| {
             let _ = progress_tx.send(progress);
         },
+        paused,
     )
     .await?;
     finish_download(attempt, path, asset, &release.version)

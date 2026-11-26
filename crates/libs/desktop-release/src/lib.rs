@@ -7,5 +7,6 @@ pub use desktop_release::{
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub use desktop_release::{
-    download_desktop_installer, fetch_desktop_release, linux_installer_kind,
+    download_desktop_installer, download_desktop_installer_with_pause, fetch_desktop_release,
+    linux_installer_kind,
 };

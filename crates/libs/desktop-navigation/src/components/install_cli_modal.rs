@@ -550,7 +550,6 @@ fn automatic_download_settings<'a>(
                 row![
                     control("空闲时（10 分钟）", policy.idle, |p, v| p.idle = v),
                     control("夜间（23:00–07:00）", policy.night, |p, v| p.night = v),
-                    control("仅 Wi-Fi", policy.wifi, |p, v| p.wifi = v),
                     control("仅接通电源", policy.plugged_in, |p, v| p.plugged_in = v),
                 ]
                 .spacing(12)

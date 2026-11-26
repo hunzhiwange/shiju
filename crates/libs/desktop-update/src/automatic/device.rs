@@ -1,17 +1,13 @@
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 use std::process::{Command, Stdio};
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 use std::time::{Duration, Instant};
 
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 fn command(program: &str, args: &[&str]) -> Option<String> {
     // Keep native probes bounded even when a system service stops responding.
     let mut output = tempfile::tempfile().ok()?;
-    let mut command = Command::new(program);
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        command.creation_flags(CREATE_NO_WINDOW);
-    }
-    let mut child = command
+    let mut child = Command::new(program)
         .args(args)
         .env("LC_ALL", "C")
         .stdin(Stdio::null())
@@ -42,6 +38,7 @@ fn command(program: &str, args: &[&str]) -> Option<String> {
     }
 }
 
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
 const IDLE_MS: u64 = 10 * 60 * 1000;
 
 #[cfg(target_os = "macos")]
@@ -51,24 +48,6 @@ pub(super) fn idle() -> bool {
             line.split_once("\"HIDIdleTime\" = ")
                 .and_then(|(_, value)| value.trim().parse::<u64>().ok())
                 .is_some_and(|nanoseconds| nanoseconds / 1_000_000 >= IDLE_MS)
-        })
-    })
-}
-
-#[cfg(target_os = "macos")]
-pub(super) fn wifi() -> bool {
-    let Some(route) = command("/sbin/route", &["-n", "get", "default"]) else {
-        return false;
-    };
-    let Some(interface) = route.lines().find_map(|line| line.trim().strip_prefix("interface: "))
-    else {
-        return false;
-    };
-    command("/usr/sbin/networksetup", &["-listallhardwareports"]).is_some_and(|output| {
-        output.split("\n\n").any(|port| {
-            port.lines().any(|line| {
-                matches!(line.trim(), "Hardware Port: Wi-Fi" | "Hardware Port: AirPort")
-            }) && port.lines().any(|line| line.trim().strip_prefix("Device: ") == Some(interface))
         })
     })
 }
@@ -103,12 +82,6 @@ pub(super) fn idle() -> bool {
         value.trim().strip_prefix("(uint64 ")?.strip_suffix(",)")?.parse::<u64>().ok()
     })
     .is_some_and(|milliseconds| milliseconds >= IDLE_MS)
-}
-
-#[cfg(target_os = "linux")]
-pub(super) fn wifi() -> bool {
-    command("nmcli", &["-t", "-f", "TYPE,STATE", "device", "status"])
-        .is_some_and(|output| output.lines().any(|line| line == "wifi:connected"))
 }
 
 #[cfg(target_os = "linux")]
@@ -147,14 +120,6 @@ pub(super) fn idle() -> bool {
 }
 
 #[cfg(target_os = "windows")]
-pub(super) fn wifi() -> bool {
-    command("powershell.exe", &[
-        "-NoProfile", "-NonInteractive", "-Command",
-        "if (Get-CimInstance -Namespace root/StandardCimv2 -ClassName MSFT_NetAdapter | Where-Object { $_.MediaConnectState -eq 1 -and $_.NdisPhysicalMedium -in 1,9 }) { 'connected' }",
-    ]).is_some_and(|output| output.trim() == "connected")
-}
-
-#[cfg(target_os = "windows")]
 pub(super) fn plugged_in() -> bool {
     #[repr(C)]
     struct PowerStatus {
@@ -175,11 +140,6 @@ pub(super) fn plugged_in() -> bool {
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
 pub(super) fn idle() -> bool {
-    false
-}
-
-#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
-pub(super) fn wifi() -> bool {
     false
 }
 

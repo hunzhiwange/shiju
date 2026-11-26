@@ -9,7 +9,6 @@ pub struct DownloadPolicy {
     pub enabled: bool,
     pub idle: bool,
     pub night: bool,
-    pub wifi: bool,
     pub plugged_in: bool,
 }
 
@@ -19,18 +18,16 @@ impl DownloadPolicy {
         self,
         hour: u32,
         idle: impl FnOnce() -> bool,
-        wifi: impl FnOnce() -> bool,
         plugged_in: impl FnOnce() -> bool,
     ) -> bool {
         let at_night = !(7..23).contains(&hour);
         self.enabled
             && ((!self.idle && !self.night) || (self.night && at_night) || (self.idle && idle()))
-            && (!self.wifi || wifi())
             && (!self.plugged_in || plugged_in())
     }
 
     pub(crate) fn allows_on_device(self, hour: u32) -> bool {
-        self.allows(hour, device::idle, device::wifi, device::plugged_in)
+        self.allows(hour, device::idle, device::plugged_in)
     }
 }
 

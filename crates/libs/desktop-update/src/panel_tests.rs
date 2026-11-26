@@ -160,11 +160,7 @@ fn automatic_download_waits_for_current_policy_and_never_opens_installer() {
     use desktop_release::{DesktopRelease, UpdateSource};
 
     let mut app = Fixture::new();
-    let policy = DownloadPolicy {
-        enabled: true,
-        wifi: true,
-        ..DownloadPolicy::default()
-    };
+    let policy = DownloadPolicy { enabled: true, plugged_in: true, ..DownloadPolicy::default() };
     app.desktop_update.set_download_policy(policy);
     app.desktop_update.release = Some(DesktopRelease {
         source: UpdateSource::Shiju,

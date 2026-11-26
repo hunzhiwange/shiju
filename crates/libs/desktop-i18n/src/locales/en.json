@@ -5327,7 +5327,6 @@
   "自动下载更新": "Download updates automatically",
   "空闲时（10 分钟）": "When idle for 10 minutes",
   "夜间（23:00–07:00）": "At night (23:00–07:00)",
-  "仅 Wi-Fi": "Wi-Fi only",
   "仅接通电源": "Only when plugged in",
   "自动下载设置未保存：%s": "Could not save automatic download settings: %s",
   "安装包已就绪": "Installer ready",

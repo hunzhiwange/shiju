@@ -31,6 +31,7 @@ pub enum ChatMessage<Measurement, PreparedOpen, PanelMode, DetailsTab, TodoPlace
     MediaPromptSelected(String),
     SelectVideoEditorSkill,
     SelectAppDevelopmentSkill,
+    SelectAppManagementSkill,
 
     /// 发送按钮按下
     ///

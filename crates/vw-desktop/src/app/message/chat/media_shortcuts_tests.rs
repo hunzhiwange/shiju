@@ -19,36 +19,42 @@ fn media_shortcut_appends_to_the_chat_draft_without_sending() {
 }
 
 #[test]
-fn video_editor_shortcut_selects_the_installed_skill_without_toggling_it_off() {
+fn media_shortcuts_select_their_installed_skills_without_toggling_them_off() {
     use crate::app::skill_hub::LoadState;
 
-    let mut app = App::new().0;
-    app.session_state.active_session_id = Some("chat-a".into());
-    app.current_session_runtime_mut().input_editor = text_editor::Content::with_text("保留草稿");
-    app.expert_hub.installed = LoadState::Loaded(
-        serde_json::from_value(serde_json::json!([{
-            "skill_id": 712,
-            "slug": "cutvideo",
-            "name": "识矩剪辑",
-            "description": "",
-            "installed_version": "2.1",
-            "current_version": "2.1",
-            "format": "markdown",
-            "upgrade_available": false
-        }]))
-        .unwrap(),
-    );
-    let screen = app.navigation_tabs.screen;
+    for (message, slug, name) in [
+        (ChatMessage::SelectVideoEditorSkill, "cutvideo", "识矩剪辑"),
+        (ChatMessage::SelectAppDevelopmentSkill, "shiju-app", "识矩应用"),
+        (ChatMessage::SelectAppManagementSkill, "shiju-app-admin", "识矩应用管理"),
+    ] {
+        let mut app = App::new().0;
+        app.session_state.active_session_id = Some("chat-a".into());
+        app.current_session_runtime_mut().input_editor = text_editor::Content::with_text("保留草稿");
+        app.expert_hub.installed = LoadState::Loaded(
+            serde_json::from_value(serde_json::json!([{
+                "skill_id": 712,
+                "slug": slug,
+                "name": name,
+                "description": "",
+                "installed_version": "2.1",
+                "current_version": "2.1",
+                "format": "markdown",
+                "upgrade_available": false
+            }]))
+            .unwrap(),
+        );
+        let screen = app.navigation_tabs.screen;
 
-    for _ in 0..2 {
-        app.session_state.input_popovers.set_media_shortcuts(true);
-        let _ = app.update(Message::Chat(ChatMessage::SelectVideoEditorSkill));
+        for _ in 0..2 {
+            app.session_state.input_popovers.set_media_shortcuts(true);
+            let _ = app.update(Message::Chat(message.clone()));
 
-        assert!(!app.session_state.input_popovers.media_shortcuts);
-        assert_eq!(app.navigation_tabs.screen, screen);
-        assert!(!app.workflow_state.video_edit.open);
-        let runtime = app.current_session_runtime();
-        assert!(runtime.tool_selector.is_shiju_skill_selected(712));
-        assert_eq!(runtime.input_editor.text().trim_end(), "保留草稿");
+            assert!(!app.session_state.input_popovers.media_shortcuts);
+            assert_eq!(app.navigation_tabs.screen, screen);
+            assert!(!app.workflow_state.video_edit.open);
+            let runtime = app.current_session_runtime();
+            assert!(runtime.tool_selector.is_shiju_skill_selected(712), "{slug}");
+            assert_eq!(runtime.input_editor.text().trim_end(), "保留草稿");
+        }
     }
 }

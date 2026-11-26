@@ -35,6 +35,7 @@ impl<M, P, V, D, T, G, Media> ChatMessage<M, P, V, D, T, G, Media> {
             | ChatMessage::MediaPromptSelected(_)
             | ChatMessage::SelectVideoEditorSkill
             | ChatMessage::SelectAppDevelopmentSkill
+            | ChatMessage::SelectAppManagementSkill
             | ChatMessage::OpenInputContextMenu { .. }
             | ChatMessage::CloseInputContextMenu
             | ChatMessage::CopyInputSelection

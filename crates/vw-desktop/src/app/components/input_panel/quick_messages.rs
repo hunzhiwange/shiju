@@ -65,6 +65,8 @@ fn map_message(msg: desktop_chat_input::input_panel::quick_message::Message) -> 
         #[cfg(not(target_arch = "wasm32"))]
         Local::SelectAppDevelopmentSkill => Message::Chat(message::ChatMessage::SelectAppDevelopmentSkill),
         #[cfg(not(target_arch = "wasm32"))]
+        Local::SelectAppManagementSkill => Message::Chat(message::ChatMessage::SelectAppManagementSkill),
+        #[cfg(not(target_arch = "wasm32"))]
         Local::SelectShijuSkill(value) => Message::Chat(message::ChatMessage::SelectShijuSkill(value)),
         Local::AgentRecommendedPromptSelected(value) => Message::Chat(message::ChatMessage::AgentRecommendedPromptSelected(value)),
         Local::RecommendedPromptMenuChanged(value) => Message::Chat(message::ChatMessage::RecommendedPromptMenuChanged(value)),

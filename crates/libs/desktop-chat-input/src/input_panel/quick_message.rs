@@ -18,6 +18,8 @@ pub enum Message {
  #[cfg(not(target_arch = "wasm32"))]
  SelectAppDevelopmentSkill,
  #[cfg(not(target_arch = "wasm32"))]
+ SelectAppManagementSkill,
+ #[cfg(not(target_arch = "wasm32"))]
  SelectShijuSkill(u64),
  #[cfg(not(target_arch = "wasm32"))]
  RefreshInstalledSkills,

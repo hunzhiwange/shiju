@@ -111,6 +111,7 @@ pub(crate) fn is_composer_event(message: &ChatMessage) -> bool {
             | ChatMessage::EmployeeCommandSelected { needs_argument: true, .. }
             | ChatMessage::SelectVideoEditorSkill
             | ChatMessage::SelectAppDevelopmentSkill
+            | ChatMessage::SelectAppManagementSkill
             | ChatMessage::OpenInputContextMenu { .. }
             | ChatMessage::CloseInputContextMenu
             | ChatMessage::CopyInputSelection
@@ -154,13 +155,19 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::MediaPromptSelected(prompt) => append_media_prompt(app, prompt, None, None),
         #[cfg(not(target_arch = "wasm32"))]
-        ChatMessage::SelectVideoEditorSkill | ChatMessage::SelectAppDevelopmentSkill => {
+        ChatMessage::SelectVideoEditorSkill
+        | ChatMessage::SelectAppDevelopmentSkill
+        | ChatMessage::SelectAppManagementSkill => {
             use crate::app::skill_hub::LoadState;
 
-            let (slug, install_hint) = if matches!(message, ChatMessage::SelectAppDevelopmentSkill) {
-                ("shiju-app-admin", "请在识矩技能中安装识矩应用管理")
-            } else {
-                ("cutvideo", "请在识矩技能中安装识矩剪辑")
+            let (slug, install_hint) = match message {
+                ChatMessage::SelectAppDevelopmentSkill => {
+                    ("shiju-app", "请在识矩技能中安装识矩应用")
+                }
+                ChatMessage::SelectAppManagementSkill => {
+                    ("shiju-app-admin", "请在识矩技能中安装识矩应用管理")
+                }
+                _ => ("cutvideo", "请在识矩技能中安装识矩剪辑"),
             };
             app.session_state.input_popovers.set_media_shortcuts(false);
             let LoadState::Loaded(skills) = &app.expert_hub.installed else {
@@ -303,7 +310,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::ToggleShijuSkillMenu
         | ChatMessage::SelectShijuSkill(_)
         | ChatMessage::SelectVideoEditorSkill
-        | ChatMessage::SelectAppDevelopmentSkill => {
+        | ChatMessage::SelectAppDevelopmentSkill
+        | ChatMessage::SelectAppManagementSkill => {
             app.show_localized_toast(crate::app::state::ToastKind::Warning, "识矩原生技能管理请使用桌面端", vec![])
         }
         ChatMessage::ToggleAgentSessionsPopover => {

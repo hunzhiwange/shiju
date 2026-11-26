@@ -32,7 +32,7 @@ pub enum MediaModelCatalog<'a> {
 }
 
 pub(super) fn menu(app: QuickInput<'_>, open: bool) -> Element<'_, Message> {
-    let label = app.i18n.__("多模态");
+    let label = app.i18n.__("多模态与应用");
     let label = app.selected_media_model.map_or_else(
         || label.to_owned(),
         |name| format!("{label} · {}", super::model_popover::truncated_model_name(name)),
@@ -62,6 +62,7 @@ pub(super) fn menu(app: QuickInput<'_>, open: bool) -> Element<'_, Message> {
 }
 
 fn operations(app: QuickInput<'_>) -> Element<'_, Message> {
+    let can_select_skill = !matches!(app.installed, LoadState::Loading { .. });
     let mut items = column![
         item(
             app.i18n.__("生图"),
@@ -91,14 +92,17 @@ fn operations(app: QuickInput<'_>) -> Element<'_, Message> {
         .push(item(
             app.i18n.__("识矩剪辑"),
             Icon::Scissors,
-            (!matches!(app.installed, LoadState::Loading { .. }))
-                .then_some(Message::SelectVideoEditorSkill),
+            can_select_skill.then_some(Message::SelectVideoEditorSkill),
         ))
         .push(item(
             app.i18n.__("应用开发"),
             Icon::Code,
-            (!matches!(app.installed, LoadState::Loading { .. }))
-                .then_some(Message::SelectAppDevelopmentSkill),
+            can_select_skill.then_some(Message::SelectAppDevelopmentSkill),
+        ))
+        .push(item(
+            app.i18n.__("应用管理"),
+            Icon::Sliders,
+            can_select_skill.then_some(Message::SelectAppManagementSkill),
         ))
         .into()
 }

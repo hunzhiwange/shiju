@@ -675,7 +675,7 @@ features = [
 
 [workspace.package]
 # Inherited by release packages only. Internal crates pin their own versions.
-version = "0.7.17"
+version = "0.8.0"
 
 [profile.dev]
 # Keep macOS development binaries within the compact unwind offset limit.

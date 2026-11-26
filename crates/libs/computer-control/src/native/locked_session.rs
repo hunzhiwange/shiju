@@ -65,12 +65,14 @@ pub(super) fn check_native_target(bundle_id: &str) -> Result<(), ControlErrorCod
     } else { Ok(()) }
 }
 
-/// Missing or malformed evidence is unknown, never an unlocked session.
-fn decode_lock(value: Option<bool>) -> LockState {
+#[cfg(any(target_os = "macos", test))]
+fn decode_macos_lock(value: Result<Option<bool>, ()>, active_console: bool) -> LockState {
     match value {
-        Some(true) => LockState::Locked,
-        Some(false) => LockState::Unlocked,
-        None => LockState::Unknown,
+        Ok(Some(true)) => LockState::Locked,
+        Ok(Some(false)) => LockState::Unlocked,
+        // WindowServer can omit the lock key on a logged-in, unlocked console.
+        Ok(None) if active_console => LockState::Unlocked,
+        Ok(None) | Err(()) => LockState::Unknown,
     }
 }
 
@@ -81,7 +83,7 @@ pub fn lock_state() -> LockState {
     }
     #[cfg(not(target_os = "macos"))]
     {
-        decode_lock(None)
+        LockState::Unknown
     }
 }
 
@@ -109,22 +111,27 @@ fn macos_lock_state() -> LockState {
         if dictionary.is_null() {
             return LockState::Unknown;
         }
-        let key = CFStringCreateWithCString(
-            std::ptr::null(), c"CGSSessionScreenIsLocked".as_ptr(), 0x08000100,
-        );
-        if key.is_null() {
-            CFRelease(dictionary);
-            return LockState::Unknown;
-        }
-        let value = CFDictionaryGetValue(dictionary, key);
-        let locked = if !value.is_null() && CFGetTypeID(value) == CFBooleanGetTypeID() {
-            Some(CFBooleanGetValue(value))
-        } else {
-            None
+        let read_bool = |name: &std::ffi::CStr| {
+            let key = CFStringCreateWithCString(std::ptr::null(), name.as_ptr(), 0x08000100);
+            if key.is_null() {
+                return Err(());
+            }
+            let value = CFDictionaryGetValue(dictionary, key);
+            CFRelease(key);
+            if value.is_null() {
+                Ok(None)
+            } else if CFGetTypeID(value) == CFBooleanGetTypeID() {
+                Ok(Some(CFBooleanGetValue(value)))
+            } else {
+                Err(())
+            }
         };
-        CFRelease(key);
+        let locked = read_bool(c"CGSSessionScreenIsLocked");
+        let active_console = locked == Ok(None)
+            && read_bool(c"kCGSSessionOnConsoleKey") == Ok(Some(true))
+            && read_bool(c"kCGSessionLoginDoneKey") == Ok(Some(true));
         CFRelease(dictionary);
-        decode_lock(locked)
+        decode_macos_lock(locked, active_console)
     }
 }
 

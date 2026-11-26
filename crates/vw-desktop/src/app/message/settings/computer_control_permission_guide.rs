@@ -63,8 +63,17 @@ define_class!(
 );
 
 pub(super) fn show(i18n: desktop_i18n::I18n, screen_recording: bool) -> Result<(), String> {
+    show_panel(i18n, screen_recording, None)
+}
+
+fn show_panel(
+    i18n: desktop_i18n::I18n,
+    screen_recording: bool,
+    previous_origin: Option<NSPoint>,
+) -> Result<(), String> {
     SCREEN_RECORDING.with(|value| value.set(screen_recording));
     let mtm = MainThreadMarker::new().ok_or(i18n.__("授权窗口须在主线程打开"))?;
+    let click = NSEvent::mouseLocation();
     let path = desktop_config::config_cli_bootstrap::installed_computer_use_app()?;
     let path = NSString::from_str(path.to_str().ok_or(i18n.__("执行应用路径无法显示"))?);
     let file = NSURL::initFileURLWithPath_isDirectory(NSURL::alloc(), &path, true);
@@ -116,23 +125,52 @@ pub(super) fn show(i18n: desktop_i18n::I18n, screen_recording: bool) -> Result<(
     hint.setFrame(NSRect::new(NSPoint::new(84.0, 22.0), NSSize::new(panel_width - 96.0, 20.0)));
     content.addSubview(&hint);
 
-    if let Some(screen) = NSScreen::mainScreen(mtm) {
-        let visible = screen.visibleFrame();
-        panel.setFrameOrigin(NSPoint::new(
-            visible.origin.x + (visible.size.width - panel_width - 16.0).max(0.0),
-            visible.origin.y + (visible.size.height - 152.0).max(0.0),
-        ));
-    }
+    let origin = previous_origin.unwrap_or_else(|| origin_near_click(mtm, click, panel.frame()));
+    panel.setFrameOrigin(origin);
     close();
     GUIDE.with(|guide| guide.replace(Some(panel.clone())));
     panel.orderFrontRegardless();
     Ok(())
 }
 
+fn origin_near_click(mtm: MainThreadMarker, click: NSPoint, panel_frame: NSRect) -> NSPoint {
+    let screens = NSScreen::screens(mtm);
+    let screen = (0..screens.count())
+        .map(|index| screens.objectAtIndex(index))
+        .find(|screen| {
+            let frame = screen.frame();
+            (frame.origin.x..frame.origin.x + frame.size.width).contains(&click.x)
+                && (frame.origin.y..frame.origin.y + frame.size.height).contains(&click.y)
+        });
+    let screen = screen.or_else(|| NSScreen::mainScreen(mtm));
+    let Some(screen) = screen else {
+        return panel_frame.origin;
+    };
+
+    let visible = screen.visibleFrame();
+    let width = panel_frame.size.width;
+    let height = panel_frame.size.height;
+    let gap = 8.0;
+    // AppKit uses a bottom-left origin. Prefer below the click, then try above.
+    let below = click.y - gap - height;
+    let y = if below >= visible.origin.y {
+        below
+    } else {
+        click.y + gap
+    };
+    let max_x = visible.origin.x + (visible.size.width - width).max(0.0);
+    let max_y = visible.origin.y + (visible.size.height - height).max(0.0);
+    NSPoint::new(
+        click.x.clamp(visible.origin.x, max_x),
+        y.clamp(visible.origin.y, max_y),
+    )
+}
+
 pub(super) fn refresh_locale(i18n: desktop_i18n::I18n) {
-    if GUIDE.with(|guide| guide.borrow().is_some()) {
+    let origin = GUIDE.with(|guide| guide.borrow().as_ref().map(|panel| panel.frame().origin));
+    if let Some(origin) = origin {
         let screen_recording = SCREEN_RECORDING.with(|value| value.get());
-        if let Err(error) = show(i18n, screen_recording) {
+        if let Err(error) = show_panel(i18n, screen_recording, Some(origin)) {
             tracing::warn!(%error, "failed to refresh computer control permission guide");
         }
     }

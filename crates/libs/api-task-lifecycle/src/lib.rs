@@ -1,5 +1,6 @@
 //! 任务生命周期 workflow API 契约。
 
+pub mod step_workflow;
 pub mod task_lifecycle;
 
 pub use task_lifecycle::{

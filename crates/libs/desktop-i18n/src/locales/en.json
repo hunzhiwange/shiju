@@ -2912,6 +2912,7 @@
   "已将新任务加入拆分队列": "New task queued for splitting",
   "工作中的子代理会话": "Active subagent sessions",
   "已选工具与技能": "Selected tools and skills",
+  "清除已选工具与技能": "Clear selected tools and skills",
   "推理强度": "Reasoning effort",
   "数字越小越优先": "Lower numbers have higher priority",
   "新增子任务": "Add subtask",

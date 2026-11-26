@@ -65,64 +65,52 @@ pub(super) fn summarize_names(names: &[String]) -> String {
 }
 
 pub fn selected_context_card<'a, Message: Clone + 'a>(
-    i18n: I18n, summary: String, adjust: Message, cancel_expert: Option<Message>,
+    i18n: I18n,
+    summary: String,
+    adjust: Message,
+    clear: Message,
 ) -> Element<'a, Message> {
+    let content = column![
+        text(i18n.__("已选工具与技能"))
+            .size(12)
+            .style(|theme: &Theme| iced::widget::text::Style {
+                color: Some(theme.palette().text.scale_alpha(0.92)),
+            }),
+        text(summary)
+            .size(11)
+            .width(Length::Fill)
+            .wrapping(iced::widget::text::Wrapping::Word)
+            .style(|theme: &Theme| iced::widget::text::Style {
+                color: Some(theme.palette().text.scale_alpha(0.68)),
+            }),
+    ]
+    .spacing(2)
+    .width(Length::Fill);
 
-    let icon: Element<'_, Message> = icon_svg(Icon::Sliders, 14.0)
+    let adjust_icon = icon_svg(Icon::Sliders, styles::BOTTOM_BAR_ICON_SIZE)
         .style(|theme: &Theme, _| iced::widget::svg::Style {
             color: Some(theme.palette().primary.scale_alpha(0.92)),
-        })
-        .into();
-    let content = row![
-        icon,
-        column![
-            text(i18n.__("已选工具与技能"))
-                .size(12)
-                .style(|theme: &Theme| {
-                    iced::widget::text::Style {
-                        color: Some(theme.palette().text.scale_alpha(0.92)),
-                    }
-                }),
-            text(summary)
-                .size(11)
-                .width(Length::Fill)
-                .wrapping(iced::widget::text::Wrapping::Word)
-                .style(|theme: &Theme| iced::widget::text::Style {
-                    color: Some(theme.palette().text.scale_alpha(0.68)),
-                }),
-        ]
-        .spacing(2)
-        .width(Length::Fill),
-        text(i18n.__("调整")).size(11).style(
-            |theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.palette().primary.scale_alpha(0.88)),
-            }
-        ),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
-
-    let mut controls = row![
+        });
+    let clear_icon = icon_svg(Icon::X, styles::BOTTOM_BAR_ICON_SIZE)
+        .style(|theme: &Theme, _| iced::widget::svg::Style {
+            color: Some(theme.palette().text.scale_alpha(0.88)),
+        });
+    let controls = row![
         button(content)
             .padding([8, 10])
             .width(Length::Fill)
             .style(styles::manual_context_card_button_style)
-            .on_press(adjust)
+            .on_press(adjust.clone()),
+        bottom_bar_round_toggle(adjust_icon.into(), i18n.__("调整"), adjust),
+        bottom_bar_round_toggle(clear_icon.into(), i18n.__("清除已选工具与技能"), clear),
     ]
+    .spacing(4)
     .align_y(Alignment::Center);
-    if let Some(action) = cancel_expert {
-        controls = controls.push(
-            button(text(i18n.__("取消专家")).size(11))
-                .padding([8, 10])
-                .style(styles::manual_context_card_button_style)
-                .on_press(action),
-        );
-    }
     container(controls)
-            .padding(0)
-            .width(Length::Fill)
-            .style(styles::manual_context_card_style)
-            .into()
+        .padding(iced::Padding::ZERO.right(8))
+        .width(Length::Fill)
+        .style(styles::manual_context_card_style)
+        .into()
 }
 
 pub fn session_tool_tab_toggle<'a, Message: Clone + 'a>(

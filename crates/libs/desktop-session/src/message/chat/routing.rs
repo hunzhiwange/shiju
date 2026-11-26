@@ -239,6 +239,7 @@ impl<M, P, V, D, T, G, Media> ChatMessage<M, P, V, D, T, G, Media> {
             | ChatMessage::SessionToolToggled(_)
             | ChatMessage::SessionManualToolSelected(_)
             | ChatMessage::SessionSkillSelected(_)
+            | ChatMessage::SessionManualContextCleared
             | ChatMessage::SessionToolSelectorReset
             | ChatMessage::QueueRemove(_)
             | ChatMessage::QueueEdit(_)

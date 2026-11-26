@@ -199,6 +199,9 @@ pub enum ChatMessage<Measurement, PreparedOpen, PanelMode, DetailsTab, TodoPlace
     /// 切换技能上下文选中状态
     SessionSkillSelected(String),
 
+    /// 清除本轮手动选择的工具与技能
+    SessionManualContextCleared,
+
     /// 重置会话级工具分桶
     SessionToolSelectorReset,
 

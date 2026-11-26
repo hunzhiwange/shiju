@@ -1229,6 +1229,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             desktop_session::message::chat::selection::SelectionMessage::Skill(skill_id),
             false,
         ),
+        ChatMessage::SessionManualContextCleared => selection_message(
+            app,
+            desktop_session::message::chat::selection::SelectionMessage::ClearManualContext,
+            false,
+        ),
         ChatMessage::SessionToolSelectorReset => selection_message(
             app,
             desktop_session::message::chat::selection::SelectionMessage::Reset,

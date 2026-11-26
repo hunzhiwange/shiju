@@ -159,12 +159,11 @@ pub(super) fn skill_title(app: &App, skill_id: &str) -> String {
 
 pub(super) fn selected_context_card(app: &App) -> Option<Element<'_, Message>> {
     let summary = selected_context_summary(app)?;
-    let cancel = app.current_session_runtime().tool_selector.selected_manual_skills().into_iter()
-        .find(|id| id.contains("--skillset--"))
-        .map(|id| Message::Chat(message::ChatMessage::SessionSkillSelected(id)));
     Some(desktop_chat_input::input_panel::panel::selected_context_card(
-        crate::app::i18n::I18n::new(app.general_settings.desktop_locale), summary,
-        Message::View(message::ViewMessage::ToggleSessionToolSelectorPopover), cancel,
+        crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
+        summary,
+        Message::View(message::ViewMessage::ToggleSessionToolSelectorPopover),
+        Message::Chat(message::ChatMessage::SessionManualContextCleared),
     ))
 }
 

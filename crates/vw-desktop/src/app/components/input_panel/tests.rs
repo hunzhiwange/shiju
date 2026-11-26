@@ -291,9 +291,9 @@ async fn expert_package_selection_is_visible_and_cancellable_in_both_themes() {
                 .expect("expert input screenshot");
         }
     }
-    let _ = crate::app::message::chat::session::update(
+    let _ = crate::app::message::chat::update(
         &mut app,
-        crate::app::message::chat::ChatMessage::SessionSkillSelected(id.to_string()),
+        crate::app::message::chat::ChatMessage::SessionManualContextCleared,
     );
     assert!(selected_context_card(&app).is_none());
 }
@@ -319,6 +319,19 @@ fn selected_context_card_includes_multiple_shiju_functions() {
 
     assert_eq!(selected_context_summary(&app).as_deref(), Some("识矩 2：文档审查、会议纪要"));
     assert!(selected_context_card(&app).is_some());
+
+    let selector = &mut app.current_session_runtime_mut().tool_selector;
+    selector.toggle_manual_tool("read");
+    selector.toggle_manual_skill("review");
+    assert!(selector.toggle_bucket(desktop_chat_tools::state::SessionToolBucket::ALL[0]));
+
+    let _ = crate::app::message::chat::update(
+        &mut app,
+        crate::app::message::chat::ChatMessage::SessionManualContextCleared,
+    );
+
+    assert!(selected_context_card(&app).is_none());
+    assert!(app.current_session_runtime().tool_selector.has_tool_filter());
 }
 
 // 宿主保留：输入面板跨域状态、布局与选择更新装配契约。

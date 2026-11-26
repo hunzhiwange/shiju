@@ -12,6 +12,7 @@ pub enum SelectionMessage {
     Tool(String),
     ManualTool(String),
     Skill(String),
+    ClearManualContext,
     Reset,
 }
 pub fn update(
@@ -47,6 +48,7 @@ pub fn update(
         }
         SelectionMessage::ManualTool(tool_id) => selector.toggle_manual_tool(&tool_id),
         SelectionMessage::Skill(skill_id) => selector.toggle_manual_skill(&skill_id),
+        SelectionMessage::ClearManualContext => selector.clear_manual_context_selection(),
         SelectionMessage::Reset => {
             selector.reset();
             selector.reconcile_tools(base_tools);

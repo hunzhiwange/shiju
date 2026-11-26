@@ -35,7 +35,7 @@ fn load_handoff_identities(app: &mut App) -> Task<Message> {
     let account_id = account.id().to_string();
     let credential = account.skill_hub_credential().gateway_credential();
     Task::perform(async move {
-        let credential = credential?;
+        let credential = credential.map_err(|error| error.to_string())?;
         let client = crate::app::config::gateway_client()?;
         let user = gateway_shiju_account::GatewayShijuAccountClient::new(client.transport().clone())
             .shiju_account_me(&credential).await?;

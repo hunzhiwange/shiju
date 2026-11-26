@@ -2,7 +2,7 @@
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{Value, json};
-use tool_types::{Tool, ToolCallResult, ToolSpec};
+use tool_types::{Tool, ToolCallResult, ToolResult, ToolSpec};
 
 pub struct MoveWorkflowStepTool<H>(std::marker::PhantomData<H>);
 impl<H> MoveWorkflowStepTool<H> {
@@ -41,6 +41,11 @@ impl<H: tool_context::host::ContextHost> Tool for MoveWorkflowStepTool<H> {
             .with_requires_user_interaction(false)
             .with_strict(true)
     }
+    async fn execute(&self, input: Value) -> anyhow::Result<ToolResult> {
+        let result = self.call(input).await?;
+        Ok(ToolResult { success: true, output: result.data.to_string(), error: None })
+    }
+
     async fn call(&self, input: Value) -> anyhow::Result<ToolCallResult> {
         let args: Args = serde_json::from_value(input)?;
         let context = tool_context::context::current_tool_use_context::<H>()

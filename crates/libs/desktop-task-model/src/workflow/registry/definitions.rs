@@ -1,6 +1,6 @@
 //! 工作流快照、结果分支与可持久化状态定义。
-use super::{StatusRole, TaskStatusDefinition, TaskWorkflowDefinition};
 use crate::models::TaskStatus;
+use crate::workflow::{StatusRole, TaskStatusDefinition, TaskWorkflowDefinition};
 use anyhow::Result;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashSet;

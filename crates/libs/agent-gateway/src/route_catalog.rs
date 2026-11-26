@@ -204,6 +204,7 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("POST", "/v1/file/read", "read file"),
         client_route("GET", "/v1/file/content", "read file content"),
         client_route("POST", "/v1/file/write", "write file"),
+        client_route("PATCH", "/v1/file/write", "replace existing file"),
         client_route("GET", "/v1/file/status", "file status"),
         client_route("POST", "/v1/files/move", "move file"),
         client_route("POST", "/v1/files/import-local", "import local paths"),

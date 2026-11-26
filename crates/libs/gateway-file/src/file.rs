@@ -70,7 +70,7 @@ where
         .route("/file", get(file_list::<H>))
         .route("/file/read", post(file_read_v1::<H>))
         .route("/file/content", get(file_read::<H>))
-        .route("/file/write", post(file_write_v1::<H>))
+        .route("/file/write", post(file_write_v1::<H>).patch(file_replace_v1::<H>))
         .route("/file/status", get(file_status::<H>))
         .route("/files/move", post(file_move_v1::<H>))
         .route("/files/copy", post(file_copy_v1::<H>))
@@ -100,6 +100,14 @@ struct FileWriteBody {
     content: String,
     #[serde(default)]
     create_if_missing: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct FileReplaceBody {
+    directory: String,
+    path: String,
+    expected: String,
+    content: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -563,6 +571,32 @@ async fn file_write_v1<H: crate::Host>(
     headers: HeaderMap,
     Json(body): Json<FileWriteBody>,
 ) -> Result<Json<FileWriteBodyResponse>, ApiError> {
+    write_file_in_directory::<H>(headers, body, None).await
+}
+
+async fn file_replace_v1<H: crate::Host>(
+    headers: HeaderMap,
+    Json(body): Json<FileReplaceBody>,
+) -> Result<Json<FileWriteBodyResponse>, ApiError> {
+    write_file_in_directory::<H>(
+        headers,
+        FileWriteBody {
+            directory: Some(body.directory),
+            agent_key: None,
+            path: body.path,
+            content: body.content,
+            create_if_missing: false,
+        },
+        Some(body.expected),
+    )
+    .await
+}
+
+async fn write_file_in_directory<H: crate::Host>(
+    headers: HeaderMap,
+    body: FileWriteBody,
+    expected: Option<String>,
+) -> Result<Json<FileWriteBodyResponse>, ApiError> {
     let root_directory = resolve_directory_or_agent_root(
         &InstanceQuery { directory: body.directory.clone() },
         body.agent_key.as_deref(),
@@ -581,17 +615,32 @@ async fn file_write_v1<H: crate::Host>(
                 return Err(ApiError::bad_request("path escapes workspace root"));
             }
 
-            if let Some(parent) = full.parent() {
-                std::fs::create_dir_all(parent)
+            file::time::with_lock_sync(&full.to_string_lossy(), || {
+                if let Some(expected) = expected {
+                    // 比较磁盘字节，保留外部修改和原始编码。
+                    let current = std::fs::read(&full)
+                        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+                    if current != expected.as_bytes() {
+                        return Err(ApiError::bad_request("File content or encoding has changed"));
+                    }
+                } else if let Some(parent) = full.parent() {
+                    std::fs::create_dir_all(parent)
+                        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+                }
+                if !create_if_missing && !full.exists() {
+                    return Err(ApiError::bad_request(format!("file not found: {}", rel)));
+                }
+                use std::io::Write;
+                std::fs::OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .create(create_if_missing)
+                    .open(&full)
+                    .and_then(|mut file| file.write_all(content.as_bytes()))
                     .map_err(|err| ApiError::bad_request(err.to_string()))?;
-            }
-            if !create_if_missing && !full.exists() {
-                return Err(ApiError::bad_request(format!("file not found: {}", rel)));
-            }
-            std::fs::write(&full, content.as_bytes())
-                .map_err(|err| ApiError::bad_request(err.to_string()))?;
 
-            Ok(WriteFileResponse { ok: true, path: rel, bytes_written: content.len() as u64 })
+                Ok(WriteFileResponse { ok: true, path: rel, bytes_written: content.len() as u64 })
+            })
         })
     })
     .await?;

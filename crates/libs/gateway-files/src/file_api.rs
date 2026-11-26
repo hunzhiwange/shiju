@@ -72,6 +72,14 @@ struct DirectoryFileWriteRequest {
     create_if_missing: bool,
 }
 
+#[derive(Serialize)]
+struct DirectoryFileReplaceRequest {
+    directory: String,
+    path: String,
+    expected: String,
+    content: String,
+}
+
 /// 目录内文件写入接口的响应体。
 ///
 /// 对应旧版 `/v1/file/write` 接口。
@@ -301,6 +309,24 @@ impl GatewayFilesClient {
             },
         )
         .await
+    }
+
+    /// Saves an existing text file only when its current bytes match the loaded text.
+    pub async fn replace_file_in_directory(
+        &self,
+        directory: String,
+        path: String,
+        expected: String,
+        content: String,
+    ) -> Result<(), String> {
+        self.transport
+            .patch_json::<_, DirectoryFileWriteResponse>(
+                "/v1/file/write",
+                &[],
+                &DirectoryFileReplaceRequest { directory, path, expected, content },
+            )
+            .await
+            .map(|_| ())
     }
 }
 

@@ -11,6 +11,8 @@ async fn file_preview_reconciles_loading_content_errors_and_tab_switches() {
     app.git_workbench.projects =
         vec![Project { id: "demo".into(), name: "Demo".into(), directory: "/tmp/demo".into() }];
     app.git_workbench.selected = Some("demo".into());
+    app.git_workbench.files.root = Some("/tmp/demo".into());
+    app.git_workbench.repo = Some("/tmp/demo".into());
     let i18n = I18n::new(app.general_settings.desktop_locale);
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(13.0), Some("tiny-skia"))
@@ -42,12 +44,32 @@ async fn file_preview_reconciles_loading_content_errors_and_tab_switches() {
         let _ = update(app, Event::Files(epoch, event));
     };
 
-    let _ = files::open_file(&mut app.git_workbench, "a.rs".into(), None);
+    let _ = update(&mut app, Event::ShowEditor(true));
+    let tree = |event| files::Event::Tree(event);
+    use desktop_file_tree::ProjectMessage;
+    dispatch(&mut app, tree(ProjectMessage::FileManagerShowChanges(false)));
+    dispatch(&mut app, tree(ProjectMessage::FileManagerShowChanges(true)));
+    assert!(app.git_workbench.show_editor);
+    assert!(!app.git_workbench.files.show_all_files);
+    dispatch(&mut app, tree(ProjectMessage::OpenChangedFile("a.rs".into())));
     let first = app.git_workbench.files.active_preview().unwrap().id;
     render(&app);
-    dispatch(&mut app, files::Event::Opened(first, Ok(("fn main() {}\n".into(), false))));
-    assert!(matches!(app.git_workbench.files.active_preview().unwrap().content, Some(Ok(_))));
+    dispatch(&mut app, files::Event::Opened(first, Ok(("fn main() {}".into(), false))));
+    let preview = app.git_workbench.files.active_preview().unwrap();
+    assert_eq!(preview.editor().unwrap().editor.content(), "fn main() {}");
     render(&app);
+    dispatch(
+        &mut app,
+        files::Event::Editor(first, iced_code_editor::Message::Paste("// edit\n".into())),
+    );
+    dispatch(&mut app, tree(ProjectMessage::FileManagerShowChanges(false)));
+    dispatch(&mut app, tree(ProjectMessage::FileManagerShowChanges(true)));
+    dispatch(&mut app, tree(ProjectMessage::OpenChangedFile("a.rs".into())));
+    let preview = app.git_workbench.files.active_preview().unwrap();
+    assert_eq!(preview.id, first);
+    assert!(preview.editor().unwrap().dirty);
+    assert!(app.git_workbench.show_editor);
+    assert!(!app.git_workbench.files.show_all_files);
 
     let _ = files::open_file(&mut app.git_workbench, "docs/说明.md".into(), None);
     let second = app.git_workbench.files.active_preview().unwrap().id;
@@ -71,6 +93,8 @@ async fn file_preview_reconciles_loading_content_errors_and_tab_switches() {
     assert_eq!(app.git_workbench.files.active_preview().unwrap().id, first);
     render(&app);
     dispatch(&mut app, files::Event::ClosePreview(first));
+    assert_eq!(app.git_workbench.files.closing_preview_id, Some(first));
+    dispatch(&mut app, files::Event::ConfirmClosePreview(true));
     assert!(app.git_workbench.files.active_preview().is_none());
     render(&app);
 }

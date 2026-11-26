@@ -10,7 +10,7 @@ use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 mod files;
 mod find;
 mod view;
-pub(crate) use files::{preview_diff_file, preview_snapshot};
+pub(crate) use files::{clipboard_shortcut, preview_diff_file, preview_snapshot};
 pub(crate) use view::{inline_project_picker, view, with_overlays};
 
 pub(crate) const TAB_ID: &str = "git_workbench";
@@ -23,7 +23,7 @@ pub(crate) enum Event {
     SelectProject(String),
     SelectInlineProject(String),
     Resize(pane_grid::ResizeEvent),
-    ShowFiles(bool),
+    ShowEditor(bool),
     RefreshCheckout,
     RepositoryReady(u64, Option<String>),
     SwitchBranch(String),
@@ -56,7 +56,7 @@ pub(crate) struct Workbench {
     projects_error: Option<String>,
     selected: Option<String>,
     layout: pane_grid::State<bool>,
-    show_files: bool,
+    show_editor: bool,
     files: files::State,
     pub(crate) git: GitState,
     epoch: u64,
@@ -80,7 +80,7 @@ impl Default for Workbench {
             projects_error: None,
             selected: None,
             layout,
-            show_files: false,
+            show_editor: false,
             files: Default::default(),
             git: GitState::new(true, true),
             epoch: 0,
@@ -127,7 +127,7 @@ impl Workbench {
     }
 
     pub(crate) fn commit_form_visible(&self) -> bool {
-        !self.show_files
+        !self.show_editor
             && self.repo.is_some()
             && !self.switching_branch
             && !self.git.git_repository.history
@@ -158,7 +158,6 @@ impl Workbench {
         let show_all_files = self.files.show_all_files;
         self.files = files::State::default();
         self.files.show_all_files = show_all_files;
-        self.show_files = show_all_files;
         self.repo = None;
         self.repo_loading = false;
     }
@@ -202,13 +201,23 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         }
         Event::RefreshProjects => load_projects(app),
         Event::ProjectsReady(request, result) => apply_projects(app, request, result),
-        Event::SelectProject(id) => select_project(&mut app.git_workbench, id),
+        Event::SelectProject(id) => {
+            if app.git_workbench.selected.as_deref() != Some(&id)
+                && app.git_workbench.files.has_unsaved()
+            {
+                return unsaved_toast(app);
+            }
+            select_project(&mut app.git_workbench, id)
+        }
         Event::SelectInlineProject(path) => select_inline_project(app, path),
         Event::Resize(event) => {
             app.git_workbench.layout.resize(event.split, event.ratio.clamp(0.08, 0.44));
             Task::none()
         }
-        Event::ShowFiles(show) => files::select_mode(&mut app.git_workbench, show),
+        Event::ShowEditor(show) => {
+            app.git_workbench.show_editor = show;
+            Task::none()
+        }
         Event::RefreshCheckout => {
             let activation = activate(app);
             Task::batch([activation, refresh_checkout(&mut app.git_workbench)])
@@ -507,7 +516,7 @@ fn refresh_checkout(state: &mut Workbench) -> Task<Message> {
         }
         tasks.push(files::refresh_remote_changes(state));
     }
-    if state.show_files {
+    if state.files.show_all_files {
         tasks.push(files::refresh_tree(state));
     }
     Task::batch(tasks)
@@ -526,6 +535,9 @@ fn update_git(app: &mut App, event: GitMessage) -> Task<Message> {
                     .any(|item| item.directory == option.directory)
             {
                 return Task::none();
+            }
+            if state.files.has_unsaved() {
+                return unsaved_toast(app);
             }
             state.git.selected_git_worktree_directory = Some(option.directory);
             state.git.selected_branch = option.branch;
@@ -622,6 +634,9 @@ fn switch_branch(app: &mut App, branch: String) -> Task<Message> {
     let Some(directory) = state.repo_path() else {
         return Task::none();
     };
+    if state.files.has_unsaved() {
+        return unsaved_toast(app);
+    }
     let client = state.client();
     state.switching_branch = true;
     let epoch = state.epoch;
@@ -644,4 +659,8 @@ fn switch_branch(app: &mut App, branch: String) -> Task<Message> {
         },
         move |result| message(Event::BranchSwitched(epoch, result)),
     )
+}
+
+fn unsaved_toast(app: &mut App) -> Task<Message> {
+    app.show_localized_toast(crate::app::state::ToastKind::Error, "有未保存的修改", vec![])
 }

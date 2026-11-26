@@ -5,6 +5,7 @@ use std::path::Path;
 use super::{Workbench, message, update_git};
 use crate::app::message::{GitMessage, PreviewMessage};
 use crate::app::{App, Message};
+use desktop_editor::components::editor::Editor;
 use desktop_file_tree::model::{FileTreeNode, build_file_tree_model_from_dto};
 use desktop_file_tree::selection::FileTreeSelection;
 use desktop_file_tree::{FileTreeAction, ProjectMessage};
@@ -18,8 +19,12 @@ pub(crate) enum Event {
     FolderReady(u64, String, Result<Vec<FileNodeDto>, String>),
     RemoteChangesReady(Result<Vec<String>, String>),
     Opened(u64, Result<(String, bool), String>),
+    Editor(u64, iced_code_editor::Message),
+    Save(u64),
+    Saved(u64, String, Result<(), String>),
     SelectPreview(u64),
     ClosePreview(u64),
+    ConfirmClosePreview(bool),
     OpenInEditor,
     RefreshTick,
     SearchReady(Box<desktop_workspace::project_message::tasks::SearchCompletion>),
@@ -37,6 +42,7 @@ pub(super) struct State {
     pub(super) menu_anchor: Option<Point>,
     pub(super) previews: Vec<Preview>,
     active_preview_id: Option<u64>,
+    pub(super) closing_preview_id: Option<u64>,
     pub(super) refresh_frame: usize,
     pub(super) changes_refreshing: bool,
     pub(super) files_refreshing: bool,
@@ -50,11 +56,22 @@ pub(super) struct State {
 pub(super) struct Preview {
     pub(super) id: u64,
     pub(super) title: String,
-    pub(super) content: Option<Result<String, String>>,
-    pub(super) truncated: bool,
+    pub(super) content: Option<Result<PreviewContent, String>>,
     pub(super) location: Option<(usize, usize)>,
     source: PreviewSource,
     request: u64,
+}
+
+pub(super) enum PreviewContent {
+    Editor(Document),
+    ReadOnly { text: String, truncated: bool },
+}
+
+pub(super) struct Document {
+    pub(super) editor: Editor,
+    saved_content: String,
+    pub(super) dirty: bool,
+    pub(super) saving: bool,
 }
 
 #[derive(PartialEq, Eq)]
@@ -70,6 +87,24 @@ impl Preview {
             PreviewSource::Snapshot(_) => None,
         }
     }
+
+    pub(super) fn editor(&self) -> Option<&Document> {
+        match self.content.as_ref()? {
+            Ok(PreviewContent::Editor(document)) => Some(document),
+            _ => None,
+        }
+    }
+
+    fn document(&mut self) -> Option<&mut Document> {
+        match self.content.as_mut()? {
+            Ok(PreviewContent::Editor(document)) => Some(document),
+            _ => None,
+        }
+    }
+
+    fn has_unsaved(&self) -> bool {
+        self.editor().is_some_and(|document| document.saving || document.dirty)
+    }
 }
 
 pub(super) const PREVIEW_SCROLL_ID: &str = "git-workbench-preview";
@@ -77,6 +112,10 @@ pub(super) const PREVIEW_SCROLL_ID: &str = "git-workbench-preview";
 impl State {
     pub(super) fn active_preview(&self) -> Option<&Preview> {
         self.previews.iter().find(|tab| Some(tab.id) == self.active_preview_id)
+    }
+
+    pub(super) fn has_unsaved(&self) -> bool {
+        self.previews.iter().any(Preview::has_unsaved)
     }
 
     fn select_preview(&mut self, id: u64) -> Task<Message> {
@@ -105,25 +144,6 @@ impl State {
             PREVIEW_SCROLL_ID,
             iced::widget::scrollable::RelativeOffset::START,
         )
-    }
-
-    fn finish_preview(
-        &mut self,
-        request: u64,
-        result: Result<(String, bool), String>,
-    ) -> Task<Message> {
-        let Some(tab) = self.previews.iter_mut().find(|tab| tab.request == request) else {
-            return Task::none();
-        };
-        tab.content = Some(result.map(|(content, truncated)| {
-            tab.truncated = truncated;
-            content
-        }));
-        if self.active_preview_id == Some(tab.id) {
-            Self::reset_preview_scroll()
-        } else {
-            Task::none()
-        }
     }
 
     pub(super) fn expand_changes(&mut self, paths: &[String]) {
@@ -216,9 +236,39 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
                 Err(_) => {}
             }
         }
-        Event::Opened(request, result) => return state.files.finish_preview(request, result),
+        Event::Opened(request, result) => return finish_open(app, request, result),
+        Event::Editor(id, iced_code_editor::Message::WriteRequested) | Event::Save(id) => {
+            return save(state, id);
+        }
+        Event::Editor(id, event) => return editor_update(state, id, event),
+        Event::Saved(id, content, result) => return finish_save(app, id, content, result),
         Event::SelectPreview(id) => return state.files.select_preview(id),
-        Event::ClosePreview(id) => return state.files.close_preview(id),
+        Event::ClosePreview(id) => {
+            if let Some(document) =
+                state.files.previews.iter().find(|tab| tab.id == id).and_then(Preview::editor)
+            {
+                if document.saving {
+                    return Task::none();
+                }
+                if document.dirty {
+                    state.files.closing_preview_id = Some(id);
+                    return Task::none();
+                }
+            }
+            return state.files.close_preview(id);
+        }
+        Event::ConfirmClosePreview(discard) => {
+            if let Some(id) = state.files.closing_preview_id.take()
+                && discard
+                && !state
+                    .files
+                    .previews
+                    .iter()
+                    .any(|tab| tab.id == id && tab.editor().is_some_and(|document| document.saving))
+            {
+                return state.files.close_preview(id);
+            }
+        }
         Event::OpenInEditor => {
             if state.local()
                 && state.client().is_ok()
@@ -226,10 +276,34 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
                 && let Some(preview) = state.files.active_preview()
                 && let Some(relative) = preview.path()
             {
+                if preview.has_unsaved() {
+                    return super::unsaved_toast(app);
+                }
                 let path = absolute_path(root, relative);
-                app.preview_state.pending_preview_goto = preview.location.map(|(line, column)| {
-                    (path.clone(), line.saturating_sub(1), column.saturating_sub(1))
+                let cursor = preview
+                    .editor()
+                    .map(|document| document.editor.cursor_position())
+                    .or_else(|| {
+                        preview.location.map(|(line, column)| {
+                            (line.saturating_sub(1), column.saturating_sub(1))
+                        })
+                    });
+                let saved = preview.editor().map(|document| document.saved_content.as_str());
+                let nav = &mut app.navigation_tabs;
+                nav.switch_preview_project(None);
+                let reload = nav.preview_tabs.iter().any(|tab| {
+                    tab.path == path
+                        && !tab.is_dirty
+                        && saved.is_some_and(|text| text != tab.content)
                 });
+                if reload {
+                    let _ = crate::app::message::preview::update(
+                        app,
+                        PreviewMessage::Close(path.clone()),
+                    );
+                }
+                app.preview_state.pending_preview_goto =
+                    cursor.map(|(line, column)| (path.clone(), line, column));
                 return crate::app::message::preview::update(app, PreviewMessage::Open(path));
             }
         }
@@ -254,7 +328,7 @@ fn tree_event(app: &mut App, event: ProjectMessage) -> Task<Message> {
         return Task::none();
     }
     match event {
-        ProjectMessage::FileManagerShowChanges(changes) => select_mode(state, !changes),
+        ProjectMessage::FileManagerShowChanges(changes) => select_tree_mode(state, !changes),
         ProjectMessage::FileManagerRefreshFileTree if !state.files.files_refreshing => {
             let tick = begin_refresh(state);
             state.files.files_refreshing = true;
@@ -340,7 +414,6 @@ fn tree_event(app: &mut App, event: ProjectMessage) -> Task<Message> {
                 FileTreeAction::FindInFolder
                     if matches!(source.as_str(), "changes-dir" | "tree-dir") =>
                 {
-                    state.show_files = true;
                     state.files.find.open_scope(path, crate::app::time::now_ms().to_string());
                     Task::none()
                 }
@@ -355,21 +428,21 @@ fn tree_event(app: &mut App, event: ProjectMessage) -> Task<Message> {
 
 fn open_changed(app: &mut App, path: String) -> Task<Message> {
     let state = &mut app.git_workbench;
-    if state.repo.is_none() {
-        state.git.git_focused_file = Some(path.clone());
-        return open_file(state, path, None);
+    if state.repo.is_some()
+        && state.git.git_diff_file_metas.iter().any(|file| file.path == path && !file.new_exists)
+    {
+        state.show_editor = false;
+        state.git.git_repository.history = false;
+        return update_git(app, GitMessage::FocusFile(path));
     }
-    state.show_files = false;
-    state.git.git_repository.history = false;
-    update_git(app, GitMessage::FocusFile(path))
+    open_file(state, path, None)
 }
 
-pub(super) fn select_mode(state: &mut Workbench, show_files: bool) -> Task<Message> {
-    state.show_files = show_files;
-    state.files.show_all_files = show_files;
+fn select_tree_mode(state: &mut Workbench, show_all_files: bool) -> Task<Message> {
+    state.files.show_all_files = show_all_files;
     state.files.find.active_find_results_tab_id = None;
     state.files.close_menu();
-    if show_files && !state.files.loaded.contains("") {
+    if show_all_files && !state.files.loaded.contains("") {
         list_folder(state, String::new())
     } else {
         Task::none()
@@ -497,37 +570,264 @@ pub(super) fn open_file(
     {
         return Task::none();
     }
-    state.show_files = true;
-    let client = state.client();
-    state.files.preview_request = state.files.preview_request.wrapping_add(1);
-    let request = state.files.preview_request;
-    let existing = state.files.previews.iter_mut().find(|tab| tab.path() == Some(path.as_str()));
+    state.show_editor = true;
+    state.git.git_focused_file = Some(path.clone());
+    if let Some(root) = state.files.root.as_deref() {
+        state.files.selection.select(root, absolute_path(root, &path), false, false, &[]);
+    }
+    let files = &mut state.files;
+    let existing = files.previews.iter().position(|tab| tab.path() == Some(path.as_str()));
+    if let Some(index) = existing {
+        let tab = &mut files.previews[index];
+        tab.location = location;
+        if !matches!(&tab.content, Some(Err(_))) {
+            let id = tab.id;
+            let navigate = goto_location(tab, state.epoch);
+            return Task::batch([files.select_preview(id), navigate]);
+        }
+    }
+    files.preview_request = files.preview_request.wrapping_add(1);
+    let request = files.preview_request;
     let preview = Preview {
-        id: existing.as_ref().map_or(request, |tab| tab.id),
+        id: existing.map_or(request, |index| files.previews[index].id),
         title: path.clone(),
         content: None,
-        truncated: false,
         location,
         source: PreviewSource::File(path.clone()),
         request,
     };
-    state.files.active_preview_id = Some(preview.id);
-    if let Some(tab) = existing {
-        *tab = preview;
+    files.active_preview_id = Some(preview.id);
+    if let Some(index) = existing {
+        files.previews[index] = preview;
     } else {
-        state.files.previews.push(preview);
+        files.previews.push(preview);
     }
+    let client = state.client();
     let epoch = state.epoch;
     Task::perform(
         async move {
             let file = client?.file_read_in_directory(Some(&directory), None, &path).await?;
-            Ok(preview_content::format_text_preview_content(preview_from_line(
-                &file.content,
-                location.map_or(1, |(line, _)| line),
-            )))
+            if file.content.len() > preview_content::PREVIEW_MAX_BYTES {
+                let excerpt =
+                    preview_from_line(&file.content, location.map_or(1, |(line, _)| line));
+                let (text, _) = preview_content::format_text_preview_content(excerpt);
+                Ok((text, true))
+            } else {
+                Ok((file.content, false))
+            }
         },
         move |result| message(super::Event::Files(epoch, Event::Opened(request, result))),
     )
+}
+
+fn finish_open(
+    app: &mut App,
+    request: u64,
+    result: Result<(String, bool), String>,
+) -> Task<Message> {
+    let theme = app.effective_editor_theme();
+    let epoch = app.git_workbench.epoch;
+    let files = &mut app.git_workbench.files;
+    let Some(tab) = files.previews.iter_mut().find(|tab| tab.request == request) else {
+        return Task::none();
+    };
+    tab.content = Some(result.map(|(text, truncated)| {
+        if truncated {
+            return PreviewContent::ReadOnly { text, truncated };
+        }
+        let syntax = Path::new(&tab.title)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("plaintext")
+            .to_ascii_lowercase();
+        let mut editor = Editor::new(&text, &syntax);
+        editor.set_font(iced::Font::with_name("JetBrains Mono"));
+        editor.set_theme(theme);
+        editor.set_font_size(app.preview_state.current_font_size);
+        editor.set_line_height(app.preview_state.current_line_height.clamp(10.0, 60.0));
+        editor.set_ui_language(desktop_i18n::editor::language(app.general_settings.desktop_locale));
+        editor.set_search_replace_enabled(true);
+        PreviewContent::Editor(Document {
+            editor,
+            saved_content: text,
+            dirty: false,
+            saving: false,
+        })
+    }));
+    let navigation = goto_location(tab, epoch);
+    if files.active_preview_id == Some(tab.id) {
+        Task::batch([State::reset_preview_scroll(), navigation])
+    } else {
+        navigation
+    }
+}
+
+fn goto_location(tab: &mut Preview, epoch: u64) -> Task<Message> {
+    let (Some((line, column)), id) = (tab.location, tab.id) else {
+        return Task::none();
+    };
+    let Some(document) = tab.document() else {
+        return Task::none();
+    };
+    document
+        .editor
+        .inner
+        .update(&iced_code_editor::Message::GotoPosition(
+            line.saturating_sub(1),
+            column.saturating_sub(1),
+        ))
+        .map(move |event| message(super::Event::Files(epoch, Event::Editor(id, event))))
+}
+
+fn editor_update(
+    state: &mut Workbench,
+    id: u64,
+    event: iced_code_editor::Message,
+) -> Task<Message> {
+    if state.switching_branch {
+        return Task::none();
+    }
+    let response =
+        state.files.previews.iter_mut().find(|tab| tab.id == id).and_then(Preview::document).map(
+            |document| {
+                let response = document.editor.inner.update(&event);
+                if desktop_editor::preview::selection::editor_message_may_change_content(&event)
+                    || matches!(
+                        event,
+                        iced_code_editor::Message::Backtab
+                            | iced_code_editor::Message::DeleteWordBack
+                            | iced_code_editor::Message::DeleteWordForward
+                    )
+                {
+                    document.dirty = document.editor.content() != document.saved_content;
+                }
+                response
+            },
+        );
+    let epoch = state.epoch;
+    response
+        .unwrap_or_else(Task::none)
+        .map(move |event| message(super::Event::Files(epoch, Event::Editor(id, event))))
+}
+
+pub(crate) fn clipboard_shortcut(
+    app: &mut App,
+    kind: crate::app::ui_types::ClipboardShortcutKind,
+) -> Task<Message> {
+    use crate::app::ui_types::ClipboardShortcutKind;
+    use iced_code_editor::Message as EditorMessage;
+
+    let state = &app.git_workbench;
+    let Some(tab) = state
+        .files
+        .active_preview()
+        .filter(|tab| tab.editor().is_some_and(|document| document.editor.inner.is_focused()))
+    else {
+        return Task::none();
+    };
+    if !state.show_editor
+        || state.files.closing_preview_id.is_some()
+        || app.navigation_panels.show_system_settings
+    {
+        return Task::none();
+    }
+    let id = tab.id;
+    let epoch = state.epoch;
+    match kind {
+        ClipboardShortcutKind::Copy => {
+            editor_update(&mut app.git_workbench, id, EditorMessage::Copy)
+        }
+        ClipboardShortcutKind::Cut => editor_update(&mut app.git_workbench, id, EditorMessage::Cut),
+        ClipboardShortcutKind::Paste => iced::clipboard::read().map(move |text| {
+            text.map_or(Message::None, |text| {
+                message(super::Event::Files(epoch, Event::Editor(id, EditorMessage::Paste(text))))
+            })
+        }),
+    }
+}
+
+fn save(state: &mut Workbench, id: u64) -> Task<Message> {
+    if state.switching_branch {
+        return Task::none();
+    }
+    let Some(directory) = state.files.root.clone() else {
+        return Task::none();
+    };
+    let client = state.client();
+    let Some(tab) = state.files.previews.iter_mut().find(|tab| tab.id == id) else {
+        return Task::none();
+    };
+    let Some(path) = tab.path().map(str::to_owned) else {
+        return Task::none();
+    };
+    let Some(document) = tab.document() else {
+        return Task::none();
+    };
+    if document.saving || !document.dirty {
+        return Task::none();
+    }
+    document.saving = true;
+    let content = document.editor.content();
+    let expected = document.saved_content.clone();
+    let epoch = state.epoch;
+    Task::perform(
+        async move {
+            let result = async {
+                gateway_files::GatewayFilesClient::new(client?.transport().clone())
+                    .replace_file_in_directory(directory, path, expected, content.clone())
+                    .await
+            }
+            .await;
+            (content, result)
+        },
+        move |(content, result)| {
+            message(super::Event::Files(epoch, Event::Saved(id, content, result)))
+        },
+    )
+}
+
+fn finish_save(
+    app: &mut App,
+    id: u64,
+    content: String,
+    result: Result<(), String>,
+) -> Task<Message> {
+    let state = &mut app.git_workbench;
+    let Some(document) =
+        state.files.previews.iter_mut().find(|tab| tab.id == id).and_then(Preview::document)
+    else {
+        return Task::none();
+    };
+    document.saving = false;
+    let refresh = match result {
+        Ok(()) => {
+            document.dirty = document.editor.content() != content;
+            if !document.dirty {
+                document.editor.inner.mark_saved();
+            }
+            document.saved_content = content;
+            if state.local() {
+                let source = state.source();
+                Task::batch([
+                    Task::done(source.message(GitMessage::RefreshChangedFiles)),
+                    Task::done(source.message(GitMessage::RefreshDiffFileMetas)),
+                ])
+            } else {
+                refresh_remote_changes(state)
+            }
+        }
+        Err(error) => {
+            return app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "保存失败: %s",
+                vec![error.into()],
+            );
+        }
+    };
+    Task::batch([
+        refresh,
+        app.show_localized_toast(crate::app::state::ToastKind::Success, "已保存", vec![]),
+    ])
 }
 
 fn preview_from_line(content: &str, line: usize) -> &str {
@@ -543,24 +843,23 @@ pub(crate) fn preview_diff_file(app: &mut App, path: String) -> Task<Message> {
     else {
         return Task::none();
     };
-    let browse = select_mode(state, true);
-    let mut first_unloaded_folder = None;
-    for (index, _) in relative.match_indices('/') {
-        let folder = &relative[..index];
-        state.files.expanded.insert(folder.to_owned());
-        if first_unloaded_folder.is_none() && !state.files.loaded.contains(folder) {
-            first_unloaded_folder = Some(folder.to_owned());
+    let mut expand = Task::none();
+    if state.files.show_all_files {
+        let mut first_unloaded_folder = None;
+        for (index, _) in relative.match_indices('/') {
+            let folder = &relative[..index];
+            state.files.expanded.insert(folder.to_owned());
+            if first_unloaded_folder.is_none() && !state.files.loaded.contains(folder) {
+                first_unloaded_folder = Some(folder.to_owned());
+            }
+        }
+        if state.files.loaded.contains("")
+            && let Some(folder) = first_unloaded_folder
+        {
+            expand = list_folder(state, folder);
         }
     }
-    if let Some(root) = state.files.root.as_deref() {
-        state.files.selection.select(root, path, false, false, &[]);
-    }
-    let expand = if state.files.loaded.contains("") {
-        first_unloaded_folder.map(|folder| list_folder(state, folder)).unwrap_or_default()
-    } else {
-        Task::none()
-    };
-    Task::batch([browse, expand, open_file(state, relative, None)])
+    Task::batch([expand, open_file(state, relative, None)])
 }
 
 pub(crate) fn preview_snapshot(
@@ -570,11 +869,11 @@ pub(crate) fn preview_snapshot(
     content: String,
 ) -> Task<Message> {
     let state = &mut app.git_workbench;
-    let browse = select_mode(state, true);
+    state.show_editor = true;
     let source = PreviewSource::Snapshot(key);
     if let Some(id) = state.files.previews.iter().find(|tab| tab.source == source).map(|tab| tab.id)
     {
-        return Task::batch([browse, state.files.select_preview(id)]);
+        return state.files.select_preview(id);
     }
     state.files.preview_request = state.files.preview_request.wrapping_add(1);
     let id = state.files.preview_request;
@@ -582,11 +881,10 @@ pub(crate) fn preview_snapshot(
     state.files.previews.push(Preview {
         id,
         title,
-        content: Some(Ok(content)),
-        truncated,
+        content: Some(Ok(PreviewContent::ReadOnly { text: content, truncated })),
         location: None,
         source,
         request: id,
     });
-    Task::batch([browse, state.files.select_preview(id)])
+    state.files.select_preview(id)
 }

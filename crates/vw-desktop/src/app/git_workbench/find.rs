@@ -25,10 +25,6 @@ pub(super) fn update(state: &mut Workbench, event: ProjectMessage) -> Task<Messa
     let root = state.files.root.clone();
     let effects = find::handle(&mut state.files.find, root.as_deref(), Vec::new(), event);
     Task::batch(effects.into_iter().filter_map(|effect| match effect {
-        FindEffect::ShowFileManager => {
-            state.show_files = true;
-            None
-        }
         FindEffect::Preview { path, line, column } => {
             let relative = files::relative_path(root.as_deref()?, &path)?;
             Some(files::open_file(state, relative, Some((line, column))))
@@ -64,7 +60,10 @@ pub(super) fn update(state: &mut Workbench, event: ProjectMessage) -> Task<Messa
                 },
             ))
         }
-        FindEffect::None | FindEffect::Open { .. } | FindEffect::Close { .. } => None,
+        FindEffect::None
+        | FindEffect::ShowFileManager
+        | FindEffect::Open { .. }
+        | FindEffect::Close { .. } => None,
     }))
 }
 

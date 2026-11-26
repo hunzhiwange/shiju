@@ -410,6 +410,10 @@ impl App {
                 (ClipboardShortcutKind::Paste, true) => {
                     self.update(Message::Chat(message::ChatMessage::PasteIntoInput))
                 }
+                #[cfg(not(target_arch = "wasm32"))]
+                (kind, false) if self.navigation_tabs.screen == Screen::GitWorkbench => {
+                    crate::app::git_workbench::clipboard_shortcut(self, kind)
+                }
                 (ClipboardShortcutKind::Copy, false) => copy_shortcut_without_input(self),
                 (ClipboardShortcutKind::Cut, false) => {
                     message::editor::update(self, message::EditorMessage::Cut)

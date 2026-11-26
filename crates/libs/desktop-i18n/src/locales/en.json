@@ -11274,6 +11274,7 @@
   "根目录": "Root folder",
   "上一级": "Parent folder",
   "在编辑器中打开": "Open in editor",
+  "在独立编辑器中打开": "Open in standalone editor",
   "选择文件查看差异": "Select a file to view its diff",
   "没有可显示的文本差异": "No text diff to display",
   "变更文件": "Changed files",

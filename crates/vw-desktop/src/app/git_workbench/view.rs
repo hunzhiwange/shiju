@@ -14,8 +14,9 @@ use desktop_i18n::I18n;
 use desktop_ui_controls::icons::icon_svg;
 use desktop_ui_controls::single_line_label::SingleLineLabel;
 use desktop_ui_controls::system_settings_common::{
-    rounded_action_btn_style, settings_divider_style, settings_muted_text_style,
-    settings_select,
+    primary_action_btn_style, rounded_action_btn_style, settings_close_button,
+    settings_divider_style, settings_modal_card, settings_muted_text_style,
+    settings_optional_modal_overlay, settings_select,
 };
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::text::Wrapping;
@@ -115,8 +116,8 @@ fn workspace<'a>(app: &'a App, i18n: I18n) -> Element<'a, Message> {
     responsive(move |size| {
         let narrow = size.width < 590.0;
         let modes = row![
-            tab(Icon::GitBranch, "Git", !state.show_files, Event::ShowFiles(false)),
-            tab(Icon::FolderOpen, i18n.__("文件"), state.show_files, Event::ShowFiles(true)),
+            tab(Icon::GitBranch, "Git", !state.show_editor, Event::ShowEditor(false)),
+            tab(Icon::Pencil, i18n.__("编辑器"), state.show_editor, Event::ShowEditor(true)),
         ]
         .spacing(4);
         let identity = row![
@@ -134,40 +135,38 @@ fn workspace<'a>(app: &'a App, i18n: I18n) -> Element<'a, Message> {
         .align_y(Alignment::Center);
         let workspace = if state.switching_branch {
             centered(i18n.__("正在切换分支…"))
-        } else if !state.show_files && state.repo.is_some() {
+        } else if state.show_editor {
+            file_preview(i18n, state)
+        } else if state.repo.is_some() {
             page::workbench_view(&git_input(app)).map(move |event| map_git(state, event))
+        } else if state.repo_loading {
+            centered(i18n.__("加载中"))
+        } else if !state.local() {
+            centered(i18n.__("Git 变更管理需要本机网关"))
         } else {
-            let body = if state.show_files {
-                file_preview(i18n, state)
-            } else if state.repo_loading {
-                centered(i18n.__("加载中"))
-            } else if !state.local() {
-                centered(i18n.__("Git 变更管理需要本机网关"))
-            } else {
-                centered(i18n.__("未检测到 Git 仓库"))
-            };
-            let files = file_manager(app);
-            if narrow {
-                column![
-                    container(files).height(Length::FillPortion(1)),
-                    container(body).height(Length::FillPortion(1)),
-                ]
-                .spacing(6)
-                .height(Length::Fill)
-                .into()
-            } else {
-                row![
-                    container(files).width(270),
-                    container(iced::widget::Space::new())
-                        .width(1)
-                        .height(Length::Fill)
-                        .style(settings_divider_style),
-                    body,
-                ]
-                .spacing(6)
-                .height(Length::Fill)
-                .into()
-            }
+            centered(i18n.__("未检测到 Git 仓库"))
+        };
+        let files = file_manager(app);
+        let workspace: Element<'_, Message> = if narrow {
+            column![
+                container(workspace).height(Length::FillPortion(2)),
+                container(files).height(Length::FillPortion(1)),
+            ]
+            .spacing(6)
+            .height(Length::Fill)
+            .into()
+        } else {
+            row![
+                container(workspace).width(Length::Fill),
+                container(iced::widget::Space::new())
+                    .width(1)
+                    .height(Length::Fill)
+                    .style(settings_divider_style),
+                container(files).width(270),
+            ]
+            .spacing(6)
+            .height(Length::Fill)
+            .into()
         };
         panel(column![identity, workspace].spacing(10), 10)
     })
@@ -199,16 +198,13 @@ fn checkout_select(i18n: I18n, state: &Workbench, width: f32) -> Element<'_, Mes
         .as_ref()
         .or_else(|| current_worktree.and_then(|option| option.branch.as_ref()));
     let mut options = Vec::new();
-    if !state.show_files {
-        options.extend(state.git.branches.iter().cloned().map(CheckoutOption::Branch));
-    }
+    options.extend(state.git.branches.iter().cloned().map(CheckoutOption::Branch));
     if worktrees.len() > 1 {
         options.extend(worktrees.iter().cloned().map(CheckoutOption::Worktree));
     }
     let selected = current_worktree
         .filter(|option| {
-            state.show_files
-                || state.git.branches.is_empty()
+            state.git.branches.is_empty()
                 || current_branch.is_none()
                 || Some(option.directory.as_str()) != state.project_directory()
         })
@@ -308,19 +304,41 @@ fn file_preview<'a>(i18n: I18n, state: &'a Workbench) -> Element<'a, Message> {
         file.location.map(|(line, column)| text(format!("{line}:{column}"))
             .size(11)
             .style(settings_muted_text_style)),
-        file.truncated.then(|| text(i18n.__("已截断")).size(11).style(settings_muted_text_style)),
-        (state.local() && file.path().is_some() && matches!(&file.content, Some(Ok(_)))).then(|| {
+        matches!(&file.content, Some(Ok(files::PreviewContent::ReadOnly { truncated: true, .. })))
+            .then(|| text(i18n.__("已截断")).size(11).style(settings_muted_text_style)),
+        file.editor().map(|document| {
             action(
-                Icon::Pencil,
-                i18n.__("在编辑器中打开"),
-                Some(Event::Files(state.epoch, files::Event::OpenInEditor)),
+                Icon::Save,
+                if document.dirty {
+                    i18n.__("保存文件 (已修改)")
+                } else {
+                    i18n.__("保存文件")
+                },
+                (document.dirty && !document.saving)
+                    .then_some(Event::Files(state.epoch, files::Event::Save(file.id))),
             )
         }),
+        (state.local() && file.path().is_some() && matches!(&file.content, Some(Ok(_)))).then(
+            || {
+                action(
+                    Icon::LayoutTextWindow,
+                    i18n.__("在独立编辑器中打开"),
+                    Some(Event::Files(state.epoch, files::Event::OpenInEditor)),
+                )
+            }
+        ),
     ]
     .spacing(7)
     .align_y(Alignment::Center);
     let body = match &file.content {
-        Some(Ok(content)) => {
+        Some(Ok(files::PreviewContent::Editor(document))) => {
+            let id = file.id;
+            let epoch = state.epoch;
+            document.editor.content_view(move |event| {
+                message(Event::Files(epoch, files::Event::Editor(id, event)))
+            })
+        }
+        Some(Ok(files::PreviewContent::ReadOnly { text: content, .. })) => {
             let font = if content.is_ascii() { iced::Font::MONOSPACE } else { iced::Font::DEFAULT };
             vertical(text(content.as_str()).size(13).font(font).wrapping(Wrapping::Glyph))
         }
@@ -366,11 +384,44 @@ fn map_git(state: &Workbench, event: page::Message) -> Message {
 pub(crate) fn with_overlays<'a>(app: &'a App, root: Element<'a, Message>) -> Element<'a, Message> {
     let state = &app.git_workbench;
     let input = git_input(app);
-    desktop_git_ui::modal_overlays::with_git_diff_overlays(
+    let root = desktop_git_ui::modal_overlays::with_git_diff_overlays(
         page::diff_comment_modal(&input).map(|modal| modal.map(move |event| map_git(state, event))),
         page::discard_file_modal(&input).map(|modal| modal.map(move |event| map_git(state, event))),
         root,
-    )
+    );
+    let confirm_close = state.files.closing_preview_id.and_then(|id| {
+        let file = state.files.previews.iter().find(|tab| tab.id == id)?;
+        let i18n = I18n::new(app.general_settings.desktop_locale);
+        let cancel = state.file_message(files::Event::ConfirmClosePreview(false));
+        let confirm = state.file_message(files::Event::ConfirmClosePreview(true));
+        let card = settings_modal_card(
+            column![
+                row![
+                    text(i18n.__("有未保存的修改")).size(17).width(Length::Fill),
+                    settings_close_button(cancel.clone()),
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+                text(file.title.as_str()).wrapping(Wrapping::Glyph),
+                row![
+                    iced::widget::Space::new().width(Length::Fill),
+                    button(text(i18n.__("取消")))
+                        .padding([6, 12])
+                        .style(rounded_action_btn_style)
+                        .on_press(cancel.clone()),
+                    button(text(i18n.__("丢弃更改")))
+                        .padding([6, 12])
+                        .style(primary_action_btn_style)
+                        .on_press(confirm),
+                ]
+                .spacing(8),
+            ]
+            .spacing(12),
+        )
+        .max_width(400);
+        Some((cancel, card.into()))
+    });
+    settings_optional_modal_overlay(root, confirm_close)
 }
 
 pub(crate) fn inline_project_picker(app: &App) -> Option<Element<'static, page::Message>> {

@@ -375,6 +375,35 @@ async fn file_write_v1_overwrites_existing_file_and_counts_utf8_bytes() {
 }
 
 #[tokio::test]
+async fn file_replace_v1_preserves_external_changes_and_original_encoding() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    let root = temp.path().canonicalize().expect("canonical temp dir");
+    let target = root.join("notes.txt");
+    std::fs::write(&target, "old\r\n").expect("existing file");
+
+    let replace = |expected: &str| {
+        file_replace_v1::<TestHost>(
+            HeaderMap::new(),
+            Json(FileReplaceBody {
+                directory: root.to_string_lossy().into_owned(),
+                path: "notes.txt".into(),
+                expected: expected.into(),
+                content: "new\r\n".into(),
+            }),
+        )
+    };
+    assert!(replace("old\n").await.is_err());
+    assert_eq!(std::fs::read(&target).expect("unchanged file"), b"old\r\n");
+    assert!(replace("old\r\n").await.is_ok());
+    assert_eq!(std::fs::read(&target).expect("saved file"), b"new\r\n");
+
+    let utf8_bom = b"\xef\xbb\xbfold\n";
+    std::fs::write(&target, utf8_bom).expect("file with BOM");
+    assert!(replace("old\n").await.is_err());
+    assert_eq!(std::fs::read(&target).expect("unchanged file"), utf8_bom);
+}
+
+#[tokio::test]
 async fn file_write_v1_reports_parent_directory_creation_error() {
     let temp = tempfile::tempdir().expect("temp dir");
     let root = temp.path().canonicalize().expect("canonical temp dir");

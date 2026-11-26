@@ -358,7 +358,7 @@ if [ "$SKIP_BUILD" = "1" ]; then
   CARGO_BUNDLE_SKIP_BUILD=1 cargo_bundle -p vw-desktop --bin shi-ju --format osx
 else
   echo "Bundling main application..."
-  cargo_bundle -p vw-desktop --bin shi-ju
+  cargo_bundle -p vw-desktop --bin shi-ju --format osx
 
   echo "Building native control executable..."
   cargo_build -p computer-control --bin shiju-computer-use

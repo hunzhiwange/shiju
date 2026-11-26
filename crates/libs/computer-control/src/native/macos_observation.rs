@@ -250,9 +250,18 @@ fn tree(
         }
         AXUIElementSetMessagingTimeout(element, 0.2);
     }
-    let role = ax_text(element, c"AXRole")?
-        .ok_or(NativeObservationError::Control(ControlErrorCode::BackendFailure))?;
-    let subrole = ax_text(element, c"AXSubrole")?;
+    let roles = ax_text(element, c"AXRole").and_then(|role| {
+        ax_text(element, c"AXSubrole").map(|subrole| (role, subrole))
+    });
+    let (role, subrole) = match roles {
+        Ok((Some(role), subrole)) => (role, subrole),
+        // Some controls fail the role or subrole query. Without both queries we
+        // cannot classify secure fields, so omit the node's data and descendants.
+        Ok((None, _)) | Err(NativeObservationError::Control(ControlErrorCode::BackendFailure)) => {
+            return Ok(serde_json::json!({"truncated":true,"redacted":true}));
+        }
+        Err(error) => return Err(error),
+    };
     if role == "AXSecureTextField" || subrole.as_deref() == Some("AXSecureTextField") {
         return Ok(serde_json::json!({"role":role,"redacted":true}));
     }

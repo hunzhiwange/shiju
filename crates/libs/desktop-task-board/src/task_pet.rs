@@ -243,11 +243,12 @@ pub fn window<'a>(app: PetView<'a>) -> Element<'a, Message> {
         );
     }
     content = content.push(pet_control(app));
+    let tooltip_space = app.dock.mode.project_tooltip_space(app.dock.project_path.is_some());
     let content = container(content)
         .center_x(Length::Fill)
         .height(Length::Fill)
         .align_y(iced::alignment::Vertical::Bottom)
-        .padding(WINDOW_PADDING)
+        .padding(iced::Padding::new(WINDOW_PADDING).bottom(WINDOW_PADDING + tooltip_space))
         .style(transparent_pet_window_style);
     let content: Element<'a, Message> = if app.dock.mode == crate::pet_view::DockMode::Composer {
         mouse_area(content).on_press(Message::TaskPetComposerClose).into()

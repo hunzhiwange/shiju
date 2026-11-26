@@ -10,6 +10,7 @@ pub(crate) const REMINDER_WIDTH: f32 = 344.0;
 pub const FEEDBACK_HEIGHT: f32 = 72.0;
 const DOCK_GAP: f32 = 4.0;
 const PROJECT_MENU_SPACE: f32 = 224.0;
+const PROJECT_TOOLTIP_SPACE: f32 = 96.0;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum DockMode {
@@ -29,6 +30,10 @@ impl DockMode {
             Self::Composer => Size::new(344.0, DOCK_HEIGHT),
             Self::Voice => Size::new(244.0, DOCK_HEIGHT),
         }
+    }
+
+    pub(crate) fn project_tooltip_space(self, project_selected: bool) -> f32 {
+        if self == Self::Composer && project_selected { PROJECT_TOOLTIP_SPACE } else { 0.0 }
     }
 }
 
@@ -158,6 +163,7 @@ impl PetControls {
         let height = dock_window_height(avatar)
             + reminder_height
             + if self.composer && self.project_query.is_some() { PROJECT_MENU_SPACE } else { 0.0 }
+            + self.mode.project_tooltip_space(self.project_path.is_some())
             + if feedback { FEEDBACK_HEIGHT } else { 0.0 };
         let target = Size::new(width + WINDOW_PADDING * 2.0, height);
         match self.native_size {
@@ -230,10 +236,12 @@ pub enum PetMessage {
     TaskPetSizeOpen,
     TaskPetHideWindow,
     TaskPetRemove(u64),
+    TaskPetStop(u64),
     TaskPetRestoreReminder,
     TaskPetReplyPressed(u64),
     TaskPetReplyInputChanged(String),
     TaskPetReplySubmit,
     TaskPetReplyClose,
     TaskPetHover(Option<u64>),
+    TaskPetHoverExited(u64),
 }

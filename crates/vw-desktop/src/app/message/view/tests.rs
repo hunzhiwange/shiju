@@ -40,6 +40,12 @@ fn task_pet_view_messages_update_interaction_state() {
     let _ = super::update(&mut app, ViewMessage::TaskPetReplyClose);
     assert!(app.pet_state.task_pet_reply_request_id.is_none());
     assert!(app.pet_state.task_pet_reply_input.is_empty());
+
+    let _ = super::update(&mut app, ViewMessage::TaskPetHover(Some(42)));
+    let _ = super::update(&mut app, ViewMessage::TaskPetHoverExited(41));
+    assert_eq!(app.pet_state.task_pet_hovered_request_id, Some(42));
+    let _ = super::update(&mut app, ViewMessage::TaskPetHoverExited(42));
+    assert_eq!(app.pet_state.task_pet_hovered_request_id, None);
 }
 
 

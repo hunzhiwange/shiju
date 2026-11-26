@@ -52,12 +52,14 @@ fn map(message: PetMessage) -> Message {
         PetMessage::TaskPetSizeOpen => ViewMessage::TaskPetSizeOpen,
         PetMessage::TaskPetHideWindow => ViewMessage::TaskPetHideWindow,
         PetMessage::TaskPetRemove(a) => ViewMessage::TaskPetRemove(a),
+        PetMessage::TaskPetStop(id) => ViewMessage::TaskPetStop(id),
         PetMessage::TaskPetRestoreReminder => ViewMessage::TaskPetRestoreReminder,
         PetMessage::TaskPetReplyPressed(a) => ViewMessage::TaskPetReplyPressed(a),
         PetMessage::TaskPetReplyInputChanged(a) => ViewMessage::TaskPetReplyInputChanged(a),
         PetMessage::TaskPetReplySubmit => ViewMessage::TaskPetReplySubmit,
         PetMessage::TaskPetReplyClose => ViewMessage::TaskPetReplyClose,
         PetMessage::TaskPetHover(a) => ViewMessage::TaskPetHover(a),
+        PetMessage::TaskPetHoverExited(id) => ViewMessage::TaskPetHoverExited(id),
     })
 }
 pub fn window(app: &App) -> iced::Element<'_, Message> {

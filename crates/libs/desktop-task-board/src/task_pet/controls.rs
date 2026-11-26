@@ -2,14 +2,17 @@
 use desktop_assets::assets::{self, Icon};
 use desktop_i18n::I18n;
 use desktop_ui_controls::overlays::BelowOverlay;
+use desktop_ui_controls::single_line_label::SingleLineLabel;
+use desktop_ui_controls::system_settings_common::icons::icon_btn_style;
 use desktop_ui_controls::system_settings_common::theme::is_dark_theme;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SettingsSelectLabel,
     primary_action_btn_style, rounded_action_btn_style, settings_muted_text_style,
     settings_panel_style, settings_text_input, settings_text_input_style,
 };
+use desktop_ui_controls::tooltip::{project_tooltip, project_tooltip_with_max_width};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{scrollable, stack, text_input, tooltip};
+use iced::widget::{column, scrollable, stack, text_input, tooltip};
 use iced::{Degrees, Gradient, Shadow, Vector, gradient};
 
 use super::*;
@@ -178,15 +181,17 @@ fn project_select<'a>(i18n: I18n, app: PetView<'a>) -> Element<'a, Message> {
                     .unwrap_or(path).to_owned()
             })
     };
-    let label = app.dock.project_path.map(name_for)
+    let selected = app.dock.project_path;
+    let label = selected.map(name_for)
         .unwrap_or_else(|| i18n.__("选择项目").to_owned());
     let trigger = button(
-        row![SettingsSelectLabel::new(label), glyph(Icon::ChevronDown, 10.0)]
+        row![SettingsSelectLabel::new(label.clone()), glyph(Icon::ChevronDown, 10.0)]
             .spacing(4)
+            .height(Length::Fill)
             .align_y(Alignment::Center),
     )
     .on_press(Message::TaskPetProjectMenuToggle)
-    .width(112)
+    .width(if selected.is_some() { 76 } else { 112 })
     .height(30)
     .padding([0, 7])
     .style(|theme, status| {
@@ -195,14 +200,16 @@ fn project_select<'a>(i18n: I18n, app: PetView<'a>) -> Element<'a, Message> {
         style
     });
     let Some(query) = app.dock.project_query else {
-        return trigger.into();
+        return match selected {
+            Some(path) => project_tooltip(trigger, label, path, tooltip::Position::Bottom),
+            None => trigger.into(),
+        };
     };
     let search = settings_text_input(i18n.__("搜索项目"), query)
         .id(project_search_id())
         .on_input(Message::TaskPetProjectQueryChanged)
         .width(Length::Fill);
     let query = query.trim().to_lowercase();
-    let selected = app.dock.project_path;
     let current_unlisted = selected.filter(|path| !app.project_paths.iter().any(|p| p == *path));
     let mut choices: Vec<Element<'a, Message>> = Vec::new();
     for path in current_unlisted.into_iter().chain(app.project_paths.iter().map(String::as_str)) {
@@ -212,24 +219,32 @@ fn project_select<'a>(i18n: I18n, app: PetView<'a>) -> Element<'a, Message> {
         }
         let is_selected = selected == Some(path);
         let choice = button(
-            column![
-                row![
-                    SettingsSelectLabel::new(label),
-                    if is_selected { glyph(Icon::Check, 12.0) } else { Space::new().width(12).into() },
-                ]
-                .spacing(6)
-                .align_y(Alignment::Center),
-                text(path).size(11).wrapping(iced::widget::text::Wrapping::None)
-                    .style(settings_muted_text_style),
+            row![
+                SingleLineLabel::new(label.clone(), 13.0),
+                if is_selected { glyph(Icon::Check, 12.0) } else { Space::new().width(12).into() },
             ]
-            .spacing(2),
+            .spacing(6)
+            .align_y(Alignment::Center),
         )
         .width(Length::Fill)
-        .padding([5, 8])
+        .padding([4, 6])
         .clip(true)
-        .style(rounded_action_btn_style)
+        .style(move |theme, status| {
+            let mut style = icon_btn_style(theme, status);
+            if is_selected && status == button::Status::Active {
+                style.background =
+                    Some(theme.extended_palette().primary.base.color.scale_alpha(0.12).into());
+            }
+            style
+        })
         .on_press(Message::TaskPetProjectSelected(path.to_owned()));
-        choices.push(choice.into());
+        choices.push(project_tooltip_with_max_width(
+            choice,
+            label,
+            path,
+            tooltip::Position::Right,
+            144.0,
+        ));
     }
     if choices.is_empty() {
         let label = if query.is_empty() { "暂无项目" } else { "未找到匹配的项目" };
@@ -247,7 +262,8 @@ fn project_select<'a>(i18n: I18n, app: PetView<'a>) -> Element<'a, Message> {
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4).spacing(3))),
     ]
     .spacing(6))
-        .width(280)
+        // Leave space to the right of the list for the tooltip in the compact window.
+        .width(164)
         .max_height(210)
         .padding(7)
         .style(settings_panel_style);

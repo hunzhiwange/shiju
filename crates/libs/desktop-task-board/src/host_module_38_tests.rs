@@ -134,6 +134,16 @@ async fn mini_companion_stack_has_bounded_depth() {
     let many_size = app.task_pet_window_size();
     app.task_pet_items.truncate(3);
     assert_eq!(app.task_pet_window_size(), many_size);
+
+    app.task_pet_hovered_request_id = Some(20);
+    let reply = iced::Point::new(270.0, 39.0);
+    let messages = mini_click(&app, reply).await;
+    assert!(messages.iter().any(|m| matches!(m, Message::TaskPetReplyPressed(20))));
+    assert!(!messages.iter().any(|m| matches!(m, Message::TaskPetExpandReminders)));
+
+    let messages = mini_click(&app, iced::Point::new(24.0, 18.0)).await;
+    assert!(messages.iter().any(|m| matches!(m, Message::TaskPetRemove(20))));
+    assert!(!messages.iter().any(|m| matches!(m, Message::TaskPetStop(_))));
 }
 
 #[tokio::test]
@@ -155,18 +165,30 @@ async fn mini_companion_expanded_cards_keep_actions_and_scroll() {
             )
         })
         .collect();
+    let stop = iced::Point::new(310.0, 39.0);
+    let messages = mini_click(&app, stop).await;
+    assert!(!messages.iter().any(|m| matches!(m, Message::TaskPetStop(_))));
     app.task_pet_hovered_request_id = Some(1);
+    app.task_pet_items[0].status = TaskPetStatus::Completed;
+    let messages = mini_click(&app, stop).await;
+    assert!(messages.iter().any(|m| matches!(m, Message::TaskPetReplyPressed(1))));
+    assert!(!messages.iter().any(|m| matches!(m, Message::TaskPetStop(_))));
+    app.task_pet_items[0].status = TaskPetStatus::Running;
+
+    let reply = iced::Point::new(270.0, 39.0);
     for (point, expected) in [
         (iced::Point::new(24.0, 18.0), 0),
-        (iced::Point::new(310.0, 39.0), 1),
+        (reply, 1),
         (iced::Point::new(70.0, 95.0), 2),
+        (stop, 3),
     ] {
         let messages = mini_click(&app, point).await;
         assert!(
             messages.iter().any(|m| match expected {
                 0 => matches!(m, Message::TaskPetRemove(1)),
                 1 => matches!(m, Message::TaskPetReplyPressed(1)),
-                _ => matches!(m, Message::TaskPetOpenReminder(2)),
+                2 => matches!(m, Message::TaskPetOpenReminder(2)),
+                _ => matches!(m, Message::TaskPetStop(1)),
             }),
             "missing action {expected}: {messages:?}"
         );
@@ -190,11 +212,11 @@ async fn mini_companion_expanded_cards_keep_actions_and_scroll() {
     app.task_pet_reply_request_id = Some(1);
     app.task_pet_hovered_request_id = Some(1);
     app.task_pet_reply_input = "请继续处理中文长标题对应的任务".into();
-    let messages = mini_click(&app, iced::Point::new(288.0, 92.0)).await;
+    let messages = mini_click(&app, iced::Point::new(320.0, 92.0)).await;
     assert!(messages.iter().any(|m| matches!(m, Message::TaskPetReplySubmit)));
     assert!(!messages.iter().any(|m| matches!(m, Message::TaskPetOpenReminder(_))));
 
-    let messages = mini_click(&app, iced::Point::new(320.0, 92.0)).await;
+    let messages = mini_click(&app, reply).await;
     assert!(messages.iter().any(|m| matches!(m, Message::TaskPetReplyClose)));
     assert!(!messages.iter().any(|m| matches!(
         m,

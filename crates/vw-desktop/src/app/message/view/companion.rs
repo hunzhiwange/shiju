@@ -24,10 +24,14 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::TaskPetComposerClose => app.pet_state.controls.close_composer(),
         ViewMessage::TaskPetComposerSubmit => return submit(app),
         ViewMessage::TaskPetProjectMenuToggle if app.pet_state.controls.composer => {
-            if app.pet_state.controls.project_query.is_some() {
+            let controls = &mut app.pet_state.controls;
+            if controls.project_query.is_some() {
                 return close_project_menu(app);
             }
-            app.pet_state.controls.project_query = Some(String::new());
+            if controls.project_path.is_none() {
+                controls.project_path = app.navigation_tabs.project_path.clone();
+            }
+            controls.project_query = Some(String::new());
             return iced::widget::operation::focus(desktop_task_board::task_pet::project_search_id());
         }
         ViewMessage::TaskPetProjectMenuClose => return close_project_menu(app),

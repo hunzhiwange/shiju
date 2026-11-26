@@ -142,6 +142,7 @@ fn leaf_widgets_and_status_icons_build() {
     keep_element(reply_button(
         desktop_i18n::I18n::new(config_ui::DesktopLocale::English),
         1,
+        false,
     ));
     keep_element(reply_input(
         desktop_i18n::I18n::new(config_ui::DesktopLocale::English),

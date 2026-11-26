@@ -232,9 +232,11 @@ pub enum ViewMessage {
     TaskPetItemClicked(u64),
     /// 主动删除小宠物任务条目
     TaskPetRemove(u64),
+    TaskPetStop(u64),
     TaskPetRestoreReminder,
     /// 小宠物任务条目悬停状态改变
     TaskPetHover(Option<u64>),
+    TaskPetHoverExited(u64),
     /// 展开小宠物任务回复输入
     TaskPetReplyPressed(u64),
     /// 小宠物任务回复输入变化
@@ -720,6 +722,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 | ViewMessage::TaskPetReplySubmit
                 | ViewMessage::TaskPetItemClicked(_)
                 | ViewMessage::TaskPetRemove(_)
+                | ViewMessage::TaskPetStop(_)
                 | ViewMessage::TaskPetRestoreReminder
                 | ViewMessage::TaskPetReplyClose
         )
@@ -978,6 +981,15 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.dismiss_task_pet_item(request_id);
             Task::none()
         }
+        ViewMessage::TaskPetStop(request_id) => {
+            let Some(session_id) = app.find_session_by_request_id(request_id) else {
+                return Task::none();
+            };
+            if !app.get_session_runtime(&session_id).request_lifecycle.is_requesting {
+                return Task::none();
+            }
+            crate::app::message::chat::stream::stop_agent_stream(app, &session_id)
+        }
         ViewMessage::TaskPetRestoreReminder => {
             app.companion_navigation.task_pet_context_menu_pos = None;
             app.restore_task_pet_reminder();
@@ -985,6 +997,12 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::TaskPetHover(request_id) => {
             app.set_task_pet_hovered(request_id);
+            Task::none()
+        }
+        ViewMessage::TaskPetHoverExited(request_id) => {
+            if app.pet_state.task_pet_hovered_request_id == Some(request_id) {
+                app.set_task_pet_hovered(None);
+            }
             Task::none()
         }
         ViewMessage::TaskPetReplyPressed(request_id) => {

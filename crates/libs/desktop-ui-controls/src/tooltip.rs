@@ -26,6 +26,16 @@ pub fn project_tooltip<'a, Message: 'a>(
     path: &'a str,
     position: tooltip::Position,
 ) -> Element<'a, Message> {
+    project_tooltip_with_max_width(control, name, path, position, 360.0)
+}
+
+pub fn project_tooltip_with_max_width<'a, Message: 'a>(
+    control: impl Into<Element<'a, Message>>,
+    name: impl text::IntoFragment<'a>,
+    path: &'a str,
+    position: tooltip::Position,
+    max_width: f32,
+) -> Element<'a, Message> {
     let name = text(name)
         .size(13)
         .font(Font { weight: iced::font::Weight::Bold, ..Font::DEFAULT })
@@ -36,7 +46,7 @@ pub fn project_tooltip<'a, Message: 'a>(
         .color(Color::from_rgb8(197, 198, 202))
         .shaping(text::Shaping::Advanced)
         .wrapping(text::Wrapping::WordOrGlyph);
-    let details = container(column![name, path].spacing(4)).max_width(360);
+    let details = container(column![name, path].spacing(4)).max_width(max_width);
 
     tooltip(control, details, position).gap(8).padding(10).style(tooltip_dark_style).into()
 }

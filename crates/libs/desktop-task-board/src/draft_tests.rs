@@ -75,18 +75,14 @@ fn import_demo_content_returns_each_supported_format_and_rejects_unknown_names()
     assert!(csv.contains(",auto,claude,max,follow_system"));
 
     let tsv = super::import_demo_content("TSV 示例").expect("TSV demo should exist");
-    assert!(
-        tsv.starts_with("priority\tprompt\tmodel\tacp_agent\treasoning_effort\n")
-    );
+    assert!(tsv.starts_with("priority\tprompt\tmodel\tacp_agent\treasoning_effort\n"));
     assert!(tsv.contains("\tauto\topencode\thigh\tfollow_system"));
 
     assert_eq!(super::import_demo_content("YAML 示例"), None);
 }
 
-
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
 // 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
-
 
 #[test]
 fn initial_task_status_uses_first_status_for_selected_workflow() {
@@ -112,9 +108,7 @@ fn initial_task_status_uses_first_status_for_selected_workflow() {
 #[test]
 fn task_lifecycle_cache_updates_status_helpers() {
     use desktop_task_model::{TaskStatus, update_runtime_task_lifecycle_cache};
-    use vw_api_task_lifecycle::{
-        TaskLifecycleStatusRoleDto, TaskLifecycleWorkflowDto,
-    };
+    use vw_api_task_lifecycle::{TaskLifecycleStatusCategoryDto, TaskLifecycleWorkflowDto};
 
     let _cache_lock = desktop_task_model::runtime_task_lifecycle_cache_test_lock();
     struct CacheGuard;
@@ -127,25 +121,37 @@ fn task_lifecycle_cache_updates_status_helpers() {
     }
 
     let _guard = CacheGuard;
-    update_runtime_task_lifecycle_cache(vec![TaskLifecycleWorkflowDto {
-        id: "cache_ops".to_string(),
-        label: "Cache Ops".to_string(),
-        built_in: false,
-        statuses: vec![
+    update_runtime_task_lifecycle_cache(vec![{
+        let statuses: Vec<vw_api_task_lifecycle::TaskLifecycleStatusDto> = vec![
             lifecycle_status(
                 "cache_intake",
                 "Cache Intake",
-                TaskLifecycleStatusRoleDto::Backlog,
-                Some("cache_execute"),
+                TaskLifecycleStatusCategoryDto::Unstarted,
             ),
             lifecycle_status(
                 "cache_execute",
                 "Cache Execute",
-                TaskLifecycleStatusRoleDto::Executing,
-                Some("cache_done"),
+                TaskLifecycleStatusCategoryDto::Started,
             ),
-            lifecycle_status("cache_done", "Cache Done", TaskLifecycleStatusRoleDto::Done, None),
-        ],
+            lifecycle_status("cache_done", "Cache Done", TaskLifecycleStatusCategoryDto::Done),
+        ];
+        TaskLifecycleWorkflowDto {
+            id: "cache_ops".to_string(),
+            label: "Cache Ops".to_string(),
+            built_in: false,
+            initial_status_key: statuses
+                .first()
+                .map(|status| status.key.clone())
+                .unwrap_or_default(),
+            steps: statuses
+                .iter()
+                .map(|status| vw_api_task_lifecycle::TaskLifecycleStepDto {
+                    status_key: status.key.clone(),
+                    handoff: vw_api_task_lifecycle::TaskLifecycleStepHandoffDto::KeepAssignee,
+                })
+                .collect(),
+            statuses,
+        }
     }])
     .expect("runtime lifecycle cache should update");
 
@@ -163,7 +169,7 @@ fn task_lifecycle_cache_updates_status_helpers() {
     );
     assert_eq!(
         TaskStatus::Custom("cache_execute").next_for_workflow_id("cache_ops"),
-        Some(TaskStatus::Custom("cache_done"))
+        None // 任务执行结果不再隐式推进看板步骤。
     );
     assert_eq!(
         super::initial_task_status_for_workflow_id("cache_ops"),
@@ -174,32 +180,12 @@ fn task_lifecycle_cache_updates_status_helpers() {
 fn lifecycle_status(
     key: &str,
     label: &str,
-    role: vw_api_task_lifecycle::TaskLifecycleStatusRoleDto,
-    next: Option<&str>,
+    category: vw_api_task_lifecycle::TaskLifecycleStatusCategoryDto,
 ) -> vw_api_task_lifecycle::TaskLifecycleStatusDto {
-    use vw_api_task_lifecycle::TaskLifecycleStatusRoleDto;
-
     vw_api_task_lifecycle::TaskLifecycleStatusDto {
         key: key.to_string(),
         label: label.to_string(),
-        role,
         enabled: true,
-        terminal: next.is_none(),
-        auto_execution_candidate: !matches!(
-            role,
-            TaskLifecycleStatusRoleDto::Done | TaskLifecycleStatusRoleDto::Archived
-        ),
-        occupies_execution_slot: matches!(
-            role,
-            TaskLifecycleStatusRoleDto::Planning | TaskLifecycleStatusRoleDto::Executing
-        ),
-        is_scheduling_backlog: matches!(
-            role,
-            TaskLifecycleStatusRoleDto::Backlog
-                | TaskLifecycleStatusRoleDto::Queued
-                | TaskLifecycleStatusRoleDto::Planning
-        ),
-        next: next.map(str::to_string),
-        transitions: Vec::new(),
+        category,
     }
 }

@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+vw-api-task-lifecycle = { path = "../api-task-lifecycle" }
 vw-api-transport = { path = "../api-transport" }
 serde = { version = "1", features = ["derive"] }
 

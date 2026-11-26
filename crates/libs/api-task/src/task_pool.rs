@@ -1,7 +1,6 @@
 //! 任务池状态、工作流与 worktree 契约。
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use vw_api_transport::{ProjectId, TaskId};
 
 /// 任务看板任务池状态。
@@ -65,143 +64,58 @@ impl TaskPoolStatus {
     }
 }
 
-/// 任务池工作流状态的引擎语义角色。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TaskPoolWorkflowStatusRoleDto {
-    Backlog,
-    Queued,
-    Planning,
-    Executing,
-    Failed,
-    Paused,
-    ReviewReady,
-    Review,
-    Merging,
-    Done,
-    Archived,
-    Custom,
-}
+// 生命周期与调度快照共享状态、分类及交接类型，避免双向转换丢失配置。
+pub use vw_api_task_lifecycle::{
+    TaskLifecycleStatusCategoryDto as TaskPoolWorkflowStatusCategoryDto,
+    TaskLifecycleStatusDto as TaskPoolWorkflowStatusDto,
+    TaskLifecycleStepDto as TaskPoolWorkflowStepDto,
+    TaskLifecycleStepHandoffDto as TaskPoolWorkflowStepHandoffDto,
+};
 
-/// 任务池 workflow 状态转移分支。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TaskPoolWorkflowTransitionDto {
-    pub outcome: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
-    pub target: String,
-}
-
-/// 任务池 workflow 状态快照。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TaskPoolWorkflowStatusDto {
-    pub key: String,
-    pub label: String,
-    pub role: TaskPoolWorkflowStatusRoleDto,
-    #[serde(default = "default_true", skip_serializing_if = "is_true")]
-    pub enabled: bool,
-    #[serde(default)]
-    pub terminal: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub next: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub transitions: Vec<TaskPoolWorkflowTransitionDto>,
-}
-
-/// 任务池调度使用的 workflow 快照。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TaskPoolWorkflowSnapshotDto {
     pub id: String,
     pub label: String,
-    #[serde(default)]
     pub statuses: Vec<TaskPoolWorkflowStatusDto>,
+    pub initial_status_key: String,
+    pub steps: Vec<TaskPoolWorkflowStepDto>,
 }
 
 impl TaskPoolWorkflowSnapshotDto {
-    /// 将旧版内置开发流程的审核节点从已保存的快照中移除。
-    pub fn remove_legacy_code_review(&mut self) {
-        if self.id != "dev_lifecycle" {
-            return;
+    pub fn validate_for_schedule(&self) -> Result<(), String> {
+        vw_api_task_lifecycle::step_workflow::StepWorkflow {
+            id: self.id.clone(),
+            label: self.label.clone(),
+            initial_status_key: self.initial_status_key.clone(),
+            steps: self.steps.clone(),
         }
-        let Some(index) = self.statuses.iter().position(|status| {
-            status.key == "code_review" && status.role == TaskPoolWorkflowStatusRoleDto::Review
-        }) else {
-            return;
-        };
-        let removed = self.statuses.remove(index);
-        let successor = removed
-            .transitions
-            .iter()
-            .find(|transition| {
-                let outcome = transition.outcome.trim();
-                outcome.eq_ignore_ascii_case("success") || outcome.eq_ignore_ascii_case("succeed")
-            })
-            .map(|transition| &transition.target)
-            .or(removed.next.as_ref())
-            .filter(|target| *target != &removed.key);
-        for status in &mut self.statuses {
-            if status.next.as_deref() == Some(removed.key.as_str()) {
-                status.next = successor.cloned();
-            }
-            status.transitions.retain_mut(|transition| {
-                if transition.target == removed.key {
-                    let Some(next) = successor else {
-                        return false;
-                    };
-                    transition.target.clone_from(next);
-                }
-                true
-            });
-        }
+        .validate(&self.statuses)
     }
 
-    /// 校验调度所需的最小 workflow 结构约束。
-    pub fn validate_for_schedule(&self) -> Result<(), String> {
-        if self.id.trim().is_empty() {
-            return Err("workflow id must not be empty".to_string());
-        }
-
-        let mut status_keys = HashSet::new();
-        for status in &self.statuses {
-            if status.key.trim().is_empty() {
-                return Err("workflow status key must not be empty".to_string());
-            }
-            if !status_keys.insert(status.key.as_str()) {
-                return Err(format!("workflow status key must be unique: {}", status.key));
-            }
-        }
-
-        for status in &self.statuses {
-            if let Some(next) = status.next.as_deref() {
-                validate_workflow_target(&status_keys, "next", next)?;
-            }
-            for transition in &status.transitions {
-                if transition.outcome.trim().is_empty() {
-                    return Err(format!(
-                        "workflow transition outcome must not be empty: {}",
-                        status.key
-                    ));
-                }
-                validate_workflow_target(&status_keys, "transition", &transition.target)?;
-            }
-        }
-
-        Ok(())
+    pub fn completion_status_key(&self, status_key: &str) -> Option<&str> {
+        let index = self.steps.iter().position(|step| step.status_key == status_key)?;
+        let TaskPoolWorkflowStepHandoffDto::Agent { completion_status_key, .. } =
+            &self.steps[index].handoff
+        else {
+            return None;
+        };
+        completion_status_key
+            .as_deref()
+            .or_else(|| self.steps.get(index + 1).map(|step| step.status_key.as_str()))
     }
 }
 
-fn validate_workflow_target(
-    status_keys: &HashSet<&str>,
-    target_kind: &str,
-    target: &str,
-) -> Result<(), String> {
-    if target.trim().is_empty() {
-        return Err(format!("workflow {target_kind} target must not be empty"));
+impl From<vw_api_task_lifecycle::TaskLifecycleWorkflowDto> for TaskPoolWorkflowSnapshotDto {
+    fn from(workflow: vw_api_task_lifecycle::TaskLifecycleWorkflowDto) -> Self {
+        Self {
+            id: workflow.id,
+            label: workflow.label,
+            statuses: workflow.statuses,
+            initial_status_key: workflow.initial_status_key,
+            steps: workflow.steps,
+        }
     }
-    if !status_keys.contains(target) {
-        return Err(format!("unknown workflow {target_kind} target: {target}"));
-    }
-    Ok(())
 }
 
 /// 任务池 worktree 槽位状态。
@@ -375,12 +289,4 @@ pub struct TaskPoolWorktreeMergeUnlockRequest {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskPoolWorktreeMergeUnlockResponse {
     pub released: bool,
-}
-
-fn is_true(value: &bool) -> bool {
-    *value
-}
-
-fn default_true() -> bool {
-    true
 }

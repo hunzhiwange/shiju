@@ -7,7 +7,12 @@ fn content_workflow() -> (StepWorkflow, Vec<WorkflowStatus>) {
         ("published", WorkflowStatusCategory::Done),
     ]
     .into_iter()
-    .map(|(key, category)| WorkflowStatus { key: key.into(), label: key.into(), category })
+    .map(|(key, category)| WorkflowStatus {
+        key: key.into(),
+        label: key.into(),
+        category,
+        enabled: true,
+    })
     .collect();
     let workflow = StepWorkflow {
         id: "content".into(),

@@ -1,15 +1,15 @@
 //! 任务看板主体的测试，覆盖列生成、卡片排序、状态标签与拖拽绘制。
 //! fixture 包含自定义工作流和归档任务，用于验证筛选及未知配置回退。
+use super::{BoardSlots, BoardView};
+use crate::message::TaskBoardMessage as Message;
 use desktop_task_model::{
     OwnedStatusDefinition, OwnedTaskWorkflow, StatusRole, Task, TaskStatus,
     register_runtime_task_workflow,
 };
-use crate::message::TaskBoardMessage as Message;
-use super::{BoardView, BoardSlots};
-use std::rc::Rc;
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Element, Font, Pixels, Rectangle, Size, Theme};
+use std::rc::Rc;
 
 #[test]
 fn test_module_is_wired() {
@@ -80,10 +80,8 @@ fn bulk_actions_exclude_only_archived_status() {
 fn kanban_columns_follow_selected_workflow() {
     let _cache_lock = desktop_task_model::runtime_task_lifecycle_cache_test_lock();
     let custom_status = custom_status("kanban_waiting_review");
-    let workflow = OwnedTaskWorkflow {
-        id: "board_custom_workflow".to_string(),
-        label: "Board Custom Workflow".to_string(),
-        statuses: vec![
+    let workflow = {
+        let statuses: Vec<desktop_task_model::OwnedStatusDefinition> = vec![
             owned_status("pool", "Inbox", StatusRole::Backlog, Some(custom_status)),
             owned_status(
                 "kanban_waiting_review",
@@ -93,7 +91,23 @@ fn kanban_columns_follow_selected_workflow() {
             ),
             owned_status("completed", "Shipped", StatusRole::Done, None),
             owned_status("archived", "Cold Storage", StatusRole::Archived, None),
-        ],
+        ];
+        OwnedTaskWorkflow {
+            id: "board_custom_workflow".to_string(),
+            label: "Board Custom Workflow".to_string(),
+            initial_status_key: statuses
+                .first()
+                .map(|status| status.key.clone())
+                .unwrap_or_default(),
+            steps: statuses
+                .iter()
+                .map(|status| vw_api_task_lifecycle::TaskLifecycleStepDto {
+                    status_key: status.key.clone(),
+                    handoff: vw_api_task_lifecycle::TaskLifecycleStepHandoffDto::KeepAssignee,
+                })
+                .collect(),
+            statuses,
+        }
     };
     let _home = TempHome::new();
     register_runtime_task_workflow(workflow).expect("custom workflow should register");
@@ -365,7 +379,6 @@ fn task(id: &str, status: TaskStatus, priority: u32) -> Task {
     task
 }
 
-
 fn custom_status(key: &'static str) -> TaskStatus {
     TaskStatus::parse_key(key).expect("custom status key should parse")
 }
@@ -467,25 +480,31 @@ struct App {
     task_board_bulk_model_input: String,
     task_board_bulk_agent: String,
 }
-impl App { fn view(&self) -> BoardView<'_, Message> { BoardView {
-    task_visible: None,
-    task_labels: &[],
-    task_board_settings: &self.task_board_settings,
-    task_board_tasks: &self.task_board_tasks,
-    task_board_selected_tasks: &self.task_board_selected_tasks,
-    task_board_bulk_active_status: self.task_board_bulk_active_status,
-    task_board_bulk_priority_input: &self.task_board_bulk_priority_input,
-    task_board_bulk_acp_agent: &self.task_board_bulk_acp_agent,
-    task_board_bulk_reasoning_effort: self.task_board_bulk_reasoning_effort,
-    task_board_dragging: &self.task_board_dragging,
-    cursor_position: self.cursor_position,
-    task_board_context_menu: &self.task_board_context_menu,
-    task_board_column_has_vertical_scrollbar: &self.task_board_column_has_vertical_scrollbar,
-    desktop_locale: self.desktop_locale,
-slots: BoardSlots {
-    model: Rc::new(|| iced::widget::Space::new().into()),
-    agent: Rc::new(|| iced::widget::Space::new().into()),
-    executor: Rc::new(|| iced::widget::Space::new().into()),
-    reasoning_effort: Rc::new(|| None),
-    context_menu: Rc::new(|_| iced::widget::Space::new().into()),
-} } } }
+impl App {
+    fn view(&self) -> BoardView<'_, Message> {
+        BoardView {
+            task_visible: None,
+            task_labels: &[],
+            task_board_settings: &self.task_board_settings,
+            task_board_tasks: &self.task_board_tasks,
+            task_board_selected_tasks: &self.task_board_selected_tasks,
+            task_board_bulk_active_status: self.task_board_bulk_active_status,
+            task_board_bulk_priority_input: &self.task_board_bulk_priority_input,
+            task_board_bulk_acp_agent: &self.task_board_bulk_acp_agent,
+            task_board_bulk_reasoning_effort: self.task_board_bulk_reasoning_effort,
+            task_board_dragging: &self.task_board_dragging,
+            cursor_position: self.cursor_position,
+            task_board_context_menu: &self.task_board_context_menu,
+            task_board_column_has_vertical_scrollbar: &self
+                .task_board_column_has_vertical_scrollbar,
+            desktop_locale: self.desktop_locale,
+            slots: BoardSlots {
+                model: Rc::new(|| iced::widget::Space::new().into()),
+                agent: Rc::new(|| iced::widget::Space::new().into()),
+                executor: Rc::new(|| iced::widget::Space::new().into()),
+                reasoning_effort: Rc::new(|| None),
+                context_menu: Rc::new(|_| iced::widget::Space::new().into()),
+            },
+        }
+    }
+}

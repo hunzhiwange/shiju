@@ -9,22 +9,20 @@ use std::time::Duration;
 use tower::ServiceExt;
 use uuid::Uuid;
 use vw_api_agent_scheduler::{
-    AgentSchedulerBulkCommandRequest,
-    AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest,
-    AgentSchedulerLegacyImportRequest,
-    AgentSchedulerLegacyTaskImportDto, AgentSchedulerMoveTaskPayloadDto,
-    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerTaskGraphEdgeDto,
-    AgentSchedulerTaskMetadataPatchDto, AgentSchedulerTaskMetadataUpdateRequest, AgentTaskKindDto,
-    AgentTaskStatusDto,
+    AgentSchedulerBulkCommandRequest, AgentSchedulerCommandKindDto,
+    AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest,
+    AgentSchedulerLegacyImportRequest, AgentSchedulerLegacyTaskImportDto,
+    AgentSchedulerMoveTaskPayloadDto, AgentSchedulerReplaceTaskGraphRequest,
+    AgentSchedulerTaskGraphEdgeDto, AgentSchedulerTaskMetadataPatchDto,
+    AgentSchedulerTaskMetadataUpdateRequest, AgentTaskKindDto, AgentTaskStatusDto,
 };
-use vw_api_transport::common::TimestampMs;
 use vw_api_task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
     TaskPoolWorkflowTransitionDto,
 };
+use vw_api_transport::common::TimestampMs;
 
 // 测试使用独立租户、项目和执行器夹具，防止调度状态在作用域之间串扰。
-
 
 // 失败转换同时检查任务、运行和事件投影，避免只更新其中一个状态视图。
 #[tokio::test]
@@ -449,22 +447,31 @@ async fn agent_scheduler_project_wake_skips_lifecycle_ineligible_queued_task() {
     let store = gateway.store.clone();
     store.initialize_project(&project_path).expect("init scheduler");
     store
-        .save_task_board_workflow(
-            &project_path,
-            &TaskPoolWorkflowSnapshotDto {
-                id: "review_only_flow".to_string(),
-                label: "Review Only Flow".to_string(),
-                statuses: vec![TaskPoolWorkflowStatusDto {
+        .save_task_board_workflow(&project_path, &{
+            let statuses: Vec<vw_api_task::TaskPoolWorkflowStatusDto> =
+                vec![TaskPoolWorkflowStatusDto {
                     key: "review".to_string(),
                     label: "Review".to_string(),
-                    role: TaskPoolWorkflowStatusRoleDto::Review,
                     enabled: true,
-                    terminal: false,
-                    next: None,
-                    transitions: Vec::new(),
-                }],
-            },
-        )
+                    category: vw_api_task::TaskPoolWorkflowStatusCategoryDto::Started,
+                }];
+            TaskPoolWorkflowSnapshotDto {
+                id: "review_only_flow".to_string(),
+                label: "Review Only Flow".to_string(),
+                initial_status_key: statuses
+                    .first()
+                    .map(|status| status.key.clone())
+                    .unwrap_or_default(),
+                steps: statuses
+                    .iter()
+                    .map(|status| vw_api_task::TaskPoolWorkflowStepDto {
+                        status_key: status.key.clone(),
+                        handoff: vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
+                    })
+                    .collect(),
+                statuses,
+            }
+        })
         .expect("save workflow");
     store
         .create_task(
@@ -721,7 +728,8 @@ async fn project_wake_does_not_apply_staff_plan() {
             serde_json::from_value(json!({
                 "now_ms": 1_783_000_906_600_i64,
                 "dispatch_mode": "auto"
-            })).expect("legacy wake request"),
+            }))
+            .expect("legacy wake request"),
         )
         .await
         .expect("wake project");
@@ -1562,18 +1570,30 @@ async fn agent_scheduler_gateway_legacy_import_is_idempotent_and_persists_workfl
     let gateway = StoreBackedAgentSchedulerGateway::default();
     let project_id = scheduler_project_id(&project_path);
     let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
-    let workflow = TaskPoolWorkflowSnapshotDto {
-        id: "content_flow".to_string(),
-        label: "Content Flow".to_string(),
-        statuses: vec![TaskPoolWorkflowStatusDto {
-            key: "content_writing".to_string(),
-            label: "Writing".to_string(),
-            role: TaskPoolWorkflowStatusRoleDto::Executing,
-            enabled: true,
-            terminal: false,
-            next: None,
-            transitions: Vec::new(),
-        }],
+    let workflow = {
+        let statuses: Vec<vw_api_task::TaskPoolWorkflowStatusDto> =
+            vec![TaskPoolWorkflowStatusDto {
+                key: "content_writing".to_string(),
+                label: "Writing".to_string(),
+                enabled: true,
+                category: vw_api_task::TaskPoolWorkflowStatusCategoryDto::Started,
+            }];
+        TaskPoolWorkflowSnapshotDto {
+            id: "content_flow".to_string(),
+            label: "Content Flow".to_string(),
+            initial_status_key: statuses
+                .first()
+                .map(|status| status.key.clone())
+                .unwrap_or_default(),
+            steps: statuses
+                .iter()
+                .map(|status| vw_api_task::TaskPoolWorkflowStepDto {
+                    status_key: status.key.clone(),
+                    handoff: vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
+                })
+                .collect(),
+            statuses,
+        }
     };
     let request = AgentSchedulerLegacyImportRequest {
         workflow: Some(workflow),
@@ -1831,8 +1851,6 @@ async fn agent_scheduler_gateway_start_is_idempotent_for_running_task() {
 }
 
 // 合并测试使用真实 Git 分支和锁，验证默认目标、锁释放及失败诊断形成完整事务边界。
-
-
 
 #[test]
 fn gateway_local_agent_stream_request_forwards_execution_selection() {

@@ -22852,6 +22852,7 @@ version = "0.7.10"
 dependencies = [
  "serde",
  "serde_json",
+ "vw-api-task-lifecycle",
  "vw-api-transport",
 ]
 

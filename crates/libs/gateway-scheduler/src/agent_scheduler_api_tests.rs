@@ -9,21 +9,20 @@ use vw_api_agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_agent_scheduler::{
     AgentEventKindDto, AgentSchedulerBulkCommandRequest, AgentSchedulerCommandKindDto,
     AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest, AgentSchedulerCreateTaskRequest,
-    AgentSchedulerLegacyImportRequest,
-    AgentSchedulerLegacyTaskImportDto, AgentSchedulerMoveTaskPayloadDto,
-    AgentSchedulerOutboxDrainRequest, AgentSchedulerReplaceTaskGraphRequest,
-    AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskGraphEdgeDto,
-    AgentSchedulerTaskMetadataPatchDto, AgentSchedulerTaskMetadataUpdateRequest,
-    AgentSchedulerWakeRequest, AgentTaskKindDto, AgentTaskStatusDto,
-};
-use vw_api_transport::common::TimestampMs;
-use {
-    vw_api_transport::id::ProjectId,
-    vw_api_transport::id::ProjectScope,
-    vw_api_transport::id::TenantScope,
+    AgentSchedulerLegacyImportRequest, AgentSchedulerLegacyTaskImportDto,
+    AgentSchedulerMoveTaskPayloadDto, AgentSchedulerOutboxDrainRequest,
+    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerTaskBoardEventsResponse,
+    AgentSchedulerTaskGraphEdgeDto, AgentSchedulerTaskMetadataPatchDto,
+    AgentSchedulerTaskMetadataUpdateRequest, AgentSchedulerWakeRequest, AgentTaskKindDto,
+    AgentTaskStatusDto,
 };
 use vw_api_task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
+};
+use vw_api_transport::common::TimestampMs;
+use {
+    vw_api_transport::id::ProjectId, vw_api_transport::id::ProjectScope,
+    vw_api_transport::id::TenantScope,
 };
 
 use crate::test_support;
@@ -125,7 +124,8 @@ async fn agent_scheduler_client_rejects_scope_that_conflicts_with_endpoint_tenan
     let client = crate::GatewaySchedulerClient::new(
         gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", 9).with_tenant_scope(TenantScope::default()),
-        ).expect("transport"),
+        )
+        .expect("transport"),
     );
     let scope = AgentSchedulerScopeDto::new(
         ProjectScope::new(
@@ -249,18 +249,30 @@ async fn agent_scheduler_client_uses_task_board_contract_paths() {
             }),
         ),
     ]);
-    let workflow = TaskPoolWorkflowSnapshotDto {
-        id: "content_publishing".to_string(),
-        label: "Content Publishing".to_string(),
-        statuses: vec![TaskPoolWorkflowStatusDto {
-            key: "content_writing".to_string(),
-            label: "Writing".to_string(),
-            role: TaskPoolWorkflowStatusRoleDto::Executing,
-            enabled: true,
-            terminal: false,
-            next: None,
-            transitions: Vec::new(),
-        }],
+    let workflow = {
+        let statuses: Vec<vw_api_task::TaskPoolWorkflowStatusDto> =
+            vec![TaskPoolWorkflowStatusDto {
+                key: "content_writing".to_string(),
+                label: "Writing".to_string(),
+                enabled: true,
+                category: vw_api_task::TaskPoolWorkflowStatusCategoryDto::Started,
+            }];
+        TaskPoolWorkflowSnapshotDto {
+            id: "content_publishing".to_string(),
+            label: "Content Publishing".to_string(),
+            initial_status_key: statuses
+                .first()
+                .map(|status| status.key.clone())
+                .unwrap_or_default(),
+            steps: statuses
+                .iter()
+                .map(|status| vw_api_task::TaskPoolWorkflowStepDto {
+                    status_key: status.key.clone(),
+                    handoff: vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
+                })
+                .collect(),
+            statuses,
+        }
     };
     let move_command = AgentSchedulerCommandRequest {
         task_id: "task/custom".into(),

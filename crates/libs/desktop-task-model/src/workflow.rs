@@ -8,9 +8,9 @@
 pub(crate) mod registry;
 
 mod builtin;
-pub use builtin::{builtin_task_workflows, default_task_workflow, default_task_workflow_statuses};
 #[cfg(test)]
 use builtin::DEV_LIFECYCLE_WORKFLOW;
+pub use builtin::{builtin_task_workflows, default_task_workflow, default_task_workflow_statuses};
 
 use std::collections::HashSet;
 
@@ -18,20 +18,17 @@ use crate::models::TaskStatus;
 pub use registry::TaskWorkflowRegistry;
 pub use registry::{
     OwnedStatusDefinition, OwnedStatusTransition, OwnedTaskWorkflow, StatusOutcome, TaskWorkflow,
-    all_task_workflows, is_builtin_task_workflow_id, task_workflow_by_id,
-    update_runtime_task_lifecycle_cache,
+    all_task_workflows, is_builtin_task_workflow_id, lifecycle_dto_from_task_workflow,
+    task_workflow_by_id, update_runtime_task_lifecycle_cache,
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use registry::{
     register_runtime_task_workflow, replace_runtime_task_lifecycle_workflows_for_tests,
     reset_runtime_task_lifecycle_cache, runtime_task_lifecycle_cache_test_lock,
 };
-pub use vw_api_task::TaskPoolWorkflowSnapshotDto;
-use vw_api_task::{
-    TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
-    TaskPoolWorkflowTransitionDto,
+pub use vw_api_task::{
+    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStepDto, TaskPoolWorkflowStepHandoffDto,
 };
-
 /// 默认通用任务工作流 id；开发生命周期可显式选用。
 pub const DEFAULT_TASK_WORKFLOW_ID: &str = "generic_task";
 
@@ -170,100 +167,20 @@ impl TaskWorkflowDefinition {
 
 /// 将桌面任务工作流快照转换为 gateway 调度 API DTO。
 pub fn task_workflow_snapshot_for_gateway(workflow: &TaskWorkflow) -> TaskPoolWorkflowSnapshotDto {
-    TaskPoolWorkflowSnapshotDto {
-        id: workflow.id().to_string(),
-        label: workflow.label().to_string(),
-        statuses: workflow
-            .statuses()
-            .iter()
-            .map(|status| TaskPoolWorkflowStatusDto {
-                key: status.key().to_string(),
-                label: status.label().to_string(),
-                role: status_role_for_gateway(status.role()),
-                enabled: status.enabled,
-                terminal: status.is_terminal,
-                next: status.next.map(|target| workflow_status_key(workflow, target)),
-                transitions: status
-                    .transitions
-                    .iter()
-                    .map(|transition| TaskPoolWorkflowTransitionDto {
-                        outcome: transition.outcome.key().to_string(),
-                        label: transition.label.clone(),
-                        target: workflow_status_key(workflow, transition.target),
-                    })
-                    .collect(),
-            })
-            .collect(),
-    }
+    registry::lifecycle_dto_from_task_workflow(workflow.clone(), false).into()
 }
 
-/// Reconstruct the board definition from the project's applied scheduler snapshot.
 pub fn task_workflow_from_snapshot(snapshot: &TaskPoolWorkflowSnapshotDto) -> Option<TaskWorkflow> {
-    let statuses = snapshot.statuses.iter().map(|definition| {
-        use TaskPoolWorkflowStatusRoleDto as Role;
-        let role = match definition.role {
-            Role::Backlog => StatusRole::Backlog,
-            Role::Queued => StatusRole::Queued,
-            Role::Planning => StatusRole::Planning,
-            Role::Executing => StatusRole::Executing,
-            Role::Failed => StatusRole::Failed,
-            Role::Paused => StatusRole::Paused,
-            Role::ReviewReady => StatusRole::ReviewReady,
-            Role::Review => StatusRole::Review,
-            Role::Merging => StatusRole::Merging,
-            Role::Done => StatusRole::Done,
-            Role::Archived => StatusRole::Archived,
-            Role::Custom => StatusRole::Custom,
-        };
-        let transitions = definition.transitions.iter().map(|transition| {
-            Some(OwnedStatusTransition {
-                outcome: StatusOutcome::new(&transition.outcome),
-                label: transition.label.clone(),
-                target: TaskStatus::parse_key(&transition.target)?,
-            })
-        }).collect::<Option<Vec<_>>>()?;
-        Some(OwnedStatusDefinition {
-            status: TaskStatus::parse_key(&definition.key)?,
-            key: definition.key.clone(),
-            label: definition.label.clone(),
-            role,
-            enabled: definition.enabled,
-            is_terminal: definition.terminal,
-            auto_execution_candidate: matches!(
-                role, StatusRole::Backlog | StatusRole::Queued | StatusRole::Planning
-                    | StatusRole::Executing | StatusRole::ReviewReady | StatusRole::Review | StatusRole::Merging
-            ),
-            occupies_execution_slot: matches!(role, StatusRole::Executing | StatusRole::Planning),
-            is_scheduling_backlog: matches!(role, StatusRole::Backlog | StatusRole::Queued | StatusRole::Planning),
-            next: definition.next.as_deref().and_then(TaskStatus::parse_key),
-            transitions,
-        })
-    }).collect::<Option<Vec<_>>>()?;
-    Some(TaskWorkflow { id: snapshot.id.clone(), label: snapshot.label.clone(), statuses })
-}
-
-fn status_role_for_gateway(role: StatusRole) -> TaskPoolWorkflowStatusRoleDto {
-    match role {
-        StatusRole::Backlog => TaskPoolWorkflowStatusRoleDto::Backlog,
-        StatusRole::Queued => TaskPoolWorkflowStatusRoleDto::Queued,
-        StatusRole::Planning => TaskPoolWorkflowStatusRoleDto::Planning,
-        StatusRole::Executing => TaskPoolWorkflowStatusRoleDto::Executing,
-        StatusRole::Failed => TaskPoolWorkflowStatusRoleDto::Failed,
-        StatusRole::Paused => TaskPoolWorkflowStatusRoleDto::Paused,
-        StatusRole::ReviewReady => TaskPoolWorkflowStatusRoleDto::ReviewReady,
-        StatusRole::Review => TaskPoolWorkflowStatusRoleDto::Review,
-        StatusRole::Merging => TaskPoolWorkflowStatusRoleDto::Merging,
-        StatusRole::Done => TaskPoolWorkflowStatusRoleDto::Done,
-        StatusRole::Archived => TaskPoolWorkflowStatusRoleDto::Archived,
-        StatusRole::Custom => TaskPoolWorkflowStatusRoleDto::Custom,
-    }
-}
-
-fn workflow_status_key(workflow: &TaskWorkflow, status: TaskStatus) -> String {
-    workflow
-        .status_definition(status)
-        .map(|definition| definition.key().to_string())
-        .unwrap_or_else(|| status.to_string_key().to_string())
+    snapshot.validate_for_schedule().ok()?;
+    registry::task_workflow_from_lifecycle_dto(&vw_api_task_lifecycle::TaskLifecycleWorkflowDto {
+        id: snapshot.id.clone(),
+        label: snapshot.label.clone(),
+        built_in: false,
+        statuses: snapshot.statuses.clone(),
+        initial_status_key: snapshot.initial_status_key.clone(),
+        steps: snapshot.steps.clone(),
+    })
+    .ok()
 }
 
 /// 状态转移意图，区分驱动状态变化的来源。

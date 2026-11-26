@@ -76,10 +76,8 @@ fn owned_status(
 
 fn custom_workflow(id: &str) -> desktop_task_model::OwnedTaskWorkflow {
     let done = custom_status("project_custom_done");
-    desktop_task_model::OwnedTaskWorkflow {
-        id: id.to_string(),
-        label: "Project Custom Workflow".to_string(),
-        statuses: vec![
+    {
+        let statuses: Vec<desktop_task_model::OwnedStatusDefinition> = vec![
             owned_status(
                 "project_custom_queued",
                 "Queued",
@@ -87,7 +85,24 @@ fn custom_workflow(id: &str) -> desktop_task_model::OwnedTaskWorkflow {
                 Some(done),
             ),
             owned_status("project_custom_done", "Done", desktop_task_model::StatusRole::Done, None),
-        ],
+        ];
+        desktop_task_model::OwnedTaskWorkflow {
+            id: id.to_string(),
+            label: "Project Custom Workflow".to_string(),
+            initial_status_key: statuses
+                .first()
+                .map(|status| status.key.clone())
+                .unwrap_or_default(),
+            steps: statuses
+                .iter()
+                .map(|status| desktop_task_model::workflow::TaskPoolWorkflowStepDto {
+                    status_key: status.key.clone(),
+                    handoff:
+                        desktop_task_model::workflow::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
+                })
+                .collect(),
+            statuses,
+        }
     }
 }
 

@@ -13,78 +13,16 @@ use crate::state_machine::AgentTaskStatus;
 
 /// 不依赖员工配置的内建任务生命周期，用于尚未保存任务板工作流的项目。
 pub fn builtin_task_workflow_snapshot() -> TaskPoolWorkflowSnapshotDto {
-    let workflow = task_lifecycle::built_in_workflow_by_id(
-        task_lifecycle::DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID,
-    )
-    .expect("default lifecycle is registered");
+    let workflow =
+        task_lifecycle::built_in_workflow_by_id(task_lifecycle::DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID)
+            .expect("default lifecycle is registered");
     normalize_workflow_transitions(task_workflow_snapshot(workflow))
 }
 
 pub(crate) fn task_workflow_snapshot(
     workflow: vw_api_task_lifecycle::TaskLifecycleWorkflowDto,
 ) -> TaskPoolWorkflowSnapshotDto {
-    TaskPoolWorkflowSnapshotDto {
-        id: workflow.id,
-        label: workflow.label,
-        statuses: workflow
-            .statuses
-            .into_iter()
-            .map(|status| TaskPoolWorkflowStatusDto {
-                key: status.key,
-                label: status.label,
-                role: match status.role {
-                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Backlog => {
-                        TaskPoolWorkflowStatusRoleDto::Backlog
-                    }
-                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Queued => {
-                        TaskPoolWorkflowStatusRoleDto::Queued
-                    }
-                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Planning => {
-                        TaskPoolWorkflowStatusRoleDto::Planning
-                    }
-                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Executing => {
-                        TaskPoolWorkflowStatusRoleDto::Executing
-                    }
-                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Failed => {
-                        TaskPoolWorkflowStatusRoleDto::Failed
-                    }
-                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Paused => {
-                        TaskPoolWorkflowStatusRoleDto::Paused
-                    }
-                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::ReviewReady => {
-                        TaskPoolWorkflowStatusRoleDto::ReviewReady
-                    }
-                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Review => {
-                        TaskPoolWorkflowStatusRoleDto::Review
-                    }
-                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Merging => {
-                        TaskPoolWorkflowStatusRoleDto::Merging
-                    }
-                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Done => {
-                        TaskPoolWorkflowStatusRoleDto::Done
-                    }
-                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Archived => {
-                        TaskPoolWorkflowStatusRoleDto::Archived
-                    }
-                    vw_api_task_lifecycle::TaskLifecycleStatusRoleDto::Custom => {
-                        TaskPoolWorkflowStatusRoleDto::Custom
-                    }
-                },
-                enabled: status.enabled,
-                terminal: status.terminal,
-                next: status.next,
-                transitions: status
-                    .transitions
-                    .into_iter()
-                    .map(|t| TaskPoolWorkflowTransitionDto {
-                        outcome: t.outcome,
-                        label: t.label,
-                        target: t.target,
-                    })
-                    .collect(),
-            })
-            .collect(),
-    }
+    workflow.into()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -178,7 +116,8 @@ impl<'a> LifecycleBridge<'a> {
             return Ok(&status.key);
         }
         let mut executing = self.workflow.statuses.iter().filter(is_executing);
-        let status = executing.next().ok_or_else(|| anyhow::anyhow!("workflow has no executing status"))?;
+        let status =
+            executing.next().ok_or_else(|| anyhow::anyhow!("workflow has no executing status"))?;
         if executing.next().is_some() {
             bail!("workflow has ambiguous executing statuses for `{from_status_key}`");
         }
@@ -274,7 +213,6 @@ pub fn status_role_key(role: TaskPoolWorkflowStatusRoleDto) -> &'static str {
 pub(crate) fn normalize_workflow_transitions(
     mut workflow: TaskPoolWorkflowSnapshotDto,
 ) -> TaskPoolWorkflowSnapshotDto {
-    workflow.remove_legacy_code_review();
     let failed_key = {
         let mut failed = workflow.statuses.iter().filter(|status| {
             status.enabled && status.role == TaskPoolWorkflowStatusRoleDto::Failed

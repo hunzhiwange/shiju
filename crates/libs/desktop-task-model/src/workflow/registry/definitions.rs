@@ -1,9 +1,9 @@
 //! 工作流快照、结果分支与可持久化状态定义。
-use std::collections::HashSet;
-use anyhow::Result;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use super::{StatusRole, TaskStatusDefinition, TaskWorkflowDefinition};
 use crate::models::TaskStatus;
+use anyhow::Result;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::collections::HashSet;
 
 /// 状态完成后的分支结果 key。
 ///
@@ -209,6 +209,8 @@ pub struct OwnedTaskWorkflow {
     pub id: String,
     pub label: String,
     pub statuses: Vec<OwnedStatusDefinition>,
+    pub initial_status_key: String,
+    pub steps: Vec<vw_api_task_lifecycle::TaskLifecycleStepDto>,
 }
 
 /// 工作流查询快照。内置与用户预设都会转换为该结构，供状态机和 UI 一致读取。
@@ -217,6 +219,8 @@ pub struct TaskWorkflow {
     pub id: String,
     pub label: String,
     pub statuses: Vec<OwnedStatusDefinition>,
+    pub initial_status_key: String,
+    pub steps: Vec<vw_api_task_lifecycle::TaskLifecycleStepDto>,
 }
 
 impl TaskWorkflow {
@@ -319,6 +323,19 @@ impl From<&TaskWorkflowDefinition> for TaskWorkflow {
         Self {
             id: workflow.id.to_string(),
             label: workflow.label.to_string(),
+            initial_status_key: workflow
+                .statuses
+                .first()
+                .map(|status| status.key.to_string())
+                .unwrap_or_default(),
+            steps: workflow
+                .statuses
+                .iter()
+                .map(|status| vw_api_task_lifecycle::TaskLifecycleStepDto {
+                    status_key: status.key.into(),
+                    handoff: vw_api_task_lifecycle::TaskLifecycleStepHandoffDto::KeepAssignee,
+                })
+                .collect(),
             statuses: workflow.statuses.iter().map(OwnedStatusDefinition::from).collect(),
         }
     }
@@ -326,7 +343,13 @@ impl From<&TaskWorkflowDefinition> for TaskWorkflow {
 
 impl From<OwnedTaskWorkflow> for TaskWorkflow {
     fn from(workflow: OwnedTaskWorkflow) -> Self {
-        Self { id: workflow.id, label: workflow.label, statuses: workflow.statuses }
+        Self {
+            id: workflow.id,
+            label: workflow.label,
+            statuses: workflow.statuses,
+            initial_status_key: workflow.initial_status_key,
+            steps: workflow.steps,
+        }
     }
 }
 
@@ -336,6 +359,8 @@ impl From<&OwnedTaskWorkflow> for TaskWorkflow {
             id: workflow.id.clone(),
             label: workflow.label.clone(),
             statuses: workflow.statuses.clone(),
+            initial_status_key: workflow.initial_status_key.clone(),
+            steps: workflow.steps.clone(),
         }
     }
 }

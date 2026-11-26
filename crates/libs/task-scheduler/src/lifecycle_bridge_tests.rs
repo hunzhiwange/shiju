@@ -114,10 +114,24 @@ fn lifecycle_bridge_rejects_cycle_in_disabled_outcome_chain() {
 }
 
 fn workflow(statuses: Vec<TaskPoolWorkflowStatusDto>) -> TaskPoolWorkflowSnapshotDto {
-    TaskPoolWorkflowSnapshotDto {
-        id: "campaign_workflow".to_string(),
-        label: "Campaign Workflow".to_string(),
-        statuses,
+    {
+        let statuses: Vec<vw_api_task::TaskPoolWorkflowStatusDto> = statuses;
+        TaskPoolWorkflowSnapshotDto {
+            id: "campaign_workflow".to_string(),
+            label: "Campaign Workflow".to_string(),
+            initial_status_key: statuses
+                .first()
+                .map(|status| status.key.clone())
+                .unwrap_or_default(),
+            steps: statuses
+                .iter()
+                .map(|status| vw_api_task::TaskPoolWorkflowStepDto {
+                    status_key: status.key.clone(),
+                    handoff: vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
+                })
+                .collect(),
+            statuses,
+        }
     }
 }
 
@@ -131,11 +145,19 @@ fn status(
     TaskPoolWorkflowStatusDto {
         key: key.to_string(),
         label: key.to_string(),
-        role,
         enabled,
-        terminal: false,
-        next: next.map(str::to_string),
-        transitions: transition.into_iter().collect(),
+        category: match role {
+            TaskPoolWorkflowStatusRoleDto::Backlog | TaskPoolWorkflowStatusRoleDto::Queued => {
+                vw_api_task::TaskPoolWorkflowStatusCategoryDto::Unstarted
+            }
+            TaskPoolWorkflowStatusRoleDto::Done => {
+                vw_api_task::TaskPoolWorkflowStatusCategoryDto::Done
+            }
+            TaskPoolWorkflowStatusRoleDto::Archived => {
+                vw_api_task::TaskPoolWorkflowStatusCategoryDto::Closed
+            }
+            _ => vw_api_task::TaskPoolWorkflowStatusCategoryDto::Started,
+        },
     }
 }
 
@@ -170,10 +192,8 @@ fn task_pool_schedule_explicit_workflow_result_controls_completion() {
 fn legacy_development_snapshot_routes_code_complete_to_merge() {
     use TaskPoolWorkflowStatusRoleDto::{Merging, Review, ReviewReady};
 
-    let workflow = TaskPoolWorkflowSnapshotDto {
-        id: "dev_lifecycle".into(),
-        label: "开发生命周期".into(),
-        statuses: vec![
+    let workflow = {
+        let statuses: Vec<vw_api_task::TaskPoolWorkflowStatusDto> = vec![
             status(
                 "code_complete",
                 ReviewReady,
@@ -181,15 +201,25 @@ fn legacy_development_snapshot_routes_code_complete_to_merge() {
                 Some("code_review"),
                 true,
             ),
-            status(
-                "code_review",
-                Review,
-                Some(transition("succeed", "pr_submitted")),
-                None,
-                true,
-            ),
+            status("code_review", Review, Some(transition("succeed", "pr_submitted")), None, true),
             status("pr_submitted", Merging, None, None, true),
-        ],
+        ];
+        TaskPoolWorkflowSnapshotDto {
+            id: "dev_lifecycle".into(),
+            label: "开发生命周期".into(),
+            initial_status_key: statuses
+                .first()
+                .map(|status| status.key.clone())
+                .unwrap_or_default(),
+            steps: statuses
+                .iter()
+                .map(|status| vw_api_task::TaskPoolWorkflowStepDto {
+                    status_key: status.key.clone(),
+                    handoff: vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
+                })
+                .collect(),
+            statuses,
+        }
     };
     let workflow = super::lifecycle_bridge::normalize_workflow_transitions(workflow);
     workflow.validate_for_schedule().unwrap();

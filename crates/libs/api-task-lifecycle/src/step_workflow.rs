@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 mod tests;
 
 /// 状态库中的进度分类。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WorkflowStatusCategory {
     Unstarted,
@@ -30,6 +30,8 @@ pub struct WorkflowStatus {
     pub key: String,
     pub label: String,
     pub category: WorkflowStatusCategory,
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub enabled: bool,
 }
 
 /// 任务实际进入步骤时的接手规则。
@@ -71,13 +73,19 @@ pub struct StepWorkflow {
 impl StepWorkflow {
     /// 检查步骤引用及目标，负责人归属由网关检查。
     pub fn validate(&self, statuses: &[WorkflowStatus]) -> Result<(), String> {
-        if self.id.trim().is_empty() || self.label.trim().is_empty() {
-            return Err("workflow id and label must not be empty".into());
+        if !is_valid_key(&self.id) || self.label.trim().is_empty() {
+            return Err(
+                "workflow id must be a stable lowercase key and label must not be empty".into()
+            );
         }
-        let catalog: HashMap<_, _> =
-            statuses.iter().map(|status| (status.key.as_str(), status.category)).collect();
-        if catalog.len() != statuses.len() {
-            return Err("status library keys must be unique".into());
+        let mut catalog = HashMap::new();
+        for status in statuses {
+            if !is_valid_key(&status.key) || status.label.trim().is_empty() {
+                return Err(format!("invalid status library entry: {}", status.key));
+            }
+            if catalog.insert(status.key.as_str(), status).is_some() {
+                return Err(format!("status library keys must be unique: {}", status.key));
+            }
         }
         let mut step_keys = HashSet::new();
         for step in &self.steps {
@@ -91,33 +99,62 @@ impl StepWorkflow {
         if !step_keys.contains(self.initial_status_key.as_str()) {
             return Err(format!("unknown initial workflow status: {}", self.initial_status_key));
         }
+        if !catalog[self.initial_status_key.as_str()].enabled {
+            return Err(format!(
+                "initial workflow status is disabled: {}",
+                self.initial_status_key
+            ));
+        }
         for step in &self.steps {
             let key = step.status_key.as_str();
-            if catalog[key].is_terminal() && step.handoff != WorkflowStepHandoff::KeepAssignee {
+            if catalog[key].category.is_terminal()
+                && step.handoff != WorkflowStepHandoff::KeepAssignee
+            {
                 return Err(format!("terminal workflow status cannot hand off: {key}"));
             }
             match &step.handoff {
                 WorkflowStepHandoff::KeepAssignee => {}
                 WorkflowStepHandoff::Member { member_id } => {
-                    if member_id.trim().is_empty() {
+                    if !is_valid_assignee_id(member_id) {
                         return Err(format!("workflow status {key} requires a member"));
                     }
                 }
                 WorkflowStepHandoff::Agent {
                     agent_id,
-                    completion_status_key,
+                    completion_status_key: _,
                     return_status_key,
-                    ..
+                    instructions,
                 } => {
-                    if agent_id.trim().is_empty() {
+                    if !is_valid_assignee_id(agent_id) {
                         return Err(format!("workflow status {key} requires an agent"));
                     }
-                    for target in [completion_status_key, return_status_key].into_iter().flatten() {
-                        if target == key || !step_keys.contains(target.as_str()) {
+                    if instructions.trim().is_empty() {
+                        return Err(format!("workflow status {key} requires instructions"));
+                    }
+                    let completion = self.completion_status_key(key).ok_or_else(|| {
+                        format!("workflow status {key} requires a completion target")
+                    })?;
+                    for target in
+                        [Some(completion), return_status_key.as_deref()].into_iter().flatten()
+                    {
+                        if target == key || !step_keys.contains(target) {
                             return Err(format!(
                                 "workflow status {key} has invalid target: {target}"
                             ));
                         }
+                        if !catalog[target].enabled {
+                            return Err(format!(
+                                "workflow status {key} target is disabled: {target}"
+                            ));
+                        }
+                    }
+                    if return_status_key
+                        .as_deref()
+                        .is_some_and(|target| catalog[target].category.is_terminal())
+                    {
+                        return Err(format!(
+                            "workflow status {key} cannot return to a terminal status"
+                        ));
                     }
                 }
             }
@@ -136,4 +173,23 @@ impl StepWorkflow {
             .as_deref()
             .or_else(|| self.steps.get(index + 1).map(|step| step.status_key.as_str()))
     }
+}
+
+fn is_valid_key(key: &str) -> bool {
+    !key.is_empty()
+        && key.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'-')
+        })
+}
+
+// Identity existence and project membership are checked by the gateway. IDs remain opaque.
+fn is_valid_assignee_id(id: &str) -> bool {
+    !id.is_empty() && id.trim() == id && !id.chars().any(char::is_control)
+}
+
+fn default_true() -> bool {
+    true
+}
+fn is_true(value: &bool) -> bool {
+    *value
 }

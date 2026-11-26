@@ -1,606 +1,97 @@
-//! 内置任务生命周期工作流的静态定义与 DTO 构建。
-
+//! 内置工作流只提供状态目录及有序步骤，负责人需要按项目配置。
 use vw_api_task_lifecycle::{
-    TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleStatusTransitionDto,
-    TaskLifecycleWorkflowDto,
+    TaskLifecycleStatusCategoryDto as Category, TaskLifecycleStatusDto, TaskLifecycleStepDto,
+    TaskLifecycleStepHandoffDto, TaskLifecycleWorkflowDto,
 };
 
-/// 默认通用任务生命周期工作流的稳定标识。
 pub const DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID: &str = "generic_task";
 
-#[derive(Debug, Clone, Copy)]
 struct WorkflowSpec {
     id: &'static str,
     label: &'static str,
-    statuses: &'static [StatusSpec],
+    statuses: &'static [(&'static str, &'static str, Category)],
 }
 
-#[derive(Debug, Clone, Copy)]
-struct StatusSpec {
-    key: &'static str,
-    label: &'static str,
-    role: TaskLifecycleStatusRoleDto,
-    terminal: bool,
-    auto_execution_candidate: bool,
-    occupies_execution_slot: bool,
-    is_scheduling_backlog: bool,
-    next: Option<&'static str>,
-}
-
-const fn status(
-    key: &'static str,
-    label: &'static str,
-    role: TaskLifecycleStatusRoleDto,
-    terminal: bool,
-    auto_execution_candidate: bool,
-    occupies_execution_slot: bool,
-    is_scheduling_backlog: bool,
-    next: Option<&'static str>,
-) -> StatusSpec {
-    StatusSpec {
-        key,
-        label,
-        role,
-        terminal,
-        auto_execution_candidate,
-        occupies_execution_slot,
-        is_scheduling_backlog,
-        next,
-    }
-}
-
-const DEV_LIFECYCLE_STATUSES: &[StatusSpec] = &[
-    status(
-        "pool",
-        "任务池",
-        TaskLifecycleStatusRoleDto::Backlog,
-        false,
-        true,
-        false,
-        true,
-        Some("pending"),
-    ),
-    status(
-        "pending",
-        "待执行",
-        TaskLifecycleStatusRoleDto::Queued,
-        false,
-        true,
-        false,
-        true,
-        Some("running"),
-    ),
-    status(
-        "running",
-        "执行中",
-        TaskLifecycleStatusRoleDto::Executing,
-        false,
-        true,
-        true,
-        false,
-        Some("code_complete"),
-    ),
-    status(
-        "failed",
-        "执行失败",
-        TaskLifecycleStatusRoleDto::Failed,
-        false,
-        true,
-        false,
-        false,
-        Some("pending"),
-    ),
-    status("paused", "暂停中", TaskLifecycleStatusRoleDto::Paused, true, false, false, false, None),
-    status(
-        "code_complete",
-        "代码完成",
-        TaskLifecycleStatusRoleDto::ReviewReady,
-        false,
-        true,
-        false,
-        false,
-        Some("pr_submitted"),
-    ),
-    status(
-        "pr_submitted",
-        "合并代码",
-        TaskLifecycleStatusRoleDto::Merging,
-        false,
-        true,
-        false,
-        false,
-        Some("completed"),
-    ),
-    status(
-        "completed",
-        "任务完成",
-        TaskLifecycleStatusRoleDto::Done,
-        false,
-        false,
-        false,
-        false,
-        Some("archived"),
-    ),
-    status(
-        "archived",
-        "任务归档",
-        TaskLifecycleStatusRoleDto::Archived,
-        true,
-        false,
-        false,
-        false,
-        None,
-    ),
+const DEV_LIFECYCLE_STATUSES: &[(&str, &str, Category)] = &[
+    ("pool", "任务池", Category::Unstarted),
+    ("pending", "待执行", Category::Unstarted),
+    ("running", "执行中", Category::Started),
+    ("failed", "执行失败", Category::Started),
+    ("paused", "暂停中", Category::Started),
+    ("code_complete", "代码完成", Category::Started),
+    ("pr_submitted", "合并代码", Category::Started),
+    ("completed", "任务完成", Category::Done),
+    ("archived", "任务归档", Category::Closed),
 ];
 
-const CONTENT_PUBLISHING_STATUSES: &[StatusSpec] = &[
-    status(
-        "content_idea",
-        "选题池",
-        TaskLifecycleStatusRoleDto::Backlog,
-        false,
-        true,
-        false,
-        true,
-        Some("content_queued"),
-    ),
-    status(
-        "content_queued",
-        "待写作",
-        TaskLifecycleStatusRoleDto::Queued,
-        false,
-        true,
-        false,
-        true,
-        Some("content_outline"),
-    ),
-    status(
-        "content_outline",
-        "资料与大纲",
-        TaskLifecycleStatusRoleDto::Planning,
-        false,
-        true,
-        true,
-        true,
-        Some("content_writing"),
-    ),
-    status(
-        "content_writing",
-        "写作中",
-        TaskLifecycleStatusRoleDto::Executing,
-        false,
-        true,
-        true,
-        false,
-        Some("content_review_ready"),
-    ),
-    status(
-        "content_revision",
-        "退回修改",
-        TaskLifecycleStatusRoleDto::Failed,
-        false,
-        true,
-        false,
-        false,
-        Some("content_queued"),
-    ),
-    status(
-        "content_paused",
-        "暂缓发布",
-        TaskLifecycleStatusRoleDto::Paused,
-        true,
-        false,
-        false,
-        false,
-        None,
-    ),
-    status(
-        "content_review_ready",
-        "待审稿",
-        TaskLifecycleStatusRoleDto::ReviewReady,
-        false,
-        true,
-        false,
-        false,
-        Some("content_reviewing"),
-    ),
-    status(
-        "content_reviewing",
-        "审稿中",
-        TaskLifecycleStatusRoleDto::Review,
-        false,
-        true,
-        false,
-        false,
-        Some("content_publishing"),
-    ),
-    status(
-        "content_publishing",
-        "多平台发布",
-        TaskLifecycleStatusRoleDto::Merging,
-        false,
-        true,
-        false,
-        false,
-        Some("content_published"),
-    ),
-    status(
-        "content_published",
-        "已发布",
-        TaskLifecycleStatusRoleDto::Done,
-        false,
-        false,
-        false,
-        false,
-        Some("content_archived"),
-    ),
-    status(
-        "content_archived",
-        "归档复盘",
-        TaskLifecycleStatusRoleDto::Archived,
-        true,
-        false,
-        false,
-        false,
-        None,
-    ),
+const CONTENT_PUBLISHING_STATUSES: &[(&str, &str, Category)] = &[
+    ("content_idea", "选题池", Category::Unstarted),
+    ("content_queued", "待写作", Category::Unstarted),
+    ("content_outline", "资料与大纲", Category::Started),
+    ("content_writing", "写作中", Category::Started),
+    ("content_revision", "退回修改", Category::Started),
+    ("content_paused", "暂缓发布", Category::Started),
+    ("content_review_ready", "待审稿", Category::Started),
+    ("content_reviewing", "审稿中", Category::Started),
+    ("content_publishing", "多平台发布", Category::Started),
+    ("content_published", "已发布", Category::Done),
+    ("content_archived", "归档复盘", Category::Closed),
 ];
 
-const MARKETING_CAMPAIGN_STATUSES: &[StatusSpec] = &[
-    status(
-        "campaign_ideas",
-        "活动想法",
-        TaskLifecycleStatusRoleDto::Backlog,
-        false,
-        true,
-        false,
-        true,
-        Some("campaign_queued"),
-    ),
-    status(
-        "campaign_queued",
-        "待策划",
-        TaskLifecycleStatusRoleDto::Queued,
-        false,
-        true,
-        false,
-        true,
-        Some("campaign_planning"),
-    ),
-    status(
-        "campaign_planning",
-        "方案设计",
-        TaskLifecycleStatusRoleDto::Planning,
-        false,
-        true,
-        true,
-        true,
-        Some("campaign_running"),
-    ),
-    status(
-        "campaign_running",
-        "执行投放",
-        TaskLifecycleStatusRoleDto::Executing,
-        false,
-        true,
-        true,
-        false,
-        Some("campaign_review_ready"),
-    ),
-    status(
-        "campaign_blocked",
-        "投放异常",
-        TaskLifecycleStatusRoleDto::Failed,
-        false,
-        true,
-        false,
-        false,
-        Some("campaign_queued"),
-    ),
-    status(
-        "campaign_paused",
-        "暂停活动",
-        TaskLifecycleStatusRoleDto::Paused,
-        true,
-        false,
-        false,
-        false,
-        None,
-    ),
-    status(
-        "campaign_review_ready",
-        "待复盘",
-        TaskLifecycleStatusRoleDto::ReviewReady,
-        false,
-        true,
-        false,
-        false,
-        Some("campaign_reviewing"),
-    ),
-    status(
-        "campaign_reviewing",
-        "复盘中",
-        TaskLifecycleStatusRoleDto::Review,
-        false,
-        true,
-        false,
-        false,
-        Some("campaign_closing"),
-    ),
-    status(
-        "campaign_closing",
-        "结案同步",
-        TaskLifecycleStatusRoleDto::Merging,
-        false,
-        true,
-        false,
-        false,
-        Some("campaign_done"),
-    ),
-    status(
-        "campaign_done",
-        "已结案",
-        TaskLifecycleStatusRoleDto::Done,
-        false,
-        false,
-        false,
-        false,
-        Some("campaign_archived"),
-    ),
-    status(
-        "campaign_archived",
-        "资料归档",
-        TaskLifecycleStatusRoleDto::Archived,
-        true,
-        false,
-        false,
-        false,
-        None,
-    ),
+const MARKETING_CAMPAIGN_STATUSES: &[(&str, &str, Category)] = &[
+    ("campaign_ideas", "活动想法", Category::Unstarted),
+    ("campaign_queued", "待策划", Category::Unstarted),
+    ("campaign_planning", "方案设计", Category::Started),
+    ("campaign_running", "执行投放", Category::Started),
+    ("campaign_blocked", "投放异常", Category::Started),
+    ("campaign_paused", "暂停活动", Category::Started),
+    ("campaign_review_ready", "待复盘", Category::Started),
+    ("campaign_reviewing", "复盘中", Category::Started),
+    ("campaign_closing", "结案同步", Category::Started),
+    ("campaign_done", "已结案", Category::Done),
+    ("campaign_archived", "资料归档", Category::Closed),
 ];
 
-const CUSTOMER_SUPPORT_STATUSES: &[StatusSpec] = &[
-    status(
-        "support_new",
-        "新工单",
-        TaskLifecycleStatusRoleDto::Backlog,
-        false,
-        true,
-        false,
-        true,
-        Some("support_queued"),
-    ),
-    status(
-        "support_queued",
-        "待处理",
-        TaskLifecycleStatusRoleDto::Queued,
-        false,
-        true,
-        false,
-        true,
-        Some("support_triage"),
-    ),
-    status(
-        "support_triage",
-        "问题定位",
-        TaskLifecycleStatusRoleDto::Planning,
-        false,
-        true,
-        true,
-        true,
-        Some("support_handling"),
-    ),
-    status(
-        "support_handling",
-        "处理中",
-        TaskLifecycleStatusRoleDto::Executing,
-        false,
-        true,
-        true,
-        false,
-        Some("support_followup_ready"),
-    ),
-    status(
-        "support_blocked",
-        "处理受阻",
-        TaskLifecycleStatusRoleDto::Failed,
-        false,
-        true,
-        false,
-        false,
-        Some("support_queued"),
-    ),
-    status(
-        "support_waiting",
-        "等待客户",
-        TaskLifecycleStatusRoleDto::Paused,
-        true,
-        false,
-        false,
-        false,
-        None,
-    ),
-    status(
-        "support_followup_ready",
-        "待回访",
-        TaskLifecycleStatusRoleDto::ReviewReady,
-        false,
-        true,
-        false,
-        false,
-        Some("support_following"),
-    ),
-    status(
-        "support_following",
-        "回访中",
-        TaskLifecycleStatusRoleDto::Review,
-        false,
-        true,
-        false,
-        false,
-        Some("support_closing"),
-    ),
-    status(
-        "support_closing",
-        "关闭确认",
-        TaskLifecycleStatusRoleDto::Merging,
-        false,
-        true,
-        false,
-        false,
-        Some("support_resolved"),
-    ),
-    status(
-        "support_resolved",
-        "已解决",
-        TaskLifecycleStatusRoleDto::Done,
-        false,
-        false,
-        false,
-        false,
-        Some("support_archived"),
-    ),
-    status(
-        "support_archived",
-        "工单归档",
-        TaskLifecycleStatusRoleDto::Archived,
-        true,
-        false,
-        false,
-        false,
-        None,
-    ),
+const CUSTOMER_SUPPORT_STATUSES: &[(&str, &str, Category)] = &[
+    ("support_new", "新工单", Category::Unstarted),
+    ("support_queued", "待处理", Category::Unstarted),
+    ("support_triage", "问题定位", Category::Started),
+    ("support_handling", "处理中", Category::Started),
+    ("support_blocked", "处理受阻", Category::Started),
+    ("support_waiting", "等待客户", Category::Started),
+    ("support_followup_ready", "待回访", Category::Started),
+    ("support_following", "回访中", Category::Started),
+    ("support_closing", "关闭确认", Category::Started),
+    ("support_resolved", "已解决", Category::Done),
+    ("support_archived", "工单归档", Category::Closed),
 ];
 
-const RECRUITING_STATUSES: &[StatusSpec] = &[
-    status(
-        "recruiting_pool",
-        "人才池",
-        TaskLifecycleStatusRoleDto::Backlog,
-        false,
-        true,
-        false,
-        true,
-        Some("recruiting_queued"),
-    ),
-    status(
-        "recruiting_queued",
-        "待筛选",
-        TaskLifecycleStatusRoleDto::Queued,
-        false,
-        true,
-        false,
-        true,
-        Some("recruiting_screening"),
-    ),
-    status(
-        "recruiting_screening",
-        "简历初筛",
-        TaskLifecycleStatusRoleDto::Planning,
-        false,
-        true,
-        true,
-        true,
-        Some("recruiting_interviewing"),
-    ),
-    status(
-        "recruiting_interviewing",
-        "面试中",
-        TaskLifecycleStatusRoleDto::Executing,
-        false,
-        true,
-        true,
-        false,
-        Some("recruiting_review_ready"),
-    ),
-    status(
-        "recruiting_blocked",
-        "流程异常",
-        TaskLifecycleStatusRoleDto::Failed,
-        false,
-        true,
-        false,
-        false,
-        Some("recruiting_queued"),
-    ),
-    status(
-        "recruiting_on_hold",
-        "暂缓",
-        TaskLifecycleStatusRoleDto::Paused,
-        true,
-        false,
-        false,
-        false,
-        None,
-    ),
-    status(
-        "recruiting_review_ready",
-        "待评审",
-        TaskLifecycleStatusRoleDto::ReviewReady,
-        false,
-        true,
-        false,
-        false,
-        Some("recruiting_reviewing"),
-    ),
-    status(
-        "recruiting_reviewing",
-        "评审中",
-        TaskLifecycleStatusRoleDto::Review,
-        false,
-        true,
-        false,
-        false,
-        Some("recruiting_offer"),
-    ),
-    status(
-        "recruiting_offer",
-        "Offer 跟进",
-        TaskLifecycleStatusRoleDto::Merging,
-        false,
-        true,
-        false,
-        false,
-        Some("recruiting_hired"),
-    ),
-    status(
-        "recruiting_hired",
-        "已入职",
-        TaskLifecycleStatusRoleDto::Done,
-        false,
-        false,
-        false,
-        false,
-        Some("recruiting_archived"),
-    ),
-    status(
-        "recruiting_archived",
-        "候选人归档",
-        TaskLifecycleStatusRoleDto::Archived,
-        true,
-        false,
-        false,
-        false,
-        None,
-    ),
+const RECRUITING_STATUSES: &[(&str, &str, Category)] = &[
+    ("recruiting_pool", "人才池", Category::Unstarted),
+    ("recruiting_queued", "待筛选", Category::Unstarted),
+    ("recruiting_screening", "简历初筛", Category::Started),
+    ("recruiting_interviewing", "面试中", Category::Started),
+    ("recruiting_blocked", "流程异常", Category::Started),
+    ("recruiting_on_hold", "暂缓", Category::Started),
+    ("recruiting_review_ready", "待评审", Category::Started),
+    ("recruiting_reviewing", "评审中", Category::Started),
+    ("recruiting_offer", "Offer 跟进", Category::Started),
+    ("recruiting_hired", "已入职", Category::Done),
+    ("recruiting_archived", "候选人归档", Category::Closed),
 ];
 
-const GENERIC_TASK_STATUSES: &[StatusSpec] = &[
-    DEV_LIFECYCLE_STATUSES[0],
-    DEV_LIFECYCLE_STATUSES[1],
-    StatusSpec { next: Some("completed"), ..DEV_LIFECYCLE_STATUSES[2] },
-    DEV_LIFECYCLE_STATUSES[3],
-    DEV_LIFECYCLE_STATUSES[4],
-    StatusSpec { terminal: true, next: None, ..DEV_LIFECYCLE_STATUSES[7] },
-    DEV_LIFECYCLE_STATUSES[8],
+const GENERIC_TASK_STATUSES: &[(&str, &str, Category)] = &[
+    ("pool", "任务池", Category::Unstarted),
+    ("pending", "待执行", Category::Unstarted),
+    ("running", "执行中", Category::Started),
+    ("failed", "执行失败", Category::Started),
+    ("paused", "暂停中", Category::Started),
+    ("completed", "任务完成", Category::Done),
+    ("archived", "任务归档", Category::Closed),
 ];
 
 const BUILT_IN_WORKFLOW_SPECS: &[WorkflowSpec] = &[
-    WorkflowSpec {
-        id: DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID,
-        label: "通用任务",
-        statuses: GENERIC_TASK_STATUSES,
-    },
+    WorkflowSpec { id: "generic_task", label: "通用任务", statuses: GENERIC_TASK_STATUSES },
     WorkflowSpec {
         id: "dev_lifecycle", label: "开发生命周期", statuses: DEV_LIFECYCLE_STATUSES
     },
@@ -624,55 +115,42 @@ const BUILT_IN_WORKFLOW_SPECS: &[WorkflowSpec] = &[
     },
 ];
 
-/// 返回全部内置工作流的独立 DTO 集合。
 pub fn built_in_workflows() -> Vec<TaskLifecycleWorkflowDto> {
     BUILT_IN_WORKFLOW_SPECS.iter().map(workflow_from_spec).collect()
 }
 
-/// 按标识构建单个内置工作流。
 pub fn built_in_workflow_by_id(id: &str) -> Option<TaskLifecycleWorkflowDto> {
     BUILT_IN_WORKFLOW_SPECS.iter().find(|workflow| workflow.id == id).map(workflow_from_spec)
 }
 
-/// 判断标识是否保留给内置工作流。
 pub fn is_built_in_workflow_id(id: &str) -> bool {
     BUILT_IN_WORKFLOW_SPECS.iter().any(|workflow| workflow.id == id)
 }
 
 fn workflow_from_spec(spec: &WorkflowSpec) -> TaskLifecycleWorkflowDto {
     TaskLifecycleWorkflowDto {
-        id: spec.id.to_string(),
-        label: spec.label.to_string(),
+        id: spec.id.into(),
+        label: spec.label.into(),
         built_in: true,
-        statuses: spec.statuses.iter().map(status_from_spec).collect(),
-    }
-}
-
-fn status_from_spec(spec: &StatusSpec) -> TaskLifecycleStatusDto {
-    TaskLifecycleStatusDto {
-        key: spec.key.to_string(),
-        label: spec.label.to_string(),
-        role: spec.role,
-        enabled: true,
-        terminal: spec.terminal,
-        auto_execution_candidate: spec.auto_execution_candidate,
-        occupies_execution_slot: spec.occupies_execution_slot,
-        is_scheduling_backlog: spec.is_scheduling_backlog,
-        next: spec.next.map(str::to_string),
-        transitions: transitions_from_spec(spec),
-    }
-}
-
-fn transitions_from_spec(spec: &StatusSpec) -> Vec<TaskLifecycleStatusTransitionDto> {
-    match (spec.role, spec.next) {
-        (TaskLifecycleStatusRoleDto::Failed, Some(target)) => {
-            vec![TaskLifecycleStatusTransitionDto {
-                outcome: "retry".to_string(),
-                label: Some("重试".to_string()),
-                target: target.to_string(),
-            }]
-        }
-        _ => Vec::new(),
+        initial_status_key: spec.statuses[0].0.into(),
+        statuses: spec
+            .statuses
+            .iter()
+            .map(|(key, label, category)| TaskLifecycleStatusDto {
+                key: (*key).into(),
+                label: (*label).into(),
+                category: *category,
+                enabled: true,
+            })
+            .collect(),
+        steps: spec
+            .statuses
+            .iter()
+            .map(|(key, _, _)| TaskLifecycleStepDto {
+                status_key: (*key).into(),
+                handoff: TaskLifecycleStepHandoffDto::KeepAssignee,
+            })
+            .collect(),
     }
 }
 

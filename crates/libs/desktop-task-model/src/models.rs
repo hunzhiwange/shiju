@@ -302,9 +302,7 @@ impl TaskStatus {
     pub fn all_for_workflow_id(workflow_id: &str) -> Vec<TaskStatus> {
         crate::workflow::task_workflow_by_id(workflow_id)
             .or_else(|| {
-                crate::workflow::task_workflow_by_id(
-                    crate::workflow::DEFAULT_TASK_WORKFLOW_ID,
-                )
+                crate::workflow::task_workflow_by_id(crate::workflow::DEFAULT_TASK_WORKFLOW_ID)
             })
             .map(|workflow| {
                 workflow.statuses.into_iter().map(|definition| definition.status).collect()
@@ -330,9 +328,7 @@ impl TaskStatus {
     pub fn label_for_workflow_id(&self, workflow_id: &str) -> String {
         crate::workflow::task_workflow_by_id(workflow_id)
             .or_else(|| {
-                crate::workflow::task_workflow_by_id(
-                    crate::workflow::DEFAULT_TASK_WORKFLOW_ID,
-                )
+                crate::workflow::task_workflow_by_id(crate::workflow::DEFAULT_TASK_WORKFLOW_ID)
             })
             .and_then(|workflow| {
                 workflow.status_definition(*self).map(|definition| definition.label.clone())
@@ -349,15 +345,12 @@ impl TaskStatus {
 
     /// 按工作流 id 返回默认下一状态；未知工作流或工作流未定义该状态时回退默认工作流。
     pub fn next_for_workflow_id(&self, workflow_id: &str) -> Option<TaskStatus> {
-        if let Some(workflow) = crate::workflow::task_workflow_by_id(workflow_id)
-            .or_else(|| {
-                crate::workflow::task_workflow_by_id(
-                    crate::workflow::DEFAULT_TASK_WORKFLOW_ID,
-                )
-            })
-            && workflow.status_definition(*self).is_some() {
-                return workflow.next_status(*self);
-            }
+        if let Some(workflow) = crate::workflow::task_workflow_by_id(workflow_id).or_else(|| {
+            crate::workflow::task_workflow_by_id(crate::workflow::DEFAULT_TASK_WORKFLOW_ID)
+        }) && workflow.status_definition(*self).is_some()
+        {
+            return workflow.next_status(*self);
+        }
         self.next()
     }
 
@@ -693,9 +686,7 @@ impl Task {
     ) {
         let message = desktop_i18n::format::Message::new(source, arguments);
         let rendered = message
-            .render(desktop_i18n::I18n::new(
-                config_ui::DesktopLocale::SimplifiedChinese,
-            ))
+            .render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese))
             .expect("valid task log template");
         self.add_log(rendered);
         if let Some(entry) = self.logs.last_mut() {
@@ -875,12 +866,10 @@ pub struct TaskBoardSettings {
 impl TaskBoardSettings {
     pub fn apply_workflow_snapshot(
         &mut self,
-        mut snapshot: Option<crate::workflow::TaskPoolWorkflowSnapshotDto>,
+        snapshot: Option<crate::workflow::TaskPoolWorkflowSnapshotDto>,
     ) {
-        if let Some(workflow) = &mut snapshot {
-            workflow.remove_legacy_code_review();
-        }
-        self.workflow_id = snapshot.as_ref().map_or_else(default_task_workflow_id, |workflow| workflow.id.clone());
+        self.workflow_id =
+            snapshot.as_ref().map_or_else(default_task_workflow_id, |workflow| workflow.id.clone());
         self.workflow_snapshot = snapshot;
     }
 
@@ -930,7 +919,9 @@ impl TaskBoardSettings {
         self.running_timeout_minutes = self.running_timeout_minutes.clamp(1, 1440);
         self.pr_submitted_stall_timeout_seconds =
             self.pr_submitted_stall_timeout_seconds.clamp(5, 3600);
-        if self.workflow_snapshot.is_none() && crate::workflow::task_workflow_by_id(&self.workflow_id).is_none() {
+        if self.workflow_snapshot.is_none()
+            && crate::workflow::task_workflow_by_id(&self.workflow_id).is_none()
+        {
             self.workflow_id = default_task_workflow_id();
         }
         self

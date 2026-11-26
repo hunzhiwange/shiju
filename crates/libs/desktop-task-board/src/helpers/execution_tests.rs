@@ -1,9 +1,6 @@
-
 #[test]
 fn start_command_skips_created_in_flight_task() {
-    use vw_api_agent_scheduler::{
-        AgentSchedulerCommandKindDto, AgentTaskStatusDto,
-    };
+    use vw_api_agent_scheduler::{AgentSchedulerCommandKindDto, AgentTaskStatusDto};
 
     assert!(super::should_send_agent_scheduler_command_after_create(
         AgentSchedulerCommandKindDto::Start,
@@ -83,7 +80,6 @@ fn format_task_log_stream_for_ui_covers_empty_text_and_exit_variants() {
         Some("执行失败 code=Some(2)".to_string())
     );
 }
-
 
 #[test]
 fn worktree_recycle_failure_log_explains_gateway_cleanup_ownership() {
@@ -232,9 +228,7 @@ fn scheduler_create_request_uses_prompt_title_and_saturates_timestamp() {
 fn agent_scheduler_request_uses_lifecycle_cache_metadata() {
     use desktop_task_model::{Task, TaskStatus, update_runtime_task_lifecycle_cache};
     use vw_api_agent_scheduler::AgentTaskStatusDto;
-    use vw_api_task_lifecycle::{
-        TaskLifecycleStatusRoleDto, TaskLifecycleWorkflowDto,
-    };
+    use vw_api_task_lifecycle::{TaskLifecycleStatusCategoryDto, TaskLifecycleWorkflowDto};
 
     let _cache_lock = desktop_task_model::runtime_task_lifecycle_cache_test_lock();
     struct CacheGuard;
@@ -247,43 +241,36 @@ fn agent_scheduler_request_uses_lifecycle_cache_metadata() {
     }
 
     let _guard = CacheGuard;
-    update_runtime_task_lifecycle_cache(vec![TaskLifecycleWorkflowDto {
-        id: "scheduler_ops".to_string(),
-        label: "Scheduler Ops".to_string(),
-        built_in: false,
-        statuses: vec![
+    update_runtime_task_lifecycle_cache(vec![{
+        let statuses: Vec<vw_api_task_lifecycle::TaskLifecycleStatusDto> = vec![
             lifecycle_status(
                 "ops_backlog",
                 "Ops Backlog",
-                TaskLifecycleStatusRoleDto::Backlog,
-                Some("ops_ready"),
+                TaskLifecycleStatusCategoryDto::Unstarted,
             ),
-            lifecycle_status(
-                "ops_ready",
-                "Ops Ready",
-                TaskLifecycleStatusRoleDto::Queued,
-                Some("ops_active"),
-            ),
-            lifecycle_status(
-                "ops_active",
-                "Ops Active",
-                TaskLifecycleStatusRoleDto::Executing,
-                Some("ops_review"),
-            ),
-            lifecycle_status(
-                "ops_review",
-                "Ops Review",
-                TaskLifecycleStatusRoleDto::ReviewReady,
-                Some("ops_done"),
-            ),
-            lifecycle_status(
-                "ops_blocked",
-                "Ops Blocked",
-                TaskLifecycleStatusRoleDto::Failed,
-                Some("ops_ready"),
-            ),
-            lifecycle_status("ops_done", "Ops Done", TaskLifecycleStatusRoleDto::Done, None),
-        ],
+            lifecycle_status("ops_ready", "Ops Ready", TaskLifecycleStatusCategoryDto::Unstarted),
+            lifecycle_status("ops_active", "Ops Active", TaskLifecycleStatusCategoryDto::Started),
+            lifecycle_status("ops_review", "Ops Review", TaskLifecycleStatusCategoryDto::Started),
+            lifecycle_status("ops_blocked", "Ops Blocked", TaskLifecycleStatusCategoryDto::Started),
+            lifecycle_status("ops_done", "Ops Done", TaskLifecycleStatusCategoryDto::Done),
+        ];
+        TaskLifecycleWorkflowDto {
+            id: "scheduler_ops".to_string(),
+            label: "Scheduler Ops".to_string(),
+            built_in: false,
+            initial_status_key: statuses
+                .first()
+                .map(|status| status.key.clone())
+                .unwrap_or_default(),
+            steps: statuses
+                .iter()
+                .map(|status| vw_api_task_lifecycle::TaskLifecycleStepDto {
+                    status_key: status.key.clone(),
+                    handoff: vw_api_task_lifecycle::TaskLifecycleStepHandoffDto::KeepAssignee,
+                })
+                .collect(),
+            statuses,
+        }
     }])
     .expect("runtime lifecycle cache should update");
 
@@ -316,32 +303,12 @@ fn agent_scheduler_request_uses_lifecycle_cache_metadata() {
 fn lifecycle_status(
     key: &str,
     label: &str,
-    role: vw_api_task_lifecycle::TaskLifecycleStatusRoleDto,
-    next: Option<&str>,
+    category: vw_api_task_lifecycle::TaskLifecycleStatusCategoryDto,
 ) -> vw_api_task_lifecycle::TaskLifecycleStatusDto {
-    use vw_api_task_lifecycle::TaskLifecycleStatusRoleDto;
-
     vw_api_task_lifecycle::TaskLifecycleStatusDto {
         key: key.to_string(),
         label: label.to_string(),
-        role,
         enabled: true,
-        terminal: next.is_none(),
-        auto_execution_candidate: !matches!(
-            role,
-            TaskLifecycleStatusRoleDto::Done | TaskLifecycleStatusRoleDto::Archived
-        ),
-        occupies_execution_slot: matches!(
-            role,
-            TaskLifecycleStatusRoleDto::Planning | TaskLifecycleStatusRoleDto::Executing
-        ),
-        is_scheduling_backlog: matches!(
-            role,
-            TaskLifecycleStatusRoleDto::Backlog
-                | TaskLifecycleStatusRoleDto::Queued
-                | TaskLifecycleStatusRoleDto::Planning
-        ),
-        next: next.map(str::to_string),
-        transitions: Vec::new(),
+        category,
     }
 }

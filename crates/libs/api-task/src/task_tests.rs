@@ -1,16 +1,16 @@
 use crate::{
     CommandTaskSpecDto, CreateTaskRequest, ListTasksRequest, TaskKind, TaskPlanRunStatus,
     TaskPlanRunStatusResponse, TaskPlanRunStreamEventDto, TaskPoolStatus,
-    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
-    TaskPoolWorkflowTransitionDto, TaskPoolWorktreeAcquireRequest, TaskPoolWorktreeAcquireResponse,
-    TaskPoolWorktreeMaintenanceRequest, TaskPoolWorktreeMaintenanceResponse,
-    TaskPoolWorktreeMergeLockDto, TaskPoolWorktreeMergeLockRequest,
-    TaskPoolWorktreeMergeLockResponse, TaskPoolWorktreeMergeUnlockRequest,
-    TaskPoolWorktreeMergeUnlockResponse, TaskPoolWorktreeRecycleRequest,
-    TaskPoolWorktreeRecycleResponse, TaskPoolWorktreeReleaseRequest,
-    TaskPoolWorktreeReleaseResponse, TaskPoolWorktreeSlotDto, TaskPoolWorktreeSlotRecycleRequest,
-    TaskPoolWorktreeSlotRecycleResponse, TaskPoolWorktreeSlotStateDto,
-    TaskPoolWorktreeSnapshotRequest, TaskPoolWorktreeSnapshotResponse, TaskStatus,
+    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorktreeAcquireRequest,
+    TaskPoolWorktreeAcquireResponse, TaskPoolWorktreeMaintenanceRequest,
+    TaskPoolWorktreeMaintenanceResponse, TaskPoolWorktreeMergeLockDto,
+    TaskPoolWorktreeMergeLockRequest, TaskPoolWorktreeMergeLockResponse,
+    TaskPoolWorktreeMergeUnlockRequest, TaskPoolWorktreeMergeUnlockResponse,
+    TaskPoolWorktreeRecycleRequest, TaskPoolWorktreeRecycleResponse,
+    TaskPoolWorktreeReleaseRequest, TaskPoolWorktreeReleaseResponse, TaskPoolWorktreeSlotDto,
+    TaskPoolWorktreeSlotRecycleRequest, TaskPoolWorktreeSlotRecycleResponse,
+    TaskPoolWorktreeSlotStateDto, TaskPoolWorktreeSnapshotRequest,
+    TaskPoolWorktreeSnapshotResponse, TaskStatus,
 };
 use serde_json::json;
 
@@ -56,10 +56,7 @@ fn task_pool_status_keys_round_trip_for_all_builtin_statuses() {
     for status in statuses {
         assert_eq!(TaskPoolStatus::from_status_key(status.status_key()), Some(status));
     }
-    assert_eq!(
-        TaskPoolStatus::from_status_key("code_review"),
-        Some(TaskPoolStatus::CodeComplete)
-    );
+    assert_eq!(TaskPoolStatus::from_status_key("code_review"), Some(TaskPoolStatus::CodeComplete));
     assert_eq!(
         TaskPoolStatus::canonical_status_key("code_review", Some("dev_lifecycle")),
         "code_complete"
@@ -241,155 +238,46 @@ fn task_worktree_pool_types_round_trip() {
 }
 
 #[test]
-fn task_pool_workflow_snapshot_round_trips_roles_and_routes() {
-    let snapshot = TaskPoolWorkflowSnapshotDto {
-        id: "content_pipeline".to_string(),
-        label: "Content Pipeline".to_string(),
-        statuses: vec![
-            TaskPoolWorkflowStatusDto {
-                key: "content_queued".to_string(),
-                label: "Queued".to_string(),
-                role: TaskPoolWorkflowStatusRoleDto::Queued,
-                enabled: true,
-                terminal: false,
-                next: Some("drafting".to_string()),
-                transitions: Vec::new(),
-            },
-            TaskPoolWorkflowStatusDto {
-                key: "drafting".to_string(),
-                label: "Drafting".to_string(),
-                role: TaskPoolWorkflowStatusRoleDto::Executing,
-                enabled: true,
-                terminal: false,
-                next: None,
-                transitions: vec![
-                    TaskPoolWorkflowTransitionDto {
-                        outcome: "succeed".to_string(),
-                        label: Some("Ready".to_string()),
-                        target: "review".to_string(),
-                    },
-                    TaskPoolWorkflowTransitionDto {
-                        outcome: "failed".to_string(),
-                        label: None,
-                        target: "content_queued".to_string(),
-                    },
-                ],
-            },
-            TaskPoolWorkflowStatusDto {
-                key: "review".to_string(),
-                label: "Review".to_string(),
-                role: TaskPoolWorkflowStatusRoleDto::Review,
-                enabled: true,
-                terminal: true,
-                next: None,
-                transitions: Vec::new(),
-            },
+fn task_pool_workflow_snapshot_preserves_step_rules() {
+    let dto: vw_api_task_lifecycle::TaskLifecycleWorkflowDto = serde_json::from_value(json!({
+        "id": "content", "label": "Content", "built_in": false,
+        "initial_status_key": "draft",
+        "statuses": [
+            {"key":"draft", "label":"Draft", "category":"unstarted"},
+            {"key":"editing", "label":"Editing", "category":"started"},
+            {"key":"published", "label":"Published", "category":"done"}
         ],
-    };
-
-    snapshot.validate_for_schedule().expect("workflow snapshot should validate");
-    let encoded = serde_json::to_value(&snapshot).expect("serialize workflow snapshot");
-    assert_eq!(encoded["statuses"][0]["role"], "queued");
-    assert_eq!(encoded["statuses"][0]["next"], "drafting");
-    assert_eq!(encoded["statuses"][1]["transitions"][0]["target"], "review");
-    assert_eq!(TaskPoolStatus::from_status_key("content_writing"), None);
-    assert_eq!(
-        serde_json::from_value::<TaskPoolWorkflowSnapshotDto>(encoded)
-            .expect("deserialize workflow snapshot"),
-        snapshot
-    );
-
-    let minimal: TaskPoolWorkflowSnapshotDto = serde_json::from_value(json!({
-        "id": "custom_flow",
-        "label": "Custom Flow",
-        "statuses": [{
-            "key": "content_writing",
-            "label": "Writing",
-            "role": "custom"
-        }]
-    }))
-    .expect("deserialize minimal workflow snapshot");
-    assert!(minimal.validate_for_schedule().is_ok());
-    assert!(minimal.statuses[0].enabled);
-    assert!(!minimal.statuses[0].terminal);
-    assert!(minimal.statuses[0].next.is_none());
-    assert!(minimal.statuses[0].transitions.is_empty());
-
+        "steps": [
+            {"status_key":"draft", "handoff":{"kind":"member", "member_id":"alice"}},
+            {"status_key":"editing", "handoff":{"kind":"agent", "agent_id":"editor", "instructions":"Review the draft", "return_status_key":"draft"}},
+            {"status_key":"published", "handoff":{"kind":"keep_assignee"}}
+        ]
+    })).unwrap();
+    let snapshot = TaskPoolWorkflowSnapshotDto::from(dto.clone());
+    snapshot.validate_for_schedule().unwrap();
+    assert_eq!(snapshot.statuses, dto.statuses);
+    assert_eq!(snapshot.steps, dto.steps);
+    assert_eq!(snapshot.completion_status_key("editing"), Some("published"));
+    let encoded = serde_json::to_value(&snapshot).unwrap();
+    assert_eq!(serde_json::from_value::<TaskPoolWorkflowSnapshotDto>(encoded).unwrap(), snapshot);
     let mut invalid = snapshot.clone();
-    invalid.statuses[0].key.clear();
-    assert!(
-        invalid
-            .validate_for_schedule()
-            .expect_err("empty status key should fail")
-            .contains("status key must not be empty")
-    );
-
+    invalid.statuses[2].enabled = false;
+    assert!(invalid.validate_for_schedule().unwrap_err().contains("target is disabled"));
     let mut invalid = snapshot;
-    invalid.statuses[1].transitions[0].target = "missing".to_string();
-    assert!(
-        invalid
-            .validate_for_schedule()
-            .expect_err("unknown target should fail")
-            .contains("unknown workflow transition target: missing")
-    );
+    let crate::TaskPoolWorkflowStepHandoffDto::Agent { completion_status_key, .. } =
+        &mut invalid.steps[1].handoff
+    else {
+        unreachable!()
+    };
+    *completion_status_key = Some("missing".into());
+    assert!(invalid.validate_for_schedule().is_err());
 }
 
 #[test]
-fn task_pool_workflow_snapshot_rejects_invalid_identity_and_empty_routes() {
-    let status = TaskPoolWorkflowStatusDto {
-        key: "queued".to_string(),
-        label: "Queued".to_string(),
-        role: TaskPoolWorkflowStatusRoleDto::Queued,
-        enabled: true,
-        terminal: false,
-        next: None,
-        transitions: Vec::new(),
-    };
-    let workflow = TaskPoolWorkflowSnapshotDto {
-        id: "workflow".to_string(),
-        label: "Workflow".to_string(),
-        statuses: vec![status.clone()],
-    };
-
-    let mut invalid = workflow.clone();
-    invalid.id = " ".to_string();
-    assert_eq!(invalid.validate_for_schedule(), Err("workflow id must not be empty".to_string()));
-
-    let mut invalid = workflow.clone();
-    invalid.statuses.push(status);
-    assert_eq!(
-        invalid.validate_for_schedule(),
-        Err("workflow status key must be unique: queued".to_string())
-    );
-
-    let mut invalid = workflow.clone();
-    invalid.statuses[0].next = Some(" ".to_string());
-    assert_eq!(
-        invalid.validate_for_schedule(),
-        Err("workflow next target must not be empty".to_string())
-    );
-
-    let mut invalid = workflow.clone();
-    invalid.statuses[0].transitions.push(TaskPoolWorkflowTransitionDto {
-        outcome: " ".to_string(),
-        label: None,
-        target: "queued".to_string(),
-    });
-    assert_eq!(
-        invalid.validate_for_schedule(),
-        Err("workflow transition outcome must not be empty: queued".to_string())
-    );
-
-    let mut invalid = workflow;
-    invalid.statuses[0].transitions.push(TaskPoolWorkflowTransitionDto {
-        outcome: "retry".to_string(),
-        label: None,
-        target: "\t".to_string(),
-    });
-    assert_eq!(
-        invalid.validate_for_schedule(),
-        Err("workflow transition target must not be empty".to_string())
-    );
+fn task_pool_workflow_snapshot_requires_step_configuration() {
+    assert!(serde_json::from_value::<TaskPoolWorkflowSnapshotDto>(json!({
+        "id":"legacy", "label":"Legacy", "statuses":[{"key":"running", "label":"Running", "role":"executing"}]
+    })).is_err());
 }
 
 #[test]

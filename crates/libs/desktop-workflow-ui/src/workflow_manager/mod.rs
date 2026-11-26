@@ -8,12 +8,6 @@ use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, button, container, row, scrollable, text};
 use iced::{Alignment, Element, Length, Task, Theme};
 
-use desktop_ui_controls::system_settings_common::{
-    danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
-    settings_muted_text_style, settings_panel, settings_select,
-    settings_text_input, settings_value_badge,
-};
-use desktop_ui_controls::toast::confirm_dialog;
 use desktop_task_model::workflow::{
     TaskPoolWorkflowSnapshotDto, TaskWorkflowRegistry, default_task_workflow,
     task_workflow_from_snapshot,
@@ -23,11 +17,14 @@ use desktop_task_model::{
     TaskStatus, TaskWorkflow, all_task_workflows, is_builtin_task_workflow_id,
     update_runtime_task_lifecycle_cache,
 };
-
-use vw_api_task_lifecycle::{
-    TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleStatusTransitionDto,
-    TaskLifecycleWorkflowDto, TaskLifecycleWorkflowUpsertBody,
+use desktop_ui_controls::system_settings_common::{
+    danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
+    settings_muted_text_style, settings_panel, settings_select, settings_text_input,
+    settings_value_badge,
 };
+use desktop_ui_controls::toast::confirm_dialog;
+
+use vw_api_task_lifecycle::{TaskLifecycleWorkflowDto, TaskLifecycleWorkflowUpsertBody};
 
 const WORKFLOW_SCROLL_RIGHT_GUTTER: f32 = 7.0;
 
@@ -260,15 +257,20 @@ impl WorkflowManagerState {
         }
         if self.project_workflow(Some(path)).is_none() {
             self.show_project_workflow = true;
-            if matches!(&self.pending_confirmation,
-                Some(WorkflowManagerConfirmation::ApplyProjectWorkflow { .. }))
-            {
+            if matches!(
+                &self.pending_confirmation,
+                Some(WorkflowManagerConfirmation::ApplyProjectWorkflow { .. })
+            ) {
                 self.pending_confirmation = None;
             }
         }
         self.project_generation = self.project_generation.wrapping_add(1);
         self.project_workflow = Some(ProjectWorkflow {
-            path: path.to_string(), busy: true, snapshot: None, definition: None, error: None,
+            path: path.to_string(),
+            busy: true,
+            snapshot: None,
+            definition: None,
+            error: None,
         });
         Some(self.project_generation)
     }
@@ -286,7 +288,9 @@ impl WorkflowManagerState {
         }
         self.pending_confirmation = None;
         let project = self.project_workflow.as_mut().filter(|project| {
-            project.path == path && !project.busy && project.definition.is_some()
+            project.path == path
+                && !project.busy
+                && project.definition.is_some()
                 && project.error.is_none()
         })?;
         project.busy = true;
@@ -315,7 +319,8 @@ impl WorkflowManagerState {
                     Some(snapshot) => task_workflow_from_snapshot(snapshot),
                     None => Some(default_task_workflow().into()),
                 };
-                project.error = project.definition.is_none().then(|| "无法读取项目工作流定义".into());
+                project.error =
+                    project.definition.is_none().then(|| "无法读取项目工作流定义".into());
                 project.snapshot = snapshot;
                 if applied {
                     self.show_project_workflow = true;
@@ -670,13 +675,15 @@ pub fn update(
                 && state.project_workflow(Some(&path)).is_some_and(|project| {
                     !project.busy && project.definition.is_some() && project.error.is_none()
                 })
-                && let Some(item) = state.workflows.iter().find(|item| item.definition.id == workflow_id)
+                && let Some(item) =
+                    state.workflows.iter().find(|item| item.definition.id == workflow_id)
             {
-                state.pending_confirmation = Some(WorkflowManagerConfirmation::ApplyProjectWorkflow {
-                    path,
-                    workflow_id,
-                    workflow_label: item.definition.label.clone(),
-                });
+                state.pending_confirmation =
+                    Some(WorkflowManagerConfirmation::ApplyProjectWorkflow {
+                        path,
+                        workflow_id,
+                        workflow_label: item.definition.label.clone(),
+                    });
                 state.feedback = None;
             }
             false
@@ -918,7 +925,13 @@ fn custom_workflows_from_registry(registry: &TaskWorkflowRegistry) -> Vec<OwnedT
 }
 
 fn owned_workflow_from_snapshot(workflow: TaskWorkflow) -> OwnedTaskWorkflow {
-    OwnedTaskWorkflow { id: workflow.id, label: workflow.label, statuses: workflow.statuses }
+    OwnedTaskWorkflow {
+        id: workflow.id,
+        label: workflow.label,
+        statuses: workflow.statuses,
+        initial_status_key: workflow.initial_status_key,
+        steps: workflow.steps,
+    }
 }
 
 fn request_delete_selected_workflow(state: &mut WorkflowManagerState) -> bool {
@@ -1227,7 +1240,25 @@ fn owned_workflow_from_draft(draft: &WorkflowDraft) -> Result<OwnedTaskWorkflow>
         });
     }
 
-    Ok(OwnedTaskWorkflow { id: id.to_string(), label: label.to_string(), statuses })
+    Ok({
+        let statuses: Vec<desktop_task_model::OwnedStatusDefinition> = statuses;
+        OwnedTaskWorkflow {
+            id: id.to_string(),
+            label: label.to_string(),
+            initial_status_key: statuses
+                .first()
+                .map(|status| status.key.clone())
+                .unwrap_or_default(),
+            steps: statuses
+                .iter()
+                .map(|status| vw_api_task_lifecycle::TaskLifecycleStepDto {
+                    status_key: status.key.clone(),
+                    handoff: vw_api_task_lifecycle::TaskLifecycleStepHandoffDto::KeepAssignee,
+                })
+                .collect(),
+            statuses,
+        }
+    })
 }
 
 fn parse_route_target(
@@ -1255,63 +1286,10 @@ fn normalized_route_label(label: &str, outcome: &StatusOutcome) -> Option<String
 fn lifecycle_workflow_dto_from_owned_workflow(
     workflow: OwnedTaskWorkflow,
 ) -> TaskLifecycleWorkflowDto {
-    let statuses = workflow.statuses;
-    TaskLifecycleWorkflowDto {
-        id: workflow.id,
-        label: workflow.label,
-        built_in: false,
-        statuses: statuses
-            .iter()
-            .map(|status| TaskLifecycleStatusDto {
-                key: status.key.clone(),
-                label: status.label.clone(),
-                role: lifecycle_status_role_from_local(status.role),
-                enabled: status.enabled,
-                terminal: status.is_terminal,
-                auto_execution_candidate: status.auto_execution_candidate,
-                occupies_execution_slot: status.occupies_execution_slot,
-                is_scheduling_backlog: status.is_scheduling_backlog,
-                next: status.next.map(|target| lifecycle_status_key_for_target(&statuses, target)),
-                transitions: status
-                    .transitions
-                    .iter()
-                    .map(|transition| TaskLifecycleStatusTransitionDto {
-                        outcome: transition.outcome.key().to_string(),
-                        label: transition.label.clone(),
-                        target: lifecycle_status_key_for_target(&statuses, transition.target),
-                    })
-                    .collect(),
-            })
-            .collect(),
-    }
-}
-
-fn lifecycle_status_key_for_target(
-    statuses: &[OwnedStatusDefinition],
-    target: TaskStatus,
-) -> String {
-    statuses
-        .iter()
-        .find(|definition| definition.status == target)
-        .map(|definition| definition.key.clone())
-        .unwrap_or_else(|| target.to_string_key().to_string())
-}
-
-fn lifecycle_status_role_from_local(role: StatusRole) -> TaskLifecycleStatusRoleDto {
-    match role {
-        StatusRole::Backlog => TaskLifecycleStatusRoleDto::Backlog,
-        StatusRole::Queued => TaskLifecycleStatusRoleDto::Queued,
-        StatusRole::Planning => TaskLifecycleStatusRoleDto::Planning,
-        StatusRole::Executing => TaskLifecycleStatusRoleDto::Executing,
-        StatusRole::Failed => TaskLifecycleStatusRoleDto::Failed,
-        StatusRole::Paused => TaskLifecycleStatusRoleDto::Paused,
-        StatusRole::ReviewReady => TaskLifecycleStatusRoleDto::ReviewReady,
-        StatusRole::Review => TaskLifecycleStatusRoleDto::Review,
-        StatusRole::Merging => TaskLifecycleStatusRoleDto::Merging,
-        StatusRole::Done => TaskLifecycleStatusRoleDto::Done,
-        StatusRole::Archived => TaskLifecycleStatusRoleDto::Archived,
-        StatusRole::Custom => TaskLifecycleStatusRoleDto::Custom,
-    }
+    desktop_task_model::workflow::lifecycle_dto_from_task_workflow(
+        TaskWorkflow::from(workflow),
+        false,
+    )
 }
 
 fn apply_lifecycle_workflows_loaded(
@@ -1394,10 +1372,8 @@ fn apply_lifecycle_workflow_deleted(
         Ok(workflows) => match apply_lifecycle_workflow_cache(state, workflows, None) {
             Ok(()) => {
                 if state.selected_workflow_id.as_deref() == Some(workflow_id.as_str()) {
-                    state.selected_workflow_id = state
-                        .workflows
-                        .first()
-                        .map(|workflow| workflow.definition.id.clone());
+                    state.selected_workflow_id =
+                        state.workflows.first().map(|workflow| workflow.definition.id.clone());
                 }
                 state.draft = None;
                 state.feedback = Some(WorkflowManagerFeedback::localized(
@@ -1484,10 +1460,15 @@ pub enum Message {
     OpenUrl(String),
     None,
 }
-pub type ClientResult = std::result::Result<gateway_task_lifecycle::GatewayTaskLifecycleClient, String>;
+pub type ClientResult =
+    std::result::Result<gateway_task_lifecycle::GatewayTaskLifecycleClient, String>;
 impl desktop_chat_view::message_view::markdown_selection::SelectionMessage for Message {
-    fn none() -> Self { Self::None }
-    fn copy(text: String) -> Self { Self::CopyCode(text) }
+    fn none() -> Self {
+        Self::None
+    }
+    fn copy(text: String) -> Self {
+        Self::CopyCode(text)
+    }
     fn context(effect: desktop_ui_controls::text_editor_context_menu::TextContextEffect) -> Self {
         use desktop_ui_controls::text_editor_context_menu::TextContextEffect;
         match effect {
@@ -1496,15 +1477,26 @@ impl desktop_chat_view::message_view::markdown_selection::SelectionMessage for M
             TextContextEffect::OpenUrl(url) => Self::OpenUrl(url),
         }
     }
-    fn selection(_: String, _: usize, _: usize, _: Option<String>) -> Self { Self::None }
+    fn selection(_: String, _: usize, _: usize, _: Option<String>) -> Self {
+        Self::None
+    }
 }
 fn settings_hover_help_label<'a, 'theme>(
-    i18n: desktop_i18n::I18n, theme: impl Into<Option<&'theme Theme>>,
-    title: &'a str, label: iced::widget::Text<'a>, description: impl Into<std::borrow::Cow<'a, str>>,
+    i18n: desktop_i18n::I18n,
+    theme: impl Into<Option<&'theme Theme>>,
+    title: &'a str,
+    label: iced::widget::Text<'a>,
+    description: impl Into<std::borrow::Cow<'a, str>>,
 ) -> iced::widget::Row<'a, Message> {
-    desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label,
+    desktop_ui_controls::system_settings_common::help::settings_hover_help_label(
+        label,
         desktop_chat_view::message_view::markdown_selection::selectable_titled_text(
-            title, description, theme.into().map(|theme| theme.palette().text), i18n))
+            title,
+            description,
+            theme.into().map(|theme| theme.palette().text),
+            i18n,
+        ),
+    )
 }
 
 mod view;

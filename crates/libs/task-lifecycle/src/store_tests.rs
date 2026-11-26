@@ -5,7 +5,7 @@ use super::*;
 
 use rusqlite::{Connection, params};
 use vw_api_task_lifecycle::{
-    TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleWorkflowDto,
+    TaskLifecycleStatusCategoryDto, TaskLifecycleStatusDto, TaskLifecycleWorkflowDto,
     TaskLifecycleWorkflowUpsertBody,
 };
 
@@ -465,41 +465,87 @@ fn custom_labels(workflows: &[TaskLifecycleWorkflowDto]) -> Vec<(&str, &str)> {
 }
 
 fn custom_workflow(id: &str, label: &str) -> TaskLifecycleWorkflowDto {
+    use vw_api_task_lifecycle::{TaskLifecycleStepDto, TaskLifecycleStepHandoffDto};
     TaskLifecycleWorkflowDto {
-        id: id.to_string(),
-        label: label.to_string(),
+        id: id.into(),
+        label: label.into(),
         built_in: false,
-        statuses: vec![
-            status("queued", "Queued", TaskLifecycleStatusRoleDto::Queued, false, Some("running")),
-            status(
-                "running",
-                "Running",
-                TaskLifecycleStatusRoleDto::Executing,
-                false,
-                Some("done"),
-            ),
-            status("done", "Done", TaskLifecycleStatusRoleDto::Done, true, None),
+        initial_status_key: "queued".into(),
+        statuses: [
+            ("queued", TaskLifecycleStatusCategoryDto::Unstarted),
+            ("running", TaskLifecycleStatusCategoryDto::Started),
+            ("done", TaskLifecycleStatusCategoryDto::Done),
+        ]
+        .into_iter()
+        .map(|(key, category)| TaskLifecycleStatusDto {
+            key: key.into(),
+            label: key.into(),
+            category,
+            enabled: true,
+        })
+        .collect(),
+        steps: vec![
+            TaskLifecycleStepDto {
+                status_key: "queued".into(),
+                handoff: TaskLifecycleStepHandoffDto::Member { member_id: "alice".into() },
+            },
+            TaskLifecycleStepDto {
+                status_key: "running".into(),
+                handoff: TaskLifecycleStepHandoffDto::Agent {
+                    agent_id: "worker".into(),
+                    instructions: "Resolve the request".into(),
+                    completion_status_key: None,
+                    return_status_key: Some("queued".into()),
+                },
+            },
+            TaskLifecycleStepDto {
+                status_key: "done".into(),
+                handoff: TaskLifecycleStepHandoffDto::KeepAssignee,
+            },
         ],
     }
 }
 
-fn status(
-    key: &str,
-    label: &str,
-    role: TaskLifecycleStatusRoleDto,
-    terminal: bool,
-    next: Option<&str>,
-) -> TaskLifecycleStatusDto {
-    TaskLifecycleStatusDto {
-        key: key.to_string(),
-        label: label.to_string(),
-        role,
-        enabled: true,
-        terminal,
-        auto_execution_candidate: !terminal,
-        occupies_execution_slot: role == TaskLifecycleStatusRoleDto::Executing,
-        is_scheduling_backlog: role == TaskLifecycleStatusRoleDto::Queued,
-        next: next.map(str::to_string),
-        transitions: Vec::new(),
+#[tokio::test(flavor = "multi_thread")]
+async fn task_lifecycle_registry_store_round_trips_handoffs_and_rejects_invalid_updates() {
+    let home = tempfile::tempdir().unwrap();
+    let database = GlobalDatabase::for_home(home.path()).unwrap();
+    assert_step_configuration_storage(database).await;
+    let fixture = agent_database::test_support::postgres_test_database_unit!();
+    assert_step_configuration_storage(fixture.database().clone()).await;
+    fixture.cleanup().unwrap();
+}
+
+async fn assert_step_configuration_storage(database: GlobalDatabase) {
+    use vw_api_task_lifecycle::TaskLifecycleStepHandoffDto;
+    let tenant = TenantScope::default();
+    let workflow = custom_workflow("step_rules", "Step rules");
+    let saved =
+        create_workflow(database.clone(), tenant.clone(), upsert(workflow.clone())).await.unwrap();
+    assert_eq!(saved, workflow);
+    assert_eq!(
+        workflow_by_id(database.clone(), tenant.clone(), workflow.id.clone()).await.unwrap(),
+        workflow
+    );
+    for handoff in [
+        TaskLifecycleStepHandoffDto::Member { member_id: " ".into() },
+        TaskLifecycleStepHandoffDto::Agent {
+            agent_id: "worker".into(),
+            instructions: "Resolve it".into(),
+            completion_status_key: Some("missing".into()),
+            return_status_key: None,
+        },
+    ] {
+        let mut invalid = workflow.clone();
+        invalid.steps[1].handoff = handoff;
+        assert!(
+            update_workflow(database.clone(), tenant.clone(), workflow.id.clone(), upsert(invalid))
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            workflow_by_id(database.clone(), tenant.clone(), workflow.id.clone()).await.unwrap(),
+            workflow
+        );
     }
 }

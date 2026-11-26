@@ -7,10 +7,10 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode, header};
 use serde_json::{Value, json};
 use tower::ServiceExt;
-use vw_api_transport::TenantScope;
 use vw_api_task_lifecycle::{
-    TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleWorkflowDto,
+    TaskLifecycleStatusCategoryDto, TaskLifecycleStatusDto, TaskLifecycleWorkflowDto,
 };
+use vw_api_transport::TenantScope;
 
 // 相同工作流标识在不同租户中独立创建，验证增删改查不会跨租户命中。
 #[tokio::test]
@@ -219,41 +219,41 @@ async fn request_json(
 }
 
 fn custom_workflow(id: &str, label: &str) -> TaskLifecycleWorkflowDto {
-    TaskLifecycleWorkflowDto {
-        id: id.to_string(),
-        label: label.to_string(),
-        built_in: false,
-        statuses: vec![
-            status("queued", "Queued", TaskLifecycleStatusRoleDto::Queued, false, Some("running")),
-            status(
-                "running",
-                "Running",
-                TaskLifecycleStatusRoleDto::Executing,
-                false,
-                Some("done"),
-            ),
-            status("done", "Done", TaskLifecycleStatusRoleDto::Done, true, None),
-        ],
+    {
+        let statuses: Vec<vw_api_task_lifecycle::TaskLifecycleStatusDto> = vec![
+            status("queued", "Queued", TaskLifecycleStatusCategoryDto::Unstarted),
+            status("running", "Running", TaskLifecycleStatusCategoryDto::Started),
+            status("done", "Done", TaskLifecycleStatusCategoryDto::Done),
+        ];
+        TaskLifecycleWorkflowDto {
+            id: id.to_string(),
+            label: label.to_string(),
+            built_in: false,
+            initial_status_key: statuses
+                .first()
+                .map(|status| status.key.clone())
+                .unwrap_or_default(),
+            steps: statuses
+                .iter()
+                .map(|status| vw_api_task_lifecycle::TaskLifecycleStepDto {
+                    status_key: status.key.clone(),
+                    handoff: vw_api_task_lifecycle::TaskLifecycleStepHandoffDto::KeepAssignee,
+                })
+                .collect(),
+            statuses,
+        }
     }
 }
 
 fn status(
     key: &str,
     label: &str,
-    role: TaskLifecycleStatusRoleDto,
-    terminal: bool,
-    next: Option<&str>,
+    category: TaskLifecycleStatusCategoryDto,
 ) -> TaskLifecycleStatusDto {
     TaskLifecycleStatusDto {
         key: key.to_string(),
         label: label.to_string(),
-        role,
         enabled: true,
-        terminal,
-        auto_execution_candidate: !terminal,
-        occupies_execution_slot: role == TaskLifecycleStatusRoleDto::Executing,
-        is_scheduling_backlog: role == TaskLifecycleStatusRoleDto::Queued,
-        next: next.map(str::to_string),
-        transitions: Vec::new(),
+        category,
     }
 }

@@ -1,179 +1,83 @@
-//! 验证任务生命周期工作流的序列化契约及状态转换约束。
-
-use crate::task_lifecycle::{
-    TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleStatusTransitionDto,
-    TaskLifecycleWorkflowDeleteResponse, TaskLifecycleWorkflowDto, TaskLifecycleWorkflowUpsertBody,
-};
+//! 生产 DTO 必须保留步骤规则且拒绝旧角色配置。
+use crate::*;
 use serde_json::json;
 
-// 完整工作流 fixture 覆盖角色标志、后继状态、结果转换及增删接口形状。
-#[test]
-fn task_lifecycle_workflow_dto_round_trips_and_validates() {
-    let workflow = TaskLifecycleWorkflowDto {
-        id: "default".to_string(),
-        label: "Default lifecycle".to_string(),
-        built_in: true,
+fn workflow() -> TaskLifecycleWorkflowDto {
+    TaskLifecycleWorkflowDto {
+        id: "content".into(),
+        label: "Content".into(),
+        built_in: false,
+        initial_status_key: "draft".into(),
         statuses: vec![
             TaskLifecycleStatusDto {
-                key: "queued".to_string(),
-                label: "Queued".to_string(),
-                role: TaskLifecycleStatusRoleDto::Queued,
+                key: "draft".into(),
+                label: "Draft".into(),
+                category: TaskLifecycleStatusCategoryDto::Unstarted,
                 enabled: true,
-                terminal: false,
-                auto_execution_candidate: true,
-                occupies_execution_slot: false,
-                is_scheduling_backlog: true,
-                next: Some("running".to_string()),
-                transitions: Vec::new(),
             },
             TaskLifecycleStatusDto {
-                key: "running".to_string(),
-                label: "Running".to_string(),
-                role: TaskLifecycleStatusRoleDto::Executing,
+                key: "editing".into(),
+                label: "Editing".into(),
+                category: TaskLifecycleStatusCategoryDto::Started,
                 enabled: true,
-                terminal: false,
-                auto_execution_candidate: true,
-                occupies_execution_slot: true,
-                is_scheduling_backlog: false,
-                next: None,
-                transitions: vec![TaskLifecycleStatusTransitionDto {
-                    outcome: "done".to_string(),
-                    label: Some("Done".to_string()),
-                    target: "completed".to_string(),
-                }],
             },
             TaskLifecycleStatusDto {
-                key: "completed".to_string(),
-                label: "Completed".to_string(),
-                role: TaskLifecycleStatusRoleDto::Done,
+                key: "published".into(),
+                label: "Published".into(),
+                category: TaskLifecycleStatusCategoryDto::Done,
                 enabled: true,
-                terminal: true,
-                auto_execution_candidate: false,
-                occupies_execution_slot: false,
-                is_scheduling_backlog: false,
-                next: None,
-                transitions: Vec::new(),
             },
         ],
-    };
-
-    workflow.validate().expect("valid lifecycle workflow");
-
-    let encoded = serde_json::to_value(&workflow).expect("serialize workflow");
-    assert_eq!(
-        encoded,
-        json!({
-            "id": "default",
-            "label": "Default lifecycle",
-            "built_in": true,
-            "statuses": [
-                {
-                    "key": "queued",
-                    "label": "Queued",
-                    "role": "queued",
-                    "auto_execution_candidate": true,
-                    "is_scheduling_backlog": true,
-                    "next": "running"
+        steps: vec![
+            TaskLifecycleStepDto {
+                status_key: "draft".into(),
+                handoff: TaskLifecycleStepHandoffDto::Member { member_id: "alice".into() },
+            },
+            TaskLifecycleStepDto {
+                status_key: "editing".into(),
+                handoff: TaskLifecycleStepHandoffDto::Agent {
+                    agent_id: "editor".into(),
+                    instructions: "Review the draft".into(),
+                    completion_status_key: None,
+                    return_status_key: Some("draft".into()),
                 },
-                {
-                    "key": "running",
-                    "label": "Running",
-                    "role": "executing",
-                    "auto_execution_candidate": true,
-                    "occupies_execution_slot": true,
-                    "transitions": [
-                        {
-                            "outcome": "done",
-                            "label": "Done",
-                            "target": "completed"
-                        }
-                    ]
-                },
-                {
-                    "key": "completed",
-                    "label": "Completed",
-                    "role": "done",
-                    "terminal": true
-                }
-            ]
-        })
-    );
-
-    let decoded: TaskLifecycleWorkflowDto =
-        serde_json::from_value(encoded).expect("deserialize workflow");
-    assert_eq!(decoded, workflow);
-
-    let upsert = TaskLifecycleWorkflowUpsertBody { workflow: workflow.clone() };
-    assert_eq!(
-        serde_json::to_value(&upsert).expect("serialize upsert body"),
-        json!({ "workflow": workflow })
-    );
-
-    let deleted = TaskLifecycleWorkflowDeleteResponse { id: "custom".to_string(), deleted: true };
-    assert_eq!(
-        serde_json::to_value(deleted).expect("serialize delete response"),
-        json!({ "id": "custom", "deleted": true })
-    );
-
-    let mut invalid = decoded.clone();
-    invalid.id = " ".to_string();
-    assert_eq!(invalid.validate(), Err("workflow id must not be empty".to_string()));
-
-    let mut invalid = decoded.clone();
-    invalid.statuses[1].key = "queued".to_string();
-    assert_eq!(invalid.validate(), Err("workflow status key must be unique: queued".to_string()));
-
-    let mut invalid = decoded.clone();
-    invalid.statuses[0].next = Some("missing".to_string());
-    assert_eq!(invalid.validate(), Err("unknown workflow next target: missing".to_string()));
-
-    let mut invalid = decoded.clone();
-    invalid.statuses[1].transitions[0].outcome.clear();
-    assert_eq!(
-        invalid.validate(),
-        Err("workflow transition outcome must not be empty: running".to_string())
-    );
-
-    let mut invalid = decoded;
-    invalid.statuses[1].transitions[0].target = "missing".to_string();
-    assert_eq!(invalid.validate(), Err("unknown workflow transition target: missing".to_string()));
+            },
+            TaskLifecycleStepDto {
+                status_key: "published".into(),
+                handoff: TaskLifecycleStepHandoffDto::KeepAssignee,
+            },
+        ],
+    }
 }
 
-// 校验器必须在查找引用目标前拒绝空状态键、后继状态和转换目标。
 #[test]
-fn task_lifecycle_workflow_rejects_blank_status_keys_and_targets() {
-    let status = TaskLifecycleStatusDto {
-        key: "queued".to_string(),
-        label: "Queued".to_string(),
-        role: TaskLifecycleStatusRoleDto::Queued,
-        enabled: true,
-        terminal: false,
-        auto_execution_candidate: false,
-        occupies_execution_slot: false,
-        is_scheduling_backlog: false,
-        next: None,
-        transitions: Vec::new(),
-    };
-    let workflow = TaskLifecycleWorkflowDto {
-        id: "workflow".to_string(),
-        label: "Workflow".to_string(),
-        built_in: false,
-        statuses: vec![status],
-    };
+fn task_lifecycle_workflow_dto_round_trips_and_validates() {
+    let workflow = workflow();
+    workflow.validate().unwrap();
+    let encoded =
+        serde_json::to_value(TaskLifecycleWorkflowUpsertBody { workflow: workflow.clone() })
+            .unwrap();
+    assert_eq!(encoded["workflow"]["statuses"][1]["category"], "started");
+    assert_eq!(encoded["workflow"]["steps"][1]["handoff"]["kind"], "agent");
+    let decoded: TaskLifecycleWorkflowUpsertBody = serde_json::from_value(encoded).unwrap();
+    assert_eq!(decoded.workflow, workflow);
+    assert_eq!(decoded.workflow.completion_status_key("editing"), Some("published"));
+    assert_eq!(
+        serde_json::to_value(TaskLifecycleWorkflowDeleteResponse {
+            id: "content".into(),
+            deleted: true
+        })
+        .unwrap(),
+        json!({"id":"content", "deleted":true})
+    );
+}
 
-    let mut invalid = workflow.clone();
-    invalid.statuses[0].key = "\n".to_string();
-    assert_eq!(invalid.validate(), Err("workflow status key must not be empty".to_string()));
-
-    let mut invalid = workflow.clone();
-    invalid.statuses[0].next = Some(" ".to_string());
-    assert_eq!(invalid.validate(), Err("workflow next target must not be empty".to_string()));
-
-    let mut invalid = workflow;
-    invalid.statuses[0].transitions.push(TaskLifecycleStatusTransitionDto {
-        outcome: "retry".to_string(),
-        label: None,
-        target: "\t".to_string(),
-    });
-    assert_eq!(invalid.validate(), Err("workflow transition target must not be empty".to_string()));
+#[test]
+fn task_lifecycle_workflow_rejects_legacy_configuration_without_conversion() {
+    let mut payload = serde_json::to_value(workflow()).unwrap();
+    payload["statuses"][0]["role"] = json!("backlog");
+    assert!(serde_json::from_value::<TaskLifecycleWorkflowDto>(payload).is_err());
+    let mut payload = serde_json::to_value(workflow()).unwrap();
+    payload.as_object_mut().unwrap().remove("steps");
+    assert!(serde_json::from_value::<TaskLifecycleWorkflowDto>(payload).is_err());
 }

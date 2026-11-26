@@ -1,11 +1,11 @@
 //! 任务生命周期工作流注册表及自定义工作流校验。
 //!
-//! 内置工作流始终保留，调用方只能注册标识、状态和转换关系合法的自定义定义。
+//! 内置工作流始终保留，调用方只能注册标识、状态目录和交接步骤合法的自定义定义。
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use anyhow::{Result, bail};
-use vw_api_task_lifecycle::{TaskLifecycleStatusDto, TaskLifecycleWorkflowDto};
+use vw_api_task_lifecycle::TaskLifecycleWorkflowDto;
 
 use super::builtin::{built_in_workflow_by_id, built_in_workflows, is_built_in_workflow_id};
 
@@ -28,9 +28,8 @@ impl TaskLifecycleRegistry {
         Ok(registry)
     }
 
-    /// 注册单个自定义工作流；重复标识或无效状态图会被拒绝。
+    /// 注册单个自定义工作流；重复标识或无效交接步骤会被拒绝。
     pub fn register(&mut self, mut workflow: TaskLifecycleWorkflowDto) -> Result<()> {
-        workflow.remove_legacy_code_review();
         validate_custom_workflow(&workflow)?;
         if self.custom_workflows.iter().any(|existing| existing.id == workflow.id) {
             bail!("lifecycle workflow id already exists: {}", workflow.id);
@@ -43,11 +42,10 @@ impl TaskLifecycleRegistry {
     /// 原子校验并替换全部自定义工作流。
     pub fn replace_custom_workflows(
         &mut self,
-        mut workflows: Vec<TaskLifecycleWorkflowDto>,
+        workflows: Vec<TaskLifecycleWorkflowDto>,
     ) -> Result<()> {
         let mut seen = HashSet::new();
-        for workflow in &mut workflows {
-            workflow.remove_legacy_code_review();
+        for workflow in &workflows {
             validate_custom_workflow(workflow)?;
             if !seen.insert(workflow.id.as_str()) {
                 bail!("lifecycle workflow id duplicated: {}", workflow.id);
@@ -111,15 +109,6 @@ fn validate_custom_workflow(workflow: &TaskLifecycleWorkflowDto) -> Result<()> {
 
     workflow.validate().map_err(anyhow::Error::msg)?;
 
-    let status_by_key: HashMap<&str, &TaskLifecycleStatusDto> =
-        workflow.statuses.iter().map(|status| (status.key.as_str(), status)).collect();
-    for status in &workflow.statuses {
-        validate_status(workflow.id.as_str(), status)?;
-    }
-    for status in &workflow.statuses {
-        reject_next_cycle(status.key.as_str(), &status_by_key)?;
-    }
-
     Ok(())
 }
 
@@ -132,71 +121,6 @@ fn validate_workflow_id(id: &str) -> Result<()> {
     }
     if !is_valid_key(id) {
         bail!("custom lifecycle workflow id invalid: {id}");
-    }
-    Ok(())
-}
-
-fn validate_status(workflow_id: &str, status: &TaskLifecycleStatusDto) -> Result<()> {
-    if !is_valid_key(status.key.as_str()) {
-        bail!("lifecycle workflow status key invalid: {}", status.key);
-    }
-    if status.label.trim().is_empty() {
-        bail!("lifecycle workflow status label must not be empty: {}:{}", workflow_id, status.key);
-    }
-
-    let has_outgoing = status.next.is_some() || !status.transitions.is_empty();
-    if status.terminal == has_outgoing {
-        bail!(
-            "lifecycle workflow status {} terminal flag must match outgoing transitions",
-            status.key
-        );
-    }
-
-    let mut outcomes = HashSet::new();
-    for transition in &status.transitions {
-        if !is_valid_key(transition.outcome.as_str()) {
-            bail!(
-                "lifecycle workflow transition outcome invalid: {}:{}",
-                status.key,
-                transition.outcome
-            );
-        }
-        if !outcomes.insert(transition.outcome.as_str()) {
-            bail!(
-                "lifecycle workflow status {} transition outcome duplicated: {}",
-                status.key,
-                transition.outcome
-            );
-        }
-    }
-
-    if let Some(success_target) = status
-        .transitions
-        .iter()
-        .find(|transition| transition.outcome == "succeed")
-        .map(|transition| transition.target.as_str())
-        && status.next.as_deref().is_some_and(|next| next != success_target)
-    {
-        bail!("lifecycle workflow status {} next must match succeed transition", status.key);
-    }
-
-    Ok(())
-}
-
-fn reject_next_cycle(
-    start: &str,
-    status_by_key: &HashMap<&str, &TaskLifecycleStatusDto>,
-) -> Result<()> {
-    let mut visited = HashSet::new();
-    let mut current = start;
-    while let Some(status) = status_by_key.get(current) {
-        let Some(next) = status.next.as_deref() else {
-            return Ok(());
-        };
-        if !visited.insert(current) {
-            bail!("lifecycle workflow cycle next chain: {start}");
-        }
-        current = next;
     }
     Ok(())
 }

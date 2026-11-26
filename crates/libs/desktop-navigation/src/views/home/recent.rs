@@ -19,6 +19,7 @@ use super::common::{
 };
 
 const SHORTCUT_ICON_SIZE: f32 = 94.0;
+const TWO_COLUMN_MIN_WINDOW_WIDTH: f32 = 588.0;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -71,7 +72,7 @@ pub fn render_body<'a>(app: &State<'_>) -> Element<'a, Message> {
 }
 
 fn render_shortcuts(i18n: I18n, window_width: f32) -> Element<'static, Message> {
-    let columns = if window_width < 588.0 {
+    let columns = if window_width < TWO_COLUMN_MIN_WINDOW_WIDTH {
         1
     } else if cfg!(not(target_arch = "wasm32")) && window_width >= 1152.0 {
         4
@@ -134,14 +135,12 @@ fn shortcut_card(
     action: Element<'static, Message>,
 ) -> Element<'static, Message> {
     let details = column![
-        text(title).size(19).line_height(Pixels(22.0)).font(home_cjk_emphasis_font()),
-        text(description).size(14).line_height(Pixels(17.0)).style(settings_muted_text_style),
+        text(title).size(22).line_height(Pixels(26.0)).font(home_cjk_emphasis_font()),
+        text(description).size(16).line_height(Pixels(20.0)).style(settings_muted_text_style),
     ]
     .spacing(3);
-    let content = column![details, Space::new().height(Length::Fill), action]
-        .width(Length::Fill)
-        .height(SHORTCUT_ICON_SIZE);
-    let card = container(row![icon, content].spacing(10))
+    let content = column![details, action].spacing(8).width(Length::Fill);
+    let card = container(row![icon, content].spacing(10).align_y(Alignment::Center))
         .width(Length::Fill)
         .padding([14, 12])
         .style(settings_panel_style);
@@ -189,10 +188,21 @@ fn render_recent_projects_body<'a>(app: &State<'_>, i18n: I18n) -> Element<'a, M
         }
     });
 
-    let mut recent_list = column![].spacing(10).width(Length::Fill);
-    for (index, path) in app.recent_projects.iter().enumerate() {
-        recent_list = recent_list.push(recent_project_row(app, index, path));
-    }
+    let columns =
+        if app.window_width >= TWO_COLUMN_MIN_WINDOW_WIDTH && app.recent_projects.len() > 1 {
+            2
+        } else {
+            1
+        };
+    let recent_list = Grid::with_children(
+        app.recent_projects
+            .iter()
+            .enumerate()
+            .map(|(index, path)| recent_project_row(app, index, path)),
+    )
+    .columns(columns)
+    .spacing(10)
+    .height(Length::Shrink);
 
     column![
         row![
@@ -248,26 +258,34 @@ fn recent_project_row<'a>(app: &State<'_>, index: usize, path: &str) -> Element<
 
     let meta = column![
         row![
-            text(name.clone()).size(14).font(home_emphasis_font()).style(|theme: &Theme| {
-                let color = if is_dark_theme(theme) {
-                    theme.extended_palette().background.base.text
-                } else {
-                    theme.palette().text
-                };
-                text::Style { color: Some(color) }
-            }),
+            text(name.clone())
+                .size(14)
+                .font(home_emphasis_font())
+                .wrapping(text::Wrapping::WordOrGlyph)
+                .style(|theme: &Theme| {
+                    let color = if is_dark_theme(theme) {
+                        theme.extended_palette().background.base.text
+                    } else {
+                        theme.palette().text
+                    };
+                    text::Style { color: Some(color) }
+                }),
             status_badge,
         ]
         .spacing(8)
-        .align_y(Alignment::Center),
-        text(path.to_string()).size(11).style(|theme: &Theme| {
-            let color = if is_dark_theme(theme) {
-                theme.palette().text.scale_alpha(0.68)
-            } else {
-                theme.extended_palette().secondary.base.text
-            };
-            text::Style { color: Some(color) }
-        }),
+        .align_y(Alignment::Center)
+        .wrap()
+        .vertical_spacing(4),
+        text(path.to_string()).size(11).wrapping(text::Wrapping::WordOrGlyph).style(
+            |theme: &Theme| {
+                let color = if is_dark_theme(theme) {
+                    theme.palette().text.scale_alpha(0.68)
+                } else {
+                    theme.extended_palette().secondary.base.text
+                };
+                text::Style { color: Some(color) }
+            }
+        ),
     ]
     .spacing(6)
     .width(Length::Fill);

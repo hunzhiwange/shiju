@@ -102,6 +102,9 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
             &app.terminal,
             closed,
         );
+        if app.terminal_ssh.terminal_ssh_visible(directory.as_deref(), app.terminal.active_group()) {
+            tasks.push(app.terminal_ssh.focus_terminal_ssh());
+        }
     }
     for effect in effects {
         use desktop_terminal::updates::Effect;

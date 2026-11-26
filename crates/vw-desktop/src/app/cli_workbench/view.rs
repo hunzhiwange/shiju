@@ -76,7 +76,45 @@ pub(crate) fn terminal_ssh_view(app: &App) -> Option<Element<'_, Message>> {
     }
     let (id, project) = state.selected_project()?;
     let ui = View::new(app, app.main_window_id?, Surface::Terminal);
-    Some(workspace(ui, state, id, project, None))
+    Some(workspace(ui, state, id, project, None, app.terminal.is_fullscreen))
+}
+
+pub(crate) fn terminal_ssh_tabs(app: &App) -> Option<Element<'_, Message>> {
+    use desktop_terminal::terminal_panel::pane_header;
+
+    let state = &app.terminal_ssh;
+    let layout = app.terminal.active_group();
+    let (project_id, project) = state.terminal_ssh_project(app.terminal_project_path(), layout)?;
+    let tabs: Vec<_> = project.panes.grid.iter()
+        .flat_map(|(_, pane)| pane.tabs.iter().copied())
+        .filter_map(|id| Some((id, tab_label(state, project.tab_for_view(id)?), None)))
+        .collect();
+    if tabs.is_empty() {
+        return None;
+    }
+    let ui = View::new(app, app.main_window_id?, Surface::Terminal);
+    Some(pane_header(
+        tabs,
+        Some(0), // Workbench session view IDs start at 1. The local terminal is selected.
+        true,
+        project.tab_menu.map(|(id, _, _)| id),
+        project.tab_menu.map(|(_, x, y)| (x, y)),
+        ui.locale,
+        row![local_terminal_tab(ui, true)].align_y(Alignment::Center),
+        move |message| ui.msg(Action::Panel(project_id.into(), layout, message)),
+    ))
+}
+
+fn local_terminal_tab(ui: View, selected: bool) -> Element<'static, Message> {
+    button(text(ui.label("本地终端")).size(13))
+        .on_press_maybe((!selected).then(|| ui.msg(Action::ShowLocalTerminal)))
+        .padding([5, 8])
+        .style(move |theme, status| {
+            let mut style = icon_btn_style(theme, status);
+            style.text_color = layout_tab_foreground(theme, selected);
+            style
+        })
+        .into()
 }
 
 pub(crate) fn terminal_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
@@ -109,7 +147,7 @@ pub(crate) fn view(app: &App, id: window::Id, surface: Surface) -> Element<'_, M
             .as_ref()
             .and_then(|id| state.projects.get(id).map(|project| (id, project)));
         let main = || match selected {
-            Some((id, project)) => workspace(ui, state, id, project, return_to_project),
+            Some((id, project)) => workspace(ui, state, id, project, return_to_project, false),
             None => {
                 let prompt = container(text(ui.label("请选择项目")).size(16)).center(Length::Fill);
                 if surface == Surface::AppTerminal {
@@ -598,6 +636,7 @@ fn workspace<'a>(
     project_id: &'a str,
     project: &'a Project,
     return_to_project: Option<&str>,
+    terminal_fullscreen: bool,
 ) -> Element<'a, Message> {
     let active = project.active_tab();
     let sendable = |tab: &Tab| {
@@ -674,6 +713,27 @@ fn workspace<'a>(
                     project.tabs.values().any(sendable)
                         .then(|| ui.msg(Action::Compose(active_target.clone()))),
                 ));
+            }
+            if top_right && state.surface == Surface::Terminal {
+                let (icon, label) = if terminal_fullscreen {
+                    (Icon::FullscreenExit, ui.label("退出全屏"))
+                } else {
+                    (Icon::Fullscreen, ui.label("全屏"))
+                };
+                controls = controls
+                    .push(local_terminal_tab(ui, false))
+                    .push(toolbar_icon(
+                        Icon::EyeSlash,
+                        ui.label("隐藏终端面板"),
+                        TOOLBAR_BUTTON_INSET,
+                        Some(Message::View(crate::app::message::ViewMessage::ToggleTerminalPanel)),
+                    ))
+                    .push(toolbar_icon(
+                        icon,
+                        label,
+                        TOOLBAR_BUTTON_INSET,
+                        Some(Message::Terminal(Term::ToggleFullscreen)),
+                    ));
             }
             let header = terminal_panel::pane_header(
                 pane_state.tabs.iter().filter_map(|&id| {

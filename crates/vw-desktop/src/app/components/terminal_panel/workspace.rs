@@ -21,14 +21,17 @@ use crate::app::workbench_projects;
 use crate::app::{App, Message};
 
 pub(super) fn view<'a>(app: &'a App, panes: Element<'a, Message>) -> Element<'a, Message> {
-    let mut side_by_side =
-        row![container(panes).width(Length::FillPortion(1)).height(Length::Fill)].spacing(1);
+    let mut terminal = column![group_bar(app), settings_divider()].height(Length::Fill);
     if let Some(ssh) = cli_workbench::terminal_ssh_view(app) {
-        side_by_side =
-            side_by_side.push(container(ssh).width(Length::FillPortion(1)).height(Length::Fill));
+        terminal = terminal.push(ssh);
+    } else {
+        if let Some(tabs) = cli_workbench::terminal_ssh_tabs(app) {
+            terminal = terminal.push(tabs).push(settings_divider());
+        }
+        terminal = terminal.push(
+            container(panes).width(Length::Fill).height(Length::Fill).style(settings_divider_style),
+        );
     }
-    let panes = container(side_by_side).style(settings_divider_style);
-    let terminal = column![group_bar(app), settings_divider(), panes].height(Length::Fill);
     let content = if app.terminal_projects_collapsed {
         terminal.width(Length::Fill).into()
     } else {

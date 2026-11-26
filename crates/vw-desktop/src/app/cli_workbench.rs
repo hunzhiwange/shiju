@@ -18,7 +18,7 @@ mod view;
 mod workspace;
 
 pub(crate) use update::{Action, Event};
-pub(crate) use view::{terminal_overlay, terminal_ssh_view, view};
+pub(crate) use view::{terminal_overlay, terminal_ssh_tabs, terminal_ssh_view, view};
 
 const CODEX_APP_ID: &str = "codex";
 const APP_TERMINAL_SIDEBAR_COLLAPSED: &str = "app_terminal_sidebar_collapsed";
@@ -217,6 +217,7 @@ struct Project {
     tabs: BTreeMap<String, Tab>,
     panes: TerminalPanes,
     parked_layouts: BTreeMap<u64, TerminalPanes>,
+    selected_ssh_layouts: HashSet<u64>,
     active_layout: u64,
     next_layout: u64,
     layout_names: BTreeMap<u64, String>,
@@ -373,6 +374,7 @@ impl Project {
             tabs: BTreeMap::new(),
             panes: Default::default(),
             parked_layouts: BTreeMap::new(),
+            selected_ssh_layouts: HashSet::new(),
             active_layout: 1,
             next_layout: 2,
             layout_names: BTreeMap::new(),
@@ -430,6 +432,7 @@ impl Project {
             self.select_layout(next);
         }
         let Some(closed) = self.parked_layouts.remove(&id) else { return false };
+        self.selected_ssh_layouts.remove(&id);
         self.layout_names.remove(&id);
         let view_ids: HashSet<_> = closed.grid.iter()
             .flat_map(|(_, pane)| pane.tabs.iter().copied())
@@ -563,12 +566,22 @@ impl Workbench {
     }
 
     pub(crate) fn terminal_ssh_visible(&self, directory: Option<&str>, group: u64) -> bool {
-        directory.is_some()
+        self.terminal_ssh_project(directory, group).is_some_and(|(_, project)| {
+            project.selected_ssh_layouts.contains(&group) && project.active_tab().is_some()
+        })
+    }
+
+    pub(super) fn focus_terminal_ssh(&self) -> Task<Message> {
+        terminal::focus(self)
+    }
+
+    fn terminal_ssh_project(&self, directory: Option<&str>, group: u64) -> Option<(&str, &Project)> {
+        let (id, project) = self.selected_project()?;
+        (directory.is_some()
             && self.terminal_directory.as_deref() == directory
-            && self.selected_project().is_some_and(|(_, project)| {
-                project.active_layout == group
-                    && project.panes.grid.iter().any(|(_, pane)| !pane.tabs.is_empty())
-            })
+            && Some(project.directory.as_str()) == directory
+            && project.active_layout == group)
+            .then_some((id, project))
     }
 
     pub(crate) fn terminal_needs_refresh(&self, directory: Option<&str>) -> bool {
@@ -605,6 +618,9 @@ impl Workbench {
                 && terminal.groups().all(|(id, _)| id != 1)
             {
                 // Legacy SSH sessions were all saved under layout 1.
+                if project.selected_ssh_layouts.remove(&1) {
+                    project.selected_ssh_layouts.insert(group);
+                }
                 project.active_layout = group;
             } else {
                 project.parked_layouts.entry(group).or_default();

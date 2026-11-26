@@ -11149,6 +11149,7 @@
   "我的工作台": "My Workbench",
   "应用终端": "App Terminal",
   "SSH 连接": "SSH connections",
+  "本地终端": "Local terminal",
   "已保存的连接": "Saved connections",
   "还没有 SSH 连接": "No SSH connections yet",
   "请选择项目后连接": "Select a project to connect",

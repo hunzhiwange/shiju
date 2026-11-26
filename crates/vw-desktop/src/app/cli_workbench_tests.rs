@@ -469,6 +469,25 @@ fn ordinary_terminal_ssh_stays_with_the_group_that_started_it() {
     assert!(app.app_terminal.projects.is_empty());
     assert!(app.cli_workbench.projects.is_empty());
 
+    let select_session = Surface::Terminal.message(Event::Window(
+        main,
+        Action::Panel(
+            "a".into(),
+            ssh_group,
+            desktop_terminal::message::Message::Terminal(
+                desktop_terminal::message::TerminalMessage::Select(
+                    app.terminal_ssh.projects["a"].tabs["new"].view_id,
+                ),
+            ),
+        ),
+    ));
+    let _ = app.update(Surface::Terminal.message(Event::Window(main, Action::ShowLocalTerminal)));
+    assert!(terminal_ssh_view(&app).is_none());
+    assert!(terminal_ssh_tabs(&app).is_some());
+    let _ = app.update(select_session);
+    assert!(terminal_ssh_view(&app).is_some());
+    assert_eq!(app.terminal_ssh.projects["a"].panes.grid.len(), 1);
+
     app.navigation_tabs.project_path = Some("/projects/b".into());
     assert!(!app.terminal_ssh.terminal_ssh_visible(app.terminal_project_path(), ssh_group));
 

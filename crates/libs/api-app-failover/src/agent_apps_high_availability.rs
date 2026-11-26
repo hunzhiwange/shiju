@@ -110,8 +110,8 @@ impl FailoverPolicy {
         if retry.max_retries > 10 {
             return Err("maxRetries must be between 0 and 10");
         }
-        if !(1..=120).contains(&retry.first_byte_timeout_secs) {
-            return Err("firstByteTimeoutSecs must be between 1 and 120");
+        if !(1..=600).contains(&retry.first_byte_timeout_secs) {
+            return Err("firstByteTimeoutSecs must be between 1 and 600");
         }
         if retry.idle_timeout_secs > 600 {
             return Err("idleTimeoutSecs must be between 0 and 600");

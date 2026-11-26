@@ -139,7 +139,7 @@ fn ha_policy_rejects_out_of_range_values() {
             "errorRateThreshold": 1.0, "minRequests": 100
         },
         "retryTimeout": {
-            "maxRetries": 10, "firstByteTimeoutSecs": 120, "idleTimeoutSecs": 600,
+            "maxRetries": 10, "firstByteTimeoutSecs": 600, "idleTimeoutSecs": 600,
             "nonStreamingTimeoutSecs": 1200
         }
     });
@@ -161,7 +161,7 @@ fn ha_policy_rejects_out_of_range_values() {
         ("circuitBreaker", "minRequests", json!(101)),
         ("retryTimeout", "maxRetries", json!(11)),
         ("retryTimeout", "firstByteTimeoutSecs", json!(0)),
-        ("retryTimeout", "firstByteTimeoutSecs", json!(121)),
+        ("retryTimeout", "firstByteTimeoutSecs", json!(601)),
         ("retryTimeout", "idleTimeoutSecs", json!(601)),
         ("retryTimeout", "nonStreamingTimeoutSecs", json!(59)),
         ("retryTimeout", "nonStreamingTimeoutSecs", json!(1201)),

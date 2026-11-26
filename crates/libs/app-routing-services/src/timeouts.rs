@@ -29,7 +29,7 @@ impl AppTimeouts {
     #[cfg(target_os = "macos")]
     pub fn validate(&self) -> anyhow::Result<()> {
         anyhow::ensure!(
-            (1..=120).contains(&self.first_byte_timeout_secs)
+            (1..=600).contains(&self.first_byte_timeout_secs)
                 && self.idle_timeout_secs <= 600
                 && (60..=1200).contains(&self.non_streaming_timeout_secs),
             "invalid routing timeouts"
@@ -41,7 +41,7 @@ impl AppTimeouts {
 impl Default for AppTimeouts {
     fn default() -> Self {
         Self {
-            first_byte_timeout_secs: 60,
+            first_byte_timeout_secs: 300,
             idle_timeout_secs: 120,
             non_streaming_timeout_secs: 600,
         }

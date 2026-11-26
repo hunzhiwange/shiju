@@ -120,13 +120,13 @@ async fn cc_route_012_config_api_expected_behavior() {
     assert_eq!(
         defaults,
         AppRoutingConfig {
-            first_byte_timeout_secs: 60,
+            first_byte_timeout_secs: 300,
             idle_timeout_secs: 120,
             non_streaming_timeout_secs: 600,
         }
     );
     let changed_timeouts = AppRoutingConfig {
-        first_byte_timeout_secs: 120,
+        first_byte_timeout_secs: 600,
         idle_timeout_secs: 0,
         non_streaming_timeout_secs: 1200,
     };
@@ -168,7 +168,7 @@ async fn cc_route_012_config_api_expected_behavior() {
         ("enabled", json!(true)),
         ("firstByteTimeoutSecs", json!(-1)),
         ("firstByteTimeoutSecs", json!(0)),
-        ("firstByteTimeoutSecs", json!(121)),
+        ("firstByteTimeoutSecs", json!(601)),
         ("idleTimeoutSecs", json!(-1)),
         ("idleTimeoutSecs", json!(601)),
         ("nonStreamingTimeoutSecs", json!(59)),

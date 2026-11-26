@@ -33,7 +33,7 @@ use serde_json::Value;
 use std::time::Duration;
 use web_time::Instant;
 
-const DEFAULT_LLM_STEP_IDLE_TIMEOUT: Duration = Duration::from_secs(90);
+const DEFAULT_LLM_STEP_IDLE_TIMEOUT: Duration = Duration::from_secs(300);
 pub use crate::llm_step::LlmStep;
 
 pub fn is_acp_request(options: &Value) -> bool {
@@ -396,7 +396,7 @@ fn collect_llm_step(
 ///
 /// # 错误情况
 ///
-/// - 普通模型流连续 90 秒无响应；ACP 由远端代理报告结束或错误
+/// - 普通模型流连续 300 秒未收到事件；ACP 由远端代理报告结束或错误
 /// - 模型调用失败（网络错误、API 错误等）
 /// - 模型未返回任何内容（文本和工具调用都为空）
 ///

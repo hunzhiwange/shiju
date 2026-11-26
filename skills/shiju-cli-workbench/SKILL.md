@@ -1,17 +1,17 @@
 ---
-name: cli-workbench
-description: 在识矩「我的工作台」用 shiju 命令协调同项目的 Codex、Claude Code 等 ACP 会话，适用于用户要求并行派工、收集结果或续派任务。
+name: shiju-cli-workbench
+description: 在识矩「我的工作台」用 shiju 命令协调同项目的 Codex、Claude Code 等 ACP 会话，适用于并行派工、追问、收集结果及子会话之间的直接交接。
 ---
 
 # 我的工作台协作
 
-在工作台内有权调用 `shiju` 的 Agent 可使用此技能。手动安装时，请用户将本目录复制到项目的 `.agents/skills/cli-workbench/` 或用户的 `~/.agents/skills/cli-workbench/`。如果所用 Agent 使用自己的技能目录，请由用户将本目录放到它支持的位置。
+在工作台内有权调用 `shiju` 的 Agent 可使用此技能。手动安装时，请用户将本目录复制到项目的 `.agents/skills/shiju-cli-workbench/` 或用户的 `~/.agents/skills/shiju-cli-workbench/`。如果所用 Agent 使用自己的技能目录，请由用户将本目录放到它支持的位置。
 
-工作台子进程使用网关提供的当前会话连接。保留继承的环境，避免打印、复制或转发连接凭据。工作台外的调用需明确提供网关用户与项目 ID，并按网关配置选择凭据来源。网关会校验访问权限。
+工作台子进程使用网关提供的当前会话连接。保留继承的环境，避免打印、复制或转发连接凭据。工作台外使用通用网关连接，默认用户为 `0`。省略 `--project` 时，网关用 `--directory` 或当前终端目录查找归属的项目。目录尚未登记时，网关首次调用会为该目录登记项目，普通文件夹也可以使用。在其它目录或连接远程网关时，可以传入网关主机上的项目绝对路径，也可以直接传项目 ID。需要以配对用户访问时，用 `--user` 指定该用户并选择对应的网关凭据。
 
 ```sh
-shiju workbench --host 127.0.0.1 --port 3000 --platform local --company local \
-  --user "$GATEWAY_USER_ID" --skey-env GATEWAY_SKEY list --project "$PROJECT_ID"
+shiju workbench list
+shiju workbench list --directory "/项目目录的绝对路径"
 ```
 
 切换项目需要用户授予相应网关权限。请在目标项目的工作台内发起协作，或由用户在外部显式指定已授权的身份和项目。
@@ -28,7 +28,7 @@ shiju workbench --host 127.0.0.1 --port 3000 --platform local --company local \
 
 ### 可直接发给主会话的提示词
 
-> 使用 `cli-workbench` 技能协调当前项目。我授权你在本次任务中启动两个工作台 ACP 会话，并发送以下只读子任务。使用项目中已经配置的 Codex 配置 `<Codex 配置 ID>` 和 Claude Code 配置 `<Claude 配置 ID>`。让 Codex 梳理本次改动涉及的入口和调用链，让 Claude Code 独立审阅边界条件及潜在回归。给两边提供必要的背景和路径。只读取和分析，不改文件、不运行测试或构建。先发出两项任务，再按各自的会话 ID 和请求 ID 等待并读取结果。遇到审批请告诉我。最后由你核对关键文件，汇总有证据的结论、分歧和未完成事项。
+> 使用 `shiju-cli-workbench` 技能协调当前项目。我授权你在本次任务中启动两个工作台 ACP 会话，并发送以下只读子任务。使用项目中已经配置的 Codex 配置 `<Codex 配置 ID>` 和 Claude Code 配置 `<Claude 配置 ID>`。让 Codex 梳理本次改动涉及的入口和调用链，让 Claude Code 独立审阅边界条件及潜在回归。给两边提供必要的背景和路径。只读取和分析，不改文件、不运行测试或构建。先发出两项任务，再按各自的会话 ID 和请求 ID 等待并读取结果。遇到审批请告诉我。最后由你核对关键文件，汇总有证据的结论、分歧和未完成事项。
 
 ### 子会话任务正文模板
 
@@ -61,10 +61,14 @@ shiju workbench --host 127.0.0.1 --port 3000 --platform local --company local \
 - `timed_out` 或发送连接中断后，先运行 `shiju workbench status "$session_id" --request-id "$request_id"`。已受理的投递可用原 ID 继续 `wait` 或 `read`。确认需要重试时，复用原目标、请求 ID 和消息原文。
 - 调用失败时，CLI 以非零状态退出，并在 JSON 的 `error.code` 中报告原因。等待超时时，如果已收到快照，`message` 会保留该快照。成功返回的 `result.state` 表示投递自身状态。
 
-## 会话间通信边界
+## 主会话追问与子会话直接交接
+
+- 主会话向子会话发问，子会话在该轮回复中返回结果或需要澄清的问题。主会话用 `wait`、`read` 收回回复，再用原会话 ID 和新请求 ID 继续追问。
+- 用户授权子会话直接交接时，主会话把接收方的会话 ID、允许发送的内容和操作范围交给发送方。发送方用 `list` 核对接收方属于当前项目且处于 `structured`、`ready`，再用自己的新请求 ID 执行 `send`、`wait`、`read`。发送方在本轮回复中附上对方的会话 ID、请求 ID 和结果，供主会话复核。
+- 双向交接时，先让 A 联系空闲的 B。等 A 收到答复并结束本轮，再让 B 联系空闲的 A。目标处于 `running` 时会返回 `busy`，两边同时发消息并等对方会卡住。问题或进度也可以放在当前轮次的回复里交回主会话。
 
 Herdr 用 `agent start`、`agent prompt`、`agent wait`、`agent read` 控制各终端中的 Agent。识矩的 ACP 路径由网关提交会话轮次，并用会话 ID 和请求 ID 关联该轮结果。原生 CLI 在工作台可以担任发起方，作为接收方时只接收待人工提交的草稿。
 
 `workbench send` 对 ACP 目标启动一个新轮次，目标在执行时会返回 `busy`。子会话把结果写在当前轮次的回复中，主会话通过 `wait`、`read` 回收。当前回执记录发送用户和目标会话，工作台会话与投递记录保存在运行中的网关进程，网关重启后应重新发现可用会话。
 
-若需要子会话在运行中主动报告进度、向主会话提问或向兄弟会话发消息，工作台需要网关提供独立的团队信箱。网关应从受信任的工作台连接取得发送会话身份，校验同项目和本次协作成员关系，再让主会话通过工具读取消息。可参考 [AgentTool 的团队通信](../../docs/agent-tool-collaboration.md)。该工具当前的进程内信箱不覆盖工作台的外部 ACP 会话。
+如果要给正在执行的会话投递进度或问题，需要网关提供独立的团队信箱。现有工作台交接通过空闲目标的新轮次完成。[AgentTool 的团队通信](../../docs/agent-tool-collaboration.md)

@@ -248,8 +248,7 @@ pub(in crate::app::impls) fn with_install_confirmation<'a>(
             ]
             .spacing(17),
         )
-        .width(Length::Fill)
-        .max_width(320);
+        .width(320);
         (cancel.clone(), with_settings_modal_escape(card.into(), cancel))
     });
     settings_optional_modal_overlay(base, modal)

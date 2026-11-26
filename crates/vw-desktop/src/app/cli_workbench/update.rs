@@ -938,12 +938,15 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
             return start(state, id, target, pane, None, None);
         }
         Action::LaunchMode(use_acp) => {
+            let managed_terminal = managed_codex_available(state);
             let local_only = codex_agent(state).is_some_and(|agent| !agent.supports(AcpModelSource::SessionModel));
             if let Some(Dialog::LaunchAgent(dialog)) = state.dialog.as_mut()
                 && dialog.acp_agent.is_none()
             {
                 dialog.use_acp = use_acp;
-                if use_acp && local_only {
+                if use_acp && managed_terminal {
+                    dialog.source = AcpModelSource::SessionModel;
+                } else if use_acp && local_only {
                     dialog.source = AcpModelSource::CliLocal;
                 }
             }
@@ -1372,7 +1375,15 @@ pub(super) fn launch_target_available(state: &Workbench, target: &CliWorkbenchTa
         CliWorkbenchTarget::Acp { agent } => {
             state.surface == Surface::Workbench && state.agents.iter().any(|profile| &profile.key == agent)
         }
+        CliWorkbenchTarget::ManagedCodex { .. } => managed_codex_available(state),
     }
+}
+
+pub(super) fn managed_codex_available(state: &Workbench) -> bool {
+    cfg!(all(target_os = "macos", target_arch = "aarch64"))
+        && state.surface == Surface::Workbench
+        && state.terminal_available
+        && codex_agent(state).is_some_and(|agent| agent.supports(AcpModelSource::SessionModel))
 }
 
 fn start_default_shell(state: &mut Workbench, id: window::Id, visible: bool) -> Task<Message> {
@@ -1483,7 +1494,12 @@ pub(super) fn agent_launch_options(
     }
     let agent = agent_launch_profile(state, dialog.acp_agent.as_deref())
         .filter(|agent| agent.supports(dialog.source))?;
+    let managed_terminal = dialog.acp_agent.is_none() && managed_codex_available(state);
+    if dialog.acp_agent.is_none() && state.terminal_available && !managed_terminal {
+        return None;
+    }
     let model = match dialog.source {
+        AcpModelSource::CliLocal if managed_terminal => return None,
         AcpModelSource::CliLocal => None,
         AcpModelSource::SessionModel => {
             let model = dialog.model.as_ref()?;
@@ -1493,6 +1509,9 @@ pub(super) fn agent_launch_options(
             Some(model.clone())
         }
     };
+    if managed_terminal {
+        return Some((CliWorkbenchTarget::ManagedCodex { model: model? }, None));
+    }
     Some((
         CliWorkbenchTarget::Acp { agent: agent.key.clone() },
         Some(CliWorkbenchAcpOptions { model_source: dialog.source, model }),

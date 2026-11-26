@@ -57,6 +57,9 @@ impl Authority {
     pub(super) fn require_target(&self, target: &CliWorkbenchTarget) -> Result<(), WorkbenchError> {
         match target {
             CliWorkbenchTarget::Acp { .. } => Ok(()),
+            CliWorkbenchTarget::ManagedCodex { .. } if !cfg!(all(target_os = "macos", target_arch = "aarch64")) => {
+                Err(unavailable())
+            }
             CliWorkbenchTarget::Ssh { .. } => self.require_local_pty(),
             _ => self.require(),
         }

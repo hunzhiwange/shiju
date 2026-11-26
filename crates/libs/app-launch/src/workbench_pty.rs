@@ -137,7 +137,17 @@ impl WorkbenchPty {
     /// Takes a gateway-prepared command with a validated cwd, argv and scoped
     /// environment. Use the host launch builder before adding app credentials.
     /// The runtime root must be owned by the gateway.
-    pub fn spawn(mut command: Command, runtime_root: &Path, size: PtySize) -> io::Result<Self> {
+    pub fn spawn(command: Command, runtime_root: &Path, size: PtySize) -> io::Result<Self> {
+        Self::spawn_with_owner(command, runtime_root, size, ())
+    }
+
+    /// Retain private launch resources until the terminal process has been reaped.
+    pub fn spawn_with_owner(
+        mut command: Command,
+        runtime_root: &Path,
+        size: PtySize,
+        owner: impl Send + 'static,
+    ) -> io::Result<Self> {
         size.validate()?;
         if !command.get_current_dir().is_some_and(|cwd| cwd.is_absolute() && cwd.is_dir()) {
             return Err(io::Error::new(
@@ -167,6 +177,7 @@ impl WorkbenchPty {
         let worker_state = Arc::clone(&shared);
         let (started, startup) = mpsc::sync_channel(1);
         let worker = thread::Builder::new().name("workbench-pty".into()).spawn(move || {
+            let _owner = owner;
             match ChildGroup::spawn(&mut command, slave) {
                 Ok(child) => {
                     let _ = started.send(Ok(child.id()));

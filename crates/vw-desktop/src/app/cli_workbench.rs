@@ -105,7 +105,7 @@ impl Surface {
             CliWorkbenchTarget::Ssh { .. } => {
                 self.ssh_surface() == session.ssh_surface.unwrap_or(SshSessionSurface::AppTerminal)
             }
-            CliWorkbenchTarget::Acp { .. } => self == Self::Workbench,
+            CliWorkbenchTarget::Acp { .. } | CliWorkbenchTarget::ManagedCodex { .. } => self == Self::Workbench,
             _ => self != Self::Terminal,
         }
     }
@@ -318,6 +318,7 @@ impl Tab {
         matches!(
             self.session.target,
             CliWorkbenchTarget::Acp { .. } | CliWorkbenchTarget::NativeCli { .. }
+                | CliWorkbenchTarget::ManagedCodex { .. }
         )
     }
 

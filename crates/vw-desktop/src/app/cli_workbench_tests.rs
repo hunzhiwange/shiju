@@ -644,12 +644,23 @@ fn cli_workbench_agent_launch_uses_the_selected_profiles_model_source_capabiliti
     dialog.use_acp = true;
     assert!(update::agent_launch_options(&workbench, &dialog).is_none());
     dialog.model = Some(model.clone());
-    let (target, acp) = update::agent_launch_options(&workbench, &dialog).unwrap();
-    assert_eq!(target, CliWorkbenchTarget::Acp { agent: "acp-codex".into() });
-    let acp = acp.unwrap();
-    assert_eq!(acp.model_source, Source::SessionModel);
-    assert_eq!(acp.model.as_ref(), Some(&model));
+    if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+        let (target, acp) = update::agent_launch_options(&workbench, &dialog).unwrap();
+        assert_eq!(target, CliWorkbenchTarget::ManagedCodex { model: model.clone() });
+        assert!(acp.is_none());
+        dialog.source = Source::CliLocal;
+        assert!(update::agent_launch_options(&workbench, &dialog).is_none());
+    } else {
+        assert!(update::agent_launch_options(&workbench, &dialog).is_none());
+        workbench.terminal_available = false;
+        let (target, acp) = update::agent_launch_options(&workbench, &dialog).unwrap();
+        assert_eq!(target, CliWorkbenchTarget::Acp { agent: "acp-codex".into() });
+        let acp = acp.unwrap();
+        assert_eq!(acp.model_source, Source::SessionModel);
+        assert_eq!(acp.model.as_ref(), Some(&model));
+    }
 
+    workbench.terminal_available = false;
     dialog.source = Source::CliLocal;
     let acp = update::agent_launch_options(&workbench, &dialog).unwrap().1.unwrap();
     assert_eq!(acp.model_source, Source::CliLocal);

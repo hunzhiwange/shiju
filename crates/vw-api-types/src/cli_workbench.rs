@@ -18,6 +18,7 @@ pub struct CliWorkbenchChildContext {
 pub enum CliWorkbenchTarget {
     Acp { agent: String },
     NativeCli { app_id: String },
+    ManagedCodex { model: String },
     Shell,
     Ssh { connection_id: String },
 }

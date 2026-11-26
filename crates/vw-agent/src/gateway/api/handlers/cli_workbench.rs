@@ -91,6 +91,9 @@ impl Session {
                 (CliWorkbenchTarget::NativeCli { app_id }, ProcessState::Running) => {
                     pty.agent_activity(app_id)
                 }
+                (CliWorkbenchTarget::ManagedCodex { .. }, ProcessState::Running) => {
+                    pty.agent_activity("codex")
+                }
                 _ => None,
             };
             if matches!(self.info.state, ProcessState::Exited | ProcessState::Disconnected) {
@@ -329,6 +332,7 @@ fn capabilities(target: &CliWorkbenchTarget) -> CliWorkbenchCapabilities {
     let has_pty = match target {
         CliWorkbenchTarget::Acp { .. } => false,
         CliWorkbenchTarget::Ssh { .. } => cfg!(unix),
+        CliWorkbenchTarget::ManagedCodex { .. } => cfg!(all(target_os = "macos", target_arch = "aarch64")),
         _ => cfg!(target_os = "macos"),
     };
     CliWorkbenchCapabilities {
@@ -336,7 +340,9 @@ fn capabilities(target: &CliWorkbenchTarget) -> CliWorkbenchCapabilities {
         terminal: has_pty,
         delivery: match target {
             CliWorkbenchTarget::Acp { .. } => CliWorkbenchDeliveryCapability::Structured,
-            CliWorkbenchTarget::NativeCli { .. } => CliWorkbenchDeliveryCapability::Draft,
+            CliWorkbenchTarget::NativeCli { .. } | CliWorkbenchTarget::ManagedCodex { .. } => {
+                CliWorkbenchDeliveryCapability::Draft
+            }
             CliWorkbenchTarget::Shell | CliWorkbenchTarget::Ssh { .. } => {
                 CliWorkbenchDeliveryCapability::Unavailable
             }

@@ -589,5 +589,15 @@ pub fn error(status: StatusCode) -> axum::response::Response {
         429 => "rate_limit_error",
         _ => "api_error",
     };
-    (status,axum::Json(json!({"error":{"type":kind,"code":if status==UNSUPPORTED{"unsupported_capability"}else{"relay_error"},"param":null,"message":if status==UNSUPPORTED{"Unsupported Responses capability"}else{"Responses relay request failed"}}}))).into_response()
+    let (code, message) = match status {
+        UNSUPPORTED => ("unsupported_capability", "Unsupported Responses capability"),
+        StatusCode::NOT_FOUND => (
+            "upstream_not_found",
+            "The upstream provider returned HTTP 404. Check the selected model and provider endpoint.",
+        ),
+        _ => ("relay_error", "Responses relay request failed"),
+    };
+    (status, axum::Json(json!({"error": {
+        "type": kind, "code": code, "param": null, "message": message
+    }}))).into_response()
 }

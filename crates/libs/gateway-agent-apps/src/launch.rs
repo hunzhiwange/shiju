@@ -293,6 +293,27 @@ pub fn workbench_command(
     target: &vw_api_types::cli_workbench::CliWorkbenchTarget,
     directory: &str,
 ) -> Result<std::process::Command, StatusCode> {
+    workbench_command_inner(tenant, target, directory, None)
+}
+
+/// The executable is resolved on the gateway from the installed managed runtime.
+#[cfg(target_os = "macos")]
+pub fn workbench_managed_codex_command(
+    tenant: &TenantScope,
+    target: &vw_api_types::cli_workbench::CliWorkbenchTarget,
+    directory: &str,
+    executable: PathBuf,
+) -> Result<std::process::Command, StatusCode> {
+    workbench_command_inner(tenant, target, directory, Some(executable))
+}
+
+#[cfg(target_os = "macos")]
+fn workbench_command_inner(
+    tenant: &TenantScope,
+    target: &vw_api_types::cli_workbench::CliWorkbenchTarget,
+    directory: &str,
+    managed_codex: Option<PathBuf>,
+) -> Result<std::process::Command, StatusCode> {
     use vw_api_app_identity::{AppId, AppRuntimeKind};
     use vw_api_types::cli_workbench::CliWorkbenchTarget;
 
@@ -308,6 +329,20 @@ pub fn workbench_command(
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
     let material = match target {
+        CliWorkbenchTarget::ManagedCodex { .. } => {
+            authorize_native_login(&authorization, AppId::Codex)?;
+            LaunchMaterial {
+                program: managed_codex.ok_or(StatusCode::UNPROCESSABLE_ENTITY)?,
+                cwd,
+                args: vec![
+                    "--no-alt-screen".into(),
+                    "--no-daemon".into(),
+                    "-c".into(),
+                    "shell_environment_policy.exclude=[\"SHIJU_CODEX_RELAY_TOKEN\"]".into(),
+                ],
+                skip_permissions: false,
+            }
+        }
         CliWorkbenchTarget::Shell => LaunchMaterial {
             program: PathBuf::from("/bin/zsh"),
             cwd,
@@ -340,6 +375,9 @@ pub fn workbench_command(
             ).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
             // These fixed arguments belong to the authorized local workbench launcher.
             material.args.extend(workbench_native_args(app_id).iter().map(|&flag| flag.to_owned()));
+            if app_id == AppId::Codex && installation.version.as_deref().is_some_and(codex_supports_no_daemon) {
+                material.args.push("--no-daemon".into());
+            }
             material
         }
         CliWorkbenchTarget::Acp { .. } | CliWorkbenchTarget::Ssh { .. } => {
@@ -354,6 +392,19 @@ pub fn workbench_command(
         command.env("LC_CTYPE", "en_US.UTF-8");
     }
     Ok(command)
+}
+
+#[cfg(target_os = "macos")]
+fn codex_supports_no_daemon(version: &str) -> bool {
+    let core = version.split(['-', '+']).next().unwrap_or(version);
+    let mut numbers = core.split('.').map(str::parse::<u32>);
+    match (numbers.next(), numbers.next(), numbers.next()) {
+        (Some(Ok(major)), Some(Ok(minor)), Some(Ok(patch))) => {
+            (major, minor, patch) > (0, 157, 0)
+                || ((major, minor, patch) == (0, 157, 0) && !version.contains('-'))
+        }
+        _ => false,
+    }
 }
 
 #[cfg(target_os = "macos")]

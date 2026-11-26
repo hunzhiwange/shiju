@@ -8,6 +8,10 @@ use vw_api_types::cli_workbench::{
 
 use super::*;
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[path = "managed_codex.rs"]
+mod managed_codex;
+
 pub(in super::super) struct Pty {
     process: WorkbenchPty,
     input: tokio::sync::Mutex<()>,
@@ -49,38 +53,35 @@ pub(in super::super) async fn start(
     ssh_surface: Option<SshSessionSurface>,
     authority: Authority,
 ) -> Result<(StatusCode, Json<CliWorkbenchSession>), WorkbenchError> {
-    let child_access = if matches!(&target, CliWorkbenchTarget::NativeCli { .. }) {
+    let child_access = if matches!(&target, CliWorkbenchTarget::NativeCli { .. } | CliWorkbenchTarget::ManagedCodex { .. }) {
         Some(child_access::ChildAccess::start(&scope, &id).await.map_err(|_| unavailable())?)
     } else {
         None
     };
     let context = child_access.as_ref().map(|access| access.context().to_owned());
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    let managed = if let CliWorkbenchTarget::ManagedCodex { model } = &target {
+        Some(managed_codex::prepare(&scope, &directory, &id, model).await?)
+    } else {
+        None
+    };
     let (launch_scope, launch_target, cwd) = (scope.clone(), target.clone(), directory.clone());
     let process = tokio::task::spawn_blocking(move || {
-        let mut command = match &launch_target {
-            CliWorkbenchTarget::Ssh { connection_id } => {
-                ssh::command(launch_scope.tenant_scope(), connection_id, &cwd)
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        let (command, owner) = match managed {
+            Some((executable, profile)) => {
+                let mut command = gateway_agent_apps::launch::workbench_managed_codex_command(
+                    launch_scope.tenant_scope(), &launch_target, &cwd, executable,
+                ).map_err(launch_error)?;
+                command.env("CODEX_HOME", profile.directory());
+                command.env("SHIJU_CODEX_RELAY_TOKEN", profile.binding.bearer_token());
+                (command, Some(profile))
             }
-            #[cfg(target_os = "macos")]
-            _ => gateway_agent_apps::launch::workbench_command(
-                launch_scope.tenant_scope(),
-                &launch_target,
-                &cwd,
-            )
-            .map_err(|status| match status {
-                StatusCode::FORBIDDEN | StatusCode::UNAUTHORIZED => {
-                    error(status, ErrorCode::Unauthorized, "native launch is not authorized")
-                }
-                StatusCode::UNPROCESSABLE_ENTITY => error(
-                    status,
-                    ErrorCode::InvalidRequest,
-                    "native launch directory or installation is invalid",
-                ),
-                _ => unavailable(),
-            }),
-            #[cfg(not(target_os = "macos"))]
-            _ => Err(unavailable()),
-        }?;
+            None => (terminal_command(&launch_scope, &launch_target, &cwd)?, None),
+        };
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+        let command = terminal_command(&launch_scope, &launch_target, &cwd)?;
+        let mut command = command;
         if let Some(context) = context {
             command.env(vw_api_types::cli_workbench::CHILD_CONTEXT_ENV, context);
             let path = command.get_envs().find_map(|(key, value)| {
@@ -90,8 +91,12 @@ pub(in super::super) async fn start(
                 command.env("PATH", path);
             }
         }
-        WorkbenchPty::spawn(command, &agent_paths::paths().state, PtySize { rows: 24, cols: 80 })
-            .map_err(|_| unavailable())
+        let size = PtySize { rows: 24, cols: 80 };
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        let process = WorkbenchPty::spawn_with_owner(command, &agent_paths::paths().state, size, owner);
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+        let process = WorkbenchPty::spawn(command, &agent_paths::paths().state, size);
+        process.map_err(|_| unavailable())
     })
     .await
     .map_err(|_| unavailable())??;
@@ -117,6 +122,33 @@ pub(in super::super) async fn start(
         },
         Some(&authority),
     )
+}
+
+fn terminal_command(
+    scope: &ProjectScope,
+    target: &CliWorkbenchTarget,
+    cwd: &str,
+) -> Result<std::process::Command, WorkbenchError> {
+    match target {
+        CliWorkbenchTarget::Ssh { connection_id } => ssh::command(scope.tenant_scope(), connection_id, cwd),
+        #[cfg(target_os = "macos")]
+        _ => gateway_agent_apps::launch::workbench_command(scope.tenant_scope(), target, cwd).map_err(launch_error),
+        #[cfg(not(target_os = "macos"))]
+        _ => Err(unavailable()),
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn launch_error(status: StatusCode) -> WorkbenchError {
+    match status {
+        StatusCode::FORBIDDEN | StatusCode::UNAUTHORIZED => {
+            error(status, ErrorCode::Unauthorized, "native launch is not authorized")
+        }
+        StatusCode::UNPROCESSABLE_ENTITY => {
+            error(status, ErrorCode::InvalidRequest, "native launch directory or installation is invalid")
+        }
+        _ => unavailable(),
+    }
 }
 
 pub(in super::super) fn stop(session: &mut Session) -> CliWorkbenchSession {

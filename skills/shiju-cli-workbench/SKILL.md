@@ -18,7 +18,8 @@ shiju workbench list --directory "/项目目录的绝对路径"
 
 ## 选择 Codex 入口
 
-- 用户说「我的工作台新建 Codex」时，默认使用原生终端。工作台菜单选择 **Codex · 终端**。已连接对应项目网关且获得启动授权时，也可运行 `shiju workbench start codex --yes`。检查返回的 `directory` 与目标工作目录一致。原生 Codex 使用工作台发现的本机安装及其登录和模型设置。向原生会话执行 `workbench send` 会投放草稿，用户可在终端提交。
+- 用户说「我的工作台新建 Codex」时，默认使用原生终端。在 **新建 Codex** 中选择 **原生终端**，使用本机安装及其登录和模型设置。已连接对应项目网关且获得启动授权时，也可运行 `shiju workbench start codex --yes`。检查返回的 `directory` 与目标工作目录一致。
+- Apple Silicon 上的本机工作台可以选择 **受控终端**。安装 Codex ACP 受管运行时后，选择一个网关模型，工作台会用其中的 Codex 引擎打开交互终端。向任一 Codex 终端执行 `workbench send` 会投放草稿，用户可在终端提交。
 - 用户明确要求受管 Codex ACP，或需要通过工作台自动提交和结构化回收时，运行 `shiju workbench start codex --engine acp --yes` 并使用下文 ACP 投递流程。`--engine acp` 固定走网关受管模式。可选 `--model provider/model` 覆盖具体模型，省略时由网关选模。遇到模型不支持时，分别核对原生 CLI 和 ACP 引擎版本，以及各自的模型来源。
 - 用户明确要求 `acpx` 时，通过它自己的 ACP 客户端调用已配置的 Codex 适配器。核对适配器实际启动的引擎和工作目录。单独运行的 `acpx` 会话由它自己管理，识矩的 `workbench list`、`wait` 和 `read` 查询工作台网关中的会话。
 

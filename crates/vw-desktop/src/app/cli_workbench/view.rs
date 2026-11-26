@@ -544,7 +544,7 @@ fn agent_title(state: &Workbench, tab: &Tab) -> String {
             .find(|entry| entry.key == *agent).map(|entry| entry.label()),
         CliWorkbenchTarget::NativeCli { app_id } => state.native_apps.iter()
             .find(|entry| entry.id == *app_id).map(|entry| entry.name.as_str()),
-        CliWorkbenchTarget::Shell | CliWorkbenchTarget::Ssh { .. } => None,
+        CliWorkbenchTarget::ManagedCodex { .. } | CliWorkbenchTarget::Shell | CliWorkbenchTarget::Ssh { .. } => None,
     };
     name.map_or_else(|| tab_label(state, tab), str::to_owned)
 }
@@ -553,6 +553,7 @@ fn agent_icon(tab: &Tab) -> svg::Svg<'static> {
     let key = match &tab.session.target {
         CliWorkbenchTarget::Acp { agent } => agent.strip_prefix("acp-").unwrap_or(agent),
         CliWorkbenchTarget::NativeCli { app_id } => app_id,
+        CliWorkbenchTarget::ManagedCodex { .. } => super::CODEX_APP_ID,
         CliWorkbenchTarget::Ssh { .. } => return icon_svg(Icon::Globe, 17.0).style(icon_btn_svg_style),
         CliWorkbenchTarget::Shell => "",
     };
@@ -1191,12 +1192,18 @@ fn agent_launch_dialog<'a>(
     dialog: &'a AgentLaunch,
 ) -> Element<'a, Message> {
     let agent = super::update::agent_launch_profile(state, dialog.acp_agent.as_deref());
+    let managed_terminal = dialog.acp_agent.is_none() && super::update::managed_codex_available(state);
     let mut fields = column![].spacing(8);
     let title = if dialog.acp_agent.is_none() {
         let native = super::update::launch_target_available(state, &super::update::native_codex_target());
-        let modes = [false, true].into_iter().filter(|acp| if *acp { agent.is_some() } else { native });
+        let alternate = if state.terminal_available { managed_terminal } else { agent.is_some() };
+        let modes = [false, true].into_iter().filter(|acp| if *acp { alternate } else { native });
         let mode = settings_select(modes, Some(dialog.use_acp), move |acp| ui.msg(Action::LaunchMode(acp)))
-            .format_labels(move |acp| ui.label(if *acp { "ACP 对话" } else { "原生终端" }).into())
+            .format_labels(move |acp| ui.label(match (*acp, managed_terminal) {
+                (false, _) => "原生终端",
+                (true, true) => "受控终端",
+                (true, false) => "ACP 对话",
+            }).into())
             .width(Length::Fill);
         fields = fields.push(settings_field_label(ui.label("运行方式"))).push(mode);
         ui.label("新建 Codex").to_owned()
@@ -1212,14 +1219,16 @@ fn agent_launch_dialog<'a>(
             agent.is_some_and(|agent| agent.supports(source))
         });
         let gateway = dialog.source == AcpModelSource::SessionModel;
-        let source = settings_select(sources, Some(gateway), move |gateway| {
-            ui.msg(Action::LaunchModelSource(if gateway { AcpModelSource::SessionModel } else { AcpModelSource::CliLocal }))
-        })
-        .format_labels(move |gateway| ui.label(if *gateway { "网关模型" } else { "CLI 本地模型" }).into())
-        .width(Length::Fill);
-        fields = fields.push(settings_field_label(ui.label("模型来源"))).push(source);
-        if gateway {
-            fields = fields.push(settings_field_label(ui.label("模型")));
+        if !managed_terminal {
+            let source = settings_select(sources, Some(gateway), move |gateway| {
+                ui.msg(Action::LaunchModelSource(if gateway { AcpModelSource::SessionModel } else { AcpModelSource::CliLocal }))
+            })
+            .format_labels(move |gateway| ui.label(if *gateway { "网关模型" } else { "CLI 本地模型" }).into())
+            .width(Length::Fill);
+            fields = fields.push(settings_field_label(ui.label("模型来源"))).push(source);
+        }
+        if gateway || managed_terminal {
+            fields = fields.push(settings_field_label(ui.label(if managed_terminal { "网关模型" } else { "模型" })));
             let model: Element<'a, Message> = match &dialog.models {
                 Some(Ok(models)) if !models.is_empty() => settings_select(
                     models.iter().cloned(), dialog.model.clone(), move |model| ui.msg(Action::LaunchModel(model)),
@@ -1318,6 +1327,7 @@ pub(super) fn tab_label(state: &Workbench, tab: &Tab) -> String {
         CliWorkbenchTarget::Acp { agent } => agent,
         CliWorkbenchTarget::NativeCli { app_id } if app_id == super::CODEX_APP_ID => "Codex",
         CliWorkbenchTarget::NativeCli { app_id } => app_id,
+        CliWorkbenchTarget::ManagedCodex { model } => return format!("Codex · {model}"),
         CliWorkbenchTarget::Shell => "Shell",
         CliWorkbenchTarget::Ssh { connection_id } => state.ssh.connection(connection_id)
             .map_or("SSH", |entry| entry.fields.name.as_str()),

@@ -194,7 +194,7 @@ pub fn view<'a, External: Clone + 'static>(
             Message::CommitTypeSelected,
         )
         .placeholder(i18n.__("类型"))
-        .width(100)
+        .width(106)
         .menu_min_width(120.0)
     });
     let scope_input = app.show_git_diff_summary.then(|| {
@@ -219,7 +219,11 @@ pub fn view<'a, External: Clone + 'static>(
     let description_toggle = tooltip(
         button(icon_svg(description_icon, 14.0).style(icon_btn_svg_style))
             .padding([5, 8])
-            .style(rounded_action_btn_style)
+            .style(|theme, status| {
+                let mut style = rounded_action_btn_style(theme, status);
+                style.border.width = 0.0;
+                style
+            })
             .on_press(Message::ToggleCommitDescription),
         text(i18n.__(description_action)).size(12),
         tooltip::Position::Top,

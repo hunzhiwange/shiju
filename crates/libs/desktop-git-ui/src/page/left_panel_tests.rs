@@ -269,7 +269,7 @@ async fn git_commit_form_matches_general_language_select() {
                 assert_eq!(trigger.height, summary.height);
                 assert_eq!(trigger.y, scope.y);
                 assert_eq!(scope.y, summary.y);
-                assert_eq!(trigger.width, 100.0);
+                assert_eq!(trigger.width, 106.0);
                 assert_eq!(scope.width, 88.0);
                 assert!(summary.width > scope.width);
 

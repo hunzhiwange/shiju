@@ -206,14 +206,15 @@ pub async fn global_dispose() -> Result<Json<bool>, ApiError> {
     Ok(Json(true))
 }
 
-/// Check launch executables on the gateway; never starts or installs a CLI.
+/// Report the bundled employee ACP and check external launch executables on the gateway.
 async fn global_acp_installed_get() -> Json<std::collections::BTreeMap<String, bool>> {
     Json(
         merged_global_acp_config()
             .await
             .into_iter()
             .map(|(key, config)| {
-                let installed = acp_command_installed(&config.command);
+                let installed = key == acp_agent_registry::EMPLOYEE_ACP_BACKEND
+                    || acp_command_installed(&config.command);
                 (key, installed)
             })
             .collect(),

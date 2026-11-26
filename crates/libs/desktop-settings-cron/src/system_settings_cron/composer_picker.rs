@@ -241,6 +241,7 @@ fn agent_list<'a>(
     let mut any = false;
     for agent in agents {
         let mut detail = match agent.backend.as_deref() {
+            Some(_) if agent.requires_employee_target => i18n.__("内置 ACP").to_owned(),
             Some(backend) => {
                 let status = match agent.installed {
                     Some(true) => i18n.__("已安装"),

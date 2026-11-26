@@ -10,7 +10,11 @@ fn acp_catalog_search_combines_with_install_status_and_preserves_order() {
     for name in ["employee-acp", "claude", "codex", "custom"] {
         state.catalog.insert(name.into(), AcpAgentConfig::default());
     }
-    state.installed.extend([("claude".into(), true), ("codex".into(), false)]);
+    state.installed.extend([
+        (super::EMPLOYEE_ACP_BACKEND.into(), false),
+        ("claude".into(), true),
+        ("codex".into(), false),
+    ]);
     assert_eq!(
         super::filtered_agents(&state, SimplifiedChinese),
         ["employee-acp", "claude", "codex", "custom"]

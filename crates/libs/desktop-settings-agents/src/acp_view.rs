@@ -27,7 +27,7 @@ pub fn acp_card<'a>(input: Input<'a>, agent: String, config: &'a AcpAgentConfig)
     let employee = agent == acp_agent_registry::EMPLOYEE_ACP_BACKEND;
     let builtin = built_in_agent_display_name(&agent).is_some();
     let enabled = input.state.enabled.contains(&agent);
-    let installed = input.state.installed.get(&agent).copied().unwrap_or_default();
+    let installed = !employee && input.state.installed.get(&agent) == Some(&true);
     let saving = input.state.saving_agent.as_deref() == Some(agent.as_str());
     let copied = input.state.copied_agent.as_deref() == Some(agent.as_str());
     let testing = input.state.diagnostic_agent.as_deref() == Some(agent.as_str())

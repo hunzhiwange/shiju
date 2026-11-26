@@ -596,6 +596,21 @@ fn agent_unified_selection_install_status_uses_gateway_executable_without_downlo
 }
 
 #[tokio::test]
+async fn global_acp_installed_route_reports_bundled_employee_acp() {
+    let _env_lock = super::global_async_env_lock().lock().await;
+    let temp = TempDir::new().expect("temp dir");
+    let (_home, _config_dir, _workspace) = use_temp_config_dir(&temp);
+
+    let response = router::<()>()
+        .oneshot(Request::builder().uri("/global/config/acp/installed").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let statuses = response_json(response).await;
+    assert_eq!(statuses.get(acp_agent_registry::EMPLOYEE_ACP_BACKEND), Some(&Value::Bool(true)));
+}
+
+#[tokio::test]
 async fn global_acp_defaults_route_returns_builtin_launch_fields() {
     let response = router::<()>()
         .oneshot(Request::builder().uri("/global/config/acp/defaults").body(Body::empty()).unwrap())

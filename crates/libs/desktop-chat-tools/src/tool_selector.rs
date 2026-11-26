@@ -359,6 +359,11 @@ pub fn session_tool_selector_popover(input: SelectorInput<'_>) -> Element<'stati
                 let selected = selected_agent_key == entry.key;
                 let engine = match &entry.runtime {
                     config_agent_profile::AgentRuntime::Native => i18n.__("识矩原生").to_string(),
+                    config_agent_profile::AgentRuntime::Acp { backend }
+                        if backend == desktop_settings_agents::acp::EMPLOYEE_ACP_BACKEND =>
+                    {
+                        i18n.__("内置 ACP").to_string()
+                    }
                     config_agent_profile::AgentRuntime::Acp { backend } => format!(
                         "ACP · {backend} · {}",
                         match runtime.acp_installed.get(backend) {

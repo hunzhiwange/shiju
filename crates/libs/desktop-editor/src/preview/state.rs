@@ -7,8 +7,6 @@ pub struct State {
     pub editor_config_persistence: crate::persistence::ConfigPersistence,
     /// 预览滚动容器 ID
     pub preview_scroll_id: Id,
-    /// 预览标签页滚动容器 ID
-    pub preview_tabs_scroll_id: Id,
     /// LSP 覆盖层状态（仅非 wasm32 平台）
     #[cfg(not(target_arch = "wasm32"))]
     pub lsp_overlay: iced_code_editor::LspOverlayState,
@@ -88,7 +86,6 @@ impl State {
             editor_metrics_preview: Default::default(),
             editor_config_persistence: Default::default(),
             preview_scroll_id: iced::widget::Id::new("preview"),
-            preview_tabs_scroll_id: iced::widget::Id::new("preview_tabs"),
             #[cfg(not(target_arch = "wasm32"))]
             lsp_overlay: iced_code_editor::LspOverlayState::new(),
             #[cfg(not(target_arch = "wasm32"))]

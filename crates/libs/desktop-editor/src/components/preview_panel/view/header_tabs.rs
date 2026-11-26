@@ -1,38 +1,27 @@
-//! 预览面板标签页头部组件
-//!
-//! 本模块实现了预览面板顶部的标签页条（header tabs）组件，用于显示和管理多个打开的预览标签页。
-//!
-//! # 主要功能
-//!
-//! - **标签页渲染**：动态渲染所有打开的预览标签页，包括文件图标和标题
-//! - **标签页交互**：支持点击切换、关闭标签页、右键菜单、拖拽等交互
-//! - **视觉反馈**：提供选中状态、悬停状态、按下状态等视觉反馈
-//! - **自适应主题**：根据明暗主题自动调整标签页的颜色和样式
-//! - **可滚动容器**：当标签页过多时支持水平滚动
-//!
-//! # 使用场景
-//!
-//! 该组件通常作为预览面板的头部使用，显示当前打开的所有预览文件标签，
-//! 用户可以通过点击标签切换预览内容，通过关闭按钮或右键菜单关闭标签。
+//! 文件编辑器标签栏。空间不足时，右侧下拉列出其余打开的文件。
+
+use std::{collections::HashMap, fmt};
 
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::overlays::PointBelowOverlay;
 use desktop_ui_controls::right_click_area::RightClickArea;
-use super::HeaderMessage as Message;
-use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{button, container, row, scrollable, text};
-use iced::{Background, Color, Element, Length, Point};
+use desktop_ui_controls::single_line_label::SingleLineLabel;
+use desktop_ui_controls::system_settings_common::settings_select;
+use iced::widget::{button, container, responsive, row};
+use iced::{Background, Color, Element, Length, Point, alignment};
 
 use super::super::styles::{
-    file_icon_for, file_tab_icon_svg, small_icon_svg,
-    truncate_title,
+    estimate_tab_width_px, file_icon_for, file_tab_icon_svg, small_icon_svg,
 };
 use super::super::tabs::build_preview_tab_menu;
 use super::super::widgets::DraggableArea;
+use super::HeaderMessage as Message;
 
-pub fn header_tabs_height(scrollbar_visible: bool) -> f32 {
-    if scrollbar_visible { 36.0 } else { 30.0 }
-}
+const TAB_HEIGHT: f32 = 28.0;
+const TAB_SPACING: f32 = 4.0;
+const CONTROL_WIDTH: f32 = 28.0;
+const MIN_TAB_WIDTH: f32 = 64.0;
+const MAX_TAB_WIDTH: f32 = 200.0;
 
 pub fn tab_is_selected(active_path: Option<&str>, tab_path: &str) -> bool {
     active_path == Some(tab_path)
@@ -126,19 +115,18 @@ pub fn tab_menu_anchor(menu_pos: Option<Point>) -> Point {
     menu_pos.unwrap_or(Point::ORIGIN)
 }
 
-pub fn preview_tab<'a, M: Clone + 'a>(
+fn preview_tab<'a, M: Clone + 'a>(
     title: &str,
     selected: bool,
     select: M,
     close: M,
 ) -> Element<'a, M> {
     let icon = file_icon_for(title);
-    let title = truncate_title(title, 40);
     let close =
         button(small_icon_svg(Icon::X)).on_press(close).padding(2).style(close_button_style);
     let content = row![
         container(file_tab_icon_svg(icon)).width(Length::Fixed(16.0)),
-        container(text(title).size(13))
+        container(SingleLineLabel::new(title.to_owned(), 13.0))
             .width(Length::Fill)
             .align_y(iced::alignment::Vertical::Center),
         container(close).width(Length::Shrink),
@@ -147,7 +135,7 @@ pub fn preview_tab<'a, M: Clone + 'a>(
     .align_y(iced::Alignment::Center)
     .width(Length::Fill);
 
-    button(container(content).padding([4, 6]).height(28).width(Length::Fill))
+    button(container(content).padding([4, 6]).height(TAB_HEIGHT).width(Length::Fill))
         .on_press(select)
         .style(move |theme, status| tab_button_style(theme, status, selected))
         .padding(0)
@@ -155,125 +143,215 @@ pub fn preview_tab<'a, M: Clone + 'a>(
         .into()
 }
 
-/// 构建预览面板的标签页头部组件
-///
-/// 该函数根据当前应用状态构建预览面板顶部的标签页条，包含所有打开的预览标签页。
-/// 每个标签页支持以下功能：
-/// - 点击切换到对应的预览内容
-/// - 关闭按钮（X 图标）用于关闭标签页
-/// - 右键菜单提供更多操作选项
-/// - 拖拽功能支持将文件拖拽到其他位置
-/// - 选中状态的视觉区分
-///
-/// # 参数
-///
-/// * `app` - 应用状态的不可变引用，包含预览标签页列表、当前激活的预览路径等信息
-///
-/// # 返回值
-///
-/// 返回一个 `Element<Message>` 类型的 UI 元素，包含所有标签页的可滚动容器
-///
-/// # 示例
-///
-/// ```rust,ignore
-/// // 在预览面板的视图中构建标签页头部
-/// let header = build_header_tabs(&app);
-/// // 返回的 Element 可以直接用于 iced 的 UI 布局中
-/// ```
-///
-/// # 视觉行为说明
-///
-/// - 标签页高度根据是否显示滚动条自适应：有滚动条时 36px，无滚动条时 30px
-/// - 标签页宽度根据内容自动收缩（Shrink）
-/// - 标签页间距为 4px
-/// - 选中标签页有背景色高亮
-/// - 悬停和按下状态有不同的背景色反馈
-/// - 标签页标题超过 28 个字符时会被截断
-pub fn build_header_tabs<'a>(tabs_data: impl IntoIterator<Item = (&'a str, &'a str)>, active_path: Option<&str>, menu_path: Option<&str>, menu_pos: Option<Point>, scroll_id: iced::widget::Id, tabs_scrollbar_visible: bool, i18n: desktop_i18n::I18n) -> Element<'a, Message> {
-    // 判断是否需要显示滚动条，影响标签页容器的高度
+pub struct FileTab<'a, Key, M> {
+    pub key: Key,
+    pub title: &'a str,
+    pub path: &'a str,
+    pub selected: bool,
+    pub select: M,
+    pub close: M,
+}
 
-    // 根据滚动条可见性调整标签页头部高度：有滚动条时更高（38px），无滚动条时较矮（30px）
-    let tabs_header_height = header_tabs_height(tabs_scrollbar_visible);
+#[derive(Clone)]
+struct OverflowTab<Key, M> {
+    key: Key,
+    label: String,
+    select: M,
+}
 
-    // 初始化标签页行容器，设置间距和固定高度
-    let mut tabs: iced::widget::Row<'_, Message, iced::Theme, iced::Renderer> =
-        row![].spacing(4).height(Length::Fixed(28.0));
+impl<Key: PartialEq, M> PartialEq for OverflowTab<Key, M> {
+    fn eq(&self, other: &Self) -> bool {
+        self.key == other.key && self.label == other.label
+    }
+}
 
-    // 遍历所有预览标签页，为每个标签页构建 UI 组件
-    for (path, title) in tabs_data {
-        // 判断当前标签页是否被选中（与激活的预览路径比较）
-        let selected = tab_is_selected(active_path, path);
+impl<Key, M> fmt::Display for OverflowTab<Key, M> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.label)
+    }
+}
 
-        // 拖拽开始消息：在用户开始拖拽标签页时发送
-        let drag_start = tab_drag_start_message(path);
-        // 拖拽结束消息：在用户释放拖拽时发送
-        let drag_end = tab_drag_end_message();
+pub(super) fn visible_tab_widths(
+    widths: &[f32],
+    active: Option<usize>,
+    available: f32,
+    has_open_file: bool,
+) -> (Vec<Option<f32>>, bool) {
+    let control_space = CONTROL_WIDTH + TAB_SPACING;
+    let tabs_space = available - if has_open_file { control_space } else { 0.0 };
+    let total = widths.iter().sum::<f32>() + widths.len().saturating_sub(1) as f32 * TAB_SPACING;
+    if widths.is_empty() || total <= tabs_space {
+        return (widths.iter().copied().map(Some).collect(), has_open_file);
+    }
+    if widths.len() == 1 && tabs_space >= MIN_TAB_WIDTH {
+        return (vec![Some(tabs_space)], has_open_file);
+    }
 
-        // 克隆路径用于右键菜单回调（闭包捕获需要所有权）
-        let path_for_menu = path.to_owned();
-        // 克隆路径用于菜单显示状态检查
-        let path_for_menu_check = path.to_owned();
+    let show_open_file = has_open_file && available >= CONTROL_WIDTH + control_space;
+    let mut remaining = available - CONTROL_WIDTH;
+    if show_open_file {
+        remaining -= control_space;
+    }
 
-        let tab_button =
-            preview_tab(title, selected, tab_select_message(path), tab_close_message(path));
+    // 为当前文件预留位置，切换隐藏文件后可直接看到对应标签。
+    let mut visible = vec![None; widths.len()];
+    if let Some(active) = active {
+        let width = widths[active].min(remaining - TAB_SPACING);
+        if width >= MIN_TAB_WIDTH {
+            visible[active] = Some(width);
+            remaining -= width + TAB_SPACING;
+        }
+    }
 
-        // 将标签页按钮包装为可拖拽区域
-        let draggable_tab = Element::new(DraggableArea::new(tab_button, drag_start, drag_end));
+    for (index, &width) in widths.iter().enumerate() {
+        if Some(index) == active {
+            continue;
+        }
+        let occupied = width + TAB_SPACING;
+        if occupied > remaining {
+            break;
+        }
+        visible[index] = Some(width);
+        remaining -= occupied;
+    }
 
-        // 将可拖拽标签页包装为支持右键点击的区域
-        let right_click = Element::new(RightClickArea::new(
-            draggable_tab,
-            Box::new(move |pos| {
-                // 右键点击时发送消息，携带文件路径和点击位置
-                tab_right_click_message(&path_for_menu, pos)
-            }),
+    (visible, show_open_file)
+}
+
+pub fn file_tab_strip<'a, Key, M>(
+    tabs: Vec<FileTab<'a, Key, M>>,
+    open_file: Option<M>,
+    decorate: impl Fn(&Key, Element<'a, M>) -> Element<'a, M> + 'a,
+) -> Element<'a, M>
+where
+    Key: Clone + PartialEq + 'static,
+    M: Clone + 'static,
+{
+    let widths: Vec<_> =
+        tabs.iter().map(|tab| estimate_tab_width_px(tab.title).min(MAX_TAB_WIDTH)).collect();
+    let active = tabs.iter().position(|tab| tab.selected);
+    responsive(move |size| {
+        let (visible, show_open_file) =
+            visible_tab_widths(&widths, active, size.width, open_file.is_some());
+        let mut strip = row(tabs.iter().zip(&visible).filter_map(|(tab, width)| {
+            let width = (*width)?;
+            let button =
+                preview_tab(tab.title, tab.selected, tab.select.clone(), tab.close.clone());
+            Some(container(decorate(&tab.key, button)).width(width).into())
+        }))
+        .spacing(TAB_SPACING)
+        .align_y(iced::Alignment::Center)
+        .width(Length::Fill);
+        let open_button = open_file.as_ref().filter(|_| show_open_file).map(|action| {
+            button(container(small_icon_svg(Icon::Plus)).center(Length::Fill))
+                .width(CONTROL_WIDTH)
+                .height(TAB_HEIGHT)
+                .on_press(action.clone())
+                .padding(0)
+                .style(close_button_style)
+        });
+
+        if visible.iter().any(Option::is_none) {
+            let dropdown = overflow_dropdown(&tabs, &visible);
+            let actions =
+                row![open_button, dropdown].spacing(TAB_SPACING).align_y(iced::Alignment::Center);
+            strip = strip
+                .push(container(actions).width(Length::Fill).align_x(alignment::Horizontal::Right));
+        } else if let Some(open_button) = open_button {
+            strip = strip.push(open_button);
+        }
+
+        strip.into()
+    })
+    .height(Length::Fixed(30.0))
+    .into()
+}
+
+fn overflow_dropdown<'a, Key, M>(
+    tabs: &[FileTab<'a, Key, M>],
+    visible: &[Option<f32>],
+) -> Element<'a, M>
+where
+    Key: Clone + PartialEq + 'static,
+    M: Clone + 'static,
+{
+    let mut counts = HashMap::new();
+    for tab in tabs {
+        *counts.entry(tab.title).or_insert(0) += 1;
+    }
+
+    let mut selected = None;
+    let options = tabs
+        .iter()
+        .zip(visible)
+        .filter_map(|(tab, width)| {
+            if width.is_some() {
+                return None;
+            }
+
+            let label = if counts[tab.title] > 1 && tab.path != tab.title {
+                format!("{} · {}", tab.title, tab.path)
+            } else {
+                tab.title.to_owned()
+            };
+            let option = OverflowTab { key: tab.key.clone(), label, select: tab.select.clone() };
+            if tab.selected {
+                selected = Some(option.clone());
+            }
+            Some(option)
+        })
+        .collect::<Vec<_>>();
+
+    settings_select(options, selected, |tab| tab.select)
+        .menu_icon(Icon::ChevronDown, 260.0)
+        .width(Length::Fixed(CONTROL_WIDTH))
+        .height(TAB_HEIGHT)
+        .roomy_menu(true)
+        .align_menu_right()
+        .open_on_right_click()
+        .into()
+}
+
+pub fn build_header_tabs<'a>(
+    tabs_data: impl IntoIterator<Item = (&'a str, &'a str)>,
+    active_path: Option<&str>,
+    menu_path: Option<&'a str>,
+    menu_pos: Option<Point>,
+    i18n: desktop_i18n::I18n,
+) -> Element<'a, Message> {
+    let tabs = tabs_data
+        .into_iter()
+        .map(|(path, title)| FileTab {
+            key: path.to_owned(),
+            title,
+            path,
+            selected: tab_is_selected(active_path, path),
+            select: tab_select_message(path),
+            close: tab_close_message(path),
+        })
+        .collect();
+
+    file_tab_strip(tabs, Some(open_file_message()), move |path, tab| {
+        let draggable = Element::new(DraggableArea::new(
+            tab,
+            tab_drag_start_message(path),
+            tab_drag_end_message(),
         ));
+        let menu_target = path.clone();
+        let tab = RightClickArea::new(
+            draggable,
+            Box::new(move |position| tab_right_click_message(&menu_target, position)),
+        );
 
-        // 检查是否需要为当前标签页显示右键菜单
-        let tab_item =
-            if tab_context_menu_matches(menu_path, &path_for_menu_check)
-            {
-                // 如果当前标签页是菜单目标，则在标签页下方显示菜单叠加层
-                PointBelowOverlay::new(
-                    right_click,
-                    build_preview_tab_menu(
-                        i18n,
-                        &path_for_menu_check,
-                    ).map(Message::TabMenu),
-                )
+        if tab_context_menu_matches(menu_path, path) {
+            PointBelowOverlay::new(tab, build_preview_tab_menu(i18n, path).map(Message::TabMenu))
                 .show(true)
                 .anchor(tab_menu_anchor(menu_pos))
                 .on_close(Message::MenuClose)
                 .capture_outside_click(false)
                 .into()
-            } else {
-                // 否则只显示标签页本身
-                right_click
-            };
-
-        // 将构建好的标签页项添加到标签页行容器中
-        tabs = tabs.push(tab_item);
-    }
-
-    let open_file = button(
-        container(small_icon_svg(Icon::Plus))
-            .width(Length::Fixed(28.0))
-            .height(Length::Fixed(28.0))
-            .align_x(iced::alignment::Horizontal::Center)
-            .align_y(iced::alignment::Vertical::Center),
-    )
-    .on_press(open_file_message())
-    .padding(0)
-    .style(close_button_style);
-    tabs = tabs.push(open_file);
-
-    // 创建滚动条配置，宽度为 4px
-    let scrollbar = Scrollbar::new().width(4).scroller_width(4);
-
-    // 将标签页行包装在可滚动容器中并返回
-    scrollable(container(tabs).padding([0, 0]).width(Length::Fill))
-        .id(scroll_id)
-        .direction(Direction::Horizontal(scrollbar))
-        .height(Length::Fixed(tabs_header_height))
-        .into()
+        } else {
+            tab.into()
+        }
+    })
 }

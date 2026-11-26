@@ -283,22 +283,15 @@ fn file_preview<'a>(i18n: I18n, state: &'a Workbench) -> Element<'a, Message> {
     let Some(file) = state.files.active_preview() else {
         return centered(i18n.__("未选择文件"));
     };
-    let tabs = row(state.files.previews.iter().map(|tab| {
-        let label =
-            tab.path().and_then(|path| path.rsplit('/').next()).unwrap_or(&tab.title);
-        header_tabs::preview_tab(
-            label,
-            tab.id == file.id,
-            state.file_message(files::Event::SelectPreview(tab.id)),
-            state.file_message(files::Event::ClosePreview(tab.id)),
-        )
-    }))
-    .spacing(4)
-    .height(28);
-    let tabs = scrollable(tabs)
-        .direction(Direction::Horizontal(Scrollbar::new().width(4).scroller_width(4)))
-        .width(Length::Fill)
-        .height(header_tabs::header_tabs_height(true));
+    let tabs = state.files.previews.iter().map(|tab| header_tabs::FileTab {
+        key: tab.id,
+        title: tab.path().and_then(|path| path.rsplit('/').next()).unwrap_or(&tab.title),
+        path: &tab.title,
+        selected: tab.id == file.id,
+        select: state.file_message(files::Event::SelectPreview(tab.id)),
+        close: state.file_message(files::Event::ClosePreview(tab.id)),
+    });
+    let tabs = header_tabs::file_tab_strip(tabs.collect(), None, |_, tab| tab);
     let editor = file.editor().map(|document| &document.editor.inner);
     let open_standalone =
         state.local() && file.path().is_some() && matches!(&file.content, Some(Ok(_)));

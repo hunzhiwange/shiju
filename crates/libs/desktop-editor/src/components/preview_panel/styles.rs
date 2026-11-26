@@ -5,22 +5,11 @@
 //! - 菜单按钮样式配置
 //! - 文件图标选择逻辑
 //! - 标签页标题截断与宽度估算
-//! - 滚动条显示判断逻辑
 
 use desktop_assets::assets::{self, Icon};
 use iced::widget::svg::{self, Svg};
 use iced::{Background, Border, Color, Length};
 use unicode_width::UnicodeWidthChar;
-
-/// 标签栏布局需要的窗口和分栏参数。
-#[derive(Clone, Copy)]
-pub struct PreviewTabsLayout {
-    pub window_width: f32,
-    pub show_file_manager: bool,
-    pub file_manager_width: f32,
-    pub show_diff: bool,
-    pub split_ratio: f32,
-}
 
 /// 生成菜单按钮的样式配置
 ///
@@ -232,65 +221,4 @@ pub(crate) fn estimate_tab_width_px(title: &str) -> f32 {
     // - 按钮容器水平内边距: 6px * 2 = 12px
     // - 标题宽度: 根据内容估算
     16.0 + 22.0 + 12.0 + 12.0 + estimate_tab_title_width_px(title)
-}
-
-/// 估算预览标签视口的像素宽度
-///
-/// 根据窗口大小和面板布局状态，计算预览标签栏的实际可用宽度。
-/// 考虑文件管理器面板和差异对比视图的分隔占用。
-///
-/// # 参数
-/// - `layout`: 窗口大小和面板配置
-///
-/// # 返回值
-/// 返回估算的视口宽度（像素），至少为 1.0
-pub fn estimate_preview_tabs_viewport_width(layout: PreviewTabsLayout) -> f32 {
-    // 从窗口宽度开始计算
-    let mut width = layout.window_width.max(1.0);
-
-    // 减去文件管理器面板占用的宽度
-    if layout.show_file_manager {
-        // 文件管理器分隔线命中宽度(8px) + 面板宽度
-        width -= 8.0 + layout.file_manager_width;
-    }
-
-    // 在差异对比视图中，进一步分配右侧空间
-    if layout.show_diff {
-        // 减去分隔线命中宽度(8px)，然后将剩余宽度分配给预览面板
-        width = (width - 8.0).max(1.0);
-
-        // 计算右侧比例（限制在 20%-80% 之间）
-        let right_ratio = (1.0 - layout.split_ratio).clamp(0.2, 0.8);
-        width *= right_ratio;
-    }
-
-    // 减去预览面板在项目视图中的内边距与右上角按钮预留（近似值）
-    (width - 18.0).max(1.0)
-}
-
-/// 判断是否应该显示预览标签栏的滚动条
-///
-/// 通过估算所有标签页的总宽度和视口可用宽度进行比较，
-/// 判断是否需要显示水平滚动条。
-///
-/// # 参数
-/// - `layout`: 面板布局；`titles`: 借用的标签标题
-///
-/// # 返回值
-/// - `true`: 标签页总宽度超过视口宽度，需要显示滚动条
-/// - `false`: 标签页可完全显示，无需滚动条
-///
-/// # 计算逻辑
-/// 总宽度 = 所有标签页宽度之和 + 标签间距(每个标签间4px) + 末尾边距(4px)
-pub fn should_show_preview_tabs_scrollbar<'a>(
-    layout: PreviewTabsLayout,
-    titles: impl ExactSizeIterator<Item = &'a str>,
-) -> bool {
-    let count = titles.len();
-    if count == 0 {
-        return false;
-    }
-    let total_tabs_width = titles.map(estimate_tab_width_px).sum::<f32>()
-        + count.saturating_sub(1) as f32 * 4.0 + 4.0;
-    total_tabs_width > estimate_preview_tabs_viewport_width(layout)
 }

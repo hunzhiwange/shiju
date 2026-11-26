@@ -68,6 +68,7 @@ pub(super) struct SelectMenu<'a, Message> {
     pub option_count: usize,
     pub row_height: f32,
     pub roomy: bool,
+    pub align_right: bool,
 }
 
 impl<Message> SelectMenu<'_, Message> {
@@ -102,7 +103,12 @@ impl<Message> overlay::Overlay<Message, Theme, Renderer> for SelectMenu<'_, Mess
             renderer,
             &layout::Limits::new(Size::ZERO, Size::new(width, height)).width(Length::Fixed(width)),
         );
-        let x = self.anchor.x.clamp(
+        let x = if self.align_right {
+            self.anchor.x + self.anchor.width - node.size().width
+        } else {
+            self.anchor.x
+        };
+        let x = x.clamp(
             viewport.x + EDGE,
             (viewport.x + viewport.width - EDGE - width).max(viewport.x + EDGE),
         );

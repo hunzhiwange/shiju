@@ -1,6 +1,6 @@
 use super::header_tabs::*;
-use iced::{Background, Color, Point, Theme};
 use iced::widget::button;
+use iced::{Background, Color, Point, Theme};
 fn style_background(style: &button::Style) -> Option<Color> {
     match &style.background {
         Some(Background::Color(color)) => Some(*color),
@@ -10,10 +10,30 @@ fn style_background(style: &button::Style) -> Option<Color> {
 }
 
 #[test]
-fn header_tabs_height_tracks_scrollbar_visibility() {
-    assert_eq!(header_tabs_height(false), 30.0);
-    assert_eq!(header_tabs_height(true), 36.0);
+fn overflow_reserves_room_for_the_active_tab_and_controls() {
+    let widths = [100.0, 100.0, 100.0];
+    assert_eq!(visible_tab_widths(&widths, Some(2), 340.0, true), (vec![Some(100.0); 3], true),);
+    assert_eq!(
+        visible_tab_widths(&widths, Some(2), 268.0, true),
+        (vec![Some(100.0), None, Some(100.0)], true),
+    );
+    assert_eq!(
+        visible_tab_widths(&widths, Some(2), 130.0, true),
+        (vec![None, None, Some(66.0)], true),
+    );
+    assert_eq!(visible_tab_widths(&widths, Some(2), 50.0, true), (vec![None, None, None], false),);
+    assert_eq!(
+        visible_tab_widths(&widths, Some(2), 240.0, false),
+        (vec![Some(100.0), None, Some(100.0)], false),
+    );
 }
+
+#[test]
+fn a_single_long_tab_uses_the_remaining_width() {
+    assert_eq!(visible_tab_widths(&[200.0], Some(0), 120.0, true), (vec![Some(88.0)], true));
+    assert_eq!(visible_tab_widths(&[], None, 10.0, true), (vec![], true));
+}
+
 #[test]
 fn tab_selection_matches_only_the_active_path() {
     assert!(tab_is_selected(Some("/tmp/a.rs"), "/tmp/a.rs"));

@@ -53,6 +53,8 @@ pub fn settings_select<'a, Message: Clone + 'a, T: Clone + PartialEq + ToString 
         trigger_height: None,
         menu_min_width: None,
         roomy_menu: false,
+        open_on_right_click: false,
+        align_menu_right: false,
     }
 }
 
@@ -73,6 +75,8 @@ pub struct SettingsSelect<'a, T, Message> {
     trigger_height: Option<f32>,
     menu_min_width: Option<f32>,
     roomy_menu: bool,
+    open_on_right_click: bool,
+    align_menu_right: bool,
 }
 
 impl<T, Message> SettingsSelect<'_, T, Message> {
@@ -127,6 +131,18 @@ impl<T, Message> SettingsSelect<'_, T, Message> {
 
     pub fn menu_min_width(mut self, width: f32) -> Self {
         self.menu_min_width = Some(width);
+        self
+    }
+
+    /// Allow a right click on the trigger to open the menu.
+    pub fn open_on_right_click(mut self) -> Self {
+        self.open_on_right_click = true;
+        self
+    }
+
+    /// Align the menu's right edge with the trigger when viewport space permits.
+    pub fn align_menu_right(mut self) -> Self {
+        self.align_menu_right = true;
         self
     }
 
@@ -328,11 +344,16 @@ impl<T: PartialEq + 'static, Message: Clone> Widget<Message, Theme, Renderer> fo
         }
 
         let pointer_over = cursor.is_over(layout.bounds()) && cursor.is_over(*viewport);
-        if matches!(
-            event,
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
-                | Event::Touch(iced::touch::Event::FingerPressed { .. })
-        ) {
+        let right_click = self.open_on_right_click
+            && pointer_over
+            && matches!(event, Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)));
+        if right_click
+            || matches!(
+                event,
+                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
+                    | Event::Touch(iced::touch::Event::FingerPressed { .. })
+            )
+        {
             let focused = pointer_over && !shell.is_event_captured();
             if state.focused != focused {
                 state.focused = focused;
@@ -374,7 +395,7 @@ impl<T: PartialEq + 'static, Message: Clone> Widget<Message, Theme, Renderer> fo
             }
             _ => None,
         };
-        if !messages.is_empty() || keyboard_start.is_some() {
+        if right_click || !messages.is_empty() || keyboard_start.is_some() {
             state.menu = MenuState {
                 open: true,
                 keyboard_option: keyboard_start.or(self.selected),
@@ -481,6 +502,7 @@ impl<T: PartialEq + 'static, Message: Clone> Widget<Message, Theme, Renderer> fo
             option_count: self.labels.len(),
             row_height,
             roomy: self.roomy_menu,
+            align_right: self.align_menu_right,
         })))
     }
 }

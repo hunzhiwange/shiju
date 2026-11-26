@@ -1,5 +1,4 @@
 //! 网关派发请求转换及流事件日志投影。
-use std::path::Path;
 use anyhow::Result;
 use serde_json::{Map, Value, json};
 use vw_api_acp_model::acp_model_source::AcpModelSource;
@@ -15,7 +14,7 @@ pub(crate) const GATEWAY_STREAM_FIELD_LOG_LIMIT: usize = 160;
 /// 将网关流式载荷裁剪为安全长度后追加到任务日志。
 pub fn append_gateway_stream_payload_task_log(
     store: &AgentSchedulerStore,
-    project_path: &Path,
+    project_path: &(impl crate::store::AgentSchedulerStorageContext + ?Sized),
     task_id: &TaskId,
     run_id: &RunId,
     timestamp_ms: TimestampMs,

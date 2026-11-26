@@ -4,8 +4,7 @@
 use anyhow::Result;
 use serde_json::{Value, json};
 use vw_api_task::{
-    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
-    TaskPoolWorkflowTransitionDto,
+    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusCategoryDto,
 };
 use vw_api_transport::common::TimestampMs;
 
@@ -30,18 +29,14 @@ fn agent_scheduler_policy_promotes_retries_times_out_and_plans_merge() -> Result
     store.initialize_project(&project_path)?;
     store.save_task_board_workflow(&project_path, &{
         let statuses: Vec<vw_api_task::TaskPoolWorkflowStatusDto> = vec![
-            workflow_status("queued", TaskPoolWorkflowStatusRoleDto::Queued),
-            workflow_status_with_transitions(
+            workflow_status("queued", TaskPoolWorkflowStatusCategoryDto::Unstarted),
+            workflow_status(
                 "running",
-                TaskPoolWorkflowStatusRoleDto::Executing,
-                vec![workflow_transition("failure", "failed")],
-            ),
-            workflow_status("code_complete", TaskPoolWorkflowStatusRoleDto::ReviewReady),
-            workflow_status_with_transitions(
+                TaskPoolWorkflowStatusCategoryDto::Started),
+            workflow_status("code_complete", TaskPoolWorkflowStatusCategoryDto::Started),
+            workflow_status(
                 "failed",
-                TaskPoolWorkflowStatusRoleDto::Failed,
-                vec![workflow_transition("retry", "queued")],
-            ),
+                TaskPoolWorkflowStatusCategoryDto::Started),
         ];
         TaskPoolWorkflowSnapshotDto {
             id: "dev_lifecycle".to_string(),
@@ -50,13 +45,7 @@ fn agent_scheduler_policy_promotes_retries_times_out_and_plans_merge() -> Result
                 .first()
                 .map(|status| status.key.clone())
                 .unwrap_or_default(),
-            steps: statuses
-                .iter()
-                .map(|status| vw_api_task::TaskPoolWorkflowStepDto {
-                    status_key: status.key.clone(),
-                    handoff: vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
-                })
-                .collect(),
+            steps: workflow_steps(&statuses),
             statuses,
         }
     })?;
@@ -73,7 +62,7 @@ fn agent_scheduler_policy_promotes_retries_times_out_and_plans_merge() -> Result
             AgentTaskStatus::Draft,
             json!({
                 "task_board.status_key": "pool",
-                "task_board.status_role": "backlog",
+                "task_board.status_category": "unstarted",
                 "auto_promote_delay_ms": 0
             }),
             TimestampMs(1_000),
@@ -86,7 +75,7 @@ fn agent_scheduler_policy_promotes_retries_times_out_and_plans_merge() -> Result
             AgentTaskStatus::Failed,
             json!({
                 "task_board.status_key": "failed",
-                "task_board.status_role": "failed",
+                "task_board.status_category": "started",
                 "last_error": "model response timed out",
                 "last_active_at_ms": 1_000,
                 "retry_count": 1
@@ -101,7 +90,7 @@ fn agent_scheduler_policy_promotes_retries_times_out_and_plans_merge() -> Result
             AgentTaskStatus::Running,
             json!({
                 "task_board.status_key": "running",
-                "task_board.status_role": "executing"
+                "task_board.status_category": "started"
             }),
             TimestampMs(1_000),
         )?,
@@ -125,7 +114,7 @@ fn agent_scheduler_policy_promotes_retries_times_out_and_plans_merge() -> Result
             AgentTaskStatus::Submitted,
             json!({
                 "task_board.status_key": "code_complete",
-                "task_board.status_role": "review_ready",
+                "task_board.status_category": "started",
                 "merge_source_branch": "feature/policy",
                 "merge_target_branch": "main",
                 "selected_worktree_path": project_path.to_string_lossy(),
@@ -159,7 +148,7 @@ fn agent_scheduler_policy_promotes_retries_times_out_and_plans_merge() -> Result
     let merge_task = store.load_task(&project_path, &merge_id)?.expect("merge task");
     assert_eq!(merge_task.status, AgentTaskStatus::Submitted);
     assert_eq!(merge_task.metadata["task_board.status_key"], "code_complete");
-    assert_eq!(merge_task.metadata["task_board.status_role"], "review_ready");
+    assert_eq!(merge_task.metadata["task_board.status_category"], "started");
 
     let second = service.apply_project_policy(&project_path, TimestampMs(122_000), &config)?;
     assert_eq!(second.timed_out_task_ids, vec![running_id.clone()]);
@@ -196,7 +185,7 @@ fn agent_scheduler_policy_leaves_pool_task_draft_without_legacy_auto_promote() -
             AgentTaskStatus::Draft,
             json!({
                 "task_board.status_key": "pool",
-                "task_board.status_role": "backlog",
+                "task_board.status_category": "unstarted",
                 "auto_promote_delay_ms": 0
             }),
             TimestampMs(1_000),
@@ -218,7 +207,7 @@ fn agent_scheduler_policy_leaves_pool_task_draft_without_legacy_auto_promote() -
 }
 
 #[test]
-fn agent_scheduler_policy_promotes_due_pool_task_when_explicitly_enabled() -> Result<()> {
+fn agent_scheduler_policy_does_not_move_human_step_when_legacy_promotion_enabled() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let project_path = temp_dir.path().join("project-agent-scheduler-policy-pool-enabled");
     std::fs::create_dir_all(&project_path)?;
@@ -233,7 +222,7 @@ fn agent_scheduler_policy_promotes_due_pool_task_when_explicitly_enabled() -> Re
             AgentTaskStatus::Draft,
             json!({
                 "task_board.status_key": "pool",
-                "task_board.status_role": "backlog",
+                "task_board.status_category": "unstarted",
                 "auto_promote_delay_ms": 0
             }),
             TimestampMs(1_000),
@@ -249,10 +238,10 @@ fn agent_scheduler_policy_promotes_due_pool_task_when_explicitly_enabled() -> Re
         },
     )?;
 
-    assert_eq!(outcome.promoted_task_ids, vec![pool_id.clone()]);
+    assert!(outcome.promoted_task_ids.is_empty());
     let task = store.load_task(&project_path, &pool_id)?.expect("pool task");
-    assert_eq!(task.status, AgentTaskStatus::Queued);
-    assert_eq!(task.metadata["task_board.status_role"], "queued");
+    assert_eq!(task.status, AgentTaskStatus::Draft);
+    assert_eq!(task.metadata["task_board.status_category"], "unstarted");
     Ok(())
 }
 
@@ -273,7 +262,7 @@ fn agent_scheduler_policy_leaves_review_ready_task_for_stage_action() -> Result<
             AgentTaskStatus::Running,
             json!({
                 "task_board.status_key": "running",
-                "task_board.status_role": "executing",
+                "task_board.status_category": "started",
                 "merge_target_branch": "main"
             }),
             TimestampMs(1_000),
@@ -331,7 +320,7 @@ fn agent_scheduler_policy_leaves_review_ready_task_for_stage_action() -> Result<
     let task = store.load_task(&project_path, &task_id)?.expect("task");
     assert_eq!(task.status, AgentTaskStatus::Submitted);
     assert_eq!(task.metadata["task_board.status_key"], "code_complete");
-    assert_eq!(task.metadata["task_board.status_role"], "review_ready");
+    assert_eq!(task.metadata["task_board.status_category"], "started");
 
     Ok(())
 }
@@ -354,7 +343,7 @@ fn agent_scheduler_policy_no_longer_reads_legacy_review_switch() -> Result<()> {
             AgentTaskStatus::Submitted,
             json!({
                 "task_board.status_key": "code_complete",
-                "task_board.status_role": "review_ready",
+                "task_board.status_category": "started",
                 "merge_source_branch": "feature/review-cutover",
                 "merge_target_branch": "main",
                 "selected_worktree_path": project_path.to_string_lossy(),
@@ -377,7 +366,7 @@ fn agent_scheduler_policy_no_longer_reads_legacy_review_switch() -> Result<()> {
     let task = store.load_task(&project_path, &task_id)?.expect("task");
     assert_eq!(task.status, AgentTaskStatus::Submitted);
     assert_eq!(task.metadata["task_board.status_key"], "code_complete");
-    assert_eq!(task.metadata["task_board.status_role"], "review_ready");
+    assert_eq!(task.metadata["task_board.status_category"], "started");
 
     Ok(())
 }
@@ -398,7 +387,7 @@ fn agent_scheduler_policy_leaves_review_ready_without_merge_metadata_for_stage_a
             AgentTaskStatus::Submitted,
             json!({
                 "task_board.status_key": "code_complete",
-                "task_board.status_role": "review_ready"
+                "task_board.status_category": "started"
             }),
             TimestampMs(1_000),
         )?,
@@ -415,7 +404,7 @@ fn agent_scheduler_policy_leaves_review_ready_without_merge_metadata_for_stage_a
     let task = store.load_task(&project_path, &task_id)?.expect("task");
     assert_eq!(task.status, AgentTaskStatus::Submitted);
     assert_eq!(task.metadata["task_board.status_key"], "code_complete");
-    assert_eq!(task.metadata["task_board.status_role"], "review_ready");
+    assert_eq!(task.metadata["task_board.status_category"], "started");
     let logs = store.list_task_logs(&project_path, &task_id)?;
     assert!(logs.is_empty());
     let events = store.list_events_after(&project_path, None, 100)?;
@@ -441,7 +430,7 @@ fn agent_scheduler_policy_waits_for_explicit_marketing_result() -> Result<()> {
             json!({
                 "task_board.workflow_id": "marketing_campaign",
                 "task_board.status_key": "campaign_review_ready",
-                "task_board.status_role": "review_ready"
+                "task_board.status_category": "started"
             }),
             TimestampMs(1_000),
         )?,
@@ -471,13 +460,11 @@ fn agent_scheduler_policy_retries_failed_task_by_lifecycle_transition() -> Resul
     store.initialize_project(&project_path)?;
     store.save_task_board_workflow(&project_path, &{
         let statuses: Vec<vw_api_task::TaskPoolWorkflowStatusDto> = vec![
-            workflow_status("initial_queue", TaskPoolWorkflowStatusRoleDto::Queued),
-            workflow_status_with_transitions(
+            workflow_status("initial_queue", TaskPoolWorkflowStatusCategoryDto::Unstarted),
+            workflow_status(
                 "custom_failed",
-                TaskPoolWorkflowStatusRoleDto::Failed,
-                vec![workflow_transition("retry", "retry_queue")],
-            ),
-            workflow_status("retry_queue", TaskPoolWorkflowStatusRoleDto::Queued),
+                TaskPoolWorkflowStatusCategoryDto::Started),
+            workflow_status("retry_queue", TaskPoolWorkflowStatusCategoryDto::Unstarted),
         ];
         TaskPoolWorkflowSnapshotDto {
             id: "policy_retry_flow".to_string(),
@@ -486,13 +473,7 @@ fn agent_scheduler_policy_retries_failed_task_by_lifecycle_transition() -> Resul
                 .first()
                 .map(|status| status.key.clone())
                 .unwrap_or_default(),
-            steps: statuses
-                .iter()
-                .map(|status| vw_api_task::TaskPoolWorkflowStepDto {
-                    status_key: status.key.clone(),
-                    handoff: vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
-                })
-                .collect(),
+            steps: workflow_steps(&statuses),
             statuses,
         }
     })?;
@@ -505,7 +486,7 @@ fn agent_scheduler_policy_retries_failed_task_by_lifecycle_transition() -> Resul
             json!({
                 "task_board.workflow_id": "policy_retry_flow",
                 "task_board.status_key": "custom_failed",
-                "task_board.status_role": "failed",
+                "task_board.status_category": "started",
                 "last_error": "transient failure",
                 "retry_count": 1
             }),
@@ -522,12 +503,12 @@ fn agent_scheduler_policy_retries_failed_task_by_lifecycle_transition() -> Resul
     assert_eq!(outcome.retry_task_ids, vec![task_id.clone()]);
     let task = store.load_task(&project_path, &task_id)?.expect("task");
     assert_eq!(task.status, AgentTaskStatus::Queued);
-    assert_eq!(task.metadata["task_board.status_key"], "retry_queue");
-    assert_eq!(task.metadata["task_board.status_role"], "queued");
+    assert_eq!(task.metadata["task_board.status_key"], "custom_failed");
+    assert_eq!(task.metadata["task_board.status_category"], "started");
     let logs = store.list_task_logs(&project_path, &task_id)?;
     assert!(logs.iter().any(|log| {
         log.from_status_key.as_deref() == Some("custom_failed")
-            && log.to_status_key.as_deref() == Some("retry_queue")
+            && log.to_status_key.as_deref() == Some("custom_failed")
     }));
     Ok(())
 }
@@ -541,13 +522,11 @@ fn agent_scheduler_policy_times_out_running_task_by_lifecycle_transition() -> Re
     store.initialize_project(&project_path)?;
     store.save_task_board_workflow(&project_path, &{
         let statuses: Vec<vw_api_task::TaskPoolWorkflowStatusDto> = vec![
-            workflow_status("generic_failed", TaskPoolWorkflowStatusRoleDto::Failed),
-            workflow_status_with_transitions(
+            workflow_status("generic_failed", TaskPoolWorkflowStatusCategoryDto::Started),
+            workflow_status(
                 "custom_running",
-                TaskPoolWorkflowStatusRoleDto::Executing,
-                vec![workflow_transition("failure", "timed_out_failed")],
-            ),
-            workflow_status("timed_out_failed", TaskPoolWorkflowStatusRoleDto::Failed),
+                TaskPoolWorkflowStatusCategoryDto::Started),
+            workflow_status("timed_out_failed", TaskPoolWorkflowStatusCategoryDto::Started),
         ];
         TaskPoolWorkflowSnapshotDto {
             id: "policy_timeout_flow".to_string(),
@@ -556,13 +535,7 @@ fn agent_scheduler_policy_times_out_running_task_by_lifecycle_transition() -> Re
                 .first()
                 .map(|status| status.key.clone())
                 .unwrap_or_default(),
-            steps: statuses
-                .iter()
-                .map(|status| vw_api_task::TaskPoolWorkflowStepDto {
-                    status_key: status.key.clone(),
-                    handoff: vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
-                })
-                .collect(),
+            steps: workflow_steps(&statuses),
             statuses,
         }
     })?;
@@ -576,7 +549,7 @@ fn agent_scheduler_policy_times_out_running_task_by_lifecycle_transition() -> Re
             json!({
                 "task_board.workflow_id": "policy_timeout_flow",
                 "task_board.status_key": "custom_running",
-                "task_board.status_role": "executing"
+                "task_board.status_category": "started"
             }),
             TimestampMs(1_000),
         )?,
@@ -605,8 +578,8 @@ fn agent_scheduler_policy_times_out_running_task_by_lifecycle_transition() -> Re
     assert_eq!(second.timed_out_task_ids, vec![task_id.clone()]);
     let task = store.load_task(&project_path, &task_id)?.expect("task");
     assert_eq!(task.status, AgentTaskStatus::Failed);
-    assert_eq!(task.metadata["task_board.status_key"], "timed_out_failed");
-    assert_eq!(task.metadata["task_board.status_role"], "failed");
+    assert_eq!(task.metadata["task_board.status_key"], "custom_running");
+    assert_eq!(task.metadata["task_board.status_category"], "started");
     let run = store.load_run(&project_path, &run_id)?.expect("timeout run");
     assert_eq!(run.status, AgentRunStatus::TimedOut);
     Ok(())
@@ -627,7 +600,7 @@ fn agent_scheduler_policy_disables_failed_task_retry_when_max_attempts_is_zero()
             AgentTaskStatus::Failed,
             json!({
                 "task_board.status_key": "failed",
-                "task_board.status_role": "failed",
+                "task_board.status_category": "started",
                 "last_error": "transient failure"
             }),
             TimestampMs(1_000),
@@ -666,7 +639,7 @@ fn agent_scheduler_policy_skips_deleted_and_archived_tasks() -> Result<()> {
             AgentTaskStatus::Failed,
             json!({
                 "task_board.status_key": "failed",
-                "task_board.status_role": "failed",
+                "task_board.status_category": "started",
                 "task_board.deleted": true,
                 "last_error": "transient failure"
             }),
@@ -680,7 +653,7 @@ fn agent_scheduler_policy_skips_deleted_and_archived_tasks() -> Result<()> {
             AgentTaskStatus::Submitted,
             json!({
                 "task_board.status_key": "code_complete",
-                "task_board.status_role": "review_ready",
+                "task_board.status_category": "started",
                 "task_board.archived": true
             }),
             TimestampMs(1_000),
@@ -712,7 +685,7 @@ fn agent_scheduler_policy_keeps_failed_tasks_when_retry_limit_or_backoff_blocks(
             AgentTaskStatus::Failed,
             json!({
                 "task_board.status_key": "failed",
-                "task_board.status_role": "failed",
+                "task_board.status_category": "started",
                 "last_error": "transient failure",
                 "retry_count": 1
             }),
@@ -726,7 +699,7 @@ fn agent_scheduler_policy_keeps_failed_tasks_when_retry_limit_or_backoff_blocks(
             AgentTaskStatus::Failed,
             json!({
                 "task_board.status_key": "failed",
-                "task_board.status_role": "failed",
+                "task_board.status_category": "started",
                 "last_error": "gateway stream idle timeout",
                 "last_active_at_ms": 90_000,
                 "retry_count": 1
@@ -764,12 +737,10 @@ fn agent_scheduler_policy_retries_failed_task_without_error_message() -> Result<
         initialized_policy_store("project-agent-scheduler-policy-retry-without-error")?;
     store.save_task_board_workflow(&project_path, &{
         let statuses: Vec<vw_api_task::TaskPoolWorkflowStatusDto> = vec![
-            workflow_status_with_transitions(
+            workflow_status(
                 "failed_without_error",
-                TaskPoolWorkflowStatusRoleDto::Failed,
-                vec![workflow_transition("retry", "queued_after_errorless_retry")],
-            ),
-            workflow_status("queued_after_errorless_retry", TaskPoolWorkflowStatusRoleDto::Queued),
+                TaskPoolWorkflowStatusCategoryDto::Started),
+            workflow_status("queued_after_errorless_retry", TaskPoolWorkflowStatusCategoryDto::Unstarted),
         ];
         TaskPoolWorkflowSnapshotDto {
             id: "policy_retry_without_error".to_string(),
@@ -778,13 +749,7 @@ fn agent_scheduler_policy_retries_failed_task_without_error_message() -> Result<
                 .first()
                 .map(|status| status.key.clone())
                 .unwrap_or_default(),
-            steps: statuses
-                .iter()
-                .map(|status| vw_api_task::TaskPoolWorkflowStepDto {
-                    status_key: status.key.clone(),
-                    handoff: vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
-                })
-                .collect(),
+            steps: workflow_steps(&statuses),
             statuses,
         }
     })?;
@@ -797,7 +762,7 @@ fn agent_scheduler_policy_retries_failed_task_without_error_message() -> Result<
             json!({
                 "task_board.workflow_id": "policy_retry_without_error",
                 "task_board.status_key": "failed_without_error",
-                "task_board.status_role": "failed"
+                "task_board.status_category": "started"
             }),
             TimestampMs(1_000),
         )?,
@@ -829,7 +794,7 @@ fn agent_scheduler_policy_logs_skip_when_lifecycle_workflow_is_missing() -> Resu
             AgentTaskStatus::Failed,
             json!({
                 "task_board.status_key": "failed_without_workflow",
-                "task_board.status_role": "failed",
+                "task_board.status_category": "started",
                 "last_error": "transient failure"
             }),
             TimestampMs(1_000),
@@ -869,7 +834,7 @@ fn agent_scheduler_policy_ignores_running_task_before_timeout_window() -> Result
                 status,
                 json!({
                     "task_board.status_key": status.as_str(),
-                    "task_board.status_role": "executing"
+                    "task_board.status_category": "started"
                 }),
                 TimestampMs(99_500),
             )?,
@@ -903,7 +868,7 @@ fn agent_scheduler_policy_ignores_submitted_task_outside_review_or_merge_roles()
             AgentTaskStatus::Submitted,
             json!({
                 "task_board.status_key": "manual_hold",
-                "task_board.status_role": "paused"
+                "task_board.status_category": "paused"
             }),
             TimestampMs(1_000),
         )?,
@@ -927,12 +892,10 @@ fn agent_scheduler_policy_waits_for_explicit_closing_result() -> Result<()> {
         initialized_policy_store("project-agent-scheduler-policy-marketing-merge")?;
     store.save_task_board_workflow(&project_path, &{
         let statuses: Vec<vw_api_task::TaskPoolWorkflowStatusDto> = vec![
-            workflow_status_with_transitions(
+            workflow_status(
                 "campaign_closing",
-                TaskPoolWorkflowStatusRoleDto::Merging,
-                vec![workflow_transition("success", "campaign_done")],
-            ),
-            workflow_status("campaign_done", TaskPoolWorkflowStatusRoleDto::Done),
+                TaskPoolWorkflowStatusCategoryDto::Started),
+            workflow_status("campaign_done", TaskPoolWorkflowStatusCategoryDto::Done),
         ];
         TaskPoolWorkflowSnapshotDto {
             id: "marketing_campaign".to_string(),
@@ -941,13 +904,7 @@ fn agent_scheduler_policy_waits_for_explicit_closing_result() -> Result<()> {
                 .first()
                 .map(|status| status.key.clone())
                 .unwrap_or_default(),
-            steps: statuses
-                .iter()
-                .map(|status| vw_api_task::TaskPoolWorkflowStepDto {
-                    status_key: status.key.clone(),
-                    handoff: vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
-                })
-                .collect(),
+            steps: workflow_steps(&statuses),
             statuses,
         }
     })?;
@@ -960,7 +917,7 @@ fn agent_scheduler_policy_waits_for_explicit_closing_result() -> Result<()> {
             json!({
                 "task_board.workflow_id": "marketing_campaign",
                 "task_board.status_key": "campaign_closing",
-                "task_board.status_role": "merging"
+                "task_board.status_category": "started"
             }),
             TimestampMs(1_000),
         )?,
@@ -995,7 +952,7 @@ fn agent_scheduler_policy_does_not_request_merge() -> Result<()> {
             json!({
                 "task_board.workflow_id": DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID,
                 "task_board.status_key": "merging",
-                "task_board.status_role": "merging",
+                "task_board.status_category": "started",
                 "last_active_at_ms": 1_900,
                 "merge_target_branch": "main",
                 "selected_worktree_path": project_path.to_string_lossy()
@@ -1037,7 +994,7 @@ fn agent_scheduler_policy_does_not_infer_merge_stall() -> Result<()> {
             json!({
                 "task_board.workflow_id": DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID,
                 "task_board.status_key": "merging",
-                "task_board.status_role": "merging",
+                "task_board.status_category": "started",
                 "last_active_at_ms": 1_000
             }),
             TimestampMs(1_000),
@@ -1105,13 +1062,11 @@ fn finite_task(
 fn marketing_workflow() -> TaskPoolWorkflowSnapshotDto {
     {
         let statuses: Vec<vw_api_task::TaskPoolWorkflowStatusDto> = vec![
-            workflow_status_with_transitions(
+            workflow_status(
                 "campaign_review_ready",
-                TaskPoolWorkflowStatusRoleDto::ReviewReady,
-                vec![workflow_transition("success", "campaign_done")],
-            ),
-            workflow_status("campaign_closing", TaskPoolWorkflowStatusRoleDto::Merging),
-            workflow_status("campaign_done", TaskPoolWorkflowStatusRoleDto::Done),
+                TaskPoolWorkflowStatusCategoryDto::Started),
+            workflow_status("campaign_closing", TaskPoolWorkflowStatusCategoryDto::Started),
+            workflow_status("campaign_done", TaskPoolWorkflowStatusCategoryDto::Done),
         ];
         TaskPoolWorkflowSnapshotDto {
             id: "marketing_campaign".to_string(),
@@ -1120,13 +1075,7 @@ fn marketing_workflow() -> TaskPoolWorkflowSnapshotDto {
                 .first()
                 .map(|status| status.key.clone())
                 .unwrap_or_default(),
-            steps: statuses
-                .iter()
-                .map(|status| vw_api_task::TaskPoolWorkflowStepDto {
-                    status_key: status.key.clone(),
-                    handoff: vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
-                })
-                .collect(),
+            steps: workflow_steps(&statuses),
             statuses,
         }
     }
@@ -1135,13 +1084,11 @@ fn marketing_workflow() -> TaskPoolWorkflowSnapshotDto {
 fn merge_policy_workflow(blocked_target: &str) -> TaskPoolWorkflowSnapshotDto {
     {
         let statuses: Vec<vw_api_task::TaskPoolWorkflowStatusDto> = vec![
-            workflow_status_with_transitions(
+            workflow_status(
                 "merging",
-                TaskPoolWorkflowStatusRoleDto::Merging,
-                vec![workflow_transition("blocked", blocked_target)],
-            ),
-            workflow_status("merge_blocked", TaskPoolWorkflowStatusRoleDto::Merging),
-            workflow_status("merge_failed", TaskPoolWorkflowStatusRoleDto::Failed),
+                TaskPoolWorkflowStatusCategoryDto::Started),
+            workflow_status("merge_blocked", TaskPoolWorkflowStatusCategoryDto::Started),
+            workflow_status("merge_failed", TaskPoolWorkflowStatusCategoryDto::Started),
         ];
         TaskPoolWorkflowSnapshotDto {
             id: DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID.to_string(),
@@ -1150,54 +1097,27 @@ fn merge_policy_workflow(blocked_target: &str) -> TaskPoolWorkflowSnapshotDto {
                 .first()
                 .map(|status| status.key.clone())
                 .unwrap_or_default(),
-            steps: statuses
-                .iter()
-                .map(|status| vw_api_task::TaskPoolWorkflowStepDto {
-                    status_key: status.key.clone(),
-                    handoff: vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
-                })
-                .collect(),
+            steps: workflow_steps(&statuses),
             statuses,
         }
     }
 }
 
-fn workflow_status(key: &str, role: TaskPoolWorkflowStatusRoleDto) -> TaskPoolWorkflowStatusDto {
-    workflow_status_with_transitions(key, role, Vec::new())
+fn workflow_status(key: &str, category: vw_api_task::TaskPoolWorkflowStatusCategoryDto) -> TaskPoolWorkflowStatusDto {
+    TaskPoolWorkflowStatusDto { key: key.into(), label: key.into(), category, enabled: true }
 }
-
-fn workflow_status_with_transitions(
-    key: &str,
-    role: TaskPoolWorkflowStatusRoleDto,
-    transitions: Vec<TaskPoolWorkflowTransitionDto>,
-) -> TaskPoolWorkflowStatusDto {
-    TaskPoolWorkflowStatusDto {
-        key: key.to_string(),
-        label: key.to_string(),
-        enabled: true,
-        category: match role {
-            TaskPoolWorkflowStatusRoleDto::Backlog | TaskPoolWorkflowStatusRoleDto::Queued => {
-                vw_api_task::TaskPoolWorkflowStatusCategoryDto::Unstarted
-            }
-            TaskPoolWorkflowStatusRoleDto::Done => {
-                vw_api_task::TaskPoolWorkflowStatusCategoryDto::Done
-            }
-            TaskPoolWorkflowStatusRoleDto::Archived => {
-                vw_api_task::TaskPoolWorkflowStatusCategoryDto::Closed
-            }
-            _ => vw_api_task::TaskPoolWorkflowStatusCategoryDto::Started,
-        },
-    }
+fn workflow_steps(statuses: &[TaskPoolWorkflowStatusDto]) -> Vec<vw_api_task::TaskPoolWorkflowStepDto> {
+    statuses.iter().map(|status| {
+        let target = statuses.iter().find(|other| other.key != status.key);
+        let handoff = if status.category.is_terminal() || status.key == "pool" || target.is_none() {
+            vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee
+        } else {
+            vw_api_task::TaskPoolWorkflowStepHandoffDto::Agent { agent_id: "main".into(), instructions: "Execute this step".into(),
+                completion_status_key: target.map(|other| other.key.clone()), return_status_key: None }
+        };
+        vw_api_task::TaskPoolWorkflowStepDto { status_key: status.key.clone(), handoff }
+    }).collect()
 }
-
-fn workflow_transition(outcome: &str, target: &str) -> TaskPoolWorkflowTransitionDto {
-    TaskPoolWorkflowTransitionDto {
-        outcome: outcome.to_string(),
-        label: None,
-        target: target.to_string(),
-    }
-}
-
 #[test]
 fn task_pool_schedule_policy_tick_has_no_git_or_notification_side_effects() -> Result<()> {
     let temp = tempfile::tempdir()?;
@@ -1212,7 +1132,7 @@ fn task_pool_schedule_policy_tick_has_no_git_or_notification_side_effects() -> R
             &id,
             AgentTaskStatus::Submitted,
             json!({
-                "task_board.status_key": "pr_submitted", "task_board.status_role": "merging",
+                "task_board.status_key": "pr_submitted", "task_board.status_category": "started",
                 "task_board.workflow_id": "dev_lifecycle"
             }),
             TimestampMs(1000),

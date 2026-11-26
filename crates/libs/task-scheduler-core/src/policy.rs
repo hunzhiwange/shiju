@@ -2,7 +2,7 @@
 use anyhow::{Context, Result, bail};
 use serde_json::{Map, Value, json};
 use vw_api_transport::common::TimestampMs;
-use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
+use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusCategoryDto};
 use crate::domain::{RunId, TaskId};
 use crate::events::AgentEventKind;
 use crate::state_machine::{AgentTaskStatus, ensure_transition};
@@ -97,9 +97,7 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
             }
 
             match task.status {
-                AgentTaskStatus::Draft => {
-                    self.apply_pool_policy(&task, now_ms, &config, &workflow, &mut outcome)?;
-                }
+                AgentTaskStatus::Draft => {}
                 AgentTaskStatus::Assigned
                 | AgentTaskStatus::Dispatched
                 | AgentTaskStatus::Acknowledged
@@ -134,69 +132,6 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
         }
 
         Ok(outcome)
-    }
-
-    fn apply_pool_policy(
-        &self,
-        task: &StoredAgentTask,
-        now_ms: TimestampMs,
-        config: &AgentSchedulerPolicyConfig,
-        workflow: &TaskPoolWorkflowSnapshotDto,
-        outcome: &mut AgentSchedulerPolicyOutcome,
-    ) -> Result<()> {
-        if !config.auto_promote_pool_tasks || !is_backlog_task(task, &self.store.task_board_status_key(task)) {
-            return Ok(());
-        }
-        let delay_ms = integer_metadata_field(&task.metadata, "auto_promote_delay_ms")
-            .unwrap_or(config.auto_promote_delay_ms)
-            .max(0);
-        if elapsed_since(now_ms, task.created_at_ms) < delay_ms {
-            return Ok(());
-        }
-
-        let from_status_key = self.store.task_board_status_key(task);
-        let target = self.store.resolve_outcome(workflow, &from_status_key, "success")?;
-        if target.runtime_status != AgentTaskStatus::Queued {
-            bail!("pool promotion requires a queued lifecycle target, got {}", target.status_key);
-        }
-        let mut metadata = object_metadata(task.metadata.clone())?;
-        set_read_model_status(&mut metadata, &target);
-        let updated = self
-            .store
-            .transition_task_status_with_metadata(
-                &task.id,
-                AgentTaskStatus::Queued,
-                Value::Object(metadata),
-                now_ms,
-            )?
-            .with_context(|| {
-                format!("task disappeared during pool promotion: {}", task.id.as_str())
-            })?;
-        let to_status_key = self.store.task_board_status_key(&updated);
-        let message = "agent scheduler policy auto-promoted pool task to queued";
-        self.append_log(
-            &task.id,
-            None,
-            now_ms,
-            Some(task.status),
-            Some(AgentTaskStatus::Queued),
-            Some(from_status_key.clone()),
-            Some(to_status_key.clone()),
-            message,
-        )?;
-        self.append_event(
-            &updated,
-            None,
-            AgentEventKind::TaskResumed,
-            Some(task.status),
-            Some(AgentTaskStatus::Queued),
-            Some((from_status_key, to_status_key)),
-            message,
-            json!({"policy_action": "auto_promote_pool"}),
-            now_ms,
-        )?;
-        outcome.promoted_task_ids.push(task.id.clone());
-        Ok(())
     }
 
     fn apply_retry_policy(
@@ -519,14 +454,6 @@ impl<'a, H: PolicyHost> AgentSchedulerPolicyService<'a, H> {
     }
 }
 
-fn is_backlog_task(task: &StoredAgentTask, status_key: &str) -> bool {
-    task.status == AgentTaskStatus::Draft
-        && (matches!(
-            status_role_from_metadata(&task.metadata),
-            Some(TaskPoolWorkflowStatusRoleDto::Backlog)
-        ) || matches!(status_key, "pool" | "backlog" | "draft"))
-}
-
 fn retry_anchor(metadata: &Value, latest_run: Option<&PolicyRunSnapshot>) -> Option<TimestampMs> {
     latest_run
         .and_then(|run| run.finished_at_ms)
@@ -573,44 +500,13 @@ fn is_model_response_timeout_error(error: &str) -> bool {
 fn set_read_model_status(metadata: &mut Map<String, Value>, target: &PolicyStatusProjection) {
     metadata.insert("task_board.status_key".to_string(), json!(target.status_key.clone()));
     metadata
-        .insert("task_board.status_role".to_string(), json!(status_role_key(target.status_role)));
+        .insert("task_board.status_category".to_string(), json!(status_category_key(target.status_category)));
 }
 
-fn status_role_key(role: TaskPoolWorkflowStatusRoleDto) -> &'static str {
-    match role {
-        TaskPoolWorkflowStatusRoleDto::Backlog => "backlog",
-        TaskPoolWorkflowStatusRoleDto::Queued => "queued",
-        TaskPoolWorkflowStatusRoleDto::Planning => "planning",
-        TaskPoolWorkflowStatusRoleDto::Executing => "executing",
-        TaskPoolWorkflowStatusRoleDto::Failed => "failed",
-        TaskPoolWorkflowStatusRoleDto::Paused => "paused",
-        TaskPoolWorkflowStatusRoleDto::ReviewReady => "review_ready",
-        TaskPoolWorkflowStatusRoleDto::Review => "review",
-        TaskPoolWorkflowStatusRoleDto::Merging => "merging",
-        TaskPoolWorkflowStatusRoleDto::Done => "done",
-        TaskPoolWorkflowStatusRoleDto::Archived => "archived",
-        TaskPoolWorkflowStatusRoleDto::Custom => "custom",
-    }
+fn status_category_key(category: TaskPoolWorkflowStatusCategoryDto) -> &'static str {
+    match category { TaskPoolWorkflowStatusCategoryDto::Unstarted => "unstarted", TaskPoolWorkflowStatusCategoryDto::Started => "started",
+        TaskPoolWorkflowStatusCategoryDto::Done => "done", TaskPoolWorkflowStatusCategoryDto::Closed => "closed" }
 }
-
-fn status_role_from_metadata(metadata: &Value) -> Option<TaskPoolWorkflowStatusRoleDto> {
-    match string_metadata_field(metadata, "task_board.status_role")?.as_str() {
-        "backlog" => Some(TaskPoolWorkflowStatusRoleDto::Backlog),
-        "queued" => Some(TaskPoolWorkflowStatusRoleDto::Queued),
-        "planning" => Some(TaskPoolWorkflowStatusRoleDto::Planning),
-        "executing" => Some(TaskPoolWorkflowStatusRoleDto::Executing),
-        "failed" => Some(TaskPoolWorkflowStatusRoleDto::Failed),
-        "paused" => Some(TaskPoolWorkflowStatusRoleDto::Paused),
-        "review_ready" => Some(TaskPoolWorkflowStatusRoleDto::ReviewReady),
-        "review" => Some(TaskPoolWorkflowStatusRoleDto::Review),
-        "merging" => Some(TaskPoolWorkflowStatusRoleDto::Merging),
-        "done" => Some(TaskPoolWorkflowStatusRoleDto::Done),
-        "archived" => Some(TaskPoolWorkflowStatusRoleDto::Archived),
-        "custom" => Some(TaskPoolWorkflowStatusRoleDto::Custom),
-        _ => None,
-    }
-}
-
 fn object_metadata(value: Value) -> Result<Map<String, Value>> {
     match value {
         Value::Object(map) => Ok(map),

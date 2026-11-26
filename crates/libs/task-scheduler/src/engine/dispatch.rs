@@ -36,7 +36,7 @@ pub fn task_lifecycle_allows_dispatch(
     match task_lifecycle_dispatch_eligibility(task, workflow) {
         Ok(eligibility) if eligibility.eligible => true,
         Ok(eligibility) => {
-            tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task.id.as_str(), task_status = task.status.as_str(), status_key = eligibility.status.status_key.as_str(), status_role = ?eligibility.status.status_role, projected_runtime_status = eligibility.status.runtime_status.as_str(), "agent scheduler dispatch skipped lifecycle-ineligible queued task");
+            tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task.id.as_str(), task_status = task.status.as_str(), status_key = eligibility.status.status_key.as_str(), status_category = ?eligibility.status.status_category, projected_runtime_status = eligibility.status.runtime_status.as_str(), "agent scheduler dispatch skipped lifecycle-ineligible queued task");
             false
         }
         Err(error) => {
@@ -61,7 +61,7 @@ pub fn task_lifecycle_dispatch_eligibility(
             task.status.as_str()
         );
     }
-    eligibility.eligible &= task.status != AgentTaskStatus::Archived
+    eligibility.eligible &= task.status == AgentTaskStatus::Queued
         && !bool_metadata_field(&task.metadata, "task_board.archived")
         && !bool_metadata_field(&task.metadata, "task_board.deleted");
     Ok(eligibility)

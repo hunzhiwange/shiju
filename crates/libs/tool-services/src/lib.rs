@@ -20,3 +20,5 @@ pub mod screenshot;
 pub trait BatchHost: tool_context::host::ContextHost {
     fn boxed_registry_from_arcs(tools: Vec<std::sync::Arc<dyn tool_types::Tool>>) -> Vec<Box<dyn tool_types::Tool>>;
 }
+
+pub mod workflow_step;

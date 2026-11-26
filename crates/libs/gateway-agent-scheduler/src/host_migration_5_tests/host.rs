@@ -63,6 +63,7 @@ impl ContextHost for TestHost {
 
 impl task_scheduler::runner::gateway_executor::GatewayExecutorHost for TestHost {
     type ContextHost = Self;
+    async fn agent_exists(name: &str) -> bool { matches!(name, "main" | "worker" | "agent-a") }
     fn worktree_pool() -> &'static task_scheduler::runner::gateway_executor::TaskWorktreePoolService { panic!("domain test reached host worktree pool") }
     fn chat_stream() -> Arc<dyn task_scheduler::runner::gateway_executor::GatewayChatStreamClient> { Arc::new(ClosedChatStream) }
     fn tool_context(_: String, _: String, _: task_scheduler::runner::worktree_owner::SchedulerWorktreeOwner) -> Arc<ToolUseContext<Self>> { panic!("domain test reached tool context") }

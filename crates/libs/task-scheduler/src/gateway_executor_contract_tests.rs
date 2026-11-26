@@ -16,6 +16,7 @@ pub fn execution_request(
     acp_agent: Option<&str>,
 ) -> Result<LocalAgentExecutionRequest> {
     Ok(LocalAgentExecutionRequest {
+        scheduler_context: task_scheduler_context_for_fixture()?,
         project_path: PathBuf::from("/repo"),
         task_id: TaskId::new("task-1")?,
         run_id: RunId::new("run-1")?,
@@ -186,6 +187,7 @@ pub fn gateway_executor_execute_collects_stream_output_and_appends_observed_logs
     let executor = GatewayLocalAgentExecutor::<H>::new_with_chat_stream(store.clone(), stream.clone());
     let mut request = execution_request(Some("reviewer"), Some("codex"))?;
     request.project_path = project_path.clone();
+    request.scheduler_context = { use crate::store::AgentSchedulerStorageContext; crate::domain::AgentSchedulerContext::new(request.project_path.storage_scope()?, request.project_path.clone())? };
     request.workspace.path = workspace_path.to_string_lossy().to_string();
     request.task_id = task_id.clone();
     request.run_id = run_id.clone();
@@ -250,10 +252,17 @@ pub fn task_pool_recovery_gateway_passes_stop_to_stream<H: GatewayExecutorHost>(
     store.initialize_project(project.path())?;
     let mut request = execution_request(None, None)?;
     request.project_path = project.path().to_path_buf();
+    request.scheduler_context = { use crate::store::AgentSchedulerStorageContext; crate::domain::AgentSchedulerContext::new(request.project_path.storage_scope()?, request.project_path.clone())? };
     // A missing/cancelled run must stop the transport, and still await its result.
     let executor = GatewayLocalAgentExecutor::<H>::new_with_chat_stream(store, Arc::new(CancelStream));
     assert!(
         executor.execute(request).unwrap_err().to_string().contains("acknowledged cancellation")
     );
     Ok(())
+}
+
+fn task_scheduler_context_for_fixture() -> anyhow::Result<crate::domain::AgentSchedulerContext> {
+    use crate::store::AgentSchedulerStorageContext;
+    let path = std::path::Path::new("/repo");
+    crate::domain::AgentSchedulerContext::new(path.storage_scope()?, path)
 }

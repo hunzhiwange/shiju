@@ -83,7 +83,7 @@ impl PostgresAgentSchedulerStore {
             super::lock_project_for_task_update(&mut transaction, &scope)?;
             let task_status = transaction
                 .query_opt(
-                    "SELECT status FROM scheduler_tasks
+                    "SELECT status, metadata_json FROM scheduler_tasks
                  WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND id = $4
                  FOR UPDATE SKIP LOCKED",
                     &[
@@ -129,6 +129,11 @@ impl PostgresAgentSchedulerStore {
                 return Ok(None);
             }
 
+            let mut metadata: serde_json::Value = serde_json::from_str(&task_status.try_get::<_, String>(1)?)?;
+            metadata["task_board.active_run_id"] = serde_json::json!(request.run_id.as_str());
+            transaction.execute("UPDATE scheduler_tasks SET metadata_json = $1 WHERE platform_id = $2 AND company_id = $3 AND project_id = $4 AND id = $5",
+                &[&serde_json::to_string(&metadata)?, &project.platform_id().as_ref(), &project.company_id().as_ref(),
+                  &project.project_id().as_ref(), &request.task_id.as_str()])?;
             let attempt: i64 = transaction
                 .query_one(
                     "SELECT COALESCE(MAX(attempt), 0) + 1 FROM scheduler_runs
@@ -241,6 +246,11 @@ impl PostgresAgentSchedulerStore {
                 return Ok(None);
             }
 
+            let mut metadata = task.metadata.clone();
+            metadata["task_board.active_run_id"] = serde_json::json!(request.run_id.as_str());
+            transaction.execute("UPDATE scheduler_tasks SET metadata_json = $1 WHERE platform_id = $2 AND company_id = $3 AND project_id = $4 AND id = $5",
+                &[&serde_json::to_string(&metadata)?, &project.platform_id().as_ref(), &project.company_id().as_ref(),
+                  &project.project_id().as_ref(), &request.task_id.as_str()])?;
             let attempt: i64 = transaction
                 .query_one(
                     "SELECT COALESCE(MAX(attempt), 0) + 1 FROM scheduler_runs

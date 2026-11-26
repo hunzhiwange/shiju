@@ -32,7 +32,7 @@ use vw_api_transport::id::{
     TenantScope,
 };
 use vw_api_task::{
-    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
+    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto,
 };
 use serde_json::json;
 

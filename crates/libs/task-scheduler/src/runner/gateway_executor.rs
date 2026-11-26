@@ -289,7 +289,7 @@ fn collect_gateway_local_agent_output<H: GatewayExecutorHost>(
     chat_stream: Arc<dyn GatewayChatStreamClient>,
 ) -> Result<String> {
     let workspace_path = request.workspace.path.clone();
-    let project_path = request.project_path.clone();
+    let project_path = request.scheduler_context.clone();
     let task_id = request.task_id.clone();
     let run_id = request.run_id.clone();
     let body = gateway_local_agent_stream_request(&request);
@@ -297,7 +297,9 @@ fn collect_gateway_local_agent_output<H: GatewayExecutorHost>(
         body.session_id.as_ref().expect("scheduler session").as_ref().to_string(),
         workspace_path.clone(),
         crate::runner::worktree_owner::SchedulerWorktreeOwner {
-            claims: Default::default(), store: store.clone(), project_path: project_path.clone(),
+            claims: Default::default(), store: store.clone(), project_path: request.project_path.clone(),
+            context: request.scheduler_context.clone(),
+            agent_exists: |name| { let name = name.to_owned(); run_gateway_future("resolve workflow agent", async move { Ok(H::agent_exists(&name).await) }) },
             task_id: task_id.clone(), run_id: run_id.clone(),
         },
     );
@@ -400,6 +402,7 @@ fn current_timestamp_ms() -> TimestampMs {
 /// 实际网关I/O与工具上下文组合；业务流程由本模块保有。
 pub trait GatewayExecutorHost: Clone + std::fmt::Debug + Send + Sync + 'static {
     type ContextHost: tool_context::host::ContextHost;
+    fn agent_exists(name: &str) -> impl Future<Output = bool> + Send;
     fn worktree_pool() -> &'static task_worktree_pool::TaskWorktreePoolService;
     fn chat_stream() -> Arc<dyn GatewayChatStreamClient>;
     fn tool_context(session_id: String, workspace_path: String,

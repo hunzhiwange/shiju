@@ -267,6 +267,7 @@ impl PostgresAgentSchedulerStore {
             let Some(current) = load_task_for_update(&mut transaction, &scope, task_id)? else {
                 return Ok(None);
             };
+            super::super::tasks::preserve_runtime_step(&current.metadata, &mut metadata)?;
             ensure_transition(current.kind, current.status, to_status)?;
             preserve_task_board_fields(&current.metadata, &mut metadata);
             let metadata_json =
@@ -413,7 +414,7 @@ impl PostgresAgentSchedulerStore {
                    AND status NOT IN ('cancelled', 'archived') ORDER BY id FOR UPDATE"),
                 project_params,
             )?.iter().map(map_task_row).collect::<Result<Vec<_>>>()?;
-            if let Some(conflict) = workflow_task_conflicts(&tasks, workflow) {
+            if let Some(conflict) = workflow_task_conflicts(&tasks, current.as_ref(), workflow) {
                 return Ok(Some(conflict));
             }
 

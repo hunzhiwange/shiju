@@ -52,6 +52,7 @@ MemoryStoreTool => "memory_store",
 MemoryRecallTool => "memory_recall",
 MemoryForgetTool => "memory_forget",
 ScheduleTool => "schedule",
+MoveWorkflowStepTool => "move_workflow_step",
 #[cfg(not(target_arch = "wasm32"))]
 ShellToolWithSyscallDetector => "bash",
 #[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]

@@ -19,6 +19,7 @@ use crate::agent_scheduler::runner::local::*;
 pub(crate) struct SchedulerGatewayHost;
 impl task_scheduler::runner::gateway_executor::GatewayExecutorHost for SchedulerGatewayHost {
     type ContextHost = crate::tools::context::AgentContextHost;
+    async fn agent_exists(name: &str) -> bool { crate::agent::get(name).await.is_some() }
     fn worktree_pool() -> &'static task_scheduler::runner::gateway_executor::TaskWorktreePoolService {
         crate::gateway::api::handlers::task_pool::task_worktree_pool_service()
     }

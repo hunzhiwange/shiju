@@ -32,18 +32,18 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
                 );
             }
         }
-        if !existed
-            && task.kind == AgentTaskKind::Finite
-            && let Some(key) = string_field(&task.metadata, "task_board.status_key")
-            && let Some(workflow) = self.store.load_task_board_workflow(&context).map_err(map_scheduler_error)?
-            && let Some(metadata) = task.metadata.as_object_mut()
-        {
-            task.status = task_scheduler::task_board::apply_workflow_status(&workflow, &key, metadata)
-                .map_err(map_bad_request)?;
+        if !existed && task.kind == AgentTaskKind::Finite {
+            let workflow = load_dispatch_workflow(&self.store, &context).map_err(map_scheduler_error)?;
+            let key = string_field(&task.metadata, "task_board.status_key").unwrap_or_else(|| workflow.initial_status_key.clone());
+            self.validate_step_handoff(&context, &key, &workflow).await?;
+            let metadata = task.metadata.as_object_mut().ok_or_else(|| ApiError::bad_request("task metadata must be an object"))?;
+            metadata.remove("task_board.active_run_id");
+            task.status = task_scheduler::task_board::apply_workflow_status(&workflow, &key, metadata).map_err(map_bad_request)?;
         }
         let stored = self.store.create_task(&context, task).map_err(map_scheduler_error)?;
         if !existed {
             append_task_created_event(&self.store, &context, &stored)?;
+            if stored.status == AgentTaskStatus::Queued { self.wake_after_handoff(&context)?; }
         }
 
         Ok(AgentSchedulerCreateTaskResponse {
@@ -363,7 +363,7 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
                     dto.status_key = status_key;
                     dto.read_model.workflow_id = Some(workflow.id.clone());
                     dto.read_model.status_label = Some(status.label.clone());
-                    dto.read_model.status_role = Some(status.role);
+                    dto.read_model.status_category = Some(status.category);
                 }
                 Ok(dto)
             })
@@ -423,6 +423,10 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
         let _dispatch_guard = dispatch_lock.lock().await;
         self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
         let task_id = TaskId::new(task_id).map_err(map_bad_request)?;
+        if let Some(key) = request.patch.status_key.as_deref() {
+            let workflow = load_dispatch_workflow(&self.store, &project_path).map_err(map_scheduler_error)?;
+            self.validate_step_handoff(&project_path, key, &workflow).await?;
+        }
         let outcome = AgentTaskBoardService::new(&self.store)
             .update_metadata(
                 &project_path,
@@ -433,6 +437,7 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
             )
             .map_err(map_task_board_error)?
             .ok_or_else(|| ApiError::not_found("task not found"))?;
+        if outcome.task.status == AgentTaskStatus::Queued { self.wake_after_handoff(&project_path)?; }
         let task = task_board_task_to_dto_with_latest_run(
             &self.store,
             &project_id,

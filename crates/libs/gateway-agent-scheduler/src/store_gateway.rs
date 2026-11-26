@@ -70,7 +70,7 @@ use vw_api_agent_scheduler::{
     TaskDependencyNodeDto,
 };
 use vw_api_transport::common::TimestampMs;
-use vw_api_task::TaskPoolWorkflowStatusRoleDto;
+use vw_api_task::TaskPoolWorkflowStatusCategoryDto;
 
 use task_scheduler::adapters::dispatch::LocalOnlyDispatchAdapter;
 use task_scheduler::domain::{
@@ -171,6 +171,42 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
             executor: Arc::new(executor),
             dispatch_locks: ProjectDispatchLocks::default(),
         }
+    }
+
+    async fn validate_step_handoff(
+        &self, context: &(impl AgentSchedulerStorageContext + ?Sized), key: &str,
+        workflow: &vw_api_task::TaskPoolWorkflowSnapshotDto,
+    ) -> Result<(), ApiError> {
+        use vw_api_task::TaskPoolWorkflowStepHandoffDto;
+        let bridge = task_scheduler::lifecycle_bridge::LifecycleBridge::new(workflow);
+        bridge.status(key).map_err(map_bad_request)?;
+        match &bridge.step(key).map_err(map_bad_request)?.handoff {
+            TaskPoolWorkflowStepHandoffDto::KeepAssignee => Ok(()),
+            TaskPoolWorkflowStepHandoffDto::Member { member_id } => {
+                let scope = context.storage_scope().map_err(map_scheduler_error)?;
+                if member_id != scope.project_scope().user_id().as_ref() {
+                    return Err(ApiError::bad_request("member handoff must target the current ShiJu login user"));
+                }
+                Ok(())
+            },
+            TaskPoolWorkflowStepHandoffDto::Agent { agent_id, .. } => {
+                if !H::agent_exists(agent_id).await {
+                    return Err(ApiError::bad_request(format!("unknown agent: {agent_id}")));
+                }
+                Ok(())
+            },
+        }
+    }
+
+    fn wake_after_handoff(&self, context: &(impl AgentSchedulerStorageContext + ?Sized)) -> Result<(), ApiError> {
+        let context = owned_scheduler_context(context)?;
+        let gateway = self.clone();
+        tokio::spawn(async move {
+            if let Err(error) = gateway.fill_project_slots(&context, current_timestamp_ms(), DEFAULT_PROJECT_WAKE_MAX_CONCURRENT).await {
+                tracing::warn!(%error, "scheduler step handoff wake failed");
+            }
+        });
+        Ok(())
     }
 
     fn project_dispatch_lock(
@@ -339,6 +375,8 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
                 let payload = request.payload.move_task.ok_or_else(|| {
                     ApiError::bad_request("move command requires move_task payload")
                 })?;
+                let workflow = load_dispatch_workflow(&self.store, project_path).map_err(map_scheduler_error)?;
+                self.validate_step_handoff(project_path, &payload.to_status_key, &workflow).await?;
                 service
                     .move_task(project_path, task_id, payload, request.reason.as_deref(), now_ms)
                     .map_err(map_task_board_error)?
@@ -349,6 +387,10 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
                         "update_metadata command requires metadata_update payload",
                     )
                 })?;
+                if let Some(key) = patch.status_key.as_deref() {
+                    let workflow = load_dispatch_workflow(&self.store, project_path).map_err(map_scheduler_error)?;
+                    self.validate_step_handoff(project_path, key, &workflow).await?;
+                }
                 service
                     .update_metadata(
                         project_path,
@@ -410,6 +452,7 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
             }
         }
         .ok_or_else(|| ApiError::not_found("task not found"))?;
+        if outcome.task.status == AgentTaskStatus::Queued { self.wake_after_handoff(project_path)?; }
         let task = task_board_task_to_dto_with_latest_run(
             &self.store,
             project_id,
@@ -568,16 +611,13 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
         let workflow = load_dispatch_workflow(&self.store, project_path).map_err(map_scheduler_error)?;
         let source = task_scheduler::task_board::task_board_status_key(&current);
         let bridge = task_scheduler::lifecycle_bridge::LifecycleBridge::new(&workflow);
-        let target = bridge.resolve_outcome(&source, outcome).map_err(map_bad_request)?;
+        let target = bridge.resolve_status(&source).map_err(map_bad_request)?;
         if target.runtime_status != AgentTaskStatus::Queued {
-            return Err(ApiError::bad_request(format!(
-                "workflow {outcome} requires a queued target, got {}", target.status_key
-            )));
+            return Err(ApiError::bad_request("current step does not hand off to an agent"));
         }
-        let mut metadata = current.metadata.as_object().cloned().unwrap_or_default();
-        metadata.extend(bridge.projection_metadata(&target.status_key).map_err(map_bad_request)?);
+        let metadata = current.metadata.clone();
         self.store.transition_task_status_with_metadata(
-            project_path, &task.id, target.runtime_status, Value::Object(metadata), now_ms,
+            project_path, &task.id, target.runtime_status, metadata, now_ms,
         ).map_err(map_scheduler_command_error)?
             .ok_or_else(|| ApiError::not_found("task not found"))?;
         Ok(())
@@ -692,4 +732,4 @@ impl<H: GatewayExecutorHost> StoreBackedAgentSchedulerGateway<H> {
 #[path = "store_projection.rs"]
 mod projection;
 use projection::*;
-pub use projection::{start_command_is_idempotent_for_status, normalize_project_wake_max_concurrent, execution_slot_status, task_board_write_command, owned_scheduler_context, add_ms_or_saturate, command_event_kind, task_board_status_role_from_metadata, task_board_status_key, legacy_task_board_status_key, valid_merge_branch, workspace_context_from_value, event_error_message, command_kind_key, string_field, string_array_field, bool_field, u32_field, i64_field, non_empty_str, optional_text, parse_project_path, map_bad_request, map_scheduler_command_error, map_task_board_error};
+pub use projection::{start_command_is_idempotent_for_status, normalize_project_wake_max_concurrent, execution_slot_status, task_board_write_command, owned_scheduler_context, add_ms_or_saturate, command_event_kind, task_board_status_category_from_metadata, task_board_status_key, legacy_task_board_status_key, valid_merge_branch, workspace_context_from_value, event_error_message, command_kind_key, string_field, string_array_field, bool_field, u32_field, i64_field, non_empty_str, optional_text, parse_project_path, map_bad_request, map_scheduler_command_error, map_task_board_error};

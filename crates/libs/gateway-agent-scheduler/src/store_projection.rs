@@ -301,7 +301,7 @@ pub(super) fn task_board_task_read_model(
         title: Some(task.title.clone()),
         workflow_id: string_field(metadata, "task_board.workflow_id"),
         status_label: string_field(metadata, "task_board.status_label"),
-        status_role: task_board_status_role_from_metadata(metadata),
+        status_category: task_board_status_category_from_metadata(metadata),
         stage_id: string_field(metadata, "task_board.stage_id")
             .or_else(|| Some(status_key.to_string())),
         stage_label: string_field(metadata, "task_board.stage_label"),
@@ -317,23 +317,8 @@ pub(super) fn task_board_task_read_model(
     }
 }
 
-pub fn task_board_status_role_from_metadata(metadata: &Value) -> Option<TaskPoolWorkflowStatusRoleDto> {
-    let role = string_field(metadata, "task_board.status_role")?;
-    match role.as_str() {
-        "backlog" => Some(TaskPoolWorkflowStatusRoleDto::Backlog),
-        "queued" => Some(TaskPoolWorkflowStatusRoleDto::Queued),
-        "planning" => Some(TaskPoolWorkflowStatusRoleDto::Planning),
-        "executing" => Some(TaskPoolWorkflowStatusRoleDto::Executing),
-        "failed" => Some(TaskPoolWorkflowStatusRoleDto::Failed),
-        "paused" => Some(TaskPoolWorkflowStatusRoleDto::Paused),
-        "review_ready" => Some(TaskPoolWorkflowStatusRoleDto::ReviewReady),
-        "review" => Some(TaskPoolWorkflowStatusRoleDto::Review),
-        "merging" => Some(TaskPoolWorkflowStatusRoleDto::Merging),
-        "done" => Some(TaskPoolWorkflowStatusRoleDto::Done),
-        "archived" => Some(TaskPoolWorkflowStatusRoleDto::Archived),
-        "custom" => Some(TaskPoolWorkflowStatusRoleDto::Custom),
-        _ => None,
-    }
+pub fn task_board_status_category_from_metadata(metadata: &Value) -> Option<TaskPoolWorkflowStatusCategoryDto> {
+    serde_json::from_value(metadata.get("task_board.status_category")?.clone()).ok()
 }
 
 pub(super) fn task_metadata_object(value: Value) -> Result<Map<String, Value>, ApiError> {

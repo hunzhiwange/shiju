@@ -127,6 +127,7 @@ let memory = context.memory.expect("full factory memory");
 ToolConstruction::ConfigTool => { let security = context.security;
 let config = context.config.expect("full factory config");
  Arc::new(ConfigTool::new(config.clone(), security.clone())) },
+ToolConstruction::MoveWorkflowStepTool => Arc::new(tool_services::workflow_step::MoveWorkflowStepTool::<H>::new()),
 ToolConstruction::ScheduleTool => { let security = context.security;
 let root_config = context.root_config.expect("root config");
  Arc::new(ScheduleTool::new(security.clone(), root_config.clone())) },

@@ -31,6 +31,7 @@ fn local_runner_success_completes_default_finite_task() -> Result<()> {
     let runner = LocalAgentRunner::new(&store, &executor);
 
     store.initialize_project(&project_path)?;
+    store.save_task_board_workflow(&project_path, &crate::lifecycle_bridge_tests::workflow())?;
     store.create_task(&project_path, finite_task(&task_id)?)?;
 
     let outcome = runner
@@ -62,7 +63,7 @@ fn local_runner_success_completes_default_finite_task() -> Result<()> {
     assert_eq!(logs[3].to_status, Some(AgentTaskStatus::Running));
     assert!(logs[4].message.contains("local worktree lease recorded"));
     assert_eq!(logs[5].to_status, Some(AgentTaskStatus::Completed));
-    assert_eq!(logs[5].message, "local execution result advanced lifecycle");
+    assert_eq!(logs[5].message, "local execution completed; step retained");
 
     let artifacts = store.list_task_artifacts(&project_path, &task_id)?;
     assert_eq!(artifacts.len(), 2);
@@ -83,7 +84,7 @@ fn local_runner_success_completes_default_finite_task() -> Result<()> {
     assert_eq!(run_git(workspace_path, &["log", "-1", "--format=%s"])?, "initial");
     let task = store.load_task(&project_path, &task_id)?.expect("task persists after policy");
     assert_eq!(task.status, AgentTaskStatus::Completed);
-    assert_eq!(task.metadata["task_board.status_key"], "completed");
+    assert_eq!(task.metadata["task_board.status_key"], "agent");
     assert_eq!(task.metadata["task_board.status_role"], "done");
 
     let requests = executor.requests.lock().expect("requests lock");
@@ -110,6 +111,7 @@ fn local_runner_forwards_task_reasoning_effort_to_acp_execution() -> Result<()> 
     let runner = LocalAgentRunner::new(&store, &executor);
 
     store.initialize_project(&project_path)?;
+    store.save_task_board_workflow(&project_path, &crate::lifecycle_bridge_tests::workflow())?;
     store.create_task(&project_path, finite_task(&task_id)?)?;
     runner
         .run_once(&project_path, LocalAgentRunnerRequest { task_id, now_ms: TimestampMs(1_000) })?;
@@ -132,6 +134,7 @@ fn local_runner_forwards_task_reasoning_effort_to_model_execution() -> Result<()
     let runner = LocalAgentRunner::new(&store, &executor);
 
     store.initialize_project(&project_path)?;
+    store.save_task_board_workflow(&project_path, &crate::lifecycle_bridge_tests::workflow())?;
     let mut task = finite_task(&task_id)?;
     task.metadata.as_object_mut().expect("metadata").remove("acp_agent");
     store.create_task(&project_path, task)?;
@@ -157,6 +160,7 @@ fn local_runner_cannot_bypass_task_graph() -> Result<()> {
     let runner = LocalAgentRunner::new(&store, &executor);
 
     store.initialize_project(&project_path)?;
+    store.save_task_board_workflow(&project_path, &crate::lifecycle_bridge_tests::workflow())?;
     let mut predecessor = finite_task(&predecessor_id)?;
     predecessor.status = AgentTaskStatus::Submitted;
     store.create_task(&project_path, predecessor)?;
@@ -205,6 +209,7 @@ fn local_runner_logs_worktree_workspace_context() -> Result<()> {
     let runner = LocalAgentRunner::new(&store, &executor);
 
     store.initialize_project(&project_path)?;
+    store.save_task_board_workflow(&project_path, &crate::lifecycle_bridge_tests::workflow())?;
     store.create_task(&project_path, finite_task(&task_id)?)?;
 
     let outcome = runner
@@ -238,6 +243,7 @@ fn local_agent_runner_executes_with_leased_workspace() -> Result<()> {
     let runner = LocalAgentRunner::new(&store, &executor);
 
     store.initialize_project(&project_path)?;
+    store.save_task_board_workflow(&project_path, &crate::lifecycle_bridge_tests::workflow())?;
     store.create_task(&project_path, finite_task(&task_id)?)?;
 
     runner
@@ -275,6 +281,7 @@ fn local_runner_success_archives_result_without_workspace_changes() -> Result<()
     let runner = LocalAgentRunner::new(&store, &executor);
 
     store.initialize_project(&project_path)?;
+    store.save_task_board_workflow(&project_path, &crate::lifecycle_bridge_tests::workflow())?;
     store.create_task(&project_path, finite_task(&task_id)?)?;
 
     let outcome = runner
@@ -311,6 +318,7 @@ fn local_runner_records_failure_when_executor_does_not_lease_workspace() -> Resu
     let runner = LocalAgentRunner::new(&store, &executor);
 
     store.initialize_project(&project_path)?;
+    store.save_task_board_workflow(&project_path, &crate::lifecycle_bridge_tests::workflow())?;
     store.create_task(&project_path, finite_task(&task_id)?)?;
 
     let outcome = runner
@@ -350,6 +358,7 @@ fn local_runner_start_once_handles_missing_non_finite_and_non_queued_tasks() -> 
     let executor = RecordingExecutor::succeeding("completed");
     let runner = LocalAgentRunner::new(&store, &executor);
     store.initialize_project(&project_path)?;
+    store.save_task_board_workflow(&project_path, &crate::lifecycle_bridge_tests::workflow())?;
 
     assert!(
         runner
@@ -414,6 +423,7 @@ fn local_runner_finish_started_run_handles_missing_non_finite_and_non_running_ta
     let runner = LocalAgentRunner::new(&store, &executor);
     let run_id = super::domain::RunId::new("local-run-boundary")?;
     store.initialize_project(&project_path)?;
+    store.save_task_board_workflow(&project_path, &crate::lifecycle_bridge_tests::workflow())?;
 
     assert!(
         runner
@@ -477,6 +487,7 @@ fn local_runner_success_does_not_inspect_workspace_after_execution() -> Result<(
     let runner = LocalAgentRunner::new(&store, &executor);
 
     store.initialize_project(&project_path)?;
+    store.save_task_board_workflow(&project_path, &crate::lifecycle_bridge_tests::workflow())?;
     store.create_task(&project_path, finite_task(&task_id)?)?;
 
     let outcome = runner
@@ -547,6 +558,7 @@ fn local_runner_helpers_cover_metadata_truncation_time_and_git_output_edges() ->
     let store = AgentSchedulerStore::new();
     let task_id = TaskId::new("task-local-runner-helper")?;
     store.initialize_project(&project_path)?;
+    store.save_task_board_workflow(&project_path, &crate::lifecycle_bridge_tests::workflow())?;
     let mut task = finite_task(&task_id)?;
     task.title = "Fallback title".to_string();
     task.metadata = json!({
@@ -598,7 +610,7 @@ fn local_runner_helpers_cover_metadata_truncation_time_and_git_output_edges() ->
     Ok(())
 }
 
-fn finite_task(task_id: &TaskId) -> Result<NewAgentTask> {
+pub(crate) fn finite_task(task_id: &TaskId) -> Result<NewAgentTask> {
     Ok(NewAgentTask {
         id: task_id.clone(),
         title: "Run local runner through scheduler store".to_string(),
@@ -617,6 +629,7 @@ fn finite_task(task_id: &TaskId) -> Result<NewAgentTask> {
         last_executed_at: None,
         dag: Vec::new(),
         metadata: json!({
+            "task_board.status_key": "agent",
             "prompt": "Run local runner through scheduler store",
             "model": "deepseek/deepseek-v4-flash",
             "agent": "main",
@@ -766,6 +779,7 @@ fn task_pool_workspace_records_directory_artifact_without_git_slot() -> Result<(
     let store = AgentSchedulerStore::new();
     let task_id = TaskId::new("task-directory-artifact")?;
     store.initialize_project(&project_path)?;
+    store.save_task_board_workflow(&project_path, &crate::lifecycle_bridge_tests::workflow())?;
     store.create_task(&project_path, finite_task(&task_id)?)?;
     let outcome = LocalAgentRunner::new(&store, &DirectoryExecutor).run_once(
         &project_path,
@@ -810,6 +824,7 @@ fn run_result_task(path: &Path, fail: bool) -> Result<()> {
     let store = AgentSchedulerStore::new();
     let task_id = TaskId::new("task-result")?;
     store.initialize_project(path)?;
+    store.save_task_board_workflow(path, &crate::lifecycle_bridge_tests::workflow())?;
     store.create_task(path, finite_task(&task_id)?)?;
     let outcome = LocalAgentRunner::new(&store, &ResultExecutor { fail })
         .run_once(
@@ -880,73 +895,17 @@ fn task_pool_schedule_generic_task_reaches_done_without_git() -> Result<()> {
         .load_task(directory.path(), &TaskId::new("task-result")?)?
         .unwrap();
     assert_eq!(task.status, AgentTaskStatus::Completed);
-    assert_eq!(task.metadata["task_board.status_key"], "completed");
+    assert_eq!(task.metadata["task_board.status_key"], "agent");
     assert!(!directory.path().join(".git").exists());
     Ok(())
 }
 
 #[test]
-fn task_pool_schedule_runner_honors_explicit_success_and_rejects_missing_transition() -> Result<()>
-{
-    for missing in [false, true] {
-        let directory = tempfile::tempdir()?;
-        let store = AgentSchedulerStore::new();
-        store.initialize_project(directory.path())?;
-        let mut workflow =
-            crate::lifecycle_bridge::builtin_task_workflow_snapshot();
-        workflow.id = "explicit_result".into();
-        workflow.statuses.iter_mut().find(|s| s.key == "running").unwrap().next =
-            if missing { None } else { Some("paused".into()) };
-        store.save_task_board_workflow(directory.path(), &workflow)?;
-        let id = TaskId::new(if missing { "explicit-missing" } else { "explicit-paused" })?;
-        store.create_task(directory.path(), finite_task(&id)?)?;
-        let executor = ResultExecutor { fail: false };
-        let result = LocalAgentRunner::new(&store, &executor)
-            .run_once(
-                directory.path(),
-                LocalAgentRunnerRequest { task_id: id.clone(), now_ms: TimestampMs(1000) },
-            )?
-            .unwrap();
-        let task = store.load_task(directory.path(), &id)?.unwrap();
-        assert_eq!(
-            task.status,
-            if missing { AgentTaskStatus::Failed } else { AgentTaskStatus::Paused }
-        );
-        assert_eq!(
-            result.run.status,
-            if missing { AgentRunStatus::Failed } else { AgentRunStatus::Succeeded }
-        );
-        if missing {
-            let message = result.run.error_message.unwrap();
-            assert!(message.contains("no transition"), "{message}");
-        } else {
-            assert_eq!(task.metadata["task_board.status_key"], "paused");
-        }
-    }
-    Ok(())
-}
-
-#[test]
-fn task_pool_schedule_explicit_development_success_waits_for_review() -> Result<()> {
+fn task_pool_schedule_runner_success_keeps_configured_agent_step() -> Result<()> {
     let directory = tempfile::tempdir()?;
-    let store = AgentSchedulerStore::new();
-    store.initialize_project(directory.path())?;
-    let development = task_lifecycle::built_in_workflow_by_id("dev_lifecycle").unwrap();
-    let snapshot = serde_json::from_value(serde_json::to_value(development)?)?;
-    store.save_task_board_workflow(directory.path(), &snapshot)?;
-    let id = TaskId::new("development-result")?;
-    store.create_task(directory.path(), finite_task(&id)?)?;
-    let executor = ResultExecutor { fail: false };
-    let result = LocalAgentRunner::new(&store, &executor)
-        .run_once(
-            directory.path(),
-            LocalAgentRunnerRequest { task_id: id.clone(), now_ms: TimestampMs(1000) },
-        )?
-        .unwrap();
-    assert_eq!(result.run.status, AgentRunStatus::Succeeded);
-    let task = store.load_task(directory.path(), &id)?.unwrap();
-    assert_eq!(task.status, AgentTaskStatus::Submitted);
-    assert_eq!(task.metadata["task_board.status_key"], "code_complete");
-    assert!(!directory.path().join(".git").exists());
+    run_result_task(directory.path(), false)?;
+    let task = AgentSchedulerStore::new().load_task(directory.path(), &TaskId::new("task-result")?)?.unwrap();
+    assert_eq!(task.status, AgentTaskStatus::Completed);
+    assert_eq!(task.metadata["task_board.status_key"], "agent");
     Ok(())
 }

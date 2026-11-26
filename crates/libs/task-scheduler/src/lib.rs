@@ -61,3 +61,6 @@ mod host_migration_55_tests;
 
 #[cfg(feature = "test-support")]
 pub mod gateway_executor_contract_tests;
+
+#[cfg(test)]
+mod handoff_tests;

@@ -184,9 +184,8 @@ impl<'a> RecoveryEngine<'a> {
             to_status.as_str()
         );
         if to_status != task.status {
-            self.store
-                .transition_task_status(project_path, &task.id, to_status, now_ms)?
-                .with_context(|| format!("stale run task disappeared: {}", task.id.as_str()))?;
+            self.store.update_task_for_run(project_path, &task.id, &run.id,
+                Some(to_status), Default::default(), now_ms)?;
         }
         let finished = self
             .store

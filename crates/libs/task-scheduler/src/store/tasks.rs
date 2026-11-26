@@ -13,11 +13,11 @@ use vw_api_agent_scheduler::{
     TASK_LABEL_IDS_METADATA_KEY, TASK_PROPERTY_VALUES_METADATA_KEY,
 };
 use vw_api_transport::common::TimestampMs;
-use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
+use vw_api_task::{TaskPoolWorkflowSnapshotDto};
 
 use crate::domain::{AssigneeId, TaskId, TeamId};
 use crate::lifecycle_bridge::{
-    LifecycleBridge, normalize_workflow_transitions, runtime_status_for_role, task_workflow_snapshot,
+    LifecycleBridge, normalize_workflow_transitions, task_workflow_snapshot,
 };
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus, ensure_transition};
 
@@ -140,7 +140,7 @@ impl AgentSchedulerStore {
             let rows = statement.query_map(params![platform_id, company_id, project_id], map_task_row)?;
             rows.collect::<rusqlite::Result<Vec<_>>>()?
         };
-        if let Some(conflict) = workflow_task_conflicts(&tasks, &workflow) {
+        if let Some(conflict) = workflow_task_conflicts(&tasks, current.as_ref(), &workflow) {
             return Ok(Some(conflict));
         }
 
@@ -353,6 +353,33 @@ impl AgentSchedulerStore {
         Ok(tasks)
     }
 
+    /// A late result can finish its run but cannot overwrite a newer step entry.
+    pub(crate) fn update_task_for_run(
+        &self, context: &(impl AgentSchedulerStorageContext + ?Sized), task_id: &TaskId,
+        run_id: &crate::domain::RunId, status: Option<AgentTaskStatus>,
+        metadata_patch: serde_json::Map<String, Value>, now: TimestampMs,
+    ) -> Result<bool> {
+        let outcome = self.edit_task_board_task(context, task_id, Default::default(), |current| {
+            let owned = current.metadata.get("task_board.active_run_id").and_then(Value::as_str) == Some(run_id.as_str())
+                && super::runs::task_status_allows_run(current.status)
+                && !bool_metadata_field(&current.metadata, "task_board.deleted")
+                && !bool_metadata_field(&current.metadata, "task_board.archived");
+            let mut metadata = current.metadata.clone();
+            if owned {
+                metadata.as_object_mut().context("task metadata must be an object")?.extend(metadata_patch);
+                if status.is_some_and(|s| matches!(s, AgentTaskStatus::Completed | AgentTaskStatus::Failed | AgentTaskStatus::Cancelled)) {
+                    metadata.as_object_mut().unwrap().remove("task_board.active_run_id");
+                }
+            }
+            Ok(AgentTaskBoardUpdate { title: None, status: owned.then_some(status).flatten(),
+                metadata, updated_at_ms: if owned { now } else { current.updated_at_ms } })
+        })?;
+        Ok(outcome.is_some_and(|(current, _)| current.metadata.get("task_board.active_run_id").and_then(Value::as_str) == Some(run_id.as_str())
+            && super::runs::task_status_allows_run(current.status)
+            && !bool_metadata_field(&current.metadata, "task_board.deleted")
+            && !bool_metadata_field(&current.metadata, "task_board.archived")))
+    }
+
     pub fn update_task_board_task(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -488,6 +515,7 @@ impl AgentSchedulerStore {
         let Some(current) = load_task_with_conn(&tx, context, task_id)? else {
             return Ok(None);
         };
+        preserve_runtime_step(&current.metadata, &mut metadata)?;
         ensure_transition(current.kind, current.status, to_status)?;
         preserve_task_board_fields(&current.metadata, &mut metadata);
         let metadata_json = serde_json::to_string(&metadata).context("serialize task metadata")?;
@@ -792,6 +820,17 @@ pub(crate) fn validate_task_label_ids(
     Ok(ids)
 }
 
+pub(super) fn preserve_runtime_step(current: &Value, metadata: &mut Value) -> Result<()> {
+    anyhow::ensure!(current.get("task_board.entry_revision") == metadata.get("task_board.entry_revision"), "workflow step changed during runtime update");
+    if !metadata.is_object() { *metadata = json!({}); }
+    for key in ["task_board.status_key", "task_board.workflow_id", "task_board.status_category",
+        "task_board.entry_revision", "task_board.active_run_id", "task_board.step_instructions", "agent", "acp_agent"] {
+        if let Some(value) = current.get(key) { metadata[key] = value.clone(); }
+        else if let Some(map) = metadata.as_object_mut() { map.remove(key); }
+    }
+    Ok(())
+}
+
 pub(super) fn preserve_task_board_fields(current: &Value, metadata: &mut Value) {
     for key in [
         TASK_LABEL_IDS_METADATA_KEY,
@@ -875,6 +914,7 @@ pub(super) fn workflow_changed(
 
 pub(super) fn workflow_task_conflicts(
     tasks: &[StoredAgentTask],
+    current_workflow: Option<&TaskPoolWorkflowSnapshotDto>,
     workflow: &TaskPoolWorkflowSnapshotDto,
 ) -> Option<String> {
     let bridge = LifecycleBridge::new(workflow);
@@ -889,9 +929,9 @@ pub(super) fn workflow_task_conflicts(
         let key = crate::task_board::task_board_status_key(task);
         if agent_scheduler_control_status(task.status) || task.status == AgentTaskStatus::Running {
             *executing.entry(key).or_insert(0) += 1;
-        } else if bridge.status(&key).map_or(true, |status| {
-            status.role != TaskPoolWorkflowStatusRoleDto::Custom
-                && runtime_status_for_role(status.role).is_ok_and(|runtime| runtime != task.status)
+        } else if bridge.status(&key).is_err() || current_workflow.is_some_and(|old| {
+            old.steps.iter().find(|step| step.status_key == key).map(|step| &step.handoff)
+                != workflow.steps.iter().find(|step| step.status_key == key).map(|step| &step.handoff)
         }) {
             *incompatible.entry(key).or_insert(0) += 1;
         }
@@ -1032,10 +1072,6 @@ fn task_board_status_key_from_metadata(
     status: AgentTaskStatus,
     metadata: &Value,
 ) -> Option<String> {
-    if agent_scheduler_control_status(status) {
-        return task_board_status_key_from_map_value(AgentTaskStatus::Queued, metadata)
-            .or_else(|| Some(legacy_task_board_status_key(AgentTaskStatus::Queued).to_string()));
-    }
     if let Some(status_key) =
         metadata.get("task_board.status_key").and_then(Value::as_str).and_then(non_empty_str)
     {
@@ -1061,11 +1097,12 @@ pub(crate) fn task_board_projection_metadata(metadata: Value, status: AgentTaskS
     let Value::Object(mut object) = metadata else {
         return metadata;
     };
-    let fallback_status = task_board_projection_status(status);
-    let status_key = task_board_status_key_from_map(status, &object)
-        .unwrap_or_else(|| legacy_task_board_status_key(fallback_status).to_string());
-    object.insert("task_board.status_key".to_string(), json!(status_key));
-    object.insert("task_board.status_role".to_string(), json!(task_board_status_role(status)));
+    if !object.contains_key("task_board.status_key") {
+        let fallback_status = task_board_projection_status(status);
+        let key = task_board_status_key_from_map(status, &object)
+            .unwrap_or_else(|| legacy_task_board_status_key(fallback_status).to_owned());
+        object.insert("task_board.status_key".into(), json!(key));
+    }
     Value::Object(object)
 }
 
@@ -1088,24 +1125,6 @@ fn legacy_task_board_status_key(status: AgentTaskStatus) -> &'static str {
         AgentTaskStatus::Queued => "pending",
         AgentTaskStatus::Submitted => "code_complete",
         _ => status.as_str(),
-    }
-}
-
-fn task_board_status_role(status: AgentTaskStatus) -> &'static str {
-    match status {
-        AgentTaskStatus::Draft => "backlog",
-        AgentTaskStatus::Queued
-        | AgentTaskStatus::Active
-        | AgentTaskStatus::Assigned
-        | AgentTaskStatus::Dispatched
-        | AgentTaskStatus::Acknowledged => "queued",
-        AgentTaskStatus::Running => "executing",
-        AgentTaskStatus::Submitted => "review_ready",
-        AgentTaskStatus::Revision => "review",
-        AgentTaskStatus::Blocked | AgentTaskStatus::Paused => "paused",
-        AgentTaskStatus::Completed => "done",
-        AgentTaskStatus::Failed => "failed",
-        AgentTaskStatus::Cancelled | AgentTaskStatus::Archived => "archived",
     }
 }
 

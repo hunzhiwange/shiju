@@ -536,7 +536,7 @@ fn agent_task_store_task_board_projection_handles_non_objects_and_fallback_roles
         json!(null)
     );
 
-    for (status, expected_role, expected_key) in [
+    for (status, _expected_role, expected_key) in [
         (AgentTaskStatus::Draft, "backlog", "draft"),
         (AgentTaskStatus::Revision, "review", "revision"),
         (AgentTaskStatus::Blocked, "paused", "blocked"),
@@ -547,7 +547,7 @@ fn agent_task_store_task_board_projection_handles_non_objects_and_fallback_roles
         (AgentTaskStatus::Archived, "archived", "archived"),
     ] {
         let metadata = super::store::tasks::task_board_projection_metadata(json!({}), status);
-        assert_eq!(metadata["task_board.status_role"], expected_role);
+        assert!(metadata.get("task_board.status_role").is_none());
         assert_eq!(metadata["task_board.status_key"], expected_key);
     }
 
@@ -626,8 +626,8 @@ fn agent_task_store_transition_updates_task_board_projection_from_status_map() -
             TimestampMs(1_783_000_100_200),
         )?
         .expect("running task");
-    assert_eq!(running.metadata["task_board.status_key"], "running");
-    assert_eq!(running.metadata["task_board.status_role"], "executing");
+    assert_eq!(running.metadata["task_board.status_key"], "pending");
+    assert_eq!(running.metadata["task_board.status_role"], "queued");
 
     let submitted = store
         .transition_task_status(
@@ -637,8 +637,8 @@ fn agent_task_store_transition_updates_task_board_projection_from_status_map() -
             TimestampMs(1_783_000_100_300),
         )?
         .expect("submitted task");
-    assert_eq!(submitted.metadata["task_board.status_key"], "code_complete");
-    assert_eq!(submitted.metadata["task_board.status_role"], "review_ready");
+    assert_eq!(submitted.metadata["task_board.status_key"], "pending");
+    assert_eq!(submitted.metadata["task_board.status_role"], "queued");
 
     Ok(())
 }
@@ -674,7 +674,7 @@ fn agent_task_store_transition_with_metadata_preserves_lifecycle_projection() ->
         .expect("submitted task");
 
     assert_eq!(updated.status, AgentTaskStatus::Submitted);
-    assert_eq!(updated.metadata["task_board.status_key"], "custom_review_ready");
+    assert_eq!(updated.metadata["task_board.status_key"], "custom_running");
     assert_eq!(updated.metadata["task_board.status_role"], "review_ready");
     Ok(())
 }
@@ -797,7 +797,7 @@ fn agent_scheduler_store_updates_task_board_fields_and_workflow_snapshot() -> Re
 }
 
 #[test]
-fn agent_scheduler_store_repairs_missing_failed_retry_transition() -> Result<()> {
+fn agent_scheduler_store_does_not_invent_failed_retry_transition() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let project_path = temp_dir.path();
     let store = AgentSchedulerStore::new();
@@ -846,14 +846,7 @@ fn agent_scheduler_store_repairs_missing_failed_retry_transition() -> Result<()>
 
     let loaded =
         store.load_task_board_workflow(project_path)?.expect("stored workflow should load");
-    let failed = loaded
-        .statuses
-        .iter()
-        .find(|status| status.key == "failed")
-        .expect("failed status should load");
-    assert_eq!(failed.transitions.len(), 1);
-    assert_eq!(failed.transitions[0].outcome, "retry");
-    assert_eq!(failed.transitions[0].target, "pending");
+    assert_eq!(loaded, workflow, "loading a step workflow must not invent transitions");
 
     Ok(())
 }
@@ -907,10 +900,7 @@ fn agent_scheduler_store_keeps_existing_retry_and_non_failed_workflow_statuses()
     let loaded =
         store.load_task_board_workflow(project_path)?.expect("stored workflow should load");
 
-    assert_eq!(loaded.statuses[0].transitions.len(), 1);
-    assert_eq!(loaded.statuses[0].transitions[0].outcome, " Retry ");
-    assert!(loaded.statuses[1].transitions.is_empty());
-    assert!(loaded.statuses[2].transitions.is_empty());
+    assert_eq!(loaded, workflow, "loading must retain the configured steps exactly");
     Ok(())
 }
 
@@ -1091,4 +1081,35 @@ fn scheduler_store_fixture(
         "task-store-project",
     )?;
     Ok((AgentSchedulerStore::from_database(database), context))
+}
+
+#[test]
+fn workflow_handoff_same_step_and_stale_run_match_across_storage_backends() -> Result<()> {
+    for_each_task_store_provider(|store, context| {
+        store.save_task_board_workflow(context, &crate::lifecycle_bridge_tests::workflow())?;
+        let id = TaskId::new("provider-handoff")?;
+        let mut task = finite_task(id.as_str())?;
+        task.status = AgentTaskStatus::Draft;
+        task.metadata = json!({"task_board.status_key":"human"});
+        store.create_task(context, task)?;
+        let service = crate::task_board::AgentTaskBoardService::new(store);
+        let payload = || vw_api_agent_scheduler::AgentSchedulerMoveTaskPayloadDto {
+            from_status_key: Some("human".into()), to_status_key: "agent".into(), to_status: None, order_no: None };
+        service.move_task(context, &id, payload(), None, TimestampMs(10))?.unwrap();
+        service.move_task(context, &id, payload(), None, TimestampMs(11))?.unwrap();
+        let run_id = RunId::new("provider-run")?;
+        let claim = || super::store::runs::ClaimReadyTaskRunRequest { run_id: run_id.clone(), task_id: id.clone(),
+            lease_acquired_at_ms: TimestampMs(20), lease_expires_at_ms: Some(TimestampMs(200)) };
+        assert!(store.claim_ready_task_run(context, claim())?.is_some());
+        assert!(store.claim_ready_task_run(context, claim())?.is_none());
+        service.move_task(context, &id, vw_api_agent_scheduler::AgentSchedulerMoveTaskPayloadDto {
+            from_status_key: Some("agent".into()), to_status_key: "human".into(), to_status: None, order_no: None }, None, TimestampMs(21))?.unwrap();
+        assert!(!store.update_task_for_run(context, &id, &run_id, Some(AgentTaskStatus::Completed), Default::default(), TimestampMs(22))?);
+        let task = store.load_task(context, &id)?.unwrap();
+        assert_eq!(task.metadata["task_board.status_key"], "human");
+        assert_eq!(task.metadata["task_board.entry_revision"], 2);
+        assert_eq!(task.status, AgentTaskStatus::Draft);
+        assert_eq!(store.load_latest_run_for_task(context, &id)?.unwrap().attempt, 1);
+        Ok(())
+    })
 }

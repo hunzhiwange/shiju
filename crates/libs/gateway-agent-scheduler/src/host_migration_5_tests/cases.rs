@@ -17,8 +17,7 @@ use vw_api_agent_scheduler::{
     AgentSchedulerTaskMetadataUpdateRequest, AgentTaskKindDto, AgentTaskStatusDto,
 };
 use vw_api_task::{
-    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
-    TaskPoolWorkflowTransitionDto,
+    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusCategoryDto,
 };
 use vw_api_transport::common::TimestampMs;
 
@@ -1384,7 +1383,7 @@ async fn agent_scheduler_gateway_task_board_updates_moves_and_soft_deletes_task(
             priority: Some(3),
             order_no: Some(2),
             workflow_id: Some("dev_lifecycle".to_string()),
-            status_role: Some(TaskPoolWorkflowStatusRoleDto::Review),
+            status_category: Some(TaskPoolWorkflowStatusCategoryDto::Started),
             metadata_merge: Some(json!({"custom_field": "kept"})),
             ..Default::default()
         },
@@ -1855,6 +1854,7 @@ async fn agent_scheduler_gateway_start_is_idempotent_for_running_task() {
 #[test]
 fn gateway_local_agent_stream_request_forwards_execution_selection() {
     let request = LocalAgentExecutionRequest {
+        scheduler_context: task_scheduler_context_for_fixture().expect("scheduler fixture context"),
         project_path: PathBuf::from("/tmp/project-root"),
         task_id: TaskId::new("task-deepseek").expect("task id"),
         run_id: RunId::new("run-deepseek").expect("run id"),
@@ -2014,29 +2014,15 @@ fn scheduler_command_and_metadata_helpers_cover_edge_cases() {
         assert_eq!(task_board_write_command(command), is_board_write);
     }
 
-    for (role, key) in [
-        (TaskPoolWorkflowStatusRoleDto::Backlog, "backlog"),
-        (TaskPoolWorkflowStatusRoleDto::Queued, "queued"),
-        (TaskPoolWorkflowStatusRoleDto::Planning, "planning"),
-        (TaskPoolWorkflowStatusRoleDto::Executing, "executing"),
-        (TaskPoolWorkflowStatusRoleDto::Failed, "failed"),
-        (TaskPoolWorkflowStatusRoleDto::Paused, "paused"),
-        (TaskPoolWorkflowStatusRoleDto::ReviewReady, "review_ready"),
-        (TaskPoolWorkflowStatusRoleDto::Review, "review"),
-        (TaskPoolWorkflowStatusRoleDto::Merging, "merging"),
-        (TaskPoolWorkflowStatusRoleDto::Done, "done"),
-        (TaskPoolWorkflowStatusRoleDto::Archived, "archived"),
-        (TaskPoolWorkflowStatusRoleDto::Custom, "custom"),
+    for (category, key) in [
+        (TaskPoolWorkflowStatusCategoryDto::Unstarted, "unstarted"),
+        (TaskPoolWorkflowStatusCategoryDto::Started, "started"),
+        (TaskPoolWorkflowStatusCategoryDto::Done, "done"),
+        (TaskPoolWorkflowStatusCategoryDto::Closed, "closed"),
     ] {
-        assert_eq!(
-            task_board_status_role_from_metadata(&json!({"task_board.status_role": key})),
-            Some(role)
-        );
+        assert_eq!(task_board_status_category_from_metadata(&json!({"task_board.status_category": key})), Some(category));
     }
-    assert_eq!(
-        task_board_status_role_from_metadata(&json!({"task_board.status_role": "nope"})),
-        None
-    );
+    assert_eq!(task_board_status_category_from_metadata(&json!({"task_board.status_category":"nope"})), None);
 
     assert_eq!(task_board_status_key(AgentTaskStatus::Submitted, &json!({})), "code_complete");
     assert_eq!(
@@ -2687,4 +2673,41 @@ async fn task_pool_schedule_status_named_merge_does_not_execute_git() {
             .any(|l| l.message.contains("explicit workflow"))
     );
     cleanup_merge_test_project(&project_id).await;
+}
+
+fn task_scheduler_context_for_fixture() -> anyhow::Result<task_scheduler::domain::AgentSchedulerContext> {
+    use task_scheduler::store::AgentSchedulerStorageContext;
+    let path = std::path::Path::new("/repo");
+    task_scheduler::domain::AgentSchedulerContext::new(path.storage_scope()?, path)
+}
+
+#[tokio::test]
+async fn gateway_step_handoff_validates_login_member_and_agent_before_writing() -> anyhow::Result<()> {
+    use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStepHandoffDto};
+    let directory = tempfile::tempdir()?;
+    let path = directory.path();
+    let context = owned_scheduler_context(path)?;
+    let gateway = StoreBackedAgentSchedulerGateway::with_executor(RecordingLocalExecutor { output: "completed".into() });
+    gateway.store.initialize_project(&context)?;
+    let mut workflow: TaskPoolWorkflowSnapshotDto = serde_json::from_value(json!({
+        "id":"gateway-handoff", "label":"Gateway handoff", "initial_status_key":"human",
+        "statuses":[{"key":"human","label":"Human","category":"unstarted"}, {"key":"agent","label":"Agent","category":"started"}],
+        "steps":[{"status_key":"human","handoff":{"kind":"member","member_id":context.scope().project_scope().user_id().as_ref()}},
+            {"status_key":"agent","handoff":{"kind":"agent","agent_id":"missing-agent","instructions":"Execute this step","completion_status_key":"human"}}]
+    }))?;
+    gateway.store.save_task_board_workflow(&context, &workflow)?;
+    let created = gateway.create_task_scoped(context.clone(), create_task_request("gateway-handoff" )).await?;
+    assert_eq!(created.task.metadata["assignee"], context.scope().project_scope().user_id().as_ref());
+    assert_eq!(created.task.status, AgentTaskStatusDto::Draft);
+    let mut invalid = create_task_request("invalid-agent");
+    invalid.metadata = json!({"task_board.status_key":"agent"});
+    assert!(gateway.create_task_scoped(context.clone(), invalid).await.is_err());
+    assert!(gateway.store.load_task(&context, &TaskId::new("invalid-agent")?)?.is_none());
+    workflow.steps[0].handoff = TaskPoolWorkflowStepHandoffDto::Member { member_id: "another-user".into() };
+    gateway.store.save_task_board_workflow(&context, &workflow)?;
+    assert!(gateway.create_task_scoped(context.clone(), create_task_request("invalid-member")).await.is_err());
+    assert!(gateway.store.load_task(&context, &TaskId::new("invalid-member")?)?.is_none());
+    let repeated = gateway.create_task_scoped(context.clone(), create_task_request("gateway-handoff")).await?;
+    assert_eq!(repeated.task.metadata["task_board.entry_revision"], 1);
+    Ok(())
 }

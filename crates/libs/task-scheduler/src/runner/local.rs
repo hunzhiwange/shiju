@@ -22,7 +22,7 @@ use crate::store::logs::{
 use crate::store::runs::{
     AgentRunFinishStatus, ClaimReadyTaskRunRequest, StoredAgentRun,
 };
-use crate::store::tasks::{AgentTaskBoardUpdate, StoredAgentTask};
+use crate::store::tasks::StoredAgentTask;
 use crate::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 
 const DEFAULT_LOCAL_RUN_LEASE_DURATION_MS: i64 = 30 * 60 * 1_000;
@@ -64,6 +64,7 @@ pub struct LocalAgentWorkspace {
 /// 在已分配工作区内执行代理所需的提示、模型和路由信息。
 pub struct LocalAgentExecutionRequest {
     pub project_path: PathBuf,
+    pub scheduler_context: crate::domain::AgentSchedulerContext,
     pub task_id: TaskId,
     pub run_id: RunId,
     pub title: String,
@@ -183,20 +184,23 @@ where
 
         let workflow = load_dispatch_workflow(self.store, project_path)?;
         let bridge = LifecycleBridge::new(&workflow);
-        let status_key = bridge.execution_status_key(&dispatch_status_key(&task))?;
-        let projection = bridge.projection_metadata(status_key)?;
+        bridge.execution_status_key(&dispatch_status_key(&task))?;
+        let projection = Map::new();
 
         // Do not consume a run or its lease while the physical directory is busy.
         // All project registrations use the same per-user lock namespace.
         let lock_root = super::workspace_claim::lock_root()?;
-        let owner = format!("local-run-{}-{}", task.id.as_str(), request.now_ms.0);
+        static RUN_SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let sequence = RUN_SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let owner = format!("local-run-{}-{}-{}-{sequence}", task.id.as_str(), request.now_ms.0, std::process::id());
+        let run_id = RunId::new(owner.clone())?;
         let Some(claim) =
             WorkspaceClaim::acquire(&lock_root, project_path.storage_project_path(), owner)?
         else {
             return Ok(None);
         };
 
-        let Some(run) = self.claim_ready_run(project_path, &task, &request, max_concurrent)? else {
+        let Some(run) = self.claim_ready_run(project_path, &task, &request, run_id, max_concurrent)? else {
             return Ok(None);
         };
         self.append_log(
@@ -220,13 +224,16 @@ where
             request.now_ms,
         )?;
 
-        self.advance_to_running(project_path, &task.id, &run.id, &request, projection)?;
+        if let Err(error) = self.advance_to_running(project_path, &task.id, &run.id, &request, projection) {
+            self.store.finish_run(project_path, &run.id, AgentRunFinishStatus::Cancelled, request.now_ms, Some(error.to_string()))?;
+            return Err(error);
+        }
         let started_run = self.store.load_run(project_path, &run.id)?.unwrap_or(run);
         claim.retain(project_path.storage_project_path())?;
         Ok(Some(LocalAgentRunnerOutcome { task_id: task.id, run: started_run }))
     }
 
-    /// 记录执行产物并按生命周期结果推进；失败路径仍负责释放资源。
+    /// 记录执行结果，保留当前工作流步骤；失败路径仍负责回收资源。
     pub fn finish_started_run(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -240,6 +247,9 @@ where
         if task.kind != AgentTaskKind::Finite {
             bail!("local runner only supports finite tasks: {}", task.id.as_str());
         }
+        anyhow::ensure!(request.task_id == *task_id, "runner request task mismatch");
+        let run = self.store.load_run(project_path, run_id)?.context("execution run not found")?;
+        anyhow::ensure!(run.task_id == *task_id, "execution run belongs to another task");
         // Transfer ownership exactly once; concurrent finish requests cannot execute twice.
         let Some(mut claim) =
             WorkspaceClaim::take(project_path.storage_project_path(), run_id.as_str())?
@@ -256,7 +266,9 @@ where
             )?;
             return Ok(None);
         }
-        if task.status != AgentTaskStatus::Running {
+        if task.status != AgentTaskStatus::Running
+            || task.metadata.get("task_board.active_run_id").and_then(Value::as_str) != Some(run_id.as_str()) {
+            self.store.finish_run(project_path, run_id, AgentRunFinishStatus::Cancelled, request.now_ms, Some("task moved before execution".into()))?;
             return Ok(None);
         }
         let finished_run = match self.execute_running_task(project_path, &task, run_id, &request) {
@@ -276,11 +288,11 @@ where
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
         task: &StoredAgentTask,
         request: &LocalAgentRunnerRequest,
+        run_id: RunId,
         max_concurrent: Option<usize>,
     ) -> Result<Option<StoredAgentRun>> {
         let lease_expires_at_ms = add_ms(request.now_ms, self.lease_duration_ms)
             .context("local run lease expiry timestamp overflow")?;
-        let run_id = RunId::new(format!("local-run-{}-{}", task.id.as_str(), request.now_ms.0))?;
         self.store.claim_ready_task_run_with_limit(
             project_path,
             ClaimReadyTaskRunRequest {
@@ -324,16 +336,9 @@ where
         )?;
 
         let running_at_ms = add_ms(request.now_ms, 3)?;
-        let current = self.store.load_task(project_path, task_id)?
-            .context("task disappeared before local start")?;
-        let mut metadata = object_metadata(current.metadata)?;
-        metadata.extend(projection);
-        self.store.transition_task_status_with_metadata(
-            project_path, task_id, AgentTaskStatus::Running, Value::Object(metadata), running_at_ms,
-        )?
-            .with_context(|| {
-                format!("task disappeared before local start: {}", task_id.as_str())
-            })?;
+        if !self.store.update_task_for_run(project_path, task_id, run_id, Some(AgentTaskStatus::Running), projection, running_at_ms)? {
+            bail!("task moved before local start");
+        }
         self.store
             .heartbeat_run(
                 project_path,
@@ -416,6 +421,7 @@ where
                 project_path: project_path.storage_project_path().to_path_buf(),
                 task_id: task.id.clone(),
                 run_id: run_id.clone(),
+                scheduler_context: crate::domain::AgentSchedulerContext::new(project_path.storage_scope()?, project_path.storage_project_path())?,
                 title: task.title.clone(),
                 prompt: execution_prompt(task),
                 model: execution_model(task),
@@ -452,8 +458,7 @@ where
                 )?
                 .context("cancelled execution run disappeared");
         }
-        if current_task.is_none_or(|task| task.status != AgentTaskStatus::Running)
-            || current_run.status != crate::domain::AgentRunStatus::Running
+        if current_run.status != crate::domain::AgentRunStatus::Running
             || latest_run.is_none_or(|run| run.id != *run_id)
         {
             // A cancellation/recovery or a later attempt owns the task projection now.
@@ -513,39 +518,14 @@ where
         raw_output: String,
     ) -> Result<StoredAgentRun> {
         let submitted_at_ms = add_ms(request.now_ms, 5)?;
-        self.sync_task_workspace_metadata(project_path, task, workspace, submitted_at_ms)?;
-        let workflow = load_dispatch_workflow(self.store, project_path)?;
-        let bridge = LifecycleBridge::new(&workflow);
-        let source_key = bridge.execution_status_key(&dispatch_status_key(task))?;
-        let target = bridge.resolve_outcome(source_key, "success")?;
-        let current = self
-            .store
-            .load_task(project_path, &task.id)?
-            .context("task disappeared before completion")?;
-        let mut metadata = object_metadata(current.metadata)?;
-        metadata.extend(bridge.projection_metadata(&target.status_key)?);
-        self.store.transition_task_status_with_metadata(
-            project_path,
-            &task.id,
-            target.runtime_status,
-            Value::Object(metadata),
-            submitted_at_ms,
-        )?;
-        self.append_log(
-            project_path,
-            &task.id,
-            Some(run_id),
-            submitted_at_ms,
-            Some(AgentTaskStatus::Running),
-            Some(target.runtime_status),
-            "local execution result advanced lifecycle",
-        )?;
-        self.append_event(
-            project_path, &task.id, Some(run_id),
-            if target.runtime_status == AgentTaskStatus::Completed { AgentEventKind::RunCompleted } else { AgentEventKind::RunSubmitted },
-            Some(AgentTaskStatus::Running), Some(target.runtime_status),
-            "local execution result advanced lifecycle", json!({"dispatch_target": "local", "outcome": "success", "status_key": target.status_key}), submitted_at_ms,
-        )?;
+        self.sync_task_workspace_metadata(project_path, task, run_id, workspace, submitted_at_ms)?;
+        self.store.update_task_for_run(project_path, &task.id, run_id,
+            Some(AgentTaskStatus::Completed), Map::new(), submitted_at_ms)?;
+        self.append_log(project_path, &task.id, Some(run_id), submitted_at_ms,
+            Some(AgentTaskStatus::Running), Some(AgentTaskStatus::Completed), "local execution completed; step retained")?;
+        self.append_event(project_path, &task.id, Some(run_id), AgentEventKind::RunCompleted,
+            Some(AgentTaskStatus::Running), Some(AgentTaskStatus::Completed),
+            "local execution completed; step retained", json!({"dispatch_target": "local", "outcome": "success"}), submitted_at_ms)?;
         self.record_execution_artifact(
             project_path,
             &task.id,
@@ -573,34 +553,18 @@ where
     }
 
     fn sync_task_workspace_metadata(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: &StoredAgentTask,
-        workspace: &LocalAgentWorkspace,
-        updated_at_ms: TimestampMs,
+        &self, project_path: &(impl AgentSchedulerStorageContext + ?Sized), task: &StoredAgentTask,
+        run_id: &RunId, workspace: &LocalAgentWorkspace, now: TimestampMs,
     ) -> Result<()> {
-        if workspace.slot_id.is_none() || workspace.branch.is_none() {
-            return Ok(());
+        if workspace.slot_id.is_some() && workspace.branch.is_some() {
+            let patch = Map::from_iter([
+                ("selected_worktree_slot_id".into(), json!(workspace.slot_id)),
+                ("selected_worktree_path".into(), json!(workspace.path)),
+                ("selected_worktree_branch".into(), json!(workspace.branch)),
+                ("merge_source_branch".into(), json!(workspace.branch)),
+            ]);
+            self.store.update_task_for_run(project_path, &task.id, run_id, None, patch, now)?;
         }
-        let mut metadata = object_metadata(task.metadata.clone())?;
-        metadata.insert("selected_worktree_slot_id".to_string(), json!(workspace.slot_id.clone()));
-        metadata.insert("selected_worktree_path".to_string(), json!(workspace.path.clone()));
-        metadata.insert("selected_worktree_branch".to_string(), json!(workspace.branch.clone()));
-        metadata.insert("merge_source_branch".to_string(), json!(workspace.branch.clone()));
-        self.store
-            .update_task_board_task(
-                project_path,
-                &task.id,
-                AgentTaskBoardUpdate {
-                    title: None,
-                    status: None,
-                    metadata: Value::Object(metadata),
-                    updated_at_ms,
-                },
-            )?
-            .with_context(|| {
-                format!("task disappeared before workspace metadata sync: {}", task.id.as_str())
-            })?;
         Ok(())
     }
 
@@ -614,20 +578,9 @@ where
         error_message: String,
     ) -> Result<StoredAgentRun> {
         let failed_at_ms = add_ms(request.now_ms, 5)?;
-        let workflow = load_dispatch_workflow(self.store, project_path)?;
-        let bridge = LifecycleBridge::new(&workflow);
         let source_key = dispatch_status_key(task);
-        let failure = bridge.execution_status_key(&source_key)
-            .and_then(|source| bridge.resolve_outcome(source, "failure"))
-            .and_then(|target| {
-                crate::state_machine::ensure_transition(task.kind, AgentTaskStatus::Running, target.runtime_status)?;
-                Ok(target)
-            });
-        let (to_status, to_status_key, projection_error) = match failure {
-            Ok(target) => (target.runtime_status, target.status_key, None),
-            Err(error) => (AgentTaskStatus::Failed, "failed".to_string(), Some(error.to_string())),
-        };
-
+        let to_status_key = source_key.clone();
+        let to_status = AgentTaskStatus::Failed;
         self.record_execution_artifact(
             project_path,
             &task.id,
@@ -646,28 +599,8 @@ where
             Some(error_message.clone()),
         )?.context("run disappeared before local failure")?;
 
-        let current = self.store.load_task(project_path, &task.id)?
-            .context("task disappeared before local failure")?;
-        let mut metadata = object_metadata(current.metadata)?;
-        match &projection_error {
-            None => metadata.extend(bridge.projection_metadata(&to_status_key)?),
-            Some(_) => {
-                metadata.insert("task_board.status_key".to_string(), json!(to_status_key));
-                metadata.insert("task_board.status_role".to_string(), json!("failed"));
-            }
-        }
-        self.store.transition_task_status_with_metadata(
-            project_path,
-            &task.id,
-            to_status,
-            Value::Object(metadata),
-            failed_at_ms,
-        )?.context("task disappeared before local failure transition")?;
-
-        let mut message = format!("local execution failed: {error_message}");
-        if let Some(error) = projection_error {
-            message.push_str(&format!(" (workflow failure transition unavailable: {error})"));
-        }
+        self.store.update_task_for_run(project_path, &task.id, run_id, Some(to_status), Map::new(), failed_at_ms)?;
+        let message = format!("local execution failed: {error_message}");
         self.store.append_task_log(project_path, AppendAgentTaskLogRequest {
             task_id: task.id.clone(),
             run_id: Some(run_id.clone()),
@@ -705,16 +638,9 @@ where
         timestamp_ms: TimestampMs,
         message: impl Into<String>,
     ) -> Result<()> {
-        self.store
-            .transition_task_status(project_path, task_id, to_status, timestamp_ms)?
-            .with_context(|| {
-                format!(
-                    "task disappeared during local transition {} -> {}: {}",
-                    from_status.as_str(),
-                    to_status.as_str(),
-                    task_id.as_str()
-                )
-            })?;
+        if !self.store.update_task_for_run(project_path, task_id, run_id, Some(to_status), Map::new(), timestamp_ms)? {
+            bail!("task moved during local transition");
+        }
         self.append_log(
             project_path,
             task_id,
@@ -930,7 +856,8 @@ fn task_prompt(task: &StoredAgentTask) -> &str {
 
 pub fn execution_prompt(task: &StoredAgentTask) -> String {
     let prompt = task_prompt(task);
-    format!("{prompt}\n\n{FINAL_REPLY_INSTRUCTION}")
+    let instructions = execution_metadata_string(task, "task_board.step_instructions").unwrap_or_default();
+    format!("{prompt}\n\n{instructions}\n\nUse move_workflow_step only when this step should complete or return. Finishing execution alone retains the current step.\n\n{FINAL_REPLY_INSTRUCTION}")
 }
 
 pub fn execution_model(task: &StoredAgentTask) -> Option<String> {

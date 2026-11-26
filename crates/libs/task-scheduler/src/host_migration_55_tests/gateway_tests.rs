@@ -295,6 +295,7 @@ async fn gateway_worktree_pool_inner_helpers_map_successful_pool_responses() -> 
     let dir = tempfile::tempdir()?;
     let mut request = workspace_request("task-worktree")?;
     request.project_path = dir.path().to_path_buf();
+    request.scheduler_context = { use crate::store::AgentSchedulerStorageContext; crate::domain::AgentSchedulerContext::new(request.project_path.storage_scope()?, request.project_path.clone())? };
     let release = release_request("task-worktree")?;
     let recycle = recycle_request("task-worktree", "needs clean checkout")?;
     let project = project_info(dir.path().to_str().unwrap());
@@ -436,6 +437,7 @@ async fn task_pool_workspace_non_git_uses_registered_directory() -> Result<()> {
     let pool = FakeWorktreePool::default();
     let mut request = workspace_request("directory-only")?;
     request.project_path = dir.path().to_path_buf();
+    request.scheduler_context = { use crate::store::AgentSchedulerStorageContext; crate::domain::AgentSchedulerContext::new(request.project_path.storage_scope()?, request.project_path.clone())? };
     let workspace =
         lease_gateway_local_agent_workspace_for_project(request, &project, &pool).await?;
     assert_eq!(Path::new(&workspace.path), dir.path().canonicalize()?);
@@ -453,6 +455,7 @@ async fn task_pool_workspace_rejects_missing_or_foreign_directory() -> Result<()
     for path in [dir.path().join("missing"), foreign.path().to_path_buf()] {
         let mut request = workspace_request("invalid-directory")?;
         request.project_path = path;
+    request.scheduler_context = { use crate::store::AgentSchedulerStorageContext; crate::domain::AgentSchedulerContext::new(request.project_path.storage_scope()?, request.project_path.clone())? };
         assert!(
             lease_gateway_local_agent_workspace_for_project(request, &project, &pool)
                 .await
@@ -489,6 +492,7 @@ fn execution_request(
     acp_agent: Option<&str>,
 ) -> Result<LocalAgentExecutionRequest> {
     Ok(LocalAgentExecutionRequest {
+        scheduler_context: task_scheduler_context_for_fixture()?,
         project_path: PathBuf::from("/repo"),
         task_id: TaskId::new("task-1")?,
         run_id: RunId::new("run-1")?,
@@ -573,4 +577,10 @@ fn finite_task(task_id: &TaskId) -> Result<NewAgentTask> {
         metadata: json!({}),
         created_at_ms: TimestampMs(1),
     })
+}
+
+fn task_scheduler_context_for_fixture() -> anyhow::Result<crate::domain::AgentSchedulerContext> {
+    use crate::store::AgentSchedulerStorageContext;
+    let path = std::path::Path::new("/repo");
+    crate::domain::AgentSchedulerContext::new(path.storage_scope()?, path)
 }

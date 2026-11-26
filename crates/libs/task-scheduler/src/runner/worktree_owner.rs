@@ -10,16 +10,35 @@ use vw_api_transport::common::TimestampMs;
 pub struct SchedulerWorktreeOwner {
     pub store: AgentSchedulerStore,
     pub project_path: PathBuf,
+    pub context: crate::domain::AgentSchedulerContext,
+    pub agent_exists: fn(&str) -> anyhow::Result<bool>,
     pub task_id: TaskId,
     pub run_id: RunId,
     pub claims: std::sync::Arc<std::sync::Mutex<Vec<PathBuf>>>,
 }
 
 impl tool_context::run_worktree::RunWorktreePort for SchedulerWorktreeOwner {
+    fn move_workflow_step(&self, return_to_previous: bool) -> anyhow::Result<serde_json::Value> {
+        self.validate()?;
+        let task = crate::task_board::AgentTaskBoardService::new(&self.store).move_running_task(
+            &self.context, &self.task_id, &self.run_id, return_to_previous,
+            TimestampMs(chrono::Utc::now().timestamp_millis().max(0)), |handoff| {
+                use vw_api_task::TaskPoolWorkflowStepHandoffDto;
+                match handoff {
+                    TaskPoolWorkflowStepHandoffDto::KeepAssignee => {},
+                    TaskPoolWorkflowStepHandoffDto::Member { member_id } => anyhow::ensure!(
+                        member_id == self.context.scope().project_scope().user_id().as_ref(), "member must be current ShiJu login user"),
+                    TaskPoolWorkflowStepHandoffDto::Agent { agent_id, .. } => anyhow::ensure!((self.agent_exists)(agent_id)?, "unknown workflow agent"),
+                }
+                Ok(())
+            })?;
+        Ok(serde_json::json!({"task_id": task.id.as_str(), "status_key": crate::task_board::task_board_status_key(&task)}))
+    }
+
     fn validate(&self) -> anyhow::Result<()> {
         let run = self
             .store
-            .load_run(&self.project_path, &self.run_id)?
+            .load_run(&self.context, &self.run_id)?
             .ok_or_else(|| anyhow::anyhow!("worktree owner run not found"))?;
         anyhow::ensure!(run.task_id == self.task_id, "worktree owner task mismatch");
         anyhow::ensure!(
@@ -69,7 +88,7 @@ impl tool_context::run_worktree::RunWorktreePort for SchedulerWorktreeOwner {
         action: &str,
     ) -> anyhow::Result<()> {
         self.store.record_task_artifact(
-            &self.project_path,
+            &self.context,
             RecordTaskArtifactRequest {
                 task_id: self.task_id.clone(),
                 run_id: Some(self.run_id.clone()),

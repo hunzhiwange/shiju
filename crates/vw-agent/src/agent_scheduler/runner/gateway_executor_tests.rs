@@ -150,6 +150,8 @@ async fn exercise_task_pool_worktree(git: bool, fail_run: bool) -> Result<()> {
                 )
                 .with_run_worktree_owner(crate::tools::RunWorktreeOwner::new(
                     crate::tools::context::run_worktree::SchedulerWorktreeOwner {
+                        context: task_scheduler::domain::AgentSchedulerContext::new(task_scheduler::store::AgentSchedulerStorageContext::storage_scope(owned_path.as_path())?, owned_path.clone())?,
+                        agent_exists: |_| Ok(true),
                         claims: Default::default(),
                         store: owned_store.clone(),
                         project_path: owned_path.clone(),

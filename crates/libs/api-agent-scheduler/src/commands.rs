@@ -1,7 +1,7 @@
 use crate::{AgentTaskStatusDto, AgentEventKindDto, AgentOutboxMessageDto};
 use vw_api_chat_identity::ReasoningEffortDto;
 use vw_api_transport::{common::TimestampMs, id::{ProjectId, TaskId}};
-use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
+use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusCategoryDto};
 use serde::{Deserialize, Deserializer, Serialize, de};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -134,7 +134,7 @@ pub struct AgentSchedulerTaskMetadataPatchDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workflow_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub status_role: Option<TaskPoolWorkflowStatusRoleDto>,
+    pub status_category: Option<TaskPoolWorkflowStatusCategoryDto>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metadata_merge: Option<Value>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -276,7 +276,7 @@ pub struct AgentSchedulerTaskBoardTaskReadModelDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status_label: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub status_role: Option<TaskPoolWorkflowStatusRoleDto>,
+    pub status_category: Option<TaskPoolWorkflowStatusCategoryDto>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stage_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

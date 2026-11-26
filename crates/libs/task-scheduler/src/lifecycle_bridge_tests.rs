@@ -1,233 +1,73 @@
-//! 测试工作流状态角色到调度结果和运行状态的映射。
-//! 缺失、禁用状态及禁用结果链中的环路必须明确拒绝。
-
-use serde_json::json;
-use vw_api_task::{
-    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
-    TaskPoolWorkflowTransitionDto,
-};
-
+//! Steps and runtime have independent lifetimes.
 use super::lifecycle_bridge::LifecycleBridge;
 use super::state_machine::AgentTaskStatus;
+use vw_api_task::*;
 
-#[test]
-fn lifecycle_bridge_resolves_outcome_and_runtime_status_by_role() {
-    let workflow = workflow(vec![
-        status(
-            "campaign_queued",
-            TaskPoolWorkflowStatusRoleDto::Queued,
-            Some(transition("success", "campaign_review")),
-            None,
-            true,
-        ),
-        status("campaign_planning", TaskPoolWorkflowStatusRoleDto::Planning, None, None, true),
-        status(
-            "campaign_review",
-            TaskPoolWorkflowStatusRoleDto::Review,
-            None,
-            Some("campaign_done"),
-            false,
-        ),
-        status("campaign_done", TaskPoolWorkflowStatusRoleDto::Done, None, None, true),
-    ]);
-    let bridge = LifecycleBridge::new(&workflow);
-
-    let queued = bridge.resolve_status("campaign_queued").expect("queued projection");
-    assert_eq!(queued.status_key, "campaign_queued");
-    assert_eq!(queued.status_role, TaskPoolWorkflowStatusRoleDto::Queued);
-    assert_eq!(queued.runtime_status, AgentTaskStatus::Queued);
-    assert!(bridge.dispatch_eligibility("campaign_queued").expect("dispatch eligibility").eligible);
-    assert!(
-        bridge
-            .dispatch_eligibility("campaign_planning")
-            .expect("planning dispatch eligibility")
-            .eligible
-    );
-
-    let projected_metadata =
-        bridge.projection_metadata("campaign_queued").expect("projection metadata");
-    assert_eq!(projected_metadata["task_board.status_key"], json!("campaign_queued"));
-    assert_eq!(projected_metadata["task_board.status_role"], json!("queued"));
-
-    let advanced =
-        bridge.resolve_outcome("campaign_queued", "success").expect("success target projection");
-    assert_eq!(advanced.status_key, "campaign_done");
-    assert_eq!(advanced.status_role, TaskPoolWorkflowStatusRoleDto::Done);
-    assert_eq!(advanced.runtime_status, AgentTaskStatus::Completed);
-}
-
-#[test]
-fn lifecycle_bridge_rejects_missing_or_disabled_status() {
-    let workflow = workflow(vec![
-        status("campaign_queued", TaskPoolWorkflowStatusRoleDto::Queued, None, None, true),
-        status("campaign_disabled", TaskPoolWorkflowStatusRoleDto::Executing, None, None, false),
-        status("campaign_custom", TaskPoolWorkflowStatusRoleDto::Custom, None, None, true),
-    ]);
-    let bridge = LifecycleBridge::new(&workflow);
-
-    let missing = bridge.resolve_status("missing_status").expect_err("missing status fails");
-    assert!(missing.to_string().contains("workflow status"));
-
-    let disabled = bridge.resolve_status("campaign_disabled").expect_err("disabled status fails");
-    assert!(disabled.to_string().contains("disabled"));
-
-    let custom = bridge.resolve_status("campaign_custom").expect_err("custom role fails");
-    assert!(custom.to_string().contains("role custom"));
-
-    let no_transition =
-        bridge.resolve_outcome("campaign_queued", "success").expect_err("missing outcome fails");
-    assert!(no_transition.to_string().contains("outcome"));
-}
-
-#[test]
-fn lifecycle_bridge_rejects_cycle_in_disabled_outcome_chain() {
-    let workflow = workflow(vec![
-        status(
-            "queued",
-            TaskPoolWorkflowStatusRoleDto::Queued,
-            Some(transition(" SUCCESS ", "disabled_a")),
-            None,
-            true,
-        ),
-        status(
-            "disabled_a",
-            TaskPoolWorkflowStatusRoleDto::Executing,
-            Some(transition("succeed", "disabled_b")),
-            None,
-            false,
-        ),
-        status(
-            "disabled_b",
-            TaskPoolWorkflowStatusRoleDto::Review,
-            Some(transition("success", "disabled_a")),
-            None,
-            false,
-        ),
-    ]);
-
-    let error = LifecycleBridge::new(&workflow)
-        .resolve_outcome_target_status_key("queued", "succeed")
-        .expect_err("disabled status cycle must fail");
-
-    assert!(error.to_string().contains("disabled status chain contains a cycle"));
-    assert!(error.to_string().contains("disabled_a"));
-}
-
-fn workflow(statuses: Vec<TaskPoolWorkflowStatusDto>) -> TaskPoolWorkflowSnapshotDto {
-    {
-        let statuses: Vec<vw_api_task::TaskPoolWorkflowStatusDto> = statuses;
-        TaskPoolWorkflowSnapshotDto {
-            id: "campaign_workflow".to_string(),
-            label: "Campaign Workflow".to_string(),
-            initial_status_key: statuses
-                .first()
-                .map(|status| status.key.clone())
-                .unwrap_or_default(),
-            steps: statuses
-                .iter()
-                .map(|status| vw_api_task::TaskPoolWorkflowStepDto {
-                    status_key: status.key.clone(),
-                    handoff: vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
-                })
-                .collect(),
-            statuses,
-        }
+pub(crate) fn workflow() -> TaskPoolWorkflowSnapshotDto {
+    TaskPoolWorkflowSnapshotDto {
+        id: "handoff".into(),
+        label: "Handoff".into(),
+        initial_status_key: "human".into(),
+        statuses: vec![
+            TaskPoolWorkflowStatusDto {
+                key: "human".into(),
+                label: "Human".into(),
+                category: TaskPoolWorkflowStatusCategoryDto::Unstarted,
+                enabled: true,
+            },
+            TaskPoolWorkflowStatusDto {
+                key: "agent".into(),
+                label: "Agent".into(),
+                category: TaskPoolWorkflowStatusCategoryDto::Started,
+                enabled: true,
+            },
+            TaskPoolWorkflowStatusDto {
+                key: "done".into(),
+                label: "Done".into(),
+                category: TaskPoolWorkflowStatusCategoryDto::Done,
+                enabled: true,
+            },
+        ],
+        steps: vec![
+            TaskPoolWorkflowStepDto {
+                status_key: "human".into(),
+                handoff: TaskPoolWorkflowStepHandoffDto::KeepAssignee,
+            },
+            TaskPoolWorkflowStepDto {
+                status_key: "agent".into(),
+                handoff: TaskPoolWorkflowStepHandoffDto::Agent {
+                    agent_id: "main".into(),
+                    instructions: "Review the evidence".into(),
+                    completion_status_key: Some("done".into()),
+                    return_status_key: Some("human".into()),
+                },
+            },
+            TaskPoolWorkflowStepDto {
+                status_key: "done".into(),
+                handoff: TaskPoolWorkflowStepHandoffDto::KeepAssignee,
+            },
+        ],
     }
 }
-
-fn status(
-    key: &str,
-    role: TaskPoolWorkflowStatusRoleDto,
-    transition: Option<TaskPoolWorkflowTransitionDto>,
-    next: Option<&str>,
-    enabled: bool,
-) -> TaskPoolWorkflowStatusDto {
-    TaskPoolWorkflowStatusDto {
-        key: key.to_string(),
-        label: key.to_string(),
-        enabled,
-        category: match role {
-            TaskPoolWorkflowStatusRoleDto::Backlog | TaskPoolWorkflowStatusRoleDto::Queued => {
-                vw_api_task::TaskPoolWorkflowStatusCategoryDto::Unstarted
-            }
-            TaskPoolWorkflowStatusRoleDto::Done => {
-                vw_api_task::TaskPoolWorkflowStatusCategoryDto::Done
-            }
-            TaskPoolWorkflowStatusRoleDto::Archived => {
-                vw_api_task::TaskPoolWorkflowStatusCategoryDto::Closed
-            }
-            _ => vw_api_task::TaskPoolWorkflowStatusCategoryDto::Started,
-        },
-    }
-}
-
-fn transition(outcome: &str, target: &str) -> TaskPoolWorkflowTransitionDto {
-    TaskPoolWorkflowTransitionDto {
-        outcome: outcome.to_string(),
-        label: None,
-        target: target.to_string(),
-    }
-}
-
 #[test]
-fn task_pool_schedule_explicit_workflow_result_controls_completion() {
-    let mut snapshot = super::lifecycle_bridge::builtin_task_workflow_snapshot();
-    let bridge = LifecycleBridge::new(&snapshot);
-    assert_eq!(
-        bridge.resolve_outcome("running", "success").unwrap().runtime_status,
-        AgentTaskStatus::Completed
-    );
-    let running = snapshot.statuses.iter_mut().find(|s| s.key == "running").unwrap();
-    running.next = None;
-    running.transitions = vec![transition("manual_review", "paused")];
-    let bridge = LifecycleBridge::new(&snapshot);
-    assert!(bridge.resolve_outcome("running", "success").is_err());
-    assert_eq!(
-        bridge.resolve_outcome("running", "manual_review").unwrap().runtime_status,
-        AgentTaskStatus::Paused
-    );
-}
-
-#[test]
-fn legacy_development_snapshot_routes_code_complete_to_merge() {
-    use TaskPoolWorkflowStatusRoleDto::{Merging, Review, ReviewReady};
-
-    let workflow = {
-        let statuses: Vec<vw_api_task::TaskPoolWorkflowStatusDto> = vec![
-            status(
-                "code_complete",
-                ReviewReady,
-                Some(transition("success", "code_review")),
-                Some("code_review"),
-                true,
-            ),
-            status("code_review", Review, Some(transition("succeed", "pr_submitted")), None, true),
-            status("pr_submitted", Merging, None, None, true),
-        ];
-        TaskPoolWorkflowSnapshotDto {
-            id: "dev_lifecycle".into(),
-            label: "开发生命周期".into(),
-            initial_status_key: statuses
-                .first()
-                .map(|status| status.key.clone())
-                .unwrap_or_default(),
-            steps: statuses
-                .iter()
-                .map(|status| vw_api_task::TaskPoolWorkflowStepDto {
-                    status_key: status.key.clone(),
-                    handoff: vw_api_task::TaskPoolWorkflowStepHandoffDto::KeepAssignee,
-                })
-                .collect(),
-            statuses,
-        }
-    };
-    let workflow = super::lifecycle_bridge::normalize_workflow_transitions(workflow);
+fn lifecycle_bridge_dispatches_only_agent_steps_and_keeps_execution_key() {
+    let workflow = workflow();
     workflow.validate_for_schedule().unwrap();
-
     let bridge = LifecycleBridge::new(&workflow);
-    assert!(bridge.status("code_review").is_err());
-    assert_eq!(bridge.status("code_complete").unwrap().next.as_deref(), Some("pr_submitted"));
-    let target = bridge.resolve_outcome("code_complete", "success").unwrap();
-    assert_eq!(target.status_key, "pr_submitted");
-    assert_eq!(target.status_role, Merging);
+    assert!(!bridge.dispatch_eligibility("human").unwrap().eligible);
+    assert!(!bridge.dispatch_eligibility("done").unwrap().eligible);
+    assert!(bridge.dispatch_eligibility("agent").unwrap().eligible);
+    assert_eq!(bridge.execution_status_key("agent").unwrap(), "agent");
+    assert!(bridge.execution_status_key("human").is_err());
+    assert_eq!(bridge.resolve_outcome("agent", "retry").unwrap().status_key, "agent");
+    assert!(bridge.resolve_outcome("agent", "success").is_err());
+    assert_eq!(bridge.resolve_status("agent").unwrap().runtime_status, AgentTaskStatus::Queued);
+}
+#[test]
+fn lifecycle_bridge_rejects_disabled_or_unconfigured_steps() {
+    let mut workflow = workflow();
+    workflow.statuses[1].enabled = false;
+    let bridge = LifecycleBridge::new(&workflow);
+    assert!(bridge.dispatch_eligibility("agent").is_err());
+    assert!(bridge.dispatch_eligibility("missing").is_err());
 }

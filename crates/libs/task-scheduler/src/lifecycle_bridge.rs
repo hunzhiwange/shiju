@@ -1,24 +1,18 @@
-//! 在可配置工作流状态与调度器运行时状态之间投影生命周期和派发资格。
-
-use std::collections::HashSet;
-
+//! 工作流步骤只决定进入规则；运行结果不隐式移动步骤。
+use crate::state_machine::AgentTaskStatus;
 use anyhow::{Result, bail};
 use serde_json::{Map, Value, json};
 use vw_api_task::{
-    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
-    TaskPoolWorkflowTransitionDto,
+    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusCategoryDto, TaskPoolWorkflowStatusDto,
+    TaskPoolWorkflowStepDto, TaskPoolWorkflowStepHandoffDto,
 };
 
-use crate::state_machine::AgentTaskStatus;
-
-/// 不依赖员工配置的内建任务生命周期，用于尚未保存任务板工作流的项目。
 pub fn builtin_task_workflow_snapshot() -> TaskPoolWorkflowSnapshotDto {
-    let workflow =
+    task_workflow_snapshot(
         task_lifecycle::built_in_workflow_by_id(task_lifecycle::DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID)
-            .expect("default lifecycle is registered");
-    normalize_workflow_transitions(task_workflow_snapshot(workflow))
+            .expect("default lifecycle is registered"),
+    )
 }
-
 pub(crate) fn task_workflow_snapshot(
     workflow: vw_api_task_lifecycle::TaskLifecycleWorkflowDto,
 ) -> TaskPoolWorkflowSnapshotDto {
@@ -26,267 +20,103 @@ pub(crate) fn task_workflow_snapshot(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-/// 工作流状态投影到运行时状态后的结果。
 pub struct LifecycleStatusProjection {
     pub status_key: String,
-    pub status_role: TaskPoolWorkflowStatusRoleDto,
+    pub status_category: TaskPoolWorkflowStatusCategoryDto,
     pub runtime_status: AgentTaskStatus,
 }
-
 #[derive(Debug, Clone, PartialEq, Eq)]
-/// 状态是否允许派发及其规范化投影。
 pub struct LifecycleDispatchEligibility {
     pub status: LifecycleStatusProjection,
     pub eligible: bool,
 }
-
-/// 针对一份不可变工作流快照解析状态和结果转换。
 pub struct LifecycleBridge<'a> {
     workflow: &'a TaskPoolWorkflowSnapshotDto,
 }
-
 impl<'a> LifecycleBridge<'a> {
     pub fn new(workflow: &'a TaskPoolWorkflowSnapshotDto) -> Self {
         Self { workflow }
     }
-
-    /// 按键获取工作流状态；空键或未知键返回错误。
-    pub fn status(&self, status_key: &str) -> Result<&'a TaskPoolWorkflowStatusDto> {
-        let status_key = required_text(status_key, "workflow status key")?;
-        match self.find_status(status_key) {
-            Some(status) if status.enabled => Ok(status),
-            Some(_) => bail!("workflow status `{status_key}` is disabled"),
-            None => {
-                bail!("workflow status `{status_key}` not found in workflow `{}`", self.workflow.id)
-            }
-        }
+    pub fn status(&self, key: &str) -> Result<&'a TaskPoolWorkflowStatusDto> {
+        self.step(key)?;
+        self.workflow
+            .statuses
+            .iter()
+            .find(|s| s.key == key && s.enabled)
+            .ok_or_else(|| anyhow::anyhow!("enabled workflow status `{key}` not found"))
     }
-
-    pub fn resolve_status(&self, status_key: &str) -> Result<LifecycleStatusProjection> {
-        let status = self.status(status_key)?;
+    pub fn step(&self, key: &str) -> Result<&'a TaskPoolWorkflowStepDto> {
+        self.workflow
+            .steps
+            .iter()
+            .find(|s| s.status_key == key)
+            .ok_or_else(|| anyhow::anyhow!("workflow step `{key}` not found"))
+    }
+    pub fn resolve_status(&self, key: &str) -> Result<LifecycleStatusProjection> {
+        let status = self.status(key)?;
+        let runtime_status = match status.category {
+            TaskPoolWorkflowStatusCategoryDto::Done => AgentTaskStatus::Completed,
+            TaskPoolWorkflowStatusCategoryDto::Closed => AgentTaskStatus::Cancelled,
+            _ => match &self.step(key)?.handoff {
+                TaskPoolWorkflowStepHandoffDto::Agent { .. } => AgentTaskStatus::Queued,
+                _ => AgentTaskStatus::Draft,
+            },
+        };
         Ok(LifecycleStatusProjection {
-            status_key: status.key.clone(),
-            status_role: status.role,
-            runtime_status: runtime_status_for_role(status.role)?,
+            status_key: key.to_owned(),
+            status_category: status.category,
+            runtime_status,
         })
     }
-
-    pub fn resolve_outcome(
-        &self,
-        from_status_key: &str,
-        outcome: &str,
-    ) -> Result<LifecycleStatusProjection> {
-        let target_status_key = self.resolve_outcome_target_status_key(from_status_key, outcome)?;
-        self.resolve_status(&target_status_key)
-    }
-
-    /// 根据当前状态和动作结果解析唯一目标状态键。
-    pub fn resolve_outcome_target_status_key(
-        &self,
-        from_status_key: &str,
-        outcome: &str,
-    ) -> Result<String> {
-        let status = self.status(from_status_key)?;
-        let outcome = required_text(outcome, "workflow transition outcome")?;
-        let target = status
-            .transitions
-            .iter()
-            .find(|transition| workflow_transition_matches_outcome(&transition.outcome, outcome))
-            .map(|transition| transition.target.clone())
-            .or_else(|| outcome_is_success(outcome).then(|| status.next.clone()).flatten());
-
-        let Some(target) = target else {
-            bail!("workflow status `{}` has no transition for outcome `{outcome}`", status.key);
-        };
-        self.next_enabled_status(target)
-    }
-
-    /// Resolve the executing state for a queued task, honoring its explicit path.
-    pub fn execution_status_key(&self, from_status_key: &str) -> Result<&str> {
-        let source = self.status(from_status_key)?;
-        let is_executing = |status: &&TaskPoolWorkflowStatusDto| {
-            status.enabled && status.role == TaskPoolWorkflowStatusRoleDto::Executing
-        };
-        if is_executing(&source) {
-            return Ok(&source.key);
-        }
-        if let Ok(target) = self.resolve_outcome_target_status_key(from_status_key, "success")
-            && let Some(status) = self.find_status(&target).filter(is_executing)
+    // Policy retries update the runtime in the same step. Completion/return require an explicit move.
+    pub fn resolve_outcome(&self, key: &str, outcome: &str) -> Result<LifecycleStatusProjection> {
+        let status = self.resolve_status(key)?;
+        if !matches!(outcome, "retry" | "failure")
+            || status.runtime_status != AgentTaskStatus::Queued
         {
-            return Ok(&status.key);
+            bail!("workflow steps require an explicit move for outcome `{outcome}`");
         }
-        let mut executing = self.workflow.statuses.iter().filter(is_executing);
-        let status =
-            executing.next().ok_or_else(|| anyhow::anyhow!("workflow has no executing status"))?;
-        if executing.next().is_some() {
-            bail!("workflow has ambiguous executing statuses for `{from_status_key}`");
-        }
-        Ok(&status.key)
-    }
-
-    /// 判断状态角色是否属于可派发阶段，并保留投影供审计。
-    pub fn dispatch_eligibility(&self, status_key: &str) -> Result<LifecycleDispatchEligibility> {
-        let status = self.resolve_status(status_key)?;
-        let eligible = matches!(
-            status.status_role,
-            TaskPoolWorkflowStatusRoleDto::Queued | TaskPoolWorkflowStatusRoleDto::Planning
-        ) && status.runtime_status == AgentTaskStatus::Queued;
-        Ok(LifecycleDispatchEligibility { status, eligible })
-    }
-
-    pub fn projection_metadata(&self, status_key: &str) -> Result<Map<String, Value>> {
-        let status = self.resolve_status(status_key)?;
-        let mut metadata = Map::new();
-        metadata.insert("task_board.status_key".to_string(), json!(status.status_key));
-        metadata.insert(
-            "task_board.status_role".to_string(),
-            json!(status_role_key(status.status_role)),
-        );
-        Ok(metadata)
-    }
-
-    fn find_status(&self, status_key: &str) -> Option<&'a TaskPoolWorkflowStatusDto> {
-        self.workflow.statuses.iter().find(|status| status.key == status_key)
-    }
-
-    fn next_enabled_status(&self, status_key: String) -> Result<String> {
-        let mut current = status_key;
-        let mut visited = HashSet::new();
-        loop {
-            let Some(status) = self.find_status(&current) else {
-                bail!(
-                    "workflow status `{current}` not found while resolving enabled outcome target"
-                );
-            };
-            if status.enabled {
-                return Ok(current);
-            }
-            if !visited.insert(current.clone()) {
-                bail!("workflow disabled status chain contains a cycle at `{current}`");
-            }
-
-            let Some(next) = success_target_or_next(status) else {
-                bail!("workflow status `{}` is disabled and has no enabled successor", status.key);
-            };
-            current = next.to_string();
-        }
-    }
-}
-
-pub fn runtime_status_for_role(role: TaskPoolWorkflowStatusRoleDto) -> Result<AgentTaskStatus> {
-    match role {
-        TaskPoolWorkflowStatusRoleDto::Backlog => Ok(AgentTaskStatus::Draft),
-        TaskPoolWorkflowStatusRoleDto::Queued | TaskPoolWorkflowStatusRoleDto::Planning => {
-            Ok(AgentTaskStatus::Queued)
-        }
-        TaskPoolWorkflowStatusRoleDto::Executing => Ok(AgentTaskStatus::Running),
-        TaskPoolWorkflowStatusRoleDto::Failed => Ok(AgentTaskStatus::Failed),
-        TaskPoolWorkflowStatusRoleDto::Paused => Ok(AgentTaskStatus::Paused),
-        TaskPoolWorkflowStatusRoleDto::ReviewReady
-        | TaskPoolWorkflowStatusRoleDto::Review
-        | TaskPoolWorkflowStatusRoleDto::Merging => Ok(AgentTaskStatus::Submitted),
-        TaskPoolWorkflowStatusRoleDto::Done => Ok(AgentTaskStatus::Completed),
-        TaskPoolWorkflowStatusRoleDto::Archived => Ok(AgentTaskStatus::Archived),
-        TaskPoolWorkflowStatusRoleDto::Custom => {
-            bail!("workflow status role custom cannot map to runtime agent status")
-        }
-    }
-}
-
-pub fn status_role_key(role: TaskPoolWorkflowStatusRoleDto) -> &'static str {
-    match role {
-        TaskPoolWorkflowStatusRoleDto::Backlog => "backlog",
-        TaskPoolWorkflowStatusRoleDto::Queued => "queued",
-        TaskPoolWorkflowStatusRoleDto::Planning => "planning",
-        TaskPoolWorkflowStatusRoleDto::Executing => "executing",
-        TaskPoolWorkflowStatusRoleDto::Failed => "failed",
-        TaskPoolWorkflowStatusRoleDto::Paused => "paused",
-        TaskPoolWorkflowStatusRoleDto::ReviewReady => "review_ready",
-        TaskPoolWorkflowStatusRoleDto::Review => "review",
-        TaskPoolWorkflowStatusRoleDto::Merging => "merging",
-        TaskPoolWorkflowStatusRoleDto::Done => "done",
-        TaskPoolWorkflowStatusRoleDto::Archived => "archived",
-        TaskPoolWorkflowStatusRoleDto::Custom => "custom",
-    }
-}
-
-pub(crate) fn normalize_workflow_transitions(
-    mut workflow: TaskPoolWorkflowSnapshotDto,
-) -> TaskPoolWorkflowSnapshotDto {
-    let failed_key = {
-        let mut failed = workflow.statuses.iter().filter(|status| {
-            status.enabled && status.role == TaskPoolWorkflowStatusRoleDto::Failed
-        });
-        let first = failed.next();
-        first.filter(|_| failed.next().is_none()).map(|status| status.key.clone())
-    };
-    for status in &mut workflow.statuses {
-        if status.role == TaskPoolWorkflowStatusRoleDto::Executing
-            && let Some(target) = &failed_key
-            && !status.transitions.iter().any(|transition| {
-                workflow_transition_matches_outcome(&transition.outcome, "failure")
-            })
-        {
-            status.transitions.push(TaskPoolWorkflowTransitionDto {
-                outcome: "failure".to_string(),
-                label: Some("执行失败".to_string()),
-                target: target.clone(),
+        if outcome == "failure" {
+            return Ok(LifecycleStatusProjection {
+                runtime_status: AgentTaskStatus::Failed,
+                ..status
             });
         }
-        if status.role != TaskPoolWorkflowStatusRoleDto::Failed
-            || status
-                .transitions
-                .iter()
-                .any(|transition| transition.outcome.trim().eq_ignore_ascii_case("retry"))
-        {
-            continue;
-        }
-        let Some(target) = status.next.clone() else {
-            continue;
-        };
-        status.transitions.push(TaskPoolWorkflowTransitionDto {
-            outcome: "retry".to_string(),
-            label: Some("重试".to_string()),
-            target,
-        });
+        Ok(status)
     }
+    pub fn execution_status_key(&self, key: &str) -> Result<&'a str> {
+        self.status(key)?;
+        let step = self.step(key)?;
+        if !matches!(step.handoff, TaskPoolWorkflowStepHandoffDto::Agent { .. }) {
+            bail!("workflow step `{key}` does not hand off to an agent");
+        }
+        Ok(&step.status_key)
+    }
+    pub fn dispatch_eligibility(&self, key: &str) -> Result<LifecycleDispatchEligibility> {
+        let status = self.resolve_status(key)?;
+        let eligible = !status.status_category.is_terminal()
+            && matches!(self.step(key)?.handoff, TaskPoolWorkflowStepHandoffDto::Agent { .. });
+        Ok(LifecycleDispatchEligibility { status, eligible })
+    }
+    pub fn projection_metadata(&self, key: &str) -> Result<Map<String, Value>> {
+        let status = self.status(key)?;
+        Ok(Map::from_iter([
+            ("task_board.status_key".into(), json!(key)),
+            ("task_board.status_category".into(), json!(status.category)),
+            ("task_board.workflow_id".into(), json!(self.workflow.id)),
+        ]))
+    }
+}
+pub fn status_category_key(category: TaskPoolWorkflowStatusCategoryDto) -> &'static str {
+    match category {
+        TaskPoolWorkflowStatusCategoryDto::Unstarted => "unstarted",
+        TaskPoolWorkflowStatusCategoryDto::Started => "started",
+        TaskPoolWorkflowStatusCategoryDto::Done => "done",
+        TaskPoolWorkflowStatusCategoryDto::Closed => "closed",
+    }
+}
+pub(crate) fn normalize_workflow_transitions(
+    workflow: TaskPoolWorkflowSnapshotDto,
+) -> TaskPoolWorkflowSnapshotDto {
     workflow
-}
-
-fn success_target_or_next(status: &TaskPoolWorkflowStatusDto) -> Option<&str> {
-    status
-        .transitions
-        .iter()
-        .find(|transition| outcome_is_success(&transition.outcome))
-        .map(|transition| transition.target.as_str())
-        .or(status.next.as_deref())
-}
-
-fn workflow_transition_matches_outcome(transition_outcome: &str, outcome: &str) -> bool {
-    let transition_outcome = normalized_outcome(transition_outcome);
-    let outcome = normalized_outcome(outcome);
-    match outcome.as_str() {
-        "success" | "succeed" => matches!(transition_outcome.as_str(), "success" | "succeed"),
-        "failure" | "fail" | "failed" => {
-            matches!(transition_outcome.as_str(), "failure" | "fail" | "failed")
-        }
-        "blocked" | "block" => matches!(transition_outcome.as_str(), "blocked" | "block"),
-        _ => transition_outcome == outcome,
-    }
-}
-
-fn outcome_is_success(outcome: &str) -> bool {
-    matches!(normalized_outcome(outcome).as_str(), "success" | "succeed")
-}
-
-fn normalized_outcome(outcome: &str) -> String {
-    outcome.trim().to_ascii_lowercase()
-}
-
-fn required_text<'a>(value: &'a str, field: &str) -> Result<&'a str> {
-    let value = value.trim();
-    if value.is_empty() {
-        bail!("{field} must not be empty");
-    }
-    Ok(value)
 }

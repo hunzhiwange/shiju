@@ -42,6 +42,7 @@ MemoryStoreTool,
 MemoryRecallTool,
 MemoryForgetTool,
 ScheduleTool,
+MoveWorkflowStepTool,
 #[cfg(not(target_arch = "wasm32"))]
 ShellToolWithSyscallDetector,
 #[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]
@@ -237,6 +238,7 @@ pub fn all_tools_with_runtime<H: FactoryHost>(
         H::construct(ToolConstruction::MemoryRecallTool, &construction),
         H::construct(ToolConstruction::MemoryForgetTool, &construction),
         H::construct(ToolConstruction::ScheduleTool, &construction),
+        H::construct(ToolConstruction::MoveWorkflowStepTool, &construction),
     ];
 
     #[cfg(not(target_arch = "wasm32"))]

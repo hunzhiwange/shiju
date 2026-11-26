@@ -46,7 +46,7 @@ impl<C: AgentSchedulerStorageContext + ?Sized> PolicyHost for ScopedPolicyHost<'
     }
     fn resolve_outcome(&self, workflow: &TaskPoolWorkflowSnapshotDto, from: &str, outcome: &str) -> Result<PolicyStatusProjection> {
         let target = super::lifecycle_bridge::LifecycleBridge::new(workflow).resolve_outcome(from, outcome)?;
-        Ok(PolicyStatusProjection { status_key: target.status_key, status_role: target.status_role, runtime_status: target.runtime_status })
+        Ok(PolicyStatusProjection { status_key: target.status_key, status_category: target.status_category, runtime_status: target.runtime_status })
     }
     fn transition_task_status_with_metadata(&self, task_id: &TaskId, status: AgentTaskStatus, metadata: Value, now: TimestampMs) -> Result<Option<StoredAgentTask>> {
         self.store.transition_task_status_with_metadata(self.context, task_id, status, metadata, now)

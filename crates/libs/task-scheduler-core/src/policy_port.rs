@@ -2,7 +2,7 @@
 use anyhow::Result;
 use serde_json::Value;
 use vw_api_transport::common::TimestampMs;
-use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
+use vw_api_task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusCategoryDto};
 use crate::domain::{AssigneeId, TeamId, RunId, TaskId};
 use crate::events::AgentEventKind;
 use crate::state_machine::AgentTaskStatus;
@@ -50,7 +50,7 @@ pub struct PolicyRunSnapshot {
 /// 生命周期宿主返回的目标投影；状态解析仍由真实生命周期实现负责。
 pub struct PolicyStatusProjection {
     pub status_key: String,
-    pub status_role: TaskPoolWorkflowStatusRoleDto,
+    pub status_category: TaskPoolWorkflowStatusCategoryDto,
     pub runtime_status: AgentTaskStatus,
 }
 

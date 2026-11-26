@@ -13,7 +13,7 @@ use vw_api_task::{TaskPoolStatus, TaskPoolWorkflowSnapshotDto};
 
 use crate::domain::TaskId;
 use crate::events::AgentEventKind;
-use crate::lifecycle_bridge::status_role_key;
+use crate::lifecycle_bridge::status_category_key;
 use crate::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::store::events::{AppendAgentEventRequest, StoredAgentEvent};
 use crate::store::logs::AppendAgentTaskLogRequest;
@@ -290,39 +290,26 @@ impl<'a> AgentTaskBoardService<'a> {
         reason: Option<&str>,
         now_ms: TimestampMs,
     ) -> Result<Option<AgentTaskBoardWriteOutcome>> {
-        let Some(current) = self.store.load_task(project_path, task_id)? else {
-            return Ok(None);
-        };
-        let from_status_key = task_board_status_key(&current);
-        if let Some(expected) = payload.from_status_key.as_deref().and_then(non_empty_str)
-            && expected != from_status_key
-        {
-            bail!(
-                "task {} is in status_key {}, not {}",
-                task_id.as_str(),
-                from_status_key,
-                expected
-            );
-        }
-
+        let workflow = Some(crate::engine::dispatch::load_dispatch_workflow(self.store, project_path)?);
         let to_status_key = required_text(payload.to_status_key, "to_status_key")?;
-        let mut metadata = object_metadata(current.metadata.clone())?;
-        set_metadata_string(&mut metadata, "task_board.status_key", Some(to_status_key.clone()))?;
-        if let Some(order_no) = payload.order_no {
-            metadata.insert("order_no".to_string(), json!(order_no));
-        }
-        let status = match self.store.load_task_board_workflow(project_path)? {
-            Some(workflow) => Some(apply_workflow_status(&workflow, &to_status_key, &mut metadata)?),
-            None => payload.to_status.map(task_status_from_dto),
-        };
-        let updated = self.update_task(
-            project_path,
-            &current,
-            None,
-            status,
-            Value::Object(metadata),
-            now_ms,
-        )?;
+        let outcome = self.store.edit_task_board_task(project_path, task_id, Default::default(), |current| {
+            let from = task_board_status_key(current);
+            if let Some(expected) = payload.from_status_key.as_deref().and_then(non_empty_str)
+                && expected != from && to_status_key != from {
+                bail!("task {} is in status_key {}, not {}", task_id.as_str(), from, expected);
+            }
+            let mut metadata = object_metadata(current.metadata.clone())?;
+            if let Some(order) = payload.order_no { metadata.insert("order_no".into(), json!(order)); }
+            let status = if from != to_status_key {
+                Some(match workflow.as_ref() {
+                    Some(workflow) => apply_workflow_status(workflow, &to_status_key, &mut metadata)?,
+                    None => bail!("configure a workflow before moving tasks"),
+                })
+            } else { None };
+            Ok(AgentTaskBoardUpdate { title: None, status, metadata: Value::Object(metadata), updated_at_ms: now_ms })
+        })?;
+        let Some((current, updated)) = outcome else { return Ok(None); };
+        let from_status_key = task_board_status_key(&current);
         Ok(Some(self.audit_task_board_write(
             project_path,
             &current,
@@ -336,6 +323,42 @@ impl<'a> AgentTaskBoardService<'a> {
         )?))
     }
 
+    /// Only the current running step can choose its configured completion/return target.
+    pub fn move_running_task(
+        &self, context: &(impl AgentSchedulerStorageContext + ?Sized), task_id: &TaskId,
+        run_id: &crate::domain::RunId, return_to_previous: bool, now: TimestampMs,
+        validate: impl FnOnce(&vw_api_task::TaskPoolWorkflowStepHandoffDto) -> Result<()> + Send,
+    ) -> Result<StoredAgentTask> {
+        let run = self.store.load_run(context, run_id)?.context("run not found")?;
+        anyhow::ensure!(run.task_id == *task_id && run.status == crate::domain::AgentRunStatus::Running,
+            "run does not own a running task");
+        let workflow = crate::engine::dispatch::load_dispatch_workflow(self.store, context)?;
+        let snapshot = self.store.load_task(context, task_id)?.context("task not found")?;
+        let source = task_board_status_key(&snapshot);
+        let bridge = crate::lifecycle_bridge::LifecycleBridge::new(&workflow);
+        let vw_api_task::TaskPoolWorkflowStepHandoffDto::Agent { return_status_key, .. } = &bridge.step(&source)?.handoff else {
+            bail!("current step has no agent handoff");
+        };
+        let target = if return_to_previous { return_status_key.as_deref() }
+            else { workflow.completion_status_key(&source) }.context("step has no configured target for this action")?.to_owned();
+        validate(&bridge.step(&target)?.handoff)?;
+        let outcome = self.store.edit_task_board_task(context, task_id, Default::default(), |current| {
+            anyhow::ensure!(current.metadata.get("task_board.active_run_id").and_then(Value::as_str) == Some(run_id.as_str())
+                && current.status == AgentTaskStatus::Running
+                && !metadata_bool(&current.metadata, "task_board.deleted")
+                && !metadata_bool(&current.metadata, "task_board.archived"), "run no longer owns this workflow step");
+            anyhow::ensure!(task_board_status_key(current) == source, "workflow step changed before action");
+            let mut metadata = object_metadata(current.metadata.clone())?;
+            let status = apply_workflow_status(&workflow, &target, &mut metadata)?;
+            Ok(AgentTaskBoardUpdate { title: None, status: Some(status), metadata: Value::Object(metadata), updated_at_ms: now })
+        })?.context("task not found")?;
+        let (before, after) = outcome;
+        let from = task_board_status_key(&before);
+        let to = task_board_status_key(&after);
+        Ok(self.audit_task_board_write(context, &before, after, AgentSchedulerCommandKindDto::Move,
+            AgentEventKind::HumanIntervened, Some(from), Some(to), Some("current run moved workflow step"), now)?.task)
+    }
+
     /// 应用受限元数据补丁，不允许借此绕过专用状态转换入口。
     pub fn update_metadata(
         &self,
@@ -345,7 +368,7 @@ impl<'a> AgentTaskBoardService<'a> {
         reason: Option<&str>,
         now_ms: TimestampMs,
     ) -> Result<Option<AgentTaskBoardWriteOutcome>> {
-        let workflow = self.store.load_task_board_workflow(project_path)?;
+        let workflow = Some(crate::engine::dispatch::load_dispatch_workflow(self.store, project_path)?);
         let labels = if patch.label_ids.as_ref().is_some_and(|ids| !ids.is_empty()) {
             self.store.load_task_labels(project_path)?
         } else {
@@ -354,6 +377,10 @@ impl<'a> AgentTaskBoardService<'a> {
         let property_changes = std::mem::take(&mut patch.property_changes);
         let outcome = self.store.edit_task_board_task(project_path, task_id, property_changes, |current| {
             let from_status_key = task_board_status_key(current);
+            if workflow.is_some() && (patch.status.clone().is_some_and(|s| task_status_from_dto(s) != current.status)
+                || patch.workflow_id.is_some() || patch.status_category.is_some() || patch.agent.is_some() || patch.acp_agent.is_some()) {
+                bail!("use workflow step handoff to change execution routing or runtime state");
+            }
             let title = optional_required_text(patch.title.clone(), "task title")?;
             let mut status = patch.status.clone().map(task_status_from_dto);
             let mut metadata = object_metadata(current.metadata.clone())?;
@@ -366,7 +393,7 @@ impl<'a> AgentTaskBoardService<'a> {
                     .unwrap_or(&from_status_key);
                 let previous_key = current.metadata.get("task_board.status_key")
                     .and_then(Value::as_str).unwrap_or(&from_status_key);
-                if status_key != previous_key || status.is_some_and(|value| value != current.status) {
+                if status_key != previous_key {
                     let status_key = status_key.to_owned();
                     status = Some(apply_workflow_status(workflow, &status_key, &mut metadata)?);
                 }
@@ -736,17 +763,27 @@ pub fn apply_workflow_status(
     key: &str,
     metadata: &mut Map<String, Value>,
 ) -> Result<AgentTaskStatus> {
+    use vw_api_task::TaskPoolWorkflowStepHandoffDto;
     let bridge = crate::lifecycle_bridge::LifecycleBridge::new(workflow);
-    let definition = bridge.status(key)?;
-    let runtime_status = if definition.role == vw_api_task::TaskPoolWorkflowStatusRoleDto::Custom {
-        AgentTaskStatus::Queued
-    } else {
-        crate::lifecycle_bridge::runtime_status_for_role(definition.role)?
-    };
-    metadata.insert("task_board.status_key".to_string(), json!(definition.key));
-    metadata.insert("task_board.status_role".to_string(), json!(status_role_key(definition.role)));
-    metadata.insert("task_board.workflow_id".to_string(), json!(workflow.id));
-    Ok(runtime_status)
+    let projection = bridge.resolve_status(key)?;
+    metadata.extend(bridge.projection_metadata(key)?);
+    metadata.remove("task_board.status_role");
+    let revision = metadata.get("task_board.entry_revision").and_then(Value::as_u64).unwrap_or(0);
+    metadata.insert("task_board.entry_revision".into(), json!(revision.checked_add(1).context("step revision exhausted")?));
+    metadata.remove("task_board.active_run_id");
+    match &bridge.step(key)?.handoff {
+        TaskPoolWorkflowStepHandoffDto::KeepAssignee => {},
+        TaskPoolWorkflowStepHandoffDto::Member { member_id } => {
+            metadata.insert("assignee".into(), json!(member_id));
+        },
+        TaskPoolWorkflowStepHandoffDto::Agent { agent_id, instructions, .. } => {
+            metadata.insert("assignee".into(), json!(agent_id));
+            metadata.insert("agent".into(), json!(agent_id));
+            metadata.remove("acp_agent");
+            metadata.insert("task_board.step_instructions".into(), json!(instructions));
+        },
+    }
+    Ok(projection.runtime_status)
 }
 
 
@@ -772,8 +809,8 @@ pub(super) fn apply_metadata_patch(
     set_metadata_string(metadata, "selected_worktree_slot_id", patch.selected_worktree_slot_id)?;
     set_metadata_string(metadata, "selected_worktree_branch", patch.selected_worktree_branch)?;
     set_metadata_string(metadata, "task_board.workflow_id", patch.workflow_id)?;
-    if let Some(role) = patch.status_role {
-        metadata.insert("task_board.status_role".to_string(), json!(status_role_key(role)));
+    if let Some(category) = patch.status_category {
+        metadata.insert("task_board.status_category".to_string(), json!(status_category_key(category)));
     }
     if let Some(merge) = patch.metadata_merge {
         let Value::Object(merge) = merge else {
@@ -781,6 +818,9 @@ pub(super) fn apply_metadata_patch(
         };
         for (key, value) in merge {
             detail::validate_metadata_key(&key)?;
+            if key.starts_with("task_board.") || matches!(key.as_str(), "agent" | "acp_agent" | "assignee") {
+                bail!("workflow execution metadata requires a dedicated command");
+            }
             if key == TASK_LABEL_IDS_METADATA_KEY {
                 bail!("use label_ids to update task labels");
             }
@@ -880,11 +920,6 @@ pub fn task_board_status_key(task: &StoredAgentTask) -> String {
 }
 
 pub(crate) fn task_board_status_key_for(status: AgentTaskStatus, metadata: &Value) -> String {
-    if agent_scheduler_control_status(status) {
-        return task_board_status_key_from_map(AgentTaskStatus::Queued, metadata)
-            .unwrap_or_else(|| legacy_task_board_status_key(AgentTaskStatus::Queued))
-            .to_string();
-    }
     let status_key = metadata
         .get("task_board.status_key")
         .and_then(Value::as_str)
@@ -905,13 +940,6 @@ fn task_board_status_key_from_map(status: AgentTaskStatus, metadata: &Value) -> 
 
 fn legacy_task_board_status_key(status: AgentTaskStatus) -> &'static str {
     crate::engine::dispatch::legacy_dispatch_status_key(status)
-}
-
-fn agent_scheduler_control_status(status: AgentTaskStatus) -> bool {
-    matches!(
-        status,
-        AgentTaskStatus::Assigned | AgentTaskStatus::Dispatched | AgentTaskStatus::Acknowledged
-    )
 }
 
 fn agent_status_from_status_key(status_key: &str) -> Option<AgentTaskStatus> {

@@ -124,6 +124,10 @@ impl AgentSchedulerStore {
         }
 
 
+        let mut metadata = load_task_with_conn(&tx, context, &request.task_id)?.context("claimed task disappeared")?.metadata;
+        metadata["task_board.active_run_id"] = serde_json::json!(request.run_id.as_str());
+        tx.execute("UPDATE scheduler_tasks SET metadata_json = ?1 WHERE platform_id = ?2 AND company_id = ?3 AND project_id = ?4 AND id = ?5",
+            params![serde_json::to_string(&metadata)?, platform_id, company_id, project_id, request.task_id.as_str()])?;
         let attempt = next_attempt(&tx, context, &request.task_id)?;
         tx.execute(
             "INSERT INTO scheduler_runs (
@@ -219,6 +223,10 @@ impl AgentSchedulerStore {
             return Ok(None);
         }
 
+        let mut metadata = task.metadata.clone();
+        metadata["task_board.active_run_id"] = serde_json::json!(request.run_id.as_str());
+        tx.execute("UPDATE scheduler_tasks SET metadata_json = ?1 WHERE platform_id = ?2 AND company_id = ?3 AND project_id = ?4 AND id = ?5",
+            params![serde_json::to_string(&metadata)?, platform_id, company_id, project_id, request.task_id.as_str()])?;
         let attempt = next_attempt(&tx, context, &request.task_id)?;
         tx.execute(
             "INSERT INTO scheduler_runs (

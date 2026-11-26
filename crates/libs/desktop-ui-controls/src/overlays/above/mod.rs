@@ -29,7 +29,7 @@ mod tests;
 mod widget_tests;
 
 use self::overlay_element::{AboveOverlayElement, PointAboveOverlayElement};
-use iced::{Element, Point, Theme};
+use iced::{Element, Point, Theme, alignment::Horizontal};
 
 /// 上方覆盖层组件
 ///
@@ -68,6 +68,8 @@ pub struct AboveOverlay<'a, Message, ThemeT = Theme, RendererT = iced::Renderer>
     on_close: Option<Message>,
     /// 是否拦截覆盖层显示期间的所有用户输入事件
     block_background_events: bool,
+    align_x: Horizontal,
+    flip_if_clipped: bool,
 }
 
 /// 基于锚点的上方覆盖层组件
@@ -145,7 +147,21 @@ impl<'a, Message, ThemeT, RendererT> AboveOverlay<'a, Message, ThemeT, RendererT
             snap_within_viewport: true,
             on_close: None,
             block_background_events: false,
+            align_x: Horizontal::Left,
+            flip_if_clipped: false,
         }
+    }
+
+    /// Align matching edges of the popover and its trigger before viewport clamping.
+    pub fn align_x(mut self, align_x: Horizontal) -> Self {
+        self.align_x = align_x;
+        self
+    }
+
+    /// Use the lower side when it can fit more of the menu.
+    pub fn flip_if_clipped(mut self) -> Self {
+        self.flip_if_clipped = true;
+        self
     }
 
     /// 设置是否显示覆盖层

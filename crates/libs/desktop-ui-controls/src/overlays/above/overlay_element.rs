@@ -1,5 +1,5 @@
 use iced::advanced::{Clipboard, Layout, Shell, layout, mouse, overlay, renderer, widget};
-use iced::{Element, Event, Point, Rectangle, Size, Vector};
+use iced::{Element, Event, Point, Rectangle, Size, Vector, alignment::Horizontal, keyboard, touch};
 
 pub(super) fn compute_above_position(
     position: Point,
@@ -71,6 +71,8 @@ pub(super) struct AboveOverlayElement<'a, 'b, Message, ThemeT, RendererT> {
     pub(super) on_close: Option<Message>,
     /// 是否阻止用户输入事件继续传递到底层界面
     pub(super) block_background_events: bool,
+    pub(super) align_x: Horizontal,
+    pub(super) flip_if_clipped: bool,
 }
 
 /// 为 `AboveOverlayElement` 实现 `Overlay` trait
@@ -93,23 +95,36 @@ where
     fn layout(&mut self, renderer: &RendererT, bounds: Size) -> layout::Node {
         let viewport = Rectangle::with_size(bounds);
 
-        // 计算目标位置上方的可用空间
-        let space_above = self.target_bounds.y - self.viewport.y - self.gap;
-        // 根据 snap_within_viewport 决定最大高度限制
-        let max_h = if self.snap_within_viewport { space_above.max(0.0) } else { bounds.height };
+        let available_above = (self.target_bounds.y - self.viewport.y - self.gap).max(0.0);
+        let below_y = self.target_bounds.y + self.target_bounds.height + self.gap;
+        let available_below = (self.viewport.y + self.viewport.height - below_y).max(0.0);
+        let can_flip =
+            self.snap_within_viewport && self.flip_if_clipped && available_below > available_above;
+        let max_height = if can_flip {
+            available_below
+        } else if self.snap_within_viewport {
+            available_above
+        } else {
+            bounds.height
+        };
 
-        // 使用计算出的高度限制布局覆盖层
         let node = self.overlay.as_widget_mut().layout(
             self.tree,
             renderer,
-            &layout::Limits::new(Size::ZERO, Size::new(viewport.width, max_h)),
+            &layout::Limits::new(Size::ZERO, Size::new(viewport.width, max_height)),
         );
 
         let size = node.size();
 
         // 计算覆盖层的初始位置（目标位置上方，考虑间距）
-        let position = compute_above_position(
-            self.position,
+        let free_width = self.target_bounds.width - size.width;
+        let offset = match self.align_x {
+            Horizontal::Left => 0.0,
+            Horizontal::Center => free_width / 2.0,
+            Horizontal::Right => free_width,
+        };
+        let mut position = compute_above_position(
+            Point::new(self.position.x + offset, self.position.y),
             self.target_bounds,
             self.viewport,
             size,
@@ -117,6 +132,9 @@ where
             self.snap_within_viewport,
         );
 
+        if can_flip && size.height > available_above {
+            position.y = below_y;
+        }
         node.move_to(position)
     }
 
@@ -163,16 +181,34 @@ where
     ) {
         let bounds = layout.bounds();
 
-        // 模态弹层等待鼠标释放后关闭，确保同一次点击不会落到底层控件。
-        let close_event = if self.block_background_events {
-            matches!(event, Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)))
-        } else {
-            matches!(event, Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)))
-        };
-        if close_event
+        if self.block_background_events
+            && matches!(
+                event,
+                Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(keyboard::key::Named::Escape),
+                    ..
+                })
+            )
             && let Some(on_close) = &self.on_close
-            && let Some(cursor_position) = cursor.position()
-            && !bounds.contains(cursor_position)
+        {
+            shell.publish(on_close.clone());
+            shell.capture_event();
+            return;
+        }
+
+        // 模态菜单在抬起时关闭，避免同一次点击触发后方控件。
+        let dismiss_point = match event {
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
+                if self.block_background_events => cursor.position(),
+            Event::Touch(touch::Event::FingerLifted { position, .. })
+                if self.block_background_events => Some(*position),
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
+                if !self.block_background_events => cursor.position(),
+            _ => None,
+        };
+        if let Some(on_close) = &self.on_close
+            && let Some(point) = dismiss_point
+            && !bounds.contains(point)
         {
             shell.publish(on_close.clone());
             shell.capture_event();

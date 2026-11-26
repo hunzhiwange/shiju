@@ -10,6 +10,7 @@ pub struct SingleLineLabel {
     value: String,
     size: Pixels,
     font: Option<Font>,
+    width: Length,
     centered: bool,
 }
 
@@ -22,11 +23,16 @@ impl SingleLineLabel {
         } else {
             value
         };
-        Self { value, size: Pixels(size), font: None, centered: false }
+        Self { value, size: Pixels(size), font: None, width: Length::Fill, centered: false }
     }
 
     pub fn font(mut self, font: Font) -> Self {
         self.font = Some(font);
+        self
+    }
+
+    pub fn shrink(mut self) -> Self {
+        self.width = Length::Shrink;
         self
     }
 
@@ -60,7 +66,7 @@ impl<Message> Widget<Message, Theme, Renderer> for SingleLineLabel {
     }
 
     fn size(&self) -> Size<Length> {
-        Size::new(Length::Fill, Length::Shrink)
+        Size::new(self.width, Length::Shrink)
     }
 
     fn layout(
@@ -122,7 +128,13 @@ impl<Message> Widget<Message, Theme, Renderer> for SingleLineLabel {
             state.size = size;
             state.font = font;
         }
-        layout::Node::new(limits.resolve(Length::Fill, Length::Shrink, Size::new(width, height)))
+        let intrinsic_width =
+            if self.width == Length::Shrink { state.paragraph.min_width() } else { width };
+        layout::Node::new(limits.resolve(
+            self.width,
+            Length::Shrink,
+            Size::new(intrinsic_width, height),
+        ))
     }
 
     fn draw(

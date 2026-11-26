@@ -286,6 +286,34 @@ fn point_above_position_snaps_to_max_edges() {
 }
 
 #[test]
+fn chat_menu_uses_available_side_and_preserves_right_alignment() {
+    let mut content = overlay_content(92.0, 90.0, mouse::Interaction::None);
+    let mut tree = widget::Tree::empty();
+    let renderer = RecordingRenderer::default();
+    let viewport = Size::new(300.0, 240.0);
+    let mut menu = AboveOverlayElement {
+        position: Point::new(170.0, 24.0),
+        target_bounds: Rectangle { x: 170.0, y: 24.0, width: 40.0, height: 24.0 },
+        viewport: Rectangle::with_size(viewport),
+        gap: 6.0,
+        snap_within_viewport: true,
+        overlay: &mut content,
+        tree: &mut tree,
+        on_close: None,
+        block_background_events: true,
+        align_x: iced::alignment::Horizontal::Right,
+        flip_if_clipped: true,
+    };
+    let below = overlay::Overlay::layout(&mut menu, &renderer, viewport);
+    assert_eq!(below.bounds(), Rectangle { x: 118.0, y: 54.0, width: 92.0, height: 90.0 });
+
+    menu.position.y = 154.0;
+    menu.target_bounds.y = 154.0;
+    let above = overlay::Overlay::layout(&mut menu, &renderer, viewport);
+    assert_eq!(above.bounds(), Rectangle { x: 118.0, y: 58.0, width: 92.0, height: 90.0 });
+}
+
+#[test]
 fn above_overlay_element_layout_draws_and_reports_interaction() {
     let mut overlay = overlay_content(70.0, 40.0, mouse::Interaction::Text);
     let mut tree = widget::Tree::empty();
@@ -300,6 +328,8 @@ fn above_overlay_element_layout_draws_and_reports_interaction() {
         tree: &mut tree,
         on_close: None,
         block_background_events: false,
+        align_x: iced::alignment::Horizontal::Left,
+        flip_if_clipped: false,
     };
 
     let node = overlay::Overlay::layout(&mut element, &renderer, Size::new(220.0, 160.0));
@@ -341,6 +371,8 @@ fn above_overlay_element_update_closes_outside_and_captures_inside() {
         tree: &mut tree,
         on_close: Some(TestMessage::Close),
         block_background_events: false,
+        align_x: iced::alignment::Horizontal::Left,
+        flip_if_clipped: false,
     };
 
     let mut outside_messages = Vec::new();
@@ -398,6 +430,8 @@ fn above_overlay_blocks_hover_in_covered_regions_and_preserves_child_interaction
                 tree: &mut tree,
                 on_close: Some(TestMessage::Close),
                 block_background_events,
+                align_x: iced::alignment::Horizontal::Left,
+                flip_if_clipped: false,
             };
 
             for (cursor, covered) in [
@@ -439,6 +473,8 @@ fn blocking_above_overlay_captures_full_outside_click_before_closing() {
         tree: &mut tree,
         on_close: Some(TestMessage::Close),
         block_background_events: true,
+        align_x: iced::alignment::Horizontal::Left,
+        flip_if_clipped: false,
     };
 
     let mut pressed_messages = Vec::new();
@@ -494,6 +530,8 @@ fn above_overlay_element_update_skips_close_without_cursor_or_callback() {
         tree: &mut tree,
         on_close: None,
         block_background_events: false,
+        align_x: iced::alignment::Horizontal::Left,
+        flip_if_clipped: false,
     };
     let mut messages = Vec::new();
     let captured = {
@@ -665,6 +703,8 @@ fn above_overlay_element_operate_forwards_to_overlay_content() {
         tree: &mut tree,
         on_close: None,
         block_background_events: false,
+        align_x: iced::alignment::Horizontal::Left,
+        flip_if_clipped: false,
     };
     let node = overlay::Overlay::layout(&mut element, &renderer, Size::new(220.0, 160.0));
     let mut noop = NoopOperation;
@@ -688,6 +728,8 @@ fn above_overlay_element_forwards_nested_overlay_from_content() {
         tree: &mut tree,
         on_close: None,
         block_background_events: false,
+        align_x: iced::alignment::Horizontal::Left,
+        flip_if_clipped: false,
     };
     let node = overlay::Overlay::layout(&mut element, &renderer, Size::new(220.0, 160.0));
     let mut nested = overlay::Overlay::overlay(&mut element, Layout::new(&node), &renderer)

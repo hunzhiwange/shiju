@@ -167,6 +167,8 @@ where
                 tree: children.next().unwrap(),
                 on_close: self.on_close.clone(),
                 block_background_events: self.block_background_events,
+                align_x: self.align_x,
+                flip_if_clipped: self.flip_if_clipped,
             })))
         } else {
             None

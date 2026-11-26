@@ -80,10 +80,10 @@ pub fn is_real_bearer(value: &str) -> bool {
     !value.is_empty() && value != auth_types::OAUTH_DUMMY_KEY
 }
 
-/// 从 API 基址派生 `/models`，并发现 OpenAI 兼容模型 id。
+/// 从 API 基址派生 `/models`，并使用可选的 Bearer 凭据发现 OpenAI 兼容模型 id。
 pub async fn discover_openai_compatible_models(
     api_base: &str,
-    bearer: &str,
+    bearer: Option<&str>,
 ) -> Result<Vec<String>, DiscoveryError> {
     discover_openai_compatible_models_with_limits(api_base, bearer, DiscoveryLimits::default())
         .await
@@ -91,7 +91,7 @@ pub async fn discover_openai_compatible_models(
 
 pub(crate) async fn discover_openai_compatible_models_with_limits(
     api_base: &str,
-    bearer: &str,
+    bearer: Option<&str>,
     limits: DiscoveryLimits,
 ) -> Result<Vec<String>, DiscoveryError> {
     let entries = discover_openai_compatible_entries(api_base, bearer, limits).await?;
@@ -104,24 +104,25 @@ pub(crate) async fn discover_openai_compatible_models_with_limits(
 
 pub(crate) async fn discover_openai_compatible_entries(
     api_base: &str,
-    bearer: &str,
+    bearer: Option<&str>,
     limits: DiscoveryLimits,
 ) -> Result<Vec<ModelEntry>, DiscoveryError> {
-    if !is_real_bearer(bearer) {
-        return Ok(Vec::new());
-    }
-
     let api_base = api_base.trim();
     if api_base.is_empty() {
         return Ok(Vec::new());
     }
+    let mut headers = HeaderMap::new();
+    if let Some(bearer) = bearer {
+        if !is_real_bearer(bearer) {
+            return Ok(Vec::new());
+        }
+        let mut authorization = HeaderValue::from_str(&format!("Bearer {}", bearer.trim()))
+            .map_err(|_| DiscoveryError::new("request"))?;
+        authorization.set_sensitive(true);
+        headers.insert(AUTHORIZATION, authorization);
+    }
     let models_url = Url::parse(&format!("{}/models", api_base.trim_end_matches('/')))
         .map_err(|_| DiscoveryError::new("request"))?;
-    let mut authorization = HeaderValue::from_str(&format!("Bearer {}", bearer.trim()))
-        .map_err(|_| DiscoveryError::new("request"))?;
-    authorization.set_sensitive(true);
-    let mut headers = HeaderMap::new();
-    headers.insert(AUTHORIZATION, authorization);
     let body =
         fetch_at(&[models_url], &headers, limits, Client::builder()).await.map_err(|error| {
             if error.category() == "unauthorized" {

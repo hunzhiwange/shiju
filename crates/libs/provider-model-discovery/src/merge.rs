@@ -134,12 +134,13 @@ pub async fn discover_and_merge_provider(
     };
     if provider.id == "shiju" && api_base == SHIJU_API_BASE {
         let entries =
-            discover_openai_compatible_entries(&api_base, bearer, DiscoveryLimits::default()).await?;
+            discover_openai_compatible_entries(&api_base, Some(bearer), DiscoveryLimits::default())
+                .await?;
         let catalog = provider_model_cache::get().await;
         return merge_shiju_models(provider, configured_models, &entries, &catalog);
     }
 
-    let remote_ids = discover_openai_compatible_models(&api_base, bearer).await?;
+    let remote_ids = discover_openai_compatible_models(&api_base, Some(bearer)).await?;
     let catalog = provider_model_cache::get().await;
     Ok(merge_remote_model_ids(provider, &api_base, remote_ids, &catalog, |id| {
         configured_models.is_some_and(|models| models.contains_key(id))

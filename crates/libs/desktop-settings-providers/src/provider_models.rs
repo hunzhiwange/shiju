@@ -86,14 +86,12 @@ pub async fn discover_custom_provider_models(
     let providers = provider_resolution::list_for_settings().await;
     let provider = providers.get(draft.provider_id.trim());
     let bearer = if is_real_bearer(&draft.api_key) {
-        Some(draft.api_key.trim().to_string())
+        Some(draft.api_key.as_str())
     } else {
         provider
             .and_then(|provider| provider.key.as_deref())
             .filter(|key| is_real_bearer(key))
-            .map(str::to_string)
-    }
-    .ok_or_else(|| Feedback::owned("请先填写或保存真实 API Key", vec![]))?;
+    };
 
     let configured_api = draft.base_url.trim();
     let api_base = if configured_api.is_empty() {
@@ -103,7 +101,7 @@ pub async fn discover_custom_provider_models(
     }
     .ok_or_else(|| Feedback::owned("基础 URL 不能为空", vec![]))?;
 
-    let models = discover_openai_compatible_models(&api_base, &bearer)
+    let models = discover_openai_compatible_models(&api_base, bearer)
         .await
         .map_err(|error| discovery_error_message(error.category()))?;
     if models.is_empty() {

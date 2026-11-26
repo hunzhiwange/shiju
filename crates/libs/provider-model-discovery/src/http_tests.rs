@@ -11,7 +11,7 @@ async fn connected_provider_discovers_openai_compatible_models() {
         Duration::ZERO,
     );
 
-    let models = discover_openai_compatible_models(&server.api_base, "secret-token")
+    let models = discover_openai_compatible_models(&server.api_base, Some("secret-token"))
         .await
         .expect("model discovery should succeed");
     let request = server
@@ -27,10 +27,29 @@ async fn connected_provider_discovers_openai_compatible_models() {
 }
 
 #[tokio::test]
+async fn remote_models_discovery_without_key_omits_authorization() {
+    let server = serve_once("200 OK", &[], r#"{"data":[{"id":"local-model"}]}"#, Duration::ZERO);
+
+    let models = discover_openai_compatible_models(&server.api_base, None)
+        .await
+        .expect("model discovery should succeed without a key");
+    let request = server
+        .request
+        .recv_timeout(Duration::from_secs(2))
+        .expect("request should reach local server");
+
+    assert_eq!(models, vec!["local-model"]);
+    assert!(request.starts_with("GET /models HTTP/1.1\r\n"));
+    assert!(!request.lines().any(|line| {
+        line.split_once(':').is_some_and(|(name, _)| name.eq_ignore_ascii_case("authorization"))
+    }));
+}
+
+#[tokio::test]
 async fn remote_models_reports_http_status_without_returning_models() {
     let server = serve_once("404 Not Found", &[], "missing", Duration::ZERO);
 
-    let error = discover_openai_compatible_models(&server.api_base, "secret-token")
+    let error = discover_openai_compatible_models(&server.api_base, Some("secret-token"))
         .await
         .expect_err("404 should not produce discovered models");
 
@@ -41,7 +60,7 @@ async fn remote_models_reports_http_status_without_returning_models() {
 async fn remote_models_reports_invalid_json_without_returning_models() {
     let server = serve_once("200 OK", &[], "{not-json", Duration::ZERO);
 
-    let error = discover_openai_compatible_models(&server.api_base, "secret-token")
+    let error = discover_openai_compatible_models(&server.api_base, Some("secret-token"))
         .await
         .expect_err("invalid JSON should not produce discovered models");
 
@@ -54,7 +73,7 @@ async fn remote_models_empty_data_leaves_existing_models_unchanged() {
     let mut provider = test_provider();
     let before = provider.models.keys().cloned().collect::<HashSet<_>>();
 
-    let remote_ids = discover_openai_compatible_models(&server.api_base, "secret-token")
+    let remote_ids = discover_openai_compatible_models(&server.api_base, Some("secret-token"))
         .await
         .expect("empty data is a valid discovery response");
     let changed = merge_remote_models(
@@ -76,7 +95,7 @@ async fn remote_models_rejects_oversized_response() {
 
     let error = discover_openai_compatible_models_with_limits(
         &server.api_base,
-        "secret-token",
+        Some("secret-token"),
         DiscoveryLimits::new(Duration::from_secs(1), 64),
     )
     .await
@@ -89,7 +108,7 @@ async fn remote_models_rejects_oversized_response() {
 async fn remote_models_rejects_even_same_origin_redirects() {
     let server = serve_once("302 Found", &[("Location", "/other-models")], "", Duration::ZERO);
 
-    let error = discover_openai_compatible_models(&server.api_base, "secret-token")
+    let error = discover_openai_compatible_models(&server.api_base, Some("secret-token"))
         .await
         .expect_err("redirect should not be followed");
     let request = server
@@ -108,7 +127,7 @@ async fn remote_models_reports_timeout_without_returning_models() {
 
     let error = discover_openai_compatible_models_with_limits(
         &server.api_base,
-        "secret-token",
+        Some("secret-token"),
         DiscoveryLimits::new(Duration::from_millis(25), 1024),
     )
     .await

@@ -95,6 +95,31 @@ fn opening_multiple_files_outside_project_shares_one_editor_tab() {
 }
 
 #[test]
+fn opening_project_file_in_standalone_preserves_project_tabs_and_file_tree() {
+    let mut app = app();
+    let project = "/workspace/project";
+    let path = "src/lib.rs";
+    app.navigation_tabs.screen = Screen::Project;
+    app.navigation_tabs.project_path = Some(project.into());
+    app.navigation_tabs.preview_tabs.push(preview_tab(path, "fn main() {}"));
+    app.navigation_tabs.active_preview_path = Some(path.into());
+    app.file_manager.file_manager_show_changes = true;
+
+    let _ = crate::app::message::preview::update(&mut app, PreviewMessage::OpenStandalone);
+
+    assert_eq!(app.navigation_tabs.screen, Screen::Preview);
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some(EDITOR_TAB_ID));
+    assert_eq!(
+        app.navigation_tabs.active_preview_path.as_deref(),
+        Some("/workspace/project/src/lib.rs"),
+    );
+    assert!(app.file_manager.file_manager_show_changes);
+    app.navigation_tabs.switch_preview_project(Some(project.into()));
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some(path));
+    assert_eq!(app.navigation_tabs.preview_tabs[0].editor.content(), "fn main() {}");
+}
+
+#[test]
 fn open_new_instant_preview_creates_tab_and_only_schedules_preferences_save() {
     let mut app = app();
     app.navigation_mode.workspace_mode = crate::app::state::WorkspaceMode::Code;

@@ -7,7 +7,7 @@ use crate::app::components::workbench_sidebar::{
 use crate::app::message::git::GitMessage;
 use crate::app::{App, Message, Screen};
 use desktop_assets::assets::Icon;
-use desktop_editor::components::preview_panel::view::header_tabs;
+use desktop_editor::components::preview_panel::view::{editor_popovers, header_tabs};
 use desktop_git_ui::git_panel::types::GitWorktreeOption;
 use desktop_git_ui::page;
 use desktop_i18n::I18n;
@@ -299,6 +299,17 @@ fn file_preview<'a>(i18n: I18n, state: &'a Workbench) -> Element<'a, Message> {
         .direction(Direction::Horizontal(Scrollbar::new().width(4).scroller_width(4)))
         .width(Length::Fill)
         .height(header_tabs::header_tabs_height(true));
+    let editor = file.editor().map(|document| &document.editor.inner);
+    let open_standalone =
+        state.local() && file.path().is_some() && matches!(&file.content, Some(Ok(_)));
+    let tools = editor_popovers::tools(
+        editor,
+        editor.is_none(),
+        i18n,
+        state.files.editor_popover,
+        open_standalone,
+    )
+    .map(move |action| state.file_message(files::Event::EditorTool(file.id, action)));
     let title = row![
         text(file.title.as_str()).size(13).width(Length::Fill).wrapping(Wrapping::Glyph),
         file.location.map(|(line, column)| text(format!("{line}:{column}"))
@@ -306,27 +317,7 @@ fn file_preview<'a>(i18n: I18n, state: &'a Workbench) -> Element<'a, Message> {
             .style(settings_muted_text_style)),
         matches!(&file.content, Some(Ok(files::PreviewContent::ReadOnly { truncated: true, .. })))
             .then(|| text(i18n.__("已截断")).size(11).style(settings_muted_text_style)),
-        file.editor().map(|document| {
-            action(
-                Icon::Save,
-                if document.dirty {
-                    i18n.__("保存文件 (已修改)")
-                } else {
-                    i18n.__("保存文件")
-                },
-                (document.dirty && !document.saving)
-                    .then_some(Event::Files(state.epoch, files::Event::Save(file.id))),
-            )
-        }),
-        (state.local() && file.path().is_some() && matches!(&file.content, Some(Ok(_)))).then(
-            || {
-                action(
-                    Icon::LayoutTextWindow,
-                    i18n.__("在独立编辑器中打开"),
-                    Some(Event::Files(state.epoch, files::Event::OpenInEditor)),
-                )
-            }
-        ),
+        tools,
     ]
     .spacing(7)
     .align_y(Alignment::Center);

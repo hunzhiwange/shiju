@@ -48,6 +48,10 @@ fn apply_to_open_editors(app: &mut App, font_size: Option<f32>, line_height: Opt
     for tab in &mut app.navigation_tabs.preview_tabs {
         apply(&mut tab.editor.inner, font_size, line_height);
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    for editor in app.git_workbench.editors_mut() {
+        apply(&mut editor.inner, font_size, line_height);
+    }
     apply(
         &mut app.git.git_copy_modal_code_editor,
         font_size.map(|size| size.clamp(10.0, 30.0)),

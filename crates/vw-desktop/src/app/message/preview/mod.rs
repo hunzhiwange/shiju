@@ -58,6 +58,13 @@ pub(crate) fn dismiss_preview_popup_menus(app: &mut App) {
 /// | LSP 相关操作（仅非 WASM） | [`editor::update`] |
 pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     match message {
+        PreviewMessage::OpenStandalone => tab::open_active_in_standalone(app),
+        #[cfg(not(target_arch = "wasm32"))]
+        PreviewMessage::SaveFile
+            if app.navigation_tabs.screen == crate::app::Screen::GitWorkbench =>
+        {
+            crate::app::git_workbench::save_active(app)
+        }
         PreviewMessage::OpenSnapshot { key, path, title, content } => {
             snapshot::open(app, key, path, title, content)
         }

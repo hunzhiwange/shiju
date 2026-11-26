@@ -4,6 +4,14 @@ use crate::app::{App, FocusArea, Message};
 use iced::Task;
 use desktop_editor::preview::editor::{self as domain, Effect};
 pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
+ if matches!(&message, PreviewMessage::EditorEvent(iced_code_editor::Message::WriteRequested)) {
+   let Some(tab) = app.navigation_tabs.preview_tabs.iter().find(|tab| {
+     Some(&tab.path) == app.navigation_tabs.active_preview_path.as_ref()
+        && !tab.read_only && !tab.truncated && tab.is_dirty
+   }) else { return Task::none(); };
+   let path = tab.path.clone();
+   return super::tab::update(app, PreviewMessage::SaveFilePath { path, notify: true });
+ }
  if let PreviewMessage::EditorEvent(ref evt) = message {
    if matches!(evt, iced_code_editor::Message::CustomContextMenuAction(_) | iced_code_editor::Message::RevealInFileManager)
        && app.preview_state.editor_popover == Some(crate::app::message::editor::EditorPopover::Actions) {

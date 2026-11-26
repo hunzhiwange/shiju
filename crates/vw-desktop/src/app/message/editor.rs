@@ -145,8 +145,11 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
         EditorMessage::LanguageChanged(lang) => {
             app.preview_state.current_language = lang;
 
+            let editors = app.navigation_tabs.preview_tabs.iter_mut().map(|tab| &mut tab.editor);
+            #[cfg(not(target_arch = "wasm32"))]
+            let editors = editors.chain(app.git_workbench.editors_mut());
             desktop_editor::message::editor::apply_language(
-                app.navigation_tabs.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
+                editors,
                 &mut app.git.git_copy_modal_code_editor, lang,
             );
             Task::none()
@@ -158,8 +161,11 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             app.appearance.editor_theme = theme.clone();
             app.appearance.editor_follow_system_theme = false;
 
+            let editors = app.navigation_tabs.preview_tabs.iter_mut().map(|tab| &mut tab.editor);
+            #[cfg(not(target_arch = "wasm32"))]
+            let editors = editors.chain(app.git_workbench.editors_mut());
             desktop_editor::message::editor::apply_theme(
-                app.navigation_tabs.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
+                editors,
                 &mut app.git.git_copy_modal_code_editor, theme.clone(),
             );
 
@@ -173,8 +179,11 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             // 获取有效主题（考虑系统主题设置）
             let editor_theme = app.effective_editor_theme();
 
+            let editors = app.navigation_tabs.preview_tabs.iter_mut().map(|tab| &mut tab.editor);
+            #[cfg(not(target_arch = "wasm32"))]
+            let editors = editors.chain(app.git_workbench.editors_mut());
             desktop_editor::message::editor::apply_theme(
-                app.navigation_tabs.preview_tabs.iter_mut().map(|tab| &mut tab.editor),
+                editors,
                 &mut app.git.git_copy_modal_code_editor, editor_theme.clone(),
             );
 

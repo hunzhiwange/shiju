@@ -30,7 +30,6 @@ mod mod_tests;
 #[path = "settings_tests.rs"]
 mod settings_tests;
 
-use crate::app::components::editor_toolbar;
 use crate::app::{App, Message, Screen, message};
 use iced::Element;
 
@@ -73,14 +72,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         context_menu_pos: app.preview_state.preview_context_menu_pos, i18n: desktop_i18n::I18n::new(app.general_settings.desktop_locale),
     }, ViewParts {
         header_tabs: build_header_tabs(app).map(ViewMessage::External),
-        header_tools: tab.filter(|_| app.navigation_tabs.screen != Screen::Preview).map(|tab| {
-            editor_toolbar::view(
-                app,
-                (!tab.read_only).then_some(Message::Preview(message::PreviewMessage::SaveFile)),
-                tab.is_dirty,
-            )
-            .map(ViewMessage::External)
-        }),
         tools: editor_popovers::tools(app).map(ViewMessage::External),
         content: build_content_base(app).map(ViewMessage::External),
         menu_ui: build_menu_ui(app).map(ViewMessage::External),
@@ -131,6 +122,7 @@ fn map_editor_view_message(action: desktop_editor::components::preview_panel::vi
         Action::OpenSearch => EditorMessage::OpenSearch,
         Action::OpenReplace => EditorMessage::OpenReplace,
         Action::TogglePopover(kind) => EditorMessage::TogglePopover(kind),
+        Action::OpenStandalone => return Message::Preview(message::PreviewMessage::OpenStandalone),
     };
     Message::Editor(message)
 }

@@ -58,6 +58,25 @@ async fn file_preview_reconciles_loading_content_errors_and_tab_switches() {
     let preview = app.git_workbench.files.active_preview().unwrap();
     assert_eq!(preview.editor().unwrap().editor.content(), "fn main() {}");
     render(&app);
+    use desktop_editor::components::preview_panel::view::{
+        Message as Tool, options::EditorPopover,
+    };
+    dispatch(&mut app, files::Event::EditorTool(first, Tool::TogglePopover(EditorPopover::Help)));
+    assert_eq!(app.git_workbench.files.editor_popover, Some(EditorPopover::Help));
+    render(&app);
+    dispatch(&mut app, files::Event::EditorTool(first, Tool::OpenReplace));
+    assert_eq!(app.git_workbench.files.editor_popover, None);
+    assert!(
+        app.git_workbench
+            .files
+            .active_preview()
+            .unwrap()
+            .editor()
+            .unwrap()
+            .editor
+            .inner
+            .is_dialog_open()
+    );
     dispatch(
         &mut app,
         files::Event::Editor(first, iced_code_editor::Message::Paste("// edit\n".into())),

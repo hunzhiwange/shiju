@@ -27,16 +27,24 @@ pub struct ViewInput<'a> {
 /// 已有子视图的组合入口；跨域消息由桌面壳映射。
 pub struct ViewParts<'a, External> {
     pub header_tabs: Element<'a, ViewMessage<External>>,
-    pub header_tools: Option<Element<'a, ViewMessage<External>>>,
     pub tools: Element<'a, ViewMessage<External>>,
     pub content: Element<'a, ViewMessage<External>>,
     pub menu_ui: Element<'a, ViewMessage<External>>,
     #[cfg(not(target_arch = "wasm32"))]
     pub lsp_badge: Option<Element<'a, ViewMessage<External>>>,
 }
-pub fn view<'a, External: Clone + 'static>(input: ViewInput<'a>, parts: ViewParts<'a, External>) -> Element<'a, ViewMessage<External>> {
-    let ViewParts { header_tabs, header_tools, tools, content, menu_ui,
-        #[cfg(not(target_arch = "wasm32"))] lsp_badge } = parts;
+pub fn view<'a, External: Clone + 'static>(
+    input: ViewInput<'a>,
+    parts: ViewParts<'a, External>,
+) -> Element<'a, ViewMessage<External>> {
+    let ViewParts {
+        header_tabs,
+        tools,
+        content,
+        menu_ui,
+        #[cfg(not(target_arch = "wasm32"))]
+        lsp_badge,
+    } = parts;
     let header_trace_nav: Element<'a, ViewMessage<External>> = {
         let breadcrumb: Element<'a, ViewMessage<External>> = if let Some(active_path) =
             input.active_path
@@ -94,12 +102,8 @@ pub fn view<'a, External: Clone + 'static>(input: ViewInput<'a>, parts: ViewPart
 
     let content_container =
         container(content).width(Length::Fill).height(Length::Fill);
-    let mut layout = if let Some(tools_left) = header_tools {
-        column![container(tools_left).padding([0, 4]), content_container].spacing(6)
-    } else {
-        column![content_container].spacing(0)
-    };
-    if !input.show_changes {
+    let mut layout = column![content_container];
+    if !input.show_changes || input.active_path.is_some() {
         let header_row: Element<'a, ViewMessage<External>> = if input.show_fullscreen_controls {
             row![
                 container(header_tabs).padding([0, 4]).width(Length::Fill),

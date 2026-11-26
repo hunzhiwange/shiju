@@ -78,14 +78,65 @@ fn appearance(app: &App) -> Appearance {
     }
 }
 pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
+    update_in_surface(app, message, false)
+}
+
+pub(super) fn open_active_in_standalone(app: &mut App) -> Task<Message> {
+    if app.navigation_tabs.screen != Screen::Project {
+        return Task::none();
+    }
+    let Some(tab) = app.navigation_tabs.preview_tabs.iter().find(|tab| {
+        !tab.read_only && Some(&tab.path) == app.navigation_tabs.active_preview_path.as_ref()
+    }) else {
+        return Task::none();
+    };
+    if tab.is_dirty {
+        return show_toast(app, false, "有未保存的修改", vec![]);
+    }
+    let mut path = std::path::PathBuf::from(&tab.path);
+    if path.is_relative() {
+        let Some(root) = app.navigation_tabs.project_path.as_deref() else {
+            return Task::none();
+        };
+        path = std::path::Path::new(root).join(path);
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    let cursor = Some(tab.editor.cursor_position());
+    #[cfg(target_arch = "wasm32")]
+    let cursor = None;
+    let content = tab.content.clone();
+    open_standalone(app, path.to_string_lossy().into_owned(), cursor, Some(&content))
+}
+
+pub(crate) fn open_standalone(
+    app: &mut App,
+    path: String,
+    cursor: Option<(usize, usize)>,
+    saved_content: Option<&str>,
+) -> Task<Message> {
+    domain::dismiss_preview_popup_menus(&mut state(app));
+    app.navigation_tabs.switch_preview_project(None);
+    if app.navigation_tabs.preview_tabs.iter().any(|tab| {
+        tab.path == path && !tab.is_dirty && saved_content.is_some_and(|text| text != tab.content)
+    }) {
+        let _ = update(app, PreviewMessage::Close(path.clone()));
+    }
+    app.preview_state.pending_preview_goto =
+        cursor.map(|(line, column)| (path.clone(), line, column));
+    update_in_surface(app, PreviewMessage::Open(path), true)
+}
+
+fn update_in_surface(app: &mut App, message: PreviewMessage, standalone: bool) -> Task<Message> {
     let opening = if let PreviewMessage::Open(path) = &message { Some(path.clone()) } else { None };
     domain::prepare_popover(&mut app.preview_state.editor_popover, &message);
-    let reveal_work_resources = opening.is_some() && matches!(app.navigation_tabs.screen, Screen::Project)
+    let in_project = app.navigation_tabs.screen == Screen::Project && !standalone;
+    let reveal_work_resources = opening.is_some()
+        && in_project
         && app.navigation_mode.workspace_mode == WorkspaceMode::Work
         && (!app.navigation_workspace.work_resources_visible || app.navigation_workspace.work_resource_mode != WorkResourceMode::WorkspaceFiles || app.navigation_workspace.work_chat_fullscreen || app.navigation_workspace.work_chat_half_fullscreen);
     let mut save_task = Task::none();
     if opening.is_some() {
-        if app.navigation_tabs.screen != Screen::Project {
+        if !in_project {
             app.navigation_tabs.switch_preview_project(None);
         }
         if reveal_work_resources {
@@ -94,11 +145,19 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
             app.navigation_workspace.work_chat_fullscreen = false;
             app.navigation_workspace.work_chat_half_fullscreen = false;
         }
-        let mut fields = Map::new();
-        if app.file_manager.file_manager_show_changes { app.file_manager.file_manager_show_changes = false; fields.insert("file_manager_show_changes".into(), Value::Bool(false)); }
-        if !app.file_manager.show_file_manager { app.file_manager.show_file_manager = true; fields.insert("show_file_manager".into(), Value::Bool(true)); }
-        save_task = app.save_desktop_preferences(fields);
-        app.navigation_panels.show_diff = true;
+        if !standalone {
+            let mut fields = Map::new();
+            if app.file_manager.file_manager_show_changes {
+                app.file_manager.file_manager_show_changes = false;
+                fields.insert("file_manager_show_changes".into(), Value::Bool(false));
+            }
+            if !app.file_manager.show_file_manager {
+                app.file_manager.show_file_manager = true;
+                fields.insert("show_file_manager".into(), Value::Bool(true));
+            }
+            save_task = app.save_desktop_preferences(fields);
+            app.navigation_panels.show_diff = true;
+        }
     }
     let auto_save_mode = if let PreviewMessage::AutoSaveModeChanged(mode) = &message {
         #[cfg(not(target_arch = "wasm32"))] app.note_startup_setting_edit("preview_auto_save");
@@ -161,7 +220,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     });
     if let Some(mode) = auto_save_mode { tasks.push(crate::app::config::update_system_settings_config_async(move |system| system.preview_auto_save = mode)); }
     if opening.is_some() {
-        if matches!(app.navigation_tabs.screen, Screen::Project) {
+        if in_project {
             if reveal_work_resources { tasks.push(Task::done(Message::View(ViewMessage::WorkResourceModeSelected(WorkResourceMode::WorkspaceFiles)))); }
         } else {
             if !app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == EDITOR_TAB_ID) {

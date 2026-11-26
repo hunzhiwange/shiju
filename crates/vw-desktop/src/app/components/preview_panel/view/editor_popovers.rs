@@ -5,5 +5,7 @@ pub(super) fn tools(app: &App) -> iced::Element<'_, Message> {
     desktop_editor::components::preview_panel::view::editor_popovers::tools(
         tab.map(|tab| &tab.editor.inner), tab.is_none_or(|tab| tab.read_only),
         desktop_i18n::I18n::new(app.general_settings.desktop_locale), popover,
+        app.navigation_tabs.screen == crate::app::Screen::Project
+            && tab.is_some_and(|tab| !tab.read_only),
     ).map(super::map_editor_view_message)
 }

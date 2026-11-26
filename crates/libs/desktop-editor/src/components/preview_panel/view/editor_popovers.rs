@@ -9,14 +9,21 @@ use iced::widget::scrollable;
 use iced::widget::{button, container, row};
 use iced::{Background, Border, Color, Element, Length, Theme};
 
-pub fn tools<'a>(editor: Option<&'a iced_code_editor::CodeEditor>, read_only: bool, i18n: desktop_i18n::I18n, popover: Option<EditorPopover>) -> Element<'a, Message> {
-    let search = button(small_icon_svg(Icon::Search))
-        .padding(4)
-        .style(overlay_icon_button_style)
-        .on_press(Message::OpenSearch);
-    let mut tools = row![preview_control_tooltip(search.into(), i18n.__("搜索"))]
-        .spacing(4)
-        .align_y(iced::Alignment::Center);
+pub fn tools<'a>(
+    editor: Option<&'a iced_code_editor::CodeEditor>,
+    read_only: bool,
+    i18n: desktop_i18n::I18n,
+    popover: Option<EditorPopover>,
+    open_standalone: bool,
+) -> Element<'a, Message> {
+    let mut tools = row![].spacing(4).align_y(iced::Alignment::Center);
+    if editor.is_some() {
+        let search = button(small_icon_svg(Icon::Search))
+            .padding(4)
+            .style(overlay_icon_button_style)
+            .on_press(Message::OpenSearch);
+        tools = tools.push(preview_control_tooltip(search.into(), i18n.__("搜索")));
+    }
     if editor.is_some() && !read_only
     {
         let replace = button(small_icon_svg(Icon::Replace))
@@ -29,8 +36,11 @@ pub fn tools<'a>(editor: Option<&'a iced_code_editor::CodeEditor>, read_only: bo
         (EditorPopover::Actions, "操作"),
         (EditorPopover::Settings, "设置"),
         (EditorPopover::Help, "编辑器使用帮助"),
-    ] {
-            let icon = match kind {
+    ]
+    .into_iter()
+    .filter(|_| editor.is_some())
+    {
+        let icon = match kind {
             EditorPopover::Actions => Icon::ListUl,
             EditorPopover::Settings => Icon::Gear,
             EditorPopover::Help => Icon::QuestionCircle,
@@ -55,6 +65,13 @@ pub fn tools<'a>(editor: Option<&'a iced_code_editor::CodeEditor>, read_only: bo
             .close_on_target_click(true)
             .on_close(Message::ClosePopover),
         );
+    }
+    if open_standalone {
+        let open = button(small_icon_svg(Icon::LayoutTextWindow))
+            .padding(4)
+            .style(overlay_icon_button_style)
+            .on_press(Message::OpenStandalone);
+        tools = tools.push(preview_control_tooltip(open.into(), i18n.__("在独立编辑器中打开")));
     }
     tools.into()
 }

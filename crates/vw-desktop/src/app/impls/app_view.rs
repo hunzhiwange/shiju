@@ -202,9 +202,14 @@ impl App {
             main_view
         };
 
+        let editor_settings_screen =
+            matches!(self.navigation_tabs.screen, Screen::Project | Screen::Preview);
+        #[cfg(not(target_arch = "wasm32"))]
+        let editor_settings_screen =
+            editor_settings_screen || self.navigation_tabs.screen == Screen::GitWorkbench;
         let main_view = if self.preview_state.show_preview_settings
             && !self.navigation_panels.show_system_settings
-            && matches!(self.navigation_tabs.screen, Screen::Project | Screen::Preview)
+            && editor_settings_screen
         {
             components::preview_panel::build_settings_overlay(self, main_view)
         } else {

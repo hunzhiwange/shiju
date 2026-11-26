@@ -11,6 +11,8 @@ pub enum PreviewMessage {
     /// # 参数
     /// - `String`: 文件绝对路径
     Open(String),
+    /// 在独立编辑器中打开当前项目文件。
+    OpenStandalone,
 
     /// 在同一编辑器中打开只读快照，不读取或写入工作区文件。
     OpenSnapshot {

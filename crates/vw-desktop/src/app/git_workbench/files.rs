@@ -6,6 +6,9 @@ use super::{Workbench, message, update_git};
 use crate::app::message::{GitMessage, PreviewMessage};
 use crate::app::{App, Message};
 use desktop_editor::components::editor::Editor;
+use desktop_editor::components::preview_panel::view::{
+    Message as EditorTool, options::EditorPopover,
+};
 use desktop_file_tree::model::{FileTreeNode, build_file_tree_model_from_dto};
 use desktop_file_tree::selection::FileTreeSelection;
 use desktop_file_tree::{FileTreeAction, ProjectMessage};
@@ -20,12 +23,11 @@ pub(crate) enum Event {
     RemoteChangesReady(Result<Vec<String>, String>),
     Opened(u64, Result<(String, bool), String>),
     Editor(u64, iced_code_editor::Message),
-    Save(u64),
+    EditorTool(u64, EditorTool),
     Saved(u64, String, Result<(), String>),
     SelectPreview(u64),
     ClosePreview(u64),
     ConfirmClosePreview(bool),
-    OpenInEditor,
     RefreshTick,
     SearchReady(Box<desktop_workspace::project_message::tasks::SearchCompletion>),
 }
@@ -42,6 +44,7 @@ pub(super) struct State {
     pub(super) menu_anchor: Option<Point>,
     pub(super) previews: Vec<Preview>,
     active_preview_id: Option<u64>,
+    pub(super) editor_popover: Option<EditorPopover>,
     pub(super) closing_preview_id: Option<u64>,
     pub(super) refresh_frame: usize,
     pub(super) changes_refreshing: bool,
@@ -71,7 +74,7 @@ pub(super) struct Document {
     pub(super) editor: Editor,
     saved_content: String,
     pub(super) dirty: bool,
-    pub(super) saving: bool,
+    saving: bool,
 }
 
 #[derive(PartialEq, Eq)]
@@ -95,7 +98,7 @@ impl Preview {
         }
     }
 
-    fn document(&mut self) -> Option<&mut Document> {
+    pub(super) fn document(&mut self) -> Option<&mut Document> {
         match self.content.as_mut()? {
             Ok(PreviewContent::Editor(document)) => Some(document),
             _ => None,
@@ -123,6 +126,7 @@ impl State {
             return Task::none();
         }
         self.active_preview_id = Some(id);
+        self.editor_popover = None;
         Self::reset_preview_scroll()
     }
 
@@ -136,6 +140,7 @@ impl State {
         }
         self.active_preview_id =
             self.previews.get(index).or_else(|| self.previews.last()).map(|tab| tab.id);
+        self.editor_popover = None;
         Self::reset_preview_scroll()
     }
 
@@ -237,10 +242,11 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             }
         }
         Event::Opened(request, result) => return finish_open(app, request, result),
-        Event::Editor(id, iced_code_editor::Message::WriteRequested) | Event::Save(id) => {
+        Event::Editor(id, iced_code_editor::Message::WriteRequested) => {
             return save(state, id);
         }
         Event::Editor(id, event) => return editor_update(state, id, event),
+        Event::EditorTool(id, action) => return editor_tool(app, id, action),
         Event::Saved(id, content, result) => return finish_save(app, id, content, result),
         Event::SelectPreview(id) => return state.files.select_preview(id),
         Event::ClosePreview(id) => {
@@ -267,44 +273,6 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
                     .any(|tab| tab.id == id && tab.editor().is_some_and(|document| document.saving))
             {
                 return state.files.close_preview(id);
-            }
-        }
-        Event::OpenInEditor => {
-            if state.local()
-                && state.client().is_ok()
-                && let Some(root) = state.checkout_directory()
-                && let Some(preview) = state.files.active_preview()
-                && let Some(relative) = preview.path()
-            {
-                if preview.has_unsaved() {
-                    return super::unsaved_toast(app);
-                }
-                let path = absolute_path(root, relative);
-                let cursor = preview
-                    .editor()
-                    .map(|document| document.editor.cursor_position())
-                    .or_else(|| {
-                        preview.location.map(|(line, column)| {
-                            (line.saturating_sub(1), column.saturating_sub(1))
-                        })
-                    });
-                let saved = preview.editor().map(|document| document.saved_content.as_str());
-                let nav = &mut app.navigation_tabs;
-                nav.switch_preview_project(None);
-                let reload = nav.preview_tabs.iter().any(|tab| {
-                    tab.path == path
-                        && !tab.is_dirty
-                        && saved.is_some_and(|text| text != tab.content)
-                });
-                if reload {
-                    let _ = crate::app::message::preview::update(
-                        app,
-                        PreviewMessage::Close(path.clone()),
-                    );
-                }
-                app.preview_state.pending_preview_goto =
-                    cursor.map(|(line, column)| (path.clone(), line, column));
-                return crate::app::message::preview::update(app, PreviewMessage::Open(path));
             }
         }
         Event::RefreshTick => {
@@ -571,6 +539,7 @@ pub(super) fn open_file(
         return Task::none();
     }
     state.show_editor = true;
+    state.files.editor_popover = None;
     state.git.git_focused_file = Some(path.clone());
     if let Some(root) = state.files.root.as_deref() {
         state.files.selection.select(root, absolute_path(root, &path), false, false, &[]);
@@ -645,7 +614,7 @@ fn finish_open(
         editor.set_theme(theme);
         editor.set_font_size(app.preview_state.current_font_size);
         editor.set_line_height(app.preview_state.current_line_height.clamp(10.0, 60.0));
-        editor.set_ui_language(desktop_i18n::editor::language(app.general_settings.desktop_locale));
+        editor.set_ui_language(app.preview_state.current_language);
         editor.set_search_replace_enabled(true);
         PreviewContent::Editor(Document {
             editor,
@@ -710,6 +679,80 @@ fn editor_update(
         .map(move |event| message(super::Event::Files(epoch, Event::Editor(id, event))))
 }
 
+fn editor_tool(app: &mut App, id: u64, action: EditorTool) -> Task<Message> {
+    use crate::app::message::editor::{self, EditorMessage};
+    use iced_code_editor::Message as CodeEvent;
+
+    let state = &mut app.git_workbench;
+    if !state.show_editor || state.switching_branch || state.files.active_preview_id != Some(id) {
+        return Task::none();
+    }
+    if matches!(action, EditorTool::OpenStandalone) {
+        return open_in_standalone(app);
+    }
+    let files = &mut state.files;
+    let document = files.previews.iter_mut().find(|tab| tab.id == id).and_then(Preview::document);
+    if let EditorTool::TogglePopover(kind) = action {
+        desktop_editor::message::editor::toggle_popover(
+            &mut files.editor_popover,
+            document.is_some(),
+            kind,
+        );
+        return editor_update(state, id, CodeEvent::CloseCommandPalette);
+    }
+    if !matches!(action, EditorTool::SetOption(..) | EditorTool::SetIndentStyle(_)) {
+        files.editor_popover = None;
+    }
+    let Some(document) = document else {
+        return Task::none();
+    };
+    let event = match action {
+        EditorTool::EditorEvent(event) => {
+            document.editor.inner.request_focus();
+            let _ = document.editor.inner.update(&CodeEvent::CanvasFocusGained);
+            event
+        }
+        EditorTool::OpenSearch => CodeEvent::OpenSearch,
+        EditorTool::OpenReplace => CodeEvent::OpenSearchReplace,
+        EditorTool::SetOption(option, enabled) => {
+            option.set(&mut document.editor.inner, enabled);
+            return Task::none();
+        }
+        EditorTool::SetIndentStyle(style) => {
+            document.editor.inner.set_indent_style(style);
+            return Task::none();
+        }
+        EditorTool::ToggleSettings => return editor::update(app, EditorMessage::ToggleSettings),
+        EditorTool::ClosePopover | EditorTool::TogglePopover(_) | EditorTool::OpenStandalone => {
+            return Task::none();
+        }
+    };
+    editor_update(state, id, event)
+}
+
+fn open_in_standalone(app: &mut App) -> Task<Message> {
+    let state = &mut app.git_workbench;
+    state.files.editor_popover = None;
+    let Some(preview) = state.files.active_preview() else {
+        return Task::none();
+    };
+    let Some((root, relative)) = state.checkout_directory().zip(preview.path()) else {
+        return Task::none();
+    };
+    if !state.local() || state.client().is_err() || !matches!(&preview.content, Some(Ok(_))) {
+        return Task::none();
+    }
+    if preview.has_unsaved() {
+        return super::unsaved_toast(app);
+    }
+    let path = absolute_path(root, relative);
+    let cursor = preview.editor().map(|document| document.editor.cursor_position()).or_else(|| {
+        preview.location.map(|(line, column)| (line.saturating_sub(1), column.saturating_sub(1)))
+    });
+    let saved = preview.editor().map(|document| document.saved_content.clone());
+    crate::app::message::preview::tab::open_standalone(app, path, cursor, saved.as_deref())
+}
+
 pub(crate) fn clipboard_shortcut(
     app: &mut App,
     kind: crate::app::ui_types::ClipboardShortcutKind,
@@ -744,6 +787,17 @@ pub(crate) fn clipboard_shortcut(
             })
         }),
     }
+}
+
+pub(crate) fn save_active(app: &mut App) -> Task<Message> {
+    let state = &mut app.git_workbench;
+    if state.show_editor
+        && state.files.closing_preview_id.is_none()
+        && let Some(id) = state.files.active_preview_id
+    {
+        return save(state, id);
+    }
+    Task::none()
 }
 
 fn save(state: &mut Workbench, id: u64) -> Task<Message> {

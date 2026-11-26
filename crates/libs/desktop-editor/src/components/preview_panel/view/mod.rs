@@ -14,6 +14,7 @@ pub enum Message {
     OpenSearch,
     OpenReplace,
     TogglePopover(options::EditorPopover),
+    OpenStandalone,
 }
 pub mod controls;
 pub mod header_tabs;

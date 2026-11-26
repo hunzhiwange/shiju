@@ -10,7 +10,7 @@ use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 mod files;
 mod find;
 mod view;
-pub(crate) use files::{clipboard_shortcut, preview_diff_file, preview_snapshot};
+pub(crate) use files::{clipboard_shortcut, preview_diff_file, preview_snapshot, save_active};
 pub(crate) use view::{inline_project_picker, view, with_overlays};
 
 pub(crate) const TAB_ID: &str = "git_workbench";
@@ -144,6 +144,12 @@ impl Workbench {
         Source::Workbench(self.epoch)
     }
 
+    pub(crate) fn editors_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &mut desktop_editor::components::editor::Editor> {
+        self.files.previews.iter_mut().filter_map(|tab| tab.document().map(|doc| &mut doc.editor))
+    }
+
     fn reset_checkout(&mut self, keep_worktrees: bool) {
         let fresh = GitState::new(self.git.show_git_diff_summary, self.git.show_git_diff_highlight);
         let old = std::mem::replace(&mut self.git, fresh);
@@ -216,6 +222,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         }
         Event::ShowEditor(show) => {
             app.git_workbench.show_editor = show;
+            app.git_workbench.files.editor_popover = None;
             Task::none()
         }
         Event::RefreshCheckout => {

@@ -2,7 +2,7 @@ use crate::app::{App, Message};
 use crate::app::message::ProjectMessage;
 pub(super) fn inputs(app: &App) -> desktop_file_tree::FileTreeView<'_> {
     desktop_file_tree::FileTreeView {
-        browse_only: false,
+        drag_enabled: true,
         file_tree_drop_target: &app.file_tree_interaction.file_tree_drop_target,
         file_tree_operation_in_progress: app.file_tree_interaction.file_tree_operation_in_progress,
         file_tree_selection: &app.file_tree_interaction.file_tree_selection,

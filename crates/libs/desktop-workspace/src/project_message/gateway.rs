@@ -16,6 +16,29 @@ pub struct GatewayFileContext {
     pub worktree_id: Option<WorktreeId>,
     pub base_directory: String,
 }
+/// Resolve a selected checkout without falling back to another directory.
+pub async fn resolve_checkout_file_context(
+    client: &vw_gateway_client::GatewayClient,
+    project_id: ProjectId,
+    project_directory: &str,
+    directory: &str,
+) -> Result<GatewayFileContext, String> {
+    let worktree_id = if normalize_path(project_directory) == normalize_path(directory) {
+        None
+    } else {
+        let scope = project_scope(client.endpoint().tenant_scope(), project_id.clone())?;
+        let worktree = gateway_project::GatewayProjectClient::new(client.transport().clone())
+            .project_worktrees(&scope)
+            .await?
+            .items
+            .into_iter()
+            .find(|worktree| normalize_path(&worktree.directory) == normalize_path(directory))
+            .ok_or_else(|| "工作区不存在".to_string())?;
+        Some(worktree.id)
+    };
+    Ok(GatewayFileContext { project_id, worktree_id, base_directory: directory.to_string() })
+}
+
 pub async fn resolve_gateway_file_context(client: &vw_gateway_client::GatewayClient, tenant_scope: &vw_api_project::TenantScopeDto,
     project_path: &str,
 ) -> Result<GatewayFileContext, String> {
@@ -227,25 +250,10 @@ pub async fn gateway_move_path(client: &vw_gateway_client::GatewayClient, tenant
     from_path: &str,
     to_path: &str,
 ) -> Result<(), String> {
-    let context = resolve_gateway_file_context(client, tenant_scope, project_path).await?;
-    let from_relative = relative_to_project(&context.base_directory, from_path)
-        .ok_or_else(|| "无法定位源路径".to_string())?;
-    let to_relative = relative_to_project(&context.base_directory, to_path)
-        .ok_or_else(|| "无法定位目标路径".to_string())?;
-    let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
-        .file_move(&MoveFileRequest {
-            project_id: context.project_id,
-            worktree_id: context.worktree_id,
-            from_path: from_relative,
-            to_path: to_relative,
-            overwrite: false,
-        })
-        .await?;
-    if result.ok {
-        Ok(())
-    } else {
-        Err(result.message.unwrap_or_else(|| "移动失败".to_string()))
-    }
+    resolve_gateway_file_context(client, tenant_scope, project_path)
+        .await?
+        .move_path(client, from_path, to_path)
+        .await
 }
 
 pub async fn gateway_copy_path(client: &vw_gateway_client::GatewayClient, tenant_scope: &vw_api_project::TenantScopeDto,
@@ -253,43 +261,17 @@ pub async fn gateway_copy_path(client: &vw_gateway_client::GatewayClient, tenant
     from_path: &str,
     to_path: &str,
 ) -> Result<(), String> {
-    let context = resolve_gateway_file_context(client, tenant_scope, project_path).await?;
-    let from_relative = relative_to_project(&context.base_directory, from_path)
-        .ok_or_else(|| "无法定位源路径".to_string())?;
-    let to_relative = relative_to_project(&context.base_directory, to_path)
-        .ok_or_else(|| "无法定位目标路径".to_string())?;
-    let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
-        .file_copy(&CopyFileRequest {
-            project_id: context.project_id,
-            worktree_id: context.worktree_id,
-            from_path: from_relative,
-            to_path: to_relative,
-            overwrite: false,
-        })
-        .await?;
-    if result.ok {
-        Ok(())
-    } else {
-        Err(result.message.unwrap_or_else(|| "复制失败".to_string()))
-    }
+    resolve_gateway_file_context(client, tenant_scope, project_path)
+        .await?
+        .copy_path(client, from_path, to_path)
+        .await
 }
 
 pub async fn gateway_duplicate_path(client: &vw_gateway_client::GatewayClient, tenant_scope: &vw_api_project::TenantScopeDto, project_path: &str, path: &str) -> Result<(), String> {
-    let context = resolve_gateway_file_context(client, tenant_scope, project_path).await?;
-    let path = relative_to_project(&context.base_directory, path)
-        .ok_or_else(|| "无法定位路径".to_string())?;
-    let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
-        .file_duplicate(&DuplicateFileRequest {
-            project_id: context.project_id,
-            worktree_id: context.worktree_id,
-            path,
-        })
-        .await?;
-    if result.ok {
-        Ok(())
-    } else {
-        Err(result.message.unwrap_or_else(|| "复制失败".to_string()))
-    }
+    resolve_gateway_file_context(client, tenant_scope, project_path)
+        .await?
+        .duplicate_path(client, path)
+        .await
 }
 
 pub async fn gateway_delete_path(client: &vw_gateway_client::GatewayClient, tenant_scope: &vw_api_project::TenantScopeDto,
@@ -297,21 +279,107 @@ pub async fn gateway_delete_path(client: &vw_gateway_client::GatewayClient, tena
     path: &str,
     recursive: bool,
 ) -> Result<(), String> {
-    let context = resolve_gateway_file_context(client, tenant_scope, project_path).await?;
-    let relative = relative_to_project(&context.base_directory, path)
-        .ok_or_else(|| "无法定位路径".to_string())?;
-    let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
-        .file_delete(&DeleteFileRequest {
-            project_id: context.project_id,
-            worktree_id: context.worktree_id,
-            path: relative,
-            recursive,
-        })
-        .await?;
-    if result.ok {
-        Ok(())
-    } else {
-        Err(result.message.unwrap_or_else(|| "删除失败".to_string()))
+    resolve_gateway_file_context(client, tenant_scope, project_path)
+        .await?
+        .delete_path(client, path, recursive)
+        .await
+}
+
+impl GatewayFileContext {
+    pub async fn move_path(
+        &self,
+        client: &vw_gateway_client::GatewayClient,
+        from_path: &str,
+        to_path: &str,
+    ) -> Result<(), String> {
+        let from_relative = relative_to_project(&self.base_directory, from_path)
+            .ok_or_else(|| "无法定位源路径".to_string())?;
+        let to_relative = relative_to_project(&self.base_directory, to_path)
+            .ok_or_else(|| "无法定位目标路径".to_string())?;
+        let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
+            .file_move(&MoveFileRequest {
+                project_id: self.project_id.clone(),
+                worktree_id: self.worktree_id.clone(),
+                from_path: from_relative,
+                to_path: to_relative,
+                overwrite: false,
+            })
+            .await?;
+        if result.ok {
+            Ok(())
+        } else {
+            Err(result.message.unwrap_or_else(|| "移动失败".to_string()))
+        }
+    }
+
+    pub async fn copy_path(
+        &self,
+        client: &vw_gateway_client::GatewayClient,
+        from_path: &str,
+        to_path: &str,
+    ) -> Result<(), String> {
+        let from_relative = relative_to_project(&self.base_directory, from_path)
+            .ok_or_else(|| "无法定位源路径".to_string())?;
+        let to_relative = relative_to_project(&self.base_directory, to_path)
+            .ok_or_else(|| "无法定位目标路径".to_string())?;
+        let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
+            .file_copy(&CopyFileRequest {
+                project_id: self.project_id.clone(),
+                worktree_id: self.worktree_id.clone(),
+                from_path: from_relative,
+                to_path: to_relative,
+                overwrite: false,
+            })
+            .await?;
+        if result.ok {
+            Ok(())
+        } else {
+            Err(result.message.unwrap_or_else(|| "复制失败".to_string()))
+        }
+    }
+
+    pub async fn duplicate_path(
+        &self,
+        client: &vw_gateway_client::GatewayClient,
+        path: &str,
+    ) -> Result<(), String> {
+        let path = relative_to_project(&self.base_directory, path)
+            .ok_or_else(|| "无法定位路径".to_string())?;
+        let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
+            .file_duplicate(&DuplicateFileRequest {
+                project_id: self.project_id.clone(),
+                worktree_id: self.worktree_id.clone(),
+                path,
+            })
+            .await?;
+        if result.ok {
+            Ok(())
+        } else {
+            Err(result.message.unwrap_or_else(|| "复制失败".to_string()))
+        }
+    }
+
+    pub async fn delete_path(
+        &self,
+        client: &vw_gateway_client::GatewayClient,
+        path: &str,
+        recursive: bool,
+    ) -> Result<(), String> {
+        let relative = relative_to_project(&self.base_directory, path)
+            .ok_or_else(|| "无法定位路径".to_string())?;
+        let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
+            .file_delete(&DeleteFileRequest {
+                project_id: self.project_id.clone(),
+                worktree_id: self.worktree_id.clone(),
+                path: relative,
+                recursive,
+            })
+            .await?;
+        if result.ok {
+            Ok(())
+        } else {
+            Err(result.message.unwrap_or_else(|| "删除失败".to_string()))
+        }
     }
 }
 

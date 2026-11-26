@@ -281,7 +281,7 @@ pub fn view_file_manager_with_changes<'a>(
                 .padding([0, 7])
                 .width(Length::Fill)
                 .into(),
-            !app.browse_only,
+            app.drag_enabled,
         )
     };
 

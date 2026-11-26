@@ -14,7 +14,7 @@ mod message;
 pub use message::{FileTreeAction, Message, ProjectMessage};
 #[derive(Clone, Copy)]
 pub struct FileTreeView<'a> {
-    pub browse_only: bool,
+    pub drag_enabled: bool,
     pub file_tree_drop_target: &'a Option<String>,
     pub file_tree_operation_in_progress: bool,
     pub file_tree_selection: &'a selection::FileTreeSelection,

@@ -245,11 +245,12 @@ fn checkout_select(i18n: I18n, state: &Workbench, width: f32) -> Element<'_, Mes
 fn file_manager(app: &App) -> Element<'_, Message> {
     let state = &app.git_workbench;
     let files = &state.files;
+    let interaction = &files.interaction;
     let input = desktop_file_tree::FileTreeView {
-        browse_only: true,
+        drag_enabled: false,
         file_tree_drop_target: &None,
-        file_tree_operation_in_progress: false,
-        file_tree_selection: &files.selection,
+        file_tree_operation_in_progress: interaction.file_tree_operation_in_progress,
+        file_tree_selection: &interaction.file_tree_selection,
         file_tree_expanded_set: &files.expanded,
         git_changed_files: &state.git.git_changed_files,
         git_changed_files_loading: state.git.git_changed_files_loading,
@@ -266,12 +267,12 @@ fn file_manager(app: &App) -> Element<'_, Message> {
         active_find_results_tab_id: &files.find.active_find_results_tab_id,
         find_results_tab_menu_id: &files.find.find_results_tab_menu_id,
         find_results_tab_menu_pos: files.find.find_results_tab_menu_pos,
-        file_tree_rename_value: "",
-        file_tree_rename_path: &None,
-        file_tree_menu_path: &files.menu_path,
-        file_tree_menu_source: &files.menu_source,
-        file_tree_menu_anchor: files.menu_anchor,
-        can_paste: false,
+        file_tree_rename_value: &interaction.file_tree_rename_value,
+        file_tree_rename_path: &interaction.file_tree_rename_path,
+        file_tree_menu_path: &interaction.file_tree_menu_path,
+        file_tree_menu_source: &interaction.file_tree_menu_source,
+        file_tree_menu_anchor: interaction.file_tree_menu_anchor,
+        can_paste: interaction.file_tree_clipboard.is_some(),
     };
     desktop_file_tree::view_file_manager(input).map(move |event| match event {
         desktop_file_tree::Message::Project(event) => state.file_message(files::Event::Tree(event)),
@@ -405,7 +406,18 @@ pub(crate) fn with_overlays<'a>(app: &'a App, root: Element<'a, Message>) -> Ele
         .max_width(400);
         Some((cancel, card.into()))
     });
-    settings_optional_modal_overlay(root, confirm_close)
+    let root = settings_optional_modal_overlay(root, confirm_close);
+    let pending_delete =
+        state.files.interaction.file_tree_pending_delete.as_ref().map(|(_, paths)| paths.as_slice());
+    desktop_workspace::views::modals::file_tree_delete::with_file_tree_delete_confirm(
+        pending_delete,
+        app.general_settings.desktop_locale,
+        |event| {
+            use desktop_workspace::views::modals::file_tree_delete::Event::FileTreeDeleteConfirmed;
+            state.file_message(files::Event::ConfirmDelete(matches!(event, FileTreeDeleteConfirmed)))
+        },
+        root,
+    )
 }
 
 pub(crate) fn inline_project_picker(app: &App) -> Option<Element<'static, page::Message>> {

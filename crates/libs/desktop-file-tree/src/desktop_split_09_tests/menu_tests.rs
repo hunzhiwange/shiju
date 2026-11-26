@@ -157,6 +157,16 @@ fn file_tree_menu_combines_find_and_paste_options() {
 }
 
 #[test]
+fn disabling_drag_keeps_all_file_menu_items() {
+    let app = app_with_clipboard();
+    let mut inputs = app.inputs();
+    inputs.drag_enabled = false;
+
+    assert_eq!(menu_item_count(&build_file_tree_menu(inputs, false)), 17);
+    assert_eq!(menu_item_count(&build_file_tree_menu(inputs, true)), 18);
+}
+
+#[test]
 fn file_tree_menu_button_style_maps_interaction_states_for_each_theme() {
     for theme in [Theme::Light, Theme::Dark] {
         let palette = theme.extended_palette();

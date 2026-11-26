@@ -79,6 +79,13 @@ mod file_tree_tests;
 /// }
 /// ```
 pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Task<Message>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if app.navigation_tabs.screen == Screen::GitWorkbench
+        && matches!(&message, ProjectMessage::FileTreeRenameCancel)
+    {
+        app.git_workbench.cancel_file_rename();
+        return Some(iced::Task::none());
+    }
     if desktop_workspace::interaction::handle_local(&mut app.file_tree_interaction, &message) {
         return Some(iced::Task::none());
     }
@@ -301,21 +308,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             if let Some(project) = app.navigation_tabs.project_path.clone() {
                                 app.select_terminal_project(project);
                             }
-                            // 添加新终端并应用当前主题
-                            if app.terminal.add_terminal(Some(dir.to_path_buf())) {
-                                app.terminal.apply_app_theme(&app.appearance.app_theme);
-                                app.terminal.is_visible = true;
-                                return Some(iced::Task::batch([
-                                    crate::app::message::terminal::reap_retired_task(app),
-                                    crate::app::message::terminal::event::focus_active_terminal(
-                                        app,
-                                    ),
-                                    app.save_desktop_preference(
-                                        "show_terminal",
-                                        serde_json::Value::Bool(true),
-                                    ),
-                                ]));
-                            }
+                            return Some(open_terminal_at(app, dir.to_path_buf()));
                         }
                     }
                 }
@@ -328,33 +321,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             .filter_map(|path| relative_to_project(root, path))
                             .map(|path| format!("@{path} "))
                             .collect::<String>();
-                        if references.is_empty() {
-                            return Some(iced::Task::none());
-                        }
-                        // 关闭文件搜索面板
-                        app.input_suggestions.clear_files();
-
-                        // 获取当前会话的运行时并移动光标到文档末尾
-                        let runtime = app.current_session_runtime_mut();
-                        runtime.input_editor.perform(iced::widget::text_editor::Action::Move(
-                            iced::widget::text_editor::Motion::DocumentEnd,
-                        ));
-
-                        // 在光标位置插入 @文件路径 引用
-                        crate::app::ui::chat::insert_at_cursor(
-                            &mut runtime.input_editor,
-                            &references,
-                        );
-
-                        // 如果没有活动会话，同步输入编辑器内容
-                        if app.session_state.active_session_id.is_none() {
-                            let runtime = app.current_session_runtime();
-                            app.session_state.input_editor = runtime.input_editor;
-                        }
-
-                        // 设置焦点并返回聚焦任务
-                        app.focus_area = crate::app::FocusArea::None;
-                        return Some(iced::widget::operation::focus(app.session_state.input_editor_id.clone()));
+                        return Some(append_file_references(app, references));
                     }
                 }
                 // 在文件夹中查找：创建新的查找标签页并打开查找界面
@@ -537,6 +504,46 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         // 其他消息类型不在此处理器中处理
         _ => None,
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn open_terminal_at(app: &mut App, directory: std::path::PathBuf) -> iced::Task<Message> {
+    if !app.terminal.add_terminal(Some(directory.clone())) {
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "无法打开终端：%s",
+            vec![directory.to_string_lossy().into_owned().into()],
+        );
+    }
+    app.terminal.apply_app_theme(&app.appearance.app_theme);
+    app.terminal.is_visible = true;
+    iced::Task::batch([
+        crate::app::message::terminal::reap_retired_task(app),
+        crate::app::message::terminal::event::focus_active_terminal(app),
+        app.save_desktop_preference("show_terminal", serde_json::Value::Bool(true)),
+    ])
+}
+
+pub(crate) fn append_file_references(app: &mut App, references: String) -> iced::Task<Message> {
+    if references.is_empty() {
+        return iced::Task::none();
+    }
+    app.input_suggestions.clear_files();
+    let runtime = app.current_session_runtime_mut();
+    runtime.input_editor.perform(iced::widget::text_editor::Action::Move(
+        iced::widget::text_editor::Motion::DocumentEnd,
+    ));
+    let needs_separator = runtime.input_editor.text().trim_end_matches('\n')
+        .chars().next_back().is_some_and(|last| !last.is_whitespace());
+    if needs_separator {
+        crate::app::ui::chat::insert_at_cursor(&mut runtime.input_editor, " ");
+    }
+    crate::app::ui::chat::insert_at_cursor(&mut runtime.input_editor, &references);
+    if app.session_state.active_session_id.is_none() {
+        app.session_state.input_editor = app.current_session_runtime().input_editor;
+    }
+    app.focus_area = crate::app::FocusArea::None;
+    iced::widget::operation::focus(app.session_state.input_editor_id.clone())
 }
 
 /// Consume the same tree release used by the source widget and global subscription.

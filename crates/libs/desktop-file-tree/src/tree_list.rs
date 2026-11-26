@@ -159,7 +159,7 @@ fn directory_drop_area<'a>(
     content: Element<'a, Message>,
     target: String,
 ) -> Element<'a, Message> {
-    if app.browse_only {
+    if !app.drag_enabled {
         return content;
     }
     let mut area = RightClickArea::new(content, Box::new(|_| Message::None), None, None);
@@ -300,11 +300,11 @@ pub fn build_file_tree_list(app: FileTreeView<'_>) -> Element<'_, Message> {
                             pos.y,
                         ))
                     }),
-                    (!app.browse_only).then(|| Message::Project(ProjectMessage::FileTreeInternalDragStart {
+                    (app.drag_enabled).then(|| Message::Project(ProjectMessage::FileTreeInternalDragStart {
                         project_path: project_root.to_string(),
                         source_path: abs_path.clone(),
                     })),
-                    (!app.browse_only).then_some(Message::Project(ProjectMessage::FileTreeDragEnd)),
+                    (app.drag_enabled).then_some(Message::Project(ProjectMessage::FileTreeDragEnd)),
                 )
                 .on_select({
                     let path = abs_path.clone();
@@ -382,11 +382,11 @@ pub fn build_file_tree_list(app: FileTreeView<'_>) -> Element<'_, Message> {
                             pos.y,
                         ))
                     }),
-                    (!app.browse_only).then(|| Message::Project(ProjectMessage::FileTreeInternalDragStart {
+                    (app.drag_enabled).then(|| Message::Project(ProjectMessage::FileTreeInternalDragStart {
                         project_path: project_root.to_string(),
                         source_path: abs.clone(),
                     })),
-                    (!app.browse_only).then_some(Message::Project(ProjectMessage::FileTreeDragEnd)),
+                    (app.drag_enabled).then_some(Message::Project(ProjectMessage::FileTreeDragEnd)),
                 )
                 .on_select({
                     let path = abs.clone();
@@ -567,11 +567,11 @@ pub(crate) fn build_changes_list_for<'a>(
                             pos.y,
                         ))
                     }),
-                    (!app.browse_only).then(|| Message::Project(ProjectMessage::FileTreeDragStart(
+                    (app.drag_enabled).then(|| Message::Project(ProjectMessage::FileTreeDragStart(
                         abs_path.clone(),
                         None,
                     ))),
-                    (!app.browse_only).then_some(Message::Project(ProjectMessage::FileTreeDragEnd)),
+                    (app.drag_enabled).then_some(Message::Project(ProjectMessage::FileTreeDragEnd)),
                 )
                 .for_row("changes-dir", abs_path.clone()),
             );
@@ -638,8 +638,8 @@ pub(crate) fn build_changes_list_for<'a>(
                             pos.y,
                         ))
                     }),
-                    (!app.browse_only).then(|| Message::Project(ProjectMessage::FileTreeDragStart(abs.clone(), None))),
-                    (!app.browse_only).then_some(Message::Project(ProjectMessage::FileTreeDragEnd)),
+                    (app.drag_enabled).then(|| Message::Project(ProjectMessage::FileTreeDragStart(abs.clone(), None))),
+                    (app.drag_enabled).then_some(Message::Project(ProjectMessage::FileTreeDragEnd)),
                 )
                 .for_row("changes-file", abs.clone()),
             );

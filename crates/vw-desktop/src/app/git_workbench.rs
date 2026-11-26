@@ -123,7 +123,13 @@ impl Workbench {
     }
 
     fn busy(&self) -> bool {
-        self.switching_branch || git_busy(&self.git)
+        self.switching_branch
+            || self.files.interaction.file_tree_operation_in_progress
+            || git_busy(&self.git)
+    }
+
+    pub(crate) fn cancel_file_rename(&mut self) {
+        self.files.interaction.cancel_rename();
     }
 
     pub(crate) fn commit_form_visible(&self) -> bool {
@@ -603,22 +609,36 @@ fn update_git(app: &mut App, event: GitMessage) -> Task<Message> {
     }
     let source = state.source();
     let changes_ready = matches!(&event, GitMessage::ChangedFilesReady { repo_path, .. } if repo_path == &state.repo);
+    let diff_ready = matches!(&event, GitMessage::DiffFileMetasReady { repo_path, .. } if repo_path == &state.repo);
     let scroll =
         matches!(&event, GitMessage::FocusFile(_)).then(|| state.git.git_diff_scroll_id.clone());
     let task = git::update_from(app, source, event);
     if changes_ready {
         let state = &mut app.git_workbench;
         state.files.expand_changes(&state.git.git_changed_files);
-        if std::mem::take(&mut state.files.changes_refreshing) {
-            return Task::batch([
-                task,
-                app.show_localized_toast(
-                    crate::app::state::ToastKind::Success,
-                    "Git 更改已刷新",
-                    vec![],
-                ),
-            ]);
-        }
+        let refresh = if !state.git.git_changed_files_loading
+            && std::mem::take(&mut state.files.changes_refresh_pending)
+        {
+            Task::done(source.message(GitMessage::RefreshChangedFiles))
+        } else {
+            Task::none()
+        };
+        let feedback = if std::mem::take(&mut state.files.changes_refreshing) {
+            app.show_localized_toast(
+                crate::app::state::ToastKind::Success,
+                "Git 更改已刷新",
+                vec![],
+            )
+        } else {
+            Task::none()
+        };
+        return Task::batch([task, refresh, feedback]);
+    }
+    if diff_ready
+        && !app.git_workbench.git.git_diff_file_metas_loading
+        && std::mem::take(&mut app.git_workbench.files.diff_refresh_pending)
+    {
+        return Task::batch([task, Task::done(source.message(GitMessage::RefreshDiffFileMetas))]);
     }
     if let Some(id) = scroll {
         Task::batch([

@@ -10,15 +10,20 @@ use desktop_editor::components::preview_panel::view::{
     Message as EditorTool, options::EditorPopover,
 };
 use desktop_file_tree::model::{FileTreeNode, build_file_tree_model_from_dto};
-use desktop_file_tree::selection::FileTreeSelection;
-use desktop_file_tree::{FileTreeAction, ProjectMessage};
+use desktop_file_tree::ProjectMessage;
+use desktop_workspace::interaction::InteractionState;
 use desktop_workspace::project_message::find::FindState;
 use iced::{Point, Task};
 use vw_api_file::file::{FileNodeDto, FileNodeKind};
 
+#[path = "file_actions.rs"]
+mod actions;
+
 #[derive(Clone)]
 pub(crate) enum Event {
     Tree(ProjectMessage),
+    MutationReady(actions::Mutation, actions::MutationResult),
+    ConfirmDelete(bool),
     FolderReady(u64, String, Result<Vec<FileNodeDto>, String>),
     RemoteChangesReady(Result<Vec<String>, String>),
     Opened(u64, Result<(String, bool), String>),
@@ -37,11 +42,8 @@ pub(super) struct State {
     pub(super) root: Option<String>,
     pub(super) tree: FileTreeNode,
     pub(super) expanded: HashSet<String>,
-    pub(super) selection: FileTreeSelection,
+    pub(super) interaction: InteractionState,
     pub(super) find: FindState,
-    pub(super) menu_path: Option<String>,
-    pub(super) menu_source: Option<String>,
-    pub(super) menu_anchor: Option<Point>,
     pub(super) previews: Vec<Preview>,
     active_preview_id: Option<u64>,
     pub(super) editor_popover: Option<EditorPopover>,
@@ -49,6 +51,8 @@ pub(super) struct State {
     pub(super) refresh_frame: usize,
     pub(super) changes_refreshing: bool,
     pub(super) files_refreshing: bool,
+    pub(super) changes_refresh_pending: bool,
+    pub(super) diff_refresh_pending: bool,
     pub(super) show_all_files: bool,
     loaded: HashSet<String>,
     loading: HashSet<String>,
@@ -156,12 +160,6 @@ impl State {
             paths.iter().map(String::as_str),
         ));
     }
-
-    fn close_menu(&mut self) {
-        self.menu_path = None;
-        self.menu_source = None;
-        self.menu_anchor = None;
-    }
 }
 
 impl Workbench {
@@ -174,6 +172,8 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
     let state = &mut app.git_workbench;
     match event {
         Event::Tree(event) => return tree_event(app, event),
+        Event::MutationReady(mutation, result) => return actions::complete(app, mutation, result),
+        Event::ConfirmDelete(confirm) => return actions::confirm_delete(app, confirm),
         Event::FolderReady(generation, path, result)
             if generation == state.files.listing_generation =>
         {
@@ -225,21 +225,29 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
         Event::RemoteChangesReady(result) => {
             let manual_refresh = std::mem::take(&mut state.files.changes_refreshing);
             state.git.git_changed_files_loading = false;
-            match result {
+            let refresh = if std::mem::take(&mut state.files.changes_refresh_pending) {
+                refresh_remote_changes(state)
+            } else {
+                Task::none()
+            };
+            let feedback = match result {
                 Ok(paths) => {
                     state.files.expand_changes(&paths);
                     state.git.git_changed_files = paths;
                     if manual_refresh {
-                        return app.show_localized_toast(
+                        app.show_localized_toast(
                             crate::app::state::ToastKind::Success,
                             "Git 更改已刷新",
                             vec![],
-                        );
+                        )
+                    } else {
+                        Task::none()
                     }
                 }
-                Err(error) if manual_refresh => return app.show_error_toast(error),
-                Err(_) => {}
-            }
+                Err(error) if manual_refresh => app.show_error_toast(error),
+                Err(_) => Task::none(),
+            };
+            return Task::batch([refresh, feedback]);
         }
         Event::Opened(request, result) => return finish_open(app, request, result),
         Event::Editor(id, iced_code_editor::Message::WriteRequested) => {
@@ -324,7 +332,10 @@ fn tree_event(app: &mut App, event: ProjectMessage) -> Task<Message> {
         ProjectMessage::FileManagerRefreshFileTree | ProjectMessage::FileManagerRefreshChanges => {
             Task::none()
         }
-        ProjectMessage::ToggleTreeDir(path) => toggle_directory(state, path),
+        ProjectMessage::ToggleTreeDir(path) => {
+            state.files.interaction.cancel_rename();
+            toggle_directory(state, path)
+        }
         ProjectMessage::FileTreeSelected { project_path, path, directory, modifiers } => {
             if root != project_path {
                 return Task::none();
@@ -336,7 +347,14 @@ fn tree_event(app: &mut App, event: ProjectMessage) -> Task<Message> {
                 &root,
                 &state.files.expanded,
             );
-            state.files.selection.select(&root, path.clone(), command, shift, &visible);
+            state.files.interaction.cancel_rename();
+            state.files.interaction.file_tree_selection.select(
+                &root,
+                path.clone(),
+                command,
+                shift,
+                &visible,
+            );
             if command || shift {
                 return Task::none();
             }
@@ -349,47 +367,38 @@ fn tree_event(app: &mut App, event: ProjectMessage) -> Task<Message> {
                 open_file(state, relative, None)
             }
         }
-        ProjectMessage::OpenChangedFile(path) => open_changed(app, path),
+        ProjectMessage::OpenChangedFile(path) => {
+            state.files.interaction.cancel_rename();
+            open_changed(app, path)
+        }
         ProjectMessage::FileTreeRightClicked(path, source, x, y) => {
-            if relative_path(&root, &path).is_some() {
-                state.files.menu_path = Some(path);
-                state.files.menu_source = Some(source);
-                state.files.menu_anchor = Some(Point::new(x, y));
+            if relative_path(&root, &path).is_some_and(|path| !path.is_empty()) {
+                let visible = desktop_file_tree::selection::visible_paths(
+                    &state.files.tree,
+                    &root,
+                    &state.files.expanded,
+                );
+                state.files.interaction.cancel_rename();
+                state.files.interaction.right_click(
+                    Some(&root),
+                    path,
+                    source,
+                    Point::new(x, y),
+                    &visible,
+                );
             }
             Task::none()
         }
         ProjectMessage::FileTreeMenuClose => {
-            state.files.close_menu();
+            state.files.interaction.close_menu();
             Task::none()
         }
-        ProjectMessage::FileTreeAction(action) => {
-            let path = state.files.menu_path.clone();
-            let source = state.files.menu_source.clone();
-            state.files.close_menu();
-            let Some((path, source)) = path.zip(source) else {
-                return Task::none();
-            };
-            let Some(relative) = relative_path(&root, &path) else {
-                return Task::none();
-            };
-            match action {
-                FileTreeAction::Open if source == "changes-file" => open_changed(app, relative),
-                FileTreeAction::Open if source == "changes-dir" => {
-                    toggle_directory(state, format!("chg:{relative}"))
-                }
-                FileTreeAction::Open if source == "tree-dir" => toggle_directory(state, relative),
-                FileTreeAction::Open => open_file(state, relative, None),
-                FileTreeAction::FindInFolder
-                    if matches!(source.as_str(), "changes-dir" | "tree-dir") =>
-                {
-                    state.files.find.open_scope(path, crate::app::time::now_ms().to_string());
-                    Task::none()
-                }
-                FileTreeAction::CopyPath => iced::clipboard::write(path),
-                FileTreeAction::CopyRelativePath => iced::clipboard::write(relative),
-                _ => Task::none(),
-            }
+        ProjectMessage::FileTreeAction(action) => actions::run(app, &root, action),
+        ProjectMessage::FileTreeRenameChanged(value) => {
+            state.files.interaction.file_tree_rename_value = value;
+            Task::none()
         }
+        ProjectMessage::FileTreeRenameSave => actions::rename(app, &root),
         event => super::find::update(state, event),
     }
 }
@@ -409,7 +418,8 @@ fn open_changed(app: &mut App, path: String) -> Task<Message> {
 fn select_tree_mode(state: &mut Workbench, show_all_files: bool) -> Task<Message> {
     state.files.show_all_files = show_all_files;
     state.files.find.active_find_results_tab_id = None;
-    state.files.close_menu();
+    state.files.interaction.close_menu();
+    state.files.interaction.cancel_rename();
     if show_all_files && !state.files.loaded.contains("") {
         list_folder(state, String::new())
     } else {
@@ -448,6 +458,27 @@ pub(super) fn refresh_remote_changes(state: &mut Workbench) -> Task<Message> {
         },
         move |result| message(super::Event::Files(epoch, Event::RemoteChangesReady(result))),
     )
+}
+
+fn refresh_changes_after_edit(state: &mut Workbench) -> Task<Message> {
+    let changes = if state.git.git_changed_files_loading {
+        // An in-flight snapshot may predate the file operation.
+        state.files.changes_refresh_pending = true;
+        Task::none()
+    } else if state.local() {
+        Task::done(state.source().message(GitMessage::RefreshChangedFiles))
+    } else {
+        refresh_remote_changes(state)
+    };
+    let diff = if !state.local() {
+        Task::none()
+    } else if state.git.git_diff_file_metas_loading {
+        state.files.diff_refresh_pending = true;
+        Task::none()
+    } else {
+        Task::done(state.source().message(GitMessage::RefreshDiffFileMetas))
+    };
+    Task::batch([changes, diff])
 }
 
 fn begin_refresh(state: &Workbench) -> Task<Message> {
@@ -542,7 +573,13 @@ pub(super) fn open_file(
     state.files.editor_popover = None;
     state.git.git_focused_file = Some(path.clone());
     if let Some(root) = state.files.root.as_deref() {
-        state.files.selection.select(root, absolute_path(root, &path), false, false, &[]);
+        state.files.interaction.file_tree_selection.select(
+            root,
+            absolute_path(root, &path),
+            false,
+            false,
+            &[],
+        );
     }
     let files = &mut state.files;
     let existing = files.previews.iter().position(|tab| tab.path() == Some(path.as_str()));
@@ -801,7 +838,7 @@ pub(crate) fn save_active(app: &mut App) -> Task<Message> {
 }
 
 fn save(state: &mut Workbench, id: u64) -> Task<Message> {
-    if state.switching_branch {
+    if state.switching_branch || state.files.interaction.file_tree_operation_in_progress {
         return Task::none();
     }
     let Some(directory) = state.files.root.clone() else {
@@ -860,15 +897,7 @@ fn finish_save(
                 document.editor.inner.mark_saved();
             }
             document.saved_content = content;
-            if state.local() {
-                let source = state.source();
-                Task::batch([
-                    Task::done(source.message(GitMessage::RefreshChangedFiles)),
-                    Task::done(source.message(GitMessage::RefreshDiffFileMetas)),
-                ])
-            } else {
-                refresh_remote_changes(state)
-            }
+            refresh_changes_after_edit(state)
         }
         Err(error) => {
             return app.show_localized_toast(

@@ -1,7 +1,5 @@
 use desktop_i18n::I18n;
-use desktop_task_model::{
-    OwnedStatusDefinition, StatusOutcome, StatusRole, TaskWorkflow, builtin_task_workflows,
-};
+use desktop_task_model::{OwnedStatusDefinition, StatusRole, TaskWorkflow, builtin_task_workflows};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum StatusGroup {
@@ -36,9 +34,7 @@ impl StatusGroup {
             Self::Started => i18n.__("已开始"),
             Self::Done => i18n.__("已完成"),
             // The unqualified translation refers to a disabled setting.
-            Self::Closed => i18n
-                .__("已关闭（工作流状态）")
-                .trim_end_matches("（工作流状态）"),
+            Self::Closed => i18n.__("已关闭（工作流状态）").trim_end_matches("（工作流状态）"),
         }
     }
 }
@@ -75,59 +71,15 @@ pub(super) fn status_catalog(workflow: &TaskWorkflow) -> [(StatusGroup, Vec<Stat
     })
 }
 
-pub(super) fn status_behavior(workflow: &TaskWorkflow, status: &OwnedStatusDefinition) -> StatusBehavior {
+pub(super) fn status_behavior(
+    _workflow: &TaskWorkflow,
+    status: &OwnedStatusDefinition,
+) -> StatusBehavior {
     if !status.enabled {
-        return StatusBehavior {
-            summary: "已停用",
-            help: "停用的状态仍可查看和编辑。流转时，如有可用的后续状态，任务会跳过这一步。",
-        };
-    }
-
-    let can_auto_start = status.auto_execution_candidate && !status.is_terminal;
-    let (summary, help) = match status.role {
-        StatusRole::Backlog => ("等待排队", "任务先留在池中，进入排队后才会等待执行名额。"),
-        StatusRole::Queued if can_auto_start => (
-            "等待执行名额",
-            "允许调度后，这一步会等待可用执行名额。",
-        ),
-        StatusRole::Queued => ("等待启动", "可以从任务看板发起执行。"),
-        StatusRole::Planning if can_auto_start => (
-            "等待规划",
-            "允许调度后，有可用执行名额时可以开始规划。",
-        ),
-        StatusRole::Planning => ("准备执行计划", "这一步用于准备执行计划。"),
-        StatusRole::Executing => ("正在执行", "这一步记录任务的执行进度。"),
-        StatusRole::Failed if has_retry_target(workflow, status) => (
-            "失败后按项目设置重试",
-            "项目允许重试且未达到次数上限时，任务会进入配置的重试状态。",
-        ),
-        StatusRole::Failed => ("等待处理失败", "请检查失败原因并决定后续操作。"),
-        StatusRole::Paused => ("等待恢复", "恢复前不会自动继续。"),
-        StatusRole::ReviewReady => ("等待审核", "执行结果已可供审核。"),
-        StatusRole::Review => ("审核结果", "审核完成后，可按已配置的结果流转。"),
-        StatusRole::Merging => ("处理收尾", "这一步记录合并、发布等收尾工作。"),
-        StatusRole::Done => ("任务已完成", "任务已完成。配置了后续状态时，可以继续流转。"),
-        StatusRole::Archived => ("归档后停止调度", "归档后的任务可以查看，调度器会停止派发。"),
-        StatusRole::Custom => ("按配置流转", "进入这个状态后，可按已配置的结果流转。"),
-    };
-    StatusBehavior { summary, help }
-}
-
-fn has_retry_target(workflow: &TaskWorkflow, status: &OwnedStatusDefinition) -> bool {
-    let retry = StatusOutcome::retry();
-    let target = if status.transition_target(retry).is_some() {
-        workflow.next_status_for_outcome(status.status, StatusOutcome::retry())
+        StatusBehavior { summary: "已停用", help: "停用的状态仍可查看和编辑。" }
     } else {
-        // Older saved definitions used the default successor for retries.
-        status.next.and_then(|target| {
-            if workflow.status_enabled(target) {
-                Some(target)
-            } else {
-                workflow.next_status(target)
-            }
-        })
-    };
-    target
-        .and_then(|target| workflow.status_role(target))
-        .is_some_and(|role| matches!(role, StatusRole::Queued | StatusRole::Planning))
+        StatusBehavior {
+            summary: "按步骤配置交接", help: "接手规则在工作流步骤中配置。"
+        }
+    }
 }

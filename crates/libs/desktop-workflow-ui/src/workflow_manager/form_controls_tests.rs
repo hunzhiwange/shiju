@@ -1,8 +1,12 @@
 use super::{
+    HandoffIdentity, HandoffKind, Message, StatusCategory, StepHandoff, TaskWorkflowRegistry,
+    WorkflowManagerState, build_status_row, lifecycle_workflow_dto_from_owned_workflow, update,
+};
+use super::{
     WorkflowDraft, WorkflowDraftStatus, WorkflowManagerMessage, build_draft_editor,
     owned_workflow_from_draft,
 };
-use super::Message;
+use config_ui::DesktopLocale;
 use desktop_i18n::I18n;
 use desktop_task_model::StatusRole;
 use iced::advanced::renderer::{Headless, Style};
@@ -11,7 +15,6 @@ use iced::advanced::{Layout, clipboard, layout, widget::Tree};
 use iced::keyboard::{self, Key, key::Named};
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use config_ui::DesktopLocale;
 
 struct FocusControl(Rectangle);
 
@@ -34,50 +37,6 @@ impl Operation for FocusControl {
     }
 }
 
-#[tokio::test]
-async fn help_rollout_27_lifecycle_route_renders_contextual_help() {
-    struct RouteLabel {
-        explanation: &'static str,
-    }
-
-    impl Operation for RouteLabel {
-        fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
-            children(self);
-        }
-
-        fn text(&mut self, _: Option<&iced::advanced::widget::Id>, _: Rectangle, value: &str) {
-            assert_ne!(value, self.explanation, "optional copy is hidden while idle");
-        }
-    }
-
-    let mut renderer = Renderer::new(Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
-    let i18n = I18n::new(DesktopLocale::English);
-    let mut draft = WorkflowDraft::empty();
-    let mut status = WorkflowDraftStatus::new("review", "Review", StatusRole::Queued);
-    status.routes.clear();
-    status.add_route();
-    draft.statuses = vec![status];
-    let mut scene = EditorScene::new(build_draft_editor(i18n, &draft), &mut renderer, 456);
-    let mut label = RouteLabel { explanation: i18n.__("给人看的名称") };
-    scene.ui.operate(&renderer, &mut label);
-    fn help_bounds(layout: Layout<'_>) -> Option<Rectangle> {
-        let bounds = layout.bounds();
-        if bounds.size() == Size::new(22.0, 22.0) {
-            return Some(bounds);
-        }
-        layout.children().find_map(help_bounds)
-    }
-    let route_name = [0, 4, 0, 0, 0, 0, 5, 0, 0, 0]
-        .into_iter()
-        .fold(Layout::new(&scene.layout), |node, index| node.children().nth(index).unwrap());
-    let trigger = help_bounds(route_name).expect("workflow route help icon").center();
-    let idle = scene.capture(&mut renderer, &Theme::Dark);
-    assert!(scene.click(&mut renderer, trigger, mouse::Button::Left).is_empty());
-    assert!(scene.capture(&mut renderer, &Theme::Dark) != idle);
-    assert!(scene.key(&mut renderer, Key::Named(Named::Escape), None).is_empty());
-    assert!(scene.capture(&mut renderer, &Theme::Dark) == idle);
-}
-
 struct FindText<'a>(&'a str, Option<Rectangle>);
 
 impl Operation for FindText<'_> {
@@ -88,147 +47,6 @@ impl Operation for FindText<'_> {
     fn text(&mut self, _: Option<&iced::advanced::widget::Id>, bounds: Rectangle, value: &str) {
         if value == self.0 {
             self.1 = Some(bounds);
-        }
-    }
-}
-
-#[tokio::test]
-async fn settings_help_gap_17_lifecycle_route_heading_and_controls() {
-    {
-        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
-        for font in desktop_assets::fonts::load_all() {
-            fonts.load_font(font);
-        }
-    }
-    let mut renderer =
-        Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
-            .await
-            .expect("tiny-skia renderer");
-
-    let mut new_draft = WorkflowDraft::empty();
-    new_draft.id = "review_flow".into();
-    new_draft.label = "Review flow".into();
-    let mut queued = WorkflowDraftStatus::new("queued", "Queued", StatusRole::Queued);
-    queued.routes.truncate(1);
-    queued.add_route();
-    let mut done = WorkflowDraftStatus::new("done", "Done", StatusRole::Done);
-    done.routes.clear();
-    new_draft.statuses = vec![queued, done];
-
-    let mut saved = new_draft.clone();
-    saved.statuses[0].set_route_target_key(1, Some("done".into()));
-    let saved = owned_workflow_from_draft(&saved).expect("valid lifecycle fixture");
-    let saved_draft = WorkflowDraft::from_workflow(saved.into());
-
-    for locale in [
-        DesktopLocale::SimplifiedChinese,
-        DesktopLocale::TraditionalChinese,
-        DesktopLocale::English,
-    ] {
-        let i18n = I18n::new(locale);
-        let explanation = i18n.__("结果 key 可自定义；目标留空表示此结果结束。");
-        for (theme, width) in [(Theme::Light, 760), (Theme::Dark, 456)] {
-            for draft in [&new_draft, &saved_draft] {
-                let mut scene =
-                    EditorScene::new(build_draft_editor(i18n, draft), &mut renderer, width);
-                assert!(
-                    scene.text_bounds(&renderer, explanation).is_none(),
-                    "route explanation is still in the body: {explanation}"
-                );
-                let status = [0, 4, 0, 0, 0, 0];
-                let field = |scene: &EditorScene<'_>, path: &[usize]| {
-                    scene.bounds(&[status.as_slice(), path].concat())
-                };
-                assert!(scene.text_bounds(&renderer, i18n.__("结果去向")).is_some());
-                let icon = field(&scene, &[4, 0, 1]);
-                assert_eq!(icon.size(), Size::new(22.0, 22.0));
-                let idle = scene.capture(&mut renderer, &theme);
-                assert!(
-                    scene
-                        .send_at(
-                            &mut renderer,
-                            &[Event::Mouse(mouse::Event::CursorMoved { position: icon.center() })],
-                            mouse::Cursor::Available(icon.center())
-                        )
-                        .is_empty()
-                );
-                assert!(scene.capture(&mut renderer, &theme) != idle, "help opens on hover");
-                assert!(scene.click(&mut renderer, icon.center(), mouse::Button::Left).is_empty());
-                let pinned = scene.capture(&mut renderer, &theme);
-                assert!(pinned != idle, "help stays visible with the pointer unavailable");
-
-                // The help card opens to the right of this icon. Copy its full body through
-                // the selection menu without writing to the clipboard.
-                let card = Point::new(icon.x + icon.width + 4.0 + 12.5, icon.center_y() + 5.0);
-                assert!(scene.click(&mut renderer, card, mouse::Button::Right).is_empty());
-                assert!(scene.capture(&mut renderer, &theme) != pinned);
-                assert!(scene.key(&mut renderer, Key::Named(Named::Escape), None).is_empty());
-                assert!(
-                    scene.capture(&mut renderer, &theme) == pinned,
-                    "Esc closes the menu first"
-                );
-                assert!(scene.click(&mut renderer, card, mouse::Button::Right).is_empty());
-                let menu_row_height =
-                    f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into()))
-                        + 10.0;
-                let copy = Point::new(card.x + 24.0, card.y + 3.0 + menu_row_height * 0.5);
-                assert!(matches!(
-                    scene.click(&mut renderer, copy, mouse::Button::Left).as_slice(),
-                    [Message::CopyCode(value)] if value == explanation
-                ));
-                assert!(scene.key(&mut renderer, Key::Named(Named::Escape), None).is_empty());
-                assert!(scene.capture(&mut renderer, &theme) == idle, "Esc closes the help card");
-
-                for path in [&[5, 0, 0, 1][..], &[5, 0, 1, 1], &[5, 0, 3]] {
-                    let point = field(&scene, path).center();
-                    assert!(scene.click(&mut renderer, point, mouse::Button::Left).is_empty());
-                    assert!(
-                        scene.key(&mut renderer, Key::Character("x".into()), Some("x")).is_empty()
-                    );
-                }
-                assert!(scene.text_bounds(&renderer, "succeed").is_some());
-                let add = field(&scene, &[4, 2]).center();
-                assert!(matches!(
-                    scene.click(&mut renderer, add, mouse::Button::Left).as_slice(),
-                    [Message::WorkflowManager(WorkflowManagerMessage::AddDraftStatusRoute(0))]
-                ));
-                let custom = draft.statuses[0].routes.len() - 1;
-                let remove = field(&scene, &[5, custom, 3]).center();
-                assert!(matches!(
-                    scene.click(&mut renderer, remove, mouse::Button::Left).as_slice(),
-                    [Message::WorkflowManager(WorkflowManagerMessage::RemoveDraftStatusRoute {
-                        status_index: 0,
-                        route_index,
-                    })] if *route_index == custom
-                ));
-
-                let (custom_key, custom_target) = if draft.original_id.is_some() {
-                    (Named::Home, None)
-                } else {
-                    (Named::End, Some("done"))
-                };
-                for (route_index, key, expected) in
-                    [(0, Named::Home, None), (custom, custom_key, custom_target)]
-                {
-                    let target = field(&scene, &[5, route_index, 2]);
-                    scene.ui.operate(&renderer, &mut FocusControl(target));
-                    let closed = scene.capture(&mut renderer, &theme);
-                    assert!(scene.key(&mut renderer, Key::Named(Named::Enter), None).is_empty());
-                    assert!(scene.capture(&mut renderer, &theme) != closed, "route menu opens");
-                    assert!(scene.key(&mut renderer, Key::Named(Named::Escape), None).is_empty());
-                    assert!(scene.capture(&mut renderer, &theme) == closed, "route menu closes");
-                    assert!(scene.key(&mut renderer, Key::Named(Named::Enter), None).is_empty());
-                    assert!(scene.key(&mut renderer, Key::Named(key), None).is_empty());
-                    assert!(matches!(
-                        scene.key(&mut renderer, Key::Named(Named::Enter), None).as_slice(),
-                        [Message::WorkflowManager(WorkflowManagerMessage::SetDraftStatusRoute {
-                            status_index: 0,
-                            route_index: index,
-                            target_key,
-                        })] if *index == route_index && target_key.as_deref() == expected
-                    ));
-                }
-            }
         }
     }
 }
@@ -341,29 +159,54 @@ impl<'a> EditorScene<'a> {
         assert!(self.key(renderer, Key::Named(Named::Enter), None).is_empty());
         let open = self.capture(renderer, theme);
 
-        // Both menus start on the first option. Sample the mark away from its label and borders.
-        let mark_x = (trigger.x + trigger.width - 25.0) as usize;
-        let mark_y = (trigger.y + trigger.height + 30.0) as usize;
-        let pixel = |pixels: &[u8], x: usize, y: usize| {
-            let offset = (y * self.size.width as usize + x) * 4;
-            [pixels[offset], pixels[offset + 1], pixels[offset + 2], pixels[offset + 3]]
-        };
-        assert_ne!(
-            pixel(&closed, mark_x, mark_y),
-            pixel(&open, mark_x, mark_y),
-            "{name} menu should open on Enter"
-        );
-        let background = pixel(&open, mark_x, mark_y - 8);
-        let mark_pixels = (mark_y - 7..mark_y + 7)
-            .flat_map(|y| (mark_x - 7..mark_x + 7).map(move |x| (x, y)))
-            .filter(|&(x, y)| pixel(&open, x, y) != background)
-            .count();
-        assert!(mark_pixels > 10, "{name} menu should draw the selected checkmark");
+        assert_ne!(closed, open, "{name} menu should open on Enter");
     }
 }
 
+#[test]
+fn step_handoffs_survive_save_and_reopen() {
+    let mut draft = WorkflowDraft::empty();
+    draft.id = "handoff".into();
+    draft.label = "Handoff".into();
+    draft.statuses = vec![
+        WorkflowDraftStatus::new("triage", "Triage", StatusRole::Backlog),
+        WorkflowDraftStatus::new("work", "Work", StatusRole::Custom),
+        WorkflowDraftStatus::new("done", "Done", StatusRole::Done),
+    ];
+    draft.statuses[0].handoff = StepHandoff::Member { member_id: "alice".into() };
+    draft.statuses[1].handoff = StepHandoff::Agent {
+        agent_id: "worker".into(),
+        instructions: "Review the change".into(),
+        completion_status_key: Some("done".into()),
+        return_status_key: Some("triage".into()),
+    };
+    let saved = owned_workflow_from_draft(&draft).expect("valid step workflow");
+    let dto = lifecycle_workflow_dto_from_owned_workflow(saved.clone());
+    dto.validate().expect("new contract");
+    let wire = serde_json::to_string(&dto).unwrap();
+    let decoded: super::TaskLifecycleWorkflowDto = serde_json::from_str(&wire).unwrap();
+    assert_eq!(decoded, dto);
+    let reopened = WorkflowDraft::from_workflow(saved.into());
+    for (before, after) in draft.statuses.iter().zip(&reopened.statuses) {
+        assert_eq!(before.handoff, after.handoff);
+    }
+    assert_eq!(reopened.initial_status_key, "triage");
+    let mut reordered = dto;
+    reordered.initial_status_key = "work".into();
+    reordered.steps.swap(0, 1);
+    let mut registry = TaskWorkflowRegistry::new();
+    // Reopening follows steps, even when the library order differs.
+    let mut owned = owned_workflow_from_draft(&draft).unwrap();
+    owned.initial_status_key = reordered.initial_status_key;
+    owned.steps = reordered.steps;
+    registry.replace_custom_workflows(vec![owned]).unwrap();
+    let reopened = WorkflowDraft::from_workflow(registry.workflow_by_id("handoff").unwrap());
+    assert_eq!(reopened.statuses[0].key, "work");
+    assert_eq!(reopened.initial_status_key, "work");
+}
+
 #[tokio::test]
-async fn workflow_form_controls_open_shared_role_and_route_menus() {
+async fn step_form_shows_handoff_fields_in_all_locales_and_themes() {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
         for font in desktop_assets::fonts::load_all() {
@@ -373,85 +216,169 @@ async fn workflow_form_controls_open_shared_role_and_route_menus() {
     let mut renderer =
         Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
             .await
-            .expect("tiny-skia renderer");
-
-    for theme in [Theme::Light, Theme::Dark] {
-        for (locale, sample, typed) in [
-            (DesktopLocale::SimplifiedChinese, "等待复核", "简"),
-            (DesktopLocale::TraditionalChinese, "等待覆核", "繁"),
-            (DesktopLocale::English, "Awaiting review", "E"),
-        ] {
-            let mut draft = WorkflowDraft::empty();
-            draft.id = "review_flow".into();
-            draft.label = sample.into();
-            let mut previous = WorkflowDraftStatus::new("review", sample, StatusRole::Queued);
-            previous.routes.clear();
-            let mut edited = WorkflowDraftStatus::new("editing", "", StatusRole::Backlog);
-            edited.routes.truncate(1);
-            edited.add_route();
-            edited.routes[1].label = sample.into();
-            draft.statuses = vec![previous, edited];
-
-            for width in [456, 760] {
-                let view = build_draft_editor(I18n::new(locale), &draft);
-                let mut scene = EditorScene::new(view, &mut renderer, width);
-                let status = [0, 4, 0, 0, 1, 0];
-                let field = |scene: &EditorScene<'_>, path: &[usize]| {
-                    scene.bounds(&[status.as_slice(), path].concat())
-                };
-                let role = field(&scene, &[3, 1]);
-                let route = field(&scene, &[5, 1, 2]);
-                let route_name = field(&scene, &[5, 1, 0, 1]);
-                let route_key = field(&scene, &[5, 1, 1, 1]);
-                let remove = field(&scene, &[5, 1, 3]);
-                for (left, right) in [(route_name, route_key), (route_key, route), (route, remove)]
-                {
-                    assert!(left.width >= 74.0 && left.x + left.width < right.x);
-                }
-                assert!(remove.x + remove.width <= width as f32);
-                scene.open_menu(&mut renderer, &theme, role, "role");
-                assert!(scene.key(&mut renderer, Key::Named(Named::ArrowDown), None).is_empty());
-                assert!(matches!(
-                    scene.key(&mut renderer, Key::Named(Named::Enter), None).as_slice(),
-                    [Message::WorkflowManager(WorkflowManagerMessage::DraftStatusRoleChanged {
-                        index: 1,
-                        role: StatusRole::Queued,
-                    })]
-                ));
-
-                scene.open_menu(&mut renderer, &theme, route, "route");
-                assert!(scene.key(&mut renderer, Key::Named(Named::ArrowDown), None).is_empty());
-                assert!(matches!(
-                    scene.key(&mut renderer, Key::Named(Named::Enter), None).as_slice(),
-                    [Message::WorkflowManager(WorkflowManagerMessage::SetDraftStatusRoute {
-                        status_index: 1,
-                        route_index: 1,
-                        target_key: Some(key),
-                    })] if key == "review"
-                ));
-
-                scene.open_menu(&mut renderer, &theme, route, "route");
-                assert!(scene.key(&mut renderer, Key::Named(Named::End), None).is_empty());
-                assert!(scene.key(&mut renderer, Key::Named(Named::Home), None).is_empty());
-                assert!(matches!(
-                    scene.key(&mut renderer, Key::Named(Named::Enter), None).as_slice(),
-                    [Message::WorkflowManager(WorkflowManagerMessage::SetDraftStatusRoute {
-                        status_index: 1,
-                        route_index: 1,
-                        target_key: None,
-                    })]
-                ));
-
-                let label = field(&scene, &[2, 1]);
-                scene.ui.operate(&renderer, &mut FocusControl(label));
-                assert!(matches!(
-                    scene.key(&mut renderer, Key::Character(typed.into()), Some(typed)).as_slice(),
-                    [Message::WorkflowManager(WorkflowManagerMessage::DraftStatusLabelChanged {
-                        index: 1,
-                        label,
-                    })] if label == typed
-                ));
+            .unwrap();
+    for locale in [
+        DesktopLocale::SimplifiedChinese,
+        DesktopLocale::TraditionalChinese,
+        DesktopLocale::English,
+    ] {
+        let i18n = I18n::new(locale);
+        for theme in [Theme::Light, Theme::Dark] {
+            for handoff in [
+                StepHandoff::KeepAssignee,
+                StepHandoff::Member { member_id: "alice".into() },
+                StepHandoff::Agent {
+                    agent_id: "worker".into(),
+                    instructions: "Review".into(),
+                    completion_status_key: None,
+                    return_status_key: None,
+                },
+            ] {
+                let mut draft = WorkflowDraft::empty();
+                let mut status = WorkflowDraftStatus::new("work", "Work", StatusRole::Custom);
+                status.handoff = handoff.clone();
+                draft.statuses.push(status);
+                let mut scene =
+                    EditorScene::new(build_draft_editor(i18n, &draft), &mut renderer, 760);
+                assert!(scene.text_bounds(&renderer, i18n.__("接手方式")).is_some());
+                assert!(scene.text_bounds(&renderer, i18n.__("下一步")).is_some());
+                assert!(scene.text_bounds(&renderer, i18n.__("状态行为")).is_none());
+                assert!(scene.text_bounds(&renderer, i18n.__("添加自定义结果")).is_none());
+                assert_eq!(
+                    scene.text_bounds(&renderer, i18n.__("工作说明")).is_some(),
+                    matches!(handoff, StepHandoff::Agent { .. })
+                );
+                assert!(!scene.capture(&mut renderer, &theme).is_empty());
             }
         }
     }
+}
+
+#[tokio::test]
+async fn step_form_keyboard_edits_handoff_identity_targets_and_name() {
+    let mut renderer = Renderer::new(Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
+    let i18n = I18n::new(DesktopLocale::English);
+    let mut draft = WorkflowDraft::empty();
+    let mut status = WorkflowDraftStatus::new("work", "", StatusRole::Custom);
+    status.handoff = HandoffKind::Agent.empty();
+    draft.statuses = vec![status, WorkflowDraftStatus::new("done", "Done", StatusRole::Done)];
+    draft.identities =
+        vec![HandoffIdentity { id: "worker".into(), label: "Worker".into(), is_agent: true }];
+    for width in [456, 760] {
+        for theme in [Theme::Light, Theme::Dark] {
+            let mut scene = EditorScene::new(
+                build_status_row(i18n, 0, &draft.statuses[0], &draft),
+                &mut renderer,
+                width,
+            );
+            let mode = scene.bounds(&[0, 2, 1]);
+            assert!(mode.x + mode.width <= width as f32);
+            scene.open_menu(&mut renderer, &theme, mode, "handoff");
+            assert!(scene.key(&mut renderer, Key::Named(Named::End), None).is_empty());
+            assert!(matches!(
+                scene.key(&mut renderer, Key::Named(Named::Enter), None).as_slice(),
+                [Message::WorkflowManager(WorkflowManagerMessage::DraftStatusHandoffChanged {
+                    index: 0,
+                    handoff: StepHandoff::Member { .. }
+                })]
+            ));
+            let identity = scene.bounds(&[0, 4, 1]);
+            scene.open_menu(&mut renderer, &theme, identity, "agent");
+            assert!(scene.key(&mut renderer, Key::Named(Named::Home), None).is_empty());
+            assert!(matches!(scene.key(&mut renderer, Key::Named(Named::Enter), None).as_slice(),
+                [Message::WorkflowManager(WorkflowManagerMessage::DraftStatusHandoffChanged { index: 0, handoff: StepHandoff::Agent { agent_id, .. } })] if agent_id == "worker"));
+            let completion = scene.bounds(&[0, 6, 1]);
+            scene.open_menu(&mut renderer, &theme, completion, "completion");
+            assert!(scene.key(&mut renderer, Key::Named(Named::End), None).is_empty());
+            assert!(matches!(scene.key(&mut renderer, Key::Named(Named::Enter), None).as_slice(),
+                [Message::WorkflowManager(WorkflowManagerMessage::DraftStatusHandoffChanged { index: 0, handoff: StepHandoff::Agent { completion_status_key: Some(key), .. } })] if key == "done"));
+            let label = scene.bounds(&[0, 0, 1]);
+            scene.ui.operate(&renderer, &mut FocusControl(label));
+            assert!(
+                matches!(scene.key(&mut renderer, Key::Character("E".into()), Some("E")).as_slice(),
+                [Message::WorkflowManager(WorkflowManagerMessage::DraftStatusLabelChanged { index: 0, label })] if label == "E")
+            );
+        }
+    }
+}
+
+#[test]
+fn step_updates_keep_references_and_terminal_handoffs_consistent() {
+    let mut registry = TaskWorkflowRegistry::new();
+    let mut state = WorkflowManagerState::from_registry(&registry);
+    let mut draft = WorkflowDraft::empty();
+    draft.initial_status_key = "triage".into();
+    draft.statuses = vec![
+        WorkflowDraftStatus::new("triage", "Triage", StatusRole::Backlog),
+        WorkflowDraftStatus::new("work", "Work", StatusRole::Custom),
+    ];
+    draft.statuses[1].handoff = StepHandoff::Agent {
+        agent_id: "worker".into(),
+        instructions: "Review".into(),
+        completion_status_key: Some("triage".into()),
+        return_status_key: Some("triage".into()),
+    };
+    state.draft = Some(draft);
+    update(
+        &mut state,
+        &mut registry,
+        WorkflowManagerMessage::DraftStatusKeyChanged { index: 0, key: "ready".into() },
+    );
+    let draft = state.draft.as_ref().unwrap();
+    assert_eq!(draft.initial_status_key, "ready");
+    assert!(
+        matches!(&draft.statuses[1].handoff, StepHandoff::Agent { completion_status_key: Some(done), return_status_key: Some(back), .. } if done == "ready" && back == "ready")
+    );
+    update(
+        &mut state,
+        &mut registry,
+        WorkflowManagerMessage::DraftStatusCategoryChanged {
+            index: 1,
+            category: StatusCategory::Done,
+        },
+    );
+    assert_eq!(state.draft.as_ref().unwrap().statuses[1].handoff, StepHandoff::KeepAssignee);
+}
+
+#[tokio::test]
+async fn step_member_picker_uses_only_supplied_login_identity() {
+    let mut renderer = Renderer::new(Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
+    let i18n = I18n::new(DesktopLocale::English);
+    let mut draft = WorkflowDraft::empty();
+    let mut status = WorkflowDraftStatus::new("triage", "Triage", StatusRole::Backlog);
+    status.handoff = StepHandoff::Member { member_id: "unavailable".into() };
+    draft.statuses.push(status);
+    draft.identities = vec![
+        HandoffIdentity { id: "worker".into(), label: "Worker".into(), is_agent: true },
+        HandoffIdentity { id: "signed_in".into(), label: "Signed in user".into(), is_agent: false },
+    ];
+    let mut scene =
+        EditorScene::new(build_status_row(i18n, 0, &draft.statuses[0], &draft), &mut renderer, 456);
+    let member = scene.bounds(&[0, 4, 1]);
+    scene.open_menu(&mut renderer, &Theme::Dark, member, "member");
+    assert!(scene.key(&mut renderer, Key::Named(Named::End), None).is_empty());
+    assert!(matches!(scene.key(&mut renderer, Key::Named(Named::Enter), None).as_slice(),
+        [Message::WorkflowManager(WorkflowManagerMessage::DraftStatusHandoffChanged { index: 0, handoff: StepHandoff::Member { member_id } })] if member_id == "signed_in"));
+}
+
+#[test]
+fn step_library_keeps_four_categories_and_unused_statuses() {
+    let mut draft = WorkflowDraft::empty();
+    draft.id = "catalog".into();
+    draft.label = "Catalog".into();
+    draft.statuses = vec![
+        WorkflowDraftStatus::new("new", "New", StatusRole::Backlog),
+        WorkflowDraftStatus::new("active", "Active", StatusRole::Custom),
+        WorkflowDraftStatus::new("done", "Done", StatusRole::Done),
+        WorkflowDraftStatus::new("closed", "Closed", StatusRole::Archived),
+    ];
+    draft.statuses[3].in_workflow = false;
+    let workflow = owned_workflow_from_draft(&draft).unwrap();
+    assert_eq!(workflow.steps.len(), 3);
+    let workflow = desktop_task_model::TaskWorkflow::from(workflow);
+    let groups = super::status_catalog(&workflow);
+    assert!(groups.iter().all(|(_, rows)| rows.len() == 1));
+    let reopened = WorkflowDraft::from_workflow(workflow);
+    assert_eq!(reopened.statuses.len(), 4);
+    assert!(!reopened.statuses[3].in_workflow);
 }

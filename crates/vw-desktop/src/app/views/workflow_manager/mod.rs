@@ -22,6 +22,32 @@ fn map_message(message: domain::Message) -> Message {
         domain::Message::None => Message::None,
     }
 }
+fn load_handoff_identities(app: &mut App) -> Task<Message> {
+    app.workflow_manager.clear_handoff_identities();
+    let agents = app.agents_settings.entries.iter().filter(|entry| entry.enabled)
+        .map(|entry| domain::HandoffIdentity { id: entry.key.clone(), label: entry.label.clone(), is_agent: true })
+        .collect::<Vec<_>>();
+    let Some(account) = app.account.active_account() else {
+        return Task::done(Message::WorkflowManager(WorkflowManagerMessage::HandoffDirectoryLoaded {
+            account_id: String::new(), agents, result: Ok(None),
+        }));
+    };
+    let account_id = account.id().to_string();
+    let credential = account.skill_hub_credential().gateway_credential();
+    Task::perform(async move {
+        let credential = credential?;
+        let client = crate::app::config::gateway_client()?;
+        let user = gateway_shiju_account::GatewayShijuAccountClient::new(client.transport().clone())
+            .shiju_account_me(&credential).await?;
+        if user.status != "enabled" || user.user_id.trim().is_empty() {
+            return Err("当前识矩账号不可用，请重新登录".into());
+        }
+        Ok(Some(domain::HandoffIdentity { id: user.user_id, label: user.name, is_agent: false }))
+    }, move |result| Message::WorkflowManager(WorkflowManagerMessage::HandoffDirectoryLoaded {
+        account_id: account_id.clone(), agents: agents.clone(), result,
+    }))
+}
+
 pub(crate) fn preload(app: &mut App) -> Task<Message> {
     if app.workflow_manager.begin_lifecycle_refresh() {
         domain::load_lifecycle_workflows_task(false, client()).map(map_message)
@@ -104,6 +130,16 @@ fn load_project_workflow_task(app: &mut App) -> Task<Message> {
 
 /// 更新应用中的工作流状态、刷新运行时缓存并派发网关副作用。
 pub fn update_app(app: &mut App, message: WorkflowManagerMessage) -> Task<Message> {
+    if let WorkflowManagerMessage::HandoffDirectoryLoaded { account_id, .. } = &message {
+        if app.account.active_account().map_or("", |account| account.id()) != account_id {
+            return Task::none();
+        }
+    }
+    let refresh_identities = matches!(&message,
+        WorkflowManagerMessage::StartNew | WorkflowManagerMessage::StartEditSelected |
+        WorkflowManagerMessage::CopyWorkflow(_) | WorkflowManagerMessage::EditCatalogStatus { .. } |
+        WorkflowManagerMessage::RefreshLifecycles);
+
     let project_task = match message {
         WorkflowManagerMessage::RefreshLifecycles => load_project_workflow_task(app),
         WorkflowManagerMessage::ApplyProjectWorkflow { path, workflow_id } => {
@@ -165,9 +201,11 @@ pub fn update_app(app: &mut App, message: WorkflowManagerMessage) -> Task<Messag
     };
     let mut registry = domain::registry_from_runtime();
     let _changed = update(&mut app.workflow_manager, &mut registry, message);
+    let identity_task = if refresh_identities { load_handoff_identities(app) } else { Task::none() };
     if let Some(effect) = app.workflow_manager.take_pending_effect() {
         return Task::batch([
             project_task,
+            identity_task,
             domain::workflow_manager_effect_task(effect, client()).map(map_message),
         ]);
     }
@@ -193,5 +231,5 @@ pub fn update_app(app: &mut App, message: WorkflowManagerMessage) -> Task<Messag
     } else {
         Task::none()
     };
-    Task::batch([project_task, feedback_task])
+    Task::batch([project_task, identity_task, feedback_task])
 }

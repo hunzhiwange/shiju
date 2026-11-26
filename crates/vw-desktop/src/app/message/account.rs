@@ -86,6 +86,7 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
     if previous_account != app.account.active_account()
         .map(|account| (account.id().to_owned(), account.skill_hub_credential()))
     {
+        app.workflow_manager.clear_handoff_identities();
         tasks.push(crate::app::digital_employees::chat::invalidate_chats(app, previous_account.map(|(_, credential)| credential)));
         tasks.push(crate::app::digital_employees::account_changed(app));
     }

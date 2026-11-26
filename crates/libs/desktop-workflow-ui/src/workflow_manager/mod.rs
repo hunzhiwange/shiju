@@ -13,9 +13,8 @@ use desktop_task_model::workflow::{
     task_workflow_from_snapshot,
 };
 use desktop_task_model::{
-    OwnedStatusDefinition, OwnedStatusTransition, OwnedTaskWorkflow, StatusOutcome, StatusRole,
-    TaskStatus, TaskWorkflow, all_task_workflows, is_builtin_task_workflow_id,
-    update_runtime_task_lifecycle_cache,
+    OwnedStatusDefinition, OwnedTaskWorkflow, StatusRole, TaskStatus, TaskWorkflow,
+    all_task_workflows, is_builtin_task_workflow_id, update_runtime_task_lifecycle_cache,
 };
 use desktop_ui_controls::system_settings_common::{
     danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
@@ -24,7 +23,11 @@ use desktop_ui_controls::system_settings_common::{
 };
 use desktop_ui_controls::toast::confirm_dialog;
 
-use vw_api_task_lifecycle::{TaskLifecycleWorkflowDto, TaskLifecycleWorkflowUpsertBody};
+use vw_api_task_lifecycle::{
+    TaskLifecycleStatusCategoryDto as StatusCategory, TaskLifecycleStepDto,
+    TaskLifecycleStepHandoffDto as StepHandoff, TaskLifecycleWorkflowDto,
+    TaskLifecycleWorkflowUpsertBody,
+};
 
 const WORKFLOW_SCROLL_RIGHT_GUTTER: f32 = 7.0;
 
@@ -35,24 +38,53 @@ pub type LifecycleWorkflowListResult = std::result::Result<Vec<TaskLifecycleWork
 /// 工作流管理器的加载、选择、编辑和确认消息。
 pub enum WorkflowManagerMessage {
     RefreshLifecycles,
-    LifecycleWorkflowsLoaded { result: LifecycleWorkflowListResult, notify_error: bool },
-    LifecycleWorkflowSaved { workflow_id: String, result: LifecycleWorkflowListResult },
-    LifecycleWorkflowDeleted { workflow_id: String, result: LifecycleWorkflowListResult },
-    LifecycleWorkflowReset { workflow_id: String, result: LifecycleWorkflowListResult },
+    LifecycleWorkflowsLoaded {
+        result: LifecycleWorkflowListResult,
+        notify_error: bool,
+    },
+    LifecycleWorkflowSaved {
+        workflow_id: String,
+        result: LifecycleWorkflowListResult,
+    },
+    LifecycleWorkflowDeleted {
+        workflow_id: String,
+        result: LifecycleWorkflowListResult,
+    },
+    LifecycleWorkflowReset {
+        workflow_id: String,
+        result: LifecycleWorkflowListResult,
+    },
     SelectWorkflow(String),
     ViewWorkflow(String),
     CopyWorkflow(String),
     SelectTab(WorkflowManagerTab),
     ToggleStatusRoleHelp,
     ViewProjectWorkflow,
-    RequestProjectWorkflow { path: String, workflow_id: String },
-    ApplyProjectWorkflow { path: String, workflow_id: String },
-    ProjectWorkflowLoaded { path: String, generation: u64, result: ProjectWorkflowResult },
-    ProjectWorkflowApplied { path: String, generation: u64, result: ProjectWorkflowResult },
+    RequestProjectWorkflow {
+        path: String,
+        workflow_id: String,
+    },
+    ApplyProjectWorkflow {
+        path: String,
+        workflow_id: String,
+    },
+    ProjectWorkflowLoaded {
+        path: String,
+        generation: u64,
+        result: ProjectWorkflowResult,
+    },
+    ProjectWorkflowApplied {
+        path: String,
+        generation: u64,
+        result: ProjectWorkflowResult,
+    },
     ToggleDraftAdvanced,
     SelectCatalogPreset(Option<String>),
     ToggleCatalogAdvanced,
-    EditCatalogStatus { workflow_id: String, status_key: String },
+    EditCatalogStatus {
+        workflow_id: String,
+        status_key: String,
+    },
     ShowAllDraftStatuses,
     StartNew,
     StartEditSelected,
@@ -69,15 +101,29 @@ pub enum WorkflowManagerMessage {
     RemoveDraftStatus(usize),
     MoveDraftStatusUp(usize),
     MoveDraftStatusDown(usize),
-    DraftStatusKeyChanged { index: usize, key: String },
-    DraftStatusLabelChanged { index: usize, label: String },
-    DraftStatusRoleChanged { index: usize, role: StatusRole },
+    DraftStatusKeyChanged {
+        index: usize,
+        key: String,
+    },
+    DraftStatusLabelChanged {
+        index: usize,
+        label: String,
+    },
+    DraftStatusCategoryChanged {
+        index: usize,
+        category: StatusCategory,
+    },
+    DraftStatusHandoffChanged {
+        index: usize,
+        handoff: StepHandoff,
+    },
+    DraftInitialStatusChanged(String),
+    HandoffDirectoryLoaded {
+        account_id: String,
+        agents: Vec<HandoffIdentity>,
+        result: Result<Option<HandoffIdentity>, String>,
+    },
     ToggleDraftStatusEnabled(usize),
-    AddDraftStatusRoute(usize),
-    RemoveDraftStatusRoute { status_index: usize, route_index: usize },
-    DraftStatusRouteOutcomeChanged { status_index: usize, route_index: usize, outcome_key: String },
-    DraftStatusRouteLabelChanged { status_index: usize, route_index: usize, label: String },
-    SetDraftStatusRoute { status_index: usize, route_index: usize, target_key: Option<String> },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -229,6 +275,13 @@ impl WorkflowManagerState {
         self.show_status_role_help
     }
 
+    pub fn clear_handoff_identities(&mut self) {
+        if let Some(draft) = &mut self.draft {
+            draft.identities.clear();
+            draft.identity_error = Some("请刷新以读取当前登录用户".into());
+        }
+    }
+
     pub fn dismiss_dialogs(&mut self) {
         self.pending_confirmation = None;
         self.show_status_role_help = false;
@@ -341,6 +394,19 @@ enum WorkflowManagerConfirmation {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HandoffIdentity {
+    pub id: String,
+    pub label: String,
+    pub is_agent: bool,
+}
+
+impl fmt::Display for HandoffIdentity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.label)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct WorkflowDraft {
     original_id: Option<String>,
     id: String,
@@ -348,6 +414,9 @@ struct WorkflowDraft {
     statuses: Vec<WorkflowDraftStatus>,
     focused_status: Option<usize>,
     show_advanced: bool,
+    initial_status_key: String,
+    identities: Vec<HandoffIdentity>,
+    identity_error: Option<String>,
 }
 
 impl WorkflowDraft {
@@ -359,68 +428,65 @@ impl WorkflowDraft {
             statuses: Vec::new(),
             focused_status: None,
             show_advanced: false,
+            initial_status_key: String::new(),
+            identities: Vec::new(),
+            identity_error: None,
         }
     }
 
     fn from_workflow(workflow: TaskWorkflow) -> Self {
+        let mut statuses = Vec::new();
+        for step in &workflow.steps {
+            if let Some(definition) =
+                workflow.statuses.iter().find(|status| status.key == step.status_key)
+            {
+                let mut status = WorkflowDraftStatus::from_definition(definition.clone());
+                status.handoff = step.handoff.clone();
+                statuses.push(status);
+            }
+        }
+        for definition in &workflow.statuses {
+            if !workflow.steps.iter().any(|step| step.status_key == definition.key) {
+                let mut status = WorkflowDraftStatus::from_definition(definition.clone());
+                status.in_workflow = false;
+                statuses.push(status);
+            }
+        }
         Self {
             original_id: Some(workflow.id.clone()),
             id: workflow.id,
             label: workflow.label,
-            statuses: workflow
-                .statuses
-                .into_iter()
-                .map(WorkflowDraftStatus::from_definition)
-                .collect(),
+            statuses,
             focused_status: None,
             show_advanced: false,
+            initial_status_key: workflow.initial_status_key,
+            identities: Vec::new(),
+            identity_error: None,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-/// 编辑器中的状态定义及其结果路由草稿。
+/// 编辑器中的状态分类及步骤交接草稿。
 pub struct WorkflowDraftStatus {
     key: String,
     label: String,
     role: StatusRole,
     enabled: bool,
-    routes: Vec<WorkflowDraftRoute>,
-    success_overridden: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct WorkflowDraftRoute {
-    outcome_key: String,
-    label: String,
-    target_key: Option<String>,
-}
-
-impl WorkflowDraftRoute {
-    fn new(outcome: StatusOutcome, target_key: Option<String>) -> Self {
-        Self { outcome_key: outcome.key().to_string(), label: outcome.label(), target_key }
-    }
-
-    fn outcome(&self) -> StatusOutcome {
-        StatusOutcome::new(self.outcome_key.as_str())
-    }
-
-    fn is_builtin(&self) -> bool {
-        let outcome = self.outcome();
-        outcome.is_succeed() || outcome.is_failed() || outcome.is_retry()
-    }
+    handoff: StepHandoff,
+    in_workflow: bool,
 }
 
 impl WorkflowDraftStatus {
-    /// 创建启用的状态草稿，并填入该角色的默认结果路由。
+    /// 创建启用的步骤草稿，默认保留负责人。
     pub fn new(key: &str, label: &str, role: StatusRole) -> Self {
         Self {
             key: key.to_string(),
             label: label.to_string(),
             role,
             enabled: true,
-            routes: Self::default_routes(),
-            success_overridden: false,
+            handoff: StepHandoff::KeepAssignee,
+            in_workflow: true,
         }
     }
 
@@ -429,114 +495,19 @@ impl WorkflowDraftStatus {
     }
 
     fn from_definition(definition: OwnedStatusDefinition) -> Self {
-        let transitions = definition.outgoing_transitions();
-        let mut draft = Self {
+        Self {
             key: definition.key,
             label: definition.label,
-            role: definition.role,
+            role: match definition.role {
+                StatusRole::Backlog | StatusRole::Queued => StatusRole::Backlog,
+                StatusRole::Done => StatusRole::Done,
+                StatusRole::Archived => StatusRole::Archived,
+                _ => StatusRole::Custom,
+            },
             enabled: definition.enabled,
-            routes: Self::default_routes(),
-            success_overridden: true,
-        };
-        for transition in transitions {
-            draft.set_or_push_route(
-                transition.outcome,
-                transition.label,
-                Some(transition.target.to_string_key().to_string()),
-            );
+            handoff: StepHandoff::KeepAssignee,
+            in_workflow: true,
         }
-        draft
-    }
-
-    fn default_routes() -> Vec<WorkflowDraftRoute> {
-        vec![
-            WorkflowDraftRoute::new(StatusOutcome::succeed(), None),
-            WorkflowDraftRoute::new(StatusOutcome::failed(), None),
-            WorkflowDraftRoute::new(StatusOutcome::retry(), None),
-        ]
-    }
-
-    fn route_target_key(
-        &self,
-        route_index: usize,
-        default_success_key: Option<String>,
-    ) -> Option<String> {
-        let route = self.routes.get(route_index)?;
-        if route.outcome().is_succeed() && !self.success_overridden {
-            return route.target_key.clone().or(default_success_key);
-        }
-        route.target_key.clone()
-    }
-
-    fn set_route_target_key(&mut self, route_index: usize, target_key: Option<String>) {
-        if let Some(route) = self.routes.get_mut(route_index) {
-            if route.outcome().is_succeed() {
-                self.success_overridden = true;
-            }
-            route.target_key = target_key;
-        }
-    }
-
-    fn set_route_outcome_key(&mut self, route_index: usize, outcome_key: String) {
-        if let Some(route) = self.routes.get_mut(route_index)
-            && !route.is_builtin()
-        {
-            route.outcome_key = outcome_key;
-        }
-    }
-
-    fn set_route_label(&mut self, route_index: usize, label: String) {
-        if let Some(route) = self.routes.get_mut(route_index)
-            && !route.is_builtin()
-        {
-            route.label = label;
-        }
-    }
-
-    fn add_route(&mut self) {
-        let mut index = 1;
-        loop {
-            let key = if index == 1 {
-                "manual_review".to_string()
-            } else {
-                format!("manual_review_{index}")
-            };
-            if !self.routes.iter().any(|route| route.outcome().key() == key) {
-                self.routes.push(WorkflowDraftRoute {
-                    outcome_key: key,
-                    label: "人工复核".to_string(),
-                    target_key: None,
-                });
-                return;
-            }
-            index += 1;
-        }
-    }
-
-    fn remove_route(&mut self, route_index: usize) {
-        if self.routes.get(route_index).is_some_and(|route| !route.is_builtin()) {
-            self.routes.remove(route_index);
-        }
-    }
-
-    fn set_or_push_route(
-        &mut self,
-        outcome: StatusOutcome,
-        label: Option<String>,
-        target_key: Option<String>,
-    ) {
-        if let Some(route) = self.routes.iter_mut().find(|route| route.outcome() == outcome) {
-            if let Some(label) = label {
-                route.label = label;
-            }
-            route.target_key = target_key;
-            return;
-        }
-        let mut route = WorkflowDraftRoute::new(outcome, target_key);
-        if let Some(label) = label {
-            route.label = label;
-        }
-        self.routes.push(route);
     }
 }
 
@@ -828,7 +799,24 @@ pub fn update(
             if let Some(status) =
                 state.draft.as_mut().and_then(|draft| draft.statuses.get_mut(index))
             {
-                status.key = key;
+                let old_key = std::mem::replace(&mut status.key, key.clone());
+                if let Some(draft) = &mut state.draft {
+                    if draft.initial_status_key == old_key {
+                        draft.initial_status_key = key.clone();
+                    }
+                    for status in &mut draft.statuses {
+                        if let StepHandoff::Agent {
+                            completion_status_key, return_status_key, ..
+                        } = &mut status.handoff
+                        {
+                            for target in [completion_status_key, return_status_key] {
+                                if target.as_deref() == Some(old_key.as_str()) {
+                                    *target = Some(key.clone());
+                                }
+                            }
+                        }
+                    }
+                }
             }
             false
         }
@@ -840,11 +828,51 @@ pub fn update(
             }
             false
         }
-        WorkflowManagerMessage::DraftStatusRoleChanged { index, role } => {
+        WorkflowManagerMessage::DraftInitialStatusChanged(key) => {
+            if let Some(draft) = &mut state.draft {
+                draft.initial_status_key = key;
+            }
+            false
+        }
+        WorkflowManagerMessage::HandoffDirectoryLoaded { agents, result, .. } => {
+            if let Some(draft) = &mut state.draft {
+                draft.identities = agents;
+                match result {
+                    Ok(member) => {
+                        draft.identities.extend(member);
+                        draft.identity_error = None;
+                    }
+                    Err(_) => {
+                        draft.identity_error = Some("无法读取当前识矩登录用户，请刷新重试".into());
+                    }
+                }
+            }
+            false
+        }
+        WorkflowManagerMessage::DraftStatusHandoffChanged { index, handoff } => {
+            if let Some(status) =
+                state.draft.as_mut().and_then(|draft| draft.statuses.get_mut(index))
+            {
+                if !matches!(status.role, StatusRole::Done | StatusRole::Archived) {
+                    status.handoff = handoff;
+                }
+            }
+            false
+        }
+        WorkflowManagerMessage::DraftStatusCategoryChanged { index, category } => {
+            let role = match category {
+                StatusCategory::Unstarted => StatusRole::Backlog,
+                StatusCategory::Started => StatusRole::Custom,
+                StatusCategory::Done => StatusRole::Done,
+                StatusCategory::Closed => StatusRole::Archived,
+            };
             if let Some(status) =
                 state.draft.as_mut().and_then(|draft| draft.statuses.get_mut(index))
             {
                 status.role = role;
+                if matches!(role, StatusRole::Done | StatusRole::Archived) {
+                    status.handoff = StepHandoff::KeepAssignee;
+                }
             }
             false
         }
@@ -853,54 +881,6 @@ pub fn update(
                 state.draft.as_mut().and_then(|draft| draft.statuses.get_mut(index))
             {
                 status.enabled = !status.enabled;
-            }
-            false
-        }
-        WorkflowManagerMessage::AddDraftStatusRoute(index) => {
-            if let Some(status) =
-                state.draft.as_mut().and_then(|draft| draft.statuses.get_mut(index))
-            {
-                status.add_route();
-            }
-            false
-        }
-        WorkflowManagerMessage::RemoveDraftStatusRoute { status_index, route_index } => {
-            if let Some(status) =
-                state.draft.as_mut().and_then(|draft| draft.statuses.get_mut(status_index))
-            {
-                status.remove_route(route_index);
-            }
-            false
-        }
-        WorkflowManagerMessage::DraftStatusRouteOutcomeChanged {
-            status_index,
-            route_index,
-            outcome_key,
-        } => {
-            if let Some(status) =
-                state.draft.as_mut().and_then(|draft| draft.statuses.get_mut(status_index))
-            {
-                status.set_route_outcome_key(route_index, outcome_key);
-            }
-            false
-        }
-        WorkflowManagerMessage::DraftStatusRouteLabelChanged {
-            status_index,
-            route_index,
-            label,
-        } => {
-            if let Some(status) =
-                state.draft.as_mut().and_then(|draft| draft.statuses.get_mut(status_index))
-            {
-                status.set_route_label(route_index, label);
-            }
-            false
-        }
-        WorkflowManagerMessage::SetDraftStatusRoute { status_index, route_index, target_key } => {
-            if let Some(status) =
-                state.draft.as_mut().and_then(|draft| draft.statuses.get_mut(status_index))
-            {
-                status.set_route_target_key(route_index, target_key);
             }
             false
         }
@@ -1158,129 +1138,54 @@ fn lifecycle_save_command_from_draft(
 }
 
 fn owned_workflow_from_draft(draft: &WorkflowDraft) -> Result<OwnedTaskWorkflow> {
-    // 草稿在进入运行时前集中验证标识唯一性、角色约束和路由目标完整性。
-    let id = draft.id.trim();
-    if id.is_empty() {
-        return Err(anyhow::Error::new(desktop_i18n::workflow::Feedback::new(
-            "自定义工作流 id 不能为空",
-            vec![],
-        )));
-    }
-    let label = draft.label.trim();
-    if label.is_empty() {
-        return Err(anyhow::Error::new(desktop_i18n::workflow::Feedback::new(
-            "自定义工作流 label 不能为空: %s",
-            vec![id.to_string()],
-        )));
-    }
-
-    let mut statuses = Vec::with_capacity(draft.statuses.len());
-    for (index, status) in draft.statuses.iter().enumerate() {
-        let key = status.key.trim();
-        let task_status = TaskStatus::parse_key(key).ok_or_else(|| {
-            anyhow::Error::new(desktop_i18n::workflow::Feedback::new(
-                "工作流 %s 状态 key 不能为空",
-                vec![id.to_string()],
-            ))
-        })?;
-        let default_success_key =
-            draft.statuses.get(index + 1).map(|next| next.key.trim().to_string());
-        let mut transitions = Vec::new();
-        let mut route_keys = HashSet::new();
-        for (route_index, route) in status.routes.iter().enumerate() {
-            let outcome = StatusOutcome::new(route.outcome_key.trim());
-            if outcome.key().is_empty() {
-                return Err(anyhow::Error::new(desktop_i18n::workflow::Feedback::new(
-                    "工作流 %s 状态 %s 的结果 key 不能为空",
-                    vec![id.to_string(), key.to_string()],
-                )));
-            }
-            if !route_keys.insert(outcome.key().to_string()) {
-                return Err(anyhow::Error::new(desktop_i18n::workflow::Feedback::new(
-                    "工作流 %s 状态 %s 的结果 key 重复: %s",
-                    vec![id.to_string(), key.to_string(), outcome.key().to_string()],
-                )));
-            }
-            let target = parse_route_target(
-                id,
-                key,
-                &outcome,
-                status.route_target_key(route_index, default_success_key.clone()).as_deref(),
-            )?;
-            if let Some(target) = target {
-                let label = normalized_route_label(&route.label, &outcome);
-                transitions.push(OwnedStatusTransition { outcome, label, target });
-            }
-        }
-        let next = transitions
-            .iter()
-            .find(|transition| transition.outcome.is_succeed())
-            .map(|transition| transition.target);
-        statuses.push(OwnedStatusDefinition {
-            status: task_status,
-            key: key.to_string(),
-            label: status.label.trim().to_string(),
-            role: status.role,
-            enabled: status.enabled,
-            is_terminal: transitions.is_empty(),
-            auto_execution_candidate: matches!(
-                status.role,
-                StatusRole::Backlog | StatusRole::Queued | StatusRole::Planning
-            ),
-            occupies_execution_slot: matches!(
-                status.role,
-                StatusRole::Planning | StatusRole::Executing
-            ),
-            is_scheduling_backlog: matches!(
-                status.role,
-                StatusRole::Backlog | StatusRole::Queued | StatusRole::Planning
-            ),
-            next,
-            transitions,
-        });
-    }
-
-    Ok({
-        let statuses: Vec<desktop_task_model::OwnedStatusDefinition> = statuses;
-        OwnedTaskWorkflow {
-            id: id.to_string(),
-            label: label.to_string(),
-            initial_status_key: statuses
-                .first()
-                .map(|status| status.key.clone())
-                .unwrap_or_default(),
-            steps: statuses
-                .iter()
-                .map(|status| vw_api_task_lifecycle::TaskLifecycleStepDto {
-                    status_key: status.key.clone(),
-                    handoff: vw_api_task_lifecycle::TaskLifecycleStepHandoffDto::KeepAssignee,
-                })
-                .collect(),
-            statuses,
-        }
-    })
-}
-
-fn parse_route_target(
-    workflow_id: &str,
-    status_key: &str,
-    outcome: &StatusOutcome,
-    target_key: Option<&str>,
-) -> Result<Option<TaskStatus>> {
-    let Some(target_key) = target_key.map(str::trim).filter(|key| !key.is_empty()) else {
-        return Ok(None);
+    let statuses = draft
+        .statuses
+        .iter()
+        .map(|status| {
+            let key = status.key.trim();
+            Ok(OwnedStatusDefinition {
+                status: TaskStatus::parse_key(key)
+                    .ok_or_else(|| anyhow::anyhow!("empty status key"))?,
+                key: key.into(),
+                label: status.label.trim().into(),
+                role: status.role,
+                enabled: status.enabled,
+                is_terminal: matches!(status.role, StatusRole::Done | StatusRole::Archived),
+                auto_execution_candidate: false,
+                occupies_execution_slot: false,
+                is_scheduling_backlog: false,
+                next: None,
+                transitions: Vec::new(),
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let steps: Vec<_> = draft
+        .statuses
+        .iter()
+        .filter(|status| status.in_workflow)
+        .map(|status| TaskLifecycleStepDto {
+            status_key: status.key.trim().into(),
+            handoff: status.handoff.clone(),
+        })
+        .collect();
+    let initial_status_key = if draft.initial_status_key.is_empty() {
+        steps.first().map(|step| step.status_key.clone()).unwrap_or_default()
+    } else {
+        draft.initial_status_key.clone()
     };
-    TaskStatus::parse_key(target_key).map(Some).ok_or_else(|| {
-        anyhow::Error::new(desktop_i18n::workflow::Feedback::new(
-            "工作流 %s 状态 %s 的 %s 目标为空",
-            vec![workflow_id.to_string(), status_key.to_string(), outcome.label().to_string()],
-        ))
-    })
-}
-
-fn normalized_route_label(label: &str, outcome: &StatusOutcome) -> Option<String> {
-    let label = label.trim();
-    if label.is_empty() || label == outcome.label() { None } else { Some(label.to_string()) }
+    let workflow = OwnedTaskWorkflow {
+        id: draft.id.trim().into(),
+        label: draft.label.trim().into(),
+        statuses,
+        initial_status_key,
+        steps,
+    };
+    lifecycle_workflow_dto_from_owned_workflow(workflow.clone())
+        .validate()
+        .map_err(|error| anyhow::Error::new(desktop_i18n::workflow::Feedback::new(
+            "步骤配置无效：%s", vec![error],
+        )))?;
+    Ok(workflow)
 }
 
 fn lifecycle_workflow_dto_from_owned_workflow(

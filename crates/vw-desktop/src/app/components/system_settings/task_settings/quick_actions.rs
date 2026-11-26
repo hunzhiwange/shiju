@@ -1,7 +1,7 @@
 use super::catalog as ui;
 use crate::app::components::system_settings_common::{
     settings_divider, settings_error_banner, settings_group_card, settings_help_button_with_locale,
-    settings_page_heading, settings_text_editor, settings_text_input, with_settings_help_modal,
+    settings_page_heading, settings_text_editor, settings_text_input,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::task_quick_actions::{self as domain, Origin};
@@ -10,6 +10,7 @@ use crate::app::state::AgentConfigTab;
 use crate::app::{App, Message};
 use desktop_assets::assets::Icon;
 use desktop_settings_shell::SystemTab;
+use desktop_ui_controls::system_settings_common::help::selectable_settings_help_modal;
 use desktop_ui_controls::system_settings_common::panels::settings_responsive_row;
 use iced::widget::{column, container, operation, row, text, text_editor};
 use iced::{Alignment, Element, Length, Task};
@@ -255,7 +256,14 @@ pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
     let state = &app.task_quick_actions.settings;
     if state.help {
         let close = message(Event::Help(false));
-        let modal = with_settings_help_modal(app, base, TITLE, HELP, close.clone());
+        let modal = selectable_settings_help_modal(
+            app.general_settings.desktop_locale,
+            app.clipboard_state.last_copied_code_hash,
+            base,
+            TITLE,
+            HELP,
+            close.clone(),
+        );
         return desktop_ui_controls::system_settings_common::panels::with_settings_modal_escape(
             modal, close,
         );

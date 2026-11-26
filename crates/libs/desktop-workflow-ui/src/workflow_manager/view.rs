@@ -1,8 +1,9 @@
 use super::status_catalog::{StatusCatalogRow, status_behavior, status_catalog};
 use super::*;
 use desktop_assets::assets::Icon;
+use desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage;
 use desktop_ui_controls::system_settings_common::{
-    help::{settings_help_copy_state, with_settings_help_modal},
+    help::localized_selectable_settings_help_modal,
     icons::icon_btn,
     panels::{settings_inactive_view, with_settings_modal_escape},
 };
@@ -109,7 +110,7 @@ pub fn view_content<'a>(
         .into()
 }
 
-pub fn with_dialog<'a, M: Clone + 'static>(
+pub fn with_dialog<'a, M: SelectionMessage + 'static>(
     state: &WorkflowManagerState,
     i18n: desktop_i18n::I18n,
     copied_help: Option<u64>,
@@ -133,14 +134,12 @@ pub fn with_dialog<'a, M: Clone + 'static>(
             i18n.__("自动重试：执行异常后，调度器按项目设置和重试去向再试。模型响应超时按设置等待。达到次数上限后，任务留在失败状态，等待处理。"),
             i18n.__("项目切换：选择预设并确认应用。网关会检查当前任务能否继续使用原有状态。应用成功后，可在「项目使用的工作流」查看实际阶段，并在任务看板确认。"),
         ].join("\n\n");
-        let (copy_icon, copy_tip) = settings_help_copy_state(copied_help, &help);
-        let modal = with_settings_help_modal(
+        let modal = localized_selectable_settings_help_modal(
+            i18n,
+            copied_help,
             page,
-            i18n.__("工作流帮助").to_string(),
-            help.clone(),
-            copy_icon,
-            i18n.__(copy_tip),
-            map(Message::CopyCode(help)),
+            "工作流帮助",
+            help,
             close.clone(),
         );
         with_settings_modal_escape(modal, close)

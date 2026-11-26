@@ -5,6 +5,7 @@ use crate::selectable_text::markdown_selection::{SelectionMessage, selectable_re
 use desktop_assets::assets::Icon;
 use iced::widget::{Row, Text, button, container, mouse_area, row, svg};
 use iced::{Alignment, Border, Color, Element, Font, Length, Shadow, Vector, mouse};
+use std::borrow::Cow;
 use std::hash::{Hash, Hasher};
 pub fn settings_close_button<Message: Clone + 'static>(
     on_press: Message,
@@ -124,9 +125,29 @@ pub fn selectable_settings_help_modal<'a, Message: SelectionMessage + 'static>(
     close_message: Message,
 ) -> Element<'a, Message> {
     let i18n = desktop_i18n::I18n::new(locale);
-    let help_text = i18n.__(help_text);
-    let (copy_icon, copy_tip) = settings_help_copy_state(copied_hash, help_text);
+    localized_selectable_settings_help_modal(
+        i18n,
+        copied_hash,
+        base,
+        title,
+        i18n.__(help_text),
+        close_message,
+    )
+}
+
+/// Render an already localized help body with the settings text selection menu.
+pub fn localized_selectable_settings_help_modal<'a, Message: SelectionMessage + 'static>(
+    i18n: desktop_i18n::I18n,
+    copied_hash: Option<u64>,
+    base: Element<'a, Message>,
+    title: &str,
+    help_text: impl Into<Cow<'a, str>>,
+    close_message: Message,
+) -> Element<'a, Message> {
+    let help_text = help_text.into();
+    let (copy_icon, copy_tip) = settings_help_copy_state(copied_hash, &help_text);
     let copy_tip = if copy_icon == Icon::Copy { "复制全部" } else { copy_tip };
+    let copy_message = Message::copy(help_text.to_string());
     let body = selectable_readonly_text(help_text, Length::Fill, Font::DEFAULT, &[], i18n);
     help_modal(
         base,
@@ -134,7 +155,7 @@ pub fn selectable_settings_help_modal<'a, Message: SelectionMessage + 'static>(
         body,
         copy_icon,
         i18n.__(copy_tip),
-        Message::copy(help_text.to_owned()),
+        copy_message,
         close_message,
     )
 }

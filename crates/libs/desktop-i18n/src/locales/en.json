@@ -6372,7 +6372,6 @@
   "所选模型能力不受支持": "The selected model capability is not supported",
   "所选模型不可用或已禁用": "The selected model is unavailable or disabled",
   "请先配置供应商凭据": "Configure provider credentials first",
-  "当前客户端 Provider/model：%s": "Current client Provider/model: %s",
   "会话开始后不能切换模型": "The model cannot be changed after the session starts",
   "正在等待执行主机确认并保存…": "Waiting for the execution host to confirm and save…",
   "切换来源将创建新的 ACP 会话；原生上下文不继承": "Changing the source creates a new ACP session without the native context",

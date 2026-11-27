@@ -29,8 +29,6 @@ pub struct OptionsState<'a> {
     pub is_requesting: bool,
     pub acp_options_pending: bool,
     pub source_pending: bool,
-    pub auto_model: bool,
-    pub model: &'a str,
     pub full_access_enabled: bool,
     pub acp_rebuild_required: bool,
 }
@@ -210,7 +208,9 @@ pub fn with_modal<'a, Message: Clone + 'static>(
 }
 
 pub fn source_controls<'a, Message: Clone + 'static>(
-    runtime: &OptionsState<'_>, started: bool, help: Element<'a, Message>,
+    runtime: &OptionsState<'_>,
+    started: bool,
+    help: impl FnOnce(&'static str, String) -> Element<'a, Message>,
     emit: fn(Action) -> Message,
 ) -> Element<'a, Message> {
     let i18n = runtime.i18n;
@@ -219,7 +219,10 @@ pub fn source_controls<'a, Message: Clone + 'static>(
     };
     let client = i18n.__("客户端模型");
     let native = i18n.__("智能体原生模型");
-    let mut controls = column![help].spacing(6);
+    let mut description = i18n.__(
+        "客户端模型：使用当前供应商与模型，无需重复填写密钥\n智能体原生模型：使用执行主机上的配置与登录状态",
+    ).to_owned();
+    let mut controls = column![].spacing(6);
     for (source, label) in
         [(AcpModelSource::SessionModel, client), (AcpModelSource::CliLocal, native)]
     {
@@ -271,34 +274,21 @@ pub fn source_controls<'a, Message: Clone + 'static>(
                         && !runtime.source_pending)
                     .then_some(emit(Action::AcpModelSourceSelected(source))),
                 );
-        controls = controls.push(session_lock_tooltip(control, runtime.i18n, started));
+        controls = controls.push(control);
         if let Some(reason) = reason {
-            controls = controls.push(
-                text(runtime.i18n.__(reason)).size(12).style(settings_muted_text_style),
-            );
+            description.push_str(&format!("\n{label} ({})", i18n.__(reason)));
         }
     }
-    if runtime.acp_model_source == AcpModelSource::SessionModel {
-        let model = if runtime.auto_model { i18n.__("自动选择").to_string() } else { runtime.model.to_owned() };
-        controls = controls.push(
-            text(i18n.format("当前客户端 Provider/model：%s", &[model.as_str().into()]).expect("valid model label"))
-                .size(12)
-                .wrapping(text::Wrapping::WordOrGlyph)
-                .style(settings_muted_text_style),
-        );
-    }
-    controls = controls.push(
-        text(i18n.__(if started {
-            "会话开始后不能切换模型"
-        } else if runtime.source_pending {
-            "正在等待执行主机确认并保存…"
-        } else {
-            "切换来源将创建新的 ACP 会话；原生上下文不继承"
-        }))
-        .size(12)
-        .style(settings_muted_text_style),
-    );
-    controls.into()
+    let status = if started {
+        "会话开始后无法更改。如需更换，请新建会话。"
+    } else if runtime.source_pending {
+        "正在等待执行主机确认并保存…"
+    } else {
+        "切换来源将创建新的 ACP 会话；原生上下文不继承"
+    };
+    description.push_str("\n\n");
+    description.push_str(i18n.__(status));
+    column![help("模型来源", description), controls].spacing(6).into()
 }
 
 pub fn access_status<'a, Message: Clone + 'static>(

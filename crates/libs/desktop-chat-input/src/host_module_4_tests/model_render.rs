@@ -34,8 +34,6 @@ impl Fixture {
             is_requesting: false,
             acp_options_pending: self.pending,
             source_pending: false,
-            auto_model: false,
-            model: &self.model,
             full_access_enabled: false,
             acp_rebuild_required: false,
         }
@@ -44,7 +42,7 @@ impl Fixture {
         acp_options::source_controls(
             &self.state(),
             false,
-            iced::widget::text("模型来源").into(),
+            |title, _| iced::widget::text(title).into(),
             Event::Acp,
         )
     }

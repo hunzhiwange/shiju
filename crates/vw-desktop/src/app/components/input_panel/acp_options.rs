@@ -15,8 +15,8 @@ pub(super) fn state<'a>(app: &App, runtime: &'a crate::app::state::SessionRuntim
         i18n: I18n::new(app.general_settings.desktop_locale), acp_agent: runtime.acp_agent.as_deref(),
         acp_options: &runtime.acp_options_state.options, acp_model_source: runtime.acp_model_source,
         is_requesting: runtime.request_lifecycle.is_requesting, acp_options_pending: runtime.acp_options_state.pending,
-        source_pending: runtime.acp_options_state.source_pending.is_some(), auto_model: runtime.auto_model,
-        model: &runtime.model, full_access_enabled: runtime.full_access_enabled,
+        source_pending: runtime.acp_options_state.source_pending.is_some(),
+        full_access_enabled: runtime.full_access_enabled,
         acp_rebuild_required: runtime.acp_rebuild_required,
     }
 }
@@ -34,13 +34,24 @@ pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
     source_controls_for(app, &runtime)
 }
 fn source_controls_for<'a>(app: &'a App, runtime: &crate::app::state::SessionRuntimeState) -> Element<'a, Message> {
-    let title = "模型来源";
-    let description = "客户端模型：使用当前供应商与模型，无需重复填写密钥\n智能体原生模型：使用执行主机上的配置与登录状态";
-    let help = crate::app::components::system_settings_common::settings_hover_help_label(
-        I18n::new(app.general_settings.desktop_locale), &app.appearance.app_theme, title,
-        crate::app::components::system_settings_common::settings_field_label(I18n::new(app.general_settings.desktop_locale).__(title)), description,
-    ).wrap().into();
-    shared::source_controls(&state(app, runtime), app.current_session_has_started(), help, emit)
+    let input = state(app, runtime);
+    shared::source_controls(
+        &input,
+        app.current_session_has_started(),
+        |title, description| {
+            let title = input.i18n.__(title);
+            crate::app::components::system_settings_common::settings_hover_help_label(
+                input.i18n,
+                &app.appearance.app_theme,
+                title,
+                crate::app::components::system_settings_common::settings_field_label(title),
+                description,
+            )
+            .wrap()
+            .into()
+        },
+        emit,
+    )
 }
 pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     let Some(runtime) = app.current_session_runtime_ref().filter(|r| r.acp_options_state.open && r.acp_agent.is_some()) else { return base; };

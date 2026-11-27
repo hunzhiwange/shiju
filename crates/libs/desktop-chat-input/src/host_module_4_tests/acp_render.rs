@@ -99,9 +99,6 @@ fn fixture() -> Fixture {
 }
 
 impl Fixture {
-    fn current_session_runtime(&self) -> &desktop_session::session::agent::SessionRuntimeState<()> {
-        &self.runtime
-    }
     fn started(&self) -> bool {
         desktop_session::session::runtime::current_session_has_started(
             Some(&self.runtime),
@@ -119,23 +116,29 @@ impl Fixture {
             is_requesting: runtime.request_lifecycle.is_requesting,
             acp_options_pending: runtime.acp_options_state.pending,
             source_pending: runtime.acp_options_state.source_pending.is_some(),
-            auto_model: runtime.auto_model,
-            model: &runtime.model,
             full_access_enabled: runtime.full_access_enabled,
             acp_rebuild_required: runtime.acp_rebuild_required,
         }
     }
     fn source(&self) -> Element<'_, Message> {
-        let help: Element<'_, crate::input_panel::task_mode::Message> =
-            desktop_ui_controls::system_settings_common::help::settings_selectable_help_label(
-                I18n::new(self.desktop_locale), &self.app_theme, "模型来源",
-                desktop_ui_controls::system_settings_common::settings_field_label("模型来源"),
-                "客户端模型：使用当前供应商与模型，无需重复填写密钥\n智能体原生模型：使用执行主机上的配置与登录状态",
-            ).wrap().into();
+        let i18n = I18n::new(self.desktop_locale);
         acp_options::source_controls(
             &self.state(),
             self.started(),
-            help.map(Message::Help),
+            |title, description| {
+                let title = i18n.__(title);
+                let help: Element<'_, crate::input_panel::task_mode::Message> =
+                    desktop_ui_controls::system_settings_common::help::settings_selectable_help_label(
+                        i18n,
+                        &self.app_theme,
+                        title,
+                        desktop_ui_controls::system_settings_common::settings_field_label(title),
+                        description,
+                    )
+                    .wrap()
+                    .into();
+                help.map(Message::Help)
+            },
             Message::Acp,
         )
     }
@@ -340,9 +343,9 @@ async fn ui_refresh_42_acp_permission_modes_reflect_grant_and_readback() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn help_rollout_09_session_model_source_keeps_status_visible() {
+async fn help_rollout_09_session_model_source_groups_status_in_help() {
     if !isolated(&format!(
-        "{}::help_rollout_09_session_model_source_keeps_status_visible",
+        "{}::help_rollout_09_session_model_source_groups_status_in_help",
         module_path!()
     )) {
         return;
@@ -355,20 +358,22 @@ async fn help_rollout_09_session_model_source_keeps_status_visible() {
     {
         app.desktop_locale = locale;
         app.app_theme = theme.clone();
+        let i18n = I18n::new(locale);
         let runtime = app.current_session_runtime_mut();
         runtime.acp_options_state.open = true;
         runtime.acp_model_source = AcpModelSource::SessionModel;
         let base = container(Space::new()).width(Length::Fill).height(Length::Fill).into();
         let mut ui = scene(app.modal(base), &mut renderer, size);
         let layout = bounds(&mut ui, &renderer);
-        label(&layout, "✓ 审批模式");
-        label(&layout, "请先配置供应商凭据");
-        label(&layout, "切换来源将创建新的 ACP 会话；原生上下文不继承");
-        label(
-            &layout,
-            &format!("当前客户端 Provider/model：{}", app.current_session_runtime().model),
-        );
-        let heading = label(&layout, "模型来源");
+        label(&layout, &format!("✓ {}", i18n.__("审批模式")));
+        for detail in [
+            i18n.__("请先配置供应商凭据"),
+            i18n.__("切换来源将创建新的 ACP 会话；原生上下文不继承"),
+            app.runtime.model.as_str(),
+        ] {
+            assert!(!layout.labels.iter().any(|(text, _)| text.contains(detail)), "{detail}");
+        }
+        let heading = label(&layout, i18n.__("模型来源"));
         let icon = Point::new(heading.x + heading.width + 15.0, heading.center_y());
         let frame = |ui: &mut Ui<'_, Message>, renderer: &mut Renderer, suffix: &str| {
             capture(
@@ -383,7 +388,6 @@ async fn help_rollout_09_session_model_source_keeps_status_visible() {
         let idle = frame(&mut ui, &mut renderer, "idle");
         assert!(click(&mut ui, &mut renderer, icon).is_empty());
         assert!(idle != frame(&mut ui, &mut renderer, "open"), "model source help must open");
-        assert!(!layout.labels.iter().any(|(text, _)| text == "使用执行主机上的配置与登录状态"));
         assert!(
             key(&mut ui, &mut renderer, Point::ORIGIN, Key::Named(Named::Escape), None).is_empty()
         );
@@ -392,10 +396,11 @@ async fn help_rollout_09_session_model_source_keeps_status_visible() {
             "Escape must dismiss model source help"
         );
         assert!(
-            click(&mut ui, &mut renderer, label(&layout, "智能体原生模型").center()).is_empty()
+            click(&mut ui, &mut renderer, label(&layout, i18n.__("智能体原生模型")).center())
+                .is_empty()
         );
         assert!(matches!(
-            click(&mut ui, &mut renderer, label(&layout, "关闭").center()).as_slice(),
+            click(&mut ui, &mut renderer, label(&layout, i18n.__("关闭")).center()).as_slice(),
             [Message::Acp(acp_options::Action::AcpOptionsClose)]
         ));
         drop(ui);
@@ -403,7 +408,7 @@ async fn help_rollout_09_session_model_source_keeps_status_visible() {
         app.current_session_runtime_mut().acp_model_source = AcpModelSource::CliLocal;
         let mut popover = scene(app.overlay(), &mut renderer, size);
         let layout = bounds(&mut popover, &renderer);
-        let heading = label(&layout, "模型来源");
+        let heading = label(&layout, i18n.__("模型来源"));
         let icon = Point::new(heading.x + heading.width + 15.0, heading.center_y());
         let idle = frame(&mut popover, &mut renderer, "popover-idle");
         assert!(click(&mut popover, &mut renderer, icon).is_empty());
@@ -417,7 +422,8 @@ async fn help_rollout_09_session_model_source_keeps_status_visible() {
         );
         assert!(idle == frame(&mut popover, &mut renderer, "popover-closed"));
         assert!(matches!(
-            click(&mut popover, &mut renderer, label(&layout, "客户端模型").center()).as_slice(),
+            click(&mut popover, &mut renderer, label(&layout, i18n.__("客户端模型")).center())
+                .as_slice(),
             [Message::Acp(acp_options::Action::AcpModelSourceSelected(
                 AcpModelSource::SessionModel
             ))]
@@ -427,22 +433,13 @@ async fn help_rollout_09_session_model_source_keeps_status_visible() {
         let draft = app.current_session_runtime_mut().draft.take();
         let mut locked = scene(app.overlay(), &mut renderer, size);
         let layout = bounds(&mut locked, &renderer);
-        label(&layout, "会话开始后不能切换模型");
-        let locked_choice = label(&layout, "客户端模型").center();
-        let idle = frame(&mut locked, &mut renderer, "locked-idle");
-        hover(&mut locked, &mut renderer, locked_choice);
-        let hovered = capture(
-            &mut locked,
-            &mut renderer,
-            &theme,
-            size,
-            &format!("help-09-{locale:?}-model-source-locked-hover"),
-            locked_choice,
-        );
-        assert!(idle != hovered, "locked model source must show a tooltip on hover");
+        let locked_choice = label(&layout, i18n.__("客户端模型")).center();
         assert!(click(&mut locked, &mut renderer, locked_choice).is_empty());
-        hover(&mut locked, &mut renderer, Point::ORIGIN);
-        assert!(idle == frame(&mut locked, &mut renderer, "locked-leave"));
+        let heading = label(&layout, i18n.__("模型来源"));
+        let icon = Point::new(heading.x + heading.width + 15.0, heading.center_y());
+        let idle = frame(&mut locked, &mut renderer, "locked-idle");
+        assert!(click(&mut locked, &mut renderer, icon).is_empty());
+        assert!(idle != frame(&mut locked, &mut renderer, "locked-open"));
         drop(locked);
         app.current_session_runtime_mut().draft = draft;
     }

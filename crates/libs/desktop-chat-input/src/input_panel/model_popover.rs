@@ -1,11 +1,6 @@
 //! 模型标识、搜索及展示标签。
 use desktop_settings_providers::state::{ModelSummary, ProviderModelsSummary};
 
-pub(crate) fn normalize_model_input(model: &str) -> String {
-    let trimmed = model.trim();
-    if trimmed.is_empty() { "auto".to_string() } else { trimmed.to_string() }
-}
-
 pub(crate) fn model_matches_query(
     query: &str,
     provider_id: &str,

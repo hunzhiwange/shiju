@@ -57,7 +57,6 @@ impl Fixture {
                 started: false,
                 can_select: model_views::can_select_model(&self.state(), false),
                 is_acp: true,
-                input_model: self.model.clone(),
             },
             false,
             &self.model,

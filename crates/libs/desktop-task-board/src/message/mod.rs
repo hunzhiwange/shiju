@@ -71,7 +71,6 @@ pub enum TaskBoardMessage {
     SelectSettingsModalTab(TaskBoardSettingsModalTab),
     UpdateDraftPriority(String),
     UpdateDraftAssignee(String),
-    UpdateDraftModel(String),
     SelectDraftAgent {
         agent: String,
         acp_agent: Option<String>,
@@ -100,7 +99,6 @@ pub enum TaskBoardMessage {
     SelectAllTasksInStatus(TaskStatus),
     InvertTaskSelectionInStatus(TaskStatus),
     UpdateBulkPriorityInput(String),
-    UpdateBulkModelInput(String),
     BulkAgentSelected(String),
     UpdateBulkReasoningEffort(Option<vw_api_chat_identity::ReasoningEffortDto>),
     BulkSetPriorityInStatus(TaskStatus),
@@ -157,7 +155,6 @@ pub enum TaskBoardMessage {
     EditTask(String),
     UpdateEditingTaskPriority(String),
     UpdateEditingTaskModel(String),
-    UpdateEditingTaskModelInput(String),
     UpdateEditingTaskAgent(Option<String>),
     UpdateEditingTaskExecutor(Option<String>),
     UpdateEditingTaskReasoningEffort(Option<vw_api_chat_identity::ReasoningEffortDto>),

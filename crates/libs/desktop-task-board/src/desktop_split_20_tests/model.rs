@@ -113,14 +113,7 @@ async fn ui_refresh_35_model_search_groups_and_bulk_selection() {
         mouse::Cursor::Unavailable,
     );
     let geometry = labels(&mut ui, &renderer);
-    let manual = geometry.input("fixture/saved-model");
-    assert!(click(&mut ui, &mut renderer, manual.center()).is_empty());
-    assert!(key(&mut ui, &mut renderer, Key::Named(Named::End), None).is_empty());
-    assert!(matches!(
-        key(&mut ui, &mut renderer, Key::Character("x".into()), Some("x")).as_slice(),
-        [SelectorMessage::UpdateBulkModelInput(value)]
-            if value == "fixture/saved-modelx"
-    ));
+    assert!(!geometry.inputs.iter().any(|(value, _)| value == "fixture/saved-model"));
     assert!(!geometry.text.iter().any(|(value, _)| value == "Other models"));
     let (menu, _) = geometry.scroll("task_board_model_selector_scroll");
     assert!(menu.y + menu.height <= 480.0);

@@ -3,7 +3,7 @@
 
 use super::{
     model_is_selected, model_matches_query, model_media_labels, model_provider_icon_id,
-    model_toggle_label, normalize_model_input, truncated_model_name,
+    model_toggle_label, truncated_model_name,
 };
 use desktop_settings_providers::state::{ModelSummary, ProviderModelsSummary};
 
@@ -22,13 +22,6 @@ fn model(id: &str, name: &str, enabled: bool) -> ModelSummary {
 
 fn provider(id: &str, name: &str, models: Vec<ModelSummary>) -> ProviderModelsSummary {
     ProviderModelsSummary { id: id.to_string(), name: name.to_string(), models }
-}
-
-#[test]
-fn normalize_model_input_defaults_blank_values_to_auto() {
-    assert_eq!(normalize_model_input(""), "auto");
-    assert_eq!(normalize_model_input("   "), "auto");
-    assert_eq!(normalize_model_input(" openai/gpt-4.1 "), "openai/gpt-4.1");
 }
 
 #[test]

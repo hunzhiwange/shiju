@@ -30,7 +30,7 @@ use super::styles::{
 };
 use desktop_ui_controls::overlays::AboveOverlay;
 use desktop_settings_providers::state::ProviderModelsSummary;
-use desktop_task_model::{TASK_MODEL_ACP_NATIVE, TASK_MODEL_AUTO};
+use desktop_task_model::{TASK_MODEL_ACP_NATIVE, TASK_MODEL_AUTO, normalize_task_model_input};
 #[derive(Debug, Clone)]
 pub enum Message {
  PriorityChanged(String), ModelChanged(String),
@@ -138,14 +138,28 @@ pub fn task_mode_form<'a>(
     .align_y(Alignment::Center)
     .spacing(10);
 
-    let model_input = text_input(
-        input.i18n.__("auto / provider/model / 自定义模型"),
-        task_mode_model,
+    let current = normalize_task_model_input(task_mode_model);
+    let automatic = i18n.__("自动模型");
+    let mut models = vec![(TASK_MODEL_AUTO.to_owned(), automatic.to_owned())];
+    models.extend(input.providers.iter().flat_map(|provider| {
+        provider.models.iter().filter(|model| model.enabled).map(|model| {
+            (
+                format!("{}/{}", provider.id, model.id),
+                format!("{} / {}", provider.name, model.name),
+            )
+        })
+    }));
+    let model_select = settings_select(
+        models.iter().map(|(id, _)| id.clone()),
+        Some(current),
+        Message::ModelChanged,
     )
-    .on_input(Message::ModelChanged)
-    .padding(SETTINGS_CONTROL_PADDING)
-    .size(SETTINGS_CONTROL_TEXT_SIZE)
-    .style(settings_text_input_style)
+    .format_labels(|id| {
+        models.iter().find(|(value, _)| value == id).map_or_else(
+            || super::model_popover::model_toggle_label(input.providers, false, id),
+            |(_, label)| label.clone(),
+        )
+    })
     .width(Length::Fixed(180.0));
 
     let model_control: Element<'_, Message> = if task_mode_executor.is_some() {
@@ -162,11 +176,11 @@ pub fn task_mode_form<'a>(
         .width(Length::Fixed(180.0));
         let mut controls = column![source].spacing(6);
         if !cli_local {
-            controls = controls.push(model_input);
+            controls = controls.push(model_select);
         }
         controls.into()
     } else {
-        model_input.into()
+        model_select.into()
     };
 
     let model_row = row![

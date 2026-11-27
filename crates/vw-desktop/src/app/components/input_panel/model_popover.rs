@@ -18,8 +18,6 @@ fn emit(action: shared::Action) -> Message {
         shared::Action::ModelSelected(value) => Message::Chat(message::ChatMessage::ModelSelected(value)),
         shared::Action::OpenSystemSettingsModelDetail(provider, model) => Message::View(message::ViewMessage::OpenSystemSettingsModelDetail(provider, model)),
         shared::Action::AutoModelToggled(value) => Message::Chat(message::ChatMessage::AutoModelToggled(value)),
-        shared::Action::AcpModelInputDraftChanged(value) => Message::Chat(message::ChatMessage::AcpModelInputDraftChanged(value)),
-        shared::Action::ModelInputChanged(value) => Message::Chat(message::ChatMessage::ModelInputChanged(value)),
         shared::Action::ManageModels => Message::View(message::ViewMessage::OpenSystemSettingsTab(crate::app::components::system_settings::SystemTab::Models)),
         shared::Action::ConnectProvider => Message::View(message::ViewMessage::OpenSystemSettingsTab(crate::app::components::system_settings::SystemTab::Providers)),
     }
@@ -82,7 +80,6 @@ pub fn model_popover_content<'a>(app: &'a App, auto_model: bool, model: &str) ->
         settings: &app.model_settings, i18n,
         cli_local: runtime.acp_agent.is_some() && runtime.acp_model_source == AcpModelSource::CliLocal,
         started, can_select, is_acp: runtime.acp_agent.is_some(),
-        input_model: runtime.acp_options_state.model_input_draft.as_deref().unwrap_or(model).to_owned(),
     };
     let reasoning = if input.is_acp {
         super::acp_options::reasoning_control(app, &runtime)

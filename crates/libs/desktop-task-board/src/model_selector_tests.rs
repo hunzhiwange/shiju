@@ -51,7 +51,7 @@ fn selector_kind_reads_model_sources_and_open_flags() {
 }
 
 #[test]
-fn selector_kind_maps_toggle_close_select_and_input_messages() {
+fn selector_kind_maps_toggle_close_and_select_messages() {
     assert!(matches!(
         TaskBoardModelSelectorKind::Draft.toggle_message(),
         TaskBoardMessage::ToggleModelPopover
@@ -89,19 +89,6 @@ fn selector_kind_maps_toggle_close_select_and_input_messages() {
     match TaskBoardModelSelectorKind::Bulk.select_message("m3".to_string()) {
         TaskBoardMessage::BulkModelSelected(model) => assert_eq!(model, "m3"),
         _ => panic!("bulk selection should update the bulk model"),
-    }
-
-    match TaskBoardModelSelectorKind::Draft.input_message("i1".to_string()) {
-        TaskBoardMessage::UpdateDraftModel(model) => assert_eq!(model, "i1"),
-        _ => panic!("draft input should update the draft model input"),
-    }
-    match TaskBoardModelSelectorKind::Edit.input_message("i2".to_string()) {
-        TaskBoardMessage::UpdateEditingTaskModelInput(model) => assert_eq!(model, "i2"),
-        _ => panic!("edit input should update the editing task model input"),
-    }
-    match TaskBoardModelSelectorKind::Bulk.input_message("i3".to_string()) {
-        TaskBoardMessage::UpdateBulkModelInput(model) => assert_eq!(model, "i3"),
-        _ => panic!("bulk input should update the bulk model input"),
     }
 }
 

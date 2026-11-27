@@ -15,7 +15,6 @@ pub struct SelectorView<'a> {
 pub enum SelectorMessage {
     ToggleModelPopover, ToggleBulkModelPopover, CloseModelPopover, CloseBulkModelPopover,
     ModelSelected(String), UpdateEditingTaskModel(String), BulkModelSelected(String),
-    UpdateDraftModel(String), UpdateEditingTaskModelInput(String), UpdateBulkModelInput(String),
     ModelQueryChanged(String), OpenModelDetail(String, String), OpenModels, OpenProviders,
 }
 // 任务看板模型选择器视图，集中处理草稿、编辑和批量任务的模型选择入口。
@@ -32,7 +31,7 @@ use desktop_assets::assets::{self, Icon};
 use desktop_chat_input::input_panel::model_views::model_toggle_button;
 use desktop_ui_controls::overlays::BelowOverlay;
 use desktop_ui_controls::system_settings_common::{
-    SettingsSelectLabel, settings_field_label, settings_muted_text_style, settings_text_input,
+    SettingsSelectLabel, settings_muted_text_style, settings_text_input,
     settings_toggle,
 };
 use self::SelectorMessage as Message;
@@ -90,13 +89,6 @@ impl TaskBoardModelSelectorKind {
         }
     }
 
-    fn input_message(&self, model: String) -> TaskBoardMessage {
-        match self {
-            Self::Draft => TaskBoardMessage::UpdateDraftModel(model),
-            Self::Edit => TaskBoardMessage::UpdateEditingTaskModelInput(model),
-            Self::Bulk => TaskBoardMessage::UpdateBulkModelInput(model),
-        }
-    }
 }
 
 /// 构建或更新 build model selector 相关行为。
@@ -552,34 +544,6 @@ fn build_model_popover<'a>(
             .spacing(10)
         )
         .padding([6, 8])
-        .into(),
-        container(
-            column![
-                settings_field_label(
-                    desktop_i18n::I18n::new(app.desktop_locale).__("手工填写模型")
-                ),
-                settings_text_input(
-                    desktop_i18n::I18n::new(app.desktop_locale)
-                        .__("auto / provider/model / 自定义模型"),
-                    model
-                )
-                .on_input({
-                    let kind = kind;
-                    move |value| {
-                        kind.input_message(normalize_task_model_input(&value))
-                    }
-                }),
-                text(
-                    desktop_i18n::I18n::new(app.desktop_locale)
-                        .__("兼容特殊调度器或未出现在列表中的模型 ID")
-                        .to_owned()
-                )
-                .size(12)
-                .style(settings_muted_text_style)
-            ]
-            .spacing(6)
-        )
-        .padding(iced::Padding { top: 2.0, right: 8.0, bottom: 6.0, left: 8.0 })
         .into(),
         container(
             column![

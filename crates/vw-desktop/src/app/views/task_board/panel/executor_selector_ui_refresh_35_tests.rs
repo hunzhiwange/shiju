@@ -9,8 +9,6 @@ fn ui_refresh_35_model_search_groups_and_bulk_selection_host_messages() {
     let map = super::super::model_selector::map;
     assert!(matches!(map(SelectorMessage::ModelQueryChanged("fixturex".into())),
         Message::Settings(SettingsMessage::ModelQueryChanged(value)) if value == "fixturex"));
-    assert!(matches!(map(SelectorMessage::UpdateBulkModelInput("fixture/saved-modelx".into())),
-        Message::TaskBoard(TaskBoardMessage::UpdateBulkModelInput(value)) if value == "fixture/saved-modelx"));
     assert!(
         matches!(map(SelectorMessage::OpenModelDetail("fixture".into(), "saved-model".into())),
         Message::View(ViewMessage::OpenSystemSettingsModelDetail(provider, model)) if provider == "fixture" && model == "saved-model")

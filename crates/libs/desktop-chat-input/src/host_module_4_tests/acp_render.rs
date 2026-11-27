@@ -167,12 +167,6 @@ impl Fixture {
                 started: self.started(),
                 can_select: model_views::can_select_model(&self.state(), self.started()),
                 is_acp: runtime.acp_agent.is_some(),
-                input_model: runtime
-                    .acp_options_state
-                    .model_input_draft
-                    .as_deref()
-                    .unwrap_or("fixture/model-00")
-                    .to_owned(),
             },
             false,
             "fixture/model-00",

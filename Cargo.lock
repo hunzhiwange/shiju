@@ -7885,6 +7885,7 @@ dependencies = [
 name = "desktop-task-board"
 version = "0.7.10"
 dependencies = [
+ "chrono",
  "config-agent",
  "config-ui",
  "desktop-assets",

@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+chrono = { version = "0.4", features = ["serde"] }
 desktop-chat-input = { path = "../desktop-chat-input" }
 desktop-task-model = { path = "../desktop-task-model" }
 desktop-ui-controls = { path = "../desktop-ui-controls" }

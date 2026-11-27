@@ -1,7 +1,12 @@
 //! Task-board state ownership and initial values, independent of the desktop App.
 use crate::message::{TaskBoardDetailTab, TaskBoardSettingsModalTab};
+use crate::work_views::{
+    SidebarWorkView, WorkDateCalendar, WorkDateField, WorkDateRange, WorkDisplay, WorkFilterField,
+    WorkAdvancedFilterDraft, WorkFilterContext, WorkPriorityLevel, WorkScopeField, WorkScopeSelection, WorkSidebarMenu,
+    WorkToolbarMenu,
+};
 use iced::widget::{Id, text_editor};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 pub use crate::work_views::TaskBoardViewMode;
 
@@ -12,14 +17,32 @@ pub struct State {
     pub saved_work_views: Vec<crate::work_views::SavedWorkView>,
     pub selected_work_view: Option<String>,
     pub work_filter: crate::work_views::WorkViewFilter,
+    pub work_advanced_filter: Option<WorkAdvancedFilterDraft>,
     pub work_editor_open: bool,
     pub work_view_name: String,
+    pub work_view_name_editing: bool,
     pub work_status_input: String,
+    pub work_status_excluded: bool,
+    pub work_filter_agent_running: Option<bool>,
+    pub work_unread_only: bool,
+    pub work_read_task_ids: BTreeSet<String>,
     pub work_min_input: String,
     pub work_max_input: String,
+    pub work_priority_levels: Vec<WorkPriorityLevel>,
+    pub work_priority_excluded: bool,
+    pub work_date_field: WorkDateField,
+    pub work_date_range: Option<WorkDateRange>,
+    pub work_date_calendar: Option<WorkDateCalendar>,
+    pub work_scope_selections: BTreeMap<WorkScopeField, WorkScopeSelection>,
+    pub work_snapshot_project_id: Option<String>,
+    pub work_project_progress: Option<vw_api_agent_scheduler::AgentSchedulerProjectProgress>,
+    pub work_viewer_id: Option<String>,
+    pub work_subscriptions: BTreeMap<String, BTreeSet<String>>,
     pub work_agent_input: String,
     pub work_label_ids: Vec<String>,
+    pub work_labels_excluded: bool,
     pub work_property_values: vw_api_agent_scheduler::AgentSchedulerTaskPropertyValues,
+    pub work_unset_properties: BTreeSet<String>,
     pub task_properties: Vec<vw_api_agent_scheduler::AgentSchedulerTaskPropertyDto>,
     pub task_properties_generation: u64,
     pub task_property_save_in_progress: Option<u64>,
@@ -35,9 +58,19 @@ pub struct State {
     pub task_board_workflow_generation: u64,
     /// 任务看板当前视图模式
     pub task_board_view_mode: TaskBoardViewMode,
-    pub work_display: crate::work_views::WorkDisplay,
-    pub work_display_open: bool,
-    pub work_search: String,
+    pub work_display: WorkDisplay,
+    pub work_toolbar_menu: Option<WorkToolbarMenu>,
+    pub work_filter_field: Option<WorkFilterField>,
+    pub work_filter_query: String,
+    pub work_filter_value_query: String,
+    pub hidden_work_sidebar_views: Vec<SidebarWorkView>,
+    pub work_sidebar_views_hovered: bool,
+    pub work_sidebar_hovered_view: Option<SidebarWorkView>,
+    pub work_sidebar_view_expansion: HashMap<SidebarWorkView, bool>,
+    pub work_sidebar_show_counts: bool,
+    pub work_sidebar_task_limits: HashMap<SidebarWorkView, usize>,
+    pub work_sidebar_menu: Option<WorkSidebarMenu>,
+    pub work_search: Option<String>,
     pub collapsed_work_groups: HashSet<crate::work_views::WorkDisplayGroup>,
     /// 任务看板任务列表
     pub task_board_tasks: Vec<desktop_task_model::models::Task>,
@@ -193,14 +226,32 @@ impl State {
             saved_work_views: Vec::new(),
             selected_work_view: None,
             work_filter: Default::default(),
+            work_advanced_filter: None,
             work_editor_open: false,
             work_view_name: String::new(),
+            work_view_name_editing: false,
             work_status_input: String::new(),
+            work_status_excluded: false,
+            work_filter_agent_running: None,
+            work_unread_only: false,
+            work_read_task_ids: BTreeSet::new(),
             work_min_input: String::new(),
             work_max_input: String::new(),
+            work_priority_levels: Vec::new(),
+            work_priority_excluded: false,
+            work_date_field: WorkDateField::default(),
+            work_date_range: None,
+            work_date_calendar: None,
+            work_scope_selections: BTreeMap::new(),
+            work_snapshot_project_id: None,
+            work_project_progress: None,
+            work_viewer_id: None,
+            work_subscriptions: BTreeMap::new(),
             work_agent_input: String::new(),
             work_label_ids: Vec::new(),
+            work_labels_excluded: false,
             work_property_values: Default::default(),
+            work_unset_properties: BTreeSet::new(),
             task_properties: Vec::new(),
             task_properties_generation: 0,
             task_property_save_in_progress: None,
@@ -212,10 +263,20 @@ impl State {
             show_task_board: false,
             task_board_loading: false,
             task_board_workflow_generation: 0,
-            task_board_view_mode: TaskBoardViewMode::default(),
-            work_display: Default::default(),
-            work_display_open: false,
-            work_search: String::new(),
+            task_board_view_mode: TaskBoardViewMode::List,
+            work_display: WorkDisplay { hide_empty_statuses: true, ..Default::default() },
+            work_toolbar_menu: None,
+            work_filter_field: None,
+            work_filter_query: String::new(),
+            work_filter_value_query: String::new(),
+            hidden_work_sidebar_views: Vec::new(),
+            work_sidebar_views_hovered: false,
+            work_sidebar_hovered_view: None,
+            work_sidebar_view_expansion: HashMap::new(),
+            work_sidebar_show_counts: true,
+            work_sidebar_task_limits: HashMap::new(),
+            work_sidebar_menu: None,
+            work_search: None,
             collapsed_work_groups: HashSet::new(),
             task_board_tasks: Vec::new(),
             task_board_tasks_pending_persistence: std::collections::HashSet::new(),
@@ -341,36 +402,76 @@ impl State {
 }
 
 impl State {
-    pub fn work_display_task_visible(&self, project: &str, task: &desktop_task_model::Task) -> bool {
-
-        self.work_task_visible(project, task)
-            && crate::work_views::task_matches_search(task, &self.work_search)
-    }
-
-    pub fn work_task_visible(&self, project: &str, task: &desktop_task_model::Task) -> bool {
+    pub fn work_task_visible(&self, project: &str, task: &desktop_task_model::Task, configured_agent: bool) -> bool {
         self.work_task_matches(project, self.work_view, task)
             && self.task_board_settings.workflow()
                 .or_else(|| desktop_task_model::task_workflow_by_id(desktop_task_model::DEFAULT_TASK_WORKFLOW_ID))
-                .is_some_and(|workflow| self.work_filter.matches(task, &workflow))
+                .is_some_and(|workflow| {
+                    self.work_filter.matches(task, &workflow, self.work_filter_context(&task.id, configured_agent))
+                })
     }
+
+    pub fn work_task_unread(&self, id: &str) -> bool {
+        !self.work_read_task_ids.contains(id)
+    }
+
+    pub fn work_task_subscribed(&self, id: &str) -> bool {
+        self.work_viewer_id.as_ref()
+            .and_then(|viewer| self.work_subscriptions.get(viewer))
+            .is_some_and(|ids| ids.contains(id))
+    }
+
+    pub fn work_filter_context(&self, id: &str, configured_agent: bool) -> WorkFilterContext<'_> {
+        WorkFilterContext {
+            unread: self.work_task_unread(id),
+            project_id: self.work_snapshot_project_id.as_deref(),
+            project_progress: self.work_project_progress,
+            viewer_id: self.work_viewer_id.as_deref(),
+            configured_agent,
+            subscribed: self.work_task_subscribed(id),
+        }
+    }
+
     pub fn work_task_matches(&self, project: &str, view: crate::work_views::BuiltinWorkView, task: &desktop_task_model::Task) -> bool {
         let workflow = self.task_board_settings.workflow()
             .or_else(|| desktop_task_model::task_workflow_by_id(desktop_task_model::DEFAULT_TASK_WORKFLOW_ID));
-        workflow.is_some_and(|workflow| view.matches(task, &workflow, self.personal_tasks.get(project).map(Vec::as_slice).unwrap_or(&[])))
+        let personal = self.personal_tasks.get(project).map(Vec::as_slice).unwrap_or_default();
+        workflow.is_some_and(|workflow| {
+            view.matches(task, &workflow, personal, self.work_task_subscribed(&task.id))
+        })
+    }
+
+    pub fn work_sidebar_view_expanded(&self, view: &SidebarWorkView) -> bool {
+        self.work_sidebar_view_expansion.get(view).copied()
+            .unwrap_or(matches!(view, SidebarWorkView::Saved(_)))
     }
     pub fn switch_work_view(&mut self, view: crate::work_views::BuiltinWorkView) {
         self.work_view = view;
         self.selected_work_view = None;
         self.work_filter = Default::default();
+        self.work_advanced_filter = None;
         self.work_view_name.clear();
+        self.work_view_name_editing = false;
         self.work_status_input.clear();
+        self.work_status_excluded = false;
+        self.work_filter_agent_running = None;
+        self.work_unread_only = false;
         self.work_min_input.clear();
         self.work_max_input.clear();
+        self.work_priority_levels.clear();
+        self.work_priority_excluded = false;
+        self.work_date_field = WorkDateField::default();
+        self.work_date_range = None;
+        self.work_date_calendar = None;
+        self.work_scope_selections.clear();
         self.work_agent_input.clear();
         self.work_label_ids.clear();
+        self.work_labels_excluded = false;
         self.work_property_values.clear();
-        self.work_search.clear();
-        self.work_display_open = false;
+        self.work_unset_properties.clear();
+        self.work_search = None;
+        self.work_toolbar_menu = None;
+        self.work_sidebar_menu = None;
         self.collapsed_work_groups.clear();
         self.task_board_selected_tasks.clear();
         self.task_board_bulk_active_status = None;

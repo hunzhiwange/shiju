@@ -92,8 +92,9 @@ pub fn agent_scheduler_status_key_for_task_status(
 }
 
 fn task_title_for_agent_scheduler(task: &Task) -> String {
-    task.prompt
+    task.description
         .lines()
+        .chain(task.prompt.lines())
         .map(str::trim)
         .find(|line| !line.is_empty())
         .unwrap_or(task.id.as_str())

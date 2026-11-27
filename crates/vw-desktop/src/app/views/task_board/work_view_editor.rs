@@ -2,8 +2,14 @@
 use crate::app::components::system_settings_common::*;
 use crate::app::message::TaskBoardMessage;
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, row, scrollable, text, text_input};
+use desktop_task_board::work_views::WorkScopeField;
+use iced::widget::{TextInput, button, checkbox, column, container, row, scrollable, text};
 use iced::{Element, Length};
+
+pub(super) fn field<'a>(label: &str, value: &str, index: u8) -> TextInput<'a, Message> {
+    settings_text_input(label, value)
+        .on_input(move |value| TaskBoardMessage::WorkViewFieldChanged(index, value).into())
+}
 
 pub fn view(app: &App) -> Element<'_, Message> {
     let board = &app.task_board;
@@ -42,28 +48,39 @@ pub fn view(app: &App) -> Element<'_, Message> {
             row(labels.map(desktop_task_board::board::task_label_badge)).spacing(4).wrap()
         );
     }
-    if !board.work_filter.properties.is_empty() {
+    if !board.work_filter.properties.is_empty() || !board.work_filter.unset_properties.is_empty() {
         content = content.push(super::properties::filter_summary(app));
     }
     if board.work_editor_open {
-        let field = |label: &'static str, value: &str, index| {
-            text_input(i18n.__(label), value)
-                .on_input(move |value| {
-                    Message::TaskBoard(TaskBoardMessage::WorkViewFieldChanged(index, value))
-                })
-                .style(settings_text_input_style)
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-        };
         let mut fields = column![
             text(i18n.__("多项状态或智能体用英文逗号分隔。若选中多个标签，匹配任一即可。所有属性条件须同时满足。")).size(12),
+            super::work_filter_picker::status_operator(app, i18n),
             field(i18n.__("状态 key（空值不限）"), &board.work_status_input, 1),
+            settings_field_label(i18n.__("智能体状态")),
+            super::work_filter_picker::running_choices(app, i18n),
+            settings_field_label(i18n.__("阅读状态")),
+            super::work_filter_picker::unread_choice(app, i18n),
+            settings_field_label(i18n.__("优先级")),
+            super::work_filter_picker::priority_operator(app, i18n),
+            super::work_filter_picker::priority_choices(app, i18n),
             field(i18n.__("最低优先级"), &board.work_min_input, 2),
             field(i18n.__("最高优先级"), &board.work_max_input, 3),
+            settings_field_label(i18n.__("日期")),
+            container(super::work_filter_date::choices(board, i18n)).max_width(256),
             field(i18n.__("智能体：builtin:标识, acp:标识"), &board.work_agent_input, 4),
-            field(i18n.__("保存视图名称（更新名称即可重命名）"), &board.work_view_name, 0),
         ]
         .spacing(8);
+        if board.selected_work_view.is_none() {
+            fields = fields.push(field(i18n.__("视图名称"), &board.work_view_name, 0));
+        }
+        for scope in [WorkScopeField::ProjectStatus, WorkScopeField::DueDate] {
+            fields = fields
+                .push(settings_field_label(i18n.__(scope.label())))
+                .push(container(column![
+                    super::work_filter_picker::scope_operator(app, i18n, scope),
+                    super::work_filter_scope::choices(app, i18n, scope, ""),
+                ].spacing(5)).max_width(256));
+        }
         let choices = board.task_labels.iter().filter_map(|label| {
             let selected = board.work_label_ids.contains(&label.id);
             if label.archived && !selected {
@@ -80,9 +97,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }).collect::<Vec<Element<'_, Message>>>();
         if !choices.is_empty() {
             fields = fields.push(settings_field_label(i18n.__("标签")))
+                .push(container(super::work_filter_picker::label_operator(app, i18n)).max_width(256))
                 .push(row(choices).spacing(8).wrap());
         }
-        if !board.task_properties.is_empty() || !board.work_property_values.is_empty() {
+        if !board.task_properties.is_empty()
+            || !board.work_property_values.is_empty()
+            || !board.work_unset_properties.is_empty()
+        {
             fields = fields.push(settings_field_label(i18n.__("属性")))
                 .push(super::properties::filter_editor(app));
         }
@@ -96,7 +117,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(8);
         if board.selected_work_view.is_some() {
             actions = actions
-                .push(action(i18n.__("更新 / 重命名"), TaskBoardMessage::SaveWorkView(false)))
+                .push(action(i18n.__("保存修改"), TaskBoardMessage::SaveWorkView(false)))
                 .push(action(i18n.__("删除视图"), TaskBoardMessage::DeleteWorkView));
         }
         content = content

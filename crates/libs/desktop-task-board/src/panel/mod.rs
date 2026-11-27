@@ -38,6 +38,7 @@ use task_logs::build_task_logs;
 
 const TASK_PANEL_SCROLLBAR_WIDTH: f32 = 4.0;
 const TASK_PANEL_SCROLLBAR_GUTTER: f32 = 12.0;
+pub const CREATE_TITLE_INPUT_ID: &str = "task-board-create-title";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct TaskBoardAgentOption {
@@ -301,12 +302,18 @@ fn build_create_modal<'a>(app: PanelView<'a>, slots: PanelSlots<'a>) -> Element<
         .into()
     } else {
         settings_modal_card(
-            column![header, build_create_form(app, slots), build_create_footer(app)]
+            column![
+                header,
+                settings_divider(),
+                build_create_form(app, slots),
+                settings_divider(),
+                build_create_footer(app),
+            ]
                 .spacing(16)
                 .height(Length::Fill),
         )
-        .width(760)
-        .height(430)
+        .width(700)
+        .height(510)
         .into()
     }
 }

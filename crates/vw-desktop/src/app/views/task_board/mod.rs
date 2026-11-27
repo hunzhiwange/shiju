@@ -2,56 +2,69 @@ use crate::app::message::TaskBoardMessage;
 use crate::app::state::TaskBoardDetailTab;
 use crate::app::{App, Message, Screen};
 use iced::Length;
-use iced::widget::{Space, column, responsive, row};
+use iced::widget::{Space, responsive, row};
 mod board;
 mod common;
 mod control;
 mod detail;
 mod drag;
 pub(in crate::app) mod modals;
+mod navigation;
 mod panel;
 mod properties;
+mod search;
+mod style;
 mod work_display;
+mod work_filter_advanced;
+mod work_filter_bar;
+mod work_filter_date;
+mod work_filter_picker;
+mod work_filter_scope;
 mod work_sidebar;
 mod work_view_editor;
+
+pub(in crate::app) use search::{SEARCH_INPUT_ID, with_search_modal};
+pub(in crate::app) use work_display::WORK_VIEW_NAME_INPUT_ID;
+pub(in crate::app) use work_filter_picker::{WORK_FILTER_SEARCH_INPUT_ID, inherited_filter_query};
+pub(in crate::app) use work_filter_scope::configured_work_agent;
+
 pub fn view(app: &App) -> iced::Element<'_, Message> {
     let task = app.task_board.task_board_viewing_logs.as_ref();
     let show_detail = task.is_some() && !app.task_board.task_board_worktree_pixel_office;
     let input = desktop_task_board::page::PageView {
         task_board_worktree_pixel_office: app.task_board.task_board_worktree_pixel_office,
         kanban: true,
-        viewing_logs: !app.task_board.task_board_create_modal_open && task.is_some()
+        viewing_logs: !app.task_board.task_board_create_modal_open
+            && task.is_some()
             && app.task_board.task_board_detail_tab == TaskBoardDetailTab::Logs,
         task_board_settings_modal_open: app.task_board.task_board_settings_modal_open,
     };
     let page = desktop_task_board::page::assemble(
         input,
         desktop_task_board::page::PageBuilders {
+            navigation: Some(navigation::view(app)),
             header: Box::new(move || {
-                if show_detail {
-                    Space::new().into()
-                } else {
+                if app.task_board.task_board_worktree_pixel_office {
                     control::build_control_buttons(app)
+                } else {
+                    Space::new().into()
                 }
             }),
             board: Box::new(move || {
-                if let Some(task) = task {
-                    return responsive(move |size| {
-                        let sidebar = (size.width >= 700.0).then(|| work_sidebar::view(app));
-                        row(sidebar.into_iter().chain([detail::view(app, task)]))
-                            .spacing(12)
-                            .width(Length::Fill)
-                            .height(Length::Fill)
-                            .into()
-                    })
-                    .into();
-                }
-                row![
-                    work_sidebar::view(app),
-                    column![work_display::view(app)].width(Length::Fill).height(Length::Fill)
-                ]
-                .spacing(12)
-                .height(iced::Length::Fill)
+                responsive(move |size| {
+                    let show_sidebar = size.width >= 550.0;
+                    let sidebar_width = if size.width >= 728.0 { 224.0 } else { 188.0 };
+                    let sidebar = show_sidebar.then(|| work_sidebar::view(app, sidebar_width));
+                    let content = if let Some(task) = task {
+                        detail::view(app, task)
+                    } else {
+                        work_display::view(app, !show_sidebar)
+                    };
+                    row(sidebar.into_iter().chain([content]))
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .into()
+                })
                 .into()
             }),
             drag: Box::new(|| drag::build_drag_preview_layer(app)),

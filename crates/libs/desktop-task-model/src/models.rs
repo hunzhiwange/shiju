@@ -517,6 +517,12 @@ pub struct Task {
     pub properties: vw_api_agent_scheduler::AgentSchedulerTaskPropertyValues,
     pub priority: u32,
     pub assignee: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_by: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub due_date: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assigned_team: Option<String>,
     pub model: String,
     #[serde(default)]
     pub agent: Option<String>,
@@ -567,6 +573,9 @@ impl Default for Task {
             properties: Default::default(),
             priority: 999,
             assignee: "VibeWindow".to_string(),
+            created_by: None,
+            due_date: None,
+            assigned_team: None,
             model: TASK_MODEL_AUTO.to_string(),
             agent: Some(TASK_AGENT_MAIN.to_string()),
             acp_agent: None,
@@ -608,6 +617,9 @@ impl Task {
             properties: Default::default(),
             priority,
             assignee: "VibeWindow".to_string(),
+            created_by: None,
+            due_date: None,
+            assigned_team: None,
             model: TASK_MODEL_AUTO.to_string(),
             agent: Some(TASK_AGENT_MAIN.to_string()),
             acp_agent: None,

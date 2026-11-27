@@ -214,6 +214,9 @@ fn rows_view<'a, M: Clone + From<TaskBoardMessage> + 'a>(
             if !collapsed {
                 body = append_rows(body, app, &labels, &members, table);
             }
+            if !table {
+                body = body.push(iced::widget::Space::new().height(8));
+            }
         }
         if tasks.is_empty() && (display.options.hide_empty_statuses || columns.is_empty()) {
             body = body.push(empty(app.desktop_locale));
@@ -255,7 +258,7 @@ fn append_rows<'a, M: Clone + From<TaskBoardMessage> + 'a>(
     }
     for &task in tasks {
         let assignee = if task.assignee.trim().is_empty() { "—" } else { &task.assignee };
-        let title = text(task_title(task)).size(13).wrapping(text::Wrapping::None);
+        let title = text(task_title(task)).size(14).wrapping(text::Wrapping::None);
         let id =
             text(&task.id).size(11).wrapping(text::Wrapping::None).style(settings_muted_text_style);
         let content: Element<'_, M> = if table {
@@ -282,15 +285,15 @@ fn append_rows<'a, M: Clone + From<TaskBoardMessage> + 'a>(
             .into()
         } else {
             row![
-                container(id).width(90).clip(true),
+                container(id).width(82).clip(true),
                 container(title).width(Length::Fill).clip(true),
                 text(format!("P{}", task.priority)).size(11).style(settings_muted_text_style),
                 container(text(assignee).size(12).wrapping(text::Wrapping::None))
-                    .width(94)
+                    .width(88)
                     .clip(true),
             ]
             .spacing(10)
-            .padding([7, 10])
+            .padding([10, 11])
             .align_y(Alignment::Center)
             .into()
         };
@@ -299,6 +302,7 @@ fn append_rows<'a, M: Clone + From<TaskBoardMessage> + 'a>(
             .width(Length::Fill)
             .style(|theme, status| {
                 let mut style = button::text(theme, status);
+                style.border = style.border.rounded(6);
                 style.background = match status {
                     button::Status::Hovered => {
                         Some(theme.palette().primary.scale_alpha(0.06).into())

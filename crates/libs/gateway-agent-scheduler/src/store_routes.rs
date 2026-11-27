@@ -368,9 +368,20 @@ impl<H: GatewayExecutorHost> AgentSchedulerGateway for StoreBackedAgentScheduler
                 Ok(dto)
             })
             .collect::<Result<Vec<_>, ApiError>>()?;
+        let has_cancelled_tasks = tasks.is_empty()
+            && self.store.list_tasks(
+                &project_path,
+                AgentTaskFilter {
+                    status: Some(AgentTaskStatus::Cancelled),
+                    ..Default::default()
+                },
+            ).map_err(map_scheduler_error)?.iter()
+                .any(|task| bool_field(&task.metadata, "task_board.deleted") != Some(true));
         Ok(AgentSchedulerTaskBoardStatusResponse {
             project_id: project_id.into(),
             read_model: AgentSchedulerTaskBoardSnapshotReadModelDto {
+                viewer_id: Some(project_path.scope().project_scope().user_id().as_ref().to_owned()),
+                project_progress: Some(task_board_project_progress(&tasks, has_cancelled_tasks)),
                 workflow: Some(workflow),
                 labels: self.store.load_task_labels(&project_path).map_err(map_scheduler_error)?,
                 properties: self.store.load_task_properties(&project_path).map_err(map_scheduler_error)?,

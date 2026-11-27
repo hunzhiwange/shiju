@@ -268,6 +268,14 @@ pub struct AgentSchedulerTaskBoardTaskReadModelDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assignee: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_by: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at_ms: Option<TimestampMs>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub due_date: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assigned_team: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dispatch_blocker: Option<AgentSchedulerDispatchBlockerDto>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
@@ -315,11 +323,41 @@ pub struct AgentSchedulerTaskBoardStatusResponse {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentSchedulerTaskBoardSnapshotReadModelDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub viewer_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_progress: Option<AgentSchedulerProjectProgress>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workflow: Option<TaskPoolWorkflowSnapshotDto>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub labels: Vec<AgentSchedulerTaskLabelDto>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub properties: Vec<AgentSchedulerTaskPropertyDto>,
+}
+
+/// 项目任务池的当前进度，由网关从任务及工作流状态计算。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentSchedulerProjectProgress {
+    Planned,
+    InProgress,
+    Paused,
+    Completed,
+    Cancelled,
+}
+
+impl AgentSchedulerProjectProgress {
+    pub const ALL: [Self; 5] =
+        [Self::Planned, Self::InProgress, Self::Paused, Self::Completed, Self::Cancelled];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Planned => "planned",
+            Self::InProgress => "in_progress",
+            Self::Paused => "paused",
+            Self::Completed => "completed",
+            Self::Cancelled => "cancelled",
+        }
+    }
 }
 
 impl AgentSchedulerTaskBoardSnapshotReadModelDto {

@@ -82,7 +82,10 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
                 state.reply_menu_open = false;
             }
             if operation == Operation::SaveField {
-                let board_field = matches!(state.editor, Some(Field::Assignee | Field::Priority));
+                let board_field = matches!(
+                    state.editor,
+                    Some(Field::Assignee | Field::Priority | Field::DueDate)
+                );
                 state.editor = None;
                 state.input.clear();
                 if board_field {

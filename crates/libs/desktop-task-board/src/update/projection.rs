@@ -112,11 +112,7 @@ fn apply_agent_scheduler_task_snapshot(
         task.description.clone_from(title);
     }
     task.priority = snapshot.priority;
-    if let Some(assignee) = &snapshot.read_model.assignee {
-        task.assignee.clone_from(assignee);
-    }
-    task.label_ids.clone_from(&snapshot.read_model.label_ids);
-    task.properties.clone_from(&snapshot.read_model.properties);
+    apply_work_item_read_model(task, &snapshot.read_model);
     task.order = runtime_order_no_to_task_order(snapshot.order_no);
     task.model = snapshot.model.clone();
     task.agent = snapshot.agent.clone();
@@ -158,6 +154,21 @@ fn apply_agent_scheduler_task_snapshot(
             task.add_log(message);
         }
     }
+}
+
+fn apply_work_item_read_model(
+    task: &mut Task,
+    read_model: &vw_api_agent_scheduler::AgentSchedulerTaskBoardTaskReadModelDto,
+) {
+    task.assignee = read_model.assignee.clone().unwrap_or_default();
+    task.created_by.clone_from(&read_model.created_by);
+    task.due_date.clone_from(&read_model.due_date);
+    task.assigned_team.clone_from(&read_model.assigned_team);
+    if let Some(created_at_ms) = read_model.created_at_ms {
+        task.created_at_ms = timestamp_ms_to_u64(created_at_ms);
+    }
+    task.label_ids.clone_from(&read_model.label_ids);
+    task.properties.clone_from(&read_model.properties);
 }
 
 fn task_from_agent_scheduler_snapshot(
@@ -249,11 +260,7 @@ pub fn apply_agent_scheduler_status(
         if pending_persistence_task_ids.contains(&task_id)
             && let Some(mut task) = previous_tasks.iter().find(|task| task.id == task_id).cloned()
         {
-            task.label_ids.clone_from(&snapshot.read_model.label_ids);
-            task.properties.clone_from(&snapshot.read_model.properties);
-            if let Some(assignee) = &snapshot.read_model.assignee {
-                task.assignee.clone_from(assignee);
-            }
+            apply_work_item_read_model(&mut task, &snapshot.read_model);
             updated_task_ids.push(task_id);
             updated_tasks.push(task.clone());
             next_tasks.push(task);

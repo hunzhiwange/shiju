@@ -162,6 +162,7 @@ pub fn update_local(
             crate::bulk::prune_bulk_selection(state.tasks, state.selected_tasks);
             *state.create_submit_success = true;
             if *state.clear_prompt_after_create {
+                state.draft.description.clear();
                 state.draft.prompt.clear();
                 *state.prompt_editor = text_editor::Content::new();
             }

@@ -173,7 +173,8 @@ impl App {
         let workbench_active = matches!(self.navigation_tabs.screen, Screen::CliWorkbench | Screen::AppTerminal | Screen::GitWorkbench);
         #[cfg(target_arch = "wasm32")]
         let workbench_active = false;
-        let main_view: Element<'_, Message> = if !workbench_active && self.mobile_layout.mode()
+        let desktop_tab_active = workbench_active || self.navigation_tabs.screen == Screen::TaskBoard;
+        let main_view: Element<'_, Message> = if !desktop_tab_active && self.mobile_layout.mode()
             == crate::app::state::LayoutMode::Mobile
         {
             views::mobile::narrow_view(self)
@@ -241,6 +242,7 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         let root_content = crate::app::cli_workbench::terminal_overlay(self, root_content);
         let root_content = views::task_board::with_create_modal(self, root_content);
+        let root_content = views::task_board::with_search_modal(self, root_content);
 
         // 如果显示了"关于"模态框，则在根内容之上叠加
         let root_content: Element<'_, Message> = if self.navigation_panels.show_about_modal {

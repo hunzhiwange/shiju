@@ -30,7 +30,7 @@ pub(super) fn view<'a>(app: &'a App, task: &'a Task) -> Element<'a, Message> {
     task.id.hash(&mut hasher);
     keyed_column([(
         hasher.finish(),
-        responsive(move |size| layout(app, task, size.width >= 660.0)).into(),
+        responsive(move |size| layout(app, task, size.width >= 640.0)).into(),
     )])
     .width(Length::Fill)
     .height(Length::Fill)
@@ -49,34 +49,48 @@ fn layout<'a>(app: &'a App, task: &'a Task, wide: bool) -> Element<'a, Message> 
             project,
         )
     };
-    let header = row![
+    let mut header = row![
         action(Icon::ArrowLeft, i18n.__("返回"), TaskBoardMessage::CloseTaskLogs),
-        container(
-            row![
-                icon(Icon::FolderClosed),
-                muted(project_name.clone()),
-                icon(Icon::ChevronRight),
-                muted(&task.id)
-            ]
+        container(row![icon(Icon::FolderClosed), muted(project_name.clone())]
             .spacing(7)
-            .align_y(Alignment::Center)
-        )
+            .align_y(Alignment::Center))
         .width(Length::Fill)
         .clip(true),
+    ];
+    if app.task_board.work_viewer_id.is_some() {
+        let subscribed = app.task_board.work_task_subscribed(&task.id);
+        header = header.push(action(
+            Icon::Eye,
+            i18n.__(if subscribed { "取消订阅" } else { "订阅任务" }),
+            TaskBoardMessage::ToggleWorkSubscription(task.id.clone()),
+        ));
+    }
+    let header = header.push(
         button(row![icon(Icon::ArrowClockwise), text(i18n.__("刷新")).size(13)].spacing(6))
             .padding([6, 10])
             .style(rounded_action_btn_style)
             .on_press_maybe(
                 (!app.task_board.detail.write_pending()).then_some(event(Event::Reload))
             ),
-    ]
+    )
     .spacing(10)
     .align_y(Alignment::Center);
-    let header = container(header).padding([8, 12]).width(Length::Fill);
+    let header = container(header)
+        .padding([10, 16])
+        .width(Length::Fill)
+        .style(super::style::sidebar_surface);
 
-    let mut content = column![heading(task_title(task), if wide { 30 } else { 25 }),]
-        .spacing(24)
-        .width(Length::Fill);
+    let identity = row![
+        task_status_marker(task.status),
+        muted(&task.id).wrapping(text::Wrapping::WordOrGlyph),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    let mut content = column![
+        column![identity, heading(task_title(task), if wide { 31 } else { 25 })].spacing(9),
+    ]
+    .spacing(24)
+    .width(Length::Fill);
     if !task.prompt.trim().is_empty() {
         content = content.push(
             column![
@@ -120,18 +134,19 @@ fn layout<'a>(app: &'a App, task: &'a Task, wide: bool) -> Element<'a, Message> 
         .push(activity(app, i18n, task))
         .push(discussion::comments(app, i18n, task));
 
+    let properties_header = heading(i18n.__("属性"), 16);
     let properties = properties(app, task, project, &project_name, workflow.as_ref());
     let composer = discussion::composer(app, i18n, task);
     let body: Element<'_, Message> = if wide {
         row![
             column![
                 scroll(
-                    container(container(content).width(Length::Fill).max_width(820).padding(24))
+                    container(container(content).width(Length::Fill).max_width(780).padding(24))
                         .center_x(Length::Fill)
                 ),
                 container(
                     container(
-                        container(composer).width(Length::Fill).max_width(820).padding([10, 24])
+                        container(composer).width(Length::Fill).max_width(780).padding([10, 24])
                     )
                     .center_x(Length::Fill)
                 )
@@ -141,14 +156,23 @@ fn layout<'a>(app: &'a App, task: &'a Task, wide: bool) -> Element<'a, Message> 
             .width(Length::Fill)
             .height(Length::Fill),
             container(Space::new()).width(1).height(Length::Fill).style(settings_divider_style),
-            container(scroll(container(properties).padding([18, 12]))).width(282),
+            container(column![
+                container(properties_header).padding([15, 19]),
+                settings_divider(),
+                scroll(container(properties).padding([12, 12])),
+            ])
+            .width(256)
+            .height(Length::Fill)
+            .style(super::style::sidebar_surface),
         ]
         .height(Length::Fill)
         .into()
     } else {
         scroll(
-            container(content.push(composer).push(settings_divider()).push(properties))
-                .padding([18, 10]),
+            container(
+                content.push(composer).push(settings_divider()).push(properties_header).push(properties)
+            )
+            .padding([18, 10]),
         )
         .into()
     };
@@ -156,7 +180,6 @@ fn layout<'a>(app: &'a App, task: &'a Task, wide: bool) -> Element<'a, Message> 
     container(column![header, settings_divider(), body].height(Length::Fill))
         .width(Length::Fill)
         .height(Length::Fill)
-        .style(surface)
         .clip(true)
         .into()
 }
@@ -266,7 +289,7 @@ fn activity<'a>(app: &'a App, i18n: I18n, task: &'a Task) -> Element<'a, Message
     entries.into()
 }
 
-fn display_author<'a>(i18n: I18n, id: &'a str) -> &'a str {
+pub(super) fn display_author<'a>(i18n: I18n, id: &'a str) -> &'a str {
     if id == vw_api_transport::id::DEFAULT_USER_ID { i18n.__("本地用户") } else { id }
 }
 
@@ -359,7 +382,11 @@ fn properties<'a>(
     let editable = !task.archived && !task.deleted && !state.write_pending();
     let data = state.data.as_ref();
     let assignee = data.and_then(|detail| detail.assignee.as_deref()).unwrap_or(&task.assignee);
-    let assignee = if assignee.trim().is_empty() { i18n.__("未分配") } else { assignee };
+    let assignee = if assignee.trim().is_empty() {
+        i18n.__("未分配")
+    } else {
+        display_author(i18n, assignee)
+    };
     let priority = data.and_then(|detail| detail.priority).unwrap_or(task.priority);
     let workflow_name =
         workflow.map_or_else(|| "—".into(), |workflow| i18n.__(workflow.label()).to_owned());
@@ -368,7 +395,6 @@ fn properties<'a>(
         .style(rounded_action_btn_style)
         .on_press(Message::View(crate::app::message::ViewMessage::OpenWorkflowManager));
     let mut fields = column![
-        heading(i18n.__("属性"), 16),
         field(i18n.__("状态"), status_picker(i18n, task, workflow)),
         field(i18n.__("负责人"), edit_property(assignee, Field::Assignee, editable)),
         field(i18n.__("项目"), text(project_name.to_owned()).size(13)),
@@ -641,6 +667,16 @@ pub(super) fn with_field_modal<'a>(
             );
             let mut body = column![header, input].spacing(14);
             if field == Field::Assignee {
+                if let Some(viewer) = app.task_board.work_viewer_id.as_ref() {
+                    body = body.push(
+                        button(text(i18n.__("分配给我")).size(13))
+                            .padding([6, 8])
+                            .style(rounded_action_btn_style)
+                            .on_press_maybe(
+                                (!pending).then(|| event(Event::FieldInput(viewer.clone()))),
+                            ),
+                    );
+                }
                 let query = state.input.trim().to_lowercase();
                 let names = app
                     .task_board

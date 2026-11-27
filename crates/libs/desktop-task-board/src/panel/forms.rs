@@ -121,14 +121,25 @@ pub(super) fn build_prompt_field<'a>(app: PanelView<'a>) -> iced::Element<'a, Me
 
 pub(super) fn build_create_form<'a>(app: PanelView<'a>, slots: PanelSlots<'a>) -> Element<'a, Message> {
     use iced::widget::scrollable::{Direction, Scrollbar};
+    use desktop_ui_controls::system_settings_common::{settings_text_editor, settings_text_input};
 
     let i18n = I18n::new(app.desktop_locale);
-    let (editor, _) = composer_editor(app.task_board_prompt_editor);
-    let editor = editor
+    let title = settings_text_input(i18n.__("任务名称"), &app.task_board_draft.description)
+        .id(CREATE_TITLE_INPUT_ID)
+        .width(Length::Fill)
+        .on_input(|title| Message::TaskBoard(TaskBoardMessage::UpdateDraftDescription(title)));
+    let editor = settings_text_editor(app.task_board_prompt_editor)
         .placeholder(i18n.__("输入大模型提示词..."))
-        .height(212)
+        .height(184)
+        .line_height(1.5)
         .on_action(|action| Message::TaskBoard(TaskBoardMessage::PromptEditorAction(action)));
-    let body = scrollable(container(editor).padding([0, 7]).width(Length::Fill))
+    let fields = column![
+        column![input_label(i18n.__("任务名称")), title].spacing(6),
+        column![input_label(i18n.__("任务需求")), editor].spacing(6),
+    ]
+    .spacing(14)
+    .width(Length::Fill);
+    let body = scrollable(container(fields).padding([0, 7]).width(Length::Fill))
         .direction(Direction::Vertical(
             Scrollbar::new().width(4).scroller_width(4),
         ))
@@ -148,9 +159,7 @@ pub(super) fn build_create_form<'a>(app: PanelView<'a>, slots: PanelSlots<'a>) -
             .push(priority),
     )
     .wrap();
-    composer_card(column![body, toolbar].height(Length::Fill), false, None)
-        .padding(iced::Padding::ZERO.top(8))
-        .into()
+    column![body, toolbar].spacing(6).height(Length::Fill).into()
 }
 
 pub(super) fn build_create_footer(app: PanelView<'_>) -> Element<'_, Message> {
@@ -321,6 +330,7 @@ fn build_submit_button(app: PanelView<'_>, is_edit_mode: bool) -> iced::widget::
     let submit_style = if succeeded { button_style_success } else { primary_action_btn_style };
     let enabled = is_edit_mode
         || app.task_board_is_import_mode
+        || !app.task_board_draft.description.trim().is_empty()
         || !app.task_board_draft.prompt.trim().is_empty();
     button(text(I18n::new(app.desktop_locale).__(submit_text)).size(14))
         .on_press_maybe(enabled.then_some(Message::TaskBoard(submit_msg)))

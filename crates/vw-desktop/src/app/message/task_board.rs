@@ -23,6 +23,7 @@ use crate::app::task::{
     Task, TaskStatus,
 };
 
+mod advanced_filter;
 mod helpers;
 mod message;
 mod update;
@@ -33,7 +34,11 @@ pub(crate) use helpers::{
 };
 pub use message::TaskBoardMessage;
 pub(crate) use message::WorktreePoolMaintenanceOutcome;
+pub(crate) use update::{activate_tab, close_tab};
+pub(in crate::app) use work_view_prefs::filter as work_filter_draft;
 pub use update::update;
+
+pub(crate) const TAB_ID: &str = "task_board";
 
 pub(in crate::app) fn attachment_link(input: &str) -> Option<String> {
     let value = input.trim();

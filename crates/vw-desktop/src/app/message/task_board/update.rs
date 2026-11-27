@@ -1,6 +1,7 @@
 //! 任务看板桌面适配：委派局部更新，映射会话、通知、持久化及原生操作效果。
 
-use crate::app::Message;
+use crate::app::message::ViewMessage;
+use crate::app::{App, AppTab, Message, Screen};
 use crate::app::state::{MAIN_AGENT_KEY, TaskBoardDetailTab};
 use desktop_task_board as taskboard;
 
@@ -14,6 +15,60 @@ mod detail_update;
 mod execution_results_update;
 #[path = "update/execution.rs"]
 mod execution_update;
+
+fn open_tab(app: &mut App, project_path: String) -> iced::Task<Message> {
+    let navigation = &mut app.navigation_tabs;
+    if let Some(tab) = navigation.open_tabs.iter_mut().find(|tab| tab.id == TAB_ID) {
+        tab.project_path = Some(project_path);
+    } else {
+        let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
+        navigation.open_tabs.push(AppTab {
+            id: TAB_ID.into(),
+            title: i18n.__("任务池").into(),
+            screen: Screen::TaskBoard,
+            project_path: Some(project_path),
+        });
+    }
+    app.navigation_panels.show_system_settings = false;
+    crate::app::message::view::update(app, ViewMessage::TabSelected(TAB_ID.into()))
+}
+
+pub(crate) fn activate_tab(app: &mut App, project_changed: bool) -> iced::Task<Message> {
+    let Some(path) = app.navigation_tabs.project_path.clone() else {
+        return iced::Task::none();
+    };
+    if project_changed {
+        app.task_board.task_board_settings =
+            desktop_workspace::projects::project_board_settings(
+                &app.workspace_state.recent_projects_meta,
+                &path,
+            );
+    }
+    app.task_board.task_board_loading = true;
+    let preferences = super::work_view_prefs::update(app, &TaskBoardMessage::LoadTasks)
+        .unwrap_or_else(iced::Task::none);
+    iced::Task::batch([
+        preferences,
+        maybe_schedule_worktree_snapshot_refresh(app, true),
+        sync_task_board_gateway_snapshot(path),
+    ])
+}
+
+pub(crate) fn close_tab(app: &mut App) {
+    app.task_board.work_search = None;
+    app.task_board.work_toolbar_menu = None;
+    super::advanced_filter::discard(&mut app.task_board);
+    app.task_board.work_sidebar_menu = None;
+    app.task_board.work_sidebar_views_hovered = false;
+    app.task_board.work_sidebar_hovered_view = None;
+    #[cfg(not(target_arch = "wasm32"))]
+    app.task_quick_actions.board.close();
+    taskboard::update::local::close_board(
+        &mut app.task_board.task_board_worktree_snapshot_loading,
+        &mut app.task_board.task_board_bulk_active_status,
+        &mut app.task_board.task_board_selected_tasks,
+    );
+}
 
 fn task_board_project_matches(app: &crate::app::App, project_path: &str) -> bool {
     taskboard::update::projection::task_board_project_matches(
@@ -80,6 +135,57 @@ pub fn update(
 ) -> iced::Task<crate::app::Message> {
     let message = match message {
         TaskBoardMessage::Detail(event) => return detail_update::update(app, event),
+        TaskBoardMessage::AdvancedWorkFilter(action) => {
+            return super::advanced_filter::update(app, action);
+        }
+        TaskBoardMessage::HoverWorkSidebarViews(hovered) => {
+            app.task_board.work_sidebar_views_hovered = hovered;
+            return iced::Task::none();
+        }
+        TaskBoardMessage::HoverWorkSidebarView(view, hovered) => {
+            let current = &mut app.task_board.work_sidebar_hovered_view;
+            if hovered {
+                *current = Some(view);
+            } else if current.as_ref() == Some(&view) {
+                *current = None;
+            }
+            return iced::Task::none();
+        }
+        TaskBoardMessage::ToggleWorkSidebarView(view) => {
+            let board = &mut app.task_board;
+            let expanded = !board.work_sidebar_view_expanded(&view);
+            board.work_sidebar_view_expansion.insert(view, expanded);
+            return iced::Task::none();
+        }
+        TaskBoardMessage::SearchWorkFilter(query) => {
+            app.task_board.work_filter_query = query;
+            return iced::Task::none();
+        }
+        TaskBoardMessage::SearchWorkFilterValue(query) => {
+            app.task_board.work_filter_value_query = query;
+            return iced::Task::none();
+        }
+        TaskBoardMessage::SelectWorkFilterField(field) => {
+            if app.task_board.work_toolbar_menu == Some(taskboard::work_views::WorkToolbarMenu::Filter)
+                && app.task_board.work_filter_field.as_ref() != Some(&field)
+            {
+                let query = crate::app::views::task_board::inherited_filter_query(app, &field);
+                let board = &mut app.task_board;
+                board.work_filter_field = Some(field);
+                board.work_filter_value_query = query;
+                board.work_date_calendar = None;
+            }
+            return iced::Task::none();
+        }
+        TaskBoardMessage::DismissWorkFilterField(field) => {
+            let board = &mut app.task_board;
+            if board.work_filter_field.as_ref() == Some(&field) {
+                board.work_filter_field = None;
+                board.work_filter_value_query.clear();
+                board.work_date_calendar = None;
+            }
+            return iced::Task::none();
+        }
         message => message,
     };
     if matches!(
@@ -90,11 +196,48 @@ pub fn update(
     ) {
         app.task_board.task_board_model_popover = false;
     }
+    if matches!(&message, TaskBoardMessage::CreateTask) {
+        app.task_board.work_search = None;
+    }
+    if matches!(
+        &message,
+        TaskBoardMessage::CreateTask
+            | TaskBoardMessage::OpenSettingsModal
+            | TaskBoardMessage::OpenTaskDetail { .. }
+            | TaskBoardMessage::EditTask(_)
+            | TaskBoardMessage::CloseBoard
+            | TaskBoardMessage::ToggleWorktreePixelOffice(_)
+    ) {
+        app.task_board.work_toolbar_menu = None;
+        super::advanced_filter::discard(&mut app.task_board);
+    }
+    if matches!(
+        &message,
+        TaskBoardMessage::SetSidebarWorkViewVisible(..)
+            | TaskBoardMessage::OpenTaskDetail { .. }
+            | TaskBoardMessage::ContextMenuOpened { .. }
+            | TaskBoardMessage::ContextMenuClosed
+            | TaskBoardMessage::TaskDeleted(_)
+            | TaskBoardMessage::TaskArchived(_)
+            | TaskBoardMessage::DuplicateTask(_)
+            | TaskBoardMessage::ExecuteTask { .. }
+    ) {
+        app.task_board.work_sidebar_menu = None;
+    }
+    if matches!(&message, TaskBoardMessage::OpenTaskDetail { .. }) {
+        let opened_from_search = app.task_board.work_search.take().is_some();
+        if opened_from_search && app.task_board.task_board_worktree_pixel_office {
+            let board = update(app, TaskBoardMessage::ToggleWorktreePixelOffice(false));
+            let detail = update(app, message);
+            return iced::Task::batch([board, detail]);
+        }
+    }
     if app.task_board.task_board_viewing_logs.is_some()
         && matches!(
             &message,
             TaskBoardMessage::SelectWorkView(_)
                 | TaskBoardMessage::OpenSavedWorkView(_)
+                | TaskBoardMessage::CreateWorkView
                 | TaskBoardMessage::CreateTask
         )
     {
@@ -106,16 +249,45 @@ pub fn update(
         return task;
     }
     match &message {
-        TaskBoardMessage::ShowWorkDisplay(open) => {
-            app.task_board.work_display_open = *open;
-            if *open {
-                app.task_board.task_board_context_menu = None;
+        TaskBoardMessage::ShowWorkToolbarMenu(menu) => {
+            let board = &mut app.task_board;
+            board.work_toolbar_menu = *menu;
+            super::advanced_filter::discard(board);
+            if menu.is_some() {
+                board.task_board_context_menu = None;
+                board.work_sidebar_menu = None;
             }
+            if *menu == Some(taskboard::work_views::WorkToolbarMenu::Filter) {
+                let applied = board.work_filter.clone();
+                super::work_view_prefs::load_filter_draft(board, &applied);
+                board.work_filter_field = None;
+                board.work_filter_query.clear();
+                board.work_filter_value_query.clear();
+                return iced::widget::operation::focus(
+                    crate::app::views::task_board::WORK_FILTER_SEARCH_INPUT_ID,
+                );
+            }
+            return iced::Task::none();
+        }
+        TaskBoardMessage::ShowWorkSidebarMenu(menu) => {
+            app.task_board.work_sidebar_menu.clone_from(menu);
+            if menu.is_some() {
+                app.task_board.task_board_context_menu = None;
+                app.task_board.work_toolbar_menu = None;
+            }
+            return iced::Task::none();
+        }
+        TaskBoardMessage::LoadMoreSidebarWorkTasks(view) => {
+            use taskboard::work_views::SIDEBAR_TASK_PAGE_SIZE;
+            let limit = app.task_board.work_sidebar_task_limits
+                .entry(view.clone())
+                .or_insert(SIDEBAR_TASK_PAGE_SIZE);
+            *limit = limit.saturating_add(SIDEBAR_TASK_PAGE_SIZE);
             return iced::Task::none();
         }
         TaskBoardMessage::SelectWorkDisplayMode(mode) => {
             let board = &mut app.task_board;
-            board.work_display_open = false;
+            board.work_toolbar_menu = None;
             if board.task_board_view_mode != *mode {
                 board.task_board_view_mode = *mode;
                 board.task_board_selected_tasks.clear();
@@ -132,8 +304,15 @@ pub fn update(
             return iced::Task::none();
         }
         TaskBoardMessage::SearchWorkTasks(query) => {
+            let opening = app.task_board.work_search.is_none() && query.is_some();
             app.task_board.work_search.clone_from(query);
-            app.task_board.task_board_selected_tasks.clear();
+            if opening {
+                app.task_board.work_toolbar_menu = None;
+                app.task_board.work_sidebar_menu = None;
+                return iced::widget::operation::focus(
+                    crate::app::views::task_board::SEARCH_INPUT_ID,
+                );
+            }
             return iced::Task::none();
         }
         TaskBoardMessage::SelectDetailTab(tab) if *tab != TaskBoardDetailTab::Logs => {
@@ -241,21 +420,46 @@ pub fn update(
             app.task_board.switch_work_view(*view);
             return iced::Task::none();
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        TaskBoardMessage::OpenFromHome => {
+            let recent = &app.workspace_state.recent_projects;
+            let board_project = app
+                .navigation_tabs
+                .open_tabs
+                .iter()
+                .find(|tab| tab.id == TAB_ID)
+                .and_then(|tab| tab.project_path.as_ref())
+                .filter(|path| recent.contains(path));
+            let project = board_project
+                .into_iter()
+                .chain(recent)
+                .find(|path| std::path::Path::new(path.as_str()).is_dir())
+                .cloned();
+            return match project {
+                Some(path) => update(app, TaskBoardMessage::OpenWorkProject(path)),
+                None => app.show_localized_toast(
+                    crate::app::state::ToastKind::Info,
+                    "请先打开项目",
+                    vec![],
+                ),
+            };
+        }
         TaskBoardMessage::OpenWorkProject(path) => {
             if !std::path::Path::new(path).is_dir() {
                 return app.show_localized_toast(crate::app::state::ToastKind::Error, "项目目录不存在或不可访问", vec![]);
             }
             let task = app.open_project_and_index(path.clone());
-            app.task_board.show_task_board = true;
             app.task_board.switch_work_view(taskboard::work_views::BuiltinWorkView::AllTasks);
-            app.navigation_tabs.screen = crate::app::Screen::TaskBoard;
-            app.task_board.task_board_loading = true;
-            return iced::Task::batch([task, sync_task_board_gateway_snapshot(path.clone()), maybe_schedule_worktree_snapshot_refresh(app, true)]);
+            return iced::Task::batch([task, open_tab(app, path.clone())]);
         }
         TaskBoardMessage::SelectAllTasksInStatus(status) | TaskBoardMessage::InvertTaskSelectionInStatus(status) => {
             let path = app.navigation_tabs.project_path.as_deref().unwrap_or("");
             let ids: Vec<_> = app.task_board.task_board_tasks.iter()
-                .filter(|task| task.status == *status && app.task_board.work_display_task_visible(path, task))
+                .filter(|task| task.status == *status && app.task_board.work_task_visible(
+                    path,
+                    task,
+                    crate::app::views::task_board::configured_work_agent(app, task),
+                ))
                 .map(|task| task.id.clone()).collect();
             for id in ids {
                 if matches!(&message, TaskBoardMessage::SelectAllTasksInStatus(_)) || !app.task_board.task_board_selected_tasks.remove(&id) {
@@ -339,6 +543,10 @@ pub fn update(
         Err(message) => message,
     };
 
+    let focus_create_title = matches!(
+        &message,
+        TaskBoardMessage::CreateTask | TaskBoardMessage::ToggleImportMode(false)
+    );
     let message = match taskboard::update::local::update_local(
         taskboard::update::local::LocalState {
             worktree_pixel_office: &mut app.task_board.task_board_worktree_pixel_office,
@@ -385,7 +593,19 @@ pub fn update(
         message,
         MAIN_AGENT_KEY,
     ) {
-        Ok(effect) => return apply_local_effect(app, effect),
+        Ok(effect) => {
+            let task = apply_local_effect(app, effect);
+            if focus_create_title
+                && app.task_board.task_board_create_modal_open
+                && !app.task_board.task_board_is_import_mode
+            {
+                return iced::Task::batch([
+                    task,
+                    iced::widget::operation::focus(taskboard::panel::CREATE_TITLE_INPUT_ID),
+                ]);
+            }
+            return task;
+        }
         Err(message) => message,
     };
 
@@ -497,54 +717,15 @@ pub fn update(
 
     match message {
         TaskBoardMessage::ToggleBoard => {
-            let board_is_open = app.navigation_tabs.screen == crate::app::Screen::TaskBoard;
-
-            if board_is_open {
-                #[cfg(not(target_arch = "wasm32"))]
-                app.task_quick_actions.board.close();
-                app.task_board.show_task_board = false;
-                app.navigation_tabs.screen = if app.navigation_tabs.project_path.is_some() {
-                    crate::app::Screen::Project
-                } else {
-                    crate::app::Screen::Home
-                };
-                app.task_board.task_board_worktree_snapshot_loading = false;
+            let Some(path) = app.navigation_tabs.project_path.clone() else {
                 return iced::Task::none();
-            }
-
-            if app.navigation_tabs.project_path.is_none() {
-                return iced::Task::none();
-            }
-
-            app.task_board.show_task_board = true;
-            app.navigation_tabs.screen = crate::app::Screen::TaskBoard;
-            if let Some(project_path) = &app.navigation_tabs.project_path {
-                let path: String = project_path.clone();
-                app.task_board.task_board_loading = true;
-                return iced::Task::batch(vec![
-                    maybe_schedule_worktree_snapshot_refresh(app, true),
-                    sync_task_board_gateway_snapshot(path),
-                ]);
-            }
-
-            iced::Task::none()
-        }
-        TaskBoardMessage::CloseBoard => {
-            #[cfg(not(target_arch = "wasm32"))]
-            app.task_quick_actions.board.close();
-            app.task_board.show_task_board = false;
-            app.navigation_tabs.screen = if app.navigation_tabs.project_path.is_some() {
-                crate::app::Screen::Project
-            } else {
-                crate::app::Screen::Home
             };
-            taskboard::update::local::close_board(
-                &mut app.task_board.task_board_worktree_snapshot_loading,
-                &mut app.task_board.task_board_bulk_active_status,
-                &mut app.task_board.task_board_selected_tasks,
-            );
-            iced::Task::none()
+            open_tab(app, path)
         }
+        TaskBoardMessage::CloseBoard => crate::app::message::view::update(
+            app,
+            ViewMessage::TabClosed(TAB_ID.into()),
+        ),
         TaskBoardMessage::LoadTasks => {
             taskboard::helpers::settings::refresh_deadline(
                 &mut app.task_board.task_board_next_refresh_at_ms,
@@ -907,6 +1088,9 @@ pub fn update(
             };
             app.task_board.task_board_workflow_generation = generation;
             let response_project_id = response.project_id.clone();
+            app.task_board.work_viewer_id.clone_from(&response.read_model.viewer_id);
+            app.task_board.work_snapshot_project_id = Some(response_project_id.as_ref().to_owned());
+            app.task_board.work_project_progress = response.read_model.project_progress;
             if generation >= app.task_board.task_labels_generation {
                 app.task_board.task_labels_generation = generation;
                 app.task_board.task_labels.clone_from(&response.read_model.labels);
@@ -1051,9 +1235,10 @@ fn apply_local_effect(
             app.task_board.task_board_draft.label_ids = None;
             app.task_board.task_board_draft.property_changes.clear();
             close_logs_context_menu(app);
+            let mark_read = super::work_view_prefs::mark_task_read(app, &task.id);
             set_viewing_logs(app, Some(task));
             let load = detail_update::open(app);
-            iced::Task::batch([load, apply_local_effect(app, LocalEffect::SyncLogs)])
+            iced::Task::batch([mark_read, load, apply_local_effect(app, LocalEffect::SyncLogs)])
         }
         LocalEffect::SyncLogs => {
             flush_running_task_logs_throttled(app, true, web_time::Instant::now());

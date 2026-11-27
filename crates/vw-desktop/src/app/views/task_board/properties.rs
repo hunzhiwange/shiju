@@ -41,7 +41,7 @@ fn selected_label(i18n: I18n, property: Option<&Property>, id: &str) -> String {
         .map_or_else(|| i18n.__("选项已不存在").into(), |option| option_label(i18n, option))
 }
 
-fn value_label(i18n: I18n, property: Option<&Property>, value: &Value) -> String {
+pub(super) fn value_label(i18n: I18n, property: Option<&Property>, value: &Value) -> String {
     match value {
         Value::SingleSelect(id) => selected_label(i18n, property, id),
         Value::MultiSelect(ids) => {
@@ -378,15 +378,93 @@ pub(super) fn task_editor<'a>(
     )
 }
 
+pub(super) fn filter_property_control<'a>(app: &'a App, property: &'a Property) -> Element<'a, Message> {
+    let i18n = I18n::new(app.general_settings.desktop_locale);
+    let value = app.task_board.work_property_values.get(&property.id);
+    let change = move |value| TaskBoardMessage::WorkViewPropertyChanged(property.id.clone(), value);
+    let clear_message = change(None);
+    column![
+        row![
+            control(i18n, property, value, true, true, change),
+            clear(i18n, clear_message, value.is_some()),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+        unset_choice(app, i18n, &property.id),
+    ]
+    .spacing(5)
+    .into()
+}
+
+pub(super) fn quick_filter_property<'a>(app: &'a App, property: &'a Property) -> Element<'a, Message> {
+    if !property.kind.has_options() {
+        return filter_property_control(app, property);
+    }
+    let i18n = I18n::new(app.general_settings.desktop_locale);
+    let value = app.task_board.work_property_values.get(&property.id);
+    let rows = property.options.iter().map(|option| {
+        let (checked, next) = if property.kind == Kind::MultiSelect {
+            let mut ids = match value {
+                Some(Value::MultiSelect(ids)) => ids.clone(),
+                _ => Vec::new(),
+            };
+            let checked = ids.contains(&option.id);
+            if checked {
+                ids.retain(|id| id != &option.id);
+            } else {
+                ids.push(option.id.clone());
+                ids.sort_unstable();
+            }
+            (checked, (!ids.is_empty()).then_some(Value::MultiSelect(ids)))
+        } else {
+            let checked = matches!(value, Some(Value::SingleSelect(id)) if id == &option.id);
+            (checked, (!checked).then(|| Value::SingleSelect(option.id.clone())))
+        };
+        let marker = if let Some(color) = option_color(property, &option.id) {
+            catalog::color_dot(color, 9.0)
+        } else {
+            catalog::glyph(desktop_assets::assets::Icon::Circle, 10.0).into()
+        };
+        super::work_filter_picker::marked_choice(
+            &option_label(i18n, option),
+            marker,
+            checked,
+            TaskBoardMessage::WorkViewPropertyChanged(property.id.clone(), next),
+        )
+    });
+    let mut options = column(rows).spacing(4);
+    if !property.options.is_empty() {
+        options = options.push(settings_divider());
+    }
+    options.push(unset_choice(app, i18n, &property.id)).into()
+}
+
+fn unset_choice(app: &App, i18n: I18n, id: &str) -> Element<'static, Message> {
+    super::work_filter_picker::filter_choice(
+        text(i18n.__("未设置")).size(13).into(),
+        app.task_board.work_unset_properties.contains(id),
+        TaskBoardMessage::ToggleWorkFilterUnsetProperty(id.to_owned()),
+    )
+}
+
+pub(super) fn filter_value_label(
+    i18n: I18n,
+    property: Option<&Property>,
+    value: Option<&Value>,
+    unset: bool,
+) -> String {
+    match (value, unset) {
+        (Some(value), true) => format!("{} / {}", value_label(i18n, property, value), i18n.__("未设置")),
+        (Some(value), false) => value_label(i18n, property, value),
+        (None, _) => i18n.__("未设置").to_owned(),
+    }
+}
+
 pub(super) fn filter_editor(app: &App) -> Element<'_, Message> {
     let board = &app.task_board;
     let i18n = I18n::new(app.general_settings.desktop_locale);
     let mut fields = column![].spacing(8);
     for property in &board.task_properties {
-        let value = board.work_property_values.get(&property.id);
-        let change =
-            move |value| TaskBoardMessage::WorkViewPropertyChanged(property.id.clone(), value);
-        let clear_message = change(None);
         let name = if property.archived {
             format!("{} · {}", property.name, i18n.__("已归档"))
         } else {
@@ -395,26 +473,23 @@ pub(super) fn filter_editor(app: &App) -> Element<'_, Message> {
         fields = fields.push(
             column![
                 text(name).size(13),
-                row![
-                    control(i18n, property, value, true, true, change),
-                    clear(i18n, clear_message, value.is_some()),
-                ]
-                .spacing(8)
-                .align_y(Alignment::Center),
+                filter_property_control(app, property),
             ]
             .spacing(4),
         );
     }
-    for id in board.work_property_values.keys() {
+    let filtered = board.work_property_values.keys().chain(board.work_unset_properties.iter())
+        .collect::<std::collections::BTreeSet<_>>();
+    for id in filtered {
         if !board.task_properties.iter().any(|property| &property.id == id) {
-            fields = fields.push(
-                row![
-                    text(i18n.__("属性已不存在")).size(13).style(settings_muted_text_style),
-                    clear(i18n, TaskBoardMessage::WorkViewPropertyChanged(id.clone(), None), true),
-                ]
-                .spacing(8)
-                .align_y(Alignment::Center),
-            );
+            let mut field = column![text(i18n.__("属性已不存在")).size(13).style(settings_muted_text_style)].spacing(4);
+            if board.work_property_values.contains_key(id) {
+                field = field.push(clear(i18n, TaskBoardMessage::WorkViewPropertyChanged(id.clone(), None), true));
+            }
+            if board.work_unset_properties.contains(id) {
+                field = field.push(unset_choice(app, i18n, id));
+            }
+            fields = fields.push(field);
         }
     }
     fields.into()
@@ -423,11 +498,15 @@ pub(super) fn filter_editor(app: &App) -> Element<'_, Message> {
 pub(super) fn filter_summary(app: &App) -> Element<'_, Message> {
     let board = &app.task_board;
     let i18n = I18n::new(app.general_settings.desktop_locale);
-    let filters = board.work_filter.properties.iter().map(|(id, value)| {
+    let filter = &board.work_filter;
+    let ids = filter.properties.keys().chain(filter.unset_properties.iter())
+        .collect::<std::collections::BTreeSet<_>>();
+    let filters = ids.into_iter().map(|id| {
         let property = board.task_properties.iter().find(|property| &property.id == id);
         let name =
             property.map_or(i18n.__("属性已不存在"), |property| property.name.as_str());
-        text(format!("{name} · {}", value_label(i18n, property, value))).size(12).into()
+        let label = filter_value_label(i18n, property, filter.properties.get(id), filter.unset_properties.contains(id));
+        text(format!("{name} · {label}")).size(12).into()
     });
     row(filters).spacing(8).wrap().into()
 }

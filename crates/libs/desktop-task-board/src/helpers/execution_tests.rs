@@ -148,6 +148,12 @@ fn scheduler_create_request_uses_prompt_title_and_saturates_timestamp() {
     assert_eq!(request.meta_uri, "task-board/request-task/meta.json");
     assert_eq!(request.created_at_ms.0, i64::MAX);
 
+    task.description = "处理中文标题".into();
+    let titled = super::agent_scheduler_create_task_request(&task, "");
+    assert_eq!(titled.title, "处理中文标题");
+    assert_eq!(titled.metadata["prompt"].as_str(), Some(task.prompt.as_str()));
+
+    task.description.clear();
     task.prompt = " \n\t".to_string();
     let fallback = super::agent_scheduler_create_task_request(&task, "unknown-workflow");
     assert_eq!(fallback.title, "request-task");

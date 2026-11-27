@@ -1,4 +1,4 @@
-use iced::widget::{column, container, scrollable, stack};
+use iced::widget::{column, container, row, scrollable, stack};
 use iced::{Element, Length, Theme};
 use desktop_ui_controls::system_settings_common::{
     panels::settings_right_drawer_overlay, settings_modal_overlay,
@@ -12,6 +12,7 @@ pub struct PageView {
 }
 
 struct PageSlots<'a, M> {
+    navigation: Option<Element<'a, M>>,
     header: Element<'a, M>,
     board: Option<Element<'a, M>>,
     drag: Element<'a, M>,
@@ -28,7 +29,7 @@ fn build_view<'a, M: Clone + 'static>(app: PageView, slots: PageSlots<'a, M>) ->
         column![header].spacing(0).width(Length::Fill).height(Length::Fill)
     } else {
         let kanban = slots.board.expect("visible board slot");
-        column![header, iced::widget::Space::new().height(12.0), kanban]
+        column![header, kanban]
             .spacing(0)
             .width(Length::Fill)
             .height(Length::Fill)
@@ -48,13 +49,15 @@ fn build_view<'a, M: Clone + 'static>(app: PageView, slots: PageSlots<'a, M>) ->
         content.into()
     };
 
+    let main_surface = row(slots.navigation.into_iter().chain([main_surface]))
+        .width(Length::Fill)
+        .height(Length::Fill);
     let main_mouse_area = iced::widget::mouse_area(main_surface)
         .on_press(slots.context_closed);
 
     let base = container(main_mouse_area)
         .width(Length::Fill)
         .height(Length::Fill)
-        .padding(16)
         .style(task_board_container_style);
 
     let base = stack![base, slots.drag].into();
@@ -88,6 +91,7 @@ fn task_board_container_style(theme: &Theme) -> container::Style {
 
 /// Lazy content factories keep page assembly in the domain.
 pub struct PageBuilders<'a, M> {
+    pub navigation: Option<Element<'a, M>>,
     pub header: Box<dyn Fn() -> Element<'a, M> + 'a>,
     pub board: Box<dyn Fn() -> Element<'a, M> + 'a>,
     pub drag: Box<dyn Fn() -> Element<'a, M> + 'a>,
@@ -99,6 +103,7 @@ pub struct PageBuilders<'a, M> {
 }
 pub fn assemble<'a, M: Clone + 'static>(input: PageView, builders: PageBuilders<'a, M>) -> Element<'a, M> {
     build_view(input, PageSlots {
+        navigation: builders.navigation,
         header: (builders.header)(),
         board: (!input.task_board_worktree_pixel_office).then(|| (builders.board)()),
         drag: (builders.drag)(),

@@ -170,6 +170,7 @@ pub(super) fn page(app: &PanelFixture) -> iced::Element<'_, crate::panel::PanelM
     let base = assemble(
         input,
         PageBuilders {
+            navigation: None,
             header: Box::new(|| {
                 crate::control::build_control_buttons(&crate::control::ControlView {
                     desktop_locale: app.desktop_locale,

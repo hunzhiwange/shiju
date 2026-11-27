@@ -25,7 +25,11 @@ pub fn resplit_legacy_task(source: Task, queued_status: TaskStatus) -> Task {
 }
 
 pub fn task_from_draft(draft: &TaskDraft, initial_status: TaskStatus, main_agent_key: &str) -> Option<Task> {
-    if draft.prompt.trim().is_empty() { return None; }
+    let title = draft.description.trim();
+    let prompt = if draft.prompt.trim().is_empty() { title } else { draft.prompt.as_str() };
+    if prompt.is_empty() {
+        return None;
+    }
     let priority = draft.priority.parse().unwrap_or(999);
     let auto_promote_delay_seconds: u64 =
         draft.auto_promote_delay_seconds.parse().unwrap_or(0);
@@ -39,7 +43,8 @@ pub fn task_from_draft(draft: &TaskDraft, initial_status: TaskStatus, main_agent
         draft.agent.clone().or_else(|| Some(main_agent_key.to_string()));
     set_task_executor_selection(&mut task, draft.acp_agent.clone());
     task.reasoning_effort = draft.reasoning_effort;
-    task.prompt = draft.prompt.clone();
+    task.description = title.to_owned();
+    task.prompt = prompt.to_owned();
     task.auto_promote_delay_ms =
         if auto_promote_delay_ms > 0 { Some(auto_promote_delay_ms) } else { None };
     Some(task)

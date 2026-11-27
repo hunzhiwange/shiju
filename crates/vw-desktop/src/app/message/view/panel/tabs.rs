@@ -1,5 +1,5 @@
 use super::ViewMessage;
-use crate::app::message::ProjectMessage;
+use crate::app::message::{ProjectMessage, task_board};
 use crate::app::{App, FocusArea, Message, Screen};
 use desktop_navigation::panel::tabs as domain;
 use iced::Task;
@@ -19,12 +19,29 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         domain::Message::TabClosed(id) => app.navigation_tabs.active_tab_id.as_ref() == Some(id),
         _ => false,
     };
+    let was_task_board = app.navigation_tabs.screen == Screen::TaskBoard;
+    let closes_task_board =
+        matches!(&local, domain::Message::TabClosed(id) if id == task_board::TAB_ID);
     let update = domain::update(
         &mut app.navigation_tabs,
         &mut app.navigation_mode.code_projects_menu_open,
         &mut app.navigation_panels,
         local,
     );
+    let task_board_active = app.navigation_tabs.screen == Screen::TaskBoard;
+    if was_task_board || task_board_active || closes_task_board {
+        app.task_board.show_task_board = task_board_active;
+    }
+    if closes_task_board {
+        task_board::close_tab(app);
+    }
+    let task_board_project_changed = match &update.effect {
+        Some(
+            domain::Effect::TabSelected { previous_project_path, .. }
+            | domain::Effect::TabClosed { previous_project_path },
+        ) => previous_project_path != &app.navigation_tabs.project_path,
+        _ => false,
+    };
     if selects_tab
         && app.navigation_tabs.screen == Screen::Preview
         && let Some(path) = app.navigation_tabs.active_preview_path.clone()
@@ -141,6 +158,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         _ => Task::none(),
     };
+    if selects_tab && task_board_active {
+        return Task::batch([
+            task,
+            effect,
+            task_board::activate_tab(app, task_board_project_changed),
+        ]);
+    }
     #[cfg(not(target_arch = "wasm32"))]
     if selects_tab && app.navigation_tabs.screen == Screen::GitWorkbench {
         return Task::batch([task, effect, crate::app::git_workbench::activate(app)]);

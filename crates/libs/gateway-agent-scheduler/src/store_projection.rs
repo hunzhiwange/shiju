@@ -294,9 +294,17 @@ pub(super) fn task_board_task_read_model(
     metadata: &Value,
     status_key: &str,
 ) -> AgentSchedulerTaskBoardTaskReadModelDto {
+    let assignee = metadata.get("assignee").and_then(Value::as_str).map(str::to_owned)
+        .or_else(|| task.assigned_to.as_ref().map(|assignee| assignee.as_str().to_owned()));
     AgentSchedulerTaskBoardTaskReadModelDto {
-        assignee: metadata.get("assignee").and_then(Value::as_str).map(str::to_owned)
-            .or_else(|| task.assigned_to.as_ref().map(|assignee| assignee.as_str().to_owned())),
+        assigned_team: task.team_id.iter().chain(task.delegated_to_team.iter())
+            .find(|team| Some(team.as_str()) == assignee.as_deref())
+            .map(|team| team.as_str().to_owned()),
+        assignee,
+        created_by: string_field(metadata, task_scheduler::task_board::detail::CREATOR_KEY),
+        created_at_ms: Some(task.created_at_ms),
+        due_date: metadata.get(task_scheduler::task_board::detail::COLLABORATION_KEY)
+            .and_then(|collaboration| string_field(collaboration, "due_date")),
         dispatch_blocker: None,
         title: Some(task.title.clone()),
         workflow_id: string_field(metadata, "task_board.workflow_id"),
@@ -314,6 +322,41 @@ pub(super) fn task_board_task_read_model(
         properties: metadata.get(TASK_PROPERTY_VALUES_METADATA_KEY)
             .and_then(|value| serde_json::from_value(value.clone()).ok())
             .unwrap_or_default(),
+    }
+}
+
+pub(super) fn task_board_project_progress(
+    tasks: &[AgentSchedulerTaskBoardTaskDto],
+    has_cancelled_tasks: bool,
+) -> vw_api_agent_scheduler::AgentSchedulerProjectProgress {
+    use vw_api_agent_scheduler::AgentSchedulerProjectProgress as Progress;
+    use vw_api_agent_scheduler::AgentTaskStatusDto as Status;
+    use vw_api_task::TaskPoolWorkflowStatusCategoryDto as Category;
+
+    let mut completed = false;
+    let mut paused = false;
+    let mut planned = false;
+    let mut cancelled = has_cancelled_tasks;
+    for task in tasks {
+        match (task.read_model.status_category, task.status.as_ref()) {
+            (Some(Category::Done), _) | (None, Some(Status::Completed)) => completed = true,
+            (Some(Category::Closed), _) | (_, Some(Status::Cancelled)) => cancelled = true,
+            (_, Some(Status::Paused | Status::Blocked | Status::Failed)) => paused = true,
+            (Some(Category::Started), _)
+            | (_, Some(Status::Assigned | Status::Dispatched | Status::Acknowledged
+                | Status::Active | Status::Running | Status::Submitted | Status::Revision)) => {
+                return Progress::InProgress;
+            }
+            _ => planned = true,
+        }
+    }
+    match (paused, planned, completed, cancelled) {
+        (true, _, _, _) => Progress::Paused,
+        (false, true, true, _) => Progress::InProgress,
+        (false, true, false, _) => Progress::Planned,
+        (false, false, true, _) => Progress::Completed,
+        (false, false, false, true) => Progress::Cancelled,
+        _ => Progress::Planned,
     }
 }
 

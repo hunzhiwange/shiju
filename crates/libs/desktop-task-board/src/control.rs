@@ -6,6 +6,7 @@ use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Color, Element, Length, Padding, Theme};
 
 use desktop_ui_controls::system_settings_common::{
+    select::{menu_card_style, menu_option_style},
     settings_muted_text_style, settings_segment_button_style,
 };
 use crate::message::TaskBoardMessage;
@@ -83,7 +84,6 @@ pub fn build_control_buttons<'a>(app: &ControlView<'a>) -> Element<'a, Message> 
         )
         .padding([6, 10])
         .style(move |theme, status| settings_segment_button_style(theme, status, office_selected));
-    let view_switch = row![board_btn, office_btn].spacing(4).align_y(Alignment::Center);
 
     let settings_btn =
         button(text(desktop_i18n::I18n::new(app.desktop_locale).__("看板设置")).size(12))
@@ -144,6 +144,34 @@ pub fn build_control_buttons<'a>(app: &ControlView<'a>) -> Element<'a, Message> 
             .padding([6, 12])
             .style(button_style_secondary);
 
+    if !office_selected {
+        let option_style = |theme: &Theme, status| {
+            let mut style = menu_option_style(theme, status, false);
+            if status == button::Status::Disabled {
+                style.text_color = theme.palette().text.scale_alpha(0.55);
+            }
+            style
+        };
+        return container(
+            column![
+                container(
+                    row![scheduler_chip, exec_btn].spacing(8).align_y(Alignment::Center).wrap()
+                )
+                .padding([4, 5]),
+                refresh_btn.width(Length::Fill).padding([7, 10]).style(option_style),
+                archive_completed_btn.width(Length::Fill).padding([7, 10]).style(option_style),
+                settings_btn.width(Length::Fill).padding([7, 10]).style(option_style),
+                office_btn.width(Length::Fill).padding([7, 10]).style(option_style),
+            ]
+            .spacing(2),
+        )
+        .width(274)
+        .padding(6)
+        .style(menu_card_style)
+        .into();
+    }
+
+    let view_switch = row![board_btn, office_btn].spacing(4).align_y(Alignment::Center);
     let mut summary_row =
         row![scheduler_chip, completed_chip].spacing(8).align_y(Alignment::Center);
     if office_selected && app.task_board_worktree_slot_recycle_in_flight {

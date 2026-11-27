@@ -8,6 +8,10 @@ pub(super) fn register_icons(m: &mut HashMap<Icon, svg::Handle>) {
         Icon::Save,
         svg::Handle::from_memory(include_bytes!("../../../../../assets/icons/bootstrap/save.svg")),
     );
+    m.insert(
+        Icon::Play,
+        svg::Handle::from_memory(include_bytes!("../../../../../assets/icons/bootstrap/play.svg")),
+    );
 
     // 撤销操作图标（逆时针箭头）
     m.insert(
@@ -47,6 +51,16 @@ pub(super) fn register_icons(m: &mut HashMap<Icon, svg::Handle>) {
     m.insert(
         Icon::Person,
         svg::Handle::from_memory(include_bytes!("../../../../../assets/icons/bootstrap/person.svg")),
+    );
+    m.insert(
+        Icon::PersonCircle,
+        svg::Handle::from_memory(include_bytes!(
+            "../../../../../assets/icons/bootstrap/person-circle.svg"
+        )),
+    );
+    m.insert(
+        Icon::Bell,
+        svg::Handle::from_memory(include_bytes!("../../../../../assets/icons/bootstrap/bell.svg")),
     );
 
     // 橡皮擦/清除图标
@@ -124,6 +138,12 @@ pub(super) fn register_icons(m: &mut HashMap<Icon, svg::Handle>) {
         Icon::Clipboard,
         svg::Handle::from_memory(include_bytes!(
             "../../../../../assets/icons/bootstrap/clipboard.svg"
+        )),
+    );
+    m.insert(
+        Icon::ClipboardCheck,
+        svg::Handle::from_memory(include_bytes!(
+            "../../../../../assets/icons/bootstrap/clipboard-check.svg"
         )),
     );
 

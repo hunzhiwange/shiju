@@ -21,12 +21,15 @@ fn register_icons_inserts_every_action_icon_without_clearing_existing_entries() 
 
     for icon in [
         Icon::Save,
+        Icon::Play,
         Icon::ArrowCounterClockwise,
         Icon::ArrowClockwise,
         Icon::Search,
         Icon::Replace,
         Icon::Robot,
         Icon::Person,
+        Icon::PersonCircle,
+        Icon::Bell,
         Icon::Eraser,
         Icon::ArrowRepeat,
         Icon::X,
@@ -37,6 +40,7 @@ fn register_icons_inserts_every_action_icon_without_clearing_existing_entries() 
         Icon::SymmetryVertical,
         Icon::ChevronUp,
         Icon::Clipboard,
+        Icon::ClipboardCheck,
         Icon::Check,
         Icon::CheckSquare,
     ] {
@@ -44,5 +48,5 @@ fn register_icons_inserts_every_action_icon_without_clearing_existing_entries() 
     }
 
     assert!(icons.contains_key(&sentinel));
-    assert_eq!(icons.len(), 20);
+    assert_eq!(icons.len(), 24);
 }

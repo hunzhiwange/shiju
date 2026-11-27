@@ -163,6 +163,8 @@ pub enum Icon {
     BorderStyle,
     /// 保存图标
     Save,
+    /// 播放图标
+    Play,
     /// 逆时针箭头/撤销图标
     ArrowCounterClockwise,
     /// 顺时针箭头/重做图标
@@ -177,6 +179,10 @@ pub enum Icon {
     Robot,
     /// 单人图标
     Person,
+    /// 圆形头像
+    PersonCircle,
+    /// 铃铛/订阅图标
+    Bell,
     /// 循环箭头/刷新图标
     ArrowRepeat,
     /// X/关闭图标
@@ -195,6 +201,8 @@ pub enum Icon {
     ChevronUp,
     /// 剪贴板图标
     Clipboard,
+    /// 带勾选的剪贴板图标
+    ClipboardCheck,
     /// 勾选/完成图标
     Check,
     /// 问号圆圈/帮助图标

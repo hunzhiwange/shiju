@@ -10,6 +10,7 @@ mod styles;
 mod tests;
 
 pub use label::Label as SettingsSelectLabel;
+pub use styles::{card as menu_card_style, option as menu_option_style};
 
 use super::utils::SETTINGS_CONTROL_HEIGHT;
 use super::utils::SETTINGS_CONTROL_TEXT_SIZE;

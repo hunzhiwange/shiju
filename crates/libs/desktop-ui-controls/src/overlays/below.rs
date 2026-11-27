@@ -1,6 +1,9 @@
 use iced::advanced::{Clipboard, Layout, Shell, Widget, layout, mouse, overlay, renderer, widget};
+use iced::keyboard::Key;
 use iced::{Element, Length};
 use iced::{Event, Point, Rectangle, Size, Theme, Vector};
+
+type KeyHandler<'a, Message> = dyn Fn(&Key) -> Option<Message> + 'a;
 
 fn available_space_below(target_bounds: Rectangle, viewport: Rectangle, gap: f32) -> f32 {
     (viewport.y + viewport.height) - (target_bounds.y + target_bounds.height + gap)
@@ -63,6 +66,8 @@ pub struct BelowOverlay<'a, Message, ThemeT = Theme, RendererT = iced::Renderer>
     capture_outside_click: bool,
     dismiss_on_escape: bool,
     align_right: bool,
+    prefer_above: bool,
+    key_handler: Option<Box<KeyHandler<'a, Message>>>,
 }
 
 impl<'a, Message, ThemeT, RendererT> BelowOverlay<'a, Message, ThemeT, RendererT> {
@@ -81,6 +86,8 @@ impl<'a, Message, ThemeT, RendererT> BelowOverlay<'a, Message, ThemeT, RendererT
             capture_outside_click: true,
             dismiss_on_escape: false,
             align_right: false,
+            prefer_above: false,
+            key_handler: None,
         }
     }
 
@@ -104,8 +111,20 @@ impl<'a, Message, ThemeT, RendererT> BelowOverlay<'a, Message, ThemeT, RendererT
         self
     }
 
+    /// Consume a key press when the handler produces a message.
+    pub fn on_key_press(mut self, handler: impl Fn(&Key) -> Option<Message> + 'a) -> Self {
+        self.key_handler = Some(Box::new(handler));
+        self
+    }
+
     pub fn align_right(mut self, align: bool) -> Self {
         self.align_right = align;
+        self
+    }
+
+    /// Prefer the space above the anchor when the overlay fits there.
+    pub fn prefer_above(mut self) -> Self {
+        self.prefer_above = true;
         self
     }
 
@@ -271,6 +290,8 @@ where
                 capture_outside_click: self.capture_outside_click,
                 dismiss_on_escape: self.dismiss_on_escape,
                 align_right: self.align_right,
+                prefer_above: self.prefer_above,
+                key_handler: self.key_handler.as_deref(),
             })))
         } else {
             None
@@ -311,6 +332,8 @@ struct BelowOverlayElement<'a, 'b, Message, ThemeT, RendererT> {
     capture_outside_click: bool,
     dismiss_on_escape: bool,
     align_right: bool,
+    prefer_above: bool,
+    key_handler: Option<&'b KeyHandler<'a, Message>>,
 }
 
 impl<Message, ThemeT, RendererT> overlay::Overlay<Message, ThemeT, RendererT>
@@ -350,14 +373,17 @@ where
             &layout::Limits::new(Size::ZERO, Size::new(viewport.width, natural_max_h)),
         );
 
-        let place_above = should_place_overlay_above(
-            self.target_bounds,
-            placement_bounds,
-            node.size().height,
-            self.gap,
-        );
+        let place_above = (self.prefer_above
+            && node.size().height
+                <= available_space_above(self.target_bounds, placement_bounds, self.gap))
+            || should_place_overlay_above(
+                self.target_bounds,
+                placement_bounds,
+                node.size().height,
+                self.gap,
+            );
 
-        if self.snap_within_viewport && !self.use_window_bounds {
+        if self.snap_within_viewport && (!self.use_window_bounds || self.prefer_above) {
             let available_height = if place_above {
                 available_space_above(self.target_bounds, placement_bounds, self.gap)
             } else {
@@ -425,6 +451,13 @@ where
             && let Some(close) = &self.on_close
         {
             shell.publish(close.clone());
+            shell.capture_event();
+            return;
+        }
+        if let Event::Keyboard(iced::keyboard::Event::KeyPressed { key, .. }) = event
+            && let Some(message) = self.key_handler.and_then(|handler| handler(key))
+        {
+            shell.publish(message);
             shell.capture_event();
             return;
         }

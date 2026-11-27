@@ -44,7 +44,11 @@ pub(super) fn trigger(
 }
 
 pub(super) fn toolbar_trigger(
-    theme: &Theme, enabled: bool, open: bool, focused: bool, hovered: bool,
+    theme: &Theme,
+    enabled: bool,
+    open: bool,
+    focused: bool,
+    hovered: bool,
 ) -> (Border, iced::Background) {
     let ink = theme.palette().text;
     let background = if enabled && (open || focused) {
@@ -57,7 +61,8 @@ pub(super) fn toolbar_trigger(
     (iced::border::rounded(7), background.into())
 }
 
-pub(super) fn card(theme: &Theme) -> container::Style {
+/// Panel style used by the shared Select and anchored menus with custom contents.
+pub fn card(theme: &Theme) -> container::Style {
     let style = settings_pick_list_menu_style(theme);
     container::Style {
         background: Some(theme.extended_palette().background.base.color.into()),
@@ -67,7 +72,8 @@ pub(super) fn card(theme: &Theme) -> container::Style {
     }
 }
 
-pub(super) fn option(theme: &Theme, status: button::Status, keyboard: bool) -> button::Style {
+/// Row style used by the shared Select and anchored menus with custom contents.
+pub fn option(theme: &Theme, status: button::Status, keyboard: bool) -> button::Style {
     let highlighted =
         keyboard || matches!(status, button::Status::Hovered | button::Status::Pressed);
     button::Style {

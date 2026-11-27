@@ -137,6 +137,16 @@ impl<Message> Widget<Message, Theme, Renderer> for SingleLineLabel {
         ))
     }
 
+    fn operate(
+        &mut self,
+        _tree: &mut widget::Tree,
+        layout: Layout<'_>,
+        _renderer: &Renderer,
+        operation: &mut dyn widget::Operation,
+    ) {
+        operation.text(None, layout.bounds(), &self.value);
+    }
+
     fn draw(
         &self,
         tree: &widget::Tree,

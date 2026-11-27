@@ -20,17 +20,25 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
         .map(|event| {
             use desktop_navigation::views::home::{Message as Home, header, recent};
             match event {
-                Home::Header(header::Message::OpenFolderPressed)
-                | Home::Recent(recent::Message::OpenFolderPressed) =>
+                Home::Header(header::Message::OpenFolderPressed) =>
                     Message::Project(message::ProjectMessage::OpenFolderPressed),
                 Home::Header(header::Message::OpenProjectPressed) =>
                     Message::Project(message::ProjectMessage::OpenProjectPressed),
-                Home::Header(header::Message::OpenCron) =>
+                Home::Header(header::Message::OpenProjects) =>
+                    Message::View(message::ViewMessage::OpenProjects),
+                Home::Recent(recent::Message::OpenCron) =>
                     Message::View(message::ViewMessage::OpenCron),
                 Home::Header(header::Message::OpenApps) =>
                     Message::View(message::ViewMessage::OpenApps),
                 Home::Recent(recent::Message::OpenThirdPartyAgents) =>
                     Message::View(message::ViewMessage::OpenThirdPartyAgents),
+                Home::Recent(recent::Message::OpenAgentSettings) =>
+                    Message::View(message::ViewMessage::OpenSystemSettingsTab(
+                        crate::app::components::system_settings::SystemTab::Agents,
+                    )),
+                #[cfg(not(target_arch = "wasm32"))]
+                Home::Recent(recent::Message::OpenTaskPool) =>
+                    Message::TaskBoard(message::TaskBoardMessage::OpenFromHome),
                 #[cfg(not(target_arch = "wasm32"))]
                 Home::Recent(recent::Message::OpenCliWorkbench) =>
                     Message::CliWorkbench(crate::app::cli_workbench::Event::Open {
@@ -41,16 +49,17 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
                 Home::Recent(recent::Message::OpenGitWorkbench) =>
                     Message::GitWorkbench(crate::app::git_workbench::Event::Open),
                 #[cfg(not(target_arch = "wasm32"))]
-                Home::Header(header::Message::OpenShijuSkills) =>
+                Home::Header(header::Message::OpenShijuSkills)
+                | Home::Recent(recent::Message::OpenShijuSkills) =>
                     Message::SkillHub(message::SkillHubMessage::OpenShijuSkills),
                 #[cfg(not(target_arch = "wasm32"))]
-                Home::Header(header::Message::OpenShijuApps) =>
+                Home::Recent(recent::Message::OpenShijuApps) =>
                     Message::ShijuApps(message::ShijuAppsMessage::Open),
                 #[cfg(not(target_arch = "wasm32"))]
                 Home::Header(header::Message::OpenShijuKnowledge) =>
                     Message::SkillHub(message::SkillHubMessage::SelectSection(ExpertHubSection::Knowledge)),
                 #[cfg(not(target_arch = "wasm32"))]
-                Home::Header(header::Message::OpenDigitalEmployees) =>
+                Home::Recent(recent::Message::OpenDigitalEmployees) =>
                     Message::DigitalEmployees(crate::app::digital_employees::Event::Open),
                 #[cfg(not(target_arch = "wasm32"))]
                 Home::Header(header::Message::OpenExperts) =>

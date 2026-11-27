@@ -14,16 +14,12 @@ use desktop_ui_controls::system_settings_common::settings_panel_style;
 pub enum Message {
     OpenFolderPressed,
     OpenProjectPressed,
+    OpenProjects,
     OpenApps,
-    OpenCron,
     #[cfg(not(target_arch = "wasm32"))]
     OpenShijuSkills,
     #[cfg(not(target_arch = "wasm32"))]
-    OpenShijuApps,
-    #[cfg(not(target_arch = "wasm32"))]
     OpenShijuKnowledge,
-    #[cfg(not(target_arch = "wasm32"))]
-    OpenDigitalEmployees,
     #[cfg(not(target_arch = "wasm32"))]
     OpenExperts,
     #[cfg(not(target_arch = "wasm32"))]
@@ -48,10 +44,10 @@ use super::common::{icon_svg, is_dark_theme, primary_button, secondary_button};
 pub fn render(i18n: desktop_i18n::I18n, scroll_id: iced::widget::Id) -> Element<'static, Message> {
     let choose = primary_button(i18n.__("选择文件夹"), Message::OpenFolderPressed);
     let open = secondary_button(i18n.__("打开最近的项目"), Message::OpenProjectPressed);
+    let manage = secondary_button(i18n.__("项目管理"), Message::OpenProjects);
 
     let switches_row = row![
         app_chip(Icon::Grid1x2, i18n.__("应用中心"), iced::color!(0x3585d6), Message::OpenApps),
-        app_chip(Icon::Clock, i18n.__("定时任务"), iced::color!(0xc26420), Message::OpenCron),
     ]
     .spacing(6)
     .align_y(Alignment::Center);
@@ -60,18 +56,11 @@ pub fn render(i18n: desktop_i18n::I18n, scroll_id: iced::widget::Id) -> Element<
     let switches_row = switches_row.extend(
         [
             (Icon::Star, i18n.__("识矩技能"), iced::color!(0xab780a), Message::OpenShijuSkills),
-            (Icon::Box, i18n.__("识矩应用"), iced::color!(0x845ad5), Message::OpenShijuApps),
             (
                 Icon::Journals,
                 i18n.__("识矩知识库"),
                 iced::color!(0x158ea5),
                 Message::OpenShijuKnowledge,
-            ),
-            (
-                Icon::Robot,
-                i18n.__("数字员工"),
-                iced::color!(0xc54b84),
-                Message::OpenDigitalEmployees,
             ),
             (Icon::Person, i18n.__("专家"), iced::color!(0x545acc), Message::OpenExperts),
             (Icon::Wrench, i18n.__("技能"), iced::color!(0x2b8877), Message::OpenSkills),
@@ -94,7 +83,7 @@ pub fn render(i18n: desktop_i18n::I18n, scroll_id: iced::widget::Id) -> Element<
         row![
             row![text(i18n.__("应用")).size(18)].spacing(4).align_y(Alignment::Center),
             container(switches).width(Length::Fill).center_x(Length::Fill),
-            row![open, choose].spacing(10).align_y(Alignment::Center),
+            row![open, choose, manage].spacing(10).align_y(Alignment::Center),
         ]
         .spacing(16)
         .align_y(Alignment::Center),

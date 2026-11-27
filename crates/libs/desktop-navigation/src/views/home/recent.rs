@@ -15,20 +15,31 @@ use desktop_workspace::project_message::edit_meta::RecentProjectMeta;
 
 use super::common::{
     home_cjk_emphasis_font, home_emphasis_font, icon_svg, is_dark_theme, parse_hex_color,
-    primary_button, project_accent_color, project_avatar, secondary_button,
+    project_accent_color, project_avatar,
 };
 
-const SHORTCUT_ICON_SIZE: f32 = 94.0;
+const WORKSPACE_ICON_SIZE: f32 = 94.0;
+const APP_ICON_SIZE: f32 = 36.0;
+const SHORTCUT_COLUMN_SPACING: f32 = 12.0;
 const TWO_COLUMN_MIN_WINDOW_WIDTH: f32 = 588.0;
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    OpenFolderPressed,
     #[cfg(not(target_arch = "wasm32"))]
     OpenCliWorkbench,
     #[cfg(not(target_arch = "wasm32"))]
     OpenGitWorkbench,
     OpenThirdPartyAgents,
+    OpenAgentSettings,
+    OpenCron,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenTaskPool,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenShijuSkills,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenShijuApps,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenDigitalEmployees,
     OpenRecentPressed(String),
 }
 
@@ -63,7 +74,7 @@ pub fn render_body<'a>(app: &State<'_>) -> Element<'a, Message> {
         render_recent_projects_body(app, i18n)
     };
     let section =
-        column![render_shortcuts(i18n, app.window_width), recent].spacing(18).width(Length::Fill);
+        column![render_shortcuts(i18n, app), recent].spacing(18).width(Length::Fill);
 
     scrollable(container(section).padding([18, 16]).width(Length::Fill))
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
@@ -71,83 +82,188 @@ pub fn render_body<'a>(app: &State<'_>) -> Element<'a, Message> {
         .into()
 }
 
-fn render_shortcuts(i18n: I18n, window_width: f32) -> Element<'static, Message> {
-    let columns = if window_width < TWO_COLUMN_MIN_WINDOW_WIDTH {
-        1
-    } else if cfg!(not(target_arch = "wasm32")) && window_width >= 1152.0 {
+fn render_shortcuts(i18n: I18n, app: &State<'_>) -> Element<'static, Message> {
+    let window_width = app.window_width;
+    let columns = if cfg!(not(target_arch = "wasm32")) && window_width >= 960.0 {
         4
-    } else {
+    } else if window_width >= TWO_COLUMN_MIN_WINDOW_WIDTH {
         2
+    } else {
+        1
     };
     let logo = Image::new(assets::get_image(Icon::Logo))
-        .width(SHORTCUT_ICON_SIZE)
-        .height(SHORTCUT_ICON_SIZE);
-    let shortcuts =
-        Grid::new().columns(columns).spacing(12).height(Length::Shrink).push(shortcut_card(
+        .width(WORKSPACE_ICON_SIZE)
+        .height(WORKSPACE_ICON_SIZE);
+    let recent_project = app.recent_projects.first();
+    let workspace = Grid::new()
+        .columns(columns)
+        .spacing(SHORTCUT_COLUMN_SPACING)
+        .height(Length::Shrink)
+        .push(workspace_card(
             logo.into(),
-            i18n.__("识矩"),
-            i18n.__("选择一个文件夹开始"),
-            primary_button(i18n.__("选择文件夹"), Message::OpenFolderPressed),
+            i18n.__("识矩引擎"),
+            i18n.__("打开最近项目"),
+            recent_project.cloned().map(Message::OpenRecentPressed),
         ));
 
     #[cfg(not(target_arch = "wasm32"))]
-    let shortcuts = shortcuts
-        .push(shortcut_card(
-            shortcut_icon(Icon::Terminal, iced::color!(0x158ea5)),
+    let workspace = workspace
+        .push(workspace_card(
+            shortcut_icon(Icon::Terminal, iced::color!(0x158ea5), WORKSPACE_ICON_SIZE, 52.0),
             i18n.__("我的工作台"),
             i18n.__("使用终端与智能体"),
-            secondary_button(i18n.__("打开"), Message::OpenCliWorkbench),
+            Message::OpenCliWorkbench,
         ))
-        .push(shortcut_card(
-            shortcut_icon(Icon::GitBranch, iced::color!(0x2b8877)),
+        .push(workspace_card(
+            shortcut_icon(Icon::GitBranch, iced::color!(0x2b8877), WORKSPACE_ICON_SIZE, 52.0),
             i18n.__("Git 工作台"),
             i18n.__("查看变更和分支"),
-            secondary_button(i18n.__("打开"), Message::OpenGitWorkbench),
+            Message::OpenGitWorkbench,
         ));
 
-    shortcuts
-        .push(shortcut_card(
-            shortcut_icon(Icon::Robot, iced::color!(0x7568d8)),
-            i18n.__("第三方智能体"),
-            i18n.__("安装和管理智能体"),
-            secondary_button(i18n.__("打开"), Message::OpenThirdPartyAgents),
+    let workspace = workspace.push(workspace_card(
+        shortcut_icon(Icon::Robot, iced::color!(0x7568d8), WORKSPACE_ICON_SIZE, 52.0),
+        i18n.__("第三方智能体"),
+        i18n.__("安装和管理智能体"),
+        Message::OpenThirdPartyAgents,
+    ));
+
+    let tasks = column![compact_shortcut_card(
+        shortcut_icon(Icon::Clock, iced::color!(0xc26420), APP_ICON_SIZE, 20.0),
+        i18n.__("定时任务"),
+        Message::OpenCron,
+    )]
+    .spacing(10)
+    .width(Length::Fill);
+    #[cfg(not(target_arch = "wasm32"))]
+    let tasks = tasks.push(compact_shortcut_card(
+        shortcut_icon(Icon::ClipboardCheck, iced::color!(0x3585d6), APP_ICON_SIZE, 20.0),
+        i18n.__("任务池"),
+        Message::OpenTaskPool,
+    ));
+
+    let apps = Grid::new()
+        .columns(columns)
+        .spacing(SHORTCUT_COLUMN_SPACING)
+        .height(Length::Shrink)
+        .push(workspace_card(
+            shortcut_icon(Icon::Robot, iced::color!(0x545acc), WORKSPACE_ICON_SIZE, 52.0),
+            i18n.__("智能体"),
+            i18n.__("配置智能体"),
+            Message::OpenAgentSettings,
         ))
-        .into()
+        .push(tasks);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let apps = apps
+        .push(workspace_card(
+            shortcut_icon(Icon::Star, iced::color!(0xab780a), WORKSPACE_ICON_SIZE, 52.0),
+            i18n.__("识矩技能"),
+            i18n.__("浏览和安装技能"),
+            Message::OpenShijuSkills,
+        ))
+        .push(
+            column![
+                compact_shortcut_card(
+                    shortcut_icon(Icon::Box, iced::color!(0x845ad5), APP_ICON_SIZE, 20.0),
+                    i18n.__("识矩应用"),
+                    Message::OpenShijuApps,
+                ),
+                compact_shortcut_card(
+                    shortcut_icon(Icon::Robot, iced::color!(0xc54b84), APP_ICON_SIZE, 20.0),
+                    i18n.__("数字员工"),
+                    Message::OpenDigitalEmployees,
+                ),
+            ]
+            .spacing(10)
+            .width(Length::Fill),
+        );
+
+    column![workspace, apps].spacing(8).width(Length::Fill).into()
 }
 
-fn shortcut_icon(icon: Icon, accent: Color) -> Element<'static, Message> {
-    container(icon_svg(icon, 52.0).style(move |_theme: &Theme, _| iced::widget::svg::Style {
+fn shortcut_icon(
+    icon: Icon,
+    accent: Color,
+    diameter: f32,
+    icon_size: f32,
+) -> Element<'static, Message> {
+    container(icon_svg(icon, icon_size).style(move |_theme: &Theme, _| iced::widget::svg::Style {
         color: Some(accent),
     }))
-    .center(SHORTCUT_ICON_SIZE)
+    .center(diameter)
     .style(move |_theme: &Theme| iced::widget::container::Style {
         background: Some(accent.scale_alpha(0.14).into()),
-        border: Border { radius: (SHORTCUT_ICON_SIZE / 2.0).into(), ..Default::default() },
+        border: Border { radius: (diameter / 2.0).into(), ..Default::default() },
         ..Default::default()
     })
     .into()
 }
 
-fn shortcut_card(
+fn workspace_card(
     icon: Element<'static, Message>,
     title: &'static str,
     description: &'static str,
-    action: Element<'static, Message>,
+    action: impl Into<Option<Message>>,
 ) -> Element<'static, Message> {
     let details = column![
-        text(title).size(22).line_height(Pixels(26.0)).font(home_cjk_emphasis_font()),
+        text(title)
+            .size(24)
+            .line_height(Pixels(28.0))
+            .wrapping(text::Wrapping::WordOrGlyph)
+            .font(home_cjk_emphasis_font()),
         text(description).size(16).line_height(Pixels(20.0)).style(settings_muted_text_style),
     ]
-    .spacing(3);
-    let content = column![details, action].spacing(8).width(Length::Fill);
-    let card = container(row![icon, content].spacing(10).align_y(Alignment::Center))
+    .spacing(3)
+    .width(Length::Fill);
+    shortcut_panel(row![icon, details].spacing(10).align_y(Alignment::Center), [14, 12], action.into())
+}
+
+fn compact_shortcut_card(
+    icon: Element<'static, Message>,
+    title: &'static str,
+    action: Message,
+) -> Element<'static, Message> {
+    let content = row![
+        icon,
+        text(title)
+            .size(18)
+            .line_height(Pixels(22.0))
+            .font(home_cjk_emphasis_font())
+            .width(Length::Fill),
+    ]
+    .spacing(7)
+    .align_y(Alignment::Center);
+    shortcut_panel(content, [10, 10], Some(action))
+}
+
+fn shortcut_panel(
+    content: impl Into<Element<'static, Message>>,
+    padding: [u16; 2],
+    action: Option<Message>,
+) -> Element<'static, Message> {
+    let card = button(content)
         .width(Length::Fill)
-        .padding([14, 12])
-        .style(settings_panel_style);
-    let highlight = container(Space::new())
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .style(|theme: &Theme| {
+        .padding(padding)
+        .on_press_maybe(action)
+        .style(|theme: &Theme, status| {
+            let panel = settings_panel_style(theme);
+            let mut border = panel.border;
+            match status {
+                button::Status::Hovered => border.color = theme.palette().primary.scale_alpha(0.45),
+                button::Status::Pressed => border.color = theme.palette().primary,
+                _ => {}
+            }
+            button::Style {
+                background: panel.background,
+                text_color: theme.palette().text,
+                border,
+                shadow: panel.shadow,
+                snap: panel.snap,
+            }
+        });
+    let highlight =
+        container(Space::new()).width(Length::Fill).height(Length::Fill).style(|theme: &Theme| {
             let opacity = if is_dark_theme(theme) { 0.14 } else { 0.07 };
             iced::widget::container::Style {
                 background: Some(theme.palette().primary.scale_alpha(opacity).into()),

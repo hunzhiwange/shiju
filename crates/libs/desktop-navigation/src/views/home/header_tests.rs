@@ -32,7 +32,7 @@ fn render_builds_home_header_from_default_state() {
 }
 
 #[test]
-fn render_keeps_three_header_sections_and_two_project_actions() {
+fn render_keeps_three_header_sections_and_three_project_actions() {
 
     let header = super::render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), iced::widget::Id::unique());
 
@@ -40,7 +40,7 @@ fn render_keeps_three_header_sections_and_two_project_actions() {
 
     let root_children = header.as_widget().children();
     assert_eq!(root_children.len(), 3);
-    assert_eq!(root_children[2].children.len(), 2);
+    assert_eq!(root_children[2].children.len(), 3);
 }
 
 #[test]

@@ -452,12 +452,29 @@ pub fn permission_mode<'a, M: Clone + 'a>(
         (true, "完全访问权限", "允许工具免审批运行，仅用于你信任的任务。"),
     ] {
         let selected = full_access == active;
+        let mut title = row![text(i18n.__(title)).size(13)].spacing(6).align_y(Alignment::Center);
+        if full_access {
+            title = title.push(
+                container(text(i18n.__("推荐")).size(10))
+                    .padding([2, 5])
+                    .style(|theme| {
+                        let green = full_access_color(theme);
+                        container::Style {
+                            text_color: Some(green),
+                            background: Some(green.scale_alpha(0.12).into()),
+                            border: Border::default().rounded(999.0),
+                            ..Default::default()
+                        }
+                    }),
+            );
+        }
         let mut label = row![
             column![
-                text(i18n.__(title)).size(13),
-                text(i18n.__(description)).size(11).style(
-                    desktop_ui_controls::system_settings_common::settings_muted_text_style,
-                ),
+                title,
+                text(i18n.__(description))
+                    .size(11)
+                    .wrapping(text::Wrapping::None)
+                    .style(desktop_ui_controls::system_settings_common::settings_muted_text_style),
             ]
             .spacing(4)
             .width(Length::Fill),
@@ -487,7 +504,7 @@ pub fn permission_mode<'a, M: Clone + 'a>(
         );
     }
 
-    let menu = container(choices).width(Length::Fixed(272.0)).padding(8).style(popover_style);
+    let menu = container(choices).width(Length::Fixed(336.0)).padding(8).style(popover_style);
     AboveOverlay::new(trigger, menu)
         .show(true)
         .block_background_events(true)
@@ -499,13 +516,17 @@ pub fn permission_mode<'a, M: Clone + 'a>(
 
 fn permission_label_color(theme: &Theme, enabled: bool, active: bool) -> Color {
     if active {
-        if is_dark_theme(theme) {
-            Color::from_rgb8(255, 172, 166)
-        } else {
-            Color::from_rgb8(153, 45, 43)
-        }
+        full_access_color(theme)
     } else {
         theme.palette().text.scale_alpha(if enabled { 0.82 } else { 0.55 })
+    }
+}
+
+fn full_access_color(theme: &Theme) -> Color {
+    if is_dark_theme(theme) {
+        Color::from_rgb8(134, 239, 172)
+    } else {
+        Color::from_rgb8(22, 101, 52)
     }
 }
 

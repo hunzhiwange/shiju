@@ -4,6 +4,7 @@ import json
 import os
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -140,11 +141,42 @@ def check_target(target, installed_targets):
 
     if prefix[-1] == "xwin" and target.startswith("aarch64-"):
         options += ["--cross-compiler", "clang-cl"]
-        # ring invokes clang for ARM64 assembly even with the clang-cl backend.
-        # Rewrite xwin's /imsvc to an include flag both drivers understand.
-        environment["CCC_OVERRIDE_OPTIONS"] = (
-            f"{environment.get('CCC_OVERRIDE_OPTIONS', '#')} s/^.imsvc$/-I/"
+        return check_windows_arm_packages(prefix, options, target, environment)
+    return check_native_packages(prefix, options, target, environment)
+
+
+def check_windows_arm_packages(prefix, options, target, environment):
+    paths = os.get_exec_path(environment)
+    if platform.system() == "Darwin":
+        # Match cargo-xwin's Homebrew LLVM lookup before putting our wrapper first.
+        brew_prefix = "/opt/homebrew" if platform.machine() == "arm64" else "/usr/local"
+        llvm_bin = f"{brew_prefix}/opt/llvm/bin"
+        if Path(llvm_bin).is_dir() and llvm_bin not in paths:
+            paths.insert(0, llvm_bin)
+    clang = shutil.which("clang", path=os.pathsep.join(paths))
+    if clang is None:
+        raise RuntimeError("clang is required for Windows ARM64 assembly")
+
+    # ring uses the GCC-style driver for assembly. Keep clang-cl's system
+    # include flags intact so the SDK cannot shadow Clang's intrinsic headers.
+    with tempfile.TemporaryDirectory() as scratch:
+        wrapper = Path(scratch) / "clang"
+        wrapper.write_text(
+            '#!/usr/bin/env bash\n'
+            'args=()\n'
+            'for arg in "$@"; do\n'
+            '    if [[ "$arg" == /imsvc ]]; then arg=-isystem; fi\n'
+            '    args+=("$arg")\n'
+            'done\n'
+            f'exec {shlex.quote(os.path.abspath(clang))} "${{args[@]}}"\n',
+            encoding="utf-8",
         )
+        wrapper.chmod(0o700)
+        arm_environment = environment | {"PATH": os.pathsep.join([scratch, *paths])}
+        return check_native_packages(prefix, options, target, arm_environment)
+
+
+def check_native_packages(prefix, options, target, environment):
     packages = NATIVE_PACKAGES
     if target.endswith("-apple-darwin"):
         packages += ("computer-control",)

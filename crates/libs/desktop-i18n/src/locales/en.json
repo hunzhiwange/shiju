@@ -9364,6 +9364,8 @@
   "无法加载聚合目录，请重试": "Cannot load aggregated catalog; please retry",
   "无法打开浏览器，请检查系统默认浏览器设置后重试": "Cannot open browser. Check the system default browser settings and retry",
   "无法打开网页：仅允许有效的 HTTP 或 HTTPS 地址": "Cannot open webpage: only valid HTTP or HTTPS addresses are allowed",
+  "请输入有效的 HTTP(S) 地址、本地静态文件或包含 index.html 的目录": "Enter a valid HTTP(S) URL, a local static file, or a directory containing index.html",
+  "无法启动内置 WebView 以打开本地网页": "Cannot start the built-in WebView to open the local page",
   "映射已保存；请刷新状态后重新预览。": "Mapping saved. Refresh status and preview again.",
   "服务暂不可用": "Service temporarily unavailable",
   "服务暂不可用，请重新连接后再检测。": "Service unavailable. Reconnect before checking again.",

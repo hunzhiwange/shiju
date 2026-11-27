@@ -47,6 +47,43 @@ fn test_module_is_wired() {
     assert!(module.ends_with("web_tests"));
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn independent_webview_accepts_a_static_site_directory_or_file() {
+    let site = tempfile::Builder::new().prefix("静态站点 ").tempdir().unwrap();
+    let entry = site.path().join("index.html");
+    std::fs::write(&entry, "<main>Local site</main>").unwrap();
+    let file_url = url::Url::from_file_path(&entry).unwrap();
+
+    for target in [site.path().to_str().unwrap(), entry.to_str().unwrap(), file_url.as_str()] {
+        assert_eq!(
+            super::validate_launch_target(&format!(" `{target}` "), true),
+            Ok((target.to_string(), true)),
+        );
+        assert!(matches!(
+            update(&mut app(), ViewMessage::OpenUrlExternal(target.to_string())),
+            Some(super::Effect::Error(_)),
+        ));
+    }
+}
+
+#[test]
+fn webview_launch_rejects_unsupported_schemes_and_missing_local_sites() {
+    let empty = tempfile::tempdir().unwrap();
+    for target in [
+        "mailto:user@example.test",
+        "file://example.test/site/index.html",
+        "site/index.html",
+        empty.path().to_str().unwrap(),
+    ] {
+        assert!(super::validate_launch_target(target, true).is_err());
+    }
+    assert_eq!(
+        super::validate_launch_target(" https://example.test ", true),
+        Ok(("https://example.test/".into(), false)),
+    );
+}
+
 #[test]
 fn toggle_web_links_menu_flips_current_visibility() {
     let mut app = app();

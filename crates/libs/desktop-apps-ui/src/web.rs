@@ -90,7 +90,66 @@ fn open_in_browser(_app: &mut State, url: &str) -> Option<Effect> {
     }
 }
 
-/// 处理网页打开与书签 Cookie 配置；独立 WebView 不可用时回退系统浏览器。
+#[cfg(not(target_arch = "wasm32"))]
+fn local_webview_target(input: &str) -> Option<String> {
+    use std::path::PathBuf;
+    use webview_local_content::{StartTarget, normalize_url, resolve_target};
+
+    let input = normalize_url(input);
+    let (target, path) = match url::Url::parse(&input) {
+        Ok(url) if url.scheme() == "file" => {
+            if url.host_str().is_some() || url.query().is_some() || url.fragment().is_some() {
+                return None;
+            }
+            let path = url.to_file_path().ok()?;
+            (url.into(), path)
+        }
+        _ => {
+            let path = PathBuf::from(&input);
+            (input, path)
+        }
+    };
+    if !path.is_absolute() || path.to_str()?.chars().any(char::is_control) {
+        return None;
+    }
+    #[cfg(windows)]
+    if !matches!(
+        path.components().next(),
+        Some(std::path::Component::Prefix(prefix))
+            if matches!(prefix.kind(), std::path::Prefix::Disk(_) | std::path::Prefix::VerbatimDisk(_))
+    ) {
+        return None;
+    }
+
+    matches!(resolve_target(&target), StartTarget::LocalDir { .. }).then_some(target)
+}
+
+fn validate_launch_target(input: &str, _allow_local: bool) -> Result<(String, bool), &'static str> {
+    if let Ok(url) = url::Url::parse(input.trim())
+        && matches!(url.scheme(), "http" | "https")
+        && url.host_str().is_some()
+    {
+        return Ok((url.into(), false));
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    if _allow_local {
+        return local_webview_target(input)
+            .map(|path| (path, true))
+            .ok_or("请输入有效的 HTTP(S) 地址、本地静态文件或包含 index.html 的目录");
+    }
+    Err("无法打开网页：仅允许有效的 HTTP 或 HTTPS 地址")
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn webview_fallback(app: &mut State, target: &str, is_local: bool) -> Option<Effect> {
+    if is_local {
+        Some(Effect::Error("无法启动内置 WebView 以打开本地网页"))
+    } else {
+        open_in_browser(app, target)
+    }
+}
+
+/// 处理网页打开与书签 Cookie 配置；HTTP(S) 网页可回退系统浏览器。
 pub fn update(app: &mut State, message: Message) -> Option<Effect> {
     update_with_locale(app, message, config_ui::DesktopLocale::default())
 }
@@ -98,25 +157,25 @@ pub fn update(app: &mut State, message: Message) -> Option<Effect> {
 pub fn update_with_locale(app: &mut State, mut message: Message, locale: config_ui::DesktopLocale) -> Option<Effect> {
     let i18n = desktop_i18n::I18n::new(locale);
     let language = locale_code(locale);
-    // Validate before either the WebView helper or the system URL handler sees input.
-    let target = match &mut message {
+    // 本地路径仅交由内置 WebView 的静态资源协议处理。
+    let (target, allow_local) = match &mut message {
         Message::OpenWebUrl(url)
         | Message::OpenWebUrlWithTitle(url, _)
-        | Message::OpenWebUrlWithTitleAndSize(url, _, _, _)
-        | Message::OpenUrlExternal(url) => Some(url),
-        _ => None,
+        | Message::OpenWebUrlWithTitleAndSize(url, _, _, _) => (Some(url), true),
+        Message::OpenUrlExternal(url) => (Some(url), false),
+        _ => (None, false),
     };
-    if let Some(target) = target {
-        let parsed = url::Url::parse(target.trim());
-        match parsed {
-            Ok(url) if matches!(url.scheme(), "http" | "https") && url.host_str().is_some() => {
-                *target = url.into();
+    let _is_local = if let Some(target) = target {
+        match validate_launch_target(target, allow_local) {
+            Ok((normalized, is_local)) => {
+                *target = normalized;
+                is_local
             }
-            _ => {
-                return Some(Effect::Error("无法打开网页：仅允许有效的 HTTP 或 HTTPS 地址"));
-            }
+            Err(error) => return Some(Effect::Error(error)),
         }
-    }
+    } else {
+        false
+    };
     match message {
         Message::OpenWebUrl(_url) => {
             #[cfg(not(target_arch = "wasm32"))]
@@ -125,7 +184,8 @@ pub fn update_with_locale(app: &mut State, mut message: Message, locale: config_
 
                 // Only use bookmark-specific cookie configs
                 let mut configs = Vec::new();
-                if let Some(bm) = app.web_bookmarks.iter().find(|b| b.url == _url)
+                if !_is_local
+                    && let Some(bm) = app.web_bookmarks.iter().find(|b| b.url == _url)
                     && let Some(bm_configs) = &bm.cookie_configs
                 {
                     configs.extend(bm_configs.clone());
@@ -147,7 +207,7 @@ pub fn update_with_locale(app: &mut State, mut message: Message, locale: config_
                     }
                 }
                 if !spawned {
-                    return open_in_browser(app, &_url);
+                    return webview_fallback(app, &_url, _is_local);
                 }
             }
             None
@@ -159,7 +219,8 @@ pub fn update_with_locale(app: &mut State, mut message: Message, locale: config_
 
                 // Only use bookmark-specific cookie configs
                 let mut configs = Vec::new();
-                if let Some(bm) = app.web_bookmarks.iter().find(|b| b.url == _url)
+                if !_is_local
+                    && let Some(bm) = app.web_bookmarks.iter().find(|b| b.url == _url)
                     && let Some(bm_configs) = &bm.cookie_configs
                 {
                     configs.extend(bm_configs.clone());
@@ -182,7 +243,7 @@ pub fn update_with_locale(app: &mut State, mut message: Message, locale: config_
                     }
                 }
                 if !spawned {
-                    return open_in_browser(app, &_url);
+                    return webview_fallback(app, &_url, _is_local);
                 }
             }
             None
@@ -190,12 +251,13 @@ pub fn update_with_locale(app: &mut State, mut message: Message, locale: config_
         Message::OpenWebUrlWithTitleAndSize(_url, _title, _w, _h) => {
             #[cfg(not(target_arch = "wasm32"))]
             {
-                let url = _url.trim().trim_matches('`').trim().to_string();
+                let url = _url;
                 let candidates = desktop_web_runtime::webview_runtime::webview_helper_candidates();
 
                 // Only use bookmark-specific cookie configs
                 let mut configs = Vec::new();
-                if let Some(bm) = app.web_bookmarks.iter().find(|b| b.url == url)
+                if !_is_local
+                    && let Some(bm) = app.web_bookmarks.iter().find(|b| b.url == url)
                     && let Some(bm_configs) = &bm.cookie_configs
                 {
                     configs.extend(bm_configs.clone());
@@ -219,14 +281,16 @@ pub fn update_with_locale(app: &mut State, mut message: Message, locale: config_
                         if cfg!(windows) {
                             std::thread::sleep(std::time::Duration::from_millis(300));
                             if let Ok(Some(_)) = child.try_wait() {
-                                let _ = rfd::MessageDialog::new()
-                                    .set_title("VibeWindow WebView")
-                                    .set_description(
-                                        i18n.__("无法启动内置 WebView。\n\n请安装 Microsoft Edge WebView2 Runtime（Evergreen x64）。\n\n即将使用系统默认浏览器打开。"),
-                                    )
-                                    .set_level(rfd::MessageLevel::Error)
-                                    .set_buttons(rfd::MessageButtons::Ok)
-                                    .show();
+                                if !_is_local {
+                                    let _ = rfd::MessageDialog::new()
+                                        .set_title("VibeWindow WebView")
+                                        .set_description(
+                                            i18n.__("无法启动内置 WebView。\n\n请安装 Microsoft Edge WebView2 Runtime（Evergreen x64）。\n\n即将使用系统默认浏览器打开。"),
+                                        )
+                                        .set_level(rfd::MessageLevel::Error)
+                                        .set_buttons(rfd::MessageButtons::Ok)
+                                        .show();
+                                }
                                 continue;
                             }
                         }
@@ -236,7 +300,7 @@ pub fn update_with_locale(app: &mut State, mut message: Message, locale: config_
                     }
                 }
                 if !spawned {
-                    return open_in_browser(app, &url);
+                    return webview_fallback(app, &url, _is_local);
                 }
             }
             None

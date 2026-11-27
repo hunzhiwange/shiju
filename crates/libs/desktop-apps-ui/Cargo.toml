@@ -96,6 +96,7 @@ web-sys = { version = "0.3", features = ["Window"] }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", default-features = false, features = ["fs"] }
 desktop-web-runtime = { path = "../desktop-web-runtime" }
+webview-local-content = { path = "../webview-local-content" }
 reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(windows)))'.dependencies]

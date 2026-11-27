@@ -1,15 +1,12 @@
 //! 应用中心的新增和编辑书签弹窗。
 
-
+use desktop_i18n::I18n;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
-    rounded_action_btn_style, settings_close_button, settings_field_label, settings_group_card,
-    settings_modal_header,
-    settings_modal_layout, settings_text_editor_style, settings_text_input_style,
+    rounded_action_btn_style, settings_close_button, settings_divider, settings_flexible_row,
+    settings_group_card, settings_modal_header, settings_modal_layout, settings_text_editor_style,
+    settings_text_input_style,
 };
-use desktop_i18n::I18n;
-
-
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{
     Space, button, column, container, row, text, text::Wrapping, text_editor, text_input,
@@ -35,17 +32,18 @@ fn bookmark_field<'a, M: Clone + 'static>(
     on_input: fn(String) -> Event,
     message: fn(Event) -> M,
 ) -> Element<'a, M> {
-    column![
-        settings_field_label(label),
+    settings_flexible_row(
+        label,
+        "",
+        300.0,
         text_input("", value)
             .on_input(move |value| message(on_input(value)))
             .padding(SETTINGS_CONTROL_PADDING)
             .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
-    ]
-    .spacing(6)
-    .width(Length::Fill)
+    )
+    .padding([6, 0])
     .into()
 }
 
@@ -58,39 +56,35 @@ pub fn edit_web_bookmark_modal<'a, M: Clone + 'static>(input: Input<'a, M>) -> O
         text(i18n.__("编辑网址")).size(20),
         settings_close_button(close.clone()),
     );
-    let fields = settings_group_card(
-        column![
-            bookmark_field(
-                i18n.__("标题"),
-                input.edit_web_bookmark_title_input,
-                Event::WebBookmarkEditTitleChanged,
-                message,
-            ),
-            bookmark_field(
-                i18n.__("网址"),
-                input.edit_web_bookmark_url_input,
-                Event::WebBookmarkEditUrlChanged,
-                message,
-            ),
-            row![
-                bookmark_field(
-                    i18n.__("宽度（可选）"),
-                    input.edit_web_bookmark_width_input,
-                    Event::WebBookmarkEditWidthChanged,
-                message,
-                ),
-                bookmark_field(
-                    i18n.__("高度（可选）"),
-                    input.edit_web_bookmark_height_input,
-                    Event::WebBookmarkEditHeightChanged,
-                message,
-                ),
-            ]
-            .spacing(10),
-        ]
-        .spacing(12)
-        .padding([12, 0]),
-    );
+    let fields = settings_group_card(column![
+        bookmark_field(
+            i18n.__("标题"),
+            input.edit_web_bookmark_title_input,
+            Event::WebBookmarkEditTitleChanged,
+            message,
+        ),
+        settings_divider(),
+        bookmark_field(
+            i18n.__("网址"),
+            input.edit_web_bookmark_url_input,
+            Event::WebBookmarkEditUrlChanged,
+            message,
+        ),
+        settings_divider(),
+        bookmark_field(
+            i18n.__("宽度（可选）"),
+            input.edit_web_bookmark_width_input,
+            Event::WebBookmarkEditWidthChanged,
+            message,
+        ),
+        settings_divider(),
+        bookmark_field(
+            i18n.__("高度（可选）"),
+            input.edit_web_bookmark_height_input,
+            Event::WebBookmarkEditHeightChanged,
+            message,
+        ),
+    ]);
 
     let cookie = settings_group_card(
         column![
@@ -160,39 +154,35 @@ pub fn add_web_bookmark_modal<'a, M: Clone + 'static>(input: Input<'a, M>) -> Op
         text(i18n.__("添加网址")).size(20),
         settings_close_button(close.clone()),
     );
-    let fields = settings_group_card(
-        column![
-            bookmark_field(
-                i18n.__("标题"),
-                input.web_bookmark_title_input,
-                Event::WebBookmarkTitleChanged,
-                message,
-            ),
-            bookmark_field(
-                i18n.__("网址"),
-                input.web_bookmark_url_input,
-                Event::WebBookmarkUrlChanged,
-                message,
-            ),
-            row![
-                bookmark_field(
-                    i18n.__("宽度（可选）"),
-                    input.web_bookmark_width_input,
-                    Event::WebBookmarkWidthChanged,
-                message,
-                ),
-                bookmark_field(
-                    i18n.__("高度（可选）"),
-                    input.web_bookmark_height_input,
-                    Event::WebBookmarkHeightChanged,
-                message,
-                ),
-            ]
-            .spacing(10),
-        ]
-        .spacing(12)
-        .padding([12, 0]),
-    );
+    let fields = settings_group_card(column![
+        bookmark_field(
+            i18n.__("标题"),
+            input.web_bookmark_title_input,
+            Event::WebBookmarkTitleChanged,
+            message,
+        ),
+        settings_divider(),
+        bookmark_field(
+            i18n.__("网址"),
+            input.web_bookmark_url_input,
+            Event::WebBookmarkUrlChanged,
+            message,
+        ),
+        settings_divider(),
+        bookmark_field(
+            i18n.__("宽度（可选）"),
+            input.web_bookmark_width_input,
+            Event::WebBookmarkWidthChanged,
+            message,
+        ),
+        settings_divider(),
+        bookmark_field(
+            i18n.__("高度（可选）"),
+            input.web_bookmark_height_input,
+            Event::WebBookmarkHeightChanged,
+            message,
+        ),
+    ]);
     let body = column![
         input.heading,
         fields,

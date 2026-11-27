@@ -28,7 +28,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: ${{ fromJSON(inputs.platform).runner }}
+    # Cross-compile Intel binaries on Apple Silicon and keep the signing job on its planned runner.
+    runs-on: ${{ contains(fromJSON(inputs.platform).targets, 'x86_64-apple-darwin') && 'macos-15' || fromJSON(inputs.platform).runner }}
     container: ${{ fromJSON(inputs.platform).container && fromJSON(inputs.platform).container.image || null }}
     env:
       CACHE_TARGETS: ${{ join(fromJSON(inputs.platform).targets, ' ') }}
@@ -113,6 +114,15 @@ jobs:
             if [[ "$target" == *apple-darwin ]]; then
               cargo build --locked --profile dist --target "$target" -p computer-control --bin shiju-computer-use
             fi
+          done
+      - name: Verify Intel macOS executable architectures
+        if: ${{ contains(fromJSON(inputs.platform).targets, 'x86_64-apple-darwin') }}
+        shell: bash
+        run: |
+          for binary in shi-ju vw-webview shiju-computer-use shiju vibe-agent acp aionrs-acp; do
+            executable="$CARGO_TARGET_DIR/x86_64-apple-darwin/dist/$binary"
+            echo "Verifying x86_64 architecture of $binary"
+            /usr/bin/lipo "$executable" -verify_arch x86_64
           done
       - name: Build Linux DEB/RPM
         if: ${{ contains(join(fromJSON(inputs.platform).targets, ','), 'unknown-linux-gnu') }}

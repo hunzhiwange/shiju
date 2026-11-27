@@ -931,7 +931,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 popovers.scene = scene;
                 popovers.category = None;
             }
-            popovers.set_recommended_prompt(false);
+            popovers.close_recommendation_menus();
+            Task::none()
+        }
+        ChatMessage::ComposerCategoryMenuChanged(open) => {
+            app.session_state.input_popovers.set_category_menu(open);
             Task::none()
         }
         ChatMessage::ComposerCategorySelected(scene, category) => {
@@ -940,7 +944,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 && desktop_chat_input::input_panel::starter::category_available(scene, category)
             {
                 popovers.category = category;
-                popovers.set_recommended_prompt(false);
+                popovers.close_recommendation_menus();
             }
             Task::none()
         }
@@ -955,7 +959,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             super::input::fill_recommended_prompt(app, prompt)
         }
         ChatMessage::SessionAgentSelected(agent) => {
-            app.session_state.input_popovers.recommended_prompt = false;
+            app.session_state.input_popovers.close_recommendation_menus();
             #[cfg(not(target_arch = "wasm32"))]
             if crate::app::digital_employees::chat_picker::employee_locked(app) {
                 return app.show_localized_toast(crate::app::state::ToastKind::Warning, "会话开始后不能更换数字员工", vec![]);

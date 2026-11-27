@@ -14,6 +14,7 @@ impl Fixture {
             quick_messages: &[],
             quick_message_group: self.popovers.quick_message_group,
             employee_commands: None,
+            category_menu_open: self.popovers.category_menu_open,
             recommended_prompt: self.popovers.recommended_prompt,
             recommended_prompts: Some(&self.prompts),
             project_is_git_repo: false,
@@ -41,8 +42,7 @@ impl Fixture {
                 let _ = crate::input_panel::quick_actions::fill_recommendation(
                     &mut self.runtime.input_editor,
                     self.prompts.get(index).map(String::as_str),
-                )
-                .unwrap();
+                );
             }
             _ => panic!("unexpected recommendation event"),
         }

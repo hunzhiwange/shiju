@@ -62,7 +62,7 @@ impl App {
         self.session_state.session_previews.clear();
         self.session_state.archived_session_ids.clear();
         self.session_state.sessions.clear();
-        self.session_state.input_popovers.recommended_prompt = false;
+        self.session_state.input_popovers.close_recommendation_menus();
         self.cache_active_session_chat();
         self.session_state.active_session_id = None;
         self.current_session_runtime_mut().draft = None;

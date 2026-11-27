@@ -49,20 +49,14 @@ pub(super) fn fill_recommended_prompt(app: &mut App, prompt: Option<&str>) -> Ta
     if let Some(editor) = fallback {
         runtime.input_editor = editor;
     }
-    match desktop_chat_input::input_panel::quick_actions::fill_recommendation(
+    if let Some(draft) = desktop_chat_input::input_panel::quick_actions::fill_recommendation(
         &mut runtime.input_editor,
         prompt,
     ) {
-        Ok(Some(prompt)) => {
-            app.session_state.input_text = prompt;
-            shared::sync_global_input_editor_if_needed(app);
-            Task::none()
-        }
-        Ok(None) => Task::none(),
-        Err(source) => {
-            app.show_localized_toast(crate::app::state::ToastKind::Warning, source, vec![])
-        }
+        app.session_state.input_text = draft;
+        shared::sync_global_input_editor_if_needed(app);
     }
+    Task::none()
 }
 
 #[cfg(not(target_arch = "wasm32"))]

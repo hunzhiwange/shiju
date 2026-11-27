@@ -11,6 +11,7 @@ pub enum ComposerScene {
 pub struct InputPopoverState {
     pub scene: ComposerScene,
     pub category: Option<usize>,
+    pub category_menu_open: bool,
     pub recommended_prompt: bool,
     pub quick_message_group: Option<config_ui::QuickMessageGroup>,
     pub employee_commands: bool,
@@ -20,9 +21,26 @@ pub struct InputPopoverState {
 }
 
 impl InputPopoverState {
+    pub fn close_recommendation_menus(&mut self) {
+        self.category_menu_open = false;
+        self.recommended_prompt = false;
+    }
+
+    pub fn set_category_menu(&mut self, open: bool) {
+        self.category_menu_open = open;
+        if open {
+            self.recommended_prompt = false;
+            self.employee_commands = false;
+            self.quick_message_group = None;
+            self.shiju_skill = false;
+            self.media_shortcuts = false;
+        }
+    }
+
     pub fn set_recommended_prompt(&mut self, open: bool) {
         self.recommended_prompt = open;
         if open {
+            self.category_menu_open = false;
             self.employee_commands = false;
             self.quick_message_group = None;
             self.shiju_skill = false;
@@ -33,7 +51,7 @@ impl InputPopoverState {
     pub fn set_quick_message_group(&mut self, group: Option<config_ui::QuickMessageGroup>) {
         if group.is_some() {
             self.employee_commands = false;
-            self.recommended_prompt = false;
+            self.close_recommendation_menus();
             self.shiju_skill = false;
             self.media_shortcuts = false;
         }
@@ -45,7 +63,7 @@ impl InputPopoverState {
         if self.shiju_skill {
             self.employee_commands = false;
             self.quick_message_group = None;
-            self.recommended_prompt = false;
+            self.close_recommendation_menus();
             self.media_shortcuts = false;
         }
         self.shiju_skill
@@ -56,7 +74,7 @@ impl InputPopoverState {
         if open {
             self.employee_commands = false;
             self.quick_message_group = None;
-            self.recommended_prompt = false;
+            self.close_recommendation_menus();
             self.shiju_skill = false;
         }
     }
@@ -65,7 +83,7 @@ impl InputPopoverState {
         self.employee_commands = open;
         if open {
             self.quick_message_group = None;
-            self.recommended_prompt = false;
+            self.close_recommendation_menus();
             self.shiju_skill = false;
             self.media_shortcuts = false;
         }

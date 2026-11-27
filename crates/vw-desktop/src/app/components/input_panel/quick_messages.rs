@@ -8,6 +8,7 @@ fn input(app: &App) -> domain::QuickInput<'_> {
         quick_message_group: app.session_state.input_popovers.quick_message_group,
         employee_commands: crate::app::message::chat::input::employee_commands_available(app)
             .then_some(app.session_state.input_popovers.employee_commands),
+        category_menu_open: app.session_state.input_popovers.category_menu_open,
         recommended_prompt: app.session_state.input_popovers.recommended_prompt,
         recommended_prompts: app.agents_settings.entries.iter().find(|e| e.key == key).map(|e| e.recommended_prompts.as_slice()),
         project_is_git_repo: app.workspace_state.project_is_git_repo,
@@ -71,6 +72,8 @@ fn map_message(msg: desktop_chat_input::input_panel::quick_message::Message) -> 
         Local::SelectShijuSkill(value) => Message::Chat(message::ChatMessage::SelectShijuSkill(value)),
         Local::AgentRecommendedPromptSelected(value) => Message::Chat(message::ChatMessage::AgentRecommendedPromptSelected(value)),
         Local::RecommendedPromptMenuChanged(value) => Message::Chat(message::ChatMessage::RecommendedPromptMenuChanged(value)),
+        Local::ComposerCategoryMenuChanged(open) =>
+            Message::Chat(message::ChatMessage::ComposerCategoryMenuChanged(open)),
         Local::ComposerCategorySelected(scene, category) =>
             Message::Chat(message::ChatMessage::ComposerCategorySelected(scene, category)),
         Local::ComposerPromptSelected(scene, category, index) =>

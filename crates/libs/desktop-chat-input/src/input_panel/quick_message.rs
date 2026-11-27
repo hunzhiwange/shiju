@@ -29,6 +29,7 @@ pub enum Message {
  ToggleShijuSkillMenu,
  #[cfg(not(target_arch = "wasm32"))]
  PrepareNativeShijuSkill, AgentRecommendedPromptSelected(usize), RecommendedPromptMenuChanged(bool),
+ ComposerCategoryMenuChanged(bool),
  ComposerCategorySelected(desktop_session::message::chat::input::popovers::ComposerScene, Option<usize>),
  ComposerPromptSelected(desktop_session::message::chat::input::popovers::ComposerScene, Option<usize>, usize),
  WorkSpacePickerClosed, WorkSpacePickerToggled, WorkSpacePickerQueryChanged(String), SwitchWorkSpacePressed(String), OpenFolderPressed,

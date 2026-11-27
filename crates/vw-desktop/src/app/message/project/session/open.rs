@@ -60,7 +60,7 @@ fn reset_draft_view(app: &mut App) {
     super::lifecycle::history_state(app).blank_draft();
     app.session_state.paged_chat_timeline = None;
     app.invalidate_chat_ui_state();
-    app.session_state.input_popovers.recommended_prompt = false;
+    app.session_state.input_popovers.close_recommendation_menus();
     app.session_state.input_popovers.agent_sessions = false;
     app.session_state.input_editor = app.current_session_runtime_ref()
         .map(|runtime| runtime.input_editor.clone())
@@ -82,7 +82,7 @@ pub(crate) fn open_project_session(
     }
     app.session_state.session_view_cache.navigation_generation += 1;
     app.session_state.agent_stream_id = app.session_state.agent_stream_id.wrapping_add(1);
-    app.session_state.input_popovers.recommended_prompt = false;
+    app.session_state.input_popovers.close_recommendation_menus();
     app.session_state.input_popovers.agent_sessions = false;
     app.workspace_state.hovered_recent_project = None;
     app.workspace_state.session_menu_id = None;

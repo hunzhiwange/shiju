@@ -586,7 +586,29 @@ async fn session_entry_recommendations_render_both_themes() {
                 .unwrap();
         let mut element = recommendations_menu_view(app.input(), &recommended_indices(app.input()));
         let bounds = Size::new(260.0, 300.0);
+        let row_height = |label: &str| {
+            let mut row: Element<'_, Message> =
+                recommendation_row(label, Message::AgentRecommendedPromptSelected(0)).into();
+            let mut tree = Tree::new(row.as_widget());
+            row.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &layout::Limits::new(Size::ZERO, bounds),
+            )
+            .size()
+            .height
+        };
+        assert_eq!(
+            row_height("简短推荐"),
+            row_height("推荐标题很长\n这里还有一段很长的推荐内容，应该保留在同一行"),
+        );
         let mut tree = Tree::new(element.as_widget());
+        let wide_node = element.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, Size::new(700.0, bounds.height)),
+        );
+        assert_eq!(wide_node.size().width, 560.0);
         let node = element.as_widget_mut().layout(
             &mut tree,
             &renderer,

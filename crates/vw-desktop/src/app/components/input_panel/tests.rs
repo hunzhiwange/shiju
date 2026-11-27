@@ -548,7 +548,7 @@ fn input_panel_view_renders_agent_sessions_entry_only_for_running_children() {
 
 // 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
 #[test]
-fn agent_unified_selection_prompt_preserves_existing_draft() {
+fn agent_unified_selection_prompt_appends_to_existing_draft() {
     let (mut app, _) = crate::app::App::new();
     app.agents_settings
         .entries
@@ -567,7 +567,8 @@ fn agent_unified_selection_prompt_preserves_existing_draft() {
         &mut app,
         message::ChatMessage::AgentRecommendedPromptSelected(0),
     );
-    assert_eq!(app.current_session_runtime().input_editor.text(), "我的草稿");
+    assert_eq!(app.current_session_runtime().input_editor.text(), "我的草稿\n检查项目结构");
+    assert_eq!(app.session_state.input_text, "我的草稿\n检查项目结构");
     assert!(app.chat_view.chat.is_empty());
 }
 
@@ -584,8 +585,11 @@ fn scene_recommendations_fill_the_draft_without_sending() {
     assert!(!app.session_state.input_popovers.recommended_prompt);
 
     let category = Some(1);
+    let _ = app.update(Message::Chat(message::ChatMessage::ComposerCategoryMenuChanged(true)));
+    assert!(app.session_state.input_popovers.category_menu_open);
     let _ = app.update(Message::Chat(message::ChatMessage::ComposerCategorySelected(scene, category)));
     assert_eq!(app.session_state.input_popovers.category, category);
+    assert!(!app.session_state.input_popovers.category_menu_open);
     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     let prompt = prompt_draft(i18n, scene, category, 0).expect("design category recommendation");
     assert_ne!(Some(prompt), prompt_draft(i18n, scene, None, 0));
@@ -595,11 +599,17 @@ fn scene_recommendations_fill_the_draft_without_sending() {
     assert_eq!(app.current_session_runtime().input_editor.text(), prompt);
     assert_eq!(app.session_state.input_editor.text(), prompt);
     let _ = app.update(Message::Chat(message::ChatMessage::ComposerPromptSelected(scene, category, 1)));
-    assert_eq!(app.current_session_runtime().input_editor.text(), prompt);
+    let second_prompt = prompt_draft(i18n, scene, category, 1).expect("second category recommendation");
+    let draft = format!("{prompt}\n{second_prompt}");
+    assert_eq!(app.current_session_runtime().input_editor.text(), draft);
+    assert_eq!(app.session_state.input_editor.text(), draft);
+    assert_eq!(app.session_state.input_text, draft);
     assert!(app.chat_view.chat.is_empty());
 
+    let _ = app.update(Message::Chat(message::ChatMessage::ComposerCategoryMenuChanged(true)));
     let _ = app.update(Message::Chat(message::ChatMessage::ComposerSceneSelected(ComposerScene::Office)));
     assert_eq!(app.session_state.input_popovers.category, None);
+    assert!(!app.session_state.input_popovers.category_menu_open);
 }
 
 #[cfg(not(target_arch = "wasm32"))]

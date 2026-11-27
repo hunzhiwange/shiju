@@ -3,17 +3,13 @@
 use desktop_assets::assets::Icon;
 use desktop_i18n::I18n;
 use desktop_skill_hub::skill_hub::LoadState;
-use desktop_ui_controls::single_line_label::SingleLineLabel;
 use desktop_ui_controls::system_settings_common::settings_muted_text_style;
-use iced::widget::{Column, button, column, container, row, stack, svg, text};
-use iced::{Alignment, Element, Length, Padding, Theme};
+use iced::widget::{Column, button, column, container, row, svg, text};
+use iced::{Alignment, Element, Length, Theme};
 use vw_api_media::{MediaModel, MediaModelSelection, MediaOperation};
 
 use super::quick_message::Message;
-use super::quick_messages::{
-    DROPDOWN_ICON_BOX_SIZE, QuickInput, dropdown_icon, shortcut_menu, shortcut_menu_items,
-    shortcut_trigger,
-};
+use super::quick_messages::{QuickInput, shortcut_dropdown_trigger, shortcut_menu, shortcut_menu_items};
 use super::quick_styles as styles;
 
 const PROMPTS: [(&str, Icon, &str); 3] = [
@@ -41,16 +37,7 @@ pub(super) fn menu(app: QuickInput<'_>, open: bool) -> Element<'_, Message> {
         || label.to_owned(),
         |name| format!("{label} · {}", super::model_popover::truncated_model_name(name)),
     );
-    let label = container(SingleLineLabel::new(label, 12.0).shrink())
-        .padding(Padding { right: DROPDOWN_ICON_BOX_SIZE + 5.0, ..Padding::ZERO });
-    let trigger = shortcut_trigger(
-        stack![
-            label,
-            container(dropdown_icon()).align_right(Length::Fill).center_y(Length::Fill),
-        ],
-        Message::MediaShortcutMenuChanged(!open),
-        open,
-    );
+    let trigger = shortcut_dropdown_trigger(label, Message::MediaShortcutMenuChanged(!open), open);
 
     if !open {
         return trigger.into();

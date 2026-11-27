@@ -2,6 +2,7 @@
 
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::overlays::{AboveOverlay, BelowOverlay};
+use desktop_ui_controls::single_line_label::SingleLineLabel;
 use desktop_session::message::chat::input::popovers::ComposerScene;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_divider, settings_muted_text_style,
@@ -14,10 +15,10 @@ use desktop_skill_hub::skill_hub::{
 
 use super::quick_message::Message;
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
+use iced::widget::{Space, button, column, container, row, scrollable, stack, text, text_input};
 #[cfg(not(target_arch = "wasm32"))]
 use iced::widget::{Tooltip, tooltip::Position as TooltipPosition};
-use iced::{Element, Length, Theme};
+use iced::{Element, Length, Padding, Theme};
 use config_ui::{QuickMessageConfig, QuickMessageGroup};
 
 use super::quick_styles as styles;
@@ -130,6 +131,23 @@ pub(super) fn shortcut_trigger<'a>(
         .padding([0, 10])
         .style(move |theme, status| styles::quick_message_group_button_style(theme, status, active))
         .on_press(action)
+}
+
+pub(super) fn shortcut_dropdown_trigger<'a>(
+    label: impl Into<String>,
+    action: Message,
+    open: bool,
+) -> iced::widget::Button<'a, Message> {
+    let label = container(SingleLineLabel::new(label.into(), 12.0).shrink())
+        .padding(Padding { right: DROPDOWN_ICON_BOX_SIZE + 5.0, ..Padding::ZERO });
+    shortcut_trigger(
+        stack![
+            label,
+            container(dropdown_icon()).align_right(Length::Fill).center_y(Length::Fill),
+        ],
+        action,
+        open,
+    )
 }
 
 pub(super) fn dropdown_icon<'a>() -> Element<'a, Message> {
@@ -295,8 +313,7 @@ fn recommendation_rows<'a>(
 fn recommendation_row(label: &str, action: Message) -> iced::widget::Button<'_, Message> {
     button(
         row![
-            text(label).size(12).width(Length::Fill)
-                .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+            SingleLineLabel::new(label.to_owned(), 12.0),
             super::icons::icon_svg(Icon::ArrowRight, 12.0),
         ]
         .spacing(8)
@@ -313,14 +330,13 @@ fn recommendation_popup(items: iced::widget::Column<'_, Message>) -> Element<'_,
         .width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH)
         .scroller_width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH)
         .spacing(QUICK_MESSAGE_MENU_SCROLLBAR_GAP);
-    // Wrapped recommendations can exceed the height limit even with fewer than eight rows.
     let content =
         scrollable(container(items).padding(iced::Padding { right: 10.0, ..Default::default() }))
             .direction(Direction::Vertical(scrollbar));
     container(content)
         .max_height(QUICK_MESSAGE_MENU_MAX_HEIGHT)
         .padding(6)
-        .width(Length::Fixed(300.0))
+        .width(Length::Fixed(560.0))
         .style(styles::quick_message_menu_style)
         .into()
 }
@@ -335,19 +351,19 @@ fn recommendation_trigger<'a>(
 ) -> iced::widget::Button<'a, Message> {
     let active = app.recommended_prompt;
     let chevron = if active { Icon::ChevronUp } else { Icon::ChevronDown };
-    shortcut_trigger(
-        row![
-            text(app.i18n.__("推荐会话")).size(12),
-            text(format!("({count})")).size(11).style(|theme: &Theme| {
-                text::Style { color: Some(theme.palette().text.scale_alpha(0.58)) }
-            }),
-            container(super::icons::icon_svg(chevron, 10.0)).center(DROPDOWN_ICON_BOX_SIZE),
-        ]
-        .spacing(5)
-        .align_y(iced::Alignment::Center),
-        Message::RecommendedPromptMenuChanged(!active),
-        active,
-    )
+    let label = row![
+        SingleLineLabel::new(app.i18n.__("推荐会话").to_owned(), 12.0).shrink(),
+        text(format!("({count})")).size(11).style(|theme: &Theme| {
+            text::Style { color: Some(theme.palette().text.scale_alpha(0.58)) }
+        }),
+        container(super::icons::icon_svg(chevron, 10.0)).center(DROPDOWN_ICON_BOX_SIZE),
+    ]
+    .spacing(5)
+    .align_y(iced::Alignment::Center);
+    button(container(label).center_y(BOTTOM_BAR_ICON_BUTTON_SIZE))
+        .padding([0, 9])
+        .style(move |theme, status| super::styles::selector_pill_button_style(theme, status, active))
+        .on_press(Message::RecommendedPromptMenuChanged(!active))
 }
 
 pub fn recommendations_menu<'a>(app: QuickInput<'a>, indices: &[usize]) -> Element<'a, Message> {
@@ -1008,7 +1024,12 @@ pub fn view(
                 controls.push(super::media_shortcuts::menu(app, open))
             }
             InputStripControl::Categories(scene, category) => {
-                controls.push(super::starter::category_selector(app.i18n, scene, category))
+                controls.push(super::starter::category_selector(
+                    app.i18n,
+                    scene,
+                    category,
+                    app.category_menu_open,
+                ))
             }
             InputStripControl::GitActions => {
                 controls.push(group_menu(app, QuickMessageGroup::Git, &git))
@@ -1036,6 +1057,7 @@ pub struct QuickInput<'a> {
     pub quick_messages: &'a [QuickMessageConfig],
     pub quick_message_group: Option<QuickMessageGroup>,
     pub employee_commands: Option<bool>,
+    pub category_menu_open: bool,
     pub recommended_prompt: bool,
     pub recommended_prompts: Option<&'a [String]>,
     pub project_is_git_repo: bool,

@@ -1,15 +1,13 @@
 //! 新会话场景及其可填入草稿的推荐。
 
-use std::fmt;
-
 use desktop_assets::assets::Icon;
 use desktop_i18n::I18n;
 use desktop_session::message::chat::input::popovers::ComposerScene;
-use desktop_ui_controls::system_settings_common::settings_pick_list_menu_style;
-use iced::widget::{button, container, pick_list, row, svg, text};
-use iced::{Alignment, Border, Element, Pixels, Theme};
+use iced::widget::{button, column, container, row, svg, text};
+use iced::{Alignment, Border, Element, Length, Theme};
 
 use super::quick_message::Message;
+use super::quick_messages::{shortcut_dropdown_trigger, shortcut_menu, shortcut_menu_items};
 use super::surface_styles::{
     BOTTOM_BAR_ICON_BUTTON_SIZE, selector_label_font, selector_pill_button_style,
 };
@@ -88,60 +86,43 @@ pub fn prompt_draft(
     prompts(scene, category).get(index).map(|prompt| i18n.__(prompt.draft))
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct CategoryOption {
-    index: Option<usize>,
-    label: &'static str,
-}
-
-impl fmt::Display for CategoryOption {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(self.label)
-    }
-}
-
 pub(super) fn category_selector(
     i18n: I18n,
     scene: ComposerScene,
     category: Option<usize>,
+    open: bool,
 ) -> Element<'static, Message> {
-    use iced::widget::pick_list::Status;
-
-    let mut options = vec![CategoryOption { index: None, label: i18n.__("通用推荐") }];
-    options.extend(
-        categories::categories(scene).iter().enumerate().map(|(index, group)| CategoryOption {
-            index: Some(index),
-            label: i18n.__(group.label),
-        }),
+    let groups = categories::categories(scene);
+    let label = category
+        .and_then(|index| groups.get(index))
+        .map_or_else(|| i18n.__("任务分类"), |group| i18n.__(group.label));
+    let trigger = shortcut_dropdown_trigger(
+        label,
+        Message::ComposerCategoryMenuChanged(!open),
+        open,
     );
-    let selected = category
-        .and_then(|index| options.iter().find(|option| option.index == Some(index)).copied());
-    pick_list(options, selected, move |option| {
-        Message::ComposerCategorySelected(scene, option.index)
-    })
-    .placeholder(i18n.__("任务分类"))
-    .text_size(12)
-    .text_line_height(text::LineHeight::Absolute(Pixels(BOTTOM_BAR_ICON_BUTTON_SIZE - 16.0)))
-    .padding([8, 10])
-    .style(|theme, status| {
-        let (status, open) = match status {
-            Status::Active => (button::Status::Active, false),
-            Status::Hovered => (button::Status::Hovered, false),
-            Status::Opened { .. } => (button::Status::Active, true),
-        };
-        let style = super::quick_styles::quick_message_group_button_style(theme, status, open);
-        pick_list::Style {
-            background: style
-                .background
-                .unwrap_or_else(|| theme.palette().text.scale_alpha(0.06).into()),
-            border: style.border,
-            text_color: style.text_color,
-            placeholder_color: style.text_color.scale_alpha(0.85),
-            handle_color: style.text_color.scale_alpha(0.65),
-        }
-    })
-    .menu_style(settings_pick_list_menu_style)
-    .into()
+    if !open {
+        return trigger.into();
+    }
+
+    let options = std::iter::once((None, "通用推荐")).chain(
+        groups.iter().enumerate().map(|(index, group)| (Some(index), group.label)),
+    );
+    let items = column![].spacing(3).width(Length::Fill).extend(options.map(|(index, label)| {
+        button(text(i18n.__(label)).size(12))
+            .padding([8, 10])
+            .width(Length::Fill)
+            .style(move |theme, status| {
+                super::quick_styles::quick_message_button_style(theme, status, index == category)
+            })
+            .on_press(Message::ComposerCategorySelected(scene, index))
+            .into()
+    }));
+    shortcut_menu(
+        trigger,
+        shortcut_menu_items(items, groups.len() + 1),
+        Message::ComposerCategoryMenuChanged(false),
+    )
 }
 
 pub fn scene_selector<Message: Clone + 'static>(

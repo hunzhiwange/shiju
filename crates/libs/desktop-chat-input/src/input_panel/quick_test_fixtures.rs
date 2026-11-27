@@ -25,6 +25,7 @@ impl Fixture {
  i18n: desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
  quick_messages: &self.quick_messages, quick_message_group: self.input_popovers.quick_message_group,
  employee_commands: None,
+ category_menu_open: false,
  recommended_prompt: self.input_popovers.recommended_prompt,
  recommended_prompts: Some(&self.agents_settings.entries[0].recommended_prompts),
  project_is_git_repo: self.project_is_git_repo,

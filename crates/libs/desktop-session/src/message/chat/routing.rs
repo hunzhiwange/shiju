@@ -225,6 +225,7 @@ impl<M, P, V, D, T, G, Media> ChatMessage<M, P, V, D, T, G, Media> {
             | ChatMessage::AgentInstallationStatusesLoaded(_)
             | ChatMessage::AgentRecommendedPromptSelected(_)
             | ChatMessage::ComposerSceneSelected(_)
+            | ChatMessage::ComposerCategoryMenuChanged(_)
             | ChatMessage::ComposerCategorySelected(..)
             | ChatMessage::ComposerPromptSelected(..)
             | ChatMessage::AgentInstallationChecked { .. }

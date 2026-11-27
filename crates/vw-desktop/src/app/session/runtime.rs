@@ -217,7 +217,7 @@ impl App {
     }
 
     pub fn sync_active_session_preferences(&mut self) {
-        self.session_state.input_popovers.recommended_prompt = false;
+        self.session_state.input_popovers.close_recommendation_menus();
         let Some(session_id) = self.session_state.active_session_id.clone() else {
             return;
         };

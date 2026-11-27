@@ -124,10 +124,12 @@ pub fn task_quick_action_draft(
     draft
 }
 
-/// 推荐消息只填入空草稿；请求生命周期不属于此入口。
-pub fn fill_recommendation(editor: &mut text_editor::Content, prompt: Option<&str>) -> Result<Option<String>, &'static str> {
-    if !editor.text().is_empty() { return Err("请先处理现有草稿"); }
-    let Some(prompt) = prompt.filter(|prompt| !prompt.trim().is_empty()) else { return Ok(None); };
-    *editor = text_editor::Content::with_text(prompt);
-    Ok(Some(prompt.to_owned()))
+/// 将推荐消息追加到草稿，返回更新后的完整内容。
+pub fn fill_recommendation(
+    editor: &mut text_editor::Content,
+    prompt: Option<&str>,
+) -> Option<String> {
+    let prompt = prompt.filter(|prompt| !prompt.trim().is_empty())?;
+    desktop_chat_view::chat::append_line(editor, prompt);
+    Some(editor.text())
 }

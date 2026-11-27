@@ -137,6 +137,7 @@ pub enum ChatMessage<Measurement, PreparedOpen, PanelMode, DetailsTab, TodoPlace
     SessionAgentSelected(Option<String>),
     AgentRecommendedPromptSelected(usize),
     ComposerSceneSelected(ComposerScene),
+    ComposerCategoryMenuChanged(bool),
     ComposerCategorySelected(ComposerScene, Option<usize>),
     ComposerPromptSelected(ComposerScene, Option<usize>, usize),
     AgentInstallationStatusesLoaded(Result<std::collections::BTreeMap<String, bool>, String>),

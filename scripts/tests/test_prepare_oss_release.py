@@ -13,19 +13,29 @@ SPEC = importlib.util.spec_from_file_location('prepare', Path(__file__).parents[
 prepare = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(prepare)
 BODY = b'neutral fixture installer\x00' * 8192
+WEB_NAME = 'shiju-web-0.5.10.zip'
+WEB_CHECKSUM = WEB_NAME + '.sha256'
+
+
+def asset_body(name):
+    if name == WEB_CHECKSUM:
+        return f'{hashlib.sha256(BODY).hexdigest()}  {WEB_NAME}\n'.encode('ascii')
+    return BODY
 
 
 def fixture():
+    names = [name for _, _, name in prepare.asset_specs('0.5.10')] + [WEB_NAME, WEB_CHECKSUM]
     return dict(tag_name='v0.5.10', draft=False, prerelease=False,
                 published_at='2026-10-26T00:00:00Z',
                 html_url='https://github.com/hunzhiwange/shiju/releases/tag/v0.5.10',
-                assets=[dict(name=name, size=len(BODY), digest='sha256:' + hashlib.sha256(BODY).hexdigest(),
+                assets=[dict(name=name, size=len(asset_body(name)),
+                             digest='sha256:' + hashlib.sha256(asset_body(name)).hexdigest(),
                              browser_download_url=f'https://github.com/hunzhiwange/shiju/releases/download/v0.5.10/{name}')
-                        for _, _, name in prepare.asset_specs('0.5.10')])
+                        for name in names])
 
 
 def prepared_contract():
-    """Return actual generated installers and manifest, using local HTTP only."""
+    """Return the prepared release manifest and files, using local HTTP only."""
     import contextlib
     import io
 
@@ -34,14 +44,15 @@ def prepared_contract():
         with tempfile.TemporaryDirectory() as root:
             original_open = prepare.urllib.request.urlopen
             def local_download(url, **kwargs):
-                return original_open(f'http://127.0.0.1:{DownloadTests.server.server_port}/ok', **kwargs)
+                return original_open(f'http://127.0.0.1:{DownloadTests.server.server_port}/{url.rsplit("/", 1)[-1]}', **kwargs)
             with patch.object(prepare, 'fetch_release', return_value=fixture()), patch.object(
                     prepare.urllib.request, 'urlopen', side_effect=local_download), contextlib.redirect_stdout(io.StringIO()):
                 path = prepare.prepare_release('0.5.10', str(Path(root).resolve()))
             manifest = json.loads(path.read_bytes())
             assert all(prepare.verify_file(path.parent / asset["name"], asset)
                        for asset in manifest["assets"])
-            return dict(manifest=manifest, github=fixture(), body=list(BODY))
+            return dict(manifest=manifest, files={file.name: file.read_bytes().hex()
+                        for file in path.parent.iterdir() if file != path})
     finally:
         DownloadTests.tearDownClass()
 
@@ -75,7 +86,7 @@ class ReleaseTests(unittest.TestCase):
             prepare.build_manifest(data, '0.5.10')
 
     def test_reject_invalid_metadata(self):
-        for mutation in [lambda d: d['assets'].pop(), lambda d: d['assets'].append(d['assets'][0]),
+        for mutation in [lambda d: d['assets'].pop(0), lambda d: d['assets'].append(d['assets'][0]),
                          lambda d: d.update(tag_name='v1.2.3'), lambda d: d.update(draft=True),
                          lambda d: d.update(prerelease=True), lambda d: d['assets'][0].update(name='../bad.rpm'),
                          lambda d: d['assets'][0].pop('digest'), lambda d: d['assets'][0].update(size=True),
@@ -93,6 +104,16 @@ class ReleaseTests(unittest.TestCase):
             self.assertEqual(path.name, 'manifest.preview.json')
             self.assertFalse(path.with_name('manifest.json').exists())
             self.assertEqual(prepare.prepare_release('0.5.10', root, True).read_bytes(), original)
+
+    def test_missing_or_mismatched_web_metadata_fails_before_download(self):
+        for mutation in [lambda d: d['assets'].pop(-2), lambda d: d['assets'].pop(),
+                         lambda d: d['assets'][-1].update(digest='sha256:' + '0' * 64)]:
+            data = fixture()
+            mutation(data)
+            with tempfile.TemporaryDirectory() as root, patch.object(prepare, 'fetch_release', return_value=data), patch.object(prepare.urllib.request, 'urlopen') as download:
+                with self.assertRaises(ValueError):
+                    prepare.prepare_release('0.5.10', root)
+                download.assert_not_called()
 
     def test_api_redirect_rejected(self):
         handler = prepare.NoRedirect()
@@ -176,10 +197,11 @@ class DownloadTests(unittest.TestCase):
                 if self.path == '/retry' and count == 1:
                     self.send_error(503)
                     return
+                body = asset_body(self.path.rsplit('/', 1)[-1])
                 self.send_response(200)
-                self.send_header('Content-Length', str(len(BODY)))
+                self.send_header('Content-Length', str(len(body)))
                 self.end_headers()
-                self.wfile.write(BODY[:10] if self.path == '/truncated' else BODY)
+                self.wfile.write(body[:10] if self.path == '/truncated' else body)
         cls.server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
@@ -225,14 +247,16 @@ class DownloadTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root, patch.object(prepare, 'fetch_release', return_value=fixture()):
             original_open = prepare.urllib.request.urlopen
             def local_download(url, **kwargs):
-                return original_open(f'http://127.0.0.1:{self.server.server_port}/ok', **kwargs)
+                return original_open(f'http://127.0.0.1:{self.server.server_port}/{url.rsplit("/", 1)[-1]}', **kwargs)
             directory = Path(root) / 'v0.5.10'
             directory.mkdir()
             (directory / (fixture()['assets'][0]['name'] + '.part')).write_bytes(b'broken')
             with patch.object(prepare.urllib.request, 'urlopen', side_effect=local_download):
                 path = prepare.prepare_release('0.5.10', root)
             self.assertEqual(len(json.loads(path.read_text())['assets']), 8)
-            (directory / fixture()['assets'][-1]['name']).write_bytes(b'bad')
+            self.assertEqual((directory / WEB_NAME).read_bytes(), BODY)
+            self.assertEqual((directory / WEB_CHECKSUM).read_bytes(), asset_body(WEB_CHECKSUM))
+            (directory / WEB_CHECKSUM).write_bytes(b'bad')
             with patch.object(prepare.urllib.request, 'urlopen', side_effect=local_download), self.assertRaises(ValueError):
                 prepare.prepare_release('0.5.10', root)
             self.assertFalse(path.exists())

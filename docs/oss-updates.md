@@ -19,7 +19,8 @@ API 重定向直接拒绝。安装包下载不附带该令牌，不读取 OSS �
 
 预览写入 `output-dir/vX.Y.Z/manifest.preview.json`，不下载安装包。
 预览不是就绪清单，发布器必须拒绝将其用作正式发布输入。
-普通模式将八个原包写入同一目录，全部通过大小及 SHA-256 校验后才原子写入
+普通模式将八个桌面安装包、`shiju-web-X.Y.Z.zip` 和对应的 `.zip.sha256` 写入同一目录，
+全部通过大小及 SHA-256 校验后才原子写入
 `manifest.json`。再次普通执行会先移除旧就绪清单，避免失败后留下错误的就绪标记。
 已有正确原包直接复用；已有不同内容拒绝覆盖，需要使用者移走冲突文件再重试。
 
@@ -42,8 +43,8 @@ API 重定向直接拒绝。安装包下载不附带该令牌，不读取 OSS �
 | aarch64-apple-darwin | dmg | ShiJu-macos-aarch64-apple-darwin-dist.dmg |
 | x86_64-apple-darwin | dmg | ShiJu-macos-x86_64-apple-darwin-dist.dmg |
 
-生成器只按上述精确文件名选择，缺失或重复直接失败。其它 CLI/desktop/webview ZIP/TAR
-资产被忽略。顺序固定为上表顺序，不受 API 数组顺序影响。
+生成器要求表中精确文件名和两个 Web 文件，缺失或重复直接失败。其它 CLI/desktop/webview
+ZIP/TAR 资产被忽略。桌面清单的顺序固定为上表顺序，不受 API 数组顺序影响。
 桌面更新消费端允许清单缺少部分平台或安装器（包括历史六包清单），检查更新时校验
 已有安装包，选择下载时才检查所需 target/kind 是否存在。空清单、重复条目及已有包的
 非法字段仍拒绝；GitHub 来源同样允许缺包，并继续忽略其它非桌面安装资产。
@@ -72,7 +73,8 @@ Linux 桌面端根据 `/etc/os-release`（缺失时读取 `/usr/lib/os-release`�
 授权取消、包管理器锁或安装失败均明确报错，保留下载包和 installer.log 供重试。
 macOS DMG 与 Windows MSI 继续使用独立更新进程完成自动升级。
 
-新准备目录必须包含八包；独立发布器只在读取旧 latest 时允许历史六包，以便升级到
+新准备目录必须包含八个桌面包和两个 Web 文件。桌面清单保留八项 `assets`，Web 安装器
+按清单版本推导 ZIP 下载地址。独立发布器只在读取旧 latest 时允许历史六包，以便升级到
 更高版本。不能覆盖已发布同版本的六包清单；必须使用更高版本发布八包清单。
 旧客户端只理解六包协议，需要先安装支持八包的新版客户端，再使用后续应用内升级。
 
@@ -93,7 +95,7 @@ python3 scripts/prepare_oss_release.py --help
 
 ## OSS 发布入口与安全限制
 
-VibeWindow 只生成六平台八包文件及清单。发布业务唯一维护于外部仓库
+ShiJu 源码仓库负责准备桌面包、Web 文件及清单。发布业务维护于外部仓库
 `data-gateway-oss-upload/skills/shiju-agent-oss-update/scripts/publish.py`；技能自包含，
 可复制到其他机器运行，不依赖生成器源码，不保留仓库发布副本或同步工具。
 以下命令在技能目录执行：
@@ -105,9 +107,9 @@ uv run scripts/publish.py --dir /absolute/output/v0.5.10 --publish
 ```
 
 Python >=3.10，PEP 723 固定 `oss2==2.19.1`。默认离线预览，不读取凭据。
-只接受正式 manifest.json 与精确八包，再验 schema、字段、映射、URL、大小和 SHA-256。
+发布器重验正式 `manifest.json`、八个桌面包、Web ZIP 及其 SHA-256 文件。
 路径必须绝对且没有符号链接组件；macOS `/tmp` 可改用 `/private/tmp`。
-单包限制为 OSS 单 PUT 的 5 GiB。不支持 bucket/key 覆盖参数或 `--workspace`；只消费已经生成的目录。
+桌面单包限制为 OSS 单 PUT 的 5 GiB，Web ZIP 限制为 256 MiB。不支持 bucket/key 覆盖参数或 `--workspace`；只消费已经生成的目录。
 
 发布模式仅从本机 `~/.config/shiju-oss-upload/config.json` 读取 region、access_key_id、
 access_key_secret；密钥可通过 OSS_ACCESS_KEY_ID、OSS_ACCESS_KEY_SECRET 覆盖。
@@ -125,7 +127,7 @@ names 不参与发布，不修改配置，不迁移凭据，不输出 SDK 原始
 
 当前独立发布器在共享 OSS 发布锁中重新读取 latest，支持首次发布、同字节恢复和
 向更高版本推进。锁不自动过期或抢占；此机制是遵守同一协议的发布端之间的互斥，
-不是目标 CAS。八包及版本清单共九个对象始终禁止覆盖，全部源站和匿名回读通过后
+不是目标 CAS。八个桌面包、两个 Web 文件及版本清单共 11 个对象始终禁止覆盖，全部源站和匿名回读通过后
 才更新 latest，并再次匿名验证。具体锁恢复与权限要求以外部技能 SKILL.md 为准。
 新协议不能覆盖相同版本的历史六包清单；应发布更高版本。
 
@@ -135,14 +137,14 @@ names 不参与发布，不修改配置，不迁移凭据，不输出 SDK 原始
 回执不是远端事实来源，每次执行都重新读取 latest 并校验对象，不依赖回执跳过校验。
 
 独立技能说明与全部发布实现位于外部仓库 `skills/shiju-agent-oss-update/`。
-技能不包含准备/下载入口；先在 VibeWindow 运行本文的生成命令，再将完整目录交给技能。
+先在 ShiJu 源码工作区运行本文的准备命令，再将完整目录交给发布技能。
 在技能目录验证：
 
 ```sh
 python3 -m unittest discover -s scripts/tests -p 'test_*.py'
 uv run scripts/publish.py --help
 # 仅跨端开发验收需要源码路径，发布本身不需要：
-python3 scripts/tests/check_generator_contract.py --generator-root /absolute/path/to/vibe-window
+python3 scripts/tests/check_generator_contract.py --generator-root /absolute/path/to/shiju
 ```
 
 跨端检查执行生成器的本地 HTTP fixture，取得真实生成文件/manifest 后，将技能复制到

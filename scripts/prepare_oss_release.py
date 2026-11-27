@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare eight unchanged GitHub installers for a separate, explicit OSS publish."""
+"""Prepare GitHub desktop installers and the Web archive pair for OSS publication."""
 
 import argparse
 import hashlib
@@ -19,6 +19,7 @@ PUBLIC_ROOT = 'https://www.shiju.cloud/agents/shiju-agent'
 TIMEOUT = 30
 ATTEMPTS = 3
 CHUNK_SIZE = 1024 * 1024
+MAX_WEB_ARCHIVE = 256 * 1024**2
 
 
 def normalize_version(value):
@@ -38,6 +39,23 @@ def asset_specs(version):
         ('aarch64-apple-darwin', 'dmg', 'ShiJu-macos-aarch64-apple-darwin-dist.dmg'),
         ('x86_64-apple-darwin', 'dmg', 'ShiJu-macos-x86_64-apple-darwin-dist.dmg'),
     ]
+
+
+def release_asset(raw_assets, version, name, **platform):
+    matches = [a for a in raw_assets if a.get('name') == name]
+    if len(matches) != 1:
+        raise ValueError(f'Expected exactly one release asset: {name}')
+    asset = matches[0]
+    digest, size = asset.get('digest'), asset.get('size')
+    github_url = f'https://github.com/{REPOSITORY}/releases/download/v{version}/{name}'
+    if not isinstance(digest, str) or not re.fullmatch(r'sha256:[0-9a-f]{64}', digest):
+        raise ValueError(f'Missing or invalid GitHub SHA-256 digest: {name}')
+    if type(size) is not int or size <= 0:
+        raise ValueError(f'Invalid byte size: {name}')
+    if asset.get('browser_download_url') != github_url:
+        raise ValueError(f'Unexpected download URL: {name}')
+    return dict(name=name, **platform, url=f'{PUBLIC_ROOT}/releases/v{version}/{name}',
+                github_url=github_url, size=size, sha256=digest[7:])
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -103,23 +121,8 @@ def build_manifest(release, version):
     raw_assets = release.get('assets')
     if not isinstance(raw_assets, list):
         raise ValueError('Release assets are missing')
-    assets = []
-    for target, kind, name in asset_specs(version):
-        matches = [a for a in raw_assets if a.get('name') == name]
-        if len(matches) != 1:
-            raise ValueError(f'Expected exactly one release asset: {name}')
-        asset = matches[0]
-        digest, size = asset.get('digest'), asset.get('size')
-        github_url = f'https://github.com/{REPOSITORY}/releases/download/v{version}/{name}'
-        if not isinstance(digest, str) or not re.fullmatch(r'sha256:[0-9a-f]{64}', digest):
-            raise ValueError(f'Missing or invalid GitHub SHA-256 digest: {name}')
-        if type(size) is not int or size <= 0:
-            raise ValueError(f'Invalid byte size: {name}')
-        if asset.get('browser_download_url') != github_url:
-            raise ValueError(f'Unexpected download URL: {name}')
-        assets.append(dict(name=name, target=target, kind=kind,
-                           url=f'{PUBLIC_ROOT}/releases/v{version}/{name}',
-                           github_url=github_url, size=size, sha256=digest[7:]))
+    assets = [release_asset(raw_assets, version, name, target=target, kind=kind)
+              for target, kind, name in asset_specs(version)]
     return dict(schema_version=1, version=version, published_at=published_at,
                 release_url=release_url, assets=assets)
 
@@ -178,19 +181,27 @@ def write_manifest(path, manifest):
 
 def prepare_release(version, output_dir, metadata_only=False):
     version = normalize_version(version)
-    manifest = build_manifest(fetch_release(version), version)
+    release = fetch_release(version)
+    manifest = build_manifest(release, version)
+    archive = release_asset(release['assets'], version, f'shiju-web-{version}.zip')
+    checksum = release_asset(release['assets'], version, archive['name'] + '.sha256')
+    checksum_bytes = f'{archive["sha256"]}  {archive["name"]}\n'.encode('ascii')
+    if archive['size'] > MAX_WEB_ARCHIVE or checksum['size'] != len(checksum_bytes):
+        raise ValueError('Invalid Web archive or checksum size')
+    if checksum['sha256'] != hashlib.sha256(checksum_bytes).hexdigest():
+        raise ValueError('GitHub Web checksum does not match the ZIP digest and filename')
     directory = Path(output_dir) / f'v{version}'
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / ('manifest.preview.json' if metadata_only else 'manifest.json')
     if not metadata_only:
         # Invalidate readiness before checking/recovering an existing directory.
         path.unlink(missing_ok=True)
-    for asset in manifest['assets']:
+    for asset in [*manifest['assets'], archive, checksum]:
         print(f'{asset["name"]}: {asset["size"]} bytes\n  {asset["github_url"]}\n  -> {asset["url"]}')
         if not metadata_only:
             download_asset(asset, directory)
     write_manifest(path, manifest)
-    print(f'{"Candidate only (no installers downloaded)" if metadata_only else "Verified release"}: {path}')
+    print(f'{"Candidate only (no files downloaded)" if metadata_only else "Verified release"}: {path}')
     return path
 
 
@@ -198,7 +209,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--version', required=True, help='Explicit stable X.Y.Z or vX.Y.Z')
     parser.add_argument('--output-dir', required=True, type=Path, help='Absolute local output directory')
-    parser.add_argument('--metadata-only', action='store_true', help='Write manifest.preview.json without downloading installers')
+    parser.add_argument('--metadata-only', action='store_true', help='Write manifest.preview.json without downloading assets')
     args = parser.parse_args()
     if not args.output_dir.is_absolute():
         parser.error('--output-dir must be absolute')

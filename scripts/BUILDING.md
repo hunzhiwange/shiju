@@ -139,11 +139,11 @@ The installation is kept under the current build's home configuration directory,
 in `web/current`; a verified replacement retains the old package in `web/previous`.
 
 For the ShiJu source, `latest/manifest.json` supplies the stable version using the
-existing desktop manifest schema. Mirror both `shiju-web-<version>.zip` and
-`shiju-web-<version>.zip.sha256` unchanged into
-`https://www.shiju.cloud/agents/shiju-agent/releases/v<version>/` before promoting
-that manifest. The desktop-only `prepare_oss_release.py` currently prepares eight
-native installers; the Web pair must also be mirrored by the release operator.
+existing desktop manifest schema. `prepare_oss_release.py` prepares the eight
+native installers and the GitHub copies of `shiju-web-<version>.zip` and
+`shiju-web-<version>.zip.sha256`. The `shiju-agent-oss-update` skill publishes and
+verifies all files in `https://www.shiju.cloud/agents/shiju-agent/releases/v<version>/`
+before promoting the manifest.
 A missing Web pair fails explicitly; the app does not switch sources automatically.
 
 Local packaging and relocated Node server checks (no publishing):

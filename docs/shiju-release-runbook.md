@@ -5,7 +5,7 @@
 
 ## 1. 先判断本次能否发布
 
-完整路径：**GitHub 正式 Release → 本地下载六个平台八个原包 → 离线预览 → OSS 发布 → 公网验收 → 客户端升级验收**。
+完整路径为 **GitHub 正式 Release → 本地准备桌面包和 Web 文件 → 离线预览 → OSS 发布 → 公网验收 → 客户端升级验收**。
 
 当前发布器存在明确限制：
 
@@ -18,14 +18,14 @@
 | 同版本但清单字节不同 | 停止：拒绝覆盖 |
 | 状态不明、权限错误或读取失败 | 停止并排查 |
 
-所有发布端须使用已支持八包协议的独立发布技能及共享锁。不要删除 latest 或改写
+所有发布端须使用已支持桌面包和 Web 文件的独立发布技能及共享锁。不要删除 latest 或改写
 不可变版本对象；相同版本的六包清单不能改成八包，需发布更高版本。
 旧客户端只理解六包协议，需要先安装支持八包协议的新版，再使用后续自动更新。
 
 ## 2. 发布前准备
 
 - GitHub 仓库固定为 `hunzhiwange/shiju`；目标 `vX.Y.Z` 已是正式 Release，非草稿、非预发布。
-- 六个平台八个资产上传完毕，GitHub API 为每个资产返回 SHA-256 digest。缺包或缺 digest 时先修复 Release。
+- 六个平台八个桌面资产、Web ZIP 及其 SHA-256 文件已上传，GitHub API 为每个资产返回 SHA-256 digest。缺包或缺 digest 时先修复 Release。
 - 本机具备 Python 3.10+、`uv`，可访问 GitHub、OSS 和 `https://www.shiju.cloud`。
 - 产物使用无符号链接组件的绝对路径，所在文件系统支持硬链接；macOS 临时路径使用 `/private/tmp` 而非 `/tmp`。
 - 同一产物目录只由一个进程操作；发布期间不改清单和安装包。
@@ -56,7 +56,7 @@ RELEASE_DIR="$OUTPUT_ROOT/v$RELEASE_VERSION"
 
 ## 4. 预览 GitHub 元数据并下载
 
-先预览（访问 GitHub，但不下载八个安装包，也不访问 OSS）：
+先通过 GitHub 元数据预览待发布文件：
 
 ```bash
 python3 "$SOURCE_REPO/scripts/prepare_oss_release.py" \
@@ -64,7 +64,7 @@ python3 "$SOURCE_REPO/scripts/prepare_oss_release.py" \
 python3 -m json.tool "$RELEASE_DIR/manifest.preview.json"
 ```
 
-确认版本、Release 地址、六个平台八个包、文件名、大小和摘要符合本次发布目标，然后正式准备：
+确认版本、Release 地址及输出中的桌面包和 Web 文件符合本次发布目标，然后正式准备：
 
 ```bash
 python3 "$SOURCE_REPO/scripts/prepare_oss_release.py" \
@@ -72,13 +72,13 @@ python3 "$SOURCE_REPO/scripts/prepare_oss_release.py" \
 python3 -m json.tool "$RELEASE_DIR/manifest.json"
 ```
 
-每条命令成功后才进入下一步。正式 `manifest.json` 仅在八包全部通过大小和 SHA-256 校验后生成。
+每条命令成功后才进入下一步。桌面包和 Web 文件全部通过大小和 SHA-256 校验后才生成正式 `manifest.json`。
 `manifest.preview.json` 不能替代它。GitHub 元数据请求依次使用 `GITHUB_TOKEN`、`GH_TOKEN`、
 本机 `gh auth login --hostname github.com` 的凭据；均未配置时匿名访问，可能遇到 API 限流。
 令牌仅发送到 GitHub API，不随安装包下载请求发送，也不用于 OSS。遇到 HTTP 403 限流时，
 先配置凭据或等待配额恢复，再重跑；准备失败不会生成正式清单，无需继续执行 JSON 检查。
 
-应有以下八包及正式清单；不解压、不改名、不重新压缩：
+准备目录包含下表文件和正式清单，保留文件的原始名称和内容：
 
 | 平台 | 文件名（将 X.Y.Z 换为本次版本） |
 | --- | --- |
@@ -90,6 +90,8 @@ python3 -m json.tool "$RELEASE_DIR/manifest.json"
 | Windows x64 | `ShiJu-x86_64-pc-windows-msvc-dist.msi` |
 | macOS ARM64 | `ShiJu-macos-aarch64-apple-darwin-dist.dmg` |
 | macOS x64 | `ShiJu-macos-x86_64-apple-darwin-dist.dmg` |
+| Web 静态版 | `shiju-web-X.Y.Z.zip` |
+| Web SHA-256 | `shiju-web-X.Y.Z.zip.sha256` |
 
 ### 安装包直接下载地址
 
@@ -125,10 +127,10 @@ cd "$PUBLISH_SKILL"
 uv run scripts/publish.py --dir "$RELEASE_DIR"
 ```
 
-预览会重新校验清单、八包、URL、大小和摘要，不读取 OSS 凭据、不上传对象。
+预览会重新校验清单、桌面包和 Web 文件，并输出全部 10 个文件的 URL、大小和摘要。
 首次 `uv run` 可能联网安装脚本依赖；“离线”指发布逻辑不访问 OSS。
-检查输出的八条地址均位于 `https://www.shiju.cloud/agents/shiju-agent/releases/vX.Y.Z/`。
-单包不得超过 5 GiB。预览成功不代表生产权限或已有 latest 状态已通过验证。
+检查输出地址均位于 `https://www.shiju.cloud/agents/shiju-agent/releases/vX.Y.Z/`。
+桌面单包上限为 5 GiB，Web ZIP 上限为 256 MiB。预览成功不代表生产权限或已有 latest 状态已通过验证。
 
 ## 6. 执行生产发布
 
@@ -142,8 +144,8 @@ uv run scripts/publish.py --dir "$RELEASE_DIR" --publish
 发布器依次执行：
 
 1. 重验本地输入并读取 latest；维护者确保 bucket 版本控制未启用。
-2. 创建八包和版本清单，共九个不可变对象；逐个从 OSS 完整回读校验。
-3. 从公开域名匿名完整读取九个对象，核对大小与 SHA-256。
+2. 创建八个桌面包、两个 Web 文件和版本清单，共 11 个不可变对象，逐个从 OSS 完整回读校验。
+3. 从公开域名匿名完整读取 11 个对象，核对大小与 SHA-256。
 4. 获取共享发布锁并重新读取 latest；首次禁止覆盖创建，升版仅更新 `agents/shiju-agent/latest/manifest.json`。
 5. 匿名回读 latest，写入成功回执。
 
@@ -153,7 +155,7 @@ uv run scripts/publish.py --dir "$RELEASE_DIR" --publish
 python3 -m json.tool "$RELEASE_DIR/oss-publish-receipt.json"
 ```
 
-保存本次版本、GitHub Release 地址、正式清单、八包和回执。回执用于记录，不能替代远端实际状态。
+保存本次版本、GitHub Release 地址、正式清单、桌面包、Web 文件和回执。回执用于记录，不能替代远端实际状态。
 
 ## 7. 公网及客户端验收
 

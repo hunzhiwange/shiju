@@ -258,7 +258,7 @@ pub fn view<'a, Host: Clone + 'static>(app: &ViewState<'a>, map: fn(Event) -> Ho
         );
     }
     let list_heading =
-        row![text(i18n.__("历史项目")).size(17).width(Length::Fill), settings_value_badge(count),]
+        row![text(i18n.__("项目")).size(17).width(Length::Fill), settings_value_badge(count),]
             .align_y(Alignment::Center);
     let heading = settings_page_heading(
         i18n.__("项目管理"),

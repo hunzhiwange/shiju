@@ -42,6 +42,7 @@ where
     Router::new()
         .route("/projects", get(project_list_v1))
         .route("/projects/resolve", post(project_resolve_v1))
+        .route("/projects/resolve-workspace", post(project_resolve_workspace_v1))
         .route("/projects/{project_id}", get(project_get_v1).patch(project_update_v1))
         .route("/projects/{project_id}/change-records", get(project_change_records_v1))
         .route(
@@ -75,6 +76,16 @@ pub fn project_context_directory(info: &project::Info) -> Result<String, ApiErro
         .find(|path| !path.trim().is_empty())
         .cloned()
         .ok_or_else(|| ApiError::bad_request("project directory missing"))
+}
+
+pub async fn list_project_catalog(tenant: &TenantScope) -> Result<Vec<project::Info>, ApiError> {
+    let mut projects =
+        project::list(tenant).await.map_err(|error| ApiError::bad_request(error.to_string()))?;
+    projects.retain(|info| project_context_directory(info).is_ok());
+    projects.sort_by(|left, right| {
+        right.time.updated.cmp(&left.time.updated).then_with(|| left.id.cmp(&right.id))
+    });
+    Ok(projects)
 }
 
 pub fn timestamp_ms(value: u64) -> TimestampMs {
@@ -143,11 +154,7 @@ pub fn collect_project_change_records(directory: &str) -> Vec<ProjectChangeRecor
 }
 
 pub fn map_project(info: &project::Info, host: ProjectHost) -> ProjectDto {
-    let directory = if info.worktree.trim().is_empty() {
-        info.sandboxes.first().cloned().unwrap_or_default()
-    } else {
-        info.worktree.clone()
-    };
+    let directory = project_context_directory(info).unwrap_or_default();
     let is_repo = matches!(info.vcs, Some(project::Vcs::Git));
     let git = ProjectGitStateDto {
         is_repo,
@@ -265,8 +272,7 @@ pub async fn project_list_v1(
     Extension(tenant): Extension<TenantScope>,
     Query(query): Query<ListProjectsRequest>,
 ) -> Result<Json<PaginatedResponse<ProjectDto>>, ApiError> {
-    let projects =
-        project::list(&tenant).await.map_err(|e| ApiError::bad_request(e.to_string()))?;
+    let projects = list_project_catalog(&tenant).await?;
     let mut items = agent_database::run_isolated(move || {
         projects.into_iter().map(|info| map_project(&info, host)).collect::<Vec<_>>()
     })
@@ -311,24 +317,41 @@ pub async fn project_list_v1(
     Ok(Json(PaginatedResponse { items, next_cursor }))
 }
 
+async fn project_resolve_workspace_v1(
+    Extension(host): Extension<ProjectHost>,
+    Extension(tenant): Extension<TenantScope>,
+) -> Result<Json<ResolveProjectResponse>, ApiError> {
+    let (info, _) = project::from_directory(&tenant, project::builtin_workspace_project_dir())
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    resolved_project(info, host).await
+}
+
 pub async fn project_resolve_v1(
     Extension(host): Extension<ProjectHost>,
     Extension(tenant): Extension<TenantScope>,
     Json(body): Json<ResolveProjectRequest>,
 ) -> Result<Json<ResolveProjectResponse>, ApiError> {
-    let info = if body.create_if_missing {
-        project::from_directory(&tenant, body.directory)
+    let registered = project::list(&tenant)
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?
+        .into_iter()
+        .find(|info| project_owns_directory(info, &body.directory));
+    let info = match registered {
+        Some(info) => info,
+        None if body.create_if_missing => project::from_directory(&tenant, body.directory)
             .await
             .map(|(info, _)| info)
-            .map_err(|error| ApiError::bad_request(error.to_string()))?
-    } else {
-        project::list(&tenant)
-            .await
-            .map_err(|error| ApiError::bad_request(error.to_string()))?
-            .into_iter()
-            .find(|info| project_owns_directory(info, &body.directory))
-            .ok_or_else(|| ApiError::not_found("project directory not found"))?
+            .map_err(|error| ApiError::bad_request(error.to_string()))?,
+        None => return Err(ApiError::not_found("project directory not found")),
     };
+    resolved_project(info, host).await
+}
+
+async fn resolved_project(
+    info: project::Info,
+    host: ProjectHost,
+) -> Result<Json<ResolveProjectResponse>, ApiError> {
     let project = agent_database::run_isolated(move || map_project(&info, host))
         .await
         .map_err(|error| ApiError::internal(error.to_string()))?;

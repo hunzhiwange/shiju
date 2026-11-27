@@ -20,17 +20,6 @@ pub fn is_builtin_workspace_project(path: &str) -> bool {
     }
 }
 
-fn limit_recent_projects(recent: &mut Vec<String>) {
-    let mut ordinary_count = 0;
-    recent.retain(|path| {
-        if is_builtin_workspace_project(path) {
-            return true;
-        }
-        ordinary_count += 1;
-        ordinary_count <= 10
-    });
-}
-
 #[derive(Debug, Clone)]
 pub struct ProjectBranchSnapshot {
     pub project_path: String,
@@ -274,13 +263,12 @@ fn normalize_recent_projects_meta(recent: Vec<RecentProjectMeta>) -> Vec<RecentP
     out
 }
 
-/// 将项目路径加入最近列表（去重、置顶、截断、持久化）
+/// 将项目路径加入最近列表（去重、置顶、持久化）
 ///
 /// 操作步骤：
 /// 1. 如果路径已存在，先移除旧位置
 /// 2. 将路径插入到列表头部
-/// 3. 保留内置项目及最多 10 个普通项目
-/// 4. 持久化到磁盘
+/// 3. 持久化到磁盘
 ///
 /// # 参数
 ///
@@ -293,8 +281,6 @@ pub fn push_recent_project(dirs: Option<directories::ProjectDirs>, recent: &mut 
     }
     // 插入到头部
     recent.insert(0, path);
-    // 内置项目不占用普通项目名额
-    limit_recent_projects(recent);
     // 后台持久化，避免切换项目时阻塞 UI
     save_recent_projects_background(dirs.clone(), recent.clone());
 }
@@ -307,7 +293,6 @@ pub fn ensure_recent_project(dirs: Option<directories::ProjectDirs>, recent: &mu
         return;
     }
     recent.insert(0, path);
-    limit_recent_projects(recent);
     save_recent_projects_background(dirs.clone(), recent.clone());
 }
 

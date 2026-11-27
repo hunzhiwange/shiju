@@ -4,7 +4,6 @@ use crate::app::{App, Message, Screen};
 use desktop_git_ui::state::State as GitState;
 use iced::Task;
 use iced::widget::pane_grid;
-use vw_api_types::cli_workbench::CliWorkbenchErrorCode;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
 mod files;
@@ -357,36 +356,14 @@ fn load_projects(app: &mut App) -> Task<Message> {
     state.projects_dirty = false;
     state.projects_error = None;
     let request = state.projects_request;
-    let recent = app.workspace_state.recent_projects.clone();
     Task::perform(
         async move {
             let client = GatewayClient::new(endpoint)?;
-            match client.cli_workbench_projects(None).await {
-                Ok(snapshot) => Ok(snapshot
-                    .projects
-                    .into_iter()
-                    .map(|project| Project {
-                        id: project.id,
-                        name: project.name,
-                        directory: project.directory,
-                    })
-                    .collect()),
-                Err(error) if error.code == CliWorkbenchErrorCode::NotFound => {
-                    desktop_settings_workspace::environment::load_projects(&client, recent)
-                        .await
-                        .map(|projects| {
-                            projects
-                                .into_iter()
-                                .map(|project| Project {
-                                    id: project.id.as_ref().to_owned(),
-                                    name: project.name,
-                                    directory: project.directory,
-                                })
-                                .collect()
-                        })
-                }
-                Err(error) => Err(error.message),
-            }
+            Ok(client.cli_workbench_project_catalog().await?.into_iter().map(|project| Project {
+                id: project.id,
+                name: project.name,
+                directory: project.directory,
+            }).collect())
         },
         move |result| message(Event::ProjectsReady(request, result)),
     )

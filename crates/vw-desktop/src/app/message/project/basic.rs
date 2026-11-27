@@ -120,16 +120,22 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         // 在非 wasm32 平台上弹出文件夹选择对话框，选择后打开项目并建立索引
         ProjectMessage::OpenFolderPressed => {
             #[cfg(not(target_arch = "wasm32"))]
-            if let Some(path) = desktop_workspace::basic::pick_folder()
             {
-                return Some(app.open_project_and_index(path.to_string()));
+                Some(crate::app::workbench_projects::update(
+                    app,
+                    crate::app::workbench_projects::Event::Add,
+                ))
             }
+            #[cfg(target_arch = "wasm32")]
             Some(iced::Task::none())
         }
         // 处理"打开项目"按钮点击事件
         // 如果输入框为空则使用当前目录，否则使用输入的路径
         ProjectMessage::OpenProjectPressed => {
             if let Some(path) = desktop_workspace::basic::project_path_to_open(&app.project_input.project_path_input) {
+                #[cfg(not(target_arch = "wasm32"))]
+                return Some(crate::app::workbench_projects::open_directory(app, path));
+                #[cfg(target_arch = "wasm32")]
                 return Some(app.open_project_and_index(path));
             }
             Some(iced::Task::none())

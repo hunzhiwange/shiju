@@ -28,14 +28,13 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
                 "terminal_projects_collapsed",
                 app.terminal_projects_collapsed.into(),
             );
-            return Task::batch([save, crate::app::workbench_projects::ensure_terminal_projects(app)]);
+            return Task::batch([save, crate::app::workbench_projects::ensure_project_catalog(app)]);
         }
         TerminalMessage::SelectProject(path) => {
             let directory = std::path::Path::new(path);
             if !app.terminal.is_visible
-                || !(app.navigation_tabs.project_path.as_ref() == Some(path)
-                    || app.workspace_state.recent_projects.contains(path)
-                    || app.workbench_projects.terminal_projects().is_some_and(|projects| projects.contains_key(path)))
+                || !crate::app::config::gateway_client_endpoint().is_loopback()
+                || !app.workbench_projects.catalog().is_some_and(|projects| projects.contains_key(path))
                 || app.workbench_projects.active_removed().is_some_and(|removed| removed.contains(path))
             {
                 return Task::none();

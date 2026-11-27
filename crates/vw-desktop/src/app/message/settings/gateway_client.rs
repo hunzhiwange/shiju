@@ -40,7 +40,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             worktrees,
             app.reload_project_chat_preferences(true),
             #[cfg(not(target_arch = "wasm32"))]
-            crate::app::workbench_projects::ensure_terminal_projects(app),
+            crate::app::workbench_projects::ensure_project_catalog(app),
         ])
     } else {
         Task::none()

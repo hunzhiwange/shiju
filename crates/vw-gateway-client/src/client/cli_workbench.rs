@@ -29,6 +29,35 @@ impl GatewayClient {
         self.cli_workbench_request(reqwest::Method::GET, &path, None::<&()>).await
     }
 
+    pub async fn cli_workbench_project_catalog(&self) -> Result<Vec<CliWorkbenchProject>, String> {
+        let response: Result<CliWorkbenchProjects, _> = self
+            .cli_workbench_request(
+                reqwest::Method::GET,
+                "/v1/cli-workbench/projects?catalog_only=true",
+                None::<&()>,
+            )
+            .await;
+        match response {
+            Ok(mut snapshot) => {
+                for project in &mut snapshot.projects {
+                    project.sessions.clear();
+                }
+                Ok(snapshot.projects)
+            }
+            Err(error) if error.code == CliWorkbenchErrorCode::NotFound => {
+                let client = gateway_project::GatewayProjectClient::new(self.transport().clone());
+                let projects = client.project_list_all(self.endpoint().tenant_scope()).await?;
+                Ok(projects.into_iter().map(|project| CliWorkbenchProject {
+                        id: project.id.0,
+                        name: project.name,
+                        directory: project.directory,
+                        sessions: Vec::new(),
+                    }).collect())
+            }
+            Err(error) => Err(error.message),
+        }
+    }
+
     pub async fn cli_workbench_resolve_project(
         &self,
         directory: &str,

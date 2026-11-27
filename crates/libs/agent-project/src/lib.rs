@@ -58,6 +58,8 @@ pub mod event {
 pub use core::{
     add_sandbox, from_directory, get, list, remove_sandbox, sandboxes, set_initialized, update,
 };
+#[cfg(not(target_arch = "wasm32"))]
+pub use core::builtin_workspace_project_dir;
 pub use icon_discovery::discover;
 #[cfg(not(target_arch = "wasm32"))]
 pub use migration::{MigrationOutcome, migrate_project_registry};

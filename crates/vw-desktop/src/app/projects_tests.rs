@@ -338,7 +338,7 @@ fn switch_project_terminal_creates_new_terminal_then_restores_cached_state() {
 }
 
 #[test]
-fn open_project_removes_apps_tab_creates_project_tab_and_recent_edit_name() {
+fn open_project_creates_a_tab_and_waits_for_the_gateway_project_list() {
     let (mut app, _task) = crate::app::App::new();
     app.navigation_tabs.open_tabs.clear();
     app.navigation_tabs.project_path = None;
@@ -367,8 +367,8 @@ fn open_project_removes_apps_tab_creates_project_tab_and_recent_edit_name() {
             && tab.screen == crate::app::Screen::Project
             && tab.project_path.as_deref() == Some("/repo/alpha")
     }));
-    assert_eq!(app.workspace_state.recent_projects.first().map(String::as_str), Some("/repo/alpha"));
-    assert_eq!(app.workspace_state.recent_projects_edits.first().map(String::as_str), Some("Alpha Project"));
+    assert!(app.workspace_state.recent_projects.is_empty());
+    assert!(app.workspace_state.recent_projects_edits.is_empty());
     assert!(app.git.selected_branch.is_none());
     assert!(app.git.branches.is_empty());
 }

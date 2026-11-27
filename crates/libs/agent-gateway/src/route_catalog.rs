@@ -227,6 +227,7 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("GET", "/v1/pty/{pty_id}/connect", "PTY WebSocket"),
         client_route("GET", "/v1/projects", "project list"),
         client_route("POST", "/v1/projects/resolve", "resolve project"),
+        client_route("POST", "/v1/projects/resolve-workspace", "resolve default workspace project"),
         client_route("GET", "/v1/projects/{project_id}", "project detail"),
         client_route("PATCH", "/v1/projects/{project_id}", "update project"),
         client_route("GET", "/v1/projects/{project_id}/change-records", "project change records"),

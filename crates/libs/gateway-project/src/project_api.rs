@@ -9,7 +9,7 @@
 use vw_api_transport::common::OperationAck;
 use vw_api_project::{
     GetProjectResponse, ListProjectChangeRecordsResponse, ListProjectsRequest,
-    ListProjectsResponse, ProjectScopeDto, ResolveProjectRequest, ResolveProjectResponse,
+    ListProjectsResponse, ProjectDto, ProjectScopeDto, ResolveProjectRequest, ResolveProjectResponse,
     TenantScopeDto, UpdateProjectRequest,
 };
 use vw_api_worktree::{
@@ -48,6 +48,24 @@ impl GatewayProjectClient {
         self.transport.get_json("/v1/projects", &query).await
     }
 
+    pub async fn project_list_all(&self, scope: &TenantScopeDto) -> Result<Vec<ProjectDto>, String> {
+        let mut request = ListProjectsRequest { limit: Some(200), ..Default::default() };
+        let mut projects = Vec::new();
+        let mut cursors = std::collections::HashSet::new();
+        let mut seen = std::collections::HashSet::new();
+        loop {
+            let page = self.project_list(scope, &request).await?;
+            projects.extend(page.items.into_iter().filter(|project| seen.insert(project.id.clone())));
+            let Some(cursor) = page.next_cursor.filter(|cursor| !cursor.is_empty()) else {
+                return Ok(projects);
+            };
+            if !cursors.insert(cursor.clone()) {
+                return Err("项目分页游标重复，请刷新。".into());
+            }
+            request.cursor = Some(cursor);
+        }
+    }
+
     /// 根据目录等线索解析项目身份。
     ///
     /// 常用于调用方只持有目录路径，但尚未拿到稳定 `project_id` 的场景。
@@ -58,6 +76,14 @@ impl GatewayProjectClient {
     ) -> Result<ResolveProjectResponse, String> {
         self.ensure_tenant_scope(scope)?;
         self.transport.post_json("/v1/projects/resolve", &[], request).await
+    }
+
+    pub async fn project_resolve_workspace(
+        &self,
+        scope: &TenantScopeDto,
+    ) -> Result<ResolveProjectResponse, String> {
+        self.ensure_tenant_scope(scope)?;
+        self.transport.post_json("/v1/projects/resolve-workspace", &[], &()).await
     }
 
     /// 读取单个项目详情。

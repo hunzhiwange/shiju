@@ -139,7 +139,7 @@ fn normalize_recent_projects_trims_filters_and_preserves_first_seen_order() {
 }
 
 #[test]
-fn normalize_recent_projects_preserves_more_than_recent_list_storage_limit() {
+fn normalize_recent_projects_preserves_all_distinct_projects() {
     let recent = (0..12).map(|index| format!("/repo/project-{index}")).collect::<Vec<_>>();
 
     let normalized = super::normalize_recent_projects(recent.clone());
@@ -194,28 +194,27 @@ fn ensure_recent_project_keeps_existing_project_order() {
 fn ensure_recent_project_adds_new_project_to_front() {
     let storage = tempfile::tempdir().unwrap();
     let dirs = directories::ProjectDirs::from_path(storage.path().to_path_buf());
-    let mut recent = vec!["/repo/alpha".to_string(), "/repo/beta".to_string()];
+    let mut recent = (0..12).map(|index| format!("/repo/project-{index}")).collect::<Vec<_>>();
+    let original = recent.clone();
 
     super::ensure_recent_project(dirs, &mut recent, "/repo/gamma".to_string());
 
-    assert_eq!(
-        recent,
-        vec!["/repo/gamma".to_string(), "/repo/alpha".to_string(), "/repo/beta".to_string()]
-    );
+    assert_eq!(recent.first().map(String::as_str), Some("/repo/gamma"));
+    assert_eq!(&recent[1..], original.as_slice());
 }
 
 #[test]
-fn push_recent_project_moves_existing_to_front_and_truncates_to_storage_limit() {
+fn push_recent_project_moves_existing_to_front_and_preserves_other_projects() {
     let storage = tempfile::tempdir().unwrap();
     let dirs = directories::ProjectDirs::from_path(storage.path().to_path_buf());
     let mut recent = (0..11).map(|index| format!("/repo/project-{index}")).collect::<Vec<_>>();
 
     super::push_recent_project(dirs, &mut recent, "/repo/project-5".to_string());
 
-    assert_eq!(recent.len(), 10);
+    assert_eq!(recent.len(), 11);
     assert_eq!(recent.first().map(String::as_str), Some("/repo/project-5"));
     assert_eq!(recent.iter().filter(|path| *path == "/repo/project-5").count(), 1);
-    assert!(!recent.contains(&"/repo/project-10".to_string()));
+    assert_eq!(recent.last().map(String::as_str), Some("/repo/project-10"));
 }
 
 #[test]
@@ -248,14 +247,14 @@ fn refresh_branches_leaves_snapshot_unchanged_without_project() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn built_in_workspace_survives_recent_project_limit_and_keeps_its_name() {
+fn built_in_workspace_stays_in_recent_projects_and_keeps_its_name() {
     let directory = super::builtin_workspace_project_dir().expect("home directory");
     let path = directory.to_string_lossy().into_owned();
     let mut recent = vec![path.clone()];
     for index in 0..12 {
         super::push_recent_project(None, &mut recent, format!("/repo/project-{index}"));
     }
-    assert_eq!(recent.len(), 11);
+    assert_eq!(recent.len(), 13);
     assert!(recent.contains(&path));
     assert_eq!(super::project_tab(&path).1, "workspace");
     assert_eq!(super::recent_project_labels(std::slice::from_ref(&path), &[recent_meta(&path)]), ["workspace"]);

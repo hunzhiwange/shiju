@@ -9,7 +9,7 @@ pub(super) use crate::app::message;
 pub(super) use crate::app::views;
 pub(super) use crate::app::{
     AgentRequest, App, FocusArea, Message,
-    Screen, TerminalState, load_recent_projects,
+    Screen, TerminalState,
     load_recent_projects_meta,
 };
 

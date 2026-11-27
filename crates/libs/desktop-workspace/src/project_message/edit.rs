@@ -3,7 +3,6 @@ pub use super::edit_state::*;
 pub enum Effect {
     PickIcon,
     SaveMeta,
-    SaveRecent,
     OpenFirst,
     Reveal(String),
     RuntimeError(String),
@@ -395,9 +394,9 @@ pub fn handle(app: &mut State<'_>, message: Event) -> Vec<Effect> {
             let deleting_current = (*app.project_path).as_ref() == Some(&path);
             remove_recent_project(app, &path);
             if deleting_current {
-                vec![Effect::SaveRecent, Effect::OpenFirst]
+                vec![Effect::OpenFirst]
             } else {
-                vec![Effect::SaveRecent]
+                Vec::new()
             }
         }
 

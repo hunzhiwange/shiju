@@ -145,6 +145,14 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     if selects_tab && app.navigation_tabs.screen == Screen::GitWorkbench {
         return Task::batch([task, effect, crate::app::git_workbench::activate(app)]);
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    if selects_tab && app.navigation_tabs.screen == Screen::Projects {
+        return Task::batch([
+            task,
+            effect,
+            crate::app::workbench_projects::refresh_catalog(app, false),
+        ]);
+    }
     Task::batch([task, effect])
 }
 #[cfg(test)]

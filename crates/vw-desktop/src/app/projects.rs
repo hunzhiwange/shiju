@@ -6,10 +6,8 @@
 //! - 打开项目时的标签页创建、配置加载、Git分支刷新与文件索引异步启动
 //!
 //! 主要公开函数：
-//! - [`load_recent_projects`]/[`save_recent_projects`]: 最近项目路径列表的读写
+//! - [`load_recent_projects`]: 读取待迁移的旧版项目路径
 //! - [`load_recent_projects_meta`]/[`save_recent_projects_meta`]: 最近项目元数据的读写
-//! - [`push_recent_project`]: 将路径加入最近列表（去重、置顶、上限截断、自动持久化）
-//! - [`ensure_recent_project`]: 将新路径加入最近列表，已存在路径保持原顺序
 //!
 //! 主要 App 方法：
 //! - [`App::open_project`]: 打开指定路径的项目，完成状态切换、配置加载、会话重载、信息拉取
@@ -25,34 +23,14 @@ use crate::app::App;
 use iced::Task;
 
 pub use desktop_workspace::projects::ProjectBranchSnapshot;
-pub fn save_recent_projects_background(recent: Vec<String>) { desktop_workspace::projects::save_recent_projects_background(project_dirs(), recent) }
 pub fn save_recent_projects_meta_background(v: Vec<RecentProjectMeta>) { desktop_workspace::projects::save_recent_projects_meta_background(project_dirs(), v) }
 pub fn load_recent_projects() -> Vec<String> {
-    let recent = desktop_workspace::projects::load_recent_projects(project_dirs());
-    #[cfg(not(target_arch = "wasm32"))]
-    let recent = {
-        let mut recent = recent;
-        if let Some(directory) = desktop_workspace::projects::builtin_workspace_project_dir() {
-            match std::fs::create_dir_all(&directory) {
-                Ok(()) => {
-                    let path = directory.to_string_lossy().into_owned();
-                    if !recent.contains(&path) {
-                        recent.push(path);
-                    }
-                }
-                Err(error) => tracing::warn!(%error, "failed to create built-in workspace project"),
-            }
-        }
-        recent
-    };
-    recent
+    desktop_workspace::projects::load_recent_projects(project_dirs())
 }
 pub fn save_recent_projects(recent: &Vec<String>) { desktop_workspace::projects::save_recent_projects(project_dirs(), recent) }
 pub fn push_recent_project(recent: &mut Vec<String>, path: String) { desktop_workspace::projects::push_recent_project(project_dirs(), recent, path) }
-pub fn ensure_recent_project(recent: &mut Vec<String>, path: String) { desktop_workspace::projects::ensure_recent_project(project_dirs(), recent, path) }
 pub fn load_recent_projects_meta() -> Vec<RecentProjectMeta> { desktop_workspace::projects::load_recent_projects_meta(project_dirs()) }
 pub fn save_recent_projects_meta(v: &Vec<RecentProjectMeta>) { desktop_workspace::projects::save_recent_projects_meta(project_dirs(), v) }
-pub(crate) use desktop_workspace::projects::is_visible_recent_project_path;
 #[allow(dead_code)]
 fn load_project_branches(path: String) -> ProjectBranchSnapshot {
     let selected_branch = super::components::git_panel::current_branch(&path);
@@ -239,6 +217,9 @@ impl App {
         self.task_quick_actions.board.close();
         self.workspace_state.project_is_git_repo = false;
         self.task_board.task_board_loading = false;
+        self.task_board.work_search = None;
+        self.task_board.work_toolbar_menu = None;
+        self.task_board.work_sidebar_menu = None;
         self.task_board.task_board_workflow_generation =
             crate::app::message::task_board::next_agent_scheduler_status_generation();
         self.task_board.task_labels.clear();
@@ -412,7 +393,7 @@ impl App {
     /// - 切换终端状态（按项目隔离）
     /// - 重置项目 ID、重载会话、加载项目信息
     /// - 刷新 Git 分支列表、清空展开的文件节点
-    /// - 更新最近项目列表
+    /// - 加载网关项目详情
     ///
     /// # 参数
     ///
@@ -465,8 +446,6 @@ impl App {
         self.git.git_worktree_options_project_path = None;
         self.git.git_worktree_menu_open = false;
 
-        // 将路径加入最近项目列表；已存在项目保持原位，避免点击切换时侧栏跳动。
-        ensure_recent_project(&mut self.workspace_state.recent_projects, path.clone());
         self.navigation_tabs.screen = Screen::Project;
         self.clear_expanded_files();
         self.refresh_search_panel_file_cache();
@@ -475,9 +454,6 @@ impl App {
         // 清空分支信息并异步刷新，避免切换项目时阻塞 UI
         self.refresh_branches();
 
-        // 为最近项目列表生成显示名称（使用元数据或路径末段）
-        self.workspace_state.recent_projects_edits = desktop_workspace::projects::recent_project_labels(
-            &self.workspace_state.recent_projects, &self.workspace_state.recent_projects_meta);
         let deferred_path = path.clone();
         let deferred_task =
             Task::done(Message::Project(message::ProjectMessage::StartDeferredTasks {
@@ -501,7 +477,7 @@ impl App {
             settings_refresh_task,
             worktree_settings_task,
             #[cfg(not(target_arch = "wasm32"))]
-            crate::app::workbench_projects::ensure_terminal_projects(self),
+            crate::app::workbench_projects::ensure_project_catalog(self),
         ])
     }
 

@@ -206,6 +206,8 @@ pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
 #[derive(Deserialize)]
 struct ProjectsQuery {
     directory: Option<String>,
+    #[serde(default)]
+    catalog_only: bool,
 }
 
 async fn projects(
@@ -213,7 +215,7 @@ async fn projects(
     terminal: terminal::Authority,
     Query(query): Query<ProjectsQuery>,
 ) -> Result<Json<CliWorkbenchProjects>, WorkbenchError> {
-    let records = agent_project::list(&tenant).await.map_err(|_| unavailable())?;
+    let records = gateway_project::list_project_catalog(&tenant).await.map_err(|_| unavailable())?;
     let mut preferred_project = query.directory.as_deref()
         .and_then(|directory| registered_project_at(&records, FsPath::new(directory)));
     if let Some(directory) =
@@ -234,7 +236,9 @@ async fn projects(
             sessions: Vec::new(),
         }
     }).collect();
-    attach_project_sessions(&mut WORKBENCH.lock(), &tenant, &mut projects);
+    if !query.catalog_only {
+        attach_project_sessions(&mut WORKBENCH.lock(), &tenant, &mut projects);
+    }
     Ok(Json(CliWorkbenchProjects { projects, preferred_project, terminal_available: terminal.available() }))
 }
 

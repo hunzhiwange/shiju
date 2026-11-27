@@ -104,6 +104,40 @@ async fn cli_workbench_acp_lists_sessions_for_registered_project() {
 }
 
 #[tokio::test]
+async fn cli_workbench_catalog_returns_the_full_gateway_project_list() {
+    let _guard = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let tenant = TenantScope::new("workbench-fixture", "catalog").unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let mut ids = Vec::new();
+    for index in 0..12 {
+        let directory = root.path().join(format!("project-{index}"));
+        std::fs::create_dir(&directory).unwrap();
+        let (project, _) = crate::project::from_directory(&tenant, directory.canonicalize().unwrap())
+            .await.unwrap();
+        ids.push(project.id);
+    }
+    ids.sort();
+
+    for (route, field) in [
+        ("/v1/cli-workbench/projects?catalog_only=true", "projects"),
+        ("/v1/cli-workbench/projects", "projects"),
+        ("/v1/projects?limit=100", "items"),
+    ] {
+        let (status, body) = request(&tenant, "GET", route, Value::Null).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let mut returned: Vec<_> = body[field].as_array().unwrap().iter()
+            .map(|project| project["id"].as_str().unwrap()).collect();
+        returned.sort();
+        assert_eq!(returned, ids.iter().map(String::as_str).collect::<Vec<_>>());
+    }
+}
+
+#[tokio::test]
 async fn cli_workbench_resolves_unregistered_directory_once() {
     let _guard = crate::test_support::global_async_env_lock().lock().await;
     let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(

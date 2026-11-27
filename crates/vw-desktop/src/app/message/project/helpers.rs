@@ -162,7 +162,7 @@ pub(crate) async fn load_gateway_recent_projects()
 
     Ok(projects
         .into_iter()
-        .filter(|project| crate::app::projects::is_visible_recent_project_path(&project.directory))
+        .filter(|project| !project.directory.trim().is_empty())
         .map(|project| crate::app::RecentProjectMeta {
             path: project.directory,
             name: project.name,

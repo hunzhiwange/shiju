@@ -177,7 +177,7 @@ pub use self::preview::{PreviewTab, preview_open_error, safe_preview};
 /// 对外暴露当前模块需要复用的能力。
 pub use self::projects::{
     load_recent_projects, load_recent_projects_meta, push_recent_project, save_recent_projects,
-    save_recent_projects_background, save_recent_projects_meta,
+    save_recent_projects_meta,
     save_recent_projects_meta_background,
 };
 /// 对外暴露当前模块需要复用的能力。

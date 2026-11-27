@@ -122,11 +122,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     crate::app::message::knowledge_tool::KnowledgeToolMessage::ImportDroppedFiles,
                 );
             }
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(open) = crate::app::workbench_projects::open_dropped_directory(app, &path) {
+                return open;
+            }
             app.file_tree_interaction.clear_drag();
-            crate::app::message::preview::update(
-                app,
-                crate::app::message::PreviewMessage::Open(path),
-            )
+            app.navigation_panels.show_system_settings = false;
+            crate::app::message::preview::tab::open_standalone(app, path, None, None)
         }
         ViewMessage::HoveredFilesLeft => {
             app.file_tree_interaction.leave_external_files();

@@ -68,8 +68,13 @@ fn find_git_entry(start: &Path) -> Option<(PathBuf, PathBuf)> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+pub fn builtin_workspace_project_dir() -> std::path::PathBuf {
+    config_runtime_paths::builtin_workspace_project_dir(&agent_paths::paths().home)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn is_builtin_workspace_project(path: &Path) -> bool {
-    let directory = config_runtime_paths::builtin_workspace_project_dir(&agent_paths::paths().home);
+    let directory = builtin_workspace_project_dir();
     path == directory.as_path()
 }
 
@@ -288,12 +293,22 @@ pub async fn from_directory(
         });
         let previous = result.clone();
 
-        if result.sandboxes.iter().all(|s| s != &sandbox_s) && sandbox_s != result.worktree {
+        if sandbox_s != worktree_s
+            && sandbox_s != result.worktree
+            && result.sandboxes.iter().all(|s| s != &sandbox_s)
+        {
             result.sandboxes.push(sandbox_s.clone());
         }
         // 清理已不存在的 sandbox，避免 UI 展示陈旧目录或后续操作落到无效路径。
         result.sandboxes.retain(|p| Path::new(p).is_dir());
-        result.worktree = worktree_s;
+        // 同一个目录可能通过符号链接或不同的路径拼写打开。保留已登记的项目根目录。
+        if result.worktree != worktree_s
+            && !std::fs::canonicalize(&worktree).is_ok_and(|resolved| {
+                std::fs::canonicalize(&result.worktree).is_ok_and(|registered| registered == resolved)
+            })
+        {
+            result.worktree = worktree_s;
+        }
         result.vcs = vcs;
         if is_builtin_workspace_project(Path::new(&result.worktree)) {
             result.name = Some(config_runtime_paths::BUILTIN_WORKSPACE_PROJECT_NAME.to_owned());
@@ -302,7 +317,15 @@ pub async fn from_directory(
         if changed {
             result.time.updated = now_ms();
             if is_new_project {
-                store.create(&tenant, &result)?;
+                if let Err(error) = store.create(&tenant, &result) {
+                    if let Some(registered) = store.get(&scope)?
+                        && registered.worktree == result.worktree
+                        && (sandbox_s == registered.worktree || registered.sandboxes.contains(&sandbox_s))
+                    {
+                        return Ok((registered, scope, sandbox_s, false));
+                    }
+                    return Err(error.into());
+                }
             } else if !store.update(&scope, &result)? {
                 return Err(anyhow::anyhow!("project disappeared while updating: {id}").into());
             }

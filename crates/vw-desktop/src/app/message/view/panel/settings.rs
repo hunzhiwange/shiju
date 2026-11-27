@@ -186,7 +186,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             #[cfg(not(target_arch = "wasm32"))]
             if app.terminal.is_visible {
                 let focus = crate::app::message::terminal::event::focus_active_terminal(app);
-                return Task::batch([save, focus, crate::app::workbench_projects::ensure_terminal_projects(app)]);
+                return Task::batch([save, focus, crate::app::workbench_projects::ensure_project_catalog(app)]);
             }
             save
         }

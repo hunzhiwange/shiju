@@ -226,6 +226,7 @@ async fn file_tree_move_drop_chat_release_orders_preserve_existing_delivery() {
 fn unclaimed_external_drop_opens_only_the_dropped_file_in_preview() {
     use crate::app::message::ViewMessage as V;
     let mut app = test_app();
+    app.navigation_tabs.screen = crate::app::Screen::Project;
     app.navigation_tabs.project_path = Some("/project".into());
     app.file_tree_interaction.dragging_file_paths = vec!["/stale-internal-drag".into()];
     for message in [
@@ -240,11 +241,45 @@ fn unclaimed_external_drop_opens_only_the_dropped_file_in_preview() {
     let path = "/tmp/actual.md";
     let _ = super::update(&mut app, V::DroppedFilePath(path.into()));
 
+    assert_eq!(app.navigation_tabs.screen, crate::app::Screen::Preview);
     assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some(path));
     assert_eq!(app.navigation_tabs.preview_tabs.len(), 1);
     assert!(app.file_tree_interaction.pending_drop_file_paths.is_empty());
     assert!(app.file_tree_interaction.dragging_file_paths.is_empty());
     assert!(!app.file_tree_interaction.file_tree_operation_in_progress);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn external_folder_drop_over_chat_inserts_a_directory_reference() {
+    let mut app = test_app();
+    let project = tempfile::tempdir().expect("project directory");
+    let folder = project.path().join("dropped-folder");
+    std::fs::create_dir(&folder).expect("drop directory");
+    app.navigation_tabs.project_path = Some(project.path().to_string_lossy().into_owned());
+    app.file_tree_interaction.input_drop_hovered = true;
+
+    let _ = super::update(
+        &mut app,
+        super::ViewMessage::DroppedFilePath(folder.to_string_lossy().into_owned()),
+    );
+
+    assert!(app.current_session_runtime().input_editor.text().contains("dropped-folder/"));
+    assert!(app.navigation_tabs.preview_tabs.is_empty());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn unclaimed_external_folder_drop_leaves_preview_tabs_empty() {
+    let mut app = test_app();
+    let folder = tempfile::tempdir().expect("drop directory");
+
+    let _ = super::update(
+        &mut app,
+        super::ViewMessage::DroppedFilePath(folder.path().to_string_lossy().into_owned()),
+    );
+
+    assert!(app.navigation_tabs.preview_tabs.is_empty());
 }
 
 #[test]

@@ -1,6 +1,6 @@
 use vw_api_transport::id::{ProjectId, WorktreeId};
 use vw_api_file::file::{CopyFileRequest, DeleteFileRequest, DuplicateFileRequest, MoveFileRequest};
-use vw_api_project::{ListProjectsRequest, ProjectDto, ResolveProjectRequest};
+use vw_api_project::{ProjectDto, ResolveProjectRequest};
 use vw_api_worktree::{CreateWorktreeRequest, DeleteWorktreeRequest, ResetMode, ResetWorktreeRequest, WorktreeDto};
 use super::paths::relative_to_project;
 use super::data::normalize_path;
@@ -385,28 +385,5 @@ impl GatewayFileContext {
 
 pub async fn load_recent_projects(client: &vw_gateway_client::GatewayClient, tenant_scope: &vw_api_project::TenantScopeDto) -> Result<Vec<ProjectDto>, String> {
     let client = gateway_project::GatewayProjectClient::new(client.transport().clone());
-    let mut query = ListProjectsRequest { limit: Some(100), ..Default::default() };
-    let mut projects = Vec::new();
-    let mut cursors = std::collections::HashSet::new();
-    let mut seen = std::collections::HashSet::new();
-    loop {
-        let page = client.project_list(tenant_scope, &query).await?;
-        projects.extend(page.items.into_iter().filter(|project| seen.insert(project.id.clone())));
-        let Some(cursor) = page.next_cursor.filter(|cursor| !cursor.is_empty()) else { break };
-        if !cursors.insert(cursor.clone()) {
-            return Err("项目分页游标重复，请刷新。".into());
-        }
-        query.cursor = Some(cursor);
-    }
-    projects.sort_by(|left, right| {
-        right
-            .updated_at_ms
-            .0
-            .cmp(&left.updated_at_ms.0)
-            .then_with(|| left.name.cmp(&right.name))
-            .then_with(|| left.directory.cmp(&right.directory))
-            .then_with(|| left.id.0.cmp(&right.id.0))
-    });
-
-    Ok(projects)
+    client.project_list_all(tenant_scope).await
 }

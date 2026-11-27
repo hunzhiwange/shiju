@@ -14,7 +14,7 @@ pub(super) use super::config;
 pub(super) use super::state;
 pub(super) use super::{
     App, FocusArea, Message,
-    TerminalState, load_recent_projects,
+    TerminalState,
     load_recent_projects_meta,
 };
 #[cfg(not(target_arch = "wasm32"))]

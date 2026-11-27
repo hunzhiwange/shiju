@@ -546,6 +546,19 @@ async fn project_resolve_and_change_records_handle_plain_directory() {
     .expect("plain directory should resolve");
     assert_eq!(resolved.project.directory, temp.path().to_string_lossy());
 
+    let Json(reopened) = project_resolve_v1(
+        Extension(project_host()),
+        default_tenant_scope(),
+        Json(ResolveProjectRequest {
+            directory: temp.path().join(".").to_string_lossy().into_owned(),
+            create_if_missing: true,
+        }),
+    )
+    .await
+    .expect("alternate spelling should reopen the project");
+    assert_eq!(reopened.project.id, resolved.project.id);
+    assert_eq!(reopened.project.directory, resolved.project.directory);
+
     let Json(changes) = project_change_records_v1(
         default_tenant_scope(),
         local_project_path(resolved.project.id.0.clone()),
@@ -579,21 +592,24 @@ async fn project_resolve_without_create_does_not_persist_missing_directory() {
 }
 
 #[tokio::test]
-async fn project_resolve_without_create_returns_registered_project() {
+async fn project_resolve_reuses_registered_project_in_both_modes() {
     let temp = TempDir::new().expect("tempdir");
     let directory = temp.path().to_string_lossy().to_string();
     let id = format!("handler-project-resolve-existing-{}", Uuid::new_v4());
     store_project(&project_info(&id, directory.clone(), Vec::new()));
 
-    let Json(resolved) = project_resolve_v1(Extension(project_host()),
-        default_tenant_scope(),
-        Json(ResolveProjectRequest { directory, create_if_missing: false }),
-    )
-    .await
-    .expect("registered directory should resolve");
+    for create_if_missing in [false, true] {
+        let Json(resolved) = project_resolve_v1(
+            Extension(project_host()),
+            default_tenant_scope(),
+            Json(ResolveProjectRequest { directory: directory.clone(), create_if_missing }),
+        )
+        .await
+        .expect("registered directory should resolve");
 
-    assert_eq!(resolved.project.id.0, id);
-    remove_project(&resolved.project.id.0);
+        assert_eq!(resolved.project.id.0, id);
+    }
+    remove_project(&id);
 }
 
 #[tokio::test]

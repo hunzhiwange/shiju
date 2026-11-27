@@ -131,7 +131,8 @@ impl App {
             work_browser: state::WorkBrowserState::default(),
             #[cfg(not(target_arch = "wasm32"))]
             work_browser_controller: crate::app::webview_runtime::WorkBrowserController::default(),
-            workspace_state: desktop_workspace::project_state::State::new(&cfg, load_recent_projects(), recent_meta, cfg_project_worktree_enabled),
+            // Project rows come from the gateway. Keep the old local history on disk as a record.
+            workspace_state: desktop_workspace::project_state::State::new(&cfg, Vec::new(), recent_meta, cfg_project_worktree_enabled),
 
             project_input: Default::default(),
             project_find: Default::default(),

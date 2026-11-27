@@ -1,7 +1,7 @@
 //! 项目编辑领域适配与跨域效果编排。
 use crate::app::{App, Message};
 use crate::app::message::project::ProjectMessage;
-use crate::app::projects::{save_recent_projects_background, save_recent_projects_meta_background};
+use crate::app::projects::save_recent_projects_meta_background;
 use desktop_workspace::project_message::edit::{self, Event, Effect, State};
 use crate::app::message::task_board::next_agent_scheduler_status_generation;
 use crate::app::views::workflow_manager::{load_project_workflow, select_project_workflow};
@@ -169,6 +169,13 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
     if app.project_editor.project_edit_workflow_saving {
         return Some(iced::Task::none());
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Event::RecentRemoveConfirmed(path) = &event
+        && !desktop_workspace::projects::is_builtin_workspace_project(path)
+        && crate::app::workbench_projects::hide_project(app, path).is_err()
+    {
+        return Some(app.show_localized_toast(crate::app::state::ToastKind::Error, "移除项目失败", vec![]));
+    }
     let effects = edit::handle(&mut State {
         editor: &mut app.project_editor,
         hovered_recent_project: &mut app.workspace_state.hovered_recent_project,
@@ -195,7 +202,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }, |picked| Message::Project(ProjectMessage::ProjectEditIconFilePicked(picked)))),
             Effect::SaveWorktree(path, enabled) => tasks.push(crate::app::message::settings::set_worktree_enabled(app, path, enabled)),
             Effect::SaveMeta => save_recent_projects_meta_background(app.workspace_state.recent_projects_meta.clone()),
-            Effect::SaveRecent => save_recent_projects_background(app.workspace_state.recent_projects.clone()),
             Effect::OpenFirst => {
                 #[cfg(not(target_arch = "wasm32"))]
                 if matches!(app.navigation_tabs.screen, crate::app::Screen::CliWorkbench | crate::app::Screen::AppTerminal | crate::app::Screen::GitWorkbench) {

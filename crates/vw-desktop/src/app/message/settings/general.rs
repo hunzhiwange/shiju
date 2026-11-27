@@ -214,6 +214,10 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 tasks.push(app.reopen_main_window());
             }
             for path in files {
+                if let Some(open) = crate::app::workbench_projects::open_dropped_directory(app, &path) {
+                    tasks.push(open);
+                    continue;
+                }
                 tasks.push(crate::app::message::preview::update(
                     app,
                     crate::app::message::PreviewMessage::Open(path),

@@ -64,6 +64,7 @@ pub(crate) fn flush(app: &mut App) {
 
 pub(crate) fn reopen_project(app: &mut App) -> Task<Message> {
     if app.shutdown_requested
+        || !crate::app::config::gateway_client_endpoint().is_loopback()
         || app.navigation_tabs.screen != Screen::Home
         || app.navigation_tabs.project_path.is_some()
         || app.session_state.active_session_id.is_some()
@@ -79,6 +80,9 @@ pub(crate) fn reopen_project(app: &mut App) -> Task<Message> {
             return Task::none();
         }
     };
+    if !app.workbench_projects.catalog().is_some_and(|projects| projects.contains_key(&project)) {
+        return Task::none();
+    }
     let directory = Path::new(&project);
     if !directory.is_absolute() || !directory.is_dir() {
         return Task::none();

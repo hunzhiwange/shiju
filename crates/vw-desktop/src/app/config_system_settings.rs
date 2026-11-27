@@ -38,7 +38,7 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         {
             self.agent_apps_auth.select_endpoint(&endpoint);
-            self.workbench_projects.bind_endpoint(&endpoint);
+            crate::app::workbench_projects::bind_endpoint(self, &endpoint);
         }
         (endpoint, task.map(super::desktop::preferences_message))
     }

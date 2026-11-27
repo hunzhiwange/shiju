@@ -40,6 +40,15 @@ impl GatewayClient {
             .project_resolve(scope, request).await
     }
 
+    pub async fn project_resolve_workspace(
+        &self,
+        scope: &TenantScopeDto,
+    ) -> Result<ResolveProjectResponse, String> {
+        gateway_project::GatewayProjectClient::new(self.transport.clone())
+            .project_resolve_workspace(scope)
+            .await
+    }
+
     pub async fn project_get(&self, scope: &ProjectScopeDto) -> Result<GetProjectResponse, String> {
         gateway_project::GatewayProjectClient::new(self.transport.clone())
             .project_get(scope).await

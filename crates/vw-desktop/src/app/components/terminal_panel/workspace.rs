@@ -7,7 +7,6 @@ use desktop_ui_controls::system_settings_common::{
     icon_svg, settings_divider, settings_divider_style,
 };
 use desktop_ui_controls::tooltip::tooltip_dark_style;
-use desktop_workspace::views::project::layout::work_sidebar::project_label;
 use iced::widget::{Space, button, column, container, row, scrollable, svg, text, tooltip};
 use iced::{Alignment, Border, Element, Length, Theme};
 
@@ -175,29 +174,15 @@ fn group_title(app: &App, id: u64) -> &str {
 
 fn projects(app: &App) -> Element<'_, Message> {
     let current = app.terminal_project_path();
-    let navigation_path = app.navigation_tabs.project_path.as_deref();
-    let recent = &app.workspace_state.recent_projects;
-    let labels = &app.workspace_state.recent_projects_edits;
-    let removed = app.workbench_projects.active_removed();
-    let registered = app.workbench_projects.terminal_projects();
-    let mut seen = std::collections::HashSet::new();
-    let paths = navigation_path
-        .into_iter()
-        .chain(recent.iter().map(String::as_str))
-        .chain(registered.into_iter().flat_map(|projects| projects.keys().map(String::as_str)))
-        .chain(current)
-        .filter(|path| removed.is_none_or(|removed| !removed.contains(*path)) && seen.insert(*path));
-
     let query = project_query(app);
-    let mut matches = paths.filter_map(|path| {
-        let project = registered.and_then(|projects| projects.get(path));
-        let title = project.map_or_else(|| project_label(recent, labels, path), |project| project.name.clone());
-        matches_project(&query, &title, path).then_some((path, title, project))
-    }).peekable();
+    let mut matches = app.workbench_projects.catalog().into_iter()
+        .flat_map(|projects| projects.values())
+        .filter(|project| matches_project(&query, &project.name, &project.directory)).peekable();
+    let local_gateway = crate::app::config::gateway_client_endpoint().is_loopback();
     let mut items = column![].spacing(3);
     if matches.peek().is_none() {
         let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
-        let label = if app.workbench_projects.terminal_loading {
+        let label = if app.workbench_projects.catalog_loading {
             "加载中"
         } else if !query.is_empty() {
             "未找到匹配的项目"
@@ -206,11 +191,13 @@ fn projects(app: &App) -> Element<'_, Message> {
         };
         items = items.push(sidebar_note(i18n.__(label)));
     }
-    for (path, title, project) in matches {
+    for project in matches {
+        let path = project.directory.as_str();
         let selected = current == Some(path);
         items = items.push(project_row(
-            title, path, project.map(|project| project.id.as_ref()), selected,
-            (!selected).then(|| Message::Terminal(TerminalMessage::SelectProject(path.to_owned()))),
+            project.name.clone(), path, Some(&project.id), selected,
+            (local_gateway && !selected)
+                .then(|| Message::Terminal(TerminalMessage::SelectProject(path.to_owned()))),
             tooltip::Position::Right,
         ));
     }

@@ -1046,6 +1046,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.navigation_panels.show_system_settings = false;
             app.mobile_layout.drawer_open = false;
             app.mobile_layout.mine_open = false;
+            #[cfg(not(target_arch = "wasm32"))]
+            return crate::app::workbench_projects::refresh_catalog(app, true);
+            #[cfg(target_arch = "wasm32")]
             Task::none()
         }
         ViewMessage::OpenCron => crate::app::message::settings::open_cron_page(app),

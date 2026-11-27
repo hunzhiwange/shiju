@@ -407,6 +407,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     app.task_board.task_board_executor_running = false;
                 }
                 app.workspace_state.project_id = Some(completed.id);
+                #[cfg(not(target_arch = "wasm32"))]
+                if !app.workbench_projects.catalog()
+                    .is_some_and(|projects| projects.contains_key(&loaded.project_path))
+                {
+                    return Some(crate::app::workbench_projects::refresh_catalog(app, false));
+                }
             }
             Some(iced::Task::none())
         }

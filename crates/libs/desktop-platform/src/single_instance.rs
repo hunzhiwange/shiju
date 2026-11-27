@@ -35,7 +35,10 @@ pub fn receive_arguments(args: Vec<String>) -> io::Result<bool> {
 }
 
 pub(crate) fn queue_open_files(files: Vec<String>) -> io::Result<()> {
-    OPEN_FILES.lock().map_err(|_| io::Error::other("文件打开队列不可用"))?.extend(files);
+    // Native document events also reach this inbox directly.
+    OPEN_FILES.lock().map_err(|_| io::Error::other("文件打开队列不可用"))?.extend(
+        files.into_iter().filter(|path| Path::new(path).is_absolute()),
+    );
     Ok(())
 }
 

@@ -6,6 +6,7 @@ use desktop_workspace::views::modals::recent_project_remove;
 use iced::{Element, Point, Task};
 use sha2::{Digest, Sha256};
 use vw_api_project::{GetProjectResponse, ProjectDto};
+use vw_api_types::cli_workbench::CliWorkbenchProject;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
 use crate::app::message::{ProjectMessage, project};
@@ -24,9 +25,14 @@ pub(crate) enum Event {
     RemoveCanceled,
     RemoveConfirmed(String),
     Add,
-    Added(String, Result<Option<(ProjectDto, String)>, String>),
+    Added {
+        scope: String,
+        from_picker: bool,
+        open_after_add: bool,
+        result: Result<Option<(ProjectDto, String)>, String>,
+    },
     RefreshTerminal,
-    TerminalProjectsLoaded(u64, String, bool, Result<Vec<ProjectDto>, String>),
+    CatalogLoaded(u64, String, bool, Result<Vec<CliWorkbenchProject>, String>),
     SearchToggled(Screen),
     SearchChanged(Screen, String),
     SearchClosed(Screen),
@@ -59,9 +65,9 @@ pub(crate) struct State {
     pub(crate) menu: Option<Menu>,
     pub(crate) adding: bool,
     search: Option<Search>,
-    terminal_projects: Option<BTreeMap<String, ProjectDto>>,
-    pub(crate) terminal_loading: bool,
-    terminal_request: u64,
+    catalog: Option<BTreeMap<String, CliWorkbenchProject>>,
+    pub(crate) catalog_loading: bool,
+    catalog_request: u64,
     removing: Option<(String, String)>,
     editing: Option<(String, Screen, String)>,
     edit_request: u64,
@@ -94,7 +100,7 @@ impl State {
         }
     }
 
-    pub(crate) fn bind_endpoint(&mut self, endpoint: &GatewayEndpoint) {
+    fn bind_endpoint(&mut self, endpoint: &GatewayEndpoint) -> bool {
         let scope = scope_key(endpoint);
         if self.active_scope != scope {
             self.active_scope = scope;
@@ -102,10 +108,12 @@ impl State {
             self.removing = None;
             self.editing = None;
             self.search = None;
-            self.terminal_projects = None;
-            self.terminal_loading = false;
-            self.terminal_request = self.terminal_request.wrapping_add(1);
+            self.catalog = None;
+            self.catalog_loading = false;
+            self.catalog_request = self.catalog_request.wrapping_add(1);
+            return true;
         }
+        false
     }
 
     pub(crate) fn removed(&self, endpoint: &GatewayEndpoint) -> Option<&BTreeSet<String>> {
@@ -124,8 +132,8 @@ impl State {
         self.search.as_ref().filter(|search| search.screen == screen)
     }
 
-    pub(crate) fn terminal_projects(&self) -> Option<&BTreeMap<String, ProjectDto>> {
-        self.terminal_projects.as_ref()
+    pub(crate) fn catalog(&self) -> Option<&BTreeMap<String, CliWorkbenchProject>> {
+        self.catalog.as_ref()
     }
 
     fn save(&mut self, removed: RemovedProjects) -> std::io::Result<()> {
@@ -173,6 +181,15 @@ pub(crate) fn with_remove_confirmation<'a>(
     )
 }
 
+pub(crate) fn bind_endpoint(app: &mut App, endpoint: &GatewayEndpoint) {
+    if app.workbench_projects.bind_endpoint(endpoint) {
+        app.workspace_state.recent_projects.clear();
+        app.workspace_state.recent_projects_edits.clear();
+        app.workspace_state.recent_project_delete_confirm_idx = None;
+        app.workspace_state.recent_project_remove_confirm_path = None;
+    }
+}
+
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
         Event::OpenMenu(id, directory, point) => {
@@ -198,7 +215,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             {
                 match result {
                     Ok(detail) => {
-                        let meta = remember_project_metadata(app, &detail.project, &path);
+                        let meta = remember_project_metadata(app, &path, &detail.project.name);
                         if let Some(icon) = detail.icon {
                             meta.icon = icon.override_icon;
                             meta.icon_color = icon.color;
@@ -225,68 +242,59 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         }
         Event::RemoveCanceled => app.workbench_projects.removing = None,
         Event::RemoveConfirmed(path) => return remove(app, path),
-        Event::Add if !app.workbench_projects.adding => return add(app),
-        Event::Added(scope, result) => {
-            app.workbench_projects.adding = false;
+        Event::Add if !app.workbench_projects.adding => return add(app, None, true),
+        Event::Added { scope, from_picker, open_after_add, result } => {
+            if from_picker {
+                app.workbench_projects.adding = false;
+            }
             if scope != scope_key(&crate::app::config::gateway_client_endpoint()) {
                 return Task::none();
             }
-            match result {
-                Ok(Some((project, picked))) => {
-                    let mut removed = app.workbench_projects.removed.clone();
-                    if let Some(paths) = removed.get_mut(&scope) {
-                        paths.remove(&picked);
-                        paths.remove(&project.directory);
-                        if paths.is_empty() {
-                            removed.remove(&scope);
-                        }
-                    }
-                    if app.workbench_projects.save(removed).is_err() {
-                        return app.show_localized_toast(ToastKind::Error, "添加项目失败", vec![]);
-                    }
-                    let path = project.directory.clone();
-                    remember_project_metadata(app, &project, &path);
-                    crate::app::projects::ensure_recent_project(
-                        &mut app.workspace_state.recent_projects,
-                        path,
-                    );
-                    update_recent_labels(app);
-                    crate::app::projects::save_recent_projects_meta_background(
-                        app.workspace_state.recent_projects_meta.clone(),
-                    );
-                    return refresh_lists(app);
-                }
-                Ok(None) => {}
-                Err(_) => {
-                    return app.show_localized_toast(ToastKind::Error, "添加项目失败", vec![]);
-                }
+            let (project, picked) = match result {
+                Ok(Some(selection)) => selection,
+                Ok(None) => return Task::none(),
+                Err(_) => return app.show_localized_toast(ToastKind::Error, "添加项目失败", vec![]),
+            };
+            let path = project.directory.clone();
+            if restore_projects(app, &[&picked, &path]).is_err() {
+                return app.show_localized_toast(ToastKind::Error, "添加项目失败", vec![]);
             }
-        }
-        Event::RefreshTerminal => {
-            let removed = app.workbench_projects.active_removed();
-            let recent = &mut app.workspace_state.recent_projects;
-            for path in crate::app::projects::load_recent_projects() {
-                if removed.is_none_or(|paths| !paths.contains(&path)) && !recent.contains(&path) {
-                    recent.push(path);
-                }
+            remember_project_metadata(app, &path, &project.name);
+            crate::app::projects::save_recent_projects_meta_background(
+                app.workspace_state.recent_projects_meta.clone(),
+            );
+            if !open_after_add {
+                return refresh_lists(app);
             }
-            update_recent_labels(app);
-            return refresh_terminal(app, true);
+            app.navigation_panels.show_system_settings = false;
+            app.git.git_diff_fullscreen = false;
+            app.git.git_diff_half_fullscreen = false;
+            app.navigation_workspace.work_resource_fullscreen = false;
+            app.navigation_workspace.work_resource_half_fullscreen = false;
+            let refresh = refresh_lists(app);
+            let open = if app.navigation_tabs.screen == Screen::Project
+                && app.navigation_tabs.project_path.as_deref() == Some(path.as_str())
+            {
+                Task::none()
+            } else {
+                project::open_existing_checkout(app, project, path)
+            };
+            return Task::batch([refresh, open]);
         }
-        Event::TerminalProjectsLoaded(request, scope, show_error, result)
-            if request == app.workbench_projects.terminal_request
-                && scope == app.workbench_projects.active_scope =>
+        Event::RefreshTerminal => return refresh_catalog(app, true),
+        Event::CatalogLoaded(request, scope, show_error, result)
+            if request == app.workbench_projects.catalog_request
+                && scope == scope_key(&crate::app::config::gateway_client_endpoint()) =>
         {
-            app.workbench_projects.terminal_loading = false;
+            app.workbench_projects.catalog_loading = false;
             match result {
                 Ok(projects) => {
-                    app.workbench_projects.terminal_projects = Some(
-                        projects
-                            .into_iter()
-                            .filter(|project| !project.directory.is_empty())
-                            .map(|project| (project.directory.clone(), project))
-                            .collect(),
-                    );
+                    let first_load = app.workbench_projects.catalog.is_none();
+                    apply_catalog(app, projects);
+                    if first_load && app.startup_state == crate::app::state::NativeStartupState::Ready
+                    {
+                        return crate::app::message::terminal::workspace::reopen_project(app);
+                    }
                 }
                 Err(_) if show_error => {
                     return app.show_localized_toast(ToastKind::Error, "读取项目失败", vec![]);
@@ -359,19 +367,43 @@ fn edit(app: &mut App) -> Task<Message> {
     )
 }
 
-fn add(app: &mut App) -> Task<Message> {
+pub(crate) fn open_dropped_directory(app: &mut App, path: &str) -> Option<Task<Message>> {
+    if !std::path::Path::new(path).is_dir() {
+        return None;
+    }
+    app.file_tree_interaction.clear_drag();
+    Some(open_directory(app, path.to_owned()))
+}
+
+pub(crate) fn open_directory(app: &mut App, directory: String) -> Task<Message> {
+    add(app, Some(directory), true)
+}
+
+pub(crate) fn register_directory(app: &mut App, directory: String) -> Task<Message> {
+    add(app, Some(directory), false)
+}
+
+fn add(app: &mut App, directory: Option<String>, open_after_add: bool) -> Task<Message> {
     let endpoint = crate::app::config::gateway_client_endpoint();
     if !desktop_settings_workspace::environment::can_add(&endpoint) {
         return app.show_localized_toast(ToastKind::Error, "远程网关不支持选择本机目录。", vec![]);
     }
-    app.workbench_projects.adding = true;
+    let from_picker = directory.is_none();
+    if from_picker {
+        app.workbench_projects.adding = true;
+    }
     let scope = scope_key(&endpoint);
     Task::perform(
         async move {
-            let Some(folder) = rfd::AsyncFileDialog::new().pick_folder().await else {
-                return Ok(None);
+            let directory = match directory {
+                Some(directory) => directory,
+                None => {
+                    let Some(folder) = rfd::AsyncFileDialog::new().pick_folder().await else {
+                        return Ok(None);
+                    };
+                    folder.path().to_str().ok_or("Invalid project path")?.to_owned()
+                }
             };
-            let directory = folder.path().to_str().ok_or("Invalid project path")?.to_owned();
             let client = GatewayClient::new(endpoint)?;
             let project = desktop_workspace::project_message::gateway::resolve_gateway_project(
                 &client,
@@ -381,7 +413,7 @@ fn add(app: &mut App) -> Task<Message> {
             .await?;
             Ok(Some((project, directory)))
         },
-        move |result| Message::WorkbenchProjects(Event::Added(scope, result)),
+        move |result| Message::WorkbenchProjects(Event::Added { scope, from_picker, open_after_add, result }),
     )
 }
 
@@ -396,93 +428,125 @@ fn remove(app: &mut App, path: String) -> Task<Message> {
         app.workbench_projects.removing = None;
         return Task::none();
     }
-    let mut removed = app.workbench_projects.removed.clone();
-    removed.entry(scope).or_default().insert(path.clone());
-    if app.workbench_projects.save(removed).is_err() {
+    if hide_project(app, &path).is_err() {
         return app.show_localized_toast(ToastKind::Error, "移除项目失败", vec![]);
     }
     app.workbench_projects.removing = None;
-    super::cli_workbench::remove_project(app, &path);
-    super::git_workbench::remove_project(app, &path);
-    if app.terminal_project_override.as_deref() == Some(&path) {
-        if let Some(directory) = app.navigation_tabs.project_path.clone() {
-            app.select_terminal_project(directory);
-        } else {
-            app.switch_project_terminal(Some(path.clone()), None);
-        }
-    }
     Task::batch([
         project::update(app, ProjectMessage::RecentRemoveConfirmed(path)),
         refresh_lists(app),
     ])
 }
 
-pub(crate) fn refresh_lists(app: &mut App) -> Task<Message> {
-    if !app.terminal.is_visible || app.terminal_projects_collapsed {
-        let state = &mut app.workbench_projects;
-        state.terminal_projects = None;
-        state.terminal_loading = false;
-        state.terminal_request = state.terminal_request.wrapping_add(1);
+pub(crate) fn hide_project(app: &mut App, path: &str) -> std::io::Result<()> {
+    let endpoint = crate::app::config::gateway_client_endpoint();
+    bind_endpoint(app, &endpoint);
+    if app.workbench_projects.active_removed().is_some_and(|paths| paths.contains(path)) {
+        return Ok(());
     }
+    let mut removed = app.workbench_projects.removed.clone();
+    removed.entry(app.workbench_projects.active_scope.clone()).or_default().insert(path.to_owned());
+    app.workbench_projects.save(removed)?;
+    if let Some(projects) = &mut app.workbench_projects.catalog {
+        projects.remove(path);
+    }
+    super::cli_workbench::remove_project(app, path);
+    super::git_workbench::remove_project(app, path);
+    if app.terminal_project_override.as_deref() == Some(path) {
+        if let Some(directory) = app.navigation_tabs.project_path.clone() {
+            app.select_terminal_project(directory);
+        } else {
+            app.switch_project_terminal(Some(path.to_owned()), None);
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn restore_projects(app: &mut App, directories: &[&str]) -> std::io::Result<()> {
+    let endpoint = crate::app::config::gateway_client_endpoint();
+    bind_endpoint(app, &endpoint);
+    let state = &mut app.workbench_projects;
+    if state.active_removed().is_none_or(|paths| !directories.iter().any(|path| paths.contains(*path))) {
+        return Ok(());
+    }
+    let mut removed = state.removed.clone();
+    if let Some(paths) = removed.get_mut(&state.active_scope) {
+        for path in directories {
+            paths.remove(*path);
+        }
+        if paths.is_empty() {
+            removed.remove(&state.active_scope);
+        }
+    }
+    state.save(removed)
+}
+
+pub(crate) fn refresh_lists(app: &mut App) -> Task<Message> {
     Task::batch([
         super::cli_workbench::refresh_projects(app),
         super::git_workbench::projects_changed(app),
-        refresh_terminal(app, false),
+        refresh_catalog(app, false),
     ])
 }
 
-pub(crate) fn ensure_terminal_projects(app: &mut App) -> Task<Message> {
-    if app.workbench_projects.terminal_projects.is_some() || app.workbench_projects.terminal_loading
-    {
+pub(crate) fn ensure_project_catalog(app: &mut App) -> Task<Message> {
+    bind_endpoint(app, &crate::app::config::gateway_client_endpoint());
+    if app.workbench_projects.catalog.is_some() || app.workbench_projects.catalog_loading {
         return Task::none();
     }
-    refresh_terminal(app, false)
+    refresh_catalog(app, false)
 }
 
-fn refresh_terminal(app: &mut App, show_error: bool) -> Task<Message> {
-    if !app.terminal.is_visible || app.terminal_projects_collapsed {
-        return Task::none();
-    }
+pub(crate) fn refresh_catalog(app: &mut App, show_error: bool) -> Task<Message> {
     let endpoint = crate::app::config::gateway_client_endpoint();
+    bind_endpoint(app, &endpoint);
     let state = &mut app.workbench_projects;
-    state.bind_endpoint(&endpoint);
-    if !endpoint.is_loopback() {
-        return Task::none();
-    }
-    state.terminal_request = state.terminal_request.wrapping_add(1);
-    state.terminal_loading = true;
-    let request = state.terminal_request;
+    state.catalog_request = state.catalog_request.wrapping_add(1);
+    state.catalog_loading = true;
+    let request = state.catalog_request;
     let scope = state.active_scope.clone();
     Task::perform(
-        async move {
-            let client = GatewayClient::new(endpoint)?;
-            desktop_workspace::project_message::gateway::load_recent_projects(
-                &client,
-                client.endpoint().tenant_scope(),
-            )
-            .await
-        },
-        move |result| {
-            Message::WorkbenchProjects(Event::TerminalProjectsLoaded(
-                request, scope, show_error, result,
-            ))
-        },
+        async move { GatewayClient::new(endpoint)?.cli_workbench_project_catalog().await },
+        move |result| Message::WorkbenchProjects(Event::CatalogLoaded(request, scope, show_error, result)),
     )
+}
+
+fn apply_catalog(app: &mut App, projects: Vec<CliWorkbenchProject>) {
+    let mut by_directory = BTreeMap::new();
+    let mut paths = Vec::new();
+    for project in projects {
+        let path = project.directory.clone();
+        if path.trim().is_empty()
+            || by_directory.contains_key(&path)
+            || app.workbench_projects.active_removed().is_some_and(|removed| removed.contains(&path))
+        {
+            continue;
+        }
+        remember_project_metadata(app, &path, &project.name);
+        paths.push(path.clone());
+        by_directory.insert(path, project);
+    }
+    if app.workspace_state.recent_projects != paths {
+        app.workspace_state.recent_project_delete_confirm_idx = None;
+    }
+    app.workspace_state.recent_projects = paths;
+    update_recent_labels(app);
+    app.workbench_projects.catalog = Some(by_directory);
 }
 
 fn remember_project_metadata<'a>(
     app: &'a mut App,
-    project: &ProjectDto,
     path: &str,
+    name: &str,
 ) -> &'a mut RecentProjectMeta {
     let meta = &mut app.workspace_state.recent_projects_meta;
     if let Some(index) = meta.iter().position(|entry| entry.path == path) {
-        meta[index].name.clone_from(&project.name);
+        name.clone_into(&mut meta[index].name);
         return &mut meta[index];
     }
     meta.push(RecentProjectMeta {
         path: path.to_owned(),
-        name: project.name.clone(),
+        name: name.to_owned(),
         task_board_settings: None,
         session_auto_refresh: crate::app::state::default_recent_project_session_auto_refresh(),
         session_refresh_interval_seconds:

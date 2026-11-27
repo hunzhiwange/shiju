@@ -2,7 +2,7 @@
 
 use crate::app::config::gateway_client_endpoint;
 use crate::app::i18n::I18n;
-use crate::app::projects::{save_recent_projects_background, save_recent_projects_meta_background};
+use crate::app::projects::save_recent_projects_meta_background;
 use crate::app::{App, Message};
 use iced::Task;
 #[cfg(test)]
@@ -33,6 +33,14 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
                 _ => unreachable!(),
             };
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Event::DeleteConfirmed(index) = &event
+                && let Some(path) = app.workspace_state.recent_projects.get(*index).cloned()
+                && !desktop_workspace::projects::is_builtin_workspace_project(&path)
+                && crate::app::workbench_projects::hide_project(app, &path).is_err()
+            {
+                return app.show_localized_toast(crate::app::state::ToastKind::Error, "移除项目失败", vec![]);
+            }
             let deleted = projects::apply_with_metadata(
                 State {
                     query: &mut app.workspace_state.recent_project_query,
@@ -50,7 +58,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if let Some(deleted) = deleted {
                 let path = deleted.path;
                 deleting_current = deleted.was_current;
-                save_recent_projects_background(app.workspace_state.recent_projects.clone());
                 save_recent_projects_meta_background(app.workspace_state.recent_projects_meta.clone());
                 save_worktree = set_worktree_enabled(app, path, false);
             }

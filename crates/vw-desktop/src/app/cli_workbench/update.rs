@@ -18,7 +18,7 @@ use vw_api_types::cli_workbench::{
     StartCliWorkbenchSession,
 };
 use vw_gateway_client::GatewayClient;
-use vw_api_project::{ListProjectsRequest, ResolveProjectRequest};
+use vw_api_project::ResolveProjectRequest;
 
 use super::{
     ssh, APP_TERMINAL_SIDEBAR_COLLAPSED, App, AgentLaunch, Dialog, Message, Project, SessionKey,
@@ -472,21 +472,11 @@ async fn legacy_projects(
 ) -> Result<CliWorkbenchProjects, Code> {
     let project_client = gateway_project::GatewayProjectClient::new(client.transport().clone());
     let scope = client.endpoint().tenant_scope();
-    let mut query = ListProjectsRequest { limit: Some(200), ..Default::default() };
-    let mut projects = Vec::new();
-    let mut seen = HashSet::new();
-    loop {
-        let page = project_client.project_list(scope, &query).await.map_err(|_| Code::GatewayFailure)?;
-        projects.extend(page.items.into_iter().map(|project| vw_api_types::cli_workbench::CliWorkbenchProject {
+    let mut projects: Vec<_> = project_client.project_list_all(scope).await.map_err(|_| Code::GatewayFailure)?
+        .into_iter().map(|project| vw_api_types::cli_workbench::CliWorkbenchProject {
             id: project.id.as_ref().to_owned(), name: project.name, directory: project.directory,
             sessions: Vec::new(),
-        }));
-        let Some(next) = page.next_cursor else { break };
-        if !seen.insert(next.clone()) {
-            return Err(Code::GatewayFailure);
-        }
-        query.cursor = Some(next);
-    }
+        }).collect();
     let mut preferred_project = None;
     if let Some(directory) = preferred {
         preferred_project = projects.iter().find(|project| project.directory == directory)

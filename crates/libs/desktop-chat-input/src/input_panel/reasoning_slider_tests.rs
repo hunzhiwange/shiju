@@ -1,7 +1,7 @@
 use super::*;
 
 #[tokio::test(flavor = "multi_thread")]
-async fn slider_renders_a_solid_fill_and_contrasting_ticks_in_both_themes() {
+async fn slider_renders_a_gradient_and_contrasting_ticks_in_both_themes() {
     use iced::advanced::renderer::Headless;
     use iced::{Font, Pixels};
 
@@ -38,15 +38,14 @@ async fn slider_renders_a_solid_fill_and_contrasting_ticks_in_both_themes() {
         let y = bounds.center_y() as usize;
         let early_fill = pixel(26, y);
         let late_fill = pixel(128, y);
-        assert_eq!(early_fill, late_fill);
-        assert!(early_fill.relative_contrast(pixel(220, y - 6)) >= 4.5);
+        assert!(late_fill.r > early_fill.r + 0.1 && late_fill.g < early_fill.g - 0.05);
         for index in [0, 1, 2, 3, 5] {
             let x = (HANDLE_RADIUS
                 + index as f32 / slider.maximum() * (bounds.width - 2.0 * HANDLE_RADIUS))
                 as usize;
             let tick = pixel(x, y);
             if index < slider.selected {
-                assert!(tick.relative_contrast(early_fill) >= 4.5);
+                assert_eq!(tick, Color::WHITE, "{theme:?} passed tick {index} must stay white");
             }
             assert!(
                 tick.relative_contrast(pixel(x, y - 6)) >= 4.5,

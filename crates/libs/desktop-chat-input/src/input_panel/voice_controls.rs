@@ -44,9 +44,7 @@ pub fn view(i18n: I18n, input: Input) -> Element<'static, Event> {
         .padding([4, 6])
         .style(|theme, status| round_icon_button_style(theme, status, true))
         .on_press(event);
-    let hint = dictation_tooltip(i18n, label);
-    let hint_width = if hint.contains('\n') { Length::Fixed(320.0) } else { Length::Shrink };
-    let tip = container(text(hint).size(12).width(hint_width))
+    let tip = container(text(dictation_tooltip(i18n, label)).size(12))
         .style(tooltip_dark_style)
         .padding([6, 8]);
     let mut controls = row![tooltip(control, tip, tooltip::Position::Top)]
@@ -63,14 +61,7 @@ pub fn view(i18n: I18n, input: Input) -> Element<'static, Event> {
     controls.into()
 }
 
-/// 系统快捷键仅作提示，不触发系统听写或权限请求。
 pub fn dictation_tooltip(i18n: I18n, label: &str) -> String {
-    #[cfg(target_os = "macos")]
-    if label == "听写" {
-        return i18n.format(
-            "%s\n也可使用 macOS 系统听写：将光标放入输入框，按系统设置的听写快捷键（如连按两次 Fn/地球仪键）。\n可在‘系统设置 → 键盘 → 听写’中开启或修改。\n系统听写可用于支持文本输入的可编辑输入框。", &[i18n.__(label).into()]
-        ).expect("valid dictation hint");
-    }
     i18n.__(label).to_owned()
 }
 

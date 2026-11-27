@@ -6488,7 +6488,6 @@
   "智能体决定本会话运行引擎与默认配置，开始后不可切换。": "The agent determines the session engine and defaults and cannot be changed once started.",
   "当前没有可用于新会话的已启用智能体。": "No enabled agents are available for a new session.",
   "没有匹配的智能体。": "No matching agents.",
-  "%s\n也可使用 macOS 系统听写：将光标放入输入框，按系统设置的听写快捷键（如连按两次 Fn/地球仪键）。\n可在‘系统设置 → 键盘 → 听写’中开启或修改。\n系统听写可用于支持文本输入的可编辑输入框。": "%s\nYou can also use macOS Dictation: place the cursor in the input field and press the shortcut configured in System Settings (such as pressing Fn/Globe twice).\nEnable or change it in System Settings → Keyboard → Dictation.\nSystem Dictation works in editable fields that support text input.",
   "无法启动语音通话。": "Unable to start the voice call.",
   "屏幕帧已过期，请重新分享。": "The screen frame has expired. Share it again.",
   "屏幕分享队列繁忙，请稍后重试。": "The screen sharing queue is busy. Try again later.",

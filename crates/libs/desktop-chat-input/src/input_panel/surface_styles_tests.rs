@@ -2,6 +2,7 @@
 //! 精确比较背景、边框和透明度，覆盖禁用态复用基础样式的约定。
 
 use super::surface_styles::*;
+use desktop_theme::ChromeStyleOverrides;
 use iced::widget::{button, text_editor};
 use iced::{Background, Color, Theme};
 
@@ -369,10 +370,18 @@ fn manual_context_card_style_tints_surface_by_theme() {
                 1.0,
             )
         };
-        let style = manual_context_card_style(&theme);
-
-        assert_color(background_color(&style.background), expected_background);
-        assert_eq!(style.border.width, 0.0);
+        for chrome in [
+            ChromeStyleOverrides::default(),
+            ChromeStyleOverrides { radius_px: Some(30.0), ..Default::default() },
+        ] {
+            let style = manual_context_card_style(&theme, composer_inner_radius(&chrome));
+            let body = composer_body_style(&theme, false, &chrome);
+            let composer = chat_composer_style(&theme, false, &chrome);
+            assert_color(background_color(&style.background), expected_background);
+            assert_eq!(style.border.width, 0.0);
+            assert_eq!(style.border.radius, body.border.radius);
+            assert_eq!(style.border.radius.top_left, composer.border.radius.top_left - COMPOSER_RIM);
+        }
     }
 }
 
@@ -380,7 +389,7 @@ fn manual_context_card_style_tints_surface_by_theme() {
 fn manual_context_card_button_style_highlights_only_pointer_states() {
     for (theme, is_dark) in [(Theme::Light, false), (Theme::Dark, true)] {
         for status in [button::Status::Active, button::Status::Disabled] {
-            let style = manual_context_card_button_style(&theme, status);
+            let style = manual_context_card_button_style(&theme, status, 21.0);
             assert_color(background_color(&style.background), Color::TRANSPARENT);
             assert_eq!(style.border.width, 0.0);
             assert_eq!(style.border.color, Color::TRANSPARENT);
@@ -388,7 +397,7 @@ fn manual_context_card_button_style_highlights_only_pointer_states() {
         }
 
         for status in [button::Status::Hovered, button::Status::Pressed] {
-            let style = manual_context_card_button_style(&theme, status);
+            let style = manual_context_card_button_style(&theme, status, 21.0);
             assert_color(
                 background_color(&style.background),
                 theme.palette().primary.scale_alpha(if is_dark { 0.10 } else { 0.06 }),

@@ -28,17 +28,11 @@ fn voice_task_07_toolbar_style_has_contrast_in_both_themes() {
     }
 }
 #[test]
-fn voice_ui_primary_macos_dictation_hint_is_platform_scoped() {
-    let hint = super::voice_controls::dictation_tooltip(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), action(Phase::Idle, false).1);
-    #[cfg(target_os = "macos")]
-    {
-        assert!(hint.starts_with("听写\n"));
-        assert!(hint.contains("连按两次 Fn/地球仪键"));
-        assert!(hint.contains("可编辑输入框"));
-    }
-    #[cfg(not(target_os = "macos"))]
-    assert_eq!(hint, "听写");
-    assert_eq!(super::voice_controls::dictation_tooltip(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), "应用听写"), "应用听写");
+fn voice_ui_dictation_tooltip_shows_only_the_action_label() {
+    let i18n = desktop_i18n::I18n::new(config_ui::DesktopLocale::default());
+    let tooltip = super::voice_controls::dictation_tooltip;
+    assert_eq!(tooltip(i18n, action(Phase::Idle, false).1), "听写");
+    assert_eq!(tooltip(i18n, action(Phase::Idle, true).1), "应用听写");
 }
 #[test]
 fn voice_ui_dictation_stop_tooltip_is_explicit() {

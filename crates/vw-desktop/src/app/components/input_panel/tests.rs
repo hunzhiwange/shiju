@@ -203,7 +203,7 @@ fn input_panel_layouts_do_not_render_acp_history_interactions() {
 fn selected_context_card_is_absent_without_runtime_manual_context() {
     let app = crate::app::App::new().0;
 
-    assert!(selected_context_card(&app).is_none());
+    assert!(selected_context_card(&app, &Default::default()).is_none());
 }
 
 // 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
@@ -213,7 +213,7 @@ fn input_panel_view_falls_back_when_active_session_has_no_runtime() {
     app.session_state.active_session_id = Some("missing-runtime".to_string());
 
     assert!(app.current_session_runtime_ref().is_none());
-    assert!(selected_context_card(&app).is_none());
+    assert!(selected_context_card(&app, &Default::default()).is_none());
 
     let element = view(&app);
     assert_eq!(element.as_widget().size().width, Length::Fill);
@@ -273,17 +273,17 @@ fn selected_context_card_renders_each_manual_selection_shape() {
     app.skills_settings.catalog = vec![catalog_skill("review", "代码审查")];
 
     app.current_session_runtime_mut().tool_selector.toggle_manual_tool("read");
-    assert!(selected_context_card(&app).is_some());
+    assert!(selected_context_card(&app, &Default::default()).is_some());
 
     {
         let selector = &mut app.current_session_runtime_mut().tool_selector;
         selector.toggle_manual_tool("read");
         selector.toggle_manual_skill("review");
     }
-    assert!(selected_context_card(&app).is_some());
+    assert!(selected_context_card(&app, &Default::default()).is_some());
 
     app.current_session_runtime_mut().tool_selector.toggle_manual_tool("read");
-    assert!(selected_context_card(&app).is_some());
+    assert!(selected_context_card(&app, &Default::default()).is_some());
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -315,7 +315,7 @@ async fn expert_package_selection_is_visible_and_cancellable_in_both_themes() {
     app.current_session_runtime_mut().tool_selector.select_manual_skill(id);
     assert_eq!(selected_context_summary(&app).as_deref(), Some("技能 1：中文专家"));
     for theme in [Theme::Light, Theme::Dark] {
-        let mut element = selected_context_card(&app).expect("selected card");
+        let mut element = selected_context_card(&app, &Default::default()).expect("selected card");
         let mut renderer =
             <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
                 .await
@@ -350,7 +350,7 @@ async fn expert_package_selection_is_visible_and_cancellable_in_both_themes() {
         &mut app,
         crate::app::message::chat::ChatMessage::SessionManualContextCleared,
     );
-    assert!(selected_context_card(&app).is_none());
+    assert!(selected_context_card(&app, &Default::default()).is_none());
 }
 
 // 宿主保留：输入面板跨域状态、布局与选择更新装配契约。
@@ -373,7 +373,7 @@ fn selected_context_card_includes_multiple_shiju_functions() {
     );
 
     assert_eq!(selected_context_summary(&app).as_deref(), Some("识矩 2：文档审查、会议纪要"));
-    assert!(selected_context_card(&app).is_some());
+    assert!(selected_context_card(&app, &Default::default()).is_some());
 
     let selector = &mut app.current_session_runtime_mut().tool_selector;
     selector.toggle_manual_tool("read");
@@ -385,7 +385,7 @@ fn selected_context_card_includes_multiple_shiju_functions() {
         crate::app::message::chat::ChatMessage::SessionManualContextCleared,
     );
 
-    assert!(selected_context_card(&app).is_none());
+    assert!(selected_context_card(&app, &Default::default()).is_none());
     assert!(app.current_session_runtime().tool_selector.has_tool_filter());
 }
 

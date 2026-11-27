@@ -1,8 +1,9 @@
 //! 连续跟手、松手后缓动吸附的推理强度滑杆；动画状态仅保存在控件树中。
 use iced::advanced::{Clipboard, Layout, Shell, Widget, layout, renderer, widget::tree};
 use iced::mouse;
+use iced::theme::palette;
 use iced::time::{Duration, Instant};
-use iced::{Border, Color, Element, Event, Length, Point, Rectangle, Size, Theme};
+use iced::{Border, Color, Degrees, Element, Event, Length, Point, Rectangle, Size, Theme, gradient};
 use vw_api_chat_identity::ReasoningEffortDto;
 
 use super::super::reasoning_message::Message;
@@ -270,11 +271,16 @@ impl Widget<Message, Theme, iced::Renderer> for ReasoningSlider {
         };
         let track = Rectangle { y: center.y - 10.0, height: 20.0, ..bounds };
         let track_palette = theme.extended_palette().background.strong;
-        let palette = theme.palette();
         renderer.fill_quad(quad(track, 10.0), track_palette.color);
         if state.position > 0.0 {
             let fill_bounds = Rectangle { width: (center.x - track.x).max(track.height), ..track };
-            renderer.fill_quad(quad(fill_bounds, 10.0), palette.text);
+            let start = Color::from_rgb8(32, 103, 216);
+            let end = Color::from_rgb8(132, 47, 185);
+            // 按填充宽度截取渐变，避免拖动时整段颜色随滑块拉伸。
+            let fill = gradient::Linear::new(Degrees(90.0))
+                .add_stop(0.0, start)
+                .add_stop(1.0, palette::mix(start, end, fill_bounds.width / track.width));
+            renderer.fill_quad(quad(fill_bounds, 10.0), fill);
         }
         for index in 0..self.options.len() {
             let x = bounds.x
@@ -282,7 +288,7 @@ impl Widget<Message, Theme, iced::Renderer> for ReasoningSlider {
                 + index as f32 / self.maximum() * (bounds.width - HANDLE_RADIUS * 2.0);
             renderer.fill_quad(
                 quad(Rectangle::new(Point::new(x - 3.0, center.y - 3.0), Size::new(6.0, 6.0)), 3.0),
-                if x < center.x { palette.background } else { track_palette.text },
+                if x < center.x { Color::WHITE } else { track_palette.text },
             );
         }
         renderer.fill_quad(

@@ -129,6 +129,10 @@ fn composer_radius(chrome: &ChromeStyleOverrides) -> f32 {
     chrome.radius_px.unwrap_or(22.0)
 }
 
+pub(super) fn composer_inner_radius(chrome: &ChromeStyleOverrides) -> f32 {
+    (composer_radius(chrome) - COMPOSER_RIM).max(0.0)
+}
+
 pub(super) fn chat_composer_style(
     theme: &Theme,
     drop_hovered: bool,
@@ -165,7 +169,7 @@ pub(super) fn composer_body_style(
     container::Style {
         background: input.background,
         border: Border {
-            radius: iced::border::top((composer_radius(chrome) - COMPOSER_RIM).max(0.0)),
+            radius: iced::border::top(composer_inner_radius(chrome)),
             ..Border::default()
         },
         ..Default::default()
@@ -188,14 +192,14 @@ pub(super) fn composer_context_style(
     container::Style {
         background: Some(Background::Color(tone)),
         border: Border {
-            radius: iced::border::bottom((composer_radius(chrome) - COMPOSER_RIM).max(0.0)),
+            radius: iced::border::bottom(composer_inner_radius(chrome)),
             ..Border::default()
         },
         ..Default::default()
     }
 }
 
-pub fn manual_context_card_style(theme: &Theme) -> container::Style {
+pub(super) fn manual_context_card_style(theme: &Theme, radius: f32) -> container::Style {
     let is_dark = is_dark_theme(theme);
     let primary = theme.palette().primary;
     let background = if is_dark {
@@ -215,15 +219,23 @@ pub fn manual_context_card_style(theme: &Theme) -> container::Style {
     };
     container::Style {
         background: Some(Background::Color(background)),
-        border: Border { radius: 12.0.into(), ..Border::default() },
+        border: Border { radius: iced::border::top(radius), ..Border::default() },
         ..Default::default()
     }
 }
 
-pub fn manual_context_card_button_style(theme: &Theme, status: button::Status) -> button::Style {
+pub(super) fn manual_context_card_button_style(
+    theme: &Theme,
+    status: button::Status,
+    radius: f32,
+) -> button::Style {
     let mut style = button::Style {
         background: Some(Background::Color(Color::TRANSPARENT)),
-        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 12.0.into() },
+        border: Border {
+            width: 0.0,
+            color: Color::TRANSPARENT,
+            radius: iced::border::top_left(radius).top_right(12.0),
+        },
         text_color: selector_text_color(theme, true),
         ..Default::default()
     };

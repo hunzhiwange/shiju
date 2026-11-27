@@ -159,11 +159,15 @@ pub(super) fn skill_title(app: &App, skill_id: &str) -> String {
     desktop_chat_input::input_panel::panel::skill_title(skill_id, titles)
 }
 
-pub(super) fn selected_context_card(app: &App) -> Option<Element<'_, Message>> {
+pub(super) fn selected_context_card<'a>(
+    app: &'a App,
+    chrome: &desktop_theme::ChromeStyleOverrides,
+) -> Option<Element<'a, Message>> {
     let summary = selected_context_summary(app)?;
     Some(desktop_chat_input::input_panel::panel::selected_context_card(
         crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         summary,
+        chrome,
         Message::View(message::ViewMessage::ToggleSessionToolSelectorPopover),
         Message::Chat(message::ChatMessage::SessionManualContextCleared),
     ))
@@ -410,9 +414,12 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     ));
     let queue_panel = (supplement == Supplement::Queue).then(||
         queue_panel::queue_panel(crate::app::i18n::I18n::new(app.general_settings.desktop_locale), queue, is_requesting));
+    let chrome = crate::app::theme_catalog::resolve_chrome_style_from_skin(
+        app.appearance.active_theme_skin.as_ref(), &app.appearance.app_theme,
+    );
     let content = desktop_chat_input::input_panel::layout::Content {
         attachment_strip, file_refs, task_mode_form, input, bottom_bar,
-        context_card: selected_context_card(app), todo_panel, queue_panel,
+        context_card: selected_context_card(app, &chrome), todo_panel, queue_panel,
     };
 
     // 构建文件搜索覆盖层
@@ -427,9 +434,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         Space::new().into()
     };
 
-    let chrome = crate::app::theme_catalog::resolve_chrome_style_from_skin(
-        app.appearance.active_theme_skin.as_ref(), &app.appearance.app_theme,
-    );
     let fit = app.appearance.active_theme_skin.as_ref().and_then(|skin|
         crate::app::theme_catalog::PanelImageFit::parse(skin.chrome.chat_input_image_fit.as_deref()).ok()
     ).unwrap_or_default();
@@ -483,7 +487,7 @@ fn companion_button(app: &App, mobile: bool) -> Option<Element<'static, Message>
         .padding([0, 4])
         .style(|theme, status| {
             let mut style = super::system_settings_common::rounded_action_btn_style(theme, status);
-            if status == button::Status::Active {
+            if matches!(status, button::Status::Active | button::Status::Hovered) {
                 style.background = None;
             }
             style.border.width = 0.0;

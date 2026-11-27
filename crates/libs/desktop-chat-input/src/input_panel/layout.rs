@@ -2,8 +2,13 @@
 use iced::widget::{Container, column, container, row};
 use iced::{Alignment, Element, Length, Padding};
 
-pub const COMPOSER_TOOLBAR_PADDING: Padding =
-    Padding { top: 3.0, right: 12.0, bottom: 6.0, left: 12.0 };
+const COMPOSER_HORIZONTAL_PADDING: f32 = 12.0;
+pub const COMPOSER_TOOLBAR_PADDING: Padding = Padding {
+    top: 3.0,
+    right: COMPOSER_HORIZONTAL_PADDING,
+    bottom: 6.0,
+    left: COMPOSER_HORIZONTAL_PADDING,
+};
 
 pub fn composer_toolbar<Message>(bar: iced::widget::Row<'_, Message>) -> iced::widget::Row<'_, Message> {
     bar.spacing(4).align_y(iced::Alignment::Center).padding(COMPOSER_TOOLBAR_PADDING)
@@ -42,37 +47,28 @@ pub fn content<'a, Message: 'a>(parts: Content<'a, Message>) -> Element<'a, Mess
         todo_panel,
         queue_panel,
     } = parts;
-    if let Some(todo_panel) = todo_panel {
-        // 有待办事项时，将 TODO 面板紧贴输入框上方
-        let mut input_block = column![todo_panel].spacing(0);
-        if let Some(context_card) = context_card {
-            input_block = input_block.push(context_card);
-        }
-        input_block = input_block.push(input).push(bottom_bar);
+    let file_padding = [0.0, COMPOSER_HORIZONTAL_PADDING];
+    let attachment_strip = container(attachment_strip).padding(file_padding);
+    let file_refs = container(file_refs).padding(file_padding);
 
+    let body = if let Some(todo_panel) = todo_panel {
+        // 有待办事项时，将 TODO 面板紧贴输入框上方
+        let input_block = column![todo_panel, input, bottom_bar];
         column![attachment_strip, file_refs, task_mode_form, input_block].spacing(3)
     } else if let Some(queue_panel) = queue_panel {
         // 队列布局：队列面板 + 标准内容
-        let mut queued = column![
-            queue_panel,
-            attachment_strip,
-            file_refs,
-            task_mode_form
-        ]
-        .spacing(6);
-        if let Some(context_card) = context_card {
-            queued = queued.push(context_card);
-        }
-        queued.push(column![input, bottom_bar])
+        column![queue_panel, attachment_strip, file_refs, task_mode_form, column![input, bottom_bar]]
+            .spacing(6)
     } else {
         // 标准布局：文件引用 + 任务模式表单 + 输入框 + 底部栏
-        let mut standard = column![attachment_strip, file_refs, task_mode_form].spacing(6);
-        if let Some(context_card) = context_card {
-            standard = standard.push(context_card);
-        }
-        standard.push(column![input, bottom_bar])
+        column![attachment_strip, file_refs, task_mode_form, column![input, bottom_bar]].spacing(6)
+    };
+    let body = container(body).padding(Padding::ZERO.top(4));
+    if let Some(context_card) = context_card {
+        column![context_card, body].into()
+    } else {
+        body.into()
     }
-    .into()
 }
 
 /// 输入面板外壳所需的局部快照及跨领域子视图。
@@ -107,8 +103,7 @@ pub fn view<'a, Message: Clone + 'a>(
     messages: SurfaceMessages<Message>,
 ) -> Element<'a, Message> {
     use desktop_ui_controls::overlays::AboveOverlay;
-    let content = container(content(content_parts)).padding(Padding { top: 4.0, ..Padding::ZERO });
-    let content = AboveOverlay::new(content, parts.file_search)
+    let content = AboveOverlay::new(content(content_parts), parts.file_search)
         .show(parts.show_file_search)
         .gap(6.0)
         .on_close(messages.close_file_search);

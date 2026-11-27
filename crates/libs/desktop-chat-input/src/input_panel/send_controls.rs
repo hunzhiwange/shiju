@@ -756,7 +756,7 @@ pub fn cancel_button(i18n: desktop_i18n::I18n, submit_anim: u8) -> Element<'stat
     tooltip(cancel_btn, cancel_tip, Position::Top).into()
 }
 
-/// 附件在左，发送与模型在右，工具选项在可用宽度内换行。
+/// 右侧操作保持单行，左侧工具在剩余宽度内排布。
 pub(crate) fn bottom_bar<'a, Message: Clone + 'a>(
     agent_tab_btn: Option<Element<'a, Message>>,
     tools_tab_btn: Option<Element<'a, Message>>,
@@ -775,7 +775,7 @@ pub(crate) fn bottom_bar<'a, Message: Clone + 'a>(
     let mut options = row![]
         .spacing(5)
         .align_y(Alignment::Center)
-        .width(Length::FillPortion(5));
+        .width(Length::Fill);
     options = options.push(workflow_btn);
     for option in [agent_tab_btn, tools_tab_btn, skills_tab_btn, acp_btn]
         .into_iter()
@@ -797,20 +797,16 @@ pub(crate) fn bottom_bar<'a, Message: Clone + 'a>(
         }
     }
 
-    let actions = container(
-        actions
-            .wrap()
-            .vertical_spacing(5)
-            .align_x(iced::alignment::Horizontal::Right),
-    )
-    .align_right(Length::FillPortion(4));
-
-    row![attach_btn, options.wrap().vertical_spacing(5), actions]
-        .width(Length::Fill)
-        .spacing(8)
-        .align_y(Alignment::Center)
-        .padding([7, 13])
-        .into()
+    row![
+        attach_btn,
+        options.wrap().vertical_spacing(5),
+        actions.width(Length::Shrink),
+    ]
+    .width(Length::Fill)
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .padding([7, 13])
+    .into()
 }
 
 /// 只接受当前会话目录与项目目录，不借用宿主状态。

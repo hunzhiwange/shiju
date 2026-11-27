@@ -2,7 +2,7 @@
 use desktop_assets::assets::Icon;
 use desktop_i18n::I18n;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{button, container, row, column, text};
+use iced::widget::{Space, button, container, row, column, text};
 use iced::{Element, Length, Alignment, Color, Theme};
 use super::{surface_styles as styles, icons::{self, icon_svg}};
 use super::composer_icons::ComposerIcon;
@@ -68,9 +68,11 @@ pub(super) fn summarize_names(names: &[String]) -> String {
 pub fn selected_context_card<'a, Message: Clone + 'a>(
     i18n: I18n,
     summary: String,
+    chrome: &desktop_theme::ChromeStyleOverrides,
     adjust: Message,
     clear: Message,
 ) -> Element<'a, Message> {
+    let radius = styles::composer_inner_radius(chrome);
     let content = column![
         text(i18n.__("已选工具与技能"))
             .size(12)
@@ -100,17 +102,19 @@ pub fn selected_context_card<'a, Message: Clone + 'a>(
         button(content)
             .padding([8, 10])
             .width(Length::Fill)
-            .style(styles::manual_context_card_button_style)
+            .style(move |theme, status| styles::manual_context_card_button_style(theme, status, radius))
             .on_press(adjust.clone()),
         bottom_bar_round_toggle(adjust_icon.into(), i18n.__("调整"), adjust),
         bottom_bar_round_toggle(clear_icon.into(), i18n.__("清除已选工具与技能"), clear),
     ]
     .spacing(4)
     .align_y(Alignment::Center);
+    // 渲染器将圆角限制在高度的一半，主题圆角较大时仍让横条完整覆盖上角。
+    let controls = row![Space::new().height(radius * 2.0), controls].align_y(Alignment::Center);
     container(controls)
         .padding(iced::Padding::ZERO.right(8))
         .width(Length::Fill)
-        .style(styles::manual_context_card_style)
+        .style(move |theme| styles::manual_context_card_style(theme, radius))
         .into()
 }
 

@@ -24,7 +24,7 @@ fn desktop_gettext_chat_visible_copy() {
         assert_eq!(recording_labels(i18n, Input { phase: Phase::Recording, ..input }), (Some(preparing), cancel));
         assert_eq!(recording_labels(i18n, Input { phase: Phase::Recording, ready: true, ..input }), (None, cancel));
         let hint = crate::input_panel::voice_controls::dictation_tooltip(i18n, "听写");
-        assert!(hint.starts_with(i18n.__("听写")));
+        assert_eq!(hint, i18n.__("听写"));
         let diagnostic = "服务原文 /tmp/中文.rs %n/%s";
         let failure = format!("麦克风授权失败：{diagnostic}");
         let rendered = desktop_voice_ui::feedback::render(i18n, &failure);

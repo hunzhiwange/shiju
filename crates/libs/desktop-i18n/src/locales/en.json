@@ -2529,6 +2529,7 @@
   "模型手工输入": "Manual model input",
   "可选，留空使用代理或全局默认模型。": "Optional; leave blank for the agent or global default model.",
   "回退模型": "Fallback models",
+  "主模型失败后依次尝试。": "Tried in order if the primary model fails.",
   "主模型失败后依次尝试，使用逗号或换行分隔。": "Tried in order if the primary model fails; separate with commas or newlines.",
   "完全访问": "Full access",
   "开启后该 Agent 定时任务按发送面板的完全访问权限执行。": "Run this Agent scheduled task with the send panel's full-access permissions.",

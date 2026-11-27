@@ -102,10 +102,8 @@ fn advanced_fields<'a>(
             .push(field_row_with_help(
                 app,
                 "回退模型",
-                "主模型失败后依次尝试，使用逗号或换行分隔。",
-                text_field("provider/model, provider/model", &draft.fallbacks, |v| {
-                    Message::Settings(S::CronJobEditFallbacksChanged(v))
-                }),
+                "主模型失败后依次尝试。",
+                fallback_models(app, draft),
             ))
             .push(field_row(
                 i18n.__("任务池"),
@@ -135,6 +133,48 @@ fn advanced_fields<'a>(
             .style(settings_checkbox_style),
     ));
     settings_group_card(fields).into()
+}
+
+fn fallback_models<'a>(app: &ViewData<'_>, draft: &CronJobDraft) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let selected = desktop_config::config_cron_jobs::parse_fallback_models(&draft.fallbacks);
+    let mut controls = column![].spacing(6);
+    for (index, id) in selected.iter().enumerate() {
+        let remaining = selected[..index]
+            .iter()
+            .chain(&selected[index + 1..])
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n");
+        controls = controls.push(
+            row![
+                text(id.clone()).size(SETTINGS_CONTROL_TEXT_SIZE).width(Length::Fill),
+                small_button(
+                    i18n.__("移除"),
+                    Message::Settings(S::CronJobEditFallbacksChanged(remaining)),
+                    false,
+                ),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        );
+    }
+
+    let candidates: Vec<_> = app
+        .models
+        .iter()
+        .flat_map(|group| &group.models)
+        .filter(|model| model.id != draft.model && !selected.contains(&model.id))
+        .map(|model| model.id.clone())
+        .collect();
+    let picker = settings_select(candidates, None, move |id| {
+        let mut fallbacks = selected.clone();
+        fallbacks.push(id);
+        Message::Settings(S::CronJobEditFallbacksChanged(fallbacks.join("\n")))
+    })
+    .placeholder(i18n.__("添加回退模型"))
+    .width(Length::Fill);
+    controls.push(picker).into()
 }
 
 fn for_add(message: Message) -> Message {
@@ -169,9 +209,6 @@ fn for_add(message: Message) -> Message {
         }
         Message::Settings(S::CronJobEditJobTypeChanged(v)) => {
             Message::Settings(S::CronAddJobTypeChanged(v))
-        }
-        Message::Settings(S::CronJobEditModelChanged(v)) => {
-            Message::Settings(S::CronAddModelChanged(v))
         }
         Message::Settings(S::CronJobEditNameChanged(v)) => {
             Message::Settings(S::CronAddNameChanged(v))

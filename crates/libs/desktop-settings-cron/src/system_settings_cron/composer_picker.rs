@@ -362,16 +362,8 @@ fn model_panel<'a>(
     let i18n = I18n::new(app.desktop_locale);
     let query = draft.editor_picker_query.trim().to_lowercase();
     let current = draft.model.trim();
-    let manual = settings_text_input(i18n.__("auto / provider/model / 自定义模型"), &draft.model)
-        .on_input(move |model| Message::Settings(S::CronJobEditModelChanged(model)))
-        .on_submit(action(editing, Action::ModelSelected(current.to_owned())));
     let header = column![
         search(i18n.__("搜索模型…"), &draft.editor_picker_query, editing),
-        text(i18n.__("手工填写模型")).size(13),
-        manual,
-        text(i18n.__("可选，留空使用代理或全局默认模型。"))
-            .size(11)
-            .style(settings_muted_text_style),
         settings_divider(),
     ]
     .spacing(6);

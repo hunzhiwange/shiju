@@ -633,6 +633,47 @@ async fn update_cron_job_async_sends_cron_request_without_extended_probe() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn update_cron_job_async_clears_removed_fallback_models() {
+    let _guard = CRON_JOBS_ENV_LOCK.lock().await;
+    let gateway = TestGateway::start(2).await;
+
+    super::update_cron_job_async(
+        test_client(),
+        "job-1".into(),
+        "Agent job".into(),
+        "agent".into(),
+        "cron".into(),
+        "0 0 * * * *".into(),
+        String::new(),
+        String::new(),
+        String::new(),
+        "summarize".into(),
+        "isolated".into(),
+        "main".into(),
+        String::new(),
+        String::new(),
+        false,
+        "fixture/primary".into(),
+        String::new(),
+        false,
+        false,
+        false,
+        String::new(),
+        String::new(),
+        true,
+        false,
+        None,
+    )
+    .await
+    .expect("agent cron should be updated");
+
+    let requests = gateway.requests().await;
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[1].method, "PATCH");
+    assert_eq!(requests[1].body["fallbacks"], serde_json::json!([]));
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn enabled_and_delete_helpers_send_one_request_per_job() {
     let _guard = CRON_JOBS_ENV_LOCK.lock().await;
     let gateway = TestGateway::start(4).await;

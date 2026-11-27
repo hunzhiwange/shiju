@@ -3,6 +3,15 @@
 
 use gateway_cron::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
 
+pub fn parse_fallback_models(input: &str) -> Vec<String> {
+    input
+        .split([',', '\n'])
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
 fn normalize_schedule_kind(
     value: &str,
     schedule: Option<&str>,
@@ -216,12 +225,7 @@ pub async fn add_cron_job_async(
     let task_pool = job_type == "agent" && task_pool;
     let project_path = Some(project_path.trim().to_string()).filter(|value| !value.is_empty());
     let model = Some(model.trim().to_string()).filter(|value| !value.is_empty());
-    let fallbacks = fallbacks
-        .split([',', '\n'])
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
-        .collect::<Vec<_>>();
+    let fallbacks = parse_fallback_models(&fallbacks);
     let fallbacks = (!fallbacks.is_empty()).then_some(fallbacks);
     let delivery_channel =
         Some(delivery_channel.trim().to_string()).filter(|value| !value.is_empty());
@@ -373,12 +377,7 @@ pub async fn update_cron_job_async(
     let task_pool = job_type == "agent" && task_pool;
     let project_path = Some(project_path.trim().to_string()).filter(|value| !value.is_empty());
     let model = Some(model.trim().to_string()).filter(|value| !value.is_empty());
-    let fallbacks = fallbacks
-        .split([',', '\n'])
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
-        .collect::<Vec<_>>();
+    let fallbacks = parse_fallback_models(&fallbacks);
     let fallbacks = (!fallbacks.is_empty()).then_some(fallbacks);
     let delivery_channel =
         Some(delivery_channel.trim().to_string()).filter(|value| !value.is_empty());
@@ -421,6 +420,7 @@ pub async fn update_cron_job_async(
     .await?;
     // Agent forms send an empty override to restore the executor's default.
     let model = if job_type == "agent" { Some(model.unwrap_or_default()) } else { model };
+    let fallbacks = fallbacks.or_else(|| (job_type == "agent").then(Vec::new));
     let mut request = CronUpdateRequest {
         name,
         job_type: Some(job_type),

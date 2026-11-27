@@ -870,7 +870,7 @@ async fn help_rollout_15_cron_add_config_and_scheduler_render_help() {
 }
 
 const JOB_TYPE_HELP: &str = "Shell 执行命令，Agent 执行提示词任务。";
-const FALLBACK_HELP: &str = "主模型失败后依次尝试，使用逗号或换行分隔。";
+const FALLBACK_HELP: &str = "主模型失败后依次尝试。";
 const WORKDAY_EXAMPLE: &str = "示例：0 9 * * MON-FRI 表示工作日 UTC 09:00 执行。";
 const CRON_FORMAT_HELP: &str =
     "按 UTC 执行。5 字段依次为分、时、日、月、星期；6 字段在最前面增加秒。";
@@ -1205,7 +1205,8 @@ async fn cron_agent_and_model_choices_share_composer() {
         app.app_theme = theme.clone();
         let mut ui = scene(gap_10_view(&app), &mut renderer, size);
         let positions = geometry(&mut ui, &renderer);
-        for label in ["技能", "手工填写模型", "自动模型", "DeepSeek", "deepseek-v4"] {
+        assert!(positions.labels.iter().all(|(label, _)| label != "手工填写模型"));
+        for label in ["技能", "自动模型", "DeepSeek", "deepseek-v4"] {
             assert_fits(positions.label(label), size);
         }
         assert!(matches!(

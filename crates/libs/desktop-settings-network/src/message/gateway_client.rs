@@ -97,40 +97,19 @@ pub fn update(app: &mut GatewayClientSettingsState, message: SettingsMessage) ->
     let SettingsMessage::GatewayClient(message) = message else {
         return Effect::None;
     };
-    let refresh_health = matches!(
-        &message,
-        GatewayClientMessage::SelectServer(_)
-            | GatewayClientMessage::AddServer
-            | GatewayClientMessage::RemoveServerConfirmed(_)
-            | GatewayClientMessage::HostChanged(_)
-            | GatewayClientMessage::PortChanged(_)
-            | GatewayClientMessage::PlatformIdChanged(_)
-            | GatewayClientMessage::CompanyIdChanged(_)
-            | GatewayClientMessage::UserIdChanged(_)
-            | GatewayClientMessage::SkeyChanged(_)
-    );
-    let changes_selection = matches!(
-        &message,
-        GatewayClientMessage::SelectServer(_)
-            | GatewayClientMessage::AddServer
-            | GatewayClientMessage::RemoveServerConfirmed(_)
-    );
-    let previous = app.clone();
-
-    match message {
+    let previous = match message {
         GatewayClientMessage::SelectServer(server_id) => {
-            if let Err(error) = sync_selected_server_from_inputs(app) {
-                return show_save_error(app, error);
+            if app.selected_server_id == server_id
+                || !app.servers.iter().any(|server| server.id == server_id)
+            {
+                return Effect::None;
             }
-            if app.servers.iter().any(|server| server.id == server_id) {
-                app.selected_server_id = server_id;
-                load_selected_server_into_inputs(app);
-            }
+            let previous = app.clone();
+            app.selected_server_id = server_id;
+            previous
         }
         GatewayClientMessage::AddServer => {
-            if let Err(error) = sync_selected_server_from_inputs(app) {
-                return show_save_error(app, error);
-            }
+            let previous = app.clone();
             let id = {
                 let mut cfg = GatewayClientSystemSettingsConfig::default();
                 cfg.set_servers(
@@ -156,7 +135,7 @@ pub fn update(app: &mut GatewayClientSettingsState, message: SettingsMessage) ->
             };
             app.servers.push(draft);
             app.selected_server_id = id;
-            load_selected_server_into_inputs(app);
+            previous
         }
         GatewayClientMessage::RemoveServerRequested(server_id) => {
             if app.servers.len() > 1
@@ -170,46 +149,64 @@ pub fn update(app: &mut GatewayClientSettingsState, message: SettingsMessage) ->
             let pending_matches = app.pending_remove_server_id.as_deref()
                 == Some(server_id.as_str());
             app.pending_remove_server_id = None;
-            if !pending_matches {
+            if !pending_matches || app.servers.len() <= 1 {
                 return Effect::None;
             }
-            if app.servers.len() > 1 {
-                let removed_health_key = app
-                    .servers
-                    .iter()
-                    .find(|server| server.id == server_id)
-                    .and_then(crate::server_health_key);
-                app.servers.retain(|server| server.id != server_id);
-                if let Some(key) = removed_health_key {
-                    app.health.remove(&key);
-                }
-                if app.selected_server_id == server_id
-                    && let Some(first) = app.servers.first()
-                {
-                    app.selected_server_id = first.id.clone();
-                }
-                load_selected_server_into_inputs(app);
+            let Some(index) = app.servers.iter().position(|server| server.id == server_id) else {
+                return Effect::None;
+            };
+            let previous = app.clone();
+            let removed = app.servers.remove(index);
+            if let Some(key) = crate::server_health_key(&removed) {
+                app.health.remove(&key);
             }
+            if app.selected_server_id == server_id {
+                app.selected_server_id = app.servers[0].id.clone();
+            }
+            previous
         }
         GatewayClientMessage::RemoveServerCanceled => {
             app.pending_remove_server_id = None;
             return Effect::None;
         }
-        GatewayClientMessage::NameChanged(value) => app.name_input = value,
+        GatewayClientMessage::NameChanged(value) => {
+            app.name_input = value;
+            return Effect::None;
+        }
         GatewayClientMessage::HostChanged(value) => {
             app.host_input = value;
+            return Effect::None;
         }
         GatewayClientMessage::PortChanged(value) => {
             app.port = value.clamp(1, u16::MAX);
+            return Effect::None;
         }
         GatewayClientMessage::PlatformIdChanged(value) => {
             app.platform_id_input = value;
+            return Effect::None;
         }
         GatewayClientMessage::CompanyIdChanged(value) => {
             app.company_id_input = value;
+            return Effect::None;
         }
-        GatewayClientMessage::UserIdChanged(value) => app.user_id_input = value,
-        GatewayClientMessage::SkeyChanged(value) => app.skey_input = value,
+        GatewayClientMessage::UserIdChanged(value) => {
+            app.user_id_input = value;
+            return Effect::None;
+        }
+        GatewayClientMessage::SkeyChanged(value) => {
+            app.skey_input = value;
+            return Effect::None;
+        }
+        GatewayClientMessage::Save => {
+            if !app.has_unsaved_changes() {
+                return Effect::None;
+            }
+            let previous = app.clone();
+            if let Err(error) = sync_selected_server_from_inputs(app) {
+                return show_save_error(app, error);
+            }
+            previous
+        }
         GatewayClientMessage::HelpOpen => {
             app.show_help_modal = true;
             return Effect::None;
@@ -218,22 +215,18 @@ pub fn update(app: &mut GatewayClientSettingsState, message: SettingsMessage) ->
             app.show_help_modal = false;
             return Effect::None;
         }
-    }
-
-    if let Err(error) = sync_selected_server_from_inputs(app) {
-        return show_save_error(app, error);
-    }
+    };
     let mut config = GatewayClientSystemSettingsConfig::default();
     config.set_servers(app.servers.iter().map(GatewayClientServerDraft::to_config).collect(), app.selected_server_id.clone());
-    Effect::Save { config, previous, changes_selection, refresh_health }
+    Effect::Save { config, previous }
 }
 pub enum Effect {
     None,
     Error(Feedback),
-    Save { config: GatewayClientSystemSettingsConfig, previous: GatewayClientSettingsState, changes_selection: bool, refresh_health: bool },
+    Save { config: GatewayClientSystemSettingsConfig, previous: GatewayClientSettingsState },
 }
-pub fn save_failed(app: &mut GatewayClientSettingsState, previous: GatewayClientSettingsState, changes_selection: bool) -> Feedback {
-    if changes_selection { *app = previous; } else { app.servers = previous.servers; }
+pub fn save_failed(app: &mut GatewayClientSettingsState, previous: GatewayClientSettingsState) -> Feedback {
+    *app = previous;
     let error = Feedback::owned("无法保存本机网关连接。", vec![]);
     app.save_error = Some(error.clone());
     error

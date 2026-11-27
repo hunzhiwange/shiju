@@ -648,6 +648,9 @@ fn native_startup_rejects_an_old_snapshot_after_switching_tenants_and_back() {
             let _ = app.update(Message::Settings(SettingsMessage::GatewayClient(
                 GatewayClientMessage::CompanyIdChanged(company),
             )));
+            let _ = app.update(Message::Settings(SettingsMessage::GatewayClient(
+                GatewayClientMessage::Save,
+            )));
         }
         let stale = StartupGatewaySnapshot {
             preferences: Some(Ok(json!({"model": "stale"}))),

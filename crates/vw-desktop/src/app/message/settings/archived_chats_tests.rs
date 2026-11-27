@@ -201,6 +201,12 @@ fn archived_chats_browse_settings_routes_and_gateway_switch() {
             "100000001".into(),
         )),
     );
+    assert_eq!(app.archived_chats.sessions.len(), 1);
+    assert_eq!(app.archived_chats.request_generation, generation);
+    let _ = super::super::update(
+        &mut app,
+        SettingsMessage::GatewayClient(super::super::GatewayClientMessage::Save),
+    );
     assert!(app.archived_chats.sessions.is_empty());
     assert!(app.archived_chats.request_generation > generation);
     let _ = super::super::update(

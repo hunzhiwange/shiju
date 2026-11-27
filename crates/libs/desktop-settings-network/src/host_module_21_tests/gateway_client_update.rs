@@ -25,6 +25,9 @@ fn gateway_client_tenant_messages_persist_switch_and_reject_blank_inputs() {
             "200000001".to_string(),
         )),
     );
+    assert_eq!(app.gateway_client_settings.servers[0].platform_id, "10000");
+    assert_eq!(app.gateway_client_settings.servers[0].company_id, "100000000");
+    update(&mut app, SettingsMessage::GatewayClient(GatewayClientMessage::Save));
     assert_eq!(app.gateway_client_settings.servers[0].platform_id, "20000");
     assert_eq!(app.gateway_client_settings.servers[0].company_id, "200000001");
 
@@ -45,7 +48,8 @@ fn gateway_client_tenant_messages_persist_switch_and_reject_blank_inputs() {
         SettingsMessage::GatewayClient(GatewayClientMessage::PlatformIdChanged(" ".to_string())),
     );
     assert_eq!(app.gateway_client_settings.servers[0].platform_id, "20000");
-    assert!(app.gateway_client_settings.save_error.is_some());
+    assert!(app.gateway_client_settings.save_error.is_none());
+    update(&mut app, SettingsMessage::GatewayClient(GatewayClientMessage::Save));
     assert!(app.gateway_client_settings.save_error.is_some());
 }
 
@@ -130,6 +134,7 @@ fn gateway_client_update_normalizes_and_persists_editable_fields() {
         )),
     );
 
+    update(&mut app, SettingsMessage::GatewayClient(GatewayClientMessage::Save));
     let server = &app.gateway_client_settings.servers[0];
     assert_eq!(server.name, "primary");
     assert_eq!(server.host, "127.0.0.1");
@@ -143,17 +148,8 @@ fn gateway_client_update_normalizes_and_persists_editable_fields() {
 }
 
 #[test]
-fn gateway_client_update_rejects_add_and_switch_when_current_tenant_is_invalid() {
+fn gateway_client_update_switches_without_saving_the_current_draft() {
     let mut app = app();
-    let original_id = app.gateway_client_settings.selected_server_id.clone();
-    let original_len = app.gateway_client_settings.servers.len();
-    app.gateway_client_settings.company_id_input = " ".to_string();
-
-    update(&mut app, SettingsMessage::GatewayClient(GatewayClientMessage::AddServer));
-    assert_eq!(app.gateway_client_settings.servers.len(), original_len);
-    assert_eq!(app.gateway_client_settings.selected_server_id, original_id);
-    assert!(app.gateway_client_settings.save_error.is_some());
-
     app.gateway_client_settings.servers.push(GatewayClientServerDraft {
         id: "remote".to_string(),
         name: "Remote".to_string(),
@@ -164,11 +160,17 @@ fn gateway_client_update_rejects_add_and_switch_when_current_tenant_is_invalid()
         user_id: "0".to_string(),
         skey: String::new(),
     });
+    app.gateway_client_settings.name_input = "Unsaved".to_string();
+    app.gateway_client_settings.company_id_input = " ".to_string();
     update(
         &mut app,
         SettingsMessage::GatewayClient(GatewayClientMessage::SelectServer("remote".to_string())),
     );
-    assert_eq!(app.gateway_client_settings.selected_server_id, original_id);
+    assert_eq!(app.gateway_client_settings.selected_server_id, "remote");
+    assert_ne!(app.gateway_client_settings.servers[0].name, "Unsaved");
+    assert_eq!(app.gateway_client_settings.servers[0].company_id, "100000000");
+    assert!(!app.gateway_client_settings.has_unsaved_changes());
+    assert!(app.gateway_client_settings.save_error.is_none());
 }
 
 #[test]

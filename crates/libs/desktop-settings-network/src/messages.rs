@@ -84,6 +84,7 @@ pub enum GatewayClientMessage {
     CompanyIdChanged(String),
     UserIdChanged(String),
     SkeyChanged(String),
+    Save,
     HelpOpen,
     HelpClose,
 }

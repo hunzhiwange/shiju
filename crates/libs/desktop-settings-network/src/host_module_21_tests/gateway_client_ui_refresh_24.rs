@@ -284,6 +284,9 @@ async fn ui_refresh_24_layout_and_interaction() {
         assert!((host.center_y() - label.center_y()).abs() < 0.5, "{host:?} {label:?}");
         let target = positions.label(&remote.name);
         assert_fits(target, size);
+        let save = positions.label(tr(locale, "保存"));
+        assert_fits(save, size);
+        assert!(click(&mut ui, &mut renderer, save.center()).is_empty());
         for (theme, mode) in [(&Theme::Light, "light"), (&Theme::Dark, "dark")] {
             let path = format!("gateway-{tag}-{mode}");
             let resting =
@@ -409,6 +412,7 @@ async fn ui_refresh_24_preserves_values_and_disabled_states() {
     let mut renderer = renderer().await;
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::English;
+    app.gateway_client_settings.servers[0].skey.clear();
     let size = Size::new(640, 960);
     let mut ui = scene(gateway::view(&app), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
@@ -475,6 +479,11 @@ async fn ui_refresh_24_preserves_values_and_disabled_states() {
             ),
         "different secrets of equal length should have identical masked rendering"
     );
+    let save = geometry(&mut ui, &renderer).label("Save");
+    assert!(matches!(
+        click(&mut ui, &mut renderer, save.center()).as_slice(),
+        [Message::GatewayClient(Gateway::Save)]
+    ));
     drop(ui);
 
     app.gateway_client_settings.servers.clear();

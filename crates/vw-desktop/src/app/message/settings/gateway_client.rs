@@ -5,16 +5,16 @@ use super::messages::{SettingsMessage};
 use desktop_settings_network::message::gateway_client::{self, Effect};
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     let SettingsMessage::GatewayClient(message) = message else { return Task::none(); };
-    let (draft, previous, changes_selection, refresh_health) = match gateway_client::update(&mut app.gateway_client_settings, desktop_settings_network::Message::GatewayClient(message)) {
+    let (draft, previous) = match gateway_client::update(&mut app.gateway_client_settings, desktop_settings_network::Message::GatewayClient(message)) {
         Effect::None => return Task::none(),
         Effect::Error(error) => return app.show_error_toast(error.display(app.general_settings.desktop_locale)),
-        Effect::Save { config, previous, changes_selection, refresh_health } => (config, previous, changes_selection, refresh_health),
+        Effect::Save { config, previous } => (config, previous),
     };
-    let old_endpoint = refresh_health.then(crate::app::gateway_client_endpoint);
+    let old_endpoint = crate::app::gateway_client_endpoint();
     let config = match update_gateway_client_config(move |cfg| cfg.set_servers(draft.servers, draft.active_server_id)) {
         Ok(config) => config,
         Err(_) => {
-            let error = gateway_client::save_failed(&mut app.gateway_client_settings, previous, changes_selection);
+            let error = gateway_client::save_failed(&mut app.gateway_client_settings, previous);
             return app.show_error_toast(error.display(app.general_settings.desktop_locale));
         }
     };
@@ -22,9 +22,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     let (endpoint, save) = app.queue_gateway_client_snapshot(config);
     #[cfg(not(target_arch = "wasm32"))]
     app.startup_configuration.select_endpoint(&endpoint);
-    let Some(old_endpoint) = old_endpoint else {
-        return save;
-    };
     let user_changed = old_endpoint.user_id() != endpoint.user_id();
     let connection_changed = old_endpoint.base_url() != endpoint.base_url()
         || old_endpoint.tenant_scope() != endpoint.tenant_scope()

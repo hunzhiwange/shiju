@@ -130,6 +130,7 @@ impl App {
         self.git.git_copy_modal_code_editor.set_theme(theme::from_iced_theme(&editor_theme));
         if apply_gateway_client
             && !self.system_settings_edited(SystemSettingsSection::GatewayClient)
+            && !self.gateway_client_settings.has_unsaved_changes()
             && self.gateway_client_settings.save_error.is_none()
         {
             desktop_settings_network::bootstrap::apply_bootstrap_gateway_client(

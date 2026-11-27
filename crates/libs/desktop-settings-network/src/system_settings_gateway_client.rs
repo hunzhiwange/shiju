@@ -312,6 +312,14 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
         },
     );
 
+    let save = button(text(connection_text(app.desktop_locale, "保存")).size(13))
+        .padding([8, 14])
+        .style(primary_action_btn_style)
+        .on_press_maybe(
+            s.has_unsaved_changes()
+                .then_some(Message::GatewayClient(GatewayClientMessage::Save)),
+        );
+
     let content = column![
         row![
             container(settings_page_heading_with_help(app.render_help,
@@ -365,6 +373,18 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
         ]),
         text(connection_text(app.desktop_locale, "认证")).size(17),
         settings_group_card(skey_row),
+        row![
+            text(connection_text(
+                app.desktop_locale,
+                "保存后检查连通性，切换网关会放弃未保存的修改。",
+            ))
+            .size(13)
+            .style(settings_muted_text_style)
+            .width(Length::Fill),
+            save,
+        ]
+        .spacing(12)
+        .align_y(Alignment::Center),
     ]
     .spacing(16)
     .width(Length::Fill);

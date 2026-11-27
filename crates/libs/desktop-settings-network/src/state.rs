@@ -184,6 +184,29 @@ pub struct GatewayClientSettingsState {
     pub save_error: Option<desktop_i18n::settings_models::messages::Feedback>,
 }
 
+impl GatewayClientSettingsState {
+    pub fn has_unsaved_changes(&self) -> bool {
+        self.servers
+            .iter()
+            .find(|server| server.id == self.selected_server_id)
+            .is_some_and(|server| {
+                let saved_host = server.host.trim();
+                let saved_host = if saved_host.is_empty() {
+                    "127.0.0.1"
+                } else {
+                    saved_host
+                };
+                self.name_input != server.name
+                    || self.host_input != saved_host
+                    || self.port != server.port
+                    || self.platform_id_input != server.platform_id
+                    || self.company_id_input != server.company_id
+                    || self.user_id_input != server.user_id
+                    || self.skey_input != server.skey
+            })
+    }
+}
+
 impl Default for GatewayClientSettingsState {
     fn default() -> Self {
         let server = GatewayClientServerDraft::from_config(

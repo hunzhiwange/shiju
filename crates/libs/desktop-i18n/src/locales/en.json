@@ -548,6 +548,7 @@
   "网关服务": "Gateway services",
   "可以维护多个客户端网关，当前选中的网关会用于 Desktop 的 Gateway 请求。": "Manage multiple client Gateways. Desktop requests use the selected Gateway.",
   "认证": "Authentication",
+  "保存后检查连通性，切换网关会放弃未保存的修改。": "Saving checks connectivity. Switching gateways discards unsaved changes.",
   "可选填写 skey。请求会通过 Authorization: Bearer <skey> 发送。": "Optional skey sent as Authorization: Bearer <skey>.",
   "确认删除客户端网关": "Confirm client Gateway deletion",
   "确认删除": "Confirm deletion",

@@ -41,7 +41,11 @@ pub fn apply_bootstrap_gateway_client(
     state.platform_id_input = active_gateway_client.platform_id;
     state.company_id_input = active_gateway_client.company_id;
     state.user_id_input = active_gateway_client.user_id;
-    state.skey_input = active_gateway_client.skey;
+    state.skey_input = if active_gateway_client.skey.trim().is_empty() {
+        active_gateway_client.bearer_token
+    } else {
+        active_gateway_client.skey
+    };
 }
 
 pub fn apply_bootstrap_browser_settings(

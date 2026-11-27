@@ -184,7 +184,10 @@ mod remote_save {
             skey: "second-token".into(),
         });
 
-        let save = edit(&mut app, GatewayClientMessage::NameChanged("First".into()));
+        let draft = edit(&mut app, GatewayClientMessage::NameChanged("First".into()));
+        assert!(into_stream(draft).is_none());
+        assert_eq!(crate::app::load_gateway_client_config().active_server().name, "Test");
+        let save = edit(&mut app, GatewayClientMessage::Save);
         assert!(
             matches!(first.patches.try_recv(), Err(mpsc::TryRecvError::Empty)),
             "the UI handler sent a PATCH before Iced polled the returned task"
@@ -198,10 +201,19 @@ mod remote_save {
 
         let interim = edit(&mut app, GatewayClientMessage::NameChanged("Interim".into()));
         assert!(into_stream(interim).is_none());
+        assert!(into_stream(edit(&mut app, GatewayClientMessage::Save)).is_some());
         let latest = edit(&mut app, GatewayClientMessage::NameChanged("Latest".into()));
         assert!(into_stream(latest).is_none());
+        let temporary_port = edit(&mut app, GatewayClientMessage::PortChanged(second.port));
+        assert!(into_stream(temporary_port).is_none());
+        assert_eq!(app.gateway_client_settings.servers[0].port, first.port);
+        assert_eq!(crate::app::load_gateway_client_config().port, first.port);
+        let restored_port = edit(&mut app, GatewayClientMessage::PortChanged(first.port));
+        assert!(into_stream(restored_port).is_none());
         let cleared_key = edit(&mut app, GatewayClientMessage::SkeyChanged(String::new()));
-        assert!(matches!(receive(&drive(&runtime, cleared_key)), Message::GatewayHealthTick));
+        assert!(into_stream(cleared_key).is_none());
+        let save = edit(&mut app, GatewayClientMessage::Save);
+        assert!(matches!(receive(&drive(&runtime, save)), Message::GatewayHealthTick));
 
         app.navigation_tabs.project_path = Some("/gateway-test".into());
         let switch = edit(&mut app, GatewayClientMessage::SelectServer("second".into()));
@@ -295,12 +307,14 @@ mod remote_save {
         assert!(app.gateway_client_settings.save_error.as_ref().unwrap().contains("远端同步失败"));
 
         let _ = edit(&mut app, GatewayClientMessage::PlatformIdChanged(" ".into()));
+        let _ = edit(&mut app, GatewayClientMessage::Save);
         let saved = crate::app::load_gateway_client_config();
         assert_eq!(saved.active_server_id, offline_id);
         assert_eq!(saved.port, port);
         assert_eq!(saved.platform_id, "10000");
         assert!(app.gateway_client_settings.save_error.as_ref().unwrap().contains("租户配置无效"));
-        let valid = edit(&mut app, GatewayClientMessage::PlatformIdChanged("30000".into()));
+        let _ = edit(&mut app, GatewayClientMessage::PlatformIdChanged("30000".into()));
+        let valid = edit(&mut app, GatewayClientMessage::Save);
         assert_eq!(crate::app::load_gateway_client_config().platform_id, "30000");
         let pending = drive(&runtime, valid);
         let switch = edit(&mut app, GatewayClientMessage::SelectServer(first_id.clone()));
@@ -321,5 +335,7 @@ fn gateway_client_invalid_tenant_effect_shows_host_toast() {
     let mut app = App::new().0;
     app.gateway_client_settings = Default::default();
     let _ = update(&mut app, SettingsMessage::GatewayClient(GatewayClientMessage::PlatformIdChanged(" ".into())));
+    assert!(app.toast_state.active_toast.is_none());
+    let _ = update(&mut app, SettingsMessage::GatewayClient(GatewayClientMessage::Save));
     assert!(app.toast_state.active_toast.is_some());
 }

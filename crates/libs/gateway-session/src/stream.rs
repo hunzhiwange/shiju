@@ -958,9 +958,8 @@ pub fn resolve_delegate_policy(
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned);
 
-    // `main` 是交互式主代理，不是委托代理。它的工具清单已经由桌面根据当前
-    // 注册目录和用户选择生成，不能再套用子代理的静态默认能力上限。
-    if agent_name == "main" {
+    // 交互式主代理使用请求工具选择及会话的实时目录。
+    if config_agent::can_delegate_from_agent(&agent_name) {
         return Ok(DelegateRequestOverrides {
             agent: Some(agent_name),
             model,

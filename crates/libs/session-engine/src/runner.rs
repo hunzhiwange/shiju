@@ -329,13 +329,14 @@ pub fn run<H: RunnerHost>(
     if let Some(snapshot) = &catalog_snapshot {
         ctx = crate::tools_exec::with_request_tool_catalog::<H::CtxHost>(&ctx, &req.session_tools, snapshot);
     }
+    let can_delegate = config_agent::can_delegate_from_agent(agent_key.as_deref().unwrap_or("main"));
     let available_tool_specs = catalog_snapshot
         .as_ref()
         .map(|snapshot| snapshot.specs())
         .unwrap_or_else(|| if employee { Vec::new() } else { H::tool_specs(&ctx) })
         .into_iter()
         // Exclude worker-ineligible tools before required-tool expansion.
-        .filter(|spec| agent_key.as_deref().unwrap_or("main") == "main" || spec.id != "AgentTool")
+        .filter(|spec| can_delegate || spec.id != "AgentTool")
         .filter(|spec| ctx.tool_use_context().delegated_tool_is_allowed(&spec.id))
         .collect::<Vec<_>>();
     let mut allowed_tools =
@@ -496,9 +497,7 @@ pub fn run<H: RunnerHost>(
                 let specs = snapshot
                     .specs()
                     .into_iter()
-                    .filter(|spec| {
-                        agent_key.as_deref().unwrap_or("main") == "main" || spec.id != "AgentTool"
-                    })
+                    .filter(|spec| can_delegate || spec.id != "AgentTool")
                     .filter(|spec| ctx.tool_use_context().delegated_tool_is_allowed(&spec.id))
                     .collect::<Vec<_>>();
                 allowed_tools = allowed_tool_ids_for_request_from_specs(&specs, &req.options);

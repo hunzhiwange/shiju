@@ -96,6 +96,7 @@ pub fn cards(input: Input<'_>) -> Vec<Element<'_, Event>> {
     let settings = input;
     let locale = input.locale;
     let label = move |source| tr(locale, source);
+    let i18n = desktop_i18n::I18n::new(locale);
     let busy = settings.catalog_busy
         || settings.save_in_flight
         || settings.profile_saving
@@ -187,7 +188,7 @@ pub fn cards(input: Input<'_>) -> Vec<Element<'_, Event>> {
                         .center_y(44.0)
                         .style(settings_icon_tile_style),
                     column![
-                        text(&entry.label).size(16).wrapping(text::Wrapping::WordOrGlyph),
+                        text(i18n.__(&entry.label)).size(16).wrapping(text::Wrapping::WordOrGlyph),
                         text(&entry.key)
                             .size(12)
                             .wrapping(text::Wrapping::WordOrGlyph)
@@ -221,7 +222,7 @@ pub fn cards(input: Input<'_>) -> Vec<Element<'_, Event>> {
             let mut body = column![header, metadata].spacing(10);
             if !entry.description.trim().is_empty() {
                 body = body
-                    .push(text(&entry.description).size(13).wrapping(text::Wrapping::WordOrGlyph));
+                    .push(text(i18n.__(&entry.description)).size(13).wrapping(text::Wrapping::WordOrGlyph));
             }
             body = body.push(
                 text(status)

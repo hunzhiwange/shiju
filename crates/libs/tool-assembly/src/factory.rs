@@ -226,14 +226,44 @@ pub fn all_tools_with_runtime<H: FactoryHost>(
     ));
     let cron_full_access = security.autonomy == AutonomyLevel::Full && !security.workspace_only;
     let construction = ConstructionContext { root_config: Some(root_config), http_config: Some(http_config), web_fetch_config: Some(web_fetch_config), api_key: None, cron_full_access, config: Some(&config), security, runtime: &runtime, memory: Some(&memory), browser_config: Some(browser_config), workspace_dir: Some(workspace_dir), session_id: Some(session_id), project_scope: project_scope.clone(), syscall_detector: Some(&syscall_detector) };
+    let system_cron_config = tool_context::context::current_tool_use_context::<H>()
+        .filter(|context| {
+            context.agent_name() == Some(config_agent::SHIJU_BUTLER_AGENT_KEY)
+                && context.channel() == Some("desktop")
+                && context.delegated_security().is_none()
+        })
+        .map(|context| {
+            // System Settings and the scheduler resolve the shared cron directory
+            // without a project root. Each job still carries its execution project.
+            let tenant = context.tenant_scope();
+            let global = match H::block_on(async move {
+                agent_config::runtime::get_global_for_tenant_without_env(&tenant).await
+            }) {
+                Ok(mut global) => {
+                    global.cron.enabled &= config.cron.enabled;
+                    global
+                }
+                Err(_) => {
+                    tracing::warn!("system cron configuration is unavailable");
+                    let mut disabled = (*config).clone();
+                    disabled.cron.enabled = false;
+                    disabled
+                }
+            };
+            Arc::new(global)
+        });
+    let cron_construction = ConstructionContext {
+        config: Some(system_cron_config.as_ref().unwrap_or(&config)),
+        ..construction.clone()
+    };
     let mut tool_arcs: Vec<Arc<dyn Tool>> = vec![
         H::construct(ToolConstruction::ConfigTool, &construction),
-        H::construct(ToolConstruction::CronAddTool, &construction),
-        H::construct(ToolConstruction::CronListTool, &construction),
-        H::construct(ToolConstruction::CronRemoveTool, &construction),
-        H::construct(ToolConstruction::CronUpdateTool, &construction),
-        H::construct(ToolConstruction::CronRunTool, &construction),
-        H::construct(ToolConstruction::CronRunsTool, &construction),
+        H::construct(ToolConstruction::CronAddTool, &cron_construction),
+        H::construct(ToolConstruction::CronListTool, &cron_construction),
+        H::construct(ToolConstruction::CronRemoveTool, &cron_construction),
+        H::construct(ToolConstruction::CronUpdateTool, &cron_construction),
+        H::construct(ToolConstruction::CronRunTool, &cron_construction),
+        H::construct(ToolConstruction::CronRunsTool, &cron_construction),
         H::construct(ToolConstruction::MemoryStoreTool, &construction),
         H::construct(ToolConstruction::MemoryRecallTool, &construction),
         H::construct(ToolConstruction::MemoryForgetTool, &construction),

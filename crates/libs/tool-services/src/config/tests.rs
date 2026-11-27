@@ -277,6 +277,18 @@ async fn config_returns_snapshot_for_all_section() {
     assert!(output["value"]["config_path"].is_string());
 }
 
+#[test]
+fn config_overview_excludes_credentials() {
+    let mut config = Config::default();
+    config.web_search.api_key = Some("search-secret".into());
+    config.web_fetch.api_key = Some("fetch-secret".into());
+    config.browser.computer_use.api_key = Some("browser-secret".into());
+
+    let overview = super::snapshot_value(&config).unwrap();
+    assert!(overview["web_search"]["enabled"].is_boolean());
+    assert!(!overview.to_string().contains("-secret"));
+}
+
 #[tokio::test]
 async fn config_reads_supported_setting() {
     let (_tmp, config) = test_config().await;

@@ -60,3 +60,19 @@ async fn resolve_main_request_overrides_preserves_registered_tool_selection() {
         Some(vec!["file_read".to_string(), "memory_store".to_string(), "schedule".to_string(),])
     );
 }
+
+#[test]
+fn butler_uses_live_tools_and_preserves_explicit_session_selection() {
+    let key = config_agent::SHIJU_BUTLER_AGENT_KEY;
+    let agent = config_agent::builtin_agent_config(key).expect("built-in butler");
+    assert!(agent.enabled && !agent.defaults.full_access);
+    assert!(!agent.allow_as_subagent);
+
+    for selection in [None, Some(vec!["Config".into(), "cron_add".into(), "AgentTool".into()])] {
+        let overrides =
+            resolve_delegate_policy(key.into(), agent.clone(), None, selection.clone(), None)
+                .expect("butler overrides");
+        assert_eq!(overrides.allowed_tools, selection);
+        assert!(overrides.chat_system_prompt.as_deref().unwrap().contains("cron_add"));
+    }
+}

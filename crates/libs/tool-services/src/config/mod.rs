@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::sync::Arc;
 use vw_api_tools::ToolResultContentDto;
+use vw_api_transport::TenantScope;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -299,6 +300,14 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         options: &[],
     },
     SettingSpec {
+        key: "appUi.timezone",
+        aliases: &["app_ui.system_settings.timezone"],
+        path: &["app_ui", "system_settings", "timezone"],
+        kind: SettingKind::String,
+        description: "Chat time zone as an IANA identifier, such as Asia/Shanghai.",
+        options: &[],
+    },
+    SettingSpec {
         key: "appUi.terminalTheme",
         aliases: &["app_ui.terminal_theme", "app_ui.system_settings.terminal_theme"],
         path: &["app_ui", "system_settings", "terminal_theme"],
@@ -530,20 +539,18 @@ fn normalize_setting_value(spec: &SettingSpec, value: Value) -> anyhow::Result<V
     Ok(normalized)
 }
 
-fn snapshot_value(config: &Config) -> Value {
-    json!({
+fn snapshot_value(config: &Config) -> anyhow::Result<Value> {
+    let payload = serde_json::to_value(config)?;
+    let mut overview = json!({
         "workspace_dir": config.workspace_dir,
         "config_path": config.config_path,
-        "default_provider": config.default_provider,
-        "default_model": config.default_model,
-        "default_temperature": config.default_temperature,
-        "browser": config.browser,
-        "http_request": config.http_request,
-        "web_fetch": config.web_fetch,
-        "web_search": config.web_search,
-        "autonomy": config.autonomy,
-        "app_ui": config.app_ui,
-    })
+    });
+    for spec in SUPPORTED_SETTINGS {
+        if let Some(value) = read_nested_value(&payload, spec.path) {
+            write_nested_value(&mut overview, spec.path, value.clone());
+        }
+    }
+    Ok(overview)
 }
 
 #[derive(Clone)]
@@ -551,6 +558,7 @@ fn snapshot_value(config: &Config) -> Value {
 pub struct ConfigTool {
     config: Arc<Config>,
     security: Arc<SecurityPolicy>,
+    system_settings_tenant: fn() -> Option<TenantScope>,
 }
 
 impl ConfigTool {
@@ -561,7 +569,18 @@ impl ConfigTool {
     /// - `config`: 当前配置快照，提供配置文件路径和工作区路径。
     /// - `security`: 安全策略，用于限制写操作。
     pub fn new(config: Arc<Config>, security: Arc<SecurityPolicy>) -> Self {
-        Self { config, security }
+        Self { config, security, system_settings_tenant: || None }
+    }
+
+    pub fn with_system_settings_scope<H: tool_context::host::ContextHost>(mut self) -> Self {
+        self.system_settings_tenant = || {
+            let context = tool_context::context::current_tool_use_context::<H>()?;
+            (context.agent_name() == Some(config_agent::SHIJU_BUTLER_AGENT_KEY)
+                && context.channel() == Some("desktop")
+                && context.delegated_security().is_none())
+                .then(|| context.tenant_scope())
+        };
+        self
     }
 
     fn blocked_write_response(&self, setting: &str, message: &str) -> ConfigResponse {
@@ -576,16 +595,50 @@ impl ConfigTool {
         }
     }
 
-    async fn load_current_config(&self) -> anyhow::Result<Config> {
-        config::get_project_without_env(&self.config.workspace_dir)
-            .await
-            .map_err(|error| anyhow::anyhow!(error.to_string()))
+    async fn load_current_config(
+        &self,
+        system_tenant: Option<&TenantScope>,
+        writing: bool,
+    ) -> anyhow::Result<Config> {
+        match system_tenant {
+            Some(tenant) => config::get_global_for_tenant_without_env(tenant).await,
+            None if writing => config::get_project(&self.config.workspace_dir).await,
+            None => config::get_project_without_env(&self.config.workspace_dir).await,
+        }
+        .map_err(|error| anyhow::anyhow!(error.to_string()))
+    }
+
+    async fn save_setting(
+        &self,
+        system_tenant: Option<&TenantScope>,
+        current: &Config,
+        next: &Config,
+    ) -> anyhow::Result<Config> {
+        let Some(tenant) = system_tenant else {
+            return Ok(config::update_project_from_configs(
+                &self.config.workspace_dir,
+                current,
+                next,
+            )
+            .await?);
+        };
+
+        let before = serde_json::to_value(current)?;
+        let after = serde_json::to_value(next)?;
+        let Some(patch) =
+            agent_config::schema::config_save::merge_patch_between(&before, &after)
+        else {
+            return Ok(next.clone());
+        };
+        config::update_global_for_tenant(tenant, patch).await?;
+        self.load_current_config(Some(tenant), false).await
     }
 
     async fn handle_setting_request(
         &self,
         raw_setting: &str,
         value: Option<Value>,
+        system_tenant: Option<&TenantScope>,
     ) -> anyhow::Result<ConfigResponse> {
         let operation = if value.is_some() { "set" } else { "get" };
         let Some(spec) = setting_spec(raw_setting) else {
@@ -601,16 +654,16 @@ impl ConfigTool {
         };
 
         let canonical_setting = spec.key.to_string();
-        let mut current = if value.is_some() {
-            config::get_project(&self.config.workspace_dir)
-                .await
-                .map_err(|error| anyhow::anyhow!(error.to_string()))?
-        } else {
-            self.load_current_config().await?
-        };
+        let mut current = self.load_current_config(system_tenant, value.is_some()).await?;
         materialize_setting_defaults(&mut current, spec);
 
         if let Some(value) = value {
+            if system_tenant.is_some() && spec.path.starts_with(&["autonomy"]) {
+                return Ok(self.blocked_write_response(
+                    &canonical_setting,
+                    "Change security policy in System Settings",
+                ));
+            }
             if !self.security.can_act() {
                 return Ok(self.blocked_write_response(
                     canonical_setting.as_str(),
@@ -674,13 +727,7 @@ impl ConfigTool {
                 });
             }
 
-            let updated = match config::update_project_from_configs(
-                &self.config.workspace_dir,
-                &current,
-                &next,
-            )
-            .await
-            {
+            let updated = match self.save_setting(system_tenant, &current, &next).await {
                 Ok(updated) => updated,
                 Err(error) => {
                     return Ok(ConfigResponse {
@@ -718,18 +765,19 @@ impl ConfigTool {
     }
 
     async fn execute_request(&self, args: Args) -> anyhow::Result<ConfigResponse> {
+        let system_tenant = (self.system_settings_tenant)();
         if let Some(setting) =
             args.setting.as_deref().map(str::trim).filter(|value| !value.is_empty())
         {
-            return self.handle_setting_request(setting, args.value).await;
+            return self.handle_setting_request(setting, args.value, system_tenant.as_ref()).await;
         }
 
-        let current = self.load_current_config().await?;
+        let current = self.load_current_config(system_tenant.as_ref(), false).await?;
         Ok(ConfigResponse {
             success: true,
             operation: Some("get"),
             setting: None,
-            value: Some(snapshot_value(&current)),
+            value: Some(snapshot_value(&current)?),
             previous_value: None,
             new_value: None,
             error: None,

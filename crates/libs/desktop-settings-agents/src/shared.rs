@@ -88,7 +88,7 @@ pub fn agent_sidebar_button_style(
 
 pub fn entry_kind_label(entry: &DelegateAgentSettingsEntry) -> &'static str {
     match entry.kind {
-        AgentSettingsEntryKind::Main => "内建 Agent",
+        AgentSettingsEntryKind::Main | AgentSettingsEntryKind::Butler => "内建 Agent",
         AgentSettingsEntryKind::BuiltinWorker => "内建 Worker",
         AgentSettingsEntryKind::Custom if entry.builtin => "官方 Agent",
         AgentSettingsEntryKind::Custom => "自定义",

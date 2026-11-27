@@ -409,7 +409,11 @@ fn selector_view(input: SelectorInput<'_>, picker: Option<(&'static str, bool)>)
                 let subtitle = if entry.model.trim().is_empty() {
                     engine
                 } else if show_tools {
-                    let allowlist_text = if entry.allowed_tools.is_empty() {
+                    let allowlist_text = if entry.kind
+                        == desktop_settings_agents::state::AgentSettingsEntryKind::Butler
+                    {
+                        i18n.__("使用网关为当前会话提供的所有工具。").to_string()
+                    } else if entry.allowed_tools.is_empty() {
                         i18n.__("未包含工具").to_string()
                     } else {
                         i18n.format("工具范围 %u 项", &[entry.allowed_tools.len().into()])
@@ -428,7 +432,7 @@ fn selector_view(input: SelectorInput<'_>, picker: Option<(&'static str, bool)>)
                 let agent_for_press =
                     if entry.key == runtime.main_agent_key { None } else { Some(entry.key.clone()) };
                 let control = agent_option(
-                    entry.label.clone(),
+                    i18n.__(&entry.label).to_string(),
                     subtitle,
                     identity_icon,
                     selected,

@@ -32,7 +32,7 @@ fn agent_definition_defaults_and_builtin_specs_are_stable() {
     assert_eq!(definition.max_history_messages, 100);
     assert!(!definition.parallel_tools);
 
-    assert_eq!(super::BUILTIN_AGENT_SPECS.len(), 5);
+    assert_eq!(super::BUILTIN_AGENT_SPECS.len(), 6);
     assert_eq!(super::BUILTIN_AGENT_SPECS[0].key, "main");
     for spec in super::BUILTIN_AGENT_SPECS {
         let config = super::builtin_agent_config(spec.key).unwrap();
@@ -323,7 +323,10 @@ fn agent_definition_debug_redacts_api_key_and_includes_runtime_fields() {
 fn builtin_agent_keys_follow_spec_order() {
     let keys = super::builtin_agent_keys();
 
-    assert_eq!(keys, vec!["main", "researcher", "coder", "reviewer", "explore"]);
+    assert_eq!(
+        keys,
+        vec!["main", "shiju-butler", "researcher", "coder", "reviewer", "explore"]
+    );
 }
 
 #[test]
@@ -358,7 +361,10 @@ fn merged_builtin_overrides_preserve_editable_metadata_and_builtin_identity() {
 #[test]
 fn builtin_agent_catalog_uses_chinese_metadata_and_safe_delegate_roles() {
     let keys = super::builtin_agent_keys();
-    assert_eq!(keys, vec!["main", "researcher", "coder", "reviewer", "explore"]);
+    assert_eq!(
+        keys,
+        vec!["main", "shiju-butler", "researcher", "coder", "reviewer", "explore"]
+    );
 
     let expected_delegate_roles = ["researcher", "coder", "reviewer", "explore"];
     for key in &keys {

@@ -205,7 +205,10 @@ pub fn mark_session_acp_rebuild_required<R>(runtime: &mut super::agent::SessionR
 
 use super::agent::SessionRuntimeState;
 use crate::message::chat::request::AcpHistoryReplayMode;
-use desktop_settings_agents::{agents_state::AgentsSettingsState, state::MAIN_AGENT_KEY};
+use desktop_settings_agents::{
+    agents_state::AgentsSettingsState,
+    state::{AgentSettingsEntryKind, MAIN_AGENT_KEY},
+};
 use std::collections::HashMap;
 
 /// Captured defaults for one selected session. Existing session values remain authoritative.
@@ -268,9 +271,9 @@ pub fn selected_static_allowed_tools<R>(
     runtime: &SessionRuntimeState<R>,
 ) -> Option<Vec<String>> {
     let key = runtime.agent.as_deref().unwrap_or(MAIN_AGENT_KEY);
-    Some(sorted_unique_tools(
-        settings.entries.iter().find(|entry| entry.key == key)?.allowed_tools.clone(),
-    ))
+    let entry = settings.entries.iter().find(|entry| entry.key == key)?;
+    (entry.kind != AgentSettingsEntryKind::Butler)
+        .then(|| sorted_unique_tools(entry.allowed_tools.clone()))
 }
 pub fn tool_inventory<R>(
     settings: &AgentsSettingsState,

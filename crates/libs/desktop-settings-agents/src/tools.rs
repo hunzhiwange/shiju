@@ -654,6 +654,13 @@ pub fn view<'a>(
     input: Input<'a>,
     entry: &'a DelegateAgentSettingsEntry,
 ) -> Element<'a, Message> {
+    if entry.kind == crate::state::AgentSettingsEntryKind::Butler {
+        return text(tr(input.locale, "使用网关为当前会话提供的所有工具。"))
+            .size(13)
+            .style(settings_muted_text_style)
+            .into();
+    }
+
     let settings = &input;
     let i18n = I18n::new(input.locale);
     let active_tab = settings.active_tools_list_tab;

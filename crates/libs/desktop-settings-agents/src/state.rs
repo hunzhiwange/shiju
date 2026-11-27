@@ -24,6 +24,7 @@ pub struct WorkspaceIdentityFileState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AgentSettingsEntryKind {
     Main,
+    Butler,
     BuiltinWorker,
     Custom,
 }
@@ -78,15 +79,11 @@ impl DelegateAgentSettingsEntry {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn from_config(key: &str, config: Option<DelegateAgentConfig>) -> Self {
-        let kind = if key == MAIN_AGENT_KEY {
-            AgentSettingsEntryKind::Main
-        } else if matches!(
-            builtin_agent_spec(key).map(|spec| spec.kind),
-            Some(BuiltinAgentKind::Worker)
-        ) {
-            AgentSettingsEntryKind::BuiltinWorker
-        } else {
-            AgentSettingsEntryKind::Custom
+        let kind = match builtin_agent_spec(key).map(|spec| spec.kind) {
+            Some(BuiltinAgentKind::Main) => AgentSettingsEntryKind::Main,
+            Some(BuiltinAgentKind::Butler) => AgentSettingsEntryKind::Butler,
+            Some(BuiltinAgentKind::Worker) => AgentSettingsEntryKind::BuiltinWorker,
+            None => AgentSettingsEntryKind::Custom,
         };
         let config = config.unwrap_or_else(|| default_agent_config_for_key(key));
 

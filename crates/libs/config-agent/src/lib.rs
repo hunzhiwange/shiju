@@ -271,7 +271,14 @@ impl AgentDefinitionConfig {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BuiltinAgentKind {
     Main,
+    Butler,
     Worker,
+}
+
+pub const SHIJU_BUTLER_AGENT_KEY: &str = "shiju-butler";
+
+pub fn can_delegate_from_agent(key: &str) -> bool {
+    matches!(key, "main" | SHIJU_BUTLER_AGENT_KEY)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -338,7 +345,7 @@ const MAIN_PERMISSION: &str = r#"{
     "glob": "allow",
     "grep": "allow"
 }"#;
-pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 5] = [
+pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 6] = [
     BuiltinAgentSpec {
         key: "main",
         label: "主代理",
@@ -352,6 +359,22 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 5] = [
         allowed_tools: MAIN_TOOLS,
         permission: MAIN_PERMISSION,
         default_temperature: Some(0.7),
+        max_iterations: DEFAULT_MAX_ITERATIONS,
+    },
+    BuiltinAgentSpec {
+        key: SHIJU_BUTLER_AGENT_KEY,
+        label: "识矩管家",
+        description: "通过对话管理识矩的系统设置和定时任务。",
+        kind: BuiltinAgentKind::Butler,
+        mode: "primary",
+        hidden: false,
+        allow_as_subagent: false,
+        max_parallel_subagents: 4,
+        max_depth: 0,
+        // The session uses its live tool catalog, including configured MCP tools.
+        allowed_tools: &[],
+        permission: r#"{"*":"allow"}"#,
+        default_temperature: Some(0.3),
         max_iterations: DEFAULT_MAX_ITERATIONS,
     },
     BuiltinAgentSpec {
@@ -437,6 +460,8 @@ pub fn builtin_agent_config(key: &str) -> Option<AgentDefinitionConfig> {
         },
         label: Some(spec.label.to_string()),
         description: Some(spec.description.to_string()),
+        system_prompt: (key == SHIJU_BUTLER_AGENT_KEY)
+            .then(|| include_str!("shiju_butler.txt").to_string()),
         builtin: true,
         mode: spec.mode.to_string(),
         enabled: true,
@@ -488,7 +513,7 @@ pub fn merged_agent_configs(
             builtin.provider = value.provider.clone();
             builtin.model = value.model.clone();
             builtin.force_model_selection = value.force_model_selection;
-            builtin.system_prompt = value.system_prompt.clone();
+            builtin.system_prompt = value.system_prompt.clone().or(builtin.system_prompt);
             builtin.api_key = value.api_key.clone();
             if value.temperature.is_some() {
                 builtin.temperature = value.temperature;

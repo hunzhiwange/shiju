@@ -134,7 +134,9 @@ fn run_action(terminal: &mut TerminalState, theme: &iced::Theme, project_path: O
             effects.push(Effect::AppendChat(text));
             Task::none()
         }
-        ContentAction::CloseTab => super::tabs::close_tab(terminal, focused, effects, id),
+        ContentAction::CloseTab => {
+            super::tabs::close_tab(terminal, focused, effects, id, Some((theme, project_path)))
+        }
     }
 }
 

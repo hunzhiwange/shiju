@@ -984,6 +984,7 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
         Action::Started(project_id, layout, target, pane, direction, result) => {
             state.starting = false;
             state.epoch += 1;
+            let mut tick = Task::none();
             match result {
                 Ok(session) if session.project_id == project_id && session.target == target
                     && state.surface.includes_session(&session) =>
@@ -997,23 +998,27 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
                             project.selected_ssh_layouts.insert(layout);
                         }
                         if terminal && state.selected.as_ref() == Some(&project_id) {
-                            return Task::done(Message::CliWorkbench(Event::TerminalTick));
+                            tick = Task::done(Message::CliWorkbench(Event::TerminalTick));
                         }
                     }
                 }
                 Ok(_) => state.error = Some("网关返回无效的工作台会话"),
                 Err(error) => state.error = Some(error_label(error.code)),
             }
+            return Task::batch([tick, start_default_shell(state, id, visible)]);
         }
         Action::Hide(key) => {
+            let mut emptied_layout = false;
             if let Some(project) = state.projects.get_mut(&key.project) {
+                let was_empty = project.panes.is_empty();
                 project.hide(&key.session);
-                if project.active_tab().is_none() {
+                if project.panes.is_empty() {
                     project.selected_ssh_layouts.remove(&project.active_layout);
+                    emptied_layout = !was_empty && state.selected.as_ref() == Some(&key.project);
                 }
-                if state.selected.as_ref() == Some(&key.project) {
-                    state.default_shell_pending = false;
-                }
+            }
+            if emptied_layout {
+                return fill_empty_layout(state, id, visible);
             }
             return super::terminal::focus(state);
         }
@@ -1125,17 +1130,17 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
         Action::NewLayout(project) if state.selected.as_ref() == Some(&project) => {
             if let Some(project) = state.projects.get_mut(&project) {
                 project.new_layout();
+                return fill_empty_layout(state, id, visible);
             }
         }
         Action::SelectLayout(project, layout) if state.selected.as_ref() == Some(&project) => {
             if state.projects.get_mut(&project).is_some_and(|project| project.select_layout(layout)) {
-                return super::terminal::focus(state);
+                return fill_empty_layout(state, id, visible);
             }
         }
         Action::CloseLayout(project, layout) if state.selected.as_ref() == Some(&project) => {
             if state.projects.get_mut(&project).is_some_and(|project| project.close_layout(layout)) {
-                state.default_shell_pending = false;
-                return super::terminal::focus(state);
+                return fill_empty_layout(state, id, visible);
             }
         }
         Action::OpenLayoutMenu(project, layout, point)
@@ -1386,6 +1391,11 @@ pub(super) fn managed_codex_available(state: &Workbench) -> bool {
         && codex_agent(state).is_some_and(|agent| agent.supports(AcpModelSource::SessionModel))
 }
 
+fn fill_empty_layout(state: &mut Workbench, id: window::Id, visible: bool) -> Task<Message> {
+    state.default_shell_pending = state.surface != Surface::Terminal;
+    Task::batch([super::terminal::focus(state), start_default_shell(state, id, visible)])
+}
+
 fn start_default_shell(state: &mut Workbench, id: window::Id, visible: bool) -> Task<Message> {
     if !visible || !state.default_shell_pending || state.discovering {
         return Task::none();
@@ -1397,7 +1407,7 @@ fn start_default_shell(state: &mut Workbench, id: window::Id, visible: bool) -> 
         return Task::none();
     }
 
-    if state.dialog.is_some() || project.tabs.values().any(|tab| !tab.hidden) {
+    if state.dialog.is_some() || !project.panes.is_empty() {
         state.default_shell_pending = false;
         return Task::none();
     }

@@ -106,6 +106,29 @@ fn close_with_multiple_tabs_schedules_reap_after_retiring() {
     assert!(!app.terminal.has_retired());
 }
 
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn closing_the_last_tab_in_the_active_group_replaces_it() {
+    let mut app = test_app_with_blank_terminal();
+    let directory = tempfile::tempdir().expect("tempdir");
+    let cwd = directory.path().to_path_buf();
+    assert!(app.terminal.add_terminal(Some(cwd.clone())));
+    let parked_id = app.terminal.active_id.unwrap();
+    assert!(app.terminal.new_group());
+    assert!(app.terminal.add_terminal(Some(cwd)));
+    let closed_id = app.terminal.active_id.unwrap();
+    app.terminal.set_visible(true);
+
+    let _ = update(&mut app, TerminalMessage::Close(closed_id));
+
+    let replacement = app.terminal.active_id.unwrap();
+    assert_ne!(replacement, closed_id);
+    assert_ne!(replacement, parked_id);
+    assert!(app.terminal.panes.is_visible_tab(replacement));
+    assert!(app.terminal.tabs.iter().any(|tab| tab.id == parked_id));
+    assert!(app.terminal.is_visible);
+}
+
 // 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
 // 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[cfg(all(unix, not(target_arch = "wasm32")))]

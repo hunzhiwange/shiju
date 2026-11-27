@@ -85,7 +85,7 @@ pub(super) fn update(
             if let Some(tab) = terminal.tabs.iter_mut().find(|t| t.id == id) {
                 use iced_term::actions::Action;
                 match tab.term.handle(iced_term::Command::ProxyToBackend(cmd)) {
-                    Action::Shutdown => return super::tabs::close_tab(terminal, focused, effects, id),
+                    Action::Shutdown => return super::tabs::close_tab(terminal, focused, effects, id, None),
                     Action::OpenPath(path) => effects.push(Effect::OpenPath {
                         path,
                         directory: tab.term.working_directory(),

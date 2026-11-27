@@ -364,6 +364,23 @@ fn app_terminal_keeps_its_own_project_groups() {
     let project = &app.app_terminal.projects["a"];
     assert_ne!(project.active_layout, layout);
     assert!(project.active_tab().is_none());
+    assert!(app.app_terminal.starting);
+    let (new_layout, pane) = (project.active_layout, project.panes.focused);
+    let generation = app.app_terminal.scope_generation;
+
+    let _ = app.update(action(update::Action::NewLayout("a".into())));
+    let mut shell = session("a", "new-shell", Process::Running);
+    shell.target = CliWorkbenchTarget::Shell;
+    shell.capabilities.terminal = true;
+    let _ = app.update(Surface::AppTerminal.message(Event::Response(
+        main,
+        generation,
+        update::Action::Started("a".into(), new_layout, CliWorkbenchTarget::Shell, pane, None, Ok(shell)),
+    )));
+    let project = &app.app_terminal.projects["a"];
+    assert_eq!(project.layout_with_tab(project.tabs["new-shell"].view_id), Some(new_layout));
+    assert!(project.panes.is_empty());
+    assert!(app.app_terminal.starting);
     assert!(app.cli_workbench.projects.is_empty());
 }
 
@@ -497,7 +514,7 @@ fn ordinary_terminal_ssh_stays_with_the_group_that_started_it() {
 }
 
 #[test]
-fn empty_projects_start_a_shell_on_open_but_not_on_background_refresh() {
+fn empty_layouts_start_a_shell_on_open_and_after_hiding_the_last_tab() {
     use vw_api_types::cli_workbench::{CliWorkbenchProject, CliWorkbenchProjects};
 
     for surface in [Surface::Workbench, Surface::AppTerminal] {
@@ -543,6 +560,14 @@ fn empty_projects_start_a_shell_on_open_but_not_on_background_refresh() {
 
         let hide = update::Action::Hide(key("a", "shell"));
         let _ = app.update(surface.message(Event::Window(main, hide)));
+        assert!(surface.state(&app).starting);
+        let _ = app.update(respond(update::Action::Started(
+            "a".into(), layout, CliWorkbenchTarget::Shell, pane, None,
+            Err(vw_api_types::cli_workbench::CliWorkbenchError {
+                code: vw_api_types::cli_workbench::CliWorkbenchErrorCode::GatewayFailure,
+                message: "launch failed".into(),
+            }),
+        )));
         let epoch = surface.state(&app).epoch;
         let _ = app.update(respond(update::Action::SessionsLoaded(
             epoch, projects_epoch, Ok(snapshot(vec![shell])),

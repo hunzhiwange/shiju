@@ -37,6 +37,10 @@ impl Default for TerminalPanes {
 }
 
 impl TerminalPanes {
+    pub fn is_empty(&self) -> bool {
+        self.grid.iter().all(|(_, pane)| pane.tabs.is_empty())
+    }
+
     pub fn add(&mut self, pane: Pane, id: u64) {
         let pane_state = self.grid.get_mut(pane).expect("existing terminal pane");
         pane_state.tabs.push(id);

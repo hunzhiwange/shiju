@@ -8,11 +8,28 @@ type TerminalState = crate::TerminalState<Shell>;
 
 use iced::Task;
 
-pub(super) fn close_tab(terminal: &mut TerminalState, focused: &mut bool, _effects: &mut Vec<Effect>, id: u64) -> Task<TerminalMessage> {
+pub(super) fn close_tab(
+    terminal: &mut TerminalState,
+    focused: &mut bool,
+    _effects: &mut Vec<Effect>,
+    id: u64,
+    _replacement: Option<(&iced::Theme, Option<&str>)>,
+) -> Task<TerminalMessage> {
     #[cfg(not(target_arch = "wasm32"))]
     let was_active = terminal.active_id == Some(id);
+    #[cfg(not(target_arch = "wasm32"))]
+    let fullscreen = terminal.is_fullscreen;
     if !terminal.close_terminal(id) {
         return Task::none();
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some((theme, project_path)) = _replacement
+        && was_active
+        && terminal.is_visible
+        && terminal.ensure_default_terminal(project_path.map(std::path::PathBuf::from))
+    {
+        terminal.set_fullscreen(fullscreen);
+        terminal.apply_app_theme(theme);
     }
     if terminal.tabs.is_empty() {
         terminal.set_visible(false);
@@ -102,7 +119,11 @@ pub(super) fn update(
             if terminal.tabs.len() <= 1 {
                 return Task::none();
             }
-            close_tab(terminal, focused, effects, id)
+            #[cfg(not(target_arch = "wasm32"))]
+            let replacement = Some((theme, project_path));
+            #[cfg(target_arch = "wasm32")]
+            let replacement = None;
+            close_tab(terminal, focused, effects, id, replacement)
         }
         TerminalMessage::ReapRetired => {
             terminal.reap_retired();

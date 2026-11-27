@@ -333,7 +333,7 @@ impl<S: Copy + Into<&'static str>> TerminalState<S> {
     #[cfg(not(target_arch = "wasm32"))]
     /// 在没有标签时创建默认终端；已存在标签时不重复创建。
     pub fn ensure_default_terminal(&mut self, cwd: Option<std::path::PathBuf>) -> bool {
-        if self.active_id.is_some() {
+        if !self.panes.is_empty() {
             return false;
         }
         self.add_terminal(cwd.or_else(|| std::env::current_dir().ok()))

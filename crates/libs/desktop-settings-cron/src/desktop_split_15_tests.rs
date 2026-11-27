@@ -25,15 +25,16 @@ fn test_app() -> Fixture {
 fn data(app: &Fixture) -> domain::ViewData<'_> {
     domain::ViewData {
         cron_settings: &app.cron_settings,
+        system_timezone: config_ui::DEFAULT_TIMEZONE.parse().unwrap(),
         desktop_locale: app.desktop_locale,
         app_theme: &app.app_theme,
         project_path: app.project_path.as_deref(),
         recent_projects: &app.recent_projects,
+        recent_project_labels: &[],
         agents: Vec::new(),
         models: Vec::new(),
         skills: Vec::new(),
-        conversation_available: false,
-        delivery: Default::default(),
+        wecom_notifications: Vec::new(),
         scheduler_error: None,
         last_copied_code_hash: None,
         help_content: |title, body, _, _| iced::widget::column![text(title), text(body)].into(),
@@ -67,7 +68,6 @@ fn rows_and_forms_build_shell_agent_and_editing_states() {
     keep_element(job_row(&app, &shell));
 
     app.cron_settings.selected_job_ids.push("job-1".to_string());
-    app.cron_settings.expanded_job_ids.push("job-1".to_string());
     app.cron_settings.editing_job_id = Some("job-1".to_string());
     app.cron_settings.edit_draft.job_type = CronAddJobType::Agent;
     app.cron_settings.edit_draft.schedule_kind = CronAddScheduleKind::At;
@@ -104,10 +104,10 @@ fn job_row_builds_disabled_announced_agent_with_complete_execution_metadata() {
     item.last_run = Some("2026-06-11T01:02:03Z".to_string());
     item.last_status = Some("success".to_string());
     item.enabled = false;
-    app.cron_settings.expanded_job_ids.push(item.id.clone());
-
+    app.cron_settings.open_job_id = Some(item.id.clone());
     assert!(job_is_agent(&item));
-    keep_element(job_row(&app, &item));
+    app.cron_settings.jobs.push(item);
+    keep_element(domain::view_overlays(&data(&app), iced::widget::Space::new().into(), std::convert::identity));
 }
 
 #[test]
@@ -163,8 +163,6 @@ fn edit_form_covers_agent_delivery_fields_with_blank_provider_and_selected_proje
     app.cron_settings.edit_draft.wake = true;
     app.cron_settings.edit_draft.delete_after_run = true;
     app.cron_settings.edit_draft.delivery_enabled = true;
-    app.cron_settings.edit_draft.delivery_channel = "slack".to_string();
-    app.cron_settings.edit_draft.delivery_to = "#ops".to_string();
     app.cron_settings.edit_draft.delivery_best_effort = false;
 
     keep_element(edit_form(&app));

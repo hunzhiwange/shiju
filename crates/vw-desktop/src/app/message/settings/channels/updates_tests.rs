@@ -132,15 +132,15 @@ fn wecom_delivery_modal_save_uses_real_config_api_and_retains_draft_on_failure()
                 if request.method == "GET" {
                     (
                         200,
-                        r#"{"channels_config":{"cli":true,"wecom":{"bot_id":"existing","secret":"***MASKED***"}}}"#,
+                        r#"{"channels_config":{"cli":true,"wecom":{"bot_id":"existing","secret":"***MASKED***"},"wecom_webhook":{"webhook_url":"***MASKED***"}}}"#,
                     )
                 } else {
                     assert_eq!(request.method, "PATCH");
                     let value: serde_json::Value = serde_json::from_str(&request.body).unwrap();
-                    assert_eq!(value["channels_config"]["wecom"]["bot_id"], "existing");
+                    assert_eq!(value["channels_config"]["wecom"]["bot_id"], "replacement");
                     assert_eq!(
                         value["channels_config"]["wecom_webhook"]["webhook_url"],
-                        "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fixture"
+                        "***MASKED***"
                     );
                     (
                         status,
@@ -157,16 +157,19 @@ fn wecom_delivery_modal_save_uses_real_config_api_and_retains_draft_on_failure()
         drop(update(
             &mut app,
             SettingsMessage::Channels(ChannelsMessage::WeComDeliveryOpened(
-                crate::app::state::WeComDeliveryMode::Webhook,
+                crate::app::state::WeComDeliveryMode::Manual,
             )),
         ));
         drop(update(
             &mut app,
             SettingsMessage::Channels(ChannelsMessage::WeComDeliveryChanged(
-                "webhook_url".into(),
-                "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fixture".into(),
+                "bot_id".into(),
+                "replacement".into(),
             )),
         ));
+        drop(update(&mut app, SettingsMessage::Channels(ChannelsMessage::WeComDeliveryChanged(
+            "secret".into(), "fixture-secret".into(),
+        ))));
         let task = update(&mut app, SettingsMessage::Channels(ChannelsMessage::WeComDeliverySave));
         assert!(app.channels_settings.wecom_delivery.as_ref().unwrap().saving);
         let output = tokio::runtime::Runtime::new()
@@ -184,13 +187,13 @@ fn wecom_delivery_modal_save_uses_real_config_api_and_retains_draft_on_failure()
             .unwrap();
         drop(update(&mut app, SettingsMessage::Channels(output)));
         if status == 500 {
-            assert!(app.channels_settings.wecom_webhook.is_none());
+            assert!(app.channels_settings.wecom.is_none());
             let draft = app.channels_settings.wecom_delivery.as_ref().unwrap();
             assert!(!draft.saving);
             assert!(!draft.error.as_ref().unwrap().contains("example.invalid"));
-            assert!(draft.webhook_url.ends_with("key=fixture"));
+            assert_eq!(draft.bot_id, "replacement");
         } else {
-            assert!(app.channels_settings.wecom_webhook.is_some());
+            assert_eq!(app.channels_settings.wecom.as_ref().unwrap().bot_id, "replacement");
             assert!(app.channels_settings.wecom_delivery.is_none());
         }
         assert_eq!(observed.load(std::sync::atomic::Ordering::SeqCst), 2);

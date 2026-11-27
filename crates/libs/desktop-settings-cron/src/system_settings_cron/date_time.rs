@@ -1,9 +1,11 @@
 //! Cron 弹窗局部的日期时间临时选择；确认前不写入表单。
-use super::{cron_modal_style, cron_segment_style, primary_button, secondary_button, small_button};
+use super::{
+    calendar, cron_modal_style, cron_segment_style, primary_button, secondary_button, small_button,
+};
 use crate::message::{Message, SettingsMessage};
-use chrono::{Datelike, Days, Months, NaiveDate, NaiveTime, Timelike};
+use crate::state::{local_today, shift_month};
+use chrono::{Datelike, NaiveDate, NaiveTime, Timelike};
 use desktop_i18n::I18n;
-use desktop_ui_controls::overlays::BelowOverlay;
 use desktop_ui_controls::system_settings_common::{
     settings_close_button, settings_modal_header, settings_modal_layout, settings_muted_text_style,
     settings_select,
@@ -35,12 +37,7 @@ impl DateTimePicker {
     }
 
     pub fn navigate(&mut self, months: i32) {
-        let next = if months >= 0 {
-            self.month.checked_add_months(Months::new(months.unsigned_abs()))
-        } else {
-            self.month.checked_sub_months(Months::new(months.unsigned_abs()))
-        };
-        if let Some(next) = next {
+        if let Some(next) = shift_month(self.month, months) {
             self.month = next;
         }
     }
@@ -58,22 +55,7 @@ impl DateTimePicker {
 
     /// 周一开头，补齐首尾周；chrono 极值外的单元格为空。
     pub fn days(&self) -> Vec<Option<NaiveDate>> {
-        let leading = self.month.weekday().num_days_from_monday();
-        let last = self
-            .month
-            .checked_add_months(Months::new(1))
-            .and_then(|next| next.pred_opt())
-            .unwrap_or(NaiveDate::MAX);
-        let count = (leading + last.day()).div_ceil(7) * 7;
-        (0..count)
-            .map(|index| {
-                if index < leading {
-                    self.month.checked_sub_days(Days::new((leading - index).into()))
-                } else {
-                    self.month.checked_add_days(Days::new((index - leading).into()))
-                }
-            })
-            .collect()
+        calendar::days(self.month, false)
     }
 }
 
@@ -115,11 +97,14 @@ pub(super) fn popover<'a>(
     timezone: &str,
     trigger: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    let card = if let Some(picker) = picker {
-        let note =
-            desktop_i18n::__!(i18n, "时区：%s；确认后请预览校验执行时间。", timezone.to_owned())
-                .expect("valid settings message");
-        picker_card(i18n, picker, note, true).map(|event| {
+    let card = picker.map(|picker| {
+        let note = i18n.__("可在「预览未来」中查看执行时间。").to_owned();
+        let content = if picker.time_only {
+            picker_card(i18n, picker, note, true)
+        } else {
+            floating_date_card(i18n, picker, local_today(timezone), note)
+        };
+        content.map(|event| {
             Message::Settings(match event {
                 PickerEvent::Navigate(months) => SettingsMessage::CronPickerNavigate(months),
                 PickerEvent::Date(date) => SettingsMessage::CronPickerDate(date),
@@ -130,17 +115,8 @@ pub(super) fn popover<'a>(
                 PickerEvent::Confirm => SettingsMessage::CronPickerConfirm,
             })
         })
-    } else {
-        iced::widget::Space::new().into()
-    };
-    BelowOverlay::new(trigger, container(card).padding(8))
-        .show(picker.is_some())
-        .within_window()
-        .align_right(true)
-        .gap(2.0)
-        .on_close(Message::Settings(SettingsMessage::CronPickerCancel))
-        .dismiss_on_escape()
-        .into()
+    });
+    calendar::anchored(trigger, card, Message::Settings(SettingsMessage::CronPickerCancel))
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -165,6 +141,46 @@ pub fn picker_overlay_with_i18n<'a, M: Clone + 'a>(
         on_message(PickerEvent::Cancel),
         picker_card(i18n, picker, note.into(), false).map(on_message),
     )
+}
+
+fn floating_date_card<'a>(
+    i18n: I18n,
+    picker: &DateTimePicker,
+    today: NaiveDate,
+    note: String,
+) -> Element<'a, PickerEvent> {
+    let header = settings_modal_header(
+        text(i18n.__("选择日期和时间")).size(16),
+        settings_close_button(PickerEvent::Cancel),
+    );
+    let calendar = calendar::pair(
+        i18n,
+        picker.month,
+        calendar::Selection { today, start: Some(picker.date), end: None },
+        PickerEvent::Navigate,
+        PickerEvent::Date,
+    );
+    let actions = row![
+        secondary_button(i18n.__("取消"), PickerEvent::Cancel),
+        primary_button(i18n.__("确认"), PickerEvent::Confirm),
+    ]
+    .spacing(8);
+    let footer = column![
+        row![
+            container(time_controls(i18n, picker.time, true, PickerEvent::Time))
+                .width(Length::Fill),
+            actions,
+        ]
+        .spacing(12)
+        .align_y(Alignment::Center),
+        text(note).size(12).style(settings_muted_text_style),
+    ]
+    .spacing(6);
+    settings_modal_layout(header, calendar, Some(footer.into()))
+        .style(super::schedule_popup_style)
+        .width(calendar::POPOVER_WIDTH)
+        .height(436)
+        .into()
 }
 
 fn picker_card<'a>(
@@ -249,21 +265,26 @@ fn picker_card<'a>(
             .size(13),
         )
     };
-    let body = body.push(text(note).size(12).style(settings_muted_text_style));
+    let body = if note.is_empty() {
+        body
+    } else {
+        body.push(text(note).size(12).style(settings_muted_text_style))
+    };
     let footer = row![
         secondary_button(i18n.__("取消"), cancel),
         primary_button(i18n.__("确认"), PickerEvent::Confirm),
     ]
     .spacing(10);
     let height = match (floating, picker.time_only) {
-        (true, true) => 226,
-        (true, false) => 470,
+        (true, true) => 220,
         (false, true) => 235,
-        (false, false) => 540,
+        (_, false) => 540,
     };
+    let style = if floating { super::schedule_popup_style } else { cron_modal_style };
+    let width = if floating && picker.time_only { 340 } else { 420 };
     settings_modal_layout(header, body, Some(footer.into()))
-        .style(cron_modal_style)
-        .width(420)
+        .style(style)
+        .width(width)
         .height(height)
         .into()
 }

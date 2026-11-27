@@ -173,7 +173,10 @@ fn wb_schedule_modal_new_opens_above_jobs() {
     let mut app = app();
     let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
     assert_eq!(app.active_tab, CronSettingsTab::Jobs);
-    assert!(app.add_draft.schedule_draft.is_some());
+    assert!(app.add_draft.full_access);
+    assert!(!app.add_draft.full_access_confirmation);
+    let request = schedule_request(&app.add_draft).unwrap();
+    assert_eq!(request.timezone.as_deref(), Some(config_ui::DEFAULT_TIMEZONE));
 }
 
 #[test]
@@ -189,11 +192,11 @@ fn wb_schedule_modal_cancel_does_not_submit() {
 }
 
 #[test]
-fn wb_schedule_modal_edit_reads_timezone_and_window() {
+fn wb_schedule_modal_edit_uses_system_timezone_and_preserves_window() {
     let mut app = app();
     let mut j = job("modal");
     j.expression = "30 9 * * MON,WED".into();
-    j.timezone = Some("Asia/Shanghai".into());
+    j.timezone = Some("America/New_York".into());
     j.ends_at = Some("2099-01-01T00:00:00Z".into());
     app.jobs.push(j);
     let _ = update(&mut app, SettingsMessage::CronJobEditStarted("modal".into()));
@@ -302,7 +305,7 @@ fn wb_schedule_modal_preview_request_never_submits_job() {
 }
 
 #[test]
-fn wb_schedule_modal_no_future_trigger_rejects_save() {
+fn wb_schedule_modal_empty_preview_does_not_block_submission() {
     let mut app = app();
     let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
     app.add_draft.prompt = "检查项目".into();
@@ -311,16 +314,18 @@ fn wb_schedule_modal_no_future_trigger_rejects_save() {
         timezone: "UTC".into(),
         candidates: Vec::new(),
     }));
-    let _ = update(&mut app, SettingsMessage::CronAddSubmit);
-    assert!(!app.add_draft.submitting);
+    let task = update(&mut app, SettingsMessage::CronAddSubmit);
+    assert!(iced_runtime::task::into_stream(task).is_some());
+    assert!(app.add_draft.submitting);
     assert_eq!(app.add_draft.prompt, "检查项目");
-    assert!(app.save_error.as_deref().unwrap().contains("预览"));
+    assert!(app.save_error.is_none());
 }
 
 #[test]
 fn wb_schedule_feedback_cancel_keeps_restricted_access() {
     let mut app = app();
     let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+    let _ = update(&mut app, SettingsMessage::CronAddFullAccessToggled(false));
     let _ = update(&mut app, SettingsMessage::CronAddFullAccessToggled(true));
     assert!(!app.add_draft.full_access, "授权确认前必须保持受限");
     let _ = update(&mut app, SettingsMessage::CronFullAccessCancel { editing: false });
@@ -338,29 +343,30 @@ fn wb_schedule_feedback_frequency_keeps_restricted_access() {
 }
 
 #[test]
-fn wb_schedule_feedback_missing_target_rejected() {
+fn wb_schedule_feedback_missing_webhook_rejected() {
     let mut app = app();
     app.add_draft.prompt = "report".into();
     app.add_draft.delivery_enabled = true;
-    app.add_draft.delivery_channel = "slack".into();
     let _ = update(&mut app, SettingsMessage::CronAddSubmit);
     assert!(!app.add_draft.submitting);
-    assert!(app.save_error.as_deref().unwrap().contains("投递目标"));
+    assert!(app.save_error.as_deref().unwrap().contains("请在当前任务中填写群机器人 Webhook"));
 }
 
 #[test]
-fn wb_schedule_feedback_unsupported_channel_preserved_and_rejected() {
+fn wb_schedule_feedback_legacy_target_requires_a_webhook() {
     let mut app = app();
     let mut existing = job("unsupported");
     existing.delivery_mode = "announce".into();
     existing.delivery_channel = Some("legacy-channel".into());
     app.jobs.push(existing);
     let _ = update(&mut app, SettingsMessage::CronJobEditStarted("unsupported".into()));
-    assert_eq!(app.edit_draft.delivery_channel, "legacy-channel");
+    assert!(app.edit_draft.delivery_enabled);
+    assert!(!app.edit_draft.delivery_webhook_configured);
+    assert!(app.edit_draft.delivery_webhook.as_str().is_empty());
     app.edit_draft.schedule_draft = None;
     let _ = update(&mut app, SettingsMessage::CronJobEditSave);
     assert!(!app.edit_draft.submitting);
-    assert!(app.save_error.as_deref().unwrap().contains("不支持"));
+    assert!(app.save_error.as_deref().unwrap().contains("请在当前任务中填写群机器人 Webhook"));
 }
 
 #[test]
@@ -374,19 +380,31 @@ fn wb_schedule_feedback_execution_error_readable_in_history() {
 }
 
 #[test]
-fn wb_schedule_feedback_confirm_then_cancel_form_does_not_save_authority() {
+fn wb_schedule_feedback_permission_selection_stays_in_draft_until_save() {
     let mut app = app();
     let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
-    let _ = update(&mut app, SettingsMessage::CronAddFullAccessToggled(true));
-    let _ = update(&mut app, SettingsMessage::CronFullAccessConfirm { editing: false });
+    let _ = update(&mut app, SettingsMessage::CronAddFullAccessToggled(false));
+    let select = SettingsMessage::CronEditorPickerChanged {
+        editing: false,
+        action: CronEditorPickerAction::PermissionSelected(true),
+    };
+    let _ = update(&mut app, select.clone());
+    assert!(!app.add_draft.full_access);
+    let _ = update(&mut app, SettingsMessage::CronEditorPickerChanged {
+        editing: false,
+        action: CronEditorPickerAction::Open(CronEditorPicker::Permission),
+    });
+    assert!(!app.add_draft.full_access);
+    let _ = update(&mut app, select.clone());
     assert!(app.add_draft.full_access);
     assert!(!app.add_draft.full_access_confirmation);
+    assert!(app.add_draft.editor_picker.is_none());
     let _ = update(&mut app, SettingsMessage::CronAddFrequencyChanged(CronFrequency::Weekly));
     assert!(app.add_draft.full_access);
     let _ = update(&mut app, SettingsMessage::CronJobEditCanceled);
     assert!(!app.add_draft.full_access);
     assert!(app.jobs.is_empty());
-    let _ = update(&mut app, SettingsMessage::CronFullAccessConfirm { editing: false });
+    let _ = update(&mut app, select);
     assert!(!app.add_draft.full_access);
 }
 
@@ -606,7 +624,7 @@ fn cron_template_flow_reopen_has_no_leaked_permissions() {
 }
 
 #[test]
-fn cron_template_flow_edited_values_are_submitted() {
+fn cron_template_flow_edited_values_are_submitted_without_preview() {
     let mut app = app();
     drop(update(
         &mut app,
@@ -620,20 +638,9 @@ fn cron_template_flow_edited_values_are_submitted() {
     ] {
         drop(update(&mut app, message));
     }
-    let revision = app.add_draft.schedule_revision;
-    drop(update(
-        &mut app,
-        SettingsMessage::CronSchedulePreviewLoaded {
-            editing: false,
-            revision,
-            result: Ok(gateway_cron::CronPreviewResponse {
-                normalized: Default::default(),
-                timezone: "UTC".into(),
-                candidates: vec!["2099-01-01T11:00:00Z".into()],
-            }),
-        },
-    ));
-    drop(update(&mut app, SettingsMessage::CronAddSubmit));
+    assert!(app.add_draft.preview.is_none());
+    let save = update(&mut app, SettingsMessage::CronAddSubmit);
+    assert!(iced_runtime::task::into_stream(save).is_some());
     let draft = &app.add_draft;
     assert!(draft.submitting);
     assert_eq!(draft.name, "我的任务");

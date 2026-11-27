@@ -612,27 +612,7 @@ pub fn panel_mapped<'a, M: Clone + 'static>(
     body: Element<'a, M>,
     map: fn(Message) -> M,
 ) -> Element<'a, M> {
-    let locale = app.desktop_locale;
-    let mut help = Cow::Borrowed(description);
-    if !enabled {
-        help = Cow::Owned(format!("{help}\n\n{}", tr(locale, "启用后显示该通道的详细配置表单。")));
-    }
-    let heading = settings_group_heading_with_help(I18n::new(locale), app.app_theme, title, help).map(map);
-    let header = row![
-        container(heading).width(Length::Fill),
-        checkbox(enabled)
-            .label(tr(app.desktop_locale, "启用"))
-            .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-            .on_toggle(move |next| {
-                map(Message::Settings(SettingsMessage::Channels(ChannelsMessage::EnabledToggled(
-                    id.to_string(),
-                    next,
-                ))))
-            })
-            .style(settings_checkbox_style),
-    ]
-    .spacing(12)
-    .align_y(Alignment::Center);
+    let header = channel_header(app, id, title, description, enabled, map);
 
     let content = if enabled {
         let mut content = column![header, settings_divider()].spacing(16);
@@ -652,6 +632,38 @@ pub fn panel_mapped<'a, M: Clone + 'static>(
     };
 
     settings_group_card(container(content).padding([16, 0])).into()
+}
+
+pub(super) fn channel_header<'a, M: Clone + 'a>(
+    app: ViewState<'a>,
+    id: &'static str,
+    title: &'static str,
+    description: &'static str,
+    enabled: bool,
+    map: fn(Message) -> M,
+) -> Element<'a, M> {
+    let locale = app.desktop_locale;
+    let mut help = Cow::Borrowed(description);
+    if !enabled {
+        help = Cow::Owned(format!("{help}\n\n{}", tr(locale, "启用后显示该通道的详细配置表单。")));
+    }
+    let heading = settings_group_heading_with_help(I18n::new(locale), app.app_theme, title, help).map(map);
+    row![
+        container(heading).width(Length::Fill),
+        checkbox(enabled)
+            .label(tr(app.desktop_locale, "启用"))
+            .text_size(SETTINGS_CONTROL_TEXT_SIZE)
+            .on_toggle(move |next| {
+                map(Message::Settings(SettingsMessage::Channels(ChannelsMessage::EnabledToggled(
+                    id.to_string(),
+                    next,
+                ))))
+            })
+            .style(settings_checkbox_style),
+    ]
+    .spacing(12)
+    .align_y(Alignment::Center)
+    .into()
 }
 
 /// 构建或处理 `enabled_channels` 对应的界面片段与交互数据。
@@ -725,8 +737,14 @@ pub fn enabled_channels(app: ViewState<'_>) -> Vec<&'static str> {
     if s.qq.is_some() || !s.qq_instances.is_empty() {
         items.push("QQ");
     }
-    if s.wecom.is_some() || !s.wecom_instances.is_empty() {
+    use config_channel_services::WeComConfig;
+    if s.wecom.is_some() || s.wecom_instances.iter().any(|instance| !WeComConfig::is_cron_instance(&instance.id)) {
         items.push("企业微信");
+    }
+    if s.wecom_instances.iter().any(|instance| {
+        WeComConfig::is_cron_instance(&instance.id) && instance.config.has_required_credentials()
+    }) {
+        items.push("定时任务企业微信通知");
     }
     if s.wechat.is_some() || !s.wechat_instances.is_empty() {
         items.push("微信");

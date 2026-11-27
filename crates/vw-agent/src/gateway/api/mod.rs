@@ -84,7 +84,7 @@ pub use agent_gateway::api::types as types;
 /// 调用方可通过 `crate::app::agent::gateway::api::handle_api_*` 直接访问。
 pub use handlers::{
     handle_api_config_get, handle_api_config_put, handle_api_cron_add, handle_api_cron_delete,
-    handle_api_cron_history, handle_api_cron_list, handle_api_cron_preview, handle_api_cron_runs,
+    handle_api_cron_history, handle_api_cron_list, handle_api_cron_preview, handle_api_cron_wecom_binding, handle_api_cron_run, handle_api_cron_runs,
     handle_api_cron_update, handle_api_doctor, handle_api_health,
     handle_api_integration_credentials_put, handle_api_integrations,
     handle_api_integrations_settings, handle_api_mcp_app_call, handle_api_mcp_inspect,

@@ -1,7 +1,7 @@
 //! 处理渠道设置子模块的状态变更、字段转换和持久化。
 
 use super::{Effect as Message, Services};
-use crate::state::{ChannelsSettingsState, NamedQrCredentials};
+use crate::state::{ChannelsSettingsState, NamedQrCredentials, WeComDeliveryMode};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};
 use config_channel_services::{QQConfig, QQReceiveMode, WeChatConfig, WeComConfig};
 use gateway_channel_qr::{ChannelQrStatusDto, GatewayChannelQrClient};
@@ -240,11 +240,15 @@ pub fn update(
     let task = match message {
         ChannelsMessage::Effect(effect) => Task::done(*effect),
         message @ (ChannelsMessage::WeComDeliveryOpened(_)
+        | ChannelsMessage::WeComInstanceOpened(_, _)
         | ChannelsMessage::WeComDeliveryClosed
         | ChannelsMessage::WeComDeliveryChanged(_, _)
         | ChannelsMessage::WeComDeliveryClearSecret
         | ChannelsMessage::WeComDeliverySave
-        | ChannelsMessage::WeComDeliverySaved(_)) => Task::done(Message::WeComDelivery(message)),
+        | ChannelsMessage::WeComDeliverySaved(_)
+        | ChannelsMessage::WeComCronInstanceAdded
+        | ChannelsMessage::WeComCronBindingRequested { .. }
+        | ChannelsMessage::WeComCronBindingLoaded { .. }) => Task::done(Message::WeComDelivery(message)),
         ChannelsMessage::ExecutionChoicesRequested(instance) => {
             super::execution::load(app, services, instance)
         }
@@ -278,7 +282,19 @@ pub fn update(
                 app.qr_flow.close();
             }
             app.active_tab = tab;
-            super::projects::load_active(app, services)
+            if tab == crate::state::ChannelsSettingsTab::WeComCron {
+                Task::batch(app.wecom_instances.iter()
+                    .filter(|instance| WeComConfig::is_cron_instance(&instance.id)
+                        && instance.config.has_required_credentials())
+                    .map(|instance| {
+                        Task::done(Message::WeComDelivery(ChannelsMessage::WeComCronBindingRequested {
+                            instance: instance.id.clone(),
+                            start: false,
+                        }))
+                    }))
+            } else {
+                super::projects::load_active(app, services)
+            }
         }
         ChannelsMessage::CliToggled(value) => {
             app.cli = value;
@@ -298,6 +314,9 @@ pub fn update(
                 app.qr_flow.close();
             }
             toggle_enabled(app, &channel, enabled);
+            if !enabled {
+                app.expanded_instances.remove(&channel);
+            }
             if let Some(tab) = crate::state::ChannelsSettingsTab::from_channel_id(&channel) {
                 app.active_tab = tab;
             }
@@ -315,7 +334,11 @@ pub fn update(
             persist_channels_settings(app, services).unwrap_or_else(Task::none)
         }
         ChannelsMessage::InstanceRemoved(channel, index) => {
+            let count = app.named_instance_count(&channel);
             remove_channel_instance(app, &channel, index);
+            if app.named_instance_count(&channel) < count {
+                app.remove_instance_card(&channel, index);
+            }
             if app.qr_flow.channel.as_deref() == Some(channel.as_str())
                 && app
                     .qr_flow
@@ -328,6 +351,24 @@ pub fn update(
             super::projects::retain_configured_bindings(app);
             app.refresh_text_inputs();
             persist_channels_settings(app, services).unwrap_or_else(Task::none)
+        }
+        ChannelsMessage::InstanceExpandedToggled(channel, index, expanded) => {
+            let cards = app.expanded_instances.entry(channel).or_default();
+            if expanded {
+                cards.insert(index);
+            } else {
+                cards.remove(&index);
+            }
+            Task::none()
+        }
+        ChannelsMessage::AllInstancesExpandedToggled(channel, expanded) => {
+            if expanded {
+                let cards = app.instance_cards(&channel).collect();
+                app.expanded_instances.insert(channel, cards);
+            } else {
+                app.expanded_instances.remove(&channel);
+            }
+            Task::none()
         }
         ChannelsMessage::TextChanged(key, value) => {
             app.text_inputs.insert(key.clone(), value.clone());
@@ -377,6 +418,14 @@ pub fn update(
                     "该通道不支持扫码授权",
                     vec![],
                 );
+            }
+            if channel == "wecom" && let Some(draft) = app.wecom_delivery.as_mut() {
+                if draft.mode != WeComDeliveryMode::Qr || draft.saving {
+                    return Task::none();
+                }
+                draft.secret.clear();
+                draft.clear_secret = false;
+                draft.error = None;
             }
             app.qr_flow.close();
             app.qr_flow.channel = Some(channel.to_owned());
@@ -556,11 +605,15 @@ pub fn delivery_event(
 ) -> Option<(ChannelsMessage, bool)> {
     match message {
         ChannelsMessage::WeComDeliveryOpened(_)
+        | ChannelsMessage::WeComInstanceOpened(_, _)
         | ChannelsMessage::WeComDeliveryClosed
         | ChannelsMessage::WeComDeliveryChanged(_, _)
         | ChannelsMessage::WeComDeliveryClearSecret
         | ChannelsMessage::WeComDeliverySave
-        | ChannelsMessage::WeComDeliverySaved(_) => Some((message.clone(), false)),
+        | ChannelsMessage::WeComDeliverySaved(_)
+        | ChannelsMessage::WeComCronInstanceAdded
+        | ChannelsMessage::WeComCronBindingRequested { .. }
+        | ChannelsMessage::WeComCronBindingLoaded { .. } => Some((message.clone(), false)),
         ChannelsMessage::QrClosed if state.wecom_delivery.is_some() => {
             Some((ChannelsMessage::WeComDeliveryClosed, false))
         }

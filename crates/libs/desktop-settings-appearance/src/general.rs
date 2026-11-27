@@ -296,7 +296,7 @@ pub fn view<'a, S: Clone + Copy + PartialEq + std::fmt::Display + 'static, Messa
                     interface_field_row(
                         app, help,
                         &general_fields::CHAT_TIMEZONE,
-                        i18n.__("用于模型时间上下文，新会话生效。"),
+                        i18n.__("用于模型时间上下文，新会话生效。定时任务在新建或重新保存时使用此设置。"),
                         timezone_pick,
                     ),
                 ]

@@ -421,15 +421,16 @@ pub fn blocked_path<H: ContextHost>(input: &Value, security: &H::SecurityPolicy)
 }
 
 pub fn command_input(tool_name: &str, input: &Value) -> Option<String> {
-    if !matches!(tool_name, "bash" | "shell" | "process") {
-        return None;
-    }
-
-    input.get("command").and_then(Value::as_str).map(ToOwned::to_owned)
+    let source = match tool_name {
+        "bash" | "shell" | "process" | "cron_add" => input,
+        "cron_update" => input.get("patch")?,
+        _ => return None,
+    };
+    source.get("command").and_then(Value::as_str).map(ToOwned::to_owned)
 }
 
 pub fn mark_input_as_approved(tool_name: &str, input: Value) -> Value {
-    if !matches!(tool_name, "bash" | "shell" | "process") {
+    if !matches!(tool_name, "bash" | "shell" | "process" | "cron_add" | "cron_update") {
         return input;
     }
 

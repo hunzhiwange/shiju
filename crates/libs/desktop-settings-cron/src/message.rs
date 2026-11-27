@@ -10,12 +10,31 @@ pub enum HistoryMessage {
     Tick(u64),
     Loaded { generation: u64, result: Result<(CronHistoryResponse, Vec<CronJobDto>), String> },
     SearchChanged(String),
+    SearchToggled,
     StatusChanged(CronHistoryStatus),
+    ForJob(String),
     TaskSelected(Option<String>),
     TaskSearchChanged(String),
     TaskPickerToggled(bool),
 }
 
+
+#[derive(Debug, Clone)]
+pub enum ListMessage {
+    SearchToggled,
+    SearchChanged(String),
+    KindChanged(CronJobKindFilter),
+    MenuChanged(Option<CronListMenu>),
+    HoverChanged(String, bool),
+    OpenHistory(String),
+    OpenTask(String),
+    CloseTask,
+    CancelDelete,
+    ConfirmDelete,
+    DeleteCompleted(Result<String, String>),
+    RunNow(String),
+    RunAccepted(String, Result<(), String>),
+}
 
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
@@ -54,11 +73,11 @@ pub enum SettingsMessage {
     CronAddFromConversation,
     CronTemplateSelected(crate::state::CronTemplateId),
     CronHistory(HistoryMessage),
+    CronList(ListMessage),
     CronListFilterChanged(CronListFilter),
     CronBatchModeToggled(bool),
     CronJobsRefresh,
     CronJobSelectionToggled(String, bool),
-    CronJobDetailsToggled(String, bool),
     CronJobsSelectAllToggled(bool),
     CronJobRunsOpen(String),
     CronJobRunsEditorAction(text_editor::Action),
@@ -70,17 +89,16 @@ pub enum SettingsMessage {
     CronJobEditCommandEditorAction(text_editor::Action),
     CronJobEditPromptEditorAction(text_editor::Action),
     CronJobEditAgentChanged(String),
-    CronJobEditAcpAgentChanged(String),
     CronJobEditProjectPathChanged(String),
     CronJobEditModelProviderChanged(String),
     CronJobEditModelChanged(String),
     CronJobEditWakeToggled(bool),
-    CronJobEditFallbacksChanged(String),
     CronJobEditFullAccessToggled(bool),
     CronJobEditTaskPoolToggled(bool),
     CronJobEditDeliveryEnabledToggled(bool),
-    CronJobEditDeliveryChannelChanged(String),
-    CronJobEditDeliveryToChanged(String),
+    CronJobEditDeliveryWeComSelected(bool),
+    CronJobEditDeliveryWeComInstanceSelected(String),
+    CronJobEditDeliveryWebhookChanged(gateway_cron::CronWebhookInput),
     CronJobEditDeliveryBestEffortToggled(bool),
     CronJobEditDeleteAfterRunToggled(bool),
     CronJobEditSave,
@@ -94,33 +112,27 @@ pub enum SettingsMessage {
     CronAddCommandEditorAction(text_editor::Action),
     CronAddPromptEditorAction(text_editor::Action),
     CronAddAgentChanged(String),
-    CronAddAcpAgentChanged(String),
     CronAddProjectPathChanged(String),
     CronAddModelProviderChanged(String),
     CronAddModelChanged(String),
     CronAddWakeToggled(bool),
-    CronAddFallbacksChanged(String),
     CronAddFullAccessToggled(bool),
     CronAddTaskPoolToggled(bool),
     CronAddDeliveryEnabledToggled(bool),
-    CronAddDeliveryChannelChanged(String),
-    CronAddDeliveryToChanged(String),
+    CronAddDeliveryWeComSelected(bool),
+    CronAddDeliveryWeComInstanceSelected(String),
+    CronAddDeliveryWebhookChanged(gateway_cron::CronWebhookInput),
     CronAddDeliveryBestEffortToggled(bool),
     CronAddDeleteAfterRunToggled(bool),
     CronAddSubmit,
     CronHelpOpen,
     CronHelpClose,
-    OpenDelivery(DeliveryMode),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DeliveryMode {
-    Qr,
-    Webhook,
-}
 #[derive(Debug, Clone)]
 pub enum Message {
     None,
     Settings(SettingsMessage),
     CopyCode(String),
+    WeComBindingRequested { instance: String, start: bool },
 }

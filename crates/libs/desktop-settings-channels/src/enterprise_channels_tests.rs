@@ -81,6 +81,9 @@ fn configure_enterprise_channels(app: &mut App) {
         allowed_destinations: vec!["*".to_string()],
         webhook_secret: Some("secret".to_string()),
     });
+    for channel in ["feishu", "dingtalk", "qq", "wecom", "wechat"] {
+        app.channels_settings.expanded_instances.insert(channel.into(), [None].into());
+    }
     app.channels_settings.refresh_text_inputs();
 }
 

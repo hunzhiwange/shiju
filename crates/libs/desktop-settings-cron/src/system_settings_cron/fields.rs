@@ -1,38 +1,54 @@
 use super::*;
 use iced::widget::column;
 
-pub(super) fn field_row<'a>(
-    label: &'static str,
-    description: &'static str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    container(
-        column![
-            settings_field_label(label),
-            control.into(),
-            text(description).size(12).style(settings_muted_text_style)
-        ]
-        .spacing(6),
-    )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+pub(super) fn schedule_popup_style(theme: &Theme) -> container::Style {
+    let mut style = cron_modal_style(theme);
+    let palette = theme.palette();
+    if let Some(Background::Color(color)) = &mut style.background {
+        color.r += (palette.text.r - color.r) * 0.03;
+        color.g += (palette.text.g - color.g) * 0.03;
+        color.b += (palette.text.b - color.b) * 0.03;
+    }
+    style.border.radius = 16.0.into();
+    style.border.color = palette.text.scale_alpha(0.14);
+    style.shadow.offset = iced::Vector::new(0.0, 6.0);
+    style.shadow.blur_radius = 18.0;
+    style
 }
 
 pub(super) fn field_row_with_help<'a>(
     app: &ViewData<'_>,
     label: &'static str,
-    description: impl Into<std::borrow::Cow<'a, str>>,
-    control: impl Into<Element<'a, Message>>,
+    description: &'static str,
+    control: impl Fn() -> Element<'a, Message> + 'a,
 ) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
-    let label = hover_help_label(
-        app,
-        i18n.__(label),
-        settings_field_label(i18n.__(label)),
-        match description.into() { std::borrow::Cow::Borrowed(value) => std::borrow::Cow::Borrowed(i18n.__(value)), std::borrow::Cow::Owned(value) => std::borrow::Cow::Owned(i18n.__(&value).to_owned()) },
-    );
-    container(column![label, control.into()].spacing(6)).padding([14, 0]).width(Length::Fill).into()
+    let label = i18n.__(label);
+    let description = i18n.__(description);
+    let help = app.help_content;
+    let color = app.app_theme.palette().text;
+    iced::widget::responsive(move |size| {
+        let label = desktop_ui_controls::system_settings_common::help::settings_hover_help_label(
+            settings_field_label(label),
+            help(label, description.into(), Some(color), i18n),
+        );
+        if size.width >= 600.0 {
+            desktop_ui_controls::system_settings_common::settings_flexible_row_with_label(
+                label.width(Length::Fill).wrap(),
+                360.0,
+                control(),
+            )
+            .padding([16, 0])
+            .into()
+        } else {
+            container(column![label.wrap(), control()].spacing(6))
+                .padding([14, 0])
+                .width(Length::Fill)
+                .into()
+        }
+    })
+    .height(Length::Shrink)
+    .into()
 }
 
 pub(super) fn cron_segment_style(theme: &Theme, status: button::Status, is_active: bool) -> button::Style {
@@ -41,19 +57,6 @@ pub(super) fn cron_segment_style(theme: &Theme, status: button::Status, is_activ
         style.text_color = theme.palette().text;
     }
     style
-}
-
-pub(super) fn tab_button(
-    tab: CronSettingsTab,
-    active_tab: CronSettingsTab,
-    label: &'static str,
-) -> Element<'static, Message> {
-    settings_tab_button(
-        label,
-        tab == active_tab,
-        Some(Message::Settings(message::SettingsMessage::CronTabSelected(tab))),
-    )
-    .into()
 }
 
 pub(super) fn segment_button<'a>(
@@ -118,73 +121,6 @@ pub(super) fn text_field<'a>(
     settings_text_input(placeholder, value).on_input(on_input).into()
 }
 
-pub(super) fn with_selected_option(mut options: Vec<String>, selected: &str) -> Vec<String> {
-    let selected = selected.trim();
-    if !selected.is_empty() && !options.iter().any(|option| option == selected) {
-        options.push(selected.to_string());
-    }
-    options.sort();
-    options.dedup();
-    options
-}
-
-pub(super) fn project_options(app: &ViewData<'_>, selected: &str) -> Vec<String> {
-    let mut options = app.recent_projects.to_vec();
-    if let Some(path) = app.project_path.filter(|value| !value.trim().is_empty()) {
-        options.push(path.to_string());
-    }
-    with_selected_option(options, selected)
-}
-
-#[derive(Clone, PartialEq)]
-enum ProjectChoice {
-    None(&'static str),
-    Path(String),
-}
-
-impl std::fmt::Display for ProjectChoice {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::None(label) => f.write_str(label),
-            Self::Path(path) => f.write_str(path),
-        }
-    }
-}
-
-pub(crate) fn project_field_builder<'a, F>(
-    app: &ViewData<'_>,
-    path: &str,
-    on_selected: F,
-) -> impl Fn() -> Element<'a, Message> + use<'a, F>
-where
-    F: Fn(String) -> Message + Clone + 'a,
-{
-    let empty = ProjectChoice::None(I18n::new(app.desktop_locale).__("选择项目"));
-    let path = path.trim();
-    let selected = if path.is_empty() { empty.clone() } else { ProjectChoice::Path(path.into()) };
-    let options: Vec<_> = std::iter::once(empty)
-        .chain(
-            project_options(app, path)
-                .into_iter()
-                .filter(|path| !path.trim().is_empty())
-                .map(ProjectChoice::Path),
-        )
-        .collect();
-    move || {
-        let on_selected = on_selected.clone();
-        editor_select(options.iter().cloned(), Some(selected.clone()), move |choice| {
-            on_selected(match choice {
-                ProjectChoice::None(_) => String::new(),
-                ProjectChoice::Path(path) => path,
-            })
-        })
-        .toolbar_icon(desktop_assets::assets::Icon::FolderClosed)
-        .height(34.0)
-        .width(Length::Fill)
-        .into()
-    }
-}
-
 #[cfg(test)]
 pub(crate) fn pick_field<'a>(
     options: Vec<String>,
@@ -225,14 +161,14 @@ pub fn job_is_agent(job: &CronJobDto) -> bool {
     has_prompt && !has_command
 }
 
-pub(super) fn format_cron_datetime(value: &str) -> String {
+pub(crate) fn format_cron_datetime(value: &str, timezone: NamedTimeZone) -> String {
     DateTime::parse_from_rfc3339(value)
-        .map(|dt| dt.with_timezone(&Local).format("%Y-%m-%d %H:%M:%S").to_string())
+        .map(|dt| dt.with_timezone(&timezone).format("%Y-%m-%d %H:%M:%S").to_string())
         .unwrap_or_else(|_| value.to_string())
 }
 
-pub(super) fn format_optional_cron_datetime(value: Option<&str>) -> String {
-    value.map(format_cron_datetime).unwrap_or_else(|| "无".to_string())
+pub(super) fn format_optional_cron_datetime(value: Option<&str>, timezone: NamedTimeZone) -> String {
+    value.map(|value| format_cron_datetime(value, timezone)).unwrap_or_else(|| "无".to_string())
 }
 
 pub(super) fn preview_lines(value: &str, max_lines: usize) -> String {
@@ -297,18 +233,6 @@ pub fn config_tab<'a>(app: &ViewData<'a>) -> Element<'a, Message> {
             i18n.__("控制 Cron 子系统是否运行与历史留存数量。")
         ),
         settings_group_card(column![enabled_row, settings_divider(), history_row]),
-        settings_group_card(field_row(
-            i18n.__("定时任务群通知"),
-            i18n.__("独立配置企业微信群机器人的 Webhook，用于接收任务结果。请在需要通知的任务中开启结果投递。"),
-            secondary_button(
-                if app.delivery.webhook {
-                    i18n.__("修改通知 Webhook")
-                } else {
-                    i18n.__("配置通知 Webhook")
-                },
-                Message::Settings(message::SettingsMessage::OpenDelivery(crate::message::DeliveryMode::Webhook)),
-            ),
-        )),
     ]
     .spacing(14)
     .into()

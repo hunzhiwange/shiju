@@ -74,7 +74,13 @@ async fn wb_schedule_picker_backdrop_and_escape_cancel() {
     let renderer = Renderer::new(Font::DEFAULT, 16.0.into(), Some("tiny-skia")).await.unwrap();
     for keyboard in [false, true] {
         let p = picker();
-        let mut element = overlay(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &p, "UTC", iced::widget::text("草稿").into(), std::convert::identity);
+        let mut element = picker_overlay_with_i18n(
+            I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            &p,
+            "UTC",
+            iced::widget::text("草稿").into(),
+            std::convert::identity,
+        );
         let mut tree = Tree::new(element.as_widget());
         let viewport = Rectangle::with_size(Size::new(420.0, 460.0));
         let node = element.as_widget_mut().layout(
@@ -110,7 +116,7 @@ async fn wb_schedule_picker_backdrop_and_escape_cancel() {
         );
         assert!(matches!(
             messages.as_slice(),
-            [Message::Settings(SettingsMessage::CronPickerCancel)]
+            [PickerEvent::Cancel]
         ));
     }
 }

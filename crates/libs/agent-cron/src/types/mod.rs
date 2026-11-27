@@ -254,7 +254,7 @@ pub enum Schedule {
 ///
 /// 当 `best_effort` 为 `true` 时，投递失败不会导致任务失败标记；
 /// 为 `false` 时，投递失败将记录为任务执行错误。
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DeliveryConfig {
     /// 投递模式标识，如 "none"、"webhook"、"channel" 等
     #[serde(default)]
@@ -268,6 +268,17 @@ pub struct DeliveryConfig {
     /// 尽力投递标志，为 true 时投递失败不影响任务状态
     #[serde(default = "default_true")]
     pub best_effort: bool,
+}
+
+impl std::fmt::Debug for DeliveryConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DeliveryConfig")
+            .field("mode", &self.mode)
+            .field("channel", &self.channel)
+            .field("to", &crate::delivery::public_target(self))
+            .field("best_effort", &self.best_effort)
+            .finish()
+    }
 }
 
 impl Default for DeliveryConfig {

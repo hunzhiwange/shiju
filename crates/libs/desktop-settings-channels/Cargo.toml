@@ -33,6 +33,7 @@ gateway-config = { path = "../gateway-config" }
 gateway-model-provider = { path = "../gateway-model-provider" }
 
 url = "2"
+uuid = { version = "1.11", features = ["v4", "js"] }
 
 [dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint" }

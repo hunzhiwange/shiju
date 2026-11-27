@@ -1,84 +1,132 @@
-//! Transactional configuration draft shared by cron delivery and channel settings.
+//! Transactional connection editor for WeCom smart bots.
 use crate::messages::ChannelsMessage;
 use crate::state::ChannelsSettingsState;
 use super::{Effect as Message, Services, ToastKind};
 use crate::state::{WeComDeliveryDraft, WeComDeliveryMode};
 use iced::Task;
-use config_channel_services::{WeComConfig, WeComWebhookConfig};
+use config_channel_services::WeComConfig;
 
-type Credentials = (Option<WeComConfig>, Option<WeComWebhookConfig>);
-
-pub(super) fn credentials(s: &ChannelsSettingsState) -> Result<Credentials, String> {
+pub(super) fn credentials(s: &ChannelsSettingsState) -> Result<Option<WeComConfig>, String> {
     let draft = s.wecom_delivery.as_ref().ok_or("企微配置弹窗未打开")?;
-    if draft.mode == WeComDeliveryMode::Webhook {
-        if draft.clear_webhook {
-            return Ok((s.wecom.clone(), None));
-        }
-        let value = draft.webhook_url.trim();
-        if value.is_empty() {
-            return s
-                .wecom_webhook
-                .clone()
-                .map(|cfg| (s.wecom.clone(), Some(cfg)))
-                .ok_or_else(|| "请输入完整群机器人 Webhook".into());
-        }
-        let invalid = || "请输入官方企业微信群机器人 Webhook（HTTPS，包含 key）".to_string();
-        let url = url::Url::parse(value).map_err(|_| invalid())?;
-        let pairs = url.query_pairs().collect::<Vec<_>>();
-        if url.scheme() != "https"
-            || url.host_str() != Some("qyapi.weixin.qq.com")
-            || url.port_or_known_default() != Some(443)
-            || !url.username().is_empty()
-            || url.password().is_some()
-            || value.split('/').nth(2).is_some_and(|v| v.contains('@'))
-            || url.fragment().is_some()
-            || url.path() != "/cgi-bin/webhook/send"
-            || pairs.len() != 1
-            || pairs[0].0 != "key"
-            || pairs[0].1.trim().is_empty()
-        {
-            return Err(invalid());
-        }
-        return Ok((s.wecom.clone(), Some(WeComWebhookConfig { webhook_url: value.into() })));
-    }
     if draft.clear_secret {
-        return Ok((None, s.wecom_webhook.clone()));
+        return Ok(None);
     }
     let secret = if draft.secret.is_empty() {
-        s.wecom.as_ref().map(|cfg| cfg.secret.clone()).unwrap_or_default()
+        s.wecom_connection(draft.instance_id.as_deref())
+            .map(|cfg| cfg.secret.clone())
+            .unwrap_or_default()
     } else {
         draft.secret.clone()
     };
     if draft.bot_id.trim().is_empty() || secret.trim().is_empty() {
         return Err("请填写 Bot ID 和 Secret，或完成扫码授权".into());
     }
-    Ok((Some(WeComConfig { bot_id: draft.bot_id.trim().into(), secret }), s.wecom_webhook.clone()))
+    Ok(Some(WeComConfig { bot_id: draft.bot_id.trim().into(), secret }))
+}
+
+fn instance_credentials(config: Option<WeComConfig>) -> WeComConfig {
+    config.unwrap_or_else(|| WeComConfig {
+        bot_id: String::new(),
+        secret: String::new(),
+    })
+}
+
+fn open(
+    app: &mut ChannelsSettingsState,
+    services: &Services,
+    mode: WeComDeliveryMode,
+    instance_id: Option<String>,
+) -> Task<Message> {
+    if app.wecom_delivery.as_ref().is_some_and(|draft| draft.saving) {
+        return Task::none();
+    }
+    let bot = app.wecom_connection(instance_id.as_deref());
+    if instance_id.as_deref().is_some_and(|id| !WeComConfig::is_cron_instance(id)) && bot.is_none() {
+        return Task::none();
+    }
+    let bot_id = bot.map(|config| config.bot_id.clone()).unwrap_or_default();
+    app.qr_flow.close();
+    app.wecom_delivery = Some(WeComDeliveryDraft {
+        mode,
+        instance_id,
+        bot_id,
+        ..Default::default()
+    });
+    if mode == WeComDeliveryMode::Qr {
+        return super::updates::update(app, services, ChannelsMessage::QrRequested("wecom".into()));
+    }
+    Task::none()
 }
 
 pub fn update(app: &mut ChannelsSettingsState, services: &Services, message: ChannelsMessage) -> Task<Message> {
     match message {
-        ChannelsMessage::WeComDeliveryOpened(mode) => {
-            if app.wecom_delivery.as_ref().is_some_and(|d| d.saving) {
+        ChannelsMessage::WeComCronInstanceAdded => {
+            let id = format!("{}-{}", WeComConfig::CRON_INSTANCE, uuid::Uuid::new_v4().simple());
+            return open(app, services, WeComDeliveryMode::Qr, Some(id));
+        }
+        ChannelsMessage::WeComCronBindingRequested { instance, start } => {
+            if app.wecom_cron_binding_requests.contains_key(&instance)
+                || !WeComConfig::is_cron_instance(&instance)
+                || !app.wecom_connection(Some(&instance))
+                    .is_some_and(WeComConfig::has_required_credentials)
+            {
                 return Task::none();
             }
-            app.qr_flow.close();
-            app.wecom_delivery = Some(WeComDeliveryDraft {
-                mode,
-                bot_id: app
-                    .wecom
-                    .as_ref()
-                    .map(|cfg| cfg.bot_id.clone())
-                    .unwrap_or_default(),
-                ..Default::default()
-            });
-            if mode == WeComDeliveryMode::Qr {
-                return super::updates::update(
-                    app,
-                    services,
-                    ChannelsMessage::QrRequested("wecom".into()),
-                );
+            app.wecom_cron_binding_request += 1;
+            let request = app.wecom_cron_binding_request;
+            app.wecom_cron_binding_requests.insert(instance.clone(), request);
+            let client = services.client.clone();
+            let query = [("instance".into(), instance.clone())];
+            return Task::perform(async move {
+                let client = client?;
+                let path = "/v1/cron/wecom-binding";
+                if start {
+                    client.transport().post_json(path, &query, &()).await
+                } else {
+                    client.transport().get_json(path, &query).await
+                }
+            }, move |result| Message::Channels(ChannelsMessage::WeComCronBindingLoaded {
+                instance: instance.clone(), request, result,
+            }));
+        }
+        ChannelsMessage::WeComCronBindingLoaded { instance, request, result } => {
+            if app.wecom_cron_binding_requests.get(&instance) != Some(&request) {
+                return Task::none();
+            }
+            app.wecom_cron_binding_requests.remove(&instance);
+            match result {
+                Ok(binding) => {
+                    let status = app.wecom_cron_bindings.entry(instance).or_default();
+                    if let Some(bound) = binding.bound {
+                        status.bound = Some(bound);
+                    }
+                    if binding.pairing_pending == Some(false) {
+                        status.pairing_code = None;
+                    }
+                    if binding.connected.is_some() {
+                        status.connected = binding.connected;
+                    }
+                    if let Some(code) = binding.pairing_code {
+                        status.pairing_code = Some(code);
+                    }
+                }
+                Err(error) => {
+                    let disconnected = error
+                        .strip_prefix("gateway request failed: 400 Bad Request ")
+                        .and_then(|body| serde_json::from_str::<serde_json::Value>(body).ok())
+                        .is_some_and(|body| body["error"] == "企微定时任务机器人尚未连接，请稍后重试");
+                    if disconnected {
+                        let status = app.wecom_cron_bindings.entry(instance).or_default();
+                        status.connected = Some(false);
+                        status.pairing_code = None;
+                        return super::localized_toast(ToastKind::Error, "定时任务机器人尚未连接", vec![]);
+                    }
+                    return super::error_toast("无法读取企微定时任务连接，请稍后重试".into());
+                }
             }
         }
+        ChannelsMessage::WeComDeliveryOpened(mode) => return open(app, services, mode, None),
+        ChannelsMessage::WeComInstanceOpened(id, mode) => return open(app, services, mode, Some(id)),
         ChannelsMessage::WeComDeliveryClosed => {
             if !app.wecom_delivery.as_ref().is_some_and(|d| d.saving) {
                 app.wecom_delivery = None;
@@ -94,10 +142,6 @@ pub fn update(app: &mut ChannelsSettingsState, services: &Services, message: Cha
                         draft.secret = value;
                         draft.clear_secret = false;
                     }
-                    "webhook_url" => {
-                        draft.webhook_url = value;
-                        draft.clear_webhook = false;
-                    }
                     _ => return Task::none(),
                 }
                 draft.error = None;
@@ -106,20 +150,15 @@ pub fn update(app: &mut ChannelsSettingsState, services: &Services, message: Cha
         ChannelsMessage::WeComDeliveryClearSecret => {
             if let Some(draft) = app.wecom_delivery.as_mut().filter(|d| !d.saving)
             {
-                if draft.mode == WeComDeliveryMode::Webhook {
-                    draft.clear_webhook = true;
-                    draft.webhook_url.clear();
-                } else {
-                    draft.clear_secret = true;
-                    draft.secret.clear();
-                }
+                draft.clear_secret = true;
+                draft.secret.clear();
             }
         }
         ChannelsMessage::WeComDeliverySave => {
             if app.wecom_delivery.as_ref().is_none_or(|d| d.saving) {
                 return Task::none();
             }
-            let (wecom, webhook) = match credentials(app) {
+            let wecom = match credentials(app) {
                 Ok(value) => value,
                 Err(error) => {
                     app.wecom_delivery.as_mut().unwrap().error =
@@ -127,15 +166,42 @@ pub fn update(app: &mut ChannelsSettingsState, services: &Services, message: Cha
                     return super::error_toast(error);
                 }
             };
-            let webhook_mode = app.wecom_delivery.as_ref().unwrap().mode
-                == WeComDeliveryMode::Webhook;
-            app.wecom_delivery.as_mut().unwrap().saving = true;
+            let draft = app.wecom_delivery.as_mut().unwrap();
+            let instance_id = draft.instance_id.clone();
+            let cron = instance_id.as_deref().is_some_and(WeComConfig::is_cron_instance);
+            if let Some(bot) = &wecom
+                && ((cron && app.wecom.iter().any(|chat| chat.bot_id == bot.bot_id))
+                    || app.wecom_instances.iter().any(|instance| {
+                        instance_id.as_deref() != Some(instance.id.as_str())
+                            && (cron || WeComConfig::is_cron_instance(&instance.id))
+                            && instance.config.bot_id == bot.bot_id
+                    }))
+            {
+                let error = "定时任务需使用独立的企业微信机器人".to_owned();
+                draft.error = Some(error.clone());
+                return super::error_toast(error);
+            }
+            let disconnect = instance_id.as_ref().filter(|_| cron && wecom.is_none()).cloned();
+            draft.saving = true;
             app.qr_flow.close();
             let config = services.config.clone();
+            let client = services.client.clone();
             return Task::perform(
-                async move { config.update_channels_config_result_async(move |cfg| {
-                    if webhook_mode {
-                        cfg.wecom_webhook = webhook;
+                async move {
+                    if let Some(id) = &disconnect {
+                        let query = [("instance".into(), id.clone())];
+                        client?.transport().delete_empty("/v1/cron/wecom-binding", &query).await?;
+                    }
+                    config.update_channels_config_result_async(move |cfg| {
+                    if let Some(id) = disconnect {
+                        cfg.wecom_instances.retain(|instance| instance.id != id);
+                    } else if let Some(id) = instance_id {
+                        let config = instance_credentials(wecom);
+                        if let Some(instance) = cfg.wecom_instances.iter_mut().find(|instance| instance.id == id) {
+                            instance.config = config;
+                        } else {
+                            cfg.wecom_instances.push(config_channel_services::WeComInstanceConfig { id, config });
+                        }
                     } else {
                         cfg.wecom = wecom;
                         if cfg.wecom.is_none() {
@@ -153,15 +219,38 @@ pub fn update(app: &mut ChannelsSettingsState, services: &Services, message: Cha
             }
             match result {
                 Ok(()) => {
-                    let webhook_mode = app.wecom_delivery.as_ref().unwrap().mode
-                        == WeComDeliveryMode::Webhook;
-                    if let Ok((wecom, webhook)) = credentials(app) {
-                        app.wecom = wecom;
-                        app.wecom_webhook = webhook;
-                        if !webhook_mode && app.wecom.is_none() {
-                            app.instance_default_projects.remove("wecom:default");
-                            app.instance_execution.remove("wecom:default");
+                    let draft = app.wecom_delivery.as_ref().unwrap();
+                    if let Ok(wecom) = credentials(app) {
+                        if let Some(id) = &draft.instance_id {
+                            let id = id.clone();
+                            let cron = WeComConfig::is_cron_instance(&id);
+                            if cron && wecom.is_none() {
+                                while let Some(index) = app.wecom_instances.iter().rposition(|instance| {
+                                    instance.id == id
+                                }) {
+                                    app.wecom_instances.remove(index);
+                                    app.remove_instance_card("wecom", index);
+                                }
+                            } else {
+                                let config = instance_credentials(wecom);
+                                if let Some(instance) = app.wecom_instances.iter_mut().find(|instance| instance.id == id) {
+                                    instance.config = config;
+                                } else if cron {
+                                    app.wecom_instances.push(config_channel_services::WeComInstanceConfig { id: id.clone(), config });
+                                }
+                            }
+                            if cron {
+                                app.wecom_cron_bindings.remove(&id);
+                                app.wecom_cron_binding_requests.remove(&id);
+                            }
+                        } else {
+                            app.wecom = wecom;
+                            if app.wecom.is_none() {
+                                app.instance_default_projects.remove("wecom:default");
+                                app.instance_execution.remove("wecom:default");
+                            }
                         }
+                        app.refresh_text_inputs();
                     }
                     app.wecom_delivery = None;
                     app.qr_flow.close();

@@ -517,7 +517,25 @@ impl Tool for CronAddTool {
         let full_access = args
             .get("full_access")
             .and_then(serde_json::Value::as_bool)
-            .or(self.default_full_access);
+            .or(self.default_full_access)
+            .unwrap_or(false);
+        if let Some(path) = project_path.as_deref()
+            && self.default_full_access == Some(false)
+            && (!Path::new(path).is_absolute() || !self.security.is_path_allowed(path))
+        {
+            return Ok(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some("Scheduled task project is outside the permitted workspace".into()),
+            });
+        }
+        if full_access && self.default_full_access == Some(false) {
+            return Ok(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some("A scheduled task cannot exceed the session's access level".into()),
+            });
+        }
 
         // 步骤 6: 根据任务类型执行不同的创建逻辑
         let result = match job_type {
@@ -552,13 +570,15 @@ impl Tool for CronAddTool {
                 }
 
                 // 6a-4: 调用 cron 模块创建 shell 任务
-                cron::add_shell_job_with_window(
+                cron::add_shell_job_with_scope(
                     &self.config,
                     name,
                     schedule,
                     command,
                     window.starts_at,
                     window.ends_at,
+                    project_path.as_deref(),
+                    full_access,
                 )
             }
             JobType::Agent => {
@@ -621,7 +641,7 @@ impl Tool for CronAddTool {
                 }
 
                 // 6b-6: 调用 cron 模块创建 agent 任务
-                cron::add_agent_job_with_window(
+                cron::add_agent_job_with_scope(
                     &self.config,
                     name,
                     schedule,
@@ -632,23 +652,11 @@ impl Tool for CronAddTool {
                     delete_after_run,
                     window.starts_at,
                     window.ends_at,
+                    project_path.as_deref(),
+                    full_access,
                 )
             }
-        }
-        .and_then(|job| {
-            if project_path.is_none() && full_access.is_none() {
-                return Ok(job);
-            }
-            cron::update_job(
-                &self.config,
-                &job.id,
-                cron::CronJobPatch {
-                    project_path: project_path.clone(),
-                    full_access,
-                    ..cron::CronJobPatch::default()
-                },
-            )
-        });
+        };
 
         // 步骤 7: 处理任务创建结果
         // 将结果转换为 ToolResult 格式返回给调用者

@@ -73,6 +73,11 @@ impl App {
         }
         if !self.system_settings_edited(SystemSettingsSection::Timezone) {
             self.general_settings.chat_timezone = system.timezone.clone();
+            desktop_settings_cron::update::cron::refresh_system_timezone(
+                &mut self.cron_settings,
+                self.general_settings.desktop_locale,
+                self.general_settings.chat_timezone.parse().expect("validated system timezone"),
+            );
         }
         if !self.general_settings.task_completion_notification_saving
             && !edited(self, "task_completion_notification")

@@ -14,6 +14,7 @@ gateway-cron = { path = "../gateway-cron" }
 config-ui = { path = "../config-ui" }
 desktop-i18n = { path = "../desktop-i18n" }
 desktop-assets = { path = "../desktop-assets" }
+desktop-chat-input = { path = "../desktop-chat-input" }
 iced = { version = "0.14", features = ["advanced"] }
 desktop-ui-controls = { path = "../desktop-ui-controls" }
 

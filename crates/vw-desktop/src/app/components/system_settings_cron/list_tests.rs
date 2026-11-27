@@ -27,18 +27,15 @@ async fn cron_list_fills_available_content_width() {
         let positions = geometry(&mut ui, &renderer);
         let scroll = positions.scroll.unwrap().0;
         let title = positions.label("定时任务");
-        assert!((scroll.x - 7.0).abs() <= 1.0, "{scroll:?}");
-        assert!(scroll.x + scroll.width > width as f32 - 50.0, "{scroll:?}");
-        assert!((title.x - scroll.x).abs() < 15.0);
-        let heading = positions.label("当前任务");
-        assert!((heading.center_y() - positions.label("新增任务").center_y()).abs() < 3.0);
+        assert!((scroll.x - 28.0).abs() <= 1.0, "{scroll:?}");
+        assert!(scroll.x + scroll.width > width as f32 - 40.0, "{scroll:?}");
+        assert!((title.x - scroll.x - 14.0).abs() <= 1.0);
         let frequency = positions.label("每天 09:00 · UTC");
-        let next =
-            positions.labels.iter().find(|(label, _)| label.starts_with("下次运行 ·")).unwrap().1;
-        assert!((frequency.center_y() - next.center_y()).abs() < 0.5);
-        let delete = positions.label("删除已选(0)");
-        assert!(delete.x + delete.width > width as f32 - 60.0);
-        assert!(positions.label("每日巡检").width > width as f32 - 500.0);
+        let status = positions.label("已启用");
+        assert!((frequency.center_y() - status.center_y()).abs() < 1.0);
+        let delete = positions.label("删除");
+        assert!(delete.x + delete.width > width as f32 - 70.0);
+        assert!(positions.label("每日巡检").width > 100.0);
         widths.push(scroll.width);
         capture(
             &mut ui,
@@ -108,7 +105,7 @@ async fn cron_list_render_theme_and_width_matrix() {
                 app.cron_settings.save_error =
                     (state == "error").then(|| "中文错误反馈：示例错误".into());
                 let saved = app.cron_settings.jobs.clone();
-                if state == "empty" {
+                if matches!(state, "empty" | "loading") {
                     app.cron_settings.jobs.clear();
                 }
                 if state == "partial" {
@@ -124,8 +121,8 @@ async fn cron_list_render_theme_and_width_matrix() {
                 let title = positions.label("定时任务");
                 let group =
                     positions.labels.iter().find(|(s, _)| s.starts_with("全部 (")).unwrap().1;
-                assert!((title.x - scroll.x).abs() <= 1.0);
-                assert!((group.x - 14.0 - scroll.x).abs() <= 1.0);
+                assert!((title.x - scroll.x - 14.0).abs() <= 1.0);
+                assert!((group.x - 12.0 - scroll.x).abs() <= 1.0);
                 assert!((scroll.x - 28.0).abs() <= 1.0, "{scroll:?}");
                 assert_eq!(
                     positions.labels.iter().any(|(label, _)| label == "试试这些常用任务"),
@@ -136,11 +133,11 @@ async fn cron_list_render_theme_and_width_matrix() {
                     "{scroll:?}"
                 );
                 let footer =
-                    positions.labels.iter().find(|(s, _)| s.starts_with("全选 ")).unwrap().1;
+                    positions.label("全选");
                 assert_fits(footer, size);
                 assert!(footer.y >= scroll.y + scroll.height);
                 let delete =
-                    positions.labels.iter().find(|(s, _)| s.starts_with("删除已选(")).unwrap().1;
+                    positions.label("删除");
                 assert_fits(delete, size);
                 if state == "zero" {
                     widths.push(scroll.width);
@@ -170,7 +167,7 @@ async fn cron_list_render_theme_and_width_matrix() {
         let size = Size::new(480, 620);
         let mut ui = scene(frame(job_row(&app, &app.cron_settings.jobs[0])), &mut renderer, size);
         let positions = geometry(&mut ui, &renderer);
-        assert_fits(positions.label("展开"), size);
+        assert_fits(positions.label("未命名任务"), size);
         assert!(positions.containers.iter().any(|r| (r.width - 480.0).abs() <= 1.0));
         capture(
             &mut ui,
@@ -210,14 +207,14 @@ async fn cron_list_bulk_footer_stays_visible_when_scrolled() {
         }
         let after = geometry(&mut ui, &renderer);
         let translation = after.scroll.unwrap().1;
-        assert!(translation.y > 1000.0);
+        assert!(translation.y > 0.0);
         assert!(scroll.contains(after.label("巡检任务 29").center() - translation));
-        for label in ["定时任务", "全部 (30)", "全选 30 个任务", "删除已选(0)"]
+        for label in ["定时任务", "全部 (30)", "全选", "删除"]
         {
             assert_eq!(before.label(label), after.label(label));
             assert_fits(after.label(label), size);
         }
-        assert!(after.label("全选 30 个任务").y >= scroll.y + scroll.height);
+        assert!(after.label("全选").y >= scroll.y + scroll.height);
         capture(
             &mut ui,
             &mut renderer,
@@ -244,9 +241,9 @@ async fn cron_list_tabs_and_modals_preserve_width_and_scroll() {
             let before = geometry(&mut ui, &renderer);
             let title = before.label("定时任务");
             assert!((title.x - *left.get_or_insert(title.x)).abs() <= 1.0);
-            assert!((title.x - 28.0).abs() <= 1.0);
-            let content_width = size.width as f32 - title.x - 28.0;
-            assert!(before.containers.iter().any(|r| (r.x - title.x).abs() <= 1.0 && (r.width - content_width).abs() <= 1.0), "Cron tab must fill the content area");
+            assert!((title.x - 42.0).abs() <= 1.0);
+            let content_width = size.width as f32 - 56.0;
+            assert!(before.containers.iter().any(|r| (r.x - 28.0).abs() <= 1.0 && (r.width - content_width).abs() <= 1.0), "Cron tab must fill the content area");
             assert_single_content_scroll(&before);
             capture(
                 &mut ui,

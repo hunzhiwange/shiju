@@ -1,6 +1,7 @@
 //! 企业微信 AI 机器人 WebSocket 通道。
 
 mod outbound;
+mod cron_binding;
 pub mod runtime;
 pub mod webhook;
 
@@ -164,7 +165,11 @@ impl WeComChannel {
 #[async_trait]
 impl Channel for WeComChannel {
     fn name(&self) -> &str {
-        "wecom"
+        if self.runtime_scope.as_ref().is_some_and(runtime::WeComRuntimeScope::is_cron) {
+            "wecom_cron"
+        } else {
+            "wecom"
+        }
     }
 
     async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
@@ -252,6 +257,15 @@ impl Channel for WeComChannel {
                         };
                         let frame: Value = serde_json::from_str(text.as_ref()).context("解析企微 WebSocket 帧失败")?;
                         replies.acknowledge(&frame);
+                        if registration.as_ref().is_some_and(runtime::Registration::is_cron) {
+                            if frame.pointer("/body/chattype").and_then(Value::as_str) == Some("single")
+                                && let Ok(Some((message, _))) = Self::callback_message(&frame)
+                                && let Some(registration) = &registration
+                            {
+                                registration.bind_cron_chat(&message.content, &message.sender)?;
+                            }
+                            continue;
+                        }
                         if let Some((message, request_id)) = Self::callback_message(&frame)? {
                             let mut requests = self.reply_requests.write().await;
                             requests.insert(message.reply_target.clone(), request_id.clone());

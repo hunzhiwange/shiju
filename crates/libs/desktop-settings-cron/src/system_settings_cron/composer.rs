@@ -1,21 +1,46 @@
 //! 定时任务的提示词编辑器及独立于当前会话的执行选项。
 use super::*;
 use crate::message::SettingsMessage as S;
-use crate::state::CronJobDraft;
-use desktop_ui_controls::system_settings_common::settings_toggle;
-use iced::widget::{column, responsive, tooltip};
+use crate::state::{CronEditorPicker as Picker, CronEditorPickerAction as Action, CronJobDraft};
+use desktop_chat_input::input_panel::{
+    layout::composer_surface,
+    quick_messages::{WorkspacePicker, workspace_picker},
+    send_controls::permission_mode,
+    surface_styles::chat_editor_style,
+};
+use iced::widget::column;
+use iced::Padding;
 
 pub(super) fn view<'a>(
-    app: &ViewData<'_>,
+    app: &ViewData<'a>,
     draft: &'a CronJobDraft,
     editing: bool,
 ) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
-    let workspace = project_field_builder(app, &draft.project_path, |path| {
-        Message::Settings(S::CronJobEditProjectPathChanged(path))
-    });
+    let action = move |action| Message::Settings(S::CronEditorPickerChanged { editing, action });
+    let close = action(Action::Close);
+    let project = draft.project_path.trim();
+    let project_open = draft.editor_picker == Some(Picker::Project);
+    let workspace = workspace_picker(
+        WorkspacePicker {
+            i18n,
+            projects: app.recent_projects,
+            project_labels: app.recent_project_labels,
+            selected: (!project.is_empty()).then_some(project),
+            current: app.project_path,
+            query: &draft.editor_picker_query,
+            open: project_open,
+            within_window: true,
+        },
+        if project_open { close.clone() } else { action(Action::Open(Picker::Project)) },
+        close.clone(),
+        move |query| action(Action::Search(query)),
+        |path| action(Action::ProjectSelected(path)),
+        (!project.is_empty()).then(|| action(Action::ProjectSelected(String::new()))),
+        (!cfg!(target_arch = "wasm32")).then(|| action(Action::BrowseProject)),
+    );
     let shell = draft.job_type == CronAddJobType::Shell;
-    let mut content = column![].spacing(10).width(Length::Fill);
+    let mut content = column![].width(Length::Fill);
     if !shell && !draft.skills.is_empty() {
         let chips = row(draft.skills.iter().map(|id| {
             let label = app
@@ -30,7 +55,7 @@ pub(super) fn view<'a>(
         }))
         .spacing(6)
         .wrap();
-        content = content.push(chips);
+        content = content.push(container(chips).padding(Padding::from([8, 12]).bottom(0)));
     }
     let editor = if shell {
         settings_text_editor(&draft.command_editor)
@@ -38,66 +63,42 @@ pub(super) fn view<'a>(
             .on_action(|action| Message::Settings(S::CronJobEditCommandEditorAction(action)))
     } else {
         settings_text_editor(&draft.prompt_editor)
-            .placeholder(i18n.__("要让 Agent 执行的任务"))
+            .placeholder(i18n.__("添加提示词"))
             .on_action(|action| Message::Settings(S::CronJobEditPromptEditorAction(action)))
     };
-    content = content.push(editor.height(Length::Fixed(116.0)).style(|theme, status| {
-        let mut style = settings_text_editor_style(theme, status);
-        style.background = Background::Color(iced::Color::TRANSPARENT);
-        if !matches!(status, text_editor::Status::Focused { .. }) {
-            style.border.width = 0.0;
-        }
-        style
-    }));
-
-    let controls = responsive(move |size| {
-        let mut controls = row![].spacing(8).align_y(Alignment::Center);
-        let workspace = container(workspace()).width(Length::Fill);
-        if !shell {
-            controls = controls.push(access_toggle(i18n, draft));
-        }
-        if size.width >= 460.0 {
-            row![workspace, controls].spacing(12).align_y(Alignment::Center).into()
-        } else {
-            column![workspace, controls.wrap()].spacing(8).into()
-        }
-    })
-    .height(Length::Shrink);
+    content = content.push(
+        container(
+            editor
+                .height(Length::Fixed(120.0))
+                .style(|theme, _| chat_editor_style(theme, false, None)),
+        )
+        .padding(Padding::from(5).bottom(if shell { 5 } else { 0 })),
+    );
 
     if !shell {
         content = content.push(super::composer_picker::controls(app, draft, editing));
     }
-    let content = container(content).width(Length::Fill).padding(8).style(composer_style);
-    container(column![content, container(controls).padding([0, 8])].spacing(8))
-        .padding(4)
-        .width(Length::Fill)
-        .style(|theme| {
-            let mut style = composer_style(theme);
-            style.background = Some(theme.extended_palette().background.weak.color.into());
-            style.border.width = 0.0;
-            style
-        })
-        .into()
-}
 
-fn access_toggle(i18n: I18n, draft: &CronJobDraft) -> Element<'static, Message> {
-    let label = if draft.full_access { i18n.__("完全访问") } else { i18n.__("受限") };
-    let trigger = settings_toggle(draft.full_access)
-        .label(label)
-        .on_toggle(|enabled| Message::Settings(S::CronJobEditFullAccessToggled(enabled)));
-    tooltip(trigger, text(i18n.__("获取完全访问权限")).size(12), tooltip::Position::Top)
-        .style(settings_modal_card_style)
-        .into()
-}
-
-fn composer_style(theme: &Theme) -> container::Style {
-    container::Style {
-        background: Some(theme.palette().background.into()),
-        border: iced::Border {
-            color: theme.palette().text.scale_alpha(0.13),
-            width: 1.0,
-            radius: 14.0.into(),
-        },
-        ..Default::default()
+    let mut controls = row![workspace].spacing(10).align_y(Alignment::Center);
+    if !shell {
+        let open = draft.editor_picker == Some(Picker::Permission);
+        controls = controls.push(permission_mode(
+            i18n,
+            !draft.submitting,
+            draft.full_access,
+            open,
+            if open { close.clone() } else { action(Action::Open(Picker::Permission)) },
+            close,
+            action(Action::PermissionSelected(!draft.full_access)),
+        ));
     }
+
+    composer_surface(
+        content,
+        container(controls.wrap().vertical_spacing(4)).padding([4, 10]),
+        false,
+        Default::default(),
+        None,
+    )
+    .into()
 }

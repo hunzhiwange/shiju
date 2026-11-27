@@ -10,17 +10,24 @@ pub(crate) fn visible(app: &App) -> bool {
 }
 fn task(app: &mut App, event: Option<CronHistoryMessage>) -> Task<Message> {
  use desktop_settings_cron::update::{cron, history};
- let delivery = crate::app::components::system_settings_cron::availability(app);
  let config = crate::app::config::agent_config_access();
  let mut notices = Vec::new();
- let mut inputs = cron::Inputs { cron_settings: &mut app.cron_settings, desktop_locale: app.general_settings.desktop_locale, delivery, client: crate::app::config::gateway_client(), config: &config, notices: &mut notices };
+ let mut inputs = cron::Inputs { cron_settings: &mut app.cron_settings, desktop_locale: app.general_settings.desktop_locale, system_timezone: app.general_settings.chat_timezone.parse().expect("validated system timezone"), client: crate::app::config::gateway_client(), config: &config, notices: &mut notices };
  let task = match event { Some(event) => history::update(&mut inputs, event), None => history::refresh(&mut inputs) }.map(mapping::message);
  let mut tasks = vec![task];
  for notice in notices { tasks.push(match notice { cron::Notice::Error(text) => app.show_error_toast(text), cron::Notice::Success(text) => app.show_success_toast(text) }); }
  Task::batch(tasks)
 }
 pub(crate) fn reconcile(app: &mut App) -> Task<Message> {
- let visible = visible(app);
+ let cron_visible = crate::app::components::system_settings_cron::visible(app);
+ if !cron_visible {
+    let state = &mut app.cron_settings;
+    state.list_menu = None;
+    state.hovered_job_id = None;
+    state.open_job_id = None;
+    state.delete_target = None;
+ }
+ let visible = cron_visible && app.cron_settings.active_tab == CronSettingsTab::History;
  if app.cron_settings.history.sync_context(visible, app.navigation_tabs.project_path.clone()) { task(app, None) } else { Task::none() }
 }
 pub(crate) fn update(app: &mut App, event: CronHistoryMessage) -> Task<Message> {

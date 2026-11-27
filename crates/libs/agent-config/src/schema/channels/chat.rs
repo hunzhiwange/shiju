@@ -9,7 +9,8 @@ pub use config_channels::{ChannelsConfig, default_channel_message_timeout_secs};
 use crate::traits::ChannelConfig;
 use crate::traits::ConfigHandle;
 use config_channel_services::other::QQReceiveMode;
-use config_channel_services::{WeChatConfig, WeComConfig};
+use config_channel_services::WeChatConfig;
+pub use config_channel_services::WeComConfig;
 
 impl ChannelConfig for WeComConfig {
     fn name() -> &'static str {
@@ -135,7 +136,8 @@ impl ChannelsConfigExt for ChannelsConfig {
                     .as_ref()
                     .is_some_and(|wecom| wecom.has_required_credentials())
                     || self.wecom_instances.iter().any(|instance| {
-                        instance.config.has_required_credentials()
+                        !WeComConfig::is_cron_instance(&instance.id)
+                            && instance.config.has_required_credentials()
                     }),
             ),
             (

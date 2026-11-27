@@ -15,7 +15,7 @@ fn run(status: &str, id: i64) -> CronHistoryRunDto {
 }
 #[test]
 fn cron_history_rows_format_three_states() {
-    assert_eq!(status_label(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), "running"), "◌ 运行中");
+    assert_eq!(status_label(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), "running"), "运行中");
     assert_eq!(status_label(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), "ok"), "成功");
     assert_eq!(status_label(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), "error"), "失败");
     assert_eq!(status_label(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), "other"), "未知状态（other）");
@@ -24,7 +24,7 @@ fn cron_history_rows_format_three_states() {
     let mut invalid = run("ok", 1);
     invalid.duration_ms = Some(-1);
     assert_eq!(duration_label(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &invalid), "耗时不可用");
-    assert!(absolute_time(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), "bad").contains("时间无效"));
+    assert!(absolute_time(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), "bad", config_ui::DEFAULT_TIMEZONE.parse().unwrap()).contains("时间无效"));
 }
 #[test]
 fn cron_history_details_select_exact_run() {
@@ -48,8 +48,8 @@ fn cron_history_components_build_real_rows_and_missing_details() {
         app.app_theme = theme;
         let _ = view(&super::super::helpers_tests::data(&app));
         for run in &app.cron_settings.history.runs {
-            let _ = record_row(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), run, true);
-            let _ = record_row(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), run, false);
+            let _ = record_row(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), run, true, runtime_time::zones::SHANGHAI);
+            let _ = record_row(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), run, false, runtime_time::zones::SHANGHAI);
         }
         app.cron_settings.history.selected_run = Some(run_key(&app.cron_settings.history.runs[1]));
         let _ = with_details(&super::super::helpers_tests::data(&app), text("定时任务").into(), std::convert::identity);

@@ -1,6 +1,7 @@
 use super::cron::Inputs;
 use super::messages::{Message, SettingsMessage};
 use crate::state::{CronAddJobType, CronAddScheduleKind};
+use crate::system_settings_cron::format_cron_datetime;
 use desktop_config::config_cron_jobs::load_cron_jobs_async;
 use iced::Task;
 use std::fmt::Write;
@@ -120,6 +121,7 @@ pub(super) fn cron_editor_save_task(
 
 pub(super) fn format_run_history_text(
     locale: config_ui::DesktopLocale,
+    timezone: runtime_time::zones::NamedTimeZone,
     runs: &[gateway_cron::CronRunDto],
 ) -> String {
     let mut text = String::new();
@@ -146,13 +148,13 @@ pub(super) fn format_run_history_text(
         let _ = writeln!(
             text,
             "{}",
-            desktop_i18n::__!(desktop_i18n::I18n::new(locale), "开始: %s", run.started_at.as_str())
+            desktop_i18n::__!(desktop_i18n::I18n::new(locale), "开始: %s", format_cron_datetime(&run.started_at, timezone))
                 .expect("valid history template")
         );
         let _ = writeln!(
             text,
             "{}",
-            desktop_i18n::__!(desktop_i18n::I18n::new(locale), "结束: %s", run.finished_at.as_str())
+            desktop_i18n::__!(desktop_i18n::I18n::new(locale), "结束: %s", format_cron_datetime(&run.finished_at, timezone))
                 .expect("valid history template")
         );
         let _ = writeln!(

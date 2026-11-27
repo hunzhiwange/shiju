@@ -1,5 +1,5 @@
 //! 强类型时间草稿；时区换算及下一次执行由网关负责。
-use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime, Timelike};
+use chrono::{DateTime, Datelike, FixedOffset, Months, NaiveDate, NaiveTime, Timelike};
 use gateway_cron::{CronJobDto, CronPreviewRequest};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,7 +51,7 @@ pub enum CronScheduleRule {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CronScheduleDraft {
     pub rule: CronScheduleRule,
-    /// 显式展示的 IANA 名称，由网关校验并解析。
+    /// 系统配置提供的 IANA 名称，由网关校验并解析。
     pub timezone: String,
     /// None 保留原值，Some(None) 清除，Some(Some(date)) 设置包含当日的日期边界。
     pub start_date: Option<Option<NaiveDate>>,
@@ -86,6 +86,20 @@ fn sorted(values: &[u32], max: u32) -> Result<Vec<u32>, String> {
 const WEEKDAYS: [&str; 7] = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
 impl CronScheduleRule {
+    pub(crate) fn allows_validity(&self) -> bool {
+        !matches!(self, Self::At { .. } | Self::AbsoluteAt(_))
+    }
+
+    pub(crate) fn has_repeat_choices(&self) -> bool {
+        matches!(
+            self,
+            Self::Weekly { .. }
+                | Self::Biweekly { .. }
+                | Self::Monthly { .. }
+                | Self::Yearly { .. }
+        )
+    }
+
     pub(crate) fn wall_time(&self) -> Option<NaiveTime> {
         match self {
             Self::At { time, .. }
@@ -112,6 +126,17 @@ impl CronScheduleRule {
 }
 
 impl CronScheduleDraft {
+    pub(crate) fn boundary_date(&self, end: bool) -> Option<NaiveDate> {
+        let patch = if end { self.end_date } else { self.start_date };
+        if let Some(value) = patch {
+            return value;
+        }
+        let absolute = if end { self.ends_at } else { self.starts_at }?;
+        let timezone = self.timezone.parse::<runtime_time::zones::NamedTimeZone>().ok()?;
+        let date = absolute.with_timezone(&timezone).date_naive();
+        if end { date.pred_opt() } else { Some(date) }
+    }
+
     pub fn request(&self) -> Result<CronPreviewRequest, String> {
         if self.timezone.trim().is_empty() {
             return Err("时区不能为空".into());
@@ -312,6 +337,63 @@ impl CronScheduleDraft {
             ..Default::default()
         })
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValidityEndpoint {
+    Start,
+    End,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValidityAction {
+    Toggle,
+    Navigate(i32),
+    Focus(ValidityEndpoint),
+    Pick(NaiveDate),
+    Clear(ValidityEndpoint),
+    NoExpiry,
+    Confirm,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ValidityPicker {
+    pub(crate) start: Option<NaiveDate>,
+    pub(crate) end: Option<NaiveDate>,
+    pub(crate) month: NaiveDate,
+    pub(crate) endpoint: ValidityEndpoint,
+}
+
+impl ValidityPicker {
+    pub(crate) fn new(schedule: &CronScheduleDraft) -> Self {
+        let start = schedule.boundary_date(false);
+        let end = schedule.boundary_date(true);
+        let month = start.or(end).unwrap_or_else(|| local_today(&schedule.timezone));
+        Self { start, end, month: month.with_day(1).unwrap(), endpoint: ValidityEndpoint::Start }
+    }
+
+    pub(crate) fn set_boundary(&mut self, endpoint: ValidityEndpoint, date: Option<NaiveDate>) {
+        match endpoint {
+            ValidityEndpoint::Start => self.start = date,
+            ValidityEndpoint::End => self.end = date,
+        }
+    }
+
+    pub(crate) fn is_ordered(self) -> bool {
+        !matches!((self.start, self.end), (Some(start), Some(end)) if start > end)
+    }
+}
+
+pub(crate) fn local_today(timezone: &str) -> NaiveDate {
+    let now = chrono::Utc::now();
+    timezone
+        .parse::<runtime_time::zones::NamedTimeZone>()
+        .map_or_else(|_| now.date_naive(), |zone| now.with_timezone(&zone).date_naive())
+}
+
+pub(crate) fn shift_month(month: NaiveDate, offset: i32) -> Option<NaiveDate> {
+    let months = Months::new(offset.unsigned_abs());
+    if offset < 0 { month.checked_sub_months(months) } else { month.checked_add_months(months) }
 }
 
 fn parse_expression(expression: &str) -> CronScheduleRule {

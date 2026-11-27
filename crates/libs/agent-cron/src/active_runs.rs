@@ -44,8 +44,28 @@ pub struct ActiveRunGuard {
     execution_id: String,
 }
 
-pub fn register(
+pub fn register(config: &Config, job: &CronJob, started_at: DateTime<Utc>) -> ActiveRunGuard {
+    let workspace = workspace(config);
+    insert(&mut runs(), workspace, job, started_at)
+}
+
+/// Reserve an immediate run only when no current run for the job exists.
+pub fn register_if_idle(
     config: &Config,
+    job: &CronJob,
+    started_at: DateTime<Utc>,
+) -> Option<ActiveRunGuard> {
+    let workspace = workspace(config);
+    let mut active = runs();
+    if active.values().any(|run| run.workspace == workspace && run.job_id == job.id) {
+        return None;
+    }
+    Some(insert(&mut active, workspace, job, started_at))
+}
+
+fn insert(
+    active: &mut BTreeMap<String, ActiveRun>,
+    workspace: PathBuf,
     job: &CronJob,
     started_at: DateTime<Utc>,
 ) -> ActiveRunGuard {
@@ -55,9 +75,9 @@ pub fn register(
         job_id: job.id.clone(),
         started_at,
         name: job.name.clone(),
-        workspace: workspace(config),
+        workspace,
     };
-    runs().insert(execution_id.clone(), run);
+    active.insert(execution_id.clone(), run);
     ActiveRunGuard { execution_id }
 }
 

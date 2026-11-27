@@ -57,9 +57,13 @@ pub fn build_channels_settings(
         clawdtalk: channels_cfg.clawdtalk.clone(),
         message_timeout_secs: channels_cfg.message_timeout_secs.min(u32::MAX as u64) as u32,
         active_tab: crate::state::ChannelsSettingsTab::Global,
+        expanded_instances: Default::default(),
         save_error: None,
         qr_flow: Default::default(),
         wecom_delivery: None,
+        wecom_cron_bindings: Default::default(),
+        wecom_cron_binding_request: 0,
+        wecom_cron_binding_requests: Default::default(),
     };
     channels_settings.refresh_text_inputs();
     channels_settings

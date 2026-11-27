@@ -45,7 +45,8 @@ fn cron_templates_draft_preserves_safe_defaults() {
                 && d.project_path.is_empty()
                 && d.model.is_empty()
                 && d.model_provider.is_empty()
-                && d.delivery_to.is_empty()
+                && !d.delivery_webhook_configured
+                && d.delivery_webhook.as_str().is_empty()
         );
         assert_eq!(d.session_target, "isolated");
         assert_eq!(d.agent, "main");

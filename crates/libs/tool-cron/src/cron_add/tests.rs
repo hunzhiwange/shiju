@@ -429,6 +429,26 @@ async fn agent_job_explicit_execution_options_override_defaults() {
 }
 
 #[tokio::test]
+async fn scheduled_job_cannot_escalate_a_restricted_session() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp).await;
+    let tool = CronAddTool::new(config.clone(), test_security(&config))
+        .with_execution_defaults(&config.workspace_dir, false);
+    let result = tool
+        .execute(json!({
+            "schedule": {"kind": "every", "every_ms": 60_000},
+            "job_type": "agent",
+            "prompt": "Summarize this project",
+            "full_access": true
+        }))
+        .await
+        .unwrap();
+
+    assert!(!result.success);
+    assert!(list_jobs(&config).unwrap().is_empty());
+}
+
+#[tokio::test]
 async fn rejects_unknown_job_type() {
     let tmp = TempDir::new().unwrap();
     let cfg = test_config(&tmp).await;

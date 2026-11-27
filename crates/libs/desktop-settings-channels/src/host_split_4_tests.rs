@@ -40,6 +40,8 @@ fn fixture() -> Fixture {
     .unwrap();
     let mut app = Fixture::new().0;
     app.channels_settings = crate::app_init::settings_builders::build_channels_settings(&config);
+    app.channels_settings.expanded_instances.insert("feishu".into(), [None].into());
+    app.channels_settings.expanded_instances.insert("dingtalk".into(), [None, Some(0)].into());
     app
 }
 fn view(app: &Fixture) -> Element<'_, Message> {

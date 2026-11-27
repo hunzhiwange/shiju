@@ -1,26 +1,28 @@
 //! 新建与编辑共用的七类时间规则、有效期和预览。
-use super::{ViewData, cron_segment_style, date_time, editor_select, primary_button};
+use super::{ViewData, date_time, editor_select, repeat_picker, validity_picker};
 use crate::message::Message;
 use crate::message::SettingsMessage as S;
-use crate::state::{CronJobDraft, CronScheduleDraft, CronScheduleRule as R, IntervalUnit};
-use chrono::{Datelike, NaiveDate, NaiveTime};
+use crate::state::{CronJobDraft, CronScheduleDraft, CronScheduleRule as R, IntervalUnit, local_today};
+use chrono::{DateTime, Datelike, NaiveDate, NaiveTime, Timelike};
 use desktop_assets::assets::Icon;
 use desktop_i18n::I18n;
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_CONTROL_HEIGHT, icon_svg, primary_action_btn_style, rounded_action_btn_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_svg, primary_action_btn_style,
+    rounded_action_btn_style, settings_divider, settings_error_banner, settings_group_card,
     settings_muted_text_style, settings_text_input,
 };
 use iced::widget::{button, column, container, responsive, row, text};
-use iced::{Element, Length};
+use iced::{Alignment, Element, Font, Length};
+use runtime_time::zones::NamedTimeZone;
 
-fn changed(editing: bool, draft: CronScheduleDraft) -> Message {
+pub(super) fn changed(editing: bool, draft: CronScheduleDraft) -> Message {
     Message::Settings(S::CronScheduleDraftChanged { editing, draft })
 }
 
 fn selected(rule: &R) -> usize {
     match rule {
-        R::At { .. } | R::AbsoluteAt(_) => 0,
-        R::Every { .. } => 1,
+        R::Every { .. } => 0,
+        R::At { .. } | R::AbsoluteAt(_) => 1,
         R::Daily { .. } => 2,
         R::Weekly { .. } => 3,
         R::Biweekly { .. } => 4,
@@ -49,7 +51,8 @@ fn date_select<'a>(i18n: I18n,
         .width(96),
         text(i18n.__("年")),
         editor_select(1..=12u32, Some(month), move |m| month_change(valid_date(year, m, day)))
-            .width(70),
+            .width(70)
+            .menu_min_width(104.0),
         text(i18n.__("月")),
         editor_select(
             (1..=31u32)
@@ -58,33 +61,14 @@ fn date_select<'a>(i18n: I18n,
             Some(day),
             move |d| on_change(valid_date(year, month, d))
         )
-        .width(70),
+        .width(70)
+        .menu_min_width(104.0),
         text(i18n.__("日")),
     ]
     .spacing(6)
     .align_y(iced::Alignment::Center)
     .wrap()
     .into()
-}
-
-fn boundary_date(draft: &CronScheduleDraft, end: bool) -> Option<NaiveDate> {
-    let patch = if end { draft.end_date } else { draft.start_date };
-    if let Some(value) = patch {
-        return value;
-    }
-    let absolute = if end { draft.ends_at } else { draft.starts_at }?;
-    let timezone = draft.timezone.parse::<runtime_time::zones::NamedTimeZone>().ok()?;
-    let date = absolute.with_timezone(&timezone).date_naive();
-    if end { date.pred_opt() } else { Some(date) }
-}
-
-fn toggle(values: &mut Vec<u32>, value: u32) {
-    if values.contains(&value) {
-        values.retain(|v| *v != value);
-    } else {
-        values.push(value);
-        values.sort_unstable();
-    }
 }
 
 pub(super) fn frequency_form<'a>(
@@ -94,38 +78,24 @@ pub(super) fn frequency_form<'a>(
 ) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
     let current = draft.effective_schedule();
-    let now = chrono::Utc::now();
-    let today = current
-        .timezone
-        .parse::<runtime_time::zones::NamedTimeZone>()
-        .map_or_else(|_| now.date_naive(), |timezone| now.with_timezone(&timezone).date_naive());
+    let today = local_today(&current.timezone);
     let weekday = today.weekday().number_from_monday();
     let time =
         current.rule.wall_time().unwrap_or_else(|| NaiveTime::from_hms_opt(9, 0, 0).unwrap());
-    let rules = [
-        R::At { date: today, time },
-        R::Every { amount: 1, unit: IntervalUnit::Hours },
-        R::Daily { time },
-        R::Weekly { weekdays: vec![weekday], time },
-        R::Biweekly { anchor: today, weekdays: vec![weekday], time },
-        R::Monthly { days: vec![today.day()], time },
-        R::Yearly { month: today.month(), day: today.day(), time },
-        R::Advanced("0 9 * * *".into()),
-    ];
-    let labels = [
-        i18n.__("单次"),
-        i18n.__("固定间隔"),
-        i18n.__("每天"),
-        i18n.__("每周"),
-        i18n.__("每双周"),
-        i18n.__("每月"),
-        i18n.__("每年"),
-        i18n.__("高级 Cron"),
+    let mut choices = [
+        (R::Every { amount: 1, unit: IntervalUnit::Hours }, i18n.__("间隔")),
+        (R::At { date: today, time }, i18n.__("单次")),
+        (R::Daily { time }, i18n.__("每天")),
+        (R::Weekly { weekdays: vec![weekday], time }, i18n.__("每周")),
+        (R::Biweekly { anchor: today, weekdays: vec![weekday], time }, i18n.__("每双周")),
+        (R::Monthly { days: vec![today.day()], time }, i18n.__("每月")),
+        (R::Yearly { month: today.month(), day: today.day(), time }, i18n.__("每年")),
+        (R::Advanced("0 9 * * *".into()), i18n.__("高级 Cron")),
     ];
     let repeat = selected(&current.rule);
-    let repeat_caption = repeat_caption(i18n, labels[repeat], &current.rule);
-    let ranged =
-        boundary_date(&current, false).is_some() || boundary_date(&current, true).is_some();
+    choices[repeat].0 = current.rule.clone();
+    let repeat_caption = repeat_caption(i18n, choices[repeat].1, &current.rule);
+    let open_picker = draft.editor_picker;
     let picker = app
         .cron_settings
         .date_time_picker
@@ -134,47 +104,39 @@ pub(super) fn frequency_form<'a>(
         .cloned();
     let toolbar_draft = current.clone();
     let toolbar = responsive(move |size| {
-        let next = toolbar_draft.clone();
-        let rules = rules.clone();
-        let rule_field = editor_select([1, 0, 2, 3, 4, 5, 6, 7], Some(repeat), move |index| {
-            let mut next = next.clone();
-            if index == repeat {
-                return Message::None;
-            }
-            next.rule = rules[index].clone();
-            changed(editing, next)
-        })
-        .format_labels(move |index| labels[*index].to_owned())
-        .trigger_label(format!("{} · {}", i18n.__("重复"), repeat_caption))
-        .width(Length::Fill);
+        let rule_field = repeat_picker::view(
+            i18n,
+            &toolbar_draft,
+            choices.clone(),
+            repeat,
+            desktop_i18n::__!(i18n, "重复：%s", repeat_caption.clone())
+                .expect("valid settings message"),
+            open_picker,
+            editing,
+        );
         let time_label = match &toolbar_draft.rule {
             R::At { date, time } => Some(format!("{date} {}", time.format("%H:%M"))),
             R::AbsoluteAt(value) => Some(
-                local_schedule_time(value, &toolbar_draft.timezone, "%Y-%m-%d %H:%M")
+                local_schedule_time(value, &toolbar_draft.timezone)
+                    .map(|local| local.format("%Y-%m-%d %H:%M").to_string())
                     .unwrap_or_else(|| value.clone()),
             ),
             R::Every { .. } | R::Advanced(_) => None,
             _ => Some(time.format("%H:%M").to_string()),
         };
-        let mut fields: Vec<Element<'_, Message>> = vec![rule_field.into()];
+        let mut fields = vec![rule_field];
         if let Some(label) = time_label {
-            let trigger = button(
-                row![
-                    text(format!("{} · {label}", i18n.__("时间"))).size(13).width(Length::Fill),
-                    icon_svg(if picker.is_some() { Icon::ChevronUp } else { Icon::ChevronDown }, 12.0),
-                ]
-                .spacing(8)
-                .align_y(iced::Alignment::Center),
-            )
-            .padding([8, 12])
-            .height(SETTINGS_CONTROL_HEIGHT)
-            .width(Length::Fill)
-            .style(rounded_action_btn_style)
-            .on_press(Message::Settings(if picker.is_some() {
-                S::CronPickerCancel
-            } else {
-                S::CronPickerOpen { editing }
-            }));
+            let trigger = repeat_picker::trigger(
+                text(desktop_i18n::__!(i18n, "时间：%s", label).expect("valid settings message"))
+                    .size(SETTINGS_CONTROL_TEXT_SIZE)
+                    .width(Length::Fill),
+                picker.is_some(),
+                Message::Settings(if picker.is_some() {
+                    S::CronPickerCancel
+                } else {
+                    S::CronPickerOpen { editing }
+                }),
+            );
             fields.push(date_time::popover(
                 i18n,
                 picker.as_ref(),
@@ -182,24 +144,8 @@ pub(super) fn frequency_form<'a>(
                 trigger.into(),
             ));
         }
-        if !matches!(toolbar_draft.rule, R::At { .. } | R::AbsoluteAt(_)) {
-            let next = toolbar_draft.clone();
-            let labels = [i18n.__("长期有效"), i18n.__("日期范围")];
-            fields.push(
-                editor_select([false, true], Some(ranged), move |range| {
-                    if range == ranged {
-                        return Message::None;
-                    }
-                    let mut next = next.clone();
-                    next.start_date = Some(range.then_some(today));
-                    next.end_date = Some(range.then_some(today));
-                    changed(editing, next)
-                })
-                .format_labels(move |range| labels[usize::from(*range)].to_owned())
-                .trigger_label(format!("{} · {}", i18n.__("有效期"), labels[usize::from(ranged)]))
-                .width(Length::Fill)
-                .into(),
-            );
+        if toolbar_draft.rule.allows_validity() {
+            fields.push(validity_picker::view(i18n, &toolbar_draft, today, open_picker, editing));
         }
         if size.width >= 560.0 {
             row(fields
@@ -243,7 +189,12 @@ pub(super) fn frequency_form<'a>(
                 }
                 changed(editing, next)
             });
-            form = form.push(row![text(i18n.__("每")), input, unit].spacing(8).wrap());
+            form = form.push(
+                row![text(i18n.__("每")), input, unit]
+                    .spacing(8)
+                    .align_y(Alignment::Center)
+                    .wrap(),
+            );
         }
         R::Advanced(expression) => {
             let next = current.clone();
@@ -254,92 +205,36 @@ pub(super) fn frequency_form<'a>(
                     changed(editing, next)
                 }))
                 .push(
-                    text(i18n.__("5 字段：分 时 日 月 星期；6 字段在最前增加秒。使用当前时区。")).size(12),
+                    text(i18n.__("5 字段：分 时 日 月 星期；6 字段在最前增加秒。")).size(12),
                 );
         }
-        _ => {
-            if let R::Weekly { weekdays, .. } | R::Biweekly { weekdays, .. } = &current.rule {
-                let mut days = row![].spacing(4);
-                for (index, label) in weekday_labels(i18n).into_iter().enumerate() {
-                    let value = index as u32 + 1;
-                    let active = weekdays.contains(&value);
-                    let mut next = current.clone();
-                    if let R::Weekly { weekdays, .. } | R::Biweekly { weekdays, .. } =
-                        &mut next.rule
-                    {
-                        toggle(weekdays, value);
-                    }
-                    days = days.push(
-                        button(text(label).size(13))
-                            .padding([8, 10])
-                            .style(move |t, s| cron_segment_style(t, s, active))
-                            .on_press(changed(editing, next)),
-                    );
-                }
-                form = form.push(text(i18n.__("星期（至少选择一天）"))).push(days.wrap());
-            }
-            if let R::Biweekly { anchor, .. } = &current.rule {
-                let next = current.clone();
-                let monday = anchor
-                    .checked_sub_days(chrono::Days::new(
-                        anchor.weekday().num_days_from_monday().into(),
-                    ))
-                    .unwrap_or(*anchor);
-                form = form
-                    .push(text(desktop_i18n::__!(i18n, "双周锚点 · 活动周从 %s 开始，隔周跳过", (monday).to_string()).expect("valid settings message")).size(12))
-                    .push(date_select(i18n, *anchor, move |date| {
-                        let mut next = next.clone();
-                        if let R::Biweekly { anchor, .. } = &mut next.rule {
-                            *anchor = date;
-                        }
-                        changed(editing, next)
-                    }));
-            }
-            if let R::Monthly { days, .. } = &current.rule {
-                form = form.push(text(i18n.__("日期（至少选择一天）")));
-                for week in (1..=31u32).collect::<Vec<_>>().chunks(7) {
-                    let mut buttons = row![].spacing(4);
-                    for value in week {
-                        let active = days.contains(value);
-                        let mut next = current.clone();
-                        if let R::Monthly { days, .. } = &mut next.rule {
-                            toggle(days, *value);
-                        }
-                        buttons = buttons.push(
-                            button(text(value.to_string()).size(13))
-                                .padding([8, 10])
-                                .style(move |t, s| cron_segment_style(t, s, active))
-                                .on_press(changed(editing, next)),
-                        );
-                    }
-                    form = form.push(buttons.wrap());
-                }
-            }
-            if let R::Yearly { month, day, .. } = &current.rule {
-                let next = current.clone();
-                let day_value = *day;
-                let month_input = editor_select(1..=12u32, Some(*month), move |month| {
+        R::Biweekly { anchor, .. } => {
+            let next = current.clone();
+            let monday = anchor
+                .checked_sub_days(chrono::Days::new(anchor.weekday().num_days_from_monday().into()))
+                .unwrap_or(*anchor);
+            form = form
+                .push(
+                    text(
+                        desktop_i18n::__!(
+                            i18n,
+                            "双周锚点 · 活动周从 %s 开始，隔周跳过",
+                            monday.to_string()
+                        )
+                        .expect("valid settings message"),
+                    )
+                    .size(12)
+                    .style(settings_muted_text_style),
+                )
+                .push(date_select(i18n, *anchor, move |date| {
                     let mut next = next.clone();
-                    if let R::Yearly { month: m, day, .. } = &mut next.rule {
-                        *m = month;
-                        *day = day_value;
+                    if let R::Biweekly { anchor, .. } = &mut next.rule {
+                        *anchor = date;
                     }
                     changed(editing, next)
-                });
-                let next = current.clone();
-                let days =
-                    (1..=31u32).filter(|day| NaiveDate::from_ymd_opt(2000, *month, *day).is_some());
-                let day_input = editor_select(days, Some(*day), move |day| {
-                    let mut next = next.clone();
-                    if let R::Yearly { day: d, .. } = &mut next.rule {
-                        *d = day;
-                    }
-                    changed(editing, next)
-                });
-                form = form
-                    .push(row![month_input, text(i18n.__("月")), day_input, text(i18n.__("日"))].spacing(8).wrap());
-            }
+                }));
         }
+        _ => {}
     }
     if matches!(current.rule, R::Monthly { .. } | R::Yearly { .. }) {
         form = form.push(
@@ -348,32 +243,8 @@ pub(super) fn frequency_form<'a>(
                 .style(settings_muted_text_style),
         );
     }
-    if ranged && !matches!(current.rule, R::At { .. } | R::AbsoluteAt(_)) {
-        let start = boundary_date(&current, false);
-        let end = boundary_date(&current, true);
-        for (label, is_end, date) in
-            [(i18n.__("开始日期"), false, start), (i18n.__("结束日期（含当日）"), true, end)]
-        {
-            let mut next = current.clone();
-            next.start_date = Some(start);
-            next.end_date = Some(end);
-            form = form.push(text(label)).push(date_select(
-                i18n,
-                date.unwrap_or(today),
-                move |date| {
-                    let mut next = next.clone();
-                    if is_end {
-                        next.end_date = Some(Some(date));
-                    } else {
-                        next.start_date = Some(Some(date));
-                    }
-                    changed(editing, next)
-                },
-            ));
-        }
-    }
     if current.timezone.parse::<runtime_time::zones::NamedTimeZone>().is_err() {
-        form = form.push(super::settings_error_banner(i18n.__("请选择有效的 IANA 时区")));
+        form = form.push(super::settings_error_banner(i18n.__("系统设置中的时区无效")));
     }
     if let Err(error) = current.request() {
         form = form.push(super::settings_error_banner(i18n.__(&error).to_owned()));
@@ -381,7 +252,7 @@ pub(super) fn frequency_form<'a>(
     form.into()
 }
 
-fn weekday_labels(i18n: I18n) -> [&'static str; 7] {
+pub(super) fn weekday_labels(i18n: I18n) -> [&'static str; 7] {
     [
         i18n.__("周一"),
         i18n.__("周二"),
@@ -404,28 +275,12 @@ fn repeat_caption(i18n: I18n, label: &str, rule: &R) -> String {
                 .join(", ")
         }
         R::Monthly { days, .. } => days.iter().map(u32::to_string).collect::<Vec<_>>().join(", "),
-        R::Yearly { month, day, .. } => format!("{month:02}-{day:02}"),
+        R::Yearly { month, day, .. } => {
+            desktop_i18n::__!(i18n, "%u月%u日", *month, *day).expect("valid settings message")
+        }
         _ => String::new(),
     };
     if details.is_empty() { label.to_owned() } else { format!("{label} {details}") }
-}
-
-pub(super) fn timezone_field(
-    i18n: I18n,
-    draft: &CronJobDraft,
-    editing: bool,
-) -> Element<'static, Message> {
-    let current = draft.effective_schedule();
-    let input =
-        settings_text_input("UTC / Asia/Shanghai", &current.timezone).on_input(move |value| {
-            let mut next = current.clone();
-            next.timezone = value;
-            changed(editing, next)
-        });
-    container(column![text(i18n.__("时区（IANA）")).size(15), input].spacing(6))
-        .padding([14, 0])
-        .width(Length::Fill)
-        .into()
 }
 
 pub(super) fn save_button<'a>(
@@ -433,11 +288,10 @@ pub(super) fn save_button<'a>(
     draft: &CronJobDraft,
     editing: bool,
 ) -> Element<'a, Message> {
-    let enabled = !draft.submitting && preview_ready(draft);
     button(text(locale.__(if draft.submitting { "正在保存…" } else { "保存" })).size(13))
         .padding([10, 16])
         .style(primary_action_btn_style)
-        .on_press_maybe(enabled.then_some(Message::Settings(if editing {
+        .on_press_maybe((!draft.submitting).then_some(Message::Settings(if editing {
             S::CronJobEditSave
         } else {
             S::CronAddSubmit
@@ -445,14 +299,10 @@ pub(super) fn save_button<'a>(
         .into()
 }
 
-pub(super) fn preview_ready(draft: &CronJobDraft) -> bool {
-    !draft.preview_loading && matches!(&draft.preview, Some(Ok(p)) if !p.candidates.is_empty())
-}
-
-fn local_schedule_time(value: &str, timezone: &str, format: &str) -> Option<String> {
-    let date = chrono::DateTime::parse_from_rfc3339(value).ok()?;
-    let timezone = timezone.parse::<runtime_time::zones::NamedTimeZone>().ok()?;
-    Some(date.with_timezone(&timezone).format(format).to_string())
+fn local_schedule_time(value: &str, timezone: &str) -> Option<DateTime<NamedTimeZone>> {
+    let date = DateTime::parse_from_rfc3339(value).ok()?;
+    let timezone = timezone.parse::<NamedTimeZone>().ok()?;
+    Some(date.with_timezone(&timezone))
 }
 
 pub(super) fn rule_summary(i18n: I18n, rule: &R) -> String {
@@ -481,47 +331,102 @@ pub(super) fn rule_summary(i18n: I18n, rule: &R) -> String {
 
 pub(super) fn preview<'a>(i18n: I18n, draft: &CronJobDraft, editing: bool) -> Element<'a, Message> {
     let current = draft.effective_schedule();
-    let mut output = column![
-        text(
-            desktop_i18n::__!(
-                i18n,
-                "规则：%s · 时区：%s",
-                (rule_summary(i18n, &current.rule)).to_string(),
-                (current.timezone).to_string()
-            )
-            .expect("valid settings message")
-        )
-        .size(13),
-    ]
-    .spacing(12)
-    .width(Length::Fill);
-    let status = if draft.preview_loading { i18n.__("正在请求预览…") } else { i18n.__("预览未来 5 次") };
-    output = output.push(primary_button(
-        status,
-        if draft.preview_loading || draft.submitting {
-            Message::None
+    let rule = rule_summary(i18n, &current.rule);
+    let ready = draft.preview_ready();
+    let can_preview = !draft.preview_loading && !draft.submitting;
+    let action_label = i18n.__(if draft.preview_loading {
+        "正在请求预览…"
+    } else if ready {
+        "重新预览"
+    } else {
+        "预览未来 5 次"
+    });
+    let summary = responsive(move |size| {
+        let details = preview_property(i18n.__("规则"), rule.clone());
+        let action = button(text(action_label).size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding(SETTINGS_CONTROL_PADDING)
+            .style(if ready { rounded_action_btn_style } else { primary_action_btn_style })
+            .on_press_maybe(
+                can_preview.then_some(Message::Settings(S::CronSchedulePreview { editing })),
+            );
+        if size.width >= 480.0 {
+            row![details, action].spacing(18).align_y(Alignment::Center).into()
         } else {
-            Message::Settings(S::CronSchedulePreview { editing })
-        },
-    ));
+            column![details, action].spacing(12).into()
+        }
+    })
+    .height(Length::Shrink);
+    let mut output =
+        column![settings_group_card(summary).padding([16, 18])].spacing(14).width(Length::Fill);
     match &draft.preview {
         Some(Ok(preview)) if preview.candidates.is_empty() => {
-            output = output.push(text(i18n.__("无未来触发，请修改规则或有效期。")).size(12))
+            output = output.push(preview_hint(i18n.__("无未来触发，请修改规则或有效期。")));
         }
         Some(Ok(preview)) => {
-            let times = column(preview.candidates.iter().take(5).map(|value| {
-                let local = local_schedule_time(value, &current.timezone, "%Y-%m-%d %H:%M %Z")
-                    .unwrap_or(value.clone());
-                text(local).size(13).into()
-            }))
-            .spacing(8);
-            output = output.push(super::settings_group_card(times));
+            let title = container(text(i18n.__("执行时间")).size(13).font(preview_emphasis()))
+                .padding([10, 0]);
+            let mut times = column![title].width(Length::Fill);
+            for value in preview.candidates.iter().take(5) {
+                times = times.push(settings_divider()).push(preview_time(value, &current.timezone));
+            }
+            output = output.push(settings_group_card(times).padding([0, 18]));
         }
-        Some(Err(error)) => output = output.push(text(desktop_i18n::__!(i18n, "预览失败：%s", (error).to_string()).expect("valid settings message")).size(12)),
-        None if !draft.preview_loading => {
-            output = output.push(text(i18n.__("规则修改后需重新预览，再保存。")).size(12))
+        Some(Err(error)) => {
+            let detail = desktop_i18n::__!(i18n, "预览失败：%s", i18n.__(error.as_str()))
+                .expect("valid settings message");
+            output = output.push(settings_error_banner(detail));
         }
-        _ => {}
+        None => {}
     }
     output.into()
+}
+
+fn preview_property<'a>(label: &'a str, value: String) -> Element<'a, Message> {
+    row![
+        text(label).size(12).width(66).style(settings_muted_text_style),
+        text(value)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .width(Length::Fill)
+            .wrapping(text::Wrapping::WordOrGlyph),
+    ]
+    .spacing(8)
+    .into()
+}
+
+fn preview_hint(message: &'static str) -> Element<'static, Message> {
+    settings_group_card(text(message).size(13).style(settings_muted_text_style))
+        .padding([14, 18])
+        .into()
+}
+
+fn preview_time<'a>(value: &str, timezone: &str) -> Element<'a, Message> {
+    let content: Element<'a, Message> = if let Some(local) = local_schedule_time(value, timezone) {
+        let time_format = if local.second() != 0 || local.nanosecond() != 0 {
+            "%H:%M:%S%.f"
+        } else {
+            "%H:%M"
+        };
+        row![
+            text(local.date_naive().to_string()).size(SETTINGS_CONTROL_TEXT_SIZE),
+            text(local.format(time_format).to_string())
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .font(preview_emphasis())
+                .width(Length::Fill)
+                .align_x(iced::alignment::Horizontal::Right)
+                .wrapping(text::Wrapping::WordOrGlyph),
+        ]
+        .spacing(12)
+        .align_y(Alignment::Center)
+        .into()
+    } else {
+        text(value.to_owned())
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .wrapping(text::Wrapping::WordOrGlyph)
+            .into()
+    };
+    container(content).padding([11, 0]).width(Length::Fill).into()
+}
+
+fn preview_emphasis() -> Font {
+    Font { weight: iced::font::Weight::Semibold, ..Font::DEFAULT }
 }

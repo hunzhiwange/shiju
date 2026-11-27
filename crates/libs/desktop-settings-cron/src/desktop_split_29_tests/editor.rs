@@ -102,6 +102,7 @@ fn edit_started_maps_api_job_into_draft_and_missing_job_is_ignored() {
     assert_eq!(draft.fallbacks, "email\nslack");
     assert!(draft.wake && draft.full_access && draft.task_pool);
     assert!(draft.delivery_enabled && draft.delete_after_run);
+    assert!(!draft.delivery_webhook_configured);
     assert!(!draft.delivery_best_effort);
     assert_eq!(app.save_error, None);
     assert_eq!(app.action_status, None);
@@ -407,11 +408,15 @@ fn mutation_actions_clear_errors_when_they_can_start() {
     let _ = update(&mut app, SettingsMessage::CronJobEnabledChanged("job-1".to_string(), false));
     assert_eq!(app.save_error, None);
 
-    app.save_error = Some("old".to_string());
-    let _ = update(&mut app, SettingsMessage::CronJobDelete("job-1".to_string()));
-    assert_eq!(app.save_error, None);
-
     app.jobs = vec![job("job-1")];
+    app.save_error = Some("old".to_string());
+    let task = update(&mut app, SettingsMessage::CronJobDelete("job-1".to_string()));
+    assert!(iced_runtime::task::into_stream(task).is_none());
+    assert!(matches!(&app.delete_target, Some(CronDeleteTarget::Job(id)) if id == "job-1"));
+    let _ = update(&mut app, SettingsMessage::CronList(crate::message::ListMessage::ConfirmDelete));
+    assert_eq!(app.save_error, None);
+    let _ = update(&mut app, SettingsMessage::CronList(crate::message::ListMessage::DeleteCompleted(Ok("deleted".into()))));
+
     app.selected_job_ids = vec!["job-1".to_string()];
     app.save_error = Some("old".to_string());
     let _ = update(&mut app, SettingsMessage::CronSelectedJobsEnable);
@@ -423,6 +428,7 @@ fn mutation_actions_clear_errors_when_they_can_start() {
 
     app.save_error = Some("old".to_string());
     let _ = update(&mut app, SettingsMessage::CronSelectedJobsDelete);
+    let _ = update(&mut app, SettingsMessage::CronList(crate::message::ListMessage::ConfirmDelete));
     assert_eq!(app.save_error, None);
 
     app.save_error = Some("old".to_string());
@@ -513,34 +519,30 @@ fn cron_history_candidates_include_unrun_jobs_and_number_duplicate_titles() {
 }
 
 #[test]
-fn cron_wecom_form_switch_clears_target_and_uses_default_group() {
+fn cron_webhook_input_survives_toggling_delivery() {
     let mut app = app();
     for editing in [false, true] {
-        let target = if editing {
-            &mut app.edit_draft
-        } else {
-            &mut app.add_draft
+        let toggle = |enabled| {
+            if editing {
+                SettingsMessage::CronJobEditDeliveryEnabledToggled(enabled)
+            } else {
+                SettingsMessage::CronAddDeliveryEnabledToggled(enabled)
+            }
         };
-        target.delivery_channel = "wecom".into();
-        target.delivery_to = "user-private".into();
-        let msg = if editing {
-            SettingsMessage::CronJobEditDeliveryChannelChanged("wecom_webhook".into())
+        let webhook = gateway_cron::CronWebhookInput::from("fixture-webhook".to_owned());
+        let input = if editing {
+            SettingsMessage::CronJobEditDeliveryWebhookChanged(webhook)
         } else {
-            SettingsMessage::CronAddDeliveryChannelChanged("wecom_webhook".into())
+            SettingsMessage::CronAddDeliveryWebhookChanged(webhook)
         };
-        drop(update(&mut app, msg));
-        let target =
-            if editing { &app.edit_draft } else { &app.add_draft };
-        assert_eq!(target.delivery_to, "default");
-        let msg = if editing {
-            SettingsMessage::CronJobEditDeliveryChannelChanged("wecom".into())
-        } else {
-            SettingsMessage::CronAddDeliveryChannelChanged("wecom".into())
-        };
-        drop(update(&mut app, msg));
-        let target =
-            if editing { &app.edit_draft } else { &app.add_draft };
-        assert!(target.delivery_to.is_empty());
+        drop(update(&mut app, toggle(true)));
+        drop(update(&mut app, input));
+        drop(update(&mut app, toggle(false)));
+        let draft = if editing { &app.edit_draft } else { &app.add_draft };
+        assert!(draft.webhook_replacement().is_none());
+        drop(update(&mut app, toggle(true)));
+        let draft = if editing { &app.edit_draft } else { &app.add_draft };
+        assert_eq!(draft.webhook_replacement().unwrap().as_str(), "fixture-webhook");
     }
 }
 

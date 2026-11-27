@@ -68,15 +68,26 @@ pub enum CronEditorPicker {
     Model,
     Agent,
     Skills,
+    Project,
+    Permission,
+    Repeat { keyboard_index: Option<usize> },
+    Validity(super::ValidityPicker),
 }
 
 #[derive(Debug, Clone)]
 pub enum CronEditorPickerAction {
-    Toggle(CronEditorPicker),
+    Open(CronEditorPicker),
+    ToggleRepeat,
     Close,
     Search(String),
+    ProjectSelected(String),
+    BrowseProject,
+    PermissionSelected(bool),
     ModelSelected(String),
     AgentSelected { id: String, backend: Option<String> },
+    RepeatSelected(super::CronScheduleRule),
+    RepeatFocused(usize),
+    Validity(super::ValidityAction),
 }
 
 #[derive(Debug, Clone)]
@@ -114,8 +125,10 @@ pub struct CronJobDraft {
     pub full_access_confirmation: bool,
     pub task_pool: bool,
     pub delivery_enabled: bool,
-    pub delivery_channel: String,
-    pub delivery_to: String,
+    pub delivery_via_wecom: bool,
+    pub delivery_wecom_instance: Option<String>,
+    pub delivery_webhook_configured: bool,
+    pub delivery_webhook: gateway_cron::CronWebhookInput,
     pub delivery_best_effort: bool,
     pub delete_after_run: bool,
 }
@@ -156,8 +169,10 @@ impl Default for CronJobDraft {
             full_access_confirmation: false,
             task_pool: false,
             delivery_enabled: false,
-            delivery_channel: String::new(),
-            delivery_to: String::new(),
+            delivery_via_wecom: false,
+            delivery_wecom_instance: None,
+            delivery_webhook_configured: false,
+            delivery_webhook: Default::default(),
             delivery_best_effort: true,
             delete_after_run: false,
         }
@@ -183,6 +198,29 @@ impl CronListFilter {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum CronJobKindFilter {
+    #[default]
+    All,
+    Agent,
+    Shell,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CronListMenu {
+    New,
+    Filter,
+    Batch,
+    Settings,
+    Job(String),
+}
+
+#[derive(Debug, Clone)]
+pub enum CronDeleteTarget {
+    Job(String),
+    Batch(Vec<String>),
+}
+
 #[derive(Debug, Clone)]
 pub struct CronSettingsState {
     pub show_add_modal: bool,
@@ -206,12 +244,19 @@ pub struct CronSettingsState {
     pub jobs: Vec<gateway_cron::CronJobDto>,
     /// 当前列表分组。
     pub list_filter: CronListFilter,
+    pub kind_filter: CronJobKindFilter,
+    pub show_job_search: bool,
+    pub job_search: String,
+    pub list_menu: Option<CronListMenu>,
+    pub hovered_job_id: Option<String>,
+    pub open_job_id: Option<String>,
+    pub delete_target: Option<CronDeleteTarget>,
+    pub deleting_jobs: bool,
+    pub run_requests: Vec<String>,
     /// 是否显示批量管理控件。
     pub batch_mode: bool,
     /// 被批量操作选中的任务 ID。
     pub selected_job_ids: Vec<String>,
-    /// 当前展开详情的任务 ID。
-    pub expanded_job_ids: Vec<String>,
     /// 当前正在编辑的任务 ID。
     pub editing_job_id: Option<String>,
     /// 编辑表单草稿。
@@ -239,18 +284,41 @@ pub struct CronSettingsState {
 
 impl CronSettingsState {
     pub fn visible_jobs(&self) -> impl Iterator<Item = &gateway_cron::CronJobDto> {
-        self.jobs.iter().filter(|job| self.list_filter.matches(job))
+        let search = self.job_search.trim().to_lowercase();
+        self.jobs
+            .iter()
+            .filter(move |job| self.list_filter.matches(job) && self.job_matches(job, &search))
     }
 
-    /// 计数始终基于完整列表，不受当前分组影响。
     pub fn job_count(&self, filter: CronListFilter) -> usize {
-        self.jobs.iter().filter(|job| filter.matches(job)).count()
+        let search = self.job_search.trim().to_lowercase();
+        self.jobs
+            .iter()
+            .filter(|job| filter.matches(job) && self.job_matches(job, &search))
+            .count()
+    }
+
+    fn job_matches(&self, job: &gateway_cron::CronJobDto, search: &str) -> bool {
+        use crate::system_settings_cron::job_is_agent;
+        let kind_matches = match self.kind_filter {
+            CronJobKindFilter::All => true,
+            CronJobKindFilter::Agent => job_is_agent(job),
+            CronJobKindFilter::Shell => !job_is_agent(job),
+        };
+        kind_matches && (search.is_empty()
+            || super::cron_history::task_title(job.name.as_deref()).to_lowercase().contains(search))
     }
 
     pub fn prune_selected_jobs(&mut self) {
-        self.selected_job_ids.retain(|id| {
-            self.jobs.iter().any(|job| job.id == *id && self.list_filter.matches(job))
-        });
+        if self.selected_job_ids.is_empty() {
+            return;
+        }
+        let selected = std::mem::take(&mut self.selected_job_ids);
+        let visible: std::collections::HashSet<_> =
+            self.visible_jobs().map(|job| job.id.as_str()).collect();
+        self.selected_job_ids = selected.into_iter()
+            .filter(|id| visible.contains(id.as_str()))
+            .collect();
     }
 }
 
@@ -271,9 +339,17 @@ impl Default for CronSettingsState {
             jobs_loading: false,
             jobs: Vec::new(),
             list_filter: CronListFilter::default(),
+            kind_filter: CronJobKindFilter::default(),
+            show_job_search: false,
+            job_search: String::new(),
+            list_menu: None,
+            hovered_job_id: None,
+            open_job_id: None,
+            delete_target: None,
+            deleting_jobs: false,
+            run_requests: Vec::new(),
             batch_mode: false,
             selected_job_ids: Vec::new(),
-            expanded_job_ids: Vec::new(),
             editing_job_id: None,
             edit_draft: CronJobDraft::default(),
             add_draft: CronJobDraft::default(),
@@ -298,6 +374,10 @@ pub fn valid_skill_reference(id: &str) -> bool {
 }
 
 impl CronJobDraft {
+    pub(crate) fn preview_ready(&self) -> bool {
+        !self.preview_loading && matches!(&self.preview, Some(Ok(p)) if !p.candidates.is_empty())
+    }
+
     /// Returns the typed schedule, including schedules saved in the legacy fields.
     pub fn effective_schedule(&self) -> CronScheduleDraft {
         self.schedule_draft.clone().unwrap_or_else(|| {
@@ -336,12 +416,14 @@ impl CronJobDraft {
         format!("{}\n\n{}", references.join("\n"), self.prompt)
     }
 
-    /// 切换类型时丢弃上一类型的目标，避免把用户 ID 当作群引用。
-    pub(crate) fn select_delivery_channel(&mut self, channel: String) {
-        if self.delivery_channel != channel {
-            self.delivery_to =
-                if channel == "wecom_webhook" { "default".into() } else { String::new() };
-            self.delivery_channel = channel;
-        }
+    pub(crate) fn wecom_selection(&self) -> Option<String> {
+        self.delivery_via_wecom
+            .then(|| self.delivery_wecom_instance.clone())
+            .flatten()
+    }
+
+    pub(crate) fn webhook_replacement(&self) -> Option<gateway_cron::CronWebhookInput> {
+        (self.delivery_enabled && !self.delivery_via_wecom && !self.delivery_webhook.as_str().trim().is_empty())
+            .then(|| self.delivery_webhook.clone())
     }
 }

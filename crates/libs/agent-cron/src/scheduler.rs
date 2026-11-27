@@ -863,10 +863,14 @@ pub async fn deliver_if_configured(host: &dyn SchedulerHost,
         .channel
         .as_deref()
         .ok_or_else(|| anyhow::anyhow!("delivery.channel is required for announce mode"))?;
-    let target = delivery
-        .to
-        .as_deref()
-        .ok_or_else(|| anyhow::anyhow!("delivery.to is required for announce mode"))?;
+    let target = if channel.eq_ignore_ascii_case("wecom_cron") {
+        delivery.to.as_deref().unwrap_or_default()
+    } else {
+        delivery
+            .to
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("delivery.to is required for announce mode"))?
+    };
 
     host.deliver_announcement(config, channel, target, output).await
 }

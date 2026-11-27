@@ -39,6 +39,7 @@ pub const fn channel_tab_group(tab: ChannelsSettingsTab) -> ChannelTabGroup {
         | ChannelsSettingsTab::DingTalk
         | ChannelsSettingsTab::Qq
         | ChannelsSettingsTab::WeCom
+        | ChannelsSettingsTab::WeComCron
         | ChannelsSettingsTab::WeChat => ChannelTabGroup::China,
         _ => ChannelTabGroup::International,
     }
@@ -72,6 +73,11 @@ pub fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSettingsTa
             ChannelsSettingsTab::WeChat,
             "微信",
             &["wechat", "微信", "扫码"],
+        ),
+        SettingsTabDescriptor::new(
+            ChannelsSettingsTab::WeComCron,
+            "定时任务企业微信通知",
+            &["wecom", "企业微信", "定时任务", "通知"],
         ),
     ]);
     tabs
@@ -154,7 +160,7 @@ pub fn china_channel_icon(tab: ChannelsSettingsTab) -> svg::Svg<'static> {
             Color::from_rgb8(18, 24, 38),
             Color::from_rgb8(241, 245, 249),
         ),
-        ChannelsSettingsTab::WeCom => (
+        ChannelsSettingsTab::WeCom | ChannelsSettingsTab::WeComCron => (
             include_bytes!("../../../../assets/icons/bootstrap/chat-square-dots-fill.svg"),
             Color::from_rgb8(0, 132, 255),
             Color::from_rgb8(65, 165, 255),

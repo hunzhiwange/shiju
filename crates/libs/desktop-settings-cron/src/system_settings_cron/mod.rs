@@ -7,9 +7,8 @@ use desktop_ui_controls::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
     settings_close_button, settings_divider, settings_error_banner, settings_field_label,
     settings_group_card,
-    settings_help_button_with_locale as settings_help_button,
     settings_modal_card, settings_modal_card_style, settings_modal_header, settings_modal_layout,
-    settings_modal_overlay, settings_muted_text_style,
+    settings_modal_overlay, settings_modal_overlay_with_escape, settings_muted_text_style,
     settings_segment_button_style, settings_select, settings_success_banner, settings_tab_button,
     settings_tab_row, settings_text_editor, settings_text_editor_style, settings_text_input,
     settings_value_badge,
@@ -19,7 +18,8 @@ use desktop_i18n::I18n;
 use crate::state::{CronAddJobType, CronSettingsTab};
 use crate::message::{self, Message};
 
-use chrono::{DateTime, Local};
+use chrono::DateTime;
+use runtime_time::zones::NamedTimeZone;
 use iced::widget::{button, checkbox, column, container, row, slider, text, text_editor};
 use iced::{Alignment, Background, Element, Length, Theme};
 use gateway_cron::CronJobDto;
@@ -50,30 +50,29 @@ pub struct AgentChoice {
     pub installed: Option<bool>,
     pub requires_employee_target: bool,
 }
-#[derive(Clone, Copy, Default)]
-pub struct DeliveryAvailability {
-    pub bot: bool,
-    pub webhook: bool,
-    pub telegram: bool,
-    pub discord: bool,
-    pub slack: bool,
-    pub mattermost: bool,
-    pub qq: bool,
-    #[cfg(not(target_arch = "wasm32"))]
-    pub email: bool,
+#[derive(Clone)]
+pub struct WeComNotification {
+    pub id: String,
+    pub label: String,
+    pub bound: Option<bool>,
+    pub connected: Option<bool>,
+    pub pairing_code: Option<String>,
+    pub loading: bool,
 }
+
 /// Borrowed inputs read by the Cron UI; the host retains navigation and other settings.
 pub struct ViewData<'a> {
     pub cron_settings: &'a crate::state::CronSettingsState,
+    pub system_timezone: NamedTimeZone,
     pub desktop_locale: config_ui::DesktopLocale,
     pub app_theme: &'a Theme,
     pub project_path: Option<&'a str>,
     pub recent_projects: &'a [String],
+    pub recent_project_labels: &'a [String],
     pub agents: Vec<AgentChoice>,
     pub models: Vec<ModelGroup>,
     pub skills: Vec<SkillChoice>,
-    pub conversation_available: bool,
-    pub delivery: DeliveryAvailability,
+    pub wecom_notifications: Vec<WeComNotification>,
     pub scheduler_error: Option<&'a str>,
     pub last_copied_code_hash: Option<u64>,
     pub help_content: for<'b> fn(
@@ -94,6 +93,8 @@ fn settings_flexible_row_with_help<'a>(app: &ViewData<'_>, title: &'a str, descr
     desktop_ui_controls::system_settings_common::settings_flexible_row_with_label(label,width,control)
 }
 
+mod calendar;
+pub use calendar::{Selection as CalendarSelection, calendar_month};
 mod composer;
 mod composer_picker;
 pub mod date_time;
@@ -102,11 +103,19 @@ mod editor_modal;
 pub mod form;
 pub use editor_modal::with_edit_modal;
 pub mod history;
+mod job_details;
 pub mod list;
+pub(crate) mod repeat_picker;
 mod schedule;
 pub mod templates;
+mod validity_picker;
 
 use list::jobs_tab;
+
+fn grid_columns(width: f32, minimum_card_width: f32) -> usize {
+    let columns = ((width + 12.0) / (minimum_card_width + 12.0)) as usize;
+    columns.clamp(1, 3)
+}
 
 pub(crate) const EDITOR_SCROLL_ID: &str = "cron-editor-content";
 pub(crate) const EDITOR_PICKER_SCROLL_ID: &str = "cron-editor-picker-list";
@@ -154,28 +163,42 @@ pub const CRON_TABS: &[(CronSettingsTab, &str, &[&str])] = &[
 ];
 
 mod fields;
+pub(crate) use fields::format_cron_datetime;
 use fields::*;
 #[cfg(test)]
-pub(crate) use fields::{pick_field, project_field_builder};
+pub(crate) use fields::pick_field;
 pub use fields::{job_is_agent, edit_form, add_tab, config_tab};
 
 pub fn view<'a, M: Clone + 'static>(app: &ViewData<'a>, host_content: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
     let s = app.cron_settings;
-    let help_btn = settings_help_button(
-        app.desktop_locale,
-        Message::Settings(message::SettingsMessage::CronHelpOpen),
-    );
-    let i18n = desktop_i18n::I18n::new(app.desktop_locale);
-    let tabs = settings_tab_row(
-        CRON_TABS
-            .iter()
-            .filter(|descriptor| {
-                descriptor.0 != CronSettingsTab::Add
-                    && (!cfg!(target_arch = "wasm32") || descriptor.0 != CronSettingsTab::Employee)
-            })
-            .map(|descriptor| tab_button(descriptor.0, s.active_tab, i18n.__(descriptor.1))),
-    )
-    .wrap();
+    let i18n = I18n::new(app.desktop_locale);
+    let header = iced::widget::responsive(move |size| {
+        let main_tabs = settings_tab_row(CRON_TABS[..2].iter().map(|&(tab, label, _)| {
+            settings_tab_button(
+                i18n.__(label),
+                tab == s.active_tab,
+                Some(Message::Settings(message::SettingsMessage::CronTabSelected(tab))),
+            )
+            .into()
+        }));
+        let settings = list::settings_menu(s, i18n);
+        if matches!(s.active_tab, CronSettingsTab::Jobs | CronSettingsTab::Add) {
+            let actions = list::toolbar(s, i18n);
+            if size.width >= 820.0 {
+                row![main_tabs, iced::widget::Space::new().width(Length::Fill), settings, actions]
+                    .spacing(8).align_y(Alignment::Center).into()
+            } else {
+                column![
+                    row![main_tabs, iced::widget::Space::new().width(Length::Fill), settings]
+                        .align_y(Alignment::Center),
+                    container(actions).align_right(Length::Fill),
+                ].spacing(8).into()
+            }
+        } else {
+            row![main_tabs, iced::widget::Space::new().width(Length::Fill), settings]
+                .spacing(8).align_y(Alignment::Center).into()
+        }
+    }).height(Length::Shrink);
 
     let tab_content = match s.active_tab {
         CronSettingsTab::Jobs => jobs_tab(app).map(map),
@@ -185,30 +208,17 @@ pub fn view<'a, M: Clone + 'static>(app: &ViewData<'a>, host_content: Element<'a
         CronSettingsTab::Add => jobs_tab(app).map(map),
     };
 
-    let heading: Element<'_, Message> = row![
-        column![
-            text(i18n.__("定时任务"))
-                .size(24)
-                .font(iced::Font { weight: iced::font::Weight::Bold, ..iced::Font::DEFAULT }),
-        ]
-        .spacing(4)
-        .width(Length::Fill),
-        help_btn,
-    ]
-    .spacing(12)
-    .align_y(Alignment::Start)
-    .into();
-    let mut col = column![heading.map(map), Element::<Message>::from(tabs).map(map)].spacing(16).width(Length::Fill);
+    let header = Element::<Message>::from(header).map(map);
+    let mut col = column![header].spacing(12).width(Length::Fill);
     if let Some(error) = save_error_banner(app) {
         col = col.push(error.map(map));
     }
-    col = col.push(tab_content);
-
     if let Some(status) = &s.action_status {
         col = col.push(settings_success_banner(
             desktop_i18n::I18n::new(app.desktop_locale).__(status).to_string(),
         ).map(map));
     }
+    col = col.push(tab_content);
 
     if matches!(s.active_tab, CronSettingsTab::Jobs | CronSettingsTab::History | CronSettingsTab::Employee) {
         col = col.height(Length::Fill);
@@ -333,7 +343,9 @@ fn with_runs_modal<'a, M: Clone + 'static>(app: &ViewData<'a>, dialog: Element<'
     .style(cron_modal_style)
     .width(780)
     .height(620);
-    settings_modal_overlay(Some(dialog), map(close), Element::<Message>::from(container(card).padding([10, 12])).map(map))
+    settings_modal_overlay_with_escape(
+        dialog, map(close), Element::<Message>::from(container(card).padding([10, 12])).map(map),
+    )
 }
 
 pub fn view_overlays<'a, M: Clone + 'static>(app: &ViewData<'a>, dialog: Element<'a, M>, map: fn(Message) -> M) -> Element<'a, M> {
@@ -341,6 +353,7 @@ pub fn view_overlays<'a, M: Clone + 'static>(app: &ViewData<'a>, dialog: Element
     let dialog = with_edit_modal(app, dialog, map);
     let dialog = with_runs_modal(app, dialog, map);
     let dialog = history::with_details(app, dialog, map);
+    let dialog = job_details::overlays(app, dialog, map);
 
     if !s.show_help_modal {
         return with_access_confirmation(app, dialog, map);

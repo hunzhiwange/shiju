@@ -53,6 +53,13 @@ pub async fn run_channels_with_source(
     let mut listeners = ChannelListeners::default();
     loop {
         let next = {
+            let (notification_tx, _notification_rx) = tokio::sync::mpsc::channel(1);
+            for bot in super::channels_config::configured_cron_wecom(&config, host.tenant()) {
+                let (initial, max) = super::start::channel_listener_backoff_secs(&config);
+                listeners.handles.push(super::listener::spawn_supervised_listener(
+                    bot, notification_tx.clone(), initial, max,
+                ));
+            }
             // 不配置实时通道时不装配 Provider，但仍等待保存配置。
             let enabled =
                 config.channels_config.channels_except_webhook().iter().any(|(_, ok)| *ok);

@@ -144,8 +144,6 @@ fn add_tab_covers_shell_every_and_agent_delivery_with_provider_model_options() {
     app.cron_settings.add_draft.model_provider = "openai".to_string();
     app.cron_settings.add_draft.model = "openai/gpt-4.1".to_string();
     app.cron_settings.add_draft.delivery_enabled = true;
-    app.cron_settings.add_draft.delivery_channel = "email".to_string();
-    app.cron_settings.add_draft.delivery_to = "ops@example.com".to_string();
     app.cron_settings.add_draft.delivery_best_effort = false;
     keep_element(add_tab(&app));
 }

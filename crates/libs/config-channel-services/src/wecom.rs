@@ -19,6 +19,18 @@ pub struct WeComInstanceConfig {
 }
 
 impl WeComConfig {
+    pub const CRON_INSTANCE: &'static str = "cron-notifications";
+
+    pub fn is_cron_instance(id: &str) -> bool {
+        id == Self::CRON_INSTANCE
+            || id
+                .strip_prefix(Self::CRON_INSTANCE)
+                .and_then(|suffix| suffix.strip_prefix('-'))
+                .is_some_and(|suffix| {
+                    suffix.len() == 32 && suffix.bytes().all(|byte| byte.is_ascii_hexdigit())
+                })
+    }
+
     pub fn has_required_credentials(&self) -> bool {
         !self.bot_id.trim().is_empty() && !self.secret.trim().is_empty()
     }

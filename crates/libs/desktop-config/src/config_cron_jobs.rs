@@ -182,8 +182,8 @@ pub async fn add_cron_job_async(
     full_access: bool,
     task_pool: bool,
     delivery_enabled: bool,
-    delivery_channel: String,
-    delivery_to: String,
+    delivery_wecom_instance: Option<String>,
+    delivery_webhook: Option<gateway_cron::CronWebhookInput>,
     delivery_best_effort: bool,
     delete_after_run: bool,
     time_rule: Option<gateway_cron::CronPreviewRequest>,
@@ -227,9 +227,6 @@ pub async fn add_cron_job_async(
     let model = Some(model.trim().to_string()).filter(|value| !value.is_empty());
     let fallbacks = parse_fallback_models(&fallbacks);
     let fallbacks = (!fallbacks.is_empty()).then_some(fallbacks);
-    let delivery_channel =
-        Some(delivery_channel.trim().to_string()).filter(|value| !value.is_empty());
-    let delivery_to = Some(delivery_to.trim().to_string()).filter(|value| !value.is_empty());
 
     if schedule_kind == "cron" && schedule.is_none() {
         return Err("Cron 表达式不能为空".to_string());
@@ -246,11 +243,10 @@ pub async fn add_cron_job_async(
     if job_type == "agent" && prompt.is_none() {
         return Err("Agent 提示词不能为空".to_string());
     }
-    if delivery_enabled && delivery_channel.is_none() {
-        return Err("投递通道不能为空".to_string());
-    }
-    if delivery_enabled && delivery_to.is_none() {
-        return Err("投递目标不能为空".to_string());
+    let delivery_via_wecom = delivery_wecom_instance.is_some();
+    let delivery_webhook = delivery_webhook.filter(|_| delivery_enabled && !delivery_via_wecom);
+    if delivery_enabled && !delivery_via_wecom && delivery_webhook.is_none() {
+        return Err("请在当前任务中填写群机器人 Webhook".into());
     }
 
     let client = gateway_cron::GatewayCronClient::new(client?.transport().clone());
@@ -300,8 +296,11 @@ pub async fn add_cron_job_async(
         full_access: Some(full_access),
         task_pool: Some(task_pool),
         delivery_mode: Some(if delivery_enabled { "announce" } else { "none" }.to_string()),
-        delivery_channel,
-        delivery_to,
+        delivery_channel: delivery_enabled.then(|| {
+            if delivery_via_wecom { "wecom_cron" } else { "wecom_webhook" }.into()
+        }),
+        delivery_to: delivery_wecom_instance.filter(|_| delivery_enabled),
+        delivery_webhook,
         delivery_best_effort: Some(delivery_best_effort),
         delete_after_run: Some(delete_after_run),
         ..Default::default()
@@ -334,8 +333,9 @@ pub async fn update_cron_job_async(
     full_access: bool,
     task_pool: bool,
     delivery_enabled: bool,
-    delivery_channel: String,
-    delivery_to: String,
+    delivery_wecom_instance: Option<String>,
+    delivery_webhook_configured: bool,
+    delivery_webhook: Option<gateway_cron::CronWebhookInput>,
     delivery_best_effort: bool,
     delete_after_run: bool,
     time_rule: Option<gateway_cron::CronPreviewRequest>,
@@ -379,9 +379,6 @@ pub async fn update_cron_job_async(
     let model = Some(model.trim().to_string()).filter(|value| !value.is_empty());
     let fallbacks = parse_fallback_models(&fallbacks);
     let fallbacks = (!fallbacks.is_empty()).then_some(fallbacks);
-    let delivery_channel =
-        Some(delivery_channel.trim().to_string()).filter(|value| !value.is_empty());
-    let delivery_to = Some(delivery_to.trim().to_string()).filter(|value| !value.is_empty());
 
     if schedule_kind == "cron" && schedule.is_none() {
         return Err("Cron 表达式不能为空".to_string());
@@ -398,11 +395,10 @@ pub async fn update_cron_job_async(
     if job_type == "agent" && prompt.is_none() {
         return Err("Agent 提示词不能为空".to_string());
     }
-    if delivery_enabled && delivery_channel.is_none() {
-        return Err("投递通道不能为空".to_string());
-    }
-    if delivery_enabled && delivery_to.is_none() {
-        return Err("投递目标不能为空".to_string());
+    let delivery_via_wecom = delivery_wecom_instance.is_some();
+    let delivery_webhook = delivery_webhook.filter(|_| delivery_enabled && !delivery_via_wecom);
+    if delivery_enabled && !delivery_via_wecom && !delivery_webhook_configured && delivery_webhook.is_none() {
+        return Err("请在当前任务中填写群机器人 Webhook".into());
     }
 
     let client = gateway_cron::GatewayCronClient::new(client?.transport().clone());
@@ -440,8 +436,18 @@ pub async fn update_cron_job_async(
         full_access: Some(full_access),
         task_pool: Some(task_pool),
         delivery_mode: Some(if delivery_enabled { "announce" } else { "none" }.to_string()),
-        delivery_channel,
-        delivery_to,
+        delivery_channel: Some(if delivery_via_wecom {
+            "wecom_cron".into()
+        } else if delivery_enabled || delivery_webhook_configured {
+            "wecom_webhook".into()
+        } else {
+            String::new()
+        }),
+        // Clear the previous target on replacement so a gateway that ignores the Webhook
+        // field cannot retain an obsolete group destination.
+        delivery_to: delivery_wecom_instance
+            .or_else(|| delivery_webhook.as_ref().map(|_| String::new())),
+        delivery_webhook,
         delivery_best_effort: Some(delivery_best_effort),
         delete_after_run: Some(delete_after_run),
         enabled: None,

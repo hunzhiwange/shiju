@@ -103,6 +103,29 @@ pub struct CronRunsResponse {
     pub runs: Vec<CronRunDto>,
 }
 
+/// Write-only group webhook credential for a single scheduled task.
+#[derive(Clone, Default, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct CronWebhookInput(String);
+
+impl CronWebhookInput {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for CronWebhookInput {
+    fn from(url: String) -> Self {
+        Self(url)
+    }
+}
+
+impl std::fmt::Debug for CronWebhookInput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("[REDACTED]")
+    }
+}
+
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CronAddRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -178,6 +201,8 @@ pub struct CronAddRequest {
     pub delivery_channel: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub delivery_to: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delivery_webhook: Option<CronWebhookInput>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub delivery_best_effort: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -263,6 +288,8 @@ pub struct CronUpdateRequest {
     pub delivery_channel: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub delivery_to: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delivery_webhook: Option<CronWebhookInput>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub delivery_best_effort: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]

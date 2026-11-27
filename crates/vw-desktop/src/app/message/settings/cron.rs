@@ -46,7 +46,145 @@ pub(crate) fn open_page(app: &mut App) -> Task<Message> {
     ])
 }
 
+fn start_butler_chat(app: &mut App) -> Task<Message> {
+    app.cron_settings.list_menu = None;
+    if app.workspace_state.new_session_creating {
+        return Task::none();
+    }
+    if let Some(path) = app
+        .navigation_tabs
+        .project_path
+        .as_ref()
+        .filter(|path| !path.trim().is_empty())
+        .cloned()
+    {
+        return open_butler_chat(app, path, None);
+    }
+
+    let gateway_user_generation = app.session_state.gateway_user_generation;
+    let navigation_generation = app.session_state.session_view_cache.navigation_generation;
+    let client = crate::app::config::gateway_client();
+    Task::perform(
+        async move {
+            let client = client?;
+            let response = client
+                .project_resolve_workspace(client.endpoint().tenant_scope())
+                .await?;
+            Ok((response.project.directory, response.project.id.0))
+        },
+        move |result| {
+            Message::Settings(SettingsMessage::CronWorkspaceResolved {
+                gateway_user_generation,
+                navigation_generation,
+                result,
+            })
+        },
+    )
+}
+
+fn open_butler_chat(app: &mut App, path: String, project_id: Option<String>) -> Task<Message> {
+    use crate::app::message::{ChatMessage, ViewMessage, chat, project, view};
+    use crate::app::state::ToastKind;
+    use config_agent::SHIJU_BUTLER_AGENT_KEY;
+
+    if !app.agents_settings.entries.iter().any(|entry| {
+        entry.key == SHIJU_BUTLER_AGENT_KEY && entry.can_start_session()
+    }) {
+        return app.show_localized_toast(ToastKind::Warning, "智能体未启用或不支持当前入口", vec![]);
+    }
+    app.stash_active_session_view();
+    let (tab_id, _) = desktop_workspace::projects::project_tab(&path);
+    let navigate = if app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == tab_id) {
+        view::update(app, ViewMessage::TabSelected(tab_id))
+    } else {
+        app.open_project(path.clone())
+    };
+    if let Some(project_id) = project_id {
+        app.workspace_state.project_id = Some(project_id);
+    }
+    app.navigation_panels.focus_chat();
+    let open = project::open_session_draft(app, path.clone(), path);
+    let select = chat::session::update(
+        app,
+        ChatMessage::SessionAgentSelected(Some(SHIJU_BUTLER_AGENT_KEY.into())),
+    );
+    let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
+    let prompt = i18n.__("我想创建一个定时任务。请帮我确认任务内容、执行时间或频率，以及是否需要通知。");
+    let mut draft = app.current_session_runtime_mut().input_editor.text();
+    if !draft.is_empty() && !draft.ends_with('\n') {
+        draft.push('\n');
+    }
+    draft.push_str(prompt);
+    let fill = chat::input::fill_new_chat_draft(app, draft);
+    Task::batch([navigate, open, select, fill])
+}
+
 pub fn update(app: &mut App, event: SettingsMessage) -> Task<Message> {
+    use desktop_settings_cron::state::{CronEditorPicker, CronEditorPickerAction, CronEditorTab};
+
+    #[cfg(not(target_arch = "wasm32"))]
+    if let SettingsMessage::CronEditorPickerChanged {
+        editing,
+        action: CronEditorPickerAction::BrowseProject,
+    } = &event
+    {
+        let editing = *editing;
+        let state = &app.cron_settings;
+        let draft = if editing && state.editing_job_id.is_some() {
+            &state.edit_draft
+        } else if !editing && state.editing_job_id.is_none() && state.show_add_modal {
+            &state.add_draft
+        } else {
+            return Task::none();
+        };
+        if draft.submitting
+            || draft.editor_tab != CronEditorTab::Basic
+            || draft.editor_picker != Some(CronEditorPicker::Project)
+        {
+            return Task::none();
+        }
+        let endpoint = crate::app::config::gateway_client_endpoint();
+        if !desktop_settings_workspace::environment::can_add(&endpoint) {
+            return app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "远程网关不支持选择本机目录。",
+                vec![],
+            );
+        }
+        let Some(path) = desktop_workspace::basic::pick_folder() else {
+            return Task::none();
+        };
+        let selected = SettingsMessage::CronEditorPickerChanged {
+            editing,
+            action: CronEditorPickerAction::ProjectSelected(path.clone()),
+        };
+        return Task::batch([
+            update(app, selected),
+            crate::app::workbench_projects::register_directory(app, path),
+        ]);
+    }
+
+    if let SettingsMessage::CronWorkspaceResolved {
+        gateway_user_generation,
+        navigation_generation,
+        result,
+    } = event {
+        if gateway_user_generation != app.session_state.gateway_user_generation
+            || navigation_generation != app.session_state.session_view_cache.navigation_generation
+            || !crate::app::components::system_settings_cron::visible(app)
+            || app.workspace_state.new_session_creating
+        {
+            return Task::none();
+        }
+        return match result {
+            Ok((path, project_id)) => open_butler_chat(app, path, Some(project_id)),
+            Err(_) => app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "无法打开默认工作区项目",
+                vec![],
+            ),
+        };
+    }
     if let SettingsMessage::CronSkillCatalogLoaded { revision, result } = event {
         let state = &mut app.cron_settings;
         if state.skill_catalog_revision == revision && state.skill_catalog_request.take().is_some()
@@ -57,50 +195,17 @@ pub fn update(app: &mut App, event: SettingsMessage) -> Task<Message> {
         return Task::none();
     }
     if matches!(event, SettingsMessage::CronAddFromConversation) {
-        let Some(prompt) = crate::app::components::system_settings_cron::conversation_prompt(app)
-            .map(str::to_owned)
-        else {
-            return Task::none();
-        };
-        let session = app.current_session_runtime();
-        let project = app
-            .session_state
-            .active_session_id
-            .as_deref()
-            .and_then(|id| {
-                crate::app::message::project::helpers::find_session_project_path(app, id)
-            })
-            .unwrap_or_default();
-        if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
-            return Task::none();
+        return start_butler_chat(app);
+    }
+    if let SettingsMessage::CronList(desktop_settings_cron::message::ListMessage::OpenTask(id)) = &event {
+        let session_id = format!("cron-{id}");
+        if let Some(path) = crate::app::message::project::helpers::find_session_project_path(app, &session_id) {
+            app.cron_settings.list_menu = None;
+            return crate::app::message::project::update(
+                app,
+                crate::app::message::ProjectMessage::OpenProjectSessionPressed(path, session_id),
+            );
         }
-        let task = update_editor(
-            app,
-            SettingsMessage::CronTabSelected(crate::app::state::CronSettingsTab::Add),
-        );
-        let draft = &mut app.cron_settings.add_draft;
-        draft.load_prompt(&prompt);
-        draft.project_path = project;
-        if !session.auto_model {
-            draft.model = session.model;
-        }
-        if let Some(agent) = session.agent {
-            draft.agent = agent;
-        }
-        for id in session.tool_selector.selected_manual_skills() {
-            let choice = app
-                .skills_settings
-                .catalog
-                .iter()
-                .find(|entry| entry.id == id)
-                .and_then(crate::app::components::system_settings_cron::skill_choice);
-            if let Some(choice) = choice
-                && !draft.skills.contains(&choice.id)
-            {
-                draft.skills.push(choice.id);
-            }
-        }
-        return Task::batch([task, refresh_skill_catalog(app, false)]);
     }
     use crate::app::state::CronSettingsTab;
     #[cfg(not(target_arch = "wasm32"))]
@@ -115,6 +220,19 @@ pub fn update(app: &mut App, event: SettingsMessage) -> Task<Message> {
             | SettingsMessage::CronTemplateSelected(_)
     );
     let workspace_changed = match &event {
+        SettingsMessage::CronEditorPickerChanged {
+            editing,
+            action: CronEditorPickerAction::ProjectSelected(path),
+        } => {
+            let state = &app.cron_settings;
+            let draft = if *editing { &state.edit_draft } else { &state.add_draft };
+            state.editing_job_id.is_some() == *editing
+                && (*editing || state.show_add_modal)
+                && !draft.submitting
+                && draft.editor_tab == CronEditorTab::Basic
+                && draft.editor_picker == Some(CronEditorPicker::Project)
+                && path.trim() != draft.project_path.trim()
+        }
         SettingsMessage::CronJobEditProjectPathChanged(path) => {
             path.trim() != app.cron_settings.edit_draft.project_path.trim()
         }
@@ -123,8 +241,36 @@ pub fn update(app: &mut App, event: SettingsMessage) -> Task<Message> {
         }
         _ => false,
     };
+    let check_wecom_binding = matches!(
+        &event,
+        SettingsMessage::CronEditorTabSelected { tab: CronEditorTab::Delivery, .. }
+            | SettingsMessage::CronJobEditDeliveryWeComInstanceSelected(_)
+            | SettingsMessage::CronAddDeliveryWeComInstanceSelected(_)
+            | SettingsMessage::CronJobEditDeliveryEnabledToggled(true)
+            | SettingsMessage::CronAddDeliveryEnabledToggled(true)
+            | SettingsMessage::CronJobEditDeliveryWeComSelected(true)
+            | SettingsMessage::CronAddDeliveryWeComSelected(true)
+    );
     let task = update_editor(app, event);
     let state = &mut app.cron_settings;
+    if check_wecom_binding {
+        let draft = if state.editing_job_id.is_some() { &state.edit_draft } else { &state.add_draft };
+        if (state.editing_job_id.is_some() || state.show_add_modal)
+            && draft.editor_tab == CronEditorTab::Delivery
+            && draft.delivery_enabled
+            && draft.delivery_via_wecom
+            && !draft.submitting
+            && let Some(instance) = draft.delivery_wecom_instance.clone()
+        {
+            return Task::batch([task, super::channels::update(
+                app,
+                SettingsMessage::Channels(super::messages::ChannelsMessage::WeComCronBindingRequested {
+                    instance,
+                    start: false,
+                }),
+            )]);
+        }
+    }
     if state.editing_job_id.is_none()
         && !state.show_add_modal
         && let Some(pending) = state.skill_catalog_request.take()
@@ -183,7 +329,6 @@ fn refresh_skill_catalog(app: &mut App, debounce: bool) -> Task<Message> {
 }
 
 fn update_editor(app: &mut App, event: SettingsMessage) -> Task<Message> {
-    let delivery = crate::app::components::system_settings_cron::availability(app);
     let mut notices = Vec::new();
     let config = crate::app::config::agent_config_access();
     let task = domain::update(
@@ -191,7 +336,7 @@ fn update_editor(app: &mut App, event: SettingsMessage) -> Task<Message> {
             cron_settings: &mut app.cron_settings,
             config: &config,
             desktop_locale: app.general_settings.desktop_locale,
-            delivery,
+            system_timezone: app.general_settings.chat_timezone.parse().expect("validated system timezone"),
             client: crate::app::config::gateway_client(),
             notices: &mut notices,
         },
@@ -210,9 +355,9 @@ fn update_editor(app: &mut App, event: SettingsMessage) -> Task<Message> {
 #[cfg(test)]
 #[path = "cron_tests.rs"] mod cron_tests;
 pub(crate) fn refresh_run_history_locale(app: &mut App) {
- domain::refresh_run_history_locale(&mut app.cron_settings, app.general_settings.desktop_locale);
-}
-#[cfg(test)]
-pub(crate) fn validate_delivery(app: &App, draft: &crate::app::state::CronJobDraft) -> Result<(), String> {
- desktop_settings_cron::delivery::validate(draft, crate::app::components::system_settings_cron::availability(app))
+    domain::refresh_run_history_locale(
+        &mut app.cron_settings,
+        app.general_settings.desktop_locale,
+        app.general_settings.chat_timezone.parse().expect("validated system timezone"),
+    );
 }

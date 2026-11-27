@@ -2,20 +2,22 @@
 //!
 //! 强制立即运行指定的定时任务并记录运行历史。
 
-use tool_types::{Tool, ToolResult};
 use agent_config::runtime::Config;
 use agent_cron::{self as cron, JobType};
-use agent_security::SecurityPolicy;
+use agent_security::{SecurityPolicy, policy::ActionTracker};
 use async_trait::async_trait;
 use chrono::Utc;
 use serde_json::json;
 use std::sync::Arc;
+use tool_types::{Tool, ToolResult};
 
 /// 宿主立即执行入口；返回的 future 随工具调用取消，不派生后台任务。
 #[cfg(not(target_arch = "wasm32"))]
-pub type JobExecutionFuture<'a> = std::pin::Pin<Box<dyn std::future::Future<Output = (bool, String)> + Send + 'a>>;
+pub type JobExecutionFuture<'a> =
+    std::pin::Pin<Box<dyn std::future::Future<Output = (bool, String)> + Send + 'a>>;
 #[cfg(target_arch = "wasm32")]
-pub type JobExecutionFuture<'a> = std::pin::Pin<Box<dyn std::future::Future<Output = (bool, String)> + 'a>>;
+pub type JobExecutionFuture<'a> =
+    std::pin::Pin<Box<dyn std::future::Future<Output = (bool, String)> + 'a>>;
 pub type ExecuteJobNow = for<'a> fn(&'a Config, &'a cron::CronJob) -> JobExecutionFuture<'a>;
 
 /// Cron 任务手动执行工具
@@ -63,8 +65,83 @@ impl CronRunTool {
     /// let security = Arc::new(SecurityPolicy::default());
     /// let tool = CronRunTool::new(config, security, execute_job_now);
     /// ```
-    pub fn new(config: Arc<Config>, security: Arc<SecurityPolicy>, execute_job: ExecuteJobNow) -> Self {
+    pub fn new(
+        config: Arc<Config>,
+        security: Arc<SecurityPolicy>,
+        execute_job: ExecuteJobNow,
+    ) -> Self {
         Self { config, security, execute_job }
+    }
+
+    fn authorized_job(
+        &self,
+        job_id: &str,
+        tracker: &ActionTracker,
+        full_access_allowed: bool,
+    ) -> Result<cron::CronJob, String> {
+        if !self.config.cron.enabled {
+            return Err("cron is disabled by config (cron.enabled=false)".into());
+        }
+        if !self.security.can_act() {
+            return Err("Security policy: read-only mode, cannot perform 'cron_run'".into());
+        }
+        let limit = self.security.max_actions_per_hour as usize;
+        if tracker.count() >= limit {
+            return Err("Rate limit exceeded: too many actions in the last hour".into());
+        }
+        let job = cron::get_job(&self.config, job_id).map_err(|error| error.to_string())?;
+        if job.full_access && !full_access_allowed {
+            return Err("A scheduled task cannot exceed the session's access level".into());
+        }
+        if matches!(job.job_type, JobType::Shell) {
+            self.security.validate_command_execution(&job.command, false)?;
+        }
+        if tracker.record() > limit {
+            return Err("Rate limit exceeded: action budget exhausted".into());
+        }
+        Ok(job)
+    }
+
+    /// Authorize an authenticated manual run before returning its background work.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn prepare_background_run(
+        self,
+        job_id: &str,
+        tracker: &ActionTracker,
+    ) -> Result<impl std::future::Future<Output = ()> + Send + 'static + use<>, String> {
+        let job = self.authorized_job(job_id, tracker, true)?;
+        let started_at = Utc::now();
+        if let Some(error) = job.window_error(started_at) {
+            return Err(error.to_string());
+        }
+        let active = cron::active_runs::register_if_idle(&self.config, &job, started_at)
+            .ok_or_else(|| "This scheduled task is already running".to_string())?;
+        Ok(async move {
+            let _active = active;
+            self.run_job(&job, started_at).await;
+        })
+    }
+
+    async fn run_job(
+        &self,
+        job: &cron::CronJob,
+        started_at: chrono::DateTime<Utc>,
+    ) -> (bool, String, i64) {
+        let (success, output) = (self.execute_job)(&self.config, job).await;
+        let finished_at = Utc::now();
+        let duration_ms = (finished_at - started_at).num_milliseconds();
+        let status = if success { "ok" } else { "error" };
+        let _ = cron::record_run(
+            &self.config,
+            &job.id,
+            started_at,
+            finished_at,
+            status,
+            Some(&output),
+            duration_ms,
+        );
+        let _ = cron::record_last_run(&self.config, &job.id, finished_at, success, &output);
+        (success, output, duration_ms)
     }
 }
 
@@ -117,12 +194,7 @@ impl Tool for CronRunTool {
         json!({
             "type": "object",
             "properties": {
-                "job_id": { "type": "string" },
-                "approved": {
-                    "type": "boolean",
-                    "description": "Set to true to explicitly approve medium/high-risk Shell commands in supervised mode",
-                    "default": false
-                }
+                "job_id": { "type": "string" }
             },
             "required": ["job_id"]
         })
@@ -136,7 +208,6 @@ impl Tool for CronRunTool {
     ///
     /// * `args` - JSON 格式的参数对象，必须包含：
     ///   - `job_id`: 要执行的任务 ID（必需）
-    ///   - `approved`: 是否批准执行中/高风险命令（可选，默认 false）
     ///
     /// # 返回值
     ///
@@ -168,106 +239,44 @@ impl Tool for CronRunTool {
     /// - 操作预算耗尽
     /// - 任务执行失败
     async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
-        // 检查 cron 功能是否在配置中启用
-        if !self.config.cron.enabled {
+        let Some(job_id) = args
+            .get("job_id")
+            .and_then(serde_json::Value::as_str)
+            .filter(|id| !id.trim().is_empty())
+        else {
             return Ok(ToolResult {
                 success: false,
                 output: String::new(),
-                error: Some("cron is disabled by config (cron.enabled=false)".to_string()),
+                error: Some(
+                    if self.config.cron.enabled {
+                        "Missing 'job_id' parameter"
+                    } else {
+                        "cron is disabled by config (cron.enabled=false)"
+                    }
+                    .into(),
+                ),
             });
-        }
-
-        // 提取并验证 job_id 参数，确保非空
-        let job_id = match args.get("job_id").and_then(serde_json::Value::as_str) {
-            Some(v) if !v.trim().is_empty() => v,
-            _ => {
-                return Ok(ToolResult {
-                    success: false,
-                    output: String::new(),
-                    error: Some("Missing 'job_id' parameter".to_string()),
-                });
-            }
         };
-
-        // 提取 approved 参数，默认为 false
-        let approved = args.get("approved").and_then(serde_json::Value::as_bool).unwrap_or(false);
-
-        // 检查安全策略是否允许执行操作（非只读模式）
-        if !self.security.can_act() {
-            return Ok(ToolResult {
-                success: false,
-                output: String::new(),
-                error: Some("Security policy: read-only mode, cannot perform 'cron_run'".into()),
-            });
-        }
-
-        // 检查是否超过速率限制
-        if self.security.is_rate_limited() {
-            return Ok(ToolResult {
-                success: false,
-                output: String::new(),
-                error: Some("Rate limit exceeded: too many actions in the last hour".into()),
-            });
-        }
-
-        // 根据任务 ID 获取任务配置
-        let job = match cron::get_job(&self.config, job_id) {
+        let full_access_allowed =
+            self.security.autonomy == agent_security::AutonomyLevel::Full
+                && !self.security.workspace_only;
+        let job = match self.authorized_job(job_id, &self.security.tracker, full_access_allowed) {
             Ok(job) => job,
-            Err(e) => {
-                return Ok(ToolResult {
-                    success: false,
-                    output: String::new(),
-                    error: Some(e.to_string()),
-                });
+            Err(error) => {
+                return Ok(ToolResult { success: false, output: String::new(), error: Some(error) });
             }
         };
-
-        // 对 Shell 类型任务进行命令执行安全验证
-        if matches!(job.job_type, JobType::Shell)
-            && let Err(reason) = self.security.validate_command_execution(&job.command, approved) {
-                return Ok(ToolResult {
-                    success: false,
-                    output: String::new(),
-                    error: Some(reason),
-                });
-            }
-
-        // 记录本次操作，检查操作预算
-        if !self.security.record_action() {
+        let started_at = Utc::now();
+        let Some(_active_run) = cron::active_runs::register_if_idle(&self.config, &job, started_at)
+        else {
             return Ok(ToolResult {
                 success: false,
                 output: String::new(),
-                error: Some("Rate limit exceeded: action budget exhausted".into()),
+                error: Some("This scheduled task is already running".into()),
             });
-        }
-
-        // 记录开始时间
-        let started_at = Utc::now();
-        let _active_run = cron::active_runs::register(&self.config, &job, started_at);
-
-        // 立即执行任务
-        let (success, output) = (self.execute_job)(&self.config, &job).await;
-
-        // 记录结束时间并计算执行时长
-        let finished_at = Utc::now();
-        let duration_ms = (finished_at - started_at).num_milliseconds();
-
-        // 根据执行结果确定状态字符串
+        };
+        let (success, output, duration_ms) = self.run_job(&job, started_at).await;
         let status = if success { "ok" } else { "error" };
-
-        // 记录本次运行到历史记录
-        let _ = cron::record_run(
-            &self.config,
-            &job.id,
-            started_at,
-            finished_at,
-            status,
-            Some(&output),
-            duration_ms,
-        );
-
-        // 更新任务的最后运行时间
-        let _ = cron::record_last_run(&self.config, &job.id, finished_at, success, &output);
 
         // 构建并返回执行结果
         Ok(ToolResult {

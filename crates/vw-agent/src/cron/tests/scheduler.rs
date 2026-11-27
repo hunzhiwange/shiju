@@ -213,11 +213,13 @@ async fn cron_wecom_delivery_manual_and_due_shell_trigger_share_route_and_receip
             .unwrap();
     crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
         let tmp = TempDir::new().unwrap();
-        let mut config = test_config(&tmp).await;
-        config.channels_config.wecom_webhook = Some(serde_json::from_value(serde_json::json!({"webhook_url":"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fixture"})).unwrap());
-        crate::config::schema::save_config_for_tenant(&config, &tenant).await.unwrap();
+        let config = test_config(&tmp).await;
+        let target = agent_cron::delivery::protect_task_webhook(
+            &super::Host, &config,
+            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fixture",
+        ).unwrap();
         let job = cron::add_shell_job(&config, None, Schedule::Every { every_ms:1 }, "echo delivery-result").unwrap();
-        let job = cron::update_job(&config, &job.id, cron::CronJobPatch { delivery:Some(DeliveryConfig { mode:"announce".into(), channel:Some("wecom_webhook".into()), to:Some("default".into()), best_effort:false }), ..Default::default() }).unwrap();
+        let job = cron::update_job(&config, &job.id, cron::CronJobPatch { delivery:Some(DeliveryConfig { mode:"announce".into(), channel:Some("wecom_webhook".into()), to:Some(target), best_effort:false }), ..Default::default() }).unwrap();
         let requests = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let captured = requests.clone();
         let app = axum::Router::new().route("/", axum::routing::post(move |axum::Json(body):axum::Json<serde_json::Value>| {
@@ -266,7 +268,7 @@ async fn persist_job_result_uses_saved_credentials_instead_of_launch_snapshot() 
         assert!(!persist_job_result(&stale, &job, true, "result", now, now).await);
         let runs = cron::list_runs(&config, &job.id, 10).unwrap();
         assert_eq!(runs[0].status, "error");
-        assert!(runs[0].output.as_deref().unwrap().contains("Bot ID"));
+        assert!(runs[0].output.as_deref().unwrap().contains("智能机器人未配置"));
         assert!(!runs[0].output.as_deref().unwrap().contains("stale-secret"));
     })
     .await;

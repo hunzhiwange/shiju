@@ -10,7 +10,92 @@ fn app() -> App {
     App::new().0
 }
 
+#[test]
+fn cron_create_from_conversation_opens_butler_chat_draft() {
+    use crate::app::{AppTab, Screen};
+    use config_agent::SHIJU_BUTLER_AGENT_KEY;
+    use desktop_settings_agents::state::DelegateAgentSettingsEntry;
 
+    let mut app = app();
+    let path = "/workspace/project";
+    let (tab_id, title) = desktop_workspace::projects::project_tab(path);
+    app.navigation_tabs.project_path = Some(path.into());
+    app.navigation_tabs.open_tabs.push(AppTab {
+        id: tab_id.clone(),
+        title,
+        screen: Screen::Project,
+        project_path: Some(path.into()),
+    });
+    app.navigation_tabs.screen = Screen::Cron;
+    app.navigation_tabs.active_tab_id = Some("cron".into());
+    app.agents_settings.entries = vec![DelegateAgentSettingsEntry::from_config(
+        SHIJU_BUTLER_AGENT_KEY,
+        config_agent::builtin_agent_config(SHIJU_BUTLER_AGENT_KEY),
+    )];
+    let _ = update(&mut app, SettingsMessage::CronAddFromConversation);
+
+    assert_eq!(app.navigation_tabs.screen, Screen::Project);
+    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some(tab_id.as_str()));
+    assert!(app.session_state.active_session_id.is_none());
+    assert!(!app.cron_settings.show_add_modal);
+    let runtime = app.current_session_runtime_ref().expect("chat draft");
+    assert_eq!(runtime.agent.as_deref(), Some(SHIJU_BUTLER_AGENT_KEY));
+    assert_eq!(runtime.draft.as_ref().expect("draft directory").directory, path);
+    let prompt = desktop_i18n::I18n::new(app.general_settings.desktop_locale)
+        .__("我想创建一个定时任务。请帮我确认任务内容、执行时间或频率，以及是否需要通知。");
+    assert_eq!(runtime.input_editor.text(), prompt);
+    assert_eq!(app.session_state.input_editor.text(), prompt);
+    assert_eq!(app.session_state.input_text, prompt);
+}
+
+#[test]
+fn cron_create_from_conversation_uses_workspace_and_appends_to_draft() {
+    use crate::app::Screen;
+    use config_agent::SHIJU_BUTLER_AGENT_KEY;
+    use desktop_settings_agents::state::DelegateAgentSettingsEntry;
+
+    let mut app = app();
+    app.navigation_tabs.project_path = None;
+    app.navigation_tabs.screen = Screen::Cron;
+    app.navigation_tabs.active_tab_id = Some("cron".into());
+    app.navigation_panels.show_system_settings = false;
+    app.agents_settings.entries = vec![DelegateAgentSettingsEntry::from_config(
+        SHIJU_BUTLER_AGENT_KEY,
+        config_agent::builtin_agent_config(SHIJU_BUTLER_AGENT_KEY),
+    )];
+    app.current_session_runtime_mut().input_editor =
+        iced::widget::text_editor::Content::with_text("已有草稿");
+    app.session_state.files = vec!["example.txt".into()];
+
+    let resolve = update(&mut app, SettingsMessage::CronAddFromConversation);
+    assert!(!resolve.is_none());
+    assert_eq!(app.navigation_tabs.screen, Screen::Cron);
+
+    let path = "/gateway/workspace/project";
+    let gateway_user_generation = app.session_state.gateway_user_generation;
+    let navigation_generation = app.session_state.session_view_cache.navigation_generation;
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronWorkspaceResolved {
+            gateway_user_generation,
+            navigation_generation,
+            result: Ok((path.into(), "workspace-id".into())),
+        },
+    );
+
+    assert_eq!(app.navigation_tabs.screen, Screen::Project);
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some(path));
+    assert_eq!(app.workspace_state.project_id.as_deref(), Some("workspace-id"));
+    assert_eq!(app.session_state.files, ["example.txt"]);
+    let runtime = app.current_session_runtime_ref().expect("chat draft");
+    assert_eq!(runtime.agent.as_deref(), Some(SHIJU_BUTLER_AGENT_KEY));
+    assert_eq!(runtime.draft.as_ref().expect("draft directory").directory, path);
+    let prompt = desktop_i18n::I18n::new(app.general_settings.desktop_locale)
+        .__("我想创建一个定时任务。请帮我确认任务内容、执行时间或频率，以及是否需要通知。");
+    let expected = format!("已有草稿\n{prompt}");
+    assert_eq!(runtime.input_editor.text(), expected);
+    assert_eq!(app.session_state.input_text, expected);
+}
 
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
 // 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
@@ -109,7 +194,7 @@ fn cron_wecom_form_configuration_cancel_preserves_both_drafts() {
     app.cron_settings.edit_draft.name = "编辑草稿".into();
     for mode in [
         crate::app::state::WeComDeliveryMode::Manual,
-        crate::app::state::WeComDeliveryMode::Webhook,
+        crate::app::state::WeComDeliveryMode::Qr,
     ] {
         drop(crate::app::message::settings::update(
             &mut app,

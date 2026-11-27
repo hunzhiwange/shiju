@@ -288,8 +288,8 @@ async fn add_cron_job_async_rejects_invalid_inputs_before_gateway() {
             false,
             false,
             false,
-            String::new(),
-            String::new(),
+            None,
+            None,
             true,
             false,
             None,
@@ -317,8 +317,8 @@ async fn add_cron_job_async_rejects_invalid_inputs_before_gateway() {
             false,
             false,
             false,
-            String::new(),
-            String::new(),
+            None,
+            None,
             true,
             false,
             None,
@@ -346,8 +346,8 @@ async fn add_cron_job_async_rejects_invalid_inputs_before_gateway() {
             false,
             false,
             false,
-            String::new(),
-            String::new(),
+            None,
+            None,
             true,
             false,
             None,
@@ -358,7 +358,7 @@ async fn add_cron_job_async_rejects_invalid_inputs_before_gateway() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn update_cron_job_async_rejects_missing_delivery_fields_before_gateway() {
+async fn update_cron_job_async_rejects_missing_webhook_before_gateway() {
     assert_error_contains(
         super::update_cron_job_async(test_client(),
             "job-1".to_string(),
@@ -380,44 +380,15 @@ async fn update_cron_job_async_rejects_missing_delivery_fields_before_gateway() 
             false,
             false,
             true,
-            String::new(),
-            "ops".to_string(),
+            None,
+            false,
+            None,
             true,
             false,
             None,
         )
         .await,
-        "投递通道不能为空",
-    );
-    assert_error_contains(
-        super::update_cron_job_async(test_client(),
-            "job-1".to_string(),
-            String::new(),
-            "shell".to_string(),
-            "cron".to_string(),
-            "0 0 * * * *".to_string(),
-            String::new(),
-            String::new(),
-            "echo ok".to_string(),
-            String::new(),
-            String::new(),
-            String::new(),
-            String::new(),
-            String::new(),
-            false,
-            String::new(),
-            String::new(),
-            false,
-            false,
-            true,
-            "email".to_string(),
-            String::new(),
-            true,
-            false,
-            None,
-        )
-        .await,
-        "投递目标不能为空",
+        "请在当前任务中填写群机器人 Webhook",
     );
 }
 
@@ -444,8 +415,9 @@ async fn update_cron_job_async_rejects_schedule_and_payload_requirements_before_
             false,
             false,
             false,
-            String::new(),
-            String::new(),
+            None,
+            false,
+            None,
             true,
             false,
             None,
@@ -474,8 +446,9 @@ async fn update_cron_job_async_rejects_schedule_and_payload_requirements_before_
             false,
             false,
             false,
-            String::new(),
-            String::new(),
+            None,
+            false,
+            None,
             true,
             false,
             None,
@@ -504,8 +477,9 @@ async fn update_cron_job_async_rejects_schedule_and_payload_requirements_before_
             false,
             false,
             false,
-            String::new(),
-            String::new(),
+            None,
+            false,
+            None,
             true,
             false,
             None,
@@ -534,6 +508,8 @@ async fn load_cron_jobs_and_runs_use_gateway_responses() {
     assert_eq!(requests[1].path, "/v1/cron/job-1/runs");
 }
 
+const WEBHOOK: &str = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fixture";
+
 #[tokio::test(flavor = "multi_thread")]
 async fn add_cron_job_async_sends_trimmed_agent_request() {
     let _guard = CRON_JOBS_ENV_LOCK.lock().await;
@@ -558,8 +534,8 @@ async fn add_cron_job_async_sends_trimmed_agent_request() {
         true,
         true,
         true,
-        " email ".to_string(),
-        " ops@example.com ".to_string(),
+        None,
+        Some(WEBHOOK.to_owned().into()),
         false,
         true,
         None,
@@ -584,6 +560,9 @@ async fn add_cron_job_async_sends_trimmed_agent_request() {
     assert_eq!(body["fallbacks"], serde_json::json!(["fallback-a", "fallback-b"]));
     assert_eq!(body["task_pool"], true);
     assert_eq!(body["delivery_mode"], "announce");
+    assert_eq!(body["delivery_channel"], "wecom_webhook");
+    assert_eq!(body["delivery_webhook"], WEBHOOK);
+    assert!(body.get("delivery_to").is_none());
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -611,8 +590,9 @@ async fn update_cron_job_async_sends_cron_request_without_extended_probe() {
         false,
         true,
         false,
-        String::new(),
-        String::new(),
+        None,
+        false,
+        None,
         true,
         false,
         None,
@@ -658,8 +638,9 @@ async fn update_cron_job_async_clears_removed_fallback_models() {
         false,
         false,
         false,
-        String::new(),
-        String::new(),
+        None,
+        false,
+        None,
         true,
         false,
         None,
@@ -759,8 +740,8 @@ async fn wb_schedule_draft_typed_rule_clears_stale_legacy_inputs_before_validati
         false,
         false,
         false,
-        String::new(),
-        String::new(),
+        None,
+        None,
         true,
         false,
         Some(rule),

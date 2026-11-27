@@ -46,7 +46,6 @@ struct Editor {
     existing: Option<task_api::Schedule>,
     draft: tasks::Draft,
     cron: String,
-    timezone: String,
     employee_search: Option<String>,
     saving: bool,
     error: Option<Feedback>,
@@ -67,7 +66,6 @@ pub(crate) enum Event {
     Prompt(text_editor::Action),
     Workflow(String),
     Cron(String),
-    Timezone(String),
     Trigger(tasks::Trigger),
     EmployeePicker(bool),
     EmployeeSearch(String),
@@ -118,7 +116,6 @@ fn load_directory(app: &mut App) -> Task<Message> {
 fn new_editor(app: &App, from_cron_form: bool) -> Editor {
     let mut draft = tasks::Draft::new(tasks::Trigger::Cron, None, String::new());
     let mut cron = "0 9 * * *".to_owned();
-    let mut timezone = super::task_schedule::TIMEZONE.name().to_owned();
     if from_cron_form {
         let source = &app.cron_settings.add_draft;
         draft.title.clone_from(&source.name);
@@ -131,12 +128,9 @@ fn new_editor(app: &App, from_cron_form: bool) -> Editor {
             && !rule.start_date.as_ref().is_some_and(Option::is_some)
             && !rule.end_date.as_ref().is_some_and(Option::is_some)
         {
-            if let Some(zone) = rule.timezone {
-                timezone = zone;
-            }
             if rule.schedule_kind == "at" {
                 draft.trigger = tasks::Trigger::Once;
-                let zone = timezone.parse::<NamedTimeZone>().ok();
+                let zone = app.general_settings.chat_timezone.parse::<NamedTimeZone>().ok();
                 draft.once_at = rule
                     .local_at
                     .as_deref()
@@ -163,7 +157,6 @@ fn new_editor(app: &App, from_cron_form: bool) -> Editor {
         existing: None,
         draft,
         cron,
-        timezone,
         employee_search: Some(String::new()),
         saving: false,
         error: None,
@@ -216,7 +209,6 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             let Some(cron) = schedule.cron.clone().filter(|value| !value.trim().is_empty()) else {
                 return Task::none();
             };
-            let timezone = schedule.timezone.clone().unwrap_or_else(|| "UTC".into());
             let mut draft = tasks::Draft::new(tasks::Trigger::Cron, None, String::new());
             draft.title.clone_from(&schedule.title);
             draft.employee = schedule.input_text("employee_id").unwrap_or_default().to_owned();
@@ -228,7 +220,6 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
                 existing: Some(schedule),
                 draft,
                 cron,
-                timezone,
                 employee_search: None,
                 saving: false,
                 error: None,
@@ -368,7 +359,6 @@ fn interact(app: &mut App, event: Event) -> Task<Message> {
                     editor.draft.workflow = id
                 }
                 Event::Cron(value) if editor.cron != value => editor.cron = value,
-                Event::Timezone(value) if editor.timezone != value => editor.timezone = value,
                 Event::Trigger(trigger)
                     if editor.existing.is_none() && editor.draft.trigger != trigger =>
                 {
@@ -384,10 +374,10 @@ fn interact(app: &mut App, event: Event) -> Task<Message> {
                 }
                 Event::OpenTime if editor.existing.is_none() => {
                     let Some(local) = editor.draft.once_at.or_else(|| {
-                        let zone = editor.timezone.parse::<NamedTimeZone>().ok()?;
+                        let zone = app.general_settings.chat_timezone.parse::<NamedTimeZone>().ok()?;
                         Some(Utc::now().with_timezone(&zone).naive_local())
                     }) else {
-                        editor.error = Some("请选择有效的 IANA 时区".into());
+                        editor.error = Some("系统设置中的时区无效".into());
                         return Task::none();
                     };
                     editor.draft.once_picker =
@@ -442,9 +432,9 @@ fn save(app: &mut App) -> Task<Message> {
     let Some(editor) = state.editor.as_mut().filter(|editor| !editor.saving) else {
         return Task::none();
     };
-    let zone = editor.timezone.trim().parse::<NamedTimeZone>();
+    let zone = app.general_settings.chat_timezone.parse::<NamedTimeZone>();
     let Ok(zone) = zone else {
-        editor.error = Some("请选择有效的 IANA 时区".into());
+        editor.error = Some("系统设置中的时区无效".into());
         return Task::none();
     };
     let timezone = zone.name().to_owned();
@@ -546,12 +536,19 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         if plans.schedules.is_empty() {
             body = body.push(text(i18n.__("暂无定时任务")).style(settings_muted_text_style));
         }
+        let timezone = app.general_settings.chat_timezone.parse::<NamedTimeZone>()
+            .expect("validated system timezone");
         let entries = column(plans.schedules.iter().map(|plan| {
             let can_edit = state.reading.is_none()
                 && plan.version.is_some_and(|v| v > 0)
                 && plan.cron.as_ref().is_some_and(|cron| !cron.is_empty());
+            let next_fire_at = plan.next_fire_at.as_deref().map(|value| {
+                DateTime::parse_from_rfc3339(value)
+                    .map(|time| time.with_timezone(&timezone).format("%Y-%m-%d %H:%M:%S").to_string())
+                    .unwrap_or_else(|_| value.to_owned())
+            });
             let detail =
-                [plan.cron.as_deref(), plan.timezone.as_deref(), plan.next_fire_at.as_deref()]
+                [plan.cron.as_deref(), next_fire_at.as_deref()]
                     .into_iter()
                     .flatten()
                     .collect::<Vec<_>>()
@@ -707,7 +704,7 @@ pub(crate) fn with_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Elem
             .push(settings_field_label(i18n.__("工作流程")))
             .push(text(workflow).size(13))
             .push(
-                text(i18n.__("此排程可以修改周期和时区。"))
+                text(i18n.__("此排程可以修改周期。"))
                     .size(12)
                     .style(settings_muted_text_style),
             );
@@ -727,10 +724,6 @@ pub(crate) fn with_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Elem
                 .on_input_maybe(can_edit.then_some(|value| message(Event::Cron(value)))),
         ),
     };
-    fields = fields.push(settings_field_label(i18n.__("时区（IANA）"))).push(
-        settings_text_input("Asia/Shanghai", &editor.timezone)
-            .on_input_maybe(can_edit.then_some(|value| message(Event::Timezone(value)))),
-    );
     let mut footer = column![].spacing(8);
     if let Some(error) = &editor.error {
         footer = footer.push(settings_error_banner(error.render(i18n)));
@@ -757,7 +750,7 @@ pub(crate) fn with_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Elem
         return employee_picker(app, editor, query, base);
     }
     if let Some(picker) = &editor.draft.once_picker {
-        return picker_overlay_with_i18n(i18n, picker, editor.timezone.clone(), base, |event| {
+        return picker_overlay_with_i18n(i18n, picker, "", base, |event| {
             message(Event::Time(event))
         });
     }

@@ -59,8 +59,7 @@ pub(super) fn fill_recommended_prompt(app: &mut App, prompt: Option<&str>) -> Ta
     Task::none()
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-pub(super) fn fill_task_quick_action_draft(app: &mut App, draft: String) -> Task<Message> {
+pub(crate) fn fill_new_chat_draft(app: &mut App, draft: String) -> Task<Message> {
     let runtime = app.current_session_runtime_mut();
     runtime.task_mode_enabled = false;
     runtime.workflow_mode_enabled = false;

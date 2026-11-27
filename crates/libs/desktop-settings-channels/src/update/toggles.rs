@@ -181,7 +181,7 @@ pub(super) fn toggle_enabled(app: &mut ChannelsSettingsState, channel: &str, ena
             app.wecom =
                 enabled.then(|| WeComConfig { bot_id: String::new(), secret: String::new() });
             if !enabled {
-                app.wecom_instances.clear();
+                app.wecom_instances.retain(|instance| WeComConfig::is_cron_instance(&instance.id));
             }
         }
         "wechat" => {

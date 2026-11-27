@@ -23,6 +23,8 @@
 //! 并被包装在 `ConfiguredChannel` 结构中以提供显示名称和统一的接口。
 
 use super::*;
+#[cfg(not(target_arch = "wasm32"))]
+use agent_config::runtime_schema::WeComConfig;
 use channel_clawdtalk::ClawdTalkChannel;
 #[cfg(not(target_arch = "wasm32"))]
 use channel_wechat::WeChatChannel;
@@ -40,6 +42,40 @@ fn channel_instance_display_name(channel_name: &str, instance_id: &str) -> Strin
     } else {
         instance_display_name(channel_name, instance_id)
     }
+}
+
+/// The notification robot listens for pairing without starting the Agent dispatcher.
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) fn configured_cron_wecom(
+    config: &Config,
+    tenant: vw_api_transport::id::TenantScope,
+) -> Vec<ConfiguredChannel> {
+    let settings = &config.channels_config;
+    let Ok(scope) = channel_wecom::runtime::WeComRuntimeScope::from_config(config, tenant) else {
+        return Vec::new();
+    };
+    settings.wecom_instances.iter().filter_map(|instance| {
+        let id = instance.id.as_str();
+        let bot = &instance.config;
+        if !WeComConfig::is_cron_instance(id) || !bot.has_required_credentials()
+            || settings.unavailable_channels.contains(&format!("wecom:{id}"))
+        {
+            return None;
+        }
+        if settings.wecom.iter().any(|chat| chat.bot_id == bot.bot_id)
+            || settings.wecom_instances.iter().any(|other| {
+                other.id != id && other.config.bot_id == bot.bot_id
+            })
+        {
+            tracing::warn!("Skipping a scheduled-task WeCom instance with a duplicate robot");
+            return None;
+        }
+        Some(ConfiguredChannel::new(
+            channel_instance_display_name("WeCom task notifications", id),
+            Arc::new(WeComChannel::new(bot.bot_id.clone(), bot.secret.clone())
+                .with_runtime_scope(scope.clone().with_instance_id(id))),
+        ).with_instance_id(id))
+    }).collect()
 }
 
 /// 从配置对象中收集所有已配置的通道实例
@@ -481,7 +517,7 @@ pub fn collect_configured_channels(
                 .map(|instance| (instance.id.as_str(), &instance.config)),
         );
         for (id, wecom) in wecom_instances {
-            if !wecom.has_required_credentials() {
+            if WeComConfig::is_cron_instance(id) || !wecom.has_required_credentials() {
                 continue;
             }
             match channel_wecom::runtime::WeComRuntimeScope::from_config(config, tenant.clone()) {

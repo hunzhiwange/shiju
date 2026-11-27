@@ -28,6 +28,7 @@ pub fn view(app: ViewState<'_>) -> Element<'_, Message> {
         ChannelsSettingsTab::DingTalk => enterprise_channels::dingtalk_panel(app),
         ChannelsSettingsTab::Qq => enterprise_channels::qq_panel(app),
         ChannelsSettingsTab::WeCom => enterprise_channels::wecom_panel(app),
+        ChannelsSettingsTab::WeComCron => enterprise_channels::wecom_cron_card(app),
         ChannelsSettingsTab::WeChat => enterprise_channels::wechat_panel(app),
         ChannelsSettingsTab::Nostr => enterprise_channels::nostr_panel(app),
         ChannelsSettingsTab::ClawdTalk => enterprise_channels::clawdtalk_panel(app),

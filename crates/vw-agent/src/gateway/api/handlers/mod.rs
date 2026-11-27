@@ -180,7 +180,7 @@ pub use config::{handle_api_config_get, handle_api_config_put};
 /// - `handle_api_cron_update`: 更新指定定时任务（PATCH /api/cron/:id）
 pub use cron::{
     handle_api_cron_add, handle_api_cron_delete, handle_api_cron_history, handle_api_cron_list,
-    handle_api_cron_preview, handle_api_cron_runs, handle_api_cron_update,
+    handle_api_cron_preview, handle_api_cron_wecom_binding, handle_api_cron_run, handle_api_cron_runs, handle_api_cron_update,
 };
 
 /// 重新导出集成管理处理器

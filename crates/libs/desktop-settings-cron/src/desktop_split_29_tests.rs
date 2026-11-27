@@ -9,8 +9,8 @@ fn update(state: &mut CronSettingsState, message: SettingsMessage) -> iced::Task
     let config = desktop_config::ConfigAccess::new(gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 9), None);
     cron::update(&mut cron::Inputs {
         cron_settings: state,
+        system_timezone: runtime_time::zones::SHANGHAI,
         desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
-        delivery: Default::default(),
         client: Err("fixture gateway unavailable".into()),
         notices: &mut Vec::new(),
         config: &config,

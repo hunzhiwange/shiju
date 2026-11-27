@@ -1,4 +1,5 @@
 use super::*;
+use crate::message::ListMessage;
 
 #[test]
 fn jobs_loaded_reconciles_selection_and_preserves_jobs_on_error() {
@@ -6,14 +7,14 @@ fn jobs_loaded_reconciles_selection_and_preserves_jobs_on_error() {
     app.jobs_loading = true;
     app.selected_job_ids =
         vec!["a".to_string(), "missing".to_string(), "b".to_string()];
-    app.expanded_job_ids = vec!["missing".to_string(), "b".to_string()];
+    app.open_job_id = Some("missing".into());
     app.save_error = Some("old error".to_string());
 
     let _ = update(&mut app, SettingsMessage::CronJobsLoaded(Ok(vec![job("a"), job("b")])));
 
     assert!(!app.jobs_loading);
     assert_eq!(app.selected_job_ids, vec!["a".to_string(), "b".to_string()]);
-    assert_eq!(app.expanded_job_ids, vec!["b".to_string()]);
+    assert!(app.open_job_id.is_none());
     assert_eq!(app.jobs.len(), 2);
     assert_eq!(app.save_error, None);
 
@@ -42,16 +43,13 @@ fn job_selection_is_idempotent_and_select_all_can_be_cleared() {
 }
 
 #[test]
-fn job_details_are_collapsed_by_default_and_toggle_idempotently() {
+fn job_details_open_by_id_and_close() {
     let mut app = app();
-    assert!(app.expanded_job_ids.is_empty());
-
-    let _ = update(&mut app, SettingsMessage::CronJobDetailsToggled("a".to_string(), true));
-    let _ = update(&mut app, SettingsMessage::CronJobDetailsToggled("a".to_string(), true));
-    assert_eq!(app.expanded_job_ids, vec!["a".to_string()]);
-
-    let _ = update(&mut app, SettingsMessage::CronJobDetailsToggled("a".to_string(), false));
-    assert!(app.expanded_job_ids.is_empty());
+    app.jobs = vec![job("a"), job("b")];
+    let _ = update(&mut app, SettingsMessage::CronList(ListMessage::OpenTask("a".into())));
+    assert_eq!(app.open_job_id.as_deref(), Some("a"));
+    let _ = update(&mut app, SettingsMessage::CronList(ListMessage::CloseTask));
+    assert!(app.open_job_id.is_none());
 }
 
 #[test]
@@ -163,17 +161,26 @@ fn cron_list_batch_limits_requests_to_visible_valid_selection() {
         assert!(iced_runtime::task::into_stream(task).is_none());
         assert!(app.selected_job_ids.is_empty());
     }
-    for message in [
-        SettingsMessage::CronSelectedJobsEnable,
-        SettingsMessage::CronSelectedJobsDisable,
-        SettingsMessage::CronSelectedJobsDelete,
-    ] {
-        app.selected_job_ids =
-            vec!["paused".into(), "enabled-1".into(), "missing".into()];
+    for message in [SettingsMessage::CronSelectedJobsEnable, SettingsMessage::CronSelectedJobsDisable] {
+        app.selected_job_ids = vec!["paused".into(), "enabled-1".into(), "missing".into()];
         let task = update(&mut app, message);
-        // Drop the unpolled stream: verify the request boundary without contacting a gateway.
         assert!(iced_runtime::task::into_stream(task).is_some());
         assert_eq!(app.selected_job_ids, vec!["enabled-1"]);
         assert!(app.save_error.is_none());
     }
+
+    app.selected_job_ids = vec!["paused".into(), "enabled-1".into(), "missing".into()];
+    let task = update(&mut app, SettingsMessage::CronSelectedJobsDelete);
+    assert!(iced_runtime::task::into_stream(task).is_none());
+    assert!(matches!(&app.delete_target, Some(CronDeleteTarget::Batch(ids)) if ids == &["enabled-1"]));
+    let _ = update(&mut app, SettingsMessage::CronList(ListMessage::CancelDelete));
+    let task = update(&mut app, SettingsMessage::CronList(ListMessage::ConfirmDelete));
+    assert!(iced_runtime::task::into_stream(task).is_none());
+    assert_eq!(app.selected_job_ids, vec!["enabled-1"]);
+
+    let _ = update(&mut app, SettingsMessage::CronSelectedJobsDelete);
+    let task = update(&mut app, SettingsMessage::CronList(ListMessage::ConfirmDelete));
+    assert!(iced_runtime::task::into_stream(task).is_some());
+    let duplicate = update(&mut app, SettingsMessage::CronList(ListMessage::ConfirmDelete));
+    assert!(iced_runtime::task::into_stream(duplicate).is_none());
 }

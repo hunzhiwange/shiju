@@ -101,10 +101,14 @@ async fn wecom_delivery_acceptance_saved_api_jobs_reload_and_receipts() {
         request(&router, "GET", "/v1/config", Value::Null, &company).await;
         let config = state.config.lock().clone();
         let mut jobs = Vec::new();
-        for (channel, target) in [("wecom", "explicit-user"), ("wecom_webhook", "default")] {
+        for (channel, target) in [("wecom", "explicit-user"), ("wecom_webhook", "")] {
             let added = request(&router, "POST", "/v1/cron", json!({
                 "schedule_kind":"every","every_ms":60000,"command":"echo 完成",
-                "delivery_mode":"announce","delivery_channel":channel,"delivery_to":target,
+                "delivery_mode":"announce", "delivery_channel":channel,
+                "delivery_to":if channel == "wecom" { Some(target) } else { None },
+                "delivery_webhook":if channel == "wecom_webhook" {
+                    Some("https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=acceptance-secret-initial")
+                } else { None },
                 "delivery_best_effort":false
             }), &company).await;
             let id = added["job"]["id"].as_str().unwrap();
@@ -146,17 +150,49 @@ async fn wecom_delivery_acceptance_saved_api_jobs_reload_and_receipts() {
             disabled.delivery.mode = "none".into();
             assert!(delivery::apply_result(&config, &disabled, true, "完成").await.0);
             assert_eq!(count.load(std::sync::atomic::Ordering::SeqCst), before);
-            // Persisted removal must override the launch snapshot immediately.
-            request(&router, "PATCH", "/v1/config", json!({"channels_config":{"wecom_webhook":null}}), &company).await;
+            // An obsolete shared target fails even while the old channel setting exists.
             for best_effort in [false,true] {
                 let mut job = jobs[1].clone();
+                job.delivery.to = Some("default".into());
                 job.delivery.best_effort = best_effort;
                 let (ok, output) = delivery::apply_result(&config, &job, true, "完成").await;
                 assert_eq!(ok, best_effort);
-                assert!(output.contains("未配置"), "{output}");
+                assert!(output.contains("在当前任务中配置"), "{output}");
                 assert!(!output.contains("acceptance-secret"));
             }
             assert_eq!(count.load(std::sync::atomic::Ordering::SeqCst), before);
+
+            request(&router, "PATCH", "/v1/config", json!({"channels_config":{"wecom_webhook":null}}), &company).await;
+            let mut independent = Vec::new();
+            for key in ["acceptance-secret-a", "acceptance-secret-b"] {
+                let job = request(&router, "POST", "/v1/cron", json!({
+                    "schedule_kind":"every","every_ms":60000,"command":"echo done",
+                    "delivery_mode":"announce","delivery_channel":"wecom_webhook",
+                    "delivery_webhook":format!("https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key={key}"),
+                    "delivery_best_effort":false
+                }), &company).await;
+                assert_eq!(job["job"]["delivery_to"], "configured");
+                let id = job["job"]["id"].as_str().unwrap();
+                let stored = get_job(&config, id).unwrap();
+                let target = stored.delivery.to.as_deref().unwrap();
+                assert!(target.starts_with("enc2:"));
+                assert!(!target.contains(key));
+                assert!(delivery::apply_result(&config, &stored, true, "done").await.0);
+                independent.push(stored);
+            }
+            assert_eq!(count.load(std::sync::atomic::Ordering::SeqCst), before + 2);
+            let second_target = independent[1].delivery.to.clone();
+            let first_path = format!("/v1/cron/{}", independent[0].id);
+            request(&router, "PATCH", &first_path, json!({
+                "delivery_webhook":"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=acceptance-secret-c"
+            }), &company).await;
+            assert_ne!(get_job(&config, &independent[0].id).unwrap().delivery.to, independent[0].delivery.to);
+            assert_eq!(get_job(&config, &independent[1].id).unwrap().delivery.to, second_target);
+            let preserved = get_job(&config, &independent[0].id).unwrap().delivery.to;
+            request(&router, "PATCH", &first_path, json!({"name":"renamed"}), &company).await;
+            assert_eq!(get_job(&config, &independent[0].id).unwrap().delivery.to, preserved);
+            let listed = request(&router, "GET", "/v1/cron", Value::Null, &company).await;
+            assert!(!listed.to_string().contains("enc2:"));
         }).await;
         server.abort();
         let _ = server.await;

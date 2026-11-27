@@ -26,15 +26,16 @@ impl Harness {
     fn data(&self) -> domain::ViewData<'_> {
         domain::ViewData {
             cron_settings: &self.state,
+            system_timezone: config_ui::DEFAULT_TIMEZONE.parse().unwrap(),
             desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
             app_theme: &self.app_theme,
             project_path: None,
             recent_projects: &[],
+            recent_project_labels: &[],
             agents: Vec::new(),
             models: Vec::new(),
             skills: Vec::new(),
-            conversation_available: false,
-            delivery: Default::default(),
+            wecom_notifications: Vec::new(),
             scheduler_error: None,
             last_copied_code_hash: None,
             help_content: |title, body, _, _| iced::widget::column![text(title), text(body)].into(),
@@ -60,8 +61,8 @@ impl Harness {
         drop(crate::update::cron::update(
             &mut crate::update::cron::Inputs {
                 cron_settings: &mut self.state,
+                system_timezone: runtime_time::zones::SHANGHAI,
                 desktop_locale: config_ui::DesktopLocale::SimplifiedChinese,
-                delivery: Default::default(),
                 client: Err("native fixture unavailable".into()),
                 config: &config,
                 notices: &mut Vec::new(),

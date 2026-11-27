@@ -14,7 +14,6 @@ fn fixture(tmp: &tempfile::TempDir) -> Config {
     std::fs::create_dir_all(&config.workspace_dir).unwrap();
     config.channels_config.wecom =
         Some(serde_json::from_value(json!({"bot_id":"bot","secret":"secret"})).unwrap());
-    config.channels_config.wecom_webhook = Some(serde_json::from_value(json!({"webhook_url":"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fixture-secret"})).unwrap());
     config
 }
 
@@ -63,21 +62,11 @@ async fn cron_wecom_delivery_configuration_and_reload_fail_closed() {
         )
         .unwrap();
         let scope = crate::session::ui_store::current_tenant_scope();
-        for (channel, payload) in [
-            ("wecom", json!({"channels_config":{"cli":true,"wecom":{"bot_id":"bot","secret":"enc2:broken"}}})),
-            (
-                "wecom_webhook",
-                json!({"channels_config":{"cli":true,"wecom_webhook":{"webhook_url":"enc2:broken"}}}),
-            ),
-        ] {
-            store.upsert(&scope, &payload.to_string()).unwrap();
-            let mut d = delivery.clone();
-            d.channel = Some(channel.into());
-            d.to = Some(if channel == "wecom" { "user" } else { "default" }.into());
-            let error = delivery::validate_saved(&config, &d).await.unwrap_err().to_string();
-            assert!(error.contains("密钥不可用"), "{error}");
-            assert!(!error.contains("enc2:broken"));
-        }
+        let payload = json!({"channels_config":{"cli":true,"wecom":{"bot_id":"bot","secret":"enc2:broken"}}});
+        store.upsert(&scope, &payload.to_string()).unwrap();
+        let error = delivery::validate_saved(&config, &delivery).await.unwrap_err().to_string();
+        assert!(error.contains("密钥不可用"), "{error}");
+        assert!(!error.contains("enc2:broken"));
         store.upsert(&scope, "invalid-json-fixture").unwrap();
         let error = delivery::validate_saved(&config, &delivery).await.unwrap_err().to_string();
         assert!(error.contains("读取失败"));
@@ -169,6 +158,10 @@ async fn cron_wecom_delivery_webhook_routes_and_checks_receipt() {
         let tmp = tempfile::TempDir::new().unwrap();
         let config = fixture(&tmp);
         save(&config).await;
+        let target = agent_cron::delivery::protect_task_webhook(
+            &scheduler::Host, &config,
+            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fixture-secret",
+        ).unwrap();
         for code in [0, 40014] {
             let app = axum::Router::new().route(
                 "/",
@@ -189,7 +182,7 @@ async fn cron_wecom_delivery_webhook_routes_and_checks_receipt() {
                     scheduler::deliver_announcement(
                         &config,
                         "wecom_webhook",
-                        "default",
+                        &target,
                         "scheduled result",
                     ),
                 )

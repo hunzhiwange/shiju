@@ -48,7 +48,7 @@ pub const TASK_NOTIFICATION: GeneralSettingField = GeneralSettingField {
     keywords: &["notification"],
 };
 pub const CHAT_TIMEZONE: GeneralSettingField = GeneralSettingField {
-    label: "聊天时区",
+    label: "时区",
     tab: GeneralSettingsTab::Interface,
     id: "general-settings-chat-timezone",
     keywords: &["timezone"],

@@ -37,12 +37,8 @@ async fn cron_wecom_form_renders_add_edit_and_configuration() {
             for theme in [Theme::Dark, Theme::Light] {
                 for (width, height) in [(800, 720), (480, 600)] {
                     for config in [false, true] {
-                        channels.wecom_delivery = config.then(|| WeComDeliveryDraft {
-                            mode: if channel == "wecom" {
-                                WeComDeliveryMode::Manual
-                            } else {
-                                WeComDeliveryMode::Webhook
-                            },
+                        channels.wecom_delivery = (config && channel == "wecom").then(|| WeComDeliveryDraft {
+                            mode: WeComDeliveryMode::Manual,
                             ..Default::default()
                         });
                         let data = cron::ViewData {
@@ -54,8 +50,8 @@ async fn cron_wecom_form_renders_add_edit_and_configuration() {
                             agents: Vec::new(),
                             models: Vec::new(),
                             skills: Vec::new(),
-                            conversation_available: false,
                             delivery: Default::default(),
+                            wecom_notifications: Vec::new(),
                             scheduler_error: None,
                             last_copied_code_hash: None,
                             help_content: |title, body, _, _| {

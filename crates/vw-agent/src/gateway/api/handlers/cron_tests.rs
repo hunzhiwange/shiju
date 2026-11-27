@@ -99,11 +99,93 @@ async fn cron_wecom_delivery_api_roundtrip_and_partial_edit_validate_merged_targ
 }
 
 #[tokio::test]
+async fn cron_wecom_binding_reads_request_tenant_and_unbound_jobs_save() {
+    use axum::{body::{Body, to_bytes}, http::Request};
+    use serde_json::{Value, json};
+    use tower::ServiceExt;
+    use vw_api_transport::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER};
+
+    let company = uuid::Uuid::new_v4().to_string();
+    let platform = "cron-wecom-route-test";
+    let tenant = TenantScope::new(platform, &company).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let config = temp_config(dir.path());
+    config.lock().config_path = dir.path().join("config.json");
+    let mut saved = config.lock().clone();
+    let id = config_channel_services::WeComConfig::CRON_INSTANCE;
+    saved.channels_config.wecom_instances.push(config_channel_services::WeComInstanceConfig {
+        id: id.into(),
+        config: config_channel_services::WeComConfig {
+            bot_id: "test-bot".into(),
+            secret: "test-secret".into(),
+        },
+    });
+    crate::config::schema::save_config_for_tenant(&saved, &tenant).await.unwrap();
+
+    let app = router(state_with_config(config.clone(), false));
+    let request = |method, path, body: Value| {
+        app.clone().oneshot(Request::builder()
+            .method(method)
+            .uri(path)
+            .header(PLATFORM_ID_HEADER, platform)
+            .header(COMPANY_ID_HEADER, company.as_str())
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string())).unwrap())
+    };
+    let binding = request("GET", "/v1/cron/wecom-binding", Value::Null).await.unwrap();
+    assert_eq!(binding.status(), StatusCode::OK);
+
+    let added = request("POST", "/v1/cron", json!({
+        "schedule_kind": "every", "every_ms": 60000, "command": "echo done",
+        "delivery_mode": "announce", "delivery_channel": "wecom_cron", "delivery_to": id
+    })).await.unwrap();
+    assert_eq!(added.status(), StatusCode::OK);
+    let body: Value = serde_json::from_slice(&to_bytes(added.into_body(), 65536).await.unwrap()).unwrap();
+    let job_id = body["job"]["id"].as_str().unwrap();
+    let path = format!("/v1/cron/{job_id}");
+    let result = request("PATCH", path.as_str(), json!({
+        "delivery_best_effort": false
+    })).await.unwrap();
+    assert_eq!(result.status(), StatusCode::OK);
+    let config = config.lock().clone();
+    let mut job = crate::cron::get_job(&config, job_id).unwrap();
+    assert!(!job.delivery.best_effort);
+    for best_effort in [false, true] {
+        job.delivery.best_effort = best_effort;
+        let (success, output) = with_tenant_scope(
+            tenant.clone(), crate::cron::delivery::apply_result(&config, &job, true, "done"),
+        ).await;
+        assert_eq!(success, best_effort);
+        assert!(output.contains("企微定时任务机器人尚未绑定接收会话"), "{output}");
+    }
+}
+
+#[tokio::test]
 async fn wb_schedule_api_preview_routes_enforce_auth_and_return_candidates() {
     for pairing in [false, true] {
         let dir = tempfile::tempdir().unwrap();
         let config = temp_config(dir.path());
         let state = state_with_config(config.clone(), pairing);
         contract::wb_schedule_api_preview_routes_enforce_auth_and_return_candidates(router(state), config, pairing).await;
+    }
+}
+
+#[tokio::test]
+async fn cron_run_endpoint_requires_auth_and_rejects_disabled_cron() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let dir = tempfile::tempdir().unwrap();
+    for (pairing, status) in [(true, StatusCode::UNAUTHORIZED), (false, StatusCode::BAD_REQUEST)] {
+        let config = temp_config(dir.path());
+        config.lock().cron.enabled = false;
+        let response = router(state_with_config(config, pairing))
+            .oneshot(Request::post("/v1/cron/example/run")
+                .header(vw_api_transport::id::PLATFORM_ID_HEADER, "test-platform")
+                .header(vw_api_transport::id::COMPANY_ID_HEADER, "test-company")
+                .body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), status);
     }
 }

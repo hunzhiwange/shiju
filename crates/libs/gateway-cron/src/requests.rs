@@ -119,6 +119,8 @@ pub struct CronAddBody {
     /// 任务结果投递目标。
     #[serde(default)]
     pub delivery_to: Option<String>,
+    #[serde(default)]
+    pub delivery_webhook: Option<crate::CronWebhookInput>,
 
     /// 投递失败是否不影响任务状态。
     #[serde(default)]
@@ -215,6 +217,8 @@ pub struct CronUpdateBody {
 
     /// 新投递目标。
     pub delivery_to: Option<String>,
+    #[serde(default)]
+    pub delivery_webhook: Option<crate::CronWebhookInput>,
 
     /// 新投递失败策略。
     pub delivery_best_effort: Option<bool>,

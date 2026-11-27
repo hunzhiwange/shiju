@@ -5,13 +5,34 @@ use config_ui::DesktopLocale;
 use iced::advanced::{
     clipboard,
     renderer::{Headless, Style},
+    widget::{Id, Operation, operation::Scrollable},
 };
-use iced::{Event, Font, Renderer, Size, Theme, mouse};
+use iced::{Event, Font, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced::{
     Length,
     widget::{container, text},
 };
 use iced_runtime::user_interface::{Cache, UserInterface};
+
+#[derive(Default)]
+struct ModalBodyBounds(Option<Rectangle>);
+
+impl Operation for ModalBodyBounds {
+    fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
+        children(self);
+    }
+
+    fn scrollable(
+        &mut self,
+        _: Option<&Id>,
+        bounds: Rectangle,
+        _: Rectangle,
+        _: Vector,
+        _: &mut dyn Scrollable,
+    ) {
+        self.0 = Some(bounds);
+    }
+}
 
 #[tokio::test(flavor = "multi_thread")]
 async fn wecom_delivery_modal_renders_narrow_chinese_and_qr_states() {
@@ -70,7 +91,7 @@ async fn wecom_delivery_modal_renders_narrow_chinese_and_qr_states() {
         (Theme::Dark, 640, DesktopLocale::English, "dark-en"),
     ] {
         app.desktop_locale = locale;
-        for mode in [WeComDeliveryMode::Qr, WeComDeliveryMode::Manual, WeComDeliveryMode::Webhook] {
+        for mode in [WeComDeliveryMode::Qr, WeComDeliveryMode::Manual] {
             let services = crate::update::Services {
                 config: desktop_config::ConfigAccess::new(
                     gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1),
@@ -125,6 +146,13 @@ async fn wecom_delivery_modal_renders_narrow_chinese_and_qr_states() {
                     Size::new(width as f32, 740.0),
                     Cache::new(),
                     &mut renderer,
+                );
+                let mut body = ModalBodyBounds::default();
+                ui.operate(&renderer, &mut body);
+                let body = body.0.expect("modal body must be scrollable");
+                assert!(
+                    (body.center_x() - width as f32 / 2.0).abs() < 1.0,
+                    "{mode:?} modal is off-center at width {width}: {body:?}"
                 );
                 let mut messages = Vec::new();
                 ui.update(

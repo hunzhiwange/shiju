@@ -37,8 +37,8 @@ fn cron_tabs_job_types_and_draft_defaults_match_api_contract() {
     assert!(!draft.full_access);
     assert!(!draft.task_pool);
     assert!(!draft.delivery_enabled);
-    assert!(draft.delivery_channel.is_empty());
-    assert!(draft.delivery_to.is_empty());
+    assert!(!draft.delivery_webhook_configured);
+    assert!(draft.delivery_webhook.as_str().is_empty());
     assert!(draft.delivery_best_effort);
     assert!(!draft.delete_after_run);
 

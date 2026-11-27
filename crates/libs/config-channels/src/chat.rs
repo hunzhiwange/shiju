@@ -366,7 +366,9 @@ impl ChannelsConfig {
             &mut profiles,
             "wecom",
             self.wecom.is_some(),
-            self.wecom_instances.iter().map(|instance| instance.id.as_str()),
+            self.wecom_instances.iter()
+                .filter(|instance| !config_channel_services::WeComConfig::is_cron_instance(&instance.id))
+                .map(|instance| instance.id.as_str()),
         )?;
 
         push_instance_profiles(

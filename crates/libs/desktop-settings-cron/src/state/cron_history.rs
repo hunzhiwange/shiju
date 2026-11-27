@@ -28,6 +28,7 @@ pub struct CronHistoryState {
     /// 有错误时已有行仍可查看，但不是最新数据。
     pub error: Option<String>,
     pub search: String,
+    pub show_search: bool,
     /// Stable single-run key; resolved against current rows on every view.
     pub selected_run: Option<String>,
     pub status_filter: CronHistoryStatus,

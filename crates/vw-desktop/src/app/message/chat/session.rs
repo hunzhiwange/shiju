@@ -60,7 +60,7 @@ pub(crate) fn run_task_quick_action(
     app.workspace_state.project_id = Some(project.id.as_ref().to_owned());
     app.task_board.show_task_board = false;
     app.navigation_tabs.screen = crate::app::Screen::Project;
-    let fill = super::input::fill_task_quick_action_draft(app, draft);
+    let fill = super::input::fill_new_chat_draft(app, draft);
     let send = send_current_session_input(app);
     Task::batch([open, fill, send])
 }

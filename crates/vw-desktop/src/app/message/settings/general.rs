@@ -448,6 +448,11 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 return Task::none();
             }
 
+            desktop_settings_cron::update::cron::refresh_system_timezone(
+                &mut app.cron_settings,
+                app.general_settings.desktop_locale,
+                app.general_settings.chat_timezone.parse().expect("validated system timezone"),
+            );
             return app.save_system_settings_fields(
                 SystemSettingsSection::Timezone,
                 serde_json::Map::from_iter([("timezone".into(), timezone.into())]),

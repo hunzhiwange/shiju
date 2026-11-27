@@ -48,11 +48,16 @@ impl Tool for CronListTool {
         }
 
         match cron::list_jobs(&self.config) {
-            Ok(jobs) => Ok(ToolResult {
-                success: true,
-                output: serde_json::to_string_pretty(&jobs)?,
-                error: None,
-            }),
+            Ok(mut jobs) => {
+                for job in &mut jobs {
+                    job.delivery.to = cron::delivery::public_target(&job.delivery).map(str::to_owned);
+                }
+                Ok(ToolResult {
+                    success: true,
+                    output: serde_json::to_string_pretty(&jobs)?,
+                    error: None,
+                })
+            },
             Err(e) => {
                 Ok(ToolResult { success: false, output: String::new(), error: Some(e.to_string()) })
             }

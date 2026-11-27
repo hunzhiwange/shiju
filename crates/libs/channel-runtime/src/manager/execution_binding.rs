@@ -137,7 +137,7 @@ pub async fn execution_options(
     }
     options["delegate_default_allowed_skills"] = serde_json::json!(binding.allowed_skills);
     options["delegate_skill_policy"] = serde_json::to_value(binding.skill_policy)?;
-    if binding.agent != "main" {
+    if !config_agent::can_delegate_from_agent(&binding.agent) {
         options["allowed_tools"] = serde_json::json!(binding.allowed_tools);
     }
     if let AgentRuntime::Acp { backend } = binding.runtime {

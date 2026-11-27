@@ -328,6 +328,15 @@ impl Tool for CronUpdateTool {
                 });
             }
         };
+        if let Some(path) = patch.project_path.as_deref()
+            && (!std::path::Path::new(path).is_absolute() || !self.security.is_path_allowed(path))
+        {
+            return Ok(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some("Scheduled task project is outside the permitted workspace".into()),
+            });
+        }
 
         // ===== 阶段 4: 解析可选的 approved 参数 =====
         // approved 用于在监督模式下显式批准中/高风险命令
@@ -352,12 +361,18 @@ impl Tool for CronUpdateTool {
 
         // ===== 阶段 7: 执行实际更新操作 =====
         // 所有检查通过后，调用 cron 模块执行更新
-        match cron::update_job(&self.config, job_id, patch) {
-            Ok(job) => Ok(ToolResult {
-                success: true,
-                output: serde_json::to_string_pretty(&job)?,
-                error: None,
-            }),
+        let full_access_allowed =
+            self.security.autonomy == agent_security::AutonomyLevel::Full
+                && !self.security.workspace_only;
+        match cron::update_job_with_access_limit(&self.config, job_id, patch, full_access_allowed) {
+            Ok(mut job) => {
+                job.delivery.to = cron::delivery::public_target(&job.delivery).map(str::to_owned);
+                Ok(ToolResult {
+                    success: true,
+                    output: serde_json::to_string_pretty(&job)?,
+                    error: None,
+                })
+            }
             Err(e) => {
                 Ok(ToolResult { success: false, output: String::new(), error: Some(e.to_string()) })
             }

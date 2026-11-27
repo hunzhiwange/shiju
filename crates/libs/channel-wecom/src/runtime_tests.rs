@@ -200,3 +200,63 @@ async fn wecom_runtime_failed_authentication_releases_owner_without_publication(
     assert!(connected(&scope).is_err());
     assert!(runtime::Registration::claim(scope).is_ok());
 }
+
+#[tokio::test]
+async fn cron_robot_binds_private_chat_once_and_delivers_through_its_own_connection() {
+    use agent_config::schema::WeComConfig;
+    use runtime::{cron_recipient, forget_cron_binding, start_cron_binding};
+
+    let workspace = std::env::temp_dir().join(format!("shiju-wecom-cron-{}", Uuid::new_v4()));
+    let config = agent_config::schema::Config {
+        workspace_dir: workspace.clone(),
+        config_path: workspace.join("config.json"),
+        ..Default::default()
+    };
+    let chat_scope = WeComRuntimeScope::from_config(&config, TenantScope::default()).unwrap();
+    let scope = chat_scope.clone().with_instance_id(WeComConfig::CRON_INSTANCE);
+    let (_channel, mut socket, task) = start(scope.clone(), "scheduled-fixture").await;
+
+    assert!(start_cron_binding(&chat_scope, "bot", "scheduled-fixture").is_err());
+    let code = start_cron_binding(&scope, "bot", "scheduled-fixture").unwrap();
+    for (chattype, userid, request_id) in [
+        ("group", "unexpected-group", "request-group"),
+        ("single", "notification-user", "request-private"),
+        ("single", "unexpected-replay", "request-replay"),
+    ] {
+        let frame = json!({
+            "cmd": "aibot_msg_callback",
+            "headers": {"req_id": request_id},
+            "body": {
+                "chattype": chattype,
+                "msgtype": "text",
+                "from": {"userid": userid},
+                "text": {"content": &code}
+            }
+        });
+        socket.send(Message::Text(frame.to_string().into())).await.unwrap();
+    }
+    let recipient = timeout(Duration::from_secs(2), async {
+        loop {
+            if let Some(recipient) = cron_recipient(&scope, "bot", "scheduled-fixture").unwrap() {
+                break recipient;
+            }
+            tokio::task::yield_now().await;
+        }
+    }).await.unwrap();
+    assert_eq!(recipient, "notification-user");
+    assert!(cron_recipient(&scope, "bot", "rotated-fixture").unwrap().is_none());
+    let handle = connected(&scope).unwrap();
+    let send = tokio::spawn(async move { handle.send_proactive(&recipient, "scheduled result").await });
+    let frame = next(&mut socket).await;
+    assert_eq!(frame["cmd"], "aibot_send_msg");
+    assert_eq!(frame["body"]["chatid"], "notification-user");
+    socket.send(Message::Text(json!({"headers": frame["headers"], "errcode": 0}).to_string().into())).await.unwrap();
+    send.await.unwrap().unwrap();
+    assert_eq!(cron_recipient(&scope, "bot", "scheduled-fixture").unwrap().as_deref(), Some("notification-user"));
+
+    forget_cron_binding(&scope).unwrap();
+    assert!(cron_recipient(&scope, "bot", "scheduled-fixture").unwrap().is_none());
+    task.abort();
+    let _ = task.await;
+    std::fs::remove_dir_all(workspace).unwrap();
+}

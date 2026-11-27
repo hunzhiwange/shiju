@@ -157,6 +157,19 @@ impl GatewayCronClient {
         }
     }
 
+    pub async fn cron_job_run(&self, job_id: &str) -> Result<(), String> {
+        let job_id = encode_path_segment(required_job_id(job_id)?);
+        let path = format!("/v1/cron/{job_id}/run");
+        self.transport.post_json::<_, serde::de::IgnoredAny>(&path, &[], &())
+            .await.map(|_| ()).map_err(|error| {
+                if is_not_found(&error) || is_method_not_allowed(&error) {
+                    "当前网关不支持立即运行定时任务，请升级并重启网关".to_owned()
+                } else {
+                    error
+                }
+            })
+    }
+
     pub async fn cron_job_delete(&self, job_id: &str) -> Result<(), String> {
         let job_id = required_job_id(job_id)?;
         self.transport.delete_empty(&format!("/v1/cron/{}", encode_path_segment(job_id)), &[]).await

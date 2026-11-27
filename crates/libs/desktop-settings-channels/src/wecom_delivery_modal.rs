@@ -1,13 +1,13 @@
-//! 分离 Agent 对话接入与定时任务群通知；仅内容区滚动。
+//! 智能机器人连接弹窗，仅内容区滚动。
 use desktop_ui_controls::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button,
     settings_error_banner, settings_modal_header, settings_modal_layout, settings_modal_overlay,
-    settings_muted_text_style, settings_text_input,
+    settings_muted_text_style, settings_tab_button, settings_text_input,
 };
 use crate::messages::{ChannelsMessage, SettingsMessage};
 use crate::state::WeComDeliveryMode;
 use crate::{ViewState, messages::Message};
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{button, column, row, text};
 use iced::{Element, Length};
 
 fn message(value: ChannelsMessage) -> Message {
@@ -23,34 +23,27 @@ pub fn overlay<'a, M: Clone + 'a>(
     let Some(draft) = app.channels_settings.wecom_delivery.as_ref() else {
         return base;
     };
+    let cron = draft.instance_id.as_deref().is_some_and(config_channel_services::WeComConfig::is_cron_instance);
     let mut body = column![].spacing(12).width(Length::Fill);
-    let modes = if draft.mode == WeComDeliveryMode::Webhook {
-        vec![]
-    } else {
-        vec![
-            (WeComDeliveryMode::Qr, i18n.__("扫码连接")),
-            (WeComDeliveryMode::Manual, i18n.__("手动连接")),
-        ]
+    let bot = app.channels_settings.wecom_connection(draft.instance_id.as_deref());
+    let mode_tab = |mode, title| {
+        let selected = mode == draft.mode;
+        let on_press = (!draft.saving && !selected).then(|| {
+            message(match &draft.instance_id {
+                Some(id) => ChannelsMessage::WeComInstanceOpened(id.clone(), mode),
+                None => ChannelsMessage::WeComDeliveryOpened(mode),
+            })
+        });
+        settings_tab_button(title, selected, on_press).width(Length::Fill)
     };
-    for (mode, title) in modes {
-        let mut control = button(text(title))
-            .padding([8, 12])
-            .width(Length::Fill)
-            .style(rounded_action_btn_style);
-        if !draft.saving && mode != draft.mode {
-            control = control.on_press(message(ChannelsMessage::WeComDeliveryOpened(mode)));
-        }
-        body = body.push(control);
-    }
-    body = body.push(
-        text(if draft.mode == WeComDeliveryMode::Webhook {
-            i18n.__("仅用于发送任务结果通知，不接收指令，无需连接 Agent 对话通道。")
-        } else {
-            i18n.__("用于接收消息并与 Agent 对话；连接状态请查看运行诊断。")
-        })
-        .size(13)
-        .style(settings_muted_text_style),
-    );
+    body = body
+        .push(row![
+            mode_tab(WeComDeliveryMode::Qr, i18n.__("扫码连接")),
+            mode_tab(WeComDeliveryMode::Manual, i18n.__("手动连接")),
+        ].spacing(8))
+        .push(text(i18n.__(if cron { "保存后在通道中绑定接收会话。" } else { "用于接收消息并与 Agent 对话；连接状态请查看运行诊断。" }))
+            .size(13)
+            .style(settings_muted_text_style));
     match draft.mode {
         WeComDeliveryMode::Qr => {
             body = body.push(super::enterprise_channels::qr_authorization(app, "wecom"));
@@ -66,7 +59,7 @@ pub fn overlay<'a, M: Clone + 'a>(
                 })
             });
             body = body.push(text(i18n.__("机器人密钥")));
-            let placeholder = if app.channels_settings.wecom.is_some() {
+            let placeholder = if bot.is_some_and(|bot| !bot.secret.is_empty()) {
                 i18n.__("已配置，留空保留；输入新值替换")
             } else {
                 i18n.__("输入 Secret")
@@ -85,34 +78,16 @@ pub fn overlay<'a, M: Clone + 'a>(
                     .size(12),
             );
         }
-        WeComDeliveryMode::Webhook => {
-            body = body.push(text(i18n.__("完整群机器人 Webhook")));
-            let placeholder = if app.channels_settings.wecom_webhook.is_some() {
-                i18n.__("已配置，留空保留；输入新值替换")
-            } else {
-                "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…"
-            };
-            let input = settings_text_input(placeholder, &draft.webhook_url)
-                .secure(true)
-                .width(Length::Fill);
-            body = body.push(if draft.saving {
-                input
-            } else {
-                input.on_input(|v| {
-                    message(ChannelsMessage::WeComDeliveryChanged("webhook_url".into(), v))
-                })
-            });
-            body = body
-                .push(text(i18n.__("仅配置一个默认群机器人，无需 Bot ID 或 Secret。")).size(13));
-        }
     }
-    let mut clear =
-        button(text(i18n.__("清空已存凭据"))).padding([8, 12]).style(rounded_action_btn_style);
-    if !draft.saving {
-        clear = clear.on_press(message(ChannelsMessage::WeComDeliveryClearSecret));
+    let has_saved_credentials = bot.is_some_and(|bot| !bot.secret.is_empty());
+    if has_saved_credentials {
+        let clear = button(text(i18n.__(if cron { "断开连接" } else { "清空已存凭据" })))
+            .padding([8, 12])
+            .style(rounded_action_btn_style)
+            .on_press_maybe((!draft.saving).then(|| message(ChannelsMessage::WeComDeliveryClearSecret)));
+        body = body.push(clear);
     }
-    body = body.push(clear);
-    if draft.clear_secret || draft.clear_webhook {
+    if draft.clear_secret {
         body = body.push(text(i18n.__("保存后将移除当前入口的凭据；取消可放弃。")).size(13));
     }
     if let Some(error) = &draft.error {
@@ -127,27 +102,27 @@ pub fn overlay<'a, M: Clone + 'a>(
     .style(primary_action_btn_style);
     let mut cancel = button(text(i18n.__("取消"))).padding([8, 16]).style(rounded_action_btn_style);
     if !draft.saving {
-        save = save.on_press(message(ChannelsMessage::WeComDeliverySave));
+        if draft.mode != WeComDeliveryMode::Qr || !draft.secret.is_empty() || draft.clear_secret {
+            save = save.on_press(message(ChannelsMessage::WeComDeliverySave));
+        }
         cancel = cancel.on_press(message(ChannelsMessage::WeComDeliveryClosed));
     }
+    let title = match draft.instance_id.as_deref() {
+        Some(_) if cron => i18n.__("定时任务企业微信通知").to_owned(),
+        Some(id) => desktop_i18n::__!(i18n, "配置企业微信实例 %s", id).expect("valid WeCom instance title"),
+        None => i18n.__("配置默认智能机器人").to_owned(),
+    };
     let header = settings_modal_header(
-        text(if draft.mode == WeComDeliveryMode::Webhook {
-            i18n.__("定时任务群通知")
-        } else {
-            i18n.__("企业微信 Agent 对话接入")
-        })
-        .size(20),
+        text(title).size(20),
         settings_close_button(message(ChannelsMessage::WeComDeliveryClosed)),
     );
     let card = settings_modal_layout(header, body, Some(row![cancel, save].spacing(10).into()))
-        .width(Length::Fill)
-        .max_width(560)
-        .height(Length::Fill)
-        .max_height(680);
+        .width(560)
+        .height(680);
     let card: Element<'a, Message> = card.into();
     settings_modal_overlay(
         Some(base),
         map(message(ChannelsMessage::WeComDeliveryClosed)),
-        container(card.map(map)).padding(12),
+        card.map(map),
     )
 }

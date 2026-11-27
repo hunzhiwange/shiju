@@ -1,5 +1,6 @@
 //! Process-local authenticated WeCom connections. Never opens a second socket for delivery.
 use super::{OutboundItem, outbound};
+pub use super::cron_binding::{cron_binding_pending, cron_recipient, forget_cron_binding, start_cron_binding};
 use agent_config::schema::Config;
 use anyhow::{Context, bail};
 use std::{
@@ -16,8 +17,8 @@ pub struct WeComRuntimeScope {
     pub(super) tenant: TenantScope,
     pub(super) config_store: PathBuf,
     pub(super) workspace: PathBuf,
-    config_source: PathBuf,
-    instance: String,
+    pub(super) config_source: PathBuf,
+    pub(super) instance: String,
 }
 
 impl WeComRuntimeScope {
@@ -55,9 +56,10 @@ impl WeComRuntimeHandle {
 }
 
 pub(super) struct Entry {
-    generation: Uuid,
-    sender: Option<mpsc::Sender<OutboundItem>>,
-    credentials: Option<[u8; 32]>,
+    pub(super) generation: Uuid,
+    pub(super) sender: Option<mpsc::Sender<OutboundItem>>,
+    pub(super) credentials: Option<[u8; 32]>,
+    pub(super) pairing: Option<super::cron_binding::Pairing>,
 }
 
 pub(super) fn registry() -> &'static Mutex<HashMap<WeComRuntimeScope, Entry>> {
@@ -78,7 +80,7 @@ pub fn connected(scope: &WeComRuntimeScope) -> anyhow::Result<WeComRuntimeHandle
 }
 
 // 长度分隔，避免不同 ID/Secret 组合产生相同输入；不存储额外明文凭据。
-fn credential_digest(bot_id: &str, secret: &str) -> [u8; 32] {
+pub(super) fn credential_digest(bot_id: &str, secret: &str) -> [u8; 32] {
     use sha2::{Digest, Sha256};
     let mut hash = Sha256::new();
     hash.update(bot_id.len().to_be_bytes());
@@ -109,8 +111,8 @@ pub fn connected_with_credentials(
 }
 
 pub(super) struct Registration {
-    scope: WeComRuntimeScope,
-    generation: Uuid,
+    pub(super) scope: WeComRuntimeScope,
+    pub(super) generation: Uuid,
 }
 
 impl Registration {
@@ -120,7 +122,7 @@ impl Registration {
             bail!("此作用域已有企微监听器，请先停止旧监听器");
         }
         let generation = Uuid::new_v4();
-        entries.insert(scope.clone(), Entry { generation, sender: None, credentials: None });
+        entries.insert(scope.clone(), Entry { generation, sender: None, credentials: None, pairing: None });
         Ok(Self { scope, generation })
     }
 

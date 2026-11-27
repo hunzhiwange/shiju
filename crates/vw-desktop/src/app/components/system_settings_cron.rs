@@ -3,25 +3,11 @@ use crate::app::message::SettingsMessage;
 use crate::app::state::CronSettingsTab;
 use crate::app::{App, Message};
 use desktop_settings_cron::message::{
-    DeliveryMode, Message as LocalMessage, SettingsMessage as Event,
+    Message as LocalMessage, SettingsMessage as Event,
 };
 use desktop_settings_cron::system_settings_cron as domain;
 use iced::Element;
 pub(crate) mod date_time;
-pub(crate) fn availability(app: &App) -> domain::DeliveryAvailability {
-    let c = &app.channels_settings;
-    domain::DeliveryAvailability {
-        bot: c.wecom.as_ref().is_some_and(|c| c.has_required_credentials()),
-        webhook: c.wecom_webhook.is_some(),
-        telegram: c.telegram.is_some(),
-        discord: c.discord.is_some(),
-        slack: c.slack.is_some(),
-        mattermost: c.mattermost.is_some(),
-        qq: c.qq.is_some(),
-        #[cfg(not(target_arch = "wasm32"))]
-        email: c.email.is_some(),
-    }
-}
 fn help_content<'a>(
     title: &'a str,
     body: std::borrow::Cow<'a, str>,
@@ -55,23 +41,6 @@ pub(crate) fn skill_choice(
         label: skill.title.clone(),
         description: skill.description.clone(),
     })
-}
-
-pub(crate) fn conversation_prompt(app: &App) -> Option<&str> {
-    let session = app.current_session_runtime_ref()?;
-    if app.session_state.active_session_id.is_none()
-        || session.acp_agent.is_some()
-        || session.is_employee_chat()
-    {
-        return None;
-    }
-    app.chat_view
-        .chat
-        .iter()
-        .rev()
-        .filter(|entry| entry.role == crate::app::models::ChatRole::User)
-        .map(|entry| entry.content.trim())
-        .find(|content| !content.is_empty())
 }
 
 fn data(app: &App) -> domain::ViewData<'_> {
@@ -110,10 +79,12 @@ fn data(app: &App) -> domain::ViewData<'_> {
     }
     domain::ViewData {
         cron_settings: &app.cron_settings,
+        system_timezone: app.general_settings.chat_timezone.parse().expect("validated system timezone"),
         desktop_locale: locale,
         app_theme: &app.appearance.app_theme,
         project_path: app.navigation_tabs.project_path.as_deref(),
         recent_projects: &app.workspace_state.recent_projects,
+        recent_project_labels: &app.workspace_state.recent_projects_edits,
         agents,
         models: app
             .model_settings
@@ -137,8 +108,21 @@ fn data(app: &App) -> domain::ViewData<'_> {
             })
             .collect(),
         skills: app.cron_settings.skill_catalog.clone(),
-        conversation_available: conversation_prompt(app).is_some(),
-        delivery: availability(app),
+        wecom_notifications: app.channels_settings.wecom_instances.iter()
+            .filter(|instance| config_channel_services::WeComConfig::is_cron_instance(&instance.id)
+                && instance.config.has_required_credentials())
+            .map(|instance| {
+                let status = app.channels_settings.wecom_cron_bindings.get(&instance.id);
+                domain::WeComNotification {
+                    id: instance.id.clone(),
+                    label: instance.config.bot_id.clone(),
+                    bound: status.and_then(|status| status.bound),
+                    connected: status.and_then(|status| status.connected),
+                    pairing_code: status.and_then(|status| status.pairing_code.clone()),
+                    loading: app.channels_settings.wecom_cron_binding_requests.contains_key(&instance.id),
+                }
+            })
+            .collect(),
         scheduler_error: app.scheduler_settings.save_error.as_deref(),
         last_copied_code_hash: app.clipboard_state.last_copied_code_hash,
         help_content,
@@ -148,6 +132,12 @@ fn map(event: LocalMessage) -> Message {
     match event {
         LocalMessage::None => Message::None,
         LocalMessage::CopyCode(value) => Message::CopyCode(value),
+        LocalMessage::WeComBindingRequested { instance, start } => Message::Settings(
+            SettingsMessage::Channels(crate::app::message::settings::ChannelsMessage::WeComCronBindingRequested {
+                instance,
+                start,
+            }),
+        ),
         LocalMessage::Settings(event) => Message::Settings(match event {
             Event::CronOpenEmployeeSchedule => {
                 #[cfg(not(target_arch = "wasm32"))]
@@ -193,13 +183,13 @@ fn map(event: LocalMessage) -> Message {
             Event::CronAddFromConversation => SettingsMessage::CronAddFromConversation,
             Event::CronTemplateSelected(v0) => SettingsMessage::CronTemplateSelected(v0),
             Event::CronHistory(v0) => SettingsMessage::CronHistory(v0),
+            Event::CronList(event) => SettingsMessage::CronList(event),
             Event::CronListFilterChanged(v0) => SettingsMessage::CronListFilterChanged(v0),
             Event::CronBatchModeToggled(v0) => SettingsMessage::CronBatchModeToggled(v0),
             Event::CronJobsRefresh => SettingsMessage::CronJobsRefresh,
             Event::CronJobSelectionToggled(v0, v1) => {
                 SettingsMessage::CronJobSelectionToggled(v0, v1)
             }
-            Event::CronJobDetailsToggled(v0, v1) => SettingsMessage::CronJobDetailsToggled(v0, v1),
             Event::CronJobsSelectAllToggled(v0) => SettingsMessage::CronJobsSelectAllToggled(v0),
             Event::CronJobRunsOpen(v0) => SettingsMessage::CronJobRunsOpen(v0),
             Event::CronJobRunsEditorAction(v0) => SettingsMessage::CronJobRunsEditorAction(v0),
@@ -215,9 +205,6 @@ fn map(event: LocalMessage) -> Message {
                 SettingsMessage::CronJobEditPromptEditorAction(v0)
             }
             Event::CronJobEditAgentChanged(v0) => SettingsMessage::CronJobEditAgentChanged(v0),
-            Event::CronJobEditAcpAgentChanged(v0) => {
-                SettingsMessage::CronJobEditAcpAgentChanged(v0)
-            }
             Event::CronJobEditProjectPathChanged(v0) => {
                 SettingsMessage::CronJobEditProjectPathChanged(v0)
             }
@@ -226,9 +213,6 @@ fn map(event: LocalMessage) -> Message {
             }
             Event::CronJobEditModelChanged(v0) => SettingsMessage::CronJobEditModelChanged(v0),
             Event::CronJobEditWakeToggled(v0) => SettingsMessage::CronJobEditWakeToggled(v0),
-            Event::CronJobEditFallbacksChanged(v0) => {
-                SettingsMessage::CronJobEditFallbacksChanged(v0)
-            }
             Event::CronJobEditFullAccessToggled(v0) => {
                 SettingsMessage::CronJobEditFullAccessToggled(v0)
             }
@@ -238,11 +222,14 @@ fn map(event: LocalMessage) -> Message {
             Event::CronJobEditDeliveryEnabledToggled(v0) => {
                 SettingsMessage::CronJobEditDeliveryEnabledToggled(v0)
             }
-            Event::CronJobEditDeliveryChannelChanged(v0) => {
-                SettingsMessage::CronJobEditDeliveryChannelChanged(v0)
+            Event::CronJobEditDeliveryWeComInstanceSelected(id) => {
+                SettingsMessage::CronJobEditDeliveryWeComInstanceSelected(id)
             }
-            Event::CronJobEditDeliveryToChanged(v0) => {
-                SettingsMessage::CronJobEditDeliveryToChanged(v0)
+            Event::CronJobEditDeliveryWeComSelected(v0) => {
+                SettingsMessage::CronJobEditDeliveryWeComSelected(v0)
+            }
+            Event::CronJobEditDeliveryWebhookChanged(v0) => {
+                SettingsMessage::CronJobEditDeliveryWebhookChanged(v0)
             }
             Event::CronJobEditDeliveryBestEffortToggled(v0) => {
                 SettingsMessage::CronJobEditDeliveryBestEffortToggled(v0)
@@ -263,23 +250,26 @@ fn map(event: LocalMessage) -> Message {
             }
             Event::CronAddPromptEditorAction(v0) => SettingsMessage::CronAddPromptEditorAction(v0),
             Event::CronAddAgentChanged(v0) => SettingsMessage::CronAddAgentChanged(v0),
-            Event::CronAddAcpAgentChanged(v0) => SettingsMessage::CronAddAcpAgentChanged(v0),
             Event::CronAddProjectPathChanged(v0) => SettingsMessage::CronAddProjectPathChanged(v0),
             Event::CronAddModelProviderChanged(v0) => {
                 SettingsMessage::CronAddModelProviderChanged(v0)
             }
             Event::CronAddModelChanged(v0) => SettingsMessage::CronAddModelChanged(v0),
             Event::CronAddWakeToggled(v0) => SettingsMessage::CronAddWakeToggled(v0),
-            Event::CronAddFallbacksChanged(v0) => SettingsMessage::CronAddFallbacksChanged(v0),
             Event::CronAddFullAccessToggled(v0) => SettingsMessage::CronAddFullAccessToggled(v0),
             Event::CronAddTaskPoolToggled(v0) => SettingsMessage::CronAddTaskPoolToggled(v0),
             Event::CronAddDeliveryEnabledToggled(v0) => {
                 SettingsMessage::CronAddDeliveryEnabledToggled(v0)
             }
-            Event::CronAddDeliveryChannelChanged(v0) => {
-                SettingsMessage::CronAddDeliveryChannelChanged(v0)
+            Event::CronAddDeliveryWeComInstanceSelected(id) => {
+                SettingsMessage::CronAddDeliveryWeComInstanceSelected(id)
             }
-            Event::CronAddDeliveryToChanged(v0) => SettingsMessage::CronAddDeliveryToChanged(v0),
+            Event::CronAddDeliveryWeComSelected(v0) => {
+                SettingsMessage::CronAddDeliveryWeComSelected(v0)
+            }
+            Event::CronAddDeliveryWebhookChanged(v0) => {
+                SettingsMessage::CronAddDeliveryWebhookChanged(v0)
+            }
             Event::CronAddDeliveryBestEffortToggled(v0) => {
                 SettingsMessage::CronAddDeliveryBestEffortToggled(v0)
             }
@@ -289,12 +279,6 @@ fn map(event: LocalMessage) -> Message {
             Event::CronAddSubmit => SettingsMessage::CronAddSubmit,
             Event::CronHelpOpen => SettingsMessage::CronHelpOpen,
             Event::CronHelpClose => SettingsMessage::CronHelpClose,
-            Event::OpenDelivery(mode) => SettingsMessage::Channels(
-                crate::app::message::settings::ChannelsMessage::WeComDeliveryOpened(match mode {
-                    DeliveryMode::Qr => crate::app::state::WeComDeliveryMode::Qr,
-                    DeliveryMode::Webhook => crate::app::state::WeComDeliveryMode::Webhook,
-                }),
-            ),
         }),
     }
 }

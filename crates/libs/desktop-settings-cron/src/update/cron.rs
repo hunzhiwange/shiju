@@ -7,7 +7,8 @@ use desktop_config::config_cron_jobs::{
 };
 use crate::state::{
     CronAddJobType, CronAddScheduleKind, CronEditorPicker, CronEditorPickerAction, CronEditorTab,
-    CronFrequency, CronSettingsTab,
+    CronDeleteTarget, CronFrequency, CronJobDraft, CronSettingsTab, ValidityAction,
+    ValidityEndpoint, ValidityPicker, shift_month,
 };
 use super::messages::Message;
 use desktop_config::ConfigAccess;
@@ -17,6 +18,79 @@ use super::cron_support::*;
 pub use super::cron_support::schedule_request;
 
 use super::messages::SettingsMessage;
+use crate::message::{HistoryMessage, ListMessage};
+
+fn update_validity(draft: &mut CronJobDraft, action: ValidityAction) {
+    use chrono::Datelike;
+
+    let mut schedule = draft.effective_schedule();
+    if !schedule.rule.allows_validity() {
+        return;
+    }
+    let open = matches!(draft.editor_picker, Some(CronEditorPicker::Validity(_)));
+    if action == ValidityAction::Toggle {
+        draft.editor_picker =
+            (!open).then(|| CronEditorPicker::Validity(ValidityPicker::new(&schedule)));
+        draft.editor_picker_query.clear();
+        return;
+    }
+    let Some(CronEditorPicker::Validity(mut picker)) = draft.editor_picker else {
+        return;
+    };
+    match action {
+        ValidityAction::Navigate(months) => {
+            if let Some(month) = shift_month(picker.month, months) {
+                picker.month = month;
+            }
+        }
+        ValidityAction::Focus(endpoint) => {
+            picker.endpoint = endpoint;
+            let date = match endpoint {
+                ValidityEndpoint::Start => picker.start,
+                ValidityEndpoint::End => picker.end,
+            };
+            if let Some(date) = date {
+                picker.month = date.with_day(1).unwrap();
+            }
+        }
+        ValidityAction::Pick(date) => {
+            let endpoint = picker.endpoint;
+            picker.set_boundary(endpoint, Some(date));
+            if endpoint == ValidityEndpoint::Start {
+                picker.endpoint = ValidityEndpoint::End;
+            }
+        }
+        ValidityAction::Clear(endpoint) => {
+            picker.set_boundary(endpoint, None);
+            picker.endpoint = endpoint;
+        }
+        ValidityAction::NoExpiry | ValidityAction::Confirm => {
+            if action == ValidityAction::NoExpiry {
+                picker.start = None;
+                picker.end = None;
+            }
+            if !picker.is_ordered() {
+                return;
+            }
+            let start_changed = picker.start != schedule.boundary_date(false);
+            let end_changed = picker.end != schedule.boundary_date(true);
+            if start_changed {
+                schedule.start_date = Some(picker.start);
+            }
+            if end_changed {
+                schedule.end_date = Some(picker.end);
+            }
+            draft.editor_picker = None;
+            if start_changed || end_changed {
+                draft.schedule_draft = Some(schedule);
+                invalidate_schedule(draft);
+            }
+            return;
+        }
+        ValidityAction::Toggle => return,
+    }
+    draft.editor_picker = Some(CronEditorPicker::Validity(picker));
+}
 
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
 ///
@@ -28,11 +102,13 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             SettingsMessage::CronEditorSaveCompleted { .. }
             | SettingsMessage::CronJobMutationCompleted(_)
             | SettingsMessage::CronJobsLoaded(_)
+            | SettingsMessage::CronList(ListMessage::DeleteCompleted(_) | ListMessage::RunAccepted(_, _))
             | SettingsMessage::CronSchedulePreviewLoaded { .. } => {}
             _ => return Task::none(),
         }
     }
     match message {
+        SettingsMessage::CronList(action) => update_list(app, action),
         SettingsMessage::CronEditorTabSelected { editing, tab } => {
             let state = &mut app.cron_settings;
             let draft = if editing && state.editing_job_id.is_some() {
@@ -63,17 +139,66 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             } else {
                 return Task::none();
             };
-            if draft.editor_tab != CronEditorTab::Basic || draft.job_type != CronAddJobType::Agent {
+            if draft.submitting || draft.editor_tab != CronEditorTab::Basic {
+                return Task::none();
+            }
+            if let CronEditorPickerAction::Validity(action) = &action {
+                state.date_time_picker = None;
+                update_validity(draft, *action);
+                return Task::none();
+            }
+            let repeat_open = matches!(draft.editor_picker, Some(CronEditorPicker::Repeat { .. }));
+            let schedule_picker_open =
+                repeat_open || matches!(draft.editor_picker, Some(CronEditorPicker::Validity(_)));
+            let schedule_action = matches!(
+                &action,
+                CronEditorPickerAction::ToggleRepeat
+                    | CronEditorPickerAction::RepeatSelected(_)
+                    | CronEditorPickerAction::RepeatFocused(_)
+            ) || (schedule_picker_open
+                && matches!(&action, CronEditorPickerAction::Close));
+            let project_open = draft.editor_picker == Some(CronEditorPicker::Project);
+            let project_action = matches!(&action, CronEditorPickerAction::Open(CronEditorPicker::Project))
+                || (project_open && matches!(
+                    &action,
+                    CronEditorPickerAction::Search(_)
+                        | CronEditorPickerAction::Close
+                        | CronEditorPickerAction::ProjectSelected(_)
+                ));
+            if !schedule_action && !project_action && draft.job_type != CronAddJobType::Agent {
                 return Task::none();
             }
             match action {
-                CronEditorPickerAction::Toggle(picker) => {
-                    draft.editor_picker = (draft.editor_picker != Some(picker)).then_some(picker);
+                CronEditorPickerAction::Open(picker) if draft.editor_picker != Some(picker) => {
+                    state.date_time_picker = None;
+                    draft.editor_picker = Some(picker);
                     draft.editor_picker_query.clear();
+                }
+                CronEditorPickerAction::ToggleRepeat => {
+                    state.date_time_picker = None;
+                    draft.editor_picker_query.clear();
+                    draft.editor_picker =
+                        (!repeat_open).then_some(CronEditorPicker::Repeat { keyboard_index: None });
+                    return if repeat_open {
+                        Task::none()
+                    } else {
+                        crate::system_settings_cron::repeat_picker::reveal_year(draft)
+                    };
                 }
                 CronEditorPickerAction::Close => draft.editor_picker = None,
                 CronEditorPickerAction::Search(query) if draft.editor_picker.is_some() => {
                     draft.editor_picker_query = query;
+                }
+                CronEditorPickerAction::ProjectSelected(path) if project_open => {
+                    draft.project_path = path;
+                    draft.editor_picker = None;
+                }
+                CronEditorPickerAction::PermissionSelected(full_access)
+                    if draft.editor_picker == Some(CronEditorPicker::Permission) =>
+                {
+                    draft.full_access = full_access;
+                    draft.full_access_confirmation = false;
+                    draft.editor_picker = None;
                 }
                 CronEditorPickerAction::ModelSelected(model)
                     if draft.editor_picker == Some(CronEditorPicker::Model) =>
@@ -89,9 +214,36 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                     draft.acp_agent = backend.unwrap_or_default();
                     draft.editor_picker = None;
                 }
+                CronEditorPickerAction::RepeatSelected(rule) if repeat_open => {
+                    draft.editor_picker = rule
+                        .has_repeat_choices()
+                        .then_some(CronEditorPicker::Repeat { keyboard_index: None });
+                    let mut schedule = draft.effective_schedule();
+                    if schedule.rule != rule {
+                        schedule.rule = rule;
+                        draft.schedule_draft = Some(schedule);
+                        invalidate_schedule(draft);
+                    }
+                    return crate::system_settings_cron::repeat_picker::reveal_year(draft);
+                }
+                CronEditorPickerAction::RepeatFocused(index) if repeat_open => {
+                    draft.editor_picker =
+                        Some(CronEditorPicker::Repeat { keyboard_index: Some(index) });
+                    return crate::system_settings_cron::repeat_picker::reveal_rule(index);
+                }
                 _ => return Task::none(),
             }
-            if draft.editor_picker.is_some() {
+            if draft.editor_picker == Some(CronEditorPicker::Project) {
+                use desktop_chat_input::input_panel::quick_messages::{workspace_results_id, workspace_search_id};
+                if project_open {
+                    iced::widget::operation::snap_to(
+                        workspace_results_id(),
+                        iced::widget::operation::RelativeOffset::START,
+                    )
+                } else {
+                    iced::widget::operation::focus(workspace_search_id())
+                }
+            } else if draft.editor_picker.is_some() {
                 iced::widget::operation::snap_to(
                     crate::system_settings_cron::EDITOR_PICKER_SCROLL_ID,
                     iced::widget::operation::RelativeOffset::START,
@@ -146,7 +298,7 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             {
                 return Task::none();
             }
-            let draft = if editing { &state.edit_draft } else { &state.add_draft };
+            let draft = if editing { &mut state.edit_draft } else { &mut state.add_draft };
             if draft.submitting {
                 return Task::none();
             }
@@ -157,7 +309,7 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                 Ok(tz) => tz,
                 Err(_) => {
                     state.save_error_translation = None;
-                    state.save_error = Some("请选择有效的 IANA 时区后重试".into());
+                    state.save_error = Some("系统设置中的时区无效".into());
                     return Task::none();
                 }
             };
@@ -193,6 +345,8 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             // 时分精度显式归一化，避免绝对时间中的秒在确认后被隐藏保留。
             use chrono::Timelike;
             picker.set_time(time.hour(), time.minute());
+            draft.editor_picker = None;
+            draft.editor_picker_query.clear();
             state.date_time_picker = Some(picker);
             Task::none()
         }
@@ -204,7 +358,7 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CronPickerDate(date) => {
             if let Some(picker) = &mut app.cron_settings.date_time_picker {
-                picker.select(date);
+                picker.date = date;
             }
             Task::none()
         }
@@ -251,6 +405,17 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             if !target.submitting {
                 target.schedule_draft = Some(draft);
                 invalidate_schedule(target);
+                if matches!(target.editor_picker, Some(CronEditorPicker::Validity(_))) {
+                    target.editor_picker = None;
+                }
+                if app
+                    .cron_settings
+                    .date_time_picker
+                    .as_ref()
+                    .is_some_and(|picker| picker.editing == editing)
+                {
+                    app.cron_settings.date_time_picker = None;
+                }
             }
             Task::none()
         }
@@ -310,6 +475,7 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CronTemplatesToggled(open) => {
             if !app.cron_settings.add_draft.submitting && !app.cron_settings.edit_draft.submitting {
+                app.cron_settings.list_menu = None;
                 app.cron_settings.show_cron_templates = open;
             }
             Task::none()
@@ -323,7 +489,8 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             else {
                 return app.show_error_toast("未找到常用任务模板");
             };
-            let mut draft = match template.draft(chrono::Local::now()) {
+            let now = chrono::Utc::now().with_timezone(&app.system_timezone);
+            let mut draft = match template.draft(now) {
                 Ok(draft) => draft,
                 Err(error) => return app.show_error_toast(error),
             };
@@ -334,7 +501,10 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             draft.schedule_draft = match schedule_request(&draft)
                 .and_then(|request| crate::state::CronScheduleDraft::from_request(&request))
             {
-                Ok(schedule) => Some(schedule),
+                Ok(mut schedule) => {
+                    schedule.timezone = app.system_timezone.name().to_owned();
+                    Some(schedule)
+                }
                 Err(error) => return app.show_error_toast(error),
             };
             draft.schedule_revision = app.cron_settings.add_draft.schedule_revision + 1;
@@ -351,6 +521,8 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CronTabSelected(tab) => {
             app.cron_settings.date_time_picker = None;
+            app.cron_settings.list_menu = None;
+            app.cron_settings.hovered_job_id = None;
             if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
                 return Task::none();
             }
@@ -360,8 +532,12 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                 app.cron_settings.active_tab = CronSettingsTab::Jobs;
                 let revision = app.cron_settings.add_draft.schedule_revision + 1;
                 app.cron_settings.add_draft = Default::default();
+                app.cron_settings.add_draft.full_access = true;
                 app.cron_settings.add_draft.schedule_revision = revision;
-                app.cron_settings.add_draft.schedule_draft = Some(Default::default());
+                app.cron_settings.add_draft.schedule_draft = Some(crate::state::CronScheduleDraft {
+                    timezone: app.system_timezone.name().to_owned(),
+                    ..Default::default()
+                });
             } else {
                 app.cron_settings.active_tab = tab;
                 app.cron_settings.show_add_modal = false;
@@ -384,6 +560,8 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CronBatchModeToggled(enabled) => {
+            app.cron_settings.list_menu = None;
+            app.cron_settings.hovered_job_id = None;
             app.cron_settings.batch_mode = enabled;
             if !enabled {
                 app.cron_settings.selected_job_ids.clear();
@@ -405,9 +583,10 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                     app.cron_settings.save_error = None;
                     app.cron_settings.save_error_translation = None;
                     app.cron_settings.prune_selected_jobs();
-                    app.cron_settings
-                        .expanded_job_ids
-                        .retain(|id| app.cron_settings.jobs.iter().any(|job| job.id == *id));
+                    let state = &mut app.cron_settings;
+                    if state.open_job_id.as_ref().is_some_and(|id| !state.jobs.iter().any(|job| &job.id == id)) {
+                        state.open_job_id = None;
+                    }
                 }
                 Err(err) => {
                     app.cron_settings.save_error_translation = None;
@@ -425,16 +604,6 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                 }
             } else {
                 app.cron_settings.selected_job_ids.retain(|id| id != &job_id);
-            }
-            Task::none()
-        }
-        SettingsMessage::CronJobDetailsToggled(job_id, expanded) => {
-            if expanded {
-                if !app.cron_settings.expanded_job_ids.iter().any(|id| id == &job_id) {
-                    app.cron_settings.expanded_job_ids.push(job_id);
-                }
-            } else {
-                app.cron_settings.expanded_job_ids.retain(|id| id != &job_id);
             }
             Task::none()
         }
@@ -466,7 +635,7 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.runs_modal_loading = false;
             match result {
                 Ok(runs) => {
-                    let history_text = format_run_history_text(app.desktop_locale, &runs);
+                    let history_text = format_run_history_text(app.desktop_locale, app.system_timezone, &runs);
                     app.cron_settings.runs_modal = runs;
                     app.cron_settings.runs_modal_editor =
                         text_editor::Content::with_text(&history_text);
@@ -496,9 +665,14 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CronJobEditStarted(job_id) => {
+            app.cron_settings.list_menu = None;
+            app.cron_settings.open_job_id = None;
             if let Some(job) = app.cron_settings.jobs.iter().find(|job| job.id == job_id) {
                 match crate::state::CronScheduleDraft::from_job(job) {
-                    Ok(rule) => app.cron_settings.edit_draft.schedule_draft = Some(rule),
+                    Ok(mut rule) => {
+                        rule.timezone = app.system_timezone.name().to_owned();
+                        app.cron_settings.edit_draft.schedule_draft = Some(rule);
+                    }
                     Err(err) => {
                         app.cron_settings.save_error = Some(err);
                         return Task::none();
@@ -553,11 +727,21 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                 app.cron_settings.edit_draft.full_access = job.full_access;
                 app.cron_settings.edit_draft.full_access_confirmation = false;
                 app.cron_settings.edit_draft.task_pool = job.task_pool;
+                app.cron_settings.edit_draft.delivery_webhook_configured =
+                    job.delivery_channel.as_deref() == Some("wecom_webhook")
+                        && job.delivery_to.as_deref() == Some("configured");
+                app.cron_settings.edit_draft.delivery_webhook = Default::default();
                 app.cron_settings.edit_draft.delivery_enabled = job.delivery_mode == "announce";
-                app.cron_settings.edit_draft.delivery_channel =
-                    job.delivery_channel.clone().unwrap_or_default();
-                app.cron_settings.edit_draft.delivery_to =
-                    job.delivery_to.clone().unwrap_or_default();
+                app.cron_settings.edit_draft.delivery_via_wecom =
+                    job.delivery_channel.as_deref() == Some("wecom_cron");
+                app.cron_settings.edit_draft.delivery_wecom_instance =
+                    if app.cron_settings.edit_draft.delivery_via_wecom {
+                        job.delivery_to.as_deref()
+                            .filter(|id| !id.is_empty() && !id.contains(','))
+                            .map(str::to_owned)
+                    } else {
+                        None
+                    };
                 app.cron_settings.edit_draft.delivery_best_effort = job.delivery_best_effort;
                 app.cron_settings.edit_draft.delete_after_run = job.delete_after_run;
                 app.cron_settings.save_error = None;
@@ -687,10 +871,6 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.edit_draft.agent = value;
             Task::none()
         }
-        SettingsMessage::CronJobEditAcpAgentChanged(value) => {
-            app.cron_settings.edit_draft.acp_agent = value;
-            Task::none()
-        }
         SettingsMessage::CronJobEditProjectPathChanged(value) => {
             app.cron_settings.edit_draft.project_path = value;
             Task::none()
@@ -713,10 +893,6 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.edit_draft.wake = value;
             Task::none()
         }
-        SettingsMessage::CronJobEditFallbacksChanged(value) => {
-            app.cron_settings.edit_draft.fallbacks = value;
-            Task::none()
-        }
         SettingsMessage::CronJobEditFullAccessToggled(value) => {
             let draft = &mut app.cron_settings.edit_draft;
             if !draft.submitting {
@@ -735,12 +911,16 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.edit_draft.delivery_enabled = value;
             Task::none()
         }
-        SettingsMessage::CronJobEditDeliveryChannelChanged(value) => {
-            app.cron_settings.edit_draft.select_delivery_channel(value);
+        SettingsMessage::CronJobEditDeliveryWeComInstanceSelected(id) => {
+            app.cron_settings.edit_draft.delivery_wecom_instance = Some(id);
             Task::none()
         }
-        SettingsMessage::CronJobEditDeliveryToChanged(value) => {
-            app.cron_settings.edit_draft.delivery_to = value;
+        SettingsMessage::CronJobEditDeliveryWeComSelected(value) => {
+            app.cron_settings.edit_draft.delivery_via_wecom = value;
+            Task::none()
+        }
+        SettingsMessage::CronJobEditDeliveryWebhookChanged(value) => {
+            app.cron_settings.edit_draft.delivery_webhook = value;
             Task::none()
         }
         SettingsMessage::CronJobEditDeliveryBestEffortToggled(value) => {
@@ -770,7 +950,7 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                 app.cron_settings.save_error = Some("没有正在编辑的定时任务".to_string());
                 return Task::none();
             };
-            if let Err(error) = validate_delivery(app, &app.cron_settings.edit_draft)
+            if let Err(error) = crate::delivery::validate(&app.cron_settings.edit_draft)
                 .and_then(|()| validate_modal_payload(&app.cron_settings.edit_draft))
             {
                 app.cron_settings.save_error = Some(error.clone());
@@ -803,8 +983,9 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                     app.cron_settings.edit_draft.full_access,
                     app.cron_settings.edit_draft.task_pool,
                     app.cron_settings.edit_draft.delivery_enabled,
-                    app.cron_settings.edit_draft.delivery_channel.clone(),
-                    app.cron_settings.edit_draft.delivery_to.clone(),
+                    app.cron_settings.edit_draft.wecom_selection(),
+                    app.cron_settings.edit_draft.delivery_webhook_configured,
+                    app.cron_settings.edit_draft.webhook_replacement(),
                     app.cron_settings.edit_draft.delivery_best_effort,
                     app.cron_settings.edit_draft.delete_after_run,
                     Some(request),
@@ -820,11 +1001,15 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             )
         }
         SettingsMessage::CronJobDelete(job_id) => {
-            app.cron_settings.save_error = None;
-            app.cron_settings.save_error_translation = None;
-            cron_mutation_task("定时任务已删除", delete_cron_job_async(app.client.clone(), job_id))
+            let state = &mut app.cron_settings;
+            state.list_menu = None;
+            if !state.deleting_jobs && state.jobs.iter().any(|job| job.id == job_id) {
+                state.delete_target = Some(CronDeleteTarget::Job(job_id));
+            }
+            Task::none()
         }
         SettingsMessage::CronSelectedJobsEnable => {
+            app.cron_settings.list_menu = None;
             app.cron_settings.prune_selected_jobs();
             let job_ids = app.cron_settings.selected_job_ids.clone();
             if job_ids.is_empty() {
@@ -839,6 +1024,7 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             cron_mutation_task("选中的定时任务已启用", set_cron_jobs_enabled_async(app.client.clone(), job_ids, true))
         }
         SettingsMessage::CronSelectedJobsDisable => {
+            app.cron_settings.list_menu = None;
             app.cron_settings.prune_selected_jobs();
             let job_ids = app.cron_settings.selected_job_ids.clone();
             if job_ids.is_empty() {
@@ -853,6 +1039,7 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             cron_mutation_task("选中的定时任务已禁用", set_cron_jobs_enabled_async(app.client.clone(), job_ids, false))
         }
         SettingsMessage::CronSelectedJobsDelete => {
+            app.cron_settings.list_menu = None;
             app.cron_settings.prune_selected_jobs();
             let job_ids = app.cron_settings.selected_job_ids.clone();
             if job_ids.is_empty() {
@@ -862,9 +1049,10 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                 app.cron_settings.save_error = Some("请先选择要删除的定时任务".to_string());
                 return Task::none();
             }
-            app.cron_settings.save_error = None;
-            app.cron_settings.save_error_translation = None;
-            cron_mutation_task("选中的定时任务已删除", delete_cron_jobs_async(app.client.clone(), job_ids))
+            if !app.cron_settings.deleting_jobs {
+                app.cron_settings.delete_target = Some(CronDeleteTarget::Batch(job_ids));
+            }
+            Task::none()
         }
         SettingsMessage::CronAddNameChanged(value) => {
             app.cron_settings.add_draft.name = value;
@@ -975,10 +1163,6 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.add_draft.agent = value;
             Task::none()
         }
-        SettingsMessage::CronAddAcpAgentChanged(value) => {
-            app.cron_settings.add_draft.acp_agent = value;
-            Task::none()
-        }
         SettingsMessage::CronAddProjectPathChanged(value) => {
             app.cron_settings.add_draft.project_path = value;
             Task::none()
@@ -1001,10 +1185,6 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.add_draft.wake = value;
             Task::none()
         }
-        SettingsMessage::CronAddFallbacksChanged(value) => {
-            app.cron_settings.add_draft.fallbacks = value;
-            Task::none()
-        }
         SettingsMessage::CronAddFullAccessToggled(value) => {
             let draft = &mut app.cron_settings.add_draft;
             if !draft.submitting {
@@ -1023,12 +1203,16 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.add_draft.delivery_enabled = value;
             Task::none()
         }
-        SettingsMessage::CronAddDeliveryChannelChanged(value) => {
-            app.cron_settings.add_draft.select_delivery_channel(value);
+        SettingsMessage::CronAddDeliveryWeComInstanceSelected(id) => {
+            app.cron_settings.add_draft.delivery_wecom_instance = Some(id);
             Task::none()
         }
-        SettingsMessage::CronAddDeliveryToChanged(value) => {
-            app.cron_settings.add_draft.delivery_to = value;
+        SettingsMessage::CronAddDeliveryWeComSelected(value) => {
+            app.cron_settings.add_draft.delivery_via_wecom = value;
+            Task::none()
+        }
+        SettingsMessage::CronAddDeliveryWebhookChanged(value) => {
+            app.cron_settings.add_draft.delivery_webhook = value;
             Task::none()
         }
         SettingsMessage::CronAddDeliveryBestEffortToggled(value) => {
@@ -1052,7 +1236,7 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                 }
             };
 
-            if let Err(error) = validate_delivery(app, &app.cron_settings.add_draft)
+            if let Err(error) = crate::delivery::validate(&app.cron_settings.add_draft)
                 .and_then(|()| validate_modal_payload(&app.cron_settings.add_draft))
             {
                 app.cron_settings.save_error = Some(error.clone());
@@ -1084,8 +1268,8 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
                     app.cron_settings.add_draft.full_access,
                     app.cron_settings.add_draft.task_pool,
                     app.cron_settings.add_draft.delivery_enabled,
-                    app.cron_settings.add_draft.delivery_channel.clone(),
-                    app.cron_settings.add_draft.delivery_to.clone(),
+                    app.cron_settings.add_draft.wecom_selection(),
+                    app.cron_settings.add_draft.webhook_replacement(),
                     app.cron_settings.add_draft.delivery_best_effort,
                     app.cron_settings.add_draft.delete_after_run,
                     Some(request),
@@ -1136,6 +1320,7 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
         },
         SettingsMessage::CronSave => persist_cron_settings(app),
         SettingsMessage::CronHelpOpen => {
+            app.cron_settings.list_menu = None;
             app.cron_settings.show_help_modal = true;
             Task::none()
         }
@@ -1147,9 +1332,148 @@ pub fn update(app: &mut Inputs<'_>, message: SettingsMessage) -> Task<Message> {
     }
 }
 
-pub fn refresh_run_history_locale(state: &mut crate::state::CronSettingsState, locale: config_ui::DesktopLocale) {
- let text = format_run_history_text(locale, &state.runs_modal);
- state.runs_modal_editor = text_editor::Content::with_text(&text);
+fn update_list(app: &mut Inputs<'_>, action: ListMessage) -> Task<Message> {
+    let state = &mut app.cron_settings;
+    match action {
+        ListMessage::SearchToggled => {
+            state.show_job_search = !state.show_job_search;
+            if state.show_job_search {
+                return iced::widget::operation::focus("cron-jobs-search");
+            }
+            state.job_search.clear();
+            state.prune_selected_jobs();
+        }
+        ListMessage::SearchChanged(query) => {
+            state.job_search = query;
+            state.prune_selected_jobs();
+        }
+        ListMessage::KindChanged(kind) => {
+            state.kind_filter = kind;
+            state.list_menu = None;
+            state.prune_selected_jobs();
+        }
+        ListMessage::MenuChanged(menu) => {
+            state.list_menu = menu;
+            if state.list_menu.is_some() {
+                return iced::advanced::widget::operate(
+                    iced::advanced::widget::operation::focusable::unfocus(),
+                );
+            }
+        }
+        ListMessage::HoverChanged(id, entered) => {
+            if entered {
+                state.hovered_job_id = Some(id);
+            } else if state.hovered_job_id.as_ref() == Some(&id) {
+                state.hovered_job_id = None;
+            }
+        }
+        ListMessage::OpenHistory(id) => {
+            state.list_menu = None;
+            state.open_job_id = None;
+            state.active_tab = CronSettingsTab::History;
+            state.save_error = None;
+            state.save_error_translation = None;
+            state.action_status = None;
+            return Task::done(Message::Settings(SettingsMessage::CronHistory(HistoryMessage::ForJob(id))));
+        }
+        ListMessage::OpenTask(id) => {
+            state.list_menu = None;
+            if state.jobs.iter().any(|job| job.id == id) {
+                state.open_job_id = Some(id);
+            }
+        }
+        ListMessage::CloseTask => state.open_job_id = None,
+        ListMessage::CancelDelete => state.delete_target = None,
+        ListMessage::ConfirmDelete => {
+            let Some(target) = state.delete_target.take() else {
+                return Task::none();
+            };
+            if state.deleting_jobs {
+                return Task::none();
+            }
+            state.deleting_jobs = true;
+            state.save_error = None;
+            state.save_error_translation = None;
+            state.action_status = None;
+            let client = app.client.clone();
+            return Task::perform(async move {
+                match target {
+                    CronDeleteTarget::Job(id) => delete_cron_job_async(client, id)
+                        .await.map(|()| "定时任务已删除".to_owned()),
+                    CronDeleteTarget::Batch(ids) => delete_cron_jobs_async(client, ids)
+                        .await.map(|()| "选中的定时任务已删除".to_owned()),
+                }
+            }, |result| Message::Settings(SettingsMessage::CronList(ListMessage::DeleteCompleted(result))));
+        }
+        ListMessage::DeleteCompleted(result) => {
+            state.deleting_jobs = false;
+            state.jobs_loading = true;
+            let refresh = refresh_cron_jobs_task(app);
+            // A batch can remove some tasks before the first failed request.
+            let feedback = match result {
+                Ok(message) => app.show_success_toast(message),
+                Err(error) => app.show_error_toast(error),
+            };
+            return Task::batch([refresh, feedback]);
+        }
+        ListMessage::RunNow(id) => {
+            if state.run_requests.contains(&id) || !state.jobs.iter().any(|job| job.id == id) {
+                return Task::none();
+            }
+            state.run_requests.push(id.clone());
+            let client = app.client.clone();
+            let job_id = id.clone();
+            return Task::perform(async move {
+                gateway_cron::GatewayCronClient::new(client?.transport().clone())
+                    .cron_job_run(&job_id).await
+            }, move |result| Message::Settings(SettingsMessage::CronList(ListMessage::RunAccepted(id, result))));
+        }
+        ListMessage::RunAccepted(id, result) => {
+            state.run_requests.retain(|job_id| job_id != &id);
+            return match result {
+                Ok(()) => app.show_success_toast("已提交定时任务运行"),
+                Err(error) => app.show_error_toast(error),
+            };
+        }
+    }
+    Task::none()
+}
+
+pub fn refresh_run_history_locale(
+    state: &mut crate::state::CronSettingsState,
+    locale: config_ui::DesktopLocale,
+    timezone: runtime_time::zones::NamedTimeZone,
+) {
+    let text = format_run_history_text(locale, timezone, &state.runs_modal);
+    state.runs_modal_editor = text_editor::Content::with_text(&text);
+}
+
+pub fn refresh_system_timezone(
+    state: &mut crate::state::CronSettingsState,
+    locale: config_ui::DesktopLocale,
+    timezone: runtime_time::zones::NamedTimeZone,
+) {
+    if state.runs_modal_job_id.is_some() {
+        refresh_run_history_locale(state, locale, timezone);
+    }
+    let timezone = timezone.name();
+    let draft = if state.editing_job_id.is_some() {
+        &mut state.edit_draft
+    } else if state.show_add_modal {
+        &mut state.add_draft
+    } else {
+        return;
+    };
+    let Some(schedule) = &mut draft.schedule_draft else { return };
+    if schedule.timezone == timezone {
+        return;
+    }
+    schedule.timezone = timezone.to_owned();
+    let schedule_error = draft.schedule_error.take();
+    invalidate_schedule(draft);
+    draft.schedule_error = schedule_error;
+    draft.editor_picker = None;
+    state.date_time_picker = None;
 }
 
 fn validate_modal_payload(draft: &crate::state::CronJobDraft) -> Result<(), String> {
@@ -1165,29 +1489,13 @@ fn validate_modal_payload(draft: &crate::state::CronJobDraft) -> Result<(), Stri
         }
         _ => {}
     }
-    if draft.schedule_draft.is_some()
-        && !matches!(&draft.preview, Some(Ok(p)) if !p.candidates.is_empty())
-    {
-        return Err("请先预览当前规则并确认存在未来触发时间".into());
-    }
     Ok(())
-}
-
-/// 仅校验已知配置；凭证有效性与最终发送结果仍由执行器判定。
-pub fn validate_delivery(
-    app: &Inputs<'_>,
-    draft: &crate::state::CronJobDraft,
-) -> Result<(), String> {
-    crate::delivery::validate(
-        draft,
-        app.delivery,
-    )
 }
 
 pub struct Inputs<'a> {
 pub cron_settings: &'a mut crate::state::CronSettingsState,
  pub desktop_locale: config_ui::DesktopLocale,
- pub delivery: crate::system_settings_cron::DeliveryAvailability,
+ pub system_timezone: runtime_time::zones::NamedTimeZone,
  pub client: Result<vw_gateway_client::GatewayClient, String>,
  pub notices: &'a mut Vec<Notice>,
  pub config: &'a ConfigAccess,

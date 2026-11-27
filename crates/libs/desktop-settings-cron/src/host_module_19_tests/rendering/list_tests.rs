@@ -1,6 +1,7 @@
 //! List acceptance uses the shared isolated tiny-skia harness and real mouse events.
 use super::*;
-use crate::state::CronListFilter;
+use crate::message::ListMessage;
+use crate::state::{CronDeleteTarget, CronListFilter, CronListMenu};
 
 fn list_fixture() -> Fixture {
     let mut app = fixture();
@@ -16,7 +17,7 @@ async fn cron_list_summary_groups_and_direct_toggle() {
     }
     let mut renderer = renderer().await;
     let app = list_fixture();
-    let size = Size::new(640, 700);
+    let size = Size::new(520, 700);
     let mut ui = scene(frame(view(&app)), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
     capture(
@@ -31,8 +32,12 @@ async fn cron_list_summary_groups_and_direct_toggle() {
     assert_fits(positions.label("全部 (1)"), size);
     assert!(positions.labels.iter().all(|(s, _)| !s.starts_with("全选")));
     let title = positions.label("每日巡检");
+    assert!(matches!(
+        click(&mut ui, &mut renderer, title.center()).as_slice(),
+        [Message::Settings(SettingsMessage::CronList(ListMessage::OpenTask(id)))] if id == "list-job"
+    ));
     assert!(
-        matches!(click(&mut ui, &mut renderer, Point::new(title.x + title.width + 32.0, title.center_y())).as_slice(),
+        matches!(click(&mut ui, &mut renderer, Point::new(title.x + title.width + 136.0, title.center_y())).as_slice(),
         [Message::Settings(SettingsMessage::CronJobEnabledChanged(id, false))] if id == "list-job")
     );
     assert!(matches!(
@@ -63,17 +68,17 @@ async fn cron_list_batch_footer_stays_fixed_and_empty_group() {
     let size = Size::new(420, 740);
     let mut ui = scene(frame(view(&app)), &mut renderer, size);
     let before = geometry(&mut ui, &renderer);
-    let footer = before.label("全选 20 个任务");
+    let footer = before.label("全选");
     assert_fits(footer, size);
     let scroll = before.scroll.unwrap().0;
     assert!(footer.y >= scroll.y + scroll.height);
     assert!(wheel(&mut ui, &mut renderer, scroll.center()).is_empty());
-    assert_eq!(geometry(&mut ui, &renderer).label("全选 20 个任务"), footer);
+    assert_eq!(geometry(&mut ui, &renderer).label("全选"), footer);
     assert!(matches!(
         click(&mut ui, &mut renderer, footer.center()).as_slice(),
         [Message::Settings(SettingsMessage::CronJobsSelectAllToggled(true))]
     ));
-    let disabled = before.label("删除已选(0)");
+    let disabled = before.label("删除");
     assert!(click(&mut ui, &mut renderer, disabled.center()).is_empty());
     assert!(matches!(
         click(&mut ui, &mut renderer, before.label("取消批量管理").center()).as_slice(),
@@ -100,52 +105,103 @@ async fn cron_list_controls_dispatch_correct_job_ids() {
     }
     let mut renderer = renderer().await;
     let mut app = list_fixture();
-    app.cron_settings.batch_mode = true;
-    app.cron_settings.expanded_job_ids = vec!["list-job".into()];
-    app.cron_settings.selected_job_ids = vec!["list-job".into()];
-    let size = Size::new(1000, 1000);
+    app.cron_settings.list_menu = Some(CronListMenu::Job("list-job".into()));
+    let size = Size::new(520, 900);
     let mut ui = scene(frame(view(&app)), &mut renderer, size);
     let positions = geometry(&mut ui, &renderer);
+    assert!(positions.labels.iter().all(|(label, _)| label != "打开任务"));
     for (label, expected) in [
-        ("编辑", SettingsMessage::CronJobEditStarted("list-job".into())),
-        ("历史", SettingsMessage::CronJobRunsOpen("list-job".into())),
+        ("查看运行记录", SettingsMessage::CronList(ListMessage::OpenHistory("list-job".into()))),
         ("删除", SettingsMessage::CronJobDelete("list-job".into())),
-        ("收起", SettingsMessage::CronJobDetailsToggled("list-job".into(), false)),
-        ("启用已选(1)", SettingsMessage::CronSelectedJobsEnable),
-        ("禁用已选(1)", SettingsMessage::CronSelectedJobsDisable),
-        ("删除已选(1)", SettingsMessage::CronSelectedJobsDelete),
     ] {
         let messages = click(&mut ui, &mut renderer, positions.label(label).center());
         assert_eq!(format!("{messages:?}"), format!("{:?}", vec![Message::Settings(expected)]));
     }
-    let title = positions.label("每日巡检");
-    assert!(
-        matches!(click(&mut ui, &mut renderer, Point::new(title.x - 20.0, title.center_y())).as_slice(),
-        [Message::Settings(SettingsMessage::CronJobSelectionToggled(id, false))] if id == "list-job")
-    );
-    assert!(
-        matches!(click(&mut ui, &mut renderer, Point::new(title.x + title.width + 32.0, title.center_y())).as_slice(),
-        [Message::Settings(SettingsMessage::CronJobEnabledChanged(id, false))] if id == "list-job")
-    );
+    drop(ui);
+
+    app.cron_settings.list_menu = None;
+    app.cron_settings.open_job_id = Some("list-job".into());
+    let mut ui = scene(view_overlays(&app, frame(view(&app))), &mut renderer, size);
+    let delete = geometry(&mut ui, &renderer).label("删除");
+    assert_fits(delete, size);
     assert!(matches!(
-        click(&mut ui, &mut renderer, positions.label("已启用 (1)").center()).as_slice(),
+        click(&mut ui, &mut renderer, delete.center()).as_slice(),
+        [Message::Settings(SettingsMessage::CronJobDelete(id))] if id == "list-job"
+    ));
+    drop(ui);
+
+    app.cron_settings.delete_target = Some(CronDeleteTarget::Job("list-job".into()));
+    let mut ui = scene(view_overlays(&app, frame(view(&app))), &mut renderer, size);
+    let positions = geometry(&mut ui, &renderer);
+    assert_fits(positions.label("确认删除定时任务？"), size);
+    assert!(matches!(
+        click(&mut ui, &mut renderer, positions.label("删除").center()).as_slice(),
+        [Message::Settings(SettingsMessage::CronList(ListMessage::ConfirmDelete))]
+    ));
+    assert!(matches!(
+        click(&mut ui, &mut renderer, positions.label("取消").center()).as_slice(),
+        [Message::Settings(SettingsMessage::CronList(ListMessage::CancelDelete))]
+    ));
+    assert!(click(&mut ui, &mut renderer, Point::new(18.0, 18.0)).is_empty());
+    drop(ui);
+
+    app.cron_settings.delete_target = None;
+    app.cron_settings.open_job_id = None;
+    let mut ui = scene(frame(view(&app)), &mut renderer, size);
+    let positions = geometry(&mut ui, &renderer);
+    assert!(matches!(
+        click(&mut ui, &mut renderer, positions.label("进行中 (1)").center()).as_slice(),
         [Message::Settings(SettingsMessage::CronListFilterChanged(CronListFilter::Enabled))]
     ));
+    let new_label = positions.label("新建");
+    assert!(matches!(
+        click(&mut ui, &mut renderer, new_label.center()).as_slice(),
+        [Message::Settings(SettingsMessage::CronTabSelected(CronSettingsTab::Add))]
+    ));
+    let dropdown = Point::new(new_label.x + new_label.width + 29.0, new_label.center_y());
+    assert!(matches!(
+        click(&mut ui, &mut renderer, dropdown).as_slice(),
+        [Message::Settings(SettingsMessage::CronList(ListMessage::MenuChanged(Some(CronListMenu::New))))]
+    ));
+    drop(ui);
+
+    app.cron_settings.list_menu = Some(CronListMenu::New);
+    let mut ui = scene(frame(view(&app)), &mut renderer, size);
+    let positions = geometry(&mut ui, &renderer);
     assert!(matches!(
         click(&mut ui, &mut renderer, positions.label("新建").center()).as_slice(),
         [Message::Settings(SettingsMessage::CronTabSelected(CronSettingsTab::Add))]
     ));
-    drop(ui);
-    app.cron_settings.expanded_job_ids.clear();
-    let mut ui = scene(frame(view(&app)), &mut renderer, size);
-    let details = geometry(&mut ui, &renderer).label("展开");
-    assert!(matches!(click(&mut ui, &mut renderer, details.center()).as_slice(),
-        [Message::Settings(SettingsMessage::CronJobDetailsToggled(id, true))] if id == "list-job"));
+    assert!(matches!(
+        click(&mut ui, &mut renderer, positions.label("从模板新建").center()).as_slice(),
+        [Message::Settings(SettingsMessage::CronTemplatesToggled(true))]
+    ));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn wb_schedule_acceptance_cards_preserve_timezone_and_biweekly_rule() {
-    if !isolated("list_tests::wb_schedule_acceptance_cards_preserve_timezone_and_biweekly_rule") {
+async fn cron_list_search_expands_in_the_toolbar() {
+    if !isolated("list_tests::cron_list_search_expands_in_the_toolbar") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = list_fixture();
+    app.cron_settings.show_job_search = true;
+    app.cron_settings.job_search = "巡检".into();
+    let mut ui = scene(frame(view(&app)), &mut renderer, Size::new(960, 700));
+    let positions = geometry(&mut ui, &renderer);
+    let input = positions.input("巡检");
+    let batch = positions.label("批量管理");
+    assert!(input.x + input.width <= batch.x);
+    assert!((input.center_y() - batch.center_y()).abs() < 2.0);
+    assert!(matches!(
+        key_at(&mut ui, &mut renderer, Named::Escape).as_slice(),
+        [Message::Settings(SettingsMessage::CronList(ListMessage::SearchToggled))]
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn wb_schedule_acceptance_cards_hide_timezone_and_keep_biweekly_rule() {
+    if !isolated("list_tests::wb_schedule_acceptance_cards_hide_timezone_and_keep_biweekly_rule") {
         return;
     }
     let mut renderer = renderer().await;
@@ -171,12 +227,12 @@ async fn wb_schedule_acceptance_cards_preserve_timezone_and_biweekly_rule() {
             &mut renderer,
             &theme,
             size,
-            &format!("wb-acceptance-card-zones-{theme:?}"),
+            &format!("wb-acceptance-card-rules-{theme:?}"),
             mouse::Cursor::Unavailable,
         );
         let positions = geometry(&mut ui, &renderer);
         for label in
-            ["每天 09:30 · Asia/Shanghai", "每双周 [1, 5] 09:30 · 锚点 2096-12-24 · Asia/Shanghai"]
+            ["每天 09:30", "每双周 [1, 5] 09:30 · 锚点 2096-12-24"]
         {
             assert_fits(positions.label(label), size);
         }
@@ -189,10 +245,10 @@ async fn cron_templates_render_two_columns_and_select_template() {
         return;
     }
     let mut renderer = renderer().await;
-    let mut app = list_fixture();
-    app.cron_settings.show_cron_templates = true;
     let size = Size::new(1000, 760);
     for theme in [Theme::Dark, Theme::Light] {
+        let mut app = list_fixture();
+        app.cron_settings.show_cron_templates = true;
         let mut ui = scene(frame(view(&app)), &mut renderer, size);
         let positions = geometry(&mut ui, &renderer);
         let first = positions.label("每日 AI 新闻推送");
@@ -200,11 +256,23 @@ async fn cron_templates_render_two_columns_and_select_template() {
         assert!((first.y - second.y).abs() < 1.0);
         assert!(second.x > first.x);
         capture(&mut ui, &mut renderer, &theme, size, "cron-templates", mouse::Cursor::Unavailable);
+        let messages = click(&mut ui, &mut renderer, first.center());
         assert!(matches!(
-            click(&mut ui, &mut renderer, first.center()).as_slice(),
+            messages.as_slice(),
             [Message::Settings(SettingsMessage::CronTemplateSelected(
                 crate::state::CronTemplateId::AiNews
             ))]
+        ));
+        drop(ui);
+        let [Message::Settings(event)] = messages.as_slice() else { unreachable!() };
+        drop(update(&mut app, event.clone()));
+        assert!(app.cron_settings.add_draft.preview.is_none());
+        let mut editor = scene(gap_10_view(&app), &mut renderer, size);
+        let fields = geometry(&mut editor, &renderer);
+        assert!(fields.labels.iter().all(|(label, _)| label != "前往预览"));
+        assert!(matches!(
+            click(&mut editor, &mut renderer, fields.label("保存").center()).as_slice(),
+            [Message::Settings(SettingsMessage::CronAddSubmit)]
         ));
     }
 }

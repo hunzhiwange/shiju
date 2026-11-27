@@ -294,14 +294,15 @@ impl<SettingsTab, SearchTarget, AppsCatalog, AppProviders>
         | SettingsMessage::CronEditorPickerChanged { .. }
         | SettingsMessage::CronEditorSkillToggled { .. }
         | SettingsMessage::CronAddFromConversation
+        | SettingsMessage::CronWorkspaceResolved { .. }
         | SettingsMessage::CronSkillCatalogLoaded { .. }
         | SettingsMessage::CronTemplateSelected(_)
+        | SettingsMessage::CronList(_)
         | SettingsMessage::CronListFilterChanged(_)
         | SettingsMessage::CronBatchModeToggled(_)
         | SettingsMessage::CronJobsRefresh
         | SettingsMessage::CronJobsLoaded(_)
         | SettingsMessage::CronJobSelectionToggled(_, _)
-        | SettingsMessage::CronJobDetailsToggled(_, _)
         | SettingsMessage::CronJobsSelectAllToggled(_)
         | SettingsMessage::CronJobRunsOpen(_)
         | SettingsMessage::CronJobRunsLoaded(_, _)
@@ -321,17 +322,16 @@ impl<SettingsTab, SearchTarget, AppsCatalog, AppProviders>
         | SettingsMessage::CronJobEditPromptChanged(_)
         | SettingsMessage::CronJobEditPromptEditorAction(_)
         | SettingsMessage::CronJobEditAgentChanged(_)
-        | SettingsMessage::CronJobEditAcpAgentChanged(_)
         | SettingsMessage::CronJobEditProjectPathChanged(_)
         | SettingsMessage::CronJobEditModelProviderChanged(_)
         | SettingsMessage::CronJobEditModelChanged(_)
         | SettingsMessage::CronJobEditWakeToggled(_)
-        | SettingsMessage::CronJobEditFallbacksChanged(_)
         | SettingsMessage::CronJobEditFullAccessToggled(_)
         | SettingsMessage::CronJobEditTaskPoolToggled(_)
         | SettingsMessage::CronJobEditDeliveryEnabledToggled(_)
-        | SettingsMessage::CronJobEditDeliveryChannelChanged(_)
-        | SettingsMessage::CronJobEditDeliveryToChanged(_)
+        | SettingsMessage::CronJobEditDeliveryWeComSelected(_)
+        | SettingsMessage::CronJobEditDeliveryWeComInstanceSelected(_)
+        | SettingsMessage::CronJobEditDeliveryWebhookChanged(_)
         | SettingsMessage::CronJobEditDeliveryBestEffortToggled(_)
         | SettingsMessage::CronJobEditDeleteAfterRunToggled(_)
         | SettingsMessage::CronJobEditSave
@@ -353,17 +353,16 @@ impl<SettingsTab, SearchTarget, AppsCatalog, AppProviders>
         | SettingsMessage::CronAddPromptEditorAction(_)
         | SettingsMessage::CronAddSessionTargetChanged(_)
         | SettingsMessage::CronAddAgentChanged(_)
-        | SettingsMessage::CronAddAcpAgentChanged(_)
         | SettingsMessage::CronAddProjectPathChanged(_)
         | SettingsMessage::CronAddModelProviderChanged(_)
         | SettingsMessage::CronAddModelChanged(_)
         | SettingsMessage::CronAddWakeToggled(_)
-        | SettingsMessage::CronAddFallbacksChanged(_)
         | SettingsMessage::CronAddFullAccessToggled(_)
         | SettingsMessage::CronAddTaskPoolToggled(_)
         | SettingsMessage::CronAddDeliveryEnabledToggled(_)
-        | SettingsMessage::CronAddDeliveryChannelChanged(_)
-        | SettingsMessage::CronAddDeliveryToChanged(_)
+        | SettingsMessage::CronAddDeliveryWeComSelected(_)
+        | SettingsMessage::CronAddDeliveryWeComInstanceSelected(_)
+        | SettingsMessage::CronAddDeliveryWebhookChanged(_)
         | SettingsMessage::CronAddDeliveryBestEffortToggled(_)
         | SettingsMessage::CronAddDeleteAfterRunToggled(_)
         | SettingsMessage::CronAddSubmit

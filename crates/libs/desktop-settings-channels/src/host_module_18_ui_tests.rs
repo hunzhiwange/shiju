@@ -90,6 +90,8 @@ fn fixture() -> App {
     for channel in CHANNELS {
         update(&mut app, ChannelsMessage::EnabledToggled(channel.into(), true));
     }
+    app.channels_settings.expanded_instances.insert("feishu".into(), [None].into());
+    app.channels_settings.expanded_instances.insert("dingtalk".into(), [None].into());
     let long_url = format!("https://example.invalid/{}", "webhook-segment/".repeat(20));
     for (key, value) in [
         ("telegram.bot_token", "fixture-token"),
@@ -834,6 +836,7 @@ async fn settings_help_gap_06_dingtalk_keeps_allowlist_consequences() {
             update(&mut app, ChannelsMessage::EnabledToggled("dingtalk".into(), true));
             if named {
                 update(&mut app, ChannelsMessage::InstanceAdded("dingtalk".into()));
+                update(&mut app, ChannelsMessage::InstanceExpandedToggled("dingtalk".into(), Some(0), true));
                 app.channels_settings.dingtalk = None;
                 app.channels_settings.dingtalk_instances[0].id = "ops".into();
                 app.channels_settings.refresh_text_inputs();

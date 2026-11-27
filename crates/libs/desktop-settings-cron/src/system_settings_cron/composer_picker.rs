@@ -1,18 +1,30 @@
 //! 智能体、技能和模型的定时任务选择面板。
-use super::{AgentChoice, EDITOR_PICKER_SCROLL_ID, ViewData, cron_modal_style};
+use super::{AgentChoice, EDITOR_PICKER_SCROLL_ID, ViewData};
 use crate::message::{Message, SettingsMessage as S};
 use crate::state::{CronEditorPicker as Picker, CronEditorPickerAction as Action, CronJobDraft};
 use desktop_assets::assets::Icon;
+use desktop_chat_input::input_panel::{
+    attachment::composer_add_button,
+    layout::composer_toolbar,
+    model_views::composer_model_button,
+    panel::agent_toggle,
+    surface_styles::{
+        BOTTOM_BAR_ICON_SIZE, popover_style, round_icon_button_style, selectable_list_button_style,
+        tooltip_dark_style,
+    },
+};
 use desktop_i18n::I18n;
+use desktop_ui_controls::composer_icons::ComposerIcon;
 use desktop_ui_controls::icons::{
     acp_agent_icon, auto_icon, provider_logo_handle, themed_svg_handle,
 };
-use desktop_ui_controls::overlays::BelowOverlay;
+use desktop_ui_controls::overlays::{AboveOverlay, BelowOverlay};
+use desktop_ui_controls::single_line_label::SingleLineLabel;
+use desktop_ui_controls::system_settings_common::icons::icon_btn_svg_style;
 use desktop_ui_controls::system_settings_common::{
-    SettingsSelectLabel, icon_svg, rounded_action_btn_style, settings_divider,
-    settings_muted_text_style, settings_tab_button, settings_tab_style, settings_text_input,
+    icon_svg, settings_divider, settings_muted_text_style, settings_text_input,
 };
-use iced::widget::{Space, button, column, container, row, scrollable, text};
+use iced::widget::{Space, button, column, container, row, scrollable, text, tooltip};
 use iced::{Alignment, Element, Length};
 
 pub(super) fn controls<'a>(
@@ -29,126 +41,142 @@ pub(super) fn controls<'a>(
         draft.agent.clone()
     };
     let agent = app.agents.iter().find(|agent| agent.id == agent_id);
-    let agent_open = matches!(draft.editor_picker, Some(Picker::Agent | Picker::Skills));
     let model_open = draft.editor_picker == Some(Picker::Model);
     let model = draft.model.trim();
     let model_choice = app.models.iter().find_map(|group| {
         group.models.iter().find(|choice| choice.id == model).map(|choice| (group, choice))
     });
-    let default_model = if agent.is_some_and(|agent| agent.backend.is_some())
-        || !draft.acp_agent.trim().is_empty()
-    {
-        i18n.__("智能体原生模型")
+    let native_model =
+        agent.is_some_and(|agent| agent.backend.is_some()) || !draft.acp_agent.trim().is_empty();
+    let default_model =
+        if native_model { i18n.__("智能体原生模型") } else { i18n.__("自动模型") };
+
+    let model_icon = if is_auto_model(model) {
+        if native_model {
+            ComposerIcon::Agent.svg(BOTTOM_BAR_ICON_SIZE)
+        } else {
+            themed_svg_handle(auto_icon(), BOTTOM_BAR_ICON_SIZE)
+        }
+    } else if let Some((group, _)) = model_choice {
+        themed_svg_handle(provider_logo_handle(&group.id), BOTTOM_BAR_ICON_SIZE)
     } else {
-        i18n.__("自动模型")
+        icon_svg(Icon::Sliders, BOTTOM_BAR_ICON_SIZE)
+    };
+    let model_label = if is_auto_model(model) {
+        default_model
+    } else {
+        model_choice.map_or(model, |(_, choice)| choice.label.as_str())
+    };
+    let model_trigger = composer_model_button(
+        model_icon.into(),
+        model_label.to_owned(),
+        None,
+        model_open,
+        action(editing, if model_open { Action::Close } else { Action::Open(Picker::Model) }),
+    );
+    let model_control = if model_open {
+        window_picker(
+            model_trigger,
+            model_panel(app, draft, default_model, editing),
+            true,
+            action(editing, Action::Close),
+        )
+    } else {
+        model_trigger
     };
 
-    let agent_trigger = trigger(
-        agent_icon(agent),
-        SettingsSelectLabel::new(
-            agent.map_or(agent_id.as_str(), |agent| agent.label.as_str()).to_owned(),
-        )
-        .into(),
-        draft.editor_picker == Some(Picker::Agent),
-        action(editing, Action::Toggle(Picker::Agent)),
-    )
-    .width(Length::Fill);
-    let skills_trigger = trigger(
-        icon_svg(Icon::Star, 14.0).into(),
-        text(if draft.skills.is_empty() {
-            i18n.__("技能").to_owned()
-        } else {
-            format!("{} ({})", i18n.__("技能"), draft.skills.len())
-        })
-        .size(13)
-        .into(),
-        draft.editor_picker == Some(Picker::Skills),
-        action(editing, Action::Toggle(Picker::Skills)),
-    );
-    let model_trigger = trigger(
-        model_choice.map_or_else(
-            || {
-                if is_auto_model(model) {
-                    themed_svg_handle(auto_icon(), 14.0).into()
-                } else {
-                    icon_svg(Icon::Sliders, 14.0).into()
-                }
-            },
-            |(group, _)| themed_svg_handle(provider_logo_handle(&group.id), 14.0).into(),
-        ),
-        SettingsSelectLabel::new(if is_auto_model(model) {
-            default_model.to_owned()
-        } else {
-            model_choice.map_or(model, |(_, choice)| choice.label.as_str()).to_owned()
-        })
-        .into(),
-        model_open,
-        action(editing, Action::Toggle(Picker::Model)),
-    )
-    .width(Length::Fill);
-
-    let session_panel = agent_open.then(|| session_panel(app, draft, &agent_id, editing));
-    let model_panel = model_open.then(|| model_panel(app, draft, default_model, editing));
-    row![
-        container(popover(
-            row![agent_trigger, skills_trigger].spacing(6).into(),
-            session_panel,
-            false,
-            editing,
-        ))
-        .width(Length::FillPortion(3)),
-        container(popover(model_trigger.into(), model_panel, true, editing))
-            .width(Length::FillPortion(2)),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center)
-    .width(Length::Fill)
+    composer_toolbar(row![
+        skill_control(i18n, app, draft, editing),
+        agent_control(i18n, app, draft, &agent_id, agent, editing),
+        Space::new().width(Length::Fill),
+        model_control,
+    ])
     .into()
 }
 
-fn popover<'a>(
-    trigger: Element<'a, Message>,
-    panel: Option<Element<'a, Message>>,
-    align_right: bool,
+fn agent_control<'a>(
+    i18n: I18n,
+    app: &ViewData<'_>,
+    draft: &CronJobDraft,
+    agent_id: &str,
+    agent: Option<&AgentChoice>,
     editing: bool,
 ) -> Element<'a, Message> {
-    let show = panel.is_some();
-    let content = panel.unwrap_or_else(|| Space::new().into());
-    BelowOverlay::new(trigger, container(content).padding(8))
-        .show(show)
+    let open = draft.editor_picker == Some(Picker::Agent);
+    let close = action(editing, Action::Close);
+    let label = agent.map_or_else(
+        || if agent_id == "main" { i18n.__("智能体").to_owned() } else { agent_id.to_owned() },
+        |agent| i18n.__(&agent.label).to_owned(),
+    );
+    let backend = agent.and_then(|agent| agent.backend.as_deref()).or_else(|| {
+        let backend = draft.acp_agent.trim();
+        (!backend.is_empty()).then_some(backend)
+    });
+    let trigger = container(agent_toggle(
+        open,
+        label,
+        backend,
+        None,
+        if open { close.clone() } else { action(editing, Action::Open(Picker::Agent)) },
+    ))
+    .max_width(160);
+    if !open {
+        return trigger.into();
+    }
+    let query = draft.editor_picker_query.trim().to_lowercase();
+    let header = search(i18n.__("搜索智能体"), &draft.editor_picker_query, editing);
+    let items = agent_list(i18n, &app.agents, agent_id, &query, editing);
+    window_picker(trigger, panel(header, items, 500.0), false, close)
+}
+
+fn window_picker<'a>(
+    trigger: impl Into<Element<'a, Message>>,
+    content: Element<'a, Message>,
+    align_right: bool,
+    close: Message,
+) -> Element<'a, Message> {
+    BelowOverlay::new(trigger, content)
+        .show(true)
         .within_window()
         .align_right(align_right)
-        .gap(2.0)
-        .on_close(action(editing, Action::Close))
+        .gap(7.0)
         .dismiss_on_escape()
+        .on_close(close)
+        .into()
+}
+
+fn skill_control<'a>(
+    i18n: I18n,
+    app: &ViewData<'_>,
+    draft: &CronJobDraft,
+    editing: bool,
+) -> Element<'a, Message> {
+    let open = draft.editor_picker == Some(Picker::Skills);
+    let close = action(editing, Action::Close);
+    let trigger = composer_add_button(
+        open,
+        round_icon_button_style,
+        if open { close.clone() } else { action(editing, Action::Open(Picker::Skills)) },
+    );
+    if !open {
+        return tooltip(trigger, text(i18n.__("技能")).size(12), tooltip::Position::Top)
+            .style(tooltip_dark_style)
+            .into();
+    }
+    let query = draft.editor_picker_query.trim().to_lowercase();
+    let header = search(i18n.__("搜索技能"), &draft.editor_picker_query, editing);
+    let items = skill_list(i18n, app, draft, &query, editing);
+    AboveOverlay::new(trigger, panel(header, items, 360.0))
+        .show(true)
+        .block_background_events(true)
+        .flip_if_clipped()
+        .gap(7.0)
+        .on_close(close)
         .into()
 }
 
 fn action(editing: bool, action: Action) -> Message {
     Message::Settings(S::CronEditorPickerChanged { editing, action })
-}
-
-fn trigger<'a>(
-    icon: Element<'a, Message>,
-    label: Element<'a, Message>,
-    open: bool,
-    message: Message,
-) -> iced::widget::Button<'a, Message> {
-    button(
-        row![icon, label, icon_svg(if open { Icon::ChevronUp } else { Icon::ChevronDown }, 11.0),]
-            .spacing(6)
-            .align_y(Alignment::Center),
-    )
-    .height(34)
-    .padding([5, 8])
-    .style(move |theme, status| {
-        if open {
-            settings_tab_style(theme, status, true)
-        } else {
-            rounded_action_btn_style(theme, status)
-        }
-    })
-    .on_press(message)
 }
 
 fn panel<'a>(
@@ -164,16 +192,10 @@ fn panel<'a>(
         .height(Length::Fill)
         .width(Length::Fill);
     container(column![header, list].spacing(8).height(Length::Fill))
-        .padding(12)
-        .width(360)
+        .padding(8)
+        .width(326)
         .height(Length::Fixed(height))
-        .style(|theme| {
-            let mut style = cron_modal_style(theme);
-            style.border.radius = 14.0.into();
-            style.shadow.offset = iced::Vector::new(0.0, 8.0);
-            style.shadow.blur_radius = 24.0;
-            style
-        })
+        .style(popover_style)
         .into()
 }
 
@@ -195,39 +217,6 @@ fn agent_icon<'a>(agent: Option<&AgentChoice>) -> Element<'a, Message> {
         Some(backend) => acp_agent_icon(backend, 16.0),
         None => icon_svg(Icon::Hexagon, 16.0).into(),
     }
-}
-
-fn session_panel<'a>(
-    app: &ViewData<'_>,
-    draft: &CronJobDraft,
-    agent_id: &str,
-    editing: bool,
-) -> Element<'a, Message> {
-    let i18n = I18n::new(app.desktop_locale);
-    let skills_active = draft.editor_picker == Some(Picker::Skills);
-    let tabs = row![
-        settings_tab_button(
-            i18n.__("智能体"),
-            !skills_active,
-            skills_active.then(|| action(editing, Action::Toggle(Picker::Agent))),
-        ),
-        settings_tab_button(
-            i18n.__("技能"),
-            skills_active,
-            (!skills_active).then(|| action(editing, Action::Toggle(Picker::Skills))),
-        ),
-    ]
-    .spacing(6);
-    let header =
-        column![tabs, search(i18n.__("搜索当前列表"), &draft.editor_picker_query, editing)]
-            .spacing(8);
-    let query = draft.editor_picker_query.trim().to_lowercase();
-    let list = if skills_active {
-        skill_list(i18n, app, draft, &query, editing)
-    } else {
-        agent_list(i18n, &app.agents, agent_id, &query, editing)
-    };
-    panel(header.into(), list, 380.0)
 }
 
 fn agent_list<'a>(
@@ -323,7 +312,7 @@ fn skill_list<'a>(
         }
         any = true;
         list = list.push(option(
-            icon_svg(Icon::Star, 14.0).into(),
+            ComposerIcon::Skill.svg(14.0).into(),
             label.to_owned(),
             description.to_owned(),
             draft.skills.iter().any(|saved| saved == id),
@@ -417,7 +406,7 @@ fn model_panel<'a>(
         };
         list = list.push(text(empty).size(13).style(settings_muted_text_style));
     }
-    panel(header.into(), list, 440.0)
+    panel(header.into(), list, 500.0)
 }
 
 fn option<'a>(
@@ -430,15 +419,23 @@ fn option<'a>(
     let enabled = message.is_some();
     let mut label = column![text(title).size(13)].spacing(3).width(Length::Fill);
     if !detail.is_empty() {
-        label = label.push(text(detail).size(11).style(settings_muted_text_style));
+        label = label.push(container(SingleLineLabel::new(detail, 11.0)).style(|theme| {
+            container::Style {
+                text_color: settings_muted_text_style(theme).color,
+                ..Default::default()
+            }
+        }));
     }
-    let check: Element<'a, Message> =
-        if selected { icon_svg(Icon::Check, 14.0).into() } else { Space::new().width(14).into() };
+    let check: Element<'a, Message> = if selected {
+        icon_svg(Icon::Check, 14.0).style(icon_btn_svg_style).into()
+    } else {
+        Space::new().width(14).into()
+    };
     button(row![icon, label, check].spacing(9).align_y(Alignment::Center))
         .padding([8, 9])
         .width(Length::Fill)
         .style(move |theme, status| {
-            let mut style = settings_tab_style(theme, status, selected);
+            let mut style = selectable_list_button_style(theme, status, selected);
             if !enabled {
                 style.text_color = theme.palette().text.scale_alpha(0.65);
             }

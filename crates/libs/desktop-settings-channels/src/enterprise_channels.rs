@@ -13,14 +13,106 @@ use desktop_i18n::{I18n, settings_extensions::text as tr};
 use crate::messages::{ChannelsMessage, SettingsMessage};
 use crate::{ViewState, messages::Message};
 use iced::widget::{Image, button, column, container, row, text};
-use iced::{Element, Length};
+use iced::{Alignment, Element, Length};
 
 use super::common::{
     GROUP_REPLY_MODE_OPTIONS, LARK_RECEIVE_MODE_OPTIONS, QQ_RECEIVE_MODE_OPTIONS, add_instance_row,
-    bool_row, default_project_selector, group_reply_mode_value, hint_row, instance_title_row,
+    bool_row, channel_header, default_project_selector, group_reply_mode_value, hint_row,
     lark_receive_mode_value, number_row, number_row_with_hint, number_row_with_key, panel,
     pick_row, pick_row_with_key, qq_receive_mode_value, text_row, text_row_with_key,
 };
+
+fn enterprise_instance_panel<'a>(
+    app: ViewState<'a>,
+    channel: &'static str,
+    title: &'static str,
+    description: &'static str,
+    enabled: bool,
+    default: iced::widget::Column<'a, Message>,
+    instances: Vec<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let mut sections = column![settings_group_card(
+        container(channel_header(app, channel, title, description, enabled, std::convert::identity))
+            .padding([16, 0])
+    )]
+    .spacing(12);
+    if enabled {
+        let state = app.channels_settings;
+        let toggle_all = |expanded, label| {
+            let can_toggle = state.instance_cards(channel)
+                .any(|index| state.instance_collapsed(channel, index) == expanded);
+            button(text(label).size(SETTINGS_CONTROL_TEXT_SIZE))
+                .padding([8, 12])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(can_toggle.then(|| Message::Settings(SettingsMessage::Channels(
+                    ChannelsMessage::AllInstancesExpandedToggled(channel.to_owned(), expanded),
+                ))))
+        };
+        let expand_controls = row![
+            toggle_all(true, i18n.__("展开所有实例")),
+            toggle_all(false, i18n.__("折叠所有实例")),
+        ]
+        .spacing(8)
+        .width(Length::Fill)
+        .wrap()
+        .vertical_spacing(8);
+        let toolbar = row![expand_controls, add_instance_row(channel, i18n.__("新增实例"))]
+            .spacing(8)
+            .align_y(Alignment::Center);
+        sections = sections
+            .push(toolbar)
+            .push(enterprise_instance_card(app, channel, None, i18n.__("默认实例").into(), default))
+            .extend(instances);
+    }
+    sections.into()
+}
+
+fn enterprise_instance_card<'a>(
+    app: ViewState<'a>,
+    channel: &'static str,
+    index: Option<usize>,
+    title: String,
+    fields: iced::widget::Column<'a, Message>,
+) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let collapsed = app.channels_settings.instance_collapsed(channel, index);
+    let mut header = row![
+        text(title).size(16).width(Length::Fill),
+        button(text(if collapsed { i18n.__("展开") } else { i18n.__("折叠") })
+            .size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding([8, 12])
+            .style(rounded_action_btn_style)
+            .on_press(Message::Settings(SettingsMessage::Channels(
+                ChannelsMessage::InstanceExpandedToggled(channel.to_owned(), index, collapsed),
+            ))),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    if let Some(index) = index {
+        header = header.push(button(text(i18n.__("删除")).size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding([8, 12])
+            .style(rounded_action_btn_style)
+            .on_press(Message::Settings(SettingsMessage::Channels(
+                ChannelsMessage::InstanceRemoved(channel.to_owned(), index),
+            ))));
+    }
+    let mut content = column![header].spacing(12);
+    if !collapsed {
+        content = content.push(fields);
+    }
+    settings_group_card(container(content).padding([14, 0])).into()
+}
+
+fn configure_default_instance<'a>(app: ViewState<'a>, channel: &'static str) -> Element<'a, Message> {
+    button(text(I18n::new(app.desktop_locale).__("配置默认实例")))
+        .padding([8, 12])
+        .style(rounded_action_btn_style)
+        .on_press(Message::Settings(SettingsMessage::Channels(
+            ChannelsMessage::EnabledToggled(channel.to_owned(), true),
+        )))
+        .into()
+}
 
 pub(crate) fn qr_authorization<'a>(app: ViewState<'a>, channel: &'static str) -> Element<'a, Message> {
     qr_authorization_for(app, channel, None)
@@ -38,6 +130,8 @@ fn qr_authorization_for<'a>(
         Some(id) => format!("{channel}:{id}"),
         None => channel.to_owned(),
     };
+    let wecom_modal = app.channels_settings.wecom_delivery.as_ref().filter(|_| channel == "wecom");
+    let request = !wecom_modal.is_some_and(|draft| draft.saving);
     let mut content = column![
         settings_group_heading(
             tr(app.desktop_locale, "扫码授权"),
@@ -52,9 +146,9 @@ fn qr_authorization_for<'a>(
             .size(SETTINGS_CONTROL_TEXT_SIZE)
         )
         .padding([8, 12])
-        .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrRequested(
-            target
-        ),)))
+        .on_press_maybe(request.then(|| {
+            Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrRequested(target)))
+        }))
         .style(rounded_action_btn_style),
     ]
     .spacing(10);
@@ -99,26 +193,28 @@ fn qr_authorization_for<'a>(
                 .spacing(4),
             );
         }
-        let mut actions = row![
-            button(text(tr(app.desktop_locale, "关闭")).size(SETTINGS_CONTROL_TEXT_SIZE))
-                .padding([8, 12])
-                .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrClosed)))
-                .style(rounded_action_btn_style),
-        ]
-        .spacing(8);
-        if flow.credentials_ready {
-            actions = actions.push(
-                button(
-                    text(tr(app.desktop_locale, "保存授权配置")).size(SETTINGS_CONTROL_TEXT_SIZE),
-                )
-                .padding([8, 12])
-                .on_press(Message::Settings(SettingsMessage::Channels(
-                    ChannelsMessage::QrSaveConfirmed,
-                )))
-                .style(primary_action_btn_style),
-            );
+        if wecom_modal.is_none() {
+            let mut actions = row![
+                button(text(tr(app.desktop_locale, "关闭")).size(SETTINGS_CONTROL_TEXT_SIZE))
+                    .padding([8, 12])
+                    .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrClosed)))
+                    .style(rounded_action_btn_style),
+            ]
+            .spacing(8);
+            if flow.credentials_ready {
+                actions = actions.push(
+                    button(
+                        text(tr(app.desktop_locale, "保存授权配置")).size(SETTINGS_CONTROL_TEXT_SIZE),
+                    )
+                    .padding([8, 12])
+                    .on_press(Message::Settings(SettingsMessage::Channels(
+                        ChannelsMessage::QrSaveConfirmed,
+                    )))
+                    .style(primary_action_btn_style),
+                );
+            }
+            content = content.push(actions);
         }
-        content = content.push(actions);
     }
     settings_group_card(container(content).padding([14, 0])).into()
 }
@@ -268,7 +364,6 @@ pub fn lark_panel(app: ViewState<'_>) -> Element<'_, Message> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn feishu_panel(app: ViewState<'_>) -> Element<'_, Message> {
     let s = &app.channels_settings;
-    let enabled = s.feishu.is_some() || !s.feishu_instances.is_empty();
     let mut body = column![qr_authorization(app, "feishu")].spacing(12);
 
     if let Some(cfg) = s.feishu.as_ref() {
@@ -372,8 +467,11 @@ pub fn feishu_panel(app: ViewState<'_>) -> Element<'_, Message> {
                 "",
                 "feishu.max_draft_edits",
             ));
+    } else {
+        body = body.push(configure_default_instance(app, "feishu"));
     }
 
+    let mut instances = Vec::new();
     for (index, instance) in s.feishu_instances.iter().enumerate() {
         let key_prefix = format!("feishu_instances.{index}");
         let title = if instance.id.trim().is_empty() {
@@ -391,8 +489,8 @@ pub fn feishu_panel(app: ViewState<'_>) -> Element<'_, Message> {
             )
             .expect("valid channel instance template")
         };
-        let fields = column![instance_title_row(app.desktop_locale, title, "feishu", index)]
-            .push(default_project_selector(app, format!("feishu:{}", instance.id)))
+        let fields = column![default_project_selector(app, format!("feishu:{}", instance.id))]
+            .spacing(12)
             .push(text_row_with_key(
                 app,
                 "instance_id",
@@ -490,18 +588,17 @@ pub fn feishu_panel(app: ViewState<'_>) -> Element<'_, Message> {
                 "",
                 format!("{key_prefix}.max_draft_edits"),
             ));
-        body = body.push(settings_group_card(container(fields.spacing(12)).padding([14, 0])));
+        instances.push(enterprise_instance_card(app, "feishu", Some(index), title, fields));
     }
 
-    body = body.push(add_instance_row("feishu", tr(app.desktop_locale, "新增飞书实例")));
-
-    panel(
+    enterprise_instance_panel(
         app,
         "feishu",
         tr(app.desktop_locale, "飞书"),
         tr(app.desktop_locale, "国内版飞书详细配置。"),
-        enabled,
-        body.into(),
+        s.feishu.is_some() || !s.feishu_instances.is_empty(),
+        body,
+        instances,
     )
 }
 
@@ -520,7 +617,6 @@ pub fn feishu_panel(app: ViewState<'_>) -> Element<'_, Message> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn dingtalk_panel(app: ViewState<'_>) -> Element<'_, Message> {
     let s = &app.channels_settings;
-    let enabled = s.dingtalk.is_some() || !s.dingtalk_instances.is_empty();
     let mut body = column![
         hint_row(tr(app.desktop_locale, "白名单为空时拒绝所有用户。")),
         qr_authorization(app, "dingtalk")
@@ -554,8 +650,11 @@ pub fn dingtalk_panel(app: ViewState<'_>) -> Element<'_, Message> {
                 "dingtalk.allowed_users",
                 false,
             ));
+    } else {
+        body = body.push(configure_default_instance(app, "dingtalk"));
     }
 
+    let mut instances = Vec::new();
     for (index, instance) in s.dingtalk_instances.iter().enumerate() {
         let key_prefix = format!("dingtalk_instances.{index}");
         let title = if instance.id.trim().is_empty() {
@@ -573,8 +672,8 @@ pub fn dingtalk_panel(app: ViewState<'_>) -> Element<'_, Message> {
             )
             .expect("valid channel instance template")
         };
-        let fields = column![instance_title_row(app.desktop_locale, title, "dingtalk", index)]
-            .push(default_project_selector(app, format!("dingtalk:{}", instance.id)))
+        let fields = column![default_project_selector(app, format!("dingtalk:{}", instance.id))]
+            .spacing(12)
             .push(text_row_with_key(
                 app,
                 "instance_id",
@@ -607,35 +706,51 @@ pub fn dingtalk_panel(app: ViewState<'_>) -> Element<'_, Message> {
                 format!("{key_prefix}.allowed_users"),
                 false,
             ));
-        body = body.push(settings_group_card(container(fields.spacing(12)).padding([14, 0])));
+        instances.push(enterprise_instance_card(app, "dingtalk", Some(index), title, fields));
     }
 
-    body = body.push(add_instance_row("dingtalk", tr(app.desktop_locale, "新增钉钉实例")));
-
-    panel(
+    enterprise_instance_panel(
         app,
         "dingtalk",
         tr(app.desktop_locale, "钉钉"),
         tr(app.desktop_locale, "钉钉 Stream 模式鉴权。"),
-        enabled,
-        body.into(),
+        s.dingtalk.is_some() || !s.dingtalk_instances.is_empty(),
+        body,
+        instances,
     )
 }
 
-fn named_bot_header<'a>(
+fn named_bot_fields<'a>(
     app: ViewState<'a>,
     channel: &'static str,
     id: &str,
-    index: usize,
 ) -> iced::widget::Column<'a, Message> {
+    let fields = column![].spacing(12);
+    let project = default_project_selector(app, format!("{channel}:{id}"));
+    if channel == "wecom" {
+        let i18n = I18n::new(app.desktop_locale);
+        let configured = app.channels_settings
+            .wecom_connection(Some(id))
+            .is_some_and(|bot| bot.has_required_credentials());
+        fields
+            .push(text(if configured { i18n.__("已配置") } else { i18n.__("未配置") }).size(13))
+            .push(wecom_connection_button(app, Some(id)))
+            .push(project)
+    } else {
+        fields.push(project).push(qr_authorization_for(app, channel, Some(id)))
+    }
+}
+
+fn named_bot_card<'a>(
+    app: ViewState<'a>,
+    channel: &'static str,
+    index: usize,
+    id: &str,
+    fields: iced::widget::Column<'a, Message>,
+) -> Element<'a, Message> {
     let title = desktop_i18n::__!(I18n::new(app.desktop_locale), "实例 %s", id)
         .expect("valid channel instance template");
-    column![
-        instance_title_row(app.desktop_locale, title, channel, index),
-        default_project_selector(app, format!("{channel}:{id}")),
-        qr_authorization_for(app, channel, Some(id)),
-    ]
-    .spacing(12)
+    enterprise_instance_card(app, channel, Some(index), title, fields)
 }
 
 /// 构建或处理 `qq_panel` 对应的界面片段与交互数据。
@@ -653,7 +768,7 @@ fn named_bot_header<'a>(
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn qq_panel(app: ViewState<'_>) -> Element<'_, Message> {
     let s = &app.channels_settings;
-    let mut body = if let Some(cfg) = s.qq.as_ref() {
+    let body = if let Some(cfg) = s.qq.as_ref() {
         column![
             qr_authorization(app, "qq"),
             default_project_selector(app, "qq:default".into()),
@@ -676,12 +791,17 @@ pub fn qq_panel(app: ViewState<'_>) -> Element<'_, Message> {
         ]
         .spacing(12)
     } else {
-        column![].spacing(12)
+        column![
+            qr_authorization(app, "qq"),
+            configure_default_instance(app, "qq"),
+        ]
+        .spacing(12)
     };
 
+    let mut instances = Vec::new();
     for (index, instance) in app.channels_settings.qq_instances.iter().enumerate() {
         let key_prefix = format!("qq_instances.{index}");
-        let fields = named_bot_header(app, "qq", &instance.id, index)
+        let fields = named_bot_fields(app, "qq", &instance.id)
             .push(text_row_with_key(
                 app,
                 "app_id",
@@ -707,91 +827,128 @@ pub fn qq_panel(app: ViewState<'_>) -> Element<'_, Message> {
                 false,
             ))
             .push(hint_row(tr(app.desktop_locale, "新增 QQ 实例使用 WebSocket 接收消息。")));
-        body = body.push(settings_group_card(container(fields).padding([14, 0])));
+        instances.push(named_bot_card(app, "qq", index, &instance.id, fields));
     }
 
-    column![
-        panel(
-            app,
-            "qq",
-            "QQ",
-            tr(app.desktop_locale, "QQ 官方机器人 app 信息与接收模式。"),
-            s.qq.is_some() || !s.qq_instances.is_empty(),
-            body.into(),
-        ),
-        add_instance_row("qq", tr(app.desktop_locale, "新增QQ实例")),
-    ]
-    .spacing(12)
-    .into()
+    enterprise_instance_panel(
+        app,
+        "qq",
+        tr(app.desktop_locale, "QQ"),
+        tr(app.desktop_locale, "QQ 官方机器人 app 信息与接收模式。"),
+        s.qq.is_some() || !s.qq_instances.is_empty(),
+        body,
+        instances,
+    )
+}
+
+fn wecom_connection_button<'a>(app: ViewState<'a>, instance_id: Option<&str>) -> Element<'a, Message> {
+    use crate::state::WeComDeliveryMode;
+    let message = match instance_id {
+        Some(id) => ChannelsMessage::WeComInstanceOpened(id.to_owned(), WeComDeliveryMode::Qr),
+        None => ChannelsMessage::WeComDeliveryOpened(WeComDeliveryMode::Qr),
+    };
+    button(text(I18n::new(app.desktop_locale).__("配置机器人连接")))
+        .padding([8, 12])
+        .style(rounded_action_btn_style)
+        .on_press(Message::Settings(SettingsMessage::Channels(message)))
+        .into()
 }
 
 pub fn wecom_panel(app: ViewState<'_>) -> Element<'_, Message> {
-    use crate::state::WeComDeliveryMode;
+    let s = app.channels_settings;
     let mut body = column![
-        settings_group_heading_with_help(
-            I18n::new(app.desktop_locale),
-            app.app_theme,
-            tr(app.desktop_locale, "企业微信"),
-            tr(app.desktop_locale, "企业微信 AI 机器人长连接凭据。"),
-        ),
-        text(if app.channels_settings.wecom.is_some() {
+        text(if app.channels_settings.wecom.as_ref().is_some_and(|bot| bot.has_required_credentials()) {
             tr(app.desktop_locale, "默认智能机器人：已配置")
         } else {
             tr(app.desktop_locale, "默认智能机器人：未配置")
         })
         .size(13),
+        wecom_connection_button(app, None),
     ]
-    .spacing(12)
-    .push(
-        text(tr(
-            app.desktop_locale,
-            "用于接收指令并与 Agent 对话。定时任务群通知请在任务的通知配置中设置 Webhook。",
-        ))
-        .size(13),
-    );
-    for (mode, label) in [
-        (WeComDeliveryMode::Qr, tr(app.desktop_locale, "扫码连接智能机器人")),
-        (WeComDeliveryMode::Manual, tr(app.desktop_locale, "手动连接智能机器人")),
-    ] {
-        body = body.push(
-            button(text(label)).padding([8, 12]).style(rounded_action_btn_style).on_press(
-                Message::Settings(SettingsMessage::Channels(ChannelsMessage::WeComDeliveryOpened(
-                    mode,
-                ))),
-            ),
-        );
-    }
+    .spacing(12);
     if app.channels_settings.wecom.is_some() {
         body = body.push(default_project_selector(app, "wecom:default".into()));
     }
-    for (index, instance) in app.channels_settings.wecom_instances.iter().enumerate() {
-        let key_prefix = format!("wecom_instances.{index}");
-        let fields = named_bot_header(app, "wecom", &instance.id, index)
-            .push(text_row_with_key(
-                app,
-                "bot_id",
-                "企业微信 Bot ID",
-                &instance.config.bot_id,
-                format!("{key_prefix}.bot_id"),
-                false,
-            ))
-            .push(text_row_with_key(
-                app,
-                "secret",
-                "企业微信 Secret",
-                &instance.config.secret,
-                format!("{key_prefix}.secret"),
-                true,
-            ));
-        body = body.push(settings_group_card(container(fields).padding([14, 0])));
+    let mut instances = Vec::new();
+    let mut has_chat_instance = false;
+    for (index, instance) in s.wecom_instances.iter().enumerate() {
+        if config_channel_services::WeComConfig::is_cron_instance(&instance.id) {
+            continue;
+        }
+        has_chat_instance = true;
+        let fields = named_bot_fields(app, "wecom", &instance.id);
+        instances.push(named_bot_card(app, "wecom", index, &instance.id, fields));
     }
-    body = body.push(add_instance_row("wecom", tr(app.desktop_locale, "新增企业微信实例")));
-    settings_group_card(container(body).padding([14, 0])).into()
+
+    enterprise_instance_panel(
+        app,
+        "wecom",
+        tr(app.desktop_locale, "企业微信"),
+        tr(app.desktop_locale, "企业微信 AI 机器人长连接凭据。"),
+        s.wecom.is_some() || has_chat_instance,
+        body,
+        instances,
+    )
+}
+
+pub(super) fn wecom_cron_card(app: ViewState<'_>) -> Element<'_, Message> {
+    use crate::state::WeComDeliveryMode;
+    use config_channel_services::WeComConfig;
+
+    let s = app.channels_settings;
+    let i18n = I18n::new(app.desktop_locale);
+    let event = |event| Message::Settings(SettingsMessage::Channels(event));
+    let action = |label, action| {
+        button(text(i18n.__(label)).size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding([8, 12])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(action)
+    };
+    let mut cards = column![
+        row![
+            text(i18n.__("定时任务企业微信通知")).size(17).width(Length::Fill),
+            action("新增通知实例", Some(event(ChannelsMessage::WeComCronInstanceAdded))),
+        ].spacing(8).align_y(Alignment::Center),
+        hint_row(i18n.__("连接机器人并绑定接收会话，然后在任务里勾选要通知的实例。")),
+    ].spacing(12);
+    for instance in s.wecom_instances.iter().filter(|item| WeComConfig::is_cron_instance(&item.id)) {
+        let id = &instance.id;
+        let status = s.wecom_cron_bindings.get(id);
+        let request = |start| {
+            (!s.wecom_cron_binding_requests.contains_key(id)).then(|| event(ChannelsMessage::WeComCronBindingRequested {
+                instance: id.clone(), start,
+            }))
+        };
+        let bound = status.and_then(|status| status.bound);
+        let mut content = column![
+            text(instance.config.bot_id.as_str()).size(16),
+            row![
+                action(if bound == Some(true) { "重新绑定接收会话" } else { "绑定接收会话" }, request(true)),
+                action("检查连接状态", request(false)),
+                action("管理连接", Some(event(ChannelsMessage::WeComInstanceOpened(id.clone(), WeComDeliveryMode::Manual)))),
+            ].spacing(8).wrap(),
+        ].spacing(8);
+        if let Some(connected) = status.and_then(|status| status.connected) {
+            content = content.push(text(i18n.__(match (connected, bound) {
+                (false, _) => "定时任务机器人尚未连接",
+                (true, Some(true)) => "接收会话已绑定",
+                (true, _) => "接收会话尚未绑定",
+            })).size(13));
+        }
+        if let Some(code) = status.and_then(|status| status.pairing_code.as_ref()) {
+            content = content
+                .push(text(i18n.__("请在 5 分钟内私聊专用机器人，发送下方绑定指令，然后检查连接状态。")).size(13))
+                .push(text(code.as_str()).size(13))
+                .push(action("复制绑定指令", Some(Message::CopyCode(code.clone()))));
+        }
+        cards = cards.push(settings_group_card(container(content).padding([14, 0])));
+    }
+    cards.into()
 }
 
 pub fn wechat_panel(app: ViewState<'_>) -> Element<'_, Message> {
     let s = &app.channels_settings;
-    let mut body = if let Some(cfg) = s.wechat.as_ref() {
+    let body = if let Some(cfg) = s.wechat.as_ref() {
         column![
             qr_authorization(app, "wechat"),
             default_project_selector(app, "wechat:default".into()),
@@ -814,11 +971,16 @@ pub fn wechat_panel(app: ViewState<'_>) -> Element<'_, Message> {
         ]
         .spacing(12)
     } else {
-        column![].spacing(12)
+        column![
+            qr_authorization(app, "wechat"),
+            configure_default_instance(app, "wechat"),
+        ]
+        .spacing(12)
     };
+    let mut instances = Vec::new();
     for (index, instance) in app.channels_settings.wechat_instances.iter().enumerate() {
         let key_prefix = format!("wechat_instances.{index}");
-        let fields = named_bot_header(app, "wechat", &instance.id, index)
+        let fields = named_bot_fields(app, "wechat", &instance.id)
             .push(text_row_with_key(
                 app,
                 "bot_token",
@@ -835,22 +997,18 @@ pub fn wechat_panel(app: ViewState<'_>) -> Element<'_, Message> {
                 format!("{key_prefix}.base_url"),
                 false,
             ));
-        body = body.push(settings_group_card(container(fields).padding([14, 0])));
+        instances.push(named_bot_card(app, "wechat", index, &instance.id, fields));
     }
 
-    column![
-        panel(
-            app,
-            "wechat",
-            tr(app.desktop_locale, "微信"),
-            tr(app.desktop_locale, "微信 iLink 机器人凭据与可信平台地址。"),
-            s.wechat.is_some() || !s.wechat_instances.is_empty(),
-            body.into(),
-        ),
-        add_instance_row("wechat", tr(app.desktop_locale, "新增微信实例")),
-    ]
-    .spacing(12)
-    .into()
+    enterprise_instance_panel(
+        app,
+        "wechat",
+        tr(app.desktop_locale, "微信"),
+        tr(app.desktop_locale, "微信 iLink 机器人凭据与可信平台地址。"),
+        s.wechat.is_some() || !s.wechat_instances.is_empty(),
+        body,
+        instances,
+    )
 }
 
 /// 构建或处理 `nostr_panel` 对应的界面片段与交互数据。

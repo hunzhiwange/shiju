@@ -26,7 +26,6 @@ struct Fixture {
     recent_projects: Vec<String>,
     acp_agents: Vec<String>,
     providers: Vec<(String, Vec<String>)>,
-    delivery: domain::DeliveryAvailability,
 }
 fn fixture() -> Fixture {
     Fixture {
@@ -39,7 +38,6 @@ fn fixture() -> Fixture {
         recent_projects: Vec::new(),
         acp_agents: vec!["main".into()],
         providers: Vec::new(),
-        delivery: Default::default(),
     }
 }
 fn update(
@@ -52,8 +50,8 @@ fn update(
     );
     let mut inputs = crate::update::cron::Inputs {
             cron_settings: &mut app.cron_settings,
+            system_timezone: runtime_time::zones::SHANGHAI,
             desktop_locale: app.desktop_locale,
-            delivery: app.delivery,
             client: Err("fixture gateway unavailable".into()),
             config: &config,
             notices: &mut Vec::new(),
@@ -208,10 +206,12 @@ mod scheduler {
 fn data(app: &Fixture) -> domain::ViewData<'_> {
     domain::ViewData {
         cron_settings: &app.cron_settings,
+        system_timezone: config_ui::DEFAULT_TIMEZONE.parse().unwrap(),
         desktop_locale: app.desktop_locale,
         app_theme: &app.app_theme,
         project_path: app.project_path.as_deref(),
         recent_projects: &app.recent_projects,
+        recent_project_labels: &[],
         agents: app.acp_agents.iter().map(|id| domain::AgentChoice {
             id: id.clone(),
             label: id.clone(),
@@ -233,8 +233,7 @@ fn data(app: &Fixture) -> domain::ViewData<'_> {
             })
             .collect(),
         skills: Vec::new(),
-        conversation_available: false,
-        delivery: app.delivery,
+        wecom_notifications: Vec::new(),
         scheduler_error: app.scheduler_settings.save_error.as_deref(),
         last_copied_code_hash: None,
         help_content: help_cron,
@@ -244,6 +243,7 @@ fn map(event: LocalMessage) -> Message {
     match event {
         LocalMessage::None => Message::None,
         LocalMessage::CopyCode(value) => Message::CopyCode(value),
+        LocalMessage::WeComBindingRequested { .. } => Message::None,
         LocalMessage::Settings(event) => Message::Settings(match event {
             Event::CronOpenEmployeeSchedule => return Message::None,
             Event::CronPickerOpen { editing } => SettingsMessage::CronPickerOpen { editing },
@@ -282,13 +282,13 @@ fn map(event: LocalMessage) -> Message {
             Event::CronAddFromConversation => SettingsMessage::CronAddFromConversation,
             Event::CronTemplateSelected(v0) => SettingsMessage::CronTemplateSelected(v0),
             Event::CronHistory(v0) => SettingsMessage::CronHistory(v0),
+            Event::CronList(event) => SettingsMessage::CronList(event),
             Event::CronListFilterChanged(v0) => SettingsMessage::CronListFilterChanged(v0),
             Event::CronBatchModeToggled(v0) => SettingsMessage::CronBatchModeToggled(v0),
             Event::CronJobsRefresh => SettingsMessage::CronJobsRefresh,
             Event::CronJobSelectionToggled(v0, v1) => {
                 SettingsMessage::CronJobSelectionToggled(v0, v1)
             }
-            Event::CronJobDetailsToggled(v0, v1) => SettingsMessage::CronJobDetailsToggled(v0, v1),
             Event::CronJobsSelectAllToggled(v0) => SettingsMessage::CronJobsSelectAllToggled(v0),
             Event::CronJobRunsOpen(v0) => SettingsMessage::CronJobRunsOpen(v0),
             Event::CronJobRunsEditorAction(v0) => SettingsMessage::CronJobRunsEditorAction(v0),
@@ -304,9 +304,6 @@ fn map(event: LocalMessage) -> Message {
                 SettingsMessage::CronJobEditPromptEditorAction(v0)
             }
             Event::CronJobEditAgentChanged(v0) => SettingsMessage::CronJobEditAgentChanged(v0),
-            Event::CronJobEditAcpAgentChanged(v0) => {
-                SettingsMessage::CronJobEditAcpAgentChanged(v0)
-            }
             Event::CronJobEditProjectPathChanged(v0) => {
                 SettingsMessage::CronJobEditProjectPathChanged(v0)
             }
@@ -315,9 +312,6 @@ fn map(event: LocalMessage) -> Message {
             }
             Event::CronJobEditModelChanged(v0) => SettingsMessage::CronJobEditModelChanged(v0),
             Event::CronJobEditWakeToggled(v0) => SettingsMessage::CronJobEditWakeToggled(v0),
-            Event::CronJobEditFallbacksChanged(v0) => {
-                SettingsMessage::CronJobEditFallbacksChanged(v0)
-            }
             Event::CronJobEditFullAccessToggled(v0) => {
                 SettingsMessage::CronJobEditFullAccessToggled(v0)
             }
@@ -327,11 +321,11 @@ fn map(event: LocalMessage) -> Message {
             Event::CronJobEditDeliveryEnabledToggled(v0) => {
                 SettingsMessage::CronJobEditDeliveryEnabledToggled(v0)
             }
-            Event::CronJobEditDeliveryChannelChanged(v0) => {
-                SettingsMessage::CronJobEditDeliveryChannelChanged(v0)
+            Event::CronJobEditDeliveryWeComSelected(v0) => {
+                SettingsMessage::CronJobEditDeliveryWeComSelected(v0)
             }
-            Event::CronJobEditDeliveryToChanged(v0) => {
-                SettingsMessage::CronJobEditDeliveryToChanged(v0)
+            Event::CronJobEditDeliveryWebhookChanged(value) => {
+                SettingsMessage::CronJobEditDeliveryWebhookChanged(value)
             }
             Event::CronJobEditDeliveryBestEffortToggled(v0) => {
                 SettingsMessage::CronJobEditDeliveryBestEffortToggled(v0)
@@ -352,23 +346,23 @@ fn map(event: LocalMessage) -> Message {
             }
             Event::CronAddPromptEditorAction(v0) => SettingsMessage::CronAddPromptEditorAction(v0),
             Event::CronAddAgentChanged(v0) => SettingsMessage::CronAddAgentChanged(v0),
-            Event::CronAddAcpAgentChanged(v0) => SettingsMessage::CronAddAcpAgentChanged(v0),
             Event::CronAddProjectPathChanged(v0) => SettingsMessage::CronAddProjectPathChanged(v0),
             Event::CronAddModelProviderChanged(v0) => {
                 SettingsMessage::CronAddModelProviderChanged(v0)
             }
             Event::CronAddModelChanged(v0) => SettingsMessage::CronAddModelChanged(v0),
             Event::CronAddWakeToggled(v0) => SettingsMessage::CronAddWakeToggled(v0),
-            Event::CronAddFallbacksChanged(v0) => SettingsMessage::CronAddFallbacksChanged(v0),
             Event::CronAddFullAccessToggled(v0) => SettingsMessage::CronAddFullAccessToggled(v0),
             Event::CronAddTaskPoolToggled(v0) => SettingsMessage::CronAddTaskPoolToggled(v0),
             Event::CronAddDeliveryEnabledToggled(v0) => {
                 SettingsMessage::CronAddDeliveryEnabledToggled(v0)
             }
-            Event::CronAddDeliveryChannelChanged(v0) => {
-                SettingsMessage::CronAddDeliveryChannelChanged(v0)
+            Event::CronAddDeliveryWeComSelected(v0) => {
+                SettingsMessage::CronAddDeliveryWeComSelected(v0)
             }
-            Event::CronAddDeliveryToChanged(v0) => SettingsMessage::CronAddDeliveryToChanged(v0),
+            Event::CronAddDeliveryWebhookChanged(value) => {
+                SettingsMessage::CronAddDeliveryWebhookChanged(value)
+            }
             Event::CronAddDeliveryBestEffortToggled(v0) => {
                 SettingsMessage::CronAddDeliveryBestEffortToggled(v0)
             }
@@ -378,7 +372,6 @@ fn map(event: LocalMessage) -> Message {
             Event::CronAddSubmit => SettingsMessage::CronAddSubmit,
             Event::CronHelpOpen => SettingsMessage::CronHelpOpen,
             Event::CronHelpClose => SettingsMessage::CronHelpClose,
-            Event::OpenDelivery(_) => SettingsMessage::Ignore,
         }),
     }
 }

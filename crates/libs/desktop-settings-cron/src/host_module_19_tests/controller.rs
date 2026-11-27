@@ -8,9 +8,6 @@ fn history_app() -> Fixture {
     select_tab(&mut app, CronSettingsTab::History);
     app
 }
-fn validate_delivery(app: &Fixture, draft: &CronJobDraft) -> Result<(), String> {
-    crate::delivery::validate(draft, app.delivery)
-}
 mod cron_history {
     use super::*;
     pub use crate::message::HistoryMessage as CronHistoryMessage;
@@ -127,46 +124,20 @@ fn cron_history_stale_response_is_ignored() {
 }
 
 #[test]
-fn wb_schedule_feedback_unconfigured_channel_is_explicit_error() {
-    let mut app = app();
-    app.delivery.slack = false;
-    let draft = &mut app.cron_settings.add_draft;
-    draft.prompt = "report".into();
-    draft.delivery_enabled = true;
-    draft.delivery_channel = "slack".into();
-    draft.delivery_to = "target".into();
-    assert!(draft.delivery_best_effort);
-    let _ = update(&mut app, SettingsMessage::CronAddSubmit);
-    assert!(!app.cron_settings.add_draft.submitting);
-    assert!(app.cron_settings.save_error.as_deref().unwrap().contains("未配置"));
-}
-
-#[test]
-fn cron_wecom_form_requires_credentials_and_explicit_target() {
-    let mut app = app();
-    let mut draft = crate::state::CronJobDraft {
+fn cron_delivery_accepts_a_saved_or_replacement_webhook() {
+    let mut draft = CronJobDraft {
         delivery_enabled: true,
-        delivery_channel: "wecom".into(),
-        delivery_to: "user".into(),
         ..Default::default()
     };
-    assert!(validate_delivery(&app, &draft).is_err());
-    app.delivery.bot = true;
-    assert!(validate_delivery(&app, &draft).is_ok());
-    draft.delivery_to.clear();
-    assert!(validate_delivery(&app, &draft).is_err());
+    assert!(crate::delivery::validate(&draft).unwrap_err().contains("当前任务"));
+    draft.delivery_webhook_configured = true;
+    assert!(crate::delivery::validate(&draft).is_ok());
+    draft.delivery_webhook_configured = false;
+    draft.delivery_webhook = "fixture-webhook".to_owned().into();
+    assert!(crate::delivery::validate(&draft).is_ok());
     draft.delivery_enabled = false;
-    assert!(validate_delivery(&app, &draft).is_ok());
-    draft.delivery_enabled = true;
-    draft.delivery_channel = "wecom_webhook".into();
-    draft.delivery_to = "default".into();
-    // 对话机器人凭据不能替代群通知 Webhook。
-    assert!(validate_delivery(&app, &draft).unwrap_err().contains("定时任务通知配置"));
-    app.delivery.bot = false;
-    app.delivery.webhook = true;
-    assert!(validate_delivery(&app, &draft).is_ok());
-    draft.delivery_to = "other".into();
-    assert!(validate_delivery(&app, &draft).is_err());
+    draft.delivery_webhook = Default::default();
+    assert!(crate::delivery::validate(&draft).is_ok());
 }
 
 // The desktop host reconciles history visibility after the domain changes tabs.

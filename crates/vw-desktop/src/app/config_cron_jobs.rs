@@ -34,13 +34,13 @@ pub async fn add_cron_job_async(
     full_access: bool,
     task_pool: bool,
     delivery_enabled: bool,
-    delivery_channel: String,
-    delivery_to: String,
+    delivery_wecom_instance: Option<String>,
+    delivery_webhook: Option<gateway_cron::CronWebhookInput>,
     delivery_best_effort: bool,
     delete_after_run: bool,
     time_rule: Option<gateway_cron::CronPreviewRequest>,
 ) -> Result<(), String> {
-    desktop_config::config_cron_jobs::add_cron_job_async(super::gateway::gateway_client(), name, job_type, schedule_kind, schedule, at, every_ms, command, prompt, session_target, agent, acp_agent, project_path, wake, model, fallbacks, full_access, task_pool, delivery_enabled, delivery_channel, delivery_to, delivery_best_effort, delete_after_run, time_rule).await
+    desktop_config::config_cron_jobs::add_cron_job_async(super::gateway::gateway_client(), name, job_type, schedule_kind, schedule, at, every_ms, command, prompt, session_target, agent, acp_agent, project_path, wake, model, fallbacks, full_access, task_pool, delivery_enabled, delivery_wecom_instance, delivery_webhook, delivery_best_effort, delete_after_run, time_rule).await
 }
 
 pub async fn update_cron_job_async(
@@ -63,13 +63,14 @@ pub async fn update_cron_job_async(
     full_access: bool,
     task_pool: bool,
     delivery_enabled: bool,
-    delivery_channel: String,
-    delivery_to: String,
+    delivery_wecom_instance: Option<String>,
+    delivery_webhook_configured: bool,
+    delivery_webhook: Option<gateway_cron::CronWebhookInput>,
     delivery_best_effort: bool,
     delete_after_run: bool,
     time_rule: Option<gateway_cron::CronPreviewRequest>,
 ) -> Result<(), String> {
-    desktop_config::config_cron_jobs::update_cron_job_async(super::gateway::gateway_client(), job_id, name, job_type, schedule_kind, schedule, at, every_ms, command, prompt, session_target, agent, acp_agent, project_path, wake, model, fallbacks, full_access, task_pool, delivery_enabled, delivery_channel, delivery_to, delivery_best_effort, delete_after_run, time_rule).await
+    desktop_config::config_cron_jobs::update_cron_job_async(super::gateway::gateway_client(), job_id, name, job_type, schedule_kind, schedule, at, every_ms, command, prompt, session_target, agent, acp_agent, project_path, wake, model, fallbacks, full_access, task_pool, delivery_enabled, delivery_wecom_instance, delivery_webhook_configured, delivery_webhook, delivery_best_effort, delete_after_run, time_rule).await
 }
 
 pub async fn set_cron_job_enabled_async(job_id: String, enabled: bool) -> Result<(), String> {

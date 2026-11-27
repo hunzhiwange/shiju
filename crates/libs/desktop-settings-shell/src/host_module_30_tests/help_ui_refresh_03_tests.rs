@@ -256,8 +256,8 @@ async fn help_rollout_01_renders_contextual_help() {
         let i18n = I18n::new(locale);
         let title = i18n.__("界面");
         let intro = i18n.__("应用外观与预览行为。");
-        let field = i18n.__("聊天时区");
-        let description = i18n.__("用于模型时间上下文，新会话生效。");
+        let field = i18n.__("时区");
+        let description = i18n.__("用于模型时间上下文，新会话生效。定时任务在新建或重新保存时使用此设置。");
         let error = "Fixture error";
         let select =
             settings_select(["UTC", "Asia/Tokyo"], Some("UTC"), |value| selection(value.into()));

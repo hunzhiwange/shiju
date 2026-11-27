@@ -38,6 +38,42 @@ fn channel_refresh_clears_error_and_tab_selection_updates_state() {
 }
 
 #[test]
+fn instances_start_collapsed_and_track_expansion_after_insertion_and_deletion() {
+    let mut state = crate::state::ChannelsSettingsState::default();
+    let channel = "feishu";
+    for _ in 0..2 {
+        drop(update(&mut state, ChannelsMessage::InstanceAdded(channel.into())));
+    }
+    assert!(state.instance_cards(channel).all(|index| state.instance_collapsed(channel, index)));
+
+    drop(update(
+        &mut state,
+        ChannelsMessage::AllInstancesExpandedToggled(channel.into(), true),
+    ));
+    assert!(state.instance_cards(channel).all(|index| !state.instance_collapsed(channel, index)));
+    assert!(state.instance_collapsed("dingtalk", None));
+
+    drop(update(
+        &mut state,
+        ChannelsMessage::InstanceExpandedToggled(channel.into(), Some(0), false),
+    ));
+    assert!(state.instance_collapsed(channel, Some(0)));
+    drop(update(&mut state, ChannelsMessage::InstanceAdded(channel.into())));
+    assert!(state.instance_collapsed(channel, Some(2)));
+
+    drop(update(&mut state, ChannelsMessage::InstanceRemoved(channel.into(), 0)));
+    assert!(!state.instance_collapsed(channel, None));
+    assert!(!state.instance_collapsed(channel, Some(0)));
+    assert!(state.instance_collapsed(channel, Some(1)));
+
+    drop(update(
+        &mut state,
+        ChannelsMessage::AllInstancesExpandedToggled(channel.into(), false),
+    ));
+    assert!(state.instance_cards(channel).all(|index| state.instance_collapsed(channel, index)));
+}
+
+#[test]
 fn channel_scalar_updates_store_values_and_clamp_timeout() {
     let mut state = crate::state::ChannelsSettingsState::default();
 

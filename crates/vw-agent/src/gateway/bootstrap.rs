@@ -331,7 +331,18 @@ pub(super) fn client_router(
         .route("/v1/cron", get(api::handle_api_cron_list))
         .route("/v1/cron", post(api::handle_api_cron_add))
         .route("/v1/cron/preview", post(api::handle_api_cron_preview))
+        .route(
+            "/v1/cron/wecom-binding",
+            get(api::handle_api_cron_wecom_binding)
+                .post(api::handle_api_cron_wecom_binding)
+                .delete(api::handle_api_cron_wecom_binding),
+        )
         .route("/api/cron/preview", post(api::handle_api_cron_preview))
+        .route(
+            "/v1/cron/{id}/run",
+            post(api::handle_api_cron_run)
+                .layer(axum::Extension(Arc::new(agent_security::policy::ActionTracker::new()))),
+        )
         .route("/v1/cron/{id}/runs", get(api::handle_api_cron_runs))
         .route("/v1/cron/runs/{id}", get(api::handle_api_cron_runs))
         .route(

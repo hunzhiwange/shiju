@@ -136,13 +136,7 @@ mod modal_render {
                         draft.prompt = "检查项目并生成中文报告\n".repeat(40);
                         draft.prompt_editor =
                             iced::widget::text_editor::Content::with_text(&draft.prompt);
-                        draft.preview = Some(Ok(gateway_cron::CronPreviewResponse {
-                            normalized: Default::default(),
-                            timezone: "Asia/Shanghai".into(),
-                            candidates: (2..=if index == 0 { 2 } else { 6 })
-                                .map(|day| format!("2099-01-{day:02}T01:30:00Z"))
-                                .collect(),
-                        }));
+                        assert!(draft.preview.is_none());
                         let mut ui = UserInterface::build(
                             with_edit_modal(
                                 &app,
@@ -186,26 +180,14 @@ mod modal_render {
                         assert!(preview_tab.y + preview_tab.height <= geometry.scrolls[0].y);
                         assert!(geometry.labels.iter().all(|(label, _)| !label.contains("时区：Asia/Shanghai")));
                         assert!(!geometry.scrolls.is_empty());
-                        assert_eq!(
-                            geometry.labels.iter().any(|(label, _)| label == "开始日期"),
-                            index != 0
+                        assert!(
+                            geometry.labels.iter().all(|(label, _)| label != "开始日期"),
+                            "date fields should stay inside the validity popover"
                         );
-                        if index == 3 || index == 4 {
-                            assert!(
-                                geometry
-                                    .labels
-                                    .iter()
-                                    .any(|(label, _)| label == "星期（至少选择一天）")
-                            );
-                        }
-                        if index == 5 {
-                            assert!(
-                                geometry
-                                    .labels
-                                    .iter()
-                                    .any(|(label, _)| label == "日期（至少选择一天）")
-                            );
-                        }
+                        assert!(
+                            geometry.labels.iter().all(|(label, _)| label != "周一"),
+                            "weekday choices belong to the repeat popover"
+                        );
                         for input in &geometry.inputs {
                             assert!(
                                 input.x >= 0.0 && input.x + input.width <= size.width as f32,
@@ -327,8 +309,6 @@ mod modal_render {
         draft.schedule_draft = Some(Default::default());
         draft.job_type = CronAddJobType::Agent;
         draft.delivery_enabled = true;
-        draft.delivery_channel = "wecom".into();
-        draft.delivery_to = "旧目标".into();
         for confirm in [false, true] {
             app.cron_settings.add_draft.full_access_confirmation = confirm;
             for theme in [Theme::Light, Theme::Dark] {

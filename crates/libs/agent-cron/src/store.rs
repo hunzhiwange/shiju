@@ -70,7 +70,6 @@ pub fn add_job(config: &Config, expression: &str, command: &str) -> Result<CronJ
     add_shell_job(config, None, schedule, command)
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 /// 校验计划并持久化一个 shell 任务。
 pub fn add_shell_job_with_window(
     config: &Config,
@@ -80,6 +79,54 @@ pub fn add_shell_job_with_window(
     starts_at: Option<DateTime<Utc>>,
     ends_at: Option<DateTime<Utc>>,
 ) -> Result<CronJob> {
+    add_shell_job_with_scope(config, name, schedule, command, starts_at, ends_at, None, false)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[cfg(not(target_arch = "wasm32"))]
+pub fn add_shell_job_with_scope(
+    config: &Config,
+    name: Option<String>,
+    schedule: Schedule,
+    command: &str,
+    starts_at: Option<DateTime<Utc>>,
+    ends_at: Option<DateTime<Utc>>,
+    project_path: Option<&str>,
+    full_access: bool,
+) -> Result<CronJob> {
+    insert_shell_job(
+        config, name, schedule, command, starts_at, ends_at, project_path, full_access,
+        DeliveryConfig::default(),
+    )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn add_shell_job_with_delivery(
+    config: &Config,
+    name: Option<String>,
+    schedule: Schedule,
+    command: &str,
+    starts_at: Option<DateTime<Utc>>,
+    ends_at: Option<DateTime<Utc>>,
+    delivery: DeliveryConfig,
+) -> Result<CronJob> {
+    insert_shell_job(config, name, schedule, command, starts_at, ends_at, None, false, delivery)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[cfg(not(target_arch = "wasm32"))]
+fn insert_shell_job(
+    config: &Config,
+    name: Option<String>,
+    schedule: Schedule,
+    command: &str,
+    starts_at: Option<DateTime<Utc>>,
+    ends_at: Option<DateTime<Utc>>,
+    project_path: Option<&str>,
+    full_access: bool,
+    delivery: DeliveryConfig,
+) -> Result<CronJob> {
+    super::delivery::validate_stored_target(&delivery)?;
     let now = Utc::now();
     validate_schedule(&schedule, now)?;
     let next_run = next_run_in_window(&schedule, starts_at, ends_at, now)?
@@ -96,18 +143,20 @@ pub fn add_shell_job_with_window(
                 id, expression, command, schedule, job_type, prompt, name, session_target, model,
                 enabled, delivery, delete_after_run, created_at, next_run, agent, acp_agent,
                 project_path, wake, fallbacks, full_access, task_pool, starts_at, ends_at
-             ) VALUES (?1, ?2, ?3, ?4, 'shell', NULL, ?5, 'isolated', NULL, 1, ?6, ?7, ?8, ?9, NULL, NULL, NULL, 0, ?10, 0, 0, ?11, ?12)",
+             ) VALUES (?1, ?2, ?3, ?4, 'shell', NULL, ?5, 'isolated', NULL, 1, ?6, ?7, ?8, ?9, NULL, NULL, ?10, 0, ?11, ?12, 0, ?13, ?14)",
             params![
                 id,
                 expression,
                 command,
                 schedule_json,
                 name,
-                serde_json::to_string(&DeliveryConfig::default())?,
+                serde_json::to_string(&delivery)?,
                 if delete_after_run { 1 } else { 0 },
                 now.to_rfc3339(),
                 next_run.to_rfc3339(),
+                project_path,
                 serde_json::to_string(&Vec::<String>::new())?,
+                full_access,
                 starts_at.map(|at| at.to_rfc3339()),
                 ends_at.map(|at| at.to_rfc3339()),
             ],
@@ -123,19 +172,20 @@ pub fn add_shell_job_with_window(
 
 #[cfg(target_arch = "wasm32")]
 /// WASM 平台不支持持久化 shell 定时任务。
-pub fn add_shell_job_with_window(
+pub fn add_shell_job_with_scope(
     _config: &Config,
     _name: Option<String>,
     _schedule: Schedule,
     _command: &str,
     _starts_at: Option<DateTime<Utc>>,
     _ends_at: Option<DateTime<Utc>>,
+    _project_path: Option<&str>,
+    _full_access: bool,
 ) -> Result<CronJob> {
     anyhow::bail!("Cron jobs are not supported on WASM")
 }
 
 #[allow(clippy::too_many_arguments)]
-#[cfg(not(target_arch = "wasm32"))]
 /// 校验计划并持久化一个代理任务及其会话、模型和投递策略。
 pub fn add_agent_job_with_window(
     config: &Config,
@@ -149,6 +199,28 @@ pub fn add_agent_job_with_window(
     starts_at: Option<DateTime<Utc>>,
     ends_at: Option<DateTime<Utc>>,
 ) -> Result<CronJob> {
+    add_agent_job_with_scope(
+        config, name, schedule, prompt, session_target, model, delivery, delete_after_run,
+        starts_at, ends_at, None, false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+#[cfg(not(target_arch = "wasm32"))]
+pub fn add_agent_job_with_scope(
+    config: &Config,
+    name: Option<String>,
+    schedule: Schedule,
+    prompt: &str,
+    session_target: SessionTarget,
+    model: Option<String>,
+    delivery: Option<DeliveryConfig>,
+    delete_after_run: bool,
+    starts_at: Option<DateTime<Utc>>,
+    ends_at: Option<DateTime<Utc>>,
+    project_path: Option<&str>,
+    full_access: bool,
+) -> Result<CronJob> {
     let now = Utc::now();
     validate_schedule(&schedule, now)?;
     let next_run = next_run_in_window(&schedule, starts_at, ends_at, now)?
@@ -157,6 +229,7 @@ pub fn add_agent_job_with_window(
     let expression = schedule_cron_expression(&schedule).unwrap_or_default();
     let schedule_json = serde_json::to_string(&schedule)?;
     let delivery = delivery.unwrap_or_default();
+    super::delivery::validate_stored_target(&delivery)?;
 
     with_connection(config, |conn| {
         conn.execute(
@@ -164,7 +237,7 @@ pub fn add_agent_job_with_window(
                 id, expression, command, schedule, job_type, prompt, name, session_target, model,
                 enabled, delivery, delete_after_run, created_at, next_run, agent, acp_agent,
                 project_path, wake, fallbacks, full_access, task_pool, starts_at, ends_at
-             ) VALUES (?1, ?2, '', ?3, 'agent', ?4, ?5, ?6, ?7, 1, ?8, ?9, ?10, ?11, NULL, NULL, NULL, 0, ?12, 0, 0, ?13, ?14)",
+             ) VALUES (?1, ?2, '', ?3, 'agent', ?4, ?5, ?6, ?7, 1, ?8, ?9, ?10, ?11, NULL, NULL, ?12, 0, ?13, ?14, 0, ?15, ?16)",
             params![
                 id,
                 expression,
@@ -177,7 +250,9 @@ pub fn add_agent_job_with_window(
                 if delete_after_run { 1 } else { 0 },
                 now.to_rfc3339(),
                 next_run.to_rfc3339(),
+                project_path,
                 serde_json::to_string(&Vec::<String>::new())?,
+                full_access,
                 starts_at.map(|at| at.to_rfc3339()),
                 ends_at.map(|at| at.to_rfc3339()),
             ],
@@ -193,7 +268,7 @@ pub fn add_agent_job_with_window(
 
 #[cfg(target_arch = "wasm32")]
 /// WASM 平台不支持持久化代理定时任务。
-pub fn add_agent_job_with_window(
+pub fn add_agent_job_with_scope(
     _config: &Config,
     _name: Option<String>,
     _schedule: Schedule,
@@ -204,6 +279,8 @@ pub fn add_agent_job_with_window(
     _delete_after_run: bool,
     _starts_at: Option<DateTime<Utc>>,
     _ends_at: Option<DateTime<Utc>>,
+    _project_path: Option<&str>,
+    _full_access: bool,
 ) -> Result<CronJob> {
     anyhow::bail!("Cron jobs are not supported on WASM")
 }
@@ -316,10 +393,22 @@ pub fn due_jobs(_config: &Config, _now: DateTime<Utc>) -> Result<Vec<CronJob>> {
     Ok(Vec::new())
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 /// 应用任务补丁；计划变化时重新计算下次运行时间并通知调度器。
 pub fn update_job(config: &Config, job_id: &str, patch: CronJobPatch) -> Result<CronJob> {
+    update_job_with_access_limit(config, job_id, patch, true)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn update_job_with_access_limit(
+    config: &Config,
+    job_id: &str,
+    patch: CronJobPatch,
+    full_access_allowed: bool,
+) -> Result<CronJob> {
     let mut job = get_job(config, job_id)?;
+    if !full_access_allowed && patch.full_access.unwrap_or(job.full_access) {
+        anyhow::bail!("A scheduled task cannot exceed the session's access level");
+    }
     let mut schedule_changed = false;
     let window_changed = patch.starts_at.is_some() || patch.ends_at.is_some();
     let resuming = patch.enabled == Some(true);
@@ -352,9 +441,10 @@ pub fn update_job(config: &Config, job_id: &str, patch: CronJobPatch) -> Result<
     if let Some(enabled) = patch.enabled {
         job.enabled = enabled;
     }
-    if let Some(delivery) = patch.delivery {
-        job.delivery = delivery;
-    }
+    let delivery_patch = patch.delivery.as_ref().map(|delivery| {
+        super::delivery::validate_stored_target(delivery)?;
+        Ok::<_, anyhow::Error>(serde_json::to_string(delivery)?)
+    }).transpose()?;
     if let Some(model) = patch.model {
         job.model = Some(model).filter(|value| !value.trim().is_empty());
     }
@@ -397,7 +487,7 @@ pub fn update_job(config: &Config, job_id: &str, patch: CronJobPatch) -> Result<
         conn.execute(
             "UPDATE cron_jobs
              SET expression = ?1, command = ?2, schedule = ?3, job_type = ?4, prompt = ?5, name = ?6,
-                 session_target = ?7, model = ?8, enabled = ?9, delivery = ?10, delete_after_run = ?11,
+                 session_target = ?7, model = ?8, enabled = ?9, delivery = COALESCE(?10, delivery), delete_after_run = ?11,
                  agent = ?12, acp_agent = ?13, project_path = ?14, wake = ?15, fallbacks = ?16,
                  full_access = ?17, task_pool = ?18, next_run = ?19, starts_at = ?20, ends_at = ?21
              WHERE id = ?22",
@@ -411,7 +501,7 @@ pub fn update_job(config: &Config, job_id: &str, patch: CronJobPatch) -> Result<
                 job.session_target.as_str(),
                 job.model,
                 if job.enabled { 1 } else { 0 },
-                serde_json::to_string(&job.delivery)?,
+                delivery_patch,
                 if job.delete_after_run { 1 } else { 0 },
                 job.agent,
                 job.acp_agent,
@@ -437,7 +527,12 @@ pub fn update_job(config: &Config, job_id: &str, patch: CronJobPatch) -> Result<
 
 #[cfg(target_arch = "wasm32")]
 /// WASM 平台不支持更新定时任务。
-pub fn update_job(_config: &Config, _job_id: &str, _patch: CronJobPatch) -> Result<CronJob> {
+pub fn update_job_with_access_limit(
+    _config: &Config,
+    _job_id: &str,
+    _patch: CronJobPatch,
+    _full_access_allowed: bool,
+) -> Result<CronJob> {
     anyhow::bail!("Cron jobs are not supported on WASM")
 }
 

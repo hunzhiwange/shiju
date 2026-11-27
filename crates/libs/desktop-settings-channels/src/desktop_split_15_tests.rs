@@ -49,7 +49,20 @@ mod system_settings_channels_tests {
             .filter(|descriptor| channel_tab_group(descriptor.tab) == ChannelTabGroup::China)
             .collect::<Vec<_>>();
 
-        assert_eq!(china.len(), 5);
+        assert_eq!(
+            china
+                .iter()
+                .map(|descriptor| descriptor.tab)
+                .collect::<Vec<_>>(),
+            [
+                ChannelsSettingsTab::Feishu,
+                ChannelsSettingsTab::DingTalk,
+                ChannelsSettingsTab::Qq,
+                ChannelsSettingsTab::WeCom,
+                ChannelsSettingsTab::WeChat,
+                ChannelsSettingsTab::WeComCron,
+            ],
+        );
         for descriptor in &china {
             std::hint::black_box(china_channel_icon(descriptor.tab));
             keep_element(china_channel_card(

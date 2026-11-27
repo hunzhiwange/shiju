@@ -54,6 +54,28 @@ pub fn update(app: &mut super::cron::Inputs<'_>, event: CronHistoryMessage) -> T
                 }
             }
         }
+        CronHistoryMessage::ForJob(id) => {
+            let history = &mut app.cron_settings.history;
+            history.selected_job_id = Some(id);
+            history.selected_run = None;
+            history.show_search = false;
+            history.search.clear();
+            history.status_filter = Default::default();
+            history.task_picker_open = false;
+            history.task_search.clear();
+            Task::none()
+        }
+        CronHistoryMessage::SearchToggled => {
+            let history = &mut app.cron_settings.history;
+            if history.show_search || !history.search.is_empty() {
+                history.show_search = false;
+                history.search.clear();
+                Task::none()
+            } else {
+                history.show_search = true;
+                iced::widget::operation::focus("cron-history-search")
+            }
+        }
         CronHistoryMessage::SearchChanged(value) => {
             app.cron_settings.history.search = value;
             Task::none()
@@ -66,6 +88,7 @@ pub fn update(app: &mut super::cron::Inputs<'_>, event: CronHistoryMessage) -> T
             app.cron_settings.history.selected_job_id =
                 value.filter(|id| app.cron_settings.jobs.iter().any(|job| job.id == *id));
             app.cron_settings.history.task_picker_open = false;
+            app.cron_settings.history.task_search.clear();
             Task::none()
         }
         CronHistoryMessage::TaskSearchChanged(value) => {
@@ -74,7 +97,12 @@ pub fn update(app: &mut super::cron::Inputs<'_>, event: CronHistoryMessage) -> T
         }
         CronHistoryMessage::TaskPickerToggled(value) => {
             app.cron_settings.history.task_picker_open = value;
-            Task::none()
+            if value {
+                iced::widget::operation::focus("cron-history-task-search")
+            } else {
+                app.cron_settings.history.task_search.clear();
+                Task::none()
+            }
         }
     }
 }

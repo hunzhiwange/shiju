@@ -13,7 +13,7 @@ pub(crate) async fn apply_result(config: &Config, job: &super::CronJob, success:
     agent_cron::delivery::apply_result(&super::scheduler::Host, config, job, success, output).await
 }
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) async fn latest_config(config: &Config) -> Result<Config> {
+pub(crate) async fn latest_config(config: &Config) -> Result<Config> {
     let mut watcher = crate::config::schema::ChannelConfigWatcher::new(config, true)
         .await
         .map_err(|_| anyhow::anyhow!("企微配置读取失败，请检查配置存储后重试"))?;
@@ -25,6 +25,34 @@ pub(super) async fn latest_config(config: &Config) -> Result<Config> {
     Ok(latest)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn cron_wecom_scope(
+    config: &Config,
+    id: &str,
+) -> Result<crate::channels::wecom::runtime::WeComRuntimeScope> {
+    anyhow::ensure!(config_channel_services::WeComConfig::is_cron_instance(id), "企微通知实例选择无效");
+    Ok(crate::channels::wecom::runtime::WeComRuntimeScope::from_config(
+        config,
+        crate::session::ui_store::current_tenant_scope(),
+    )?.with_instance_id(id))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn cron_wecom_bot<'a>(config: &'a Config, id: &str) -> Result<&'a config_channel_services::WeComConfig> {
+    anyhow::ensure!(config_channel_services::WeComConfig::is_cron_instance(id), "企微通知实例选择无效");
+    let channels = &config.channels_config;
+    let bot = channels.wecom_instances.iter()
+        .find(|instance| instance.id == id)
+        .map(|instance| &instance.config)
+        .filter(|bot| bot.has_required_credentials())
+        .ok_or_else(|| anyhow::anyhow!("企微定时任务机器人未配置，请前往通道连接"))?;
+    anyhow::ensure!(
+        !channels.unavailable_channels.contains(&format!("wecom:{id}")),
+        "企微定时任务机器人凭据不可用，请重新连接"
+    );
+    Ok(bot)
+}
+
 #[cfg(all(test, not(target_arch = "wasm32")))]
 tokio::task_local! {
     pub(crate) static TEST_WEBHOOK_ENDPOINT: reqwest::Url;
@@ -33,6 +61,17 @@ tokio::task_local! {
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) async fn send_validated(config: &Config, channel: &str, target: &str, output: &str) -> Result<()> {
     match channel.to_ascii_lowercase().as_str() {
+        "wecom_cron" => {
+            let id = target;
+            let scope = cron_wecom_scope(config, id)?;
+            let bot = cron_wecom_bot(config, id)?;
+            let recipient = crate::channels::wecom::runtime::cron_recipient(&scope, &bot.bot_id, &bot.secret)?
+                .ok_or_else(|| anyhow::anyhow!("企微定时任务机器人尚未绑定接收会话，请前往通道绑定"))?;
+            let handle = crate::channels::wecom::runtime::connected_with_credentials(
+                &scope, &bot.bot_id, &bot.secret,
+            )?;
+            handle.send_proactive(&recipient, output).await
+        }
         "wecom" => {
             let scope = crate::channels::wecom::runtime::WeComRuntimeScope::from_config(
                 config,
@@ -47,9 +86,7 @@ pub(super) async fn send_validated(config: &Config, channel: &str, target: &str,
             handle.send_proactive(target.trim(), output).await
         }
         "wecom_webhook" => {
-            let group =
-                config.channels_config.wecom_webhook.as_ref().expect("validated credentials");
-            let sender = crate::channels::wecom::webhook::WeComWebhook::new(&group.webhook_url)?;
+            let sender = crate::channels::wecom::webhook::WeComWebhook::new(target)?;
             #[cfg(test)]
             let sender = TEST_WEBHOOK_ENDPOINT
                 .try_with(|endpoint| {

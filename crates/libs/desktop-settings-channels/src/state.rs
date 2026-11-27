@@ -3,7 +3,10 @@
 //! 注释说明当前文件的职责边界，帮助调用方理解数据流与错误传播，
 //! 不改变任何运行时行为。
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::{BTreeSet, HashMap},
+    path::PathBuf,
+};
 use iced::widget::text_editor;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -11,17 +14,15 @@ pub enum WeComDeliveryMode {
     #[default]
     Qr,
     Manual,
-    Webhook,
 }
 
 #[derive(Clone, Default)]
 pub struct WeComDeliveryDraft {
     pub mode: WeComDeliveryMode,
+    pub instance_id: Option<String>,
     pub bot_id: String,
     pub secret: String,
-    pub webhook_url: String,
     pub clear_secret: bool,
-    pub clear_webhook: bool,
     pub saving: bool,
     pub error: Option<String>,
 }
@@ -29,6 +30,20 @@ pub struct WeComDeliveryDraft {
 impl std::fmt::Debug for WeComDeliveryDraft {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WeComDeliveryDraft").field("mode", &self.mode).finish_non_exhaustive()
+    }
+}
+
+#[derive(Clone, Default, serde::Deserialize)]
+pub struct WeComCronBinding {
+    pub bound: Option<bool>,
+    pub connected: Option<bool>,
+    pub pairing_code: Option<String>,
+    pub pairing_pending: Option<bool>,
+}
+
+impl std::fmt::Debug for WeComCronBinding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WeComCronBinding").field("bound", &self.bound).finish_non_exhaustive()
     }
 }
 
@@ -147,6 +162,7 @@ pub enum ChannelsSettingsTab {
     DingTalk,
     Qq,
     WeCom,
+    WeComCron,
     WeChat,
     Nostr,
     ClawdTalk,
@@ -173,6 +189,7 @@ impl ChannelsSettingsTab {
             "dingtalk" => Some(Self::DingTalk),
             "qq" => Some(Self::Qq),
             "wecom" => Some(Self::WeCom),
+            "wecom_cron" => Some(Self::WeComCron),
             "wechat" => Some(Self::WeChat),
             "nostr" => Some(Self::Nostr),
             "clawdtalk" => Some(Self::ClawdTalk),
@@ -201,6 +218,7 @@ impl ChannelsSettingsTab {
             Self::DingTalk => "钉钉",
             Self::Qq => "QQ",
             Self::WeCom => "企业微信",
+            Self::WeComCron => "定时任务企业微信通知",
             Self::WeChat => "微信",
             Self::Nostr => "Nostr",
             Self::ClawdTalk => "ClawdTalk",
@@ -264,9 +282,14 @@ pub struct ChannelsSettingsState {
     pub clawdtalk: Option<config_channel_services::ClawdTalkConfig>,
     pub message_timeout_secs: u32,
     pub active_tab: ChannelsSettingsTab,
+    /// None identifies the default card; Some identifies a named instance by its row index.
+    pub(crate) expanded_instances: HashMap<String, BTreeSet<Option<usize>>>,
     pub save_error: Option<String>,
     pub qr_flow: ChannelQrFlowState,
     pub wecom_delivery: Option<WeComDeliveryDraft>,
+    pub wecom_cron_bindings: HashMap<String, WeComCronBinding>,
+    pub wecom_cron_binding_request: u64,
+    pub wecom_cron_binding_requests: HashMap<String, u64>,
 }
 
 impl Default for ChannelsSettingsState {
@@ -318,14 +341,68 @@ impl Default for ChannelsSettingsState {
             clawdtalk: None,
             message_timeout_secs: 300,
             active_tab: ChannelsSettingsTab::Global,
+            expanded_instances: HashMap::new(),
             save_error: None,
             qr_flow: ChannelQrFlowState::default(),
             wecom_delivery: None,
+            wecom_cron_bindings: HashMap::new(),
+            wecom_cron_binding_request: 0,
+            wecom_cron_binding_requests: Default::default(),
         }
     }
 }
 
 impl ChannelsSettingsState {
+    pub(crate) fn named_instance_count(&self, channel: &str) -> usize {
+        match channel {
+            "feishu" => self.feishu_instances.len(),
+            "dingtalk" => self.dingtalk_instances.len(),
+            "qq" => self.qq_instances.len(),
+            "wecom" => self.wecom_instances.len(),
+            "wechat" => self.wechat_instances.len(),
+            _ => 0,
+        }
+    }
+
+    pub(crate) fn instance_cards(&self, channel: &str) -> impl Iterator<Item = Option<usize>> + '_ {
+        let wecom = channel == "wecom";
+        std::iter::once(None).chain(
+            (0..self.named_instance_count(channel))
+                .filter(move |&index| {
+                    !wecom || !config_channel_services::WeComConfig::is_cron_instance(&self.wecom_instances[index].id)
+                })
+                .map(Some),
+        )
+    }
+
+    pub(crate) fn instance_collapsed(&self, channel: &str, index: Option<usize>) -> bool {
+        !self.expanded_instances.get(channel).is_some_and(|cards| cards.contains(&index))
+    }
+
+    pub(crate) fn remove_instance_card(&mut self, channel: &str, index: usize) {
+        if let Some(cards) = self.expanded_instances.get_mut(channel) {
+            *cards = cards.iter().filter_map(|card| match *card {
+                Some(row) if row == index => None,
+                Some(row) if row > index => Some(Some(row - 1)),
+                card => Some(card),
+            }).collect();
+        }
+    }
+
+    pub(crate) fn wecom_connection(
+        &self,
+        instance_id: Option<&str>,
+    ) -> Option<&config_channel_services::WeComConfig> {
+        match instance_id {
+            Some(id) => self
+                .wecom_instances
+                .iter()
+                .find(|instance| instance.id == id)
+                .map(|instance| &instance.config),
+            None => self.wecom.as_ref(),
+        }
+    }
+
     /// 执行 project_dir 对应的领域操作。
     ///
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。

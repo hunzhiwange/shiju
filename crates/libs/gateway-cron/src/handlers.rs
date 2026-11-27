@@ -61,7 +61,7 @@ pub fn cron_job_json(job: &agent_cron::CronJob) -> serde_json::Value {
         "task_pool": job.task_pool,
         "delivery_mode": job.delivery.mode,
         "delivery_channel": job.delivery.channel,
-        "delivery_to": job.delivery.to,
+        "delivery_to": agent_cron::delivery::public_target(&job.delivery),
         "delivery_best_effort": job.delivery.best_effort,
         "delete_after_run": job.delete_after_run,
         "next_run": job.next_run.to_rfc3339(),
@@ -121,6 +121,26 @@ pub fn cron_add_delivery(body: &CronAddBody) -> agent_cron::DeliveryConfig {
             .map(str::to_string),
         best_effort: body.delivery_best_effort.unwrap_or(true),
     }
+}
+
+fn set_task_webhook(
+    host: &dyn agent_cron::delivery::DeliveryHost,
+    config: &agent_config::runtime::Config,
+    delivery: &mut agent_cron::DeliveryConfig,
+    webhook: Option<&crate::CronWebhookInput>,
+    input_target: Option<&str>,
+) -> anyhow::Result<()> {
+    let is_group = delivery.channel.as_deref()
+        .is_some_and(|channel| channel.eq_ignore_ascii_case("wecom_webhook"));
+    if let Some(webhook) = webhook {
+        if !is_group {
+            anyhow::bail!("请选择企业微信群机器人（Webhook）");
+        }
+        delivery.to = Some(agent_cron::delivery::protect_task_webhook(host, config, webhook.as_str())?);
+    } else if input_target.is_some_and(|target| agent_cron::delivery::is_task_webhook(target.trim())) {
+        anyhow::bail!("请在任务中填写企业微信群机器人 Webhook");
+    }
+    Ok(())
 }
 
 #[doc(hidden)]
@@ -444,6 +464,7 @@ pub async fn handle_api_cron_update(
     let delivery = if body.delivery_mode.is_some()
         || body.delivery_channel.is_some()
         || body.delivery_to.is_some()
+        || body.delivery_webhook.is_some()
         || body.delivery_best_effort.is_some()
     {
         let is_wecom = body
@@ -464,7 +485,13 @@ pub async fn handle_api_cron_update(
             }
         }
         if body.delivery_channel.is_some() {
-            merged.channel = trimmed_optional(body.delivery_channel.clone());
+            let channel = trimmed_optional(body.delivery_channel.clone());
+            if merged.channel.as_deref().map(str::to_ascii_lowercase)
+                != channel.as_deref().map(str::to_ascii_lowercase)
+            {
+                merged.to = None;
+            }
+            merged.channel = channel;
         }
         if body.delivery_to.is_some() {
             merged.to = trimmed_optional(body.delivery_to.clone());
@@ -472,12 +499,27 @@ pub async fn handle_api_cron_update(
         if let Some(best_effort) = body.delivery_best_effort {
             merged.best_effort = best_effort;
         }
+        // A task with an obsolete group target must still be able to turn delivery off.
+        if merged.mode.eq_ignore_ascii_case("none")
+            && body.delivery_to.is_none()
+            && merged.channel.as_deref().is_some_and(|channel| channel.eq_ignore_ascii_case("wecom_webhook"))
+            && merged.to.as_deref().is_some_and(|target| !agent_cron::delivery::is_task_webhook(target))
+        {
+            merged.to = None;
+        }
+        if let Err(error) = set_task_webhook(
+            state.delivery.as_ref(), &config, &mut merged,
+            body.delivery_webhook.as_ref(), body.delivery_to.as_deref(),
+        ) {
+            return cron_field_error(error.to_string());
+        }
         Some(merged)
     } else {
         None
     };
-    if let Some(final_delivery) =
-        delivery.as_ref().or_else(|| current.as_ref().map(|job| &job.delivery))
+    if let Some(final_delivery) = delivery.as_ref().or_else(|| {
+        current.as_ref().filter(|_| body.enabled != Some(false)).map(|job| &job.delivery)
+    })
         && let Err(error) = agent_cron::delivery::validate_saved(state.delivery.as_ref(), &config, final_delivery).await {
             return cron_field_error(error.to_string());
         }
@@ -623,12 +665,21 @@ pub async fn handle_api_cron_add(
     if let Err(error) = validate_candidates(&schedule, starts_at, ends_at, Utc::now()) {
         return cron_field_error(format!("Failed to add cron job: {error}"));
     }
+    let mut delivery = cron_add_delivery(&body);
+    if let Err(error) = set_task_webhook(
+        state.delivery.as_ref(), &config, &mut delivery,
+        body.delivery_webhook.as_ref(), body.delivery_to.as_deref(),
+    ) {
+        return cron_field_error(error.to_string());
+    }
     if let Err(error) =
-        agent_cron::delivery::validate_saved(state.delivery.as_ref(), &config, &cron_add_delivery(&body)).await
+        agent_cron::delivery::validate_saved(state.delivery.as_ref(), &config, &delivery).await
     {
         return cron_field_error(error.to_string());
     }
     let job_type = cron_add_job_type(&body);
+    let mut patch = cron_add_patch(&body);
+    patch.delivery = None;
     let result = match job_type.as_str() {
         "shell" => {
             let Some(command) =
@@ -640,17 +691,18 @@ pub async fn handle_api_cron_add(
                 )
                     .into_response();
             };
-            let job = agent_cron::add_shell_job_with_window(
+            let job = agent_cron::add_shell_job_with_delivery(
                 &config,
                 body.name.clone(),
                 schedule,
                 command,
                 starts_at,
                 ends_at,
+                delivery,
             );
             match job {
                 Ok(job) => {
-                    agent_cron::update_job(&config, &job.id, cron_add_patch(&body))
+                    agent_cron::update_job(&config, &job.id, patch)
                 }
                 Err(err) => Err(err),
             }
@@ -677,14 +729,14 @@ pub async fn handle_api_cron_add(
                 prompt,
                 session_target,
                 trimmed_optional(body.model.clone()),
-                Some(cron_add_delivery(&body)),
+                Some(delivery),
                 body.delete_after_run.unwrap_or(false),
                 starts_at,
                 ends_at,
             );
             match job {
                 Ok(job) => {
-                    agent_cron::update_job(&config, &job.id, cron_add_patch(&body))
+                    agent_cron::update_job(&config, &job.id, patch)
                 }
                 Err(err) => Err(err),
             }

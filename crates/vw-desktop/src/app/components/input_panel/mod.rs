@@ -312,12 +312,15 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         ]),
     );
     let is_new_chat = super::chat_panel::phase(app) == PanelPhase::Empty;
-    let mut context_controls = row![quick_messages::workspace(app), permission_mode];
-    if is_new_chat {
-        context_controls = context_controls.push(quick_messages::starter_recommendations(app));
-    }
+    let session_controls = match quick_messages::recommendations(app, is_new_chat) {
+        Some(recommendations) => row![permission_mode, recommendations]
+            .spacing(10)
+            .align_y(Alignment::Center)
+            .into(),
+        None => permission_mode,
+    };
     let context = container(
-        context_controls
+        row![quick_messages::workspace(app), session_controls]
             .spacing(10)
             .align_y(Alignment::Center)
             .wrap()

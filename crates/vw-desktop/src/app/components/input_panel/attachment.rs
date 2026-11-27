@@ -1,17 +1,16 @@
 //! 桌面附件消息映射。
-use super::icons::icon_svg;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::skill_hub::ExpertHubSection;
 use crate::app::{App, Message, message};
-use desktop_assets::assets::Icon;
 use desktop_chat_input::input_panel::attachment as shared;
+use desktop_chat_input::input_panel::attachment::menu_row;
 use desktop_chat_input::popovers::FileMenuSection;
 use desktop_chat_tools::state::SessionToolSelectorTab;
 use desktop_ui_controls::composer_icons::ComposerIcon;
 use desktop_ui_controls::overlays::{AboveOverlay, SideOverlay};
 use desktop_ui_controls::system_settings_common::settings_divider;
-use iced::widget::{Button, Space, button, column, container, mouse_area, row, text, text_editor};
-use iced::{Alignment, Element, Length};
+use iced::widget::{Space, column, container, mouse_area, text_editor};
+use iced::{Element, Length};
 pub(crate) use shared::{AttachmentDisplayItem, parse_attachment_markers};
 
 fn map_message(message: shared::Message) -> Message {
@@ -125,32 +124,6 @@ fn attachment_menu(
 
 fn close_then(close: &Message, action: Message) -> Message {
     Message::Batch(vec![close.clone(), action])
-}
-
-fn menu_row(
-    i18n: crate::app::i18n::I18n,
-    icon: ComposerIcon,
-    label: &'static str,
-    selected: bool,
-    submenu: bool,
-    action: Message,
-) -> Button<'static, Message> {
-    let mut content = row![icon.svg(17.0), text(i18n.__(label)).size(13).width(Length::Fill)]
-        .spacing(10)
-        .align_y(Alignment::Center);
-    if submenu {
-        content =
-            content.push(icon_svg(Icon::ChevronRight, 11.0).style(|theme: &iced::Theme, _| {
-                iced::widget::svg::Style { color: Some(theme.palette().text.scale_alpha(0.56)) }
-            }));
-    }
-    button(content)
-        .width(Length::Fill)
-        .padding([8, 10])
-        .style(move |theme, status| {
-            super::styles::selectable_list_button_style(theme, status, selected)
-        })
-        .on_press(action)
 }
 
 fn section_menu(

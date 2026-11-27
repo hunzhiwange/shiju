@@ -355,6 +355,7 @@ pub fn acp_permission_modes(
         .width(Length::Fill)
         .style(move |theme, status| {
             let mut style = settings_segment_button_style(theme, status, selected);
+            style.border.width = 0.0;
             style.text_color =
                 theme.palette().text.scale_alpha(if selected || can_change { 1.0 } else { 0.55 });
             style
@@ -372,14 +373,22 @@ pub fn full_access_button(
     enabled: bool,
     active: bool,
 ) -> Element<'static, Message> {
-    let access_button = permission_trigger(
+    full_access_toggle(
         i18n,
-        enabled,
+        i18n.__(if active { "完全访问权限" } else { "审批模式" }),
         active,
-        None,
         enabled.then_some(Message::ToggleFullAccessPermission),
-    );
+    )
+}
 
+pub fn full_access_toggle<M: Clone + 'static>(
+    i18n: desktop_i18n::I18n,
+    label: &'static str,
+    active: bool,
+    action: Option<M>,
+) -> Element<'static, M> {
+    let enabled = action.is_some();
+    let access_button = permission_trigger(label, enabled, active, None, action);
     let tooltip_label = if active {
         "关闭完全访问权限"
     } else if enabled {
@@ -397,13 +406,12 @@ pub fn full_access_button(
 }
 
 fn permission_trigger<'a, M: Clone + 'a>(
-    i18n: desktop_i18n::I18n,
+    label: &'static str,
     enabled: bool,
     active: bool,
     expanded: Option<bool>,
     action: Option<M>,
 ) -> Element<'a, M> {
-    let label = i18n.__(if active { "完全访问权限" } else { "审批模式" });
     let shield = ComposerIcon::Permission.svg(BOTTOM_BAR_ICON_SIZE).style(move |theme: &Theme, _| {
         svg::Style { color: Some(permission_label_color(theme, enabled, active)) }
     });
@@ -441,7 +449,8 @@ pub fn permission_mode<'a, M: Clone + 'a>(
     change: M,
 ) -> Element<'a, M> {
     use iced::widget::column;
-    let trigger = permission_trigger(i18n, enabled, active, Some(expanded), Some(toggle));
+    let label = i18n.__(if active { "完全访问权限" } else { "审批模式" });
+    let trigger = permission_trigger(label, enabled, active, Some(expanded), Some(toggle));
     if !expanded {
         return trigger;
     }

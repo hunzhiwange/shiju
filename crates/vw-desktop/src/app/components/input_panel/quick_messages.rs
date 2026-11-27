@@ -103,9 +103,17 @@ pub(super) fn view(
     domain::view(input(app), starter).map(map_message)
 }
 
-pub(super) fn starter_recommendations(app: &App) -> iced::Element<'_, Message> {
-    let popovers = &app.session_state.input_popovers;
-    domain::starter_recommendations(input(app), popovers.scene, popovers.category).map(map_message)
+pub(super) fn recommendations(app: &App, is_new_chat: bool) -> Option<iced::Element<'_, Message>> {
+    let input = input(app);
+    if is_new_chat {
+        let popovers = &app.session_state.input_popovers;
+        return Some(
+            domain::starter_recommendations(input, popovers.scene, popovers.category)
+                .map(map_message),
+        );
+    }
+    let indices = domain::recommended_indices(input);
+    (!indices.is_empty()).then(|| domain::recommendations_menu(input, &indices).map(map_message))
 }
 
 pub(super) fn workspace(app: &App) -> iced::Element<'_, Message> {

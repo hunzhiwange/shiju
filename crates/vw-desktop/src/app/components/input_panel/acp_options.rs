@@ -17,7 +17,6 @@ pub(super) fn state<'a>(app: &App, runtime: &'a crate::app::state::SessionRuntim
         is_requesting: runtime.request_lifecycle.is_requesting, acp_options_pending: runtime.acp_options_state.pending,
         source_pending: runtime.acp_options_state.source_pending.is_some(),
         full_access_enabled: runtime.full_access_enabled,
-        acp_rebuild_required: runtime.acp_rebuild_required,
     }
 }
 pub(super) fn entry<'a>(app: &'a App, runtime: Option<&crate::app::state::SessionRuntimeState>) -> Option<Element<'a, Message>> {

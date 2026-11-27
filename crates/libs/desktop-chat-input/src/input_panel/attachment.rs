@@ -124,6 +124,48 @@ pub fn attachment_button(
     attachment_trigger(i18n, files, max_images, max_image_size_mb, button_style, None, Message::Pick)
 }
 
+pub fn composer_add_button<M: Clone + 'static>(
+    expanded: bool,
+    button_style: fn(&Theme, button::Status, bool) -> button::Style,
+    on_press: M,
+) -> button::Button<'static, M> {
+    button(
+        container(Element::new(add_icon::AddIcon::new(expanded)))
+            .width(Length::Fixed(ATTACH_BUTTON_SIZE))
+            .height(Length::Fixed(ATTACH_BUTTON_SIZE))
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center),
+    )
+    .padding(0)
+    .style(move |theme: &Theme, status| button_style(theme, status, true))
+    .on_press(on_press)
+}
+
+pub fn menu_row<M: Clone + 'static>(
+    i18n: I18n,
+    icon: ComposerIcon,
+    label: &'static str,
+    selected: bool,
+    submenu: bool,
+    action: M,
+) -> button::Button<'static, M> {
+    let mut content = row![icon.svg(17.0), text(i18n.__(label)).size(13).width(Length::Fill)]
+        .spacing(10)
+        .align_y(iced::Alignment::Center);
+    if submenu {
+        content = content.push(icon_svg(Icon::ChevronRight, 11.0).style(|theme: &Theme, _| {
+            iced::widget::svg::Style { color: Some(theme.palette().text.scale_alpha(0.56)) }
+        }));
+    }
+    button(content)
+        .width(Length::Fill)
+        .padding([8, 10])
+        .style(move |theme, status| {
+            super::surface_styles::selectable_list_button_style(theme, status, selected)
+        })
+        .on_press(action)
+}
+
 pub fn attachment_trigger<M: Clone + 'static>(
     i18n: I18n,
     files: &[String],
@@ -137,16 +179,7 @@ pub fn attachment_trigger<M: Clone + 'static>(
     let max_images = max_images.clamp(1, 16);
 
     let expanded_now = expanded == Some(true);
-    let attach_btn = button(
-        container(Element::new(add_icon::AddIcon::new(expanded_now)))
-            .width(Length::Fixed(ATTACH_BUTTON_SIZE))
-            .height(Length::Fixed(ATTACH_BUTTON_SIZE))
-            .align_x(Horizontal::Center)
-            .align_y(Vertical::Center),
-    )
-    .padding(0)
-    .style(move |theme: &Theme, status| button_style(theme, status, true))
-    .on_press(on_press);
+    let attach_btn = composer_add_button(expanded_now, button_style, on_press);
 
     // 开关菜单时保留同一棵控件树，旋转可以从当前角度反向继续。
     if expanded_now {

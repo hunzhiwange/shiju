@@ -117,7 +117,6 @@ impl Fixture {
             acp_options_pending: runtime.acp_options_state.pending,
             source_pending: runtime.acp_options_state.source_pending.is_some(),
             full_access_enabled: runtime.full_access_enabled,
-            acp_rebuild_required: runtime.acp_rebuild_required,
         }
     }
     fn source(&self) -> Element<'_, Message> {
@@ -211,6 +210,16 @@ async fn ui_refresh_42_preserves_values_and_disabled_states() {
         return;
     }
     let mut app = fixture();
+    let options = &mut app.current_session_runtime_mut().acp_options_state.options.options;
+    let extra_option = AcpSessionOption {
+        kind: AcpOptionKind::Config { id: "fixture/extra-option".into() },
+        name: "其他选项".into(),
+        current: "0".into(),
+        choices: (0..10)
+            .map(|index| AcpChoice { id: index.to_string(), name: format!("选项 {index}") })
+            .collect(),
+    };
+    options.insert(0, extra_option);
     let mut renderer = renderer().await;
     let size = Size::new(420, 420);
     for (requesting, pending, theme) in
@@ -220,13 +229,6 @@ async fn ui_refresh_42_preserves_values_and_disabled_states() {
         runtime.acp_options_state.open = true;
         runtime.request_lifecycle.is_requesting = requesting;
         runtime.acp_options_state.pending = pending;
-        runtime.acp_options_state.options.access_status = Some(AcpAccessStatus {
-            requested: false,
-            backend: "fixture".into(),
-            version: None,
-            support: AcpAccessSupport::Failed,
-            explanation: "測試失敗狀態".into(),
-        });
         let base = container(Space::new()).width(Length::Fill).height(Length::Fill).into();
         let mut ui = scene(app.modal(base), &mut renderer, size);
         let layout = bounds(&mut ui, &renderer);
@@ -282,9 +284,9 @@ async fn ui_refresh_42_preserves_values_and_disabled_states() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_42_acp_permission_modes_reflect_grant_and_readback() {
+async fn ui_refresh_42_acp_permission_modes_reflect_grant_without_readback_copy() {
     if !isolated(&format!(
-        "{}::ui_refresh_42_acp_permission_modes_reflect_grant_and_readback",
+        "{}::ui_refresh_42_acp_permission_modes_reflect_grant_without_readback_copy",
         module_path!()
     )) {
         return;
@@ -293,10 +295,10 @@ async fn ui_refresh_42_acp_permission_modes_reflect_grant_and_readback() {
     app.permission_context = true;
     let mut renderer = renderer().await;
     let size = Size::new(520, 560);
-    for (full, busy, support, theme, expected) in [
-        (false, false, AcpAccessSupport::Failed, Theme::Light, "同步失败或未确认"),
-        (true, false, AcpAccessSupport::Partial, Theme::Dark, "部分支持"),
-        (true, true, AcpAccessSupport::Native, Theme::Light, "原生权限已确认"),
+    for (full, busy, support, theme) in [
+        (false, false, AcpAccessSupport::Failed, Theme::Light),
+        (true, false, AcpAccessSupport::Partial, Theme::Dark),
+        (true, true, AcpAccessSupport::Native, Theme::Light),
     ] {
         let runtime = app.current_session_runtime_mut();
         runtime.acp_options_state.open = true;
@@ -326,8 +328,11 @@ async fn ui_refresh_42_acp_permission_modes_reflect_grant_and_readback() {
         };
         let selected = label(&layout, selected).center();
         let other = label(&layout, other).center();
-        label(&layout, &format!("生效能力：{expected}"));
-        assert!(!layout.labels.iter().any(|(value, _)| value == "供应商原生模式"));
+        assert!(!layout.labels.iter().any(|(value, _)| {
+            value.starts_with("生效能力：")
+                || value.starts_with("审批模式自动允许")
+                || value == "供应商原生模式"
+        }));
         capture(&mut ui, &mut renderer, &theme, size, &format!("permission-{full}-{busy}"), other);
         assert!(click(&mut ui, &mut renderer, selected).is_empty());
         let actions = click(&mut ui, &mut renderer, other);
@@ -367,6 +372,7 @@ async fn help_rollout_09_session_model_source_groups_status_in_help() {
         let layout = bounds(&mut ui, &renderer);
         label(&layout, &format!("✓ {}", i18n.__("审批模式")));
         for detail in [
+            i18n.__("审批模式自动允许符合工作区安全边界的普通文件编辑；其他操作仍可能要求审批或被拒绝。"),
             i18n.__("请先配置供应商凭据"),
             i18n.__("切换来源将创建新的 ACP 会话；原生上下文不继承"),
             app.runtime.model.as_str(),

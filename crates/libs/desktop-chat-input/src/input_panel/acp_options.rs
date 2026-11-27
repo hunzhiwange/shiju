@@ -1,8 +1,9 @@
 //! Backend-advertised session options, using the shared settings modal controls.
 use desktop_ui_controls::system_settings_common::{
-    rounded_action_btn_style, settings_close_button, settings_field_label,
- settings_modal_header, settings_modal_layout_with_scroll_id,
-    settings_modal_overlay_with_escape, settings_muted_text_style, settings_panel_style,
+    help::settings_hover_help_label,
+    rounded_action_btn_style, settings_close_button, settings_field_label, settings_modal_header,
+    settings_modal_layout_with_scroll_id,
+    settings_modal_overlay_with_escape, settings_muted_text_style,
 };
 use desktop_i18n::I18n;
 use super::session_lock_tooltip;
@@ -10,6 +11,7 @@ use iced::widget::{Space, button as action, column, container, row, text};
 use iced::{Alignment, Element, Length, Theme};
 
 use super::styles::selectable_list_button_style;
+use super::surface_styles::BOTTOM_BAR_ICON_BUTTON_SIZE;
 use vw_api_acp_model::acp_session::{AcpOptionKind, AcpSessionOption, AcpSessionOptions, AcpSessionSelection};
 
 #[derive(Debug, Clone)]
@@ -30,7 +32,6 @@ pub struct OptionsState<'a> {
     pub acp_options_pending: bool,
     pub source_pending: bool,
     pub full_access_enabled: bool,
-    pub acp_rebuild_required: bool,
 }
 
 pub const OPTIONS_SCROLL: &str = "acp_session_options_scroll";
@@ -99,8 +100,8 @@ pub fn entry<'a, Message: Clone + 'static>(
 ) -> Option<Element<'a, Message>> {
     if !visible { return None; }
     Some(
-        action(text(i18n.__("ACP 选项")).size(13))
-            .padding([6, 10])
+        action(container(text(i18n.__("ACP 选项")).size(13)).center_y(BOTTOM_BAR_ICON_BUTTON_SIZE))
+            .padding([0, 10])
             .style(|theme, status| super::surface_styles::composer_selector_button_style(theme, status, false))
             .on_press_maybe(
                 enabled
@@ -116,11 +117,7 @@ pub fn with_modal<'a, Message: Clone + 'static>(
     emit: fn(Action) -> Message,
 ) -> Element<'a, Message> {
     let close = emit(Action::AcpOptionsClose);
-    let mut fields = column![
-        container(access).padding(12).width(Length::Fill).style(settings_panel_style),
-        container(source).padding(12).width(Length::Fill).style(settings_panel_style),
-    ]
-    .spacing(12);
+    let mut fields = column![access, source].spacing(16).width(Length::Fill);
     // Managed sessions can expose saved reasoning options between connections.
     let options =
         runtime.acp_options.options.iter().filter(|option| option.kind != AcpOptionKind::Mode);
@@ -137,12 +134,16 @@ pub fn with_modal<'a, Message: Clone + 'static>(
         let model_locked = option.kind == AcpOptionKind::Model
             || matches!(&option.kind, AcpOptionKind::Config { id } if id == "model");
         let can_confirm_current = can_confirm_current_option(runtime, &option.kind);
-        let mut choices = column![settings_field_label(&option.name)].spacing(6);
-        if can_confirm_current {
-            choices = choices.push(
-                text(i18n.__("选择档位后将在下一轮生效")).size(12).style(settings_muted_text_style),
-            );
-        }
+        let label: Element<'a, Message> = if can_confirm_current {
+            settings_hover_help_label(
+                settings_field_label(&option.name),
+                text(i18n.__("选择档位后将在下一轮生效")).size(13).into(),
+            )
+            .into()
+        } else {
+            settings_field_label(&option.name).into()
+        };
+        let mut choices = column![label].spacing(6).width(Length::Fill);
         for choice in &option.choices {
             let selected = option.current == choice.id;
             let control = action(
@@ -169,15 +170,10 @@ pub fn with_modal<'a, Message: Clone + 'static>(
             );
             choices = choices.push(session_lock_tooltip(control, i18n, model_locked));
         }
-        fields = fields
-            .push(container(choices).padding(12).width(Length::Fill).style(settings_panel_style));
+        fields = fields.push(choices);
     }
     let header = settings_modal_header(
-        column![
-            text(i18n.__("ACP 会话选项")).size(20),
-            text(i18n.__("查看权限状态，调整模型来源和会话选项")).size(13).style(settings_muted_text_style),
-        ]
-        .spacing(4),
+        text(i18n.__("ACP 会话选项")).size(20),
         settings_close_button(close.clone()),
     );
     let footer = row![
@@ -259,11 +255,11 @@ pub fn source_controls<'a, Message: Clone + 'static>(
                 .width(Length::Fill)
                 .padding([8, 10])
                 .style(move |theme: &Theme, status| {
-                    if selected {
-                        selectable_list_button_style(theme, status, true)
-                    } else {
-                        rounded_action_btn_style(theme, status)
+                    let mut style = selectable_list_button_style(theme, status, selected);
+                    if !selected && status == iced::widget::button::Status::Disabled {
+                        style.text_color = theme.palette().text.scale_alpha(0.55);
                     }
+                    style
                 })
                 .on_press_maybe(
                     (matches!(capability, Some(AcpModelSourceCapability::Supported { .. }))
@@ -291,59 +287,27 @@ pub fn source_controls<'a, Message: Clone + 'static>(
     column![help("模型来源", description), controls].spacing(6).into()
 }
 
-pub fn access_status<'a, Message: Clone + 'static>(
-    runtime: &OptionsState<'a>, permission: Element<'a, Message>,
+pub(crate) fn permission_section<'a, Message: Clone + 'static>(
+    i18n: I18n, permission: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    let i18n = runtime.i18n;
-    use vw_api_acp_model::acp_session::AcpAccessSupport;
-    let mut status = column![
+    let help = settings_hover_help_label(
         settings_field_label(i18n.__("工具权限")),
-        permission,
-        text(i18n.__("审批模式自动允许符合工作区安全边界的普通文件编辑；其他操作仍可能要求审批或被拒绝。"))
-            .size(12)
-            .style(settings_muted_text_style),
-    ]
-    .spacing(6);
-    let observed = runtime.acp_options.access_status.as_ref();
-    if runtime.acp_rebuild_required
-        || observed.is_some_and(|s| s.requested != runtime.full_access_enabled)
-    {
-        status = status.push(text(i18n.__("生效能力：未验证；下次发送时同步当前授权")).size(13));
-    } else if let Some(observed) = observed {
-        let label = match observed.support {
-            AcpAccessSupport::Native => "原生权限已确认",
-            AcpAccessSupport::ClientOnly => "仅客户端",
-            AcpAccessSupport::Partial => "部分支持",
-            AcpAccessSupport::Unverified => "未验证",
-            AcpAccessSupport::Unavailable if !observed.requested => "按审批规则执行",
-            AcpAccessSupport::Unavailable => "完全访问不可用",
-            AcpAccessSupport::Failed => "同步失败或未确认",
-        };
-        status = status
-            .push(text(i18n.format("生效能力：%s", &[i18n.__(label).into()]).expect("valid access label")).size(13))
-            .push(
-                text(i18n.format(
-                    "后端：%s；版本：%s", &[
-                    observed.backend.as_str().into(),
-                    observed.version.as_deref().unwrap_or(i18n.__("未提供")).into()
-                ]).expect("valid backend label"))
-                .size(12),
-            )
-            .push(text(observed.explanation.clone()).size(12));
-    } else {
-        status = status.push(text(i18n.__("生效能力：未验证；后端未连接，连接后可刷新查看")).size(13));
-    }
-    status
-        .push(
+        column![
+            text(i18n.__("审批模式自动允许符合工作区安全边界的普通文件编辑；其他操作仍可能要求审批或被拒绝。"))
+                .size(13)
+                .wrapping(text::Wrapping::WordOrGlyph),
             text(i18n.__("此处仅指工具权限；用户问答、计划确认及组织策略仍可能需要确认。"))
-                .size(12)
-                .style(settings_muted_text_style),
-        )
-        .into()
+                .size(13)
+                .wrapping(text::Wrapping::WordOrGlyph),
+        ]
+        .spacing(8)
+        .into(),
+    );
+    column![help, permission].spacing(6).into()
 }
 
 pub fn with_session_modal<'a, Message: Clone + 'static>(runtime: &OptionsState<'a>, started: bool, base: Element<'a, Message>, can_change: bool, source: Element<'a, Message>, emit: fn(Action) -> Message, emit_send: fn(super::send_message::Message) -> Message) -> Element<'a, Message> {
     let permission = super::send_controls::acp_permission_modes(runtime.i18n, runtime.full_access_enabled, can_change).map(emit_send);
-    let access = access_status(runtime, permission);
+    let access = permission_section(runtime.i18n, permission);
     with_modal(runtime, runtime.i18n, started, base, access, source, emit)
 }

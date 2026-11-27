@@ -555,16 +555,17 @@ fn desktop_gettext_area_9_version_hint_preserves_raw_version() {
 }
 
 #[test]
-fn session_entry_recommendations_collapse_to_one_trigger() {
+fn session_entry_recommendations_stay_out_of_top_strip() {
     let mut app = Fixture::new().0;
     app.quick_messages.clear();
     app.agents_settings.entries.iter_mut().find(|e| e.key == "main").unwrap().recommended_prompts =
         vec!["".into(), "第一条中文推荐会话".into(), "  ".into(), "第二条很长的中文推荐会话".into()];
-    assert_eq!(Tree::new(view(app.input(), None).as_widget()).children.len(), 3);
+    let top_controls = Tree::new(view(app.input(), None).as_widget()).children.len();
     assert_eq!(recommended_indices(app.input()), vec![1, 3]);
     app.agents_settings.entries.iter_mut().find(|e| e.key == "main").unwrap().recommended_prompts =
         vec![" ".into()];
-    assert_eq!(Tree::new(view(app.input(), None).as_widget()).children.len(), 2);
+    assert_eq!(Tree::new(view(app.input(), None).as_widget()).children.len(), top_controls);
+    assert!(recommended_indices(app.input()).is_empty());
 }
 
 #[tokio::test(flavor = "multi_thread")]

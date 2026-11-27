@@ -128,7 +128,7 @@ pub fn session_tool_tab_toggle<'a, Message: Clone + 'a>(
     on_press: Message,
 ) -> Element<'a, Message> {
     if tab == SessionToolSelectorTab::Agent {
-        return agent_toggle(highlight, agent_label, acp_agent, portrait, on_press);
+        return agent_toggle(highlight, i18n.__(&agent_label).to_string(), acp_agent, portrait, on_press);
     }
     let icon: Element<'_, Message> =
         session_tool_tab_icon(tab).svg(styles::BOTTOM_BAR_ICON_SIZE)

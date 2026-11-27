@@ -25,6 +25,31 @@ pub fn composer_card<'a, Message: 'a>(
         .width(Length::Fill)
 }
 
+pub fn composer_surface<'a, Message: 'a>(
+    body: impl Into<Element<'a, Message>>,
+    context: impl Into<Element<'a, Message>>,
+    hovered: bool,
+    chrome: desktop_theme::ChromeStyleOverrides,
+    background: Option<(&std::path::Path, desktop_theme::PanelImageFit)>,
+) -> Container<'a, Message> {
+    let body_chrome = chrome.clone();
+    let context_chrome = chrome.clone();
+    let body = container(body)
+        .width(Length::Fill)
+        .style(move |theme| super::surface_styles::composer_body_style(theme, hovered, &body_chrome));
+    let body = match background {
+        Some((path, fit)) => desktop_theme::with_panel_background(body.into(), Some(path), fit),
+        None => body.into(),
+    };
+    let context = container(context)
+        .width(Length::Fill)
+        .style(move |theme| super::surface_styles::composer_context_style(theme, &context_chrome));
+    container(column![body, context])
+        .width(Length::Fill)
+        .padding(super::surface_styles::COMPOSER_RIM)
+        .style(move |theme| super::surface_styles::chat_composer_style(theme, hovered, &chrome))
+}
+
 pub struct Content<'a, Message> {
     pub attachment_strip: Element<'a, Message>,
     pub file_refs: Element<'a, Message>,
@@ -118,21 +143,13 @@ pub fn view<'a, Message: Clone + 'a>(
         parts.dragging,
     )
     .on_native_drop(messages.native_drop);
-    let hovered = parts.input_drop_hovered && parts.dragging;
-    let chrome = parts.chrome;
-    let body_chrome = chrome.clone();
-    let context_chrome = chrome.clone();
-    let body = container(Element::new(drop_area))
-        .width(Length::Fill)
-        .style(move |theme| super::surface_styles::composer_body_style(theme, hovered, &body_chrome));
-    let body = desktop_theme::with_panel_background(body.into(), parts.background, parts.fit);
-    let context = container(parts.context)
-        .width(Length::Fill)
-        .style(move |theme| super::surface_styles::composer_context_style(theme, &context_chrome));
-    let composer = container(column![body, context])
-        .width(Length::Fill)
-        .padding(super::surface_styles::COMPOSER_RIM)
-        .style(move |theme| super::surface_styles::chat_composer_style(theme, hovered, &chrome));
+    let composer = composer_surface(
+        Element::new(drop_area),
+        parts.context,
+        parts.input_drop_hovered && parts.dragging,
+        parts.chrome,
+        parts.background.map(|path| (path, parts.fit)),
+    );
 
     let companion_visible = parts.companion.is_some();
     let shortcuts = container(parts.quick_messages).width(Length::Fill).padding(Padding {

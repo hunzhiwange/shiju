@@ -56,20 +56,6 @@ pub fn model_toggle_button<Message: Clone + 'static>(
     reasoning_label: Option<&str>,
     emit: fn(Action) -> Message,
 ) -> Element<'static, Message> {
-    const MODEL_LABEL_MAX_WIDTH: f32 = 148.0;
-    const LEVEL_LABEL_MAX_WIDTH: f32 = 64.0;
-    const CHEVRON_SIZE: f32 = 11.0;
-    const GAP: f32 = 6.0;
-    // 下拉箭头图标的样式：使用半透明的文字颜色
-    let chevron_style = move |theme: &Theme, _| svg::Style {
-        color: Some(selector_chevron_color(theme, expanded)),
-    };
-    let chevron_model = icon_svg(
-        if expanded { Icon::ChevronUp } else { Icon::ChevronDown },
-        CHEVRON_SIZE,
-    )
-    .style(chevron_style);
-
     // 根据是否启用自动模型确定显示的标签文本
     let toggle_label = if cli_local {
         i18n.__("智能体原生模型").to_string()
@@ -91,9 +77,37 @@ pub fn model_toggle_button<Message: Clone + 'static>(
         themed_svg_handle(provider_logo_handle(&provider_id), BOTTOM_BAR_ICON_SIZE)
     };
 
+    composer_model_button(
+        model_icon_svg.into(),
+        toggle_label,
+        reasoning_label,
+        expanded,
+        emit(Action::ToggleModelPopover),
+    )
+}
+
+pub fn composer_model_button<Message: Clone + 'static>(
+    icon: Element<'static, Message>,
+    label: String,
+    reasoning_label: Option<&str>,
+    expanded: bool,
+    on_press: Message,
+) -> Element<'static, Message> {
+    const MODEL_LABEL_MAX_WIDTH: f32 = 148.0;
+    const LEVEL_LABEL_MAX_WIDTH: f32 = 64.0;
+    const CHEVRON_SIZE: f32 = 11.0;
+    const GAP: f32 = 6.0;
+    let chevron_model = icon_svg(
+        if expanded { Icon::ChevronUp } else { Icon::ChevronDown },
+        CHEVRON_SIZE,
+    )
+    .style(move |theme: &Theme, _| svg::Style {
+        color: Some(selector_chevron_color(theme, expanded)),
+    });
+
     // 给箭头预留空间，模型名和档位各自保持单行。
     let trailing_width = CHEVRON_SIZE + GAP;
-    let model_name = SingleLineLabel::new(toggle_label, 12.0)
+    let model_name = SingleLineLabel::new(label, 12.0)
         .font(selector_label_font())
         .shrink();
     let (label_content, label_max_width): (Element<'static, Message>, f32) =
@@ -124,11 +138,11 @@ pub fn model_toggle_button<Message: Clone + 'static>(
         container(chevron_model).align_right(Length::Fill).center_y(Length::Fill),
     ];
 
-    button(container(row![model_icon_svg, label].spacing(GAP).align_y(Alignment::Center))
+    button(container(row![icon, label].spacing(GAP).align_y(Alignment::Center))
         .center_y(BOTTOM_BAR_ICON_BUTTON_SIZE))
         .style(move |theme: &Theme, status| composer_selector_button_style(theme, status, expanded))
         .padding([0, 10])
-        .on_press(emit(Action::ToggleModelPopover))
+        .on_press(on_press)
         .into()
 }
 

@@ -1,7 +1,7 @@
 //! 聊天输入编辑器上方的分组快捷消息条。
 
 use desktop_assets::assets::Icon;
-use desktop_ui_controls::overlays::{AboveOverlay, BelowOverlay};
+use desktop_ui_controls::overlays::AboveOverlay;
 use desktop_ui_controls::single_line_label::SingleLineLabel;
 use desktop_session::message::chat::input::popovers::ComposerScene;
 use desktop_ui_controls::system_settings_common::{
@@ -367,16 +367,7 @@ fn recommendation_trigger<'a>(
 }
 
 pub fn recommendations_menu<'a>(app: QuickInput<'a>, indices: &[usize]) -> Element<'a, Message> {
-    AboveOverlay::new(
-        recommendation_trigger(app, indices.len()),
-        recommendations_menu_view(app, indices),
-    )
-    .show(app.recommended_prompt)
-    .block_background_events(true)
-    .flip_if_clipped()
-    .gap(6.0)
-    .on_close(Message::RecommendedPromptMenuChanged(false))
-    .into()
+    with_recommendation_popup(app, indices.len(), recommendations_menu_view(app, indices))
 }
 
 pub fn starter_recommendations(
@@ -405,10 +396,19 @@ pub fn starter_recommendations(
     } else {
         Space::new().into()
     };
-    BelowOverlay::new(recommendation_trigger(app, count), popup)
+    with_recommendation_popup(app, count, popup)
+}
+
+fn with_recommendation_popup<'a>(
+    app: QuickInput<'a>,
+    count: usize,
+    popup: Element<'a, Message>,
+) -> Element<'a, Message> {
+    AboveOverlay::new(recommendation_trigger(app, count), popup)
         .show(app.recommended_prompt)
+        .block_background_events(true)
+        .flip_if_clipped()
         .gap(6.0)
-        .dismiss_on_escape()
         .on_close(Message::RecommendedPromptMenuChanged(false))
         .into()
 }
@@ -776,11 +776,22 @@ fn shiju_menu(app: QuickInput<'_>) -> Element<'_, Message> {
         .into()
 }
 
-fn workspace_label(app: QuickInput<'_>, path: &str) -> String {
-    app.recent_projects
+pub struct WorkspacePicker<'a> {
+    pub i18n: desktop_i18n::I18n,
+    pub projects: &'a [String],
+    pub project_labels: &'a [String],
+    pub selected: Option<&'a str>,
+    pub current: Option<&'a str>,
+    pub query: &'a str,
+    pub open: bool,
+    pub within_window: bool,
+}
+
+fn workspace_label(app: &WorkspacePicker<'_>, path: &str) -> String {
+    app.projects
         .iter()
         .position(|candidate| candidate == path)
-        .and_then(|index| app.recent_projects_edits.get(index))
+        .and_then(|index| app.project_labels.get(index))
         .map(|label| label.trim())
         .filter(|label| !label.is_empty())
         .map(str::to_string)
@@ -808,7 +819,7 @@ fn workspace_add_message() -> Message {
     ])
 }
 
-fn workspace_menu_divider() -> Element<'static, Message> {
+fn workspace_menu_divider<'a, M: 'a>() -> Element<'a, M> {
     container(Space::new().height(Length::Fixed(1.0)))
         .width(Length::Fill)
         .style(|theme: &Theme| container::Style {
@@ -820,7 +831,7 @@ fn workspace_menu_divider() -> Element<'static, Message> {
         .into()
 }
 
-fn workspace_add_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
+fn workspace_add_button<'a, M: Clone + 'a>(i18n: desktop_i18n::I18n, add: M) -> Element<'a, M> {
     button(
         row![
             super::icons::icon_svg(Icon::Plus, 13.0),
@@ -830,7 +841,7 @@ fn workspace_add_button(i18n: desktop_i18n::I18n) -> Element<'static, Message> {
         .align_y(iced::Alignment::Center)
         .width(Length::Fill),
     )
-    .on_press(workspace_add_message())
+    .on_press(add)
     .padding([8, 10])
     .width(Length::Fill)
     .style(|theme: &Theme, status| styles::shiju_skill_button_style(theme, status, false))
@@ -845,28 +856,48 @@ pub fn workspace_results_id() -> iced::widget::Id {
     iced::widget::Id::new("composer-workspace-results")
 }
 
-fn workspace_menu_view(app: QuickInput<'_>) -> Element<'_, Message> {
-    let query = app.workspace_query.trim().to_lowercase();
-    let matches: Vec<_> = app
-        .recent_projects
-        .iter()
-        .map(|path| (path, workspace_label(app, path)))
+fn workspace_menu_view<'a, M: Clone + 'a>(
+    app: &WorkspacePicker<'a>,
+    search_changed: impl Fn(String) -> M + 'a,
+    select: impl Fn(String) -> M,
+    clear: Option<M>,
+    add: Option<M>,
+) -> Element<'a, M> {
+    let query = app.query.trim().to_lowercase();
+    let extra = app.current.into_iter().chain(app.selected.filter(|path| Some(*path) != app.current));
+    let projects = app.projects.iter().map(String::as_str).chain(
+        extra.filter(|path| !app.projects.iter().any(|item| item.as_str() == *path)),
+    );
+    let default_label = app.i18n.__("默认工作区");
+    let mut project_count = usize::from(clear.is_some());
+    let matches: Vec<_> = projects
+        .filter(|path| !path.trim().is_empty())
+        .map(|path| {
+            project_count += 1;
+            (path, workspace_label(app, path))
+        })
         .filter(|(path, label)| {
             query.is_empty()
                 || label.to_lowercase().contains(&query)
                 || path.to_lowercase().contains(&query)
         })
         .collect();
-    let search = text_input(app.i18n.__("搜索项目"), app.workspace_query)
+    let clear = clear.filter(|_| query.is_empty() || default_label.to_lowercase().contains(&query));
+    let submit = match (matches.as_slice(), &clear) {
+        ([(path, _)], None) => Some(select((*path).to_owned())),
+        ([], Some(clear)) => Some(clear.clone()),
+        _ => None,
+    };
+    let search = text_input(app.i18n.__("搜索项目"), app.query)
         .id(workspace_search_id())
-        .on_input(Message::WorkSpacePickerQueryChanged)
-        .on_submit_maybe((matches.len() == 1).then(|| workspace_select_message(matches[0].0.clone())))
+        .on_input(search_changed)
+        .on_submit_maybe(submit)
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style);
     let mut items = column![].spacing(3).width(Length::Fill);
 
-    if matches.is_empty() {
+    if matches.is_empty() && clear.is_none() {
         let label = if query.is_empty() { "暂无空间" } else { "没有匹配的项目" };
         items = items.push(
             container(text(app.i18n.__(label)).size(12).style(settings_muted_text_style))
@@ -874,7 +905,7 @@ fn workspace_menu_view(app: QuickInput<'_>) -> Element<'_, Message> {
         );
     }
     for (path, label) in matches {
-        let selected = app.project_path == Some(path.as_str());
+        let selected = app.selected == Some(path);
         let mut content = row![
             super::icons::icon_svg(Icon::FolderOpen, 13.0),
             text(label.clone())
@@ -888,7 +919,7 @@ fn workspace_menu_view(app: QuickInput<'_>) -> Element<'_, Message> {
             content = content.push(super::icons::icon_svg(Icon::Check, 13.0));
         }
         let option = button(content)
-            .on_press(workspace_select_message(path.clone()))
+            .on_press(select(path.to_owned()))
             .padding([8, 10])
             .width(Length::Fill)
             .style(move |theme, status| styles::shiju_skill_button_style(theme, status, selected));
@@ -900,42 +931,76 @@ fn workspace_menu_view(app: QuickInput<'_>) -> Element<'_, Message> {
         ));
     }
 
+    if let Some(clear) = clear {
+        items = items.push(
+            button(text(default_label).size(13))
+                .on_press(clear)
+                .padding([8, 10])
+                .width(Length::Fill)
+                .style(|theme, status| styles::shiju_skill_button_style(theme, status, false)),
+        );
+    }
+
     let items = scrollable(container(items).padding([0, 7]))
         .id(workspace_results_id())
         .height(Length::Fill)
-        .direction(
-        Direction::Vertical(
+        .direction(Direction::Vertical(
             Scrollbar::new()
                 .width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH)
                 .scroller_width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH)
                 .spacing(QUICK_MESSAGE_MENU_SCROLLBAR_GAP),
-        ),
-    );
-    let list_height = (app.recent_projects.len().max(1) as f32 * 36.0)
-        .min(QUICK_MESSAGE_MENU_MAX_HEIGHT);
-    container(
-        column![
-            search,
-            items,
-            workspace_menu_divider(),
-            workspace_add_button(app.i18n)
-        ]
-        .spacing(6)
-        .width(Length::Fill),
-    )
-    .padding(8)
-    .height(Length::Fixed(97.0 + list_height))
-    .width(Length::Fixed(300.0))
-    .style(styles::quick_message_menu_style)
-    .into()
+        ));
+    let list_height = (project_count.max(1) as f32 * 36.0).min(QUICK_MESSAGE_MENU_MAX_HEIGHT);
+    let mut menu = column![search, items].spacing(6).width(Length::Fill);
+    let header_footer_height = if let Some(add) = add {
+        menu = menu.push(workspace_menu_divider()).push(workspace_add_button(app.i18n, add));
+        97.0
+    } else {
+        56.0
+    };
+    container(menu)
+        .padding(8)
+        .height(Length::Fixed(header_footer_height + list_height))
+        .width(Length::Fixed(300.0))
+        .style(styles::quick_message_menu_style)
+        .into()
 }
 
 pub fn workspace_menu(app: QuickInput<'_>) -> Element<'_, Message> {
-    let active = app.work_space_picker_open;
-    let label =
-        app.project_path.map(|path| workspace_label(app, path)).unwrap_or_else(|| {
-            app.i18n.__("选择空间").to_string()
-        });
+    workspace_picker(
+        WorkspacePicker {
+            i18n: app.i18n,
+            projects: app.recent_projects,
+            project_labels: app.recent_projects_edits,
+            selected: app.project_path,
+            current: None,
+            query: app.workspace_query,
+            open: app.work_space_picker_open,
+            within_window: false,
+        },
+        Message::WorkSpacePickerToggled,
+        Message::WorkSpacePickerClosed,
+        Message::WorkSpacePickerQueryChanged,
+        workspace_select_message,
+        None,
+        Some(workspace_add_message()),
+    )
+}
+
+pub fn workspace_picker<'a, M: Clone + 'a>(
+    app: WorkspacePicker<'a>,
+    toggle: M,
+    close: M,
+    search_changed: impl Fn(String) -> M + 'a,
+    select: impl Fn(String) -> M,
+    clear: Option<M>,
+    add: Option<M>,
+) -> Element<'a, M> {
+    let active = app.open;
+    let label = app
+        .selected
+        .map(|path| workspace_label(&app, path))
+        .unwrap_or_else(|| app.i18n.__("选择空间").to_string());
     let short_label = desktop_chat_tools::text_layout::truncate_chars(&label, 25);
     let workspace_icon = super::icons::icon_svg(Icon::FolderOpen, 14.0)
         .style(move |theme: &Theme, _| iced::widget::svg::Style {
@@ -954,12 +1019,12 @@ pub fn workspace_menu(app: QuickInput<'_>) -> Element<'_, Message> {
         )
         .center_y(BOTTOM_BAR_ICON_BUTTON_SIZE),
     )
-    .on_press(Message::WorkSpacePickerToggled)
+    .on_press(toggle)
     .padding([0, 9])
     .style(move |theme: &Theme, status| {
         super::styles::selector_pill_button_style(theme, status, active)
     });
-    let trigger = match app.project_path.filter(|_| !active) {
+    let trigger = match app.selected.filter(|_| !active) {
         Some(path) => desktop_ui_controls::tooltip::project_tooltip(
             trigger,
             label,
@@ -969,17 +1034,27 @@ pub fn workspace_menu(app: QuickInput<'_>) -> Element<'_, Message> {
         None => trigger.into(),
     };
 
-    if active {
-        AboveOverlay::new(trigger, workspace_menu_view(app))
-            .show(true)
-            .block_background_events(true)
-            .flip_if_clipped()
-            .gap(6.0)
-            .on_close(Message::WorkSpacePickerClosed)
-            .into()
-    } else {
-        trigger.into()
+    if !active {
+        return trigger;
     }
+    let menu = workspace_menu_view(&app, search_changed, select, clear, add);
+    if app.within_window {
+        return desktop_ui_controls::overlays::BelowOverlay::new(trigger, menu)
+            .show(true)
+            .within_window()
+            .prefer_above()
+            .gap(6.0)
+            .dismiss_on_escape()
+            .on_close(close)
+            .into();
+    }
+    AboveOverlay::new(trigger, menu)
+        .show(true)
+        .block_background_events(true)
+        .flip_if_clipped()
+        .gap(6.0)
+        .on_close(close)
+        .into()
 }
 
 fn input_strip_control_order(
@@ -1038,12 +1113,6 @@ pub fn view(
     }
     if let Some(open) = app.employee_commands {
         controls = controls.push(super::employee_commands::menu(app.i18n, open));
-    }
-    if starter.is_none() {
-        let indices = recommended_indices(app);
-        if !indices.is_empty() {
-            controls = controls.push(recommendations_menu(app, &indices));
-        }
     }
     container(controls.wrap().vertical_spacing(5))
         .width(Length::Fill)

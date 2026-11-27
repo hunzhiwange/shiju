@@ -35,7 +35,6 @@ impl Fixture {
             acp_options_pending: self.pending,
             source_pending: false,
             full_access_enabled: false,
-            acp_rebuild_required: false,
         }
     }
     fn source(&self) -> Element<'_, Event> {
@@ -69,7 +68,7 @@ impl Fixture {
         }
         let permission = crate::input_panel::send_controls::acp_permission_modes(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), false, false)
             .map(|_| Event::Agent);
-        let access = acp_options::access_status(&self.state(), permission);
+        let access = acp_options::permission_section(i18n(), permission);
         acp_options::with_modal(
             &self.state(),
             i18n(),

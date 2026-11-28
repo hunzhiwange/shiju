@@ -816,7 +816,6 @@ pub fn update(app: &mut Update<'_>, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         AgentsMessage::CatalogRuntimeSettings(backend) => {
-            app.state.active_config_tab = crate::state::AgentConfigTab::Acp;
             if backend == acp_agent_registry::EMPLOYEE_ACP_BACKEND {
                 app.effect(Effect::RefreshAcp)
             } else {

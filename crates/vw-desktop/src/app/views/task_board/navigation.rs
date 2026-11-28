@@ -1,4 +1,3 @@
-use crate::app::components::system_settings::SystemTab;
 use crate::app::components::system_settings_common::{
     icon_svg, primary_action_btn_style, settings_divider,
 };
@@ -53,7 +52,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         entry(
             Icon::Robot,
             i18n.__("团队"),
-            Some(Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Agents))),
+            Some(Message::View(ViewMessage::OpenAgentManagement(None))),
             false,
             false,
         ),

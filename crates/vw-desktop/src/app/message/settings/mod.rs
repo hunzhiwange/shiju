@@ -48,6 +48,7 @@ mod sessions;
 pub(crate) mod skills;
 mod storage;
 mod tabs;
+pub(crate) use tabs::{management_page, open_agent_management};
 mod themes;
 mod tunnel;
 mod types;

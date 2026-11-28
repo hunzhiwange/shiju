@@ -49,7 +49,7 @@ pub enum Message {
  ShijuApps,
  #[cfg(not(target_arch = "wasm32"))]
  DigitalEmployees,
- OpenAgentSettings,
+ OpenAgentManagement,
  OpenCron,
  OpenProjects,
 }
@@ -572,7 +572,7 @@ fn agent_settings_badge_button(i18n: desktop_i18n::I18n, selected: bool) -> Elem
     .center_x(36)
     .center_y(36);
     title_tooltip(
-        navigation_badge(badge, Message::OpenAgentSettings, selected),
+        navigation_badge(badge, Message::OpenAgentManagement, selected),
         i18n.__("智能体"),
         TooltipPosition::Right,
     )

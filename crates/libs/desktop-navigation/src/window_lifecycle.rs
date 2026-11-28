@@ -122,6 +122,10 @@ pub fn title(screen: crate::ui_types::Screen, locale: config_ui::DesktopLocale) 
             desktop_i18n::I18n::new(locale).__("第三方智能体")
         ),
         Screen::Projects => desktop_i18n::I18n::new(locale).__("识矩 - 项目管理").to_owned(),
+        Screen::AgentManagement(_) => {
+            let i18n = desktop_i18n::I18n::new(locale);
+            format!("{} - {}", i18n.__("识矩"), i18n.__("智能体"))
+        }
         Screen::Cron => desktop_i18n::I18n::new(locale).__("识矩 - 定时任务").to_owned(),
         Screen::TaskBoard => desktop_i18n::I18n::new(locale).__("识矩 - 任务看板").to_string(),
         #[cfg(not(target_arch = "wasm32"))]

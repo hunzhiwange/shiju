@@ -9,7 +9,7 @@ fn map_message(local: LocalMessage) -> Message {
  LocalMessage::SessionToolGroupCollapsedToggled(v) => message::ChatMessage::SessionToolGroupCollapsedToggled(v),
  LocalMessage::SessionManualToolSelected(v) => message::ChatMessage::SessionManualToolSelected(v),
  LocalMessage::SessionSkillSelected(v) => message::ChatMessage::SessionSkillSelected(v),
- LocalMessage::OpenAgentSettings => return Message::View(message::ViewMessage::OpenSystemSettingsTab(crate::app::components::system_settings::SystemTab::Agents)),
+ LocalMessage::OpenAgentSettings => return Message::View(message::ViewMessage::OpenAgentManagement(None)),
  })
 }
 pub(crate) fn session_tool_selector_popover(app: &App) -> iced::Element<'_, Message> {

@@ -627,9 +627,7 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
     ));
     assert!(matches!(
         actions.next().unwrap().as_slice(),
-        [Message::View(ViewMessage::OpenSystemSettingsTab(
-            crate::app::components::system_settings::SystemTab::Agents
-        ))]
+        [Message::View(ViewMessage::OpenAgentManagement(None))]
     ));
     let remaining: Vec<_> = actions.flatten().collect();
     assert!(

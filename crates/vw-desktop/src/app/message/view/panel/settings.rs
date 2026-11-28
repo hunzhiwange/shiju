@@ -539,7 +539,6 @@ fn navigation_message(
         ViewMessage::ProjectFileShowProjects => Local::ProjectFileShowProjects,
         ViewMessage::ProjectFileSaveAll => Local::ProjectFileSaveAll,
         ViewMessage::ToggleSystemSettings => Local::ToggleSystemSettings,
-        ViewMessage::OpenAcpSettings => Local::OpenAcpSettings,
         ViewMessage::OpenSystemSettingsTab(value) => Local::OpenSystemSettingsTab(*value),
         ViewMessage::OpenSystemSettingsTarget(target) => {
             Local::OpenSystemSettingsTab(target.page())
@@ -677,14 +676,6 @@ fn update_navigation(
                 crate::app::message::editor::metrics::commit(app, None)
             }
         }
-        Some(domain::Effect::OpenAcpSettings) => crate::app::message::settings::update(
-            app,
-            SettingsMessage::AgentConfigTab(
-                crate::app::message::settings::AgentConfigTabMessage::Selected(
-                    crate::app::state::AgentConfigTab::Acp,
-                ),
-            ),
-        ),
         Some(domain::Effect::SelectSystemTab(tab)) => {
             if let Some(target) = target {
                 crate::app::message::settings::update(

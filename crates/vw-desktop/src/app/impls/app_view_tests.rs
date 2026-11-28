@@ -123,9 +123,9 @@ async fn toast_show_replace_and_dismiss_preserve_acp_scroll_offsets_and_viewport
     }
 
     let mut app = test_app();
-    app.navigation_panels.show_system_settings = true;
-    app.navigation_panels.system_settings_tab = components::system_settings::SystemTab::Agents;
-    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Acp;
+    app.navigation_tabs.screen = Screen::AgentManagement(
+        desktop_ui_controls::settings_navigation::AgentManagementPage::Acp,
+    );
     for agent in ["claude", "gemini", "opencode", "codex", "openclaw", "copilot"] {
         app.acp_settings.catalog.insert(agent.into(), Default::default());
     }

@@ -18,7 +18,7 @@ SwitchWorkSpacePressed(String),
 pub enum ViewMessage {
 OpenApps,
 OpenKnowledge,
-OpenSystemSettingsTab(SystemTab),
+OpenAgentManagement,
 OpenCron,
 OpenProjects,
 OpenWorkflowTool,
@@ -58,10 +58,6 @@ Open,
 #[derive(Debug, Clone)]
 pub enum TaskBoardMessage {
 ToggleBoard,
-}
-#[derive(Debug, Clone)]
-pub enum SystemTab {
-Agents,
 }
 #[derive(Debug, Clone)]
 pub enum ExpertHubSection {

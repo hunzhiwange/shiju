@@ -445,9 +445,8 @@ fn extensions_panel(app: &App) -> Element<'_, Message> {
 }
 
 pub(crate) fn is_visible(app: &App) -> bool {
-    app.navigation_panels.show_system_settings
-        && app.navigation_panels.system_settings_tab == super::system_settings::SystemTab::Agents
-        && app.agents_settings.active_config_tab == crate::app::state::AgentConfigTab::Mcp
+    super::system_settings_agents::visible_page(app)
+        == Some(desktop_ui_controls::settings_navigation::AgentManagementPage::Mcp)
         && app.mcp_settings.active_tab == McpSettingsTab::Servers
 }
 

@@ -34,7 +34,7 @@ e::ViewMessage::OpenApps => crate::app::message::ViewMessage::OpenApps,
 e::ViewMessage::OpenKnowledge => crate::app::message::ViewMessage::OpenKnowledge,
 e::ViewMessage::OpenCron => crate::app::message::ViewMessage::OpenCron,
 e::ViewMessage::OpenProjects => crate::app::message::ViewMessage::OpenProjects,
-e::ViewMessage::OpenSystemSettingsTab(v0) => crate::app::message::ViewMessage::OpenSystemSettingsTab(match v0 {e::SystemTab::Agents => crate::app::components::system_settings::SystemTab::Agents,}),
+e::ViewMessage::OpenAgentManagement => crate::app::message::ViewMessage::OpenAgentManagement(None),
 e::ViewMessage::OpenWorkflowTool => crate::app::message::ViewMessage::OpenWorkflowTool,
 e::ViewMessage::ProjectFileNewProject => crate::app::message::ViewMessage::ProjectFileNewProject,
 e::ViewMessage::ProjectFileNewSession => crate::app::message::ViewMessage::ProjectFileNewSession,
@@ -106,17 +106,13 @@ fn input(app: &App) -> domain::ViewInput<'_> {
  use crate::app::Screen;
  use domain::NavigationPage;
 
- let navigation_page = if app.navigation_panels.show_system_settings {
-     (app.navigation_panels.system_settings_tab
-         == crate::app::components::system_settings::SystemTab::Agents)
-         .then_some(NavigationPage::Agents)
- } else {
-     match app.navigation_tabs.screen {
+ let navigation_page = match app.navigation_tabs.screen {
          Screen::Home => Some(NavigationPage::Home),
          Screen::Project if app.navigation_tabs.project_path.is_some()
              && app.session_state.active_session_id.is_none() => Some(NavigationPage::Home),
          Screen::Projects => Some(NavigationPage::Projects),
          Screen::Cron => Some(NavigationPage::Cron),
+         Screen::AgentManagement(_) => Some(NavigationPage::Agents),
          #[cfg(not(target_arch = "wasm32"))]
          Screen::DigitalEmployees => Some(NavigationPage::DigitalEmployees),
          #[cfg(not(target_arch = "wasm32"))]
@@ -129,7 +125,6 @@ fn input(app: &App) -> domain::ViewInput<'_> {
              _ => NavigationPage::ExpertHub,
          }),
          _ => None,
-     }
  };
  domain::ViewInput {
 navigation_page,

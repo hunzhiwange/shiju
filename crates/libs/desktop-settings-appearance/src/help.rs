@@ -86,29 +86,13 @@ const MODELS_HELP: &str = r#"模型设置说明
 - Provider 更新后先刷新一次，再检查模型启用状态是否符合预期。
 "#;
 
-const AGENTS_HELP: &str = r#"智能体配置说明
+const DIALOGUE_FLOW_HELP: &str = r#"对话流配置说明
 
-一、作用
-- 本页统一管理各智能体的模型、提示词、工具权限和执行边界。
-- 这里决定不同角色代理如何协作，以及各自能做什么。
-
-二、主要区域
-1) 代理列表
-- 选择已有代理、创建新代理并查看当前启停状态。
-2) 基础配置
-- 选择 provider、model、兼容模式、温度与最大迭代次数。
-3) Prompt / Identity
-- 编辑系统提示词与工作区身份文件。
-4) 工具权限
-- 控制允许的工具集合、并行能力与深度限制。
-5) 对话流
-- 控制时间线中的推理摘要、shell 与编辑工具默认展开方式。
-6) 快捷消息 / 心跳配置
-- 管理聊天输入区快捷操作，以及周期心跳的间隔、兜底消息和投递目标。
-
-三、建议
-- 为每个智能体保持清晰、收敛的职责边界。
-- 自定义代理前先明确角色边界，避免多个代理能力重叠。
+- 对话流：设置时间线中的推理摘要和工具详情默认展开方式。
+- 运行时：配置执行环境、隔离和工作区挂载。
+- 可靠性：配置提供商重试、通道重连和调度重试。
+- 快捷消息：管理聊天输入区的快捷操作。
+- 心跳配置：配置心跳间隔、兜底消息和投递目标。
 "#;
 
 const CHANNELS_HELP: &str = r#"通道配置说明
@@ -318,7 +302,7 @@ fn help_content(tab: SystemTab) -> Option<(&'static str, &'static str)> {
         )),
         SystemTab::Providers => Some(("模型提供商帮助", PROVIDERS_HELP)),
         SystemTab::Models => Some(("模型设置帮助", MODELS_HELP)),
-        SystemTab::Agents => Some(("智能体配置帮助", AGENTS_HELP)),
+        SystemTab::Agents => Some(("对话流配置帮助", DIALOGUE_FLOW_HELP)),
         SystemTab::Channels => Some(("通道配置帮助", CHANNELS_HELP)),
         SystemTab::Memory => Some(("记忆系统帮助", MEMORY_HELP)),
         SystemTab::Runtime => Some(("运行时配置帮助", RUNTIME_HELP)),

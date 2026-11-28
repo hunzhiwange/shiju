@@ -12,8 +12,12 @@ fn effects(app: &mut App, effects: Vec<Effect>, task: Task<Local>) -> Task<Messa
  for effect in effects { tasks.push(match effect {
  Effect::Toast(kind, text, args) => app.show_localized_toast(match kind { ToastKind::Error => crate::app::state::ToastKind::Error, ToastKind::Success => crate::app::state::ToastKind::Success, ToastKind::Warning => crate::app::state::ToastKind::Warning }, text, args),
  Effect::StartupEdit => { #[cfg(not(target_arch="wasm32"))] app.note_startup_setting_edit("agents_settings"); Task::none() },
- Effect::EditAcp(backend) => super::acp::update(app, SettingsMessage::Acp(super::AcpMessage::EditAgent(backend))),
- Effect::RefreshAcp => super::acp::update(app, SettingsMessage::Acp(super::AcpMessage::Refresh)),
+ Effect::EditAcp(backend) => {
+     let open = super::open_agent_management(app, Some(desktop_ui_controls::settings_navigation::AgentManagementPage::Acp));
+     let edit = super::acp::update(app, SettingsMessage::Acp(super::AcpMessage::EditAgent(backend)));
+     Task::batch([open, edit])
+ }
+ Effect::RefreshAcp => super::open_agent_management(app, Some(desktop_ui_controls::settings_navigation::AgentManagementPage::Acp)),
  Effect::RefreshMcp => super::mcp::update(app, SettingsMessage::Mcp(super::McpMessage::InspectRefresh)),
  #[cfg(not(target_arch = "wasm32"))]
  Effect::OpenDigitalEmployees => {

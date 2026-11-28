@@ -22,7 +22,7 @@ fn agents_settings_default_waits_for_config_before_allowing_save() {
     assert!(state.providers.is_empty());
     assert!(state.provider_models.is_empty());
     assert_eq!(state.selected_agent, MAIN_AGENT_KEY);
-    assert_eq!(state.active_config_tab, AgentConfigTab::Agents);
+    assert_eq!(state.active_config_tab, AgentConfigTab::DialogueFlow);
     let config_tabs = [
         AgentConfigTab::Agents,
         AgentConfigTab::Channels,

@@ -53,7 +53,16 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
 
     extend_tabs!(system_settings_general::GENERAL_TABS, "常规设置", General);
     extend_tabs!(system_settings_models::MODEL_TABS, "模型", Models);
-    extend_tabs!(system_settings_agents::AGENT_CONFIG_TABS, "智能体", Agents);
+    entries.extend(system_settings_agents::AGENT_CONFIG_TABS.iter().map(|descriptor| {
+        let parent = crate::app::message::settings::management_page(descriptor.tab)
+            .map_or("对话流", |_| "智能体");
+        SystemSettingsSearchEntry::new(
+            descriptor.label,
+            Some(parent),
+            descriptor.keywords,
+            SystemSettingsSearchTarget::Agents(descriptor.tab),
+        )
+    }));
     let channel_tabs = system_settings_channels::channel_tab_descriptors();
     extend_tabs!(channel_tabs, "智能体 / 通道", Channels);
     extend_tabs!(system_settings_memory::MEMORY_TABS, "记忆配置", Memory);

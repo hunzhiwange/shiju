@@ -52,12 +52,10 @@ pub(super) fn system_tab_matches_query(tab: SystemTab, query: &str) -> bool {
                 || descriptor.keywords.iter().any(|text| text.to_lowercase().contains(&needle))
         }),
         SystemTab::Agents => {
-            descriptors_match(super::system_settings_agents::AGENT_CONFIG_TABS, &needle)
-                || descriptors_match(
-                    &super::system_settings_channels::channel_tab_descriptors(),
-                    &needle,
-                )
-                || descriptors_match(super::system_settings_mcp::MCP_TABS, &needle)
+            super::system_settings_agents::AGENT_CONFIG_TABS.iter().any(|descriptor| {
+                crate::app::message::settings::management_page(descriptor.tab).is_none()
+                    && descriptors_match(std::slice::from_ref(descriptor), &needle)
+            })
         }
         SystemTab::Channels => {
             descriptors_match(&super::system_settings_channels::channel_tab_descriptors(), &needle)
@@ -119,7 +117,6 @@ fn active_settings_help_tab(app: &App, active_tab: SystemTab) -> SystemTab {
     }
 
     match app.agents_settings.active_config_tab {
-        crate::app::state::AgentConfigTab::Channels => SystemTab::Channels,
         crate::app::state::AgentConfigTab::Runtime => SystemTab::Runtime,
         _ => active_tab,
     }
@@ -132,24 +129,16 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
             crate::app::components::system_settings_models::active_tab_save_error(app)
         }
         SystemTab::Agents => match app.agents_settings.active_config_tab {
-            crate::app::state::AgentConfigTab::Agents => app.agents_settings.save_error.as_deref(),
-            crate::app::state::AgentConfigTab::Channels => {
-                app.channels_settings.save_error.as_deref()
-            }
             crate::app::state::AgentConfigTab::Runtime => {
                 app.runtime_settings.save_error.as_deref()
             }
             crate::app::state::AgentConfigTab::Heartbeat => {
                 app.heartbeat_settings.save_error.as_deref()
             }
-            crate::app::state::AgentConfigTab::Acp => app.acp_settings.save_error.as_deref(),
-            crate::app::state::AgentConfigTab::Mcp => app.mcp_settings.save_error.as_deref(),
-            crate::app::state::AgentConfigTab::Plugins => None,
             crate::app::state::AgentConfigTab::Reliability => {
                 app.reliability_settings.save_error.as_deref()
             }
-            crate::app::state::AgentConfigTab::DialogueFlow
-            | crate::app::state::AgentConfigTab::QuickMessages => None,
+            _ => None,
         },
         SystemTab::Channels => app.channels_settings.save_error.as_deref(),
         SystemTab::Memory => match app.memory_settings.active_tab {
@@ -390,14 +379,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     if app.navigation_panels.system_settings_tab == SystemTab::Agents {
         dialog = match app.agents_settings.active_config_tab {
-            crate::app::state::AgentConfigTab::Agents => {
-                super::system_settings_agents::view_overlays(app, dialog)
-            }
             crate::app::state::AgentConfigTab::Heartbeat => {
                 crate::app::components::system_settings_heartbeat::view_overlays(app, dialog)
-            }
-            crate::app::state::AgentConfigTab::Mcp => {
-                crate::app::components::system_settings_mcp::view_overlays(app, dialog)
             }
             crate::app::state::AgentConfigTab::Reliability => {
                 crate::app::components::system_settings_reliability::view_overlays(app, dialog)
@@ -405,8 +388,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
             _ => dialog,
         };
     }
-
-    dialog = super::system_settings_channels::view_overlays(app, dialog);
 
     if app.navigation_panels.system_settings_tab == SystemTab::Autonomy {
         dialog = crate::app::components::system_settings_autonomy::view_overlays(app, dialog);
@@ -497,8 +478,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let dialog = crate::app::message::app_providers::leave::overlay(app, dialog);
     #[cfg(target_os = "macos")]
     let dialog = crate::app::provider_link_preview::overlay(app, dialog);
-    #[cfg(target_os = "macos")]
-    let dialog = crate::app::mcp_link_preview::overlay(app, dialog);
     #[cfg(target_os = "macos")]
     let dialog = crate::app::prompt_link_preview::overlay(app, dialog);
     dialog

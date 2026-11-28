@@ -218,7 +218,7 @@ pub(super) fn navigation_section(app: &ViewInput<'_>) -> Element<'static, Messag
 }
 
 pub(super) fn agent_settings_message() -> Message {
-    Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Agents))
+    Message::View(ViewMessage::OpenAgentManagement)
 }
 
 pub fn project_navigation_message() -> Message {

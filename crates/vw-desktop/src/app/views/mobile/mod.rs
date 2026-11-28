@@ -29,6 +29,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "项目"
     } else if app.navigation_panels.show_system_settings {
         "设置"
+    } else if matches!(app.navigation_tabs.screen, Screen::AgentManagement(_)) {
+        "智能体"
     } else if app.navigation_tabs.screen == Screen::Cron {
         desktop_i18n::I18n::new(app.general_settings.desktop_locale).__("定时任务")
     } else if app.navigation_tabs.screen == Screen::Projects {
@@ -43,6 +45,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         navigation::view(app)
     } else if app.navigation_panels.show_system_settings {
         settings::view(app)
+    } else if let Screen::AgentManagement(page) = app.navigation_tabs.screen {
+        crate::app::components::system_settings_agents::management_view(app, page)
     } else if app.navigation_tabs.screen == Screen::Cron {
         crate::app::components::system_settings_cron::page(app)
     } else if app.navigation_tabs.screen == Screen::Projects {
@@ -129,7 +133,7 @@ fn bottom_navigation(app: &App) -> Element<'_, Message> {
                 !mine
                     && !project
                     && !settings
-                    && !matches!(app.navigation_tabs.screen, Screen::Cron | Screen::Projects)
+                    && !matches!(app.navigation_tabs.screen, Screen::Cron | Screen::Projects | Screen::AgentManagement(_))
             ),
             bottom_tab(
                 get_icon(Icon::FolderClosed),

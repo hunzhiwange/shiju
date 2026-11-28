@@ -93,7 +93,7 @@ impl Default for AgentsSettingsState {
                 .collect(),
             new_agent_key_input: String::new(),
             selected_agent: MAIN_AGENT_KEY.to_string(),
-            active_config_tab: AgentConfigTab::Agents,
+            active_config_tab: AgentConfigTab::DialogueFlow,
             active_detail_tab: AGENT_DETAIL_BASIC_TAB.to_string(),
             active_tools_list_tab: AGENT_TOOLS_OPTIONAL_TAB.to_string(),
             active_prompt_tab: AGENT_PROMPT_SYSTEM_TAB.to_string(),

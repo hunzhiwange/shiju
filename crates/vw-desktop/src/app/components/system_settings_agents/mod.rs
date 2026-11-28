@@ -23,7 +23,9 @@ use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentConfigTabMessage, SettingsMessage};
 use crate::app::state::AgentConfigTab;
-use crate::app::{App, Message};
+use crate::app::{App, Message, Screen};
+use crate::app::message::ViewMessage;
+use desktop_ui_controls::settings_navigation::AgentManagementPage;
 use iced::widget::{
     column, container, scrollable,
     scrollable::{Direction, Scrollbar},
@@ -53,6 +55,11 @@ pub(super) const AGENT_CONFIG_TABS: &[SettingsTabDescriptor<AgentConfigTab>] = &
         AgentConfigTab::Channels,
         "通道",
         &["channels", "message", "CLI", "外部消息", "Telegram", "Slack", "飞书"],
+    ),
+    SettingsTabDescriptor::new(
+        AgentConfigTab::DialogueFlow,
+        "对话流",
+        &["dialogue flow", "permission", "时间线", "推理摘要", "reasoning summary", "edit patch"],
     ),
     SettingsTabDescriptor::new(
         AgentConfigTab::Runtime,
@@ -90,11 +97,6 @@ pub(super) const AGENT_CONFIG_TABS: &[SettingsTabDescriptor<AgentConfigTab>] = &
         &["reliability", "retry", "Provider 重试次数", "退避", "频道重连", "调度器重试"],
     ),
     SettingsTabDescriptor::new(
-        AgentConfigTab::DialogueFlow,
-        "对话流",
-        &["dialogue flow", "permission", "时间线", "推理摘要", "reasoning summary", "edit patch"],
-    ),
-    SettingsTabDescriptor::new(
         AgentConfigTab::QuickMessages,
         "快捷消息",
         &["quick messages", "chat", "输入框", "Git 操作", "创建新会话", "自定义消息"],
@@ -128,7 +130,9 @@ pub(super) fn agent_project_options(app: &App) -> Vec<String> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     let active_tab = app.agents_settings.active_config_tab;
-    let tabs = settings_tab_row(AGENT_CONFIG_TABS.iter().map(|descriptor| {
+    let tabs = settings_tab_row(AGENT_CONFIG_TABS.iter().filter(|descriptor| {
+        crate::app::message::settings::management_page(descriptor.tab).is_none()
+    }).map(|descriptor| {
         shared::agent_tab_button(
             tr(app.general_settings.desktop_locale, descriptor.label),
             descriptor.tab == active_tab,
@@ -140,6 +144,85 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }))
     .wrap();
 
+    tab_content(app, tabs.into(), active_tab)
+}
+
+pub(crate) fn visible_page(app: &App) -> Option<AgentManagementPage> {
+    if app.navigation_panels.show_system_settings
+        || (app.mobile_layout.mode() == crate::app::state::LayoutMode::Mobile
+            && (app.mobile_layout.drawer_open || app.mobile_layout.mine_open))
+    {
+        return None;
+    }
+    match app.navigation_tabs.screen {
+        Screen::AgentManagement(page) => Some(page),
+        _ => None,
+    }
+}
+
+pub(crate) fn management_view(app: &App, page: AgentManagementPage) -> Element<'_, Message> {
+    let locale = app.general_settings.desktop_locale;
+    let mut tabs = settings_tab_row(AgentManagementPage::ALL.map(|tab| {
+        shared::agent_tab_button(
+            tr(locale, tab.label()),
+            tab == page,
+            Message::View(ViewMessage::OpenAgentManagement(Some(tab))),
+        )
+        .into()
+    }));
+    if page == AgentManagementPage::Channels
+        && let Some(help) = super::system_settings_help::help_button(
+            locale,
+            super::system_settings::SystemTab::Channels,
+        )
+    {
+        tabs = tabs.push(help);
+    }
+
+    let tab = match page {
+        AgentManagementPage::Agents => AgentConfigTab::Agents,
+        AgentManagementPage::Acp => AgentConfigTab::Acp,
+        AgentManagementPage::Mcp => AgentConfigTab::Mcp,
+        AgentManagementPage::Plugins => AgentConfigTab::Plugins,
+        AgentManagementPage::Channels => AgentConfigTab::Channels,
+    };
+    let content = desktop_settings_shell::content_page(
+        column![tab_content(app, tabs.wrap().into(), tab)],
+        false,
+        true,
+    );
+    container(content)
+        .padding([24, 7])
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
+}
+
+pub(crate) fn management_overlays<'a>(
+    app: &'a App,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
+    match visible_page(app) {
+        Some(AgentManagementPage::Agents) => view_overlays(app, base),
+        Some(AgentManagementPage::Mcp) => super::system_settings_mcp::view_overlays(app, base),
+        Some(AgentManagementPage::Channels) => {
+            let base = super::system_settings_channels::view_overlays(app, base);
+            super::system_settings_help::with_help_modal(
+                app,
+                base,
+                super::system_settings::SystemTab::Channels,
+                app.navigation_panels.system_settings_help_tab,
+            )
+        }
+        _ => base,
+    }
+}
+
+fn tab_content<'a>(
+    app: &'a App,
+    tabs: Element<'a, Message>,
+    active_tab: AgentConfigTab,
+) -> Element<'a, Message> {
     let content = match active_tab {
         AgentConfigTab::Agents => agents_view(app),
         AgentConfigTab::Channels => {
@@ -200,7 +283,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let mut page = column![tabs].spacing(16).width(Length::Fill).height(Length::Fill);
-    if let Some(error) = active_tab_save_error(app) {
+    if let Some(error) = tab_save_error(app, active_tab) {
         let rendered = app
             .agents_settings
             .save_error_translation
@@ -228,8 +311,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     page.push(content).into()
 }
 
-fn active_tab_save_error(app: &App) -> Option<&str> {
-    match app.agents_settings.active_config_tab {
+fn tab_save_error(app: &App, tab: AgentConfigTab) -> Option<&str> {
+    match tab {
         AgentConfigTab::Agents => app.agents_settings.save_error.as_deref(),
         AgentConfigTab::Runtime => app.runtime_settings.save_error.as_deref(),
         AgentConfigTab::Acp => app.acp_settings.save_error.as_deref(),

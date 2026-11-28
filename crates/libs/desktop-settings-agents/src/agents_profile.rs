@@ -39,9 +39,6 @@ pub(super) fn update(app: &mut Update<'_>, message: AgentsMessage) -> Task<Messa
             app.state.profile_modal =
                 app.state.entries.iter().find(|entry| entry.key == key).cloned();
             if let Some(draft) = app.state.profile_modal.as_mut() {
-                if key == crate::acp::EMPLOYEE_ACP_PROFILE {
-                    app.state.active_config_tab = crate::state::AgentConfigTab::Agents;
-                }
                 draft.description_editor = text_editor::Content::with_text(&draft.description);
                 app.state.active_prompt_tab = AGENT_PROMPT_SYSTEM_TAB.to_string();
                 app.state.workspace_identity_root_path = None;

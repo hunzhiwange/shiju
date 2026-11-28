@@ -144,6 +144,10 @@ impl App {
                 self,
                 components::system_settings_projects::page(self),
             ),
+            Screen::AgentManagement(page) => views::project::with_session_sidebar(
+                self,
+                components::system_settings_agents::management_view(self, page),
+            ),
             Screen::Cron => views::project::with_session_sidebar(
                 self,
                 components::system_settings_cron::page(self),
@@ -213,6 +217,14 @@ impl App {
         let main_view = if components::system_settings_cron::visible(self) {
             let base = components::system_settings_cron::view_overlays(self, main_view);
             components::system_settings_channels::view_overlays(self, base)
+        } else {
+            main_view
+        };
+
+        let main_view = components::system_settings_agents::management_overlays(self, main_view);
+        #[cfg(target_os = "macos")]
+        let main_view = if components::system_settings_mcp::is_visible(self) {
+            crate::app::mcp_link_preview::overlay(self, main_view)
         } else {
             main_view
         };

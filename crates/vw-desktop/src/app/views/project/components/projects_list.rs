@@ -7,9 +7,7 @@ fn map(event: domain::Message) -> Message {
  domain::Message::CodeProjectsMenuChanged(open) => Message::Project(message::ProjectMessage::CodeProjectsMenuChanged(open)),
  domain::Message::OpenProjects => Message::View(message::ViewMessage::OpenProjects),
  domain::Message::OpenCron => Message::View(message::ViewMessage::OpenCron),
- domain::Message::OpenAgentSettings => Message::View(message::ViewMessage::OpenSystemSettingsTab(
-     crate::app::components::system_settings::SystemTab::Agents,
- )),
+ domain::Message::OpenAgentManagement => Message::View(message::ViewMessage::OpenAgentManagement(None)),
  domain::Message::OpenFolderPressed => Message::Project(message::ProjectMessage::OpenFolderPressed),
  #[cfg(not(target_arch = "wasm32"))]
  domain::Message::ExpertHub => Message::SkillHub(message::SkillHubMessage::Open),
@@ -26,14 +24,10 @@ pub fn projects_list<'a>(app: &App, collapsed_hover_mode: bool) -> iced::Element
  use crate::app::Screen;
  use domain::ProjectListAction;
 
- let selected_action = if app.navigation_panels.show_system_settings {
-     (app.navigation_panels.system_settings_tab
-         == crate::app::components::system_settings::SystemTab::Agents)
-         .then_some(ProjectListAction::AgentSettings)
- } else {
-     match app.navigation_tabs.screen {
+ let selected_action = match app.navigation_tabs.screen {
          Screen::Projects => Some(ProjectListAction::Projects),
          Screen::Cron => Some(ProjectListAction::Cron),
+         Screen::AgentManagement(_) => Some(ProjectListAction::AgentSettings),
          #[cfg(not(target_arch = "wasm32"))]
          Screen::ExpertHub => Some(ProjectListAction::ExpertHub),
          #[cfg(not(target_arch = "wasm32"))]
@@ -43,7 +37,6 @@ pub fn projects_list<'a>(app: &App, collapsed_hover_mode: bool) -> iced::Element
          #[cfg(not(target_arch = "wasm32"))]
          Screen::DigitalEmployees => Some(ProjectListAction::DigitalEmployees),
          _ => None,
-     }
  };
  let input = domain::Input {
  selected_action,

@@ -116,6 +116,7 @@ pub enum ViewMessage {
     /// # 参数
     /// - 标签页标识，指定要打开的系统设置标签
     OpenAcpSettings,
+    OpenAgentManagement(Option<desktop_ui_controls::settings_navigation::AgentManagementPage>),
     OpenCron,
     OpenProjects,
     OpenSystemSettingsTab(crate::app::components::system_settings::SystemTab),
@@ -698,7 +699,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     if matches!(&message,
         ViewMessage::WorkspaceModeSelected(_) | ViewMessage::WorkProjectHome
         | ViewMessage::ToggleSystemSettings | ViewMessage::TaskPetOpenSettings
-        | ViewMessage::OpenAcpSettings | ViewMessage::OpenCron | ViewMessage::OpenProjects | ViewMessage::OpenSystemSettingsTab(_)
+        | ViewMessage::OpenAcpSettings | ViewMessage::OpenAgentManagement(_) | ViewMessage::OpenCron | ViewMessage::OpenProjects | ViewMessage::OpenSystemSettingsTab(_)
         | ViewMessage::OpenSystemSettingsTarget(_)
         | ViewMessage::OpenSystemSettingsModelDetail(_, _)
         | ViewMessage::GoHome | ViewMessage::TabSelected(_) | ViewMessage::TabClosed(_)) {
@@ -752,6 +753,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             | ViewMessage::ToggleSystemSettings
             | ViewMessage::TaskPetOpenSettings
             | ViewMessage::OpenAcpSettings
+            | ViewMessage::OpenAgentManagement(_)
             | ViewMessage::OpenCron
             | ViewMessage::OpenProjects
             | ViewMessage::OpenSystemSettingsTab(_)
@@ -1112,6 +1114,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::OpenCron => crate::app::message::settings::open_cron_page(app),
+        ViewMessage::OpenAgentManagement(page) =>
+            crate::app::message::settings::open_agent_management(app, page),
+        ViewMessage::OpenAcpSettings =>
+            crate::app::message::settings::open_agent_management(
+                app,
+                Some(desktop_ui_controls::settings_navigation::AgentManagementPage::Acp),
+            ),
         // 面板相关消息：包括设置面板、系统设置、菜单、弹窗、工具窗口等
         // 这些消息统一委托给 panel 子模块处理
         ViewMessage::ToggleSettingsPanel
@@ -1121,7 +1130,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::ProjectFileShowProjects
         | ViewMessage::ProjectFileSaveAll
         | ViewMessage::ToggleSystemSettings
-        | ViewMessage::OpenAcpSettings
         | ViewMessage::OpenSystemSettingsTab(_)
         | ViewMessage::OpenSystemSettingsTarget(_)
         | ViewMessage::OpenSystemSettingsModelDetail(_, _)

@@ -66,6 +66,7 @@ pub enum Screen {
     WorkflowTool,
     WorkflowManager,
     ThirdPartyAgents,
+    AgentManagement(desktop_ui_controls::settings_navigation::AgentManagementPage),
     TaskBoard,
     Cron,
     Projects,
@@ -83,7 +84,7 @@ impl Screen {
     /// Pages that show the workspace session sidebar alongside their main content.
     pub fn shows_workspace_session_sidebar(self) -> bool {
         match self {
-            Self::Cron | Self::Projects => true,
+            Self::Cron | Self::Projects | Self::AgentManagement(_) => true,
             #[cfg(not(target_arch = "wasm32"))]
             Self::DigitalEmployees | Self::ExpertHub | Self::ShijuSkills | Self::ShijuApps => true,
             _ => false,

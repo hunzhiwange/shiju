@@ -57,6 +57,8 @@ pub(crate) fn intercept(app: &mut App, message: &Message) -> bool {
                 ViewMessage::ToggleSystemSettings
                     | ViewMessage::OpenSystemSettingsTab(_)
                     | ViewMessage::OpenSystemSettingsTarget(_)
+                    | ViewMessage::OpenAgentManagement(_)
+                    | ViewMessage::OpenAcpSettings
                     | ViewMessage::OpenSystemSettingsModelDetail(_, _)
             )
     ) || (matches!(message, Message::View(ViewMessage::NavigateHistory(..)))

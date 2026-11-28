@@ -4,7 +4,9 @@ use crate::app::components::system_settings::{
     SETTINGS_CONTENT_SCROLL, SETTINGS_NAVIGATION_SCROLL, SystemTab, reveal_field,
 };
 use crate::app::components::system_settings_search::SystemSettingsSearchTarget;
-use crate::app::{App, Message};
+use crate::app::state::AgentConfigTab;
+use crate::app::{App, AppTab, Message, Screen};
+use desktop_ui_controls::settings_navigation::AgentManagementPage;
 use iced::Task;
 
 use super::messages::{
@@ -15,6 +17,84 @@ use super::messages::{
 };
 use super::models::models_refresh_task;
 use super::providers::refresh_task;
+
+pub(crate) fn open_agent_management(
+    app: &mut App,
+    page: Option<AgentManagementPage>,
+) -> Task<Message> {
+    if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
+        return Task::none();
+    }
+
+    const TAB_ID: &str = "agent_management";
+    let page = page.unwrap_or(AgentManagementPage::Agents);
+    let screen = Screen::AgentManagement(page);
+    if let Some(tab) = app.navigation_tabs.open_tabs.iter_mut().find(|tab| tab.id == TAB_ID) {
+        tab.screen = screen;
+    } else {
+        let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
+        app.navigation_tabs.open_tabs.push(AppTab {
+            id: TAB_ID.into(),
+            title: i18n.__("智能体").into(),
+            screen,
+            project_path: None,
+        });
+    }
+
+    let was_visible = crate::app::components::system_settings_agents::visible_page(app) == Some(page);
+    app.navigation_tabs.active_tab_id = Some(TAB_ID.into());
+    app.navigation_tabs.screen = screen;
+    app.navigation_panels.show_system_settings = false;
+    app.navigation_panels.system_settings_help_tab = None;
+    app.navigation_panels.close_menu();
+    app.popover_visibility.acp = false;
+    app.navigation_mode.code_projects_menu_open = false;
+    app.navigation_sidebar.work_sidebar_more_open = false;
+    app.workspace_state.project_tools_menu_path = None;
+    app.mobile_layout.drawer_open = false;
+    app.mobile_layout.mine_open = false;
+
+    if was_visible {
+        return Task::none();
+    }
+    let refresh = match page {
+        AgentManagementPage::Agents => {
+            app.agents_settings.loading = true;
+            app.agents_settings.save_error = None;
+            SettingsMessage::Agents(AgentsMessage::Refresh)
+        }
+        AgentManagementPage::Acp => {
+            app.acp_settings.loading = true;
+            app.acp_settings.save_error = None;
+            SettingsMessage::Acp(AcpMessage::Refresh)
+        }
+        AgentManagementPage::Mcp => {
+            app.mcp_settings.loading = true;
+            app.mcp_settings.save_error = None;
+            SettingsMessage::Mcp(McpMessage::Refresh)
+        }
+        AgentManagementPage::Plugins => {
+            app.skills_settings.plugin_loading = true;
+            SettingsMessage::PluginsRefresh
+        }
+        AgentManagementPage::Channels => {
+            app.channels_settings.save_error = None;
+            SettingsMessage::Channels(ChannelsMessage::Refresh)
+        }
+    };
+    Task::done(Message::Settings(refresh))
+}
+
+pub(crate) fn management_page(tab: AgentConfigTab) -> Option<AgentManagementPage> {
+    Some(match tab {
+        AgentConfigTab::Agents => AgentManagementPage::Agents,
+        AgentConfigTab::Acp => AgentManagementPage::Acp,
+        AgentConfigTab::Mcp => AgentManagementPage::Mcp,
+        AgentConfigTab::Plugins => AgentManagementPage::Plugins,
+        AgentConfigTab::Channels => AgentManagementPage::Channels,
+        _ => return None,
+    })
+}
 
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
 ///
@@ -38,6 +118,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::SystemTabSelected(SystemTab::Apps) => {
             crate::app::message::view::update(app, crate::app::message::ViewMessage::OpenThirdPartyAgents)
+        }
+        SettingsMessage::SystemTabSelected(SystemTab::Channels) => {
+            open_agent_management(app, Some(AgentManagementPage::Channels))
         }
         SettingsMessage::SystemTabSelected(tab) => {
             crate::app::components::third_party_settings::invalidate(app);
@@ -63,11 +146,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 SystemTab::Themes => {
                     app.general_settings.general_settings_tab = crate::app::state::GeneralSettingsTab::Themes;
                     SystemTab::General
-                }
-                SystemTab::Channels => {
-                    app.agents_settings.active_config_tab =
-                        crate::app::state::AgentConfigTab::Channels;
-                    SystemTab::Agents
                 }
                 SystemTab::Runtime => {
                     app.agents_settings.active_config_tab =
@@ -131,10 +209,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     ))),
                 ])
             } else if tab == SystemTab::Agents {
-                app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Agents;
-                app.agents_settings.loading = true;
-                app.agents_settings.save_error = None;
-                Task::done(Message::Settings(SettingsMessage::Agents(AgentsMessage::Refresh)))
+                update(
+                    app,
+                    SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
+                        AgentConfigTab::DialogueFlow,
+                    )),
+                )
             } else if tab == SystemTab::Browser {
                 app.browser_settings.save_error = None;
                 Task::done(Message::Settings(SettingsMessage::Browser(BrowserMessage::Refresh)))
@@ -149,9 +229,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             } else if tab == SystemTab::Memory {
                 app.memory_settings.save_error = None;
                 Task::done(Message::Settings(SettingsMessage::Memory(MemoryMessage::Refresh)))
-            } else if tab == SystemTab::Channels {
-                app.channels_settings.save_error = None;
-                Task::done(Message::Settings(SettingsMessage::Channels(ChannelsMessage::Refresh)))
             } else if tab == SystemTab::Gateway {
                 app.gateway_settings.save_error = None;
                 Task::done(Message::Settings(SettingsMessage::Gateway(GatewayMessage::Refresh)))
@@ -165,6 +242,30 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::SystemSearchTargetSelected(target) => {
             if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
                 return Task::none();
+            }
+            if let SystemSettingsSearchTarget::Agents(tab) = target
+                && let Some(page) = management_page(tab)
+            {
+                return open_agent_management(app, Some(page));
+            }
+            match target {
+                SystemSettingsSearchTarget::Channels(tab) => {
+                    let open = open_agent_management(app, Some(AgentManagementPage::Channels));
+                    let select = super::channels::update(
+                        app,
+                        SettingsMessage::Channels(ChannelsMessage::TabSelected(tab)),
+                    );
+                    return Task::batch([open, select]);
+                }
+                SystemSettingsSearchTarget::AgentMcp(tab) => {
+                    let open = open_agent_management(app, Some(AgentManagementPage::Mcp));
+                    let select = super::mcp::update(
+                        app,
+                        SettingsMessage::Mcp(McpMessage::TabSelected(tab)),
+                    );
+                    return Task::batch([open, select]);
+                }
+                _ => {}
             }
             let mut tasks = vec![update(app, SettingsMessage::SystemTabSelected(target.page()))];
 
@@ -188,18 +289,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app,
                     SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(tab)),
                 ),
-                SystemSettingsSearchTarget::Channels(tab) => {
-                    tasks.push(update(
-                        app,
-                        SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
-                            crate::app::state::AgentConfigTab::Channels,
-                        )),
-                    ));
-                    super::channels::update(
-                        app,
-                        SettingsMessage::Channels(ChannelsMessage::TabSelected(tab)),
-                    )
-                }
                 SystemSettingsSearchTarget::Memory(tab) => super::memory::update(
                     app,
                     SettingsMessage::Memory(MemoryMessage::TabSelected(tab)),
@@ -214,14 +303,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app,
                     SettingsMessage::Gateway(GatewayMessage::TabSelected(tab)),
                 ),
-                SystemSettingsSearchTarget::AgentMcp(tab) => {
-                    tasks.push(update(
-                        app,
-                        SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
-                            crate::app::state::AgentConfigTab::Mcp,
-                        )),
-                    ));
-                    super::mcp::update(app, SettingsMessage::Mcp(McpMessage::TabSelected(tab)))
+                SystemSettingsSearchTarget::Channels(_) | SystemSettingsSearchTarget::AgentMcp(_) => {
+                    unreachable!()
                 }
             };
             tasks.push(child_task);
@@ -260,29 +343,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         }
         SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(tab)) => {
+            if let Some(page) = management_page(tab) {
+                return open_agent_management(app, Some(page));
+            }
             app.agents_settings.active_config_tab = tab;
             app.navigation_panels.system_settings_help_tab = None;
             match tab {
-                crate::app::state::AgentConfigTab::Acp => {
-                    app.acp_settings.loading = true;
-                    app.acp_settings.save_error = None;
-                    Task::done(Message::Settings(SettingsMessage::Acp(AcpMessage::Refresh)))
-                }
-                crate::app::state::AgentConfigTab::Mcp => {
-                    app.mcp_settings.loading = true;
-                    app.mcp_settings.save_error = None;
-                    Task::done(Message::Settings(SettingsMessage::Mcp(McpMessage::Refresh)))
-                }
-                crate::app::state::AgentConfigTab::Plugins => {
-                    app.skills_settings.plugin_loading = true;
-                    Task::done(Message::Settings(SettingsMessage::PluginsRefresh))
-                }
-                crate::app::state::AgentConfigTab::Channels => {
-                    app.channels_settings.save_error = None;
-                    Task::done(Message::Settings(SettingsMessage::Channels(
-                        ChannelsMessage::Refresh,
-                    )))
-                }
                 crate::app::state::AgentConfigTab::Runtime => {
                     app.runtime_settings.save_error = None;
                     Task::done(Message::Settings(SettingsMessage::Runtime(RuntimeMessage::Refresh)))
@@ -295,8 +361,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.heartbeat_settings.save_error = None;
                     Task::none()
                 }
-                crate::app::state::AgentConfigTab::Agents
-                | crate::app::state::AgentConfigTab::QuickMessages => Task::none(),
+                AgentConfigTab::QuickMessages => Task::none(),
+                _ => unreachable!(),
             }
         }
         SettingsMessage::SystemTabQueryChanged(query) => {

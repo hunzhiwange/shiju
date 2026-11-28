@@ -13,7 +13,7 @@
 /// - `ModelRoutes` - 模型路由设置，配置模式到模型的映射
 /// - `QueryClassification` - 查询模型分类设置，配置匹配规则与模型路由目标
 /// - `Heartbeat` - 心跳设置，配置心跳检测参数
-/// - `Agents` - Agents 设置，配置 researcher / coder / reviewer 等委托代理
+/// - `Agents` - 对话流及相关运行配置
 /// - `Reliability` - 可靠性设置，配置容错与恢复机制
 /// - `Channels` - 通道设置，配置 CLI 与外部消息通道
 /// - `Memory` - 记忆设置，配置记忆后端和向量检索参数
@@ -62,7 +62,7 @@ pub enum SystemTab {
     Providers,
     /// 模型设置标签页
     Models,
-    /// 智能体配置标签页
+    /// 对话流配置标签页
     Agents,
     /// 通道配置标签页
     Channels,
@@ -115,7 +115,7 @@ impl SystemTab {
             SystemTab::TaskQuickActions => "快捷操作",
             SystemTab::Providers => "提供商",
             SystemTab::Models => "模型",
-            SystemTab::Agents => "智能体",
+            SystemTab::Agents => "对话流",
             SystemTab::Channels => "通道配置",
             SystemTab::Memory => "记忆配置",
             SystemTab::Runtime => "运行时配置",
@@ -197,7 +197,7 @@ pub fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
             &["providers", "api key", "model", "模型", "密钥", "base url", "catalog"]
         }
         SystemTab::Models => &["models", "llm", "ai", "provider"],
-        SystemTab::Agents => &["agents", "subagent", "智能体"],
+        SystemTab::Agents => &["conversation flow", "dialogue flow", "对话流"],
         SystemTab::Channels => &["channels", "message", "通道"],
         SystemTab::Memory => &["memory", "记忆"],
         SystemTab::Runtime => &["runtime", "native", "docker", "wasm", "运行时"],
@@ -238,7 +238,7 @@ pub const GROUPS: &[(&str, &[SystemTab])] = {
             "任务与工作流",
             &[TaskWorkflow, TaskLabels, TaskProperties, TaskQuickActions],
         ),
-        ("模型与智能体", &[Models, Providers, Agents, Memory]),
+        ("模型与对话流", &[Models, Providers, Agents, Memory]),
         ("网络与集成", &[GatewayClient, Gateway, WebSearch]),
         ("运行与安全", &[Security, Autonomy, Hooks, Observability]),
     ]
@@ -256,6 +256,30 @@ pub enum GeneralSettingsTab {
 #[cfg(test)]
 #[path = "settings_navigation_tests.rs"]
 mod tests;
+
+/// Tabs in the workspace agent management module.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AgentManagementPage {
+    Agents,
+    Acp,
+    Mcp,
+    Plugins,
+    Channels,
+}
+
+impl AgentManagementPage {
+    pub const ALL: [Self; 5] = [Self::Agents, Self::Acp, Self::Mcp, Self::Plugins, Self::Channels];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Agents => "智能体",
+            Self::Acp => "ACP",
+            Self::Mcp => "MCP",
+            Self::Plugins => "插件",
+            Self::Channels => "通道",
+        }
+    }
+}
 
 /// Pages within the third-party area; native agent settings retain their own targets.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

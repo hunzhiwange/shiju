@@ -49,7 +49,6 @@ pub enum Message {
     ProjectFileShowProjects,
     ProjectFileSaveAll,
     ToggleSystemSettings,
-    OpenAcpSettings,
     OpenSystemSettingsTab(SystemTab),
     OpenSystemSettingsModelDetail(String, String),
     ToggleAboutModal,
@@ -70,7 +69,6 @@ pub enum Effect {
     NewProject,
     SaveAllFiles,
     SystemSettingsVisibilityChanged(bool),
-    OpenAcpSettings,
     SelectSystemTab(SystemTab),
     OpenModelDetail(String, String),
     SavePreference(&'static str, serde_json::Value),
@@ -122,14 +120,6 @@ pub fn update(
             state.show_system_settings = !state.show_system_settings;
             state.system_settings_help_tab = None;
             return Some(Effect::SystemSettingsVisibilityChanged(state.show_system_settings));
-        }
-        Message::OpenAcpSettings => {
-            state.show_system_settings = true;
-            state.system_settings_help_tab = None;
-            state.active_menu = None;
-            app.popovers.acp = false;
-            state.system_settings_tab = SystemTab::Agents;
-            return Some(Effect::OpenAcpSettings);
         }
         Message::OpenSystemSettingsTab(tab) => {
             state.show_system_settings = true;

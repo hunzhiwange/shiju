@@ -55,6 +55,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ViewMessage::OpenProjects,
         app.navigation_tabs.screen == crate::app::Screen::Projects,
     ))
+    .push(session_row(
+        i18n.__("智能体"),
+        ViewMessage::OpenAgentManagement(None),
+        matches!(app.navigation_tabs.screen, crate::app::Screen::AgentManagement(_)),
+    ))
     .spacing(6)
     .width(Length::Fill);
     // 主操作仅使用已有项目，避免移动端新增第二条项目创建流程。

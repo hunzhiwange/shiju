@@ -69,6 +69,8 @@ impl Page {
                     .any(|tab| tab.id == *id && tab.screen == *screen)
                 {
                     ViewMessage::TabSelected(id.clone())
+                } else if let Screen::AgentManagement(page) = *screen {
+                    ViewMessage::OpenAgentManagement(Some(page))
                 } else if *screen == Screen::Apps {
                     // Opening a project automatically removes the Apps tab.
                     ViewMessage::OpenApps

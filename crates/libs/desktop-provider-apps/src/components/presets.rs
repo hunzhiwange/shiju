@@ -450,7 +450,6 @@ fn preset_label(key: &str) -> Option<&'static str> {
         "providerPreset.plan.enterpriseLite" => "企业轻量版",
         "providerPreset.plan.enterprisePro" => "企业专业版",
         "providerPreset.plan.stepPlan" => "Step Plan",
-        "providerPreset.plan.aksk" => "AK/SK",
         "providerPreset.plan.apiKey" => "API Key",
         _ => return None,
     })

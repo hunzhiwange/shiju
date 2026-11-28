@@ -111,7 +111,7 @@ fn apply(
     projection: CodexProjection,
 ) -> Result<DocumentMut, Error> {
     match &projection.route {
-        Route::Custom { table, .. } | Route::BuiltIn { table: Some(table), .. } => {
+        Route::Custom { table, .. } => {
             app_provider_validation::validation::native_request(
                 table.get("base_url"),
                 table.get("http_headers"),
@@ -216,11 +216,8 @@ fn apply(
             edits.set.push((path(&["model_provider"]), toml_edit::value("custom")));
             edits.set.push((path(&["model_providers", "custom"]), Item::Table(table)));
         }
-        Route::BuiltIn { id, table } => {
+        Route::BuiltIn { id } => {
             edits.set.push((path(&["model_provider"]), toml_edit::value(id.clone())));
-            if let Some(table) = table {
-                edits.set.push((path(&["model_providers", &id]), Item::Table(table)));
-            }
             edits.remove.push(path(&["model_providers", "custom", "experimental_bearer_token"]));
         }
         Route::Default => {

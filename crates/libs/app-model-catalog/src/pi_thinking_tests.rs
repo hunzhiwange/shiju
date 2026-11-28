@@ -76,14 +76,7 @@ fn catalog_pi_thinking_pairs_adaptive_compat_with_the_anthropic_binding() {
     );
     assert_eq!(anthropic["thinkingLevelMap"], json!({"off": null, "xhigh": "xhigh", "max": "max"}));
     assert_eq!(anthropic["compat"]["forceAdaptiveThinking"], true);
-    let bedrock = model(
-        "cc-switch-aws-bedrock",
-        "https://bedrock-runtime.us-east-1.amazonaws.com",
-        BedrockConverseStream,
-        "global.anthropic.claude-opus-5",
-    );
-    assert_eq!(bedrock["thinkingLevelMap"], json!({"xhigh": "xhigh", "max": "max"}));
-    assert!(bedrock["compat"].get("forceAdaptiveThinking").is_none());
+
 }
 
 #[test]

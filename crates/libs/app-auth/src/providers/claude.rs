@@ -21,6 +21,11 @@ fn valid(value: &str, max: usize) -> Result<(), WriteError> {
     }
     Ok(())
 }
+/// Legacy records are readable for catalog management but cannot be activated.
+pub fn is_retired_profile(row: &Value) -> bool {
+    row.pointer("/claude/config/kind").and_then(Value::as_str) == Some("bedrock")
+}
+
 /// Explicit config variants do not pass through legacy required-key validation.
 pub fn settings(profile: &ClaudeProfile) -> Result<Value, WriteError> {
     valid(&profile.name, 128)?;
@@ -44,22 +49,6 @@ pub fn settings(profile: &ClaudeProfile) -> Result<Value, WriteError> {
                 if *api_key_header { "ANTHROPIC_API_KEY" } else { "ANTHROPIC_AUTH_TOKEN" },
                 api_key,
             )?;
-        }
-        ClaudeConfig::Bedrock { region, auth } => {
-            put("CLAUDE_CODE_USE_BEDROCK", "1")?;
-            put("AWS_REGION", region)?;
-            match auth {
-                BedrockAuth::DefaultChain {} => {}
-                BedrockAuth::Bearer { token } => put("AWS_BEARER_TOKEN_BEDROCK", token)?,
-                BedrockAuth::Profile { name } => put("AWS_PROFILE", name)?,
-                BedrockAuth::Keys { access_key_id, secret_access_key, session_token } => {
-                    put("AWS_ACCESS_KEY_ID", access_key_id)?;
-                    put("AWS_SECRET_ACCESS_KEY", secret_access_key)?;
-                    if let Some(token) = session_token {
-                        put("AWS_SESSION_TOKEN", token)?;
-                    }
-                }
-            }
         }
         ClaudeConfig::Vertex { project, region, credentials_file } => {
             put("CLAUDE_CODE_USE_VERTEX", "1")?;
@@ -143,22 +132,7 @@ pub fn import(name: &str, bytes: &[u8]) -> Result<ClaudeProfile, WriteError> {
     let required = |k: &str| string(k).ok_or(WriteError::InvalidResource);
     let truthy =
         |k: &str| env.get(k).is_some_and(|v| v == "1" || v == "true" || v == true || v == 1);
-    let config = if truthy("CLAUDE_CODE_USE_BEDROCK") {
-        let auth = if let Some(token) = string("AWS_BEARER_TOKEN_BEDROCK") {
-            BedrockAuth::Bearer { token }
-        } else if let Some(access_key_id) = string("AWS_ACCESS_KEY_ID") {
-            BedrockAuth::Keys {
-                access_key_id,
-                secret_access_key: required("AWS_SECRET_ACCESS_KEY")?,
-                session_token: string("AWS_SESSION_TOKEN"),
-            }
-        } else if let Some(name) = string("AWS_PROFILE") {
-            BedrockAuth::Profile { name }
-        } else {
-            BedrockAuth::DefaultChain {}
-        };
-        ClaudeConfig::Bedrock { region: required("AWS_REGION")?, auth }
-    } else if truthy("CLAUDE_CODE_USE_VERTEX") {
+    let config = if truthy("CLAUDE_CODE_USE_VERTEX") {
         ClaudeConfig::Vertex {
             project: required("ANTHROPIC_VERTEX_PROJECT_ID")?,
             region: required("CLOUD_ML_REGION")?,

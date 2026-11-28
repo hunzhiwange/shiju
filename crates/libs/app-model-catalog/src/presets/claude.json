@@ -1087,44 +1087,6 @@
     }
   },
   {
-    "appId": "claude",
-    "provider": {
-      "name": "AWS Bedrock (AKSK)",
-      "websiteUrl": "https://aws.amazon.com/bedrock/",
-      "category": "cloud_provider",
-      "family": "aws-bedrock",
-      "planKey": "aksk",
-      "icon": "aws",
-      "iconColor": "#FF9900",
-      "baseUrl": "https://bedrock-runtime.${AWS_REGION}.amazonaws.com"
-    },
-    "models": {
-      "model": "global.anthropic.claude-opus-5",
-      "haikuModel": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
-      "sonnetModel": "global.anthropic.claude-sonnet-5",
-      "opusModel": "global.anthropic.claude-opus-5"
-    }
-  },
-  {
-    "appId": "claude",
-    "provider": {
-      "name": "AWS Bedrock (API Key)",
-      "websiteUrl": "https://aws.amazon.com/bedrock/",
-      "category": "cloud_provider",
-      "family": "aws-bedrock",
-      "planKey": "apiKey",
-      "icon": "aws",
-      "iconColor": "#FF9900",
-      "baseUrl": "https://bedrock-runtime.${AWS_REGION}.amazonaws.com"
-    },
-    "models": {
-      "model": "global.anthropic.claude-opus-5",
-      "haikuModel": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
-      "sonnetModel": "global.anthropic.claude-sonnet-5",
-      "opusModel": "global.anthropic.claude-opus-5"
-    }
-  },
-  {
     "appId": "claude-desktop",
     "provider": {
       "name": "Claude Desktop Official",

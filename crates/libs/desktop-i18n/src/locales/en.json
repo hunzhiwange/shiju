@@ -8081,8 +8081,6 @@
   "纯文本模型预判": "Detect text-only models",
   "额外根据内置纯文本模型列表在发送前替换图片。": "Also replace images before sending when a model is on the built-in text-only list.",
   "连接执行主机后可配置请求整流。": "Connect to an execution host to configure request repair.",
-  "Bedrock 请求优化器": "Bedrock request optimizer",
-  "Bedrock 供应商目前仅支持直连，路由请求优化不可用。": "Bedrock providers currently use direct connections. Routing optimizations are unavailable.",
   "读取聚合目录": "Read aggregation catalog",
   "路由 · 请求由路由服务转发，可配置备用队列。": "Routing · Requests pass through the routing service with an optional fallback queue.",
   "路由管理可用后，可按应用调整故障转移策略。": "When routing management is available, adjust failover policies per app.",

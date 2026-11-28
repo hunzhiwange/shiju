@@ -143,6 +143,8 @@ pub fn patch(
     if let Some(model) = model {
         let Some((provider, model_id)) = model.split_once('/') else { return invalid() };
         if provider != id
+            || rows.get(provider)
+                .is_some_and(|profile| super::uses_retired_bedrock(&profile.declaration))
             || model_id.is_empty()
             || model.len() > 1024
             || model.chars().any(char::is_control)
@@ -156,6 +158,9 @@ pub fn patch(
         }
         patch.set.push((vec!["model".into()], json!(model)));
     } else if let Some(declaration) = declaration {
+        if super::uses_retired_bedrock(declaration) {
+            return invalid();
+        }
         validate(&OpenCodeProfile { name: id.into(), format, declaration: declaration.clone() })?;
         if format == OpenCodeFormat::V1 {
             if rows.get(id).is_some_and(|p| p.format == OpenCodeFormat::V2) {

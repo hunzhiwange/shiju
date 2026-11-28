@@ -65,7 +65,6 @@ pub enum PiPresetProtocol {
     OpenaiResponses,
     AnthropicMessages,
     GoogleGenerativeAi,
-    BedrockConverseStream,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

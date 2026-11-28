@@ -1,6 +1,6 @@
 //! Cache 断点注入器
 //!
-//! 在请求转发前自动注入 cache_control 标记，启用 Bedrock Prompt Caching
+//! 在请求转发前自动注入 cache_control 标记，为 Messages 请求启用提示词缓存
 
 use serde_json::{Value, json};
 

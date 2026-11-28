@@ -43,7 +43,6 @@ static PROVIDER_ICONS: Lazy<HashMap<&'static str, svg::Handle>> = Lazy::new(|| {
     insert_provider!(m, "aihubmix");
     insert_provider!(m, "alibaba");
     insert_provider!(m, "alibaba-cn");
-    insert_provider!(m, "amazon-bedrock");
     insert_provider!(m, "anthropic");
     insert_provider!(m, "azure");
     insert_provider!(m, "azure-cognitive-services");

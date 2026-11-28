@@ -635,7 +635,7 @@ features = [
     "302ai", "abacus", "abliteration-ai", "above", "agentrouter", "agnes", "ai-router", "ai21",
     "aiand", "aihubmix", "aimlapi", "ainetcafe", "aixy", "aki-io", "alibaba", "alibaba-cn",
     "alibaba-coding-plan", "alibaba-coding-plan-cn", "alibaba-token-plan", "alibaba-token-plan-cn",
-    "amazon-bedrock", "ambient", "amd", "anthropic", "anyapi", "arcee", "atomic-chat", "auriko",
+    "ambient", "amd", "anthropic", "anyapi", "arcee", "atomic-chat", "auriko",
     "bailing", "baseten", "bee", "berget", "blueclaw", "bothub", "boundless", "chutes", "clarifai",
     "claudinio", "cline-pass", "cloudferro-sherlock", "cloudflare-ai-gateway",
     "cloudflare-workers-ai", "commandcode", "coralbricks", "cortecs", "crof", "crossmodel",

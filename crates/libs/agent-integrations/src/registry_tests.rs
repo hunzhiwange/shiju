@@ -573,7 +573,7 @@ fn available_and_always_active_ai_entries_are_stable() {
     let entries = all_integrations();
     let config = Config::default();
 
-    for name in ["Amazon Bedrock", "Together AI", "Fireworks AI", "Cohere"] {
+    for name in ["Together AI", "Fireworks AI", "Cohere"] {
         assert_eq!(
             (entry(&entries, name).status_fn)(&config),
             IntegrationStatus::Available,

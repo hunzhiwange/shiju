@@ -112,6 +112,8 @@ pub fn bundled_models(label: &str) -> HashMap<String, Provider> {
 /// Supplement independently from the Shiju-only overlay. This is also applied to
 /// disk snapshots and refreshes; source bytes are never rewritten with local facts.
 pub fn merge_bundled_protocols(providers: &mut HashMap<String, Provider>) {
+    // Also exclude the retired integration after loading a cache or remote refresh.
+    providers.retain(|id, provider| id != "amazon-bedrock" && provider.id != "amazon-bedrock");
     protocol_catalog::merge(providers);
 }
 

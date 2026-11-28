@@ -8,8 +8,6 @@ enum CodexResolvedAuthMode {
     Headers,
     AgentIdentity,
     PersonalAccessToken,
-    BedrockApiKey,
-    BedrockAccessKeys,
     /// An `auth_mode` string Codex's serde rejects (`rename_all =
     /// "lowercase"` plus explicit camelCase renames, exact match): the whole
     /// file fails to load, which Codex reports as signed out.
@@ -59,19 +57,15 @@ fn codex_auth_resolved_mode(auth: &serde_json::Map<String, Value>) -> CodexResol
             Some("headers") => CodexResolvedAuthMode::Headers,
             Some("agentIdentity") => CodexResolvedAuthMode::AgentIdentity,
             Some("personalAccessToken") => CodexResolvedAuthMode::PersonalAccessToken,
-            Some("bedrockApiKey") => CodexResolvedAuthMode::BedrockApiKey,
-            Some("bedrockAccessKeys") => CodexResolvedAuthMode::BedrockAccessKeys,
             _ => CodexResolvedAuthMode::Unrecognized,
         };
     }
     if present("personal_access_token") {
         return CodexResolvedAuthMode::PersonalAccessToken;
     }
-    if present("bedrock_api_key") {
-        return CodexResolvedAuthMode::BedrockApiKey;
-    }
-    if present("bedrock_access_keys") {
-        return CodexResolvedAuthMode::BedrockAccessKeys;
+    // A stale OpenAI key must not take precedence over a retired native auth mode.
+    if present("bedrock_api_key") || present("bedrock_access_keys") {
+        return CodexResolvedAuthMode::Unrecognized;
     }
     if present("OPENAI_API_KEY") {
         return CodexResolvedAuthMode::ApiKey;
@@ -104,8 +98,6 @@ pub(super) fn codex_auth_has_openai_account_material(auth: &Value) -> bool {
             })
         }
         CodexResolvedAuthMode::Headers
-        | CodexResolvedAuthMode::BedrockApiKey
-        | CodexResolvedAuthMode::BedrockAccessKeys
         | CodexResolvedAuthMode::Unrecognized => false,
     }
 }

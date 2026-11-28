@@ -4,10 +4,6 @@
     "name": "Astron"
   },
   {
-    "id": "aws-bedrock",
-    "name": "AWS Bedrock"
-  },
-  {
     "id": "baidu-qianfan",
     "name": "Baidu Qianfan"
   },

@@ -61,7 +61,7 @@ fn catalog_presets_pi_keeps_exact_deployments_isolated() {
 fn catalog_presets_pi_retains_native_protocols_and_plan_roots() {
     use PiPresetProtocol::*;
     assert_eq!(pi("cc-switch-right-code").settings_config.api, OpenaiResponses);
-    assert_eq!(pi("cc-switch-aws-bedrock").settings_config.api, BedrockConverseStream);
+    assert!(pi_preset(AppId::Pi, "cc-switch-aws-bedrock").is_none());
     let plans: BTreeMap<_, _> = pi_presets(AppId::Pi)
         .filter(|row| row.family.as_deref() == Some("volcengine"))
         .map(|row| (row.settings_config.base_url.as_str(), row.plan_key.unwrap()))
@@ -109,9 +109,9 @@ fn catalog_presets_pi_keeps_reviewed_compat_and_capabilities() {
 #[test]
 fn catalog_presets_pi_lists_complete_managed_catalog() {
     let rows: Vec<_> = pi_presets(AppId::Pi).collect();
-    assert_eq!(rows.len(), 115);
+    assert_eq!(rows.len(), 114);
     assert_eq!(rows[0].provider_key, "cc-switch-kimi");
-    assert_eq!(rows.iter().map(|row| row.settings_config.models.len()).sum::<usize>(), 416);
+    assert_eq!(rows.iter().map(|row| row.settings_config.models.len()).sum::<usize>(), 410);
     let mut keys = HashSet::new();
     for row in rows {
         assert!(row.provider_key.starts_with("cc-switch-"));

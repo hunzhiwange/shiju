@@ -3912,45 +3912,6 @@
   },
   {
     "appId": "opencode",
-    "name": "AWS Bedrock",
-    "websiteUrl": "https://aws.amazon.com/bedrock/",
-    "category": "cloud_provider",
-    "icon": "aws",
-    "iconColor": "#FF9900",
-    "npm": "@ai-sdk/amazon-bedrock",
-    "models": [
-      {
-        "id": "global.anthropic.claude-opus-5",
-        "name": "Claude Opus 5",
-        "reasoning": true
-      },
-      {
-        "id": "global.anthropic.claude-sonnet-5",
-        "name": "Claude Sonnet 5",
-        "reasoning": true
-      },
-      {
-        "id": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
-        "name": "Claude Haiku 4.5",
-        "reasoning": true
-      },
-      {
-        "id": "us.amazon.nova-pro-v1:0",
-        "name": "Amazon Nova Pro"
-      },
-      {
-        "id": "us.meta.llama4-maverick-17b-instruct-v1:0",
-        "name": "Meta Llama 4 Maverick"
-      },
-      {
-        "id": "us.deepseek.r1-v1:0",
-        "name": "DeepSeek R1",
-        "reasoning": true
-      }
-    ]
-  },
-  {
-    "appId": "opencode",
     "name": "Ollama",
     "websiteUrl": "https://ollama.com",
     "category": "local",
@@ -11992,51 +11953,6 @@
         }
       }
     }
-  },
-  {
-    "appId": "openclaw",
-    "name": "AWS Bedrock",
-    "websiteUrl": "https://aws.amazon.com/bedrock/",
-    "category": "cloud_provider",
-    "icon": "aws",
-    "iconColor": "#FF9900",
-    "api": "bedrock-converse-stream",
-    "baseUrl": "https://bedrock-runtime.us-west-2.amazonaws.com",
-    "models": [
-      {
-        "id": "anthropic.claude-opus-5",
-        "name": "Claude Opus 5",
-        "contextWindow": 1000000,
-        "cost": {
-          "input": 5,
-          "output": 25,
-          "cacheRead": 0.5,
-          "cacheWrite": 6.25
-        }
-      },
-      {
-        "id": "anthropic.claude-sonnet-5",
-        "name": "Claude Sonnet 5",
-        "contextWindow": 1000000,
-        "cost": {
-          "input": 3,
-          "output": 15,
-          "cacheRead": 0.3,
-          "cacheWrite": 3.75
-        }
-      },
-      {
-        "id": "anthropic.claude-haiku-4-5-20251022-v1:0",
-        "name": "Claude Haiku 4.5",
-        "contextWindow": 200000,
-        "cost": {
-          "input": 0.8,
-          "output": 4,
-          "cacheRead": 0.08,
-          "cacheWrite": 1
-        }
-      }
-    ]
   },
   {
     "appId": "openclaw",

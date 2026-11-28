@@ -503,15 +503,6 @@ pub(super) fn rectifier(
     if available && let Some(error) = &state.error {
         body = body.push(settings_error_banner(i18n.__(error).to_owned()));
     }
-    body = body.push(settings_divider()).push(
-        column![
-            settings_field_label(i18n.__("Bedrock 请求优化器")),
-            text(i18n.__("Bedrock 供应商目前仅支持直连，路由请求优化不可用。"))
-                .size(13)
-                .style(settings_muted_text_style),
-        ]
-        .spacing(5),
-    );
     column![text(i18n.__("请求整流")).size(18), settings_group_card(body).padding([16, 0]),]
         .spacing(12)
         .into()

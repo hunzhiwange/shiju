@@ -12,11 +12,9 @@ fn foreign_catalog(doc: &DocumentMut) -> Option<&TomlValue> {
     })
 }
 /// Codex 内置的 provider id（大小写敏感，和上游一致：`OpenAI` 是合法的自定义 id）。
-const BUILT_IN_IDS: &[&str] =
-    &["amazon-bedrock", "amazon-bedrock-runtime", "openai", "ollama", "lmstudio"];
-/// 这几个 id 的表会让 Codex 0.148 起整份拒绝加载（bedrock 两个允许覆盖）。
+const BUILT_IN_IDS: &[&str] = &["openai", "ollama", "lmstudio"];
+/// 这几个 id 的表会让 Codex 0.148 起整份拒绝加载。
 const RESERVED_TABLE_IDS: &[&str] = &["openai", "ollama", "lmstudio"];
-const BEDROCK_IDS: &[&str] = &["amazon-bedrock", "amazon-bedrock-runtime"];
 /// 顶层的关键字段里，直接取行里值的那几个（选路、凭据、模型目录指针另算）。
 pub const ROW_TOP_FIELDS: &[&str] = &[
     "model",
@@ -37,7 +35,7 @@ pub enum RouteAuth {
     EnvKey,
     /// CC Switch 把 Key 写成表的 `experimental_bearer_token`。
     Bearer,
-    /// 表自己带鉴权（`auth` 命令、`aws`、`Authorization` 头、查询参数），不注入 Key。
+    /// 表自己带鉴权（`auth` 命令、`Authorization` 头、查询参数），不注入 Key。
     Headers,
     /// 没有凭据（本地服务等）。
     None,
@@ -63,8 +61,8 @@ pub enum Route {
     /// 第三方：写成 `[model_providers.custom]`。`table` 已带上 Key，`requires_openai_auth`
     /// 在写入时按 [`requires_openai_auth`] 现算。
     Custom { table: Table, auth: RouteAuth },
-    /// 选中 Codex 内置的其他 provider（ollama、lmstudio、bedrock），bedrock 可以带覆盖表。
-    BuiltIn { id: String, table: Option<Table> },
+    /// 选中 Codex 内置的其他 provider（ollama、lmstudio）。
+    BuiltIn { id: String },
     /// 第三方行里没有任何路由（只有 model、MCP 之类）：不写选路。
     Default,
 }
@@ -186,7 +184,7 @@ fn declared_auth(table: &dyn TableLike) -> Option<RouteAuth> {
     if table.get("env_key").is_some() {
         return Some(RouteAuth::EnvKey);
     }
-    if table.get("auth").is_some() || table.get("aws").is_some() {
+    if table.get("auth").is_some() {
         return Some(RouteAuth::Headers);
     }
     let requires = table_bool(table, "requires_openai_auth");
@@ -206,6 +204,9 @@ fn third_party_route(doc: &DocumentMut, input: &RowInput<'_>) -> Result<Route, E
     }
     let providers = doc.get("model_providers").and_then(Item::as_table_like);
     let selector = non_empty_str(doc.get("model_provider"));
+    if matches!(selector.as_deref(), Some("amazon-bedrock" | "amazon-bedrock-runtime")) {
+        return Err(Error::Shape);
+    }
     let row_table = |id: &str| providers.and_then(|p| p.get(id)).and_then(to_table);
 
     let (table, fallback_name) = match selector.as_deref() {
@@ -240,10 +241,13 @@ fn third_party_route(doc: &DocumentMut, input: &RowInput<'_>) -> Result<Route, E
                 }
                 None => return default_route(doc, input),
             },
-            None => return built_in_route("openai", providers, doc, input),
+            None => return built_in_route("openai", doc, input),
         },
-        Some(id) => return built_in_route(id, providers, doc, input),
+        Some(id) => return built_in_route(id, doc, input),
     };
+    if table.contains_key("aws") {
+        return Err(Error::Shape);
+    }
     custom_route(table, &fallback_name, doc, input)
 }
 
@@ -309,7 +313,6 @@ fn custom_route(
 
 fn built_in_route(
     id: &str,
-    providers: Option<&dyn TableLike>,
     doc: &DocumentMut,
     input: &RowInput<'_>,
 ) -> Result<Route, Error> {
@@ -320,11 +323,7 @@ fn built_in_route(
             None => Err(keyless_fallback_error()),
         };
     }
-    let table = BEDROCK_IDS
-        .contains(&id)
-        .then(|| providers.and_then(|p| p.get(id)).and_then(to_table))
-        .flatten();
-    Ok(Route::BuiltIn { id: id.to_string(), table })
+    Ok(Route::BuiltIn { id: id.to_string() })
 }
 
 fn no_token_slot_error() -> Error {

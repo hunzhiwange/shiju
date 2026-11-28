@@ -580,7 +580,7 @@ fn shiju_official_models_preserve_documented_limits_and_modalities() {
 #[test]
 fn model_protocol_008_complete_catalogs_preserve_declaration_counts() {
     for (text, expected) in [
-        (BUNDLED_MODELS_TEXT, (230, 8909, 230, 840, 618, 508, 103)),
+        (BUNDLED_MODELS_TEXT, (326, 9865, 326, 875, 634, 612, 100)),
         (BUNDLED_SHIJU_MODELS_TEXT, (1, 40, 0, 0, 0, 0, 0)),
     ] {
         let source: Value = serde_json::from_str(text).unwrap();
@@ -613,12 +613,6 @@ fn model_protocol_008_real_catalog_overrides_remain_distinct() {
     let anthropic = &providers["anthropic"];
     let model = anthropic.models.values().next().unwrap();
     assert_eq!(from_models_dev_model(anthropic, model).api.adapter, "anthropic");
-    let bedrock = &providers["amazon-bedrock"];
-    let model = &bedrock.models["openai.gpt-oss-120b"];
-    assert_eq!(from_models_dev_model(bedrock, model).api.adapter, "@ai-sdk/amazon-bedrock/mantle");
-    let declaration = model.provider.as_ref().unwrap();
-    assert_eq!(declaration.api.as_deref(), Some("https://bedrock-mantle.${AWS_REGION}.api.aws/v1"));
-    assert_eq!(declaration.shape.as_deref(), Some("responses"));
     let alibaba = &providers["alibaba-cn"];
     let model = &alibaba.models["qwen-omni-turbo-realtime"];
     assert_eq!(
@@ -665,15 +659,9 @@ fn model_protocol_010_overlay_respects_custom_and_explicit_empty_deployments() {
 fn model_protocol_010_sdk_defaults_and_deployment_templates_remain_distinct() {
     let catalog = bundled_models("sdk_defaults");
     assert_eq!(catalog["anthropic"].api.as_deref(), Some("https://api.anthropic.com/v1"));
-    assert!(catalog["amazon-bedrock"].api.is_none());
+    assert!(!catalog.contains_key("amazon-bedrock"));
     assert!(catalog["azure"].api.is_none());
-    let model = from_models_dev_model(
-        &catalog["amazon-bedrock"],
-        catalog["amazon-bedrock"].models.values().next().unwrap(),
-    );
-    assert_eq!(model.api.adapter, "@ai-sdk/amazon-bedrock");
-    assert!(model.api.protocols.is_none());
     let asset: Value =
         serde_json::from_str(include_str!("../assets/model/protocols.json")).unwrap();
-    assert_eq!(asset["sdk_default_reviews"].as_object().unwrap().len(), 25);
+    assert_eq!(asset["sdk_default_reviews"].as_object().unwrap().len(), 24);
 }

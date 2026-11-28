@@ -92,8 +92,8 @@ fn catalog_presets_opencode_openclaw_preserves_openclaw_model_refs_and_unknowns(
 }
 
 #[test]
-fn catalog_presets_opencode_openclaw_lists_every_source_preset_and_model() {
-    for (app, preset_count, model_count) in [(OpenCode, 110, 338), (OpenClaw, 122, 383)] {
+fn catalog_presets_opencode_openclaw_lists_supported_presets_and_models() {
+    for (app, preset_count, model_count) in [(OpenCode, 109, 332), (OpenClaw, 121, 380)] {
         let rows: Vec<_> = opencode_openclaw_presets(app).collect();
         assert_eq!(rows.len(), preset_count);
         assert_eq!(rows.first().unwrap().name, "Kimi");
@@ -108,10 +108,8 @@ fn catalog_presets_opencode_openclaw_lists_every_source_preset_and_model() {
             );
         }
     }
-    let bedrock = preset(OpenCode, "AWS Bedrock");
-    assert_eq!(bedrock.npm.as_deref(), Some("@ai-sdk/amazon-bedrock"));
-    assert!(bedrock.models.iter().any(|model| model.id == "global.anthropic.claude-opus-5"));
-    assert!(bedrock.model_at_endpoint("", "global.anthropic.claude-opus-5").is_none());
+    assert!(opencode_openclaw_preset(OpenCode, "AWS Bedrock").is_none());
+    assert!(opencode_openclaw_preset(OpenClaw, "AWS Bedrock").is_none());
     assert!(opencode_openclaw_preset(OpenClaw, "Oh My OpenCode").is_none());
     assert!(opencode_openclaw_presets(AppId::Codex).next().is_none());
 }

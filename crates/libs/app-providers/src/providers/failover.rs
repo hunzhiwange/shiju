@@ -42,6 +42,9 @@ pub fn snapshot(
 fn classify(app: AppId, row: &Value) -> Result<(String, ProviderAuth), String> {
     use ProviderAuth::{OfficialAccount, ThirdParty, Unknown};
     const INVALID: &str = "invalid saved application provider profile";
+    if app == AppId::Claude && super::claude::is_retired_profile(row) {
+        return Ok((row["name"].as_str().ok_or(INVALID)?.into(), Unknown));
+    }
     let native = match app {
         AppId::Claude => row.get("claude").map(|value| {
             let profile: ClaudeProfile =

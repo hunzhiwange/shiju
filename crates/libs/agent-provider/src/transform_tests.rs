@@ -49,8 +49,6 @@ fn provider_options_maps_all_supported_adapter_keys() {
         ("acp", "openai"),
         ("agent-client-protocol", "openai"),
         ("agent_client_protocol", "openai"),
-        ("amazon-bedrock", "bedrock"),
-        ("bedrock", "bedrock"),
         ("anthropic", "anthropic"),
         ("google-vertex/anthropic", "anthropic"),
         ("google-vertex", "google"),

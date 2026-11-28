@@ -168,7 +168,7 @@ use vw_api_app_provider_environment::paths::*;
     assert_eq!(std::fs::read(f.file()).unwrap(), original);
 }
 #[tokio::test]
-async fn cc04_claude_sdk_api_switches_four_variants_and_cleans_credentials() {
+async fn cc04_claude_sdk_api_switches_supported_variants_and_cleans_credentials() {
     let f = Fixture::new().await;
     let variants = [
         (
@@ -177,17 +177,6 @@ async fn cc04_claude_sdk_api_switches_four_variants_and_cleans_credentials() {
                 base_url: "https://fixture.example".into(),
                 api_key: "fake-third-key".into(),
                 api_key_header: false,
-            },
-        ),
-        (
-            "bedrock",
-            ClaudeConfig::Bedrock {
-                region: "us-west-2".into(),
-                auth: BedrockAuth::Keys {
-                    access_key_id: "fake-id".into(),
-                    secret_access_key: "fake-secret".into(),
-                    session_token: Some("fake-session".into()),
-                },
             },
         ),
         (
@@ -243,7 +232,7 @@ async fn cc04_claude_sdk_api_switches_four_variants_and_cleans_credentials() {
             .list(&TenantScope::new("p", "a").unwrap(), AppId::Claude)
             .unwrap()
             .len()
-            == 4
+            == 3
     );
 }
 #[tokio::test]
@@ -359,9 +348,10 @@ use vw_api_app_provider_base::create::ProviderSecretWrite;
         ClaudeLiveResult::Applied
     );
     let edit = f.request(
-        ClaudeConfig::Bedrock {
-            region: "us-west-2".into(),
-            auth: BedrockAuth::Bearer { token: "fake-child-cloud".into() },
+        ClaudeConfig::Vertex {
+            project: "fixture-project".into(),
+            region: "us-east5".into(),
+            credentials_file: None,
         },
         ClaudeActivation::IfCurrent,
     );
@@ -380,8 +370,8 @@ use vw_api_app_provider_base::create::ProviderSecretWrite;
     assert!(result.catalog_saved);
     assert_eq!(result.live, ClaudeLiveResult::Applied);
     assert_eq!(f.live()["env"]["ANTHROPIC_AUTH_TOKEN"], "fake-updated-key");
-    assert!(f.live()["env"].get("AWS_BEARER_TOKEN_BEDROCK").is_none());
-    assert!(f.live()["env"].get("CLAUDE_CODE_USE_BEDROCK").is_none());
+    assert!(f.live()["env"].get("ANTHROPIC_VERTEX_PROJECT_ID").is_none());
+    assert!(f.live()["env"].get("CLAUDE_CODE_USE_VERTEX").is_none());
     assert_eq!(f.state()["pointer"]["id"], "universal-claude-parent");
     assert!(f.record("universal-codex-parent").is_none());
 }
@@ -439,9 +429,10 @@ async fn cc04_claude_first_activation_creates_missing_config_and_catalog_default
     assert!(!f.root.path().join(".claude").exists());
     assert!(!f.root.path().join("private/provider-live").exists());
     let mut request = f.request(
-        ClaudeConfig::Bedrock {
-            region: "us-west-2".into(),
-            auth: BedrockAuth::Bearer { token: "fake-bearer".into() },
+        ClaudeConfig::ThirdParty {
+            base_url: "https://fixture.example".into(),
+            api_key: "fake-provider-key".into(),
+            api_key_header: false,
         },
         ClaudeActivation::CatalogOnly,
     );
@@ -456,7 +447,7 @@ async fn cc04_claude_first_activation_creates_missing_config_and_catalog_default
         gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).claude_provider_save("saved", &request, TOKEN).await.unwrap().live,
         ClaudeLiveResult::Applied
     );
-    assert_eq!(f.live()["env"]["AWS_BEARER_TOKEN_BEDROCK"], "fake-bearer");
+    assert_eq!(f.live()["env"]["ANTHROPIC_AUTH_TOKEN"], "fake-provider-key");
 }
 #[tokio::test]
 async fn cc04_claude_committed_exclusives_survive_catalog_edits_until_switch_cleans_them() {

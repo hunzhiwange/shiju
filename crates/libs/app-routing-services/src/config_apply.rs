@@ -107,7 +107,14 @@ impl RoutingConfigStore {
 
     pub fn rectifier(&self) -> Result<RectifierConfig> {
         let payload = self.settings.get(&self.tenant, RECTIFIER, &self.host)?;
-        Ok(payload.as_deref().map(serde_json::from_str).transpose()?.unwrap_or_default())
+        let Some(payload) = payload else {
+            return Ok(RectifierConfig::default());
+        };
+        let mut settings: serde_json::Value = serde_json::from_str(&payload)?;
+        if let Some(settings) = settings.as_object_mut() {
+            settings.remove("bedrockOptimizer");
+        }
+        Ok(serde_json::from_value(settings)?)
     }
 
     pub fn save_rectifier(&self, config: RectifierConfig) -> Result<()> {

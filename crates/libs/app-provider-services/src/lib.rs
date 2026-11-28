@@ -420,6 +420,14 @@ impl AppProviderStore {
         if app == AppId::Claude
             && let Some(row) = self.claude_record(tenant, id)?
                 && let Some(config) = row.get("claude") {
+                    if vw_agent_apps::providers::claude::is_retired_profile(&row) {
+                        return Ok(AppProviderSummary {
+                            app_id: app,
+                            id: id.into(),
+                            name: row["name"].as_str().ok_or("invalid provider record")?.into(),
+                            configured: false,
+                        });
+                    }
                     let profile: vw_api_app_provider_base::claude::ClaudeProfile =
                         serde_json::from_value(config.clone())
                             .map_err(|_| "invalid stored application provider profile")?;

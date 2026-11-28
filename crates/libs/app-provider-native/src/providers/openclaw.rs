@@ -133,6 +133,8 @@ pub fn patch(
             return invalid();
         };
         if provider != id
+            || rows.get(id)
+                .is_some_and(|profile| super::uses_retired_bedrock(&profile.declaration))
             || !model_id(model)
             || model_key.is_empty()
             || !rows
@@ -160,6 +162,9 @@ pub fn patch(
             ));
         }
     } else if let Some(declaration) = declaration {
+        if super::uses_retired_bedrock(declaration) {
+            return invalid();
+        }
         validate(&OpenClawProfile { name: id.into(), declaration: declaration.clone() })?;
         declaration_patch(
             &mut patch,

@@ -31,6 +31,16 @@ pub fn claude_with_residue(
                 .map_err(|_| Error::Shape)?;
         }
     }
+    let retired_selector = ["/env/CLAUDE_CODE_USE_BEDROCK", "/env/CLAUDE_CODE_USE_MANTLE"]
+        .iter()
+        .any(|path| row.pointer(path).is_some_and(|value| {
+            value == true
+                || value == 1
+                || value.as_str().is_some_and(|s| s == "1" || s.eq_ignore_ascii_case("true"))
+        }));
+    if retired_selector {
+        return Err(Error::Shape);
+    }
     if live.get("env").is_some_and(|v| !v.is_object()) {
         return Err(Error::Shape);
     }
@@ -67,14 +77,6 @@ pub fn claude_with_residue(
         if fields::claude_floor_env(&k) || fields::claude_exclusive_env(&k) {
             out.insert(k, v);
         }
-    }
-    let truthy = out.get("CLAUDE_CODE_USE_BEDROCK").is_some_and(|v| {
-        v == true
-            || v == 1
-            || v.as_str().is_some_and(|s| matches!(s.to_ascii_lowercase().as_str(), "1" | "true"))
-    });
-    if truthy && let Some(key) = root.remove("apiKey") {
-        out.entry("AWS_BEARER_TOKEN_BEDROCK").or_insert(key);
     }
     if !out.is_empty() || live.get("env").is_some() || row.get("env").is_some() {
         root.insert("env".into(), out.into());

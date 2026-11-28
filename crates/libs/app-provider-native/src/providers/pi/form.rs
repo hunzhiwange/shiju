@@ -216,7 +216,11 @@ pub(super) fn directory_declaration(
     let previous = previous.unwrap_or(&EMPTY);
     let next = merge_public_fields(submitted.clone(), previous)?;
     check_transport(previous, &next, true)?;
-    Ok(Value::Object(next))
+    let declaration = Value::Object(next);
+    if super::super::uses_retired_bedrock(&declaration) {
+        return invalid();
+    }
+    Ok(declaration)
 }
 
 fn merge_public_fields(

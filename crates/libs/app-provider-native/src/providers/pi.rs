@@ -68,6 +68,9 @@ pub fn patch(
     let rows = declarations(pre)?;
     let mut patch = JsonPatch::default();
     if let Some(declaration) = declaration {
+        if super::uses_retired_bedrock(declaration) {
+            return invalid();
+        }
         validate(&PiProfile { name: id.into(), declaration: declaration.clone() })?;
         if activation == PiActivation::Add {
             if let Some(existing) = rows.get(id) {

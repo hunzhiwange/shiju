@@ -24,7 +24,6 @@ pub enum PresetPlan {
     EnterpriseLite,
     EnterprisePro,
     StepPlan,
-    Aksk,
     ApiKey,
 }
 
@@ -39,7 +38,6 @@ impl PresetPlan {
             Self::EnterpriseLite => "providerPreset.plan.enterpriseLite",
             Self::EnterprisePro => "providerPreset.plan.enterprisePro",
             Self::StepPlan => "providerPreset.plan.stepPlan",
-            Self::Aksk => "providerPreset.plan.aksk",
             Self::ApiKey => "providerPreset.plan.apiKey",
         }
     }

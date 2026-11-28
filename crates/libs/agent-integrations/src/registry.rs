@@ -458,12 +458,6 @@ pub fn all_integrations() -> Vec<IntegrationEntry> {
             },
         },
         IntegrationEntry {
-            name: "Amazon Bedrock",
-            description: "Claude Sonnet 4.5 and Bedrock model catalog",
-            category: IntegrationCategory::AiModel,
-            status_fn: |_c| IntegrationStatus::Available,
-        },
-        IntegrationEntry {
             name: "Qianfan",
             description: "ERNIE 4.x and Qianfan model catalog",
             category: IntegrationCategory::AiModel,

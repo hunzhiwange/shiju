@@ -18911,47 +18911,6 @@
       },
       "implementation_boundary": "Dedicated SDK/auth/project/region/local deployment requires explicit binding; unknown SDK identity remains unchanged. Protocol selection task 11, transport wiring task 12, coverage task 20 must track unresolved rows."
     },
-    "amazon-bedrock": {
-      "npm": "@ai-sdk/amazon-bedrock",
-      "default_api": null,
-      "report": "docs/dev/model-protocols/research/group-01.json",
-      "assessment": {
-        "provider_id": "amazon-bedrock",
-        "evidence_ids": [
-          "amazon-bedrock",
-          "aws-responses",
-          "aws-converse"
-        ],
-        "service_request_protocols": [
-          "responses"
-        ],
-        "service_endpoints": {
-          "responses": "https://bedrock-mantle.${AWS_REGION}.api.aws/v1/responses"
-        },
-        "auth": "Converse/InvokeModel AWS SigV4与IAM；Responses官方Bedrock API key或支持的AWS签名；OpenAI key不能使用",
-        "deployment": "AWS_REGION、模型或跨区inference profile、IAM权限与服务可用性必填；常规SDK为Converse/InvokeModel，不能将Claude模型当作公开Messages入口。Mantle /openai/v1与/v1按模型核实。",
-        "model_sources": [
-          "amazon-bedrock",
-          "aws-responses"
-        ],
-        "capability_notes": {
-          "streaming": "ConverseStream为AWS事件流；Responses为SSE，JSON响应与终态不能共用解析。",
-          "tools": "Converse toolConfig/toolResult及Responses function项分别映射；模型支持矩阵与并行能力待确认。",
-          "thinking": "Converse reasoningContent签名/模型参数与Responses reasoning项不同；禁止丢弃回放块。"
-        },
-        "protocol_assessment": {
-          "chat": "资料不足；未确认该协议，不能解释为明确不支持",
-          "messages": "资料不足；未确认该协议，不能解释为明确不支持",
-          "responses": "官方确认服务级入口；模型是否适用见逐行结论",
-          "gemini": "资料不足；未确认该协议，不能解释为明确不支持"
-        },
-        "unresolved_questions": [
-          "本次无账号真实推理调用；需按启用模型完成认证、绑定、工具续轮和流终态验收。",
-          "同协议入口存在不证明请求的全部能力可表达；未知思考/媒体/结构化字段不得静默降级。"
-        ]
-      },
-      "implementation_boundary": "Dedicated SDK/auth/project/region/local deployment requires explicit binding; unknown SDK identity remains unchanged. Protocol selection task 11, transport wiring task 12, coverage task 20 must track unresolved rows."
-    },
     "anthropic": {
       "npm": "@ai-sdk/anthropic",
       "default_api": "https://api.anthropic.com/v1",

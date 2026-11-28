@@ -351,7 +351,6 @@ fn normalize_adapter(s: &str) -> &str {
 /// |-----------|---------|
 /// | github-copilot | copilot |
 /// | openai, openai-compatible, azure | openai |
-/// | amazon-bedrock, bedrock | bedrock |
 /// | anthropic, google-vertex/anthropic | anthropic |
 /// | google-vertex, google | google |
 /// | gateway | gateway |
@@ -365,7 +364,6 @@ fn adapter_key(adapter: &str) -> Option<&'static str> {
         | "acp"
         | "agent-client-protocol"
         | "agent_client_protocol" => Some("openai"),
-        "amazon-bedrock" | "bedrock" => Some("bedrock"),
         "anthropic" | "google-vertex/anthropic" => Some("anthropic"),
         "google-vertex" | "google" => Some("google"),
         "gateway" => Some("gateway"),

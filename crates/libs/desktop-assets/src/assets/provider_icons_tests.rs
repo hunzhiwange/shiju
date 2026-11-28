@@ -9,7 +9,6 @@ const EXPECTED_PROVIDER_IDS: &[&str] = &[
     "aihubmix",
     "alibaba",
     "alibaba-cn",
-    "amazon-bedrock",
     "anthropic",
     "azure",
     "azure-cognitive-services",

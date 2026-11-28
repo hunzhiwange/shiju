@@ -19,10 +19,10 @@ fn cc04_claude_switch_preserves_user_fields() {
     assert!(std::str::from_utf8(&after).unwrap().contains("\"hooks\": {\"x\":true}"));
 }
 #[test]
-fn cc04_claude_outgoing_exclusives_are_value_guarded_and_legacy_bedrock_is_normalized() {
+fn cc04_claude_outgoing_exclusives_are_value_guarded() {
     let previous = json!({"env":{"CLAUDE_CODE_DISABLE_ARTIFACT":"1","ENABLE_TOOL_SEARCH":"0"}});
     let live = json!({"env":{"CLAUDE_CODE_DISABLE_ARTIFACT":"1","ENABLE_TOOL_SEARCH":"user","CLAUDE_CODE_USE_NATIVE_FILE_SEARCH":"1"}});
-    let target = json!({"apiKey":"fake-bedrock","env":{"CLAUDE_CODE_USE_BEDROCK":"1","AWS_REGION":"us-west-2"}});
+    let target = json!({"env":{}});
     let after: Value = serde_json::from_slice(
         &claude::patch(Some(live.to_string().as_bytes()), Some(&previous), &target).unwrap(),
     )
@@ -30,12 +30,11 @@ fn cc04_claude_outgoing_exclusives_are_value_guarded_and_legacy_bedrock_is_norma
     assert!(after["env"].get("CLAUDE_CODE_DISABLE_ARTIFACT").is_none());
     assert_eq!(after["env"]["ENABLE_TOOL_SEARCH"], "user");
     assert_eq!(after["env"]["CLAUDE_CODE_USE_NATIVE_FILE_SEARCH"], "1");
-    assert_eq!(after["env"]["AWS_BEARER_TOKEN_BEDROCK"], "fake-bedrock");
     assert!(after.get("apiKey").is_none());
 }
 #[test]
 fn cc04_claude_import_rejects_unrepresented_auth_instead_of_silently_dropping_it() {
-    assert!(claude::import("bad",br#"{"env":{"CLAUDE_CODE_USE_VERTEX":"1","CLAUDE_CODE_USE_BEDROCK":"1","AWS_REGION":"us-west-2"}}"#).is_err());
+    assert!(claude::import("bad",br#"{"env":{"CLAUDE_CODE_USE_BEDROCK":"1","AWS_REGION":"us-west-2"}}"#).is_err());
     assert!(claude::import("bad", br#"{"apiKeyHelper":"command","env":{}}"#).is_err());
     assert!(claude::import("official", br#"{"hooks":{},"env":{}}"#).is_ok());
 }

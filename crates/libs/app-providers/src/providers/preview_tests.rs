@@ -91,7 +91,7 @@ fn fixture(root: &std::path::Path, relative: &str, text: &str) {
     std::fs::write(p, text).unwrap();
 }
 #[test]
-fn cc04_preview_claude_preserves_user_exclusive_values_and_converts_bedrock() {
+fn cc04_preview_claude_preserves_user_exclusive_values() {
     let root = tempfile::tempdir().unwrap();
     fixture(
         root.path(),
@@ -104,9 +104,7 @@ fn cc04_preview_claude_preserves_user_exclusive_values_and_converts_bedrock() {
         ),
         ..Default::default()
     };
-    let req = request(
-        json!({"apiKey":"bedrock-secret","env":{"CLAUDE_CODE_USE_BEDROCK":"1","AWS_REGION":"fixture-region"}}),
-    );
+    let req = request(json!({"env":{}}));
     let before = snapshot(root.path());
     let view = preview::read(root.path(), AppId::Claude, &req, &owner).unwrap();
     let env = &view.settings["env"];
@@ -114,7 +112,6 @@ fn cc04_preview_claude_preserves_user_exclusive_values_and_converts_bedrock() {
     assert!(env.get("CLAUDE_CODE_MAX_CONTEXT_TOKENS").is_none());
     assert!(env.get("ANTHROPIC_AUTH_TOKEN").is_none());
     assert_eq!(env["ENABLE_TOOL_SEARCH"], "[redacted]");
-    assert_eq!(env["AWS_BEARER_TOKEN_BEDROCK"], "[redacted]");
     assert!(view.settings.get("apiKey").is_none());
     assert_eq!(env["CLAUDE_CODE_USE_POWERSHELL_TOOL"], "[redacted]");
     assert_eq!(snapshot(root.path()), before);
@@ -185,7 +182,6 @@ fn cc04_preview_codex_builtins_official_and_parse_locations_are_explicit() {
     let root = tempfile::tempdir().unwrap();
     for config in [
         "model_provider='ollama'\nmodel='local'\n",
-        "model_provider='amazon-bedrock'\n[model_providers.amazon-bedrock]\nregion='fixture'\n",
         "model='m'\n",
     ] {
         let v =
@@ -193,6 +189,8 @@ fn cc04_preview_codex_builtins_official_and_parse_locations_are_explicit() {
         assert!(v.unavailable.is_none());
         assert!(v.parse_error.is_none());
     }
+    let removed = request(json!({"auth":{},"config":"model_provider='amazon-bedrock'"}));
+    assert!(read(root.path(), AppId::Codex, &removed).is_err());
     let mut req = request(json!({"auth":{},"config":"model='m'"}));
     req.category = Some("official".into());
     assert_eq!(

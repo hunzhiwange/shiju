@@ -7,9 +7,9 @@ use vw_api_app_identity::{AppId};
 #[test]
 fn catalog_presets_omp_lists_complete_native_catalog() {
     let rows: Vec<_> = omp_presets(AppId::Omp).collect();
-    assert_eq!(rows.len(), 115);
+    assert_eq!(rows.len(), 114);
     assert_eq!(rows[0].provider_key, "cc-switch-kimi");
-    assert_eq!(rows.iter().map(|row| row.settings_config.models.len()).sum::<usize>(), 416);
+    assert_eq!(rows.iter().map(|row| row.settings_config.models.len()).sum::<usize>(), 410);
     for row in rows {
         let mut declaration = to_value(&row.settings_config).unwrap();
         assert!(declaration.get("name").is_none(), "{}", row.provider_key);

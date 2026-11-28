@@ -87,7 +87,7 @@ pub fn content(
             );
         }
     }
-    settings_panel(body).into()
+    settings_section_content(body).into()
 }
 
 pub fn rows(i18n: desktop_i18n::I18n, catalog: &McpCatalogResponse) -> Vec<String> {

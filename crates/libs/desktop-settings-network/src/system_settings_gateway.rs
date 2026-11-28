@@ -264,7 +264,7 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
             .size(13)
             .style(settings_muted_text_style),
         )
-        .padding([16, 22])
+        .padding([16, 0])
         .into()
     } else {
         let list = s.skeys.iter().enumerate().fold(
@@ -342,7 +342,7 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
         .width(Length::Fill)
         .max_height(list_height);
 
-        settings_group_card(scrollable_list).padding([16, 15]).into()
+        settings_group_card(scrollable_list).padding([16, 0]).into()
     };
 
     let webhook_rate_row = number_row(

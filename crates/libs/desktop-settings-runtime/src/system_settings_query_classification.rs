@@ -8,8 +8,7 @@ use crate::help::*;
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, icon_btn, primary_action_btn_style, rounded_action_btn_style,
-    settings_checkbox_style,  settings_group_card,
-     settings_muted_text_style,
+    settings_checkbox_style, settings_divider, settings_group_card, settings_muted_text_style,
     settings_panel, settings_section_content, settings_select, settings_text_input,
 };
 use desktop_i18n::I18n;
@@ -199,9 +198,9 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
             ]
             .spacing(12),
         )
-        .padding([10, 22]);
+        .padding([10, 0]);
 
-        list = list.push(card);
+        list = list.push(settings_divider()).push(card);
     }
 
     list.into()

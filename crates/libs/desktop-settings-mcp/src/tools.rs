@@ -40,7 +40,7 @@ pub fn panel(
             );
         }
     }
-    settings_panel(body).into()
+    settings_section_content(body).into()
 }
 
 pub fn card<'a>(

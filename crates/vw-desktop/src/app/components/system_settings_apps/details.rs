@@ -18,12 +18,15 @@ pub(crate) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a AppsCatalogState, ap
     .spacing(8);
     let mut cross = column![].spacing(12);
     if let Some(scope) = vw_api_project_profiles::ProjectProfileScope::for_app(id) {
-        cross = cross.push(settings_panel(
+        cross = cross.push(settings_section_content(
             crate::app::components::project_profile_selection::view(i18n, &state.project_profiles, scope),
         ));
     }
     cross = cross
-        .push(settings_panel(column![text(i18n.__("路由与诊断")).size(16), routing.wrap()].spacing(10)));
+        .push(settings_divider())
+        .push(settings_section_content(
+            column![text(i18n.__("路由与诊断")).size(16), routing.wrap()].spacing(10),
+        ));
     let mut tools = row![
         button(text(i18n.__("管理提示词")).size(SETTINGS_CONTROL_TEXT_SIZE))
             .padding([8, 12])
@@ -74,6 +77,6 @@ pub(crate) fn view<'a>(i18n: desktop_i18n::I18n, state: &'a AppsCatalogState, ap
             .push(crate::app::components::hermes_memory::view(i18n, &state.hermes_memory))
             .push(crate::app::components::hermes_dashboard::view(i18n, &state.hermes_dashboard));
     }
-    cross = cross.push(settings_panel(app_tools));
+    cross = cross.push(settings_divider()).push(settings_section_content(app_tools));
     desktop_settings_apps::system_settings_apps::details::view(i18n, &super::view_state(state), app, cross.into(), super::uninstall::MANUAL_GUIDANCE, super::domain_event)
 }

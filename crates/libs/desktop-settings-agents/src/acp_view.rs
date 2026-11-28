@@ -8,7 +8,7 @@ use desktop_ui_controls::system_settings_common::{
     settings_icon_tile_style,
     settings_modal_card_style, settings_modal_header, settings_modal_layout,
     settings_modal_overlay, settings_muted_text_style, settings_panel, settings_panel_style, settings_success_banner, settings_text_input,
-    settings_select, settings_success_banner_style, settings_value_badge,
+    settings_section_content, settings_select, settings_success_banner_style, settings_value_badge,
 };
 use desktop_i18n::I18n;
 use iced::widget::{Space, button, column, container, responsive, row, scrollable, text};
@@ -469,15 +469,17 @@ pub fn new_agent_form(input: Input<'_>) -> Element<'_, Event> {
         body = body.push(settings_error_banner(error));
     }
     body = body
-        .push(settings_panel(
+        .push(settings_section_content(
             column![
                 form_field(tr("名称（已有名称不可修改）"), name),
                 form_field(tr("启动命令"), command)
             ]
             .spacing(12),
         ))
-        .push(settings_panel(arguments))
-        .push(settings_panel(environment));
+        .push(settings_divider())
+        .push(settings_section_content(arguments))
+        .push(settings_divider())
+        .push(settings_section_content(environment));
     let title = tr(if state.editing_agent.is_some() { "编辑 ACP" } else { "新增 ACP" });
     let header = settings_modal_header(
         column![
@@ -624,7 +626,7 @@ pub fn view(input: Input<'_>) -> Element<'_, Event> {
             ]
             .spacing(10),
         )
-        .padding([14, 16]),
+        .padding([14, 0]),
     ]
     .spacing(16)
     .width(Length::Fill);

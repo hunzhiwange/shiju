@@ -158,9 +158,9 @@ pub fn view<'a>(routes: &'a [crate::state::ModelRoute], style: ViewStyle<'a>) ->
             ]
             .spacing(12),
         )
-        .padding([10, 22]);
+        .padding([10, 0]);
 
-        list = list.push(card);
+        list = list.push(settings_divider()).push(card);
     }
     list.into()
 }

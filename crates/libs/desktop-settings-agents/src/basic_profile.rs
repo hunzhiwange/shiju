@@ -140,7 +140,6 @@ pub fn view<'a>(
         container(column![name, description, prompts, settings_divider(), runtime].spacing(14))
             .padding([14, 0]),
     )
-    .padding([0, 16])
     .into()
 }
 fn action(label: &'static str, value: Option<AgentsMessage>) -> Element<'static, Event> {

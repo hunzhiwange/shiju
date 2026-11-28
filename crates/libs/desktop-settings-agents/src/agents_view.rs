@@ -41,7 +41,7 @@ pub fn agents_view(input: Input<'_>) -> Element<'_, Event> {
                 ]
                 .spacing(10),
             )
-            .padding([16, 16]),
+            .padding([16, 0]),
         ]
         .spacing(14)
         .width(Length::Fill)

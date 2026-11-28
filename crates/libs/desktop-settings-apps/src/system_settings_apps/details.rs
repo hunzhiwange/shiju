@@ -162,7 +162,7 @@ pub fn view<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
                 .style(rounded_action_btn_style)
                 .on_press(message(Action::Download)));
     }
-    column![settings_panel(details), cross_domain].spacing(12).width(Length::Fill).into()
+    column![settings_section_content(details), cross_domain].spacing(12).width(Length::Fill).into()
 }
 
 fn path_field<'a, M: 'a>(label: &'a str, path: &'a str) -> Element<'a, M> {

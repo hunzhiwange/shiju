@@ -251,7 +251,7 @@ pub fn view<'a>(
         ]
         .spacing(6),
         settings_group_card(column![model, settings_divider(), permission].spacing(12))
-            .padding([14, 16]),
+            .padding([14, 0]),
         error.map(|error| settings_error_banner(desktop_i18n::settings_extensions::feedback(
             i18n, &error
         ))),

@@ -79,7 +79,7 @@ pub fn settings_page_heading<'a, Message: Clone + 'a>(
     .into()
 }
 
-/// 圆角设置分组上方的标题与说明。
+/// 设置分组上方的标题与说明。
 pub fn settings_group_heading<'a, Message: Clone + 'a>(
     title: &'a str,
     description: &'a str,
@@ -89,28 +89,8 @@ pub fn settings_group_heading<'a, Message: Clone + 'a>(
         .into()
 }
 
-/// 页面说明在问号卡片内显示，保留页面标题的字号。
-/// 分组说明在问号卡片内显示，保留分组标题的字号。
-///
-/// 承载带分隔线的设置行，横向留白与行内间距独立。
-pub fn settings_group_card<'a, Message: Clone + 'a>(
-    content: impl Into<Element<'a, Message>>,
-) -> iced::widget::Container<'a, Message> {
-    container(content.into()).padding([0, 22]).width(Length::Fill).style(settings_group_card_style)
-}
-
-fn settings_group_card_style(theme: &Theme) -> container::Style {
-    let palette = theme.extended_palette();
-    container::Style {
-        background: Some(palette.background.base.color.into()),
-        border: Border {
-            color: palette.background.strong.color.scale_alpha(0.55),
-            width: 1.0,
-            radius: 18.0.into(),
-        },
-        ..Default::default()
-    }
-}
+/// 设置行与分组标题共用内容边缘，行间可用 `settings_divider` 分隔。
+pub use self::settings_section_content as settings_group_card;
 
 /// 将说明放在标签下方，并使控件与文字区垂直居中。
 pub fn settings_row<'a, Message: Clone + 'a>(
@@ -728,7 +708,6 @@ pub fn settings_error_banner_style(theme: &Theme) -> iced::widget::container::St
     }
 }
 
-    'theme,
 pub fn settings_success_banner_style(theme: &Theme) -> iced::widget::container::Style {
     let palette = theme.extended_palette();
     iced::widget::container::Style {
@@ -749,6 +728,7 @@ pub fn settings_success_banner_style(theme: &Theme) -> iced::widget::container::
 
 pub fn settings_page_heading_with_help<
     'a,
+    'theme,
     Message: crate::selectable_text::markdown_selection::SelectionMessage + 'static,
 >(
     i18n: desktop_i18n::I18n,

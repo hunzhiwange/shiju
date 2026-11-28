@@ -63,7 +63,7 @@ pub fn build_start_variable_option_editor<'a>(
             ]
             .spacing(8),
         )
-        .padding(12)
+        .padding([12, 0])
         .into(),
     )
 }

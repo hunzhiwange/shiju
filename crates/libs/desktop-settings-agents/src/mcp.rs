@@ -138,7 +138,7 @@ pub fn view<'a>(
             label("默认 MCP"),
             label("继承当前会话工作区启用的服务；固定空列表不启用默认 MCP。这里只选择服务，不配置连接或凭据。"),
         ),
-        settings_group_card(body).padding([14, 16]),
+        settings_group_card(body).padding([14, 0]),
         super::defaults::validation_error(&input.defaults, draft).map(|error| settings_error_banner(desktop_i18n::settings_extensions::feedback(i18n, &error))),
     ]
     .spacing(8)

@@ -475,8 +475,8 @@ pub fn view<'a>(
             ]
             .spacing(8)
         )
-        .padding([14, 16]),
-        settings_group_card(scope_filter).padding([14, 16]),
+        .padding([14, 0]),
+        settings_group_card(scope_filter).padding([14, 0]),
         skills_list,
     ]
     .spacing(14)

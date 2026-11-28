@@ -166,5 +166,5 @@ pub fn panel<'a>(
             }
         }
     }
-    settings_panel(body).into()
+    settings_section_content(body).into()
 }

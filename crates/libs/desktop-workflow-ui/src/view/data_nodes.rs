@@ -49,7 +49,7 @@ pub fn build_variable_assigner_section<'a>(
                 ]
                 .spacing(8),
             )
-            .padding(12),
+            .padding([12, 0]),
         );
     }
     content
@@ -89,7 +89,7 @@ pub fn build_variable_aggregator_section<'a>(
                 .spacing(8)
                 .align_y(Alignment::Center),
             )
-            .padding(12),
+            .padding([12, 0]),
         );
     }
     content
@@ -150,7 +150,7 @@ pub fn build_list_operator_section<'a>(
                 .spacing(8)
                 .align_y(Alignment::Center),
             )
-            .padding(12),
+            .padding([12, 0]),
         );
     }
     content

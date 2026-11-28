@@ -147,7 +147,7 @@ pub fn panel(i18n: desktop_i18n::I18n, state: Option<ResyncView<'_>>) -> Element
             }
         }
     }
-    settings_panel(body).into()
+    settings_section_content(body).into()
 }
 
 fn batch_label(outcome: McpBatchOutcome) -> &'static str {

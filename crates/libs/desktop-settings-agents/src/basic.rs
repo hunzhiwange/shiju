@@ -131,7 +131,7 @@ pub fn view<'a>(
                 tr(input.locale, "可用性"),
                 tr(input.locale, "控制该智能体是否作为可用 Agent 暴露。")
             ),
-            settings_group_card(enabled_row).padding([14, 16]),
+            settings_group_card(enabled_row).padding([14, 0]),
         ]
         .spacing(8)
     });
@@ -296,7 +296,7 @@ pub fn view<'a>(
                 ]
                 .spacing(12),
             )
-            .padding([14, 16]),
+            .padding([14, 0]),
         ]
         .spacing(8)
         .into()
@@ -330,7 +330,7 @@ pub fn view<'a>(
             ]
             .spacing(12),
         )
-        .padding([14, 16])
+        .padding([14, 0])
     });
 
     column![

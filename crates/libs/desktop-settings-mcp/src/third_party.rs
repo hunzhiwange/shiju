@@ -106,13 +106,13 @@ pub fn view<'a>(i18n: desktop_i18n::I18n, input: View<'a, '_>) -> Element<'a, Me
     let catalog = match result {
         Some(Ok(catalog)) => catalog,
         Some(Err(error)) => {
-            return settings_panel(body.push(settings_error_banner(
+            return settings_section_content(body.push(settings_error_banner(
                 desktop_i18n::settings_extensions::feedback(i18n, &error.clone()),
             )))
             .into();
         }
         None => {
-            return settings_panel(
+            return settings_section_content(
                 body.push(
                     text(if loading {
                         i18n.__("正在加载共享 MCP 目录")
@@ -152,7 +152,7 @@ pub fn view<'a>(i18n: desktop_i18n::I18n, input: View<'a, '_>) -> Element<'a, Me
         );
     }
     if let Some(reason) = scope.app_id.and_then(crate::distribution::unsupported_reason) {
-        return settings_panel(body.push(text(i18n.__(reason)).style(settings_muted_text_style)))
+        return settings_section_content(body.push(text(i18n.__(reason)).style(settings_muted_text_style)))
             .into();
     }
     let supported = scope.app_id.is_none_or(|id| crate::distribution::supported(catalog, selected, id));
@@ -257,5 +257,5 @@ pub fn view<'a>(i18n: desktop_i18n::I18n, input: View<'a, '_>) -> Element<'a, Me
             &error.clone(),
         )));
     }
-    settings_panel(body).into()
+    settings_section_content(body).into()
 }

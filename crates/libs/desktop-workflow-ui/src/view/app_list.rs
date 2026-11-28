@@ -489,7 +489,7 @@ pub fn build_saved_app_run_prompt_dialog(
     if let Some(error) = &prompt.error {
         body = body.push(settings_error_banner(error.render(i18n)));
     }
-    let body = body.push(settings_group_card(form).padding(14));
+    let body = body.push(settings_group_card(form).padding([14, 0]));
 
     let footer = row![
         Space::new().width(Length::Fill),

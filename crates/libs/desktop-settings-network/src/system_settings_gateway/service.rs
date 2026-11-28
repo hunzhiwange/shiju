@@ -158,7 +158,7 @@ pub(super) fn service_controls_content<'a>(app: View<'a>) -> Element<'a, Message
         );
     }
 
-    settings_group_card(content).padding([16, 22]).into()
+    settings_group_card(content).padding([16, 0]).into()
 }
 
 pub fn service_display_label(

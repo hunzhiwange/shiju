@@ -30,7 +30,7 @@ where
         ]
         .spacing(6),
     )
-    .padding(10)
+    .padding([10, 0])
     .into()
 }
 
@@ -76,7 +76,7 @@ where
                 ]
                 .spacing(8),
             )
-            .padding(10),
+            .padding([10, 0]),
         );
     }
     list.push(

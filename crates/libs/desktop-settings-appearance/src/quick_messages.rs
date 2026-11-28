@@ -2,7 +2,7 @@
 
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
-    settings_group_card, settings_muted_text_style,
+    settings_divider, settings_group_card, settings_muted_text_style,
     settings_section_content, settings_select, settings_text_input,
 };
 use desktop_i18n::I18n;
@@ -178,7 +178,7 @@ pub fn view<'a>(app: &View<'a>, help: HelpRenderer<Message>) -> Element<'a, Mess
         );
     } else {
         for index in 0..app.quick_messages.len() {
-            items = items.push(item_view(app, index));
+            items = items.push(settings_divider()).push(item_view(app, index));
         }
     }
 

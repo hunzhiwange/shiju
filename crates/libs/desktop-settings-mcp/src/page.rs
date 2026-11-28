@@ -166,7 +166,7 @@ fn search_toolbar<'a, Message: Clone + 'a>(
         .spacing(12)
         .align_y(Alignment::Center),
     )
-    .padding([12, 16])
+    .padding([12, 0])
     .into()
 }
 
@@ -350,7 +350,7 @@ pub fn view<'a, Message: Clone + 'static>(
                     .spacing(12)
                     .width(Length::Fill),
                 )
-                .padding([14, 16]),
+                .padding([14, 0]),
             );
         }
         McpSettingsTab::Extensions => {

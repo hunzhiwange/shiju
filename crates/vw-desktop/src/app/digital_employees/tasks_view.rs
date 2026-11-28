@@ -1312,7 +1312,7 @@ fn draft_view<'a>(i18n: desktop_i18n::I18n, center: &'a Center, draft: &'a Draft
     if let Some(error) = center.directory_error.as_ref() {
         settings = settings.push(settings_error_banner(error.render(i18n)));
     }
-    let settings = settings_group_card(settings).padding([16, 18]);
+    let settings = settings_group_card(settings).padding([16, 0]);
     let form: Item<'_> = if narrow {
         column![content, settings].spacing(18).into()
     } else {

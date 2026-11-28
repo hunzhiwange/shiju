@@ -512,7 +512,7 @@ pub(super) fn rectifier(
         ]
         .spacing(5),
     );
-    column![text(i18n.__("请求整流")).size(18), settings_group_card(body).padding([16, 22]),]
+    column![text(i18n.__("请求整流")).size(18), settings_group_card(body).padding([16, 0]),]
         .spacing(12)
         .into()
 }

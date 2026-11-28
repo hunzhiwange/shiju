@@ -123,7 +123,7 @@ pub fn build_app_editor_modal<'a, Message: Clone + Send + 'static>(
             i18n.__("表单结构参考 Dify 应用设置页，先整理名称、图标和描述。")
         )
         .wrap(),
-        settings_group_card(fields).padding(14),
+        settings_group_card(fields).padding([14, 0]),
     ]
     .spacing(12);
     let card = settings_modal_layout(header, body, Some(footer.into()))

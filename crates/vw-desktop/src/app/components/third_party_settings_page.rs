@@ -121,7 +121,7 @@ fn routing_apps(app: &App) -> Element<'_, Message> {
     if let Some(note) = note {
         list = list.push(text(note).size(13).style(settings_muted_text_style));
     }
-    column![text(heading).size(18), settings_group_card(list).padding([14, 22])].spacing(12).into()
+    column![text(heading).size(18), settings_group_card(list).padding([14, 0])].spacing(12).into()
 }
 
 fn failover(app: &App) -> Element<'_, Message> {
@@ -158,7 +158,7 @@ fn failover(app: &App) -> Element<'_, Message> {
         text(i18n.__("自动故障转移")).size(18),
         text(agent_apps_high_availability_policy::overview(i18n)).size(13).into(),
     );
-    column![heading, settings_group_card(content).padding([18, 22])].spacing(12).into()
+    column![heading, settings_group_card(content).padding([18, 0])].spacing(12).into()
 }
 
 fn routing_app_name(id: AppId) -> &'static str {

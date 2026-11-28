@@ -357,7 +357,7 @@ pub(super) fn preview<'a>(i18n: I18n, draft: &CronJobDraft, editing: bool) -> El
     })
     .height(Length::Shrink);
     let mut output =
-        column![settings_group_card(summary).padding([16, 18])].spacing(14).width(Length::Fill);
+        column![settings_group_card(summary).padding([16, 0])].spacing(14).width(Length::Fill);
     match &draft.preview {
         Some(Ok(preview)) if preview.candidates.is_empty() => {
             output = output.push(preview_hint(i18n.__("无未来触发，请修改规则或有效期。")));
@@ -369,7 +369,7 @@ pub(super) fn preview<'a>(i18n: I18n, draft: &CronJobDraft, editing: bool) -> El
             for value in preview.candidates.iter().take(5) {
                 times = times.push(settings_divider()).push(preview_time(value, &current.timezone));
             }
-            output = output.push(settings_group_card(times).padding([0, 18]));
+            output = output.push(settings_group_card(times));
         }
         Some(Err(error)) => {
             let detail = desktop_i18n::__!(i18n, "预览失败：%s", i18n.__(error.as_str()))
@@ -395,7 +395,7 @@ fn preview_property<'a>(label: &'a str, value: String) -> Element<'a, Message> {
 
 fn preview_hint(message: &'static str) -> Element<'static, Message> {
     settings_group_card(text(message).size(13).style(settings_muted_text_style))
-        .padding([14, 18])
+        .padding([14, 0])
         .into()
 }
 

@@ -87,7 +87,7 @@ pub fn build_http_request_section<'a>(
             ]
             .spacing(10)
         )
-        .padding(12),
+        .padding([12, 0]),
         settings_group_card(
             column![
                 build_editor_field(
@@ -121,7 +121,7 @@ pub fn build_http_request_section<'a>(
             ]
             .spacing(12)
         )
-        .padding(12),
+        .padding([12, 0]),
         row![
             build_editor_field_validated(
                 i18n.__("连接超时"),

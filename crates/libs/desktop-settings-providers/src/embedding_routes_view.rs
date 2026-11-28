@@ -5,7 +5,7 @@
 
 use desktop_ui_controls::system_settings_common::{
     danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
-    settings_error_banner, settings_group_card,
+    settings_divider, settings_error_banner, settings_group_card,
     settings_muted_text_style,
     settings_panel, settings_section_content,
     settings_success_banner, settings_text_input,
@@ -262,9 +262,9 @@ pub fn embedded_view<'a>(s: &'a EmbeddingRoutesSettingsState, style: ViewStyle<'
             ]
             .spacing(12),
         )
-        .padding([10, 22]);
+        .padding([10, 0]);
 
-        content = content.push(card);
+        content = content.push(settings_divider()).push(card);
     }
 
     content = content.push(

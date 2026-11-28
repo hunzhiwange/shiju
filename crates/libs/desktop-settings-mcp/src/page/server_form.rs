@@ -122,7 +122,7 @@ pub fn new_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessage) -> M
     if let Some(error) = server_save_error(locale, s) {
         body = body.push(settings_error_banner(error));
     }
-    body = body.push(settings_panel(fields));
+    body = body.push(settings_section_content(fields));
 
     let heading =
         help(i18n, theme, title, text(title).size(20), description.into())

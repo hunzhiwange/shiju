@@ -33,7 +33,7 @@ pub(super) fn server_list<'a, Message: Clone + 'static>(
         return settings_group_card(
             container(muted(tr(locale, empty_label))).center_x(Length::Fill),
         )
-        .padding([28, 16])
+        .padding([28, 0])
         .into();
     }
     let mut list = column![

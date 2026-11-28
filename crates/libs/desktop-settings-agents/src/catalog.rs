@@ -88,7 +88,6 @@ pub fn controls(input: Input<'_>) -> Element<'_, Event> {
         )
         .padding([14, 0]),
     )
-    .padding([0, 16])
     .into()
 }
 

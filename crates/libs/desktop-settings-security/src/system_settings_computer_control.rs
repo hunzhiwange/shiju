@@ -273,7 +273,7 @@ fn management_page(
             .push(settings_divider())
             .push(text(i18n.__(empty_label)).size(13).style(settings_muted_text_style));
     }
-    content = content.push(settings_group_card(grants).padding([16, 22]));
+    content = content.push(settings_group_card(grants).padding([16, 0]));
     scrollable(container(content).padding([8, 7]).width(Length::Fill))
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .width(Length::Fill)
@@ -385,7 +385,7 @@ fn native_permissions(i18n: I18n, state: &ComputerControlSettingsState) -> Eleme
         installation = installation.push(text(i18n.__(hint)).size(13));
     }
     settings_group_card(permissions.push(settings_divider()).push(installation))
-        .padding([16, 22])
+        .padding([16, 0])
         .into()
 }
 

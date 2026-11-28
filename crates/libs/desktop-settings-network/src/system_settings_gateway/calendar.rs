@@ -130,7 +130,7 @@ pub fn skey_calendar_popover<'a>(app: View<'a>) -> Element<'a, Message> {
     }
 
     settings_group_card(calendar.align_x(Alignment::Center))
-        .padding([14, 18])
+        .padding([14, 0])
         .width(Length::Fixed(340.0))
         .into()
 }

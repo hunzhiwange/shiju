@@ -237,7 +237,7 @@ pub fn view<'a>(
             tr(input.locale, "管理当前 Agent 的系统提示词，以及独立工作区身份文件。"),
         ),
         prompt_tabs,
-        settings_group_card(prompt_panel).padding([14, 16]),
+        settings_group_card(prompt_panel).padding([14, 0]),
     ]
     .spacing(14)
     .into()

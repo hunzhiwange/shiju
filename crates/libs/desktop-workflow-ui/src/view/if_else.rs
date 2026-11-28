@@ -228,7 +228,7 @@ pub fn build_if_else_condition_card<'a>(
         ]
         .spacing(10),
     )
-    .padding(12)
+    .padding([12, 0])
     .into()
 }
 

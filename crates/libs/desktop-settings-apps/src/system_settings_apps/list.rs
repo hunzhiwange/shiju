@@ -277,7 +277,7 @@ pub fn view_with_updates<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
                 .align_y(Alignment::Center)
                 .into()
             };
-            let mut cards = column![].width(Length::Fill);
+            let mut cards = column![settings_divider()].width(Length::Fill);
             for (index, app) in apps.into_iter().enumerate() {
                 if index > 0 {
                     cards = cards.push(settings_divider());
@@ -298,11 +298,7 @@ pub fn view_with_updates<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
                     );
                 }
             }
-            let section = column![
-                container(header).padding([0, 12]).width(Length::Fill),
-                container(cards).width(Length::Fill).style(settings_content_panel_style),
-            ]
-            .spacing(7);
+            let section = column![header, cards].spacing(7).width(Length::Fill);
             let section: Element<'_, M> = if presence == Presence::Installed
                 && state.drag.source.is_some()
             {
@@ -612,7 +608,7 @@ fn card<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
             .align_y(Alignment::Center)
             .into()
     };
-    let body = container(summary).padding([9, 12]).width(Length::Fill).height(Length::Shrink);
+    let body = container(summary).padding([9, 0]).width(Length::Fill).height(Length::Shrink);
     let card =
         container(body).width(Length::Fill).style(move |theme| styles::list_row(theme, selected));
     if installed {

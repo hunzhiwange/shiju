@@ -13,7 +13,7 @@ use desktop_ui_controls::system_settings_common::*;
 fn message<U>(event: Event<U>) -> Event<U> {
     event
 }
-use iced::widget::{button, column, container, responsive, row, scrollable, svg, text};
+use iced::widget::{Space, button, column, container, responsive, row, scrollable, svg, text};
 use iced::{Alignment, Element, Font, Length, Theme, font};
 use vw_api_app_auth::{AuthAccount, AuthCredentialState, AuthRegion, AuthService};
 
@@ -102,18 +102,9 @@ fn login_preferences<'a, U: Clone + 'static>(i18n: I18n, state: &State<'a>) -> E
     .spacing(4)
     .width(Length::Fill);
     let toggle = settings_toggle(!state.copy_login_link).on_toggle(Event::OpenBrowserPreference);
-    container(row![labels, toggle].spacing(14).align_y(Alignment::Center))
-        .padding([13, 16])
-        .width(Length::Fill)
-        .style(auth_panel_style)
+    settings_section_content(row![labels, toggle].spacing(14).align_y(Alignment::Center))
+        .padding([13, 0])
         .into()
-}
-
-fn auth_panel_style(theme: &Theme) -> container::Style {
-    let mut style = settings_panel_style(theme);
-    style.border.radius = 12.0.into();
-    style.shadow = iced::Shadow::default();
-    style
 }
 
 fn services<'a, U: Clone + 'static>(i18n: I18n,
@@ -208,19 +199,30 @@ fn service_card<'a, U: Clone + 'static>(i18n: I18n,
         service_summary(i18n, service)
     };
 
-    let mut card = column![container(heading).padding([10, 16]).width(Length::Fill)];
+    let focused = Some(service.service) == state.focused_service;
+    let divider = container(Space::new())
+        .width(Length::Fill)
+        .height(1.0)
+        .style(move |theme| {
+            let mut style = settings_divider_style(theme);
+            if focused {
+                style.background = Some(theme.palette().primary.into());
+            }
+            style
+        });
+    let mut card = column![divider, container(heading).padding([10, 0]).width(Length::Fill)];
     match &service.accounts {
         Ok(accounts) if accounts.is_empty() => {
             card = card.push(settings_divider()).push(
                 container(text(i18n.__("尚未添加账号")).size(13).style(settings_muted_text_style))
-                    .padding([11, 16]),
+                    .padding([11, 0]),
             );
         }
         Ok(accounts) => {
             for account in accounts {
                 card = card.push(settings_divider()).push(
                     container(account_row(i18n, account, service.service, state, usage))
-                        .padding([12, 16])
+                        .padding([12, 0])
                         .width(Length::Fill),
                 );
             }
@@ -239,23 +241,13 @@ fn service_card<'a, U: Clone + 'static>(i18n: I18n,
                 );
             card = card.push(settings_divider()).push(
                 container(column![settings_error_banner(i18n.__(reason)), retry].spacing(8))
-                    .padding([12, 16])
+                    .padding([12, 0])
                     .width(Length::Fill),
             );
         }
     }
 
-    let focused = Some(service.service) == state.focused_service;
-    container(card)
-        .width(Length::Fill)
-        .style(move |theme| {
-            let mut style = auth_panel_style(theme);
-            if focused {
-                style.border.color = theme.palette().primary;
-            }
-            style
-        })
-        .into()
+    settings_section_content(card).into()
 }
 
 fn service_summary<U: Clone + 'static>(i18n: I18n, service: &ServiceAccounts) -> Element<'static, Event<U>> {

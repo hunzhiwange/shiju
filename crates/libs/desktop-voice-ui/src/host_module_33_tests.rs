@@ -14,7 +14,6 @@ fn local_inline(state: &crate::message::voice::State) -> Option<Element<'_, Even
                 stage: chat.stage,
                 muted: chat.muted,
                 notice: chat.notice.as_deref(),
-                captions: &chat.captions,
             },
             &state.screen,
         )
@@ -36,10 +35,24 @@ fn overlay_screen<'a>(
 }
 
 #[derive(Default)]
-struct Labels(Vec<(String, iced::Rectangle)>);
+struct Labels(
+    Vec<(String, iced::Rectangle)>,
+    Vec<(iced::widget::Id, iced::Rectangle)>,
+);
+impl Labels {
+    fn bounds(&self, id: &'static str) -> iced::Rectangle {
+        let id = iced::widget::Id::new(id);
+        self.1.iter().find(|(existing, _)| *existing == id).unwrap().1
+    }
+}
 impl iced::advanced::widget::Operation for Labels {
     fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn iced::advanced::widget::Operation)) {
         children(self);
+    }
+    fn container(&mut self, id: Option<&iced::widget::Id>, bounds: iced::Rectangle) {
+        if let Some(id) = id {
+            self.1.push((id.clone(), bounds));
+        }
     }
     fn text(
         &mut self,
@@ -94,7 +107,7 @@ async fn voice_task_17_screen_consent_renders_chinese_and_routes_buttons() {
             ui.draw(&mut renderer, &theme, &Default::default(), mouse::Cursor::Unavailable);
         }
         for (label, action) in
-            [("确认采集并分享这一帧", 0), ("取消分享", 1), ("改用当前聊天附件分享", 2)]
+            [("确认采集并分享这一帧", 0), ("取消分享", 1)]
         {
             let bounds = labels.0.iter().find(|(s, _)| s == label).unwrap().1;
             assert!(bounds.y >= 0.0 && bounds.y + bounds.height <= 840.0, "{label}: {bounds:?}");
@@ -113,7 +126,6 @@ async fn voice_task_17_screen_consent_renders_chinese_and_routes_buttons() {
                 (&messages[..], action),
                 ([Event::Screen(ScreenEvent::Confirm)], 0)
                     | ([Event::Screen(ScreenEvent::Cancel)], 1)
-                    | ([Event::Screen(ScreenEvent::AttachmentChat)], 2)
             ));
         }
     }
@@ -131,7 +143,7 @@ async fn voice_task_11_local_overlay_shapes_chinese_in_both_themes() {
     }
     let mut voice = state();
     let chat = voice.local_conversation.as_mut().unwrap();
-    chat.captions.push((true, "中文正文、非 ASCII 🌱。".into()));
+    chat.notice = Some("中文提示、非 ASCII 🌱。".into());
     let mut renderer =
         iced::Renderer::new(iced::Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
     let mut ui = UserInterface::build(
@@ -142,10 +154,15 @@ async fn voice_task_11_local_overlay_shapes_chinese_in_both_themes() {
     );
     let mut labels = Labels::default();
     ui.operate(&renderer, &mut labels);
-    for expected in ["点击开始录音", "静音", "打断本轮", "×"] {
-        let bounds = labels.0.iter().find(|(s, _)| s == expected).unwrap().1;
-        assert!(bounds.x >= 0.0 && bounds.y >= 0.0 && bounds.y + bounds.height <= 640.0);
+    assert!(labels.0.iter().any(|(label, _)| label == "中文提示、非 ASCII 🌱。"));
+    for label in ["点击开始录音", "静音", "打断本轮", "×", "屏幕录制授权"] {
+        assert!(!labels.0.iter().any(|(text, _)| text == label));
     }
+    let first = labels.bounds("voice-chat-mute");
+    let last = labels.bounds("voice-chat-settings");
+    let midpoint = (first.x + last.x + last.width) / 2.0;
+    assert!((midpoint - 350.0).abs() < 1.0);
+    assert_eq!(labels.bounds("voice-chat-end").size(), iced::Size::new(32.0, 32.0));
     for theme in [iced::Theme::Light, iced::Theme::Dark] {
         ui.draw(&mut renderer, &theme, &Default::default(), iced::mouse::Cursor::Unavailable);
     }
@@ -202,8 +219,12 @@ async fn voice_moon_ui_inline_draws_and_routes_controls() {
                     "blue moon must be painted"
                 );
             }
-            for (label, expected) in [("静音", 0), ("打断本轮", 1), ("×", 2)] {
-                let bounds = labels.0.iter().find(|(s, _)| s == label).unwrap().1;
+            for (id, expected) in [
+                ("voice-chat-mute", 0),
+                ("voice-chat-interrupt", 1),
+                ("voice-chat-end", 2),
+            ] {
+                let bounds = labels.bounds(id);
                 assert!(bounds.y + bounds.height < size.height);
                 let mut messages = vec![];
                 ui.update(

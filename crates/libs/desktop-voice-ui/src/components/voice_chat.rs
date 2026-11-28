@@ -1,15 +1,39 @@
 //! Conversation overlay uses the shared modal layout and theme palette.
 use desktop_i18n::I18n;
 use desktop_ui_controls::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
+    primary_action_btn_style, round_icon_btn_style, rounded_action_btn_style,
     settings_close_button, settings_modal_header, settings_modal_layout,
     settings_modal_overlay_with_escape,
 };
+use desktop_ui_controls::tooltip::tooltip_dark_style;
 use desktop_voice::conversation::{Phase, Snapshot};
 use iced::{
-    Element, Length,
-    widget::{button, checkbox, column, container, row, text},
+    Alignment, Element, Length,
+    widget::{button, column, container, row, stack, svg, text, tooltip},
 };
+use std::time::Duration;
+
+#[path = "voice_chat_screen.rs"]
+mod screen_ui;
+
+const MIC_ICON: &[u8] =
+    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../assets/icons/feather/mic.svg"));
+const MIC_OFF_ICON: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../assets/icons/feather/mic-off.svg"
+));
+const INTERRUPT_ICON: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../assets/icons/feather/stop-circle.svg"
+));
+const CLOSE_ICON: &[u8] =
+    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../assets/icons/feather/x.svg"));
+const RECORDING_ICON: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../assets/icons/bootstrap/square-fill.svg"
+));
+
+const CONTROL_SIZE: f32 = 32.0;
 
 pub fn phase_label(phase: Phase) -> &'static str {
     match phase {
@@ -29,54 +53,67 @@ pub fn overlay_screen<'a, Message: Clone + 'static>(
     screen: Option<&'a desktop_voice::screen_context::State>,
 ) -> Element<'a, Message> {
     let close = map(Event::ChatEnd);
-    let header =
-        settings_modal_header(text(i18n.__("语音聊天")).size(20), settings_close_button(close.clone()));
+    let header = settings_modal_header(
+        text(i18n.__("语音聊天")).size(20),
+        settings_close_button(close.clone()),
+    );
     let mut body = column![
         text(i18n.__(phase_label(state.phase))).size(18),
-        text(i18n.format(
-            "麦克风：%s · 远端发送：%s · 播放：%s", &[
-            i18n.__(if state.microphone { "采集中" } else { "已停止" }).into(),
-            i18n.__(if state.sending { "开启" } else { "暂停" }).into(),
-            i18n.__(if state.playing { "开启" } else { "停止" }).into()
-        ]).expect("valid voice status"))
+        text(
+            i18n.format(
+                "麦克风：%s · 远端发送：%s · 播放：%s",
+                &[
+                    i18n.__(if state.microphone { "采集中" } else { "已停止" }).into(),
+                    i18n.__(if state.sending { "开启" } else { "暂停" }).into(),
+                    i18n.__(if state.playing { "开启" } else { "停止" }).into()
+                ]
+            )
+            .expect("valid voice status")
+        )
         .size(13),
-        text(i18n.__("扬声器回答期间暂停上传麦克风；点击打断或按 Command+Shift+Space 后继续说话。"))
-            .size(13),
+        text(
+            i18n.__("扬声器回答期间暂停上传麦克风；点击打断或按 Command+Shift+Space 后继续说话。")
+        )
+        .size(13),
     ]
     .spacing(12);
     if let Some(error) = state.error {
         body = body.push(text(crate::feedback::render(i18n, error)).size(14));
     }
-    let mentions_screen = state.captions.iter().any(|c| {
-        c.role == vw_api_voice::TranscriptRole::User
-            && (c.text.contains("屏幕") || c.text.to_lowercase().contains("screen"))
-    });
     for caption in state.captions {
         let role = match caption.role {
             vw_api_voice::TranscriptRole::User => "你",
             vw_api_voice::TranscriptRole::Assistant => "ShiJu",
         };
-        body = body.push(column![text(i18n.__(role)).size(12), text(caption.text).size(15)].spacing(4));
+        body = body
+            .push(column![text(i18n.__(role)).size(12), text(caption.text).size(15)].spacing(4));
     }
     let active = !matches!(state.phase, Phase::Error | Phase::Ending | Phase::Connecting);
-    if let Some(screen) = screen {
-        body = body.push(screen_controls(i18n, map, screen, active, mentions_screen, false));
-    }
-    let footer = row![
+    let mut footer = row![
         button(text(i18n.__(if state.phase == Phase::Muted { "取消静音" } else { "静音" })))
             .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press_maybe(active.then(|| map(Event::ChatMute))),
-        button(text(i18n.__("打断回答"))).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe(
-            (active && (state.playing || state.phase == Phase::Speaking))
-                .then(|| map(Event::ChatInterrupt))
-        ),
+        button(text(i18n.__("打断回答")))
+            .padding([8, 14])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(
+                (active && (state.playing || state.phase == Phase::Speaking))
+                    .then(|| map(Event::ChatInterrupt))
+            ),
         button(text(i18n.__("结束通话")))
             .padding([8, 14])
             .style(primary_action_btn_style)
             .on_press(close.clone()),
     ]
-    .spacing(8);
+    .spacing(8)
+    .align_y(Alignment::Center);
+    if let Some(screen) = screen {
+        footer = footer.push(screen_ui::settings_control(i18n, map, screen, active));
+        if let Some(activity) = screen_ui::activity(i18n, map, screen) {
+            body = body.push(activity);
+        }
+    }
     let card = settings_modal_layout(header, body, Some(footer.into()))
         .width(Length::Fill)
         .max_width(640)
@@ -88,78 +125,55 @@ pub fn overlay_screen<'a, Message: Clone + 'static>(
         container(card).padding(12).max_width(664).max_height(784),
     )
 }
-pub fn screen_controls<Message: Clone + 'static>(
-    i18n: I18n,
-    map: fn(Event) -> Message,
-    screen: &desktop_voice::screen_context::State,
-    active: bool,
-    mentions_screen: bool,
-    local: bool,
-) -> Element<'static, Message> {
-    let mut body = column![].spacing(12);
-    let action = |label: &'static str, event| {
-        button(text(i18n.__(label)))
-            .padding([8, 14])
-            .style(rounded_action_btn_style)
-            .on_press(map(Event::Screen(event)))
-    };
-    body = body.push(
-        checkbox(screen.enabled)
-            .label(i18n.__("本次通话允许单帧屏幕分享（默认关闭）"))
-            .on_toggle(move |v| map(Event::Screen(ScreenEvent::Enable(v))))
-            .style(settings_checkbox_style),
-    );
-    if !screen.enabled {
-        body = body.push(action("屏幕录制授权", ScreenEvent::Permission));
-    }
-    if screen.enabled {
-        body = body.push(text(i18n.__("只分享确认窗口的一帧，最大 1024 像素并按大小缩小；不持续采集，采集端不另存截图。已发送内容可能被网关和模型保留。")).size(12));
-        body = body.push(
-            row![
-                button(text(i18n.__(if mentions_screen {
-                    "你提到了屏幕，选择分享窗口"
-                } else {
-                    "选择前台窗口"
-                })))
-                .padding([8, 14])
-                .style(rounded_action_btn_style)
-                .on_press_maybe(
-                    (active && screen.enabled).then(|| map(Event::Screen(ScreenEvent::Offer)))
-                ),
-                action("屏幕录制授权", ScreenEvent::Permission),
-                action("取消分享", ScreenEvent::Cancel),
-            ]
-            .spacing(8)
-            .wrap(),
-        );
-        if screen.selecting {
-            body = body.push(text(i18n.__("正在选择：三秒内切换到目标应用，随后返回确认。")).size(13));
-        }
-        if screen.busy() {
-            body = body.push(text(i18n.__("正在采集已确认窗口的单帧；可以取消。")).size(13));
-        }
-        if let Some(target) = &screen.offered {
-            body =
-                body.push(text(i18n.format("即将分享：%s。请确认窗口内容。", &[target_label(i18n, target).as_str().into()]).expect("valid share target")).size(13));
-            body = body.push(action("确认采集并分享这一帧", ScreenEvent::Confirm));
-        }
-        body = body.push(action("改用当前聊天附件分享", ScreenEvent::AttachmentChat));
-        if local {
-            body = body.push(text(i18n.__("确认后发送给当前聊天模型并朗读回复；采集端不另存截图，图像由网关和模型按聊天策略处理、保存。")).size(12));
-        }
-    }
-    body.into()
+fn voice_tooltip<'a, Message: 'a>(
+    control: impl Into<Element<'a, Message>>,
+    label: &'a str,
+    position: tooltip::Position,
+) -> Element<'a, Message> {
+    tooltip(
+        control,
+        container(text(label).size(12).wrapping(text::Wrapping::WordOrGlyph)).max_width(260),
+        position,
+    )
+    .gap(8)
+    .padding(8)
+    .delay(Duration::from_millis(280))
+    .style(tooltip_dark_style)
+    .into()
 }
 
-fn target_label(i18n: I18n, target: &desktop_voice::screen_context::Target) -> String {
-    let Some(application) = &target.application else { return target.label.clone(); };
-    i18n.format("%s · %s · 窗口 %u", &[
-        application.as_str().into(), target.title.as_deref().unwrap_or(i18n.__("无标题")).into(), target.window.into(),
-    ]).expect("valid window label")
+fn voice_icon(bytes: &'static [u8], size: f32) -> svg::Svg<'static> {
+    svg(svg::Handle::from_memory(bytes))
+        .width(size)
+        .height(size)
+        .style(|theme: &iced::Theme, _| svg::Style { color: Some(theme.palette().text) })
+}
+
+fn voice_action(
+    id: &'static str,
+    bytes: &'static [u8],
+    label: &'static str,
+    event: Event,
+) -> Element<'static, Event> {
+    let icon = container(voice_icon(bytes, 17.0)).center(Length::Fill).id(id);
+    voice_tooltip(
+        button(icon)
+            .width(CONTROL_SIZE)
+            .height(CONTROL_SIZE)
+            .padding(0)
+            .style(round_icon_btn_style)
+            .on_press(event),
+        label,
+        tooltip::Position::Bottom,
+    )
 }
 
 /// Inline local controls leave chat approvals and questions unobstructed.
-pub fn local_inline<'a>(i18n: I18n, chat: LocalView<'a>, screen: &desktop_voice::screen_context::State) -> Element<'a, Event> {
+pub fn local_inline<'a>(
+    i18n: I18n,
+    chat: LocalView<'a>,
+    screen: &desktop_voice::screen_context::State,
+) -> Element<'a, Event> {
     let map = std::convert::identity::<Event>;
     let label = if chat.muted {
         "麦克风已静音"
@@ -179,75 +193,90 @@ pub fn local_inline<'a>(i18n: I18n, chat: LocalView<'a>, screen: &desktop_voice:
         Stage::Preparing => Some(Event::ChatInterrupt),
         _ => None,
     };
-    let moon = iced::widget::tooltip(
-        button(super::voice_moon::view(chat.muted))
-            .padding(0)
-            .style(|_, _| button::Style::default())
-            .on_press_maybe(action.map(map)),
-        text(i18n.__(label)),
-        iced::widget::tooltip::Position::Top,
+    let mut orb = super::voice_moon::view(chat.muted);
+    if chat.stage == Stage::Recording {
+        orb = stack![
+            orb,
+            container(
+                voice_icon(RECORDING_ICON, 15.0)
+                    .style(|_, _| svg::Style { color: Some(iced::Color::from_rgb8(17, 26, 51)) })
+            )
+            .center(Length::Fill),
+        ]
+        .into();
+    }
+    let moon = voice_tooltip(
+        button(orb).padding(0).style(|_, _| button::Style::default()).on_press_maybe(action),
+        i18n.__(label),
+        tooltip::Position::Right,
     );
     let controls = row![
-        button(text(i18n.__(if chat.muted { "取消静音" } else { "静音" })))
-            .padding([6, 12])
-            .style(rounded_action_btn_style)
-            .on_press(map(Event::ChatMute)),
-        button(text(i18n.__("打断本轮")))
-            .padding([6, 12])
-            .style(rounded_action_btn_style)
-            .on_press(map(Event::ChatInterrupt)),
-        iced::widget::tooltip(
-            button(text("×").size(20))
-                .width(32)
-                .height(32)
-                .padding(2)
-                .style(desktop_ui_controls::system_settings_common::round_icon_btn_style)
-                .on_press(map(Event::ChatEnd)),
-            text(i18n.__("结束语音聊天")),
-            iced::widget::tooltip::Position::Top
+        voice_action(
+            "voice-chat-mute",
+            if chat.muted { MIC_OFF_ICON } else { MIC_ICON },
+            i18n.__(if chat.muted { "取消静音" } else { "静音" }),
+            Event::ChatMute,
         ),
+        voice_action(
+            "voice-chat-interrupt",
+            INTERRUPT_ICON,
+            i18n.__("打断本轮"),
+            Event::ChatInterrupt,
+        ),
+        voice_action("voice-chat-end", CLOSE_ICON, i18n.__("结束语音聊天"), Event::ChatEnd),
+        screen_ui::settings_control(i18n, map, screen, chat.stage == Stage::Ready),
     ]
     .spacing(8)
-    .align_y(iced::Alignment::Center);
-    let mut body = column![moon, text(i18n.__(label)).size(12), controls]
-        .spacing(8)
-        .align_x(iced::Alignment::Center)
-        .width(Length::Fill);
+    .align_y(Alignment::Center);
+    let mut body =
+        column![moon, controls].spacing(8).align_x(Alignment::Center).width(Length::Fill);
     if let Some(notice) = chat.notice {
         body = body.push(text(crate::feedback::render(i18n, notice)).size(12));
     }
-    // Preserve explicit screen consent and confirmation without obscuring chat.
-    let mentions_screen = chat.captions.iter().any(|(assistant, caption)| {
-        !assistant && (caption.contains("屏幕") || caption.to_lowercase().contains("screen"))
-    });
-    body = body.push(screen_controls(
-        i18n, map,
-        screen,
-        chat.stage == Stage::Ready,
-        mentions_screen,
-        true,
-    ));
+    if let Some(activity) = screen_ui::activity(i18n, map, screen) {
+        body = body.push(activity);
+    }
     container(body)
-            .padding(iced::Padding { top: 0.0, right: 7.0, bottom: 20.0, left: 7.0 })
-            .into()
+        .width(Length::Fill)
+        .padding(iced::Padding { top: 0.0, right: 7.0, bottom: 16.0, left: 7.0 })
+        .into()
 }
 
 #[derive(Clone)]
 pub enum Event {
-    ChatEnd, ChatMute, ChatInterrupt,
-    Local(LocalEvent), Screen(ScreenEvent),
+    ChatEnd,
+    ChatMute,
+    ChatInterrupt,
+    Local(LocalEvent),
+    Screen(ScreenEvent),
 }
 #[derive(Clone)]
-pub enum LocalEvent { Begin, Finish }
+pub enum LocalEvent {
+    Begin,
+    Finish,
+}
 #[derive(Clone)]
-pub enum ScreenEvent { Enable(bool), Permission, Offer, Cancel, Confirm, AttachmentChat }
+pub enum ScreenEvent {
+    Enable(bool),
+    Permission,
+    Offer,
+    Cancel,
+    Confirm,
+    AttachmentChat,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Stage { Ready, Preparing, Recording, Recognizing, WaitingModel, Speaking }
+pub enum Stage {
+    Ready,
+    Preparing,
+    Recording,
+    Recognizing,
+    WaitingModel,
+    Speaking,
+}
 pub struct LocalView<'a> {
     pub stage: Stage,
     pub muted: bool,
     pub notice: Option<&'a str>,
-    pub captions: &'a [(bool, String)],
 }
 
 #[cfg(test)]

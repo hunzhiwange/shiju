@@ -1,15 +1,31 @@
 use super::*;
-use iced::{Length, widget::{container, text}};
+use iced::{
+    Length,
+    widget::{container, text},
+};
 type Message = Event;
-fn overlay<'a>(base: Element<'a, Message>, state: Snapshot) -> Element<'a, Message> { super::overlay_screen(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), base, std::convert::identity, state, None) }
-fn screen_controls(screen: &desktop_voice::screen_context::State, active: bool, mentions_screen: bool, local: bool) -> Element<'static, Message> { super::screen_controls(desktop_i18n::I18n::new(config_ui::DesktopLocale::default()), std::convert::identity, screen, active, mentions_screen, local) }
+fn overlay<'a>(base: Element<'a, Message>, state: Snapshot) -> Element<'a, Message> {
+    super::overlay_screen(
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::default()),
+        base,
+        std::convert::identity,
+        state,
+        None,
+    )
+}
 
 #[derive(Default)]
-struct Labels(Vec<(String, iced::Rectangle)>);
+struct Labels(Vec<(String, iced::Rectangle)>, Option<iced::Rectangle>);
 impl iced::advanced::widget::Operation for Labels {
     fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn iced::advanced::widget::Operation)) {
         children(self);
     }
+    fn container(&mut self, id: Option<&iced::widget::Id>, bounds: iced::Rectangle) {
+        if id == Some(&iced::widget::Id::new("voice-chat-settings")) {
+            self.1 = Some(bounds);
+        }
+    }
+
     fn text(
         &mut self,
         _: Option<&iced::advanced::widget::Id>,
@@ -87,29 +103,72 @@ async fn voice_task_11_chat_renders_chinese_in_both_themes_and_routes_controls()
             assert_eq!(messages.len(), 1, "phase={phase:?} action={action} bounds={bounds:?}");
             assert!(matches!(
                 (&messages[0], action),
-                (Event::ChatMute, 0)
-                    | (Event::ChatInterrupt, 1)
-                    | (Event::ChatEnd, 2)
+                (Event::ChatMute, 0) | (Event::ChatInterrupt, 1) | (Event::ChatEnd, 2)
             ));
         }
     }
 }
 
 #[tokio::test]
-async fn voice_task_17_permission_action_is_visible_before_screen_grant() {
-    use iced::advanced::renderer::Headless;
+async fn voice_screen_settings_reveal_permission_on_hover_without_requesting_it() {
+    use iced::advanced::{clipboard, renderer::Headless};
+    use iced::{Event as InputEvent, Point, Size, mouse};
     use iced_runtime::user_interface::{Cache, UserInterface};
     let screen = desktop_voice::screen_context::State::default();
     let mut renderer =
         iced::Renderer::new(iced::Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
+    let gear = screen_ui::settings_control(
+        I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        std::convert::identity::<Event>,
+        &screen,
+        true,
+    );
     let mut ui = UserInterface::build(
-        screen_controls(&screen, true, false, true),
-        iced::Size::new(700.0, 640.0),
+        container(gear).center(Length::Fill).into(),
+        Size::new(700.0, 640.0),
         Cache::new(),
         &mut renderer,
     );
+
     let mut labels = Labels::default();
     ui.operate(&renderer, &mut labels);
-    assert!(labels.0.iter().any(|(label, _)| label == "屏幕录制授权"));
+    assert!(!labels.0.iter().any(|(label, _)| label == "屏幕录制授权"));
+    let gear_center = labels.1.unwrap().center();
+    let mut messages = vec![];
+    ui.update(
+        &[InputEvent::Mouse(mouse::Event::CursorMoved { position: gear_center })],
+        mouse::Cursor::Available(gear_center),
+        &mut renderer,
+        &mut clipboard::Null,
+        &mut messages,
+    );
+    assert!(messages.is_empty());
+
+    let mut labels = Labels::default();
+    ui.operate(&renderer, &mut labels);
     assert!(!labels.0.iter().any(|(label, _)| label == "确认采集并分享这一帧"));
+    let permission = labels.0.iter().find(|(label, _)| label == "屏幕录制授权").unwrap().1;
+    let across_gap = Point::new(gear_center.x + 18.0, gear_center.y);
+    let target = permission.center();
+    for position in [across_gap, target] {
+        ui.update(
+            &[InputEvent::Mouse(mouse::Event::CursorMoved { position })],
+            mouse::Cursor::Available(position),
+            &mut renderer,
+            &mut clipboard::Null,
+            &mut messages,
+        );
+    }
+    assert!(messages.is_empty());
+    ui.update(
+        &[
+            InputEvent::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+            InputEvent::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        ],
+        mouse::Cursor::Available(target),
+        &mut renderer,
+        &mut clipboard::Null,
+        &mut messages,
+    );
+    assert!(matches!(&messages[..], [Event::Screen(ScreenEvent::Permission)]));
 }

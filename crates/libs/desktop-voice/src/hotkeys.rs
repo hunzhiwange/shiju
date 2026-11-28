@@ -53,8 +53,8 @@ impl Config {
         if self.dictation.is_some() && self.dictation == self.chat {
             return Err("听写和语音聊天快捷键不能相同。".into());
         }
-        if self.enabled && (self.dictation.is_none() || self.chat.is_none()) {
-            return Err("请先录制听写和语音聊天快捷键。".into());
+        if self.enabled && self.dictation.is_none() && self.chat.is_none() {
+            return Err("请先录制至少一个语音快捷键。".into());
         }
         if self.enabled && !cfg!(target_os = "macos") {
             return Err("当前平台不支持全局语音快捷键。".into());
@@ -198,22 +198,14 @@ pub struct Runtime {
     listener: Option<super::hotkeys_macos::Listener>,
 }
 impl Runtime {
-    pub fn status(&self) -> String {
-        if let Some(error) = &self.error {
-            return error.clone();
-        }
+    pub fn registered_config(&self) -> Option<&Config> {
         #[cfg(target_os = "macos")]
-        if let Some(listener) = &self.listener {
-            return format!(
-                "全局热键已启用：听写 {}；语音聊天 {}。",
-                listener.config.dictation.map(Shortcut::label).unwrap_or_default(),
-                listener.config.chat.map(Shortcut::label).unwrap_or_default(),
-            );
+        {
+            self.listener.as_ref().map(|listener| &listener.config)
         }
-        if cfg!(target_os = "macos") {
-            "全局热键未启用；在语音设置中录制并保存。".into()
-        } else {
-            "当前平台不支持全局语音快捷键。".into()
+        #[cfg(not(target_os = "macos"))]
+        {
+            None
         }
     }
     pub fn interval(&self) -> Duration {

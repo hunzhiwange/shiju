@@ -77,6 +77,17 @@ fn voice_task_15_fn_plain_duplicate_and_reserved_chords_are_rejected() {
     let shortcut = Some(Shortcut { key: 0, modifiers: CONTROL | ALT });
     assert!(Config { enabled: false, dictation: shortcut, chat: shortcut }.validate().is_err());
 }
+
+#[test]
+fn an_enabled_config_accepts_either_shortcut_on_macos() {
+    let shortcut = Some(Shortcut { key: 0, modifiers: CONTROL | ALT });
+    for (dictation, chat) in [(shortcut, None), (None, shortcut)] {
+        let config = Config { enabled: true, dictation, chat };
+        assert_eq!(config.validate().is_ok(), cfg!(target_os = "macos"));
+    }
+    assert!(Config { enabled: true, ..Config::default() }.validate().is_err());
+}
+
 #[test]
 fn voice_task_15_disable_preserves_chords_and_unregisters_machine_ownership() {
     let now = Instant::now();

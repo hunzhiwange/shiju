@@ -26,8 +26,12 @@ async fn voice_task_13_modal_renders_chinese_with_both_themes() {
     ] {
         state.edit.as_mut().unwrap().local.engine = engine;
         for theme in [Theme::Dark, Theme::Light] {
-            let element =
-                modal(&state, I18n::new(DesktopLocale::SimplifiedChinese), text("语音设置").into());
+            let element = modal(
+                &state,
+                I18n::new(DesktopLocale::SimplifiedChinese),
+                text("语音设置").into(),
+                std::convert::identity,
+            );
             let size = Size::new(780.0, 700.0);
             let mut ui = UserInterface::build(element, size, Cache::new(), &mut renderer);
             ui.update(
@@ -62,8 +66,12 @@ async fn voice_task_15_hotkey_modal_renders_chinese_with_both_themes() {
     state.edit = Some(Edit::new(VoiceConfig::default(), preferences));
     state.recording_hotkey = Some(true);
     for theme in [Theme::Dark, Theme::Light] {
-        let element =
-            modal(&state, I18n::new(DesktopLocale::SimplifiedChinese), text("语音快捷键").into());
+        let element = modal(
+            &state,
+            I18n::new(DesktopLocale::SimplifiedChinese),
+            text("语音快捷键").into(),
+            std::convert::identity,
+        );
         let size = Size::new(780.0, 700.0);
         let mut ui = UserInterface::build(element, size, Cache::new(), &mut renderer);
         ui.update(

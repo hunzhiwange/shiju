@@ -73,6 +73,7 @@ pub enum Event {
     HotkeysEnabled(bool),
     RecordHotkey(Option<bool>),
     RecordedHotkey(desktop_voice::hotkeys::Shortcut),
+    ClearHotkey(bool),
     HotkeyPermission,
     DisableHotkeys,
     Dictionary(String),
@@ -118,6 +119,7 @@ pub fn update(state: &mut State, hotkeys: &mut desktop_voice::hotkeys::Runtime, 
             if state.busy || state.edit.is_none() {
                 return Task::none();
             }
+            state.preview.take();
             state.permission_cancel.cancel();
             state.permission_cancel = Default::default();
             state.generation = state.generation.wrapping_add(1);
@@ -198,6 +200,7 @@ pub fn update(state: &mut State, hotkeys: &mut desktop_voice::hotkeys::Runtime, 
             if engine == VoiceEngine::Local && !cfg!(target_os = "macos") {
                 return feedback_error("本机语音当前仅支持 macOS。");
             }
+            state.preview.take();
             state.edit.as_mut().unwrap().local.engine = engine;
             state.permission_cancel.cancel();
             state.generation = state.generation.wrapping_add(1);
@@ -228,6 +231,7 @@ pub fn update(state: &mut State, hotkeys: &mut desktop_voice::hotkeys::Runtime, 
                     refresh_local(state)
                 }
                 Event::LocalVoice(voice) => {
+                    state.preview.take();
                     edit.local.local_voice = voice;
                     Task::none()
                 }
@@ -404,6 +408,17 @@ pub fn update(state: &mut State, hotkeys: &mut desktop_voice::hotkeys::Runtime, 
             };
             match event {
                 Event::HotkeysEnabled(value) => edit.local.hotkeys.enabled = value,
+                Event::ClearHotkey(chat) => {
+                    let config = &mut edit.local.hotkeys;
+                    if chat {
+                        config.chat = None;
+                    } else {
+                        config.dictation = None;
+                    }
+                    if config.chat.is_none() && config.dictation.is_none() {
+                        config.enabled = false;
+                    }
+                }
                 Event::RecordHotkey(value) => {
                     state.recording_hotkey = value;
                     return iced::advanced::widget::operate(
@@ -423,7 +438,7 @@ pub fn update(state: &mut State, hotkeys: &mut desktop_voice::hotkeys::Runtime, 
                     } else {
                         config.dictation = Some(value);
                     }
-                    // Both keys may still be unset while the dialog is being filled.
+                    // The enable switch is validated on save.
                     let mut validation = config.clone();
                     validation.enabled = false;
                     if let Err(error) = validation.validate() {

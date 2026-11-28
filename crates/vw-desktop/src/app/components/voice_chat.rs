@@ -43,7 +43,6 @@ pub(crate) fn local_inline(app: &App) -> Option<Element<'_, Message>> {
                 stage: chat.stage,
                 muted: chat.muted,
                 notice: chat.notice.as_deref(),
-                captions: &chat.captions,
             },
             &app.voice.screen,
         )

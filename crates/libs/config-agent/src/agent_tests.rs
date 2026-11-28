@@ -32,7 +32,7 @@ fn agent_definition_defaults_and_builtin_specs_are_stable() {
     assert_eq!(definition.max_history_messages, 100);
     assert!(!definition.parallel_tools);
 
-    assert_eq!(super::BUILTIN_AGENT_SPECS.len(), 10);
+    assert_eq!(super::BUILTIN_AGENT_SPECS.len(), 11);
     assert_eq!(super::BUILTIN_AGENT_SPECS[0].key, "main");
     for spec in super::BUILTIN_AGENT_SPECS {
         let config = super::builtin_agent_config(spec.key).unwrap();
@@ -328,6 +328,7 @@ fn builtin_agent_keys_follow_spec_order() {
         vec![
             "main", "shiju-butler", "researcher", "coder", "reviewer", "explore",
             "office-ppt", "office-excel", "office-pdf", "mermaid-diagrams",
+            "task-plan-master",
         ]
     );
 }
@@ -376,7 +377,7 @@ fn builtin_agent_catalog_uses_chinese_metadata_and_safe_delegate_roles() {
         assert_eq!(config.max_iterations, 50_000);
         assert_eq!(
             config.enabled,
-            super::builtin_agent_spec(key).unwrap().kind != super::BuiltinAgentKind::Specialist,
+            !matches!(*key, "office-ppt" | "office-excel" | "office-pdf" | "mermaid-diagrams"),
         );
         if is_delegate_role {
             assert!(!config.allowed_tools.iter().any(|tool| tool == "AgentTool"));
@@ -391,6 +392,13 @@ fn builtin_agent_catalog_uses_chinese_metadata_and_safe_delegate_roles() {
     let coder = super::builtin_agent_config("coder").expect("coder config");
     assert_eq!(coder.temperature, Some(0.2));
     assert_eq!(coder.max_iterations, 50_000);
+    let planner = super::builtin_agent_config("task-plan-master").expect("task planner config");
+    assert!(planner.builtin);
+    assert_eq!(planner.mode, "primary");
+    assert_eq!(
+        planner.defaults.skills,
+        super::AgentDefault::Fixed(vec!["create-task-plans".into()]),
+    );
     assert!(super::builtin_agent_config("compaction").is_none());
 }
 

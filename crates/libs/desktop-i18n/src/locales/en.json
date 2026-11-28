@@ -2014,6 +2014,8 @@
   "PDF 处理": "PDF Tools",
   "提取、生成、合并或拆分 PDF，并处理可填写表单。": "Extract, create, merge, or split PDFs and handle fillable forms.",
   "Mermaid 制图": "Mermaid Diagrams",
+  "任务计划大师": "Task Planning Master",
+  "把需求拆成可执行的任务，编写实施计划、依赖顺序和验收标准。": "Break requirements into actionable tasks and define the implementation plan, dependencies, and acceptance criteria.",
   "绘制并渲染流程图、时序图、状态图和实体关系图。": "Create and render flowcharts, sequence diagrams, state diagrams, and entity-relationship diagrams.",
   "使用网关为当前会话提供的所有工具。": "Use every tool the gateway makes available to this session.",
   "负责理解请求、直接执行，并在复杂任务中协调专业子代理。": "Understand requests, execute directly and coordinate specialist subagents for complex tasks.",

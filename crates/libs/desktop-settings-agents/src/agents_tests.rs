@@ -61,8 +61,9 @@ fn agents_settings_default_waits_for_config_before_allowing_save() {
     for entry in &state.entries[6..] {
         assert_eq!(entry.kind, AgentSettingsEntryKind::BuiltinSpecialist);
         assert!(entry.can_disable);
-        assert!(!entry.enabled);
-        assert!(!entry.can_start_session());
+        let is_task_planner = entry.key == "task-plan-master";
+        assert_eq!(entry.enabled, is_task_planner);
+        assert_eq!(entry.can_start_session(), is_task_planner);
     }
 
     assert_eq!(state.workspace_identity_files.len(), WORKSPACE_IDENTITY_FILES.len());

@@ -290,6 +290,7 @@ pub struct BuiltinAgentSpec {
     pub kind: BuiltinAgentKind,
     pub system_prompt: Option<&'static str>,
     pub default_skills: &'static [&'static str],
+    pub default_enabled: bool,
     pub mode: &'static str,
     pub hidden: bool,
     pub allow_as_subagent: bool,
@@ -310,6 +311,8 @@ const MAIN_TOOLS: &[&str] = config_tools::DEFAULT_ENABLED_TOOL_IDS;
 const DOCUMENT_TOOLS: &[&str] = &["file_read", "ls", "glob", "skill", "bash"];
 const PPT_SKILLS: &[&str] = &["officecli", "officecli-pptx"];
 const EXCEL_SKILLS: &[&str] = &["officecli", "officecli-xlsx"];
+const TASK_PLAN_TOOLS: &[&str] =
+    &["file_read", "file_write", "file_edit", "ls", "glob", "grep", "skill", "bash"];
 
 const READONLY_PERMISSION: &str = r#"{
     "*": "deny",
@@ -360,7 +363,19 @@ const DOCUMENT_PERMISSION: &str = r#"{
     "bash": "ask"
 }"#;
 
-pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
+const TASK_PLAN_PERMISSION: &str = r#"{
+    "*": "deny",
+    "file_read": "allow",
+    "file_write": "allow",
+    "file_edit": "allow",
+    "ls": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "skill": "allow",
+    "bash": "ask"
+}"#;
+
+pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 11] = [
     BuiltinAgentSpec {
         key: "main",
         label: "主代理",
@@ -368,6 +383,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
         kind: BuiltinAgentKind::Main,
         system_prompt: None,
         default_skills: &[],
+        default_enabled: true,
         mode: "primary",
         hidden: false,
         allow_as_subagent: false,
@@ -385,6 +401,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
         kind: BuiltinAgentKind::Butler,
         system_prompt: Some(include_str!("shiju_butler.txt")),
         default_skills: &["skill-creator"],
+        default_enabled: true,
         mode: "primary",
         hidden: false,
         allow_as_subagent: false,
@@ -403,6 +420,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
         kind: BuiltinAgentKind::Worker,
         system_prompt: None,
         default_skills: &[],
+        default_enabled: true,
         mode: "subagent",
         hidden: false,
         allow_as_subagent: true,
@@ -420,6 +438,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
         kind: BuiltinAgentKind::Worker,
         system_prompt: None,
         default_skills: &[],
+        default_enabled: true,
         mode: "subagent",
         hidden: false,
         allow_as_subagent: true,
@@ -437,6 +456,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
         kind: BuiltinAgentKind::Worker,
         system_prompt: None,
         default_skills: &[],
+        default_enabled: true,
         mode: "subagent",
         hidden: false,
         allow_as_subagent: true,
@@ -454,6 +474,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
         kind: BuiltinAgentKind::Worker,
         system_prompt: None,
         default_skills: &[],
+        default_enabled: true,
         mode: "subagent",
         hidden: false,
         allow_as_subagent: true,
@@ -471,6 +492,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
         kind: BuiltinAgentKind::Specialist,
         system_prompt: Some(include_str!("office_ppt.txt")),
         default_skills: PPT_SKILLS,
+        default_enabled: false,
         mode: "primary",
         hidden: false,
         allow_as_subagent: false,
@@ -488,6 +510,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
         kind: BuiltinAgentKind::Specialist,
         system_prompt: Some(include_str!("office_excel.txt")),
         default_skills: EXCEL_SKILLS,
+        default_enabled: false,
         mode: "primary",
         hidden: false,
         allow_as_subagent: false,
@@ -505,6 +528,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
         kind: BuiltinAgentKind::Specialist,
         system_prompt: Some(include_str!("office_pdf.txt")),
         default_skills: &["pdf"],
+        default_enabled: false,
         mode: "primary",
         hidden: false,
         allow_as_subagent: false,
@@ -522,6 +546,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
         kind: BuiltinAgentKind::Specialist,
         system_prompt: Some(include_str!("mermaid_diagrams.txt")),
         default_skills: &["mermaid"],
+        default_enabled: false,
         mode: "primary",
         hidden: false,
         allow_as_subagent: false,
@@ -529,6 +554,24 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
         max_depth: 0,
         allowed_tools: DOCUMENT_TOOLS,
         permission: DOCUMENT_PERMISSION,
+        default_temperature: Some(0.3),
+        max_iterations: DEFAULT_MAX_ITERATIONS,
+    },
+    BuiltinAgentSpec {
+        key: "task-plan-master",
+        label: "任务计划大师",
+        description: "把需求拆成可执行的任务，编写实施计划、依赖顺序和验收标准。",
+        kind: BuiltinAgentKind::Specialist,
+        system_prompt: Some(include_str!("task_plan_master.txt")),
+        default_skills: &["create-task-plans"],
+        default_enabled: true,
+        mode: "primary",
+        hidden: false,
+        allow_as_subagent: false,
+        max_parallel_subagents: 1,
+        max_depth: 0,
+        allowed_tools: TASK_PLAN_TOOLS,
+        permission: TASK_PLAN_PERMISSION,
         default_temperature: Some(0.3),
         max_iterations: DEFAULT_MAX_ITERATIONS,
     },
@@ -566,7 +609,7 @@ pub fn builtin_agent_config(key: &str) -> Option<AgentDefinitionConfig> {
         system_prompt: spec.system_prompt.map(str::to_string),
         builtin: true,
         mode: spec.mode.to_string(),
-        enabled: spec.kind != BuiltinAgentKind::Specialist,
+        enabled: spec.default_enabled,
         allow_as_subagent: spec.allow_as_subagent,
         max_parallel_subagents: spec.max_parallel_subagents,
         temperature: spec.default_temperature,

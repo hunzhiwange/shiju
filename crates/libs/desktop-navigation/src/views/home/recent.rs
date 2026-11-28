@@ -187,10 +187,10 @@ fn render_shortcuts(i18n: I18n, app: &State<'_>) -> Element<'static, Message> {
     #[cfg(not(target_arch = "wasm32"))]
     let apps = apps
         .push(workspace_card(
-            shortcut_icon(Icon::Star, iced::color!(0xab780a), WORKSPACE_ICON_SIZE, 52.0),
-            i18n.__("识矩技能"),
-            i18n.__("浏览和安装技能"),
-            Message::OpenShijuSkills,
+            shortcut_icon(Icon::Robot, iced::color!(0xc54b84), WORKSPACE_ICON_SIZE, 52.0),
+            i18n.__("数字员工"),
+            i18n.__("开始会话"),
+            Message::OpenDigitalEmployees,
         ))
         .push(
             column![
@@ -200,9 +200,9 @@ fn render_shortcuts(i18n: I18n, app: &State<'_>) -> Element<'static, Message> {
                     Message::OpenShijuApps,
                 ),
                 compact_shortcut_card(
-                    shortcut_icon(Icon::Robot, iced::color!(0xc54b84), APP_ICON_SIZE, 20.0),
-                    i18n.__("数字员工"),
-                    Message::OpenDigitalEmployees,
+                    shortcut_icon(Icon::Star, iced::color!(0xab780a), APP_ICON_SIZE, 20.0),
+                    i18n.__("识矩技能"),
+                    Message::OpenShijuSkills,
                 ),
             ]
             .spacing(10)

@@ -1,5 +1,6 @@
 //! Project-scoped Claude Desktop mapping resources.
 use agent_database::GlobalDatabase;
+#[cfg(target_os = "macos")]
 use super::publication_host::Host;
 use axum::{
     Extension, Json,
@@ -216,7 +217,7 @@ mod native {
 #[cfg(target_os = "macos")]
 pub use native::read_form;
 #[cfg(not(target_os = "macos"))]
-pub fn read_form<H: Host>(
+pub fn read_form<H: super::publication_host::SnapshotHost>(
     _host: H,
     _: Option<&Path>,
     _: TenantScope,

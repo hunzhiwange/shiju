@@ -4,7 +4,7 @@ use vw_api_app_provider_base::claude::*;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
 
 fn stored_profile(row: &Value) -> Result<Option<ClaudeProfile>, String> {
-    if super::claude::is_retired_profile(row) {
+    if super::is_retired_profile(row) {
         return Ok(None);
     }
     row.get("claude")

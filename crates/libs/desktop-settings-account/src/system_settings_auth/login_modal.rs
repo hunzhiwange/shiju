@@ -208,7 +208,9 @@ fn status_panel<'a, U: Clone + 'static>(
     content: iced::widget::Column<'a, Event<U>>,
 ) -> iced::widget::Container<'a, Event<U>> {
     container(content).padding([12, 14]).width(Length::Fill).style(|theme: &iced::Theme| {
-        let mut style = super::auth_panel_style(theme);
+        let mut style = settings_panel_style(theme);
+        style.border.radius = 12.0.into();
+        style.shadow = iced::Shadow::default();
         style.background = Some(theme.extended_palette().background.weak.color.into());
         style
     })

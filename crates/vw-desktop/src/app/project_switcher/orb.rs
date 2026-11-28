@@ -59,13 +59,34 @@ impl canvas::Program<super::Message> for Orb {
         frame
             .stroke(&core, Stroke::default().with_width(0.65).with_color(accent.scale_alpha(0.62)));
 
-        let point = |x, y| Point::new(center.x + x, center.y + y);
+        let turn = 0.72 * (phase * 0.78).sin();
+        let roll = 0.31 * (phase * 1.16).sin() + 0.09 * (phase * 1.9).sin();
+        let (sin_roll, cos_roll) = roll.sin_cos();
+        let width = turn.cos();
+        let shear = 0.22 * turn.sin();
+        let point = |x: f32, y: f32| {
+            let x = x * width + y * shear;
+            Point::new(
+                center.x + x * cos_roll - y * sin_roll,
+                center.y + x * sin_roll + y * cos_roll,
+            )
+        };
+
+        let bend = 1.7 * (phase * 1.47).sin();
+        let cross = 0.65;
+        let cross_y = -6.1 + 11.6 * cross;
+        let cross_bend = 2.0 * cross * (1.0 - cross) * bend;
         let letter = Path::new(|path| {
-            path.move_to(point(-5.7, 5.5));
-            path.line_to(point(0.0, -6.1));
-            path.line_to(point(5.7, 5.5));
-            path.move_to(point(-3.5, 1.5));
-            path.line_to(point(3.5, 1.5));
+            path.move_to(point(0.0, -6.1));
+            path.quadratic_curve_to(point(-2.85 + bend, -0.3), point(-5.7, 5.5));
+            path.move_to(point(0.0, -6.1));
+            path.quadratic_curve_to(point(2.85 + bend, -0.3), point(5.7, 5.5));
+            // Keep the crossbar attached to both legs while the curves bend.
+            path.move_to(point(-5.7 * cross + cross_bend, cross_y));
+            path.quadratic_curve_to(
+                point(cross_bend, cross_y + 0.85 * (phase * 1.47 + 0.7).sin()),
+                point(5.7 * cross + cross_bend, cross_y),
+            );
         });
         let stroke =
             Stroke::default().with_line_cap(LineCap::Round).with_line_join(LineJoin::Round);

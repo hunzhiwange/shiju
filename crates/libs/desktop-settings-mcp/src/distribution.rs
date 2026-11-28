@@ -16,8 +16,11 @@ pub fn summary(result: &McpDistributionResult) -> &'static str {
         "存在失败、取消或未验证目标，请查看逐项结果"
     }
 }
-pub fn item_label(i18n: desktop_i18n::I18n, item: &McpDistributionItem) -> String {
-    let native = match item.native_outcome {
+pub(crate) fn native_outcome_label(
+    i18n: desktop_i18n::I18n,
+    outcome: &McpDistributionOutcome,
+) -> String {
+    match outcome {
         McpDistributionOutcome::Applied => i18n.__("已应用").into(),
         McpDistributionOutcome::Unchanged => i18n.__("无需变更").into(),
         McpDistributionOutcome::NotVerified => i18n.__("未验证").into(),
@@ -27,7 +30,11 @@ pub fn item_label(i18n: desktop_i18n::I18n, item: &McpDistributionItem) -> Strin
             desktop_i18n::__!(i18n, "失败：%s", (format!("{:?}", code)).to_string())
                 .expect("valid extension display template")
         }
-    };
+    }
+}
+
+pub fn item_label(i18n: desktop_i18n::I18n, item: &McpDistributionItem) -> String {
+    let native = native_outcome_label(i18n, &item.native_outcome);
     desktop_i18n::__!(
         i18n,
         "%s · %s / %s · 期望%s · %s · 原生%s",

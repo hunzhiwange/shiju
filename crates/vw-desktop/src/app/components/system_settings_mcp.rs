@@ -10,6 +10,7 @@ fn event(value: page::McpMessage) -> Message {
     Message::Settings(SettingsMessage::Mcp(match value {
         page::McpMessage::TabSelected(v0) => McpMessage::TabSelected(v0),
         page::McpMessage::ServerSearchChanged(query) => McpMessage::ServerSearchChanged(query),
+        page::McpMessage::GlobalSyncMenu(menu) => McpMessage::GlobalSyncMenu(menu),
         page::McpMessage::Refresh => McpMessage::Refresh,
         page::McpMessage::InspectRefresh => McpMessage::InspectRefresh,
         page::McpMessage::Connect(key) => McpMessage::Connect(key),
@@ -471,6 +472,13 @@ pub(crate) fn reconcile(app: &mut App) {
     }
     if !visible {
         app.mcp_settings.bindings.matrix.column_menu = None;
+    }
+    if !visible
+        || app.mcp_settings.modal_open()
+        || app.mcp_settings.page.loading
+        || app.mcp_settings.page.transfer_pending
+    {
+        app.mcp_settings.page.global_sync_menu = None;
     }
     if !visible || app.mcp_settings.actions.scope.as_ref() != context.as_ref() {
         desktop_settings_mcp::management_probe::actions::invalidate(

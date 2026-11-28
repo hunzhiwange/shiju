@@ -1,20 +1,24 @@
 #[path = "management_form_paste.rs"]
 pub mod paste;
 #[path = "management_form_global.rs"]
-pub(crate) mod global;
+mod global;
+
+use gateway_mcp::global_sync::{Options, SyncItem};
 use iced::widget::text_editor;
+use serde_json::Value;
 use std::collections::BTreeMap;
-use vw_api_mcp_management::*;
+use vw_api_app_identity::AppId;
+use vw_api_mcp_management::{McpAppCapability, McpConfigValue, McpConnectionDefinition, McpPresetDraftView, McpSupport};
 use vw_gateway_client::GatewayClient;
+use crate::management_context::Context;
+
 #[derive(Clone)]
 pub struct Draft {
-    pub context: crate::management_context::Context,
-    pub(crate) global: Option<global::GlobalDraft>,
+    pub context: Context,
+    pub(crate) global: global::GlobalDraft,
     pub sync_only: bool,
     pub generation: u64,
-    pub record: Option<McpCatalogRecord>,
     pub id: String,
-    pub name: String,
     pub transport: String,
     pub command: String,
     pub args: String,
@@ -23,58 +27,45 @@ pub struct Draft {
     pub url: String,
     pub editor: text_editor::Content,
     pub json: bool,
-    pub replace_connection: bool,
     pub saving: bool,
+    pub loading: bool,
     pub error: Option<String>,
     pub presets: Vec<McpPresetDraftView>,
-    pub description: text_editor::Content,
-    pub homepage: String,
-    pub documentation: String,
-    pub tags: String,
-    pub summary: String,
-    pub details: bool,
     pub paste: text_editor::Content,
     pub candidates: Vec<paste::Candidate>,
-    pub catalog: Vec<McpCatalogRecord>,
-    pub targets: Vec<(McpAppTarget, bool, bool, bool)>,
-    targets_customized: bool,
-    pub capabilities: Vec<McpAppCapability>,
-    pub bindings: Vec<McpCliBinding>,
-    pub deliveries: Vec<(McpAppTarget, bool, Result<McpDistributionResult, String>)>,
+    pub targets: Vec<(McpAppCapability, bool)>,
+    pub deliveries: Vec<SyncItem>,
+    pub retry: Vec<AppId>,
 }
 impl std::fmt::Debug for Draft {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("McpConnectionDraft").finish_non_exhaustive()
     }
 }
+
 #[derive(Clone)]
 pub enum FormMessage {
-    Open(Option<McpCatalogRecord>),
     OpenGlobal(Option<usize>, bool),
-    Sync(McpCatalogRecord),
-    IncludeGlobal(bool),
+    OpenLink(Vec<paste::Candidate>),
     GlobalEnabled(bool),
     GlobalRequired(bool),
-    GlobalSaved {
-        context: crate::management_context::Context,
+    OptionsLoaded(Context, u64, Result<std::sync::Arc<Options>, String>),
+    Completed {
+        context: Context,
         generation: u64,
-        written: Option<serde_json::Value>,
-        result: Result<Option<McpCatalogRecord>, String>,
+        written: Option<Value>,
+        requested: Vec<AppId>,
+        result: Result<Vec<SyncItem>, String>,
     },
     Close,
     Field(&'static str, String),
     Json(bool),
     Editor(text_editor::Action),
-    Description(text_editor::Action),
-    Presets(crate::management_context::Context, u64, Result<McpPresetsResponse, String>),
     Preset(usize),
     ValueAdd,
     ValueRemove(String),
     ValueName(String, String),
-    ValueKind(String, bool),
     ValueText(String, String),
-    ValueService(String, String),
-    Replace(bool),
     ArgAdd,
     ArgRemove(usize),
     ArgSet(usize, String),
@@ -82,22 +73,16 @@ pub enum FormMessage {
     ParsePaste,
     ChoosePaste(usize),
     SkipPaste(usize),
-    Details(bool),
-    Target(usize, bool),
+    Target(AppId, bool),
     Retry,
-    Distributed(
-        crate::management_context::Context,
-        u64,
-        Vec<(McpAppTarget, bool, Result<McpDistributionResult, String>)>,
-    ),
     Save,
-    Saved(crate::management_context::Context, Result<McpCatalogRecord, String>),
 }
 impl std::fmt::Debug for FormMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("McpConnectionFormMessage { .. }")
     }
 }
+
 fn parse<T: serde::de::DeserializeOwned>(input: &str) -> Result<T, String> {
     serde_json::from_str(input).map_err(|error| {
         // serde messages may echo secrets; expose only position and category.
@@ -110,45 +95,15 @@ fn parse<T: serde::de::DeserializeOwned>(input: &str) -> Result<T, String> {
     })
 }
 impl Draft {
-    pub fn new(
-        context: crate::management_context::Context,
-        record: Option<McpCatalogRecord>,
-    ) -> Self {
-        let transport = match record.as_ref().map(|record| record.transport) {
-            Some(McpTransport::StreamableHttp) => "streamable_http",
-            Some(McpTransport::Sse) => "sse",
-            _ => "stdio",
-        };
+    pub fn new(context: Context) -> Self {
         static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
         Self {
-            generation: NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             context,
-            global: None,
+            global: global::GlobalDraft::default(),
             sync_only: false,
-            id: record.as_ref().map(|r| r.record.id.0.clone()).unwrap_or_default(),
-            name: record.as_ref().map(|r| r.name.clone()).unwrap_or_default(),
-            description: text_editor::Content::with_text(
-                record.as_ref().and_then(|r| r.description.as_deref()).unwrap_or_default(),
-            ),
-            homepage: record.as_ref().and_then(|r| r.homepage.clone()).unwrap_or_default(),
-            documentation: record
-                .as_ref()
-                .and_then(|r| r.documentation.clone())
-                .unwrap_or_default(),
-            tags: record.as_ref().map(|r| r.tags.join(",")).unwrap_or_default(),
-            summary: record.as_ref().and_then(|r| r.public_summary.clone()).unwrap_or_default(),
-            details: false,
-            paste: text_editor::Content::new(),
-            candidates: vec![],
-            catalog: vec![],
-            targets: vec![],
-            targets_customized: false,
-            capabilities: vec![],
-            bindings: vec![],
-            deliveries: vec![],
-            replace_connection: record.is_none(),
-            record,
-            transport: transport.into(),
+            generation: NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+            id: String::new(),
+            transport: "stdio".into(),
             command: String::new(),
             args: "[]".into(),
             values: "{}".into(),
@@ -157,10 +112,76 @@ impl Draft {
             editor: text_editor::Content::new(),
             json: false,
             saving: false,
+            loading: false,
             error: None,
             presets: vec![],
+            paste: text_editor::Content::new(),
+            candidates: vec![],
+            targets: vec![],
+            deliveries: vec![],
+            retry: vec![],
         }
     }
+
+    pub fn open(context: Context, page: &crate::state::State, index: Option<usize>, sync_only: bool) -> Result<Self, String> {
+        let mut draft = Self::new(context);
+        global::open(&mut draft, page, index)?;
+        draft.sync_only = sync_only;
+        Ok(draft)
+    }
+
+    pub fn editing(&self) -> bool {
+        self.global.original.is_some()
+    }
+
+    pub fn set_options(&mut self, options: &Options) {
+        self.presets = options.presets.clone();
+        self.targets = options.applications.iter().cloned().map(|app| (app, false)).collect();
+    }
+
+    pub fn save_value(&self) -> Result<Value, String> {
+        global::server(self, &self.global)
+    }
+
+    pub fn original(&self) -> Option<&Value> {
+        self.global.original.as_ref()
+    }
+
+    pub fn mark_saved(&mut self, server: Value) {
+        self.global.original = Some(server);
+    }
+
+    pub fn next_candidate(self) -> Option<Self> {
+        if self.candidates.is_empty() {
+            return None;
+        }
+        let mut next = Self::new(self.context);
+        next.candidates = self.candidates;
+        next.presets = self.presets;
+        next.targets = self.targets.into_iter().map(|(app, _)| (app, false)).collect();
+        Some(next)
+    }
+
+    pub fn target_supported(&self, info: &McpAppCapability) -> bool {
+        let transport = if self.json {
+            match self.connection() {
+                Ok(McpConnectionDefinition::Stdio { .. }) => "stdio",
+                Ok(McpConnectionDefinition::StreamableHttp { .. }) => "streamable_http",
+                Ok(McpConnectionDefinition::Sse { .. }) => "sse",
+                Err(_) => return false,
+            }
+        } else {
+            self.transport.as_str()
+        };
+        let support = match transport {
+            "stdio" => info.stdio,
+            "streamable_http" => info.streamable_http,
+            "sse" => info.sse,
+            _ => return false,
+        };
+        support == McpSupport::Supported
+    }
+
     pub fn connection(&self) -> Result<McpConnectionDefinition, String> {
         let connection = if self.json {
             parse(&self.editor.text())?
@@ -195,7 +216,6 @@ impl Draft {
         Ok(connection)
     }
     pub fn edit_values(&mut self, event: FormMessage) -> Result<(), String> {
-        use vw_api_app_auth::AuthService;
         let mut values: BTreeMap<String, McpConfigValue> = parse(&self.values)?;
         match event {
             FormMessage::ValueAdd => {
@@ -219,21 +239,6 @@ impl Draft {
                     values.insert(new, value);
                 }
             }
-            FormMessage::ValueKind(name, credential) => {
-                values.insert(
-                    name,
-                    if credential {
-                        McpConfigValue::Credential {
-                            reference: McpCredentialRef {
-                                service: AuthService::CodexOauth,
-                                account_id: String::new(),
-                            },
-                        }
-                    } else {
-                        McpConfigValue::Literal { value: String::new() }
-                    },
-                );
-            }
             FormMessage::ValueText(name, text) => {
                 if let Some(value) = values.get_mut(&name) {
                     match value {
@@ -242,19 +247,12 @@ impl Draft {
                     }
                 }
             }
-            FormMessage::ValueService(name, service) => {
-                if let Some(McpConfigValue::Credential { reference }) = values.get_mut(&name) {
-                    reference.service = serde_json::from_value(serde_json::Value::String(service))
-                        .map_err(|_| "不支持的凭据服务")?;
-                }
-            }
             _ => return Ok(()),
         }
         self.values = serde_json::to_string(&values).expect("DTO");
         Ok(())
     }
     pub fn set_connection(&mut self, connection: McpConnectionDefinition) {
-        self.replace_connection = true;
         match connection {
             McpConnectionDefinition::Stdio { command, args, env, cwd } => {
                 self.transport = "stdio".into();
@@ -293,182 +291,34 @@ impl Draft {
         }
         Ok(())
     }
-    fn editing(&self) -> bool {
-        self.record.is_some() || self.global.as_ref().is_some_and(|global| global.original.is_some())
-    }
-
-    pub fn preset(&mut self, index: usize) {
-        if let Some(preset) = self.presets.get(index).cloned() {
-            if !self.editing() {
-                self.id = preset.id;
-                self.name = preset.name;
-                self.tags = preset.tags.join(", ");
-                self.homepage = preset.homepage;
-                self.documentation = preset.documentation;
-                if let Some(global) = &mut self.global {
-                    global.enabled = preset.enabled;
-                }
-            }
-            self.set_connection(preset.connection);
-            self.json = false;
-            self.error = None;
-        }
-    }
-    pub fn finish(&mut self, result: &Result<McpCatalogRecord, String>) {
-        self.saving = false;
-        self.error = result.as_ref().err().cloned();
-    }
-}
-
-pub async fn save(
-    client: &GatewayClient,
-    token: &str,
-    draft: Draft,
-) -> Result<McpCatalogRecord, String> {
-    let client = gateway_mcp_write::GatewayMcpWriteClient::new(client.transport().clone());
-    let connection = if draft.replace_connection { Some(draft.connection()?) } else { None };
-    let project_id = match draft.record.as_ref().map(|r| &r.scope) {
-        Some(McpCatalogScope::Project { scope }) => Some(scope.project_id().clone()),
-        _ => None,
-    };
-    let result = if let Some(record) = &draft.record {
-        client
-            .mcp_management_update(
-                &record.record.id,
-                &McpUpdateRequest {
-                    target_host_id: draft.context.host.clone(),
-                    project_id,
-                    expected_revision: record.record.revision,
-                    linux_stdio_selection: None,
-                    connection,
-                    metadata: if draft.global.as_ref().is_some_and(|global| global.include_global) {
-                        McpMetadataPatch::default()
-                    } else {
-                        McpMetadataPatch {
-                            name: McpTextEdit::Set(draft.name.clone()),
-                            description: text_edit(&draft.description.text()),
-                            homepage: text_edit(&draft.homepage),
-                            documentation: text_edit(&draft.documentation),
-                            tags: Some(
-                                draft.tags.split(',').map(str::trim).filter(|s| !s.is_empty())
-                                    .map(str::to_owned).collect(),
-                            ),
-                        }
-                    },
-                    public_summary: if draft.global.as_ref().is_some_and(|global| global.include_global) {
-                        McpPublicSummaryEdit::default()
-                    } else if draft.summary.is_empty() {
-                        McpPublicSummaryEdit::Clear
-                    } else {
-                        McpPublicSummaryEdit::Set(draft.summary.clone())
-                    },
-                },
-                token,
-            )
-            .await
-    } else {
-        client
-            .mcp_management_create(
-                &McpCreateRequest {
-                    target_host_id: draft.context.host.clone(),
-                    project_id: None,
-                    id: draft.id.clone(),
-                    name: optional(&draft.name),
-                    description: optional(&draft.description.text()),
-                    homepage: optional(&draft.homepage),
-                    documentation: optional(&draft.documentation),
-                    tags: draft
-                        .tags
-                        .split(',')
-                        .map(str::trim)
-                        .filter(|s| !s.is_empty())
-                        .map(str::to_owned)
-                        .collect(),
-                    connection: connection.ok_or("请填写连接定义")?,
-                },
-                token,
-            )
-            .await
-    };
-    result.map_err(|error| match error {
-        gateway_mcp_write::AgentAppsSettingsError::Http { status: 409, .. } => {
-            "目录或修订冲突，请核对刷新后的目录再编辑".into()
-        }
-        gateway_mcp_write::AgentAppsSettingsError::Http { status: 400 | 422, .. } => {
-            "连接定义无效，请检查字段及凭据引用".into()
-        }
-        _ => "保存失败，请检查网关连接和权限".into(),
-    })
-}
-
-#[cfg(test)]
-#[path = "management_form_tests.rs"]
-mod tests;
-
-impl Draft {
     pub fn edit(&mut self, event: FormMessage) {
         match event {
-            FormMessage::GlobalEnabled(value) => {
-                if let Some(global) = &mut self.global {
-                    global.enabled = value;
-                }
-            }
-            FormMessage::GlobalRequired(value) => {
-                if let Some(global) = &mut self.global {
-                    global.required = value;
-                }
-            }
-            FormMessage::IncludeGlobal(value) => {
-                if let Some(global) = &mut self.global
-                    && global.original.is_none()
-                {
-                    global.include_global = value;
-                }
-            }
+            FormMessage::GlobalEnabled(value) => self.global.enabled = value,
+            FormMessage::GlobalRequired(value) => self.global.required = value,
             FormMessage::Field(field, value) => {
-                if field == "timeout" && let Some(global) = &mut self.global {
-                    global.timeout = value;
-                    return;
-                }
                 if field == "transport" && (self.transport == "stdio") != (value == "stdio") {
                     self.values = "{}".into();
                 }
                 let target = match field {
-                    "id" if self.record.is_none() => &mut self.id,
-                    "description" => {
-                        self.description = text_editor::Content::with_text(&value);
-                        return;
-                    }
-                    "homepage" => &mut self.homepage,
-                    "documentation" => &mut self.documentation,
-                    "tags" => &mut self.tags,
-                    "summary" => &mut self.summary,
-                    "name" => &mut self.name,
+                    "id" if !self.editing() => &mut self.id,
+                    "timeout" => &mut self.global.timeout,
                     "command" => &mut self.command,
                     "args" => &mut self.args,
-                    "cwd" => &mut self.cwd,
                     "url" => &mut self.url,
                     "transport" => &mut self.transport,
                     _ => return,
                 };
                 *target = value;
             }
-            event @ (FormMessage::ValueAdd
-            | FormMessage::ValueRemove(_)
-            | FormMessage::ValueName(_, _)
-            | FormMessage::ValueKind(_, _)
-            | FormMessage::ValueText(_, _)
-            | FormMessage::ValueService(_, _)) => {
+            event @ (FormMessage::ValueAdd | FormMessage::ValueRemove(_)
+                | FormMessage::ValueName(..) | FormMessage::ValueText(..)) => {
                 self.error = self.edit_values(event).err();
             }
-            FormMessage::Replace(value) => self.replace_connection = value,
             FormMessage::ArgAdd | FormMessage::ArgRemove(_) | FormMessage::ArgSet(..) => {
                 let mut args: Vec<String> = parse(&self.args).unwrap_or_default();
                 match event {
                     FormMessage::ArgAdd => args.push(String::new()),
-                    FormMessage::ArgRemove(index) if index < args.len() => {
-                        args.remove(index);
-                    }
+                    FormMessage::ArgRemove(index) if index < args.len() => { args.remove(index); }
                     FormMessage::ArgSet(index, value) if index < args.len() => args[index] = value,
                     _ => {}
                 }
@@ -482,9 +332,7 @@ impl Draft {
                 Ok(items) => {
                     self.candidates = items;
                     self.error = None;
-                    if self.candidates.len() == 1
-                        && !self.catalog.iter().any(|r| r.record.id.0 == self.candidates[0].id)
-                    {
+                    if self.candidates.len() == 1 {
                         self.edit(FormMessage::ChoosePaste(0));
                     }
                 }
@@ -496,164 +344,52 @@ impl Draft {
                 }
             }
             FormMessage::ChoosePaste(index) => {
-                if let Some(item) = self.candidates.get(index).cloned() {
-                    match item.connection {
+                if let Some(candidate) = self.candidates.get(index).cloned() {
+                    match candidate.connection {
                         Ok(connection) => {
-                            if self.global.as_ref().is_some_and(|global| global.original.is_some()) {
-                                self.set_connection(connection);
-                                self.json = false;
-                                self.error = None;
+                            if self.editing() {
                                 self.candidates.clear();
-                                return;
-                            }
-                            let existing =
-                                self.catalog.iter().find(|r| r.record.id.0 == item.id).cloned();
-                            if self.record.as_ref().is_some_and(|r| r.record.id.0 != item.id) {
-                                self.error = Some("编辑 ID 已锁定，请关闭后添加其它目录项".into());
                             } else {
-                                for (target, selected, original, _) in &mut self.targets {
-                                    let enabled = existing.as_ref().is_some_and(|record| {
-                                        self.bindings.iter().any(|binding| {
-                                            binding.record.id == record.record.id
-                                                && binding.target == *target
-                                                && binding.enabled
-                                        })
-                                    });
-                                    if existing.is_some() && self.global.is_none() {
-                                        *selected = enabled;
-                                        *original = enabled;
-                                    }
-                                }
-                                if let Some(record) = &existing {
-                                    self.name = record.name.clone();
-                                    self.description = text_editor::Content::with_text(
-                                        record.description.as_deref().unwrap_or_default(),
-                                    );
-                                    self.homepage = record.homepage.clone().unwrap_or_default();
-                                    self.documentation =
-                                        record.documentation.clone().unwrap_or_default();
-                                    self.tags = record.tags.join(",");
-                                    self.summary =
-                                        record.public_summary.clone().unwrap_or_default();
-                                } else {
-                                    self.name = item.id.clone();
-                                }
-                                if self.global.is_none() {
-                                    self.record = existing;
-                                }
-                                self.id = item.id;
-                                self.set_connection(connection);
-                                self.json = false;
-                                self.error = None;
+                                self.id = candidate.id;
                                 self.candidates.remove(index);
                             }
+                            self.set_connection(connection);
+                            self.json = false;
+                            self.error = None;
                         }
                         Err(error) => self.error = Some(error),
                     }
                 }
             }
-            FormMessage::Details(value) => self.details = value,
-            FormMessage::Target(index, value) => {
-                if let Some(target) = self.targets.get_mut(index) {
-                    target.1 = value;
-                    self.targets_customized = true;
+            FormMessage::Target(id, selected) => {
+                if let Some(index) = self.targets.iter().position(|(app, _)| app.app_id == id) {
+                    if !selected || self.target_supported(&self.targets[index].0) {
+                        self.targets[index].1 = selected;
+                    }
                 }
             }
             FormMessage::Editor(action) => self.editor.perform(action),
-            FormMessage::Description(action) => self.description.perform(action),
-            FormMessage::Json(json) => {
-                self.error = self.toggle_json(json).err();
+            FormMessage::Json(value) => self.error = self.toggle_json(value).err(),
+            FormMessage::Preset(index) => {
+                if let Some(preset) = self.presets.get(index).cloned() {
+                    if !self.editing() {
+                        self.id = preset.id;
+                        self.global.enabled = preset.enabled;
+                    }
+                    self.set_connection(preset.connection);
+                    self.json = false;
+                    self.error = None;
+                }
             }
-            FormMessage::Preset(index) => self.preset(index),
             _ => {}
         }
-        self.select_default_target();
     }
 }
 
-pub fn panel(
-    i18n: desktop_i18n::I18n,
-    draft: &Draft,
-) -> iced::Element<'_, crate::connection::FormMessage> {
-    crate::connection::connection_form_panel(
-        i18n,
-        crate::connection::ConnectionDraft {
-            draft,
-            editing: draft.editing(),
-            json: draft.json,
-            saving: draft.saving,
-            id: &draft.id,
-            name: &draft.name,
-            transport: &draft.transport,
-            command: &draft.command,
-            args: &draft.args,
-            values: &draft.values,
-            cwd: &draft.cwd,
-            url: &draft.url,
-            editor: &draft.editor,
-            error: &draft.error,
-            presets: &draft.presets,
-        },
-    )
+pub async fn persist(client: &GatewayClient, original: Option<&Value>, server: Option<&Value>) -> Result<(), String> {
+    global::persist(client, original, server).await
 }
 
-fn optional(value: &str) -> Option<String> {
-    (!value.is_empty()).then(|| value.to_owned())
-}
-fn text_edit(value: &str) -> McpTextEdit {
-    optional(value).map(McpTextEdit::Set).unwrap_or(McpTextEdit::Clear)
-}
-impl Draft {
-    pub(crate) fn select_default_target(&mut self) {
-        if self.record.is_some() || self.global.is_some() || self.sync_only || self.targets_customized
-            || self.target_transport().is_none() {
-            return;
-        }
-        let first = crate::management_bindings::matrix::APPS.iter().find_map(|app| {
-            let mut candidates =
-                self.targets.iter().enumerate().filter(|(_, (target, _, _, _))| {
-                    target.app_id == *app && self.target_supported(target)
-                });
-            let (index, _) = candidates.next()?;
-            // Multiple installs of one app require an explicit choice.
-            candidates.next().is_none().then_some(index)
-        });
-        for (index, (_, selected, _, _)) in self.targets.iter_mut().enumerate() {
-            *selected = first == Some(index);
-        }
-    }
-
-    fn target_transport(&self) -> Option<McpTransport> {
-        if !self.replace_connection {
-            return self.record.as_ref().map(|r| r.transport);
-        }
-        if self.json {
-            return self.connection().ok().map(|c| match c {
-                McpConnectionDefinition::Stdio { .. } => McpTransport::Stdio,
-                McpConnectionDefinition::Sse { .. } => McpTransport::Sse,
-                McpConnectionDefinition::StreamableHttp { .. } => McpTransport::StreamableHttp,
-            });
-        }
-        match self.transport.as_str() {
-            "stdio" => Some(McpTransport::Stdio),
-            "sse" => Some(McpTransport::Sse),
-            "streamable_http" => Some(McpTransport::StreamableHttp),
-            _ => None,
-        }
-    }
-
-    pub fn target_supported(&self, target: &McpAppTarget) -> bool {
-        let Some(transport) = self.target_transport() else {
-            return false;
-        };
-        crate::distribution::unsupported_reason(target.app_id).is_none()
-            && self.capabilities.iter().any(|cap| {
-                cap.app_id == target.app_id
-                    && match transport {
-                        McpTransport::Stdio => cap.stdio,
-                        McpTransport::Sse => cap.sse,
-                        McpTransport::StreamableHttp => cap.streamable_http,
-                    } == McpSupport::Supported
-            })
-    }
-}
+#[cfg(test)]
+#[path = "management_form_tests.rs"]
+mod tests;

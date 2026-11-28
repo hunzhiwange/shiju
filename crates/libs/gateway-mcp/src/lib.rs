@@ -19,3 +19,5 @@ mod mcp_api_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod server;
+
+pub mod global_sync;

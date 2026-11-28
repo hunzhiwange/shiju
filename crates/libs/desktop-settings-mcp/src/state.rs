@@ -55,6 +55,7 @@ impl std::fmt::Display for McpNewServerTransport {
 pub struct State {
     pub active_tab: McpSettingsTab,
     pub server_query: String,
+    pub global_sync_menu: Option<(usize, iced::Point)>,
     pub editor: text_editor::Content,
     pub runtime_overrides: Vec<serde_json::Value>,
     pub new_server_expanded: bool,
@@ -90,6 +91,7 @@ impl Default for State {
         Self {
             active_tab: McpSettingsTab::Servers,
             server_query: String::new(),
+            global_sync_menu: None,
             editor: text_editor::Content::with_text("[]"),
             runtime_overrides: Vec::new(),
             new_server_expanded: false,

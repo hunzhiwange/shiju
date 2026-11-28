@@ -14,6 +14,7 @@ pub(crate) fn update(app: &mut App, event: FormMessage) -> Task<Message> {
     {
         return Task::none();
     }
+    app.mcp_settings.page.global_sync_menu = None;
     let mut input = super::mcp_management_list::input(app);
     let task =
         desktop_settings_mcp::configuration_update::form::update(&mut input, event).map(message);

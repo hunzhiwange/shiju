@@ -41,38 +41,8 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
                 }
             }
             if let Some(Ok(catalog)) = scope::visible(app) {
-                draft.catalog = catalog.records.clone();
-                draft.bindings = catalog.bindings.clone();
-                draft.capabilities = catalog.capabilities.clone();
-                let global_id = draft
-                    .global
-                    .as_ref()
-                    .and_then(|global| global.original.as_ref())
-                    .map(|_| draft.id.trim());
-                draft.targets =
-                    app.targets
-                        .iter()
-                        .filter(|target| target.target_host_id == context.host)
-                        .filter(|_| !config_tools::is_builtin_mcp_server_id(&draft.id))
-                        .map(|target| {
-                            let enabled =
-                                catalog.bindings.iter().any(|binding| {
-                                    (draft.record.as_ref().is_some_and(|record| {
-                                        binding.record.id == record.record.id
-                                    }) || global_id == Some(binding.record.id.0.as_str()))
-                                        && binding.target == *target
-                                        && binding.enabled
-                                });
-                            let selected = if sync_only {
-                                enabled && draft.target_supported(target)
-                            } else {
-                                enabled && draft.global.is_none()
-                            };
-                            (target.clone(), selected, enabled && draft.global.is_none(), false)
-                        })
-                        .collect();
+                draft.set_catalog_targets(catalog, &app.targets);
             }
-            draft.select_default_target();
             app.state.connection_form = Some(draft);
             if !sync_only && let Ok(client) = app.client.clone() {
                 let token = app.token.clone();
@@ -148,8 +118,13 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
             }
             draft.deliveries.extend(results);
             if draft.deliveries.iter().all(|(_, _, result)| delivery_ok(result)) {
-                advance(&mut app.state.connection_form);
-                return Task::batch([app.success("定义已保存，全部目标已应用"), app.refresh()]);
+                let label = if draft.sync_only {
+                    "同步完成"
+                } else {
+                    advance(&mut app.state.connection_form);
+                    "定义已保存，全部目标已应用"
+                };
+                return Task::batch([app.success(label), app.refresh()]);
             }
             return Task::batch([
                 app.error("定义已保存；部分目标发布失败或未验证，可重试失败目标"),
@@ -309,8 +284,12 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
             if draft.saving {
                 return Task::none();
             }
+            let previous_id = draft.id.clone();
             match event {
-                FormMessage::Close => app.state.connection_form = None,
+                FormMessage::Close => {
+                    app.state.connection_form = None;
+                    return Task::none();
+                }
                 _ if !draft.deliveries.is_empty() => {}
                 FormMessage::Target(index, selected) => {
                     draft.edit(FormMessage::Target(index, selected))
@@ -348,6 +327,9 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
                     }
                 }
                 _ => {}
+            }
+            if draft.id != previous_id {
+                draft.refresh_targets(&app.targets);
             }
         }
     }
@@ -404,7 +386,9 @@ fn finish(
     deliver(client, app.token.clone(), context, draft.generation, record, jobs)
 }
 
-fn delivery_ok(result: &Result<vw_api_mcp_management::McpDistributionResult, String>) -> bool {
+pub(crate) fn delivery_ok(
+    result: &Result<vw_api_mcp_management::McpDistributionResult, String>,
+) -> bool {
     result.as_ref().is_ok_and(|result| crate::distribution::summary(result) == "全部目标已应用")
 }
 fn deliver(

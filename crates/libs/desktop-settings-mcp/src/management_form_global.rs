@@ -1,4 +1,4 @@
-//! Edit the existing global configuration through the gateway and reuse catalog distribution.
+//! Persist edits to the global configuration through the gateway.
 use super::Draft;
 use crate::configuration::{editor_value, loaded_mcp_servers, validate_mcp_servers};
 use serde_json::{Value, json};
@@ -9,78 +9,39 @@ use vw_gateway_client::GatewayClient;
 #[derive(Clone)]
 pub struct GlobalDraft {
     pub original: Option<Value>,
-    pub include_global: bool,
     pub enabled: bool,
     pub required: bool,
     pub timeout: String,
 }
 
-pub fn open(
-    draft: &mut Draft,
-    page: &crate::state::State,
-    index: Option<usize>,
-) -> Result<(), String> {
-    let mut global = GlobalDraft {
-        original: None,
-        include_global: true,
-        enabled: true,
-        required: false,
-        timeout: "30".into(),
-    };
+impl Default for GlobalDraft {
+    fn default() -> Self {
+        Self {
+            original: None,
+            enabled: true,
+            required: false,
+            timeout: "30".into(),
+        }
+    }
+}
+
+pub fn open(draft: &mut Draft, page: &crate::state::State, index: Option<usize>) -> Result<(), String> {
     if let Some(index) = index {
         let (servers, _) = editor_value(&page.editor).map_err(|error| error.to_string())?;
         let server = servers.get(index).ok_or("目录已变化，请刷新")?;
         let name = server["name"].as_str().ok_or("目录已变化，请刷新")?;
-        let values = |key: &str| -> Result<BTreeMap<String, McpConfigValue>, String> {
-            let mut values = BTreeMap::new();
-            if let Some(entries) = server[key].as_array() {
-                for entry in entries {
-                    let name =
-                        entry["name"].as_str().ok_or("连接定义无效，请检查字段及凭据引用")?;
-                    let value =
-                        entry["value"].as_str().ok_or("连接定义无效，请检查字段及凭据引用")?;
-                    if values
-                        .insert(name.into(), McpConfigValue::Literal { value: value.into() })
-                        .is_some()
-                    {
-                        return Err("字段名已存在".into());
-                    }
-                }
-            }
-            Ok(values)
-        };
-        let url = || server["url"].as_str().unwrap_or_default().to_owned();
-        let connection = match server["type"].as_str().unwrap_or("stdio") {
-            "http" => {
-                McpConnectionDefinition::StreamableHttp { url: url(), headers: values("headers")? }
-            }
-            "sse" => McpConnectionDefinition::Sse { url: url(), headers: values("headers")? },
-            _ => McpConnectionDefinition::Stdio {
-                command: server["command"].as_str().unwrap_or_default().to_owned(),
-                args: server["args"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(Value::as_str)
-                    .map(str::to_owned)
-                    .collect(),
-                env: values("env")?,
-                cwd: None,
-            },
-        };
+        let connection = gateway_mcp::global_sync::connection(server)?;
         draft.id = name.into();
-        draft.name = name.into();
         draft.set_connection(connection);
-        global.original = Some(server.clone());
-        global.enabled = server["enabled"].as_bool().unwrap_or(true);
-        global.required = server["required"].as_bool().unwrap_or(false);
-        global.timeout = server
+        draft.global.original = Some(server.clone());
+        draft.global.enabled = server["enabled"].as_bool().unwrap_or(true);
+        draft.global.required = server["required"].as_bool().unwrap_or(false);
+        draft.global.timeout = server
             .get("timeout")
             .filter(|value| !value.is_null())
             .map(Value::to_string)
             .unwrap_or_default();
     }
-    draft.global = Some(global);
     Ok(())
 }
 
@@ -113,7 +74,7 @@ pub fn server(draft: &Draft, global: &GlobalDraft) -> Result<Value, String> {
             .map(|(name, value)| match value {
                 McpConfigValue::Literal { value } => Ok(json!({ "name": name, "value": value })),
                 McpConfigValue::Credential { .. } => {
-                    Err("凭据引用和工作目录仅支持保存到共享 MCP 目录".into())
+                    Err("全局 MCP 配置不支持凭据引用或工作目录".into())
                 }
             })
             .collect::<Result<Vec<_>, _>>()
@@ -127,7 +88,7 @@ pub fn server(draft: &Draft, global: &GlobalDraft) -> Result<Value, String> {
             server.insert("env".into(), values(env)?);
         }
         McpConnectionDefinition::Stdio { cwd: Some(_), .. } => {
-            return Err("凭据引用和工作目录仅支持保存到共享 MCP 目录".into());
+            return Err("全局 MCP 配置不支持凭据引用或工作目录".into());
         }
         connection => {
             let (kind, url, headers) = match connection {

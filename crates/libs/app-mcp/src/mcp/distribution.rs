@@ -35,22 +35,23 @@ pub enum NativeMcpEdit<'a> {
 /// Remove for an already managed entry.
 pub struct NativeMcpWrite<'a> {
     pub tenant: &'a TenantScope,
-    pub target: &'a McpAppTarget,
+    pub app_id: AppId,
+    pub target_host_id: &'a str,
     pub source: NativeMcpSource<'a>,
     pub transactions: &'a ProviderTransactions,
 }
 
 impl NativeMcpWrite<'_> {
     pub fn validate_target(&self) -> Result<(), McpFailureCode> {
-        if !self.transactions.is_for_host(&self.target.target_host_id) {
+        if !self.transactions.is_for_host(self.target_host_id) {
             return Err(McpFailureCode::PermissionDenied);
         }
-        match (self.target.app_id, self.source) {
+        match (self.app_id, self.source) {
             (AppId::Claude, NativeMcpSource::ClaudeAccount(account)) => {
                 let (tenant, host) = account
                     .claude_profile_scope()
                     .map_err(|_| McpFailureCode::CredentialUnavailable)?;
-                if tenant != self.tenant || host != &self.target.target_host_id {
+                if tenant != self.tenant || host != self.target_host_id {
                     return Err(McpFailureCode::PermissionDenied);
                 }
                 Ok(())
@@ -99,7 +100,7 @@ impl NativeMcpWrite<'_> {
         preflight: impl Fn() -> Result<(), WriteError>,
     ) -> Result<McpNativeStatus, McpFailureCode> {
         use NativeMcpEdit::{Disable, Insert, Remove, Update};
-        let (app, tx, tenant) = (self.target.app_id, self.transactions, self.tenant);
+        let (app, tx, tenant) = (self.app_id, self.transactions, self.tenant);
         let keeps_entry = match app {
             AppId::Agy => {
                 use agy::{AgyMcpEdit as Edit, AgyMcpError as Error};
@@ -179,7 +180,7 @@ impl NativeMcpWrite<'_> {
         preflight: impl Fn() -> Result<(), WriteError>,
     ) -> Result<McpNativeStatus, McpFailureCode> {
         use NativeMcpEdit::{Disable, Insert, Remove, Update};
-        let (app, tx, tenant) = (self.target.app_id, self.transactions, self.tenant);
+        let (app, tx, tenant) = (self.app_id, self.transactions, self.tenant);
         let Some(mut guard) = existing_config(home, app)? else {
             return absent(edit);
         };

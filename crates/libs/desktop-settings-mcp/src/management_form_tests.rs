@@ -131,3 +131,55 @@ fn template_in_global_editor_preserves_the_server_identity() {
     assert_eq!(updated["enabled"], true);
     assert!(updated.get("command").is_none());
 }
+
+#[test]
+fn global_sync_uses_one_native_target_per_app_and_reuses_existing_ownership() {
+    let mut draft = Draft::new(context(), None);
+    global::open(&mut draft, &crate::state::State::default(), None).unwrap();
+    let tenant = draft.context.endpoint.tenant.clone();
+    let preferred = McpAppTarget {
+        app_id: AppId::Codex,
+        installation_id: vw_api_app_identity::AppInstallationId("default".into()),
+        target_host_id: draft.context.host.clone(),
+    };
+    let owned = McpAppTarget {
+        installation_id: vw_api_app_identity::AppInstallationId("owned".into()),
+        ..preferred.clone()
+    };
+    let foreign = McpAppTarget { target_host_id: "different host".into(), ..preferred.clone() };
+    let reference = McpRecordRef { id: McpRecordId("demo".into()), revision: 1 };
+    let catalog = McpCatalogResponse {
+        records: vec![McpCatalogRecord {
+            record: reference.clone(),
+            scope: McpCatalogScope::Tenant { scope: tenant },
+            name: "demo".into(),
+            description: None,
+            homepage: None,
+            documentation: None,
+            tags: vec![],
+            transport: McpTransport::Stdio,
+            public_summary: None,
+            connection_revision: 1,
+        }],
+        bindings: vec![McpCliBinding {
+            record: reference,
+            target: owned.clone(),
+            enabled: true,
+            native_status: McpNativeStatus::Present,
+        }],
+        capabilities: vec![McpAppCapability {
+            app_id: AppId::Codex,
+            stdio: McpSupport::Supported,
+            streamable_http: McpSupport::Supported,
+            sse: McpSupport::Unsupported,
+        }],
+    };
+    let available = [foreign, preferred.clone(), owned.clone()];
+    draft.set_catalog_targets(&catalog, &available);
+    assert_eq!(draft.targets, vec![(preferred, false, false, false)]);
+
+    draft.edit(FormMessage::Target(0, true));
+    draft.id = "demo".into();
+    draft.refresh_targets(&available);
+    assert_eq!(draft.targets, vec![(owned, true, false, false)]);
+}

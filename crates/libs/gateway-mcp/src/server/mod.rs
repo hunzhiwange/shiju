@@ -14,3 +14,5 @@ pub mod mcp;
 pub mod mcp_management_tools;
 #[cfg(target_os = "macos")]
 pub mod mcp_management_probe;
+
+pub mod global_sync;

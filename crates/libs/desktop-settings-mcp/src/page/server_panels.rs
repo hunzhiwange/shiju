@@ -116,7 +116,7 @@ pub(super) fn configured_server_panel_with_sync<'a, Message: Clone + 'static>(
     preview_expanded: bool,
     controls_enabled: bool,
     previewing: bool,
-    sync: Option<Message>,
+    sync: Option<(Message, Option<iced::Point>)>,
 ) -> Element<'a, Message> {
     let server_index = server.index;
     let builtin = config_tools::is_builtin_mcp_server_id(&server.name);
@@ -143,30 +143,65 @@ pub(super) fn configured_server_panel_with_sync<'a, Message: Clone + 'static>(
         let label = if inspect.is_some() { "重新连接" } else { "连接" };
         menu.insert(0, (tr(locale, label), McpMessage::Connect(preview_key.clone())));
     }
+    let mut menu = menu.into_iter().map(|(label, action)| (label, event(action))).collect::<Vec<_>>();
+    let sync_label = tr(locale, "同步到第三方");
+    if let Some((sync, _)) = &sync {
+        menu.push((sync_label, sync.clone()));
+    }
     let labels = menu.iter().map(|(label, _)| *label).collect::<Vec<_>>();
-    let menu = settings_select(0..menu.len(), None, move |index| event(menu[index].1.clone()))
+    let menu = settings_select(0..menu.len(), None, move |index| menu[index].1.clone())
         .format_labels(|index| labels[*index].to_owned())
-        .menu_icon(Icon::DotsThreeHorizontal, 140.0)
+        .menu_icon(Icon::DotsThreeHorizontal, 180.0)
         .align_menu_right()
         .width(36)
         .disabled(!controls_enabled);
 
     let connect = (inspect.is_none() && controls_enabled && server.enabled)
         .then(|| event(McpMessage::Connect(preview_key.clone())));
-    let mut actions = row![enabled, preview_button(event, locale, preview_key, preview_expanded, connect)];
-    if let Some(sync) = sync {
-        actions = actions.push(toolbar_button(I18n::new(locale).__("同步到第三方"), Some(sync)));
-    }
-    let actions = actions.push(menu).spacing(8)
-            .width(Length::Fill)
-            .align_y(Alignment::Center)
-            .wrap()
-            .align_x(Horizontal::Right);
+    let actions = row![enabled, preview_button(event, locale, preview_key, preview_expanded, connect), menu]
+        .spacing(8)
+        .width(Length::Fill)
+        .align_y(Alignment::Center)
+        .wrap()
+        .align_x(Horizontal::Right);
+
     let header = record(
         identity(server.name, &metadata, status_indicator(locale, inspect, server.enabled)),
         actions,
     );
-    server_entry(locale, header, inspect, preview_expanded, previewing)
+    let entry = server_entry(locale, header, inspect, preview_expanded, previewing);
+    let Some((sync, anchor)) = sync else {
+        return entry;
+    };
+
+    use desktop_ui_controls::{overlays::PointBelowOverlay, right_click_area::RightClickArea};
+    let entry = Element::new(
+        RightClickArea::new(
+            entry,
+            Box::new(move |point| event(McpMessage::GlobalSyncMenu(Some((server_index, point))))),
+        )
+        .preserve_on_right_click(),
+    );
+    let Some(point) = anchor else {
+        return entry;
+    };
+    let menu = container(
+        button(text(sync_label).size(13))
+            .padding([7, 10])
+            .style(rounded_action_btn_style)
+            .on_press(sync),
+    )
+    .padding(4)
+    .style(settings_content_panel_style);
+    PointBelowOverlay::new(entry, menu)
+        .show(true)
+        .anchor(point)
+        .gap(2.0)
+        .on_close(event(McpMessage::GlobalSyncMenu(None)))
+        .capture_outside_click(true)
+        .close_on_target_click(true)
+        .capture_keyboard()
+        .into()
 }
 
 pub fn runtime_server_panel<'a, Message: Clone + 'static>(

@@ -70,6 +70,7 @@ fn set_validation_error(app: &mut crate::state::State, error: impl Into<McpSetti
     };
 }
 fn clear_edit_feedback(app: &mut crate::state::State) {
+    app.global_sync_menu = None;
     app.save_error = None;
     app.status_message = None;
 }
@@ -105,15 +106,18 @@ fn append_template(editor: &text_editor::Content) -> Result<(String, usize), Mcp
 pub fn update(app: &mut crate::state::State, message: Message) -> Effect {
     match message {
         Message::TabSelected(tab) => {
+            app.global_sync_menu = None;
             app.active_tab = tab;
             app.delete_pending = None;
             Effect::None
         }
         Message::ServerSearchChanged(query) => {
+            app.global_sync_menu = None;
             app.server_query = query;
             Effect::None
         }
         Message::Refresh => {
+            app.global_sync_menu = None;
             app.loading = true;
             app.inspect_loading = true;
             app.delete_pending = None;
@@ -123,6 +127,7 @@ pub fn update(app: &mut crate::state::State, message: Message) -> Effect {
             Effect::RefreshAllAndCatalog
         }
         Message::Loaded(result) => {
+            app.global_sync_menu = None;
             app.loading = false;
             match result {
                 Ok(global_config) => {
@@ -233,6 +238,7 @@ pub fn update(app: &mut crate::state::State, message: Message) -> Effect {
             Effect::None
         }
         Message::EditorAction(action) => {
+            app.global_sync_menu = None;
             app.editor.perform(action);
             app.delete_pending = None;
             clear_edit_feedback(app);

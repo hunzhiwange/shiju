@@ -13,6 +13,7 @@ pub type Help<Message> = for<'a> fn(I18n, &'a iced::Theme, &'a str, iced::widget
 pub enum McpMessage {
     TabSelected(McpSettingsTab),
     ServerSearchChanged(String),
+    GlobalSyncMenu(Option<(usize, iced::Point)>),
     Refresh,
     InspectRefresh,
     Connect(String),
@@ -284,10 +285,12 @@ pub fn view_with_management<'a, Message: Clone + 'static>(
                     let preview_expanded = s.expanded_previews.contains(&preview_key);
                     let previewing = s.connecting.as_ref() == Some(&preview_key);
                     let inspected = inspect_for_server(s.inspect.as_ref(), &server.name);
-                    let sync = (show_management
-                        && controls_enabled
-                        && !config_tools::is_builtin_mcp_server_id(&server.name))
-                        .then(|| sync_global(server.index));
+                    let sync = (show_management && controls_enabled).then(|| {
+                        let anchor = s.global_sync_menu
+                            .filter(|(index, _)| *index == server.index)
+                            .map(|(_, point)| point);
+                        (sync_global(server.index), anchor)
+                    });
                     server_panels::configured_server_panel_with_sync(
                         event,
                         locale,

@@ -13,6 +13,7 @@ pub enum McpMessage {
     Transfer(crate::configuration_transfer::Message),
     TabSelected(McpSettingsTab),
     ServerSearchChanged(String),
+    GlobalSyncMenu(Option<(usize, iced::Point)>),
     Extension(crate::extensions::Message),
     Refresh,
     Loaded(Result<serde_json::Value, String>),

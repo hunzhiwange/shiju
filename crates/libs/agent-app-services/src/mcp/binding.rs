@@ -60,7 +60,8 @@ impl McpBindingTarget<'_> {
     fn native_write<'a>(&'a self, tenant: &'a vw_api_transport::TenantScope) -> NativeMcpWrite<'a> {
         NativeMcpWrite {
             tenant,
-            target: self.target,
+            app_id: self.target.app_id,
+            target_host_id: &self.target.target_host_id,
             source: self.source,
             transactions: self.transactions,
         }

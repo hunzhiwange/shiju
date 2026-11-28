@@ -33,6 +33,13 @@ pub(crate) fn visible(app: &App) -> Option<&Result<McpCatalogResponse, String>> 
 
 pub(crate) fn update(app: &mut App, message: CatalogMessage) -> Task<Message> {
     let context = context(app);
+    let reading_targets = matches!(&message, CatalogMessage::Loaded { context: request, generation, .. }
+        if context.as_ref() == Some(request)
+            && app.mcp_settings.catalog.context.as_ref() == Some(request)
+            && app.mcp_settings.catalog.generation == *generation)
+        && app.mcp_settings.connection_form.as_ref().is_some_and(|form| {
+            context.as_ref() == Some(&form.context) && !form.saving && form.targets.is_empty()
+        });
     let authorized =
         context.is_some();
     let mut input = desktop_settings_mcp::configuration_update::catalog::Update {
@@ -46,6 +53,13 @@ pub(crate) fn update(app: &mut App, message: CatalogMessage) -> Task<Message> {
     let task = desktop_settings_mcp::configuration_update::catalog::update(&mut input, message)
         .map(|message| Message::Settings(SettingsMessage::Mcp(McpMessage::Catalog(message))));
     let effects = std::mem::take(&mut input.effects);
+    if reading_targets {
+        let targets = super::mcp_management_import::targets(app);
+        let state = &mut app.mcp_settings;
+        if let (Some(form), Some(Ok(catalog))) = (&mut state.connection_form, &state.catalog.result) {
+            form.set_catalog_targets(catalog, &targets);
+        }
+    }
     super::mcp_management_tools::apply_effects(app, task, effects)
 }
 

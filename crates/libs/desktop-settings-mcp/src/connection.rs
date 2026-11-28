@@ -1,97 +1,44 @@
-//! Managed connection form presentation; persistence stays in the update layer.
-use crate::{form_field, management_bindings::matrix::app_label, toolbar_button};
-use desktop_assets::assets::Icon;
+//! Global MCP editor and direct synchronization modal.
+use crate::{
+    form_field,
+    management_form::{Draft, FormMessage as M},
+    toolbar_button,
+};
 use desktop_settings_apps::system_settings_apps::list::brand_icon;
-use desktop_ui_controls::system_settings_common::{icons::icon_btn_svg_style, *};
+use desktop_ui_controls::system_settings_common::*;
 use iced::{
     Alignment, Element, Length,
-    widget::{Space, button, checkbox, column, container, row, rule, text, text_editor},
+    widget::{Space, button, checkbox, column, container, row, text, text_editor},
 };
-use vw_api_mcp_management::{McpConfigValue, McpPresetDraftView};
-#[derive(Clone)]
-pub enum FormMessage {
-    Replace(bool),
-    IncludeGlobal(bool),
-    GlobalEnabled(bool),
-    GlobalRequired(bool),
-    ArgAdd,
-    ArgRemove(usize),
-    ArgSet(usize, String),
-    PasteEditor(text_editor::Action),
-    ParsePaste,
-    ChoosePaste(usize),
-    SkipPaste(usize),
-    Details(bool),
-    Target(usize, bool),
-    Retry,
-    Close,
-    Field(&'static str, String),
-    Json(bool),
-    Editor(text_editor::Action),
-    Description(text_editor::Action),
-    Preset(usize),
-    ValueAdd,
-    ValueRemove(String),
-    ValueName(String, String),
-    ValueKind(String, bool),
-    ValueText(String, String),
-    ValueService(String, String),
-    Save,
-}
-type Message = FormMessage;
-fn message(value: FormMessage) -> Message {
-    value
-}
-pub struct ConnectionDraft<'a> {
-    pub draft: &'a crate::management_form::Draft,
-    pub editing: bool,
-    pub id: &'a str,
-    pub name: &'a str,
-    pub transport: &'a str,
-    pub command: &'a str,
-    pub args: &'a str,
-    pub values: &'a str,
-    pub cwd: &'a str,
-    pub url: &'a str,
-    pub editor: &'a text_editor::Content,
-    pub json: bool,
-    pub saving: bool,
-    pub error: &'a Option<String>,
-    pub presets: &'a [McpPresetDraftView],
-}
-/// Shared settings modal owns fixed header/footer and the 4px scrolling content area.
-pub fn connection_form_panel(
-    i18n: desktop_i18n::I18n,
-    draft: ConnectionDraft<'_>,
-) -> Element<'_, Message> {
-    let input = |label: &'static str, field: &'static str, value: &str| {
+use vw_api_app_identity::AppId;
+use vw_api_mcp_management::{McpConfigValue, McpFailureCode};
+
+pub fn connection_form_panel(i18n: desktop_i18n::I18n, draft: &Draft) -> Element<'_, M> {
+    let editable = !draft.saving && draft.retry.is_empty() && draft.deliveries.is_empty();
+    let input = |label, field, value: &str| {
         form_field(
             label,
-            settings_text_input("", value).on_input_maybe(
-                (!draft.saving).then_some(move |value| message(FormMessage::Field(field, value))),
-            ),
+            settings_text_input("", value)
+                .on_input_maybe(editable.then_some(move |value| M::Field(field, value))),
         )
     };
-    let mut body = column![].spacing(15).width(Length::Fill);
-    let global = draft.draft.global.as_ref();
-    let sync_only = draft.draft.sync_only;
-    if sync_only {
-        body = body.push(text(draft.name).size(16));
-    }
-    if !sync_only && !draft.presets.is_empty() {
-        let mut presets = row![].spacing(7);
-        for (index, preset) in draft.presets.iter().enumerate() {
-            presets = presets.push(
+    let mut body = column![].spacing(14).width(Length::Fill);
+    if draft.sync_only {
+        body = body.push(text(draft.id.as_str()).size(16));
+    } else {
+        if !draft.presets.is_empty() {
+            let presets = row(draft.presets.iter().enumerate().map(|(index, preset)| {
                 button(text(preset.name.as_str()).size(13))
                     .padding([6, 12])
                     .style(rounded_action_btn_style)
-                    .on_press_maybe((!draft.saving).then_some(FormMessage::Preset(index))),
-            );
+                    .on_press_maybe(editable.then_some(M::Preset(index)))
+                    .into()
+            }))
+            .spacing(7)
+            .wrap();
+            body = body.push(form_field(i18n.__("从模板开始"), presets));
         }
-        body = body.push(form_field(i18n.__("从模板开始"), presets.wrap()));
-    }
-    if !sync_only {
-        let paste = text_editor(&draft.draft.paste)
+        let paste = text_editor(&draft.paste)
             .placeholder(i18n.__("粘贴 JSON、Codex TOML 或 OpenCode 配置"))
             .height(78)
             .padding(SETTINGS_CONTROL_PADDING)
@@ -100,504 +47,289 @@ pub fn connection_form_panel(
         body = body.push(form_field(
             i18n.__("粘贴配置"),
             column![
-                if draft.saving { paste } else { paste.on_action(FormMessage::PasteEditor) },
-                row![
-                    Space::new().width(Length::Fill),
-                    toolbar_button(
-                        i18n.__("解析配置"),
-                        (!draft.saving && !draft.draft.paste.text().trim().is_empty())
-                            .then_some(FormMessage::ParsePaste)
-                    ),
-                ],
+                if editable { paste.on_action(M::PasteEditor) } else { paste },
+                toolbar_button(
+                    i18n.__("解析配置"),
+                    (editable && !draft.paste.text().trim().is_empty()).then_some(M::ParsePaste)
+                )
             ]
             .spacing(6),
         ));
-        for (index, candidate) in draft.draft.candidates.iter().enumerate() {
-            let conflict = draft.draft.catalog.iter().any(|r| r.record.id.0 == candidate.id);
+        for (index, candidate) in draft.candidates.iter().enumerate() {
             body = body.push(
                 row![
-                    text(format!(
-                        "{} · {}",
-                        candidate.id,
-                        if candidate.connection.is_err() {
-                            i18n.__("无效项")
-                        } else if conflict {
-                            i18n.__("同名项")
-                        } else {
-                            i18n.__("新项")
-                        }
-                    )),
+                    text(candidate.id.as_str())
+                        .width(Length::Fill)
+                        .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
                     toolbar_button(
-                        if conflict && global.is_none() {
-                            i18n.__("按当前修订替换")
-                        } else {
-                            i18n.__("填入草稿")
-                        },
-                        (!draft.saving && candidate.connection.is_ok())
-                            .then_some(FormMessage::ChoosePaste(index))
+                        i18n.__("填入草稿"),
+                        (editable && candidate.connection.is_ok()).then_some(M::ChoosePaste(index))
                     ),
-                    toolbar_button(
-                        i18n.__("跳过"),
-                        (!draft.saving).then_some(FormMessage::SkipPaste(index))
-                    ),
+                    toolbar_button(i18n.__("跳过"), editable.then_some(M::SkipPaste(index))),
                 ]
-                .spacing(8),
+                .spacing(8)
+                .align_y(Alignment::Center),
             );
         }
-    }
-    if !sync_only {
-        body = body.push(rule::horizontal(1)).push(form_field(
-            if draft.editing { i18n.__("目录 ID") } else { i18n.__("名称（目录 ID）") },
-            settings_text_input(i18n.__("例如 context7"), draft.id).on_input_maybe(
-                (!draft.saving && !draft.editing).then_some(|id| FormMessage::Field("id", id)),
-            ),
+        body = body.push(form_field(
+            i18n.__("服务器名称"),
+            settings_text_input(i18n.__("例如 context7"), &draft.id)
+                .on_input_maybe((editable && !draft.editing()).then_some(|id| M::Field("id", id))),
         ));
-    }
-    if draft.editing && global.is_none() && !sync_only {
         body = body.push(
-            checkbox(draft.draft.replace_connection)
-                .label(i18n.__("替换私有连接"))
-                .style(settings_checkbox_style)
-                .on_toggle_maybe((!draft.saving).then_some(FormMessage::Replace)),
+            row![
+                settings_field_label(i18n.__("连接配置")),
+                Space::new().width(Length::Fill),
+                segment(
+                    i18n.__("表单"),
+                    !draft.json,
+                    (editable && draft.json).then_some(M::Json(false))
+                ),
+                segment("JSON", draft.json, (editable && !draft.json).then_some(M::Json(true))),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center),
         );
-        if draft.draft.replace_connection {
-            body = body.push(
-                text(i18n.__("请填写新的连接定义。省略的现有凭据引用会保留。"))
-                    .size(12)
-                    .style(settings_muted_text_style),
-            );
-        }
-    }
-    if draft.draft.replace_connection && !sync_only {
-        let connection_header = row![
-            settings_field_label(i18n.__("连接配置")),
-            Space::new().width(Length::Fill),
-            container(
-                row![
-                    segment(
-                        i18n.__("表单"),
-                        !draft.json,
-                        (!draft.saving && draft.json).then_some(FormMessage::Json(false))
-                    ),
-                    segment(
-                        "JSON",
-                        draft.json,
-                        (!draft.saving && !draft.json).then_some(FormMessage::Json(true))
-                    ),
-                ]
-                .spacing(3)
-            )
-            .padding(3)
-            .style(segment_track),
-        ]
-        .align_y(Alignment::Center);
-        body = body.push(settings_group_header(connection_header));
         if draft.json {
-            let editor = text_editor(draft.editor)
+            let editor = text_editor(&draft.editor)
                 .padding(SETTINGS_CONTROL_PADDING)
                 .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .height(340)
+                .height(300)
                 .style(settings_text_editor_style);
-            body = body.push(form_field(
-                i18n.__("服务器配置"),
-                if draft.saving { editor } else { editor.on_action(FormMessage::Editor) },
-            ));
+            body = body.push(if editable { editor.on_action(M::Editor) } else { editor });
         } else {
-            let transport = |label: &'static str, kind: &'static str| {
+            let transport = |label, kind: &'static str| {
                 segment(
                     label,
                     draft.transport == kind,
-                    (!draft.saving && draft.transport != kind)
-                        .then(|| FormMessage::Field("transport", kind.into())),
+                    (editable && draft.transport != kind)
+                        .then(|| M::Field("transport", kind.into())),
                 )
             };
             body = body.push(form_field(
                 i18n.__("连接方式"),
-                container(
-                    row![
-                        transport(i18n.__("本地命令（stdio）"), "stdio"),
-                        transport("HTTP", "streamable_http"),
-                        transport("SSE", "sse"),
-                    ]
-                    .spacing(4)
-                    .wrap(),
-                )
-                .padding(3)
-                .style(segment_track),
+                row![
+                    transport(i18n.__("本地命令（stdio）"), "stdio"),
+                    transport("HTTP", "streamable_http"),
+                    transport("SSE", "sse"),
+                ]
+                .spacing(4)
+                .wrap(),
             ));
             if draft.transport == "stdio" {
-                body = body.push(form_field(
-                    i18n.__("命令"),
-                    settings_text_input(i18n.__("例如 npx 或 uvx"), draft.command).on_input_maybe(
-                        (!draft.saving).then_some(|value| FormMessage::Field("command", value)),
-                    ),
-                ));
+                body = body.push(input(i18n.__("命令"), "command", &draft.command));
                 body = body.push(settings_field_label(i18n.__("参数")));
-                let args: Vec<String> = serde_json::from_str(draft.args).unwrap_or_default();
+                let args: Vec<String> = serde_json::from_str(&draft.args).unwrap_or_default();
                 for (index, arg) in args.iter().enumerate() {
                     body = body.push(
                         row![
                             settings_text_input(i18n.__("独立参数（保留空格）"), arg)
                                 .on_input_maybe(
-                                    (!draft.saving)
-                                        .then_some(move |value| FormMessage::ArgSet(index, value))
+                                    editable.then_some(move |value| M::ArgSet(index, value))
                                 ),
-                            toolbar_button(
-                                "×",
-                                (!draft.saving).then_some(FormMessage::ArgRemove(index))
-                            )
+                            toolbar_button("×", editable.then_some(M::ArgRemove(index))),
                         ]
-                        .spacing(8),
+                        .spacing(8)
+                        .align_y(Alignment::Center),
                     );
                 }
-                body = body.push(toolbar_button(
-                    i18n.__("+ 添加参数"),
-                    (!draft.saving).then_some(FormMessage::ArgAdd),
-                ));
+                body =
+                    body.push(toolbar_button(i18n.__("+ 添加参数"), editable.then_some(M::ArgAdd)));
             } else {
-                body = body.push(input("URL", "url", draft.url));
+                body = body.push(input("URL", "url", &draft.url));
             }
-            body = body.push(
-                text(if draft.transport == "stdio" {
-                    i18n.__("环境变量")
-                } else {
-                    i18n.__("请求头")
-                })
-                .size(14),
-            );
+            let stdio = draft.transport == "stdio";
+            body = body.push(settings_field_label(i18n.__(if stdio {
+                "环境变量"
+            } else {
+                "请求头"
+            })));
             let values: std::collections::BTreeMap<String, McpConfigValue> =
-                serde_json::from_str(draft.values).unwrap_or_default();
-            for (name, value) in values {
+                serde_json::from_str(&draft.values).unwrap_or_default();
+            for (name, field) in values {
                 let key = name.clone();
-                let remove = name.clone();
-                let kind_key = name.clone();
                 let value_key = name.clone();
-                let credential = matches!(value, McpConfigValue::Credential { .. });
-                let mut fields = row![
-                    settings_text_input(i18n.__("字段名"), &name)
-                        .width(Length::FillPortion(2))
-                        .on_input_maybe((!draft.saving).then_some(move |value| message(
-                            FormMessage::ValueName(key.clone(), value)
-                        ))),
-                    settings_select(
-                        ["literal", "credential"],
-                        Some(if credential { "credential" } else { "literal" }),
-                        move |kind| message(FormMessage::ValueKind(
-                            kind_key.clone(),
-                            kind == "credential"
-                        ))
-                    )
-                    .disabled(draft.saving),
-                ]
-                .spacing(6);
-                let text_value = match value {
+                let value = match field {
                     McpConfigValue::Literal { value } => value,
-                    McpConfigValue::Credential { reference } => {
-                        let service = serde_json::to_value(reference.service)
-                            .expect("service")
-                            .as_str()
-                            .unwrap()
-                            .to_owned();
-                        fields = fields.push(
-                            settings_select(
-                                [
-                                    "github_copilot",
-                                    "codex_oauth",
-                                    "xai_oauth",
-                                    "kimi_oauth",
-                                    "claude_official",
-                                    "agy_oauth",
-                                    "dsh_account",
-                                ]
-                                .map(str::to_owned),
-                                Some(service),
-                                move |service| {
-                                    message(FormMessage::ValueService(name.clone(), service))
-                                },
-                            )
-                            .disabled(draft.saving),
-                        );
-                        reference.account_id
-                    }
+                    McpConfigValue::Credential { .. } => String::new(),
                 };
-                fields = fields.push(
-                    settings_text_input(
-                        if credential {
-                            i18n.__("凭据账号 ID")
-                        } else {
-                            i18n.__("非秘密值")
-                        },
-                        &text_value,
-                    )
-                    .on_input_maybe((!draft.saving).then_some(move |value| {
-                        message(FormMessage::ValueText(value_key.clone(), value))
-                    })),
-                );
                 body = body.push(
-                    fields
-                        .push(toolbar_button(
-                            "×",
-                            (!draft.saving).then_some(FormMessage::ValueRemove(remove)),
-                        ))
-                        .align_y(Alignment::Center)
-                        .wrap(),
+                    row![
+                        settings_text_input(i18n.__("字段名"), &name)
+                            .width(Length::FillPortion(1))
+                            .on_input_maybe(
+                                editable.then_some(move |value| M::ValueName(key.clone(), value))
+                            ),
+                        settings_text_input(i18n.__("值"), &value)
+                            .width(Length::FillPortion(2))
+                            .on_input_maybe(
+                                editable
+                                    .then_some(move |value| M::ValueText(value_key.clone(), value))
+                            ),
+                        toolbar_button("×", editable.then_some(M::ValueRemove(name))),
+                    ]
+                    .spacing(6)
+                    .align_y(Alignment::Center)
+                    .wrap(),
                 );
             }
             body = body.push(toolbar_button(
-                if draft.transport == "stdio" {
-                    i18n.__("+ 添加环境变量")
-                } else {
-                    i18n.__("+ 添加请求头")
-                },
-                (!draft.saving).then_some(FormMessage::ValueAdd),
+                i18n.__(if stdio { "+ 添加环境变量" } else { "+ 添加请求头" }),
+                editable.then_some(M::ValueAdd),
             ));
-            if draft.transport == "stdio" {
-                body = body.push(input(i18n.__("工作目录（可选）"), "cwd", draft.cwd));
-            }
         }
-    }
-    if let Some(global) = global.filter(|_| !sync_only) {
-        if global.original.is_none() {
-            body = body.push(
-                checkbox(global.include_global)
-                    .label(i18n.__("保存到识矩全局配置"))
+        body = body.push(
+            row![
+                checkbox(draft.global.enabled)
+                    .label(i18n.__("启用"))
                     .style(settings_checkbox_style)
-                    .on_toggle_maybe((!draft.saving).then_some(FormMessage::IncludeGlobal)),
-            );
-        }
-        if global.include_global {
-            body = body.push(
-                row![
-                    checkbox(global.enabled)
-                        .label(i18n.__("启用"))
-                        .style(settings_checkbox_style)
-                        .on_toggle_maybe((!draft.saving).then_some(FormMessage::GlobalEnabled)),
-                    checkbox(global.required)
-                        .label(i18n.__("必需"))
-                        .style(settings_checkbox_style)
-                        .on_toggle_maybe((!draft.saving).then_some(FormMessage::GlobalRequired)),
-                ]
-                .spacing(12)
-                .wrap(),
-            );
-            body = body.push(input(i18n.__("超时（秒）"), "timeout", &global.timeout));
-        }
-    }
-    body = body.push(settings_group_header(settings_field_label(i18n.__("写入到"))));
-    if draft.draft.targets.is_empty() {
-        body = body.push(
-            text(i18n.__("未发现可信的安装实例。仍可单独保存定义。"))
-                .size(12)
-                .style(settings_muted_text_style),
+                    .on_toggle_maybe(editable.then_some(M::GlobalEnabled)),
+                checkbox(draft.global.required)
+                    .label(i18n.__("必需"))
+                    .style(settings_checkbox_style)
+                    .on_toggle_maybe(editable.then_some(M::GlobalRequired)),
+            ]
+            .spacing(12)
+            .wrap(),
         );
+        body = body.push(input(i18n.__("超时（秒）"), "timeout", &draft.global.timeout));
     }
-    if !draft.draft.targets.is_empty() {
-        body = body.push(
-            text(if global.is_some_and(|global| global.include_global) {
-                i18n.__("勾选应用后，同步会更新共享目录中的同名连接。")
-            } else if sync_only {
-                i18n.__("选择要同步到的应用。")
-            } else if draft.editing {
-                i18n.__("保存时应用勾选变更。替换连接会重发到仍勾选的应用。")
-            } else {
-                i18n.__("添加时写入已勾选的应用，也可取消勾选，仅保存定义。")
-            })
-            .size(12)
-            .style(settings_muted_text_style),
-        );
-    }
-    for (row_index, pair) in draft.draft.targets.chunks(2).enumerate() {
-        let mut targets = row![].spacing(12);
-        for (column_index, (target, selected, _, _)) in pair.iter().enumerate() {
-            let index = row_index * 2 + column_index;
-            let supported = draft.draft.target_supported(target);
-            let repeated = draft
-                .draft
-                .targets
-                .iter()
-                .filter(|(other, _, _, _)| other.app_id == target.app_id)
-                .count()
-                > 1;
-            let mut label = column![text(app_label(target.app_id)).size(13)];
-            if repeated {
-                label = label.push(
-                    text(target.installation_id.0.clone())
-                        .size(11)
-                        .style(settings_muted_text_style),
-                );
-            }
-            if !supported {
-                label = label.push(
-                    text(i18n.__("当前传输不可用")).size(11).style(settings_muted_text_style),
-                );
-            }
-            targets = targets.push(
-                container(
-                    row![
-                        checkbox(*selected)
-                            .size(17)
-                            .style(settings_checkbox_style)
-                            .on_toggle_maybe(
-                                (!draft.saving && (supported || *selected))
-                                    .then_some(move |value| FormMessage::Target(index, value))
-                            ),
-                        brand_icon(target.app_id, 17.0),
-                        label,
-                    ]
-                    .spacing(8)
-                    .align_y(Alignment::Center),
-                )
-                .width(Length::FillPortion(1)),
-            );
-        }
-        if pair.len() == 1 {
-            targets = targets.push(Space::new().width(Length::FillPortion(1)));
-        }
-        body = body.push(targets);
-    }
-    if !sync_only && global.is_none_or(|global| !global.include_global) {
-        body = body.push(rule::horizontal(1)).push(
-            button(
-                row![
-                    icon_svg(
-                        if draft.draft.details { Icon::ChevronDown } else { Icon::ChevronRight },
-                        13.0
-                    )
-                    .style(icon_btn_svg_style),
-                    text(i18n.__("说明与链接")).size(14),
-                ]
-                .spacing(7)
-                .align_y(Alignment::Center),
-            )
-            .padding([6, 10])
-            .style(rounded_action_btn_style)
-            .on_press(FormMessage::Details(!draft.draft.details)),
-        );
-        if draft.draft.details {
-            let description = text_editor(&draft.draft.description)
-                .height(64)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .padding(SETTINGS_CONTROL_PADDING)
-                .style(settings_text_editor_style);
-            body = body.push(input(i18n.__("显示名"), "name", &draft.draft.name)).push(form_field(
-                i18n.__("描述"),
-                if draft.saving {
-                    description
-                } else {
-                    description.on_action(FormMessage::Description)
-                },
-            ));
-            for (label, field, value) in [
-                (i18n.__("标签（逗号分隔）"), "tags", &draft.draft.tags),
-                (i18n.__("主页"), "homepage", &draft.draft.homepage),
-                (i18n.__("文档"), "documentation", &draft.draft.documentation),
-            ] {
-                body = body.push(input(label, field, value));
-            }
-            if draft.editing {
-                body = body.push(input(
-                    i18n.__("公开连接摘要（请勿填写凭据）"),
-                    "summary",
-                    &draft.draft.summary,
-                ));
-            }
-        }
-    }
-    for (_, _, result) in &draft.draft.deliveries {
-        match result {
-            Ok(result) => {
-                for item in &result.items {
-                    body = body.push(text(crate::distribution::item_label(i18n, item)).size(12));
-                }
-            }
-            Err(error) => {
-                body = body.push(settings_error_banner(
-                    desktop_i18n::settings_extensions::feedback(i18n, &error.clone()),
-                ))
-            }
-        }
-    }
-    if !draft.draft.deliveries.is_empty() {
-        body = body.push(toolbar_button(
-            i18n.__("重试失败目标"),
-            (!draft.saving).then_some(FormMessage::Retry),
-        ));
+
+    body = body.push(sync_targets(i18n, draft, editable));
+    if !draft.retry.is_empty() {
+        body =
+            body.push(toolbar_button(i18n.__("重试失败目标"), (!draft.saving).then_some(M::Retry)));
     }
     if let Some(error) = &draft.error {
-        body = body.push(settings_error_banner(desktop_i18n::settings_extensions::feedback(
-            i18n,
-            &error.clone(),
-        )));
+        body = body
+            .push(settings_error_banner(desktop_i18n::settings_extensions::feedback(i18n, error)));
     }
-    let close = message(FormMessage::Close);
-    let header = row![
-        icon_btn(
-            Icon::ChevronLeft,
-            i18n.__("返回 MCP 列表"),
-            (!draft.saving).then_some(close.clone())
-        ),
-        text(if sync_only {
-            i18n.__("同步到第三方")
-        } else if draft.editing {
-            i18n.__("编辑 MCP")
-        } else {
-            i18n.__("添加 MCP")
-        })
-        .size(20),
-        Space::new().width(Length::Fill),
-        if draft.saving {
-            Space::new().width(32).into()
-        } else {
-            iced::Element::from(settings_close_button(FormMessage::Close))
-        },
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+
+    let title = if draft.sync_only {
+        "同步到第三方"
+    } else if draft.editing() {
+        "编辑 MCP"
+    } else {
+        "添加 MCP"
+    };
+    let close: Element<'_, M> = if draft.saving {
+        Space::new().width(32).into()
+    } else {
+        settings_close_button(M::Close).into()
+    };
+    let header = settings_modal_header(text(i18n.__(title)).size(SETTINGS_PAGE_TITLE_SIZE), close);
+    let action = if draft.saving {
+        if draft.sync_only { "同步中…" } else { "保存中…" }
+    } else if draft.sync_only {
+        "同步到第三方"
+    } else if draft.editing() {
+        "保存"
+    } else {
+        "添加 MCP"
+    };
     let footer = row![
         Space::new().width(Length::Fill),
-        toolbar_button(i18n.__("取消"), (!draft.saving).then_some(close)),
-        button(text(if draft.saving {
-            i18n.__("保存中…")
-        } else if sync_only {
-            i18n.__("同步到第三方")
-        } else if draft.editing {
-            i18n.__("保存")
-        } else {
-            i18n.__("添加 MCP")
-        }))
-        .padding([8, 16])
-        .style(primary_action_btn_style)
-        .on_press_maybe(
-            (!draft.saving
-                && draft.draft.deliveries.is_empty()
-                && (!sync_only || draft.draft.targets.iter().any(|(_, selected, _, _)| *selected)))
-            .then_some(message(FormMessage::Save))
+        toolbar_button(
+            i18n.__(if draft.sync_only { "关闭" } else { "取消" }),
+            (!draft.saving).then_some(M::Close)
         ),
+        button(text(i18n.__(action)).size(13))
+            .padding([8, 16])
+            .style(primary_action_btn_style)
+            .on_press_maybe(
+                (editable
+                    && (!draft.sync_only || draft.targets.iter().any(|(_, selected)| *selected)))
+                .then_some(M::Save)
+            ),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
-    settings_modal_layout(header, body, Some(footer.into())).width(720).height(620).into()
+    settings_modal_layout(header, body, Some(footer.into()))
+        .width(if draft.sync_only { 590 } else { 720 })
+        .height(if draft.sync_only { 540 } else { 620 })
+        .into()
 }
 
-fn segment_track(theme: &iced::Theme) -> iced::widget::container::Style {
-    iced::widget::container::Style::default()
-        .background(theme.extended_palette().background.weak.color)
-        .border(iced::border::rounded(10))
+fn sync_targets<'a>(i18n: desktop_i18n::I18n, draft: &'a Draft, editable: bool) -> Element<'a, M> {
+    let mut body = column![settings_group_header(settings_field_label(i18n.__("同步到")))]
+        .spacing(10)
+        .width(Length::Fill);
+    if draft.targets.is_empty() {
+        let hint = if draft.loading {
+            "正在读取可同步的应用…"
+        } else {
+            "未发现可同步的应用"
+        };
+        return body.push(text(i18n.__(hint)).size(12).style(settings_muted_text_style)).into();
+    }
+    let mut choices = column![].spacing(10);
+    for pair in draft.targets.chunks(2) {
+        let mut line = row![].spacing(12);
+        for (info, selected) in pair {
+            let app = info.app_id;
+            let supported = draft.target_supported(info);
+            let choice = checkbox(*selected)
+                .label(app_label(app))
+                .text_size(13)
+                .style(settings_checkbox_style)
+                .on_toggle_maybe(
+                    (editable && (supported || *selected))
+                        .then_some(move |value| M::Target(app, value)),
+                );
+            let mut item =
+                column![row![brand_icon(app, 17.0), choice].spacing(8).align_y(Alignment::Center)]
+                    .spacing(4)
+                    .width(Length::FillPortion(1));
+            let status = match draft.deliveries.iter().find(|delivery| delivery.app_id == app) {
+                Some(delivery) => Some(match delivery.failure {
+                    None => "已应用",
+                    Some(McpFailureCode::Conflict) => "应用中已有同名 MCP 配置",
+                    Some(McpFailureCode::TargetUnavailable) => "目标不可用",
+                    Some(_) => "同步失败",
+                }),
+                None if !supported => Some("当前传输不可用"),
+                None => None,
+            };
+            if let Some(status) = status {
+                item = item.push(text(i18n.__(status)).size(12).style(settings_muted_text_style));
+            }
+            line = line.push(item);
+        }
+        if pair.len() == 1 {
+            line = line.push(Space::new().width(Length::FillPortion(1)));
+        }
+        choices = choices.push(line);
+    }
+    body = body.push(settings_group_card(container(choices).padding([12, 0])));
+    body.into()
 }
 
 fn segment(
     label: &'static str,
     active: bool,
-    message: Option<FormMessage>,
-) -> iced::widget::Button<'static, FormMessage> {
+    message: Option<M>,
+) -> iced::widget::Button<'static, M> {
     button(text(label).size(13))
         .padding([7, 12])
         .style(move |theme, status| settings_segment_button_style(theme, status, active))
         .on_press_maybe(message)
 }
 
-impl std::fmt::Debug for FormMessage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("FormMessage { .. }")
+fn app_label(app: AppId) -> &'static str {
+    match app {
+        AppId::Claude => "Claude Code",
+        AppId::Codex => "Codex",
+        AppId::Gemini => "Gemini CLI",
+        AppId::GrokBuild => "Grok Build",
+        AppId::OpenCode => "OpenCode",
+        AppId::Hermes => "Hermes",
+        AppId::Pi => "Pi",
+        AppId::Mcode => "MiniMax Code",
+        AppId::Kimi => "Kimi Code",
+        AppId::Dsh => "DeepSeek Harness",
+        AppId::Agy => "Antigravity",
+        AppId::Omp => "Oh My Pi",
+        AppId::ClaudeDesktop => "Claude Desktop",
+        AppId::OpenClaw => "OpenClaw",
     }
 }

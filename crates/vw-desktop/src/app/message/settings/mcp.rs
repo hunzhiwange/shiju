@@ -81,6 +81,17 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         McpMessage::Management(scope, event) => {
             return crate::app::components::system_settings_mcp::management::update(app, scope, event);
         }
+        McpMessage::GlobalSyncMenu(menu) => {
+            if menu.is_none()
+                || (crate::app::components::system_settings_mcp::is_visible(app)
+                    && !app.mcp_settings.modal_open()
+                    && !app.mcp_settings.loading
+                    && !app.mcp_settings.mutating())
+            {
+                app.mcp_settings.page.global_sync_menu = menu;
+            }
+            return Task::none();
+        }
         McpMessage::Extension(event) => return extensions::update(app, event),
         McpMessage::Tools(value) => return super::mcp_management_tools::update(app, value),
         McpMessage::Diagnostic(value) => {

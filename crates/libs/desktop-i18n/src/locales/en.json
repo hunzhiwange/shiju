@@ -7686,6 +7686,8 @@
   "从应用导入": "Import from apps",
   "MCP 服务器": "MCP servers",
   "管理 MCP 服务器、运行时连接和第三方同步。": "Manage MCP servers, runtime connections, and third-party sync.",
+  "同步到": "Sync to",
+  "未发现可同步的应用": "No apps available to sync",
   "同步到第三方": "Sync to third-party apps",
   "保存到识矩全局配置": "Save to ShiJu global configuration",
   "选择要同步到的应用。": "Choose which apps to sync to.",

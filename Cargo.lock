@@ -21802,7 +21802,7 @@ dependencies = [
 
 [[package]]
 name = "vw-acp"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "acp-access-policy",
  "acp-agent-registry",
@@ -21838,7 +21838,7 @@ dependencies = [
 
 [[package]]
 name = "vw-agent"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "acp-access-policy",
  "acp-agent-registry",
@@ -22750,7 +22750,7 @@ dependencies = [
 
 [[package]]
 name = "vw-api-types"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "serde",
  "serde_json",
@@ -22848,7 +22848,7 @@ dependencies = [
 
 [[package]]
 name = "vw-cli"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "agent-config",
  "anyhow",
@@ -22868,7 +22868,7 @@ dependencies = [
 
 [[package]]
 name = "vw-config-types"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "config-acp-install",
  "config-agent",
@@ -22900,7 +22900,7 @@ dependencies = [
 
 [[package]]
 name = "vw-desktop"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "agent-skills",
  "anyhow",
@@ -23189,7 +23189,7 @@ dependencies = [
 
 [[package]]
 name = "vw-gateway-client"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "futures-util",
  "gateway-aggregation",
@@ -23307,7 +23307,7 @@ dependencies = [
 
 [[package]]
 name = "vw-provider-resolver"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "model-protocols",
  "provider-auth-reader",
@@ -23326,7 +23326,7 @@ dependencies = [
 
 [[package]]
 name = "vw-shared"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "app-self-update",
  "auth-file-store",
@@ -23387,7 +23387,7 @@ dependencies = [
 
 [[package]]
 name = "vw-webview"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "webview-browser-runtime",
  "webview-mcp-runtime",

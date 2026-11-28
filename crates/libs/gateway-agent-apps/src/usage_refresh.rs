@@ -139,14 +139,6 @@ impl UsageRefresh {
     }
 
     pub async fn tick(self: &Arc<Self>, policy: &Path, now: Instant) -> Vec<RefreshItem> {
-        self.refresh_all(policy, Some(now)).await
-    }
-
-    pub async fn refresh_all(
-        self: &Arc<Self>,
-        policy: &Path,
-        scheduled: Option<Instant>,
-    ) -> Vec<RefreshItem> {
         let policy = policy.to_owned();
         let service = Arc::clone(self);
         let items = tokio::task::spawn_blocking(move || {
@@ -154,24 +146,20 @@ impl UsageRefresh {
             let mut current = std::collections::HashSet::new();
             for target in usage_refresh_targets(&policy) {
                 match service.prepare(&target) {
-                    Ok(Some(query)) => {
-                        if scheduled.is_none() || query.interval.is_some() {
-                            current.insert(query.key.clone());
-                            ready.push((target, Ok(query)));
-                        }
+                    Ok(Some(query)) if query.interval.is_some() => {
+                        current.insert(query.key.clone());
+                        ready.push((target, Ok(query)));
                     }
-                    Ok(None) => {}
+                    Ok(_) => {}
                     Err(error) => ready.push((target, Err(error))),
                 }
             }
-            if scheduled.is_some() {
-                let mut state = service.state.lock();
-                let expired: Vec<_> =
-                    state.attempts.keys().filter(|key| !current.contains(*key)).cloned().collect();
-                for key in expired {
-                    state.attempts.remove(&key);
-                    state.cache.invalidate(&key);
-                }
+            let mut state = service.state.lock();
+            let expired: Vec<_> =
+                state.attempts.keys().filter(|key| !current.contains(*key)).cloned().collect();
+            for key in expired {
+                state.attempts.remove(&key);
+                state.cache.invalidate(&key);
             }
             ready
         })
@@ -182,7 +170,7 @@ impl UsageRefresh {
             .map(|(target, query)| async move {
                 let provider = target.provider.clone();
                 let result = match query {
-                    Ok(query) => self.refresh(target, query, scheduled, None).await?,
+                    Ok(query) => self.refresh(target, query, Some(now), None).await?,
                     Err(error) => Arc::new(Err(error)),
                 };
                 Some(RefreshItem { provider, result })
@@ -458,7 +446,7 @@ impl UsageRefresh {
         let service = Arc::clone(self);
         tokio::task::spawn_blocking(move || {
             let current = (|| {
-                if !usage_targets(&target.policy, target.batch)
+                if !usage_targets(&target.policy)
                     .is_ok_and(|targets| targets.contains(&target))
                 {
                     return Ok(false);

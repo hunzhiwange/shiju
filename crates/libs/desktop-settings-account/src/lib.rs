@@ -13,7 +13,6 @@ pub enum Event<U = ()> {
     Token(String),
     Connect,
     Refresh,
-    RefreshUsage,
     RetryService(vw_api_app_auth::AuthService),
     OpenBrowserPreference(bool),
     StartLogin(LoginTarget),
@@ -64,8 +63,5 @@ pub struct State<'a> {
     pub rows_generation: u64,
 }
 pub struct Usage<'a, U: Clone> {
-    pub available: bool,
-    pub batch_pending: bool,
-    pub lines: Vec<String>,
     pub accounts: std::collections::HashMap<(vw_api_app_auth::AuthService, String), iced::Element<'a, Event<U>>>,
 }

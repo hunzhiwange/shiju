@@ -291,15 +291,6 @@ fn usage_usage_events_updates_only_linked_card_snapshots() {
     assert_eq!(view::summary(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &items[0].snapshot), ["暂无额度快照"]);
     let items = account_cards.entries[&other_account].result.as_ref().unwrap().as_ref().unwrap();
     assert_eq!(view::summary(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &items[0].snapshot), ["暂无额度快照"]);
-
-    let mut failed = items[0].clone();
-    failed.refresh_failure = Some(Failure::Reauth);
-    account_cards.batch_result = Some(Ok(vec![updated, failed]));
-    assert_eq!(
-        account_cards.batch_lines(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &scope),
-        ["额度刷新 · 1 项成功，1 项未完成", "Codex / provider-a / account-b · 账号需要重新授权"]
-    );
-    assert!(account_cards.batch_lines(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), &changed_scope).is_empty());
 }
 
 #[path = "apps_usage_cards/usage_events_25_tests.rs"]

@@ -34,12 +34,6 @@ pub fn view<'a, U: Clone + 'static>(i18n: I18n,
     let failed = state.connection_error.is_some()
         || state.rows.as_ref().is_some_and(|rows| rows.iter().all(|row| row.accounts.is_err()));
     let idle = state.pending.is_none() && state.account_action.is_none();
-    let batch_pending = usage.batch_pending;
-    let can_refresh_usage = idle
-        && state.connection.is_some()
-        && state.rows.is_some()
-        && usage.available
-        && !batch_pending;
     let header = responsive(move |size| {
         let heading = row![
             container(action_icon(Icon::ShieldLock, 20.0))
@@ -54,7 +48,7 @@ pub fn view<'a, U: Clone + 'static>(i18n: I18n,
         ]
         .spacing(12)
         .align_y(Alignment::Center);
-        let actions = toolbar(i18n, failed, idle, can_refresh_usage, batch_pending);
+        let actions = toolbar(i18n, failed, idle);
         if size.width >= 530.0 {
             row![heading.width(Length::Fill), actions].spacing(12).align_y(Alignment::Center).into()
         } else {
@@ -85,30 +79,16 @@ fn action_icon(icon: Icon, size: f32) -> iced::widget::Svg<'static> {
     icon_svg(icon, size).style(icons::icon_btn_svg_style)
 }
 
-fn toolbar<U: Clone + 'static>(i18n: I18n,
-    failed: bool,
-    idle: bool,
-    can_refresh_usage: bool,
-    batch_pending: bool,
-) -> Element<'static, Event<U>> {
+fn toolbar<U: Clone + 'static>(i18n: I18n, failed: bool, idle: bool) -> Element<'static, Event<U>> {
     let refresh_label = if failed { i18n.__("重试读取账号") } else { i18n.__("刷新账号") };
-    row![
-        button(
-            row![action_icon(Icon::ArrowClockwise, 14.0), text(refresh_label).size(13)]
-                .spacing(6)
-                .align_y(Alignment::Center)
-        )
-        .style(rounded_action_btn_style)
-        .padding([8, 12])
-        .on_press_maybe(idle.then_some(Event::Refresh)),
-        button(text(if batch_pending { i18n.__("正在刷新额度…") } else { i18n.__("刷新供应商额度") }).size(13))
-            .style(rounded_action_btn_style)
-            .padding([8, 12])
-            .on_press_maybe(can_refresh_usage.then_some(Event::RefreshUsage)),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center)
-    .wrap()
+    button(
+        row![action_icon(Icon::ArrowClockwise, 14.0), text(refresh_label).size(13)]
+            .spacing(6)
+            .align_y(Alignment::Center),
+    )
+    .style(rounded_action_btn_style)
+    .padding([8, 12])
+    .on_press_maybe(idle.then_some(Event::Refresh))
     .into()
 }
 
@@ -158,21 +138,6 @@ fn services<'a, U: Clone + 'static>(i18n: I18n,
         row![title(i18n.__("授权服务"), 16).width(Length::Fill), settings_value_badge(rows.len()),]
             .align_y(Alignment::Center);
     let mut list = column![heading].spacing(10).width(Length::Fill);
-    let report = std::mem::take(&mut usage.lines);
-    if !report.is_empty() {
-        list =
-            list.push(
-                container(
-                    column(report.into_iter().map(|line| {
-                        text(line).size(13).wrapping(text::Wrapping::WordOrGlyph).into()
-                    }))
-                    .spacing(6),
-                )
-                .padding([12, 14])
-                .width(Length::Fill)
-                .style(settings_panel_style),
-            );
-    }
     if rows.is_empty() {
         return list.push(list_placeholder(Icon::ShieldLock, i18n.__("暂无授权服务"))).into();
     }
@@ -346,6 +311,23 @@ fn account_row<'a, U: Clone + 'static>(i18n: I18n,
         AuthCredentialState::ReauthRequired => i18n.__("需要重新授权"),
         AuthCredentialState::SignedOut => i18n.__("已登出"),
     };
+    if service == AuthService::CodexOauth {
+        let connected = state.connection.is_some();
+        let mut entry = column![codex_account_header(
+            i18n,
+            account,
+            validity,
+            connected,
+            state.rows_generation,
+        )]
+        .spacing(10);
+        if connected
+            && let Some(card) = usage.accounts.remove(&(service, account.account_id.clone()))
+        {
+            entry = entry.push(card);
+        }
+        return entry.into();
+    }
     let status = if account.is_default {
         desktop_i18n::__!(i18n, "默认账号 · %s", (validity).to_string()).expect("valid settings message")
     } else {
@@ -367,6 +349,63 @@ fn account_row<'a, U: Clone + 'static>(i18n: I18n,
         }
     }
     entry.into()
+}
+
+fn codex_account_header<'a, U: Clone + 'static>(
+    i18n: I18n,
+    account: &'a AuthAccount,
+    validity: &'static str,
+    connected: bool,
+    rows_generation: u64,
+) -> Element<'a, Event<U>> {
+    let signed_in = account
+        .authenticated_at
+        .and_then(|at| chrono::DateTime::from_timestamp_millis(at.0))
+        .map(|at| {
+            let date = at.with_timezone(&chrono::Local).format("%F").to_string();
+            i18n.format("登录于 %s", &[date.into()]).expect("valid settings message")
+        });
+    responsive(move |size| {
+        let mut tags = row![settings_value_badge(validity)].spacing(6);
+        if account.is_default {
+            tags = tags.push(settings_value_badge(i18n.__("默认")));
+        }
+        let name = row![
+            title(account.label.as_str(), 15).wrapping(text::Wrapping::WordOrGlyph),
+            tags.wrap(),
+        ]
+        .align_y(Alignment::Center)
+        .spacing(8)
+        .wrap()
+        .vertical_spacing(4);
+        let mut labels = column![name].spacing(4);
+        if let Some(signed_in) = &signed_in {
+            labels = labels.push(text(signed_in.clone()).size(13).style(settings_muted_text_style));
+        }
+        let identity = row![
+            container(action_icon(Icon::PersonCircle, 18.0))
+                .center_x(34)
+                .center_y(34)
+                .style(settings_icon_tile_style),
+            labels,
+        ]
+        .spacing(10)
+        .align_y(Alignment::Center);
+        if !connected {
+            return identity.into();
+        }
+        let actions = account_actions(i18n, account, rows_generation);
+        if size.width >= 780.0 {
+            row![identity.width(Length::Fill), actions]
+                .spacing(14)
+                .align_y(Alignment::Center)
+                .into()
+        } else {
+            column![identity, actions].spacing(8).into()
+        }
+    })
+    .height(Length::Shrink)
+    .into()
 }
 
 fn login_actions<U: Clone + 'static>(i18n: I18n, service: AuthService) -> Element<'static, Event<U>> {

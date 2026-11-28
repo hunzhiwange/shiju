@@ -98,13 +98,6 @@ pub struct AppsUsageScriptTrial {
 }
 
 #[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct BatchScope<'a> {
-    project_id: &'a ProjectId,
-    target_host_id: &'a str,
-}
-
-#[derive(Serialize)]
 struct SaveSettings<'a> {
     selection: &'a UsageSnapshotQuery,
     settings: &'a AppsUsageSettings,
@@ -118,19 +111,6 @@ impl GatewayAppUsageClient {
         principal_token: &str,
     ) -> Result<AppActionExecutionResult, AppsUsageWriteError> {
         let request = self.usage_request(Method::POST, "/v1/apps/usage/refresh")?.json(selection);
-        usage_json(self.send_usage_request(request, principal_token).await?).await
-    }
-
-    /// Queue a refresh for the authorized selections on this project and host.
-    pub async fn apps_usage_refresh_all(
-        &self,
-        project_id: &ProjectId,
-        target_host_id: &str,
-        principal_token: &str,
-    ) -> Result<AppActionExecutionResult, AppsUsageWriteError> {
-        let request = self
-            .usage_request(Method::POST, "/v1/apps/usage/refresh-all")?
-            .json(&BatchScope { project_id, target_host_id });
         usage_json(self.send_usage_request(request, principal_token).await?).await
     }
 

@@ -178,9 +178,7 @@ async fn usage_refresh_returns_expected_result() {
     let fixture = Fixture::new().await;
     let refresh = UsageRefresh::new(fixture.database.clone()).unwrap();
     let now = Instant::now();
-    let (automatic, batch) =
-        tokio::join!(refresh.tick(&fixture.path, now), refresh.refresh_all(&fixture.path, None),);
-    assert_eq!(automatic, batch);
+    let automatic = refresh.tick(&fixture.path, now).await;
     assert_eq!(automatic.len(), 2);
     assert!(automatic.iter().any(
         |item| matches!(item.result.as_ref().as_ref().map(|publication| &publication.snapshot),
@@ -207,7 +205,7 @@ async fn usage_refresh_rejects_invalid_input() {
     fixture.save("ok", true, 1);
     fixture.policy["principals"][0]["grants"][0]["usage_refresh"] = json!([]);
     fixture.write_policy();
-    assert!(refresh.refresh_all(&fixture.path, None).await.is_empty());
+    assert!(refresh.tick(&fixture.path, Instant::now()).await.is_empty());
     assert_eq!(fixture.hits.load(Ordering::SeqCst), 0);
 }
 

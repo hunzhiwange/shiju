@@ -16,7 +16,7 @@ use {
     vw_api_task::TaskStatus,
 };
 
-use crate::apps_usage_cards::{CardSnapshot, Failure};
+use crate::apps_usage_cards::Failure;
 
 pub async fn read_snapshot(
     client: &GatewayClient,
@@ -86,36 +86,6 @@ pub async fn refresh_one(
         [] if status.operation.status != TaskStatus::Completed => Err(Failure::RefreshFailed),
         _ => Err(Failure::InvalidResponse),
     }
-}
-
-pub async fn refresh_batch(
-    client: &GatewayClient,
-    project: &ProjectId,
-    host: &str,
-    token: &str,
-) -> Result<Vec<CardSnapshot>, Failure> {
-    let operation =
-        gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_refresh_all(project, host, token).await.map_err(write_failure)?;
-    let status =
-        wait_operation(client, project, host, &operation.operation_id, token, |_| true).await?;
-    if status.items.is_empty() {
-        return Err(Failure::RefreshFailed);
-    }
-    let mut snapshots = Vec::with_capacity(status.items.len());
-    for item in status.items {
-        let refresh_failure = item_failure(&item);
-        let selection = UsageSnapshotQuery {
-            project_id: project.clone(),
-            target_host_id: host.into(),
-            app_id: item.app_id,
-            provider_id: item.provider_id,
-            account_id: item.account_id,
-            kind: Some(item.kind),
-        };
-        let snapshot = read_snapshot(client, &selection, token).await;
-        snapshots.push(CardSnapshot::new(selection, snapshot, refresh_failure));
-    }
-    Ok(snapshots)
 }
 
 async fn wait_operation(

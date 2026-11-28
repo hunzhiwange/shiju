@@ -14,9 +14,8 @@ use axum::{
     response::{IntoResponse, Response},
     routing::post,
 };
-use futures_util::{StreamExt, stream};
 use parking_lot::Mutex;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use uuid::Uuid;
 use vw_agent_apps::{
     apps::lifecycle::operations::{Operation, OperationFailure, Phase},
@@ -42,27 +41,18 @@ use super::{
     access::{self, UsageRefreshTarget},
     lifecycle,
     usage_read::ReadError,
-    usage_refresh::{CONCURRENCY, Query, RefreshError, UsageRefresh},
+    usage_refresh::{Query, RefreshError, UsageRefresh},
 };
 
-const MAX_BATCH: usize = 32;
 const MAX_OPERATIONS: usize = 128;
 const RETENTION: Duration = Duration::from_secs(10 * 60);
 
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Batch {
-    project_id: ProjectId,
-    target_host_id: String,
-}
-
 pub fn router_with_policy(policy: Option<PathBuf>) -> Router {
     Router::new()
         .route("/apps/usage/refresh", post(single))
-        .route("/apps/usage/refresh-all", post(batch))
         .layer(DefaultBodyLimit::max(8192))
         .layer(Extension(Policy(policy)))
 }
@@ -79,115 +69,61 @@ async fn single(
     if let Some(account) = &query.account_id {
         validate_identity(account).map_err(|_| AuthErrorCode::InvalidInput)?;
     }
-    let scope = Batch {
-        project_id: query.project_id.clone(),
-        target_host_id: query.target_host_id.clone(),
-    };
-    submit(policy, tenant, headers, service, scope, Some(query)).await
-}
-
-async fn batch(
-    Extension(policy): Extension<Policy>,
-    Extension(tenant): Extension<TenantScope>,
-    headers: HeaderMap,
-    service: Option<Extension<Arc<UsageRefresh>>>,
-    input: Result<Json<Batch>, JsonRejection>,
-) -> Result<impl IntoResponse, ReadError> {
-    let Json(scope) = input.map_err(|_| AuthErrorCode::InvalidInput)?;
-    submit(policy, tenant, headers, service, scope, None).await
-}
-
-async fn submit(
-    policy: Policy,
-    tenant: TenantScope,
-    headers: HeaderMap,
-    service: Option<Extension<Arc<UsageRefresh>>>,
-    scope: Batch,
-    query: Option<UsageSnapshotQuery>,
-) -> Result<impl IntoResponse, ReadError> {
+    validate_identity(&query.target_host_id).map_err(|_| AuthErrorCode::InvalidInput)?;
     let project =
-        ProjectScope::new(tenant, scope.project_id).map_err(|_| AuthErrorCode::InvalidInput)?;
-    validate_identity(&scope.target_host_id).map_err(|_| AuthErrorCode::InvalidInput)?;
+        ProjectScope::new(tenant, query.project_id.clone()).map_err(|_| AuthErrorCode::InvalidInput)?;
     let Extension(service) = service.ok_or(AuthErrorCode::StorageUnavailable)?;
     let policy = policy.0.unwrap_or_else(|| access::tenant_policy_path(project.tenant_scope()));
-    let (principal, items) = tokio::task::spawn_blocking({
+    let host = query.target_host_id.clone();
+    let (principal, target, prepared) = tokio::task::spawn_blocking({
         let project = project.clone();
         let service = service.clone();
-        let host = scope.target_host_id.clone();
         let policy = policy.clone();
         move || {
-            let batch = query.is_none();
-            let auth = access::authorize_usage_refresh(&policy, &headers, &project, &host, batch)
-                .map_err(ReadError::access)?;
-            if let Some(query) = &query {
-                let supported = if query.account_id.is_some() {
-                    query.app_id == AppId::Codex
-                        && query
-                            .kind
-                            .is_none_or(|kind| kind == UsageQueryKind::OfficialSubscription)
-                } else {
-                    query.kind != Some(UsageQueryKind::OfficialSubscription)
-                };
-                if !supported {
+            let auth = access::authorize_usage_refresh(
+                &policy,
+                &headers,
+                &project,
+                &query.target_host_id,
+            )
+            .map_err(ReadError::access)?;
+            let kind = if query.account_id.is_some() {
+                if query.app_id != AppId::Codex
+                    || query.kind.is_some_and(|kind| kind != UsageQueryKind::OfficialSubscription)
+                {
                     return Err(AuthErrorCode::Unsupported.into());
                 }
-            }
-            let targets = access::usage_targets(&policy, batch).map_err(ReadError::access)?;
-            let mut items: PreparedItems = Vec::new();
+                UsageQueryKind::OfficialSubscription
+            } else {
+                let kind = query.kind.unwrap_or(UsageQueryKind::CustomScript);
+                if kind == UsageQueryKind::OfficialSubscription {
+                    return Err(AuthErrorCode::Unsupported.into());
+                }
+                kind
+            };
+            let targets = access::usage_targets(&policy).map_err(ReadError::access)?;
+            let mut selected: Option<(UsageRefreshTarget, Result<Query, RefreshError>)> = None;
             for target in targets.into_iter().filter(|target| {
                 target.project == project
-                    && target.host == host
+                    && target.host == query.target_host_id
                     && target.principal == auth.principal
-                    && query.as_ref().is_none_or(|query| {
-                        target.app == query.app_id
-                            && target.provider == query.provider_id
-                            && target.codex.as_ref().map(|codex| &codex.account)
-                                == query.account_id.as_ref()
-                            && target.kind
-                                == query.kind.unwrap_or(if query.account_id.is_some() {
-                                    UsageQueryKind::OfficialSubscription
-                                } else {
-                                    UsageQueryKind::CustomScript
-                                })
-                    })
+                    && target.app == query.app_id
+                    && target.provider == query.provider_id
+                    && target.codex.as_ref().map(|codex| &codex.account) == query.account_id.as_ref()
+                    && target.kind == kind
             }) {
                 let prepared = match service.prepare(&target) {
                     Ok(Some(prepared)) => Ok(prepared),
-                    Ok(None)
-                    | Err(
-                        RefreshError::NotFound
-                        | RefreshError::Account(AuthErrorCode::NotFound | AuthErrorCode::Forbidden),
-                    ) if batch => continue,
                     Ok(None) => return Err(AuthErrorCode::NotFound.into()),
                     Err(error) => Err(error),
                 };
-                // Accept an authorized origin that matches the current profile.
-                // Retain at most one result per selector across overlapping grants.
-                if let Some(existing) = items.iter_mut().find(|(existing, _)| {
-                    existing.app == target.app
-                        && existing.provider == target.provider
-                        && existing.codex == target.codex
-                        && existing.kind == target.kind
-                }) {
-                    if existing.1.is_err() && prepared.is_ok() {
-                        *existing = (target, prepared);
-                    }
-                    continue;
-                }
-                items.push((target, prepared));
-                if items.len() > MAX_BATCH {
-                    return Err(AuthErrorCode::Conflict.into());
+                // An overlapping grant may authorize the current provider origin.
+                if selected.as_ref().is_none_or(|(_, old)| old.is_err() && prepared.is_ok()) {
+                    selected = Some((target, prepared));
                 }
             }
-            if items.is_empty() {
-                return Err(
-                    if batch { AuthErrorCode::NotFound } else { AuthErrorCode::Forbidden }.into()
-                );
-            }
-            if !batch && let Err(error) = &items[0].1 {
-                return Err(error_code(*error).into());
-            }
-            Ok::<_, ReadError>((auth.principal, items))
+            let (target, prepared) = selected.ok_or(AuthErrorCode::Forbidden)?;
+            Ok::<_, ReadError>((auth.principal, target, prepared.map_err(error_code)?))
         }
     })
     .await
@@ -197,21 +133,19 @@ async fn submit(
         id: Uuid::new_v4(),
         operation: Operation::new(),
         project,
-        host: scope.target_host_id,
+        host,
         principal,
         policy,
-        targets: items.iter().map(|(target, _)| target.clone()).collect(),
+        target,
         progress: Mutex::default(),
     });
     let response = AppActionExecutionResult {
         operation_id: TaskId::from(operation.id.to_string()),
         status: TaskStatus::Queued,
     };
-    service.operations.admit(operation, service.clone(), items)?;
+    service.operations.admit(operation, service.clone(), prepared)?;
     Ok((StatusCode::ACCEPTED, [(header::CACHE_CONTROL, "no-store")], Json(response)))
 }
-
-type PreparedItems = Vec<(UsageRefreshTarget, Result<Query, RefreshError>)>;
 
 #[derive(Default)]
 pub struct Operations(Mutex<HashMap<Uuid, Arc<RefreshOperation>>>);
@@ -221,7 +155,7 @@ impl Operations {
         &self,
         entry: Arc<RefreshOperation>,
         service: Arc<UsageRefresh>,
-        items: PreparedItems,
+        query: Query,
     ) -> Result<(), ReadError> {
         let mut entries = self.0.lock();
         entries.retain(|_, entry| !entry.expired());
@@ -234,7 +168,7 @@ impl Operations {
         let worker = entry.clone();
         entry
             .operation
-            .start_task(async move { worker.run(service, items).await })
+            .start_task(async move { worker.run(service, query).await })
             .map_err(|_| AuthErrorCode::Conflict)?;
         entries.insert(entry.id, entry);
         Ok(())
@@ -253,14 +187,14 @@ pub struct RefreshOperation {
     host: String,
     principal: String,
     policy: PathBuf,
-    targets: Vec<UsageRefreshTarget>,
+    target: UsageRefreshTarget,
     progress: Mutex<Progress>,
 }
 
 #[derive(Default)]
 struct Progress {
     finished: Option<Instant>,
-    items: Vec<Item>,
+    item: Option<Item>,
 }
 
 #[derive(Clone, Serialize)]
@@ -295,68 +229,47 @@ impl RefreshOperation {
     async fn run(
         &self,
         service: Arc<UsageRefresh>,
-        items: PreparedItems,
+        query: Query,
     ) -> Result<(), OperationFailure> {
-        let mut updates = stream::iter(items)
-            .map(|(target, prepared)| {
-                let service = &service;
-                async move {
-                    let selector = target.selector();
-                    let mut item = Item {
-                        app_id: target.app,
-                        provider_id: selector.provider_id,
-                        account_id: selector.account_id,
-                        kind: target.kind,
-                        status: TaskStatus::Failed,
-                        snapshot_version: None,
-                        error_code: None,
-                    };
-                    if self.operation.is_cancelled() {
-                        item.status = TaskStatus::Cancelled;
-                        return item;
-                    }
-                    let result = match prepared {
-                        Ok(query) => {
-                            service.refresh(target, query, None, Some(&self.operation)).await
-                        }
-                        Err(error) => {
-                            item.error_code = Some(error_code(error));
-                            return item;
-                        }
-                    };
-                    match result.as_deref() {
-                        None => item.status = TaskStatus::Cancelled,
-                        Some(Err(error)) => item.error_code = Some(error_code(*error)),
-                        Some(Ok(publication)) => {
-                            item.snapshot_version = Some(publication.version.to_string());
-                            if matches!(&publication.snapshot, UsageCacheResult::Current(result)
-                            if matches!(result.outcome, UsageQueryOutcome::Success { .. }))
-                            {
-                                item.status = TaskStatus::Completed;
-                            } else {
-                                item.error_code = Some(AuthErrorCode::UpstreamFailure);
-                            }
-                        }
-                    }
-                    item
-                }
-            })
-            .buffer_unordered(CONCURRENCY);
-        let mut cancelled = false;
-        let mut failed = false;
-        while let Some(item) = updates.next().await {
-            cancelled |= item.status == TaskStatus::Cancelled;
-            failed |= item.status == TaskStatus::Failed;
-            self.progress.lock().items.push(item);
-        }
-        self.progress.lock().finished = Some(Instant::now());
-        if cancelled {
-            Err(OperationFailure::Cancelled)
-        } else if failed {
-            Err(OperationFailure::Failed)
+        let target = self.target.clone();
+        let selector = target.selector();
+        let mut item = Item {
+            app_id: target.app,
+            provider_id: selector.provider_id,
+            account_id: selector.account_id,
+            kind: target.kind,
+            status: TaskStatus::Failed,
+            snapshot_version: None,
+            error_code: None,
+        };
+        let result = if self.operation.is_cancelled() {
+            None
         } else {
-            Ok(())
+            service.refresh(target, query, None, Some(&self.operation)).await
+        };
+        match result.as_deref() {
+            None => item.status = TaskStatus::Cancelled,
+            Some(Err(error)) => item.error_code = Some(error_code(*error)),
+            Some(Ok(publication)) => {
+                item.snapshot_version = Some(publication.version.to_string());
+                if matches!(&publication.snapshot, UsageCacheResult::Current(result)
+                    if matches!(result.outcome, UsageQueryOutcome::Success { .. }))
+                {
+                    item.status = TaskStatus::Completed;
+                } else {
+                    item.error_code = Some(AuthErrorCode::UpstreamFailure);
+                }
+            }
         }
+        let result = match item.status {
+            TaskStatus::Cancelled => Err(OperationFailure::Cancelled),
+            TaskStatus::Failed => Err(OperationFailure::Failed),
+            _ => Ok(()),
+        };
+        let mut progress = self.progress.lock();
+        progress.item = Some(item);
+        progress.finished = Some(Instant::now());
+        result
     }
 
     pub async fn authorize(
@@ -372,19 +285,17 @@ impl RefreshOperation {
         }
         let entry = self.clone();
         tokio::task::spawn_blocking(move || {
-            let batch = entry.targets.first().is_some_and(|target| target.batch);
             let auth = access::authorize_usage_refresh(
                 &entry.policy,
                 &headers,
                 &entry.project,
                 &entry.host,
-                batch,
             )
             .map_err(|_| AuthErrorCode::NotFound)?;
             if auth.principal != entry.principal {
                 return Err(AuthErrorCode::NotFound.into());
             }
-            let targets = access::usage_targets(&entry.policy, batch).map_err(ReadError::access)?;
+            let targets = access::usage_targets(&entry.policy).map_err(ReadError::access)?;
             if service
                 .projects
                 .get(&entry.project)
@@ -393,10 +304,7 @@ impl RefreshOperation {
             {
                 return Err(AuthErrorCode::NotFound.into());
             }
-            for target in &entry.targets {
-                entry.authorize_target(&headers, &service, &targets, target, cancel)?;
-            }
-            Ok(())
+            entry.authorize_target(&headers, &service, &targets, &entry.target, cancel)
         })
         .await
         .map_err(|_| AuthErrorCode::StorageUnavailable)?
@@ -444,7 +352,7 @@ impl RefreshOperation {
         let operation = lifecycle::status(self.id.to_string(), &self.operation);
         let cancel_requested =
             self.operation.is_cancelled() && self.operation.snapshot().phase != Phase::Terminal;
-        let items = self.progress.lock().items.clone();
+        let items = self.progress.lock().item.clone().into_iter().collect();
         (
             [(header::CACHE_CONTROL, "no-store")],
             Json(ProgressResponse {

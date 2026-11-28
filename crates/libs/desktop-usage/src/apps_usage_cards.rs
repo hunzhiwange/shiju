@@ -51,8 +51,6 @@ pub enum Event {
     Refresh(Target, String),
     ToggleDetails(Target, String),
     Finished(Target, Scope, u64, CardResult),
-    RefreshAll,
-    BatchFinished(Scope, u64, CardResult),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -153,8 +151,6 @@ pub struct Cards {
     pub scope: Option<Scope>,
     pub entries: HashMap<Target, Entry>,
     sequence: u64,
-    pub batch_pending: Option<u64>,
-    pub batch_result: Option<CardResult>,
 }
 
 impl Cards {
@@ -167,8 +163,6 @@ impl Cards {
     pub fn clear(&mut self) {
         self.scope = None;
         self.entries.clear();
-        self.batch_pending = None;
-        self.batch_result = None;
     }
 
     #[cfg(test)]
@@ -181,11 +175,9 @@ impl Cards {
 
     pub fn refreshing(&self, scope: &Scope) -> bool {
         self.scope.as_ref() == Some(scope)
-            && (self.batch_pending.is_some()
-                || self.entries.iter().any(|(target, entry)| {
-                    entry.refreshing.is_some()
-                        || target.is_codex_account() && entry.pending.is_some()
-                }))
+            && self.entries.iter().any(|(target, entry)| {
+                entry.refreshing.is_some() || target.is_codex_account() && entry.pending.is_some()
+            })
     }
 
     pub fn apply_updates(&mut self, scope: &Scope, updates: &[CardSnapshot]) {
@@ -208,7 +200,7 @@ impl Cards {
         }
     }
 
-    pub fn next_ticket(&mut self) -> u64 {
+    fn next_ticket(&mut self) -> u64 {
         self.sequence = self.sequence.wrapping_add(1);
         self.sequence
     }
@@ -407,42 +399,6 @@ pub async fn read(
 }
 
 impl Scope { pub fn same_context(&self, other: &Self) -> bool { self.endpoint == other.endpoint && self.project == other.project && self.host == other.host && self.auth_generation == other.auth_generation } }
-impl Cards {
-    pub fn batch_pending(&self, scope: &Scope) -> bool {
-        self.scope.as_ref() == Some(scope) && self.batch_pending.is_some()
-    }
-
-    pub fn batch_lines(&self, i18n: desktop_i18n::I18n, scope: &Scope) -> Vec<String> {
-        if self.scope.as_ref() != Some(scope) {
-            return Vec::new();
-        }
-        match self.batch_result.as_ref() {
-            None => Vec::new(),
-            Some(Err(error)) => vec![i18n.__(error.label()).into()],
-            Some(Ok(items)) => {
-                let succeeded = items.iter().filter(|item| item.refresh_failure.is_none()).count();
-                let mut lines = vec![i18n.format("额度刷新 · %u 项成功，%u 项未完成", &[succeeded.into(), (items.len() - succeeded).into()]).expect("valid refresh counts")];
-                for item in items {
-                    if let Some(error) =
-                        item.refresh_failure.or_else(|| item.snapshot.as_ref().err().copied())
-                    {
-                        let selection = &item.selection;
-                        let account = selection.account_id.as_deref().unwrap_or(i18n.__("供应商凭据"));
-                        lines.push(format!(
-                            "{:?} / {} / {account} · {}",
-                            selection.app_id,
-                            selection.provider_id,
-                            i18n.__(error.label())
-                        ));
-                    }
-                }
-                lines
-            }
-        }
-    }
-}
-
-
 #[cfg(test)]
 #[path="apps_usage_cards_tests.rs"]
 mod tests;

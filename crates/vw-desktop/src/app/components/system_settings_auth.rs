@@ -41,9 +41,6 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         }
     }
     account::system_settings_auth::view(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &state(app), account::Usage {
-        available: scope.is_some(),
-        batch_pending: scope.as_ref().is_some_and(|scope| s.usage.batch_pending(scope)),
-        lines: scope.as_ref().map_or_else(Vec::new, |scope| s.usage.batch_lines(desktop_i18n::I18n::new(app.general_settings.desktop_locale), scope)),
         accounts,
     }).map(map)
 }
@@ -54,7 +51,6 @@ fn map(event: Event<Message>) -> Message {
     use crate::app::message::agent_apps_auth::{self as auth, Event as E, actions::ActionEvent as A, browser::LinkAction as L};
     let event = match event {
         Event::Usage(message) => return message,
-        Event::RefreshUsage => return apps_usage_cards::message_event(apps_usage_cards::Event::RefreshAll),
         Event::Open => E::Open,
         Event::Close => E::Close,
         Event::Connect => E::Connect,

@@ -8,7 +8,6 @@ use {
     vw_api_app_operations::AppActionExecutionResult,
     vw_api_apps_usage::apps_usage::UsageScriptPackage,
     vw_api_apps_usage::apps_usage::UsageSnapshotQuery,
-    vw_api_transport::id::ProjectId,
     vw_api_transport::id::TaskId,
 };
 
@@ -22,16 +21,6 @@ impl GatewayClient {
     ) -> Result<AppActionExecutionResult, AppsUsageWriteError> {
         gateway_app_usage::GatewayAppUsageClient::new(self.transport.clone())
             .apps_usage_refresh(selection, principal_token).await
-    }
-
-    pub async fn apps_usage_refresh_all(
-        &self,
-        project_id: &ProjectId,
-        target_host_id: &str,
-        principal_token: &str,
-    ) -> Result<AppActionExecutionResult, AppsUsageWriteError> {
-        gateway_app_usage::GatewayAppUsageClient::new(self.transport.clone())
-            .apps_usage_refresh_all(project_id, target_host_id, principal_token).await
     }
 
     pub async fn apps_usage_operation(

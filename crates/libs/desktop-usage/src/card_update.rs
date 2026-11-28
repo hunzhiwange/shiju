@@ -1,6 +1,5 @@
 //! Usage card authorization, request scheduling and linked cache transitions.
 use crate::apps_usage_cards::{Event, QueryContext, Scope, Target, read};
-use crate::refresh::refresh_batch;
 use desktop_settings_account::types::Scope as AuthScope;
 use gateway_endpoint::GatewayEndpoint;
 use iced::Task;
@@ -152,7 +151,6 @@ pub fn read_linked_providers(app: &mut Input<'_>, app_id: AppId) -> Task<Event> 
         .entries
         .values()
         .filter_map(|entry| entry.result.as_ref())
-        .chain(auth_cards.batch_result.as_ref())
         .filter_map(|result| result.as_ref().ok())
         .flatten()
         .filter(|item| !item.provider().is_empty() && item.selection.app_id == app_id && item.snapshot.is_ok())
@@ -181,7 +179,6 @@ fn update_at(app: &mut Input<'_>, event: Event, endpoint: GatewayEndpoint) -> Ta
         | Event::Refresh(target, _)
         | Event::ToggleDetails(target, _)
         | Event::Finished(target, ..) => target,
-        Event::RefreshAll | Event::BatchFinished(..) => return update_batch(app, event, endpoint),
     };
     let is_account = matches!(target, Target::Account(..));
     let expected_tab = if is_account { Tab::Auth } else { Tab::Apps };
@@ -259,7 +256,6 @@ fn update_at(app: &mut Input<'_>, event: Event, endpoint: GatewayEndpoint) -> Ta
             cards.toggle_details(&scope, &target, provider);
             return Task::none();
         }
-        Event::RefreshAll | Event::BatchFinished(..) => unreachable!("batch events handled above"),
     };
 
     if cards.refreshing(&scope) || linked_busy {
@@ -284,70 +280,6 @@ fn update_at(app: &mut Input<'_>, event: Event, endpoint: GatewayEndpoint) -> Ta
         async move { read(&client, &context, &requested, refresh.as_deref()).await },
         move |result| Event::Finished(target.clone(), scope.clone(), ticket, result),
     )
-}
-
-fn update_batch(app: &mut Input<'_>, event: Event, endpoint: GatewayEndpoint) -> Task<Event> {
-    let Some(scope) = scope(app, &endpoint, true) else { return Task::none() };
-    let linked = linked_scope(app, &endpoint, &scope, true);
-    let auth = &mut app.agent_apps_auth;
-    let Some(connection) =
-        auth.connection.as_ref().filter(|connection| endpoint.is_loopback() && connection.valid())
-    else {
-        return Task::none();
-    };
-    let cards = &mut auth.usage;
-    match event {
-        Event::RefreshAll => {
-            if !app.show_system_settings
-                || app.system_settings_tab != Tab::Auth
-                || auth.binding.is_some()
-                || auth.pending.is_some()
-                || auth.account_action.is_some()
-                || auth.rows.is_none()
-                || cards.refreshing(&scope)
-                || linked.as_ref().is_some_and(|scope| app.app_providers.usage.refreshing(scope))
-            {
-                return Task::none();
-            }
-            let Ok(client) = GatewayClient::new(endpoint) else {
-                return app.show_error_toast("无法建立额度查询连接");
-            };
-            cards.select_scope(&scope);
-            let ticket = cards.next_ticket();
-            cards.batch_pending = Some(ticket);
-            cards.batch_result = None;
-            let project = scope.project.clone();
-            let host = scope.host.clone();
-            let token = connection.token.trim().to_owned();
-            Task::perform(
-                async move { refresh_batch(&client, &project, &host, &token).await },
-                move |result| Event::BatchFinished(scope.clone(), ticket, result),
-            )
-        }
-        Event::BatchFinished(expected, ticket, result)
-            if scope == expected
-                && cards.scope.as_ref() == Some(&scope)
-                && cards.batch_pending == Some(ticket) =>
-        {
-            cards.batch_pending = None;
-            if let Ok(items) = &result {
-                cards.apply_updates(&scope, items);
-                if let Some(linked) = linked {
-                    app.app_providers.usage.apply_updates(&linked, items);
-                }
-            }
-            let error = result.as_ref().err().copied();
-            cards.batch_result = Some(result);
-            if let Some(error) = error {
-                return app.show_error_toast(error.label());
-            }
-            if let Some(provider_scope) = &app.app_providers.scope {
-                return read_linked_providers(app, provider_scope.app);
-            }
-            Task::none()
-        }
-        _ => Task::none(),
-    }
 }
 
 impl desktop_provider_apps::auth::state::Usage for Cards {

@@ -1,7 +1,7 @@
-use chrono::Local;
+use chrono::{DateTime, Local};
 use iced::{
-    Alignment, Element,
-    widget::{button, column, row, text},
+    Alignment, Element, Length,
+    widget::{button, column, container, row, text, tooltip},
 };
 use vw_api_types::{
     agent_apps::AppId,
@@ -16,7 +16,15 @@ use super::{Cards, Event, Failure, Scope, Target};
 #[derive(Clone)]
 pub enum Message { Event(Event), OpenSettings(AppId, String), OpenUrl(String) }
 use crate::apps_usage_details;
-use desktop_ui_controls::system_settings_common::{rounded_action_btn_style, settings_muted_text_style};
+use desktop_assets::assets::Icon;
+use desktop_ui_controls::{
+    icons::icon_svg,
+    system_settings_common::{
+        icons::icon_btn_svg_style, rounded_action_btn_style, settings_icon_tile_style,
+        settings_muted_text_style,
+    },
+    tooltip::tooltip_dark_style,
+};
 
 pub fn provider_view<'a>(i18n: desktop_i18n::I18n,
     scope: Option<&Scope>,
@@ -40,10 +48,18 @@ fn view<'a>(i18n: desktop_i18n::I18n, scope: Option<&Scope>, cards: &'a Cards, t
     let entry =
         cards.entries.get(&target).filter(|_| scope.is_some() && cards.scope.as_ref() == scope);
     let codex = target.is_codex_account();
-    let busy = entry.is_some_and(|entry| entry.pending.is_some())
-        || scope.is_some_and(|scope| cards.batch_pending(scope));
+    let busy = entry.is_some_and(|entry| entry.pending.is_some());
     let request = |label: &'static str, event, enabled: bool| {
-        button(text(i18n.__(label)).size(13))
+        let label = text(label).size(13);
+        let content = if codex {
+            row![icon_svg(Icon::ArrowClockwise, 13.0).style(icon_btn_svg_style), label]
+                .align_y(Alignment::Center)
+                .spacing(6)
+                .into()
+        } else {
+            Element::from(label)
+        };
+        button(content)
             .padding([6, 10])
             .style(rounded_action_btn_style)
             .on_press_maybe(enabled.then_some(Message::Event(event)))
@@ -73,7 +89,46 @@ fn view<'a>(i18n: desktop_i18n::I18n, scope: Option<&Scope>, cards: &'a Cards, t
                 })),
         );
     }
-    let mut body = column![header].spacing(5);
+    let now = Local::now();
+    if codex
+        && let Some(Ok(entries)) = entry.and_then(|entry| entry.result.as_ref())
+        && let Some(snapshot) = entries
+            .first()
+            .and_then(|entry| entry.snapshot.as_ref().ok())
+            .and_then(|response| response.snapshot.as_ref())
+    {
+        if let Some(queried_at) =
+            snapshot.result.queried_at.and_then(|at| DateTime::from_timestamp_millis(at.0))
+        {
+            let local = queried_at.with_timezone(&now.timezone());
+            let stamp = local.format("%F %T %:z").to_string();
+            let age = now.signed_duration_since(local);
+            let label = match age.num_minutes() {
+                ..0 => stamp.clone(),
+                0 => i18n.__("刚刚").into(),
+                minutes @ 1..60 => desktop_i18n::chat::relative_time(i18n, (1, minutes as u64)),
+                60..1440 => desktop_i18n::chat::relative_time(i18n, (2, age.num_hours() as u64)),
+                1440..10080 => desktop_i18n::chat::relative_time(i18n, (3, age.num_days() as u64)),
+                _ => stamp.clone(),
+            };
+            let label = i18n.format("查询于 %s", &[label.into()]).expect("valid display template");
+            header = header.push(
+                tooltip(line(label), text(stamp).size(13), tooltip::Position::Top)
+                    .gap(6)
+                    .style(tooltip_dark_style),
+            );
+        }
+        if snapshot.stale
+            && matches!(
+                &snapshot.result.outcome,
+                UsageQueryOutcome::Success { data: UsageQueryData::OfficialSubscription(_) },
+            )
+        {
+            header = header.push(line(i18n.__("刷新失败，已有数据可能不是最新状态")));
+        }
+    }
+    let header: Element<'_, Message> = if codex { header.wrap().into() } else { header.into() };
+    let mut body = column![header].spacing(if codex { 9 } else { 5 });
     if entry.is_some_and(|entry| entry.pending.is_some()) {
         let refreshing = if codex {
             entry.is_some_and(|entry| entry.result.is_some())
@@ -88,7 +143,6 @@ fn view<'a>(i18n: desktop_i18n::I18n, scope: Option<&Scope>, cards: &'a Cards, t
             body = body.push(line(i18n.__("此账号暂无绑定供应商")))
         }
         Some((card, Ok(entries))) => {
-            let now = Local::now();
             for entry in entries {
                 if !codex && matches!(target, Target::Account(..)) {
                     body = body.push(
@@ -141,7 +195,11 @@ fn view<'a>(i18n: desktop_i18n::I18n, scope: Option<&Scope>, cards: &'a Cards, t
         }
         None => {}
     }
-    body.into()
+    if codex {
+        container(body).padding([9, 12]).width(Length::Fill).style(settings_icon_tile_style).into()
+    } else {
+        body.into()
+    }
 }
 
 fn line<'a>(value: impl iced::widget::text::IntoFragment<'a>) -> Element<'a, Message> {

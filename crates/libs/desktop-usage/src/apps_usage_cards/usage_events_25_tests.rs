@@ -1,19 +1,22 @@
 use super::{gateway, request, respond};
 use crate::apps_usage_cards::Failure;
-use crate::refresh::refresh_batch;
-use vw_api_transport::id::ProjectId;
+use crate::refresh::refresh_one;
+use vw_api_apps_usage::apps_usage::UsageSnapshotQuery;
 
 const QUEUED: &str = r#"{"operationId":"op-1","status":"queued"}"#;
-const ITEMS: &str = r#"[
-    {"appId":"codex","providerId":"provider-a","accountId":"account-a","kind":"official_subscription","status":"completed","snapshotVersion":"2"},
-    {"appId":"codex","providerId":"provider-b","accountId":"account-b","kind":"official_subscription","status":"failed","errorCode":"reauth_required"}
-]"#;
-const PRO: &str = r#"{
-    "capabilities":["official_subscription"],
-    "snapshot":{"result":{"source":{"kind":"official","id":"codex"},"credentialState":"valid",
-    "outcome":{"status":"success","data":{"kind":"official_subscription","value":{"subscriptionType":"Pro","windows":[]}}}},"stale":false}
-}"#;
-const EMPTY: &str = r#"{"capabilities":["official_subscription"],"snapshot":null}"#;
+const ITEM: &str = r#"[{"appId":"codex","providerId":"provider-a","accountId":"account-a","kind":"official_subscription","status":"completed","snapshotVersion":"2"}]"#;
+
+fn selection() -> UsageSnapshotQuery {
+    serde_json::from_value(serde_json::json!({
+        "projectId": "project-a",
+        "targetHostId": "local",
+        "appId": "codex",
+        "providerId": "provider-a",
+        "accountId": "account-a",
+        "kind": "official_subscription",
+    }))
+    .unwrap()
+}
 
 fn operation(project: &str, status: &str, phase: &str, items: &str) -> String {
     format!(
@@ -25,10 +28,10 @@ fn operation(project: &str, status: &str, phase: &str, items: &str) -> String {
 async fn usage_usage_events_returns_expected_result() {
     let (listener, client) = gateway();
     let server = std::thread::spawn(move || {
-        let (mut stream, _, body) = request(&listener, "POST /v1/apps/usage/refresh-all ");
+        let (mut stream, _, body) = request(&listener, "POST /v1/apps/usage/refresh ");
         assert_eq!(
             serde_json::from_str::<serde_json::Value>(&body).unwrap(),
-            serde_json::json!({"projectId":"project-a","targetHostId":"local"})
+            serde_json::to_value(selection()).unwrap()
         );
         respond(&mut stream, "202 Accepted", QUEUED);
 
@@ -44,30 +47,9 @@ async fn usage_usage_events_returns_expected_result() {
 
         let (mut stream, _, _) =
             request(&listener, "GET /v1/agent-apps/operations/op-1?targetHostId=local");
-        respond(&mut stream, "200 OK", &operation("project-a", "failed", "terminal", ITEMS));
-        for (suffix, body) in [("a", PRO), ("b", EMPTY)] {
-            let (mut stream, header, _) = request(&listener, "GET /v1/apps/usage/snapshot?");
-            for field in [
-                "projectId=project-a",
-                "targetHostId=local",
-                "appId=codex",
-                &format!("providerId=provider-{suffix}"),
-                &format!("accountId=account-{suffix}"),
-                "kind=official_subscription",
-            ] {
-                assert!(header.contains(field), "missing {field}");
-            }
-            respond(&mut stream, "200 OK", body);
-        }
+        respond(&mut stream, "200 OK", &operation("project-a", "completed", "terminal", ITEM));
     });
-    let result = refresh_batch(&client, &ProjectId::from("project-a"), "local", "fixture-token")
-        .await
-        .unwrap();
-    assert_eq!(result.len(), 2);
-    assert!(result[0].snapshot.as_ref().unwrap().snapshot.is_some());
-    assert_eq!(result[0].refresh_failure, None);
-    assert!(result[1].snapshot.as_ref().unwrap().snapshot.is_none());
-    assert_eq!(result[1].refresh_failure, Some(Failure::Reauth));
+    refresh_one(&client, &selection(), "fixture-token").await.unwrap();
     server.join().unwrap();
 }
 
@@ -75,14 +57,13 @@ async fn usage_usage_events_returns_expected_result() {
 async fn usage_usage_events_rejects_invalid_input() {
     let (listener, client) = gateway();
     let server = std::thread::spawn(move || {
-        let (mut stream, _, _) = request(&listener, "POST /v1/apps/usage/refresh-all ");
+        let (mut stream, _, _) = request(&listener, "POST /v1/apps/usage/refresh ");
         respond(&mut stream, "202 Accepted", QUEUED);
         let (mut stream, _, _) =
             request(&listener, "GET /v1/agent-apps/operations/op-1?targetHostId=local");
-        respond(&mut stream, "200 OK", &operation("other-project", "failed", "terminal", ITEMS));
+        respond(&mut stream, "200 OK", &operation("other-project", "completed", "terminal", ITEM));
     });
-    let result =
-        refresh_batch(&client, &ProjectId::from("project-a"), "local", "fixture-token").await;
+    let result = refresh_one(&client, &selection(), "fixture-token").await;
     assert!(matches!(result, Err(Failure::InvalidResponse)));
     server.join().unwrap();
 }

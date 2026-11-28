@@ -60,7 +60,6 @@ fn router_with_transports(
         }));
     }
     grant["usage_cancel"] = grant["usage_read"].clone();
-    grant["usage_refresh_all"] = json!(["project-a"]);
     let mut other = principal.clone();
     other["id"] = json!("other");
     other["token_sha256"] = json!(hex::encode(Sha256::digest(OTHER_TOKEN)));
@@ -146,6 +145,7 @@ async fn terminal(router: &Router, id: &str) -> Value {
 #[tokio::test]
 async fn usage_usage_refresh_returns_expected_result() {
     let mut fixture = Fixture::new().await;
+    fixture.policy["principals"][0]["grants"][0]["usage_refresh_all"] = json!(["project-a"]);
     let router = router(&mut fixture);
     let id = start(&router, "/apps/usage/refresh", selector()).await;
     let (status, _) = owner(&router, "GET", &operation(&id, ""), Value::Null).await;
@@ -166,22 +166,15 @@ async fn usage_usage_refresh_returns_expected_result() {
         Some(17.0)
     );
     assert_eq!(fixture.hits.load(Ordering::SeqCst), 1);
-    let id = start(
+    let (status, _) = owner(
         &router,
+        "POST",
         "/apps/usage/refresh-all",
         json!({"projectId": "project-a", "targetHostId": "local"}),
     )
     .await;
-    let event = terminal(&router, &id).await;
-    assert_eq!(event["items"].as_array().unwrap().len(), 2);
-    assert!(
-        event["items"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|item| item["providerId"] == "limited" && item["status"] == "failed")
-    );
-    assert_eq!(fixture.hits.load(Ordering::SeqCst), 3);
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(fixture.hits.load(Ordering::SeqCst), 1);
 }
 
 #[tokio::test]
@@ -376,21 +369,7 @@ async fn usage_usage_refresh_publishes_only_current_managed_codex_credentials() 
     assert_eq!(event["status"], "cancelled");
     drop(permit);
     assert!(owner(&router, "GET", path, Value::Null).await.1["snapshot"].is_null());
-    let id = start(
-        &router,
-        "/apps/usage/refresh-all",
-        json!({"projectId": "project-a", "targetHostId": "local"}),
-    )
-    .await;
-    let event = terminal(&router, &id).await;
-    assert_eq!(event["items"].as_array().unwrap().len(), 3);
-    assert!(
-        event["items"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|item| { item["accountId"] == "managed" && item["status"] == "completed" })
-    );
+
 }
 
 async fn codex_http_fixture(

@@ -83,14 +83,14 @@ async fn usage_usage_write_api_returns_expected_result() {
     let mut selection = selection();
     let host = selection.target_host_id.clone();
     let single_id = "single/id?x=1#%";
-    let batch_id = "batch-id";
+    let cancel_id = "cancel-id";
     let server = test_support::server_with_tenant_scope(
         vec![
             (202, json!({"operationId": single_id, "status": "queued"})),
-            (202, json!({"operationId": batch_id, "status": "queued"})),
+            (202, json!({"operationId": cancel_id, "status": "queued"})),
             (200, progress(single_id, "running", "executing", &host)),
             (200, progress(single_id, "completed", "terminal", &host)),
-            (200, progress(batch_id, "cancelled", "terminal", &host)),
+            (200, progress(cancel_id, "cancelled", "terminal", &host)),
             (204, Value::Null),
             (200, json!([{"remaining": 0.0, "planName": "Trial"}])),
         ],
@@ -107,7 +107,7 @@ async fn usage_usage_write_api_returns_expected_result() {
     selection.kind = Some(UsageQueryKind::OfficialSubscription);
     let single = client.apps_usage_refresh(&selection, TOKEN).await.unwrap();
     assert_eq!(single.status, TaskStatus::Queued);
-    let batch = client.apps_usage_refresh_all(&selection.project_id, &host, TOKEN).await.unwrap();
+    let second = client.apps_usage_refresh(&selection, TOKEN).await.unwrap();
     let current = client.apps_usage_operation(&host, &single.operation_id, TOKEN).await.unwrap();
     assert_eq!(current.operation.phase, AppOperationPhase::Executing);
     assert_eq!(current.correlation_id, "trace-a");
@@ -117,9 +117,9 @@ async fn usage_usage_write_api_returns_expected_result() {
     assert_eq!(event.items[0].kind, UsageQueryKind::OfficialSubscription);
     assert_eq!(event.items[0].snapshot_version.as_deref(), Some("version-a"));
     let cancelled =
-        client.apps_usage_operation_cancel(&host, &batch.operation_id, TOKEN).await.unwrap();
+        client.apps_usage_operation_cancel(&host, &second.operation_id, TOKEN).await.unwrap();
     assert_eq!(cancelled.operation.status, TaskStatus::Cancelled);
-    assert_eq!(cancelled.operation.operation_id, batch.operation_id);
+    assert_eq!(cancelled.operation.operation_id, second.operation_id);
 
     selection.kind = None;
     selection.account_id = None;
@@ -132,10 +132,10 @@ async fn usage_usage_write_api_returns_expected_result() {
     let single_path = "/v1/agent-apps/operations/single%2Fid%3Fx%3D1%23%25";
     let expected = [
         ("POST", "/v1/apps/usage/refresh".into()),
-        ("POST", "/v1/apps/usage/refresh-all".into()),
+        ("POST", "/v1/apps/usage/refresh".into()),
         ("GET", format!("{single_path}?{query}")),
         ("GET", format!("{single_path}/events?{query}")),
-        ("DELETE", format!("/v1/agent-apps/operations/batch-id?{query}")),
+        ("DELETE", format!("/v1/agent-apps/operations/cancel-id?{query}")),
         ("PUT", "/v1/apps/usage/settings".into()),
         ("POST", "/v1/apps/usage/script-test".into()),
     ];
@@ -158,7 +158,7 @@ async fn usage_usage_write_api_returns_expected_result() {
             "kind": "official_subscription"
         })
     );
-    assert_eq!(bodies[1], json!({"projectId": "project-a", "targetHostId": host}));
+    assert_eq!(bodies[1], bodies[0]);
     assert!(bodies[2..5].iter().all(Value::is_null));
     assert_eq!(bodies[5]["selection"]["appId"], "codex");
     assert!(bodies[5]["selection"]["accountId"].is_null());

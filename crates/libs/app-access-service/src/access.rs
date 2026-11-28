@@ -129,9 +129,8 @@ struct Grant {
     #[cfg(target_os = "macos")]
     #[serde(default)]
     usage_cancel: Vec<UsageReadPermit>,
-    #[cfg(target_os = "macos")]
-    #[serde(default)]
-    usage_refresh_all: Vec<vw_api_transport::ProjectId>,
+    #[serde(default, rename = "usage_refresh_all")]
+    _legacy_usage_refresh_all: Option<serde::de::IgnoredAny>,
     #[serde(default)]
     auth_account_read: Vec<AuthService>,
     #[serde(default)]
@@ -448,7 +447,6 @@ pub struct UsageRefreshTarget {
     pub app: vw_api_app_identity::AppId,
     pub provider: String,
     pub origin: reqwest::Url,
-    pub batch: bool,
     pub codex: Option<ManagedCodexTarget>,
     pub kind: vw_api_apps_usage::apps_usage::UsageQueryKind,
 }
@@ -479,7 +477,7 @@ impl UsageRefreshTarget {
 /// This is independent of request authentication and never uses a client token.
 #[cfg(target_os = "macos")]
 pub fn usage_refresh_targets(path: &Path) -> Vec<UsageRefreshTarget> {
-    usage_targets(path, false)
+    usage_targets(path)
         .unwrap_or_default()
         .into_iter()
         .filter(|target| target.kind == vw_api_apps_usage::apps_usage::UsageQueryKind::CustomScript)
@@ -487,10 +485,7 @@ pub fn usage_refresh_targets(path: &Path) -> Vec<UsageRefreshTarget> {
 }
 
 #[cfg(target_os = "macos")]
-pub fn usage_targets(
-    path: &Path,
-    batch: bool,
-) -> Result<Vec<UsageRefreshTarget>, StatusCode> {
+pub fn usage_targets(path: &Path) -> Result<Vec<UsageRefreshTarget>, StatusCode> {
     use vw_api_apps_usage::apps_usage::UsageQueryKind::*;
 
     let policy = load(path).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
@@ -516,8 +511,7 @@ pub fn usage_targets(
                 ) else {
                     continue;
                 };
-                if batch && !grant.usage_refresh_all.contains(project.project_id())
-                    || validate_identity(&permit.provider_id).is_err()
+                if validate_identity(&permit.provider_id).is_err()
                     || endpoint(&permit.origin).is_err()
                     || origin.path() != "/"
                 {
@@ -556,7 +550,6 @@ pub fn usage_targets(
                     app: permit.app_id,
                     provider: permit.provider_id,
                     origin,
-                    batch,
                     codex,
                     kind,
                 };
@@ -755,8 +748,6 @@ enum Capability<'a> {
     UsageScript(&'a UsageSnapshotQuery, UsageScriptAction),
     #[cfg(target_os = "macos")]
     UsageCancel(&'a vw_api_apps_usage::apps_usage::UsageSnapshotQuery),
-    #[cfg(target_os = "macos")]
-    UsageBatch(&'a vw_api_transport::ProjectId),
     Read,
     PreferencesWrite,
     Launch,
@@ -848,16 +839,8 @@ pub fn authorize_usage_refresh(
     headers: &HeaderMap,
     project: &vw_api_transport::ProjectScope,
     host: &str,
-    batch: bool,
 ) -> Result<Authorization, StatusCode> {
-    authorize_scoped(
-        Some(path),
-        headers,
-        project.tenant_scope(),
-        host,
-        None,
-        if batch { Capability::UsageBatch(project.project_id()) } else { Capability::Read },
-    )
+    authorize_scoped(Some(path), headers, project.tenant_scope(), host, None, Capability::Read)
 }
 
 #[cfg(target_os = "macos")]

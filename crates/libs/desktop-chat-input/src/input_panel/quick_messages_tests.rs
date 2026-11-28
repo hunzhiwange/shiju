@@ -609,14 +609,14 @@ async fn session_entry_recommendations_render_both_themes() {
             &renderer,
             &layout::Limits::new(Size::ZERO, Size::new(700.0, bounds.height)),
         );
-        assert_eq!(wide_node.size().width, 560.0);
+        assert_eq!(wide_node.size().width, 340.0);
         let node = element.as_widget_mut().layout(
             &mut tree,
             &renderer,
             &layout::Limits::new(Size::ZERO, bounds),
         );
         assert!(node.bounds().width <= bounds.width);
-        assert!(node.bounds().height <= bounds.height);
+        assert!(node.bounds().height <= 190.0);
         element.as_widget().draw(
             &tree,
             &mut renderer,

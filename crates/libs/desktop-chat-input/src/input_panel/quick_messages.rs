@@ -29,6 +29,8 @@ const QUICK_MESSAGE_MENU_MAX_VISIBLE_ITEMS: usize = 8;
 const QUICK_MESSAGE_MENU_MAX_HEIGHT: f32 = 280.0;
 const QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH: f32 = 4.0;
 const QUICK_MESSAGE_MENU_SCROLLBAR_GAP: f32 = 6.0;
+const RECOMMENDATION_POPUP_WIDTH: f32 = 340.0;
+const RECOMMENDATION_POPUP_MAX_HEIGHT: f32 = 190.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum InputStripControl {
@@ -320,7 +322,7 @@ fn recommendation_row(label: &str, action: Message) -> iced::widget::Button<'_, 
         .align_y(iced::Alignment::Center),
     )
     .on_press(action)
-    .padding([8, 10])
+    .padding([6, 10])
     .width(Length::Fill)
     .style(|theme, status| styles::quick_message_button_style(theme, status, false))
 }
@@ -334,9 +336,9 @@ fn recommendation_popup(items: iced::widget::Column<'_, Message>) -> Element<'_,
         scrollable(container(items).padding(iced::Padding { right: 10.0, ..Default::default() }))
             .direction(Direction::Vertical(scrollbar));
     container(content)
-        .max_height(QUICK_MESSAGE_MENU_MAX_HEIGHT)
+        .max_height(RECOMMENDATION_POPUP_MAX_HEIGHT)
         .padding(6)
-        .width(Length::Fixed(560.0))
+        .width(Length::Fixed(RECOMMENDATION_POPUP_WIDTH))
         .style(styles::quick_message_menu_style)
         .into()
 }

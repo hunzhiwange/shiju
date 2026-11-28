@@ -33,6 +33,13 @@ impl std::fmt::Debug for WeComDeliveryDraft {
     }
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct WeComCronNameDraft {
+    pub instance: String,
+    pub value: String,
+    pub saving: bool,
+}
+
 #[derive(Clone, Default, serde::Deserialize)]
 pub struct WeComCronBinding {
     pub bound: Option<bool>,
@@ -287,6 +294,8 @@ pub struct ChannelsSettingsState {
     pub save_error: Option<String>,
     pub qr_flow: ChannelQrFlowState,
     pub wecom_delivery: Option<WeComDeliveryDraft>,
+    pub(crate) wecom_cron_display_names: std::collections::BTreeMap<String, String>,
+    pub(crate) wecom_cron_name: Option<WeComCronNameDraft>,
     pub wecom_cron_bindings: HashMap<String, WeComCronBinding>,
     pub wecom_cron_binding_request: u64,
     pub wecom_cron_binding_requests: HashMap<String, u64>,
@@ -345,6 +354,8 @@ impl Default for ChannelsSettingsState {
             save_error: None,
             qr_flow: ChannelQrFlowState::default(),
             wecom_delivery: None,
+            wecom_cron_display_names: Default::default(),
+            wecom_cron_name: None,
             wecom_cron_bindings: HashMap::new(),
             wecom_cron_binding_request: 0,
             wecom_cron_binding_requests: Default::default(),
@@ -387,6 +398,17 @@ impl ChannelsSettingsState {
                 card => Some(card),
             }).collect();
         }
+    }
+
+    pub fn wecom_cron_label<'a>(
+        &'a self,
+        instance: &'a config_channel_services::WeComInstanceConfig,
+    ) -> &'a str {
+        self.wecom_cron_display_names
+            .get(&instance.id)
+            .map(|name| name.trim())
+            .filter(|name| !name.is_empty())
+            .unwrap_or(&instance.config.bot_id)
     }
 
     pub(crate) fn wecom_connection(

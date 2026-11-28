@@ -279,7 +279,7 @@ pub(crate) async fn collect_gateway_chat_stream_with_observer(
     domain::collect_gateway_chat_stream_with_observer::<Host>(dir, body, observe_payload).await
 }
 
-#[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub(crate) async fn collect_background_gateway_chat_stream(
     dir: String,
     body: GatewayChatStreamRequest,
@@ -293,6 +293,14 @@ pub(crate) async fn collect_background_gateway_chat_stream(
         observe_payload,
     )
     .await
+}
+
+pub(crate) async fn collect_cron_gateway_chat_stream(
+    dir: String,
+    body: GatewayChatStreamRequest,
+    acp_full_access: bool,
+) -> Result<GatewayChatStreamCollected, ApiError> {
+    domain::collect_cron_gateway_chat_stream::<Host>(dir, body, acp_full_access).await
 }
 
 #[allow(clippy::too_many_arguments)]

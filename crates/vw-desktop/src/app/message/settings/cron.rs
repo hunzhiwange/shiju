@@ -198,12 +198,33 @@ pub fn update(app: &mut App, event: SettingsMessage) -> Task<Message> {
         return start_butler_chat(app);
     }
     if let SettingsMessage::CronList(desktop_settings_cron::message::ListMessage::OpenTask(id)) = &event {
-        let session_id = format!("cron-{id}");
-        if let Some(path) = crate::app::message::project::helpers::find_session_project_path(app, &session_id) {
+        app.session_state.session_view_cache.navigation_generation += 1;
+        if app.cron_settings.jobs.iter().any(|job| {
+            job.id == *id
+                && !job.task_pool
+                && desktop_settings_cron::system_settings_cron::job_is_agent(job)
+        }) {
             app.cron_settings.list_menu = None;
-            return crate::app::message::project::update(
-                app,
-                crate::app::message::ProjectMessage::OpenProjectSessionPressed(path, session_id),
+            let navigation_generation = app.session_state.session_view_cache.navigation_generation;
+            let gateway_user_generation = app.session_state.gateway_user_generation;
+            let job_id = id.clone();
+            let session_id = format!("cron-{id}");
+            let client = crate::app::gateway_client();
+            return Task::perform(
+                async move {
+                    let client = client.ok()?;
+                    desktop_workspace::project_message::session_open::resolve_navigation(
+                        &client, session_id, None, String::new(),
+                    ).await
+                },
+                move |destination| Message::Project(
+                    crate::app::message::ProjectMessage::CronSessionNavigationResolved {
+                        job_id: job_id.clone(),
+                        gateway_user_generation,
+                        navigation_generation,
+                        destination,
+                    },
+                ),
             );
         }
     }

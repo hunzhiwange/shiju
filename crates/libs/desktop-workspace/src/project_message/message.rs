@@ -33,6 +33,12 @@ pub enum ProjectMessage<PreparedOpen, HistoryPage, UiPhase> {
         from_session: Option<String>,
         destination: Option<(String, Box<session_info::Info>)>,
     },
+    CronSessionNavigationResolved {
+        job_id: String,
+        gateway_user_generation: u64,
+        navigation_generation: u64,
+        destination: Option<(String, Box<session_info::Info>)>,
+    },
     RecentHovered(Option<String>),
     CodeProjectsMenuChanged(bool),
     RecentOverlayClosed,

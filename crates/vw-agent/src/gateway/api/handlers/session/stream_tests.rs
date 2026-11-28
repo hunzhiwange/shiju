@@ -406,6 +406,34 @@ async fn gateway_first_response_failure_preserves_history_until_same_session_ret
     gateway_session::stream_runtime_acceptance::gateway_first_response_failure_preserves_history_until_same_session_retries::<Host>().await;
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn cron_stream_first_runtime_error_leaves_a_navigable_session() {
+    use gateway_session::stream_runtime_acceptance_host::RuntimeAcceptanceHost;
+
+    let _env = Host::env_lock().lock().await;
+    let _fixture = Host::recovery("http://127.0.0.1:1/v1", None).await;
+    let _streams = Host::stream_guard().await;
+    let workspace = tempfile::tempdir().unwrap();
+    let session_id = format!("cron-{}", uuid::Uuid::new_v4());
+    let request = GatewayChatStreamRequest {
+        session_id: Some(session_id.clone().into()),
+        messages: vec![serde_json::json!({"role": "user", "content": "prepare the report"})],
+        model: Some("model-recovery/original".into()),
+        ..Default::default()
+    };
+    Host::enqueue(vec![llm_runtime::StreamEvent::Error(
+        session_engine::message::AssistantError::Unknown { message: "fixture failure".into() },
+    )]);
+    let error = collect_cron_gateway_chat_stream(
+        workspace.path().to_string_lossy().into_owned(), request, false,
+    )
+    .await
+    .expect_err("the cron run still reports failure");
+    assert!(error.message.contains("fixture failure"));
+    let info = crate::session::ui_store::load_agent_session_any(&session_id).unwrap();
+    assert!(info.is_user_navigable());
+}
+
 #[tokio::test]
 async fn gateway_first_response_missing_replay_does_not_start_a_new_turn() {
     let _env = crate::test_support::global_async_env_lock().lock().await;

@@ -2,13 +2,14 @@
 //!
 //! 查看定时任务的运行历史记录，包括开始时间、结束时间、状态和输出。
 
-use tool_types::{Tool, ToolResult};
+use super::failure;
 use agent_config::runtime::Config;
 use agent_cron as cron;
 use async_trait::async_trait;
-use serde::Serialize;
+use serde::Deserialize;
 use serde_json::json;
 use std::sync::Arc;
+use tool_types::{Tool, ToolResult};
 
 const MAX_RUN_OUTPUT_CHARS: usize = 500;
 
@@ -22,15 +23,18 @@ impl CronRunsTool {
     }
 }
 
-#[derive(Serialize)]
-struct RunView {
-    id: i64,
-    job_id: String,
-    started_at: chrono::DateTime<chrono::Utc>,
-    finished_at: chrono::DateTime<chrono::Utc>,
-    status: String,
-    output: Option<String>,
-    duration_ms: Option<i64>,
+#[derive(Deserialize)]
+struct RunQuery {
+    job_id: Option<String>,
+    limit: Option<usize>,
+    scope: Option<Scope>,
+    run_id: Option<i64>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum Scope {
+    Workspace,
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -41,17 +45,18 @@ impl Tool for CronRunsTool {
     }
 
     fn description(&self) -> &str {
-        "List recent run history for a scheduled task"
+        "List recent runs for one scheduled task, inspect a retained run by ID, or view workspace history including running tasks"
     }
 
     fn parameters_schema(&self) -> serde_json::Value {
         json!({
             "type": "object",
             "properties": {
-                "job_id": { "type": "string" },
-                "limit": { "type": "integer" }
-            },
-            "required": ["job_id"]
+                "job_id": {"type": "string", "description": "Task ID; optionally filters a workspace snapshot or run detail"},
+                "scope": {"type": "string", "enum": ["workspace"], "description": "Include current runs and recent finished runs in the workspace"},
+                "run_id": {"type": "integer", "minimum": 1, "description": "Persisted numeric run ID from history; returns the retained output for that run"},
+                "limit": {"type": "integer", "minimum": 1, "description": "Maximum list entries, default 10"}
+            }
         })
     }
 
@@ -64,47 +69,48 @@ impl Tool for CronRunsTool {
             });
         }
 
-        let job_id = match args.get("job_id").and_then(serde_json::Value::as_str) {
-            Some(v) if !v.trim().is_empty() => v,
-            _ => {
-                return Ok(ToolResult {
-                    success: false,
-                    output: String::new(),
-                    error: Some("Missing 'job_id' parameter".to_string()),
-                });
-            }
+        let query: RunQuery = match serde_json::from_value(args) {
+            Ok(query) => query,
+            Err(error) => return Ok(failure(format!("Invalid run query: {error}"))),
         };
-
-        let limit = args
-            .get("limit")
-            .and_then(serde_json::Value::as_u64)
-            .map_or(10, |v| usize::try_from(v).unwrap_or(10));
-
-        match cron::list_runs(&self.config, job_id, limit) {
-            Ok(runs) => {
-                let runs: Vec<RunView> = runs
-                    .into_iter()
-                    .map(|run| RunView {
-                        id: run.id,
-                        job_id: run.job_id,
-                        started_at: run.started_at,
-                        finished_at: run.finished_at,
-                        status: run.status,
-                        output: run.output.map(|out| truncate(&out, MAX_RUN_OUTPUT_CHARS)),
-                        duration_ms: run.duration_ms,
-                    })
-                    .collect();
-
-                Ok(ToolResult {
-                    success: true,
-                    output: serde_json::to_string_pretty(&runs)?,
-                    error: None,
-                })
+        let job_id = query.job_id.as_deref().filter(|id| !id.trim().is_empty());
+        let limit = query.limit.unwrap_or(10).max(1);
+        let output = if let Some(run_id) = query.run_id {
+            match cron::get_run(&self.config, run_id, job_id) {
+                Ok(Some(run)) => serde_json::to_string_pretty(&run)?,
+                Ok(None) => return Ok(failure("Run not found in retained history")),
+                Err(_) => return Ok(failure("Failed to query cron history")),
             }
-            Err(e) => {
-                Ok(ToolResult { success: false, output: String::new(), error: Some(e.to_string()) })
+        } else if query.scope.is_some() {
+            let mut history = match cron::history::snapshot(&self.config) {
+                Ok(history) => history,
+                Err(_) => return Ok(failure("Failed to query cron history")),
+            };
+            if let Some(job_id) = job_id {
+                history.runs.retain(|run| run.job_id == job_id);
             }
-        }
+            history.truncated |= history.runs.len() > limit;
+            history.runs.truncate(limit);
+            for run in &mut history.runs {
+                run.output = run.output.take().map(|out| truncate(&out, MAX_RUN_OUTPUT_CHARS));
+            }
+            serde_json::to_string_pretty(&history)?
+        } else {
+            let Some(job_id) = job_id else {
+                return Ok(failure(
+                    "Missing 'job_id' parameter; use scope='workspace' for all tasks",
+                ));
+            };
+            let mut runs = match cron::list_runs(&self.config, job_id, limit) {
+                Ok(runs) => runs,
+                Err(_) => return Ok(failure("Failed to query cron history")),
+            };
+            for run in &mut runs {
+                run.output = run.output.take().map(|out| truncate(&out, MAX_RUN_OUTPUT_CHARS));
+            }
+            serde_json::to_string_pretty(&runs)?
+        };
+        Ok(ToolResult { success: true, output, error: None })
     }
 }
 

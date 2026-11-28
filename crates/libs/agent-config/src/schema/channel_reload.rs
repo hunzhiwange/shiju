@@ -99,10 +99,17 @@ impl<S: ChannelConfigStore> ChannelConfigWatcher<S> {
         super::channels::decrypt_channel_secrets_isolated(&secrets, &mut next.channels_config)?;
         (self.apply_env)(&mut next);
         (self.validate)(&next)?;
+        let mut current_channels = serde_json::to_value(&current.channels_config)?;
+        let mut next_channels = serde_json::to_value(&next.channels_config)?;
+        // Display names are UI metadata and do not require reconnecting channel listeners.
+        for value in [&mut current_channels, &mut next_channels] {
+            if let Some(channels) = value.as_object_mut() {
+                channels.remove("wecom_cron_display_names");
+            }
+        }
         let changed = next.channels_config.unavailable_channels
             != current.channels_config.unavailable_channels
-            || serde_json::to_value(&next.channels_config)?
-                != serde_json::to_value(&current.channels_config)?;
+            || next_channels != current_channels;
         self.last_payload = Some(payload);
         Ok(changed.then_some(next.channels_config))
     }

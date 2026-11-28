@@ -157,16 +157,22 @@ let config = context.config.expect("full factory config");
 let workspace_dir = context.workspace_dir.expect("workspace");
  Arc::new(
             CronAddTool::new(config.clone(), security.clone())
-                .with_execution_defaults(workspace_dir, cron_full_access),
+                .with_execution_defaults(workspace_dir, cron_full_access)
+                .with_delivery_host(&crate::cron::scheduler::Host),
         ) },
 ToolConstruction::CronListTool => { let config = context.config.expect("full factory config");
  Arc::new(CronListTool::new(config.clone())) },
+ToolConstruction::CronPreviewTool => {
+    let config = context.config.expect("full factory config");
+    Arc::new(tool_cron::CronPreviewTool::new(config.clone()))
+},
 ToolConstruction::CronRemoveTool => { let security = context.security;
 let config = context.config.expect("full factory config");
  Arc::new(CronRemoveTool::new(config.clone(), security.clone())) },
 ToolConstruction::CronUpdateTool => { let security = context.security;
 let config = context.config.expect("full factory config");
- Arc::new(CronUpdateTool::new(config.clone(), security.clone())) },
+ Arc::new(CronUpdateTool::new(config.clone(), security.clone())
+     .with_delivery_host(&crate::cron::scheduler::Host)) },
 ToolConstruction::CronRunTool => { let security = context.security;
 let config = context.config.expect("full factory config");
  Arc::new(CronRunTool::new(

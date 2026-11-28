@@ -2,7 +2,7 @@
 use crate::messages::ChannelsMessage;
 use crate::state::ChannelsSettingsState;
 use super::{Effect as Message, Services, ToastKind};
-use crate::state::{WeComDeliveryDraft, WeComDeliveryMode};
+use crate::state::{WeComCronNameDraft, WeComDeliveryDraft, WeComDeliveryMode};
 use iced::Task;
 use config_channel_services::WeComConfig;
 
@@ -63,6 +63,72 @@ pub fn update(app: &mut ChannelsSettingsState, services: &Services, message: Cha
         ChannelsMessage::WeComCronInstanceAdded => {
             let id = format!("{}-{}", WeComConfig::CRON_INSTANCE, uuid::Uuid::new_v4().simple());
             return open(app, services, WeComDeliveryMode::Qr, Some(id));
+        }
+        ChannelsMessage::WeComCronNameOpened(instance) => {
+            if app.wecom_cron_name.is_some()
+                || !WeComConfig::is_cron_instance(&instance)
+                || !app.wecom_connection(Some(&instance))
+                    .is_some_and(WeComConfig::has_required_credentials)
+            {
+                return Task::none();
+            }
+            let value = app.wecom_cron_display_names.get(&instance).cloned().unwrap_or_default();
+            app.wecom_cron_name = Some(WeComCronNameDraft { instance, value, saving: false });
+        }
+        ChannelsMessage::WeComCronNameChanged(value) => {
+            if let Some(draft) = app.wecom_cron_name.as_mut().filter(|draft| !draft.saving) {
+                draft.value = value;
+            }
+        }
+        ChannelsMessage::WeComCronNameClosed => {
+            if app.wecom_cron_name.as_ref().is_some_and(|draft| !draft.saving) {
+                app.wecom_cron_name = None;
+            }
+        }
+        ChannelsMessage::WeComCronNameSave => {
+            let Some(draft) = app.wecom_cron_name.as_mut().filter(|draft| !draft.saving) else {
+                return Task::none();
+            };
+            let name = draft.value.trim();
+            let previous = app.wecom_cron_display_names
+                .get(&draft.instance)
+                .map_or("", |name| name.trim());
+            if name == previous {
+                app.wecom_cron_name = None;
+                return Task::none();
+            }
+            let instance = draft.instance.clone();
+            let patch = serde_json::json!({
+                "channels_config": { "wecom_cron_display_names": { (instance.clone()): name } }
+            });
+            draft.saving = true;
+            let config = services.config.clone();
+            return Task::perform(
+                async move { config.patch_full_agent_config_async(patch).await },
+                move |result| Message::Channels(ChannelsMessage::WeComCronNameSaved {
+                    instance: instance.clone(),
+                    result,
+                }),
+            );
+        }
+        ChannelsMessage::WeComCronNameSaved { instance, result } => {
+            let Some(draft) = app.wecom_cron_name.as_mut()
+                .filter(|draft| draft.instance == instance && draft.saving)
+            else {
+                return Task::none();
+            };
+            if result.is_err() {
+                draft.saving = false;
+                return super::error_toast("保存失败，请检查网关连接与配置后重试".into());
+            }
+            let name = draft.value.trim();
+            if name.is_empty() {
+                app.wecom_cron_display_names.remove(&instance);
+            } else {
+                app.wecom_cron_display_names.insert(instance, name.to_owned());
+            }
+            app.wecom_cron_name = None;
+            return super::localized_toast(ToastKind::Success, "已保存", vec![]);
         }
         ChannelsMessage::WeComCronBindingRequested { instance, start } => {
             if app.wecom_cron_binding_requests.contains_key(&instance)
@@ -225,6 +291,10 @@ pub fn update(app: &mut ChannelsSettingsState, services: &Services, message: Cha
                             let id = id.clone();
                             let cron = WeComConfig::is_cron_instance(&id);
                             if cron && wecom.is_none() {
+                                app.wecom_cron_display_names.remove(&id);
+                                if app.wecom_cron_name.as_ref().is_some_and(|draft| draft.instance == id) {
+                                    app.wecom_cron_name = None;
+                                }
                                 while let Some(index) = app.wecom_instances.iter().rposition(|instance| {
                                     instance.id == id
                                 }) {

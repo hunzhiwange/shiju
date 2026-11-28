@@ -110,16 +110,24 @@ impl CronRunTool {
         tracker: &ActionTracker,
     ) -> Result<impl std::future::Future<Output = ()> + Send + 'static + use<>, String> {
         let job = self.authorized_job(job_id, tracker, true)?;
-        let started_at = Utc::now();
-        if let Some(error) = job.window_error(started_at) {
-            return Err(error.to_string());
-        }
-        let active = cron::active_runs::register_if_idle(&self.config, &job, started_at)
-            .ok_or_else(|| "This scheduled task is already running".to_string())?;
+        let (started_at, active) = self.start_run(&job)?;
         Ok(async move {
             let _active = active;
             self.run_job(&job, started_at).await;
         })
+    }
+
+    fn start_run(
+        &self,
+        job: &cron::CronJob,
+    ) -> Result<(chrono::DateTime<Utc>, cron::active_runs::ActiveRunGuard), String> {
+        let started_at = Utc::now();
+        if let Some(error) = job.window_error(started_at) {
+            return Err(error.into());
+        }
+        let active = cron::active_runs::register_if_idle(&self.config, job, started_at)
+            .ok_or_else(|| "This scheduled task is already running".to_string())?;
+        Ok((started_at, active))
     }
 
     async fn run_job(
@@ -167,29 +175,9 @@ impl Tool for CronRunTool {
     ///
     /// 返回工具的功能描述字符串，说明该工具用于立即强制运行定时任务并记录运行历史
     fn description(&self) -> &str {
-        "Run a scheduled task immediately and record its run history"
+        "Run a scheduled task immediately within its execution window and record the result without advancing the next planned run"
     }
 
-    /// 返回工具参数的 JSON Schema
-    ///
-    /// # 返回值
-    ///
-    /// 返回描述工具参数结构的 JSON 对象，包含：
-    /// - `job_id`: 必需的字符串参数，指定要运行的任务 ID
-    /// - `approved`: 可选的布尔参数，用于在监督模式下批准中/高风险 Shell 命令
-    ///
-    /// # 示例
-    ///
-    /// ```json
-    /// {
-    ///     "type": "object",
-    ///     "properties": {
-    ///         "job_id": { "type": "string" },
-    ///         "approved": { "type": "boolean", "default": false }
-    ///     },
-    ///     "required": ["job_id"]
-    /// }
-    /// ```
     fn parameters_schema(&self) -> serde_json::Value {
         json!({
             "type": "object",
@@ -266,14 +254,9 @@ impl Tool for CronRunTool {
                 return Ok(ToolResult { success: false, output: String::new(), error: Some(error) });
             }
         };
-        let started_at = Utc::now();
-        let Some(_active_run) = cron::active_runs::register_if_idle(&self.config, &job, started_at)
-        else {
-            return Ok(ToolResult {
-                success: false,
-                output: String::new(),
-                error: Some("This scheduled task is already running".into()),
-            });
+        let (started_at, _active_run) = match self.start_run(&job) {
+            Ok(run) => run,
+            Err(error) => return Ok(super::failure(error)),
         };
         let (success, output, duration_ms) = self.run_job(&job, started_at).await;
         let status = if success { "ok" } else { "error" };

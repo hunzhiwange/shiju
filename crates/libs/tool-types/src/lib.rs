@@ -608,6 +608,7 @@ fn default_tool_read_only(tool_id: &str) -> bool {
             | "codesearch"
             | "memory_recall"
             | "cron_list"
+            | "cron_preview"
             | "cron_runs"
             | "pdf_read"
             | "image_asset_read"

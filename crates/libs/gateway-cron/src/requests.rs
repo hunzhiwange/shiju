@@ -1,4 +1,5 @@
 //! Cron HTTP 请求及窗口缺失/null 区分。
+use agent_cron::schedule::input::deserialize_window_field;
 use serde::Deserialize;
 
 /// 添加定时任务的请求体
@@ -22,13 +23,13 @@ pub struct CronAddBody {
     pub weekdays: Option<Vec<u32>>,
     pub hour: Option<u32>,
     pub minute: Option<u32>,
-    #[serde(default, deserialize_with = "cron_window_field")]
+    #[serde(default, deserialize_with = "deserialize_window_field")]
     pub starts_at: Option<Option<String>>,
-    #[serde(default, deserialize_with = "cron_window_field")]
+    #[serde(default, deserialize_with = "deserialize_window_field")]
     pub ends_at: Option<Option<String>>,
-    #[serde(default, deserialize_with = "cron_window_field")]
+    #[serde(default, deserialize_with = "deserialize_window_field")]
     pub start_date: Option<Option<String>>,
-    #[serde(default, deserialize_with = "cron_window_field")]
+    #[serde(default, deserialize_with = "deserialize_window_field")]
     pub end_date: Option<Option<String>>,
 
     /// 任务的可读名称
@@ -131,13 +132,6 @@ pub struct CronAddBody {
     pub delete_after_run: Option<bool>,
 }
 
-// Missing uses Default (None); explicit null must remain Some(None).
-fn cron_window_field<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> Result<Option<Option<String>>, D::Error> {
-    Option::<String>::deserialize(deserializer).map(Some)
-}
-
 /// 更新定时任务的请求体。
 ///
 /// 所有字段均为可选，只修改请求中明确提供的字段。
@@ -149,13 +143,13 @@ pub struct CronUpdateBody {
     pub weekdays: Option<Vec<u32>>,
     pub hour: Option<u32>,
     pub minute: Option<u32>,
-    #[serde(default, deserialize_with = "cron_window_field")]
+    #[serde(default, deserialize_with = "deserialize_window_field")]
     pub starts_at: Option<Option<String>>,
-    #[serde(default, deserialize_with = "cron_window_field")]
+    #[serde(default, deserialize_with = "deserialize_window_field")]
     pub ends_at: Option<Option<String>>,
-    #[serde(default, deserialize_with = "cron_window_field")]
+    #[serde(default, deserialize_with = "deserialize_window_field")]
     pub start_date: Option<Option<String>>,
-    #[serde(default, deserialize_with = "cron_window_field")]
+    #[serde(default, deserialize_with = "deserialize_window_field")]
     pub end_date: Option<Option<String>>,
 
     /// 新任务名称。

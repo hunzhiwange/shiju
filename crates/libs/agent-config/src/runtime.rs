@@ -738,6 +738,14 @@ fn merge_global_config_patch(current: Config, mut patch: Value) -> Result<Config
     // 反序列化回 Config 结构
     let mut next = serde_json::from_value::<Config>(merged).map_err(Error::Json)?;
     schema::restore_masked_channel_credentials(&mut next.channels_config, &current.channels_config);
+    // Prune cleared names and deleted instances in the same tenant config update.
+    let channels = &mut next.channels_config;
+    let instances = &channels.wecom_instances;
+    channels.wecom_cron_display_names.retain(|id, name| {
+        !name.trim().is_empty()
+            && schema::WeComConfig::is_cron_instance(id)
+            && instances.iter().any(|instance| &instance.id == id)
+    });
     validate_agent_runtime_update(&current, &next)?;
     // 保留路径字段（不被 patch 覆盖）
     next.workspace_dir = current.workspace_dir;

@@ -70,7 +70,8 @@ pub fn tool_emoji(tool_name: &str) -> &'static str {
         "screenshot" => "📸",
         "agenttool" | "agent" => "🛰️",
         "todowrite" | "todoread" => "✅",
-        "schedule" | "cron_add" | "cron_list" | "cron_run" | "cron_update" | "cron_remove" => "⏰",
+        "schedule" | "cron_add" | "cron_list" | "cron_preview" | "cron_run" | "cron_runs"
+        | "cron_update" | "cron_remove" => "⏰",
         "memory_store" | "memory_recall" | "memory_forget" => "🧠",
         "git_operations" | "git_diff" => "🔀",
         "view_image" => "🖼️",
@@ -130,7 +131,8 @@ pub fn tool_icon(tool_name: &str) -> Icon {
         }
         "screenshot" => Icon::Image,
         "get_errors" => Icon::Code,
-        "schedule" | "cron_add" | "cron_list" | "cron_run" | "cron_update" | "cron_remove" => {
+        "schedule" | "cron_add" | "cron_list" | "cron_preview" | "cron_run" | "cron_runs"
+        | "cron_update" | "cron_remove" => {
             // Icon 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
             Icon::Clock
         }

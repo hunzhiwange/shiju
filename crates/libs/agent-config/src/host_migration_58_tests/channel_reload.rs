@@ -57,6 +57,10 @@ async fn channel_reload_detects_add_edit_and_disable_without_unrelated_reconnect
     assert!(source.poll(&config).await.unwrap().is_none());
     let mut saved = config.clone();
     set_telegram(&mut saved, "first-token");
+    saved.channels_config.wecom_instances.push(config_channel_services::WeComInstanceConfig {
+        id: crate::schema::WeComConfig::CRON_INSTANCE.into(),
+        config: crate::schema::WeComConfig { bot_id: "test-bot".into(), secret: "test-secret".into() },
+    });
     save(&source, &saved);
     config.channels_config = source.poll(&config).await.unwrap().unwrap();
     assert_eq!(config.channels_config.telegram.as_ref().unwrap().bot_token, "first-token");
@@ -71,6 +75,13 @@ async fn channel_reload_detects_add_edit_and_disable_without_unrelated_reconnect
     assert_eq!(telegram.allowed_users, ["bob"]);
     saved.default_temperature = 0.2;
     save(&source, &saved); // 加密密文可以变化，但有效通道配置未变。
+    assert!(source.poll(&config).await.unwrap().is_none());
+
+    saved.channels_config.wecom_cron_display_names.insert(
+        crate::schema::WeComConfig::CRON_INSTANCE.into(),
+        "值班通知".into(),
+    );
+    save(&source, &saved);
     assert!(source.poll(&config).await.unwrap().is_none());
 
     saved.channels_config.telegram = None;

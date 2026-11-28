@@ -137,3 +137,29 @@ async fn errors_when_job_id_missing() {
 fn truncate_preserves_short_unicode_output() {
     assert_eq!(super::truncate("你好世界", 4), "你好世界");
 }
+
+#[tokio::test]
+async fn cron_tool_workspace_history_exposes_active_runs_and_retained_detail() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    let job = agent_cron::add_job(&cfg, "*/5 * * * *", "echo ok").unwrap();
+    let now = chrono::Utc::now();
+    let guard = agent_cron::active_runs::register(&cfg, &job, now);
+    let tool = CronRunsTool::new(cfg.clone());
+    let result = tool.execute(json!({"scope": "workspace", "job_id": job.id})).await.unwrap();
+    assert!(result.success, "{:?}", result.error);
+    let result: serde_json::Value = serde_json::from_str(&result.output).unwrap();
+    assert_eq!(result["runs"][0]["status"], "running");
+
+    let output = "文".repeat(1000);
+    agent_cron::record_run(&cfg, &job.id, now, now, "ok", Some(&output), 0).unwrap();
+    let result = tool.execute(json!({"scope": "workspace"})).await.unwrap();
+    let result: serde_json::Value = serde_json::from_str(&result.output).unwrap();
+    assert_eq!(result["runs"].as_array().unwrap().len(), 1);
+    assert_eq!(result["runs"][0]["status"], "ok");
+
+    let detail = tool.execute(json!({"run_id": result["runs"][0]["id"]})).await.unwrap();
+    let detail: serde_json::Value = serde_json::from_str(&detail.output).unwrap();
+    assert_eq!(detail["output"], output);
+    drop(guard);
+}

@@ -113,6 +113,7 @@ pub fn build_channels_config_from_settings(
         qq_instances: settings.qq_instances.clone(),
         wecom: settings.wecom.clone(),
         wecom_instances: settings.wecom_instances.clone(),
+        wecom_cron_display_names: settings.wecom_cron_display_names.clone(),
         wecom_webhook: settings.wecom_webhook.clone(),
         wechat: settings.wechat.clone(),
         wechat_instances: settings.wechat_instances.clone(),

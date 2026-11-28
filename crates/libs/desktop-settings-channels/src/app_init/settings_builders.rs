@@ -61,6 +61,8 @@ pub fn build_channels_settings(
         save_error: None,
         qr_flow: Default::default(),
         wecom_delivery: None,
+        wecom_cron_display_names: channels_cfg.wecom_cron_display_names.clone(),
+        wecom_cron_name: None,
         wecom_cron_bindings: Default::default(),
         wecom_cron_binding_request: 0,
         wecom_cron_binding_requests: Default::default(),

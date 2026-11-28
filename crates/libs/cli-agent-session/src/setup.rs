@@ -157,16 +157,17 @@ pub(super) fn build_tool_descriptions(
         ),
         (
             "cron_add",
-            "Create a cron job. Supports schedule kinds: cron, at, every; and job types: shell or agent.",
+            "Create a Shell or Agent scheduled task with a calendar, anchored biweekly, one-time, or fixed interval rule, with optional delivery.",
         ),
-        ("cron_list", "List all cron jobs with schedule, status, and metadata."),
+        ("cron_list", "List scheduled tasks with their settings, status, and job IDs."),
+        ("cron_preview", "Preview up to five upcoming run times for a proposed schedule and execution window."),
         ("cron_remove", "Remove a cron job by job_id."),
         (
             "cron_update",
-            "Patch a cron job (schedule, enabled, command/prompt, model, delivery, session_target).",
+            "Update or pause a scheduled task by ID, including its schedule, execution window, models, and delivery.",
         ),
-        ("cron_run", "Force-run a cron job immediately and record a run history entry."),
-        ("cron_runs", "Show recent run history for a cron job."),
+        ("cron_run", "Run a scheduled task within its execution window and record the result."),
+        ("cron_runs", "Show recent task runs, workspace history including active runs, or retained output for a run ID."),
         (
             "screenshot",
             "Capture a screenshot of the current screen. Returns file path and base64-encoded PNG. Use when: visual verification, UI inspection, debugging displays.",

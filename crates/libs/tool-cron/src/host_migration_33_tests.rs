@@ -70,3 +70,25 @@ async fn blocks_run_when_rate_limited() {
     assert!(result.error.unwrap_or_default().contains("Rate limit exceeded"));
     assert!(list_runs(&cfg, &job.id, 10).unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn window_rejection_never_reaches_executor_or_records_run() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    let start = chrono::Utc::now() + chrono::Duration::days(1);
+    let job = agent_cron::add_shell_job_with_window(
+        &cfg,
+        None,
+        agent_cron::Schedule::Every { every_ms: 60_000 },
+        "echo run-now",
+        Some(start),
+        None,
+    ).unwrap();
+    let tool = CronRunTool::new(cfg.clone(), test_security(&cfg), execute_job_now);
+
+    let result = tool.execute(json!({"job_id": job.id})).await.unwrap();
+    assert!(!result.success);
+    assert_eq!(result.error.as_deref(), Some("Execution window has not started"));
+    assert!(list_runs(&cfg, &job.id, 10).unwrap().is_empty());
+    assert!(agent_cron::active_runs::snapshot(&cfg).is_empty());
+}

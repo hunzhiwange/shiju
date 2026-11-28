@@ -558,3 +558,60 @@ async fn wb_schedule_tool_rejects_calendar_creation_in_read_only_mode() {
 }
 
 use tool_types::ToolResult;
+
+#[tokio::test]
+async fn cron_tool_preview_and_creation_share_local_schedule_and_window() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    let args = json!({
+        "schedule": {"kind": "at", "local_at": "2096-01-02T09:00", "timezone": "Asia/Shanghai"},
+        "start_date": "2096-01-02",
+        "end_date": "2096-01-02",
+        "command": "echo ok",
+        "delete_after_run": false,
+        "delivery": {"mode": "announce", "channel": "wecom_cron", "best_effort": false}
+    });
+    let preview = CronPreviewTool::new(cfg.clone()).execute(args.clone()).await.unwrap();
+    assert!(preview.success, "{:?}", preview.error);
+    assert!(list_jobs(&cfg).unwrap().is_empty());
+
+    let added = CronAddTool::new(cfg.clone(), test_security(&cfg)).execute(args).await.unwrap();
+    assert!(added.success, "{:?}", added.error);
+    let preview: serde_json::Value = serde_json::from_str(&preview.output).unwrap();
+    let job: serde_json::Value = serde_json::from_str(&added.output).unwrap();
+    assert_eq!(job["next_run"], preview["candidates"][0]);
+    assert_eq!(job["next_run"], "2096-01-02T01:00:00Z");
+    assert_eq!(job["ends_at"], "2096-01-02T16:00:00Z");
+    assert_eq!(job["delete_after_run"], false);
+    let stored = list_jobs(&cfg).unwrap().pop().unwrap();
+    assert_eq!(stored.delivery.channel.as_deref(), Some("wecom_cron"));
+    assert!(!stored.delivery.best_effort);
+}
+
+#[tokio::test]
+async fn cron_tool_persists_agent_configuration_at_creation() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    let result = CronAddTool::new(cfg.clone(), test_security(&cfg))
+        .execute(json!({
+            "schedule": {"kind": "every", "every_ms": 60_000},
+            "prompt": "Summarize yesterday's notes",
+            "agent": "reviewer",
+            "acp_agent": "codex",
+            "model": "primary",
+            "fallbacks": [" backup ", "backup"],
+            "enabled": false,
+            "wake": true,
+            "task_pool": true
+        }))
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+    let job = list_jobs(&cfg).unwrap().pop().unwrap();
+    assert_eq!(job.agent.as_deref(), Some("reviewer"));
+    assert_eq!(job.acp_agent.as_deref(), Some("codex"));
+    assert_eq!(job.model.as_deref(), Some("primary"));
+    assert_eq!(job.fallbacks, ["backup"]);
+    assert!(!job.enabled);
+    assert!(job.wake && job.task_pool);
+}

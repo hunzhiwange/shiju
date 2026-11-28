@@ -7,7 +7,7 @@
 //!
 //! - 识别 `cron_add` 工具调用并判断是否需要自动注入投递配置
 //! - 仅对代理类型任务（agent jobs）进行自动配置
-//! - 尊重用户显式指定的投递模式，仅在未设置或为 none 时自动填充
+//! - 尊重用户显式指定的投递模式，仅在未设置时自动填充
 //!
 //! # 支持的通道
 //!
@@ -63,10 +63,10 @@ mod cron_tests;
 ///
 /// ## 投递配置注入规则
 ///
-/// - **mode**：仅在未设置或为 `"none"` 或空字符串时，自动设置为 `"announce"`
-///   - 如果用户已显式设置为其他模式（如 `"silent"`），则保持不变
+/// - **mode**：仅在未设置或为空时，自动设置为 `"announce"`
+///   - 如果用户已显式设置为其他模式（如 `"none"`），则保持不变
 /// - **channel**：仅在未设置或为空时，自动填充为当前通道名称
-/// - **to**：仅在未设置或为空时，自动填充为 `reply_target`
+/// - **to**：仅在投递通道与当前通道相同且目标为空时，填充 `reply_target`
 ///
 /// # 示例
 ///
@@ -147,10 +147,8 @@ pub fn maybe_inject_cron_add_delivery(
     };
 
     // 处理投递模式
-    // 如果未设置或为 none/空，则自动设置为 announce
-    // 如果用户已显式设置其他模式，则保持不变（尊重用户选择）
-    let mode = delivery_obj.get("mode").and_then(serde_json::Value::as_str).unwrap_or("none");
-    if mode.eq_ignore_ascii_case("none") || mode.trim().is_empty() {
+    let mode = delivery_obj.get("mode").and_then(serde_json::Value::as_str).unwrap_or_default();
+    if mode.trim().is_empty() {
         delivery_obj.insert("mode".to_string(), serde_json::Value::String("announce".to_string()));
     } else if !mode.eq_ignore_ascii_case("announce") {
         // 用户已显式选择非 announce 模式，保持不变
@@ -172,7 +170,9 @@ pub fn maybe_inject_cron_add_delivery(
         .get("to")
         .and_then(serde_json::Value::as_str)
         .is_none_or(|value| value.trim().is_empty());
-    if needs_target {
+    let same_channel = delivery_obj.get("channel").and_then(serde_json::Value::as_str)
+        .is_some_and(|channel| channel.trim().eq_ignore_ascii_case(channel_name));
+    if needs_target && same_channel {
         delivery_obj.insert("to".to_string(), serde_json::Value::String(reply_target.to_string()));
     }
 }

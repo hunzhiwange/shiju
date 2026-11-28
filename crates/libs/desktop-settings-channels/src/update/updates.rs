@@ -247,6 +247,11 @@ pub fn update(
         | ChannelsMessage::WeComDeliverySave
         | ChannelsMessage::WeComDeliverySaved(_)
         | ChannelsMessage::WeComCronInstanceAdded
+        | ChannelsMessage::WeComCronNameOpened(_)
+        | ChannelsMessage::WeComCronNameChanged(_)
+        | ChannelsMessage::WeComCronNameClosed
+        | ChannelsMessage::WeComCronNameSave
+        | ChannelsMessage::WeComCronNameSaved { .. }
         | ChannelsMessage::WeComCronBindingRequested { .. }
         | ChannelsMessage::WeComCronBindingLoaded { .. }) => Task::done(Message::WeComDelivery(message)),
         ChannelsMessage::ExecutionChoicesRequested(instance) => {
@@ -612,6 +617,11 @@ pub fn delivery_event(
         | ChannelsMessage::WeComDeliverySave
         | ChannelsMessage::WeComDeliverySaved(_)
         | ChannelsMessage::WeComCronInstanceAdded
+        | ChannelsMessage::WeComCronNameOpened(_)
+        | ChannelsMessage::WeComCronNameChanged(_)
+        | ChannelsMessage::WeComCronNameClosed
+        | ChannelsMessage::WeComCronNameSave
+        | ChannelsMessage::WeComCronNameSaved { .. }
         | ChannelsMessage::WeComCronBindingRequested { .. }
         | ChannelsMessage::WeComCronBindingLoaded { .. } => Some((message.clone(), false)),
         ChannelsMessage::QrClosed if state.wecom_delivery.is_some() => {

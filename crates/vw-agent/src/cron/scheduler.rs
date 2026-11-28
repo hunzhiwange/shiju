@@ -77,11 +77,10 @@ async fn run_gateway_agent_job(
     let (session_id, request) = cron_gateway_agent_request(config, job, prompt, model_override);
 
     let collected =
-        crate::app::agent::gateway::api::handlers::session::stream::collect_background_gateway_chat_stream(
+        crate::app::agent::gateway::api::handlers::session::stream::collect_cron_gateway_chat_stream(
             config.workspace_dir.to_string_lossy().to_string(),
             request,
             job.full_access,
-            |_| {},
         )
         .await
         .map_err(|err| anyhow::anyhow!("{err}"))?;

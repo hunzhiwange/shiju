@@ -5,6 +5,7 @@ pub use types::{CronJob, CronJobPatch, CronRun, DeliveryConfig, JobType, Schedul
 pub mod schedule;
 pub use schedule::{next_run_for_schedule, normalize_expression, schedule_cron_expression, validate_schedule};
 pub mod active_runs;
+pub mod history;
 pub mod scheduler;
 pub mod delivery;
 pub mod consolidation;

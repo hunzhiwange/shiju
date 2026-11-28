@@ -29,6 +29,8 @@ fn channels_config_patch(
     let previous_projects: Vec<_> = config.instance_default_projects.keys().cloned().collect();
     let previous_execution: Vec<_> = config.instance_execution.keys().cloned().collect();
     update(&mut config);
+    // Display names use a per-instance patch so connection saves cannot overwrite them.
+    config.wecom_cron_display_names.clear();
     let mut patch = serde_json::to_value(config).map_err(|error| error.to_string())?;
     // Deleting a map entry requires an explicit null in the JSON merge patch.
     for (field, previous) in [

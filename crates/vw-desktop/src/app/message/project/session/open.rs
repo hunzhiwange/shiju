@@ -345,6 +345,31 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::OpenProjectSessionPressed(path, id) => {
             Some(request_session_navigation(app, path, id))
         }
+        ProjectMessage::CronSessionNavigationResolved {
+            job_id,
+            gateway_user_generation,
+            navigation_generation,
+            destination,
+        } => {
+            if gateway_user_generation != app.session_state.gateway_user_generation
+                || navigation_generation != app.session_state.session_view_cache.navigation_generation
+                || !crate::app::components::system_settings_cron::visible(app)
+                || app.cron_settings.active_tab != crate::app::state::CronSettingsTab::Jobs
+                || !app.cron_settings.jobs.iter().any(|job| job.id == job_id)
+            {
+                return Some(iced::Task::none());
+            }
+            Some(match destination {
+                Some((project_path, info)) => {
+                    app.cron_settings.open_job_id = None;
+                    open_project_session(app, project_path, info.id.clone(), Some(*info), None)
+                }
+                None => {
+                    app.cron_settings.open_job_id = Some(job_id);
+                    iced::Task::none()
+                }
+            })
+        }
         ProjectMessage::SessionNavigationResolved {
             generation,
             from_project,

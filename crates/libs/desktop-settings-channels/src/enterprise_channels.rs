@@ -7,7 +7,7 @@ use crate::help::{settings_group_heading_with_help};
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
     settings_error_banner, settings_group_card, settings_group_heading,
-    settings_muted_text_style,
+    settings_muted_text_style, settings_text_input,
 };
 use desktop_i18n::{I18n, settings_extensions::text as tr};
 use crate::messages::{ChannelsMessage, SettingsMessage};
@@ -920,14 +920,39 @@ pub(super) fn wecom_cron_card(app: ViewState<'_>) -> Element<'_, Message> {
             }))
         };
         let bound = status.and_then(|status| status.bound);
+        let rename = (instance.config.has_required_credentials() && s.wecom_cron_name.is_none())
+            .then(|| event(ChannelsMessage::WeComCronNameOpened(id.clone())));
         let mut content = column![
-            text(instance.config.bot_id.as_str()).size(16),
+            text(s.wecom_cron_label(instance)).size(16),
             row![
                 action(if bound == Some(true) { "重新绑定接收会话" } else { "绑定接收会话" }, request(true)),
                 action("检查连接状态", request(false)),
                 action("管理连接", Some(event(ChannelsMessage::WeComInstanceOpened(id.clone(), WeComDeliveryMode::Manual)))),
+                action("重命名", rename),
             ].spacing(8).wrap(),
         ].spacing(8);
+        if let Some(draft) = s.wecom_cron_name.as_ref().filter(|draft| &draft.instance == id) {
+            let save = event(ChannelsMessage::WeComCronNameSave);
+            let input = settings_text_input(&instance.config.bot_id, &draft.value).width(Length::Fill);
+            let input = if draft.saving {
+                input
+            } else {
+                input
+                    .on_input(move |value| event(ChannelsMessage::WeComCronNameChanged(value)))
+                    .on_submit(save.clone())
+            };
+            content = content
+                .push(text(i18n.__("显示名称")).size(SETTINGS_CONTROL_TEXT_SIZE))
+                .push(input)
+                .push(row![
+                    button(text(i18n.__(if draft.saving { "正在保存…" } else { "保存名称" }))
+                        .size(SETTINGS_CONTROL_TEXT_SIZE))
+                        .padding([8, 12])
+                        .style(primary_action_btn_style)
+                        .on_press_maybe((!draft.saving).then_some(save)),
+                    action("取消", (!draft.saving).then(|| event(ChannelsMessage::WeComCronNameClosed))),
+                ].spacing(8).wrap());
+        }
         if let Some(connected) = status.and_then(|status| status.connected) {
             content = content.push(text(i18n.__(match (connected, bound) {
                 (false, _) => "定时任务机器人尚未连接",

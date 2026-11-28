@@ -115,7 +115,7 @@ fn data(app: &App) -> domain::ViewData<'_> {
                 let status = app.channels_settings.wecom_cron_bindings.get(&instance.id);
                 domain::WeComNotification {
                     id: instance.id.clone(),
-                    label: instance.config.bot_id.clone(),
+                    label: app.channels_settings.wecom_cron_label(instance).to_owned(),
                     bound: status.and_then(|status| status.bound),
                     connected: status.and_then(|status| status.connected),
                     pairing_code: status.and_then(|status| status.pairing_code.clone()),

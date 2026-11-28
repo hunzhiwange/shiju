@@ -83,7 +83,6 @@ pub fn add_shell_job_with_window(
 }
 
 #[allow(clippy::too_many_arguments)]
-#[cfg(not(target_arch = "wasm32"))]
 pub fn add_shell_job_with_scope(
     config: &Config,
     name: Option<String>,
@@ -94,10 +93,15 @@ pub fn add_shell_job_with_scope(
     project_path: Option<&str>,
     full_access: bool,
 ) -> Result<CronJob> {
-    insert_shell_job(
-        config, name, schedule, command, starts_at, ends_at, project_path, full_access,
-        DeliveryConfig::default(),
-    )
+    create_job(config, schedule, CronJobPatch {
+        name,
+        command: Some(command.to_owned()),
+        starts_at: starts_at.map(Some),
+        ends_at: ends_at.map(Some),
+        project_path: project_path.map(str::to_owned),
+        full_access: Some(full_access),
+        ..Default::default()
+    })
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -110,79 +114,14 @@ pub fn add_shell_job_with_delivery(
     ends_at: Option<DateTime<Utc>>,
     delivery: DeliveryConfig,
 ) -> Result<CronJob> {
-    insert_shell_job(config, name, schedule, command, starts_at, ends_at, None, false, delivery)
-}
-
-#[allow(clippy::too_many_arguments)]
-#[cfg(not(target_arch = "wasm32"))]
-fn insert_shell_job(
-    config: &Config,
-    name: Option<String>,
-    schedule: Schedule,
-    command: &str,
-    starts_at: Option<DateTime<Utc>>,
-    ends_at: Option<DateTime<Utc>>,
-    project_path: Option<&str>,
-    full_access: bool,
-    delivery: DeliveryConfig,
-) -> Result<CronJob> {
-    super::delivery::validate_stored_target(&delivery)?;
-    let now = Utc::now();
-    validate_schedule(&schedule, now)?;
-    let next_run = next_run_in_window(&schedule, starts_at, ends_at, now)?
-        .context("No occurrence within execution window")?;
-    let id = Uuid::new_v4().to_string();
-    let expression = schedule_cron_expression(&schedule).unwrap_or_default();
-    let schedule_json = serde_json::to_string(&schedule)?;
-
-    let delete_after_run = matches!(schedule, Schedule::At { .. });
-
-    with_connection(config, |conn| {
-        conn.execute(
-            "INSERT INTO cron_jobs (
-                id, expression, command, schedule, job_type, prompt, name, session_target, model,
-                enabled, delivery, delete_after_run, created_at, next_run, agent, acp_agent,
-                project_path, wake, fallbacks, full_access, task_pool, starts_at, ends_at
-             ) VALUES (?1, ?2, ?3, ?4, 'shell', NULL, ?5, 'isolated', NULL, 1, ?6, ?7, ?8, ?9, NULL, NULL, ?10, 0, ?11, ?12, 0, ?13, ?14)",
-            params![
-                id,
-                expression,
-                command,
-                schedule_json,
-                name,
-                serde_json::to_string(&delivery)?,
-                if delete_after_run { 1 } else { 0 },
-                now.to_rfc3339(),
-                next_run.to_rfc3339(),
-                project_path,
-                serde_json::to_string(&Vec::<String>::new())?,
-                full_access,
-                starts_at.map(|at| at.to_rfc3339()),
-                ends_at.map(|at| at.to_rfc3339()),
-            ],
-        )
-        .context("Failed to insert cron shell job")?;
-        Ok(())
-    })?;
-
-    let job = get_job(config, &id)?;
-    super::scheduler::notify_schedule_changed();
-    Ok(job)
-}
-
-#[cfg(target_arch = "wasm32")]
-/// WASM 平台不支持持久化 shell 定时任务。
-pub fn add_shell_job_with_scope(
-    _config: &Config,
-    _name: Option<String>,
-    _schedule: Schedule,
-    _command: &str,
-    _starts_at: Option<DateTime<Utc>>,
-    _ends_at: Option<DateTime<Utc>>,
-    _project_path: Option<&str>,
-    _full_access: bool,
-) -> Result<CronJob> {
-    anyhow::bail!("Cron jobs are not supported on WASM")
+    create_job(config, schedule, CronJobPatch {
+        name,
+        command: Some(command.to_owned()),
+        starts_at: starts_at.map(Some),
+        ends_at: ends_at.map(Some),
+        delivery: Some(delivery),
+        ..Default::default()
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -206,7 +145,6 @@ pub fn add_agent_job_with_window(
 }
 
 #[allow(clippy::too_many_arguments)]
-#[cfg(not(target_arch = "wasm32"))]
 pub fn add_agent_job_with_scope(
     config: &Config,
     name: Option<String>,
@@ -221,67 +159,83 @@ pub fn add_agent_job_with_scope(
     project_path: Option<&str>,
     full_access: bool,
 ) -> Result<CronJob> {
+    create_job(config, schedule, CronJobPatch {
+        name,
+        job_type: Some(JobType::Agent),
+        prompt: Some(prompt.to_owned()),
+        session_target: Some(session_target),
+        model,
+        delivery,
+        delete_after_run: Some(delete_after_run),
+        starts_at: starts_at.map(Some),
+        ends_at: ends_at.map(Some),
+        project_path: project_path.map(str::to_owned),
+        full_access: Some(full_access),
+        ..Default::default()
+    })
+}
+
+/// 将完整配置一次写入，提交后才通知调度器。
+#[cfg(not(target_arch = "wasm32"))]
+pub fn create_job(config: &Config, schedule: Schedule, options: CronJobPatch) -> Result<CronJob> {
     let now = Utc::now();
+    let starts_at = options.starts_at.flatten();
+    let ends_at = options.ends_at.flatten();
     validate_schedule(&schedule, now)?;
     let next_run = next_run_in_window(&schedule, starts_at, ends_at, now)?
         .context("No occurrence within execution window")?;
-    let id = Uuid::new_v4().to_string();
-    let expression = schedule_cron_expression(&schedule).unwrap_or_default();
-    let schedule_json = serde_json::to_string(&schedule)?;
-    let delivery = delivery.unwrap_or_default();
+    let delivery = options.delivery.unwrap_or_default();
     super::delivery::validate_stored_target(&delivery)?;
+    let delete_after_run = options.delete_after_run.unwrap_or(matches!(schedule, Schedule::At { .. }));
+    let job_type: &str = options.job_type.unwrap_or_default().into();
+    let id = Uuid::new_v4().to_string();
 
-    with_connection(config, |conn| {
-        conn.execute(
+    let job = with_connection(config, |conn| {
+        let tx = conn.unchecked_transaction()?;
+        tx.execute(
             "INSERT INTO cron_jobs (
                 id, expression, command, schedule, job_type, prompt, name, session_target, model,
                 enabled, delivery, delete_after_run, created_at, next_run, agent, acp_agent,
                 project_path, wake, fallbacks, full_access, task_pool, starts_at, ends_at
-             ) VALUES (?1, ?2, '', ?3, 'agent', ?4, ?5, ?6, ?7, 1, ?8, ?9, ?10, ?11, NULL, NULL, ?12, 0, ?13, ?14, 0, ?15, ?16)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15,
+                       ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)",
             params![
                 id,
-                expression,
-                schedule_json,
-                prompt,
-                name,
-                session_target.as_str(),
-                model,
+                schedule_cron_expression(&schedule).unwrap_or_default(),
+                options.command.unwrap_or_default(),
+                serde_json::to_string(&schedule)?,
+                job_type,
+                options.prompt,
+                options.name,
+                options.session_target.unwrap_or_default().as_str(),
+                options.model,
+                options.enabled.unwrap_or(true),
                 serde_json::to_string(&delivery)?,
-                if delete_after_run { 1 } else { 0 },
+                delete_after_run,
                 now.to_rfc3339(),
                 next_run.to_rfc3339(),
-                project_path,
-                serde_json::to_string(&Vec::<String>::new())?,
-                full_access,
+                options.agent,
+                options.acp_agent,
+                options.project_path,
+                options.wake.unwrap_or(false),
+                serde_json::to_string(&normalize_fallbacks(options.fallbacks.unwrap_or_default()))?,
+                options.full_access.unwrap_or(false),
+                options.task_pool.unwrap_or(false),
                 starts_at.map(|at| at.to_rfc3339()),
                 ends_at.map(|at| at.to_rfc3339()),
             ],
         )
-        .context("Failed to insert cron agent job")?;
-        Ok(())
+        .context("Failed to insert cron job")?;
+        let job = read_job(&tx, &id)?;
+        tx.commit().context("Failed to commit cron job")?;
+        Ok(job)
     })?;
-
-    let job = get_job(config, &id)?;
     super::scheduler::notify_schedule_changed();
     Ok(job)
 }
 
 #[cfg(target_arch = "wasm32")]
-/// WASM 平台不支持持久化代理定时任务。
-pub fn add_agent_job_with_scope(
-    _config: &Config,
-    _name: Option<String>,
-    _schedule: Schedule,
-    _prompt: &str,
-    _session_target: SessionTarget,
-    _model: Option<String>,
-    _delivery: Option<DeliveryConfig>,
-    _delete_after_run: bool,
-    _starts_at: Option<DateTime<Utc>>,
-    _ends_at: Option<DateTime<Utc>>,
-    _project_path: Option<&str>,
-    _full_access: bool,
-) -> Result<CronJob> {
+pub fn create_job(_config: &Config, _schedule: Schedule, _options: CronJobPatch) -> Result<CronJob> {
     anyhow::bail!("Cron jobs are not supported on WASM")
 }
 
@@ -315,21 +269,24 @@ pub fn list_jobs(_config: &Config) -> Result<Vec<CronJob>> {
 #[cfg(not(target_arch = "wasm32"))]
 /// 按标识读取任务；不存在时返回明确错误。
 pub fn get_job(config: &Config, job_id: &str) -> Result<CronJob> {
-    with_connection(config, |conn| {
-        let mut stmt = conn.prepare(
-            "SELECT id, expression, command, schedule, job_type, prompt, name, session_target, model,
-                    enabled, delivery, delete_after_run, created_at, next_run, last_run, last_status, last_output,
-                    agent, acp_agent, project_path, wake, fallbacks, full_access, task_pool, starts_at, ends_at
-             FROM cron_jobs WHERE id = ?1",
-        )?;
+    with_connection(config, |conn| read_job(conn, job_id))
+}
 
-        let mut rows = stmt.query(params![job_id])?;
-        if let Some(row) = rows.next()? {
-            map_cron_job_row(row).map_err(Into::into)
-        } else {
-            anyhow::bail!("Cron job '{job_id}' not found")
-        }
-    })
+#[cfg(not(target_arch = "wasm32"))]
+fn read_job(conn: &Connection, job_id: &str) -> Result<CronJob> {
+    let mut stmt = conn.prepare(
+        "SELECT id, expression, command, schedule, job_type, prompt, name, session_target, model,
+                enabled, delivery, delete_after_run, created_at, next_run, last_run, last_status, last_output,
+                agent, acp_agent, project_path, wake, fallbacks, full_access, task_pool, starts_at, ends_at
+         FROM cron_jobs WHERE id = ?1",
+    )?;
+
+    let mut rows = stmt.query(params![job_id])?;
+    if let Some(row) = rows.next()? {
+        map_cron_job_row(row).map_err(Into::into)
+    } else {
+        anyhow::bail!("Cron job '{job_id}' not found")
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -405,7 +362,22 @@ pub fn update_job_with_access_limit(
     patch: CronJobPatch,
     full_access_allowed: bool,
 ) -> Result<CronJob> {
-    let mut job = get_job(config, job_id)?;
+    let job = with_connection(config, |conn| {
+        update_job_record(conn, job_id, patch, full_access_allowed)
+    })?;
+    super::scheduler::notify_schedule_changed();
+    Ok(job)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn update_job_record(
+    conn: &Connection,
+    job_id: &str,
+    patch: CronJobPatch,
+    full_access_allowed: bool,
+) -> Result<CronJob> {
+    let tx = rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)?;
+    let mut job = read_job(&tx, job_id)?;
     if !full_access_allowed && patch.full_access.unwrap_or(job.full_access) {
         anyhow::bail!("A scheduled task cannot exceed the session's access level");
     }
@@ -483,45 +455,41 @@ pub fn update_job_with_access_limit(
         }
     }
 
-    with_connection(config, |conn| {
-        conn.execute(
-            "UPDATE cron_jobs
-             SET expression = ?1, command = ?2, schedule = ?3, job_type = ?4, prompt = ?5, name = ?6,
-                 session_target = ?7, model = ?8, enabled = ?9, delivery = COALESCE(?10, delivery), delete_after_run = ?11,
-                 agent = ?12, acp_agent = ?13, project_path = ?14, wake = ?15, fallbacks = ?16,
-                 full_access = ?17, task_pool = ?18, next_run = ?19, starts_at = ?20, ends_at = ?21
-             WHERE id = ?22",
-            params![
-                job.expression,
-                job.command,
-                serde_json::to_string(&job.schedule)?,
-                <JobType as Into<&str>>::into(job.job_type).to_string(),
-                job.prompt,
-                job.name,
-                job.session_target.as_str(),
-                job.model,
-                if job.enabled { 1 } else { 0 },
-                delivery_patch,
-                if job.delete_after_run { 1 } else { 0 },
-                job.agent,
-                job.acp_agent,
-                job.project_path,
-                if job.wake { 1 } else { 0 },
-                serde_json::to_string(&job.fallbacks)?,
-                if job.full_access { 1 } else { 0 },
-                if job.task_pool { 1 } else { 0 },
-                job.next_run.to_rfc3339(),
-                job.starts_at.map(|at| at.to_rfc3339()),
-                job.ends_at.map(|at| at.to_rfc3339()),
-                job.id,
-            ],
-        )
-        .context("Failed to update cron job")?;
-        Ok(())
-    })?;
-
-    let job = get_job(config, job_id)?;
-    super::scheduler::notify_schedule_changed();
+    tx.execute(
+        "UPDATE cron_jobs
+         SET expression = ?1, command = ?2, schedule = ?3, job_type = ?4, prompt = ?5, name = ?6,
+             session_target = ?7, model = ?8, enabled = ?9, delivery = COALESCE(?10, delivery), delete_after_run = ?11,
+             agent = ?12, acp_agent = ?13, project_path = ?14, wake = ?15, fallbacks = ?16,
+             full_access = ?17, task_pool = ?18, next_run = ?19, starts_at = ?20, ends_at = ?21
+         WHERE id = ?22",
+        params![
+            job.expression,
+            job.command,
+            serde_json::to_string(&job.schedule)?,
+            <JobType as Into<&str>>::into(job.job_type).to_string(),
+            job.prompt,
+            job.name,
+            job.session_target.as_str(),
+            job.model,
+            if job.enabled { 1 } else { 0 },
+            delivery_patch,
+            if job.delete_after_run { 1 } else { 0 },
+            job.agent,
+            job.acp_agent,
+            job.project_path,
+            if job.wake { 1 } else { 0 },
+            serde_json::to_string(&job.fallbacks)?,
+            if job.full_access { 1 } else { 0 },
+            if job.task_pool { 1 } else { 0 },
+            job.next_run.to_rfc3339(),
+            job.starts_at.map(|at| at.to_rfc3339()),
+            job.ends_at.map(|at| at.to_rfc3339()),
+            job.id,
+        ],
+    )
+    .context("Failed to update cron job")?;
+    let job = read_job(&tx, job_id)?;
+    tx.commit().context("Failed to commit cron job update")?;
     Ok(job)
 }
 
@@ -720,19 +688,7 @@ pub fn list_history(config: &Config) -> Result<Vec<CronHistoryRecord>> {
         )?;
         let rows = stmt.query_map(params![(CRON_HISTORY_LIMIT + 1) as i64], |row| {
             Ok(CronHistoryRecord {
-                run: CronRun {
-                    id: row.get(0)?,
-                    job_id: row.get(1)?,
-                    started_at: parse_rfc3339(&row.get::<_, String>(2)?)
-                        .map_err(sql_conversion_error)?,
-                    finished_at: parse_rfc3339(&row.get::<_, String>(3)?)
-                        .map_err(sql_conversion_error)?,
-                    status: row.get(4)?,
-                    output: row
-                        .get::<_, Option<String>>(5)?
-                        .map(|value| truncate_cron_output(&value)),
-                    duration_ms: row.get(6)?,
-                },
+                run: map_run_row(row)?,
                 name: row.get(7)?,
             })
         })?;
@@ -758,19 +714,7 @@ pub fn list_runs(config: &Config, job_id: &str, limit: usize) -> Result<Vec<Cron
              LIMIT ?2",
         )?;
 
-        let rows = stmt.query_map(params![job_id, lim], |row| {
-            Ok(CronRun {
-                id: row.get(0)?,
-                job_id: row.get(1)?,
-                started_at: parse_rfc3339(&row.get::<_, String>(2)?)
-                    .map_err(sql_conversion_error)?,
-                finished_at: parse_rfc3339(&row.get::<_, String>(3)?)
-                    .map_err(sql_conversion_error)?,
-                status: row.get(4)?,
-                output: row.get(5)?,
-                duration_ms: row.get(6)?,
-            })
-        })?;
+        let rows = stmt.query_map(params![job_id, lim], map_run_row)?;
 
         let mut runs = Vec::new();
         for row in rows {
@@ -784,6 +728,38 @@ pub fn list_runs(config: &Config, job_id: &str, limit: usize) -> Result<Vec<Cron
 /// WASM 平台返回空运行历史。
 pub fn list_runs(_config: &Config, _job_id: &str, _limit: usize) -> Result<Vec<CronRun>> {
     Ok(Vec::new())
+}
+
+/// Read a retained run by its persisted ID, optionally constrained to a task.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn get_run(config: &Config, run_id: i64, job_id: Option<&str>) -> Result<Option<CronRun>> {
+    use rusqlite::OptionalExtension;
+    with_connection(config, |conn| {
+        conn.query_row(
+            "SELECT id, job_id, started_at, finished_at, status, output, duration_ms
+             FROM cron_runs WHERE id = ?1 AND (?2 IS NULL OR job_id = ?2)",
+            params![run_id, job_id],
+            map_run_row,
+        ).optional().map_err(Into::into)
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn get_run(_config: &Config, _run_id: i64, _job_id: Option<&str>) -> Result<Option<CronRun>> {
+    anyhow::bail!("Cron history is not supported on WASM")
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn map_run_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<CronRun> {
+    Ok(CronRun {
+        id: row.get(0)?,
+        job_id: row.get(1)?,
+        started_at: parse_rfc3339(&row.get::<_, String>(2)?).map_err(sql_conversion_error)?,
+        finished_at: parse_rfc3339(&row.get::<_, String>(3)?).map_err(sql_conversion_error)?,
+        status: row.get(4)?,
+        output: row.get::<_, Option<String>>(5)?.map(|value| truncate_cron_output(&value)),
+        duration_ms: row.get(6)?,
+    })
 }
 
 #[cfg(not(target_arch = "wasm32"))]

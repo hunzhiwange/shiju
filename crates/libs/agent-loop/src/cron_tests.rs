@@ -44,7 +44,7 @@ fn fills_missing_delivery_fields_when_mode_is_announce() {
 }
 
 #[test]
-fn replaces_none_delivery_mode() {
+fn preserves_explicit_none_delivery_mode() {
     let mut args = serde_json::json!({
         "prompt": "check status",
         "delivery": {"mode": "NoNe"}
@@ -52,9 +52,7 @@ fn replaces_none_delivery_mode() {
 
     maybe_inject_cron_add_delivery("cron_add", &mut args, "discord", Some("channel-1"));
 
-    assert_eq!(args["delivery"]["mode"], "announce");
-    assert_eq!(args["delivery"]["channel"], "discord");
-    assert_eq!(args["delivery"]["to"], "channel-1");
+    assert_eq!(args["delivery"], serde_json::json!({"mode": "NoNe"}));
 }
 
 #[test]
@@ -164,4 +162,15 @@ fn skips_non_object_delivery() {
     maybe_inject_cron_add_delivery("cron_add", &mut args, "telegram", Some("chat-1"));
 
     assert_eq!(args["delivery"], "announce");
+}
+
+#[test]
+fn leaves_wecom_cron_to_the_bound_recipient() {
+    let mut args = serde_json::json!({
+        "prompt": "check status",
+        "delivery": {"mode": "announce", "channel": "wecom_cron"}
+    });
+    let expected = args.clone();
+    maybe_inject_cron_add_delivery("cron_add", &mut args, "telegram", Some("chat-1"));
+    assert_eq!(args, expected);
 }

@@ -164,6 +164,9 @@ pub struct ChannelsConfig {
     pub wecom: Option<WeComConfig>,
     #[serde(default)]
     pub wecom_instances: Vec<config_channel_services::WeComInstanceConfig>,
+    /// 定时任务通知实例的显示名称，以实例 ID 为键。
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub wecom_cron_display_names: BTreeMap<String, String>,
     /// 仅用于结果投递，不注册接收监听器或项目绑定。
     #[serde(default)]
     pub wecom_webhook: Option<WeComWebhookConfig>,
@@ -216,6 +219,7 @@ impl Default for ChannelsConfig {
             qq_instances: Vec::new(),
             wecom: None,
             wecom_instances: Vec::new(),
+            wecom_cron_display_names: BTreeMap::new(),
             wecom_webhook: None,
             wechat: None,
             wechat_instances: Vec::new(),

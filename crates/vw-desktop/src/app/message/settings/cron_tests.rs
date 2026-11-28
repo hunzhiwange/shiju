@@ -11,6 +11,58 @@ fn app() -> App {
 }
 
 #[test]
+fn cron_job_opens_resolved_session_without_an_active_project() {
+    use crate::app::{Screen, message::ProjectMessage};
+    use desktop_settings_cron::message::ListMessage;
+
+    let mut app = app();
+    let mut scheduled = job("report");
+    scheduled.job_type = "agent".into();
+    app.cron_settings.jobs = vec![scheduled];
+    app.cron_settings.active_tab = CronSettingsTab::Jobs;
+    app.navigation_tabs.screen = Screen::Cron;
+    app.navigation_tabs.project_path = None;
+    app.navigation_panels.show_system_settings = false;
+
+    let event = SettingsMessage::CronList(ListMessage::OpenTask("report".into()));
+    assert!(!update(&mut app, event.clone()).is_none());
+    let gateway_user_generation = app.session_state.gateway_user_generation;
+    let navigation_generation = app.session_state.session_view_cache.navigation_generation;
+    let resolve = |navigation_generation, destination| {
+        Message::Project(ProjectMessage::CronSessionNavigationResolved {
+            job_id: "report".into(),
+            gateway_user_generation,
+            navigation_generation,
+            destination,
+        })
+    };
+    let _ = app.update(resolve(navigation_generation, None));
+    assert_eq!(app.cron_settings.open_job_id.as_deref(), Some("report"));
+
+    drop(update(&mut app, event));
+    let path = "/gateway/report-project";
+    let info = session_info::Info {
+        id: "cron-report".into(),
+        slug: "report".into(),
+        directory: path.into(),
+        project_id: "report-project".into(),
+        parent_id: None,
+        summary: None,
+        share: None,
+        title: "Report".into(),
+        version: "test".into(),
+        time: session_info::TimeInfo { created: 1, updated: 1, compacting: None, archived: None },
+        permission: None,
+        revert: None,
+        fork_execution_started: None,
+    };
+    let _ = app.update(resolve(navigation_generation + 1, Some((path.into(), Box::new(info)))));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some("cron-report"));
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some(path));
+    assert!(app.cron_settings.open_job_id.is_none());
+}
+
+#[test]
 fn cron_create_from_conversation_opens_butler_chat_draft() {
     use crate::app::{AppTab, Screen};
     use config_agent::SHIJU_BUTLER_AGENT_KEY;

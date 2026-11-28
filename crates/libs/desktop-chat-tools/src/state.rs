@@ -637,6 +637,7 @@ pub fn tool_bucket(tool_id: &str) -> SessionToolBucket {
         | "schedule"
         | "cron_add"
         | "cron_list"
+        | "cron_preview"
         | "cron_remove"
         | "cron_update"
         | "cron_run"
@@ -688,6 +689,7 @@ pub fn tool_group(tool_id: &str) -> SessionToolGroup {
         | "schedule"
         | "cron_add"
         | "cron_list"
+        | "cron_preview"
         | "cron_remove"
         | "cron_update"
         | "cron_run"
@@ -740,6 +742,7 @@ pub fn tool_display_name(tool_id: &str) -> String {
         "set_thread_archived" => "归档任务".to_string(),
         "wait_threads" => "等待任务".to_string(),
         "question" => "用户提问".to_string(),
+        "cron_preview" => "预览定时任务".to_string(),
         "skill" => "加载技能".to_string(),
         "memory_recall" => "读取记忆".to_string(),
         "memory_store" => "写入记忆".to_string(),

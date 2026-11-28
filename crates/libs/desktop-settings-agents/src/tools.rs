@@ -231,6 +231,7 @@ pub fn tool_in_preset(tool_id: &str, preset_key: &str) -> bool {
                         "schedule",
                         "cron_add",
                         "cron_list",
+                        "cron_preview",
                         "cron_remove",
                         "cron_update",
                         "cron_run",
@@ -490,6 +491,11 @@ pub fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "列出当前所有已配置的 cron 任务。",
             group: ToolGroup::Collaboration,
         },
+        "cron_preview" => ToolMeta {
+            name: "预览定时任务",
+            description: "预览指定规则和有效期内的未来运行时间。",
+            group: ToolGroup::Collaboration,
+        },
         "cron_remove" => ToolMeta {
             name: "删除定时任务",
             description: "按任务 ID 移除已有 cron 任务。",
@@ -507,7 +513,7 @@ pub fn tool_meta(tool_id: &str) -> ToolMeta {
         },
         "cron_runs" => ToolMeta {
             name: "运行历史",
-            description: "查看指定 cron 任务最近的运行记录和输出摘要。",
+            description: "查看任务或工作区的运行记录，并按运行 ID 查询保留的输出。",
             group: ToolGroup::Collaboration,
         },
         "todoread" | "TodoRead" => ToolMeta {

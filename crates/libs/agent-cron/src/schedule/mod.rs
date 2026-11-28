@@ -16,6 +16,7 @@
 //! - **周期性执行**: 按固定的毫秒间隔循环执行
 
 mod biweekly;
+pub mod input;
 
 use super::Schedule;
 use anyhow::{Context, Result};

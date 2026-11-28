@@ -1,4 +1,6 @@
-use desktop_ui_controls::system_settings_common::{SETTINGS_PAGE_TITLE_SIZE, rounded_action_btn_style, settings_group_card};
+use desktop_ui_controls::system_settings_common::{
+    SETTINGS_PAGE_TITLE_SIZE, rounded_action_btn_style, settings_group_card, settings_group_header,
+};
 use desktop_i18n::I18n;
 use iced::widget::{button, column, container, responsive, row, text};
 use iced::{Alignment, Border, Element, Length};
@@ -96,7 +98,7 @@ pub fn content<'a, K: Copy + PartialEq + 'static, Message: Clone + 'static>(app:
         grid.into()
     });
     column![
-        header,
+        settings_group_header(header),
         text(i18n.__("选择伙伴会立即同步预览与迷你界面。显示与隐藏单独控制。")).size(13),
         preview,
         container(
@@ -106,7 +108,7 @@ pub fn content<'a, K: Copy + PartialEq + 'static, Message: Clone + 'static>(app:
                 .style(rounded_action_btn_style)
         )
         .align_right(Length::Fill),
-        text(i18n.__("我的智能伙伴")).size(18),
+        settings_group_header(text(i18n.__("我的智能伙伴")).size(SETTINGS_PAGE_TITLE_SIZE)),
         cards,
     ]
     .spacing(20)

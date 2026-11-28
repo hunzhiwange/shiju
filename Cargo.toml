@@ -628,11 +628,12 @@ rusqlite = { version = "0.41.1", features = ["fallible_uint"] }
 # ShiJu renders its own prompts and has no SDK template consumers.
 [workspace.dependencies.aisdk]
 git = "https://github.com/hunzhiwange/aisdk.git"
-rev = "4a41a5326f8bf0591642d41be2e35c82d30ce463"
+rev = "c3cf3ebc3964b91ba4a85251fda8317fb3a41003"
 package = "vibewindow-aisdk"
-version = ">=0.7.1"
+version = ">=0.7.3"
 default-features = false
 features = [
+    "additional-providers",
     "302ai", "abacus", "abliteration-ai", "above", "agentrouter", "agnes", "ai-router", "ai21",
     "aiand", "aihubmix", "aimlapi", "ainetcafe", "aixy", "aki-io", "alibaba", "alibaba-cn",
     "alibaba-coding-plan", "alibaba-coding-plan-cn", "alibaba-token-plan", "alibaba-token-plan-cn",

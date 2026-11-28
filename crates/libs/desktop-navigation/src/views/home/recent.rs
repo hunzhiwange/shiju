@@ -3,7 +3,9 @@
 //! 本模块只负责视图组合与样式适配，不持有业务状态，也不扩大外部能力边界。
 
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Grid, Image, Space, button, column, container, hover, row, scrollable, text};
+use iced::widget::{
+    Grid, Image, Space, button, column, container, hover, row, scrollable, text, tooltip,
+};
 use iced::{Alignment, Background, Border, Color, Element, Length, Pixels, Point, Theme, Vector};
 
 use desktop_assets::assets::{self, Icon};
@@ -12,9 +14,10 @@ use desktop_ui_controls::overlays::PointBelowOverlay;
 use desktop_ui_controls::right_click_area::RightClickArea;
 use desktop_ui_controls::system_settings_common::icons::{icon_btn_style, icon_btn_svg_style};
 use desktop_ui_controls::system_settings_common::{
-    icon_btn, settings_divider, settings_muted_text_style, settings_panel_style,
-    settings_text_input, with_settings_modal_escape,
+    settings_divider, settings_muted_text_style, settings_panel_style, settings_text_input,
+    with_settings_modal_escape,
 };
+use desktop_ui_controls::tooltip::tooltip_dark_style;
 use desktop_workspace::project_message::edit_meta::RecentProjectMeta;
 
 use super::common::{
@@ -362,9 +365,28 @@ fn render_recent_projects_body<'a>(app: &State<'_>, i18n: I18n) -> Element<'a, M
     };
 
     let search_label = i18n.__("搜索项目");
+    let (search_icon, search_tooltip) = if app.search_query.is_some() {
+        (Icon::X, i18n.__("收起搜索"))
+    } else {
+        (Icon::Search, search_label)
+    };
+    let search_button = button(icon_svg(search_icon, 14.0).style(icon_btn_svg_style))
+        .padding([4, 6])
+        .style(icon_btn_style)
+        .on_press(Message::SearchToggled);
+    let search_button =
+        tooltip(search_button, text(search_tooltip).size(12), tooltip::Position::Bottom)
+            .gap(5)
+            .padding(8)
+            .style(tooltip_dark_style);
     let heading = row![
         column![
-            text(i18n.__("最近项目")).size(15).font(home_cjk_emphasis_font()),
+            row![
+                text(i18n.__("最近项目")).size(15).font(home_cjk_emphasis_font()),
+                search_button,
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center),
             text(i18n.__("继续最近的工作区入口，并直接处理常用操作。")).size(12).style(
                 |theme: &Theme| iced::widget::text::Style {
                     color: Some(theme.palette().text.scale_alpha(0.62)),
@@ -374,7 +396,6 @@ fn render_recent_projects_body<'a>(app: &State<'_>, i18n: I18n) -> Element<'a, M
         .spacing(4)
         .width(Length::Fill),
         recent_count,
-        icon_btn(Icon::Search, search_label, Some(Message::SearchToggled)),
     ]
     .spacing(10)
     .align_y(Alignment::Center);

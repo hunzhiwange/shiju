@@ -459,8 +459,8 @@ fn sidebar(app: &App) -> Element<'_, Message> {
     let footer = row![
         sidebar_action(navigation_icon(Icon::Grid1x2), i18n.__("应用"), None, !showing_usage && state.third_party_page == ThirdPartyPage::AppsCatalog, message(AppsCatalogMessage::Navigate(ThirdPartyPage::AppsCatalog))),
         sidebar_action(
-            navigation_icon(Icon::Gear),
-            i18n.__("设置"),
+            navigation_icon(Icon::Bezier),
+            i18n.__("本地路由"),
             None,
             !showing_usage && state.third_party_page == ThirdPartyPage::Settings,
             message(AppsCatalogMessage::Navigate(ThirdPartyPage::Settings)),

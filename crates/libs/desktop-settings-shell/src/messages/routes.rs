@@ -1,9 +1,6 @@
 use super::*;
 /// Exhaustive domain destination selected before host effect assembly.
 pub enum SettingsRoute<SettingsTab, SearchTarget, AppsCatalog, AppProviders> {
-    DataBackups(desktop_settings_memory::data_management::backup_list_ui::Event),
-    DataRecovery(desktop_settings_memory::data_management::recovery_ui::Event),
-    BackupInventory(desktop_settings_memory::backup_inventory::Event),
     #[cfg(not(target_arch = "wasm32"))]
     ComputerControl(desktop_settings_security::computer_control_update::Event),
     #[cfg(not(target_arch = "wasm32"))]
@@ -78,9 +75,6 @@ impl<SettingsTab, SearchTarget, AppsCatalog, AppProviders>
 {
     pub fn route(self) -> SettingsRoute<SettingsTab, SearchTarget, AppsCatalog, AppProviders> {
         match self {
-            SettingsMessage::DataBackups(event)  => SettingsRoute::DataBackups(event),
-            SettingsMessage::DataRecovery(event)  => SettingsRoute::DataRecovery(event),
-            SettingsMessage::BackupInventory(event)  => SettingsRoute::BackupInventory(event),
             #[cfg(not(target_arch = "wasm32"))]
     SettingsMessage::ComputerControl(event) => SettingsRoute::ComputerControl(event),
             #[cfg(not(target_arch = "wasm32"))]

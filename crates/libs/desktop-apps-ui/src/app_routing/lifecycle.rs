@@ -22,6 +22,7 @@ pub struct State {
     pub(super) requests: super::requests::State,
     pub(super) config: super::config::State,
     listener: super::config::State,
+    rectifier: super::config::State,
     attached: Option<(Vec<vw_api_app_identity::AppId>, bool)>,
     unconfigured: bool,
     pub(super) outbound: super::outbound::State,
@@ -48,6 +49,7 @@ pub enum Event {
     Requests(super::requests::Event),
     Config(super::config::Event),
     Listener(super::config::Event),
+    Rectifier(super::config::Event),
     InspectPage,
     Attached(Context, u64, vw_api_transport::id::ProjectId, Vec<vw_api_app_identity::AppId>, bool),
     Outbound(super::outbound::Event),
@@ -87,6 +89,7 @@ impl State {
             outbound,
             config: super::config::State::with_serial(config_serial),
             listener: super::config::State::with_serial(self.listener.next_serial()),
+            rectifier: super::config::State::with_serial(self.rectifier.next_serial()),
             ..Default::default()
         };
     }
@@ -272,6 +275,18 @@ pub fn update(
     if let Event::Config(event) = event {
         return super::config::update(&mut state.config, context, project, token, client, notice, event);
     }
+    if let Event::Rectifier(event) = event {
+        return super::config::update_inline(
+            &mut state.rectifier,
+            context,
+            project,
+            token,
+            client,
+            notice,
+            event,
+            Event::Rectifier,
+        );
+    }
     if let Event::Listener(event) = event {
         return super::config::update_inline(
             &mut state.listener,
@@ -281,13 +296,18 @@ pub fn update(
             client,
             notice,
             event,
+            Event::Listener,
         );
     }
     let Some(context) = context else {
         return Task::none();
     };
     match event {
-        Event::Requests(_) | Event::Config(_) | Event::Outbound(_) | Event::Listener(_) => {
+        Event::Requests(_)
+        | Event::Config(_)
+        | Event::Outbound(_)
+        | Event::Listener(_)
+        | Event::Rectifier(_) => {
             unreachable!()
         }
         Event::InspectPage => {
@@ -297,6 +317,9 @@ pub fn update(
             let mut tasks = Vec::new();
             if state.status.is_some() && !state.listener.is_open() {
                 tasks.push(Task::done(Event::Listener(super::config::Event::Open(None))));
+            }
+            if state.status.is_some() && !state.rectifier.is_open() {
+                tasks.push(Task::done(Event::Rectifier(super::config::Event::OpenRectifier)));
             }
             if let Some(client) = client {
                 state.attached = None;
@@ -703,3 +726,12 @@ async fn attached_apps(
 #[cfg(test)]
 #[path = "lifecycle_tests.rs"]
 mod tests;
+
+pub fn page_rectifier(
+    i18n: desktop_i18n::I18n,
+    state: &State,
+    context: Option<Context>,
+) -> Element<'_, Event> {
+    let available = page_can_configure(state, context);
+    super::config::rectifier(i18n, &state.rectifier, available)
+}

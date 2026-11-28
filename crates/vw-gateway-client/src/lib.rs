@@ -247,14 +247,6 @@ pub use client::{OpenClawSettingsError, OpenClawSettingsScope};
 #[cfg(not(target_arch = "wasm32"))]
 pub use client::ExternalSessionStream;
 
-// Backup policy consumed by desktop maintenance forms.
-pub use client::DataBackupPolicy;
-
-pub use client::{DataBackupPreview, PreviewDataBackupRequest, DataRecoveryDiagnosis, DataTargetHealth, DataBackupRestoreStatus, DataRestoreProgress, DataRestoreStatus};
-
-pub use client::{DataBackupLocation, DataBackupLocationDeletion, DeleteDataBackupLocationRequest};
-
-
 pub use client::{UsageSourceSettings, UsageSourceSettingsState, UsageSettingsSaved, UsageJobSnapshot, UsageLastScan, UsageCacheRevision, UsageRevisionEvent, UsageScanError};
 
 pub use client::{UsageReadError, UsageSummary};

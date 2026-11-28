@@ -3,6 +3,7 @@
 use super::{dispatch::JsonTarget, route_auth::VerifiedRouteBinding};
 use model_transport::upstream::validate_target as validate_upstream;
 use axum::http::StatusCode;
+use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use vw_agent_apps::{
     aggregation::resolve::{PublishedModel, ResolveError, Resolved, resolve},
@@ -32,7 +33,19 @@ pub struct AggregationTarget {
     pub binding: VerifiedRouteBinding,
     pub revision: String,
     pub provider_id: String,
+    pub media_settings: Value,
     pub target: JsonTarget,
+}
+
+impl AggregationTarget {
+    /// Keep only the model catalog fields consumed by media capability resolution.
+    pub fn media_settings_for(row: &Value) -> Value {
+        let settings = &row["settingsConfig"];
+        serde_json::json!({
+            "modelCatalog": settings["modelCatalog"],
+            "models": settings["models"],
+        })
+    }
 }
 
 pub struct AggregationPublication {
@@ -49,7 +62,7 @@ pub(crate) struct AggregationSnapshot {
     state: AppState,
     models: Vec<AggregationModel>,
     default: String,
-    members: HashMap<String, JsonTarget>,
+    members: HashMap<String, (JsonTarget, Value)>,
     api_keys: HashSet<String>,
 }
 
@@ -114,7 +127,9 @@ impl AggregationPublication {
             }
             if !self.state.stack.members.contains(&member.provider_id)
                 || member.provider_id == self.default.provider_id
-                || members.insert(member.provider_id, member.target).is_some()
+                || members
+                    .insert(member.provider_id, (member.target, member.media_settings))
+                    .is_some()
             {
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
             }
@@ -146,7 +161,8 @@ impl AggregationPublication {
         }
 
         // The default can also have an explicitly published ID.
-        members.insert(self.default.provider_id, self.default.target);
+        members
+            .insert(self.default.provider_id, (self.default.target, self.default.media_settings));
         let default = mode.proxy_route.ok_or(StatusCode::CONFLICT)?;
         Ok(AggregationSnapshot {
             revision: self.revision,
@@ -187,7 +203,7 @@ impl AggregationSnapshot {
         &'a self,
         binding: &VerifiedRouteBinding,
         model: Option<&str>,
-    ) -> Result<(&'a JsonTarget, Option<&'a str>), StatusCode> {
+    ) -> Result<(&'a JsonTarget, Option<&'a str>, &'a Value), StatusCode> {
         if !self.state.stack.enabled {
             if binding.app() != AppId::ClaudeDesktop
                 || self.state.require_project(binding.project()).is_err()
@@ -200,7 +216,7 @@ impl AggregationSnapshot {
             return self
                 .members
                 .get(&self.default)
-                .map(|target| (target, None))
+                .map(|(target, settings)| (target, None, settings))
                 .ok_or(StatusCode::BAD_GATEWAY);
         }
         let (provider, upstream) = match resolve(
@@ -215,8 +231,8 @@ impl AggregationSnapshot {
             Resolved::Plain => (self.default.as_str(), None),
             Resolved::Exact(row) => (row.provider_id, Some(row.upstream_model)),
         };
-        let target = self.members.get(provider).ok_or(StatusCode::BAD_GATEWAY)?;
-        Ok((target, upstream))
+        let (target, settings) = self.members.get(provider).ok_or(StatusCode::BAD_GATEWAY)?;
+        Ok((target, upstream, settings))
     }
 }
 

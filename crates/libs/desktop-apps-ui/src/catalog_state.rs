@@ -12,9 +12,6 @@ pub enum AgentWorkspaceTab {
 
 #[derive(Clone)]
 pub struct AppsCatalogState<
-    DataBackups,
-    Recovery,
-    Backups,
     ExternalSessions,
     ProjectProfiles,
     Prompts,
@@ -35,9 +32,6 @@ pub struct AppsCatalogState<
     ThirdPartyMcpScope,
     Row
 > {
-    pub data_backups: DataBackups,
-    pub recovery: Recovery,
-    pub backups: Backups,
     pub external_sessions: ExternalSessions,
     pub project_profiles: ProjectProfiles,
     pub routing: crate::app_routing::lifecycle::State,
@@ -82,9 +76,6 @@ pub struct AppsCatalogState<
 }
 // Credentials must never enter App/Message debug output.
 impl<
-    DataBackups,
-    Recovery,
-    Backups,
     ExternalSessions,
     ProjectProfiles,
     Prompts,
@@ -105,9 +96,6 @@ impl<
     ThirdPartyMcpScope,
     Row
 > std::fmt::Debug for AppsCatalogState<
-    DataBackups,
-    Recovery,
-    Backups,
     ExternalSessions,
     ProjectProfiles,
     Prompts,
@@ -133,9 +121,6 @@ impl<
     }
 }
 impl<
-    DataBackups: Default,
-    Recovery: Default,
-    Backups: Default,
     ExternalSessions: Default,
     ProjectProfiles: Default,
     Prompts: Default,
@@ -156,9 +141,6 @@ impl<
     ThirdPartyMcpScope: Default,
     Row
 > Default for AppsCatalogState<
-    DataBackups,
-    Recovery,
-    Backups,
     ExternalSessions,
     ProjectProfiles,
     Prompts,
@@ -180,9 +162,6 @@ impl<
     Row
 > {
     fn default() -> Self { Self {
-        data_backups: Default::default(),
-        recovery: Default::default(),
-        backups: Default::default(),
         external_sessions: Default::default(),
         project_profiles: Default::default(),
         routing: Default::default(),

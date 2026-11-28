@@ -3,8 +3,6 @@ use axum::{Extension, Router};
 
 pub(crate) fn router() -> Router {
     let router = Router::new()
-        .merge(super::backup_inventory::router())
-        .merge(super::agent_apps_data::backup_crud_api::router())
         .merge(read::router())
         .merge(super::external_sessions::router())
         .merge(super::project_profiles::router())
@@ -45,8 +43,6 @@ pub(crate) fn router() -> Router {
     let router = {
         let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
         router
-            .merge(super::agent_apps_data::data_aux_api::router())
-            .merge(super::agent_apps_data::backup_restore_api::router())
             .merge(super::agent_app_prompt_sync::router())
             .layer(Extension(super::agent_app_prompt_sync::Jobs::default()))
             .merge(hermes_dashboard::router())
@@ -67,7 +63,6 @@ mod read;
 mod read_tests;
 
 mod access;
-pub(super) use access::authorize_backup_inventory;
 // Account termination authorization is owned by gateway-agent-apps.
 #[cfg(target_os = "macos")]
 pub(crate) use access::{AuthorizedMcpProbe, McpProbeAccess};
@@ -207,20 +202,9 @@ pub(super) use access::{authorize_project_profiles, authorize_project_profiles_m
 pub(super) use access::{authorize_external_history, authorize_external_history_delete};
 
 #[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_data_backups;
-
-#[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::authorize_external_history_resume;
 
 pub(super) use access::authorize_external_history_maintenance;
-
-#[cfg(target_os = "macos")]
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::periodic_data_backup_targets;
-
-#[cfg(target_os = "macos")]
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::data_location_roots;
 
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(super) use access::usage_scan_targets;

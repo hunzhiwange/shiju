@@ -268,14 +268,7 @@ pub enum ThirdPartyPage {
     Sessions,
     Prompts,
     Authorization,
-    Settings(ThirdPartySettingsTab),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ThirdPartySettingsTab {
-    Applications,
-    Routing,
-    Data,
+    Settings,
 }
 
 impl ThirdPartyPage {

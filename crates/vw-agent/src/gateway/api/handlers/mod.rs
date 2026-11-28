@@ -432,9 +432,7 @@ pub(crate) mod computer_control;
 pub(crate) mod project_profiles;
 
 pub(crate) mod external_sessions;
-mod backup_inventory;
 
-pub(crate) use gateway_agent_apps::agent_apps_data as agent_apps_data;
 
 
 

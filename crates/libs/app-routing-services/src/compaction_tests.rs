@@ -88,6 +88,7 @@ async fn aggregation_t25_aggregation_compaction_preserves_contract() {
             binding,
             revision: revision.into(),
             provider_id: "member".into(),
+            media_settings: serde_json::Value::Null,
             target: JsonTarget {
                 #[cfg(target_os = "macos")]
                 managed: None,

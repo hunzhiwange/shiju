@@ -1,4 +1,4 @@
-use desktop_ui_controls::system_settings_common::*;
+use desktop_ui_controls::system_settings_common::{*, help::settings_hover_help_label};
 type Message = Event;
 #[derive(Clone, Debug)]
 pub enum Event {
@@ -33,13 +33,24 @@ pub const LABELS: [&str; 9] = [
     "错误率（%）",
     "最小请求数",
 ];
+const FIELD_HELP: [&str; 9] = [
+    "首次发送之外允许的重试次数，范围 0–10 次。填 0 只发送一次。",
+    "等待首个有效流式输出的最长时间，范围 1–600 秒，内置默认 300 秒。",
+    "两次流式输出之间允许的最长间隔，范围 0–600 秒，内置默认 120 秒。填 0 关闭空闲计时。",
+    "等待非流式请求完整返回的最长时间，范围 60–1200 秒，内置默认 600 秒。",
+    "供应商连续失败达到此次数时触发熔断，范围 1–20 次。",
+    "冷却结束后，试探请求连续成功达到此次数时恢复供应商，范围 1–10 次。",
+    "供应商熔断后，重新允许试探请求前的等待时间，范围 0–300 秒。",
+    "达到最小请求数后，失败比例达到此值时触发熔断，范围 0–100%。",
+    "启用错误率判断前，至少要记录的请求数，范围 5–100 次。",
+];
+
+pub fn overview(i18n: desktop_i18n::I18n) -> &'static str {
+    i18n.__("启用故障转移后，确认请求尚未发出时，可按队列顺序尝试其他可用供应商。供应商熔断后会暂时跳过，冷却结束后允许试探请求。保存后的设置用于新请求。")
+}
+
 pub fn inline(i18n: desktop_i18n::I18n, state: State<'_>) -> Element<'_, Message> {
-    let mut body = column![
-        text(i18n.__("队列有多个供应商时，请求失败后按队列顺序尝试。达到熔断阈值的供应商会被暂时跳过。"))
-            .size(13)
-            .style(settings_muted_text_style)
-    ]
-    .spacing(14);
+    let mut body = column![].spacing(14);
     if state.loaded {
         let fields = state.fields;
         let editable = !state.busy;
@@ -76,17 +87,6 @@ fn policy_group<'a>(i18n: desktop_i18n::I18n,
     fields: &'a [String; 9],
     editable: bool,
 ) -> Element<'a, Message> {
-    let hints: [&str; 9] = [
-        i18n.__("0–10 次"),
-        i18n.__("1–120 秒"),
-        i18n.__("0–600 秒，0 表示禁用"),
-        i18n.__("60–1200 秒"),
-        i18n.__("连续失败 1–20 次"),
-        i18n.__("半开后成功 1–10 次"),
-        i18n.__("0–300 秒"),
-        "0–100%",
-        i18n.__("5–100 次"),
-    ];
     settings_panel(
         column![
             text(title).size(15),
@@ -96,17 +96,7 @@ fn policy_group<'a>(i18n: desktop_i18n::I18n,
                 for chunk in indices.chunks(columns) {
                     let mut inputs = row![].spacing(12).align_y(Alignment::Start);
                     for &index in chunk {
-                        inputs = inputs.push(
-                            column![
-                                settings_field_label(i18n.__(LABELS[index])),
-                                settings_text_input("", &fields[index]).on_input_maybe(
-                                    editable.then_some(move |value| Event::Edit(index, value))
-                                ),
-                                text(hints[index]).size(12).style(settings_muted_text_style),
-                            ]
-                            .spacing(5)
-                            .width(Length::Fill),
-                        );
+                        inputs = inputs.push(policy_field(i18n, index, &fields[index], editable));
                     }
                     grid = grid.push(inputs);
                 }
@@ -119,34 +109,44 @@ fn policy_group<'a>(i18n: desktop_i18n::I18n,
     .into()
 }
 
+fn policy_field(
+    i18n: desktop_i18n::I18n,
+    index: usize,
+    value: &str,
+    editable: bool,
+) -> Element<'_, Message> {
+    column![
+        settings_hover_help_label(
+            settings_field_label(i18n.__(LABELS[index])),
+            text(i18n.__(FIELD_HELP[index])).size(13).into(),
+        ),
+        settings_text_input("", value)
+            .on_input_maybe(editable.then_some(move |value| Event::Edit(index, value))),
+    ]
+    .spacing(5)
+    .width(Length::Fill)
+    .into()
+}
+
 pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: State<'a>, base: Element<'a, Message>) -> Element<'a, Message> {
     if !state.open {
         return base;
     }
     let close = message(Event::Close);
     let header = settings_modal_header(
-        text(i18n.__("高可用策略")).size(20),
+        settings_hover_help_label(
+            text(i18n.__("高可用策略")).size(20),
+            text(overview(i18n)).size(13).into(),
+        ),
         Some(settings_close_button(close.clone())),
     );
-    let mut body = column![
-        text(i18n.__("重试共享同一总尝试预算（首次发送 + 最大重试次数），不会逐层叠加。")),
-        text(i18n.__("流空闲超时为 0 时仅关闭空闲计时器。保存后对新请求生效；范围由服务端校验。")),
-    ]
-    .spacing(12);
+    let mut body = column![].spacing(12);
     if state.busy {
         body = body.push(text(i18n.__("正在请求服务端…")));
     }
     if state.loaded {
-        for (index, label) in LABELS.iter().enumerate() {
-            body = body.push(
-                column![
-                    settings_field_label(label),
-                    settings_text_input("", &state.fields[index]).on_input_maybe(
-                        (!state.busy).then_some(move |value| message(Event::Edit(index, value)))
-                    )
-                ]
-                .spacing(6),
-            );
+        for (index, value) in state.fields.iter().enumerate() {
+            body = body.push(policy_field(i18n, index, value, !state.busy));
         }
     }
     if let Some(error) = state.error {

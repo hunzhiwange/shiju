@@ -4,7 +4,6 @@ pub use app_access_service::{access, UsageSigningCredentialRefs, MAX_PROBES_PER_
 
 #[cfg(target_os = "macos")]
 pub mod agent_apps_diagnostics;
-pub mod agent_apps_data;
 pub mod agent_apps_error;
 #[cfg(test)]
 mod agent_apps_error_tests;

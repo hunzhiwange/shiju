@@ -51,8 +51,8 @@ pub(crate) fn view_overlays<'a>(
         &state.prompts.pi_files,
         base,
     );
-    use desktop_ui_controls::settings_navigation::{ThirdPartyPage, ThirdPartySettingsTab};
-    let base = if state.third_party_page == ThirdPartyPage::Settings(ThirdPartySettingsTab::Routing)
+    use desktop_ui_controls::settings_navigation::ThirdPartyPage;
+    let base = if state.third_party_page == ThirdPartyPage::Settings
     {
         base
     } else {

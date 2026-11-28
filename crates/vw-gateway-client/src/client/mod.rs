@@ -26,8 +26,6 @@ pub use agent_apps_auth_read::{
 };
 mod app_routing;
 pub use app_routing::AppRoutingError;
-mod agent_apps_data;
-pub use agent_apps_data::*;
 mod agent_apps_lifecycle_api;
 pub use agent_apps_lifecycle_api::AgentAppsLifecycleError;
 #[cfg(test)]
@@ -93,7 +91,6 @@ mod operations_api;
 mod permission_api;
 mod project_api;
 pub mod project_profile_api;
-pub mod backup_inventory_api;
 mod provider_api;
 mod pty_api;
 mod question_api;

@@ -33,7 +33,6 @@ vw-api-app-provider-edit = { path = "../api-app-provider-edit" }
 vw-api-app-provider-profiles = { path = "../api-app-provider-profiles" }
 vw-api-app-aggregation = { path = "../api-app-aggregation" }
 vw-api-app-auth = { path = "../api-app-auth" }
-vw-api-app-operations = { path = "../api-app-operations" }
 vw-api-transport = { path = "../api-transport" }
 vw-agent-apps = { path = "../../vw-agent-apps" }
 

@@ -2,6 +2,7 @@ use crate::app::Message;
 use crate::app::message::agent_apps_high_availability_policy::{self as policy, State};
 use desktop_apps_ui::agent_apps_high_availability::policy_modal as domain;
 use iced::Element;
+pub(crate) use domain::overview;
 fn message(event: domain::Event) -> Message {
     policy::message(match event {
         domain::Event::Close => policy::Event::Close,

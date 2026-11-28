@@ -115,6 +115,7 @@ use vw_api_app_provider_base::validation::ProviderRequestOptions;
             binding: owned(generation),
             revision: revision.into(),
             provider_id: provider.into(),
+            media_settings: serde_json::Value::Null,
             target: JsonTarget {
                 #[cfg(target_os = "macos")]
                 managed: None,

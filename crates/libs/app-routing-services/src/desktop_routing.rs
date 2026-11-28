@@ -150,10 +150,10 @@ impl DesktopSnapshot {
         &'a self,
         binding: &VerifiedRouteBinding,
         model: Option<&str>,
-    ) -> Result<(&'a JsonTarget, Option<&'a str>), StatusCode> {
+    ) -> Result<(&'a JsonTarget, Option<&'a str>, &'a Value), StatusCode> {
         let (model, selected) = self.lookup(model)?;
-        let (target, _) = self.snapshot.select(binding, Some(selected))?;
-        Ok((target, Some(&model.upstream_model)))
+        let (target, _, settings) = self.snapshot.select(binding, Some(selected))?;
+        Ok((target, Some(&model.upstream_model), settings))
     }
     pub(crate) fn messages_api_key(
         &self,

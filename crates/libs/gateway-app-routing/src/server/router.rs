@@ -23,6 +23,7 @@ pub fn router() -> axum::Router {
         .route("/app-routing/hosts/{host}/stop", post(stop))
         .route("/app-routing/hosts/{host}/stop-with-restore", post(stop_with_restore))
         .route("/app-routing/hosts/{host}/config", get(get_config).put(put_config))
+        .route("/app-routing/hosts/{host}/rectifier", get(get_rectifier).put(put_rectifier))
         .route(
             "/app-routing/hosts/{host}/client-host",
             get(get_client_host::<RoutingControl>).put(put_client_host::<RoutingControl>),

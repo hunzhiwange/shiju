@@ -13,11 +13,11 @@ pub(super) fn current(app: &App) -> Option<Context> {
     (app.apps_catalog.context.as_ref() == Some(&expected)).then_some(current)
 }
 pub(crate) fn update(app: &mut App, event: Event) -> iced::Task<Message> {
-    use desktop_ui_controls::settings_navigation::{ThirdPartyPage, ThirdPartySettingsTab};
+    use desktop_ui_controls::settings_navigation::ThirdPartyPage;
 
     let inline_page = super::super::third_party_settings::is_visible(app)
         && app.apps_catalog.third_party_page
-            == ThirdPartyPage::Settings(ThirdPartySettingsTab::Routing);
+            == ThirdPartyPage::Settings;
     let context = current(app);
     let load_policy = inline_page
         && matches!(event, Event::InspectPage)
@@ -87,4 +87,11 @@ pub(crate) fn attached_apps(
 
 pub(crate) fn inline_available(catalog: &AppsCatalogState) -> bool {
     page_can_configure(&catalog.routing, context(catalog))
+}
+
+pub(crate) fn inline_rectifier(
+    i18n: desktop_i18n::I18n,
+    catalog: &AppsCatalogState,
+) -> iced::Element<'_, Message> {
+    page_rectifier(i18n, &catalog.routing, context(catalog)).map(message)
 }

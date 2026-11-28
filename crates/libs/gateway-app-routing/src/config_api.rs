@@ -5,7 +5,7 @@ use reqwest::Method;
 use {
     vw_api_app_identity::AppId,
     vw_api_app_routing::AppRoutingConfig,
-    vw_api_app_routing::RoutingConfig,
+    vw_api_app_routing::{RectifierConfig, RoutingConfig},
     vw_api_transport::id::ProjectId,
 };
 
@@ -25,6 +25,23 @@ impl GatewayAppRoutingClient {
         config: &RoutingConfig,
     ) -> Result<RoutingConfig, AppRoutingError> {
         self.app_routing_request(Method::PUT, &[host, "config"], token, Some(config)).await
+    }
+
+    pub async fn app_routing_rectifier(
+        &self,
+        host: &str,
+        token: &str,
+    ) -> Result<RectifierConfig, AppRoutingError> {
+        self.app_routing_request(Method::GET, &[host, "rectifier"], token, None::<&()>).await
+    }
+
+    pub async fn app_routing_set_rectifier(
+        &self,
+        host: &str,
+        token: &str,
+        config: &RectifierConfig,
+    ) -> Result<RectifierConfig, AppRoutingError> {
+        self.app_routing_request(Method::PUT, &[host, "rectifier"], token, Some(config)).await
     }
 
     pub async fn app_routing_app_config(

@@ -17,7 +17,6 @@ tool-files = { path = "../libs/tool-files" }
 channel-runtime = { path = "../libs/channel-runtime" }
 task-plan-runner = { path = "../libs/task-plan-runner" }
 tool-memory = { path = "../libs/tool-memory" }
-gateway-backup-inventory = { path = "../libs/gateway-backup-inventory" }
 task-worktree-pool = { path = "../libs/task-worktree-pool" }
 workflow-engine = { path = "../libs/workflow-engine" }
 workflow-core = { path = "../libs/workflow-core" }

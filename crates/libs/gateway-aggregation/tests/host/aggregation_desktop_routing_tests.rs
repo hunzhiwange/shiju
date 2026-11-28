@@ -106,6 +106,7 @@ use vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute;
             binding: binding.clone(),
             revision: "revision-one".into(),
             provider_id: id.into(),
+            media_settings: serde_json::Value::Null,
             target: JsonTarget {
                 #[cfg(target_os = "macos")]
                 managed: None,

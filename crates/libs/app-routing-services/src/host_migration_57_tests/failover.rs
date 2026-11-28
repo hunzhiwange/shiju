@@ -91,6 +91,7 @@ async fn aggregation_t12_listener_preserves_queue_and_resumes_ordered_selection(
         binding: binding(),
         revision: revision.into(),
         provider_id: id.into(),
+        media_settings: serde_json::Value::Null,
         target: JsonTarget {
             #[cfg(target_os = "macos")]
             managed: None,

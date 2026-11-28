@@ -166,6 +166,7 @@ pub fn replace(
                 binding: binding.clone(),
                 revision: revision.clone(),
                 provider_id: id.clone(),
+                media_settings: AggregationTarget::media_settings_for(row),
                 target: JsonTarget {
                     #[cfg(target_os = "macos")]
                     managed: None,

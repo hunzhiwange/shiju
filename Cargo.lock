@@ -2165,39 +2165,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "app-data-backup"
-version = "0.7.10"
-dependencies = [
- "app-config-paths",
- "app-usage-store",
- "libc",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "tempfile",
- "uuid",
- "vw-api-app-operations",
- "vw-api-transport",
- "zip",
-]
-
-[[package]]
-name = "app-data-management"
-version = "0.7.10"
-dependencies = [
- "app-auth",
- "app-data-backup",
- "app-usage-store",
- "rusqlite",
- "serde_json",
- "tempfile",
- "vw-api-app-operations",
- "vw-api-task",
- "vw-api-transport",
-]
-
-[[package]]
 name = "app-diagnostics"
 version = "0.7.10"
 dependencies = [
@@ -7557,32 +7524,23 @@ dependencies = [
 name = "desktop-settings-memory"
 version = "0.7.10"
 dependencies = [
- "chrono",
  "config-aggregate",
  "config-memory",
  "config-ui",
  "desktop-assets",
  "desktop-chat-view",
- "desktop-config",
  "desktop-i18n",
- "desktop-provider-apps",
  "desktop-settings-providers",
  "desktop-ui-controls",
- "gateway-app-data",
- "gateway-http",
  "iced",
  "iced_runtime",
  "image",
- "local-app-auth",
  "rfd",
  "serde_json",
  "tempfile",
  "tokio",
  "vw-api-app-identity",
- "vw-api-app-operations",
  "vw-api-project-profiles",
- "vw-api-transport",
- "vw-gateway-client",
 ]
 
 [[package]]
@@ -9503,20 +9461,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gateway-app-data"
-version = "0.7.10"
-dependencies = [
- "gateway-endpoint",
- "gateway-http",
- "reqwest 0.13.4",
- "serde",
- "serde_json",
- "tokio",
- "vw-api-app-operations",
- "vw-api-transport",
-]
-
-[[package]]
 name = "gateway-app-diagnostics"
 version = "0.7.10"
 dependencies = [
@@ -9654,7 +9598,6 @@ dependencies = [
  "vw-api-app-aggregation",
  "vw-api-app-auth",
  "vw-api-app-identity",
- "vw-api-app-operations",
  "vw-api-app-provider-base",
  "vw-api-app-provider-edit",
  "vw-api-app-provider-environment",
@@ -9793,18 +9736,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "tower",
-]
-
-[[package]]
-name = "gateway-backup-inventory"
-version = "0.7.10"
-dependencies = [
- "app-data-backup",
- "axum",
- "serde",
- "tokio",
- "vw-api-app-operations",
- "vw-api-transport",
 ]
 
 [[package]]
@@ -22148,7 +22079,6 @@ dependencies = [
  "gateway-app-skills",
  "gateway-app-usage",
  "gateway-auth",
- "gateway-backup-inventory",
  "gateway-channel",
  "gateway-chat-stream",
  "gateway-computer-control",
@@ -22444,8 +22374,6 @@ version = "0.7.10"
 dependencies = [
  "app-auth",
  "app-availability",
- "app-data-backup",
- "app-data-management",
  "app-diagnostics",
  "app-icons",
  "app-launch",
@@ -23163,7 +23091,6 @@ dependencies = [
  "gateway-aggregation-native",
  "gateway-aggregation-omo",
  "gateway-app-auth",
- "gateway-app-data",
  "gateway-app-diagnostics",
  "gateway-app-failover",
  "gateway-app-lifecycle",
@@ -23354,7 +23281,6 @@ dependencies = [
  "gateway-aggregation-native",
  "gateway-aggregation-omo",
  "gateway-app-auth",
- "gateway-app-data",
  "gateway-app-diagnostics",
  "gateway-app-failover",
  "gateway-app-lifecycle",

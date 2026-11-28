@@ -811,3 +811,91 @@ async fn cc_route_039_authorized_chat_result() {
     upstream_task.abort();
     let _ = upstream_task.await;
 }
+
+#[cfg(target_os = "macos")]
+#[tokio::test]
+async fn saved_rectifier_settings_apply_to_the_next_request_without_reattaching() {
+    use crate::config_apply::RoutingConfigStore;
+    use vw_api_app_routing::RectifierConfig;
+
+    let home = tempfile::tempdir().unwrap();
+    let database = agent_database::GlobalDatabase::for_home(home.path()).unwrap();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let store = RoutingConfigStore::new(database.clone(), tenant.clone(), "host".into()).unwrap();
+    let listener = crate::RoutingListener::with_database(database);
+    let address = listener.start(0).unwrap();
+
+    let upstream = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let target =
+        format!("http://{}/v1/chat/completions", upstream.local_addr().unwrap()).parse().unwrap();
+    let (observed, mut requests) = mpsc::unbounded_channel();
+    let upstream_app = Router::new().route(
+        "/v1/chat/completions",
+        post(move |Json(body): Json<Value>| async move {
+            let image = body["messages"][0]["content"][0]["type"] == "image_url";
+            observed.send(image).unwrap();
+            if image {
+                (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error":{"message":"Image input not supported"}})),
+                )
+            } else {
+                (StatusCode::OK, Json(json!({"id":"response","choices":[]})))
+            }
+        }),
+    );
+    let upstream_task = tokio::spawn(async move {
+        axum::serve(upstream, upstream_app).await.unwrap();
+    });
+    let binding = VerifiedRouteBinding {
+        project: ProjectScope::new(tenant, "project".into()).unwrap(),
+        host: "host".into(),
+        app: AppId::Codex,
+        account: "account".into(),
+        account_generation: 1,
+    };
+    let authorized = listener
+        .auth
+        .issue_with_target(
+            binding,
+            Some(JsonTarget {
+                managed: None,
+                url: target,
+                authorization: "Bearer fixture".parse().unwrap(),
+                transport: SharedTransport::new().unwrap(),
+                request_options: Default::default(),
+            }),
+        )
+        .unwrap();
+    let client =
+        reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(5)).build().unwrap();
+    let body = json!({
+        "model": "deepseek-chat",
+        "messages": [{"role": "user", "content": [
+            {"type": "image_url", "image_url": {"url": "https://example.invalid/image.png"}}
+        ]}],
+    });
+    let defaults = RectifierConfig::default();
+    for (config, expected, status) in [
+        (defaults, &[false][..], StatusCode::OK),
+        (RectifierConfig { media_heuristic: false, ..defaults }, &[true, false], StatusCode::OK),
+        (RectifierConfig { media_fallback: false, ..defaults }, &[true], StatusCode::BAD_GATEWAY),
+        (RectifierConfig { enabled: false, ..defaults }, &[true], StatusCode::BAD_GATEWAY),
+    ] {
+        store.save_rectifier(config).unwrap();
+        let response = client
+            .post(format!("http://{address}/v1/chat/completions"))
+            .bearer_auth(&authorized.token)
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), status);
+        for &image in expected {
+            assert_eq!(requests.try_recv().unwrap(), image);
+        }
+        assert!(matches!(requests.try_recv(), Err(mpsc::error::TryRecvError::Empty)));
+    }
+    listener.stop().await.unwrap();
+    upstream_task.abort();
+}

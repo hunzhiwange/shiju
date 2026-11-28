@@ -18,7 +18,6 @@ pub(crate) mod computer_control;
 mod cron;
 pub(crate) use cron::open_page as open_cron_page;
 pub(crate) mod cron_history;
-pub(crate) mod backup_inventory;
 mod dialogue_flow;
 mod embedding_routes;
 mod gateway;
@@ -205,9 +204,6 @@ fn update_config_panel(
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     use desktop_settings_shell::messages::SettingsRoute;
     match message.route() {
-        SettingsRoute::DataBackups(event) => data_management::backup_list_ui::update(app, event),
-        SettingsRoute::DataRecovery(event) => data_management::recovery_ui::update(app, event),
-        SettingsRoute::BackupInventory(event) => backup_inventory::update(app, event),
         #[cfg(not(target_arch = "wasm32"))]
         SettingsRoute::ComputerControl(event) => computer_control::update(app, event),
         #[cfg(not(target_arch = "wasm32"))]
@@ -358,7 +354,6 @@ pub(crate) mod worktrees;
 
 pub(crate) mod prompts;
 
-pub(crate) mod data_management;
 
 
 

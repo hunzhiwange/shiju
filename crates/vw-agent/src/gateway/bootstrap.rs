@@ -264,20 +264,12 @@ async fn serve_gateway(
     #[cfg(not(target_arch = "wasm32"))]
     let _worktree_cleanup = crate::worktree::cleanup_host::HostCleanup::start()
         .map_err(|error| anyhow::anyhow!(error.to_string()))?;
-    let periodic_backups = async {
-        #[cfg(target_os = "macos")]
-        if let Some(policy) = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE") {
-            api::handlers::agent_apps_data::periodic::run(policy.into()).await;
-        }
-        std::future::pending::<()>().await;
-    };
     let usage_scans = gateway_external_sessions::usage_scan::run();
     tokio::select! {
         () = usage_scans => {}
         result = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()) => result?,
         result = super::channel_reload::watch_gateway_channels(state, config) => result?,
         () = usage_refresh => {}
-        () = periodic_backups => {}
     }
 
     Ok(())

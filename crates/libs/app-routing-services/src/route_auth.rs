@@ -126,7 +126,7 @@ pub(crate) struct AuthorizedRoute {
     json_target: Option<JsonRoute>,
     pub(crate) capacity: Arc<RouteCapacity>,
     #[cfg(target_os = "macos")]
-    timeout_store: Option<Arc<RoutingConfigStore>>,
+    config_store: Option<Arc<RoutingConfigStore>>,
 }
 
 impl AuthorizedRoute {
@@ -262,14 +262,20 @@ impl AuthorizedRoute {
     pub(crate) fn select_json(
         &self,
         model: Option<&str>,
-    ) -> Result<(&JsonTarget, Option<&str>, CancellationToken), StatusCode> {
+    ) -> Result<(&JsonTarget, Option<&str>, CancellationToken, &serde_json::Value), StatusCode>
+    {
         let route = self.json_target.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-        let (target, model) = match route {
+        #[cfg(target_os = "macos")]
+        let provider_settings =
+            self.provider.as_ref().map_or(&serde_json::Value::Null, |provider| provider.settings());
+        #[cfg(not(target_os = "macos"))]
+        let provider_settings = &serde_json::Value::Null;
+        let (target, model, settings) = match route {
             JsonRoute::Plain(target) if self.binding.app == AppId::Gemini => {
-                (target.as_ref(), None)
+                (target.as_ref(), None, provider_settings)
             }
             JsonRoute::Plain(target) => match decode(self.binding.app, model.unwrap_or_default()) {
-                Ok(Decoded::Plain) => (target.as_ref(), None),
+                Ok(Decoded::Plain) => (target.as_ref(), None, provider_settings),
                 Ok(_) | Err(ModelIdError::UnsupportedApplication) => {
                     return Err(StatusCode::UNPROCESSABLE_ENTITY);
                 }
@@ -280,7 +286,7 @@ impl AuthorizedRoute {
             #[cfg(target_os = "macos")]
             JsonRoute::Desktop(snapshot) => snapshot.select(&self.binding, model)?,
         };
-        Ok((target, model, self.cancelled.clone()))
+        Ok((target, model, self.cancelled.clone(), settings))
     }
 
     #[cfg(target_os = "macos")]
@@ -292,8 +298,19 @@ impl AuthorizedRoute {
     }
 
     #[cfg(target_os = "macos")]
+    pub(crate) async fn rectifier(
+        &self,
+    ) -> Result<vw_api_app_routing::RectifierConfig, StatusCode> {
+        let store = Arc::clone(self.config_store.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?);
+        tokio::task::spawn_blocking(move || store.rectifier())
+            .await
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
+    }
+
+    #[cfg(target_os = "macos")]
     pub(crate) async fn timeouts(&self) -> Result<AppTimeouts, StatusCode> {
-        let store = Arc::clone(self.timeout_store.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?);
+        let store = Arc::clone(self.config_store.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?);
         let project = self.binding.project.clone();
         let app = self.binding.app;
         let provider_scope = self.provider.as_ref()
@@ -681,7 +698,7 @@ impl RouteAuth {
         #[cfg(not(target_os = "macos"))]
         let _ = expected_revision;
         #[cfg(target_os = "macos")]
-        let timeout_store = if json_target.is_some() {
+        let config_store = if json_target.is_some() {
             let database = self.database.lock().clone().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
             let store = RoutingConfigStore::new(
                 database,
@@ -764,7 +781,7 @@ impl RouteAuth {
                 json_target,
                 capacity: capacity.unwrap_or_default(),
                 #[cfg(target_os = "macos")]
-                timeout_store,
+                config_store,
             }),
         );
         Ok(IssuedRoute {

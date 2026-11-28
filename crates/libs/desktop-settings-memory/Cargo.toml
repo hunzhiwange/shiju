@@ -8,24 +8,15 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-chrono = "0.4"
 config-aggregate = { path = "../config-aggregate" }
 iced = { version = "0.14", features = ["advanced"] }
 desktop-ui-controls = { path = "../desktop-ui-controls" }
-vw-api-transport = { path = "../api-transport" }
-vw-api-app-operations = { path = "../api-app-operations" }
 vw-api-app-identity = { path = "../api-app-identity" }
 vw-api-project-profiles = { path = "../api-project-profiles" }
 tokio = { version = "1", features = ["time"] }
 desktop-i18n = { path = "../desktop-i18n" }
 config-ui = { path = "../config-ui" }
-vw-gateway-client = { path = "../../vw-gateway-client" }
-gateway-app-data = { path = "../gateway-app-data" }
-gateway-http = { path = "../gateway-http" }
 serde_json = "1"
-local-app-auth = { path = "../local-app-auth" }
-desktop-provider-apps = { path = "../desktop-provider-apps" }
-desktop-config = { path = "../desktop-config" }
 rfd = { version = "0.17", features = ["file-handle-inner"] }
 
 config-memory = { path = "../config-memory" }

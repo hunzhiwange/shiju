@@ -81,9 +81,6 @@ pub use desktop_settings_appearance::general_message::GeneralSettingsMessage;
 /// 系统设置页顶层消息。
 #[derive(Debug, Clone)]
 pub enum SettingsMessage<SettingsTab, SearchTarget, AppsCatalog, AppProviders> {
-    DataBackups(desktop_settings_memory::data_management::backup_list_ui::Event),
-    DataRecovery(desktop_settings_memory::data_management::recovery_ui::Event),
-    BackupInventory(desktop_settings_memory::backup_inventory::Event),
     #[cfg(not(target_arch = "wasm32"))]
     ComputerControl(desktop_settings_security::computer_control_update::Event),
     #[cfg(not(target_arch = "wasm32"))]

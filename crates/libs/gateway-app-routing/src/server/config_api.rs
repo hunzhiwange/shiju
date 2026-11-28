@@ -16,7 +16,7 @@ use std::sync::Arc;
 use {
     vw_api_app_identity::AppId,
     vw_api_app_routing::AppRoutingConfig,
-    vw_api_app_routing::RoutingConfig,
+    vw_api_app_routing::{RectifierConfig, RoutingConfig},
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
@@ -72,6 +72,31 @@ pub async fn put_config(
             Err(_) => ControlError::Unavailable,
         })?;
     Ok(Json(routing_config(config)))
+}
+
+pub async fn get_rectifier(
+    control: Option<Extension<RoutingControl>>,
+    Extension(tenant): Extension<TenantScope>,
+    Path(host): Path<String>,
+    headers: HeaderMap,
+) -> Result<Json<RectifierConfig>, ControlError> {
+    let (control, _) =
+        RoutingControl::authorize(control, headers, tenant, host, None, false).await?;
+    Ok(Json(control.with_config_store(|store| store.rectifier()).await?))
+}
+
+pub async fn put_rectifier(
+    control: Option<Extension<RoutingControl>>,
+    Extension(tenant): Extension<TenantScope>,
+    Path(host): Path<String>,
+    headers: HeaderMap,
+    body: ConfigBody,
+) -> Result<Json<RectifierConfig>, ControlError> {
+    let (control, _) =
+        RoutingControl::authorize(control, headers, tenant, host, None, true).await?;
+    let config: RectifierConfig = decode(body)?;
+    control.with_config_store(move |store| store.save_rectifier(config)).await?;
+    Ok(Json(config))
 }
 
 pub async fn get_app_config(

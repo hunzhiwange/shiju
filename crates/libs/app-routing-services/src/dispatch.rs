@@ -26,6 +26,7 @@ use tokio::time::Instant;
 use vw_agent_apps::routing::private_params::filter_private_params;
 use vw_api_app_provider_base::validation::ProviderRequestOptions;
 use vw_api_app_identity::{AppId};
+use vw_api_app_routing::RectifierConfig;
 
 const JSON: &str = "application/json";
 const SSE: &str = "text/event-stream";
@@ -196,7 +197,7 @@ pub(crate) async fn forward_json(
     #[cfg(target_os = "macos")]
     if failover.is_some() { usage.unknown_provider(); }
     let result: Result<Response, RouteError> = async {
-    let (target, model, cancelled) = route.select_json(client_model.as_deref())?;
+        let (target, model, cancelled, settings) = route.select_json(client_model.as_deref())?;
 
     #[cfg(target_os = "macos")]
     let mapped_model = if model.is_none() {
@@ -218,6 +219,10 @@ pub(crate) async fn forward_json(
     let permit = route.capacity.acquire(buffer).await.ok_or(StatusCode::TOO_MANY_REQUESTS)?;
     #[cfg(target_os = "macos")]
     route.check_provider(listener).await?;
+    #[cfg(target_os = "macos")]
+    let rectifier = route.rectifier().await?;
+    #[cfg(not(target_os = "macos"))]
+    let rectifier = RectifierConfig::default();
     let messages_responses = app == AppId::Claude
         && target.url.path().trim_end_matches('/').ends_with("/responses");
     let hosted_search = if messages_responses {
@@ -327,17 +332,7 @@ pub(crate) async fn forward_json(
         model_protocol::xai_responses::prepare(&mut body, &target.url);
         *outgoing.body_mut() = Some(body_limits::encode_json(&body, MAX_JSON_BYTES).map_err(request_body_status)?.into());
     }
-    #[cfg(target_os = "macos")]
-    if let Some(provider) = &route.provider {
-        let bytes = outgoing.body().and_then(reqwest::Body::as_bytes).ok_or(StatusCode::BAD_REQUEST)?;
-        let mut body: Value = serde_json::from_slice(bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
-        let effective_model = body.get("model").and_then(Value::as_str)
-            .or(model).or(client_model.as_deref()).unwrap_or("").to_owned();
-        if provider.sanitize_images(&mut body, &effective_model) > 0 {
-            *outgoing.body_mut() = Some(body_limits::encode_json(&body, MAX_JSON_BYTES).map_err(request_body_status)?.into());
-            outgoing.headers_mut().remove(header::CONTENT_LENGTH);
-        }
-    }
+    prepare_media(&mut outgoing, settings, model.or(client_model.as_deref()), rectifier)?;
     if let Some(scope) = &response_scope {
         let bytes =
             outgoing.body().and_then(reqwest::Body::as_bytes).ok_or(StatusCode::BAD_REQUEST)?;
@@ -475,6 +470,7 @@ pub(crate) async fn forward_json(
                     wire: &wire,
                     transport: selected_egress.as_ref().map(|egress| &egress.transport),
                     listener,
+                    rectifier,
                     deadline: started + Duration::from_secs(duration.into()),
                 })
                 .await?;
@@ -486,7 +482,16 @@ pub(crate) async fn forward_json(
         let response = if compact {
             transport.forward_ordered(authorized_url, outgoing, wire, cancelled.clone(), listener).await?
         } else {
-            forward_rectified(transport, authorized_url, outgoing, wire, cancelled.clone(), listener).await?
+            let retry = clone_for_rectification(&outgoing, authorized_url, rectifier);
+            let response = transport.forward_ordered(
+                authorized_url, outgoing, wire.clone(), cancelled.clone(), listener,
+            ).await?;
+            let (response, retry) = rectify_response(response, retry, authorized_url, rectifier).await?;
+            if let Some(retry) = retry {
+                transport.forward_ordered(authorized_url, retry, wire, cancelled.clone(), listener).await?
+            } else {
+                response
+            }
         };
         #[cfg(target_os = "macos")]
         if let Some(account) = &quota_account {
@@ -845,48 +850,96 @@ pub(crate) fn is_content_type(headers: &HeaderMap, expected: &str) -> bool {
     }) && values.next().is_none()
 }
 
-/// Inspect only bounded HTTP error bodies before any client output. The repaired
-/// request keeps the exact authorized URL, credentials, transport and cancellation.
-async fn forward_rectified(
-    transport: &SharedTransport,
-    url: &reqwest::Url,
-    outgoing: reqwest::Request,
-    wire: HeaderWire,
-    cancelled: tokio_util::sync::CancellationToken,
-    listener: SocketAddr,
-) -> Result<Response, RouteError> {
-    let retry = outgoing.try_clone();
-    let response = transport.forward_ordered(url, outgoing, wire.clone(), cancelled.clone(), listener).await?;
-    if !matches!(response.status().as_u16(), 400 | 404 | 415 | 422 | 501 | 502) {
-        return Ok(response);
+pub(crate) fn prepare_media(
+    outgoing: &mut reqwest::Request,
+    settings: &Value,
+    model: Option<&str>,
+    config: RectifierConfig,
+) -> Result<(), StatusCode> {
+    if !config.enabled || !config.media_fallback {
+        return Ok(());
     }
-    let Some(mut retry) = retry else { return Ok(response); };
-    let Some(bytes) = retry.body().and_then(reqwest::Body::as_bytes) else { return Ok(response); };
+    let bytes = outgoing.body().and_then(reqwest::Body::as_bytes).ok_or(StatusCode::BAD_REQUEST)?;
+    let mut body: Value = serde_json::from_slice(bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let model = body.get("model").and_then(Value::as_str).or(model).unwrap_or_default().to_owned();
+    if vw_agent_apps::routing::media_sanitize::prepare(
+        &mut body,
+        settings,
+        &model,
+        config.media_heuristic,
+    ) > 0
+    {
+        *outgoing.body_mut() = Some(
+            body_limits::encode_json(&body, MAX_JSON_BYTES).map_err(request_body_status)?.into(),
+        );
+        outgoing.headers_mut().remove(header::CONTENT_LENGTH);
+    }
+    Ok(())
+}
+
+pub(crate) fn clone_for_rectification(
+    request: &reqwest::Request,
+    url: &reqwest::Url,
+    config: RectifierConfig,
+) -> Option<reqwest::Request> {
+    let path = url.path().trim_end_matches('/');
+    let inspect = config.enabled
+        && (config.media_fallback
+            || path.ends_with("/responses")
+            || (path.ends_with("/messages")
+                && (config.thinking_signature || config.thinking_budget)));
+    inspect.then(|| request.try_clone()).flatten()
+}
+
+/// Inspect bounded HTTP error bodies before any client output. The repaired
+/// request keeps the exact authorized URL, credentials, transport and cancellation.
+pub(crate) async fn rectify_response(
+    response: Response,
+    retry: Option<reqwest::Request>,
+    url: &reqwest::Url,
+    config: RectifierConfig,
+) -> Result<(Response, Option<reqwest::Request>), RouteError> {
+    if !matches!(response.status().as_u16(), 400 | 404 | 415 | 422 | 501 | 502) {
+        return Ok((response, None));
+    }
+    let Some(mut retry) = retry else {
+        return Ok((response, None));
+    };
+    let Some(bytes) = retry.body().and_then(reqwest::Body::as_bytes) else {
+        return Ok((response, None));
+    };
     let input: Value = serde_json::from_slice(bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
     let (mut parts, body) = response.into_parts();
     let codings = ContentCodings::from_headers(&parts.headers).map_err(upstream_decode_status)?;
     let bytes = decode_response::decode(body, codings, MAX_JSON_BYTES).await.map_err(upstream_decode_status)?;
-    let repaired = model_protocol::signature_rectify::repair(&input, parts.status, &bytes, url)
-        .map_err(|_| RouteError::UnreadableAgentTask)?;
-    // Share the existing single replay allowance with signature repair.
-    // Inspect the decoded error message only for the Messages endpoint.
-    let repaired = repaired.or_else(|| {
-        url.path().trim_end_matches('/').ends_with("/messages").then(|| {
-            vw_agent_apps::routing::budget_rectify::repair(&input, parts.status.as_u16(), &bytes)
-        }).flatten()
-    });
-    let repaired = repaired.or_else(|| {
-        vw_agent_apps::routing::media_sanitize::repair(&input, parts.status.as_u16(), &bytes)
-    });
-    let Some(repaired) = repaired else {
-        parts.headers.remove(header::CONTENT_ENCODING);
-        parts.headers.remove(header::CONTENT_LENGTH);
-        return Ok(Response::from_parts(parts, Body::from(bytes)));
+    let messages = url.path().trim_end_matches('/').ends_with("/messages");
+    let mut repaired = None;
+    if !messages || config.thinking_signature {
+        repaired = model_protocol::signature_rectify::repair(&input, parts.status, &bytes, url)
+            .map_err(|_| RouteError::UnreadableAgentTask)?;
+    }
+    if repaired.is_none() && messages && config.thinking_budget {
+        repaired =
+            vw_agent_apps::routing::budget_rectify::repair(&input, parts.status.as_u16(), &bytes);
+    }
+    if repaired.is_none() && config.media_fallback {
+        repaired =
+            vw_agent_apps::routing::media_sanitize::repair(&input, parts.status.as_u16(), &bytes);
+    }
+    parts.headers.remove(header::CONTENT_ENCODING);
+    parts.headers.remove(header::CONTENT_LENGTH);
+    let retry = if let Some(repaired) = repaired {
+        *retry.body_mut() = Some(
+            body_limits::encode_json(&repaired, MAX_JSON_BYTES)
+                .map_err(request_body_status)?
+                .into(),
+        );
+        retry.headers_mut().remove(header::CONTENT_LENGTH);
+        Some(retry)
+    } else {
+        None
     };
-    *retry.body_mut() = Some(body_limits::encode_json(&repaired, MAX_JSON_BYTES).map_err(request_body_status)?.into());
-    retry.headers_mut().remove(header::CONTENT_LENGTH);
-    // Deliberately no loop: a second rejection is returned without another replay.
-    Ok(transport.forward_ordered(url, retry, wire, cancelled, listener).await?)
+    Ok((Response::from_parts(parts, Body::from(bytes)), retry))
 }
 
 /// Apply once to the final wire body, also for each independently selected retry.
@@ -957,7 +1010,7 @@ async fn forward_gemini_metadata(
     let permit = route.capacity.acquire(buffer).await.ok_or(StatusCode::TOO_MANY_REQUESTS)?;
     #[cfg(target_os = "macos")]
     route.check_provider(listener).await?;
-    let (target, model, cancelled) = route.select_json(metadata.model.as_deref())?;
+    let (target, model, cancelled, _) = route.select_json(metadata.model.as_deref())?;
     let url = metadata.url(&target.url, model)?;
     let mut outgoing = reqwest::Request::new(parts.method, url.clone());
     if metadata.count {
@@ -1048,7 +1101,7 @@ async fn forward_alpha_search(
     let permit = route.capacity.acquire(buffer).await.ok_or(StatusCode::TOO_MANY_REQUESTS)?;
     #[cfg(target_os = "macos")]
     route.check_provider(listener).await?;
-    let (target, _, cancelled) = route.select_json(client_model)?;
+    let (target, _, cancelled, _) = route.select_json(client_model)?;
     let images = edits || model_protocol::image_generation::is_path(parts.uri.path());
     let url = if edits {
         model_protocol::image_edit::url(&target.url, &parts.uri)?

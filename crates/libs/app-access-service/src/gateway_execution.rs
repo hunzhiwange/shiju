@@ -20,7 +20,6 @@ pub(super) fn gateway_host(tenant: &TenantScope) -> Result<Host, StatusCode> {
     let skills_root = home.join(".agents/skills");
     for directory in [
         &root,
-        &root.join("backups"),
         &paths.config.join("apps"),
         &skills_root,
     ] {
@@ -70,8 +69,8 @@ pub(super) fn gateway_host(tenant: &TenantScope) -> Result<Host, StatusCode> {
         lifecycle,
         home: home.clone(),
         credential_root: Some(root.clone()),
-        data_backup_root: Some(root.join("backups")),
-        data_location_roots: Some([paths.config.clone(), paths.data.clone(), paths.state.clone()]),
+        _legacy_data_backup_root: (),
+        _legacy_data_location_roots: (),
         _legacy_data_migration_root: (),
         _legacy_data_migration_sources: (),
         external_session_instances: native_instances(&home),

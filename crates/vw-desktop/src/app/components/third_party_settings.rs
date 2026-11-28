@@ -16,7 +16,7 @@ use crate::app::{
 };
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::{
-    settings_navigation::{ThirdPartyPage, ThirdPartySettingsTab},
+    settings_navigation::ThirdPartyPage,
     system_settings_common::settings_content_panel_style,
     tooltip::tooltip_dark_style,
 };
@@ -37,7 +37,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let state = &app.apps_catalog;
     let i18n = crate::app::i18n::I18n::new(app.general_settings.desktop_locale);
     let body: Element<'_, Message> = match state.third_party_page {
-        ThirdPartyPage::Settings(tab) => return workspace(app, settings_page::view(app, tab)),
+        ThirdPartyPage::Settings => return workspace(app, settings_page::view(app)),
         ThirdPartyPage::AppsCatalog => {
             return workspace(app, super::system_settings_apps::view(state, i18n));
         }
@@ -283,12 +283,6 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                     i18n.__("查看会话"),
                     message(AppsCatalogMessage::Navigate(ThirdPartyPage::Sessions)),
                 ),
-                (
-                    i18n.__("配置目录"),
-                    message(AppsCatalogMessage::Navigate(ThirdPartyPage::Settings(
-                        ThirdPartySettingsTab::Applications,
-                    ))),
-                ),
                 (i18n.__("安装与升级"), select(Tab::Configuration)),
                 (
                     i18n.__("侧栏应用设置"),
@@ -465,7 +459,7 @@ fn sidebar(app: &App) -> Element<'_, Message> {
     let mut resources = column![].spacing(2);
     for &(page, label) in ThirdPartyPage::ALL {
         let icon = match page {
-            ThirdPartyPage::Agents | ThirdPartyPage::AppsCatalog | ThirdPartyPage::Settings(_) => continue,
+            ThirdPartyPage::Agents | ThirdPartyPage::AppsCatalog | ThirdPartyPage::Settings => continue,
             ThirdPartyPage::Mcp => Icon::HddNetwork,
             ThirdPartyPage::Skills => Icon::Box,
             ThirdPartyPage::Prompts => Icon::Box,
@@ -517,10 +511,8 @@ fn sidebar(app: &App) -> Element<'_, Message> {
             navigation_icon(Icon::Gear),
             i18n.__("设置"),
             None,
-            !showing_usage && matches!(state.third_party_page, ThirdPartyPage::Settings(_)),
-            message(AppsCatalogMessage::Navigate(ThirdPartyPage::Settings(
-                ThirdPartySettingsTab::Applications,
-            ))),
+            !showing_usage && state.third_party_page == ThirdPartyPage::Settings,
+            message(AppsCatalogMessage::Navigate(ThirdPartyPage::Settings)),
         ),
     ].spacing(4);
 
@@ -609,15 +601,8 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
         ThirdPartyPage::Agents => ensure_agent_providers(app),
         ThirdPartyPage::AppsCatalog => settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded),
         ThirdPartyPage::Prompts => settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded),
-        ThirdPartyPage::Settings(tab) => {
+        ThirdPartyPage::Settings => {
             let load = settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded);
-            if tab == ThirdPartySettingsTab::Data && !app.apps_catalog.host.is_empty() {
-                use settings::data_management::backup_list_ui;
-                return Task::batch([load, backup_list_ui::update(app, backup_list_ui::Event::Open)]);
-            }
-            if tab != ThirdPartySettingsTab::Routing {
-                return load;
-            }
             use super::app_routing::lifecycle::{self, Event, Operation};
             Task::batch([load, lifecycle::update(app, Event::Run(Operation::Refresh))])
         }
@@ -923,20 +908,12 @@ pub(crate) fn skills_update(
 }
 
 pub(crate) fn overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
-    let base = match app.apps_catalog.third_party_page {
+    match app.apps_catalog.third_party_page {
         ThirdPartyPage::Skills => super::system_settings_skills::third_party_overlays(app, base),
         ThirdPartyPage::Mcp if app.apps_catalog.third_party_mcp_scope == mcp_scope(app)
             && app.apps_catalog.third_party_mcp_scope.is_some() =>
                 mcp_workspace::overlays(app, base),
         _ => base,
-    };
-    if matches!(
-        app.apps_catalog.third_party_page,
-        ThirdPartyPage::Settings(ThirdPartySettingsTab::Data)
-    ) {
-        super::system_settings_data::recovery_ui::overlay(app, base)
-    } else {
-        base
     }
 }
 
@@ -956,7 +933,7 @@ pub(crate) fn standalone(app: &App) -> Element<'_, Message> {
     }
     let base = overlays(app, view(app));
     let mut base = super::system_settings_apps::view_overlays(
-        &app.apps_catalog,
+        app,
         crate::app::i18n::I18n::new(app.general_settings.desktop_locale),
         &app.appearance.app_theme,
         base,

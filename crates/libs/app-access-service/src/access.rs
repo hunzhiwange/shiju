@@ -57,11 +57,10 @@ struct Grant {
     #[serde(default)]
     #[serde(rename = "data_migration_read")]
     _legacy_data_migration_read: Option<serde::de::IgnoredAny>,
-    /// Explicit background authority; API backup grants alone do not schedule work.
-    #[serde(default)]
-    periodic_data_backups: Vec<PeriodicDataBackupPermit>,
-    #[serde(default)]
-    data_backups: Vec<vw_api_transport::ProjectId>,
+    #[serde(default, rename = "periodic_data_backups")]
+    _legacy_periodic_data_backups: Option<serde::de::IgnoredAny>,
+    #[serde(default, rename = "data_backups")]
+    _legacy_data_backups: Option<serde::de::IgnoredAny>,
     #[serde(default)]
     #[serde(rename = "data_export")]
     _legacy_data_export: Option<serde::de::IgnoredAny>,
@@ -613,11 +612,10 @@ fn discard_legacy_field<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Re
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Host {
-    /// Existing private directory, selected only by the administrator.
-    #[serde(default)]
-    pub data_backup_root: Option<PathBuf>,
-    #[serde(default)]
-    data_location_roots: Option<[PathBuf; 3]>,
+    #[serde(default, rename = "data_backup_root", deserialize_with = "discard_legacy_field")]
+    pub(crate) _legacy_data_backup_root: (),
+    #[serde(default, rename = "data_location_roots", deserialize_with = "discard_legacy_field")]
+    pub(crate) _legacy_data_location_roots: (),
     #[serde(default)]
     #[serde(rename = "data_migration_sources", deserialize_with = "discard_legacy_field")]
     pub(crate) _legacy_data_migration_sources: (),
@@ -736,7 +734,6 @@ pub fn authorize_identity_launch(
 #[expect(dead_code, reason = "Preserve legacy policy schema and gateway adapter contracts")]
 enum Capability<'a> {
     UsageLedgerRead(&'a vw_api_transport::ProjectId),
-    DataBackups(&'a vw_api_transport::ProjectId),
     ExternalHistory(&'a vw_api_transport::ProjectId),
     ExternalHistoryMaintenance(&'a vw_api_transport::ProjectId),
     ExternalHistoryDelete(&'a vw_api_transport::ProjectId),
@@ -2048,77 +2045,6 @@ pub fn authorize_external_history_maintenance(
         }
     }
     Ok((authorization.principal, authorization.host.home, instances, private))
-}
-
-/// Backup authority is independent of inventory, export and lifecycle grants.
-pub fn authorize_data_backups(
-    path: Option<&Path>, headers: &HeaderMap,
-    target: &vw_api_app_operations::DataManagementTarget,
-) -> Result<PathBuf, StatusCode> {
-    let authorized = authorize_scoped(path, headers, target.scope.tenant_scope(),
-        &target.target_host_id, None, Capability::DataBackups(target.scope.project_id()))?;
-    if authorized.principal != target.principal_id { return Err(StatusCode::FORBIDDEN); }
-    authorized.host.data_backup_root.filter(|root| root.is_absolute())
-        .ok_or(StatusCode::SERVICE_UNAVAILABLE)
-}
-
-/// Resolve backup inventory ownership from authentication, never desktop claims.
-pub fn authorize_backup_inventory(
-    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_transport::ProjectScope, host: &str,
-) -> Result<(PathBuf, String), StatusCode> {
-    let authorized = authorize_scoped(path, headers, project.tenant_scope(), host, None,
-        Capability::DataBackups(project.project_id()))?;
-    let root = authorized.host.data_backup_root.filter(|root| root.is_absolute())
-        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    Ok((root, authorized.principal))
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct PeriodicDataBackupPermit {
-    project_id: String,
-    interval_hours: u32,
-}
-
-#[cfg(target_os = "macos")]
-pub fn periodic_data_backup_targets(
-    path: &Path,
-) -> Result<Vec<(PathBuf, vw_agent_apps::data_management::safety_snapshot::SafetySnapshotScope, u32)>, StatusCode> {
-    use vw_api_transport::id::ProjectScope;
-    use vw_agent_apps::data_management::safety_snapshot::SafetySnapshotScope;
-    let policy = load(path).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    let mut targets = Vec::new();
-    for principal in policy.principals {
-        for grant in principal.grants {
-            let Some(host) = policy.hosts.iter().find(|host|
-                host.id == grant.host_id && host.online && matches!(host.binding, Binding::Local)
-            ) else { continue };
-            let Some(root) = host.data_backup_root.as_ref().filter(|root| root.is_absolute()) else { continue };
-            let tenant = TenantScope::new(&grant.platform_id, &grant.company_id)
-                .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-            for permit in grant.periodic_data_backups {
-                if permit.interval_hours == 0 { continue; }
-                let project = ProjectScope::new(tenant.clone(), permit.project_id.into())
-                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-                if !grant.data_backups.contains(project.project_id()) {
-                    return Err(StatusCode::FORBIDDEN);
-                }
-                targets.push((root.clone(), SafetySnapshotScope {
-                    project, principal_id: principal.id.clone(), host_id: host.id.clone(),
-                }, permit.interval_hours));
-            }
-        }
-    }
-    Ok(targets)
-}
-
-#[cfg(target_os = "macos")]
-pub fn data_location_roots(path: Option<&Path>, headers: &HeaderMap, target: &vw_api_app_operations::DataManagementTarget) -> Result<(PathBuf,PathBuf,PathBuf),StatusCode> {
-    let a=authorize_scoped(path,headers,target.scope.tenant_scope(),&target.target_host_id,None,Capability::DataBackups(target.scope.project_id()))?;
-    if a.principal!=target.principal_id { return Err(StatusCode::FORBIDDEN); }
-    let [app,device,environment]=a.host.data_location_roots.ok_or(StatusCode::NOT_IMPLEMENTED)?;
-    if ![&app,&device,&environment].iter().all(|p|p.is_absolute()) { return Err(StatusCode::SERVICE_UNAVAILABLE); }
-    Ok((app,device,environment))
 }
 
 /// Enumerate native sources on the gateway's local machine, without an access file.

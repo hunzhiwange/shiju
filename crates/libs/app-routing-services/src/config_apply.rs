@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use vw_agent_apps::providers::validate_identity;
 use {
     vw_api_app_identity::AppId,
-    vw_api_app_routing::RoutingEgressStatus,
+    vw_api_app_routing::{RectifierConfig, RoutingEgressStatus},
     vw_api_app_routing::RoutingEgressUpdate,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
@@ -35,6 +35,7 @@ impl ListenerConfig {
     }
 }
 
+const RECTIFIER: &str = "agent_apps.routing.rectifier.v1";
 const GLOBAL: &str = "agent_apps.routing.listener.v1";
 const EGRESS: &str = "agent_apps.routing.egress.v1";
 const APP: &str = "agent_apps.routing.timeouts.v1";
@@ -102,6 +103,15 @@ impl RoutingConfigStore {
             })
         })
         .await?
+    }
+
+    pub fn rectifier(&self) -> Result<RectifierConfig> {
+        let payload = self.settings.get(&self.tenant, RECTIFIER, &self.host)?;
+        Ok(payload.as_deref().map(serde_json::from_str).transpose()?.unwrap_or_default())
+    }
+
+    pub fn save_rectifier(&self, config: RectifierConfig) -> Result<()> {
+        self.settings.upsert(&self.tenant, RECTIFIER, &self.host, &serde_json::to_string(&config)?)
     }
 
     pub fn load_egress(&self, secrets: &SecretStore) -> Result<RoutingEgress> {

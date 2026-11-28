@@ -561,6 +561,7 @@ impl RecordPublicationContext {
                 binding: binding.clone(),
                 revision: revision.into(),
                 provider_id: id.into(),
+                media_settings: AggregationTarget::media_settings_for(row),
                 target: JsonTarget {
                     #[cfg(target_os = "macos")]
                     managed: None,

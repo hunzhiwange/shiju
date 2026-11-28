@@ -75,5 +75,3 @@ pub use app_workspace_memory::hermes_memory_limits;
 pub use app_workspace_memory::daily_memory_search;
 
 pub use app_project_profiles as project_profiles;
-
-pub mod data_management;

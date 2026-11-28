@@ -1,10 +1,11 @@
-//! Execute the published ordinary route with one request-wide send budget.
+//! Execute published routes with one failover budget and bounded same-provider repair.
 use super::{
     SharedTransport,
     dispatch::{self, JsonTarget},
     header_wire::HeaderWire,
     provider_publication::PublishedProvider,
     route_auth::AuthorizedRoute,
+    shared_transport::AttemptFailure,
 };
 use model_protocol::generation::GenerationTransport;
 use app_provider_services::{AppProviderStore, generation_target::SavedProfile};
@@ -269,6 +270,12 @@ impl Plan {
             });
             let mut outgoing = dispatch::prepare_request(request.body, &candidate.target, model)?;
             dispatch::apply_cache(&mut outgoing, request.route, &candidate.target, request.headers)?;
+            dispatch::prepare_media(
+                &mut outgoing,
+                candidate.row.get("settingsConfig").unwrap_or(&Value::Null),
+                model,
+                request.rectifier,
+            )?;
             let mut wire = request.wire.clone();
             wire.retain_allowed(request.headers, outgoing.headers_mut());
             if candidate.messages_api_key
@@ -289,13 +296,24 @@ impl Plan {
             let transport = request.transport.unwrap_or(&candidate.target.transport);
             let result = super::timeouts::before(
                 request.deadline,
-                transport.forward_attempt(
-                    &candidate.target.url,
-                    outgoing,
-                    wire,
-                    cancelled.clone(),
-                    request.listener,
-                ),
+                async {
+                    let url = &candidate.target.url;
+                    let retry = dispatch::clone_for_rectification(&outgoing, url, request.rectifier);
+                    let response = transport.forward_attempt(
+                        url, outgoing, wire.clone(), cancelled.clone(), request.listener,
+                    ).await?;
+                    let (response, retry) = dispatch::rectify_response(response, retry, url, request.rectifier)
+                        .await
+                        .map_err(|error| AttemptFailure::from(error.status()))?;
+                    if let Some(retry) = retry {
+                        // A repair is confined to this candidate. Even if its connection
+                        // fails, the original send already reached the provider.
+                        return transport.forward_ordered(
+                            url, retry, wire, cancelled.clone(), request.listener,
+                        ).await.map_err(AttemptFailure::from);
+                    }
+                    Ok(response)
+                },
             )
             .await;
             match result {
@@ -447,6 +465,7 @@ pub(crate) struct AttemptRequest<'a> {
     pub(crate) transport: Option<&'a SharedTransport>,
     pub(crate) listener: SocketAddr,
     pub(crate) deadline: Instant,
+    pub(crate) rectifier: vw_api_app_routing::RectifierConfig,
 }
 
 async fn observe(

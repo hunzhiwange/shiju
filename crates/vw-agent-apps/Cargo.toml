@@ -10,8 +10,6 @@ license = "MIT"
 [dependencies]
 app-diagnostics = { path = "../libs/app-diagnostics" }
 app-project-profiles = { path = "../libs/app-project-profiles" }
-app-data-management = { path = "../libs/app-data-management" }
-app-data-backup = { path = "../libs/app-data-backup" }
 app-usage = { path = "../libs/app-usage" }
 app-usage-import = { path = "../libs/app-usage-import" }
 app-usage-codex = { path = "../libs/app-usage-codex" }

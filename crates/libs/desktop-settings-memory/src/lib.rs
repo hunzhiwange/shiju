@@ -6,8 +6,6 @@ pub mod system_settings_memory;
 pub mod system_settings_storage;
 #[cfg(test)]
 mod fields_tests;
-pub mod backup_inventory;
-pub mod system_settings_data;
 #[cfg(test)]
 mod storage_tests;
 mod memory_tabs;
@@ -20,7 +18,6 @@ mod system_settings_storage_tests;
 
 pub mod app_init;
 
-pub mod data_management;
 pub mod memory_update;
 pub mod storage_update;
 #[cfg(test)]

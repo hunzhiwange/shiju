@@ -9,7 +9,7 @@ use {
     vw_api_app_identity::AppId,
     vw_api_app_routing::AppRoutingConfig,
     vw_api_app_routing::{RoutingClientHost, RoutingClientHostUpdate, normalize_routing_client_host},
-    vw_api_app_routing::RoutingConfig,
+    vw_api_app_routing::{RectifierConfig, RoutingConfig},
     vw_api_transport::id::ProjectId,
 };
 
@@ -18,6 +18,7 @@ pub enum Value {
     Listener(RoutingConfig),
     ClientHost(RoutingClientHost),
     App(AppRoutingConfig),
+    Rectifier(RectifierConfig),
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -26,6 +27,7 @@ enum Target {
     Listener,
     ClientHost,
     App(AppId),
+    Rectifier,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -45,10 +47,12 @@ pub struct State {
 pub enum Event {
     Open(Option<AppId>),
     OpenClientHost,
+    OpenRectifier,
     Close,
     Reload,
     Edit(usize, String),
     Logging(bool),
+    SetRectifier(RectifierConfig),
     Save,
     Reply(Context, Option<String>, u64, bool, Result<Value, String>),
 }
@@ -76,6 +80,7 @@ impl State {
                 .map_err(|_| "请输入 0–65535 之间的整数".to_string())
         };
         match self.value.clone().ok_or("请先读取配置")? {
+            Value::Rectifier(config) => Ok(Value::Rectifier(config)),
             Value::Listener(mut config) => {
                 config.listen_address =
                     self.fields[0].trim().parse().map_err(|_| "请输入有效 IP 地址")?;
@@ -106,6 +111,7 @@ impl State {
     }
     fn load(&mut self, value: Value) {
         self.fields = match &value {
+            Value::Rectifier(_) => Default::default(),
             Value::Listener(c) => {
                 [c.listen_address.to_string(), c.listen_port.to_string(), String::new()]
             }
@@ -125,7 +131,7 @@ impl State {
     }
 }
 pub fn update(state: &mut State, context: Option<Context>, project: Option<String>, token: &str, client: Option<vw_gateway_client::GatewayClient>, notice: &mut Option<crate::Notice>, event: Event) -> Task<Message> {
-    update_settings(state, context, project, token, client, notice, event, false)
+    update_settings(state, context, project, token, client, notice, event, None)
 }
 
 pub(super) fn update_inline(
@@ -136,8 +142,9 @@ pub(super) fn update_inline(
     client: Option<vw_gateway_client::GatewayClient>,
     notice: &mut Option<crate::Notice>,
     event: Event,
+    message: fn(Event) -> Message,
 ) -> Task<Message> {
-    update_settings(state, context, project, token, client, notice, event, true)
+    update_settings(state, context, project, token, client, notice, event, Some(message))
 }
 
 fn update_settings(
@@ -148,10 +155,9 @@ fn update_settings(
     client: Option<vw_gateway_client::GatewayClient>,
     notice: &mut Option<crate::Notice>,
     event: Event,
-    inline: bool,
+    inline: Option<fn(Event) -> Message>,
 ) -> Task<Message> {
-    let message: fn(Event) -> Message =
-        if inline { lifecycle::Event::Listener } else { lifecycle::Event::Config };
+    let message = inline.unwrap_or(lifecycle::Event::Config);
     let project = Some(vw_api_transport::local_settings_project(project.as_deref()).to_owned());
     let Some(context) = context else {
         return Task::none();
@@ -164,7 +170,7 @@ fn update_settings(
             }
             return Task::none();
         }
-        Event::Open(_) | Event::OpenClientHost => {
+        Event::Open(_) | Event::OpenClientHost | Event::OpenRectifier => {
             if state.busy {
                 return Task::none();
             }
@@ -176,6 +182,7 @@ fn update_settings(
                 target: match event {
                     Event::Open(Some(id)) => Target::App(id),
                     Event::Open(None) => Target::Listener,
+                    Event::OpenRectifier => Target::Rectifier,
                     _ => Target::ClientHost,
                 },
                 ..Default::default()
@@ -196,7 +203,7 @@ fn update_settings(
                 Ok(value) => {
                     state.load(value);
                     state.error = None;
-                    if saving && !inline {
+                    if saving && inline.is_none() {
                         state.open = false;
                     }
                     if saving && state.target == Target::Listener {
@@ -205,7 +212,7 @@ fn update_settings(
                 }
                 Err(error) => {
                     state.error = Some(error.clone());
-                    if !inline {
+                    if inline.is_none() {
                         return crate::error(notice, error);
                     }
                 }
@@ -235,7 +242,7 @@ fn update_settings(
                 }
             return Task::none();
         }
-        Event::Reload | Event::Save => {}
+        Event::Reload | Event::Save | Event::SetRectifier(_) => {}
     }
     if !state.open
         || state.busy
@@ -244,18 +251,25 @@ fn update_settings(
     {
         return Task::none();
     }
-    let saving = matches!(event, Event::Save);
-    let draft = if saving {
-        match state.draft() {
+    let draft = match event {
+        Event::SetRectifier(config) => {
+            if state.target != Target::Rectifier
+                || !matches!(state.value, Some(Value::Rectifier(_)))
+            {
+                return Task::none();
+            }
+            Some(Value::Rectifier(config))
+        }
+        Event::Save => match state.draft() {
             Ok(value) => Some(value),
             Err(error) => {
                 state.error = Some(error);
                 return Task::none();
             }
-        }
-    } else {
-        None
+        },
+        _ => None,
     };
+    let saving = draft.is_some();
     let Some(client) = client else {
         return crate::error(notice, "无法连接网关");
     };
@@ -271,6 +285,14 @@ fn update_settings(
             #[cfg(not(target_arch = "wasm32"))]
             let request = async {
                 match (target, draft) {
+                    (Target::Rectifier, None) => client
+                        .app_routing_rectifier(&context.host, &token)
+                        .await
+                        .map(Value::Rectifier),
+                    (Target::Rectifier, Some(Value::Rectifier(config))) => client
+                        .app_routing_set_rectifier(&context.host, &token, &config)
+                        .await
+                        .map(Value::Rectifier),
                     (Target::Listener, None) => {
                         client.app_routing_config(&context.host, &token).await.map(Value::Listener)
                     }
@@ -400,6 +422,101 @@ fn inline_status(i18n: desktop_i18n::I18n, state: &State) -> Element<'_, Message
     container(content).padding([12, 0]).into()
 }
 
+pub(super) fn rectifier(
+    i18n: desktop_i18n::I18n,
+    state: &State,
+    available: bool,
+) -> Element<'_, Message> {
+    let send = lifecycle::Event::Rectifier;
+    let mut body = column![].spacing(14);
+    if !available {
+        body = body
+            .push(text(i18n.__("连接执行主机后可配置请求整流。")).style(settings_muted_text_style));
+    } else if let Some(Value::Rectifier(saved)) = &state.value {
+        let config = *saved;
+        let ready = !state.busy;
+        let settings: [(&str, &str, bool, bool, fn(&mut RectifierConfig, bool)); 5] = [
+            (
+                i18n.__("启用整流器"),
+                i18n.__("允许路由自动修复请求。"),
+                config.enabled,
+                ready,
+                |config: &mut RectifierConfig, value| config.enabled = value,
+            ),
+            (
+                i18n.__("Thinking 签名整流"),
+                i18n.__("上游拒绝不兼容的 Thinking 签名时，移除相关内容并向同一供应商重试一次。"),
+                config.thinking_signature,
+                ready && config.enabled,
+                |config: &mut RectifierConfig, value| config.thinking_signature = value,
+            ),
+            (
+                i18n.__("Thinking 预算整流"),
+                i18n.__("上游拒绝 Thinking 预算时，修复预算和输出长度约束后重试一次。"),
+                config.thinking_budget,
+                ready && config.enabled,
+                |config: &mut RectifierConfig, value| config.thinking_budget = value,
+            ),
+            (
+                i18n.__("图片输入降级"),
+                i18n.__("根据模型声明或上游错误，将不支持的图片替换为占位文本。"),
+                config.media_fallback,
+                ready && config.enabled,
+                |config: &mut RectifierConfig, value| config.media_fallback = value,
+            ),
+            (
+                i18n.__("纯文本模型预判"),
+                i18n.__("额外根据内置纯文本模型列表在发送前替换图片。"),
+                config.media_heuristic,
+                ready && config.enabled && config.media_fallback,
+                |config: &mut RectifierConfig, value| config.media_heuristic = value,
+            ),
+        ];
+        for (label, description, checked, editable, edit) in settings {
+            body = body.push(settings_row(
+                label,
+                description,
+                48.0,
+                settings_toggle(checked).on_toggle_maybe(editable.then_some(move |value| {
+                    let mut next = config;
+                    edit(&mut next, value);
+                    send(Event::SetRectifier(next))
+                })),
+            ));
+        }
+        body = body.push(
+            button(text(if state.busy { i18n.__("请求中") } else { i18n.__("重新读取") }))
+                .padding([8, 12])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(ready.then_some(send(Event::Reload))),
+        );
+    } else if state.error.is_none() {
+        body = body.push(text(i18n.__("正在读取…")).style(settings_muted_text_style));
+    } else {
+        body = body.push(
+            button(text(i18n.__("重新读取")))
+                .padding([8, 12])
+                .style(rounded_action_btn_style)
+                .on_press(send(Event::Reload)),
+        );
+    }
+    if available && let Some(error) = &state.error {
+        body = body.push(settings_error_banner(i18n.__(error).to_owned()));
+    }
+    body = body.push(settings_divider()).push(
+        column![
+            settings_field_label(i18n.__("Bedrock 请求优化器")),
+            text(i18n.__("Bedrock 供应商目前仅支持直连，路由请求优化不可用。"))
+                .size(13)
+                .style(settings_muted_text_style),
+        ]
+        .spacing(5),
+    );
+    column![text(i18n.__("请求整流")).size(18), settings_group_card(body).padding([16, 22]),]
+        .spacing(12)
+        .into()
+}
+
 pub fn timeout_button(i18n: desktop_i18n::I18n, id: AppId) -> Element<'static, Message> {
     button(text(i18n.__("应用路由超时")))
         .padding([8, 12])
@@ -417,6 +534,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n,
         return base;
     }
     let (title, description, labels): (_, _, &[_]) = match state.target {
+        Target::Rectifier => return base,
         Target::Listener => (
             i18n.__("路由监听设置"),
             i18n.__("修改监听设置可能重新绑定路由服务。"),

@@ -1,4 +1,4 @@
-//! 技能配置设置界面组件。
+//! 技能模块的本地技能页面。
 
 mod browser;
 mod catalog;
@@ -7,25 +7,18 @@ mod plugin_install_modal;
 pub(crate) mod plugins;
 pub(crate) mod sync;
 
-use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::SkillsSettingsTab;
 use crate::app::{App, Message, message};
 #[cfg(test)]
 use desktop_i18n::settings_extensions::text as tr;
 use iced::Element;
 
-use desktop_settings_skills::page::SKILLS_TAB_LABELS;
 fn page_message(event: desktop_settings_skills::page::Message) -> Message {
     use desktop_settings_skills::page::Message as Ui;
     Message::Settings(match event {
         Ui::HelpOpen => message::SettingsMessage::SkillsHelpOpen,
         #[cfg(not(target_arch = "wasm32"))]
-        Ui::OpenSkillList => {
-            return Message::Batch(vec![
-                Message::View(message::ViewMessage::ToggleSystemSettings),
-                Message::SkillHub(message::SkillHubMessage::OpenShijuSkills),
-            ]);
-        }
+        Ui::OpenSkillList => return Message::SkillHub(message::SkillHubMessage::OpenShijuSkills),
         Ui::None => return Message::None,
         Ui::CopyText(text) => return Message::CopyCode(text),
         Ui::SkillsTabChanged(v) => message::SettingsMessage::SkillsTabChanged(v),
@@ -47,24 +40,6 @@ fn config_context(app: &App) -> desktop_settings_skills::page::ConfigContext<'_>
         prompt_injection_mode: s.prompt_injection_mode,
     }
 }
-pub(super) const SKILLS_TABS: &[SettingsTabDescriptor<SkillsSettingsTab>] = &[
-    SettingsTabDescriptor::new(
-        SKILLS_TAB_LABELS[0].1,
-        SKILLS_TAB_LABELS[0].0,
-        &["skills", "catalog", "技能目录"],
-    ),
-    SettingsTabDescriptor::new(
-        SKILLS_TAB_LABELS[1].1,
-        SKILLS_TAB_LABELS[1].0,
-        &["discovery order", "发现顺序", "project", "ancestor", "global", "bundled"],
-    ),
-    SettingsTabDescriptor::new(
-        SKILLS_TAB_LABELS[2].1,
-        SKILLS_TAB_LABELS[2].0,
-        &["项目技能", "project skills", "提示注入", "prompt injection"],
-    ),
-];
-
 fn system_config_view(app: &App) -> Element<'_, Message> {
     desktop_settings_skills::page::system_config_view(config_context(app)).map(page_message)
 }
@@ -91,25 +66,24 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 }
 
 pub(crate) fn is_visible(app: &App) -> bool {
-    app.navigation_panels.show_system_settings
-        && app.navigation_panels.system_settings_tab == super::system_settings::SystemTab::Agents
-        && app.agents_settings.active_config_tab == crate::app::state::AgentConfigTab::Skills
-}
+    use crate::app::skill_hub::{ExpertHubSection, PublicSkillTab};
 
-pub(crate) fn open(app: &mut App) -> iced::Task<Message> {
-    crate::app::message::view::update(
-        app,
-        message::ViewMessage::OpenSystemSettingsTarget(
-            super::system_settings_search::SystemSettingsSearchTarget::AgentSkills(
-                SkillsSettingsTab::Skills,
-            ),
-        ),
-    )
+    let market = &app.expert_hub.public_market;
+    !app.navigation_panels.show_system_settings
+        && app.navigation_tabs.screen == crate::app::Screen::ExpertHub
+        && app.expert_hub.section == ExpertHubSection::Skills
+        && market.tab == PublicSkillTab::LocalSkills
+        && !market.installed_open
+        && market.detail.is_none()
 }
 
 pub(crate) fn invalidate(app: &mut App) {
+    use message::SettingsMessage;
+
     app.skills_settings.sync.menu = None;
     app.skills_settings.sync.form = None;
+    let _ = message::settings::skills::update(app, SettingsMessage::SkillsDetailClosed);
+    let _ = message::settings::skills::update(app, SettingsMessage::SkillsHelpClose);
 }
 
 #[cfg(test)]

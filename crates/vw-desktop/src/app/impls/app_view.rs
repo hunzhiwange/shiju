@@ -204,6 +204,12 @@ impl App {
             crate::app::project_switcher::with_switcher(self, main_view)
         };
 
+        let main_view = if components::system_settings_skills::is_visible(self) {
+            components::system_settings_skills::view_overlays(self, main_view)
+        } else {
+            main_view
+        };
+
         let main_view = if components::system_settings_cron::visible(self) {
             let base = components::system_settings_cron::view_overlays(self, main_view);
             components::system_settings_channels::view_overlays(self, base)

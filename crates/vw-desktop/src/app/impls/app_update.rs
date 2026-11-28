@@ -198,7 +198,11 @@ impl App {
             return self.refresh_task_pet_window();
         }
         crate::app::page_history::initialize(self);
+        let local_skills_visible = crate::app::components::system_settings_skills::is_visible(self);
         let task = self.dispatch(message);
+        if local_skills_visible && !crate::app::components::system_settings_skills::is_visible(self) {
+            crate::app::components::system_settings_skills::invalidate(self);
+        }
         crate::app::page_history::record(self);
         task
     }

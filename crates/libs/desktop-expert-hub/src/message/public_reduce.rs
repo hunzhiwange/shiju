@@ -337,6 +337,7 @@ pub(super) fn load_current_tab(state: &mut PublicSkillMarketState, force: bool) 
             }
             requests
         }
+        PublicSkillTab::LocalSkills => Vec::new(),
         PublicSkillTab::Suites => {
             if !force && matches!(state.suites, LoadState::Loaded(_)) {
                 Vec::new()
@@ -391,7 +392,7 @@ pub(super) fn change_page(state: &mut PublicSkillMarketState, next: bool) -> Vec
                 false
             }
         }
-        PublicSkillTab::Recommended => false,
+        PublicSkillTab::Recommended | PublicSkillTab::LocalSkills => false,
     };
     if changed { load_current_tab(state, true) } else { Vec::new() }
 }

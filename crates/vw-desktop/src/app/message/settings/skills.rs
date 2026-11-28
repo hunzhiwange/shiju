@@ -161,7 +161,20 @@ fn execute(app: &mut App, effect: Effect) -> Task<Message> {
             effects.into_iter().map(|effect| execute(app, effect)).collect::<Vec<_>>(),
         ),
         Effect::RefreshProject(path) => crate::app::projects::project_settings_refresh_task(path),
-        Effect::OpenProject(path) => app.open_project_and_index(path),
+        Effect::OpenProject(path) => {
+            use crate::app::components::system_settings_skills as local_skills;
+
+            let keep_local_skills_open = local_skills::is_visible(app);
+            if keep_local_skills_open {
+                local_skills::invalidate(app);
+                app.skills_settings.loading = true;
+            }
+            let open = app.open_project_and_index(path);
+            if keep_local_skills_open {
+                crate::app::message::skill_hub::open_expert_hub_tab(app);
+            }
+            open
+        }
         Effect::Copy(value) => Task::done(Message::CopyCode(value)),
         Effect::Refresh(path) => refresh_task(path),
         Effect::PluginsRefresh => plugins_refresh_task(),

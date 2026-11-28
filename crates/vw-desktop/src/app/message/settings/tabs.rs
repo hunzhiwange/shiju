@@ -134,11 +134,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Agents;
                 app.agents_settings.loading = true;
                 app.agents_settings.save_error = None;
-                app.skills_settings.loading = true;
-                Task::batch(vec![
-                    Task::done(Message::Settings(SettingsMessage::Agents(AgentsMessage::Refresh))),
-                    Task::done(Message::Settings(SettingsMessage::SkillsRefresh)),
-                ])
+                Task::done(Message::Settings(SettingsMessage::Agents(AgentsMessage::Refresh)))
             } else if tab == SystemTab::Browser {
                 app.browser_settings.save_error = None;
                 Task::done(Message::Settings(SettingsMessage::Browser(BrowserMessage::Refresh)))
@@ -227,15 +223,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     ));
                     super::mcp::update(app, SettingsMessage::Mcp(McpMessage::TabSelected(tab)))
                 }
-                SystemSettingsSearchTarget::AgentSkills(tab) => {
-                    tasks.push(update(
-                        app,
-                        SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
-                            crate::app::state::AgentConfigTab::Skills,
-                        )),
-                    ));
-                    super::skills::update(app, SettingsMessage::SkillsTabChanged(tab))
-                }
             };
             tasks.push(child_task);
             let scroll = match target {
@@ -273,11 +260,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         }
         SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(tab)) => {
-            if app.agents_settings.active_config_tab == crate::app::state::AgentConfigTab::Skills
-                && tab != crate::app::state::AgentConfigTab::Skills
-            {
-                crate::app::components::system_settings_skills::invalidate(app);
-            }
             app.agents_settings.active_config_tab = tab;
             app.navigation_panels.system_settings_help_tab = None;
             match tab {
@@ -290,11 +272,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.mcp_settings.loading = true;
                     app.mcp_settings.save_error = None;
                     Task::done(Message::Settings(SettingsMessage::Mcp(McpMessage::Refresh)))
-                }
-                crate::app::state::AgentConfigTab::Skills => {
-                    app.skills_settings.loading = true;
-                    app.skills_settings.save_error = None;
-                    Task::done(Message::Settings(SettingsMessage::SkillsRefresh))
                 }
                 crate::app::state::AgentConfigTab::Plugins => {
                     app.skills_settings.plugin_loading = true;

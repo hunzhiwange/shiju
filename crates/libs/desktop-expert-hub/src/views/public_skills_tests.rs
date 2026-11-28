@@ -1,4 +1,4 @@
-//! 公共技能市场测试，覆盖来源选择、推荐卡片和三类工作助手标签。
+//! 技能模块测试，覆盖来源选择、推荐卡片和技能标签。
 //! 来源选择器仅在确有多个来源时出现，窄布局仍需保持卡片背景与中文文本可读。
 
 use gateway_skill_market::{
@@ -112,13 +112,14 @@ async fn assert_draws(mut element: Element<'_, Message>, theme: &Theme, width: f
 }
 
 #[test]
-fn public_skill_page_builds_three_workbuddy_tabs() {
+fn public_skill_page_places_local_skills_after_suites() {
     assert_eq!(
         public_tab_specs(),
         &[
             ("推荐", PublicSkillTab::Recommended),
             ("SkillHub", PublicSkillTab::SkillHub),
             ("套件", PublicSkillTab::Suites),
+            ("本地技能", PublicSkillTab::LocalSkills),
         ]
     );
     assert_eq!(grid_column_count(720.0), 2);
@@ -144,11 +145,25 @@ fn featured_skill_cards_keep_the_recommended_card_background() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn public_skill_page_renders_chinese_in_both_themes() {
-    for tab in [PublicSkillTab::Recommended, PublicSkillTab::SkillHub, PublicSkillTab::Suites] {
-        let app = populated_app(tab);
+    for tab in [
+        PublicSkillTab::Recommended,
+        PublicSkillTab::SkillHub,
+        PublicSkillTab::Suites,
+        PublicSkillTab::LocalSkills,
+    ] {
+        let mut app = populated_app(tab);
+        if tab == PublicSkillTab::LocalSkills {
+            app.expert_hub.public_market.sources = LoadState::Idle;
+        }
         for theme in [Theme::Light, Theme::Dark] {
             for width in [720.0, 1_440.0] {
-                assert_draws(view(&app.input()), &theme, width).await;
+                let local_rendered = std::cell::Cell::new(false);
+                let page = view(&app.input(), std::convert::identity, || {
+                    local_rendered.set(true);
+                    iced::widget::text("本地技能配置").into()
+                });
+                assert_eq!(local_rendered.get(), tab == PublicSkillTab::LocalSkills);
+                assert_draws(page, &theme, width).await;
             }
         }
     }
@@ -387,7 +402,10 @@ async fn skill_form_controls_render_source_and_sort() {
         );
         for theme in [Theme::Light, Theme::Dark] {
             for width in [420, 760] {
-                let mut controls = SkillControls::new(view(&app.input()), &mut renderer, width);
+                let page = view(&app.input(), std::convert::identity, || {
+                    iced::widget::Space::new().into()
+                });
+                let mut controls = SkillControls::new(page, &mut renderer, width);
                 let source = controls.bounds(&[0, 0, 1, 1]);
                 let sort = controls.bounds(&[0, 1, 0, 1]);
                 assert_eq!(source.width, 160.0);

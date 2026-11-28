@@ -75,7 +75,6 @@ fn search_target_is_active(app: &App, target: SystemSettingsSearchTarget) -> boo
             security: app.security_settings.active_tab,
             gateway: app.gateway_settings.active_tab,
             mcp: app.mcp_settings.active_tab,
-            skills: app.skills_settings.active_tab,
         },
         target,
     )

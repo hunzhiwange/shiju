@@ -46,6 +46,7 @@ pub(crate) enum SkillHubMessage {
     Public(public::PublicSkillMessage),
     Open,
     OpenShijuSkills,
+    OpenLocalSkills,
     OpenInstalledShijuSkills,
     UpgradeAllFunctions,
     UpgradeMainSkill,
@@ -243,6 +244,7 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
     let message = match message {
         SkillHubMessage::Connectors(message) => return connectors::update(app, message),
         SkillHubMessage::Knowledge(message) => return knowledge::update(app, message),
+        SkillHubMessage::OpenLocalSkills => return public::open_local_skills(app),
         SkillHubMessage::Public(message) => return public::update(app, message),
         SkillHubMessage::UpgradeAllFunctions => D::UpgradeAllFunctions,
         SkillHubMessage::UpgradeMainSkill => D::UpgradeMainSkill,

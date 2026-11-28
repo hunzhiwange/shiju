@@ -9,7 +9,6 @@ pub enum AgentConfigTab {
     Runtime,
     Acp,
     Mcp,
-    Skills,
     Plugins,
     Reliability,
     DialogueFlow,

@@ -29,15 +29,7 @@ fn map(event: domain::Message) -> Message {
             Message::SkillHub(crate::app::message::skill_hub::map_domain(m))
         }
         domain::Message::OpenSkillSettings => {
-            use crate::app::{
-                components::system_settings_search::SystemSettingsSearchTarget,
-                message::ViewMessage,
-                state::SkillsSettingsTab,
-            };
-
-            Message::View(ViewMessage::OpenSystemSettingsTarget(
-                SystemSettingsSearchTarget::AgentSkills(SkillsSettingsTab::Skills),
-            ))
+            Message::SkillHub(crate::app::message::SkillHubMessage::OpenLocalSkills)
         }
         domain::Message::Connectors(m) => {
             Message::SkillHub(crate::app::message::SkillHubMessage::Connectors(m))
@@ -62,9 +54,12 @@ fn map(event: domain::Message) -> Message {
     }
 }
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
-    domain::view(&input(app), map, |content| {
-        crate::app::views::project::with_session_sidebar(app, content)
-    })
+    domain::view(
+        &input(app),
+        map,
+        |content| crate::app::views::project::with_session_sidebar(app, content),
+        || crate::app::components::system_settings_skills::view(app),
+    )
 }
 pub(crate) fn shiju_skills_view(app: &App) -> Element<'_, Message> {
     domain::shiju_skills_view(&input(app), map, |content| {

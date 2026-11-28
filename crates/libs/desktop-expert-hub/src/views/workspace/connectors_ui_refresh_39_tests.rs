@@ -728,7 +728,10 @@ async fn help_rollout_23_renders_contextual_help() {
         app.app_theme = theme;
         let i18n = I18n::new(locale);
         let size = Size::new(width, 720);
-        let mut ui = scene(super::view(&app.input(), identity, identity), &mut renderer, size);
+        let page = super::view(&app.input(), identity, identity, || {
+            iced::widget::Space::new().into()
+        });
+        let mut ui = scene(page, &mut renderer, size);
         for (id, title, description) in [
             ("account-group", "账号信息", "填写需要绑定的第三方账号"),
             ("account-id", "第三方账号 ID", "连接器平台中的账号标识"),
@@ -782,7 +785,10 @@ async fn help_rollout_23_connector_page_uses_only_static_menu_text() {
     let description = i18n.__("查看并授权你自己的连接器账号。");
     let mut renderer = renderer().await;
     let size = Size::new(960, 600);
-    let mut ui = scene(super::view(&app.input(), identity, identity), &mut renderer, size);
+    let page = super::view(&app.input(), identity, identity, || {
+        iced::widget::Space::new().into()
+    });
+    let mut ui = scene(page, &mut renderer, size);
     let icon = check_contextual_help(
         &mut ui,
         &mut renderer,
@@ -860,7 +866,10 @@ async fn help_rollout_23_installed_skills_renders_contextual_help() {
         app.desktop_locale = locale;
         app.app_theme = theme;
         let i18n = I18n::new(locale);
-        let mut ui = scene(super::view(&app.input(), identity, identity), &mut renderer, size);
+        let page = super::view(&app.input(), identity, identity, || {
+            iced::widget::Space::new().into()
+        });
+        let mut ui = scene(page, &mut renderer, size);
         check_contextual_help(
             &mut ui,
             &mut renderer,

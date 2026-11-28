@@ -15,7 +15,9 @@ fn expert_hub_shell_builds_all_sections_and_skill_tabs() {
         [ExpertHubSection::Experts, ExpertHubSection::Connectors, ExpertHubSection::Skills]
     {
         app.expert_hub.section = section;
-        let element: iced::Element<'_, Message> = super::view(&app.input(), identity, identity);
+        let element: iced::Element<'_, Message> = super::view(&app.input(), identity, identity, || {
+            iced::widget::Space::new().into()
+        });
         std::hint::black_box(element);
     }
 

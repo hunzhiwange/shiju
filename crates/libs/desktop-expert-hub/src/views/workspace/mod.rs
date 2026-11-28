@@ -45,21 +45,22 @@ pub fn view<'a, M: Clone + 'static>(
     app: &WorkspaceInput<'a>,
     map: fn(Message) -> M,
     layout: impl FnOnce(Element<'a, M>) -> Element<'a, M>,
+    local_skills: impl FnOnce() -> Element<'a, M>,
 ) -> Element<'a, M> {
-    let body: Element<'_, Message> = match app.expert_hub.section {
-        ExpertHubSection::Experts => experts::view(app),
-        ExpertHubSection::Connectors => connectors::view(app),
-        ExpertHubSection::Knowledge => knowledge::view(app),
+    let body = match app.expert_hub.section {
+        ExpertHubSection::Experts => experts::view(app).map(map),
+        ExpertHubSection::Connectors => connectors::view(app).map(map),
+        ExpertHubSection::Knowledge => knowledge::view(app).map(map),
         ExpertHubSection::Skills if app.expert_hub.public_market.installed_open => {
-            installed_skills::view(app)
+            installed_skills::view(app).map(map)
         }
         ExpertHubSection::Skills if app.expert_hub.public_market.detail.is_some() => {
-            public_skill_detail::view(app)
+            public_skill_detail::view(app).map(map)
         }
-        ExpertHubSection::Skills => public_skills::view(app),
+        ExpertHubSection::Skills => public_skills::view(app, map, local_skills),
     };
 
-    let base = layout(crate::views::shell::view(section_tabs(app, map), body.map(map)));
+    let base = layout(crate::views::shell::view(section_tabs(app, map), body));
 
     let base = installed_skills::with_delete_confirmation(app, base, map);
     connectors::with_binding_modal(app, base, map)

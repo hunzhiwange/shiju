@@ -8,7 +8,6 @@ use desktop_settings_providers::state::ModelConfigTab;
 use desktop_settings_security::{
     app_init::state::AutonomySettingsTab, security_state::SecuritySettingsTab,
 };
-use desktop_settings_skills::types::SkillsSettingsTab;
 /// 系统设置搜索结果对应的稳定强类型跳转目标。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemSettingsSearchTarget {
@@ -25,7 +24,6 @@ pub enum SystemSettingsSearchTarget {
     Gateway(GatewaySettingsTab),
     Network(SystemTab),
     AgentMcp(McpSettingsTab),
-    AgentSkills(SkillsSettingsTab),
 }
 
 impl SystemSettingsSearchTarget {
@@ -35,7 +33,7 @@ impl SystemSettingsSearchTarget {
             Self::ThirdParty(_) => SystemTab::Apps,
             Self::General(_) | Self::GeneralField(_) => SystemTab::General,
             Self::Models(_) => SystemTab::Models,
-            Self::Agents(_) | Self::Channels(_) | Self::AgentMcp(_) | Self::AgentSkills(_) => {
+            Self::Agents(_) | Self::Channels(_) | Self::AgentMcp(_) => {
                 SystemTab::Agents
             }
             Self::Memory(_) => SystemTab::Memory,
@@ -79,7 +77,6 @@ pub struct ActiveNavigation {
     pub security: SecuritySettingsTab,
     pub gateway: GatewaySettingsTab,
     pub mcp: McpSettingsTab,
-    pub skills: SkillsSettingsTab,
 }
 pub fn search_target_is_active(
     state: &ActiveNavigation,
@@ -122,11 +119,6 @@ pub fn search_target_is_active(
             state.page == SystemTab::Agents
                 && state.agents == AgentConfigTab::Mcp
                 && state.mcp == tab
-        }
-        SystemSettingsSearchTarget::AgentSkills(tab) => {
-            state.page == SystemTab::Agents
-                && state.agents == AgentConfigTab::Skills
-                && state.skills == tab
         }
     }
 }

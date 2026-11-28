@@ -58,7 +58,6 @@ pub(super) fn system_tab_matches_query(tab: SystemTab, query: &str) -> bool {
                     &needle,
                 )
                 || descriptors_match(super::system_settings_mcp::MCP_TABS, &needle)
-                || descriptors_match(super::system_settings_skills::SKILLS_TABS, &needle)
         }
         SystemTab::Channels => {
             descriptors_match(&super::system_settings_channels::channel_tab_descriptors(), &needle)
@@ -99,7 +98,6 @@ pub(super) fn active_tab_help_modal_open(app: &App, active_tab: SystemTab) -> bo
     ) || match active_tab {
         SystemTab::Agents => match app.agents_settings.active_config_tab {
             crate::app::state::AgentConfigTab::Heartbeat => app.heartbeat_settings.show_help_modal,
-            crate::app::state::AgentConfigTab::Skills => app.skills_settings.show_help_modal,
             crate::app::state::AgentConfigTab::Reliability => {
                 app.reliability_settings.show_help_modal
             }
@@ -146,7 +144,6 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
             }
             crate::app::state::AgentConfigTab::Acp => app.acp_settings.save_error.as_deref(),
             crate::app::state::AgentConfigTab::Mcp => app.mcp_settings.save_error.as_deref(),
-            crate::app::state::AgentConfigTab::Skills => app.skills_settings.save_error.as_deref(),
             crate::app::state::AgentConfigTab::Plugins => None,
             crate::app::state::AgentConfigTab::Reliability => {
                 app.reliability_settings.save_error.as_deref()
@@ -401,9 +398,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
             }
             crate::app::state::AgentConfigTab::Mcp => {
                 crate::app::components::system_settings_mcp::view_overlays(app, dialog)
-            }
-            crate::app::state::AgentConfigTab::Skills => {
-                crate::app::components::system_settings_skills::view_overlays(app, dialog)
             }
             crate::app::state::AgentConfigTab::Reliability => {
                 crate::app::components::system_settings_reliability::view_overlays(app, dialog)

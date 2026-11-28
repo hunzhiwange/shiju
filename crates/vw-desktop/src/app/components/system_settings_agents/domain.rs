@@ -18,9 +18,9 @@ pub(in crate::app::components) fn event(event: Event) -> Message {
             Message::Chat(crate::app::message::ChatMessage::AppendText(text))
         }
         Event::CopyText(text) => Message::CopyCode(text),
-        Event::OpenSkills => Message::Settings(SettingsMessage::AgentConfigTab(
-            AgentConfigTabMessage::Selected(AgentConfigTab::Skills),
-        )),
+        Event::OpenSkills => {
+            Message::SkillHub(crate::app::message::SkillHubMessage::OpenLocalSkills)
+        }
         Event::Selection(session, index, text_index, text) => desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage::selection(session, index, text_index, text),
         Event::None => Message::None,
         Event::RefreshMcp => Message::Settings(SettingsMessage::Mcp(McpMessage::InspectRefresh)),

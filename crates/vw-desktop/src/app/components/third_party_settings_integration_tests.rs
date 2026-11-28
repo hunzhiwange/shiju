@@ -123,14 +123,16 @@ fn third_party_task_08_scope_and_navigation() {
     let _ = navigate(&mut app, ThirdPartyPage::Skills);
     assert_eq!(app.apps_catalog.third_party_page, page);
     assert!(crate::app::components::system_settings_skills::is_visible(&app));
+    assert_eq!(app.navigation_tabs.screen, crate::app::Screen::ExpertHub);
+    assert!(!app.navigation_panels.show_system_settings);
     assert_eq!(app.skills_settings.active_tab, crate::app::state::SkillsSettingsTab::Skills);
     assert!(app.app_providers.scope.is_none());
     assert!(app.agent_apps_auth.form.is_none());
 }
 
 #[test]
-fn third_party_task_08_search_keeps_mcp_and_skills_in_system_settings() {
-    if !isolated("third_party_task_08_search_keeps_mcp_and_skills_in_system_settings") { return; }
+fn third_party_task_08_search_keeps_mcp_in_system_settings() {
+    if !isolated("third_party_task_08_search_keeps_mcp_in_system_settings") { return; }
     let app = fixture();
     let entries = system_settings_search::catalog(&app);
     for &(page, _) in ThirdPartyPage::ALL {
@@ -145,7 +147,7 @@ fn third_party_task_08_search_keeps_mcp_and_skills_in_system_settings() {
         assert_eq!(matches[0].target.page(), SystemTab::Apps);
     }
     assert!(entries.iter().any(|entry| matches!(entry.target, SystemSettingsSearchTarget::AgentMcp(_))));
-    assert!(entries.iter().any(|entry| matches!(entry.target, SystemSettingsSearchTarget::AgentSkills(_))));
+    assert!(entries.iter().all(|entry| entry.label != "本地技能配置"));
 }
 
 /// Shapes and rasterizes dynamic Chinese text; this is not native-window acceptance.
@@ -243,6 +245,8 @@ fn third_party_skills_navigation_opens_local_skill_settings() {
     let page = app.apps_catalog.third_party_page;
     let _ = crate::app::message::settings::apps_catalog::update(&mut app, AppsCatalogMessage::Navigate(ThirdPartyPage::Skills));
     assert!(crate::app::components::system_settings_skills::is_visible(&app));
+    assert_eq!(app.navigation_tabs.screen, crate::app::Screen::ExpertHub);
+    assert!(!app.navigation_panels.show_system_settings);
     assert_eq!(app.skills_settings.active_tab, crate::app::state::SkillsSettingsTab::Skills);
     assert_eq!(app.apps_catalog.third_party_page, page);
 }

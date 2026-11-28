@@ -1273,6 +1273,7 @@
   "使用 full（关闭时为 compact）": "使用 full（關閉時為 compact）",
   "系统配置": "系統設定",
   "这里配置项目技能默认加载与 prompt injection；目录顺序单独展示。": "在此設定專案技能預設載入及 prompt injection；目錄順序另行顯示。",
+  "本地技能": "本機技能",
   "本地技能配置": "本機技能設定",
   "请在 Claude Desktop 中上传技能 ZIP": "請在 Claude Desktop 中上傳技能 ZIP",
   "支持全局安装": "支援全域安裝",

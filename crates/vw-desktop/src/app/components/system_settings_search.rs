@@ -24,7 +24,7 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
         system_settings_agents, system_settings_autonomy, system_settings_channels,
         system_settings_gateway, system_settings_general,
         system_settings_mcp, system_settings_memory, system_settings_models,
-        system_settings_network, system_settings_security, system_settings_skills,
+        system_settings_network, system_settings_security,
     };
 
     let mut entries = SystemTab::all()
@@ -65,7 +65,6 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
     extend_tabs!(system_settings_gateway::GATEWAY_TABS, "服务端网关", Gateway);
     extend_tabs!(system_settings_network::NETWORK_TABS, "网络配置", Network);
     extend_tabs!(system_settings_mcp::MCP_TABS, "智能体 / MCP", AgentMcp);
-    extend_tabs!(system_settings_skills::SKILLS_TABS, "本地技能配置", AgentSkills);
     for &(page, label) in desktop_ui_controls::settings_navigation::ThirdPartyPage::ALL {
         use desktop_ui_controls::settings_navigation::ThirdPartyPage;
         if matches!(page, ThirdPartyPage::Mcp | ThirdPartyPage::Skills) {

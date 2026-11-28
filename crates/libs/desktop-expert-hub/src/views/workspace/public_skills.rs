@@ -1,13 +1,20 @@
 use crate::views::workspace::{Message, ViewInput as WorkspaceInput};
 use crate::views::{ViewInput, public_skills as domain};
 use iced::Element;
-pub(super) fn view<'a>(app: &WorkspaceInput<'a>) -> Element<'a, Message> {
-    domain::view(&ViewInput {
-        expert_hub: app.expert_hub,
-        desktop_locale: app.desktop_locale,
-        app_theme: app.app_theme,
-    })
-    .map(map)
+pub(super) fn view<'a, M: Clone + 'static>(
+    app: &WorkspaceInput<'a>,
+    host_map: fn(Message) -> M,
+    local_skills: impl FnOnce() -> Element<'a, M>,
+) -> Element<'a, M> {
+    domain::view(
+        &ViewInput {
+            expert_hub: app.expert_hub,
+            desktop_locale: app.desktop_locale,
+            app_theme: app.app_theme,
+        },
+        move |message| host_map(map(message)),
+        local_skills,
+    )
 }
 fn map(message: crate::views::Message) -> crate::views::workspace::Message {
     match message {

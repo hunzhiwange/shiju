@@ -34,12 +34,13 @@ pub enum SkillTab {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-/// 公共技能市场的推荐、单技能与套件页签。
+/// 技能模块的公共市场与本地技能页签。
 pub enum PublicSkillTab {
     #[default]
     Recommended,
     SkillHub,
     Suites,
+    LocalSkills,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

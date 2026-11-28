@@ -22,7 +22,7 @@ use desktop_skill_hub::skill_hub::{
     LoadState, PublicDetailTarget, PublicSkillMarketState, PublicSkillTab,
 };
 use desktop_ui_controls::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_select, settings_text_input,
+    primary_action_btn_style, settings_select, settings_text_input,
 };
 
 /// 公共技能页面统一使用的滚动条宽度。
@@ -67,6 +67,7 @@ pub fn public_tab_specs() -> &'static [(&'static str, PublicSkillTab)] {
         ("推荐", PublicSkillTab::Recommended),
         ("SkillHub", PublicSkillTab::SkillHub),
         ("套件", PublicSkillTab::Suites),
+        ("本地技能", PublicSkillTab::LocalSkills),
     ]
 }
 
@@ -126,59 +127,65 @@ pub fn source_selector(
     .into()
 }
 
-fn search_header<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
+fn skill_header(app: &ViewInput<'_>) -> Element<'static, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let state = &app.expert_hub.public_market;
-    let mut tabs = row(public_tab_specs()
+    let local = state.tab == PublicSkillTab::LocalSkills;
+    let tabs = row(public_tab_specs()
         .iter()
         .map(|(label, tab)| tab_button(i18n, label, *tab, state.tab == *tab))
-        .collect::<Vec<_>>());
-    tabs = tabs.push(
-        button(text(i18n.__("本地技能配置")).size(14))
-            .on_press(Message::OpenSkillSettings)
-            .padding([8, 16])
-            .style(rounded_action_btn_style),
-    );
-    let tabs = tabs.spacing(6).width(Length::Fill).wrap();
-    let search = settings_text_input(i18n.__("搜索技能或套件"), &state.query.keyword_draft)
-        .on_input(|query| public_message(PublicSkillMessage::QueryDraftChanged(query)))
-        .on_submit(public_message(PublicSkillMessage::SubmitQuery))
-        .width(Length::Fixed(340.0));
-    column![
-        row![
-            column![
-                text(desktop_i18n::I18n::new(app.desktop_locale).__("技能"))
-                    .size(26)
-                    .font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
-                text(
-                    desktop_i18n::I18n::new(app.desktop_locale)
-                        .__("发现适合当前工作的公开技能与套件")
-                )
+        .collect::<Vec<_>>())
+        .spacing(6)
+        .width(Length::Fill)
+        .wrap();
+
+    let mut title = column![
+        text(i18n.__("技能"))
+            .size(26)
+            .font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
+    ]
+    .spacing(5)
+    .width(Length::Fill);
+    let mut selectors = row![tabs].spacing(10).align_y(Alignment::Center);
+    if !local {
+        title = title.push(
+            text(i18n.__("发现适合当前工作的公开技能与套件"))
                 .size(13)
                 .style(styles::muted_text_style),
-            ]
-            .spacing(5)
-            .width(Length::Fill),
-            button(text(desktop_i18n::I18n::new(app.desktop_locale).__("我安装的")).size(13))
+        );
+        selectors = selectors.push(source_selector(i18n, state));
+    }
+    let mut header = column![
+        row![
+            title,
+            button(text(i18n.__("我安装的")).size(13))
                 .on_press(public_message(PublicSkillMessage::OpenInstalled))
                 .padding([9, 14])
                 .style(styles::quiet_button_style),
         ]
         .align_y(Alignment::Center),
-        row![tabs, source_selector(i18n, state)].spacing(10).align_y(Alignment::Center),
-        row![
-            search,
-            button(text(desktop_i18n::I18n::new(app.desktop_locale).__("搜索")).size(13))
-                .on_press(public_message(PublicSkillMessage::SubmitQuery))
-                .padding([10, 18])
-                .style(styles::action_button_style),
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center)
-        .wrap(),
+        selectors,
     ]
-    .spacing(14)
-    .into()
+    .spacing(14);
+    if !local {
+        let search = settings_text_input(i18n.__("搜索技能或套件"), &state.query.keyword_draft)
+            .on_input(|query| public_message(PublicSkillMessage::QueryDraftChanged(query)))
+            .on_submit(public_message(PublicSkillMessage::SubmitQuery))
+            .width(Length::Fixed(340.0));
+        header = header.push(
+            row![
+                search,
+                button(text(i18n.__("搜索")).size(13))
+                    .on_press(public_message(PublicSkillMessage::SubmitQuery))
+                    .padding([10, 18])
+                    .style(styles::action_button_style),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center)
+            .wrap(),
+        );
+    }
+    header.into()
 }
 
 fn truncate(value: &str, limit: usize) -> String {
@@ -606,24 +613,31 @@ fn suite_category_controls(
     .into()
 }
 
-/// 构建公共市场页签、来源、搜索、列表与分页界面。
-pub fn view<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
+/// 构建技能模块页签及其公共市场或本地内容。
+pub fn view<'a, M: Clone + 'static>(
+    app: &ViewInput<'a>,
+    map: impl Fn(Message) -> M + Copy + 'static,
+    local_skills: impl FnOnce() -> Element<'a, M>,
+) -> Element<'a, M> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let state = &app.expert_hub.public_market;
-    let content = match &state.sources {
-        LoadState::Idle | LoadState::Loading { .. } => loading_view(),
-        LoadState::Error(error) => error_view(i18n, &error.render(i18n)),
-        LoadState::NeedsLogin => error_view(
-            i18n,
-            desktop_i18n::I18n::new(app.desktop_locale).__("公开市场不需要登录，请重试"),
-        ),
-        LoadState::Loaded(_) => match state.tab {
-            PublicSkillTab::Recommended => recommended_content(i18n, state),
-            PublicSkillTab::SkillHub => market_content(i18n, state),
-            PublicSkillTab::Suites => suites_content(i18n, state),
-        },
+    let content = match (state.tab, &state.sources) {
+        (PublicSkillTab::LocalSkills, _) => local_skills(),
+        (_, LoadState::Idle | LoadState::Loading { .. }) => loading_view().map(map),
+        (_, LoadState::Error(error)) => error_view(i18n, &error.render(i18n)).map(map),
+        (_, LoadState::NeedsLogin) => {
+            error_view(i18n, i18n.__("公开市场不需要登录，请重试")).map(map)
+        }
+        (PublicSkillTab::Recommended, LoadState::Loaded(_)) => {
+            recommended_content(i18n, state).map(map)
+        }
+        (PublicSkillTab::SkillHub, LoadState::Loaded(_)) => market_content(i18n, state).map(map),
+        (PublicSkillTab::Suites, LoadState::Loaded(_)) => suites_content(i18n, state).map(map),
     };
-    let body = column![search_header(app), content].spacing(18).padding([0, 7]).width(Length::Fill);
+    let body = column![skill_header(app).map(map), content]
+        .spacing(18)
+        .padding([0, 7])
+        .width(Length::Fill);
     scrollable(body)
         .direction(Direction::Vertical(
             Scrollbar::new()

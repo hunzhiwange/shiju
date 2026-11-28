@@ -79,7 +79,6 @@ pub(super) const AGENT_CONFIG_TABS: &[SettingsTabDescriptor<AgentConfigTab>] = &
         "MCP",
         &["model context protocol", "mcpServers", "server"],
     ),
-    SettingsTabDescriptor::new(AgentConfigTab::Skills, "本地技能配置", &["skills", "catalog"]),
     SettingsTabDescriptor::new(
         AgentConfigTab::Plugins,
         "插件",
@@ -162,12 +161,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .height(Length::Fill)
                 .into()
         }
-        AgentConfigTab::Skills => scrollable(
-            container(crate::app::components::system_settings_skills::view(app)).padding([0, 7]),
-        )
-        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-        .height(Length::Fill)
-        .into(),
         AgentConfigTab::Plugins => scrollable(
             container(crate::app::components::system_settings_skills::plugins::view(app))
                 .padding([0, 7]),
@@ -244,7 +237,6 @@ fn active_tab_save_error(app: &App) -> Option<&str> {
         AgentConfigTab::Heartbeat => app.heartbeat_settings.save_error.as_deref(),
         AgentConfigTab::Channels
         | AgentConfigTab::Mcp
-        | AgentConfigTab::Skills
         | AgentConfigTab::Plugins
         | AgentConfigTab::DialogueFlow
         | AgentConfigTab::QuickMessages => None,

@@ -504,7 +504,12 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
     invalidate(app);
     match page {
         ThirdPartyPage::Mcp => return super::system_settings_mcp::open(app),
-        ThirdPartyPage::Skills => return super::system_settings_skills::open(app),
+        ThirdPartyPage::Skills => {
+            return crate::app::message::skill_hub::update(
+                app,
+                crate::app::message::SkillHubMessage::OpenLocalSkills,
+            );
+        }
         _ => {}
     }
     app.apps_catalog.third_party_page = page;
@@ -536,7 +541,6 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
 /// Invalidate transient UI and request generations without changing domain targets.
 pub(crate) fn invalidate(app: &mut App) {
     app.apps_catalog.commands.invalidate();
-    super::system_settings_skills::invalidate(app);
     let s = &mut app.apps_catalog;
     s.navigation_generation = s.navigation_generation.wrapping_add(1);
     s.agent_workspace_tab = Default::default();

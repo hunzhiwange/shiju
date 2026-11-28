@@ -238,7 +238,7 @@ _ => unreachable!("domain construction handled above"),
  #[cfg(unix)]
  fn native_tools(session: Option<&str>) -> Vec<Arc<dyn Tool>> {
   let Some(host) = super::computer_control::NativeControlRuntime::shared() else { return Vec::new() };
-  vec![Arc::new(super::computer_control::ComputerControlTool::new(host.clone(), session.map(str::to_owned))), Arc::new(tool_office::WordControlTool::<Self>::new(host.clone(), session.map(str::to_owned))), Arc::new(tool_office::ExcelControlTool::<Self>::new(host, session.map(str::to_owned)))]
+  vec![Arc::new(super::computer_control::ComputerControlTool::new(host, session.map(str::to_owned)))]
  }
 }
 

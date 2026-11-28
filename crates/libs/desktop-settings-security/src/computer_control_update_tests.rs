@@ -26,7 +26,7 @@ fn cc_runtime_ui06_stale_permission_response_is_discarded() {
         requesting_permission: true,
         ..ComputerControlSettingsState::default()
     };
-    let (_, notice) = update(&mut state, &endpoint, None, None, Event::NativePermissionRequested {
+    let (_, notice) = update(&mut state, &endpoint, Event::NativePermissionRequested {
         identity, generation: 3, result: Err("old response".into()),
     });
     assert!(notice.is_none());
@@ -51,7 +51,7 @@ fn cc_runtime_ui06_changed_identity_discards_report() {
     let old = GatewayEndpoint::new("127.0.0.1", 8765);
     let current = GatewayEndpoint::new("remote.example", 8765);
     let mut state = ComputerControlSettingsState::default();
-    let (_, notice) = update(&mut state, &current, None, None, Event::NativeServiceLoaded {
+    let (_, notice) = update(&mut state, &current, Event::NativeServiceLoaded {
         identity: ControlIdentity::from_endpoint(&old), generation: 0,
         result: Ok(NativeServiceReport { state: NativeServiceState::NotInstalled, permissions: None }),
     });

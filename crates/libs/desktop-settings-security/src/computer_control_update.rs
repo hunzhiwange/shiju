@@ -9,11 +9,6 @@ pub enum Event {
     Refresh,
     Manage(ControlSetting),
     ManageClose,
-    BrowserLoaded { identity: ControlIdentity, generation: u64, result: Result<BrowserPermissionsSnapshot, String> },
-    BrowserOrigin(String),
-    BrowserEdit { origin: Option<String>, field: u8, value: Option<BrowserPermission> },
-    BrowserRemove(String),
-    BrowserSave,
     CopyNativeInstallPath,
     CopyNativeInstallCommand,
     OpenNativePermissionGuide { screen_recording: bool },
@@ -25,13 +20,7 @@ pub enum Event {
     Revoke(ControlGrantScope),
     Stop,
     Stopped { identity: ControlIdentity, result: Result<(), String> },
-    PairOpen(ControlSetting),
-    PairDocument(String),
-    PairClose,
-    PairConfirm,
-    CopyCredential,
-    Completed { identity: ControlIdentity, generation: u64, result: Result<Option<PairingCredential>, String> },
-    CredentialExpired { identity: ControlIdentity, generation: u64 },
+    Completed { identity: ControlIdentity, generation: u64, result: Result<(), String> },
 }
 pub fn message(event: Event) -> Event { event }
 
@@ -52,7 +41,6 @@ fn refresh(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndpoint)
     state.error = None;
     let identity = ControlIdentity::from_endpoint(endpoint);
     state.identity = Some(identity.clone());
-    state.browser = None;
     state.native_service = None;
     state.native_permission_report = None;
     state.target_host = endpoint.base_url();
@@ -63,17 +51,12 @@ fn refresh(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndpoint)
     }
     let client = gateway_http::GatewayTransport::new(endpoint.clone())
         .map(gateway_computer_control::GatewayComputerControlClient::new);
-    let browser_identity = identity.clone();
-    let browser_client = client.clone();
-    let browser_task = Task::perform(async move {
-        browser_client?.browser_permissions().await.map_err(safe_error)
-    }, move |result| Event::BrowserLoaded { identity: browser_identity.clone(), generation, result });
     let service_identity = identity.clone();
     let service_client = client.clone();
     let service_task = Task::perform(async move {
         service_client?.native_service().await.map_err(safe_error)
     }, move |result| Event::NativeServiceLoaded { identity: service_identity.clone(), generation, result });
-    Task::batch([service_task, browser_task, Task::perform(async move {
+    Task::batch([service_task, Task::perform(async move {
         let client = client?;
         let status = client.computer_control_status().await.map_err(safe_error)?;
         let approvals = client.computer_control_approvals().await.map_err(safe_error)?;
@@ -81,61 +64,29 @@ fn refresh(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndpoint)
     }, move |result| message(Event::Loaded { identity: identity.clone(), generation, result }))])
 }
 
-pub fn update(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndpoint, session: Option<&str>, workspace: Option<&str>, event: Event) -> (Task<Event>, Option<Notice>) {
+pub fn update(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndpoint, event: Event) -> (Task<Event>, Option<Notice>) {
     let mut notice = None;
-    let task = update_inner(state, endpoint, session, workspace, event, &mut notice);
+    let task = update_inner(state, endpoint, event, &mut notice);
     (task, notice)
 }
 
 #[derive(Debug, Clone)]
 pub enum Notice { Error(String), Success(String) }
 fn notify(notice: &mut Option<Notice>, value: Notice) -> Task<Event> { *notice = Some(value); Task::none() }
-fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndpoint, session: Option<&str>, workspace: Option<&str>, event: Event, notice: &mut Option<Notice>) -> Task<Event> {
+fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndpoint, event: Event, notice: &mut Option<Notice>) -> Task<Event> {
     let identity = ControlIdentity::from_endpoint(endpoint);
     if state.identity.as_ref() != Some(&identity) {
         let generation = state.generation + 1;
-        let pairing_generation = state.pairing_generation + 1;
         *state = Default::default();
         state.generation = generation;
-        state.pairing_generation = pairing_generation;
         state.identity = Some(identity.clone());
     }
     match event {
-        Event::Manage(feature @ (ControlSetting::NativeApps | ControlSetting::Chrome)) => {
+        Event::Manage(feature @ ControlSetting::NativeApps) => {
             state.management = Some(feature);
             Task::none()
         }
         Event::Manage(_) => Task::none(),
-        Event::BrowserLoaded { identity: source, generation, result } => {
-            if source != identity || generation != state.generation { return Task::none(); }
-            match result {
-                Ok(snapshot) => { state.browser = Some(snapshot); }
-                Err(error) => return notify(notice, Notice::Error(error)),
-            }
-            Task::none()
-        }
-        Event::BrowserOrigin(value) => { if !state.busy() { state.browser_origin = value; } Task::none() }
-        Event::BrowserEdit { origin, field, value } => {
-            if state.busy() { return Task::none(); }
-            if let Some(snapshot) = &mut state.browser {
-                let p = match origin { Some(origin) => snapshot.permissions.origins.entry(origin).or_default(), None => &mut snapshot.permissions.defaults };
-                match field { 0 => p.access = value, 1 => p.downloads = value, 2 => p.uploads = value, 3 => p.full_cdp_access = value, _ => p.website_tools = value }
-            }
-            Task::none()
-        }
-        Event::BrowserRemove(origin) => {
-            if !state.busy() && let Some(snapshot) = &mut state.browser { snapshot.permissions.origins.remove(&origin); }
-            Task::none()
-        }
-        Event::BrowserSave => {
-            if state.busy() { return Task::none(); }
-            let Some(snapshot) = state.browser.clone() else { return Task::none(); };
-            state.generation += 1;
-            let generation = state.generation;
-            state.saving = true;
-            let client = gateway_http::GatewayTransport::new(endpoint.clone()).map(gateway_computer_control::GatewayComputerControlClient::new);
-            Task::perform(async move { client?.save_browser_permissions(&snapshot).await.map_err(safe_error)?; Ok(None) }, move |result| Event::Completed { identity: identity.clone(), generation, result })
-        }
         Event::ManageClose => { state.management = None; Task::none() }
         Event::OpenNativePermissionGuide { .. } => Task::none(),
         event @ (Event::CopyNativeInstallPath | Event::CopyNativeInstallCommand) => {
@@ -190,38 +141,6 @@ fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndp
             if let Some(error) = state.error.clone() { return notify(notice, Notice::Error(error)); }
             Task::none()
         }
-        Event::PairOpen(feature @ (ControlSetting::Excel | ControlSetting::Word)) => {
-            if state.busy() || !state.feature(feature).is_some_and(|s| s.enabled) { return Task::none(); }
-            let Some(session) = session.map(str::to_owned) else {
-                return notify(notice, Notice::Error("请先打开要授权的聊天会话".into()));
-            };
-            state.pairing_generation += 1;
-            state.pairing = Some(OfficePairingDraft { feature, document: String::new(), session,
-                workspace: workspace.map(std::path::PathBuf::from), credential: None });
-            Task::none()
-        }
-        Event::PairOpen(_) => Task::none(),
-        Event::PairDocument(value) => {
-            if !state.busy()
-                && let Some(draft) = &mut state.pairing && draft.credential.is_none() { draft.document = value; }
-            Task::none()
-        }
-        Event::CopyCredential => {
-            let Some(credential) = state.pairing.as_ref()
-                .and_then(|draft| draft.credential.as_ref()) else { return Task::none(); };
-            iced::clipboard::write(credential.0.clone())
-        }
-        Event::PairClose => {
-            // Keep the modal until an in-flight credential has arrived, so it can be consumed.
-            if !state.saving { state.pairing = None; }
-            Task::none()
-        }
-        Event::CredentialExpired { identity: source, generation } => {
-            if source == identity && state.pairing_generation == generation {
-                state.pairing = None;
-            }
-            Task::none()
-        }
         Event::Stop => {
             if state.stopping { return Task::none(); }
             state.stopping = true;
@@ -241,36 +160,16 @@ fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndp
         Event::Completed { identity: source, generation, result } => {
             if source != identity || generation != state.generation || !state.saving { return Task::none(); }
             state.saving = false;
-            let mut expiry = false;
             let toast = match result {
-                Ok(credential) => {
-                    if let Some(draft) = &mut state.pairing { draft.credential = credential; expiry = draft.credential.is_some(); }
-                    notify(notice, Notice::Success("服务端已确认授权更改".into()))
-                }
+                Ok(()) => notify(notice, Notice::Success("服务端已确认授权更改".into())),
                 Err(error) => notify(notice, Notice::Error(error)),
             };
-            let reload = refresh(state, endpoint);
-            let expiry_task = if expiry {
-                let generation = state.pairing_generation;
-                Task::perform(async { tokio::time::sleep(std::time::Duration::from_secs(60)).await },
-                    move |_| message(Event::CredentialExpired { identity: identity.clone(), generation }))
-            } else { Task::none() };
-            Task::batch([toast, reload, expiry_task])
+            Task::batch([toast, refresh(state, endpoint)])
         }
-        event @ (Event::Toggle(..) | Event::Revoke(_) | Event::PairConfirm) => {
+        event @ (Event::Toggle(..) | Event::Revoke(_)) => {
             if state.busy() { return Task::none(); }
             let Some(status) = &state.status else { return refresh(state, endpoint); };
             let version = status.permission_version;
-            let pairing = if matches!(event, Event::PairConfirm) {
-                let Some(draft) = state.pairing.clone() else { return Task::none(); };
-                if draft.credential.is_some() { return Task::none(); }
-                if draft.document.trim().is_empty() || draft.document.len() > 256
-                    || session != Some(draft.session.as_str())
-                    || workspace.map(std::path::PathBuf::from) != draft.workspace {
-                    return notify(notice, Notice::Error("文档身份不能为空，且须保持原聊天和项目上下文".into()));
-                }
-                Some(draft)
-            } else { state.pairing = None; None };
             state.generation += 1;
             let generation = state.generation;
             state.saving = true;
@@ -281,20 +180,10 @@ fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndp
                 let client = client?;
                 match event {
                     Event::Toggle(feature, enabled) => {
-                        client.computer_control_save(&ControlSettingsUpdate { permission_version: version, feature, enabled }).await.map_err(safe_error)?;
-                        Ok(None)
+                        client.computer_control_save(&ControlSettingsUpdate { permission_version: version, feature, enabled }).await.map(|_| ()).map_err(safe_error)
                     }
                     Event::Revoke(scope) => {
-                        client.computer_control_revoke(&ControlGrantRevocation { permission_version: version, scope }).await.map_err(safe_error)?;
-                        Ok(None)
-                    }
-                    Event::PairConfirm => {
-                        let draft = pairing.ok_or_else(|| "配对信息已失效".to_owned())?;
-                        let response = client.computer_control_pair(&ControlPairingConfirmation {
-                            permission_version: version, session_id: ControlSessionId(draft.session), workspace_root: draft.workspace,
-                            document_id: ControlDocumentId(draft.document.trim().to_owned()), feature: draft.feature,
-                        }).await.map_err(safe_error)?;
-                        Ok(Some(PairingCredential(response.credential)))
+                        client.computer_control_revoke(&ControlGrantRevocation { permission_version: version, scope }).await.map(|_| ()).map_err(safe_error)
                     }
                     _ => unreachable!(),
                 }

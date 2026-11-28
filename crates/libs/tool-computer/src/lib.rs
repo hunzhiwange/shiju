@@ -1,8 +1,6 @@
 #![cfg(unix)]
 //! Native model tools share the gateway's authoritative host. Tool arguments never
 //! carry host credentials, permission versions or control-session identities.
-#[path = "computer_control/chrome.rs"]
-pub mod chrome;
 mod service_backend;
 
 use tool_types::{Tool, ToolCallResult, ToolResult};
@@ -81,8 +79,6 @@ pub struct NativeControlRuntime {
     policy: Arc<RwLock<ComputerControlPolicy>>,
     host: Arc<ControlHost>,
     locked: Arc<AtomicBool>,
-    office:
-        RwLock<Option<Arc<computer_control::office::transport::OfficeTransport>>>,
     factory: Arc<BackendFactory>,
     input_gate: Arc<Mutex<()>>,
     sessions: Mutex<HashMap<Owner, Arc<NativeSession>>>,
@@ -115,7 +111,6 @@ impl NativeControlRuntime {
             host: Arc::new(ControlHost::new(policy.clone(), locked.clone())),
             policy,
             locked,
-            office: RwLock::new(None),
             factory,
             input_gate: Arc::new(Mutex::new(())),
             sessions: Mutex::new(HashMap::new()),
@@ -134,47 +129,15 @@ impl NativeControlRuntime {
         runtime
     }
 
-    /// Trusted local setup only: TLS credentials and origin never come from tool input.
-    /// Binding does not pair a document or grant any execution permission.
-    pub async fn bind_office(
-        &self,
-        credentials: &std::path::Path,
-        origin: &str,
-    ) -> anyhow::Result<Arc<computer_control::office::transport::OfficeTransport>> {
-        if self.office.read().is_some() {
-            bail!("Office transport already running");
-        }
-        let transport = Arc::new(
-            computer_control::office::transport::OfficeTransport::bind(credentials, origin)
-                .await?,
-        );
-        let mut slot = self.office.write();
-        if slot.is_some() {
-            bail!("Office transport already running");
-        }
-        *slot = Some(transport.clone());
-        Ok(transport)
-    }
-
-    /// Management mutations serialize persistence and publication with pairing/stop.
     pub async fn stop_all(&self) {
         let mut sessions = self.sessions.lock().await;
         for session in sessions.values() {
             session.shutdown().await;
         }
         sessions.clear();
-        if let Some(office) = self.office_transport() { office.revoke_all(); }
-    }
-
-    pub async fn chrome_connected(&self) -> bool {
-        self.sessions.lock().await.values().any(|s| matches!(s.target, ComputerControlTarget::ChromeTab { .. }) && !s.task.is_finished() && s.expires > tokio::time::Instant::now())
     }
 
     pub fn control_policy(&self) -> &Arc<RwLock<ComputerControlPolicy>> { &self.policy }
-
-    pub fn office_transport(&self) -> Option<Arc<computer_control::office::transport::OfficeTransport>> {
-        self.office.read().clone()
-    }
 
     async fn session(
         &self,
@@ -196,13 +159,7 @@ impl NativeControlRuntime {
         }
         let lifetime = Duration::from_secs(300);
         let (client, server) = UnixStream::pair()?;
-        let chrome_listener = if matches!(target, ComputerControlTarget::ChromeTab { .. }) {
-            Some(chrome::ChromeListener::bind()?)
-        } else {
-            None
-        };
         let ticket = self.host.issue(target.clone(), lifetime).map_err(control_error)?;
-        let bridge_session = ticket.session_id.clone();
         let backend: Arc<OnceCell<Arc<dyn NativeBackend>>> = Arc::new(OnceCell::new());
         let cell = backend.clone();
         let host = self.host.clone();
@@ -211,9 +168,6 @@ impl NativeControlRuntime {
         let locked = self.locked.clone();
         let gate = self.input_gate.clone();
         let task = tokio::spawn(async move {
-            if let Some(listener) = chrome_listener {
-                return listener.serve(bridge_session, &host, server).await;
-            }
             host.serve(server, |request, cancel| {
                 let (cell, factory, policy, locked, gate) =
                     (cell.clone(), factory.clone(), policy.clone(), locked.clone(), gate.clone());
@@ -249,7 +203,7 @@ impl NativeControlRuntime {
                             backend.input(&input).await.map_err(|error| error.code())?;
                             Ok(ControlOutput::Acknowledged)
                         }
-                        _ => Err(ControlErrorCode::InvalidRequest),
+                        ComputerControlAction::Stop => Err(ControlErrorCode::InvalidRequest),
                     }
                 }
             })
@@ -277,7 +231,7 @@ impl NativeControlRuntime {
             read_frame::<_, HostReply>(&mut client.stream),
         )
         .await
-        .context("Chrome extension must connect its active document within 35 seconds")??
+        .context("computer control host handshake timed out")??
         {
             HostReply::Ready => {}
             _ => bail!("computer control denied: host handshake failed"),
@@ -289,9 +243,6 @@ impl NativeControlRuntime {
     pub async fn stop_context<H: ContextHost>(&self, context: &ToolUseContext<H>) {
         let owner = (context.tenant_scope(), context.session().into(), context.workspace_root());
         self.stop(&owner).await;
-        if let (Some(office), Ok(owner)) = (self.office_transport(), office_owner(context)) {
-            office.revoke(&owner);
-        }
     }
 
     async fn stop(&self, owner: &Owner) {
@@ -324,13 +275,11 @@ impl NativeSession {
     async fn shutdown(&self) {
         self.host.stop(&self.id);
         self.task.abort();
-        // JoinHandle completion includes dropping the Chrome socket owner, so the
-        // next owner cannot race a pending unlink of the previous listener.
         while !self.task.is_finished() {
             tokio::task::yield_now().await;
         }
     }
-    async fn call<H: ContextHost>(&self, action: ComputerControlAction) -> anyhow::Result<ToolCallResult> {
+    async fn call(&self, action: ComputerControlAction) -> anyhow::Result<ToolCallResult> {
         let mut client = self.client.lock().await;
         let request_id = ControlRequestId(uuid::Uuid::new_v4().to_string());
         let request = ComputerControlRequest {
@@ -340,7 +289,6 @@ impl NativeSession {
             target: self.target.clone(),
             action,
         };
-        chrome::approve_transfer::<H>(&self.host, &request).await?;
         let sequence = client.sequence;
         client.sequence = sequence.checked_add(1).context("computer control sequence exhausted")?;
         write_frame(&mut client.stream, &HostMessage::Action { sequence, request }).await?;
@@ -357,11 +305,6 @@ impl NativeSession {
         };
         let mut blocks = Vec::new();
         let mut images = Vec::new();
-        let completed = if matches!(self.target, ComputerControlTarget::ChromeTab { .. }) {
-            "Chrome action completed"
-        } else {
-            "Native action completed"
-        };
         match &output {
             ControlOutput::Observation { text, screenshots } => {
                 blocks.push(json!({"type":"text","text":text}));
@@ -373,10 +316,7 @@ impl NativeSession {
                     blocks.push(json!({"type":"image","image_url":image}));
                 }
             }
-            ControlOutput::ChromeDownload { .. } => {
-                blocks.push(json!({"type":"text","text":serde_json::to_string(&output)?}))
-            }
-            _ => blocks.push(json!({"type":"text","text":completed})),
+            ControlOutput::Acknowledged => blocks.push(json!({"type":"text","text":"Native action completed"})),
         }
         let content_blocks = blocks
             .iter()
@@ -388,8 +328,7 @@ impl NativeSession {
             // as a user message through the existing multimodal preparation path.
             model_result: Value::String(match &output {
                 ControlOutput::Observation { text, .. } => text.clone(),
-                ControlOutput::ChromeDownload { .. } => serde_json::to_string(&output)?,
-                _ => completed.into(),
+                ControlOutput::Acknowledged => "Native action completed".into(),
             }),
             extra_messages: if images.is_empty() {
                 vec![]
@@ -414,34 +353,7 @@ struct Input {
     action: ComputerControlAction,
 }
 fn parse(input: Value) -> anyhow::Result<Input> {
-    let mut input: Input = serde_json::from_value(input)
-        .map_err(|_| anyhow::anyhow!("invalid computer control request"))?;
-    match (&mut input.target, &input.action) {
-        (
-            ComputerControlTarget::NativeApp { .. },
-            ComputerControlAction::NativeObserve { .. }
-            | ComputerControlAction::NativeInput { .. }
-            | ComputerControlAction::Stop,
-        ) => {}
-        (
-            ComputerControlTarget::ChromeTab { origin, tab_id },
-            ComputerControlAction::Chrome { command },
-        ) => {
-            if *tab_id == 0 {
-                bail!("invalid Chrome tab identity");
-            }
-            if computer_control::chrome::origin_policy::canonical_origin(origin)
-                .map_err(control_error)?
-                != *origin
-            {
-                bail!("Chrome target requires a canonical origin without paths or credentials");
-            }
-            chrome::validate_command(command)?;
-        }
-        (ComputerControlTarget::ChromeTab { .. }, ComputerControlAction::Stop) => {}
-        _ => bail!("unsupported computer control action or target"),
-    }
-    Ok(input)
+    serde_json::from_value(input).map_err(|_| anyhow::anyhow!("invalid computer control request"))
 }
 
 pub struct ComputerControlTool<H: ContextHost> {
@@ -470,10 +382,10 @@ impl<H: ContextHost> Tool for ComputerControlTool<H> {
         "computer_control"
     }
     fn description(&self) -> &str {
-        "Control an authorized native macOS app or a Chrome document. Native screenshots precede coordinate input. Chrome requires the enabled extension, active document grant, Chrome switch and separate site approval; navigate invalidates the old document. Upload bounded inline bytes (never paths) or download a same-origin link with separate approval each time. Excel and Word require dedicated tools. No scripts or shell commands."
+        "Control an authorized native macOS app. Native screenshots precede coordinate input. No scripts or shell commands."
     }
     fn parameters_schema(&self) -> Value {
-        let native = json!({"type":"object","additionalProperties":false,"required":["target","action"],"properties":{
+        json!({"type":"object","additionalProperties":false,"required":["target","action"],"properties":{
             "target":{"type":"object","additionalProperties":false,"required":["kind","bundle_id","process_id"],"properties":{"kind":{"const":"native_app"},"bundle_id":{"type":"string"},"process_id":{"type":"integer","minimum":1}}},
             "action":{"oneOf":[
                 {"type":"object","additionalProperties":false,"required":["action","screenshot"],"properties":{"action":{"const":"native_observe"},"screenshot":{"type":"boolean"}}},
@@ -487,15 +399,6 @@ impl<H: ContextHost> Tool for ComputerControlTool<H> {
                     {"type":"object","additionalProperties":false,"required":["kind","key","modifiers"],"properties":{"kind":{"const":"press"},"key":{"type":"string"},"modifiers":{"type":"array","items":{"enum":["shift","control","alt","meta"]},"uniqueItems":true}}}
                 ]}}}
             ]}
-        }});
-        let chrome = chrome::schema();
-        let mut actions = native["properties"]["action"]["oneOf"].as_array().unwrap().clone();
-        actions.extend(
-            chrome["properties"]["action"]["oneOf"].as_array().unwrap().iter().skip(1).cloned(),
-        );
-        json!({"type":"object","additionalProperties":false,"required":["target","action"],"properties":{
-            "target":{"oneOf":[native["properties"]["target"],chrome["properties"]["target"]]},
-            "action":{"oneOf":actions}
         }})
     }
     fn validate_input(&self, input: Value) -> anyhow::Result<Value> {
@@ -503,22 +406,10 @@ impl<H: ContextHost> Tool for ComputerControlTool<H> {
         Ok(json!({"target":parsed.target,"action":parsed.action}))
     }
     async fn check_permissions(&self, input: &Value) -> anyhow::Result<()> {
-        let context = self.context()?;
+        self.context()?;
         let input = parse(input.clone())?;
         if matches!(input.action, ComputerControlAction::Stop) {
             return Ok(());
-        }
-        if let ComputerControlTarget::ChromeTab { ref origin, .. } = input.target {
-            chrome::authorize_site(&self.runtime.policy, context.as_ref(), origin).await?;
-            if let ComputerControlAction::Chrome { command: ChromeCommand::Navigate { url } } =
-                &input.action
-            {
-                let destination =
-                    computer_control::chrome::origin_policy::canonical_origin(url)
-                        .map_err(control_error)?;
-                chrome::authorize_site(&self.runtime.policy, context.as_ref(), &destination)
-                    .await?;
-            }
         }
         let policy = self.runtime.policy.read();
         policy
@@ -555,7 +446,7 @@ impl<H: ContextHost> Tool for ComputerControlTool<H> {
         }?;
         let mut in_flight =
             InFlight { host: self.runtime.host.clone(), id: session.id.clone(), armed: true };
-        let action = session.call::<H>(input.action);
+        let action = session.call(input.action);
         let result = if let Some(cancel) = context.abort_token() {
             tokio::select! { biased; _ = cancel.cancelled() => Err(control_error(ControlErrorCode::Cancelled)), result = action => result }
         } else {
@@ -593,19 +484,6 @@ impl Drop for InFlight {
             self.host.stop(&self.id);
         }
     }
-}
-
-/// Authoritative host shared with the dedicated Office tools.
-impl NativeControlRuntime {
-    pub fn control_host(&self) -> &Arc<ControlHost> { &self.host }
-}
-
-/// Pairing owners include tenant, chat and workspace; none is chosen by the model.
-pub fn office_owner<H: ContextHost>(context: &ToolUseContext<H>) -> anyhow::Result<ControlSessionId> {
-    use sha2::{Digest, Sha256};
-    anyhow::ensure!(!context.session().trim().is_empty(), "Excel control denied: missing executor session");
-    let identity = serde_json::to_vec(&(context.tenant_scope(), context.session(), context.workspace_root()))?;
-    Ok(ControlSessionId(hex::encode(Sha256::digest(identity))))
 }
 
 #[cfg(test)]

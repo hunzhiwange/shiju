@@ -5,6 +5,5 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
-config-computer-control = { path = "../config-computer-control" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }

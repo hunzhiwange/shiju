@@ -13,8 +13,8 @@ fn cc_control_18_locked_setting_maps_to_independent_gate() {
     assert_eq!(setting(ControlSetting::LockedUse), ControlFeature::LockedUse);
 }
 #[test]
-fn cc_control_18_document_scope_preserves_identity() {
-    assert_eq!(scope(ControlGrantScope::WordDocument("doc".into())), GrantScope::WordDocument("doc".into()));
+fn cc_control_18_application_scope_preserves_identity() {
+    assert_eq!(scope(ControlGrantScope::Application("com.example.editor".into())), GrantScope::Application("com.example.editor".into()));
 }
 #[test]
 fn cc_control_18_revocation_overrides_broad_native_allow() {
@@ -27,12 +27,12 @@ fn cc_control_18_revocation_overrides_broad_native_allow() {
 fn cc_control_18_saved_edit_invalidates_old_permission() {
     let mut policy = ComputerControlPolicy::new(ComputerControlConfig::default());
     let old = policy.version();
-    policy.set_enabled("uid:1", ControlFeature::Chrome, true).unwrap();
-    assert_eq!(policy.authorize("uid:1", &ComputerControlTarget::ChromeTab { tab_id: 1, origin: "https://example.com".into() }, false, old), Err(ControlErrorCode::StalePermission));
+    policy.set_enabled("uid:1", ControlFeature::NativeApps, true).unwrap();
+    assert_eq!(policy.authorize("uid:1", &ComputerControlTarget::NativeApp { bundle_id: "com.example.editor".into(), process_id: 1 }, false, old), Err(ControlErrorCode::StalePermission));
 }
 #[test]
 fn cc_control_18_settings_reject_unknown_authority_fields() {
-    assert!(serde_json::from_value::<ControlSettingsUpdate>(serde_json::json!({"permission_version":0,"feature":"chrome","enabled":true,"local_user":"uid:0"})).is_err());
+    assert!(serde_json::from_value::<ControlSettingsUpdate>(serde_json::json!({"permission_version":0,"feature":"native_apps","enabled":true,"local_user":"uid:0"})).is_err());
 }
 
 #[test]

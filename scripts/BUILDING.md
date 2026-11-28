@@ -475,13 +475,10 @@ binaries already produced by cargo-dist in `target-dir/<triple>/dist/`
 (or under `CARGO_TARGET_DIR` when overridden). This skips all Cargo invocations
 and fails if any required executable is missing, without rebuilding it.
 
-### 电脑操控接入资源
+### 电脑操控执行应用
 
-macOS app 打包会在签名前将自有 Chrome/Office 资源、中继和用户安装器放到
-`Contents/Resources/computer-control`，并生成相对路径 SHA-256 清单。
-原生控制实现随桌面二进制交付；不复制 ChatGPT 私有运行时，不新增虚构 MCP。
-安装与卸载、Chrome ID 限制、Office TLS 和旁加载要求见
-`plugins/shiju-computer-control/README.md`。资源安装不授予系统或文档权限。
+macOS 安装包在 `Contents/Helpers` 中包含独立签名的 `ShiJu Computer Use.app`。
+安装及授权流程见[电脑操控](../docs/computer-control.md)。
 
 后续本地验证应通过 `python3 scripts/cargo_slot.py` 运行打包入口，继承
 `CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR`；例如在入口内设置

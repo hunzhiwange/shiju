@@ -1,5 +1,5 @@
 use super::policy::{ComputerControlPolicy, ControlFeature, GrantScope};
-use vw_api_computer_control::{ComputerControlTarget, ControlDocumentId, PermissionVersion};
+use vw_api_computer_control::{ComputerControlTarget, PermissionVersion};
 use config_computer_control::{ComputerControlConfig, GrantDecision};
 
 fn app(id: &str) -> ComputerControlTarget {
@@ -7,17 +7,11 @@ fn app(id: &str) -> ComputerControlTarget {
 }
 
 #[test]
-fn cc_control_03_defaults_deny_all_five_features() {
+fn cc_control_03_defaults_deny_native_and_locked_use() {
     let p = ComputerControlPolicy::new(ComputerControlConfig::default());
-    for target in [
-        app("com.apple.TextEdit"),
-        ComputerControlTarget::ChromeTab { tab_id: 1, origin: "https://example.com".into() },
-        ComputerControlTarget::ExcelWorkbook { document_id: ControlDocumentId("book-1".into()) },
-        ComputerControlTarget::WordDocument { document_id: ControlDocumentId("doc-1".into()) },
-    ] {
-        assert!(p.authorize("uid:501", &target, false, p.version()).is_err());
-        assert!(p.authorize("uid:501", &target, true, p.version()).is_err());
-    }
+    let target = app("com.apple.TextEdit");
+    assert!(p.authorize("uid:501", &target, false, p.version()).is_err());
+    assert!(p.authorize("uid:501", &target, true, p.version()).is_err());
 }
 
 #[test]
@@ -36,57 +30,13 @@ fn cc_control_03_explicit_app_denial_overrides_any_app() {
 }
 
 #[test]
-fn cc_control_03_office_chrome_and_lock_require_independent_grants() {
+fn native_policy_preserves_existing_application_exclusions() {
     let mut p = ComputerControlPolicy::new(ComputerControlConfig::default());
     p.set_enabled("uid:501", ControlFeature::NativeApps, true).unwrap();
-    let book =
-        ComputerControlTarget::ExcelWorkbook { document_id: ControlDocumentId("book-1".into()) };
-    let doc =
-        ComputerControlTarget::WordDocument { document_id: ControlDocumentId("book-1".into()) };
-    let tab = ComputerControlTarget::ChromeTab { tab_id: 1, origin: "https://example.com".into() };
-    for target in [
-        &book,
-        &doc,
-        &tab,
-        &app("com.microsoft.Excel"),
-        &app("com.microsoft.Word"),
-        &app("com.google.Chrome"),
-    ] {
-        assert!(p.authorize("uid:501", target, false, p.version()).is_err());
+    for id in ["com.microsoft.Excel", "com.microsoft.Word", "com.google.Chrome", "com.google.Chrome.beta"] {
+        assert!(p.authorize("uid:501", &app(id), false, p.version()).is_err());
+        assert!(p.set_grant("uid:501", GrantScope::Application(id.into()), Some(GrantDecision::Allow)).is_err());
     }
-    p.set_enabled("uid:501", ControlFeature::Excel, true).unwrap();
-    assert!(p.authorize("uid:501", &book, false, p.version()).is_err());
-    p.set_grant("uid:501", GrantScope::ExcelDocument("book-1".into()), Some(GrantDecision::Allow))
-        .unwrap();
-    assert!(p.authorize("uid:501", &book, false, p.version()).is_ok());
-    assert!(p.authorize("uid:501", &doc, false, p.version()).is_err());
-    assert!(p.authorize("uid:501", &book, true, p.version()).is_err());
-    p.set_enabled("uid:501", ControlFeature::LockedUse, true).unwrap();
-    assert!(p.authorize("uid:501", &book, true, p.version()).is_ok());
-    p.set_enabled("uid:501", ControlFeature::Word, true).unwrap();
-    p.set_grant("uid:501", GrantScope::WordDocument("book-1".into()), Some(GrantDecision::Allow))
-        .unwrap();
-    assert!(p.authorize("uid:501", &doc, false, p.version()).is_ok());
-    p.set_enabled("uid:501", ControlFeature::Chrome, true).unwrap();
-    p.set_grant(
-        "uid:501",
-        GrantScope::ChromeOrigin("https://example.com".into()),
-        Some(GrantDecision::Allow),
-    )
-    .unwrap();
-    assert!(p.authorize("uid:501", &tab, false, p.version()).is_ok());
-    assert!(
-        p.authorize(
-            "uid:501",
-            &ComputerControlTarget::ChromeTab {
-                tab_id: 2,
-                origin: "https://other.example.com".into()
-            },
-            false,
-            p.version()
-        )
-        .is_err()
-    );
 }
 
 #[test]
@@ -117,14 +67,8 @@ fn cc_control_03_local_users_are_isolated_and_stale_versions_fail() {
 #[test]
 fn cc_control_03_invalid_identity_and_version_overflow_fail_without_mutation() {
     let mut p = ComputerControlPolicy::new(ComputerControlConfig::default());
-    for scope in [
-        GrantScope::Application("window title".into()),
-        GrantScope::ChromeOrigin("https://example.com/path".into()),
-        GrantScope::ChromeOrigin("https://user:pass@example.com".into()),
-        GrantScope::ExcelDocument("".into()),
-    ] {
-        assert!(p.set_grant("uid:501", scope, Some(GrantDecision::Allow)).is_err());
-    }
+    let scope = GrantScope::Application("window title".into());
+    assert!(p.set_grant("uid:501", scope, Some(GrantDecision::Allow)).is_err());
     assert_eq!(p.version(), PermissionVersion(0));
     assert!(p.config().users.is_empty());
     let mut p = ComputerControlPolicy::new(ComputerControlConfig {

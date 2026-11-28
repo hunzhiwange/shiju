@@ -18,9 +18,6 @@ fn snapshot() -> (ComputerControlStatus, ControlApprovals) {
         ComputerControlStatus {
             permission_version: version,
             native_apps: report(true, ControlReadiness::Unauthorized),
-            chrome: report(true, ControlReadiness::Disconnected),
-            excel: report(true, ControlReadiness::NotInstalled),
-            word: report(false, ControlReadiness::Disabled),
             locked_use: LockedUseStatus {
                 status: report(false, ControlReadiness::Unsupported),
                 probe: LockedUseProbe::Unsupported,
@@ -30,7 +27,6 @@ fn snapshot() -> (ComputerControlStatus, ControlApprovals) {
             permission_version: version,
             approvals: vec![
                 ControlGrantScope::Application("com.example.editor".into()),
-                ControlGrantScope::ChromeOrigin("https://example.org".into()),
             ],
         },
     )
@@ -49,11 +45,9 @@ fn cc_control_19_toggle_waits_for_server_confirmation() {
     let _task = crate::computer_control_update::update(
         &mut state,
         &endpoint,
-        None,
-        None,
-        Event::Toggle(ControlSetting::Word, true),
+        Event::Toggle(ControlSetting::LockedUse, true),
     );
     assert!(state.saving);
-    assert!(!state.feature(ControlSetting::Word).unwrap().enabled);
-    assert!(state.feature(ControlSetting::Chrome).unwrap().enabled);
+    assert!(!state.feature(ControlSetting::LockedUse).unwrap().enabled);
+    assert!(state.feature(ControlSetting::NativeApps).unwrap().enabled);
 }

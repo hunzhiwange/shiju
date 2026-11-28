@@ -9,18 +9,12 @@ use config_computer_control::{ComputerControlConfig, GrantDecision};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControlFeature {
     NativeApps,
-    Chrome,
-    Excel,
-    Word,
     LockedUse,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GrantScope {
     Application(String),
-    ChromeOrigin(String),
-    ExcelDocument(String),
-    WordDocument(String),
 }
 
 pub struct ComputerControlPolicy {
@@ -41,8 +35,7 @@ impl ComputerControlPolicy {
     }
 
     /// `local_user` must come from the authenticated host session, not a tool argument.
-    /// A grant authorizes only this target; navigation destinations and changed focus
-    /// must be checked again by the executing backend before any action is applied.
+    /// A grant authorizes only this target; the backend rechecks focus before input.
     pub fn authorize(
         &self,
         local_user: &str,
@@ -62,7 +55,7 @@ impl ComputerControlPolicy {
         }
         let allowed = match target {
             ComputerControlTarget::NativeApp { bundle_id, process_id } => {
-                if !valid_bundle_id(bundle_id) || *process_id == 0 || specialized_app(bundle_id) {
+                if !valid_bundle_id(bundle_id) || *process_id == 0 || excluded_native_app(bundle_id) {
                     false
                 } else {
                     match user.applications.get(bundle_id) {
@@ -71,24 +64,6 @@ impl ComputerControlPolicy {
                         None => user.native_apps,
                     }
                 }
-            }
-            ComputerControlTarget::ChromeTab { origin, .. } => {
-                user.chrome
-                    && valid_origin(origin)
-                    && user.browser_permissions.resolve(origin, |p| p.access) != config_computer_control::BrowserPermission::Deny
-                    && user.chrome_origins.get(origin) != Some(&GrantDecision::Deny)
-                    && (user.chrome_origins.get(origin) == Some(&GrantDecision::Allow)
-                        || user.browser_permissions.resolve(origin, |p| p.access) == config_computer_control::BrowserPermission::Allow)
-            }
-            ComputerControlTarget::ExcelWorkbook { document_id } => {
-                user.excel
-                    && valid_identity(&document_id.0)
-                    && user.excel_documents.get(&document_id.0) == Some(&GrantDecision::Allow)
-            }
-            ComputerControlTarget::WordDocument { document_id } => {
-                user.word
-                    && valid_identity(&document_id.0)
-                    && user.word_documents.get(&document_id.0) == Some(&GrantDecision::Allow)
             }
         };
         if allowed { Ok(()) } else { Err(ControlErrorCode::PermissionDenied) }
@@ -104,9 +79,6 @@ impl ComputerControlPolicy {
         let user = self.config.users.entry(local_user.to_owned()).or_default();
         let setting = match feature {
             ControlFeature::NativeApps => &mut user.native_apps,
-            ControlFeature::Chrome => &mut user.chrome,
-            ControlFeature::Excel => &mut user.excel,
-            ControlFeature::Word => &mut user.word,
             ControlFeature::LockedUse => &mut user.locked_use,
         };
         *setting = enabled;
@@ -124,9 +96,7 @@ impl ComputerControlPolicy {
     ) -> Result<PermissionVersion, &'static str> {
         self.validate_edit(local_user)?;
         let valid = match &scope {
-            GrantScope::Application(id) => valid_bundle_id(id) && !specialized_app(id),
-            GrantScope::ChromeOrigin(origin) => valid_origin(origin),
-            GrantScope::ExcelDocument(id) | GrantScope::WordDocument(id) => valid_identity(id),
+            GrantScope::Application(id) => valid_bundle_id(id) && !excluded_native_app(id),
         };
         if !valid {
             return Err("invalid computer-control grant identity");
@@ -134,9 +104,6 @@ impl ComputerControlPolicy {
         let user = self.config.users.entry(local_user.to_owned()).or_default();
         let (grants, key) = match scope {
             GrantScope::Application(id) => (&mut user.applications, id),
-            GrantScope::ChromeOrigin(origin) => (&mut user.chrome_origins, origin),
-            GrantScope::ExcelDocument(id) => (&mut user.excel_documents, id),
-            GrantScope::WordDocument(id) => (&mut user.word_documents, id),
         };
         match decision {
             Some(decision) => {
@@ -148,27 +115,6 @@ impl ComputerControlPolicy {
         }
         self.config.permission_version += 1;
         Ok(self.version())
-    }
-
-    pub fn set_browser_permissions(&mut self, local_user: &str, permissions: config_computer_control::BrowserPermissions) -> Result<(), &'static str> {
-        self.validate_edit(local_user)?;
-        if permissions.origins.len() > 256 || permissions.origins.keys().any(|origin| !valid_origin(origin)) {
-            return Err("invalid browser origins");
-        }
-        use config_computer_control::BrowserPermission;
-        if permissions.history != BrowserPermission::Ask || permissions.website_tools || permissions.full_cdp_access
-            || std::iter::once(&permissions.defaults).chain(permissions.origins.values()).any(|p|
-                p.full_cdp_access.is_some_and(|v| v != BrowserPermission::Deny)
-                || p.website_tools.is_some_and(|v| v != BrowserPermission::Deny)) {
-            return Err("browser capability unavailable");
-        }
-        self.config.users.entry(local_user.to_owned()).or_default().browser_permissions = permissions;
-        self.config.permission_version += 1;
-        Ok(())
-    }
-
-    pub fn browser_permission(&self, local_user: &str, origin: &str, field: fn(&config_computer_control::BrowserOriginPermissions) -> Option<config_computer_control::BrowserPermission>) -> config_computer_control::BrowserPermission {
-        self.config.users.get(local_user).map(|u| u.browser_permissions.resolve(origin, field)).unwrap_or(config_computer_control::BrowserPermission::Deny)
     }
 
     fn validate_edit(&self, local_user: &str) -> Result<(), &'static str> {
@@ -197,20 +143,10 @@ fn valid_bundle_id(value: &str) -> bool {
         })
 }
 
-// The generic native route must never bypass website or Office document grants.
-fn specialized_app(bundle_id: &str) -> bool {
+// Preserve the existing exclusions from native application authorization.
+fn excluded_native_app(bundle_id: &str) -> bool {
     bundle_id.eq_ignore_ascii_case("com.microsoft.Excel")
         || bundle_id.eq_ignore_ascii_case("com.microsoft.Word")
         || bundle_id.eq_ignore_ascii_case("com.google.Chrome")
         || bundle_id.to_ascii_lowercase().starts_with("com.google.chrome.")
-}
-
-fn valid_origin(value: &str) -> bool {
-    let Ok(url) = url::Url::parse(value) else {
-        return false;
-    };
-    matches!(url.scheme(), "http" | "https")
-        && url.username().is_empty()
-        && url.password().is_none()
-        && url.origin().ascii_serialization() == value
 }

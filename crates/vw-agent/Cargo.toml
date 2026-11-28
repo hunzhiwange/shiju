@@ -272,7 +272,6 @@ command-arity = { path = "../libs/command-arity" }
 canary-guard = { path = "../libs/canary-guard" }
 content-guard = { path = "../libs/content-guard" }
 plugin-types = { path = "../libs/plugin-types" }
-office-control-sessions = { path = "../libs/office-control-sessions" }
 security-audit = { path = "../libs/security-audit" }
 syscall-anomaly = { path = "../libs/syscall-anomaly" }
 permission-engine = { path = "../libs/permission-engine" }
@@ -524,7 +523,6 @@ path = "tests/media_end_to_end.rs"
 
 [target.'cfg(unix)'.dependencies]
 tool-computer = { path = "../libs/tool-computer" }
-tool-office = { path = "../libs/tool-office" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 workflow-engine = { path = "../libs/workflow-engine", features = ["test-support"] }

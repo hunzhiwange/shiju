@@ -146,7 +146,7 @@ fn extension_row(
     use desktop_ui_controls::system_settings_common::{
         primary_action_btn_style, settings_muted_text_style, settings_success_banner_style,
     };
-    use gateway_desktop_settings::McpInstallAction;
+    use gateway_desktop_settings::{McpExtension, McpInstallAction};
     use iced::widget::{column, container, progress_bar, row, text, text::Wrapping};
     use iced::{Alignment, Length};
 
@@ -154,6 +154,7 @@ fn extension_row(
     let i18n = desktop_i18n::I18n::new(locale);
     let feedback = |value: &str| desktop_i18n::settings_extensions::feedback(i18n, value);
     let state = &app.mcp_settings;
+    let is_browse = extension == McpExtension::OpenCodeBrowse;
     let card = state.extensions.cards.get(&extension);
     let expanded = card.is_some_and(|card| card.expanded);
     let active = state.extensions.active.as_ref().filter(|active| active.extension == extension);
@@ -223,6 +224,14 @@ fn extension_row(
     let mut summary = column![heading.wrap(), muted(description.to_owned())]
         .spacing(5)
         .width(Length::FillPortion(3));
+    if is_browse {
+        summary = summary.push(toolbar_button(
+            tr(locale, "安装浏览器扩展"),
+            Some(Message::View(crate::app::message::ViewMessage::OpenUrlExternal(
+                "https://chromewebstore.google.com/detail/mfnicocicmmlkpjnaffgihfjhdgjkdjg".into(),
+            ))),
+        ));
+    }
     if let Some(current) = installed {
         let version = match action {
             Some(McpInstallAction::Upgrade { version }) => {
@@ -249,10 +258,10 @@ fn extension_row(
     if !expanded {
         return container(content).width(Length::Fill).padding([14, 0]).into();
     }
-    if extension == gateway_desktop_settings::McpExtension::OpenCodeBrowse {
+    if is_browse {
         content = content.push(
             row![
-                muted(tr(locale, "在浏览器安装 Browse 扩展。用全局 MCP 配置中的 Browse 命令路径运行 pair，再将配对码输入扩展。").to_owned()),
+                muted(tr(locale, "安装 MCP 和浏览器扩展后，用全局 MCP 配置中的 Browse 命令路径运行 pair，再在扩展选项中输入配对码并连接。").to_owned()),
                 toolbar_button(
                     tr(locale, "配对指南"),
                     Some(Message::View(crate::app::message::ViewMessage::OpenUrlExternal(
@@ -423,7 +432,7 @@ fn extensions_panel(app: &App) -> Element<'_, Message> {
                 app,
                 McpExtension::OpenCodeBrowse,
                 "OpenCode Browse MCP",
-                tr(locale, "使用已配对的 Chrome、Edge、Brave、Arc 等 Chromium 浏览器。安装后需在浏览器中完成扩展配对。"),
+                tr(locale, "使用前，请在要连接的 Chromium 浏览器中手动安装 OpenCode Browse 扩展并完成配对。"),
             ),
         ])
         .into();

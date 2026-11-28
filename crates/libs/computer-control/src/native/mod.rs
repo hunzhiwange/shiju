@@ -278,9 +278,7 @@ impl NativeObserver {
             return Err(ControlErrorCode::Cancelled.into());
         }
         policy.read().authorize(&local_user(), &target, locked.load(Ordering::SeqCst), version)?;
-        let ComputerControlTarget::NativeApp { bundle_id, process_id } = target else {
-            return Err(ControlErrorCode::InvalidRequest.into());
-        };
+        let ComputerControlTarget::NativeApp { bundle_id, process_id } = target;
         let app = backend.identity(process_id)?;
         if app.bundle_id != bundle_id || app.process_id != process_id {
             return Err(ControlErrorCode::TargetChanged.into());

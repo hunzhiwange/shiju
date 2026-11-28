@@ -2,8 +2,7 @@
 //! No authentication changes, unlock operations or login-window input live here.
 
 use vw_api_computer_control::{
-    ComputerControlAction, ComputerControlTarget, ChromeCommand, ControlErrorCode,
-    WordCommand, WordInsertPosition, NativeInput, MouseButton,
+    ComputerControlAction, ComputerControlTarget, ControlErrorCode, MouseButton, NativeInput,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -11,28 +10,6 @@ pub enum LockState {
     Unlocked,
     Locked,
     Unknown,
-}
-
-/// These commands execute inside an already paired application runtime, without
-/// screen capture, system input, navigation, new pairing or an unlock operation.
-/// This is dispatch capability, not evidence of successful execution while locked.
-pub(crate) fn structured_execution(
-    target: &ComputerControlTarget,
-    action: &ComputerControlAction,
-) -> bool {
-    matches!((target, action),
-        (ComputerControlTarget::ChromeTab { .. }, ComputerControlAction::Chrome {
-            command: ChromeCommand::Snapshot | ChromeCommand::Fill { .. }
-        })
-        | (ComputerControlTarget::ExcelWorkbook { .. }, ComputerControlAction::Excel { .. })
-        | (ComputerControlTarget::WordDocument { .. }, ComputerControlAction::Word {
-            command: WordCommand::ReadDocument | WordCommand::FindText { .. }
-                | WordCommand::ReplaceText { .. }
-                | WordCommand::InsertText {
-                    position: WordInsertPosition::Start | WordInsertPosition::End, ..
-                }
-        })
-    )
 }
 
 pub(crate) fn require_execution(
@@ -46,10 +23,9 @@ pub(crate) fn require_execution(
             input: NativeInput::TypeText { .. } | NativeInput::Click { button: MouseButton::Left, .. }
         })
     );
-    if let ComputerControlTarget::NativeApp { bundle_id, .. } = target {
-        check_native_target(bundle_id)?;
-    }
-    if state == LockState::Unlocked || structured_execution(target, action) || native {
+    let ComputerControlTarget::NativeApp { bundle_id, .. } = target;
+    check_native_target(bundle_id)?;
+    if state == LockState::Unlocked || native {
         Ok(())
     } else {
         Err(ControlErrorCode::Unsupported)

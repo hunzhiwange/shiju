@@ -14,24 +14,16 @@ pub struct ComputerControlConfig {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(default, deny_unknown_fields)]
+#[serde(from = "StoredComputerControlUser")]
+#[schemars(!from, default, deny_unknown_fields)]
 pub struct ComputerControlUserConfig {
     /// Allow otherwise unlisted native applications; explicit denial takes priority.
     pub native_apps: bool,
-    pub chrome: bool,
-    pub browser_permissions: BrowserPermissions,
-    pub excel: bool,
-    pub word: bool,
     /// Additional gate, never a replacement for target authorization or OS probes.
     pub locked_use: bool,
     /// Stable bundle IDs, not window titles. Individual allows persist independently
     /// of the broad native-app switch; removing one falls back to that switch.
     pub applications: BTreeMap<String, GrantDecision>,
-    /// Exact canonical origins, without paths, credentials or wildcards.
-    pub chrome_origins: BTreeMap<String, GrantDecision>,
-    /// Host-assigned stable document identities; not titles, body text or pairing tokens.
-    pub excel_documents: BTreeMap<String, GrantDecision>,
-    pub word_documents: BTreeMap<String, GrantDecision>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -45,35 +37,36 @@ pub enum GrantDecision {
 #[path = "computer_control_tests.rs"]
 mod computer_control_tests;
 
-/// Missing fields inherit the default policy; an explicit denial always wins.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum BrowserPermission { #[default] Ask, Allow, Deny }
-impl std::fmt::Display for BrowserPermission {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self { Self::Ask => "需要批准", Self::Allow => "始终允许", Self::Deny => "阻止" })
-    }
-}
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+// Old profiles can still carry grants for removed integrations. Consume those
+// keys only while reading, so they never affect authorization or get serialized.
+#[derive(Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct BrowserOriginPermissions {
-    pub access: Option<BrowserPermission>,
-    pub downloads: Option<BrowserPermission>,
-    pub uploads: Option<BrowserPermission>,
-    pub full_cdp_access: Option<BrowserPermission>,
-    pub website_tools: Option<BrowserPermission>,
+struct StoredComputerControlUser {
+    native_apps: bool,
+    locked_use: bool,
+    applications: BTreeMap<String, GrantDecision>,
+    #[serde(rename = "chrome")]
+    _chrome: Option<serde::de::IgnoredAny>,
+    #[serde(rename = "browser_permissions")]
+    _browser_permissions: Option<serde::de::IgnoredAny>,
+    #[serde(rename = "excel")]
+    _excel: Option<serde::de::IgnoredAny>,
+    #[serde(rename = "word")]
+    _word: Option<serde::de::IgnoredAny>,
+    #[serde(rename = "chrome_origins")]
+    _chrome_origins: Option<serde::de::IgnoredAny>,
+    #[serde(rename = "excel_documents")]
+    _excel_documents: Option<serde::de::IgnoredAny>,
+    #[serde(rename = "word_documents")]
+    _word_documents: Option<serde::de::IgnoredAny>,
 }
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(default, deny_unknown_fields)]
-pub struct BrowserPermissions {
-    pub history: BrowserPermission,
-    pub website_tools: bool,
-    pub full_cdp_access: bool,
-    pub defaults: BrowserOriginPermissions,
-    pub origins: BTreeMap<String, BrowserOriginPermissions>,
-}
-impl BrowserPermissions {
-    pub fn resolve(&self, origin: &str, field: fn(&BrowserOriginPermissions) -> Option<BrowserPermission>) -> BrowserPermission {
-        self.origins.get(origin).and_then(field).or_else(|| field(&self.defaults)).unwrap_or_default()
+
+impl From<StoredComputerControlUser> for ComputerControlUserConfig {
+    fn from(stored: StoredComputerControlUser) -> Self {
+        Self {
+            native_apps: stored.native_apps,
+            locked_use: stored.locked_use,
+            applications: stored.applications,
+        }
     }
 }

@@ -26,8 +26,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         permission_guide::close();
     }
     let (task, notice) = desktop_settings_security::computer_control_update::update(
-        &mut app.computer_control_settings, &endpoint,
-        app.session_state.active_session_id.as_deref(), app.navigation_tabs.project_path.as_deref(), event);
+        &mut app.computer_control_settings, &endpoint, event);
     let toast = match notice {
         Some(desktop_settings_security::computer_control_update::Notice::Error(value)) => app.show_toast(ToastKind::Error, desktop_i18n::settings::message(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &value)),
         Some(desktop_settings_security::computer_control_update::Notice::Success(value)) => app.show_toast(ToastKind::Success, desktop_i18n::settings::message(desktop_i18n::I18n::new(app.general_settings.desktop_locale), &value)),

@@ -15,21 +15,16 @@ macro_rules! control_id {
 
 control_id!(ControlSessionId);
 control_id!(ControlRequestId);
-control_id!(ControlDocumentId);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct PermissionVersion(pub u64);
 
-/// One report per feature, including independent Excel and Word reports.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ComputerControlStatus {
     pub permission_version: PermissionVersion,
     pub native_apps: ControlFeatureStatus,
-    pub chrome: ControlFeatureStatus,
-    pub excel: ControlFeatureStatus,
-    pub word: ControlFeatureStatus,
     pub locked_use: LockedUseStatus,
 }
 
@@ -87,8 +82,6 @@ pub enum ControlCapability {
     Observe,
     Screenshot,
     Input,
-    StructuredRead,
-    StructuredWrite,
     LockedExecution,
 }
 
@@ -108,14 +101,11 @@ pub enum LockedUseProbe {
     Unsupported,
 }
 
-/// Stable backend identities; mutable window/document titles are not authorization keys.
+/// Stable backend identity for native applications.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ComputerControlTarget {
     NativeApp { bundle_id: String, process_id: u32 },
-    ChromeTab { tab_id: u64, origin: String },
-    ExcelWorkbook { document_id: ControlDocumentId },
-    WordDocument { document_id: ControlDocumentId },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -128,15 +118,12 @@ pub struct ComputerControlRequest {
     pub action: ComputerControlAction,
 }
 
-/// Closed command vocabulary: no shell, script, JavaScript or arbitrary Office.run payload.
+/// Closed command vocabulary: no shell or script payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ComputerControlAction {
     NativeObserve { screenshot: bool },
     NativeInput { input: NativeInput },
-    Chrome { command: ChromeCommand },
-    Excel { command: ExcelCommand },
-    Word { command: WordCommand },
     Stop,
 }
 
@@ -170,76 +157,6 @@ pub enum KeyModifier {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum ChromeCommand {
-    Snapshot,
-    Screenshot,
-    Navigate {
-        url: String,
-    },
-    Click {
-        selector: String,
-    },
-    Fill {
-        selector: String,
-        text: String,
-    },
-    Press {
-        key: String,
-        modifiers: Vec<KeyModifier>,
-    },
-    Scroll {
-        delta_x: i32,
-        delta_y: i32,
-    },
-    /// Bounded bytes supplied by an independently authorized caller; never a local path.
-    Upload {
-        selector: String,
-        file_name: String,
-        content_base64: String,
-    },
-    /// Read a same-origin link into bounded bytes; redirects and filesystem writes are forbidden.
-    Download {
-        selector: String,
-        url: String,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum ExcelCommand {
-    ReadRange { sheet: String, range: String },
-    WriteRange { sheet: String, range: String, values: Vec<Vec<OfficeCellValue>> },
-}
-
-/// Only primitive cell values, not executable code or opaque object commands.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum OfficeCellValue {
-    Text(String),
-    Number(serde_json::Number),
-    Boolean(bool),
-    Empty,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum WordCommand {
-    ReadDocument,
-    FindText { text: String },
-    ReplaceText { search: String, replacement: String },
-    InsertText { position: WordInsertPosition, text: String },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum WordInsertPosition {
-    Start,
-    End,
-    Selection,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ComputerControlResult {
     pub request_id: ControlRequestId,
@@ -259,10 +176,7 @@ pub enum ControlOutcome {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ControlOutput {
     Acknowledged,
-    ChromeDownload { content_base64: String },
     Observation { text: String, screenshots: Vec<ScreenshotReference> },
-    ExcelRange { sheet: String, range: String, values: Vec<Vec<OfficeCellValue>> },
-    WordText { text: String },
 }
 
 /// Sanitized failures: raw backend errors, credentials and request bodies do not belong here.
@@ -363,7 +277,7 @@ impl TryFrom<ScreenshotReferenceWire> for ScreenshotReference {
 /// Desktop management only. These operations are never exposed as model tools.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum ControlSetting { NativeApps, Chrome, Excel, Word, LockedUse }
+pub enum ControlSetting { NativeApps, LockedUse }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -376,7 +290,7 @@ pub struct ControlSettingsUpdate {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "identity", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ControlGrantScope {
-    Application(String), ChromeOrigin(String), ExcelDocument(String), WordDocument(String),
+    Application(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -396,32 +310,6 @@ pub struct ControlApprovals {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ControlVersionResponse { pub permission_version: PermissionVersion }
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ControlPairingConfirmation {
-    pub permission_version: PermissionVersion,
-    pub session_id: ControlSessionId,
-    pub workspace_root: Option<std::path::PathBuf>,
-    pub document_id: ControlDocumentId,
-    pub feature: ControlSetting,
-}
-
-/// One-use, sixty-second task-pane credential. Never persist or log this response.
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ControlPairingResponse { pub credential: String, pub permission_version: PermissionVersion }
-
-#[cfg(test)]
-mod tests;
-
-pub use config_computer_control::{BrowserPermissions, BrowserOriginPermissions, BrowserPermission};
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct BrowserPermissionsSnapshot {
-    pub permission_version: PermissionVersion,
-    pub permissions: BrowserPermissions,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -444,3 +332,6 @@ pub struct NativeServiceReport {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NativeServiceState { Available, NotInstalled, Disconnected, Unsupported }
+
+#[cfg(test)]
+mod tests;

@@ -28,7 +28,7 @@
 | 桌面 DMG | `ShiJu-macos-<TARGET>-<PROFILE>.dmg` | `CREATE_DMG=1` 才生成；默认 0；含应用与 Applications 链接 |
 | CLI ZIP | `ShiJu-CLI-macos-<TARGET>-<PROFILE>.zip` | `MODE=cli`；包含 `shiju`、`vibe-agent`；不表示桌面包通过 |
 
-默认输出目录 `dist/macos`。应用主程序 `shi-ju`，嵌入 `vw-webview`；默认嵌入 CLI `shiju`，兼容 CLI `vibe-agent` 与 `acp` 分别由 `INCLUDE_CLI_COMPAT_IN_APP`、`INCLUDE_ACP_IN_APP` 控制，默认均关闭。脚本还暂存 computer-control 资源并写入相机、麦克风和语音用途说明；实际包内容及授权行为未验证。
+默认输出目录 `dist/macos`。应用主程序 `shi-ju`，嵌入 `vw-webview`；默认嵌入 CLI `shiju`，兼容 CLI `vibe-agent` 与 `acp` 分别由 `INCLUDE_CLI_COMPAT_IN_APP`、`INCLUDE_ACP_IN_APP` 控制，默认均关闭。脚本还打包原生执行应用 ShiJu Computer Use 和电脑操控技能，并写入相机、麦克风和语音用途说明；实际包内容及授权行为未验证。
 
 ## 待回填的实际交付记录
 

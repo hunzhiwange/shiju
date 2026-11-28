@@ -7,17 +7,14 @@ fn feature(state: &str) -> Value {
 }
 
 #[test]
-fn cc_control_02_five_independent_states_roundtrip() {
+fn cc_control_02_native_and_locked_states_roundtrip() {
     let value = json!({
         "permission_version": 7,
-        "native_apps": feature("not_installed"), "chrome": feature("unauthorized"),
-        "excel": feature("disconnected"), "word": feature("ready"),
+        "native_apps": feature("not_installed"),
         "locked_use": {"status": feature("unsupported"), "probe": "unsupported"}
     });
     let status: ComputerControlStatus = serde_json::from_value(value.clone()).unwrap();
-    assert!(status.chrome.enabled);
-    assert_eq!(status.chrome.readiness, ControlReadiness::Unauthorized);
-    assert_ne!(status.excel.readiness, status.word.readiness);
+    assert_eq!(status.native_apps.readiness, ControlReadiness::NotInstalled);
     assert_eq!(status.locked_use.probe, LockedUseProbe::Unsupported);
     assert_eq!(serde_json::to_value(status).unwrap(), value);
     for probe in ["not_probed", "supported", "unsupported"] {
@@ -36,18 +33,6 @@ fn cc_control_02_structured_actions_and_identity_roundtrip() {
             json!({"kind":"native_app", "bundle_id":"org.example.fixture", "process_id":42}),
             json!({"action":"native_input", "input":{"kind":"click", "x":10, "y":20, "button":"left"}}),
         ),
-        (
-            json!({"kind":"chrome_tab", "tab_id":12, "origin":"https://example.org"}),
-            json!({"action":"chrome", "command":{"kind":"navigate", "url":"https://example.org/path"}}),
-        ),
-        (
-            json!({"kind":"excel_workbook", "document_id":"workbook-1"}),
-            json!({"action":"excel", "command":{"kind":"write_range", "sheet":"Sheet1", "range":"A1:B1", "values":[["fixture", 12]]}}),
-        ),
-        (
-            json!({"kind":"word_document", "document_id":"document-1"}),
-            json!({"action":"word", "command":{"kind":"replace_text", "search":"before", "replacement":"after"}}),
-        ),
     ] {
         let value = json!({"request_id":"request-1", "session_id":"session-1",
             "permission_version":3, "target":target, "action":action});
@@ -61,10 +46,10 @@ fn cc_control_02_structured_actions_and_identity_roundtrip() {
 fn cc_control_02_unknown_actions_and_code_payloads_are_rejected() {
     for value in [
         json!({"action":"execute", "code":"anything"}),
+        json!({"action":"chrome", "command":{"kind":"snapshot"}}),
+        json!({"action":"excel", "command":{"kind":"read_range", "sheet":"Sheet1", "range":"A1"}}),
+        json!({"action":"word", "command":{"kind":"read_document"}}),
         json!({"action":"native_observe", "screenshot":true, "shell":"anything"}),
-        json!({"action":"chrome", "command":{"kind":"evaluate", "code":"anything"}}),
-        json!({"action":"excel", "command":{"kind":"run", "code":"anything"}}),
-        json!({"action":"word", "command":{"kind":"run", "code":"anything"}}),
         json!({"action":"native_input", "input":{"kind":"apple_script", "code":"anything"}}),
     ] {
         assert!(serde_json::from_value::<ComputerControlAction>(value).is_err());
@@ -138,24 +123,9 @@ fn cc_control_02_closed_command_vocabulary_roundtrips() {
         json!({"action":"native_input","input":{"kind":"scroll","delta_x":0,"delta_y":20}}),
         json!({"action":"native_input","input":{"kind":"press","key":"A","modifiers":["meta"]}}),
         json!({"action":"native_input","input":{"kind":"type_text","text":"fixture"}}),
-        json!({"action":"chrome","command":{"kind":"snapshot"}}),
-        json!({"action":"chrome","command":{"kind":"screenshot"}}),
-        json!({"action":"chrome","command":{"kind":"click","selector":"@ref1"}}),
-        json!({"action":"chrome","command":{"kind":"fill","selector":"@ref1","text":"fixture"}}),
-        json!({"action":"chrome","command":{"kind":"press","key":"Enter","modifiers":[]}}),
-        json!({"action":"chrome","command":{"kind":"scroll","delta_x":0,"delta_y":20}}),
-        json!({"action":"excel","command":{"kind":"read_range","sheet":"Sheet1","range":"A1"}}),
-        json!({"action":"word","command":{"kind":"read_document"}}),
-        json!({"action":"word","command":{"kind":"find_text","text":"fixture"}}),
-        json!({"action":"word","command":{"kind":"insert_text","position":"end","text":"fixture"}}),
     ];
     for action in actions {
         let parsed: ComputerControlAction = serde_json::from_value(action.clone()).unwrap();
         assert_eq!(serde_json::to_value(parsed).unwrap(), action);
     }
-    for value in [json!("fixture"), json!(12), json!(true), Value::Null] {
-        let parsed: OfficeCellValue = serde_json::from_value(value.clone()).unwrap();
-        assert_eq!(serde_json::to_value(parsed).unwrap(), value);
-    }
-    assert!(serde_json::from_value::<OfficeCellValue>(json!({"code":"anything"})).is_err());
 }

@@ -2,7 +2,6 @@
 pub use vw_api_computer_control::{
     ControlSessionId,
     ControlRequestId,
-    ControlDocumentId,
     PermissionVersion,
     ComputerControlStatus,
     ControlFeatureStatus,
@@ -19,11 +18,6 @@ pub use vw_api_computer_control::{
     NativeInput,
     MouseButton,
     KeyModifier,
-    ChromeCommand,
-    ExcelCommand,
-    OfficeCellValue,
-    WordCommand,
-    WordInsertPosition,
     ComputerControlResult,
     ControlOutcome,
     ControlOutput,
@@ -37,6 +31,4 @@ pub use vw_api_computer_control::{
     ControlGrantRevocation,
     ControlApprovals,
     ControlVersionResponse,
-    ControlPairingConfirmation,
-    ControlPairingResponse,
 };

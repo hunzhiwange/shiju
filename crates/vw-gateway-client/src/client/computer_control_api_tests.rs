@@ -6,7 +6,7 @@ use vw_api_computer_control::*;
 async fn cc_control_18_client_decodes_version_after_save() {
     let server = test_support::server(vec![(200, json!({"permission_version":2}))]);
     let response = server.client().computer_control_save(&ControlSettingsUpdate {
-        permission_version: PermissionVersion(1), feature: ControlSetting::Chrome, enabled: true,
+        permission_version: PermissionVersion(1), feature: ControlSetting::NativeApps, enabled: true,
     }).await.unwrap();
     assert_eq!(response.permission_version, PermissionVersion(2));
 }

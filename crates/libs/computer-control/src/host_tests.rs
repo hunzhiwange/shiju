@@ -123,8 +123,8 @@ async fn cc_control_04_wrong_credential_never_dispatches() {
 }
 
 #[tokio::test]
-async fn cc_control_04_cross_session_target_version_and_action_rejected() {
-    for case in 0..4 {
+async fn cc_control_04_cross_session_target_and_version_rejected() {
+    for case in 0..3 {
         let host = fixture();
         let ticket = host.issue(target(), Duration::from_secs(10)).unwrap();
         let count = Arc::new(AtomicUsize::new(0));
@@ -142,13 +142,9 @@ async fn cc_control_04_cross_session_target_version_and_action_rejected() {
                 };
                 ControlErrorCode::TargetChanged
             }
-            2 => {
+            _ => {
                 req.permission_version = PermissionVersion(0);
                 ControlErrorCode::StalePermission
-            }
-            _ => {
-                req.action = ComputerControlAction::Word { command: WordCommand::ReadDocument };
-                ControlErrorCode::InvalidRequest
             }
         };
         assert_eq!(send(&mut client, req, 1).await, HostReply::Rejected { error });

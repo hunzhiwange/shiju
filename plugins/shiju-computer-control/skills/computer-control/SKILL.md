@@ -40,12 +40,12 @@ description: 使用识矩真实 computer_control 工具观察、输入、拖动�
 {"target":{"kind":"native_app","bundle_id":"com.example.fixture","process_id":42},"action":{"action":"stop"}}
 ```
 
-stop 停止当前会话的控制。用户在界面停止会话或撤销权限也应立即生效；不得重新建立控制绕过停止意图。其他原生输入仅按实际工具 schema 使用 activate、scroll、press，不运行脚本。Chrome、Excel、Word 需要独立连接和授权，不以本技能的原生操作流程声称已支持其完整链路。
+stop 停止当前会话的控制。用户在界面停止会话或撤销权限也应立即生效；不得重新建立控制绕过停止意图。其他原生输入仅按实际工具 schema 使用 activate、scroll、press，不运行脚本。
 
 ## 缺少驱动、权限与失败处理
 
 - 当前源码的 macOS 打包脚本将 `computer-control` crate 的 `shiju-computer-use` 二进制放到 `Contents/Helpers/ShiJu Computer Use.app/Contents/MacOS/shiju-computer-use`。如果正在运行的识矩应用包缺少该文件，报告“当前安装包缺少原生控制服务”，停止原生操作。仅在确认有包含该服务的可用版本后提供升级指引。不能复制 Codex 驱动或借用其授权。
 - 确认包内服务存在后，由用户在系统设置的隐私与安全性中核对实际执行的 ShiJu Computer Use.app 的辅助功能和屏幕录制权限，按系统要求重启，再重新观察。插件安装不会授予 TCC 权限。不要静默申请或修改 TCC。
 - PermissionDenied 也可能来自识矩策略或目标授权，先核对原生控制开关和应用授权，再由用户核对系统权限；不能直接断言是 TCC。StalePermission 需重读授权状态；TargetChanged 需重新确认目标；Cancelled 后尊重停止；Unsupported 不宣称已支持锁屏或其他系统。
-- 当前服务端可能将启动、连接及系统权限失败归为 BackendFailure。仅凭此错误不能断言驱动缺失、辅助功能或屏幕录制权限不足；明确报告“执行后端失败，具体原因未确定”，列出包内服务、运行状态与权限的人工排查步骤。不得把资源安装 status 当作驱动在线或权限通过证据。
+- 当前服务端可能将启动、连接及系统权限失败归为 BackendFailure。仅凭此错误不能断言驱动缺失、辅助功能或屏幕录制权限不足；明确报告“执行后端失败，具体原因未确定”，列出包内服务、运行状态与权限的人工排查步骤。
 - 没有成功的观察与动作回读，不声称电脑操控已就绪。不要输出凭证、socket 鉴权数据或敏感截图内容到诊断日志。

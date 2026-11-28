@@ -14,11 +14,6 @@ mod host_tests;
 pub mod native;
 
 #[cfg(unix)]
-pub mod chrome;
-
-pub mod office;
-
-#[cfg(unix)]
 pub mod service;
 
 #[cfg(all(test, unix))]

@@ -5,7 +5,6 @@ import tempfile
 import unittest
 
 from bundle_helper import BUNDLE_ID, EXECUTABLE, RELATIVE_APP, executable, stage
-from install_local import helper_path, install, package, uninstall
 
 
 class BundleHelperTests(unittest.TestCase):
@@ -69,22 +68,3 @@ class BundleHelperTests(unittest.TestCase):
         self.app.symlink_to(self.root, target_is_directory=True)
         with self.assertRaises(ValueError):
             self.stage()
-
-    def test_discover_relocated_bundle(self):
-        binary = self.stage()
-        payload = self.product / "Contents/Resources/computer-control"
-        self.assertEqual(helper_path(payload), binary)
-        with self.assertRaises(ValueError):
-            helper_path(self.root)
-
-    def test_local_uninstall_preserves_shipped_app_and_unknown_files(self):
-        binary = self.stage()
-        payload = self.product / "Contents/Resources/computer-control"
-        package(Path(__file__).resolve().parents[2], payload)
-        home = self.root / "home"
-        root = install(payload, home)
-        unknown = root / "user-file"
-        unknown.write_text("keep")
-        uninstall(home)
-        self.assertEqual(unknown.read_text(), "keep")
-        self.assertEqual(binary.read_bytes(), self.binary.read_bytes())

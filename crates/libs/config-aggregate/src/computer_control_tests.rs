@@ -5,11 +5,9 @@ use config_computer_control::*;
 fn cc_control_03_config_save_reload_preserves_user_grants_and_version() {
     let mut config = Config::default();
     let mut user =
-        ComputerControlUserConfig { native_apps: true, chrome: true, ..Default::default() };
+        ComputerControlUserConfig { native_apps: true, ..Default::default() };
     user.applications.insert("com.apple.TextEdit".into(), GrantDecision::Allow);
     user.applications.insert("com.apple.Preview".into(), GrantDecision::Deny);
-    user.chrome_origins.insert("https://example.com".into(), GrantDecision::Allow);
-    user.excel_documents.insert("book-1".into(), GrantDecision::Allow);
     config.computer_control.users.insert("uid:501".into(), user);
     config.computer_control.permission_version = 7;
     let bytes = serde_json::to_vec(&config).unwrap();

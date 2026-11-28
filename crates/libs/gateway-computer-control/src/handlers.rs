@@ -1,14 +1,13 @@
 //! Authenticated desktop management of the gateway's single local control host.
-use axum::{Extension, Json, Router, extract::DefaultBodyLimit, http::{HeaderMap, StatusCode}, middleware, response::{IntoResponse, Response}, routing::{get, post}};
+use axum::{Extension, Json, Router, extract::DefaultBodyLimit, http::{HeaderMap, StatusCode}, middleware, response::{Response}, routing::{get, post}};
 use serde_json::json;
-use sha2::{Digest, Sha256};
 use std::path::Path;
 use {
     vw_api_computer_control::*,
     vw_api_transport::id::TenantScope,
 };
 use config_computer_control::GrantDecision;
-use computer_control::{policy::{ComputerControlPolicy, ControlFeature, GrantScope}, office::sessions::OfficeSurface};
+use computer_control::policy::{ComputerControlPolicy, ControlFeature, GrantScope};
 use tool_computer::NativeControlRuntime;
 
 static EDIT: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
@@ -22,10 +21,8 @@ pub fn router() -> Router {
         .route("/computer-control/status", get(status))
         .route("/computer-control/native-permission", post(request_native_permission))
         .route("/computer-control/native-service", get(native_service))
-        .route("/computer-control/browser-permissions", get(browser_permissions).put(save_browser_permissions))
         .route("/computer-control/settings", axum::routing::put(save))
         .route("/computer-control/approvals", get(approvals).delete(revoke))
-        .route("/computer-control/pairing", post(pair))
         .route("/computer-control/stop", post(stop))
         .layer(DefaultBodyLimit::max(128 * 1024))
         .layer(middleware::map_response(async |mut response: Response| {
@@ -57,8 +54,6 @@ fn feature(enabled: bool, readiness: ControlReadiness, authorization: SystemAuth
 }
 async fn status(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<Json<ComputerControlStatus>, Failure> {
     let runtime = runtime(&h).await?;
-    let chrome_connected = runtime.chrome_connected().await;
-    let documents = runtime.office_transport().map(|o| o.connected_documents()).unwrap_or_default();
     let native = probe_native_service().await;
     let policy = runtime.control_policy().read();
     let config = policy.config().users.get(&user()).cloned().unwrap_or_default();
@@ -73,27 +68,9 @@ async fn status(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<J
             (readiness, SystemAuthorization::NotChecked, backend, vec![])
         }
     };
-    let bridge = |enabled, connected, capabilities| {
-        let mut status = feature(enabled, if connected { ControlReadiness::Ready } else { ControlReadiness::Disconnected }, SystemAuthorization::NotRequired, ControlBackend::Available, capabilities);
-        status.connection = if connected { ControlConnection::Connected } else { ControlConnection::Disconnected };
-        status
-    };
-    let office = |enabled, surface| {
-        use computer_control::office::sessions::OfficeCapability as C;
-        let mut capabilities = Vec::new();
-        let sessions: Vec<_> = documents.iter().filter(|d| d.handle.surface == surface).collect();
-        for session in &sessions {
-            for capability in &session.capabilities {
-                let mapped = match capability { C::ExcelReadRange | C::WordReadDocument | C::WordFindText => ControlCapability::StructuredRead, _ => ControlCapability::StructuredWrite };
-                if !capabilities.contains(&mapped) { capabilities.push(mapped); }
-            }
-        }
-        bridge(enabled, !sessions.is_empty(), capabilities)
-    };
     Ok(Json(ComputerControlStatus {
         permission_version: policy.version(),
         native_apps: feature(config.native_apps, readiness, auth, backend, caps),
-        chrome: bridge(config.chrome, chrome_connected, vec![]), excel: office(config.excel, OfficeSurface::Excel), word: office(config.word, OfficeSurface::Word),
         locked_use: LockedUseStatus { status: feature(config.locked_use, ControlReadiness::Unsupported, SystemAuthorization::NotChecked, ControlBackend::Unsupported, vec![]), probe: LockedUseProbe::Unsupported },
     }))
 }
@@ -102,17 +79,16 @@ async fn approvals(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Resul
     let policy = runtime.control_policy().read();
     let mut approvals = Vec::new();
     if let Some(c) = policy.config().users.get(&user()) {
-        for (map, constructor) in [(&c.applications, ControlGrantScope::Application as fn(String) -> ControlGrantScope), (&c.chrome_origins, ControlGrantScope::ChromeOrigin), (&c.excel_documents, ControlGrantScope::ExcelDocument), (&c.word_documents, ControlGrantScope::WordDocument)] {
-            approvals.extend(map.iter().filter(|(_, d)| **d == GrantDecision::Allow).map(|(id, _)| constructor(id.clone())));
-        }
+        approvals.extend(c.applications.iter().filter(|(_, d)| **d == GrantDecision::Allow)
+            .map(|(id, _)| ControlGrantScope::Application(id.clone())));
     }
     Ok(Json(ControlApprovals { permission_version: policy.version(), approvals }))
 }
 fn setting(f: ControlSetting) -> ControlFeature {
-    match f { ControlSetting::NativeApps => ControlFeature::NativeApps, ControlSetting::Chrome => ControlFeature::Chrome, ControlSetting::Excel => ControlFeature::Excel, ControlSetting::Word => ControlFeature::Word, ControlSetting::LockedUse => ControlFeature::LockedUse }
+    match f { ControlSetting::NativeApps => ControlFeature::NativeApps, ControlSetting::LockedUse => ControlFeature::LockedUse }
 }
 fn scope(s: ControlGrantScope) -> GrantScope {
-    match s { ControlGrantScope::Application(id) => GrantScope::Application(id), ControlGrantScope::ChromeOrigin(id) => GrantScope::ChromeOrigin(id), ControlGrantScope::ExcelDocument(id) => GrantScope::ExcelDocument(id), ControlGrantScope::WordDocument(id) => GrantScope::WordDocument(id) }
+    match s { ControlGrantScope::Application(id) => GrantScope::Application(id) }
 }
 async fn publish(runtime: &NativeControlRuntime, next: ComputerControlPolicy) -> Result<Json<ControlVersionResponse>, Failure> {
     agent_config::runtime::update_global_for_tenant(&TenantScope::default(), json!({"computer_control":next.config()})).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
@@ -145,43 +121,9 @@ async fn stop(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<Sta
     runtime.stop_all().await;
     Ok(StatusCode::NO_CONTENT)
 }
-async fn pair(Extension(t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<ControlPairingConfirmation>) -> Result<Response, Failure> {
-    let runtime = runtime(&h).await?;
-    let _edit = EDIT.lock().await;
-    if q.session_id.0.trim().is_empty() || q.session_id.0.len() > 256 { return Err(StatusCode::BAD_REQUEST); }
-    let surface = match q.feature { ControlSetting::Excel => OfficeSurface::Excel, ControlSetting::Word => OfficeSurface::Word, _ => return Err(StatusCode::UNPROCESSABLE_ENTITY) };
-    let transport = runtime.office_transport().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let mut next = ComputerControlPolicy::new(runtime.control_policy().read().config().clone());
-    if next.version() != q.permission_version { return Err(StatusCode::CONFLICT); }
-    let enabled = next.config().users.get(&user()).is_some_and(|c| match surface { OfficeSurface::Excel => c.excel, OfficeSurface::Word => c.word });
-    if !enabled { return Err(StatusCode::FORBIDDEN); }
-    let grant = match surface { OfficeSurface::Excel => GrantScope::ExcelDocument(q.document_id.0.clone()), OfficeSurface::Word => GrantScope::WordDocument(q.document_id.0.clone()) };
-    next.set_grant(&user(), grant, Some(GrantDecision::Allow)).map_err(|_| StatusCode::BAD_REQUEST)?;
-    let identity = serde_json::to_vec(&(&t, &q.session_id.0, &q.workspace_root)).map_err(|_| StatusCode::BAD_REQUEST)?;
-    let owner = ControlSessionId(hex::encode(Sha256::digest(identity)));
-    let Json(version) = publish(&runtime, next).await?;
-    let credential = transport.approve_pairing(owner, surface, q.document_id).map_err(|_| StatusCode::BAD_REQUEST)?;
-    Ok(Json(ControlPairingResponse { credential, permission_version: version.permission_version }).into_response())
-}
-
 #[cfg(test)]
 #[path = "computer_control_tests.rs"]
 mod tests;
-
-async fn browser_permissions(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<Json<BrowserPermissionsSnapshot>, Failure> {
-    let runtime = runtime(&h).await?;
-    let policy = runtime.control_policy().read();
-    let permissions = policy.config().users.get(&user()).map(|u| u.browser_permissions.clone()).unwrap_or_default();
-    Ok(Json(BrowserPermissionsSnapshot { permission_version: policy.version(), permissions }))
-}
-async fn save_browser_permissions(Extension(_t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<BrowserPermissionsSnapshot>) -> Result<Json<ControlVersionResponse>, Failure> {
-    let runtime = runtime(&h).await?;
-    let _edit = EDIT.lock().await;
-    let mut next = ComputerControlPolicy::new(runtime.control_policy().read().config().clone());
-    if next.version() != q.permission_version { return Err(StatusCode::CONFLICT); }
-    next.set_browser_permissions(&user(), q.permissions).map_err(|_| StatusCode::BAD_REQUEST)?;
-    publish(&runtime, next).await
-}
 
 async fn request_native_permission(Extension(_t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<NativePermissionRequest>) -> Result<Json<NativePermissionReport>, Failure> {
     let _runtime = runtime(&h).await?;

@@ -437,12 +437,14 @@ stage_computer_use_app() {
     --destination "$CONTROL_APP" --version "$CONTROL_VERSION" --gateway-cdhash "$gateway_cdhash"
 }
 
-# Public bridge resources are staged independently from native code.
-COMPUTER_CONTROL_RESOURCES="$APP_BUNDLE/Contents/Resources/computer-control"
-rm -rf "$COMPUTER_CONTROL_RESOURCES"
-python3 "$(dirname "$0")/computer_control/install_local.py" stage \
-  --source "$(cd "$(dirname "$0")/.." && pwd)" \
-  --destination "$COMPUTER_CONTROL_RESOURCES"
+# Ship the native-app skill in the existing resource location.
+CONTROL_RESOURCES="$APP_BUNDLE/Contents/Resources/computer-control"
+CONTROL_PLUGIN_SOURCE="$(dirname "$0")/../plugins/shiju-computer-control"
+rm -rf "$CONTROL_RESOURCES"
+mkdir -p "$CONTROL_RESOURCES/plugin/.codex-plugin" "$CONTROL_RESOURCES/plugin/skills/computer-control"
+install -m 0644 "$CONTROL_PLUGIN_SOURCE/.codex-plugin/plugin.json" "$CONTROL_RESOURCES/plugin/.codex-plugin/"
+install -m 0644 "$CONTROL_PLUGIN_SOURCE/README.md" "$CONTROL_RESOURCES/plugin/"
+install -m 0644 "$CONTROL_PLUGIN_SOURCE/skills/computer-control/SKILL.md" "$CONTROL_RESOURCES/plugin/skills/computer-control/"
 
 ensure_app_icon
 

@@ -1,18 +1,15 @@
-//! Five independent server-reported capabilities and explicit authorization management.
+//! Server-reported native control capabilities and explicit authorization management.
 use desktop_i18n::I18n;
 use crate::computer_control_state::{ComputerControlSettingsState, ControlIdentity};
 use crate::computer_control_update::{Event, message};
 use desktop_ui_controls::system_settings_common::*;
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{pick_list, button, column, container, row, scrollable, svg, text, text_input};
+use iced::widget::{button, column, container, row, scrollable, svg, text};
 use iced::{Alignment, Element, Length};
 use vw_api_computer_control::*;
 
-pub const FEATURES: [(ControlSetting, &str); 5] = [
+pub const FEATURES: [(ControlSetting, &str); 2] = [
     (ControlSetting::NativeApps, "任意应用"),
-    (ControlSetting::Chrome, "Chrome"),
-    (ControlSetting::Excel, "Excel"),
-    (ControlSetting::Word, "Word"),
     (ControlSetting::LockedUse, "锁屏使用"),
 ];
 pub fn readiness_label(readiness: ControlReadiness) -> &'static str {
@@ -20,7 +17,7 @@ pub fn readiness_label(readiness: ControlReadiness) -> &'static str {
         ControlReadiness::Disabled => "已关闭",
         ControlReadiness::NotInstalled => "后端未安装",
         ControlReadiness::Unauthorized => "缺少系统权限：请在网关主机授予辅助功能及屏幕录制权限",
-        ControlReadiness::Disconnected => "未连接：请连接 Chrome 扩展或 Office 加载项",
+        ControlReadiness::Disconnected => "未连接",
         ControlReadiness::Ready => "服务端报告已就绪",
         ControlReadiness::Unsupported => "当前平台或后端不支持",
     }
@@ -79,7 +76,6 @@ pub fn page(i18n: I18n, state: &ComputerControlSettingsState) -> Element<'_, Eve
     .spacing(16)
     .width(Length::Fill);
     let mut content = column![text(i18n.__("控制")).size(17)].spacing(16).width(Length::Fill);
-    let mut applications = column![].width(Length::Fill);
     if state.saving {
         content = content.push(text(i18n.__("正在等待服务端确认…")).size(13));
     }
@@ -129,8 +125,6 @@ pub fn page(i18n: I18n, state: &ComputerControlSettingsState) -> Element<'_, Eve
                         ControlCapability::Observe => i18n.__("观察"),
                         ControlCapability::Screenshot => i18n.__("截图"),
                         ControlCapability::Input => i18n.__("输入"),
-                        ControlCapability::StructuredRead => i18n.__("结构化读取"),
-                        ControlCapability::StructuredWrite => i18n.__("结构化写入"),
                         ControlCapability::LockedExecution => i18n.__("锁屏执行"),
                     })
                     .collect::<Vec<_>>()
@@ -140,22 +134,14 @@ pub fn page(i18n: I18n, state: &ComputerControlSettingsState) -> Element<'_, Eve
                 );
             }
         }
-        if matches!(feature, ControlSetting::NativeApps | ControlSetting::Chrome) {
-            let label = if feature == ControlSetting::NativeApps
-                && state.native_service.as_ref().is_some_and(|report| report.state == NativeServiceState::NotInstalled)
+        if feature == ControlSetting::NativeApps {
+            let label = if state.native_service.as_ref().is_some_and(|report| report.state == NativeServiceState::NotInstalled)
             {
                 i18n.__("安装与权限")
             } else {
                 i18n.__("管理权限")
             };
             details = details.push(action(i18n, label, Event::Manage(feature), true));
-        }
-        if matches!(feature, ControlSetting::Excel | ControlSetting::Word) {
-            details = details.push(action(i18n,
-                i18n.__("确认 Office 文档配对"),
-                Event::PairOpen(feature),
-                !state.busy() && report.is_some_and(|s| s.enabled),
-            ));
         }
         if feature == ControlSetting::LockedUse {
             details = details.push(text(i18n.__("锁屏需要独立的可执行后端；开关与未锁屏操作均不能证明支持。当前后端不支持时，开启请求会被拒绝。")).size(12));
@@ -166,77 +152,47 @@ pub fn page(i18n: I18n, state: &ComputerControlSettingsState) -> Element<'_, Eve
                 .align_y(Alignment::Center),
         )
         .padding([20, 0]);
-        if feature == ControlSetting::LockedUse {
-            content = content.push(settings_group_card(applications));
-            content = content.push(settings_group_card(feature_row));
-            applications = column![].width(Length::Fill);
-        } else {
-            if feature != ControlSetting::NativeApps {
-                applications = applications.push(settings_divider());
-            }
-            applications = applications.push(feature_row);
-        }
+        content = content.push(settings_group_card(feature_row));
     }
-    for (chrome, heading) in [(true, i18n.__("Chrome 站点管理")), (false, i18n.__("始终允许的应用与文档"))]
-    {
-        let mut grants = column![].spacing(12);
-        let mut count = 0;
-        for scope in &state.approvals {
-            if matches!(scope, ControlGrantScope::ChromeOrigin(_)) != chrome {
-                continue;
-            }
-            count += 1;
-            let (kind, identity) = match scope {
-                ControlGrantScope::Application(id) => (i18n.__("应用 Bundle ID"), id),
-                ControlGrantScope::ChromeOrigin(id) => (i18n.__("站点 Origin"), id),
-                ControlGrantScope::ExcelDocument(id) => (i18n.__("Excel 文档 ID"), id),
-                ControlGrantScope::WordDocument(id) => (i18n.__("Word 文档 ID"), id),
-            };
-            grants = grants.push(
-                row![
-                    column![
-                        text(i18n.__(kind)).size(12).style(settings_muted_text_style),
-                        text(identity).size(13)
-                    ]
-                    .spacing(4)
-                    .width(Length::Fill),
-                    action(i18n, i18n.__("撤销授权"), Event::Revoke(scope.clone()), !state.busy()),
+    let mut grants = column![].spacing(12);
+    for scope @ ControlGrantScope::Application(identity) in &state.approvals {
+        grants = grants.push(
+            row![
+                column![
+                    text(i18n.__("应用 Bundle ID")).size(12).style(settings_muted_text_style),
+                    text(identity).size(13)
                 ]
-                .spacing(12)
-                .align_y(Alignment::Center),
-            );
-        }
-        if count == 0 {
-            grants = grants.push(
-                container(
-                    text(if state.status.is_some() {
-                        i18n.__("暂无授权")
-                    } else {
-                        i18n.__("授权列表尚未加载")
-                    })
-                    .size(13)
-                    .style(settings_muted_text_style),
-                )
-                .center_x(Length::Fill)
-                .padding([20, 0]),
-            );
-        }
-        if chrome {
-            grants = grants.push(
-                text(i18n.__("站点授权由实际操作时明确批准；撤销后须重新授权。原有浏览器配置保持独立。"))
-                    .size(12)
-                    .style(settings_muted_text_style),
-            );
-        }
-        content = content.push(text(i18n.__(heading)).size(17));
-        content = content.push(settings_group_card(container(grants).padding([16, 0])));
+                .spacing(4)
+                .width(Length::Fill),
+                action(i18n, i18n.__("撤销授权"), Event::Revoke(scope.clone()), !state.busy()),
+            ]
+            .spacing(12)
+            .align_y(Alignment::Center),
+        );
     }
+    if state.approvals.is_empty() {
+        grants = grants.push(
+            container(
+                text(if state.status.is_some() {
+                    i18n.__("暂无授权")
+                } else {
+                    i18n.__("授权列表尚未加载")
+                })
+                .size(13)
+                .style(settings_muted_text_style),
+            )
+            .center_x(Length::Fill)
+            .padding([20, 0]),
+        );
+    }
+    content = content.push(text(i18n.__("始终允许的应用")).size(17));
+    content = content.push(settings_group_card(container(grants).padding([16, 0])));
     let body = scrollable(container(content).padding([0, 7]).width(Length::Fill))
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .height(Length::Fill);
     column![
         header,
-        text(i18n.__("开关保存使用策略；系统权限与扩展连接由当前网关主机检查。"))
+        text(i18n.__("开关保存使用策略，系统权限由当前网关主机检查。"))
             .size(12)
             .style(settings_muted_text_style),
         body
@@ -251,8 +207,7 @@ fn management_page(
     state: &ComputerControlSettingsState,
     feature: ControlSetting,
 ) -> Element<'_, Event> {
-    let chrome = feature == ControlSetting::Chrome;
-    let title = if chrome { "Google Chrome" } else { i18n.__("任意应用") };
+    let title = i18n.__("任意应用");
     let readiness = state.feature(feature).map(|report| report.readiness);
     let status = i18n.__(readiness
         .map(|readiness| feature_readiness_label(feature, readiness))
@@ -272,8 +227,7 @@ fn management_page(
     if let Some(error) = &state.error {
         content = content.push(settings_error_banner(desktop_i18n::settings::message(i18n, error)));
     }
-    let status = if !chrome
-        && matches!(
+    let status = if matches!(
             readiness,
             Some(
                 ControlReadiness::Unauthorized
@@ -286,34 +240,14 @@ fn management_page(
         text(status).size(13).style(settings_muted_text_style).into()
     };
     content = content.push(status);
-    if chrome {
-        content = content.push(settings_group_card(column![
-            text(i18n.__("浏览器连接")).size(17),
-            text(i18n.__("在运行网关的 Mac 上，使用安装包内的 install_local.py 依次执行 install 和 connect-chrome。然后打开 chrome://extensions，开启开发者模式并加载 ~/.shiju/computer-control/plugin/chrome。"))
-                .size(13).wrapping(iced::widget::text::Wrapping::WordOrGlyph),
-            text(i18n.__("在目标网页点击 ShiJu Computer Control，悬停扩展图标查看标签页 ID。用该 ID 和网址在识矩发起操作，按提示批准站点，再在 Chrome 点击扩展完成连接。导航或切换到新标签页后需要重新授权。"))
-                .size(13),
-            text(i18n.__("识矩和 Codex 可以在同一 Chrome 中使用，各自通过自己的扩展连接和授权。"))
-                .size(13).style(settings_muted_text_style),
-        ].spacing(12)).padding([16, 22]));
-        content = content.push(browser_permissions_form(i18n, state));
-    } else {
-        content = content.push(native_permissions(i18n, state));
-    }
+    content = content.push(native_permissions(i18n, state));
     let mut grants = column![settings_group_heading(
-        if chrome { i18n.__("已授权网站") } else { i18n.__("已授权应用") },
+        i18n.__("已授权应用"),
         i18n.__("持久授权在实际操作的确认提示中授予，可在此撤销。"),
     )]
     .spacing(12)
     .width(Length::Fill);
-    let mut has_grants = false;
-    for scope in &state.approvals {
-        let identity = match (chrome, scope) {
-            (true, ControlGrantScope::ChromeOrigin(identity)) => identity,
-            (false, ControlGrantScope::Application(identity)) => identity,
-            _ => continue,
-        };
-        has_grants = true;
+    for scope @ ControlGrantScope::Application(identity) in &state.approvals {
         grants = grants.push(settings_divider()).push(
             row![
                 text(identity.as_str())
@@ -326,7 +260,7 @@ fn management_page(
             .align_y(Alignment::Center),
         );
     }
-    if !has_grants {
+    if state.approvals.is_empty() {
         let empty_label =
             if state.status.is_some() { "暂无授权" } else { "授权列表尚未加载" };
         grants = grants
@@ -449,46 +383,9 @@ fn native_permissions(i18n: I18n, state: &ComputerControlSettingsState) -> Eleme
         .into()
 }
 
-fn browser_permissions_form(i18n: I18n, state: &ComputerControlSettingsState) -> Element<'_, Event> {
-    let Some(snapshot) = &state.browser else { return text(i18n.__("网站权限尚未加载，请刷新状态")).size(13).into(); };
-    let mut form = column![text(i18n.__("网站权限")).size(17), text(i18n.__("设置默认权限，并为特定网站配置例外。保存后生效，现有操控会话会停止。")).size(13)].spacing(14);
-    for (origin, policy) in std::iter::once((None, &snapshot.permissions.defaults))
-        .chain(snapshot.permissions.origins.iter().map(|(o, p)| (Some(o.clone()), p))) {
-        let mut controls = column![text(origin.clone().unwrap_or_else(|| i18n.__("默认").into())).size(15)].spacing(10);
-        for (field, label, value) in [(0, i18n.__("浏览"), policy.access), (1, i18n.__("下载"), policy.downloads), (2, i18n.__("上传"), policy.uploads), (3, i18n.__("调试 / CDP（后端尚不支持）"), policy.full_cdp_access), (4, i18n.__("网站工具（后端尚不支持）"), policy.website_tools)] {
-            let key = origin.clone();
-            let mut options = vec![BrowserPermission::Ask, BrowserPermission::Allow, BrowserPermission::Deny];
-            if field >= 3 { options = vec![BrowserPermission::Deny]; }
-            let choice = |value| BrowserPermissionChoice { value, label: browser_permission_label(i18n, value) };
-            let options: Vec<_> = options.into_iter().map(choice).collect();
-            let select = pick_list(options, value.map(choice), move |v| message(Event::BrowserEdit { origin: key.clone(), field, value: Some(v.value) }))
-                .padding(SETTINGS_CONTROL_PADDING).text_size(SETTINGS_CONTROL_TEXT_SIZE)
-                .style(settings_pick_list_style).menu_style(settings_pick_list_menu_style);
-            let mut control = row![text(label).size(13).width(Length::Fill), select].spacing(10).align_y(Alignment::Center);
-            if origin.is_some() && value.is_some() {
-                let key = origin.clone();
-                control = control.push(action(i18n, i18n.__("使用默认设置"), Event::BrowserEdit { origin: key, field, value: None }, !state.busy()));
-            }
-            controls = controls.push(control);
-        }
-        if let Some(origin) = origin { controls = controls.push(action(i18n, i18n.__("移除网站例外"), Event::BrowserRemove(origin), !state.busy())); }
-        form = form.push(settings_group_card(controls));
-    }
-    form = form.push(row![
-        text_input(i18n.__("精确网站 Origin，例如 https://example.com"), &state.browser_origin)
-            .on_input(|v| message(Event::BrowserOrigin(v))).padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE).style(settings_text_input_style),
-        action(i18n, i18n.__("添加网站"), Event::BrowserEdit { origin: Some(state.browser_origin.trim().to_owned()), field: 0, value: None }, !state.busy() && !state.browser_origin.trim().is_empty()),
-    ].spacing(10));
-    form.push(action(i18n, i18n.__("保存网站权限"), Event::BrowserSave, !state.busy())).into()
-}
-
 fn feature_description(feature: ControlSetting) -> &'static str {
     match feature {
         ControlSetting::NativeApps => "允许识矩观察和操作电脑上的应用",
-        ControlSetting::Chrome => "通过浏览器扩展访问网页并执行操作",
-        ControlSetting::Excel => "连接 Excel 加载项，读取和编辑电子表格",
-        ControlSetting::Word => "连接 Word 加载项，读取和编辑文档",
         ControlSetting::LockedUse => "允许在电脑锁定时继续执行任务，需要后端支持",
     }
 }
@@ -496,12 +393,6 @@ fn feature_description(feature: ControlSetting) -> &'static str {
 fn feature_icon(feature: ControlSetting) -> Element<'static, Event> {
     let (color, path) = match feature {
         ControlSetting::NativeApps => ("#818cf8", "M4 4h24v17H4z M11 27h10 M16 21v6"),
-        ControlSetting::Chrome => (
-            "#38bdf8",
-            "M28 16a12 12 0 1 1-24 0 12 12 0 0 1 24 0 M4 16h24 M16 4c-7 7-7 17 0 24 M16 4c7 7 7 17 0 24",
-        ),
-        ControlSetting::Excel => ("#34d399", "M7 4h18v24H7z M7 12h18 M7 20h18 M16 12v16"),
-        ControlSetting::Word => ("#60a5fa", "M7 4h18v24H7z M12 11h8 M12 16h8 M12 21h5"),
         ControlSetting::LockedUse => {
             ("#fbbf24", "M7 14h18v14H7z M11 14V9a5 5 0 0 1 10 0v5 M16 20v3")
         }
@@ -512,78 +403,6 @@ fn feature_icon(feature: ControlSetting) -> Element<'static, Event> {
     svg(svg::Handle::from_memory(data.into_bytes())).width(48).height(48).into()
 }
 
-pub fn host_overlays<'a, M: Clone + 'static>(i18n: I18n,
-    state: &'a ComputerControlSettingsState,
-    identity: &ControlIdentity,
-    base: Element<'a, M>,
-    map: fn(Event) -> M,
-) -> Element<'a, M> {
-    if state.identity.as_ref() != Some(identity) {
-        return base;
-    }
-    let Some(draft) = &state.pairing else {
-        return base;
-    };
-    let close = message(Event::PairClose);
-    let header = settings_modal_header(
-        text(i18n.__("确认 Office 文档配对")).size(20),
-        settings_close_button(close.clone()),
-    );
-    let mut body = column![
-        text(desktop_i18n::__!(i18n, "应用：%s", (if draft.feature == ControlSetting::Excel { "Excel" } else { "Word" }).to_string()).expect("valid settings message")),
-        text(desktop_i18n::__!(i18n, "聊天会话：%s", (draft.session).to_string()).expect("valid settings message")).size(13),
-        text(i18n.__("输入加载项提供的稳定文档 ID。确认会为此文档授予持久权限，并生成一次性配对码；可以在授权列表中撤销。")).size(13),
-    ].spacing(14);
-    if let Some(credential) = &draft.credential {
-        body = body.push(
-            text(i18n.__("请在 60 秒内将此一次性配对码填入对应加载项；关闭弹窗即清除本地显示。")).size(13),
-        );
-        // Default font also handles non-ASCII document identities safely.
-        body = body.push(text(&credential.0).size(14));
-        body = body.push(action(i18n, i18n.__("复制一次性配对码"), Event::CopyCredential, true));
-    } else {
-        let input = text_input(i18n.__("加载项中的文档 ID"), &draft.document)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style);
-        let input =
-            if state.saving { input } else { input.on_input(|v| message(Event::PairDocument(v))) };
-        body = body.push(input);
-    }
-    let actions = row![
-        action(i18n, i18n.__("关闭"), Event::PairClose, !state.saving),
-        button(text(if state.saving { i18n.__("正在确认…") } else { i18n.__("确认授权并生成配对码") }).size(13))
-            .padding([8, 14])
-            .style(primary_action_btn_style)
-            .on_press_maybe(
-                (!state.busy() && draft.credential.is_none() && !draft.document.trim().is_empty())
-                    .then(|| message(Event::PairConfirm))
-            ),
-    ]
-    .spacing(10)
-    .align_y(Alignment::Center)
-    .wrap();
-    let card = settings_modal_layout(header, body, Some(actions.into())).width(620).height(460);
-    settings_modal_overlay(
-        Some(base),
-        map(close),
-        Element::from(container(card).padding(12)).map(map),
-    )
-}
-
 #[cfg(test)]
 #[path = "system_settings_computer_control_tests.rs"]
 mod tests;
-
-#[derive(Clone, Copy, PartialEq)]
-struct BrowserPermissionChoice { value: BrowserPermission, label: &'static str }
-impl std::fmt::Display for BrowserPermissionChoice {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str(self.label) }
-}
-pub fn browser_permission_label(i18n: I18n, permission: BrowserPermission) -> &'static str {
-    i18n.__(match permission {
-        BrowserPermission::Ask => "需要批准",
-        BrowserPermission::Allow => "始终允许",
-        BrowserPermission::Deny => "阻止",
-    })
-}

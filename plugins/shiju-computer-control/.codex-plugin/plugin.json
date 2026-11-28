@@ -1,6 +1,6 @@
 {
   "name": "shiju-computer-control",
   "version": "0.1.0",
-  "description": "ShiJu computer_control tool workflow and local integration resources. Requires the ShiJu host, bundled control service and explicit authorization.",
+  "description": "ShiJu computer_control workflow for authorized native macOS applications. Requires the ShiJu host, bundled control service and explicit authorization.",
   "skills": "./skills"
 }

@@ -23,21 +23,6 @@ impl std::fmt::Debug for ControlIdentity {
     }
 }
 
-/// One-use credential kept only in memory while its pairing modal is open.
-#[derive(Clone)]
-pub struct PairingCredential(pub String);
-impl std::fmt::Debug for PairingCredential {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str("PairingCredential([redacted])") }
-}
-#[derive(Debug, Clone)]
-pub struct OfficePairingDraft {
-    pub feature: ControlSetting,
-    pub document: String,
-    pub session: String,
-    pub workspace: Option<std::path::PathBuf>,
-    pub credential: Option<PairingCredential>,
-}
-
 #[derive(Debug, Clone)]
 pub struct NativeInstall {
     pub app_path: String,
@@ -71,8 +56,6 @@ pub struct ComputerControlSettingsState {
     pub status: Option<ComputerControlStatus>,
     pub approvals: Vec<ControlGrantScope>,
     pub error: Option<String>,
-    pub pairing: Option<OfficePairingDraft>,
-    pub pairing_generation: u64,
     pub management: Option<ControlSetting>,
     pub native_permission_report: Option<NativePermissionReport>,
     pub requesting_permission: bool,
@@ -80,17 +63,12 @@ pub struct ComputerControlSettingsState {
     pub target_host: String,
     pub target_is_local: bool,
     pub native_install: Option<NativeInstall>,
-    pub browser: Option<BrowserPermissionsSnapshot>,
-    pub browser_origin: String,
 }
 impl ComputerControlSettingsState {
     pub fn busy(&self) -> bool { self.loading || self.saving || self.requesting_permission }
     pub fn feature(&self, feature: ControlSetting) -> Option<&ControlFeatureStatus> {
         self.status.as_ref().map(|s| match feature {
             ControlSetting::NativeApps => &s.native_apps,
-            ControlSetting::Chrome => &s.chrome,
-            ControlSetting::Excel => &s.excel,
-            ControlSetting::Word => &s.word,
             ControlSetting::LockedUse => &s.locked_use.status,
         })
     }
@@ -118,10 +96,8 @@ impl ComputerControlSettingsState {
         != Some(&ControlIdentity::from_endpoint(endpoint))
     {
         let generation = self.generation + 1;
-        let pairing_generation = self.pairing_generation + 1;
         *self = Default::default();
         self.generation = generation;
-        self.pairing_generation = pairing_generation;
     }
     }
 }

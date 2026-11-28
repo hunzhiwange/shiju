@@ -214,7 +214,7 @@ pub fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
         SystemTab::Browser => &["browser", "computer use"],
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::ComputerControl => {
-            &["computer control", "电脑操控", "Chrome", "Excel", "Word", "锁屏", "站点", "授权"]
+            &["computer control", "电脑操控", "任意应用", "锁屏", "授权"]
         }
     }
 }

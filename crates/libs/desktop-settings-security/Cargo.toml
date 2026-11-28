@@ -17,7 +17,6 @@ vw-api-transport = { path = "../api-transport" }
 vw-api-computer-control = { path = "../api-computer-control" }
 gateway-http = { path = "../gateway-http" }
 gateway-computer-control = { path = "../gateway-computer-control" }
-tokio = { version = "1", features = ["time"] }
 desktop-i18n = { path = "../desktop-i18n" }
 config-ui = { path = "../config-ui" }
 config-security = { path = "../config-security" }

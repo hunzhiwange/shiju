@@ -18,11 +18,8 @@ fn snapshot() -> (ComputerControlStatus, ControlApprovals) {
     (ComputerControlStatus {
         permission_version: version,
         native_apps: report(true, ControlReadiness::Unauthorized),
-        chrome: report(true, ControlReadiness::Disconnected),
-        excel: report(true, ControlReadiness::NotInstalled),
-        word: report(false, ControlReadiness::Disabled),
         locked_use: LockedUseStatus { status: report(false, ControlReadiness::Unsupported), probe: LockedUseProbe::Unsupported },
-    }, ControlApprovals { permission_version: version, approvals: vec![ControlGrantScope::Application("com.example.editor".into()), ControlGrantScope::ChromeOrigin("https://example.org".into())] })
+    }, ControlApprovals { permission_version: version, approvals: vec![ControlGrantScope::Application("com.example.editor".into()), ControlGrantScope::Application("com.example.viewer".into())] })
 }
 fn loaded_state() -> ComputerControlSettingsState {
     let mut state = ComputerControlSettingsState { loading: true, generation: 1, ..Default::default() };
@@ -46,7 +43,7 @@ fn cc_control_19_save_failure_displays_error_and_requests_readback() {
 fn cc_control_19_navigation_has_independent_entry() {
     use crate::app::components::system_settings::{SystemTab, system_tab_matches_query};
     assert!(SystemTab::all().any(|tab| tab == SystemTab::ComputerControl));
-    assert!(system_tab_matches_query(SystemTab::ComputerControl, "Excel"));
+    assert!(system_tab_matches_query(SystemTab::ComputerControl, "任意应用"));
     assert!(system_tab_matches_query(SystemTab::ComputerControl, "电脑操控"));
 }
 #[test]

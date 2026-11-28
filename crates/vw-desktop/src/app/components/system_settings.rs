@@ -361,11 +361,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         modal_content.into()
     };
 
-    #[cfg(not(target_arch = "wasm32"))]
-    if active_tab == SystemTab::ComputerControl {
-        dialog = super::system_settings_computer_control::view_overlays(app, dialog);
-    }
-
     if active_tab == SystemTab::Worktrees {
         dialog = super::system_settings_worktrees::view_overlays(app, dialog);
     }

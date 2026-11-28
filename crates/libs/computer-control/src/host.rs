@@ -59,7 +59,6 @@ struct Session {
     expires: Instant,
     next_sequence: u64,
     attached: bool,
-    transfer: Option<ComputerControlRequest>,
     cancelled: CancellationToken,
 }
 
@@ -101,7 +100,7 @@ impl ControlHost {
     }
 
     /// Unknown evidence is treated as locked for authorization. Dispatch permits
-    /// only application-runtime commands or the target-directed AX command subset.
+    /// only the target-directed AX command subset.
     fn refresh_lock(&self) -> LockState {
         #[cfg(any(test, feature = "test-support"))]
         let state = self.test_lock_state.unwrap_or_else(locked_session::lock_state);
@@ -110,50 +109,6 @@ impl ControlHost {
         let locked = state != LockState::Unlocked;
         self.locked.store(locked, Ordering::SeqCst);
         state
-    }
-
-    /// Use this before considering a new interactive grant. Unknown state cannot
-    /// authorize new targets; existing target grants and locked_use stay separate.
-    pub fn restricted_session(&self) -> bool {
-        self.refresh_lock() != LockState::Unlocked
-    }
-
-    /// Bounds an Office operation by live policy and the original lock state.
-    /// Dropping the operation on error triggers its existing transport cleanup.
-    pub async fn guard_execution<T, F>(
-        &self,
-        request: &ComputerControlRequest,
-        operation: F,
-    ) -> Result<T, anyhow::Error>
-    where
-        F: Future<Output = Result<T, anyhow::Error>>,
-    {
-        let cancel = self.sessions.lock().get(&request.session_id)
-            .ok_or_else(|| anyhow::anyhow!("control denied: Disconnected"))?.cancelled.clone();
-        let state = self.refresh_lock();
-        self.recheck(request).map_err(|e| anyhow::anyhow!("control denied: {e:?}"))?;
-        let watch = async {
-            loop {
-                tokio::time::sleep(Duration::from_millis(50)).await;
-                if self.refresh_lock() != state {
-                    return ControlErrorCode::Cancelled;
-                }
-                if let Err(error) = self.recheck(request) {
-                    return error;
-                }
-            }
-        };
-        let output = tokio::select! {
-            biased;
-            _ = cancel.cancelled() => return Err(anyhow::anyhow!("control denied: Cancelled")),
-            error = watch => return Err(anyhow::anyhow!("control denied: {error:?}")),
-            result = operation => result?,
-        };
-        if self.refresh_lock() != state {
-            return Err(anyhow::anyhow!("control denied: Cancelled"));
-        }
-        self.recheck(request).map_err(|e| anyhow::anyhow!("control denied: {e:?}"))?;
-        Ok(output)
     }
 
     /// Called by the trusted local controller after selecting a concrete target.
@@ -186,7 +141,6 @@ impl ControlHost {
                 expires: Instant::now() + lifetime,
                 next_sequence: 1,
                 attached: false,
-                transfer: None,
                 cancelled: CancellationToken::new(),
             },
         );
@@ -254,23 +208,6 @@ impl ControlHost {
         {
             return Err(ControlErrorCode::InvalidRequest);
         }
-        if !matches!(
-            (&request.target, &request.action),
-            (_, ComputerControlAction::Stop)
-                | (
-                    ComputerControlTarget::NativeApp { .. },
-                    ComputerControlAction::NativeObserve { .. }
-                        | ComputerControlAction::NativeInput { .. }
-                )
-                | (ComputerControlTarget::ChromeTab { .. }, ComputerControlAction::Chrome { .. })
-                | (
-                    ComputerControlTarget::ExcelWorkbook { .. },
-                    ComputerControlAction::Excel { .. }
-                )
-                | (ComputerControlTarget::WordDocument { .. }, ComputerControlAction::Word { .. })
-        ) {
-            return Err(ControlErrorCode::InvalidRequest);
-        }
         if matches!(request.action, ComputerControlAction::Stop) {
             session.next_sequence += 1;
             return Ok(());
@@ -285,22 +222,7 @@ impl ControlHost {
         Ok(())
     }
 
-    /// Backend rechecks after each asynchronous Chrome boundary, including before
-    /// returning page contents. The model cannot choose the OS user or mint grants.
-    pub fn transfer_permission(&self, request: &ComputerControlRequest) -> config_computer_control::BrowserPermission {
-        use vw_api_computer_control::{ComputerControlAction, ComputerControlTarget, ChromeCommand};
-        let ComputerControlTarget::ChromeTab { origin, .. } = &request.target else { return config_computer_control::BrowserPermission::Ask; };
-        let field: fn(&config_computer_control::BrowserOriginPermissions) -> Option<config_computer_control::BrowserPermission> = match &request.action {
-            ComputerControlAction::Chrome { command: ChromeCommand::Upload { .. } } => |p| p.uploads,
-            ComputerControlAction::Chrome { command: ChromeCommand::Download { .. } } => |p| p.downloads,
-            _ => return config_computer_control::BrowserPermission::Ask,
-        };
-        self.policy.read().browser_permission(&self.local_user, origin, field)
-    }
     pub fn recheck(&self, request: &ComputerControlRequest) -> Result<(), ControlErrorCode> {
-        if self.transfer_permission(request) == config_computer_control::BrowserPermission::Deny {
-            return Err(ControlErrorCode::PermissionDenied);
-        }
         let state = self.refresh_lock();
         locked_session::require_execution(state, &request.target, &request.action)?;
         let sessions = self.sessions.lock();
@@ -320,66 +242,6 @@ impl ControlHost {
             self.locked.load(Ordering::SeqCst),
             request.permission_version,
         )
-    }
-
-    pub(crate) fn authorize_destination(
-        &self,
-        request: &ComputerControlRequest,
-        origin: String,
-    ) -> Result<(), ControlErrorCode> {
-        self.recheck(request)?;
-        let ComputerControlTarget::ChromeTab { tab_id, .. } = request.target else {
-            return Err(ControlErrorCode::InvalidRequest);
-        };
-        self.policy.read().authorize(
-            &self.local_user,
-            &ComputerControlTarget::ChromeTab { tab_id, origin },
-            self.locked.load(Ordering::SeqCst),
-            request.permission_version,
-        )
-    }
-
-    /// Trusted tool code calls this only after a fresh scope-specific approval.
-    /// The exact request, bytes, target, version and ID are bound; there is no wire
-    /// flag that can grant authority and each session holds at most one permit.
-    pub fn approve_transfer(
-        &self,
-        request: &ComputerControlRequest,
-    ) -> Result<(), ControlErrorCode> {
-        self.recheck(request)?;
-        if !matches!(
-            request.action,
-            ComputerControlAction::Chrome {
-                command: ChromeCommand::Upload { .. } | ChromeCommand::Download { .. }
-            }
-        ) {
-            return Err(ControlErrorCode::InvalidRequest);
-        }
-        let mut sessions = self.sessions.lock();
-        let session =
-            sessions.get_mut(&request.session_id).ok_or(ControlErrorCode::Disconnected)?;
-        if session.transfer.is_some() {
-            return Err(ControlErrorCode::PermissionDenied);
-        }
-        session.transfer = Some(request.clone());
-        Ok(())
-    }
-
-    pub(crate) fn consume_transfer(
-        &self,
-        request: &ComputerControlRequest,
-    ) -> Result<(), ControlErrorCode> {
-        self.recheck(request)?;
-        let approved = self
-            .sessions
-            .lock()
-            .get_mut(&request.session_id)
-            .and_then(|session| session.transfer.take());
-        if approved.as_ref() == Some(request) {
-            Ok(())
-        } else {
-            Err(ControlErrorCode::PermissionDenied)
-        }
     }
 
     /// One in-flight action per connection. While waiting, only an authenticated

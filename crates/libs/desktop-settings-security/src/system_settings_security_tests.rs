@@ -331,12 +331,6 @@ fn desktop_gettext_settings_visible_copy() {
         assert_eq!(fixture.security_settings.sandbox_firejail_args, ["--net=none"]);
         assert_eq!(fixture.security_settings.otp_gated_actions, ["shell"]);
         assert_eq!(fixture.security_settings.otp_gated_domains, ["内部.example"]);
-        use vw_api_computer_control::BrowserPermission;
-        for permission in [BrowserPermission::Ask, BrowserPermission::Allow, BrowserPermission::Deny] {
-            let label = crate::system_settings_computer_control::browser_permission_label(desktop_i18n::I18n::new(locale), permission);
-            assert!(!label.is_empty());
-            if locale == English { assert!(label.is_ascii()); }
-        }
         let diagnostic = "HTTP 503 / 私有/%n/%s";
         let source = format!("电脑操控请求失败：{diagnostic}。请刷新后重试。");
         let message = desktop_i18n::settings::message(desktop_i18n::I18n::new(locale), &source);

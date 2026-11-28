@@ -16,9 +16,6 @@ impl GatewayClient {
     pub async fn computer_control_revoke(&self, body: &ControlGrantRevocation) -> Result<ControlVersionResponse, ComputerControlApiError> {
         GatewayComputerControlClient::new(self.transport.clone()).computer_control_revoke(body).await
     }
-    pub async fn computer_control_pair(&self, body: &ControlPairingConfirmation) -> Result<ControlPairingResponse, ComputerControlApiError> {
-        GatewayComputerControlClient::new(self.transport.clone()).computer_control_pair(body).await
-    }
     pub async fn computer_control_stop(&self) -> Result<(), ComputerControlApiError> {
         GatewayComputerControlClient::new(self.transport.clone()).computer_control_stop().await
     }

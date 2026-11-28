@@ -51,6 +51,14 @@ where
         .route("/desktop/acp-install/{agent}/progress", get(super::desktop_acp_install::install_progress))
         .route("/desktop/acp-install/{agent}", get(super::desktop_acp_install::install_get).post(super::desktop_acp_install::install_post).delete(super::desktop_acp_install::install_delete))
         .route(
+            "/desktop/mcp-install/{extension}",
+            get(super::desktop_mcp_install::instructions).post(super::desktop_mcp_install::start),
+        )
+        .route(
+            "/desktop/mcp-install/{extension}/progress",
+            get(super::desktop_mcp_install::progress),
+        )
+        .route(
             "/desktop/acp-diagnostic/{id}",
             post(acp_diagnostic_request).delete(acp_diagnostic_cancel),
         )

@@ -26,16 +26,26 @@ acp-types = { path = "../acp-types" }
 acp-client = { path = "../acp-client" }
 acp-agent-registry = { path = "../acp-agent-registry" }
 config-acp-install = { path = "../config-acp-install" }
+config-runtime-paths = { path = "../config-runtime-paths" }
+config-tools = { path = "../config-tools" }
+directories = "6"
+hex = "0.4"
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls"] }
+semver = "1"
+sha2 = "0.11"
+shell-command = { path = "../shell-command" }
+tempfile = "3"
 vw-api-file = { path = "../api-file" }
 vw-api-transport = { path = "../api-transport" }
 axum = { version = "0.8.8", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["rt", "sync"] }
+tokio = { version = "1", features = ["rt", "sync", "time"] }
 tokio-util = "0.7.18"
 
+[target.'cfg(windows)'.dependencies]
+zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+
 [dev-dependencies]
-config-runtime-paths = { path = "../config-runtime-paths" }
 agent-database = { path = "../agent-database", features = ["test-support"] }
-tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

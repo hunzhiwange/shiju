@@ -44,7 +44,7 @@ fn catalog_extracts_unique_navigable_child_tabs_and_scoped_keywords() {
     assert_target_count!(SystemSettingsSearchTarget::Security(_), 6);
     assert_target_count!(SystemSettingsSearchTarget::Gateway(_), 2);
     assert_target_count!(SystemSettingsSearchTarget::Network(_), 5);
-    assert_target_count!(SystemSettingsSearchTarget::AgentMcp(_), 3);
+    assert_target_count!(SystemSettingsSearchTarget::AgentMcp(_), 4);
     assert_target_count!(SystemSettingsSearchTarget::AgentSkills(_), 3);
 
     let ocr_matches = child_entries

@@ -4,9 +4,10 @@ use crate::app::Message;
 pub(in crate::app::components) fn map_message(message: desktop_navigation::components::top_bar::Message) -> Message {
  use desktop_navigation::components::top_bar::Message as Local;
  use crate::app::message::ViewMessage as View;
- use crate::app::message::settings::{SettingsMessage, McpMessage, AgentConfigTabMessage, GatewayClientMessage};
+ use crate::app::message::settings::{SettingsMessage, McpMessage, GatewayClientMessage};
  use crate::app::components::system_settings::SystemTab;
  use crate::app::state::AgentConfigTab;
+ use desktop_settings_shell::search::SystemSettingsSearchTarget;
  match message {
  Local::ToggleSystemSettings => Message::View(View::ToggleSystemSettings),
  Local::ToggleSettingsPanel => Message::View(View::ToggleSettingsPanel),
@@ -30,10 +31,14 @@ pub(in crate::app::components) fn map_message(message: desktop_navigation::compo
  Local::MenuHovered(menu) => Message::View(View::MenuHovered(map_menu(menu))),
  Local::MenuAction(action) => Message::View(View::MenuAction(Box::new(map_message(*action)))),
  Local::RefreshMcp => Message::Settings(SettingsMessage::Mcp(McpMessage::Refresh)),
- Local::ManageMcp => Message::Batch(vec![Message::View(View::OpenSystemSettingsTab(SystemTab::Agents)), Message::Settings(SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(AgentConfigTab::Mcp)))]),
+ Local::ManageMcp => Message::View(View::OpenSystemSettingsTarget(
+     SystemSettingsSearchTarget::Agents(AgentConfigTab::Mcp),
+ )),
  Local::PluginsRefresh => Message::Settings(SettingsMessage::PluginsRefresh),
  Local::PluginsSetEnabledRequested { plugin_id, enabled } => Message::Settings(SettingsMessage::PluginsSetEnabledRequested { plugin_id, enabled }),
- Local::ManagePlugins => Message::Batch(vec![Message::View(View::OpenSystemSettingsTab(SystemTab::Agents)), Message::Settings(SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(AgentConfigTab::Plugins)))]),
+ Local::ManagePlugins => Message::View(View::OpenSystemSettingsTarget(
+     SystemSettingsSearchTarget::Agents(AgentConfigTab::Plugins),
+ )),
  Local::SelectServer(id) => Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::SelectServer(id))),
  Local::ManageGateway => Message::View(View::OpenSystemSettingsTab(SystemTab::GatewayClient)),
  Local::AddGateway => Message::Batch(vec![Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::AddServer)),Message::View(View::OpenSystemSettingsTab(SystemTab::GatewayClient))]),

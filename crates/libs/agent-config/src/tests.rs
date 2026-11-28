@@ -151,3 +151,21 @@ async fn load_from_path_without_env_blocking_rejects_invalid_path_inside_runtime
         matches!(error, Error::Invalid(message) if message == "config path must have a parent directory")
     );
 }
+
+#[test]
+fn mcp_install_upgrade_compares_the_previous_entry_and_preserves_others() {
+    use super::{Config, merge_global_config_patch};
+
+    let previous = json!({"name":"chrome-devtools","command":"npx","enabled":false});
+    let replacement = json!({"name":"chrome-devtools","command":"npx","enabled":false,"args":["-y","chrome-devtools-mcp@1.14.0"]});
+    let unrelated = json!({"name":"custom","command":"custom-mcp"});
+    let patch = json!({"mcpServerToReplace":{"previous":previous,"replacement":replacement}});
+    let mut current = Config::default();
+    current.mcp_servers = vec![previous.clone(), unrelated.clone()];
+    let updated = merge_global_config_patch(current.clone(), patch.clone()).unwrap();
+    assert_eq!(updated.mcp_servers, vec![replacement.clone(), unrelated]);
+    assert!(merge_global_config_patch(updated, patch.clone()).is_ok());
+
+    current.mcp_servers[0]["enabled"] = json!(true);
+    assert!(merge_global_config_patch(current, patch).is_err());
+}

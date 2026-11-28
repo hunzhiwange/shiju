@@ -31,6 +31,7 @@ gateway-mcp-distribution = { path = "../gateway-mcp-distribution" }
 serde = "1"
 vw-api-app-auth = { path = "../api-app-auth" }
 
+gateway-desktop-settings = { path = "../gateway-desktop-settings" }
 gateway-mcp-read = { path = "../gateway-mcp-read" }
 gateway-mcp-probe = { path = "../gateway-mcp-probe" }
 gateway-http = { path = "../gateway-http" }

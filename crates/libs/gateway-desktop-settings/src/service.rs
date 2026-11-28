@@ -30,6 +30,33 @@ pub struct AcpInstallDownload {
     pub bytes_per_second: u64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum McpExtension {
+    RustCodeGraph,
+    ChromeDevTools,
+}
+
+impl McpExtension {
+    pub const fn id(self) -> &'static str {
+        match self {
+            Self::RustCodeGraph => "rustcodegraph",
+            Self::ChromeDevTools => "chrome-devtools",
+        }
+    }
+
+    pub fn from_id(id: &str) -> Option<Self> {
+        [Self::RustCodeGraph, Self::ChromeDevTools].into_iter().find(|kind| kind.id() == id)
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct McpInstallInstructions {
+    pub version: String,
+    pub shell: String,
+    pub commands: Vec<String>,
+    pub configuration: String,
+}
+
 impl GatewayDesktopSettingsClient {
     /// 在网关主机安装浏览器依赖，沿用认证上下文并允许下载时间。
     pub async fn browser_install(&self, backend: &str) -> Result<String, String> {
@@ -114,6 +141,38 @@ impl GatewayDesktopSettingsClient {
         let response = gateway_http::apply_request_context(request, self.transport.endpoint())
             .send()
             .await
+            .map_err(|err| gateway_http::transport_error("POST", self.transport.endpoint(), &path, err))?;
+        gateway_http::parse_json_response("POST", self.transport.endpoint(), &path, response).await
+    }
+
+    pub async fn mcp_install_instructions(
+        &self,
+        extension: McpExtension,
+    ) -> Result<McpInstallInstructions, String> {
+        self.transport.get_json(&format!("/v1/desktop/mcp-install/{}", extension.id()), &[]).await
+    }
+
+    pub async fn mcp_install_progress(
+        &self,
+        extension: McpExtension,
+        id: &str,
+    ) -> Result<Option<AcpInstallProgress>, String> {
+        let path = format!("/v1/desktop/mcp-install/{}/progress", extension.id());
+        self.transport.get_json(&path, &[("install_id".into(), id.into())]).await
+    }
+
+    pub async fn mcp_install(
+        &self,
+        extension: McpExtension,
+        id: &str,
+    ) -> Result<AcpInstallReport, String> {
+        let path = format!("/v1/desktop/mcp-install/{}", extension.id());
+        let request = self.transport.long_running_client()?
+            .post(format!("{}{}", self.transport.endpoint().base_url(), path))
+            .query(&[("install_id", id)])
+            .json(&serde_json::json!({}));
+        let response = gateway_http::apply_request_context(request, self.transport.endpoint())
+            .send().await
             .map_err(|err| gateway_http::transport_error("POST", self.transport.endpoint(), &path, err))?;
         gateway_http::parse_json_response("POST", self.transport.endpoint(), &path, response).await
     }

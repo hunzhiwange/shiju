@@ -189,6 +189,37 @@ fn cc_mcp_t12_unresolved_credentials_and_conflicting_user_entries_are_not_writte
 }
 
 #[test]
+fn codex_desktop_stdio_options_allow_import_without_rewriting_native_config() {
+    let before = r#"
+[mcp_servers.node_repl]
+command = "/fixture/node_repl"
+env_vars = ["FIXTURE_TOKEN"]
+startup_timeout_sec = 120
+
+[mcp_servers.node_repl.env]
+NODE_REPL_NODE_PATH = "/fixture/node"
+"#;
+    let fixture = Fixture::new(before);
+    let connection = parse_native(json!({
+        "command": "/fixture/node_repl",
+        "env": {"NODE_REPL_NODE_PATH": "/fixture/node"}
+    }))
+    .unwrap();
+
+    let imported = fixture.read("node_repl").unwrap().unwrap();
+    assert!(imported.enabled && imported.connection == connection);
+    assert_eq!(
+        fixture.edit("node_repl", CodexEdit::Update(&connection)),
+        Err(CodexError::Write(WriteError::InvalidResource))
+    );
+    assert_eq!(
+        fixture.edit("node_repl", CodexEdit::Remove),
+        Err(CodexError::Write(WriteError::InvalidResource))
+    );
+    assert_eq!(fixture.bytes(), before);
+}
+
+#[test]
 fn cc_mcp_t12_native_credential_extensions_are_not_transferred_to_new_url() {
     let before = r#"
 [mcp_servers.owned]

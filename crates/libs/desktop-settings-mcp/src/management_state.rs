@@ -10,8 +10,7 @@ pub struct McpSettingsState {
     pub import: Option<crate::management_import::ImportState>,
     pub connection_form: Option<crate::management_form::Draft>,
     pub page: crate::state::State,
-    pub installing_rustcodegraph: bool,
-    pub installing_chrome_devtools: bool,
+    pub extensions: crate::extensions::State,
 }
 
 

@@ -287,6 +287,48 @@ async fn resolved_acp_config_uses_current_directory_entrypoint() {
 }
 
 #[tokio::test]
+async fn mcp_status_uses_session_project_root_with_plugin_snapshot() {
+    use crate::tools::{McpStatusTool, Tool, ToolUseContext, scope_tool_use_context};
+    use std::sync::Arc;
+
+    let _lock = env_lock();
+    let dir = tempfile::tempdir().expect("temp dir");
+    let home_dir = dir.path().join("home");
+    let config_dir = dir.path().join("config");
+    let workspace = dir.path().join("project");
+    let _home = EnvVarGuard::set("HOME", home_dir.to_str().expect("utf-8 home"));
+    let _config_dir =
+        EnvVarGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.to_str().expect("utf-8 config"));
+    let _workspace_env = EnvVarGuard::unset("VIBEWINDOW_WORKSPACE");
+    fs::create_dir_all(&config_dir).expect("config dir");
+    write_json(
+        &workspace.join(".vwacprc.json"),
+        json!({
+            "mcpServers": [
+                { "name": "project-mcp", "command": "project-mcp", "enabled": false }
+            ]
+        }),
+    );
+    let _cwd = CurrentDirGuard::set(dir.path());
+    let context = ToolUseContext::new("mcp-status", Some(workspace.to_str().unwrap().to_owned()));
+    let mut config = crate::config::get_project_for_tenant(&context.tenant_scope(), &workspace)
+        .await
+        .expect("project config");
+    config.workspace_dir = workspace;
+    let turn = crate::plugins::session_snapshot::PluginTurnSnapshot::capture(&config)
+        .expect("plugin snapshot");
+    let context = Arc::new(context.with_plugin_snapshot(turn.data.clone()));
+
+    let tool = McpStatusTool::new();
+    let result = scope_tool_use_context(context, tool.execute(json!({"server": "project-mcp"})))
+        .await
+        .expect("status output");
+    let status: Value = serde_json::from_str(&result.output).expect("status json");
+    assert_eq!(status["servers"][0]["name"], "project-mcp");
+    assert_eq!(status["servers"][0]["connection_status"], "disabled");
+}
+
+#[tokio::test]
 async fn resolved_acp_config_keeps_project_servers_when_runtime_config_cannot_load() {
     let _lock = env_lock();
     let dir = tempfile::tempdir().expect("temp dir");

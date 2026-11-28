@@ -29,7 +29,7 @@ pub struct InstallLog {
 }
 
 impl InstallLog {
-    pub(super) fn step(&mut self, label: &str) {
+    pub fn step(&mut self, label: &str) {
         self.steps.push(label.to_owned());
         *self.progress.lock().unwrap() = InstallProgress {
             stage: label.to_owned(),
@@ -179,7 +179,7 @@ impl Drop for InstallerTree {
     }
 }
 
-pub(super) async fn run_installer(
+pub async fn run_installer(
     log: &mut InstallLog,
     label: &str,
     program: &str,

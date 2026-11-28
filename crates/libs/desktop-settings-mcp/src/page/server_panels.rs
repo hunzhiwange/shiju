@@ -1,7 +1,96 @@
-//! Configured and runtime server cards.
+//! Server list rows and their expandable inspection details.
 use super::*;
+use desktop_assets::assets::Icon;
+use iced::alignment::Horizontal;
+use iced::widget::text::Wrapping;
 use iced::widget::column;
-pub fn configured_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessage) -> Message,
+
+fn muted<'a>(value: impl Into<String>) -> iced::widget::Text<'a> {
+    text(value.into()).size(12).style(settings_muted_text_style).wrapping(Wrapping::WordOrGlyph)
+}
+
+fn record<'a, Message: Clone + 'a>(
+    identity: impl Into<Element<'a, Message>>,
+    actions: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    row![
+        container(identity).width(Length::FillPortion(3)),
+        container(actions).align_right(Length::FillPortion(2)),
+    ]
+    .width(Length::Fill)
+    .spacing(12)
+    .align_y(Alignment::Center)
+    .into()
+}
+
+pub(super) fn server_list<'a, Message: Clone + 'static>(
+    locale: DesktopLocale,
+    entries: impl IntoIterator<Item = Element<'a, Message>>,
+    empty_label: &'static str,
+) -> Element<'a, Message> {
+    let mut entries = entries.into_iter().peekable();
+    let mut list = column![
+        container(record(muted(tr(locale, "名称")), muted(tr(locale, "操作")),)).padding([12, 0])
+    ];
+    if entries.peek().is_none() {
+        list = list
+            .push(settings_divider())
+            .push(container(muted(tr(locale, empty_label))).padding([18, 0]));
+    }
+    for entry in entries {
+        list = list.push(settings_divider()).push(entry);
+    }
+    settings_group_card(list).into()
+}
+
+fn identity<'a, Message: Clone + 'static>(
+    name: String,
+    metadata: &[&str],
+    status: Element<'a, Message>,
+) -> Element<'a, Message> {
+    column![
+        text(name).size(15).wrapping(Wrapping::WordOrGlyph),
+        row![muted(metadata.join(" · ")), status].spacing(10).align_y(Alignment::Center).wrap(),
+    ]
+    .spacing(5)
+    .into()
+}
+
+fn server_entry<'a, Message: Clone + 'static>(
+    locale: DesktopLocale,
+    header: Element<'a, Message>,
+    inspect: Option<&McpServerInspectDto>,
+    expanded: bool,
+    previewing: bool,
+) -> Element<'a, Message> {
+    let mut entry = column![header].spacing(10).width(Length::Fill);
+    if expanded {
+        entry = entry.push(settings_divider());
+        if let Some(directory) = inspect.and_then(|entry| entry.workspace_directory.as_deref()) {
+            let label = tr(locale, "检查工作区");
+            entry = entry.push(muted(format!("{label} · {directory}")).width(Length::Fill));
+        }
+        entry = entry.push(capability_preview(locale, inspect, previewing));
+    }
+    container(entry).padding([12, 0]).width(Length::Fill).into()
+}
+
+fn preview_button<'a, Message: Clone + 'static>(
+    event: fn(McpMessage) -> Message,
+    locale: DesktopLocale,
+    preview_key: String,
+    expanded: bool,
+    first_connection: Option<Message>,
+) -> iced::widget::Button<'a, Message> {
+    if !expanded && let Some(connect) = first_connection {
+        return toolbar_button(tr(locale, "连接"), Some(connect));
+    }
+    let label = if expanded { "收起" } else { "预览" };
+    toolbar_button(tr(locale, label), Some(event(McpMessage::PreviewExpandedToggled(preview_key))))
+}
+
+pub fn configured_server_panel<'a, Message: Clone + 'static>(
+    event: fn(McpMessage) -> Message,
     locale: DesktopLocale,
     server: ConfiguredMcpServerRow,
     inspect: Option<&'a McpServerInspectDto>,
@@ -10,184 +99,97 @@ pub fn configured_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessag
     controls_enabled: bool,
     previewing: bool,
 ) -> Element<'a, Message> {
-    let checkbox_label = if server.enabled { tr(locale, "启用") } else { tr(locale, "禁用") };
     let server_index = server.index;
     let builtin = config_tools::is_builtin_mcp_server_id(&server.name);
-    let enabled_checkbox = checkbox(server.enabled)
-        .label(checkbox_label)
-        .style(settings_checkbox_style)
-        .width(Length::Fixed(86.0));
-    let enabled_checkbox = if controls_enabled {
-        enabled_checkbox.on_toggle(move |value| {
-            event(McpMessage::ServerEnabledToggled(
-                server_index,
-                value,
-            ))
-        })
-    } else {
-        enabled_checkbox
-    };
+    let toggle_label = if server.enabled { "启用" } else { "禁用" };
+    let mut enabled = settings_toggle(server.enabled).label(tr(locale, toggle_label)).text_size(12);
+    if controls_enabled {
+        enabled = enabled
+            .on_toggle(move |value| event(McpMessage::ServerEnabledToggled(server_index, value)));
+    }
 
-    let mut badges = row![
-        settings_value_badge(server.transport.clone()),
-        status_badge(locale, inspect, server.enabled),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let mut metadata = vec![server.transport.as_str()];
     if builtin {
-        badges = badges.push(settings_value_badge(tr(locale, "内置")));
+        metadata.push(tr(locale, "内置"));
     }
     if server.required {
-        badges = badges.push(settings_value_badge(tr(locale, "必需")));
-    }
-    if let Some(count) = inspect.and_then(|entry| entry.tool_count) {
-        badges = badges.push(settings_value_badge(
-            desktop_i18n::__!(I18n::new(locale), "%u 个工具", count)
-                .expect("valid MCP template"),
-        ));
-    }
-    if let Some(count) = inspect.and_then(|entry| entry.resource_count) {
-        badges = badges.push(settings_value_badge(
-            desktop_i18n::__!(I18n::new(locale), "%u 个资源", count)
-                .expect("valid MCP template"),
-        ));
-    }
-    if let Some(count) = inspect.and_then(|entry| entry.prompt_count) {
-        badges = badges.push(settings_value_badge(
-            desktop_i18n::__!(I18n::new(locale), "%u 个 prompts", count)
-                .expect("valid MCP template"),
-        ));
+        metadata.push(tr(locale, "必需"));
     }
 
-    let connect_label = if previewing { tr(locale, "正在连接 MCP…") } else { tr(locale, "连接") };
-    let connect_message =
-        (controls_enabled && server.enabled).then(|| event(McpMessage::Connect(preview_key.clone())));
-    let preview_toggle_label =
-        if preview_expanded { tr(locale, "收起") } else { tr(locale, "预览") };
-    let preview_toggle_message = if !preview_expanded
-        && inspect.is_none()
-        && let Some(message) = &connect_message
-    {
-        Some(message.clone())
-    } else {
-        Some(event(McpMessage::PreviewExpandedToggled(preview_key)))
-    };
-    let edit_message = controls_enabled.then(|| {
-        event(McpMessage::ServerEditRequested(server_index))
-    });
-    let mut actions = row![
-        enabled_checkbox,
-        toolbar_button(tr(locale, "编辑"), edit_message),
-    ];
+    let mut menu = vec![(tr(locale, "编辑"), McpMessage::ServerEditRequested(server_index))];
     if !builtin {
-        let delete_message = controls_enabled.then(|| event(McpMessage::RequestDelete(server_index)));
-        actions = actions.push(toolbar_button(tr(locale, "删除"), delete_message));
+        menu.push((tr(locale, "删除"), McpMessage::RequestDelete(server_index)));
     }
+    if server.enabled && (inspect.is_some() || preview_expanded) {
+        let label = if inspect.is_some() { "重新连接" } else { "连接" };
+        menu.insert(0, (tr(locale, label), McpMessage::Connect(preview_key.clone())));
+    }
+    let labels = menu.iter().map(|(label, _)| *label).collect::<Vec<_>>();
+    let menu = settings_select(0..menu.len(), None, move |index| event(menu[index].1.clone()))
+        .format_labels(|index| labels[*index].to_owned())
+        .menu_icon(Icon::DotsThreeHorizontal, 140.0)
+        .align_menu_right()
+        .width(36)
+        .disabled(!controls_enabled);
 
-    let mut content = column![
-        column![
-            text(server.name).size(16),
-            text(format!("mcpServers[{}]", server.index)).size(12).style(settings_muted_text_style),
-        ]
-        .spacing(4),
-        badges.wrap(),
-        actions
-            .push(toolbar_button(connect_label, connect_message))
-            .push(toolbar_button(preview_toggle_label, preview_toggle_message))
+    let connect = (inspect.is_none() && controls_enabled && server.enabled)
+        .then(|| event(McpMessage::Connect(preview_key.clone())));
+    let actions =
+        row![enabled, preview_button(event, locale, preview_key, preview_expanded, connect), menu]
             .spacing(8)
+            .width(Length::Fill)
             .align_y(Alignment::Center)
-            .wrap(),
-    ]
-    .spacing(12);
-    if preview_expanded {
-        content = content.push(settings_divider()).push(capability_preview(locale, inspect, previewing));
-    }
-
-    settings_panel(content).into()
+            .wrap()
+            .align_x(Horizontal::Right);
+    let header = record(
+        identity(server.name, &metadata, status_indicator(locale, inspect, server.enabled)),
+        actions,
+    );
+    server_entry(locale, header, inspect, preview_expanded, previewing)
 }
 
-pub fn runtime_server_panel<'a, Message: Clone + 'static>(event: fn(McpMessage) -> Message,
+pub fn runtime_server_panel<'a, Message: Clone + 'static>(
+    event: fn(McpMessage) -> Message,
     locale: DesktopLocale,
-    server: &McpServerInspectDto,
+    server: &'a McpServerInspectDto,
     preview_key: String,
     preview_expanded: bool,
     controls_enabled: bool,
     previewing: bool,
-) -> Element<'_, Message> {
-    let checkbox_label = if server.enabled { tr(locale, "启用") } else { tr(locale, "禁用") };
-    let server_name = server.name.clone();
-    let enabled_checkbox = checkbox(server.enabled)
-        .label(checkbox_label)
-        .style(settings_checkbox_style)
-        .width(Length::Fixed(86.0));
-    let enabled_checkbox = if controls_enabled {
-        enabled_checkbox.on_toggle(move |value| {
-            event(McpMessage::RuntimeServerEnabledToggled(
-                server_name.clone(),
-                value,
-            ))
-        })
-    } else {
-        enabled_checkbox
-    };
+) -> Element<'a, Message> {
+    let toggle_label = if server.enabled { "启用" } else { "禁用" };
+    let mut enabled = settings_toggle(server.enabled).label(tr(locale, toggle_label)).text_size(12);
+    if controls_enabled {
+        let name = server.name.clone();
+        enabled = enabled.on_toggle(move |value| {
+            event(McpMessage::RuntimeServerEnabledToggled(name.clone(), value))
+        });
+    }
+    let mut metadata = vec![server.transport.as_str()];
+    if server.required {
+        metadata.push(tr(locale, "必需"));
+    }
 
-    let mut badges = row![
-        settings_value_badge(server.transport.clone()),
-        status_badge(locale, Some(server), server.enabled),
+    let label = if previewing { "正在连接 MCP…" } else { "连接" };
+    let connect = (controls_enabled && server.enabled)
+        .then(|| event(McpMessage::Connect(preview_key.clone())));
+    let actions = row![
+        enabled,
+        toolbar_button(tr(locale, label), connect),
+        preview_button(event, locale, preview_key, preview_expanded, None),
     ]
     .spacing(8)
-    .align_y(Alignment::Center);
-    if server.required {
-        badges = badges.push(settings_value_badge(tr(locale, "必需")));
-    }
-    if let Some(count) = server.tool_count {
-        badges = badges.push(settings_value_badge(
-            desktop_i18n::__!(I18n::new(locale), "%u 个工具", count)
-                .expect("valid MCP template"),
-        ));
-    }
-    if let Some(count) = server.resource_count {
-        badges = badges.push(settings_value_badge(
-            desktop_i18n::__!(I18n::new(locale), "%u 个资源", count)
-                .expect("valid MCP template"),
-        ));
-    }
-    if let Some(count) = server.prompt_count {
-        badges = badges.push(settings_value_badge(
-            desktop_i18n::__!(I18n::new(locale), "%u 个 prompts", count)
-                .expect("valid MCP template"),
-        ));
-    }
-
-    let connect_label = if previewing { tr(locale, "正在连接 MCP…") } else { tr(locale, "连接") };
-    let connect_message =
-        (controls_enabled && server.enabled).then(|| event(McpMessage::Connect(preview_key.clone())));
-    let preview_toggle_label =
-        if preview_expanded { tr(locale, "收起") } else { tr(locale, "预览") };
-    let preview_toggle_message = Some(event(
-        McpMessage::PreviewExpandedToggled(preview_key),
-    ));
-
-    let mut content = column![
-        column![
-            text(server.name.as_str()).size(16),
-            text(tr(locale, "插件或项目级 MCP")).size(12).style(settings_muted_text_style),
-        ]
-        .spacing(4),
-        badges.wrap(),
-        row![
-            enabled_checkbox,
-            toolbar_button(connect_label, connect_message),
-            toolbar_button(preview_toggle_label, preview_toggle_message),
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center)
-        .wrap(),
-    ]
-    .spacing(12);
-    if preview_expanded {
-        content = content.push(settings_divider()).push(capability_preview(locale, Some(server), previewing));
-    }
-
-    settings_panel(content).into()
+    .width(Length::Fill)
+    .align_y(Alignment::Center)
+    .wrap()
+    .align_x(Horizontal::Right);
+    let header = record(
+        identity(
+            server.name.clone(),
+            &metadata,
+            status_indicator(locale, Some(server), server.enabled),
+        ),
+        actions,
+    );
+    server_entry(locale, header, Some(server), preview_expanded, previewing)
 }

@@ -17,9 +17,8 @@ fn view(s: &crate::state::State) -> iced::Element<'_, crate::page::McpMessage> {
         std::convert::identity,
         s,
         config_ui::DesktopLocale::SimplifiedChinese,
-        &THEME,
-        std::array::from_fn(|_| iced::widget::column![].into()),
-        help,
+        iced::widget::Space::new().into(),
+        iced::widget::Space::new().into(),
     )
 }
 fn view_overlays<'a>(
@@ -43,6 +42,7 @@ fn inspected_server(name: &str, status: McpConnectionStatusDto) -> McpServerInsp
         enabled: status != McpConnectionStatusDto::Disabled,
         required: false,
         connection_status: status,
+        workspace_directory: Some("/workspace/demo".into()),
         timeout_ms: Some(30_000),
         allowed_tools: Vec::new(),
         denied_tools: Vec::new(),

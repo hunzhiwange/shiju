@@ -30,7 +30,7 @@ mod wire_stdio;
 #[cfg(not(target_arch = "wasm32"))]
 use wire_stdio::ProbeChild;
 
-/// 加载当前工作目录下解析完成的 ACP 配置。
+/// 加载会话项目的 ACP 配置，无项目上下文时使用进程工作目录。
 ///
 /// # 返回值
 ///
@@ -40,7 +40,13 @@ use wire_stdio::ProbeChild;
 ///
 /// 当当前目录不可读取，或 ACP 配置加载、解析失败时返回错误。
 pub async fn load_resolved_acp_config() -> anyhow::Result<acp_config::ResolvedAcpxConfig> {
-    load_resolved_acp_config_from(std::env::current_dir()?).await
+    // The plugin snapshot is admitted against the request root for the entire turn.
+    let session_root = crate::tools::current_tool_use_context().and_then(|context| context.root_path());
+    let workspace = match session_root {
+        Some(root) => root,
+        None => std::env::current_dir()?,
+    };
+    load_resolved_acp_config_from(workspace).await
 }
 
 /// 从指定工作目录加载解析完成的 ACP 配置。

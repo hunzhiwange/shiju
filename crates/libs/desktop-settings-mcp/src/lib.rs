@@ -2,8 +2,8 @@
 use config_ui::DesktopLocale;
 use desktop_i18n::settings_extensions::text as tr;
 use desktop_ui_controls::system_settings_common::settings_muted_text_style;
-use iced::{Alignment, Background, Border, Color, Element, Length};
-use iced::widget::{column, container, row, text};
+use iced::{Alignment, Color, Element, Length};
+use iced::widget::{column, row, text, text::Wrapping};
 use serde_json::Value;
 use vw_api_mcp_inspect::{McpConnectionStatusDto, McpInspectResponse, McpServerInspectDto};
 
@@ -99,38 +99,23 @@ pub(crate) fn status_dot_color(theme: &iced::Theme, tone: McpStatusTone) -> Colo
     }
 }
 
-pub(crate) fn status_badge_style(theme: &iced::Theme) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
-    iced::widget::container::Style {
-        text_color: Some(theme.palette().text),
-        background: Some(Background::Color(palette.background.weak.color.scale_alpha(0.36))),
-        border: Border {
-            width: 1.0,
-            color: palette.background.strong.color.scale_alpha(0.84),
-            radius: 999.0.into(),
-        },
-        ..Default::default()
-    }
-}
-
-pub(crate) fn status_badge<Message: Clone + 'static>(
+pub(crate) fn status_indicator<Message: Clone + 'static>(
     locale: DesktopLocale,
     inspect: Option<&McpServerInspectDto>,
     enabled: bool,
 ) -> Element<'static, Message> {
     let (label, tone) = connection_status_label_and_tone(inspect, enabled);
-    container(
-        row![
-            text("●").size(11).style(move |theme: &iced::Theme| {
-                iced::widget::text::Style { color: Some(status_dot_color(theme, tone)) }
-            }),
-            text(tr(locale, label)).size(13),
-        ]
-        .spacing(7)
-        .align_y(Alignment::Center),
-    )
-    .padding([7, 12])
-    .style(status_badge_style)
+    row![
+        text("●").size(8).style(move |theme: &iced::Theme| {
+            iced::widget::text::Style { color: Some(status_dot_color(theme, tone)) }
+        }),
+        text(tr(locale, label))
+            .size(12)
+            .style(settings_muted_text_style)
+            .wrapping(Wrapping::WordOrGlyph),
+    ]
+    .spacing(5)
+    .align_y(Alignment::Center)
     .into()
 }
 
@@ -161,20 +146,31 @@ fn preview_section_header<Message: Clone + 'static>(
 pub(crate) fn tool_summary<Message: Clone + 'static>(
     tool: &vw_api_tools::ToolSpecDto,
 ) -> Element<'static, Message> {
-    row![
-        text(compact_text(&tool.display_name, 42)).size(12).width(Length::Fixed(180.0)),
-        text(compact_text(tool.id.as_ref(), 52))
+    let mut summary = column![
+        text(tool.display_name.clone())
+            .size(12)
+            .width(Length::Fill)
+            .wrapping(Wrapping::WordOrGlyph),
+        text(tool.id.as_ref().to_owned())
             .size(11)
             .style(settings_muted_text_style)
-            .width(Length::Fixed(220.0)),
-        text(compact_text(&tool.description, 90))
-            .size(11)
-            .style(settings_muted_text_style)
-            .width(Length::Fill),
+            .width(Length::Fill)
+            .wrapping(Wrapping::WordOrGlyph),
     ]
-    .spacing(12)
-    .align_y(Alignment::Center)
-    .into()
+    .spacing(2)
+    .width(Length::Fill);
+
+    if !tool.description.trim().is_empty() {
+        summary = summary.push(
+            text(compact_text(&tool.description, 90))
+                .size(11)
+                .style(settings_muted_text_style)
+                .width(Length::Fill)
+                .wrapping(Wrapping::WordOrGlyph),
+        );
+    }
+
+    summary.into()
 }
 
 pub(crate) fn tools_preview_section<Message: Clone + 'static>(
@@ -237,21 +233,21 @@ pub(crate) fn value_preview_section<Message: Clone + 'static>(
     error: Option<&str>,
     primary_keys: &[&str],
     secondary_keys: &[&str],
-) -> Element<'static, Message> {
+) -> Option<Element<'static, Message>> {
+    if items.is_empty() && error.is_none() {
+        return None;
+    }
+
     let mut content = column![preview_section_header(locale, title, items.len(), error)]
         .spacing(8)
         .width(Length::Fill);
 
     if let Some(error) = error {
-        return content
-            .push(text(compact_text(error, 130)).size(11).style(settings_muted_text_style))
-            .into();
-    }
-
-    if items.is_empty() {
-        return content
-            .push(text(tr(locale, "未发现条目")).size(11).style(settings_muted_text_style))
-            .into();
+        return Some(
+            content
+                .push(text(compact_text(error, 130)).size(11).style(settings_muted_text_style))
+                .into(),
+        );
     }
 
     for item in items.iter().take(6) {
@@ -260,14 +256,19 @@ pub(crate) fn value_preview_section<Message: Clone + 'static>(
         let secondary = value_field(item, secondary_keys).unwrap_or_default();
         content = content.push(
             row![
-                text(compact_text(&primary, 48)).size(12).width(Length::Fixed(240.0)),
+                text(compact_text(&primary, 48))
+                    .size(12)
+                    .width(Length::FillPortion(2))
+                    .wrapping(Wrapping::WordOrGlyph),
                 text(compact_text(&secondary, 92))
                     .size(11)
                     .style(settings_muted_text_style)
-                    .width(Length::Fill),
+                    .width(Length::FillPortion(3))
+                    .wrapping(Wrapping::WordOrGlyph),
             ]
+            .width(Length::Fill)
             .spacing(12)
-            .align_y(Alignment::Center),
+            .align_y(Alignment::Start),
         );
     }
 
@@ -287,7 +288,7 @@ pub(crate) fn value_preview_section<Message: Clone + 'static>(
         );
     }
 
-    content.into()
+    Some(content.into())
 }
 
 #[cfg(test)]
@@ -369,3 +370,5 @@ pub mod third_party;
 mod third_party_tests;
 
 pub mod configuration_transfer;
+
+pub mod extensions;

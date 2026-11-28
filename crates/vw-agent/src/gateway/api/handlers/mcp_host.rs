@@ -24,12 +24,18 @@ impl gateway_mcp::server::host::McpHost for Host {
                 workspace = requested;
             }
         }
-        let Some(name) = server else {
-            return mcp_inspect::inspect_mcp_servers_from_workspace(workspace).await;
+        let mut response = if let Some(name) = server {
+            let mut config = crate::tools::mcp_common::load_resolved_acp_config_from(workspace).await?;
+            config.mcp_servers.retain(|server| mcp_client::server_name(server) == name);
+            mcp_inspect::inspect_mcp_servers(&config).await
+        } else {
+            mcp_inspect::inspect_mcp_servers_from_workspace(workspace).await?
         };
-        let mut config = crate::tools::mcp_common::load_resolved_acp_config_from(workspace).await?;
-        config.mcp_servers.retain(|server| mcp_client::server_name(server) == name);
-        Ok(mcp_inspect::inspect_mcp_servers(&config).await)
+        let workspace_directory = workspace.to_string_lossy();
+        for server in &mut response.servers {
+            server.workspace_directory = Some(workspace_directory.to_string());
+        }
+        Ok(response)
     }
     fn current_tenant() -> vw_api_transport::TenantScope { crate::session::ui_store::current_tenant_scope() }
     fn call(tenant: vw_api_transport::TenantScope, session: &str, server: &str, binding: &str, name: &str, arguments: serde_json::Value) -> anyhow::Result<serde_json::Value> {

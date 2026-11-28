@@ -86,6 +86,7 @@ fn inspected_server(name: &str, status: McpConnectionStatusDto) -> McpServerInsp
         enabled: status != McpConnectionStatusDto::Disabled,
         required: false,
         connection_status: status,
+        workspace_directory: None,
         timeout_ms: Some(30_000),
         allowed_tools: Vec::new(),
         denied_tools: Vec::new(),
@@ -113,6 +114,7 @@ fn tabs_statuses_and_preview_action_cover_all_static_mappings() {
             ("全局服务器", McpSettingsTab::Servers),
             ("运行时 MCP", McpSettingsTab::Runtime),
             ("高级 JSON", McpSettingsTab::Json),
+            ("扩展", McpSettingsTab::Extensions),
         ]
     );
 
@@ -169,9 +171,9 @@ fn status_and_toolbar_elements_build_for_enabled_disabled_and_active_tabs() {
 
     let connected = inspected_server("demo", McpConnectionStatusDto::Connected);
     let _: iced::Element<'static, Message> =
-        status_badge(config_ui::DesktopLocale::SimplifiedChinese, Some(&connected), true);
+        status_indicator(config_ui::DesktopLocale::SimplifiedChinese, Some(&connected), true);
     let _: iced::Element<'static, Message> =
-        status_badge(config_ui::DesktopLocale::SimplifiedChinese, None, false);
+        status_indicator(config_ui::DesktopLocale::SimplifiedChinese, None, false);
     let _ = toolbar_button::<Message>("disabled", None);
     let _ = toolbar_button(
         "refresh",
@@ -215,29 +217,38 @@ fn preview_sections_cover_empty_error_hidden_and_disabled_branches() {
     let many_values = (0..8)
         .map(|idx| json!({"name": format!("resource-{idx}"), "uri": format!("file:///{idx}")}))
         .collect::<Vec<_>>();
-    let _: iced::Element<'static, Message> = value_preview_section(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        "资源",
-        &[],
-        None,
-        &["name"],
-        &["uri"],
+    assert!(
+        value_preview_section::<Message>(
+            config_ui::DesktopLocale::SimplifiedChinese,
+            "资源",
+            &[],
+            None,
+            &["name"],
+            &["uri"],
+        )
+        .is_none()
     );
-    let _: iced::Element<'static, Message> = value_preview_section(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        "资源",
-        &many_values,
-        None,
-        &["name", "title"],
-        &["uri", "description"],
+    assert!(
+        value_preview_section::<Message>(
+            config_ui::DesktopLocale::SimplifiedChinese,
+            "资源",
+            &many_values,
+            None,
+            &["name", "title"],
+            &["uri", "description"],
+        )
+        .is_some()
     );
-    let _: iced::Element<'static, Message> = value_preview_section(
-        config_ui::DesktopLocale::SimplifiedChinese,
-        "资源",
-        &many_values,
-        Some("resource error"),
-        &["name"],
-        &["uri"],
+    assert!(
+        value_preview_section::<Message>(
+            config_ui::DesktopLocale::SimplifiedChinese,
+            "资源",
+            &[],
+            Some("resource error"),
+            &["name"],
+            &["uri"],
+        )
+        .is_some()
     );
 
     let mut disabled = inspected_server("disabled", McpConnectionStatusDto::Disabled);

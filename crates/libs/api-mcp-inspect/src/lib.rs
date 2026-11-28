@@ -33,6 +33,9 @@ pub struct McpServerInspectDto {
     pub required: bool,
     /// 本次检查观察到的连接状态。
     pub connection_status: McpConnectionStatusDto,
+    /// 网关用于解析本次检查配置的工作区目录。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_directory: Option<String>,
     /// 为该服务配置的调用超时毫秒数。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeout_ms: Option<u64>,

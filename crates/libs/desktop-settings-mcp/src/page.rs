@@ -4,7 +4,7 @@ use crate::state::{State, McpNewServerTransport, McpSettingsTab};
 use desktop_i18n::{I18n, settings_extensions::text as tr};
 use desktop_ui_controls::system_settings_common::*;
 use config_ui::DesktopLocale;
-use iced::{Alignment, Element, Length, widget::{Space, button, checkbox, column, container, row, text, text_editor}};
+use iced::{Alignment, Element, Length, widget::{Space, button, checkbox, column, container, row, text}};
 use vw_api_mcp_inspect::{McpConnectionStatusDto, McpServerInspectDto};
 use std::borrow::Cow;
 // The shell supplies its existing selectable help renderer; no application state crosses this boundary.
@@ -12,10 +12,11 @@ pub type Help<Message> = for<'a> fn(I18n, &'a iced::Theme, &'a str, iced::widget
 #[derive(Debug, Clone)]
 pub enum McpMessage {
     TabSelected(McpSettingsTab),
+    ServerSearchChanged(String),
     Refresh,
     InspectRefresh,
     Connect(String),
-    EditorAction(text_editor::Action),
+    EditorAction(iced::widget::text_editor::Action),
     Format,
     InsertTemplate,
     NewServerPanelToggled,
@@ -47,6 +48,7 @@ pub const MCP_TAB_LABELS: &[(&str, McpSettingsTab)] = &[
     ("全局服务器", McpSettingsTab::Servers),
     ("运行时 MCP", McpSettingsTab::Runtime),
     ("高级 JSON", McpSettingsTab::Json),
+    ("扩展", McpSettingsTab::Extensions),
 ];
 pub fn mcp_tab_labels() -> &'static [(&'static str, McpSettingsTab)] {
     MCP_TAB_LABELS
@@ -98,39 +100,39 @@ pub(crate) fn capability_preview<'a, Message: Clone + 'static>(
         return text(tr(locale, "服务器已禁用")).size(12).style(settings_muted_text_style).into();
     }
 
-    column![
-        tools_preview_section(locale, inspect),
-        settings_divider(),
+    let mut content = column![tools_preview_section(locale, inspect)]
+        .spacing(12)
+        .width(Length::Fill);
+    let sections = [
         value_preview_section(
             locale,
             tr(locale, "资源"),
             &inspect.resources,
             inspect.resources_error.as_deref(),
             &["name", "title", "uri"],
-            &["uri", "description", "mimeType"]
+            &["uri", "description", "mimeType"],
         ),
-        settings_divider(),
         value_preview_section(
             locale,
             tr(locale, "资源模板"),
             &inspect.resource_templates,
             inspect.resource_templates_error.as_deref(),
             &["name", "title", "uriTemplate"],
-            &["uriTemplate", "description", "mimeType"]
+            &["uriTemplate", "description", "mimeType"],
         ),
-        settings_divider(),
         value_preview_section(
             locale,
             tr(locale, "提示词"),
             &inspect.prompts,
             inspect.prompts_error.as_deref(),
             &["name", "title"],
-            &["description"]
+            &["description"],
         ),
-    ]
-    .spacing(12)
-    .width(Length::Fill)
-    .into()
+    ];
+    for section in sections.into_iter().flatten() {
+        content = content.push(settings_divider()).push(section);
+    }
+    content.into()
 }
 
 pub(crate) fn server_save_error(locale: DesktopLocale, s: &State) -> Option<String> {
@@ -151,215 +153,200 @@ pub(crate) fn server_save_error(locale: DesktopLocale, s: &State) -> Option<Stri
     })
 }
 
-/// 构建 MCP 系统设置页。
-pub fn view<'a, Message: Clone + 'static>(event: fn(McpMessage) -> Message, s: &'a State, locale: DesktopLocale, theme: &'a iced::Theme, panels: [Element<'a, Message>; 5], help: Help<Message>) -> Element<'a, Message> {
-    let [catalog_panel, bindings_panel, resync_panel, diagnostics_panel, tools_panel] = panels;
-    let i18n = I18n::new(locale);
-    let section = |title: &'static str, description: &'static str| {
-        settings_group_card(
-            help(
-                i18n,
-                theme,
-                title,
-                text(title).size(14),
-                description.into(),
-            )
-            .wrap(),
-        )
-        .padding([14, 16])
-    };
-    let refresh_label = if s.loading { tr(locale, "刷新中...") } else { tr(locale, "刷新") };
-    let inspect_label =
-        if s.inspect_loading { tr(locale, "预览中...") } else { tr(locale, "刷新预览") };
-    let save_label = if s.saving { tr(locale, "保存中...") } else { tr(locale, "保存") };
-    let connecting = s.connecting.is_some();
-
-    let refresh_message = (!s.loading && !s.saving && !connecting)
-        .then(|| event(McpMessage::Refresh));
-    let inspect_message = preview_action_message(event, !s.inspect_loading && !s.saving && !connecting);
-    let format_message = (!s.loading && !s.saving)
-        .then(|| event(McpMessage::Format));
-    let template_message = (!s.loading && !s.saving)
-        .then(|| event(McpMessage::InsertTemplate));
-    let save_message = (!s.loading && !s.saving && !connecting)
-        .then(|| event(McpMessage::Save));
-
-    let mut save_button =
-        button(text(save_label).size(13)).padding([7, 16]).style(primary_action_btn_style);
-    if let Some(message) = save_message {
-        save_button = save_button.on_press(message);
-    }
-
-    let mut action_row = row![
-        toolbar_button(refresh_label, refresh_message),
-        toolbar_button(inspect_label, inspect_message),
+fn search_toolbar<'a, Message: Clone + 'a>(
+    search: Element<'a, Message>,
+    actions: Element<'a, Message>,
+) -> Element<'a, Message> {
+    row![
+        container(container(search).max_width(340)).width(Length::FillPortion(2)),
+        container(actions).align_right(Length::FillPortion(2)),
     ]
-    .spacing(8)
-    .align_y(Alignment::Center);
-    if s.active_tab == McpSettingsTab::Json {
-        action_row = action_row
-            .push(toolbar_button(tr(locale, "格式化"), format_message))
-            .push(toolbar_button(tr(locale, "插入模板"), template_message));
-    }
-    action_row = action_row.push(save_button);
+    .width(Length::Fill)
+    .spacing(10)
+    .align_y(Alignment::Center)
+    .into()
+}
 
+/// 构建 MCP 系统设置页。
+pub fn view<'a, Message: Clone + 'static>(
+    event: fn(McpMessage) -> Message,
+    s: &'a State,
+    locale: DesktopLocale,
+    transfer_panel: Element<'a, Message>,
+    extensions_panel: Element<'a, Message>,
+) -> Element<'a, Message> {
+    let i18n = I18n::new(locale);
     let mut content = column![
-        help(i18n, theme, tr(locale, "MCP 配置"), text(tr(locale, "MCP 配置")).size(28), tr(locale, "配置全局 mcpServers；插件声明的 MCP 会随插件启用状态在运行时合并。").into()).wrap(),
-        catalog_panel,
-        bindings_panel,
-        resync_panel,
-        diagnostics_panel,
-        action_row.wrap(),
-        row![
-            settings_value_badge(
-                desktop_i18n::__!(I18n::new(locale), "%u 个服务器", s.server_count)
-                    .expect("valid server count template")
-            ),
-            settings_value_badge(tr(locale, "全局配置")),
-            settings_value_badge(
-                desktop_i18n::__!(
-                    I18n::new(locale),
-                    "%u 个运行时服务器",
-                    s.inspect.as_ref().map(|inspect| inspect.servers.len()).unwrap_or(0)
-                )
-                .expect("valid runtime count template")
-            ),
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center),
-        settings_tab_row(
-            mcp_tab_labels()
-                .iter()
-                .map(|(label, tab)| { mcp_tab_button(event, locale, label, *tab, s.active_tab) })
-        )
+        settings_page_heading(
+            tr(locale, "MCP 配置"),
+            tr(locale, "管理全局服务器和当前项目的 MCP 连接。"),
+        ),
+        settings_tab_row(mcp_tab_labels().iter().map(|(label, tab)| mcp_tab_button(
+            event,
+            locale,
+            label,
+            *tab,
+            s.active_tab
+        )))
         .wrap(),
     ]
-    .spacing(16)
+    .spacing(18)
     .width(Length::Fill);
 
     if let Some(message) = &s.status_message {
-        content = content.push(settings_success_banner(desktop_i18n::settings_extensions::feedback(i18n, message)));
+        content = content.push(settings_success_banner(
+            desktop_i18n::settings_extensions::feedback(i18n, message),
+        ));
     }
     if !(s.active_tab == McpSettingsTab::Servers && s.new_server_expanded)
         && let Some(error) = server_save_error(locale, s)
     {
         content = content.push(settings_error_banner(error));
     }
-    if let Some(error) = &s.inspect_error {
+    if matches!(s.active_tab, McpSettingsTab::Servers | McpSettingsTab::Runtime)
+        && let Some(error) = &s.inspect_error
+    {
         content = content.push(settings_panel(
             text(
-                desktop_i18n::__!(
-                    I18n::new(locale),
-                    "MCP 预览失败：%s",
-                    compact_text(error, 180)
-                )
-                .expect("valid preview error template"),
+                desktop_i18n::__!(I18n::new(locale), "MCP 预览失败：%s", compact_text(error, 180))
+                    .expect("valid preview error template"),
             )
             .size(12)
             .style(settings_muted_text_style),
         ));
     }
 
-    let configured_rows = configured_mcp_server_rows(locale, &s.editor.text()).unwrap_or_default();
+    let connecting = s.connecting.is_some();
+    let controls_enabled = !s.loading && !s.saving && !connecting && !s.transfer_pending;
+    let refresh_label = if s.loading { "刷新中..." } else { "刷新" };
+    let refresh = toolbar_button(
+        tr(locale, refresh_label),
+        controls_enabled.then(|| event(McpMessage::Refresh)),
+    );
+    let inspect_label = if s.inspect_loading { "预览中..." } else { "刷新预览" };
+    let inspect = toolbar_button(
+        tr(locale, inspect_label),
+        preview_action_message(event, !s.inspect_loading && !s.saving && !connecting),
+    );
+    let save_label = if s.saving { "保存中..." } else { "保存" };
+    let save = controls_enabled.then(|| event(McpMessage::Save));
+    let search = settings_text_input(tr(locale, "按名称搜索服务器"), &s.server_query)
+        .width(Length::Fill)
+        .on_input(move |query| event(McpMessage::ServerSearchChanged(query)));
+    let query = s.server_query.trim().to_lowercase();
+    let matches_name = |name: &str| query.is_empty() || name.to_lowercase().contains(&query);
+
     match s.active_tab {
         McpSettingsTab::Servers => {
-            content = content.push(section(
-                tr(locale, "全局 MCP 服务器"),
-                tr(locale, "逐条启用、禁用和预览全局 mcpServers。"),
-            ));
-            let (title, _) = server_form_heading(locale, s.editing_server_index.is_some());
-            content = content.push(toolbar_button(title, Some(server_form_toggle(event))));
-            if configured_rows.is_empty() {
-                content = content.push(settings_panel(
-                    text(tr(locale, "当前没有全局 MCP 服务器。"))
-                        .size(12)
-                        .style(settings_muted_text_style),
-                ));
+            let add = button(
+                row![text("+").size(14), text(tr(locale, "新增服务器")).size(13)]
+                    .align_y(Alignment::Center)
+                    .spacing(6),
+            )
+            .padding([9, 14])
+            .style(primary_action_btn_style)
+            .on_press_maybe(controls_enabled.then(|| server_form_toggle(event)));
+            let actions = row![refresh, toolbar_button(tr(locale, save_label), save), add]
+                .align_y(Alignment::Center)
+                .spacing(8)
+                .wrap()
+                .align_x(iced::alignment::Horizontal::Right);
+            let servers = configured_mcp_server_rows(locale, &s.editor.text()).unwrap_or_default();
+            let empty = if servers.is_empty() && s.loading {
+                "正在加载…"
+            } else if servers.is_empty() {
+                "当前没有全局 MCP 服务器。"
             } else {
-                let controls_enabled = !s.loading && !s.saving && !connecting;
-                let inspect = s.inspect.as_ref();
-                for server in configured_rows.iter().cloned() {
+                "没有匹配的结果"
+            };
+            let entries =
+                servers.into_iter().filter(|server| matches_name(&server.name)).map(|server| {
                     let preview_key = format!("global:{}", server.name);
                     let preview_expanded = s.expanded_previews.contains(&preview_key);
                     let previewing = s.connecting.as_ref() == Some(&preview_key);
-                    let inspect_entry = inspect_for_server(inspect, &server.name);
-                    content = content.push(configured_server_panel(event,
+                    let inspected = inspect_for_server(s.inspect.as_ref(), &server.name);
+                    configured_server_panel(
+                        event,
                         locale,
                         server,
-                        inspect_entry,
+                        inspected,
                         preview_key,
                         preview_expanded,
                         controls_enabled,
                         previewing,
-                    ));
-                }
-            }
+                    )
+                });
+            content = content
+                .push(search_toolbar(search.into(), actions.into()))
+                .push(server_list(locale, entries, empty));
         }
         McpSettingsTab::Runtime => {
-            content = content.push(section(
-                tr(locale, "运行时 MCP"),
-                tr(locale, "展示项目配置和插件声明合并后的 MCP 连接、工具、资源与 prompts。"),
-            ));
-            if let Some(inspect) = s.inspect.as_ref() {
-                if inspect.servers.is_empty() {
-                    content = content.push(settings_panel(
-                        text(tr(locale, "当前运行时没有 MCP 服务器。"))
-                            .size(12)
-                            .style(settings_muted_text_style),
-                    ));
-                } else {
-                    let controls_enabled = !s.loading && !s.saving && !connecting;
-                    for server in &inspect.servers {
-                        let preview_key = format!("runtime:{}", server.name);
-                        let preview_expanded = s.expanded_previews.contains(&preview_key);
-                        let previewing = s.connecting.as_ref() == Some(&preview_key);
-                        content = content.push(runtime_server_panel(event,
-                            locale,
-                            server,
-                            preview_key,
-                            preview_expanded,
-                            controls_enabled,
-                            previewing,
-                        ));
-                    }
-                }
+            let servers = s.inspect.as_ref().map_or(&[][..], |report| report.servers.as_slice());
+            let empty = if servers.is_empty() && s.inspect_loading {
+                "预览中..."
+            } else if s.inspect.is_none() {
+                "尚未加载 MCP 预览。"
+            } else if servers.is_empty() {
+                "当前运行时没有 MCP 服务器。"
             } else {
-                content = content.push(settings_panel(
-                    text(tr(locale, "尚未加载 MCP 预览。"))
-                        .size(12)
-                        .style(settings_muted_text_style),
-                ));
-            }
+                "没有匹配的结果"
+            };
+            let entries =
+                servers.iter().filter(|server| matches_name(&server.name)).map(|server| {
+                    let preview_key = format!("runtime:{}", server.name);
+                    let preview_expanded = s.expanded_previews.contains(&preview_key);
+                    let previewing = s.connecting.as_ref() == Some(&preview_key);
+                    runtime_server_panel(
+                        event,
+                        locale,
+                        server,
+                        preview_key,
+                        preview_expanded,
+                        controls_enabled,
+                        previewing,
+                    )
+                });
+            content = content
+                .push(search_toolbar(search.into(), inspect.into()))
+                .push(server_list(locale, entries, empty));
         }
         McpSettingsTab::Json => {
-            content = content.push(section(
-                tr(locale, "高级 JSON"),
-                tr(locale, "支持 type=stdio/http/sse；可配置 headers、env、enabled、required、timeout、allowedTools、deniedTools。"),
-            ));
-            content = content.push(settings_panel(
-                text_editor(&s.editor)
-                    .placeholder(
-                        r#"[
-  {
-    "name": "local-demo",
-    "type": "stdio",
-    "command": "npx",
-    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
-  }
-]"#,
+            let edit_enabled = !s.loading && !s.saving && !s.transfer_pending;
+            content = content
+                .push(
+                    row![
+                        toolbar_button(
+                            tr(locale, "格式化"),
+                            edit_enabled.then(|| event(McpMessage::Format)),
+                        ),
+                        toolbar_button(
+                            tr(locale, "插入模板"),
+                            edit_enabled.then(|| event(McpMessage::InsertTemplate)),
+                        ),
+                        refresh,
+                        button(text(tr(locale, save_label)).size(13))
+                            .padding([9, 14])
+                            .style(primary_action_btn_style)
+                            .on_press_maybe(save),
+                    ]
+                    .spacing(8)
+                    .align_y(Alignment::Center)
+                    .wrap(),
+                )
+                .push(
+                    settings_group_card(
+                        settings_text_editor(&s.editor)
+                            .on_action(move |action| event(McpMessage::EditorAction(action)))
+                            .height(Length::Fixed(360.0)),
                     )
-                    .on_action(move |action| {
-                        event(McpMessage::EditorAction(action))
-                    })
-                    .padding(SETTINGS_CONTROL_PADDING)
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .height(Length::Fixed(360.0))
-                    .style(settings_text_editor_style),
-            ));
+                    .padding([12, 14]),
+                )
+                .push(transfer_panel);
+        }
+        McpSettingsTab::Extensions => {
+            content = content.push(extensions_panel);
         }
     }
-
-    content = content.push(tools_panel);
 
     container(content).padding([0, 7]).width(Length::Fill).into()
 }
@@ -412,4 +399,5 @@ mod server_panels;
 pub use server_panels::{configured_server_panel, runtime_server_panel};
 mod server_form;
 pub use server_form::new_server_panel;
-use server_form::{server_form_heading, server_form_toggle};
+use server_form::server_form_toggle;
+use server_panels::server_list;

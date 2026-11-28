@@ -14,7 +14,6 @@ pub enum Message {
     Export,
     Imported(Result<Option<String>, String>),
     Exported(Result<bool, String>),
-    CopyPrompt,
 }
 
 impl std::fmt::Debug for Message {
@@ -22,8 +21,6 @@ impl std::fmt::Debug for Message {
         f.write_str("McpConfigurationTransfer")
     }
 }
-
-pub const AI_PROMPT: &str = "请协助我修改这次会话使用的 MCP。先确认当前会话的智能体、执行主机和实际读取的配置文件，再询问我要新增、修改还是停用哪些服务器。先给出最小配置变更供我确认，保留其他服务器和权限设置。凭据用占位符，不读取或输出密钥。确认后说明如何应用配置，以及是否需要重新创建会话。";
 
 pub fn backup(state: &State) -> Result<String, String> {
     let (servers, _) = editor_value(&state.editor).map_err(|error| error.to_string())?;

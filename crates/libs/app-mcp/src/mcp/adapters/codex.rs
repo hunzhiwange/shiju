@@ -26,6 +26,9 @@ const CONFIG: &str = "config.toml";
 const SERVERS: &str = "mcp_servers";
 const MANAGED_FIELDS: &[&str] =
     &["command", "args", "cwd", "env", "url", "http_headers", "headers", "type", "enabled"];
+// Codex applies these options in its own host environment. The portable connection
+// does not resolve inherited environment values or carry Codex's startup timeout.
+const NATIVE_ONLY_FIELDS: &[&str] = &["env_vars", "startup_timeout_sec"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CodexError {
@@ -128,14 +131,19 @@ fn legacy_servers(root: &toml::Table) -> Result<Option<&toml::Table>, WriteError
 fn import_entry(id: &str, entry: &toml::Value) -> Result<ImportedServer, CodexError> {
     check_id(id)?;
     let entry = entry.as_table().ok_or(CodexError::InvalidDefinition)?;
-    if has_unmanaged_fields(entry) {
-        return Err(CodexError::UnsupportedField);
+    let mut fields = serde_json::Map::new();
+    for (name, value) in entry {
+        if NATIVE_ONLY_FIELDS.contains(&name.as_str()) {
+            continue;
+        }
+        if !MANAGED_FIELDS.contains(&name.as_str()) {
+            return Err(CodexError::UnsupportedField);
+        }
+        fields.insert(
+            name.clone(),
+            serde_json::to_value(value).map_err(|_| CodexError::InvalidDefinition)?,
+        );
     }
-    let Value::Object(mut fields) =
-        serde_json::to_value(entry).map_err(|_| CodexError::InvalidDefinition)?
-    else {
-        return Err(CodexError::InvalidDefinition);
-    };
     let enabled = match fields.remove("enabled") {
         None => true,
         Some(Value::Bool(enabled)) => enabled,
@@ -231,7 +239,11 @@ impl FilePatch for ServerPatch<'_> {
                 let Some(current) = current else {
                     return Ok(before.map(<[u8]>::to_vec));
                 };
-                current.as_table().ok_or(WriteError::InvalidResource)?;
+                let current = current.as_table().ok_or(WriteError::InvalidResource)?;
+                // Disable also uses Remove. The catalog cannot restore these options.
+                if NATIVE_ONLY_FIELDS.iter().any(|field| current.contains_key(*field)) {
+                    return Err(WriteError::InvalidResource);
+                }
                 TomlPatch { remove: vec![path], ..TomlPatch::default() }
             }
         };

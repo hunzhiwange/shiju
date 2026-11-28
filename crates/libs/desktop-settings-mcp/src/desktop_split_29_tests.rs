@@ -88,6 +88,12 @@ fn navigation_refresh_and_inspect_messages_update_loading_and_error_state() {
         update(&mut app, McpMessage::TabSelected(McpSettingsTab::Runtime));
     assert_eq!(app.active_tab, McpSettingsTab::Runtime);
 
+    let draft = app.editor.text();
+    let effect = update(&mut app, McpMessage::ServerSearchChanged("Chrome".to_owned()));
+    assert!(matches!(effect, crate::configuration_update::Effect::None));
+    assert_eq!(app.server_query, "Chrome");
+    assert_eq!(app.editor.text(), draft);
+
     let _ = update(&mut app, McpMessage::Refresh);
     assert!(app.loading);
     assert!(app.inspect_loading);

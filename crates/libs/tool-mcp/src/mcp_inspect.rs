@@ -7,6 +7,7 @@ use mcp_client::{
     management_for_server, management_timeout, mcp_tool_allowed, server_name, server_transport,
 };
 use anyhow::Context;
+use rmcp::{ServiceError, model::ErrorCode};
 use serde_json::Value;
 use vw_api_mcp_inspect::{McpConnectionStatusDto, McpInspectResponse, McpServerInspectDto};
 use vw_api_tools::ToolSpecDto;
@@ -39,6 +40,7 @@ pub async fn inspect_mcp_servers<H: McpToolHost>(config: &acp_config::ResolvedAc
             required: management.required
                 || H::connection_required(server).unwrap_or(false),
             connection_status: McpConnectionStatusDto::Disabled,
+            workspace_directory: None,
             timeout_ms: management.timeout_ms,
             allowed_tools: management.allowed_tools.clone(),
             denied_tools: management.denied_tools.clone(),
@@ -125,7 +127,7 @@ async fn inspect_server<H: McpToolHost>(
         Box::pin(async move {
             let peer = client.peer();
             let catalogs = &client.service().catalogs;
-            peer.peer_info().context("MCP server capabilities unavailable")?;
+            let info = peer.peer_info().context("MCP server capabilities unavailable")?;
             let mut payload = ServerInspectPayload::default();
             match catalogs.tools(peer).await.context("failed to list MCP tools") {
                 Ok(tools) => {
@@ -143,11 +145,9 @@ async fn inspect_server<H: McpToolHost>(
                         }
                     }
 
-                    let server_instructions =
-                        peer.peer_info().and_then(|info| info.instructions.as_deref());
                     let specs = super::mcp_tool::mcp_tools_to_specs(
                         &server_label,
-                        server_instructions,
+                        info.instructions.as_deref(),
                         &allowed_tools,
                         &[],
                     )?;
@@ -156,60 +156,62 @@ async fn inspect_server<H: McpToolHost>(
                 Err(error) => payload.tools_error = Some(summarize_error(&error)),
             }
 
-            match catalogs.resources(peer.peer_info().and_then(|info| info.capabilities.resources.as_ref()).and_then(|cap| cap.list_changed) == Some(true), || async {
-                peer.list_all_resources().await?.into_iter().map(|item| serde_json::to_value(item).map_err(Into::into)).collect::<anyhow::Result<Vec<_>>>()
-            }).await.context("failed to list MCP resources") {
-                Ok(resources) => match serde_json::to_value(resources.as_ref()) {
-                    Ok(Value::Array(resources)) => payload.resources = resources,
-                    Ok(_) => {
-                        payload.resources_error =
-                            Some("failed to serialize MCP resources: expected array".to_string())
-                    }
-                    Err(error) => {
-                        payload.resources_error =
-                            Some(format!("failed to serialize MCP resources: {error}"))
-                    }
-                },
-                Err(error) => payload.resources_error = Some(summarize_error(&error)),
+            if let Some(resources) = &info.capabilities.resources {
+                let cacheable = resources.list_changed == Some(true);
+                match catalogs
+                    .resources(cacheable, || async {
+                        peer.list_all_resources()
+                            .await?
+                            .into_iter()
+                            .map(|item| serde_json::to_value(item).map_err(Into::into))
+                            .collect()
+                    })
+                    .await
+                    .context("failed to list MCP resources")
+                {
+                    Ok(resources) => payload.resources = resources.as_ref().clone(),
+                    Err(error) => payload.resources_error = Some(summarize_error(&error)),
+                }
+
+                match catalogs
+                    .templates(cacheable, || async {
+                        let templates = match peer.list_all_resource_templates().await {
+                            // Some servers advertise resources but omit the template list method.
+                            Err(ServiceError::McpError(error))
+                                if error.code == ErrorCode::METHOD_NOT_FOUND =>
+                            {
+                                return Ok(Vec::new());
+                            }
+                            result => result?,
+                        };
+                        templates
+                            .into_iter()
+                            .map(|item| serde_json::to_value(item).map_err(Into::into))
+                            .collect()
+                    })
+                    .await
+                    .context("failed to list MCP resource templates")
+                {
+                    Ok(templates) => payload.resource_templates = templates.as_ref().clone(),
+                    Err(error) => payload.resource_templates_error = Some(summarize_error(&error)),
+                }
             }
 
-            match catalogs.templates(peer.peer_info().and_then(|info| info.capabilities.resources.as_ref()).and_then(|cap| cap.list_changed) == Some(true), || async {
-                peer.list_all_resource_templates().await?.into_iter().map(|item| serde_json::to_value(item).map_err(Into::into)).collect::<anyhow::Result<Vec<_>>>()
-            }).await.context("failed to list MCP resource templates")
-            {
-                Ok(resource_templates) => match serde_json::to_value(resource_templates.as_ref()) {
-                    Ok(Value::Array(resource_templates)) => {
-                        payload.resource_templates = resource_templates;
-                    }
-                    Ok(_) => {
-                        payload.resource_templates_error = Some(
-                            "failed to serialize MCP resource templates: expected array"
-                                .to_string(),
-                        );
-                    }
-                    Err(error) => {
-                        payload.resource_templates_error =
-                            Some(format!("failed to serialize MCP resource templates: {error}"));
-                    }
-                },
-                Err(error) => payload.resource_templates_error = Some(summarize_error(&error)),
-            }
-
-            match catalogs.prompts(peer.peer_info().and_then(|info| info.capabilities.prompts.as_ref()).and_then(|cap| cap.list_changed) == Some(true), || async {
-                peer.list_all_prompts().await?.into_iter().map(|item| serde_json::to_value(item).map_err(Into::into)).collect::<anyhow::Result<Vec<_>>>()
-            }).await.context("failed to list MCP prompts") {
-                Ok(prompts) => match serde_json::to_value(prompts.as_ref()) {
-                    Ok(Value::Array(prompts)) => payload.prompts = prompts,
-                    Ok(_) => {
-                        payload.prompts_error =
-                            Some("failed to serialize MCP prompts: expected array".to_string())
-                    }
-                    Err(error) => {
-                        payload.prompts_error =
-                            Some(format!("failed to serialize MCP prompts: {error}"))
-                    }
-                },
-                Err(error) => payload.prompts_error = Some(summarize_error(&error)),
+            if let Some(prompts) = &info.capabilities.prompts {
+                match catalogs
+                    .prompts(prompts.list_changed == Some(true), || async {
+                        peer.list_all_prompts()
+                            .await?
+                            .into_iter()
+                            .map(|item| serde_json::to_value(item).map_err(Into::into))
+                            .collect()
+                    })
+                    .await
+                    .context("failed to list MCP prompts")
+                {
+                    Ok(prompts) => payload.prompts = prompts.as_ref().clone(),
+                    Err(error) => payload.prompts_error = Some(summarize_error(&error)),
+                }
             }
 
             Ok(payload)

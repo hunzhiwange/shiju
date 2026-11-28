@@ -18,6 +18,7 @@ const MCP_TEMPLATE: &str = r#"[
 #[derive(Debug, Clone)]
 pub enum Message {
     TabSelected(crate::state::McpSettingsTab),
+    ServerSearchChanged(String),
     Refresh,
     Loaded(Result<serde_json::Value, String>),
     InspectRefresh,
@@ -81,6 +82,10 @@ pub fn update(app: &mut crate::state::State, message: Message) -> Effect {
         Message::TabSelected(tab) => {
             app.active_tab = tab;
             app.delete_pending = None;
+            Effect::None
+        }
+        Message::ServerSearchChanged(query) => {
+            app.server_query = query;
             Effect::None
         }
         Message::Refresh => {

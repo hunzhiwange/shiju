@@ -9,6 +9,7 @@ use iced::{Element, widget::container};
 fn event(value: page::McpMessage) -> Message {
     Message::Settings(SettingsMessage::Mcp(match value {
         page::McpMessage::TabSelected(v0) => McpMessage::TabSelected(v0),
+        page::McpMessage::ServerSearchChanged(query) => McpMessage::ServerSearchChanged(query),
         page::McpMessage::Refresh => McpMessage::Refresh,
         page::McpMessage::InspectRefresh => McpMessage::InspectRefresh,
         page::McpMessage::Connect(key) => McpMessage::Connect(key),
@@ -83,6 +84,11 @@ pub(super) const MCP_TABS: &[SettingsTabDescriptor<McpSettingsTab>] = &[
         page::MCP_TAB_LABELS[2].0,
         &["json", "原始配置", "高级编辑"],
     ),
+    SettingsTabDescriptor::new(
+        page::MCP_TAB_LABELS[3].1,
+        page::MCP_TAB_LABELS[3].0,
+        &["一键安装", "install", "RustCodeGraph", "Chrome DevTools"],
+    ),
 ];
 
 fn catalog_event(value: catalog::Message) -> Message {
@@ -112,9 +118,10 @@ fn configuration_transfer_panel(app: &App) -> Element<'_, Message> {
             .push(toolbar_button(i18n.__("导入配置文件"), ready.then(|| message(Event::Import))))
             .push(toolbar_button(i18n.__("导出 JSON 备份"), ready.then(|| message(Event::Export))));
     }
-    actions = actions
-        .push(toolbar_button(i18n.__("粘贴配置 JSON"), ready.then(|| message(Event::Paste))))
-        .push(toolbar_button(i18n.__("复制 AI 修改提示词"), Some(message(Event::CopyPrompt))));
+    actions = actions.push(toolbar_button(
+        i18n.__("粘贴配置 JSON"),
+        ready.then(|| message(Event::Paste)),
+    ));
     let mut panel = column![actions.wrap()].spacing(6);
     if cfg!(not(target_arch = "wasm32")) {
         panel = panel.push(
@@ -127,73 +134,226 @@ fn configuration_transfer_panel(app: &App) -> Element<'_, Message> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn rustcodegraph_install_panel(app: &App) -> Element<'_, Message> {
+fn extension_row(
+    app: &App,
+    extension: gateway_desktop_settings::McpExtension,
+    title: &'static str,
+    description: &'static str,
+) -> Element<'static, Message> {
+    use crate::app::message::settings::mcp::extensions::message;
     use desktop_i18n::settings_extensions::text as tr;
-    use desktop_ui_controls::system_settings_common::{
-        settings_group_card, settings_muted_text_style,
-    };
-    use iced::widget::{column, text};
+    use desktop_settings_mcp::{extensions::Message as Event, toolbar_button};
+    use desktop_ui_controls::system_settings_common::settings_muted_text_style;
+    use iced::widget::{column, container, progress_bar, row, text, text::Wrapping};
+    use iced::{Alignment, Length};
 
-    if !crate::app::config::gateway_client_endpoint().is_loopback() {
-        return iced::widget::Space::new().into();
-    }
-    let state = &app.mcp_settings;
     let locale = app.general_settings.desktop_locale;
-    let label = if state.installing_rustcodegraph {
-        "正在安装 RustCodeGraph…"
-    } else {
-        "一键安装 RustCodeGraph MCP"
-    };
-    let ready = !state.loading && !state.saving && !state.transfer_pending
-        && !state.new_server_expanded;
-    let action = ready.then_some(Message::Settings(SettingsMessage::Mcp(
-        McpMessage::InstallRustCodeGraph,
-    )));
-    settings_group_card(column![
-        desktop_settings_mcp::toolbar_button(tr(locale, label), action),
-        text(tr(locale, "从 GitHub 下载并注册到本机网关。使用服务器配置中的命令路径，在项目目录运行 init -i 创建索引。"))
+    let i18n = desktop_i18n::I18n::new(locale);
+    let feedback = |value: &str| desktop_i18n::settings_extensions::feedback(i18n, value);
+    let state = &app.mcp_settings;
+    let card = state.extensions.cards.get(&extension);
+    let expanded = card.is_some_and(|card| card.expanded);
+    let active = state.extensions.active.as_ref().filter(|active| active.extension == extension);
+    let can_install = !state.loading
+        && !state.saving
+        && !state.transfer_pending
+        && !state.new_server_expanded
+        && state.extensions.active.is_none();
+    let muted = |value: String| {
+        text(value)
             .size(12)
-            .style(settings_muted_text_style),
-    ].spacing(8))
-    .padding([14, 16])
-    .into()
+            .style(settings_muted_text_style)
+            .width(Length::Fill)
+            .wrapping(Wrapping::WordOrGlyph)
+    };
+    let actions = row![
+        toolbar_button(
+            tr(locale, if active.is_some() { "安装中…" } else { "安装或升级" }),
+            can_install.then(|| message(Event::Install(extension))),
+        ),
+        toolbar_button(
+            tr(locale, if expanded { "收起" } else { "安装详情" }),
+            Some(message(Event::Toggle(extension))),
+        ),
+    ]
+    .spacing(8)
+    .wrap()
+    .align_x(iced::alignment::Horizontal::Right);
+    let mut content = column![
+        row![
+            column![
+                text(title).size(15).wrapping(Wrapping::WordOrGlyph),
+                muted(description.to_owned()),
+            ]
+            .spacing(5)
+            .width(Length::FillPortion(3)),
+            container(actions).align_right(Length::FillPortion(2)),
+        ]
+        .spacing(16)
+        .align_y(Alignment::Center)
+    ]
+    .spacing(10)
+    .width(Length::Fill);
+
+    if !expanded {
+        return container(content).width(Length::Fill).padding([14, 0]).into();
+    }
+    if let Some(active) = active {
+        let stage = active
+            .progress
+            .as_ref()
+            .map(|progress| progress.stage.as_str())
+            .filter(|stage| !stage.is_empty())
+            .unwrap_or("安装中…");
+        content = content.push(muted(feedback(stage)));
+        if let Some(download) =
+            active.progress.as_ref().and_then(|progress| progress.download.as_ref())
+        {
+            let mib = |bytes: u64| bytes as f64 / 1_048_576.0;
+            let rate = download.bytes_per_second as f64 / 1024.0;
+            let amount = if let Some(total) = download.total.filter(|total| *total > 0) {
+                let fraction = (download.downloaded as f64 / total as f64).clamp(0.0, 1.0);
+                content = content.push(progress_bar(0.0..=1.0, fraction as f32).girth(8));
+                format!("{:.1} / {:.1} MiB", mib(download.downloaded), mib(total))
+            } else {
+                format!("{:.1} MiB", mib(download.downloaded))
+            };
+            content = content
+                .push(muted(format!("{} · {amount} · {rate:.1} KiB/s", tr(locale, "下载中"))));
+        }
+    }
+    if let Some(report) = card.and_then(|card| card.report.as_ref()) {
+        let transcript = report
+            .steps
+            .iter()
+            .map(|step| feedback(step))
+            .chain(std::iter::once(feedback(&report.message)))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        content = content.push(extension_output(
+            tr(locale, if report.success { "安装完成" } else { "安装失败" }).to_owned(),
+            tr(locale, "复制安装输出"),
+            transcript,
+        ));
+    }
+    match card.and_then(|card| card.instructions.as_ref()) {
+        Some(Ok(instructions)) => {
+            content = content
+                .push(muted(tr(locale, "在网关主机的终端执行，完成后刷新并测试连接。").to_owned()));
+            for command in &instructions.commands {
+                content = content.push(extension_output(
+                    format!(
+                        "{} · {} · {}",
+                        tr(locale, "手动安装命令"),
+                        instructions.shell,
+                        instructions.version
+                    ),
+                    tr(locale, "复制安装命令"),
+                    command.clone(),
+                ));
+            }
+            content = content
+                .push(muted(
+                    tr(
+                        locale,
+                        "手动安装后，在高级 JSON 中新增此配置，或在同名服务器中更新命令和参数。",
+                    )
+                    .to_owned(),
+                ))
+                .push(extension_output(
+                    tr(locale, "MCP 配置").to_owned(),
+                    tr(locale, "复制 MCP 配置"),
+                    instructions.configuration.clone(),
+                ));
+        }
+        Some(Err(error)) => {
+            content =
+                content.push(muted(format!("{} · {error}", tr(locale, "无法读取网关安装命令"))));
+        }
+        None => {
+            content = content.push(muted(tr(locale, "正在读取网关安装命令…").to_owned()));
+        }
+    }
+    container(content).width(Length::Fill).padding([14, 0]).into()
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn chrome_devtools_install_panel(app: &App) -> Element<'_, Message> {
+fn extension_output(
+    label: String,
+    copy_label: &'static str,
+    output: String,
+) -> Element<'static, Message> {
+    use crate::app::message::settings::mcp::extensions::message;
+    use desktop_settings_mcp::{extensions::Message as Event, toolbar_button};
+    use desktop_ui_controls::system_settings_common::{settings_muted_text_style, settings_panel};
+    use iced::Length;
+    use iced::widget::{column, row, scrollable, text, text::Wrapping};
+
+    settings_panel(
+        column![
+            row![
+                text(label).size(13).width(Length::Fill).wrapping(Wrapping::WordOrGlyph),
+                toolbar_button(copy_label, Some(message(Event::Copy(output.clone())))),
+            ]
+            .spacing(8)
+            .align_y(iced::Alignment::Center),
+            scrollable(
+                text(output)
+                    .size(12)
+                    .style(settings_muted_text_style)
+                    .width(Length::Fill)
+                    .wrapping(Wrapping::WordOrGlyph),
+            )
+            .direction(iced::widget::scrollable::Direction::Vertical(
+                iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
+            ))
+            .height(Length::Shrink),
+        ]
+        .spacing(8),
+    )
+    .padding([10, 12])
+    .max_height(220)
+    .into()
+}
+
+fn extensions_panel(app: &App) -> Element<'_, Message> {
     use desktop_i18n::settings_extensions::text as tr;
     use desktop_ui_controls::system_settings_common::{
         settings_group_card, settings_muted_text_style,
     };
-    use iced::widget::{column, text};
+    use iced::widget::{container, text};
 
-    if !crate::app::config::gateway_client_endpoint().is_loopback() {
-        return iced::widget::Space::new().into();
-    }
-    let state = &app.mcp_settings;
     let locale = app.general_settings.desktop_locale;
-    let label = if state.installing_chrome_devtools {
-        "正在安装 Chrome DevTools MCP…"
-    } else {
-        "一键安装 Chrome DevTools MCP"
-    };
-    let ready = !state.loading
-        && !state.saving
-        && !state.transfer_pending
-        && !state.new_server_expanded;
-    let action = ready.then_some(Message::Settings(SettingsMessage::Mcp(
-        McpMessage::InstallChromeDevTools,
-    )));
+    #[cfg(not(target_arch = "wasm32"))]
+    if crate::app::config::gateway_client_endpoint().is_loopback() {
+        use desktop_ui_controls::system_settings_common::settings_divider;
+        use gateway_desktop_settings::McpExtension;
+        return settings_group_card(iced::widget::column![
+            extension_row(
+                app,
+                McpExtension::RustCodeGraph,
+                "RustCodeGraph MCP",
+                tr(locale, "从 GitHub 下载并注册到本机网关。使用服务器配置中的命令路径，在项目目录运行 init -i 创建索引。"),
+            ),
+            settings_divider(),
+            extension_row(
+                app,
+                McpExtension::ChromeDevTools,
+                "Chrome DevTools MCP",
+                tr(locale, "通过 npm 下载官方包。需要 Node.js LTS、npm 和最新版稳定版 Chrome。"),
+            ),
+        ])
+        .into();
+    }
+
     settings_group_card(
-        column![
-            desktop_settings_mcp::toolbar_button(tr(locale, label), action),
-            text(tr(locale, "通过 npm 下载官方包。需要 Node.js LTS、npm 和最新版稳定版 Chrome。"))
-                .size(12)
+        container(
+            text(tr(locale, "一键安装仅支持连接本机网关的桌面客户端。"))
+                .size(13)
                 .style(settings_muted_text_style),
-        ]
-        .spacing(8),
+        )
+        .padding([16, 0]),
     )
-    .padding([14, 16])
     .into()
 }
 
@@ -202,16 +362,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         event,
         &app.mcp_settings.page,
         app.general_settings.desktop_locale,
-        &app.appearance.app_theme,
-        std::array::from_fn(|index| match index {
-            0 => configuration_transfer_panel(app),
-            #[cfg(not(target_arch = "wasm32"))]
-            1 => rustcodegraph_install_panel(app),
-            #[cfg(not(target_arch = "wasm32"))]
-            2 => chrome_devtools_install_panel(app),
-            _ => iced::widget::Space::new().into(),
-        }),
-        help,
+        configuration_transfer_panel(app),
+        extensions_panel(app),
     )
 }
 /// Managed-directory controls belong exclusively to the third-party workspace.

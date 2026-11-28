@@ -426,40 +426,6 @@ async fn run(
     }
 }
 
-/// Inline reconciliation for synchronization. Resolve only saved host bindings;
-/// every publication uses the same authorization/credential path as manual resync.
-#[cfg(target_os = "macos")]
-pub async fn sync_saved_bindings(database: GlobalDatabase, policy: Option<std::path::PathBuf>,
-    headers: HeaderMap, target: &vw_api_app_operations::DataManagementTarget, ids: &[String],
-) -> Result<(), StatusCode> {
-    let scope = McpCatalogScope::Project { scope: target.scope.clone() };
-    let policy = PolicyFile(policy);
-    let principal = authorize(&policy, &headers, &scope, target.scope.tenant_scope(), &target.target_host_id).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    if principal != target.principal_id { return Err(StatusCode::FORBIDDEN); }
-    let store = agent_app_services::mcp::McpCatalogStore::new(database.clone()).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    let (_, bindings) = store.list_for_host(&scope, &target.target_host_id).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    let mut targets = Vec::new();
-    for binding in bindings {
-        if !ids.contains(&binding.record.id.0) { continue; }
-        if targets.iter().any(|t: &Target| t.app_id == binding.target.app_id && t.installation_id == binding.target.installation_id) { continue; }
-        targets.push(Target { app_id: binding.target.app_id, installation_id: binding.target.installation_id, account_id: None });
-    }
-    for selected in targets {
-        let job = Arc::new(Job { operation: Operation::new(), tenant: target.scope.tenant_scope().clone(),
-            principal: principal.clone(), scope: scope.clone(), host: target.target_host_id.clone(),
-            reports: Mutex::new(Vec::new()), outcome: Mutex::new(None) });
-        let runtime = tokio::runtime::Handle::current();
-        let policy = policy.clone();
-        let headers = headers.clone();
-        let database = database.clone();
-        let request = ResyncRequest { target_host_id: target.target_host_id.clone(),
-            project_id: Some(target.scope.project_id().as_ref().to_owned()), targets: vec![selected] };
-        tokio::task::spawn_blocking(move || runtime.block_on(run(job, policy, headers, request, database)))
-            .await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    }
-    Ok(())
-}
-
 fn operation_status(id: String, operation: &Operation) -> vw_api_app_operations::AppOperationStatus {
     use vw_agent_apps::apps::lifecycle::operations::Phase;
     use vw_api_app_operations::{AppOperationPhase, AppOperationStatus};

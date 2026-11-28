@@ -9,19 +9,6 @@ pub(crate) fn message(event: Event) -> Message {
 
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
-        Event::CopyPrompt => Task::batch([
-            iced::clipboard::write(
-                desktop_i18n::I18n::new(app.general_settings.desktop_locale)
-                    .__(transfer::AI_PROMPT)
-                    .to_owned(),
-            ),
-            app.show_message_toast(
-                ToastKind::Success,
-                desktop_i18n::settings_extensions::feedback_message(
-                    &("已复制提示词，可粘贴到会话中"),
-                ),
-            ),
-        ]),
         Event::Paste => {
             let state = &mut app.mcp_settings.page;
             if state.loading || state.saving || state.transfer_pending {

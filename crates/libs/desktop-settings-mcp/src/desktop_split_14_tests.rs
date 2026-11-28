@@ -24,6 +24,7 @@ fn inspected_server(name: &str, status: McpConnectionStatusDto) -> McpServerInsp
         enabled: status != McpConnectionStatusDto::Disabled,
         required: false,
         connection_status: status,
+        workspace_directory: None,
         timeout_ms: Some(30_000),
         allowed_tools: Vec::new(),
         denied_tools: Vec::new(),

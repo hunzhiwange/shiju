@@ -12,13 +12,8 @@ use super::messages::{McpMessage, SettingsMessage};
 #[path = "mcp_transfer.rs"]
 pub(crate) mod transfer;
 
-#[cfg(not(target_arch = "wasm32"))]
-#[path = "mcp_rustcodegraph.rs"]
-mod rustcodegraph;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[path = "mcp_chrome_devtools.rs"]
-mod chrome_devtools;
+#[path = "mcp_extensions.rs"]
+pub(crate) mod extensions;
 
 fn refresh_task() -> Task<Message> {
     Task::perform(load_global_config_value_async(), |result| {
@@ -55,7 +50,7 @@ fn save_runtime_overrides_task(runtime_overrides: Vec<Value>) -> Task<Message> {
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     use desktop_settings_mcp::configuration_update::{Effect, Message as LocalMessage};
     let SettingsMessage::Mcp(message) = message else { return Task::none() };
-    if (app.mcp_settings.installing_rustcodegraph || app.mcp_settings.installing_chrome_devtools)
+    if app.mcp_settings.extensions.active.is_some()
         && matches!(
             message,
             McpMessage::Refresh
@@ -76,104 +71,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         return Task::none();
     }
     let local = match message {
-        McpMessage::InstallChromeDevTools => {
-            #[cfg(not(target_arch = "wasm32"))]
-            if !app.mcp_settings.loading
-                && !app.mcp_settings.saving
-                && !app.mcp_settings.transfer_pending
-                && !app.mcp_settings.new_server_expanded
-            {
-                let endpoint = crate::app::config::gateway_client_endpoint();
-                app.mcp_settings.installing_chrome_devtools = true;
-                app.mcp_settings.saving = true;
-                return Task::perform(chrome_devtools::install(endpoint), |result| {
-                    Message::Settings(SettingsMessage::Mcp(McpMessage::ChromeDevToolsInstalled(
-                        result,
-                    )))
-                });
-            }
-            return Task::none();
-        }
-        McpMessage::ChromeDevToolsInstalled(result) => {
-            if !app.mcp_settings.installing_chrome_devtools {
-                return Task::none();
-            }
-            app.mcp_settings.installing_chrome_devtools = false;
-            app.mcp_settings.saving = false;
-            return match result {
-                Ok(()) => {
-                    app.mcp_settings.loading = true;
-                    app.mcp_settings.inspect_loading = true;
-                    let locale = app.general_settings.desktop_locale;
-                    Task::batch([
-                        refresh_all_task(app.navigation_tabs.project_path.clone()),
-                        app.show_message_toast(
-                            crate::app::state::ToastKind::Success,
-                            desktop_i18n::settings_extensions::feedback_message(
-                                &(desktop_i18n::settings_extensions::text(
-                                    locale,
-                                    "Chrome DevTools MCP 已安装",
-                                )),
-                            ),
-                        ),
-                    ])
-                }
-                Err(error) => app.show_message_toast(
-                    crate::app::state::ToastKind::Error,
-                    desktop_i18n::settings_extensions::feedback_message(&(error)),
-                ),
-            };
-        }
-        McpMessage::InstallRustCodeGraph => {
-            #[cfg(not(target_arch = "wasm32"))]
-            if !app.mcp_settings.loading
-                && !app.mcp_settings.saving
-                && !app.mcp_settings.page.transfer_pending
-                && !app.mcp_settings.page.new_server_expanded
-            {
-                let endpoint = crate::app::config::gateway_client_endpoint();
-                let editor = app.mcp_settings.editor.text();
-                app.mcp_settings.installing_rustcodegraph = true;
-                app.mcp_settings.saving = true;
-                return Task::perform(rustcodegraph::install(endpoint, editor), |result| {
-                    Message::Settings(SettingsMessage::Mcp(McpMessage::RustCodeGraphInstalled(result)))
-                });
-            }
-            return Task::none();
-        }
-        McpMessage::RustCodeGraphInstalled(result) => {
-            if !app.mcp_settings.installing_rustcodegraph {
-                return Task::none();
-            }
-            app.mcp_settings.installing_rustcodegraph = false;
-            app.mcp_settings.saving = false;
-            return match result {
-                Ok(()) => {
-                    app.mcp_settings.loading = true;
-                    app.mcp_settings.inspect_loading = true;
-                    let locale = app.general_settings.desktop_locale;
-                    Task::batch([
-                        refresh_all_task(app.navigation_tabs.project_path.clone()),
-                        app.show_message_toast(
-                            crate::app::state::ToastKind::Success,
-                            desktop_i18n::settings_extensions::feedback_message(
-                                &(desktop_i18n::settings_extensions::text(
-                                    locale,
-                                    "RustCodeGraph MCP 已安装",
-                                )),
-                            ),
-                        ),
-                    ])
-                }
-                Err(error) => {
-                    app.mcp_settings.loading = false;
-                    app.show_message_toast(
-                        crate::app::state::ToastKind::Error,
-                        desktop_i18n::settings_extensions::feedback_message(&(error)),
-                    )
-                }
-            };
-        }
+        McpMessage::Extension(event) => return extensions::update(app, event),
         McpMessage::Tools(value) => return super::mcp_management_tools::update(app, value),
         McpMessage::Diagnostic(value) => {
             return crate::app::message::agent_apps_diagnostics::update(app, value);
@@ -187,6 +85,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         McpMessage::TabSelected(v0) => LocalMessage::TabSelected(v0),
         McpMessage::Refresh => LocalMessage::Refresh,
         McpMessage::Loaded(v0) => LocalMessage::Loaded(v0),
+        McpMessage::ServerSearchChanged(query) => LocalMessage::ServerSearchChanged(query),
         McpMessage::InspectRefresh => LocalMessage::InspectRefresh,
         McpMessage::Connect(key) => LocalMessage::Connect(key),
         McpMessage::Connected(key, result) => LocalMessage::Connected(key, result),

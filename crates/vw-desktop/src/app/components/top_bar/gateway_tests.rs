@@ -2,30 +2,32 @@
 //!
 //! 网关夹具覆盖连接中、已连接、断开和错误状态，并检查对应操作是否可用。
 
-fn manage_plugins_message() -> crate::app::Message { super::super::mapping::map_message(desktop_navigation::components::top_bar::gateway::manage_plugins_message()) }
+use super::super::mapping::map_message;
 use crate::app::components::system_settings::SystemTab;
-use crate::app::message::settings::{AgentConfigTabMessage, SettingsMessage};
 use crate::app::message::view::MenuType;
 use crate::app::state::AgentConfigTab;
-use crate::app::{Message, message};
+use crate::app::{App, Message, message};
+use desktop_navigation::components::top_bar::{Message as TopBarMessage, gateway};
 
 #[test]
-fn manage_plugins_opens_the_standalone_agent_plugin_tab() {
-    let Message::Batch(messages) = manage_plugins_message() else {
-        panic!("管理插件应批量打开设置与插件页签");
-    };
+fn gateway_management_opens_the_requested_agent_config_tab() {
+    for (action, expected_tab) in [
+        (gateway::manage_plugins_message(), AgentConfigTab::Plugins),
+        (TopBarMessage::ManageMcp, AgentConfigTab::Mcp),
+    ] {
+        let mut app = App::new().0;
+        app.navigation_panels.show_system_settings = false;
+        app.navigation_panels.system_settings_tab = SystemTab::General;
+        app.navigation_panels.active_menu = Some(MenuType::GatewayServices);
+        app.agents_settings.active_config_tab = AgentConfigTab::Agents;
 
-    assert!(matches!(
-        messages.as_slice(),
-        [
-            Message::View(crate::app::message::view::ViewMessage::OpenSystemSettingsTab(
-                SystemTab::Agents
-            )),
-            Message::Settings(SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
-                AgentConfigTab::Plugins
-            )))
-        ]
-    ));
+        let _ = app.update(map_message(action));
+
+        assert!(app.navigation_panels.show_system_settings);
+        assert_eq!(app.navigation_panels.system_settings_tab, SystemTab::Agents);
+        assert_eq!(app.agents_settings.active_config_tab, expected_tab);
+        assert_eq!(app.navigation_panels.active_menu, None);
+    }
 }
 
 #[test]

@@ -77,14 +77,12 @@ fn help<'a>(
 pub(super) mod mcp {
     use super::*;
     pub fn view(app: &AcpPageFixture) -> Element<'_, Message> {
-        // Independent management panels are external content slots, not part of the configuration form under test.
         desktop_settings_mcp::page::view(
             Message::Mcp,
             &app.mcp_settings,
             app.desktop_locale,
-            &app.app_theme,
-            std::array::from_fn(|_| iced::widget::Space::new().into()),
-            help,
+            iced::widget::Space::new().into(),
+            iced::widget::Space::new().into(),
         )
     }
     pub fn view_overlays<'a>(
@@ -139,6 +137,7 @@ fn update_message(event: McpMessage) -> desktop_settings_mcp::configuration_upda
     use desktop_settings_mcp::configuration_update::Message as U;
     match event {
         McpMessage::TabSelected(v0) => U::TabSelected(v0),
+        McpMessage::ServerSearchChanged(query) => U::ServerSearchChanged(query),
         McpMessage::Refresh => U::Refresh,
         McpMessage::InspectRefresh => U::InspectRefresh,
         McpMessage::EditorAction(v0) => U::EditorAction(v0),

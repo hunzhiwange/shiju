@@ -706,6 +706,28 @@ fn merge_global_config_patch(current: Config, mut patch: Value) -> Result<Config
         }
         patch["mcpServers"] = Value::Array(servers);
     }
+    // Compare the previous entry on every retry so an installer cannot overwrite a concurrent edit.
+    if let Some(change) = patch.as_object_mut().and_then(|patch| patch.remove("mcpServerToReplace")) {
+        let previous = &change["previous"];
+        let replacement = &change["replacement"];
+        let name = previous.get("name").and_then(Value::as_str).map(str::trim)
+            .filter(|name| !name.is_empty())
+            .ok_or_else(|| Error::Invalid("mcpServerToReplace requires a server name".into()))?;
+        if replacement.get("name").and_then(Value::as_str).map(str::trim) != Some(name)
+            || patch.get("mcpServers").is_some()
+        {
+            return Err(Error::Invalid("Invalid MCP server replacement".into()));
+        }
+        let mut servers = current.mcp_servers.clone();
+        let entry = servers.iter_mut()
+            .find(|entry| entry["name"].as_str().map(str::trim) == Some(name))
+            .ok_or_else(|| Error::Invalid("MCP server was removed during installation".into()))?;
+        if &*entry != previous && &*entry != replacement {
+            return Err(Error::Invalid("MCP server changed during installation".into()));
+        }
+        *entry = replacement.clone();
+        patch["mcpServers"] = Value::Array(servers);
+    }
     schema::seed_agent_profile_patch(&current, &mut patch)
         .map_err(|error| Error::Invalid(error.to_string()))?;
     // 将配置转换为 JSON 值

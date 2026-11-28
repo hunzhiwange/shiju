@@ -32,8 +32,7 @@ jobs:
     runs-on: ${{ contains(fromJSON(inputs.platform).targets, 'x86_64-apple-darwin') && 'macos-15' || fromJSON(inputs.platform).runner }}
     container: ${{ fromJSON(inputs.platform).container && fromJSON(inputs.platform).container.image || null }}
     env:
-      CACHE_TARGETS: ${{ join(fromJSON(inputs.platform).targets, ' ') }}
-      RELEASE_CACHE_MODE: restore
+      BUILD_TARGETS: ${{ join(fromJSON(inputs.platform).targets, ' ') }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUILD_MANIFEST_NAME: target/distrib/${{ join(fromJSON(inputs.platform).targets, '-') }}-dist-manifest.json
     steps:
@@ -54,7 +53,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Acquire Cargo cache slot
+      - name: Acquire Cargo build slot
         shell: bash
         run: |
           mkdir -p target/rust-slot-locks
@@ -66,7 +65,7 @@ jobs:
             sleep 5
           done
           trap 'rm -f "$lock/owner"; rmdir "$lock"' EXIT
-          printf 'plan=release-performance task=3 session=%s pid=%s\n' "$GITHUB_RUN_ID" "$PPID" > "$lock/owner"
+          printf 'session=%s pid=%s\n' "$GITHUB_RUN_ID" "$PPID" > "$lock/owner"
           # Hold until the final cleanup step; every Cargo and packaging child inherits it.
           python - "$slot" <<'PYTHON'
           import os, pathlib, sys
@@ -76,18 +75,6 @@ jobs:
               print(f'RELEASE_CARGO_SLOT={sys.argv[1]}', file=out)
           PYTHON
           trap - EXIT
-      - name: Identify Cargo cache layout and toolchain
-        id: cargo-cache-layout
-        shell: bash
-        run: python scripts/release_cargo_cache.py
-      - name: Restore trusted Cargo cache
-        id: cargo-cache
-        if: ${{ env.RELEASE_CACHE_MODE != 'off' }}
-        uses: actions/cache/restore@v5
-        with:
-          path: ${{ steps.cargo-cache-layout.outputs.paths }}
-          key: ${{ steps.cargo-cache-layout.outputs.key }}
-          restore-keys: ${{ steps.cargo-cache-layout.outputs.prefix }}
       - name: Install dist
         run: ${{ fromJSON(inputs.platform).install_dist.run }}
       - name: Fetch the plan manifest
@@ -209,13 +196,13 @@ jobs:
           done <<< "$DIST_ARTIFACTS"
           cp "$BUILD_MANIFEST_NAME" "$inputs/distrib/"
 
-          profile="$CACHE_TARGETS/dist"
+          profile="$BUILD_TARGETS/dist"
           executables=()
           for binary in shi-ju vw-webview shiju-computer-use shiju acp; do
             test -x "$CARGO_TARGET_DIR/$profile/$binary"
             executables+=("$profile/$binary")
           done
-          if [[ "$CACHE_TARGETS" == aarch64-apple-darwin && -x "$CARGO_TARGET_DIR/$profile/aionrs-acp" ]]; then
+          if [[ "$BUILD_TARGETS" == aarch64-apple-darwin && -x "$CARGO_TARGET_DIR/$profile/aionrs-acp" ]]; then
             executables+=("$profile/aionrs-acp")
           fi
           # Tar preserves executable modes across the artifact upload/download.
@@ -248,7 +235,7 @@ jobs:
           cp "$BUILD_MANIFEST_NAME" "$inputs/distrib/"
 
           executables=()
-          for target in $CACHE_TARGETS; do
+          for target in $BUILD_TARGETS; do
             if [[ "$target" == *pc-windows-msvc ]]; then
               for binary in shi-ju.exe vw-webview.exe shiju.exe acp.exe; do
                 executable="$target/dist/$binary"
@@ -282,7 +269,7 @@ jobs:
             target/distrib/*.rpm
             ${{ env.BUILD_MANIFEST_NAME }}
 
-      - name: Release Cargo cache slot
+      - name: Release Cargo build slot
         if: always()
         shell: bash
         run: |

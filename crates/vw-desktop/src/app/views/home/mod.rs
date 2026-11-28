@@ -14,6 +14,8 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
         recent_projects: &app.workspace_state.recent_projects,
         recent_projects_edits: &app.workspace_state.recent_projects_edits,
         recent_projects_meta: &app.workspace_state.recent_projects_meta,
+        search_query: app.navigation_tabs.home_recent_project_search.as_deref(),
+        project_menu: app.navigation_tabs.home_recent_project_menu.as_ref(),
         project_path: app.navigation_tabs.project_path.as_deref(),
     };
     desktop_navigation::views::home::view(&state, app.navigation_tabs.home_apps_bar_scroll_id.clone())
@@ -74,6 +76,12 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
                     Message::View(message::ViewMessage::HomeAppsBarScrollChanged(x)),
                 Home::Recent(recent::Message::OpenRecentPressed(path)) =>
                     Message::Project(message::ProjectMessage::OpenRecentPressed(path)),
+                Home::Recent(recent::Message::SearchToggled) =>
+                    Message::View(message::ViewMessage::HomeRecentProjectSearchToggled),
+                Home::Recent(recent::Message::SearchChanged(query)) =>
+                    Message::View(message::ViewMessage::HomeRecentProjectSearchChanged(query)),
+                Home::Recent(recent::Message::ProjectMenu(event)) =>
+                    Message::View(message::ViewMessage::HomeRecentProjectMenu(event)),
             }
         })
 }

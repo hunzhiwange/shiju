@@ -84,6 +84,8 @@ pub fn panels(cfg: &serde_json::Value) -> crate::panel::settings::State {
 pub fn tabs() -> crate::panel::tabs::State {
     crate::panel::tabs::State {
         apps_search_query: String::new(),
+        home_recent_project_search: None,
+        home_recent_project_menu: None,
         project_path: None,
         project_preview_tabs: HashMap::new(),
         preview_tabs: Vec::new(),

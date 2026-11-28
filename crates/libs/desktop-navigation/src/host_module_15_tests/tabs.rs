@@ -2,7 +2,10 @@ use crate::panel::tabs as domain;
 use crate::{components::top_bar::types::AppTab, ui_types::Screen};
 fn test_app() -> domain::State {
     domain::State {
-        apps_search_query: String::new(),        project_path: None,
+        apps_search_query: String::new(),
+        home_recent_project_search: None,
+        home_recent_project_menu: None,
+        project_path: None,
         project_preview_tabs: Default::default(),
         preview_tabs: Vec::new(),
         standalone_preview_tabs: Vec::new(),

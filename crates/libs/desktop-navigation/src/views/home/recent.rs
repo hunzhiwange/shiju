@@ -4,12 +4,16 @@
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Grid, Image, Space, button, column, container, hover, row, scrollable, text};
-use iced::{Alignment, Background, Border, Color, Element, Length, Pixels, Theme, Vector};
+use iced::{Alignment, Background, Border, Color, Element, Length, Pixels, Point, Theme, Vector};
 
 use desktop_assets::assets::{self, Icon};
 use desktop_i18n::I18n;
+use desktop_ui_controls::overlays::PointBelowOverlay;
+use desktop_ui_controls::right_click_area::RightClickArea;
+use desktop_ui_controls::system_settings_common::icons::{icon_btn_style, icon_btn_svg_style};
 use desktop_ui_controls::system_settings_common::{
-    settings_muted_text_style, settings_panel_style,
+    icon_btn, settings_divider, settings_muted_text_style, settings_panel_style,
+    settings_text_input, with_settings_modal_escape,
 };
 use desktop_workspace::project_message::edit_meta::RecentProjectMeta;
 
@@ -22,6 +26,7 @@ const WORKSPACE_ICON_SIZE: f32 = 94.0;
 const APP_ICON_SIZE: f32 = 36.0;
 const SHORTCUT_COLUMN_SPACING: f32 = 12.0;
 const TWO_COLUMN_MIN_WINDOW_WIDTH: f32 = 588.0;
+pub const SEARCH_INPUT_ID: &str = "home-recent-project-search";
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -41,6 +46,23 @@ pub enum Message {
     #[cfg(not(target_arch = "wasm32"))]
     OpenDigitalEmployees,
     OpenRecentPressed(String),
+    SearchToggled,
+    SearchChanged(String),
+    ProjectMenu(ProjectMenuMessage),
+}
+
+#[derive(Debug, Clone)]
+pub enum ProjectMenuMessage {
+    Open(String, Point),
+    Close,
+    Action(ProjectMenuAction),
+}
+
+#[derive(Debug, Clone)]
+pub enum ProjectMenuAction {
+    Edit,
+    CopyPath,
+    Delete,
 }
 
 /// 首页实际使用的只读工作区字段，不持有或复制宿主状态。
@@ -50,6 +72,8 @@ pub struct State<'a> {
     pub recent_projects: &'a [String],
     pub recent_projects_edits: &'a [String],
     pub recent_projects_meta: &'a [RecentProjectMeta],
+    pub search_query: Option<&'a str>,
+    pub project_menu: Option<&'a (String, Point)>,
     pub project_path: Option<&'a str>,
 }
 
@@ -76,10 +100,13 @@ pub fn render_body<'a>(app: &State<'_>) -> Element<'a, Message> {
     let section =
         column![render_shortcuts(i18n, app), recent].spacing(18).width(Length::Fill);
 
-    scrollable(container(section).padding([18, 16]).width(Length::Fill))
+    let mut body = scrollable(container(section).padding([18, 16]).width(Length::Fill))
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-        .height(Length::Fill)
-        .into()
+        .height(Length::Fill);
+    if app.project_menu.is_some() {
+        body = body.on_scroll(|_| Message::ProjectMenu(ProjectMenuMessage::Close));
+    }
+    body.into()
 }
 
 fn render_shortcuts(i18n: I18n, app: &State<'_>) -> Element<'static, Message> {
@@ -278,12 +305,22 @@ fn shortcut_panel(
 }
 
 fn render_recent_projects_body<'a>(app: &State<'_>, i18n: I18n) -> Element<'a, Message> {
+    let query = app.search_query.unwrap_or_default().trim().to_lowercase();
+    let projects: Vec<_> = app
+        .recent_projects
+        .iter()
+        .enumerate()
+        .filter_map(|(index, path)| {
+            let name = recent_project_name(app, index, path);
+            (query.is_empty()
+                || name.to_lowercase().contains(&query)
+                || path.to_lowercase().contains(&query))
+            .then_some((path, name))
+        })
+        .collect();
     let recent_count = container(
-        text(
-            i18n.format("%u 个项目", &[app.recent_projects.len().into()])
-                .expect("valid project count"),
-        )
-        .size(11),
+        text(i18n.format("%u 个项目", &[projects.len().into()]).expect("valid project count"))
+            .size(11),
     )
     .padding([5, 10])
     .style(|theme: &Theme| {
@@ -304,48 +341,58 @@ fn render_recent_projects_body<'a>(app: &State<'_>, i18n: I18n) -> Element<'a, M
         }
     });
 
-    let columns =
-        if app.window_width >= TWO_COLUMN_MIN_WINDOW_WIDTH && app.recent_projects.len() > 1 {
+    let recent_list: Element<'_, Message> = if projects.is_empty() {
+        container(text(i18n.__("未找到匹配的项目")).size(14).style(settings_muted_text_style))
+            .center_x(Length::Fill)
+            .padding([24, 7])
+            .into()
+    } else {
+        let columns = if app.window_width >= TWO_COLUMN_MIN_WINDOW_WIDTH && projects.len() > 1 {
             2
         } else {
             1
         };
-    let recent_list = Grid::with_children(
-        app.recent_projects
-            .iter()
-            .enumerate()
-            .map(|(index, path)| recent_project_row(app, index, path)),
-    )
-    .columns(columns)
-    .spacing(10)
-    .height(Length::Shrink);
-
-    column![
-        row![
-            column![
-                text(i18n.__("最近项目")).size(15).font(home_cjk_emphasis_font()),
-                text(i18n.__("继续最近的工作区入口，并直接处理常用操作。")).size(12).style(
-                    |theme: &Theme| iced::widget::text::Style {
-                        color: Some(theme.palette().text.scale_alpha(0.62)),
-                    }
-                ),
-            ]
-            .spacing(4)
-            .width(Length::Fill),
-            recent_count,
-        ]
+        Grid::with_children(
+            projects.into_iter().map(|(path, name)| recent_project_row(app, path, name)),
+        )
+        .columns(columns)
         .spacing(10)
-        .align_y(Alignment::Center),
-        recent_list,
+        .height(Length::Shrink)
+        .into()
+    };
+
+    let search_label = i18n.__("搜索项目");
+    let heading = row![
+        column![
+            text(i18n.__("最近项目")).size(15).font(home_cjk_emphasis_font()),
+            text(i18n.__("继续最近的工作区入口，并直接处理常用操作。")).size(12).style(
+                |theme: &Theme| iced::widget::text::Style {
+                    color: Some(theme.palette().text.scale_alpha(0.62)),
+                }
+            ),
+        ]
+        .spacing(4)
+        .width(Length::Fill),
+        recent_count,
+        icon_btn(Icon::Search, search_label, Some(Message::SearchToggled)),
     ]
-    .spacing(14)
-    .width(Length::Fill)
-    .into()
+    .spacing(10)
+    .align_y(Alignment::Center);
+    let mut section = column![heading].spacing(14).width(Length::Fill);
+    if let Some(query) = app.search_query {
+        let input = settings_text_input(search_label, query)
+            .id(SEARCH_INPUT_ID)
+            .on_input(Message::SearchChanged);
+        section = section.push(with_settings_modal_escape(
+            container(input).max_width(320).into(),
+            Message::SearchToggled,
+        ));
+    }
+    section.push(recent_list).into()
 }
 
-fn recent_project_row<'a>(app: &State<'_>, index: usize, path: &str) -> Element<'a, Message> {
+fn recent_project_row<'a>(app: &State<'_>, path: &str, name: String) -> Element<'a, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
-    let name = recent_project_name(app, index, path);
     let project_meta = app.recent_projects_meta.iter().find(|meta| meta.path == path);
     let custom_icon = project_meta.and_then(|meta| meta.icon.as_deref());
     let custom_color =
@@ -424,7 +471,7 @@ fn recent_project_row<'a>(app: &State<'_>, index: usize, path: &str) -> Element<
                 ..Default::default()
             });
 
-    button(
+    let card = button(
         container(
             row![
                 project_avatar(&name, path, custom_icon, custom_color, 48.0),
@@ -485,8 +532,63 @@ fn recent_project_row<'a>(app: &State<'_>, index: usize, path: &str) -> Element<
             text_color: theme.palette().text,
             ..Default::default()
         }
-    })
-    .into()
+    });
+
+    let project_path = path.to_owned();
+    let card: Element<'a, Message> = RightClickArea::new(
+        card.into(),
+        Box::new(move |point| {
+            Message::ProjectMenu(ProjectMenuMessage::Open(project_path.clone(), point))
+        }),
+    )
+    .into();
+    if let Some((menu_path, point)) = app.project_menu
+        && menu_path == path
+    {
+        PointBelowOverlay::new(card, project_menu(i18n, path))
+            .show(true)
+            .anchor(*point)
+            .close_on_target_click(true)
+            .capture_keyboard()
+            .on_close(Message::ProjectMenu(ProjectMenuMessage::Close))
+            .into()
+    } else {
+        card
+    }
+}
+
+fn project_menu(i18n: I18n, path: &str) -> Element<'static, Message> {
+    let action = |icon, label, message| {
+        button(
+            row![icon_svg(icon, 15.0).style(icon_btn_svg_style), text(label).size(13)]
+                .spacing(9)
+                .align_y(Alignment::Center),
+        )
+        .on_press(Message::ProjectMenu(ProjectMenuMessage::Action(message)))
+        .padding([8, 9])
+        .width(Length::Fill)
+        .style(icon_btn_style)
+    };
+    let mut items = column![
+        action(Icon::Pencil, i18n.__("编辑项目"), ProjectMenuAction::Edit),
+        action(Icon::Copy, i18n.__("复制路径"), ProjectMenuAction::CopyPath),
+    ]
+    .spacing(3);
+    if !desktop_workspace::projects::is_builtin_workspace_project(path) {
+        items = items.push(settings_divider()).push(action(
+            Icon::Trash,
+            i18n.__("删除"),
+            ProjectMenuAction::Delete,
+        ));
+    }
+    container(items)
+        .width(168)
+        .padding(5)
+        .style(|theme| iced::widget::container::Style {
+            background: Some(theme.palette().background.into()),
+            ..settings_panel_style(theme)
+        })
+        .into()
 }
 
 fn recent_project_name(app: &State<'_>, index: usize, path: &str) -> String {

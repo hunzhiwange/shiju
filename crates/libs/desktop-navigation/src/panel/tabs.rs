@@ -20,6 +20,8 @@ pub enum Message {
 }
 pub struct State {
     pub apps_search_query: String,
+    pub home_recent_project_search: Option<String>,
+    pub home_recent_project_menu: Option<(String, Point)>,
     pub project_path: Option<String>,
     pub project_preview_tabs: HashMap<String, Vec<PreviewTab>>,
     pub preview_tabs: Vec<PreviewTab>,

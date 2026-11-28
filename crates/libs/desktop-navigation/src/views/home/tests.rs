@@ -69,6 +69,8 @@ impl Fixture {
             recent_projects: &self.recent_projects,
             recent_projects_edits: &self.recent_projects_edits,
             recent_projects_meta: &self.recent_projects_meta,
+            search_query: None,
+            project_menu: None,
             project_path: self.project_path.as_deref(),
         }
     }

@@ -386,6 +386,9 @@ pub enum ViewMessage {
     /// # 参数
     /// - 新的滚动偏移量
     HomeAppsBarScrollChanged(f32),
+    HomeRecentProjectSearchToggled,
+    HomeRecentProjectSearchChanged(String),
+    HomeRecentProjectMenu(desktop_navigation::views::home::recent::ProjectMenuMessage),
     /// 首页应用栏向左滚动（上一页）
     HomeAppsBarPrev,
     /// 首页应用栏向右滚动（下一页）
@@ -696,6 +699,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::GoHome | ViewMessage::TabSelected(_) | ViewMessage::TabClosed(_)) {
         app.usage_center.close();
         app.apps_catalog.external_sessions.cancel_reader();
+        app.navigation_tabs.home_recent_project_menu = None;
     }
 
     if app.pet_state.task_pet_size_draft.is_some()
@@ -780,6 +784,56 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             if app.layout_drag.dragging_work_sidebar || app.navigation_workspace.dragging_work_split
     );
     let task = match message {
+        ViewMessage::HomeRecentProjectSearchToggled => {
+            app.navigation_tabs.home_recent_project_menu = None;
+            let search = &mut app.navigation_tabs.home_recent_project_search;
+            if search.take().is_some() {
+                Task::none()
+            } else {
+                *search = Some(String::new());
+                iced::widget::operation::focus(
+                    desktop_navigation::views::home::recent::SEARCH_INPUT_ID,
+                )
+            }
+        }
+        ViewMessage::HomeRecentProjectSearchChanged(query) => {
+            app.navigation_tabs.home_recent_project_menu = None;
+            if let Some(search) = &mut app.navigation_tabs.home_recent_project_search {
+                *search = query;
+            }
+            Task::none()
+        }
+        ViewMessage::HomeRecentProjectMenu(event) => {
+            use desktop_navigation::views::home::recent::{ProjectMenuAction, ProjectMenuMessage};
+
+            let menu = &mut app.navigation_tabs.home_recent_project_menu;
+            match event {
+                ProjectMenuMessage::Open(path, point) => {
+                    *menu = Some((path, point));
+                    Task::none()
+                }
+                ProjectMenuMessage::Close => {
+                    *menu = None;
+                    Task::none()
+                }
+                ProjectMenuMessage::Action(action) => {
+                    let Some((path, _)) = menu.take() else {
+                        return Task::none();
+                    };
+                    if !app.workspace_state.recent_projects.contains(&path) {
+                        return Task::none();
+                    }
+                    let message = match action {
+                        ProjectMenuAction::Edit => super::ProjectMessage::ProjectEditOpened(path),
+                        ProjectMenuAction::CopyPath => {
+                            super::ProjectMessage::ProjectCopyPathPressed(path)
+                        }
+                        ProjectMenuAction::Delete => super::ProjectMessage::RecentRemovePressed(path),
+                    };
+                    super::project::update(app, message)
+                }
+            }
+        }
         #[cfg(not(target_arch = "wasm32"))]
         msg @ ViewMessage::WebInstall(_) => panel::update(app, msg),
         #[cfg(not(target_arch = "wasm32"))]

@@ -111,6 +111,7 @@ pub(crate) fn with_project_menu<'a>(
     if !desktop_workspace::projects::is_builtin_workspace_project(&menu.directory) {
         items = items.push(settings_divider()).push(item(Icon::Trash, i18n.__("删除"), Event::Remove));
     }
+    items = items.push(item(Icon::Copy, i18n.__("复制路径"), Event::CopyPath));
     let popup = container(items).width(168).padding(5).style(settings_panel_style);
     PointBelowOverlay::new(base, popup)
         .show(true)

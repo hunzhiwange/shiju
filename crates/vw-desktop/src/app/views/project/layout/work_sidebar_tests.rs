@@ -535,9 +535,9 @@ async fn work_sidebar_current_project_above_new_task_has_refresh_and_tools_butto
             panel = panel.child(0);
         }
         let rows = panel.child(0);
-        assert_eq!(rows.children().count(), 4, "three actions and a separator");
+        assert_eq!(rows.children().count(), 5, "four actions and a separator");
         let mut actions = Vec::new();
-        for index in [0, 2, 3] {
+        for index in [0, 2, 3, 4] {
             let cursor = mouse::Cursor::Available(rows.child(index).bounds().center());
             for event in [
                 Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
@@ -555,15 +555,19 @@ async fn work_sidebar_current_project_above_new_task_has_refresh_and_tools_butto
         }
         let [
             Message::Project(edit @ ProjectMessage::ProjectEditOpened(edit_path)),
+            Message::Project(copy @ ProjectMessage::ProjectCopyPathPressed(copy_path)),
             Message::Project(ProjectMessage::RecentRevealPressed(reveal_path)),
             Message::Project(ProjectMessage::RecentRemovePressed(remove_path)),
         ] = actions.as_slice()
         else {
             panic!("unexpected project menu actions");
         };
-        assert_eq!([edit_path, reveal_path, remove_path], [active; 3]);
+        assert_eq!([edit_path, copy_path, reveal_path, remove_path], [active; 4]);
         drop(overlay);
         drop(sidebar);
+        let _ = crate::app::message::project::update(&mut app, copy.clone());
+        assert!(app.navigation_mode.work_current_project_menu.is_none());
+        let _ = crate::app::message::project::update(&mut app, open.clone());
         let _ = crate::app::message::project::update(&mut app, edit.clone());
         assert!(app.navigation_mode.work_current_project_menu.is_none());
         assert_eq!(app.project_editor.project_edit_path.as_deref(), Some(active));

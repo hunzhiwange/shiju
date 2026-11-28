@@ -180,6 +180,14 @@ pub mod launch {
         domain::launch_view::overlay(i18n,
             &state.launch,
             &state.host,
+            |selected| {
+                iced::widget::button(text(selected.unwrap_or_else(|| i18n.__("请选择项目"))))
+                    .style(desktop_ui_controls::system_settings_common::rounded_action_btn_style)
+                    .on_press(message(AppsCatalogMessage::Launch(LaunchMessage::ProjectPickerOpen(
+                        !state.launch.project_picker_open,
+                    ))))
+                    .into()
+            },
             base,
             |title, description, size| heading(i18n, Some(theme), title, description, size),
             |event| message(AppsCatalogMessage::Launch(event)),

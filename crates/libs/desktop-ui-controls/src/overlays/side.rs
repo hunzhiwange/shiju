@@ -366,6 +366,16 @@ where
         self.content.as_widget().size_hint()
     }
 
+    fn operate(
+        &mut self,
+        tree: &mut widget::Tree,
+        layout: Layout<'_>,
+        renderer: &RendererT,
+        operation: &mut dyn widget::Operation,
+    ) {
+        self.content.as_widget_mut().operate(&mut tree.children[0], layout, renderer, operation);
+    }
+
     /// 执行组件的布局计算
     ///
     /// # 参数
@@ -721,6 +731,15 @@ where
             &layout.bounds(),
             Vector::ZERO,
         )
+    }
+
+    fn operate(
+        &mut self,
+        layout: Layout<'_>,
+        renderer: &RendererT,
+        operation: &mut dyn widget::Operation,
+    ) {
+        self.overlay.as_widget_mut().operate(self.tree, layout, renderer, operation);
     }
 
     /// 处理覆盖层的事件更新

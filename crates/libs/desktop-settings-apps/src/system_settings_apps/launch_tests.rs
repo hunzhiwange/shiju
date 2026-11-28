@@ -109,7 +109,7 @@ fn cc_apps_desktop_launch_state_explains_disabled_action_and_blocks_uncertain_re
     assert_eq!(state.blocked_reason(), Some("请选择启动身份。"));
     state.selected = Some(LaunchChoice::ExistingConfiguration);
     state.request.as_mut().unwrap().cwd.clear();
-    assert_eq!(state.blocked_reason(), Some("请填写工作目录。"));
+    assert_eq!(state.blocked_reason(), Some("请选择项目"));
     state.request.as_mut().unwrap().cwd = "/fixture/project".into();
     assert!(state.blocked_reason().is_none());
     let (generation, _) = state.begin().unwrap();

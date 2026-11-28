@@ -15,6 +15,9 @@ fn message(event: Event) -> Message {
         Event::OpenRecentPressed(path) => Message::Project(ProjectMessage::OpenRecentPressed(path)),
         Event::ProjectToolsMenuToggled(path) => Message::Project(ProjectMessage::ProjectToolsMenuToggled(path)),
         Event::ProjectEditOpened(path) => Message::Project(ProjectMessage::ProjectEditOpened(path)),
+        Event::ProjectCopyPathPressed(path) => {
+            Message::Project(ProjectMessage::ProjectCopyPathPressed(path))
+        }
         Event::ProjectToolsMenuClosed => Message::Project(ProjectMessage::ProjectToolsMenuClosed),
         Event::OpenFolderPressed => Message::Project(ProjectMessage::OpenFolderPressed),
     }

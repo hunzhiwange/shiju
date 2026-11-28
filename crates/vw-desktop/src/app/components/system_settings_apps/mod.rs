@@ -23,11 +23,12 @@ pub(super) fn message(value: AppsCatalogMessage) -> Message {
 pub(crate) use list::view;
 
 pub(crate) fn view_overlays<'a>(
-    state: &'a AppsCatalogState,
+    app: &'a crate::app::App,
     i18n: I18n,
     theme: &Theme,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
+    let state = &app.apps_catalog;
     let base = iced::widget::stack![base,
         desktop_apps_ui::app_routing::outbound::overlay(i18n, &state.routing, iced::widget::Space::new().into())
             .map(|event| message(AppsCatalogMessage::Routing(event)))
@@ -63,7 +64,7 @@ pub(crate) fn view_overlays<'a>(
     };
     let base = commands::overlay(i18n, state, base);
     let base = launch::overlay(
-        state, i18n, theme,
+        app, i18n, theme,
         preferences::overlay(state, i18n, theme,
             lifecycle::overlay(i18n, &state.lifecycle, &state.host, base)),
     );

@@ -160,6 +160,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         ProjectMessage::ProjectEditRuntimeSaved(value) => Event::ProjectEditRuntimeSaved(value),
         ProjectMessage::ProjectEditCanceled => Event::ProjectEditCanceled,
+        ProjectMessage::ProjectCopyPathPressed(path) => {
+            app.workspace_state.project_tools_menu_path = None;
+            app.navigation_mode.work_current_project_menu = None;
+            return Some(iced::clipboard::write(path));
+        }
         ProjectMessage::RecentRevealPressed(value) => Event::RecentRevealPressed(value),
         ProjectMessage::RecentRemovePressed(value) => Event::RecentRemovePressed(value),
         ProjectMessage::RecentRemoveCanceled => Event::RecentRemoveCanceled,

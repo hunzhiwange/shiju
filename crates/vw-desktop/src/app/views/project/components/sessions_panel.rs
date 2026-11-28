@@ -7,6 +7,7 @@ pub(in crate::app::views::project) fn map(event: domain::Message) -> Message {
 domain::events::ProjectMessage::OpenRecentPressed(value) => message::ProjectMessage::OpenRecentPressed(value),
 domain::events::ProjectMessage::ProjectToolsMenuToggled(value) => message::ProjectMessage::ProjectToolsMenuToggled(value),
 domain::events::ProjectMessage::ProjectEditOpened(value) => message::ProjectMessage::ProjectEditOpened(value),
+domain::events::ProjectMessage::ProjectCopyPathPressed(path) => message::ProjectMessage::ProjectCopyPathPressed(path),
 domain::events::ProjectMessage::RecentRevealPressed(value) => message::ProjectMessage::RecentRevealPressed(value),
 domain::events::ProjectMessage::RecentRemovePressed(value) => message::ProjectMessage::RecentRemovePressed(value),
 domain::events::ProjectMessage::ProjectLoadSessions(value) => message::ProjectMessage::ProjectLoadSessions(value),

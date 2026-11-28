@@ -332,6 +332,10 @@ pub fn build_project_tools_menu<'a>(
         ),
         separator(),
         session_menu_button(
+            i18n.__("复制项目目录路径"),
+            Message::Project(message::ProjectMessage::ProjectCopyPathPressed(path.clone())),
+        ),
+        session_menu_button(
             i18n.__("在访达中显示"),
             Message::Project(message::ProjectMessage::RecentRevealPressed(path.clone())),
         ),
@@ -347,7 +351,7 @@ pub fn build_project_tools_menu<'a>(
     container(content)
         .padding([6, 8])
         .style(floating_menu_panel_style)
-        .width(Length::Fixed(132.0))
+        .width(Length::Fixed(174.0))
         .into()
 }
 
@@ -833,7 +837,7 @@ pub mod events {
  pub enum ProjectMessage {
  OpenRecentPressed(String), OpenProjectSessionPressed(String, String),
  ProjectToolsMenuToggled(String), ProjectToolsMenuClosed, ProjectEditOpened(String),
- RecentRevealPressed(String), RecentRemovePressed(String), ProjectLoadSessions(String),
+ ProjectCopyPathPressed(String), RecentRevealPressed(String), RecentRemovePressed(String), ProjectLoadSessions(String),
  ProjectLoadMoreSessions(String), SessionRenamePressed(String), SessionCopyPressed(String),
  SessionArchivePressed(String), SessionDeletePressed(String), SessionMenuClose,
  SessionRightClicked(String, f32, f32), SessionPinPressed(String, String, bool),

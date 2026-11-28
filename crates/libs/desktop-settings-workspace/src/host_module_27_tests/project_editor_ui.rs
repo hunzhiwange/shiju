@@ -824,6 +824,10 @@ async fn ui_refresh_30_preserves_values_and_disabled_states() {
         [Message::Project(ProjectMessage::ProjectEditOpened(path))] if path == PATH
     ));
     assert!(matches!(
+        label_click(&mut ui, &mut renderer, i18n.__("复制路径")).as_slice(),
+        [Message::Settings(SettingsMessage::ProjectCopyPathPressed(path))] if path == PATH
+    ));
+    assert!(matches!(
         label_click(&mut ui, &mut renderer, i18n.__("删除")).as_slice(),
         [Message::Settings(SettingsMessage::RecentProjectDeleteRequested(1))]
     ));

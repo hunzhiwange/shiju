@@ -1,7 +1,6 @@
-use super::launch::{LaunchChoice, LaunchMessage};
+use super::launch::{LaunchChoice, LaunchMessage, LaunchState};
 
 use desktop_ui_controls::system_settings_common::*;
-use super::launch::LaunchState;
 use iced::{
     Alignment, Element, Length,
     widget::{Space, button, column, container, row, text},
@@ -11,6 +10,7 @@ use vw_api_app_identity::{LaunchIdentityKind, LaunchSessionPhase};
 pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: &'a LaunchState,
     host: &'a str,
+    project_picker: impl FnOnce(Option<&'a str>) -> Element<'a, M>,
     base: Element<'a, M>,
     heading: impl Fn(&'static str, &'static str, u16) -> Element<'a, M>,
     event: impl Fn(LaunchMessage<C>) -> M + Copy + 'static,
@@ -104,13 +104,13 @@ pub fn overlay<'a, C: Clone + 'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
             .style(rounded_action_btn_style)
             .on_press_maybe(editable.then_some(event(LaunchMessage::AddArg))),
     );
-    let cwd = column![
-        settings_field_label(i18n.__("工作目录")),
-        settings_text_input(i18n.__("所选主机上的绝对目录"), &request.cwd)
-            .on_input_maybe(editable.then_some(move |v| event(LaunchMessage::Cwd(v)))),
-    ]
-    .spacing(6);
-    let body = body.push(identities).push(cwd).push(settings_divider()).push(args);
+    let project = if editable {
+        project_picker((!request.cwd.is_empty()).then_some(request.cwd.as_str()))
+    } else {
+        text(request.cwd.as_str()).size(SETTINGS_CONTROL_TEXT_SIZE).into()
+    };
+    let project = column![settings_field_label(i18n.__("项目")), project].spacing(6);
+    let body = body.push(identities).push(project).push(settings_divider()).push(args);
 
     let header = settings_modal_header(
         settings_page_heading(i18n.__("终端启动"), i18n.__("默认保留权限检查；此表单不提供跳过权限。")),

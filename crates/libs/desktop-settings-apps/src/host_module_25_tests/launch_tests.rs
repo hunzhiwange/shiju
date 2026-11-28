@@ -36,8 +36,16 @@ fn cc_apps_desktop_launch_state_message_scope_and_redacted_diagnostics() {
     let _ = route(&mut app, LaunchMessage::Args(2, "可移除参数".into()));
     assert_eq!(app.launch.args[2], "可移除参数");
     let _ = route(&mut app, LaunchMessage::RemoveArg(2));
+    let _ = route(&mut app, LaunchMessage::ProjectPickerOpen(true));
+    let _ = route(&mut app, LaunchMessage::ProjectSearch("项目".into()));
+    assert_eq!(app.launch.project_query, "项目");
+    let project = "/远端/项目含空格 path";
+    let _ = route(&mut app, LaunchMessage::ProjectSelected(project.into()));
+    assert!(!app.launch.project_picker_open);
+    assert!(app.launch.project_query.is_empty());
     let _ = route(&mut app, LaunchMessage::Submit);
     assert!(app.launch.busy);
+    assert_eq!(app.launch.request.as_ref().unwrap().cwd, project);
     assert_eq!(app.launch.request.as_ref().unwrap().args, ["private-material", "中文第二参数"]);
     let generation = app.launch.generation;
     let cg = app.generation;

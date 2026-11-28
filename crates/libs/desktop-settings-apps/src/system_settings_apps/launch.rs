@@ -33,6 +33,8 @@ impl std::fmt::Display for LaunchChoice {
 #[derive(Clone, Default)]
 pub struct LaunchState {
     pub request: Option<LaunchRequest>,
+    pub project_picker_open: bool,
+    pub project_query: String,
     pub args: Vec<String>,
     pub identities: Vec<LaunchIdentity>,
     pub requested_provider: Option<String>,
@@ -73,7 +75,7 @@ impl LaunchState {
             return Some("请先选择应用实例。");
         };
         if request.cwd.trim().is_empty() {
-            return Some("请填写工作目录。");
+            return Some("请选择项目");
         }
         None
     }
@@ -121,7 +123,10 @@ pub enum LaunchMessage<C> {
     Open(AppId, AppInstallationId),
     OpenProvider(AppId, AppInstallationId, String),
     Close,
-    Cwd(String),
+    ProjectPickerOpen(bool),
+    ProjectSearch(String),
+    ProjectSelected(String),
+    BrowseProject,
     Args(usize, String),
     AddArg,
     RemoveArg(usize),
@@ -310,20 +315,24 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
                 return iced::Task::done(LaunchMessage::Error(("所选实例已失效，请刷新应用").into()));
             }
             catalog.launch.invalidate();
-            let cwd = super::local::launch_directory(
+            let local_directory = super::local::launch_directory(
                 &gateway_client,
                 catalog.host,
                 catalog.token,
                 project_path.as_deref(),
             );
             if provider.is_none() {
-                catalog.launch.selected = cwd.as_ref().map(|_| LaunchChoice::ExistingConfiguration);
+                catalog.launch.selected = local_directory.as_ref().map(|_| LaunchChoice::ExistingConfiguration);
             }
+            let cwd = project_path.as_deref()
+                .filter(|path| !path.trim().is_empty())
+                .and(local_directory)
+                .unwrap_or_default();
             catalog.launch.requested_provider = provider;
             catalog.launch.request = Some(LaunchRequest {
                 app_id: id,
                 installation_id,
-                cwd: cwd.unwrap_or_default(),
+                cwd,
                 args: vec![],
                 skip_permissions: false,
             });
@@ -354,13 +363,30 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
                 state.selected = Some(choice);
             }
         }
-        LaunchMessage::Cwd(value) => {
-            if !catalog.launch.accepted
-                && let Some(r) = &mut catalog.launch.request
-            {
-                r.cwd = value;
+        LaunchMessage::ProjectPickerOpen(open) => {
+            if !catalog.launch.accepted && catalog.launch.request.is_some() {
+                catalog.launch.project_picker_open = open;
+                catalog.launch.project_query.clear();
             }
         }
+        LaunchMessage::ProjectSearch(query) => {
+            if !catalog.launch.accepted && catalog.launch.project_picker_open {
+                catalog.launch.project_query = query;
+            }
+        }
+        LaunchMessage::ProjectSelected(path) => {
+            let state = &mut *catalog.launch;
+            if !state.accepted
+                && state.project_picker_open
+                && !path.trim().is_empty()
+                && let Some(request) = &mut state.request
+            {
+                request.cwd = path;
+                state.project_picker_open = false;
+                state.project_query.clear();
+            }
+        }
+        LaunchMessage::BrowseProject => {}
         LaunchMessage::Args(index, value) => {
             if !catalog.launch.accepted
                 && let Some(arg) = catalog.launch.args.get_mut(index)
@@ -391,6 +417,8 @@ pub fn update<C: Clone + PartialEq + Send + 'static>(catalog: &mut Input<'_, C>,
             let Some((generation, request)) = catalog.launch.begin() else {
                 return Task::none();
             };
+            catalog.launch.project_picker_open = false;
+            catalog.launch.project_query.clear();
             let choice = catalog.launch.selected.clone().unwrap();
             let host = catalog.host.to_owned();
             let token = catalog.token.to_owned();

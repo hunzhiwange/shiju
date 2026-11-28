@@ -8,6 +8,7 @@ use iced::{Alignment, Element, Length, Theme};
 pub enum Event {
     ProjectEnableWorktreeToggled(String, bool),
     OpenRecentPressed(String), ProjectToolsMenuToggled(String), ProjectEditOpened(String),
+    ProjectCopyPathPressed(String),
     ProjectToolsMenuClosed, RecentProjectDeleteRequested(usize), RecentProjectDeleteCanceled,
     RecentProjectDeleteConfirmed(usize), OpenFolderPressed, RecentProjectQueryChanged(String),
 }
@@ -129,11 +130,18 @@ fn project_row<'a, Host: Clone + 'static>(
     );
     let removable = !desktop_workspace::projects::is_builtin_workspace_project(path);
     let actions = if is_menu_open {
-        let mut items = column![menu_item(
-            Icon::Pencil,
-            i18n.__("编辑项目"),
-            map(Event::ProjectEditOpened(path.to_owned())),
-        )]
+        let mut items = column![
+            menu_item(
+                Icon::Pencil,
+                i18n.__("编辑项目"),
+                map(Event::ProjectEditOpened(path.to_owned())),
+            ),
+            menu_item(
+                Icon::Copy,
+                i18n.__("复制路径"),
+                map(Event::ProjectCopyPathPressed(path.to_owned())),
+            ),
+        ]
         .spacing(3);
         if removable {
             items = items.push(settings_divider()).push(menu_item(

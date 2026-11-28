@@ -87,6 +87,7 @@ pub enum ProjectMessage<PreparedOpen, HistoryPage, UiPhase> {
     ProjectEditSaved,
     ProjectEditRuntimeSaved(Result<(), String>),
     ProjectEditCanceled,
+    ProjectCopyPathPressed(String),
     RecentRevealPressed(String),
     RecentRemovePressed(String),
     RecentRemoveCanceled,

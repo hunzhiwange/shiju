@@ -511,11 +511,9 @@ async fn ui_refresh_07_preserves_launch_identity_and_literal_parameters() {
             if identity.id == "account-fixture" && identity.kind == LaunchIdentityKind::OfficialAccount
     ));
 
-    let cwd = scene.bounds(&[0, 1, 0, 0, 3, 1]).center();
     assert!(matches!(
-        scene.append_text(&mut renderer, cwd, "子目录").as_slice(),
-        [AppsCatalogMessage::Launch(Launch::Cwd(value))]
-            if value == &format!("{}子目录", state.launch.request.as_ref().unwrap().cwd)
+        scene.click(&mut renderer, &[0, 1, 0, 0, 3, 1]).as_slice(),
+        [AppsCatalogMessage::Launch(Launch::ProjectPickerOpen(true))]
     ));
     assert!(matches!(
         scene.append_text(&mut renderer, scene.bounds(arg).center(), " '測試' ").as_slice(),
@@ -654,7 +652,7 @@ async fn help_rollout_04_launch_renders_contextual_help() {
             &[("附加参数", "每项一个参数，原样传递；不解释 shell。")],
             &[
                 "默认保留权限检查；此表单不提供跳过权限。",
-                "工作目录（由执行主机验证）",
+                "项目",
                 "Fixture launch error",
             ],
             "关闭",

@@ -19,6 +19,7 @@ type RemovedProjects = BTreeMap<String, BTreeSet<String>>;
 pub(crate) enum Event {
     OpenMenu(Option<String>, String, Point),
     CloseMenu,
+    CopyPath,
     Edit,
     EditLoaded(u64, Result<GetProjectResponse, String>),
     Remove,
@@ -205,6 +206,14 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             });
         }
         Event::CloseMenu => app.workbench_projects.menu = None,
+        Event::CopyPath => {
+            if let Some(menu) = app.workbench_projects.menu.take()
+                && menu.screen == app.navigation_tabs.screen
+                && menu.scope == scope_key(&crate::app::config::gateway_client_endpoint())
+            {
+                return project::update(app, ProjectMessage::ProjectCopyPathPressed(menu.directory));
+            }
+        }
         Event::Edit => return edit(app),
         Event::EditLoaded(request, result) if request == app.workbench_projects.edit_request => {
             if let Some((scope, screen, path)) = app.workbench_projects.editing.take()

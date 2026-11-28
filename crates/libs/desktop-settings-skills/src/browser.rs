@@ -7,8 +7,9 @@ use desktop_assets::assets::Icon;
 use desktop_i18n::settings_extensions::text as tr;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_field_label,
-    settings_group_card, settings_muted_text_style, settings_select, settings_text_input_style,
+    settings_group_card, settings_muted_text_style, settings_text_input_style,
 };
+use desktop_ui_controls::system_settings_common::select::settings_project_select;
 use iced::widget::{column, container, row, text, text_input};
 use iced::{Alignment, Element, Length};
 
@@ -35,7 +36,10 @@ pub use crate::browser_widgets::{
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn view<'a>(app: BrowserContext<'a>) -> Element<'a, Message> {
+pub fn view<'a, 'name>(
+    app: BrowserContext<'a>,
+    project_name: impl Fn(&str) -> Option<&'name str>,
+) -> Element<'a, Message> {
     let locale = app.desktop_locale;
     let s = app.skills_settings;
     let project_open = app.project_path.is_some();
@@ -62,9 +66,12 @@ pub fn view<'a>(app: BrowserContext<'a>) -> Element<'a, Message> {
     } else {
         row![
             settings_field_label(tr(locale, "项目目录")),
-            settings_select(project_options, (*app.project_path).clone(), |path| {
-                Event::SkillsProjectSelected(path)
-            })
+            settings_project_select(
+                project_options,
+                (*app.project_path).clone(),
+                project_name,
+                Event::SkillsProjectSelected,
+            )
             .placeholder(tr(locale, "选择项目目录"))
             .width(Length::Fill),
             text(if s.loading { tr(locale, "切换中") } else { tr(locale, "技能作用域") })

@@ -436,6 +436,7 @@ async fn ui_refresh_19_layout_and_interaction() {
     let mut renderer = renderer().await;
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.project_names = vec![(PATH, "示例项目"), (RECENT, "另一个项目")];
     app.recent_projects.extend(
         (0..30).map(|index| format!("/示例專案/{index:02}/{}", "長目錄/long-segment/".repeat(12))),
     );
@@ -449,6 +450,7 @@ async fn ui_refresh_19_layout_and_interaction() {
         .find(|bounds| **bounds != search && (bounds.height - 38.0).abs() < 0.5)
         .expect("project selector trigger");
     assert!((project_trigger.center_y() - positions.label("技能作用域").center_y()).abs() < 0.5);
+    positions.label("示例项目");
     assert!(matches!(
         edit(&mut ui, &mut renderer, search.center(), "示例").as_slice(),
         [Message::Browser(crate::Event::SkillsQueryChanged(query))] if query == "Fixture示例"

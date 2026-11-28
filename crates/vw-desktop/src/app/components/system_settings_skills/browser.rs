@@ -54,7 +54,14 @@ pub(super) fn message(event: Event) -> Message {
     })
 }
 pub(super) fn view(app: &App) -> iced::Element<'_, Message> {
-    let catalog = desktop_settings_skills::browser::view(context(app)).map(message);
+    let catalog = desktop_settings_skills::browser::view(context(app), |path| {
+        app.workspace_state
+            .recent_projects_meta
+            .iter()
+            .find(|project| project.path == path && !project.name.is_empty())
+            .map(|project| project.name.as_str())
+    })
+    .map(message);
     #[cfg(not(target_arch = "wasm32"))]
     if crate::app::config::gateway_client_endpoint().is_loopback() {
         use desktop_i18n::settings_extensions::text as tr;

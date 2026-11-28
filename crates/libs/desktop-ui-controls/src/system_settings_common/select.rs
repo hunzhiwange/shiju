@@ -23,6 +23,22 @@ use iced::widget::{button, container, row};
 use iced::{Alignment, Element, Event, Length, Rectangle, Renderer, Size, Theme, Vector};
 use std::rc::Rc;
 
+/// Keep project paths as values and use project names when they uniquely identify an option.
+pub fn settings_project_select<'a, 'name, Message: Clone + 'a>(
+    paths: Vec<String>,
+    selected: Option<String>,
+    project_name: impl Fn(&str) -> Option<&'name str>,
+    on_selected: impl Fn(String) -> Message + 'a,
+) -> SettingsSelect<'a, String, Message> {
+    let picker = settings_select(paths.iter().cloned(), selected, on_selected);
+    picker.format_labels(|path| match project_name(path) {
+        Some(name) if paths.iter().filter(|path| project_name(path) == Some(name)).count() == 1 => {
+            name.to_owned()
+        }
+        _ => path.clone(),
+    })
+}
+
 /// 选项的相等性表示同一个值，显示标签不参与消息转换。
 pub fn settings_select<'a, Message: Clone + 'a, T: Clone + PartialEq + ToString + 'static>(
     options: impl IntoIterator<Item = T>,

@@ -7,6 +7,7 @@ use iced::Element;
 struct Fixture {
     project_path: Option<String>,
     recent_projects: Vec<String>,
+    project_names: Vec<(&'static str, &'static str)>,
     skills_settings: State,
     desktop_locale: config_ui::DesktopLocale,
     app_theme: iced::Theme,
@@ -108,7 +109,13 @@ fn page_message(event: crate::page::Message) -> Message {
 }
 fn view(app: &Fixture) -> Element<'_, Message> {
     let content = match app.skills_settings.active_tab {
-        SkillsSettingsTab::Skills => crate::browser::view(context(app)).map(browser_message),
+        SkillsSettingsTab::Skills => crate::browser::view(context(app), |path| {
+            app.project_names
+                .iter()
+                .find(|(project, _)| *project == path)
+                .map(|(_, name)| *name)
+        })
+        .map(browser_message),
         SkillsSettingsTab::DiscoveryOrder => {
             crate::browser::discovery_order_view(context(app)).map(browser_message)
         }
@@ -222,6 +229,7 @@ impl Default for Fixture {
         Self {
             project_path: Default::default(),
             recent_projects: Default::default(),
+            project_names: Default::default(),
             skills_settings: Default::default(),
             desktop_locale: Default::default(),
             app_theme: iced::Theme::Light,

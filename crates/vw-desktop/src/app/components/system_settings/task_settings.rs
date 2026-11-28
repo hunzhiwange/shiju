@@ -2,13 +2,13 @@
 
 use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_error_banner, settings_field_label, settings_page_heading,
-    settings_select,
 };
 use crate::app::i18n::I18n;
 use crate::app::views::workflow_manager::{self, WorkflowManagerMessage};
 use crate::app::{App, Message};
 use desktop_assets::assets::Icon;
 use desktop_settings_shell::SystemTab;
+use desktop_ui_controls::system_settings_common::select::settings_project_select;
 use desktop_ui_controls::tooltip::project_tooltip;
 use iced::widget::{button, column, container, row, text, tooltip};
 use iced::{Alignment, Element, Length, Task};
@@ -93,17 +93,12 @@ fn project_picker(app: &App, tab: SystemTab) -> Element<'_, Message> {
     };
     let options = paths.iter().map(|path| (*path).to_owned()).collect::<Vec<_>>();
     let selected = project_path(app);
-    let picker = settings_select(
+    let picker = settings_project_select(
         options,
         selected.map(str::to_owned),
+        display_name,
         Message::TaskSettingsProjectSelected,
     )
-    .format_labels(|path| match display_name(path) {
-        Some(name) if paths.iter().filter(|path| display_name(path) == Some(name)).count() == 1 => {
-            name.to_owned()
-        }
-        _ => path.clone(),
-    })
     .placeholder(i18n.__("暂无可用项目"))
     .width(Length::Fill)
     .disabled(saving_catalog(app));

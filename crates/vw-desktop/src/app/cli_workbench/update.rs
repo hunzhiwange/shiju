@@ -26,6 +26,7 @@ use super::{
 };
 
 pub(super) const TAB_ID: &str = "cli_workbench";
+const SWITCHER_PROJECT_MISSING: &str = "目标项目不在工作台项目列表中";
 
 #[derive(Clone)]
 pub(crate) struct Scope(gateway_endpoint::GatewayEndpoint);
@@ -102,6 +103,7 @@ pub(crate) enum Event {
     AppTerminal(Box<Event>),
     Terminal(Box<Event>),
     Open { backend: Option<String>, native_app: Option<String> },
+    OpenProject(String),
     OpenSsh,
     Tick,
     TerminalTick,
@@ -203,7 +205,7 @@ fn update_surface(app: &mut App, surface: Surface, mut event: Event) -> Task<Mes
         (None, _) => return Task::none(),
     };
     if let Some((screen, tab_id, title)) = navigation_target
-        && matches!(&event, Event::Open { .. })
+        && matches!(&event, Event::Open { .. } | Event::OpenProject(_))
     {
         let navigation = &mut app.navigation_tabs;
         if !navigation.open_tabs.iter().any(|tab| tab.id == tab_id) {
@@ -258,23 +260,34 @@ fn update_surface(app: &mut App, surface: Surface, mut event: Event) -> Task<Mes
                 return reload_projects(state, id);
             }
         }
-        if matches!(&event, Event::Open { .. } | Event::OpenSsh)
+        if matches!(&event, Event::Open { .. } | Event::OpenProject(_) | Event::OpenSsh)
             || (matches!(&event, Event::Window(..))
                 && state.terminal_directory.as_deref() != terminal_directory)
         {
             return Task::none();
         }
     }
-    if let Event::Open { backend, native_app } = event {
+    let open = match &event {
+        Event::Open { backend, native_app } => Some((backend.clone(), native_app.clone(), None)),
+        Event::OpenProject(directory) => Some((None, None, Some(directory.clone()))),
+        _ => None,
+    };
+    if let Some((backend, native_app, directory)) = open {
+        bind_scope(state);
         state.backend = backend;
         state.native_app = native_app;
-        bind_scope(state);
-        state.default_shell_pending = true;
-        state.preferred_directory = if state.selected.is_none() {
+        state.require_preferred_project = directory.is_some();
+        if let Some(directory) = directory.as_deref() {
+            state.selected = state.projects.iter()
+                .find(|(_, project)| project.directory == directory)
+                .map(|(id, _)| id.clone());
+        }
+        state.preferred_directory = if directory.is_none() && state.selected.is_none() {
             app.navigation_tabs.project_path.clone()
         } else {
-            None
+            directory
         };
+        state.default_shell_pending = true;
         state.dialog = None;
         state.agents.clear();
         state.agents_epoch += 1;
@@ -418,6 +431,7 @@ fn bind_scope(state: &mut Workbench) -> bool {
     state.legacy_poll_cursor = 0;
     state.selected = None;
     state.preferred_directory = None;
+    state.require_preferred_project = false;
     state.agents.clear();
     state.dialog = None;
     state.refreshing = false;
@@ -737,7 +751,7 @@ pub(super) fn apply_projects(
     state.selected = snapshot.preferred_project.filter(|id| state.projects.contains_key(id))
         .or_else(|| state.selected.take().filter(|id| state.projects.contains_key(id)))
         .or_else(|| {
-            if state.surface == Surface::Terminal {
+            if state.surface == Surface::Terminal || state.require_preferred_project {
                 return None;
             }
             state.workspace.selected()
@@ -780,8 +794,22 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
             state.discovering = false;
             match result {
                 Ok((mut snapshot, legacy)) => {
-                    if state.preferred_directory.take().is_none() {
+                    if state.require_preferred_project {
+                        let directory = state.preferred_directory.as_deref();
+                        snapshot.preferred_project = snapshot.projects.iter()
+                            .find(|project| Some(project.directory.as_str()) == directory)
+                            .map(|project| project.id.clone());
+                        if snapshot.preferred_project.is_some() {
+                            state.require_preferred_project = false;
+                        } else {
+                            state.selected = None;
+                            state.error = Some(SWITCHER_PROJECT_MISSING);
+                        }
+                    } else if state.preferred_directory.is_none() {
                         snapshot.preferred_project = None;
+                    }
+                    if !state.require_preferred_project {
+                        state.preferred_directory = None;
                     }
                     if state.surface == Surface::Terminal {
                         state.selected = None;
@@ -869,9 +897,13 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
         }
         Action::SelectProject(project) if state.projects.contains_key(&project) => {
             state.default_shell_pending = true;
+            state.preferred_directory = None;
+            state.require_preferred_project = false;
+            if state.error == Some(SWITCHER_PROJECT_MISSING) {
+                state.error = None;
+            }
             if state.selected.as_ref() != Some(&project) {
                 state.selected = Some(project);
-                state.preferred_directory = None;
                 state.dialog = None;
                 let sessions = if state.legacy_projects {
                     refresh_sessions(state, id)
@@ -889,6 +921,13 @@ fn update_window(state: &mut Workbench, id: window::Id, action: Action, visible:
         Action::SelectSession(key) => {
             let changed = state.selected.as_ref() != Some(&key.project);
             if state.locate(&key) {
+                if state.require_preferred_project {
+                    state.require_preferred_project = false;
+                    state.preferred_directory = None;
+                    if state.error == Some(SWITCHER_PROJECT_MISSING) {
+                        state.error = None;
+                    }
+                }
                 if state.surface == Surface::Terminal {
                     let project = state.projects.get_mut(&key.project).expect("located project");
                     project.selected_ssh_layouts.insert(project.active_layout);

@@ -150,7 +150,8 @@ pub(crate) fn view(app: &App, id: window::Id, surface: Surface) -> Element<'_, M
         let main = || match selected {
             Some((id, project)) => workspace(ui, state, id, project, return_to_project, false),
             None => {
-                let prompt = container(text(ui.label("请选择项目")).size(16)).center(Length::Fill);
+                let label = if state.discovering { "加载中" } else { "请选择项目" };
+                let prompt = container(text(ui.label(label)).size(16)).center(Length::Fill);
                 if surface == Surface::AppTerminal {
                     column![
                         container(app_terminal_navigation(ui, state, return_to_project)).padding([5, 7]),

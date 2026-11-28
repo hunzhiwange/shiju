@@ -16,8 +16,9 @@ use crate::app::components::workbench_sidebar::{
     with_project_menu,
 };
 use crate::app::message::TerminalMessage;
+use crate::app::project_switcher::Destination;
 use crate::app::workbench_projects;
-use crate::app::{App, Message};
+use crate::app::{App, Message, Screen};
 
 pub(super) fn view<'a>(app: &'a App, panes: Element<'a, Message>) -> Element<'a, Message> {
     let mut terminal = column![group_bar(app), settings_divider()].height(Length::Fill);
@@ -70,6 +71,14 @@ fn group_bar(app: &App) -> Element<'_, Message> {
     } else {
         (Icon::LayoutSidebar, i18n.__("收起侧边栏"))
     };
+    let open_app_terminal = if app.terminal_project_path().is_some() {
+        Message::WorkbenchProjects(workbench_projects::Event::SwitchSurface(
+            Screen::Project,
+            Destination::AppTerminal,
+        ))
+    } else {
+        Surface::AppTerminal.message(Event::Open { backend: None, native_app: None })
+    };
     let mut groups = row![].spacing(4).align_y(Alignment::Center);
     let can_close = app.terminal.groups().nth(1).is_some();
     for (id, selected) in app.terminal.groups() {
@@ -104,7 +113,7 @@ fn group_bar(app: &App) -> Element<'_, Message> {
             icon_button(
                 Icon::Terminal,
                 i18n.__("应用终端"),
-                Surface::AppTerminal.message(Event::Open { backend: None, native_app: None }),
+                open_app_terminal,
             ),
             icon_button(
                 Icon::Globe,

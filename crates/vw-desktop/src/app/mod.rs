@@ -15,6 +15,8 @@ pub(crate) mod cli_workbench;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod git_workbench;
 #[cfg(not(target_arch = "wasm32"))]
+mod project_switcher;
+#[cfg(not(target_arch = "wasm32"))]
 mod workbench_projects;
 pub(crate) mod desktop_lifecycle;
 #[cfg(any(unix, windows))]

@@ -37,6 +37,8 @@ pub(crate) enum Event {
     SearchToggled(Screen),
     SearchChanged(Screen, String),
     SearchClosed(Screen),
+    SwitcherExpanded(Screen, bool),
+    SwitchSurface(Screen, super::project_switcher::Destination),
 }
 
 pub(crate) const SEARCH_INPUT: &str = "workbench-project-search";
@@ -66,6 +68,7 @@ pub(crate) struct State {
     pub(crate) menu: Option<Menu>,
     pub(crate) adding: bool,
     search: Option<Search>,
+    pub(super) switcher_screen: Option<Screen>,
     catalog: Option<BTreeMap<String, CliWorkbenchProject>>,
     pub(crate) catalog_loading: bool,
     catalog_request: u64,
@@ -109,6 +112,7 @@ impl State {
             self.removing = None;
             self.editing = None;
             self.search = None;
+            self.switcher_screen = None;
             self.catalog = None;
             self.catalog_loading = false;
             self.catalog_request = self.catalog_request.wrapping_add(1);
@@ -339,6 +343,12 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             {
                 search.open = false;
             }
+        }
+        Event::SwitcherExpanded(screen, expanded) if screen == app.navigation_tabs.screen => {
+            app.workbench_projects.switcher_screen = expanded.then_some(screen);
+        }
+        Event::SwitchSurface(screen, destination) => {
+            return super::project_switcher::navigate(app, screen, destination);
         }
         _ => {}
     }

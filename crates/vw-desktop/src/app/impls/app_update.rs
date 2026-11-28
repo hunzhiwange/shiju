@@ -199,7 +199,11 @@ impl App {
         }
         #[cfg(not(target_arch = "wasm32"))]
         let message = match message {
-            Message::CliWorkbench(event) => return crate::app::cli_workbench::update(self, event),
+            Message::CliWorkbench(event) => {
+                let task = crate::app::cli_workbench::update(self, event);
+                crate::app::project_switcher::close_if_hidden(self);
+                return task;
+            }
             message => message,
         };
         if crate::app::message::app_providers::leave::intercept(self, &message) {
@@ -492,6 +496,9 @@ impl App {
                 }
             }
         };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        crate::app::project_switcher::close_if_hidden(self);
 
         #[cfg(target_os = "macos")]
         {

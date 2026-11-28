@@ -54,6 +54,7 @@ pub(crate) struct Workbench {
     projects_dirty: bool,
     projects_error: Option<String>,
     selected: Option<String>,
+    pending_directory: Option<String>,
     layout: pane_grid::State<bool>,
     show_editor: bool,
     files: files::State,
@@ -78,6 +79,7 @@ impl Default for Workbench {
             projects_dirty: false,
             projects_error: None,
             selected: None,
+            pending_directory: None,
             layout,
             show_editor: false,
             files: Default::default(),
@@ -98,6 +100,12 @@ impl Workbench {
 
     pub(crate) fn project_directory(&self) -> Option<&str> {
         self.project().map(|project| project.directory.as_str())
+    }
+
+    pub(super) fn switcher_project_directory(&self) -> Option<&str> {
+        self.endpoint.as_ref()
+            .filter(|endpoint| same_endpoint(endpoint, &crate::app::config::gateway_client_endpoint()))?;
+        self.project_directory()
     }
 
     fn checkout_directory(&self) -> Option<&str> {
@@ -194,31 +202,21 @@ fn message(event: Event) -> Message {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
         Event::Open => {
-            let nav = &mut app.navigation_tabs;
-            if !nav.open_tabs.iter().any(|tab| tab.id == TAB_ID) {
-                nav.open_tabs.push(desktop_navigation::components::top_bar::types::AppTab {
-                    id: TAB_ID.into(),
-                    title: crate::app::i18n::I18n::new(app.general_settings.desktop_locale)
-                        .__("Git 工作台")
-                        .into(),
-                    screen: Screen::GitWorkbench,
-                    project_path: None,
-                });
-            }
-            nav.active_tab_id = Some(TAB_ID.into());
-            nav.screen = Screen::GitWorkbench;
-            app.navigation_panels.show_system_settings = false;
+            open_tab(app);
             load_projects(app)
         }
         Event::RefreshProjects => load_projects(app),
         Event::ProjectsReady(request, result) => apply_projects(app, request, result),
         Event::SelectProject(id) => {
-            if app.git_workbench.selected.as_deref() != Some(&id)
-                && app.git_workbench.files.has_unsaved()
-            {
+            let state = &mut app.git_workbench;
+            if state.busy() || !state.projects.iter().any(|project| project.id == id) {
+                return Task::none();
+            }
+            if state.selected.as_deref() != Some(&id) && state.files.has_unsaved() {
                 return unsaved_toast(app);
             }
-            select_project(&mut app.git_workbench, id)
+            state.pending_directory = None;
+            select_project(state, id)
         }
         Event::SelectInlineProject(path) => select_inline_project(app, path),
         Event::Resize(event) => {
@@ -303,6 +301,57 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
 }
 
+fn open_tab(app: &mut App) {
+    let nav = &mut app.navigation_tabs;
+    if !nav.open_tabs.iter().any(|tab| tab.id == TAB_ID) {
+        nav.open_tabs.push(desktop_navigation::components::top_bar::types::AppTab {
+            id: TAB_ID.into(),
+            title: crate::app::i18n::I18n::new(app.general_settings.desktop_locale)
+                .__("Git 工作台")
+                .into(),
+            screen: Screen::GitWorkbench,
+            project_path: None,
+        });
+    }
+    nav.active_tab_id = Some(TAB_ID.into());
+    nav.screen = Screen::GitWorkbench;
+    app.navigation_panels.show_system_settings = false;
+}
+
+pub(super) fn open_project(app: &mut App, directory: String) -> Task<Message> {
+    let state = &app.git_workbench;
+    let same_project = state.switcher_project_directory() == Some(directory.as_str());
+    if !same_project && state.files.has_unsaved() {
+        return unsaved_toast(app);
+    }
+    if !same_project && state.busy() {
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "Git 工作台有正在进行的操作",
+            vec![],
+        );
+    }
+    open_tab(app);
+    if same_project {
+        return activate(app);
+    }
+    let state = &mut app.git_workbench;
+    if state.endpoint.as_ref().is_some_and(|endpoint| {
+        same_endpoint(endpoint, &crate::app::config::gateway_client_endpoint())
+    }) && !state.projects_dirty
+        && let Some(project) = state.projects.iter().find(|project| project.directory == directory)
+    {
+        let id = project.id.clone();
+        state.pending_directory = None;
+        return select_project(state, id);
+    }
+    state.selected = None;
+    state.reset_checkout(false);
+    let task = load_projects(app);
+    app.git_workbench.pending_directory = Some(directory);
+    task
+}
+
 pub(crate) fn activate(app: &mut App) -> Task<Message> {
     if app.git_workbench.projects_dirty || app.git_workbench.endpoint.as_ref().is_none_or(|endpoint| {
         !same_endpoint(endpoint, &crate::app::config::gateway_client_endpoint())
@@ -342,6 +391,7 @@ fn load_projects(app: &mut App) -> Task<Message> {
     let endpoint = crate::app::config::gateway_client_endpoint();
     if state.endpoint.as_ref().is_none_or(|previous| !same_endpoint(previous, &endpoint)) {
         state.selected = None;
+        state.pending_directory = None;
         state.projects.clear();
         state.projects_loading = false;
         state.switching_branch = false;
@@ -398,6 +448,18 @@ fn apply_projects(app: &mut App, request: u64, result: Result<Vec<Project>, Stri
     }
     let previous_dir = state.project_directory().map(str::to_owned);
     state.projects = projects;
+    if let Some(directory) = &state.pending_directory {
+        if let Some(project) = state.projects.iter().find(|project| &project.directory == directory) {
+            let id = project.id.clone();
+            state.pending_directory = None;
+            return select_project(state, id);
+        }
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "目标项目不在工作台项目列表中",
+            vec![],
+        );
+    }
     if state.project().is_some() {
         if previous_dir.as_deref() != state.project_directory() {
             state.reset_checkout(false);

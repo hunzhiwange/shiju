@@ -170,13 +170,14 @@ impl App {
 
         // 当系统设置打开时，仅保留顶部菜单栏，其余区域全部由设置面板占满
         #[cfg(not(target_arch = "wasm32"))]
-        let workbench_active = matches!(self.navigation_tabs.screen, Screen::CliWorkbench | Screen::AppTerminal | Screen::GitWorkbench);
+        let workbench_active = matches!(self.navigation_tabs.screen, Screen::CliWorkbench | Screen::AppTerminal | Screen::GitWorkbench)
+            || (self.navigation_tabs.screen == Screen::Project && self.terminal.is_fullscreen);
         #[cfg(target_arch = "wasm32")]
         let workbench_active = false;
         let desktop_tab_active = workbench_active || self.navigation_tabs.screen == Screen::TaskBoard;
-        let main_view: Element<'_, Message> = if !desktop_tab_active && self.mobile_layout.mode()
-            == crate::app::state::LayoutMode::Mobile
-        {
+        let mobile_shell = !desktop_tab_active
+            && self.mobile_layout.mode() == crate::app::state::LayoutMode::Mobile;
+        let main_view: Element<'_, Message> = if mobile_shell {
             views::mobile::narrow_view(self)
         } else if self.navigation_panels.show_system_settings {
             iced::widget::column![top, components::system_settings::view(self)]
@@ -194,6 +195,13 @@ impl App {
                 .width(iced::Length::Fill)
                 .height(iced::Length::Fill)
                 .into()
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let main_view = if mobile_shell {
+            main_view
+        } else {
+            crate::app::project_switcher::with_switcher(self, main_view)
         };
 
         let main_view = if components::system_settings_cron::visible(self) {

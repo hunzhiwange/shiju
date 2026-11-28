@@ -124,6 +124,7 @@ pub(crate) struct Workbench {
     client: Option<vw_gateway_client::GatewayClient>,
     selected: Option<String>,
     preferred_directory: Option<String>,
+    require_preferred_project: bool,
     terminal_directory: Option<String>,
     projects: BTreeMap<String, Project>,
     workspace: workspace::Store,
@@ -562,6 +563,17 @@ impl Project {
 }
 
 impl Workbench {
+    pub(super) fn switcher_project_directory(&self) -> Option<&str> {
+        if self.dialog.is_some() || !update::current_scope(self) {
+            return None;
+        }
+        self.selected_project().map(|(_, project)| project.directory.as_str())
+    }
+
+    pub(super) fn has_dialog(&self) -> bool {
+        self.dialog.is_some()
+    }
+
     pub(crate) fn terminal_ssh() -> Self {
         Self { surface: Surface::Terminal, ..Self::default() }
     }

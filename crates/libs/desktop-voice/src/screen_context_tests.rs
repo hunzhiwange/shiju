@@ -45,6 +45,27 @@ fn voice_task_17_screen_denied_or_cancelled_enters_no_capture_boundary() {
     );
     assert_eq!(captures, 0);
 }
+
+#[test]
+fn permission_loss_cancels_selected_or_queued_frames_without_resetting_consent() {
+    let mut state = State::default();
+    state.set_enabled(true);
+    state.cancel_if_permission_missing(false);
+    assert!(state.enabled);
+
+    state.offered = Some(target());
+    state.cancel_if_permission_missing(true);
+    assert!(state.offered.is_some());
+    state.cancel_if_permission_missing(false);
+    assert!(state.offered.is_none());
+
+    let ticket = state.begin(target(), true).unwrap();
+    assert_eq!(state.accept(&ticket, vec![1], true), Some(vec![1]));
+    state.cancel_if_permission_missing(false);
+    assert!(!ticket.is_live());
+    assert!(state.enabled);
+}
+
 #[test]
 fn voice_task_17_screen_only_one_frame_for_current_ticket() {
     let mut state = State::default();

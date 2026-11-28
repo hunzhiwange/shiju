@@ -260,9 +260,10 @@ pub fn invalidate_screen(state: &mut State) {
     {
         state.screen.cancel();
     }
-    if state.screen.enabled && !desktop_voice::screen_context::permitted() {
-        state.screen.cancel();
-        state.screen.enabled = false;
+    if state.screen.enabled {
+        state
+            .screen
+            .cancel_if_permission_missing(desktop_voice::screen_context::permitted());
     }
 }
 

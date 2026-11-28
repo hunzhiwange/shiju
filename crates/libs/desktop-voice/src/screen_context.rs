@@ -53,6 +53,13 @@ impl State {
         }
         self.offered = None;
     }
+    pub fn cancel_if_permission_missing(&mut self, permitted: bool) {
+        // Window selection checks permission before reading metadata. Retire any
+        // target already selected and any frame still queued for delivery.
+        if !permitted && (self.offered.is_some() || self.pending.is_some()) {
+            self.cancel();
+        }
+    }
     pub fn begin(&mut self, target: Target, permission: bool) -> Option<Ticket> {
         self.cancel();
         if !self.enabled || !permission {

@@ -10,14 +10,14 @@ doctest = false
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 agent-project = { path = "../agent-project" }
 gateway-types = { path = "../gateway-types" }
-shell-command = { path = "../shell-command" }
+shell-command = { path = "../shell-command", features = ["shell-tokio"] }
 vw-api-git = { path = "../api-git" }
 vw-api-transport = { path = "../api-transport" }
 axum = { version = "0.8.8", features = ["json"] }
 base64 = "0.23"
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 similar = "2"
-tokio = { version = "1", features = ["rt"] }
+tokio = { version = "1", features = ["rt", "time"] }
 tracing = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

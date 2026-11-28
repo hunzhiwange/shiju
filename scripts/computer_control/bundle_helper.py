@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Stage ShiJu's native controller before inside-out macOS code signing."""
 import argparse
+import hashlib
 from pathlib import Path
 import plistlib
-
-from install_local import checked, digest
 
 APP_NAME = "ShiJu Computer Use.app"
 BUNDLE_ID = "com.shiju.computer-use"
@@ -12,6 +11,21 @@ EXECUTABLE = "shiju-computer-use"
 RELATIVE_APP = Path("Contents/Helpers") / APP_NAME
 # macOS requires bundle resources to live under Contents for signing.
 RECEIPT = "Contents/Resources/.shiju-bundle-inputs.plist"
+
+
+def digest(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def checked(root, relative):
+    path = Path(relative)
+    if path.is_absolute() or not path.parts or any(part == ".." for part in path.parts):
+        raise ValueError("invalid resource path")
+    target = root / path
+    for parent in (target, *target.parents):
+        if parent.is_symlink():
+            raise ValueError("symlink resource path")
+    return target
 
 
 def executable(app):

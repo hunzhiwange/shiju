@@ -80,7 +80,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 app.agent_apps_auth.form = None;
-                app.computer_control_settings.pairing = None;
                 if tab == SystemTab::ComputerControl {
                     return super::computer_control::update(app, super::computer_control::Event::Refresh);
                 }

@@ -54,8 +54,7 @@ impl App {
         self.close_session_transient_ui();
         let has_cold_chat_fallback = self.session_state.session_chat_cache.contains_key(&session_id);
         let needs_local_history = self.current_session_runtime_ref().is_some_and(|runtime| {
-            runtime.request_lifecycle.is_requesting
-                || (runtime.is_employee_chat() && runtime.draft.is_some())
+            runtime.request_lifecycle.is_requesting || runtime.has_reopenable_draft()
         });
         if cache::needs_cold_fallback(
             needs_local_history,

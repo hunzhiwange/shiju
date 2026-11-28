@@ -19,23 +19,16 @@ pub(super) fn reload_after_response(
     let endpoint = crate::app::config::gateway_client_endpoint();
     Task::perform(
         async move {
-            let result = async {
-                let client = GatewayClient::new(endpoint)?;
-                desktop_session::message::chat::stream::draft::read_publication(
-                    &client,
-                    &session_id,
-                    &directory,
-                )
-                .await
-            }
-            .await;
-            match result {
-                Ok(publication) => publication.map(Box::new),
-                Err(error) => {
-                    tracing::warn!(%session_id, %error, "failed to reconcile desktop draft");
-                    None
+            let client = GatewayClient::new(endpoint).ok()?;
+            for delay_ms in [0, 250, 750] {
+                if delay_ms > 0 {
+                    crate::app::message::sleep(std::time::Duration::from_millis(delay_ms)).await;
+                }
+                if let Some(publication) = read_publication(&client, &session_id, &directory).await {
+                    return Some(Box::new(publication));
                 }
             }
+            None
         },
         move |publication| {
             Message::Chat(ChatMessage::DraftResponseReloaded {
@@ -45,6 +38,50 @@ pub(super) fn reload_after_response(
                 parent_message_id: parent_message_id.clone(),
                 publication,
             })
+        },
+    )
+}
+
+async fn read_publication(
+    client: &GatewayClient,
+    session_id: &str,
+    directory: &str,
+) -> Option<DraftPublication> {
+    match desktop_session::message::chat::stream::draft::read_publication(client, session_id, directory).await {
+        Ok(publication) => publication,
+        Err(error) => {
+            tracing::warn!(%session_id, %error, "failed to reconcile desktop draft");
+            None
+        }
+    }
+}
+
+pub(crate) fn refresh_pending_publication(app: &App, session_id: &str) -> Task<Message> {
+    let Some(runtime) = app.session_state.session_runtime_states.get(session_id) else {
+        return Task::none();
+    };
+    let Some(draft) = runtime.draft.as_ref().filter(|_| {
+        runtime.draft_publication_pending && !runtime.request_lifecycle.is_requesting
+    }) else {
+        return Task::none();
+    };
+    let endpoint = crate::app::config::gateway_client_endpoint();
+    let gateway_user_generation = app.session_state.gateway_user_generation;
+    let session_id = session_id.to_owned();
+    let directory = draft.directory.clone();
+    Task::perform(
+        async move {
+            let client = GatewayClient::new(endpoint).ok()?;
+            let publication = read_publication(&client, &session_id, &directory).await?;
+            Some((session_id, publication))
+        },
+        move |result| match result {
+            Some((session_id, publication)) => Message::Chat(ChatMessage::DraftPublicationRefreshed {
+                gateway_user_generation,
+                session_id,
+                publication: Box::new(publication),
+            }),
+            None => Message::None,
         },
     )
 }
@@ -127,7 +164,9 @@ pub(super) fn publish(
     else {
         return Task::none();
     };
-    app.get_session_runtime_mut(session_id).employee_target = None;
+    let runtime = app.get_session_runtime_mut(session_id);
+    runtime.draft_publication_pending = false;
+    runtime.employee_target = None;
     insert_publication(app.workspace_state.project_sessions.entry(draft.project_path.clone()).or_default(), &info);
     if app.navigation_tabs.project_path.as_deref() == Some(draft.project_path.as_str()) {
         insert_publication(&mut app.session_state.sessions, &info);

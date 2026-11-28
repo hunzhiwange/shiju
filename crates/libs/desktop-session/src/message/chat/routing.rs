@@ -176,6 +176,7 @@ impl<M, P, V, D, T, G, Media> ChatMessage<M, P, V, D, T, G, Media> {
             | ChatMessage::AgentStreamStopFinished(_, _)
             | ChatMessage::AgentStreamError(_, _)
             | ChatMessage::DraftResponseReloaded { .. }
+            | ChatMessage::DraftPublicationRefreshed { .. }
             | ChatMessage::DraftReplayChecked { .. }
             | ChatMessage::PublishedSessionTitleLoaded(_)
             | ChatMessage::QuestionPollTick

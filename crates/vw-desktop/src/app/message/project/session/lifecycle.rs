@@ -758,16 +758,21 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     let (visible_start_idx, visible_end_idx) = app.visible_chat_message_window();
                     let nearby_chunk_starts =
                         app.pending_chat_ui_chunk_starts(visible_start_idx, visible_end_idx, true);
+                    let queued = crate::app::message::chat::stream::start_next(app, &session_id);
                     if !nearby_chunk_starts.is_empty() {
                         app.mark_chat_ui_chunks_preparing(&nearby_chunk_starts);
-                        return Some(prepare_session_ui_chunks_task(
-                            session_id,
-                            app.active_shared_chat_messages(),
-                            nearby_chunk_starts,
-                            None,
-                            app.general_settings.dialogue_flow_show_reasoning_summary,
-                        ));
+                        return Some(iced::Task::batch([
+                            queued,
+                            prepare_session_ui_chunks_task(
+                                session_id,
+                                app.active_shared_chat_messages(),
+                                nearby_chunk_starts,
+                                None,
+                                app.general_settings.dialogue_flow_show_reasoning_summary,
+                            ),
+                        ]));
                     }
+                    return Some(queued);
                 }
             }
             Some(iced::Task::none())

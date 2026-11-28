@@ -1008,6 +1008,9 @@ pub(super) fn complete_agent_stream(
 
     {
         let runtime = app.get_session_runtime_mut(&session_id);
+        if runtime.draft.is_some() && assistant_message_id.is_some() && terminal_idx.is_some() {
+            runtime.draft_publication_pending = true;
+        }
         domain::finish_runtime(runtime, !is_active_session);
     }
     app.sync_task_pet_from_runtime();

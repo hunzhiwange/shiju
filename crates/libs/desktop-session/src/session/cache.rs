@@ -124,8 +124,9 @@ pub fn prune_runtime_snapshots<R>(
     prune_snapshots(
         runtimes
             .iter()
-            .filter(|(_, runtime)| runtime.request_lifecycle.is_requesting
-                || (runtime.is_employee_chat() && runtime.draft.is_some()))
+            .filter(|(_, runtime)| {
+                runtime.request_lifecycle.is_requesting || runtime.has_reopenable_draft()
+            })
             .map(|(id, _)| id.as_str()),
         chats,
         ids,

@@ -57,6 +57,7 @@ pub enum EmployeeKind {
 pub struct SessionRuntimeState<RenderState> {
     pub request_lifecycle: crate::message::chat::request::RequestLifecycle,
     pub draft: Option<SessionDraft>,
+    pub draft_publication_pending: bool,
     pub employee_target: Option<EmployeeTarget>,
     /// Product display name, independent of the immutable employee identifier.
     pub employee_display_name: Option<String>,
@@ -161,6 +162,7 @@ impl<RenderState: Default> SessionRuntimeState<RenderState> {
         Self {
             request_lifecycle: Default::default(),
             draft: None,
+            draft_publication_pending: false,
             employee_target: None,
             employee_display_name: None,
             employee_portrait: None,
@@ -250,6 +252,13 @@ pub fn collect_agent_subscription_requests<RenderState>(
 }
 
 impl<R> SessionRuntimeState<R> {
+    pub fn has_reopenable_draft(&self) -> bool {
+        self.draft.is_some()
+            && (self.request_lifecycle.is_requesting
+                || self.is_employee_chat()
+                || self.draft_publication_pending)
+    }
+
     pub fn is_employee_chat(&self) -> bool {
         self.employee_target.is_some() || self.agent.as_deref() == Some(EMPLOYEE_CHAT_PROFILE)
     }
@@ -275,6 +284,7 @@ impl<R> SessionRuntimeState<R> {
 
     pub fn open_draft(&mut self, project_path: String, directory: String) {
         self.clear_employee_chat();
+        self.draft_publication_pending = false;
         self.input_editor = text_editor::Content::new();
         self.fork_execution_started = None;
         self.fork_request_submitted = false;

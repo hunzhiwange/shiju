@@ -11,22 +11,26 @@ pub(in crate::app::views::project) fn status_for_session(app: &App, id: &str) ->
  runtime.is_some_and(|r| r.has_unseen_success),
  )
 }
-/// Build sidebar-only rows for running drafts and unpublished employee sessions.
+/// Build sidebar-only rows for drafts that can be reopened.
 pub(in crate::app::views::project) fn running_draft_sessions(
     app: &App,
 ) -> impl Iterator<Item = (&str, Info)> {
     app.session_state.session_runtime_states.iter().filter_map(move |(id, runtime)| {
         let draft = runtime.draft.as_ref()?;
-        if id == crate::app::session::EMPTY_SESSION_ID
-            || !(runtime.request_lifecycle.is_requesting || runtime.is_employee_chat())
-        {
+        if id == crate::app::session::EMPTY_SESSION_ID || !runtime.has_reopenable_draft() {
             return None;
         }
         let info = domain::running_draft_session(
             id, &draft.directory,
             runtime.request_lifecycle.active_agent_request.as_ref()
                 .map(|request| request.query.as_str())
-                .or(runtime.agent_label.as_deref()),
+                .or(runtime.agent_label.as_deref())
+                .or_else(|| {
+                    app.session_state.session_chat_cache.get(id)?
+                        .iter()
+                        .find(|message| message.role == crate::app::models::ChatRole::User)
+                        .map(|message| message.content.as_str())
+                }),
             runtime.request_lifecycle.request_started_ms, app.general_settings.desktop_locale,
         );
         Some((draft.project_path.as_str(), info))

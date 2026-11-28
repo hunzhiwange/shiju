@@ -846,7 +846,7 @@ fn child_session_navigation_resolution_rejects_internal_and_stale_results() {
         generation,
         from_project: Some(path.into()),
         from_session: Some("parent".into()),
-        destination: Some((path.into(), Box::new(info))),
+        result: Ok((path.into(), Box::new(info))),
     };
 
     let _ = super::handle(&mut app, reply(info.clone(), generation));
@@ -863,6 +863,27 @@ fn child_session_navigation_resolution_rejects_internal_and_stale_results() {
     app.navigation_tabs.project_path = Some(path.into());
     let _ = super::handle(&mut app, reply(info, generation));
     assert_eq!(app.session_state.active_session_id.as_deref(), Some("uncached"));
+}
+
+#[test]
+fn current_session_navigation_failure_is_visible_and_stale_failure_is_ignored() {
+    use crate::app::message::project::ProjectMessage;
+
+    let mut app = app();
+    let generation = 2;
+    app.session_state.session_view_cache.navigation_generation = generation;
+    let failure = |generation| ProjectMessage::SessionNavigationResolved {
+        generation,
+        from_project: None,
+        from_session: None,
+        result: Err("project unavailable".into()),
+    };
+    app.navigation_tabs.project_path = None;
+    let _ = super::handle(&mut app, failure(generation - 1));
+    assert!(app.toast_state.active_toast.is_none());
+    let _ = super::handle(&mut app, failure(generation));
+    assert!(app.toast_state.active_toast.as_ref().unwrap().message.contains("project unavailable"));
+    assert!(app.session_state.active_session_id.is_none());
 }
 
 #[test]

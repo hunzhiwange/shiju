@@ -3258,6 +3258,7 @@
   "会话消息保存失败，已停止自动重试，待存消息仍保留在内存中：%s": "Message save failed; automatic retries stopped. Unsaved messages remain in memory: %s",
   "停止 plan-run 失败：%s": "Failed to stop plan-run: %s",
   "停止后台请求失败：%s": "Failed to stop background request: %s",
+  "打开会话失败：%s": "Could not open the session: %s",
   "无法确认此消息的轮次，请重新打开源会话后再试": "Could not verify this message’s turn. Reopen the source session and try again.",
   "分叉会话失败: %s": "Session fork failed: %s",
   "创建新会话失败：%s": "Failed to create session: %s",

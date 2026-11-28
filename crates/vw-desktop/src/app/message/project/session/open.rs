@@ -120,6 +120,7 @@ pub(crate) fn open_project_session(
         .unwrap_or_default();
     let open_generation = app.session_state.session_view_cache.begin_open(&id);
     app.mark_active_session_viewed();
+    let publication = crate::app::message::chat::stream::refresh_pending_publication(app, &id);
     #[cfg(not(target_arch = "wasm32"))]
     let media = crate::app::message::chat::media_jobs::restore(app);
     #[cfg(target_arch = "wasm32")]
@@ -156,6 +157,7 @@ pub(crate) fn open_project_session(
             employee_label,
             queued,
             media,
+            publication,
             iced::Task::done(Message::Chat(crate::app::message::ChatMessage::LoadInputPanelTodos)),
         ]);
     }
@@ -166,12 +168,14 @@ pub(crate) fn open_project_session(
         .begin_cold_open(crate::app::components::chat_panel::trajectory::project_trajectory);
     app.sync_active_session_preferences();
     use desktop_session::session::history_commit::ColdHistory;
-    let requesting = app.session_is_requesting(&id);
+    let local_history = app.current_session_runtime_ref().is_some_and(|runtime| {
+        runtime.request_lifecycle.is_requesting || runtime.has_reopenable_draft()
+    });
     let cached = app.session_state.session_chat_cache.contains_key(&id);
     let local_employee_draft = app.current_session_runtime_ref()
         .is_some_and(|runtime| runtime.is_employee_chat() && runtime.draft.is_some());
     let history_route = super::lifecycle::history_state(app)
-        .cold_history(requesting || local_employee_draft, cached || local_employee_draft);
+        .cold_history(local_history, cached || local_employee_draft);
     let has_requesting_cache = history_route != ColdHistory::Remote;
     let requesting_cache_prewarm_task = if history_route == ColdHistory::RequestingMessages {
         let base_chunk_start = app.preferred_base_chat_ui_chunk_start();
@@ -217,6 +221,7 @@ pub(crate) fn open_project_session(
         requesting_cache_prewarm_task,
         history_load_task,
         media,
+        publication,
         iced::Task::done(Message::Chat(crate::app::message::ChatMessage::LoadInputPanelTodos)),
     ])
 }
@@ -226,7 +231,7 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
     let generation = app.session_state.session_view_cache.navigation_generation;
     let requesting_draft = app.session_state.session_runtime_states
         .get(id.trim())
-        .filter(|runtime| runtime.request_lifecycle.is_requesting || runtime.is_employee_chat())
+        .filter(|runtime| runtime.has_reopenable_draft())
         .and_then(|runtime| runtime.draft.as_ref())
         .map(|draft| (draft.project_path.as_str(), draft.directory.as_str()));
     let is_active_draft = requesting_draft.is_some_and(|(_, directory)| directory == path)
@@ -245,7 +250,11 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
             if is_active_draft
                 && let Some(project_path) = app.navigation_tabs.project_path.clone()
             {
-                return resume_project_from_sidebar(app, &project_path);
+                let publication = app.session_state.active_session_id.as_deref().map_or_else(
+                    iced::Task::none,
+                    |id| crate::app::message::chat::stream::refresh_pending_publication(app, id),
+                );
+                return iced::Task::batch([resume_project_from_sidebar(app, &project_path), publication]);
             }
             return iced::Task::none();
         }
@@ -261,15 +270,15 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
     let from_session = app.session_state.active_session_id.clone();
     iced::Task::perform(
         async move {
-            let client = crate::app::gateway_client().ok()?;
+            let client = crate::app::gateway_client()?;
             session_open::resolve_navigation(&client, id, cached, path).await
         },
-        move |destination| {
+        move |result| {
             Message::Project(ProjectMessage::SessionNavigationResolved {
                 generation,
                 from_project: from_project.clone(),
                 from_session: from_session.clone(),
-                destination,
+                result,
             })
         },
     )
@@ -378,22 +387,29 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             generation,
             from_project,
             from_session,
-            destination,
+            result,
         } => {
-            let task = if let Some((project_path, info)) = session_open::accept_navigation(
+            if !session_open::navigation_is_current(
                 generation,
                 app.session_state.session_view_cache.navigation_generation,
                 &from_project,
                 &app.navigation_tabs.project_path,
                 &from_session,
                 &app.session_state.active_session_id,
-                destination,
             ) {
-                open_project_session(app, project_path, info.id.clone(), Some(*info), None)
-            } else {
-                iced::Task::none()
-            };
-            Some(task)
+                return Some(iced::Task::none());
+            }
+            Some(match result {
+                Ok((project_path, info)) if info.is_user_navigable() && !info.directory.trim().is_empty() => {
+                    open_project_session(app, project_path, info.id.clone(), Some(*info), None)
+                }
+                Ok(_) => iced::Task::none(),
+                Err(error) => app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "打开会话失败：%s",
+                    vec![error.into()],
+                ),
+            })
         }
         ProjectMessage::SessionsLoaded(res) => Some(update_lists(app, ListEvent::Loaded(res))),
         ProjectMessage::SessionBootstrapLoaded {

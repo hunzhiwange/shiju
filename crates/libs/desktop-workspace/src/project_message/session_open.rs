@@ -104,27 +104,28 @@ pub fn navigation(
 }
 
 pub async fn resolve_navigation(client: &vw_gateway_client::GatewayClient, id: String,
-    cached: Option<Info>, path: String) -> Option<(String, Box<Info>)> {
+    cached: Option<Info>, path: String) -> Result<(String, Box<Info>), String> {
     let directory = cached.as_ref().map(|info| info.directory.clone())
         .filter(|directory| !directory.trim().is_empty())
         .or_else(|| (!path.trim().is_empty()).then_some(path));
     let info = match cached.filter(|info| !info.directory.trim().is_empty() && info.fork_execution_started.is_none()) {
         Some(info) => info,
         None => gateway_session::GatewaySessionClient::new(client.transport().clone())
-            .session_get::<Info>(&id, directory.as_deref()).await.ok()?,
+            .session_get::<Info>(&id, directory.as_deref()).await?,
     };
-    if info.id != id || !info.is_user_navigable() || info.directory.trim().is_empty() { return None; }
-    let project_path = super::gateway::gateway_session_project_path(client, &info).await.ok()?;
-    Some((project_path, Box::new(info)))
+    if info.id != id || !info.is_user_navigable() || info.directory.trim().is_empty() {
+        return Err("Session is not available to open".into());
+    }
+    let project_path = super::gateway::gateway_session_project_path(client, &info).await?;
+    Ok((project_path, Box::new(info)))
 }
 
-pub fn accept_navigation(generation: u64, current_generation: u64,
+pub fn navigation_is_current(generation: u64, current_generation: u64,
     from_project: &Option<String>, current_project: &Option<String>,
     from_session: &Option<String>, active_session: &Option<String>,
-    destination: Option<(String, Box<Info>)>) -> Option<(String, Box<Info>)> {
-    destination.filter(|(_, info)| generation == current_generation
+) -> bool {
+    generation == current_generation
         && from_project == current_project && from_session == active_session
-        && info.is_user_navigable() && !info.directory.trim().is_empty())
 }
 
 /// The session-list projection borrows the existing collections; no parallel cache is created.

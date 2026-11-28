@@ -5,6 +5,7 @@
 #[allow(dead_code)]
 pub(crate) mod delta_scheduler;
 pub(super) mod draft;
+pub(crate) use draft::refresh_pending_publication;
 mod permissions;
 mod questions;
 mod steps;
@@ -504,6 +505,16 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             parent_message_id,
             publication.map(|value| *value),
         ),
+        ChatMessage::DraftPublicationRefreshed { gateway_user_generation, session_id, publication } => {
+            if gateway_user_generation != app.session_state.gateway_user_generation
+                || !app.session_state.session_runtime_states.get(&session_id).is_some_and(|runtime| {
+                    runtime.draft_publication_pending && !runtime.request_lifecycle.is_requesting
+                })
+            {
+                return Task::none();
+            }
+            draft::publish(app, &session_id, *publication)
+        }
         ChatMessage::PublishedSessionTitleLoaded(info) => {
             draft::apply_published_title(app, &info);
             Task::none()

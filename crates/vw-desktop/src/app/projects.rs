@@ -362,6 +362,7 @@ impl App {
 
         let task = self.open_project_and_index(path);
 
+        carried_runtime.draft_publication_pending = false;
         carried_runtime.fork_execution_started = None;
         carried_runtime.fork_request_submitted = false;
         carried_runtime.fork_agent_selected = false;

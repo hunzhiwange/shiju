@@ -425,6 +425,63 @@ fn desktop_first_response_late_success_publishes_to_the_original_project_once() 
 }
 
 #[test]
+fn completed_draft_can_reopen_and_reconcile_publication_after_gateway_read_fails() {
+    use crate::app::message::project::{self, ProjectMessage};
+
+    let (mut app, _) = crate::app::App::new();
+    let path = "/project";
+    let directory = "/project/worktree";
+    let id = "unreconciled-draft";
+    app.navigation_tabs.project_path = Some("/other".into());
+    let runtime = app.get_session_runtime_mut(id);
+    runtime.draft = Some(crate::app::state::SessionDraft {
+        directory: directory.into(),
+        project_path: path.into(),
+        history_len: 0,
+    });
+    runtime.request_lifecycle.active_agent_request = Some(agent_request(7, id));
+    runtime.request_lifecycle.is_requesting = true;
+    app.store_session_chat_snapshot(
+        id.into(),
+        crate::app::session::shared_chat_messages(vec![
+            chat_message(ChatRole::User, "question"),
+            chat_message(ChatRole::Assistant, "answer"),
+        ]),
+        vec![None, None],
+    );
+    let mut info = session_info(id, "First turn", directory);
+    info.mark_first_response_pending();
+    app.workspace_state.project_sessions.insert(path.into(), vec![info.clone()]);
+
+    let _ = super::update(&mut app, super::ChatMessage::DraftResponseReloaded {
+        id: 7,
+        usage: Default::default(),
+        assistant_message_id: Some("assistant-id".into()),
+        parent_message_id: Some("user-id".into()),
+        publication: None,
+    });
+    assert!(!app.session_is_requesting(id));
+    assert!(app.get_session_runtime(id).has_reopenable_draft());
+
+    let _ = project::update(
+        &mut app,
+        ProjectMessage::OpenProjectSessionPressed(directory.into(), id.into()),
+    );
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some(id));
+    assert_eq!(app.chat_view.chat[1].content, "answer");
+
+    info.clear_first_response_pending();
+    let gateway_user_generation = app.session_state.gateway_user_generation;
+    let _ = super::update(&mut app, super::ChatMessage::DraftPublicationRefreshed {
+        gateway_user_generation,
+        session_id: id.into(),
+        publication: Box::new(super::draft::DraftPublication { info, preview: None }),
+    });
+    assert!(app.get_session_runtime(id).draft.is_none());
+    assert!(app.workspace_state.project_sessions[path][0].is_user_navigable());
+}
+
+#[test]
 fn plan_run_first_response_start_updates_only_the_runtime_projection() {
     let (mut app, _) = crate::app::App::new();
     let parent = session_info("parent", "Main", "/project");

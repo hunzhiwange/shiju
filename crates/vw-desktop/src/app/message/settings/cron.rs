@@ -215,7 +215,7 @@ pub fn update(app: &mut App, event: SettingsMessage) -> Task<Message> {
                     let client = client.ok()?;
                     desktop_workspace::project_message::session_open::resolve_navigation(
                         &client, session_id, None, String::new(),
-                    ).await
+                    ).await.ok()
                 },
                 move |destination| Message::Project(
                     crate::app::message::ProjectMessage::CronSessionNavigationResolved {

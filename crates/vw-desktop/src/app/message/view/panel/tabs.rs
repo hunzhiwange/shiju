@@ -22,12 +22,17 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     let was_task_board = app.navigation_tabs.screen == Screen::TaskBoard;
     let closes_task_board =
         matches!(&local, domain::Message::TabClosed(id) if id == task_board::TAB_ID);
+    let previous_screen = app.navigation_tabs.screen;
+    let previous_tab = app.navigation_tabs.active_tab_id.clone();
     let update = domain::update(
         &mut app.navigation_tabs,
         &mut app.navigation_mode.code_projects_menu_open,
         &mut app.navigation_panels,
         local,
     );
+    if app.navigation_tabs.screen != previous_screen || app.navigation_tabs.active_tab_id != previous_tab {
+        app.session_state.session_view_cache.navigation_generation += 1;
+    }
     let task_board_active = app.navigation_tabs.screen == Screen::TaskBoard;
     if was_task_board || task_board_active || closes_task_board {
         app.task_board.show_task_board = task_board_active;

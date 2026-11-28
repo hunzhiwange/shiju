@@ -31,7 +31,7 @@ pub enum ProjectMessage<PreparedOpen, HistoryPage, UiPhase> {
         generation: u64,
         from_project: Option<String>,
         from_session: Option<String>,
-        destination: Option<(String, Box<session_info::Info>)>,
+        result: Result<(String, Box<session_info::Info>), String>,
     },
     CronSessionNavigationResolved {
         job_id: String,

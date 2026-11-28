@@ -414,7 +414,7 @@ fn archived_chats_delete_routes_cleanup_only_after_success() {
             generation: navigation_generation,
             from_project,
             from_session,
-            destination: Some(("/fixture/p".into(), Box::new(info("b", "p", "Deleted", 10)))),
+            result: Ok(("/fixture/p".into(), Box::new(info("b", "p", "Deleted", 10)))),
         },
     );
     assert!(app.session_state.active_session_id.is_none());

@@ -477,6 +477,11 @@ pub enum ChatMessage<Measurement, PreparedOpen, PanelMode, DetailsTab, TodoPlace
         parent_message_id: Option<String>,
         publication: Option<Box<super::stream::draft::DraftPublication>>,
     },
+    DraftPublicationRefreshed {
+        gateway_user_generation: u64,
+        session_id: String,
+        publication: Box<super::stream::draft::DraftPublication>,
+    },
 
     DraftReplayChecked {
         id: u64,

@@ -6,11 +6,11 @@ pub struct SettingsView<'a> {
 }
 // 任务看板的设置弹窗与任务上下文菜单。
 
-use iced::widget::{Space, button, checkbox, column, container, row, text};
+use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use desktop_ui_controls::system_settings_common::{
-    rounded_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
+    rounded_action_btn_style, settings_close_button, settings_divider,
     settings_field_label, settings_group_card,
     settings_modal_header, settings_modal_layout, settings_muted_text_style,
     settings_tab_button, settings_tab_row, settings_text_input,
@@ -327,15 +327,6 @@ pub fn build_task_settings_modal<'a, M: Clone + 'static>(app: SettingsView<'a>, 
         .align_y(Alignment::Center),
     );
 
-    let recycle_on_finish_row = field_row(
-        i18n.__("完成后回收 worktree"),
-        checkbox(app.task_board_settings.recycle_worktree_on_task_finish)
-            .on_toggle(move |enabled| {
-                map_message(TaskBoardMessage::ToggleRecycleWorktreeOnTaskFinish(enabled))
-            })
-            .style(settings_checkbox_style),
-    );
-
     let current_pr_stall_timeout_seconds =
         app.task_board_settings.pr_submitted_stall_timeout_seconds;
     let pr_stall_timeout_seconds_text = current_pr_stall_timeout_seconds.to_string();
@@ -426,7 +417,7 @@ pub fn build_task_settings_modal<'a, M: Clone + 'static>(app: SettingsView<'a>, 
         ),
         TaskBoardSettingsModalTab::Scheduling => (
             "并发与保护",
-            "控制任务吞吐、失败重试、超时与 worktree 回收策略。",
+            "控制任务吞吐、失败重试与超时。",
             column![
                 max_concurrent_row,
                 settings_divider(),
@@ -435,8 +426,6 @@ pub fn build_task_settings_modal<'a, M: Clone + 'static>(app: SettingsView<'a>, 
                 retry_max_attempts_row,
                 settings_divider(),
                 timeout_row,
-                settings_divider(),
-                recycle_on_finish_row,
                 settings_divider(),
                 pr_stall_timeout_row,
             ],

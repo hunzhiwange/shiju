@@ -4,12 +4,12 @@
 use super::headings::*;
 
 use desktop_ui_controls::system_settings_common::{
-    rounded_action_btn_style, settings_checkbox_style, settings_field_label,
+    rounded_action_btn_style, settings_field_label,
     settings_muted_text_style, settings_panel, settings_select,
 };
 use desktop_i18n::I18n;
 use crate::project_message::edit::Event as ProjectMessage;
-use iced::widget::{button, checkbox, column, row, text};
+use iced::widget::{button, column, row, text};
 use iced::{Element, Length};
 
 use super::common::numeric_row;
@@ -191,19 +191,6 @@ pub(super) fn scheduling_tab<'a>(app: &View<'a>) -> Element<'a, Message> {
         )),
     );
 
-    let recycle_worktree_on_finish_row = row![
-        settings_field_label(i18n.__("完成后回收 worktree")).width(Length::Fill),
-        checkbox(settings.recycle_worktree_on_task_finish)
-            .on_toggle(|enabled| {
-                Message::Project(ProjectMessage::ProjectEditRecycleWorktreeOnTaskFinishToggled(
-                    enabled,
-                ))
-            })
-            .style(settings_checkbox_style),
-    ]
-    .spacing(8)
-    .align_y(iced::Alignment::Center);
-
     let pr_stall_timeout_row = numeric_row(
         i18n.__("合并锁超时(秒)"),
         "5-3600",
@@ -226,7 +213,7 @@ pub(super) fn scheduling_tab<'a>(app: &View<'a>) -> Element<'a, Message> {
             i18n,
             app.app_theme,
             i18n.__("调度与保护"),
-            i18n.__("限制并发、设置重试与超时，并控制 worktree 回收与合并锁。")
+            i18n.__("限制并发、设置重试与超时，并配置合并锁。")
         ),
         settings_panel(
             column![
@@ -237,7 +224,6 @@ pub(super) fn scheduling_tab<'a>(app: &View<'a>) -> Element<'a, Message> {
                 failed_retry_row,
                 failed_retry_max_attempts_row,
                 running_timeout_row,
-                recycle_worktree_on_finish_row,
                 pr_stall_timeout_row,
             ]
             .spacing(14)

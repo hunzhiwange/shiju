@@ -324,10 +324,6 @@ pub fn handle(app: &mut State<'_>, message: Event) -> Vec<Effect> {
             app.editor.project_edit_pr_submitted_stall_timeout_seconds_input = clamped.to_string();
             Vec::new()
         }
-        Event::ProjectEditRecycleWorktreeOnTaskFinishToggled(enabled) => {
-            app.editor.project_edit_task_board_settings.recycle_worktree_on_task_finish = enabled;
-            Vec::new()
-        }
         Event::ProjectEditWorkflowIdChanged(workflow_id) => {
             app.editor.project_edit_task_board_settings.workflow_id =
                 if desktop_task_model::task_workflow_by_id(&workflow_id).is_some() {

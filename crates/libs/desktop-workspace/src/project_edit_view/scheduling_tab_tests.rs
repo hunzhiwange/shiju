@@ -85,7 +85,6 @@ fn scheduling_tab_clamps_low_values_for_stepper_controls() {
     app.project_editor.project_edit_task_board_settings.failed_retry_max_attempts = 0;
     app.project_editor.project_edit_task_board_settings.running_timeout_minutes = 0;
     app.project_editor.project_edit_task_board_settings.pr_submitted_stall_timeout_seconds = 0;
-    app.project_editor.project_edit_task_board_settings.recycle_worktree_on_task_finish = true;
 
     let view = app.view();
     let element = scheduling_tab(&view);

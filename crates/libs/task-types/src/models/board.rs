@@ -52,8 +52,6 @@ pub struct TaskBoardSettings {
     pub failed_retry_max_attempts: u32,
     #[serde(default = "default_running_timeout_minutes")]
     pub running_timeout_minutes: u32,
-    #[serde(default = "default_recycle_worktree_on_task_finish")]
-    pub recycle_worktree_on_task_finish: bool,
     #[serde(default = "default_pr_submitted_stall_timeout_seconds")]
     pub pr_submitted_stall_timeout_seconds: u32,
 }
@@ -76,7 +74,6 @@ impl TaskBoardSettings {
             failed_retry_minutes: default_failed_retry_minutes(),
             failed_retry_max_attempts: default_failed_retry_max_attempts(),
             running_timeout_minutes: default_running_timeout_minutes(),
-            recycle_worktree_on_task_finish: default_recycle_worktree_on_task_finish(),
             pr_submitted_stall_timeout_seconds: default_pr_submitted_stall_timeout_seconds(),
         }
     }
@@ -131,10 +128,6 @@ const fn default_failed_retry_max_attempts() -> u32 {
 
 const fn default_running_timeout_minutes() -> u32 {
     20
-}
-
-const fn default_recycle_worktree_on_task_finish() -> bool {
-    false
 }
 
 const fn default_pr_submitted_stall_timeout_seconds() -> u32 {

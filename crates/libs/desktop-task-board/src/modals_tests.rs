@@ -92,7 +92,6 @@ fn settings_modal_builds_scheduling_tab_with_clamped_edges() {
     app.task_board_settings.failed_retry_minutes = 0;
     app.task_board_settings.failed_retry_max_attempts = 0;
     app.task_board_settings.running_timeout_minutes = 0;
-    app.task_board_settings.recycle_worktree_on_task_finish = true;
     app.task_board_settings.pr_submitted_stall_timeout_seconds = 0;
 
     let low = super::build_task_settings_modal(app.settings(), |msg| msg, |_, _, title, _| iced::widget::text(title).into());
@@ -103,7 +102,6 @@ fn settings_modal_builds_scheduling_tab_with_clamped_edges() {
     app.task_board_settings.failed_retry_minutes = 9_999;
     app.task_board_settings.failed_retry_max_attempts = 99;
     app.task_board_settings.running_timeout_minutes = 9_999;
-    app.task_board_settings.recycle_worktree_on_task_finish = false;
     app.task_board_settings.pr_submitted_stall_timeout_seconds = 9_999;
 
     let high = super::build_task_settings_modal(app.settings(), |msg| msg, |_, _, title, _| iced::widget::text(title).into());

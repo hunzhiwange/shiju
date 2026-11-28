@@ -47,9 +47,6 @@ pub fn update_settings(state: SettingsState<'_>, message: TaskBoardMessage) -> R
         TaskBoardMessage::SetRunningTimeoutMinutes(minutes) => {
             state.settings.running_timeout_minutes = minutes.clamp(1, 1440);
         }
-        TaskBoardMessage::ToggleRecycleWorktreeOnTaskFinish(enabled) => {
-            state.settings.recycle_worktree_on_task_finish = enabled;
-        }
         TaskBoardMessage::SetPrSubmittedStallTimeoutSeconds(seconds) => {
             state.settings.pr_submitted_stall_timeout_seconds = seconds.clamp(5, 3600);
         }

@@ -22,7 +22,6 @@ fn merge_stall_timeout_ignores_queued_pr_submitted_task() {
 fn merge_stall_timeout_pauses_running_pr_submitted_task() {
     let mut app = super::Fixture::default();
     app.task_board_settings.pr_submitted_stall_timeout_seconds = 5;
-    app.task_board_settings.recycle_worktree_on_task_finish = true;
 
     let mut task = desktop_task_model::Task::new(1);
     task.id = "running-merge".to_string();
@@ -132,7 +131,6 @@ fn failed_task_scan_keeps_failed_status_without_retry_or_rebuild() {
 fn running_timeout_first_scan_keeps_task_running() {
     let mut app = super::Fixture::default();
     app.task_board_settings.running_timeout_minutes = 1;
-    app.task_board_settings.recycle_worktree_on_task_finish = true;
 
     let mut task = desktop_task_model::Task::new(1);
     task.id = "running-timeout".to_string();
@@ -156,7 +154,6 @@ fn running_timeout_first_scan_keeps_task_running() {
 fn running_timeout_second_scan_fails_without_recycling() {
     let mut app = super::Fixture::default();
     app.task_board_settings.running_timeout_minutes = 1;
-    app.task_board_settings.recycle_worktree_on_task_finish = true;
 
     let mut task = desktop_task_model::Task::new(1);
     task.id = "running-timeout".to_string();

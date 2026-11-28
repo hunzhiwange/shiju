@@ -142,7 +142,6 @@ pub enum Event {
     ProjectEditFailedRetryMaxAttemptsChanged(u32),
     ProjectEditRunningTimeoutMinutesChanged(u32),
     ProjectEditPrSubmittedStallTimeoutSecondsChanged(u32),
-    ProjectEditRecycleWorktreeOnTaskFinishToggled(bool),
     ProjectEditWorkflowIdChanged(String),
     ProjectEditSaved,
     ProjectEditRuntimeSaved(Result<(), String>),

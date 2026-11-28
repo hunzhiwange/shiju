@@ -136,7 +136,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::ProjectEditFailedRetryMaxAttemptsChanged(value) => Event::ProjectEditFailedRetryMaxAttemptsChanged(value),
         ProjectMessage::ProjectEditRunningTimeoutMinutesChanged(value) => Event::ProjectEditRunningTimeoutMinutesChanged(value),
         ProjectMessage::ProjectEditPrSubmittedStallTimeoutSecondsChanged(value) => Event::ProjectEditPrSubmittedStallTimeoutSecondsChanged(value),
-        ProjectMessage::ProjectEditRecycleWorktreeOnTaskFinishToggled(value) => Event::ProjectEditRecycleWorktreeOnTaskFinishToggled(value),
         ProjectMessage::ProjectEditWorkflowIdChanged(value) => {
             let editor = &mut app.project_editor;
             if editor.project_edit_workflow_baseline.is_none() || editor.project_edit_workflow_saving

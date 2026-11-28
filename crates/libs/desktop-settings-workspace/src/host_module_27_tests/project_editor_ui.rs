@@ -566,7 +566,7 @@ async fn help_rollout_21_renders_contextual_help() {
             (
                 ProjectEditTab::Scheduling,
                 "调度与保护",
-                "限制并发、设置重试与超时，并控制 worktree 回收与合并锁。",
+                "限制并发、设置重试与超时，并配置合并锁。",
             ),
         ] {
             app.project_editor.project_edit_tab = tab;

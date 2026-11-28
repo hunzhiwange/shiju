@@ -45,7 +45,6 @@ fn map(message: domain::Message) -> Message {
             Event::ProjectEditFailedRetryMaxAttemptsChanged(value) => ProjectMessage::ProjectEditFailedRetryMaxAttemptsChanged(value),
             Event::ProjectEditRunningTimeoutMinutesChanged(value) => ProjectMessage::ProjectEditRunningTimeoutMinutesChanged(value),
             Event::ProjectEditPrSubmittedStallTimeoutSecondsChanged(value) => ProjectMessage::ProjectEditPrSubmittedStallTimeoutSecondsChanged(value),
-            Event::ProjectEditRecycleWorktreeOnTaskFinishToggled(value) => ProjectMessage::ProjectEditRecycleWorktreeOnTaskFinishToggled(value),
             Event::ProjectEditWorkflowIdChanged(value) => ProjectMessage::ProjectEditWorkflowIdChanged(value),
             Event::ProjectEditSaved => ProjectMessage::ProjectEditSaved,
             Event::ProjectEditRuntimeSaved(value) => ProjectMessage::ProjectEditRuntimeSaved(value),

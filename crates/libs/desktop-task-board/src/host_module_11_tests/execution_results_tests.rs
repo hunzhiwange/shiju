@@ -143,7 +143,6 @@ fn merge_failure_preserves_worktree_context() {
         effects: Vec::new(),
     };
     (*app.project_path) = Some("/tmp/vibewindow-merge-failure-test".to_string());
-    app.task_board_settings.recycle_worktree_on_task_finish = true;
 
     let mut task = Task::new(1);
     task.id = "T-merge-failure".to_string();

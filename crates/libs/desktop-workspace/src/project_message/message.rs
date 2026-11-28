@@ -80,7 +80,6 @@ pub enum ProjectMessage<PreparedOpen, HistoryPage, UiPhase> {
     ProjectEditFailedRetryMaxAttemptsChanged(u32),
     ProjectEditRunningTimeoutMinutesChanged(u32),
     ProjectEditPrSubmittedStallTimeoutSecondsChanged(u32),
-    ProjectEditRecycleWorktreeOnTaskFinishToggled(bool),
     ProjectEditWorkflowIdChanged(String),
     ProjectEditWorkflowLoaded(u64, Result<Option<desktop_task_model::workflow::TaskPoolWorkflowSnapshotDto>, String>),
     ProjectEditWorkflowSaved(u64, Result<desktop_task_model::workflow::TaskPoolWorkflowSnapshotDto, String>),

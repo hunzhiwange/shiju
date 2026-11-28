@@ -382,7 +382,7 @@ pub(in crate::app::views::task_board) mod help_rollout {
                 (
                     TaskBoardSettingsModalTab::Scheduling,
                     "并发与保护",
-                    "控制任务吞吐、失败重试、超时与 worktree 回收策略。",
+                    "控制任务吞吐、失败重试与超时。",
                     "7",
                     "scheduling",
                 ),

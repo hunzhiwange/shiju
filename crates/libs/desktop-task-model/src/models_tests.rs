@@ -309,7 +309,6 @@ fn task_board_settings_new_and_default_keep_exact_runtime_defaults() {
     assert_eq!(settings.failed_retry_minutes, 20);
     assert_eq!(settings.failed_retry_max_attempts, 10);
     assert_eq!(settings.running_timeout_minutes, 20);
-    assert!(!settings.recycle_worktree_on_task_finish);
     assert_eq!(settings.pr_submitted_stall_timeout_seconds, 30);
     assert_eq!(settings.workflow_id, crate::DEFAULT_TASK_WORKFLOW_ID);
     assert_eq!(default_settings.workflow_id, settings.workflow_id);

@@ -250,7 +250,6 @@ pub enum TaskBoardMessage {
     SetFailedRetryMinutes(u32),
     SetFailedRetryMaxAttempts(u32),
     SetRunningTimeoutMinutes(u32),
-    ToggleRecycleWorktreeOnTaskFinish(bool),
     SetPrSubmittedStallTimeoutSeconds(u32),
     StartExecution,
     StopExecution,

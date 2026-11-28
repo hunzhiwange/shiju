@@ -279,7 +279,7 @@ fn edit_simple_field_messages_update_state() {
 
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
 // 这里固定可观察结果，避免依赖处理过程中的临时实现细节。#[test]
-fn edit_color_format_preset_editor_action_and_recycle_toggle_update_state() {
+fn edit_color_format_preset_and_editor_action_update_state() {
     let mut app = app();
     app.project_editor.project_edit_start_script = "first".to_string();
     app.project_editor.project_edit_start_script_editor = iced::widget::text_editor::Content::with_text("first");
@@ -304,12 +304,6 @@ fn edit_color_format_preset_editor_action_and_recycle_toggle_update_state() {
             )),
         ),
     );
-    apply(
-        &mut app,
-        Event::ProjectEditRecycleWorktreeOnTaskFinishToggled(
-            true,
-        ),
-    );
 
     assert_eq!(app.project_editor.project_edit_icon_color, "#abcdef");
     assert_eq!(
@@ -317,7 +311,6 @@ fn edit_color_format_preset_editor_action_and_recycle_toggle_update_state() {
         desktop_ui_controls::color_picker::ColorFormat::Rgba
     );
     assert!(app.project_editor.project_edit_start_script.contains("line"));
-    assert!(app.project_editor.project_edit_task_board_settings.recycle_worktree_on_task_finish);
 }
 #[test]
 fn edit_icon_file_picked_ignores_empty_and_accepts_trimmed_path() {

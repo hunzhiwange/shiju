@@ -518,6 +518,6 @@ async fn session_history_conflict_does_not_rebase_and_retry_wrong_rows() {
     let result =
         super::gateway_session_message_delta_with_client(&client, "s1", Some("/repo"), &delta)
             .await;
-    assert!(matches!(result, Err(super::SessionMessageDeltaSaveError::Rejected(_))));
+    assert!(matches!(result, Err(super::SessionMessageDeltaSaveError::HistoryConflict(_))));
     request.await.unwrap();
 }

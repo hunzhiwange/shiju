@@ -249,7 +249,7 @@ async fn gateway_session_message_delta_with_client(
     match gateway_session::GatewaySessionClient::new(client.transport().clone()).session_message_delta(session_id, directory, delta).await {
         Ok(_) => Ok(()),
         Err(error) if error.contains("session history conflict") => {
-            Err(SessionMessageDeltaSaveError::Rejected(error))
+            Err(SessionMessageDeltaSaveError::HistoryConflict(error))
         }
         Err(error)
             if error.contains("409 Conflict")

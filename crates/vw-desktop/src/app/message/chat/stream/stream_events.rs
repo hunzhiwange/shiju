@@ -944,6 +944,13 @@ pub(super) fn complete_agent_stream(
         assistant_message_id.clone(),
         parent_message_id.clone(),
     );
+    app.get_session_runtime_mut(&session_id).stream_save.confirm_terminal_ids(
+        generation,
+        &persisted_chat,
+        &persisted_ids,
+        parent_message_id.as_deref(),
+        assistant_message_id.as_deref(),
+    );
     info!(
         target: "vw_desktop",
         request_id = id,

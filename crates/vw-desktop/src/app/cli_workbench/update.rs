@@ -121,6 +121,7 @@ pub(crate) enum Action {
     SelectProject(String),
     SelectSession(SessionKey),
     ShowLocalTerminal,
+    NewLocalShell,
     AgentsLoaded(u64, Result<Vec<Agent>, ()>),
     Start(String, u64, CliWorkbenchTarget, pane_grid::Pane),
     LaunchMode(bool),
@@ -346,10 +347,19 @@ fn update_surface(app: &mut App, surface: Surface, mut event: Event) -> Task<Mes
                 Action::TerminalOutput(..) | Action::TerminalWritten(..) | Action::TerminalClipboard(..) => terminal_visible,
                 _ => visible && (!embedded || state.terminal_directory.as_deref() == terminal_directory),
             };
-            if embedded && matches!(&action, Action::Panel(..) | Action::ShowLocalTerminal)
+            if embedded
+                && matches!(&action, Action::Panel(..) | Action::ShowLocalTerminal | Action::NewLocalShell)
                 && (!visible || state.terminal_ssh_project(terminal_directory, terminal_group).is_none())
             {
                 return Task::none();
+            }
+            if embedded && matches!(&action, Action::NewLocalShell) {
+                let switch = update_window(state, id, Action::ShowLocalTerminal, visible);
+                let add = crate::app::message::terminal::update(
+                    app,
+                    desktop_terminal::message::TerminalMessage::Add,
+                );
+                return Task::batch([switch, add]);
             }
             let show_start_error = embedded && visible && matches!(&action, Action::Started(..));
             let close_dialog = matches!(&action, Action::Dismiss | Action::Confirm);

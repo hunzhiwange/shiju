@@ -197,6 +197,7 @@ fn pane_view<'a>(
     tabs: Vec<&'a TerminalTab>,
     active_id: Option<u64>,
     controls: iced::widget::Row<'a, Message>,
+    new_shell: message::TerminalMessage,
 ) -> (Element<'a, Message>, Element<'a, Message>) {
     let locale = app.desktop_locale;
     #[cfg(not(target_arch = "wasm32"))]
@@ -219,6 +220,7 @@ fn pane_view<'a>(
         app.tab_context_menu_pos,
         locale,
         controls.height(TAB_HEADER_HEIGHT).align_y(iced::Alignment::Center),
+        Some(Message::Terminal(new_shell)),
         |message| message,
     );
 
@@ -265,6 +267,7 @@ pub fn pane_header<'a, M: Clone + 'a>(
     tab_context_menu_pos: Option<(f32, f32)>,
     locale: config_ui::DesktopLocale,
     controls: iced::widget::Row<'a, M>,
+    on_blank_double_click: Option<M>,
     on_message: impl Fn(Message) -> M + 'a,
 ) -> Element<'a, M> {
     let tab_header_height = TAB_HEIGHT;
@@ -273,6 +276,7 @@ pub fn pane_header<'a, M: Clone + 'a>(
     // ==================== 构建标签页行 ====================
 
     let mut tabs_row = row![].align_y(iced::Alignment::Center);
+    let mut tabs_width = 0.0;
 
     // 遍历所有终端标签页，逐个构建 UI 元素
     for (index, (tab_id, title, indicator)) in tabs.into_iter().enumerate() {
@@ -284,6 +288,7 @@ pub fn pane_header<'a, M: Clone + 'a>(
         // 公式：字符数 * 8.4（每字符平均宽度）+ 62.0（内边距和图标预留）
         // 限制在 92.0-260.0 范围内
         let tab_width = terminal_tab_width(&title);
+        tabs_width += tab_width;
 
         // 关闭按钮尺寸
         let close_btn_size = 18.0;
@@ -447,7 +452,16 @@ pub fn pane_header<'a, M: Clone + 'a>(
         .width(Length::Fill);
 
     let tabs_scroll: Element<'a, Message> = tabs_scroll.into();
-    let toolbar = row![tabs_scroll.map(on_message), controls].height(TAB_HEADER_HEIGHT);
+    let mut strip = iced::widget::stack![tabs_scroll.map(on_message)];
+    if let Some(message) = on_blank_double_click {
+        let blank = iced::widget::mouse_area(
+            Space::new().width(Length::Fill).height(TAB_HEADER_HEIGHT),
+        )
+        .on_double_click(message);
+        // The scrollable sets the strip width; the hit area starts after the tabs.
+        strip = strip.push(row![Space::new().width(tabs_width), blank]);
+    }
+    let toolbar = row![strip, controls].height(TAB_HEADER_HEIGHT);
     container(toolbar).width(Length::Fill).style(terminal_surface_style).into()
 }
 
@@ -567,6 +581,7 @@ pub fn panes_view<'a>(app: ViewInput<'a>) -> Element<'a, Message> {
                     i18n.__("隐藏终端面板"),
                 ),
             ],
+            message::TerminalMessage::Add,
         );
         column![header, out].width(Length::Fill).height(Length::Fill)
     };

@@ -101,6 +101,7 @@ pub(crate) fn terminal_ssh_tabs(app: &App) -> Option<Element<'_, Message>> {
         project.tab_menu.map(|(_, x, y)| (x, y)),
         ui.locale,
         row![local_terminal_tab(ui, true)].align_y(Alignment::Center),
+        Some(ui.msg(Action::NewLocalShell)),
         move |message| ui.msg(Action::Panel(project_id.into(), layout, message)),
     ))
 }
@@ -736,6 +737,13 @@ fn workspace<'a>(
                         Some(Message::Terminal(Term::ToggleFullscreen)),
                     ));
             }
+            let new_shell = if state.surface == Surface::Terminal {
+                Some(ui.msg(Action::NewLocalShell))
+            } else {
+                let target = CliWorkbenchTarget::Shell;
+                (can_start && super::update::launch_target_available(state, &target))
+                    .then(|| ui.msg(Action::Start(project_id.into(), layout, target, pane)))
+            };
             let header = terminal_panel::pane_header(
                 pane_state.tabs.iter().filter_map(|&id| {
                     let tab = project.tab_for_view(id)?;
@@ -755,6 +763,7 @@ fn workspace<'a>(
                 project.tab_menu.map(|(_, x, y)| (x, y)),
                 ui.locale,
                 controls,
+                new_shell,
                 on_panel,
             );
             let body = if let Some(tab) = current {

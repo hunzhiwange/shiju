@@ -33,8 +33,9 @@ pub(super) fn view<'a>(app: ViewInput<'a>) -> Element<'a, Message> {
                 .filter_map(|id| app.tabs.iter().find(|tab| tab.id == *id))
                 .collect();
             let i18n = I18n::new(app.desktop_locale);
+            let new_shell = TerminalMessage::AddToPane(pane);
             let mut controls = row![toolbar_tooltip(
-                toolbar_icon_button(Icon::Plus, Message::Terminal(TerminalMessage::AddToPane(pane))),
+                toolbar_icon_button(Icon::Plus, Message::Terminal(new_shell.clone())),
                 i18n.__("新建终端"),
             )];
             if state.active_id.is_some() {
@@ -49,7 +50,7 @@ pub(super) fn view<'a>(app: ViewInput<'a>) -> Element<'a, Message> {
                     .push(fullscreen_button(app));
             }
 
-            let (header, body) = pane_view(app, tabs, state.active_id, controls);
+            let (header, body) = pane_view(app, tabs, state.active_id, controls, new_shell);
             (header, body)
     })
 }

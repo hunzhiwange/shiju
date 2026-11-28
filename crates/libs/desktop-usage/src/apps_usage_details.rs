@@ -1,7 +1,7 @@
 //! Expand the authorized snapshot in place on provider and account cards.
 
 use chrono::{DateTime, TimeZone, Utc};
-use iced::widget::{Column, Row, button, column, progress_bar, row, text, tooltip};
+use iced::widget::{Column, Row, Text, button, column, progress_bar, row, text, tooltip};
 use iced::{Alignment, Element, Font, Length, font};
 use vw_api_apps_usage::apps_usage::{
     UsageNumber, UsageQueryData, UsageQueryOutcome, UsageQuotaWindow, UsageScriptPackage,
@@ -17,6 +17,8 @@ use desktop_ui_controls::system_settings_common::{rounded_action_btn_style, sett
 use desktop_ui_controls::tooltip::tooltip_dark_style;
 #[derive(Clone, Debug)]
 pub enum Message { Toggle, OpenUrl(String) }
+
+const ACCOUNT_METRIC_FONT: Font = Font::with_name("Noto Sans CJK SC");
 
 pub fn view(i18n: desktop_i18n::I18n,
     snapshot: &UsageSnapshot,
@@ -103,21 +105,20 @@ pub(super) fn account_subscription<M: 'static>(i18n: desktop_i18n::I18n,
         if !amounts.is_empty() {
             values = values.push(metric_value(amounts.join(" · ")));
         } else if tier.bar_percent().is_none() {
-            values = values.push(line(i18n.__("剩余额度未知").into()));
+            values = values.push(metric_note(i18n.__("剩余额度未知")));
         }
         if let Some(at) = window_reset(window) {
             let stamp = display_time(at, now);
             let exact =
                 i18n.format("重置时间 %s", &[stamp.into()]).expect("valid display template");
-            values = values.push(match reset_countdown(i18n, at, now) {
-                Some(countdown) => {
-                    tooltip(line(countdown), text(exact).size(13), tooltip::Position::Top)
+            values = match reset_countdown(i18n, at, now) {
+                Some(countdown) => values.push(
+                    tooltip(metric_note(countdown), metric_text(exact), tooltip::Position::Top)
                         .gap(6)
-                        .style(tooltip_dark_style)
-                        .into()
-                }
-                None => line(exact),
-            });
+                        .style(tooltip_dark_style),
+                ),
+                None => values.push(metric_note(exact)),
+            };
         }
         metrics.push(account_metric(window_name(i18n, window), values));
     }
@@ -146,7 +147,7 @@ pub(super) fn account_subscription<M: 'static>(i18n: desktop_i18n::I18n,
                 values = values.push(if group.tone == QuotaTone::Warning {
                     metric_value(detail)
                 } else {
-                    line(detail)
+                    metric_note(detail)
                 });
             }
         }
@@ -158,14 +159,14 @@ pub(super) fn account_subscription<M: 'static>(i18n: desktop_i18n::I18n,
             .expect("valid display template");
         metrics.push(account_metric(
             "Credits",
-            row![metric_value(credit_balance(f64::from(credits.balance))), line(estimate),],
+            row![metric_value(credit_balance(f64::from(credits.balance))), metric_note(estimate)],
         ));
     }
     if let Some(extra) = extra_usage(i18n, subscription) {
-        metrics.push(line(extra));
+        metrics.push(metric_note(extra).into());
     }
     if metrics.is_empty() {
-        metrics.push(line(i18n.__("暂无额度明细").into()));
+        metrics.push(metric_note(i18n.__("暂无额度明细")).into());
     }
     column(metrics).spacing(7).width(Length::Fill).into()
 }
@@ -175,11 +176,7 @@ fn account_metric<M: 'static>(
     values: Row<'static, M>,
 ) -> Element<'static, M> {
     row![
-        text(label.into())
-            .size(13)
-            .width(104)
-            .wrapping(text::Wrapping::WordOrGlyph)
-            .style(settings_muted_text_style),
+        metric_note(label).width(104),
         values
             .width(Length::Fill)
             .spacing(10)
@@ -192,12 +189,19 @@ fn account_metric<M: 'static>(
     .into()
 }
 
-fn metric_value<M: 'static>(value: String) -> Element<'static, M> {
-    text(value)
+fn metric_text(value: impl Into<String>) -> Text<'static> {
+    text(value.into())
         .size(13)
-        .font(Font { weight: font::Weight::Semibold, ..Font::DEFAULT })
+        .font(ACCOUNT_METRIC_FONT)
         .wrapping(text::Wrapping::WordOrGlyph)
-        .into()
+}
+
+fn metric_note(value: impl Into<String>) -> Text<'static> {
+    metric_text(value).style(settings_muted_text_style)
+}
+
+fn metric_value(value: String) -> Text<'static> {
+    metric_text(value).font(Font { weight: font::Weight::Bold, ..ACCOUNT_METRIC_FONT })
 }
 
 fn credit_balance(balance: f64) -> String {

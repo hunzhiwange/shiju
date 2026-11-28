@@ -161,6 +161,9 @@ fn execute(app: &mut App, effect: Effect) -> Task<Message> {
             effects.into_iter().map(|effect| execute(app, effect)).collect::<Vec<_>>(),
         ),
         Effect::RefreshProject(path) => crate::app::projects::project_settings_refresh_task(path),
+        #[cfg(target_arch = "wasm32")]
+        Effect::OpenProject(path) => app.open_project_and_index(path),
+        #[cfg(not(target_arch = "wasm32"))]
         Effect::OpenProject(path) => {
             use crate::app::components::system_settings_skills as local_skills;
 

@@ -65,6 +65,22 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     sync::overlay(app, dialog)
 }
 
+pub(super) fn open_message() -> Message {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        Message::SkillHub(message::SkillHubMessage::OpenLocalSkills)
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        use desktop_settings_shell::search::SystemSettingsSearchTarget;
+        use desktop_ui_controls::settings_navigation::ThirdPartyPage;
+        Message::View(message::ViewMessage::OpenSystemSettingsTarget(
+            SystemSettingsSearchTarget::ThirdParty(ThirdPartyPage::Skills),
+        ))
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn is_visible(app: &App) -> bool {
     use crate::app::skill_hub::{ExpertHubSection, PublicSkillTab};
 
@@ -75,6 +91,16 @@ pub(crate) fn is_visible(app: &App) -> bool {
         && market.tab == PublicSkillTab::LocalSkills
         && !market.installed_open
         && market.detail.is_none()
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn is_visible(app: &App) -> bool {
+    use desktop_ui_controls::settings_navigation::ThirdPartyPage;
+
+    super::third_party_settings::is_visible(app)
+        && app.apps_catalog.third_party_page == ThirdPartyPage::Skills
+        && !crate::app::views::usage::center::is_visible(app)
+        && !(app.mobile_layout.drawer_open || app.mobile_layout.mine_open)
 }
 
 pub(crate) fn invalidate(app: &mut App) {

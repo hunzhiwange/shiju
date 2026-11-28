@@ -22,13 +22,19 @@ pub(super) fn action(label: &str, message: ViewMessage) -> Element<'_, Message> 
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {
+    use crate::app::components::system_settings_skills;
+
     let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
+    let local_skills =
+        cfg!(target_arch = "wasm32") && system_settings_skills::is_visible(app);
     let title = if app.mobile_layout.mine_open {
         "我的"
     } else if app.mobile_layout.drawer_open {
         "项目"
     } else if app.navigation_panels.show_system_settings {
         "设置"
+    } else if local_skills {
+        "本地技能"
     } else if matches!(app.navigation_tabs.screen, Screen::AgentManagement(_)) {
         "智能体"
     } else if app.navigation_tabs.screen == Screen::Cron {
@@ -45,6 +51,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         navigation::view(app)
     } else if app.navigation_panels.show_system_settings {
         settings::view(app)
+    } else if local_skills {
+        system_settings_skills::view(app)
     } else if let Screen::AgentManagement(page) = app.navigation_tabs.screen {
         crate::app::components::system_settings_agents::management_view(app, page)
     } else if app.navigation_tabs.screen == Screen::Cron {

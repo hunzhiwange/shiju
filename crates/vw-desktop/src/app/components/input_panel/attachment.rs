@@ -219,7 +219,7 @@ fn section_menu(
             items = items.push(action(
                 ComposerIcon::Skill,
                 "技能管理",
-                Message::SkillHub(message::SkillHubMessage::OpenLocalSkills),
+                crate::app::components::system_settings_skills::open_message(),
             ));
         }
         #[cfg(target_arch = "wasm32")]

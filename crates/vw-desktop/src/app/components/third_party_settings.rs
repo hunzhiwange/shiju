@@ -38,7 +38,14 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             return workspace(app, super::system_settings_apps::view(state, i18n));
         }
         ThirdPartyPage::Agents => return workspace(app, agent_workspace(app)),
-        ThirdPartyPage::Mcp | ThirdPartyPage::Skills => return workspace(app, Space::new().into()),
+        #[cfg(target_arch = "wasm32")]
+        ThirdPartyPage::Skills => {
+            let content = container(super::system_settings_skills::view(app)).padding(24);
+            return workspace(app, content.into());
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        ThirdPartyPage::Skills => return workspace(app, Space::new().into()),
+        ThirdPartyPage::Mcp => return workspace(app, Space::new().into()),
         ThirdPartyPage::Prompts => {
             return workspace(app, super::system_settings_prompts::list::page(app));
         }
@@ -504,6 +511,7 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
     invalidate(app);
     match page {
         ThirdPartyPage::Mcp => return super::system_settings_mcp::open(app),
+        #[cfg(not(target_arch = "wasm32"))]
         ThirdPartyPage::Skills => {
             return crate::app::message::skill_hub::update(
                 app,
@@ -523,7 +531,11 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
             use super::app_routing::lifecycle::{self, Event, Operation};
             Task::batch([load, lifecycle::update(app, Event::Run(Operation::Refresh))])
         }
-        ThirdPartyPage::Mcp | ThirdPartyPage::Skills => Task::none(),
+        #[cfg(target_arch = "wasm32")]
+        ThirdPartyPage::Skills => settings::skills::update(app, SettingsMessage::SkillsRefresh),
+        #[cfg(not(target_arch = "wasm32"))]
+        ThirdPartyPage::Skills => Task::none(),
+        ThirdPartyPage::Mcp => Task::none(),
         ThirdPartyPage::Sessions => {
             app.apps_catalog.external_sessions.open = true;
             super::external_sessions::update(app, super::external_sessions::Event::Refresh)

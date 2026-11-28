@@ -65,6 +65,7 @@ impl App {
         self.session_state.input_popovers.close_recommendation_menus();
         self.cache_active_session_chat();
         self.session_state.active_session_id = None;
+        self.session_state.paged_chat_timeline = None;
         self.current_session_runtime_mut().draft = None;
         self.chat_view.chat.clear();
         self.chat_view.chat_message_ids.clear();

@@ -49,13 +49,8 @@ impl<P: Default> HistoryState<'_, P> {
             timeline_page,
             ..
         } = prepared;
-        let seq_base = timeline_page.map(|page| {
-            let seq_base = page.entries.first().and_then(|entry| entry.seq_no).unwrap_or(0);
-            let mut timeline = PagedChatTimeline::new(session_id.clone(), generation);
-            timeline.merge_initial_page(page);
-            *self.timeline = Some(timeline);
-            seq_base
-        });
+        *self.timeline = None;
+        let seq_base = timeline_page.map(|page| self.install_timeline(&session_id, generation, page));
         *self.chat = messages;
         *self.ids = message_ids;
         *self.usage = usage;
@@ -72,6 +67,14 @@ impl<P: Default> HistoryState<'_, P> {
         }
     }
 
+    pub fn install_timeline(&mut self, session_id: &str, generation: u64, page: TimelinePage) -> u64 {
+        let seq_base = page.entries.first().and_then(|entry| entry.seq_no).unwrap_or(0);
+        let mut timeline = PagedChatTimeline::new(session_id, generation);
+        timeline.merge_initial_page(page);
+        *self.timeline = Some(timeline);
+        seq_base
+    }
+
     pub fn prepend(
         &mut self,
         active: Option<&str>,
@@ -85,6 +88,9 @@ impl<P: Default> HistoryState<'_, P> {
             return None;
         }
         let timeline = self.timeline.as_mut()?;
+        if !timeline.accepts_prepend(session_id, generation, cursor) {
+            return None;
+        }
         let page = match result {
             Ok(page) => page,
             Err(error) => {
@@ -192,6 +198,7 @@ impl<P: Default> HistoryState<'_, P> {
 impl<P: Default> HistoryState<'_, P> {
     pub fn close(&mut self) {
         self.chat.clear();
+        *self.timeline = None;
         *self.usage = TokenUsage::default();
         *self.view = ActiveSessionViewState::default();
     }
@@ -203,6 +210,7 @@ impl<P: Default> HistoryState<'_, P> {
         &mut self,
         project: impl FnOnce(&[ChatSessionStep], &HashMap<SessionStepRawKey, Value>) -> P,
     ) {
+        *self.timeline = None;
         *self.usage = TokenUsage::default();
         self.view.updated_ms = 0;
         self.view.clear_active_session_steps(project);

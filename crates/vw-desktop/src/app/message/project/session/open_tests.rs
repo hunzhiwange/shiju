@@ -1188,7 +1188,7 @@ fn bounded_session_open_and_prepend_keep_save_sequence_base() {
     use session_ui_types::SessionMessageRecord;
     let mut app = app();
     app.session_state.active_session_id = Some("paged".into());
-    let generation = 0;
+    let generation = app.session_state.session_view_cache.begin_open("paged");
     let record = |seq_no| SessionMessageRecord {
         seq_no,
         message_id: Some(format!("message-{seq_no}")),
@@ -1245,6 +1245,31 @@ fn bounded_session_open_and_prepend_keep_save_sequence_base() {
     );
     assert_eq!(app.chat_view.chat.len(), 4);
     assert_eq!(app.session_state.session_runtime_states["paged"].stream_save.seq_base, 98);
+
+    app.navigation_tabs.project_path = Some("/repo".into());
+    assert!(app.session_state.paged_chat_timeline.as_mut().unwrap().begin_prepend("older-again"));
+    let _ = super::open_project_session(&mut app, "/repo".into(), "other".into(), None, None);
+    assert!(app.session_state.paged_chat_timeline.is_none());
+    let _ = super::open_project_session(&mut app, "/repo".into(), "paged".into(), None, None);
+    let reopened = app.session_state.session_view_cache.open_generation();
+    let timeline = app.session_state.paged_chat_timeline.as_mut().unwrap();
+    assert_ne!(generation, reopened);
+    assert_eq!(timeline.generation(), reopened);
+    assert!(timeline.begin_prepend("older-again"));
+
+    let _ = super::super::lifecycle::handle(
+        &mut app,
+        ProjectMessage::SessionHistoryPageLoaded {
+            session_id: "paged".into(),
+            open_generation: generation,
+            requested_cursor: "older-again".into(),
+            result: Err("stale failure".into()),
+        },
+    );
+    assert_eq!(
+        app.session_state.paged_chat_timeline.as_ref().unwrap().in_flight_before(),
+        Some("older-again"),
+    );
 }
 
 #[test]

@@ -128,6 +128,9 @@ pub(crate) fn open_project_session(
     if let Some(snapshot) = app.session_state.session_view_cache.take(&id) {
         let commit_started_at = Instant::now();
         snapshot.restore_into(app);
+        if let Some(timeline) = app.session_state.paged_chat_timeline.as_mut() {
+            timeline.reopen(open_generation);
+        }
         app.close_session_transient_ui();
         app.sync_active_session_preferences();
         let scroll_offset_y = app.chat_view.chat_scroll_offset_y;

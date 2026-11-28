@@ -101,6 +101,25 @@ impl PagedChatTimeline {
         self.generation
     }
 
+    pub fn reopen(&mut self, generation: u64) {
+        if let Some(cursor) = self.in_flight_before.take() {
+            self.attempted_before.remove(&cursor);
+        }
+        self.generation = generation;
+    }
+
+    pub fn estimated_bytes(&self) -> usize {
+        self.entries
+            .iter()
+            .chain(self.active_entry.iter())
+            .map(|entry| {
+                std::mem::size_of::<ChatTimelineEntry>()
+                    + entry.message.content.len()
+                    + entry.message.model.as_ref().map_or(0, String::len)
+            })
+            .sum()
+    }
+
     pub fn active_entry(&self) -> Option<&ChatTimelineEntry> {
         self.active_entry.as_ref()
     }
@@ -170,10 +189,7 @@ impl PagedChatTimeline {
         requested_cursor: &str,
         page: TimelinePage,
     ) -> PageMergeOutcome {
-        if session_id != self.session_id
-            || generation != self.generation
-            || self.in_flight_before.as_deref() != Some(requested_cursor)
-        {
+        if !self.accepts_prepend(session_id, generation, requested_cursor) {
             return PageMergeOutcome::RejectedStale;
         }
         self.in_flight_before = None;
@@ -194,6 +210,12 @@ impl PagedChatTimeline {
         } else {
             PageMergeOutcome::Applied { inserted }
         }
+    }
+
+    pub fn accepts_prepend(&self, session_id: &str, generation: u64, cursor: &str) -> bool {
+        self.session_id == session_id
+            && self.generation == generation
+            && self.in_flight_before.as_deref() == Some(cursor)
     }
 
     pub fn is_before_exhausted(&self) -> bool {

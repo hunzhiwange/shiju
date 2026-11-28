@@ -417,7 +417,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             let content_decision = result.as_ref().ok().map(|prepared| {
                 history_open.content(&prepared.message_ids, prepared.content_signature)
             });
-            let prepared = match result {
+            let mut prepared = match result {
                 Ok(prepared) if acceptance == HistoryDecision::Replace => prepared,
                 Ok(_) => {
                     tracing::info!(
@@ -500,6 +500,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
 
             if content_decision == Some(HistoryDecision::RefreshMetadata) {
+                if let Some(page) = prepared.timeline_page.take() {
+                    let seq_base = history_state(app).install_timeline(
+                        &target_session_id, open_generation, page,
+                    );
+                    app.get_session_runtime_mut(&target_session_id).stream_save.seq_base = seq_base;
+                }
                 history_state(app).refresh_metadata(
                     prepared,
                     crate::app::components::chat_panel::trajectory::project_trajectory,
@@ -567,7 +573,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             result,
         } => {
             let current_generation =
-                app.session_state.session_view_cache.is_current_open(&session_id, open_generation);
+                app.session_state.session_view_cache.open_generation() == open_generation;
             let active_session = app.session_state.active_session_id.clone();
             let commit = history_state(app).prepend(
                 active_session.as_deref(),

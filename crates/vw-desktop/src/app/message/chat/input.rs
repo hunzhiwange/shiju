@@ -417,15 +417,18 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::ScrollChanged { offset_y: rel_y, absolute_offset_y, viewport_h } => {
             let outcome = apply_chat_scroll_changed(app, rel_y, absolute_offset_y, viewport_h);
             let history_task = if rel_y <= 0.08 {
-                app.navigation_tabs.project_path.clone().zip(app.session_state.active_session_id.clone()).and_then(
-                    |(project_path, session_id)| {
+                app.session_state.active_session_id.clone().and_then(
+                    |session_id| {
+                        let directory = app.known_session_directory(&session_id)
+                            .filter(|path| !path.trim().is_empty())
+                            .or_else(|| app.navigation_tabs.project_path.clone())?;
                         let request = app.session_state.paged_chat_timeline.as_mut().and_then(|timeline| {
                             let cursor = timeline.before_cursor()?.to_owned();
                             timeline.begin_prepend(&cursor).then(|| (timeline.generation(), cursor))
                         });
                         request.map(|(generation, cursor)| {
                             crate::app::message::project::helpers::load_session_history_page_task(
-                                project_path,
+                                directory,
                                 session_id,
                                 generation,
                                 cursor,

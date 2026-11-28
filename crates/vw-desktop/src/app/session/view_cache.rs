@@ -3,11 +3,15 @@ use super::App;
 use super::loading::session_content_signature;
 use crate::app::models::ChatMessage;
 use crate::app::state::{ActiveSessionViewState, ChatPanelMode};
+use desktop_session::session::chat_timeline::PagedChatTimeline;
 use std::mem;
 pub(crate) use desktop_session::session::view_cache::{SessionOpenUiCommit, SessionViewCacheInsertResult};
 #[cfg(test)]
 pub(crate) type SessionViewCache = desktop_session::session::view_cache::SessionViewCache<SessionViewSnapshot>;
-pub(crate) struct SessionViewSnapshot(desktop_chat_view::view_snapshot::SessionViewSnapshot<ActiveSessionViewState, ChatPanelMode>);
+pub(crate) struct SessionViewSnapshot(
+    desktop_chat_view::view_snapshot::SessionViewSnapshot<ActiveSessionViewState, ChatPanelMode>,
+    Option<PagedChatTimeline>,
+);
 impl SessionViewSnapshot {
     /// 通过移动而非克隆，将当前聊天工作集从 `App` 中取出。
     pub(crate) fn take_from(app: &mut App) -> Self {
@@ -43,12 +47,13 @@ impl SessionViewSnapshot {
             chat_scroll_id: mem::replace(&mut app.chat_view.chat_scroll_id, iced::widget::Id::unique()),
             chat_scroll_offset_y: mem::replace(&mut app.chat_view.chat_scroll_offset_y, 1.0),
             chat_scroll_viewport_h: mem::take(&mut app.chat_view.chat_scroll_viewport_h),
-        })
+        }, app.session_state.paged_chat_timeline.take())
     }
 
     /// 通过移动恢复快照；会话打开流程将在后续任务中调用它。
     pub(crate) fn restore_into(self, app: &mut App) {
-        let Self(snapshot) = self;
+        let Self(snapshot, timeline) = self;
+        app.session_state.paged_chat_timeline = timeline;
         app.chat_view.chat = snapshot.chat;
         app.chat_view.chat_message_ids = snapshot.chat_message_ids;
         app.chat_view.usage = snapshot.usage;
@@ -81,7 +86,10 @@ impl SessionViewSnapshot {
 
     pub(crate) fn chat(&self) -> &[ChatMessage] { self.0.chat() }
     pub(crate) fn content_signature(&self) -> u64 { self.0.content_signature() }
-    pub(crate) fn estimated_bytes(&self) -> usize { self.0.estimated_bytes(self.0.active_session_view_state.estimated_bytes()) }
+    pub(crate) fn estimated_bytes(&self) -> usize {
+        self.0.estimated_bytes(self.0.active_session_view_state.estimated_bytes())
+            + self.1.as_ref().map_or(0, PagedChatTimeline::estimated_bytes)
+    }
 }
 impl desktop_session::session::view_cache::ViewSnapshot for SessionViewSnapshot {
     fn content_signature(&self) -> u64 { self.content_signature() }

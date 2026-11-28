@@ -130,19 +130,20 @@ pub(super) fn agent_project_options(app: &App) -> Vec<String> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     let active_tab = app.agents_settings.active_config_tab;
-    let tabs = settings_tab_row(AGENT_CONFIG_TABS.iter().filter(|descriptor| {
-        crate::app::message::settings::management_page(descriptor.tab).is_none()
-    }).map(|descriptor| {
-        shared::agent_tab_button(
-            tr(app.general_settings.desktop_locale, descriptor.label),
-            descriptor.tab == active_tab,
-            Message::Settings(SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
-                descriptor.tab,
-            ))),
-        )
-        .into()
-    }))
-    .wrap();
+    let tabs = AGENT_CONFIG_TABS
+        .iter()
+        .filter(|descriptor| crate::app::message::settings::management_page(descriptor.tab).is_none())
+        .map(|descriptor| {
+            shared::agent_tab_button(
+                tr(app.general_settings.desktop_locale, descriptor.label),
+                descriptor.tab == active_tab,
+                Message::Settings(SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
+                    descriptor.tab,
+                ))),
+            )
+            .into()
+        });
+    let tabs = settings_tab_row(tabs).wrap();
 
     tab_content(app, tabs.into(), active_tab)
 }

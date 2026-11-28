@@ -25,18 +25,18 @@ pub fn projects_list<'a>(app: &App, collapsed_hover_mode: bool) -> iced::Element
  use domain::ProjectListAction;
 
  let selected_action = match app.navigation_tabs.screen {
-         Screen::Projects => Some(ProjectListAction::Projects),
-         Screen::Cron => Some(ProjectListAction::Cron),
-         Screen::AgentManagement(_) => Some(ProjectListAction::AgentSettings),
-         #[cfg(not(target_arch = "wasm32"))]
-         Screen::ExpertHub => Some(ProjectListAction::ExpertHub),
-         #[cfg(not(target_arch = "wasm32"))]
-         Screen::ShijuSkills => Some(ProjectListAction::ShijuSkills),
-         #[cfg(not(target_arch = "wasm32"))]
-         Screen::ShijuApps => Some(ProjectListAction::ShijuApps),
-         #[cfg(not(target_arch = "wasm32"))]
-         Screen::DigitalEmployees => Some(ProjectListAction::DigitalEmployees),
-         _ => None,
+     Screen::Projects => Some(ProjectListAction::Projects),
+     Screen::Cron => Some(ProjectListAction::Cron),
+     Screen::AgentManagement(_) => Some(ProjectListAction::AgentSettings),
+     #[cfg(not(target_arch = "wasm32"))]
+     Screen::ExpertHub => Some(ProjectListAction::ExpertHub),
+     #[cfg(not(target_arch = "wasm32"))]
+     Screen::ShijuSkills => Some(ProjectListAction::ShijuSkills),
+     #[cfg(not(target_arch = "wasm32"))]
+     Screen::ShijuApps => Some(ProjectListAction::ShijuApps),
+     #[cfg(not(target_arch = "wasm32"))]
+     Screen::DigitalEmployees => Some(ProjectListAction::DigitalEmployees),
+     _ => None,
  };
  let input = domain::Input {
  selected_action,

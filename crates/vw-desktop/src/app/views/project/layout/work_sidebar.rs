@@ -107,24 +107,24 @@ fn input(app: &App) -> domain::ViewInput<'_> {
  use domain::NavigationPage;
 
  let navigation_page = match app.navigation_tabs.screen {
-         Screen::Home => Some(NavigationPage::Home),
-         Screen::Project if app.navigation_tabs.project_path.is_some()
-             && app.session_state.active_session_id.is_none() => Some(NavigationPage::Home),
-         Screen::Projects => Some(NavigationPage::Projects),
-         Screen::Cron => Some(NavigationPage::Cron),
-         Screen::AgentManagement(_) => Some(NavigationPage::Agents),
-         #[cfg(not(target_arch = "wasm32"))]
-         Screen::DigitalEmployees => Some(NavigationPage::DigitalEmployees),
-         #[cfg(not(target_arch = "wasm32"))]
-         Screen::ShijuApps => Some(NavigationPage::ShijuApps),
-         #[cfg(not(target_arch = "wasm32"))]
-         Screen::ShijuSkills => Some(NavigationPage::ShijuSkills),
-         #[cfg(not(target_arch = "wasm32"))]
-         Screen::ExpertHub => Some(match app.expert_hub.section {
-             crate::app::skill_hub::ExpertHubSection::Knowledge => NavigationPage::Knowledge,
-             _ => NavigationPage::ExpertHub,
-         }),
-         _ => None,
+     Screen::Home => Some(NavigationPage::Home),
+     Screen::Project if app.navigation_tabs.project_path.is_some()
+         && app.session_state.active_session_id.is_none() => Some(NavigationPage::Home),
+     Screen::Projects => Some(NavigationPage::Projects),
+     Screen::Cron => Some(NavigationPage::Cron),
+     Screen::AgentManagement(_) => Some(NavigationPage::Agents),
+     #[cfg(not(target_arch = "wasm32"))]
+     Screen::DigitalEmployees => Some(NavigationPage::DigitalEmployees),
+     #[cfg(not(target_arch = "wasm32"))]
+     Screen::ShijuApps => Some(NavigationPage::ShijuApps),
+     #[cfg(not(target_arch = "wasm32"))]
+     Screen::ShijuSkills => Some(NavigationPage::ShijuSkills),
+     #[cfg(not(target_arch = "wasm32"))]
+     Screen::ExpertHub => Some(match app.expert_hub.section {
+         crate::app::skill_hub::ExpertHubSection::Knowledge => NavigationPage::Knowledge,
+         _ => NavigationPage::ExpertHub,
+     }),
+     _ => None,
  };
  domain::ViewInput {
 navigation_page,

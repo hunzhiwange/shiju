@@ -197,9 +197,7 @@ fn section_menu(
             items = items.push(settings_divider()).push(action(
                 ComposerIcon::Agent,
                 "配置智能体",
-                Message::View(message::ViewMessage::OpenSystemSettingsTab(
-                    crate::app::components::system_settings::SystemTab::Agents,
-                )),
+                Message::View(message::ViewMessage::OpenAgentManagement(None)),
             ));
         }
         FileMenuSection::Skills => {

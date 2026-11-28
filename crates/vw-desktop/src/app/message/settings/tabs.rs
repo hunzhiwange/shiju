@@ -22,10 +22,6 @@ pub(crate) fn open_agent_management(
     app: &mut App,
     page: Option<AgentManagementPage>,
 ) -> Task<Message> {
-    if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
-        return Task::none();
-    }
-
     const TAB_ID: &str = "agent_management";
     let page = page.unwrap_or(AgentManagementPage::Agents);
     let screen = Screen::AgentManagement(page);
@@ -271,7 +267,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 
             let child_task = match target {
                 SystemSettingsSearchTarget::TopLevel(_)
-                | SystemSettingsSearchTarget::Network(_) => Task::none(),
+                | SystemSettingsSearchTarget::Network(_)
+                | SystemSettingsSearchTarget::Agents(AgentConfigTab::DialogueFlow) => Task::none(),
                 SystemSettingsSearchTarget::ThirdParty(page) => crate::app::components::third_party_settings::navigate(app, page),
                 SystemSettingsSearchTarget::General(tab) => super::general::update(
                     app,

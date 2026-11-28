@@ -270,12 +270,13 @@ async fn help_rollout_10_agent_policy_and_scope() {
     }
     use crate::app::components::system_settings_agents;
     use crate::app::message::settings::{AgentsMessage, SettingsMessage};
-    use crate::app::state::{AGENT_DETAIL_SKILLS_TAB, AgentConfigTab, DelegateAgentSettingsEntry};
+    use crate::app::state::{AGENT_DETAIL_SKILLS_TAB, DelegateAgentSettingsEntry};
+    use desktop_ui_controls::settings_navigation::AgentManagementPage;
 
     let mut app = fixture();
     let mut renderer = renderer().await;
     app.agents_settings.config_ready = true;
-    app.agents_settings.active_config_tab = AgentConfigTab::Agents;
+    app.navigation_tabs.screen = crate::app::Screen::AgentManagement(AgentManagementPage::Agents);
     app.agents_settings.selected_agent = "fixture-agent".into();
     app.agents_settings.profile_modal =
         Some(DelegateAgentSettingsEntry::from_config("fixture-agent", None));
@@ -289,7 +290,8 @@ async fn help_rollout_10_agent_policy_and_scope() {
         app.general_settings.desktop_locale = locale;
         app.appearance.app_theme = theme.clone();
         let size = Size::new(width, 800);
-        let mut ui = scene(system_settings_agents::view(&app), &mut renderer, size);
+        let page = system_settings_agents::management_view(&app, AgentManagementPage::Agents);
+        let mut ui = scene(system_settings_agents::management_overlays(&app, page), &mut renderer, size);
         for (title, description) in [
             (
                 "默认技能",

@@ -6,7 +6,8 @@ mod apps;
 mod desktop_update_helper;
 mod fonts;
 use app::message::settings::{AgentsMessage, SettingsMessage};
-use app::{App, Message};
+use app::{App, Message, Screen};
+use desktop_ui_controls::settings_navigation::AgentManagementPage;
 use iced::{Element, Task, Theme};
 
 fn main() {
@@ -14,6 +15,7 @@ fn main() {
     iced::application(
         || {
             let (mut app, _) = App::new();
+            app.navigation_tabs.screen = Screen::AgentManagement(AgentManagementPage::Agents);
             app.agents_settings.config_ready = true;
             app.agents_settings.loading = false;
             app.agents_settings.entries = desktop_settings_agents::acceptance::entries();
@@ -29,15 +31,7 @@ fn main() {
             );
             (app, Task::none())
         },
-        |app: &mut App, message: Message| {
-            app::message::settings::update(
-                app,
-                match message {
-                    Message::Settings(value) => value,
-                    _ => return Task::none(),
-                },
-            )
-        },
+        |app: &mut App, message: Message| app.update(message),
         view,
     )
     .title("Agent Profile Acceptance — isolated gateway port 9")
@@ -61,8 +55,13 @@ fn main() {
 }
 
 fn view(app: &App) -> Element<'_, Message> {
+    let Screen::AgentManagement(page) = app.navigation_tabs.screen else {
+        return app.view();
+    };
+    use app::components::system_settings_agents;
+    let content = system_settings_agents::management_view(app, page);
     iced::widget::stack![
-        app::components::system_settings_agents::view(app),
+        system_settings_agents::management_overlays(app, content),
         app::components::toast::view(app)
     ]
     .into()

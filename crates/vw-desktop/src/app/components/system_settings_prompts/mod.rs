@@ -17,13 +17,12 @@ pub(crate) mod shared_import;
 pub(crate) fn ui_message(event: desktop_settings_skills::prompts::Event) -> crate::app::Message {
     use crate::app::{
         Message,
-        components::system_settings::SystemTab,
-        message::{SettingsMessage, ViewMessage, settings::prompts},
+        message::{ViewMessage, settings::prompts},
     };
     use desktop_settings_skills::prompts::ui_route::{UiRoute, ui_route};
     match ui_route(event) {
         UiRoute::Update(event) => prompts::message(event),
-        UiRoute::Agents => Message::Settings(SettingsMessage::SystemTabSelected(SystemTab::Agents)),
+        UiRoute::Agents => Message::View(ViewMessage::OpenAgentManagement(None)),
         UiRoute::Projects => Message::View(ViewMessage::OpenProjects),
     }
 }

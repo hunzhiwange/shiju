@@ -38,9 +38,7 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
                 Home::Recent(recent::Message::OpenThirdPartyAgents) =>
                     Message::View(message::ViewMessage::OpenThirdPartyAgents),
                 Home::Recent(recent::Message::OpenAgentSettings) =>
-                    Message::View(message::ViewMessage::OpenSystemSettingsTab(
-                        crate::app::components::system_settings::SystemTab::Agents,
-                    )),
+                    Message::View(message::ViewMessage::OpenAgentManagement(None)),
                 #[cfg(not(target_arch = "wasm32"))]
                 Home::Recent(recent::Message::OpenTaskPool) =>
                     Message::TaskBoard(message::TaskBoardMessage::OpenFromHome),

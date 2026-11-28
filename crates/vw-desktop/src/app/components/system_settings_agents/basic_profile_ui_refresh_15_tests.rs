@@ -1,11 +1,12 @@
 //! Host contracts: settings tab routing, ACP directory projection, profile overlay and host message dispatch.
-use super::AGENT_CONFIG_TABS;
+use super::AgentManagementPage;
 use crate::app::i18n::settings_extensions::text as tr;
-use crate::app::message::settings::{
-    AgentConfigTabMessage, AgentsMessage as A, SettingsMessage as S,
+use crate::app::message::{
+    ViewMessage,
+    settings::{AgentsMessage as A, SettingsMessage as S},
 };
-use crate::app::state::{AgentConfigTab, DelegateAgentSettingsEntry};
-use crate::app::{App, Message};
+use crate::app::state::DelegateAgentSettingsEntry;
+use crate::app::{App, Message, Screen};
 use config_agent_profile::AgentRuntime;
 use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use iced::advanced::{
@@ -83,7 +84,6 @@ fn fixture() -> (App, tempfile::TempDir, DelegateAgentSettingsEntry) {
     let mut app = App::new().0;
     app.navigation_tabs.project_path = Some(root.path().to_string_lossy().into_owned());
     app.agents_settings.config_ready = true;
-    app.agents_settings.active_config_tab = AgentConfigTab::Agents;
     app.agents_settings.loading = false;
     app.agents_settings.selected_agent = KEY.into();
     app.session_state.acp_agents = (0..30).map(|index| format!("fixture-engine-{index:02}")).collect();
@@ -253,39 +253,42 @@ async fn ui_refresh_15_host_tabs_and_errors() {
         for (locale, _locale_name) in LOCALES {
             app.general_settings.desktop_locale = locale;
             for width in [640, 960] {
-                let mut page = Scene::new(super::view(&app), &mut renderer, width, 840);
+                let mut page = Scene::new(
+                    super::management_view(&app, AgentManagementPage::Agents),
+                    &mut renderer, width, 840,
+                );
                 let geometry = page.geometry(&renderer);
-                for tab in AGENT_CONFIG_TABS {
-                    let label = geometry.label(tr(locale, tab.label));
+                for tab in AgentManagementPage::ALL {
+                    let label = geometry.label(tr(locale, tab.label()));
                     assert!(label.x >= 0.0 && label.x + label.width <= width as f32);
                     assert!(matches!(
                         page.click(&mut renderer, label.center()).as_slice(),
-                        [Message::Settings(S::AgentConfigTab(AgentConfigTabMessage::Selected(actual)))]
-                        if *actual == tab.tab
+                        [Message::View(ViewMessage::OpenAgentManagement(Some(actual)))]
+                        if *actual == tab
                     ));
                 }
             }
         }
     }
 
-    for tab in AGENT_CONFIG_TABS {
-        let _ = crate::app::message::settings::update(
-            &mut app,
-            S::AgentConfigTab(AgentConfigTabMessage::Selected(tab.tab)),
-        );
-        assert_eq!(app.agents_settings.active_config_tab, tab.tab);
-        let mut page = Scene::new(super::view(&app), &mut renderer, 640, 840);
+    for tab in AgentManagementPage::ALL {
+        let _ = app.update(Message::View(ViewMessage::OpenAgentManagement(Some(tab))));
+        assert_eq!(app.navigation_tabs.screen, Screen::AgentManagement(tab));
+        let mut page = Scene::new(super::management_view(&app, tab), &mut renderer, 640, 840);
         page.screenshot(
             &mut renderer,
             &Theme::Light,
             mouse::Cursor::Unavailable,
-            &format!("tab-{:?}", tab.tab),
+            &format!("tab-{tab:?}"),
         );
     }
 
     app.agents_settings.config_ready = false;
     app.agents_settings.save_error = Some("fixture load failed".into());
-    let mut unavailable = Scene::new(super::view(&app), &mut renderer, 640, 840);
+    let mut unavailable = Scene::new(
+        super::management_view(&app, AgentManagementPage::Agents),
+        &mut renderer, 640, 840,
+    );
     let geometry = unavailable.geometry(&renderer);
     geometry.label("fixture load failed");
     assert!(geometry.inputs.is_empty());
@@ -302,14 +305,12 @@ async fn agent_profile_modal_preserves_catalog_scroll() {
     if !isolated("agent_profile_modal_preserves_catalog_scroll") {
         return;
     }
-    use crate::app::components::system_settings::{self, SystemTab};
     use crate::app::message::settings::update;
 
     let mut renderer = renderer().await;
     let (mut app, _root, draft) = fixture();
     app.general_settings.desktop_locale = DesktopLocale::SimplifiedChinese;
-    app.navigation_panels.show_system_settings = true;
-    app.navigation_panels.system_settings_tab = SystemTab::Agents;
+    app.navigation_tabs.screen = Screen::AgentManagement(AgentManagementPage::Agents);
     app.agents_settings.entries = (0..16)
         .map(|index| DelegateAgentSettingsEntry {
             key: format!("fixture-{index}"),
@@ -324,7 +325,7 @@ async fn agent_profile_modal_preserves_catalog_scroll() {
     };
     let before = {
         let mut scene = Scene {
-            ui: UserInterface::build(system_settings::view(&app), size, cache, &mut renderer),
+            ui: UserInterface::build(app.view(), size, cache, &mut renderer),
             size: Size::new(1200, 740),
         };
         let (bounds, _, _) = catalog_scroll(&scene.geometry(&renderer));
@@ -348,7 +349,7 @@ async fn agent_profile_modal_preserves_catalog_scroll() {
     let _ = update(&mut app, S::Agents(A::AddAgentKeyChanged("new-profile".into())));
     {
         let mut scene = Scene {
-            ui: UserInterface::build(system_settings::view(&app), size, cache, &mut renderer),
+            ui: UserInterface::build(app.view(), size, cache, &mut renderer),
             size: Size::new(1200, 740),
         };
         let geometry = scene.geometry(&renderer);
@@ -367,7 +368,7 @@ async fn agent_profile_modal_preserves_catalog_scroll() {
     assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().key, "new-profile");
     for theme in [Theme::Light, Theme::Dark] {
         let mut scene = Scene {
-            ui: UserInterface::build(system_settings::view(&app), size, cache, &mut renderer),
+            ui: UserInterface::build(app.view(), size, cache, &mut renderer),
             size: Size::new(1200, 740),
         };
         let geometry = scene.geometry(&renderer);
@@ -380,7 +381,7 @@ async fn agent_profile_modal_preserves_catalog_scroll() {
     }
     let _ = update(&mut app, S::Agents(A::ProfileCancel));
     let mut scene = Scene {
-        ui: UserInterface::build(system_settings::view(&app), size, cache, &mut renderer),
+        ui: UserInterface::build(app.view(), size, cache, &mut renderer),
         size: Size::new(1200, 740),
     };
     assert_eq!(catalog_scroll(&scene.geometry(&renderer)), before);

@@ -169,13 +169,37 @@ async fn usage_usage_script_rejects_invalid_input() {
 }
 
 #[tokio::test]
-async fn usage_usage_script_runs_custom_draft_without_provider_credentials() {
+async fn usage_usage_script_runs_custom_draft_for_native_codex_provider_without_credentials() {
+    use app_provider_services::AppProviderStore;
+    use vw_api_app_provider_profiles::codex_catalog::CodexProfile;
+    use vw_api_transport::id::TenantScope;
+
     let mut fixture = Fixture::new().await;
     let router = router(&mut fixture);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let origin = format!("http://{}", listener.local_addr().unwrap());
     fixture.policy["principals"][0]["grants"][0]["usage_script_test"][0]["origin"] = json!(origin);
     fixture.write_policy();
+    let store = AppProviderStore::new(fixture.database.clone()).unwrap();
+    let tenant = TenantScope::new("test-platform", "test-company").unwrap();
+    let previous = store.codex_record(&tenant, "ok").unwrap();
+    let profile = CodexProfile {
+        name: "ok".into(),
+        config: format!(
+            "model_provider = 'vendor'\nmodel = 'fixture-model'\n\
+             [model_providers.vendor]\nbase_url = '{origin}'\nwire_api = 'responses'\n"
+        ),
+        api_key: Some("fixture-only-key".into()),
+        preserve_login: false,
+    };
+    let record = store.codex_save(&tenant, "ok", &profile, previous.as_ref(), None).unwrap();
+    assert!(record.get("baseUrl").is_none());
+    let (status, templates) =
+        owner(&router, "GET", &format!("templates?{SELECTOR}"), Value::Null).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(templates.as_array().unwrap().iter().any(|row| {
+        row["template"] == "custom" && row["source"].is_string()
+    }));
     let upstream = tokio::spawn(async move {
         let app = Router::new().route(
             "/draft",
@@ -195,9 +219,7 @@ async fn usage_usage_script_runs_custom_draft_without_provider_credentials() {
         json!({
             "selection": selection(),
             "template": "custom",
-            "source": format!(
-                "({{request: {{url: '{origin}/draft', method: 'POST', headers: {{'X-Fixture': 'draft'}}, body: 'check'}}, extractor: r => ({{remaining: r.balance}})}})"
-            ),
+            "source": "({request: {url: '{{baseUrl}}/draft', method: 'POST', headers: {'X-Fixture': 'draft'}, body: 'check'}, extractor: r => ({remaining: r.balance})})",
         }),
     )
     .await;

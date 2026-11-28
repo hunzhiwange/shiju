@@ -1,6 +1,6 @@
 use iced::{
     Alignment, Element, Length,
-    widget::{Space, button, column, container, row, text},
+    widget::{Space, button, column, row, text},
 };
 use vw_api_apps_usage::apps_usage::UsageSnapshotQuery;
 
@@ -53,10 +53,9 @@ pub fn modal_view_with_base<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n, ed
     .spacing(10)
     .align_y(Alignment::Center);
     let card = settings_modal_layout(header, body, Some(footer.into()))
-        .width(Length::Fill)
-        .max_width(680)
+        .width(680)
         .height(570);
-    settings_modal_overlay_with_escape(base, map(close), container(iced::Element::from(card).map(map)).padding(12))
+    settings_modal_overlay_with_escape(base, map(close), Element::from(card).map(map))
 }
 
 fn fields<'a>(i18n: desktop_i18n::I18n,
@@ -91,7 +90,7 @@ fn fields<'a>(i18n: desktop_i18n::I18n,
                 source = source.on_action(|action| send(Event::Edit(action)));
             }
             body = body.push(
-                text(i18n.__("可使用 {{baseUrl}} 引用供应商地址。请勿在脚本中填写密钥。"))
+                text(i18n.__("请填写额度查询接口地址。可用 {{baseUrl}} 引用供应商地址。请勿在脚本中填写密钥。"))
                     .size(13)
                     .style(settings_muted_text_style),
             );

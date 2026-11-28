@@ -16,7 +16,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use vw_agent_apps::{
     apps::lifecycle::operations::Operation,
-    providers::{update::profile, validate_identity, validate_profile},
+    providers::{update::profile, validate_identity, validation::endpoint},
     usage::{
         detect::{
             CodingPlanProvider, NativeUsageCapability, ZhipuPlanSelection, detect_native_usage,
@@ -46,7 +46,9 @@ use super::{
     usage_refresh::UsageRefresh,
 };
 use agent_app_services::{auth_accounts::AuthAccountScope, usage_settings::{UsageCredentialId, UsageCredentialRefs, UsageSettings, UsageSettingsError, UsageSettingsScope}};
-use app_provider_services::{AppProviderStore, account_access::require_provider_account};
+use app_provider_services::{
+    AppProviderStore, account_access::require_provider_account, generation_target::SavedProfile,
+};
 
 const AUTHORIZATION_INTERVAL: Duration = Duration::from_secs(1);
 const MAX_SOURCE_BYTES: usize = 64 * 1024;
@@ -176,6 +178,22 @@ impl Selection {
         )?)
     }
 
+    fn trial_profile(
+        &self,
+        authorization: &Authorization,
+        record: &serde_json::Value,
+    ) -> Option<SavedProfile> {
+        let profile = SavedProfile::read_for_host(
+            self.query.app_id,
+            &authorization.host.id,
+            &self.query.provider_id.as_str().into(),
+            record,
+        )
+        .ok()?;
+        endpoint(&profile.endpoint).ok()?;
+        Some(profile)
+    }
+
     async fn trial_inputs(&self, key: Option<UsageCredentialId>) -> Result<TrialInputs, ReadError> {
         let selection = self.clone();
         tokio::task::spawn_blocking(move || {
@@ -185,18 +203,16 @@ impl Selection {
                 return Err(AuthErrorCode::Unsupported.into());
             }
             let record = selection.provider_record()?;
-            let profile = profile(&record).map_err(|_| AuthErrorCode::Unsupported)?;
-            validate_profile(selection.query.app_id, &profile)
-                .map_err(|_| AuthErrorCode::InvalidInput)?;
+            let profile = selection
+                .trial_profile(&authorization, &record)
+                .ok_or(AuthErrorCode::Unsupported)?;
+            let mut origin = Url::parse(&profile.endpoint).map_err(|_| AuthErrorCode::InvalidInput)?;
+            origin.set_path("/");
             Ok(TrialInputs {
                 principal: authorization.principal,
-                origins: vec![{
-                    let mut origin = Url::parse(&profile.base_url).map_err(|_| AuthErrorCode::InvalidInput)?;
-                    origin.set_path("/"); origin.set_query(None); origin.set_fragment(None);
-                    origin
-                }],
-                base_url: profile.base_url,
-                api_key: key.map(|_| profile.api_key),
+                origins: vec![origin],
+                base_url: profile.endpoint,
+                api_key: key.map(|_| profile.credential),
             })
         })
         .await
@@ -216,10 +232,14 @@ async fn templates(
 ) -> Result<impl IntoResponse, ReadError> {
     let Query(query) = query.map_err(|_| AuthErrorCode::InvalidInput)?;
     let selection = context.select(query)?;
-    tokio::task::spawn_blocking(move || {
+    let can_trial = tokio::task::spawn_blocking(move || {
         let authorization = selection.authorize(UsageScriptAction::Templates)?;
-        selection.require_resource(&authorization)?;
-        Ok::<_, ReadError>(())
+        if selection.query.account_id.is_some() {
+            selection.require_resource(&authorization)?;
+            return Ok::<_, ReadError>(false);
+        }
+        let record = selection.provider_record()?;
+        Ok(selection.trial_profile(&authorization, &record).is_some())
     })
     .await
     .map_err(|_| AuthErrorCode::StorageUnavailable)??;
@@ -235,7 +255,10 @@ async fn templates(
         OfficialSubscription,
     ];
     Ok(no_store(
-        templates.map(|template| TemplateMetadata { template, source: template.preset_source() }),
+        templates.map(|template| TemplateMetadata {
+            template,
+            source: if can_trial { template.preset_source() } else { None },
+        }),
     ))
 }
 

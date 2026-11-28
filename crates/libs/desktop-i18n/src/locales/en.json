@@ -9685,7 +9685,7 @@
   "取消保存": "Cancel save",
   "取消试运行": "Cancel trial run",
   "取消选择会保留当前输入；选择后点击保存，由网关验证目录。": "Canceling keeps the current input. After selecting, save to have the gateway validate the directory.",
-  "可使用 {{baseUrl}} 引用供应商地址。请勿在脚本中填写密钥。": "Use {{baseUrl}} to reference the provider URL. Do not include keys in scripts.",
+  "请填写额度查询接口地址。可用 {{baseUrl}} 引用供应商地址。请勿在脚本中填写密钥。": "Enter the usage query endpoint. Use {{baseUrl}} to reference the provider URL. Keep API keys out of scripts.",
   "可手动填写模型标识。": "You can enter a model ID manually.",
   "可用重置 · %s 次": "Available resets · %s",
   "可留空": "Optional",

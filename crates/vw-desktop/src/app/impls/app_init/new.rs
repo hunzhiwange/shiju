@@ -120,6 +120,7 @@ impl App {
             usage_panel: Default::default(),
             update_panel: Default::default(),
             navigation_tabs: desktop_navigation::app_init::tabs(),
+            page_history: Default::default(),
             companion_navigation: Default::default(),
             web_navigation: desktop_apps_ui::web::State { web_bookmarks: cfg_web_bookmarks, ..Default::default() },
             external_navigation: desktop_navigation::panel::external::State {

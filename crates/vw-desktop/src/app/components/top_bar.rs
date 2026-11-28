@@ -40,7 +40,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let gateway_services = gateway::gateway_services_module(app);
     let project_view_tools = controls::project_view_tools(app);
     let traffic_light_spacer = drag::traffic_light_spacer();
-    let drag_spacer = drag::drag_spacer();
     let workspace_mode = workspace_mode::selector(app);
 
     desktop_navigation::components::top_bar::toolbar(
@@ -51,7 +50,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             edit_menu,
             view_menu,
             help_menu,
-            drag_spacer,
+            left_drag_spacer: drag::drag_spacer(),
+            page_history: crate::app::page_history::controls(app),
+            right_drag_spacer: drag::drag_spacer(),
             open_external_module,
             gateway_services,
             project_view_tools,

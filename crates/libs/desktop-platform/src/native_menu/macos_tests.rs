@@ -32,6 +32,12 @@ fn parse_shortcut_maps_command_and_shift_combinations() {
     let reload = parse_shortcut("⌘R").expect("reload");
     assert_eq!(reload.key(), Code::KeyR);
     assert!(reload.modifiers().contains(Modifiers::SUPER));
+
+    for (shortcut, code) in [("⌘[", Code::BracketLeft), ("⌘]", Code::BracketRight)] {
+        let accelerator = parse_shortcut(shortcut).expect("history shortcut");
+        assert_eq!(accelerator.key(), code);
+        assert_eq!(accelerator.modifiers(), Modifiers::SUPER);
+    }
 }
 
 #[test]

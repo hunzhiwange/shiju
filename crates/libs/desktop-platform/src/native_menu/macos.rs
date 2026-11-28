@@ -231,6 +231,8 @@ pub fn parse_shortcut(shortcut: &str) -> Option<Accelerator> {
         "V" | "v" => Code::KeyV,
         "X" | "x" => Code::KeyX,
         "Z" | "z" => Code::KeyZ,
+        "[" => Code::BracketLeft,
+        "]" => Code::BracketRight,
         _ => return None,
     };
 

@@ -59,7 +59,9 @@ pub(crate) fn intercept(app: &mut App, message: &Message) -> bool {
                     | ViewMessage::OpenSystemSettingsTarget(_)
                     | ViewMessage::OpenSystemSettingsModelDetail(_, _)
             )
-    );
+    ) || (matches!(message, Message::View(ViewMessage::NavigateHistory(..)))
+        && (app.navigation_panels.show_system_settings
+            || app.navigation_tabs.screen == crate::app::Screen::ThirdPartyAgents));
     let busy=busy(app);
    let draft=app.app_providers.form.is_some()||app.app_providers.editor.is_some();
    desktop_provider_apps::message::leave::intercept(&mut app.app_providers.leave,message,edits,leaving,busy,draft)

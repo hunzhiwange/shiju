@@ -116,7 +116,20 @@ pub fn platform_snapshot(
             })
             .collect()
     }
-    let sections = menu_sections(&snapshot).map(|(title, items)| (title, entries(items)));
+    let mut sections = menu_sections(&snapshot).map(|(title, items)| (title, entries(items)));
+    sections[2].1.extend([
+        platform::MenuEntry::Separator,
+        platform::MenuEntry::Item {
+            action: Some(NativeMenuAction::ViewHistoryBack),
+            label: "返回",
+            shortcut: Some("⌘["),
+        },
+        platform::MenuEntry::Item {
+            action: Some(NativeMenuAction::ViewHistoryForward),
+            label: "前进",
+            shortcut: Some("⌘]"),
+        },
+    ]);
     let (title, items) = help_section();
     platform::NativeMenuSnapshot {
         locale: snapshot.locale,

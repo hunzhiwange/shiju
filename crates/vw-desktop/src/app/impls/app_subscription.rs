@@ -159,6 +159,13 @@ fn map_global_event(
     status: iced::event::Status,
     id: iced::window::Id,
 ) -> Option<Message> {
+    #[cfg(not(target_os = "macos"))]
+    if let Some(direction) = crate::app::page_history::shortcut(&event, status) {
+        return Some(Message::View(message::ViewMessage::NavigateHistory(
+            direction,
+            Some(id),
+        )));
+    }
     let event = desktop_navigation::global_events::map_global_event(event, status, id)?;
     Some(adapt_global_event(event))
 }

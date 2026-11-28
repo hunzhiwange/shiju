@@ -26,6 +26,8 @@ use crate::app::{
 };
 use iced::{Task, Theme};
 
+pub use crate::app::page_history::HistoryDirection;
+
 mod companion;
 pub mod layout;
 pub mod panel;
@@ -84,6 +86,7 @@ pub use desktop_navigation::components::top_bar::menus::MenuType;
 /// 消息通过 [`update`] 函数处理，并根据类型分发给对应的子模块。
 #[derive(Debug, Clone)]
 pub enum ViewMessage {
+    NavigateHistory(HistoryDirection, Option<iced::window::Id>),
     LayoutSelected(crate::app::state::LayoutPreference),
     MobileDrawerToggled,
     MobileBack,
@@ -845,6 +848,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         #[cfg(not(target_arch = "wasm32"))]
         msg @ ViewMessage::AppUpdateDownloadPrepared(_, _) => panel::update(app, msg),
         ViewMessage::GlobalKeyPressed(key, modifiers) => handle_global_key(app, key, modifiers),
+        ViewMessage::NavigateHistory(direction, _) => crate::app::page_history::navigate(app, direction),
         ViewMessage::TraverseFormFocus(window, reverse) => {
             #[cfg(not(target_arch = "wasm32"))]
             if app.navigation_tabs.screen == crate::app::Screen::GitWorkbench

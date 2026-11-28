@@ -197,6 +197,13 @@ impl App {
         if matches!(message, Message::View(message::ViewMessage::TaskPetMotionTick)) {
             return self.refresh_task_pet_window();
         }
+        crate::app::page_history::initialize(self);
+        let task = self.dispatch(message);
+        crate::app::page_history::record(self);
+        task
+    }
+
+    fn dispatch(&mut self, message: Message) -> Task<Message> {
         #[cfg(not(target_arch = "wasm32"))]
         let message = match message {
             Message::CliWorkbench(event) => {
@@ -206,6 +213,11 @@ impl App {
             }
             message => message,
         };
+        if let Message::View(message::ViewMessage::NavigateHistory(direction, window)) = &message
+            && !crate::app::page_history::can_navigate(self, *direction, *window)
+        {
+            return Task::none();
+        }
         if crate::app::message::app_providers::leave::intercept(self, &message) {
             return Task::none();
         }

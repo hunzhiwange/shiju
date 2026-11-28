@@ -25,6 +25,21 @@ pub(crate) fn snapshot(app: &App) -> NativeMenuSnapshot {
 }
 
 pub(crate) fn resolve_native_menu_action(app: &App, action: NativeMenuAction) -> Option<Message> {
+    use crate::app::message::view::{HistoryDirection, ViewMessage};
+
+    let direction = match action {
+        NativeMenuAction::ViewHistoryBack => Some(HistoryDirection::Back),
+        NativeMenuAction::ViewHistoryForward => Some(HistoryDirection::Forward),
+        _ => None,
+    };
+    if let Some(direction) = direction {
+        // AppKit handles accelerators before a focused text editor processes them.
+        if !app.work_browser.window_focused || app.voice.settings.recording_hotkey.is_some() {
+            return None;
+        }
+        let id = app.main_window_id?;
+        return Some(Message::View(ViewMessage::NavigateHistory(direction, Some(id))));
+    }
     desktop_navigation::native_menu::resolve_native_menu_action(&snapshot(app), action)
         .map(crate::app::components::top_bar::menus::map)
 }

@@ -677,13 +677,14 @@ fn update_navigation(
                 crate::app::message::editor::metrics::commit(app, None)
             }
         }
-        Some(domain::Effect::OpenAcpSettings) => {
-            Task::done(Message::Settings(SettingsMessage::AgentConfigTab(
+        Some(domain::Effect::OpenAcpSettings) => crate::app::message::settings::update(
+            app,
+            SettingsMessage::AgentConfigTab(
                 crate::app::message::settings::AgentConfigTabMessage::Selected(
                     crate::app::state::AgentConfigTab::Acp,
                 ),
-            )))
-        }
+            ),
+        ),
         Some(domain::Effect::SelectSystemTab(tab)) => {
             if let Some(target) = target {
                 crate::app::message::settings::update(
@@ -691,7 +692,16 @@ fn update_navigation(
                     SettingsMessage::SystemSearchTargetSelected(target),
                 )
             } else {
-                Task::done(Message::Settings(SettingsMessage::SystemTabSelected(tab)))
+                // Apply the selected page in the same update that opens the settings shell.
+                let selected = SettingsMessage::SystemTabSelected(tab);
+                if crate::app::message::app_providers::leave::intercept(
+                    app,
+                    &Message::Settings(selected.clone()),
+                ) {
+                    Task::none()
+                } else {
+                    crate::app::message::settings::update(app, selected)
+                }
             }
         }
         Some(domain::Effect::OpenModelDetail(provider, model)) => {

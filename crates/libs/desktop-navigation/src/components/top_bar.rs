@@ -10,7 +10,7 @@ pub mod types;
 
 pub mod widgets;
 
-use iced::widget::{Row, container};
+use iced::widget::{Row, container, row};
 use iced::{Element, Length, Theme};
 use widgets::color_with_alpha;
 
@@ -27,7 +27,9 @@ pub struct Sections<'a, M> {
     pub edit_menu: Element<'a, M>,
     pub view_menu: Element<'a, M>,
     pub help_menu: Element<'a, M>,
-    pub drag_spacer: Element<'a, M>,
+    pub left_drag_spacer: Element<'a, M>,
+    pub page_history: Element<'a, M>,
+    pub right_drag_spacer: Element<'a, M>,
     pub open_external_module: Element<'a, M>,
     pub gateway_services: Element<'a, M>,
     pub project_view_tools: Element<'a, M>,
@@ -35,19 +37,29 @@ pub struct Sections<'a, M> {
 }
 
 pub fn toolbar<'a, M: 'a>(sections: Sections<'a, M>) -> Element<'a, M> {
-    view(vec![
+    let left = row![
         sections.traffic_light_spacer,
         sections.workspace_mode,
         sections.file_menu,
         sections.edit_menu,
         sections.view_menu,
         sections.help_menu,
-        sections.drag_spacer,
+        sections.left_drag_spacer,
+    ]
+    .width(Length::Fill)
+    .spacing(2)
+    .align_y(iced::Alignment::Center);
+    let right = row![
+        sections.right_drag_spacer,
         sections.open_external_module,
         sections.gateway_services,
         sections.project_view_tools,
         sections.settings,
-    ])
+    ]
+    .width(Length::Fill)
+    .spacing(2)
+    .align_y(iced::Alignment::Center);
+    view(vec![left.into(), sections.page_history, right.into()])
 }
 
 pub fn view<'a, M: 'a>(items: Vec<Element<'a, M>>) -> Element<'a, M> {

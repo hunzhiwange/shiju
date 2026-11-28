@@ -47,6 +47,7 @@ pub struct App {
     pub(crate) usage_panel: desktop_usage::panel::State,
     pub(crate) update_panel: desktop_update::panel::PanelState,
     pub(crate) navigation_tabs: desktop_navigation::panel::tabs::State,
+    pub(crate) page_history: crate::app::page_history::State,
     pub(crate) companion_navigation: desktop_navigation::panel::companion::State,
     pub(crate) web_navigation: desktop_apps_ui::web::State,
     pub(crate) external_navigation: desktop_navigation::panel::external::State,

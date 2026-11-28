@@ -8,26 +8,17 @@ use super::quick_message::Message;
 use super::quick_messages::{dropdown_icon, shortcut_trigger};
 use super::quick_styles;
 
+// Keep these entries aligned with the QwenPaw Matrix direct-chat command allowlist.
 const MODEL_COMMANDS: &[(&str, &str, bool)] = &[
     ("/model", "查看当前模型", false),
     ("/model list", "查看可用模型", false),
-    ("/model shiju-direct:", "补充模型名以切换模型", true),
-    ("/model reset", "恢复全局默认模型", false),
     ("/model info shiju-direct:", "补充模型名以查看详情", true),
     ("/model help", "查看模型命令帮助", false),
 ];
 
 const CONVERSATION_COMMANDS: &[(&str, &str, bool)] = &[
     ("/new", "开启新对话并保存长期记忆", false),
-    ("/compact", "压缩当前对话", false),
     ("/clear", "清空对话上下文", false),
-    ("/stop", "停止当前任务", false),
-    ("/history", "查看对话消息和上下文用量", false),
-    ("/message ", "补充序号以查看消息详情", true),
-    ("/compact_str", "查看当前压缩摘要", false),
-    ("/summarize_status", "查看后台摘要状态", false),
-    ("/dump_history", "导出对话历史", false),
-    ("/load_history", "从文件载入历史并替换当前对话", false),
 ];
 
 pub(super) fn menu(i18n: I18n, open: bool) -> Element<'static, Message> {

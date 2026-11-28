@@ -193,11 +193,11 @@ fn employee_command_with_argument_replaces_draft_and_waits_for_input() {
     app.session_state.input_popovers.set_employee_commands(true);
 
     let _ = super::update(&mut app, ChatMessage::EmployeeCommandSelected {
-        input: "/model shiju-direct:",
+        input: "/model info shiju-direct:",
         needs_argument: true,
     });
 
-    assert_eq!(app.current_session_runtime().input_editor.text(), "/model shiju-direct:");
+    assert_eq!(app.current_session_runtime().input_editor.text(), "/model info shiju-direct:");
     assert!(app.session_state.files.is_empty());
     assert!(!app.session_state.input_popovers.employee_commands);
     assert!(app.chat_view.chat.is_empty());

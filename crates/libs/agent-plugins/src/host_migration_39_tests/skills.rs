@@ -75,7 +75,9 @@ fn write_skill(skills_dir: &Path, name: &str, description: &str) -> PathBuf {
 }
 
 fn skill_names(skills: &[agent_skills::Skill]) -> Vec<&str> {
-    skills.iter().map(|skill| skill.name.as_str()).collect()
+    skills.iter().filter(|skill| {
+        !skill.location.as_deref().is_some_and(agent_skills::bundled::is_bundled_skill_file)
+    }).map(|skill| skill.name.as_str()).collect()
 }
 
 #[test]
@@ -135,7 +137,7 @@ fn plugin_skills_workspace_skill_overrides_plugin_skill() {
 
     let workspace_dir = dir.path().join("workspace");
     let config_dir = dir.path().join("config");
-    let local_skills = workspace_dir.join(".shiju/skills");
+    let local_skills = workspace_dir.join(".shiju-harness/skills");
     write_skill(&local_skills, "shared-skill", "Workspace skill wins");
 
     let plugin_root = workspace_dir.join(".vibewindow/plugins/plugin-pack");

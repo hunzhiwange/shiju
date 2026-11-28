@@ -44,28 +44,13 @@ pub fn prepare_skills_dir(dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Prepare assets, preload builtins, then initialize policy; fail at the first error.
-pub fn initialize_skills_dir(
-    dir: &Path,
-    preload: impl FnOnce(&Path) -> Result<()>,
-    initialize_policy: impl FnOnce(&Path) -> Result<()>,
-) -> Result<()> {
-    prepare_skills_dir(dir)?;
-    preload(dir)?;
-    initialize_policy(dir)?;
-    Ok(())
-}
-
-use crate::installer::ensure_builtin_preloaded_skills;
-use crate::policy::load_or_init_skill_download_policy;
 use crate::catalog::skills_dir;
+use crate::policy::load_or_init_skill_download_policy;
 
-/// Initialize the workspace skill assets, bundled skills and download policy.
+/// Initialize the local skill directory and its download policy.
 pub fn init_skills_dir(workspace_dir: &Path) -> Result<()> {
     let dir = skills_dir(workspace_dir);
-    initialize_skills_dir(
-        &dir,
-        ensure_builtin_preloaded_skills,
-        |path| load_or_init_skill_download_policy(path).map(|_| ()),
-    )
+    prepare_skills_dir(&dir)?;
+    load_or_init_skill_download_policy(&dir)?;
+    Ok(())
 }

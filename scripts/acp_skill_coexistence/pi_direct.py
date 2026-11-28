@@ -54,7 +54,7 @@ def main():
         engine = entry.parents[2] / "@mariozechner/pi-coding-agent/dist/cli.js"
         workspace = root / "workspace"
         skills = {kind: make_skill(workspace / path, kind) for kind, path in
-                  (("native", ".pi/skills"), ("unselected", ".shiju/skills"),
+                  (("native", ".pi/skills"), ("unselected", ".shiju-harness/skills"),
                    ("disabled", ".pi/skills"), ("foreign", ".agents/skills"))}
         skills["selected"] = make_skill(root / "external-skills", "selected")
         # Private Pi state is writable, so a missing marker proves the extension

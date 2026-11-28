@@ -86,7 +86,7 @@ def run(binary):
         workspace.mkdir()
         fixtures = {"skills": {
             "native": make_skill(workspace / harn.NATIVE_DIR, "native"),
-            "selected": make_skill(workspace / ".shiju/skills", "selected"),
+            "selected": make_skill(workspace / ".shiju-harness/skills", "selected"),
         }, "mcp": secrets.token_hex(24)}
         harn.prepare_workspace(workspace)
         audit = root / "mcp-audit"

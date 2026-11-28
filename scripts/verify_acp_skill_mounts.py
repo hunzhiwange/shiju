@@ -82,7 +82,7 @@ def run(args):
                     fixture.forbidden_skill = "unselected-" + fixture.name
                     if args.agent in ("goose", "iflow", "qwen", "snow", "vibe", "kiro", "kilocode"):
                         # These adapters discover native roots alongside the selected view.
-                        decoy_roots = (root / ".shiju/skills",)
+                        decoy_roots = (root / ".shiju-harness/skills",)
                     else:
                         decoy_roots = (root / (".github" if args.agent == "copilot" else "." + args.agent) / "skills", native / (".gemini/skills" if args.agent == "gemini" else "skills"))
                     for base in decoy_roots:

@@ -13,9 +13,9 @@ fn init_creates_skills_directory_and_readme() {
     let skills = crate::host_migration_52_tests::skills_dir(dir.path());
     assert!(skills.is_dir());
     assert!(skills.join("README.md").is_file());
-    assert!(skills.join("create-task-plans").join("SKILL.md").is_file());
-    assert!(skills.join("do-task-plans").join("SKILL.md").is_file());
-    assert!(skills.join("rustcodegraph").join("SKILL.md").is_file());
+    assert!(!skills.join("create-task-plans").exists());
+    assert!(!skills.join("do-task-plans").exists());
+    assert!(!skills.join("rustcodegraph").exists());
     assert!(skills.join(".download-policy.toml").is_file());
 
     let readme = fs::read_to_string(skills.join("README.md")).expect("readme content");
@@ -36,9 +36,9 @@ fn init_preserves_existing_readme() {
 
     let readme = fs::read_to_string(skills.join("README.md")).expect("readme content");
     assert_eq!(readme, "custom readme");
-    assert!(skills.join("create-task-plans").join("SKILL.md").is_file());
-    assert!(skills.join("do-task-plans").join("SKILL.md").is_file());
-    assert!(skills.join("rustcodegraph").join("SKILL.md").is_file());
+    assert!(!skills.join("create-task-plans").exists());
+    assert!(!skills.join("do-task-plans").exists());
+    assert!(!skills.join("rustcodegraph").exists());
     assert!(skills.join(".download-policy.toml").is_file());
 }
 

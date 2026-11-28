@@ -1,9 +1,7 @@
 //! Local skill source discovery, ordered by workspace, ancestor and global precedence.
+use config_skills::{PROJECT_SKILL_SOURCE_PATHS, PROJECT_SKILLS_DIR};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-
-const PRIMARY_WORKSPACE_SKILL_PATH: &str = ".shiju/skills";
-const PROJECT_SKILL_SOURCE_PATHS: [&str; 3] = [PRIMARY_WORKSPACE_SKILL_PATH, "skills", ".agents/skills"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LocalSkillSourceKind {
@@ -85,7 +83,7 @@ pub fn discover_local_skill_source_dirs(workspace_dir: Option<&Path>) -> Vec<Loc
 }
 
 pub fn workspace_skills_dir(workspace_dir: &Path) -> PathBuf {
-    workspace_dir.join(PRIMARY_WORKSPACE_SKILL_PATH)
+    workspace_dir.join(PROJECT_SKILLS_DIR)
 }
 
 fn push_skill_source_dir(

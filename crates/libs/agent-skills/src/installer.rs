@@ -37,107 +37,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use config_skills::SkillSecurityConfig;
 
-/// 确保内置预加载技能已安装到指定路径
-///
-/// 此函数检查并安装系统预置的内置技能。这些技能在首次运行时自动安装，
-/// 无需用户手动配置。
-///
-/// # 参数
-///
-/// * `skills_path` - 技能安装目录的路径
-///
-/// # 返回值
-///
-/// - `Ok(())` - 所有内置技能已成功安装或已存在
-/// - `Err(...)` - 安装过程中发生错误（如权限不足、磁盘空间不足等）
-///
-/// # 内置技能列表
-///
-/// 当前预加载的技能包括：
-/// - `create-task-plans`：创建实施计划
-/// - `do-task-plans`：执行实施计划
-/// - `rustcodegraph`：Rust 代码图导航
-///
-/// # 平台差异
-///
-/// - **非 WASM 平台**：执行实际的文件系统操作
-/// - **WASM 平台**：直接返回成功（不支持文件系统操作）
-#[cfg(not(target_arch = "wasm32"))]
-pub fn ensure_builtin_preloaded_skills(skills_path: &Path) -> Result<()> {
-    /// 内置预加载技能定义数组
-    ///
-    /// 每个内置技能包含：
-    /// - `dir_name`: 安装目录名称
-    /// - `source_url`: 来源标识（用于元数据记录）
-    /// - `markdown`: SKILL.md 文件内容（编译时嵌入）
-    const BUILTIN_PRELOADED_SKILLS: [BuiltinPreloadedSkill; 3] = [
-        BuiltinPreloadedSkill {
-            dir_name: "create-task-plans",
-            source_url: "bundled:create-task-plans",
-            markdown: include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/assets/skills/create-task-plans/SKILL.md"
-            )),
-        },
-        BuiltinPreloadedSkill {
-            dir_name: "do-task-plans",
-            source_url: "bundled:do-task-plans",
-            markdown: include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/assets/skills/do-task-plans/SKILL.md"
-            )),
-        },
-        BuiltinPreloadedSkill {
-            dir_name: "rustcodegraph",
-            source_url: "bundled:rustcodegraph",
-            markdown: include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/assets/skills/rustcodegraph/SKILL.md"
-            )),
-        },
-    ];
-
-    // 遍历所有内置技能，逐个检查并安装
-    for builtin in BUILTIN_PRELOADED_SKILLS {
-        let skill_dir = skills_path.join(builtin.dir_name);
-
-        // 如果技能目录已存在，跳过安装
-        if skill_dir.exists() {
-            continue;
-        }
-
-        // 创建技能目录结构
-        std::fs::create_dir_all(&skill_dir)
-            .with_context(|| format!("failed to create {}", skill_dir.display()))?;
-
-        // 写入 SKILL.md 文件（技能定义文件）
-        std::fs::write(skill_dir.join("SKILL.md"), builtin.markdown).with_context(|| {
-            format!("failed to write preloaded skill {}", skill_dir.join("SKILL.md").display())
-        })?;
-
-        // 构建并写入元数据文件
-        let meta = serde_json::json!({
-            "slug": builtin.dir_name,
-            "version": "preloaded",
-            "source": builtin.source_url
-        });
-        std::fs::write(skill_dir.join("_meta.json"), serde_json::to_vec_pretty(&meta)?)
-            .with_context(|| {
-                format!("failed to write {}", skill_dir.join("_meta.json").display())
-            })?;
-    }
-    Ok(())
-}
-
-/// WASM 平台的内置技能安装存根
-///
-/// 在 WebAssembly 环境中，文件系统操作受限或不支持，
-/// 因此此函数直接返回成功而不执行任何操作。
-#[cfg(target_arch = "wasm32")]
-pub fn ensure_builtin_preloaded_skills(_skills_path: &Path) -> Result<()> {
-    // No-op or unsupported on WASM
-    Ok(())
-}
+pub use skill_core::install::ensure_builtin_preloaded_skills;
 
 /// 从指定来源安装技能
 ///
@@ -255,19 +155,6 @@ pub enum InstallResult {
     Git { installed_dir: PathBuf, files_scanned: usize },
     /// 从本地路径安装的结果
     Local { installed_dir: PathBuf, files_scanned: usize },
-}
-
-/// 内置预加载技能定义结构体
-///
-/// 用于在编译时定义要预装的内置技能。
-#[cfg(not(target_arch = "wasm32"))]
-struct BuiltinPreloadedSkill {
-    /// 技能目录名称（也是技能的 slug）
-    dir_name: &'static str,
-    /// 技能来源 URL（用于元数据记录）
-    source_url: &'static str,
-    /// SKILL.md 文件内容（编译时通过 include_str! 嵌入）
-    markdown: &'static str,
 }
 
 /// 检测字符串是否为 Git 来源地址

@@ -36,6 +36,9 @@
 //! ```
 
 use crate::audit;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::{bundled::install_bundled_skill, constants::DEFAULT_PRELOADED_SKILL_SOURCES};
+#[cfg(all(test, not(target_arch = "wasm32")))]
 use crate::constants::BUILTIN_PRELOADED_SKILLS;
 use crate::loader::load_skills_full_with_config;
 use crate::policy::{
@@ -534,62 +537,17 @@ fn install_skills_sh_source(
     }
 }
 
-/// 确保内置预加载技能存在
-///
-/// 为所有内置技能创建目录和必要的文件。
-/// 如果技能目录已存在，则跳过。
-///
-/// # 参数
-///
-/// * `skills_path` - 技能根目录路径
-///
-/// # 返回值
-///
-/// 成功返回 Ok(())
-///
-/// # 内置技能
-///
-/// 内置技能在 `BUILTIN_PRELOADED_SKILLS` 常量中定义，
-/// 每个技能包含：
-/// - `dir_name`: 目录名称
-/// - `markdown`: SKILL.md 内容
-/// - `source_url`: 来源 URL
-///
-/// # 创建的文件
-///
-/// 对于每个内置技能，会创建：
-/// - `SKILL.md`: 技能说明文档
-/// - `_meta.json`: 元数据文件
+/// Install default skills and their resources, preserving existing installations.
 #[cfg(not(target_arch = "wasm32"))]
-fn ensure_builtin_preloaded_skills(skills_path: &Path) -> Result<()> {
-    for builtin in BUILTIN_PRELOADED_SKILLS {
-        let skill_dir = skills_path.join(builtin.dir_name);
-
-        // 如果已存在则跳过
-        if skill_dir.exists() {
-            continue;
-        }
-
-        // 创建技能目录
-        std::fs::create_dir_all(&skill_dir)
-            .with_context(|| format!("failed to create {}", skill_dir.display()))?;
-
-        // 写入 SKILL.md 文件
-        std::fs::write(skill_dir.join("SKILL.md"), builtin.markdown).with_context(|| {
-            format!("failed to write preloaded skill {}", skill_dir.join("SKILL.md").display())
-        })?;
-
-        // 写入元数据文件
-        let meta = serde_json::json!({
-            "slug": builtin.dir_name,
-            "version": "preloaded",
-            "source": builtin.source_url
-        });
-        std::fs::write(skill_dir.join("_meta.json"), serde_json::to_vec_pretty(&meta)?)
-            .with_context(|| {
-                format!("failed to write {}", skill_dir.join("_meta.json").display())
-            })?;
+pub fn ensure_builtin_preloaded_skills(skills_path: &Path) -> Result<()> {
+    for (skill_id, source) in DEFAULT_PRELOADED_SKILL_SOURCES {
+        install_bundled_skill(skills_path, skill_id, Some(source))?;
     }
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn ensure_builtin_preloaded_skills(_skills_path: &Path) -> Result<()> {
     Ok(())
 }
 

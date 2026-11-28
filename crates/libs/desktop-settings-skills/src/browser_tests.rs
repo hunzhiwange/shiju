@@ -34,17 +34,17 @@ fn scope_descriptions_include_standard_paths() {
     let cases = [
         (
             SkillsDirectoryScope::Project,
-            "查看当前项目 .shiju/skills, skills, .agents/skills 目录命中的技能。",
+            "查看当前项目 .shiju-harness/skills, skills, .agents/skills 目录命中的技能。",
         ),
         (
             SkillsDirectoryScope::Ancestor,
-            "查看从项目父级向上发现的 .shiju/skills, skills, .agents/skills 技能。",
+            "查看从项目父级向上发现的 .shiju-harness/skills, skills, .agents/skills 技能。",
         ),
         (
             SkillsDirectoryScope::Global,
             global_description.as_str(),
         ),
-        (SkillsDirectoryScope::Bundled, "查看产品随包提供、可安装到项目的内置技能。"),
+        (SkillsDirectoryScope::Bundled, "查看随程序提供并默认可用的内置技能。"),
         (
             SkillsDirectoryScope::All,
             "全部结果包含当前项目、父级目录、全局目录以及内置技能，便于核对最终命中来源。",

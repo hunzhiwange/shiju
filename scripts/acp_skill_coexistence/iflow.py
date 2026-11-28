@@ -319,7 +319,7 @@ def verify_skill_restore(gateway_bin):
         spec, _ = launch_linux(env)
         workspace = root / "workspace"
         workspace.mkdir()
-        selected_parent = workspace / ".shiju/skills"
+        selected_parent = workspace / ".shiju-harness/skills"
         fixtures = {"skills": {
             "native": make_skill(workspace / NATIVE_DIR, "native"),
             "selected": make_skill(selected_parent, "selected"),

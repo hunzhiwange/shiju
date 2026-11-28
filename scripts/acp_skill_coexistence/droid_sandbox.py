@@ -57,8 +57,8 @@ def run_phase(phase, report):
         native = workspace / droid.NATIVE_DIR
         skills = {
             "native": make_skill(native, "native"),
-            "selected": make_skill(workspace / ".shiju/skills", "selected"),
-            "unselected": make_skill(workspace / ".shiju/skills", "unselected"),
+            "selected": make_skill(workspace / ".shiju-harness/skills", "selected"),
+            "unselected": make_skill(workspace / ".shiju-harness/skills", "unselected"),
             "disabled": make_skill(native, "disabled"),
         }
         project_settings = workspace / ".factory/settings.json"

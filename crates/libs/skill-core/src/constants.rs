@@ -67,7 +67,7 @@ pub const BUILTIN_PRELOADED_SKILLS: [BuiltinPreloadedSkill; 3] = [
         source_url: "bundled:create-task-plans",
         markdown: include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/assets/skills/create-task-plans/SKILL.md"
+            "/../../../skills/create-task-plan-skills/create-task-plans/SKILL.md"
         )),
     },
     BuiltinPreloadedSkill {
@@ -75,7 +75,7 @@ pub const BUILTIN_PRELOADED_SKILLS: [BuiltinPreloadedSkill; 3] = [
         source_url: "bundled:do-task-plans",
         markdown: include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/assets/skills/do-task-plans/SKILL.md"
+            "/../../../skills/create-task-plan-skills/do-task-plans/SKILL.md"
         )),
     },
     BuiltinPreloadedSkill {
@@ -83,7 +83,7 @@ pub const BUILTIN_PRELOADED_SKILLS: [BuiltinPreloadedSkill; 3] = [
         source_url: "bundled:rustcodegraph",
         markdown: include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/assets/skills/rustcodegraph/SKILL.md"
+            "/../../../skills/create-task-plan-skills/rustcodegraph/SKILL.md"
         )),
     },
 ];

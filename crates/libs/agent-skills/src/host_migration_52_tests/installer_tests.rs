@@ -13,7 +13,7 @@ fn write_skill(parent: &std::path::Path, name: &str, markdown: &str) -> std::pat
 fn configured_skill_security_controls_loading_and_install_audit() {
     let dir = tempfile::tempdir().expect("temp dir");
     let workspace = dir.path().join("workspace");
-    let load_sources = workspace.join(".shiju/skills");
+    let load_sources = workspace.join(".shiju-harness/skills");
     let install_sources = dir.path().join("install-sources");
     let installs = dir.path().join("installs");
     std::fs::create_dir_all(&load_sources).unwrap();

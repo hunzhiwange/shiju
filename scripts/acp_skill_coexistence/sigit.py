@@ -113,7 +113,7 @@ def mcp_server(workspace, attachment, audit):
 
 def prepare_workspace(workspace):
     # A project skill symlink must not expose a source outside the native roots.
-    unselected, = (workspace / ".shiju/skills").glob("unselected-probe-*")
+    unselected, = (workspace / ".shiju-harness/skills").glob("unselected-probe-*")
     native = workspace / NATIVE_DIR
     (native / unselected.name).symlink_to(unselected, target_is_directory=True)
     if platform.system() == "Linux":

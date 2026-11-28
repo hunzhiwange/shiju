@@ -42,6 +42,12 @@ skills/                 # 本地技能说明
 
 ## 快速开始
 
+源码检出后，初始化内置技能子模块：
+
+```bash
+git submodule update --init --recursive
+```
+
 查看 CLI 帮助：
 
 ```bash

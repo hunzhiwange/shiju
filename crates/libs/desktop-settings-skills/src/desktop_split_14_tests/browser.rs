@@ -190,7 +190,7 @@ fn discovery_order_text_distinguishes_project_context() {
     assert_eq!(
         discovery_order_text(app.context()),
         format!(
-            "发现顺序：/workspace/demo/.shiju/skills, skills, .agents/skills -> 父级 .shiju/skills, skills, .agents/skills -> {global}"
+            "发现顺序：/workspace/demo/.shiju-harness/skills, skills, .agents/skills -> 父级 .shiju-harness/skills, skills, .agents/skills -> {global}"
         )
     );
 }

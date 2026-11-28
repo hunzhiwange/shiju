@@ -3,6 +3,7 @@ use crate::Event as Message;
 use crate::browser_widgets::header_panel_style;
 use crate::catalog::section_card_style;
 use crate::types::SkillsDirectoryScope;
+use config_skills::PROJECT_SKILL_SOURCE_PATHS;
 use config_ui::DesktopLocale;
 use desktop_i18n::{I18n, settings_extensions::text as tr};
 use desktop_ui_controls::system_settings_common::settings_value_badge;
@@ -40,7 +41,9 @@ pub fn scope_title(scope: SkillsDirectoryScope) -> &'static str {
     }
 }
 
-const PROJECT_SKILL_PATHS: &str = ".shiju/skills, skills, .agents/skills";
+fn project_skill_paths() -> String {
+    PROJECT_SKILL_SOURCE_PATHS.join(", ")
+}
 
 fn global_skill_paths() -> String {
     format!("{}, ~/.skills", config_runtime_paths::tilde_config_path("skills"))
@@ -54,13 +57,13 @@ pub fn scope_description(
         SkillsDirectoryScope::Project => desktop_i18n::__!(
             desktop_i18n::I18n::new(locale),
             "查看当前项目 %s 目录命中的技能。",
-            PROJECT_SKILL_PATHS.to_string()
+            project_skill_paths()
         )
         .expect("valid skills display template"),
         SkillsDirectoryScope::Ancestor => desktop_i18n::__!(
             desktop_i18n::I18n::new(locale),
             "查看从项目父级向上发现的 %s 技能。",
-            PROJECT_SKILL_PATHS.to_string()
+            project_skill_paths()
         )
         .expect("valid skills display template"),
         SkillsDirectoryScope::Global => desktop_i18n::__!(
@@ -70,7 +73,7 @@ pub fn scope_description(
         )
         .expect("valid skills display template"),
         SkillsDirectoryScope::Bundled => {
-            tr(locale, "查看产品随包提供、可安装到项目的内置技能。").to_string()
+            tr(locale, "查看随程序提供并默认可用的内置技能。").to_string()
         }
         SkillsDirectoryScope::All => tr(
             locale,
@@ -87,8 +90,8 @@ pub fn discovery_order_text(app: BrowserContext<'_>) -> String {
             desktop_i18n::I18n::new(locale),
             "发现顺序：%s/%s -> 父级 %s -> %s",
             (project_path).to_string(),
-            PROJECT_SKILL_PATHS.to_string(),
-            PROJECT_SKILL_PATHS.to_string(),
+            project_skill_paths(),
+            project_skill_paths(),
             global_skill_paths()
         )
         .expect("valid skills display template");
@@ -112,7 +115,7 @@ pub fn discovery_order_view<'a>(app: BrowserContext<'a>) -> Element<'a, Message>
                 desktop_i18n::__!(
                     desktop_i18n::I18n::new(locale),
                     "当前项目 %s",
-                    PROJECT_SKILL_PATHS.to_string()
+                    project_skill_paths()
                 )
                 .expect("valid skills display template"),
                 tr(locale, "项目私有技能，优先级最高。").to_string(),
@@ -122,7 +125,7 @@ pub fn discovery_order_view<'a>(app: BrowserContext<'a>) -> Element<'a, Message>
                 desktop_i18n::__!(
                     desktop_i18n::I18n::new(locale),
                     "父级 %s",
-                    PROJECT_SKILL_PATHS.to_string()
+                    project_skill_paths()
                 )
                 .expect("valid skills display template"),
                 tr(locale, "从项目父级向上发现，越近优先级越高。").to_string(),
@@ -135,7 +138,7 @@ pub fn discovery_order_view<'a>(app: BrowserContext<'a>) -> Element<'a, Message>
             (
                 "4",
                 tr(locale, "内置技能").to_string(),
-                tr(locale, "产品随包提供，可安装到项目后覆盖。").to_string(),
+                tr(locale, "内置技能随程序提供，默认可用。同名本地技能优先。").to_string(),
             ),
         ]
     } else {
@@ -148,7 +151,7 @@ pub fn discovery_order_view<'a>(app: BrowserContext<'a>) -> Element<'a, Message>
             (
                 "2",
                 tr(locale, "内置技能").to_string(),
-                tr(locale, "产品随包提供，可安装到项目后覆盖。").to_string(),
+                tr(locale, "内置技能随程序提供，默认可用。同名本地技能优先。").to_string(),
             ),
         ]
     };

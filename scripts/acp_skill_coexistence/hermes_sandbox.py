@@ -139,8 +139,8 @@ def run_phase(phase, root, entry, model, mcp, value, audit, saved_probe, foreign
     native = workspace / ".hermes/skills"
     fixtures = {"skills": {
         "native": make_skill(native, "native"),
-        "selected": make_skill(workspace / ".shiju/skills", "selected"),
-        "unselected": make_skill(workspace / ".shiju/skills", "unselected"),
+        "selected": make_skill(workspace / ".shiju-harness/skills", "selected"),
+        "unselected": make_skill(workspace / ".shiju-harness/skills", "unselected"),
     }, "mcp": value}
     (home / "skills").symlink_to(native, target_is_directory=True)
     history = root / secrets.token_hex(32)

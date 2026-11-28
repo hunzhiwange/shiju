@@ -6,6 +6,12 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+/// 项目私有技能的默认安装目录。
+pub const PROJECT_SKILLS_DIR: &str = ".shiju-harness/skills";
+
+/// 当前项目和父级目录共用的技能发现顺序。
+pub const PROJECT_SKILL_SOURCE_PATHS: [&str; 3] = [PROJECT_SKILLS_DIR, "skills", ".agents/skills"];
+
 /// 技能提示注入模式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]

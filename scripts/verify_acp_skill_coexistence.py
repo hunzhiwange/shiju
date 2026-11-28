@@ -209,7 +209,7 @@ def run(agent, binary, report, phases=PHASES):
         workspace.mkdir()
         selected_parent = (Path(env["HOME"]) / ".skills"
                            if getattr(supplier, "GLOBAL_SKILL_FIXTURES", False)
-                           else workspace / ".shiju/skills")
+                           else workspace / ".shiju-harness/skills")
         fixtures = {"skills": {
             "native": make_skill(workspace / supplier.NATIVE_DIR, "native"),
             "selected": make_skill(selected_parent, "selected"),

@@ -232,7 +232,7 @@ fn create_new_skill_scaffold_writes_template() {
 #[test]
 fn create_new_skill_scaffold_uses_next_available_name() {
     let project = tempfile::tempdir().expect("project dir");
-    let skills_root = project.path().join(".shiju/skills");
+    let skills_root = project.path().join(".shiju-harness/skills");
     std::fs::create_dir_all(skills_root.join("new-skill")).expect("existing skill dir");
 
     let path = super::create_new_skill_scaffold(
@@ -273,6 +273,22 @@ fn read_local_skill_document_prefers_markdown_then_toml() {
 
 #[test]
 fn built_in_skill_helpers_read_metadata_and_mark_recommended_group() {
+    let mut skill_ids: Vec<_> = super::BUILT_IN_SKILLS.iter().map(|skill| skill.id.as_str()).collect();
+    skill_ids.sort_unstable();
+    assert_eq!(
+        skill_ids,
+        [
+            "create-task-plans",
+            "do-task-plans",
+            "do-task-plans-speed",
+            "git-commit",
+            "run-task-plan-sessions",
+            "rustcodegraph",
+            "shiju-cli-workbench",
+            "skill-creator",
+        ]
+    );
+
     let skill = super::find_built_in_skill("create-task-plans").unwrap_or_else(|| {
         panic!(
             "bundled skill metadata; discovered: {:?}",
@@ -281,7 +297,7 @@ fn built_in_skill_helpers_read_metadata_and_mark_recommended_group() {
     });
     assert_eq!(skill.id, "create-task-plans");
     assert_eq!(skill.group, super::BuiltInSkillGroup::Recommended);
-    assert_eq!(skill.resource_count, 0);
+    assert_eq!(skill.resource_count, 1);
 
     let markdown =
         super::read_built_in_skill_markdown("create-task-plans").expect("bundled markdown");
@@ -293,7 +309,7 @@ fn built_in_skill_helpers_read_metadata_and_mark_recommended_group() {
 #[test]
 fn resolve_skill_detail_returns_personal_toml_skill_and_missing_errors() {
     let project = tempfile::tempdir().expect("project dir");
-    let skill_dir = project.path().join(".shiju/skills/custom-skill");
+    let skill_dir = project.path().join(".shiju-harness/skills/custom-skill");
     write_toml_skill(&skill_dir, "Custom Skill", "Custom description");
 
     let detail = super::resolve_skill_detail(
@@ -331,13 +347,14 @@ fn resolve_skill_detail_returns_built_in_and_local_variants() {
     if let Ok(built_in) = built_in_result {
         assert_eq!(built_in.id, "create-task-plans");
         assert_eq!(built_in.kind, "recommended");
-        assert!(!built_in.installed);
-        assert!(built_in.can_install);
+        assert!(built_in.installed);
+        assert!(built_in.enabled);
+        assert!(!built_in.can_install);
         assert!(!built_in.can_toggle);
         assert_eq!(built_in.document_name, "SKILL.md");
     }
 
-    let skill_dir = project.path().join(".shiju/skills/create-task-plans");
+    let skill_dir = project.path().join(".shiju-harness/skills/create-task-plans");
     std::fs::create_dir_all(&skill_dir).expect("skill dir");
     std::fs::write(
         skill_dir.join("SKILL.md"),
@@ -363,7 +380,7 @@ fn resolve_skill_detail_returns_built_in_and_local_variants() {
 #[test]
 fn resolve_skill_detail_reports_disabled_local_skill_capabilities() {
     let project = tempfile::tempdir().expect("project dir");
-    let skill_dir = project.path().join(".shiju/skills/disabled-detail");
+    let skill_dir = project.path().join(".shiju-harness/skills/disabled-detail");
     write_markdown_skill(&skill_dir, "Disabled Detail", "Disabled description");
     std::fs::write(
         agent_skills::local::local_skill_disabled_marker_path(&skill_dir),
@@ -424,7 +441,7 @@ fn install_built_in_skill_copies_once_and_collect_catalog_marks_installed() {
 #[test]
 fn installed_skills_preserve_market_source_metadata() {
     let project = tempfile::tempdir().expect("project dir");
-    let skill_dir = project.path().join(".shiju/skills/skillhub--public--safe-skill");
+    let skill_dir = project.path().join(".shiju-harness/skills/skillhub--public--safe-skill");
     write_markdown_skill(&skill_dir, "Safe Skill", "Installed from market");
     std::fs::write(
         skill_dir.join("_meta.json"),
@@ -462,20 +479,20 @@ fn install_built_in_skill_copies_nested_resources() {
 
     let path = super::install_built_in_skill(
         project.path(),
-        "rustcodegraph",
+        "create-task-plans",
     )
     .expect("install nested built-in");
     let skill_dir = std::path::PathBuf::from(path);
 
     assert!(skill_dir.join("SKILL.md").is_file());
-    assert!(skill_dir.join("README.md").is_file());
+    assert!(skill_dir.join("references/rust.md").is_file());
 }
 
 #[test]
 fn collect_catalog_skills_includes_personal_items_and_preserves_bundled_defaults() {
     let project = tempfile::tempdir().expect("project dir");
     write_markdown_skill(
-        &project.path().join(".shiju/skills/zeta-skill"),
+        &project.path().join(".shiju-harness/skills/zeta-skill"),
         "Zeta Skill",
         "Zeta description",
     );
@@ -493,14 +510,14 @@ fn collect_catalog_skills_includes_personal_items_and_preserves_bundled_defaults
 
     let bundled = catalog.iter().find(|item| item.id == "do-task-plans").expect("bundled item");
     assert_eq!(bundled.source, "bundled");
-    assert!(!bundled.installed);
-    assert!(!bundled.enabled);
+    assert!(bundled.installed);
+    assert!(bundled.enabled);
 }
 
 #[test]
 fn collect_catalog_skills_uses_local_metadata_for_built_in_override() {
     let project = tempfile::tempdir().expect("project dir");
-    let skill_dir = project.path().join(".shiju/skills/create-task-plans");
+    let skill_dir = project.path().join(".shiju-harness/skills/create-task-plans");
     write_markdown_skill(&skill_dir, "Local Plans", "Local description");
     std::fs::write(skill_dir.join("notes.txt"), "resource").expect("resource");
     std::fs::write(
@@ -514,6 +531,17 @@ fn collect_catalog_skills_uses_local_metadata_for_built_in_override() {
     )
     .expect("catalog");
     let entry = catalog.iter().find(|item| item.id == "create-task-plans").expect("catalog entry");
+
+    let bundled = catalog
+        .iter()
+        .find(|item| item.id == "bundled:create-task-plans")
+        .expect("built-in skill remains in its own section");
+    assert_eq!(bundled.source, "bundled");
+    assert!(bundled.enabled);
+    let bundled_detail = super::resolve_skill_detail(project.path().to_str(), &bundled.id)
+        .expect("built-in skill detail");
+    assert_eq!(bundled_detail.source, "bundled");
+    assert!(!bundled_detail.can_install);
 
     assert_eq!(entry.title, "Local Plans");
     assert_eq!(entry.description, "Local description");
@@ -535,7 +563,7 @@ fn collect_catalog_skills_uses_local_metadata_for_built_in_override() {
 #[test]
 fn collect_catalog_skills_orders_personal_items_by_title_then_id() {
     let project = tempfile::tempdir().expect("project dir");
-    let skills_root = project.path().join(".shiju/skills");
+    let skills_root = project.path().join(".shiju-harness/skills");
     write_markdown_skill(&skills_root.join("task-50-zeta"), "Zulu Task 50", "Last title");
     write_markdown_skill(&skills_root.join("task-50-alpha"), "alpha Task 50", "First title");
 
@@ -555,7 +583,7 @@ fn collect_catalog_skills_orders_personal_items_by_title_then_id() {
 #[test]
 fn discover_local_skills_reads_workspace_skills_and_deduplicates() {
     let project = tempfile::tempdir().expect("project dir");
-    let skills_root = project.path().join(".shiju/skills");
+    let skills_root = project.path().join(".shiju-harness/skills");
     let duplicate_root = project.path().join("skills");
     std::fs::create_dir_all(skills_root.join("demo")).expect("primary skill dir");
     std::fs::create_dir_all(duplicate_root.join("demo")).expect("duplicate skill dir");
@@ -588,7 +616,7 @@ fn discover_local_skills_reads_workspace_skills_and_deduplicates() {
 #[test]
 fn discover_local_skills_ignores_non_skills_and_reports_disabled_state() {
     let project = tempfile::tempdir().expect("project dir");
-    let skills_root = project.path().join(".shiju/skills");
+    let skills_root = project.path().join(".shiju-harness/skills");
     let disabled_dir = skills_root.join("disabled-demo");
     write_markdown_skill(&disabled_dir, "Disabled Demo", "Disabled description");
     std::fs::write(
@@ -614,7 +642,7 @@ fn discover_local_skills_ignores_non_skills_and_reports_disabled_state() {
 #[test]
 fn set_local_skill_enabled_toggles_disabled_marker() {
     let project = tempfile::tempdir().expect("project dir");
-    let skill_dir = project.path().join(".shiju/skills/demo");
+    let skill_dir = project.path().join(".shiju-harness/skills/demo");
     std::fs::create_dir_all(&skill_dir).expect("skill dir");
     std::fs::write(
         skill_dir.join("SKILL.md"),
@@ -648,7 +676,7 @@ fn set_local_skill_enabled_toggles_disabled_marker() {
 #[test]
 fn set_local_skill_enabled_noops_for_current_state_and_errors_for_missing_skill() {
     let project = tempfile::tempdir().expect("project dir");
-    let skill_dir = project.path().join(".shiju/skills/demo");
+    let skill_dir = project.path().join(".shiju-harness/skills/demo");
     write_markdown_skill(&skill_dir, "Demo", "Demo skill");
 
     super::set_local_skill_enabled(
@@ -681,7 +709,7 @@ fn set_local_skill_enabled_noops_for_current_state_and_errors_for_missing_skill(
 #[test]
 fn delete_local_skill_removes_directory() {
     let project = tempfile::tempdir().expect("project dir");
-    let skill_dir = project.path().join(".shiju/skills/demo");
+    let skill_dir = project.path().join(".shiju-harness/skills/demo");
     std::fs::create_dir_all(&skill_dir).expect("skill dir");
     std::fs::write(
         skill_dir.join("SKILL.md"),

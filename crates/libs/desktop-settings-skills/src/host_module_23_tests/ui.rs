@@ -144,7 +144,7 @@ fn fixture() -> Fixture {
         description: "虛構技能說明 / A sample description for the skills catalog.".into(),
         kind: SkillsCatalogKind::Recommended,
         resource_count: 3,
-        installed: false,
+        installed: true,
         enabled: true,
         source: "bundled".into(),
         source_path: None,
@@ -203,13 +203,13 @@ fn skill_detail() -> SkillsSelectedDetail {
         title: "示例技能 Fixture Skill".into(),
         description: "虛構技能說明 / A sample description for the skills catalog.".into(),
         kind: SkillsCatalogKind::Recommended,
-        installed: false,
+        installed: true,
         enabled: true,
         source: "bundled".into(),
         source_path: Some(format!("{PATH}/{}", "測試路徑/segment/".repeat(7))),
         document_name: "SKILL.md".into(),
         document_content: "# 示例技能\n示例技能文檔 / Example skill content.\n".repeat(20),
-        can_install: true,
+        can_install: false,
         can_toggle: false,
         can_delete: false,
     }
@@ -556,14 +556,11 @@ async fn ui_refresh_19_layout_and_interaction() {
     app.skills_settings.selected_skill_detail = Some(skill_detail());
     let narrow = Size::new(420, 660);
     let mut ui = scene(view_overlays(&app, view(&app)), &mut renderer, narrow);
-    assert!(matches!(
-        press_label(&mut ui, &mut renderer, "安装到项目").as_slice(),
-        [Message::Browser(crate::Event::SkillsInstallBuiltInRequested(id))] if id == "fixture-skill"
-    ));
+    assert!(!geometry(&mut ui, &renderer).labels.iter().any(|(label, _)| label == "安装到项目"));
     drop(ui);
     app.project_path = None;
     let mut ui = scene(view_overlays(&app, view(&app)), &mut renderer, narrow);
-    assert!(press_label(&mut ui, &mut renderer, "安装到项目").is_empty());
+    assert!(!geometry(&mut ui, &renderer).labels.iter().any(|(label, _)| label == "安装到项目"));
 }
 
 #[tokio::test(flavor = "multi_thread")]

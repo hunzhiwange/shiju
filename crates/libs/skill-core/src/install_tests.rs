@@ -177,6 +177,7 @@ fn init_skills_dir_writes_readme_policy_and_builtin_skills() {
     let skills = skills_dir(dir.path());
     assert!(skills.join("README.md").is_file());
     assert!(skills.join(crate::constants::SKILL_DOWNLOAD_POLICY_FILE).is_file());
+    assert!(skills.join("create-task-plans/references/rust.md").is_file());
     for builtin in crate::constants::BUILTIN_PRELOADED_SKILLS {
         assert!(skills.join(builtin.dir_name).join("SKILL.md").is_file());
         assert!(skills.join(builtin.dir_name).join("_meta.json").is_file());
@@ -195,7 +196,7 @@ fn init_skills_dir_installs_cli_first_rustcodegraph_instructions() {
     assert!(instructions.contains("独立安装的外部 `rustcodegraph` CLI"));
     assert!(instructions.contains("rustcodegraph explore"));
     assert!(instructions.contains("rustcodegraph query"));
-    assert!(instructions.contains("~/.rustcodegraph/bin/rustcodegraph"));
+    assert!(instructions.contains("优先使用 PATH 中的 `rustcodegraph`"));
     assert!(instructions.contains("CLI 未安装或不可执行时，回退普通代码搜索与文件读取"));
     assert!(instructions.contains("如果没有 `.rustcodegraph/`，不要自动初始化"));
     assert!(instructions.contains("使用普通工具"));

@@ -19,7 +19,7 @@ fn acp_skill_coexistence_cortex_code_exposes_only_the_verified_workspace_selecti
     let workspace = tempfile::tempdir().unwrap();
     let profile = tempfile::tempdir().unwrap();
     let other_project = tempfile::tempdir().unwrap();
-    let source = workspace.path().join(".shiju/skills/selected");
+    let source = workspace.path().join(".shiju-harness/skills/selected");
     let native = workspace.path().join(".claude/skills/native");
     for skill in [&source, &native] {
         fs::create_dir_all(skill).unwrap();

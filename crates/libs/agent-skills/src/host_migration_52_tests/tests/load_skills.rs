@@ -294,7 +294,7 @@ fn load_skills_discovers_workspace_ancestor_and_global_sources() {
     fs::create_dir_all(&plain_global_skill).unwrap();
     fs::write(plain_global_skill.join("SKILL.md"), "# Plain Global\nPlain global skill\n").unwrap();
 
-    let parent_skill = repo_root.join(".shiju").join("skills").join("parent-skill");
+    let parent_skill = repo_root.join(".shiju-harness/skills").join("parent-skill");
     fs::create_dir_all(&parent_skill).unwrap();
     fs::write(parent_skill.join("SKILL.md"), "# Parent\nParent skill\n").unwrap();
 
@@ -307,7 +307,7 @@ fn load_skills_discovers_workspace_ancestor_and_global_sources() {
     fs::write(parent_agents_skill.join("SKILL.md"), "# Parent Agents\nParent agents skill\n")
         .unwrap();
 
-    let hidden_skill = project_dir.join(".shiju").join("skills").join("hidden-skill");
+    let hidden_skill = project_dir.join(".shiju-harness/skills").join("hidden-skill");
     fs::create_dir_all(&hidden_skill).unwrap();
     fs::write(hidden_skill.join("SKILL.md"), "# Hidden\nHidden skill\n").unwrap();
 
@@ -375,7 +375,12 @@ fn common_project_skill_roots_are_discovered() {
         .map(|skill| skill.name)
         .collect::<Vec<_>>();
 
-    assert_eq!(names, vec!["plain-skill", "agents-skill"]);
+    assert_eq!(&names[..2], ["plain-skill", "agents-skill"]);
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let bundled: Vec<_> = crate::bundled::BUNDLED_SKILLS.iter().map(|(id, _)| *id).collect();
+        assert_eq!(&names[2..], bundled.as_slice());
+    }
 }
 
 #[test]
@@ -387,9 +392,13 @@ fn load_skills_uses_standard_project_directories() {
     let project_dir = home.path().join("project");
     fs::create_dir_all(&project_dir).unwrap();
 
-    let vibewindow_skill = project_dir.join(".shiju").join("skills").join("vw-skill");
+    let vibewindow_skill = project_dir.join(".shiju-harness/skills").join("vw-skill");
     fs::create_dir_all(&vibewindow_skill).unwrap();
     fs::write(vibewindow_skill.join("SKILL.md"), "# VibeWindow\nVibeWindow skill\n").unwrap();
+
+    let old_shiju_skill = project_dir.join(".shiju/skills/old-shiju-skill");
+    fs::create_dir_all(&old_shiju_skill).unwrap();
+    fs::write(old_shiju_skill.join("SKILL.md"), "# Old skill\n").unwrap();
 
     let codex_skill = project_dir.join(".codex").join("skills").join("codex-skill");
     fs::create_dir_all(&codex_skill).unwrap();
@@ -401,16 +410,17 @@ fn load_skills_uses_standard_project_directories() {
         .iter()
         .map(|skill| skill.name.clone())
         .collect::<Vec<_>>();
-    assert_eq!(names, vec!["vw-skill"]);
+    assert_eq!(names[0], "vw-skill");
+    assert!(!names.iter().any(|name| name == "old-shiju-skill" || name == "codex-skill"));
 }
 
 #[test]
-fn workspace_skill_install_root_is_shiju_skills() {
+fn workspace_skill_install_root_is_shiju_harness_skills() {
     let workspace = std::path::Path::new("/workspace");
 
     assert_eq!(
         workspace_skills_dir(workspace),
-        PathBuf::from("/workspace/.shiju/skills")
+        PathBuf::from("/workspace/.shiju-harness/skills")
     );
 }
 
@@ -421,7 +431,7 @@ fn configured_prompt_mode_controls_loaded_skill_detail() {
     let _guard = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
 
     let dir = tempfile::tempdir().unwrap();
-    let skill_dir = dir.path().join(".shiju").join("skills").join("detailed");
+    let skill_dir = dir.path().join(".shiju-harness/skills").join("detailed");
     fs::create_dir_all(&skill_dir).unwrap();
     fs::write(
         skill_dir.join("SKILL.toml"),
@@ -445,12 +455,51 @@ fn configured_prompt_mode_controls_loaded_skill_detail() {
     config.skills.prompt_injection_mode = SkillsPromptInjectionMode::Compact;
 
     let compact = load_skills_with_config(dir.path(), &config);
-    assert_eq!(compact.len(), 1);
+    assert_eq!(compact[0].name, "detailed");
     assert!(compact[0].tools.is_empty());
     assert!(compact[0].prompts.is_empty());
 
     let full = load_skills_full_with_config(dir.path(), &config);
-    assert_eq!(full.len(), 1);
+    assert_eq!(full[0].name, "detailed");
     assert_eq!(full[0].tools.len(), 1);
     assert_eq!(full[0].prompts, vec!["Full instructions"]);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn bundled_skills_are_discovered_without_a_project_install() {
+    let _lock = env_var_lock().lock().unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let _home = EnvVarGuard::set("HOME", temporary.path().to_str().unwrap());
+    let workspace = temporary.path().join("project");
+    fs::create_dir(&workspace).unwrap();
+    let config = Config::default();
+
+    let compact = load_skills_with_config(&workspace, &config);
+    let full = load_skills_full_with_config(&workspace, &config);
+    for (id, _) in crate::bundled::BUNDLED_SKILLS {
+        let skill = compact.iter().find(|skill| skill.name == *id).unwrap();
+        assert!(skill.prompts.is_empty());
+        let manifest = skill.location.as_deref().unwrap();
+        assert!(crate::bundled::is_bundled_skill_file(manifest));
+        assert!(!manifest.starts_with(&workspace));
+        assert!(!full.iter().find(|skill| skill.name == *id).unwrap().prompts.is_empty());
+    }
+    let root = crate::bundled::bundled_skills_root().unwrap();
+    assert!(crate::bundled::is_bundled_skill_file(
+        &root.join("create-task-plans/references/rust.md")
+    ));
+    assert!(!crate::bundled::is_bundled_skill_file(
+        &root.join("create-task-plans/references/unknown.md")
+    ));
+    let project_root = workspace_skills_dir(&workspace);
+    assert!(!project_root.exists());
+
+    let local = project_root.join("create-task-plans");
+    fs::create_dir_all(&local).unwrap();
+    fs::write(local.join("SKILL.md"), "# Local plans\nProject override\n").unwrap();
+    let loaded = load_skills_with_config(&workspace, &config);
+    let plans: Vec<_> = loaded.iter().filter(|skill| skill.name == "create-task-plans").collect();
+    assert_eq!(plans.len(), 1);
+    assert_eq!(plans[0].description, "Project override");
 }

@@ -8,10 +8,10 @@ use axum::Json;
 use axum::Router;
 use axum::extract::Query;
 use axum::routing::{get, post};
-use include_dir::{Dir, include_dir};
+use agent_skills::bundled::{BUNDLED_SKILLS, bundled_skill_dir, bundled_skills_root, install_bundled_skill};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use {gateway_desktop_settings::DesktopSkillCatalogEntryDto, gateway_desktop_settings::DesktopSkillDetailDto, gateway_desktop_settings::DesktopSkillPathDto};
 
@@ -20,7 +20,6 @@ use agent_skills::local_sources::{LocalSkillSourceKind, discover_local_skill_sou
 use agent_skills::local::{is_local_skill_disabled, local_skill_disabled_marker_path};
 use agent_skills::loader::read_markdown_skill_metadata;
 
-static BUILT_IN_SKILLS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../agent-skills/assets/skills");
 static RECOMMENDED_SKILL_IDS: &[&str] = &["create-task-plans", "do-task-plans", "rustcodegraph"];
 static BUILT_IN_SKILLS: Lazy<Vec<BuiltInSkillMeta>> = Lazy::new(discover_built_in_skills);
 
@@ -382,64 +381,50 @@ fn collect_catalog_skills(
     project_path: Option<&str>,
 ) -> Result<Vec<DesktopSkillCatalogEntryDto>, String> {
     let local_skills = discover_local_skills(project_path)?;
-    let local_skill_ids = local_skills.iter().map(|skill| skill.id.clone()).collect::<HashSet<_>>();
-    let local_by_id = local_skills
-        .iter()
-        .cloned()
-        .map(|skill| (skill.id.clone(), skill))
-        .collect::<HashMap<_, _>>();
-    let built_in_ids = BUILT_IN_SKILLS.iter().map(|skill| skill.id.clone()).collect::<HashSet<_>>();
-
-    // 内置技能先入表，再用同 id 的本地技能覆盖展示信息，表达“安装后可本地修改”。
+    let local_skill_ids = local_skills.iter().map(|skill| skill.id.as_str()).collect::<HashSet<_>>();
+    let bundled_root = bundled_skills_root().ok();
     let mut items = BUILT_IN_SKILLS
         .iter()
-        .map(|skill| {
-            let local = local_by_id.get(&skill.id);
-
-            DesktopSkillCatalogEntryDto {
-                id: skill.id.clone(),
-                title: local.map(|item| item.title.clone()).unwrap_or_else(|| skill.title.clone()),
-                description: local
-                    .map(|item| item.description.clone())
-                    .unwrap_or_else(|| skill.description.clone()),
-                kind: match skill.group {
-                    BuiltInSkillGroup::Recommended => "recommended".to_string(),
-                    BuiltInSkillGroup::System => "system".to_string(),
-                },
-                resource_count: local
-                    .map(|item| item.resource_count)
-                    .unwrap_or(skill.resource_count),
-                installed: local_skill_ids.contains(&skill.id),
-                enabled: local.map(|item| item.enabled).unwrap_or(false),
-                source: local
-                    .map(|item| item.source.clone())
-                    .unwrap_or_else(|| "bundled".to_string()),
-                source_path: local.and_then(|item| item.source_path.clone()),
-                origin: local.and_then(|item| item.origin.clone()),
-                namespace: local.and_then(|item| item.namespace.clone()),
-                package_type: local.and_then(|item| item.package_type.clone()),
-                source_pack: local.and_then(|item| item.source_pack.clone()),
-            }
+        .map(|skill| DesktopSkillCatalogEntryDto {
+            id: if local_skill_ids.contains(skill.id.as_str()) {
+                format!("bundled:{}", skill.id)
+            } else {
+                skill.id.clone()
+            },
+            title: skill.title.clone(),
+            description: skill.description.clone(),
+            kind: built_in_skill_kind(skill.group).to_string(),
+            resource_count: skill.resource_count,
+            installed: true,
+            enabled: true,
+            source: "bundled".to_string(),
+            source_path: bundled_root
+                .as_ref()
+                .map(|root| root.join(&skill.id).display().to_string()),
+            origin: None,
+            namespace: None,
+            package_type: None,
+            source_pack: None,
         })
         .collect::<Vec<_>>();
 
-    items.extend(local_skills.into_iter().filter(|skill| !built_in_ids.contains(&skill.id)).map(
-        |skill| DesktopSkillCatalogEntryDto {
-            id: skill.id,
-            title: skill.title,
-            description: skill.description,
-            kind: "personal".to_string(),
-            resource_count: skill.resource_count,
-            installed: true,
-            enabled: skill.enabled,
-            source: skill.source,
-            source_path: skill.source_path,
-            origin: skill.origin,
-            namespace: skill.namespace,
-            package_type: skill.package_type,
-            source_pack: skill.source_pack,
-        },
-    ));
+    items.extend(local_skills.into_iter().map(|skill| DesktopSkillCatalogEntryDto {
+        kind: find_built_in_skill(&skill.id)
+            .map_or("personal", |builtin| built_in_skill_kind(builtin.group))
+            .to_string(),
+        id: skill.id,
+        title: skill.title,
+        description: skill.description,
+        resource_count: skill.resource_count,
+        installed: true,
+        enabled: skill.enabled,
+        source: skill.source,
+        source_path: skill.source_path,
+        origin: skill.origin,
+        namespace: skill.namespace,
+        package_type: skill.package_type,
+        source_pack: skill.source_pack,
+    }));
 
     items.sort_by(|left, right| {
         skill_kind_sort_key(&left.kind)
@@ -518,6 +503,13 @@ fn merge_plugin_catalog(
     }
 }
 
+fn built_in_skill_kind(group: BuiltInSkillGroup) -> &'static str {
+    match group {
+        BuiltInSkillGroup::Recommended => "recommended",
+        BuiltInSkillGroup::System => "system",
+    }
+}
+
 fn skill_kind_sort_key(kind: &str) -> u8 {
     match kind {
         "recommended" => 0,
@@ -530,11 +522,8 @@ fn skill_kind_sort_key(kind: &str) -> u8 {
 fn discover_built_in_skills() -> Vec<BuiltInSkillMeta> {
     let mut skills = Vec::new();
 
-    for dir in BUILT_IN_SKILLS_DIR.dirs() {
-        let Some(skill_id) = dir.path().file_name().and_then(|name| name.to_str()) else {
-            continue;
-        };
-        let Some(skill_file) = find_bundled_skill_file(dir, "SKILL.md") else {
+    for (skill_id, dir) in BUNDLED_SKILLS {
+        let Some(skill_file) = dir.get_file("SKILL.md") else {
             continue;
         };
         let Ok(skill_markdown) = std::str::from_utf8(skill_file.contents()) else {
@@ -555,7 +544,7 @@ fn discover_built_in_skills() -> Vec<BuiltInSkillMeta> {
             .filter(|value| !value.is_empty())
             .unwrap_or_else(|| "内置技能，由 gateway service 提供目录视图。".to_string());
 
-        let group = if RECOMMENDED_SKILL_IDS.contains(&skill_id) {
+        let group = if RECOMMENDED_SKILL_IDS.contains(skill_id) {
             BuiltInSkillGroup::Recommended
         } else {
             BuiltInSkillGroup::System
@@ -563,7 +552,7 @@ fn discover_built_in_skills() -> Vec<BuiltInSkillMeta> {
         let resource_count = dir.files().count().saturating_sub(1) + dir.dirs().count();
 
         skills.push(BuiltInSkillMeta {
-            id: skill_id.to_string(),
+            id: (*skill_id).to_string(),
             title,
             description,
             group,
@@ -735,19 +724,14 @@ fn find_built_in_skill(skill_id: &str) -> Option<&'static BuiltInSkillMeta> {
     BUILT_IN_SKILLS.iter().find(|skill| skill.id == skill_id)
 }
 
-fn find_bundled_skill_file<'a>(
-    skill_dir: &'a Dir<'static>,
-    file_name: &str,
-) -> Option<&'a include_dir::File<'static>> {
-    skill_dir
-        .files()
-        .find(|file| file.path().file_name().and_then(|name| name.to_str()) == Some(file_name))
-}
-
 fn resolve_skill_detail(
     project_path: Option<&str>,
     skill_id: &str,
 ) -> Result<DesktopSkillDetailDto, String> {
+    if let Some(bundled_id) = skill_id.strip_prefix("bundled:") {
+        return built_in_skill_detail(skill_id, bundled_id);
+    }
+
     if let Some(local_skill) = discover_local_skills(project_path)?
         .into_iter()
         .find(|skill| skill.id == skill_id)
@@ -781,35 +765,35 @@ fn resolve_skill_detail(
         });
     }
 
+    built_in_skill_detail(skill_id, skill_id)
+}
+
+fn built_in_skill_detail(entry_id: &str, skill_id: &str) -> Result<DesktopSkillDetailDto, String> {
     let built_in_skill =
         find_built_in_skill(skill_id).ok_or_else(|| format!("未找到技能: {skill_id}"))?;
     let document_content = read_built_in_skill_markdown(skill_id)?;
 
     Ok(DesktopSkillDetailDto {
-        id: built_in_skill.id.clone(),
+        id: entry_id.to_string(),
         title: built_in_skill.title.clone(),
         description: built_in_skill.description.clone(),
-        kind: match built_in_skill.group {
-            BuiltInSkillGroup::Recommended => "recommended".to_string(),
-            BuiltInSkillGroup::System => "system".to_string(),
-        },
-        installed: false,
-        enabled: false,
+        kind: built_in_skill_kind(built_in_skill.group).to_string(),
+        installed: true,
+        enabled: true,
         source: "bundled".to_string(),
-        source_path: None,
+        source_path: bundled_skills_root().ok().map(|root| root.join(skill_id).display().to_string()),
         document_name: "SKILL.md".to_string(),
         document_content,
-        can_install: project_path.is_some(),
+        can_install: false,
         can_toggle: false,
         can_delete: false,
     })
 }
 
 fn read_built_in_skill_markdown(skill_id: &str) -> Result<String, String> {
-    let skill_dir = BUILT_IN_SKILLS_DIR
-        .get_dir(skill_id)
+    let skill_dir = bundled_skill_dir(skill_id)
         .ok_or_else(|| format!("未找到内置技能: {skill_id}"))?;
-    let skill_file = find_bundled_skill_file(skill_dir, "SKILL.md")
+    let skill_file = skill_dir.get_file("SKILL.md")
         .ok_or_else(|| format!("内置技能缺少 SKILL.md: {skill_id}"))?;
 
     std::str::from_utf8(skill_file.contents())
@@ -963,42 +947,14 @@ fn create_new_skill_scaffold(project_path: &Path) -> Result<String, String> {
     Ok(skill_dir.display().to_string())
 }
 
-fn copy_bundled_dir_recursive(source: &Dir<'_>, dest: &Path) -> Result<(), String> {
-    std::fs::create_dir_all(dest).map_err(|err| format!("创建目录失败: {err}"))?;
-
-    for file in source.files() {
-        let Some(file_name) = file.path().file_name() else {
-            continue;
-        };
-        std::fs::write(dest.join(file_name), file.contents())
-            .map_err(|err| format!("写入 {:?} 失败: {err}", file_name))?;
-    }
-
-    for dir in source.dirs() {
-        let Some(dir_name) = dir.path().file_name() else {
-            continue;
-        };
-        copy_bundled_dir_recursive(dir, &dest.join(dir_name))?;
-    }
-
-    Ok(())
-}
-
 fn install_built_in_skill(project_path: &Path, skill_id: &str) -> Result<String, String> {
-    let Some(skill_dir) = BUILT_IN_SKILLS_DIR.get_dir(skill_id) else {
+    if bundled_skill_dir(skill_id).is_none() {
         return Err(format!("未找到内置技能: {skill_id}"));
-    };
-
-    let skills_root = workspace_skills_dir(project_path);
-    std::fs::create_dir_all(&skills_root).map_err(|err| format!("创建 skills 目录失败: {err}"))?;
-
-    let target_dir = skills_root.join(skill_id);
-    if target_dir.exists() {
-        return Ok(target_dir.display().to_string());
     }
 
-    copy_bundled_dir_recursive(skill_dir, &target_dir)?;
-    Ok(target_dir.display().to_string())
+    install_bundled_skill(&workspace_skills_dir(project_path), skill_id, None)
+        .map(|path| path.display().to_string())
+        .map_err(|err| format!("安装内置技能失败: {err:#}"))
 }
 
 #[cfg(test)]

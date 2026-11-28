@@ -125,8 +125,8 @@ def turn(executable, rg, recipe, mode, phase):
         workspace = root / "workspace"
         skills = {
             "native": make_skill(workspace / opencode.NATIVE_DIR, "native"),
-            "selected": make_skill(workspace / ".shiju/skills", "selected"),
-            "unselected": make_skill(workspace / ".shiju/skills", "unselected"),
+            "selected": make_skill(workspace / ".shiju-harness/skills", "selected"),
+            "unselected": make_skill(workspace / ".shiju-harness/skills", "unselected"),
         }
         view = home / "shiju-session-skills-fixture" / "skills"
         if mounted:
@@ -148,7 +148,7 @@ def turn(executable, rg, recipe, mode, phase):
                 if mounted:
                     # A conflicting projected name must resolve to the native fixture.
                     native_name = skills["native"]["name"]
-                    collision = workspace / ".shiju/skills" / native_name
+                    collision = workspace / ".shiju-harness/skills" / native_name
                     collision.mkdir()
                     (collision / "SKILL.md").write_text(
                         f"---\nname: {native_name}\ndescription: collision fixture\n---\nShadow body\n")

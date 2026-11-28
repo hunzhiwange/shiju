@@ -19,7 +19,7 @@ fn isolated_config(workspace: &Path) -> crate::host_migration_52_tests::Config {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn write_installed_skill(workspace: &Path, name: &str, body: &str) -> std::path::PathBuf {
-    let skill_dir = workspace.join(".shiju").join("skills").join(name);
+    let skill_dir = workspace.join(".shiju-harness/skills").join(name);
     std::fs::create_dir_all(&skill_dir).unwrap();
     std::fs::write(skill_dir.join("SKILL.md"), body).unwrap();
     skill_dir
@@ -27,7 +27,7 @@ fn write_installed_skill(workspace: &Path, name: &str, body: &str) -> std::path:
 
 #[cfg(not(target_arch = "wasm32"))]
 fn write_manifest_skill(workspace: &Path, name: &str, body: &str) -> std::path::PathBuf {
-    let skill_dir = workspace.join(".shiju").join("skills").join(name);
+    let skill_dir = workspace.join(".shiju-harness/skills").join(name);
     std::fs::create_dir_all(&skill_dir).unwrap();
     std::fs::write(skill_dir.join("SKILL.toml"), body).unwrap();
     skill_dir
@@ -207,7 +207,7 @@ fn handle_remove_removes_existing_skill_and_reports_missing_repeat() {
 fn handle_remove_reports_missing_when_skills_dir_has_not_been_created() {
     let workspace = tempfile::tempdir().unwrap();
     let config = isolated_config(workspace.path());
-    let skills_path = workspace.path().join(".shiju").join("skills");
+    let skills_path = workspace.path().join(".shiju-harness/skills");
 
     let err = handle_command(SkillCommands::Remove { name: "missing".into() }, &config)
         .unwrap_err()
@@ -222,7 +222,7 @@ fn handle_remove_reports_missing_when_skills_dir_has_not_been_created() {
 fn handle_remove_reports_filesystem_error_when_target_is_not_directory() {
     let workspace = tempfile::tempdir().unwrap();
     let config = isolated_config(workspace.path());
-    let skills_path = workspace.path().join(".shiju").join("skills");
+    let skills_path = workspace.path().join(".shiju-harness/skills");
     std::fs::create_dir_all(&skills_path).unwrap();
     let skill_path = skills_path.join("file-skill");
     std::fs::write(&skill_path, "not a directory").unwrap();
@@ -241,7 +241,7 @@ fn handle_remove_rejects_symlink_that_escapes_skills_directory() {
     let workspace = tempfile::tempdir().unwrap();
     let outside = tempfile::tempdir().unwrap();
     let config = isolated_config(workspace.path());
-    let skills_path = workspace.path().join(".shiju").join("skills");
+    let skills_path = workspace.path().join(".shiju-harness/skills");
     std::fs::create_dir_all(&skills_path).unwrap();
     let marker = outside.path().join("marker.txt");
     std::fs::write(&marker, "keep").unwrap();
@@ -278,7 +278,7 @@ fn handle_install_applies_configured_security_policy() {
     )
     .unwrap();
 
-    assert!(workspace.path().join(".shiju/skills/local-skill/SKILL.md").is_file());
+    assert!(workspace.path().join(".shiju-harness/skills/local-skill/SKILL.md").is_file());
 
     let rejected = source_root.path().join("rejected-skill");
     std::fs::create_dir_all(&rejected).unwrap();
@@ -294,7 +294,7 @@ fn handle_install_applies_configured_security_policy() {
     assert!(error.to_string().contains("failed to install local skill source"));
     let error_chain = format!("{error:#}");
     assert!(error_chain.contains("Skill security audit failed"), "{error_chain}");
-    assert!(!workspace.path().join(".shiju/skills/rejected-skill").exists());
+    assert!(!workspace.path().join(".shiju-harness/skills/rejected-skill").exists());
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -322,7 +322,7 @@ fn handle_install_rejects_missing_local_source() {
 #[test]
 fn handle_install_reports_skills_directory_creation_failure() {
     let workspace = tempfile::tempdir().unwrap();
-    std::fs::write(workspace.path().join(".shiju"), "not a directory").unwrap();
+    std::fs::write(workspace.path().join(".shiju-harness"), "not a directory").unwrap();
     let config = isolated_config(workspace.path());
 
     let err = handle_command(SkillCommands::Install { source: "missing-source".into() }, &config)
@@ -330,7 +330,7 @@ fn handle_install_reports_skills_directory_creation_failure() {
         .to_string();
 
     assert!(err.contains("failed to create"));
-    assert!(err.contains(".shiju/skills"));
+    assert!(err.contains(".shiju-harness/skills"));
 }
 
 #[cfg(not(target_arch = "wasm32"))]

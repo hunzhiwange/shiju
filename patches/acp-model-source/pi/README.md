@@ -42,9 +42,9 @@ npm run build
 Pinned upstream package-lock SHA256:
 `e257ee4cbe345ee0de44714d34401ed2ed14de41abc2c6ed7511b1a3d923c606`.
 Patch SHA256:
-`6ba08c0cc171d2d410481fe131d05608331cc034c68458790782a4d84c33d6b6`.
+`a809009c9c1818bfee8312c87c04c392e2a05776023151b8731c0ae437981b01`.
 Built dist/index.js SHA256 (Darwin arm64):
-`fcebdd9f79aa5343ad1b7e52db47112cd955e69472b15491a186020e24362774`.
+`5603e74196bf99c4a5eb1fcc171a14d3d4a90dabaf6554103bed499969322036`.
 The session_model driver checks the adapter and installed companion file hashes against the managed registry before launch;
 launch the executable dist/index.js directly (no npx wrapper or extra arguments).
 The native engine used for acceptance is the real published

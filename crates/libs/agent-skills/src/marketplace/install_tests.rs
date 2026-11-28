@@ -125,7 +125,7 @@ fn signed_artifact(entries: &[FixtureEntry]) -> SkillMarketArtifact {
 }
 
 fn skills_root(project: &Path) -> PathBuf {
-    project.join(".shiju").join("skills")
+    project.join(".shiju-harness/skills")
 }
 
 fn default_security() -> config_skills::SkillSecurityConfig {

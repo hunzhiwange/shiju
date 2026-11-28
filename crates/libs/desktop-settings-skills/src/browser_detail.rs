@@ -39,7 +39,7 @@ pub fn detail_modal_body<'a>(app: BrowserContext<'a>, project_open: bool) -> Ele
 
         let mut actions = row![].spacing(8).align_y(Alignment::Center);
 
-        if detail.can_install {
+        if detail.can_install && detail.source != "bundled" {
             actions = actions.push(detail_action_button(
                 locale,
                 tr(locale, "安装到项目"),
@@ -73,6 +73,25 @@ pub fn detail_modal_body<'a>(app: BrowserContext<'a>, project_open: bool) -> Ele
             ));
         }
 
+        let mut badges = row![settings_value_badge(source_badge)];
+        if detail.source != "bundled" {
+            badges = badges.push(settings_value_badge(if detail.installed {
+                tr(locale, "已安装")
+            } else {
+                tr(locale, "未安装")
+            }));
+        }
+        let badges = badges
+            .push(settings_value_badge(if detail.enabled || detail.source == "bundled" {
+                tr(locale, "已启用")
+            } else {
+                tr(locale, "已禁用")
+            }))
+            .push(skill_badge(detail.document_name.clone(), true))
+            .spacing(8)
+            .align_y(Alignment::Center)
+            .wrap();
+
         let summary = container(
             column![
                 row![
@@ -96,23 +115,7 @@ pub fn detail_modal_body<'a>(app: BrowserContext<'a>, project_open: bool) -> Ele
                 ]
                 .spacing(10)
                 .align_y(Alignment::Center),
-                row![
-                    settings_value_badge(source_badge),
-                    settings_value_badge(if detail.installed {
-                        tr(locale, "已安装")
-                    } else {
-                        tr(locale, "未安装")
-                    }),
-                    settings_value_badge(if detail.enabled {
-                        tr(locale, "已启用")
-                    } else {
-                        tr(locale, "已禁用")
-                    }),
-                    skill_badge(detail.document_name.clone(), true),
-                ]
-                .spacing(8)
-                .align_y(Alignment::Center)
-                .wrap(),
+                badges,
                 detail_source_note(locale, detail.source_path.as_deref()),
             ]
             .spacing(10),

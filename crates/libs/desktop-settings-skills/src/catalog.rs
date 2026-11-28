@@ -130,7 +130,7 @@ pub fn section_copy(source: &str) -> (Icon, &'static str, &'static str) {
         "workspace" => (Icon::FolderOpen, "项目目录", "当前项目优先命中的技能。"),
         "ancestor" => (Icon::FolderOpen, "父级目录", "从上级目录逐层发现。"),
         "global" => (Icon::FolderOpen, "全局目录", "当前用户全局技能。"),
-        "bundled" => (Icon::Sliders, "内置技能", "可按需安装到当前项目。"),
+        "bundled" => (Icon::Sliders, "内置技能", "随程序提供，默认可用。"),
         _ => (Icon::Grid1x2, "其他来源", "未归类的技能来源。"),
     }
 }
@@ -173,7 +173,7 @@ pub fn catalog_item(
     let initials = catalog_skill_initials(&skill);
     let title = skill.title.clone();
     let description = skill.description.clone();
-    let skill_id = skill.id.clone();
+    let skill_id = skill.id.strip_prefix("bundled:").unwrap_or(&skill.id).to_string();
     let resource_text = if skill.resource_count == 0 {
         tr(locale, "仅 SKILL.md").to_string()
     } else {
@@ -182,7 +182,9 @@ pub fn catalog_item(
     };
     let kind = skill.kind;
 
-    let status_badge = if skill.installed {
+    let status_badge = if skill.source == "bundled" {
+        skill_badge(tr(locale, "已启用"), true)
+    } else if skill.installed {
         skill_badge(
             if skill.enabled { tr(locale, "已启用") } else { tr(locale, "已禁用") },
             skill.enabled,

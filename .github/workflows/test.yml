@@ -10,6 +10,8 @@ on:
       - "crates/libs/desktop-i18n/src/locales/*.json"
       - "**/Cargo.toml"
       - "Cargo.lock"
+      - ".gitmodules"
+      - "skills/create-task-plan-skills"
       - ".cargo/config.toml"
       - ".config/nextest.toml"
       - "rust-toolchain.toml"
@@ -24,6 +26,8 @@ on:
       - "crates/libs/desktop-i18n/src/locales/*.json"
       - "**/Cargo.toml"
       - "Cargo.lock"
+      - ".gitmodules"
+      - "skills/create-task-plan-skills"
       - ".cargo/config.toml"
       - ".config/nextest.toml"
       - "rust-toolchain.toml"
@@ -48,6 +52,8 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: recursive
       - uses: Swatinem/rust-cache@v2
       - name: Install Linux desktop dependencies
         run: |
@@ -70,6 +76,8 @@ jobs:
         os: [ubuntu-22.04, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: recursive
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
       - name: Install Linux desktop dependencies

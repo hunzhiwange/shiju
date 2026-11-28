@@ -437,7 +437,7 @@ def platform_scenarios(shiju, output, report):
         model = stack.enter_context(loopback(PlatformModel))
         configuration = {"autonomy": {"level": "supervised", "always_ask": [ATTACHED_MCP]}}
         env, cwd = prepare(output, model.server_port, configuration)
-        native = make_skill(cwd / ".shiju/skills", "native")
+        native = make_skill(cwd / ".shiju-harness/skills", "native")
         # A parent-directory "skills" folder would already be auto-discovered.
         attached = make_skill(output / "mounted-fixtures", "attached")
         database = Path(env["VIBEWINDOW_CONFIG_DIR"]) / "database/vibe-window.sqlite3"

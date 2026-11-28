@@ -65,7 +65,7 @@ def launch(env):
 def prepare_workspace(workspace):
     # Exercise Harn's own skill-dir substitution and use the resulting path
     # for the separate native attachment read.
-    for root in (workspace / NATIVE_DIR, workspace / ".shiju/skills"):
+    for root in (workspace / NATIVE_DIR, workspace / ".shiju-harness/skills"):
         for manifest in root.glob("*/SKILL.md"):
             with manifest.open("a") as out:
                 out.write("\nFixture directory: ${HARN_SKILL_DIR}\n")

@@ -74,6 +74,7 @@ pub fn load_skills(workspace: &Path) -> Vec<Skill> {
         SkillLoadMode::Full,
         &SkillSecurityConfig::default(),
         |_| Vec::new(),
+        false,
     )
 }
 
@@ -89,7 +90,38 @@ pub fn load_skills_with_config(
     } else {
         SkillLoadMode::from_prompt_mode(config.prompt_injection_mode)
     };
-    load_catalog(workspace, mode, &config.security, plugin_skills)
+    load_catalog(workspace, mode, &config.security, plugin_skills, true)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn load_bundled_skills(mode: SkillLoadMode, security: &SkillSecurityConfig) -> Vec<Skill> {
+    let root = match crate::bundled::bundled_skills_root() {
+        Ok(root) => root,
+        Err(error) => {
+            tracing::warn!(%error, "could not prepare bundled skills");
+            return Vec::new();
+        }
+    };
+
+    crate::bundled::BUNDLED_SKILLS.iter().filter_map(|(id, _)| {
+        let path = root.join(id);
+        if !crate::bundled::is_bundled_skill_file(&path.join("SKILL.md")) {
+            tracing::warn!(skill = *id, "bundled skill cache does not match the package");
+            return None;
+        }
+        match loader::load_skill_directory(&path, mode, security, true) {
+            Ok(skill) => skill,
+            Err(error) => {
+                tracing::warn!(skill = *id, %error, "could not load bundled skill");
+                None
+            }
+        }
+    }).collect()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn load_bundled_skills(_mode: SkillLoadMode, _security: &SkillSecurityConfig) -> Vec<Skill> {
+    Vec::new()
 }
 
 fn load_catalog(
@@ -97,6 +129,7 @@ fn load_catalog(
     mode: SkillLoadMode,
     security: &SkillSecurityConfig,
     plugin_skills: impl FnOnce(SkillLoadMode) -> Vec<Skill>,
+    include_bundled: bool,
 ) -> Vec<Skill> {
     let mut skills = Vec::new();
     let mut seen = HashSet::new();
@@ -106,6 +139,9 @@ fn load_catalog(
         load_workspace_skills(workspace, mode, security),
     );
     extend_unique_skills(&mut skills, &mut seen, plugin_skills(mode));
+    if include_bundled {
+        extend_unique_skills(&mut skills, &mut seen, load_bundled_skills(mode, security));
+    }
     skills
 }
 

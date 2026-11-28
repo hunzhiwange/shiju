@@ -1543,7 +1543,17 @@ if [[ "$PREBUILT_ONLY" == true ]]; then
   PREFER_PREBUILT=true
 fi
 
+ensure_bundled_skills_checkout() {
+  if [[ ! -f skills/create-task-plan-skills/create-task-plans/SKILL.md ]]; then
+    git -c url.https://github.com/.insteadOf=git@github.com: \
+      submodule update --init --recursive -- skills/create-task-plan-skills
+  fi
+}
+
 if [[ "$DOCKER_MODE" == true ]]; then
+  if [[ "$SKIP_BUILD" == false ]]; then
+    ensure_bundled_skills_checkout
+  fi
   if [[ -n "$LOCAL_CARGO_FEATURES" ]]; then
     warn "--cargo-features / VIBEWINDOW_CARGO_FEATURES are ignored with --docker (use VIBEWINDOW_DOCKER_CARGO_FEATURES)."
   fi
@@ -1636,6 +1646,10 @@ or re-run with:
   ./vibewindow_install.sh --install-rust
 MSG
   exit 1
+fi
+
+if [[ "$SKIP_BUILD" == false || "$SKIP_INSTALL" == false ]]; then
+  ensure_bundled_skills_checkout
 fi
 
 if [[ "$SKIP_BUILD" == false ]]; then

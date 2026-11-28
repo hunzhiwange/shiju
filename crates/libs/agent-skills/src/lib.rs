@@ -2,6 +2,7 @@
 
 pub mod agent_metadata;
 pub mod audit;
+pub use skill_core::bundled;
 pub mod discovery;
 pub mod catalog;
 

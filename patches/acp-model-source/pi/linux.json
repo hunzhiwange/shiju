@@ -9,7 +9,7 @@
     "upstream_entry_sha256": "f9a00a801269ecaabbfb977cdabac6dae9dacd1f8f27e39905217cf84b4b87d5",
     "source_commit": "8be5f22769f71d759aa48d798416c56e8be101ef",
     "source_lock_sha256": "e257ee4cbe345ee0de44714d34401ed2ed14de41abc2c6ed7511b1a3d923c606",
-    "base_patch_sha256": "6ba08c0cc171d2d410481fe131d05608331cc034c68458790782a4d84c33d6b6"
+    "base_patch_sha256": "a809009c9c1818bfee8312c87c04c392e2a05776023151b8731c0ae437981b01"
   },
   "engine": {
     "package": "@mariozechner/pi-coding-agent",

@@ -1,6 +1,7 @@
 //! 技能审计、内置来源常量与远程发现。
 
 pub mod audit;
+pub mod bundled;
 pub mod constants;
 pub mod discovery;
 pub mod policy;

@@ -6,13 +6,25 @@ fn build_planning_prompt_requires_fixed_plan_dir_and_tool_writes() {
     let plan_dir = std::path::Path::new("/tmp/user/.shiju-harness-dev/storage/plan/task-abc-123");
     let prompt =
         crate::prompts::build_planning_prompt_for_dir("abc-123", "实现工作流执行", plan_dir);
-    assert!(prompt.contains("`/tmp/user/.shiju-harness-dev/storage/plan/task-abc-123/`"));
+    assert!(prompt.contains("`/tmp/user/.shiju-harness-dev/storage/plan/task-abc-123`"));
     assert!(!prompt.contains("仓库相对路径"));
     assert!(!prompt.contains(".plans/task-abc-123"));
     assert!(prompt.contains("必须通过写文件工具实际创建文件"));
-    assert!(prompt.contains("忽略技能模板里的 `YYYY-MM-DD-<功能名称>` 路径"));
+    assert!(prompt.contains("所有计划文件都写入该目录"));
     assert!(prompt.contains("tasks.json"));
-    assert!(prompt.contains("create-task-plans-runtime"));
+    assert!(prompt.contains("内置技能 `create-task-plans`"));
+    assert!(prompt.contains("`$create-task-plans`"));
+    assert!(prompt.contains("技能不可用时，按本提示继续"));
+    assert!(prompt.contains("`tasks.json` 顶层必须包含 `plan_dir` 和 `tasks`"));
+    assert!(prompt.contains(&format!("`{}`", plan_dir.join("tasks.json").display())));
+    let (_, example) = prompt.split_once("```json\n").expect("JSON example");
+    let (example, _) = example.split_once("\n```").expect("end of JSON example");
+    let sample = crate::parse_tasks_json(example).expect("valid scheduling manifest example");
+    assert_eq!(sample.plan_dir, plan_dir.display().to_string());
+    assert_eq!(sample.tasks.len(), 1);
+    assert_eq!(sample.tasks[0].id, "1");
+    assert_eq!(sample.tasks[0].batch, 1);
+    assert!(sample.tasks[0].depends_on_batches.is_empty());
 }
 
 
@@ -60,6 +72,10 @@ fn execution_prompt_names_canonical_plan_and_task_paths() {
 
     assert!(prompt.contains(&format!("`{}`", plan_abs.display())));
     assert!(prompt.contains(&format!("`{}`", task_file_abs.display())));
+    assert!(prompt.contains("内置技能 `do-task-plans`"));
+    assert!(prompt.contains("`$do-task-plans`"));
+    assert!(prompt.contains("技能不可用时，按本提示继续"));
+    assert!(prompt.contains("务必保留对应编号任务文件"));
     assert!(prompt.contains("唯一可写进度源"));
     assert!(prompt.contains("不搜索、不新建、不更新仓库内同名 `.plans` 文件"));
 }

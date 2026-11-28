@@ -414,7 +414,7 @@ index 0000000..66edab1
 +(allow file-read-data (literal "/dev/null") (literal "/dev/urandom") (literal "/private/etc/hosts")
 +    (literal "/private/etc/localtime") (literal ${JSON.stringify(executable)})
 +    ${[modules, workspace, native, sessions].map(subpath).join(' ')})
-+(deny file-read-data ${['.git', '.env', '.vwacprc.json', '.shiju/skills'].map(name => subpath(join(workspace, name))).join(' ')})
++(deny file-read-data ${['.git', '.env', '.vwacprc.json', '.shiju/skills', '.shiju-harness/skills'].map(name => subpath(join(workspace, name))).join(' ')})
 +${selected.length ? '(allow file-read-data ' + selected.map(subpath).join(' ') + ')' : ''}
 +(deny file-write*)
 +(allow file-write* (literal "/dev/null") ${[native, sessions].map(subpath).join(' ')})

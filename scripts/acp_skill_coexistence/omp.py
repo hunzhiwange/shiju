@@ -73,7 +73,7 @@ def launch(env):
 def prepare_workspace(workspace):
     # In the managed route, project custom roots cannot widen the selection.
     (workspace / ".omp/config.yml").write_text(json.dumps({
-        "skills": {"customDirectories": [str(workspace / ".shiju/skills")]},
+        "skills": {"customDirectories": [str(workspace / ".shiju-harness/skills")]},
     }))
 
 

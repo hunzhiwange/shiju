@@ -139,7 +139,8 @@ fn installed_directory(agent: &str, contract: &Contract) -> Result<PathBuf, Stri
         "glm-acp-agent" if LINUX_GNU => 5,
         "cursor" => 6,
         "cortex-code" | "amp-acp" | "harn" | "deepagents" => 5,
-        "pi" | "vibe" | "corust-agent" | "sigit" | "snow" | "stakpak" => 4,
+        "pi" => 5,
+        "vibe" | "corust-agent" | "sigit" | "snow" | "stakpak" => 4,
         "gemini" | "nova" | "glm-acp-agent" | "aionrs" | "dimcode" | "junie" | "hermes"
         | "poolside" | "openclaw" => 3,
         "vtcode"

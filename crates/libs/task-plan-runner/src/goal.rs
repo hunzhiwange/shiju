@@ -145,7 +145,8 @@ pub fn build_goal_continuation_prompt(
         execution_evidence.trim()
     };
     format!(
-        "{}\
+        "{skill_hint}\
+\n\n{}\
 \n\n# 规范计划目录\n{}\
 \n\n# 规范任务文件\n{}\
 \n\n# 已有执行证据\n{}\
@@ -154,6 +155,7 @@ pub fn build_goal_continuation_prompt(
         plan_abs.display(),
         canonical_task_files,
         evidence,
+        skill_hint = super::prompts::EXECUTION_SKILL_HINT,
     )
 }
 

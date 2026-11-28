@@ -34,7 +34,7 @@ fn acp_skill_coexistence_copilot_rejects_outside_roots_and_settings_overrides() 
     let project = tempfile::tempdir().unwrap();
     for source in [
         r#"{"skillDirectories":["/tmp"]}"#,
-        r#"{"skillDirectories":[".shiju/skills"]}"#,
+        r#"{"skillDirectories":[".shiju-harness/skills"]}"#,
         r#"{"ignoredSkillsLocations":["../other"]}"#,
         r#"{"ignoredSkillsLocations":[".github/skills/subdirectory"]}"#,
         r#"{"allowAllTools":true}"#,

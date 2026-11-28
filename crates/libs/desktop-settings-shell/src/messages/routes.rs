@@ -215,7 +215,6 @@ impl<SettingsTab, SearchTarget, AppsCatalog, AppProviders>
         | SettingsMessage::PluginsDeleteRequested(_)
         | SettingsMessage::PluginsDeleteCompleted { .. }
         | SettingsMessage::SkillsSync(_)
-        | SettingsMessage::SkillsWorkspace(_)
         | SettingsMessage::SkillsTabChanged(_)
         | SettingsMessage::SkillsDetailClosed
         | SettingsMessage::SkillsDetailRequested(_)
@@ -234,16 +233,6 @@ impl<SettingsTab, SearchTarget, AppsCatalog, AppProviders>
         | SettingsMessage::SkillsSetEnabledCompleted { .. }
         | SettingsMessage::SkillsDeleteRequested(_)
         | SettingsMessage::SkillsDeleteCompleted { .. }
-        | SettingsMessage::SkillsBackups(_)
-        | SettingsMessage::SkillsStorage(_)
-        | SettingsMessage::SkillsBindings(_)
-        | SettingsMessage::SkillsClaudeConfig(_)
-        | SettingsMessage::SkillsJobs(_)
-        | SettingsMessage::SkillsUpdates(_)
-        | SettingsMessage::SkillsInstall(_)
-        | SettingsMessage::SkillsMarket(_)
-        | SettingsMessage::SkillsImport(_)
-        | SettingsMessage::SkillRepositories(_)
         | SettingsMessage::SkillsHelpOpen
         | SettingsMessage::SkillsHelpClose ) => SettingsRoute::SkillsProjectSelected(message),
             message @ (SettingsMessage::DialogueFlowPermissionRefresh

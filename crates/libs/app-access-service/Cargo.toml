@@ -18,7 +18,6 @@ vw-api-app-auth = { path = "../api-app-auth" }
 vw-api-app-diagnostics = { path = "../api-app-diagnostics" }
 vw-api-app-identity = { path = "../api-app-identity" }
 vw-api-app-operations = { path = "../api-app-operations" }
-vw-api-app-skills = { path = "../api-app-skills" }
 vw-api-apps-usage = { path = "../api-apps-usage" }
 vw-api-external-session = { path = "../api-external-session" }
 vw-api-mcp-management = { path = "../api-mcp-management" }

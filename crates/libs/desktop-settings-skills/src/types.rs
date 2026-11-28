@@ -3,7 +3,6 @@ pub enum SkillsSettingsTab {
     Skills,
     DiscoveryOrder,
     SystemConfig,
-    Distribution,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

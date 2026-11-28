@@ -360,7 +360,6 @@ mod mcp_management_tools;
 #[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_tools_tests.rs"]
 mod mcp_management_tools_tests;
 
-pub(crate) use gateway_agent_apps::agent_apps_skills as agent_apps_skills;
 
 pub(crate) use gateway_agent_app::agent_app_prompt_files as agent_app_prompt_files;
 

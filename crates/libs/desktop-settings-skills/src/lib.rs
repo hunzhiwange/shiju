@@ -53,13 +53,8 @@ pub fn modal_card_style(theme: &iced::Theme) -> iced::widget::container::Style {
     }
     style
 }
-pub mod backup_modal;
-pub mod bindings_view;
-pub mod claude_view;
-pub mod deeplink;
 
 pub mod page;
-pub mod third_party;
 pub fn plugin_dependency_summary(
     checks: &[gateway_desktop_settings::DesktopPluginDependencyDto],
 ) -> &'static str {
@@ -110,14 +105,6 @@ mod browser_detail;
 mod browser_discovery;
 mod browser_widgets;
 
-pub mod third_party_add;
-pub mod import_modal;
-pub mod install_view;
-pub mod jobs_view;
-pub mod market_view;
-pub mod repo_modal;
-pub mod storage_modal;
-pub mod updates_view;
 pub mod plugin_state;
 pub mod plugin_install;
 pub mod plugin_install_modal;

@@ -162,11 +162,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .height(Length::Fill)
                 .into()
         }
-        AgentConfigTab::Skills if crate::app::components::system_settings_skills::workspace_visible(app) =>
-            container(crate::app::components::system_settings_skills::view(app))
-                .padding([0, 7])
-                .height(Length::Fill)
-                .into(),
         AgentConfigTab::Skills => scrollable(
             container(crate::app::components::system_settings_skills::view(app)).padding([0, 7]),
         )

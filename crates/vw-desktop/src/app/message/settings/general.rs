@@ -122,20 +122,6 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         }
         #[cfg(target_os = "macos")]
-        GeneralSettingsMessage::SkillLinkPreview(id) => {
-            return crate::app::skill_link_preview::handoff(app, id);
-        }
-        #[cfg(target_os = "macos")]
-        GeneralSettingsMessage::SkillLinkRejected(id) => {
-            if crate::app::deep_links::acknowledge(id).is_err() {
-                return app.show_localized_toast(
-                    crate::app::state::ToastKind::Error,
-                    "无法拒绝技能链接",
-                    vec![],
-                );
-            }
-        }
-        #[cfg(target_os = "macos")]
         GeneralSettingsMessage::PromptLinkPreview(id) => {
             return crate::app::prompt_link_preview::handoff(app, id);
         }

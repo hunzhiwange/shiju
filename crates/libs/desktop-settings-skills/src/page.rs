@@ -20,16 +20,6 @@ pub enum Message {
     HelpOpen,
     #[cfg(not(target_arch = "wasm32"))]
     OpenSkillList,
-    RepositoriesOpen,
-    ClaudeOpen,
-    MarketOpen,
-    UpdatesOpen,
-    InstallOpen,
-    ImportOpen,
-    JobsOpen,
-    BindingsOpen,
-    StorageOpen,
-    BackupOpen,
     CopyText(String),
     SkillsTabChanged(SkillsSettingsTab),
     SkillsProjectAutoLoadToggled(bool),
@@ -65,7 +55,6 @@ pub const SKILLS_TAB_LABELS: &[(&str, SkillsSettingsTab)] = &[
     ("技能", SkillsSettingsTab::Skills),
     ("顺序", SkillsSettingsTab::DiscoveryOrder),
     ("系统配置", SkillsSettingsTab::SystemConfig),
-    ("仓库与分发", SkillsSettingsTab::Distribution),
 ];
 pub fn skills_tab_labels() -> &'static [(&'static str, SkillsSettingsTab)] {
     SKILLS_TAB_LABELS

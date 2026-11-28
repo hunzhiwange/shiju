@@ -101,7 +101,6 @@ app-diagnostics-runtime = { path = "../app-diagnostics-runtime" }
 gateway-project = { path = "../gateway-project" }
 agent-database = { path = "../agent-database" }
 app-settings-store = { path = "../app-settings-store" }
-app-project-profiles = { path = "../app-project-profiles" }
 app-operations = { path = "../app-operations" }
 vw-api-media = { path = "../api-media" }
 rusqlite = { workspace = true, features = ["bundled"] }
@@ -116,7 +115,6 @@ uuid = { version = "1.11", features = ["v4", "serde"] }
 tokio = { version = "1", features = ["sync", "rt", "macros", "time"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-app-skills = { path = "../app-skills" }
 
 [dependencies.vw-agent-apps]
 path = "../../vw-agent-apps"

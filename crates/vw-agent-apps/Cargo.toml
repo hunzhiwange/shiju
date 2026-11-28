@@ -28,7 +28,6 @@ app-session-codex = { path = "../libs/app-session-codex" }
 app-session-claude = { path = "../libs/app-session-claude" }
 app-session-gemini = { path = "../libs/app-session-gemini" }
 app-session-pi = { path = "../libs/app-session-pi" }
-app-skills = { path = "../libs/app-skills" }
 app-prompts = { path = "../libs/app-prompts" }
 app-mcp = { path = "../libs/app-mcp" }
 app-operations = { path = "../libs/app-operations" }

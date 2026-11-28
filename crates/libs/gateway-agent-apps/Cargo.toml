@@ -15,7 +15,6 @@ tower = { version = "0.5", features = ["util"], optional = true }
 gateway-app-read = { path = "../gateway-app-read", optional = true }
 gateway-http = { path = "../gateway-http", optional = true }
 gateway-endpoint = { path = "../gateway-endpoint", optional = true }
-vw-api-app-skills = { path = "../api-app-skills" }
 app-diagnostics-runtime = { path = "../app-diagnostics-runtime" }
 vw-api-app-diagnostics = { path = "../api-app-diagnostics" }
 vw-api-mcp-management = { path = "../api-mcp-management" }
@@ -62,7 +61,6 @@ rusqlite.workspace = true
 
 [dev-dependencies]
 gateway-app-read = { path = "../gateway-app-read" }
-gateway-app-skills = { path = "../gateway-app-skills" }
 serde_yaml.workspace = true
 gateway-http = { path = "../gateway-http" }
 gateway-app-lifecycle = { path = "../gateway-app-lifecycle" }

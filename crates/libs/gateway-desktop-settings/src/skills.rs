@@ -1,15 +1,22 @@
-pub use skill_market_types::{
-    SkillMarketInstallScopeDto as SkillSyncScope, SkillMarketInstallTargetDto as SkillSyncTarget,
-};
 use serde::{Deserialize, Serialize};
+use skill_market_types::SkillMarketInstallScopeDto;
+pub use skill_market_types::SkillMarketInstallTargetDto as SkillSyncTarget;
+
+/// Resolve an allowed desktop synchronization target underneath the gateway user's home.
+pub fn global_skill_sync_directory(target: SkillSyncTarget) -> Option<&'static str> {
+    if !SkillSyncTarget::THIRD_PARTY_AGENTS.contains(&target) {
+        return None;
+    }
+    target.relative_directory(SkillMarketInstallScopeDto::Global)
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DesktopSkillSyncRequest {
+    /// Selects the source skill catalog. Destinations are always global.
     pub project_path: Option<String>,
     pub skill_id: String,
     pub expected_source_path: Option<String>,
-    pub scope: SkillSyncScope,
     pub targets: Vec<SkillSyncTarget>,
 }
 

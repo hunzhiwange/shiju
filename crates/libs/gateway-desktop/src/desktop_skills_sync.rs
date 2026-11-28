@@ -5,11 +5,11 @@ use axum::{
 };
 use directories::BaseDirs;
 use gateway_desktop_settings::{
-    DesktopSkillSyncItem, DesktopSkillSyncRequest, DesktopSkillSyncStatus, SkillSyncScope,
-    SkillSyncTarget,
+    DesktopSkillSyncItem, DesktopSkillSyncRequest, DesktopSkillSyncStatus, SkillSyncTarget,
+    global_skill_sync_directory,
 };
 use gateway_types::ApiError;
-use std::{collections::HashMap, fs, io::ErrorKind, net::SocketAddr, path::PathBuf};
+use std::{collections::HashMap, fs, io::ErrorKind, net::SocketAddr};
 
 use super::{normalize_optional_project_path, reject_plugin_mutation, resolve_local_skill_dir};
 
@@ -35,14 +35,7 @@ pub(super) async fn sync_post(
         let project_path = normalize_optional_project_path(request.project_path);
         let directories =
             BaseDirs::new().ok_or_else(|| ApiError::bad_request("无法确定用户主目录"))?;
-        let base = match request.scope {
-            SkillSyncScope::Global => directories.home_dir().to_path_buf(),
-            SkillSyncScope::Project => PathBuf::from(
-                project_path
-                    .as_deref()
-                    .ok_or_else(|| ApiError::bad_request("项目级安装需要先选择项目"))?,
-            ),
-        };
+        let base = directories.home_dir();
         if request.targets.is_empty()
             || request.targets.len() > SkillSyncTarget::THIRD_PARTY_AGENTS.len()
         {
@@ -50,10 +43,8 @@ pub(super) async fn sync_post(
         }
         let mut targets = Vec::with_capacity(request.targets.len());
         for target in request.targets {
-            let relative = target
-                .relative_directory(request.scope)
-                .filter(|_| SkillSyncTarget::THIRD_PARTY_AGENTS.contains(&target))
-                .ok_or_else(|| ApiError::bad_request("该应用不支持所选安装范围"))?;
+            let relative = global_skill_sync_directory(target)
+                .ok_or_else(|| ApiError::bad_request("此应用不支持技能目录同步"))?;
             let root = base.join(relative);
             targets.push((target, root));
         }
@@ -85,7 +76,7 @@ pub(super) async fn sync_post(
         for (target, root) in targets {
             let status = *results.entry(root.clone()).or_insert_with(|| {
                 use DesktopSkillSyncStatus::{AlreadyInstalled, Failed, Installed};
-                if agent_skills::local_sources::validate_skill_target_root(&base, &root).is_err() {
+                if agent_skills::local_sources::validate_skill_target_root(base, &root).is_err() {
                     return Failed;
                 }
                 match fs::symlink_metadata(root.join(name)) {

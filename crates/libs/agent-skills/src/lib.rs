@@ -24,6 +24,8 @@ pub mod session_state;
 pub mod installer;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod import;
+#[cfg(not(target_arch = "wasm32"))]
+mod import_archive;
 pub mod loader;
 pub mod policy;
 pub mod source;

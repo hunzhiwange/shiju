@@ -2,7 +2,6 @@
 pub mod menu_actions;
 pub mod native_menu;
 pub mod desktop_notification;
-pub mod skill_deeplink;
 #[cfg(any(unix, windows))]
 pub mod single_instance;
 #[cfg(target_os = "macos")]
@@ -13,8 +12,6 @@ pub mod mcp_link_preview;
 pub mod prompt_link_preview;
 #[cfg(target_os = "macos")]
 pub mod provider_link_preview;
-#[cfg(target_os = "macos")]
-pub mod skill_link_preview;
 #[cfg(target_os = "windows")]
 pub mod native_crash;
 

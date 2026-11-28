@@ -2,17 +2,6 @@ use crate::types::*;
 #[derive(Debug, Clone)]
 pub struct State {
     pub sync: crate::sync::State,
-    pub workspace: crate::third_party::State,
-    pub bindings: super::bindings_view::State,
-    pub backups: super::backup_modal::State,
-    pub storage: super::storage_modal::State,
-    pub claude_config: super::claude_view::State,
-    pub jobs: super::jobs_view::State,
-    pub updates: super::updates_view::State,
-    pub install: super::install_view::State,
-    pub market: super::market_view::State,
-    pub import: super::import_modal::State,
-    pub repositories: super::repo_modal::State,
     /// 是否让委托代理默认加载项目及父级技能
     pub auto_load_project_skills: bool,
     /// 提示注入模式
@@ -65,17 +54,6 @@ impl Default for State {
     fn default() -> Self {
         Self {
             sync: Default::default(),
-            workspace: Default::default(),
-            updates: Default::default(),
-            jobs: Default::default(),
-            install: Default::default(),
-            market: Default::default(),
-            import: Default::default(),
-            repositories: Default::default(),
-            bindings: Default::default(),
-            backups: Default::default(),
-            storage: Default::default(),
-            claude_config: Default::default(),
             auto_load_project_skills: true,
             prompt_injection_mode: config_skills::SkillsPromptInjectionMode::Compact,
             active_tab: SkillsSettingsTab::Skills,

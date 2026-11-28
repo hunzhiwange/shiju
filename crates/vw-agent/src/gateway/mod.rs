@@ -21,7 +21,6 @@ pub(crate) use app_routing_services::failover_runtime as agent_apps_failover_run
 #[cfg(target_os = "macos")]
 pub use agent_gateway::agent_apps_high_availability_service as agent_apps_high_availability_service;
 pub use app_settings_store::agent_apps_high_availability_store;
-pub use app_settings_store::agent_apps_skills_store as agent_apps_skills_store;
 pub mod api;
 pub(crate) mod approval_state;
 mod bootstrap;

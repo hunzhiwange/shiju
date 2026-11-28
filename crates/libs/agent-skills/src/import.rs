@@ -45,7 +45,7 @@ pub fn import_skill_zip(
 ) -> Result<(usize, Vec<String>)> {
     ensure!(fs::symlink_metadata(source)?.is_file(), "请选择 ZIP 文件");
     let extracted =
-        app_skill_catalog::archive::extract_local_zip(source).context("无法解包 ZIP")?;
+        crate::import_archive::extract_local_zip(source).context("无法解包 ZIP")?;
     let mut candidates = Vec::new();
     let mut entries = walkdir::WalkDir::new(extracted.path()).sort_by_file_name().into_iter();
     while let Some(entry) = entries.next() {

@@ -93,7 +93,6 @@ pub mod model_catalog;
 
 
 
-pub mod agent_apps_skills;
 
 
 pub mod workspace_memory;

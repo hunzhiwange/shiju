@@ -8,7 +8,6 @@ pub mod agent_apps_error;
 #[cfg(test)]
 mod agent_apps_error_tests;
 
-pub mod agent_apps_skills;
 pub mod icons;
 pub mod host_context;
 pub mod read;

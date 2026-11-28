@@ -10,10 +10,10 @@ use std::path::{Path, PathBuf};
 
 use tempfile::TempDir;
 
-pub const MAX_ARCHIVE_ENTRIES: usize = 30_000;
-pub const MAX_ARCHIVE_DOWNLOAD_BYTES: u64 = 512 * 1024 * 1024;
-pub const MAX_ARCHIVE_TOTAL_BYTES: u64 = 512 * 1024 * 1024;
-pub const MAX_SYMLINK_TARGET_BYTES: u64 = 4 * 1024;
+const MAX_ARCHIVE_ENTRIES: usize = 30_000;
+const MAX_ARCHIVE_BYTES: u64 = 512 * 1024 * 1024;
+const MAX_ARCHIVE_TOTAL_BYTES: u64 = 512 * 1024 * 1024;
+const MAX_SYMLINK_TARGET_BYTES: u64 = 4 * 1024;
 const BLOCK_BYTES: u64 = 4096;
 
 #[derive(Debug)]
@@ -27,30 +27,12 @@ fn invalid(message: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }
 
-/// Extract a repository ZIP, requiring and removing its single enclosing folder.
-/// The reader is checked against the download budget before ZIP parsing.
-pub fn extract_repo_archive<R: Read + Seek>(reader: R) -> io::Result<TempDir> {
-    extract(reader, true, None, &|| Ok(()))
+pub(super) fn extract_local_zip(path: &Path) -> io::Result<TempDir> {
+    extract(File::open(path)?, None)
 }
 
-/// Extract a ZIP on the authorized execution host, retaining its directory layout.
-/// This function does not authorize a client-supplied path for the caller.
-pub fn extract_local_zip(path: &Path) -> io::Result<TempDir> {
-    extract(File::open(path)?, false, None, &|| Ok(()))
-}
-
-pub(super) fn extract_repo_archive_checked<R: Read + Seek>(reader: R,
-    check: &(dyn Fn() -> io::Result<()> + Sync)) -> io::Result<TempDir> {
-    extract(reader, true, None, check)
-}
-
-fn extract<R: Read + Seek>(
-    mut reader: R,
-    strip_root: bool,
-    temporary_parent: Option<&Path>,
-    check: &(dyn Fn() -> io::Result<()> + Sync),
-) -> io::Result<TempDir> {
-    if reader.seek(SeekFrom::End(0))? > MAX_ARCHIVE_DOWNLOAD_BYTES {
+fn extract<R: Read + Seek>(mut reader: R, temporary_parent: Option<&Path>) -> io::Result<TempDir> {
+    if reader.seek(SeekFrom::End(0))? > MAX_ARCHIVE_BYTES {
         return Err(invalid("skill archive exceeds the download budget"));
     }
     reader.seek(SeekFrom::Start(0))?;
@@ -68,29 +50,11 @@ fn extract<R: Read + Seek>(
     let mut entries = BTreeMap::new();
     entries.insert(PathBuf::new(), Entry::Directory);
     let mut explicit = BTreeSet::new();
-    let mut repository_root = None;
     let mut total = 0;
     for index in 0..archive.len() {
-        check()?;
         let mut file = archive.by_index(index).map_err(io::Error::from)?;
-        let mut parts = safe_entry_parts(&file.name().map_err(io::Error::from)?)?;
-        if strip_root {
-            let root = parts.remove(0);
-            match &repository_root {
-                Some(expected) if expected != &root => {
-                    return Err(invalid("repository archive has multiple roots"));
-                }
-                None => repository_root = Some(root),
-                _ => {}
-            }
-        }
+        let parts = safe_entry_parts(&file.name().map_err(io::Error::from)?)?;
         let path: PathBuf = parts.iter().collect();
-        if path.as_os_str().is_empty() {
-            if !file.is_dir() {
-                return Err(invalid("repository archive root is not a directory"));
-            }
-            continue;
-        }
         if !explicit.insert(path.clone()) {
             return Err(invalid("skill archive contains duplicate paths"));
         }
@@ -120,22 +84,19 @@ fn extract<R: Read + Seek>(
             if entries.contains_key(&path) {
                 return Err(invalid("skill archive file conflicts with a directory"));
             }
-            write_file(&mut file, &guard.path().join(&path), &mut total, check)?;
+            write_file(&mut file, &guard.path().join(&path), &mut total)?;
             entries.insert(path, Entry::File);
         }
     }
     let mut children: BTreeMap<PathBuf, Vec<PathBuf>> = BTreeMap::new();
     for path in entries.keys().filter(|path| !path.as_os_str().is_empty()) {
-        children
-            .entry(path.parent().unwrap().to_path_buf())
-            .or_default()
-            .push(path.clone());
+        children.entry(path.parent().unwrap().to_path_buf()).or_default().push(path.clone());
     }
     // Resolve against the immutable archive tree, never against earlier copies.
     // This makes link chains independent of ZIP order and detects directory cycles.
     for (path, entry) in &entries {
         if matches!(entry, Entry::Link(_)) {
-            materialize(path, &entries, &children, guard.path(), &mut total, check)?;
+            materialize(path, &entries, &children, guard.path(), &mut total)?;
         }
     }
     Ok(guard)
@@ -197,9 +158,7 @@ fn resolve_target(parent: &Path, target: &str) -> io::Result<PathBuf> {
 
 fn read_symlink_target<R: Read>(reader: &mut R, total: &mut u64) -> io::Result<String> {
     let mut bytes = Vec::new();
-    reader
-        .take(MAX_SYMLINK_TARGET_BYTES + 1)
-        .read_to_end(&mut bytes)?;
+    reader.take(MAX_SYMLINK_TARGET_BYTES + 1).read_to_end(&mut bytes)?;
     if bytes.len() as u64 > MAX_SYMLINK_TARGET_BYTES {
         return Err(invalid("skill archive link target exceeds 4 KiB"));
     }
@@ -216,16 +175,12 @@ fn charge(total: &mut u64, amount: u64) -> io::Result<()> {
     Ok(())
 }
 
-fn write_file<R: Read>(reader: &mut R, path: &Path, total: &mut u64, check: &(dyn Fn() -> io::Result<()> + Sync)) -> io::Result<()> {
+fn write_file<R: Read>(reader: &mut R, path: &Path, total: &mut u64) -> io::Result<()> {
     // Never overwrite an alias on a case-insensitive or Unicode-normalizing volume.
-    let mut writer = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)?;
+    let mut writer = OpenOptions::new().write(true).create_new(true).open(path)?;
     let before = *total;
     let mut buffer = [0; 16 * 1024];
     loop {
-        check()?;
         let read = reader.read(&mut buffer)?;
         if read == 0 {
             break;
@@ -243,7 +198,6 @@ fn materialize(
     children: &BTreeMap<PathBuf, Vec<PathBuf>>,
     root: &Path,
     total: &mut u64,
-    check: &(dyn Fn() -> io::Result<()> + Sync),
 ) -> io::Result<()> {
     enum Work {
         Copy(PathBuf, PathBuf),
@@ -252,7 +206,6 @@ fn materialize(
     let mut work = vec![Work::Copy(link.to_path_buf(), link.to_path_buf())];
     let mut active = BTreeSet::new();
     while let Some(item) = work.pop() {
-        check()?;
         let (source, destination) = match item {
             Work::Leave(path) => {
                 active.remove(&path);
@@ -269,12 +222,7 @@ fn materialize(
                 work.push(Work::Copy(target.clone(), destination));
             }
             Some(Entry::File) => {
-                write_file(
-                    &mut File::open(root.join(source))?,
-                    &root.join(destination),
-                    total,
-                    check,
-                )?;
+                write_file(&mut File::open(root.join(source))?, &root.join(destination), total)?;
             }
             Some(Entry::Directory) => {
                 charge(total, BLOCK_BYTES)?;
@@ -290,9 +238,10 @@ fn materialize(
             }
             None => {
                 // A link can also occur in an intermediate target component.
-                let prefix = source.ancestors().skip(1).find(|prefix| {
-                    matches!(entries.get(*prefix), Some(Entry::Link(_)))
-                });
+                let prefix = source
+                    .ancestors()
+                    .skip(1)
+                    .find(|prefix| matches!(entries.get(*prefix), Some(Entry::Link(_))));
                 let Some(prefix) = prefix else {
                     return Err(invalid("skill archive contains a dangling link"));
                 };
@@ -312,5 +261,5 @@ fn materialize(
 }
 
 #[cfg(test)]
-#[path = "archive_tests.rs"]
+#[path = "import_archive_tests.rs"]
 mod tests;

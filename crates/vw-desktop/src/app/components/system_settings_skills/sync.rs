@@ -3,14 +3,14 @@ use crate::app::{App, Message, message::SettingsMessage};
 use desktop_i18n::I18n;
 use desktop_settings_skills::sync::{Event, Form};
 use desktop_ui_controls::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-    settings_close_button, settings_error_banner, settings_group_card, settings_modal_header,
-    settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
-    settings_page_heading, settings_tab_button,
+    SETTINGS_PAGE_TITLE_SIZE, primary_action_btn_style, rounded_action_btn_style,
+    settings_checkbox_style, settings_close_button, settings_error_banner, settings_group_card,
+    settings_modal_header, settings_modal_layout, settings_modal_overlay,
+    settings_muted_text_style,
 };
 use gateway_desktop_settings::{
-    DesktopSkillSyncRequest, DesktopSkillSyncStatus, GatewayDesktopSettingsClient, SkillSyncScope,
-    SkillSyncTarget,
+    DesktopSkillSyncRequest, DesktopSkillSyncStatus, GatewayDesktopSettingsClient, SkillSyncTarget,
+    global_skill_sync_directory,
 };
 use iced::{
     Alignment, Element, Length, Task,
@@ -63,9 +63,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             state.form = Some(Form {
                 skill_id,
                 expected_source_path: skill.source_path.clone(),
-                title: skill.title.clone(),
                 project_path: project.clone(),
-                scope: SkillSyncScope::Global,
                 targets: Vec::new(),
                 busy: false,
                 error: None,
@@ -104,18 +102,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                         desktop_i18n::format::Message::new(label, vec![]),
                     );
                 }
-                Event::Scope(scope)
-                    if !form.busy && (scope == SkillSyncScope::Global || project.is_some()) =>
-                {
-                    form.scope = scope;
-                    form.targets.retain(|target| target.supports_scope(scope));
-                    form.results.clear();
-                    form.error = None;
-                }
                 Event::Select(target, selected)
-                    if !form.busy
-                        && SkillSyncTarget::THIRD_PARTY_AGENTS.contains(&target)
-                        && target.supports_scope(form.scope) =>
+                    if !form.busy && global_skill_sync_directory(target).is_some() =>
                 {
                     form.targets.retain(|other| *other != target);
                     if selected {
@@ -127,7 +115,6 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                         project_path: form.project_path.clone(),
                         skill_id: form.skill_id.clone(),
                         expected_source_path: form.expected_source_path.clone(),
-                        scope: form.scope,
                         targets: form.targets.clone(),
                     };
                     form.busy = true;
@@ -163,32 +150,13 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
     };
     let i18n = I18n::new(app.general_settings.desktop_locale);
     let close = message(Event::Close);
-    let scope_button = |label, scope| {
-        settings_tab_button(
-            i18n.__(label),
-            form.scope == scope,
-            (!form.busy
-                && scope != form.scope
-                && (scope == SkillSyncScope::Global || form.project_path.is_some()))
-            .then_some(message(Event::Scope(scope))),
-        )
-    };
-    let scope = row![
-        text(i18n.__("安装范围")).size(13),
-        scope_button("全局", SkillSyncScope::Global),
-        scope_button("项目", SkillSyncScope::Project),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
     let mut choices = column![].spacing(10);
     for pair in SkillSyncTarget::THIRD_PARTY_AGENTS.chunks(2) {
         let mut line = row![].spacing(12);
         for &target in pair {
-            let enabled = !form.busy && target.supports_scope(form.scope);
+            let enabled = !form.busy && global_skill_sync_directory(target).is_some();
             let label = if target == SkillSyncTarget::ClaudeDesktop {
                 i18n.__("请在 Claude Desktop 中上传技能 ZIP")
-            } else if !target.supports_scope(form.scope) {
-                i18n.__("支持全局安装")
             } else if let Some(item) = form.results.iter().find(|item| item.target == target) {
                 i18n.__(match item.status {
                     DesktopSkillSyncStatus::Installed => "已安装",
@@ -213,7 +181,7 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
         }
         choices = choices.push(line);
     }
-    let mut body = column![scope, settings_group_card(container(choices).padding([12, 0]))]
+    let mut body = column![settings_group_card(container(choices).padding([12, 0]))]
         .spacing(12)
         .width(Length::Fill);
     if let Some(error) = &form.error {
@@ -235,7 +203,7 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
     .width(Length::Fill)
     .align_y(Alignment::Center);
     let header = settings_modal_header(
-        settings_page_heading(i18n.__("同步到第三方"), form.title.as_str()),
+        text(i18n.__("同步到第三方")).size(SETTINGS_PAGE_TITLE_SIZE),
         settings_close_button(close.clone()),
     );
     let card = settings_modal_layout(header, body, Some(actions.into())).width(590).height(540);

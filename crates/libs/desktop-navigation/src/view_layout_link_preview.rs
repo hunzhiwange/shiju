@@ -96,48 +96,6 @@ pub fn prompt<'a, M: Clone + 'static>(
     )
 }
 
-pub fn skill<'a, M: Clone + 'static>(
-    base: Element<'a, M>,
-    url: &str,
-    i18n: I18n,
-    close: M,
-    host: &str,
-    directory: Option<&str>,
-    repositories_open: bool,
-    accept: M,
-) -> Element<'a, M> {
-    let parsed = desktop_platform::skill_link_preview::parse(
-        url,
-        directory.unwrap_or_default().to_string(),
-        host.to_string(),
-    );
-    let valid = parsed.is_ok();
-    let error = parsed.as_ref().err().map(|error| i18n.__(error).to_owned());
-    let content = desktop_platform::skill_link_preview::body(parsed, i18n).map(|_| unreachable!());
-    let body = column![content].spacing(12);
-    let body = if let Some(error) = error { body.push(settings_error_banner(error)) } else { body };
-    let footer = row![
-        button(i18n.__("继续确认仓库"))
-            .padding([8, 10])
-            .style(primary_action_btn_style)
-            .on_press_maybe((valid && directory.is_some() && !repositories_open).then_some(accept)),
-        button(preview_actions(i18n)[1])
-            .padding([8, 10])
-            .style(rounded_action_btn_style)
-            .on_press(close.clone()),
-    ]
-    .spacing(8);
-    let card = settings_modal_layout(
-        settings_modal_header(text(i18n.__("技能链接预览")), settings_close_button(close.clone())),
-        body,
-        Some(footer.into()),
-    )
-    .style(settings_modal_card_style)
-    .width(640)
-    .height(420);
-    settings_modal_overlay(Some(base), close, card)
-}
-
 /// State generation used by the real provider overlay; no payload values are translated.
 pub(crate) fn provider_content(url: &str, i18n: I18n) -> (&'static str, Vec<String>) {
     (

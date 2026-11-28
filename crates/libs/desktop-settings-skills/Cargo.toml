@@ -20,9 +20,7 @@ vw-api-app-identity = { path = "../api-app-identity" }
 vw-api-app-operations = { path = "../api-app-operations" }
 vw-api-types = { path = "../../vw-api-types" }
 gateway-desktop-settings = { path = "../gateway-desktop-settings" }
-vw-api-app-skills = { path = "../api-app-skills" }
 iced = { version = "0.14", features = ["image", "svg", "advanced", "canvas"] }
-desktop-platform = { path = "../desktop-platform" }
 desktop-provider-apps = { path = "../desktop-provider-apps" }
 vw-gateway-client = { path = "../../vw-gateway-client" }
 local-app-auth = { path = "../local-app-auth" }

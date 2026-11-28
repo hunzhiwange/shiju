@@ -17,11 +17,9 @@ pub(super) fn gateway_host(tenant: &TenantScope) -> Result<Host, StatusCode> {
     } else {
         paths.data.join("apps").join(hex::encode(Sha256::digest(scope)))
     };
-    let skills_root = home.join(".agents/skills");
     for directory in [
         &root,
         &paths.config.join("apps"),
-        &skills_root,
     ] {
         #[cfg(unix)]
         {
@@ -74,8 +72,8 @@ pub(super) fn gateway_host(tenant: &TenantScope) -> Result<Host, StatusCode> {
         _legacy_data_migration_root: (),
         _legacy_data_migration_sources: (),
         external_session_instances: native_instances(&home),
-        skills_root: Some(skills_root),
-        skill_install_files: Default::default(),
+        _legacy_skills_root: (),
+        _legacy_skill_install_files: (),
         pi_directory: None,
         github_enterprise_authorities: Vec::new(),
         native_login_owners: Vec::new(),

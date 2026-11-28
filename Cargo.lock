@@ -840,11 +840,9 @@ dependencies = [
  "app-access-service",
  "app-diagnostics-runtime",
  "app-operations",
- "app-project-profiles",
  "app-provider-services",
  "app-routing-services",
  "app-settings-store",
- "app-skills",
  "async-trait",
  "axum",
  "base64 0.22.1",
@@ -1502,7 +1500,6 @@ version = "0.7.10"
 dependencies = [
  "acp-types",
  "anyhow",
- "app-skill-catalog",
  "async-trait",
  "base64 0.23.1",
  "config-runtime-paths",
@@ -1881,7 +1878,6 @@ dependencies = [
  "vw-api-app-identity",
  "vw-api-app-operations",
  "vw-api-app-provider-edit",
- "vw-api-app-skills",
  "vw-api-apps-usage",
  "vw-api-external-session",
  "vw-api-mcp-management",
@@ -2854,7 +2850,6 @@ dependencies = [
  "app-provider-validation",
  "app-providers",
  "app-routing-policy",
- "app-skills",
  "hex",
  "postgres",
  "reqwest 0.13.4",
@@ -2870,52 +2865,7 @@ dependencies = [
  "vw-api-app-failover",
  "vw-api-app-identity",
  "vw-api-app-provider-base",
- "vw-api-app-skills",
  "vw-api-transport",
- "zip",
-]
-
-[[package]]
-name = "app-skill-catalog"
-version = "0.7.10"
-dependencies = [
- "app-catalog",
- "app-config-paths",
- "futures-util",
- "reqwest 0.13.4",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "uuid",
- "vw-api-app-identity",
- "vw-api-app-provider-environment",
- "vw-api-transport",
- "yaml_serde",
- "zip",
-]
-
-[[package]]
-name = "app-skills"
-version = "0.7.10"
-dependencies = [
- "app-auth",
- "app-config-paths",
- "app-skill-catalog",
- "hex",
- "libc",
- "reqwest 0.13.4",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "toml 0.9.12+spec-1.1.0",
- "vw-api-app-identity",
- "vw-api-app-provider-environment",
- "vw-api-transport",
- "yaml_serde",
  "zip",
 ]
 
@@ -7115,7 +7065,6 @@ dependencies = [
  "urlencoding",
  "vw-api-app-identity",
  "vw-api-app-operations",
- "vw-api-app-skills",
  "vw-api-mcp-management",
  "winreg 0.55.0",
 ]
@@ -7209,7 +7158,6 @@ dependencies = [
  "desktop-web-runtime",
  "desktop-workspace",
  "directories",
- "gateway-app-skills",
  "gateway-chat-stream",
  "gateway-desktop-settings",
  "gateway-endpoint",
@@ -7244,7 +7192,6 @@ dependencies = [
  "vw-api-acp-model",
  "vw-api-agent-scheduler",
  "vw-api-app-identity",
- "vw-api-app-skills",
  "vw-api-chat-identity",
  "vw-api-media",
  "vw-api-project",
@@ -7714,7 +7661,6 @@ dependencies = [
  "desktop-assets",
  "desktop-chat-view",
  "desktop-i18n",
- "desktop-platform",
  "desktop-provider-apps",
  "desktop-ui-controls",
  "gateway-app-prompt-resources",
@@ -7731,7 +7677,6 @@ dependencies = [
  "urlencoding",
  "vw-api-app-identity",
  "vw-api-app-operations",
- "vw-api-app-skills",
  "vw-api-transport",
  "vw-api-types",
  "vw-gateway-client",
@@ -9239,7 +9184,6 @@ dependencies = [
  "gateway-app-providers",
  "gateway-app-read",
  "gateway-app-settings",
- "gateway-app-skills",
  "gateway-app-usage",
  "gateway-endpoint",
  "gateway-http",
@@ -9277,7 +9221,6 @@ dependencies = [
  "vw-api-app-operations",
  "vw-api-app-provider-base",
  "vw-api-app-provider-profiles",
- "vw-api-app-skills",
  "vw-api-apps-usage",
  "vw-api-mcp-management",
  "vw-api-task",
@@ -9636,20 +9579,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "vw-api-app-identity",
- "vw-api-transport",
-]
-
-[[package]]
-name = "gateway-app-skills"
-version = "0.7.10"
-dependencies = [
- "gateway-endpoint",
- "gateway-http",
- "reqwest 0.13.4",
- "serde",
- "serde_json",
- "tokio",
- "vw-api-app-skills",
  "vw-api-transport",
 ]
 
@@ -22003,7 +21932,6 @@ dependencies = [
  "gateway-app-read",
  "gateway-app-routing",
  "gateway-app-settings",
- "gateway-app-skills",
  "gateway-app-usage",
  "gateway-auth",
  "gateway-channel",
@@ -22240,7 +22168,6 @@ dependencies = [
  "vw-api-app-provider-profiles",
  "vw-api-app-provider-terminal",
  "vw-api-app-routing",
- "vw-api-app-skills",
  "vw-api-apps-usage",
  "vw-api-chat",
  "vw-api-chat-identity",
@@ -22321,7 +22248,6 @@ dependencies = [
  "app-session-pi",
  "app-session-sqlite",
  "app-sessions",
- "app-skills",
  "app-usage",
  "app-usage-balances",
  "app-usage-codex",
@@ -22485,15 +22411,6 @@ dependencies = [
  "serde",
  "serde_json",
  "vw-api-app-provider-environment",
-]
-
-[[package]]
-name = "vw-api-app-skills"
-version = "0.7.10"
-dependencies = [
- "serde",
- "vw-api-app-identity",
- "vw-api-transport",
 ]
 
 [[package]]
@@ -22771,7 +22688,6 @@ dependencies = [
  "vw-api-app-provider-profiles",
  "vw-api-app-provider-terminal",
  "vw-api-app-routing",
- "vw-api-app-skills",
  "vw-api-apps-usage",
  "vw-api-chat",
  "vw-api-chat-identity",
@@ -23019,7 +22935,6 @@ dependencies = [
  "gateway-app-read",
  "gateway-app-routing",
  "gateway-app-settings",
- "gateway-app-skills",
  "gateway-app-usage",
  "gateway-channel-qr",
  "gateway-chat-stream",
@@ -23150,7 +23065,6 @@ dependencies = [
  "vw-api-app-provider-profiles",
  "vw-api-app-provider-terminal",
  "vw-api-app-routing",
- "vw-api-app-skills",
  "vw-api-apps-usage",
  "vw-api-chat-identity",
  "vw-api-computer-control",
@@ -23207,7 +23121,6 @@ dependencies = [
  "gateway-app-read",
  "gateway-app-routing",
  "gateway-app-settings",
- "gateway-app-skills",
  "gateway-app-usage",
  "gateway-channel-qr",
  "gateway-chat-stream",
@@ -23276,7 +23189,6 @@ dependencies = [
  "vw-api-app-provider-profiles",
  "vw-api-app-provider-terminal",
  "vw-api-app-routing",
- "vw-api-app-skills",
  "vw-api-apps-usage",
  "vw-api-chat-identity",
  "vw-api-computer-control",

@@ -1,22 +1,10 @@
 //! 技能配置设置界面组件。
 
-mod backup_modal;
-mod bindings_view;
 mod browser;
 mod catalog;
-mod claude_view;
-mod deeplink;
 mod help;
-mod import_modal;
-mod install_view;
-mod jobs_view;
-mod market_view;
 mod plugin_install_modal;
 pub(crate) mod plugins;
-mod repo_modal;
-mod storage_modal;
-mod updates_view;
-pub(crate) mod workspace;
 pub(crate) mod sync;
 
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
@@ -38,36 +26,6 @@ fn page_message(event: desktop_settings_skills::page::Message) -> Message {
                 Message::SkillHub(message::SkillHubMessage::OpenShijuSkills),
             ]);
         }
-        Ui::RepositoriesOpen => message::SettingsMessage::SkillRepositories(
-            crate::app::message::settings::skills::repo_modal::Event::Open,
-        ),
-        Ui::ClaudeOpen => message::SettingsMessage::SkillsClaudeConfig(
-            crate::app::message::settings::skills::claude_view::Event::Open,
-        ),
-        Ui::MarketOpen => message::SettingsMessage::SkillsMarket(
-            crate::app::message::settings::skills::market_view::Event::Open,
-        ),
-        Ui::UpdatesOpen => message::SettingsMessage::SkillsUpdates(
-            crate::app::message::settings::skills::updates_view::Event::Open,
-        ),
-        Ui::InstallOpen => message::SettingsMessage::SkillsInstall(
-            crate::app::message::settings::skills::install_view::Event::Open,
-        ),
-        Ui::ImportOpen => message::SettingsMessage::SkillsImport(
-            crate::app::message::settings::skills::import_modal::Event::Open,
-        ),
-        Ui::JobsOpen => message::SettingsMessage::SkillsJobs(
-            crate::app::message::settings::skills::jobs_view::Event::Open,
-        ),
-        Ui::BindingsOpen => message::SettingsMessage::SkillsBindings(
-            crate::app::message::settings::skills::bindings_view::Event::Open,
-        ),
-        Ui::StorageOpen => message::SettingsMessage::SkillsStorage(
-            crate::app::message::settings::skills::storage_modal::Event::Open,
-        ),
-        Ui::BackupOpen => message::SettingsMessage::SkillsBackups(
-            crate::app::message::settings::skills::backup_modal::Event::Open,
-        ),
         Ui::None => return Message::None,
         Ui::CopyText(text) => return Message::CopyCode(text),
         Ui::SkillsTabChanged(v) => message::SettingsMessage::SkillsTabChanged(v),
@@ -105,11 +63,6 @@ pub(super) const SKILLS_TABS: &[SettingsTabDescriptor<SkillsSettingsTab>] = &[
         SKILLS_TAB_LABELS[2].0,
         &["项目技能", "project skills", "提示注入", "prompt injection"],
     ),
-    SettingsTabDescriptor::new(
-        SKILLS_TAB_LABELS[3].1,
-        SKILLS_TAB_LABELS[3].0,
-        &["third-party skills", "第三方技能", "仓库管理", "Claude 配置", "技能市场", "导入技能", "应用绑定", "存储与同步", "备份与恢复"],
-    ),
 ];
 
 fn system_config_view(app: &App) -> Element<'_, Message> {
@@ -121,7 +74,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         SkillsSettingsTab::Skills => browser::view(app),
         SkillsSettingsTab::DiscoveryOrder => browser::discovery_order_view(app),
         SkillsSettingsTab::SystemConfig => system_config_view(app),
-        SkillsSettingsTab::Distribution => workspace::view(app),
     };
     desktop_settings_skills::page::view(
         config_context(app),
@@ -135,31 +87,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     let dialog = browser::view_overlays(app, dialog);
     let dialog = help::view_overlays(app, dialog);
-    if workspace_visible(app) { workspace_overlays(app, dialog) } else { sync::overlay(app, dialog) }
+    sync::overlay(app, dialog)
 }
-
-fn workspace_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
-    let dialog = repo_modal::view(app, dialog);
-    let dialog = claude_view::view(app, dialog);
-    let dialog = bindings_view::view(app, dialog);
-    let dialog = storage_modal::view(app, dialog);
-    let dialog = backup_modal::view(app, dialog);
-    let dialog = market_view::view(app, dialog);
-    let dialog = install_view::view(app, dialog);
-    let dialog = import_modal::view(app, dialog);
-    let dialog = jobs_view::view(app, dialog);
-    updates_view::view(app, dialog)
-}
-
 
 pub(crate) fn is_visible(app: &App) -> bool {
     app.navigation_panels.show_system_settings
         && app.navigation_panels.system_settings_tab == super::system_settings::SystemTab::Agents
         && app.agents_settings.active_config_tab == crate::app::state::AgentConfigTab::Skills
-}
-
-pub(crate) fn workspace_visible(app: &App) -> bool {
-    is_visible(app) && app.skills_settings.active_tab == SkillsSettingsTab::Distribution
 }
 
 pub(crate) fn open(app: &mut App) -> iced::Task<Message> {
@@ -173,44 +107,9 @@ pub(crate) fn open(app: &mut App) -> iced::Task<Message> {
     )
 }
 
-pub(crate) fn open_workspace(app: &mut App) -> iced::Task<Message> {
-    if workspace_visible(app) { workspace::open(app) } else { iced::Task::none() }
-}
-
 pub(crate) fn invalidate(app: &mut App) {
-    use crate::app::message::SettingsMessage;
-    use crate::app::message::settings::skills;
-    for event in [
-        SettingsMessage::SkillRepositories(skills::repo_modal::Event::Close),
-        SettingsMessage::SkillsClaudeConfig(skills::claude_view::Event::Close),
-        SettingsMessage::SkillsBindings(skills::bindings_view::Event::Close),
-        SettingsMessage::SkillsImport(skills::import_modal::Event::Close),
-        SettingsMessage::SkillsInstall(skills::install_view::Event::Close),
-        SettingsMessage::SkillsMarket(skills::market_view::Event::Close),
-        SettingsMessage::SkillsUpdates(skills::updates_view::Event::Close),
-        SettingsMessage::SkillsJobs(skills::jobs_view::Event::Close),
-        SettingsMessage::SkillsStorage(skills::storage_modal::Event::Close),
-        SettingsMessage::SkillsBackups(skills::backup_modal::Event::Close),
-    ] {
-        // Close reducers only dismiss presentation; writes keep their original scope.
-        let _ = skills::update(app, event);
-    }
-    // Busy reducers retain their captured request scope, but no presentation
-    // may survive a navigation or host change.
-    let skills = &mut app.skills_settings;
-    skills.repositories.open = false;
-    skills.claude_config.open = false;
-    skills.bindings.open = false;
-    skills.import.open = false;
-    skills.install.open = false;
-    skills.market.open = false;
-    skills.updates.open = false;
-    skills.jobs.open = false;
-    skills.storage.open = false;
-    skills.backups.open = false;
-    skills.sync.menu = None;
-    skills.sync.form = None;
-    skills.workspace.sync(None, app.apps_catalog.navigation_generation);
+    app.skills_settings.sync.menu = None;
+    app.skills_settings.sync.form = None;
 }
 
 #[cfg(test)]

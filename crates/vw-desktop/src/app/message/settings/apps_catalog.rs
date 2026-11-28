@@ -407,14 +407,6 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
                 if let Some(error) = app.apps_catalog.error.clone() {
                     return app.show_error_toast(error);
                 }
-                if crate::app::components::system_settings_skills::workspace_visible(app)
-                    && app.skills_settings.workspace.scope().is_some_and(|scope| {
-                        scope.context == context && scope.host == host
-                    })
-                {
-                    let input = super::skills::update_input(app);
-                    app.skills_settings.workspace.reconcile_targets(&input.targets);
-                }
                 let navigation = if let Some(id) = app.apps_catalog.pending_tray_app.take() {
                     if app.apps_catalog.rows.iter().any(|row| row.entry.id == id)
                         && app.apps_catalog.expanded != Some(id)
@@ -431,7 +423,6 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
                 } else { Task::none() };
                 return Task::batch([
                     prompts,
-                    crate::app::components::system_settings_skills::open_workspace(app),
                     crate::app::components::third_party_settings::ensure_agent_providers(app),
                     crate::app::components::system_settings_mcp::management::refresh(app),
                     navigation,

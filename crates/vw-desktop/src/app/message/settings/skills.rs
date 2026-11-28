@@ -11,18 +11,7 @@ use iced::Task;
 
 use super::messages::SettingsMessage;
 
-pub(crate) mod updates_view;
-pub(crate) mod install_view;
-pub(crate) mod jobs_view;
-pub(crate) mod market_view;
-pub(crate) mod repo_modal;
-pub(crate) mod deeplink;
-pub(crate) mod import_modal;
 mod local_import;
-pub(crate) mod claude_view;
-pub(crate) mod bindings_view;
-pub(crate) mod storage_modal;
-pub(crate) mod backup_modal;
 
 use desktop_settings_skills::update::catalog::{self as domain, Event, Effect};
 fn refresh_task(project_path: Option<String>) -> Task<Message> {
@@ -112,9 +101,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::SkillsSync(event) => {
             return crate::app::components::system_settings_skills::sync::update(app, event);
         }
-        SettingsMessage::SkillsWorkspace(event) => {
-            return crate::app::components::system_settings_skills::workspace::update(app, event);
-        }
         SettingsMessage::SkillsImportZip | SettingsMessage::SkillsImportFolder => {
             return local_import::pick(app, matches!(message, SettingsMessage::SkillsImportZip));
         }
@@ -122,36 +108,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             return local_import::complete(app, project, result);
         }
         _ => {}
-    }
-    if let SettingsMessage::SkillsBackups(event) = message {
-        return backup_modal::update(app, event);
-    }
-    if let SettingsMessage::SkillsStorage(event) = message {
-        return storage_modal::update(app, event);
-    }
-    if let SettingsMessage::SkillsBindings(event) = message {
-        return bindings_view::update(app, event);
-    }
-    if let SettingsMessage::SkillsUpdates(event) = message {
-        return updates_view::update(app, event);
-    }
-    if let SettingsMessage::SkillsClaudeConfig(event) = message {
-        return claude_view::update(app, event);
-    }
-    if let SettingsMessage::SkillsJobs(event) = message {
-        return jobs_view::update(app, event);
-    }
-    if let SettingsMessage::SkillsInstall(event) = message {
-        return install_view::update(app, event);
-    }
-    if let SettingsMessage::SkillsMarket(event) = message {
-        return market_view::update(app, event);
-    }
-    if let SettingsMessage::SkillRepositories(event) = message {
-        return repo_modal::update(app, event);
-    }
-    if let SettingsMessage::SkillsImport(event) = message {
-        return import_modal::update(app, event);
     }
     let event = match message {
         SettingsMessage::SkillsProjectSelected(value) => Event::SkillsProjectSelected(value),
@@ -186,7 +142,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::SkillsHelpClose => Event::SkillsHelpClose,
         _ => return Task::none(),
     };
-    use crate::app::components::system_settings_skills as page;
     if matches!(event, Event::SkillsTabChanged(_) | Event::SkillsProjectSelected(_)) {
         app.skills_settings.sync.menu = None;
         app.skills_settings.sync.form = None;
@@ -196,19 +151,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     {
         app.skills_settings.sync.menu = None;
     }
-    let open_workspace = matches!(event, Event::SkillsTabChanged(_) | Event::SkillsRefresh);
-    if page::workspace_visible(app)
-        && matches!(event, Event::SkillsTabChanged(tab) if tab != crate::app::state::SkillsSettingsTab::Distribution)
-    {
-        page::invalidate(app);
-    }
     let effect = domain::update(&mut app.skills_settings, &app.navigation_tabs.project_path, event);
-    let task = execute(app, effect);
-    if open_workspace {
-        Task::batch([task, page::open_workspace(app)])
-    } else {
-        task
-    }
+    execute(app, effect)
 }
 fn execute(app: &mut App, effect: Effect) -> Task<Message> {
     match effect {
@@ -246,46 +190,3 @@ fn execute(app: &mut App, effect: Effect) -> Task<Message> {
 #[cfg(test)]
 #[path = "skills_tests.rs"]
 mod skills_tests;
-
-pub(crate) fn update_input(app: &App) -> desktop_settings_skills::update::Input {
-    let client = crate::app::config::gateway_client();
-    let context = client.as_ref().ok().map(|client| crate::app::state::AgentAppsContext {
-        gateway: client.endpoint().base_url(),
-        tenant: client.endpoint().tenant_scope().clone(),
-        project: app.navigation_tabs.project_path.clone(),
-    });
-    desktop_settings_skills::update::Input {
-        connection_error: client.as_ref().err().map(ToString::to_string).unwrap_or_default(),
-        loopback: client.as_ref().is_ok_and(|client| client.endpoint().is_loopback()),
-        context,
-        project: Some(vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref()).to_owned()),
-        directory: app.navigation_tabs.project_path.clone(),
-        host: app.apps_catalog.host.clone(),
-        catalog: app.apps_catalog.generation,
-        targets: app.apps_catalog.rows.iter().filter_map(|row| row.observation.as_ref().ok())
-            .flat_map(|row| row.installations.iter())
-            .filter(|installation| installation.target_host_id == app.apps_catalog.host)
-            .map(|installation| vw_api_app_skills::bindings_api::SkillBindingTarget {
-                installation_id: installation.id.0.clone(), app_id: installation.app_id,
-            }).collect(),
-        repository_version: app.skills_settings.repositories.snapshot.as_ref()
-            .filter(|snapshot| snapshot.scope.project_id.as_ref() == vw_api_transport::local_settings_project(app.workspace_state.project_id.as_deref())
-                && snapshot.scope.target_host_id == app.apps_catalog.host)
-            .map_or(0, |snapshot| snapshot.version),
-        job_active: app.skills_settings.jobs.task_id.is_some()
-            && app.skills_settings.jobs.snapshot.as_ref().is_none_or(|job| !jobs_view::terminal(job.phase)),
-    }
-}
-
-
-/// Refresh the visible scoped workspace only after a reducer accepts a completion.
-pub(crate) fn refresh_workspace(app: &mut App) -> Task<Message> {
-    use desktop_settings_skills::third_party::{Action, Message as ScopedMessage, workspace::Event};
-    let Some(scope) = app.skills_settings.workspace.scope().cloned() else {
-        return Task::none();
-    };
-    let catalog = app.apps_catalog.navigation_generation;
-    crate::app::components::system_settings_skills::workspace::update(app, ScopedMessage {
-        scope, catalog, action: Action::Workspace(Event::ReloadInventory),
-    })
-}

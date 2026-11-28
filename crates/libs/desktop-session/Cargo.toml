@@ -15,7 +15,6 @@ vw-api-media = { path = "../api-media" }
 desktop-config = { path = "../desktop-config" }
 desktop-settings-apps = { path = "../desktop-settings-apps" }
 desktop-settings-skills = { path = "../desktop-settings-skills" }
-gateway-app-skills = { path = "../gateway-app-skills" }
 gateway-desktop-settings = { path = "../gateway-desktop-settings" }
 gateway-shiju-account = { path = "../gateway-shiju-account" }
 gateway-shiju-app = { path = "../gateway-shiju-app" }
@@ -24,7 +23,6 @@ gateway-skill-market = { path = "../gateway-skill-market" }
 gateway-task-pool = { path = "../gateway-task-pool" }
 vw-api-agent-scheduler = { path = "../api-agent-scheduler" }
 vw-api-app-identity = { path = "../api-app-identity" }
-vw-api-app-skills = { path = "../api-app-skills" }
 vw-api-project = { path = "../api-project" }
 vw-api-task = { path = "../api-task" }
 tokio = { version = "1", features = ["macros", "rt", "time"] }

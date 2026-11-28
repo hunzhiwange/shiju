@@ -26,7 +26,7 @@
 |模型目录|model_catalog_api → models目录解析|models.md|
 |账号授权与刷新|agent_apps_auth_read/accounts/flow → AuthAccountStore|accounts.md|
 |MCP|mcp_management_read/write/distribution → McpCatalogStore|mcp.md|
-|技能/插件|agent_apps_skills → 安装事务及各作用域存储|skills.md|
+|技能/插件|技能平台、桌面技能管理及插件安装接口|skills.md|
 |提示词/规则|agent_app_prompts_api / agent_app_prompt_resources_api → PromptsStore|prompts.md|
 |外部会话|external_sessions → 授权catalog及应用适配器|sessions.md|
 |用量/价格|apps_usage_read/write_api → usage账本与价格规则|usage.md|

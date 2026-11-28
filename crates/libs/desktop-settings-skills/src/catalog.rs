@@ -290,13 +290,8 @@ fn catalog_item_with_sync(
         system_settings_common::{rounded_action_btn_style, settings_content_panel_style},
     };
     let open = Event::SkillsSync(Sync::Open(id.clone()));
-    let sync = button(text(tr(locale, "同步到")).size(12))
-        .padding([6, 10])
-        .style(rounded_action_btn_style)
-        .on_press(open.clone());
-    let item = row![detail, sync].spacing(8).align_y(Alignment::Center);
     let item = RightClickArea::new(
-        item.into(),
+        detail.into(),
         Box::new(move |point| Event::SkillsSync(Sync::Menu(id.clone(), point))),
     )
     .preserve_on_right_click();

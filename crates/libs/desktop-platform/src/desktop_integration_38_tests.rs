@@ -4,7 +4,7 @@ use super::Inbox;
 fn desktop_integration_38_preserves_expected_behavior() {
     let mut inbox = Inbox::default();
     let cold = "ccswitch://v1/import?resource=provider&name=cold";
-    let warm = "ccswitch://v1/import?resource=skill&repo=owner/warm";
+    let warm = "ccswitch://v1/import?resource=mcp&name=warm";
     inbox.receive(cold).unwrap();
     let cold_id = inbox.pending.front().unwrap().id;
     inbox.receive(cold).unwrap();

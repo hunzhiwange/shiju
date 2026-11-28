@@ -2,7 +2,10 @@
 mod catalog;
 pub use catalog::*;
 mod skills;
-pub use skills::{DesktopSkillSyncItem, DesktopSkillSyncRequest, DesktopSkillSyncStatus, SkillSyncScope, SkillSyncTarget};
+pub use skills::{
+    DesktopSkillSyncItem, DesktopSkillSyncRequest, DesktopSkillSyncStatus, SkillSyncTarget,
+    global_skill_sync_directory,
+};
 mod plugins;
 mod hooks;
 mod external;

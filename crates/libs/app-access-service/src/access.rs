@@ -80,12 +80,12 @@ struct Grant {
     preferences_write: bool,
     #[serde(default)]
     provider_config_read: bool,
-    #[serde(default)]
-    claude_config_read_projects: Vec<vw_api_transport::ProjectId>,
-    #[serde(default)]
-    claude_config_marker_projects: Vec<vw_api_transport::ProjectId>,
-    #[serde(default)]
-    claude_onboarding_projects: Vec<vw_api_transport::ProjectId>,
+    #[serde(default, rename = "claude_config_read_projects")]
+    _legacy_claude_config_read_projects: Option<serde::de::IgnoredAny>,
+    #[serde(default, rename = "claude_config_marker_projects")]
+    _legacy_claude_config_marker_projects: Option<serde::de::IgnoredAny>,
+    #[serde(default, rename = "claude_onboarding_projects")]
+    _legacy_claude_onboarding_projects: Option<serde::de::IgnoredAny>,
     #[cfg(target_os = "macos")]
     #[serde(default)]
     aggregation_read: Vec<RoutingAppPermit>,
@@ -99,14 +99,14 @@ struct Grant {
     provider_config_write: bool,
     #[serde(default)]
     mcp_catalog_write: bool,
-    #[serde(default)]
-    skill_inventory_read_projects: Vec<vw_api_transport::ProjectId>,
-    #[serde(default)]
-    skill_install_projects: Vec<vw_api_transport::ProjectId>,
-    #[serde(default)]
-    skill_repos_read_projects: Vec<vw_api_transport::ProjectId>,
-    #[serde(default)]
-    skill_repos_write_projects: Vec<vw_api_transport::ProjectId>,
+    #[serde(default, rename = "skill_inventory_read_projects")]
+    _legacy_skill_inventory_read_projects: Option<serde::de::IgnoredAny>,
+    #[serde(default, rename = "skill_install_projects")]
+    _legacy_skill_install_projects: Option<serde::de::IgnoredAny>,
+    #[serde(default, rename = "skill_repos_read_projects")]
+    _legacy_skill_repos_read_projects: Option<serde::de::IgnoredAny>,
+    #[serde(default, rename = "skill_repos_write_projects")]
+    _legacy_skill_repos_write_projects: Option<serde::de::IgnoredAny>,
     #[serde(default)]
     mcp_catalog_write_projects: Vec<vw_api_transport::ProjectId>,
     #[cfg(target_os = "macos")]
@@ -625,12 +625,10 @@ pub struct Host {
     pub applications: PathBuf,
     #[serde(default)]
     pub credential_root: Option<PathBuf>,
-    /// Administrator-selected skill SSOT on this execution host.
-    #[serde(default)]
-    pub skills_root: Option<PathBuf>,
-    /// Explicit administrator-approved source IDs on this execution host.
-    #[serde(default)]
-    pub skill_install_files: std::collections::BTreeMap<String, PathBuf>,
+    #[serde(default, rename = "skills_root", deserialize_with = "discard_legacy_field")]
+    pub(crate) _legacy_skills_root: (),
+    #[serde(default, rename = "skill_install_files", deserialize_with = "discard_legacy_field")]
+    pub(crate) _legacy_skill_install_files: (),
     /// Trusted host configuration, never a request-supplied path.
     #[serde(default)]
     pub pi_directory: Option<PathBuf>,
@@ -739,10 +737,6 @@ enum Capability<'a> {
     Workspace(&'a vw_api_transport::ProjectId, bool),
     HermesDashboard(&'a vw_api_transport::ProjectId),
     HermesMemory(&'a vw_api_transport::ProjectId, bool),
-    ClaudeConfig(&'a vw_api_transport::ProjectId, vw_api_app_skills::claude_api::ClaudeConfigPermission),
-    SkillInventory(&'a vw_api_transport::ProjectId),
-    SkillInstall(&'a vw_api_transport::ProjectId),
-    SkillRepos(&'a vw_api_transport::ProjectId, bool),
     UsageRead(&'a vw_api_apps_usage::apps_usage::UsageSnapshotQuery),
     #[cfg(target_os = "macos")]
     UsageScript(&'a UsageSnapshotQuery, UsageScriptAction),
@@ -1664,110 +1658,6 @@ pub fn authorize_mcp_acp_read(
         Capability::McpAcpRead(project.project_id(), session),
     )
     .map(|_| ())
-}
-
-/// Repository grants are independent of MCP and provider configuration grants.
-pub fn authorize_skill_repos(
-    path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_transport::ProjectScope, target: &str, write: bool,
-) -> Result<(), StatusCode> {
-    authorize_scoped(path, headers, scope.tenant_scope(), target, None,
-        Capability::SkillRepos(scope.project_id(), write)).map(|_| ())
-}
-
-/// Separate grants for projection, marker and onboarding. No provider/plugin grant implies these.
-pub fn authorize_claude_config(
-    path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_transport::ProjectScope, target: &str,
-    permission: vw_api_app_skills::claude_api::ClaudeConfigPermission,
-) -> Result<(PathBuf, PathBuf), StatusCode> {
-    let a = authorize_scoped(path, headers, scope.tenant_scope(), target, None,
-        Capability::ClaudeConfig(scope.project_id(), permission))?;
-    let root = a.host.credential_root.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    Ok((a.host.home, root))
-}
-
-/// Inventory authorization resolves the SSOT exclusively from trusted host policy.
-pub fn authorize_skill_inventory(
-    path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_transport::ProjectScope, target: &str,
-) -> Result<PathBuf, StatusCode> {
-    let a = authorize_scoped(path, headers, scope.tenant_scope(), target, None,
-        Capability::SkillInventory(scope.project_id()))?;
-    let root = a.host.skills_root.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    if !root.is_absolute() { return Err(StatusCode::SERVICE_UNAVAILABLE); }
-    Ok(root)
-}
-
-/// Installation has an independent write grant. Repository management never grants it.
-pub fn authorize_skill_install(
-    path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_transport::ProjectScope, target: &str, file_id: Option<&str>,
-) -> Result<(PathBuf, Option<PathBuf>), StatusCode> {
-    authorize_skill_install_owner(path, headers, scope, target, file_id)
-        .map(|(root, source, _)| (root, source))
-}
-
-pub fn authorize_skill_install_owner(
-    path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_transport::ProjectScope, target: &str, file_id: Option<&str>,
-) -> Result<(PathBuf, Option<PathBuf>, String), StatusCode> {
-    let a = authorize_scoped(path, headers, scope.tenant_scope(), target, None,
-        Capability::SkillInstall(scope.project_id()))?;
-    let root = a.host.skills_root.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    if !root.is_absolute() { return Err(StatusCode::SERVICE_UNAVAILABLE); }
-    let source = file_id.map(|id| {
-        if id.is_empty() || id.len() > 128 || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b)) {
-            return Err(StatusCode::BAD_REQUEST);
-        }
-        let path = a.host.skill_install_files.get(id).ok_or(StatusCode::FORBIDDEN)?;
-        if !path.is_absolute() { return Err(StatusCode::SERVICE_UNAVAILABLE); }
-        Ok(path.clone())
-    }).transpose()?;
-    Ok((root, source, a.principal))
-}
-
-/// Unmanaged discovery and import require both inventory and install authority:
-/// inventory alone must not expose unowned application contents.
-pub fn authorize_skill_import(
-    path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_transport::ProjectScope, target: &str,
-) -> Result<(PathBuf, PathBuf), StatusCode> {
-    authorize_scoped(path, headers, scope.tenant_scope(), target, None,
-        Capability::SkillInventory(scope.project_id()))?;
-    let a = authorize_scoped(path, headers, scope.tenant_scope(), target, None,
-        Capability::SkillInstall(scope.project_id()))?;
-    let root = a.host.skills_root.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    if !root.is_absolute() { return Err(StatusCode::SERVICE_UNAVAILABLE); }
-    Ok((a.host.home, root))
-}
-
-/// Job observation/cancellation shares install authority and the trusted resource binding.
-pub fn authorize_skill_job(
-    path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_transport::ProjectScope, target: &str,
-) -> Result<(PathBuf, String), StatusCode> {
-    let a = authorize_scoped(path, headers, scope.tenant_scope(), target, None,
-        Capability::SkillInstall(scope.project_id()))?;
-    let root = a.host.skills_root.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    if !root.is_absolute() { return Err(StatusCode::SERVICE_UNAVAILABLE); }
-    Ok((root, a.principal))
-}
-
-/// Distribution requires the project install grant and uses host-owned roots only.
-#[cfg(target_os = "macos")]
-pub fn authorize_skill_bindings(
-    path: Option<&Path>, headers: &HeaderMap,
-    scope: &vw_api_transport::ProjectScope, target: &str,
-) -> Result<(vw_agent_apps::apps::discovery::read::LocalReadEnvironment, PathBuf), StatusCode> {
-    let a = authorize_scoped(path, headers, scope.tenant_scope(), target, None,
-        Capability::SkillInstall(scope.project_id()))?;
-    let root = a.host.skills_root.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    if !root.is_absolute() { return Err(StatusCode::SERVICE_UNAVAILABLE); }
-    Ok((vw_agent_apps::apps::discovery::read::LocalReadEnvironment {
-        host_id: a.host.id, home: a.host.home, search_paths: a.host.search_paths,
-        applications: a.host.applications,
-    }, root))
 }
 
 /// Dashboard process control requires an explicit project grant on the target host.

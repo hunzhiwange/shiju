@@ -12,7 +12,6 @@ config-ui = { path = "../config-ui" }
 desktop-i18n = { path = "../desktop-i18n" }
 vw-api-app-identity = { path = "../api-app-identity" }
 vw-api-app-operations = { path = "../api-app-operations" }
-vw-api-app-skills = { path = "../api-app-skills" }
 vw-api-mcp-management = { path = "../api-mcp-management" }
 base64 = "0.22"
 reqwest = { version = "0.12", default-features = false }

@@ -17,9 +17,8 @@
 3. session/child_agent/coordinator.rs 的 mailbox/delivery 是宿主权限适配，实际文件在同级，补显式 path。状态只在 session-engine::child_agent::coordinator；消息契约在 session-port。授权仍使用原 context 和 target，不改变租户或取消参数。
 4. model_relay/stream_observer_tests.rs 的共享样本改指 app-diagnostics-runtime/src/diagnostic_stream_fixtures.rs，保持原样本与断言。
 5. gateway/aggregation_lifecycle_tests.rs 原样迁至 gateway-aggregation/tests/host/aggregation_lifecycle_tests.rs，并修正 aggregation_publish_tests.rs 的 path。此测试仍通过主包既有 include 链在宿主环境编译，不独立启动服务。
-6. gateway-workflow/src/host_tests.rs 的 talking_head.yaml 原先指向不存在的仓库根 testdata；改指 workflow-engine/testdata/workflow/talking_head.yaml，消费真实领域资源。
 7. provider/error.rs 是未注册旧副本，主包 provider::error 实际 inline 重导出 provider-errors，agent-provider::error 也只重导出它。旧副本与真实所有者差异已对照：真实所有者额外包含阿里云市场激活提示；JSON object 判断仅 filter/and_then 写法不同；错误类型、状态码、重试及序列化契约相同。移除未注册旧副本，保持当前可达行为。
-8. 原 provider/error_tests.rs 也未注册；其中流式样本没有 type:error，却断言 Some，与旧实现和当前实现均不相符；另一断言使用真实匹配表未包含的文本。原样保存在 provider-errors/tests/fixtures/legacy_error_tests.rs，不盲目注册、弱化或声称通过。未来验收应先明确历史样本预期。真实 provider-errors/src/error_tests.rs 继续注册，不受影响。
+7. 原 provider/error_tests.rs 也未注册；其中流式样本没有 type:error，却断言 Some，与旧实现和当前实现均不相符；另一断言使用真实匹配表未包含的文本。原样保存在 provider-errors/tests/fixtures/legacy_error_tests.rs，不盲目注册、弱化或声称通过。未来验收应先明确历史样本预期。真实 provider-errors/src/error_tests.rs 继续注册，不受影响。
 
 ## 依赖与保留边界
 

@@ -545,108 +545,7 @@ fn test_state() -> AppState {
     }
 }
 
-// 使用生产 client router；仅替换模型传输，保留认证、租户、YAML 和执行器。
-struct TalkingHeadApiProvider {
-    barrier: tokio::sync::Barrier,
-    calls: Mutex<Vec<(String, String)>>,
-    fail_model: bool,
-}
-
-#[async_trait::async_trait]
-impl Provider for TalkingHeadApiProvider {
-    async fn chat_with_system(
-        &self,
-        _: Option<&str>,
-        _: &str,
-        _: &str,
-        _: f64,
-    ) -> anyhow::Result<String> {
-        anyhow::bail!("unexpected transport")
-    }
-
-    async fn chat(
-        &self,
-        request: model_types::ChatRequest<'_>,
-        model: &str,
-        _: f64,
-    ) -> anyhow::Result<model_types::ChatResponse> {
-        assert_eq!(request.messages.len(), 1);
-        assert!(request.tools.is_none());
-        let prompt = &request.messages[0].content;
-        self.calls.lock().push((model.to_string(), prompt.clone()));
-        assert!(!prompt.contains("UNREFERENCED_SENTINEL"));
-        assert!(!prompt.contains("HISTORY_SENTINEL"));
-        let text = if prompt.contains("Return only a short brief") {
-            assert_eq!(model, "deepseek/deepseek-flash");
-            if self.fail_model {
-                anyhow::bail!("requested model unavailable: deepseek/deepseek-flash")
-            }
-            "BRIEF_SENTINEL".to_string()
-        } else {
-            assert!(prompt.contains("BRIEF_SENTINEL"));
-            assert!(!prompt.contains("KEYWORD_RESULT_SENTINEL"));
-            assert!(!prompt.contains("VISUAL_RESULT_SENTINEL"));
-            tokio::time::timeout(Duration::from_secs(5), self.barrier.wait())
-                .await
-                .expect("both LLM branches must enter before either returns");
-            if prompt.contains("keyword visual segments") {
-                assert_eq!(model, "deepseek/deepseek-flash");
-                json!([{"anchor":"A","start":0,"end":1,"visual_type":"keyword","assets":["KEYWORD_RESULT_SENTINEL"]}]).to_string()
-            } else {
-                assert_eq!(model, "visual-provider/visual-model");
-                json!([
-                    {"anchor":"B","start":1,"end":2,"visual_type":"b_roll","assets":["VISUAL_RESULT_SENTINEL"]},
-                    {"anchor":"C","start":2,"end":3,"visual_type":"motion_graphic","assets":["diagram"]}
-                ]).to_string()
-            }
-        };
-        Ok(model_types::ChatResponse {
-            text: Some(text),
-            tool_calls: vec![],
-            usage: None,
-            reasoning_content: None,
-        })
-    }
-}
-
-fn talking_head_api_fixture(fail_model: bool) -> (axum::Router, Arc<TalkingHeadApiProvider>) {
-    let provider = Arc::new(TalkingHeadApiProvider {
-        barrier: tokio::sync::Barrier::new(2),
-        calls: Mutex::new(vec![]),
-        fail_model,
-    });
-    let mut state = test_state();
-    state.provider = provider.clone();
-    state.pairing = Arc::new(PairingGuard::new(true, &["talking-head-test-skey".to_string()]));
-    let app = crate::gateway::bootstrap::client_router(
-        state.clone(),
-        axum::Router::new(),
-        axum::Router::new(),
-    )
-    .with_state(state);
-    (app, provider)
-}
-
-fn talking_head_api_body(mode: &str) -> serde_json::Value {
-    let yaml = include_str!("../../workflow-engine/testdata/workflow/talking_head.yaml");
-    // 第二个配置使用独立视觉模型，其余节点保留样例模型。
-    let yaml = yaml.replacen(
-        "type: llm\n          model: {name: deepseek/deepseek-flash}\n          prompt_template:\n            - role: user\n              text: 'Return only a JSON array of dynamic",
-        "type: llm\n          model: {name: visual-provider/visual-model}\n          prompt_template:\n            - role: user\n              text: 'Return only a JSON array of dynamic", 1,
-    );
-    assert!(yaml.contains("visual-provider/visual-model"));
-    json!({
-        "application_workflow":yaml,"query":"HISTORY_SENTINEL","user":"test-user",
-        "response_mode":mode,"conversation_id":"test-conversation",
-        "inputs":{
-            "transcript":"A B C","style":"concise","requirements":"three visual types",
-            "timestamps":[{"word":"A","start":0,"end":1},{"word":"B","start":1,"end":2},{"word":"C","start":2,"end":3}],
-            "unreferenced":"UNREFERENCED_SENTINEL"
-        }
-    })
-}
-
-async fn talking_head_api_request(
+async fn workflow_api_request(
     app: axum::Router,
     path: &str,
     body: serde_json::Value,
@@ -656,10 +555,10 @@ async fn talking_head_api_request(
     use tower::ServiceExt;
     let mut request = axum::http::Request::post(path)
         .header("content-type", "application/json")
-        .header(vw_api_transport::PLATFORM_ID_HEADER, "talking-head-api")
+        .header(vw_api_transport::PLATFORM_ID_HEADER, "workflow-api")
         .header(vw_api_transport::COMPANY_ID_HEADER, company);
     if authenticated {
-        request = request.header("authorization", "Bearer talking-head-test-skey");
+        request = request.header("authorization", "Bearer workflow-api-test-skey");
     }
     tokio::time::timeout(Duration::from_secs(15), async {
         let response = app
@@ -674,119 +573,30 @@ async fn talking_head_api_request(
     .expect("API must complete")
 }
 
-fn talking_head_api_events(body: &str) -> Vec<serde_json::Value> {
-    body.lines()
-        .filter_map(|line| line.strip_prefix("data: "))
-        .map(|line| serde_json::from_str(line).expect("SSE JSON"))
-        .collect()
-}
-
 #[tokio::test]
-async fn talking_head_api_blocking_returns_validated_plan() {
-    let (app, provider) = talking_head_api_fixture(false);
-    let (status, body) = talking_head_api_request(
-        app,
-        "/v1/workflow/applications/chat-messages",
-        talking_head_api_body("blocking"),
-        "blocking",
-        true,
+async fn workflow_api_saved_application_requires_auth_and_isolates_tenants() {
+    let mut state = test_state();
+    state.pairing = Arc::new(PairingGuard::new(true, &["workflow-api-test-skey".to_string()]));
+    let app = crate::gateway::bootstrap::client_router(
+        state.clone(),
+        axum::Router::new(),
+        axum::Router::new(),
     )
-    .await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    let response: serde_json::Value = serde_json::from_str(&body).unwrap();
-    assert_eq!(response["conversation_id"], "test-conversation");
-    let answer: serde_json::Value =
-        serde_json::from_str(response["answer"].as_str().unwrap()).unwrap();
-    assert_eq!(answer["duration"], 3);
-    assert_eq!(answer["segments"].as_array().unwrap().len(), 3);
-    assert_eq!(provider.calls.lock().len(), 3);
-}
-
-#[tokio::test]
-async fn talking_head_api_streaming_reports_nodes_and_join() {
-    let (app, provider) = talking_head_api_fixture(false);
-    let (status, body) = talking_head_api_request(
-        app,
-        "/v1/workflow/applications/chat-messages",
-        talking_head_api_body("streaming"),
-        "streaming",
-        true,
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    let events = talking_head_api_events(&body);
-    assert_eq!(events.first().unwrap()["event"], "workflow_started");
-    assert_eq!(events.last().unwrap()["event"], "message_end");
-    let finished: Vec<_> = events.iter().filter(|e| e["event"] == "node_finished").collect();
-    assert_eq!(finished.len(), 6);
-    for node in &finished {
-        assert_eq!(node["data"]["status"], "succeeded");
-    }
-    let join = events
-        .iter()
-        .position(|e| e["event"] == "node_started" && e["data"]["node_id"] == "validate")
-        .unwrap();
-    for id in ["keywords", "visuals"] {
-        let branch = events
-            .iter()
-            .position(|e| e["event"] == "node_finished" && e["data"]["node_id"] == id)
-            .unwrap();
-        assert!(branch < join);
-        assert!(
-            events[branch]["data"]["outputs"]["text"].as_str().unwrap().contains("RESULT_SENTINEL")
-        );
-    }
-    let done = events.iter().find(|e| e["event"] == "workflow_finished").unwrap();
-    assert_eq!(done["data"]["status"], "succeeded");
-    let answer = events
-        .iter()
-        .find(|e| {
-            e["event"] == "text_chunk"
-                && e["data"]["from_variable_selector"] == json!(["answer", "text"])
-        })
-        .map(|e| &e["data"]["text"])
-        .or_else(|| events.iter().find(|e| e["event"] == "message").map(|e| &e["answer"]))
-        .expect("validated answer");
-    let plan: serde_json::Value = serde_json::from_str(answer.as_str().unwrap()).unwrap();
-    assert_eq!(plan["segments"].as_array().unwrap().len(), 3);
-    assert_eq!(provider.calls.lock().len(), 3);
-}
-
-#[tokio::test]
-async fn talking_head_api_streaming_preserves_model_error_without_fallback() {
-    let (app, provider) = talking_head_api_fixture(true);
-    let (status, body) = talking_head_api_request(
-        app,
-        "/v1/workflow/applications/chat-messages",
-        talking_head_api_body("streaming"),
-        "model-error",
-        true,
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK);
-    let events = talking_head_api_events(&body);
-    let failed = events
-        .iter()
-        .find(|e| e["event"] == "node_finished" && e["data"]["node_id"] == "plan")
-        .unwrap();
-    assert_eq!(failed["data"]["status"], "failed");
-    assert!(failed["data"]["error"].as_str().unwrap().contains("requested model unavailable"));
-    let done = events.iter().find(|e| e["event"] == "workflow_finished").unwrap();
-    assert_eq!(done["data"]["status"], "failed");
-    assert!(done["data"]["error"].as_str().unwrap().contains("requested model unavailable"));
-    assert!(
-        !events.iter().any(|e| e["event"] == "node_started" && e["data"]["node_id"] == "answer")
-    );
-    assert_eq!(provider.calls.lock().len(), 1);
-}
-
-#[tokio::test]
-async fn talking_head_api_saved_sample_requires_auth_and_isolates_tenants() {
-    let (app, provider) = talking_head_api_fixture(false);
+    .with_state(state);
     let company = Uuid::new_v4().to_string();
-    let mut body = talking_head_api_body("blocking");
-    let save = json!({"name":"Talking head test", "workflow_yaml":body["application_workflow"]});
-    let (status, _) = talking_head_api_request(
+    let yaml = r#"
+workflow:
+  graph:
+    nodes:
+      - id: start
+        data: { type: start }
+      - id: answer
+        data: { type: answer, answer: "workflow response" }
+    edges:
+      - { source: start, sourceHandle: source, target: answer }
+"#;
+    let save = json!({"name":"Workflow API test", "workflow_yaml":yaml});
+    let (status, _) = workflow_api_request(
         app.clone(),
         "/v1/workflow/applications",
         save.clone(),
@@ -796,151 +606,25 @@ async fn talking_head_api_saved_sample_requires_auth_and_isolates_tenants() {
     .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     let (status, saved) =
-        talking_head_api_request(app.clone(), "/v1/workflow/applications", save, &company, true)
+        workflow_api_request(app.clone(), "/v1/workflow/applications", save, &company, true)
             .await;
     assert_eq!(status, StatusCode::OK, "{saved}");
     let saved: serde_json::Value = serde_json::from_str(&saved).unwrap();
     let uuid = saved["uuid"].as_str().unwrap();
-    body.as_object_mut().unwrap().remove("application_workflow");
+    let body = json!({"query":"hello", "user":"test-user", "response_mode":"blocking"});
     let path = format!("/v1/workflow/applications/{uuid}/chat-messages");
     let (status, _) =
-        talking_head_api_request(app.clone(), &path, body.clone(), "other-company", true).await;
+        workflow_api_request(app.clone(), &path, body.clone(), "other-company", true).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(provider.calls.lock().is_empty());
-    let (status, response) = talking_head_api_request(app, &path, body, &company, true).await;
+    let (status, response) = workflow_api_request(app, &path, body, &company, true).await;
     // 清理仅本测试创建的数据，即使后面的断言失败也不留下样例记录。
     let _ = workflow_application_delete(
-        Extension(TenantScope::new("talking-head-api", &company).unwrap()),
+        Extension(TenantScope::new("workflow-api", &company).unwrap()),
         Path(uuid.to_string()),
     )
     .await
     .unwrap();
     assert_eq!(status, StatusCode::OK, "{response}");
-    assert_eq!(provider.calls.lock().len(), 3);
-}
-
-// 显式手工运行；普通回归不会使用真实模型或产生模型费用。
-#[tokio::test]
-#[ignore = "requires a configured local gateway and incurs real model usage"]
-async fn talking_head_api_live_configured_gateway_returns_validated_plans() {
-    use futures_util::StreamExt;
-
-    let config = crate::config::get_blocking();
-    println!("live upstream host={} port={}", config.gateway.host, config.gateway.port);
-    let mut state = test_state();
-    state.provider = Arc::new(crate::providers::session_llm::SessionLlmProvider::new());
-    state.pairing = Arc::new(PairingGuard::new(true, &["talking-head-test-skey".to_string()]));
-    let app = crate::gateway::bootstrap::client_router(
-        state.clone(),
-        axum::Router::new(),
-        axum::Router::new(),
-    )
-    .with_state(state);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let address = listener.local_addr().unwrap();
-    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
-    let client = reqwest::Client::builder().timeout(Duration::from_secs(120)).build().unwrap();
-    for (mode, visual_model) in [
-        ("streaming", "deepseek/deepseek-flash"),
-        ("blocking", "deepseek/deepseek-flash"),
-        ("streaming", "shiju/deepseek-v4.1-flash"),
-    ] {
-        let mut body = talking_head_api_body(mode);
-        body["application_workflow"] = json!(
-            body["application_workflow"]
-                .as_str()
-                .unwrap()
-                .replace("visual-provider/visual-model", visual_model)
-        );
-        body["query"] = json!("生成口播剪辑方案");
-        body["inputs"] = json!({
-            "transcript":"今天介绍本地工作流。模型并行生成关键词和画面建议。最后校验剪辑方案。",
-            "timestamps":[
-                {"word":"今天介绍本地工作流。","start":0,"end":3},
-                {"word":"模型并行生成关键词和画面建议。","start":3,"end":7},
-                {"word":"最后校验剪辑方案。","start":7,"end":10}
-            ],
-            "style":"简洁科技风", "requirements":"含三种画面类型；仅返回要求的 JSON，不要 Markdown 围栏。"
-        });
-        let start = std::time::Instant::now();
-        let response = client
-            .post(format!("http://{address}/v1/workflow/applications/chat-messages"))
-            .header("authorization", "Bearer talking-head-test-skey")
-            .header(vw_api_transport::PLATFORM_ID_HEADER, "talking-head-api-live")
-            .header(vw_api_transport::COMPANY_ID_HEADER, "local-acceptance")
-            .json(&body)
-            .send()
-            .await
-            .unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
-        let text = if mode == "streaming" {
-            let mut chunks = response.bytes_stream();
-            let mut bytes = Vec::new();
-            let mut parsed = 0;
-            while let Some(chunk) = chunks.next().await {
-                bytes.extend_from_slice(&chunk.unwrap());
-                while let Some(relative) = bytes[parsed..].iter().position(|byte| *byte == b'\n') {
-                    let end = parsed + relative;
-                    if let Some(payload) = bytes[parsed..end].strip_prefix(b"data: ") {
-                        let event: serde_json::Value = serde_json::from_slice(payload).unwrap();
-                        if event["event"] == "node_started" || event["event"] == "node_finished" {
-                            println!(
-                                "live event={} node={} observed_seconds={:.3}",
-                                event["event"],
-                                event["data"]["node_id"],
-                                start.elapsed().as_secs_f64()
-                            );
-                        }
-                    }
-                    parsed = end + 1;
-                }
-            }
-            String::from_utf8(bytes).unwrap()
-        } else {
-            response.text().await.unwrap()
-        };
-        if mode == "blocking" {
-            let response: serde_json::Value = serde_json::from_str(&text).unwrap();
-            let plan: serde_json::Value =
-                serde_json::from_str(response["answer"].as_str().unwrap()).unwrap();
-            assert_eq!(plan["duration"], 10);
-            assert!(plan["segments"].as_array().unwrap().len() >= 3);
-        } else {
-            let events = talking_head_api_events(&text);
-            for event in events.iter().filter(|e| e["event"] == "node_finished") {
-                let data = &event["data"];
-                println!(
-                    "live node={} status={} input_json_chars={} elapsed_seconds={}",
-                    data["node_id"],
-                    data["status"],
-                    data["inputs"].to_string().chars().count(),
-                    data["elapsed_time"]
-                );
-            }
-            let done = events.iter().find(|e| e["event"] == "workflow_finished").unwrap();
-            assert_eq!(done["data"]["status"], "succeeded", "{}", done["data"]["error"]);
-            let nodes: Vec<_> = events.iter().filter(|e| e["event"] == "node_finished").collect();
-            assert_eq!(nodes.len(), 6);
-            for node in nodes {
-                assert_eq!(node["data"]["status"], "succeeded");
-            }
-            let answer = events
-                .iter()
-                .find(|e| {
-                    e["event"] == "text_chunk"
-                        && e["data"]["from_variable_selector"] == json!(["answer", "text"])
-                })
-                .unwrap();
-            let plan: serde_json::Value =
-                serde_json::from_str(answer["data"]["text"].as_str().unwrap()).unwrap();
-            assert_eq!(plan["duration"], 10);
-            assert!(plan["segments"].as_array().unwrap().len() >= 3);
-        }
-        println!(
-            "live mode={mode} plan_model=deepseek/deepseek-flash visual_model={visual_model} elapsed_seconds={:.3} validated=true",
-            start.elapsed().as_secs_f64()
-        );
-    }
-    server.abort();
-    let _ = server.await;
+    let response: serde_json::Value = serde_json::from_str(&response).unwrap();
+    assert_eq!(response["answer"], "workflow response");
 }

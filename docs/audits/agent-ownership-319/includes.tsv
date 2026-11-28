@@ -1,6 +1,5 @@
 caller	macro	target	exists
 crates/vw-agent/src/tools/client_tool_tests.rs	include!	crates/libs/tool-services/src/client_tool_tests.rs	True
-crates/vw-agent/src/workflow/native_tests.rs	include_str!	crates/vw-agent/testdata/workflow/talking_head_cloud.yaml	True
 crates/vw-agent/src/channels/mod.rs	include!	crates/vw-agent/src/channels/channel_project_scope_tests.rs	True
 crates/vw-agent/src/channels/mod.rs	include!	crates/vw-agent/src/channels/scope_delivery_tests.rs	True
 crates/vw-agent/src/channels/mod.rs	include!	crates/vw-agent/src/channels/channel_session_lifecycle_tests.rs	True
@@ -84,8 +83,6 @@ crates/vw-agent/src/gateway/api/handlers/aggregation_desktop_tests.rs	include!	c
 crates/vw-agent/src/gateway/api/handlers/aggregation_members_tests.rs	include!	crates/libs/gateway-aggregation/tests/host/aggregation_members_tests.rs	True
 crates/libs/webview-mcp-assets/src/lib.rs	include_str!	crates/libs/webview-mcp-assets/src/mcp_app_document.js	True
 crates/libs/webview-mcp-assets/src/lib.rs	include_str!	crates/libs/webview-mcp-assets/src/mcp_app_host.js	True
-crates/libs/workflow-engine/src/tests.rs	include_str!	crates/libs/workflow-engine/testdata/workflow/talking_head.yaml	True
-crates/libs/workflow-engine/src/tests.rs	include_str!	crates/libs/workflow-engine/testdata/workflow/talking_head.yaml	True
 crates/libs/agent-security/src/semantic_guard.rs	include_str!	crates/libs/agent-security/assets/security/attack-corpus-v1.jsonl	True
 crates/libs/agent-loop/src/definitions.rs	include_str!	crates/libs/agent-loop/src/definition_generate.txt	True
 crates/libs/agent-loop/src/query_engine_test_binding.rs	include!	crates/libs/agent-loop/src/query_engine.rs	True
@@ -108,7 +105,6 @@ crates/libs/desktop-settings-agents/src/agents_update.rs	include_str!	assets/age
 crates/libs/desktop-settings-agents/src/system_settings_autonomy_tests.rs	include_str!	crates/libs/desktop-settings-agents/src/system_settings_autonomy.rs	True
 crates/libs/desktop-settings-agents/src/system_settings_autonomy_tests.rs	include_str!	crates/libs/desktop-settings-agents/src/system_settings_autonomy.rs	True
 crates/libs/desktop-settings-agents/src/agents_view_tests.rs	include_str!	crates/libs/desktop-settings-agents/src/agents_view.rs	True
-crates/libs/gateway-workflow/src/host_tests.rs	include_str!	crates/libs/workflow-engine/testdata/workflow/talking_head.yaml	True
 crates/libs/desktop-git/src/git_tests.rs	include_str!	crates/libs/desktop-git/src/lib.rs	True
 crates/libs/desktop-task-board/src/task_pet.rs	include_bytes!	assets/task-pet/avatar-beauty.png	True
 crates/libs/desktop-task-board/src/task_pet.rs	include_bytes!	assets/task-pet/avatar-beauty-left.png	True

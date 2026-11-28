@@ -746,7 +746,7 @@ fn merge_global_config_patch(current: Config, mut patch: Value) -> Result<Config
             && schema::WeComConfig::is_cron_instance(id)
             && instances.iter().any(|instance| &instance.id == id)
     });
-    validate_agent_runtime_update(&current, &next)?;
+    validate_config_update(&current, &next)?;
     // 保留路径字段（不被 patch 覆盖）
     next.workspace_dir = current.workspace_dir;
     next.config_path = current.config_path;
@@ -754,17 +754,8 @@ fn merge_global_config_patch(current: Config, mut patch: Value) -> Result<Config
     Ok(next)
 }
 
-/// Preserve saved agent engines and the IDs of installed built-in MCP servers.
-pub fn validate_agent_runtime_update(current: &Config, next: &Config) -> Result<(), Error> {
-    for (key, agent) in &current.agents {
-        if let Some(candidate) = next.agents.get(key)
-            && agent.runtime != candidate.runtime
-        {
-            return Err(Error::Invalid(format!(
-                "agent {key} runtime cannot be changed after saving"
-            )));
-        }
-    }
+/// Preserve the IDs of installed built-in MCP servers across config updates.
+pub fn validate_config_update(current: &Config, next: &Config) -> Result<(), Error> {
     crate::schema::config_validate::validate_builtin_mcp_servers_retained(
         &current.mcp_servers,
         &next.mcp_servers,

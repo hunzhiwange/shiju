@@ -6,7 +6,6 @@ use crate::state::*;
 use crate::help::settings_hover_help_label;
 use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Element, Length};
-use config_agent::builtin_agent_spec;
 
 fn message(value: AgentsMessage) -> Message {
     Message::Agents(value)
@@ -53,7 +52,6 @@ fn profile_form<'a>(
     let settings = &input;
     let busy = settings.profile_saving;
     let label = |source| tr(input.locale, source);
-    let fixed = builtin_agent_spec(&draft.key).is_some() || draft.key.starts_with("acp-");
     let native = match draft.runtime {
         config_agent_profile::AgentRuntime::Native => true,
         config_agent_profile::AgentRuntime::Acp { .. } => false,
@@ -74,7 +72,7 @@ fn profile_form<'a>(
     .wrap();
     let mut footer =
         row![action(label("取消"), (!busy).then_some(AgentsMessage::ProfileCancel))].spacing(10);
-    if !fixed {
+    if !draft.builtin {
         footer = footer
             .push(action(label("删除智能体"), (!busy).then_some(AgentsMessage::ProfileDelete)));
     }
@@ -227,7 +225,6 @@ pub fn page_card(input: PageInput<'_>) -> Option<Element<'_, Message>> {
                     theme: input.theme,
                     profile: crate::basic_profile::Input {
                         locale: input.locale,
-                        entries: &state.entries,
                         acp_agents: input.acp_agents,
                         saving: state.profile_saving,
                         acp_loading: input.acp_loading,

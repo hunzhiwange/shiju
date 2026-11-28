@@ -5,7 +5,6 @@ use iced::Element;
 pub(super) fn profile_input(app: &ProfileFixture) -> crate::basic_profile::Input<'_> {
     crate::basic_profile::Input {
         locale: app.desktop_locale,
-        entries: &app.agents_settings.entries,
         acp_agents: &app.acp_agents,
         saving: app.agents_settings.profile_saving,
         acp_loading: app.acp_settings.loading,

@@ -1,7 +1,7 @@
 use super::*;
 
 #[tokio::test]
-async fn agent_runtime_lock_patch_preserves_saved_engines_and_is_atomic() {
+async fn agent_runtime_patch_rejects_fixed_and_invalid_engines_atomically() {
     let _env_lock = global_async_env_lock().lock().await;
     let home = TempDir::new().unwrap();
     let _home = EnvGuard::set("HOME", home.path().as_os_str());
@@ -33,11 +33,12 @@ async fn agent_runtime_lock_patch_preserves_saved_engines_and_is_atomic() {
     let before = store.get(&tenant).unwrap();
     let skeys_before = config::load_gateway_skeys_for_tenant(&tenant).await.unwrap();
     for (key, runtime) in [
-        ("custom-native", serde_json::json!({"kind":"acp","backend":"codex"})),
-        ("custom-codex", serde_json::json!({"kind":"native","backend":null})),
-        ("custom-codex", serde_json::json!({"backend":"claude"})),
+        ("shiju-native", serde_json::json!({"kind":"acp","backend":"codex"})),
+        ("acp-codex", serde_json::json!({"kind":"native"})),
+        ("acp-codex", serde_json::json!({"kind":"acp","backend":"claude"})),
+        ("acp-employee-acp", serde_json::json!({"kind":"native"})),
         ("custom-codex", serde_json::json!({"backend":"unknown-backend"})),
-        ("custom-codex", Value::Null),
+        ("custom-codex", serde_json::json!({"kind":"acp","backend":"employee-acp"})),
     ] {
         let result = crate::handlers::config_patch_stateful::<TestHost>(
             Extension(tenant.clone()),
@@ -70,7 +71,7 @@ async fn agent_runtime_lock_patch_preserves_saved_engines_and_is_atomic() {
 }
 
 #[tokio::test]
-async fn agent_runtime_lock_patch_is_scoped_to_each_tenant() {
+async fn agent_runtime_patch_switches_saved_profiles_within_the_tenant() {
     let _env_lock = global_async_env_lock().lock().await;
     let home = TempDir::new().unwrap();
     let _home = EnvGuard::set("HOME", home.path().as_os_str());
@@ -91,29 +92,36 @@ async fn agent_runtime_lock_patch_is_scoped_to_each_tenant() {
         .unwrap();
     }
     let before = local_store(home.path()).get(&second).unwrap();
-    assert!(
+    for (backend, runtime) in [
+        (Some("claude"), serde_json::json!({"kind":"acp","backend":"claude"})),
+        (None, serde_json::json!({"kind":"native"})),
+    ] {
         config::update_global_for_tenant(
             &first,
-            serde_json::json!({"agents":{"custom":{"runtime":{"kind":"acp","backend":"codex"}}}})
+            serde_json::json!({"agents": {
+                "custom": {"runtime": runtime},
+                "main": {"runtime": runtime},
+                "shiju-butler": {"runtime": runtime},
+                "coder": {"runtime": runtime}
+            }}),
         )
         .await
-        .is_err()
-    );
-    config::update_global_for_tenant(
-        &second,
-        serde_json::json!({"agents":{"custom":{"label":"Allowed"}}}),
-    )
-    .await
-    .unwrap();
-    assert_ne!(local_store(home.path()).get(&second).unwrap(), before);
-    assert_eq!(
-        config::get_global_for_tenant(&first).await.unwrap().agents["custom"].runtime,
-        config_agent_profile::AgentRuntime::Native
-    );
+        .unwrap();
+        let saved = config::get_global_for_tenant(&first).await.unwrap();
+        let catalog = agent_config::catalog::merged_agent_catalog(&saved.agents);
+        let expected = backend.map_or(config_agent_profile::AgentRuntime::Native, |backend| {
+            config_agent_profile::AgentRuntime::Acp { backend: backend.into() }
+        });
+        for key in ["custom", "main", "shiju-butler", "coder"] {
+            assert_eq!(saved.agents[key].runtime, expected, "{key}");
+            assert_eq!(catalog[key].runtime, expected, "{key}");
+        }
+        assert_eq!(local_store(home.path()).get(&second).unwrap(), before);
+    }
 }
 
 #[tokio::test]
-async fn agent_runtime_lock_put_rejects_replacement_and_implicit_switches() {
+async fn agent_runtime_put_rejects_replacement_and_deletion_of_fixed_profiles() {
     let _env_lock = global_async_env_lock().lock().await;
     use config_agent_profile::AgentRuntime;
     use config_agent::AgentDefinitionConfig;
@@ -121,10 +129,11 @@ async fn agent_runtime_lock_put_rejects_replacement_and_implicit_switches() {
     let _home = EnvGuard::set("HOME", home.path().as_os_str());
     let mut current = config::Config::default();
     current.agents.insert(
-        "custom".into(),
+        "acp-codex".into(),
         AgentDefinitionConfig {
             runtime: AgentRuntime::Acp { backend: "codex".into() },
             permission: serde_json::json!({}),
+            builtin: true,
             ..Default::default()
         },
     );
@@ -134,10 +143,11 @@ async fn agent_runtime_lock_put_rejects_replacement_and_implicit_switches() {
     for runtime in [AgentRuntime::Native, AgentRuntime::Acp { backend: "claude".into() }] {
         let mut incoming = current.clone();
         incoming.agents.insert(
-            "custom".into(),
+            "acp-codex".into(),
             AgentDefinitionConfig {
                 runtime,
                 permission: serde_json::json!({}),
+                builtin: true,
                 ..Default::default()
             },
         );
@@ -165,7 +175,7 @@ async fn agent_runtime_lock_put_rejects_replacement_and_implicit_switches() {
     }
     let mut incoming: toml::Value =
         toml::from_str(&toml::to_string_pretty(&current).unwrap()).unwrap();
-    incoming["agents"]["custom"].as_table_mut().unwrap().remove("runtime");
+    incoming["agents"]["acp-codex"].as_table_mut().unwrap().remove("runtime");
     let response = crate::handlers::handle_api_config_put::<TestHost>(
         State(state.clone()),
         Extension(TenantScope::default()),
@@ -177,7 +187,7 @@ async fn agent_runtime_lock_put_rejects_replacement_and_implicit_switches() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     assert_eq!(local_store(home.path()).get(&TenantScope::default()).unwrap(), before);
     let mut incoming = current.clone();
-    incoming.agents.get_mut("custom").unwrap().label = Some("Renamed".into());
+    incoming.agents.get_mut("acp-codex").unwrap().label = Some("Renamed".into());
     let response = crate::handlers::handle_api_config_put::<TestHost>(
         State(state.clone()),
         Extension(TenantScope::default()),
@@ -187,7 +197,7 @@ async fn agent_runtime_lock_put_rejects_replacement_and_implicit_switches() {
     .await
     .into_response();
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(state.config.lock().agents["custom"].label.as_deref(), Some("Renamed"));
+    assert_eq!(state.config.lock().agents["acp-codex"].label.as_deref(), Some("Renamed"));
     incoming.agents.clear();
     let response = crate::handlers::handle_api_config_put::<TestHost>(
         State(state.clone()),
@@ -197,12 +207,12 @@ async fn agent_runtime_lock_put_rejects_replacement_and_implicit_switches() {
     )
     .await
     .into_response();
-    assert_eq!(response.status(), StatusCode::OK);
-    assert!(state.config.lock().agents.is_empty());
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert!(state.config.lock().agents.contains_key("acp-codex"));
 }
 
 #[tokio::test]
-async fn agent_runtime_lock_put_accepts_first_save_and_locks_native() {
+async fn agent_runtime_put_accepts_first_save_and_switches_custom_profiles() {
     let _env_lock = global_async_env_lock().lock().await;
     use config_agent_profile::AgentRuntime;
     use config_agent::AgentDefinitionConfig;
@@ -233,9 +243,9 @@ async fn agent_runtime_lock_put_accepts_first_save_and_locks_native() {
     .await
     .into_response();
     assert_eq!(response.status(), StatusCode::OK);
-    let saved = local_store(home.path()).get(&TenantScope::default()).unwrap();
     incoming.agents.get_mut("custom-native").unwrap().runtime =
         AgentRuntime::Acp { backend: "codex".into() };
+    incoming.agents.get_mut("custom-codex").unwrap().runtime = AgentRuntime::Native;
     let response = crate::handlers::handle_api_config_put::<TestHost>(
         State(state.clone()),
         Extension(TenantScope::default()),
@@ -244,9 +254,9 @@ async fn agent_runtime_lock_put_accepts_first_save_and_locks_native() {
     )
     .await
     .into_response();
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(local_store(home.path()).get(&TenantScope::default()).unwrap(), saved);
-    assert_eq!(state.config.lock().agents["custom-native"].runtime, AgentRuntime::Native);
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(state.config.lock().agents["custom-native"].runtime, incoming.agents["custom-native"].runtime);
+    assert_eq!(state.config.lock().agents["custom-codex"].runtime, AgentRuntime::Native);
 }
 
 #[tokio::test]

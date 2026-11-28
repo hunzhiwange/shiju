@@ -277,6 +277,7 @@ pub enum BuiltinAgentKind {
 }
 
 pub const SHIJU_BUTLER_AGENT_KEY: &str = "shiju-butler";
+pub const SHIJU_NATIVE_AGENT_KEY: &str = "shiju-native";
 
 pub fn can_delegate_from_agent(key: &str) -> bool {
     matches!(key, "main" | SHIJU_BUTLER_AGENT_KEY)
@@ -375,10 +376,10 @@ const TASK_PLAN_PERMISSION: &str = r#"{
     "bash": "ask"
 }"#;
 
-pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 11] = [
+pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 12] = [
     BuiltinAgentSpec {
         key: "main",
-        label: "主代理",
+        label: "主智能体",
         description: "负责理解请求、直接执行，并在复杂任务中协调专业子代理。",
         kind: BuiltinAgentKind::Main,
         system_prompt: None,
@@ -575,6 +576,24 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 11] = [
         default_temperature: Some(0.3),
         max_iterations: DEFAULT_MAX_ITERATIONS,
     },
+    BuiltinAgentSpec {
+        key: SHIJU_NATIVE_AGENT_KEY,
+        label: "识矩原生",
+        description: "使用识矩原生运行引擎处理日常对话和任务。",
+        kind: BuiltinAgentKind::Specialist,
+        system_prompt: None,
+        default_skills: &[],
+        default_enabled: true,
+        mode: "primary",
+        hidden: false,
+        allow_as_subagent: false,
+        max_parallel_subagents: 1,
+        max_depth: 0,
+        allowed_tools: MAIN_TOOLS,
+        permission: MAIN_PERMISSION,
+        default_temperature: Some(0.7),
+        max_iterations: DEFAULT_MAX_ITERATIONS,
+    },
 ];
 
 pub fn is_retired_builtin_agent_key(key: &str) -> bool {
@@ -641,7 +660,15 @@ pub fn merged_agent_configs(
         if let Some(spec) = builtin_agent_spec(key) {
             let mut builtin =
                 builtin_agent_config(spec.key).expect("builtin spec has configuration");
-            builtin.label = value.label.clone().or(builtin.label);
+            builtin.label = value
+                .label
+                .as_ref()
+                .filter(|label| key != "main" || label.as_str() != "主代理")
+                .cloned()
+                .or(builtin.label);
+            if key != SHIJU_NATIVE_AGENT_KEY {
+                builtin.runtime = value.runtime.clone();
+            }
             builtin.description = value.description.clone().or(builtin.description);
             builtin.recommended_prompts = value.recommended_prompts.clone();
             builtin.defaults = value.defaults.clone();

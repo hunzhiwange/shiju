@@ -5,6 +5,44 @@
 
 use super::{App, EMPTY_SESSION_ID};
 use crate::app::state::{SessionRuntimeState, SessionToolInventory};
+use config_agent_profile::{AgentDefault, AgentRuntime};
+use desktop_settings_agents::state::{AgentsSettingsState, MAIN_AGENT_KEY};
+
+fn sync_draft_agent_runtime(
+    runtime: &mut SessionRuntimeState,
+    settings: &AgentsSettingsState,
+    last_native_full_access: Option<bool>,
+) {
+    if !settings.config_ready || runtime.is_employee_chat() {
+        return;
+    }
+    let key = runtime.agent.as_deref().unwrap_or(MAIN_AGENT_KEY);
+    let Some(entry) = settings.entries.iter().find(|entry| entry.key == key) else {
+        return;
+    };
+    let (backend, full_access) = match &entry.runtime {
+        AgentRuntime::Native => (None, last_native_full_access.unwrap_or(entry.defaults.full_access)),
+        AgentRuntime::Acp { backend } => (Some(backend.clone()), entry.defaults.full_access),
+    };
+    if runtime.acp_agent == backend {
+        return;
+    }
+    let agent = runtime.agent.clone();
+    desktop_session::message::chat::preferences::select_agent(
+        runtime,
+        agent,
+        Some(entry.label.clone()),
+        backend,
+        full_access,
+    );
+    if runtime.acp_agent.is_some()
+        && let AgentDefault::Fixed(model) = &entry.defaults.model
+    {
+        runtime.model = format!("{}/{}", model.provider, model.model);
+        runtime.auto_model = false;
+    }
+}
+
 
 impl App {
     fn session_runtime_defaults(
@@ -101,20 +139,36 @@ impl App {
     ) -> crate::app::state::SessionRuntimeState {
         #[cfg(test)]
         crate::app::components::chat_panel::performance::record_runtime_clone();
-        desktop_session::session::runtime::read_runtime(
+        let mut runtime = desktop_session::session::runtime::read_runtime(
             self.session_state.session_runtime_states.get(session_id),
             self.agents_settings.config_ready,
             self.new_session_full_access(session_id),
             || self.session_runtime_defaults(session_id),
-        )
+        );
+        if session_id == EMPTY_SESSION_ID {
+            sync_draft_agent_runtime(
+                &mut runtime,
+                &self.agents_settings,
+                self.session_state.last_llm_full_access,
+            );
+        }
+        runtime
     }
 
     pub(crate) fn get_session_runtime_mut(
         &mut self,
         session_id: &str,
     ) -> &mut crate::app::state::SessionRuntimeState {
-        self.session_runtime_defaults(session_id)
-            .initialize(&mut self.session_state.session_runtime_states, session_id)
+        let runtime = self.session_runtime_defaults(session_id)
+            .initialize(&mut self.session_state.session_runtime_states, session_id);
+        if session_id == EMPTY_SESSION_ID {
+            sync_draft_agent_runtime(
+                runtime,
+                &self.agents_settings,
+                self.session_state.last_llm_full_access,
+            );
+        }
+        runtime
     }
 
     pub(crate) fn current_session_runtime(&self) -> crate::app::state::SessionRuntimeState {

@@ -73,6 +73,32 @@ async fn agent_config_cleanup_full_access_acp_preserves_false_and_deny() {
 }
 
 #[tokio::test]
+async fn main_profile_uses_acp_with_interactive_permission_policy() {
+    isolated(async {
+        use config_agent_profile::{AgentDefault, AgentRuntime};
+        let workspace = tempfile::tempdir().unwrap();
+        let mut cfg = config::Config::default();
+        let mut main = config_agent::builtin_agent_config("main").unwrap();
+        main.runtime = AgentRuntime::Acp { backend: "codex".into() };
+        cfg.agents.insert("main".into(), main);
+        let options = json!({"agent":"main","full_access":false});
+        let mut parsed = ParsedAcpOptions::default();
+        apply_agent_defaults(&cfg, &options, "codex", workspace.path(), &mut parsed, &json!([]))
+            .await
+            .unwrap();
+        assert!(!parsed.full_access);
+        assert_ne!(parsed.permission_mode, Some(PermissionMode::DenyAll));
+
+        cfg.agents.get_mut("main").unwrap().defaults.permission =
+            AgentDefault::Fixed(json!({"*":"deny"}));
+        apply_agent_defaults(&cfg, &options, "codex", workspace.path(), &mut parsed, &json!([]))
+            .await
+            .unwrap();
+        assert_eq!(parsed.permission_mode, Some(PermissionMode::DenyAll));
+    }).await;
+}
+
+#[tokio::test]
 async fn acp_mcp_mount_carries_resolved_tool_policy() {
     isolated(async {
         let workspace = tempfile::tempdir().unwrap();

@@ -32,7 +32,7 @@ fn agent_definition_defaults_and_builtin_specs_are_stable() {
     assert_eq!(definition.max_history_messages, 100);
     assert!(!definition.parallel_tools);
 
-    assert_eq!(super::BUILTIN_AGENT_SPECS.len(), 11);
+    assert_eq!(super::BUILTIN_AGENT_SPECS.len(), 12);
     assert_eq!(super::BUILTIN_AGENT_SPECS[0].key, "main");
     for spec in super::BUILTIN_AGENT_SPECS {
         let config = super::builtin_agent_config(spec.key).unwrap();
@@ -328,23 +328,32 @@ fn builtin_agent_keys_follow_spec_order() {
         vec![
             "main", "shiju-butler", "researcher", "coder", "reviewer", "explore",
             "office-ppt", "office-excel", "office-pdf", "mermaid-diagrams",
-            "task-plan-master",
+            "task-plan-master", "shiju-native",
         ]
     );
 }
 
 #[test]
 fn merged_builtin_overrides_preserve_editable_metadata_and_builtin_identity() {
-    let configured = HashMap::from([(
-        "reviewer".to_string(),
-        super::AgentDefinitionConfig {
-            label: Some("Strict Reviewer".into()),
-            description: Some("custom review role".into()),
-            provider: "openrouter".into(),
-            model: "review-model".into(),
-            ..Default::default()
-        },
-    )]);
+    let configured = HashMap::from([
+        (
+            "reviewer".to_string(),
+            super::AgentDefinitionConfig {
+                label: Some("Strict Reviewer".into()),
+                description: Some("custom review role".into()),
+                provider: "openrouter".into(),
+                model: "review-model".into(),
+                ..Default::default()
+            },
+        ),
+        (
+            "shiju-native".to_string(),
+            super::AgentDefinitionConfig {
+                runtime: super::AgentRuntime::Acp { backend: "codex".into() },
+                ..Default::default()
+            },
+        ),
+    ]);
 
     let merged = super::merged_agent_configs(&configured);
     let reviewer = merged.get("reviewer").expect("configured reviewer");
@@ -355,6 +364,11 @@ fn merged_builtin_overrides_preserve_editable_metadata_and_builtin_identity() {
     assert_eq!(reviewer.model, "review-model");
     assert!(reviewer.builtin);
     assert_eq!(reviewer.runtime, super::AgentRuntime::Native);
+
+    let native = &merged["shiju-native"];
+    assert_eq!(native.label.as_deref(), Some("识矩原生"));
+    assert!(native.builtin && native.enabled);
+    assert_eq!(native.runtime, super::AgentRuntime::Native);
 
     let coder = merged.get("coder").expect("unconfigured coder");
     let default_coder = super::builtin_agent_config("coder").expect("coder preset");

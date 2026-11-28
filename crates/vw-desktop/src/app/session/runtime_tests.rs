@@ -10,6 +10,22 @@ fn test_app() -> App {
 }
 
 #[test]
+fn default_draft_follows_main_profile_runtime_without_rebinding_active_sessions() {
+    let mut app = test_app();
+    app.agents_settings.config_ready = true;
+    let main = app.agents_settings.entries.iter().position(|entry| entry.key == MAIN_AGENT_KEY).unwrap();
+    app.agents_settings.entries[main].runtime = AgentRuntime::Acp { backend: "codex".into() };
+    assert_eq!(app.get_session_runtime(EMPTY_SESSION_ID).acp_agent.as_deref(), Some("codex"));
+    assert_eq!(app.get_session_runtime_mut(EMPTY_SESSION_ID).acp_agent.as_deref(), Some("codex"));
+
+    app.get_session_runtime_mut("active").acp_agent = Some("codex".into());
+    app.agents_settings.entries[main].runtime = AgentRuntime::Native;
+    assert!(app.get_session_runtime(EMPTY_SESSION_ID).acp_agent.is_none());
+    assert!(app.get_session_runtime_mut(EMPTY_SESSION_ID).acp_agent.is_none());
+    assert_eq!(app.get_session_runtime("active").acp_agent.as_deref(), Some("codex"));
+}
+
+#[test]
 fn sync_active_session_preferences_preserves_global_model_and_syncs_other_values() {
     let mut app = test_app();
     app.session_state.active_session_id = None;

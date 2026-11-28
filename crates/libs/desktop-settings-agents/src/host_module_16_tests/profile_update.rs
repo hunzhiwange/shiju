@@ -225,7 +225,7 @@ fn agent_config_cleanup_multiline_description_roundtrips_and_cancels() {
 }
 
 #[test]
-fn agent_runtime_creation_success_locks_runtime_but_keeps_profile_editable() {
+fn agent_runtime_creation_success_keeps_runtime_and_profile_editable() {
     use config_agent_profile::{AgentDefault, AgentRuntime};
     let mut app = runtime_creation_draft();
     for backend in ["codex", "claude", "native", "codex"] {
@@ -247,9 +247,12 @@ fn agent_runtime_creation_success_locks_runtime_but_keeps_profile_editable() {
     assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().runtime, expected);
     dispatch(&mut app, AgentsMessage::ProfileSaved(Ok(())));
     dispatch(&mut app, AgentsMessage::ProfileOpen("runtime-custom".into()));
-    for backend in ["native", "claude"] {
+    for (backend, runtime) in [
+        ("native", AgentRuntime::Native),
+        ("claude", AgentRuntime::Acp { backend: "claude".into() }),
+    ] {
         dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged(backend.into()));
-        assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().runtime, expected);
+        assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().runtime, runtime);
     }
     dispatch(&mut app, AgentsMessage::ProfileNameChanged("保存后仍可改名".into()));
     dispatch(&mut app, AgentsMessage::ProfileModelChanged(AgentDefault::Inherit));
@@ -277,24 +280,37 @@ fn agent_runtime_creation_failed_save_allows_retry_and_cancel_leaves_no_entry() 
 }
 
 #[test]
-fn agent_runtime_creation_reloaded_custom_and_builtin_reject_changes() {
+fn agent_runtime_creation_reloaded_profiles_follow_runtime_policy() {
     use config_agent::DelegateAgentConfig;
     use config_agent_profile::AgentRuntime;
     let mut app = ProfileFixture::default();
     app.agents_settings.config_ready = true;
     app.acp_agents = vec!["codex".into(), "claude".into()];
     let config = DelegateAgentConfig {
-        runtime: AgentRuntime::Acp { backend: "claude".into() },
+        runtime: AgentRuntime::Acp { backend: "codex".into() },
         ..Default::default()
     };
     app.agents_settings
         .entries
         .push(crate::state::DelegateAgentSettingsEntry::from_config("reloaded", Some(config)));
-    for key in ["reloaded", "main"] {
+    for key in ["acp-codex", crate::acp::EMPLOYEE_ACP_PROFILE] {
+        let mut entry = crate::state::DelegateAgentSettingsEntry::from_config(key, None);
+        entry.builtin = true;
+        entry.runtime = AgentRuntime::Acp { backend: key.trim_start_matches("acp-").into() };
+        app.agents_settings.entries.push(entry);
+    }
+    for (key, expected) in [
+        ("reloaded", AgentRuntime::Acp { backend: "claude".into() }),
+        ("main", AgentRuntime::Acp { backend: "claude".into() }),
+        ("shiju-butler", AgentRuntime::Acp { backend: "claude".into() }),
+        ("coder", AgentRuntime::Acp { backend: "claude".into() }),
+        ("shiju-native", AgentRuntime::Native),
+        ("acp-codex", AgentRuntime::Acp { backend: "codex".into() }),
+        (crate::acp::EMPLOYEE_ACP_PROFILE, AgentRuntime::Acp { backend: "employee-acp".into() }),
+    ] {
         dispatch(&mut app, AgentsMessage::ProfileOpen(key.into()));
-        let expected = app.agents_settings.profile_modal.as_ref().unwrap().runtime.clone();
-        dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("codex".into()));
-        assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().runtime, expected);
+        dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("claude".into()));
+        assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().runtime, expected, "{key}");
     }
 }
 

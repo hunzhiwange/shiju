@@ -122,8 +122,7 @@ pub(super) fn update(app: &mut Update<'_>, message: AgentsMessage) -> Task<Messa
                 return Task::none();
             };
             let deleting = matches!(message, AgentsMessage::ProfileDelete);
-            let fixed = builtin_agent_spec(&draft.key).is_some() || draft.key.starts_with("acp-");
-            if deleting && fixed {
+            if deleting && draft.builtin {
                 return Task::none();
             }
             if !deleting && draft.label.trim().is_empty() {
@@ -143,7 +142,7 @@ pub(super) fn update(app: &mut Update<'_>, message: AgentsMessage) -> Task<Messa
                     );
                 }
             }
-            let mut value = if deleting {
+            let value = if deleting {
                 serde_json::Value::Null
             } else {
                 serde_json::json!({
@@ -153,14 +152,6 @@ pub(super) fn update(app: &mut Update<'_>, message: AgentsMessage) -> Task<Messa
                     "defaults": crate::defaults::patch(&draft.defaults),
                 })
             };
-            // JSON Merge Patch must remove the ACP-only field when returning to native.
-            // Custom runtime patches are validated after merge by the gateway.
-            if !fixed
-                && matches!(draft.runtime, config_agent_profile::AgentRuntime::Native)
-                && !deleting
-            {
-                value["runtime"]["backend"] = serde_json::Value::Null;
-            }
             let mut patch = if deleting {
                 serde_json::json!({"agents": {draft.key.clone(): value}})
             } else {
@@ -173,7 +164,7 @@ pub(super) fn update(app: &mut Update<'_>, message: AgentsMessage) -> Task<Messa
                 patch["agents"][&draft.key]
                     .as_object_mut()
                     .unwrap()
-                    .extend(value.as_object_mut().unwrap().clone());
+                    .extend(value.as_object().unwrap().clone());
                 // A single-agent edit must not remove unrelated legacy entries.
                 patch["agents"].as_object_mut().unwrap().remove("general");
             }
@@ -220,13 +211,12 @@ pub(super) fn update(app: &mut Update<'_>, message: AgentsMessage) -> Task<Messa
                     draft.description = draft.description_editor.text();
                 }
                 AgentsMessage::ProfileRuntimeChanged(value) => {
-                    if builtin_agent_spec(&draft.key).is_none()
-                        && !draft.key.starts_with("acp-")
-                        && !app.state.entries.iter().any(|entry| entry.key == draft.key)
-                    {
+                    if !draft.runtime_is_fixed() {
                         draft.runtime = if value == "native" {
                             config_agent_profile::AgentRuntime::Native
-                        } else if app.acp_agents.contains(&value) {
+                        } else if value != acp_agent_registry::EMPLOYEE_ACP_BACKEND
+                            && app.acp_agents.contains(&value)
+                        {
                             config_agent_profile::AgentRuntime::Acp { backend: value }
                         } else {
                             return Task::none();

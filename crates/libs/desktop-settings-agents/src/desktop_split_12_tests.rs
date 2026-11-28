@@ -39,7 +39,6 @@ fn basic_view<'a>(
             theme: &THEME,
             profile: crate::basic_profile::Input {
                 locale: DesktopLocale::SimplifiedChinese,
-                entries: &state.entries,
                 acp_agents: &[],
                 saving: state.profile_saving,
                 acp_loading: false,

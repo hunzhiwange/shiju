@@ -91,8 +91,15 @@ pub async fn apply_agent_defaults<H: DefaultsHost, S>(
     // represent selective per-tool/path rules without weakening those boundaries.
     let preferences = H::preferences().await.map_err(to_api_error)?;
     use permission_runtime::next::{self, Action};
+    // The main profile's tool allowlist governs delegation. Interactive main
+    // sessions use the configured permission policy with either runtime.
+    let profile_rules = if key == "main" {
+        Vec::new()
+    } else {
+        next::from_config(&agent.permission)
+    };
     let live_rules = next::merge(&[
-        next::from_config(&agent.permission),
+        profile_rules,
         next::from_config(preferences.get("permission").unwrap_or(&Value::Null)),
     ]);
     if live_rules.iter().any(|rule| rule.action == Action::Deny) {

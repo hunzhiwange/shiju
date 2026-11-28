@@ -6,7 +6,6 @@ use desktop_i18n::{I18n, settings_extensions::text as tr};
 use iced::widget::{button, column, container, responsive, row, text};
 use iced::{Alignment, Element, Length};
 use config_agent_profile::AgentRuntime;
-use config_agent::builtin_agent_spec;
 
 fn message(value: AgentsMessage) -> Event {
     Event::Agents(value)
@@ -17,9 +16,7 @@ pub fn view<'a>(
 ) -> Element<'a, Event> {
     let locale = input.locale;
     let label = move |source| tr(locale, source);
-    let fixed = builtin_agent_spec(&draft.key).is_some()
-        || draft.key.starts_with("acp-")
-        || input.entries.iter().any(|entry| entry.key == draft.key);
+    let fixed = draft.runtime_is_fixed();
     let text_input = |placeholder, value, callback: fn(String) -> AgentsMessage| {
         settings_text_input(placeholder, value).on_input(move |value| message(callback(value)))
     };
@@ -82,7 +79,7 @@ pub fn view<'a>(
         if fixed {
             ""
         } else {
-            label("首次保存成功后，运行引擎及 ACP backend 不可修改。")
+            label("更改后用于新会话。")
         },
         move || -> Element<'_, Event> {
             if fixed {
@@ -157,7 +154,6 @@ fn action(label: &'static str, value: Option<AgentsMessage>) -> Element<'static,
 #[derive(Clone, Copy)]
 pub struct Input<'a> {
     pub locale: config_ui::DesktopLocale,
-    pub entries: &'a [DelegateAgentSettingsEntry],
     pub acp_agents: &'a [String],
     pub saving: bool,
     pub acp_loading: bool,

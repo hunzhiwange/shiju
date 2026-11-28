@@ -751,7 +751,7 @@ async fn help_rollout_08_basic_help_uses_static_text() {
         let draft = app.agents_settings.profile_modal.as_ref().unwrap();
         let mut scene = Scene::new(inputs::basic(&app, draft, vec![]), &mut renderer, width, 2200);
         for label in [
-            "首次保存成功后，运行引擎及 ACP backend 不可修改。",
+            "更改后用于新会话。",
             "完全访问权限",
             "权限始终受安全上限约束。",
             "关闭后不参与注册。",
@@ -1002,7 +1002,7 @@ async fn settings_help_gap_05_native_modal_moves_explanations_into_help() {
             assert_modal_help(&mut scene, &mut renderer, &theme, locale, title, description);
         }
         for text in [
-            "首次保存成功后，运行引擎及 ACP backend 不可修改。",
+            "更改后用于新会话。",
             "身份文件正文即时保存；其余配置点击保存后生效。",
             "关闭后不参与注册。",
             "关闭后不可被委托。",
@@ -1057,7 +1057,6 @@ async fn settings_help_gap_05_acp_model_capability_controls_choices() {
         let mut scene = Scene::new(profile(&app), &mut renderer, width, 820);
         let geometry = scene.geometry(&renderer);
         for absent in [
-            "首次保存成功后，运行引擎及 ACP backend 不可修改。",
             "工具",
             "温度",
             "并行工具",
@@ -1068,7 +1067,7 @@ async fn settings_help_gap_05_acp_model_capability_controls_choices() {
         ] {
             assert!(!geometry.labels.iter().any(|(value, _)| value == absent), "{absent}");
         }
-        geometry.label("固定运行引擎：fixture");
+        geometry.label("更改后用于新会话。");
         geometry.label("允许作为子智能体");
         for hint in [
             "网关当前未提供客户端模型能力，请检查平台和 ACP 安装。",
@@ -1124,14 +1123,14 @@ async fn settings_help_gap_05_fixed_role_and_tool_controls_remain_visible() {
         let mut scene = Scene::new(profile(&app), &mut renderer, 420, 820);
         let geometry = scene.geometry(&renderer);
         for label in [
-            "固定运行引擎：native",
+            "更改后用于新会话。",
             "角色边界",
             "委托资格、并发上限和递归深度由内置角色目录固定，不能在此放宽。",
         ] {
             geometry.label(label);
         }
         for label in
-            ["删除智能体", "允许作为子智能体", "首次保存成功后，运行引擎及 ACP backend 不可修改。"]
+            ["删除智能体", "允许作为子智能体", "固定运行引擎：native"]
         {
             assert!(!geometry.labels.iter().any(|(value, _)| value == label), "{label}");
         }

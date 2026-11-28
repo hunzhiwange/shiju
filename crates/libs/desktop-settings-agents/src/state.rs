@@ -69,6 +69,11 @@ pub struct DelegateAgentSettingsEntry {
 }
 
 impl DelegateAgentSettingsEntry {
+    pub(crate) fn runtime_is_fixed(&self) -> bool {
+        self.key == config_agent::SHIJU_NATIVE_AGENT_KEY
+            || acp_agent_registry::agent_registry::built_in_backend_for_profile(&self.key).is_some()
+    }
+
     pub fn uses_live_tool_catalog(&self) -> bool {
         self.kind == AgentSettingsEntryKind::Butler && self.allowed_tools.is_empty()
     }

@@ -48,6 +48,11 @@ fn agent_catalog_preserves_native_role_limits() {
         assert_eq!(entry.allow_as_subagent, spec.allow_as_subagent);
         assert_eq!(entry.runtime, AgentRuntime::Native);
     }
+    let catalog = load_agent_configs(&json!({"agents": {"main": {
+        "label": "主代理", "runtime": {"kind": "acp", "backend": "codex"}
+    }}}));
+    assert_eq!(catalog["main"].label.as_deref(), Some("主智能体"));
+    assert_eq!(catalog["main"].runtime, AgentRuntime::Acp { backend: "codex".into() });
 }
 
 #[test]

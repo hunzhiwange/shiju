@@ -725,6 +725,11 @@ pub fn built_in_agent_display_name(name: &str) -> Option<&'static str> {
         .map(|definition| definition.display_name)
 }
 
+/// Return the backend of an official ACP profile without probing installations.
+pub fn built_in_backend_for_profile(key: &str) -> Option<&str> {
+    key.strip_prefix("acp-").filter(|backend| built_in_agent_display_name(backend).is_some())
+}
+
 /// 返回所有内置 ACP 代理的结构化启动规格。
 ///
 /// 返回值按代理 key 排序，且会尽量优先解析本地已安装的命令；如果找不到

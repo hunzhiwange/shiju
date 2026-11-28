@@ -332,16 +332,15 @@ pub fn validate_config(config: &Config) -> Result<()> {
 
 /// Reject mutations before merge erases an explicit deletion request.
 pub fn validate_agent_profile_patch(patch: &serde_json::Value) -> Result<()> {
+    use config_agent_profile::AgentRuntime;
+
     let Some(agents) = patch.get("agents") else { return Ok(()) };
     let Some(agents) = agents.as_object() else {
         anyhow::bail!("agents must be an object; builtin agents cannot be deleted");
     };
     for (key, value) in agents {
-        let official_backend = key
-            .strip_prefix("acp-")
-            .filter(|backend| acp_agent_registry::built_in_agent_specs().contains_key(*backend));
-        let native = config_agent::builtin_agent_spec(key).is_some();
-        if official_backend.is_none() && !native {
+        let official_backend = acp_agent_registry::agent_registry::built_in_backend_for_profile(key);
+        if official_backend.is_none() && config_agent::builtin_agent_spec(key).is_none() {
             continue;
         }
         if !value.is_object() {
@@ -350,15 +349,11 @@ pub fn validate_agent_profile_patch(patch: &serde_json::Value) -> Result<()> {
         if value.get("builtin").is_some_and(|value| value != true) {
             anyhow::bail!("builtin agent {key} source cannot be changed");
         }
-        if let Some(runtime) = value.get("runtime") {
-            let runtime: config_agent_profile::AgentRuntime =
-                serde_json::from_value(runtime.clone())?;
-            let expected = match official_backend {
-                Some(backend) => {
-                    config_agent_profile::AgentRuntime::Acp { backend: backend.into() }
-                }
-                None => config_agent_profile::AgentRuntime::Native,
-            };
+        let expected = official_backend
+            .map(|backend| AgentRuntime::Acp { backend: backend.into() })
+            .or_else(|| (key == config_agent::SHIJU_NATIVE_AGENT_KEY).then_some(AgentRuntime::Native));
+        if let (Some(expected), Some(runtime)) = (expected, value.get("runtime")) {
+            let runtime: AgentRuntime = serde_json::from_value(runtime.clone())?;
             if runtime != expected {
                 anyhow::bail!("builtin agent {key} runtime cannot be changed");
             }
@@ -387,7 +382,7 @@ fn validate_agent_profiles(config: &Config) -> Result<()> {
                 anyhow::bail!("builtin agent {key} runtime cannot be changed");
             }
         } else if builtin_agent_spec(key).is_some() {
-            if agent.runtime != AgentRuntime::Native {
+            if key == config_agent::SHIJU_NATIVE_AGENT_KEY && agent.runtime != AgentRuntime::Native {
                 anyhow::bail!("builtin agent {key} runtime cannot be changed");
             }
         } else if agent.builtin {
@@ -439,6 +434,12 @@ pub fn seed_agent_profile_patch(
     for (key, value) in agents {
         if !value.is_object() {
             continue;
+        }
+        // Native runtime has no backend. Remove the old ACP field when merging the patch.
+        if let Some(runtime) = value.get_mut("runtime").and_then(serde_json::Value::as_object_mut)
+            && runtime.get("kind").and_then(serde_json::Value::as_str) == Some("native")
+        {
+            runtime.entry("backend").or_insert(serde_json::Value::Null);
         }
         // Inherit removes a previous fixed value through the existing merge-patch semantics.
         if let Some(defaults) = value.get_mut("defaults").and_then(serde_json::Value::as_object_mut)

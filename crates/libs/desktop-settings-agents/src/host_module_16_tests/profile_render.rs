@@ -241,7 +241,6 @@ async fn agent_runtime_creation_controls_render_in_both_themes() {
             let mut element = crate::basic_profile::view(
                 crate::basic_profile::Input {
                     locale: app.desktop_locale,
-                    entries: &app.agents_settings.entries,
                     acp_agents: &app.acp_agents,
                     saving: app.agents_settings.profile_saving,
                     acp_loading: app.acp_settings.loading,
@@ -280,10 +279,9 @@ async fn agent_runtime_creation_controls_render_in_both_themes() {
             }
             let mut labels = Labels::default();
             element.as_widget_mut().operate(&mut tree, Layout::new(&node), &renderer, &mut labels);
-            assert_eq!(labels.0.iter().any(|s| s.contains("首次保存成功后")), state != "saved");
+            assert!(labels.0.iter().any(|s| s == "更改后用于新会话。"));
             if state == "saved" {
-                assert!(labels.0.iter().any(|s| s == "固定运行引擎：codex"));
-                assert!(!labels.0.iter().any(|s| s == "刷新引擎目录"));
+                assert!(labels.0.iter().any(|s| s == "刷新引擎目录"));
             } else if state == "loading" {
                 assert!(labels.0.iter().any(|s| s == "正在加载 ACP 引擎目录…"));
             } else if state == "failed" {

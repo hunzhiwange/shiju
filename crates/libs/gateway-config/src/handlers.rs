@@ -363,7 +363,7 @@ pub async fn handle_api_config_put<H: ConfigHost>(
     let mut new_config = H::hydrate_config_for_save(incoming, &current_config);
     let runtime_auth_enabled = new_config.gateway.auth_enabled;
 
-    if let Err(error) = config::validate_agent_runtime_update(&current_config, &new_config) {
+    if let Err(error) = config::validate_config_update(&current_config, &new_config) {
         return (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({"error": format!("Invalid config: {error}")})),
@@ -374,9 +374,7 @@ pub async fn handle_api_config_put<H: ConfigHost>(
     // Full replacement must not erase already saved builtin profiles.
     for key in current_config.agents.keys() {
         let builtin = config_agent::builtin_agent_spec(key).is_some()
-            || key
-                .strip_prefix("acp-")
-                .is_some_and(|backend| acp_agent_registry::built_in_agent_specs().contains_key(backend));
+            || acp_agent_registry::agent_registry::built_in_backend_for_profile(key).is_some();
         if builtin && !new_config.agents.contains_key(key) {
             return (
                 StatusCode::BAD_REQUEST,

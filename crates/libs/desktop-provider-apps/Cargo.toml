@@ -8,6 +8,8 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+app-model-catalog = { path = "../app-model-catalog" }
+app-provider-validation = { path = "../app-provider-validation" }
 url = "2"
 tempfile = "3"
 vw-api-task = { path = "../api-task" }

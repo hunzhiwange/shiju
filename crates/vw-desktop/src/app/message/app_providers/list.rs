@@ -16,6 +16,7 @@ use vw_api_types::{
 };
 #[derive(Clone, Debug)]
 pub enum ListMessage {
+    Presets(desktop_provider_apps::presets::Event),
     Leave(super::leave::Choice),
     FailoverHealth(crate::app::message::agent_apps_health::Event),
     Failover(crate::app::message::agent_apps_high_availability::Event),
@@ -162,6 +163,7 @@ pub(crate) fn current(app: &App, id: AppId) -> Result<(GatewayClient, Scope), St
 }
 pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
     match value {
+        ListMessage::Presets(event) => return super::presets::update(app, event),
         ListMessage::Leave(choice) => return super::leave::choose(app, choice),
         ListMessage::FailoverHealth(event) => {
             return crate::app::message::agent_apps_health::update(app, event);

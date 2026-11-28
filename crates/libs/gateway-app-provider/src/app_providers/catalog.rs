@@ -2,6 +2,15 @@ use super::{GatewayAppProviderClient, provider_collection_path};
 use vw_api_app_provider_base::AppProviderSummary;
 use vw_api_app_identity::{AppId};
 impl GatewayAppProviderClient {
+    /// Read transport-compatible presets from the gateway's existing models.dev cache.
+    pub async fn app_provider_models_dev(
+        &self,
+        app: AppId,
+    ) -> Result<Vec<vw_api_app_provider_edit::catalog::ModelDevProviderPreset>, String> {
+        let path = format!("{}/catalog/models-dev", provider_collection_path(app));
+        self.transport.get_json(&path, &[]).await
+    }
+
     pub async fn app_provider_list(&self, app: AppId) -> Result<Vec<AppProviderSummary>, String> {
         self.transport.get_json(&provider_collection_path(app), &[]).await
     }

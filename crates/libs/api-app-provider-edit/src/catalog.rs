@@ -45,3 +45,23 @@ pub struct ProviderCatalog {
     pub in_use: ProviderSelection,
     pub native_read: Option<ProviderReadUnavailable>,
 }
+
+/// Credential-free deployment facts from ShiJu's models.dev catalog.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ModelDevProviderPreset {
+    pub provider_id: String,
+    pub name: String,
+    pub deployment: String,
+    pub base_url: String,
+    pub api_key_header: bool,
+    pub models: Vec<ModelDevPresetModel>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ModelDevPresetModel {
+    pub id: String,
+    pub name: String,
+    pub context_window: Option<u64>,
+}

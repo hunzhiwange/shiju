@@ -25,6 +25,7 @@ pub struct ListState<Leave, Failover, Aggregation, Subagent, Pi, Diagnostics, Om
     pub scope: Option<Scope>,
     pub generation: u64,
     pub query: String,
+    pub preset_picker: Option<crate::presets::Picker>,
     pub loading: bool,
     pub tray_switch: Option<String>,
     pub snapshot: Option<Snapshot>,
@@ -60,6 +61,7 @@ impl<Leave, Failover, Aggregation, Subagent, Pi, Diagnostics, Omp, Omo, Usage> L
         self.generation = self.generation.wrapping_add(1);
         self.scope = Some(scope);
         self.snapshot = None;
+        self.preset_picker = None;
         self.editor = None;
         self.form = None;
         self.omp_directory = None;
@@ -116,6 +118,7 @@ where Leave: Default, Failover: Default, Usage: Default {
         scope: Default::default(),
         generation: Default::default(),
         query: Default::default(),
+        preset_picker: None,
         loading: Default::default(),
         tray_switch: Default::default(),
         snapshot: Default::default(),

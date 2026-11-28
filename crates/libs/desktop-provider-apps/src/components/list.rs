@@ -11,6 +11,7 @@ use vw_api_app_provider_edit::catalog::{ProviderMembership, ProviderSelection};
 #[derive(Clone)]
 pub enum ListMessage {
     Create,
+    Presets(crate::presets::Event),
     OpenEdit { id: String, copy: bool, delete: bool },
     Close,
     Refresh,
@@ -286,11 +287,13 @@ fn content<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
             if direct {
                 identity = identity.push(settings_value_badge(i18n.__("直连")));
             }
-            let mut metadata =
-                vec![if provider.configured { i18n.__("凭据已配置") } else { i18n.__("凭据未配置") }];
-            if let Some(category) =
-                presentation.and_then(|item| item.category.as_deref()).filter(|s| !s.is_empty())
-            {
+            let category = presentation.and_then(|item| item.category.as_deref());
+            let mut metadata = vec![match (category, provider.configured) {
+                (Some("official"), _) => i18n.__("官方"),
+                (_, true) => i18n.__("凭据已配置"),
+                (_, false) => i18n.__("凭据未配置"),
+            }];
+            if let Some(category) = category.filter(|s| !s.is_empty() && *s != "official") {
                 metadata.push(category);
             }
             if scope.app != AppId::Agy {
@@ -400,8 +403,8 @@ fn content<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     }
 
     let ready = !state.loading && !state.editing;
-    let create = if scope.app == AppId::ClaudeDesktop {
-        ListMessage::Desktop(None)
+    let create = if crate::presets::app_name(scope.app).is_some() {
+        ListMessage::Presets(crate::presets::Event::Open)
     } else {
         ListMessage::Create
     };

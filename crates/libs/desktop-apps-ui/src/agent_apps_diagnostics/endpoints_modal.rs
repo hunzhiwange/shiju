@@ -55,7 +55,7 @@ pub fn overlay<'a>(i18n: desktop_i18n::I18n, state: State<'a>, base: Element<'a,
     body = body
         .push(settings_field_label(i18n.__("预设名称（可选）")))
         .push(
-            settings_text_input(i18n.__("例如 PackyCode；留空不合并预设"), state.preset_name)
+            settings_text_input(i18n.__("例如 Kimi；留空不合并预设"), state.preset_name)
                 .on_input_maybe(
                     (!state.active && !state.loading).then_some(|v| message(Event::Preset(v))),
                 ),

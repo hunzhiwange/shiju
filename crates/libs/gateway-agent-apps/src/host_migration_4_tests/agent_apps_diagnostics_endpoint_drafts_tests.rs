@@ -66,7 +66,7 @@ async fn diagnostic_endpoint_draft_reference_executes_without_save() -> anyhow::
             "POST",
             "endpoint-candidates/query",
             "fixture-diagnostic-member-token-00001",
-            json!({"providerId":"provider","draftUrls":[draft],"presetName":"PackyCode"}),
+            json!({"providerId":"provider","draftUrls":[draft],"presetName":"Kimi"}),
         ))
         .await?;
     assert_eq!(response.status(), StatusCode::OK);

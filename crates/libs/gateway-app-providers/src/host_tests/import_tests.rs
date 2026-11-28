@@ -64,6 +64,7 @@ impl Fixture {
 #[tokio::test]
 async fn cc04_import_sdk_api_keeps_existing_catalog_and_native_files() {
     let f = Fixture::new().await;
+    let store = AppProviderStore::new(f.db.clone()).unwrap();
     let files: &[(AppId,&str,&[u8])] = &[
         (AppId::Claude,".claude/settings.json",br#"{"env":{"ANTHROPIC_BASE_URL":"https://relay.example","ANTHROPIC_AUTH_TOKEN":"fake-key","ANTHROPIC_MODEL":"claude-test"},"unknown":true}"#),
         (AppId::Codex,".codex/config.toml",b"model_provider='relay'\nmodel='fixture'\n[model_providers.relay]\nbase_url='https://relay.example/v1'\nwire_api='responses'\n"),
@@ -77,6 +78,7 @@ async fn cc04_import_sdk_api_keeps_existing_catalog_and_native_files() {
         br#"{"OPENAI_API_KEY":"fake-key","tokens":{"access_token":"fake-login-never-copy"}}"#,
     );
     for &(app, path, bytes) in files {
+        store.ensure_official_preset(&tenant(), app).unwrap();
         write(f.root.path(), path, bytes);
         let result =
             gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_import(app, &f.request(ImportTrigger::Startup), TOKEN).await.unwrap();

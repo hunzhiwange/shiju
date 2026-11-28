@@ -31,7 +31,7 @@ pub use named_icons::{
     get_named_icon_image_with_weight, named_icon_catalog, named_icon_family_json,
     named_icon_family_label,
 };
-pub use provider_icons::get_provider_icon;
+pub use provider_icons::{find_provider_icon, get_provider_icon};
 pub use svg_icons::get_icon;
 #[cfg(test)]
 #[path = "tests.rs"]

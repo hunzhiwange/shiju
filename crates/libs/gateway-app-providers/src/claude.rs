@@ -570,13 +570,3 @@ fn authorize_login(
 #[cfg(target_os = "macos")]
 #[path = "claude_login.rs"]
 mod login;
-
-#[cfg(target_os = "macos")]
-pub async fn sync_saved(database: GlobalDatabase, policy: Option<PathBuf>, headers: HeaderMap,
-    target: &vw_api_app_operations::DataManagementTarget, id: &str,
-) -> Result<(), StatusCode> {
-    let body = serde_json::from_value(serde_json::json!({"targetHostId": target.target_host_id})).map_err(|_| StatusCode::BAD_REQUEST)?;
-    let response = reapply(Extension(Policy::new(policy)), Extension(target.scope.tenant_scope().clone()),
-        Some(Extension(database)), headers, Path(id.to_owned()), Ok(Json(body))).await;
-    if response.status().is_success() { Ok(()) } else { Err(response.status()) }
-}

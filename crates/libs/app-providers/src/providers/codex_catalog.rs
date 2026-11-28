@@ -23,6 +23,10 @@ pub use app_aggregation::CATALOG_FILENAME;
 pub fn settings(profile: &CodexProfile) -> Value {
     json!({"config":profile.config,"auth":{"OPENAI_API_KEY":profile.api_key}})
 }
+#[cfg(target_os = "macos")]
+pub fn uses_default_login(profile: &CodexProfile) -> bool {
+    profile.config.is_empty() && profile.api_key.is_none() && profile.preserve_login
+}
 pub fn identity(
     host: &str,
     id: &str,
@@ -125,11 +129,14 @@ impl CodexFiles {
             .and_then(Value::as_str)
             .map(|s| vec![s.into()])
             .unwrap_or_default();
+        let projected_settings = settings(profile);
         let login = super::codex_login::prepare(
             &self.guard,
             super::codex_login::LoginInput {
-                target: super::codex_login::AuthTarget::ThirdParty {
-                    preserve: profile.preserve_login,
+                target: if uses_default_login(profile) {
+                    super::codex_login::AuthTarget::Official { row_auth: &projected_settings["auth"] }
+                } else {
+                    super::codex_login::AuthTarget::ThirdParty { preserve: profile.preserve_login }
                 },
                 leaving_official: None,
                 official_logins: &[],
@@ -143,7 +150,7 @@ impl CodexFiles {
         )?;
         let result = super::codex::project_owned(
             live,
-            &settings(profile),
+            &projected_settings,
             previous,
             login.login_on_disk,
             state

@@ -143,11 +143,14 @@ static PROVIDER_ICONS: Lazy<HashMap<&'static str, svg::Handle>> = Lazy::new(|| {
 /// let unknown_icon = get_provider_icon("unknown-provider"); // 返回 "agent" 图标
 /// ```
 pub fn get_provider_icon(provider_id: &str) -> svg::Handle {
-    PROVIDER_ICONS
-        .get(provider_id)
-        .cloned()
+    find_provider_icon(provider_id)
         .or_else(|| PROVIDER_ICONS.get("agent").cloned())
         .expect("Provider icon missing in assets map")
+}
+
+/// Look up a bundled logo while letting the caller choose a fallback.
+pub fn find_provider_icon(provider_id: &str) -> Option<svg::Handle> {
+    PROVIDER_ICONS.get(provider_id).cloned()
 }
 #[cfg(test)]
 #[path = "provider_icons_tests.rs"]

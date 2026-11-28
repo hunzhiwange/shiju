@@ -7,9 +7,8 @@ use serde::Deserialize;
 #[serde(rename_all = "snake_case")]
 pub enum CodexPresetCategory {
     Official,
+    Account,
     CnOfficial,
-    ThirdParty,
-    Aggregator,
     CloudProvider,
     Local,
 }
@@ -35,7 +34,7 @@ pub struct CodexPreset {
     pub name: String,
     pub name_key: Option<String>,
     pub website_url: String,
-    pub category: Option<CodexPresetCategory>,
+    pub category: CodexPresetCategory,
     pub family: Option<String>,
     pub plan_key: Option<PresetPlan>,
     pub region_key: Option<PresetRegion>,

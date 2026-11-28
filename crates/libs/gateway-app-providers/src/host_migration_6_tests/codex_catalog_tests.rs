@@ -316,6 +316,37 @@ async fn cc04_codex_catalog_sdk_api_auth_stash_preservation_and_failure() {
     assert_eq!(std::fs::read(&auth_path).unwrap(), b"invalid-json");
 }
 #[tokio::test]
+async fn cc04_codex_official_preset_restores_native_login_without_a_model_catalog() {
+    if run_in_isolated_home() {
+        return;
+    }
+    let f = Fixture::new().await;
+    let tenant = TenantScope::new("p", "a").unwrap();
+    let app = vw_api_app_identity::AppId::Codex;
+    app_provider_services::AppProviderStore::new(f.db.clone())
+        .unwrap()
+        .ensure_official_preset(&tenant, app)
+        .unwrap();
+    let auth = json!({"auth_mode":"chatgpt","tokens":{"id_token":"eyJhbGciOiJub25lIn0.eyJzdWIiOiJhbGljZSJ9.","access_token":"fake-access","refresh_token":"fake-refresh","account_id":"team"}});
+    let auth_path = f.root.join(".codex/auth.json");
+    std::fs::write(&auth_path, auth.to_string()).unwrap();
+    let switched_to_custom = f.client
+        .codex_provider_save("custom", &f.request(true, ClaudeActivation::First), TOKEN)
+        .await
+        .unwrap();
+    assert_eq!(switched_to_custom.live, CodexLiveResult::Applied);
+    assert!(!auth_path.exists());
+
+    let result = f.client
+        .codex_provider_switch("codex-official", &f.target(), TOKEN)
+        .await
+        .unwrap();
+    assert_eq!(result.live, CodexLiveResult::Applied);
+    assert_eq!(f.state()["pointer"]["id"], "codex-official");
+    assert!(!f.root.join(".codex/shiju-model-catalog.json").exists());
+    assert_eq!(serde_json::from_slice::<Value>(&std::fs::read(auth_path).unwrap()).unwrap(), auth);
+}
+#[tokio::test]
 async fn cc04_codex_catalog_sdk_api_recovers_marked_catalog_and_pointer_before_replanning() {
     use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
     use std::os::unix::fs::MetadataExt;

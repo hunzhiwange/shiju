@@ -80,8 +80,8 @@ use vw_api_app_provider_base::AppProviderWrite;
         let bytes = to_bytes(response.into_body(), 65536).await.unwrap();
         let rows: Vec<vw_api_app_provider_base::AppProviderSummary> =
             serde_json::from_slice(&bytes).unwrap();
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].id, "ours");
+        assert_eq!(rows.iter().map(|row| row.id.as_str()).collect::<Vec<_>>(), ["claude-official", "ours"]);
+        assert_eq!(rows[0].name, "Claude Official");
         assert!(!String::from_utf8_lossy(&bytes).contains("fixture-private-key"));
         for (host, company, token, expected) in [
             ("host", "b", TOKEN, StatusCode::FORBIDDEN),
@@ -124,7 +124,7 @@ use vw_api_app_provider_base::AppProviderWrite;
                 .with_tenant_scope(TenantScope::new("p", "a").unwrap()),
         )
         .unwrap();
-        assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_list(AppId::Claude).await.unwrap()[0].id, "ours");
+        assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_list(AppId::Claude).await.unwrap()[0].id, "claude-official");
         let result = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_catalog(AppId::Kimi, "host", TOKEN).await.unwrap();
         assert_eq!(result.in_use, ProviderSelection::Selected { id: "native".into() });
         assert_eq!(

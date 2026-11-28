@@ -3,7 +3,7 @@ use super::help::Help;
 use crate::{
     Message,
     message::desktop::{Event, message},
-    state::desktop::Form,
+    state::desktop::{ACCOUNT_ID_REQUIRED, Form},
 };
 use iced::{
     Alignment, Element, Length,
@@ -67,7 +67,11 @@ pub fn card<'a>(
         if !form.official {
             direct = direct
                 .push(settings_field_label(i18n.__("API 地址")))
-                .push(input("https://…", &form.base_url, Event::BaseUrl))
+                .push(input("https://…", &form.base_url, Event::BaseUrl));
+            if form.endpoint_needs_account_id() {
+                direct = direct.push(text(i18n.__(ACCOUNT_ID_REQUIRED)).size(13).style(settings_muted_text_style));
+            }
+            direct = direct
                 .push(settings_field_label(i18n.__("完整密钥")))
                 .push(settings_control_with_hint(
                     input(i18n.__("输入完整密钥"), &form.key, Event::Key).secure(true),
@@ -112,7 +116,8 @@ pub fn card<'a>(
     let actions = row![
         action(i18n.__("从 Claude 导入兼容档案"), Event::Import, active),
         button(text(i18n.__("保存直连"))).padding([8, 14]).style(primary_action_btn_style).on_press_maybe(
-            (active && form.direct_editable && !form.id.is_empty() && !form.name.is_empty())
+            (active && form.direct_editable && !form.id.is_empty() && !form.name.is_empty()
+                && !form.endpoint_needs_account_id())
                 .then_some(message(Event::SaveDirect))
         ),
         button(text(i18n.__("保存映射"))).padding([8, 14]).style(primary_action_btn_style).on_press_maybe(

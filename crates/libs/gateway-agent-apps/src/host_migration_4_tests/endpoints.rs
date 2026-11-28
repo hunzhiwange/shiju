@@ -42,9 +42,9 @@ async fn diagnostic_endpoints_api_is_read_only_and_scoped() -> anyhow::Result<()
         .unwrap();
     });
     let store = app_settings_store::settings_store::GatewaySettingsStore::new(database.clone())?;
-    let stored = json!({"baseUrl":"https://www.packyapi.ai/", "apiKey":"fixture-private-key",
+    let stored = json!({"baseUrl":"https://api.moonshot.cn/anthropic/", "apiKey":"fixture-private-key",
         "settingsConfig":{"env":{"ANTHROPIC_BASE_URL":"https://saved.example.test/"}},
-        "customEndpoints":[{"url":"https://www.packyapi.ai", "kind":"baseUrl", "addedAt":1}]});
+        "customEndpoints":[{"url":"https://api.moonshot.cn/anthropic", "kind":"baseUrl", "addedAt":1}]});
     store.upsert(&tenant, "app_providers.records", "\"claude\":provider", &stored.to_string())?;
     let before = AppProviderStore::preview_record(&database, &tenant, AppId::Claude, "provider")
         .map_err(anyhow::Error::msg)?;
@@ -67,8 +67,8 @@ async fn diagnostic_endpoints_api_is_read_only_and_scoped() -> anyhow::Result<()
             .header("content-type","application/json").header("x-agent-apps-token",token)
             .body(Body::from(body.to_string())).unwrap()
     };
-    let body = json!({"providerId":"provider","presetName":"PackyCode",
-        "draftUrls":[" https://www.packyapi.ai/// ",local_url]});
+    let body = json!({"providerId":"provider","presetName":"Kimi",
+        "draftUrls":[" https://api.moonshot.cn/anthropic/// ",local_url]});
     let response =
         app.clone().oneshot(request(body.clone(), "project", "host", "claude", TOKEN)).await?;
     assert_eq!(
@@ -81,10 +81,10 @@ async fn diagnostic_endpoints_api_is_read_only_and_scoped() -> anyhow::Result<()
     assert!(!String::from_utf8_lossy(&bytes).contains("fixture-private-key"));
     let result: Value = serde_json::from_slice(&bytes)?;
     let candidates = result["candidates"].as_array().unwrap();
-    assert_eq!(candidates.len(), 6);
-    assert_eq!(candidates[0]["displayUrl"], "https://www.packyapi.ai");
+    assert_eq!(candidates.len(), 3);
+    assert_eq!(candidates[0]["displayUrl"], "https://api.moonshot.cn/anthropic");
     assert_eq!(candidates[0]["sources"], json!(["draft", "saved_config", "preset", "custom"]));
-    assert_eq!(candidates[0]["id"], hex::encode(Sha256::digest(b"https://www.packyapi.ai")));
+    assert_eq!(candidates[0]["id"], hex::encode(Sha256::digest(b"https://api.moonshot.cn/anthropic")));
     assert_eq!(candidates[1]["displayUrl"], local_url);
     for (project, host, app_id, token, expected) in [
         ("foreign", "host", "claude", TOKEN, StatusCode::FORBIDDEN),

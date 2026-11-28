@@ -18,6 +18,9 @@ pub mod state;
 pub mod message;
 pub mod aggregation_desktop_types;
 pub mod components;
+pub mod presets;
+#[cfg(test)]
+mod presets_tests;
 
 #[derive(Clone)]
 pub enum Message {

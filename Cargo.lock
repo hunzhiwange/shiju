@@ -7183,6 +7183,8 @@ dependencies = [
 name = "desktop-provider-apps"
 version = "0.7.10"
 dependencies = [
+ "app-model-catalog",
+ "app-provider-validation",
  "base64 0.22.1",
  "desktop-assets",
  "desktop-i18n",
@@ -9623,6 +9625,7 @@ dependencies = [
  "agent-paths",
  "app-access-service",
  "app-provider-services",
+ "app-provider-validation",
  "app-settings-store",
  "axum",
  "base64 0.22.1",
@@ -9635,6 +9638,8 @@ dependencies = [
  "gateway-types",
  "hex",
  "model-catalog",
+ "model-protocols",
+ "provider-model-cache",
  "reqwest 0.13.4",
  "rusqlite",
  "serde",

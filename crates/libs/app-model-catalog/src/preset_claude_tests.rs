@@ -1,40 +1,10 @@
 use super::{
     preset_catalog::{claude_preset, claude_presets, universal_preset},
-    preset_claude::{ClaudePreset, ClaudePresetApiFormat, ClaudePresetCategory},
+    preset_claude::{ClaudePreset, ClaudePresetCategory},
 };
 use std::collections::HashSet;
 use vw_api_app_provider_profiles::desktop_mapping::DesktopMappingMode;
 use vw_api_app_identity::{AppId};
-
-#[test]
-fn catalog_presets_claude_separates_claude_apps() {
-    let code = claude_preset(AppId::Claude, "OpenCode Go");
-    let desktop = claude_preset(AppId::ClaudeDesktop, "OpenCode Go");
-    assert_eq!(
-        (code.map(ClaudePreset::app_id), desktop.map(ClaudePreset::app_id)),
-        (Some(AppId::Claude), Some(AppId::ClaudeDesktop)),
-        "same-name presets must remain queryable under their own application",
-    );
-
-    let Some(ClaudePreset::Code { provider, models, .. }) = code else {
-        panic!("expected Claude Code model roles");
-    };
-    assert_eq!(provider.base_url.as_deref(), Some("https://opencode.ai/zen/go"));
-    assert_eq!(provider.api_format, ClaudePresetApiFormat::Anthropic);
-    assert!(provider.api_key_header);
-    assert_eq!(models.model.as_deref(), Some("deepseek-v4.1-flash[1M]"));
-    assert_eq!(models.haiku_model, models.model);
-
-    let Some(ClaudePreset::Desktop { provider, routes, .. }) = desktop else {
-        panic!("expected Claude Desktop routes");
-    };
-    assert_eq!(provider.base_url.as_deref(), Some("https://opencode.ai/inference/go/anthropic"),);
-    assert_eq!(routes.len(), 1);
-    assert_eq!(routes[0].route_id, "claude-sonnet-5");
-    assert_eq!(routes[0].target.model, "deepseek-v4.1-flash");
-    assert_eq!(routes[0].target.label_override.as_deref(), Some("deepseek-v4.1-flash"));
-    assert!(routes[0].target.supports_1m);
-}
 
 #[test]
 fn catalog_presets_claude_keeps_code_model_roles_and_context_defaults() {
@@ -68,9 +38,9 @@ fn catalog_presets_claude_keeps_code_model_roles_and_context_defaults() {
 #[test]
 fn catalog_presets_claude_retains_desktop_route_order_and_per_route_windows() {
     let Some(ClaudePreset::Desktop { mode, routes, .. }) =
-        claude_preset(AppId::ClaudeDesktop, "PackyCode")
+        claude_preset(AppId::ClaudeDesktop, "DigitalOcean")
     else {
-        panic!("missing Claude Desktop PackyCode preset");
+        panic!("missing Claude Desktop DigitalOcean preset");
     };
     assert_eq!(*mode, DesktopMappingMode::Direct);
     assert_eq!(
@@ -84,9 +54,11 @@ fn catalog_presets_claude_retains_desktop_route_order_and_per_route_windows() {
 
 #[test]
 fn catalog_presets_claude_does_not_fall_back_to_another_apps_deployment() {
-    let code = claude_preset(AppId::Claude, "OpenCode Zen").expect("missing Code-only deployment");
-    assert_eq!(code.provider().base_url.as_deref(), Some("https://opencode.ai/zen"));
-    assert!(claude_preset(AppId::ClaudeDesktop, "OpenCode Zen").is_none());
+    for app in [AppId::Claude, AppId::ClaudeDesktop] {
+        for retired in ["OpenCode Zen", "OpenCode Go", "PackyCode"] {
+            assert!(claude_preset(app, retired).is_none());
+        }
+    }
     assert!(claude_preset(AppId::Claude, "Claude Desktop Official").is_none());
     assert!(claude_preset(AppId::ClaudeDesktop, "Claude Official").is_none());
     assert!(claude_preset(AppId::Claude, "opencode zen").is_none());
@@ -117,7 +89,7 @@ fn catalog_presets_claude_leaves_official_deployments_without_inferred_defaults(
 
 #[test]
 fn catalog_presets_claude_lists_every_source_row_without_duplicate_names_or_routes() {
-    for (app, expected_count) in [(AppId::Claude, 139), (AppId::ClaudeDesktop, 129)] {
+    for (app, expected_count) in [(AppId::Claude, 56), (AppId::ClaudeDesktop, 50)] {
         let rows: Vec<_> = claude_presets(app).collect();
         assert_eq!(rows.len(), expected_count);
         let mut names = HashSet::new();

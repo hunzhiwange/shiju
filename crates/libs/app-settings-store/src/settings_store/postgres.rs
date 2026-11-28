@@ -3,7 +3,7 @@
 //! SQL 主键与 SQLite 后端一致，所有操作显式包含平台和公司作用域。
 
 use anyhow::{Context, Result, bail, ensure};
-use postgres::{IsolationLevel, types::ToSql};
+use postgres::{GenericClient, IsolationLevel, types::ToSql};
 use vw_api_transport::id::TenantScope;
 
 use super::{GatewaySetting, current_timestamp_ms, validate_identifier};
@@ -213,23 +213,26 @@ impl PostgresGatewaySettingsStore {
         updated_at_ms: i64,
     ) -> Result<bool> {
         let mut connection = self.database.connect_postgres()?;
-        let changed = connection
-            .execute(
-                "INSERT INTO gateway_settings (
-                platform_id, company_id, namespace, config_key, payload_json, updated_at_ms
-             ) VALUES ($1, $2, $3, $4, $5, $6)
-             ON CONFLICT (platform_id, company_id, namespace, config_key) DO NOTHING",
-                &[
-                    &tenant.platform_id().as_ref(),
-                    &tenant.company_id().as_ref(),
-                    &namespace,
-                    &config_key,
-                    &payload_json,
-                    &updated_at_ms,
-                ],
-            )
-            .context("insert tenant PostgreSQL gateway setting")?;
-        Ok(changed == 1)
+        insert_if_absent(&mut *connection, tenant, namespace, config_key, payload_json, updated_at_ms)
+    }
+
+    pub(super) fn initialize_default(
+        &self,
+        tenant: &TenantScope,
+        (marker_namespace, marker_key): (&str, &str),
+        namespace: &str,
+        row: &GatewaySetting,
+        now: i64,
+    ) -> Result<bool> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut tx = connection.transaction()?;
+        let inserted = if insert_if_absent(&mut tx, tenant, marker_namespace, marker_key, "true", now)? {
+            insert_if_absent(&mut tx, tenant, namespace, &row.config_key, &row.payload_json, now)?
+        } else {
+            false
+        };
+        tx.commit()?;
+        Ok(inserted)
     }
 
     /// Replace only the scoped payload read by the caller, never a newer record.
@@ -351,6 +354,33 @@ impl PostgresGatewaySettingsStore {
             })
             .collect()
     }
+}
+
+fn insert_if_absent(
+    connection: &mut impl GenericClient,
+    tenant: &TenantScope,
+    namespace: &str,
+    config_key: &str,
+    payload_json: &str,
+    updated_at_ms: i64,
+) -> Result<bool> {
+    let changed = connection
+        .execute(
+            "INSERT INTO gateway_settings (
+            platform_id, company_id, namespace, config_key, payload_json, updated_at_ms
+         ) VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (platform_id, company_id, namespace, config_key) DO NOTHING",
+            &[
+                &tenant.platform_id().as_ref(),
+                &tenant.company_id().as_ref(),
+                &namespace,
+                &config_key,
+                &payload_json,
+                &updated_at_ms,
+            ],
+        )
+        .context("insert tenant PostgreSQL gateway setting")?;
+    Ok(changed == 1)
 }
 
 #[cfg(test)]

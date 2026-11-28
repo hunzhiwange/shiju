@@ -36,9 +36,8 @@ pub struct ClaudePresetProvider {
 #[serde(rename_all = "snake_case")]
 pub enum ClaudePresetCategory {
     Official,
+    Account,
     CnOfficial,
-    ThirdParty,
-    Aggregator,
     CloudProvider,
     Local,
 }

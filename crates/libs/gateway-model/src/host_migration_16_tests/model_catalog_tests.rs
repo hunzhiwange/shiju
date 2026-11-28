@@ -254,6 +254,11 @@ async fn catalog_api_read_lists_presets_and_templates_without_auth_material() {
             .iter()
             .any(|preset| preset.app_id == AppId::Codex && preset.name.contains("OpenAI"))
     );
+    let retired = client
+        .model_catalog_presets(&f.project, "mac", AppId::Codex, Some("PackyCode"), None, TOKEN)
+        .await
+        .unwrap();
+    assert!(retired.items.is_empty());
     let agy = client
         .model_catalog_presets(&f.project, "mac", AppId::Agy, None, None, TOKEN)
         .await

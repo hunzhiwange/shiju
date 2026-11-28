@@ -1,5 +1,7 @@
 //! Tenant catalog and independently authorized host configuration metadata.
 use super::{error, store};
+
+mod models_dev;
 use agent_database::GlobalDatabase;
 use axum::{
     Extension, Json, Router,
@@ -28,6 +30,7 @@ pub fn router_with_policy(path: Option<PathBuf>) -> Router {
     Router::new()
         .route("/app-providers/{app}", get(list))
         .route("/app-providers/{app}/catalog/state", get(read))
+        .route("/app-providers/{app}/catalog/models-dev", get(models_dev::list))
         .layer(Extension(PolicyFile(path)))
 }
 async fn list(
@@ -35,7 +38,9 @@ async fn list(
     database: Option<Extension<GlobalDatabase>>,
     Path(app): Path<AppId>,
 ) -> Response {
-    match tokio::task::spawn_blocking(move || store(database)?.list(&tenant, app)).await {
+    match tokio::task::spawn_blocking(move || list_with_official_preset(database, &tenant, app))
+        .await
+    {
         Ok(Ok(rows)) => Json(rows).into_response(),
         Ok(Err(message)) => error(&message),
         Err(_) => error("application provider storage unavailable"),
@@ -57,7 +62,7 @@ async fn read(
             &tenant,
             &target.target_host_id,
         )?;
-        match store(database).and_then(|store| store.list(&tenant, app)) {
+        match list_with_official_preset(database, &tenant, app) {
             Ok(rows) => {
                 Ok(Json(vw_agent_apps::providers::catalog::read(&home, app, rows)).into_response())
             }
@@ -66,4 +71,14 @@ async fn read(
     })
     .await
     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+}
+
+fn list_with_official_preset(
+    database: Option<Extension<GlobalDatabase>>,
+    tenant: &TenantScope,
+    app: AppId,
+) -> Result<Vec<vw_api_app_provider_base::AppProviderSummary>, String> {
+    let store = store(database)?;
+    store.ensure_official_preset(tenant, app)?;
+    store.list(tenant, app)
 }

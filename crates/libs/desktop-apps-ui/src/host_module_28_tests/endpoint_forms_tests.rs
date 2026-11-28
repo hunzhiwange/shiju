@@ -16,9 +16,9 @@ fn diagnostic_desktop_endpoint_selection_requires_save_other_forms() {
     form.codex.as_mut().unwrap().toml = iced::widget::text_editor::Content::with_text(
         "# keep this comment\nmodel_provider='vendor'\nmodel='kept'\n[model_providers.vendor]\nbase_url='https://draft.example' # keep URL comment\nwire_api='responses'\n[model_providers.other]\nbase_url='https://other.example'\n",
     );
-    let query = endpoint_state::query(&form, "PackyCode").unwrap();
+    let query = endpoint_state::query(&form, "Kimi").unwrap();
     assert_eq!(query.draft_urls, ["https://draft.example"]);
-    assert_eq!(query.preset_name.as_deref(), Some("PackyCode"));
+    assert_eq!(query.preset_name.as_deref(), Some("Kimi"));
     // Selection applies through the same pending editor state used by the UI, no SDK writes.
     let scope = desktop_provider_apps::Scope {
         context: desktop_provider_apps::AgentAppsContext {

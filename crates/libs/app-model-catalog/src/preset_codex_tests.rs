@@ -26,7 +26,6 @@ fn catalog_presets_codex_keeps_plan_vision_declaration() {
     );
     for name in [
         "Baidu Qianfan Token Plan",
-        "FluxA Token Plan",
         "Tencent Token Plan Enterprise Pro",
         "Tencent Token Plan Enterprise Pro (Intl)",
     ] {
@@ -66,19 +65,13 @@ fn catalog_presets_codex_keeps_plan_vision_declaration() {
 #[test]
 fn catalog_presets_codex_keeps_model_metadata_within_the_selected_deployment() {
     let qianfan = preset("Baidu Qianfan Token Plan");
-    let fluxa = preset("FluxA Token Plan");
     let qianfan_url = "https://qianfan.baidubce.com/v2/tokenplan/personal";
-    let fluxa_url = "https://api.baiduqianfan.ai/v2/tokenplan/team";
     assert_eq!(
         qianfan.model_at_endpoint(qianfan_url, "glm-5.2").unwrap().context_window,
         Some(1_048_576)
     );
-    assert_eq!(
-        fluxa.model_at_endpoint(fluxa_url, "glm-5.2").unwrap().context_window,
-        Some(500_000)
-    );
-    assert!(qianfan.model_at_endpoint(fluxa_url, "glm-5.2").is_none());
-    assert!(fluxa.model_at_endpoint(qianfan_url, "glm-5.2").is_none());
+    assert!(qianfan.model_at_endpoint("https://api.baiduqianfan.ai/v2/tokenplan/team", "glm-5.2").is_none());
+    assert!(codex_preset(AppId::Codex, "FluxA Token Plan").is_none());
 
     let pro = preset("Tencent Token Plan Enterprise Pro");
     let lite = preset("Tencent Token Plan Enterprise Lite");
@@ -120,8 +113,8 @@ fn catalog_presets_codex_keeps_managed_oauth_keyless() {
 #[test]
 fn catalog_presets_codex_lists_source_rows_only_in_codex() {
     let all: Vec<_> = codex_presets(AppId::Codex).collect();
-    assert_eq!(all.len(), 137);
-    assert_eq!(all.iter().map(|row| row.model_catalog.len()).sum::<usize>(), 213);
+    assert_eq!(all.len(), 54);
+    assert_eq!(all.iter().map(|row| row.model_catalog.len()).sum::<usize>(), 137);
     assert_eq!(all.first().unwrap().name, "OpenAI Official");
     let official = preset("OpenAI Official");
     assert!(official.is_official);
@@ -133,9 +126,7 @@ fn catalog_presets_codex_lists_source_rows_only_in_codex() {
     assert!(codex_preset(AppId::Gemini, "OpenAI Official").is_none());
     assert!(codex_presets(AppId::GrokBuild).next().is_none());
 
-    let ppio = preset("PPIO");
-    let endpoint = "https://api.ppio.com/openai/v1";
-    assert_eq!(ppio.api_format, Some(CodexPresetApiFormat::OpenaiChat));
-    assert!(ppio.model_at_endpoint(endpoint, "deepseek/deepseek-v4.1-flash").is_some());
-    assert!(ppio.model_at_endpoint(endpoint, "deepseek-v4.1-flash").is_none());
+    for retired in ["PPIO", "PackyCode", "AICodeMirror"] {
+        assert!(codex_preset(AppId::Codex, retired).is_none());
+    }
 }

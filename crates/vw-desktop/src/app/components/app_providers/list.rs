@@ -118,6 +118,23 @@ pub(crate) fn overlay_with_list<'a>(i18n: desktop_i18n::I18n,
     } else {
         base
     };
+    if let Some(picker) = &state.preset_picker {
+        use desktop_provider_apps::presets::Event;
+        let card = desktop_provider_apps::components::presets::card(i18n, scope.app, picker, |id| {
+            state.snapshot.as_ref().is_some_and(|snapshot| {
+                snapshot.catalog.rows.iter().any(|row| row.provider.id == id)
+            })
+        });
+        return settings_modal_overlay_with_escape(
+            list,
+            message(ListMessage::Presets(if picker.family.is_some() || picker.catalog_provider.is_some() {
+                Event::BackToCatalog
+            } else {
+                Event::Close
+            })),
+            card.map(|event| message(ListMessage::Presets(event))),
+        );
+    }
     if let Some(form) = &state.omo {
         return crate::app::components::aggregation_omo::overlay(i18n, form, list);
     }
@@ -195,6 +212,7 @@ pub(crate) fn map(value: desktop_provider_apps::components::list::ListMessage) -
     use crate::app::message::{app_providers as events, settings};
     use desktop_provider_apps::components::list::ListMessage as V;
     message(match value {
+        V::Presets(event) => ListMessage::Presets(event),
         V::Create => return events::edit::message(events::edit::EditMessage::Create),
         V::OpenEdit { id, copy, delete } => {
             return events::edit::message(events::edit::EditMessage::Open { id, copy, delete });

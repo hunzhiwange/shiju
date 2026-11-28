@@ -301,7 +301,7 @@ fn diagnostic_desktop_endpoint_selection_requires_save() {
             app.app_providers.form.as_ref().unwrap().claude.as_ref().unwrap().base_url,
             "https://saved.example"
         );
-        drop(app.update(endpoints::message(Event::Preset("PackyCode".into()))));
+        drop(app.update(endpoints::message(Event::Preset("Kimi".into()))));
         let task = app.update(endpoints::message(Event::Reload));
         let (reply, request) = drive(
             task,
@@ -312,7 +312,7 @@ fn diagnostic_desktop_endpoint_selection_requires_save() {
         );
         let candidate_body: serde_json::Value =
             serde_json::from_str(request.split_once("\r\n\r\n").unwrap().1).unwrap();
-        assert_eq!(candidate_body["presetName"], "PackyCode");
+        assert_eq!(candidate_body["presetName"], "Kimi");
         assert_eq!(candidate_body["draftUrls"], serde_json::json!(["https://saved.example"]));
         drop(app.update(reply));
         drop(app.update(endpoints::message(Event::Select(DiagnosticEndpointId("fast".into())))));

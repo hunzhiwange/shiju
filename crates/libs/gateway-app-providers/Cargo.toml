@@ -8,6 +8,9 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+app-provider-validation = { path = "../app-provider-validation" }
+model-protocols = { path = "../model-protocols" }
+provider-model-cache = { path = "../provider-model-cache" }
 vw-api-task = { path = "../api-task" }
 vw-api-app-provider-extended = { path = "../api-app-provider-extended" }
 axum = { version = "0.8.8", features = ["json"] }

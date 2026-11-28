@@ -19,6 +19,51 @@ fn profile(key: &str) -> AppProviderWrite {
         model: "fixture-model".into(),
     }
 }
+
+#[test]
+fn official_presets_backfill_once_without_replacing_existing_rows() {
+    let home = tempfile::tempdir().unwrap();
+    let db = GlobalDatabase::for_home(home.path()).unwrap();
+    let store = AppProviderStore::new(db.clone()).unwrap();
+    let tenant = TenantScope::new("p", "a").unwrap();
+    let other = TenantScope::new("p", "b").unwrap();
+    store.save(&tenant, AppId::Claude, "custom", &profile("fixture")).unwrap();
+    store.save(&other, AppId::Claude, "claude-official", &profile("fixture")).unwrap();
+
+    for (app, id, name) in [
+        (AppId::Claude, "claude-official", "Claude Official"),
+        (AppId::ClaudeDesktop, "claude-desktop-official", "Claude Desktop Official"),
+        (AppId::Codex, "codex-official", "OpenAI Official"),
+        (AppId::Gemini, "gemini-official", "Google Official"),
+        (AppId::GrokBuild, "grokbuild-official", "Grok Official"),
+    ] {
+        store.ensure_official_preset(&tenant, app).unwrap();
+        assert_eq!(store.get_summary(&tenant, app, id).unwrap().name, name);
+        let presentation = store.list_presentation(&tenant, app).unwrap();
+        assert!(presentation.iter().any(|row| {
+            row.id == id && row.presentation.category.as_deref() == Some("official")
+        }));
+    }
+    assert_eq!(store.list(&tenant, AppId::Claude).unwrap().len(), 2);
+    assert!(store.list(&other, AppId::Codex).unwrap().is_empty());
+    store.ensure_official_preset(&other, AppId::Claude).unwrap();
+    assert_eq!(
+        store.get_summary(&other, AppId::Claude, "claude-official").unwrap().name,
+        "fixture"
+    );
+    assert!(
+        GatewaySettingsStore::new(db.clone())
+            .unwrap()
+            .delete(&tenant, NAMESPACE, &AppProviderStore::key(AppId::Claude, "claude-official").unwrap())
+            .unwrap()
+    );
+    let reopened = AppProviderStore::new(db).unwrap();
+    reopened.ensure_official_preset(&tenant, AppId::Claude).unwrap();
+    let rows = reopened.list(&tenant, AppId::Claude).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].id, "custom");
+}
+
 #[test]
 fn cc_apps_provider_launch_isolation_store_reopen_tenant_app_and_host_boundaries() {
     let home = tempfile::tempdir().unwrap();

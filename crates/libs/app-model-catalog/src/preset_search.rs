@@ -29,7 +29,7 @@ pub enum PresetPlan {
 }
 
 impl PresetPlan {
-    fn label_key(self) -> &'static str {
+    pub fn label_key(self) -> &'static str {
         match self {
             Self::Payg => "providerPreset.plan.payg",
             Self::Coding => "providerPreset.plan.coding",
@@ -53,7 +53,7 @@ pub enum PresetRegion {
 }
 
 impl PresetRegion {
-    fn label_key(self) -> &'static str {
+    pub fn label_key(self) -> &'static str {
         match self {
             Self::Cn => "providerPreset.region.cn",
             Self::Intl => "providerPreset.region.intl",

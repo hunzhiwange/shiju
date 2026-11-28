@@ -9,8 +9,6 @@ use vw_api_app_identity::{AppId};
 #[serde(rename_all = "snake_case")]
 pub enum GeminiGrokPresetCategory {
     Official,
-    ThirdParty,
-    Aggregator,
 }
 
 #[derive(Debug, Deserialize)]

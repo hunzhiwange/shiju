@@ -13,14 +13,17 @@ impl AppProviderStore {
     ) -> Result<ProviderImportResult, String> {
         use vw_agent_apps::providers::import::{ImportStrategy, NativeImport, strategy};
         let rows = self.list(tenant, app)?;
-        // There are no automatic official seeds in this native catalog. Every
-        // existing row is user-owned, including official-login cards.
-        if strategy(app, trigger, !rows.is_empty())? == ImportStrategy::Skip {
+        let has_saved_rows = match rows.as_slice() {
+            [] => false,
+            [row] => !self.is_official_preset(tenant, app, &row.id)?,
+            _ => true,
+        };
+        if strategy(app, trigger, has_saved_rows)? == ImportStrategy::Skip {
             return Ok(ProviderImportResult { imported: 0 });
         }
         let candidates = match vw_agent_apps::providers::import::read(home, app, trigger) {
             Ok(rows) => rows,
-            Err(_) if app == AppId::GrokBuild && !rows.is_empty() => {
+            Err(_) if app == AppId::GrokBuild && has_saved_rows => {
                 return Ok(ProviderImportResult { imported: 0 });
             }
             Err(_) => return Err("native provider configuration unavailable".into()),

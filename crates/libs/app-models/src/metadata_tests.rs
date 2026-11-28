@@ -19,6 +19,7 @@ use {
 };
 use provider_model_cache::ModelsSnapshot;
 
+const QIANFAN: &str = "https://qianfan.baidubce.com/v2/tokenplan/personal";
 const FLUXA: &str = "https://api.baiduqianfan.ai/v2/tokenplan/team";
 
 fn snapshot(providers: Value) -> ModelsSnapshot {
@@ -31,8 +32,8 @@ fn snapshot(providers: Value) -> ModelsSnapshot {
 #[test]
 fn catalog_metadata_endpoint_fills_only_missing_provider_fields() {
     let data = snapshot(json!({
-        "fluxa": {
-            "api": FLUXA,
+        "qianfan": {
+            "api": QIANFAN,
             "models": {"glm-5.2": {
                 "limit": {"context": 1_000_000, "output": 98_304},
                 "reasoning": false, "tool_call": true,
@@ -42,12 +43,12 @@ fn catalog_metadata_endpoint_fills_only_missing_provider_fields() {
             }}
         }
     }));
-    let metadata = resolve_model_metadata(Codex, FLUXA, "glm-5.2", Some(&data))
+    let metadata = resolve_model_metadata(Codex, QIANFAN, "glm-5.2", Some(&data))
         .map(|resolved| resolved.metadata)
         .unwrap_or_default();
     assert_eq!(
         (metadata.context_window, metadata.max_output_tokens),
-        (Some(500_000), Some(98_304))
+        (Some(1_048_576), Some(98_304))
     );
     assert_eq!(metadata.reasoning, Unsupported);
     assert_eq!(metadata.tool_calls, Supported);
@@ -72,10 +73,10 @@ fn catalog_metadata_endpoint_fills_only_missing_provider_fields() {
 #[test]
 fn catalog_metadata_endpoint_records_only_contributing_fields() {
     let data = snapshot(json!({
-        "fluxa": {"api": FLUXA, "models": {"glm-5.2": {"limit": {"context": 1_000_000}}}}
+        "qianfan": {"api": QIANFAN, "models": {"glm-5.2": {"limit": {"context": 1_000_000}}}}
     }));
-    let without_snapshot = resolve_model_metadata(Codex, FLUXA, "glm-5.2", None).unwrap();
-    let with_snapshot = resolve_model_metadata(Codex, FLUXA, "glm-5.2", Some(&data)).unwrap();
+    let without_snapshot = resolve_model_metadata(Codex, QIANFAN, "glm-5.2", None).unwrap();
+    let with_snapshot = resolve_model_metadata(Codex, QIANFAN, "glm-5.2", Some(&data)).unwrap();
     assert_eq!(with_snapshot, without_snapshot);
     assert!(with_snapshot.metadata.provenance.values().all(|p| p.source == Preset));
     assert_eq!(with_snapshot.metadata.tool_calls, Unknown);
@@ -185,7 +186,7 @@ fn catalog_metadata_endpoint_preserves_explicit_tool_denial_and_unknown_fetch_ti
 #[test]
 fn catalog_metadata_endpoint_projects_seven_app_presets_offline() {
     for (app, endpoint, model, window) in [
-        (Codex, FLUXA, "glm-5.2", 500_000),
+        (Codex, QIANFAN, "glm-5.2", 1_048_576),
         (OpenCode, "https://api.moonshot.cn/v1", "kimi-k2.6", 262_144),
         (OpenClaw, "https://api.moonshot.cn/v1", "kimi-k3.1-pro", 1_048_576),
         (Hermes, "https://api.moonshot.cn/v1", "kimi-k3.1-pro", 1_048_576),
@@ -198,10 +199,9 @@ fn catalog_metadata_endpoint_projects_seven_app_presets_offline() {
         assert_eq!(found.metadata.context_window, Some(window), "{app:?}/{model}");
         assert_eq!(found.metadata.provenance[&ContextWindow].source, Preset);
     }
-    for (app, window) in [(Codex, 1_000_000), (Mcode, 1_048_576)] {
-        let resolved = resolve_model_metadata(app, FLUXA, "glm-5.3", None).unwrap();
-        assert_eq!(resolved.metadata.context_window, Some(window));
-    }
+    assert!(resolve_model_metadata(Codex, FLUXA, "glm-5.3", None).is_none());
+    let resolved = resolve_model_metadata(Mcode, FLUXA, "glm-5.3", None).unwrap();
+    assert_eq!(resolved.metadata.context_window, Some(1_048_576));
 }
 
 #[test]

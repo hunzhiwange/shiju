@@ -28,7 +28,7 @@ use {
 };
 use provider_model_cache::ModelsSnapshot;
 
-const ENDPOINT: &str = "https://api.baiduqianfan.ai/v2/tokenplan/team";
+const ENDPOINT: &str = "https://qianfan.baidubce.com/v2/tokenplan/personal";
 const MODEL: &str = "glm-5.2";
 
 struct Fixture {
@@ -188,7 +188,7 @@ fn catalog_fill_revision_previews_offline_without_writing() {
     let preview = f.preview(MODEL, None).unwrap();
     assert_eq!(preview.identity, f.identity(MODEL));
     assert_eq!(preview.revision, f.catalog().revision);
-    assert_eq!(preview.proposed.context_window, Some(500_000));
+    assert_eq!(preview.proposed.context_window, Some(1_048_576));
     assert_eq!(
         preview.proposed.provenance[&ModelMetadataField::ContextWindow].source,
         ModelMetadataSource::Preset

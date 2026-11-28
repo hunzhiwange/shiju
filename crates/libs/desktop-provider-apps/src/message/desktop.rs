@@ -41,6 +41,7 @@ pub enum Event {
     Finished {
         scope: Scope,
         generation: u64,
+        created: bool,
         result: Result<String, String>,
     },
 }
@@ -200,9 +201,16 @@ pub fn update(state: &mut State, current: Option<(GatewayClient, Scope)>, token:
                 }
             }
         }
-        Event::Finished { scope, generation, result } => {
+        Event::Finished { scope, generation, created, result } => {
             if !valid(state, &current, &scope, generation) {
                 return Task::none();
+            }
+            if created && let Ok(value) = result.as_ref() {
+                state.desktop = None;
+                return Task::batch([
+                    super::provider_update::success(value.clone()),
+                    super::provider_update::refresh(state),
+                ]);
             }
             state.desktop.as_mut().unwrap().finish(result.clone());
             return match result {
@@ -234,6 +242,9 @@ pub fn update(state: &mut State, current: Option<(GatewayClient, Scope)>, token:
             if matches!(event, Event::SaveDirect | Event::Activate) && !form.direct_editable {
                 return Task::none();
             }
+            if matches!(event, Event::SaveDirect) && form.endpoint_needs_account_id() {
+                return super::provider_update::error(crate::state::desktop::ACCOUNT_ID_REQUIRED);
+            }
             let token = token.to_owned();
             form.busy = true;
             let form = form.clone();
@@ -248,6 +259,7 @@ pub fn update(state: &mut State, current: Option<(GatewayClient, Scope)>, token:
                     },
                 );
             }
+            let created = form.create && matches!(event, Event::SaveDirect);
             let worker_scope = scope.clone();
             return Task::perform(
                 async move {
@@ -292,7 +304,9 @@ pub fn update(state: &mut State, current: Option<(GatewayClient, Scope)>, token:
                         _ => unreachable!(),
                     }
                 },
-                move |result| effect_message(Event::Finished { scope: scope.clone(), generation, result }),
+                move |result| effect_message(Event::Finished {
+                    scope: scope.clone(), generation, created, result,
+                }),
             );
         }
         event => {

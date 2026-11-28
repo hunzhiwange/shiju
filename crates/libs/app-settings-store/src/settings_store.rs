@@ -292,23 +292,9 @@ impl GatewaySettingsStore {
             match &self.provider {
                 GatewaySettingsStoreProvider::Sqlite(database) => {
                     let connection = database.connect_sqlite()?;
-                    let changed = connection
-                        .execute(
-                            "INSERT INTO gateway_settings (
-                            platform_id, company_id, namespace, config_key, payload_json, updated_at_ms
-                         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-                         ON CONFLICT (platform_id, company_id, namespace, config_key) DO NOTHING",
-                            params![
-                                tenant.platform_id().as_ref(),
-                                tenant.company_id().as_ref(),
-                                namespace,
-                                config_key,
-                                payload_json,
-                                updated_at_ms
-                            ],
-                        )
-                        .context("insert tenant SQLite gateway setting")?;
-                    Ok(changed == 1)
+                    insert_sqlite_if_absent(
+                        &connection, tenant, namespace, config_key, payload_json, updated_at_ms,
+                    )
                 }
                 GatewaySettingsStoreProvider::Postgres(store) => {
                     store.insert_if_absent(tenant, namespace, config_key, payload_json, updated_at_ms)
@@ -320,6 +306,40 @@ impl GatewaySettingsStore {
             crate::change_events::committed(tenant, namespace);
         }
         Ok(result)
+    }
+
+    /// Record a one-time initialization and its default setting in the same transaction.
+    pub fn initialize_default(
+        &self,
+        tenant: &TenantScope,
+        (marker_namespace, marker_key): (&str, &str),
+        namespace: &str,
+        row: &GatewaySetting,
+    ) -> Result<()> {
+        validate_identifier(marker_namespace, "gateway settings marker namespace")?;
+        validate_identifier(marker_key, "gateway settings marker key")?;
+        validate_identifier(namespace, "gateway settings namespace")?;
+        validate_identifier(&row.config_key, "gateway settings config key")?;
+        validate_identifier(&row.payload_json, "gateway settings payload")?;
+        let now = current_timestamp_ms()?;
+        let inserted = match &self.provider {
+            GatewaySettingsStoreProvider::Sqlite(database) => database.with_sqlite_transaction(
+                TransactionBehavior::Immediate,
+                |tx| {
+                    if !insert_sqlite_if_absent(tx, tenant, marker_namespace, marker_key, "true", now)? {
+                        return Ok(false);
+                    }
+                    insert_sqlite_if_absent(tx, tenant, namespace, &row.config_key, &row.payload_json, now)
+                },
+            )?,
+            GatewaySettingsStoreProvider::Postgres(store) => {
+                store.initialize_default(tenant, (marker_namespace, marker_key), namespace, row, now)?
+            }
+        };
+        if inserted {
+            crate::change_events::committed(tenant, namespace);
+        }
+        Ok(())
     }
 
     /// Conditional scoped update: stale readers cannot replace newer fields or metadata.
@@ -592,6 +612,33 @@ fn get_sqlite(
         )
         .optional()
         .context("read tenant SQLite gateway setting")
+}
+
+fn insert_sqlite_if_absent(
+    connection: &Connection,
+    tenant: &TenantScope,
+    namespace: &str,
+    config_key: &str,
+    payload_json: &str,
+    updated_at_ms: i64,
+) -> Result<bool> {
+    let changed = connection
+        .execute(
+            "INSERT INTO gateway_settings (
+                platform_id, company_id, namespace, config_key, payload_json, updated_at_ms
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT (platform_id, company_id, namespace, config_key) DO NOTHING",
+            params![
+                tenant.platform_id().as_ref(),
+                tenant.company_id().as_ref(),
+                namespace,
+                config_key,
+                payload_json,
+                updated_at_ms,
+            ],
+        )
+        .context("insert tenant SQLite gateway setting")?;
+    Ok(changed == 1)
 }
 
 fn upsert_sqlite(

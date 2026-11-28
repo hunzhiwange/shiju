@@ -180,7 +180,7 @@ async fn catalog_api_edits_rejects_default_from_another_deployment_atomically() 
 #[tokio::test]
 async fn catalog_api_edits_fill_preview_is_read_only_and_commit_preserves_manual_values() {
     let mut f = Fixture::new().await;
-    f.query.deployment.endpoint = "https://api.baiduqianfan.ai/v2/tokenplan/team".into();
+    f.query.deployment.endpoint = "https://qianfan.baidubce.com/v2/tokenplan/personal".into();
     let client = f.client();
     let empty = read(&f).await;
     let add = edit(
@@ -201,7 +201,7 @@ async fn catalog_api_edits_fill_preview_is_read_only_and_commit_preserves_manual
     let preview = client.preview_model_catalog_fill(&f.project, &request, TOKEN).await.unwrap();
     assert_eq!(preview.identity, request.identity);
     assert_eq!(preview.revision, before.revision);
-    assert_eq!(preview.proposed.context_window, Some(500_000));
+    assert_eq!(preview.proposed.context_window, Some(1_048_576));
     assert_eq!(
         preview.proposed.provenance[&ModelMetadataField::ContextWindow].source,
         ModelMetadataSource::Preset

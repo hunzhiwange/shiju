@@ -1,4 +1,10 @@
 use vw_api_app_provider_profiles::desktop_mapping::*;
+
+pub(crate) const ACCOUNT_ID_REQUIRED: &str = "请在 API 地址中填入实际账户 ID，再保存供应商。";
+
+pub(crate) fn needs_account_id(endpoint: &str) -> bool {
+    endpoint.to_ascii_lowercase().contains("your_account_id")
+}
 #[derive(Clone)]
 pub struct Form {
     pub aggregation: Option<crate::aggregation_desktop_types::Session>,
@@ -22,6 +28,10 @@ impl std::fmt::Debug for Form {
     }
 }
 impl Form {
+    pub fn endpoint_needs_account_id(&self) -> bool {
+        self.create && !self.official && needs_account_id(&self.base_url)
+    }
+
     pub fn new(id: String) -> Self {
         Self {
             aggregation: None,

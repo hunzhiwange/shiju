@@ -178,7 +178,7 @@ fn execute_scoped(
     publication: PublicationInput,
 ) -> Result<CodexResult, StatusCode> {
     use vw_agent_apps::providers::{
-        codex_catalog::{CodexFiles, form, identity},
+        codex_catalog::{CodexFiles, form, identity, uses_default_login},
         live::{commit::*, write_guard::WriteError},
     };
     let headers = publication.headers(headers)?;
@@ -257,7 +257,14 @@ fn execute_scoped(
     {
         return Err(StatusCode::BAD_REQUEST);
     }
-    let deployment = identity(host, &id, &profile).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+    let deployment = if write.is_none()
+        && uses_default_login(&profile)
+        && before.as_ref().is_some_and(|record| form::official_binding_model(record).is_ok())
+    {
+        None
+    } else {
+        Some(identity(host, &id, &profile).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?)
+    };
     let catalog = match &write {
         Some(Write::Config(w)) => w.catalog.clone(),
         Some(Write::Form(body, _)) => {
@@ -272,9 +279,9 @@ fn execute_scoped(
                     .ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
                 let old_deployment =
                     identity(host, &id, &old).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
-                if old_deployment == deployment {
+                if Some(&old_deployment) == deployment.as_ref() {
                     models
-                        .read(&tenant, &deployment, Some(revision))
+                        .read(&tenant, &old_deployment, Some(revision))
                         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
                 } else if body.models.is_none() {
                     return Err(StatusCode::UNPROCESSABLE_ENTITY);
@@ -292,8 +299,8 @@ fn execute_scoped(
         }
         None => None,
     };
-    if write.is_some() {
-        vw_agent_apps::models::validate(&deployment, catalog.as_ref())
+    if let Some(deployment) = deployment.as_ref().filter(|_| write.is_some()) {
+        vw_agent_apps::models::validate(deployment, catalog.as_ref())
             .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
     }
     // Catalog-only requests do not provision host directories or transaction state.
@@ -342,8 +349,9 @@ fn execute_scoped(
     }
     let saved = if write.is_some() {
         // Model data remains in the sole model domain owner, scoped to this exact deployment.
+        let deployment = deployment.as_ref().ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
         let revision = models
-            .save(&tenant, &deployment, catalog.as_ref())
+            .save(&tenant, deployment, catalog.as_ref())
             .map_err(|_| StatusCode::CONFLICT)?;
         store
             .codex_save_with_metadata(
@@ -359,8 +367,13 @@ fn execute_scoped(
         before.ok_or(StatusCode::NOT_FOUND)?
     };
     let revision = saved.get("modelCatalogRevision").and_then(serde_json::Value::as_str);
-    let catalog =
-        models.read(&tenant, &deployment, revision).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let read_catalog = || match &deployment {
+        Some(deployment) => models
+            .read(&tenant, deployment, revision)
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE),
+        None => Ok(None),
+    };
+    let catalog = read_catalog()?;
     let Some((mut files, tx, state)) = live else {
         return Ok(CodexResult {
             catalog_saved: write.is_some(),
@@ -373,7 +386,7 @@ fn execute_scoped(
     };
     let unchanged = || {
         store.codex_record(&tenant, &id).ok().flatten().as_ref() == Some(&saved)
-            && models.read(&tenant, &deployment, revision).ok().as_ref() == Some(&catalog)
+            && read_catalog().ok().as_ref() == Some(&catalog)
             && state
                 .pointer
                 .as_ref()
@@ -511,14 +524,4 @@ async fn write_form(
         })
         .await,
     )
-}
-
-#[cfg(target_os = "macos")]
-pub async fn sync_saved(database: GlobalDatabase, policy: Option<PathBuf>, headers: HeaderMap,
-    target: &vw_api_app_operations::DataManagementTarget, id: &str, publication: PublicationControl,
-) -> Result<(), StatusCode> {
-    let body = serde_json::from_value(serde_json::json!({"targetHostId": target.target_host_id})).map_err(|_| StatusCode::BAD_REQUEST)?;
-    let response = reapply(Extension(Policy(policy, publication)), Extension(target.scope.tenant_scope().clone()),
-        Some(Extension(database)), headers, Path(id.to_owned()), Ok(Json(body))).await;
-    if response.status().is_success() { Ok(()) } else { Err(response.status()) }
 }

@@ -17,11 +17,11 @@ fn candidate(url: &str, sources: &[DiagnosticEndpointSource]) -> EndpointCandida
 #[test]
 fn diagnostic_endpoints_merge_without_duplicates() {
     let stored = json!({
-        "baseUrl": "https://www.packyapi.ai",
+        "baseUrl": "https://api.moonshot.cn/anthropic",
         "settingsConfig": {"env": {"ANTHROPIC_BASE_URL": "https://saved.example.test//"}},
     });
     let stored = [
-        ("https://www.packyapi.ai/", AppProviderEndpointKind::BaseUrl),
+        ("https://api.moonshot.cn/anthropic/", AppProviderEndpointKind::BaseUrl),
         ("https://custom.example.test/messages/", AppProviderEndpointKind::FullUrl),
     ]
     .into_iter()
@@ -36,37 +36,33 @@ fn diagnostic_endpoints_merge_without_duplicates() {
     let profile = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
 
     let draft = [
-        " https://www.packyapi.ai/// ".into(),
+        " https://api.moonshot.cn/anthropic/// ".into(),
         "http://127.0.0.1:1234/v1/".into(),
-        "https://www.packyapi.ai".into(),
+        "https://api.moonshot.cn/anthropic".into(),
         " ".into(),
     ];
-    let result = collect(AppId::Claude, &draft, &profile, Some("PackyCode")).unwrap();
+    assert!(collect(AppId::Claude, &draft, &profile, Some("PackyCode")).is_err());
+    let result = collect(AppId::Claude, &draft, &profile, Some("Kimi")).unwrap();
     assert_eq!(
         result,
         [
-            candidate("https://www.packyapi.ai", &[Draft, SavedConfig, Preset, Custom]),
+            candidate("https://api.moonshot.cn/anthropic", &[Draft, SavedConfig, Preset, Custom]),
             candidate("http://127.0.0.1:1234/v1", &[Draft]),
             candidate("https://saved.example.test", &[SavedConfig]),
-            candidate("https://cf.api.fan", &[Preset]),
-            candidate("https://slb-v1.api.fan", &[Preset]),
-            candidate("https://www.packyapi.com", &[Preset]),
             candidate("https://custom.example.test/messages/", &[Custom]),
         ]
     );
     assert_eq!(profile, stored);
     assert_eq!(std::fs::read(&path).unwrap(), before);
-    assert_eq!(draft[0], " https://www.packyapi.ai/// ");
+    assert_eq!(draft[0], " https://api.moonshot.cn/anthropic/// ");
 
     let gemini = json!({
         "settingsConfig": {"env": {"GOOGLE_GEMINI_BASE_URL": " https://gemini.example.test/ "}}
     });
+    assert!(collect(AppId::Gemini, &[], &gemini, Some("AICodeMirror")).is_err());
     assert_eq!(
-        collect(AppId::Gemini, &[], &gemini, Some("AICodeMirror")).unwrap(),
-        [
-            candidate("https://gemini.example.test", &[SavedConfig]),
-            candidate("https://api.aicodemirror.ai/api/gemini", &[Preset]),
-        ]
+        collect(AppId::Gemini, &[], &gemini, None).unwrap(),
+        [candidate("https://gemini.example.test", &[SavedConfig])]
     );
     let codex = json!({
         "settingsConfig": {

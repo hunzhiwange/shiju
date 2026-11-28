@@ -5,14 +5,15 @@ use desktop_settings_apps::system_settings_apps::list::brand_icon;
 use desktop_ui_controls::system_settings_common::{icons::icon_btn_svg_style, *};
 use iced::{
     Alignment, Element, Length,
-    widget::{
-        Space, button, checkbox, column, container, row, rule, scrollable, text, text_editor,
-    },
+    widget::{Space, button, checkbox, column, container, row, rule, text, text_editor},
 };
 use vw_api_mcp_management::{McpConfigValue, McpPresetDraftView};
 #[derive(Clone)]
 pub enum FormMessage {
     Replace(bool),
+    IncludeGlobal(bool),
+    GlobalEnabled(bool),
+    GlobalRequired(bool),
     ArgAdd,
     ArgRemove(usize),
     ArgSet(usize, String),
@@ -72,7 +73,12 @@ pub fn connection_form_panel(
         )
     };
     let mut body = column![].spacing(15).width(Length::Fill);
-    if !draft.editing && !draft.presets.is_empty() {
+    let global = draft.draft.global.as_ref();
+    let sync_only = draft.draft.sync_only;
+    if sync_only {
+        body = body.push(text(draft.name).size(16));
+    }
+    if !sync_only && !draft.presets.is_empty() {
         let mut presets = row![].spacing(7);
         for (index, preset) in draft.presets.iter().enumerate() {
             presets = presets.push(
@@ -84,66 +90,70 @@ pub fn connection_form_panel(
         }
         body = body.push(form_field(i18n.__("从模板开始"), presets.wrap()));
     }
-    let paste = text_editor(&draft.draft.paste)
-        .placeholder(i18n.__("粘贴 JSON、Codex TOML 或 OpenCode 配置"))
-        .height(78)
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_editor_style);
-    body = body.push(form_field(
-        i18n.__("粘贴配置"),
-        column![
-            if draft.saving { paste } else { paste.on_action(FormMessage::PasteEditor) },
-            row![
-                Space::new().width(Length::Fill),
-                toolbar_button(
-                    i18n.__("解析配置"),
-                    (!draft.saving && !draft.draft.paste.text().trim().is_empty())
-                        .then_some(FormMessage::ParsePaste)
-                ),
-            ],
-        ]
-        .spacing(6),
-    ));
-    for (index, candidate) in draft.draft.candidates.iter().enumerate() {
-        let conflict = draft.draft.catalog.iter().any(|r| r.record.id.0 == candidate.id);
-        body = body.push(
-            row![
-                text(format!(
-                    "{} · {}",
-                    candidate.id,
-                    if candidate.connection.is_err() {
-                        i18n.__("无效项")
-                    } else if conflict {
-                        i18n.__("同名项")
-                    } else {
-                        i18n.__("新项")
-                    }
-                )),
-                toolbar_button(
-                    if conflict {
-                        i18n.__("按当前修订替换")
-                    } else {
-                        i18n.__("填入草稿")
-                    },
-                    (!draft.saving && candidate.connection.is_ok())
-                        .then_some(FormMessage::ChoosePaste(index))
-                ),
-                toolbar_button(
-                    i18n.__("跳过"),
-                    (!draft.saving).then_some(FormMessage::SkipPaste(index))
-                ),
+    if !sync_only {
+        let paste = text_editor(&draft.draft.paste)
+            .placeholder(i18n.__("粘贴 JSON、Codex TOML 或 OpenCode 配置"))
+            .height(78)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .style(settings_text_editor_style);
+        body = body.push(form_field(
+            i18n.__("粘贴配置"),
+            column![
+                if draft.saving { paste } else { paste.on_action(FormMessage::PasteEditor) },
+                row![
+                    Space::new().width(Length::Fill),
+                    toolbar_button(
+                        i18n.__("解析配置"),
+                        (!draft.saving && !draft.draft.paste.text().trim().is_empty())
+                            .then_some(FormMessage::ParsePaste)
+                    ),
+                ],
             ]
-            .spacing(8),
-        );
+            .spacing(6),
+        ));
+        for (index, candidate) in draft.draft.candidates.iter().enumerate() {
+            let conflict = draft.draft.catalog.iter().any(|r| r.record.id.0 == candidate.id);
+            body = body.push(
+                row![
+                    text(format!(
+                        "{} · {}",
+                        candidate.id,
+                        if candidate.connection.is_err() {
+                            i18n.__("无效项")
+                        } else if conflict {
+                            i18n.__("同名项")
+                        } else {
+                            i18n.__("新项")
+                        }
+                    )),
+                    toolbar_button(
+                        if conflict && global.is_none() {
+                            i18n.__("按当前修订替换")
+                        } else {
+                            i18n.__("填入草稿")
+                        },
+                        (!draft.saving && candidate.connection.is_ok())
+                            .then_some(FormMessage::ChoosePaste(index))
+                    ),
+                    toolbar_button(
+                        i18n.__("跳过"),
+                        (!draft.saving).then_some(FormMessage::SkipPaste(index))
+                    ),
+                ]
+                .spacing(8),
+            );
+        }
     }
-    body = body.push(rule::horizontal(1)).push(form_field(
-        if draft.editing { i18n.__("目录 ID") } else { i18n.__("名称（目录 ID）") },
-        settings_text_input(i18n.__("例如 context7"), draft.id).on_input_maybe(
-            (!draft.saving && !draft.editing).then_some(|id| FormMessage::Field("id", id)),
-        ),
-    ));
-    if draft.editing {
+    if !sync_only {
+        body = body.push(rule::horizontal(1)).push(form_field(
+            if draft.editing { i18n.__("目录 ID") } else { i18n.__("名称（目录 ID）") },
+            settings_text_input(i18n.__("例如 context7"), draft.id).on_input_maybe(
+                (!draft.saving && !draft.editing).then_some(|id| FormMessage::Field("id", id)),
+            ),
+        ));
+    }
+    if draft.editing && global.is_none() && !sync_only {
         body = body.push(
             checkbox(draft.draft.replace_connection)
                 .label(i18n.__("替换私有连接"))
@@ -158,31 +168,30 @@ pub fn connection_form_panel(
             );
         }
     }
-    if draft.draft.replace_connection {
-        body = body.push(
-            row![
-                settings_field_label(i18n.__("连接配置")),
-                Space::new().width(Length::Fill),
-                container(
-                    row![
-                        segment(
-                            i18n.__("表单"),
-                            !draft.json,
-                            (!draft.saving && draft.json).then_some(FormMessage::Json(false))
-                        ),
-                        segment(
-                            "JSON",
-                            draft.json,
-                            (!draft.saving && !draft.json).then_some(FormMessage::Json(true))
-                        ),
-                    ]
-                    .spacing(3)
-                )
-                .padding(3)
-                .style(segment_track),
-            ]
-            .align_y(Alignment::Center),
-        );
+    if draft.draft.replace_connection && !sync_only {
+        let connection_header = row![
+            settings_field_label(i18n.__("连接配置")),
+            Space::new().width(Length::Fill),
+            container(
+                row![
+                    segment(
+                        i18n.__("表单"),
+                        !draft.json,
+                        (!draft.saving && draft.json).then_some(FormMessage::Json(false))
+                    ),
+                    segment(
+                        "JSON",
+                        draft.json,
+                        (!draft.saving && !draft.json).then_some(FormMessage::Json(true))
+                    ),
+                ]
+                .spacing(3)
+            )
+            .padding(3)
+            .style(segment_track),
+        ]
+        .align_y(Alignment::Center);
+        body = body.push(settings_group_header(connection_header));
         if draft.json {
             let editor = text_editor(draft.editor)
                 .padding(SETTINGS_CONTROL_PADDING)
@@ -347,7 +356,34 @@ pub fn connection_form_panel(
             }
         }
     }
-    body = body.push(rule::horizontal(1)).push(settings_field_label(i18n.__("写入到")));
+    if let Some(global) = global.filter(|_| !sync_only) {
+        if global.original.is_none() {
+            body = body.push(
+                checkbox(global.include_global)
+                    .label(i18n.__("保存到识矩全局配置"))
+                    .style(settings_checkbox_style)
+                    .on_toggle_maybe((!draft.saving).then_some(FormMessage::IncludeGlobal)),
+            );
+        }
+        if global.include_global {
+            body = body.push(
+                row![
+                    checkbox(global.enabled)
+                        .label(i18n.__("启用"))
+                        .style(settings_checkbox_style)
+                        .on_toggle_maybe((!draft.saving).then_some(FormMessage::GlobalEnabled)),
+                    checkbox(global.required)
+                        .label(i18n.__("必需"))
+                        .style(settings_checkbox_style)
+                        .on_toggle_maybe((!draft.saving).then_some(FormMessage::GlobalRequired)),
+                ]
+                .spacing(12)
+                .wrap(),
+            );
+            body = body.push(input(i18n.__("超时（秒）"), "timeout", &global.timeout));
+        }
+    }
+    body = body.push(settings_group_header(settings_field_label(i18n.__("写入到"))));
     if draft.draft.targets.is_empty() {
         body = body.push(
             text(i18n.__("未发现可信的安装实例。仍可单独保存定义。"))
@@ -357,7 +393,11 @@ pub fn connection_form_panel(
     }
     if !draft.draft.targets.is_empty() {
         body = body.push(
-            text(if draft.editing {
+            text(if global.is_some_and(|global| global.include_global) {
+                i18n.__("勾选应用后，同步会更新共享目录中的同名连接。")
+            } else if sync_only {
+                i18n.__("选择要同步到的应用。")
+            } else if draft.editing {
                 i18n.__("保存时应用勾选变更。替换连接会重发到仍勾选的应用。")
             } else {
                 i18n.__("添加时写入已勾选的应用，也可取消勾选，仅保存定义。")
@@ -415,50 +455,52 @@ pub fn connection_form_panel(
         }
         body = body.push(targets);
     }
-    body = body.push(rule::horizontal(1)).push(
-        button(
-            row![
-                icon_svg(
-                    if draft.draft.details { Icon::ChevronDown } else { Icon::ChevronRight },
-                    13.0
-                )
-                .style(icon_btn_svg_style),
-                text(i18n.__("说明与链接")).size(14),
-            ]
-            .spacing(7)
-            .align_y(Alignment::Center),
-        )
-        .padding([6, 10])
-        .style(rounded_action_btn_style)
-        .on_press(FormMessage::Details(!draft.draft.details)),
-    );
-    if draft.draft.details {
-        let description = text_editor(&draft.draft.description)
-            .height(64)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .style(settings_text_editor_style);
-        body = body.push(input(i18n.__("显示名"), "name", &draft.draft.name)).push(form_field(
-            i18n.__("描述"),
-            if draft.saving {
-                description
-            } else {
-                description.on_action(FormMessage::Description)
-            },
-        ));
-        for (label, field, value) in [
-            (i18n.__("标签（逗号分隔）"), "tags", &draft.draft.tags),
-            (i18n.__("主页"), "homepage", &draft.draft.homepage),
-            (i18n.__("文档"), "documentation", &draft.draft.documentation),
-        ] {
-            body = body.push(input(label, field, value));
-        }
-        if draft.editing {
-            body = body.push(input(
-                i18n.__("公开连接摘要（请勿填写凭据）"),
-                "summary",
-                &draft.draft.summary,
+    if !sync_only && global.is_none_or(|global| !global.include_global) {
+        body = body.push(rule::horizontal(1)).push(
+            button(
+                row![
+                    icon_svg(
+                        if draft.draft.details { Icon::ChevronDown } else { Icon::ChevronRight },
+                        13.0
+                    )
+                    .style(icon_btn_svg_style),
+                    text(i18n.__("说明与链接")).size(14),
+                ]
+                .spacing(7)
+                .align_y(Alignment::Center),
+            )
+            .padding([6, 10])
+            .style(rounded_action_btn_style)
+            .on_press(FormMessage::Details(!draft.draft.details)),
+        );
+        if draft.draft.details {
+            let description = text_editor(&draft.draft.description)
+                .height(64)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .padding(SETTINGS_CONTROL_PADDING)
+                .style(settings_text_editor_style);
+            body = body.push(input(i18n.__("显示名"), "name", &draft.draft.name)).push(form_field(
+                i18n.__("描述"),
+                if draft.saving {
+                    description
+                } else {
+                    description.on_action(FormMessage::Description)
+                },
             ));
+            for (label, field, value) in [
+                (i18n.__("标签（逗号分隔）"), "tags", &draft.draft.tags),
+                (i18n.__("主页"), "homepage", &draft.draft.homepage),
+                (i18n.__("文档"), "documentation", &draft.draft.documentation),
+            ] {
+                body = body.push(input(label, field, value));
+            }
+            if draft.editing {
+                body = body.push(input(
+                    i18n.__("公开连接摘要（请勿填写凭据）"),
+                    "summary",
+                    &draft.draft.summary,
+                ));
+            }
         }
     }
     for (_, _, result) in &draft.draft.deliveries {
@@ -494,7 +536,20 @@ pub fn connection_form_panel(
             i18n.__("返回 MCP 列表"),
             (!draft.saving).then_some(close.clone())
         ),
-        text(if draft.editing { i18n.__("编辑 MCP") } else { i18n.__("添加 MCP") }).size(22),
+        text(if sync_only {
+            i18n.__("同步到第三方")
+        } else if draft.editing {
+            i18n.__("编辑 MCP")
+        } else {
+            i18n.__("添加 MCP")
+        })
+        .size(20),
+        Space::new().width(Length::Fill),
+        if draft.saving {
+            Space::new().width(32).into()
+        } else {
+            iced::Element::from(settings_close_button(FormMessage::Close))
+        },
     ]
     .spacing(8)
     .align_y(Alignment::Center);
@@ -503,6 +558,8 @@ pub fn connection_form_panel(
         toolbar_button(i18n.__("取消"), (!draft.saving).then_some(close)),
         button(text(if draft.saving {
             i18n.__("保存中…")
+        } else if sync_only {
+            i18n.__("同步到第三方")
         } else if draft.editing {
             i18n.__("保存")
         } else {
@@ -510,25 +567,16 @@ pub fn connection_form_panel(
         }))
         .padding([8, 16])
         .style(primary_action_btn_style)
-        .on_press_maybe((!draft.saving).then_some(message(FormMessage::Save))),
+        .on_press_maybe(
+            (!draft.saving
+                && draft.draft.deliveries.is_empty()
+                && (!sync_only || draft.draft.targets.iter().any(|(_, selected, _, _)| *selected)))
+            .then_some(message(FormMessage::Save))
+        ),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
-    column![
-        container(header).padding([0, 7]).width(Length::Fill),
-        rule::horizontal(1),
-        scrollable(container(body).padding([0, 7]).width(Length::Fill))
-            .direction(scrollable::Direction::Vertical(
-                scrollable::Scrollbar::new().width(4).scroller_width(4)
-            ))
-            .height(Length::Fill),
-        rule::horizontal(1),
-        container(footer).padding([0, 7]).width(Length::Fill),
-    ]
-    .spacing(12)
-    .height(Length::Fill)
-    .width(Length::Fill)
-    .into()
+    settings_modal_layout(header, body, Some(footer.into())).width(720).height(620).into()
 }
 
 fn segment_track(theme: &iced::Theme) -> iced::widget::container::Style {

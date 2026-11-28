@@ -14,13 +14,8 @@ pub(crate) fn visible(app: &App) -> Option<&ToolsState> {
 }
 
 fn run(app: &mut App, event: Option<ToolsMessage>) -> Task<Message> {
-    use crate::app::{components::system_settings::SystemTab, state::AgentConfigTab};
     let current = diagnostics::context(app);
-    let on_page = (crate::app::components::third_party_settings::is_visible(app)
-        && app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Mcp)
-        || app.navigation_panels.show_system_settings
-        && app.navigation_panels.system_settings_tab == SystemTab::Agents
-        && app.agents_settings.active_config_tab == AgentConfigTab::Mcp;
+    let on_page = crate::app::components::system_settings_mcp::is_visible(app);
     let mutating = app.mcp_settings.mutating();
     let mut input = desktop_settings_mcp::configuration_update::tools::Update {
         state: &mut app.mcp_settings.tools,

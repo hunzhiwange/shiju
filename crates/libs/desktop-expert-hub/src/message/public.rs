@@ -3,9 +3,7 @@
 use gateway_skill_market::{
     SkillMarketCategoryDto,
     SkillMarketCoordinateDto,
-    SkillMarketInstallScopeDto,
     SkillMarketInstallSelectionDto,
-    SkillMarketInstallTargetDto,
     SkillMarketSkillDetailDto,
     SkillMarketSkillDto,
     SkillMarketSkillFileDto,

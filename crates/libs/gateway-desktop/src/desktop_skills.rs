@@ -4,6 +4,9 @@
 //! 桌面 UI 可展示的目录，并提供创建、安装、启用/禁用和删除本地技能的入口。
 //! 文件系统操作集中放在阻塞任务中执行，避免阻塞异步网关运行时。
 
+#[path = "desktop_skills_sync.rs"]
+mod sync;
+
 use axum::Json;
 use axum::Router;
 use axum::extract::Query;
@@ -57,6 +60,7 @@ where
         .route("/skills/install-built-in", post(install_builtin_post))
         .route("/skills/set-enabled", post(set_enabled_post))
         .route("/skills/delete", post(delete_post))
+        .route("/skills/sync", post(sync::sync_post))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

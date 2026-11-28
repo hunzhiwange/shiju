@@ -1,7 +1,7 @@
 use desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage;
 
 pub fn help_text(locale: config_ui::DesktopLocale) -> &'static str {
-    desktop_i18n::I18n::new(locale).__(r#"技能配置说明
+    desktop_i18n::I18n::new(locale).__(r#"本地技能配置说明
 
 一、作用
 - skills 用于控制技能系统加载来源与系统提示词注入方式。
@@ -13,11 +13,15 @@ pub fn help_text(locale: config_ui::DesktopLocale) -> &'static str {
 - 技能页支持“项目目录 / 全部目录”切换，并按项目目录、父级目录、全局目录、内置技能分层显示。
 - 点击左侧技能卡片后，会弹出详情窗口展示对应 `SKILL.md`，若没有则回退显示 `SKILL.toml`。
 - 本地技能可以启用、禁用和删除。内置技能随程序提供，默认可用。
+- 通过技能卡片的「同步到」或右键菜单，选择安装范围和第三方智能体。
 
 2) 插件
 - 在独立的插件页管理插件。
 
-3) 系统配置
+3) 仓库与分发
+- 可发现和安装仓库技能、导入已有技能、管理应用绑定与备份。
+
+4) 系统配置
 - 项目技能默认加载与注入模式配置集中在这里。
 - 这些配置不会移除内置技能列表。
 

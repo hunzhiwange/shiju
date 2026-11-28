@@ -23,8 +23,7 @@ pub(crate) fn update(app: &mut App, event: McpDiagnosticMessage) -> Task<Message
     let client = matches!(event, McpDiagnosticMessage::Start(_)).then(crate::app::config::gateway_client);
     let mut notice = None;
     let catalog = catalog_visible.then_some(app.mcp_settings.catalog.result.as_ref()).flatten();
-    let on_workspace = crate::app::components::third_party_settings::is_visible(app)
-        && app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Mcp;
+    let on_workspace = crate::app::components::system_settings_mcp::is_visible(app);
     let task = if on_workspace {
         let records = catalog.and_then(|c| c.as_ref().ok()).map(|c| {
             desktop_settings_mcp::management_bindings::matrix::visible_records(c, &app.mcp_settings.bindings.matrix.query)

@@ -45,7 +45,7 @@ pub enum McpMessage {
 }
 use crate::{toolbar_button, form_field};
 pub const MCP_TAB_LABELS: &[(&str, McpSettingsTab)] = &[
-    ("全局服务器", McpSettingsTab::Servers),
+    ("MCP 服务器", McpSettingsTab::Servers),
     ("运行时 MCP", McpSettingsTab::Runtime),
     ("高级 JSON", McpSettingsTab::Json),
     ("推荐 MCP", McpSettingsTab::Extensions),
@@ -178,11 +178,25 @@ pub fn view<'a, Message: Clone + 'static>(
     transfer_actions: Vec<Element<'a, Message>>,
     extensions_panel: Element<'a, Message>,
 ) -> Element<'a, Message> {
+    view_with_management(event, s, locale, transfer_actions, extensions_panel, None, |index| {
+        event(McpMessage::ServerEditRequested(index))
+    })
+}
+
+pub fn view_with_management<'a, Message: Clone + 'static>(
+    event: fn(McpMessage) -> Message,
+    s: &'a State,
+    locale: DesktopLocale,
+    transfer_actions: Vec<Element<'a, Message>>,
+    extensions_panel: Element<'a, Message>,
+    management: Option<Element<'a, Message>>,
+    sync_global: impl Fn(usize) -> Message,
+) -> Element<'a, Message> {
     let i18n = I18n::new(locale);
     let mut content = column![
         settings_page_heading(
             tr(locale, "MCP 配置"),
-            tr(locale, "管理全局服务器和当前项目的 MCP 连接。"),
+            tr(locale, "管理 MCP 服务器、运行时连接和第三方同步。"),
         ),
         settings_tab_row(mcp_tab_labels().iter().map(|(label, tab)| mcp_tab_button(
             event,
@@ -263,13 +277,18 @@ pub fn view<'a, Message: Clone + 'static>(
             } else {
                 "没有匹配的结果"
             };
+            let show_management = management.is_some();
             let entries =
                 servers.into_iter().filter(|server| matches_name(&server.name)).map(|server| {
                     let preview_key = format!("global:{}", server.name);
                     let preview_expanded = s.expanded_previews.contains(&preview_key);
                     let previewing = s.connecting.as_ref() == Some(&preview_key);
                     let inspected = inspect_for_server(s.inspect.as_ref(), &server.name);
-                    configured_server_panel(
+                    let sync = (show_management
+                        && controls_enabled
+                        && !config_tools::is_builtin_mcp_server_id(&server.name))
+                        .then(|| sync_global(server.index));
+                    server_panels::configured_server_panel_with_sync(
                         event,
                         locale,
                         server,
@@ -278,11 +297,18 @@ pub fn view<'a, Message: Clone + 'static>(
                         preview_expanded,
                         controls_enabled,
                         previewing,
+                        sync,
                     )
                 });
-            content = content
-                .push(search_toolbar(search.into(), actions.into()))
-                .push(server_list(locale, entries, empty));
+            content = content.push(search_toolbar(search.into(), actions.into()));
+            if let Some(management) = management {
+                content = content
+                    .push(settings_group_header(text(tr(locale, "全局 MCP 服务器")).size(16)))
+                    .push(server_list(locale, entries, empty))
+                    .push(management);
+            } else {
+                content = content.push(server_list(locale, entries, empty));
+            }
         }
         McpSettingsTab::Runtime => {
             let servers = s.inspect.as_ref().map_or(&[][..], |report| report.servers.as_slice());

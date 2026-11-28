@@ -65,6 +65,7 @@ pub const SKILLS_TAB_LABELS: &[(&str, SkillsSettingsTab)] = &[
     ("技能", SkillsSettingsTab::Skills),
     ("顺序", SkillsSettingsTab::DiscoveryOrder),
     ("系统配置", SkillsSettingsTab::SystemConfig),
+    ("仓库与分发", SkillsSettingsTab::Distribution),
 ];
 pub fn skills_tab_labels() -> &'static [(&'static str, SkillsSettingsTab)] {
     SKILLS_TAB_LABELS
@@ -106,18 +107,20 @@ pub fn system_config_view(app: ConfigContext<'_>) -> Element<'static, Message> {
     );
 
     let config_card = column![
-        (app.help)(
-            I18n::new(app.desktop_locale),
-            Some(app.app_theme),
-            tr(app.desktop_locale, "系统配置"),
-            iced::widget::text(tr(app.desktop_locale, "系统配置")).size(17),
-            tr(
-                app.desktop_locale,
-                "这里配置项目技能默认加载与 prompt injection；目录顺序单独展示。"
+        desktop_ui_controls::system_settings_common::settings_group_header(
+            (app.help)(
+                I18n::new(app.desktop_locale),
+                Some(app.app_theme),
+                tr(app.desktop_locale, "系统配置"),
+                iced::widget::text(tr(app.desktop_locale, "系统配置")).size(17),
+                tr(
+                    app.desktop_locale,
+                    "这里配置项目技能默认加载与 prompt injection；目录顺序单独展示。",
+                )
+                .into(),
             )
-            .into(),
-        )
-        .wrap(),
+            .wrap(),
+        ),
         settings_group_card(column![project_auto_load_row, mode_row]),
     ]
     .spacing(16)
@@ -157,7 +160,7 @@ pub fn view<'a, M: Clone + 'static>(
     .width(Length::Fill);
     let mut page = column![
         row![
-            text(tr(app.desktop_locale, "技能配置")).size(SETTINGS_PAGE_TITLE_SIZE),
+            text(tr(app.desktop_locale, "本地技能配置")).size(SETTINGS_PAGE_TITLE_SIZE),
             help_btn,
         ]
         .spacing(4)

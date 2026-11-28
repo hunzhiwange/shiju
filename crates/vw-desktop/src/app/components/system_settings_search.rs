@@ -65,16 +65,16 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
     extend_tabs!(system_settings_gateway::GATEWAY_TABS, "服务端网关", Gateway);
     extend_tabs!(system_settings_network::NETWORK_TABS, "网络配置", Network);
     extend_tabs!(system_settings_mcp::MCP_TABS, "智能体 / MCP", AgentMcp);
-    extend_tabs!(system_settings_skills::SKILLS_TABS, "智能体 / 技能", AgentSkills);
+    extend_tabs!(system_settings_skills::SKILLS_TABS, "本地技能配置", AgentSkills);
     for &(page, label) in desktop_ui_controls::settings_navigation::ThirdPartyPage::ALL {
-        entries.push(SystemSettingsSearchEntry::new(label, Some("第三方智能体"),
-            match page {
-                desktop_ui_controls::settings_navigation::ThirdPartyPage::Mcp =>
-                    &["cc-switch", "third-party agents", "third-party mcp", "第三方 MCP", "共享 MCP 目录", "受管目录", "导入 MCP", "应用绑定", "重写配置"][..],
-                desktop_ui_controls::settings_navigation::ThirdPartyPage::Skills =>
-                    &["third-party skills", "第三方技能", "仓库管理", "Claude 配置", "技能市场", "导入技能", "应用绑定", "存储与同步", "备份与恢复"][..],
-                _ => &["cc-switch", "third-party agents"][..],
-            }, SystemSettingsSearchTarget::ThirdParty(page)));
+        use desktop_ui_controls::settings_navigation::ThirdPartyPage;
+        if matches!(page, ThirdPartyPage::Mcp | ThirdPartyPage::Skills) {
+            continue;
+        }
+        entries.push(SystemSettingsSearchEntry::new(
+            label, Some("第三方智能体"), &["cc-switch", "third-party agents"],
+            SystemSettingsSearchTarget::ThirdParty(page),
+        ));
     }
     desktop_settings_shell::search::localize_catalog(entries, app.general_settings.desktop_locale)
 }

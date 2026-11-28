@@ -1,5 +1,7 @@
 #[path = "management_form_paste.rs"]
 pub mod paste;
+#[path = "management_form_global.rs"]
+pub(crate) mod global;
 use iced::widget::text_editor;
 use std::collections::BTreeMap;
 use vw_api_mcp_management::*;
@@ -7,6 +9,8 @@ use vw_gateway_client::GatewayClient;
 #[derive(Clone)]
 pub struct Draft {
     pub context: crate::management_context::Context,
+    pub(crate) global: Option<global::GlobalDraft>,
+    pub sync_only: bool,
     pub generation: u64,
     pub record: Option<McpCatalogRecord>,
     pub id: String,
@@ -46,6 +50,17 @@ impl std::fmt::Debug for Draft {
 #[derive(Clone)]
 pub enum FormMessage {
     Open(Option<McpCatalogRecord>),
+    OpenGlobal(Option<usize>, bool),
+    Sync(McpCatalogRecord),
+    IncludeGlobal(bool),
+    GlobalEnabled(bool),
+    GlobalRequired(bool),
+    GlobalSaved {
+        context: crate::management_context::Context,
+        generation: u64,
+        written: Option<serde_json::Value>,
+        result: Result<Option<McpCatalogRecord>, String>,
+    },
     Close,
     Field(&'static str, String),
     Json(bool),
@@ -108,6 +123,8 @@ impl Draft {
         Self {
             generation: NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             context,
+            global: None,
+            sync_only: false,
             id: record.as_ref().map(|r| r.record.id.0.clone()).unwrap_or_default(),
             name: record.as_ref().map(|r| r.name.clone()).unwrap_or_default(),
             description: text_editor::Content::with_text(
@@ -276,10 +293,22 @@ impl Draft {
         }
         Ok(())
     }
+    fn editing(&self) -> bool {
+        self.record.is_some() || self.global.as_ref().is_some_and(|global| global.original.is_some())
+    }
+
     pub fn preset(&mut self, index: usize) {
         if let Some(preset) = self.presets.get(index).cloned() {
-            self.id = preset.id;
-            self.name = preset.name;
+            if !self.editing() {
+                self.id = preset.id;
+                self.name = preset.name;
+                self.tags = preset.tags.join(", ");
+                self.homepage = preset.homepage;
+                self.documentation = preset.documentation;
+                if let Some(global) = &mut self.global {
+                    global.enabled = preset.enabled;
+                }
+            }
             self.set_connection(preset.connection);
             self.json = false;
             self.error = None;
@@ -312,22 +341,23 @@ pub async fn save(
                     expected_revision: record.record.revision,
                     linux_stdio_selection: None,
                     connection,
-                    metadata: McpMetadataPatch {
-                        name: McpTextEdit::Set(draft.name.clone()),
-                        description: text_edit(&draft.description.text()),
-                        homepage: text_edit(&draft.homepage),
-                        documentation: text_edit(&draft.documentation),
-                        tags: Some(
-                            draft
-                                .tags
-                                .split(',')
-                                .map(str::trim)
-                                .filter(|s| !s.is_empty())
-                                .map(str::to_owned)
-                                .collect(),
-                        ),
+                    metadata: if draft.global.as_ref().is_some_and(|global| global.include_global) {
+                        McpMetadataPatch::default()
+                    } else {
+                        McpMetadataPatch {
+                            name: McpTextEdit::Set(draft.name.clone()),
+                            description: text_edit(&draft.description.text()),
+                            homepage: text_edit(&draft.homepage),
+                            documentation: text_edit(&draft.documentation),
+                            tags: Some(
+                                draft.tags.split(',').map(str::trim).filter(|s| !s.is_empty())
+                                    .map(str::to_owned).collect(),
+                            ),
+                        }
                     },
-                    public_summary: if draft.summary.is_empty() {
+                    public_summary: if draft.global.as_ref().is_some_and(|global| global.include_global) {
+                        McpPublicSummaryEdit::default()
+                    } else if draft.summary.is_empty() {
                         McpPublicSummaryEdit::Clear
                     } else {
                         McpPublicSummaryEdit::Set(draft.summary.clone())
@@ -378,7 +408,28 @@ mod tests;
 impl Draft {
     pub fn edit(&mut self, event: FormMessage) {
         match event {
+            FormMessage::GlobalEnabled(value) => {
+                if let Some(global) = &mut self.global {
+                    global.enabled = value;
+                }
+            }
+            FormMessage::GlobalRequired(value) => {
+                if let Some(global) = &mut self.global {
+                    global.required = value;
+                }
+            }
+            FormMessage::IncludeGlobal(value) => {
+                if let Some(global) = &mut self.global
+                    && global.original.is_none()
+                {
+                    global.include_global = value;
+                }
+            }
             FormMessage::Field(field, value) => {
+                if field == "timeout" && let Some(global) = &mut self.global {
+                    global.timeout = value;
+                    return;
+                }
                 if field == "transport" && (self.transport == "stdio") != (value == "stdio") {
                     self.values = "{}".into();
                 }
@@ -448,6 +499,13 @@ impl Draft {
                 if let Some(item) = self.candidates.get(index).cloned() {
                     match item.connection {
                         Ok(connection) => {
+                            if self.global.as_ref().is_some_and(|global| global.original.is_some()) {
+                                self.set_connection(connection);
+                                self.json = false;
+                                self.error = None;
+                                self.candidates.clear();
+                                return;
+                            }
                             let existing =
                                 self.catalog.iter().find(|r| r.record.id.0 == item.id).cloned();
                             if self.record.as_ref().is_some_and(|r| r.record.id.0 != item.id) {
@@ -461,7 +519,7 @@ impl Draft {
                                                 && binding.enabled
                                         })
                                     });
-                                    if existing.is_some() {
+                                    if existing.is_some() && self.global.is_none() {
                                         *selected = enabled;
                                         *original = enabled;
                                     }
@@ -480,7 +538,9 @@ impl Draft {
                                 } else {
                                     self.name = item.id.clone();
                                 }
-                                self.record = existing;
+                                if self.global.is_none() {
+                                    self.record = existing;
+                                }
                                 self.id = item.id;
                                 self.set_connection(connection);
                                 self.json = false;
@@ -504,10 +564,7 @@ impl Draft {
             FormMessage::Json(json) => {
                 self.error = self.toggle_json(json).err();
             }
-            FormMessage::Preset(index)
-                if self.record.is_none() => {
-                    self.preset(index);
-                }
+            FormMessage::Preset(index) => self.preset(index),
             _ => {}
         }
         self.select_default_target();
@@ -522,7 +579,7 @@ pub fn panel(
         i18n,
         crate::connection::ConnectionDraft {
             draft,
-            editing: draft.record.is_some(),
+            editing: draft.editing(),
             json: draft.json,
             saving: draft.saving,
             id: &draft.id,
@@ -548,7 +605,8 @@ fn text_edit(value: &str) -> McpTextEdit {
 }
 impl Draft {
     pub(crate) fn select_default_target(&mut self) {
-        if self.record.is_some() || self.targets_customized || self.target_transport().is_none() {
+        if self.record.is_some() || self.global.is_some() || self.sync_only || self.targets_customized
+            || self.target_transport().is_none() {
             return;
         }
         let first = crate::management_bindings::matrix::APPS.iter().find_map(|app| {

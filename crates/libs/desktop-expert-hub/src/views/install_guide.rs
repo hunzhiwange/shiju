@@ -54,32 +54,12 @@ pub fn target_path_label(target: SkillInstallTarget, scope: SkillInstallScope) -
 }
 
 pub fn target_root_label(target: SkillInstallTarget, scope: SkillInstallScope) -> String {
-    let root = match (target, scope) {
-        (SkillInstallTarget::VibeWindow, _) => format!("{HOME_CONFIG_DIR_NAME}/skills"),
-        (SkillInstallTarget::AgentSkills, _) => ".agents/skills".to_string(),
-        (SkillInstallTarget::Codex, _) => ".codex/skills".to_string(),
-        (SkillInstallTarget::WorkBuddy, _) => ".workbuddy/skills".to_string(),
-        (SkillInstallTarget::ClaudeCode, _) => ".claude/skills".to_string(),
-        (SkillInstallTarget::OpenCode, SkillInstallScope::Global) => {
-            ".config/opencode/skills".to_string()
-        }
-        (SkillInstallTarget::OpenCode, SkillInstallScope::Project) => {
-            ".opencode/skills".to_string()
-        }
-        (SkillInstallTarget::GeminiCli, _) => ".gemini/skills".to_string(),
-        (SkillInstallTarget::GitHubCopilot, SkillInstallScope::Global) => {
-            ".copilot/skills".to_string()
-        }
-        (SkillInstallTarget::GitHubCopilot, SkillInstallScope::Project) => {
-            ".github/skills".to_string()
-        }
-        (SkillInstallTarget::Cursor, _) => ".cursor/skills".to_string(),
-        (SkillInstallTarget::Windsurf, SkillInstallScope::Global) => {
-            ".codeium/windsurf/skills".to_string()
-        }
-        (SkillInstallTarget::Windsurf, SkillInstallScope::Project) => {
-            ".windsurf/skills".to_string()
-        }
+    let native;
+    let root = if target == SkillInstallTarget::VibeWindow {
+        native = format!("{HOME_CONFIG_DIR_NAME}/skills");
+        native.as_str()
+    } else {
+        target.relative_directory(scope).unwrap_or_default()
     };
     match scope {
         SkillInstallScope::Global => format!("~/{root}"),

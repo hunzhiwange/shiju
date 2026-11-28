@@ -101,6 +101,23 @@ pub fn configured_server_panel<'a, Message: Clone + 'static>(
     controls_enabled: bool,
     previewing: bool,
 ) -> Element<'a, Message> {
+    configured_server_panel_with_sync(
+        event, locale, server, inspect, preview_key, preview_expanded, controls_enabled,
+        previewing, None,
+    )
+}
+
+pub(super) fn configured_server_panel_with_sync<'a, Message: Clone + 'static>(
+    event: fn(McpMessage) -> Message,
+    locale: DesktopLocale,
+    server: ConfiguredMcpServerRow,
+    inspect: Option<&'a McpServerInspectDto>,
+    preview_key: String,
+    preview_expanded: bool,
+    controls_enabled: bool,
+    previewing: bool,
+    sync: Option<Message>,
+) -> Element<'a, Message> {
     let server_index = server.index;
     let builtin = config_tools::is_builtin_mcp_server_id(&server.name);
     let toggle_label = if server.enabled { "启用" } else { "禁用" };
@@ -136,9 +153,11 @@ pub fn configured_server_panel<'a, Message: Clone + 'static>(
 
     let connect = (inspect.is_none() && controls_enabled && server.enabled)
         .then(|| event(McpMessage::Connect(preview_key.clone())));
-    let actions =
-        row![enabled, preview_button(event, locale, preview_key, preview_expanded, connect), menu]
-            .spacing(8)
+    let mut actions = row![enabled, preview_button(event, locale, preview_key, preview_expanded, connect)];
+    if let Some(sync) = sync {
+        actions = actions.push(toolbar_button(I18n::new(locale).__("同步到第三方"), Some(sync)));
+    }
+    let actions = actions.push(menu).spacing(8)
             .width(Length::Fill)
             .align_y(Alignment::Center)
             .wrap()

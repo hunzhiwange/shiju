@@ -3,94 +3,42 @@ use crate::app::{
     App, Message,
     message::{
         SettingsMessage,
-        settings::{self, AppsCatalogMessage},
+        settings::{self, AppsCatalogMessage, McpMessage},
     },
 };
 use desktop_assets::assets::Icon;
 use desktop_settings_mcp::{
     management_bindings::{BindingsMessage, matrix},
+    management_context::Context,
     management_probe::actions,
-    third_party::Scope,
+    management_state::ViewEvent as Action,
 };
-use desktop_ui_controls::{
-    overlays::BelowOverlay,
-    system_settings_common::{icons::icon_btn_svg_style, *},
-};
+use desktop_ui_controls::{overlays::BelowOverlay, system_settings_common::*};
 use iced::{
     Alignment, Element, Length, Task, alignment,
-    widget::{Space, column, container, row, scrollable, stack, text},
+    widget::{Space, column, container, row, stack, text},
 };
 
-#[derive(Debug, Clone)]
-pub struct Event {
-    scope: Scope,
-    action: Action,
+fn message(scope: Context, action: Action) -> Message {
+    Message::Settings(SettingsMessage::Mcp(McpMessage::Management(scope, action)))
 }
-#[derive(Debug, Clone)]
-enum Action {
-    Matrix(matrix::ViewMessage),
-    Menu(actions::MenuMessage),
-}
-fn message(scope: Scope, action: Action) -> Message {
-    Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::McpWorkspace(Event {
-        scope,
-        action,
-    })))
-}
+
 pub(crate) fn refresh(app: &mut App) -> Task<Message> {
-    if !super::is_visible(app)
-        || app.apps_catalog.third_party_page
-            != desktop_ui_controls::settings_navigation::ThirdPartyPage::Mcp
-    {
+    if !super::is_visible(app) {
         return Task::none();
     }
-    app.apps_catalog.third_party_mcp_scope = super::mcp_scope(app);
     app.mcp_settings.bindings.matrix.column_menu = None;
-    desktop_settings_mcp::management_probe::actions::invalidate(
-        &mut app.mcp_settings.actions,
-        app.apps_catalog.third_party_mcp_scope.as_ref(),
-        &[],
-    );
     settings::mcp_management_list::update(
         app,
         settings::mcp_management_list::CatalogMessage::Refresh,
     )
 }
+
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
-    let Some(scope) = app
-        .apps_catalog
-        .third_party_mcp_scope
-        .as_ref()
-        .filter(|s| Some(*s) == super::mcp_scope(app).as_ref())
-    else {
-        return container(
-            column![
-                text("MCP").size(SETTINGS_PAGE_TITLE_SIZE),
-                text(i18n.__("连接网关后刷新 MCP 目录")).style(settings_muted_text_style),
-                icon_btn(
-                    Icon::ArrowClockwise,
-                    i18n.__("刷新目录"),
-                    Some(Message::Settings(SettingsMessage::AppsCatalog(
-                        AppsCatalogMessage::Refresh
-                    )))
-                ),
-            ]
-            .spacing(12),
-        )
-        .padding([0, 7])
-        .width(Length::Fill)
-        .into();
+    let Some(scope) = settings::mcp_management_list::context(app) else {
+        return text(i18n.__("连接网关后刷新 MCP 目录")).style(settings_muted_text_style).into();
     };
-    if let Some(draft) =
-        app.mcp_settings.connection_form.as_ref().filter(|draft| draft.context == scope.context)
-    {
-        return container(super::super::system_settings_mcp::connection_form_panel(i18n, draft))
-            .padding([0, 7])
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into();
-    }
     let targets = settings::mcp_management_import::targets(app);
     let shown = super::super::system_settings_apps::preferences::visible_rows(&app.apps_catalog)
         .iter()
@@ -112,7 +60,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         .unwrap_or_default();
     let menu = &app.mcp_settings.actions;
     let menu_current =
-        menu.scope.as_ref() == Some(scope) && catalog.is_some_and(|c| c.records == menu.records);
+        menu.scope.as_ref() == Some(&scope) && catalog.is_some_and(|c| c.records == menu.records);
     let more = icon_btn(
         Icon::DotsThreeVertical,
         i18n.__("更多 MCP 操作"),
@@ -122,11 +70,12 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         )),
     );
     let more = if menu_current && menu.more {
+        let menu_scope = scope.clone();
         BelowOverlay::new(
             more,
             container(
                 actions::menu(i18n, menu)
-                    .map(move |event| message(scope.clone(), Action::Menu(event))),
+                    .map(move |event| message(menu_scope.clone(), Action::Menu(event))),
             )
             .padding(7)
             .width(288)
@@ -144,31 +93,19 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         more
     };
     let toolbar_actions = row![
-        toolbar_button(
-            Icon::CheckSquare,
+        desktop_settings_mcp::toolbar_button(
             i18n.__("检查连通性"),
             (!ids.is_empty() && !diagnostics.active() && current.is_some()).then(|| {
                 crate::app::message::agent_apps_diagnostics::message(actions::ProbeMessage::Start(
                     ids,
                 ))
             }),
-            false
         ),
-        toolbar_button(
-            Icon::ArrowDown,
-            i18n.__("从应用导入"),
+        desktop_settings_mcp::toolbar_button(
+            i18n.__("从原生应用导入"),
             Some(settings::mcp_management_import::message(
-                settings::mcp_management_import::ImportMessage::Open
+                settings::mcp_management_import::ImportMessage::Open,
             )),
-            false
-        ),
-        toolbar_button(
-            Icon::Plus,
-            i18n.__("添加 MCP"),
-            Some(settings::mcp_management_form::message(
-                settings::mcp_management_form::FormMessage::Open(None)
-            )),
-            true
         ),
         icon_btn(
             Icon::ArrowClockwise,
@@ -182,9 +119,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     .wrap()
     .align_x(alignment::Horizontal::Right);
     let toolbar = row![
-        row![icon_svg(Icon::HddNetwork, 22.0).style(icon_btn_svg_style), text("MCP").size(SETTINGS_PAGE_TITLE_SIZE)]
-            .spacing(10)
-            .align_y(Alignment::Center),
+        text(i18n.__("共享 MCP 目录")).size(16),
         container(toolbar_actions).align_right(Length::Fill),
     ]
     .spacing(12)
@@ -196,7 +131,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         &app.mcp_settings.bindings.matrix,
         &targets,
         &shown,
-        &scope.context.host,
+        &scope.host,
         settings::mcp_management_list::loading(app),
         app.mcp_settings.mutating() || app.apps_catalog.loading,
         menu_current.then_some(menu),
@@ -206,36 +141,20 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     if show_diagnostics {
         body = body.push(super::super::agent_apps_diagnostics::mcp_panel::view(app));
     }
-    body = body.push(super::super::system_settings_mcp::resync::rewrite_panel(app));
-    column![
-        container(toolbar).padding([0, 7]).width(Length::Fill),
-        settings_divider(),
-        scrollable(container(body).padding([0, 7]).width(Length::Fill))
-            .direction(scrollable::Direction::Vertical(
-                scrollable::Scrollbar::new().width(4).scroller_width(4)
-            ))
-            .width(Length::Fill)
-            .height(Length::Fill),
-    ]
-    .spacing(12)
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .into()
+    body = body.push(super::resync::panel(app)).push(super::tools::panel(app));
+    column![settings_group_header(toolbar), body].spacing(12).width(Length::Fill).into()
 }
-pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+pub(crate) fn update(app: &mut App, scope: Context, action: Action) -> Task<Message> {
     if !super::is_visible(app)
-        || app.apps_catalog.third_party_page
-            != desktop_ui_controls::settings_navigation::ThirdPartyPage::Mcp
-        || super::mcp_scope(app).as_ref() != Some(&event.scope)
+        || settings::mcp_management_list::context(app).as_ref() != Some(&scope)
     {
         return Task::none();
     }
-    let scope = event.scope;
     let records = settings::mcp_management_list::visible(app)
         .and_then(|r| r.as_ref().ok())
         .map(|c| c.records.clone())
         .unwrap_or_default();
-    match event.action {
+    match action {
         Action::Matrix(matrix::ViewMessage::ColumnMenu(target)) => {
             app.mcp_settings.actions.row = None;
             app.mcp_settings.actions.more = false;
@@ -244,22 +163,14 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             Task::none()
         }
         Action::Matrix(matrix::ViewMessage::MenuAction(menu)) => {
-            update(app, Event { scope, action: Action::Menu(menu) })
+            update(app, scope, Action::Menu(menu))
         }
         Action::Matrix(matrix::ViewMessage::Binding(action)) => {
             app.mcp_settings.bindings.matrix.column_menu = None;
             if matches!(&action, matrix::Action::Row { .. }) {
                 app.mcp_settings.actions.row = None;
             }
-            super::mcp_update(
-                app,
-                desktop_settings_mcp::third_party::Message {
-                    scope,
-                    action: desktop_settings_mcp::third_party::Action::Bindings(
-                        BindingsMessage::Matrix(action),
-                    ),
-                },
-            )
+            settings::mcp_management_bindings::update(app, BindingsMessage::Matrix(action))
         }
         Action::Matrix(matrix::ViewMessage::Edit(reference)) => {
             let Some(record) = records.into_iter().find(|r| r.record == reference) else {
@@ -270,18 +181,23 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 settings::mcp_management_form::FormMessage::Open(Some(record)),
             )
         }
+        Action::Matrix(matrix::ViewMessage::Sync(reference)) => {
+            let Some(record) = records.into_iter().find(|r| r.record == reference) else {
+                return Task::none();
+            };
+            settings::mcp_management_form::update(
+                app,
+                settings::mcp_management_form::FormMessage::Sync(record),
+            )
+        }
         Action::Matrix(matrix::ViewMessage::Menu(reference)) => {
             let Some(record) = records.into_iter().find(|r| r.record == reference) else {
                 return Task::none();
             };
             update(
                 app,
-                Event {
-                    scope,
-                    action: Action::Menu(actions::MenuMessage::Action(actions::Message::Row(
-                        record,
-                    ))),
-                },
+                scope,
+                Action::Menu(actions::MenuMessage::Action(actions::Message::Row(record))),
             )
         }
         Action::Menu(actions::MenuMessage::Action(action)) => {
@@ -330,15 +246,15 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
 }
 pub(crate) fn overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
-    let Some(scope) = app.apps_catalog.third_party_mcp_scope.as_ref() else {
+    let Some(scope) = settings::mcp_management_list::context(app) else {
         return base;
     };
     let state = &app.mcp_settings.actions;
-    let current = state.scope.as_ref() == Some(scope)
+    let current = state.scope.as_ref() == Some(&scope)
         && settings::mcp_management_list::visible(app)
             .and_then(|c| c.as_ref().ok())
             .is_some_and(|c| c.records == state.records);
-    let base = if current && (state.delete.is_some() || state.export.is_some()) {
+    if current && (state.delete.is_some() || state.export.is_some()) {
         let overlay = actions::overlay(
             desktop_i18n::I18n::new(app.general_settings.desktop_locale),
             state,
@@ -347,41 +263,8 @@ pub(crate) fn overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<
         .map(move |event| {
             message(scope.clone(), Action::Menu(actions::MenuMessage::Action(event)))
         });
-        stack![base, overlay].into()
+        stack![settings_inactive_view(base), overlay].into()
     } else {
         base
-    };
-    super::super::system_settings_mcp::third_party_overlays(app, base)
-}
-
-fn toolbar_button(
-    icon: Icon,
-    label: &'static str,
-    event: Option<Message>,
-    primary: bool,
-) -> iced::widget::Button<'static, Message> {
-    let style: fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style =
-        if primary { primary_action_btn_style } else { rounded_action_btn_style };
-    iced::widget::button(
-        row![
-            icon_svg(icon, 15.0).style(move |theme, status| {
-                if primary {
-                    iced::widget::svg::Style {
-                        color: Some(
-                            primary_action_btn_style(theme, iced::widget::button::Status::Active)
-                                .text_color,
-                        ),
-                    }
-                } else {
-                    icon_btn_svg_style(theme, status)
-                }
-            }),
-            text(label).size(13),
-        ]
-        .spacing(6)
-        .align_y(iced::Alignment::Center),
-    )
-    .padding([8, 12])
-    .style(style)
-    .on_press_maybe(event)
+    }
 }

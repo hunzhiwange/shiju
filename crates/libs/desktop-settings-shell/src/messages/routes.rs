@@ -214,6 +214,8 @@ impl<SettingsTab, SearchTarget, AppsCatalog, AppProviders>
         | SettingsMessage::PluginsSetEnabledCompleted { .. }
         | SettingsMessage::PluginsDeleteRequested(_)
         | SettingsMessage::PluginsDeleteCompleted { .. }
+        | SettingsMessage::SkillsSync(_)
+        | SettingsMessage::SkillsWorkspace(_)
         | SettingsMessage::SkillsTabChanged(_)
         | SettingsMessage::SkillsDetailClosed
         | SettingsMessage::SkillsDetailRequested(_)

@@ -506,6 +506,8 @@ pub enum SettingsMessage<SettingsTab, SearchTarget, AppsCatalog, AppProviders> {
     ProxyServicesChanged(String),
     ProxyHelpOpen,
     ProxyHelpClose,
+    SkillsSync(desktop_settings_skills::sync::Event),
+    SkillsWorkspace(desktop_settings_skills::third_party::Message),
     SkillsTabChanged(desktop_settings_skills::types::SkillsSettingsTab),
     SkillsDetailClosed,
     SkillsDetailRequested(String),

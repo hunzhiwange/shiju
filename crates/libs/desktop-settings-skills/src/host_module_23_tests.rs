@@ -118,6 +118,7 @@ fn view(app: &Fixture) -> Element<'_, Message> {
         SkillsSettingsTab::DiscoveryOrder => {
             crate::browser::discovery_order_view(context(app)).map(browser_message)
         }
+        SkillsSettingsTab::Distribution => iced::widget::Space::new().into(),
         SkillsSettingsTab::SystemConfig => {
             crate::page::system_config_view(config_context(app)).map(page_message)
         }

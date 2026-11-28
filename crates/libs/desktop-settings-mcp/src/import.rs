@@ -76,7 +76,7 @@ pub fn panel<'a>(i18n: desktop_i18n::I18n,
             .push(text(i18n.__("连接参数及凭据值已隐藏。定义可能包含命令、内网地址或环境变量；请仅确认可信来源。已有同名目录项将明确报告冲突，不会覆盖。")));
     } else {
         body = body
-            .push(text(i18n.__("选择导入来源")).size(16))
+            .push(settings_group_header(text(i18n.__("选择导入来源")).size(16)))
             .push(text(i18n.__("确认将导入所选应用当前全部 MCP 定义；确认时会重新读取应用配置。")).size(12));
         body = body.push(toolbar_button(
             if state.all {

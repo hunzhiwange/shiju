@@ -39,6 +39,7 @@ pub(super) fn message(event: Event) -> Message {
         Event::None => return Message::None,
         Event::CopyText(text) => return Message::CopyCode(text),
         Event::SkillsDirectoryScopeChanged(v) => SettingsMessage::SkillsDirectoryScopeChanged(v),
+        Event::SkillsSync(event) => SettingsMessage::SkillsSync(event),
         Event::SkillsRefresh => SettingsMessage::SkillsRefresh,
         Event::SkillsInstallBuiltInRequested(v) => {
             SettingsMessage::SkillsInstallBuiltInRequested(v)
@@ -54,13 +55,13 @@ pub(super) fn message(event: Event) -> Message {
     })
 }
 pub(super) fn view(app: &App) -> iced::Element<'_, Message> {
-    let catalog = desktop_settings_skills::browser::view(context(app), |path| {
+    let catalog = desktop_settings_skills::browser::view_with_sync(context(app), |path| {
         app.workspace_state
             .recent_projects_meta
             .iter()
             .find(|project| project.path == path && !project.name.is_empty())
             .map(|project| project.name.as_str())
-    })
+    }, super::sync::available(), app.skills_settings.sync.menu.as_ref())
     .map(message);
     #[cfg(not(target_arch = "wasm32"))]
     if crate::app::config::gateway_client_endpoint().is_loopback() {

@@ -75,3 +75,59 @@ fn cc_mcp_t45_json_errors_locate_without_echoing_payload_and_preserve_draft() {
     assert_eq!(draft.error.as_deref(), Some("修订冲突"));
     assert!(draft.editor.text().contains("private-secret"));
 }
+
+#[test]
+fn global_form_keeps_runtime_options_and_exact_command_arguments() {
+    let original = serde_json::json!({
+        "name": "demo",
+        "command": "fixture-command",
+        "args": ["a,b", "空 格", ""],
+        "env": [{"name": "MODE", "value": "test"}],
+        "enabled": false,
+        "required": true,
+        "timeout": 12,
+        "allowedTools": ["read"],
+        "_meta": {"custom": true},
+    });
+    let mut page = crate::state::State::default();
+    page.editor = text_editor::Content::with_text(&serde_json::json!([&original]).to_string());
+    let mut draft = Draft::new(context(), None);
+    global::open(&mut draft, &page, Some(0)).unwrap();
+    draft.edit(FormMessage::Field("command", "updated-command".into()));
+
+    let global = draft.global.as_ref().unwrap();
+    let updated = global::server(&draft, global).unwrap();
+    assert_eq!(global.original.as_ref(), Some(&original));
+    assert_eq!(updated["command"], "updated-command");
+    for key in ["name", "args", "env", "enabled", "required", "allowedTools", "_meta"] {
+        assert_eq!(updated[key], original[key], "{key}");
+    }
+    assert_eq!(updated["timeout"].as_f64(), Some(12.0));
+}
+
+#[test]
+fn template_in_global_editor_preserves_the_server_identity() {
+    let mut page = crate::state::State::default();
+    page.editor = text_editor::Content::with_text(r#"[{"name":"demo","command":"before"}]"#);
+    let mut draft = Draft::new(context(), None);
+    global::open(&mut draft, &page, Some(0)).unwrap();
+    draft.presets.push(McpPresetDraftView {
+        id: "template".into(),
+        name: "Template".into(),
+        tags: vec![],
+        homepage: String::new(),
+        documentation: String::new(),
+        connection: McpConnectionDefinition::StreamableHttp {
+            url: "https://example.invalid/mcp".into(),
+            headers: BTreeMap::new(),
+        },
+        enabled: false,
+    });
+    draft.edit(FormMessage::Preset(0));
+
+    let updated = global::server(&draft, draft.global.as_ref().unwrap()).unwrap();
+    assert_eq!(updated["name"], "demo");
+    assert_eq!(updated["type"], "http");
+    assert_eq!(updated["enabled"], true);
+    assert!(updated.get("command").is_none());
+}

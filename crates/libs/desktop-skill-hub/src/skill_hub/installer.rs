@@ -26,27 +26,10 @@ const MAX_MANIFEST_BYTES: u64 = 64 * 1024;
 const SHIJU_ENV_FILE_NAME: &str = ".env";
 const SHIJU_KEY_PREFIX: &str = "SHIJU_KEY=";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-/// 技能安装相对于用户主目录或当前项目生效的范围。
-pub enum SkillInstallScope {
-    Global,
-    Project,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-/// 识矩技能包支持写入的代理工具目录。
-pub enum SkillInstallTarget {
-    VibeWindow,
-    AgentSkills,
-    Codex,
-    WorkBuddy,
-    ClaudeCode,
-    OpenCode,
-    GeminiCli,
-    GitHubCopilot,
-    Cursor,
-    Windsurf,
-}
+pub use gateway_skill_market::{
+    SkillMarketInstallScopeDto as SkillInstallScope,
+    SkillMarketInstallTargetDto as SkillInstallTarget,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// 一个安装目标及其全局或项目范围选择。
@@ -166,7 +149,8 @@ pub fn resolve_skill_destinations(
                 vec![],
             ))?,
         };
-        let relative_skills_root = relative_skills_root(selection.target, selection.scope);
+        let relative_skills_root = relative_skills_root(selection.target, selection.scope)
+            .context("Unsupported skill installation scope for this target")?;
         let skills_root = base_dir.join(&relative_skills_root);
         let installed_dir = skills_root.join(SKILL_DIR_NAME);
         if !seen.insert(installed_dir.clone()) {
@@ -184,25 +168,11 @@ pub fn resolve_skill_destinations(
     Ok(destinations)
 }
 
-fn relative_skills_root(target: SkillInstallTarget, scope: SkillInstallScope) -> PathBuf {
-    let relative = match (target, scope) {
-        (SkillInstallTarget::VibeWindow, _) => {
-            return Path::new(HOME_CONFIG_DIR_NAME).join("skills");
-        }
-        (SkillInstallTarget::AgentSkills, _) => ".agents/skills",
-        (SkillInstallTarget::Codex, _) => ".codex/skills",
-        (SkillInstallTarget::WorkBuddy, _) => ".workbuddy/skills",
-        (SkillInstallTarget::ClaudeCode, _) => ".claude/skills",
-        (SkillInstallTarget::OpenCode, SkillInstallScope::Global) => ".config/opencode/skills",
-        (SkillInstallTarget::OpenCode, SkillInstallScope::Project) => ".opencode/skills",
-        (SkillInstallTarget::GeminiCli, _) => ".gemini/skills",
-        (SkillInstallTarget::GitHubCopilot, SkillInstallScope::Global) => ".copilot/skills",
-        (SkillInstallTarget::GitHubCopilot, SkillInstallScope::Project) => ".github/skills",
-        (SkillInstallTarget::Cursor, _) => ".cursor/skills",
-        (SkillInstallTarget::Windsurf, SkillInstallScope::Global) => ".codeium/windsurf/skills",
-        (SkillInstallTarget::Windsurf, SkillInstallScope::Project) => ".windsurf/skills",
-    };
-    PathBuf::from(relative)
+fn relative_skills_root(target: SkillInstallTarget, scope: SkillInstallScope) -> Option<PathBuf> {
+    if target == SkillInstallTarget::VibeWindow {
+        return Some(Path::new(HOME_CONFIG_DIR_NAME).join("skills"));
+    }
+    target.relative_directory(scope).map(PathBuf::from)
 }
 
 pub fn shiju_install_dir() -> Result<PathBuf> {

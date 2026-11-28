@@ -273,7 +273,7 @@ pub enum ThirdPartyPage {
 
 impl ThirdPartyPage {
     pub const ALL: &'static [(Self, &'static str)] = &[
-        (Self::AppsCatalog, "应用"), (Self::Agents, "智能体管理"), (Self::Mcp, "MCP"), (Self::Skills, "Skills"),
+        (Self::AppsCatalog, "应用"), (Self::Agents, "智能体管理"), (Self::Mcp, "MCP"), (Self::Skills, "技能"),
         (Self::Prompts, "提示词"), (Self::Sessions, "会话"), (Self::Authorization, "授权中心"),
     ];
 }

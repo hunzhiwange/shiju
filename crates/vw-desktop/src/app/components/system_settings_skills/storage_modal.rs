@@ -9,8 +9,8 @@ pub(super) fn view<'a>(
         return base;
     }
     let skill_count = storage.current.as_ref().and_then(|current| {
-        app.apps_catalog
-            .third_party_skills
+        app.skills_settings
+            .workspace
             .workspace
             .inventory
             .as_ref()

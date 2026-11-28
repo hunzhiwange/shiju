@@ -2,6 +2,7 @@ pub mod browser;
 pub mod catalog;
 pub mod prompts;
 pub mod types;
+pub mod sync;
 #[derive(Clone, Debug)]
 pub enum Event {
     PluginsSetEnabledRequested { plugin_id: String, enabled: bool },
@@ -13,6 +14,7 @@ pub enum Event {
     Selection(String, usize, usize, Option<String>),
     SkillsDirectoryScopeChanged(types::SkillsDirectoryScope),
     SkillsRefresh,
+    SkillsSync(sync::Event),
     SkillsInstallBuiltInRequested(String),
     SkillsSetEnabledRequested { skill_id: String, enabled: bool },
     SkillsDeleteRequested(String),

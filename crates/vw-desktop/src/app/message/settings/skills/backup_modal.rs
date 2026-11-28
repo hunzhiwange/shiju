@@ -9,12 +9,12 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let input = super::update_input(app);
     let event = match event {
         Event::Completed(generation, Ok(Readback::List(list, version, saved)))
-            if app.apps_catalog.third_party_skills.scope().is_some_and(|scope| {
+            if app.skills_settings.workspace.scope().is_some_and(|scope| {
                 input.context.as_ref() == Some(&scope.context) && input.host == scope.host
                     && input.project == scope.project && input.directory == scope.directory
             }) =>
         {
-            let page = &app.apps_catalog.third_party_skills;
+            let page = &app.skills_settings.workspace;
             let available = if page.bindings.snapshot.is_some() {
                 page.available_targets()
             } else {

@@ -239,6 +239,7 @@ impl State {
 pub enum ViewMessage {
     Binding(Action),
     Edit(McpRecordRef),
+    Sync(McpRecordRef),
     Menu(McpRecordRef),
     MenuAction(crate::management_probe::actions::MenuMessage),
     ColumnMenu(Option<McpAppTarget>),
@@ -254,11 +255,10 @@ pub fn panel<'a>(
     running: bool,
     menu: Option<&'a crate::management_probe::actions::State>,
 ) -> iced::Element<'a, ViewMessage> {
-    use desktop_assets::assets::Icon;
-    use desktop_ui_controls::system_settings_common::{icons::icon_btn_svg_style, *};
+    use desktop_ui_controls::system_settings_common::*;
     use iced::{
         Alignment, Length,
-        widget::{column, container, responsive, row, text, text_input},
+        widget::{column, responsive, row, text},
     };
 
     let count = catalog.and_then(|c| c.as_ref().ok()).map(|c| {
@@ -276,34 +276,10 @@ pub fn panel<'a>(
             .expect("valid extension display template")
         }
     });
-    let search = container(
-        row![
-            icon_svg(Icon::Search, 16.0).style(icon_btn_svg_style),
-            text_input(i18n.__("搜索名称、命令或地址"), &state.query)
-                .on_input(|q| ViewMessage::Binding(Action::Search(q)))
-                .style(|theme, status| {
-                    let mut style = settings_text_input_style(theme, status);
-                    style.background = iced::Color::TRANSPARENT.into();
-                    if !matches!(status, iced::widget::text_input::Status::Focused { .. }) {
-                        style.border = iced::Border::default();
-                    }
-                    style
-                })
-                .padding(SETTINGS_CONTROL_PADDING)
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .width(Length::Fill),
-        ]
-        .align_y(Alignment::Center),
-    )
-    .padding(iced::Padding::ZERO.left(10))
-    .style(search_style);
-    let mut toolbar = row![container(search).width(Length::Fill).max_width(332)]
-        .spacing(12)
-        .width(Length::Fill);
+    let mut body = column![].spacing(12).width(Length::Fill);
     if let Some(count) = count {
-        toolbar = toolbar.push(text(count).size(13).style(settings_muted_text_style));
+        body = body.push(text(count).size(13).style(settings_muted_text_style));
     }
-    let mut body = column![toolbar.align_y(Alignment::Center)].spacing(12).width(Length::Fill);
     if loading {
         return body.push(empty(i18n.__("正在加载目录…"))).into();
     }
@@ -493,6 +469,10 @@ fn matrix_table<'a>(
                             }
                         ),
                         summary.to_owned(),
+                    ),
+                    crate::toolbar_button(
+                        i18n.__("同步到第三方"),
+                        (!running).then(|| ViewMessage::Sync(record.record.clone())),
                     ),
                 ]
                 .spacing(3)
@@ -688,13 +668,6 @@ fn empty(label: &'static str) -> iced::Element<'static, ViewMessage> {
     iced::widget::container(iced::widget::text(label).size(13).style(settings_muted_text_style))
         .padding([16, 0])
         .into()
-}
-
-fn search_style(theme: &iced::Theme) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
-    iced::widget::container::Style::default().background(palette.background.base.color).border(
-        iced::Border { color: palette.background.strong.color, width: 1.0, radius: 9.0.into() },
-    )
 }
 
 pub(crate) fn app_label(app: AppId) -> &'static str {

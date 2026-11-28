@@ -69,24 +69,25 @@ pub(crate) fn execute(
                 .await
             },
             move |result| {
-                Message::Settings(SettingsMessage::AppsCatalog(
-                    AppsCatalogMessage::ThirdPartySkills(third_party::Message {
-                        scope: scope.clone(),
-                        catalog,
-                        action: third_party::Action::Workspace(Event::DirectoryOpened(
-                            result.map(|_| ()),
-                        )),
-                    }),
-                ))
+                message(third_party::Message {
+                    scope: scope.clone(),
+                    catalog,
+                    action: third_party::Action::Workspace(Event::DirectoryOpened(
+                        result.map(|_| ()),
+                    )),
+                })
             },
         );
     }
     if matches!(effect, Effect::None) {
         return Task::none();
     }
-    let page = &app.apps_catalog.third_party_skills;
+    let page = &app.skills_settings.workspace;
     let available = page.available_targets();
-    let targets = page.bindings.targets.iter()
+    let targets = page
+        .bindings
+        .targets
+        .iter()
         .filter(|target| available.contains(target))
         .cloned()
         .collect::<Vec<_>>();
@@ -264,13 +265,251 @@ pub(crate) fn execute(
             }
         },
         move |event| {
-            Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::ThirdPartySkills(
-                third_party::Message {
-                    scope: scope.clone(),
-                    catalog,
-                    action: third_party::Action::Workspace(event),
-                },
-            )))
+            message(third_party::Message {
+                scope: scope.clone(),
+                catalog,
+                action: third_party::Action::Workspace(event),
+            })
         },
     )
+}
+
+pub(super) fn view(app: &App) -> iced::Element<'_, Message> {
+    let applications = app.apps_catalog.rows.iter().map(|row| &row.entry).collect::<Vec<_>>();
+    desktop_settings_skills::third_party::view(
+        desktop_i18n::I18n::new(app.general_settings.desktop_locale),
+        &app.skills_settings.workspace,
+        &applications,
+        desktop_settings_apps::system_settings_apps::list::brand_icon,
+    )
+    .map(message)
+}
+
+fn message(event: third_party::Message) -> Message {
+    Message::Settings(SettingsMessage::SkillsWorkspace(event))
+}
+
+pub(super) fn open(app: &mut App) -> Task<Message> {
+    use crate::app::message::settings;
+    use third_party::Action;
+    let catalog_load = settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded);
+    let input = settings::skills::update_input(app);
+    let scope = input.context.map(|context| third_party::Scope {
+        context,
+        project: input.project,
+        host: input.host,
+        directory: input.directory,
+    });
+    if app.skills_settings.workspace.scope() == scope.as_ref() {
+        return catalog_load;
+    }
+    app.apps_catalog.navigation_generation = app.apps_catalog.navigation_generation.wrapping_add(1);
+    let catalog = app.apps_catalog.navigation_generation;
+    let state = &mut app.skills_settings.workspace;
+    state.sync(scope, catalog);
+    let Some(scope) = state.scope().cloned() else {
+        return catalog_load;
+    };
+    let scoped = |action| third_party::Message { scope: scope.clone(), catalog, action };
+    let inventory =
+        update(app, scoped(Action::Workspace(Event::Tab(third_party::workspace::Tab::Installed))));
+    let targets = update(
+        app,
+        scoped(Action::Binding(desktop_settings_skills::update::bindings_view::Event::Open)),
+    );
+    Task::batch([catalog_load, inventory, targets])
+}
+
+pub(crate) fn update(
+    app: &mut App,
+    event: desktop_settings_skills::third_party::Message,
+) -> Task<Message> {
+    if !super::workspace_visible(app) {
+        return Task::none();
+    }
+    use desktop_settings_skills::{
+        third_party::{Action, DirectoryAction, Effect},
+        update::bindings_view,
+    };
+    let mut input = crate::app::message::settings::skills::update_input(app);
+    input.catalog = app.apps_catalog.navigation_generation;
+    use desktop_settings_skills::third_party::workspace::Event as WorkspaceEvent;
+    if matches!(
+        &event.action,
+        Action::Workspace(WorkspaceEvent::Install(_) | WorkspaceEvent::ConfirmRepository)
+            | Action::Directory(DirectoryAction::Import)
+    ) {
+        let page = &app.skills_settings.workspace;
+        if page.awaiting_target_snapshot() || app.apps_catalog.loading {
+            return app.show_message_toast(
+                crate::app::state::ToastKind::Error,
+                desktop_i18n::settings_extensions::feedback_message(
+                    &(if page.bindings.busy || app.apps_catalog.loading {
+                        "正在读取当前项目的安装目标，请稍候"
+                    } else {
+                        "安装目标读取失败，请在「安装到」中重试或选择「仅主副本」"
+                    }),
+                ),
+            );
+        }
+    }
+    let inventory_readback =
+        matches!(&event.action, Action::Workspace(WorkspaceEvent::Loaded(_, Ok(_))));
+    let snapshot_version =
+        app.skills_settings.workspace.bindings.snapshot.as_ref().map(|snapshot| snapshot.version);
+    match desktop_settings_skills::third_party::update(
+        &mut app.skills_settings.workspace,
+        &input,
+        event,
+    ) {
+        Effect::None => Task::none(),
+        Effect::Workspace { scope, catalog, effect } => {
+            let page = &app.skills_settings.workspace;
+            let reload_bindings = inventory_readback
+                && !page.bindings.busy
+                && page
+                    .workspace
+                    .inventory
+                    .as_ref()
+                    .zip(page.bindings.snapshot.as_ref())
+                    .is_some_and(|(inventory, snapshot)| inventory.version != snapshot.version);
+            let refresh = reload_bindings.then(|| desktop_settings_skills::third_party::Message {
+                scope: scope.clone(),
+                catalog,
+                action: Action::Binding(bindings_view::Event::Refresh),
+            });
+            let workspace = execute(app, scope, catalog, effect);
+            if let Some(event) = refresh {
+                return Task::batch([workspace, update(app, event)]);
+            }
+            workspace
+        }
+        Effect::Binding { scope, catalog, effect } => match effect {
+            bindings_view::Effect::None => Task::none(),
+            bindings_view::Effect::Error(error) => {
+                let toast = app.show_message_toast(
+                    crate::app::state::ToastKind::Error,
+                    desktop_i18n::settings_extensions::feedback_message(&(error)),
+                );
+                let versions_changed = app
+                    .skills_settings
+                    .workspace
+                    .bindings
+                    .snapshot
+                    .as_ref()
+                    .zip(app.skills_settings.workspace.workspace.inventory.as_ref())
+                    .is_some_and(|(snapshot, inventory)| {
+                        Some(snapshot.version) != snapshot_version
+                            && snapshot.version != inventory.version
+                    });
+                if versions_changed {
+                    return Task::batch([
+                        toast,
+                        crate::app::message::settings::skills::refresh_workspace(app),
+                    ]);
+                }
+                toast
+            }
+            bindings_view::Effect::Success(notice) => Task::batch([
+                app.show_message_toast(
+                    crate::app::state::ToastKind::Success,
+                    desktop_i18n::settings_extensions::feedback_message(&(notice)),
+                ),
+                crate::app::message::settings::skills::refresh_workspace(app),
+            ]),
+            bindings_view::Effect::Request { generation, scope: request_scope, change } => {
+                let token = app.apps_catalog.token.clone();
+                Task::perform(
+                    async move {
+                        desktop_session::session_gateway::gateway_skill_bindings_request(
+                            crate::app::config::gateway_client_endpoint(),
+                            request_scope,
+                            token,
+                            change,
+                        )
+                        .await
+                    },
+                    move |result| {
+                        message(third_party::Message {
+                            scope: scope.clone(),
+                            catalog,
+                            action: Action::Binding(bindings_view::Event::Completed(
+                                generation, result,
+                            )),
+                        })
+                    },
+                )
+            }
+        },
+        Effect::Directory { action, .. } => {
+            use crate::app::message::settings::skills;
+            let event = match action {
+                DirectoryAction::Claude => {
+                    SettingsMessage::SkillsClaudeConfig(skills::claude_view::Event::Open)
+                }
+                DirectoryAction::Repositories => {
+                    SettingsMessage::SkillRepositories(skills::repo_modal::Event::Open)
+                }
+                DirectoryAction::Import => {
+                    SettingsMessage::SkillsImport(skills::import_modal::Event::Open)
+                }
+                DirectoryAction::Install => {
+                    SettingsMessage::SkillsInstall(skills::install_view::Event::Open)
+                }
+                DirectoryAction::Market => {
+                    SettingsMessage::SkillsMarket(skills::market_view::Event::Open)
+                }
+                DirectoryAction::Updates => {
+                    SettingsMessage::SkillsUpdates(skills::updates_view::Event::Open)
+                }
+                DirectoryAction::Jobs => {
+                    SettingsMessage::SkillsJobs(skills::jobs_view::Event::Open)
+                }
+                DirectoryAction::Storage => {
+                    SettingsMessage::SkillsStorage(skills::storage_modal::Event::Open)
+                }
+                DirectoryAction::Backup => {
+                    SettingsMessage::SkillsBackups(skills::backup_modal::Event::Open)
+                }
+            };
+            let opening_import =
+                matches!(action, DirectoryAction::Import) && !app.skills_settings.import.open;
+            let task = skills::update(app, event);
+            if opening_import && app.skills_settings.import.open {
+                let page = &app.skills_settings.workspace;
+                let import = &mut app.skills_settings.import;
+                import.available_targets = page.available_targets();
+                import.targets = page
+                    .bindings
+                    .targets
+                    .iter()
+                    .filter(|target| import.available_targets.contains(target))
+                    .cloned()
+                    .collect();
+                let scan_sources = import
+                    .targets
+                    .iter()
+                    .map(|target| target.app_id)
+                    .filter(|id| desktop_settings_skills::import_modal::APPS.contains(id));
+                if let Some(source) = scan_sources
+                    .clone()
+                    .find(|id| *id == vw_api_types::agent_apps::AppId::Codex)
+                    .or_else(|| scan_sources.into_iter().next())
+                {
+                    import.apps.push(source);
+                    let scan = skills::update(
+                        app,
+                        SettingsMessage::SkillsImport(skills::import_modal::Event::Scan),
+                    );
+                    return Task::batch([task, scan]);
+                }
+            }
+            if matches!(action, DirectoryAction::Backup) {
+                // The list readback validates these choices against the same scope.
+                app.skills_settings.backups.targets =
+                    app.skills_settings.workspace.bindings.targets.clone();
+            }
+            task
+        }
+    }
 }

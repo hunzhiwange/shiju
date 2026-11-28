@@ -739,7 +739,7 @@ async fn help_rollout_10_renders_contextual_help() {
         let context = (size, &theme, locale);
         app.skills_settings.active_tab = SkillsSettingsTab::SystemConfig;
         let mut ui = scene(view(&app), &mut renderer, size);
-        let title = geometry(&mut ui, &renderer).label(tr(locale, "技能配置"));
+        let title = geometry(&mut ui, &renderer).label(tr(locale, "本地技能配置"));
         let help_icon = iced::Point::new(title.x + title.width + 17.0, title.center_y());
         assert!(matches!(
             click(&mut ui, &mut renderer, help_icon).as_slice(),

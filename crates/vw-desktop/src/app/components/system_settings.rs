@@ -428,7 +428,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     if app.navigation_panels.system_settings_tab == SystemTab::Apps {
-        dialog = super::third_party_settings::overlays(app, dialog);
         dialog = super::system_settings_apps::view_overlays(
             app,
             crate::app::i18n::I18n::new(app.general_settings.desktop_locale),

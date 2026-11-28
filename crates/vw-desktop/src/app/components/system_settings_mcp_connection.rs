@@ -9,6 +9,9 @@ pub(crate) fn connection_form_panel(
 ) -> Element<'_, Message> {
     desktop_settings_mcp::management_form::panel(i18n, draft).map(|event| {
         message(match event {
+            ui::FormMessage::IncludeGlobal(value) => FormMessage::IncludeGlobal(value),
+            ui::FormMessage::GlobalEnabled(value) => FormMessage::GlobalEnabled(value),
+            ui::FormMessage::GlobalRequired(value) => FormMessage::GlobalRequired(value),
             ui::FormMessage::Replace(value) => FormMessage::Replace(value),
             ui::FormMessage::ArgAdd => FormMessage::ArgAdd,
             ui::FormMessage::ArgRemove(index) => FormMessage::ArgRemove(index),

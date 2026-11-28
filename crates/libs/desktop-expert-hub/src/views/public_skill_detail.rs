@@ -118,7 +118,7 @@ pub fn detail_target_action_message(
 ) -> Option<Message> {
     let removing_last = detail.selected_install_targets.len() == 1
         && detail.selected_install_targets.first().is_some_and(|selected| *selected == target);
-    (!detail.install_is_busy() && !removing_last)
+    (!detail.install_is_busy() && !removing_last && target.supports_scope(detail.install_scope))
         .then_some(public_message(PublicSkillMessage::ToggleDetailInstallTarget(target)))
 }
 
@@ -298,11 +298,11 @@ fn install_target_card(
     directory_name: &str,
 ) -> Element<'static, Message> {
     let selected = detail.selected_install_targets.contains(&presentation.target);
-    let path = format!(
-        "{}/{}",
-        target_root_label(presentation.target, detail.install_scope),
-        directory_name
-    );
+    let path = if presentation.target.supports_scope(detail.install_scope) {
+        format!("{}/{}", target_root_label(presentation.target, detail.install_scope), directory_name)
+    } else {
+        String::new()
+    };
     let mut path_text = text(path.clone()).size(11);
     if path.is_ascii() {
         path_text = path_text.font(Font::MONOSPACE);
@@ -352,6 +352,25 @@ fn skill_install_options(
     let directory_name = installed_id(&detail.target);
     let target_cards = install_target_presentations(detail.install_scope)
         .into_iter()
+        .chain(
+            SkillInstallTarget::THIRD_PARTY_AGENTS
+                .into_iter()
+                .filter(|target| {
+                    !desktop_skill_hub::skill_operations::SHIJU_INSTALL_TARGETS.contains(target)
+                })
+                .map(|target| InstallTargetPresentation {
+                    target,
+                    name: target.name(),
+                    compatibility: if target == SkillInstallTarget::ClaudeDesktop {
+                        "请在 Claude Desktop 中上传技能 ZIP"
+                    } else if !target.supports_scope(detail.install_scope) {
+                        "支持全局安装"
+                    } else {
+                        "原生技能目录"
+                    },
+                    path: String::new(),
+                }),
+        )
         .map(|presentation| install_target_card(i18n, detail, presentation, &directory_name))
         .collect::<Vec<_>>();
     let mut content = column![

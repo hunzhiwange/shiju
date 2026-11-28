@@ -6,7 +6,7 @@ use std::path::Path;
 use anyhow::{Context, Result, ensure};
 use config_skills::SkillSecurityConfig;
 
-use crate::installer::{copy_dir_recursive_secure, enforce_skill_security_audit};
+use crate::installer::{copy_filtered_skill_dir, enforce_skill_security_audit};
 use crate::loader::{load_skill_toml, read_markdown_skill_metadata};
 use crate::marketplace::install::{ensure_skills_root, ensure_target_absent};
 use crate::types::SkillLoadMode;
@@ -17,7 +17,24 @@ pub fn import_skill_folder(
     security: &SkillSecurityConfig,
 ) -> Result<()> {
     let name = source.file_name().and_then(|name| name.to_str()).context("无效的技能目录名")?;
-    import_directory(source, name, skills_root, security)
+    import_directory(source, name, skills_root, security, &|_| true)
+}
+
+/// Install a local skill on another agent without distributing environment files.
+pub fn distribute_skill_folder(
+    source: &Path,
+    skills_root: &Path,
+    security: &SkillSecurityConfig,
+) -> Result<()> {
+    let name = source.file_name().and_then(|name| name.to_str()).context("无效的技能目录名")?;
+    ensure!(
+        fs::symlink_metadata(source.join("SKILL.md")).is_ok_and(|metadata| metadata.is_file()),
+        "该技能缺少可同步的 SKILL.md"
+    );
+    import_directory(source, name, skills_root, security, &|file_name| {
+        let file_name = file_name.to_string_lossy().to_ascii_lowercase();
+        file_name != ".env" && !file_name.starts_with(".env.")
+    })
 }
 
 /// Report per-skill failures so that successful imports remain visible after a partial import.
@@ -50,7 +67,7 @@ pub fn import_skill_zip(
     let mut installed = 0;
     let mut errors = Vec::new();
     for (directory, name) in candidates {
-        match import_directory(&directory, &name, skills_root, security) {
+        match import_directory(&directory, &name, skills_root, security, &|_| true) {
             Ok(()) => installed += 1,
             Err(error) => errors.push(format!("{name}：{error:#}")),
         }
@@ -63,6 +80,7 @@ fn import_directory(
     name: &str,
     skills_root: &Path,
     security: &SkillSecurityConfig,
+    include: &impl Fn(&std::ffi::OsStr) -> bool,
 ) -> Result<()> {
     ensure!(
         !name.is_empty()
@@ -83,7 +101,7 @@ fn import_directory(
     let parent = skills_root.parent().context("无效的目标技能目录")?;
     let staging = tempfile::Builder::new().prefix(".skill-import-").tempdir_in(parent)?;
     let skill = staging.path().join(name);
-    copy_dir_recursive_secure(&source, &skill)?;
+    copy_filtered_skill_dir(&source, &skill, include)?;
     if manifest == "SKILL.toml" {
         load_skill_toml(&skill.join(manifest), SkillLoadMode::Full)?;
     } else {
@@ -101,3 +119,7 @@ fn skill_manifest(directory: &Path) -> Option<&'static str> {
         fs::symlink_metadata(directory.join(name)).is_ok_and(|metadata| metadata.is_file())
     })
 }
+
+#[cfg(test)]
+#[path = "import_tests.rs"]
+mod tests;

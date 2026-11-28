@@ -1,13 +1,13 @@
 //! Skills catalog page composition.
 use crate::Event as Message;
-use crate::catalog::{catalog_group_section, catalog_matches_query, icon_svg};
+use crate::catalog::{catalog_group_with_sync, catalog_matches_query, icon_svg};
 use crate::types::SkillsDirectoryScope;
 use crate::{BrowserContext, Event};
 use desktop_assets::assets::Icon;
 use desktop_i18n::settings_extensions::text as tr;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_field_label,
-    settings_group_card, settings_muted_text_style, settings_text_input_style,
+    settings_group_card, settings_group_header, settings_muted_text_style, settings_text_input_style,
 };
 use desktop_ui_controls::system_settings_common::select::settings_project_select;
 use iced::widget::{column, container, row, text, text_input};
@@ -39,6 +39,15 @@ pub use crate::browser_widgets::{
 pub fn view<'a, 'name>(
     app: BrowserContext<'a>,
     project_name: impl Fn(&str) -> Option<&'name str>,
+) -> Element<'a, Message> {
+    view_with_sync(app, project_name, false, None)
+}
+
+pub fn view_with_sync<'a, 'name>(
+    app: BrowserContext<'a>,
+    project_name: impl Fn(&str) -> Option<&'name str>,
+    sync_available: bool,
+    menu: Option<&(String, iced::Point)>,
 ) -> Element<'a, Message> {
     let locale = app.desktop_locale;
     let s = app.skills_settings;
@@ -144,28 +153,27 @@ pub fn view<'a, 'name>(
         content = content.push(status_banner(rendered, s.status_is_error));
     }
 
-    let mut catalog_panel = column![
-        row![
-            column![
-                text(tr(locale, scope_title(s.directory_scope))).size(18),
-                text(scope_description(locale, s.directory_scope))
-                    .size(13)
-                    .style(settings_muted_text_style),
-            ]
-            .spacing(4)
-            .width(Length::Fill),
-            text(
-                desktop_i18n::__!(desktop_i18n::I18n::new(locale), "%u 项技能", skills.len())
-                    .expect("valid skill results template")
-            )
-            .size(12)
-            .style(settings_muted_text_style),
+    let scope_heading = row![
+        column![
+            text(tr(locale, scope_title(s.directory_scope))).size(18),
+            text(scope_description(locale, s.directory_scope))
+                .size(13)
+                .style(settings_muted_text_style),
         ]
-        .spacing(10)
-        .align_y(Alignment::Center),
+        .spacing(4)
+        .width(Length::Fill),
+        text(
+            desktop_i18n::__!(desktop_i18n::I18n::new(locale), "%u 项技能", skills.len())
+                .expect("valid skill results template")
+        )
+        .size(12)
+        .style(settings_muted_text_style),
     ]
-    .spacing(20)
-    .width(Length::Fill);
+    .spacing(10)
+    .align_y(Alignment::Center);
+    let mut catalog_panel = column![settings_group_header(scope_heading)]
+        .spacing(20)
+        .width(Length::Fill);
 
     if s.loading {
         catalog_panel =
@@ -182,35 +190,43 @@ pub fn view<'a, 'name>(
         skills.iter().filter(|skill| skill.source == "bundled").cloned().collect::<Vec<_>>();
 
     if !workspace.is_empty() {
-        catalog_panel = catalog_panel.push(catalog_group_section(
+        catalog_panel = catalog_panel.push(catalog_group_with_sync(
             locale,
             "workspace",
             workspace,
             s.selected_skill_id.as_deref(),
+            sync_available,
+            menu,
         ));
     }
     if !ancestor.is_empty() {
-        catalog_panel = catalog_panel.push(catalog_group_section(
+        catalog_panel = catalog_panel.push(catalog_group_with_sync(
             locale,
             "ancestor",
             ancestor,
             s.selected_skill_id.as_deref(),
+            sync_available,
+            menu,
         ));
     }
     if !global.is_empty() {
-        catalog_panel = catalog_panel.push(catalog_group_section(
+        catalog_panel = catalog_panel.push(catalog_group_with_sync(
             locale,
             "global",
             global,
             s.selected_skill_id.as_deref(),
+            sync_available,
+            menu,
         ));
     }
     if !bundled.is_empty() {
-        catalog_panel = catalog_panel.push(catalog_group_section(
+        catalog_panel = catalog_panel.push(catalog_group_with_sync(
             locale,
             "bundled",
             bundled,
             s.selected_skill_id.as_deref(),
+            sync_available,
+            menu,
         ));
     }
 

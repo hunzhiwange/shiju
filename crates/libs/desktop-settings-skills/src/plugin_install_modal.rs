@@ -2,7 +2,7 @@
 use desktop_ui_controls::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button,
     settings_control_with_hint, settings_error_banner, settings_field_label, settings_group_card,
-    settings_group_heading_with_help, settings_modal_header, settings_modal_layout,
+    settings_page_heading_with_help, settings_modal_header, settings_modal_layout,
     settings_modal_overlay, settings_muted_text_style, settings_text_input,
 };
 use desktop_i18n::{I18n, settings_extensions::text as tr};
@@ -160,7 +160,7 @@ pub fn view<'a, M: desktop_ui_controls::selectable_text::markdown_selection::Sel
     .style(primary_action_btn_style)
     .on_press_maybe(form.can_confirm().then_some(event(SettingsMessage::PluginsInstallConfirm)));
     let header = settings_modal_header(
-        settings_group_heading_with_help(
+        settings_page_heading_with_help(
             I18n::new(locale),
             theme,
             title,

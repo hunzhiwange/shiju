@@ -31,13 +31,8 @@ pub(crate) fn handoff(app: &mut App, id: u64) -> Task<Message> {
             vec![],
         );
     }
-    let navigation = crate::app::components::third_party_settings::navigate(
-        app,
-        desktop_ui_controls::settings_navigation::ThirdPartyPage::Mcp,
-    );
-    if app.apps_catalog.third_party_page
-        != desktop_ui_controls::settings_navigation::ThirdPartyPage::Mcp
-    {
+    let navigation = crate::app::components::system_settings_mcp::open(app);
+    if !crate::app::components::system_settings_mcp::is_visible(app) {
         return navigation;
     }
     if !mcp_management_import::open_link(app, drafts) {
@@ -47,8 +42,6 @@ pub(crate) fn handoff(app: &mut App, id: u64) -> Task<Message> {
             vec![],
         );
     }
-    app.navigation_tabs.screen = crate::app::Screen::ThirdPartyAgents;
-    app.navigation_panels.show_system_settings = false;
     let _ = deep_links::acknowledge(id);
     navigation
 }

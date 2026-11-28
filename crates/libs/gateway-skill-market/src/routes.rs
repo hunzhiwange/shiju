@@ -453,32 +453,12 @@ fn resolve_explicit_install_roots(
                     })?
                     .to_path_buf()
             }
-            (SkillMarketInstallTargetDto::AgentSkills, _) => base.join(".agents/skills"),
-            (SkillMarketInstallTargetDto::Codex, _) => base.join(".codex/skills"),
-            (SkillMarketInstallTargetDto::WorkBuddy, _) => base.join(".workbuddy/skills"),
-            (SkillMarketInstallTargetDto::ClaudeCode, _) => base.join(".claude/skills"),
-            (SkillMarketInstallTargetDto::OpenCode, SkillMarketInstallScopeDto::Global) => {
-                base.join(".config/opencode/skills")
-            }
-            (SkillMarketInstallTargetDto::OpenCode, SkillMarketInstallScopeDto::Project) => {
-                base.join(".opencode/skills")
-            }
-            (SkillMarketInstallTargetDto::GeminiCli, _) => base.join(".gemini/skills"),
-            (SkillMarketInstallTargetDto::GitHubCopilot, SkillMarketInstallScopeDto::Global) => {
-                base.join(".copilot/skills")
-            }
-            (SkillMarketInstallTargetDto::GitHubCopilot, SkillMarketInstallScopeDto::Project) => {
-                base.join(".github/skills")
-            }
-            (SkillMarketInstallTargetDto::Cursor, _) => base.join(".cursor/skills"),
-            (SkillMarketInstallTargetDto::Windsurf, SkillMarketInstallScopeDto::Global) => {
-                base.join(".codeium/windsurf/skills")
-            }
-            (SkillMarketInstallTargetDto::Windsurf, SkillMarketInstallScopeDto::Project) => {
-                base.join(".windsurf/skills")
-            }
+            (target, scope) => base.join(target.relative_directory(scope).ok_or_else(|| {
+                MarketApiError::bad_request("skill install scope is not supported by the target")
+            })?),
         };
-        validate_target_root(base, &root)?;
+        agent_skills::local_sources::validate_skill_target_root(base, &root)
+            .map_err(MarketApiError::bad_request)?;
         if seen.insert(root.clone()) {
             roots.push(root);
         }
@@ -491,41 +471,6 @@ fn validate_real_base(path: &FsPath, label: &str) -> Result<(), MarketApiError> 
         .map_err(|_| MarketApiError::bad_request(format!("{label} must exist")))?;
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
         return Err(MarketApiError::bad_request(format!("{label} must be a real directory")));
-    }
-    Ok(())
-}
-
-fn validate_target_root(base: &FsPath, target: &FsPath) -> Result<(), MarketApiError> {
-    let relative = target
-        .strip_prefix(base)
-        .map_err(|_| MarketApiError::bad_request("skill install target escapes its base"))?;
-    let mut current = base.to_path_buf();
-    for component in relative.components() {
-        let std::path::Component::Normal(component) = component else {
-            return Err(MarketApiError::bad_request(
-                "skill install target contains an invalid component",
-            ));
-        };
-        current.push(component);
-        match std::fs::symlink_metadata(&current) {
-            Ok(metadata) if metadata.file_type().is_symlink() => {
-                return Err(MarketApiError::bad_request(
-                    "skill install target cannot traverse a symbolic link",
-                ));
-            }
-            Ok(metadata) if !metadata.is_dir() => {
-                return Err(MarketApiError::bad_request(
-                    "skill install target ancestor must be a directory",
-                ));
-            }
-            Ok(_) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
-            Err(_) => {
-                return Err(MarketApiError::bad_request(
-                    "skill install target could not be inspected",
-                ));
-            }
-        }
     }
     Ok(())
 }

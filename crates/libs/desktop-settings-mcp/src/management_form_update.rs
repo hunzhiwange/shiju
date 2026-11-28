@@ -5,9 +5,19 @@ fn authorized(app: &Update<'_>, context: &crate::management_context::Context) ->
     app.context.as_ref() == Some(context) && app.authorized && !context.host.is_empty()
 }
 pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
+    let sync_only = matches!(&event, FormMessage::Sync(_) | FormMessage::OpenGlobal(_, true));
+    let open_global = match &event {
+        FormMessage::OpenGlobal(index, _) => Some(*index),
+        _ => None,
+    };
+    let event = match event {
+        FormMessage::OpenGlobal(..) => FormMessage::Open(None),
+        FormMessage::Sync(record) => FormMessage::Open(Some(record)),
+        event => event,
+    };
     match event {
         FormMessage::Open(record) => {
-            if app.state.connection_form.is_some() {
+            if app.state.modal_open() || app.state.resync.open || app.state.mutating() {
                 return Task::none();
             }
             let Some(context) = scope::context(app).filter(|context| authorized(app, context))
@@ -20,31 +30,51 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
                     return app.error("目录已变化，请刷新");
                 }
             }
-            let new = record.is_none();
             let mut draft = Draft::new(context.clone(), record);
+            draft.sync_only = sync_only;
+            if let Some(index) = open_global {
+                if app.state.page.loading || app.state.page.transfer_pending {
+                    return Task::none();
+                }
+                if let Err(error) = global::open(&mut draft, &app.state.page, index) {
+                    return app.error(error);
+                }
+            }
             if let Some(Ok(catalog)) = scope::visible(app) {
                 draft.catalog = catalog.records.clone();
                 draft.bindings = catalog.bindings.clone();
                 draft.capabilities = catalog.capabilities.clone();
-                draft.targets = app
-                    .targets
-                    .iter()
-                    .filter(|target| target.target_host_id == context.host)
-                    .map(|target| {
-                        let enabled = draft.record.as_ref().is_some_and(|record| {
-                            catalog.bindings.iter().any(|binding| {
-                                binding.record.id == record.record.id
-                                    && binding.target == *target
-                                    && binding.enabled
-                            })
-                        });
-                        (target.clone(), enabled, enabled, false)
-                    })
-                    .collect();
+                let global_id = draft
+                    .global
+                    .as_ref()
+                    .and_then(|global| global.original.as_ref())
+                    .map(|_| draft.id.trim());
+                draft.targets =
+                    app.targets
+                        .iter()
+                        .filter(|target| target.target_host_id == context.host)
+                        .filter(|_| !config_tools::is_builtin_mcp_server_id(&draft.id))
+                        .map(|target| {
+                            let enabled =
+                                catalog.bindings.iter().any(|binding| {
+                                    (draft.record.as_ref().is_some_and(|record| {
+                                        binding.record.id == record.record.id
+                                    }) || global_id == Some(binding.record.id.0.as_str()))
+                                        && binding.target == *target
+                                        && binding.enabled
+                                });
+                            let selected = if sync_only {
+                                enabled && draft.target_supported(target)
+                            } else {
+                                enabled && draft.global.is_none()
+                            };
+                            (target.clone(), selected, enabled && draft.global.is_none(), false)
+                        })
+                        .collect();
             }
             draft.select_default_target();
             app.state.connection_form = Some(draft);
-            if new && let Ok(client) = app.client.clone() {
+            if !sync_only && let Ok(client) = app.client.clone() {
                 let token = app.token.clone();
                 let generation = app.state.connection_form.as_ref().unwrap().generation;
                 return Task::perform(
@@ -60,44 +90,41 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
                 );
             }
         }
-        FormMessage::Saved(context, result) => {
+        FormMessage::Saved(context, result) => return finish(app, context, result),
+        FormMessage::GlobalSaved { context, generation, written, result } => {
             let current = authorized(app, &context);
-            let Some(draft) =
-                app.state.connection_form.as_mut().filter(|d| d.context == context && d.saving)
+            let Some(draft) = app
+                .state
+                .connection_form
+                .as_mut()
+                .filter(|d| d.context == context && d.generation == generation && d.saving)
             else {
                 return Task::none();
             };
-            if let Ok(record) = &result {
-                draft.record = Some(record.clone());
-            }
             if !current {
-                draft.finish(&Err("连接上下文已变化，请关闭后重新编辑".into()));
+                app.state.connection_form = None;
                 return app.refresh();
             }
-            draft.finish(&result);
+            let wrote_global = written.is_some();
+            if let Some(written) = written
+                && let Some(global) = &mut draft.global
+            {
+                global.original = Some(written);
+            }
             match result {
-                Ok(record) => {
-                    draft.record = Some(record.clone());
-                    let jobs: Vec<_> = draft
-                        .targets
-                        .iter()
-                        .filter(|(_, selected, original, _)| {
-                            selected != original || (draft.replace_connection && *selected)
-                        })
-                        .map(|(target, selected, _, _)| (target.clone(), *selected))
-                        .collect();
-                    if jobs.is_empty() {
-                        advance(&mut app.state.connection_form);
-                        return Task::batch([app.success("定义已保存"), app.refresh()]);
-                    }
-                    let Ok(client) = app.client.clone() else {
-                        return app.error("定义已保存，网关不可用，请重试发布");
-                    };
-                    draft.saving = true;
-                    let generation = draft.generation;
-                    return deliver(client, app.token.clone(), context, generation, record, jobs);
+                Ok(Some(record)) => return finish(app, context, Ok(record)),
+                Ok(None) => {
+                    advance(&mut app.state.connection_form);
+                    return app.success("定义已保存");
                 }
-                Err(error) => return Task::batch([app.error(error), app.refresh()]),
+                Err(error) => {
+                    if wrote_global {
+                        app.effects.push(crate::management_effect::Effect::Info(
+                            "识矩全局配置已保存".into(),
+                        ));
+                    }
+                    return finish(app, context, Err(error));
+                }
             }
         }
         FormMessage::Distributed(context, generation, results) => {
@@ -169,7 +196,7 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
             let Some(draft) = app.state.connection_form.as_ref() else {
                 return Task::none();
             };
-            if draft.saving {
+            if draft.saving || !draft.deliveries.is_empty() {
                 return Task::none();
             }
             if !authorized(app, &draft.context) {
@@ -189,11 +216,83 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
             let Ok(client) = app.client.clone() else {
                 return app.error("网关不可用");
             };
+            let token = app.token.clone();
+            let mut snapshot = draft.clone();
+            if draft.sync_only && !draft.targets.iter().any(|(_, selected, _, _)| *selected) {
+                return Task::none();
+            }
+            if let Some(global) = &draft.global {
+                let write = if global.include_global && !draft.sync_only {
+                    match global::server(draft, global) {
+                        Ok(server) => Some(server),
+                        Err(error) => {
+                            app.state.connection_form.as_mut().unwrap().error = Some(error);
+                            return Task::none();
+                        }
+                    }
+                } else {
+                    None
+                };
+                let publish = !global.include_global
+                    || draft.targets.iter().any(|(_, selected, original, _)| {
+                        *selected || (!draft.sync_only && *original)
+                    });
+                if publish && global.include_global {
+                    snapshot.record = draft
+                        .catalog
+                        .iter()
+                        .find(|record| {
+                            record.record.id.0 == draft.id.trim()
+                                && matches!(
+                                    &record.scope,
+                                    vw_api_mcp_management::McpCatalogScope::Tenant { .. }
+                                )
+                        })
+                        .cloned();
+                }
+                snapshot.id = snapshot.id.trim().to_owned();
+                let original = global.original.clone();
+                let context = draft.context.clone();
+                let generation = draft.generation;
+                let draft = app.state.connection_form.as_mut().unwrap();
+                draft.saving = true;
+                draft.error = None;
+                return Task::perform(
+                    async move {
+                        let (written, result) =
+                            match global::persist(&client, original.as_ref(), write.as_ref()).await
+                            {
+                                Ok(()) => {
+                                    let result = if publish {
+                                        save(&client, &token, snapshot).await.map(Some)
+                                    } else {
+                                        Ok(None)
+                                    };
+                                    (write, result)
+                                }
+                                Err(error) => (None, Err(error)),
+                            };
+                        FormMessage::GlobalSaved { context, generation, written, result }
+                    },
+                    std::convert::identity,
+                );
+            }
+            if draft.sync_only {
+                if let Some(record) = snapshot.record.take() {
+                    if !scope::visible(app)
+                        .and_then(|result| result.as_ref().ok())
+                        .is_some_and(|catalog| catalog.records.contains(&record))
+                    {
+                        return app.error("目录已变化，请刷新");
+                    }
+                    app.state.connection_form.as_mut().unwrap().saving = true;
+                    return finish(app, snapshot.context, Ok(record));
+                }
+                return Task::none();
+            }
             let draft = app.state.connection_form.as_mut().unwrap();
             draft.saving = true;
             draft.error = None;
-            let snapshot = draft.clone();
-            let token = app.token.clone();
             return Task::perform(
                 async move {
                     let context = snapshot.context.clone();
@@ -212,7 +311,15 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
             }
             match event {
                 FormMessage::Close => app.state.connection_form = None,
+                _ if !draft.deliveries.is_empty() => {}
+                FormMessage::Target(index, selected) => {
+                    draft.edit(FormMessage::Target(index, selected))
+                }
+                _ if draft.sync_only => {}
                 event @ (FormMessage::Replace(_)
+                | FormMessage::IncludeGlobal(_)
+                | FormMessage::GlobalEnabled(_)
+                | FormMessage::GlobalRequired(_)
                 | FormMessage::ArgAdd
                 | FormMessage::ArgRemove(_)
                 | FormMessage::ArgSet(..)
@@ -221,7 +328,6 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
                 | FormMessage::ChoosePaste(_)
                 | FormMessage::SkipPaste(_)
                 | FormMessage::Details(_)
-                | FormMessage::Target(..)
                 | FormMessage::Field(..)
                 | FormMessage::ValueAdd
                 | FormMessage::ValueRemove(_)
@@ -246,6 +352,56 @@ pub fn update(app: &mut Update<'_>, event: FormMessage) -> Task<FormMessage> {
         }
     }
     Task::none()
+}
+
+fn finish(
+    app: &mut Update<'_>,
+    context: crate::management_context::Context,
+    result: Result<vw_api_mcp_management::McpCatalogRecord, String>,
+) -> Task<FormMessage> {
+    let current = authorized(app, &context);
+    let targets = &app.targets;
+    let Some(draft) =
+        app.state.connection_form.as_mut().filter(|draft| draft.context == context && draft.saving)
+    else {
+        return Task::none();
+    };
+    if !current {
+        app.state.connection_form = None;
+        return app.refresh();
+    }
+    draft.finish(&result);
+    let record = match result {
+        Ok(record) => record,
+        Err(error) => return Task::batch([app.error(error), app.refresh()]),
+    };
+    draft.record = Some(record.clone());
+    let jobs = draft
+        .targets
+        .iter()
+        .filter(|(_, selected, original, _)| {
+            if draft.sync_only {
+                *selected
+            } else {
+                selected != original || (draft.replace_connection && *selected)
+            }
+        })
+        .map(|(target, selected, _, _)| (target.clone(), *selected))
+        .collect::<Vec<_>>();
+    if jobs.is_empty() {
+        advance(&mut app.state.connection_form);
+        return Task::batch([app.success("定义已保存"), app.refresh()]);
+    }
+    if jobs.iter().any(|(target, enabled)| {
+        !targets.contains(target) || (*enabled && !draft.target_supported(target))
+    }) {
+        return app.error("目标安装状态已变化，请刷新后重新编辑");
+    }
+    let Ok(client) = app.client.clone() else {
+        return app.error("定义已保存，网关不可用，请重试发布");
+    };
+    draft.saving = true;
+    deliver(client, app.token.clone(), context, draft.generation, record, jobs)
 }
 
 fn delivery_ok(result: &Result<vw_api_mcp_management::McpDistributionResult, String>) -> bool {
@@ -298,6 +454,13 @@ fn advance(form: &mut Option<Draft>) {
         return;
     }
     let mut next = Draft::new(previous.context, None);
+    next.global = previous.global.map(|mut global| {
+        global.original = None;
+        global.enabled = true;
+        global.required = false;
+        global.timeout = "30".into();
+        global
+    });
     next.candidates = previous.candidates;
     next.catalog = previous.catalog;
     if let Some(record) = previous.record {

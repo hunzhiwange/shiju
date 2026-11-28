@@ -37,6 +37,7 @@ gateway-mcp-read = { path = "../gateway-mcp-read" }
 gateway-mcp-probe = { path = "../gateway-mcp-probe" }
 gateway-http = { path = "../gateway-http" }
 gateway-app-settings = { path = "../gateway-app-settings" }
+gateway-config = { path = "../gateway-config" }
 vw-api-app-diagnostics = { path = "../api-app-diagnostics" }
 desktop-settings-apps = { path = "../desktop-settings-apps" }
 tokio = { version = "1", features = ["time"] }

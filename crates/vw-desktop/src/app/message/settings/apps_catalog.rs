@@ -12,9 +12,6 @@ pub enum AppsCatalogMessage {
     ToggleAgentProviderSearch,
     SelectPromptApp(vw_api_app_identity::AppId),
     Navigate(desktop_ui_controls::settings_navigation::ThirdPartyPage),
-    McpWorkspace(crate::app::components::third_party_settings::mcp_workspace::Event),
-    ThirdPartyMcp(desktop_settings_mcp::third_party::Message),
-    ThirdPartySkills(desktop_settings_skills::third_party::Message),
     ExternalSessions(crate::app::components::external_sessions::Event),
     ProjectProfiles(crate::app::message::project_profiles::Event),
     Routing(crate::app::components::app_routing::lifecycle::Event),
@@ -169,9 +166,6 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
             return Task::batch([load, open]);
         }
         AppsCatalogMessage::Navigate(page) => return crate::app::components::third_party_settings::navigate(app, page),
-        AppsCatalogMessage::McpWorkspace(event) => return crate::app::components::third_party_settings::mcp_workspace::update(app, event),
-        AppsCatalogMessage::ThirdPartyMcp(event) => return crate::app::components::third_party_settings::mcp_update(app, event),
-        AppsCatalogMessage::ThirdPartySkills(event) => return crate::app::components::third_party_settings::skills_update(app, event),
         AppsCatalogMessage::ExternalSessions(event) => return crate::app::components::external_sessions::update(app, event),
         AppsCatalogMessage::Routing(event) => return crate::app::components::app_routing::lifecycle::update(app, event),
         AppsCatalogMessage::OpenClawCatalog(event) => return crate::app::components::openclaw_catalog::update(app, event),
@@ -413,13 +407,13 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
                 if let Some(error) = app.apps_catalog.error.clone() {
                     return app.show_error_toast(error);
                 }
-                if app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Skills
-                    && app.apps_catalog.third_party_skills.scope().is_some_and(|scope| {
+                if crate::app::components::system_settings_skills::workspace_visible(app)
+                    && app.skills_settings.workspace.scope().is_some_and(|scope| {
                         scope.context == context && scope.host == host
                     })
                 {
                     let input = super::skills::update_input(app);
-                    app.apps_catalog.third_party_skills.reconcile_targets(&input.targets);
+                    app.skills_settings.workspace.reconcile_targets(&input.targets);
                 }
                 let navigation = if let Some(id) = app.apps_catalog.pending_tray_app.take() {
                     if app.apps_catalog.rows.iter().any(|row| row.entry.id == id)
@@ -437,8 +431,9 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
                 } else { Task::none() };
                 return Task::batch([
                     prompts,
+                    crate::app::components::system_settings_skills::open_workspace(app),
                     crate::app::components::third_party_settings::ensure_agent_providers(app),
-                    crate::app::components::third_party_settings::mcp_workspace::refresh(app),
+                    crate::app::components::system_settings_mcp::management::refresh(app),
                     navigation,
                     crate::app::components::system_settings_apps::preferences::update(
                         app, crate::app::components::system_settings_apps::preferences::PreferencesMessage::Load,

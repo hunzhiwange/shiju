@@ -111,3 +111,31 @@ fn discover_ancestor_scan_stop(workspace_dir: &Path, home_dir: Option<&Path>) ->
     }
     None
 }
+
+/// Check every existing component of a skill installation path before writing.
+pub fn validate_skill_target_root(base: &Path, target: &Path) -> Result<(), &'static str> {
+    let metadata = std::fs::symlink_metadata(base).map_err(|_| "skill install base must exist")?;
+    if !metadata.is_dir() {
+        return Err("skill install base must be a real directory");
+    }
+    let relative = target.strip_prefix(base).map_err(|_| "skill install target escapes its base")?;
+    let mut current = base.to_path_buf();
+    for component in relative.components() {
+        let std::path::Component::Normal(component) = component else {
+            return Err("skill install target contains an invalid component");
+        };
+        current.push(component);
+        match std::fs::symlink_metadata(&current) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err("skill install target cannot traverse a symbolic link");
+            }
+            Ok(metadata) if !metadata.is_dir() => {
+                return Err("skill install target ancestor must be a directory");
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
+            Err(_) => return Err("skill install target could not be inspected"),
+        }
+    }
+    Ok(())
+}

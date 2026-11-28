@@ -1,5 +1,5 @@
 //! Explicit, revision-bound matrix actions. Page entry never starts network probes.
-use crate::{management_effect::Effect, third_party::Scope};
+use crate::{management_effect::Effect, management_context::Context as Scope};
 pub use desktop_apps_ui::agent_apps_diagnostics::mcp::McpDiagnosticMessage as ProbeMessage;
 use iced::Task;
 use vw_api_mcp_management::*;
@@ -136,7 +136,7 @@ fn update_inner(app: &mut Update<'_>, event: Message) -> Task<Message> {
                 McpCatalogScope::Project { scope } => Some(scope.project_id().clone()),
             };
             let request = McpDeleteRequest {
-                target_host_id: scope.context.host.clone(),
+                target_host_id: scope.host.clone(),
                 project_id,
                 expected_revision: record.record.revision,
             };
@@ -174,7 +174,7 @@ fn update_inner(app: &mut Update<'_>, event: Message) -> Task<Message> {
                 async move {
                     let result =
                         gateway_mcp_read::GatewayMcpReadClient::new(client.transport().clone())
-                            .mcp_management_export(&scope.context.host, id.as_deref(), &token)
+                            .mcp_management_export(&scope.host, id.as_deref(), &token)
                             .await
                             .map_err(|_| "无法读取可复制的安全定义".to_owned());
                     Message::Exported(scope, generation, result)

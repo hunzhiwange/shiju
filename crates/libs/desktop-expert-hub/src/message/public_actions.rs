@@ -83,22 +83,6 @@ pub(super) fn install_selection(
     target: SkillInstallTarget,
     scope: SkillInstallScope,
 ) -> SkillMarketInstallSelectionDto {
-    let target = match target {
-        SkillInstallTarget::VibeWindow => SkillMarketInstallTargetDto::VibeWindow,
-        SkillInstallTarget::AgentSkills => SkillMarketInstallTargetDto::AgentSkills,
-        SkillInstallTarget::Codex => SkillMarketInstallTargetDto::Codex,
-        SkillInstallTarget::WorkBuddy => SkillMarketInstallTargetDto::WorkBuddy,
-        SkillInstallTarget::ClaudeCode => SkillMarketInstallTargetDto::ClaudeCode,
-        SkillInstallTarget::OpenCode => SkillMarketInstallTargetDto::OpenCode,
-        SkillInstallTarget::GeminiCli => SkillMarketInstallTargetDto::GeminiCli,
-        SkillInstallTarget::GitHubCopilot => SkillMarketInstallTargetDto::GitHubCopilot,
-        SkillInstallTarget::Cursor => SkillMarketInstallTargetDto::Cursor,
-        SkillInstallTarget::Windsurf => SkillMarketInstallTargetDto::Windsurf,
-    };
-    let scope = match scope {
-        SkillInstallScope::Global => SkillMarketInstallScopeDto::Global,
-        SkillInstallScope::Project => SkillMarketInstallScopeDto::Project,
-    };
     SkillMarketInstallSelectionDto { target, scope }
 }
 

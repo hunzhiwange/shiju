@@ -79,7 +79,7 @@ pub(super) const AGENT_CONFIG_TABS: &[SettingsTabDescriptor<AgentConfigTab>] = &
         "MCP",
         &["model context protocol", "mcpServers", "server"],
     ),
-    SettingsTabDescriptor::new(AgentConfigTab::Skills, "技能", &["skills", "catalog"]),
+    SettingsTabDescriptor::new(AgentConfigTab::Skills, "本地技能配置", &["skills", "catalog"]),
     SettingsTabDescriptor::new(
         AgentConfigTab::Plugins,
         "插件",
@@ -162,6 +162,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .height(Length::Fill)
                 .into()
         }
+        AgentConfigTab::Skills if crate::app::components::system_settings_skills::workspace_visible(app) =>
+            container(crate::app::components::system_settings_skills::view(app))
+                .padding([0, 7])
+                .height(Length::Fill)
+                .into(),
         AgentConfigTab::Skills => scrollable(
             container(crate::app::components::system_settings_skills::view(app)).padding([0, 7]),
         )

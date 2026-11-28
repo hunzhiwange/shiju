@@ -2,6 +2,7 @@ use crate::state::{McpSettingsTab, McpNewServerTransport};
 use iced::widget::text_editor;
 #[derive(Debug, Clone)]
 pub enum McpMessage {
+    Management(crate::management_context::Context, crate::management_state::ViewEvent),
     Tools(crate::management_tools::ToolsMessage),
     Diagnostic(desktop_apps_ui::agent_apps_diagnostics::mcp::McpDiagnosticMessage),
     Catalog(crate::management_list::CatalogMessage),

@@ -27,8 +27,6 @@ pub struct AppsCatalogState<
     Preferences,
     Lifecycle,
     Drag,
-    ThirdPartySkills,
-    ThirdPartyMcpScope,
     Row
 > {
     pub external_sessions: ExternalSessions,
@@ -54,8 +52,6 @@ pub struct AppsCatalogState<
     pub agent_provider_search_open: bool,
     pub third_party_page: desktop_ui_controls::settings_navigation::ThirdPartyPage,
     pub navigation_generation: u64,
-    pub third_party_skills: ThirdPartySkills,
-    pub third_party_mcp_scope: ThirdPartyMcpScope,
     pub updates: UpdatesState,
     pub commands: CommandsState,
     pub query: String,
@@ -91,8 +87,6 @@ impl<
     Preferences,
     Lifecycle,
     Drag,
-    ThirdPartySkills,
-    ThirdPartyMcpScope,
     Row
 > std::fmt::Debug for AppsCatalogState<
     ExternalSessions,
@@ -111,8 +105,6 @@ impl<
     Preferences,
     Lifecycle,
     Drag,
-    ThirdPartySkills,
-    ThirdPartyMcpScope,
     Row
 > {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -136,8 +128,6 @@ impl<
     Preferences: Default,
     Lifecycle: Default,
     Drag: Default,
-    ThirdPartySkills: Default,
-    ThirdPartyMcpScope: Default,
     Row
 > Default for AppsCatalogState<
     ExternalSessions,
@@ -156,8 +146,6 @@ impl<
     Preferences,
     Lifecycle,
     Drag,
-    ThirdPartySkills,
-    ThirdPartyMcpScope,
     Row
 > {
     fn default() -> Self { Self {
@@ -184,8 +172,6 @@ impl<
         agent_provider_search_open: false,
         third_party_page: Default::default(),
         navigation_generation: 0,
-        third_party_skills: Default::default(),
-        third_party_mcp_scope: Default::default(),
         updates: Default::default(),
         commands: Default::default(),
         query: Default::default(),

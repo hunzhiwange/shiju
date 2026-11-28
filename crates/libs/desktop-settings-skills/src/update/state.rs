@@ -1,6 +1,8 @@
 use crate::types::*;
 #[derive(Debug, Clone)]
 pub struct State {
+    pub sync: crate::sync::State,
+    pub workspace: crate::third_party::State,
     pub bindings: super::bindings_view::State,
     pub backups: super::backup_modal::State,
     pub storage: super::storage_modal::State,
@@ -62,6 +64,8 @@ pub struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
+            sync: Default::default(),
+            workspace: Default::default(),
             updates: Default::default(),
             jobs: Default::default(),
             install: Default::default(),

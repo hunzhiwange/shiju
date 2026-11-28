@@ -413,6 +413,15 @@ fn remove_git_metadata(skill_path: &Path) -> Result<()> {
 /// - 文件操作失败（权限、磁盘空间等）
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn copy_dir_recursive_secure(src: &Path, dest: &Path) -> Result<()> {
+    copy_filtered_skill_dir(src, dest, &|_| true)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn copy_filtered_skill_dir(
+    src: &Path,
+    dest: &Path,
+    include: &impl Fn(&std::ffi::OsStr) -> bool,
+) -> Result<()> {
     // 获取源路径的元数据（不跟随符号链接）
     let src_meta = std::fs::symlink_metadata(src)
         .with_context(|| format!("failed to read metadata for {}", src.display()))?;
@@ -434,6 +443,9 @@ pub(crate) fn copy_dir_recursive_secure(src: &Path, dest: &Path) -> Result<()> {
     // 遍历源目录中的所有条目
     for entry in std::fs::read_dir(src)? {
         let entry = entry?;
+        if !include(&entry.file_name()) {
+            continue;
+        }
         let src_path = entry.path();
         let dest_path = dest.join(entry.file_name());
         let metadata = std::fs::symlink_metadata(&src_path)
@@ -447,7 +459,7 @@ pub(crate) fn copy_dir_recursive_secure(src: &Path, dest: &Path) -> Result<()> {
         // 根据类型递归处理
         if metadata.is_dir() {
             // 递归复制子目录
-            copy_dir_recursive_secure(&src_path, &dest_path)?;
+            copy_filtered_skill_dir(&src_path, &dest_path, include)?;
         } else if metadata.is_file() {
             // 复制文件
             std::fs::copy(&src_path, &dest_path).with_context(|| {

@@ -28,8 +28,7 @@ pub(crate) fn targets(app: &App) -> Vec<McpAppTarget> {
 fn authorized(app: &App, context: &catalog::Context) -> bool {
     catalog::context(app).as_ref() == Some(context)
         && !context.host.is_empty()
-
-
+        && app.apps_catalog.context.as_ref() == Some(&context.endpoint)
 }
 #[cfg(test)]
 pub(crate) fn visible(app: &App) -> Option<&ImportState> {
@@ -43,11 +42,21 @@ pub(crate) fn open_link(app: &mut App, drafts: Vec<Result<McpCreateRequest, Stri
     desktop_settings_mcp::configuration_update::import::open_link(&mut input, drafts)
 }
 pub(crate) fn update(app: &mut App, event: ImportMessage) -> Task<Message> {
+    let closing_link = matches!(&event, ImportMessage::Close)
+        && app.mcp_settings.import.as_ref().is_some_and(|state| !state.link_drafts.is_empty());
     let mut input = super::mcp_management_list::input(app);
     let task =
         desktop_settings_mcp::configuration_update::import::update(&mut input, event).map(message);
     let effects = std::mem::take(&mut input.effects);
-    super::mcp_management_tools::apply_effects(app, task, effects)
+    let task = super::mcp_management_tools::apply_effects(app, task, effects);
+    if closing_link && app.mcp_settings.import.is_none() {
+        Task::batch([
+            task,
+            super::apps_catalog::update(app, super::AppsCatalogMessage::EnsureLoaded),
+        ])
+    } else {
+        task
+    }
 }
 #[cfg(test)]
 #[path = "mcp_management_import_tests.rs"]

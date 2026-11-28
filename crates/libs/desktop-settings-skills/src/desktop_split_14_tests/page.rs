@@ -25,6 +25,7 @@ fn skills_tab_labels_keep_expected_order_and_unique_tabs() {
             ("技能", SkillsSettingsTab::Skills),
             ("顺序", SkillsSettingsTab::DiscoveryOrder),
             ("系统配置", SkillsSettingsTab::SystemConfig),
+            ("仓库与分发", SkillsSettingsTab::Distribution),
         ]
     );
     for (_, expected_tab) in labels {

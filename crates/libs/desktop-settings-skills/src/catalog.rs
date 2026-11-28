@@ -10,12 +10,12 @@ use config_ui::DesktopLocale;
 use desktop_assets::assets::Icon;
 use desktop_i18n::settings_extensions::text as tr;
 use desktop_ui_controls::system_settings_common::{
-    icon_svg as base_icon_svg, settings_muted_text_style, settings_panel_style,
+    icon_svg as base_icon_svg, settings_group_header, settings_muted_text_style, settings_panel_style,
     settings_value_badge,
 };
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{button, column, container, row, text};
-use iced::{Alignment, Background, Border, Element, Length};
+use iced::{Alignment, Background, Border, Element, Length, Point};
 
 /// 构建或处理 `catalog_matches_query` 对应的界面片段与交互数据。
 ///
@@ -170,6 +170,16 @@ pub fn catalog_item(
     skill: CatalogSkillMeta,
     is_selected: bool,
 ) -> Element<'static, Message> {
+    catalog_item_with_sync(locale, skill, is_selected, false, None)
+}
+
+fn catalog_item_with_sync(
+    locale: DesktopLocale,
+    skill: CatalogSkillMeta,
+    is_selected: bool,
+    sync_available: bool,
+    menu_anchor: Option<Point>,
+) -> Element<'static, Message> {
     let initials = catalog_skill_initials(&skill);
     let title = skill.title.clone();
     let description = skill.description.clone();
@@ -253,10 +263,12 @@ pub fn catalog_item(
     )
     .width(Length::Fill);
 
-    button(content)
+    let sync_available = sync_available && skill.installed && !skill.id.starts_with("plugin:");
+    let id = skill.id;
+    let detail = button(content)
         .width(Length::Fill)
         .padding([12, 14])
-        .on_press(Event::SkillsDetailRequested(skill.id))
+        .on_press(Event::SkillsDetailRequested(id.clone()))
         .style(move |theme, status| {
             let mut style = catalog_item_button_style(theme, status, is_selected);
             if !is_selected {
@@ -266,7 +278,47 @@ pub fn catalog_item(
                 }
             }
             style
-        })
+        });
+    if !sync_available {
+        return detail.into();
+    }
+
+    use crate::sync::Event as Sync;
+    use desktop_ui_controls::{
+        overlays::PointBelowOverlay,
+        right_click_area::RightClickArea,
+        system_settings_common::{rounded_action_btn_style, settings_content_panel_style},
+    };
+    let open = Event::SkillsSync(Sync::Open(id.clone()));
+    let sync = button(text(tr(locale, "同步到")).size(12))
+        .padding([6, 10])
+        .style(rounded_action_btn_style)
+        .on_press(open.clone());
+    let item = row![detail, sync].spacing(8).align_y(Alignment::Center);
+    let item = RightClickArea::new(
+        item.into(),
+        Box::new(move |point| Event::SkillsSync(Sync::Menu(id.clone(), point))),
+    )
+    .preserve_on_right_click();
+    let Some(point) = menu_anchor else {
+        return Element::new(item);
+    };
+    let menu = container(
+        button(text(tr(locale, "同步到第三方")).size(13))
+            .padding([7, 10])
+            .style(rounded_action_btn_style)
+            .on_press(open),
+    )
+    .padding(4)
+    .style(settings_content_panel_style);
+    PointBelowOverlay::new(Element::new(item), menu)
+        .show(true)
+        .anchor(point)
+        .gap(2.0)
+        .on_close(Event::SkillsSync(Sync::CloseMenu))
+        .capture_outside_click(true)
+        .close_on_target_click(true)
+        .capture_keyboard()
         .into()
 }
 
@@ -289,46 +341,44 @@ pub fn catalog_group_section<'a>(
     skills: Vec<CatalogSkillMeta>,
     selected_skill_id: Option<&str>,
 ) -> Element<'a, Message> {
+    catalog_group_with_sync(locale, source, skills, selected_skill_id, false, None)
+}
+
+pub(super) fn catalog_group_with_sync<'a>(
+    locale: DesktopLocale,
+    source: &'static str,
+    skills: Vec<CatalogSkillMeta>,
+    selected_skill_id: Option<&str>,
+    sync_available: bool,
+    menu: Option<&(String, Point)>,
+) -> Element<'a, Message> {
     let (icon, title, subtitle) = section_copy(source);
     let skill_count = skills.len();
     let rows = skills.into_iter().fold(column![].spacing(8), |column, skill| {
         let is_selected = selected_skill_id == Some(skill.id.as_str());
-        column.push(catalog_item(locale, skill, is_selected))
+        let anchor = menu.filter(|(id, _)| id == &skill.id).map(|(_, point)| *point);
+        column.push(catalog_item_with_sync(locale, skill, is_selected, sync_available, anchor))
     });
 
-    column![
-        row![
-            row![
-                container(icon_svg(icon, 14.0)).padding([8, 8]).style(|theme: &iced::Theme| {
-                    let palette = theme.extended_palette();
-                    iced::widget::container::Style {
-                        text_color: Some(theme.palette().text.scale_alpha(0.76)),
-                        background: Some(Background::Color(
-                            palette.background.weak.color.scale_alpha(0.24),
-                        )),
-                        border: Border { radius: 10.0.into(), ..Default::default() },
-                        ..Default::default()
-                    }
-                }),
-                column![
-                    text(tr(locale, title)).size(16),
-                    text(tr(locale, subtitle)).size(12).style(|theme: &iced::Theme| {
-                        iced::widget::text::Style {
-                            color: Some(theme.palette().text.scale_alpha(0.62)),
-                        }
-                    }),
-                ]
-                .spacing(2),
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center)
-            .width(Length::Fill),
-            text(skill_count.to_string()).size(12).style(settings_muted_text_style),
-        ]
-        .spacing(10)
-        .align_y(Alignment::Center),
-        rows,
+    let icon = container(icon_svg(icon, 14.0)).padding(8).style(|theme: &iced::Theme| {
+        let palette = theme.extended_palette();
+        iced::widget::container::Style {
+            text_color: Some(theme.palette().text.scale_alpha(0.76)),
+            background: Some(Background::Color(palette.background.weak.color.scale_alpha(0.24))),
+            border: Border { radius: 10.0.into(), ..Default::default() },
+            ..Default::default()
+        }
+    });
+    let label = column![
+        text(tr(locale, title)).size(16),
+        text(tr(locale, subtitle)).size(12).style(|theme: &iced::Theme| {
+            iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.62)) }
+        }),
     ]
-    .spacing(10)
-    .into()
+    .spacing(2)
+    .width(Length::Fill);
+    let heading = row![icon, label, text(skill_count.to_string()).size(12).style(settings_muted_text_style)]
+        .spacing(10)
+        .align_y(Alignment::Center);
+    column![settings_group_header(heading), rows].spacing(10).into()
 }

@@ -9,19 +9,18 @@ pub(crate) fn message(event: Event) -> Message {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     use desktop_settings_skills::update::import_modal::{Effect, update as reduce};
     let mut input = super::update_input(app);
-    if crate::app::components::third_party_settings::is_visible(app)
-        && app.apps_catalog.third_party_page == desktop_ui_controls::settings_navigation::ThirdPartyPage::Skills
+    if crate::app::components::system_settings_skills::workspace_visible(app)
     {
-        input.targets = app.apps_catalog.third_party_skills.available_targets();
+        input.targets = app.skills_settings.workspace.available_targets();
     }
     let effect = reduce(&mut app.skills_settings.import, &input, event);
     if matches!(effect, Effect::Refresh)
-        && app.apps_catalog.third_party_skills.scope().is_some_and(|scope| {
+        && app.skills_settings.workspace.scope().is_some_and(|scope| {
             input.context.as_ref() == Some(&scope.context) && input.host == scope.host
                 && input.project == scope.project && input.directory == scope.directory
         })
     {
-        app.apps_catalog.third_party_skills.workspace.importable =
+        app.skills_settings.workspace.workspace.importable =
             desktop_settings_skills::third_party_add::import_count(&app.skills_settings.import, &input);
     }
     match effect {

@@ -19,7 +19,7 @@ pub fn map_catalog_items(items: Vec<DesktopSkillCatalogEntryDto>) -> Vec<SkillsC
             resource_count: item.resource_count,
             installed: item.installed,
             enabled: item.enabled,
-            source: item.source,
+            source: item.origin.unwrap_or(item.source),
             source_path: item.source_path,
         })
         .collect()

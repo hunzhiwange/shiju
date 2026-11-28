@@ -1,7 +1,43 @@
+pub use skill_market_types::{
+    SkillMarketInstallScopeDto as SkillSyncScope, SkillMarketInstallTargetDto as SkillSyncTarget,
+};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopSkillSyncRequest {
+    pub project_path: Option<String>,
+    pub skill_id: String,
+    pub expected_source_path: Option<String>,
+    pub scope: SkillSyncScope,
+    pub targets: Vec<SkillSyncTarget>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DesktopSkillSyncItem {
+    pub target: SkillSyncTarget,
+    pub status: DesktopSkillSyncStatus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DesktopSkillSyncStatus {
+    Installed,
+    AlreadyInstalled,
+    Failed,
+}
+
 use crate::{DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto};
 use crate::GatewayDesktopSettingsClient;
 
 impl GatewayDesktopSettingsClient {
+    pub async fn sync_skill(
+        &self,
+        request: &DesktopSkillSyncRequest,
+    ) -> Result<Vec<DesktopSkillSyncItem>, String> {
+        self.transport.post_json("/v1/skills/sync", &[], request).await
+    }
+
     /// 读取 Skills 目录页可展示的技能列表。
     pub async fn skills_get(
         &self,

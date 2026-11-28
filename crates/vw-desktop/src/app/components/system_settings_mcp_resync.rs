@@ -26,6 +26,3 @@ pub(crate) fn overlay<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element
         .map(resync::message),
     )
 }
-
-/// Third-party matrix uses the same ownership-aware confirmation and progress UI.
-pub(crate) fn rewrite_panel(app: &App) -> Element<'_, Message> { panel(app) }

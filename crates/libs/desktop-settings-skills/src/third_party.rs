@@ -1,5 +1,5 @@
-//! Third-party skill entry. The host routes scoped directory actions to existing
-//! modals and executes binding effects with the same scope attached to replies.
+//! Repository and application distribution workspace for local skill settings.
+//! The host routes scoped actions to their dialogs and retains scope on replies.
 /// Page identity uses the gateway and real project ID; directory is UI context only.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Scope {
@@ -66,8 +66,7 @@ pub enum Effect {
 }
 
 impl State {
-    /// Synchronize before rendering and dispatch. Native skill state is never
-    /// borrowed or mutated by this entry.
+    /// Reset transient selections when the gateway, project or request generation changes.
     pub fn sync(&mut self, scope: Option<Scope>, catalog: u64) {
         if self.scope != scope || self.catalog != catalog {
             self.bindings = bindings::State::default();

@@ -121,7 +121,7 @@ pub fn view<'a, M: Clone + 'static>(
         let selected_agents = s
             .pending
             .map_or(current_agents, |location| matches!(location, SkillStorageLocation::Agents));
-        let mut locations = column![text(i18n.__("主副本位置")).font(HEADING).size(15)].spacing(11);
+        let mut locations = column![settings_group_header(text(i18n.__("主副本位置")).font(HEADING).size(15))].spacing(11);
         for (agents, location, label) in [
             (false, SkillStorageLocation::Runtime, i18n.__("ShiJu 运行时目录")),
             (true, SkillStorageLocation::Agents, i18n.__("通用目录")),
@@ -212,7 +212,7 @@ pub fn view<'a, M: Clone + 'static>(
                 .align_y(Alignment::Center),
             );
         }
-        body = body.push(locations).push(settings_divider());
+        body = body.push(locations);
 
         let selected_mode = match current.mode {
             SkillBindingMode::Auto => 0,
@@ -220,7 +220,7 @@ pub fn view<'a, M: Clone + 'static>(
             SkillBindingMode::Copy => 2,
         };
         let mut modes =
-            column![text(i18n.__("同步到应用的方式")).font(HEADING).size(15)].spacing(10);
+            column![settings_group_header(text(i18n.__("同步到应用的方式")).font(HEADING).size(15))].spacing(10);
         for (index, (mode, label, hint)) in [
             (SkillBindingMode::Auto, i18n.__("自动"), i18n.__("优先使用软链接，失败时复制")),
             (
@@ -280,7 +280,7 @@ pub fn view<'a, M: Clone + 'static>(
         )));
     }
     if !s.results.is_empty() {
-        let mut feedback = column![text(i18n.__("操作结果")).size(14).font(HEADING)].spacing(5);
+        let mut feedback = column![settings_group_header(text(i18n.__("操作结果")).size(14).font(HEADING))].spacing(5);
         for result in &s.results {
             feedback = feedback.push(
                 text(desktop_i18n::settings_extensions::feedback(i18n, result))
@@ -288,7 +288,7 @@ pub fn view<'a, M: Clone + 'static>(
                     .style(settings_muted_text_style),
             );
         }
-        body = body.push(settings_divider()).push(feedback);
+        body = body.push(feedback);
     }
     if s.busy && s.current.is_some() {
         body = body.push(text(i18n.__("正在处理…")).size(12).style(settings_muted_text_style));

@@ -1,8 +1,4 @@
 //! Final desktop composition for third-party resources and application details.
-#[path = "third_party_skills_workspace.rs"]
-pub(crate) mod skills_workspace;
-#[path = "third_party_mcp_workspace.rs"]
-pub(crate) mod mcp_workspace;
 #[path = "third_party_settings_page.rs"]
 mod settings_page;
 use super::system_settings_common::{
@@ -42,39 +38,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             return workspace(app, super::system_settings_apps::view(state, i18n));
         }
         ThirdPartyPage::Agents => return workspace(app, agent_workspace(app)),
-        ThirdPartyPage::Mcp => {
-            let mut content = column![].spacing(12).width(Length::Fill).height(Length::Fill);
-            if let Some(error) = &state.error {
-                content = content.push(
-                    container(super::system_settings_common::settings_error_banner(error.clone()))
-                        .padding([0, 7])
-                        .width(Length::Fill),
-                );
-            }
-            return workspace(
-                app,
-                container(content.push(mcp_workspace::view(app)))
-                    .padding([12, 16])
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .into(),
-            );
-        }
-        ThirdPartyPage::Skills => {
-            let applications = state
-                .rows
-                .iter()
-                .map(|r| &r.entry)
-                .collect::<Vec<_>>();
-            let skills = desktop_settings_skills::third_party::view(
-                i18n,
-                &state.third_party_skills,
-                &applications,
-                desktop_settings_apps::system_settings_apps::list::brand_icon,
-            )
-            .map(|event| message(AppsCatalogMessage::ThirdPartySkills(event)));
-            return workspace(app, container(skills).padding([14, 16]).into());
-        }
+        ThirdPartyPage::Mcp | ThirdPartyPage::Skills => return workspace(app, Space::new().into()),
         ThirdPartyPage::Prompts => {
             return workspace(app, super::system_settings_prompts::list::page(app));
         }
@@ -530,14 +494,6 @@ fn sidebar_action<'a>(
         .into()
 }
 
-pub(crate) fn mcp_scope(app: &App) -> Option<desktop_settings_mcp::third_party::Scope> {
-    Some(desktop_settings_mcp::third_party::Scope {
-        context: crate::app::message::settings::mcp_management_list::context(app)?,
-        app_id: None,
-        generation: app.apps_catalog.navigation_generation,
-    })
-}
-
 pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
     if super::system_settings_prompts::list::switch_blocked(&app.apps_catalog.prompts) {
         return Task::none();
@@ -546,6 +502,11 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
         app.usage_center.close();
     }
     invalidate(app);
+    match page {
+        ThirdPartyPage::Mcp => return super::system_settings_mcp::open(app),
+        ThirdPartyPage::Skills => return super::system_settings_skills::open(app),
+        _ => {}
+    }
     app.apps_catalog.third_party_page = page;
     use crate::app::message::settings;
     match page {
@@ -557,32 +518,7 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
             use super::app_routing::lifecycle::{self, Event, Operation};
             Task::batch([load, lifecycle::update(app, Event::Run(Operation::Refresh))])
         }
-        ThirdPartyPage::Mcp => {
-            Task::batch([
-                settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded),
-                mcp_workspace::refresh(app),
-            ])
-        }
-        ThirdPartyPage::Skills => {
-            use desktop_settings_skills::third_party::{Action, Message as SkillMessage, workspace};
-            use desktop_settings_skills::update::bindings_view;
-            let catalog_load = settings::apps_catalog::update(app, AppsCatalogMessage::EnsureLoaded);
-            let input = settings::skills::update_input(app);
-            let scope = input.context.map(|context| desktop_settings_skills::third_party::Scope {
-                context, project: input.project, host: input.host, directory: input.directory,
-            });
-            app.apps_catalog.third_party_skills.sync(scope, app.apps_catalog.navigation_generation);
-            let Some(scope) = app.apps_catalog.third_party_skills.scope().cloned() else {
-                return catalog_load;
-            };
-            let catalog = app.apps_catalog.navigation_generation;
-            let scoped = |action| SkillMessage { scope: scope.clone(), catalog, action };
-            let inventory = skills_update(app, scoped(Action::Workspace(
-                workspace::Event::Tab(workspace::Tab::Installed),
-            )));
-            let targets = skills_update(app, scoped(Action::Binding(bindings_view::Event::Open)));
-            Task::batch([catalog_load, inventory, targets])
-        }
+        ThirdPartyPage::Mcp | ThirdPartyPage::Skills => Task::none(),
         ThirdPartyPage::Sessions => {
             app.apps_catalog.external_sessions.open = true;
             super::external_sessions::update(app, super::external_sessions::Event::Refresh)
@@ -600,43 +536,11 @@ pub(crate) fn navigate(app: &mut App, page: ThirdPartyPage) -> Task<Message> {
 /// Invalidate transient UI and request generations without changing domain targets.
 pub(crate) fn invalidate(app: &mut App) {
     app.apps_catalog.commands.invalidate();
-    desktop_settings_mcp::management_probe::actions::invalidate(&mut app.mcp_settings.actions, None, &[]);
-    use crate::app::message::settings::skills;
-    for event in [
-        SettingsMessage::SkillRepositories(skills::repo_modal::Event::Close),
-        SettingsMessage::SkillsClaudeConfig(skills::claude_view::Event::Close),
-        SettingsMessage::SkillsBindings(skills::bindings_view::Event::Close),
-        SettingsMessage::SkillsImport(skills::import_modal::Event::Close),
-        SettingsMessage::SkillsInstall(skills::install_view::Event::Close),
-        SettingsMessage::SkillsMarket(skills::market_view::Event::Close),
-        SettingsMessage::SkillsUpdates(skills::updates_view::Event::Close),
-        SettingsMessage::SkillsJobs(skills::jobs_view::Event::Close),
-        SettingsMessage::SkillsStorage(skills::storage_modal::Event::Close),
-        SettingsMessage::SkillsBackups(skills::backup_modal::Event::Close),
-    ] {
-        // Close reducers only dismiss presentation; writes keep their original scope.
-        let _ = skills::update(app, event);
-    }
-    // Busy reducers retain their captured request scope, but no presentation
-    // may survive a navigation or host change.
-    let skills = &mut app.skills_settings;
-    skills.repositories.open = false;
-    skills.claude_config.open = false;
-    skills.bindings.open = false;
-    skills.import.open = false;
-    skills.install.open = false;
-    skills.market.open = false;
-    skills.updates.open = false;
-    skills.jobs.open = false;
-    skills.storage.open = false;
-    skills.backups.open = false;
+    super::system_settings_skills::invalidate(app);
     let s = &mut app.apps_catalog;
     s.navigation_generation = s.navigation_generation.wrapping_add(1);
     s.agent_workspace_tab = Default::default();
     s.agent_provider_search_open = false;
-    s.third_party_mcp_scope = None;
-    app.mcp_settings.bindings.matrix.column_menu = None;
-    s.third_party_skills.sync(None, s.generation);
     s.external_sessions.invalidate();
     s.launch.invalidate();
     s.preferences.invalidate();
@@ -662,212 +566,6 @@ pub(crate) fn invalidate(app: &mut App) {
     }
 }
 
-pub(crate) fn mcp_update(
-    app: &mut App,
-    event: desktop_settings_mcp::third_party::Message,
-) -> Task<Message> {
-    let completion = matches!(&event.action, desktop_settings_mcp::third_party::Action::Bindings(
-        desktop_settings_mcp::management_bindings::BindingsMessage::Finished { .. }
-        | desktop_settings_mcp::management_bindings::BindingsMessage::MatrixFinished { .. }));
-    let current = if completion {
-        event.scope.clone()
-    } else {
-        if !is_visible(app) || app.apps_catalog.third_party_page != ThirdPartyPage::Mcp {
-            return Task::none();
-        }
-        let Some(current) = mcp_scope(app) else { return Task::none() };
-        current
-    };
-    let mut input = crate::app::message::settings::mcp_management_list::input(app);
-    let task = desktop_settings_mcp::third_party::update(&mut input, &current, event)
-        .map(|event| message(AppsCatalogMessage::ThirdPartyMcp(event)));
-    let effects = std::mem::take(&mut input.effects);
-    crate::app::message::settings::mcp_management_tools::apply_effects(app, task, effects)
-}
-
-pub(crate) fn skills_update(
-    app: &mut App,
-    event: desktop_settings_skills::third_party::Message,
-) -> Task<Message> {
-    if !is_visible(app) || app.apps_catalog.third_party_page != ThirdPartyPage::Skills {
-        return Task::none();
-    }
-    use desktop_settings_skills::{
-        third_party::{Action, DirectoryAction, Effect},
-        update::bindings_view,
-    };
-    let mut input = crate::app::message::settings::skills::update_input(app);
-    input.catalog = app.apps_catalog.navigation_generation;
-    use desktop_settings_skills::third_party::workspace::Event as WorkspaceEvent;
-    if matches!(&event.action,
-        Action::Workspace(WorkspaceEvent::Install(_) | WorkspaceEvent::ConfirmRepository)
-        | Action::Directory(DirectoryAction::Import)
-    ) {
-        let page = &app.apps_catalog.third_party_skills;
-        if page.awaiting_target_snapshot() || app.apps_catalog.loading {
-            return app.show_message_toast(
-                crate::app::state::ToastKind::Error,
-                desktop_i18n::settings_extensions::feedback_message(
-                    &(if page.bindings.busy || app.apps_catalog.loading {
-                        "正在读取当前项目的安装目标，请稍候"
-                    } else {
-                        "安装目标读取失败，请在「安装到」中重试或选择「仅主副本」"
-                    }),
-                ),
-            );
-        }
-    }
-    let inventory_readback = matches!(&event.action, Action::Workspace(WorkspaceEvent::Loaded(_, Ok(_))));
-    let snapshot_version = app.apps_catalog.third_party_skills.bindings.snapshot.as_ref()
-        .map(|snapshot| snapshot.version);
-    match desktop_settings_skills::third_party::update(
-        &mut app.apps_catalog.third_party_skills,
-        &input,
-        event,
-    ) {
-        Effect::None => Task::none(),
-        Effect::Workspace { scope, catalog, effect } => {
-            let page = &app.apps_catalog.third_party_skills;
-            let reload_bindings = inventory_readback && !page.bindings.busy
-                && page.workspace.inventory.as_ref().zip(page.bindings.snapshot.as_ref())
-                    .is_some_and(|(inventory, snapshot)| inventory.version != snapshot.version);
-            let refresh = reload_bindings.then(|| desktop_settings_skills::third_party::Message {
-                scope: scope.clone(), catalog, action: Action::Binding(bindings_view::Event::Refresh),
-            });
-            let workspace = skills_workspace::execute(app, scope, catalog, effect);
-            if let Some(event) = refresh {
-                return Task::batch([workspace, skills_update(app, event)]);
-            }
-            workspace
-        }
-        Effect::Binding { scope, catalog, effect } => match effect {
-            bindings_view::Effect::None => Task::none(),
-            bindings_view::Effect::Error(error) => {
-                let toast = app.show_message_toast(
-                    crate::app::state::ToastKind::Error,
-                    desktop_i18n::settings_extensions::feedback_message(&(error)),
-                );
-                let versions_changed = app
-                    .apps_catalog
-                    .third_party_skills
-                    .bindings
-                    .snapshot
-                    .as_ref()
-                    .zip(app.apps_catalog.third_party_skills.workspace.inventory.as_ref())
-                    .is_some_and(|(snapshot, inventory)| {
-                        Some(snapshot.version) != snapshot_version && snapshot.version != inventory.version
-                    });
-                if versions_changed {
-                    return Task::batch([toast, crate::app::message::settings::skills::refresh_workspace(app)]);
-                }
-                toast
-            }
-            bindings_view::Effect::Success(notice) => Task::batch([
-                app.show_message_toast(
-                    crate::app::state::ToastKind::Success,
-                    desktop_i18n::settings_extensions::feedback_message(&(notice)),
-                ),
-                crate::app::message::settings::skills::refresh_workspace(app),
-            ]),
-            bindings_view::Effect::Request { generation, scope: request_scope, change } => {
-                let token = app.apps_catalog.token.clone();
-                Task::perform(
-                    async move {
-                        desktop_session::session_gateway::gateway_skill_bindings_request(
-                            crate::app::config::gateway_client_endpoint(),
-                            request_scope,
-                            token,
-                            change,
-                        )
-                        .await
-                    },
-                    move |result| {
-                        message(AppsCatalogMessage::ThirdPartySkills(
-                            desktop_settings_skills::third_party::Message {
-                                scope: scope.clone(),
-                                catalog,
-                                action: Action::Binding(bindings_view::Event::Completed(
-                                    generation, result,
-                                )),
-                            },
-                        ))
-                    },
-                )
-            }
-        },
-        Effect::Directory { action, .. } => {
-            use crate::app::message::settings::skills;
-            let event = match action {
-                DirectoryAction::Claude => {
-                    SettingsMessage::SkillsClaudeConfig(skills::claude_view::Event::Open)
-                }
-                DirectoryAction::Repositories => {
-                    SettingsMessage::SkillRepositories(skills::repo_modal::Event::Open)
-                }
-                DirectoryAction::Import => {
-                    SettingsMessage::SkillsImport(skills::import_modal::Event::Open)
-                }
-                DirectoryAction::Install => {
-                    SettingsMessage::SkillsInstall(skills::install_view::Event::Open)
-                }
-                DirectoryAction::Market => {
-                    SettingsMessage::SkillsMarket(skills::market_view::Event::Open)
-                }
-                DirectoryAction::Updates => {
-                    SettingsMessage::SkillsUpdates(skills::updates_view::Event::Open)
-                }
-                DirectoryAction::Jobs => {
-                    SettingsMessage::SkillsJobs(skills::jobs_view::Event::Open)
-                }
-                DirectoryAction::Storage => {
-                    SettingsMessage::SkillsStorage(skills::storage_modal::Event::Open)
-                }
-                DirectoryAction::Backup => {
-                    SettingsMessage::SkillsBackups(skills::backup_modal::Event::Open)
-                }
-            };
-            let opening_import = matches!(action, DirectoryAction::Import) && !app.skills_settings.import.open;
-            let task = skills::update(app, event);
-            if opening_import && app.skills_settings.import.open {
-                let page = &app.apps_catalog.third_party_skills;
-                let import = &mut app.skills_settings.import;
-                import.available_targets = page.available_targets();
-                import.targets = page.bindings.targets.iter()
-                    .filter(|target| import.available_targets.contains(target))
-                    .cloned()
-                    .collect();
-                let scan_sources = import.targets.iter().map(|target| target.app_id)
-                    .filter(|id| desktop_settings_skills::import_modal::APPS.contains(id));
-                if let Some(source) = scan_sources.clone()
-                    .find(|id| *id == vw_api_types::agent_apps::AppId::Codex)
-                    .or_else(|| scan_sources.into_iter().next())
-                {
-                    import.apps.push(source);
-                    let scan = skills::update(app, SettingsMessage::SkillsImport(
-                        skills::import_modal::Event::Scan,
-                    ));
-                    return Task::batch([task, scan]);
-                }
-            }
-            if matches!(action, DirectoryAction::Backup) {
-                // The list readback validates these choices against the same scope.
-                app.skills_settings.backups.targets = app.apps_catalog.third_party_skills.bindings.targets.clone();
-            }
-            task
-        }
-    }
-}
-
-pub(crate) fn overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
-    match app.apps_catalog.third_party_page {
-        ThirdPartyPage::Skills => super::system_settings_skills::third_party_overlays(app, base),
-        ThirdPartyPage::Mcp if app.apps_catalog.third_party_mcp_scope == mcp_scope(app)
-            && app.apps_catalog.third_party_mcp_scope.is_some() =>
-                mcp_workspace::overlays(app, base),
-        _ => base,
-    }
-}
-
 #[cfg(test)]
 #[path = "third_party_settings_tests.rs"]
 mod tests;
@@ -882,7 +580,7 @@ pub(crate) fn standalone(app: &App) -> Element<'_, Message> {
     if usage::is_visible(app) {
         return view(app);
     }
-    let base = overlays(app, view(app));
+    let base = view(app);
     let mut base = super::system_settings_apps::view_overlays(
         app,
         crate::app::i18n::I18n::new(app.general_settings.desktop_locale),

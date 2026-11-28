@@ -109,6 +109,12 @@ fn plugin_delete_task(plugin_id: String) -> Task<Message> {
 
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
+        SettingsMessage::SkillsSync(event) => {
+            return crate::app::components::system_settings_skills::sync::update(app, event);
+        }
+        SettingsMessage::SkillsWorkspace(event) => {
+            return crate::app::components::system_settings_skills::workspace::update(app, event);
+        }
         SettingsMessage::SkillsImportZip | SettingsMessage::SkillsImportFolder => {
             return local_import::pick(app, matches!(message, SettingsMessage::SkillsImportZip));
         }
@@ -180,8 +186,29 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::SkillsHelpClose => Event::SkillsHelpClose,
         _ => return Task::none(),
     };
+    use crate::app::components::system_settings_skills as page;
+    if matches!(event, Event::SkillsTabChanged(_) | Event::SkillsProjectSelected(_)) {
+        app.skills_settings.sync.menu = None;
+        app.skills_settings.sync.form = None;
+    }
+    if matches!(event, Event::SkillsQueryChanged(_) | Event::SkillsDirectoryScopeChanged(_)
+        | Event::SkillsDetailRequested(_))
+    {
+        app.skills_settings.sync.menu = None;
+    }
+    let open_workspace = matches!(event, Event::SkillsTabChanged(_) | Event::SkillsRefresh);
+    if page::workspace_visible(app)
+        && matches!(event, Event::SkillsTabChanged(tab) if tab != crate::app::state::SkillsSettingsTab::Distribution)
+    {
+        page::invalidate(app);
+    }
     let effect = domain::update(&mut app.skills_settings, &app.navigation_tabs.project_path, event);
-    execute(app, effect)
+    let task = execute(app, effect);
+    if open_workspace {
+        Task::batch([task, page::open_workspace(app)])
+    } else {
+        task
+    }
 }
 fn execute(app: &mut App, effect: Effect) -> Task<Message> {
     match effect {
@@ -254,11 +281,11 @@ pub(crate) fn update_input(app: &App) -> desktop_settings_skills::update::Input 
 /// Refresh the visible scoped workspace only after a reducer accepts a completion.
 pub(crate) fn refresh_workspace(app: &mut App) -> Task<Message> {
     use desktop_settings_skills::third_party::{Action, Message as ScopedMessage, workspace::Event};
-    let Some(scope) = app.apps_catalog.third_party_skills.scope().cloned() else {
+    let Some(scope) = app.skills_settings.workspace.scope().cloned() else {
         return Task::none();
     };
     let catalog = app.apps_catalog.navigation_generation;
-    crate::app::components::third_party_settings::skills_update(app, ScopedMessage {
+    crate::app::components::system_settings_skills::workspace::update(app, ScopedMessage {
         scope, catalog, action: Action::Workspace(Event::ReloadInventory),
     })
 }

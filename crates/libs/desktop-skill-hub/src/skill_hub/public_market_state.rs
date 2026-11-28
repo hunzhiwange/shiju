@@ -116,6 +116,10 @@ impl PublicDetailState {
             return false;
         }
         self.install_scope = scope;
+        self.selected_install_targets.retain(|target| target.supports_scope(scope));
+        if self.selected_install_targets.is_empty() {
+            self.selected_install_targets.push(super::SkillInstallTarget::VibeWindow);
+        }
         if matches!(self.install, PublicInstallState::Installed { .. }) {
             self.install = PublicInstallState::Idle;
         }
@@ -137,7 +141,10 @@ impl PublicDetailState {
 
     /// 切换安装目标，但始终至少保留一个目标且安装中禁止修改。
     pub fn toggle_install_target(&mut self, target: super::SkillInstallTarget) -> bool {
-        if !matches!(self.target, PublicDetailTarget::Skill(_)) || self.install_is_busy() {
+        if !matches!(self.target, PublicDetailTarget::Skill(_))
+            || self.install_is_busy()
+            || !target.supports_scope(self.install_scope)
+        {
             return false;
         }
         if let Some(index) =

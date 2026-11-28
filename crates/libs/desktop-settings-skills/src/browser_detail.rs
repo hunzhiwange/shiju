@@ -8,7 +8,7 @@ use crate::{BrowserContext, Event};
 use desktop_assets::assets::Icon;
 use desktop_i18n::settings_extensions::text as tr;
 use desktop_ui_controls::system_settings_common::{
-    settings_close_button, settings_error_banner, settings_group_heading, settings_modal_card,
+    settings_close_button, settings_error_banner, settings_page_heading, settings_modal_card,
     settings_modal_header, settings_modal_overlay, settings_muted_text_style, settings_value_badge,
 };
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -216,7 +216,7 @@ pub fn view_overlays<'a, M: Clone + 'static>(
     let card = settings_modal_card(
         column![
             settings_modal_header(
-                settings_group_heading(title, subtitle),
+                settings_page_heading(title, subtitle),
                 settings_close_button(close_message.clone()),
             ),
             detail_modal_body(app, app.project_path.is_some()).map(message),

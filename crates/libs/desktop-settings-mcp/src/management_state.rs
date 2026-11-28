@@ -61,9 +61,16 @@ impl McpSettingsState {
         if crate::management_import::visible(self.import.as_ref(), current).is_some() {
             return Overlay::Import;
         }
-        if self.connection_form.is_some() {
+        if self.connection_form.as_ref().is_some_and(|form| Some(&form.context) == current) {
             return Overlay::Form;
         }
         Overlay::Page
     }
+}
+
+
+#[derive(Debug, Clone)]
+pub enum ViewEvent {
+    Matrix(crate::management_bindings::matrix::ViewMessage),
+    Menu(crate::management_probe::actions::MenuMessage),
 }

@@ -514,6 +514,7 @@ impl App {
         message::agent_apps_diagnostics::model::invalidate(self);
         #[cfg(not(target_arch = "wasm32"))]
         message::voice::invalidate(self);
+        crate::app::components::system_settings_mcp::reconcile(self);
         let cleanup = message::settings::mcp_management_probe::invalidate(self);
         let tools_cleanup = message::settings::mcp_management_tools::invalidate(self);
         let cron_history = message::settings::cron_history::reconcile(self);

@@ -101,6 +101,9 @@ fn third_party_task_08_scope_and_navigation() {
     for id in [AppId::Codex, AppId::OpenClaw, AppId::Hermes] {
         app.apps_catalog.expanded = Some(id);
         for &(page, _) in ThirdPartyPage::ALL {
+            if matches!(page, ThirdPartyPage::Mcp | ThirdPartyPage::Skills) {
+                continue;
+            }
             let previous = app.apps_catalog.navigation_generation;
             let _ = navigate(&mut app, page);
             assert_eq!(app.apps_catalog.third_party_page, page);
@@ -113,19 +116,30 @@ fn third_party_task_08_scope_and_navigation() {
     app.apps_catalog.connection_open = true;
     invalidate(&mut app);
     assert!(!app.apps_catalog.connection_open);
-    assert!(app.apps_catalog.third_party_mcp_scope.is_none());
+    let page = app.apps_catalog.third_party_page;
+    let _ = navigate(&mut app, ThirdPartyPage::Mcp);
+    assert_eq!(app.apps_catalog.third_party_page, page);
+    assert!(crate::app::components::system_settings_mcp::is_visible(&app));
+    let _ = navigate(&mut app, ThirdPartyPage::Skills);
+    assert_eq!(app.apps_catalog.third_party_page, page);
+    assert!(crate::app::components::system_settings_skills::is_visible(&app));
+    assert_eq!(app.skills_settings.active_tab, crate::app::state::SkillsSettingsTab::Skills);
     assert!(app.app_providers.scope.is_none());
     assert!(app.agent_apps_auth.form.is_none());
 }
 
 #[test]
-fn third_party_task_08_search_keeps_native_and_third_party_targets_separate() {
-    if !isolated("third_party_task_08_search_keeps_native_and_third_party_targets_separate") { return; }
+fn third_party_task_08_search_keeps_mcp_and_skills_in_system_settings() {
+    if !isolated("third_party_task_08_search_keeps_mcp_and_skills_in_system_settings") { return; }
     let app = fixture();
     let entries = system_settings_search::catalog(&app);
     for &(page, _) in ThirdPartyPage::ALL {
         let matches: Vec<_> = entries.iter()
             .filter(|entry| entry.target == SystemSettingsSearchTarget::ThirdParty(page)).collect();
+        if matches!(page, ThirdPartyPage::Mcp | ThirdPartyPage::Skills) {
+            assert!(matches.is_empty());
+            continue;
+        }
         assert_eq!(matches.len(), 1, "{page:?}");
         assert!(matches[0].matches("cc-switch"));
         assert_eq!(matches[0].target.page(), SystemTab::Apps);
@@ -149,6 +163,9 @@ async fn third_party_task_08_pages_rasterize_in_both_themes() {
     for theme in [Theme::Light, Theme::Dark] {
         for size in [Size::new(800_u32, 720_u32), Size::new(1280, 900)] {
             for &(page, _) in ThirdPartyPage::ALL {
+                if matches!(page, ThirdPartyPage::Mcp | ThirdPartyPage::Skills) {
+                    continue;
+                }
                 app.apps_catalog.third_party_page = page;
                 for selected in [None, Some(AppId::OpenClaw)] {
                     app.apps_catalog.expanded = selected;
@@ -219,14 +236,13 @@ fn third_party_task_08_previous_host_observation_is_ignored() {
 }
 
 #[test]
-fn third_party_agents_settings_search_opens_independent_page() {
-    if !isolated("third_party_agents_settings_search_opens_independent_page") { return; }
+fn third_party_skills_navigation_opens_local_skill_settings() {
+    if !isolated("third_party_skills_navigation_opens_local_skill_settings") { return; }
     let mut app = fixture();
-    app.navigation_panels.show_system_settings = true;
-    let _ = crate::app::message::settings::update(&mut app,
-        SettingsMessage::SystemSearchTargetSelected(SystemSettingsSearchTarget::ThirdParty(ThirdPartyPage::Skills)));
-    assert_eq!(app.navigation_tabs.screen, crate::app::Screen::ThirdPartyAgents);
-    assert!(!app.navigation_panels.show_system_settings);
-    assert_eq!(app.apps_catalog.third_party_page, ThirdPartyPage::Skills);
-    assert_eq!(app.navigation_tabs.active_tab_id.as_deref(), Some("third_party_agents"));
+    let _ = crate::app::message::view::update(&mut app, crate::app::message::ViewMessage::OpenThirdPartyAgents);
+    let page = app.apps_catalog.third_party_page;
+    let _ = crate::app::message::settings::apps_catalog::update(&mut app, AppsCatalogMessage::Navigate(ThirdPartyPage::Skills));
+    assert!(crate::app::components::system_settings_skills::is_visible(&app));
+    assert_eq!(app.skills_settings.active_tab, crate::app::state::SkillsSettingsTab::Skills);
+    assert_eq!(app.apps_catalog.third_party_page, page);
 }

@@ -45,6 +45,83 @@ pub enum SkillMarketInstallTargetDto {
     GitHubCopilot,
     Cursor,
     Windsurf,
+    ClaudeDesktop,
+    GrokBuild,
+    OpenClaw,
+    Hermes,
+    Pi,
+    Mcode,
+    Kimi,
+    Dsh,
+    Agy,
+    Omp,
+}
+
+impl SkillMarketInstallTargetDto {
+    pub const THIRD_PARTY_AGENTS: [Self; 14] = [
+        Self::ClaudeCode, Self::ClaudeDesktop, Self::Codex, Self::GeminiCli,
+        Self::GrokBuild, Self::OpenCode, Self::OpenClaw, Self::Hermes, Self::Pi,
+        Self::Mcode, Self::Kimi, Self::Dsh, Self::Agy, Self::Omp,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::VibeWindow => "ShiJu",
+            Self::AgentSkills => "通用 Agent Skills",
+            Self::Codex => "Codex",
+            Self::WorkBuddy => "WorkBuddy",
+            Self::ClaudeCode => "Claude Code",
+            Self::OpenCode => "OpenCode",
+            Self::GeminiCli => "Gemini CLI",
+            Self::GitHubCopilot => "GitHub Copilot",
+            Self::Cursor => "Cursor",
+            Self::Windsurf => "Windsurf",
+            Self::ClaudeDesktop => "Claude Desktop",
+            Self::GrokBuild => "Grok Build",
+            Self::OpenClaw => "OpenClaw",
+            Self::Hermes => "Hermes",
+            Self::Pi => "Pi",
+            Self::Mcode => "MiniMax Code",
+            Self::Kimi => "Kimi Code",
+            Self::Dsh => "DeepSeek Harness",
+            Self::Agy => "Antigravity",
+            Self::Omp => "Oh My Pi",
+        }
+    }
+
+    pub fn supports_scope(self, scope: SkillMarketInstallScopeDto) -> bool {
+        self == Self::VibeWindow || self.relative_directory(scope).is_some()
+    }
+
+    // ShiJu resolves its own root in the caller because its project layouts differ.
+    pub fn relative_directory(self, scope: SkillMarketInstallScopeDto) -> Option<&'static str> {
+        use SkillMarketInstallScopeDto::{Global, Project};
+        Some(match (self, scope) {
+            (Self::AgentSkills, _) => ".agents/skills",
+            (Self::Codex, _) => ".codex/skills",
+            (Self::WorkBuddy, _) => ".workbuddy/skills",
+            (Self::ClaudeCode, _) => ".claude/skills",
+            (Self::OpenCode, Global) => ".config/opencode/skills",
+            (Self::OpenCode, Project) => ".opencode/skills",
+            (Self::GeminiCli, _) => ".gemini/skills",
+            (Self::GitHubCopilot, Global) => ".copilot/skills",
+            (Self::GitHubCopilot, Project) => ".github/skills",
+            (Self::Cursor, _) => ".cursor/skills",
+            (Self::Windsurf, Global) => ".codeium/windsurf/skills",
+            (Self::Windsurf, Project) => ".windsurf/skills",
+            (Self::OpenClaw, Global) => ".openclaw/skills",
+            (Self::OpenClaw, Project) => ".agents/skills",
+            (Self::GrokBuild, Global) => ".grok/skills",
+            (Self::Hermes, Global) => ".hermes/skills",
+            (Self::Pi, Global) => ".pi/agent/skills",
+            (Self::Mcode, Global) => ".minimax/skills",
+            (Self::Kimi, Global) => ".kimi-code/skills",
+            (Self::Dsh, Global) => ".dsh/skills",
+            (Self::Agy, Global) => ".gemini/config/skills",
+            (Self::Omp, Global) => ".omp/agent/skills",
+            _ => return None,
+        })
+    }
 }
 
 /// Filesystem scope for one explicit market installation target.

@@ -273,6 +273,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         }
         SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(tab)) => {
+            if app.agents_settings.active_config_tab == crate::app::state::AgentConfigTab::Skills
+                && tab != crate::app::state::AgentConfigTab::Skills
+            {
+                crate::app::components::system_settings_skills::invalidate(app);
+            }
             app.agents_settings.active_config_tab = tab;
             app.navigation_panels.system_settings_help_tab = None;
             match tab {

@@ -47,8 +47,8 @@ fn cc_mcp_t48_settings_exposes_resync_progress() {
     for theme in [Theme::Light, Theme::Dark] {
         let labels = draw(crate::app::components::system_settings_mcp::view(&app), theme);
         assert!(
-            labels.iter().any(|text| text == "重新同步进度"),
-            "missing native import confirmation entry: {labels:?}"
+            labels.iter().any(|text| text == "应用配置重写进度"),
+            "missing resync progress: {labels:?}"
         );
     }
 }

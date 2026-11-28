@@ -1,9 +1,9 @@
 //! MCP desktop composition, state projection and local message mapping.
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
-use crate::app::message::settings::{McpMessage, SettingsMessage};
+use crate::app::message::settings::{McpMessage, SettingsMessage, mcp_management_form as form};
 use crate::app::state::McpSettingsTab;
 use crate::app::{App, Message};
-use desktop_settings_mcp::{catalog, page};
+use desktop_settings_mcp::page;
 use desktop_ui_controls::system_settings_common::settings_modal_overlay;
 use iced::{Element, widget::container};
 fn event(value: page::McpMessage) -> Message {
@@ -16,7 +16,8 @@ fn event(value: page::McpMessage) -> Message {
         page::McpMessage::EditorAction(v0) => McpMessage::EditorAction(v0),
         page::McpMessage::Format => McpMessage::Format,
         page::McpMessage::InsertTemplate => McpMessage::InsertTemplate,
-        page::McpMessage::NewServerPanelToggled => McpMessage::NewServerPanelToggled,
+        page::McpMessage::NewServerPanelToggled =>
+            McpMessage::ConnectionForm(form::FormMessage::OpenGlobal(None, false)),
         page::McpMessage::NewServerNameChanged(v0) => McpMessage::NewServerNameChanged(v0),
         page::McpMessage::NewServerTransportChanged(v0) => {
             McpMessage::NewServerTransportChanged(v0)
@@ -28,7 +29,8 @@ fn event(value: page::McpMessage) -> Message {
         page::McpMessage::NewServerEnabledToggled(v0) => McpMessage::NewServerEnabledToggled(v0),
         page::McpMessage::NewServerRequiredToggled(v0) => McpMessage::NewServerRequiredToggled(v0),
         page::McpMessage::AddServer => McpMessage::AddServer,
-        page::McpMessage::ServerEditRequested(v0) => McpMessage::ServerEditRequested(v0),
+        page::McpMessage::ServerEditRequested(index) =>
+            McpMessage::ConnectionForm(form::FormMessage::OpenGlobal(Some(index), false)),
         page::McpMessage::ServerEditCanceled => McpMessage::ServerEditCanceled,
         page::McpMessage::SaveServerEdit => McpMessage::SaveServerEdit,
         page::McpMessage::ServerEnabledToggled(v0, v1) => McpMessage::ServerEnabledToggled(v0, v1),
@@ -72,6 +74,11 @@ pub(super) const MCP_TABS: &[SettingsTabDescriptor<McpSettingsTab>] = &[
             "allowedTools",
             "deniedTools",
             "timeout",
+            "第三方 MCP",
+            "third-party mcp",
+            "应用绑定",
+            "MCP 模板",
+            "同步到第三方",
         ],
     ),
     SettingsTabDescriptor::new(
@@ -91,18 +98,6 @@ pub(super) const MCP_TABS: &[SettingsTabDescriptor<McpSettingsTab>] = &[
     ),
 ];
 
-fn catalog_event(value: catalog::Message) -> Message {
-    use crate::app::message::settings::{
-        mcp_management_form as form, mcp_management_import as import, mcp_management_list as list,
-    };
-    match value {
-        catalog::Message::Refresh => Message::Settings(SettingsMessage::Mcp(McpMessage::Catalog(
-            list::CatalogMessage::Refresh,
-        ))),
-        catalog::Message::Open(record) => form::message(form::FormMessage::Open(record)),
-        catalog::Message::Import => import::message(import::ImportMessage::Open),
-    }
-}
 fn configuration_transfer_actions(app: &App) -> Vec<Element<'_, Message>> {
     let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     use crate::app::message::settings::mcp::transfer::message;
@@ -449,32 +444,70 @@ fn extensions_panel(app: &App) -> Element<'_, Message> {
     .into()
 }
 
+pub(crate) fn is_visible(app: &App) -> bool {
+    app.navigation_panels.show_system_settings
+        && app.navigation_panels.system_settings_tab == super::system_settings::SystemTab::Agents
+        && app.agents_settings.active_config_tab == crate::app::state::AgentConfigTab::Mcp
+        && app.mcp_settings.active_tab == McpSettingsTab::Servers
+}
+
+pub(crate) fn reconcile(app: &mut App) {
+    let visible = is_visible(app);
+    let context = visible
+        .then(|| crate::app::message::settings::mcp_management_list::context(app))
+        .flatten();
+    if app.mcp_settings.connection_form.as_ref().is_some_and(|form| {
+        !form.saving && (!visible || Some(&form.context) != context.as_ref())
+    }) {
+        app.mcp_settings.connection_form = None;
+    }
+    if app.mcp_settings.import.as_ref().is_some_and(|import| {
+        !import.importing && (!visible || Some(&import.context) != context.as_ref())
+    }) {
+        app.mcp_settings.import = None;
+    }
+    if !visible || app.mcp_settings.resync.context.as_ref() != context.as_ref() {
+        app.mcp_settings.resync.open = false;
+    }
+    if !visible {
+        app.mcp_settings.bindings.matrix.column_menu = None;
+    }
+    if !visible || app.mcp_settings.actions.scope.as_ref() != context.as_ref() {
+        desktop_settings_mcp::management_probe::actions::invalidate(
+            &mut app.mcp_settings.actions,
+            None,
+            &[],
+        );
+    }
+}
+
+pub(crate) fn open(app: &mut App) -> iced::Task<Message> {
+    use super::system_settings_search::SystemSettingsSearchTarget;
+    use crate::app::message::ViewMessage;
+    crate::app::message::view::update(
+        app,
+        ViewMessage::OpenSystemSettingsTarget(SystemSettingsSearchTarget::AgentMcp(
+            McpSettingsTab::Servers,
+        )),
+    )
+}
+
 pub fn view(app: &App) -> Element<'_, Message> {
-    page::view(
+    page::view_with_management(
         event,
         &app.mcp_settings.page,
         app.general_settings.desktop_locale,
         configuration_transfer_actions(app),
         extensions_panel(app),
+        Some(management::view(app)),
+        |index| form::message(form::FormMessage::OpenGlobal(Some(index), true)),
     )
 }
-/// Managed-directory controls belong exclusively to the third-party workspace.
-pub(crate) fn third_party_panel(app: &App) -> Element<'_, Message> {
-    use crate::app::message::settings::mcp_management_list as list;
-    iced::widget::column![
-        catalog::panel(
-            desktop_i18n::I18n::new(app.general_settings.desktop_locale),
-            list::visible(app),
-            list::loading(app)
-        )
-        .map(catalog_event),
-        resync::panel(app),
-        crate::app::components::agent_apps_diagnostics::mcp_panel::view(app),
-        tools::panel(app),
-    ].spacing(12).into()
-}
 
-pub(crate) fn third_party_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
+pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
+    if !is_visible(app) {
+        return dialog;
+    }
     use desktop_settings_mcp::management_state::Overlay;
     let current = crate::app::message::settings::mcp_management_list::context(app);
     let diagnostics = crate::app::message::agent_apps_diagnostics::context(app);
@@ -503,17 +536,26 @@ pub(crate) fn third_party_overlays<'a>(app: &'a App, dialog: Element<'a, Message
             import::panel(app, state),
         );
     }
-    dialog
-}
-
-pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
+    if overlay == Overlay::Form
+        && let Some(draft) = app.mcp_settings.connection_form.as_ref()
+        && current.as_ref() == Some(&draft.context)
+    {
+        return settings_modal_overlay(
+            Some(dialog),
+            form::message(form::FormMessage::Close),
+            connection::connection_form_panel(
+                desktop_i18n::I18n::new(app.general_settings.desktop_locale),
+                draft,
+            ),
+        );
+    }
     page::view_overlays(
         event,
         &app.mcp_settings.page,
         app.general_settings.desktop_locale,
         &app.appearance.app_theme,
         help,
-        dialog,
+        management::overlays(app, dialog),
     )
 }
 
@@ -522,7 +564,6 @@ mod connection;
 #[cfg(test)]
 #[path = "system_settings_mcp_tests.rs"]
 mod system_settings_mcp_tests;
-pub(crate) use connection::connection_form_panel;
 
 #[path = "system_settings_mcp_bindings.rs"]
 mod bindings;
@@ -535,3 +576,6 @@ pub(crate) mod resync;
 
 #[path = "system_settings_mcp_tools.rs"]
 pub(crate) mod tools;
+
+#[path = "system_settings_mcp_management.rs"]
+pub(crate) mod management;

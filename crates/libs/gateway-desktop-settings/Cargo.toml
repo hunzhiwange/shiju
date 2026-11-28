@@ -10,6 +10,7 @@ gateway-config = { path = "../gateway-config" }
 vw-api-file = { path = "../api-file" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+skill-market-types = { path = "../skill-market-types" }
 
 [dev-dependencies]
 gateway-endpoint = { path = "../gateway-endpoint" }

@@ -401,7 +401,7 @@ async fn skill_market_install_rejects_unknown_source_and_download_url() {
 }
 
 #[test]
-fn explicit_install_targets_resolve_codex_and_claude_roots() {
+fn explicit_install_targets_resolve_existing_and_third_party_roots() {
     let temp = tempfile::tempdir().expect("fixture roots");
     let home = temp.path().join("home");
     let project = temp.path().join("project");
@@ -417,6 +417,14 @@ fn explicit_install_targets_resolve_codex_and_claude_roots() {
             target: SkillMarketInstallTargetDto::ClaudeCode,
             scope: SkillMarketInstallScopeDto::Project,
         },
+        SkillMarketInstallSelectionDto {
+            target: SkillMarketInstallTargetDto::Hermes,
+            scope: SkillMarketInstallScopeDto::Global,
+        },
+        SkillMarketInstallSelectionDto {
+            target: SkillMarketInstallTargetDto::OpenClaw,
+            scope: SkillMarketInstallScopeDto::Project,
+        },
     ];
 
     let roots = super::resolve_explicit_install_roots(
@@ -427,7 +435,20 @@ fn explicit_install_targets_resolve_codex_and_claude_roots() {
     )
     .expect("resolve explicit roots");
 
-    assert_eq!(roots, [home.join(".codex/skills"), project.join(".claude/skills")]);
+    assert_eq!(
+        roots,
+        [
+            home.join(".codex/skills"),
+            project.join(".claude/skills"),
+            home.join(".hermes/skills"),
+            project.join(".agents/skills"),
+        ]
+    );
+    let desktop = SkillMarketInstallSelectionDto {
+        target: SkillMarketInstallTargetDto::ClaudeDesktop,
+        scope: SkillMarketInstallScopeDto::Global,
+    };
+    assert!(super::resolve_explicit_install_roots(&home, None, None, &[desktop]).is_err());
 }
 
 #[tokio::test]

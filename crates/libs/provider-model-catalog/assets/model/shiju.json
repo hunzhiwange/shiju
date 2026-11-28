@@ -74,7 +74,7 @@
       "deepseek-v4-pro-0813": {
         "id": "deepseek-v4-pro-0813",
         "name": "DeepSeek V4 Pro 0813",
-        "family": "deepseek-thinking",
+        "family": "deepseek-pro",
         "modalities": {
           "input": [
             "text"
@@ -308,7 +308,7 @@
       "kimi-k3": {
         "id": "kimi-k3",
         "name": "Kimi K3",
-        "family": "kimi-k3",
+        "family": "kimi",
         "modalities": {
           "input": [
             "text",
@@ -458,7 +458,7 @@
       "qwen-image-2.0": {
         "id": "qwen-image-2.0",
         "name": "Qwen Image 2.0",
-        "family": "qwen",
+        "family": "qwen-image",
         "modalities": {
           "input": [
             "text"
@@ -483,7 +483,7 @@
       "qwen-image-2.0-pro": {
         "id": "qwen-image-2.0-pro",
         "name": "Qwen Image 2.0 Pro",
-        "family": "qwen",
+        "family": "qwen-image-pro",
         "modalities": {
           "input": [
             "text"
@@ -553,7 +553,7 @@
       "qwen-mt-plus": {
         "id": "qwen-mt-plus",
         "name": "Qwen-MT Plus",
-        "family": "qwen",
+        "family": "qwen-mt-plus",
         "modalities": {
           "input": [
             "text"
@@ -579,7 +579,7 @@
       "qwen-vl-ocr": {
         "id": "qwen-vl-ocr",
         "name": "Qwen-VL OCR",
-        "family": "qwen",
+        "family": "qwen-vl",
         "modalities": {
           "input": [
             "text",
@@ -607,7 +607,7 @@
         "id": "qwen3-asr-flash",
         "name": "Qwen3-ASR Flash",
         "description": "Speech transcription model for accurate audio-to-text and captioning workflows",
-        "family": "qwen",
+        "family": "qwen-asr-flash",
         "modalities": {
           "input": [
             "audio"
@@ -652,11 +652,12 @@
       "qwen3-vl-plus": {
         "id": "qwen3-vl-plus",
         "name": "Qwen3-VL Plus",
-        "family": "qwen",
+        "family": "qwen-vl-plus",
         "modalities": {
           "input": [
             "text",
-            "image"
+            "image",
+            "video"
           ],
           "output": [
             "text"
@@ -690,7 +691,7 @@
         "id": "qwen3.7-max",
         "name": "Qwen3.7 Max",
         "description": "Qwen frontier model tuned for agent frameworks, coding assistants, and long tasks",
-        "family": "qwen",
+        "family": "qwen-max",
         "modalities": {
           "input": [
             "text"
@@ -724,7 +725,7 @@
       "qwen3.7-plus": {
         "id": "qwen3.7-plus",
         "name": "Qwen3.7 Plus",
-        "family": "qwen",
+        "family": "qwen-plus",
         "modalities": {
           "input": [
             "text",
@@ -750,7 +751,7 @@
         "temperature": true,
         "limit": {
           "context": 1000000,
-          "output": 64000
+          "output": 131072
         },
         "description": "Multimodal Qwen workhorse for long-context agents, visual inputs, and coding",
         "structured_output": true,
@@ -838,7 +839,7 @@
       "qwen3.8-flash": {
         "id": "qwen3.8-flash",
         "name": "Qwen3.8 Flash",
-        "family": "qwen",
+        "family": "qwen-flash",
         "modalities": {
           "input": [
             "text",
@@ -886,7 +887,7 @@
       "qwen3.8-max": {
         "id": "qwen3.8-max",
         "name": "Qwen3.8 Max",
-        "family": "qwen",
+        "family": "qwen-max",
         "modalities": {
           "input": [
             "text",
@@ -936,7 +937,7 @@
       "qwen3.8-omni-flash": {
         "id": "qwen3.8-omni-flash",
         "name": "Qwen3.8 Omni Flash",
-        "family": "qwen",
+        "family": "qwen-omni-flash",
         "modalities": {
           "input": [
             "text",

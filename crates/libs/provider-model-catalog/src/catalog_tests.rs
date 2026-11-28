@@ -155,7 +155,7 @@ fn catalog_modelsdev_parse_keeps_original_provider_ownership_in_wrappers() {
 #[test]
 fn catalog_modelsdev_parse_preserves_bundled_pointer_and_local_overlay() {
     let parsed = bundled_models("canonical_bundled");
-    let relay = &parsed["deepinfra"].models["stepfun-ai/Step-3.7-Flash"];
+    let relay = &parsed["huggingface"].models["stepfun-ai/Step-3.7-Flash"];
     assert_eq!(
         serde_json::to_value(relay).unwrap()["canonical_model_id"],
         "stepfun/step-3.7-flash"
@@ -186,7 +186,7 @@ fn bundled_models_include_qwen37_plus_multimodal_metadata() {
     );
     assert_eq!(modalities.output.iter().map(String::as_str).collect::<Vec<_>>(), vec!["text"]);
     assert_eq!(model.limit.context, 1_000_000);
-    assert_eq!(model.limit.output, 64_000);
+    assert_eq!(model.limit.output, 131_072);
     assert_eq!(cost.input, Some(0.276));
     assert_eq!(cost.output, Some(1.101));
     assert_eq!(cost.cache_read, Some(0.0552));

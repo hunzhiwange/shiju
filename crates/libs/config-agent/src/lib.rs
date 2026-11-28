@@ -371,7 +371,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 6] = [
         allow_as_subagent: false,
         max_parallel_subagents: 4,
         max_depth: 0,
-        // The session uses its live tool catalog, including configured MCP tools.
+        // An empty selection uses the live catalog until the user saves a tool range.
         allowed_tools: &[],
         permission: r#"{"*":"allow"}"#,
         default_temperature: Some(0.3),
@@ -503,6 +503,9 @@ pub fn merged_agent_configs(
             builtin.allow_as_subagent &= value.allow_as_subagent;
             if spec.allow_as_subagent && !value.allowed_tools.is_empty() {
                 builtin.allowed_tools.retain(|tool| value.allowed_tools.contains(tool));
+            }
+            if spec.kind == BuiltinAgentKind::Butler {
+                builtin.allowed_tools.clone_from(&value.allowed_tools);
             }
             if key == "main" {
                 if !value.allowed_tools.is_empty() {

@@ -960,10 +960,24 @@ pub fn resolve_delegate_policy(
 
     // 交互式主代理使用请求工具选择及会话的实时目录。
     if config_agent::can_delegate_from_agent(&agent_name) {
+        let allowed_tools = if agent_name == config_agent::SHIJU_BUTLER_AGENT_KEY
+            && !config.allowed_tools.is_empty()
+        {
+            let configured = normalize_tool_ids(config.allowed_tools).unwrap_or_default();
+            Some(match explicit_allowed_tools {
+                Some(mut requested) => {
+                    requested.retain(|tool| configured.contains(tool));
+                    requested
+                }
+                None => configured,
+            })
+        } else {
+            explicit_allowed_tools
+        };
         return Ok(DelegateRequestOverrides {
             agent: Some(agent_name),
             model,
-            allowed_tools: explicit_allowed_tools,
+            allowed_tools,
             default_allowed_skills: normalize_tool_ids(config.allowed_skills),
             skill_policy: Some(config.skill_policy),
             chat_system_prompt,
@@ -1397,7 +1411,7 @@ pub async fn start_gateway_chat_producer<H: StreamHost>(
 ) -> Result<(), ApiError> {
     start_chat_producer::<H>(
         tenant, dir, body, background_full_access, abort_token, prompt_cancel, None,
-        H::tool_context(), send,
+        H::tool_context(), false, send,
     ).await
 }
 
@@ -1411,6 +1425,7 @@ async fn start_chat_producer<H: StreamHost>(
     prompt_cancel: Option<SharedPromptCancel>,
     employee: Option<EmployeeAuthorization>,
     delegated_context: H::ToolContext,
+    publish_cron_session: bool,
     send: impl FnMut(Value, bool) -> bool + Send + 'static,
 ) -> Result<(), ApiError> {
     let fork = match body.session_id.as_ref().map(|id| id.0.trim()).filter(|id| !id.is_empty()) {
@@ -1805,20 +1820,19 @@ async fn start_chat_producer<H: StreamHost>(
                                     let ids = stream_message_ids
                                         .as_ref()
                                         .expect("persistent streams preallocate message ids");
-                                    let eligible = !resume_history_only
-                                        && !query.trim().is_empty()
-                                        && publication_cancellation
-                                            .as_ref()
-                                            .is_none_or(|token| !token.is_cancelled())
-                                        && trajectory_recorder.final_step_has_text
+                                    let complete_text_response = trajectory_recorder.final_step_has_text
                                         && trajectory_recorder.steps.iter().all(|step| {
                                             step.tool_timings
                                                 .iter()
                                                 .all(|tool| tool.finished_ms.is_some())
                                         })
-                                        && H::is_successful_finish_reason(
-                                            assistant_finish_reason.as_deref(),
-                                        );
+                                        && H::is_successful_finish_reason(assistant_finish_reason.as_deref());
+                                    let eligible = !resume_history_only
+                                        && !query.trim().is_empty()
+                                        && publication_cancellation
+                                            .as_ref()
+                                            .is_none_or(|token| !token.is_cancelled())
+                                        && (publish_cron_session || complete_text_response);
                                     match commit_stream_session_trajectory(
                                         &tenant,
                                         app_session_scope.as_deref(),
@@ -1895,6 +1909,10 @@ async fn start_chat_producer<H: StreamHost>(
                     }
                     session_engine::processor_events::StreamEvent::Error(error) => {
                         let processing_completed_ms = H::now_ms();
+                        let first_response_preview = (publish_cron_session
+                            && !query.trim().is_empty()
+                            && publication_cancellation.as_ref().is_none_or(|token| !token.is_cancelled()))
+                            .then_some(preview.as_str());
                         if should_persist_app_session_artifacts
                             && !(resume_history_only && query.trim().is_empty())
                         {
@@ -1951,7 +1969,7 @@ async fn start_chat_producer<H: StreamHost>(
                                         &trajectory_recorder,
                                         processing_started_ms,
                                         processing_completed_ms,
-                                        None,
+                                        first_response_preview,
                                     )
                                 {
                                     tracing::error!(session_id = %stream_session_id,
@@ -2066,7 +2084,7 @@ pub async fn collect_gateway_chat_stream_with_observer<H: StreamHost>(
     body: GatewayChatStreamRequest,
     observe_payload: impl FnMut(&Value),
 ) -> Result<GatewayChatStreamCollected, ApiError> {
-    collect_gateway_chat_stream_for_turn::<H>(dir, body, None, observe_payload).await
+    collect_gateway_chat_stream_for_turn::<H>(dir, body, None, false, observe_payload).await
 }
 
 pub async fn collect_background_gateway_chat_stream<H: StreamHost>(
@@ -2075,8 +2093,17 @@ pub async fn collect_background_gateway_chat_stream<H: StreamHost>(
     acp_full_access: bool,
     observe_payload: impl FnMut(&Value),
 ) -> Result<GatewayChatStreamCollected, ApiError> {
-    collect_gateway_chat_stream_for_turn::<H>(dir, body, Some(acp_full_access), observe_payload)
+    collect_gateway_chat_stream_for_turn::<H>(dir, body, Some(acp_full_access), false, observe_payload)
         .await
+}
+
+/// Publish the persisted terminal turn of a Cron run even without an assistant text response.
+pub async fn collect_cron_gateway_chat_stream<H: StreamHost>(
+    dir: String,
+    body: GatewayChatStreamRequest,
+    acp_full_access: bool,
+) -> Result<GatewayChatStreamCollected, ApiError> {
+    collect_gateway_chat_stream_for_turn::<H>(dir, body, Some(acp_full_access), true, |_| {}).await
 }
 
 /// Scheduler collection waits for producer shutdown even after an early terminal event.
@@ -2118,6 +2145,7 @@ pub(crate) async fn collect_gateway_chat_stream_for_turn<H: StreamHost>(
     dir: String,
     body: GatewayChatStreamRequest,
     background_full_access: Option<bool>,
+    publish_cron_session: bool,
     observe_payload: impl FnMut(&Value),
 ) -> Result<GatewayChatStreamCollected, ApiError> {
     let tenant = H::current_tenant_scope();
@@ -2126,14 +2154,21 @@ pub(crate) async fn collect_gateway_chat_stream_for_turn<H: StreamHost>(
     let _cancel_on_drop = cancellation.clone().drop_guard();
     let rx = H::with_tenant_instance(tenant.clone(), dir.clone(), move || {
         Box::pin(async move {
-            start_gateway_chat_stream::<H>(
+            let (tx, rx) = mpsc::unbounded_channel();
+            start_chat_producer::<H>(
                 tenant,
                 dir,
                 body,
                 background_full_access,
                 Some(cancellation),
+                None,
+                None,
+                H::tool_context(),
+                publish_cron_session,
+                move |payload, _terminal| tx.send(payload).is_ok(),
             )
-            .await
+            .await?;
+            Ok(rx)
         })
     })
     .await?;
@@ -2349,6 +2384,7 @@ pub async fn chat_stream_with_employee<H: StreamHost>(
                     Some(prompt_cancel),
                     authorization,
                     tool_context,
+                    false,
                     move |payload, terminal| {
                         if delivery.as_ref().is_some_and(|token| token.is_cancelled()) {
                             producer.publish(r#"{"type":"chat.error","error":"Employee account authorization changed"}"#, true);

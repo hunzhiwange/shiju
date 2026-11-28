@@ -282,6 +282,15 @@ fn tools_for_preset(available_tools: &[String], preset_key: &str) -> Vec<String>
     tools
 }
 
+fn set_allowed_tools(entry: &mut DelegateAgentSettingsEntry, tools: Vec<String>) {
+    entry.allowed_tools = tools;
+    if entry.uses_live_tool_catalog() {
+        // Keep an explicit required-only selection when the catalog omits required tools.
+        entry.allowed_tools =
+            config_tools::BUILTIN_REQUIRED_TOOL_IDS.iter().map(|tool| (*tool).into()).collect();
+    }
+}
+
 fn normalize_agent_key(raw: &str) -> String {
     raw.trim().chars().filter(|ch| ch.is_ascii_alphanumeric() || *ch == '-' || *ch == '_').collect()
 }
@@ -1364,8 +1373,14 @@ pub fn update(app: &mut Update<'_>, message: SettingsMessage) -> Task<Message> {
             if !enabled && config_tools::is_builtin_required_tool_id(&tool_id) {
                 return Task::none();
             }
-            let available_tools = app.state.available_tools.clone();
+            let available_tools = app.state.tool_catalog_for_agent(&agent_key).to_vec();
             if let Some(entry) = find_entry_mut(app, &agent_key) {
+                if entry.uses_live_tool_catalog() {
+                    if enabled {
+                        return Task::none();
+                    }
+                    entry.allowed_tools.clone_from(&available_tools);
+                }
                 if enabled {
                     if !entry.allowed_tools.iter().any(|tool| tool == &tool_id) {
                         entry.allowed_tools.push(tool_id);
@@ -1373,48 +1388,53 @@ pub fn update(app: &mut Update<'_>, message: SettingsMessage) -> Task<Message> {
                     }
                 } else {
                     entry.allowed_tools.retain(|tool| tool != &tool_id);
-                    entry.allowed_tools = crate::state::merge_builtin_required_tools(
+                    let tools = crate::state::merge_builtin_required_tools(
                         &entry.allowed_tools,
                         &available_tools,
                     );
+                    set_allowed_tools(entry, tools);
                 }
             }
             app.state.save_error = None;
             mark_agents_settings_dirty(app)
         }
         AgentsMessage::AllowedToolsSelectAll(agent_key) => {
-            let available_tools = app.state.available_tools.clone();
+            let available_tools = app.state.tool_catalog_for_agent(&agent_key).to_vec();
             if let Some(entry) = find_entry_mut(app, &agent_key) {
-                entry.allowed_tools = crate::state::merge_builtin_required_tools(
+                let tools = crate::state::merge_builtin_required_tools(
                     &available_tools,
                     &available_tools,
                 );
+                set_allowed_tools(entry, tools);
             }
             app.state.save_error = None;
             mark_agents_settings_dirty(app)
         }
         AgentsMessage::AllowedToolsInvertSelection(agent_key) => {
-            let available_tools = app.state.available_tools.clone();
+            let available_tools = app.state.tool_catalog_for_agent(&agent_key).to_vec();
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 let inverted = available_tools
                     .iter()
-                    .filter(|tool| !entry.allowed_tools.iter().any(|selected| selected == *tool))
+                    .filter(|tool| {
+                        !entry.uses_live_tool_catalog() && !entry.allowed_tools.contains(tool)
+                    })
                     .cloned()
                     .collect::<Vec<_>>();
-                entry.allowed_tools =
-                    crate::state::merge_builtin_required_tools(&inverted, &available_tools);
+                let tools = crate::state::merge_builtin_required_tools(&inverted, &available_tools);
+                set_allowed_tools(entry, tools);
             }
             app.state.save_error = None;
             mark_agents_settings_dirty(app)
         }
         AgentsMessage::AllowedToolsApplyPreset(agent_key, preset_key) => {
-            let available_tools = app.state.available_tools.clone();
+            let available_tools = app.state.tool_catalog_for_agent(&agent_key).to_vec();
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 let preset_tools = tools_for_preset(&available_tools, &preset_key);
-                entry.allowed_tools = crate::state::merge_builtin_required_tools(
+                let tools = crate::state::merge_builtin_required_tools(
                     &preset_tools,
                     &available_tools,
                 );
+                set_allowed_tools(entry, tools);
             }
             app.state.save_error = None;
             mark_agents_settings_dirty(app)

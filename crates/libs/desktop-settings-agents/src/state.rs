@@ -68,6 +68,10 @@ pub struct DelegateAgentSettingsEntry {
 }
 
 impl DelegateAgentSettingsEntry {
+    pub fn uses_live_tool_catalog(&self) -> bool {
+        self.kind == AgentSettingsEntryKind::Butler && self.allowed_tools.is_empty()
+    }
+
     pub fn can_start_session(&self) -> bool {
         self.enabled
             && (!cfg!(target_arch = "wasm32") || self.key != crate::acp::EMPLOYEE_ACP_PROFILE)
@@ -274,6 +278,10 @@ pub fn retain_available_allowed_tools(
     let mut changed = false;
 
     for entry in entries {
+        if entry.kind == AgentSettingsEntryKind::Butler {
+            // The gateway catalog can omit project-specific tools or temporarily unavailable MCP tools.
+            continue;
+        }
         let original = entry.allowed_tools.clone();
         entry.allowed_tools.retain(|tool_id| available.contains(tool_id.as_str()));
         entry.allowed_tools.sort();

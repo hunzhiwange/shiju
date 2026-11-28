@@ -409,9 +409,7 @@ fn selector_view(input: SelectorInput<'_>, picker: Option<(&'static str, bool)>)
                 let subtitle = if entry.model.trim().is_empty() {
                     engine
                 } else if show_tools {
-                    let allowlist_text = if entry.kind
-                        == desktop_settings_agents::state::AgentSettingsEntryKind::Butler
-                    {
+                    let allowlist_text = if entry.uses_live_tool_catalog() {
                         i18n.__("使用网关为当前会话提供的所有工具。").to_string()
                     } else if entry.allowed_tools.is_empty() {
                         i18n.__("未包含工具").to_string()

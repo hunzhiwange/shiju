@@ -75,4 +75,24 @@ fn butler_uses_live_tools_and_preserves_explicit_session_selection() {
         assert_eq!(overrides.allowed_tools, selection);
         assert!(overrides.chat_system_prompt.as_deref().unwrap().contains("cron_add"));
     }
+
+    let mut configured = agent.clone();
+    configured.allowed_tools = vec!["Config".into(), "cron_add".into()];
+    let merged = config_agent::merged_agent_configs(&std::collections::HashMap::from([(
+        key.into(),
+        configured,
+    )]));
+    let mut live = merged[key].clone();
+    session_engine::agent_binding::AgentBinding::from_definition(key.into(), &agent)
+        .apply(&mut live);
+
+    for (selection, expected) in [
+        (None, vec!["Config", "cron_add"]),
+        (Some(vec!["cron_add".into(), "AgentTool".into()]), vec!["cron_add"]),
+        (Some(vec!["AgentTool".into()]), vec![]),
+    ] {
+        let overrides = resolve_delegate_policy(key.into(), live.clone(), None, selection, None)
+            .expect("butler overrides");
+        assert_eq!(overrides.allowed_tools.as_deref().unwrap(), expected.as_slice());
+    }
 }

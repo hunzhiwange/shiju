@@ -121,7 +121,10 @@ impl AgentBinding {
         definition.system_prompt = self.system_prompt.clone();
         definition.temperature = self.temperature;
         definition.top_p = self.top_p;
-        definition.allowed_tools = self.allowed_tools.clone();
+        // Butler tool settings apply to existing sessions as well as new ones.
+        if self.agent != config_agent::SHIJU_BUTLER_AGENT_KEY {
+            definition.allowed_tools = self.allowed_tools.clone();
+        }
         definition.allowed_skills = self.allowed_skills.clone();
         definition.skill_policy = self.skill_policy;
         definition.provider = self.provider.clone();

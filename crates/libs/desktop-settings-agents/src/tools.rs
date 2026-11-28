@@ -660,19 +660,15 @@ pub fn view<'a>(
     input: Input<'a>,
     entry: &'a DelegateAgentSettingsEntry,
 ) -> Element<'a, Message> {
-    if entry.kind == crate::state::AgentSettingsEntryKind::Butler {
-        return text(tr(input.locale, "使用网关为当前会话提供的所有工具。"))
-            .size(13)
-            .style(settings_muted_text_style)
-            .into();
-    }
-
     let settings = &input;
     let i18n = I18n::new(input.locale);
     let active_tab = settings.active_tools_list_tab;
     let is_builtin_tab = active_tab == AGENT_TOOLS_BUILTIN_TAB;
     let visible_tool_ids = tools_for_list_tab(settings.available_tools, active_tab);
     let visible_tools: Vec<String> = visible_tool_ids.iter().map(|id| (*id).to_string()).collect();
+    let is_selected = |tool_id: &String| {
+        entry.uses_live_tool_catalog() || entry.allowed_tools.contains(tool_id)
+    };
 
     let tools_list: Element<'_, Message> = if settings.available_tools.is_empty() {
         text(tr(input.locale, "暂无可用工具列表"))
@@ -704,8 +700,7 @@ pub fn view<'a>(
                     .filter(|tool_id| tool_meta(tool_id).group == group_meta.group)
                     .map(|tool_id| {
                         let locked = is_builtin_tab || tool_card_is_locked(tool_id);
-                        let checked =
-                            locked || entry.allowed_tools.iter().any(|tool| tool == tool_id);
+                        let checked = locked || is_selected(tool_id);
                         let agent_key = entry.key.clone();
                         let tool_id = tool_id.clone();
                         let meta = tool_meta(&tool_id);
@@ -829,7 +824,7 @@ pub fn view<'a>(
         } else {
             let selected_optional = visible_tools
                 .iter()
-                .filter(|tool_id| entry.allowed_tools.iter().any(|tool| tool == *tool_id))
+                .filter(|tool_id| is_selected(tool_id))
                 .count();
 
             let preset_row = row(tool_preset_meta()

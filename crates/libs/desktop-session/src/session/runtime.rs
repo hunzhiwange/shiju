@@ -207,7 +207,7 @@ use super::agent::SessionRuntimeState;
 use crate::message::chat::request::AcpHistoryReplayMode;
 use desktop_settings_agents::{
     agents_state::AgentsSettingsState,
-    state::{AgentSettingsEntryKind, MAIN_AGENT_KEY},
+    state::MAIN_AGENT_KEY,
 };
 use std::collections::HashMap;
 
@@ -272,8 +272,7 @@ pub fn selected_static_allowed_tools<R>(
 ) -> Option<Vec<String>> {
     let key = runtime.agent.as_deref().unwrap_or(MAIN_AGENT_KEY);
     let entry = settings.entries.iter().find(|entry| entry.key == key)?;
-    (entry.kind != AgentSettingsEntryKind::Butler)
-        .then(|| sorted_unique_tools(entry.allowed_tools.clone()))
+    (!entry.uses_live_tool_catalog()).then(|| sorted_unique_tools(entry.allowed_tools.clone()))
 }
 pub fn tool_inventory<R>(
     settings: &AgentsSettingsState,

@@ -957,6 +957,30 @@ fn config_loaded_after_tool_catalog_removes_stale_selections_without_creating_us
 }
 
 #[test]
+fn butler_can_uncheck_default_tools_and_save_the_selection() {
+    let mut app = test_app();
+    let key = config_agent::SHIJU_BUTLER_AGENT_KEY;
+    let mcp_tool = "mcp__example__lookup";
+    app.available_tools = vec!["Config".into(), "file_read".into()];
+    app.registered_tools = Some(vec!["Config".into(), "file_read".into(), mcp_tool.into()]);
+    assert!(entry(&app, key).uses_live_tool_catalog());
+    app.profile_modal = Some(entry(&app, key).clone());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedToolToggled(
+            key.into(),
+            "Config".into(),
+            false,
+        )),
+    );
+
+    let draft = app.profile_modal.as_ref().unwrap();
+    let patch = build_agents_settings_patch(std::slice::from_ref(draft)).unwrap();
+    assert_eq!(patch["agents"][key]["allowed_tools"], serde_json::json!(["file_read", mcp_tool]));
+}
+
+#[test]
 fn allowed_tool_messages_keep_builtin_required_tools() {
     let mut app = test_app();
     app.available_tools = vec![

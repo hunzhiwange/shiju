@@ -8,7 +8,7 @@ use desktop_assets::assets::Icon;
 use desktop_i18n::I18n;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_svg, primary_action_btn_style,
-    rounded_action_btn_style, settings_divider, settings_error_banner, settings_group_card,
+    rounded_action_btn_style, settings_divider, settings_error_banner, settings_group_card, settings_group_header,
     settings_muted_text_style, settings_text_input,
 };
 use iced::widget::{button, column, container, responsive, row, text};
@@ -363,11 +363,13 @@ pub(super) fn preview<'a>(i18n: I18n, draft: &CronJobDraft, editing: bool) -> El
             output = output.push(preview_hint(i18n.__("无未来触发，请修改规则或有效期。")));
         }
         Some(Ok(preview)) => {
-            let title = container(text(i18n.__("执行时间")).size(13).font(preview_emphasis()))
-                .padding([10, 0]);
-            let mut times = column![title].width(Length::Fill);
-            for value in preview.candidates.iter().take(5) {
-                times = times.push(settings_divider()).push(preview_time(value, &current.timezone));
+            let title = text(i18n.__("执行时间")).size(13).font(preview_emphasis());
+            let mut times = column![settings_group_header(title)].width(Length::Fill);
+            for (index, value) in preview.candidates.iter().take(5).enumerate() {
+                if index > 0 {
+                    times = times.push(settings_divider());
+                }
+                times = times.push(preview_time(value, &current.timezone));
             }
             output = output.push(settings_group_card(times));
         }

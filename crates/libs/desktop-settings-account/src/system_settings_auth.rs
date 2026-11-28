@@ -128,7 +128,7 @@ fn services<'a, U: Clone + 'static>(i18n: I18n,
     let heading =
         row![title(i18n.__("授权服务"), 16).width(Length::Fill), settings_value_badge(rows.len()),]
             .align_y(Alignment::Center);
-    let mut list = column![heading].spacing(10).width(Length::Fill);
+    let mut list = column![settings_group_header(heading)].spacing(10).width(Length::Fill);
     if rows.is_empty() {
         return list.push(list_placeholder(Icon::ShieldLock, i18n.__("暂无授权服务"))).into();
     }

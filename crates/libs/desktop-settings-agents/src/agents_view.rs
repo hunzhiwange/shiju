@@ -19,7 +19,7 @@ pub fn agents_view(input: Input<'_>) -> Element<'_, Event> {
             title,
             settings_group_card(
                 column![
-                    settings_group_heading(
+                    settings_page_heading(
                         tr(input.catalog.locale, "配置尚未就绪"),
                         tr(
                             input.catalog.locale,

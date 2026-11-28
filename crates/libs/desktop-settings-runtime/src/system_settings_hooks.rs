@@ -7,10 +7,8 @@ use crate::help::*;
 
 use desktop_ui_controls::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-    settings_control_with_hint, settings_error_banner,
-    settings_group_card,  settings_muted_text_style,
-     settings_panel, settings_row_with_flexible_control,
-    settings_value_badge,
+    settings_control_with_hint, settings_error_banner, settings_group_card, settings_group_header,
+    settings_muted_text_style, settings_panel, settings_row_with_flexible_control, settings_value_badge,
 };
 use desktop_i18n::settings_extensions::text as tr;
 use crate::messages::HooksMessage;
@@ -263,13 +261,17 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
         ),
     );
 
+    let catalog_title = tr(locale, "插件 hook 审核");
+    let catalog_label = settings_hover_help_label(
+        app.render_help,
+        i18n,
+        theme,
+        catalog_title,
+        text(catalog_title).size(17),
+        tr(locale, "查看插件声明并管理当前哈希对应的信任状态。"),
+    );
     let catalog_header = row![
-        container(settings_group_heading_with_help(app.render_help, i18n,
-            theme,
-            tr(locale, "插件 hook 审核"),
-            tr(locale, "查看插件声明并管理当前哈希对应的信任状态。")
-        ))
-        .width(Length::Fill),
+        container(catalog_label.wrap()).width(Length::Fill),
         refresh_button(
             locale,
             tr(locale, "刷新清单"),
@@ -280,13 +282,17 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
     .spacing(12)
     .align_y(Alignment::Center);
 
+    let audit_title = tr(locale, "审计记录");
+    let audit_label = settings_hover_help_label(
+        app.render_help,
+        i18n,
+        theme,
+        audit_title,
+        text(audit_title).size(17),
+        tr(locale, "仅显示时间、工具名、耗时和成功状态，不包含参数或结果正文。"),
+    );
     let audit_header = row![
-        container(settings_group_heading_with_help(app.render_help, i18n,
-            theme,
-            tr(locale, "审计记录"),
-            tr(locale, "仅显示时间、工具名、耗时和成功状态，不包含参数或结果正文。"),
-        ))
-        .width(Length::Fill),
+        container(audit_label.wrap()).width(Length::Fill),
         refresh_button(locale, tr(locale, "刷新审计"), s.audit_loading, audit_refresh_requested()),
     ]
     .spacing(12)
@@ -298,7 +304,7 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
             tr(locale, "钩子配置"),
             tr(locale, "配置运行时 hooks 总开关与内置钩子的启用状态。")
         ),
-        text(tr(locale, "基础行为")).size(17),
+        settings_group_header(text(tr(locale, "基础行为")).size(17)),
         settings_group_card(enabled_row),
         builtin_header,
         settings_group_card(command_logger_row),
@@ -308,7 +314,7 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
             tr(locale, "控制可信插件 hooks 的执行并审核当前声明。")
         ),
         settings_group_card(plugin_hooks_row),
-        catalog_header,
+        settings_group_header(catalog_header),
         hook_catalog_panel(app),
     ]
     .spacing(16)
@@ -320,7 +326,7 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
     if let Some(error) = &s.mutation_error {
         content = content.push(settings_error_banner(error));
     }
-    content = content.push(audit_header).push(audit_panel(app));
+    content = content.push(settings_group_header(audit_header)).push(audit_panel(app));
     if let Some(error) = &s.audit_error {
         content = content.push(settings_error_banner(error));
     }

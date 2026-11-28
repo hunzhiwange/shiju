@@ -5,7 +5,7 @@ use desktop_ui_controls::overlays::BelowOverlay;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_PAGE_TITLE_SIZE,
     danger_action_btn_style, icon_svg, rounded_action_btn_style, settings_divider,
-    settings_error_banner, settings_modal_card_style, settings_muted_text_style,
+    settings_error_banner, settings_group_header, settings_modal_card_style, settings_muted_text_style,
     settings_select, settings_text_input,
 };
 use desktop_i18n::{I18n, settings_extensions};
@@ -173,7 +173,7 @@ pub fn page(state: &ArchivedChatsState, locale: DesktopLocale) -> Element<'_, Me
             ]
             .spacing(10)
             .align_y(Alignment::Center);
-            let mut rows = column![settings_divider()].spacing(10).width(Length::Fill);
+            let mut rows = column![].spacing(10).width(Length::Fill);
             for (index, session) in group.rows.into_iter().enumerate() {
                 if index != 0 {
                     rows = rows.push(settings_divider());
@@ -239,7 +239,7 @@ pub fn page(state: &ArchivedChatsState, locale: DesktopLocale) -> Element<'_, Me
                     .align_y(Alignment::Center),
                 );
             }
-            list = list.push(column![header, rows].spacing(10));
+            list = list.push(column![settings_group_header(header), rows].spacing(10));
         }
     }
     if state.project_delete.as_ref().is_some_and(|batch| !batch.failed.is_empty())

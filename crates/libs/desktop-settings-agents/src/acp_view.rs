@@ -4,7 +4,7 @@ use crate::message::{AcpMessage, AgentsMessage, Event};
 
 use desktop_ui_controls::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_divider,
-    settings_error_banner, settings_field_label, settings_group_card,
+    settings_error_banner, settings_field_label, settings_group_card, settings_group_header,
     settings_icon_tile_style,
     settings_modal_card_style, settings_modal_header, settings_modal_layout,
     settings_modal_overlay, settings_muted_text_style, settings_panel, settings_panel_style, settings_success_banner, settings_text_input,
@@ -427,7 +427,8 @@ pub fn new_agent_form(input: Input<'_>) -> Element<'_, Event> {
         .spacing(8)
         .wrap(),
     );
-    let mut environment = column![settings_field_label(tr("环境变量"))].spacing(10);
+    let mut environment = column![settings_group_header(settings_field_label(tr("环境变量")))]
+        .spacing(10);
     for (i, (key, value)) in state.editor_env.iter().enumerate() {
         environment = environment.push(
             row![
@@ -476,9 +477,7 @@ pub fn new_agent_form(input: Input<'_>) -> Element<'_, Event> {
             ]
             .spacing(12),
         ))
-        .push(settings_divider())
         .push(settings_section_content(arguments))
-        .push(settings_divider())
         .push(settings_section_content(environment));
     let title = tr(if state.editing_agent.is_some() { "编辑 ACP" } else { "新增 ACP" });
     let header = settings_modal_header(
@@ -614,14 +613,17 @@ pub fn view(input: Input<'_>) -> Element<'_, Event> {
         row![add_btn, refresh_btn].spacing(8).align_y(Alignment::Center).wrap(),
         settings_group_card(
             column![
-                settings_hover_help_label(input.help,
-                    i18n,
-                    input.theme,
-                    title,
-                    text(title).size(14),
-                    i18n.__("启用后会出现在聊天、任务和设计生成的 ACP 后端选择中。"),
-                )
-                .wrap(),
+                settings_group_header(
+                    settings_hover_help_label(
+                        input.help,
+                        i18n,
+                        input.theme,
+                        title,
+                        text(title).size(14),
+                        i18n.__("启用后会出现在聊天、任务和设计生成的 ACP 后端选择中。"),
+                    )
+                    .wrap(),
+                ),
                 catalog_filters(input),
             ]
             .spacing(10),

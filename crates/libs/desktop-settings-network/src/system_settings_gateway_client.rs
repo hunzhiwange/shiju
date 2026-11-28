@@ -357,7 +357,7 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
             )
             .padding([14, 0]),
         ),
-        text(connection_text(app.desktop_locale, "连接参数")).size(17),
+        settings_group_header(text(connection_text(app.desktop_locale, "连接参数")).size(17)),
         settings_group_card(column![
             name_row,
             settings_divider(),
@@ -371,7 +371,7 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
             settings_divider(),
             user_id_row,
         ]),
-        text(connection_text(app.desktop_locale, "认证")).size(17),
+        settings_group_header(text(connection_text(app.desktop_locale, "认证")).size(17)),
         settings_group_card(skey_row),
         row![
             text(connection_text(

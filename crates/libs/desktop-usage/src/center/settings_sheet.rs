@@ -26,7 +26,7 @@ fn section<'a, M: Clone + 'static>(
     title: &'static str,
     content: impl Into<Element<'a, M>>,
 ) -> Element<'a, M> {
-    column![text(title).size(14).style(text::secondary), settings_divider(), content.into()]
+    column![settings_group_header(text(title).size(14).style(text::secondary)), content.into()]
         .spacing(8)
         .width(Length::Fill)
         .into()

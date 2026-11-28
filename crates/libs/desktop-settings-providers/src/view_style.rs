@@ -21,7 +21,9 @@ impl ViewStyle<'_> {
         self.help_label(title, text(title).size(SETTINGS_PAGE_TITLE_SIZE), description).wrap().into()
     }
     pub fn group_heading<'a>(self, title: &'a str, description: impl Into<Cow<'a,str>>) -> Element<'a,Message> {
-        self.help_label(title, text(title).size(17), description).wrap().into()
+        desktop_ui_controls::system_settings_common::settings_group_header(
+            self.help_label(title, text(title).size(17), description).wrap(),
+        )
     }
     pub fn field<'a>(self, title: &'a str, description: impl Into<Cow<'a,str>>, width: f32, control: impl Into<Element<'a,Message>>) -> widget::Container<'a,Message> {
         let label = self.help_label(title, settings_field_label(title), description).width(Length::Fill).wrap();

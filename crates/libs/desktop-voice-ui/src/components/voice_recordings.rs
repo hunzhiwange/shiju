@@ -82,7 +82,10 @@ pub fn content<'a>(
             .spacing(10),
         ));
     }
-    let mut page = column![text(i18n.__("最近本机录音")).size(17), settings_group_card(items),]
+    let mut page = column![
+        settings_group_header(text(i18n.__("最近本机录音")).size(17)),
+        settings_group_card(items),
+    ]
         .spacing(8)
         .width(Length::Fill);
     if !state.entries.is_empty() {

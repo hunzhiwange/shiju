@@ -200,7 +200,10 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
         )
         .padding([10, 0]);
 
-        list = list.push(settings_divider()).push(card);
+        if idx > 0 {
+            list = list.push(settings_divider());
+        }
+        list = list.push(card);
     }
 
     list.into()

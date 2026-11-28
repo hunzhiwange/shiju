@@ -14,25 +14,22 @@ fn event(value: Event) -> Message {
     message(WorktreeSettingsMessage::Environment(value))
 }
 pub fn view<'a>(state: &'a WorktreeEnvironmentState, i18n: I18n, local: bool) -> Element<'a, Message> {
-    let mut body = column![
-        row![
-            text(i18n.__("选择项目")).size(18).width(Length::Fill),
-            button(text(i18n.__("刷新")))
-                .padding([8, 14])
-                .style(rounded_action_btn_style)
-                .on_press(event(Event::Refresh)),
-            button(text(i18n.__("添加项目")))
-                .padding([8, 14])
-                .style(primary_action_btn_style)
-                .on_press_maybe(
-                    (local && !state.adding && !state.projects_loading).then(|| event(Event::Add))
-                )
-        ]
-        .spacing(10)
-        .align_y(Alignment::Center)
+    let heading = row![
+        text(i18n.__("选择项目")).size(18).width(Length::Fill),
+        button(text(i18n.__("刷新")))
+            .padding([8, 14])
+            .style(rounded_action_btn_style)
+            .on_press(event(Event::Refresh)),
+        button(text(i18n.__("添加项目")))
+            .padding([8, 14])
+            .style(primary_action_btn_style)
+            .on_press_maybe(
+                (local && !state.adding && !state.projects_loading).then(|| event(Event::Add))
+            )
     ]
-    .spacing(12)
-    .padding([0, 7]);
+    .spacing(10)
+    .align_y(Alignment::Center);
+    let mut body = column![settings_group_header(heading)].spacing(12);
     if !local {
         body = body.push(
             text(i18n.__("远程网关仅支持选择已注册项目。请在网关所在主机添加项目。"))

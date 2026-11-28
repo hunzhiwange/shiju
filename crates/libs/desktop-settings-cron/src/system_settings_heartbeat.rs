@@ -49,7 +49,9 @@ fn settings_page_heading_with_help<'a>(app: &ViewData<'_>, title: &'a str, descr
     hover_help_label(app, title, text(title).size(SETTINGS_PAGE_TITLE_SIZE), description).wrap().into()
 }
 fn settings_group_heading_with_help<'a>(app: &ViewData<'_>, title: &'a str, description: impl Into<std::borrow::Cow<'a,str>>) -> Element<'a,Message> {
-    hover_help_label(app, title, text(title).size(17), description).wrap().into()
+    desktop_ui_controls::system_settings_common::settings_group_header(
+        hover_help_label(app, title, text(title).size(17), description).wrap(),
+    )
 }
 fn settings_flexible_row_with_help<'a>(app: &ViewData<'_>, title: &'a str, description: impl Into<std::borrow::Cow<'a,str>>, width: f32, control: impl Into<Element<'a,Message>>) -> iced::widget::Container<'a,Message> {
     let label = hover_help_label(app, title, settings_field_label(title), description).width(Length::Fill).wrap();

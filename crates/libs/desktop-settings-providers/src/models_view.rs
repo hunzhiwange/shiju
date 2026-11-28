@@ -272,7 +272,7 @@ pub fn main_view<'a>(s: &'a crate::state::ModelSettingsState, style: ViewStyle<'
         };
 
         list = list.push(settings_group_card(
-            container(settings_group_heading(empty_title, empty_description)).padding([16, 0]),
+            container(settings_page_heading(empty_title, empty_description)).padding([16, 0]),
         ));
     }
 

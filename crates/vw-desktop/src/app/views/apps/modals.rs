@@ -2,7 +2,7 @@
 use crate::app::{App, Message};
 use crate::app::message::ViewMessage;
 use crate::app::i18n::I18n;
-use crate::app::components::system_settings_common::{settings_group_heading_with_help, settings_hover_help_label, settings_field_label};
+use crate::app::components::system_settings_common::{settings_page_heading_with_help, settings_hover_help_label, settings_field_label};
 use iced::Element;
 use desktop_apps_ui::bookmark_modals::{self as domain, Event};
 #[cfg(test)]
@@ -34,7 +34,7 @@ fn input(app: &App, editing: bool) -> domain::Input<'_, Message> {
     let help = format!("{}\n\n{}\n{}", i18n.__("支持按 JSON 为指定站点注入 Cookie。"), i18n.__("配置示例"), domain::WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE);
     domain::Input {
         i18n, message, editing_web_bookmark: app.web_navigation.editing_web_bookmark,
-        heading: settings_group_heading_with_help(i18n, &app.appearance.app_theme, i18n.__(title), i18n.__(description)).into(),
+        heading: settings_page_heading_with_help(i18n, &app.appearance.app_theme, i18n.__(title), i18n.__(description)).into(),
         cookie_help: settings_hover_help_label(i18n, &app.appearance.app_theme, cookie_label, settings_field_label(cookie_label), help).wrap().into(),
         edit_web_bookmark_cookie_configs_editor: &app.web_navigation.edit_web_bookmark_cookie_configs_editor,
         web_bookmark_title_input: &app.web_navigation.web_bookmark_title_input,

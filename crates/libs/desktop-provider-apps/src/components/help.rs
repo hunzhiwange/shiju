@@ -1,5 +1,5 @@
 use desktop_i18n::I18n;
-use desktop_ui_controls::system_settings_common::{settings_field_label,help::settings_hover_help_label};
+use desktop_ui_controls::system_settings_common::{help::settings_hover_help_label, settings_field_label, settings_group_header};
 use iced::{Element,Theme,widget::text};
 use crate::Message;
 use std::borrow::Cow;
@@ -15,5 +15,7 @@ impl Help<'_> {
         let title=self.i18n.__(title);
         settings_hover_help_label(text(title).size(size), (self.render)(title,self.i18n.__(description).into(),Some(self.theme.palette().text),self.i18n)).wrap().into()
     }
-    pub fn group(self,title: &'static str,description: &'static str)->Element<'static,Message>{ self.heading(title,description,17) }
+    pub fn group(self, title: &'static str, description: &'static str) -> Element<'static, Message> {
+        settings_group_header(self.heading(title, description, 17))
+    }
 }

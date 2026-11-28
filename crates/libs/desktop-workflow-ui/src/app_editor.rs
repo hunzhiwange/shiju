@@ -116,14 +116,16 @@ pub fn build_app_editor_modal<'a, Message: Clone + Send + 'static>(
     .spacing(10);
 
     let body = column![
-        help(
-            i18n,
-            i18n.__("应用基础信息"),
-            text(i18n.__("应用基础信息")).size(17),
-            i18n.__("表单结构参考 Dify 应用设置页，先整理名称、图标和描述。")
-        )
-        .wrap(),
-        settings_group_card(fields).padding([14, 0]),
+        settings_group_header(
+            help(
+                i18n,
+                i18n.__("应用基础信息"),
+                text(i18n.__("应用基础信息")).size(17),
+                i18n.__("表单结构参考 Dify 应用设置页，先整理名称、图标和描述。"),
+            )
+            .wrap(),
+        ),
+        settings_group_card(fields),
     ]
     .spacing(12);
     let card = settings_modal_layout(header, body, Some(footer.into()))

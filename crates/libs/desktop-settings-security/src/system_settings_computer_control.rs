@@ -75,7 +75,9 @@ pub fn page(i18n: I18n, state: &ComputerControlSettingsState) -> Element<'_, Eve
     ]
     .spacing(16)
     .width(Length::Fill);
-    let mut content = column![text(i18n.__("控制")).size(17)].spacing(16).width(Length::Fill);
+    let mut content = column![settings_group_header(text(i18n.__("控制")).size(17))]
+        .spacing(16)
+        .width(Length::Fill);
     if state.saving {
         content = content.push(text(i18n.__("正在等待服务端确认…")).size(13));
     }
@@ -191,7 +193,7 @@ pub fn page(i18n: I18n, state: &ComputerControlSettingsState) -> Element<'_, Eve
             .padding([20, 0]),
         );
     }
-    content = content.push(text(i18n.__("始终允许的应用")).size(17));
+    content = content.push(settings_group_header(text(i18n.__("始终允许的应用")).size(17)));
     content = content.push(settings_group_card(container(grants).padding([16, 0])));
     let body = scrollable(container(content).padding([0, 7]).width(Length::Fill))
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))

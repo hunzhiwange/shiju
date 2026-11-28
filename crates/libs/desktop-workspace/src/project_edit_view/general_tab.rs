@@ -237,7 +237,6 @@ pub(super) fn general_tab<'a>(app: &View<'a>, path: &'a str) -> Element<'a, Mess
             i18n.__("项目展示"),
             i18n.__("配置项目名称、图标来源与图标主题色。"),
         ),
-        settings_divider(),
         settings_section_content(
             column![
                 settings_responsive_row(name_label, "", move || {

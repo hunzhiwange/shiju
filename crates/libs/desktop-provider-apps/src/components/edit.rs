@@ -94,7 +94,9 @@ pub fn card_with_selection<'a>(
             form.fields.website_url.as_deref().unwrap_or(""),
             EditMessage::Website,
         ));
-        fields = fields.push(text(i18n.__("基础资料")).size(17)).push(settings_divider()).push(settings_section_content(basic));
+        fields = fields
+            .push(settings_group_header(text(i18n.__("基础资料")).size(17)))
+            .push(settings_section_content(basic));
         if diagnostics {
             fields = fields.push(
                 button(text(i18n.__("端点测速与选择")))
@@ -217,7 +219,9 @@ pub fn card_with_selection<'a>(
                         .style(settings_muted_text_style),
                 );
             }
-            fields = fields.push(text(i18n.__("凭据")).size(17)).push(settings_divider()).push(settings_section_content(credentials));
+            fields = fields
+                .push(settings_group_header(text(i18n.__("凭据")).size(17)))
+                .push(settings_section_content(credentials));
         }
     }
     if binding {

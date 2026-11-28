@@ -62,7 +62,7 @@ pub fn card<'a>(i18n: desktop_i18n::I18n,
     }
     if matches!(app, AppId::Claude | AppId::Codex) {
         body = body
-            .push(text(i18n.__("请求选项（只写）")).size(18))
+            .push(settings_group_header(text(i18n.__("请求选项（只写）")).size(18)))
             .push(text(i18n.__("留空保留；输入 {} 清除对应组。刷新只回读配置状态，不回填敏感值。")));
         if let Some(view) = &form.options {
             body = body.push(text(i18n.format("服务状态：普通头%s，代理覆盖%s；未应用", &[((if view.headers_configured { i18n.__("已配置") } else { i18n.__("未配置") }).to_string()).into(), ((if view.overrides_configured { i18n.__("已配置") } else { i18n.__("未配置") }).to_string()).into()]).expect("valid display template")));

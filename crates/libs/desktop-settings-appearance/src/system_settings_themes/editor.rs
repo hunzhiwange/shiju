@@ -1,6 +1,8 @@
 //! 主题编辑器：草稿构造、校验与表单视图。
 
-use crate::headings::{settings_flexible_row_with_help,settings_group_heading_with_help};
+use crate::headings::{
+    settings_flexible_row_with_help, settings_group_heading_with_help, settings_page_heading_with_help,
+};
 
 use desktop_ui_controls::color_picker::{parse_color, render_color_picker};
 use desktop_ui_controls::overlays::BelowOverlay;
@@ -8,7 +10,7 @@ use desktop_ui_controls::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_divider,
     settings_error_banner,  settings_group_card,
     settings_group_heading,  settings_modal_header,
-    settings_modal_layout, settings_muted_text_style, settings_panel_style, settings_row,
+    settings_modal_layout, settings_muted_text_style, settings_page_heading, settings_panel_style, settings_row,
     settings_select, settings_tab_button, settings_tab_row, settings_text_input,
 };
 use crate::system_settings_themes::preview::theme_preview_panel;
@@ -1018,7 +1020,7 @@ pub fn view<'a, Message: Clone + 'static>(app: &View<'a, Message>) -> Element<'a
     let cancel = map(ThemesMessage::CancelEdit);
     let Some(draft) = app.themes_settings.draft.as_ref() else {
         let title =
-            settings_group_heading(i18n.__("主题编辑器"), i18n.__("当前没有可编辑的草稿。"));
+            settings_page_heading(i18n.__("主题编辑器"), i18n.__("当前没有可编辑的草稿。"));
         return settings_modal_layout(
             settings_modal_header(title, settings_close_button(cancel.clone())),
             button(text(i18n.__("返回画廊")).size(12))
@@ -1087,7 +1089,7 @@ pub fn view<'a, Message: Clone + 'static>(app: &View<'a, Message>) -> Element<'a
     } else {
         i18n.__("按 Tab 分段编辑命名、配色、资源与控件皮肤，预览后保存到本地仓库。").into()
     };
-    let heading = settings_group_heading_with_help(app.help, i18n, app.app_theme, title, description);
+    let heading = settings_page_heading_with_help(app.help, i18n, app.app_theme, title, description);
     let heading = if is_bundled_preset {
         column![heading, text(i18n.__("预设不可删除。")).size(13).style(settings_muted_text_style),]
             .spacing(6)

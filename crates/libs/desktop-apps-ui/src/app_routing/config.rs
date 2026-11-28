@@ -503,7 +503,10 @@ pub(super) fn rectifier(
     if available && let Some(error) = &state.error {
         body = body.push(settings_error_banner(i18n.__(error).to_owned()));
     }
-    column![text(i18n.__("请求整流")).size(18), settings_group_card(body).padding([16, 0]),]
+    column![
+        settings_group_header(text(i18n.__("请求整流")).size(18)),
+        settings_group_card(body).padding([16, 0]),
+    ]
         .spacing(12)
         .into()
 }

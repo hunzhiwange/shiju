@@ -277,7 +277,7 @@ pub fn view_with_updates<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
                 .align_y(Alignment::Center)
                 .into()
             };
-            let mut cards = column![settings_divider()].width(Length::Fill);
+            let mut cards = column![].width(Length::Fill);
             for (index, app) in apps.into_iter().enumerate() {
                 if index > 0 {
                     cards = cards.push(settings_divider());
@@ -298,7 +298,7 @@ pub fn view_with_updates<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
                     );
                 }
             }
-            let section = column![header, cards].spacing(7).width(Length::Fill);
+            let section = column![settings_group_header(header), cards].spacing(7).width(Length::Fill);
             let section: Element<'_, M> = if presence == Presence::Installed
                 && state.drag.source.is_some()
             {

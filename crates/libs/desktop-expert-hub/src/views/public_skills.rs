@@ -22,7 +22,7 @@ use desktop_skill_hub::skill_hub::{
     LoadState, PublicDetailTarget, PublicSkillMarketState, PublicSkillTab,
 };
 use desktop_ui_controls::system_settings_common::{
-    primary_action_btn_style, settings_select, settings_text_input,
+    primary_action_btn_style, rounded_action_btn_style, settings_select, settings_text_input,
 };
 
 /// 公共技能页面统一使用的滚动条宽度。
@@ -129,13 +129,17 @@ pub fn source_selector(
 fn search_header<'a>(app: &ViewInput<'a>) -> Element<'a, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let state = &app.expert_hub.public_market;
-    let tabs = row(public_tab_specs()
+    let mut tabs = row(public_tab_specs()
         .iter()
         .map(|(label, tab)| tab_button(i18n, label, *tab, state.tab == *tab))
-        .collect::<Vec<_>>())
-    .spacing(6)
-    .width(Length::Fill)
-    .wrap();
+        .collect::<Vec<_>>());
+    tabs = tabs.push(
+        button(text(i18n.__("本地技能配置")).size(14))
+            .on_press(Message::OpenSkillSettings)
+            .padding([8, 16])
+            .style(rounded_action_btn_style),
+    );
+    let tabs = tabs.spacing(6).width(Length::Fill).wrap();
     let search = settings_text_input(i18n.__("搜索技能或套件"), &state.query.keyword_draft)
         .on_input(|query| public_message(PublicSkillMessage::QueryDraftChanged(query)))
         .on_submit(public_message(PublicSkillMessage::SubmitQuery))

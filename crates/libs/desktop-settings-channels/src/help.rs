@@ -29,7 +29,9 @@ pub fn settings_group_heading_with_help<'a, 'theme>(
     title: &'a str,
     description: impl Into<Cow<'a, str>>,
 ) -> Element<'a, Message> {
-    settings_hover_help_label(i18n, theme, title, text(title).size(17), description).wrap().into()
+    desktop_ui_controls::system_settings_common::settings_group_header(
+        settings_hover_help_label(i18n, theme, title, text(title).size(17), description).wrap(),
+    )
 }
 pub fn settings_flexible_row_with_help<'a>(
     i18n: I18n,

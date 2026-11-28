@@ -70,7 +70,8 @@ pub fn view(i18n: I18n) -> Element<'static, Message> {
         cards.into()
     })
     .height(Length::Shrink);
-    column![text(i18n.__("试试这些常用任务")).size(16).font(list::bold()), grid]
+    let title = text(i18n.__("试试这些常用任务")).size(16).font(list::bold());
+    column![settings_group_header(title), grid]
         .spacing(13)
         .width(Length::Fill)
         .into()

@@ -9,7 +9,7 @@ use desktop_ui_controls::system_settings_common::{
 };
 use desktop_ui_controls::system_settings_common::{
     settings_checkbox_style, settings_divider, settings_field_label, settings_group_card,
-    settings_select, settings_value_badge,
+    settings_group_header, settings_select, settings_value_badge,
 };
 use iced::widget::{checkbox, column, row, text};
 use iced::{Alignment, Element, Length};
@@ -170,7 +170,7 @@ pub fn view<Help: Clone + 'static>(
     ]
     .spacing(0);
 
-    let group_heading = |title: &'static str, description: Cow<'static, str>| {
+    let group_label = |title: &'static str, description: Cow<'static, str>| {
         settings_hover_help_label(
             text(title).size(17),
             render_help(title, description).map(Message::Help),
@@ -178,7 +178,10 @@ pub fn view<Help: Clone + 'static>(
         .wrap()
     };
     let groups = column![
-        group_heading(i18n.__("主题与显示"), i18n.__("统一编辑器主题来源及排版参数。").into(),),
+        settings_group_header(group_label(
+            i18n.__("主题与显示"),
+            i18n.__("统一编辑器主题来源及排版参数。").into(),
+        )),
         settings_group_card(display_fields),
     ]
     .spacing(16)
@@ -207,9 +210,15 @@ pub fn view<Help: Clone + 'static>(
             i18n.__("安装后确保语言服务器所在目录在 PATH 中，重启 ShiJu 并重新打开文件。"),
         );
         groups
-            .push(group_heading(i18n.__(general_fields::EDITOR_LSP.label), lsp_help.into()))
+            .push(settings_group_header(group_label(
+                i18n.__(general_fields::EDITOR_LSP.label),
+                lsp_help.into(),
+            )))
             .push(settings_group_card(lsp_row))
-            .push(group_heading(i18n.__("语言服务器安装"), install_help.into()))
+            .push(settings_group_header(group_label(
+                i18n.__("语言服务器安装"),
+                install_help.into(),
+            )))
             .push(lsp_install_guide(&state, i18n, control_width, &render_help))
     };
 

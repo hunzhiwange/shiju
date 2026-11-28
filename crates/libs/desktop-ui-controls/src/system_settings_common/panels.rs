@@ -79,13 +79,43 @@ pub fn settings_page_heading<'a, Message: Clone + 'a>(
     .into()
 }
 
+/// 分组标题左侧使用主题色竖线，下方保留与正文同宽的细线。
+pub fn settings_group_header<'a, Message: Clone + 'a>(
+    heading: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    settings_group_header_with_description(heading.into(), "")
+}
+
 /// 设置分组上方的标题与说明。
 pub fn settings_group_heading<'a, Message: Clone + 'a>(
     title: &'a str,
     description: &'a str,
 ) -> Element<'a, Message> {
-    column![text(title).size(17), text(description).size(13).style(settings_muted_text_style)]
-        .spacing(6)
+    settings_group_header_with_description(text(title).size(17).into(), description)
+}
+
+fn settings_group_header_with_description<'a, Message: Clone + 'a>(
+    heading: Element<'a, Message>,
+    description: &'a str,
+) -> Element<'a, Message> {
+    let marker_width: f32 = 3.0;
+    let marker_gap: f32 = 8.0;
+    let marker = container(Space::new())
+        .width(marker_width)
+        .height(16)
+        .style(|theme: &Theme| container::Style::default().background(theme.palette().primary));
+    let title = row![marker, heading].spacing(marker_gap).align_y(Alignment::Center);
+    let mut heading = column![title].spacing(6);
+    if !description.is_empty() {
+        heading = heading.push(
+            container(text(description).size(13).style(settings_muted_text_style))
+                .padding(Padding::ZERO.left(marker_width + marker_gap)),
+        );
+    }
+
+    container(column![heading, settings_divider()].spacing(12))
+        .padding(Padding::ZERO.top(16))
+        .width(Length::Fill)
         .into()
 }
 
@@ -550,7 +580,7 @@ pub fn settings_page_intro<'a, Message: Clone + 'a>(
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn settings_divider<Message: Clone + 'static>() -> Element<'static, Message> {
+pub fn settings_divider<'a, Message: Clone + 'a>() -> Element<'a, Message> {
     container(Space::new()).width(Length::Fill).height(1.0).style(settings_divider_style).into()
 }
 
@@ -758,15 +788,16 @@ pub fn settings_group_heading_with_help<
     title: &'a str,
     description: impl Into<Cow<'a, str>>,
 ) -> Element<'a, Message> {
-    super::help::settings_selectable_help_label(
-        i18n,
-        theme,
-        title,
-        text(title).size(17),
-        description,
+    settings_group_header(
+        super::help::settings_selectable_help_label(
+            i18n,
+            theme,
+            title,
+            text(title).size(17),
+            description,
+        )
+        .wrap(),
     )
-    .wrap()
-    .into()
 }
 pub fn settings_flexible_row_with_help<
     'a,

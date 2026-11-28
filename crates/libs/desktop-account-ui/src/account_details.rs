@@ -10,7 +10,7 @@ use desktop_i18n::I18n;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_close_button, settings_divider, settings_error_banner,
-    settings_field_label, settings_group_card, settings_modal_header, settings_modal_layout,
+    settings_field_label, settings_group_card, settings_group_header, settings_modal_header, settings_modal_layout,
     settings_muted_text_style, settings_text_input_style, settings_value_badge,
 };
 use iced::widget::text::Wrapping;
@@ -76,14 +76,14 @@ fn section_card(
     title: &'static str,
     rows: Vec<Element<'static, Message>>,
 ) -> Element<'static, Message> {
-    let mut content = column![text(i18n.__(title)).size(16), settings_divider()].spacing(12);
+    let mut content = column![settings_group_header(text(i18n.__(title)).size(16))].spacing(12);
     for (index, row) in rows.into_iter().enumerate() {
         if index > 0 {
             content = content.push(settings_divider());
         }
         content = content.push(row);
     }
-    settings_group_card(container(content).padding([14, 0])).into()
+    settings_group_card(content).into()
 }
 
 fn edit_profile_action(i18n: I18n) -> Element<'static, Message> {

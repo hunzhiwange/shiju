@@ -934,7 +934,7 @@ fn marketplace_filters(app: &ViewInput<'_>, width: f32) -> Element<'static, Mess
 fn marketplace(app: &ViewInput<'_>, width: f32, columns: usize) -> Element<'static, Message> {
     let i18n = desktop_i18n::I18n::new(app.desktop_locale);
     let state = app.expert_hub;
-    let settings = button(text(i18n.__("技能配置")).size(14))
+    let settings = button(text(i18n.__("本地技能配置")).size(14))
         .padding([10, 16])
         .style(|theme, status| {
             let mut style = rounded_action_btn_style(theme, status);

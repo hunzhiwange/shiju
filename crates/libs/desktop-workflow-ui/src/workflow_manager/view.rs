@@ -3,10 +3,10 @@ use super::*;
 use desktop_assets::assets::Icon;
 use desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage;
 use desktop_ui_controls::system_settings_common::{
-    SETTINGS_PAGE_TITLE_SIZE, settings_section_content,
+    SETTINGS_PAGE_TITLE_SIZE, settings_group_header, settings_section_content,
     help::localized_selectable_settings_help_modal,
     icons::icon_btn,
-    panels::{settings_inactive_view, with_settings_modal_escape},
+    panels::{settings_content_panel_style, settings_inactive_view, with_settings_modal_escape},
 };
 use iced::widget::column;
 
@@ -88,7 +88,8 @@ pub fn view_content<'a>(
                 workflow_manager_tabs(i18n, state.active_tab),
             ]
             .spacing(12)
-        ),
+        )
+        .style(workflow_section_style),
         body,
     ]
     .spacing(16)
@@ -109,6 +110,12 @@ pub fn view_content<'a>(
             }
         })
         .into()
+}
+
+fn workflow_section_style(theme: &Theme) -> container::Style {
+    let mut style = settings_content_panel_style(theme);
+    style.border.width = 0.0;
+    style
 }
 
 pub fn with_dialog<'a, M: SelectionMessage + 'static>(
@@ -296,7 +303,8 @@ fn build_status_catalog<'a>(
     let mut groups = column![].spacing(16);
     if let Some(workflow) = workflow {
         for (group, rows) in status_catalog(workflow) {
-            let mut section = column![text(group.label(i18n)).size(15)].spacing(8);
+            let mut section = column![settings_group_header(text(group.label(i18n)).size(15))]
+                .spacing(8);
             if rows.is_empty() {
                 section = section
                     .push(text(i18n.__("此组暂无状态")).size(12).style(settings_muted_text_style));
@@ -513,6 +521,7 @@ fn build_workflow_list<'a>(
         )
         .height(Length::Fill)
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))))
+    .style(workflow_section_style)
     .height(Length::Fill)
     .into()
 }
@@ -541,7 +550,9 @@ fn build_editor<'a>(
         } else {
             "请选择工作流"
         };
-        return settings_panel(text(i18n.__(message)).style(settings_muted_text_style)).into();
+        return settings_panel(text(i18n.__(message)).style(settings_muted_text_style))
+            .style(workflow_section_style)
+            .into();
     };
 
     let mut controls = column![].spacing(8);
@@ -639,6 +650,7 @@ fn build_editor<'a>(
         ]
         .spacing(12),
     )
+    .style(workflow_section_style)
     .height(Length::Fill)
     .into()
 }
@@ -753,28 +765,29 @@ fn build_draft_editor(i18n: desktop_i18n::I18n, draft: &WorkflowDraft) -> Elemen
     .padding([9, 14])
     .style(rounded_action_btn_style);
 
+    let header = row![
+        text(i18n.__("步骤配置")).size(18),
+        Space::new().width(Length::Fill),
+        workflow_action(
+            i18n.__(if draft.show_advanced { "收起" } else { "高级" }),
+            WorkflowManagerMessage::ToggleDraftAdvanced,
+            rounded_action_btn_style,
+        ),
+        workflow_action(
+            i18n.__("取消"),
+            WorkflowManagerMessage::CancelDraft,
+            rounded_action_btn_style
+        ),
+        workflow_action(
+            i18n.__("保存"),
+            WorkflowManagerMessage::SaveDraft,
+            primary_action_btn_style
+        ),
+    ]
+    .align_y(Alignment::Center)
+    .spacing(8);
     let mut form = column![
-        row![
-            text(i18n.__("步骤配置")).size(18),
-            Space::new().width(Length::Fill),
-            workflow_action(
-                i18n.__(if draft.show_advanced { "收起" } else { "高级" }),
-                WorkflowManagerMessage::ToggleDraftAdvanced,
-                rounded_action_btn_style,
-            ),
-            workflow_action(
-                i18n.__("取消"),
-                WorkflowManagerMessage::CancelDraft,
-                rounded_action_btn_style
-            ),
-            workflow_action(
-                i18n.__("保存"),
-                WorkflowManagerMessage::SaveDraft,
-                primary_action_btn_style
-            ),
-        ]
-        .align_y(Alignment::Center)
-        .spacing(8),
+        settings_group_header(header),
         input_row(
             field_help(i18n, i18n.__("名称"), i18n.__("显示在项目工作流选择和管理列表中。"), 13),
             settings_text_input("Handoff Flow", &draft.label)

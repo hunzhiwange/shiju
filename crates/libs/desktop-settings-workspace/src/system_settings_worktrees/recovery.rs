@@ -14,17 +14,14 @@ fn event(value: RecoveryMessage) -> Message {
 pub fn view(i18n: I18n, state: &WorktreeSettingsState) -> Element<'_, Message> {
     let recovery = &state.recovery;
     let busy = recovery.pending.is_some();
-    let mut body = column![
-        row![
-            text(i18n.__("清理建议与恢复快照")).size(18).width(Length::Fill),
-            button(text(i18n.__("刷新"))).style(rounded_action_btn_style).padding([8, 14]).on_press_maybe(
-                (!busy && !recovery.loading).then(|| event(RecoveryMessage::Refresh))
-            )
-        ]
-        .align_y(Alignment::Center)
+    let heading = row![
+        text(i18n.__("清理建议与恢复快照")).size(18).width(Length::Fill),
+        button(text(i18n.__("刷新"))).style(rounded_action_btn_style).padding([8, 14]).on_press_maybe(
+            (!busy && !recovery.loading).then(|| event(RecoveryMessage::Refresh))
+        )
     ]
-    .spacing(12)
-    .padding([0, 7]);
+    .align_y(Alignment::Center);
+    let mut body = column![settings_group_header(heading)].spacing(12);
     if recovery.loading {
         body = body.push(text(i18n.__("正在加载清理建议与快照…")));
     }

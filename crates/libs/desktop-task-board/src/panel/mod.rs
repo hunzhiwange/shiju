@@ -12,7 +12,7 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
-    settings_modal_card, settings_modal_header, settings_modal_layout, settings_section_content,
+    settings_group_header, settings_modal_card, settings_modal_header, settings_modal_layout, settings_section_content,
     settings_segment_button_style, settings_select,
 };
 use desktop_i18n::I18n;
@@ -129,7 +129,9 @@ fn section_block<'a>(
         .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
     let heading =
         settings_hover_help_label(i18n, app.app_theme, title, label, i18n.__(description));
-    column![heading, settings_divider(), settings_section_content(content)].spacing(8).into()
+    column![settings_group_header(heading.wrap()), settings_section_content(content)]
+        .spacing(8)
+        .into()
 }
 
 /// 构建对应界面片段。

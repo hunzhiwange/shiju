@@ -2,7 +2,7 @@
 
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
-    settings_divider, settings_group_card, settings_muted_text_style,
+    settings_group_card, settings_group_header, settings_muted_text_style,
     settings_section_content, settings_select, settings_text_input,
 };
 use desktop_i18n::I18n;
@@ -135,29 +135,21 @@ fn item_view<'a>(app: &View<'a>, index: usize) -> Element<'a, Message> {
     .spacing(6)
     .align_y(Alignment::Center);
 
+    let title =
+        desktop_i18n::__!(i18n, "快捷项 %u", index + 1).expect("valid quick item template");
+    let heading = row![
+        text(title).size(12).style(settings_muted_text_style),
+        container(actions).width(Length::Fill).align_x(iced::alignment::Horizontal::Right),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
     settings_group_card(
-        container(
-            column![
-                row![
-                    text(
-                        desktop_i18n::__!(i18n, "快捷项 %u", index + 1)
-                            .expect("valid quick item template")
-                    )
-                    .size(12)
-                    .style(settings_muted_text_style),
-                    container(actions)
-                        .width(Length::Fill)
-                        .align_x(iced::alignment::Horizontal::Right),
-                ]
-                .spacing(10)
-                .align_y(Alignment::Center),
-                row![group_control, kind_control].spacing(10).width(Length::Fill),
-                text_control,
-            ]
-            .spacing(10)
-            .width(Length::Fill),
-        )
-        .padding([14, 0]),
+        column![
+            settings_group_header(heading),
+            row![group_control, kind_control].spacing(10).width(Length::Fill),
+            text_control,
+        ]
+        .spacing(10),
     )
     .into()
 }
@@ -178,7 +170,7 @@ pub fn view<'a>(app: &View<'a>, help: HelpRenderer<Message>) -> Element<'a, Mess
         );
     } else {
         for index in 0..app.quick_messages.len() {
-            items = items.push(settings_divider()).push(item_view(app, index));
+            items = items.push(item_view(app, index));
         }
     }
 

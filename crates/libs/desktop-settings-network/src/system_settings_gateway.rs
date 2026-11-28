@@ -4,7 +4,10 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use desktop_ui_controls::system_settings_common::*;
-use crate::help::{settings_page_heading_with_help, settings_group_heading_with_help, settings_flexible_row_with_help, HelpRenderer};
+use crate::help::{
+    HelpRenderer, settings_flexible_row_with_help, settings_group_heading_with_help,
+    settings_hover_help_label, settings_page_heading_with_help,
+};
 use desktop_i18n::I18n;
 use desktop_i18n::settings_models::connection_text::text as connection_text;
 use desktop_i18n::settings_models::messages::render as owned_text;
@@ -478,31 +481,32 @@ pub fn view<'a>(app: View<'a>) -> Element<'a, Message> {
     .width(Length::Fill)
     .into();
 
-    let skeys_content: Element<'a, Message> = column![
-        row![
-            container(settings_group_heading_with_help(
-                app.render_help,
-                i18n,
-                theme,
-                connection_text(app.desktop_locale, "skey 管理"),
-                connection_text(
-                    app.desktop_locale,
-                    "维护 gateway.skeys 列表。原始 skey 不保存，仅保存哈希、脱敏 skey、名称和过期时间。",
-                ),
-            ))
-            .width(Length::Fill),
-            button(text(connection_text(app.desktop_locale, "新增 skey")).size(13))
-                .padding([9, 14])
-                .style(primary_action_btn_style)
-                .on_press(Message::Gateway(GatewayMessage::OpenAddSkeyModal)),
-        ]
-        .spacing(12)
-        .align_y(Alignment::Center),
-        skey_management,
+    let skeys_title = connection_text(app.desktop_locale, "skey 管理");
+    let skeys_label = settings_hover_help_label(
+        app.render_help,
+        i18n,
+        theme,
+        skeys_title,
+        text(skeys_title).size(17),
+        connection_text(
+            app.desktop_locale,
+            "维护 gateway.skeys 列表。原始 skey 不保存，仅保存哈希、脱敏 skey、名称和过期时间。",
+        ),
+    );
+    let skeys_header = row![
+        container(skeys_label.wrap()).width(Length::Fill),
+        button(text(connection_text(app.desktop_locale, "新增 skey")).size(13))
+            .padding([9, 14])
+            .style(primary_action_btn_style)
+            .on_press(Message::Gateway(GatewayMessage::OpenAddSkeyModal)),
     ]
-    .spacing(16)
-    .width(Length::Fill)
-    .into();
+    .spacing(12)
+    .align_y(Alignment::Center);
+    let skeys_content: Element<'a, Message> =
+        column![settings_group_header(skeys_header), skey_management]
+            .spacing(16)
+            .width(Length::Fill)
+            .into();
 
     let active_content = match s.active_tab {
         GatewaySettingsTab::Config => config_content,

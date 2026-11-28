@@ -1,6 +1,8 @@
 use super::*;
 use iced::widget::{column, row};
-use desktop_ui_controls::system_settings_common::help::settings_selectable_help_label as settings_hover_help_label;
+use desktop_ui_controls::system_settings_common::{
+    help::settings_selectable_help_label as settings_hover_help_label, settings_group_header,
+};
 use iced::widget::mouse_area;
 
 pub fn build_start_visual_section<'a>(
@@ -94,20 +96,16 @@ pub fn build_start_variable_section<'a>(
         }
     }
 
-    column![
-        row![
-            column![text(i18n.__("变量")).size(16)].spacing(4),
-            Space::new().width(Length::Fill),
-            button(text(i18n.__("新增变量")).size(11))
-                .style(primary_action_btn_style)
-                .padding([6, 10])
-                .on_press(WorkflowMessage::NodeEditorStartAddVariable),
-        ]
-        .align_y(Alignment::Center),
-        variable_list,
+    let header = row![
+        text(i18n.__("变量")).size(16),
+        Space::new().width(Length::Fill),
+        button(text(i18n.__("新增变量")).size(11))
+            .style(primary_action_btn_style)
+            .padding([6, 10])
+            .on_press(WorkflowMessage::NodeEditorStartAddVariable),
     ]
-    .spacing(12)
-    .into()
+    .align_y(Alignment::Center);
+    column![settings_group_header(header), variable_list].spacing(12).into()
 }
 
 pub fn build_start_variable_summary_item<'a>(
@@ -216,7 +214,9 @@ pub fn build_start_builtin_variables_section(
         list = list.push(build_start_builtin_variable_item(i18n, item));
     }
 
-    column![text(i18n.__("内置变量")).size(16), list].spacing(12).into()
+    column![settings_group_header(text(i18n.__("内置变量")).size(16)), list]
+        .spacing(12)
+        .into()
 }
 
 pub fn build_start_builtin_variable_item(

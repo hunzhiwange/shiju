@@ -6,7 +6,7 @@
 use crate::help::{settings_group_heading_with_help};
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
-    settings_error_banner, settings_group_card, settings_group_heading,
+    settings_error_banner, settings_group_card, settings_group_header, settings_group_heading,
     settings_muted_text_style, settings_text_input,
 };
 use desktop_i18n::{I18n, settings_extensions::text as tr};
@@ -32,11 +32,9 @@ fn enterprise_instance_panel<'a>(
     instances: Vec<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
-    let mut sections = column![settings_group_card(
-        container(channel_header(app, channel, title, description, enabled, std::convert::identity))
-            .padding([16, 0])
-    )]
-    .spacing(12);
+    let mut sections =
+        column![channel_header(app, channel, title, description, enabled, std::convert::identity)]
+            .spacing(12);
     if enabled {
         let state = app.channels_settings;
         let toggle_all = |expanded, label| {
@@ -97,11 +95,11 @@ fn enterprise_instance_card<'a>(
                 ChannelsMessage::InstanceRemoved(channel.to_owned(), index),
             ))));
     }
-    let mut content = column![header].spacing(12);
+    let mut content = column![settings_group_header(header)].spacing(12);
     if !collapsed {
         content = content.push(fields);
     }
-    settings_group_card(container(content).padding([14, 0])).into()
+    settings_group_card(content).into()
 }
 
 fn configure_default_instance<'a>(app: ViewState<'a>, channel: &'static str) -> Element<'a, Message> {
@@ -904,11 +902,14 @@ pub(super) fn wecom_cron_card(app: ViewState<'_>) -> Element<'_, Message> {
             .style(rounded_action_btn_style)
             .on_press_maybe(action)
     };
+    let header = row![
+        text(i18n.__("定时任务企业微信通知")).size(17).width(Length::Fill),
+        action("新增通知实例", Some(event(ChannelsMessage::WeComCronInstanceAdded))),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
     let mut cards = column![
-        row![
-            text(i18n.__("定时任务企业微信通知")).size(17).width(Length::Fill),
-            action("新增通知实例", Some(event(ChannelsMessage::WeComCronInstanceAdded))),
-        ].spacing(8).align_y(Alignment::Center),
+        settings_group_header(header),
         hint_row(i18n.__("连接机器人并绑定接收会话，然后在任务里勾选要通知的实例。")),
     ].spacing(12);
     for instance in s.wecom_instances.iter().filter(|item| WeComConfig::is_cron_instance(&item.id)) {
@@ -923,7 +924,7 @@ pub(super) fn wecom_cron_card(app: ViewState<'_>) -> Element<'_, Message> {
         let rename = (instance.config.has_required_credentials() && s.wecom_cron_name.is_none())
             .then(|| event(ChannelsMessage::WeComCronNameOpened(id.clone())));
         let mut content = column![
-            text(s.wecom_cron_label(instance)).size(16),
+            settings_group_header(text(s.wecom_cron_label(instance)).size(16)),
             row![
                 action(if bound == Some(true) { "重新绑定接收会话" } else { "绑定接收会话" }, request(true)),
                 action("检查连接状态", request(false)),
@@ -966,7 +967,7 @@ pub(super) fn wecom_cron_card(app: ViewState<'_>) -> Element<'_, Message> {
                 .push(text(code.as_str()).size(13))
                 .push(action("复制绑定指令", Some(Message::CopyCode(code.clone()))));
         }
-        cards = cards.push(settings_group_card(container(content).padding([14, 0])));
+        cards = cards.push(settings_group_card(content));
     }
     cards.into()
 }

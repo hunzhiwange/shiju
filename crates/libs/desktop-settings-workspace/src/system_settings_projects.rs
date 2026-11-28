@@ -277,8 +277,8 @@ pub fn view<'a, Host: Clone + 'static>(app: &ViewState<'a>, map: fn(Event) -> Ho
         row![container(heading).width(Length::Fill), open_folder]
             .spacing(12)
             .align_y(Alignment::Center),
-        column![search, column![list_heading, projects].spacing(10)].spacing(16),
-        text(i18n.__("当前项目")).size(17),
+        column![search, column![settings_group_header(list_heading), projects].spacing(10)].spacing(16),
+        settings_group_header(text(i18n.__("当前项目")).size(17)),
         settings_group_card(current_project_worktree(app, i18n, map, help)),
     ]
     .spacing(16)

@@ -3,13 +3,13 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
-use crate::help::{settings_flexible_row_with_help, settings_group_heading_with_help, settings_hover_help_label};
+use crate::help::{settings_flexible_row_with_help, settings_hover_help_label};
 use desktop_ui_controls::number_input::NumberInput;
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style, settings_checkbox_style,
-    settings_control_with_hint, settings_divider, settings_field_label,
-    settings_group_card, settings_muted_text_style, settings_responsive_row, settings_select,
-    settings_text_editor, settings_text_input, settings_value_badge,
+    settings_control_with_hint, settings_field_label,
+    settings_group_card, settings_group_header, settings_muted_text_style, settings_responsive_row,
+    settings_select, settings_text_editor, settings_text_input, settings_value_badge,
 };
 use desktop_i18n::{I18n, settings_extensions::text as tr};
 use crate::messages::{ChannelsMessage, SettingsMessage};
@@ -615,7 +615,7 @@ pub fn panel_mapped<'a, M: Clone + 'static>(
     let header = channel_header(app, id, title, description, enabled, map);
 
     let content = if enabled {
-        let mut content = column![header, settings_divider()].spacing(16);
+        let mut content = column![header].spacing(16);
         if !matches!(id, "feishu" | "dingtalk" | "qq" | "wecom" | "wechat") {
             let channel = if id == "lark"
                 && app.channels_settings.lark.as_ref().is_some_and(|cfg| cfg.use_feishu)
@@ -631,7 +631,7 @@ pub fn panel_mapped<'a, M: Clone + 'static>(
         column![header]
     };
 
-    settings_group_card(container(content).padding([16, 0])).into()
+    settings_group_card(content).into()
 }
 
 pub(super) fn channel_header<'a, M: Clone + 'a>(
@@ -647,8 +647,12 @@ pub(super) fn channel_header<'a, M: Clone + 'a>(
     if !enabled {
         help = Cow::Owned(format!("{help}\n\n{}", tr(locale, "启用后显示该通道的详细配置表单。")));
     }
-    let heading = settings_group_heading_with_help(I18n::new(locale), app.app_theme, title, help).map(map);
-    row![
+    let heading = Element::from(
+        settings_hover_help_label(I18n::new(locale), app.app_theme, title, text(title).size(17), help)
+            .wrap(),
+    )
+    .map(map);
+    let header = row![
         container(heading).width(Length::Fill),
         checkbox(enabled)
             .label(tr(app.desktop_locale, "启用"))
@@ -662,8 +666,8 @@ pub(super) fn channel_header<'a, M: Clone + 'a>(
             .style(settings_checkbox_style),
     ]
     .spacing(12)
-    .align_y(Alignment::Center)
-    .into()
+    .align_y(Alignment::Center);
+    settings_group_header(header)
 }
 
 /// 构建或处理 `enabled_channels` 对应的界面片段与交互数据。

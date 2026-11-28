@@ -1,6 +1,6 @@
 use super::*;
 use iced::widget::{column, row};
-use desktop_ui_controls::system_settings_common::{settings_group_heading, settings_modal_card};
+use desktop_ui_controls::system_settings_common::{settings_page_heading, settings_modal_card};
 use desktop_workflow_model::workflow_system_variables;
 use desktop_ui_controls::system_settings_common::settings_field_label;
 
@@ -88,7 +88,7 @@ pub fn build_variable_panel_modal(
     }
     let close = WorkflowMessage::CloseVariablePanel;
     let header = settings_modal_header(
-        settings_group_heading(title, subtitle),
+        settings_page_heading(title, subtitle),
         actions.push(settings_close_button(close)),
     );
     let card =
@@ -134,7 +134,7 @@ pub fn build_variable_editor_modal(
 
     let close = WorkflowMessage::CloseVariableEditor;
     let header = settings_modal_header(
-        settings_group_heading(title, subtitle),
+        settings_page_heading(title, subtitle),
         settings_close_button(close.clone()),
     );
     let body = column![

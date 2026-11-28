@@ -6,7 +6,7 @@ use desktop_ui_controls::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
     settings_close_button, settings_divider, settings_error_banner, settings_field_label,
-    settings_group_card,
+    settings_group_card, settings_group_header,
     settings_modal_card, settings_modal_card_style, settings_modal_header, settings_modal_layout,
     settings_modal_overlay, settings_modal_overlay_with_escape, settings_muted_text_style,
     settings_segment_button_style, settings_select, settings_success_banner, settings_tab_button,
@@ -86,7 +86,9 @@ fn hover_help_label<'a>(app: &ViewData<'_>, title: &'a str, label: iced::widget:
     desktop_ui_controls::system_settings_common::help::settings_hover_help_label(label, (app.help_content)(title, description.into(), Some(app.app_theme.palette().text), I18n::new(app.desktop_locale)))
 }
 fn settings_group_heading_with_help<'a>(app: &ViewData<'_>, title: &'a str, description: impl Into<std::borrow::Cow<'a,str>>) -> Element<'a,Message> {
-    hover_help_label(app, title, text(title).size(17), description).wrap().into()
+    desktop_ui_controls::system_settings_common::settings_group_header(
+        hover_help_label(app, title, text(title).size(17), description).wrap(),
+    )
 }
 fn settings_flexible_row_with_help<'a>(app: &ViewData<'_>, title: &'a str, description: impl Into<std::borrow::Cow<'a,str>>, width: f32, control: impl Into<Element<'a,Message>>) -> iced::widget::Container<'a,Message> {
     let label = hover_help_label(app, title, settings_field_label(title), description).width(Length::Fill).wrap();

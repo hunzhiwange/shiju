@@ -781,7 +781,7 @@ pub fn view<'a>(app: &SecurityView<'a>) -> Element<'a, Message> {
         .spacing(16)
         .into(),
         SecuritySettingsTab::OtpAndEstop => column![
-            text("OTP").size(17),
+            settings_group_header(text("OTP").size(17)),
             settings_group_card(
                 column![
                     otp_enabled_row,

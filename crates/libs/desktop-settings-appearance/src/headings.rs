@@ -17,7 +17,9 @@ pub fn settings_page_heading_with_help<'a, Message: Clone + 'static>(render: Hel
     settings_hover_help_label(render, i18n, theme, title, text(title).size(panels::SETTINGS_PAGE_TITLE_SIZE), description).wrap().into()
 }
 pub fn settings_group_heading_with_help<'a, 'theme, Message: Clone + 'static>(render: HelpRenderer<Message>, i18n: I18n, theme: impl Into<Option<&'theme Theme>>, title: &'a str, description: impl Into<Cow<'a, str>>) -> Element<'a, Message> {
-    settings_hover_help_label(render, i18n, theme, title, text(title).size(17), description).wrap().into()
+    panels::settings_group_header(
+        settings_hover_help_label(render, i18n, theme, title, text(title).size(17), description).wrap(),
+    )
 }
 pub fn settings_flexible_row_with_help<'a, Message: Clone + 'static>(render: HelpRenderer<Message>, i18n: I18n, theme: &Theme, label: &'a str, description: impl Into<Cow<'a, str>>, width: f32, control: impl Into<Element<'a, Message>>) -> iced::widget::Container<'a, Message> {
     let label = settings_hover_help_label(render, i18n, theme, label, desktop_ui_controls::system_settings_common::settings_field_label(label), description).width(Length::Fill).wrap();

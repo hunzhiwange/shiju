@@ -3,7 +3,7 @@ use crate::help::{settings_hover_help_label};
 use desktop_ui_controls::system_settings_common::{
     SETTINGS_PAGE_TITLE_SIZE,
     SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
-    settings_divider, settings_error_banner, settings_group_card,
+    settings_divider, settings_error_banner, settings_group_card, settings_group_header,
     settings_muted_text_style, settings_responsive_row, settings_section_content,
     settings_text_input,
 };
@@ -373,7 +373,7 @@ pub fn view<'a, M: Clone + 'static>(app: ViewState<'a>, selected_panel: Element<
             description,
         )
         .wrap();
-        Element::from(settings_group_card(container(heading).padding([14, 0]))).map(map)
+        settings_group_header(heading).map(map)
     };
     let mut content = column![
         Element::from(settings_hover_help_label(

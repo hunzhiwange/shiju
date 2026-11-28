@@ -27,7 +27,9 @@ fn field<'a>(
 }
 
 fn group<'a>(title: &'a str, rows: impl Into<Element<'a, Event>>) -> Element<'a, Event> {
-    column![text(title).size(17), settings_group_card(rows)].spacing(8).into()
+    column![settings_group_header(text(title).size(17)), settings_group_card(rows)]
+        .spacing(8)
+        .into()
 }
 
 pub fn view<'a>(state: &'a State, i18n: I18n, hotkeys: &Runtime) -> Element<'a, Event> {

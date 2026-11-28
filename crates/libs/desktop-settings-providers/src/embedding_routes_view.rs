@@ -264,7 +264,10 @@ pub fn embedded_view<'a>(s: &'a EmbeddingRoutesSettingsState, style: ViewStyle<'
         )
         .padding([10, 0]);
 
-        content = content.push(settings_divider()).push(card);
+        if index > 0 {
+            content = content.push(settings_divider());
+        }
+        content = content.push(card);
     }
 
     content = content.push(

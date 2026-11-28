@@ -216,7 +216,6 @@ pub fn view<'a, S: Clone + Copy + PartialEq + std::fmt::Display + 'static, Messa
             ),
             settings_group_card(
                 column![
-                    settings_divider(),
                     interface_field_row(
                         app, help,
                         &general_fields::LAUNCH_ON_LOGIN,
@@ -313,7 +312,6 @@ pub fn view<'a, S: Clone + Copy + PartialEq + std::fmt::Display + 'static, Messa
             ),
             settings_group_card(
                 column![
-                    settings_divider(),
                     general_field_with_help(
                         app, help,
                         &general_fields::TERMINAL_SHELL,

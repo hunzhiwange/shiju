@@ -99,7 +99,9 @@ pub fn card<'a>(
         }
     }
     if form.create || form.direct_editable {
-        body = body.push(text(i18n.__("直连配置")).size(17)).push(settings_divider()).push(settings_section_content(direct));
+        body = body
+            .push(settings_group_header(text(i18n.__("直连配置")).size(17)))
+            .push(settings_section_content(direct));
     }
     if form.mapping_editable {
         body = body.extend(mapping_fields(form, help));
@@ -174,7 +176,10 @@ pub fn mapping_fields<'a>(form: &'a Form, help: Help<'_>) -> Vec<Element<'a, Mes
         .push(input("claude-sonnet-…", &form.new_route, Event::NewRoute))
         .push(action(i18n.__("添加模型"), Event::AddRoute, active && !form.new_route.is_empty()));
     let mut body: Vec<Element<'a, Message>> =
-        vec![text(i18n.__("模型路由")).size(17).into(), settings_section_content(config).into()];
+        vec![
+            settings_group_header(text(i18n.__("模型路由")).size(17)),
+            settings_section_content(config).into(),
+        ];
     for (id, route) in &form.mapping.routes {
         let control = |label, value, event: fn(String, String) -> Event| {
             let id = id.clone();

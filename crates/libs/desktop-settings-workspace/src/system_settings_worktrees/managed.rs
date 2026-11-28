@@ -24,18 +24,15 @@ fn protection(reason: &Reason) -> &'static str {
     }
 }
 pub fn view<'a>(state: &'a ManagedWorktreesState, i18n: I18n) -> Element<'a, Message> {
-    let mut content = column![
-        row![
-            text(i18n.__("托管的工作树")).size(18).width(Length::Fill),
-            button(text(i18n.__("刷新")))
-                .style(rounded_action_btn_style)
-                .padding([8, 14])
-                .on_press(event(ManagedMessage::Refresh))
-        ]
-        .align_y(Alignment::Center)
+    let heading = row![
+        text(i18n.__("托管的工作树")).size(18).width(Length::Fill),
+        button(text(i18n.__("刷新")))
+            .style(rounded_action_btn_style)
+            .padding([8, 14])
+            .on_press(event(ManagedMessage::Refresh))
     ]
-    .spacing(12)
-    .padding([0, 7]);
+    .align_y(Alignment::Center);
+    let mut content = column![settings_group_header(heading)].spacing(12);
     if state.loading {
         content = content.push(text(i18n.__("正在加载…")).size(13));
     }

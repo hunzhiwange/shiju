@@ -60,16 +60,6 @@ pub struct AgentsSettingsState {
     pub dirty: bool,
 }
 
-impl AgentsSettingsState {
-    pub(crate) fn tool_catalog_for_agent(&self, key: &str) -> &[String] {
-        if key == config_agent::SHIJU_BUTLER_AGENT_KEY {
-            self.registered_tools.as_deref().unwrap_or(&self.available_tools)
-        } else {
-            &self.available_tools
-        }
-    }
-}
-
 impl Default for AgentsSettingsState {
     fn default() -> Self {
         Self {

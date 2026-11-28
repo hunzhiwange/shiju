@@ -188,7 +188,7 @@ pub fn page_card(input: PageInput<'_>) -> Option<Element<'_, Message>> {
                         locale: input.locale,
                         theme: input.theme,
                         help: input.help,
-                        available_tools: state.tool_catalog_for_agent(&entry.key),
+                        available_tools: &state.available_tools,
                         active_tools_list_tab: &state.active_tools_list_tab,
                     },
                     entry,

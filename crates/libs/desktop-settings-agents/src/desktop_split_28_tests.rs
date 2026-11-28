@@ -981,6 +981,50 @@ fn butler_can_uncheck_default_tools_and_save_the_selection() {
 }
 
 #[test]
+fn butler_tool_edits_preserve_existing_mcp_tool_permissions() {
+    let mut app = test_app();
+    let key = config_agent::SHIJU_BUTLER_AGENT_KEY;
+    let existing_mcp = "mcp__example__lookup";
+    let other_mcp = "mcp__example__update";
+    app.available_tools = vec!["file_read".into(), "web_search_tool".into()];
+    app.registered_tools = Some(vec![
+        "file_read".into(),
+        existing_mcp.into(),
+        other_mcp.into(),
+        "web_search_tool".into(),
+    ]);
+    let mut draft = entry(&app, key).clone();
+    draft.allowed_tools = vec!["file_read".into(), existing_mcp.into()];
+    app.profile_modal = Some(draft);
+
+    for (message, expected) in [
+        (
+            AgentsMessage::AllowedToolToggled(key.into(), other_mcp.into(), true),
+            vec!["file_read", existing_mcp],
+        ),
+        (
+            AgentsMessage::AllowedToolToggled(key.into(), existing_mcp.into(), false),
+            vec!["file_read", existing_mcp],
+        ),
+        (
+            AgentsMessage::AllowedToolsSelectAll(key.into()),
+            vec!["file_read", existing_mcp, "web_search_tool"],
+        ),
+        (
+            AgentsMessage::AllowedToolsInvertSelection(key.into()),
+            vec!["file_read", existing_mcp],
+        ),
+        (
+            AgentsMessage::AllowedToolsApplyPreset(key.into(), "minimal".into()),
+            vec!["file_read", existing_mcp],
+        ),
+    ] {
+        let _ = update(&mut app, SettingsMessage::Agents(message));
+        assert_eq!(app.profile_modal.as_ref().unwrap().allowed_tools, expected);
+    }
+}
+
+#[test]
 fn allowed_tool_messages_keep_builtin_required_tools() {
     let mut app = test_app();
     app.available_tools = vec![

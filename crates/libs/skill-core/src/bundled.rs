@@ -47,6 +47,30 @@ pub static BUNDLED_SKILLS: &[(&str, Dir<'static>)] = &[
         "skill-creator",
         include_dir!("$CARGO_MANIFEST_DIR/../../../skills/create-task-plan-skills/skill-creator"),
     ),
+    (
+        "officecli",
+        include_dir!("$CARGO_MANIFEST_DIR/../../../skills/create-task-plan-skills/officecli"),
+    ),
+    (
+        "officecli-docx",
+        include_dir!("$CARGO_MANIFEST_DIR/../../../skills/create-task-plan-skills/officecli-docx"),
+    ),
+    (
+        "officecli-xlsx",
+        include_dir!("$CARGO_MANIFEST_DIR/../../../skills/create-task-plan-skills/officecli-xlsx"),
+    ),
+    (
+        "officecli-pptx",
+        include_dir!("$CARGO_MANIFEST_DIR/../../../skills/create-task-plan-skills/officecli-pptx"),
+    ),
+    (
+        "pdf",
+        include_dir!("$CARGO_MANIFEST_DIR/../../../skills/create-task-plan-skills/pdf"),
+    ),
+    (
+        "mermaid",
+        include_dir!("$CARGO_MANIFEST_DIR/../../../skills/create-task-plan-skills/mermaid"),
+    ),
 ];
 
 pub fn bundled_skill_dir(skill_id: &str) -> Option<&'static Dir<'static>> {

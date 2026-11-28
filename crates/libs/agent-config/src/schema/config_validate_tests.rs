@@ -569,6 +569,47 @@ fn validate_config_rejects_proxy_errors() {
 }
 
 #[test]
+fn builtin_document_agent_toggle_preserves_default_skills() {
+    use crate::catalog::merged_agent_catalog;
+    use config_agent_profile::AgentDefault;
+    use serde_json::json;
+
+    let mut config = Config::default();
+    let expected = [
+        ("office-ppt", &["officecli", "officecli-pptx"][..]),
+        ("office-excel", &["officecli", "officecli-xlsx"][..]),
+        ("office-pdf", &["pdf"][..]),
+        ("mermaid-diagrams", &["mermaid"][..]),
+    ];
+    for enabled in [true, false] {
+        let catalog = merged_agent_catalog(&config.agents);
+        let mut patch = json!({"agents": {}});
+        for (key, _) in expected {
+            assert_eq!(catalog[key].enabled, !enabled);
+            patch["agents"][key] = json!({"enabled": enabled});
+        }
+
+        super::config_validate::seed_agent_profile_patch(&config, &mut patch, &catalog).unwrap();
+        let mut persisted = serde_json::to_value(&config).unwrap();
+        super::config_io::merge_config_payload(&mut persisted, patch);
+        config = serde_json::from_value(persisted).unwrap();
+        let catalog = merged_agent_catalog(&config.agents);
+        for (key, skills) in expected {
+            let agent = &catalog[key];
+            assert_eq!(agent.enabled, enabled);
+            assert!(agent.builtin);
+            assert_eq!(agent.mode, "primary");
+            assert!(!agent.allow_as_subagent);
+            assert!(agent.allowed_skills.iter().map(String::as_str).eq(skills.iter().copied()));
+            assert_eq!(
+                agent.defaults.skills,
+                AgentDefault::Fixed(skills.iter().map(|id| (*id).to_string()).collect()),
+            );
+        }
+    }
+}
+
+#[test]
 fn agent_config_cleanup_save_rejects_strict_default_outside_boundary() {
     let mut config = Config::default();
     config.agents.insert("worker".into(), serde_json::from_value(serde_json::json!({"provider":"", "model":"", "allowed_skills":["allowed"], "skill_policy":"strict", "defaults":{"skills":{"mode":"fixed","value":["outside"]}}})).unwrap());

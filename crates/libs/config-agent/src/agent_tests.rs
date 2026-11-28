@@ -32,7 +32,7 @@ fn agent_definition_defaults_and_builtin_specs_are_stable() {
     assert_eq!(definition.max_history_messages, 100);
     assert!(!definition.parallel_tools);
 
-    assert_eq!(super::BUILTIN_AGENT_SPECS.len(), 6);
+    assert_eq!(super::BUILTIN_AGENT_SPECS.len(), 10);
     assert_eq!(super::BUILTIN_AGENT_SPECS[0].key, "main");
     for spec in super::BUILTIN_AGENT_SPECS {
         let config = super::builtin_agent_config(spec.key).unwrap();
@@ -325,7 +325,10 @@ fn builtin_agent_keys_follow_spec_order() {
 
     assert_eq!(
         keys,
-        vec!["main", "shiju-butler", "researcher", "coder", "reviewer", "explore"]
+        vec![
+            "main", "shiju-butler", "researcher", "coder", "reviewer", "explore",
+            "office-ppt", "office-excel", "office-pdf", "mermaid-diagrams",
+        ]
     );
 }
 
@@ -361,10 +364,6 @@ fn merged_builtin_overrides_preserve_editable_metadata_and_builtin_identity() {
 #[test]
 fn builtin_agent_catalog_uses_chinese_metadata_and_safe_delegate_roles() {
     let keys = super::builtin_agent_keys();
-    assert_eq!(
-        keys,
-        vec!["main", "shiju-butler", "researcher", "coder", "reviewer", "explore"]
-    );
 
     let expected_delegate_roles = ["researcher", "coder", "reviewer", "explore"];
     for key in &keys {
@@ -375,6 +374,10 @@ fn builtin_agent_catalog_uses_chinese_metadata_and_safe_delegate_roles() {
         assert_eq!(config.allow_as_subagent, is_delegate_role);
         assert_eq!(config.max_depth, u32::from(is_delegate_role));
         assert_eq!(config.max_iterations, 50_000);
+        assert_eq!(
+            config.enabled,
+            super::builtin_agent_spec(key).unwrap().kind != super::BuiltinAgentKind::Specialist,
+        );
         if is_delegate_role {
             assert!(!config.allowed_tools.iter().any(|tool| tool == "AgentTool"));
         }

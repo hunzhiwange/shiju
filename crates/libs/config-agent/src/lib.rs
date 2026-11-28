@@ -273,6 +273,7 @@ pub enum BuiltinAgentKind {
     Main,
     Butler,
     Worker,
+    Specialist,
 }
 
 pub const SHIJU_BUTLER_AGENT_KEY: &str = "shiju-butler";
@@ -287,6 +288,8 @@ pub struct BuiltinAgentSpec {
     pub label: &'static str,
     pub description: &'static str,
     pub kind: BuiltinAgentKind,
+    pub system_prompt: Option<&'static str>,
+    pub default_skills: &'static [&'static str],
     pub mode: &'static str,
     pub hidden: bool,
     pub allow_as_subagent: bool,
@@ -304,6 +307,9 @@ const RESEARCHER_TOOLS: &[&str] =
 const CODER_TOOLS: &[&str] =
     &["file_read", "file_write", "file_edit", "apply_patch", "bash", "ls", "glob", "grep"];
 const MAIN_TOOLS: &[&str] = config_tools::DEFAULT_ENABLED_TOOL_IDS;
+const DOCUMENT_TOOLS: &[&str] = &["file_read", "ls", "glob", "skill", "bash"];
+const PPT_SKILLS: &[&str] = &["officecli", "officecli-pptx"];
+const EXCEL_SKILLS: &[&str] = &["officecli", "officecli-xlsx"];
 
 const READONLY_PERMISSION: &str = r#"{
     "*": "deny",
@@ -345,12 +351,23 @@ const MAIN_PERMISSION: &str = r#"{
     "glob": "allow",
     "grep": "allow"
 }"#;
-pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 6] = [
+const DOCUMENT_PERMISSION: &str = r#"{
+    "*": "deny",
+    "file_read": "allow",
+    "ls": "allow",
+    "glob": "allow",
+    "skill": "allow",
+    "bash": "ask"
+}"#;
+
+pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
     BuiltinAgentSpec {
         key: "main",
         label: "主代理",
         description: "负责理解请求、直接执行，并在复杂任务中协调专业子代理。",
         kind: BuiltinAgentKind::Main,
+        system_prompt: None,
+        default_skills: &[],
         mode: "primary",
         hidden: false,
         allow_as_subagent: false,
@@ -366,6 +383,8 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 6] = [
         label: "识矩管家",
         description: "通过对话管理识矩的系统设置和定时任务。",
         kind: BuiltinAgentKind::Butler,
+        system_prompt: Some(include_str!("shiju_butler.txt")),
+        default_skills: &[],
         mode: "primary",
         hidden: false,
         allow_as_subagent: false,
@@ -382,6 +401,8 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 6] = [
         label: "资料研究",
         description: "查阅外部文档、开源实现与参考资料，输出带来源的研究结论。",
         kind: BuiltinAgentKind::Worker,
+        system_prompt: None,
+        default_skills: &[],
         mode: "subagent",
         hidden: false,
         allow_as_subagent: true,
@@ -397,6 +418,8 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 6] = [
         label: "代码实现",
         description: "在明确范围内实现代码变更并完成必要验证。",
         kind: BuiltinAgentKind::Worker,
+        system_prompt: None,
+        default_skills: &[],
         mode: "subagent",
         hidden: false,
         allow_as_subagent: true,
@@ -412,6 +435,8 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 6] = [
         label: "代码审查",
         description: "只读审查代码、测试与风险，给出有证据的缺陷报告。",
         kind: BuiltinAgentKind::Worker,
+        system_prompt: None,
+        default_skills: &[],
         mode: "subagent",
         hidden: false,
         allow_as_subagent: true,
@@ -427,6 +452,8 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 6] = [
         label: "代码探索",
         description: "只读搜索本地代码、符号与调用关系，返回可操作的定位结果。",
         kind: BuiltinAgentKind::Worker,
+        system_prompt: None,
+        default_skills: &[],
         mode: "subagent",
         hidden: false,
         allow_as_subagent: true,
@@ -435,6 +462,74 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 6] = [
         allowed_tools: READONLY_CODE_TOOLS,
         permission: READONLY_PERMISSION,
         default_temperature: Some(0.1),
+        max_iterations: DEFAULT_MAX_ITERATIONS,
+    },
+    BuiltinAgentSpec {
+        key: "office-ppt",
+        label: "PPT 制作",
+        description: "制作和编辑 PowerPoint 演示文稿，检查版式、图表和文字。",
+        kind: BuiltinAgentKind::Specialist,
+        system_prompt: Some(include_str!("office_ppt.txt")),
+        default_skills: PPT_SKILLS,
+        mode: "primary",
+        hidden: false,
+        allow_as_subagent: false,
+        max_parallel_subagents: 1,
+        max_depth: 0,
+        allowed_tools: DOCUMENT_TOOLS,
+        permission: DOCUMENT_PERMISSION,
+        default_temperature: Some(0.3),
+        max_iterations: DEFAULT_MAX_ITERATIONS,
+    },
+    BuiltinAgentSpec {
+        key: "office-excel",
+        label: "Excel 工作簿",
+        description: "创建、编辑和分析 Excel 工作簿，处理公式、数据验证和图表。",
+        kind: BuiltinAgentKind::Specialist,
+        system_prompt: Some(include_str!("office_excel.txt")),
+        default_skills: EXCEL_SKILLS,
+        mode: "primary",
+        hidden: false,
+        allow_as_subagent: false,
+        max_parallel_subagents: 1,
+        max_depth: 0,
+        allowed_tools: DOCUMENT_TOOLS,
+        permission: DOCUMENT_PERMISSION,
+        default_temperature: Some(0.3),
+        max_iterations: DEFAULT_MAX_ITERATIONS,
+    },
+    BuiltinAgentSpec {
+        key: "office-pdf",
+        label: "PDF 处理",
+        description: "提取、生成、合并或拆分 PDF，并处理可填写表单。",
+        kind: BuiltinAgentKind::Specialist,
+        system_prompt: Some(include_str!("office_pdf.txt")),
+        default_skills: &["pdf"],
+        mode: "primary",
+        hidden: false,
+        allow_as_subagent: false,
+        max_parallel_subagents: 1,
+        max_depth: 0,
+        allowed_tools: DOCUMENT_TOOLS,
+        permission: DOCUMENT_PERMISSION,
+        default_temperature: Some(0.3),
+        max_iterations: DEFAULT_MAX_ITERATIONS,
+    },
+    BuiltinAgentSpec {
+        key: "mermaid-diagrams",
+        label: "Mermaid 制图",
+        description: "绘制并渲染流程图、时序图、状态图和实体关系图。",
+        kind: BuiltinAgentKind::Specialist,
+        system_prompt: Some(include_str!("mermaid_diagrams.txt")),
+        default_skills: &["mermaid"],
+        mode: "primary",
+        hidden: false,
+        allow_as_subagent: false,
+        max_parallel_subagents: 1,
+        max_depth: 0,
+        allowed_tools: DOCUMENT_TOOLS,
+        permission: DOCUMENT_PERMISSION,
+        default_temperature: Some(0.3),
         max_iterations: DEFAULT_MAX_ITERATIONS,
     },
 ];
@@ -453,18 +548,25 @@ pub fn builtin_agent_keys() -> Vec<&'static str> {
 
 pub fn builtin_agent_config(key: &str) -> Option<AgentDefinitionConfig> {
     let spec = builtin_agent_spec(key)?;
+    let allowed_skills: Vec<String> =
+        spec.default_skills.iter().map(|skill| (*skill).to_string()).collect();
+    let skills = if allowed_skills.is_empty() {
+        AgentDefault::Inherit
+    } else {
+        AgentDefault::Fixed(allowed_skills.clone())
+    };
     Some(AgentDefinitionConfig {
         defaults: AgentDefaults {
             full_access: matches!(spec.kind, BuiltinAgentKind::Main),
+            skills,
             ..AgentDefaults::default()
         },
         label: Some(spec.label.to_string()),
         description: Some(spec.description.to_string()),
-        system_prompt: (key == SHIJU_BUTLER_AGENT_KEY)
-            .then(|| include_str!("shiju_butler.txt").to_string()),
+        system_prompt: spec.system_prompt.map(str::to_string),
         builtin: true,
         mode: spec.mode.to_string(),
-        enabled: true,
+        enabled: spec.kind != BuiltinAgentKind::Specialist,
         allow_as_subagent: spec.allow_as_subagent,
         max_parallel_subagents: spec.max_parallel_subagents,
         temperature: spec.default_temperature,
@@ -472,6 +574,7 @@ pub fn builtin_agent_config(key: &str) -> Option<AgentDefinitionConfig> {
         hidden: spec.hidden,
         max_depth: spec.max_depth,
         allowed_tools: spec.allowed_tools.iter().map(|tool| (*tool).to_string()).collect(),
+        allowed_skills,
         permission: serde_json::from_str(spec.permission)
             .expect("builtin agent permission is valid JSON"),
         max_iterations: spec.max_iterations,
@@ -499,7 +602,7 @@ pub fn merged_agent_configs(
             builtin.description = value.description.clone().or(builtin.description);
             builtin.recommended_prompts = value.recommended_prompts.clone();
             builtin.defaults = value.defaults.clone();
-            builtin.enabled &= value.enabled;
+            builtin.enabled = value.enabled;
             builtin.allow_as_subagent &= value.allow_as_subagent;
             if spec.allow_as_subagent && !value.allowed_tools.is_empty() {
                 builtin.allowed_tools.retain(|tool| value.allowed_tools.contains(tool));

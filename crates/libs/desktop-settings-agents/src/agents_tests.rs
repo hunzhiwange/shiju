@@ -54,13 +54,16 @@ fn agents_settings_default_waits_for_config_before_allowing_save() {
         expected_keys
     );
     assert_eq!(state.entries[0].kind, AgentSettingsEntryKind::Main);
-    assert!(
-        state
-            .entries
-            .iter()
-            .skip(1)
-            .all(|entry| entry.kind == AgentSettingsEntryKind::BuiltinWorker)
-    );
+    assert_eq!(state.entries[1].kind, AgentSettingsEntryKind::Butler);
+    for entry in &state.entries[2..6] {
+        assert_eq!(entry.kind, AgentSettingsEntryKind::BuiltinWorker);
+    }
+    for entry in &state.entries[6..] {
+        assert_eq!(entry.kind, AgentSettingsEntryKind::BuiltinSpecialist);
+        assert!(entry.can_disable);
+        assert!(!entry.enabled);
+        assert!(!entry.can_start_session());
+    }
 
     assert_eq!(state.workspace_identity_files.len(), WORKSPACE_IDENTITY_FILES.len());
     for (file, (expected_name, expected_label)) in

@@ -26,6 +26,7 @@ pub enum AgentSettingsEntryKind {
     Main,
     Butler,
     BuiltinWorker,
+    BuiltinSpecialist,
     Custom,
 }
 
@@ -44,7 +45,7 @@ pub struct DelegateAgentSettingsEntry {
     pub kind: AgentSettingsEntryKind,
     /// 内置角色的委托资格、递归深度和并发上限由角色目录固定。
     pub role_controls_locked: bool,
-    /// 仅自定义角色和可委托的内置角色允许从设置页关闭。
+    /// 该角色是否可从设置页启用或停用。
     pub can_disable: bool,
     pub enabled: bool,
     pub allow_as_subagent: bool,
@@ -87,6 +88,7 @@ impl DelegateAgentSettingsEntry {
             Some(BuiltinAgentKind::Main) => AgentSettingsEntryKind::Main,
             Some(BuiltinAgentKind::Butler) => AgentSettingsEntryKind::Butler,
             Some(BuiltinAgentKind::Worker) => AgentSettingsEntryKind::BuiltinWorker,
+            Some(BuiltinAgentKind::Specialist) => AgentSettingsEntryKind::BuiltinSpecialist,
             None => AgentSettingsEntryKind::Custom,
         };
         let config = config.unwrap_or_else(|| default_agent_config_for_key(key));
@@ -104,7 +106,7 @@ impl DelegateAgentSettingsEntry {
             )),
             kind,
             role_controls_locked: builtin_agent_spec(key).is_some(),
-            can_disable: builtin_agent_spec(key).map(|spec| spec.allow_as_subagent).unwrap_or(true),
+            can_disable: !matches!(kind, AgentSettingsEntryKind::Main | AgentSettingsEntryKind::Butler),
             enabled: if key == MAIN_AGENT_KEY { true } else { config.enabled },
             allow_as_subagent: config.allow_as_subagent,
             max_parallel_subagents: config.max_parallel_subagents.clamp(1, 32) as u32,

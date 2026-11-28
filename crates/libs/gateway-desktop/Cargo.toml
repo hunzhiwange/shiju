@@ -29,18 +29,20 @@ config-acp-install = { path = "../config-acp-install" }
 config-runtime-paths = { path = "../config-runtime-paths" }
 config-tools = { path = "../config-tools" }
 directories = "6"
+flate2 = "1"
 hex = "0.4"
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls"] }
 semver = "1"
 sha2 = "0.11"
 shell-command = { path = "../shell-command" }
+tar = "0.4"
 tempfile = "3"
 vw-api-file = { path = "../api-file" }
 vw-api-transport = { path = "../api-transport" }
 axum = { version = "0.8.8", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["rt", "sync", "time"] }
+tokio = { version = "1", features = ["io-util", "process", "rt", "sync", "time"] }
 tokio-util = "0.7.18"
 
 [target.'cfg(windows)'.dependencies]

@@ -87,7 +87,7 @@ pub(super) const MCP_TABS: &[SettingsTabDescriptor<McpSettingsTab>] = &[
     SettingsTabDescriptor::new(
         page::MCP_TAB_LABELS[3].1,
         page::MCP_TAB_LABELS[3].0,
-        &["一键安装", "install", "RustCodeGraph", "Chrome DevTools"],
+        &["一键安装", "install", "RustCodeGraph", "Chrome DevTools", "OpenCode Browse"],
     ),
 ];
 
@@ -139,8 +139,14 @@ fn extension_row(
 ) -> Element<'static, Message> {
     use crate::app::message::settings::mcp::extensions::message;
     use desktop_i18n::settings_extensions::text as tr;
-    use desktop_settings_mcp::{extensions::Message as Event, toolbar_button};
-    use desktop_ui_controls::system_settings_common::settings_muted_text_style;
+    use desktop_settings_mcp::{
+        extensions::{InstructionCopy, Message as Event},
+        toolbar_button,
+    };
+    use desktop_ui_controls::system_settings_common::{
+        primary_action_btn_style, settings_muted_text_style, settings_success_banner_style,
+    };
+    use gateway_desktop_settings::McpInstallAction;
     use iced::widget::{column, container, progress_bar, row, text, text::Wrapping};
     use iced::{Alignment, Length};
 
@@ -151,11 +157,21 @@ fn extension_row(
     let card = state.extensions.cards.get(&extension);
     let expanded = card.is_some_and(|card| card.expanded);
     let active = state.extensions.active.as_ref().filter(|active| active.extension == extension);
+    let cached_status = card.and_then(|card| card.status.as_ref());
+    let status = cached_status.and_then(|result| result.as_ref().ok());
+    let checking = cached_status.is_none() || card.is_some_and(|card| card.status_loading);
+    let action = status.and_then(|status| status.action.as_ref());
+    let warning = match cached_status {
+        Some(Ok(status)) => status.warning.as_deref(),
+        Some(Err(_)) => Some("无法检查 MCP 安装状态"),
+        None => None,
+    };
     let can_install = !state.loading
         && !state.saving
         && !state.transfer_pending
         && !state.new_server_expanded
-        && state.extensions.active.is_none();
+        && state.extensions.active.is_none()
+        && !checking;
     let muted = |value: String| {
         text(value)
             .size(12)
@@ -163,37 +179,90 @@ fn extension_row(
             .width(Length::Fill)
             .wrapping(Wrapping::WordOrGlyph)
     };
-    let actions = row![
-        toolbar_button(
-            tr(locale, if active.is_some() { "安装中…" } else { "安装或升级" }),
-            can_install.then(|| message(Event::Install(extension))),
-        ),
-        toolbar_button(
+    let mut actions = row![].spacing(8);
+    if let Some(action) = action {
+        let label = match (action, active.is_some()) {
+            (McpInstallAction::Install { .. }, false) => "安装",
+            (McpInstallAction::Install { .. }, true) => "安装中…",
+            (McpInstallAction::Upgrade { .. }, false) => "升级",
+            (McpInstallAction::Upgrade { .. }, true) => "升级中…",
+        };
+        actions = actions.push(
+            toolbar_button(
+                tr(locale, label),
+                can_install.then(|| message(Event::Install(extension))),
+            )
+            .style(primary_action_btn_style),
+        );
+    }
+    if warning.is_some() && !checking && active.is_none() {
+        actions = actions.push(toolbar_button(
+            tr(locale, "重试"),
+            Some(message(Event::RefreshStatus(extension))),
+        ));
+    }
+    let actions = actions
+        .push(toolbar_button(
             tr(locale, if expanded { "收起" } else { "安装详情" }),
             Some(message(Event::Toggle(extension))),
-        ),
-    ]
-    .spacing(8)
-    .wrap()
-    .align_x(iced::alignment::Horizontal::Right);
+        ))
+        .wrap()
+        .align_x(iced::alignment::Horizontal::Right);
+
+    let mut heading = row![text(title).size(15).wrapping(Wrapping::WordOrGlyph)]
+        .spacing(8)
+        .align_y(Alignment::Center);
+    let installed = status.and_then(|status| status.installed_version.as_deref());
+    if installed.is_some() {
+        heading = heading.push(
+            container(text(tr(locale, "已安装")).size(12))
+                .padding([3, 8])
+                .style(settings_success_banner_style),
+        );
+    }
+    let mut summary = column![heading.wrap(), muted(description.to_owned())]
+        .spacing(5)
+        .width(Length::FillPortion(3));
+    if let Some(current) = installed {
+        let version = match action {
+            Some(McpInstallAction::Upgrade { version }) => {
+                desktop_i18n::__!(i18n, "当前版本 %s → %s", current, version.as_str())
+            }
+            _ => desktop_i18n::__!(i18n, "当前版本 %s", current),
+        }
+        .expect("valid MCP version template");
+        summary = summary.push(muted(version));
+    }
+    if checking {
+        summary = summary.push(muted(tr(locale, "正在检查 MCP 安装状态…").to_owned()));
+    } else if let Some(warning) = warning {
+        summary = summary.push(muted(feedback(warning)));
+    }
     let mut content = column![
-        row![
-            column![
-                text(title).size(15).wrapping(Wrapping::WordOrGlyph),
-                muted(description.to_owned()),
-            ]
-            .spacing(5)
-            .width(Length::FillPortion(3)),
-            container(actions).align_right(Length::FillPortion(2)),
-        ]
-        .spacing(16)
-        .align_y(Alignment::Center)
+        row![summary, container(actions).align_right(Length::FillPortion(2))]
+            .spacing(16)
+            .align_y(Alignment::Center)
     ]
     .spacing(10)
     .width(Length::Fill);
 
     if !expanded {
         return container(content).width(Length::Fill).padding([14, 0]).into();
+    }
+    if extension == gateway_desktop_settings::McpExtension::OpenCodeBrowse {
+        content = content.push(
+            row![
+                muted(tr(locale, "在浏览器安装 Browse 扩展。用全局 MCP 配置中的 Browse 命令路径运行 pair，再将配对码输入扩展。").to_owned()),
+                toolbar_button(
+                    tr(locale, "配对指南"),
+                    Some(Message::View(crate::app::message::ViewMessage::OpenUrlExternal(
+                        "https://github.com/anomalyco/browse#pairing".into(),
+                    ))),
+                ),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        );
     }
     if let Some(active) = active {
         let stage = active
@@ -229,15 +298,27 @@ fn extension_row(
             .join("\n\n");
         content = content.push(extension_output(
             tr(locale, if report.success { "安装完成" } else { "安装失败" }).to_owned(),
-            tr(locale, "复制安装输出"),
+            toolbar_button(
+                tr(locale, "复制安装输出"),
+                Some(message(Event::Copy(transcript.clone()))),
+            ),
             transcript,
         ));
     }
     match card.and_then(|card| card.instructions.as_ref()) {
         Some(Ok(instructions)) => {
+            let copy_button = |item, label| {
+                let copied = card
+                    .and_then(|card| card.copy_feedback.get(&item))
+                    .is_some_and(|copy| copy.copied);
+                toolbar_button(
+                    tr(locale, if copied { "已复制" } else { label }),
+                    Some(message(Event::CopyInstruction(extension, item))),
+                )
+            };
             content = content
                 .push(muted(tr(locale, "在网关主机的终端执行，完成后刷新并测试连接。").to_owned()));
-            for command in &instructions.commands {
+            for (index, command) in instructions.commands.iter().enumerate() {
                 content = content.push(extension_output(
                     format!(
                         "{} · {} · {}",
@@ -245,7 +326,7 @@ fn extension_row(
                         instructions.shell,
                         instructions.version
                     ),
-                    tr(locale, "复制安装命令"),
+                    copy_button(InstructionCopy::Command(index), "复制安装命令"),
                     command.clone(),
                 ));
             }
@@ -259,7 +340,7 @@ fn extension_row(
                 ))
                 .push(extension_output(
                     tr(locale, "MCP 配置").to_owned(),
-                    tr(locale, "复制 MCP 配置"),
+                    copy_button(InstructionCopy::Configuration, "复制 MCP 配置"),
                     instructions.configuration.clone(),
                 ));
         }
@@ -277,11 +358,9 @@ fn extension_row(
 #[cfg(not(target_arch = "wasm32"))]
 fn extension_output(
     label: String,
-    copy_label: &'static str,
+    copy_button: iced::widget::Button<'static, Message>,
     output: String,
 ) -> Element<'static, Message> {
-    use crate::app::message::settings::mcp::extensions::message;
-    use desktop_settings_mcp::{extensions::Message as Event, toolbar_button};
     use desktop_ui_controls::system_settings_common::{settings_muted_text_style, settings_panel};
     use iced::Length;
     use iced::widget::{column, row, scrollable, text, text::Wrapping};
@@ -290,7 +369,7 @@ fn extension_output(
         column![
             row![
                 text(label).size(13).width(Length::Fill).wrapping(Wrapping::WordOrGlyph),
-                toolbar_button(copy_label, Some(message(Event::Copy(output.clone())))),
+                copy_button,
             ]
             .spacing(8)
             .align_y(iced::Alignment::Center),
@@ -338,6 +417,13 @@ fn extensions_panel(app: &App) -> Element<'_, Message> {
                 McpExtension::ChromeDevTools,
                 "Chrome DevTools MCP",
                 tr(locale, "通过 npm 下载官方包。需要 Node.js LTS、npm 和最新版稳定版 Chrome。"),
+            ),
+            settings_divider(),
+            extension_row(
+                app,
+                McpExtension::OpenCodeBrowse,
+                "OpenCode Browse MCP",
+                tr(locale, "使用已配对的 Chrome、Edge、Brave、Arc 等 Chromium 浏览器。安装后需在浏览器中完成扩展配对。"),
             ),
         ])
         .into();

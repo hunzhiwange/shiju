@@ -48,6 +48,7 @@ fn save_runtime_overrides_task(runtime_overrides: Vec<Value>) -> Task<Message> {
 }
 
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
+    use crate::app::state::McpSettingsTab;
     use desktop_settings_mcp::configuration_update::{Effect, Message as LocalMessage};
     let SettingsMessage::Mcp(message) = message else { return Task::none() };
     if app.mcp_settings.extensions.active.is_some()
@@ -117,8 +118,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         McpMessage::Save => LocalMessage::Save,
         McpMessage::Saved(v0) => LocalMessage::Saved(v0),
     };
+    let show_extensions = matches!(&local, LocalMessage::TabSelected(McpSettingsTab::Extensions));
     let directory = app.navigation_tabs.project_path.clone();
     match desktop_settings_mcp::configuration_update::update(&mut app.mcp_settings.page, local) {
+        Effect::None if show_extensions => extensions::refresh_statuses(app),
         Effect::None => Task::none(),
         Effect::Inspect => inspect_task(directory),
         Effect::InspectServer { key, name } => Task::perform(
@@ -126,13 +129,21 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             |(key, result)| Message::Settings(SettingsMessage::Mcp(McpMessage::Connected(key, result))),
         ),
         Effect::RefreshAll => refresh_all_task(directory),
-        Effect::RefreshAllAndCatalog => Task::batch([
-            refresh_all_task(directory),
-            super::mcp_management_list::update(
-                app,
-                super::mcp_management_list::CatalogMessage::Refresh,
-            ),
-        ]),
+        Effect::RefreshAllAndCatalog => {
+            let extension_status = if app.mcp_settings.active_tab == McpSettingsTab::Extensions {
+                extensions::refresh_statuses(app)
+            } else {
+                Task::none()
+            };
+            Task::batch([
+                refresh_all_task(directory),
+                super::mcp_management_list::update(
+                    app,
+                    super::mcp_management_list::CatalogMessage::Refresh,
+                ),
+                extension_status,
+            ])
+        }
         Effect::Save(value) => save_task(value),
         Effect::SaveOverrides(value) => save_runtime_overrides_task(value),
     }

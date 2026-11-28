@@ -8,20 +8,22 @@ use agent_database::GlobalDatabase;
 use secret_store::gateway_skey_store::{GatewaySkeyReplacement, GatewaySkeyStore};
 
 #[test]
-fn system_config_replacement_preserves_installed_rustcodegraph() -> Result<()> {
+fn system_config_replacement_preserves_installed_builtin_mcp_servers() -> Result<()> {
     for_each_system_config_store_provider(|store, _| {
-        let tenant = TenantScope::new("mcp", "builtin")?;
-        store.upsert(
-            &tenant,
-            r#"{"mcpServers":[{"name":"rustcodegraph"},{"name":"custom"}]}"#,
-        )?;
-        let error = store.upsert(&tenant, r#"{"mcpServers":[]}"#).unwrap_err();
-        assert!(format!("{error:#}").contains("builtin MCP server rustcodegraph cannot be deleted"));
-        assert!(store.upsert(&tenant, "{}").is_err());
+        for name in ["rustcodegraph", "browse"] {
+            let tenant = TenantScope::new("mcp", name)?;
+            let installed = serde_json::json!({"mcpServers": [{"name": name}, {"name": "custom"}]});
+            store.upsert(&tenant, &installed.to_string())?;
+            let error = store.upsert(&tenant, r#"{"mcpServers":[]}"#).unwrap_err();
+            let expected = format!("builtin MCP server {name} cannot be deleted");
+            assert!(format!("{error:#}").contains(&expected));
+            assert!(store.upsert(&tenant, "{}").is_err());
 
-        let disabled = r#"{"mcpServers":[{"enabled":false,"name":"rustcodegraph"}]}"#;
-        store.upsert(&tenant, disabled)?;
-        assert_eq!(store.get(&tenant)?.as_deref(), Some(disabled));
+            let disabled = serde_json::json!({"mcpServers": [{"enabled": false, "name": name}]})
+                .to_string();
+            store.upsert(&tenant, &disabled)?;
+            assert_eq!(store.get(&tenant)?.as_deref(), Some(disabled.as_str()));
+        }
         Ok(())
     })
 }

@@ -42,3 +42,49 @@ async fn settings_tabs_capabilities_appearance_mcp() {
     )
     .await;
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn instruction_copy_feedback_expires_per_button_and_ignores_older_timers() {
+    use crate::app::App;
+    use crate::app::message::settings::mcp::extensions::message;
+    use desktop_settings_mcp::extensions::{InstructionCopy, Message as Event};
+    use gateway_desktop_settings::{McpExtension, McpInstallInstructions};
+
+    let mut app = App::new().0;
+    let extension = McpExtension::ChromeDevTools;
+    let command = InstructionCopy::Command(0);
+    let configuration = InstructionCopy::Configuration;
+    let _ = app.update(message(Event::Instructions(
+        extension,
+        Ok(McpInstallInstructions {
+            version: "fixture".into(),
+            shell: "fixture".into(),
+            commands: vec!["command".into()],
+            configuration: "{}".into(),
+        }),
+    )));
+
+    let mut copy = |item| {
+        let _ = app.update(message(Event::CopyInstruction(extension, item)));
+        let request = app.mcp_settings.extensions.copy_sequence;
+        let _ = app.update(message(Event::InstructionCopied(extension, item, request, Ok(()))));
+        request
+    };
+    let first = copy(command);
+    let config_request = copy(configuration);
+    let last = copy(command);
+
+    let _ = app.update(message(Event::ClearCopyFeedback(extension, command, first)));
+    let feedback = &app.mcp_settings.extensions.cards[&extension].copy_feedback;
+    assert!(feedback[&command].copied);
+    assert!(feedback[&configuration].copied);
+
+    let _ = app.update(message(Event::ClearCopyFeedback(extension, configuration, config_request)));
+    let feedback = &app.mcp_settings.extensions.cards[&extension].copy_feedback;
+    assert!(feedback[&command].copied);
+    assert!(!feedback.contains_key(&configuration));
+
+    let _ = app.update(message(Event::ClearCopyFeedback(extension, command, last)));
+    assert!(app.mcp_settings.extensions.cards[&extension].copy_feedback.is_empty());
+}

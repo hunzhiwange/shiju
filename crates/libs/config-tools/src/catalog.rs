@@ -1,10 +1,11 @@
 pub const CHROME_DEVTOOLS_MCP_SERVER_ID: &str = "chrome-devtools";
 pub const RUSTCODEGRAPH_MCP_SERVER_ID: &str = "rustcodegraph";
+const OPENCODE_BROWSE_MCP_SERVER_ID: &str = "browse";
 
 pub fn is_builtin_mcp_server_id(name: &str) -> bool {
     matches!(
         name.trim(),
-        CHROME_DEVTOOLS_MCP_SERVER_ID | RUSTCODEGRAPH_MCP_SERVER_ID
+        CHROME_DEVTOOLS_MCP_SERVER_ID | RUSTCODEGRAPH_MCP_SERVER_ID | OPENCODE_BROWSE_MCP_SERVER_ID
     )
 }
 

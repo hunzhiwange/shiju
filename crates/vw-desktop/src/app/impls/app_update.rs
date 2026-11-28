@@ -146,14 +146,8 @@ fn copy_code(app: &mut App, text: String) -> Task<Message> {
 fn copy_text_task(text: String, hash: u64) -> Task<Message> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        Task::perform(
-            async move {
-                arboard::Clipboard::new()
-                    .and_then(|mut clipboard| clipboard.set_text(text))
-                    .map_err(|_| "系统剪贴板不可用或访问被拒绝".to_string())
-            },
-            move |result| Message::ClipboardCopyFinished { hash, result },
-        )
+        message::write_native_clipboard(text)
+            .map(move |result| Message::ClipboardCopyFinished { hash, result })
     }
     #[cfg(target_arch = "wasm32")]
     {

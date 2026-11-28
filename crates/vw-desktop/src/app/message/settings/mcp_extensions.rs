@@ -29,6 +29,28 @@ fn instructions_task(extension: McpExtension) -> Task<Message> {
     )
 }
 
+pub(crate) fn refresh_statuses(app: &mut App) -> Task<Message> {
+    if local_endpoint().is_err() {
+        return Task::none();
+    }
+    Task::batch(McpExtension::ALL.into_iter().map(|extension| refresh_status(app, extension)))
+}
+
+fn refresh_status(app: &mut App, extension: McpExtension) -> Task<Message> {
+    let state = &mut app.mcp_settings.extensions;
+    if state.active.as_ref().is_some_and(|active| active.extension == extension) {
+        return Task::none();
+    }
+    let card = state.cards.entry(extension).or_default();
+    if card.status_loading {
+        return Task::none();
+    }
+    card.status_loading = true;
+    Task::perform(async move { client()?.mcp_install_status(extension).await }, move |result| {
+        message(Event::Status(extension, result))
+    })
+}
+
 fn poll_progress(active: &ActiveInstall) -> Task<Message> {
     let id = active.id.clone();
     let extension = active.extension;
@@ -52,7 +74,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let card = state.extensions.cards.entry(extension).or_default();
             card.expanded = !card.expanded;
             if card.expanded
-                && (extension == McpExtension::RustCodeGraph
+                && (extension != McpExtension::ChromeDevTools
                     || !matches!(&card.instructions, Some(Ok(_))))
             {
                 card.instructions = None;
@@ -61,7 +83,17 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             Task::none()
         }
         Event::Instructions(extension, result) => {
-            state.extensions.cards.entry(extension).or_default().instructions = Some(result);
+            let card = state.extensions.cards.entry(extension).or_default();
+            card.instructions = Some(result);
+            card.copy_feedback.clear();
+            Task::none()
+        }
+        Event::RefreshStatus(extension) => refresh_status(app, extension),
+        Event::Status(extension, result) => {
+            let card = state.extensions.cards.entry(extension).or_default();
+            if std::mem::take(&mut card.status_loading) {
+                card.status = Some(result);
+            }
             Task::none()
         }
         Event::Install(extension) => {
@@ -73,6 +105,18 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             {
                 return Task::none();
             }
+            let Some(target) = state
+                .extensions
+                .cards
+                .get(&extension)
+                .filter(|card| !card.status_loading)
+                .and_then(|card| card.status.as_ref())
+                .and_then(|status| status.as_ref().ok())
+                .and_then(|status| status.action.as_ref())
+                .map(|action| action.target_version().to_owned())
+            else {
+                return Task::none();
+            };
             let id = format!("{:032x}", rand::random::<u128>());
             let active = ActiveInstall { extension, id: id.clone(), progress: None };
             let progress = poll_progress(&active);
@@ -83,7 +127,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             card.expanded = true;
             card.report = None;
             let instructions =
-                if extension == McpExtension::RustCodeGraph || card.instructions.is_none() {
+                if extension != McpExtension::ChromeDevTools || card.instructions.is_none() {
                     card.instructions = None;
                     instructions_task(extension)
                 } else {
@@ -106,7 +150,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                         if draft.as_slice() != configured {
                             return Err("请先保存 MCP 配置草稿或刷新配置".into());
                         }
-                        client.mcp_install(extension, &id).await
+                        client.mcp_install(extension, &id, &target).await
                     }
                     .await;
                     (id, result)
@@ -141,10 +185,69 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             if success {
                 state.page.loading = true;
                 state.page.inspect_loading = true;
-                return super::refresh_all_task(app.navigation_tabs.project_path.clone());
+                return Task::batch([
+                    super::refresh_all_task(app.navigation_tabs.project_path.clone()),
+                    refresh_status(app, active.extension),
+                ]);
+            }
+            refresh_status(app, active.extension)
+        }
+        Event::Copy(value) => iced::clipboard::write(value),
+        #[cfg(not(target_arch = "wasm32"))]
+        Event::CopyInstruction(extension, item) => {
+            use desktop_settings_mcp::extensions::InstructionCopy;
+
+            let Some(card) = state.extensions.cards.get_mut(&extension) else {
+                return Task::none();
+            };
+            let Some(Ok(instructions)) = &card.instructions else {
+                return Task::none();
+            };
+            let value = match item {
+                InstructionCopy::Command(index) => instructions.commands.get(index),
+                InstructionCopy::Configuration => Some(&instructions.configuration),
+            };
+            let Some(value) = value else { return Task::none() };
+
+            state.extensions.copy_sequence = state.extensions.copy_sequence.wrapping_add(1);
+            let request = state.extensions.copy_sequence;
+            card.copy_feedback.entry(item).or_default().request = request;
+            crate::app::message::write_native_clipboard(value.clone()).map(move |result| {
+                message(Event::InstructionCopied(extension, item, request, result))
+            })
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        Event::InstructionCopied(extension, item, request, result) => {
+            let Some(card) = state.extensions.cards.get_mut(&extension) else {
+                return Task::none();
+            };
+            let Some(feedback) =
+                card.copy_feedback.get_mut(&item).filter(|copy| copy.request == request)
+            else {
+                return Task::none();
+            };
+            if result.is_err() {
+                card.copy_feedback.remove(&item);
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "复制失败：系统剪贴板不可用或访问被拒绝",
+                    vec![],
+                );
+            }
+            feedback.copied = true;
+            crate::app::message::after(
+                Duration::from_secs(2),
+                message(Event::ClearCopyFeedback(extension, item, request)),
+            )
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        Event::ClearCopyFeedback(extension, item, request) => {
+            if let Some(card) = state.extensions.cards.get_mut(&extension)
+                && card.copy_feedback.get(&item).is_some_and(|copy| copy.request == request)
+            {
+                card.copy_feedback.remove(&item);
             }
             Task::none()
         }
-        Event::Copy(value) => iced::clipboard::write(value),
     }
 }

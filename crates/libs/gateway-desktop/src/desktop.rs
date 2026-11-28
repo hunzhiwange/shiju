@@ -58,6 +58,7 @@ where
             "/desktop/mcp-install/{extension}/progress",
             get(super::desktop_mcp_install::progress),
         )
+        .route("/desktop/mcp-install/{extension}/status", get(super::desktop_mcp_install::status))
         .route(
             "/desktop/acp-diagnostic/{id}",
             post(acp_diagnostic_request).delete(acp_diagnostic_cancel),

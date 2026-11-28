@@ -48,7 +48,7 @@ pub const MCP_TAB_LABELS: &[(&str, McpSettingsTab)] = &[
     ("全局服务器", McpSettingsTab::Servers),
     ("运行时 MCP", McpSettingsTab::Runtime),
     ("高级 JSON", McpSettingsTab::Json),
-    ("扩展", McpSettingsTab::Extensions),
+    ("推荐 MCP", McpSettingsTab::Extensions),
 ];
 pub fn mcp_tab_labels() -> &'static [(&'static str, McpSettingsTab)] {
     MCP_TAB_LABELS

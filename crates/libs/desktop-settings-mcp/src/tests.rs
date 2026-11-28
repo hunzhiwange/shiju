@@ -114,7 +114,7 @@ fn tabs_statuses_and_preview_action_cover_all_static_mappings() {
             ("全局服务器", McpSettingsTab::Servers),
             ("运行时 MCP", McpSettingsTab::Runtime),
             ("高级 JSON", McpSettingsTab::Json),
-            ("扩展", McpSettingsTab::Extensions),
+            ("推荐 MCP", McpSettingsTab::Extensions),
         ]
     );
 

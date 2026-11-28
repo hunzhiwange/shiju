@@ -76,6 +76,15 @@ pub fn after(
     iced::Task::perform(sleep(duration), move |_| message)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn write_native_clipboard(text: String) -> iced::Task<Result<(), String>> {
+    iced::Task::future(async move {
+        arboard::Clipboard::new()
+            .and_then(|mut clipboard| clipboard.set_text(text))
+            .map_err(|_| "系统剪贴板不可用或访问被拒绝".to_string())
+    })
+}
+
 /// 在阻塞上下文中执行一个可能返回 `None` 的函数。
 ///
 /// 该函数提供了跨平台的阻塞任务执行能力。在非 WASM 平台上，

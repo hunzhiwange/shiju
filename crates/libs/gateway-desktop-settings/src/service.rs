@@ -34,18 +34,22 @@ pub struct AcpInstallDownload {
 pub enum McpExtension {
     RustCodeGraph,
     ChromeDevTools,
+    OpenCodeBrowse,
 }
 
 impl McpExtension {
+    pub const ALL: [Self; 3] = [Self::RustCodeGraph, Self::ChromeDevTools, Self::OpenCodeBrowse];
+
     pub const fn id(self) -> &'static str {
         match self {
             Self::RustCodeGraph => "rustcodegraph",
             Self::ChromeDevTools => "chrome-devtools",
+            Self::OpenCodeBrowse => "browse",
         }
     }
 
     pub fn from_id(id: &str) -> Option<Self> {
-        [Self::RustCodeGraph, Self::ChromeDevTools].into_iter().find(|kind| kind.id() == id)
+        Self::ALL.into_iter().find(|kind| kind.id() == id)
     }
 }
 
@@ -55,6 +59,28 @@ pub struct McpInstallInstructions {
     pub shell: String,
     pub commands: Vec<String>,
     pub configuration: String,
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct McpInstallStatus {
+    pub installed_version: Option<String>,
+    pub action: Option<McpInstallAction>,
+    pub warning: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum McpInstallAction {
+    Install { version: String },
+    Upgrade { version: String },
+}
+
+impl McpInstallAction {
+    pub fn target_version(&self) -> &str {
+        match self {
+            Self::Install { version } | Self::Upgrade { version } => version,
+        }
+    }
 }
 
 impl GatewayDesktopSettingsClient {
@@ -152,6 +178,14 @@ impl GatewayDesktopSettingsClient {
         self.transport.get_json(&format!("/v1/desktop/mcp-install/{}", extension.id()), &[]).await
     }
 
+    pub async fn mcp_install_status(
+        &self,
+        extension: McpExtension,
+    ) -> Result<McpInstallStatus, String> {
+        let path = format!("/v1/desktop/mcp-install/{}/status", extension.id());
+        self.transport.get_json(&path, &[]).await
+    }
+
     pub async fn mcp_install_progress(
         &self,
         extension: McpExtension,
@@ -165,12 +199,13 @@ impl GatewayDesktopSettingsClient {
         &self,
         extension: McpExtension,
         id: &str,
+        target_version: &str,
     ) -> Result<AcpInstallReport, String> {
         let path = format!("/v1/desktop/mcp-install/{}", extension.id());
         let request = self.transport.long_running_client()?
             .post(format!("{}{}", self.transport.endpoint().base_url(), path))
             .query(&[("install_id", id)])
-            .json(&serde_json::json!({}));
+            .json(&serde_json::json!({"target_version": target_version}));
         let response = gateway_http::apply_request_context(request, self.transport.endpoint())
             .send().await
             .map_err(|err| gateway_http::transport_error("POST", self.transport.endpoint(), &path, err))?;

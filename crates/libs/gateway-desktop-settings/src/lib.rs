@@ -7,7 +7,10 @@ mod hooks;
 mod external;
 mod preferences;
 mod service;
-pub use service::{AcpInstallInstructions, AcpInstallProgress, AcpInstallReport, McpExtension, McpInstallInstructions};
+pub use service::{
+    AcpInstallInstructions, AcpInstallProgress, AcpInstallReport, McpExtension, McpInstallAction,
+    McpInstallInstructions, McpInstallStatus,
+};
 
 pub const ACP_INSTALL_CANCELLED: &str = "ACP 安装已取消";
 

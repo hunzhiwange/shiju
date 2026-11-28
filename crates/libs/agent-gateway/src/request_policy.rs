@@ -30,7 +30,9 @@ pub fn request_timeout_for_path(path: &str) -> Duration {
         Duration::from_secs(WORKFLOW_CHAT_MESSAGES_TIMEOUT_SECS)
     } else if matches!(
         path,
-        "/v1/desktop/mcp-install/rustcodegraph" | "/v1/desktop/mcp-install/chrome-devtools"
+        "/v1/desktop/mcp-install/rustcodegraph"
+            | "/v1/desktop/mcp-install/chrome-devtools"
+            | "/v1/desktop/mcp-install/browse"
     ) {
         Duration::from_secs(150)
     } else if path == "/v1/desktop/acp-install/aionrs" {

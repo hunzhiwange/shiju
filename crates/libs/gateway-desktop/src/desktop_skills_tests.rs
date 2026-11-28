@@ -308,6 +308,8 @@ fn built_in_skill_helpers_read_metadata_and_mark_recommended_group() {
     let markdown =
         super::read_built_in_skill_markdown("create-task-plans").expect("bundled markdown");
     assert!(markdown.contains("create-task-plans"));
+    let creator = super::find_built_in_skill("skill-creator").expect("bundled skill creator");
+    assert_eq!(creator.group, super::BuiltInSkillGroup::System);
     assert!(super::find_built_in_skill("missing-skill").is_none());
     assert!(super::read_built_in_skill_markdown("missing-skill").is_err());
 }

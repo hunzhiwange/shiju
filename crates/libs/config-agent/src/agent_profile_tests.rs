@@ -68,6 +68,32 @@ fn agent_profile_debug_hides_sensitive_payloads() {
 }
 
 #[test]
+fn butler_inherits_skill_creator_and_preserves_explicit_skill_choices() {
+    use crate::{AgentDefault, SHIJU_BUTLER_AGENT_KEY, builtin_agent_config, merged_agent_configs};
+    use std::collections::HashMap;
+
+    let key = SHIJU_BUTLER_AGENT_KEY;
+    let builtin = builtin_agent_config(key).unwrap();
+    assert_eq!(builtin.defaults.skills, AgentDefault::Fixed(vec!["skill-creator".into()]));
+
+    let legacy = AgentDefinitionConfig::default();
+    let merged = merged_agent_configs(&HashMap::from([(key.into(), legacy.clone())]));
+    assert_eq!(merged[key].defaults.skills, AgentDefault::Inherit);
+    assert_eq!(merged[key].allowed_skills, ["skill-creator"]);
+
+    let mut configured = legacy;
+    configured.allowed_skills = vec!["custom-skill".into()];
+    let merged = merged_agent_configs(&HashMap::from([(key.into(), configured.clone())]));
+    assert_eq!(merged[key].allowed_skills, ["custom-skill"]);
+
+    configured.defaults.skills = AgentDefault::Fixed(Vec::new());
+    configured.allowed_skills.clear();
+    let merged = merged_agent_configs(&HashMap::from([(key.into(), configured)]));
+    assert_eq!(merged[key].defaults.skills, AgentDefault::Fixed(Vec::new()));
+    assert!(merged[key].allowed_skills.is_empty());
+}
+
+#[test]
 fn agent_profile_builtin_merge_preserves_defaults_and_runtime_binding() {
     let config: AgentDefinitionConfig = serde_json::from_value(json!({
         "provider": "", "model": "", "runtime": {"kind": "acp", "backend": "codex"},

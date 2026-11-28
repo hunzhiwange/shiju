@@ -384,7 +384,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
         description: "通过对话管理识矩的系统设置和定时任务。",
         kind: BuiltinAgentKind::Butler,
         system_prompt: Some(include_str!("shiju_butler.txt")),
-        default_skills: &[],
+        default_skills: &["skill-creator"],
         mode: "primary",
         hidden: false,
         allow_as_subagent: false,
@@ -625,7 +625,13 @@ pub fn merged_agent_configs(
                 builtin.temperature = value.temperature;
             }
             builtin.top_p = value.top_p;
-            builtin.allowed_skills = value.allowed_skills.clone();
+            // An older Butler profile can inherit skills without a saved selection.
+            if spec.kind != BuiltinAgentKind::Butler
+                || !value.allowed_skills.is_empty()
+                || !matches!(value.defaults.skills, AgentDefault::Inherit)
+            {
+                builtin.allowed_skills.clone_from(&value.allowed_skills);
+            }
             builtin.skill_policy = value.skill_policy;
             builtin.enabled_identity_files = value.enabled_identity_files.clone();
             builtin.options = value.options.clone();

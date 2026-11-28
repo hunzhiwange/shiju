@@ -84,8 +84,9 @@ pub fn page(i18n: I18n, state: &ComputerControlSettingsState) -> Element<'_, Eve
     }
     for (feature, title) in FEATURES {
         let report = state.feature(feature);
-        let mut toggle = settings_toggle(report.is_some_and(|s| s.enabled));
-        if report.is_some() && !state.busy() {
+        let enabled = report.is_some_and(|s| s.enabled);
+        let mut toggle = settings_toggle(enabled);
+        if !state.busy() && state.can_set_feature(feature, !enabled) {
             toggle = toggle.on_toggle(move |enabled| message(Event::Toggle(feature, enabled)));
         }
         let mut details = column![
@@ -143,8 +144,13 @@ pub fn page(i18n: I18n, state: &ComputerControlSettingsState) -> Element<'_, Eve
             };
             details = details.push(action(i18n, label, Event::Manage(feature), true));
         }
-        if feature == ControlSetting::LockedUse {
-            details = details.push(text(i18n.__("锁屏需要独立的可执行后端；开关与未锁屏操作均不能证明支持。当前后端不支持时，开启请求会被拒绝。")).size(12));
+        if feature == ControlSetting::LockedUse && let Some(status) = &state.status {
+            let hint = match status.locked_use.probe {
+                LockedUseProbe::Supported => "锁屏时仅支持可访问性观察及部分控件操作。",
+                LockedUseProbe::Unsupported => "当前执行应用或平台不支持锁屏使用。",
+                LockedUseProbe::NotProbed => "请确认执行应用已安装且可连接，然后刷新状态。",
+            };
+            details = details.push(text(i18n.__(hint)).size(12));
         }
         let feature_row = container(
             row![feature_icon(feature), details.width(Length::Fill), toggle,]

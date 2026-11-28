@@ -54,10 +54,10 @@ fn feature(enabled: bool, readiness: ControlReadiness, authorization: SystemAuth
 }
 async fn status(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<Json<ComputerControlStatus>, Failure> {
     let runtime = runtime(&h).await?;
-    let native = probe_native_service().await;
+    let (native, locked_probe) = probe_native_service().await;
     let policy = runtime.control_policy().read();
     let config = policy.config().users.get(&user()).cloned().unwrap_or_default();
-    let (readiness, auth, backend, caps) = match native.permissions {
+    let (readiness, auth, backend, caps) = match &native.permissions {
         Some(p) => (if p.accessibility && p.screen_recording { ControlReadiness::Ready } else { ControlReadiness::Unauthorized }, if p.accessibility && p.screen_recording { SystemAuthorization::Granted } else { SystemAuthorization::Denied }, ControlBackend::Available, vec![ControlCapability::Observe, ControlCapability::Screenshot, ControlCapability::Input]),
         None => {
             let (readiness, backend) = match native.state {
@@ -71,8 +71,34 @@ async fn status(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<J
     Ok(Json(ComputerControlStatus {
         permission_version: policy.version(),
         native_apps: feature(config.native_apps, readiness, auth, backend, caps),
-        locked_use: LockedUseStatus { status: feature(config.locked_use, ControlReadiness::Unsupported, SystemAuthorization::NotChecked, ControlBackend::Unsupported, vec![]), probe: LockedUseProbe::Unsupported },
+        locked_use: locked_use_status(config.locked_use, &native, locked_probe),
     }))
+}
+
+fn locked_use_status(
+    enabled: bool,
+    native: &NativeServiceReport,
+    probe: LockedUseProbe,
+) -> LockedUseStatus {
+    let status = match (probe, &native.permissions) {
+        (LockedUseProbe::Supported, Some(permissions)) => {
+            let (readiness, authorization) = if permissions.accessibility {
+                (ControlReadiness::Ready, SystemAuthorization::Granted)
+            } else {
+                (ControlReadiness::Unauthorized, SystemAuthorization::Denied)
+            };
+            let mut status = feature(
+                enabled, readiness, authorization, ControlBackend::Available,
+                vec![ControlCapability::LockedExecution],
+            );
+            status.connection = ControlConnection::Connected;
+            status
+        }
+        (LockedUseProbe::Unsupported, _) => feature(enabled, ControlReadiness::Unsupported, SystemAuthorization::NotChecked, ControlBackend::Unsupported, vec![]),
+        _ if native.state == NativeServiceState::NotInstalled => feature(enabled, ControlReadiness::NotInstalled, SystemAuthorization::NotChecked, ControlBackend::NotInstalled, vec![]),
+        _ => feature(enabled, ControlReadiness::Disconnected, SystemAuthorization::NotChecked, ControlBackend::Available, vec![]),
+    };
+    LockedUseStatus { status, probe }
 }
 async fn approvals(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<Json<ControlApprovals>, Failure> {
     let runtime = runtime(&h).await?;
@@ -99,10 +125,19 @@ async fn publish(runtime: &NativeControlRuntime, next: ComputerControlPolicy) ->
 }
 async fn save(Extension(_t): Extension<TenantScope>, h: HeaderMap, Json(q): Json<ControlSettingsUpdate>) -> Result<Json<ControlVersionResponse>, Failure> {
     let runtime = runtime(&h).await?;
+    let locked_probe = if q.feature == ControlSetting::LockedUse && q.enabled {
+        Some(probe_native_service().await.1)
+    } else {
+        None
+    };
     let _edit = EDIT.lock().await;
     let mut next = ComputerControlPolicy::new(runtime.control_policy().read().config().clone());
     if next.version() != q.permission_version { return Err(StatusCode::CONFLICT); }
-    if q.feature == ControlSetting::LockedUse && q.enabled { return Err(StatusCode::UNPROCESSABLE_ENTITY); }
+    match locked_probe {
+        Some(LockedUseProbe::Unsupported) => return Err(StatusCode::UNPROCESSABLE_ENTITY),
+        Some(LockedUseProbe::NotProbed) => return Err(StatusCode::SERVICE_UNAVAILABLE),
+        Some(LockedUseProbe::Supported) | None => {}
+    }
     next.set_enabled(&user(), setting(q.feature), q.enabled).map_err(|_| StatusCode::BAD_REQUEST)?;
     publish(&runtime, next).await
 }
@@ -134,21 +169,31 @@ async fn request_native_permission(Extension(_t): Extension<TenantScope>, h: Hea
 
 async fn native_service(Extension(_t): Extension<TenantScope>, h: HeaderMap) -> Result<Json<NativeServiceReport>, Failure> {
     let _runtime = runtime(&h).await?;
-    Ok(Json(probe_native_service().await))
+    Ok(Json(probe_native_service().await.0))
 }
 
-async fn probe_native_service() -> NativeServiceReport {
-    if !cfg!(target_os = "macos") {
-        return NativeServiceReport { state: NativeServiceState::Unsupported, permissions: None };
-    }
-    match computer_control::service::executable() {
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => NativeServiceReport { state: NativeServiceState::NotInstalled, permissions: None },
-        Err(_) => NativeServiceReport { state: NativeServiceState::Disconnected, permissions: None },
-        Ok(executable) => match service_permissions(&executable, "--permissions").await {
-            Ok(permissions) => NativeServiceReport { state: NativeServiceState::Available, permissions: Some(permissions) },
-            Err(_) => NativeServiceReport { state: NativeServiceState::Disconnected, permissions: None },
-        },
-    }
+async fn probe_native_service() -> (NativeServiceReport, LockedUseProbe) {
+    use NativeServiceState::*;
+    let (state, permissions, probe) = if !cfg!(target_os = "macos") {
+        (Unsupported, None, LockedUseProbe::Unsupported)
+    } else {
+        match computer_control::service::executable() {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                (NotInstalled, None, LockedUseProbe::NotProbed)
+            }
+            Err(_) => (Disconnected, None, LockedUseProbe::NotProbed),
+            Ok(executable) => match service_permissions(&executable, "--locked-use-probe").await {
+                Ok(permissions) => (Available, Some(permissions), LockedUseProbe::Supported),
+                // An older helper closes the channel for an unrecognized mode.
+                Err(StatusCode::BAD_GATEWAY) => match service_permissions(&executable, "--permissions").await {
+                    Ok(permissions) => (Available, Some(permissions), LockedUseProbe::Unsupported),
+                    Err(_) => (Disconnected, None, LockedUseProbe::NotProbed),
+                },
+                Err(_) => (Disconnected, None, LockedUseProbe::NotProbed),
+            },
+        }
+    };
+    (NativeServiceReport { state, permissions }, probe)
 }
 
 fn validate_service_identity(expected: &std::path::Path, report: &NativePermissionReport) -> Result<(), Failure> {

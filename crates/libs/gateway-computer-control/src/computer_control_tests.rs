@@ -13,6 +13,30 @@ fn cc_control_18_locked_setting_maps_to_independent_gate() {
     assert_eq!(setting(ControlSetting::LockedUse), ControlFeature::LockedUse);
 }
 #[test]
+fn cc_control_18_locked_status_requires_helper_support_and_accessibility() {
+    let mut native = NativeServiceReport {
+        state: NativeServiceState::Available,
+        permissions: Some(NativePermissionReport {
+            executable: "/helper".into(),
+            accessibility: true,
+            screen_recording: false,
+        }),
+    };
+    let unsupported = super::locked_use_status(true, &native, LockedUseProbe::Unsupported);
+    assert_eq!(unsupported.status.readiness, ControlReadiness::Unsupported);
+    assert!(unsupported.status.capabilities.is_empty());
+
+    let supported = super::locked_use_status(true, &native, LockedUseProbe::Supported);
+    assert_eq!(supported.status.readiness, ControlReadiness::Ready);
+    assert_eq!(supported.status.connection, ControlConnection::Connected);
+    assert_eq!(supported.status.capabilities, vec![ControlCapability::LockedExecution]);
+
+    native.permissions.as_mut().unwrap().accessibility = false;
+    let unauthorized = super::locked_use_status(true, &native, LockedUseProbe::Supported);
+    assert_eq!(unauthorized.status.readiness, ControlReadiness::Unauthorized);
+    assert_eq!(unauthorized.status.system_authorization, SystemAuthorization::Denied);
+}
+#[test]
 fn cc_control_18_application_scope_preserves_identity() {
     assert_eq!(scope(ControlGrantScope::Application("com.example.editor".into())), GrantScope::Application("com.example.editor".into()));
 }

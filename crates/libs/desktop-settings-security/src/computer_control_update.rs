@@ -169,6 +169,11 @@ fn update_inner(state: &mut ComputerControlSettingsState, endpoint: &GatewayEndp
         event @ (Event::Toggle(..) | Event::Revoke(_)) => {
             if state.busy() { return Task::none(); }
             let Some(status) = &state.status else { return refresh(state, endpoint); };
+            if let Event::Toggle(feature, enabled) = &event
+                && !state.can_set_feature(*feature, *enabled)
+            {
+                return Task::none();
+            }
             let version = status.permission_version;
             state.generation += 1;
             let generation = state.generation;

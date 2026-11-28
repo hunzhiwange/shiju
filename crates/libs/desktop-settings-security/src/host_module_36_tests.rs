@@ -40,6 +40,7 @@ fn loaded_state() -> ComputerControlSettingsState {
 #[test]
 fn cc_control_19_toggle_waits_for_server_confirmation() {
     let mut state = loaded_state();
+    state.status.as_mut().unwrap().locked_use.probe = LockedUseProbe::Supported;
     let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 9);
     state.identity = Some(ControlIdentity::from_endpoint(&endpoint));
     let _task = crate::computer_control_update::update(
@@ -50,4 +51,28 @@ fn cc_control_19_toggle_waits_for_server_confirmation() {
     assert!(state.saving);
     assert!(!state.feature(ControlSetting::LockedUse).unwrap().enabled);
     assert!(state.feature(ControlSetting::NativeApps).unwrap().enabled);
+}
+
+#[test]
+fn cc_control_19_unsupported_locked_use_can_only_be_disabled() {
+    let mut state = loaded_state();
+    let endpoint = gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 9);
+    state.identity = Some(ControlIdentity::from_endpoint(&endpoint));
+    let generation = state.generation;
+    let _task = crate::computer_control_update::update(
+        &mut state,
+        &endpoint,
+        Event::Toggle(ControlSetting::LockedUse, true),
+    );
+    assert!(!state.saving);
+    assert_eq!(state.generation, generation);
+
+    state.status.as_mut().unwrap().locked_use.status.enabled = true;
+    let _task = crate::computer_control_update::update(
+        &mut state,
+        &endpoint,
+        Event::Toggle(ControlSetting::LockedUse, false),
+    );
+    assert!(state.saving);
+    assert!(state.feature(ControlSetting::LockedUse).unwrap().enabled);
 }

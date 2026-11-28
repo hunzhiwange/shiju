@@ -123,6 +123,7 @@ fn permission_report(mode: &str) -> Result<vw_api_computer_control::NativePermis
     use computer_control::native::{NativePermission, native_permissions, request_native_permission};
     let permissions = match mode {
         "--permissions" => native_permissions(),
+        "--locked-use-probe" if computer_control::native::locked_session::supports_locked_execution() => native_permissions(),
         "--request-accessibility" => request_native_permission(NativePermission::Accessibility),
         "--request-screen-recording" => request_native_permission(NativePermission::ScreenRecording),
         _ => return Err("unknown control app mode".into()),

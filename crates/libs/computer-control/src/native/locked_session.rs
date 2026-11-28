@@ -12,12 +12,17 @@ pub enum LockState {
     Unknown,
 }
 
+/// Whether this executable includes the restricted native AX backend.
+pub const fn supports_locked_execution() -> bool {
+    cfg!(target_os = "macos")
+}
+
 pub(crate) fn require_execution(
     state: LockState,
     target: &ComputerControlTarget,
     action: &ComputerControlAction,
 ) -> Result<(), ControlErrorCode> {
-    let native = cfg!(target_os = "macos") && matches!((target, action),
+    let native = supports_locked_execution() && matches!((target, action),
         (ComputerControlTarget::NativeApp { .. }, ComputerControlAction::NativeObserve { screenshot: false })
         | (ComputerControlTarget::NativeApp { .. }, ComputerControlAction::NativeInput {
             input: NativeInput::TypeText { .. } | NativeInput::Click { button: MouseButton::Left, .. }

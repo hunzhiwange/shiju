@@ -72,6 +72,11 @@ impl ComputerControlSettingsState {
             ControlSetting::LockedUse => &s.locked_use.status,
         })
     }
+    pub fn can_set_feature(&self, feature: ControlSetting, enabled: bool) -> bool {
+        self.status.as_ref().is_some_and(|status| {
+            feature != ControlSetting::LockedUse || !enabled || status.locked_use.probe == LockedUseProbe::Supported
+        })
+    }
     pub fn apply_loaded(&mut self, generation: u64, result: Result<(ComputerControlStatus, ControlApprovals), String>) -> bool {
         if self.generation != generation || !self.loading { return false; }
         self.loading = false;

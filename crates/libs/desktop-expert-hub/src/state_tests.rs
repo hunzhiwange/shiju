@@ -146,8 +146,6 @@ fn default_state_matches_empty_idle_ui_defaults() {
     assert!(!state.loading_chunks);
     assert!(state.reindexing_document_id.is_none());
     assert!(!state.is_busy());
-    assert!(state.notification.is_none());
-    assert!(!state.notification_is_error);
 }
 
 #[test]

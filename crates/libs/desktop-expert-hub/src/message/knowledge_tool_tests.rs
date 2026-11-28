@@ -23,12 +23,20 @@ struct DragBuffers {
     dragging_file_paths: Vec<String>,
     pending_drop_file_position: Option<(i32, i32)>,
 }
-struct Toast { message: String }
+struct Toast {
+    is_error: bool,
+    message: String,
+}
 #[derive(Default)]
 struct TestApp {
     knowledge: crate::state::KnowledgeUiState,
     file_tree_interaction: DragBuffers,
     active_toast: Option<Toast>,
+}
+impl TestApp {
+    fn toast_message(&self) -> Option<&str> {
+        self.active_toast.as_ref().map(|toast| toast.message.as_str())
+    }
 }
 fn test_app() -> TestApp { TestApp::default() }
 fn gateway() -> Result<gateway_http::GatewayTransport, String> { Err("test gateway unavailable".into()) }
@@ -41,7 +49,9 @@ fn update(app: &mut TestApp, message: KnowledgeToolMessage) -> iced::Task<crate:
     } else { Vec::new() };
     let mut session = crate::KnowledgeUpdate { knowledge: &mut app.knowledge, gateway, dropped_paths, feedback: None };
     let task = super::update(&mut session, message);
-    if let Some((_, message, _)) = session.feedback { app.active_toast = Some(Toast { message }); }
+    if let Some((is_error, message, _)) = session.feedback {
+        app.active_toast = Some(Toast { is_error, message });
+    }
     task
 }
 fn ensure_loaded(app: &mut TestApp) -> iced::Task<crate::Event> {
@@ -179,12 +189,8 @@ fn knowledge_file_import_state_tracks_selection_success_and_failure() {
     assert!(app.knowledge.loading_documents);
     assert!(!app.knowledge.loading_chunks);
     assert_eq!(app.knowledge.import_polling_jobs.len(), 1);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("文件已入队：guide.md，后台入库中"));
-    assert!(!app.knowledge.notification_is_error);
-    assert_eq!(
-        app.active_toast.as_ref().map(|toast| toast.message.as_str()),
-        Some("文件已入队：guide.md，后台入库中")
-    );
+    assert!(!app.active_toast.as_ref().unwrap().is_error);
+    assert_eq!(app.toast_message(), Some("文件已入队：guide.md，后台入库中"));
 
     app.knowledge.importing_file = true;
     let _ = update(
@@ -193,12 +199,8 @@ fn knowledge_file_import_state_tracks_selection_success_and_failure() {
     );
 
     assert!(!app.knowledge.importing_file);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("不支持 DOCX 文件"));
-    assert!(app.knowledge.notification_is_error);
-    assert_eq!(
-        app.active_toast.as_ref().map(|toast| toast.message.as_str()),
-        Some("不支持 DOCX 文件")
-    );
+    assert!(app.active_toast.as_ref().unwrap().is_error);
+    assert_eq!(app.toast_message(), Some("不支持 DOCX 文件"));
 }
 
 #[test]
@@ -244,11 +246,7 @@ fn knowledge_file_import_enqueues_jobs_and_tracks_polling_state() {
     assert_eq!(app.knowledge.import_polling_jobs[1].status, KnowledgeIndexJobStatus::Queued);
     assert!(app.knowledge.loading_documents);
     assert!(app.knowledge.loading_datasets);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("已入队 2 个文件，后台入库中"));
-    assert_eq!(
-        app.active_toast.as_ref().map(|toast| toast.message.as_str()),
-        Some("已入队 2 个文件，后台入库中")
-    );
+    assert_eq!(app.toast_message(), Some("已入队 2 个文件，后台入库中"));
 
     let _ = update(
         &mut app,
@@ -276,12 +274,8 @@ fn knowledge_file_import_enqueues_jobs_and_tracks_polling_state() {
     let _ = update(&mut app, KnowledgeToolMessage::ImportJobPolled(Ok(failed)));
 
     assert!(app.knowledge.import_polling_jobs.is_empty());
-    assert_eq!(app.knowledge.notification.as_deref(), Some("notes.md 入库失败：解析失败"));
-    assert!(app.knowledge.notification_is_error);
-    assert_eq!(
-        app.active_toast.as_ref().map(|toast| toast.message.as_str()),
-        Some("notes.md 入库失败：解析失败")
-    );
+    assert!(app.active_toast.as_ref().unwrap().is_error);
+    assert_eq!(app.toast_message(), Some("notes.md 入库失败：解析失败"));
 }
 
 #[test]
@@ -449,8 +443,8 @@ fn update_handles_chunk_loading_selection_and_stale_results() {
         KnowledgeToolMessage::ChunksLoaded("doc".to_string(), Err("chunk load failed".to_string())),
     );
     assert!(!app.knowledge.loading_chunks);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("chunk load failed"));
-    assert!(app.knowledge.notification_is_error);
+    assert_eq!(app.toast_message(), Some("chunk load failed"));
+    assert!(app.active_toast.as_ref().unwrap().is_error);
 
     let _ = update(&mut app, KnowledgeToolMessage::CloseDocumentPreview);
     assert!(!app.knowledge.document_preview_open);
@@ -477,7 +471,7 @@ fn update_reindex_completion_refreshes_document_state_and_chunks() {
     assert_eq!(app.knowledge.selected_document_id.as_deref(), Some("doc"));
     assert!(app.knowledge.loading_documents);
     assert!(app.knowledge.loading_chunks);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("文档已重新入库"));
+    assert_eq!(app.toast_message(), Some("文档已重新入库"));
 }
 
 #[test]
@@ -501,8 +495,8 @@ fn update_handles_load_success_error_and_stale_documents() {
 
     app.knowledge.loading_status = true;
     let _ = update(&mut app, KnowledgeToolMessage::StatusLoaded(Err("offline".to_string())));
-    assert_eq!(app.knowledge.notification.as_deref(), Some("offline"));
-    assert!(app.knowledge.notification_is_error);
+    assert_eq!(app.toast_message(), Some("offline"));
+    assert!(app.active_toast.as_ref().unwrap().is_error);
 
     let _ = update(
         &mut app,
@@ -608,7 +602,8 @@ fn knowledge_embedding_config_state_loads_gateway_data_and_test_results() {
     let _ = update(&mut app, KnowledgeToolMessage::EmbeddingTestFinished(Ok(response.clone())));
     assert!(!app.knowledge.testing_embedding);
     assert_eq!(app.knowledge.embedding_test_result, Some(response));
-    assert_eq!(app.knowledge.notification.as_deref(), Some("嵌入连接测试通过：1024 维"));
+    assert_eq!(app.toast_message(), Some("嵌入连接测试通过：1024 维"));
+    assert!(!app.active_toast.as_ref().unwrap().is_error);
 
     app.knowledge.testing_embedding = true;
     let failed = KnowledgeEmbeddingTestResponse {
@@ -624,10 +619,7 @@ fn knowledge_embedding_config_state_loads_gateway_data_and_test_results() {
     assert!(!app.knowledge.testing_embedding);
     let stored_message = app.knowledge.embedding_test_result.as_ref().unwrap().message.as_str();
     assert!(!stored_message.contains("sk-live-secret-token"));
-    assert_eq!(
-        app.knowledge.notification.as_deref(),
-        Some("嵌入连接测试失败：upstream rejected [REDACTED]")
-    );
+    assert_eq!(app.toast_message(), Some("嵌入连接测试失败：upstream rejected [REDACTED]"));
 
     app.knowledge.testing_embedding = true;
     let _ = update(
@@ -637,7 +629,8 @@ fn knowledge_embedding_config_state_loads_gateway_data_and_test_results() {
         )),
     );
     assert!(!app.knowledge.testing_embedding);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("gateway leaked [REDACTED]"));
+    assert_eq!(app.toast_message(), Some("gateway leaked [REDACTED]"));
+    assert!(app.active_toast.as_ref().unwrap().is_error);
 }
 
 #[test]
@@ -645,26 +638,26 @@ fn update_validation_paths_set_local_errors_without_gateway() {
     let mut app = test_app();
 
     let _ = update(&mut app, KnowledgeToolMessage::CreateDataset);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("知识库名称不能为空"));
+    assert_eq!(app.toast_message(), Some("知识库名称不能为空"));
 
     app.knowledge.dataset_name_input = "docs".to_string();
     app.knowledge.dataset_score_threshold_input = "bad".to_string();
     let _ = update(&mut app, KnowledgeToolMessage::CreateDataset);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("Score 阈值必须是 0 到 1 之间的数字"));
+    assert_eq!(app.toast_message(), Some("Score 阈值必须是 0 到 1 之间的数字"));
 
     let _ = update(&mut app, KnowledgeToolMessage::CreateDocument);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("请先选择知识库"));
+    assert_eq!(app.toast_message(), Some("请先选择知识库"));
 
     app.knowledge.selected_dataset_id = Some("ds".to_string());
     let _ = update(&mut app, KnowledgeToolMessage::CreateDocument);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("文档名称不能为空"));
+    assert_eq!(app.toast_message(), Some("文档名称不能为空"));
 
     app.knowledge.document_name_input = "doc".to_string();
     let _ = update(&mut app, KnowledgeToolMessage::CreateDocument);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("文档内容不能为空"));
+    assert_eq!(app.toast_message(), Some("文档内容不能为空"));
 
     let _ = update(&mut app, KnowledgeToolMessage::Retrieve);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("请输入召回测试文本"));
+    assert_eq!(app.toast_message(), Some("请输入召回测试文本"));
 }
 
 #[test]
@@ -744,7 +737,7 @@ fn update_completion_messages_reset_flags_and_clear_drafts() {
     app.knowledge.documents = vec![document("d1", "ds2")];
     let _ = update(&mut app, KnowledgeToolMessage::DocumentDeleted(Ok(document("d1", "ds2"))));
     assert!(app.knowledge.documents.is_empty());
-    assert_eq!(app.knowledge.notification.as_deref(), Some("文档已删除"));
+    assert_eq!(app.toast_message(), Some("文档已删除"));
 
     let _ = update(
         &mut app,
@@ -760,10 +753,6 @@ fn update_completion_messages_reset_flags_and_clear_drafts() {
     let _ = update(&mut app, KnowledgeToolMessage::ClearDocumentDraft);
     assert!(app.knowledge.document_name_input.is_empty());
     assert!(app.knowledge.document_content_editor.text().is_empty());
-
-    let _ = update(&mut app, KnowledgeToolMessage::ClearNotification);
-    assert!(app.knowledge.notification.is_none());
-    assert!(!app.knowledge.notification_is_error);
 }
 
 #[test]
@@ -852,7 +841,7 @@ fn knowledge_messages_update_document_and_batch_action_results() {
     }));
     assert!(app.knowledge.selected_document_id.is_none());
     assert!(!app.knowledge.document_preview_open);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("已批量归档 2 篇文档"));
+    assert_eq!(app.toast_message(), Some("已批量归档 2 篇文档"));
 }
 
 #[test]
@@ -1067,8 +1056,8 @@ fn menu_copy_and_delete_target_messages_update_local_state() {
     let task = update(&mut app, KnowledgeToolMessage::CopyDatasetId("ds-a".to_string()));
     assert!(iced_runtime::task::into_stream(task.collect()).is_some());
     assert!(app.knowledge.dataset_menu_open_id.is_none());
-    assert_eq!(app.knowledge.notification.as_deref(), Some("知识库 ID 已复制"));
-    assert!(!app.knowledge.notification_is_error);
+    assert_eq!(app.toast_message(), Some("知识库 ID 已复制"));
+    assert!(!app.active_toast.as_ref().unwrap().is_error);
 
     let _ = update(&mut app, KnowledgeToolMessage::CloseDatasetMenu);
     assert!(app.knowledge.dataset_menu_open_id.is_none());
@@ -1086,8 +1075,8 @@ fn import_empty_error_clear_busy_and_polling_edges_are_local_only() {
         &mut app,
         KnowledgeToolMessage::ImportFileSelected(Err("取消或读取失败".to_string())),
     );
-    assert_eq!(app.knowledge.notification.as_deref(), Some("取消或读取失败"));
-    assert!(app.knowledge.notification_is_error);
+    assert_eq!(app.toast_message(), Some("取消或读取失败"));
+    assert!(app.active_toast.as_ref().unwrap().is_error);
 
     app.knowledge.file_imports = vec![crate::state::KnowledgeFileImportDraft {
         filename: "guide.md".to_string(),
@@ -1106,14 +1095,14 @@ fn import_empty_error_clear_busy_and_polling_edges_are_local_only() {
 
     app.knowledge.importing_file = false;
     let _ = update(&mut app, KnowledgeToolMessage::ImportSelectedFile);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("请先选择知识库"));
+    assert_eq!(app.toast_message(), Some("请先选择知识库"));
 
     let empty_poll = update(&mut app, KnowledgeToolMessage::PollImportJobs);
     assert_eq!(empty_poll.units(), 0);
 
     let _ =
         update(&mut app, KnowledgeToolMessage::ImportJobPolled(Err("gateway down".to_string())));
-    assert_eq!(app.knowledge.notification.as_deref(), Some("入库轮询失败：gateway down"));
+    assert_eq!(app.toast_message(), Some("入库轮询失败：gateway down"));
 
     app.knowledge.import_polling_jobs.clear();
     let _ = update(
@@ -1132,7 +1121,7 @@ fn document_update_batch_and_delete_validation_cover_error_and_busy_paths() {
     let mut app = test_app();
 
     let _ = update(&mut app, KnowledgeToolMessage::DeleteSelectedDataset);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("请先选择知识库"));
+    assert_eq!(app.toast_message(), Some("请先选择知识库"));
 
     app.knowledge.deleting = true;
     app.knowledge.selected_dataset_id = Some("ds".to_string());
@@ -1148,7 +1137,7 @@ fn document_update_batch_and_delete_validation_cover_error_and_busy_paths() {
             name: "   ".to_string(),
         },
     );
-    assert_eq!(app.knowledge.notification.as_deref(), Some("请提供有效的文档更新内容"));
+    assert_eq!(app.toast_message(), Some("请提供有效的文档更新内容"));
 
     app.knowledge.updating_document_id = Some("doc-busy".to_string());
     let busy_update = update(
@@ -1168,7 +1157,7 @@ fn document_update_batch_and_delete_validation_cover_error_and_busy_paths() {
             action: KnowledgeDocumentsBatchAction::Disable,
         },
     );
-    assert_eq!(app.knowledge.notification.as_deref(), Some("请先选择文档"));
+    assert_eq!(app.toast_message(), Some("请先选择文档"));
 
     app.knowledge.batch_updating_documents = true;
     app.knowledge.selected_document_ids.insert("doc-a".to_string());
@@ -1205,13 +1194,13 @@ fn document_updated_and_batch_errors_reset_flags_and_archived_document_closes_pr
     assert!(!app.knowledge.document_preview_open);
     assert!(app.knowledge.loaded_chunks.is_empty());
     assert!(!app.knowledge.loading_chunks);
-    assert_eq!(app.knowledge.notification.as_deref(), Some("文档已更新"));
+    assert_eq!(app.toast_message(), Some("文档已更新"));
 
     app.knowledge.updating_document_id = Some("doc-a".to_string());
     let _ = update(&mut app, KnowledgeToolMessage::DocumentUpdated(Err("更新失败".to_string())));
     assert!(app.knowledge.updating_document_id.is_none());
-    assert_eq!(app.knowledge.notification.as_deref(), Some("更新失败"));
-    assert!(app.knowledge.notification_is_error);
+    assert_eq!(app.toast_message(), Some("更新失败"));
+    assert!(app.active_toast.as_ref().unwrap().is_error);
 
     app.knowledge.batch_updating_documents = true;
     app.knowledge.pending_batch_document_action = Some(KnowledgeDocumentsBatchAction::Enable);
@@ -1219,8 +1208,8 @@ fn document_updated_and_batch_errors_reset_flags_and_archived_document_closes_pr
         update(&mut app, KnowledgeToolMessage::DocumentsBatchUpdated(Err("批量失败".to_string())));
     assert!(!app.knowledge.batch_updating_documents);
     assert!(app.knowledge.pending_batch_document_action.is_none());
-    assert_eq!(app.knowledge.notification.as_deref(), Some("批量失败"));
-    assert!(app.knowledge.notification_is_error);
+    assert_eq!(app.toast_message(), Some("批量失败"));
+    assert!(app.active_toast.as_ref().unwrap().is_error);
 }
 
 #[test]

@@ -6,9 +6,8 @@ use desktop_ui_controls::overlays::PointBelowOverlay;
 use desktop_ui_controls::system_settings_common::{
     danger_action_btn_style, icon_svg, primary_action_btn_style, round_icon_btn_style,
     rounded_action_btn_style, settings_checkbox_style, settings_close_button,
-    settings_error_banner, settings_modal_card, settings_modal_overlay,
-    settings_muted_text_style, settings_panel, settings_select, settings_success_banner,
-    settings_text_editor_style, settings_text_input, settings_text_input_style,
+    settings_modal_card, settings_modal_overlay, settings_muted_text_style, settings_panel,
+    settings_select, settings_text_editor_style, settings_text_input, settings_text_input_style,
     settings_value_badge,
 };
 use desktop_i18n::I18n;
@@ -130,30 +129,8 @@ fn document_status_filter_options(i18n: desktop_i18n::I18n) -> [DocumentStatusFi
 pub fn view(app: ViewInput<'_>) -> Element<'_, Message> {
     let workspace = responsive(move |size| build_workspace(app, size));
 
-    let mut content = column![].spacing(12).width(Length::Fill).height(Length::Fill);
-    if let Some(raw) = &app.knowledge.notification {
-        let notification = app
-            .knowledge
-            .notification_feedback
-            .as_ref()
-            .map(|feedback| {
-                if feedback.as_str() == raw {
-                    feedback.render(desktop_i18n::I18n::new(app.desktop_locale))
-                } else {
-                    raw.clone()
-                }
-            })
-            .unwrap_or_else(|| raw.clone());
-        let banner = if app.knowledge.notification_is_error {
-            settings_error_banner(notification)
-        } else {
-            settings_success_banner(notification)
-        };
-        content = content.push(banner);
-    }
-    content = content.push(container(workspace).width(Length::Fill).height(Length::Fill));
-
-    let base: Element<'_, Message> = container(content.padding([30, 34]))
+    let base: Element<'_, Message> = container(workspace)
+        .padding([30, 34])
         .width(Length::Fill)
         .height(Length::Fill)
         .style(|theme: &Theme| {

@@ -23,7 +23,6 @@ use vw_api_knowledge::{
 use {vw_api_knowledge::KnowledgeChunkDto, vw_api_knowledge::KnowledgeChunkingMode, vw_api_knowledge::KnowledgeDatasetCreateRequest, vw_api_knowledge::KnowledgeDatasetDto, vw_api_knowledge::KnowledgeDocumentCreateRequest, vw_api_knowledge::KnowledgeDocumentDto, vw_api_knowledge::KnowledgeDocumentImportQueuedResponse, vw_api_knowledge::KnowledgeDocumentImportRequest, vw_api_knowledge::KnowledgeDocumentReindexRequest, vw_api_knowledge::KnowledgeDocumentStatus, vw_api_knowledge::KnowledgeEmbeddingPresetDto, vw_api_knowledge::KnowledgeEmbeddingStatusDto, vw_api_knowledge::KnowledgeEmbeddingTestRequest, vw_api_knowledge::KnowledgeEmbeddingTestResponse, vw_api_knowledge::KnowledgeIndexJobDto, vw_api_knowledge::KnowledgeIndexJobStatus, vw_api_knowledge::KnowledgeIndexingMode, vw_api_knowledge::KnowledgeRetrievalMode, vw_api_knowledge::KnowledgeRetrieveRequest, vw_api_knowledge::KnowledgeRetrieveResponse, vw_api_knowledge::KnowledgeRuntimeStatus};
 
 const IMPORT_JOB_POLL_INTERVAL: Duration = Duration::from_secs(5);
-const KNOWLEDGE_NOTIFICATION_DURATION: Duration = Duration::from_secs(3);
 
 #[derive(Debug, Clone)]
 pub enum KnowledgeToolMessage {
@@ -115,7 +114,6 @@ pub enum KnowledgeToolMessage {
     RunEmbeddingTest,
     EmbeddingTestFinished(Result<KnowledgeEmbeddingTestResponse, String>),
     ClearDocumentDraft,
-    ClearNotification,
 }
 
 pub fn update(app: &mut KnowledgeUpdate, message: KnowledgeToolMessage) -> Task<Message> {
@@ -458,15 +456,12 @@ pub fn update(app: &mut KnowledgeUpdate, message: KnowledgeToolMessage) -> Task<
                     app.knowledge.dataset_description_input.clear();
                     app.knowledge.datasets.insert(0, dataset);
                     app.knowledge.sync_retrieve_defaults_from_selected_dataset();
-                    Task::batch([
-                        set_feedback(
-                            app,
-                            false,
-                            desktop_i18n::workflow::Feedback::new("知识库已创建", vec![]),
-                        ),
-                        load_datasets_task(app),
-                        load_status_task(app),
-                    ])
+                    set_feedback(
+                        app,
+                        false,
+                        desktop_i18n::workflow::Feedback::new("知识库已创建", vec![]),
+                    );
+                    Task::batch([load_datasets_task(app), load_status_task(app)])
                 }
                 Err(error) => set_error(app, error),
             }
@@ -492,14 +487,12 @@ pub fn update(app: &mut KnowledgeUpdate, message: KnowledgeToolMessage) -> Task<
         }
         KnowledgeToolMessage::CopyDatasetId(dataset_id) => {
             app.knowledge.close_dataset_menu();
-            Task::batch([
-                iced::clipboard::write(dataset_id),
-                set_feedback(
-                    app,
-                    false,
-                    desktop_i18n::workflow::Feedback::new("知识库 ID 已复制", vec![]),
-                ),
-            ])
+            set_feedback(
+                app,
+                false,
+                desktop_i18n::workflow::Feedback::new("知识库 ID 已复制", vec![]),
+            );
+            iced::clipboard::write(dataset_id)
         }
         KnowledgeToolMessage::OpenDeleteDocumentConfirm(document_id) => {
             app.knowledge.pending_delete_dataset_id = None;
@@ -527,16 +520,16 @@ pub fn update(app: &mut KnowledgeUpdate, message: KnowledgeToolMessage) -> Task<
                     app.knowledge.selected_chunk_id = None;
                     app.knowledge.clear_document_selection();
                     app.knowledge.close_document_rename_modal();
-                    let toast = set_feedback(
+                    set_feedback(
                         app,
                         false,
                         desktop_i18n::workflow::Feedback::new("知识库已删除", vec![]),
                     );
                     if let Some(dataset_id) = app.knowledge.selected_dataset_id.clone() {
                         app.knowledge.loading_documents = true;
-                        Task::batch([toast, load_documents_task(app, dataset_id)])
+                        load_documents_task(app, dataset_id)
                     } else {
-                        toast
+                        Task::none()
                     }
                 }
                 Err(error) => set_error(app, error),
@@ -564,13 +557,13 @@ pub fn update(app: &mut KnowledgeUpdate, message: KnowledgeToolMessage) -> Task<
                     app.knowledge.close_document_rename_modal();
                     app.knowledge.document_name_input.clear();
                     app.knowledge.document_content_editor = text_editor::Content::new();
-                    let toast = set_feedback(
+                    set_feedback(
                         app,
                         false,
                         desktop_i18n::workflow::Feedback::new("文档已添加并入库", vec![]),
                     );
                     app.knowledge.loading_documents = true;
-                    Task::batch([toast, load_documents_task(app, dataset_id)])
+                    load_documents_task(app, dataset_id)
                 }
                 Err(error) => set_error(app, error),
             }
@@ -619,24 +612,19 @@ pub fn update(app: &mut KnowledgeUpdate, message: KnowledgeToolMessage) -> Task<
                     app.knowledge.loading_chunks = false;
                     app.knowledge.clear_document_selection();
                     app.knowledge.close_document_rename_modal();
+                    set_success(app, message);
+                    let poll =
+                        schedule_import_polling_task(!app.knowledge.import_polling_jobs.is_empty());
                     if app.knowledge.selected_dataset_id.as_deref() == Some(dataset_id.as_str()) {
                         app.knowledge.loading_documents = true;
                         app.knowledge.loading_datasets = true;
-                        Task::batch(vec![
-                            set_success(app, message),
+                        Task::batch([
                             load_documents_task(app, dataset_id),
                             load_datasets_task(app),
-                            schedule_import_polling_task(
-                                !app.knowledge.import_polling_jobs.is_empty(),
-                            ),
+                            poll,
                         ])
                     } else {
-                        Task::batch([
-                            set_success(app, message),
-                            schedule_import_polling_task(
-                                !app.knowledge.import_polling_jobs.is_empty(),
-                            ),
-                        ])
+                        poll
                     }
                 }
                 Err(error) => set_error(app, error),
@@ -703,7 +691,7 @@ pub fn update(app: &mut KnowledgeUpdate, message: KnowledgeToolMessage) -> Task<
                     app.knowledge.selected_document_id = Some(document.id.clone());
                     app.knowledge.selected_chunk_id = None;
                     app.knowledge.loaded_chunks.clear();
-                    let toast = set_feedback(
+                    set_feedback(
                         app,
                         false,
                         desktop_i18n::workflow::Feedback::new("文档已重新入库", vec![]),
@@ -714,12 +702,11 @@ pub fn update(app: &mut KnowledgeUpdate, message: KnowledgeToolMessage) -> Task<
                         app.knowledge.loading_documents = true;
                         app.knowledge.loading_chunks = true;
                         Task::batch([
-                            toast,
                             load_documents_task(app, document.dataset_id),
                             load_chunks_task(app, document.id),
                         ])
                     } else {
-                        toast
+                        Task::none()
                     }
                 }
                 Err(error) => set_error(app, error),
@@ -781,11 +768,6 @@ pub fn update(app: &mut KnowledgeUpdate, message: KnowledgeToolMessage) -> Task<
         KnowledgeToolMessage::ClearDocumentDraft => {
             app.knowledge.document_name_input.clear();
             app.knowledge.document_content_editor = text_editor::Content::new();
-            Task::none()
-        }
-        KnowledgeToolMessage::ClearNotification => {
-            app.knowledge.notification = None;
-            app.knowledge.notification_is_error = false;
             Task::none()
         }
     }
@@ -1055,7 +1037,8 @@ fn handle_import_job_polled(
                 )
             };
             let refresh = refresh_import_polling_documents(app, &job);
-            Task::batch([set_error(app, message), refresh])
+            set_error(app, message);
+            refresh
         }
     }
 }
@@ -1639,18 +1622,8 @@ fn set_feedback(
 ) -> Task<Message> {
     let fallback = feedback.as_str().to_owned();
     let message = feedback.message();
-    app.knowledge.notification = Some(fallback.clone());
-    app.knowledge.notification_feedback = Some(feedback);
-    app.knowledge.notification_is_error = is_error;
     app.feedback = Some((is_error, fallback, message));
-    clear_notification_task()
-}
-
-fn clear_notification_task() -> Task<Message> {
-    crate::after(
-        KNOWLEDGE_NOTIFICATION_DURATION,
-        Message::Knowledge(KnowledgeToolMessage::ClearNotification),
-    )
+    Task::none()
 }
 
 #[cfg(test)]

@@ -165,9 +165,6 @@ pub struct KnowledgeUiState {
     pub batch_updating_documents: bool,
     pub pending_batch_document_action:
         Option<vw_api_knowledge::KnowledgeDocumentsBatchAction>,
-    pub notification: Option<String>,
-    pub notification_feedback: Option<desktop_i18n::workflow::Feedback>,
-    pub notification_is_error: bool,
 }
 
 impl Default for KnowledgeUiState {
@@ -241,9 +238,6 @@ impl Default for KnowledgeUiState {
             updating_document_id: None,
             batch_updating_documents: false,
             pending_batch_document_action: None,
-            notification: None,
-            notification_feedback: None,
-            notification_is_error: false,
         }
     }
 }

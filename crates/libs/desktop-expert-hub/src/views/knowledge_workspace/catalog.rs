@@ -10,22 +10,6 @@ pub(super) fn build_dataset_catalog_view(app: ViewInput<'_>) -> Element<'_, Mess
 }
 
 pub(super) fn build_dataset_catalog_header(app: ViewInput<'_>) -> Element<'_, Message> {
-    let clear_notification: Element<'_, Message> = if app.knowledge.notification.is_some() {
-        button(
-            text(desktop_i18n::I18n::new(app.desktop_locale).__("清除提示"))
-                .size(12)
-                .line_height(1.0),
-        )
-        .on_press(Message::Knowledge(KnowledgeToolMessage::ClearNotification))
-        .padding(0)
-        .width(Length::Fixed(82.0))
-        .height(Length::Fixed(38.0))
-        .style(knowledge_toolbar_button_style)
-        .into()
-    } else {
-        Space::new().width(Length::Shrink).into()
-    };
-
     row![
         build_dataset_search_input(app),
         knowledge_header_button(
@@ -38,7 +22,6 @@ pub(super) fn build_dataset_catalog_header(app: ViewInput<'_>) -> Element<'_, Me
                 .then_some(KnowledgeToolMessage::OpenCreateDatasetModal),
         ),
         Space::new().width(Length::Fill),
-        clear_notification,
     ]
     .spacing(10)
     .align_y(Alignment::Center)

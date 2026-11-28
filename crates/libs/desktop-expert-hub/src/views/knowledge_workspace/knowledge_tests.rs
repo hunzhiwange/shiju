@@ -419,7 +419,7 @@ fn style_helpers_cover_light_dark_active_disabled_states() {
 }
 
 #[test]
-fn view_builds_empty_and_notification_states() {
+fn view_builds_empty_and_create_modal_states() {
     let mut app = test_app();
     keep_element(super::view(app.input()));
     keep_element(build_workspace(app.input(), Size::new(1280.0, 800.0)));
@@ -438,10 +438,6 @@ fn view_builds_empty_and_notification_states() {
     app.knowledge.show_dataset_list();
     keep_element(build_workspace(app.input(), Size::new(720.0, 640.0)));
 
-    app.knowledge.notification = Some("ok".to_string());
-    keep_element(super::view(app.input()));
-    app.knowledge.notification_is_error = true;
-    keep_element(super::view(app.input()));
     app.knowledge.create_dataset_modal_open = true;
     keep_element(super::view(app.input()));
 }
@@ -1211,7 +1207,7 @@ fn small_element_helpers_build_without_panicking() {
     keep_element(segment_button(
         "设置",
         true,
-        Message::Knowledge(crate::message::knowledge_tool::KnowledgeToolMessage::ClearNotification),
+        Message::Knowledge(crate::message::knowledge_tool::KnowledgeToolMessage::Refresh),
     ));
     keep_element(icon_badge(desktop_assets::assets::Icon::Journals, true));
     keep_element(empty_hint("暂无文档"));
@@ -1831,7 +1827,6 @@ async fn help_rollout_22_document_forms_render_contextual_help() {
     app.knowledge.showing_dataset_list = false;
     app.knowledge.datasets = vec![dataset("fixture-dataset")];
     app.knowledge.selected_dataset_id = Some("fixture-dataset".into());
-    app.knowledge.notification = Some("fixture-save-feedback".into());
     app.knowledge.document_name_input = "fixture-document".into();
     app.knowledge.embedding_status = Some(KnowledgeEmbeddingStatusDto {
         provider_id: "fixture-provider".into(),
@@ -1848,7 +1843,6 @@ async fn help_rollout_22_document_forms_render_contextual_help() {
     for (locale, theme, width) in HELP_LAYOUTS {
         app.desktop_locale = locale;
         app.app_theme = theme;
-        app.knowledge.notification_is_error = locale == DesktopLocale::English;
         let i18n = desktop_i18n::I18n::new(locale);
         app.knowledge.active_tab = KnowledgeDetailTab::AddDocument;
         app.knowledge.document_input_tab = KnowledgeDocumentInputTab::Files;
@@ -1870,7 +1864,6 @@ async fn help_rollout_22_document_forms_render_contextual_help() {
             0,
         );
         let probe = ui.probe(&renderer);
-        probe.label("fixture-save-feedback", 0);
         let pick = probe.label(i18n.__("手动选择文件"), 0).center();
         assert!(matches!(
             form_actions(ui.click(&mut renderer, pick)).as_slice(),

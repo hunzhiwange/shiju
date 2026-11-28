@@ -32,6 +32,9 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
                     Message::View(message::ViewMessage::OpenCron),
                 Home::Header(header::Message::OpenApps) =>
                     Message::View(message::ViewMessage::OpenApps),
+                #[cfg(not(target_arch = "wasm32"))]
+                Home::Header(header::Message::OpenFileEditor) =>
+                    Message::View(message::ViewMessage::OpenFileEditor),
                 Home::Recent(recent::Message::OpenThirdPartyAgents) =>
                     Message::View(message::ViewMessage::OpenThirdPartyAgents),
                 Home::Recent(recent::Message::OpenAgentSettings) =>
@@ -51,8 +54,7 @@ pub fn view(app: &App) -> iced::Element<'_, Message> {
                 Home::Recent(recent::Message::OpenGitWorkbench) =>
                     Message::GitWorkbench(crate::app::git_workbench::Event::Open),
                 #[cfg(not(target_arch = "wasm32"))]
-                Home::Header(header::Message::OpenShijuSkills)
-                | Home::Recent(recent::Message::OpenShijuSkills) =>
+                Home::Recent(recent::Message::OpenShijuSkills) =>
                     Message::SkillHub(message::SkillHubMessage::OpenShijuSkills),
                 #[cfg(not(target_arch = "wasm32"))]
                 Home::Recent(recent::Message::OpenShijuApps) =>

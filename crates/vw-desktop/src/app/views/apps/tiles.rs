@@ -27,6 +27,8 @@ fn map(event: Event) -> Message {
         ),
         #[cfg(not(target_arch = "wasm32"))]
         Event::OpenGitWorkbench => Message::GitWorkbench(crate::app::git_workbench::Event::Open),
+        #[cfg(not(target_arch = "wasm32"))]
+        Event::OpenFileEditor => Message::View(ViewMessage::OpenFileEditor),
         Event::AppsSearchChanged(query) => Message::View(ViewMessage::AppsSearchChanged(query)),
     }
 }

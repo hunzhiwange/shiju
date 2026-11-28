@@ -37,6 +37,8 @@ pub enum Event {
     OpenAppTerminal,
     #[cfg(not(target_arch = "wasm32"))]
     OpenGitWorkbench,
+    #[cfg(not(target_arch = "wasm32"))]
+    OpenFileEditor,
 }
 use Event as Message;
 use iced::widget::{Space, button, column, container, row, stack, text, text_input};
@@ -86,6 +88,8 @@ fn builtin_tile_titles() -> Vec<&'static str> {
         "应用终端",
         #[cfg(not(target_arch = "wasm32"))]
         "Git 工作台",
+        #[cfg(not(target_arch = "wasm32"))]
+        "文件编辑器",
         "添加网址",
         "知识库",
         "工作流",
@@ -183,6 +187,18 @@ pub fn render_tiles_grid<'a>(window_width: f32, query: &str, i18n: I18n, bookmar
             Color::from_rgb8(0x2B, 0x88, 0x77),
             vec![("打开", msg(Message::OpenGitWorkbench))],
             msg(Message::OpenGitWorkbench),
+        ));
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    if matches("文件编辑器") {
+        tiles.push(ui::tile(
+            i18n,
+            Icon::FileText,
+            i18n.__("文件编辑器").to_string(),
+            Color::from_rgb8(0x65, 0x63, 0xC9),
+            vec![("打开文件", msg(Message::OpenFileEditor))],
+            msg(Message::OpenFileEditor),
         ));
     }
 

@@ -150,6 +150,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::HomeAppsBarPrev
         | ViewMessage::HomeAppsBarNext => tabs::update(app, message),
 
+        #[cfg(not(target_arch = "wasm32"))]
+        ViewMessage::OpenFileEditor | ViewMessage::FileEditorFileSelected(_) => {
+            apps::update(app, message)
+        }
         ViewMessage::OpenApps
         | ViewMessage::OpenUsage
         | ViewMessage::OpenKnowledge

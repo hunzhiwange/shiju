@@ -76,8 +76,8 @@ fn render_tiles_grid_arranges_builtin_tiles_across_complete_and_partial_rows() {
     let mut app = test_app();
     app.window_size = (800.0, 700.0);
 
-    let tail = if cfg!(target_arch = "wasm32") { 1 } else { 3 };
-    assert_eq!(grid_row_tile_counts(&app, false), vec![4, tail]);
+    let expected = if cfg!(target_arch = "wasm32") { vec![4, 1] } else { vec![4, 4, 1] };
+    assert_eq!(grid_row_tile_counts(&app, false), expected);
 }
 
 #[cfg(not(target_arch = "wasm32"))]

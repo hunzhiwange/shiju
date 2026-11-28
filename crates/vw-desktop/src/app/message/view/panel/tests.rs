@@ -52,6 +52,23 @@ fn app_message_routes_to_apps_update() {
     assert!(app.navigation_tabs.open_tabs.iter().any(|tab| tab.id == "apps"));
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn file_selected_from_apps_opens_in_standalone_preview() {
+    let mut app = test_app();
+    let _ = crate::app::message::view::update(&mut app, ViewMessage::OpenApps);
+    let path = std::env::temp_dir().join("editor-entry.md");
+    let path = path.to_string_lossy().into_owned();
+
+    let _ = crate::app::message::view::update(
+        &mut app,
+        ViewMessage::FileEditorFileSelected(path.clone()),
+    );
+
+    assert_eq!(app.navigation_tabs.screen, Screen::Preview);
+    assert_eq!(app.navigation_tabs.active_preview_path.as_deref(), Some(path.as_str()));
+}
+
 #[test]
 fn usage_message_routes_to_usage_update() {
     let mut app = test_app();

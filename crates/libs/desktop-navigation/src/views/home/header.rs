@@ -17,7 +17,7 @@ pub enum Message {
     OpenProjects,
     OpenApps,
     #[cfg(not(target_arch = "wasm32"))]
-    OpenShijuSkills,
+    OpenFileEditor,
     #[cfg(not(target_arch = "wasm32"))]
     OpenShijuKnowledge,
     #[cfg(not(target_arch = "wasm32"))]
@@ -55,7 +55,12 @@ pub fn render(i18n: desktop_i18n::I18n, scroll_id: iced::widget::Id) -> Element<
     #[cfg(not(target_arch = "wasm32"))]
     let switches_row = switches_row.extend(
         [
-            (Icon::Star, i18n.__("识矩技能"), iced::color!(0xab780a), Message::OpenShijuSkills),
+            (
+                Icon::FileText,
+                i18n.__("文件编辑器"),
+                iced::color!(0x6563c9),
+                Message::OpenFileEditor,
+            ),
             (
                 Icon::Journals,
                 i18n.__("识矩知识库"),

@@ -6,6 +6,18 @@ use iced::Task;
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     let local = match message {
         ViewMessage::OpenApps => domain::Message::OpenApps,
+        #[cfg(not(target_arch = "wasm32"))]
+        ViewMessage::OpenFileEditor => {
+            return Task::perform(desktop_workspace::basic::pick_file(), |path| {
+                path.map(|path| Message::View(ViewMessage::FileEditorFileSelected(path)))
+                    .unwrap_or(Message::None)
+            });
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        ViewMessage::FileEditorFileSelected(path) => {
+            app.navigation_panels.show_system_settings = false;
+            return crate::app::message::preview::tab::open_standalone(app, path, None, None);
+        }
         ViewMessage::OpenUsage => domain::Message::OpenUsage,
         ViewMessage::OpenKnowledge => domain::Message::OpenKnowledge,
         ViewMessage::OpenWorkflowTool => domain::Message::OpenWorkflowTool,

@@ -7689,6 +7689,7 @@
   "文件存在": "File exists",
   "新增模板": "Add template",
   "新方式用于之后启用或更新的 Skill。已启用的 Skill 可立即重新同步。": "The new method applies to skills enabled or updated later. Enabled skills can be synced again now.",
+  "无仓库来源": "No repository source",
   "无仓库来源：%s": "No repository source: %s",
   "无配置文件": "No configuration file",
   "暂无可恢复的技能备份": "No skill backups available to restore",

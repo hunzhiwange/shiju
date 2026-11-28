@@ -94,7 +94,11 @@ use crate::third_party::style;
 use desktop_ui_controls::system_settings_common::*;
 
 use iced::widget::{button, column, container, row, text};
-use iced::{Element, Length};
+use iced::{Element, Length, alignment::Horizontal};
+
+fn detail<'a>(value: impl text::IntoFragment<'a>) -> text::Text<'a> {
+    text(value).size(13).wrapping(text::Wrapping::WordOrGlyph).style(settings_muted_text_style)
+}
 
 pub fn view<'a, M: Clone + 'static>(
     i18n: desktop_i18n::I18n,
@@ -110,24 +114,24 @@ pub fn view<'a, M: Clone + 'static>(
         return uninstall_view(i18n, s, id, base, message);
     }
     let mut body =
-        column![text(i18n.__("更新校验已检查的当前哈希。卸载将备份受管内容并保留外部路径。"))]
-            .spacing(10)
+        column![detail(i18n.__("更新校验已检查的当前哈希。卸载将备份受管内容并保留外部路径。"))]
+            .spacing(12)
             .width(Length::Fill);
     if let Some(outcome) = &s.outcome {
-        body = body.push(text(outcome.clone()));
+        body = body.push(text(outcome).size(14).wrapping(text::Wrapping::WordOrGlyph));
     }
     if let Some(backup) = &s.backup {
         body = body
-            .push(text(
+            .push(detail(
                 desktop_i18n::__!(i18n, "备份：%s", (backup.backup_id).to_string())
                     .expect("valid extension display template"),
             ))
-            .push(text(
+            .push(detail(
                 desktop_i18n::__!(i18n, "备份路径：%s", (backup.backup_path.display()).to_string())
                     .expect("valid extension display template"),
             ));
         for path in &backup.preserved_paths {
-            body = body.push(text(
+            body = body.push(detail(
                 desktop_i18n::__!(i18n, "保留外部路径：%s", (path.display()).to_string())
                     .expect("valid extension display template"),
             ));
@@ -140,17 +144,28 @@ pub fn view<'a, M: Clone + 'static>(
         )));
     }
     if s.busy {
-        body = body.push(text(i18n.__("正在操作或刷新，请等待…")));
+        body = body.push(detail(i18n.__("正在操作或刷新，请等待…")));
     }
+    let updates = s.updates.as_ref();
     if let Some(inventory) = &s.inventory {
-        body = body.push(text(
-            desktop_i18n::__!(i18n, "库存版本：%s", (inventory.version).to_string())
-                .expect("valid extension display template"),
-        ));
+        body = body.push(
+            row![
+                text(i18n.__("已安装技能")).size(15).width(Length::Fill),
+                detail(
+                    desktop_i18n::__!(i18n, "库存版本：%s", (inventory.version).to_string())
+                        .expect("valid extension display template"),
+                ),
+            ]
+            .spacing(10)
+            .align_y(iced::Alignment::Center),
+        );
+        if inventory.skills.is_empty() {
+            body = body.push(settings_panel(detail(i18n.__("当前范围尚未安装可管理技能"))));
+        }
         for skill in &inventory.skills {
             let mut card = column![
-                text(skill.name.clone()),
-                text(
+                text(&skill.name).size(16).wrapping(text::Wrapping::WordOrGlyph),
+                detail(
                     desktop_i18n::__!(
                         i18n,
                         "可用版本：%s",
@@ -158,7 +173,7 @@ pub fn view<'a, M: Clone + 'static>(
                     )
                     .expect("valid extension display template")
                 ),
-                text(
+                detail(
                     desktop_i18n::__!(
                         i18n,
                         "当前哈希：%s",
@@ -167,41 +182,53 @@ pub fn view<'a, M: Clone + 'static>(
                     .expect("valid extension display template")
                 )
             ]
-            .spacing(6);
-            if let Some(info) =
-                s.updates.as_ref().and_then(|u| u.updates.iter().find(|u| u.directory == skill.id))
-            {
-                card = card
-                    .push(text(
-                        desktop_i18n::__!(i18n, "远端哈希：%s", (info.remote_hash).to_string())
-                            .expect("valid extension display template"),
-                    ))
-                    .push(
-                        button(i18n.__("确认更新"))
-                            .padding([8, 10])
-                            .style(style::primary)
-                            .on_press_maybe(
-                                (!s.busy).then(|| {
-                                    message(Event::Run(Operation::Update(skill.id.clone())))
-                                }),
-                            ),
-                    );
-            }
-            card = card.push(
-                button(i18n.__("确认卸载并备份"))
-                    .padding([8, 10])
-                    .style(rounded_action_btn_style)
+            .spacing(5)
+            .width(Length::Fill);
+            let mut actions = row![
+                button(text(i18n.__("确认卸载并备份")).size(13))
+                    .padding([8, 12])
+                    .style(danger_action_btn_style)
                     .on_press_maybe(
                         (!s.busy)
                             .then(|| message(Event::Run(Operation::Uninstall(skill.id.clone())))),
                     ),
+            ];
+            if let Some(info) =
+                updates.and_then(|u| u.updates.iter().find(|u| u.directory == skill.id))
+            {
+                card = card.push(detail(
+                    desktop_i18n::__!(i18n, "远端哈希：%s", (info.remote_hash).to_string())
+                        .expect("valid extension display template"),
+                ));
+                actions = actions.push(
+                    button(text(i18n.__("确认更新")).size(13))
+                        .padding([8, 12])
+                        .style(primary_action_btn_style)
+                        .on_press_maybe(
+                            (!s.busy)
+                                .then(|| message(Event::Run(Operation::Update(skill.id.clone())))),
+                        ),
+                );
+            }
+            if updates.is_some_and(|u| u.without_repository.contains(&skill.id)) {
+                card = card.push(detail(i18n.__("无仓库来源")));
+            }
+            body = body.push(
+                settings_panel(
+                    column![
+                        card,
+                        container(actions.spacing(8).wrap().align_x(Horizontal::Right))
+                            .align_right(Length::Fill),
+                    ]
+                    .spacing(12),
+                )
+                .padding([12, 14]),
             );
-            body = body.push(settings_group_card(card));
         }
     }
-    if let Some(updates) = &s.updates {
+    if let Some(updates) = updates {
         for failure in &updates.failures {
-            body = body.push(text(
+            body = body.push(detail(
                 desktop_i18n::__!(
                     i18n,
                     "失败仓库：%s/%s (%s)：%s",
@@ -214,7 +241,7 @@ pub fn view<'a, M: Clone + 'static>(
             ));
         }
         for failure in &updates.skill_failures {
-            body = body.push(text(
+            body = body.push(detail(
                 desktop_i18n::__!(
                     i18n,
                     "技能检查失败：%s：%s",
@@ -225,7 +252,13 @@ pub fn view<'a, M: Clone + 'static>(
             ));
         }
         for id in &updates.without_repository {
-            body = body.push(text(
+            if s.inventory
+                .as_ref()
+                .is_some_and(|inventory| inventory.skills.iter().any(|skill| &skill.id == id))
+            {
+                continue;
+            }
+            body = body.push(detail(
                 desktop_i18n::__!(i18n, "无仓库来源：%s", (id).to_string())
                     .expect("valid extension display template"),
             ));
@@ -237,21 +270,26 @@ pub fn view<'a, M: Clone + 'static>(
         settings_close_button(close.clone()),
     );
     let footer = row![
-        button(i18n.__("刷新状态"))
-            .padding([8, 10])
+        button(text(i18n.__("刷新状态")).size(13))
+            .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press_maybe((!s.busy).then(|| message(Event::Refresh))),
-        button(i18n.__("关闭"))
-            .padding([8, 10])
+        button(text(i18n.__("关闭")).size(13))
+            .padding([8, 14])
             .style(rounded_action_btn_style)
             .on_press_maybe((!s.busy).then_some(close.clone()))
     ]
     .spacing(8);
+    let footer = column![
+        settings_divider(),
+        container(footer.wrap().align_x(Horizontal::Right)).align_right(Length::Fill),
+    ]
+    .spacing(12);
     let card = settings_modal_layout(header, body, Some(footer.into()))
         .style(style::dialog)
-        .width(760)
-        .height(600);
-    settings_modal_overlay(Some(base), close, container(card).padding(12))
+        .width(620)
+        .height(380);
+    settings_modal_overlay(Some(base), close, card)
 }
 
 fn uninstall_view<'a, M: Clone + 'static>(

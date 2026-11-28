@@ -315,6 +315,48 @@ fn open_project_session_restores_hot_view_without_prewarm() {
 }
 
 #[test]
+fn reopening_before_history_arrives_can_load_fresh_history() {
+    use crate::app::message::project::{PreparedSessionOpenSource, ProjectMessage};
+
+    let mut app = app();
+    let project_path = "/tmp/project";
+    app.navigation_tabs.project_path = Some(project_path.into());
+    app.session_state.sessions = vec![session_info("a", 0, 0), session_info("b", 0, 0)];
+    let open = |app: &mut crate::app::App, id: &str| {
+        super::handle(
+            app,
+            ProjectMessage::OpenProjectSessionPressed(project_path.into(), id.into()),
+        )
+        .expect("sidebar click should be handled")
+    };
+    let _ = open(&mut app, "a");
+    let first_open = app.session_state.session_view_cache.open_generation();
+    assert!(app.chat_view.active_session_view_state.ui_preparing);
+    let _ = open(&mut app, "b");
+    assert!(!app.session_state.session_view_cache.contains("a"));
+
+    let loaded = |generation, content| {
+        let mut history = ui_store_session("a", vec![Some("a-message".into())]);
+        history.messages[0].content = content;
+        ProjectMessage::SessionOpenPrepared {
+            target_session_id: "a".into(),
+            project_path: project_path.into(),
+            open_generation: generation,
+            source: PreparedSessionOpenSource::RemoteHistory,
+            result: Ok(crate::app::session::prepare_session_open_from_ui_store(history, false)),
+        }
+    };
+    let _ = open(&mut app, "a");
+    let second_open = app.session_state.session_view_cache.open_generation();
+    let _ = super::super::lifecycle::handle(&mut app, loaded(first_open, "old history".into()));
+    assert!(app.chat_view.chat.is_empty());
+    let _ = super::super::lifecycle::handle(&mut app, loaded(second_open, "current history".into()));
+    assert_eq!(app.chat_view.chat[0].content, "current history");
+    assert!(app.chat_view.active_session_view_state.base_ready);
+    assert!(!app.chat_view.active_session_view_state.ui_preparing);
+}
+
+#[test]
 fn hot_restore_preserves_virtual_window_and_scroll_anchor() {
     let mut app = app();
     app.navigation_tabs.project_path = Some("/tmp/project".to_string());

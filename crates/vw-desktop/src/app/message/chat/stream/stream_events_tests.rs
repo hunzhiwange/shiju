@@ -217,6 +217,53 @@ fn running_session_cross_project_switch_preserves_history_after_background_delta
 }
 
 #[test]
+fn running_first_response_reopens_from_refreshed_sidebar_without_resending() {
+    use crate::app::message::project::{self, ProjectMessage};
+
+    let (mut app, _) = crate::app::App::new();
+    let id = "running-first-response";
+    let project_path = "/workspace/project";
+    let directory = "/workspace/project-worktree";
+    app.navigation_tabs.project_path = Some(project_path.into());
+    app.session_state.active_session_id = Some(id.into());
+    app.chat_view.chat = vec![message(ChatRole::User, "question")];
+    app.chat_view.chat_message_ids = vec![Some("user-id".into())];
+    let request = agent_request(42, id);
+    let runtime = app.get_session_runtime_mut(id);
+    runtime.draft = Some(crate::app::state::SessionDraft {
+        project_path: project_path.into(),
+        directory: directory.into(),
+        history_len: 0,
+    });
+    runtime.request_lifecycle.is_requesting = true;
+    runtime.request_lifecycle.active_agent_request = Some(request.clone());
+
+    let _ = app.open_project("/workspace/other-project".into());
+    let _ = super::handle_agent_stream_delta(&mut app, 42, "partial answer".into());
+    let mut pending = session_info(id, directory, None);
+    pending.mark_first_response_pending();
+    let generation = app.session_state.gateway_user_generation;
+    let _ = project::update(
+        &mut app,
+        ProjectMessage::ProjectSessionsLoaded(generation, project_path.into(), Ok(vec![pending])),
+    );
+    let _ = project::update(
+        &mut app,
+        ProjectMessage::OpenProjectSessionPressed(directory.into(), id.into()),
+    );
+
+    assert_eq!(app.navigation_tabs.project_path.as_deref(), Some(project_path));
+    assert_eq!(app.session_state.active_session_id.as_deref(), Some(id));
+    assert!(app.session_is_requesting(id));
+    let active_request =
+        app.session_state.session_runtime_states[id].request_lifecycle.active_agent_request.as_ref();
+    assert!(active_request.is_some_and(|active| Arc::ptr_eq(active, &request)));
+    assert_eq!(app.chat_view.chat.len(), 2);
+    assert_eq!(app.chat_view.chat[1].content, "partial answer");
+    assert_eq!(app.chat_view.chat_message_ids, vec![Some("user-id".into()), None]);
+}
+
+#[test]
 fn running_session_switch_preserves_history_on_terminal_without_delta() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "running-session".to_string();

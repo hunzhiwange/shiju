@@ -1,13 +1,26 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-pub fn merge_project_sessions(
-    existing: Option<Vec<session_info::Info>>,
-    incoming: Vec<session_info::Info>,
-) -> Vec<session_info::Info> {
+use session_info::Info;
+
+fn preserve_published_sessions(existing: &[Info], incoming: &mut [Info]) {
+    for pending in incoming.iter_mut().filter(|info| info.is_first_response_pending()) {
+        if let Some(published) = existing.iter().find(|info| {
+            info.id == pending.id
+                && info.project_id == pending.project_id
+                && info.source_slug() == pending.source_slug()
+                && !info.is_first_response_pending()
+        }) {
+            *pending = published.clone();
+        }
+    }
+}
+
+pub fn merge_project_sessions(existing: Option<Vec<Info>>, mut incoming: Vec<Info>) -> Vec<Info> {
     let Some(existing) = existing else {
         return incoming;
     };
 
+    preserve_published_sessions(&existing, &mut incoming);
     let mut seen: HashSet<String> = incoming.iter().map(|session| session.id.clone()).collect();
     let mut merged = incoming;
     for session in existing {
@@ -22,9 +35,6 @@ pub fn merge_project_sessions(
 #[path = "session_open_tests.rs"]
 mod tests;
 
-use std::collections::HashMap;
-use session_info::Info;
-
 pub enum Navigation {
     Ignore,
     Cached { project_path: String, id: String, info: Info },
@@ -32,12 +42,49 @@ pub enum Navigation {
     Resolve { id: String, cached: Option<Info>, path: String },
 }
 /// Select a local destination without touching chat, render caches or request state.
-pub fn navigation(path: String, id: String, current_project: Option<&String>, project_id: Option<&str>,
-    active_session: Option<&str>, sessions: &[Info], project_sessions: &HashMap<String, Vec<Info>>,
-    requesting_draft: Option<(&str, &str)>) -> Navigation {
+pub fn navigation(
+    path: String,
+    id: String,
+    current_project: Option<&String>,
+    project_id: Option<&str>,
+    active_session: Option<&str>,
+    sessions: &[Info],
+    project_sessions: &HashMap<String, Vec<Info>>,
+    requesting_draft: Option<(&str, &str)>,
+) -> Navigation {
     let id = id.trim().to_owned();
-    if id.is_empty() { return Navigation::Ignore; }
-    let cached = sessions.iter().chain(project_sessions.values().flatten()).find(|info| info.id == id);
+    if id.is_empty() {
+        return Navigation::Ignore;
+    }
+    let mut copies = sessions
+        .iter()
+        .chain(project_sessions.values().flatten())
+        .filter(|info| info.id == id);
+    let cached = copies.next();
+    if cached.is_some_and(|info| info.is_agent_tool() || info.is_plan_run()) {
+        return Navigation::Ignore;
+    }
+    // A running local draft can also be listed by the gateway as pending.
+    if let Some((project_path, directory)) = requesting_draft
+        && directory == path
+    {
+        return if active_session == Some(id.as_str()) {
+            Navigation::Ignore
+        } else {
+            Navigation::Draft { project_path: project_path.to_owned(), id }
+        };
+    }
+    // The active list and the project list can finish loading in either order.
+    let cached = match cached {
+        Some(pending) if pending.is_first_response_pending() => copies
+            .find(|info| {
+                info.project_id == pending.project_id
+                    && info.source_slug() == pending.source_slug()
+                    && info.is_user_navigable()
+            })
+            .or(Some(pending)),
+        _ => cached,
+    };
     if let Some(info) = cached {
         if !info.is_user_navigable() { return Navigation::Ignore; }
         if !info.directory.trim().is_empty() && info.fork_execution_started.is_none() {
@@ -52,11 +99,6 @@ pub fn navigation(path: String, id: String, current_project: Option<&String>, pr
                 return Navigation::Cached { project_path, id, info: info.clone() };
             }
         }
-    }
-    if let Some((project_path, directory)) = requesting_draft
-        && directory == path {
-        return if active_session == Some(id.as_str()) { Navigation::Ignore }
-            else { Navigation::Draft { project_path: project_path.to_owned(), id } };
     }
     Navigation::Resolve { id, cached: cached.cloned(), path }
 }
@@ -109,7 +151,10 @@ pub enum ListEffect { Notification(String), Error(String), Load(String) }
 pub fn update_lists(lists: &mut SessionLists<'_>, current_project: &Option<String>, event: ListEvent) -> Vec<ListEffect> {
     match event {
         ListEvent::Loaded(result) => match result {
-            Ok(sessions) => *lists.sessions = sessions,
+            Ok(mut sessions) => {
+                preserve_published_sessions(lists.sessions, &mut sessions);
+                *lists.sessions = sessions;
+            }
             Err(error) => return vec![ListEffect::Notification(format!("Failed to load sessions: {}", error))],
         },
         ListEvent::Bootstrap { project_path, result, previews, archived } => {
@@ -118,12 +163,18 @@ pub fn update_lists(lists: &mut SessionLists<'_>, current_project: &Option<Strin
             *lists.previews = previews;
             *lists.archived = archived;
             match result {
-                Ok(sessions) => {
+                Ok(mut sessions) => {
                     if let Some(path) = project_path {
-                        let existing = lists.projects.get(&path).cloned();
-                        lists.projects.insert(path, merge_project_sessions(existing, sessions.clone()));
+                        let existing = lists.projects.remove(&path);
+                        let loaded_count = sessions.len();
+                        let merged = merge_project_sessions(existing, sessions);
+                        // The active list uses only the entries returned by this load.
+                        *lists.sessions = merged[..loaded_count].to_vec();
+                        lists.projects.insert(path, merged);
+                    } else {
+                        preserve_published_sessions(lists.sessions, &mut sessions);
+                        *lists.sessions = sessions;
                     }
-                    *lists.sessions = sessions;
                 }
                 Err(error) => return vec![ListEffect::Notification(format!("Failed to load sessions: {}", error))],
             }

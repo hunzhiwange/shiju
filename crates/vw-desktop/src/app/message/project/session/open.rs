@@ -100,7 +100,11 @@ pub(crate) fn open_project_session(
         super::lifecycle::cache_project_session(app, project_path, info);
         directory
     } else {
-        project_path
+        app.session_state
+            .session_runtime_states
+            .get(&id)
+            .and_then(|runtime| runtime.draft.as_ref())
+            .map_or(project_path, |draft| draft.directory.clone())
     };
 
     app.prepare_historical_session_model(&id);

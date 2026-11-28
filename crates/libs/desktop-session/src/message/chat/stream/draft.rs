@@ -102,8 +102,12 @@ pub fn take_publication<R>(
 }
 
 pub fn insert_publication(sessions: &mut Vec<Info>, info: &Info) {
-    if !sessions.iter().any(|entry| entry.id == info.id) {
-        sessions.insert(0, info.clone());
+    match sessions.iter_mut().find(|entry| entry.id == info.id) {
+        Some(entry) if entry.project_id == info.project_id && entry.is_first_response_pending() => {
+            *entry = info.clone();
+        }
+        Some(_) => {}
+        None => sessions.insert(0, info.clone()),
     }
 }
 

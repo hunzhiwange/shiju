@@ -368,6 +368,9 @@ fn desktop_first_response_late_success_publishes_to_the_original_project_once() 
     app.session_state.active_session_id = Some("current".into());
     app.session_state.sessions = vec![session_info("current", "Current", "/other")];
     app.chat_view.chat = vec![chat_message(ChatRole::User, "current chat")];
+    let mut pending = session_info("draft", "", "/project/worktree");
+    pending.mark_first_response_pending();
+    app.workspace_state.project_sessions.insert("/project".into(), vec![pending]);
 
     let runtime = app.get_session_runtime_mut("draft");
     runtime.draft = Some(crate::app::state::SessionDraft {
@@ -412,6 +415,7 @@ fn desktop_first_response_late_success_publishes_to_the_original_project_once() 
     let published = &app.workspace_state.project_sessions["/project"];
     assert_eq!(published.len(), 1);
     assert_eq!(published[0].id, "draft");
+    assert!(published[0].is_user_navigable());
     assert!(published[0].title.is_empty());
     assert_eq!(crate::app::i18n::other::session_title(&app, "draft", ""), "首轮问题");
     assert_eq!(

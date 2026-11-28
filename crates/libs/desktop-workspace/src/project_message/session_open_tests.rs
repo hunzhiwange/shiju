@@ -68,6 +68,79 @@ fn merge_project_sessions_keeps_incoming_order_and_unique_existing_sessions() {
     assert_eq!(merged[3_999].id, "existing-1999");
 }
 
+#[test]
+fn pending_session_navigation_requires_a_matching_local_draft() {
+    use super::{Navigation, navigation};
+
+    let project = "/repo";
+    let directory = "/repo-worktree";
+    let mut pending = session_info("running", 0, 0);
+    pending.directory = directory.into();
+    pending.mark_first_response_pending();
+    let projects = Default::default();
+    let navigate = |path: &str, info: &session_info::Info, draft| {
+        navigation(
+            path.into(),
+            "running".into(),
+            None,
+            None,
+            Some("other"),
+            std::slice::from_ref(info),
+            &projects,
+            draft,
+        )
+    };
+
+    assert!(matches!(
+        navigate(directory, &pending, Some((project, directory))),
+        Navigation::Draft { project_path, id } if project_path == project && id == "running"
+    ));
+    assert!(matches!(navigate(directory, &pending, None), Navigation::Ignore));
+    assert!(matches!(
+        navigate(project, &pending, Some((project, directory))),
+        Navigation::Ignore
+    ));
+
+    let mut plan_run = pending.clone();
+    plan_run.slug = session_info::Info::plan_run_slug(&plan_run.slug);
+    let mut agent_child = pending;
+    agent_child.mark_agent_tool();
+    for internal in [plan_run, agent_child] {
+        assert!(matches!(
+            navigate(directory, &internal, Some((project, directory))),
+            Navigation::Ignore
+        ));
+    }
+}
+
+#[test]
+fn published_project_entry_can_open_when_active_list_still_says_pending() {
+    use super::{Navigation, navigation};
+
+    let project = "/repo";
+    let directory = "/repo-worktree";
+    let mut published = session_info("first-reply", 0, 0);
+    published.directory = directory.into();
+    let mut pending = published.clone();
+    pending.mark_first_response_pending();
+    let projects = [(project.to_owned(), vec![published])].into();
+
+    assert!(matches!(
+        navigation(
+            directory.into(),
+            "first-reply".into(),
+            None,
+            None,
+            None,
+            &[pending],
+            &projects,
+            None,
+        ),
+        Navigation::Cached { project_path, info, .. }
+            if project_path == project && info.is_user_navigable()
+    ));
+}
+
 #[derive(Default)]
 struct ListState {
     project_path: Option<String>,
@@ -179,6 +252,40 @@ fn project_sessions_loaded_prefers_incoming_duplicate_and_keeps_unique_existing_
     let summary = sessions[0].summary.as_ref().expect("duplicate should retain incoming data");
     assert_eq!((summary.additions, summary.deletions), (9, 8));
 }
+
+#[test]
+fn late_pending_list_result_keeps_published_session_in_both_lists() {
+    let path = "/tmp/project".to_string();
+    let published = session_info("first-reply", 3, 1);
+    let mut pending = published.clone();
+    pending.mark_first_response_pending();
+    pending.title.clear();
+    let mut state = ListState::default();
+    state.project_path = Some(path.clone());
+    state.project_sessions.insert(
+        path.clone(),
+        vec![published, session_info("local-only", 0, 0)],
+    );
+
+    let _ = update(
+        &mut state,
+        super::ListEvent::Bootstrap {
+            project_path: Some(path.clone()),
+            result: Ok(vec![pending.clone()]),
+            previews: Default::default(),
+            archived: Default::default(),
+        },
+    );
+    let _ = update(&mut state, super::ListEvent::ProjectLoaded(path.clone(), Ok(vec![pending])));
+
+    assert_eq!(state.sessions.len(), 1);
+    assert_eq!(state.project_sessions[&path].len(), 2);
+    for info in [&state.sessions[0], &state.project_sessions[&path][0]] {
+        assert!(info.is_user_navigable());
+        assert_eq!(info.title, "first-reply");
+    }
+}
+
 #[test]
 fn project_session_scroll_and_load_more_update_per_project_state() {
     let mut state = ListState::default();

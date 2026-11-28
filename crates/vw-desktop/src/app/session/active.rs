@@ -67,7 +67,14 @@ impl App {
                 self.chat_view.chat_message_ids.clone(),
             );
         }
+        let preparing_base = self.chat_view.active_session_view_state.ui_preparing
+            && !self.chat_view.active_session_view_state.base_ready;
         let snapshot = SessionViewSnapshot::take_from(self);
+        if preparing_base {
+            // Its pending result may arrive while another session is active.
+            self.session_state.active_session_id = None;
+            return;
+        }
         let message_count = snapshot.chat().len();
 
         match self.session_state.session_view_cache.insert(session_id.clone(), snapshot) {

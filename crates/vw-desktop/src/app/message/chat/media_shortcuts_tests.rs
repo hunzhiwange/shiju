@@ -51,7 +51,6 @@ fn media_shortcuts_select_their_installed_skills_without_toggling_them_off() {
 
             assert!(!app.session_state.input_popovers.media_shortcuts);
             assert_eq!(app.navigation_tabs.screen, screen);
-            assert!(!app.workflow_state.video_edit.open);
             let runtime = app.current_session_runtime();
             assert!(runtime.tool_selector.is_shiju_skill_selected(712), "{slug}");
             assert_eq!(runtime.input_editor.text().trim_end(), "保留草稿");

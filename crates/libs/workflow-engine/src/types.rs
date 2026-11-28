@@ -8,7 +8,7 @@ use vw_api_workflow::{WorkflowNodeRunDto, WorkflowRunResponse};
 
 #[derive(Clone)]
 pub struct WorkflowRuntime {
-    pub video_edit_budget: workflow_video_edit::budget::VideoEditRunBudget,
+    pub run_budget: crate::WorkflowRunBudget,
     pub provider: Arc<dyn Provider>,
     pub knowledge_provider: Option<Arc<dyn WorkflowKnowledgeProvider>>,
     pub document_extractor: Option<Arc<dyn WorkflowDocumentExtractor>>,

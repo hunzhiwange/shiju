@@ -150,6 +150,32 @@ fn saved_app_list_messages_update_loading_search_menu_and_delete_state() {
 }
 
 #[test]
+fn saved_app_list_ignores_results_from_a_previous_tenant() {
+    let mut app = new_app();
+    app.workflow_state.begin_saved_apps_load();
+    let mut context = app.context();
+    let current = context.tenant.clone();
+    let previous = vw_api_transport::TenantScope::new("10000", "previous-company").unwrap();
+
+    update(
+        &mut context,
+        WorkflowMessage::ScopedSavedAppsLoaded {
+            tenant: previous,
+            result: Err("previous tenant request failed".into()),
+        },
+    );
+    assert!(context.workflow_state.saved_apps_loading);
+    assert!(context.workflow_state.saved_apps_error.is_none());
+
+    update(
+        &mut context,
+        WorkflowMessage::ScopedSavedAppsLoaded { tenant: current, result: Ok(vec![]) },
+    );
+    assert!(!context.workflow_state.saved_apps_loading);
+    assert!(context.workflow_state.saved_apps_loaded);
+}
+
+#[test]
 fn saved_app_errors_and_copy_state_are_recorded() {
     let mut app = new_app();
 

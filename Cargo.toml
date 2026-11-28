@@ -18,8 +18,6 @@ members = [
   "crates/libs/task-worktree-pool",
   "crates/libs/workflow-engine",
   "crates/libs/workflow-core",
-  "crates/libs/workflow-video-edit",
-  "crates/libs/workflow-template-contract",
   "crates/libs/channel-signal",
   "crates/libs/channel-whatsapp-storage",
   "crates/libs/channel-nextcloud-talk",

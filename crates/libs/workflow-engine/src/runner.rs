@@ -199,7 +199,7 @@ async fn continue_workflow<F>(
 where
     F: FnMut(WorkflowRunEvent) + Send,
 {
-    runtime.video_edit_budget.set_steps(max_steps);
+    runtime.run_budget.set_steps(max_steps);
     let mut executed_steps = 0_u32;
     while executed_steps < max_steps {
         let ready_node_ids = next_ready_nodes(
@@ -792,7 +792,7 @@ where
     Box::pin(async move {
         let started = Instant::now();
         let result = async {
-            runtime.video_edit_budget.consume_step()?;
+            runtime.run_budget.consume_step()?;
             match node.node_type.as_str() {
                 "start" => Ok(execute_start_node(node, pool)),
                 "llm" => execute_llm_node(runtime, node, pool, node_index, on_event).await,
@@ -828,7 +828,7 @@ where
         } else {
             tokio::select! {
                 biased;
-                _ = runtime.video_edit_budget.cancelled() => Err("video edit run cancelled".to_string()),
+                _ = runtime.run_budget.cancelled() => Err("workflow run cancelled".to_string()),
                 result = result => result,
             }
         };
@@ -874,7 +874,7 @@ async fn execute_llm_node<F>(
 where
     F: FnMut(WorkflowRunEvent) + Send,
 {
-    let _permit = runtime.video_edit_budget.acquire().await?;
+    let _permit = runtime.run_budget.acquire().await?;
     let messages = build_llm_messages(node, pool);
     let requested_model = workflow_node_model(node, runtime.model.as_str());
     let mut retry_messages = messages.clone();
@@ -1027,7 +1027,7 @@ async fn run_llm_chat_with_model_fallback(
     messages: &[ChatMessage],
     requested_model: &str,
 ) -> Result<model_types::ChatResponse, String> {
-    let _permit = runtime.video_edit_budget.acquire().await?;
+    let _permit = runtime.run_budget.acquire().await?;
     let first = runtime
         .provider
         .chat(ChatRequest { messages, tools: None }, requested_model, runtime.temperature)

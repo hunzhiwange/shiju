@@ -38,7 +38,6 @@ tokio-stream = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 agent-database = { path = "../agent-database", features = ["test-support"] }
-workflow-template-contract = { path = "../workflow-template-contract" }
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
 hex = "0.4"

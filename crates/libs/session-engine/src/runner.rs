@@ -274,10 +274,7 @@ pub fn run<H: RunnerHost>(
         );
     }
     #[cfg(not(target_arch = "wasm32"))]
-    if !employee
-        && (H::run_video_command(&req, &ctx, &session_protocol.skills, &mut on_event)
-            || H::run_bound_command(&req, &ctx, &mut on_event))
-    {
+    if !employee && H::run_bound_command(&req, &ctx, &mut on_event) {
         return;
     }
     if !employee && let Err(message) = session_protocol.prepare_native_skill_context::<H>(

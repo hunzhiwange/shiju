@@ -3,7 +3,6 @@ use crate::session::processor::{Request, StreamEvent};
 use crate::session::ui_types::TokenUsage;
 use crate::tools::ToolRuntimeContext;
 use workflow_engine::{WorkflowRuntime, native_command::{BoundCommandRequest, CommandEvent, NativeCommandHost}};
-use vw_api_workflow::WorkflowRunRequest;
 use std::sync::Arc;
 
 #[path = "native_agent.rs"]
@@ -37,7 +36,7 @@ impl NativeCommandHost for NativeCommandAdapter<'_> {
             allowed_tools: request.options.get("allowed_tools").cloned(),
         });
         WorkflowRuntime {
-            video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default()
+            run_budget: workflow_engine::WorkflowRunBudget::default()
                 .with_cancellation(cancellation.clone()),
             provider: Arc::new(crate::providers::session_llm::SessionLlmProvider::new()),
             model: request.model.clone().unwrap_or_default(),
@@ -60,41 +59,6 @@ pub(crate) fn run_bound_command(
     context: &ToolRuntimeContext,
     emit: &mut (impl FnMut(StreamEvent) -> bool + Send),
 ) -> bool {
-    run_command(request, context, emit, None)
-}
-
-pub(crate) fn run_video_command(
-    request: &Request,
-    context: &ToolRuntimeContext,
-    skills: &[crate::skills::Skill],
-    emit: &mut (impl FnMut(StreamEvent) -> bool + Send),
-) -> bool {
-    let query = super::video_edit::entry::command_query(&request.query);
-    match super::video_edit::parse_video_edit_command(&query) {
-        Ok(None) => return false,
-        Err(error) => {
-            emit(StreamEvent::Error(format!("{error}。用法：/shiju 剪辑 \"视频路径\" [要求]")));
-            return true;
-        }
-        Ok(Some(_)) => {}
-    }
-    let prepared =
-        crate::session::prompt::block_on(super::video_edit::entry::build(request, context, skills));
-    match prepared {
-        Ok(prepared) => run_command(request, context, emit, Some(prepared)),
-        Err(error) => {
-            emit(StreamEvent::Error(format!("云端剪辑入口失败: {error:#}")));
-            true
-        }
-    }
-}
-
-fn run_command(
-    request: &Request,
-    context: &ToolRuntimeContext,
-    emit: &mut (impl FnMut(StreamEvent) -> bool + Send),
-    prepared: Option<(WorkflowRuntime, WorkflowRunRequest)>,
-) -> bool {
     let host = NativeCommandAdapter { request, context };
     let binding = BoundCommandRequest {
         query: &request.query,
@@ -103,7 +67,7 @@ fn run_command(
         current_tenant: crate::session::ui_store::current_tenant_scope,
     };
     crate::session::prompt::block_on(workflow_engine::native_command::run_command(
-        &host, binding, request.abort_token.clone().unwrap_or_default(), emit, prepared,
+        &host, binding, request.abort_token.clone().unwrap_or_default(), emit,
     ))
 }
 

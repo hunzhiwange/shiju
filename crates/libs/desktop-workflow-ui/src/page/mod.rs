@@ -33,7 +33,6 @@ mod start_panel;
 mod styles;
 mod toolbar;
 mod variables;
-mod video_edit;
 
 use app_editor::*;
 use node_editor::*;

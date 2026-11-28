@@ -4,37 +4,10 @@ use iced::{Point, Vector, widget::text_editor};
 #[derive(Debug, Clone)]
 pub enum WorkflowMessage {
     HostEffect(Box<crate::controller::Effect>),
-    OpenVideoTemplate,
-    ReloadVideoTemplate,
     ScopedSavedAppsLoaded {
         tenant: vw_api_transport::TenantScope,
         result: Result<Vec<WorkflowSavedAppSummary>, String>,
     },
-    VideoTemplateLoaded {
-        tenant: vw_api_transport::TenantScope,
-        graph: bool,
-        result: Result<vw_api_workflow::WorkflowRecord, String>,
-    },
-    CloseVideoTemplate,
-    VideoTemplateYamlAction(text_editor::Action),
-    VideoTemplatePathChanged(String),
-    PickVideoTemplatePath,
-    VideoTemplatePathPicked {
-        tenant: vw_api_transport::TenantScope,
-        path: Option<String>,
-    },
-    SaveVideoTemplate,
-    RequestVideoTemplateRestore,
-    CancelVideoTemplateRestore,
-    ConfirmVideoTemplateRestore,
-    VideoTemplatePersisted {
-        tenant: vw_api_transport::TenantScope,
-        graph: bool,
-        restore: bool,
-        result: Result<vw_api_workflow::WorkflowRecord, String>,
-    },
-    StartNativeVideoEdit,
-
     LoadSavedApps,
     LoadSavedAppsFinished(Result<Vec<WorkflowSavedAppSummary>, String>),
     OpenSavedApp(String),
@@ -306,7 +279,6 @@ pub mod document;
 pub mod node;
 pub mod run;
 pub mod run_inputs;
-pub mod video_edit;
 
 pub mod effects;
 

@@ -31,7 +31,7 @@ impl Provider for Echo {
 }
 fn runtime(provider: Arc<dyn Provider>) -> WorkflowRuntime {
     WorkflowRuntime {
-        video_edit_budget: workflow_video_edit::budget::VideoEditRunBudget::default(),
+        run_budget: crate::WorkflowRunBudget::default(),
         provider,
         knowledge_provider: None,
         document_extractor: None,
@@ -57,7 +57,7 @@ fn request() -> WorkflowRunRequest {
     }
 }
 #[tokio::test]
-async fn video_edit_concurrency_production_iteration_preserves_order_and_isolation() {
+async fn workflow_parallel_iteration_production_iteration_preserves_order_and_isolation() {
     let response = run_workflow(runtime(Arc::new(Echo)), request()).await.unwrap();
     assert_eq!(
         response.status,
@@ -155,7 +155,7 @@ fn edit_request(request: &mut WorkflowRunRequest, edit: impl FnOnce(&mut Value))
     request.workflow_yaml = Some(value.to_string());
 }
 #[tokio::test]
-async fn video_edit_concurrency_five_enter_sixth_waits_reverse_completion_and_events() {
+async fn workflow_parallel_iteration_five_enter_sixth_waits_reverse_completion_and_events() {
     let (provider, mut entered, mut done) = controlled();
     let events = Arc::new(std::sync::Mutex::new(Vec::new()));
     let capture = events.clone();
@@ -206,10 +206,10 @@ async fn video_edit_concurrency_five_enter_sixth_waits_reverse_completion_and_ev
     assert_eq!(calls.len(), 6);
 }
 #[tokio::test]
-async fn video_edit_concurrency_nested_llm_branches_share_budget_with_external_leaf() {
+async fn workflow_parallel_iteration_nested_llm_branches_share_budget_with_external_leaf() {
     let (provider, mut entered, _) = controlled();
     let runtime = runtime(provider.clone());
-    let external_leaf = runtime.video_edit_budget.acquire().await.unwrap();
+    let external_leaf = runtime.run_budget.acquire().await.unwrap();
     let mut request = request();
     edit_request(&mut request, |data| {
         let mut second = data["graph"]["nodes"][0].clone();
@@ -235,10 +235,10 @@ async fn video_edit_concurrency_nested_llm_branches_share_budget_with_external_l
     assert!(provider.peak.load(AtomicOrdering::SeqCst) <= 5);
 }
 #[tokio::test]
-async fn video_edit_concurrency_cancellation_stops_active_and_queued_branches() {
+async fn workflow_parallel_iteration_cancellation_stops_active_and_queued_branches() {
     let (provider, mut entered, _) = controlled();
     let runtime = runtime(provider.clone());
-    let budget = runtime.video_edit_budget.clone();
+    let budget = runtime.run_budget.clone();
     let mut request = request();
     edit_request(&mut request, |data| {
         let mut second = data["graph"]["nodes"][0].clone();
@@ -258,7 +258,7 @@ async fn video_edit_concurrency_cancellation_stops_active_and_queued_branches() 
     drop(gates);
 }
 #[tokio::test]
-async fn video_edit_concurrency_failure_stops_dispatch_and_does_not_succeed() {
+async fn workflow_parallel_iteration_failure_stops_dispatch_and_does_not_succeed() {
     let (provider, mut entered, _) = controlled();
     let mut request = request();
     request.inputs.insert("items".into(), json!(["fail", "b", "c", "d", "e", "f"]));
@@ -284,7 +284,7 @@ async fn video_edit_concurrency_failure_stops_dispatch_and_does_not_succeed() {
     assert_eq!(provider.active.load(AtomicOrdering::SeqCst), 0);
 }
 #[tokio::test]
-async fn video_edit_concurrency_invalid_limits_side_effects_and_failure_strategies_rejected() {
+async fn workflow_parallel_iteration_invalid_limits_side_effects_and_failure_strategies_rejected() {
     for value in [json!(0), json!(-1), json!(1.5), json!(6), json!("5")] {
         let mut request = request();
         edit_request(&mut request, |data| data["max_parallel"] = value);
@@ -311,12 +311,12 @@ async fn video_edit_concurrency_invalid_limits_side_effects_and_failure_strategi
     }
 }
 #[tokio::test]
-async fn video_edit_concurrency_lower_limits_and_shared_step_exhaustion() {
+async fn workflow_parallel_iteration_lower_limits_and_shared_step_exhaustion() {
     for (run_limit, iteration_limit) in [(2, 5), (5, 1)] {
         let (provider, mut entered, _) = controlled();
         let mut runtime = runtime(provider.clone());
-        runtime.video_edit_budget =
-            workflow_video_edit::budget::VideoEditRunBudget::new(run_limit).unwrap();
+        runtime.run_budget =
+            crate::WorkflowRunBudget::new(run_limit);
         let mut request = request();
         edit_request(&mut request, |data| data["max_parallel"] = json!(iteration_limit));
         let limit = run_limit.min(iteration_limit);
@@ -383,12 +383,12 @@ impl Provider for Streaming {
     }
 }
 #[tokio::test]
-async fn video_edit_concurrency_streaming_holds_permit_and_releases_after_failure_or_cancel() {
+async fn workflow_parallel_iteration_streaming_holds_permit_and_releases_after_failure_or_cancel() {
     for fail in [false, true] {
         let (provider, mut entered, _) = controlled();
         let mut runtime = runtime(Arc::new(Streaming(provider.clone())));
-        runtime.video_edit_budget = workflow_video_edit::budget::VideoEditRunBudget::new(1).unwrap();
-        let budget = runtime.video_edit_budget.clone();
+        runtime.run_budget = crate::WorkflowRunBudget::new(1);
+        let budget = runtime.run_budget.clone();
         let mut request = request();
         request
             .inputs

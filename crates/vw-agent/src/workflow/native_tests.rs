@@ -29,7 +29,7 @@ fn native_workflow_bound_command_executes_graph_and_returns_answer() {
     let dir = workflow_engine::test_support::binding_fixture(
         crate::session::ui_store::current_tenant_scope(),
     );
-    let request = request(dir.path(), "/shiju 剪辑 sp7");
+    let request = request(dir.path(), "/shiju 摘要 sp7");
     let context = ToolRuntimeContext::new(request.session.clone(), request.root.clone());
     let events = Arc::new(Mutex::new(Vec::new()));
     let recorded = events.clone();
@@ -85,8 +85,8 @@ fn action_runtime(root: &std::path::Path, allowed: Vec<&str>) -> (WorkflowRuntim
                 .with_bypass_non_cli_approval_for_turn(true),
         );
     let runtime = crate::workflow::WorkflowRuntime {
-        video_edit_budget: Default::default(),
-        provider: Arc::new(workflow_engine::test_support::CloudFixtureProvider { invalid_assets: false }),
+        run_budget: Default::default(),
+        provider: Arc::new(workflow_engine::test_support::BindingFixtureProvider),
         model: "unused".into(),
         temperature: 0.0,
         tool_provider: Some(Arc::new(agent::NativeTools {

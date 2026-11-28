@@ -12,7 +12,6 @@ iced = { version = "0.14", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_yaml.workspace = true
 desktop-i18n = { path = "../desktop-i18n" }
-vw-api-workflow = { path = "../api-workflow" }
 
 [dev-dependencies]
 tempfile = "3"

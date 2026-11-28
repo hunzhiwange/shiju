@@ -6835,7 +6835,6 @@ dependencies = [
  "serde_json",
  "todo-types",
  "tokio",
- "vw-api-workflow",
 ]
 
 [[package]]
@@ -8194,7 +8193,6 @@ dependencies = [
  "iced",
  "serde",
  "tempfile",
- "vw-api-workflow",
  "yaml_serde",
 ]
 
@@ -11084,7 +11082,6 @@ dependencies = [
  "vw-api-workflow",
  "workflow-core",
  "workflow-engine",
- "workflow-template-contract",
 ]
 
 [[package]]
@@ -22394,8 +22391,6 @@ dependencies = [
  "windows-sys 0.61.2",
  "workflow-core",
  "workflow-engine",
- "workflow-template-contract",
- "workflow-video-edit",
  "worktree-core",
  "yaml_serde",
  "zip",
@@ -25338,20 +25333,17 @@ dependencies = [
  "agent-database",
  "anyhow",
  "config-runtime-paths",
- "hex",
  "minijinja",
  "postgres",
  "regex",
  "rusqlite",
  "serde_json",
- "sha2 0.11.0",
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
  "uuid",
  "vw-api-transport",
  "vw-api-workflow",
- "workflow-template-contract",
  "yaml_serde",
 ]
 
@@ -25366,14 +25358,12 @@ dependencies = [
  "axum",
  "futures-util",
  "git2",
- "hex",
  "model-protocol",
  "model-types",
  "reqwest 0.13.4",
  "serde",
  "serde_json",
  "session-port",
- "sha2 0.11.0",
  "tempfile",
  "tokio",
  "tokio-util",
@@ -25384,51 +25374,6 @@ dependencies = [
  "vw-api-transport",
  "vw-api-workflow",
  "workflow-core",
- "workflow-video-edit",
-]
-
-[[package]]
-name = "workflow-template-contract"
-version = "0.7.10"
-dependencies = [
- "anyhow",
- "serde_json",
- "vw-api-workflow",
- "yaml_serde",
-]
-
-[[package]]
-name = "workflow-video-edit"
-version = "0.7.10"
-dependencies = [
- "agent-database",
- "anyhow",
- "async-trait",
- "axum",
- "futures-util",
- "hex",
- "libc",
- "model-types",
- "reqwest 0.13.4",
- "runtime-time",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "shell-words",
- "tempfile",
- "tokio",
- "tokio-util",
- "tool-context",
- "tool-types",
- "tracing",
- "url",
- "uuid",
- "vw-api-transport",
- "vw-api-workflow",
- "workflow-core",
- "workflow-template-contract",
- "yaml_serde",
 ]
 
 [[package]]

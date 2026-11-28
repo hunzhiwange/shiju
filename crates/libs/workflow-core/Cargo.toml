@@ -15,13 +15,10 @@ serde_yaml.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 agent-database = { path = "../agent-database" }
-workflow-template-contract = { path = "../workflow-template-contract" }
 vw-api-transport = { path = "../api-transport" }
 vw-api-workflow = { path = "../api-workflow" }
 anyhow = "1"
 postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
-hex = "0.4"
-sha2 = "0.11"
 thiserror = "2"
 uuid = { version = "1.11", features = ["v4", "js"] }
 tokio = { version = "1", features = ["rt"] }

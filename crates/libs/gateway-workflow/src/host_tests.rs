@@ -944,21 +944,3 @@ async fn talking_head_api_live_configured_gateway_returns_validated_plans() {
     server.abort();
     let _ = server.await;
 }
-
-#[tokio::test]
-async fn video_edit_template_uuid_hydration_reads_tenant_record_and_rejects_override() {
-    use crate::workflow::templates::{VIDEO_EDIT_TEMPLATE_UUID, VideoEditTemplateSeed};
-    let home = tempfile::tempdir().unwrap();
-    let database = GlobalDatabase::for_home(home.path()).unwrap();
-    let tenant = test_tenant("template-hydration");
-    let seed = VideoEditTemplateSeed::production().unwrap();
-    let snapshot = seed.load(database.clone(), tenant.clone()).await.unwrap();
-    let mut request = WorkflowRunRequest {
-        workflow_uuid: Some(VIDEO_EDIT_TEMPLATE_UUID.into()),
-        ..Default::default()
-    };
-    hydrate_workflow_yaml_from_uuid(database.clone(), tenant.clone(), &mut request).await.unwrap();
-    assert_eq!(request.workflow_yaml.as_deref(), Some(snapshot.record.workflow_yaml.as_str()));
-    let error = hydrate_workflow_yaml_from_uuid(database, tenant, &mut request).await.unwrap_err();
-    assert_eq!(error.status, StatusCode::BAD_REQUEST);
-}

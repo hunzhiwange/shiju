@@ -7,9 +7,14 @@ pub(super) fn parallel_limit(node: &WorkflowNode) -> Result<Option<usize>, Strin
     if !parallel {
         return Ok(None);
     }
-    let limit =
-        workflow_video_edit::budget::VideoEditRunBudget::from_value(node.data.get("max_parallel"))?
-            .limit();
+    let limit = match node.data.get("max_parallel") {
+        None => crate::run_budget::MAX_PARALLEL,
+        Some(value) => value
+            .as_u64()
+            .and_then(|value| usize::try_from(value).ok())
+            .filter(|value| (1..=crate::run_budget::MAX_PARALLEL).contains(value))
+            .ok_or("workflow parallel concurrency must be an integer in 1..=5")?,
+    };
     if iteration_error_strategy(node) != "terminate" {
         return Err("parallel iteration requires terminate error strategy".into());
     }
@@ -48,7 +53,7 @@ where
 {
     let limit = parallel_limit(node)?
         .ok_or("parallel mode required")?
-        .min(runtime.video_edit_budget.limit());
+        .min(runtime.run_budget.limit());
     let graph = iteration_subgraph(node)?;
     validate_graph(&graph)?;
     let selector =
@@ -71,7 +76,7 @@ where
     let mut tasks = JoinSet::new();
     let mut results = vec![Value::Null; items.len()];
     loop {
-        while tasks.len() < limit && !runtime.video_edit_budget.is_cancelled() {
+        while tasks.len() < limit && !runtime.run_budget.is_cancelled() {
             let Some((index, item)) = pending.next() else {
                 break;
             };
@@ -105,16 +110,16 @@ where
                 )
             });
         }
-        if runtime.video_edit_budget.is_cancelled() {
+        if runtime.run_budget.is_cancelled() {
             stop(&mut tasks, &mut rx, on_event).await;
-            return Err("video edit run cancelled".into());
+            return Err("workflow run cancelled".into());
         }
         if tasks.is_empty() {
             break;
         }
         tokio::select! {
             biased;
-            _ = runtime.video_edit_budget.cancelled() => { stop(&mut tasks, &mut rx, on_event).await; return Err("video edit run cancelled".into()); }
+            _ = runtime.run_budget.cancelled() => { stop(&mut tasks, &mut rx, on_event).await; return Err("workflow run cancelled".into()); }
             event = rx.recv() => { if let Some(event) = event { on_event(event); } }
             completed = tasks.join_next() => {
                 match completed {
@@ -162,7 +167,7 @@ async fn execute_item(
         if ready.is_empty() {
             return Err("parallel iteration subgraph blocked".into());
         }
-        let batch = workflow_execution_batch(graph, ready, runtime.video_edit_budget.limit());
+        let batch = workflow_execution_batch(graph, ready, runtime.run_budget.limit());
         // Futures stay owned by this item. Dropping an item cancels all its branches.
         let mut futures = futures_util::stream::FuturesUnordered::new();
         for id in batch {

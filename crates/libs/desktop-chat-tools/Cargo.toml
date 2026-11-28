@@ -8,7 +8,6 @@ license = "MIT"
 doctest = false
 
 [dependencies]
-vw-api-workflow = { path = "../api-workflow" }
 todo-types = { path = "../todo-types" }
 question-types = { path = "../question-types" }
 diff-text = { path = "../diff-text" }

@@ -95,7 +95,7 @@ async fn run(
         messages: Mutex::new(Vec::new()),
     });
     let runtime = WorkflowRuntime {
-        video_edit_budget: workflow_video_edit::budget::VideoEditRunBudget::default(),
+        run_budget: crate::WorkflowRunBudget::default(),
         provider: provider.clone(),
         model: "deepseek".into(),
         temperature: 0.0,

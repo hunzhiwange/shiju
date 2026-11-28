@@ -113,7 +113,6 @@ fn desktop_gettext_area_13_catalog_covers_display_calls_and_descriptors() {
         include_str!("../../../../libs/desktop-workflow-ui/src/page/tests.rs"),
         include_str!("../../../../libs/desktop-workflow-ui/src/page/toolbar.rs"),
         include_str!("../../../../libs/desktop-workflow-ui/src/page/variables.rs"),
-        include_str!("../../../../libs/desktop-workflow-ui/src/page/video_edit.rs"),
     ] {
         for capture in literal.captures_iter(source) {
             let key: String = serde_json::from_str(&capture[1]).unwrap();

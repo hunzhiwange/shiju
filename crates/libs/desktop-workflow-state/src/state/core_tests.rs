@@ -23,6 +23,28 @@ use serde_json::json;
 use gateway_workflow::{GatewayWorkflowStreamError, GatewayWorkflowStreamEvent};
 
 #[test]
+fn tenant_switch_restores_own_workflow_draft_without_restarting_run() {
+    let first = TenantScope::new("ui", "a").unwrap();
+    let second = TenantScope::new("ui", "b").unwrap();
+    let mut state = WorkflowState::default();
+
+    state.select_tenant(first.clone());
+    state.source_name = "first tenant draft".into();
+    state.active_is_dirty = true;
+    state.running_saved_app_uuid = Some("old-run".into());
+    state.select_tenant(second);
+    assert!(state.source_name.is_empty());
+    assert!(!state.active_is_dirty);
+    assert!(state.running_saved_app_uuid.is_none());
+
+    state.source_name = "second tenant draft".into();
+    state.select_tenant(first);
+    assert_eq!(state.source_name, "first tenant draft");
+    assert!(state.active_is_dirty);
+    assert!(state.running_saved_app_uuid.is_none());
+}
+
+#[test]
 fn saved_app_loading_open_delete_confirm_actions_and_copy_state_are_tracked() {
     let mut state = WorkflowState::default();
 

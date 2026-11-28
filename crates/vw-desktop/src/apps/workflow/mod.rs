@@ -46,7 +46,7 @@ pub(crate) fn sync_top_tab(app: &mut App) {
 }
 
 pub fn ensure_initialized(app: &mut App) -> Task<Message> {
-    message::sync_video_tenant(app);
+    message::sync_workflow_tenant(app);
     sync_top_tab(app);
 
     if !app.workflow_state.saved_apps_loaded && !app.workflow_state.saved_apps_loading {

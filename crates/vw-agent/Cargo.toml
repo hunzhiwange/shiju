@@ -20,8 +20,6 @@ tool-memory = { path = "../libs/tool-memory" }
 task-worktree-pool = { path = "../libs/task-worktree-pool" }
 workflow-engine = { path = "../libs/workflow-engine" }
 workflow-core = { path = "../libs/workflow-core" }
-workflow-video-edit = { path = "../libs/workflow-video-edit" }
-workflow-template-contract = { path = "../libs/workflow-template-contract" }
 task-scheduler-core = { path = "../libs/task-scheduler-core" }
 gateway-agent-app = { path = "../libs/gateway-agent-app" }
 session-engine = { path = "../libs/session-engine" }
@@ -544,7 +542,6 @@ agent-app-services = { path = "../libs/agent-app-services", features = ["test-su
 plugin-mcp = { path = "../libs/plugin-mcp", features = ["test-support"] }
 session-engine = { path = "../libs/session-engine", features = ["test-support"] }
 gateway-session = { path = "../libs/gateway-session", features = ["test-support"] }
-workflow-video-edit = { path = "../libs/workflow-video-edit", features = ["test-support"] }
 gateway-agent-scheduler = { path = "../libs/gateway-agent-scheduler", features = ["test-support"] }
 session-store = { path = "../libs/session-store", features = ["test-support"] }
 channel-runtime = { path = "../libs/channel-runtime", features = ["test-support"] }

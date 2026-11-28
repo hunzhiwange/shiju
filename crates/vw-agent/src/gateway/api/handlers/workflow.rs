@@ -21,7 +21,7 @@ fn workflow_runtime(
     request: &WorkflowRunRequest,
 ) -> Result<WorkflowRuntime, ApiError> {
     Ok(WorkflowRuntime {
-        video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
+        run_budget: workflow_engine::WorkflowRunBudget::default(),
         provider: state.provider.clone(),
         knowledge_provider: Some(Arc::new(agent_knowledge::runtime_store::knowledge_store_from_config(
             state.config.lock().clone(), &agent_paths::paths().home, tenant.clone(),

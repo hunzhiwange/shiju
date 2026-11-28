@@ -2,7 +2,7 @@
 use crate::app::{App, Message};
 use desktop_workflow_ui::controller::{Context, Effect, Output};
 pub use desktop_workflow_ui::message::WorkflowMessage;
-use iced::{Task, widget::text_editor};
+use iced::Task;
 pub fn update(app: &mut App, message: WorkflowMessage) -> Task<Message> {
     if let WorkflowMessage::HostEffect(effect) = message {
         return match *effect {
@@ -10,8 +10,6 @@ pub fn update(app: &mut App, message: WorkflowMessage) -> Task<Message> {
             Effect::TextContext(effect) => Task::done(desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage::context(effect)),
             Effect::TextSelection(session, index, text_index, text) => Task::done(desktop_ui_controls::selectable_text::markdown_selection::SelectionMessage::selection(session, index, text_index, text)),
             Effect::Error(error) => app.show_message_toast(crate::app::state::ToastKind::Error, error.message()),
-            Effect::Warning(error) => app.show_message_toast(crate::app::state::ToastKind::Warning, error.message()),
-            Effect::Success(message) => app.show_message_toast(crate::app::state::ToastKind::Success, message.message()),
             Effect::After(duration, message) => {
                 crate::app::message::after(duration, Message::WorkflowTool(*message))
             }
@@ -25,7 +23,6 @@ pub fn update(app: &mut App, message: WorkflowMessage) -> Task<Message> {
                 }
                 task
             }
-            Effect::StartNativeVideoEdit => start_native_video_edit(app),
         };
     }
     let mut context = Context {
@@ -47,7 +44,7 @@ pub fn update(app: &mut App, message: WorkflowMessage) -> Task<Message> {
         })
     })
 }
-pub(crate) fn sync_video_tenant(app: &mut App) {
+pub(crate) fn sync_workflow_tenant(app: &mut App) {
     app.workflow_state.select_tenant(crate::app::session_gateway::active_tenant_scope());
 }
 pub(crate) fn load_saved_apps_task() -> Task<Message> {
@@ -61,31 +58,3 @@ fn workflow_gateway_client() -> Result<gateway_workflow::GatewayWorkflowClient, 
     crate::app::config::gateway_client()
         .map(|client| gateway_workflow::GatewayWorkflowClient::new(client.transport().clone()))
 }
-fn start_native_video_edit(app: &mut App) -> Task<Message> {
-    let command = match app.workflow_state.video_edit.native_command() {
-        Ok(command) => command,
-        Err(e) => return app.show_message_toast(crate::app::state::ToastKind::Error, e.message()),
-    };
-    if app.navigation_tabs.project_path.is_none() {
-        return app.show_localized_toast(crate::app::state::ToastKind::Error, "请先打开原生项目，再从模板发起剪辑", vec![]);
-    }
-    if app.session_state.acp_agent.is_some() || app.current_session_runtime().acp_agent.is_some() {
-        return app.show_localized_toast(crate::app::state::ToastKind::Error, "请先切换原生会话，剪辑不支持 ACP", vec![]);
-    }
-    let runtime = app.current_session_runtime();
-    if runtime.task_mode_enabled || runtime.workflow_mode_enabled || !app.session_state.files.is_empty() {
-        return app.show_localized_toast(crate::app::state::ToastKind::Error, "请使用普通原生聊天模式，并先处理已有附件后发起剪辑", vec![]);
-    }
-    if !app.current_session_runtime().input_editor.text().trim().is_empty() {
-        return app.show_localized_toast(crate::app::state::ToastKind::Error, "会话中已有未发送草稿，请先处理后再启动剪辑", vec![]);
-    }
-    app.workflow_state.video_edit.open = false;
-    app.navigation_tabs.screen = crate::app::Screen::Project;
-    app.navigation_tabs.active_tab_id = app.session_state.active_session_id.clone();
-    app.current_session_runtime_mut().input_editor = text_editor::Content::with_text(&command);
-    app.session_state.input_editor = text_editor::Content::with_text(&command);
-    crate::app::message::chat::update(app, crate::app::message::ChatMessage::SendPressed)
-}
-
-#[cfg(test)]
-mod video_edit_tests;

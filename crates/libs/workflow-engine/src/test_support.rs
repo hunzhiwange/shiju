@@ -4,6 +4,6 @@ mod binding;
 mod provider;
 pub use actions::*;
 pub use binding::binding_fixture;
-pub use provider::CloudFixtureProvider;
+pub use provider::BindingFixtureProvider;
 mod permissions;
 pub use permissions::*;

@@ -16,8 +16,8 @@ mod knowledge;
 mod types;
 pub use types::*;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub mod native_video_progress;
+mod run_budget;
+pub use run_budget::WorkflowRunBudget;
 
 mod runner;
 pub use runner::{run_workflow, run_workflow_with_events, resume_workflow};
@@ -36,9 +36,6 @@ pub mod native_tools;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native_command;
-
-#[cfg(not(target_arch = "wasm32"))]
-mod video_providers;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod host_migration_45_tests;

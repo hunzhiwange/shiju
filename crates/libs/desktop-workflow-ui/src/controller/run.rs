@@ -9,12 +9,6 @@ pub(crate) fn handle(app: &mut Context<'_>, message: WorkflowMessage) -> Option<
     }
     Some(match message {
         WorkflowMessage::OpenSavedAppRunPrompt(uuid) => {
-            if uuid == super::video_edit::TEMPLATE_ID {
-                return Some(
-                    super::video_edit::handle(app, WorkflowMessage::OpenVideoTemplate)
-                        .unwrap_or_else(Task::none),
-                );
-            }
             app.workflow_state.open_saved_app_run_prompt(uuid.clone());
             load_saved_app_run_prompt_task(app, uuid)
         }
@@ -22,11 +16,6 @@ pub(crate) fn handle(app: &mut Context<'_>, message: WorkflowMessage) -> Option<
             let Some(prompt) = app.workflow_state.saved_app_run_prompt.clone() else {
                 return Some(Task::none());
             };
-            if prompt.uuid == super::video_edit::TEMPLATE_ID {
-                return Some(
-                    app.show_error_toast("内置剪辑模板必须从原生会话执行，请使用模板设置"),
-                );
-            }
             crate::message::run::submit_run_prompt(app.workflow_state, prompt);
             Task::none()
         }

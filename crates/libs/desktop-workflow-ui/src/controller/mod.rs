@@ -2,23 +2,19 @@
 use crate::message::{WorkflowMessage, WorkflowSaveTarget};
 use desktop_workflow_model::*;
 use desktop_workflow_state::state::*;
-use iced::{Task, widget::text_editor};
+use iced::Task;
 pub(crate) mod app;
 pub(crate) mod canvas;
 pub(crate) mod document;
 pub(crate) mod node;
 pub(crate) mod run;
-pub(crate) mod video_edit;
 #[derive(Debug, Clone)]
 pub enum Effect {
     TextContext(desktop_ui_controls::text_editor_context_menu::TextContextEffect),
     TextSelection(String, usize, usize, Option<String>),
     None,
     Error(desktop_i18n::workflow::Feedback),
-    Warning(desktop_i18n::workflow::Feedback),
-    Success(desktop_i18n::workflow::Feedback),
     SaveError(desktop_i18n::workflow::Feedback),
-    StartNativeVideoEdit,
     After(std::time::Duration, Box<WorkflowMessage>),
 }
 #[derive(Debug, Clone)]
@@ -37,13 +33,6 @@ impl Context<'_> {
     fn show_error_toast(&self, error: impl Into<desktop_i18n::workflow::Feedback>) -> Task<Output> {
         Task::done(Output::Effect(Effect::Error(error.into())))
     }
-#[cfg(target_arch = "wasm32")]
-    fn show_warning_toast(&self, error: impl Into<desktop_i18n::workflow::Feedback>) -> Task<Output> {
-        Task::done(Output::Effect(Effect::Warning(error.into())))
-    }
-    fn show_success_toast(&self, error: impl Into<desktop_i18n::workflow::Feedback>) -> Task<Output> {
-        Task::done(Output::Effect(Effect::Success(error.into())))
-    }
 }
 pub(crate) fn sync_top_tab(app: &mut Context<'_>) {
     app.sync_top_tab = true;
@@ -51,8 +40,7 @@ pub(crate) fn sync_top_tab(app: &mut Context<'_>) {
 pub fn update(app: &mut Context<'_>, message: WorkflowMessage) -> Task<Output> {
     app.workflow_state.select_tenant(app.tenant.clone());
 
-    video_edit::handle(app, message.clone())
-        .or_else(|| app::handle(app, message.clone()))
+    app::handle(app, message.clone())
         .or_else(|| run::handle(app, message.clone()))
         .or_else(|| node::handle(app, message.clone()))
         .or_else(|| document::handle(app, message.clone()))
@@ -86,9 +74,6 @@ pub(crate) fn save_active_app(app: &mut Context<'_>, force_picker: bool) -> Task
         return Task::none();
     };
 
-    if !force_picker && entry.local_uuid.as_deref() == Some(video_edit::TEMPLATE_ID) {
-        return video_edit::save_graph(app, entry);
-    }
     save_entry(app, entry, force_picker)
 }
 

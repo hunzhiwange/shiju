@@ -7,5 +7,3 @@ pub mod variables;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod store;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod templates;

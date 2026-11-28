@@ -4,4 +4,3 @@ mod canvas_tests;
 mod document_tests;
 mod node_tests;
 mod node_visual_tests;
-mod video_edit_tests;

@@ -168,45 +168,6 @@ fn modal_size(width: u32) -> Size<u32> {
 }
 
 #[tokio::test]
-async fn ui_refresh_38_preserves_values_and_disabled_states() {
-    let mut renderer = renderer().await;
-    let mut state = WorkflowState::default();
-    state.video_edit.path = format!("/测试/繁體中文/{}/fixture.mp4", "video-path/".repeat(14));
-    state.video_edit.editor = Some(text_editor::Content::with_text(
-        "app:\n  name: 通用云端视频剪辑\nworkflow:\n  video_edit: {max_parallel: 5}",
-    ));
-    state.video_edit.busy = true;
-    state.video_edit.restore_confirm = true;
-    state.video_edit.error = Some("测试模板读取失败".into());
-
-    let size = modal_size(420);
-    let mut ui = scene(video_edit::modal(&state), &mut renderer, size);
-    capture(&mut ui, &mut renderer, &Theme::Dark, size, "video-busy-420", Point::ORIGIN);
-    let geometry = bounds(&mut ui, &renderer);
-    assert!(geometry.inputs.iter().any(|(value, _)| value == &state.video_edit.path));
-    let mut footer = Vec::new();
-    for label in ["关闭", "丢弃草稿并重读", "恢复默认…", "保存模板", "在原生会话剪辑"]
-    {
-        let target = position(&geometry.labels, label);
-        assert!(
-            target.width >= label.chars().count() as f32 * 12.0
-                && target.x >= 7.0
-                && target.x + target.width <= size.width as f32 - 7.0
-                && target.y > geometry.scrolls[0].0.y + geometry.scrolls[0].0.height,
-            "{label} is clipped or outside the fixed footer: {target:?}"
-        );
-        footer.push(target.center());
-    }
-    for disabled in &footer[1..] {
-        assert!(click(&mut ui, &mut renderer, *disabled).is_empty());
-    }
-    assert!(matches!(
-        click(&mut ui, &mut renderer, footer[0]).as_slice(),
-        [Message::WorkflowTool(WorkflowMessage::CloseVideoTemplate)]
-    ));
-}
-
-#[tokio::test]
 async fn ui_refresh_38_layout_and_interaction() {
     let mut renderer = renderer().await;
     let mut state = WorkflowState::default();

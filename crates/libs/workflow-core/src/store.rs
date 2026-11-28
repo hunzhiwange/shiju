@@ -7,7 +7,6 @@ use uuid::Uuid;
 use vw_api_transport::TenantScope;
 use vw_api_workflow::{
     WorkflowRecord, WorkflowRecordDeleteResponse, WorkflowRecordSummary, WorkflowRecordUpsertBody,
-    is_builtin_workflow_uuid,
 };
 
 mod error;
@@ -16,8 +15,6 @@ use agent_database::config::DatabaseProvider;
 pub use error::WorkflowStoreError;
 
 mod postgres;
-mod template_records;
-pub(super) use template_records::write_template_record;
 
 use postgres::PostgresWorkflowStore;
 
@@ -34,6 +31,12 @@ CREATE TABLE IF NOT EXISTS workflow_workflows (
     PRIMARY KEY (platform_id, company_id, uuid)
 );
 "#;
+
+const MIGRATION_SCHEMA: &str =
+    "CREATE TABLE IF NOT EXISTS workflow_schema_migrations (version INTEGER NOT NULL PRIMARY KEY)";
+const RETIRE_BUILTIN_WORKFLOW_PENDING: &str =
+    "SELECT NOT EXISTS (SELECT 1 FROM workflow_schema_migrations WHERE version = 1)";
+const RETIRE_BUILTIN_WORKFLOW: &str = include_str!("store/retire_builtin_workflow.sql");
 
 /// 按更新时间倒序列出租户工作流摘要。
 pub async fn list_records(
@@ -163,7 +166,6 @@ fn upsert_record_blocking(
 ) -> Result<WorkflowRecord, WorkflowStoreError> {
     validate_uuid(uuid)?;
     validate_body(body)?;
-    reject_system_template_write(uuid)?;
     let now = now_ms();
     let record = match database.provider() {
         DatabaseProvider::Sqlite => {
@@ -209,9 +211,6 @@ fn delete_record_blocking(
     uuid: &str,
 ) -> Result<WorkflowRecordDeleteResponse, WorkflowStoreError> {
     validate_uuid(uuid)?;
-    if is_builtin_workflow_uuid(uuid) {
-        return Err(WorkflowStoreError::bad_request("内置工作流不可删除"));
-    }
     let changed = match database.provider() {
         DatabaseProvider::Sqlite => {
             open_db(&database)?
@@ -260,7 +259,15 @@ fn open_db(database: &GlobalDatabase) -> Result<Connection, WorkflowStoreError> 
     database
         .initialize_schema(|connection| {
             reject_unscoped_workflow_schema(connection)?;
-            connection.execute_batch(WORKFLOW_SCHEMA)?;
+            let transaction = connection.unchecked_transaction()?;
+            transaction.execute_batch(WORKFLOW_SCHEMA)?;
+            transaction.execute_batch(MIGRATION_SCHEMA)?;
+            let pending: bool =
+                transaction.query_row(RETIRE_BUILTIN_WORKFLOW_PENDING, [], |row| row.get(0))?;
+            if pending {
+                transaction.execute_batch(RETIRE_BUILTIN_WORKFLOW)?;
+            }
+            transaction.commit()?;
             Ok(())
         })
         .map_err(database_error)?;
@@ -337,10 +344,3 @@ fn database_error(error: anyhow::Error) -> WorkflowStoreError {
 #[cfg(test)]
 #[path = "store_tests.rs"]
 mod store_tests;
-
-fn reject_system_template_write(uuid: &str) -> Result<(), WorkflowStoreError> {
-    if is_builtin_workflow_uuid(uuid) {
-        return Err(WorkflowStoreError::bad_request("系统入口模板必须使用带版本校验的更新操作"));
-    }
-    Ok(())
-}

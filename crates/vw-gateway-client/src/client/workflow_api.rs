@@ -35,24 +35,6 @@ impl GatewayClient {
         GatewayWorkflowClient::new(self.transport.clone()).workflow_application_update(uuid, body).await
     }
 
-    pub async fn workflow_template_update(
-        &self,
-        uuid: &str,
-        body: &WorkflowRecordUpsertBody,
-        expected_updated_at_ms: u64,
-    ) -> Result<WorkflowRecord, String> {
-        GatewayWorkflowClient::new(self.transport.clone()).workflow_template_update(uuid, body, expected_updated_at_ms).await
-    }
-
-    pub async fn workflow_template_restore(
-        &self,
-        uuid: &str,
-        expected_updated_at_ms: u64,
-        confirmed: bool,
-    ) -> Result<WorkflowRecord, String> {
-        GatewayWorkflowClient::new(self.transport.clone()).workflow_template_restore(uuid, expected_updated_at_ms, confirmed).await
-    }
-
     pub async fn workflow_application_delete(
         &self,
         uuid: &str,

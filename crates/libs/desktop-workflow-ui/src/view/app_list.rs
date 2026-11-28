@@ -6,7 +6,6 @@ use desktop_ui_controls::system_settings_common::{
 };
 use chrono::{Local, TimeZone};
 use iced::widget::{column, row};
-use vw_api_workflow::is_builtin_workflow_uuid;
 
 const SAVED_APPS_HEADER_ITEM_HEIGHT: f32 = 44.0;
 const SAVED_APPS_SEARCH_INPUT_LINE_HEIGHT: f32 = 20.0;
@@ -205,11 +204,7 @@ pub(crate) fn build_saved_app_card(
 ) -> Element<'static, Message> {
     let uuid = app.uuid.clone();
     let title = saved_app_title(i18n, &app.name);
-    let description = if app.uuid == state::video_edit::TEMPLATE_ID {
-        i18n.__("随程序分发 · 当前租户可编辑 · 单视频运行，最多五路").to_string()
-    } else {
-        saved_app_description(i18n, &app.description)
-    };
+    let description = saved_app_description(i18n, &app.description);
     let updated_label = i18n
         .format("编辑于 %s", &[format_saved_app_time(app.updated_at_ms).to_string().into()])
         .expect("valid workflow display template");
@@ -253,11 +248,7 @@ pub(crate) fn build_saved_app_card(
             row![open_area, actions].spacing(8).align_y(Alignment::Start),
             saved_app_uuid_row(i18n, app.uuid.as_str(), copied),
             row![
-                saved_app_tag(if is_builtin_workflow_uuid(&app.uuid) {
-                    i18n.__("内置")
-                } else {
-                    i18n.__("内部应用")
-                }),
+                saved_app_tag(i18n.__("内部应用")),
                 saved_app_tag(i18n.__("工作流")),
                 if opening {
                     saved_app_tag(i18n.__("打开中"))
@@ -315,15 +306,13 @@ pub(crate) fn build_saved_app_actions_menu(
         false,
     );
 
-    let mut items = column![run_item].spacing(4).width(Length::Fill);
-    if !is_builtin_workflow_uuid(&uuid) {
-        items = items.push(build_saved_app_action_item(
-            Icon::Trash,
-            if deleting { i18n.__("删除中") } else { i18n.__("删除") },
-            (!deleting).then_some(WorkflowMessage::RequestDeleteSavedApp(uuid)),
-            true,
-        ));
-    }
+    let delete_item = build_saved_app_action_item(
+        Icon::Trash,
+        if deleting { i18n.__("删除中") } else { i18n.__("删除") },
+        (!deleting).then_some(WorkflowMessage::RequestDeleteSavedApp(uuid)),
+        true,
+    );
+    let items = column![run_item, delete_item].spacing(4).width(Length::Fill);
 
     PointBelowOverlay::new(
         trigger,
@@ -338,11 +327,7 @@ pub(crate) fn build_saved_app_actions_menu(
 }
 
 pub(crate) fn saved_app_run_action_message(uuid: String, run_blocked: bool) -> Option<WorkflowMessage> {
-    (!run_blocked).then_some(if uuid == state::video_edit::TEMPLATE_ID {
-        WorkflowMessage::OpenVideoTemplate
-    } else {
-        WorkflowMessage::OpenSavedAppRunPrompt(uuid)
-    })
+    (!run_blocked).then_some(WorkflowMessage::OpenSavedAppRunPrompt(uuid))
 }
 
 pub(crate) fn build_saved_app_action_item(

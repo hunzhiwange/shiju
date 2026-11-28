@@ -94,7 +94,6 @@ pub mod styles;
 use styles::*;
 pub mod toolbar;
 use toolbar::*;
-pub mod video_edit;
 pub mod variables;
 use variables::*;
 
@@ -256,9 +255,6 @@ pub fn view<'a, M: Clone + Send + 'static>(
             layers.push(build_saved_app_run_detail_layer(i18n, detail).map(map_message));
         }
 
-        if state.video_edit.open {
-            layers.push(video_edit::modal(i18n, state).map(map_message));
-        }
         return stack(layers).width(Length::Fill).height(Length::Fill).into();
     }
 
@@ -345,9 +341,6 @@ pub fn view<'a, M: Clone + Send + 'static>(
         layers.push(start_panel::build_start_variable_editor_modal(i18n, state, map_message, ignored_message));
     }
 
-    if state.video_edit.open {
-        layers.push(video_edit::modal(i18n, state).map(map_message));
-    }
     stack(layers).width(Length::Fill).height(Length::Fill).into()
 }
 

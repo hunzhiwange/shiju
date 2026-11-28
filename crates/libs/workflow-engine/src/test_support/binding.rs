@@ -7,7 +7,7 @@ pub fn binding_fixture(tenant: vw_api_transport::TenantScope) -> tempfile::TempD
         json!({
             "platform_id":tenant.platform_id().as_ref(),
             "company_id":tenant.company_id().as_ref(),
-            "commands":[{"command":"/shiju 剪辑","workflow_file":"preview.yaml","inputs":{}}]
+            "commands":[{"command":"/shiju 摘要","workflow_file":"preview.yaml","inputs":{}}]
         })
         .to_string(),
     )

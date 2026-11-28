@@ -471,4 +471,4 @@ pub async fn background_approval_options<H: crate::stream_host::StreamHost>() ->
 }
 
 mod projections;
-pub use projections::{video_template_ledger, task_agent_defaults, resumed_profile_selection};
+pub use projections::{task_agent_defaults, resumed_profile_selection};

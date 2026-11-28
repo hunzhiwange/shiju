@@ -1,7 +1,6 @@
 //! 工作流应用级消息处理，负责应用元数据编辑和工作流文件生命周期操作。
 
 use super::*;
-use vw_api_workflow::is_builtin_workflow_uuid;
 
 /// 构建或更新 handle 相关行为。
 ///
@@ -15,14 +14,13 @@ pub(crate) fn handle(app: &mut Context<'_>, message: WorkflowMessage) -> Option<
             app.workflow_state.begin_saved_apps_load();
             load_saved_apps_task(app)
         }
-        WorkflowMessage::OpenSavedApp(uuid) => {
-            if uuid == super::video_edit::TEMPLATE_ID {
-                if app.workflow_state.select_app_by_local_uuid(&uuid) {
-                    sync_top_tab(app);
-                    return Some(Task::none());
-                }
-                return Some(super::video_edit::load_template(app, true));
+        WorkflowMessage::ScopedSavedAppsLoaded { tenant, result } => {
+            if tenant == app.tenant {
+                app.workflow_state.finish_saved_apps_load(result);
             }
+            Task::none()
+        }
+        WorkflowMessage::OpenSavedApp(uuid) => {
             if app.workflow_state.select_app_by_local_uuid(&uuid) {
                 sync_top_tab(app);
                 return Some(Task::none());
@@ -61,16 +59,10 @@ pub(crate) fn handle(app: &mut Context<'_>, message: WorkflowMessage) -> Option<
             ])
         }
         WorkflowMessage::RequestDeleteSavedApp(uuid) => {
-            if is_builtin_workflow_uuid(&uuid) {
-                return Some(app.show_error_toast("内置工作流不可删除"));
-            }
             app.workflow_state.open_saved_app_delete_confirm(uuid);
             Task::none()
         }
         WorkflowMessage::DeleteSavedApp(uuid) => {
-            if is_builtin_workflow_uuid(&uuid) {
-                return Some(app.show_error_toast("内置工作流不可删除"));
-            }
             app.workflow_state.begin_saved_app_delete(uuid.clone());
             delete_saved_app_task(app, uuid)
         }

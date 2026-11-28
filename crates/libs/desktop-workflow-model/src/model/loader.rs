@@ -8,13 +8,6 @@ pub fn load_document_from_value(
     source_path: Option<String>,
     raw_root: Value,
 ) -> Result<LoadedWorkflow, desktop_i18n::workflow::Feedback> {
-    if let Some(options) = raw_root.get("workflow").and_then(|w| w.get("video_edit")) {
-        serde_yaml::from_value::<vw_api_workflow::VideoEditTemplateOptions>(options.clone())
-            .map_err(|error| desktop_i18n::workflow::Feedback::new("视频剪辑并发必须为 1..5: %s", vec![error.to_string()]))?;
-    }
-    if raw_root.get("workflow").and_then(|w| w.get("video_edit")).is_some() {
-        validate_video_iteration_limits(&raw_root)?;
-    }
     let parsed: DifyWorkflowFile = serde_yaml::from_value(raw_root.clone()).map_err(|error| {
         desktop_i18n::workflow::Feedback::new("解析 Dify DSL 失败: %s", vec![error.to_string()])
     })?;
@@ -473,31 +466,4 @@ pub(super) fn workflow_conversation_variable_from_dify(
         description: variable.description.trim().to_string(),
         raw_variable,
     }
-}
-
-fn validate_video_iteration_limits(
-    value: &Value,
-) -> Result<(), desktop_i18n::workflow::Feedback> {
-    match value {
-        Value::Mapping(map) => {
-            if map.get("type").and_then(Value::as_str) == Some("iteration")
-                && let Some(limit) = map.get("max_parallel")
-                    && !limit.as_u64().is_some_and(|n| (1..=5).contains(&n)) {
-                        return Err(desktop_i18n::workflow::Feedback::new(
-                            "视频分段并发必须为 1..5",
-                            vec![],
-                        ));
-                    }
-            for value in map.values() {
-                validate_video_iteration_limits(value)?;
-            }
-        }
-        Value::Sequence(values) => {
-            for value in values {
-                validate_video_iteration_limits(value)?;
-            }
-        }
-        _ => {}
-    }
-    Ok(())
 }

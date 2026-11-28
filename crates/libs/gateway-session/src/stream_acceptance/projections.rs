@@ -1,22 +1,5 @@
 use super::*;
 
-pub fn video_template_ledger(rows: &[String], a: &std::path::Path, b: &std::path::Path, initial_digest: &str, edited_digest: &str) {
-    let runs = rows
-        .iter()
-        .map(|r| serde_json::from_str::<serde_json::Value>(r).unwrap())
-        .collect::<Vec<_>>();
-    assert!(
-        runs.iter()
-            .any(|r| r["source"]["path"] == a.canonicalize().unwrap().to_string_lossy().as_ref()
-                && r["template_sha256"] == initial_digest)
-    );
-    assert!(
-        runs.iter()
-            .any(|r| r["source"]["path"] == b.canonicalize().unwrap().to_string_lossy().as_ref()
-                && r["template_sha256"] == edited_digest)
-    );
-}
-
 pub fn task_agent_defaults(agent: &str, resolved: &DelegateRequestOverrides, request: &GatewayChatStreamRequest, binding: &session_engine::agent_binding::AgentBinding) {
     assert_eq!(resolved.agent.as_deref(), Some(agent));
     assert_eq!(binding.agent, agent);

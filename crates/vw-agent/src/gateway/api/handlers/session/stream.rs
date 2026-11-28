@@ -407,5 +407,3 @@ pub(crate) async fn chat_stream_stop(
 #[cfg(test)]
 #[path = "stream_tests.rs"]
 mod stream_tests;
-#[cfg(test)]
-pub(crate) use stream_tests::collect_video_edit_test_stream;

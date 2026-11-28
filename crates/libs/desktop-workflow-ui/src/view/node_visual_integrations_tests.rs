@@ -70,7 +70,7 @@ fn workflow_state_with_active_app(
 
     WorkflowState {
         tenant_drafts: Default::default(),
-        video_edit: Default::default(),
+        active_tenant: None,
         apps: vec![WorkflowAppEntry {
             id: "app_1".to_string(),
             local_uuid: None,

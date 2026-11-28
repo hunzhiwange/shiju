@@ -83,13 +83,6 @@ pub trait RunnerHost:
     ) -> Vec<Skill>;
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn run_video_command(
-        req: &Request<Self>,
-        ctx: &ToolRuntimeContext<Self::CtxHost>,
-        skills: &[Skill],
-        sink: &mut (impl FnMut(StreamEvent) -> bool + Send),
-    ) -> bool;
-    #[cfg(not(target_arch = "wasm32"))]
     fn run_bound_command(
         req: &Request<Self>,
         ctx: &ToolRuntimeContext<Self::CtxHost>,

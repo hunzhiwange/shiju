@@ -3,7 +3,7 @@
 use axum::{
     Json, Router,
     extract::{Extension, Path, State},
-    http::{HeaderMap, StatusCode},
+    http::StatusCode,
     response::{
         IntoResponse, Response, Sse,
         sse::{Event, KeepAlive},
@@ -33,7 +33,6 @@ use vw_api_workflow::{
 use gateway_types::ApiError;
 
 use agent_database::GlobalDatabase;
-use workflow_core::templates::{self, VIDEO_EDIT_TEMPLATE_UUID, VideoEditTemplateSeed};
 use workflow_engine::{
     WorkflowNodeDeltaEvent, WorkflowNodeStartedEvent, WorkflowRunEvent, WorkflowRuntime,
     resume_workflow, run_workflow,
@@ -70,7 +69,6 @@ where
             "/workflow/applications",
             get(workflow_applications_list).post(workflow_application_create),
         )
-        .route("/workflow/applications/{uuid}/restore-default", post(workflow_template_restore))
         .route(
             "/workflow/applications/{uuid}",
             get(workflow_application_get)
@@ -317,14 +315,8 @@ pub(super) async fn workflow_resume<S: Clone + Send + Sync + 'static>(
 
 pub(super) async fn workflow_applications_list(
     Extension(tenant): Extension<TenantScope>,
-    seed: Option<Extension<VideoEditTemplateSeed>>,
 ) -> Result<Json<Vec<WorkflowRecordSummary>>, ApiError> {
     let database = workflow_database()?;
-    let seed = match seed {
-        Some(Extension(seed)) => seed,
-        None => VideoEditTemplateSeed::production().map_err(workflow_store_error)?,
-    };
-    seed.load(database.clone(), tenant.clone()).await.map_err(workflow_store_error)?;
     let records = workflow_core::store::list_records(database, tenant).await.map_err(workflow_store_error)?;
     Ok(Json(records))
 }
@@ -332,16 +324,8 @@ pub(super) async fn workflow_applications_list(
 pub(super) async fn workflow_application_get(
     Extension(tenant): Extension<TenantScope>,
     Path(uuid): Path<String>,
-    seed: Option<Extension<VideoEditTemplateSeed>>,
 ) -> Result<Json<WorkflowRecord>, ApiError> {
     let database = workflow_database()?;
-    if uuid == VIDEO_EDIT_TEMPLATE_UUID {
-        let seed = match seed {
-            Some(Extension(seed)) => seed,
-            None => VideoEditTemplateSeed::production().map_err(workflow_store_error)?,
-        };
-        seed.load(database.clone(), tenant.clone()).await.map_err(workflow_store_error)?;
-    }
     let record = workflow_core::store::get_record(database, tenant, uuid).await.map_err(workflow_store_error)?;
     Ok(Json(record))
 }
@@ -357,63 +341,12 @@ pub(super) async fn workflow_application_create(
 pub(super) async fn workflow_application_update(
     Extension(tenant): Extension<TenantScope>,
     Path(uuid): Path<String>,
-    headers: HeaderMap,
     Json(body): Json<WorkflowRecordUpsertBody>,
 ) -> Result<Json<WorkflowRecord>, ApiError> {
-    let record = if uuid == VIDEO_EDIT_TEMPLATE_UUID {
-        templates::save_template(
-            workflow_database()?,
-            tenant,
-            body,
-            template_expected_version(&headers)?,
-        )
-        .await.map_err(workflow_store_error)?
-    } else {
-        workflow_core::store::update_record(workflow_database()?, tenant, uuid, body).await.map_err(workflow_store_error)?
-    };
+    let record = workflow_core::store::update_record(workflow_database()?, tenant, uuid, body)
+        .await
+        .map_err(workflow_store_error)?;
     Ok(Json(record))
-}
-
-/// 系统模板更新使用读取结果中的 updated_at_ms，缺少版本时拒绝写入。
-pub(super) fn template_expected_version(headers: &HeaderMap) -> Result<u64, ApiError> {
-    headers
-        .get("x-workflow-expected-updated-at-ms")
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.parse().ok())
-        .ok_or_else(|| {
-            ApiError::bad_request("系统模板保存需要 x-workflow-expected-updated-at-ms 版本")
-        })
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(super) struct RestoreTemplateRequest {
-    pub(super) confirmed: bool,
-}
-
-pub(super) async fn workflow_template_restore(
-    Extension(tenant): Extension<TenantScope>,
-    seed: Option<Extension<VideoEditTemplateSeed>>,
-    Path(uuid): Path<String>,
-    headers: HeaderMap,
-    Json(body): Json<RestoreTemplateRequest>,
-) -> Result<Json<WorkflowRecord>, ApiError> {
-    if uuid != VIDEO_EDIT_TEMPLATE_UUID {
-        return Err(ApiError::bad_request("该工作流不是内置入口模板"));
-    }
-    let seed = match seed {
-        Some(Extension(seed)) => seed,
-        None => VideoEditTemplateSeed::production().map_err(workflow_store_error)?,
-    };
-    Ok(Json(
-        seed.restore(
-            workflow_database()?,
-            tenant,
-            template_expected_version(&headers)?,
-            body.confirmed,
-        )
-        .await.map_err(workflow_store_error)?,
-    ))
 }
 
 pub(super) async fn workflow_application_delete(
@@ -483,9 +416,6 @@ pub(super) async fn hydrate_workflow_yaml_from_uuid(
         return Ok(());
     };
     if body.workflow_yaml.is_some() {
-        if uuid == VIDEO_EDIT_TEMPLATE_UUID {
-            return Err(ApiError::bad_request("系统入口模板不允许内联 YAML 覆盖租户记录"));
-        }
         return Ok(());
     }
 
@@ -1075,7 +1005,6 @@ fn workflow_store_error(error: workflow_core::store::WorkflowStoreError) -> ApiE
         let status = match &error {
             WorkflowStoreError::Invalid(_) => StatusCode::BAD_REQUEST,
             WorkflowStoreError::NotFound(_) => StatusCode::NOT_FOUND,
-            WorkflowStoreError::Conflict(_) => StatusCode::CONFLICT,
             WorkflowStoreError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         ApiError { status, message: error.to_string() }

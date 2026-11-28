@@ -55,44 +55,6 @@ impl GatewayWorkflowClient {
         self.transport.put_json(&workflow_application_path(uuid)?, &[], body).await
     }
 
-    /// Save the tenant template only if the version opened by the user still exists.
-    pub async fn workflow_template_update(
-        &self,
-        uuid: &str,
-        body: &WorkflowRecordUpsertBody,
-        expected_updated_at_ms: u64,
-    ) -> Result<WorkflowRecord, String> {
-        let path = workflow_application_path(uuid)?;
-        let request = self.transport.client()
-            .put(format!("{}{}", self.transport.endpoint().base_url(), path))
-            .header("x-workflow-expected-updated-at-ms", expected_updated_at_ms)
-            .json(body);
-        let response = gateway_http::apply_request_context(request, self.transport.endpoint())
-            .send()
-            .await
-            .map_err(|e| gateway_http::transport_error("PUT", self.transport.endpoint(), &path, e))?;
-        gateway_http::parse_json_response("PUT", self.transport.endpoint(), &path, response).await
-    }
-
-    /// Explicitly restore the seed using the version shown in the editor.
-    pub async fn workflow_template_restore(
-        &self,
-        uuid: &str,
-        expected_updated_at_ms: u64,
-        confirmed: bool,
-    ) -> Result<WorkflowRecord, String> {
-        let path = format!("{}/restore-default", workflow_application_path(uuid)?);
-        let request = self.transport.client()
-            .post(format!("{}{}", self.transport.endpoint().base_url(), path))
-            .header("x-workflow-expected-updated-at-ms", expected_updated_at_ms)
-            .json(&serde_json::json!({"confirmed": confirmed}));
-        let response = gateway_http::apply_request_context(request, self.transport.endpoint())
-            .send()
-            .await
-            .map_err(|e| gateway_http::transport_error("POST", self.transport.endpoint(), &path, e))?;
-        gateway_http::parse_json_response("POST", self.transport.endpoint(), &path, response).await
-    }
-
     /// 删除本地 Dify Workflow。
     pub async fn workflow_application_delete(
         &self,

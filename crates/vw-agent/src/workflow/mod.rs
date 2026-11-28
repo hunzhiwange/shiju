@@ -19,12 +19,4 @@ pub use runner::{
 // 运行器集成测试随实现归 workflow-engine。
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod video_edit;
-
-#[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod store;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod templates;
-
-#[path = "video_edit/budget.rs"]
-pub mod budget;

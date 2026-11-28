@@ -1,9 +1,8 @@
 //! 原生工作流命令绑定、执行与类型化生命周期。
 use crate::{WorkflowRunEvent, WorkflowRuntime, run_workflow_with_events};
-use crate::native_video_progress as video_progress;
 use serde::Deserialize;
 use serde_json::{Value, json};
-use std::{collections::BTreeMap, path::{Path, PathBuf}, sync::Arc};
+use std::{collections::BTreeMap, path::{Path, PathBuf}};
 use session_port::{ToolEvent, ToolEventKind, ToolCallStatus};
 use tokio_util::sync::CancellationToken;
 use vw_api_workflow::{WorkflowRunRequest, WorkflowRunStatus};
@@ -199,46 +198,26 @@ pub async fn run_command<H: NativeCommandHost>(
     request: BoundCommandRequest<'_>,
     cancellation: CancellationToken,
     emit: &mut (impl FnMut(H::Event) -> bool + Send),
-    prepared: Option<(WorkflowRuntime, WorkflowRunRequest)>,
 ) -> bool {
-    let video_run = prepared.is_some();
-    let (prepared_runtime, workflow_request) = match prepared {
-        Some((runtime, request)) => (Some(runtime), request),
-        None => (
-            None,
-            match bound_request(request) {
-                Ok(Some(request)) => request,
-                Ok(None) => return false,
-                Err(error) => {
-                    emit(H::event(CommandEvent::Error(error)));
-                    return true;
-                }
-            },
-        ),
+    let workflow_request = match bound_request(request) {
+        Ok(Some(request)) => request,
+        Ok(None) => return false,
+        Err(error) => {
+            emit(H::event(CommandEvent::Error(error)));
+            return true;
+        }
     };
     if cancellation.is_cancelled() {
         emit(H::event(CommandEvent::Error("cancelled".into())));
         return true;
     }
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-    let runtime = prepared_runtime.unwrap_or_else(|| host.default_runtime(tx.clone(), cancellation.clone()));
+    let runtime = host.default_runtime(tx.clone(), cancellation.clone());
     if !emit(H::event(CommandEvent::StepStart(H::now_ms()))) { return true; }
-    let video_budget = runtime.video_edit_budget.clone();
-    let progress = Arc::new(std::sync::Mutex::new(video_progress::Progress::new(
-        workflow_request.workflow_yaml.as_deref().unwrap_or_default(),
-    )));
     let result = async {
         let events = tx.clone();
         let mut run_id = String::new();
-        let updates = progress.clone();
-        let budget = video_budget.clone();
         let run = run_workflow_with_events(runtime, workflow_request, move |event| {
-            if video_run && let Ok(mut progress) = updates.lock() {
-                progress.observe(&event);
-                if let Some(event) = progress.event_changed(&budget, H::now_ms) {
-                    let _ = events.send(H::event(CommandEvent::Tool(event)));
-                }
-            }
             if let WorkflowRunEvent::WorkflowStarted { run_id: id } = event {
                 run_id = id;
             } else if let Some(event) = node_event(&run_id, event, H::now_ms) {
@@ -246,7 +225,6 @@ pub async fn run_command<H: NativeCommandHost>(
             }
         });
         tokio::pin!(run);
-        let mut tick = tokio::time::interval(std::time::Duration::from_millis(250));
         loop {
             tokio::select! {
                 result = &mut run => {
@@ -258,26 +236,10 @@ pub async fn run_command<H: NativeCommandHost>(
                 Some(event) = rx.recv() => {
                     if !emit(event) { cancellation.cancel(); return Err("cancelled".to_string()) }
                 }
-                _ = tick.tick(), if video_run => {
-                    if let Ok(mut progress) = progress.lock() && progress.ready()
-                        && let Some(event) = progress.event_changed(&video_budget, H::now_ms) && !emit(H::event(CommandEvent::Tool(event))) { cancellation.cancel(); return Err("cancelled".into()); }
-                }
                 _ = cancellation.cancelled() => return Err("cancelled".to_string()),
             }
         }
     }.await;
-    if video_run
-        && let Ok(mut progress) = progress.lock()
-        && progress.ready()
-    {
-        progress.finish(
-            result.as_ref().is_ok_and(|r| r.status == WorkflowRunStatus::Succeeded),
-            cancellation.is_cancelled(),
-        );
-        if let Some(event) = progress.event_changed(&video_budget, H::now_ms) {
-            emit(H::event(CommandEvent::Tool(event)));
-        }
-    }
     match result {
         Ok(response) if response.status == WorkflowRunStatus::Succeeded => {
             emit(H::event(CommandEvent::StepFinish(H::now_ms())));

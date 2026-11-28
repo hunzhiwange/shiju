@@ -5,7 +5,6 @@ use crate::stream_runtime_acceptance_host::RuntimeAcceptanceHost;
 use axum::{Json, Extension, extract::Query, http::{HeaderMap, StatusCode}, response::IntoResponse};
 use gateway_instance::host::InstanceQuery;
 use gateway_resumable_stream::STREAM_REQUEST_ID_HEADER;
-use serde_json::Value;
 
 pub async fn codex_skills_defaults_gateway_main_and_child_preload_before_first_request<H: RuntimeAcceptanceHost>() {
     tokio::task::spawn_blocking(move || {
@@ -282,32 +281,6 @@ pub async fn agcollab_delivery_reaches_next_model_request<H: RuntimeAcceptanceHo
 
     }).await.unwrap();
 }
-pub async fn video_edit_entry_gateway_explicit_unavailable_model_does_not_start_graph<H: RuntimeAcceptanceHost>() {
-
-    let _env = H::env_lock().lock().await;
-    let _fixture = H::recovery(
-        "https://example.test/v1",
-        None,
-    )
-    .await;
-    let root = tempfile::tempdir().unwrap();
-    let request = GatewayChatStreamRequest {
-        messages: vec![serde_json::json!({"role":"user","content":"/shiju 剪辑 missing.mp4"})],
-        model: Some("missing-provider/missing-model".into()),
-        ..Default::default()
-    };
-    let mut events = Vec::new();
-    let result = collect_gateway_chat_stream_with_observer::<H>(
-        root.path().to_string_lossy().into(),
-        request,
-        |e| events.push(e.clone()),
-    )
-    .await;
-    assert!(result.is_err());
-    assert!(!events.iter().any(|e| e["type"] == "chat.done"));
-    assert!(!root.path().join(".shiju/workflow_commands.json").exists());
-}
-
 pub async fn agent_native_defaults_reach_registered_tools_and_prompt<H: RuntimeAcceptanceHost>(mcp_fixture: &'static str) {
     tokio::task::spawn_blocking(move || {
 
@@ -451,53 +424,3 @@ mod identity;
 pub use identity::profile_edit_stream;
 
 pub use recovery::gateway_chat_git_line_counts;
-
-/// Check the observed real workflow stream against its persisted UI projection.
-pub fn video_edit_progress_and_snapshot(
-    collected: &GatewayChatStreamCollected,
-    events: &[Value],
-    project: &std::path::Path,
-    directory: &str,
-    tenant: &vw_api_transport::TenantScope,
-    session: &str,
-    expected_digest: &str,
-) {
-        assert!(
-            collected.output.contains("https://external.invalid/s/test-preview"),
-            "{}",
-            collected.output
-        );
-        assert_eq!(events.last().unwrap()["type"], "chat.done");
-        let progress = events
-            .iter()
-            .filter_map(|e| e.get("payload")?.get("metadata")?.get("video_edit_progress"))
-            .collect::<Vec<_>>();
-        assert!(!progress.is_empty(), "native progress must reach the real chat channel");
-        let last = progress.last().unwrap();
-        assert_eq!(last["stage"], "预览完成");
-        assert!(last["total"].as_u64().unwrap() > 0);
-        assert_eq!(last["completed"], last["total"]);
-        assert_eq!(last["failed"], 0);
-        assert_eq!(
-            last["template_sha256"],
-            expected_digest
-        );
-        assert!(last["peak"].as_u64().unwrap() <= 5);
-
-        assert!(!project.join(".shiju/workflow_commands.json").exists());
-        let scope = session_store::ui_store::resolve_session_scope_id_for_tenant(
-            tenant,
-            Some(directory),
-            None,
-        )
-        .unwrap();
-        let stored = session_store::ui_store::load_session_scoped_for_tenant(
-            tenant,
-            session,
-            Some(&scope),
-        )
-        .unwrap();
-        assert_eq!(stored.steps[0].finish_reason.as_deref(), Some("workflow"));
-        assert!(stored.steps[0].tool_timings.len() >= 10, "real graph nodes must be visible");
-        assert!(stored.messages.last().unwrap().content.contains("test-preview"));
-}

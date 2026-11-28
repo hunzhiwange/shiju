@@ -8,6 +8,8 @@ use vw_api_workflow::{WorkflowRecord, WorkflowRecordSummary, WorkflowRecordUpser
 
 use agent_database::GlobalDatabase;
 
+use super::{MIGRATION_SCHEMA, RETIRE_BUILTIN_WORKFLOW, RETIRE_BUILTIN_WORKFLOW_PENDING};
+
 const WORKFLOW_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS workflow_workflows (
     platform_id TEXT NOT NULL,
@@ -36,6 +38,14 @@ impl PostgresWorkflowStore {
             transaction
                 .batch_execute(WORKFLOW_SCHEMA)
                 .context("initialize PostgreSQL workflow schema")?;
+            transaction.batch_execute(MIGRATION_SCHEMA)?;
+            let pending: bool =
+                transaction.query_one(RETIRE_BUILTIN_WORKFLOW_PENDING, &[])?.get(0);
+            if pending {
+                transaction
+                    .batch_execute(RETIRE_BUILTIN_WORKFLOW)
+                    .context("retire the built-in workflow from PostgreSQL")?;
+            }
             Ok(())
         })?;
         Ok(Self { database })
@@ -120,61 +130,6 @@ impl PostgresWorkflowStore {
             bail!("PostgreSQL workflow upsert affected an unexpected row count");
         }
         query_record(&mut *connection, tenant, uuid)
-    }
-
-    /// 初始化只插入缺失记录；编辑通过数据库版本条件拒绝过期写入。
-    pub(super) fn write_template_record(
-        &self,
-        tenant: &TenantScope,
-        uuid: &str,
-        body: &WorkflowRecordUpsertBody,
-        now_ms: u64,
-        expected_updated_at_ms: Option<u64>,
-    ) -> Result<Option<WorkflowRecord>> {
-        let mut connection = self.database.connect_postgres()?;
-        let mut transaction = connection.transaction()?;
-        let now = i64::try_from(now_ms).unwrap_or(i64::MAX);
-        if let Some(version) = expected_updated_at_ms {
-            let version = i64::try_from(version)?;
-            let changed = transaction.execute(
-                "UPDATE workflow_workflows SET name = $4, description = $5,
-                 workflow_yaml = $6, updated_at_ms = GREATEST($7, updated_at_ms + 1)
-                 WHERE platform_id = $1 AND company_id = $2 AND uuid = $3
-                   AND updated_at_ms = $8",
-                &[
-                    &tenant.platform_id().as_ref(),
-                    &tenant.company_id().as_ref(),
-                    &uuid,
-                    &body.name.trim(),
-                    &body.description.trim(),
-                    &body.workflow_yaml,
-                    &now,
-                    &version,
-                ],
-            )?;
-            if changed != 1 {
-                return Ok(None);
-            }
-        } else {
-            transaction.execute(
-                "INSERT INTO workflow_workflows
-                 (platform_id, company_id, uuid, name, description, workflow_yaml,
-                  created_at_ms, updated_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
-                 ON CONFLICT(platform_id, company_id, uuid) DO NOTHING",
-                &[
-                    &tenant.platform_id().as_ref(),
-                    &tenant.company_id().as_ref(),
-                    &uuid,
-                    &body.name.trim(),
-                    &body.description.trim(),
-                    &body.workflow_yaml,
-                    &now,
-                ],
-            )?;
-        }
-        let record = query_record(&mut transaction, tenant, uuid)?;
-        transaction.commit()?;
-        Ok(record)
     }
 
     /// 删除租户内单条工作流并返回是否删除。

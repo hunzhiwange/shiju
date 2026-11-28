@@ -6,13 +6,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-pub const VIDEO_EDIT_TEMPLATE_UUID: &str = "16cbb033-b312-48b6-9bfc-91c87391b167";
-
-/// 按程序保留的 UUID 识别内置工作流。
-pub fn is_builtin_workflow_uuid(uuid: &str) -> bool {
-    matches!(uuid, VIDEO_EDIT_TEMPLATE_UUID)
-}
-
 fn default_workflow_max_steps() -> u32 {
     200
 }
@@ -170,65 +163,4 @@ pub struct WorkflowRecordUpsertBody {
 pub struct WorkflowRecordDeleteResponse {
     pub uuid: String,
     pub deleted: bool,
-}
-
-/// User-editable options stored at `workflow.video_edit` in the template.
-/// Missing max_parallel still means a shared budget of five operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct VideoEditTemplateOptions {
-    #[serde(deserialize_with = "deserialize_video_edit_max_parallel")]
-    max_parallel: u8,
-}
-
-impl Default for VideoEditTemplateOptions {
-    fn default() -> Self {
-        Self { max_parallel: 5 }
-    }
-}
-
-impl VideoEditTemplateOptions {
-    pub fn new(max_parallel: u8) -> Result<Self, String> {
-        if !(1..=5).contains(&max_parallel) {
-            return Err("video_edit.max_parallel must be between 1 and 5".into());
-        }
-        Ok(Self { max_parallel })
-    }
-
-    pub fn max_parallel(&self) -> u8 {
-        self.max_parallel
-    }
-}
-
-fn deserialize_video_edit_max_parallel<'de, D>(deserializer: D) -> Result<u8, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let value = u8::deserialize(deserializer)?;
-    VideoEditTemplateOptions::new(value).map_err(serde::de::Error::custom)?;
-    Ok(value)
-}
-
-#[cfg(test)]
-#[path = "workflow_video_tests.rs"]
-mod workflow_video_tests;
-
-/// Sanitized native video progress; never contains tool input, credentials or signed URLs.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct VideoEditProgress {
-    pub run_id: String,
-    pub sequence: u64,
-    pub stage: String,
-    pub total: usize,
-    pub queued: usize,
-    pub running: usize,
-    pub completed: usize,
-    pub failed: usize,
-    pub peak: usize,
-    pub limit: usize,
-    pub template_sha256: String,
-    pub jobs_queued: usize,
-    pub jobs_running: usize,
-    pub jobs_completed: usize,
-    pub jobs_failed: usize,
 }

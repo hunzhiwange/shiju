@@ -11,6 +11,7 @@ use desktop_workflow_model::{
 use iced::{Point, Vector, widget::text_editor};
 use serde_yaml::{Mapping, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};
+use vw_api_transport::TenantScope;
 
 mod app_ui;
 mod canvas_ops;
@@ -33,7 +34,6 @@ mod start_variable_drafts;
 mod start_variable_validation;
 mod variable_types;
 mod variables;
-pub mod video_edit;
 mod visual_sync;
 mod yaml_helpers;
 
@@ -110,8 +110,8 @@ pub use crate::app_ui::{WorkflowCanvasContextMenu, WorkflowCanvasContextMenuTarg
 
 #[derive(Debug, Default)]
 pub struct WorkflowState {
-    pub tenant_drafts: HashMap<vw_api_transport::TenantScope, Box<WorkflowState>>,
-    pub video_edit: video_edit::VideoEditUiState,
+    pub tenant_drafts: HashMap<TenantScope, Box<WorkflowState>>,
+    pub active_tenant: Option<TenantScope>,
     pub apps: Vec<WorkflowAppEntry>,
     pub active_app_id: Option<String>,
     pub saved_apps: Vec<WorkflowSavedAppSummary>,
@@ -168,4 +168,23 @@ pub struct WorkflowState {
     pub localized_status: Option<desktop_i18n::format::Message>,
     pub error_message: Option<String>,
     pub localized_error: Option<desktop_i18n::workflow::Feedback>,
+}
+
+impl WorkflowState {
+    /// Swap tenant-owned drafts without carrying an active run subscription across tenants.
+    pub fn select_tenant(&mut self, tenant: TenantScope) {
+        if let Some(previous_tenant) =
+            self.active_tenant.clone().filter(|current| current != &tenant)
+        {
+            let mut drafts = std::mem::take(&mut self.tenant_drafts);
+            let mut previous = std::mem::take(self);
+            previous.running_saved_app_uuid = None;
+            previous.saved_apps_loading = false;
+            previous.opening_saved_app_uuid = None;
+            drafts.insert(previous_tenant, Box::new(previous));
+            *self = drafts.remove(&tenant).map(|draft| *draft).unwrap_or_default();
+            self.tenant_drafts = drafts;
+        }
+        self.active_tenant = Some(tenant);
+    }
 }

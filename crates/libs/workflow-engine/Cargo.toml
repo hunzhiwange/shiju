@@ -17,7 +17,6 @@ futures-util = "0.3.32"
 async-trait = "0.1.89"
 model-types = { path = "../model-types" }
 vw-api-workflow = { path = "../api-workflow" }
-workflow-video-edit = { path = "../workflow-video-edit" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
@@ -32,8 +31,6 @@ tokio-util = { version = "0.7.18", features = ["compat"] }
 tool-types = { path = "../tool-types" }
 vw-api-transport = { path = "../api-transport" }
 session-port = { path = "../session-port" }
-sha2 = "0.11"
-hex = "0.4"
 axum = { version = "0.8.8", features = ["json"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "socks", "gzip", "brotli", "deflate", "zstd", "http2", "rustls"] }
 tempfile = "3"

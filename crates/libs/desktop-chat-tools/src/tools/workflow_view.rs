@@ -390,11 +390,8 @@ pub fn tool_workflow_view<'a>(
     let status = tool_status(&value);
     let state = workflow_node_state(status);
     let visual = tool_visual_state(status);
-    let video_progress = video_edit_summary(i18n, &value);
     let plan_run_card = plan_run_card_display(i18n, &value);
-    let (title, summary) = if let Some(summary) = video_progress {
-        (i18n.__("单视频运行，最多五路").to_owned(), summary)
-    } else if let Some(display) = &plan_run_card {
+    let (title, summary) = if let Some(display) = &plan_run_card {
         (display.primary_text.clone(), display.summary_text.clone())
     } else {
         let title = metadata_string(&value, "title");
@@ -463,21 +460,6 @@ pub fn workflow_node_detail_body(i18n: desktop_i18n::I18n, value: &Value) -> Str
 #[cfg(test)]
 #[path = "workflow_view_tests.rs"]
 mod tests;
-
-fn video_edit_summary(i18n: desktop_i18n::I18n, value: &Value) -> Option<String> {
-    let p: vw_api_workflow::VideoEditProgress =
-        serde_json::from_value(metadata_value(value, "video_edit_progress")?.clone()).ok()?;
-    Some(i18n.format(
-        "%s · 分段 %u · 排队 %u / 运行 %u / 完成 %u / 失败 %u · 峰值 %u/%u\n素材：排队 %u / 运行 %u / 完成 %u / 失败 %u\n本轮模板 %s",
-        &[p.stage.as_str().into(), p.total.into(), p.queued.into(), p.running.into(),
-          p.completed.into(), p.failed.into(), p.peak.into(), p.limit.into(),
-          p.jobs_queued.into(), p.jobs_running.into(), p.jobs_completed.into(),
-          p.jobs_failed.into(), p.template_sha256.as_str().into()],
-    ).expect("valid video progress template"))
-}
-#[cfg(test)]
-#[path = "video_edit_tests.rs"]
-mod video_edit_tests;
 
 fn copy_tooltip_content(label: &'static str) -> Element<'static, Message> {
     container(text(label).size(11))

@@ -99,9 +99,6 @@ impl agent_gateway::publication_context::PublicationHost for Publication {
         let snapshot = load(&c.database, &c.project, &c.host, c.app, &c.home, &c.expected, provider)?;
         revision(&c.project, &c.host, c.app, &c.principal, &c.expected, &snapshot)
     }
-    fn publish_aggregation(&self, c: &agent_gateway::publication_context::PublicationContext, default: &str, policy: vw_agent_apps::aggregation::codex_publish::CatalogPolicy, row: &Value) -> Result<bool, axum::http::StatusCode> {
-        c.publish_aggregation(default, policy, row)
-    }
 }
 impl app_routing_services::lifecycle_host::AggregationLifecycleHost for Lifecycle {
     fn resume(&self, routing: Arc<RoutingListener>) -> Result<(), axum::http::StatusCode> {

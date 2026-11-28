@@ -38,7 +38,7 @@ fn ha_enable_publication_recovers_owned_plain_intent() {
         .unwrap();
         let expected = tx.state(AppId::Claude).unwrap();
         let scope = RouteScope { tenant: &tenant, host: "host", app: AppId::Claude };
-        let mut mode = ClaudeMode { file: &mut file, transactions: &tx, scope, runtime: None };
+        let mut mode = ClaudeMode { file: &mut file, transactions: &tx, scope };
         let target = json!({"env":{"ANTHROPIC_BASE_URL":"http://127.0.0.1:12345","ANTHROPIC_AUTH_TOKEN":"fixture-local-token"}});
         let action = ModeApplyAction::Proxy { provider_id: "route".into() };
         let _reset = ResetHook;

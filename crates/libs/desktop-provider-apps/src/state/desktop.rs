@@ -7,7 +7,6 @@ pub(crate) fn needs_account_id(endpoint: &str) -> bool {
 }
 #[derive(Clone)]
 pub struct Form {
-    pub aggregation: Option<crate::aggregation_desktop_types::Session>,
     pub id: String,
     pub mapping: DesktopMapping,
     pub new_route: String,
@@ -34,7 +33,6 @@ impl Form {
 
     pub fn new(id: String) -> Self {
         Self {
-            aggregation: None,
             id,
             new_route: String::new(),
             mapping: DesktopMapping {

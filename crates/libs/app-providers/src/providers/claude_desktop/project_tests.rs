@@ -1,8 +1,7 @@
 use super::{publication::*, *};
 use crate::providers::{
-    desktop_mapping::catalog::{DesktopMappingMember, DesktopModelCatalog},
+    desktop_mapping::catalog::DesktopModelCatalog,
     live::commit::{ExecutionHostId, HOOK, PendingTarget, Phase, ProviderTransactions},
-    mode_state::StackState,
 };
 use std::{fs, os::unix::fs::PermissionsExt};
 use {
@@ -46,15 +45,7 @@ fn aggregation_t46_desktop_project_publish_and_recovery() {
         )]
         .into(),
     };
-    let catalog = DesktopModelCatalog::new(
-        DesktopMappingMember {
-            provider_id: "alpha",
-            key: "alpha",
-            name: "Alpha",
-            mapping: &mapping,
-        },
-        &[],
-    )
+    let catalog = DesktopModelCatalog::new("alpha", &mapping)
     .unwrap();
     let gateway = ClaudeDesktopProfile {
         name: "Gateway".into(),
@@ -66,17 +57,12 @@ fn aggregation_t46_desktop_project_publish_and_recovery() {
     let target = || DesktopTarget::Route {
         gateway: &gateway,
         catalog: &catalog,
-        stack: Some(StackState {
-            enabled: true,
-            members: vec!["alpha".into()],
-            keys: [("alpha".into(), "alpha".into())].into(),
-        }),
     };
     run(home.path(), DesktopInstallation::Installed, &tx, &tenant, &before, target(), || true)
         .unwrap();
     let active = tx.state(app).unwrap();
     assert_eq!(active.project_scope.as_ref(), Some(&project));
-    assert!(active.stack.enabled);
+    assert!(!active.stack.enabled);
     HOOK.with_borrow_mut(|hook| {
         *hook =
             Some(Box::new(

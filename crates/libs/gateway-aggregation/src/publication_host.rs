@@ -1,11 +1,12 @@
-//! Narrow host actions used by aggregation HTTP transactions.
+//! Host actions for revision-checked provider publication.
+#[cfg(target_os = "macos")]
+use agent_database::GlobalDatabase;
 #[cfg(target_os = "macos")]
 use axum::http::{HeaderMap, StatusCode};
 #[cfg(target_os = "macos")]
 use vw_api_app_identity::AppId;
 #[cfg(target_os = "macos")]
 use vw_api_transport::{ProjectScope, TenantScope};
-use super::aggregation_codex_settings::SnapshotHost;
 #[cfg(target_os = "macos")]
 use vw_agent_apps::providers::live::commit::AppState;
 #[cfg(target_os = "macos")]
@@ -20,6 +21,19 @@ pub struct Publication {
     pub principal: String,
     pub revision: String,
 }
+/// Snapshot operations retain the single host signing key and storage snapshot owner.
+pub trait SnapshotHost: Clone + Send + Sync + 'static {
+    #[cfg(target_os = "macos")]
+    type Snapshot;
+    #[cfg(target_os = "macos")]
+    fn load(&self, db: &GlobalDatabase, project: &vw_api_transport::ProjectScope, host: &str,
+        app: AppId, home: &std::path::Path, state: &vw_agent_apps::providers::live::commit::AppState,
+        candidate: Option<&str>) -> Result<Self::Snapshot, StatusCode>;
+    #[cfg(target_os = "macos")]
+    fn revision(&self, project: &vw_api_transport::ProjectScope, host: &str, app: AppId,
+        principal: &str, state: &vw_agent_apps::providers::live::commit::AppState,
+        snapshot: &Self::Snapshot) -> Result<String, StatusCode>;
+}
 pub trait Host: SnapshotHost {
     type Routing: Clone + Send + Sync + 'static;
     #[cfg(target_os = "macos")]
@@ -27,13 +41,6 @@ pub trait Host: SnapshotHost {
     #[cfg(target_os = "macos")]
     fn authorize_mode(&self, control: &Self::Routing, headers: &HeaderMap,
         project: &ProjectScope, host: &str, app: AppId) -> Result<(std::path::PathBuf, String), StatusCode>;
-    #[cfg(target_os = "macos")]
-    fn project(&self, app: AppId, tenant: &TenantScope, state: &AppState,
-        snapshot: &Self::Snapshot, request: Option<&vw_api_app_aggregation::AggregationPreviewRequest>)
-        -> Result<vw_api_app_aggregation::AggregationPreview, StatusCode>;
-    #[cfg(target_os = "macos")]
-    fn publish_candidate(&self, publication: Publication, control: Self::Routing, candidate: &AppState)
-        -> Result<bool, StatusCode>;
     #[cfg(target_os = "macos")]
     fn sign(&self, bytes: &[u8]) -> Result<String, StatusCode>;
     #[cfg(target_os = "macos")]

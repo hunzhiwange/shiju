@@ -99,7 +99,7 @@ pub fn card<'a>(
         }
     }
     if form.create || form.direct_editable {
-        body = body.push(text(i18n.__("直连配置")).size(17)).push(settings_panel(direct));
+        body = body.push(text(i18n.__("直连配置")).size(17)).push(settings_divider()).push(settings_section_content(direct));
     }
     if form.mapping_editable {
         body = body.extend(mapping_fields(form, help));
@@ -142,7 +142,7 @@ pub fn card<'a>(
 pub fn mapping_fields<'a>(form: &'a Form, help: Help<'_>) -> Vec<Element<'a, Message>> {
     let i18n = help.i18n;
     if !form.mapping_editable { return vec![]; }
-    let active = !form.busy && form.aggregation.as_ref().is_none_or(|s| !s.running());
+    let active = !form.busy;
     let input = |label, value, event: fn(String) -> Event| {
         text_input(label, value)
             .padding(SETTINGS_CONTROL_PADDING)
@@ -156,13 +156,9 @@ pub fn mapping_fields<'a>(form: &'a Form, help: Help<'_>) -> Vec<Element<'a, Mes
             .style(rounded_action_btn_style)
             .on_press_maybe(enabled.then_some(message(event)))
     };
-    let mut config = column![
+    let config = column![
         checkbox(form.mapping.mode == DesktopMappingMode::Proxy)
-            .label(if form.aggregation.is_some() {
-                i18n.__("模型映射模式")
-            } else {
-                i18n.__("模型映射模式（仅保存目录，不启动代理）")
-            })
+            .label(i18n.__("模型映射模式（仅保存目录，不启动代理）"))
             .style(settings_checkbox_style)
             .on_toggle_maybe(active.then_some(|v| message(Event::Proxy(v)))),
         text(
@@ -172,15 +168,13 @@ pub fn mapping_fields<'a>(form: &'a Form, help: Help<'_>) -> Vec<Element<'a, Mes
         .style(settings_muted_text_style),
     ]
     .spacing(8);
-    if form.aggregation.is_none() {
-        config = config.push(action(i18n.__("载入默认路由"), Event::Defaults, active));
-    }
-    config = config
+    let config = config
+        .push(action(i18n.__("载入默认路由"), Event::Defaults, active))
         .push(help.field(i18n.__("添加模型路由"), i18n.__("由执行端校验标识兼容性")))
         .push(input("claude-sonnet-…", &form.new_route, Event::NewRoute))
         .push(action(i18n.__("添加模型"), Event::AddRoute, active && !form.new_route.is_empty()));
     let mut body: Vec<Element<'a, Message>> =
-        vec![text(i18n.__("模型路由")).size(17).into(), settings_panel(config).into()];
+        vec![text(i18n.__("模型路由")).size(17).into(), settings_section_content(config).into()];
     for (id, route) in &form.mapping.routes {
         let control = |label, value, event: fn(String, String) -> Event| {
             let id = id.clone();
@@ -191,8 +185,9 @@ pub fn mapping_fields<'a>(form: &'a Form, help: Help<'_>) -> Vec<Element<'a, Mes
                 .on_input_maybe(active.then_some(move |v| message(event(id.clone(), v))))
         };
         let one_id = id.clone();
+        body.push(settings_divider());
         body.push(
-            settings_panel(
+            settings_section_content(
                 column![
                     settings_field_label(id),
                     settings_field_label(i18n.__("实际请求模型")),

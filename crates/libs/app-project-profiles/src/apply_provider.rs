@@ -95,7 +95,7 @@ where
         }
         let after = switch(scope, id, &before)?;
         // A callback claiming success cannot disguise a mode change, an altered
-        // inactive pointer, a detached proxy, or a replaced aggregation stack.
+        // inactive pointer or a detached proxy.
         let inactive_preserved = match before.mode {
             ProviderMode::Direct => after.proxy_route == before.proxy_route,
             ProviderMode::Proxy => after.direct_provider == before.direct_provider,
@@ -103,7 +103,6 @@ where
         if !consistent(&after)
             || after.mode != before.mode
             || after.attached != before.attached
-            || after.stack != before.stack
             || !inactive_preserved
             || after.in_use_provider.as_deref() != Some(id)
         {

@@ -1,6 +1,6 @@
 //! Ordinary routing consumes the saved queue without changing its configuration.
 use super::{
-    aggregation_routing::AggregationTarget, dispatch::JsonTarget, route_auth::VerifiedRouteBinding,
+    route_target::RouteTarget, dispatch::JsonTarget, route_auth::VerifiedRouteBinding,
 };
 use app_settings_store::agent_apps_high_availability_store::FailoverQueueState;
 use axum::http::StatusCode;
@@ -18,8 +18,8 @@ pub struct FailoverPublication {
     pub revision: String,
     pub state: AppState,
     pub providers: Vec<ProviderSnapshot>,
-    pub default: AggregationTarget,
-    pub members: Vec<AggregationTarget>,
+    pub default: RouteTarget,
+    pub members: Vec<RouteTarget>,
 }
 
 impl FailoverPublication {

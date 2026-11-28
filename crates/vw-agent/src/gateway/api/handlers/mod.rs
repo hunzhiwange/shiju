@@ -242,8 +242,6 @@ pub(crate) mod app_routing;
 
 pub(crate) mod agent_apps;
 
-
-
 pub(crate) mod agent_apps_auth_read;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_read_tests;
@@ -254,21 +252,15 @@ mod agent_apps_auth_read_tests;
 
 // agent_apps_auth_default is owned by gateway-agent-apps.
 
-
 // agent_apps_auth_logout is owned by gateway-agent-apps.
 
 // agent_apps_auth_poll is owned by gateway-agent-apps.
 
-
 // agent_apps_auth_remove is owned by gateway-agent-apps.
-
 
 mod agent_apps_auth_start;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_start_tests;
-
-
-
 
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_acceptance_tests;
@@ -284,9 +276,7 @@ pub(crate) mod model_catalog;
 mod model_catalog_acceptance_tests;
 // Model catalog edits are composed inside gateway-model.
 
-
 // Discovery routes live in gateway-model; host integration tests stay here.
-
 
 #[cfg(all(test, target_os = "macos"))]
 #[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_create_tests.rs"]
@@ -303,9 +293,6 @@ mod mcp_management_read_tests;
 #[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_update_tests.rs"]
 mod mcp_management_update_tests;
 
-mod aggregation_members;
-#[cfg(all(test, target_os = "macos"))]
-mod aggregation_members_tests;
 mod aggregation_omo;
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_omo_tests;
@@ -313,9 +300,6 @@ mod aggregation_omo_tests;
 pub(crate) use gateway_aggregation::aggregation_omp as aggregation_omp;
 #[cfg(any(test, not(target_os = "macos")))]
 pub(crate) use gateway_aggregation::aggregation_pi as aggregation_pi;
-mod aggregation_read;
-#[cfg(all(test, target_os = "macos"))]
-mod aggregation_read_tests;
 
 #[cfg(target_os = "macos")]
 pub(crate) use gateway_aggregation::aggregation_read_snapshot as aggregation_read_snapshot;
@@ -331,30 +315,16 @@ pub(crate) mod voice_handoff;
 mod voice_handoff_session_tests;
 
 #[cfg(all(test, target_os = "macos"))]
-mod aggregation_codex_settings_tests;
-
-#[cfg(all(test, target_os = "macos"))]
 mod aggregation_omp_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-mod aggregation_desktop_tests;
 
 #[cfg(target_os = "macos")]
 pub(crate) mod aggregation_resync;
-
-mod aggregation_codex_settings;
 
 #[cfg(all(test, target_os = "macos"))]
 #[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_bindings_tests.rs"]
 mod mcp_management_bindings_tests;
 
-
-
 mod aggregation_desktop;
-
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-aggregation/tests/host/aggregation_resync_codex_tests.rs"]
-mod aggregation_resync_codex_tests;
 
 #[cfg(target_os = "macos")]
 pub(crate) mod agent_apps_diagnostics;
@@ -371,11 +341,6 @@ mod mcp_management_import_tests;
 mod voice_settings;
 
 #[cfg(all(test, target_os = "macos"))]
-mod aggregation_publish_tests;
-
-mod aggregation_publish;
-
-#[cfg(all(test, target_os = "macos"))]
 #[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_resync_tests.rs"]
 mod mcp_management_resync_tests;
 
@@ -385,21 +350,8 @@ mod mcp_management_resync;
 #[path = "../../../../../libs/gateway-mcp/src/host_tests/mcp_management_probe_tests.rs"]
 mod mcp_management_probe_tests;
 
-#[cfg(all(test, target_os = "macos"))]
-mod aggregation_clients_tests;
-
 #[cfg(target_os = "macos")]
 mod mcp_management_probe;
-
-mod aggregation_clients;
-
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-aggregation/tests/host/aggregation_restart_tests.rs"]
-mod aggregation_restart_tests;
-
-mod aggregation_restart;
-
-mod aggregation_exit;
 
 #[cfg(target_os = "macos")]
 mod mcp_management_tools;
@@ -432,11 +384,6 @@ pub(crate) mod computer_control;
 pub(crate) mod project_profiles;
 
 pub(crate) mod external_sessions;
-
-
-
-
-
 
 pub(crate) mod usage;
 

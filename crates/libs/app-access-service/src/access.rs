@@ -93,8 +93,8 @@ struct Grant {
     #[serde(default)]
     aggregation_write: Vec<RoutingAppPermit>,
     #[cfg(target_os = "macos")]
-    #[serde(default)]
-    aggregation_codex_restart: Vec<RoutingAppPermit>,
+    #[serde(default, rename = "aggregation_codex_restart")]
+    _legacy_codex_restart: Vec<RoutingAppPermit>,
     #[serde(default)]
     provider_config_write: bool,
     #[serde(default)]
@@ -760,8 +760,6 @@ enum Capability<'a> {
     PromptsWrite(&'a ProjectId, AppId),
     #[cfg(target_os = "macos")]
     AggregationWrite(&'a ProjectId, AppId, bool),
-    #[cfg(target_os = "macos")]
-    CodexRestart(&'a ProjectId),
     McpCatalogWrite(Option<&'a vw_api_transport::ProjectId>),
     #[cfg(target_os = "macos")]
     RoutingControl {
@@ -1644,36 +1642,6 @@ mod aggregation_lifecycle;
 pub use aggregation_lifecycle::{
     aggregation_lifecycle_host, authorize_aggregation_lifecycle,
 };
-
-/// Independent restart grant; configuration write never implies process control.
-#[cfg(target_os = "macos")]
-pub fn authorize_codex_restart(
-    path: Option<&Path>,
-    headers: &HeaderMap,
-    project: &vw_api_transport::ProjectScope,
-    target: &str,
-) -> Result<
-    (vw_agent_apps::apps::discovery::read::LocalReadEnvironment, Option<PathBuf>, String),
-    StatusCode,
-> {
-    let a = authorize_aggregation(
-        path,
-        headers,
-        project,
-        target,
-        Capability::CodexRestart(project.project_id()),
-    )?;
-    Ok((
-        vw_agent_apps::apps::discovery::read::LocalReadEnvironment {
-            host_id: a.host.id,
-            home: a.host.home,
-            search_paths: a.host.search_paths,
-            applications: a.host.applications,
-        },
-        a.host.credential_root,
-        a.principal,
-    ))
-}
 
 /// Session reference reads require their own exact grant, not a connection or catalog grant.
 #[cfg(target_os = "macos")]

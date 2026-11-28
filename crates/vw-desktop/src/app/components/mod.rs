@@ -32,7 +32,6 @@
 /// 提供应用程序版本信息、许可协议和致谢信息的模态对话框。
 pub mod about_modal;
 pub(crate) mod agent_apps_diagnostics;
-pub(crate) mod aggregation_list;
 #[path = "agent_apps/aggregation_pi.rs"]
 pub(crate) mod aggregation_pi;
 
@@ -428,11 +427,7 @@ pub(crate) mod aggregation_omo;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod voice_onboarding;
 
-#[path = "agent_apps/aggregation_desktop.rs"]
-pub(crate) mod aggregation_desktop;
 
-#[path = "agent_apps/aggregation_subagent.rs"]
-pub(crate) mod aggregation_subagent;
 
 #[cfg(test)]
 #[path = "editor_settings_fields_tests.rs"]

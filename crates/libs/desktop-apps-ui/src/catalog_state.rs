@@ -6,7 +6,6 @@ pub enum AgentWorkspaceTab {
     #[default]
     Direct,
     Routing,
-    Aggregation,
     Configuration,
 }
 

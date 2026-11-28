@@ -319,7 +319,6 @@ mod voice_api;
 #[cfg(not(target_arch = "wasm32"))]
 pub use voice_api::VoiceApiError;
 
-mod aggregation_members_api;
 pub use gateway_aggregation::AggregationApiError;
 
 mod aggregation_omo_api;
@@ -327,21 +326,9 @@ pub use gateway_aggregation_omo::AggregationOmoError;
 
 mod aggregation_native_api;
 
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod aggregation_desktop_api_tests;
-
-mod aggregation_desktop_api;
-
 mod agent_apps_diagnostics_api;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod agent_apps_diagnostics_api_tests;
-
-mod aggregation_publish_api;
-
-mod aggregation_codex_api;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod aggregation_codex_api_tests;
 
 mod agent_apps_skills;
 
@@ -390,19 +377,12 @@ mod external_sessions;
 #[cfg(not(target_arch = "wasm32"))]
 pub use external_sessions::ExternalSessionStream;
 
-
-
-
 pub use gateway_usage_read::*;
 mod usage_read_api;
 
 mod usage_scan_api;
 pub use gateway_usage_scan::*;
 
-
 mod usage_price_api;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod aggregation_facade_tests;
 
 pub use agent_apps_skills::SkillBackupError;

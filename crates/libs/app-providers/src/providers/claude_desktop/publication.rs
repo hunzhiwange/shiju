@@ -8,7 +8,7 @@ use crate::providers::{
         patch_json::object_value,
         write_guard::{AppWriteGuard, WriteError},
     },
-    mode_apply::ClientEndpoint,
+    mode_apply::validate_client_endpoint,
     mode_state::{self, ClientConfiguration, StackState},
 };
 use serde_json::{Value, json};
@@ -44,7 +44,6 @@ pub enum DesktopMode {
     Official,
     DirectGateway,
     Routing,
-    Aggregation,
 }
 
 /// Native observation. The API layer adds the scope-bound revision and notices.
@@ -84,7 +83,6 @@ pub enum DesktopTarget<'a> {
         /// supplied by the authorized route executor.
         gateway: &'a ClaudeDesktopProfile,
         catalog: &'a DesktopModelCatalog,
-        stack: Option<StackState>,
     },
     /// The authorized saved direct profile, or no profile if no direct pointer exists.
     Restore(Option<&'a ClaudeDesktopProfile>),
@@ -158,25 +156,16 @@ fn run_inner(
     let official =
         ClaudeDesktopProfile { name: "Official".into(), config: ClaudeDesktopConfig::Official {} };
     let (profile, models, mode, proxy_route, stack) = match target {
-        DesktopTarget::Route { gateway, catalog, stack } => {
+        DesktopTarget::Route { gateway, catalog } => {
             let ClaudeDesktopConfig::ThirdParty { base_url, .. } = &gateway.config else {
                 return Err(DesktopPublicationError::InvalidConfiguration);
             };
-            ClientEndpoint::new(base_url)
+            validate_client_endpoint(base_url)
                 .map_err(|_| DesktopPublicationError::InvalidConfiguration)?;
             let models = catalog.models();
             let default = models.first().ok_or(DesktopPublicationError::InvalidConfiguration)?;
-            match stack.as_ref() {
-                Some(stack)
-                    if models.iter().all(|model| stack.members.contains(&model.provider_id))
-                        && (stack.enabled
-                            || !expected.stack.enabled
-                                && models
-                                    .iter()
-                                    .all(|model| model.provider_id == default.provider_id)) => {}
-                None if !expected.stack.enabled
-                    && models.iter().all(|model| model.provider_id == default.provider_id) => {}
-                _ => return Err(DesktopPublicationError::InvalidConfiguration),
+            if expected.stack.enabled || models.iter().any(|model| model.provider_id != default.provider_id) {
+                return Err(DesktopPublicationError::InvalidConfiguration);
             }
             let projection = models
                 .iter()
@@ -195,7 +184,7 @@ fn run_inner(
                 Some(Value::Array(projection)),
                 Mode::Proxy,
                 Some(default.provider_id.clone()),
-                stack,
+                None,
             )
         }
         DesktopTarget::Restore(saved) => {
@@ -259,9 +248,7 @@ pub fn get_status(
         || entries.is_some_and(|entries| entries.iter().any(|entry| entry["id"] == PROFILE_ID));
     let attached = state.mode.as_ref().filter(|mode| mode.mode == Mode::Proxy && mode.attached);
     let (mode, applied_provider_id) = if let Some(route) = attached {
-        let mode =
-            if state.stack.enabled { DesktopMode::Aggregation } else { DesktopMode::Routing };
-        (mode, route.proxy_route.clone())
+        (DesktopMode::Routing, route.proxy_route.clone())
     } else {
         let mode = if profile["inferenceProvider"] == "gateway" && meta["appliedId"] == PROFILE_ID {
             DesktopMode::DirectGateway

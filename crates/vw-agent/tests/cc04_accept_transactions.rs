@@ -15,7 +15,6 @@ use vw_api_app_identity::AppId;
 use vw_api_app_provider_base::claude::*;
 use vw_api_app_provider_profiles::codex_catalog::*;
 use vw_api_app_provider_edit::editor_merge::*;
-use vw_api_app_provider_environment::mode_state::*;
 use vw_api_transport::id::TenantScope;
 use {gateway_endpoint::{GatewayEndpoint}, {gateway_http::AgentAppsReadError, vw_gateway_client::GatewayClient}};
 
@@ -162,21 +161,13 @@ impl Drop for ImmutableFile {
     }
 }
 
-async fn direct_provider(client: &GatewayClient, app: AppId) -> String {
-    let state = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_mode_state(
-            app,
-            &ModeStateQuery {
-                target_host_id: HOST.into(),
-                provider_id: None,
-                mode: ProviderMode::Direct,
-            },
-            TOKEN,
-        )
-        .await
-        .unwrap();
-    assert_eq!(state.mode, ProviderMode::Direct);
-    assert_eq!(state.direct_provider, state.in_use_provider);
-    state.direct_provider.unwrap()
+fn direct_provider(fixture: &Fixture, app: AppId) -> String {
+    let app = serde_json::to_value(app).unwrap();
+    let app = app.as_str().unwrap();
+    let state = fixture.read_json(&format!("private/provider-live/aG9zdA/{app}.state.json"));
+    assert_ne!(state["mode"]["mode"], "proxy");
+    assert_ne!(state["mode"]["attached"], true);
+    state["pointer"]["id"].as_str().unwrap().to_owned()
 }
 
 fn codex_profile(id: &str, preserve_login: bool, activation: ClaudeActivation) -> CodexWrite {
@@ -241,7 +232,7 @@ async fn cc04_accept_transactions_switch_and_restart_recovery() {
     let result = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).codex_provider_save("one", &first, TOKEN).await.unwrap();
     assert!(result.catalog_saved);
     assert_eq!(result.live, CodexLiveResult::Applied);
-    assert_eq!(direct_provider(&client, AppId::Codex).await, "one");
+    assert_eq!(direct_provider(&fixture, AppId::Codex), "one");
     for (id, preserve_login) in [("two", true), ("three", false)] {
         let profile = codex_profile(id, preserve_login, ClaudeActivation::CatalogOnly);
         let result = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).codex_provider_save(id, &profile, TOKEN).await.unwrap();
@@ -254,7 +245,7 @@ async fn cc04_accept_transactions_switch_and_restart_recovery() {
             gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).codex_provider_switch(id, &target, TOKEN).await.unwrap().live,
             CodexLiveResult::Applied,
         );
-        assert_eq!(direct_provider(&client, AppId::Codex).await, id);
+        assert_eq!(direct_provider(&fixture, AppId::Codex), id);
         assert_codex_config(&fixture, id);
         assert_eq!(fs::read(&auth).unwrap(), LOGIN.as_bytes());
         assert_private(&auth);
@@ -277,7 +268,7 @@ async fn cc04_accept_transactions_switch_and_restart_recovery() {
         !fixture.path(pending).exists(),
         "startup must settle the published transaction before serving"
     );
-    assert_eq!(direct_provider(&client, AppId::Codex).await, "three");
+    assert_eq!(direct_provider(&fixture, AppId::Codex), "three");
     assert_codex_config(&fixture, "three");
     assert!(!auth.exists());
     let stash = ".codex/shiju-login-stash.json";
@@ -360,7 +351,7 @@ async fn cc04_accept_transactions_concurrent_edit_preserves_external_data() {
     assert_eq!(fixture.read_json(".claude/settings.json"), external);
     assert_eq!(external["env"]["ANTHROPIC_AUTH_TOKEN"], "fixture-claude-key");
     assert_eq!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_get(AppId::Claude, "active").await.unwrap(), record);
-    assert_eq!(direct_provider(&client, AppId::Claude).await, "active");
+    assert_eq!(direct_provider(&fixture, AppId::Claude), "active");
     assert!(!fixture.path("private/provider-live/aG9zdA/claude.pending.json").exists());
     assert_private(&settings);
 }

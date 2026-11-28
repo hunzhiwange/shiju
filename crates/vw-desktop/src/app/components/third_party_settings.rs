@@ -130,21 +130,14 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
     let (header, body): (Element<'_, Message>, Element<'_, Message>) = if let Some(agent) = selected {
         use super::app_routing::lifecycle as routing;
         use super::system_settings_common::{settings_panel, settings_value_badge};
-        use crate::app::message::settings::aggregation_list;
         use desktop_apps_ui::catalog_state::AgentWorkspaceTab as Tab;
         use desktop_settings_apps::system_settings_apps::Action;
 
         let id = agent.entry.id;
         let tab = state.agent_workspace_tab;
         let configuration = tab == Tab::Configuration;
-        let aggregation = app.app_providers.aggregation.as_ref();
-        use vw_api_app_aggregation::AggregationMode;
-        let aggregation_mode =
-            aggregation.and_then(|form| form.snapshot.as_ref()).map(|snapshot| snapshot.state.mode);
         let routing_attached =
             routing::attached_apps(state).is_some_and(|(apps, _)| apps.contains(&id));
-        let intercepted = routing_attached
-            || aggregation_mode.is_some_and(|mode| mode != AggregationMode::Direct);
         let title = || {
             let mut title = row![list::brand_icon(id, 22.0), text(&agent.entry.name).size(SETTINGS_PAGE_TITLE_SIZE)]
                 .spacing(10)
@@ -160,13 +153,7 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                         .iter()
                         .find(|row| row.provider.id == *id)
                         .map_or(id.as_str(), |row| row.provider.name.as_str());
-                    let mode = match aggregation_mode {
-                        Some(AggregationMode::Aggregation) => i18n.__("聚合"),
-                        Some(AggregationMode::Routing) => i18n.__("路由"),
-                        _ if routing_attached => i18n.__("路由"),
-                        Some(AggregationMode::Direct) => i18n.__("直连"),
-                        None => i18n.__("当前"),
-                    };
+                    let mode = if routing_attached { i18n.__("路由") } else { i18n.__("当前") };
                     title = title.push(settings_value_badge(format!("{mode} · {label}")));
                 }
             }
@@ -175,10 +162,9 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
         let select = |target| message(AppsCatalogMessage::AgentWorkspaceTab(target));
         let tabs = || {
             use desktop_ui_controls::system_settings_common::help::settings_hover_help_label;
-            let modes: [(Tab, &str, bool); 3] = [
+            let modes: [(Tab, &str, bool); 2] = [
                 (Tab::Direct, i18n.__("直连"), true),
                 (Tab::Routing, i18n.__("路由"), routing::ROUTING_APPS.contains(&id)),
-                (Tab::Aggregation, i18n.__("聚合"), aggregation_list::supported(id)),
             ];
             let buttons = settings_tab_row(
                 modes.into_iter().filter(|(_, _, supported)| *supported).map(|(target, label, _)| {
@@ -198,7 +184,6 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                     text(i18n.__("连接模式")).size(14),
                     text(i18n.__("直连 · 智能体直接连接供应商。")).size(13),
                     text(i18n.__("路由 · 请求由路由服务转发，可配置备用队列。")).size(13),
-                    text(i18n.__("聚合 · 将已添加供应商的模型发布到客户端目录。")).size(13),
                 ]
                 .spacing(6)
                 .into(),
@@ -227,55 +212,22 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                     .spacing(10)
                     .into(),
                 ),
-                Tab::Aggregation => Some(match aggregation {
-                    Some(form) => desktop_apps_ui::aggregation::list_view::page(i18n,
-                        form,
-                        &app.app_providers.query,
-                    )
-                    .map(aggregation_list::message),
-                    None if app.app_providers.loading => text(i18n.__("正在读取供应商…")).into(),
-                    None => settings_panel(
-                        button(text(i18n.__("读取聚合目录")).size(13))
-                            .padding([8, 12])
-                            .style(rounded_action_btn_style)
-                            .on_press(aggregation_list::message(aggregation_list::Event::Open)),
-                    )
-                    .into(),
-                }),
-                Tab::Direct if intercepted => {
-                    let can_preview_exit =
-                        aggregation_mode.is_some_and(|mode| mode != AggregationMode::Direct);
-                    let next = if can_preview_exit {
-                        aggregation_list::message(aggregation_list::Event::Publish(
-                            desktop_apps_ui::aggregation::publish::Event::OpenExit,
-                        ))
-                    } else {
-                        select(Tab::Routing)
-                    };
-                    Some(
-                        settings_panel(
-                            row![
-                                text(i18n.__("当前连接仍由路由或聚合服务管理"))
-                                    .size(13)
-                                    .width(Length::Fill),
-                                button(
-                                    text(if can_preview_exit {
-                                        i18n.__("预览恢复直连")
-                                    } else {
-                                        i18n.__("查看路由")
-                                    })
-                                    .size(13)
-                                )
+                Tab::Direct if routing_attached => Some(
+                    settings_panel(
+                        row![
+                            text(i18n.__("当前连接由路由服务管理"))
+                                .size(13)
+                                .width(Length::Fill),
+                            button(text(i18n.__("查看路由")).size(13))
                                 .padding([8, 12])
                                 .style(rounded_action_btn_style)
-                                .on_press(next),
-                            ]
-                            .spacing(8)
-                            .align_y(Alignment::Center),
-                        )
-                        .into(),
+                                .on_press(select(Tab::Routing)),
+                        ]
+                        .spacing(8)
+                        .align_y(Alignment::Center),
                     )
-                }
+                    .into(),
+                ),
                 _ => None,
             };
             let tools = vec![
@@ -305,9 +257,8 @@ fn agent_workspace(app: &App) -> Element<'_, Message> {
                 desktop_provider_apps::components::list::Page {
                     tabs: tabs().into(),
                     lead,
-                    replace_rows: tab == Tab::Aggregation,
                     can_launch,
-                    can_switch: tab == Tab::Direct && !intercepted,
+                    can_switch: tab == Tab::Direct && !routing_attached,
                     tools,
                     search: Some((
                         state.agent_provider_search_open || !app.app_providers.query.is_empty(),
@@ -938,12 +889,14 @@ pub(crate) fn standalone(app: &App) -> Element<'_, Message> {
         &app.appearance.app_theme,
         base,
     );
-    base = super::app_providers::list::overlay_with_list(i18n,
-        &app.app_providers,
-        provider_help(app),
-        base,
-        !has_inline_providers(app),
-    );
+    if has_inline_providers(app) {
+        base = super::app_providers::list::overlay(
+            i18n,
+            &app.app_providers,
+            provider_help(app),
+            base,
+        );
+    }
     if crate::app::message::agent_apps_high_availability::can_show(app) {
         base =
             super::agent_apps_high_availability::queue::overlay(i18n, &app.app_providers.failover, base);

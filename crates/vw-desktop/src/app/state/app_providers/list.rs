@@ -7,8 +7,6 @@ type Usage = ();
 pub(crate) type ListState = desktop_provider_apps::state::list::ListState<
     super::leave::LeaveState,
     crate::app::message::agent_apps_high_availability::State,
-    crate::app::message::settings::aggregation_list::Form,
-    crate::app::message::settings::aggregation_subagent::Form,
     crate::app::message::settings::aggregation_pi::Form,
     crate::app::message::agent_apps_diagnostics::endpoint_state::State,
     crate::app::message::settings::aggregation_omp::Form,

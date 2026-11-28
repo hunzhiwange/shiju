@@ -108,7 +108,7 @@ fn routing_apps(app: &App) -> Element<'_, Message> {
     }
     let note = match observed {
         Some(([], true)) => {
-            Some(i18n.__("当前项目没有应用接入。可在应用页的「路由」或「聚合」中接入。"))
+            Some(i18n.__("当前项目没有应用接入。可在应用页的「路由」中接入。"))
         }
         Some((_, false)) => Some(i18n.__("部分应用的接入状态暂不可读。刷新服务后可重试。")),
         None if catalog.loading => Some(i18n.__("正在读取应用目录…")),

@@ -1,8 +1,9 @@
 //! Concrete persisted snapshot reader for native routing publication.
+#[cfg(target_os = "macos")]
 use agent_database::GlobalDatabase;
 #[derive(Clone)]
 pub struct SnapshotHost;
-impl gateway_aggregation::aggregation_codex_settings::SnapshotHost for SnapshotHost {
+impl gateway_aggregation::publication_host::SnapshotHost for SnapshotHost {
     #[cfg(target_os = "macos")]
     type Snapshot = gateway_aggregation::aggregation_read_snapshot::Snapshot;
     #[cfg(target_os = "macos")]
@@ -18,10 +19,5 @@ impl gateway_aggregation::aggregation_codex_settings::SnapshotHost for SnapshotH
         state: &vw_agent_apps::providers::live::commit::AppState, snapshot: &Self::Snapshot)
         -> Result<String, axum::http::StatusCode> {
         gateway_aggregation::aggregation_read_snapshot::revision(project, host, app, principal, state, snapshot)
-    }
-    #[cfg(target_os = "macos")]
-    fn codex_inputs<'a>(&self, snapshot: &'a Self::Snapshot)
-        -> Result<gateway_aggregation::aggregation_read_snapshot::CodexInputs<'a>, axum::http::StatusCode> {
-        gateway_aggregation::aggregation_read_snapshot::codex_inputs(snapshot)
     }
 }

@@ -13,7 +13,6 @@ pub enum ListMessage {
     Create,
     Presets(crate::presets::Event),
     OpenEdit { id: String, copy: bool, delete: bool },
-    Close,
     Refresh,
     QueryInput(String),
     Terminal(String),
@@ -25,19 +24,14 @@ pub enum ListMessage {
     ModelDiagnostics(String),
     FailoverHealth(String),
     Preview(String),
-    DesktopAggregation(String),
     Desktop(Option<String>),
     Icons(String),
     ModelCatalog(String),
     Universal,
     Snippets,
-    Env,
-    Aggregation,
     Failover,
-    Mode,
     Paths,
     Omo(bool),
-    CodexSubagent,
     PiDirectory,
     OmpDirectory,
     HermesMember { id: String, add: bool },
@@ -57,19 +51,6 @@ pub struct View<'a> {
     pub error: Option<&'a String>,
     pub snapshot: Option<&'a Snapshot>,
     pub editing: bool,
-}
-fn selection(i18n: desktop_i18n::I18n, snapshot: &Snapshot, value: &ProviderSelection) -> String {
-    match value {
-        ProviderSelection::Selected { id } => snapshot
-            .catalog
-            .rows
-            .iter()
-            .find(|row| row.provider.id == *id)
-            .map_or_else(|| id.clone(), |row| row.provider.name.clone()),
-        ProviderSelection::Unconfigured => i18n.__("未配置").into(),
-        ProviderSelection::NotApplicable => i18n.__("不适用").into(),
-        ProviderSelection::Unavailable { reason } => i18n.format("不可读取：%s", &[(format!("{:?}", reason)).into()]).expect("valid display template"),
-    }
 }
 fn menu<M: Clone + 'static>(i18n: desktop_i18n::I18n,
     items: Vec<(&'static str, M)>,
@@ -98,28 +79,9 @@ fn selected(value: &ProviderSelection, provider_id: &str) -> bool {
     matches!(value, ProviderSelection::Selected { id } if id == provider_id)
 }
 
-pub fn card<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
-    message: fn(ListMessage) -> M,
-    state: View<'a>,
-    supplements: Vec<(&'a str, Option<Element<'a, M>>, Element<'a, M>)>,
-) -> Element<'a, M> {
-    let Some(scope) = state.scope else {
-        return iced::widget::Space::new().into();
-    };
-    let (header, body) = content(i18n,
-        message,
-        state,
-        supplements,
-        text(i18n.format("%s 供应商", &[(format!("{:?}", scope.app)).into()]).expect("valid display template")).size(21).into(),
-        None,
-    );
-    settings_modal_layout(header, body, None).width(880).height(680).into()
-}
-
 pub struct Page<'a, M> {
     pub tabs: Element<'a, M>,
     pub lead: Option<Element<'a, M>>,
-    pub replace_rows: bool,
     pub can_launch: bool,
     pub can_switch: bool,
     pub tools: Vec<(&'static str, M)>,
@@ -133,7 +95,7 @@ pub fn page<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     title: Element<'a, M>,
     page: Page<'a, M>,
 ) -> Element<'a, M> {
-    let (header, body) = content(i18n, message, state, supplements, title, Some(page));
+    let (header, body) = content(i18n, message, state, supplements, title, page);
     let list = scrollable(container(body).padding([0, 7]).width(Length::Fill))
         .direction(scrollable::Direction::Vertical(
             scrollable::Scrollbar::new().width(4).scroller_width(4),
@@ -148,24 +110,19 @@ fn content<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     state: View<'a>,
     mut supplements: Vec<(&'a str, Option<Element<'a, M>>, Element<'a, M>)>,
     title: Element<'a, M>,
-    page: Option<Page<'a, M>>,
+    page: Page<'a, M>,
 ) -> (Element<'a, M>, Element<'a, M>) {
     let Some(scope) = state.scope else {
         return (title, iced::widget::Space::new().into());
     };
-    let inline = page.is_some();
-    let (tabs, lead, replace_rows, can_launch, can_switch, page_tools, search_toggle) = match page {
-        Some(page) => (
-            Some(page.tabs),
-            page.lead,
-            page.replace_rows,
-            page.can_launch,
-            page.can_switch,
-            page.tools,
-            page.search,
-        ),
-        None => (None, None, false, false, false, Vec::new(), None),
-    };
+    let Page {
+        tabs,
+        lead,
+        can_launch,
+        can_switch,
+        tools: page_tools,
+        search: search_toggle,
+    } = page;
     let mut body = column![].spacing(10).width(Length::Fill);
     if state.loading {
         body = body.push(settings_panel(text(i18n.__("正在读取…")).style(settings_muted_text_style)));
@@ -176,24 +133,7 @@ fn content<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     if let Some(lead) = lead {
         body = body.push(lead);
     }
-    if let Some(snapshot) = state.snapshot.filter(|_| !replace_rows) {
-        if !inline {
-            body = body.push(settings_panel(
-                row![
-                    settings_value_badge(i18n.format("直连 · %s", &[(selection(i18n, snapshot, &snapshot.catalog.direct).to_string()).into()]).expect("valid display template")),
-                    settings_value_badge(i18n.format("原生当前 · %s", &[(selection(i18n, snapshot, &snapshot.catalog.in_use).to_string()).into()]).expect("valid display template")),
-                ]
-                .spacing(8)
-                .wrap(),
-            ));
-        }
-        if let Some(reason) = snapshot.catalog.native_read {
-            body = body.push(
-                text(i18n.format("原生状态不可用：%s", &[(format!("{:?}", reason)).into()]).expect("valid display template"))
-                    .size(13)
-                    .style(settings_muted_text_style),
-            );
-        }
+    if let Some(snapshot) = state.snapshot {
         let query = state.query.trim().to_lowercase();
         let rows = snapshot
             .catalog
@@ -250,10 +190,7 @@ fn content<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
                 items.push((i18n.__("配置预览"), ListMessage::Preview(id.clone())));
             }
             if scope.app == AppId::ClaudeDesktop {
-                items.extend([
-                    (i18n.__("聚合映射与应用"), ListMessage::DesktopAggregation(id.clone())),
-                    (i18n.__("直连与映射"), ListMessage::Desktop(Some(id.clone()))),
-                ]);
+                items.push((i18n.__("直连与映射"), ListMessage::Desktop(Some(id.clone()))));
             }
             if entry.native_member != ProviderMembership::Unknown {
                 let add = entry.native_member == ProviderMembership::Absent;
@@ -410,17 +347,11 @@ fn content<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
     };
     let mut tools = vec![
         (i18n.__("刷新"), ListMessage::Refresh),
-        (i18n.__("统一供应商投影"), ListMessage::Universal),
+        (i18n.__("添加到其他智能体"), ListMessage::Universal),
         (i18n.__("备用队列"), ListMessage::Failover),
     ];
-    if !inline {
-        tools.push((i18n.__("聚合目录"), ListMessage::Aggregation));
-    }
     if crate::state::snippets::available(scope.app) {
         tools.push((i18n.__("公共配置片段"), ListMessage::Snippets));
-    }
-    if crate::state::env::available(scope.app) {
-        tools.push((i18n.__("环境诊断"), ListMessage::Env));
     }
     if cfg!(target_os = "macos") && scope.app == AppId::Claude {
         tools.push((i18n.__("配置目录"), ListMessage::Paths));
@@ -430,7 +361,6 @@ fn content<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
             (i18n.__("OMO 标准目录"), ListMessage::Omo(false)),
             (i18n.__("OMO Slim 目录"), ListMessage::Omo(true)),
         ]),
-        AppId::Codex => tools.push((i18n.__("Codex 子代理设置"), ListMessage::CodexSubagent)),
         AppId::Pi => tools.push((i18n.__("Pi 模型条目"), ListMessage::PiDirectory)),
         AppId::Omp => tools.push((i18n.__("OMP 独立模型条目"), ListMessage::OmpDirectory)),
         _ => {}
@@ -456,9 +386,6 @@ fn content<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
                 .on_press_maybe(ready.then(|| message(create))),
         )
         .push(menu(i18n, tools, i18n.__("供应商工具"), ready));
-    if !inline {
-        toolbar = toolbar.push(settings_close_button(message(ListMessage::Close)));
-    }
     let mut filters = row![].spacing(8).align_y(Alignment::Center);
     if show_search {
         filters = filters.push(
@@ -466,34 +393,18 @@ fn content<'a, M: Clone + 'static>(i18n: desktop_i18n::I18n,
                 .on_input(move |query| message(ListMessage::QueryInput(query)))
                 .width(Length::Fill),
         );
-        if !inline {
-            filters = filters.push(icon_btn(
-                Icon::X,
-                i18n.__("清空搜索"),
-                (!state.query.is_empty()).then(|| message(ListMessage::QueryInput(String::new()))),
-            ));
-        }
-    }
-    if cfg!(target_os = "macos") && scope.app == AppId::Claude {
-        filters = filters.push(
-            button(text(i18n.__("供应商模式")).size(SETTINGS_CONTROL_TEXT_SIZE))
-                .padding([8, 12])
-                .style(rounded_action_btn_style)
-                .on_press_maybe(ready.then(|| message(ListMessage::Mode))),
-        );
     }
     let heading = settings_modal_header(title, toolbar);
-    let mut header = column![container(heading).padding([0, 7]), settings_divider()].spacing(12);
-    let filters: Element<'a, M> = if let Some(tabs) = tabs {
-        row![tabs, container(filters).width(Length::Fill).max_width(420),]
-            .spacing(14)
-            .align_y(Alignment::Center)
-            .wrap()
-            .into()
-    } else {
-        filters.into()
-    };
-    header = header.push(container(filters).padding([0, 7]));
+    let filters = row![tabs, container(filters).width(Length::Fill).max_width(420)]
+        .spacing(14)
+        .align_y(Alignment::Center)
+        .wrap();
+    let header = column![
+        container(heading).padding([0, 7]),
+        settings_divider(),
+        container(filters).padding([0, 7]),
+    ]
+    .spacing(12);
     (header.into(), body.into())
 }
 
@@ -511,7 +422,7 @@ pub fn editor_card<'a>(i18n: desktop_i18n::I18n, sort: &'a str, category: &'a st
             .style(settings_text_input_style)
             .on_input_maybe((!saving).then_some(move |v| message(event(v))))
     };
-    let fields = settings_panel(
+    let fields = settings_section_content(
         column![
             settings_field_label(i18n.__("排序")),
             settings_control_with_hint(
@@ -544,8 +455,8 @@ pub fn editor_card<'a>(i18n: desktop_i18n::I18n, sort: &'a str, category: &'a st
 }
 
 /// Provider-owned modal precedence and close guards, shared by host and view tests.
-pub fn local_card<'a, L, F, A, S, P, D, O, M, U>(
-    state: &'a crate::state::list::ListState<L, F, A, S, P, D, O, M, U>,
+pub fn local_card<'a, L, F, P, D, O, M, U>(
+    state: &'a crate::state::list::ListState<L, F, P, D, O, M, U>,
     help: super::help::Help<'_>,
 ) -> Option<(crate::Message, Element<'a, crate::Message>)> {
     let i18n = help.i18n;
@@ -555,18 +466,6 @@ pub fn local_card<'a, L, F, A, S, P, D, O, M, U>(
         return Some((
             if form.saving { E::None } else { E::Paths(super::paths::Event::Close) },
             super::paths::card(form, help),
-        ));
-    }
-    if let Some(form) = &state.mode {
-        return Some((
-            if form.writing() { E::None } else { E::Mode(super::mode::Event::Close) },
-            super::mode::card(state.snapshot.as_ref(), form, help),
-        ));
-    }
-    if let Some(form) = &state.env {
-        return Some((
-            if form.writing() { E::None } else { E::Env(crate::message::env::Event::Close) },
-            super::env::card(form, help),
         ));
     }
     if let Some(form) = &state.preview {
@@ -600,12 +499,11 @@ pub fn local_card<'a, L, F, A, S, P, D, O, M, U>(
             super::endpoints::card(i18n, form, app),
         ));
     }
-    if let Some(form) = &state.desktop
-        && form.aggregation.is_none() {
-            return Some((
-                E::Desktop(crate::message::desktop::Event::Cancel),
-                super::desktop::card(form, help),
-            ));
-        }
+    if let Some(form) = &state.desktop {
+        return Some((
+            E::Desktop(crate::message::desktop::Event::Cancel),
+            super::desktop::card(form, help),
+        ));
+    }
     None
 }

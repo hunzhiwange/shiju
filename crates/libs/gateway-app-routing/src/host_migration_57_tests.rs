@@ -1,4 +1,3 @@
-mod aggregation;
 mod authorization;
 
 async fn configure_with_policy(app: axum::Router, routing: &std::sync::Arc<app_routing_services::RoutingListener>, policy: std::path::PathBuf, database: agent_database::GlobalDatabase) -> axum::Router {

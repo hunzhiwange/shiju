@@ -1,7 +1,6 @@
 //! Failover HTTP contracts use the real routing lifecycle and storage.
 mod agent_apps_high_availability_tests;
 pub(crate) mod agent_apps_ha_acceptance_tests;
-mod aggregation_resync_tests;
 
 async fn configure_with_policy(app: axum::Router, routing: &std::sync::Arc<app_routing_services::RoutingListener>, policy: std::path::PathBuf, database: agent_database::GlobalDatabase) -> axum::Router {
     let home = policy.parent().unwrap().to_owned();

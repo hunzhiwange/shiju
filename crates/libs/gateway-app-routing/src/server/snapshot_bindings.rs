@@ -14,23 +14,6 @@ impl gateway_aggregation::publication_host::Host for SnapshotHost {
         control.authorize_mode(headers, project, host, app)
     }
     #[cfg(target_os = "macos")]
-    fn project(&self, app: vw_api_app_identity::AppId, tenant: &vw_api_transport::TenantScope,
-        state: &vw_agent_apps::providers::live::commit::AppState, snapshot: &Self::Snapshot,
-        request: Option<&vw_api_app_aggregation::AggregationPreviewRequest>)
-        -> Result<vw_api_app_aggregation::AggregationPreview, axum::http::StatusCode> {
-        gateway_aggregation::aggregation_read_snapshot::project(app, tenant, state, snapshot, request)
-    }
-    #[cfg(target_os = "macos")]
-    fn publish_candidate(&self, p: gateway_aggregation::publication_host::Publication,
-        control: Self::Routing, candidate: &vw_agent_apps::providers::live::commit::AppState)
-        -> Result<bool, axum::http::StatusCode> {
-        agent_gateway::aggregation_resync::RecordPublicationContext {
-            database: p.database, project: p.project, host: p.host, app: p.app, home: p.home,
-            root: p.root, routing: Some(control.routing), expected: p.expected,
-            principal: p.principal, revision: p.revision, failure: Default::default(),
-        }.publish_candidate(candidate)
-    }
-    #[cfg(target_os = "macos")]
     fn sign(&self, bytes: &[u8]) -> Result<String, axum::http::StatusCode> {
         gateway_aggregation::aggregation_read_snapshot::sign(bytes)
     }
@@ -51,94 +34,4 @@ impl gateway_aggregation::publication_host::Host for SnapshotHost {
         }.replace(key, before, after)
     }
 
-}
-impl gateway_aggregation::publish_host::PublishHost for SnapshotHost {
-    type State = gateway_app_providers::operations::State;
-    #[cfg(target_os = "macos")]
-    type Context = agent_gateway::aggregation_resync::RecordPublicationContext;
-    #[cfg(target_os = "macos")]
-    fn policy<'a>(&self, state: &'a Self::State) -> Option<&'a std::path::Path> { state.aggregation_policy() }
-    #[cfg(target_os = "macos")]
-    fn replay(&self, state: &Self::State, o: &gateway_aggregation::publish_host::Owner, request: &str, fingerprint: &[u8;32])
-        -> Result<Option<serde_json::Value>, axum::http::StatusCode> {
-        state.aggregation_replay(&gateway_app_providers::operations::aggregation::Owner {
-            project: o.project.clone(), host: o.host.clone(), app: o.app, principal: o.principal.clone(),
-        }, request, fingerprint)
-    }
-    #[cfg(target_os = "macos")]
-    fn start(&self, state: &Self::State, o: gateway_aggregation::publish_host::Owner, request: String, fingerprint: [u8;32],
-        work: impl FnOnce() -> vw_api_app_aggregation::AggregationOutcome + Send + 'static)
-        -> Result<serde_json::Value, axum::http::StatusCode> {
-        state.aggregation_start(gateway_app_providers::operations::aggregation::Owner {
-            project: o.project, host: o.host, app: o.app, principal: o.principal,
-        }, request, fingerprint, work)
-    }
-    #[cfg(target_os = "macos")]
-    fn database(&self) -> Result<agent_database::GlobalDatabase, axum::http::StatusCode> {
-        agent_database::GlobalDatabase::for_home(&agent_paths::paths().home)
-            .map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)
-    }
-    #[cfg(target_os = "macos")]
-    fn publication_context(&self, p: gateway_aggregation::publication_host::Publication, control: Self::Routing) -> Self::Context {
-        agent_gateway::aggregation_resync::RecordPublicationContext {
-            database: p.database, project: p.project, host: p.host, app: p.app, home: p.home,
-            root: p.root, routing: Some(control.routing), expected: p.expected,
-            principal: p.principal, revision: p.revision, failure: Default::default(),
-        }
-    }
-}
-impl gateway_aggregation::restart_host::RestartHost for SnapshotHost {
-    type State = gateway_app_providers::operations::State;
-    #[cfg(target_os = "macos")]
-    fn policy<'a>(&self, state: &'a Self::State) -> Option<&'a std::path::Path> { state.aggregation_policy() }
-    #[cfg(target_os = "macos")]
-    fn replay(&self, state: &Self::State, o: &gateway_aggregation::restart_host::Owner, request: &str, fingerprint: &[u8;32])
-        -> Result<Option<serde_json::Value>, axum::http::StatusCode> {
-        state.aggregation_restart_replay(&gateway_app_providers::operations::aggregation::Owner {
-            project: o.project.clone(), host: o.host.clone(), app: o.app, principal: o.principal.clone(),
-        }, request, fingerprint)
-    }
-    #[cfg(target_os = "macos")]
-    fn start(&self, state: &Self::State, o: gateway_aggregation::restart_host::Owner, request: String, fingerprint: [u8;32],
-        work: impl FnOnce() -> vw_api_app_aggregation::AggregationOutcome + Send + 'static)
-        -> Result<serde_json::Value, axum::http::StatusCode> {
-        state.aggregation_restart_start(gateway_app_providers::operations::aggregation::Owner {
-            project: o.project, host: o.host, app: o.app, principal: o.principal,
-        }, request, fingerprint, work)
-    }
-}
-impl gateway_aggregation::exit_host::ExitHost for SnapshotHost {
-    type State = gateway_app_providers::operations::State;
-    #[cfg(target_os = "macos")]
-    type Context = agent_gateway::aggregation_resync::RecordPublicationContext;
-    #[cfg(target_os = "macos")]
-    fn policy<'a>(&self, state: &'a Self::State) -> Option<&'a std::path::Path> { state.aggregation_policy() }
-    #[cfg(target_os = "macos")]
-    fn replay(&self, state: &Self::State, o: &gateway_aggregation::exit_host::Owner, request: &str, fingerprint: &[u8;32])
-        -> Result<Option<serde_json::Value>, axum::http::StatusCode> {
-        state.aggregation_exit_replay(&gateway_app_providers::operations::aggregation::Owner {
-            project: o.project.clone(), host: o.host.clone(), app: o.app, principal: o.principal.clone(),
-        }, request, fingerprint)
-    }
-    #[cfg(target_os = "macos")]
-    fn start(&self, state: &Self::State, o: gateway_aggregation::exit_host::Owner, request: String, fingerprint: [u8;32],
-        work: impl FnOnce() -> vw_api_app_aggregation::AggregationOutcome + Send + 'static)
-        -> Result<serde_json::Value, axum::http::StatusCode> {
-        state.aggregation_exit_start(gateway_app_providers::operations::aggregation::Owner {
-            project: o.project, host: o.host, app: o.app, principal: o.principal,
-        }, request, fingerprint, work)
-    }
-    #[cfg(target_os = "macos")]
-    fn database(&self) -> Result<agent_database::GlobalDatabase, axum::http::StatusCode> {
-        agent_database::GlobalDatabase::for_home(&agent_paths::paths().home)
-            .map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)
-    }
-    #[cfg(target_os = "macos")]
-    fn exit_context(&self, p: gateway_aggregation::publication_host::Publication, control: Self::Routing) -> Self::Context {
-        agent_gateway::aggregation_resync::RecordPublicationContext {
-            database: p.database, project: p.project, host: p.host, app: p.app, home: p.home,
-            root: p.root, routing: Some(control.routing), expected: p.expected,
-            principal: p.principal, revision: p.revision, failure: Default::default(),
-        }
-    }
 }

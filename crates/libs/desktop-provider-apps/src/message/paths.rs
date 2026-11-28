@@ -43,8 +43,6 @@ pub fn update(state: &mut State, connection: Result<(GatewayClient,Scope),String
         if !available(scope.app)
             || state.loading
             || state.paths.is_some()
-            || state.mode.is_some()
-            || state.env.is_some()
             || state.preview.is_some()
             || state.form.is_some()
             || state.editor.is_some()

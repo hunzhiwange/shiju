@@ -152,20 +152,7 @@ mod agy;
 #[path = "app_providers/import.rs"]
 mod import;
 
-#[path = "app_providers/mode_state.rs"]
-mod mode_state;
 
-#[path = "app_providers/mode_apply.rs"]
-mod mode_apply;
-
-#[path = "app_providers/env_diagnose.rs"]
-mod env_diagnose;
-
-#[path = "app_providers/env_clean.rs"]
-mod env_clean;
-
-#[path = "app_providers/env_restore.rs"]
-mod env_restore;
 
 #[path = "app_providers/operations.rs"]
 mod operations;

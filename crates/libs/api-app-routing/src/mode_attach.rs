@@ -8,3 +8,8 @@ pub struct RoutingModeRequest {
     pub action: ModeApplyAction,
 }
 pub use vw_api_app_provider_environment::mode_apply::ModeApplyResult as RoutingModeResult;
+/// Whether this project's application has committed its routing attachment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RoutingAttachment {
+    pub attached: bool,
+}

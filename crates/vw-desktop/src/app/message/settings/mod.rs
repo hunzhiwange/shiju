@@ -2,7 +2,6 @@
 
 mod acp;
 pub(in crate::app) mod agents;
-pub(crate) mod aggregation_list;
 pub(crate) mod aggregation_omo;
 pub(crate) mod aggregation_pi;
 pub(crate) mod apps_catalog;
@@ -338,9 +337,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 
 pub(crate) mod aggregation_omp;
 
-pub(crate) mod aggregation_desktop;
 
-pub(crate) mod aggregation_subagent;
 
 #[cfg(test)]
 mod mcp_management_resync_tests;

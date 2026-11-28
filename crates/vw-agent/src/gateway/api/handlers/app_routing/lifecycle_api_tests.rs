@@ -437,11 +437,6 @@ async fn local_routing_manual_restart_restore() {
 }
 
 #[tokio::test]
-async fn local_routing_manual_restart_restore_aggregation() {
-    exercise_local_routing_attachment(Some(RestartScenario::Aggregation)).await;
-}
-
-#[tokio::test]
 async fn local_routing_end_to_end() {
     exercise_local_routing_attachment(Some(RestartScenario::EndToEnd)).await;
 }
@@ -450,7 +445,6 @@ async fn local_routing_end_to_end() {
 enum RestartScenario {
     EndToEnd,
     Provider,
-    Aggregation,
     StopWithRestore,
 }
 
@@ -667,48 +661,13 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
     assert_eq!(response.status(), 200);
     let binding = response.json::<Value>().await.unwrap();
     let published_url = format!("http://127.0.0.1:{}", binding["boundPort"]);
-    let apply = |action| {
-        post(
-            "app-providers/claude/mode/apply",
-            json!({"targetHostId": host, "projectId":project, "action":action}),
-        )
-    };
-    let saved = || serde_json::from_slice::<Value>(&fs::read(&settings).unwrap()).unwrap();
-    let finish = async |response: reqwest::Response, expected: &str| {
-        let status = response.status();
-        let body = response.text().await.unwrap();
-        assert!(
-            status.is_success(),
-            "submit {expected}: HTTP {status} {body}"
-        );
-        let mut progress: Value = serde_json::from_str(&body).unwrap();
-        let operation = format!(
-            "http://127.0.0.1:{port}/v1/app-providers/operations/{}",
-            progress["operationId"].as_str().unwrap()
-        );
-        tokio::time::timeout(Duration::from_secs(10), async {
-            while progress.get("aggregationOutcome").is_none() {
-                tokio::time::sleep(Duration::from_millis(25)).await;
-                progress = authorized(reqwest::Method::GET, &operation)
-                    .query(&[("targetHostId", host), ("projectId", project)])
-                    .send()
-                    .await
-                    .unwrap()
-                    .error_for_status()
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
-            }
-        })
-        .await
-        .unwrap();
-        assert_eq!(
-            progress["aggregationOutcome"]["kind"], expected,
-            "{progress}"
-        );
-    };
     let route_mode = format!("app-routing/hosts/{host}/projects/{project}/apps/claude/mode");
+    let apply = |action| post(&route_mode, json!({"action":action}));
+    let saved = || serde_json::from_slice::<Value>(&fs::read(&settings).unwrap()).unwrap();
+    for (method, action) in [(reqwest::Method::GET, "state"), (reqwest::Method::POST, "apply")] {
+        let path = format!("http://127.0.0.1:{port}/v1/app-providers/claude/mode/{action}");
+        assert_eq!(authorized(method, &path).send().await.unwrap().status(), 404);
+    }
     for app in ["claude", "codex", "gemini", "grokbuild"] {
         let base = format!("http://127.0.0.1:{port}/v1");
         let response = authorized(
@@ -718,21 +677,11 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
         .send()
         .await
         .unwrap();
-        let (status, code) = if matches!(app, "claude" | "codex") {
-            (409, "mode_uninitialized")
-        } else {
-            (422, "unsupported_app")
-        };
-        assert_eq!(response.status(), status, "{app}");
-        assert_eq!(
-            response.json::<Value>().await.unwrap()["error"]["code"],
-            code
-        );
-        let legacy = authorized(
+        assert_eq!(response.status(), 404, "{app}");
+        let attachment = authorized(
             reqwest::Method::GET,
-            &format!("{base}/app-providers/{app}/mode/state"),
+            &format!("{base}/app-routing/hosts/{host}/projects/{project}/apps/{app}/mode"),
         )
-        .query(&[("targetHostId", host), ("mode", "direct")])
         .send()
         .await
         .unwrap()
@@ -741,7 +690,7 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
         .json::<Value>()
         .await
         .unwrap();
-        assert_eq!(legacy["attached"], false, "{app}");
+        assert_eq!(attachment["attached"], false, "{app}");
     }
 
     let forward = async |id: &str, model: &str| {
@@ -775,6 +724,10 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
         );
         forward(id, "fixture").await;
     }
+    let path = format!("http://127.0.0.1:{port}/v1/{route_mode}");
+    assert_eq!(routing_json(authorized(reqwest::Method::GET, &path), 200).await["attached"], true);
+    let foreign_project = path.replace(&format!("/projects/{project}/"), "/projects/foreign/");
+    assert_eq!(authorized(reqwest::Method::GET, &foreign_project).send().await.unwrap().status(), 403);
     if restart == Some(RestartScenario::EndToEnd) {
         finish_routing_end_to_end(gateway, port, &home, &settings, listener, &direct_endpoint).await;
         broken.unwrap().abort();
@@ -782,119 +735,17 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
         return;
     }
     if restart == Some(RestartScenario::StopWithRestore) {
-        use vw_api_app_identity::AppId::Codex;
-        use vw_api_app_provider_profiles::codex_catalog::CodexProfile;
-        let codex = home.join(".codex");
-        fs::create_dir(&codex).unwrap();
-        let config = codex.join("config.toml");
-        for id in ["first", "second"] {
-            let native_config = format!(
-                "model='fixture-{id}'\nmodel_provider='relay'\n[model_providers.relay]\nname='Fixture'\nbase_url='{endpoint}/{id}/v1'\nwire_api='responses'\n",
-            );
-            store.codex_save(
-                &tenant,
-                id,
-                &CodexProfile {
-                    name: id.into(),
-                    config: native_config.clone(),
-                    api_key: Some(format!("{id}-key")),
-                    preserve_login: false,
-                },
-                None,
-                None,
-            ).unwrap();
-            if id == "first" {
-                fs::write(&config, format!("{native_config}\n[history]\npersistence='save-all'\n")).unwrap();
-            }
-        }
-        let scope = vw_api_transport::id::ProjectScope::new(tenant.clone(), project.into()).unwrap();
-        transactions.commit_project_checked(
-            &scope,
-            &mut lock_app(Codex, &codex).unwrap(),
-            &transactions.state(Codex).unwrap(),
-            true,
-            &[],
-            PendingTarget {
-                pointer: Some("first".into()),
-                mode: Some(vw_agent_apps::providers::live::commit::ModeState {
-                    mode: vw_agent_apps::providers::live::commit::Mode::Direct,
-                    attached: false,
-                    proxy_route: Some("first".into()),
-                    contract: None,
-                }),
-                stack: Some(vw_agent_apps::providers::mode_state::StackState {
-                    enabled: false,
-                    members: vec!["first".into(), "second".into()],
-                    keys: [("first".into(), "first".into()), ("second".into(), "second".into())].into(),
-                }),
-                ..Default::default()
-            },
-            || Ok(()),
-        ).unwrap();
-        let preview = post(
-            "agent-apps/codex/aggregation/preview",
-            json!({"defaultProviderId":"first", "catalogPolicy":"use_managed"}),
-        ).send().await.unwrap().error_for_status().unwrap().json::<Value>().await.unwrap();
-        assert!(preview["previewToken"].is_string(), "{preview}");
-        finish(post("agent-apps/codex/aggregation/publish", json!({
-            "expectedRevision":preview["revision"], "previewToken":preview["previewToken"],
-            "requestId":"fixture-stop-restore-codex", "confirmed":true
-        })).send().await.unwrap(), "published").await;
-        let codex_before = fs::read_to_string(&config).unwrap();
-        assert!(codex_before.contains(&published_url));
-        assert!(transactions.state(Codex).unwrap().mode.unwrap().attached);
-
-        let before = saved();
         let stop = |action| post(&format!("app-routing/hosts/{host}/{action}"), json!({}));
         let response = stop("stop").send().await.unwrap();
         assert_eq!(response.status(), 409);
         assert_eq!(response.json::<Value>().await.unwrap()["error"]["code"], "apps_attached");
-        let foreign = client
-            .post(format!("http://127.0.0.1:{port}/v1/app-routing/hosts/{host}/stop-with-restore"))
-            .header("x-platform-id", "p")
-            .header("x-company-id", "other")
-            .bearer_auth(GATEWAY_SKEY)
-            .json(&json!({}))
-            .send().await.unwrap();
-        assert_eq!(foreign.status(), 403);
-        assert_eq!(saved(), before);
-        assert_eq!(fs::read_to_string(&config).unwrap(), codex_before);
-        forward("second", "fixture").await;
 
-        let edited = codex_before.replace(&published_url, "http://127.0.0.1:1");
-        fs::write(&config, &edited).unwrap();
-        let response = stop("stop-with-restore").send().await.unwrap();
-        let status = response.status();
-        let body = response.text().await.unwrap();
-        assert_eq!(status, 200, "restore and stop: {body}");
-        let partial: Value = serde_json::from_str(&body).unwrap();
-        assert_eq!(partial["status"]["state"], "running");
-        assert_eq!(partial["failures"], json!([{"appId":"codex","status":409}]));
-        assert_eq!(fs::read_to_string(&config).unwrap(), edited);
+        let restored = routing_json(stop("stop-with-restore"), 200).await;
+        assert_eq!(restored["status"]["state"], "stopped");
+        assert_eq!(restored["failures"], json!([]));
         assert_eq!(saved()["env"]["ANTHROPIC_BASE_URL"], direct_endpoint);
         assert_eq!(saved()["fixture"], true);
         assert!(!transactions.state(Claude).unwrap().mode.unwrap().attached);
-        assert!(transactions.state(Codex).unwrap().mode.unwrap().attached);
-        let address = ("127.0.0.1", binding["boundPort"].as_u64().unwrap() as u16);
-        assert!(tokio::net::TcpStream::connect(address).await.is_ok());
-
-        fs::write(&config, &codex_before).unwrap();
-        let response = stop("stop-with-restore").send().await.unwrap();
-        let status = response.status();
-        let body = response.text().await.unwrap();
-        assert_eq!(status, 200, "retry restore and stop: {body}");
-        let stopped: Value = serde_json::from_str(&body).unwrap();
-        assert_eq!(stopped["status"]["state"], "stopped");
-        assert_eq!(stopped["failures"], json!([]));
-        assert!(tokio::net::TcpStream::connect(address).await.is_err());
-        let native: Value = toml::from_str(&fs::read_to_string(config).unwrap()).unwrap();
-        assert_eq!(native["model_providers"][native["model_provider"].as_str().unwrap()]["base_url"], direct_endpoint);
-        assert_eq!(native["history"]["persistence"], "save-all");
-        let state = transactions.state(Codex).unwrap();
-        assert!(!state.stack.enabled);
-        assert_eq!(state.stack.members, ["first", "second"]);
-        assert!(!state.mode.unwrap().attached);
-        assert!(transactions.pending(Codex).unwrap().is_none());
         upstream.abort();
         return;
     }
@@ -1056,150 +907,6 @@ async fn exercise_local_routing_attachment(restart: Option<RestartScenario>) {
     let state = transactions.state(Claude).unwrap();
     assert_eq!(state.pointer.unwrap().id.as_str(), "first");
     assert!(!state.mode.unwrap().attached);
-    let aggregation = format!("http://127.0.0.1:{port}/v1/agent-apps/claude/aggregation");
-    let read_state = async || {
-        authorized(reqwest::Method::GET, &format!("{aggregation}/state"))
-            .send()
-            .await
-            .unwrap()
-            .error_for_status()
-            .unwrap()
-            .json::<Value>()
-            .await
-            .unwrap()
-    };
-    // Preview is read-only. Register the selected provider through the scoped
-    // default write before requesting a signed aggregation preview.
-    let state = read_state().await;
-    let response = authorized(reqwest::Method::PUT, &format!("{aggregation}/default"))
-        .json(&json!({"expectedRevision":state["revision"], "providerId":"first"}))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(response.status(), 200, "{}", response.text().await.unwrap());
-    let preview = post(
-        "agent-apps/claude/aggregation/preview",
-        json!({"defaultProviderId":"first"}),
-    )
-    .send()
-    .await
-    .unwrap()
-    .error_for_status()
-    .unwrap()
-    .json::<Value>()
-    .await
-    .unwrap();
-    assert!(
-        preview["previewToken"].is_string(),
-        "aggregation preview: {preview}"
-    );
-    finish(
-        post(
-            "agent-apps/claude/aggregation/publish",
-            json!({
-                "expectedRevision":preview["revision"], "previewToken":preview["previewToken"],
-                "requestId":"fixture-publish", "confirmed":true
-            }),
-        )
-        .send()
-        .await
-        .unwrap(),
-        "published",
-    )
-    .await;
-    let state = read_state().await;
-    assert_eq!(state["mode"], "aggregation");
-    assert_eq!(state["attached"], true);
-    forward("first", "fixture").await;
-
-    let switched = authorized(reqwest::Method::PUT, &format!("{aggregation}/default"))
-        .json(&json!({"expectedRevision":state["revision"], "providerId":"second"}))
-        .send()
-        .await
-        .unwrap();
-    let status = switched.status();
-    let body = switched.text().await.unwrap();
-    assert_eq!(status, 200, "aggregation switch: {body}");
-    let switched: Value = serde_json::from_str(&body).unwrap();
-    assert_eq!(switched["defaultProviderId"], "second");
-    forward("second", "fixture").await;
-
-    if restart == Some(RestartScenario::Aggregation) {
-        drop(gateway);
-        let (_gateway, port) = spawn_gateway_with_options(&home, None, false).await;
-        let control = |method, action| {
-            client
-                .request(
-                    method,
-                    format!("http://127.0.0.1:{port}/v1/app-routing/hosts/{host}/{action}"),
-                )
-                .header("x-platform-id", "p")
-                .header("x-company-id", "owner")
-                .bearer_auth(GATEWAY_SKEY)
-        };
-        let status = control(reqwest::Method::GET, "status")
-            .send()
-            .await
-            .unwrap()
-            .error_for_status()
-            .unwrap()
-            .json::<Value>()
-            .await
-            .unwrap();
-        assert_eq!(status["state"], "stopped");
-
-        let response =
-            control(reqwest::Method::POST, "start").json(&json!({})).send().await.unwrap();
-        let status = response.status();
-        let body = response.text().await.unwrap();
-        assert_eq!(status, 200, "aggregate recovery: {body}");
-        let binding: Value = serde_json::from_str(&body).unwrap();
-        let url = format!("http://127.0.0.1:{}", binding["boundPort"]);
-        let native = saved();
-        assert_eq!(native["env"]["ANTHROPIC_BASE_URL"], url);
-        let response = client
-            .post(format!("{url}/v1/messages"))
-            .header("x-api-key", native["env"]["ANTHROPIC_AUTH_TOKEN"].as_str().unwrap())
-            .json(&json!({"model":"fixture","messages":[{"role":"user","content":"hello"}]}))
-            .send()
-            .await
-            .unwrap()
-            .error_for_status()
-            .unwrap();
-        assert_eq!(response.json::<Value>().await.unwrap()["id"], "second");
-        let durable = transactions.state(Claude).unwrap();
-        assert!(durable.stack.enabled);
-        assert_eq!(durable.mode.unwrap().proxy_route.as_deref(), Some("second"));
-        upstream.abort();
-        return;
-    }
-
-    finish(post("agent-apps/claude/aggregation/exit", json!({
-        "expectedRevision":switched["revision"], "requestId":"fixture-exit", "confirmed":true
-    })).send().await.unwrap(), "exited").await;
-    let state = read_state().await;
-    assert_eq!(state["mode"], "direct");
-    assert_eq!(state["attached"], false);
-    assert_eq!(state["directProviderId"], "first");
-    assert_eq!(saved()["env"]["ANTHROPIC_BASE_URL"], direct_endpoint);
-    assert_eq!(saved()["fixture"], true);
-    post(
-        &route_mode,
-        json!({"action":{"kind":"proxy","providerId":"second"}}),
-    )
-    .send()
-    .await
-    .unwrap()
-    .error_for_status()
-    .unwrap();
-    let state = read_state().await;
-    assert_eq!(state["mode"], "routing");
-    forward("second", "fixture").await;
-    finish(post("agent-apps/claude/aggregation/exit", json!({
-        "expectedRevision":state["revision"], "requestId":"fixture-exit-ordinary", "confirmed":true
-    })).send().await.unwrap(), "exited").await;
-    assert_eq!(read_state().await["attached"], false);
-    assert_eq!(saved()["env"]["ANTHROPIC_BASE_URL"], direct_endpoint);
     upstream.abort();
 }
 
@@ -1395,10 +1102,11 @@ async fn finish_routing_end_to_end(
         routing_json(control(port, Method::POST, "stop-with-restore").json(&json!({})), 200).await;
     assert_eq!(stopped["status"]["state"], "stopped");
     assert_eq!(stopped["failures"], json!([]));
-    let state =
-        routing_json(api(port, Method::GET, "agent-apps/claude/aggregation/state"), 200).await;
-    assert_eq!(state["mode"], "direct");
-    assert_eq!(state["attached"], false);
+    let attachment = routing_json(
+        api(port, Method::GET, &format!("app-routing/hosts/{host}/projects/{project}/apps/claude/mode")),
+        200,
+    ).await;
+    assert_eq!(attachment["attached"], false);
     let restored = saved();
     assert_eq!(restored["env"]["ANTHROPIC_BASE_URL"], direct_endpoint);
     assert_eq!(restored["fixture"], true);

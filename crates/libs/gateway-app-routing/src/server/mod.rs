@@ -1,5 +1,4 @@
 //! Server-side application routing HTTP contracts.
-pub mod provider_mode_host;
 pub mod provider_publication_host;
 pub mod record_resync;
 pub mod snapshot_host;

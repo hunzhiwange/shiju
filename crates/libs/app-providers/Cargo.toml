@@ -9,7 +9,6 @@ app-config-paths = { path = "../app-config-paths" }
 app-aggregation = { path = "../app-aggregation" }
 app-aggregation-catalog = { path = "../app-aggregation-catalog" }
 app-models = { path = "../app-models" }
-app-provider-environment = { path = "../app-provider-environment" }
 app-provider-native = { path = "../app-provider-native" }
 app-provider-login = { path = "../app-provider-login" }
 app-auth = { path = "../app-auth" }

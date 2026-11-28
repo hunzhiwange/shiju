@@ -152,7 +152,7 @@ pub async fn configure<H: AggregationLifecycleHost + 'static>(
         };
     };
     let Ok(database) = GlobalDatabase::for_home(&paths.home) else {
-        tracing::warn!("Application aggregation lifecycle storage unavailable");
+        tracing::warn!("Application routing lifecycle storage unavailable");
         return app;
     };
     configure_with_policy(app, routing, path, database, paths, lifecycle).await
@@ -227,10 +227,8 @@ pub async fn configure_with_policy<H: app_routing_services::lifecycle_host::Aggr
     routing.set_aggregation_lifecycle(
         lifecycle(database, control.policy.clone(), control.scope.tenant.clone(), control.scope.host.clone()),
     );
-    if routing.bound_address().is_some()
-        && let Err(error) = routing.resume_aggregations().await
-    {
-        tracing::warn!(%error, "Application aggregation startup failed");
+    if let Err(error) = routing.resume_aggregations().await {
+        tracing::warn!(%error, "Saved application route recovery failed");
     }
     app.layer(Extension(control))
 }
@@ -262,70 +260,7 @@ impl RoutingControl {
     }
 
     /// Entry for the native configuration transaction. Check the current policy
-    /// before resolving saved members, and use the same executor root throughout.
-    pub fn publish_aggregation(
-        &self,
-        headers: &HeaderMap,
-        project: &ProjectScope,
-        host: &str,
-        expected_revision: Option<&str>,
-        prepare: impl FnOnce(
-            &std::path::Path,
-            &str,
-        ) -> Result<
-            app_routing_services::aggregation_routing::AggregationPublication,
-            StatusCode,
-        >,
-        commit: impl FnOnce(
-            &std::path::Path,
-            SocketAddr,
-            &str,
-        ) -> Result<(), app_routing_services::RouteCommitError>,
-    ) -> Result<app_routing_services::RouteRevocation, StatusCode> {
-        self.publish_aggregation_app(
-            headers,
-            project,
-            host,
-            AppId::Codex,
-            expected_revision,
-            prepare,
-            commit,
-        )
-    }
-
-    /// Application-specific publication retains the same policy and unique listener.
-    #[allow(clippy::too_many_arguments)]
-    pub fn publish_aggregation_app(
-        &self,
-        headers: &HeaderMap,
-        project: &ProjectScope,
-        host: &str,
-        app: AppId,
-        expected_revision: Option<&str>,
-        prepare: impl FnOnce(
-            &std::path::Path,
-            &str,
-        ) -> Result<
-            app_routing_services::aggregation_routing::AggregationPublication,
-            StatusCode,
-        >,
-        commit: impl FnOnce(
-            &std::path::Path,
-            SocketAddr,
-            &str,
-        ) -> Result<(), app_routing_services::RouteCommitError>,
-    ) -> Result<app_routing_services::RouteRevocation, StatusCode> {
-        let (root, principal) = self.authorize_mode(headers, project, host, app)?;
-        let publication = prepare(&root, &principal)?;
-        if !publication.binding.has_scope(project, host, app) {
-            return Err(StatusCode::FORBIDDEN);
-        }
-        self.routing.publish_aggregation(publication, expected_revision, |address, token| {
-            commit(&root, address, token)
-        })
-    }
-
-    /// Ordinary routing and aggregation share the authorization and token owner.
+    /// Publish a route through the authorized listener.
     pub fn publish_failover_route(
         &self,
         headers: &HeaderMap,

@@ -11,15 +11,15 @@ pub(super) fn run(app: &mut App, update: impl FnOnce(&mut State, &str, Option<&d
     let list = &mut app.app_providers;
     let other_modal_open = list.preview.is_some() || list.snippets.is_some() || list.universal.is_some();
     let mut state = State {
-        mode:list.mode.take(),paths:list.paths.take(),preview:list.preview.take(),snippets:list.snippets.take(),universal:list.universal.take(),
+        paths:list.paths.take(),preview:list.preview.take(),snippets:list.snippets.take(),universal:list.universal.take(),
         scope: list.scope.clone(), generation: list.generation, loading: list.loading,
-        editor:list.editor.take(),icons:list.icons.take(),env:list.env.take(),endpoints:list.endpoints.take(),
+        editor:list.editor.take(),icons:list.icons.take(),endpoints:list.endpoints.take(),
         other_modal_open,
         form: list.form.take(), desktop: list.desktop.take(), new_draft: list.new_draft.take(),
     };
     let task = update(&mut state, &app.apps_catalog.token, list.snapshot.as_ref());
-    list.mode=state.mode;list.paths=state.paths;list.preview=state.preview;list.snippets=state.snippets;list.universal=state.universal;
-    list.editor=state.editor; list.icons=state.icons; list.env=state.env; list.endpoints=state.endpoints;
+    list.paths=state.paths;list.preview=state.preview;list.snippets=state.snippets;list.universal=state.universal;
+    list.editor=state.editor; list.icons=state.icons; list.endpoints=state.endpoints;
     list.generation = state.generation;
     list.loading = state.loading;
     list.form = state.form;
@@ -30,8 +30,8 @@ pub(super) fn run(app: &mut App, update: impl FnOnce(&mut State, &str, Option<&d
 pub fn edit(app: &mut App, current: Option<(GatewayClient, Scope)>, event: super::edit::EditMessage) -> Task<Message> {
     run(app, |state, token, snapshot| desktop_provider_apps::message::edit::update(state, current, token, snapshot, event))
 }
-pub fn desktop(app: &mut App, current: Option<(GatewayClient, Scope)>, binding: bool, event: super::desktop::Event) -> Task<Message> {
-    run(app, |state, token, _| desktop_provider_apps::message::desktop::update(state, current, token, binding, event))
+pub fn desktop(app: &mut App, current: Option<(GatewayClient, Scope)>, event: super::desktop::Event) -> Task<Message> {
+    run(app, |state, token, _| desktop_provider_apps::message::desktop::update(state, current, token, event))
 }
 pub fn change_membership(app: &mut App, current: Option<(GatewayClient, Scope)>, id: String, add: bool) -> Task<Message> {
     let editor_open = app.app_providers.editor.is_some();
@@ -49,7 +49,6 @@ pub fn effect(app: &mut App, effect: Effect) -> Task<Message> {
         Effect::OpenClawMemberChanged {scope,generation,add,result} => super::openclaw::membership_changed(app,scope,generation,add,result),
         Effect::OpenCodeMemberChanged {scope,generation,add,result} => super::opencode::membership_changed(app,scope,generation,add,result),
         Effect::PiMemberChanged {scope,generation,add,result} => super::pi::membership_changed(app,scope,generation,add,result),
-        Effect::Mode(event) => super::mode::update(app,event),
         Effect::Paths(event) => super::paths::update(app,event),
         Effect::Preview(event) => super::preview::update(app,event),
         Effect::Snippets(event) => super::snippets::update(app,event),
@@ -58,7 +57,6 @@ pub fn effect(app: &mut App, effect: Effect) -> Task<Message> {
         Effect::None => Task::none(),
         Effect::OpenList(id) => super::list::update(app,super::list::ListMessage::Open(id)),
         Effect::Endpoints(event) => super::endpoints::update(app,event),
-        Effect::Env(event) => super::env::update(app,event),
         Effect::Icons(event) => super::icons::update(app,event),
         Effect::HermesMemberChanged {scope,generation,add,result} => super::hermes::membership_changed(app,scope,generation,add,result),
         Effect::KimiMemberChanged {scope,generation,add,result} => super::kimi::membership_changed(app,scope,generation,add,result),
@@ -93,10 +91,6 @@ fn request_is_current(app:&App,scope:&Scope,generation:u64)->bool {
 
 pub fn endpoints(app:&mut App,current:Option<(GatewayClient,Scope)>,event:super::endpoints::Event)->Task<Message>{
  run(app,|state,token,_|desktop_provider_apps::message::endpoints::update(state,current,token,event))
-}
-
-pub fn env(app:&mut App,current:Option<(GatewayClient,Scope)>,event:super::env::Event)->Task<Message>{
- run(app,|state,token,_|desktop_provider_apps::message::env::update(state,current,token,event))
 }
 
 pub fn icons(app:&mut App,current:Result<(GatewayClient,Scope),String>,event:super::icons::Event)->Task<Message>{

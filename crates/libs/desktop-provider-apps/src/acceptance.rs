@@ -2,9 +2,7 @@
 use vw_api_app_identity::AppId;
 mod cc04_desktop_fixture;
 mod cc04_endpoints_fixture;
-mod cc04_env_fixture;
 mod cc04_icons_fixture;
-mod cc04_mode_fixture;
 mod cc04_paths_fixture;
 mod cc04_preview_fixture;
 mod cc04_snippets_fixture;
@@ -24,12 +22,10 @@ pub fn fixture(
     let universal = case == "universal";
     let snippets = case == "snippets";
     let preview = case == "preview";
-    let env = case == "env";
-    let mode = case == "mode";
     let paths = case == "paths";
     let server = std::thread::spawn(move || {
         let mut presentation = serde_json::json!({"sortIndex":1,"category":"工作","notes":"中文动态备注：实际字体整形验收。"});
-        let provider_count = if mode { 26 } else { 16 };
+        let provider_count = 16;
         let mut basics: std::collections::BTreeMap<String, serde_json::Value> = (0..provider_count).map(|i| (format!("provider-{i}"), serde_json::json!({"name":format!("中文供应商 {i}"),"category":"工作","notes":"中文动态备注","websiteUrl":"https://website.example.test"}))).collect();
         let app = match app {
             AppId::Claude => "claude",
@@ -186,9 +182,7 @@ pub fn fixture(
         )]);
         let mut universal_fixture = universal.then(cc04_universal_fixture::Fixture::default);
         let mut snippets_fixture = snippets.then(cc04_snippets_fixture::Fixture::new);
-        let mut mode_fixture = mode.then(cc04_mode_fixture::Fixture::default);
         let mut paths_fixture = paths.then(cc04_paths_fixture::Fixture::default);
-        let mut env_fixture = env.then(cc04_env_fixture::Fixture::default);
         let mut preview_fixture = preview.then(cc04_preview_fixture::Fixture::default);
         let mut icons_fixture = icons.then(cc04_icons_fixture::Fixture::new);
         let mut endpoints_fixture = cc04_endpoints_fixture::Fixture::default();
@@ -260,18 +254,10 @@ pub fn fixture(
             let preview_response = preview_fixture.as_mut().and_then(|fixture| {
                 fixture.handle(line.split_whitespace().next().unwrap_or(""), path, &payload)
             });
-            let env_response = env_fixture.as_mut().and_then(|fixture| {
-                fixture.handle(line.split_whitespace().next().unwrap_or(""), path, &payload)
-            });
-            let mode_response = mode_fixture.as_mut().and_then(|fixture| {
-                fixture.handle(line.split_whitespace().next().unwrap_or(""), path, &payload)
-            });
             let paths_response = paths_fixture.as_mut().and_then(|fixture| {
                 fixture.handle(line.split_whitespace().next().unwrap_or(""), path, &payload)
             });
             let body = if let Some((code, value)) = paths_response
-                .or(mode_response)
-                .or(env_response)
                 .or(preview_response)
                 .or(snippets_response)
             {

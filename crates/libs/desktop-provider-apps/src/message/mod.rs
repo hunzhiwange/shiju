@@ -14,7 +14,6 @@ pub mod opencode;
 pub mod pi;
 pub mod icons;
 pub mod endpoints;
-pub mod env;
 pub mod desktop;
 
 #[cfg(test)]
@@ -56,16 +55,12 @@ mod kimi_tests;
 mod endpoints_tests;
 
 #[cfg(test)]
-mod env_tests;
-
-#[cfg(test)]
 mod icons_tests;
 
 pub mod list;
 
 pub mod leave;
 
-pub mod mode;
 
 pub mod paths;
 

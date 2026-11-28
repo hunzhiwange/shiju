@@ -193,6 +193,53 @@ impl ProviderRecordParticipant for super::AppProviderStore {
 }
 
 impl super::AppProviderStore {
+    /// Remove an obsolete publication marker only after its owning slot is restored.
+    #[cfg(target_os = "macos")]
+    pub fn release_legacy_publication(
+        &self,
+        tx: &vw_agent_apps::providers::live::commit::ProviderTransactions,
+        guard: &vw_agent_apps::providers::live::write_guard::AppWriteGuard,
+        scope: &vw_api_transport::ProjectScope,
+        id: &str,
+    ) -> Result<(), WriteError> {
+        let app = guard.app();
+        let state = tx.state(app)?;
+        state.require_project(scope)?;
+        if state.stack.enabled || tx.pending(app)?.is_some()
+            || !state.stack.members.iter().any(|member| member == id)
+        {
+            return Err(WriteError::Conflict);
+        }
+        let tenant = scope.tenant_scope();
+        let key = Self::key(app, id).map_err(|_| WriteError::InvalidResource)?;
+        let Some(before) = self.settings.0.get(tenant, super::NAMESPACE, &key)
+            .map_err(|_| WriteError::Io)?
+        else {
+            return Ok(());
+        };
+        let mut row: serde_json::Value = serde_json::from_str(&before)
+            .map_err(|_| WriteError::InvalidResource)?;
+        if row.get("shiju_provider_publication").is_some() {
+            return Err(WriteError::Conflict);
+        }
+        let Some(binding) = row.get("shijuPublicationBinding") else {
+            return Ok(());
+        };
+        let owner = serde_json::json!({"host":tx.execution_host(),"project":scope,"app":app});
+        // A record may have since been bound to another executor's state.
+        if binding != &owner {
+            return Ok(());
+        }
+        row.as_object_mut().ok_or(WriteError::InvalidResource)?
+            .remove("shijuPublicationBinding");
+        if !self.settings.0.compare_exchange(tenant, super::NAMESPACE, &key, &before, &row.to_string())
+            .map_err(|_| WriteError::Io)?
+        {
+            return Err(WriteError::Conflict);
+        }
+        Ok(())
+    }
+
     pub fn publication_record(
         &self,
         tenant: &TenantScope,

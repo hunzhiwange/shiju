@@ -60,7 +60,6 @@ pub use app_provider_projection::codex;
 pub use app_provider_login::codex_login;
 #[cfg(target_os = "macos")]
 pub(crate) mod codex_login_material {
-    pub(crate) use app_auth_codex::identity::extract_codex_auth_user_identity;
 }
 
 pub mod codex_catalog;
@@ -118,10 +117,6 @@ pub use app_auth::providers::mode_state;
 
 #[cfg(target_os = "macos")]
 pub mod mode_apply;
-#[cfg(all(test, target_os = "macos"))]
-mod mode_apply_tests;
-
-pub use app_provider_environment::{env_clean, env_diagnose, env_restore};
 
 pub use app_auth::providers::operations;
 

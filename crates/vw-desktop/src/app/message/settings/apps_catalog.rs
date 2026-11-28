@@ -113,7 +113,15 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
             if !app.apps_catalog.rows.iter().any(|row| row.entry.id == id) { return Task::none(); }
             let page = desktop_ui_controls::settings_navigation::ThirdPartyPage::Agents;
             app.apps_catalog.expanded = Some(id);
-            return crate::app::components::third_party_settings::navigate(app, page);
+            let navigate = crate::app::components::third_party_settings::navigate(app, page);
+            if app.navigation_panels.show_system_settings {
+                let open = crate::app::message::view::update(
+                    app,
+                    crate::app::message::ViewMessage::OpenThirdPartyAgents,
+                );
+                return Task::batch([navigate, open]);
+            }
+            return navigate;
         }
         AppsCatalogMessage::ToggleAgentProviderSearch => {
             if crate::app::components::third_party_settings::is_visible(app)
@@ -147,9 +155,6 @@ pub(in crate::app) fn update(app: &mut App, message: AppsCatalogMessage) -> Task
                         desktop_apps_ui::app_routing::lifecycle::Operation::Refresh,
                     ),
                 ),
-                Tab::Aggregation => {
-                    super::aggregation_list::update(app, super::aggregation_list::Event::Open)
-                }
                 Tab::Configuration => app
                     .apps_catalog
                     .expanded

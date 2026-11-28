@@ -13,7 +13,7 @@ pub use domain::{
     },
 };
 use iced::{Element, Theme};
-pub type ListState = domain::state::list::ListState<(), (), (), (), (), (), (), (), ()>;
+pub type ListState = domain::state::list::ListState<(), (), (), (), (), (), ()>;
 #[derive(Clone)]
 pub enum Message {
     None,
@@ -40,7 +40,6 @@ pub enum ListMessage {
     Desktop(DesktopEvent),
     Refresh,
     Cancel,
-    Close,
     ModelCatalog(desktop_settings_providers::catalog_api::Event),
 }
 impl std::fmt::Debug for Message {
@@ -229,7 +228,7 @@ pub mod list {
             }
             _ => Message::None,
         };
-        let card = domain::components::list::card(
+        let base = domain::components::list::page(
             help.i18n,
             map,
             domain::components::list::View {
@@ -241,11 +240,15 @@ pub mod list {
                 editing: state.form.is_some() || state.editor.is_some(),
             },
             vec![],
-        );
-        let base = desktop_ui_controls::system_settings_common::settings_modal_overlay(
-            Some(base),
-            Message::Settings(SettingsMessage::AppProviders(ListMessage::Close)),
-            card,
+            iced::widget::text(help.i18n.__("供应商")).into(),
+            domain::components::list::Page {
+                tabs: iced::widget::Space::new().into(),
+                lead: None,
+                can_launch: false,
+                can_switch: false,
+                tools: vec![],
+                search: None,
+            },
         );
         if let Some(form) = &state.model_catalog {
             let style = desktop_settings_providers::catalog::CatalogStyle {

@@ -105,7 +105,7 @@ impl Fixture {
         // These are the production subrouters with explicit policy injection; no replacement handlers.
         for make in [
             super::preview::router_with_policy,
-            gateway_app_routing::server::provider_composition::operations::router_with_policy,
+            gateway_app_providers::operations::router_with_policy,
             gateway_app_routing::server::provider_composition::claude::router_with_policy,
             gateway_app_routing::server::provider_composition::codex_catalog::router_with_policy,
             super::gemini::router_with_policy,
@@ -122,10 +122,6 @@ impl Fixture {
             super::agy::router_with_policy,
             super::catalog::router_with_policy,
             crate::path_routes::router_with_policy,
-            super::mode_state::router_with_policy,
-            super::env_diagnose::router_with_policy,
-            super::env_clean::router_with_policy,
-            super::env_restore::router_with_policy,
             super::editor_merge::router_with_policy,
             super::snippets::router_with_policy,
             super::import::router_with_policy,
@@ -231,8 +227,6 @@ async fn cc04_api_security_rejects_cross_scope_mutation() {
             "/app-providers/operations",
             json!({"requestId":"denied","action":{"kind":"import","app":"pi","trigger":"manual"}}),
         ),
-        ("/app-providers/claude/environment/clean", json!({"selections":[]})),
-        ("/app-providers/claude/environment/restore", json!({"backupId":"missing"})),
         (
             "/app-providers/claude/saved/editor/save",
             json!({"context":"missing","edits":[],"choice":"refuse"}),
@@ -356,7 +350,6 @@ async fn cc04_api_security_reads_errors_and_progress_are_safe() {
         "/app-providers/pi/saved",
         "/app-providers/pi",
         "/app-providers/pi/catalog/state?targetHostId=host",
-        "/app-providers/pi/mode/state?targetHostId=host",
     ] {
         assert_eq!(f.request("GET", path, "a", TOKEN, Value::Null).await.0, 200, "{path}");
     }

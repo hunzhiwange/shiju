@@ -25,11 +25,6 @@ pub(crate) fn router() -> Router {
         .merge(super::agent_apps_skills::discovery_api::router())
         .merge(super::agent_apps_skills::claude_api::router())
         .merge(super::agent_apps_skills::search_api::router())
-        .merge(super::aggregation_read::router())
-        .merge(super::aggregation_desktop::router())
-        .merge(super::aggregation_codex_settings::router())
-        .merge(super::aggregation_clients::router())
-        .merge(super::aggregation_members::router())
         .merge(super::aggregation_omo::router())
         .merge(super::mcp_management_read::router())
         .merge(lifecycle::router())
@@ -133,10 +128,6 @@ pub(super) use access::{authorize_diagnostic_job, authorize_diagnostic_probe};
 #[cfg(target_os = "macos")]
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use access::{aggregation_lifecycle_host, authorize_aggregation_lifecycle};
-
-#[cfg(target_os = "macos")]
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(super) use access::authorize_codex_restart;
 
 #[cfg(target_os = "macos")]
 #[cfg(any(test, target_arch = "wasm32"))]

@@ -6,7 +6,7 @@ use super::help::Help;
 use crate::{Message, state::universal::*};
 use iced::{
     Alignment, Element, Length,
-    widget::{button, checkbox, column, container, row, scrollable, text},
+    widget::{button, checkbox, column, row, text},
 };
 use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_edit::universal_sync::UniversalCatalogResult;
@@ -36,8 +36,8 @@ fn app_label(app: AppId) -> &'static str {
 
 fn reason_label(i18n: desktop_i18n::I18n, reason: UniversalSyncError) -> &'static str {
     match reason {
-        UniversalSyncError::UnsupportedApp => i18n.__("此应用不支持统一投影"),
-        UniversalSyncError::AppDisabled => i18n.__("统一记录未启用此应用"),
+        UniversalSyncError::UnsupportedApp => i18n.__("此智能体不支持添加该配置"),
+        UniversalSyncError::AppDisabled => i18n.__("此配置未对该智能体开放"),
         UniversalSyncError::InvalidTargetIdentity => i18n.__("生成的档案标识无效"),
         UniversalSyncError::InvalidProfile => i18n.__("供应商档案无效"),
         UniversalSyncError::TargetConflict => i18n.__("档案标识与已有供应商冲突"),
@@ -67,14 +67,14 @@ pub fn card<'a>(
     let mut fields = column![].spacing(12);
     if let Some(records) = &form.records {
         if records.is_empty() {
-            fields = fields.push(text(i18n.__("没有已保存的统一供应商记录。")));
+            fields = fields.push(text(i18n.__("没有可添加的供应商配置。")));
         } else {
             let options = records.iter().map(|record| RecordOption {
                 id: record.id.clone(),
                 name: record.config.name.clone(),
             });
             let selected = form.selected_record();
-            fields = fields.push(text(i18n.__("统一供应商记录")).size(16)).push(
+            fields = fields.push(text(i18n.__("已保存的供应商配置")).size(16)).push(
                 settings_select(
                     options,
                     selected.map(|record| RecordOption {
@@ -83,18 +83,18 @@ pub fn card<'a>(
                     }),
                     |option| message(Event::Select(option.id)),
                 )
-                .placeholder(i18n.__("选择已保存的记录"))
+                .placeholder(i18n.__("选择供应商配置"))
                 .width(Length::Fill)
                 .disabled(form.busy),
             );
             if let Some(record) = selected {
                 let config = &record.config;
                 let mut details =
-                    column![text(i18n.__("记录详情")).size(16), text(&config.base_url).size(13)].spacing(6);
+                    column![text(i18n.__("供应商配置详情")).size(16), text(&config.base_url).size(13)].spacing(6);
                 if let Some(notes) = &config.notes {
                     details = details.push(text(notes).size(13).style(settings_muted_text_style));
                 }
-                let mut apps = column![text(i18n.__("选择目标应用")).size(16)].spacing(10);
+                let mut apps = column![text(i18n.__("选择要添加到的智能体")).size(16)].spacing(10);
                 for (app, enabled) in [
                     (AppId::Claude, config.apps.claude),
                     (AppId::Codex, config.apps.codex),
@@ -102,7 +102,13 @@ pub fn card<'a>(
                 ] {
                     apps = apps.push(
                         checkbox(form.apps.contains(&app))
-                            .label(i18n.format("%s · 记录%s", &[(app_label(app).to_string()).into(), ((if enabled { "已启用" } else { "未启用" }).to_string()).into()]).expect("valid display template"))
+                            .label(
+                                i18n.format(
+                                    if enabled { "%s · 配置已开放" } else { "%s · 配置未开放" },
+                                    &[(app_label(app).to_string()).into()],
+                                )
+                                .expect("valid display template"),
+                            )
                             .on_toggle_maybe(
                                 (!form.busy)
                                     .then_some(move |checked| message(Event::Toggle(app, checked))),
@@ -110,11 +116,15 @@ pub fn card<'a>(
                             .style(settings_checkbox_style),
                     );
                 }
-                fields = fields.push(settings_panel(details)).push(settings_panel(apps));
+                fields = fields
+                    .push(settings_divider())
+                    .push(settings_section_content(details))
+                    .push(settings_divider())
+                    .push(settings_section_content(apps));
             }
         }
     } else if form.busy {
-        fields = fields.push(text(i18n.__("正在读取统一供应商记录…")));
+        fields = fields.push(text(i18n.__("正在读取供应商配置…")));
     } else {
         fields = fields.push(action(i18n.__("重试读取"), Event::RetryList, true, false));
     }
@@ -122,13 +132,13 @@ pub fn card<'a>(
         fields = fields.push(settings_panel(text(i18n.format("请求失败：%s", &[(error.to_string()).into()]).expect("valid display template")).size(13)));
     }
     if !form.results.is_empty() {
-        fields = fields.push(text(i18n.__("逐应用结果")).size(16));
+        fields = fields.push(text(i18n.__("添加结果")).size(16));
     }
     for item in &form.results {
         let catalog = match item.catalog {
-            UniversalCatalogResult::Updated => i18n.__("目录已更新").to_owned(),
+            UniversalCatalogResult::Updated => i18n.__("已添加到供应商列表").to_owned(),
             UniversalCatalogResult::Failed { code } => {
-                i18n.format("目录更新失败：%s", &[(reason_label(i18n, code).to_string()).into()]).expect("valid display template")
+                i18n.format("添加失败：%s", &[(reason_label(i18n, code).to_string()).into()]).expect("valid display template")
             }
         };
         let live = match item.live {
@@ -146,37 +156,28 @@ pub fn card<'a>(
         fields = fields.push(settings_panel(result));
     }
     let close = if form.busy { Message::None } else { message(Event::Close) };
-    let card = settings_modal_card(
-        column![
-            row![
-                container(help.heading(i18n.__("统一供应商投影"), i18n.__("将已保存的记录投影到所选应用目录。"), 22))
-                    .width(Length::Fill),
-                settings_close_button(close.clone())
-            ]
-            .align_y(Alignment::Center),
-            scrollable(container(fields).padding([0, 7]))
-                .direction(scrollable::Direction::Vertical(
-                    scrollable::Scrollbar::new().width(4).scroller_width(4)
-                ))
-                .height(Length::Fill),
-            row![
-                action(i18n.__("返回"), Event::Close, !form.busy, false),
-                action(
-                    if form.busy && form.records.is_some() {
-                        i18n.__("投影中…")
-                    } else {
-                        i18n.__("保存投影")
-                    },
-                    Event::Submit,
-                    !form.busy && form.selected.is_some() && !form.apps.is_empty(),
-                    true
-                ),
-            ]
-            .spacing(10),
-        ]
-        .spacing(12),
-    )
-    .width(Length::Fixed(600.))
-    .height(Length::Fixed(610.));
+    let header = settings_modal_header(
+        help.heading(
+            i18n.__("添加到其他智能体"),
+            i18n.__("把已保存的供应商配置添加到所选智能体的供应商列表。添加后需手动启用。"),
+            22,
+        ),
+        settings_close_button(close),
+    );
+    let footer = row![
+        action(i18n.__("返回"), Event::Close, !form.busy, false),
+        action(
+            if form.busy && form.records.is_some() {
+                i18n.__("正在添加供应商配置…")
+            } else {
+                i18n.__("添加")
+            },
+            Event::Submit,
+            !form.busy && form.selected.is_some() && !form.apps.is_empty(),
+            true
+        ),
+    ]
+    .spacing(10);
+    let card = settings_modal_layout(header, fields, Some(footer.into())).width(600).height(610);
     card.into()
 }

@@ -1,16 +1,7 @@
 //! Explicit exit through the original native restoration and route owners.
 use super::*;
 use vw_agent_apps::aggregation::exit_restore::{self, Restore, RestoreError};
-use vw_api_app_aggregation::AggregationMode;
-use vw_api_app_aggregation::AggregationState;
-use vw_api_app_aggregation::RecoveryState;
 impl RecordPublicationContext {
-    pub fn exit_aggregation(&self, authorized: impl Fn() -> bool) -> Result<(), StatusCode> {
-        let routing = self.routing.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-        let routes = routing.begin_route_restore().map_err(|_| StatusCode::CONFLICT)?;
-        self.exit_with_routes(&routes, authorized)
-    }
-
     pub(crate) fn exit_with_routes(
         &self,
         routes: &app_routing_services::RouteRestore,
@@ -49,7 +40,7 @@ impl RecordPublicationContext {
             })
         })
     }
-    fn restore_exit(
+    pub(crate) fn restore_exit(
         &self,
         tx: &ProviderTransactions,
         authorized: &impl Fn() -> bool,
@@ -200,73 +191,5 @@ impl RecordPublicationContext {
             RestoreError::TargetFailed => StatusCode::BAD_GATEWAY,
             _ => StatusCode::UNPROCESSABLE_ENTITY,
         })
-    }
-    pub fn exited_state(&self) -> Result<AggregationState, StatusCode> {
-        use gateway_aggregation::aggregation_read_snapshot as snapshot;
-        let _guard = vw_agent_apps::providers::live::write_guard::lock_app(self.app, &self.home)
-            .map_err(failed)?;
-        let tx = ProviderTransactions::open_existing(
-            &self.root,
-            ExecutionHostId::new(&self.host).map_err(failed)?,
-        )
-        .map_err(failed)?
-        .ok_or(StatusCode::CONFLICT)?;
-        let state = tx.state(self.app).map_err(failed)?;
-        state.require_project(&self.project).map_err(|_| StatusCode::FORBIDDEN)?;
-        if state.stack.enabled
-            || state.mode.as_ref().is_some_and(|m| m.attached || m.mode != Mode::Direct)
-            || tx.pending(self.app).map_err(failed)?.is_some()
-        {
-            return Err(StatusCode::CONFLICT);
-        }
-        let input = snapshot::load(
-            &self.database,
-            &self.project,
-            &self.host,
-            self.app,
-            &self.home,
-            &state,
-            None,
-        )?;
-        let revision = snapshot::revision(
-            &self.project,
-            &self.host,
-            self.app,
-            &self.principal,
-            &state,
-            &input,
-        )?;
-        let projected =
-            snapshot::project(self.app, self.project.tenant_scope(), &state, &input, None)?;
-        let mut members = projected.members;
-        for member in &mut members {
-            member.models.clear();
-        }
-        Ok(AggregationState {
-            revision,
-            mode: AggregationMode::Direct,
-            attached: false,
-            default_provider_id: state.mode.as_ref().and_then(|m| m.proxy_route.clone()),
-            direct_provider_id: state.pointer.map(|p| p.id),
-            members,
-            notices: projected.notices,
-            recovery: if self.expected.stack.enabled {
-                RecoveryState::Restored
-            } else {
-                RecoveryState::None
-            },
-        })
-    }
-}
-
-impl gateway_aggregation::exit_host::ExitContext for RecordPublicationContext {
-    fn home(&self) -> &std::path::PathBuf { &self.home }
-    fn root(&self) -> &std::path::PathBuf { &self.root }
-    fn principal(&self) -> &String { &self.principal }
-    fn exit_aggregation(&self, authorized: impl Fn() -> bool) -> Result<(), axum::http::StatusCode> {
-        self.exit_aggregation(authorized)
-    }
-    fn exited_state(&self) -> Result<vw_api_app_aggregation::AggregationState, axum::http::StatusCode> {
-        self.exited_state()
     }
 }

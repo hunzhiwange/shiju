@@ -28,3 +28,6 @@ mod desktop_presence_tests;
 pub mod target_model;
 #[cfg(test)]
 mod target_model_tests;
+
+#[cfg(target_os = "macos")]
+pub mod process_table;

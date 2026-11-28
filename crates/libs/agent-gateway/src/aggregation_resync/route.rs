@@ -10,26 +10,12 @@ impl RecordPublicationContext {
         tx: &ProviderTransactions,
         store: &AppProviderStore,
         state: &AppState,
-        candidate: &AppState,
-        rows: &[(String, Value)],
+        default: &str,
+        row: &Value,
         change: &ProviderRecordChange,
         mut target: PendingTarget,
     ) -> Result<bool, StatusCode> {
-        let default = candidate
-            .mode
-            .as_ref()
-            .and_then(|mode| mode.proxy_route.as_deref())
-            .ok_or(StatusCode::CONFLICT)?;
-        let row = rows.iter().find(|(id, _)| id == default).ok_or(StatusCode::CONFLICT)?;
-        // Reuse the saved-profile target owner; no aggregate routes are published.
-        let publication = self.publication(
-            candidate,
-            std::slice::from_ref(row),
-            vec![],
-            &self.revision,
-            default,
-        )?;
-        let selected = &publication.default.target;
+        let (selected, messages_api_key) = self.route_target(default, row)?;
         model_transport::upstream::validate_target(
             &selected.url,
             &reqwest::Request::new(reqwest::Method::POST, selected.url.clone()),
@@ -43,7 +29,6 @@ impl RecordPublicationContext {
             format!("saved-provider:{default}"),
             1,
         );
-        let messages_api_key = publication.default.messages_api_key;
         let routing = self.routing.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
         let scope = FailoverQueueScope {
             project: self.project.clone(),
@@ -60,20 +45,19 @@ impl RecordPublicationContext {
         match self.app {
             AppId::Claude => {
                 let _directory = tx.lock_claude_directory().map_err(failed)?;
-                let selected = tx.claude_directory(self.project.tenant_scope()).map_err(failed)?;
-                let mut file = ClaudeFile::open_selected(&self.home, selected.as_ref(), false)
+                let directory = tx.claude_directory(self.project.tenant_scope()).map_err(failed)?;
+                let mut file = ClaudeFile::open_selected(&self.home, directory.as_ref(), false)
                     .map_err(failed)?;
                 routing.publish_provider(
                     binding,
-                    publication.default.target,
+                    selected,
                     |address, token| {
                         let mut env =
-                            ClientConfiguration::saved(self.app, &row.1["settingsConfig"], false)
+                            ClientConfiguration::saved(self.app, &row["settingsConfig"], false)
                                 .map_err(|_| error(StatusCode::UNPROCESSABLE_ENTITY))?
                                 .contract()
                                 .exclusive;
                         let saved = row
-                            .1
                             .pointer("/settingsConfig/env")
                             .and_then(Value::as_object)
                             .ok_or_else(|| error(StatusCode::UNPROCESSABLE_ENTITY))?;
@@ -93,7 +77,7 @@ impl RecordPublicationContext {
                         env.insert("ANTHROPIC_AUTH_TOKEN".into(), serde_json::json!(token));
                         let settings = serde_json::json!({"env":env});
                         let mut mode =
-                            candidate.mode.clone().ok_or_else(|| error(StatusCode::CONFLICT))?;
+                            state.mode.clone().ok_or_else(|| error(StatusCode::CONFLICT))?;
                         mode.contract = Some(
                             ClientConfiguration::saved(self.app, &settings, false)
                                 .map_err(|_| error(StatusCode::UNPROCESSABLE_ENTITY))?
@@ -165,7 +149,7 @@ impl RecordPublicationContext {
                     .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
                 let live_doc: toml_edit::DocumentMut =
                     live.parse().map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
-                let mut settings = row.1["settingsConfig"].clone();
+                let mut settings = row["settingsConfig"].clone();
                 let mut doc: toml_edit::DocumentMut = settings["config"]
                     .as_str()
                     .ok_or(StatusCode::UNPROCESSABLE_ENTITY)?
@@ -204,7 +188,7 @@ impl RecordPublicationContext {
                 }
                 routing.publish_provider(
                     binding,
-                    publication.default.target,
+                    selected,
                     |address, token| {
                         doc["model_providers"][&provider]["base_url"] =
                             toml_edit::value(format!("http://{address}/v1"));
@@ -217,7 +201,7 @@ impl RecordPublicationContext {
                                 .map_err(|_| error(StatusCode::UNPROCESSABLE_ENTITY))?;
                         let after = projection.config().as_bytes();
                         let mut mode =
-                            candidate.mode.clone().ok_or_else(|| error(StatusCode::CONFLICT))?;
+                            state.mode.clone().ok_or_else(|| error(StatusCode::CONFLICT))?;
                         mode.contract = Some(
                             ClientConfiguration::Codex {
                                 config: toml::from_str(projection.config())

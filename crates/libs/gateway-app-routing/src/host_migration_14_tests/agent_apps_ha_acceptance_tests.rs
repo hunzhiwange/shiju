@@ -126,20 +126,11 @@ pub(crate) async fn exercise_failover(local: bool, test_name: &str) -> anyhow::R
             )
             .unwrap();
     }
-    // Compose the same mode publication endpoint and host adapter as the native
-    // gateway. The lifecycle-only fixture does not register provider APIs.
     let routing = Arc::new(app_routing_services::RoutingListener::with_database(db.clone()));
-    let mode = gateway_app_providers::mode_apply::router_with_policy(Some(policy.clone()))
-        .layer(axum::middleware::from_fn(|mut request: axum::extract::Request, next: axum::middleware::Next| async move {
-            let control = request.extensions().get::<crate::server::lifecycle_api::RoutingControl>().cloned();
-            assert!(control.is_some());
-            request.extensions_mut().insert(gateway_app_providers::mode_apply::ModeHost(Arc::new(
-                crate::server::provider_mode_host::Host(control, true),
-            )));
-            next.run(request).await
-        }));
-    let app = Router::new().nest("/v1", crate::server::router()
-        .merge(crate::server::agent_apps_high_availability::router()).merge(mode));
+    let app = Router::new().nest(
+        "/v1",
+        crate::server::router().merge(crate::server::agent_apps_high_availability::router()),
+    );
     let paths = crate::server::lifecycle_api::RoutingPaths {
         home: database_home, config: home.as_path().join(".config/shiju"),
         state: home.as_path().join(".local/state/shiju"),
@@ -194,14 +185,8 @@ pub(crate) async fn exercise_failover(local: bool, test_name: &str) -> anyhow::R
     }
     assert_eq!(request(Method::POST, &format!("app-routing/hosts/{host}/start"))
         .json(&json!({})).send().await?.status(), StatusCode::OK);
-    let applied = if local {
-        request(Method::POST, &format!("app-routing/hosts/{host}/projects/project/apps/claude/mode"))
-            .json(&json!({"action":{"kind":"proxy","providerId":"current"}})).send().await?
-    } else {
-        request(Method::POST, "app-providers/claude/mode/apply").json(&json!({
-            "targetHostId":host,"projectId":"project","action":{"kind":"proxy","providerId":"current"}
-        })).send().await?
-    };
+    let applied = request(Method::POST, &format!("app-routing/hosts/{host}/projects/project/apps/claude/mode"))
+        .json(&json!({"action":{"kind":"proxy","providerId":"current"}})).send().await?;
     assert_eq!(applied.status(), StatusCode::OK, "attach: {}", applied.text().await?);
     let candidates = ha(Method::GET, "candidates").send().await?.error_for_status()?
         .json::<Value>().await?;

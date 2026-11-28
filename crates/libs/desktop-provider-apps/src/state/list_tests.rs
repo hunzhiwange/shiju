@@ -1,6 +1,6 @@
 use crate::{AgentAppsContext, Scope};
 use vw_gateway_client::GatewayClient;
-type ListState = super::list::ListState<(), (), (), (), (), (), (), (), ()>;
+type ListState = super::list::ListState<(), (), (), (), (), (), ()>;
 use {gateway_endpoint::{GatewayEndpoint}, {vw_api_app_identity::AppId}};
 fn scope() -> Scope {
     let client = GatewayClient::new(GatewayEndpoint::new("127.0.0.1", 1)).unwrap();

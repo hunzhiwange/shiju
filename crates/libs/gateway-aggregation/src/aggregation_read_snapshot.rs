@@ -3,13 +3,11 @@ use app_settings_store::settings_store::GatewaySettingsStore;
 use agent_database::GlobalDatabase;
 use axum::http::StatusCode;
 use serde::Serialize;
-use serde_json::{Value, json};
+use serde_json::Value;
 use std::{path::Path, sync::LazyLock};
-use vw_agent_apps::{aggregation::preview as native, providers::live::commit::AppState};
+use vw_agent_apps::providers::live::commit::AppState;
 use vw_api_app_identity::AppId;
-use vw_api_app_aggregation::*;
 use vw_api_transport::id::ProjectScope;
-use vw_api_transport::id::TenantScope;
 use vw_api_model_catalog::SavedCodexCatalog;
 
 #[derive(Serialize)]
@@ -19,7 +17,6 @@ pub struct Snapshot {
     queue: Option<String>,
     route: Vec<Option<String>>,
     native: Vec<Option<Vec<u8>>>,
-    direct_restorable: bool,
 }
 fn unavailable<T>(_: T) -> StatusCode {
     StatusCode::SERVICE_UNAVAILABLE
@@ -40,7 +37,6 @@ pub fn load(
     use app_provider_services::AppProviderStore;
     use vw_agent_apps::providers::{
         codex_catalog::{form, identity},
-        mode_state::ClientConfiguration,
     };
     let mut ids = state.stack.members.clone();
     for id in [
@@ -121,36 +117,6 @@ pub fn load(
                 .map_err(unavailable)?,
         );
     }
-    let direct_restorable = state
-        .pointer
-        .as_ref()
-        .and_then(|pointer| rows.iter().find(|(id, _)| id == &pointer.id))
-        .is_some_and(|(id, row)| {
-            if row["category"] == "official" || row.get("managedClaudeLogin").is_some() {
-                return false;
-            }
-            match app {
-                AppId::Codex => form::editable_profile(id, row).is_some_and(|profile| {
-                    !profile.preserve_login
-                        && profile.api_key.as_ref().is_some_and(|key| !key.trim().is_empty())
-                        && identity(host, id, &profile).is_ok()
-                }),
-                AppId::ClaudeDesktop => {
-                    use vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopConfig;
-use vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopProfile;
-                    serde_json::from_value::<ClaudeDesktopProfile>(row["claude_desktop"].clone())
-                        .is_ok_and(|profile| {
-                            matches!(&profile.config, ClaudeDesktopConfig::ThirdParty { .. })
-                                && vw_agent_apps::providers::claude_desktop::settings(&profile)
-                                    .is_ok()
-                        })
-                }
-                AppId::Claude => row.get("settingsConfig").is_some_and(|settings| {
-                    ClientConfiguration::saved(app, settings, false).is_ok()
-                }),
-                _ => false,
-            }
-        });
     let paths: Vec<&str> = match app {
         AppId::Claude => vec![".claude/settings.json", ".claude.json"],
         AppId::Codex => {
@@ -181,140 +147,9 @@ use vw_api_app_provider_profiles::claude_desktop::ClaudeDesktopProfile;
         }
         native.push(bytes);
     }
-    Ok(Snapshot { rows, catalogs, queue, route, native, direct_restorable })
+    Ok(Snapshot { rows, catalogs, queue, route, native })
 }
 
-pub fn project(
-    app: AppId,
-    tenant: &TenantScope,
-    state: &AppState,
-    snapshot: &Snapshot,
-    request: Option<&AggregationPreviewRequest>,
-) -> Result<AggregationPreview, StatusCode> {
-    use vw_agent_apps::{
-        aggregation::codex_catalog::CodexCatalogRow,
-        providers::{codex_catalog::form, desktop_mapping},
-    };
-    let mut configs = Vec::new();
-    let mut mappings = Vec::new();
-    for (id, row) in &snapshot.rows {
-        if app == AppId::Codex {
-            if row["category"] == "official" {
-                return Err(StatusCode::UNPROCESSABLE_ENTITY);
-            }
-            let profile =
-                form::editable_profile(id, row).ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
-            configs.push(profile.config.parse().map_err(invalid)?);
-        }
-        if app == AppId::ClaudeDesktop {
-            mappings.push(desktop_mapping::form_view(row).map_err(invalid)?.mapping);
-        }
-    }
-    let providers: Vec<_> = snapshot
-        .rows
-        .iter()
-        .enumerate()
-        .map(|(index, (id, row))| native::Provider {
-            id,
-            name: row["name"].as_str().unwrap_or(id),
-            official_service: (row["category"] == "official")
-                .then_some(vw_api_app_auth::AuthService::ClaudeOfficial),
-            catalog: match app {
-                AppId::Claude => native::Catalog::Claude(row),
-                AppId::Codex => native::Catalog::Codex(CodexCatalogRow {
-                    config: &configs[index],
-                    catalog: snapshot.catalogs[index].as_ref(),
-                }),
-                AppId::ClaudeDesktop => native::Catalog::Desktop(&mappings[index]),
-                _ => unreachable!(),
-            },
-        })
-        .collect();
-    let queue: app_settings_store::agent_apps_high_availability_store::FailoverQueueState = snapshot
-        .queue
-        .as_deref()
-        .map(serde_json::from_str)
-        .transpose()
-        .map_err(invalid)?
-        .unwrap_or_default();
-    let output = native::preview(
-        app,
-        tenant,
-        state,
-        native::PreviewInput {
-            candidate_default: request.and_then(|r| r.default_provider_id.as_deref()),
-            providers: &providers,
-            pending_tenant: None,
-            failover_enabled: queue.enabled,
-            direct_restorable: snapshot.direct_restorable,
-            catalog_policy: if request
-                .is_some_and(|r| r.catalog_policy == CatalogPolicy::UseManaged)
-            {
-                native::CatalogPolicy::UseManaged
-            } else {
-                native::CatalogPolicy::Preserve
-            },
-        },
-    )
-    .map_err(|error| match error {
-        native::PreviewError::Forbidden => StatusCode::FORBIDDEN,
-        native::PreviewError::RecoveryPending => StatusCode::CONFLICT,
-        _ => StatusCode::UNPROCESSABLE_ENTITY,
-    })?;
-    Ok(AggregationPreview {
-        revision: String::new(),
-        preview_token: None,
-        default_provider_id: output.default_provider_id,
-        members: output
-            .members
-            .into_iter()
-            .map(|m| AggregationMember {
-                provider_id: m.provider_id,
-                name: m.name,
-                models: m
-                    .models
-                    .into_iter()
-                    .map(|model| AggregationModel {
-                        id: model.id,
-                        label: model.label,
-                        supports_1m: model.supports_1m,
-                    })
-                    .collect(),
-            })
-            .collect(),
-        issues: output
-            .issues
-            .into_iter()
-            .map(|issue| PreviewIssue {
-                code: match issue.code {
-                    native::IssueCode::ModelCollision => PreviewIssueCode::ModelCollision,
-                    native::IssueCode::InvalidMember => PreviewIssueCode::InvalidMember,
-                    native::IssueCode::MissingDefault => PreviewIssueCode::MissingDefault,
-                    native::IssueCode::InvalidDefault => PreviewIssueCode::InvalidDefault,
-                    native::IssueCode::FailoverEnabled => PreviewIssueCode::FailoverEnabled,
-                    native::IssueCode::UnrestorableDirect => PreviewIssueCode::UnrestorableDirect,
-                },
-                blocking: issue.blocking,
-                provider_id: issue.provider_id,
-                model_id: issue.model_id,
-            })
-            .collect(),
-        notices: output
-            .notices
-            .into_iter()
-            .map(|notice| match notice {
-                native::Notice::ModelReselect => AggregationNotice::ModelReselect,
-                native::Notice::NewSession => AggregationNotice::NewSession,
-                native::Notice::RestartDesktop => AggregationNotice::RestartDesktop,
-                native::Notice::RestartEditor => AggregationNotice::RestartEditor,
-                native::Notice::CodexRouteOwnsCatalog => AggregationNotice::CodexRouteOwnsCatalog,
-            })
-            .collect(),
-    })
-}
-
-// Per-process signing material never persists or becomes a user configuration.
-// Restart invalidates old previews; no key bytes or raw snapshots enter the wire.
 static KEY: LazyLock<Result<ring::hmac::Key, StatusCode>> = LazyLock::new(|| {
     let mut bytes = [0u8; 32];
     getrandom::fill(&mut bytes).map_err(unavailable)?;
@@ -345,23 +180,6 @@ pub fn revision(
         .map_err(unavailable)?,
     )
 }
-pub fn token(
-    principal: &str,
-    project: &ProjectScope,
-    host: &str,
-    app: AppId,
-    revision: &str,
-    request: &AggregationPreviewRequest,
-) -> Result<String, StatusCode> {
-    use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-    let payload = serde_json::to_vec(&json!({"kind":"aggregation_preview_v1","principal":principal,"scope":project,
-        "targetHostId":host,"app":app,"revision":revision,"defaultProviderId":request.default_provider_id,
-        "catalogPolicy":request.catalog_policy,"expiresAt":runtime_time::unix_seconds()+120})).map_err(unavailable)?;
-    Ok(format!("{}.{}", URL_SAFE_NO_PAD.encode(&payload), sign(&payload)?))
-}
-
-/// Read fixed native children via retained directory descriptors; reject symlinks,
-/// special files and oversized input. Missing files stay absent, without mkdir.
 fn read_native(home: &Path, relative: &str) -> Result<Option<Vec<u8>>, StatusCode> {
     use std::{
         fs::{File, OpenOptions},
@@ -411,72 +229,4 @@ fn read_native(home: &Path, relative: &str) -> Result<Option<Vec<u8>>, StatusCod
         directory = file;
     }
     Err(StatusCode::UNPROCESSABLE_ENTITY)
-}
-
-pub type CodexInputs<'a> = (Option<&'a [u8]>, Option<&'a [u8]>);
-
-/// Fixed Codex inputs already validated and included in the scoped revision.
-/// Official defaults require their account owner's verified login generation.
-pub fn codex_inputs(
-    snapshot: &Snapshot,
-) -> Result<CodexInputs<'_>, StatusCode> {
-    if snapshot.rows.iter().any(|(_, row)| row["category"] == "official") {
-        return Err(StatusCode::SERVICE_UNAVAILABLE);
-    }
-    Ok((
-        snapshot.native.first().and_then(|v| v.as_deref()),
-        snapshot.native.get(2).and_then(|v| v.as_deref()),
-    ))
-}
-
-/// Verify the exact signed intent before using any preview options. HMAC
-/// verification is constant-time and restart invalidates every outstanding token.
-pub fn verify_token(
-    token: &str,
-    principal: &str,
-    project: &ProjectScope,
-    host: &str,
-    app: AppId,
-    revision: &str,
-) -> Result<AggregationPreviewRequest, StatusCode> {
-    use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-    #[derive(serde::Deserialize)]
-    #[serde(rename_all = "camelCase", deny_unknown_fields)]
-    struct Payload {
-        kind: String,
-        principal: String,
-        scope: ProjectScope,
-        target_host_id: String,
-        app: AppId,
-        revision: String,
-        default_provider_id: Option<String>,
-        catalog_policy: CatalogPolicy,
-        expires_at: i64,
-    }
-    let conflict = StatusCode::CONFLICT;
-    if token.len() > 16 * 1024 {
-        return Err(conflict);
-    }
-    let (encoded, signature) = token.split_once('.').ok_or(conflict)?;
-    let bytes = URL_SAFE_NO_PAD.decode(encoded).map_err(|_| conflict)?;
-    let signature = hex::decode(signature).map_err(|_| conflict)?;
-    let key = KEY.as_ref().map_err(|status| *status)?;
-    ring::hmac::verify(key, &bytes, &signature).map_err(|_| conflict)?;
-    let value: Payload = serde_json::from_slice(&bytes).map_err(|_| conflict)?;
-    if value.kind != "aggregation_preview_v1"
-        || value.principal != principal
-        || value.scope != *project
-        || value.target_host_id != host
-        || value.app != app
-        || value.revision != revision
-        || value.expires_at <= runtime_time::unix_seconds()
-    {
-        return Err(conflict);
-    }
-    Ok(AggregationPreviewRequest {
-        target_host_id: host.into(),
-        project_id: project.project_id().clone(),
-        default_provider_id: value.default_provider_id,
-        catalog_policy: value.catalog_policy,
-    })
 }

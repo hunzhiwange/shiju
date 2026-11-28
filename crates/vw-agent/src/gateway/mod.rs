@@ -85,9 +85,6 @@ use agent_gateway::request_policy::{request_timeout_middleware, skey_auth_middle
 mod recovery_window_tests;
 
 #[cfg(target_os = "macos")]
-pub(crate) mod aggregation_resync;
-
-#[cfg(target_os = "macos")]
 pub(crate) mod aggregation_desktop_record;
 
 #[cfg(target_os = "macos")]

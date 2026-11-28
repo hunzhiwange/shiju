@@ -1,9 +1,7 @@
 //! Claude Desktop discovery and request mapping from authorized, configured providers.
-use std::collections::{HashMap, HashSet};
-
 use vw_api_app_identity::{AppId::ClaudeDesktop};
 
-use crate::aggregation::model_ids::{Decoded, decode, encode};
+use crate::aggregation::model_ids::{Decoded, decode};
 
 use super::{DesktopMapping, DesktopModelRoute, ROLES, claude_role, model_id, validate};
 
@@ -12,14 +10,6 @@ pub enum DesktopMappingError {
     InvalidConfiguration,
     InvalidModelId,
     UnknownModel,
-}
-
-/// The caller supplies only eligible third-party providers in authorized publication order.
-pub struct DesktopMappingMember<'a> {
-    pub provider_id: &'a str,
-    pub key: &'a str,
-    pub name: &'a str,
-    pub mapping: &'a DesktopMapping,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -38,39 +28,24 @@ pub struct DesktopModelCatalog {
     models: Vec<DesktopModel>,
     // Stored keys of the leading default models, in the same order as those models.
     default_aliases: Vec<String>,
-    default_codes: Vec<DesktopModel>,
 }
 
 impl DesktopModelCatalog {
-    pub fn new(
-        default: DesktopMappingMember<'_>,
-        members: &[DesktopMappingMember<'_>],
-    ) -> Result<Self, DesktopMappingError> {
-        let mut provider_ids = HashSet::from([default.provider_id]);
-        let mut keys = HashSet::from([default.key]);
-        let default_routes = proxy_model_routes(default.mapping)?;
-        let default_aliases =
-            default_routes.iter().map(|route| route.configured_id.into()).collect();
-        let mut models = default_routes
-            .iter()
-            .map(|route| desktop_model(&default, route, route.id.into(), false))
-            .collect::<Vec<_>>();
-
-        let mut seen = HashSet::new();
-        for member in members {
-            if !provider_ids.insert(member.provider_id) || !keys.insert(member.key) {
-                return Err(DesktopMappingError::InvalidConfiguration);
+    pub fn new(provider_id: &str, mapping: &DesktopMapping) -> Result<Self, DesktopMappingError> {
+        let routes = proxy_model_routes(mapping)?;
+        let default_aliases = routes.iter().map(|route| route.configured_id.into()).collect();
+        let models = routes.iter().map(|route| {
+            let upstream_model = route.mapping.model.clone();
+            let label = route.mapping.label_override.clone().unwrap_or_else(|| upstream_model.clone());
+            DesktopModel {
+                id: route.id.into(),
+                provider_id: provider_id.into(),
+                upstream_model,
+                label,
+                supports_1m: route.mapping.supports_1m,
             }
-            for model in member_models(member)? {
-                if seen.insert(model.id.clone()) {
-                    models.push(model);
-                }
-            }
-        }
-        // Cached numeric IDs from before this provider became the default still resolve,
-        // after checking every currently published member for the same code.
-        let default_codes = desktop_models(&default, &default_routes)?;
-        Ok(Self { models, default_aliases, default_codes })
+        }).collect();
+        Ok(Self { models, default_aliases })
     }
 
     pub fn models(&self) -> &[DesktopModel] {
@@ -83,11 +58,7 @@ impl DesktopModelCatalog {
             return Err(DesktopMappingError::InvalidModelId);
         }
         match decode(ClaudeDesktop, requested).map_err(|_| DesktopMappingError::InvalidModelId)? {
-            Decoded::Code(_) => self.models[self.default_aliases.len()..]
-                .iter()
-                .chain(&self.default_codes)
-                .find(|model| model.id == requested)
-                .ok_or(DesktopMappingError::UnknownModel),
+            Decoded::Code(_) => Err(DesktopMappingError::UnknownModel),
             Decoded::Plain if !is_reserved(requested) => {
                 self.resolve_default(requested).ok_or(DesktopMappingError::UnknownModel)
             }
@@ -140,8 +111,7 @@ fn proxy_model_routes(
     mapping: &DesktopMapping,
 ) -> Result<Vec<ProxyRoute<'_>>, DesktopMappingError> {
     validate(mapping).map_err(|_| DesktopMappingError::InvalidConfiguration)?;
-    // Empty native mappings may be used for direct login or routing bootstrap.
-    // Aggregation publishes only explicitly configured models.
+    // Require explicit role mappings before publishing a Desktop route.
     if mapping.routes.is_empty() || mapping.routes.keys().any(|id| is_reserved(id)) {
         return Err(DesktopMappingError::InvalidConfiguration);
     }
@@ -161,52 +131,6 @@ fn proxy_model_routes(
         (rank.unwrap_or(ROLES.len()), route.id)
     });
     Ok(routes)
-}
-
-/// Project one eligible non-default member using the publication owner's rules.
-/// Preview callers use the resulting IDs to report collisions before publication.
-pub fn member_models(
-    member: &DesktopMappingMember<'_>,
-) -> Result<Vec<DesktopModel>, DesktopMappingError> {
-    desktop_models(member, &proxy_model_routes(member.mapping)?)
-}
-
-fn desktop_models(
-    member: &DesktopMappingMember<'_>,
-    routes: &[ProxyRoute<'_>],
-) -> Result<Vec<DesktopModel>, DesktopMappingError> {
-    let mut models: Vec<DesktopModel> = Vec::new();
-    let mut upstream_indices = HashMap::<&str, usize>::new();
-    for route in routes {
-        let upstream = route.mapping.model.as_str();
-        if let Some(&index) = upstream_indices.get(upstream) {
-            models[index].supports_1m |= route.mapping.supports_1m;
-            continue;
-        }
-        let id = encode(ClaudeDesktop, member.key, upstream, false)
-            .map_err(|_| DesktopMappingError::InvalidConfiguration)?;
-        upstream_indices.insert(upstream, models.len());
-        models.push(desktop_model(member, route, id, true));
-    }
-    Ok(models)
-}
-
-fn desktop_model(
-    member: &DesktopMappingMember<'_>,
-    route: &ProxyRoute<'_>,
-    id: String,
-    aggregate: bool,
-) -> DesktopModel {
-    let upstream_model = route.mapping.model.clone();
-    let name = route.mapping.label_override.as_deref().unwrap_or(&upstream_model);
-    let label = if aggregate { format!("{} / {name}", member.name) } else { name.into() };
-    DesktopModel {
-        id,
-        provider_id: member.provider_id.into(),
-        upstream_model,
-        label,
-        supports_1m: route.mapping.supports_1m,
-    }
 }
 
 pub(crate) fn is_reserved(model: &str) -> bool {

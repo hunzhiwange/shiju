@@ -51,7 +51,7 @@ pub enum ListenerError {
     #[error("application routes are attached")]
     AppsAttached,
     #[cfg(target_os = "macos")]
-    #[error("aggregation lifecycle recovery failed ({0})")]
+    #[error("saved application route recovery failed ({0})")]
     AggregationRecovery(axum::http::StatusCode),
     #[error("could not bind the routing listener: {0}")]
     Bind(#[from] io::Error),
@@ -266,36 +266,6 @@ impl RoutingListener {
         Ok(RouteRestore { listener: Arc::clone(self), _permit: permit })
     }
 
-    #[cfg(target_os = "macos")]
-    pub fn aggregation_revision(
-        &self,
-        project: &vw_api_transport::ProjectScope,
-        host: &str,
-        app: vw_api_app_identity::AppId,
-    ) -> Option<String> {
-        self.auth.aggregation_revision(project, host, app)
-    }
-
-    /// Commit the private client token before making this snapshot reachable.
-    /// The configuration owner must validate the same revision and use its existing
-    /// atomic write transaction in the callback. It must not reenter the listener.
-    #[cfg(target_os = "macos")]
-    pub fn publish_aggregation(
-        &self,
-        publication: super::aggregation_routing::AggregationPublication,
-        expected_revision: Option<&str>,
-        commit: impl FnOnce(SocketAddr, &str) -> Result<(), super::RouteCommitError>,
-    ) -> Result<super::RouteRevocation, axum::http::StatusCode> {
-        use axum::http::StatusCode;
-        let _permit = self.try_control().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        let address = self.bound_address().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-        let binding = publication.binding.clone();
-        let snapshot = publication.validate()?;
-        self.auth.publish_aggregation(binding, snapshot, expected_revision, |token| {
-            commit(address, token)
-        })
-    }
-
     /// Publish an ordinary queue-selected route through the same credential owner.
     #[cfg(target_os = "macos")]
     pub fn publish_failover_route(
@@ -333,10 +303,7 @@ impl RoutingListener {
     }
 
     #[cfg(target_os = "macos")]
-    pub fn revoke_aggregation(
-        &self,
-        handle: &super::RouteRevocation,
-    ) -> Result<(), ListenerError> {
+    pub fn revoke_route(&self, handle: &super::RouteRevocation) -> Result<(), ListenerError> {
         let _permit = self.try_control()?;
         self.auth.revoke(handle);
         Ok(())

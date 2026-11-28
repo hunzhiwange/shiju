@@ -31,9 +31,7 @@ pub(crate) mod snippets;
 
 pub(crate) mod preview;
 
-pub(crate) mod env;
 
-pub(crate) mod mode;
 pub(crate) mod model_catalog;
 pub(crate) mod paths;
 

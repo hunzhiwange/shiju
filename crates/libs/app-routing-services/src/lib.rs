@@ -23,7 +23,7 @@ pub mod high_availability_service;
 #[cfg(target_os = "macos")]
 pub mod lifecycle_host;
 #[cfg(target_os = "macos")]
-pub mod aggregation_routing;
+pub mod route_target;
 pub mod listener;
 pub mod route_auth;
 pub mod dispatch;
@@ -92,9 +92,6 @@ mod protocol_errors_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod transport_security_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-mod compaction_tests;
 
 #[cfg(test)]
 use crate as app_routing;

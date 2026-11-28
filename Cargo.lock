@@ -2459,20 +2459,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "app-provider-environment"
-version = "0.7.10"
-dependencies = [
- "app-config-write",
- "libc",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "tempfile",
- "vw-api-app-identity",
- "vw-api-app-provider-environment",
-]
-
-[[package]]
 name = "app-provider-login"
 version = "0.7.10"
 dependencies = [
@@ -2585,7 +2571,6 @@ dependencies = [
  "app-model-catalog",
  "app-models",
  "app-provider-core",
- "app-provider-environment",
  "app-provider-login",
  "app-provider-native",
  "app-provider-projection",
@@ -6692,7 +6677,6 @@ dependencies = [
  "desktop-ui-controls",
  "desktop-web-runtime",
  "gateway-aggregation",
- "gateway-aggregation-codex",
  "gateway-aggregation-native",
  "gateway-aggregation-omo",
  "gateway-app-auth",
@@ -6735,7 +6719,6 @@ dependencies = [
  "vw-api-app-identity",
  "vw-api-app-provider-base",
  "vw-api-app-provider-edit",
- "vw-api-app-provider-environment",
  "vw-api-app-provider-extended",
  "vw-api-app-provider-profiles",
  "vw-api-app-provider-terminal",
@@ -7148,7 +7131,6 @@ dependencies = [
  "desktop-i18n",
  "desktop-settings-account",
  "desktop-ui-controls",
- "gateway-aggregation-desktop",
  "gateway-app-auth",
  "gateway-app-provider",
  "gateway-app-read",
@@ -7378,8 +7360,6 @@ dependencies = [
  "desktop-ui-controls",
  "directories",
  "gateway-aggregation",
- "gateway-aggregation-codex",
- "gateway-aggregation-desktop",
  "gateway-aggregation-native",
  "gateway-aggregation-omo",
  "gateway-app-lifecycle",
@@ -9379,39 +9359,6 @@ dependencies = [
  "vw-api-app-provider-profiles",
  "vw-api-app-provider-terminal",
  "vw-api-model-catalog",
- "vw-api-transport",
-]
-
-[[package]]
-name = "gateway-aggregation-codex"
-version = "0.7.10"
-dependencies = [
- "gateway-app-provider",
- "gateway-app-settings",
- "gateway-endpoint",
- "gateway-http",
- "reqwest 0.13.4",
- "serde",
- "serde_json",
- "tokio",
- "vw-api-app-aggregation",
- "vw-api-transport",
-]
-
-[[package]]
-name = "gateway-aggregation-desktop"
-version = "0.7.10"
-dependencies = [
- "gateway-app-provider",
- "gateway-app-read",
- "gateway-app-settings",
- "gateway-endpoint",
- "gateway-http",
- "reqwest 0.13.4",
- "serde",
- "serde_json",
- "tokio",
- "vw-api-app-aggregation",
  "vw-api-transport",
 ]
 
@@ -22498,7 +22445,6 @@ dependencies = [
  "serde",
  "serde_json",
  "vw-api-app-identity",
- "vw-api-transport",
 ]
 
 [[package]]
@@ -23059,8 +23005,6 @@ dependencies = [
  "display-format",
  "file-index",
  "gateway-aggregation",
- "gateway-aggregation-codex",
- "gateway-aggregation-desktop",
  "gateway-aggregation-native",
  "gateway-aggregation-omo",
  "gateway-app-auth",
@@ -23249,8 +23193,6 @@ version = "0.8.3"
 dependencies = [
  "futures-util",
  "gateway-aggregation",
- "gateway-aggregation-codex",
- "gateway-aggregation-desktop",
  "gateway-aggregation-native",
  "gateway-aggregation-omo",
  "gateway-app-auth",

@@ -14,11 +14,9 @@ pub mod opencode;
 pub mod pi;
 pub mod icons;
 pub mod endpoints;
-pub mod env;
 pub mod edit;
 pub mod desktop;
 
-pub mod mode;
 
 pub mod paths;
 

@@ -271,8 +271,15 @@ async fn ui_refresh_12_layout_and_interaction() {
         (Theme::Light, 640, "light-640"),
         (Theme::Dark, 960, "dark-960"),
     ] {
+        let size = Size::new(width, 760);
+        let mut scene = Scene::new(list::overlay(&list, Help::test(), base()), &mut renderer, size);
+        scene.capture(
+            &mut renderer,
+            &theme,
+            mouse::Cursor::Unavailable,
+            &format!("list-{name}"),
+        );
         for (view, page, buttons) in [
-            (list::overlay(&list, Help::test(), base()), "list", 5),
             (edit::overlay(&edit, Help::test(), base()), "edit", 2),
             (desktop_view::overlay(&desktop, Help::test(), base()), "desktop", 4),
         ] {
@@ -448,13 +455,14 @@ async fn ui_refresh_12_preserves_values_and_disabled_states() {
         );
     }
 
-    let mut list = list_fixture(AppId::Claude);
+    let mut list = list_fixture(AppId::Dsh);
     for name in ["loading", "failure", "empty"] {
         list.loading = name == "loading";
         list.error = (name == "failure").then(|| "读取失败／讀取失敗 · Request failed".into());
         list.snapshot.as_mut().unwrap().catalog.rows.clear();
         let mut scene = Scene::new(list::overlay(&list, Help::test(), base()), &mut renderer, size);
-        let events = scene.press(&mut renderer, &[2, 0]);
+        let add = scene.text_bounds(&renderer, "＋ 添加供应商").center();
+        let events = scene.click(&mut renderer, add);
         if list.loading {
             assert!(events.is_empty());
         } else {

@@ -159,40 +159,9 @@ mod import;
 #[path = "app_providers/import_tests.rs"]
 mod import_tests;
 
-#[path = "app_providers/mode_state.rs"]
-mod mode_state;
 
-#[cfg(test)]
-#[path = "app_providers/mode_state_tests.rs"]
-mod mode_state_tests;
 
-#[path = "app_providers/mode_apply.rs"]
-mod mode_apply;
 
-#[cfg(test)]
-#[path = "app_providers/mode_apply_tests.rs"]
-mod mode_apply_tests;
-
-#[path = "app_providers/env_diagnose.rs"]
-mod env_diagnose;
-
-#[cfg(test)]
-#[path = "app_providers/env_diagnose_tests.rs"]
-mod env_diagnose_tests;
-
-#[path = "app_providers/env_clean.rs"]
-mod env_clean;
-
-#[cfg(test)]
-#[path = "app_providers/env_clean_tests.rs"]
-mod env_clean_tests;
-
-#[path = "app_providers/env_restore.rs"]
-mod env_restore;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "app_providers/env_restore_tests.rs"]
-mod env_restore_tests;
 
 #[path = "app_providers/operations.rs"]
 mod operations;

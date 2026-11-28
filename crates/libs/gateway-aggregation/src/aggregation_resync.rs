@@ -61,12 +61,15 @@ pub fn configure_with_context<H: ResyncHost>(
         return Ok((store, None));
     };
     let state = tx.state(app).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    if state.stack.is_empty() {
+    if state.stack.enabled {
+        return Err(StatusCode::CONFLICT);
+    }
+    if query.project_id.is_none() && query.expected_revision.is_none() {
         return Ok((store, None));
     }
     let project = ProjectScope::new(tenant.clone(), query.project_id.ok_or(StatusCode::CONFLICT)?)
         .map_err(|_| StatusCode::BAD_REQUEST)?;
-    let attached = state.stack.enabled && state.mode.as_ref().is_some_and(|m| m.attached);
+    let attached = state.mode.as_ref().is_some_and(|m| m.attached);
     let (authorized_home, authorized_root, principal) =
         app_access_service::access::authorize_aggregation_write(
             policy, headers, &project, host, app, attached,
@@ -124,10 +127,6 @@ pub fn configure_with_context<H: ResyncHost>(
         &project, host, app, &principal, &state, &snapshot,
     )?;
     if query.expected_revision.as_deref() != Some(&revision) {
-        return Err(StatusCode::CONFLICT);
-    }
-    let preview = owner.project(app, tenant, &state, &snapshot, None)?;
-    if attached && preview.issues.iter().any(|i| i.blocking) {
         return Err(StatusCode::CONFLICT);
     }
     let routing = match routing {

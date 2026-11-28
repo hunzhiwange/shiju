@@ -16,7 +16,6 @@ pub struct Scope {
 
 pub mod state;
 pub mod message;
-pub mod aggregation_desktop_types;
 pub mod components;
 pub mod presets;
 #[cfg(test)]
@@ -26,7 +25,6 @@ mod presets_tests;
 pub enum Message {
     ListEditor(components::list::EditorMessage),
     None,
-    Mode(components::mode::Event),
     Paths(components::paths::Event),
     Preview(components::preview::Event),
     Snippets(components::snippets::Event),
@@ -36,7 +34,6 @@ pub enum Message {
     Edit(message::edit::EditMessage),
     Icons(message::icons::Event),
     Endpoints(message::endpoints::Event),
-    Env(message::env::Event),
     Desktop(message::desktop::Event),
     Binding,
     EndpointDiagnostics,

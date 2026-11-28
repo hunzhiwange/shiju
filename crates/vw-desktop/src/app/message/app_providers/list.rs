@@ -20,15 +20,12 @@ pub enum ListMessage {
     Leave(super::leave::Choice),
     FailoverHealth(crate::app::message::agent_apps_health::Event),
     Failover(crate::app::message::agent_apps_high_availability::Event),
-    CodexSubagent(crate::app::message::settings::aggregation_subagent::Event),
-    DesktopAggregation(crate::app::message::settings::aggregation_desktop::Event),
     OmpDirectory(crate::app::message::settings::aggregation_omp::Event),
     Omo(crate::app::message::settings::aggregation_omo::Event),
     #[cfg(not(target_arch = "wasm32"))]
     Usage(crate::app::components::apps_usage_cards::Event),
     #[cfg(not(target_arch = "wasm32"))]
     UsageSettings(crate::app::components::apps_usage_settings::Event),
-    Aggregation(crate::app::message::settings::aggregation_list::Event),
     Desktop(super::desktop::Event),
     Endpoints(super::endpoints::Event),
     EndpointDiagnostics(crate::app::message::agent_apps_diagnostics::endpoints::Event),
@@ -37,13 +34,10 @@ pub enum ListMessage {
     Universal(super::universal::Event),
     Snippets(super::snippets::Event),
     Preview(super::preview::Event),
-    Env(super::env::Event),
-    Mode(super::mode::Event),
     ModelCatalog(crate::app::message::settings::providers::catalog_api::Event),
     Paths(super::paths::Event),
     PiDirectory(crate::app::message::settings::aggregation_pi::Event),
     Open(AppId),
-    Close,
     Refresh,
     QueryInput(String),
     Terminal(String),
@@ -171,20 +165,11 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
         ListMessage::Failover(event) => {
             return crate::app::message::agent_apps_high_availability::update(app, event);
         }
-        ListMessage::CodexSubagent(event) => {
-            return crate::app::message::settings::aggregation_subagent::update(app, event);
-        }
-        ListMessage::DesktopAggregation(event) => {
-            return crate::app::message::settings::aggregation_desktop::update(app, event);
-        }
         ListMessage::OmpDirectory(event) => {
             return crate::app::message::settings::aggregation_omp::update(app, event);
         }
         ListMessage::Omo(event) => {
             return crate::app::message::settings::aggregation_omo::update(app, event);
-        }
-        ListMessage::Aggregation(event) => {
-            return crate::app::message::settings::aggregation_list::update(app, event);
         }
         #[cfg(not(target_arch = "wasm32"))]
         ListMessage::Usage(event) => {
@@ -199,8 +184,6 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
         }
         ListMessage::Icons(event) => return super::icons::update(app, event),
         ListMessage::Universal(event) => return super::universal::update(app, event),
-        ListMessage::Env(event) => return super::env::update(app, event),
-        ListMessage::Mode(event) => return super::mode::update(app, event),
         ListMessage::ModelCatalog(event) => {
             return crate::app::message::settings::providers::catalog_api::update(app, event);
         }
@@ -256,9 +239,6 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
                     ),
                 ),
             );
-        }
-        ListMessage::Close => {
-            return catalog(app, None, desktop_provider_apps::state::list::CatalogEvent::Close);
         }
         ListMessage::Open(id) => {
             return catalog(app, Some(id), desktop_provider_apps::state::list::CatalogEvent::Open);

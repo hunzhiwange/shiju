@@ -119,14 +119,7 @@ fn valid(state: &State, current: &Option<(GatewayClient, Scope)>, scope: &Scope,
         && current.clone().is_some_and(|(_, s)| s == *scope)
         && state.desktop.as_ref().is_some_and(|f| f.busy)
 }
-pub fn update(state: &mut State, current: Option<(GatewayClient, Scope)>, token: &str, binding_is_current: bool, event: Event) -> Task<Message> {
-    if state.desktop.as_ref().is_some_and(|f| f.aggregation.is_some())
-        && !matches!(event, Event::Cancel)
-        && !binding_is_current
-    {
-        state.desktop = None;
-        return Task::none();
-    }
+pub fn update(state: &mut State, current: Option<(GatewayClient, Scope)>, token: &str, event: Event) -> Task<Message> {
     match event {
         Event::Cancel => {
             if state.desktop.as_ref().is_some_and(|f| f.busy) {
@@ -223,9 +216,6 @@ pub fn update(state: &mut State, current: Option<(GatewayClient, Scope)>, token:
         | Event::SaveDirect
         | Event::Import
         | Event::Activate => {
-            if state.desktop.as_ref().is_some_and(|f| f.aggregation.is_some()) {
-                return Task::none();
-            }
             let Ok((client, scope)) = current.clone().ok_or(()) else {
                 return super::provider_update::error("无法连接网关");
             };
@@ -313,13 +303,6 @@ pub fn update(state: &mut State, current: Option<(GatewayClient, Scope)>, token:
             let Some(form) = state.desktop.as_mut().filter(|f| !f.busy) else {
                 return Task::none();
             };
-            if let Some(session) = form.aggregation.as_mut() {
-                if session.running() || !form.mapping_editable {
-                    return Task::none();
-                }
-                session.invalidate();
-                session.dirty = true;
-            }
             match event {
                 Event::Id(v) if form.create => form.id = v,
                 Event::NewRoute(v) => form.new_route = v,

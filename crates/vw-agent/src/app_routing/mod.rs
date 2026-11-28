@@ -7,7 +7,7 @@ pub(crate) use app_routing_services::{dispatch, reference_scope, request_status}
 #[cfg(target_os = "macos")]
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use app_routing_services::{
-    aggregation_routing, config_apply, desktop_routing, failover_routing,
+    config_apply, desktop_routing, failover_routing,
     outbound_config, provider_publication, RouteCommitError, RouteRevocation, VerifiedRouteBinding,
 };
 pub(crate) mod gateway_owner;

@@ -8,10 +8,63 @@ use axum::{
 };
 use {
     vw_api_app_identity::AppId,
-    vw_api_app_routing::RoutingModeRequest,
+    vw_api_app_routing::{RoutingAttachment, RoutingModeRequest},
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TenantScope,
 };
+
+pub async fn attachment(
+    control: Option<Extension<RoutingControl>>,
+    Extension(tenant): Extension<TenantScope>,
+    Path((host, project, app)): Path<(String, ProjectId, AppId)>,
+    headers: HeaderMap,
+) -> Result<Json<RoutingAttachment>, ControlError> {
+    use vw_agent_apps::providers::{
+        live::commit::{ExecutionHostId, ProviderTransactions},
+        mode_state,
+    };
+    use vw_api_transport::ProjectScope;
+
+    let project = ProjectScope::new(tenant.clone(), project)
+        .map_err(|_| ControlError::InvalidConfig)?;
+    let (_, root) = RoutingControl::authorize(
+        control,
+        headers,
+        tenant.clone(),
+        host.clone(),
+        Some((project.project_id().clone(), app)),
+        false,
+    )
+    .await?;
+    if !vw_agent_apps::routing::supports_app(app) {
+        return Err(ControlError::UnsupportedApp);
+    }
+    tokio::task::spawn_blocking(move || {
+        let root = root.ok_or(ControlError::Unavailable)?;
+        let host = ExecutionHostId::new(&host).map_err(|_| ControlError::InvalidConfig)?;
+        let Some(tx) = ProviderTransactions::open_existing(&root, host)
+            .map_err(|_| ControlError::Unavailable)?
+        else {
+            return Ok(Json(RoutingAttachment { attached: false }));
+        };
+        let state = tx.state(app).map_err(|_| ControlError::Unavailable)?;
+        if state.project_scope.as_ref().is_some_and(|owner| owner != &project) {
+            return Err(ControlError::Forbidden);
+        }
+        if let Some(pending) = tx.pending(app).map_err(|_| ControlError::Unavailable)? {
+            if pending.tenant != tenant
+                || pending.target.project_scope.as_ref().is_some_and(|owner| owner != &project)
+            {
+                return Err(ControlError::Forbidden);
+            }
+            return Err(ControlError::TransitionInProgress);
+        }
+        let status = mode_state::observe(&state, &tenant).map_err(|_| ControlError::Forbidden)?;
+        Ok(Json(RoutingAttachment { attached: status.attached }))
+    })
+    .await
+    .map_err(|_| ControlError::Unavailable)?
+}
 
 pub async fn attach_mode(
     control: Option<Extension<RoutingControl>>,

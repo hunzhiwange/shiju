@@ -1,9 +1,7 @@
 use super::super::system_settings_common::*;
 use crate::app::message::app_providers::list::{ListMessage, message};
 use crate::app::{Message, i18n::I18n, state::app_providers::list::ListState};
-use desktop_ui_controls::system_settings_common::{
-    settings_inactive_view, settings_modal_overlay_with_escape,
-};
+use desktop_ui_controls::system_settings_common::settings_modal_overlay_with_escape;
 use iced::{Element, Theme};
 #[derive(Clone, Copy)]
 pub(crate) struct Help<'a> {
@@ -93,32 +91,14 @@ pub(crate) fn page<'a>(
     )
 }
 
-pub(crate) fn overlay<'a>(i18n: desktop_i18n::I18n,
+pub(crate) fn overlay<'a>(
+    i18n: desktop_i18n::I18n,
     state: &'a ListState,
     help: Help<'a>,
     base: Element<'a, Message>,
-) -> Element<'a, Message> {
-    overlay_with_list(i18n, state, help, base, true)
-}
-
-pub(crate) fn overlay_with_list<'a>(i18n: desktop_i18n::I18n,
-    state: &'a ListState,
-    help: Help<'a>,
-    base: Element<'a, Message>,
-    show_list: bool,
 ) -> Element<'a, Message> {
     let Some(scope) = &state.scope else {
         return base;
-    };
-    let list = if show_list {
-        let card = desktop_provider_apps::components::list::card(i18n,
-            map,
-            list_state(state),
-            supplements(state, help, scope.app),
-        );
-        settings_modal_overlay(Some(base), message(ListMessage::Close), card)
-    } else {
-        base
     };
     if let Some(picker) = &state.preset_picker {
         use desktop_provider_apps::presets::Event;
@@ -128,7 +108,7 @@ pub(crate) fn overlay_with_list<'a>(i18n: desktop_i18n::I18n,
             })
         });
         return settings_modal_overlay_with_escape(
-            list,
+            base,
             message(ListMessage::Presets(if picker.family.is_some() || picker.catalog_provider.is_some() {
                 Event::BackToCatalog
             } else {
@@ -138,16 +118,13 @@ pub(crate) fn overlay_with_list<'a>(i18n: desktop_i18n::I18n,
         );
     }
     if let Some(form) = &state.omo {
-        return crate::app::components::aggregation_omo::overlay(i18n, form, list);
-    }
-    if let Some(form) = &state.codex_subagent {
-        return crate::app::components::aggregation_subagent::overlay(i18n, form, list);
+        return crate::app::components::aggregation_omo::overlay(i18n, form, base);
     }
     if let Some(form) = &state.pi_directory {
-        return crate::app::components::aggregation_pi::overlay(i18n, form, list);
+        return crate::app::components::aggregation_pi::overlay(i18n, form, base);
     }
     if let Some(form) = &state.omp_directory {
-        return crate::app::components::aggregation_omp::overlay(i18n, form, list);
+        return crate::app::components::aggregation_omp::overlay(i18n, form, base);
     }
     if let Some(form) = &state.model_catalog {
         return crate::app::components::system_settings_providers::catalog::deployments(
@@ -155,34 +132,21 @@ pub(crate) fn overlay_with_list<'a>(i18n: desktop_i18n::I18n,
             state.generation,
             help.i18n,
             help.theme,
-            list,
+            base,
         );
-    }
-    if let Some(form) = &state.aggregation {
-        if show_list {
-            return super::super::aggregation_list::overlay(i18n, form, list);
-        }
-        if form.clients.is_some() || form.publish.is_some() {
-            let dialogs = desktop_apps_ui::aggregation::list_view::dialogs(i18n, form)
-                .map(crate::app::message::settings::aggregation_list::message);
-            return iced::widget::stack![settings_inactive_view(list), dialogs].into();
-        }
     }
     if let Some((close, card)) =
         desktop_provider_apps::components::list::local_card(state, help.provider_help())
     {
         return settings_modal_overlay(
-            Some(list),
+            Some(base),
             super::edit::map(close),
             card.map(super::edit::map),
         );
     }
-    if let Some(form) = &state.desktop {
-        return super::desktop::overlay(i18n, form, help, list);
-    }
     if let Some(speed) = &state.endpoint_speed {
         return crate::app::components::agent_apps_diagnostics::endpoints_modal::overlay(i18n,
-            speed, list,
+            speed, base,
         );
     }
     if let Some(form) = &state.form {
@@ -195,7 +159,7 @@ pub(crate) fn overlay_with_list<'a>(i18n: desktop_i18n::I18n,
             matches!(&snapshot.catalog.in_use,
                 vw_api_app_provider_edit::catalog::ProviderSelection::Selected { id } if *id == form.id)
         });
-        return super::edit::overlay_with_binding(form, help, list, binding, current);
+        return super::edit::overlay_with_binding(form, help, base, binding, current);
     }
     if let Some(form) = &state.editor {
         let card = desktop_provider_apps::components::list::editor_card(i18n,
@@ -205,9 +169,9 @@ pub(crate) fn overlay_with_list<'a>(i18n: desktop_i18n::I18n,
             form.saving,
         )
         .map(map_editor);
-        return settings_modal_overlay(Some(list), message(ListMessage::Cancel), card);
+        return settings_modal_overlay(Some(base), message(ListMessage::Cancel), card);
     }
-    list
+    base
 }
 
 pub(crate) fn map(value: desktop_provider_apps::components::list::ListMessage) -> Message {
@@ -219,7 +183,6 @@ pub(crate) fn map(value: desktop_provider_apps::components::list::ListMessage) -
         V::OpenEdit { id, copy, delete } => {
             return events::edit::message(events::edit::EditMessage::Open { id, copy, delete });
         }
-        V::Close => ListMessage::Close,
         V::Terminal(id) => ListMessage::Terminal(id),
         V::UseProvider(id) => ListMessage::UseProvider(id),
         #[cfg(not(target_arch = "wasm32"))]
@@ -229,14 +192,10 @@ pub(crate) fn map(value: desktop_provider_apps::components::list::ListMessage) -
         V::Refresh => ListMessage::Refresh,
         V::Universal => ListMessage::Universal(events::universal::Event::Open),
         V::Snippets => ListMessage::Snippets(events::snippets::Event::Open),
-        V::Env => ListMessage::Env(events::env::Event::Open),
-        V::Aggregation => ListMessage::Aggregation(settings::aggregation_list::Event::Open),
         V::Failover => {
             ListMessage::Failover(crate::app::message::agent_apps_high_availability::Event::Open)
         }
-        V::Mode => ListMessage::Mode(events::mode::Event::Open),
         V::Paths => ListMessage::Paths(events::paths::Event::Open),
-        V::CodexSubagent => ListMessage::CodexSubagent(settings::aggregation_subagent::Event::Open),
         V::PiDirectory => ListMessage::PiDirectory(settings::aggregation_pi::Event::Open),
         V::OmpDirectory => ListMessage::OmpDirectory(settings::aggregation_omp::Event::Open),
         V::QueryInput(value) => ListMessage::QueryInput(value),
@@ -249,9 +208,6 @@ pub(crate) fn map(value: desktop_provider_apps::components::list::ListMessage) -
             ListMessage::FailoverHealth(crate::app::message::agent_apps_health::Event::Open(value))
         }
         V::Preview(value) => ListMessage::Preview(events::preview::Event::Open(value)),
-        V::DesktopAggregation(value) => {
-            ListMessage::DesktopAggregation(settings::aggregation_desktop::Event::Open(value))
-        }
         V::Desktop(value) => ListMessage::Desktop(events::desktop::Event::Open(value)),
         V::Icons(value) => ListMessage::Icons(events::icons::Event::Open(value)),
         V::ModelCatalog(value) => {

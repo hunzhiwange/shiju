@@ -75,7 +75,7 @@ use super::publication::{
 };
 use crate::{
     providers::{
-        desktop_mapping::catalog::{DesktopMappingMember, DesktopModelCatalog},
+        desktop_mapping::catalog::DesktopModelCatalog,
         live::commit::{AppState, HOOK, Phase},
     },
 };
@@ -153,35 +153,17 @@ fn catalog() -> DesktopModelCatalog {
         )]
         .into(),
     };
-    DesktopModelCatalog::new(
-        DesktopMappingMember {
-            provider_id: "primary",
-            key: "primary",
-            name: "Primary",
-            mapping: &mapping,
-        },
-        &[DesktopMappingMember {
-            provider_id: "secondary",
-            key: "secondary",
-            name: "Secondary",
-            mapping: &mapping,
-        }],
-    )
+    DesktopModelCatalog::new("primary", &mapping)
     .unwrap()
 }
 
-fn aggregate<'a>(
+fn route_target<'a>(
     gateway: &'a ClaudeDesktopProfile,
     catalog: &'a DesktopModelCatalog,
 ) -> DesktopTarget<'a> {
     DesktopTarget::Route {
         gateway,
         catalog,
-        stack: Some(StackState {
-            enabled: true,
-            members: vec!["primary".into(), "secondary".into()],
-            keys: [("secondary".into(), "secondary".into())].into(),
-        }),
     }
 }
 
@@ -210,7 +192,7 @@ fn aggregation_t31_publish_and_restore_official_or_saved_gateway() {
         let catalog = catalog();
         let gateway = profile("http://127.0.0.1:31911/claude-desktop");
 
-        fixture.run(&fixture.state(), aggregate(&gateway, &catalog), || true).unwrap();
+        fixture.run(&fixture.state(), route_target(&gateway, &catalog), || true).unwrap();
         assert_eq!(read_json(fixture.path(NORMAL))["deploymentMode"], "3p");
         assert_eq!(read_json(fixture.path(THIRD))["deploymentMode"], "3p");
         assert_eq!(read_json(fixture.path(META))["appliedId"], PROFILE_ID);
@@ -223,13 +205,13 @@ fn aggregation_t31_publish_and_restore_official_or_saved_gateway() {
             assert_eq!(projection["name"], model.id);
             assert_eq!(projection["labelOverride"], model.label);
         }
-        assert_eq!(projected["inferenceModels"].as_array().unwrap().len(), 2);
+        assert_eq!(projected["inferenceModels"].as_array().unwrap().len(), 1);
         assert_eq!(
             fs::metadata(fixture.profile_path()).unwrap().permissions().mode() & 0o777,
             0o600
         );
         let status = fixture.status();
-        assert_eq!(status.mode, DesktopMode::Aggregation);
+        assert_eq!(status.mode, DesktopMode::Routing);
         assert_eq!(status.applied_provider_id.as_deref(), Some("primary"));
         assert!(status.configured);
         assert!(!status.recovery_pending);
@@ -273,7 +255,7 @@ fn aggregation_t31_status_and_rejections_do_not_provision_client_files() {
     let gateway = profile("http://127.0.0.1:31911/claude-desktop");
     assert_eq!(fixture.status().installation, DesktopInstallation::NotInstalled);
     assert_eq!(
-        fixture.run(&fixture.state(), aggregate(&gateway, &catalog), || true),
+        fixture.run(&fixture.state(), route_target(&gateway, &catalog), || true),
         Err(DesktopPublicationError::UnsupportedTarget)
     );
     let unsupported = DesktopInstallation::from(&AppDesktopObservation {
@@ -291,7 +273,7 @@ fn aggregation_t31_status_and_rejections_do_not_provision_client_files() {
             &fixture.tx,
             &fixture.tenant,
             &fixture.state(),
-            aggregate(&gateway, &catalog),
+            route_target(&gateway, &catalog),
             || true,
         ),
         Err(DesktopPublicationError::UnsupportedTarget)
@@ -301,12 +283,12 @@ fn aggregation_t31_status_and_rejections_do_not_provision_client_files() {
     assert_eq!(fixture.status().installation, DesktopInstallation::Installed);
     assert_eq!(fixture.status().mode, DesktopMode::Official);
     assert_eq!(
-        fixture.run(&fixture.state(), aggregate(&gateway, &catalog), || false),
+        fixture.run(&fixture.state(), route_target(&gateway, &catalog), || false),
         Err(DesktopPublicationError::RevisionConflict)
     );
     let remote = profile("https://remote.test");
     assert_eq!(
-        fixture.run(&fixture.state(), aggregate(&remote, &catalog), || true),
+        fixture.run(&fixture.state(), route_target(&remote, &catalog), || true),
         Err(DesktopPublicationError::InvalidConfiguration)
     );
     assert!(!fixture.home.path().join("Library").exists());
@@ -323,7 +305,7 @@ fn aggregation_t31_malformed_metadata_and_late_revision_preserve_preimage() {
     let catalog = catalog();
     let state = fixture.state();
     assert_eq!(
-        fixture.run(&state, aggregate(&gateway, &catalog), || true),
+        fixture.run(&state, route_target(&gateway, &catalog), || true),
         Err(DesktopPublicationError::InvalidConfiguration)
     );
     assert_eq!(fs::read(fixture.path(META)).unwrap(), br#"{"entries":{}}"#);
@@ -331,7 +313,7 @@ fn aggregation_t31_malformed_metadata_and_late_revision_preserve_preimage() {
     fs::remove_file(fixture.path(META)).unwrap();
     let checks = std::cell::Cell::new(0);
     assert_eq!(
-        fixture.run(&state, aggregate(&gateway, &catalog), || {
+        fixture.run(&state, route_target(&gateway, &catalog), || {
             checks.set(checks.get() + 1);
             checks.get() < 3
         }),
@@ -359,13 +341,13 @@ fn aggregation_t31_partial_publication_reports_failure_and_recovers_as_one_inten
             if phase == Phase::FilePublished { Err(WriteError::Io) } else { Ok(()) }
         }));
     });
-    let result = fixture.run(&state, aggregate(&gateway, &catalog), || true);
+    let result = fixture.run(&state, route_target(&gateway, &catalog), || true);
     HOOK.with_borrow_mut(|hook| *hook = None);
     assert_eq!(result, Err(DesktopPublicationError::TargetFailed));
     assert!(fixture.state() == state);
     assert!(fixture.status().recovery_pending);
     assert_eq!(
-        fixture.run(&state, aggregate(&gateway, &catalog), || true),
+        fixture.run(&state, route_target(&gateway, &catalog), || true),
         Err(DesktopPublicationError::RecoveryPending)
     );
     let other = TenantScope::new("platform", "other").unwrap();
@@ -376,7 +358,7 @@ fn aggregation_t31_partial_publication_reports_failure_and_recovers_as_one_inten
     assert!(fixture.tx.recover_on_startup()[0].1.is_ok());
     let status = fixture.status();
     assert!(!status.recovery_pending);
-    assert_eq!(status.mode, DesktopMode::Aggregation);
+    assert_eq!(status.mode, DesktopMode::Routing);
     assert_eq!(read_json(fixture.path(NORMAL))["deploymentMode"], "3p");
     assert_eq!(read_json(fixture.path(THIRD))["deploymentMode"], "3p");
     assert_eq!(read_json(fixture.path(META))["appliedId"], PROFILE_ID);

@@ -1,11 +1,6 @@
-pub mod list;
-pub mod clients;
-pub mod publish;
-pub mod desktop;
 pub mod omo;
 pub mod omp;
 pub mod pi;
-pub use list::{Form, Selection, supported};
 
 pub use desktop_apps_ui::aggregation::Notice;
 
@@ -25,10 +20,3 @@ fn warning<E>(notice: &mut Option<Notice>, text: impl Into<desktop_apps_ui::Feed
     *notice = Some(Notice::Warning(text.into().into_message()));
     iced::Task::none()
 }
-
-pub mod subagent;
-
-#[cfg(test)]
-mod aggregation_subagent_tests;
-#[cfg(test)]
-mod aggregation_review_tests;

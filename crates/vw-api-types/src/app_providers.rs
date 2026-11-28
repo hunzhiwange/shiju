@@ -64,12 +64,6 @@ pub mod mode_state;
 
 pub mod mode_apply;
 
-pub mod env_diagnose;
-
-pub mod env_clean;
-
-pub mod env_restore;
-
 pub mod operations;
 
 

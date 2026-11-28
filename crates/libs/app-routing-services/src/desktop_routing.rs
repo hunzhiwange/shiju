@@ -1,15 +1,13 @@
 //! Desktop's discovery and role/numeric model projection on the single listener.
 use super::{
     RouteCommitError, RouteRevocation, RoutingListener, VerifiedRouteBinding,
-    aggregation_routing::{
-        AggregationModel, AggregationPublication, AggregationSnapshot, AggregationTarget,
-    },
+    route_target::RouteTarget,
     dispatch::JsonTarget,
 };
 use model_protocol::generation::GenerationProtocol;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
-use std::{collections::HashMap, net::SocketAddr};
+use std::net::SocketAddr;
 use vw_agent_apps::providers::{
     desktop_mapping::catalog::{DesktopMappingError, DesktopModel, DesktopModelCatalog},
     live::commit::AppState,
@@ -18,15 +16,14 @@ use vw_api_app_identity::{AppId};
 
 /// Protocol identity comes from the authorized saved profile, not a URL heuristic.
 pub struct DesktopRouteTarget {
-    pub route: AggregationTarget,
+    pub route: RouteTarget,
     pub protocol: GenerationProtocol,
 }
 
-/// Uses the same immutable targets, revision and commit callback as other apps.
+/// A committed Desktop role map and its single provider.
 pub struct DesktopPublication {
-    publication: AggregationPublication,
-    catalog: DesktopModelCatalog,
-    protocols: HashMap<String, GenerationProtocol>,
+    binding: VerifiedRouteBinding,
+    snapshot: DesktopSnapshot,
 }
 impl DesktopPublication {
     pub fn new(
@@ -34,142 +31,82 @@ impl DesktopPublication {
         revision: String,
         state: AppState,
         catalog: DesktopModelCatalog,
-        default: DesktopRouteTarget,
-        members: Vec<DesktopRouteTarget>,
+        provider: DesktopRouteTarget,
     ) -> Result<Self, StatusCode> {
+        let route = provider.route;
         if binding.app() != AppId::ClaudeDesktop
-            || catalog
-                .models()
-                .first()
-                .is_none_or(|model| model.provider_id != default.route.provider_id)
+            || catalog.models().is_empty()
+            || catalog.models().iter().any(|model| model.provider_id != route.provider_id)
+            || !matches!(provider.protocol, GenerationProtocol::Messages | GenerationProtocol::Chat)
+            || route.messages_api_key && provider.protocol != GenerationProtocol::Messages
         {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
-        // A published discovery snapshot must fit the listener's response budget.
-        // Reject it before the native transaction can publish client configuration.
-        drop(
-            super::body_limits::encode_json(
-                &discovery(&catalog),
-                super::body_limits::MAX_JSON_BYTES,
-            )
-            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
-        );
-        let mut protocols = HashMap::new();
-        let check = |target: &DesktopRouteTarget| {
-            matches!(target.protocol, GenerationProtocol::Messages | GenerationProtocol::Chat)
-                && (!target.route.messages_api_key
-                    || target.protocol == GenerationProtocol::Messages)
-        };
-        if !check(&default) {
-            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        if route.binding != binding {
+            return Err(StatusCode::FORBIDDEN);
         }
-        protocols.insert(default.route.provider_id.clone(), default.protocol);
-        let default = default.route;
-        let mut routes = Vec::new();
-        for member in members {
-            if !check(&member)
-                || protocols.insert(member.route.provider_id.clone(), member.protocol).is_some()
-            {
-                return Err(StatusCode::UNPROCESSABLE_ENTITY);
-            }
-            routes.push(member.route);
+        if revision.trim().is_empty() || route.revision != revision {
+            return Err(StatusCode::CONFLICT);
         }
-        let members = routes;
-        // Ordinary role IDs belong to the default; only numeric member IDs use
-        // the shared exact-aggregation selector. DesktopCatalog owns aliases.
-        let models = catalog
-            .models()
-            .iter()
-            .filter(|model| model.provider_id != default.provider_id)
-            .map(|model| AggregationModel {
-                id: model.id.clone(),
-                provider_id: model.provider_id.clone(),
-                upstream_model: model.upstream_model.clone(),
-            })
-            .collect();
+        state.require_project(binding.project()).map_err(|_| StatusCode::FORBIDDEN)?;
+        if state.stack.enabled || !state.mode.as_ref().is_some_and(|mode| {
+            mode.attached
+                && mode.mode == vw_agent_apps::providers::live::commit::Mode::Proxy
+                && mode.proxy_route.as_deref() == Some(route.provider_id.as_str())
+        }) {
+            return Err(StatusCode::CONFLICT);
+        }
+        let url = &route.target.url;
+        model_transport::upstream::validate_target(
+            url, &reqwest::Request::new(reqwest::Method::POST, url.clone()),
+        )?;
+        vw_agent_apps::providers::validation::validate(AppId::ClaudeDesktop, &route.target.request_options)
+            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+        super::body_limits::encode_json(&discovery(&catalog), super::body_limits::MAX_JSON_BYTES)
+            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
         Ok(Self {
-            publication: AggregationPublication {
-                binding,
-                revision,
-                state,
-                models,
-                default,
-                members,
-            },
-            catalog,
-            protocols,
-        })
-    }
-    pub(crate) fn validate(self) -> Result<(VerifiedRouteBinding, DesktopSnapshot), StatusCode> {
-        let binding = self.publication.binding.clone();
-        self.publication
-            .state
-            .require_project(binding.project())
-            .map_err(|_| StatusCode::FORBIDDEN)?;
-        let snapshot = self.publication.validate_desktop()?;
-        Ok((
             binding,
-            DesktopSnapshot { snapshot, catalog: self.catalog, protocols: self.protocols },
-        ))
+            snapshot: DesktopSnapshot {
+                revision,
+                catalog,
+                route,
+                protocol: provider.protocol,
+            },
+        })
     }
 }
 
 pub(crate) struct DesktopSnapshot {
-    snapshot: AggregationSnapshot,
+    revision: String,
     catalog: DesktopModelCatalog,
-    protocols: HashMap<String, GenerationProtocol>,
+    route: RouteTarget,
+    protocol: GenerationProtocol,
 }
 impl DesktopSnapshot {
     pub(crate) fn revision(&self) -> &str {
-        &self.snapshot.revision
+        &self.revision
     }
-    fn lookup<'a>(
-        &'a self,
-        model: Option<&str>,
-    ) -> Result<(&'a DesktopModel, &'a str), StatusCode> {
-        let model = self.catalog.resolve(model.ok_or(StatusCode::BAD_REQUEST)?).map_err(
-            |error| match error {
-                DesktopMappingError::InvalidModelId => StatusCode::BAD_REQUEST,
-                DesktopMappingError::UnknownModel => StatusCode::NOT_FOUND,
-                DesktopMappingError::InvalidConfiguration => StatusCode::UNPROCESSABLE_ENTITY,
-            },
-        )?;
-        let selected = if self
-            .catalog
-            .models()
-            .first()
-            .is_some_and(|default| default.provider_id == model.provider_id)
-        {
-            ""
-        } else {
-            &model.id
-        };
-        Ok((model, selected))
+    fn lookup(&self, model: Option<&str>) -> Result<&DesktopModel, StatusCode> {
+        self.catalog.resolve(model.ok_or(StatusCode::BAD_REQUEST)?).map_err(|error| match error {
+            DesktopMappingError::InvalidModelId => StatusCode::BAD_REQUEST,
+            DesktopMappingError::UnknownModel => StatusCode::NOT_FOUND,
+            DesktopMappingError::InvalidConfiguration => StatusCode::UNPROCESSABLE_ENTITY,
+        })
     }
-    pub(crate) fn select<'a>(
-        &'a self,
-        binding: &VerifiedRouteBinding,
-        model: Option<&str>,
-    ) -> Result<(&'a JsonTarget, Option<&'a str>, &'a Value), StatusCode> {
-        let (model, selected) = self.lookup(model)?;
-        let (target, _, settings) = self.snapshot.select(binding, Some(selected))?;
-        Ok((target, Some(&model.upstream_model), settings))
-    }
-    pub(crate) fn messages_api_key(
+    pub(crate) fn select(
         &self,
-        binding: &VerifiedRouteBinding,
         model: Option<&str>,
-    ) -> Result<bool, StatusCode> {
-        let (_, selected) = self.lookup(model)?;
-        self.snapshot.messages_api_key(binding, Some(selected))
+    ) -> Result<(&JsonTarget, Option<&str>, &Value), StatusCode> {
+        let model = self.lookup(model)?;
+        Ok((&self.route.target, Some(&model.upstream_model), &self.route.media_settings))
+    }
+    pub(crate) fn messages_api_key(&self, model: Option<&str>) -> Result<bool, StatusCode> {
+        self.lookup(model)?;
+        Ok(self.route.messages_api_key)
     }
     pub(crate) fn native_messages(&self, model: Option<&str>) -> Result<bool, StatusCode> {
-        let (row, _) = self.lookup(model)?;
-        match self.protocols.get(&row.provider_id) {
-            Some(GenerationProtocol::Messages) => Ok(true),
-            Some(GenerationProtocol::Chat) => Ok(false),
-            _ => Err(StatusCode::UNPROCESSABLE_ENTITY),
-        }
+        self.lookup(model)?;
+        Ok(self.protocol == GenerationProtocol::Messages)
     }
     pub(crate) fn discovery(&self) -> Value {
         discovery(&self.catalog)
@@ -189,7 +126,7 @@ impl RoutingListener {
             .bound_address()
             .filter(|address| address.ip().is_loopback())
             .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-        let (binding, snapshot) = publication.validate()?;
+        let DesktopPublication { binding, snapshot } = publication;
         self.auth
             .publish_desktop(binding, snapshot, expected_revision, |token| commit(address, token))
     }

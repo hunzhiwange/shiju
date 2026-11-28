@@ -323,15 +323,17 @@ pub fn update(
             }
             if let Some(client) = client {
                 state.attached = None;
-                let scope = vw_api_app_aggregation::AggregationQuery {
-                    target_host_id: context.host.clone(),
-                    project_id: vw_api_transport::local_settings_project(project.as_deref()).into(),
-                };
+                let host = context.host.clone();
                 let serial = state.serial;
-                let project = scope.project_id.clone();
-                tasks.push(Task::perform(attached_apps(client, scope), move |(apps, complete)| {
-                    Event::Attached(context.clone(), serial, project.clone(), apps, complete)
-                }));
+                let project = vw_api_transport::ProjectId::from(
+                    vw_api_transport::local_settings_project(project.as_deref()),
+                );
+                tasks.push(Task::perform(
+                    attached_apps(client, host, project.clone()),
+                    move |(apps, complete)| {
+                        Event::Attached(context.clone(), serial, project.clone(), apps, complete)
+                    },
+                ));
             }
             Task::batch(tasks)
         }
@@ -665,36 +667,23 @@ pub const ROUTING_APPS: [vw_api_app_identity::AppId; 4] = {
 
 async fn attached_apps(
     client: GatewayClient,
-    scope: vw_api_app_aggregation::AggregationQuery,
+    host: String,
+    project: vw_api_transport::ProjectId,
 ) -> (Vec<vw_api_app_identity::AppId>, bool) {
     #[cfg(not(target_arch = "wasm32"))]
     {
         let [claude, codex, gemini, grok] = ROUTING_APPS;
+        let routing = gateway_app_routing::GatewayAppRoutingClient::new(client.transport().clone());
         let read = |id| {
-            let client = &client;
-            let scope = &scope;
+            let routing = &routing;
+            let host = &host;
+            let project = &project;
             async move {
-                use gateway_aggregation::AggregationApiError;
-                use vw_api_app_provider_environment::mode_state::{ModeStateQuery, ProviderMode};
-
-                match client.aggregation_state(id, scope).await {
-                    Ok(state) => return Some(state.attached),
-                    Err(AggregationApiError::Http { status: 409, body })
-                        if body["error"]["code"] == "mode_uninitialized" => {}
-                    Err(AggregationApiError::Http { status: 422, body })
-                        if body["error"]["code"] == "unsupported_app" => {}
-                    Err(_) => return None,
-                }
-                if scope.target_host_id != vw_api_transport::LOCAL_HOST_ID {
-                    return None;
-                }
-
-                let query = ModeStateQuery {
-                    target_host_id: scope.target_host_id.clone(),
-                    provider_id: None,
-                    mode: ProviderMode::Direct,
-                };
-                client.provider_mode_state(id, &query, "").await.ok().map(|state| state.attached)
+                routing
+                    .app_routing_attachment(host, project, id, "")
+                    .await
+                    .ok()
+                    .map(|status| status.attached)
             }
         };
         let Ok(results) = tokio::time::timeout(std::time::Duration::from_secs(8), async {
@@ -718,7 +707,7 @@ async fn attached_apps(
     }
     #[cfg(target_arch = "wasm32")]
     {
-        let _ = (client, scope);
+        let _ = (client, host, project);
         (Vec::new(), false)
     }
 }

@@ -1,39 +1,14 @@
-//! Project-scoped Claude Desktop status and mapping resources.
+//! Project-scoped Claude Desktop mapping resources.
 use agent_database::GlobalDatabase;
 use super::publication_host::Host;
 use axum::{
-    Extension, Json, Router,
-    extract::{Query, rejection::QueryRejection},
+    Extension, Json,
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
-    routing::get,
 };
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use vw_api_app_aggregation::*;
 use vw_api_transport::id::TenantScope;
-#[derive(Clone)]
-struct Policy<H> { path: Option<PathBuf>, host: H }
-pub fn router_with_policy<H: Host>(policy: Option<PathBuf>, host: H) -> Router {
-    Router::new().route("/agent-apps/claude-desktop/profile/status", get(status::<H>))
-        .layer(Extension(Policy { path: policy, host }))
-}
-async fn status<H: Host>(
-    Extension(policy): Extension<Policy<H>>,
-    Extension(tenant): Extension<TenantScope>,
-    db: Option<Extension<GlobalDatabase>>,
-    headers: HeaderMap,
-    query: Result<Query<AggregationQuery>, QueryRejection>,
-) -> Response {
-    let Ok(Query(query)) = query else {
-        return failure(StatusCode::BAD_REQUEST, "invalid_request");
-    };
-    finish(
-        tokio::task::spawn_blocking(move || {
-            read_status(policy.host.clone(), policy.path.as_deref(), tenant, db, headers, query)
-        })
-        .await,
-    )
-}
 pub fn finish(
     result: Result<Result<Response, StatusCode>, tokio::task::JoinError>,
 ) -> Response {
@@ -74,20 +49,10 @@ pub fn failure(status: StatusCode, code: &str) -> Response {
     )
         .into_response()
 }
-#[cfg(not(target_os = "macos"))]
-fn read_status<H: Host>(
-    _host: H,
-    _: Option<&Path>,
-    _: TenantScope,
-    _: Option<Extension<GlobalDatabase>>,
-    _: HeaderMap,
-    _: AggregationQuery,
-) -> Result<Response, StatusCode> {
-    Ok(failure(StatusCode::UNPROCESSABLE_ENTITY, "unsupported_target"))
-}
 #[cfg(target_os = "macos")]
 mod native {
     use super::*;
+    use std::path::PathBuf;
     use vw_agent_apps::providers::{
         claude_desktop::publication as desktop,
         live::commit::{AppState, ExecutionHostId, ProviderTransactions},
@@ -143,6 +108,9 @@ mod native {
                 });
             }
             state.require_project(&project).map_err(|_| StatusCode::FORBIDDEN)?;
+            if state.stack.enabled {
+                return Err(StatusCode::CONFLICT);
+            }
             if tx.pending(APP).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?.is_some_and(
                 |pending| {
                     pending.tenant != *project.tenant_scope()
@@ -211,57 +179,6 @@ mod native {
             .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
         Ok(desktop::DesktopInstallation::from(&observation))
     }
-    pub(super) fn read_status<H: Host>(
-    host: H,
-        policy: Option<&Path>,
-        tenant: TenantScope,
-        db: Option<Extension<GlobalDatabase>>,
-        headers: HeaderMap,
-        query: AggregationQuery,
-    ) -> Result<Response, StatusCode> {
-        let context = Context::read(host.clone(), policy, tenant, db, &headers, &query)?;
-        let revision = context.revision(&query.target_host_id, None)?;
-        let observed = desktop::get_status(
-            &context.home,
-            installation(policy, &headers, &context, &query.target_host_id)?,
-            Some(&context.tx),
-            context.project.tenant_scope(),
-        )
-        .map_err(|error| match error {
-            desktop::DesktopPublicationError::Forbidden => StatusCode::FORBIDDEN,
-            desktop::DesktopPublicationError::InvalidConfiguration => {
-                StatusCode::UNPROCESSABLE_ENTITY
-            }
-            _ => StatusCode::SERVICE_UNAVAILABLE,
-        })?;
-        context.unchanged(&query.target_host_id, None, &revision)?;
-        let mut view = DesktopProfileStatus {
-            revision: String::new(),
-            installation: match observed.installation {
-                desktop::DesktopInstallation::Installed => DesktopInstallation::Installed,
-                desktop::DesktopInstallation::NotInstalled => DesktopInstallation::NotInstalled,
-                desktop::DesktopInstallation::Unsupported => DesktopInstallation::Unsupported,
-            },
-            configured: observed.configured,
-            mode: match observed.mode {
-                desktop::DesktopMode::Official => DesktopProfileMode::Official,
-                desktop::DesktopMode::DirectGateway => DesktopProfileMode::DirectGateway,
-                desktop::DesktopMode::Routing => DesktopProfileMode::Routing,
-                desktop::DesktopMode::Aggregation => DesktopProfileMode::Aggregation,
-            },
-            applied_provider_id: observed.applied_provider_id,
-            notices: vec![],
-            recovery: if observed.recovery_pending {
-                RecoveryState::Pending
-            } else {
-                RecoveryState::None
-            },
-        };
-        view.revision = host.sign(
-            &serde_json::to_vec(&(revision, &view)).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
-        )?;
-        Ok(Json(view).into_response())
-    }
     pub fn read_form<H: Host>(
     host: H,
         policy: Option<&Path>,
@@ -298,8 +215,6 @@ mod native {
 }
 #[cfg(target_os = "macos")]
 pub use native::read_form;
-#[cfg(target_os = "macos")]
-use native::read_status;
 #[cfg(not(target_os = "macos"))]
 pub fn read_form<H: Host>(
     _host: H,

@@ -35,12 +35,7 @@ pub(crate) fn router() -> Router {
     Router::new()
         .merge(catalog::router())
         .merge(basic::router())
-        .merge(mode_state::router())
-        .merge(mode_apply::router())
         .merge(paths::router())
-        .merge(env_diagnose::router())
-        .merge(env_clean::router())
-        .merge(env_restore::router())
         .merge(preview::router())
         .merge(editor.clone().router())
         .merge(snippets::router())
@@ -246,30 +241,7 @@ mod import;
 #[path = "../../../../../libs/gateway-app-providers/src/host_tests/import_tests.rs"]
 mod import_tests;
 
-mod mode_state;
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-app-providers/src/host_tests/mode_state_tests.rs"]
-mod mode_state_tests;
 
-pub(crate) mod mode_apply;
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-app-providers/src/host_tests/mode_apply_tests.rs"]
-mod mode_apply_tests;
-
-mod env_diagnose;
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-app-providers/src/host_tests/env_diagnose_tests.rs"]
-mod env_diagnose_tests;
-
-mod env_clean;
-#[cfg(all(test, target_os = "macos"))]
-#[path = "../../../../../libs/gateway-app-providers/src/host_tests/env_clean_tests.rs"]
-mod env_clean_tests;
-
-mod env_restore;
-#[cfg(test)]
-#[path = "../../../../../libs/gateway-app-providers/src/host_tests/env_restore_tests.rs"]
-mod env_restore_tests;
 
 pub(super) mod operations;
 #[cfg(all(test, target_os = "macos"))]

@@ -95,8 +95,6 @@ gateway-mcp-probe = { path = "../libs/gateway-mcp-probe" }
 local-app-auth = { path = "../libs/local-app-auth" }
 gateway-mcp = { path = "../libs/gateway-mcp" }
 gateway-aggregation-native = { path = "../libs/gateway-aggregation-native" }
-gateway-aggregation-codex = { path = "../libs/gateway-aggregation-codex" }
-gateway-aggregation-desktop = { path = "../libs/gateway-aggregation-desktop" }
 gateway-aggregation = { path = "../libs/gateway-aggregation" }
 gateway-aggregation-omo = { path = "../libs/gateway-aggregation-omo" }
 gateway-usage-read = { path = "../libs/gateway-usage-read" }

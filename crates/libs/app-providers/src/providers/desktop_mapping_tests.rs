@@ -102,7 +102,7 @@ fn aggregation_t30_desktop_mapping_preserves_contract() {
         ("claude-sonnet-5", "kimi-k2", None, false),
         ("claude-haiku-4-5", "glm-5", None, false),
     ]);
-    let catalog = DesktopModelCatalog::new(member("primary", "Primary", &mapping), &[]).unwrap();
+    let catalog = DesktopModelCatalog::new("primary", &mapping).unwrap();
     assert_eq!(
         catalog.models().iter().map(|model| model.id.as_str()).collect::<Vec<_>>(),
         ["claude-sonnet-5", "claude-opus-5-5", "claude-haiku-5-5"]
@@ -139,89 +139,6 @@ fn mapped_routes(routes: &[(&str, &str, Option<&str>, bool)]) -> DesktopMapping 
     }
 }
 
-fn member<'a>(
-    id: &'a str,
-    name: &'a str,
-    mapping: &'a DesktopMapping,
-) -> catalog::DesktopMappingMember<'a> {
-    catalog::DesktopMappingMember { provider_id: id, key: id, name, mapping }
-}
-
-#[test]
-fn aggregation_t30_desktop_numeric_id_routes_only_to_its_member() {
-    use catalog::{DesktopMappingError, DesktopModelCatalog};
-    let primary = mapped_routes(&[
-        ("claude-opus-5", "opus-remote", None, false),
-        ("claude-fable-5", "fable-remote", None, false),
-    ]);
-    let relay = mapped_routes(&[
-        ("claude-sonnet-5", "kimi-k2", Some("Kimi"), false),
-        ("claude-haiku-4-5", "kimi-k2", Some("Duplicate"), true),
-    ]);
-    let catalog = DesktopModelCatalog::new(
-        member("primary", "Primary", &primary),
-        &[member("relay", "Relay", &relay)],
-    )
-    .unwrap();
-    let discovered = &catalog.models()[2];
-    assert_eq!(catalog.models().len(), 3);
-    assert_eq!(discovered.id, "claude-fable-ccs-081702");
-    assert_eq!(discovered.label, "Relay / Kimi");
-    assert!(discovered.supports_1m);
-    for request in ["claude-fable-ccs-081702", "claude-fable-ccs-081702[1M]"] {
-        assert_eq!(catalog.resolve(request), Ok(discovered));
-        assert_eq!(discovered.provider_id, "relay");
-        assert_eq!(discovered.upstream_model, "kimi-k2");
-    }
-    for request in ["claude-fable-ccs-000000", "gpt-5", "claude-haiku-5", "claude-fable-unknown"] {
-        assert_eq!(catalog.resolve(request), Err(DesktopMappingError::UnknownModel), "{request}");
-    }
-    for request in [
-        "claude-fable-ccs-12345",
-        "CLAUDE-FABLE-CCS-081702",
-        "anthropic/claude-fable-ccs-081702",
-        "",
-    ] {
-        assert_eq!(catalog.resolve(request), Err(DesktopMappingError::InvalidModelId), "{request}");
-    }
-
-    let without_relay =
-        DesktopModelCatalog::new(member("primary", "Primary", &primary), &[]).unwrap();
-    assert_eq!(without_relay.resolve(&discovered.id), Err(DesktopMappingError::UnknownModel));
-    let cached_default = without_relay.resolve("claude-fable-ccs-441717").unwrap();
-    assert_eq!(
-        (cached_default.provider_id.as_str(), cached_default.upstream_model.as_str()),
-        ("primary", "opus-remote")
-    );
-}
-
-#[test]
-fn aggregation_t30_desktop_collision_uses_discovery_order_for_requests() {
-    use catalog::DesktopModelCatalog;
-    let primary = mapped_routes(&[("claude-sonnet-5", "default-model", None, false)]);
-    let first = mapped_routes(&[("claude-sonnet-5", "model-4710", None, false)]);
-    let second = mapped_routes(&[("claude-sonnet-5", "model-911", None, true)]);
-    let catalog = DesktopModelCatalog::new(
-        member("primary", "Primary", &primary),
-        &[member("relay-a", "A", &first), member("relay-b", "B", &second)],
-    )
-    .unwrap();
-    let code = "claude-fable-ccs-957548";
-    assert_eq!(catalog.models().len(), 2);
-    let winner = &catalog.models()[1];
-    assert_eq!(winner.id, code);
-    assert_eq!(winner.provider_id, "relay-a");
-    assert!(!winner.supports_1m);
-    assert_eq!(catalog.resolve(code), Ok(winner));
-
-    let catalog = DesktopModelCatalog::new(
-        member("relay-a", "A", &first),
-        &[member("relay-b", "B", &second)],
-    )
-    .unwrap();
-    assert_eq!(catalog.resolve(code).unwrap().provider_id, "relay-b");
-}
-
 #[test]
 fn aggregation_t30_desktop_catalog_rejects_implicit_or_reserved_configuration() {
     use catalog::{DesktopMappingError, DesktopModelCatalog};
@@ -229,7 +146,7 @@ fn aggregation_t30_desktop_catalog_rejects_implicit_or_reserved_configuration() 
     let reserved = mapped_routes(&[("claude-fable-ccs-123456", "remote", None, true)]);
     for mapping in [&empty, &reserved] {
         assert_eq!(
-            DesktopModelCatalog::new(member("primary", "Primary", mapping), &[]).unwrap_err(),
+            DesktopModelCatalog::new("primary", mapping).unwrap_err(),
             DesktopMappingError::InvalidConfiguration
         );
     }
@@ -243,7 +160,7 @@ fn aggregation_t30_legacy_opus_id_prefers_its_compatible_role_id() {
         ("claude-opus-4-7", "older-opus", None, false),
         ("claude-opus-5", "current-opus", None, false),
     ]);
-    let catalog = DesktopModelCatalog::new(member("primary", "Primary", &mapping), &[]).unwrap();
+    let catalog = DesktopModelCatalog::new("primary", &mapping).unwrap();
 
     assert_eq!(catalog.resolve("claude-opus-4-8").unwrap().upstream_model, "current-opus");
 }

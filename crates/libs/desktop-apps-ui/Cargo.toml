@@ -7,7 +7,6 @@ license = "MIT"
 doctest = false
 [dependencies]
 config-ui = { path = "../config-ui" }
-gateway-aggregation-codex = { path = "../gateway-aggregation-codex" }
 serde_yaml.workspace = true
 gateway-app-provider = { path = "../gateway-app-provider" }
 gateway-http = { path = "../gateway-http" }
@@ -27,7 +26,6 @@ vw-api-transport = { path = "../api-transport" }
 vw-gateway-client = { path = "../../vw-gateway-client" }
 desktop-ui-controls = { path = "../desktop-ui-controls" }
 vw-api-app-identity = { path = "../api-app-identity" }
-vw-api-app-provider-environment = { path = "../api-app-provider-environment" }
 vw-api-app-aggregation = { path = "../api-app-aggregation" }
 gateway-aggregation-native = { path = "../gateway-aggregation-native" }
 gateway-app-settings = { path = "../gateway-app-settings" }

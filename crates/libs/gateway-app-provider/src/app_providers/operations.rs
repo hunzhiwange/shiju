@@ -1,7 +1,6 @@
 //! Fixed provider operation endpoints; raw worker errors never leave the host.
 use gateway_app_read::AgentAppsReadError as Error;
 use super::GatewayAppProviderClient;
-use vw_api_app_aggregation::AggregationQuery;
 use vw_api_app_aggregation::operations::*;
 impl GatewayAppProviderClient {
     pub async fn provider_operation_start(
@@ -14,8 +13,7 @@ impl GatewayAppProviderClient {
             None,
             &request.target_host_id,
             Some(request),
-            Some(token),
-            None,
+            token,
         )
         .await
     }
@@ -25,7 +23,7 @@ impl GatewayAppProviderClient {
         host: &str,
         token: &str,
     ) -> Result<ProviderOperationProgress, Error> {
-        self.provider_operation_request("GET", Some(id), host, None, Some(token), None).await
+        self.provider_operation_request("GET", Some(id), host, None, token).await
     }
     pub async fn provider_operation_cancel(
         &self,
@@ -33,41 +31,7 @@ impl GatewayAppProviderClient {
         host: &str,
         token: &str,
     ) -> Result<ProviderOperationProgress, Error> {
-        self.provider_operation_request("DELETE", Some(id), host, None, Some(token), None).await
-    }
-    /// Query the original project-owned aggregation operation using endpoint Bearer auth.
-    /// A failed outcome remains a typed operation result; never replay the submit here.
-    pub async fn provider_aggregation_operation_get(
-        &self,
-        id: &str,
-        scope: &AggregationQuery,
-    ) -> Result<ProviderOperationProgress, Error> {
-        self.provider_operation_request(
-            "GET",
-            Some(id),
-            &scope.target_host_id,
-            None,
-            None,
-            Some(scope),
-        )
-        .await
-    }
-    /// Request cancellation once; the returned snapshot is authoritative even if
-    /// cancellation was requested after the irreversible publication boundary.
-    pub async fn provider_aggregation_operation_cancel(
-        &self,
-        id: &str,
-        scope: &AggregationQuery,
-    ) -> Result<ProviderOperationProgress, Error> {
-        self.provider_operation_request(
-            "DELETE",
-            Some(id),
-            &scope.target_host_id,
-            None,
-            None,
-            Some(scope),
-        )
-        .await
+        self.provider_operation_request("DELETE", Some(id), host, None, token).await
     }
     async fn provider_operation_request(
         &self,
@@ -75,8 +39,7 @@ impl GatewayAppProviderClient {
         id: Option<&str>,
         host: &str,
         body: Option<&ProviderOperationRequest>,
-        _token: Option<&str>,
-        scope: Option<&AggregationQuery>,
+        _token: &str,
     ) -> Result<ProviderOperationProgress, Error> {
         if id.is_some_and(|id| {
             id.is_empty()
@@ -87,7 +50,7 @@ impl GatewayAppProviderClient {
         }
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (method, id, host, body, _token, scope);
+            let _ = (method, id, host, body, _token);
             Err(Error::Transport("Provider operations require native transport".into()))
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -103,8 +66,6 @@ impl GatewayAppProviderClient {
             let mut request = self.transport.dynamic_host_client().request(method, url);
             if let Some(body) = body {
                 request = request.json(body);
-            } else if let Some(scope) = scope {
-                request = request.query(scope);
             } else {
                 request = request.query(&[("targetHostId", host)]);
             }
@@ -114,12 +75,7 @@ impl GatewayAppProviderClient {
                 .map_err(|_| Error::Transport("Provider operation request failed".into()))?;
             let status = response.status();
             if !status.is_success() {
-                let body = if scope.is_some() {
-                    response.json().await.unwrap_or(serde_json::Value::Null)
-                } else {
-                    serde_json::Value::Null
-                };
-                return Err(Error::Http { status: status.as_u16(), body });
+                return Err(Error::Http { status: status.as_u16(), body: serde_json::Value::Null });
             }
             response
                 .json()

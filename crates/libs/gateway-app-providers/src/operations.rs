@@ -32,15 +32,17 @@ struct Running {
     fingerprint: [u8; 32],
     operation: ProviderOperation,
     editor_outcome: Arc<Mutex<Option<ProviderEditorOutcome>>>,
-    aggregation: Option<aggregation::Owned>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Target {
     target_host_id: String,
-    project_id: Option<vw_api_transport::ProjectId>,
 }
-pub fn router_with_editor(policy: Option<PathBuf>, editor: Editor, aggregation_routes: Router) -> Router {
+pub fn router_with_policy(policy: Option<PathBuf>) -> Router {
+    router_with_editor(policy.clone(), Editor::new(policy))
+}
+
+pub fn router_with_editor(policy: Option<PathBuf>, editor: Editor) -> Router {
     Router::new()
         .route("/app-providers/operations", post(submit).layer(DefaultBodyLimit::max(4096)))
         .route(
@@ -48,7 +50,6 @@ pub fn router_with_editor(policy: Option<PathBuf>, editor: Editor, aggregation_r
             post(submit).layer(DefaultBodyLimit::max(128 * 1024)),
         )
         .route("/app-providers/operations/{id}", get(read).delete(cancel))
-        .merge(aggregation_routes)
         .layer(Extension(State {
             policy,
             editor,
@@ -142,8 +143,7 @@ async fn submit(
         .await?;
     let mut registry = state.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     if let Some(r) = registry.values().find(|r| {
-        r.aggregation.is_none()
-            && r.tenant == tenant
+        r.tenant == tenant
             && r.host == request.target_host_id
             && r.request_id == request.request_id
     }) {
@@ -154,8 +154,7 @@ async fn submit(
     }
     if registry.len() >= 1024 {
         registry.retain(|_, r| {
-            r.aggregation.is_some()
-                || matches!(r.operation.snapshot().status, TaskStatus::Queued | TaskStatus::Running)
+            matches!(r.operation.snapshot().status, TaskStatus::Queued | TaskStatus::Running)
         });
     }
     if registry.len() >= 1024 {
@@ -242,7 +241,6 @@ use vw_api_app_provider_edit::universal_sync::UniversalSyncRequest;
         fingerprint,
         operation,
         editor_outcome,
-        aggregation: None,
     };
     let progress = running.progress(running.operation.snapshot());
     registry.insert(id, running);
@@ -255,38 +253,12 @@ async fn owned(
     host: String,
     id: &str,
     cancel: bool,
-    project: Option<vw_api_transport::ProjectId>,
-    host_control: &OperationControl,
 ) -> Result<serde_json::Value, StatusCode> {
-    #[cfg(not(target_os = "macos"))]
-    let _ = host_control;
-    let project = project
-        .map(|id| {
-            vw_api_transport::ProjectScope::new(tenant.clone(), id)
-                .map_err(|_| StatusCode::BAD_REQUEST)
-        })
-        .transpose()?;
-    if let Some(progress) = state.aggregation_owned(&headers, &host, id, cancel, project)? {
-        return Ok(progress);
-    }
-    // Authenticate before lookup, without changing legacy Basic/admin callers.
-    #[cfg(target_os = "macos")]
-    let authentication = if headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|h| h.to_str().ok())
-        .is_some_and(|h| h.starts_with("Bearer "))
-    {
-        host_control.0.headers(headers.clone())?
-    } else {
-        headers.clone()
-    };
-    #[cfg(not(target_os = "macos"))]
-    let authentication = headers.clone();
-    authorize(state, authentication, tenant.clone(), host.clone(), false).await?;
+    authorize(state, headers, tenant.clone(), host.clone(), false).await?;
     let registry = state.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     registry
         .get(id)
-        .filter(|r| r.aggregation.is_none() && r.tenant == tenant && r.host == host)
+        .filter(|r| r.tenant == tenant && r.host == host)
         .map(|r| {
             serde_json::to_value(r.progress(if cancel {
                 r.operation.cancel()
@@ -297,10 +269,20 @@ async fn owned(
         })
         .ok_or(StatusCode::NOT_FOUND)?
 }
-fn operation_response(control: &OperationControl, result: Result<serde_json::Value, StatusCode>) -> Response {
+fn operation_response(result: Result<serde_json::Value, StatusCode>) -> Response {
     let mut response = match result {
         Ok(value) => Json(value).into_response(),
-        Err(status) => control.0.error(status),
+        Err(status) => {
+            let code = match status {
+                StatusCode::BAD_REQUEST => "invalid_request",
+                StatusCode::UNAUTHORIZED => "unauthenticated",
+                StatusCode::FORBIDDEN => "forbidden",
+                StatusCode::NOT_FOUND => "not_found",
+                StatusCode::CONFLICT => "revision_conflict",
+                _ => "target_unavailable",
+            };
+            (status, Json(serde_json::json!({"error":{"code":code,"message":code}}))).into_response()
+        }
     };
     response.headers_mut().insert(
         axum::http::header::CACHE_CONTROL,
@@ -310,36 +292,23 @@ fn operation_response(control: &OperationControl, result: Result<serde_json::Val
 }
 async fn read(
     Extension(state): Extension<State>,
-    Extension(control): Extension<OperationControl>,
     Extension(tenant): Extension<TenantScope>,
     headers: HeaderMap,
     Query(target): Query<Target>,
     Path(id): Path<String>,
 ) -> Response {
-    operation_response(&control,
-        owned(&state, tenant, headers, target.target_host_id, &id, false, target.project_id, &control).await,
+    operation_response(
+        owned(&state, tenant, headers, target.target_host_id, &id, false).await,
     )
 }
 async fn cancel(
     Extension(state): Extension<State>,
-    Extension(control): Extension<OperationControl>,
     Extension(tenant): Extension<TenantScope>,
     headers: HeaderMap,
     Query(target): Query<Target>,
     Path(id): Path<String>,
 ) -> Response {
-    operation_response(&control,
-        owned(&state, tenant, headers, target.target_host_id, &id, true, target.project_id, &control).await,
+    operation_response(
+        owned(&state, tenant, headers, target.target_host_id, &id, true).await,
     )
 }
-
-pub mod aggregation;
-
-/// Host protocol projections shared with aggregation HTTP composition.
-pub trait OperationHost: Send + Sync {
-    #[cfg(target_os = "macos")]
-    fn headers(&self, headers: HeaderMap) -> Result<HeaderMap, StatusCode>;
-    fn error(&self, status: StatusCode) -> Response;
-}
-#[derive(Clone)]
-pub struct OperationControl(pub Arc<dyn OperationHost>);

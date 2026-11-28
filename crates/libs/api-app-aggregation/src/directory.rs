@@ -1,6 +1,6 @@
+use crate::AggregationQuery;
 use vw_api_transport::id::ProjectId;
 use serde::{Deserialize, Serialize};
-use crate::*;
 
 /// OMO writes accept references to saved provider profiles, never raw configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,33 +40,6 @@ pub struct OmoSlimState {
     pub other_fields: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
-/// Independent Claude Desktop resource, never a Claude Code projection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DesktopInstallation {
-    Installed,
-    NotInstalled,
-    Unsupported,
-}
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DesktopProfileMode {
-    Official,
-    DirectGateway,
-    Routing,
-    Aggregation,
-}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DesktopProfileStatus {
-    pub revision: String,
-    pub installation: DesktopInstallation,
-    pub configured: bool,
-    pub mode: DesktopProfileMode,
-    pub applied_provider_id: Option<String>,
-    pub notices: Vec<AggregationNotice>,
-    pub recovery: RecoveryState,
-}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DesktopMappingChange {
@@ -82,8 +55,7 @@ pub struct DesktopMappingView {
     pub form: vw_api_app_provider_profiles::desktop_mapping::DesktopFormView,
 }
 
-/// Optional scope for existing provider-write routes. Active aggregation requires
-/// both fields; legacy unbound catalog-only edits retain their existing shape.
+/// Optional revision and scope for existing provider-write routes.
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AggregationWriteQuery {

@@ -21,7 +21,7 @@ pub fn admit(app: AppId, tenant: &TenantScope, state: &AppState) -> Result<(), F
     if mode.mode != ProviderMode::Proxy || !mode.attached {
         return Err(FailoverError::Inactive);
     }
-    if mode.stack.enabled {
+    if state.stack.enabled {
         return Err(FailoverError::AggregationConflict);
     }
     Ok(())

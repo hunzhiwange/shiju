@@ -46,11 +46,12 @@ pub(crate) fn intercept(app: &mut App, message: &Message) -> bool {
     );
     let leaving = matches!(
         message,
-        Message::Settings(S::AppProviders(L::Close | L::Open(_) | L::Cancel))
+        Message::Settings(S::AppProviders(L::Open(_) | L::Cancel))
             | Message::Settings(S::AppProviderEdit(E::Cancel | E::Create | E::Open { .. }))
             | Message::Settings(S::TabSelected(_) | S::SystemTabSelected(_))
             | Message::Settings(S::AppsCatalog(
                 crate::app::message::settings::AppsCatalogMessage::HostInput(_)
+                    | crate::app::message::settings::AppsCatalogMessage::SelectApp(_)
             ))
             | Message::View(
                 ViewMessage::ToggleSystemSettings

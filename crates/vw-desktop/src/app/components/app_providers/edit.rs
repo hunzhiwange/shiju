@@ -6,7 +6,6 @@ pub(crate) fn map(event: desktop_provider_apps::Message) -> Message {
     use desktop_provider_apps::Message as E;
     use crate::app::message::app_providers as events;
     match event {
-E::Mode(value) => { use desktop_provider_apps::components::mode::Event as V; events::mode::message(match value { V::Close => events::mode::Event::Close,V::Refresh => events::mode::Event::Refresh,V::Cancel => events::mode::Event::Cancel,V::Confirm => events::mode::Event::Confirm,V::ReviewDirect => events::mode::Event::ReviewDirect, }) },
 E::Paths(value) => { use desktop_provider_apps::components::paths::Event as V; events::paths::message(match value { V::Close => events::paths::Event::Close,V::Refresh => events::paths::Event::Refresh,V::Draft(value) => events::paths::Event::Draft(value),V::PickFolder => events::paths::Event::PickFolder,V::OpenFolder => events::paths::Event::OpenFolder,V::Save => events::paths::Event::Save, }) },
 E::Preview(value) => { use desktop_provider_apps::components::preview::Event as V; events::preview::message(match value { V::Close => events::preview::Event::Close,V::Refresh => events::preview::Event::Refresh,V::Edit(value) => events::preview::Event::Edit(value),V::Save(value) => events::preview::Event::Save(value),V::CancelSave => events::preview::Event::CancelSave,V::Check => events::preview::Event::Check, }) },
 E::Snippets(value) => { use desktop_provider_apps::components::snippets::Event as V; events::snippets::message(match value { V::Close => events::snippets::Event::Close,V::SelectProvider(value) => events::snippets::Event::SelectProvider(value),V::Extract => events::snippets::Event::Extract,V::Edit(value) => events::snippets::Event::Edit(value),V::RetryRead => events::snippets::Event::RetryRead,V::AdoptExtracted => events::snippets::Event::AdoptExtracted,V::Preview => events::snippets::Event::Preview,V::Save => events::snippets::Event::Save, }) },
@@ -18,7 +17,6 @@ E::Universal(value) => { use desktop_provider_apps::components::universal::Event
         E::Edit(value) => events::edit::message(value),
         E::Icons(value) => events::icons::message(value),
         E::Endpoints(value) => events::endpoints::message(value),
-        E::Env(value) => events::env::message(value),
         E::Desktop(value) => events::desktop::message(value),
         E::EndpointDiagnostics => crate::app::message::agent_apps_diagnostics::endpoints::message(crate::app::message::agent_apps_diagnostics::endpoints::Event::Open),
         E::Binding => Message::None,

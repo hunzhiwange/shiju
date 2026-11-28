@@ -1,23 +1,11 @@
-//! Gateway lifecycle for saved aggregation intent. The original journal owns
-//! files and recovery; this executor supplies only policy-bound, frozen inputs.
+//! Resume saved provider routes and retire legacy multi-provider configurations.
 use crate::publication_context::{PublicationContext as RecordPublicationContext, PublicationHost};
 use {
     app_provider_services::AppProviderStore, app_routing_services::RoutingListener, agent_database::GlobalDatabase,
 };
 use axum::http::StatusCode;
 use std::{path::PathBuf, sync::Arc};
-use vw_agent_apps::{
-    aggregation::{
-        exit_restore::{Restore, RestoreError},
-        lifecycle_restore::{self, LifecycleError, StartupAction},
-    },
-    providers::{
-        claude::ClaudeFile,
-        codex_catalog::CodexFiles,
-        codex_login::{AuthTarget, LoginInput},
-        live::commit::*,
-    },
-};
+use vw_agent_apps::providers::live::commit::*;
 use {
     vw_api_app_identity::AppId,
     vw_api_app_failover::FailoverQueueScope,
@@ -36,22 +24,6 @@ pub use app_routing_services::lifecycle_host::DetachResult;
 
 fn unavailable(_: impl Sized) -> StatusCode {
     StatusCode::SERVICE_UNAVAILABLE
-}
-fn restore_status(error: RestoreError) -> StatusCode {
-    match error {
-        RestoreError::Forbidden => StatusCode::FORBIDDEN,
-        RestoreError::RevisionConflict | RestoreError::RecoveryPending => StatusCode::CONFLICT,
-        RestoreError::UnsupportedTarget | RestoreError::InvalidConfiguration => {
-            StatusCode::UNPROCESSABLE_ENTITY
-        }
-        RestoreError::TargetFailed => StatusCode::BAD_GATEWAY,
-    }
-}
-fn lifecycle_status(error: LifecycleError) -> StatusCode {
-    match error {
-        LifecycleError::Cancelled => StatusCode::CONFLICT,
-        LifecycleError::Restore(error) => restore_status(error),
-    }
 }
 impl AggregationLifecycle {
     pub fn restore(
@@ -83,7 +55,8 @@ impl AggregationLifecycle {
             failure: Default::default(),
         };
         context.revision = host.revision(&context, None)?;
-        context.exit_with_routes(routes, authorized)
+        context.exit_with_routes(routes, authorized)?;
+        context.release_legacy_bindings()
     }
 
     fn transactions(&self) -> Result<Option<ProviderTransactions>, StatusCode> {
@@ -145,35 +118,6 @@ impl AggregationLifecycle {
         authorization.is_ok_and(|(home, root, principal)| {
             home == context.home && root == context.root && principal == context.principal
         }) && context.validate_inputs(host).is_ok()
-    }
-    fn catalog_policy(
-        context: &RecordPublicationContext,
-    ) -> Result<vw_agent_apps::aggregation::codex_publish::CatalogPolicy, StatusCode> {
-        use vw_agent_apps::aggregation::codex_publish::CatalogPolicy;
-        if context.app != AppId::Codex {
-            return Ok(CatalogPolicy::Preserve);
-        }
-        let Some(accepted) = context
-            .expected
-            .aggregation_recovery
-            .as_ref()
-            .and_then(|proof| proof.accepted_external_catalog.as_deref())
-        else {
-            return Ok(CatalogPolicy::Preserve);
-        };
-        let files = CodexFiles::open(&context.home).map_err(unavailable)?;
-        let before = files.guard.read(std::ffi::OsStr::new("config.toml")).map_err(unavailable)?;
-        let config: toml::Value = toml::from_str(
-            std::str::from_utf8(before.as_deref().unwrap_or_default()).map_err(unavailable)?,
-        )
-        .map_err(unavailable)?;
-        // Restart reuses confirmation only for the original external pointer.
-        // An off-service user edit to a different pointer must be previewed again.
-        Ok(if config.get("model_catalog_json").and_then(toml::Value::as_str) == Some(accepted) {
-            CatalogPolicy::UseManaged
-        } else {
-            CatalogPolicy::Preserve
-        })
     }
     fn desktop_route_is_live(
         &self,
@@ -299,40 +243,22 @@ impl AggregationLifecycle {
                     return Ok(());
                 }
                 if !state.stack.enabled {
-                    return self.resume_provider(host, &routing, &tx, app, state);
-                }
-                let mut context = self.context(host, app, state)?;
-                if lifecycle_restore::startup_action(&tx, &context.project, app)
-                    .map_err(restore_status)?
-                    == StartupAction::StayDirect
-                {
+                    if !state.stack.members.is_empty() {
+                        self.context(host, app, state.clone())?.release_legacy_bindings()?;
+                    }
+                    if routing.bound_address().is_some() {
+                        return self.resume_provider(host, &routing, &tx, app, state);
+                    }
                     return Ok(());
                 }
-                let live = if app == AppId::ClaudeDesktop {
-                    self.desktop_route_is_live(&routing, &context.project)
-                } else {
-                    routing.aggregation_revision(&context.project, &self.host, app).is_some()
-                };
-                if live && context.expected.mode.as_ref().is_some_and(|m| m.attached) {
-                    return Ok(());
-                }
+                let context = self.context(host, app, state)?;
+                let routes = routing.begin_route_restore().map_err(|_| StatusCode::CONFLICT)?;
                 if app == AppId::ClaudeDesktop {
                     self.require_desktop_installation()?;
                 }
-                let default = context
-                    .expected
-                    .mode
-                    .as_ref()
-                    .and_then(|m| m.proxy_route.clone())
-                    .ok_or(StatusCode::CONFLICT)?;
-                let row =
-                    AppProviderStore::preview_record(&self.database, &self.tenant, app, &default)
-                        .map_err(unavailable)?;
-                context.routing = Some(routing.clone());
-                let policy = Self::catalog_policy(&context)?;
-                if !host.publish_aggregation(&context, &default, policy, &row)? {
-                    return Err(StatusCode::CONFLICT);
-                }
+                let authorization = || self.unchanged(host, &context);
+                context.exit_with_routes(&routes, authorization)?;
+                context.release_legacy_bindings()?;
                 Ok(())
             })();
             if let Err(status) = result {
@@ -352,127 +278,35 @@ impl AggregationLifecycle {
             Ok(Some(tx)) => tx,
             Ok(None) => return result,
             Err(status) => {
-                tracing::warn!(status = status.as_u16(), "aggregation shutdown policy unavailable");
-                result.failure.get_or_insert(status);
+                result.failure = Some(status);
                 return result;
             }
         };
         for app in [AppId::Claude, AppId::Codex, AppId::ClaudeDesktop] {
-            let mut authorized_scope = None;
             let attempt: Result<Option<FailoverQueueScope>, StatusCode> = (|| {
                 let state = tx.state(app).map_err(unavailable)?;
-                if !state.stack.enabled {
+                if !state.stack.enabled
+                    || state.project_scope.as_ref().is_some_and(|scope| scope.tenant_scope() != &self.tenant)
+                {
                     return Ok(None);
                 }
                 let context = self.context(host, app, state)?;
-                let scope = FailoverQueueScope {
-                    project: context.project.clone(),
+                if app == AppId::ClaudeDesktop {
+                    self.require_desktop_installation()?;
+                }
+                context.restore_exit(&tx, &|| self.unchanged(host, &context))?;
+                context.release_legacy_bindings()?;
+                Ok(Some(FailoverQueueScope {
+                    project: context.project,
                     target_host_id: self.host.clone(),
                     app_id: app,
-                };
-                authorized_scope = Some(scope.clone());
-                lifecycle_restore::startup_action(&tx, &context.project, app)
-                    .map_err(restore_status)?;
-                if app == AppId::ClaudeDesktop
-                    || !context.expected.mode.as_ref().is_some_and(|m| m.attached)
-                {
-                    return Ok(Some(scope));
-                }
-                let direct_id =
-                    context.expected.pointer.as_ref().ok_or(StatusCode::CONFLICT)?.id.as_str();
-                let direct =
-                    AppProviderStore::preview_record(&self.database, &self.tenant, app, direct_id)
-                        .map_err(unavailable)?;
-                let direct_settings =
-                    direct.get("settingsConfig").ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
-                let published = &context
-                    .expected
-                    .aggregation_recovery
-                    .as_ref()
-                    .ok_or(StatusCode::CONFLICT)?
-                    .published;
-                let restore = Restore {
-                    project: &context.project,
-                    expected: &context.expected,
-                    published,
-                    direct: direct_settings,
-                };
-                match app {
-                    AppId::Claude => {
-                        let _directory = tx.lock_claude_directory().map_err(unavailable)?;
-                        let selected = tx.claude_directory(&self.tenant).map_err(unavailable)?;
-                        let mut file =
-                            ClaudeFile::open_selected(&context.home, selected.as_ref(), false)
-                                .map_err(unavailable)?;
-                        lifecycle_restore::detach_claude(
-                            &mut file,
-                            &tx,
-                            restore,
-                            || self.unchanged(host, &context),
-                            || false,
-                        )
-                        .map_err(lifecycle_status)?;
-                    }
-                    AppId::Codex => {
-                        let profile =
-                            vw_agent_apps::providers::codex_catalog::form::editable_profile(
-                                direct_id, &direct,
-                            )
-                            .ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
-                        let deployment = vw_agent_apps::providers::codex_catalog::identity(
-                            &self.host, direct_id, &profile,
-                        )
-                        .map_err(unavailable)?;
-                        let catalog = model_catalog::ModelCatalogStore::read_existing(
-                            &self.database,
-                            &self.tenant,
-                            &deployment,
-                            direct["modelCatalogRevision"].as_str(),
-                        )
-                        .map_err(unavailable)?;
-                        let mut files = CodexFiles::open(&context.home).map_err(unavailable)?;
-                        lifecycle_restore::detach_codex(
-                            &mut files,
-                            &tx,
-                            restore,
-                            LoginInput {
-                                target: AuthTarget::ThirdParty { preserve: profile.preserve_login },
-                                leaving_official: None,
-                                official_logins: &[],
-                                third_party_keys: &[],
-                                live_is_managed: false,
-                                now: chrono::Utc::now().timestamp(),
-                            },
-                            catalog.as_ref(),
-                            || self.unchanged(host, &context),
-                            || false,
-                        )
-                        .map_err(lifecycle_status)?;
-                    }
-                    _ => return Err(StatusCode::UNPROCESSABLE_ENTITY),
-                }
-                Ok(Some(scope))
+                }))
             })();
             match attempt {
                 Ok(Some(scope)) => result.retired.push(scope),
                 Ok(None) => {}
                 Err(status) => {
-                    if let Some(scope) = authorized_scope
-                        && tx.pending(app).is_ok_and(|pending| {
-                            pending.is_some_and(|pending| {
-                                pending.published
-                                    && pending.tenant == self.tenant
-                                    && pending.target.project_scope.as_ref() == Some(&scope.project)
-                            })
-                        })
-                    {
-                        result.retired.push(scope);
-                    }
-                    tracing::warn!(
-                        ?app,
-                        status = status.as_u16(),
-                        "aggregation shutdown restoration failed"
-                    );
+                    tracing::warn!(?app, status = status.as_u16(), "Legacy provider restoration failed");
                     result.failure.get_or_insert(status);
                 }
             }

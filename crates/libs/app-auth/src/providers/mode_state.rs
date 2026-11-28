@@ -22,7 +22,6 @@ pub enum ModeStateError {
     Ownership,
     InvalidConfiguration,
     UnsupportedApplication,
-    RouteUnavailable,
 }
 /// Typed application identity prevents comparing contracts across applications.
 /// The contents must be the final client-facing projection, including proxy address,
@@ -144,31 +143,6 @@ impl ClientConfiguration {
         }
     }
 }
-/// Compare only executor-computed final client projections, after authorizing the
-/// state owner. Equality is a planning decision, not proof of native file contents.
-/// Task 46 must hold the application guard and validate saved inputs when applying.
-pub fn rewrite_decision(
-    state: &AppState,
-    mode: ProviderMode,
-    configuration: &ClientConfiguration,
-) -> RewriteDecision {
-    let Some(current) = &state.mode else { return RewriteDecision::RewriteRequired };
-    let matching_mode = matches!(
-        (current.mode, mode),
-        (Mode::Direct, ProviderMode::Direct) | (Mode::Proxy, ProviderMode::Proxy)
-    );
-    if !matching_mode || current.attached != (mode == ProviderMode::Proxy) {
-        return RewriteDecision::RewriteRequired;
-    }
-    let expected = configuration.contract();
-    if current.contract.as_ref().is_some_and(|c| {
-        c.version == expected.version && c.key == expected.key && c.exclusive == expected.exclusive
-    }) {
-        RewriteDecision::SkipRewrite
-    } else {
-        RewriteDecision::RewriteRequired
-    }
-}
 pub fn observe(
     state: &AppState,
     tenant: &TenantScope,
@@ -193,13 +167,5 @@ pub fn observe(
         in_use_provider: if mode == ProviderMode::Proxy { route.clone() } else { direct },
         proxy_route: route,
         attached: state.mode.as_ref().is_some_and(|m| m.attached),
-        has_contract: state.mode.as_ref().is_some_and(|m| m.contract.is_some()),
-        stack: StackStatus {
-            enabled: state.stack.enabled,
-            active: state.stack.enabled && mode == ProviderMode::Proxy,
-            members: state.stack.members.clone(),
-        },
-        decision: None,
-        route_runtime: RouteRuntimeStatus::Unavailable,
     })
 }

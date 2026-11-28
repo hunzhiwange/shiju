@@ -11,8 +11,8 @@ use vw_api_app_identity::AppId;
 fn main() {
     let case = std::env::var("SHIJU_CC04_WINDOW_CASE").expect("window case");
     let (app, native_form) = match case.as_str() {
-        "list" | "edit" | "endpoints" | "icons" | "universal" | "snippets" | "preview" | "env"
-        | "mode" | "paths" => (AppId::Claude, false),
+        "list" | "edit" | "endpoints" | "icons" | "universal" | "snippets" | "preview"
+        | "paths" => (AppId::Claude, false),
         "claude" => (AppId::Claude, true),
         "codex" => (AppId::Codex, true),
         "gemini" => (AppId::Gemini, true),
@@ -72,8 +72,6 @@ fn main() {
         "universal" => "统一供应商投影隔离验收",
         "snippets" => "公共配置片段隔离验收",
         "preview" => "配置预览与冲突确认隔离验收",
-        "env" => "环境诊断隔离验收",
-        "mode" => "供应商模式隔离验收",
         "paths" => "配置目录隔离验收",
         "dsh" => "Dsh 供应商隔离验收",
         "kimi" => "Kimi 供应商隔离验收",

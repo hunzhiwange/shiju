@@ -1,6 +1,6 @@
 use crate::{
     RouteCommitError, RoutingListener, SharedTransport, VerifiedRouteBinding,
-    aggregation_routing::{AggregationModel, AggregationPublication, AggregationTarget},
+    route_target::RouteTarget,
     dispatch::JsonTarget,
     failover_routing::FailoverPublication,
 };
@@ -86,7 +86,7 @@ async fn aggregation_t12_listener_preserves_queue_and_resumes_ordered_selection(
     let binding = || {
         VerifiedRouteBinding::new(project.clone(), "host".into(), AppId::Codex, "account".into(), 1)
     };
-    let target = |index: usize, id: &str, revision: &str| AggregationTarget {
+    let target = |index: usize, id: &str, revision: &str| RouteTarget {
         messages_api_key: false,
         binding: binding(),
         revision: revision.into(),
@@ -143,28 +143,6 @@ async fn aggregation_t12_listener_preserves_queue_and_resumes_ordered_selection(
             )
             .map_err(|_| RouteCommitError { status: StatusCode::CONFLICT, recovery_pending: true })
     };
-    let mut aggregate_token = String::new();
-    listener
-        .publish_aggregation(
-            AggregationPublication {
-                binding: binding(),
-                revision: "aggregate-1".into(),
-                state: state.clone(),
-                models: vec![AggregationModel {
-                    id: "ccs-beta/unavailable".into(),
-                    provider_id: "beta".into(),
-                    upstream_model: "unavailable".into(),
-                }],
-                default: target(0, "alpha", "aggregate-1"),
-                members: vec![target(1, "beta", "aggregate-1")],
-            },
-            None,
-            |_, token| {
-                aggregate_token = token.into();
-                commit(token, &state)
-            },
-        )
-        .unwrap();
     let client =
         reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(10)).build().unwrap();
     let send = |token: &str, model: &str| {
@@ -174,12 +152,6 @@ async fn aggregation_t12_listener_preserves_queue_and_resumes_ordered_selection(
             .json(&json!({"model": model}))
             .send()
     };
-    for (model, expected) in [("unavailable", "alpha"), ("ccs-beta/unavailable", "beta")] {
-        assert_eq!(send(&aggregate_token, model).await.unwrap().status(), StatusCode::BAD_GATEWAY);
-        assert_eq!(requests.try_recv().unwrap().0, expected);
-        assert!(requests.try_recv().is_err(), "aggregation failure must not visit another target");
-        assert_eq!(queue_store.get(&scope).unwrap(), saved);
-    }
     let plain = |state: &AppState| FailoverPublication {
         binding: binding(),
         revision: "route-1".into(),
@@ -193,31 +165,19 @@ async fn aggregation_t12_listener_preserves_queue_and_resumes_ordered_selection(
             .publish_failover_route(
                 plain(&state),
                 &queue_store,
-                Some("aggregate-1"),
-                |_, _, _, _| panic!("aggregation reached commit")
+                None,
+                |_, _, _, _| panic!("legacy stack reached commit")
             )
             .err(),
         Some(StatusCode::CONFLICT)
     );
     state.stack.enabled = false;
-    // A result started in ordinary routing has no aggregation revision. It
-    // cannot replace the aggregation that became active while it was in flight.
-    for expected in [None, Some("stale")] {
-        assert_eq!(
-            listener
-                .publish_failover_route(plain(&state), &queue_store, expected, |_, _, _, _| panic!(
-                    "stale transition reached commit"
-                ))
-                .err(),
-            Some(StatusCode::CONFLICT)
-        );
-    }
     let mut plain_token = String::new();
     listener
         .publish_failover_route(
             plain(&state),
             &queue_store,
-            Some("aggregate-1"),
+            None,
             |_, token, queue, provider| {
                 assert_eq!(queue, &saved);
                 assert_eq!(provider, "beta");
@@ -228,10 +188,6 @@ async fn aggregation_t12_listener_preserves_queue_and_resumes_ordered_selection(
             },
         )
         .unwrap();
-    assert_eq!(
-        send(&aggregate_token, "unavailable").await.unwrap().status(),
-        StatusCode::UNAUTHORIZED
-    );
     let response = send(&plain_token, "shared-model").await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response.json::<Value>().await.unwrap(), json!({"provider": "beta"}));

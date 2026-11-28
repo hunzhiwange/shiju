@@ -314,7 +314,7 @@ fn apply_inner(
     if tx.pending(scope.app_id).map_err(unavailable)?.is_some() {
         let route_scope = RouteScope { tenant, host: &scope.target_host_id, app: scope.app_id };
         let mut mode =
-            ClaudeMode { file: &mut file, transactions: &tx, scope: route_scope, runtime: None };
+            ClaudeMode { file: &mut file, transactions: &tx, scope: route_scope };
         restore(&mut || {
             mode.recover_route(&scope.project).map_err(|_| RouteCommitError {
                 status: StatusCode::CONFLICT,
@@ -452,7 +452,6 @@ fn apply_inner(
                 file: &mut file,
                 transactions: &tx,
                 scope: route_scope,
-                runtime: None,
             };
             changed.set(
                 mode.commit_route(&scope.project, &state, action, &target, current)
@@ -481,7 +480,6 @@ fn apply_inner(
                 file: &mut file,
                 transactions: &tx,
                 scope: route_scope,
-                runtime: None,
             };
             changed.set(
                 mode.commit_route(&scope.project, &state, action, settings, current)

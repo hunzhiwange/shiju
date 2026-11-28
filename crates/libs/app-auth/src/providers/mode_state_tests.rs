@@ -57,9 +57,7 @@ fn cc04_mode_state_distinguishes_direct_route_and_stack() {
     let status = observe(&state, &tenant()).unwrap();
     assert_eq!(status.direct_provider.as_deref(), Some("direct"));
     assert_eq!(status.in_use_provider.as_deref(), Some("route"));
-    assert!(status.stack.active);
     assert!(status.attached);
-    assert!(status.has_contract);
     assert_eq!(state.stack, stack);
     let mut guard = lock_app(AppId::Claude, live.path()).unwrap();
     tx.commit(
@@ -75,62 +73,8 @@ fn cc04_mode_state_distinguishes_direct_route_and_stack() {
     let state = tx.state(AppId::Claude).unwrap();
     let status = observe(&state, &tenant()).unwrap();
     assert_eq!(status.in_use_provider.as_deref(), Some("direct"));
-    assert!(!status.stack.active);
-    assert!(status.stack.enabled);
     assert_eq!(state.stack, stack);
     assert_eq!(fs::read(live.path().join("config")).unwrap(), b"user configuration");
-}
-#[test]
-fn cc04_mode_state_equal_contract_skips_rewrite() {
-    let state = AppState { mode: Some(mode()), mode_tenant: Some(tenant()), ..Default::default() };
-    assert_eq!(
-        rewrite_decision(&state, ProviderMode::Proxy, &configuration()),
-        RewriteDecision::SkipRewrite
-    );
-    let same=ClientConfiguration::saved(AppId::Claude,&json!({"unknown":"ignored","env":{"CLAUDE_CODE_DISABLE_ARTIFACT":"1","ANTHROPIC_MODEL":"fixture","ANTHROPIC_API_KEY":"fake-private-secret","ANTHROPIC_BASE_URL":"https://fixture.example"}}), false).unwrap();
-    assert_eq!(rewrite_decision(&state, ProviderMode::Proxy, &same), RewriteDecision::SkipRewrite);
-}
-#[test]
-fn cc04_mode_state_changes_detachment_legacy_and_modes_require_rewrite() {
-    let mut state =
-        AppState { mode: Some(mode()), mode_tenant: Some(tenant()), ..Default::default() };
-    for row in [
-        json!({"env":{"ANTHROPIC_API_KEY":"changed"}}),
-        json!({"env":{"ANTHROPIC_BASE_URL":"http://127.0.0.1:4567"}}),
-        json!({"env":{"CLAUDE_CODE_DISABLE_ARTIFACT":"0"}}),
-        json!({"modelPicker":["model"],"env":{}}),
-    ] {
-        let c = ClientConfiguration::saved(AppId::Claude, &row, false).unwrap();
-        assert_eq!(
-            rewrite_decision(&state, ProviderMode::Proxy, &c),
-            RewriteDecision::RewriteRequired
-        );
-    }
-    assert_eq!(
-        rewrite_decision(&state, ProviderMode::Direct, &configuration()),
-        RewriteDecision::RewriteRequired
-    );
-    state.mode.as_mut().unwrap().attached = false;
-    assert_eq!(
-        rewrite_decision(&state, ProviderMode::Proxy, &configuration()),
-        RewriteDecision::RewriteRequired
-    );
-    state.mode.as_mut().unwrap().attached = true;
-    state.mode.as_mut().unwrap().mode = Mode::Direct;
-    assert_eq!(
-        rewrite_decision(&state, ProviderMode::Direct, &configuration()),
-        RewriteDecision::RewriteRequired
-    );
-    state.mode.as_mut().unwrap().mode = Mode::Proxy;
-    state.mode.as_mut().unwrap().contract.as_mut().unwrap().version = 1;
-    assert_eq!(
-        rewrite_decision(&state, ProviderMode::Proxy, &configuration()),
-        RewriteDecision::RewriteRequired
-    );
-    assert_eq!(
-        observe(&state, &TenantScope::new("p", "other").unwrap()),
-        Err(ModeStateError::Ownership)
-    );
 }
 #[test]
 fn cc04_mode_state_contract_is_canonical_and_application_scoped() {
@@ -168,7 +112,6 @@ fn cc04_mode_state_read_only_does_not_provision_or_touch_native_file() {
     assert!(!root.path().join("provider-live").exists());
     let state = AppState::default();
     let _ = observe(&state, &tenant()).unwrap();
-    let _ = rewrite_decision(&state, ProviderMode::Direct, &configuration());
     let after = fs::metadata(&path).unwrap();
     assert_eq!(
         (before.ino(), before.mtime(), before.mtime_nsec()),
@@ -278,7 +221,6 @@ fn cc04_mode_state_stack_intent_recovers_with_files_and_rejects_legacy_version()
     HOOK.with_borrow_mut(|hook| *hook = None);
     assert!(matches!(result, Err(WriteError::Io)));
     assert_eq!(fs::read(live.path().join("config")).unwrap(), b"before");
-    assert!(tx.state(AppId::Claude).unwrap().stack.members.is_empty());
     let path = root.path().join("provider-live/aG9zdA/claude.pending.json");
     let bytes = fs::read(&path).unwrap();
     let mut legacy: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
@@ -320,24 +262,8 @@ fn cc04_mode_state_legacy_state_and_all_client_contracts_are_explicit() {
     ];
     for config in configs {
         let contract = config.contract();
-        let state = AppState {
-            mode: Some(ModeState {
-                mode: Mode::Proxy,
-                attached: true,
-                proxy_route: Some("route".into()),
-                contract: Some(contract),
-            }),
-            mode_tenant: Some(tenant()),
-            ..Default::default()
-        };
-        assert_eq!(
-            rewrite_decision(&state, ProviderMode::Proxy, &config),
-            RewriteDecision::SkipRewrite
-        );
-        assert_eq!(
-            rewrite_decision(&state, ProviderMode::Proxy, &configuration()),
-            RewriteDecision::RewriteRequired
-        );
+        assert_eq!(contract.version, 2);
+        assert!(contract != configuration().contract());
     }
     let gemini =
         ClientConfiguration::saved(AppId::Gemini, &json!({"env":{},"config":{}}), true).unwrap();
@@ -349,27 +275,12 @@ fn cc04_mode_state_legacy_state_and_all_client_contracts_are_explicit() {
 }
 
 #[test]
-fn cc04_mode_state_orphan_stack_and_changed_exclusive_fail_closed() {
+fn cc04_mode_state_orphan_stack_is_rejected_and_contract_filters_exclusive_fields() {
     let state = AppState {
         stack: StackState { enabled: true, ..Default::default() },
         ..Default::default()
     };
     assert_eq!(observe(&state, &tenant()), Err(ModeStateError::Ownership));
-    let mut state =
-        AppState { mode: Some(mode()), mode_tenant: Some(tenant()), ..Default::default() };
-    state
-        .mode
-        .as_mut()
-        .unwrap()
-        .contract
-        .as_mut()
-        .unwrap()
-        .exclusive
-        .insert("CLAUDE_CODE_DISABLE_ARTIFACT".into(), json!("changed"));
-    assert_eq!(
-        rewrite_decision(&state, ProviderMode::Proxy, &configuration()),
-        RewriteDecision::RewriteRequired
-    );
     let c = ClientConfiguration::Codex {
         config: json!({"model_context_window":128000,"model":"fixture"}),
         auth: json!({}),

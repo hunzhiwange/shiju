@@ -34,7 +34,7 @@ use {
 #[cfg(target_os = "macos")]
 use {
     super::{
-        aggregation_routing::AggregationSnapshot, config_apply::RoutingConfigStore,
+        config_apply::RoutingConfigStore,
         timeouts::AppTimeouts,
     },
 };
@@ -215,20 +215,10 @@ impl AuthorizedRoute {
             provider.apply_headers(headers);
         }
         if let Some(JsonRoute::Desktop(snapshot)) = &self.json_target
-            && snapshot.messages_api_key(&self.binding, model)?
+            && snapshot.messages_api_key(model)?
             && let Some(key) = headers.remove(header::AUTHORIZATION)
         {
             headers.insert("x-api-key", key);
-        }
-        if self.binding.app == AppId::Claude
-            && let Some(JsonRoute::Aggregation(snapshot)) = &self.json_target
-        {
-            if snapshot.messages_api_key(&self.binding, model)?
-                && let Some(key) = headers.remove(header::AUTHORIZATION)
-            {
-                headers.insert("x-api-key", key);
-            }
-            headers.insert("anthropic-version", axum::http::HeaderValue::from_static("2023-06-01"));
         }
         Ok(())
     }
@@ -250,7 +240,6 @@ impl AuthorizedRoute {
             Some(JsonRoute::Desktop(snapshot)) => Ok(snapshot.discovery()),
             Some(JsonRoute::Plain(_)) => self.provider.as_ref()
                 .ok_or(StatusCode::SERVICE_UNAVAILABLE)?.discovery(),
-            // Aggregation IDs and their catalog publication belong to the aggregation owner.
             _ => Err(StatusCode::SERVICE_UNAVAILABLE),
         }
     }
@@ -282,9 +271,7 @@ impl AuthorizedRoute {
                 Err(ModelIdError::InvalidModelId) => return Err(StatusCode::BAD_REQUEST),
             },
             #[cfg(target_os = "macos")]
-            JsonRoute::Aggregation(snapshot) => snapshot.select(&self.binding, model)?,
-            #[cfg(target_os = "macos")]
-            JsonRoute::Desktop(snapshot) => snapshot.select(&self.binding, model)?,
+            JsonRoute::Desktop(snapshot) => snapshot.select(model)?,
         };
         Ok((target, model, self.cancelled.clone(), settings))
     }
@@ -346,8 +333,6 @@ impl AuthorizedRoute {
 
 enum JsonRoute {
     Plain(Box<JsonTarget>),
-    #[cfg(target_os = "macos")]
-    Aggregation(Box<AggregationSnapshot>),
     #[cfg(target_os = "macos")]
     Desktop(Box<super::desktop_routing::DesktopSnapshot>),
 }
@@ -532,22 +517,6 @@ impl RouteAuth {
         .map_err(|status| anyhow::anyhow!("application route issuance failed: {status}"))
     }
 
-    #[cfg(target_os = "macos")]
-    pub(crate) fn publish_aggregation(
-        &self,
-        binding: VerifiedRouteBinding,
-        snapshot: AggregationSnapshot,
-        expected_revision: Option<&str>,
-        commit: impl FnOnce(&str) -> Result<(), RouteCommitError>,
-    ) -> Result<RouteRevocation, StatusCode> {
-        let issued = self.issue_route(
-            binding,
-            Some(JsonRoute::Aggregation(Box::new(snapshot))),
-            expected_revision,
-            |token| commit(token).map(|()| None),
-        )?;
-        Ok(issued.revocation)
-    }
 
     #[cfg(target_os = "macos")]
     pub(crate) fn desktop_revision(&self, binding: &VerifiedRouteBinding) -> Option<String> {
@@ -587,7 +556,7 @@ impl RouteAuth {
         expected_revision: Option<&str>,
         commit: impl FnOnce(&str) -> Result<(), RouteCommitError>,
     ) -> Result<RouteRevocation, StatusCode> {
-        // Serialize the transition against aggregation publication and revocation.
+        // Serialize the transition against publication and revocation.
         // Revision validation below applies to both directions of the transition.
         self.issue_route(
             binding,
@@ -669,23 +638,6 @@ impl RouteAuth {
         Ok(())
     }
 
-    #[cfg(target_os = "macos")]
-    pub(crate) fn aggregation_revision(
-        &self,
-        project: &ProjectScope,
-        host: &str,
-        app: AppId,
-    ) -> Option<String> {
-        self.active
-            .lock()
-            .grants
-            .values()
-            .find(|route| route.binding.has_scope(project, host, app))
-            .and_then(|route| match &route.json_target {
-                Some(JsonRoute::Aggregation(snapshot)) => Some(snapshot.revision.clone()),
-                _ => None,
-            })
-    }
 
     fn issue_route(
         &self,
@@ -725,12 +677,10 @@ impl RouteAuth {
                 let previous =
                     active.grants.values().find(|route| route.binding.same_route(&binding));
                 let previous_revision = previous.and_then(|route| match &route.json_target {
-                    Some(JsonRoute::Aggregation(snapshot)) => Some(snapshot.revision.as_str()),
                     Some(JsonRoute::Desktop(snapshot)) => Some(snapshot.revision()),
                     _ => None,
                 });
                 if previous_revision != expected_revision
-                    || matches!(&json_target, Some(JsonRoute::Aggregation(next)) if previous_revision == Some(next.revision.as_str()))
                     || matches!(&json_target, Some(JsonRoute::Desktop(next)) if previous_revision == Some(next.revision()))
                     || previous.is_some_and(|route| {
                         route.binding.account == binding.account
@@ -947,9 +897,6 @@ mod browser_guard_tests;
 #[path = "dispatch_tests.rs"]
 mod dispatch_tests;
 
-#[cfg(all(test, target_os = "macos"))]
-#[path = "aggregation_routing_tests.rs"]
-mod aggregation_routing_tests;
 
 #[cfg(test)]
 #[path = "override_apply_tests.rs"]

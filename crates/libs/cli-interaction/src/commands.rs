@@ -18,7 +18,6 @@ pub(crate) const SETTINGS_SURFACE: &str = "session_settings";
 pub(crate) const SETTINGS_MODEL_SURFACE: &str = "session_settings_model";
 pub(crate) const SETTINGS_EFFORT_SURFACE: &str = "session_settings_effort";
 pub(crate) const SETTINGS_PERMISSION_SURFACE: &str = "session_settings_permissions";
-pub(crate) const SETTINGS_PLAN_SURFACE: &str = "session_settings_plan";
 pub(crate) const SETTINGS_ACP_SURFACE: &str = "session_settings_acp";
 pub(crate) const SETTINGS_DELEGATE_SURFACE: &str = "session_settings_delegate";
 pub(crate) const SETTINGS_ACCESS_SURFACE: &str = "session_settings_access";
@@ -59,7 +58,7 @@ pub(crate) enum CommandRoute {
     OpenSettings,
     OpenModelPicker,
     OpenEffortPicker,
-    OpenPermissionPicker { plan_only: bool },
+    OpenPermissionPicker,
     OpenSettingsTarget(SettingsTarget),
     ApplyModel(String),
     ApplyEffort(ReasoningEffort),
@@ -84,7 +83,6 @@ pub(crate) enum CommandRoute {
     ConfirmCronDelete { job_id: String },
     StartWorkflowRun { uuid: String, query: String },
     ConfirmTaskControl { id: String, action: TaskControlAction },
-    StartPlanRun { query: String },
     StartGoalRun { query: String },
     Unavailable { command_id: String, reason: String },
 }
@@ -196,11 +194,8 @@ const COMMANDS: &[CommandSpec] = &[
         CommandRoute::OpenSettingsTarget(SettingsTarget::AcpBackend)
     }),
     CommandSpec::local("effort", "选择推理强度", || CommandRoute::OpenEffortPicker),
-    CommandSpec::local("plan", "配置计划模式", || CommandRoute::OpenPermissionPicker {
-        plan_only: true,
-    }),
     CommandSpec::local("permissions", "配置当前会话权限", || {
-        CommandRoute::OpenPermissionPicker { plan_only: false }
+        CommandRoute::OpenPermissionPicker
     }),
     CommandSpec::local("settings", "打开会话设置", || CommandRoute::OpenSettings),
     CommandSpec::local("skills", "浏览可用技能", || {
@@ -280,7 +275,7 @@ pub(crate) fn route_selection(surface: &str, item_id: &str) -> Result<CommandRou
             required_setting_value("model", item_id).map(CommandRoute::ApplyModel)
         }
         SETTINGS_EFFORT_SURFACE => parse_effort(item_id).map(CommandRoute::ApplyEffort),
-        SETTINGS_PERMISSION_SURFACE | SETTINGS_PLAN_SURFACE => {
+        SETTINGS_PERMISSION_SURFACE => {
             parse_permission_mode(item_id).map(CommandRoute::ApplyPermissionMode)
         }
         SETTINGS_ACP_SURFACE => {

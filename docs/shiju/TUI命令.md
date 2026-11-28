@@ -32,8 +32,6 @@
 | `/archive` | 已实现 | 类型确认 → `session_archive` | 活动流或排队输入存在时拒绝 |
 | `/model [id]` | 已实现 | provider/model 能力目录 → `SessionOptions` | 只接受 Gateway 声明的模型 |
 | `/effort [level]` | 已实现 | 能力矩阵 → `SessionOptions` | provider 未声明的强度被拒绝 |
-| `/plan`、`/plan on|off` | 已实现 | 权限选择 → `PermissionMode` | 未声明模式或危险升级被拒绝/确认 |
-| `/plan <request>` | 已实现 | `StartPlanRun` → task-plan-run 可恢复 SSE | 断线、阻塞、取消进入统一终态 |
 | `/goal <objective>` | 已实现 | `StartGoalRun` → task-plan-run 可恢复 SSE | 空目标拒绝；停止须匹配 owned request/task ID |
 | `/permissions [mode]` | 已实现 | 能力矩阵 → 会话权限设置 | bypass/full access 要求类型确认 |
 | `/settings` | 已实现 | 会话设置面板 → 下一请求生效 | 不支持项显示原因，不伪装全局保存 |

@@ -276,8 +276,8 @@ impl ActiveRunner {
                     app.open_effort_picker();
                     RunnerControl::Continue
                 }
-                CommandRoute::OpenPermissionPicker { plan_only } => {
-                    app.open_permission_picker(plan_only);
+                CommandRoute::OpenPermissionPicker => {
+                    app.open_permission_picker();
                     RunnerControl::Continue
                 }
                 CommandRoute::OpenSettingsTarget(target) => {
@@ -414,12 +414,7 @@ impl ActiveRunner {
                     app.open_task_control_confirmation(id.as_str(), action);
                     RunnerControl::Continue
                 }
-                CommandRoute::StartPlanRun { query } => {
-                    self.start_plan_run(app, query, "/plan ", "请输入计划任务，然后按 Enter。")
-                }
-                CommandRoute::StartGoalRun { query } => {
-                    self.start_plan_run(app, query, "/goal ", "请输入持续目标，然后按 Enter。")
-                }
+                CommandRoute::StartGoalRun { query } => self.start_goal_run(app, query),
                 CommandRoute::Unavailable { command_id, reason } => {
                     push_runner_error(app, format!("/{command_id} unavailable: {reason}"));
                     RunnerControl::Continue

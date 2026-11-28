@@ -11,7 +11,7 @@ use super::app::{ActiveRunner, V3GatewayApp};
 use super::bridge::GatewayV3Bridge;
 use super::commands::{
     CommandRoute, WORKFLOW_SELECTION_SURFACE, WORKSPACE_FILES_SURFACE, command_palette_items,
-    route_selection, route_slash_submission,
+    help_text, route_selection, route_slash_submission,
 };
 use super::controller::{TuiController, TuiControllerCommand};
 use cli_interaction_model::background_task::{
@@ -84,6 +84,24 @@ fn command_catalog_exposes_stable_ids_and_disabled_reasons() {
     assert!(items.iter().any(|item| item.id == "resume" && !item.disabled));
     assert!(items.iter().any(|item| item.id == "continue" && !item.disabled));
     assert!(items.iter().any(|item| item.id == "new" && !item.disabled));
+}
+
+#[test]
+fn removed_plan_command_is_unlisted_and_rejected() {
+    assert!(!command_palette_items().iter().any(|item| item.id == "plan"));
+    assert!(!help_text().lines().any(|line| line.starts_with("/plan ")));
+    assert!(route_selection("command_palette", "plan").is_err());
+
+    for command in ["/plan", "/plan on", "/plan off", "/plan implement a feature"] {
+        assert_eq!(
+            route_slash_submission(command).unwrap_err(),
+            "unknown TUI command: /plan"
+        );
+    }
+    assert_eq!(
+        route_slash_submission("/goal implement a feature").expect("goal should route"),
+        Some(CommandRoute::StartGoalRun { query: "implement a feature".to_string() })
+    );
 }
 
 #[test]

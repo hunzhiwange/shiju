@@ -11,7 +11,6 @@ use super::{
     SETTINGS_EFFORT_SURFACE,
     SETTINGS_MODEL_SURFACE,
     SETTINGS_PERMISSION_SURFACE,
-    SETTINGS_PLAN_SURFACE,
     SETTINGS_SUBAGENT_SURFACE,
     SETTINGS_SURFACE,
     SettingKey,
@@ -145,7 +144,7 @@ impl V3GatewayApp {
         match target {
             SettingsTarget::Model => self.open_model_picker(),
             SettingsTarget::Effort => self.open_effort_picker(),
-            SettingsTarget::Permissions => self.open_permission_picker(false),
+            SettingsTarget::Permissions => self.open_permission_picker(),
             SettingsTarget::AcpBackend => self.open_acp_picker(),
             SettingsTarget::DelegateAgent => self.open_delegate_picker(),
             SettingsTarget::FullAccess => self.open_access_picker(),
@@ -236,7 +235,7 @@ impl V3GatewayApp {
         self.widget.show_selection_overlay(SETTINGS_EFFORT_SURFACE, "选择推理强度", items);
     }
 
-    pub(super) fn open_permission_picker(&mut self, plan_only: bool) {
+    pub(super) fn open_permission_picker(&mut self) {
         let current = self.state.session_options.permission_mode;
         let items = self
             .state
@@ -244,16 +243,12 @@ impl V3GatewayApp {
             .permission_modes
             .iter()
             .copied()
-            .filter(|mode| {
-                !plan_only || matches!(mode, PermissionMode::Default | PermissionMode::Plan)
-            })
             .map(|mode| {
                 let id = permission_mode_id(mode);
                 setting_item(id, id, mode == current)
             })
             .collect();
-        let surface = if plan_only { SETTINGS_PLAN_SURFACE } else { SETTINGS_PERMISSION_SURFACE };
-        self.widget.show_selection_overlay(surface, "选择权限模式", items);
+        self.widget.show_selection_overlay(SETTINGS_PERMISSION_SURFACE, "选择权限模式", items);
     }
 
     fn open_acp_picker(&mut self) {

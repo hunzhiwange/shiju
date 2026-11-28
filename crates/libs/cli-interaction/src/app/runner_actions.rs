@@ -56,15 +56,9 @@ use super::{
 };
 
 impl ActiveRunner {
-    pub(super) fn start_plan_run(
-        &mut self,
-        app: &mut V3GatewayApp,
-        query: String,
-        empty_draft: &str,
-        empty_hint: &str,
-    ) -> RunnerControl {
+    pub(super) fn start_goal_run(&mut self, app: &mut V3GatewayApp, query: String) -> RunnerControl {
         if query.trim().is_empty() {
-            return app.prime_session_command(empty_draft, empty_hint);
+            return app.prime_session_command("/goal ", "请输入持续目标，然后按 Enter。");
         }
         if self.active_stream.is_some() {
             push_runner_error(app, "a gateway stream is already active");

@@ -1601,7 +1601,7 @@ impl TextArea {
     /// 标记一个已存在的文本范围作为原子元素，而不改变文本内容。
     /// Mark an existing text range as an atomic element without changing the text.
     ///
-    /// This is used to convert already-typed tokens (like `/plan`) into elements
+    /// This is used to convert already-typed tokens (like `/help`) into elements
     /// so they render and edit atomically. Overlapping or duplicate ranges are ignored.
     pub fn add_element_range(&mut self, range: Range<usize>) -> Option<u64> {
         let start = self.clamp_pos_to_char_boundary(range.start.min(self.text.len()));

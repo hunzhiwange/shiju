@@ -130,11 +130,6 @@ pub(super) fn route_slash_command(command_id: &str, arguments: &str) -> Result<C
             Ok(CommandRoute::ApplyModel(required_setting_value("model", arguments)?))
         }
         "effort" if !arguments.is_empty() => parse_effort(arguments).map(CommandRoute::ApplyEffort),
-        "plan" if !arguments.is_empty() => match arguments {
-            "on" | "plan" => Ok(CommandRoute::ApplyPermissionMode(PermissionMode::Plan)),
-            "off" | "default" => Ok(CommandRoute::ApplyPermissionMode(PermissionMode::Default)),
-            query => Ok(CommandRoute::StartPlanRun { query: query.to_string() }),
-        },
         "goal" if !arguments.is_empty() => {
             Ok(CommandRoute::StartGoalRun { query: arguments.to_string() })
         }
@@ -161,8 +156,9 @@ pub(super) fn route_slash_command(command_id: &str, arguments: &str) -> Result<C
             Ok(CommandRoute::ArchiveSession)
         }
         _ => {
+            let route = route_command_id(command_id)?;
             reject_arguments(command_id, arguments)?;
-            route_command_id(command_id)
+            Ok(route)
         }
     }
 }

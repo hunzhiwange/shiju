@@ -71,7 +71,7 @@ pub fn view_content<'a>(
     }
 
     let content = column![
-        settings_panel(
+        settings_section_content(
             column![
                 row![
                     text(i18n.__("工作流")).size(SETTINGS_PAGE_TITLE_SIZE),
@@ -512,7 +512,7 @@ fn build_workflow_list<'a>(
                 )),
         );
     }
-    settings_panel(content
+    settings_section_content(content
         .push(text(i18n.__("预设")).size(15))
         .push(scrollable(
             container(items)
@@ -550,7 +550,7 @@ fn build_editor<'a>(
         } else {
             "请选择工作流"
         };
-        return settings_panel(text(i18n.__(message)).style(settings_muted_text_style))
+        return settings_section_content(text(i18n.__(message)).style(settings_muted_text_style))
             .style(workflow_section_style)
             .into();
     };
@@ -636,7 +636,7 @@ fn build_editor<'a>(
         }
     }
 
-    settings_panel(
+    settings_section_content(
         column![
             text(workflow.label.as_str()).size(18),
             controls,

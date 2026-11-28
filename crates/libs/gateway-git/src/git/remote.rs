@@ -1,27 +1,36 @@
-//! 远端传输与安全快进。SSH 传输复用系统 Git 和 OpenSSH 配置。
+//! libgit2 远端传输与安全快进；不调用 Git CLI，不强推、不自动合并或 stash。
 use git2::{Cred, CredentialType, FetchOptions, PushOptions, RemoteCallbacks, Repository};
-use std::process::Stdio;
 use std::time::{Duration, Instant};
 use vw_api_git::GitRemoteAction;
 
+#[path = "remote_ssh.rs"]
+mod ssh;
+
 const NETWORK_TIMEOUT: Duration = Duration::from_secs(120);
 
-fn callbacks(deadline: Instant, config: git2::Config) -> RemoteCallbacks<'static> {
+fn callbacks(
+    deadline: Instant,
+    config: git2::Config,
+    mut ssh: ssh::Credentials,
+) -> RemoteCallbacks<'static> {
     let mut callbacks = RemoteCallbacks::new();
     let mut attempts = 0;
     callbacks.credentials(move |url, username, allowed| {
-        attempts += 1;
-        if Instant::now() > deadline || attempts > 3 {
-            return Err(git2::Error::from_str("Git authentication failed or timed out"));
+        if Instant::now() > deadline {
+            return Err(git2::Error::from_str("Git authentication timed out"));
         }
         if allowed.contains(CredentialType::SSH_KEY) {
-            return Cred::ssh_key_from_agent(username.unwrap_or("git"));
+            return ssh.next(username.unwrap_or("git"));
+        }
+        attempts += 1;
+        if attempts > 3 {
+            return Err(git2::Error::from_str("Git authentication failed"));
         }
         if allowed.contains(CredentialType::USERNAME) {
-            return Cred::username(username.unwrap_or("git"));
+            return Cred::username(username.unwrap_or_else(|| ssh.username()));
         }
         if allowed.contains(CredentialType::USER_PASS_PLAINTEXT) {
-            // HTTPS 传输复用用户配置的凭据助手。
+            // 仅复用用户配置的认证助手；仓库数据传输始终由 libgit2 完成。
             return Cred::credential_helper(&config, url, username);
         }
         if allowed.contains(CredentialType::DEFAULT) {
@@ -50,91 +59,6 @@ pub(super) fn sync(path: &str, action: GitRemoteAction) -> Result<(), String> {
     sync_inner(path, action).map_err(|error| error.to_string())
 }
 
-fn is_ssh_url(url: &[u8]) -> bool {
-    if [b"ssh://".as_slice(), b"git+ssh://", b"ssh+git://"]
-        .iter()
-        .any(|scheme| url.starts_with(scheme))
-    {
-        return true;
-    }
-    // Git 也接受 [user@]host:path。首个斜杠在冒号前时是本地路径。
-    let Some(index) = url.iter().position(|&byte| byte == b':' || byte == b'/' || byte == b'\\')
-    else {
-        return false;
-    };
-    index > 0
-        && url[index] == b':'
-        && !url[index + 1..].starts_with(b"//")
-        && !url[index + 1..].starts_with(b":")
-        && !(cfg!(windows) && index == 1 && url[0].is_ascii_alphabetic())
-}
-
-fn run_ssh_git(path: &str, args: &[&str], deadline: Instant) -> Result<(), git2::Error> {
-    let mut command = shell_command::git_tokio_command();
-    command
-        .current_dir(path)
-        .args(args)
-        .env("GIT_ALLOW_PROTOCOL", "ssh")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_VARIANT", "ssh")
-        .env("GIT_SSH_COMMAND", "ssh -oBatchMode=yes -oConnectTimeout=15")
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .kill_on_drop(true);
-    // 本函数由网关的 spawn_blocking 调用，等待子进程退出后才返回。
-    tokio::runtime::Handle::current().block_on(async {
-        let mut child = command
-            .spawn()
-            .map_err(|error| git2::Error::from_str(&format!("无法启动系统 Git：{error}")))?;
-        let status = match tokio::time::timeout_at(deadline.into(), child.wait()).await {
-            Ok(result) => result.map_err(|error| git2::Error::from_str(&error.to_string()))?,
-            Err(_) => {
-                child.kill().await.map_err(|error| git2::Error::from_str(&error.to_string()))?;
-                return Err(git2::Error::from_str("Git SSH 传输超时"));
-            }
-        };
-        if !status.success() {
-            return Err(git2::Error::from_str(
-                "Git SSH 操作失败，请检查网关主机的 SSH 配置、密钥及远端分支权限",
-            ));
-        }
-        Ok(())
-    })
-}
-
-fn has_multiple_push_urls(
-    repo: &Repository,
-    name: &str,
-    has_push_url: bool,
-) -> Result<bool, git2::Error> {
-    // 系统 Git 会向命名远端的所有推送地址写入。保留 libgit2 的单目标行为。
-    let key = if has_push_url { "pushurl" } else { "url" };
-    let config = repo.config()?;
-    let mut values = config.multivar(&format!("remote.{name}.{key}"), None)?;
-    Ok(values.next().transpose()?.is_some() && values.next().transpose()?.is_some())
-}
-
-fn fetch(
-    repo: &Repository,
-    remote: &mut git2::Remote<'_>,
-    path: &str,
-    name: &str,
-    refspecs: &[&str],
-    deadline: Instant,
-    reflog_message: &str,
-) -> Result<(), git2::Error> {
-    if is_ssh_url(remote.url_bytes()) {
-        let mut args =
-            vec!["fetch", "--no-recurse-submodules", "--no-auto-maintenance", "--", name];
-        args.extend_from_slice(refspecs);
-        return run_ssh_git(path, &args, deadline);
-    }
-    let mut options = FetchOptions::new();
-    options.remote_callbacks(callbacks(deadline, repo.config()?));
-    remote.fetch(refspecs, Some(&mut options), Some(reflog_message))
-}
-
 fn sync_inner(path: &str, action: GitRemoteAction) -> Result<(), git2::Error> {
     let repo = Repository::open(path)?;
     let snapshot =
@@ -143,11 +67,38 @@ fn sync_inner(path: &str, action: GitRemoteAction) -> Result<(), git2::Error> {
         .remote
         .as_deref()
         .ok_or_else(|| git2::Error::from_str("未找到可用远端，请先配置分支跟踪关系"))?;
-    let mut remote = repo.find_remote(name)?;
+    let remote = repo.find_remote(name)?;
+    let pushing = matches!(action, GitRemoteAction::Push);
+    let url = if pushing {
+        remote.pushurl_bytes().unwrap_or_else(|| remote.url_bytes())
+    } else {
+        remote.url_bytes()
+    };
+    let (credentials, endpoint) = ssh::settings(url)?;
+    let _endpoint_config = endpoint
+        .as_deref()
+        .map(|endpoint| ssh::override_endpoint(&repo, name, pushing, endpoint))
+        .transpose()?;
+    let mut remote = if let Some(endpoint) = endpoint {
+        let resolved = repo.find_remote(name)?;
+        let url = if pushing {
+            resolved.pushurl_bytes().unwrap_or_else(|| resolved.url_bytes())
+        } else {
+            resolved.url_bytes()
+        };
+        if url != endpoint.as_bytes() {
+            return Err(git2::Error::from_str("Git URL 重写与 SSH 主机配置冲突"));
+        }
+        resolved
+    } else {
+        remote
+    };
     let deadline = Instant::now() + NETWORK_TIMEOUT;
     match action {
         GitRemoteAction::Fetch => {
-            fetch(&repo, &mut remote, path, name, &[], deadline, "fetch from Git panel")?;
+            let mut options = FetchOptions::new();
+            options.remote_callbacks(callbacks(deadline, repo.config()?, credentials));
+            remote.fetch::<&str>(&[], Some(&mut options), Some("fetch from Git panel"))?;
         }
         GitRemoteAction::Push => {
             let branch = snapshot
@@ -158,37 +109,13 @@ fn sync_inner(path: &str, action: GitRemoteAction) -> Result<(), git2::Error> {
                 .remote_branch
                 .as_deref()
                 .ok_or_else(|| git2::Error::from_str("未配置远端分支"))?;
-            let refspec = format!("refs/heads/{branch}:refs/heads/{target}");
-            let push_url = remote.pushurl_bytes();
-            if is_ssh_url(push_url.unwrap_or_else(|| remote.url_bytes()))
-                && !has_multiple_push_urls(&repo, name, push_url.is_some())?
-            {
-                run_ssh_git(
-                    path,
-                    &[
-                        "-c",
-                        "push.autoSetupRemote=false",
-                        "-c",
-                        &format!("remote.{name}.mirror=false"),
-                        "push",
-                        "--no-verify",
-                        "--no-signed",
-                        "--no-follow-tags",
-                        "--recurse-submodules=no",
-                        "--",
-                        name,
-                        &refspec,
-                    ],
-                    deadline,
-                )?;
-            } else {
-                let mut options = PushOptions::new();
-                options.remote_callbacks(callbacks(deadline, repo.config()?));
-                remote.push(&[refspec], Some(&mut options))?;
-            }
+            let mut options = PushOptions::new();
+            options.remote_callbacks(callbacks(deadline, repo.config()?, credentials));
+            remote
+                .push(&[format!("refs/heads/{branch}:refs/heads/{target}")], Some(&mut options))?;
             if !snapshot.upstream {
-                // 仅在远端接受推送后建立上游关系。
-                let mut config = repo.config()?;
+                // 对持久配置建立上游关系，避开本次连接的应用级配置。
+                let mut config = Repository::open(path)?.config()?;
                 config.set_str(&format!("branch.{branch}.remote"), name)?;
                 config
                     .set_str(&format!("branch.{branch}.merge"), &format!("refs/heads/{target}"))?;
@@ -207,14 +134,12 @@ fn sync_inner(path: &str, action: GitRemoteAction) -> Result<(), git2::Error> {
                 .as_deref()
                 .ok_or_else(|| git2::Error::from_str("未配置远端分支"))?;
             let tracking = format!("refs/remotes/{name}/{target}");
-            fetch(
-                &repo,
-                &mut remote,
-                path,
-                name,
-                &[&format!("refs/heads/{target}:{tracking}")],
-                deadline,
-                "pull from Git panel",
+            let mut options = FetchOptions::new();
+            options.remote_callbacks(callbacks(deadline, repo.config()?, credentials));
+            remote.fetch(
+                &[format!("refs/heads/{target}:{tracking}")],
+                Some(&mut options),
+                Some("pull from Git panel"),
             )?;
             let new = repo.find_reference(&tracking)?.peel_to_commit()?.id();
             if new == old || repo.graph_descendant_of(old, new)? {

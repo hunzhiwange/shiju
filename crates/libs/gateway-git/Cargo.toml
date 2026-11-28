@@ -10,21 +10,22 @@ doctest = false
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 agent-project = { path = "../agent-project" }
 gateway-types = { path = "../gateway-types" }
-shell-command = { path = "../shell-command", features = ["shell-tokio"] }
+shell-command = { path = "../shell-command" }
 vw-api-git = { path = "../api-git" }
 vw-api-transport = { path = "../api-transport" }
 axum = { version = "0.8.8", features = ["json"] }
 base64 = "0.23"
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 similar = "2"
-tokio = { version = "1", features = ["rt", "time"] }
+ssh2-config = "0.8.3"
+tempfile = "3"
+tokio = { version = "1", features = ["rt"] }
 tracing = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 agent-project = { path = "../agent-project", features = ["test-support"] }
 worktree-core = { path = "../worktree-core" }
 git-discovery = { path = "../git-discovery" }
-tempfile = "3"
 uuid = { version = "1.11", features = ["v4", "js"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 

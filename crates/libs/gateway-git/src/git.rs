@@ -1,6 +1,6 @@
 //! 网关 Git 提交、合并、历史与远端路由（git2）。
 //!
-//! 提交、合并、历史与本地引用操作使用 libgit2，SSH 远端传输使用系统 Git。
+//! 提交、合并、历史及远端数据操作使用 libgit2；通用命令接口独立保留。
 //! 仍依赖 Git CLI、不在本计划范围的路径：`/v1/git/command`、普通 worktree 的
 //! fetch/submodule、skill clone/pull、snapshot 等。
 

@@ -59,6 +59,14 @@ pub fn object_value(source: &[u8]) -> Result<Value, PatchError> {
         .map_err(|_| PatchError::Parse)
 }
 
+/// Read JSONC with duplicate-key validation, including documents rooted at an array.
+/// Callers bound the source size before parsing.
+pub fn document_value(source: &[u8]) -> Result<Value, PatchError> {
+    let (bytes, value) = decode(source)?;
+    node(&bytes, &mut 0)?;
+    Ok(value)
+}
+
 /// Replace one root member, retaining trivia inside compatible objects and arrays.
 #[cfg(target_os = "macos")]
 pub fn replace_member_preserving_trivia(
@@ -293,13 +301,18 @@ fn parse(source: &[u8]) -> Result<Node, PatchError> {
     if source.len() > 1024 * 1024 {
         return Err(PatchError::Parse);
     }
-    let bytes = masked(source)?;
-    let strict = without_trailing_commas(&bytes);
-    let value: Value = serde_json::from_slice(&strict).map_err(|_| PatchError::Parse)?;
+    let (bytes, value) = decode(source)?;
     if !value.is_object() {
         return Err(PatchError::Shape);
     }
     node(&bytes, &mut 0)
+}
+
+fn decode(source: &[u8]) -> Result<(Vec<u8>, Value), PatchError> {
+    let bytes = masked(source)?;
+    let value =
+        serde_json::from_slice(&without_trailing_commas(&bytes)).map_err(|_| PatchError::Parse)?;
+    Ok((bytes, value))
 }
 
 /// Called only after serde_json validation (including its nesting limit).

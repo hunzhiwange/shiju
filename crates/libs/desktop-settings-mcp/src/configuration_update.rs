@@ -2,8 +2,7 @@ use crate::configuration::*;
 use crate::state::McpNewServerState;
 use iced::widget::text_editor;
 use serde_json::Value;
-const MCP_TEMPLATE: &str = r#"[
-  {
+const MCP_TEMPLATE: &str = r#"  {
     "name": "local-demo",
     "type": "stdio",
     "command": "npx",
@@ -12,8 +11,7 @@ const MCP_TEMPLATE: &str = r#"[
     "required": false,
     "timeout": 30,
     "allowedTools": []
-  }
-]"#;
+  }"#;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -74,6 +72,33 @@ fn set_validation_error(app: &mut crate::state::State, error: impl Into<McpSetti
 fn clear_edit_feedback(app: &mut crate::state::State) {
     app.save_error = None;
     app.status_message = None;
+}
+
+fn append_template(editor: &text_editor::Content) -> Result<(String, usize), McpSettingsError> {
+    let (servers, count) = editor_value(editor)?;
+    let servers = servers.as_array().expect("validated MCP server array");
+    let mut name = "local-demo".to_owned();
+    let mut suffix = 2;
+    while servers
+        .iter()
+        .any(|server| server["name"].as_str().map(str::trim) == Some(name.as_str()))
+    {
+        name = format!("local-demo-{suffix}");
+        suffix += 1;
+    }
+    let template = MCP_TEMPLATE.replacen("local-demo", &name, 1);
+
+    let mut text = editor.text();
+    if text.trim().is_empty() {
+        text.push_str("[]");
+    }
+    // Insert at the end of the array while preserving the existing draft's text.
+    let before_close = text.trim_end().strip_suffix(']').expect("validated JSON array");
+    let insertion_point = before_close.trim_end().len();
+    let separator = if count == 0 { "\n" } else { ",\n" };
+    let newline = if before_close[insertion_point..].contains('\n') { "" } else { "\n" };
+    text.insert_str(insertion_point, &format!("{separator}{template}{newline}"));
+    Ok((text, count + 1))
 }
 
 /// 处理 `McpMessage` 对应的刷新、编辑和保存流程。
@@ -228,9 +253,15 @@ pub fn update(app: &mut crate::state::State, message: Message) -> Effect {
             }
         },
         Message::InsertTemplate => {
-            app.editor = text_editor::Content::with_text(MCP_TEMPLATE);
-            app.server_count = 1;
-            clear_edit_feedback(app);
+            match append_template(&app.editor) {
+                Ok((text, count)) => {
+                    app.editor = text_editor::Content::with_text(&text);
+                    app.server_count = count;
+                    app.delete_pending = None;
+                    clear_edit_feedback(app);
+                }
+                Err(error) => set_validation_error(app, error),
+            }
             Effect::None
         }
         Message::NewServerPanelToggled => {

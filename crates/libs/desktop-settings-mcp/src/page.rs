@@ -157,13 +157,16 @@ fn search_toolbar<'a, Message: Clone + 'a>(
     search: Element<'a, Message>,
     actions: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    row![
-        container(container(search).max_width(340)).width(Length::FillPortion(2)),
-        container(actions).align_right(Length::FillPortion(2)),
-    ]
-    .width(Length::Fill)
-    .spacing(10)
-    .align_y(Alignment::Center)
+    settings_group_card(
+        row![
+            container(container(search).max_width(340)).width(Length::FillPortion(2)),
+            container(actions).align_right(Length::FillPortion(3)),
+        ]
+        .width(Length::Fill)
+        .spacing(12)
+        .align_y(Alignment::Center),
+    )
+    .padding([12, 16])
     .into()
 }
 
@@ -172,7 +175,7 @@ pub fn view<'a, Message: Clone + 'static>(
     event: fn(McpMessage) -> Message,
     s: &'a State,
     locale: DesktopLocale,
-    transfer_panel: Element<'a, Message>,
+    transfer_actions: Vec<Element<'a, Message>>,
     extensions_panel: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let i18n = I18n::new(locale);
@@ -189,8 +192,9 @@ pub fn view<'a, Message: Clone + 'static>(
             s.active_tab
         )))
         .wrap(),
+        settings_divider(),
     ]
-    .spacing(18)
+    .spacing(14)
     .width(Length::Fill);
 
     if let Some(message) = &s.status_message {
@@ -312,36 +316,42 @@ pub fn view<'a, Message: Clone + 'static>(
         }
         McpSettingsTab::Json => {
             let edit_enabled = !s.loading && !s.saving && !s.transfer_pending;
-            content = content
-                .push(
-                    row![
-                        toolbar_button(
-                            tr(locale, "格式化"),
-                            edit_enabled.then(|| event(McpMessage::Format)),
-                        ),
-                        toolbar_button(
-                            tr(locale, "插入模板"),
-                            edit_enabled.then(|| event(McpMessage::InsertTemplate)),
-                        ),
-                        refresh,
-                        button(text(tr(locale, save_label)).size(13))
-                            .padding([9, 14])
-                            .style(primary_action_btn_style)
-                            .on_press_maybe(save),
-                    ]
-                    .spacing(8)
-                    .align_y(Alignment::Center)
-                    .wrap(),
-                )
-                .push(
-                    settings_group_card(
+            content = content.push(
+                settings_group_card(
+                    column![
+                        row![refresh]
+                            .extend(transfer_actions)
+                            .spacing(8)
+                            .align_y(Alignment::Center)
+                            .wrap(),
                         settings_text_editor(&s.editor)
                             .on_action(move |action| event(McpMessage::EditorAction(action)))
                             .height(Length::Fixed(360.0)),
-                    )
-                    .padding([12, 14]),
+                        container(
+                            row![
+                                toolbar_button(
+                                    tr(locale, "格式化"),
+                                    edit_enabled.then(|| event(McpMessage::Format)),
+                                ),
+                                toolbar_button(
+                                    tr(locale, "插入模板"),
+                                    edit_enabled.then(|| event(McpMessage::InsertTemplate)),
+                                ),
+                                toolbar_button(tr(locale, save_label), save)
+                                    .style(primary_action_btn_style),
+                            ]
+                            .spacing(8)
+                            .align_y(Alignment::Center)
+                            .wrap()
+                            .align_x(iced::alignment::Horizontal::Right),
+                        )
+                        .align_right(Length::Fill),
+                    ]
+                    .spacing(12)
+                    .width(Length::Fill),
                 )
-                .push(transfer_panel);
+                .padding([14, 16]),
+            );
         }
         McpSettingsTab::Extensions => {
             content = content.push(extensions_panel);

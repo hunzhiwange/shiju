@@ -39,6 +39,37 @@ startup_timeout_sec = 15
 }
 
 #[test]
+fn imports_markdown_wrapped_jsonc_and_codex_toml() {
+    let mut state = State::default();
+    let jsonc = concat!(
+        "\u{feff}\n",
+        r#"```jsonc
+{
+    // Cursor MCP configuration
+    "mcpServers": {
+        "docs": { "url": "https://example.com/mcp", },
+    },
+}
+```"#,
+    );
+    let toml = "~~~TOML\r\n[mcp_servers.local]\r\ncommand = 'example'\r\n~~~\r\n";
+
+    assert_eq!(stage_import(&mut state, jsonc).unwrap(), (1, 0));
+    assert_eq!(stage_import(&mut state, toml).unwrap(), (1, 0));
+    let (servers, count) = editor_value(&state.editor).unwrap();
+    assert_eq!(count, 2);
+    assert_eq!(servers[0]["url"], "https://example.com/mcp");
+    assert_eq!(servers[1]["command"], "example");
+    assert_eq!(servers[0]["enabled"], false);
+    assert_eq!(servers[1]["enabled"], false);
+
+    let incomplete = jsonc.strip_suffix("```").unwrap();
+    let draft = state.editor.text();
+    assert!(stage_import(&mut state, incomplete).is_err());
+    assert_eq!(state.editor.text(), draft);
+}
+
+#[test]
 fn backup_round_trip_keeps_server_fields_and_invalid_import_keeps_editor() {
     let mut original = State::default();
     let source = r#"[{"name":"native","type":"stdio","command":"example",

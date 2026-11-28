@@ -78,10 +78,9 @@ pub fn settings_help_copy_state(
         (Icon::Copy, "复制帮助")
     }
 }
-pub fn settings_hover_help_label<'a, Message: Clone + 'static>(
-    label: Text<'a>,
+pub fn settings_hover_help<'a, Message: Clone + 'static>(
     content: Element<'a, Message>,
-) -> Row<'a, Message> {
+) -> Element<'a, Message> {
     let icon = mouse_area(
         container(icon_svg(Icon::QuestionCircle, 14.0).style(settings_close_icon_style))
             .center_x(22)
@@ -96,9 +95,14 @@ pub fn settings_hover_help_label<'a, Message: Clone + 'static>(
         },
         ..icon_btn_tooltip_style(theme)
     });
-    row![label, SideOverlay::new(icon, card).hover_and_click().gap(4.0).min_y(8.0)]
-        .spacing(4)
-        .align_y(Alignment::Center)
+    SideOverlay::new(icon, card).hover_and_click().gap(4.0).min_y(8.0).into()
+}
+
+pub fn settings_hover_help_label<'a, Message: Clone + 'static>(
+    label: Text<'a>,
+    content: Element<'a, Message>,
+) -> Row<'a, Message> {
+    row![label, settings_hover_help(content)].spacing(4).align_y(Alignment::Center)
 }
 pub fn with_settings_help_modal<'a, Message: Clone + 'static>(
     base: Element<'a, Message>,

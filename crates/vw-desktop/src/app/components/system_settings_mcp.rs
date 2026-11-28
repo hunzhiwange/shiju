@@ -103,34 +103,31 @@ fn catalog_event(value: catalog::Message) -> Message {
         catalog::Message::Import => import::message(import::ImportMessage::Open),
     }
 }
-fn configuration_transfer_panel(app: &App) -> Element<'_, Message> {
+fn configuration_transfer_actions(app: &App) -> Vec<Element<'_, Message>> {
     let i18n = desktop_i18n::I18n::new(app.general_settings.desktop_locale);
     use crate::app::message::settings::mcp::transfer::message;
     use desktop_settings_mcp::{configuration_transfer::Message as Event, toolbar_button};
-    use desktop_ui_controls::system_settings_common::settings_muted_text_style;
-    use iced::widget::{column, row, text};
+    use desktop_ui_controls::system_settings_common::help::settings_hover_help;
+    use iced::widget::{text, text::Wrapping};
 
     let state = &app.mcp_settings.page;
     let ready = !state.loading && !state.saving && !state.transfer_pending;
-    let mut actions = row![].spacing(8);
+    let mut actions = Vec::new();
     if cfg!(not(target_arch = "wasm32")) {
-        actions = actions
-            .push(toolbar_button(i18n.__("导入配置文件"), ready.then(|| message(Event::Import))))
-            .push(toolbar_button(i18n.__("导出 JSON 备份"), ready.then(|| message(Event::Export))));
-    }
-    actions = actions.push(toolbar_button(
-        i18n.__("粘贴配置 JSON"),
-        ready.then(|| message(Event::Paste)),
-    ));
-    let mut panel = column![actions.wrap()].spacing(6);
-    if cfg!(not(target_arch = "wasm32")) {
-        panel = panel.push(
-            text(i18n.__("支持 Codex config.toml、Claude Code .mcp.json、Cursor mcp.json 和识矩全局 MCP 备份。导入后检查草稿并保存。备份包含编辑器中的全局服务器配置，可能含有凭据。"))
-                .size(12)
-                .style(settings_muted_text_style),
+        actions.push(
+            toolbar_button(i18n.__("导入配置文件"), ready.then(|| message(Event::Import))).into(),
         );
+        actions.push(
+            toolbar_button(i18n.__("导出 JSON 备份"), ready.then(|| message(Event::Export))).into(),
+        );
+        actions.push(settings_hover_help(
+            text(i18n.__("支持 Codex config.toml、Claude Code .mcp.json、Cursor mcp.json 和识矩全局 MCP 备份。导入后检查草稿并保存。备份包含编辑器中的全局服务器配置，可能含有凭据。"))
+                .size(13)
+                .wrapping(Wrapping::WordOrGlyph)
+                .into(),
+        ));
     }
-    panel.into()
+    actions
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -362,7 +359,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         event,
         &app.mcp_settings.page,
         app.general_settings.desktop_locale,
-        configuration_transfer_panel(app),
+        configuration_transfer_actions(app),
         extensions_panel(app),
     )
 }

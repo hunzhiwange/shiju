@@ -81,7 +81,7 @@ pub(super) mod mcp {
             Message::Mcp,
             &app.mcp_settings,
             app.desktop_locale,
-            iced::widget::Space::new().into(),
+            Vec::new(),
             iced::widget::Space::new().into(),
         )
     }

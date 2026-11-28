@@ -17,7 +17,7 @@ fn view(s: &crate::state::State) -> iced::Element<'_, crate::page::McpMessage> {
         std::convert::identity,
         s,
         config_ui::DesktopLocale::SimplifiedChinese,
-        iced::widget::Space::new().into(),
+        Vec::new(),
         iced::widget::Space::new().into(),
     )
 }

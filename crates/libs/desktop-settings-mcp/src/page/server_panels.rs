@@ -2,8 +2,8 @@
 use super::*;
 use desktop_assets::assets::Icon;
 use iced::alignment::Horizontal;
-use iced::widget::text::Wrapping;
 use iced::widget::column;
+use iced::widget::text::Wrapping;
 
 fn muted<'a>(value: impl Into<String>) -> iced::widget::Text<'a> {
     text(value.into()).size(12).style(settings_muted_text_style).wrapping(Wrapping::WordOrGlyph)
@@ -29,14 +29,16 @@ pub(super) fn server_list<'a, Message: Clone + 'static>(
     empty_label: &'static str,
 ) -> Element<'a, Message> {
     let mut entries = entries.into_iter().peekable();
-    let mut list = column![
-        container(record(muted(tr(locale, "名称")), muted(tr(locale, "操作")),)).padding([12, 0])
-    ];
     if entries.peek().is_none() {
-        list = list
-            .push(settings_divider())
-            .push(container(muted(tr(locale, empty_label))).padding([18, 0]));
+        return settings_group_card(
+            container(muted(tr(locale, empty_label))).center_x(Length::Fill),
+        )
+        .padding([28, 16])
+        .into();
     }
+    let mut list = column![
+        container(record(muted(tr(locale, "名称")), muted(tr(locale, "操作")))).padding([12, 0])
+    ];
     for entry in entries {
         list = list.push(settings_divider()).push(entry);
     }

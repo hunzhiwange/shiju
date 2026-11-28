@@ -204,6 +204,28 @@ fn template_panel_and_form_messages_update_local_new_server_state() {
 }
 
 #[test]
+fn template_appends_to_existing_json_and_preserves_invalid_drafts() {
+    let mut app = app();
+    let existing = r#"{ "name": "local-demo", "command": "npx", "enabled": false }"#;
+    app.editor = text_editor::Content::with_text(&format!("[{existing}]"));
+
+    let effect = update(&mut app, McpMessage::InsertTemplate);
+    assert!(matches!(effect, crate::configuration_update::Effect::None));
+    let text = app.editor.text();
+    assert!(text.starts_with(&format!("[{existing},")));
+    let servers: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(servers[1]["name"], "local-demo-2");
+    assert_eq!(app.server_count, 2);
+
+    app.editor = text_editor::Content::with_text(r#"[{"name":"unfinished""#);
+    let before = app.editor.text();
+    let _ = update(&mut app, McpMessage::InsertTemplate);
+    assert_eq!(app.editor.text(), before);
+    assert_eq!(app.server_count, 2);
+    assert!(app.save_error.is_some());
+}
+
+#[test]
 fn save_and_toggle_messages_set_saving_or_report_validation_errors() {
     let mut app = app();
     app.editor =

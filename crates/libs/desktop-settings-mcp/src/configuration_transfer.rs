@@ -71,14 +71,15 @@ fn parse(source: &str) -> Result<Value, String> {
     if source.len() > MAX_FILE_BYTES {
         return Err("MCP 配置超过 8 MiB".into());
     }
-    let source = source.trim_start_matches('\u{feff}').trim();
-    let root: Value = match serde_json::from_str(source) {
-        Ok(root) => root,
-        Err(_) => {
-            let table: toml::Table =
-                toml::from_str(source).map_err(|_| "无法解析 MCP JSON 或 Codex TOML")?;
-            serde_json::to_value(table).map_err(|_| "无法转换 Codex TOML")?
-        }
+    let source = source.trim_start().trim_start_matches('\u{feff}').trim();
+    let source = configuration_code_block(source).unwrap_or(source);
+    let root: Value = if let Ok(root) = serde_json::from_str(source) {
+        root
+    } else if let Ok(table) = toml::from_str::<toml::Table>(source) {
+        serde_json::to_value(table).map_err(|_| "无法转换 Codex TOML")?
+    } else {
+        app_config_patch::patch_json::document_value(source.as_bytes())
+            .map_err(|_| "无法解析 MCP JSON 或 Codex TOML，请检查配置语法后重试")?
     };
     let entries = if root.is_array() {
         &root
@@ -100,6 +101,24 @@ fn parse(source: &str) -> Result<Value, String> {
         })
         .collect::<Result<Vec<_>, _>>()
         .map(Value::Array)
+}
+
+fn configuration_code_block(source: &str) -> Option<&str> {
+    let (opening, rest) = source.split_once('\n')?;
+    let marker = *opening.as_bytes().first()?;
+    if !matches!(marker, b'`' | b'~') {
+        return None;
+    }
+    let fence_len = opening.bytes().take_while(|&byte| byte == marker).count();
+    let language = opening[fence_len..].trim();
+    if fence_len < 3
+        || !["", "json", "jsonc", "toml"].iter().any(|tag| language.eq_ignore_ascii_case(tag))
+    {
+        return None;
+    }
+    let (body, closing) = rest.rsplit_once('\n')?;
+    let closing = closing.trim();
+    (closing.len() >= fence_len && closing.bytes().all(|byte| byte == marker)).then(|| body.trim())
 }
 
 fn external_entry(name: &str, entry: &Value) -> Result<Value, &'static str> {

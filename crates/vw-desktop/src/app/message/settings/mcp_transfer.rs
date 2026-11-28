@@ -132,7 +132,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
 async fn import_file(i18n: desktop_i18n::I18n) -> Result<Option<String>, String> {
     let Some(file) = rfd::AsyncFileDialog::new()
         .set_title(i18n.__("导入 MCP 配置"))
-        .add_filter(i18n.__("MCP 配置"), &["json", "toml"])
+        .add_filter(i18n.__("MCP 配置"), &["json", "jsonc", "toml"])
         .pick_file()
         .await
     else {

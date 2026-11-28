@@ -4,7 +4,7 @@
 type SessionRuntimeState = super::SessionRuntimeState<()>;
 use crate::session::active::StepUiMeta;
 use super::{
-    clear_pending_guide_handoff, mark_pending_guide_handoff, take_pending_guide_handoff,
+    clear_pending_guide_handoff, has_pending_guide_handoff, mark_pending_guide_handoff,
 };
 use session_ui_types::ChatSessionStep;
 use crate::message::chat::request::AcpHistoryReplayMode;
@@ -47,25 +47,27 @@ fn session_runtime_defaults_to_normal_approval() {
 }
 
 #[test]
-fn pending_guide_handoff_is_consumed_once() {
+fn pending_guide_handoff_stays_marked_until_the_desktop_clears_it() {
     let request_id = unique_request_id();
     clear_pending_guide_handoff(request_id);
 
     mark_pending_guide_handoff(request_id);
     mark_pending_guide_handoff(request_id);
 
-    assert!(take_pending_guide_handoff(request_id));
-    assert!(!take_pending_guide_handoff(request_id));
+    assert!(has_pending_guide_handoff(request_id));
+    assert!(has_pending_guide_handoff(request_id));
+    clear_pending_guide_handoff(request_id);
+    assert!(!has_pending_guide_handoff(request_id));
 }
 
 #[test]
-fn clearing_pending_guide_handoff_prevents_consumption() {
+fn clearing_pending_guide_handoff_removes_the_marker() {
     let request_id = unique_request_id();
     mark_pending_guide_handoff(request_id);
 
     clear_pending_guide_handoff(request_id);
 
-    assert!(!take_pending_guide_handoff(request_id));
+    assert!(!has_pending_guide_handoff(request_id));
 }
 
 #[test]

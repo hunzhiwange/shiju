@@ -1402,6 +1402,7 @@ fn processing_timing_post_tool_round_closes_old_cycle_and_starts_new_cycle() {
     let runtime = app.get_session_runtime_mut(&session_id);
     runtime.request_lifecycle.is_requesting = true;
     runtime.request_lifecycle.active_agent_request = Some(agent_request(44, &session_id));
+    runtime.request_lifecycle.queue.push(queue_item(ChatSendBehavior::Guide));
 
     let _ = super::handle_agent_post_tool_round(&mut app, 44, session_id.clone(), 1);
 

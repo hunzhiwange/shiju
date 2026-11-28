@@ -140,7 +140,6 @@ pub(super) fn utf8_prefix_at_most(value: &str, max_bytes: usize) -> usize {
 pub(super) enum GatewayStreamStopReason {
     Backpressure,
     Cancelled,
-    PostToolRoundHandoff,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -148,7 +147,6 @@ pub(super) enum GatewayStreamNext {
     Terminal,
     Retry(std::time::Duration),
     Cancelled,
-    PostToolRoundHandoff,
     Failed(String),
 }
 
@@ -187,9 +185,6 @@ impl GatewayReconnectState {
 
         match stop_reason {
             Some(GatewayStreamStopReason::Cancelled) => return GatewayStreamNext::Cancelled,
-            Some(GatewayStreamStopReason::PostToolRoundHandoff) => {
-                return GatewayStreamNext::PostToolRoundHandoff;
-            }
             Some(GatewayStreamStopReason::Backpressure) => {
                 return GatewayStreamNext::Retry(self.take_retry_delay());
             }

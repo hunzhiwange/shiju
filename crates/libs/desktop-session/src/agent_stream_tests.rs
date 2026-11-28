@@ -2549,6 +2549,43 @@ fn recovery_notice_gateway_payload_keeps_request_and_rejects_other_session() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
+async fn pending_guide_handoff_keeps_streaming_until_desktop_releases_request() {
+    use iced::futures::StreamExt;
+    use std::time::Duration;
+    use super::StreamMessage;
+    use crate::session::agent::{clear_pending_guide_handoff, mark_pending_guide_handoff};
+
+    let mut request = sample_agent_request(false, false, None);
+    request.id = 78_001;
+    let (endpoint, server) = spawn_workflow_stream_response(
+        "200 OK",
+        concat!(
+            "id: 1\ndata: {\"type\":\"chat.post_tool_round\",\"step_index\":1}\n\n",
+            "id: 2\ndata: {\"type\":\"chat.delta\",\"delta\":\"background reply\"}\n\n",
+            "id: 3\ndata: {\"type\":\"chat.done\",\"message_id\":\"assistant-id\"}\n\n",
+        ).into(),
+    );
+    let config = desktop_config::ConfigAccess::new(
+        gateway_endpoint::GatewayEndpoint::new("127.0.0.1", 1), None,
+    );
+    mark_pending_guide_handoff(request.id);
+    let output = tokio::time::timeout(
+        Duration::from_secs(5),
+        super::agent_stream(&request, config, endpoint).collect::<Vec<_>>(),
+    ).await;
+    clear_pending_guide_handoff(request.id);
+    let output = output.expect("gateway should finish the original stream");
+    server.join().unwrap();
+
+    assert!(output.iter().any(|event| matches!(event, StreamMessage::AgentPostToolRound(78_001, _, 1))));
+    assert!(output.iter().any(|event| matches!(
+        event, StreamMessage::AgentStreamDelta(78_001, reply) if reply == "background reply"
+    )));
+    assert!(matches!(output.last(), Some(StreamMessage::AgentStreamDone(78_001, ..))));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
 async fn desktop_first_response_disconnect_replays_the_same_request_and_session() {
     use {vw_gateway_client::GatewayClient};
 use gateway_chat_stream::{GatewayChatStreamEvent, GatewayChatStreamRequest};

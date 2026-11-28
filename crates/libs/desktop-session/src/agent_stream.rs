@@ -794,7 +794,6 @@ fn gateway_agent_stream(
                                 gateway_chat_stream::GatewayChatStreamEvent::Done { .. }
                                     | gateway_chat_stream::GatewayChatStreamEvent::Error(_)
                             );
-                            let mut handoff = false;
 
                             let next_message = match event {
                                 gateway_chat_stream::GatewayChatStreamEvent::Delta(delta) => {
@@ -958,12 +957,11 @@ fn gateway_agent_stream(
                                                 ))
                                         }
                                         "chat.post_tool_round" => {
-                                            if !crate::session::agent::take_pending_guide_handoff(
+                                            if !crate::session::agent::has_pending_guide_handoff(
                                                 req.id,
                                             ) {
                                                 None
                                             } else {
-                                                handoff = true;
                                                 let step_index = payload
                                                     .get("step_index")
                                                     .and_then(serde_json::Value::as_u64)
@@ -993,13 +991,7 @@ fn gateway_agent_stream(
                                     if terminal_event {
                                         stream_done = true;
                                     }
-                                    if handoff {
-                                        stop_reason =
-                                            Some(GatewayStreamStopReason::PostToolRoundHandoff);
-                                        false
-                                    } else {
-                                        true
-                                    }
+                                    true
                                 }
                                 Err(err) => {
                                     debug!(
@@ -1045,15 +1037,6 @@ fn gateway_agent_stream(
                             last_event_id = reconnect.last_event_id,
                             last_plan_run_event,
                             "gateway agent stream cancelled by UI subscription drop"
-                        );
-                        return;
-                    }
-                    GatewayStreamNext::PostToolRoundHandoff => {
-                        debug!(
-                            target: "vw_desktop",
-                            request_id = req.id,
-                            attempt,
-                            "gateway agent stream stopped after post-tool-round handoff"
                         );
                         return;
                     }

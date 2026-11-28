@@ -86,9 +86,9 @@ fn queue_guide_removes_item_and_dispatches_with_stop_and_send() {
 
     assert_eq!(runtime.request_lifecycle.queue.len(), 1);
     assert_eq!(runtime.request_lifecycle.queue[0].query, "waiting");
-    assert!(!crate::session::agent::take_pending_guide_handoff(42));
+    assert!(!crate::session::agent::has_pending_guide_handoff(42));
 
     update_queue(&mut runtime.request_lifecycle.queue, QueueAction::Guide(9));
     assert_eq!(runtime.request_lifecycle.queue.len(), 1);
-    assert!(!crate::session::agent::take_pending_guide_handoff(42));
+    assert!(!crate::session::agent::has_pending_guide_handoff(42));
 }

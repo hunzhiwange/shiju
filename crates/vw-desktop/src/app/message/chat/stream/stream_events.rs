@@ -1112,9 +1112,6 @@ pub(super) fn handle_agent_post_tool_round(
         return Task::none();
     }
 
-    let _ = flush_agent_stream_delta(app, session_id.clone());
-    clear_agent_stream_session_save_flush(app, &session_id);
-
     let runtime = app.get_session_runtime(&session_id);
     if runtime.draft.is_some() {
         return Task::none();
@@ -1125,6 +1122,13 @@ pub(super) fn handle_agent_post_tool_round(
         return Task::none();
     };
     let insert_idx = leading_guide_count(&runtime.request_lifecycle.queue);
+    if insert_idx == 0 {
+        return Task::none();
+    }
+    crate::app::state::clear_pending_guide_handoff(id);
+    let _ = flush_agent_stream_delta(app, session_id.clone());
+    clear_agent_stream_session_save_flush(app, &session_id);
+
     let completed_ms = now_ms();
     let elapsed = {
         let runtime = app.get_session_runtime_mut(&session_id);

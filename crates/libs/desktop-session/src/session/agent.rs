@@ -15,10 +15,10 @@ pub fn mark_pending_guide_handoff(request_id: u64) {
     pending.insert(request_id);
 }
 
-pub fn take_pending_guide_handoff(request_id: u64) -> bool {
-    let mut pending =
+pub fn has_pending_guide_handoff(request_id: u64) -> bool {
+    let pending =
         GUIDE_HANDOFF_REQUEST_IDS.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-    pending.remove(&request_id)
+    pending.contains(&request_id)
 }
 
 pub fn clear_pending_guide_handoff(request_id: u64) {
